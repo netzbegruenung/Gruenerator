@@ -55,7 +55,21 @@ function row(over: Partial<Record<string, string | number>> = {}) {
     ops: 0,
     energyWms: 0,
     emissionsUg: 0,
+    measuredRequests: 0,
+    measuredInputTokens: 0,
+    measuredOutputTokens: 0,
     ...over,
+  };
+}
+
+/** A row whose every call reported its footprint. */
+function measured(over: Partial<Record<string, string | number>> = {}) {
+  const base = row(over);
+  return {
+    ...base,
+    measuredRequests: base.requests,
+    measuredInputTokens: base.inputTokens,
+    measuredOutputTokens: base.outputTokens,
   };
 }
 
@@ -181,13 +195,64 @@ describe('footprint band', () => {
   ];
 
   it('collapses to a single value where the provider measured it', async () => {
-    selectQueue = [...eligible(), [row({ energyWms: 3_600_000, emissionsUg: 1_000_000 })]];
+    selectQueue = [...eligible(), [measured({ energyWms: 3_600_000, emissionsUg: 1_000_000 })]];
 
     const stats = await computePlatformUsageStats(30, null);
 
     expect(stats.footprint.energy_wh).toBeCloseTo(1, 6);
     expect(stats.footprint.energy_wh_low).toBeCloseTo(stats.footprint.energy_wh, 6);
     expect(stats.footprint.measured_share).toBeCloseTo(1, 6);
+  });
+
+  it('estimates the calls a partly measured row carries without a measurement', async () => {
+    // #3544: a streamed Melious call reports no impact but shares its row with a
+    // non-streamed one that did. Its tokens must be estimated, not booked at zero.
+    const unmeasuredPart = { requests: 4, inputTokens: 2000, outputTokens: 400 };
+    selectQueue = [...eligible(), [row(unmeasuredPart)]];
+    const estimateOnly = (await computePlatformUsageStats(30, null)).footprint.energy_wh;
+
+    selectQueue = [
+      ...eligible(),
+      [
+        row({
+          energyWms: 3_600_000,
+          emissionsUg: 1_000_000,
+          measuredRequests: 6,
+          measuredInputTokens: 3000,
+          measuredOutputTokens: 600,
+        }),
+      ],
+    ];
+    const { footprint } = await computePlatformUsageStats(30, null);
+
+    expect(estimateOnly).toBeGreaterThan(0);
+    expect(footprint.energy_wh).toBeCloseTo(1 + estimateOnly, 6);
+    expect(footprint.measured_share).toBeCloseTo(1 / (1 + estimateOnly), 6);
+    expect(footprint.calibrated_share).toBeCloseTo(estimateOnly / (1 + estimateOnly), 6);
+  });
+
+  it('never estimates a negative remainder where the meter saw more than was booked', async () => {
+    // Rerank books no tokens of its own, only the measured impact.
+    selectQueue = [
+      ...eligible(),
+      [
+        row({
+          model: 'green-rerank',
+          requests: 0,
+          inputTokens: 0,
+          outputTokens: 0,
+          energyWms: 3_600_000,
+          emissionsUg: 1_000_000,
+          measuredRequests: 1,
+          measuredInputTokens: 800,
+        }),
+      ],
+    ];
+
+    const { footprint } = await computePlatformUsageStats(30, null);
+
+    expect(footprint.energy_wh).toBeCloseTo(1, 6);
+    expect(footprint.measured_share).toBeCloseTo(1, 6);
   });
 
   it('opens up where a lane is valued by bound rather than by meter', async () => {
@@ -222,7 +287,7 @@ describe('footprint band', () => {
     selectQueue = [
       ...eligible(),
       [
-        row({ energyWms: 3_600_000, emissionsUg: 1_000_000 }),
+        measured({ energyWms: 3_600_000, emissionsUg: 1_000_000 }),
         row({ model: 'pixtral-large-latest', provider: 'regolo' }),
         row({ model: 'mistral-small-3.2-24b-instruct-2506', provider: 'mistral' }),
         row({ provider: 'bfl', model: 'flux-2-pro', unit: 'images', ops: 1, requests: 0 }),
@@ -324,7 +389,7 @@ describe('cacheability', () => {
     [
       'a mix of measured, bound and unvalued rows',
       [
-        row({ energyWms: 1_000_000, emissionsUg: 5_000 }),
+        measured({ energyWms: 1_000_000, emissionsUg: 5_000 }),
         row({ provider: 'regolo', model: 'pixtral-large-latest' }),
         row({ provider: 'linkup', model: 'deep', unit: 'searches', ops: 2, requests: 0 }),
       ],
