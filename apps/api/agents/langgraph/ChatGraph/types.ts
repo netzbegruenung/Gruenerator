@@ -652,6 +652,12 @@ export interface ChatGraphState {
    * notebook pins the tool on it; the tool resolves the same id itself.
    */
   threadNotebookId?: string | null;
+  /**
+   * Präzisionsmodus der Notebook-Seite: `notebook_quellen` darf nur diese
+   * Notebooks öffnen (verglichen nach `resolveSystemCollection`), und mit
+   * `readOnly` keine Schreibaktion ausführen. Fehlt ⇒ keine Einschränkung.
+   */
+  notebookScopeLock?: { ids: string[]; readOnly: boolean } | null;
   /** Last user text with mention tokens fully REMOVED — for regex heuristics
    *  that would false-positive on labels ("Bild generieren"). The messages on
    *  state carry the label form ("@Label") instead. */

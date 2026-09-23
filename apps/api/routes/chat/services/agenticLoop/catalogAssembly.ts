@@ -167,11 +167,16 @@ export async function assembleToolCatalog(
     /** Suchfamilie auf die Picker-Auswahl eines gebundenen Agenten beschränken
      *  (siehe `buildChatToolCatalog.searchToolKeys`). */
     searchToolKeys?: readonly string[];
+    /** Nur diese Werkzeuge montieren (siehe `buildChatToolCatalog.toolAllowlist`),
+     *  auch unter MCP, `rezept_laden` und `ask_human`. */
+    toolAllowlist?: readonly string[];
     threadId: string | null;
   },
   deps: CatalogDeps = defaultDeps
 ): Promise<AssembledCatalog> {
-  const { state, sourceRegistry, sse, req, disableMcp, searchToolKeys, threadId } = params;
+  const { state, sourceRegistry, sse, req, disableMcp, searchToolKeys, toolAllowlist, threadId } =
+    params;
+  const allowed = (name: string): boolean => !toolAllowlist || toolAllowlist.includes(name);
   const agentConfig = state.agentConfig;
 
   // Vor dem Werkzeugkatalog angelegt, obwohl `rezept_laden` erst weiter unten
@@ -187,6 +192,7 @@ export async function assembleToolCatalog(
     recipeRegistry,
     loop: { sse, state, ...(req && { req }), threadId },
     ...(searchToolKeys?.length ? { searchToolKeys } : {}),
+    ...(toolAllowlist ? { toolAllowlist } : {}),
   });
 
   // Phase 2: an `mcp` turn also mounts the user's connected MCP server tools
@@ -286,7 +292,8 @@ export async function assembleToolCatalog(
     !state.activeSkillMention &&
     !state.activeRecipeId &&
     (!state.customSystemPrompt || state.roleBausteinActive) &&
-    state.enabledTools?.['rezept_laden'] !== false
+    state.enabledTools?.['rezept_laden'] !== false &&
+    allowed('rezept_laden')
   ) {
     recipeCatalog = await deps.buildRecipeCatalog({
       userLocale: state.userLocale,
@@ -318,8 +325,14 @@ export async function assembleToolCatalog(
   // Klärung, die der Client nicht fortsetzen kann, ist schlechter als keine
   // (dasselbe Gate wie `clarificationStage`). Der Aufruf wird in `wrapTools`
   // abgefangen, nie ausgeführt.
-  if (threadId != null && isLoopAskHumanEnabled()) {
+  if (threadId != null && isLoopAskHumanEnabled() && allowed('ask_human')) {
     tools.ask_human = makeAskHumanTool();
+  }
+
+  // MCP- und verwaltete Werkzeuge kamen nach dem Katalog dazu; die Liste gilt
+  // auch für sie. Der Präzisionsmodus lädt sie gar nicht erst (`disableMcp`).
+  if (toolAllowlist) {
+    for (const name of Object.keys(tools)) if (!allowed(name)) delete tools[name];
   }
 
   // Tool-card labels for BOTH catalogs (user connectors + system sources).

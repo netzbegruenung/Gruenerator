@@ -5,7 +5,7 @@
  * Delegates to the shared notebookStreamCore for SSE streaming logic.
  */
 
-import { notebookDepthSchema } from '@gruenerator/contracts';
+import { notebookAnswerModeSchema, notebookDepthSchema } from '@gruenerator/contracts';
 import { z } from 'zod';
 
 import { requireAiConsent } from '../../middleware/requireAiConsent.js';
@@ -14,10 +14,14 @@ import { memoryService } from '../../services/memory/index.js';
 import { withRetry } from '../../services/search/searchRetryStrategy.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { ThreadId, UserId } from '../../utils/types/branded.js';
 import { withTimeout } from '../../utils/withTimeout.js';
 
 import { handleNotebookStream } from './notebookStreamCore.js';
+import { resolveNotebookAnswerMode } from './services/notebookAnswerModeResolver.js';
+import { runNotebookPraezisionTurn } from './services/notebookPraezisionTurn.js';
 import { createSSEStream, sendChatWarning } from './services/sseHelpers.js';
+import { canWriteThread } from './services/threadAccessService.js';
 import {
   getUser,
   createThread,
@@ -25,6 +29,7 @@ import {
   touchThread,
 } from './services/threadPersistenceService.js';
 
+import type { UserLocale } from '../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
 
 /**
@@ -51,6 +56,8 @@ const notebookStreamRequestSchema = z.object({
   filters: z.record(z.unknown()).optional(),
   model: z.string().optional(),
   mode: notebookDepthSchema.optional(),
+  /** Antwortmodus; fehlt ⇒ `chat` (alte Clients, Eval, Grün-O-Mat). */
+  answerMode: notebookAnswerModeSchema.optional(),
   documentIds: z.array(z.string()).optional(),
   threadId: z.string().nullable().optional(),
 });
@@ -102,6 +109,7 @@ router.post(
       filters,
       model,
       mode,
+      answerMode,
       documentIds,
       threadId: existingThreadId,
     } = req.body;
@@ -112,7 +120,16 @@ router.post(
       : null;
     const userText = typeof lastUserMessage?.content === 'string' ? lastUserMessage.content : '';
 
-    let threadId: string | null = existingThreadId ?? null;
+    // Die id kommt vom Client: ein fremder oder gelöschter Thread wird nie
+    // weiterbenutzt (der Präzisionsmodus liest über sie Werkzeugschritte und
+    // Quellen) — wie in `streamContext` gibt es dann einen frischen.
+    let threadId: string | null =
+      existingThreadId && (await canWriteThread(ThreadId(existingThreadId), UserId(user.id)))
+        ? existingThreadId
+        : null;
+    if (existingThreadId && !threadId) {
+      log.warn(`[notebookStream] thread ${existingThreadId} not writable — starting a new one`);
+    }
     const sse = createSSEStream(res);
 
     // Create thread on first message
@@ -171,25 +188,60 @@ router.post(
       user.memory_enabled ?? true
     );
 
-    const result = await handleNotebookStream({
-      req,
-      res,
-      messages: messages ?? [],
-      ...(collectionId != null && { collectionId }),
-      ...(collectionIds != null && { collectionIds }),
-      ...(filters != null && { filters }),
-      ...(model != null && { model }),
-      ...(mode != null && { mode }),
-      ...(documentIds != null && { documentIds }),
-      userId: user.id,
-      allowUserCollections: true,
-      ...(standingInstructions.length > 0 && { standingInstructions }),
-      sse,
-      // Keep the stream open past the answer so the persistence step below can
-      // still report a failure — sendChatWarning no-ops once the stream ended,
-      // which made that warning unreachable on this path.
-      closeStream: false,
+    const userLocale: UserLocale = user.locale === 'de-AT' ? 'de-AT' : 'de-DE';
+    const pageCollectionIds = collectionIds?.length
+      ? collectionIds
+      : collectionId
+        ? [collectionId]
+        : [];
+    const { decision, warning } = await resolveNotebookAnswerMode({
+      requested: answerMode ?? null,
+      collectionIds: pageCollectionIds,
+      userLocale,
     });
+    log.info(
+      `[NotebookAnswerMode] requested=${decision.requested ?? '-'} resolved=${decision.resolved} reason=${decision.reason}`
+    );
+    if (warning) sendChatWarning(sse, warning);
+    sse.send('answer_mode', decision);
+
+    const result =
+      decision.resolved === 'praezision'
+        ? await runNotebookPraezisionTurn({
+            req,
+            res,
+            sse,
+            messages: messages ?? [],
+            collectionIds: pageCollectionIds,
+            userId: user.id,
+            userLocale,
+            threadId,
+            ...(standingInstructions.length > 0 && { standingInstructions }),
+            answerModeReason: decision.reason,
+          })
+        : await handleNotebookStream({
+            req,
+            res,
+            messages: messages ?? [],
+            ...(collectionId != null && { collectionId }),
+            ...(collectionIds != null && { collectionIds }),
+            ...(filters != null && { filters }),
+            ...(model != null && { model }),
+            ...(mode != null && { mode }),
+            ...(documentIds != null && { documentIds }),
+            userId: user.id,
+            allowUserCollections: true,
+            ...(standingInstructions.length > 0 && { standingInstructions }),
+            sse,
+            // Keep the stream open past the answer so the persistence step below can
+            // still report a failure — sendChatWarning no-ops once the stream ended,
+            // which made that warning unreachable on this path.
+            closeStream: false,
+            completionMetadata: {
+              answerMode: decision.resolved,
+              answerModeReason: decision.reason,
+            },
+          });
 
     // Persist assistant message and update thread timestamp in parallel
     if (threadId && result) {
@@ -208,6 +260,10 @@ router.post(
                   citations: result.citations,
                   sources: result.sources,
                   ...(result.traceId && { traceId: result.traceId }),
+                  answerMode: decision.resolved,
+                  ...('steps' in result &&
+                    Array.isArray(result.steps) &&
+                    result.steps.length > 0 && { toolCalls: result.steps }),
                 },
                 user.id
               ),

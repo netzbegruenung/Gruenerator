@@ -116,6 +116,10 @@ export type NotebookSourceToolCtx = PersonalToolCtx & {
 const NO_NOTEBOOK =
   'Kein Notebook ausgewählt — gib notebookId an: bei eigenen Notebooks den ref aus notebooks action="list", bei System-Notebooks den Schlüssel (z. B. berlin, deutschland).';
 const TOOL_NAME = 'notebook_quellen';
+const OUT_OF_SCOPE =
+  'Im Präzisionsmodus sind nur die Notebooks dieser Seite freigegeben — lass notebookId weg oder nimm eines davon.';
+const READ_ONLY_MODE =
+  'Im Präzisionsmodus wird nur gelesen — Quellen entfernen, verschieben, umbenennen oder anlegen geht hier nicht.';
 /** Die Filterfelder, die ein Modell gern eine Ebene zu hoch setzt. */
 const FILTER_KEYS = [
   'sourceType',
@@ -446,8 +450,38 @@ export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
     const target = await resolveNotebook(explicit);
     if (!('error' in target) || target.error !== NO_NOTEBOOK) return { target, from: null };
     const previous = await notebookFromThread();
-    if (!previous) return { target, from: null };
+    if (!previous || !inScope(previous)) return { target, from: null };
     return { target: await resolveNotebook(previous), from: 'thread' };
+  }
+
+  /**
+   * Die Notebooks der Seite im Präzisionsmodus, als Vergleichsschlüssel: ein
+   * System-Notebook über seinen Sammlungsschlüssel (so treffen `hamburg`,
+   * `hamburg-system` und `hamburg-notebook` dasselbe), ein eigenes über die id.
+   * `null` ⇒ keine Sperre.
+   */
+  function scopeKeys(): Set<string> | null {
+    const lock = state.notebookScopeLock;
+    if (!lock) return null;
+    return new Set(lock.ids.map(scopeKey));
+  }
+
+  function scopeKey(id: string): string {
+    const system = resolveSystemCollection(id, collectionsForLocale(state.userLocale ?? null));
+    return system && !('error' in system) ? `system:${system.collection.key}` : `user:${id}`;
+  }
+
+  function inScope(id: string): boolean {
+    const keys = scopeKeys();
+    return keys == null || keys.has(scopeKey(id));
+  }
+
+  function targetInScope(target: Exclude<Target, { error: string }>): boolean {
+    const keys = scopeKeys();
+    if (keys == null) return true;
+    return keys.has(
+      target.kind === 'system' ? `system:${target.collection.key}` : `user:${target.collection.id}`
+    );
   }
 
   /**
@@ -518,13 +552,16 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       // Zusage am `catch` vorbei, samt Rohtext bis zum Modell.
       try {
         if (isWriteAction(args.action)) {
+          if (state.notebookScopeLock?.readOnly) return { error: READ_ONLY_MODE };
           return await runWriteAction(
             { ...args, action: args.action },
             { state, sourceRegistry, userId, deps: writeDeps, resolveNotebook: resolveOwnNotebook }
           );
         }
+        if (args.notebookId && !inScope(args.notebookId)) return { error: OUT_OF_SCOPE };
         const { target, from } = await resolveReadNotebook(args.notebookId);
         if ('error' in target) return target;
+        if (!targetInScope(target)) return { error: OUT_OF_SCOPE };
         const read = await runRead(target, args, userId);
         if ('error' in read) return read;
         const result =

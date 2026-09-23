@@ -3,6 +3,11 @@
  * CRUD operations for chat messages
  */
 
+import {
+  notebookResolvedAnswerModeSchema,
+  type NotebookResolvedAnswerMode,
+} from '@gruenerator/contracts';
+
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -181,6 +186,7 @@ router.get('/', async (req, res) => {
             createdDocument?: Record<string, unknown>;
             computeData?: Record<string, unknown>;
             agentId?: string;
+            answerMode?: NotebookResolvedAnswerMode;
           }
         | undefined;
       let resultsMap = new Map<string, unknown>();
@@ -202,6 +208,7 @@ router.get('/', async (req, res) => {
         } else {
           // It's search metadata or user message metadata (e.g. roleName)
           const meta = parsedToolResults as Record<string, unknown>;
+          const answerMode = notebookResolvedAnswerModeSchema.safeParse(meta.answerMode);
           metadata = {
             ...(typeof meta.intent === 'string' && { intent: meta.intent }),
             ...(typeof meta.searchCount === 'number' && { searchCount: meta.searchCount }),
@@ -224,6 +231,9 @@ router.get('/', async (req, res) => {
               ? { computeData: meta.computeData as Record<string, unknown> }
               : {}),
             ...(typeof meta.agentId === 'string' && { agentId: meta.agentId }),
+            // Notebook-Seite: in welchem Antwortmodus die Antwort lief — trägt
+            // den Modus-Chip über den Reload.
+            ...(answerMode.success && { answerMode: answerMode.data }),
             // Web-search image hits. Re-signed on every load rather than read
             // back verbatim: the persisted rows carry no `proxyUrl` (a signed
             // handle expires after 24h, the row does not), so the fresh handle
