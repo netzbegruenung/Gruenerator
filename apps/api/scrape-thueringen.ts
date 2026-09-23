@@ -12,6 +12,12 @@
  *   --max-pages <n>    → Override maxPages for web scraping
  *   --dry-run          → Extract text but don't store in Qdrant
  *   --source <id>      → Run only a specific web source (e.g., thueringen-lv)
+ *
+ * The PDFs in THUERINGEN_WAHLPROGRAMME/THUERINGEN_BESCHLUESSE are now also
+ * configured as isPdfArchive + staticUrls content paths on the 'thueringen-lv'
+ * source in config/landesverbaendeConfig.ts, so scrapeAllSources picks them up
+ * without running this script (#3579). This script is kept for manual re-runs
+ * (e.g. --dry-run) and as the source of the curated PDF titles/dates.
  */
 
 import { promises as fs } from 'fs';

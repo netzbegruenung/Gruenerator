@@ -1,3 +1,11 @@
+/**
+ * Bayern Regierungsprogramm Ingestion Script
+ *
+ * The PDF (PDF_URL below) is now also configured as an isPdfArchive +
+ * staticUrls content path on the 'bayern-lv-beschluesse' source in
+ * config/landesverbaendeConfig.ts, so scrapeAllSources picks it up without
+ * running this script (#3579). Kept for manual/dry re-runs.
+ */
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 import { getQdrantInstance } from './database/services/QdrantService/index.js';
