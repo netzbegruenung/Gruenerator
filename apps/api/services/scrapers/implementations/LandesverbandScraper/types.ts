@@ -67,6 +67,13 @@ export interface ProcessResult {
   vectors?: number | undefined;
   /** Whether this was an update of existing document */
   updated?: boolean | undefined;
+  /**
+   * Data-quality defect classes this document shows, each counted once
+   * (`{title_fallback: 1, ...}`). Set only when `stored` is true — an
+   * unchanged/skipped document was never re-evaluated, so it has no fresh
+   * verdict to report. See `qualityFlagsFor` for the classes.
+   */
+  qualityFlags?: Record<string, number> | undefined;
 }
 
 /**
@@ -103,6 +110,11 @@ export interface ContentPathResult {
   totalVectors: number;
   /** Skip reasons with counts */
   skipReasons: Record<string, number>;
+  /**
+   * Data-quality defect classes among stored/updated documents, summed like
+   * `skipReasons` (see `resultSamples.mergeQualityFlags`).
+   */
+  qualityFlags: Record<string, number>;
   /** Metadata of newly stored articles (for notifications) */
   newArticles: NewArticle[];
 }
@@ -143,6 +155,8 @@ export interface SourceResult {
   totalVectors: number;
   /** Why documents were skipped, summed over all content paths (see ContentPathResult.skipReasons). */
   skipReasons: Record<string, number>;
+  /** Summed over all content paths. See ContentPathResult.qualityFlags. */
+  qualityFlags: Record<string, number>;
   /** Results by content type */
   contentTypes: Record<string, ContentPathResult>;
   /** Metadata of newly stored articles (for notifications) */
@@ -197,6 +211,8 @@ export interface LandesverbandFullResult {
   totalVectors: number;
   /** Why documents were skipped, summed over all sources. */
   skipReasons: Record<string, number>;
+  /** Summed over all sources. See ContentPathResult.qualityFlags. */
+  qualityFlags: Record<string, number>;
   /** Results by source ID */
   bySource: Record<string, SourceResult>;
   /** Duration in seconds */
