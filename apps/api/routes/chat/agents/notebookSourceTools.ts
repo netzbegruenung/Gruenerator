@@ -28,6 +28,7 @@ import {
 import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { getQdrantDocumentService } from '../../../services/document-services/DocumentSearchService/index.js';
+import { checkHealth, textStatsBatched } from '../../../services/nlp/nlpClient.js';
 import {
   charRangeOfChunks,
   chunksOrThrow,
@@ -50,6 +51,13 @@ import { createLogger } from '../../../utils/logger.js';
 import { checkNotebookAccess } from '../../notebook/notebookAccess.js';
 
 import {
+  isScanReadAction,
+  RANK_BY,
+  runScanReadAction,
+  SCAN_FAILURE_BY_ACTION,
+  SCAN_READ_ACTIONS,
+} from './notebookSourceReadActions.js';
+import {
   isWriteAction,
   NOT_FOUND,
   resolveWriteDeps,
@@ -71,12 +79,13 @@ import {
 import type { SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { NotebookCollection } from '../../../database/services/NotebookQdrantHelper.js';
 import type { DocumentChunkItem } from '../../../services/document-services/DocumentSearchService/types.js';
+import type { StatsNlp } from '../../../services/notebook/sourceStats.js';
 
 const log = createLogger('notebookSourceTools');
 
-export const READ_ACTIONS = ['list', 'outline', 'read', 'find'] as const;
+export const READ_ACTIONS = ['list', 'outline', 'read', 'find', ...SCAN_READ_ACTIONS] as const;
 
-export type NotebookSourceToolDeps = NotebookSourcesDeps;
+export type NotebookSourceToolDeps = NotebookSourcesDeps & { nlp: StatsNlp };
 
 /** `PersonalToolCtx` plus optionale Fakes — der Katalog reicht den Ctx ohne `deps`. */
 export type NotebookSourceToolCtx = PersonalToolCtx & {
@@ -94,6 +103,7 @@ const FAILURE_BY_ACTION: Record<(typeof READ_ACTIONS)[number], string> = {
     'Die Gliederung ließ sich gerade nicht laden — das heißt nicht, dass die Quelle keine hat.',
   read: 'Die Quelle ließ sich gerade nicht lesen — bitte später erneut versuchen.',
   find: 'Die Suche im Notebook ist fehlgeschlagen — das heißt nicht, dass dazu nichts im Notebook steht.',
+  ...SCAN_FAILURE_BY_ACTION,
 };
 
 let helperSingleton: NotebookQdrantHelper | null = null;
@@ -105,6 +115,7 @@ function resolveDeps(partial: Partial<NotebookSourceToolDeps> | undefined): Note
     db: partial?.db ?? getPostgresInstance(),
     documentService: partial?.documentService ?? getQdrantDocumentService(),
     rerank: partial?.rerank ?? rerankNotebookResults,
+    nlp: partial?.nlp ?? { checkHealth, textStatsBatched },
   };
 }
 
@@ -213,6 +224,11 @@ export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
     description: `Die Quellen EINES Notebooks: auflisten, gliedern, lesen und Passagen mit Fundstelle finden.
 
 NUTZE FÜR: welche Dokumente im Notebook liegen, mit Typ, Datum, Seiten und Umfang, sortier- und filterbar (list); die Gliederung einer Quelle (outline); eine Quelle lesen — ab Zeichen (abschnitt), eine Seite (seite), einen Abschnitt aus outline (section) oder Chunks (read); die Stellen finden, an denen etwas steht, als Rohpassagen mit Seite und Zeichenbereich zum Zitieren (find, optional nur in einer Quelle).
+NUTZE FÜR: wie oft ein Wort wörtlich vorkommt, je Quelle (grep).
+NUTZE FÜR: Wörter, Sätze, Seiten zählen, optional Lemmata (stats).
+NUTZE FÜR: Quellen ordnen nach Relevanz, Treffern, Datum, Länge, Seiten (rank).
+NUTZE FÜR: ein Zitat prüfen (zitat) oder Belege für eine Behauptung finden (claim) (cite).
+exhaustive=false: nicht alles gelesen — Zahlen nie als Gesamtzahl nennen.
 
 NICHT für: Notebooks auflisten/anlegen/teilen (dafür 'notebooks'), die grüne Inhaltsdatenbank (dafür 'gruenerator_search').
 
@@ -225,7 +241,7 @@ Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt d
       sourceId: z
         .string()
         .optional()
-        .describe('Quelle aus list (ref) — outline, read; bei find optional'),
+        .describe('Quelle aus list (ref) — outline, read; bei find, grep, stats, cite optional'),
       sortBy: z
         .enum(['name', 'date', 'pages', 'size', 'words', 'status', 'type'])
         .optional()
@@ -233,7 +249,13 @@ Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt d
       order: z.enum(['asc', 'desc']).optional().describe('list'),
       filter: filterSchema.optional().describe('list'),
       offset: z.number().int().min(0).optional().describe('list'),
-      limit: z.number().int().min(1).max(50).optional().describe('list (bis 50), find (bis 20)'),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(50)
+        .optional()
+        .describe('list, rank (bis 50), find (bis 20)'),
       abschnitt: z
         .object({
           von: z.number().int().min(0),
@@ -247,9 +269,21 @@ Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt d
         .object({ from: z.number().int().min(0), to: z.number().int().min(0) })
         .optional()
         .describe('read: Chunk-Bereich'),
-      query: z.string().optional().describe('find: wonach gesucht wird'),
+      query: z.string().optional().describe('find, rank (relevance, term): wonach gesucht wird'),
       mode: z.enum(['hybrid', 'vector', 'text']).default('hybrid').describe('find'),
       rerank: z.boolean().default(false).describe('find: Passagen neu bewerten (langsamer)'),
+      phrase: z.string().min(2).optional().describe('grep: Wort oder Wortfolge'),
+      caseSensitive: z
+        .boolean()
+        .optional()
+        .describe('grep: Groß/klein beachten (dann zählen auch Akzente exakt)'),
+      contexts: z.number().int().min(0).max(5).optional().describe('grep: Fundstellen je Quelle'),
+      lemmas: z.boolean().optional().describe('stats: häufigste Lemmata'),
+      lemmaOf: z.array(z.string()).optional().describe('stats: Wortformen dieser Lemmata'),
+      topN: z.number().int().min(5).max(100).optional().describe('stats: Anzahl Lemmata'),
+      by: z.enum(RANK_BY).optional().describe('rank: Kriterium'),
+      zitat: z.string().min(8).optional().describe('cite: wörtliches Zitat'),
+      claim: z.string().min(8).optional().describe('cite: Behauptung'),
       sourceIds: z
         .array(z.string())
         .min(1)
@@ -285,6 +319,14 @@ Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt d
         }
 
         if (args.action === 'find') return await find(collection, userId, args);
+        if (isScanReadAction(args.action)) {
+          return await runScanReadAction(args.action, args, {
+            collection,
+            userId,
+            deps,
+            sourceRegistry,
+          });
+        }
 
         if (!args.sourceId)
           return { error: `${args.action} braucht sourceId (aus list, Feld ref).` };
