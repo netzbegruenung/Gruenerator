@@ -167,6 +167,9 @@ export const evalExpectSchema = z
     toolNameMatches: z.string().optional(),
     toolsMustNotInclude: z.array(z.string()).optional(),
     maxToolCalls: z.number().optional(),
+    /** Mehrteilige Aufträge: ein Planer, der nach dem ersten Aufruf aufhört,
+     *  erfüllt `toolsMustInclude` trotzdem (#3627). */
+    minToolCalls: z.number().optional(),
     generatesSharepic: z.boolean().optional(),
     /**
      * Whether the turn may create/update a persistent artifact — a document, or a

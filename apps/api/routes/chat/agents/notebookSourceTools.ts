@@ -79,7 +79,7 @@ import {
 import { notebookUrl } from './notebookTools.js';
 import {
   groundNote,
-  groundRows,
+  groundSourceRows,
   makeRow,
   NO_SESSION,
   requireUserId,
@@ -622,7 +622,7 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
     if (results.length === 0) {
       groundNote(sourceRegistry, `Notebook „${collection.name}"`, 'Keine passenden Quellen.');
     } else {
-      groundRows(sourceRegistry, results);
+      groundSourceRows(sourceRegistry, results, collection.id);
     }
     return {
       notebook: collection.name,

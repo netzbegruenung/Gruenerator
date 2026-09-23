@@ -223,6 +223,10 @@ jobs:
           # run does the per-URL walk. Decided in `setup`, not re-derived here.
           RECENT=false
           if [ "${{ needs.setup.outputs.is_full_run }}" != "true" ]; then RECENT=true; fi
+          # SL nur inkrementell, bis #3631 in Produktion ausgerollt ist: die Wolke-
+          # Pfade laufen nur im Voll-Lauf (recentSkip), und der alte Code würde die
+          # zwei gesperrten Freigaben sonst wieder einlesen. Nach dem Rollout entfernen.
+          if [ "${{ matrix.lv }}" = "SL" ]; then RECENT=true; fi
           FORCE=false
           if [ "${{ inputs.force }}" = "true" ]; then FORCE=true; fi
           DRY_RUN=false

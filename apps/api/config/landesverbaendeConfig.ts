@@ -1325,27 +1325,10 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           ],
           disableOffPathFilter: true,
         },
-        {
-          // Public Nextcloud "Wolke" share (documents/Wahlprüfsteine). etag-deduped
-          // + recentSkip so it only runs in the nightly full crawl, not hourly.
-          // NOTE: verify folder contents via NextcloudApiClient.listFolder on first
-          // run — if the share is password-protected the WebDAV auth needs the pw.
-          // `path`/`listSelector` are unused placeholders for wolkeShare paths
-          // (discovery comes from the share, not an HTML listing) but the
-          // ContentPath type requires them.
-          type: 'beschluss',
-          path: '/wolke/kPJQGMzGzm9HD3T/',
-          listSelector: '',
-          wolkeShare: { shareLink: 'https://wolke.netzbegruenung.de/s/kPJQGMzGzm9HD3T' },
-          recentSkip: true,
-        },
-        {
-          type: 'beschluss',
-          path: '/wolke/nEsxEzSnadTde3w/',
-          listSelector: '',
-          wolkeShare: { shareLink: 'https://wolke.netzbegruenung.de/s/nEsxEzSnadTde3w' },
-          recentSkip: true,
-        },
+        // Die zwei Wolke-Freigaben (Wahlprüfsteine-Arbeitsordner, Protokolle) sind
+        // bewusst nicht mehr konfiguriert: beide enthielten personenbezogene und
+        // interne Dateien. Die öffentlichen Antworten bleiben als gespeicherte
+        // Punkte erhalten; neu eingelesen wird erst nach Freigabe des LV.
       ],
       contentSelectors: {
         title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
