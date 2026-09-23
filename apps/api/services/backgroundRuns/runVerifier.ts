@@ -1,20 +1,20 @@
 /**
  * Ergebnis-Prüfung für Hintergrundläufe (#3221, Face 2).
  *
- * Ein kleiner Modell-Richter über Aufgabe vs. Ergebnis eines wiederkehrenden
- * Laufs — das gebundene Gegenstück zu LobeHubs Verifier-Agent, nach dem
- * Vorbild von `computeVerifierNode`: fail-open (die Prüfung darf nie ein
- * funktionierendes Ergebnis blockieren), begrenzte Eingaben, exportierter
- * Parser für Tests. Das Verdikt ist in v1 ein MESSWERT, kein Gate: geliefert
- * wird immer, das Verdikt steht als `recurring_task_runs.verdict` daneben —
- * so werden False-Negative-Raten messbar, bevor je jemand gated.
+ * Ein kleiner Modell-Richter über Aufgabe vs. Ergebnis eines Hintergrundlaufs
+ * (wiederkehrende Aufgaben, Board-Agent) — das gebundene Gegenstück zu
+ * LobeHubs Verifier-Agent, nach dem Vorbild von `computeVerifierNode`:
+ * fail-open (die Prüfung darf nie ein funktionierendes Ergebnis blockieren),
+ * begrenzte Eingaben, exportierter Parser für Tests. Geliefert wird immer; das
+ * Verdikt steht daneben (`recurring_task_runs.verdict`, `agent_tasks.verdict`)
+ * und entscheidet nur, ob ein Mensch nachsehen soll (siehe `verifiedTurn.ts`).
  */
 import { createLogger } from '../../utils/logger.js';
 import { aiText } from '../ai/generate.js';
 
-const log = createLogger('RecurringVerifier');
+const log = createLogger('BackgroundVerifier');
 
-const VERIFIER_PROMPT = `Du prüfst das Ergebnis einer automatisch ausgeführten wiederkehrenden Aufgabe. Du bekommst die Aufgabenstellung und das erzeugte Ergebnis.
+const VERIFIER_PROMPT = `Du prüfst das Ergebnis einer automatisch im Hintergrund ausgeführten Aufgabe. Du bekommst die Aufgabenstellung und das erzeugte Ergebnis.
 
 Antworte AUSSCHLIESSLICH mit einem JSON-Objekt:
 {"ok": true} oder {"ok": false, "hint": "<kurzer, konkreter Verbesserungshinweis>"}
@@ -58,7 +58,7 @@ export function parseVerdict(raw: string): RunVerdict {
   return { ok: true };
 }
 
-export async function verifyRecurringResult(p: {
+export async function verifyBackgroundResult(p: {
   instruction: string;
   resultText: string;
 }): Promise<RunVerdict> {

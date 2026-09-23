@@ -157,4 +157,28 @@ describe('runHeadlessAgenticTurn', () => {
     await runHeadlessAgenticTurn({ ...baseParams, restrictToAgentTools: false }, unrestricted.deps);
     expect(unrestricted.streamCalls[0]!).not.toHaveProperty('searchToolKeys');
   });
+
+  it('hängt den Karten-Kontext an die Aufgabe, nicht an den Systemprompt', async () => {
+    const { deps, streamCalls } = makeDeps({});
+    await runHeadlessAgenticTurn({ ...baseParams, contextBlock: 'Spalte: In Arbeit' }, deps);
+    const call = streamCalls[0]!;
+    const messages = call.messages as Array<{ role: string; content: string }>;
+    expect(messages[0]!.content).toMatch(/^Fasse die Woche zusammen\.[\s\S]*Spalte: In Arbeit$/);
+    expect(call.systemMessage).not.toContain('Spalte: In Arbeit');
+  });
+
+  it('nimmt einen übergebenen Zustand, ohne neu zu klassifizieren oder ihn zu verändern', async () => {
+    const { deps, streamCalls } = makeDeps({});
+    const prepared = await deps.prepareAgentState('x', 'de-DE');
+    vi.mocked(deps.prepareAgentState).mockClear();
+    prepared.finalState.enabledTools = { search: true };
+
+    await runHeadlessAgenticTurn({ ...baseParams, prepared }, deps);
+    await runHeadlessAgenticTurn({ ...baseParams, prepared }, deps);
+
+    expect(deps.prepareAgentState).not.toHaveBeenCalled();
+    expect(prepared.finalState.enabledTools).toEqual({ search: true });
+    const state = streamCalls[1]!.finalState as { enabledTools: Record<string, boolean> };
+    expect(state.enabledTools).toEqual({ search: true, memory: false });
+  });
 });
