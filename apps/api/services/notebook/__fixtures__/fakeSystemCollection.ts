@@ -11,20 +11,57 @@ import { vi } from 'vitest';
 import type { DocumentResult } from '../../BaseSearchService/types.js';
 import type { SystemNotebookSourcesDeps } from '../systemNotebookSources.js';
 
+/** Die `chunk_text`-Indexparameter aller System-Sammlungen (live, 23.09.2026). */
+export const VERIFIED_TEXT_INDEX = {
+  type: 'text',
+  tokenizer: 'word',
+  min_token_len: 2,
+  max_token_len: 50,
+  lowercase: true,
+};
+
 export interface FakePoint {
   qdrantCollection: string;
   payload: Record<string, unknown>;
 }
 
-type Clause = { key: string; match?: { value?: unknown; any?: unknown[] } };
+type Clause = {
+  key?: string;
+  match?: { value?: unknown; any?: unknown[]; text?: string };
+  should?: Clause[];
+};
+
+/**
+ * Der `word`-Tokenizer des `chunk_text`-Index nachgebaut: klein, getrennt an
+ * allem außer Buchstaben und Ziffern, Tokens unter 2 Zeichen fallen weg. Eine
+ * Anfrage ohne ein einziges Token trifft nichts — wie in der echten Qdrant
+ * (gemessen 23.09.2026: `match.text: "a"` → 0 Punkte).
+ */
+function tokens(s: string): string[] {
+  return s
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((t) => t.length >= 2);
+}
+
+function textMatches(value: unknown, query: string): boolean {
+  const wanted = tokens(query);
+  if (wanted.length === 0 || typeof value !== 'string') return false;
+  const have = new Set(tokens(value));
+  return wanted.every((t) => have.has(t));
+}
+
+function clauseMatches(payload: Record<string, unknown>, c: Clause): boolean {
+  if (c.should) return c.should.some((s) => clauseMatches(payload, s));
+  const v = payload[c.key!];
+  if (c.match?.text !== undefined) return textMatches(v, c.match.text);
+  if (c.match?.any) return c.match.any.includes(v);
+  return v === c.match?.value;
+}
 
 function matches(payload: Record<string, unknown>, filter: unknown): boolean {
   const must = ((filter as { must?: Clause[] } | undefined)?.must ?? []) as Clause[];
-  return must.every((c) => {
-    const v = payload[c.key];
-    if (c.match?.any) return c.match.any.includes(v);
-    return v === c.match?.value;
-  });
+  return must.every((c) => clauseMatches(payload, c));
 }
 
 /** Ein Dokument als Punkte: Chunk 0 trägt Titel, Datum, optional `full_text`. */
@@ -56,6 +93,8 @@ export function makeSystemDeps(
     searchError?: string;
     /** Jede Scroll-Seite ist voll und hat eine Folgeseite — für den Deckel. */
     endless?: boolean;
+    /** Was `chunkTextIndex` meldet — Standard: der geprüfte Index der Produktion. */
+    textIndex?: Record<string, unknown> | null;
   } = {}
 ) {
   const scrollPage = vi.fn(
@@ -157,13 +196,25 @@ export function makeSystemDeps(
   }));
 
   const rerank = vi.fn();
+  const chunkTextIndex = vi.fn(async () =>
+    opts.textIndex === undefined ? { ...VERIFIED_TEXT_INDEX } : opts.textIndex
+  );
 
   const deps = {
     scrollPage,
     documentService: { getSystemDocumentFullTextByUrl, getDocumentChunks, search },
     rerank,
+    chunkTextIndex,
   } as unknown as SystemNotebookSourcesDeps;
-  return { deps, scrollPage, getSystemDocumentFullTextByUrl, getDocumentChunks, search, rerank };
+  return {
+    deps,
+    scrollPage,
+    getSystemDocumentFullTextByUrl,
+    getDocumentChunks,
+    search,
+    rerank,
+    chunkTextIndex,
+  };
 }
 
 /** Ein Suchtreffer der Dokumentsuche, wie sie für System-Sammlungen antwortet. */
