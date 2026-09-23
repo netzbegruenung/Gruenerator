@@ -919,6 +919,36 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       });
     }
 
+    // Kein Notebook im Turn, aber der Thread hat schon mit `notebook_quellen`
+    // gearbeitet: ein Werkzeugauftrag („zeig mir fünf Stellen …", „nenne mir die
+    // 10 relevantesten Quellen …") pinnt das Werkzeug, das dann das Notebook des
+    // Threads nimmt. Ohne Pin griff der Planer zu `gruenerator_search` und riet
+    // die Sammlung — live einmal „deutschland" statt Berlin (Testserver
+    // 24.09.2026). Kein Scope wie oben: eine Inhaltsfrage im selben Thread
+    // bleibt frei. Ein System-Notebook nicht für Schreibaufträge.
+    const threadNotebookId = state.threadNotebookId;
+    const askText = state.lastUserTextNoMentions ?? userContent;
+    if (
+      threadNotebookId &&
+      state.agentConfig.identifier === 'gruenerator-universal' &&
+      looksLikeNotebookToolAsk(askText) &&
+      (isUserNotebookId(threadNotebookId) || !looksLikeNotebookWriteAsk(askText))
+    ) {
+      log.info('[Classifier] Tool ask in a notebook thread → loop with notebook_quellen pinned');
+      recordDecision('classifier.tier', 'tier2_thread_notebook_tool_ask', {});
+      return {
+        intent: 'agentic',
+        mentionPinnedTool: 'notebook_quellen',
+        searchSources: [],
+        searchQuery: userContent.slice(0, 500),
+        detectedFilters: null,
+        reasoning: 'Werkzeugauftrag im Thread eines Notebooks → Werkzeug notebook_quellen',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
     // Context-only fallback branches — fire only when no search-capable
     // mention above already routed the request.
 

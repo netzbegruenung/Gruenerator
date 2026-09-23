@@ -849,6 +849,54 @@ describe('Notebook branch — tool ask pins notebook_quellen', () => {
     expect(result.mentionPinnedTool).toBe('notebook_quellen');
   });
 
+  // Testserver 24.09.2026: Folgefragen ohne „Notebook" im Text verloren das
+  // Notebook — der Planer griff zu `gruenerator_search` und riet die Sammlung
+  // (einmal „berlin", einmal „deutschland"). Hat der Thread schon mit
+  // `notebook_quellen` gearbeitet, pinnt ein Werkzeugauftrag das Werkzeug; es
+  // nimmt dann das Notebook des Threads (`notebookFromThread`).
+  it('no notebook in the turn, but the thread used one + tool ask → pin', async () => {
+    const state = buildState({
+      userMessage: 'Nenne mir die 10 relevantesten Quellen aus 2025 zum Thema Klimaneutralität.',
+      threadNotebookId: 'berlin',
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  it('thread notebook + plain question → no pin', async () => {
+    const state = buildState({
+      userMessage: 'Wie viele Einwohner hat Berlin?',
+      threadNotebookId: 'berlin',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('tool ask without a thread notebook → no pin', async () => {
+    const state = buildState({ userMessage: 'Zeig mir fünf Stellen zur Verkehrswende.' });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('thread system notebook + write ask → no pin (read-only)', async () => {
+    const state = buildState({
+      userMessage: 'Entferne die alte Pressemitteilung',
+      threadNotebookId: 'berlin',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('thread user notebook + write ask → pin', async () => {
+    const state = buildState({
+      userMessage: 'Entferne die alte Pressemitteilung',
+      threadNotebookId: USER_NOTEBOOK,
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
   it('multi-collection system notebook → stays a search (notebook_quellen cannot open it)', async () => {
     const state = buildState({
       userMessage: 'Sortiere die Quellen nach Datum',
