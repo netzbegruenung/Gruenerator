@@ -45,7 +45,12 @@ const GENERIC_TITLE_PATTERN = /^(dokument|herunterladen|download|pdf|hier)[.:!�
 
 /** Input `qualityFlagsFor` needs to decide which defect classes apply. */
 export interface QualityFlagDoc {
-  /** `content.title` before the `<source.name> - <label>` fallback. */
+  /**
+   * `ContentExtractor.normalizeTitle(content.title)` — the normalized title
+   * BEFORE the `<source.name> - <label>` fallback. Must be normalized, not
+   * `content.title` raw: a whitespace/`&nbsp;`-only title normalizes to `''`
+   * and falls back too, so checking the raw string would miss it.
+   */
   originalTitle: string;
   /** The title actually stored (after the fallback, if any). */
   storedTitle: string;
@@ -188,8 +193,9 @@ export class DocumentProcessor {
 
     // STEP 5: Build document title — hier treffen HTML-, PDF- und Wolke-Pfad
     // zusammen; Dateinamen-Titel sähen den HTML-Extraktor sonst nie (#3560).
+    const normalizedTitle = ContentExtractor.normalizeTitle(title);
     const documentTitle =
-      ContentExtractor.normalizeTitle(title) ||
+      normalizedTitle ||
       `${source.name} - ${(CONTENT_TYPE_LABELS as Record<string, string>)[effectiveContentType] || effectiveContentType}`;
 
     // STEP 6: Chunk document
@@ -270,7 +276,7 @@ export class DocumentProcessor {
     });
 
     const flags = qualityFlagsFor({
-      originalTitle: title,
+      originalTitle: normalizedTitle,
       storedTitle: documentTitle,
       isFile,
       publishedAt: publishedAt || null,
