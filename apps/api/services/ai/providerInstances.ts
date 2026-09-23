@@ -27,7 +27,7 @@ import { cortecsBaseUrl } from './cortecsEndpoint.js';
 import { cortecsFetchWithPolicy } from './cortecsRequestPolicy.js';
 import { greenptFetchWithThinkingDisabled } from './greenptThinkingFetch.js';
 import { litellmFetchWithThinkingDisabled } from './litellmThinkingFetch.js';
-import { meliousFetchWithImpact } from './meliousImpactFetch.js';
+import { meliousFetch } from './meliousThinkingFetch.js';
 import { regoloFetchWithThinkingDisabled } from './regoloThinkingFetch.js';
 import { scalewayBaseUrl } from './scalewayEndpoint.js';
 import { scalewayFetchWithMistralFallback } from './scalewayMistralFallbackFetch.js';
@@ -146,7 +146,7 @@ export function getMeliousProvider(): ReturnType<typeof createOpenAI> {
       baseURL: MELIOUS_BASE_URL,
       apiKey,
       name: 'melious',
-      fetch: meliousFetchWithImpact,
+      fetch: meliousFetch,
     });
   }
   return meliousInstance;
