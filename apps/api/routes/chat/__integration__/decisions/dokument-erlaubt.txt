@@ -12,5 +12,6 @@ classifier.tier                  = tier3_heuristic                confidence=0.9
 respond.answer_format            = standard                       complexity=moderate intent=save_as_doc retrievalExpected=false sourceCount=0 synthesisMode=none taskShape=none
 loop.tool_guard                  = (none)
 loop.synth_verdict               = (not reached)
+notebook.answer_mode             = (not reached)
 -- wire --
 intent=save_as_doc agentic=false tools=[] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=24

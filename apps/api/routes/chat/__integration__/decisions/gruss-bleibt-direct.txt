@@ -12,5 +12,6 @@ classifier.tier                  = tier3_short_message            confidence=0.9
 respond.answer_format            = brief                          complexity=simple intent=greeting retrievalExpected=false sourceCount=0 synthesisMode=none taskShape=none
 loop.tool_guard                  = (none)
 loop.synth_verdict               = (not reached)
+notebook.answer_mode             = (not reached)
 -- wire --
 intent=greeting agentic=false tools=[] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=24

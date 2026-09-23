@@ -12,5 +12,6 @@ classifier.tier                  = tier3.5_loop_demotion          confidence=0.7
 respond.answer_format            = own_format                     complexity=moderate formatOwner=textform:Pressemitteilung intent=agentic retrievalExpected=true sourceCount=0 synthesisMode=none taskShape=none
 loop.tool_guard                  = (none)
 loop.synth_verdict               = accepted                       textLength=135
+notebook.answer_mode             = (not reached)
 -- wire --
 intent=agentic agentic=true tools=[gruenerator_pressemitteilung_examples] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=135
