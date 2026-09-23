@@ -35,7 +35,8 @@ describe('notebookAnswerModeDef', () => {
 
   it('falls back to the default for an id this build does not know', () => {
     expect(notebookAnswerModeDef('turbo' as never).mode).toBe(DEFAULT_NOTEBOOK_ANSWER_MODE);
-    expect(notebookAnswerModeDef(undefined).mode).toBe(DEFAULT_NOTEBOOK_ANSWER_MODE);
+    expect(notebookAnswerModeDef(null).mode).toBe(DEFAULT_NOTEBOOK_ANSWER_MODE);
+    expect(notebookAnswerModeDef().mode).toBe(DEFAULT_NOTEBOOK_ANSWER_MODE);
   });
 });
 
