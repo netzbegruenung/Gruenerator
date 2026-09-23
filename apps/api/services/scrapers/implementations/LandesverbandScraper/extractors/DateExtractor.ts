@@ -4,99 +4,19 @@
  * Cost optimization: Extract dates BEFORE expensive Mistral OCR to skip old PDFs
  */
 
+import {
+  DAY_PATTERNS,
+  FILENAME_DAY_PATTERNS,
+  SLUG_MONTH,
+  dmy,
+  firstValidDate,
+  monthName,
+  ymd,
+  type DateParts,
+  type DatePattern,
+} from '../../../../documentMeta/germanDates.js';
+
 import type { DateExtractionResult, DatePrecision } from '../types.js';
-
-const GERMAN_MONTHS: Record<string, number> = {
-  januar: 1,
-  februar: 2,
-  märz: 3,
-  maerz: 3,
-  marz: 3,
-  april: 4,
-  mai: 5,
-  juni: 6,
-  juli: 7,
-  august: 8,
-  september: 9,
-  oktober: 10,
-  november: 11,
-  dezember: 12,
-};
-
-const GERMAN_MONTH_PATTERN =
-  /(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/i;
-
-const SLUG_MONTH =
-  'januar|februar|maerz|marz|märz|april|mai|juni|juli|august|september|oktober|november|dezember';
-
-interface DateParts {
-  year: number;
-  month: number;
-  day: number;
-}
-
-interface DatePattern {
-  re: RegExp;
-  parse: (m: RegExpMatchArray) => DateParts;
-}
-
-const ymd = (m: RegExpMatchArray): DateParts => ({
-  year: parseInt(m[1]),
-  month: parseInt(m[2]),
-  day: parseInt(m[3]),
-});
-const dmy = (m: RegExpMatchArray): DateParts => ({
-  year: parseInt(m[3]),
-  month: parseInt(m[2]),
-  day: parseInt(m[1]),
-});
-const monthName = (name: string): number => GERMAN_MONTHS[name.toLowerCase()] ?? 0;
-
-// Full dates, in priority order.
-const DAY_PATTERNS: DatePattern[] = [
-  { re: /(\d{4})-(\d{1,2})-(\d{1,2})/, parse: ymd }, // 2023-05-15
-  {
-    // 15-05-2023; 12-13-2025 can only be month-day and must not roll over into 2026
-    re: /(\d{1,2})-(\d{1,2})-(\d{4})/,
-    parse: (m) => {
-      const parts = dmy(m);
-      return parts.month > 12 && parts.day <= 12
-        ? { ...parts, month: parts.day, day: parts.month }
-        : parts;
-    },
-  },
-  { re: /(\d{1,2})\.(\d{1,2})\.(\d{4})/, parse: dmy }, // 15.05.2023
-  { re: /(\d{1,2})_(\d{1,2})_(\d{4})/, parse: dmy }, // 15_05_2023
-  { re: /(\d{4})_(\d{1,2})_(\d{1,2})/, parse: ymd }, // 2023_05_15
-  { re: GERMAN_MONTH_PATTERN, parse: (m) => ({ ...dmy(m), month: monthName(m[2]) }) }, // 24. Mai 2025
-];
-
-// Only in a file name or URL slug: compact forms that would misfire in prose.
-const FILENAME_DAY_PATTERNS: DatePattern[] = [
-  ...DAY_PATTERNS,
-  { re: /(?<!\d)((?:19|20)\d{2})(\d{2})(\d{2})(?!\d)/, parse: ymd }, // 20230905_…
-  {
-    // Leading YYMMDD token, no separators inside it: BE-F dlm-downloads name
-    // their files 250117_Positionspapier….pdf / 180828_Beschluss….pdf.
-    // Genuinely ambiguous for a leading YYYYMM from 2001-2012: e.g. "200106_…"
-    // reads as 2020-01-06 here, but "2001"+"06" (June 2001, YYYYMM) is an
-    // equally valid parse of the same six digits — only when the middle two
-    // digits (our month) fall in 01-12 does "20" + that pair form a real
-    // alternate year. No confirmed BE-F case uses YYYYMM, so this stays
-    // YYMMDD until one does.
-    re: /^(\d{2})(\d{2})(\d{2})(?=[_-])/,
-    parse: (m) => ({ year: 2000 + parseInt(m[1]), month: parseInt(m[2]), day: parseInt(m[3]) }),
-  },
-  {
-    // Year first, as SL names its files: 22-02-17-wahlprogramm = 2022-02-17
-    re: /^(\d{2})-(\d{2})-(\d{2})(?!\d)/,
-    parse: (m) => ({ ...ymd(m), year: 2000 + parseInt(m[1]) }),
-  },
-  {
-    re: new RegExp(`(?:^|[-_])(\\d{1,2})-(${SLUG_MONTH})-(\\d{4})(?!\\d)`, 'i'), // 12-oktober-2024
-    parse: (m) => ({ ...dmy(m), month: monthName(m[2]) }),
-  },
-];
 
 // Context only. Two-digit day and month, so "Az. 1.2.10" is no date; global
 // so an impossible first match does not hide a valid later one.
@@ -223,23 +143,10 @@ export class DateExtractor {
     patterns: DatePattern[],
     precision: DatePrecision
   ): (DateParts & { precision: DatePrecision }) | null {
-    const currentYear = new Date().getFullYear();
-    for (const text of texts) {
-      for (const { re, parse } of patterns) {
-        const matches = re.global ? Array.from(text.matchAll(re)) : [text.match(re)];
-        for (const match of matches) {
-          if (!match) continue;
-          const parts = parse(match);
-          // Validate year range (1990 to current year) and reject impossible
-          // days instead of letting Date roll 31.02. over into March.
-          if (parts.year < 1990 || parts.year > currentYear) continue;
-          const date = new Date(parts.year, parts.month - 1, parts.day);
-          if (date.getMonth() !== parts.month - 1 || date.getDate() !== parts.day) continue;
-          return { ...parts, precision };
-        }
-      }
-    }
-    return null;
+    // Year range 1990 to the current year; impossible days (31.02.) rejected
+    // instead of letting Date roll them over into March.
+    const parts = firstValidDate(texts, patterns);
+    return parts ? { ...parts, precision } : null;
   }
 
   /**

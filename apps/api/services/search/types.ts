@@ -180,8 +180,11 @@ export interface ReferenceData {
   /** The retrieved chunk in full — what the answer prompt must read. */
   chunk_text?: string | undefined;
   description: string | null;
-  // Real source date (published_at, else upload date) or null when none.
+  // Real source date (published_at / metadata date) or null when none. Never
+  // the upload time — that is `uploaded_at`, labelled as such in the prompt.
   date: string | null;
+  /** Upload time of a user document without a real date (user collections only). */
+  uploaded_at?: string;
   source: string;
   document_id: string;
   source_url: string | null;
