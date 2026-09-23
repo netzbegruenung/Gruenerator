@@ -24,6 +24,7 @@
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { isUserNotebookId } from '../../../config/notebookCollectionMap.js';
 import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
@@ -168,6 +169,23 @@ export function notebookIdFromSteps(steps: readonly PersistedStep[]): string | n
     }
   }
   return null;
+}
+
+/**
+ * Das Notebook, wie der Planer es im Prompt genannt bekommt (`buildToolUsageBlock`):
+ * ein System-Notebook mit seinem Namen, ein eigenes nur mit der id — dessen Name
+ * stünde erst nach einem Qdrant-Aufruf fest, und die id reicht dem Werkzeug.
+ * `null`, wenn das Werkzeug es in dieser Locale ohnehin nicht öffnen könnte.
+ */
+export function notebookForPrompt(
+  id: string | null | undefined,
+  locale: string | null
+): { id: string; name: string | null } | null {
+  if (!id) return null;
+  if (isUserNotebookId(id)) return { id, name: null };
+  const system = resolveSystemCollection(id, collectionsForLocale(locale));
+  if (!system || 'error' in system) return null;
+  return { id, name: system.collection.name };
 }
 
 /**

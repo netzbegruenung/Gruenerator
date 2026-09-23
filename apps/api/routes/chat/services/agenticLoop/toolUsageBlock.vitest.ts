@@ -260,3 +260,31 @@ describe('materialDominatesTurn — when the writer gives up the tool catalog', 
     });
   });
 });
+
+// Testserver 23.09.2026: im Thread des Berlin-Notebooks ging „analysiere die
+// neuesten Beiträge zum Thema Verkehr und beantworte eine Bürgeranfrage" an die
+// Websuche. Der Planer sah das Notebook nur indirekt (Verlauf, alte Aufrufe),
+// die einzige Suchregel nannte gruenerator_search und das Web.
+describe('buildToolUsageBlock — Notebook des Threads', () => {
+  const TOOLS = ['notebook_quellen', 'gruenerator_search', 'web_search'];
+  const berlin = { id: 'berlin', name: 'Berlin' };
+
+  it('nennt das Notebook samt id und stellt es vor die allgemeine Suchregel', () => {
+    const block = buildToolUsageBlock(6, false, false, TOOLS, false, berlin);
+    expect(block).toContain('„Berlin"');
+    expect(block).toContain('notebookId: berlin');
+    expect(block.indexOf('notebook_quellen')).toBeLessThan(block.indexOf('interne Dokumentsuche'));
+  });
+
+  it('nennt bei einem eigenen Notebook ohne Namen nur die id', () => {
+    const block = buildToolUsageBlock(6, false, false, TOOLS, false, { id: 'nb-1', name: null });
+    expect(block).toContain('notebookId: nb-1');
+  });
+
+  it('fehlt ohne Notebook und ohne montiertes notebook_quellen', () => {
+    expect(buildToolUsageBlock(6, false, false, TOOLS)).not.toContain('notebookId:');
+    expect(
+      buildToolUsageBlock(6, false, false, ['gruenerator_search', 'web_search'], false, berlin)
+    ).not.toContain('notebookId:');
+  });
+});
