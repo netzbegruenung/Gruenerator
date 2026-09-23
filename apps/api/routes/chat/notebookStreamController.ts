@@ -8,6 +8,7 @@
 import { notebookDepthSchema } from '@gruenerator/contracts';
 import { z } from 'zod';
 
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { withRetry } from '../../services/search/searchRetryStrategy.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
@@ -63,6 +64,7 @@ const log = createLogger('notebookStream');
  */
 router.post(
   '/',
+  requireAiConsent,
   validateBody(notebookStreamRequestSchema),
   async (req: TypedRequest<NotebookStreamRequestBody>, res) => {
     const user = getUser(req);

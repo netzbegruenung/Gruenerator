@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { requireApiKey } from '../../middleware/apiKeyMiddleware.js';
 import { apiKeyRateLimit } from '../../middleware/apiKeyRateLimitMiddleware.js';
+import { requireApiKeyAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { notebookQAService } from '../../services/notebook/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -77,6 +78,7 @@ type AskRequestBody = z.infer<typeof askRequestSchema>;
 
 router.post(
   '/ask',
+  requireApiKeyAiConsent,
   validateBody(askRequestSchema),
   async (req: TypedRequest<AskRequestBody>, res: Response) => {
     const ctx = req.apiKey;

@@ -12,6 +12,7 @@
 import { type CommentBlock } from '@gruenerator/contracts';
 
 import { type AgentTask } from '../../database/schema/agentTasks.js';
+import { hasAiConsent } from '../../middleware/requireAiConsent.js';
 import { createLogger } from '../../utils/logger.js';
 import { runWithUsageContext } from '../../utils/usageContext.js';
 import { aiText } from '../ai/generate.js';
@@ -154,6 +155,30 @@ async function drain(): Promise<void> {
 
 async function processTask(task: AgentTask): Promise<void> {
   log.info(`Processing agent task ${task.id} (attempt ${task.attempts}/${task.max_attempts})`);
+
+  // Art.-9-Einwilligung: der Worker hat keinen Request, `requireAiConsent` sieht
+  // ihn nie — auch nicht die Läufe aus Zeitplänen. Endgültig scheitern statt
+  // wiederholen: ein Retry ändert an der fehlenden Einwilligung nichts.
+  // Keine Fehler-Benachrichtigung: deren „versuche es erneut" hilft hier nicht,
+  // und ein Zeitplan feuerte sie sonst bei jedem Lauf.
+  if (!(await hasAiConsent(task.requested_by))) {
+    log.warn(`Agent task ${task.id} skipped: no AI consent`);
+    await failOrRetryAgentTask({ ...task, attempts: task.max_attempts }, 'ai_consent_required');
+    if (task.trigger_comment_id) {
+      await postBotComment({
+        boardId: task.board_id,
+        cardId: task.card_id,
+        parentId: task.trigger_comment_id,
+        blocks: [
+          {
+            type: 'text',
+            text: 'Für die KI-Funktionen fehlt deine Einwilligung nach Art. 9 DSGVO. Beim nächsten Öffnen des Grünerators kannst du sie erteilen.',
+          },
+        ],
+      }).catch((e: unknown) => log.warn('Failed to post consent comment', { error: errMsg(e) }));
+    }
+    return;
+  }
 
   // Mention path: one in-thread comment that starts as "working…" and is updated in
   // place to the answer — so a quick reply never leaves a redundant ack + answer
