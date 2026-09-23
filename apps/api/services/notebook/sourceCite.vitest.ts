@@ -209,4 +209,73 @@ describe('supportClaim', () => {
       expect.objectContaining({ query: 'Der Kreistag hat den Radweg beschlossen' })
     );
   });
+
+  it('takes the page of the sentence from the page markers, not the chunk start', async () => {
+    const { deps, db } = fakeNotebookDeps([{ id: 'd1', text: 'x' }], {
+      searchResults: [
+        {
+          document_id: 'd1',
+          title: 'Antrag',
+          similarity_score: 0.7,
+          top_chunks: [
+            {
+              chunk_index: 4,
+              page_number: 3,
+              preview: '',
+              char_start: 100,
+              char_end: 180,
+              text: 'Das Wetter war gut. Der Kreistag beschließt den Radweg nach Nordheim. Sonst nichts.',
+            },
+          ],
+        },
+      ],
+    });
+    const fallback = db.query.getMockImplementation()!;
+    db.query.mockImplementation(async (sql: string, params: unknown[]) =>
+      sql.includes('regexp_matches') ? [{ i: 1, page: 4 }] : fallback(sql, params)
+    );
+
+    const out = await supportClaim(
+      { collectionId: 'n1', userId: 'u1', claim: 'Der Kreistag hat den Radweg beschlossen' },
+      deps
+    );
+    if ('error' in out) throw new Error(out.error);
+
+    expect(out.candidates[0]?.pageNumber).toBe(4);
+    expect(db.query).toHaveBeenCalledWith(expect.stringContaining('regexp_matches'), [
+      ['d1'],
+      [100],
+      [121],
+    ]);
+  });
+
+  it('keeps the chunk page when the marker lookup fails', async () => {
+    const { deps, db } = fakeNotebookDeps([{ id: 'd1', text: 'x' }], {
+      searchResults: [
+        {
+          document_id: 'd1',
+          title: 'Antrag',
+          similarity_score: 0.7,
+          top_chunks: [
+            {
+              chunk_index: 4,
+              page_number: 3,
+              preview: '',
+              char_start: 100,
+              char_end: 180,
+              text: 'Das Wetter war gut. Der Kreistag beschließt den Radweg nach Nordheim. Sonst nichts.',
+            },
+          ],
+        },
+      ],
+    });
+    db.query.mockRejectedValue(new Error('db down'));
+
+    const out = await supportClaim(
+      { collectionId: 'n1', userId: 'u1', claim: 'Der Kreistag hat den Radweg beschlossen' },
+      deps
+    );
+    if ('error' in out) throw new Error(out.error);
+    expect(out.candidates[0]?.pageNumber).toBe(3);
+  });
 });
