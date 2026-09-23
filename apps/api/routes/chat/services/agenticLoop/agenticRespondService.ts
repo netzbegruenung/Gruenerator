@@ -176,6 +176,9 @@ export async function streamAgenticResponse(
     /** Suchfamilie auf die Picker-Auswahl eines gebundenen Agenten beschränken
      *  (siehe `buildChatToolCatalog.searchToolKeys`). */
     searchToolKeys?: readonly string[];
+    /** Nur diese Werkzeuge montieren (Präzisionsmodus der Notebook-Seite).
+     *  Fehlt ⇒ Katalog unverändert. */
+    toolAllowlist?: readonly string[];
     /** Fortsetzung nach einer Freigabe: `scopeKey` → wie oft er das Gate noch
      *  passieren darf. Genau die Einmal-Freigaben dieser Entscheidung. */
     grantedOnce?: ReadonlyMap<string, number>;
@@ -201,6 +204,7 @@ export async function streamAgenticResponse(
     toolHistory,
     disableMcp,
     searchToolKeys,
+    toolAllowlist,
     grantedOnce,
     resumeApproval,
   } = params;
@@ -281,6 +285,7 @@ export async function streamAgenticResponse(
       ...(req && { req }),
       ...(disableMcp ? { disableMcp } : {}),
       ...(searchToolKeys?.length ? { searchToolKeys } : {}),
+      ...(toolAllowlist ? { toolAllowlist } : {}),
       threadId: threadId ?? null,
     });
     const { tools, recipeCatalog, recipeRegistry, toolLabels } = assembled;
