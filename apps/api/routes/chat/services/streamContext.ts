@@ -59,6 +59,7 @@ import {
   filterEmptyAssistantMessages,
   sanitizeUIFileParts,
 } from './messageHelpers.js';
+import { notebookIdsForTurn } from './notebookScopeFromText.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canWriteThread } from './threadAccessService.js';
 import {
@@ -278,11 +279,21 @@ export async function buildStreamContext({
     return { done: true };
   }
 
+  // Ohne Auswahl scoped ein im Text genanntes Notebook („im Berlin-Notebook")
+  // den Turn wie eine Erwähnung — ab hier derselbe Weg, samt Besitzprüfung.
+  const turnNotebookIds = await notebookIdsForTurn({
+    explicitIds: mergedNotebookIds,
+    hasDefaultNotebook: !!rawDefaultNotebookId,
+    userId,
+    text: sanitizeMentionTokens(lastUserTextFromClient(clientMessages), 'remove'),
+    locale: user.locale,
+  });
+
   // @notebook mentions are the turn naming a notebook out loud — the one case a
   // merely *hidden* notebook still resolves, so a link or thread shared from
   // another instance keeps working. Only `block` and `enabled: false` say no here.
-  const systemNotebookIds = mergedNotebookIds.filter(isNotebookResolvable);
-  const userNotebookUuids = mergedNotebookIds.filter(isUserNotebookId);
+  const systemNotebookIds = turnNotebookIds.filter(isNotebookResolvable);
+  const userNotebookUuids = turnNotebookIds.filter(isUserNotebookId);
   const { documentIds: notebookDocumentIds, resolvedUserNotebookIds } =
     userNotebookUuids.length > 0
       ? await resolveUserNotebookDocumentIds(userId, userNotebookUuids)
