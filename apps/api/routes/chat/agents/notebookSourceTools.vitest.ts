@@ -213,6 +213,7 @@ function makeCtx(opts: CtxOptions = {}) {
     documentService,
     access: vi.fn(async () => opts.access ?? OWNER),
     rerank: vi.fn(),
+    recentSteps: vi.fn(async () => []),
     ...(opts.nlp ? { nlp: opts.nlp } : {}),
   } as unknown as NotebookSourceToolDeps;
   const tool = makeNotebookSourcesTool({ state, sse, threadId: 't1', sourceRegistry, deps });
