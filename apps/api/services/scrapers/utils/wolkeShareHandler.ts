@@ -25,6 +25,8 @@ import {
   WOLKE_SCRAPER_OCR_EXTENSIONS,
 } from '../../sync/supportedFileTypes.js';
 
+import { redactShareTokens } from './wolkeShareSecrets.js';
+
 /**
  * Read straight off the wire as UTF-8 — never reaches OCR, so no media type
  * needed. Abgeleitet aus `supportedFileTypes.ts`, der einen Liste.
@@ -80,18 +82,18 @@ export function isAppleDoubleSidecar(name: string): boolean {
  * `…_Landesmusikrat_Anschreiben.pdf`, `…_ausgefülltes Formular.pdf`). Matched
  * on the file name only (not the folder path), case-insensitive.
  */
-const DEFAULT_EXCLUDED_NAME_SUBSTRINGS = [
-  'entwurf',
-  'vorlage',
-  'anschreiben',
-  'formular',
-  'intern',
-];
+const DEFAULT_EXCLUDED_NAME_SUBSTRINGS = ['entwurf', 'vorlage', 'anschreiben', 'formular'];
+
+// „intern" nur als eigenes Wort — als Teilstring träfe es „International", „Internet".
+const INTERN_WORD = /(^|[^a-zäöüß])intern([^a-zäöüß]|$)/;
 
 export function isExcludedWolkeFileName(name: string, extra: string[] = []): boolean {
   const lower = name.toLowerCase();
-  return [...DEFAULT_EXCLUDED_NAME_SUBSTRINGS, ...extra].some((needle) =>
-    lower.includes(needle.toLowerCase())
+  return (
+    INTERN_WORD.test(lower) ||
+    [...DEFAULT_EXCLUDED_NAME_SUBSTRINGS, ...extra].some((needle) =>
+      lower.includes(needle.toLowerCase())
+    )
   );
 }
 
@@ -157,7 +159,7 @@ export async function collectWolkeShareFiles(
   }
 
   log(
-    `[Wolke] ${shareLink}: ${files.length} supported file(s)` +
+    `[Wolke] ${redactShareTokens(shareLink)}: ${files.length} supported file(s)` +
       (excludedByName > 0 ? `, ${excludedByName} excluded by name` : '')
   );
   return { client, files, excludedByName };
