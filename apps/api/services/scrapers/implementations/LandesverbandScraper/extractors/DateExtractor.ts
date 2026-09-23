@@ -4,8 +4,6 @@
  * Cost optimization: Extract dates BEFORE expensive Mistral OCR to skip old PDFs
  */
 
-import { ContentExtractor } from './ContentExtractor.js';
-
 import type { DateExtractionResult, DatePrecision } from '../types.js';
 
 const GERMAN_MONTHS: Record<string, number> = {
@@ -78,7 +76,8 @@ const FILENAME_DAY_PATTERNS: DatePattern[] = [
   ...DAY_PATTERNS,
   { re: /(?<!\d)((?:19|20)\d{2})(\d{2})(\d{2})(?!\d)/, parse: ymd }, // 20230905_…
   {
-    re: /^(\d{2})-(\d{2})-(\d{2})(?!\d)/, // 22-02-17-wahlprogramm
+    // Year first, as SL names its files: 22-02-17-wahlprogramm = 2022-02-17
+    re: /^(\d{2})-(\d{2})-(\d{2})(?!\d)/,
     parse: (m) => ({ ...ymd(m), year: 2000 + parseInt(m[1]) }),
   },
   {
@@ -87,19 +86,29 @@ const FILENAME_DAY_PATTERNS: DatePattern[] = [
   },
 ];
 
+// Context only. Two-digit day and month, so "Az. 1.2.10" is no date; global
+// so an impossible first match does not hide a valid later one.
+const SHORT_YEAR_PATTERN: DatePattern = {
+  re: /(?<![\d.])(\d{2})\.(\d{2})\.(\d{2})(?![\d.])/g, // 26.03.22
+  parse: (m) => ({ ...dmy(m), year: 2000 + parseInt(m[3]) }),
+};
+
 // URL only. The upload month is an upper bound (files are often uploaded
-// long after the Parteitag), so it ranks below the archive folder.
-const MONTH_PATTERNS: DatePattern[] = [
-  { re: /\/((?:19|20)\d{2})-(\d{1,2})\//, parse: (m) => ({ ...ymd(m), day: 1 }) }, // /2022-03/
-  {
-    re: new RegExp(`(?:^|[-_/])(${SLUG_MONTH})-(\\d{4})(?!\\d)`, 'i'), // september-2022
-    parse: (m) => ({ year: parseInt(m[2]), month: monthName(m[1]), day: 1 }),
-  },
-  {
-    re: /\/uploads\/(?:sites\/\d+\/)?(\d{4})\/(\d{1,2})\//,
-    parse: (m) => ({ ...ymd(m), day: 1 }),
-  },
-];
+// long after the Parteitag), so it ranks below the archive folder — and a
+// slug month after it is a target date (kommunalwahl-mai-2024), not the
+// publication.
+const FOLDER_MONTH_PATTERN: DatePattern = {
+  re: /\/((?:19|20)\d{2})-(\d{1,2})\//, // /2022-03/
+  parse: (m) => ({ ...ymd(m), day: 1 }),
+};
+const SLUG_MONTH_PATTERN: DatePattern = {
+  re: new RegExp(`(?:^|[-_/])(${SLUG_MONTH})-(\\d{4})(?!\\d)`, 'i'), // september-2022
+  parse: (m) => ({ year: parseInt(m[2]), month: monthName(m[1]), day: 1 }),
+};
+const UPLOAD_MONTH_PATTERN: DatePattern = {
+  re: /\/uploads\/(?:sites\/\d+\/)?(\d{4})\/(\d{1,2})\//,
+  parse: (m) => ({ ...ymd(m), day: 1 }),
+};
 
 // Year-only fallbacks. A year in a slug or file name is often a TARGET year
 // (Landtagswahl 2026, `_2024_im_Blick`), so the URL's folder year goes first.
@@ -143,18 +152,22 @@ export class DateExtractor {
       url.split(/[?#]/)[0].replace(/\/$/, '').split('/').pop() ?? '',
       ...Array.from(`${title} ${context}`.matchAll(PDF_FILENAME), (m) => m[0]),
     ].filter(Boolean);
-    const shortContextDate = context ? ContentExtractor.normalizeGermanDate(context) : '';
+    const upload = this.#firstMatch([url], [UPLOAD_MONTH_PATTERN], 'month');
+    const slugMonth = this.#firstMatch([url], [SLUG_MONTH_PATTERN], 'month');
+    const slugMonthBeforeUpload =
+      slugMonth &&
+      (!upload || slugMonth.year * 12 + slugMonth.month <= upload.year * 12 + upload.month)
+        ? slugMonth
+        : null;
 
     const found =
       this.#firstMatch(fileNames, FILENAME_DAY_PATTERNS, 'day') ??
       this.#firstMatch(texts, DAY_PATTERNS, 'day') ??
       // DD.MM.YY (BB headings: "Landesdelegiertenkonferenz am 26.03.22:")
-      this.#firstMatch(
-        [shortContextDate],
-        [{ re: /^(\d{4})-(\d{2})-(\d{2})$/, parse: ymd }],
-        'day'
-      ) ??
-      this.#firstMatch([url], MONTH_PATTERNS, 'month') ??
+      this.#firstMatch([context], [SHORT_YEAR_PATTERN], 'day') ??
+      this.#firstMatch([url], [FOLDER_MONTH_PATTERN], 'month') ??
+      slugMonthBeforeUpload ??
+      upload ??
       this.#firstMatch([url], [URL_YEAR_PATTERN], 'year') ??
       this.#firstMatch(texts, YEAR_PATTERNS, 'year');
 
@@ -183,15 +196,17 @@ export class DateExtractor {
     const currentYear = new Date().getFullYear();
     for (const text of texts) {
       for (const { re, parse } of patterns) {
-        const match = text.match(re);
-        if (!match) continue;
-        const parts = parse(match);
-        // Validate year range (1990 to current year) and reject impossible
-        // days instead of letting Date roll 31.02. over into March.
-        if (parts.year < 1990 || parts.year > currentYear) continue;
-        const date = new Date(parts.year, parts.month - 1, parts.day);
-        if (date.getMonth() !== parts.month - 1 || date.getDate() !== parts.day) continue;
-        return { ...parts, precision };
+        const matches = re.global ? Array.from(text.matchAll(re)) : [text.match(re)];
+        for (const match of matches) {
+          if (!match) continue;
+          const parts = parse(match);
+          // Validate year range (1990 to current year) and reject impossible
+          // days instead of letting Date roll 31.02. over into March.
+          if (parts.year < 1990 || parts.year > currentYear) continue;
+          const date = new Date(parts.year, parts.month - 1, parts.day);
+          if (date.getMonth() !== parts.month - 1 || date.getDate() !== parts.day) continue;
+          return { ...parts, precision };
+        }
       }
     }
     return null;

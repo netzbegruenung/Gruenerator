@@ -226,6 +226,39 @@ describe('DateExtractor.extractDateFromPdfInfo — precision (#3575)', () => {
     expect(result.precision).toBe('year');
   });
 
+  it('a version number like "Az. 1.2.10" in the context is not a date', () => {
+    const result = DateExtractor.extractDateFromPdfInfo(
+      'https://gruene.example/dokumente/beschluss.pdf',
+      'Beschluss',
+      'Az. 1.2.10 | Beschluss',
+      10
+    );
+
+    expect(result.dateString).toBeNull();
+  });
+
+  it('an invalid earlier DD.MM.YY does not hide a valid later one', () => {
+    const result = DateExtractor.extractDateFromPdfInfo(
+      'https://gruene.example/dokumente/beschluss.pdf',
+      'Beschluss',
+      'Frist 31.02.22 | Landesdelegiertenkonferenz am 26.03.22:',
+      10
+    );
+
+    expect(result).toMatchObject({ dateString: '2022-03-26', precision: 'day' });
+  });
+
+  it('a slug month later than the upload month is a target date, not the publication', () => {
+    const result = DateExtractor.extractDateFromPdfInfo(
+      'https://gruene.example/wp-content/uploads/2022/03/kommunalwahl-mai-2024.pdf',
+      'Kommunalwahl',
+      '',
+      10
+    );
+
+    expect(result).toMatchObject({ dateString: '2022-03-01', precision: 'month' });
+  });
+
   it('DD.MM.YY counts in the context only, not in the URL', () => {
     const result = DateExtractor.extractDateFromPdfInfo(
       'https://gruene.example/dokumente/version-1.10.24-entwurf.pdf',
