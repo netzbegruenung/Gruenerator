@@ -17,3 +17,9 @@ CREATE TABLE IF NOT EXISTS document_meta_boundary (
 );
 
 INSERT INTO document_meta_boundary (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+
+-- Der Neu-Zweig des Claims sucht fertige Dokumente ohne doc_meta. Ein Index,
+-- keine Spalte: er ändert an keiner Zeile etwas und trägt keinen Default.
+CREATE INDEX IF NOT EXISTS idx_documents_doc_meta_pending
+  ON documents (created_at)
+  WHERE status = 'completed' AND NOT (COALESCE(metadata, '{}'::jsonb) ? 'doc_meta');
