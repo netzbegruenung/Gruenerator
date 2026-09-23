@@ -7,7 +7,7 @@ import { server } from '../../test/msw-server';
 import VoicePage from './VoicePage';
 
 import { useAuthStore } from '@/stores/authStore';
-import { axe, fireEvent, renderWithProviders, screen, waitFor } from '@/test-utils';
+import { axe, fireEvent, renderWithProviders, screen, waitFor, within } from '@/test-utils';
 
 const ENDPOINT = 'http://localhost/api/voice/speech/generate';
 
@@ -59,21 +59,44 @@ function textarea(): HTMLTextAreaElement {
 }
 
 describe('VoicePage', () => {
-  it('starts on the Vorlesefassung preset with MP3 only and adds the telephone WAV for a mailbox greeting', async () => {
+  it('keeps the settings folded behind a summary and opens them inside the editor card', async () => {
     const { user } = renderWithProviders(<VoicePage />);
 
-    // The rail is open from the start — no disclosure to defeat first.
+    const toggle = screen.getByRole('button', { name: /Einstellungen: Vorlesefassung/ });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('radio', { name: /Vorlesefassung/ })).not.toBeInTheDocument();
+
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('radio', { name: /Vorlesefassung/ })).toHaveAttribute(
       'aria-checked',
       'true'
     );
-    expect(screen.getByRole('checkbox', { name: /MP3/ })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: /Telefon-WAV/ })).not.toBeChecked();
 
+    // The summary follows the choice, so the folded state never lies.
     await user.click(screen.getByRole('radio', { name: /Anrufbeantworter/ }));
+    expect(
+      screen.getByRole('button', { name: /Einstellungen: Anrufbeantworter/ })
+    ).toBeInTheDocument();
+  });
 
-    expect(screen.getByRole('checkbox', { name: /Telefon-WAV/ })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: /MP3/ })).toBeChecked();
+  it('moves the settings into a bottom sheet on a phone', async () => {
+    const width = window.innerWidth;
+    window.innerWidth = 390;
+    try {
+      const { user } = renderWithProviders(<VoicePage />);
+
+      expect(screen.queryByRole('button', { name: /Einstellungen: / })).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /Einstellungen/ }));
+
+      const sheet = await screen.findByRole('dialog', { name: 'Einstellungen' });
+      expect(within(sheet).getByRole('radio', { name: /Audiodeskription/ })).toBeInTheDocument();
+      await user.click(within(sheet).getByRole('button', { name: 'Fertig' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    } finally {
+      window.innerWidth = width;
+    }
   });
 
   it('announces how many provider requests a long text needs', async () => {
@@ -89,7 +112,7 @@ describe('VoicePage', () => {
     expect(textarea().getAttribute('aria-describedby')?.split(' ')).toContain(notice.id);
   });
 
-  it('sends the preset and formats, then shows player, downloads and the Mediathek link', async () => {
+  it('always asks for both formats, then offers them in one download menu', async () => {
     let received: unknown = null;
     server.use(
       http.post(ENDPOINT, async ({ request }) => {
@@ -102,24 +125,44 @@ describe('VoicePage', () => {
     fireEvent.change(textarea(), { target: { value: 'Hallo, hier ist der Kreisverband.' } });
     await user.click(screen.getByRole('button', { name: /Vertonen/ }));
 
-    expect(await screen.findByRole('heading', { name: /Fertig – 0:12/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Vorlesefassung' })).toBeInTheDocument();
+    expect(screen.getByText(/0:12 Min\./)).toBeInTheDocument();
     expect(received).toMatchObject({
       preset: 'vorlesefassung',
       text: 'Hallo, hier ist der Kreisverband.',
-      // Plain vertonen is the default: an MP3 and nothing else.
-      formats: ['mp3'],
+      // One synthesis, two encodes: nobody has to pick a format up front.
+      formats: ['mp3', 'wav_phone'],
       speed: null,
     });
 
     // The MP3 is what the preview plays, even when the WAV came first.
     const audio = document.querySelector('audio[controls]');
     expect(audio).toHaveAttribute('src', '/api/share/tok-mp3/stream');
-    expect(screen.getByRole('button', { name: /MP3 herunterladen/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Telefon-WAV herunterladen/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Herunterladen/ }));
+    expect(await screen.findByRole('menuitem', { name: /MP3/ })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Telefon-WAV/ })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+
     expect(screen.getByRole('link', { name: 'Mediathek' })).toHaveAttribute(
       'href',
       '/media-library'
     );
+    expect(screen.getByRole('button', { name: /Link kopieren/ })).toBeInTheDocument();
+  });
+
+  it('says when the file no longer matches the text and offers to redo it', async () => {
+    server.use(http.post(ENDPOINT, () => HttpResponse.json(okResponse)));
+    const { user } = renderWithProviders(<VoicePage />);
+
+    fireEvent.change(textarea(), { target: { value: 'Erster Satz.' } });
+    await user.click(screen.getByRole('button', { name: /Vertonen/ }));
+    await screen.findByRole('heading', { name: 'Vorlesefassung' });
+    expect(screen.queryByText(/erneut vertonen/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Neu vertonen/ })).toBeInTheDocument();
+
+    fireEvent.change(textarea(), { target: { value: 'Erster Satz. Zweiter Satz.' } });
+    expect(screen.getByText(/erneut vertonen/)).toBeInTheDocument();
   });
 
   it('estimates the audio length from the text and the tempo', async () => {
@@ -131,7 +174,8 @@ describe('VoicePage', () => {
     fireEvent.change(textarea(), { target: { value: 'a'.repeat(130) } });
     expect(screen.getByText('≈ 0:10 Min. Audio')).toBeInTheDocument();
 
-    // The estimate follows the tempo, so the rail and the number cannot disagree.
+    // The estimate follows the tempo, so the settings and the number cannot disagree.
+    await user.click(screen.getByRole('button', { name: /Einstellungen: / }));
     await user.click(screen.getByRole('radio', { name: 'Langsam' }));
     expect(screen.getByText('≈ 0:11 Min. Audio')).toBeInTheDocument();
   });
@@ -181,7 +225,9 @@ describe('VoicePage', () => {
     expect(textarea().value).not.toContain('<break');
 
     // The counter charges the full tag and says why the number jumped.
-    expect(screen.getByText(/31 \/ 24\.576 Zeichen · 1 Pause/)).toBeInTheDocument();
+    expect(document.getElementById('voice-text-count')).toHaveTextContent(
+      '31 / 24.576 Zeichen · 1 Pause'
+    );
 
     await user.click(screen.getByRole('button', { name: /Vertonen/ }));
 
@@ -194,6 +240,7 @@ describe('VoicePage', () => {
     const { user } = renderWithProviders(<VoicePage />);
 
     // Anrufbeantworter caps at 1500 characters on the wire.
+    await user.click(screen.getByRole('button', { name: /Einstellungen: / }));
     await user.click(screen.getByRole('radio', { name: /Anrufbeantworter/ }));
     fireEvent.change(textarea(), { target: { value: 'a'.repeat(1490) } });
 
@@ -224,8 +271,11 @@ describe('VoicePage', () => {
     );
   });
 
-  it('has no axe violations in its initial state', async () => {
-    const { container } = renderWithProviders(<VoicePage />);
+  it('has no axe violations, folded or with the settings open', async () => {
+    const { container, user } = renderWithProviders(<VoicePage />);
+    expect(await axe(container)).toHaveNoViolations();
+
+    await user.click(screen.getByRole('button', { name: /Einstellungen: / }));
     expect(await axe(container)).toHaveNoViolations();
   });
 });
