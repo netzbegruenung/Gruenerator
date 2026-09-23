@@ -109,6 +109,7 @@ export function ListRow({
       ]}
       accessibilityRole="button"
       accessibilityLabel={[title, titleBadge, value].filter(Boolean).join(', ')}
+      {...(selected !== undefined && { accessibilityState: { selected } })}
     >
       {leading ?? (
         <View style={[styles.badge, badge]}>
