@@ -6,9 +6,14 @@
  * Pure and side-effect-free so it is testable without a document pipeline.
  */
 
-/** Party function addresses live under a domain containing "gruen" (gruene-berlin.de, grueneberlin.de, gruene.de, …). */
+/**
+ * Party function addresses live under a domain containing "gruene"
+ * (gruene-berlin.de, grueneberlin.de, gruene.de, …). Not "gruen": that also
+ * matches Gründer/Gründung domains. The Grüne Liga is an independent network.
+ */
 function isPartyDomain(domain: string): boolean {
-  return domain.toLowerCase().includes('gruen');
+  const d = domain.toLowerCase();
+  return d.includes('gruene') && !/gruene-?liga/.test(d);
 }
 
 const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
