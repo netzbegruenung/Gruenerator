@@ -11,12 +11,13 @@
  * `pdfProblemNote` steht dazwischen und bleibt eigenständig, weil sie ANHÄNGT
  * statt zu ersetzen — sie wird gestreamt, bevor die Beschneidung greift.
  */
+import { looksCutOff } from '@gruenerator/contracts';
+
 import {
   announcesPendingWork,
   containsBrokenJsonPayload,
   defersToSearchDespiteSources,
   deniesSearchAbilityDespiteSearching,
-  looksCutOff,
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
 } from '../outputSanity.js';
