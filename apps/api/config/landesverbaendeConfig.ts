@@ -54,6 +54,10 @@ export interface ContentSelectors {
   content: string[];
   categories: string[];
   author: string[];
+  // Optional: elements to strip from the matched content selector before
+  // reading its text — e.g. a share bar or contact box nested inside the
+  // content container that a selector change alone can't remove (#3574).
+  removeSelectors?: string[];
 }
 
 /**
@@ -201,7 +205,12 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       contentSelectors: {
         title: ['h1', 'h2.headline', '.page-title', 'meta[property="og:title"]'],
         date: ['.mb-tiny', 'time', '.date', '.publication-date'],
-        content: ['article', '.content-main', '.text-content', 'main'],
+        // `.columns__cell--size-70` holds the lead + body; `.neos-contentcollection`
+        // (nested inside it) does NOT — the lead is a bare text node before it, so
+        // targeting the collection directly would lose it. Strip the photo credit,
+        // date label and back-link that otherwise leak into the body (#3574).
+        content: ['.columns__cell--size-70', 'article', '.content-main', '.text-content', 'main'],
+        removeSelectors: ['.image__copyright', '.mb-tiny', '.back-to-parent-link__wrapper'],
         categories: ['a[href*="/themen/"]', '.tags a'],
         author: ['.author', '.written-by'],
       },
@@ -303,7 +312,16 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           '.post-date',
           'meta[property="article:published_time"]',
         ],
-        content: ['.elementor-widget-container', '.entry-content', 'article', 'main'],
+        // `.elementor-widget-container` matches every widget on the page (date,
+        // title, taxonomy, …), not just the body — target the post-content widget
+        // directly and keep the broad selector only as a fallback (#3574).
+        content: [
+          '.elementor-widget-theme-post-content',
+          '.elementor-widget-container',
+          '.entry-content',
+          'article',
+          'main',
+        ],
         categories: ['.elementor-post-taxonomy a', 'a[rel="category tag"]', '.post-categories a'],
         author: ['.author-name', '.elementor-author-name'],
       },
@@ -511,6 +529,11 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         title: ['h1.document-title', 'h1', 'meta[property="og:title"]'],
         date: ['time[datetime]', 'meta[property="article:published_time"]'],
         content: ['.document-content__main', '.news-text-wrap', 'article', 'main'],
+        // `.document-content__main` also contains a share bar and a contact box
+        // (spokesperson name, phone, social URLs) — strip them rather than
+        // switching selectors: the legacy `/presse/pressemitteilungen/` template
+        // has no `.document-content__content` to target instead (#3574).
+        removeSelectors: ['.document-content__sharing', 'aside.document-content__complementary'],
         categories: ['.news-category a', '.categories a'],
         author: ['.author', '.byline'],
       },
@@ -987,7 +1010,17 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       contentSelectors: {
         title: ['h1.eintrag-titel', 'meta[property="og:title"]', 'h1'],
         date: ['.zeit', '.meta', 'time[datetime]', 'meta[property="article:published_time"]'],
-        content: ['.daten', '.inhalt.einspaltig', 'main article', 'article'],
+        // `.daten` also matches every "Pressemitteilungen zum Thema" related-post
+        // card on the page — scope both the primary selector and the fallback to
+        // the article's own (non-related) `.inhalt` block (#3574). The related
+        // block itself carries `.keindruck` alongside `.einspaltig`, so the
+        // fallback needs the same exclusion, not just the primary selector.
+        content: [
+          '.inhalt:not(.keindruck) > .daten',
+          '.inhalt.einspaltig:not(.keindruck)',
+          'main article',
+          'article',
+        ],
         categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
         author: ['.author-name', '.byline', '.entry-author'],
       },
@@ -1032,7 +1065,17 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       contentSelectors: {
         title: ['h1.eintrag-titel', 'meta[property="og:title"]', 'h1'],
         date: ['.zeit', '.meta', 'time[datetime]', 'meta[property="article:published_time"]'],
-        content: ['.daten', '.inhalt.einspaltig', 'main article', 'article'],
+        // `.daten` also matches every "Pressemitteilungen zum Thema" related-post
+        // card on the page — scope both the primary selector and the fallback to
+        // the article's own (non-related) `.inhalt` block (#3574). The related
+        // block itself carries `.keindruck` alongside `.einspaltig`, so the
+        // fallback needs the same exclusion, not just the primary selector.
+        content: [
+          '.inhalt:not(.keindruck) > .daten',
+          '.inhalt.einspaltig:not(.keindruck)',
+          'main article',
+          'article',
+        ],
         categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
         author: ['.author-name', '.byline', '.entry-author'],
       },

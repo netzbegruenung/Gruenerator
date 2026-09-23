@@ -13,6 +13,8 @@ interface ContentSelectors {
   date: string[];
   content: string[];
   categories?: string[];
+  /** Elements to strip from the matched content selector before reading its text (#3574) */
+  removeSelectors?: string[];
 }
 
 interface SourceConfig {
@@ -76,9 +78,26 @@ export class ContentExtractor {
       }
     }
 
-    // Fallback to main/body if no content found
+    // Fallback: no selector cleared the 200-char gate (e.g. a genuinely short
+    // Beschluss). Take the FIRST configured selector with any non-empty text —
+    // not the longest, which can pull in sidebar/nav chrome — before falling
+    // back to main/body (#3574).
+    let bodyFallback = false;
     if (!contentText || contentText.trim().length < 200) {
-      contentText = $('main').text() || $('body').text();
+      let shortText = '';
+      for (const sel of selectors.content) {
+        const el = $(sel);
+        if (el.length && el.text().trim()) {
+          shortText = el.text();
+          break;
+        }
+      }
+      if (shortText) {
+        contentText = shortText;
+      } else {
+        contentText = $('main').text() || $('body').text();
+        bodyFallback = true;
+      }
     }
 
     // Extract categories
@@ -97,7 +116,7 @@ export class ContentExtractor {
       .replace(/\n{3,}/g, '\n\n') // Normalize line breaks
       .trim();
 
-    return { title, publishedAt, text: contentText, categories };
+    return { title, publishedAt, text: contentText, categories, bodyFallback };
   }
 
   /**
@@ -132,6 +151,10 @@ export class ContentExtractor {
     // Remove unwanted elements (after title/date extraction)
     $('script, style, noscript, iframe, nav, header, footer').remove();
     $('.navigation, .cookie-consent, .breadcrumb, .social-share').remove();
+    // Per-source chrome (photo credit, date label, back-link — #3574)
+    if (selectors.removeSelectors?.length) {
+      $(selectors.removeSelectors.join(', ')).remove();
+    }
 
     // Extract main content
     let contentText = '';
@@ -143,9 +166,26 @@ export class ContentExtractor {
       }
     }
 
-    // Fallback to main/body if no content found
+    // Fallback: no selector cleared the 200-char gate (e.g. a genuinely short
+    // Beschluss). Take the FIRST configured selector with any non-empty text —
+    // not the longest, which can pull in sidebar/nav chrome — before falling
+    // back to main/body (#3574).
+    let bodyFallback = false;
     if (!contentText || contentText.trim().length < 200) {
-      contentText = $('main').text() || $('body').text();
+      let shortText = '';
+      for (const sel of selectors.content) {
+        const el = $(sel);
+        if (el.length && el.text().trim()) {
+          shortText = el.text();
+          break;
+        }
+      }
+      if (shortText) {
+        contentText = shortText;
+      } else {
+        contentText = $('main').text() || $('body').text();
+        bodyFallback = true;
+      }
     }
 
     // Extract categories
@@ -164,7 +204,7 @@ export class ContentExtractor {
       .replace(/\n{3,}/g, '\n\n') // Normalize line breaks
       .trim();
 
-    return { title, publishedAt, text: contentText, categories };
+    return { title, publishedAt, text: contentText, categories, bodyFallback };
   }
 
   /**
@@ -214,6 +254,10 @@ export class ContentExtractor {
     $('.navigation, .cookie-consent, .breadcrumb, .social-share').remove();
     // Typo3-specific: remove pagination inside blog plugin
     $('.tx_xblog_pi1 .pagination, .tx_xblog_pi1 .page-navigation').remove();
+    // Per-source chrome (share bar, contact box — #3574)
+    if (selectors.removeSelectors?.length) {
+      $(selectors.removeSelectors.join(', ')).remove();
+    }
 
     // Extract main content
     let contentText = '';
@@ -225,9 +269,26 @@ export class ContentExtractor {
       }
     }
 
-    // Fallback to main/body if no content found
+    // Fallback: no selector cleared the 200-char gate (e.g. a genuinely short
+    // Beschluss). Take the FIRST configured selector with any non-empty text —
+    // not the longest, which can pull in sidebar/nav chrome — before falling
+    // back to main/body (#3574).
+    let bodyFallback = false;
     if (!contentText || contentText.trim().length < 200) {
-      contentText = $('main').text() || $('body').text();
+      let shortText = '';
+      for (const sel of selectors.content) {
+        const el = $(sel);
+        if (el.length && el.text().trim()) {
+          shortText = el.text();
+          break;
+        }
+      }
+      if (shortText) {
+        contentText = shortText;
+      } else {
+        contentText = $('main').text() || $('body').text();
+        bodyFallback = true;
+      }
     }
 
     // Extract categories
@@ -246,7 +307,7 @@ export class ContentExtractor {
       .replace(/\n{3,}/g, '\n\n')
       .trim();
 
-    return { title, publishedAt, text: contentText, categories };
+    return { title, publishedAt, text: contentText, categories, bodyFallback };
   }
 
   /**
