@@ -309,12 +309,15 @@ describe('ContentExtractor.blockText (#3573)', () => {
 
   it('trennt mehrere vom Content-Selektor getroffene Geschwister-Wurzeln (Important 2b)', () => {
     // z. B. `.wp-block-paragraph` mit 2 Treffern auf derselben Ebene — jede
-    // Wurzel landet für sich in `el`, keine gemeinsame Elternselektion.
+    // Wurzel landet für sich in `el`, keine gemeinsame Elternselektion. Der
+    // Wurzel-Join nutzt `\n\n` — denselben Absatztrenner wie an einer
+    // berührenden Blockgrenze innerhalb eines Wurzelelements (Fix Runde 2:
+    // Einheitlichkeit statt Einzel- vs. Doppel-`\n`).
     const $ = cheerio.load(
       '<div class="wrap"><p class="x">Satz eins.</p><p class="x">Satz zwei.</p></div>'
     );
     const text = ContentExtractor.normalizeWhitespace(ContentExtractor.blockText($, $('.x')));
-    expect(text).toBe('Satz eins.\nSatz zwei.');
+    expect(text).toBe('Satz eins.\n\nSatz zwei.');
   });
 
   it('mutiert das freigegebene Dokument nicht (Datum bleibt für spätere Selektoren lesbar)', () => {
