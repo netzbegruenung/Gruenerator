@@ -199,3 +199,38 @@ describe('processAndStoreDocument — default age limit', () => {
     expect(result.stored).toBe(true);
   });
 });
+
+/**
+ * PDF- und Wolke-Titel kommen nicht durch extractPageContent und wurden bis
+ * hierher nie normalisiert (#3577).
+ */
+describe('processAndStoreDocument — title normalisation', () => {
+  const storeTitled = (title: string) =>
+    makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'beschluss',
+      URL_UNDER_TEST,
+      { title, text: TEXT, publishedAt: null, categories: [] },
+      'landesverbaende_documents'
+    );
+
+  beforeEach(() => {
+    scrollDocuments.mockResolvedValue([]);
+  });
+
+  it('collapses non-breaking spaces, double spaces and line breaks', async () => {
+    await storeTitled('Protokoll der LDK  Güstrow\n 12. Oktober 2024 ');
+
+    const [, , points] = batchUpsert.mock.calls[0] as [unknown, string, { payload: unknown }[]];
+    expect(points[0].payload).toMatchObject({
+      title: 'Protokoll der LDK Güstrow 12. Oktober 2024',
+    });
+  });
+
+  it('falls back to the source label when the title is only whitespace', async () => {
+    await storeTitled('  \n');
+
+    const [, , points] = batchUpsert.mock.calls[0] as [unknown, string, { payload: unknown }[]];
+    expect(points[0].payload).toMatchObject({ title: 'Grüne Berlin - Beschluss/Resolution' });
+  });
+});
