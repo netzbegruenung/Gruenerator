@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 
-import { LinkExtractor } from './LinkExtractor.js';
+import { LinkExtractor, titleFromPdfUrl } from './LinkExtractor.js';
 
 import type {
   LandesverbandSource,
@@ -68,7 +68,7 @@ describe('LinkExtractor.extractPdfLinks — staticUrls', () => {
     expect(links).toEqual([
       {
         url: 'https://www.gruene-lsa.de/wp-content/uploads/2026/05/Programm-zur-Landtagswahl-2026.pdf',
-        title: '',
+        title: 'Programm zur Landtagswahl 2026',
         context: '',
       },
     ]);
@@ -98,11 +98,35 @@ describe('LinkExtractor.extractPdfLinks — staticUrls', () => {
     expect(links).toEqual([
       {
         url: 'https://gruene-sachsen.de/wp-content/uploads/2024/08/programm.pdf',
-        title: '',
+        title: 'programm',
         context: '',
       },
     ]);
     expect(fetchUrl).not.toHaveBeenCalled();
+  });
+});
+
+describe('titleFromPdfUrl', () => {
+  it('turns dash/underscore-separated filenames into a readable title', () => {
+    expect(
+      titleFromPdfUrl(
+        'https://www.gruene-lsa.de/wp-content/uploads/2026/05/Programm-zur-Landtagswahl-2026.pdf'
+      )
+    ).toBe('Programm zur Landtagswahl 2026');
+  });
+
+  it('decodes percent-encoded umlauts', () => {
+    expect(titleFromPdfUrl('https://example.org/docs/Wahlprogramm_f%C3%BCr_2026.pdf')).toBe(
+      'Wahlprogramm für 2026'
+    );
+  });
+
+  it('collapses runs of separators and mixed dash/underscore', () => {
+    expect(titleFromPdfUrl('https://example.org/a--b__c.pdf')).toBe('a b c');
+  });
+
+  it('falls back to the raw filename when decoding fails', () => {
+    expect(titleFromPdfUrl('https://example.org/broken-%E0-name.pdf')).toBe('broken %E0 name');
   });
 });
 
