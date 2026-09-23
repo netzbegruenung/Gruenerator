@@ -45,7 +45,7 @@ export const NOTEBOOK_ANSWER_MODES: NotebookAnswerModeDef[] = [
  * the choice is persisted, so an id this build no longer knows can come back
  * from storage.
  */
-export function notebookAnswerModeDef(mode: NotebookAnswerMode | undefined): NotebookAnswerModeDef {
+export function notebookAnswerModeDef(mode?: NotebookAnswerMode | null): NotebookAnswerModeDef {
   return (
     NOTEBOOK_ANSWER_MODES.find((m) => m.mode === mode) ??
     NOTEBOOK_ANSWER_MODES.find((m) => m.mode === DEFAULT_NOTEBOOK_ANSWER_MODE)!
