@@ -66,6 +66,7 @@ import { useDuplicateAgent } from './hooks/useDuplicateAgent';
 import { hasKnowledge, toolCount } from './lib/capabilities';
 import {
   AGENTURA_EMPTY_ICONS,
+  AGENTURA_TYPE_LABELS,
   AGENTURA_TYPE_VALUES,
   DEFAULT_CATEGORY,
   DEFAULT_TYPE,
@@ -214,11 +215,11 @@ type MarketItem =
   | { kind: 'recipe'; isFavorite: boolean; entry: RecipeEntry }
   | { kind: 'task'; isFavorite: boolean; task: RecurringTask };
 
-/** Reihenfolge und Beschriftung der Abschnitte — dieselben Gattungen wie der Typ-Filter. */
-const SECTIONS: { kind: MarketItem['kind']; label: string; icon: IconType }[] = [
-  { kind: 'agent', label: 'Agents', icon: PiSparkle },
-  { kind: 'recipe', label: 'Rezepte', icon: PiFileText },
-  { kind: 'task', label: 'Wiederkehrende Aufgaben', icon: PiRepeat },
+/** Reihenfolge der Abschnitte — dieselben Gattungen und Beschriftungen wie der Typ-Filter. */
+const SECTIONS: { kind: MarketItem['kind']; icon: IconType }[] = [
+  { kind: 'agent', icon: PiSparkle },
+  { kind: 'recipe', icon: PiFileText },
+  { kind: 'task', icon: PiRepeat },
 ];
 
 function AgenturaPage() {
@@ -881,7 +882,7 @@ function AgenturaPage() {
                     id={headingId}
                     className="m-0 text-sm font-semibold uppercase tracking-wide text-foreground-muted"
                   >
-                    {section.label}
+                    {AGENTURA_TYPE_LABELS[section.kind]}
                   </h2>
                   <span className="text-xs font-semibold text-foreground-muted">
                     {sectionItems.length}
