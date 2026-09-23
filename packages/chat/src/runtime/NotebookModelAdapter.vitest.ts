@@ -285,7 +285,8 @@ describe('NotebookModelAdapter — answer mode', () => {
       { event: 'text_delta', data: { text: 'Drei Quellen [1].' } },
       COMPLETION,
     ]);
-    const content = (results.at(-1) as { content: Array<Record<string, unknown>> }).content;
+    const content = (results.at(-1) as unknown as { content: Array<Record<string, unknown>> })
+      .content;
     expect(content.map((p) => p.type)).toEqual(['tool-call', 'text']);
     expect(content[0]).toMatchObject({
       toolCallId: 's1',
@@ -301,7 +302,8 @@ describe('NotebookModelAdapter — answer mode', () => {
       data: { stepId: 's1', toolName: 'notebook_quellen' },
     };
     const { results } = await runTurn([start, start, COMPLETION]);
-    const content = (results.at(-1) as { content: Array<Record<string, unknown>> }).content;
+    const content = (results.at(-1) as unknown as { content: Array<Record<string, unknown>> })
+      .content;
     expect(content.filter((p) => p.type === 'tool-call')).toHaveLength(1);
   });
 });
