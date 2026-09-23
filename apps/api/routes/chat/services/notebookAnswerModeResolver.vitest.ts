@@ -304,6 +304,12 @@ describe('isPraezisionEligible', () => {
     expect(isPraezisionEligible([], 'de-DE')).toBe(false);
   });
 
+  it('accepts the system ids and collection keys the notebook page sends', () => {
+    expect(isPraezisionEligible(['berlin-system'], 'de-DE')).toBe(true);
+    expect(isPraezisionEligible(['berlin'], 'de-DE')).toBe(true);
+    expect(isPraezisionEligible(['hamburg-system'], 'de-DE')).toBe(true);
+  });
+
   it('is enough when one notebook of the page is readable', () => {
     expect(isPraezisionEligible(['gruenerator-notebook', USER_NB], 'de-DE')).toBe(true);
   });
