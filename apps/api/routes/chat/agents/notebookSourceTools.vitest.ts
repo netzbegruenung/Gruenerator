@@ -542,6 +542,23 @@ describe('grep', () => {
     );
   });
 
+  it('shows and grounds ten sources by default, the ones with the most hits', async () => {
+    const ids = Array.from({ length: 12 }, (_, i) => `d${i + 1}`);
+    const { run, registered } = makeCtx({
+      rows: ids.map((id, i) => docRow({ id, title: `Quelle ${i + 1}` })),
+      links: ids,
+      markdownById: Object.fromEntries(
+        ids.map((id, i) => [id, `${'Radweg. '.repeat(i === 11 ? 3 : 1)}Ende.`])
+      ),
+    });
+    const out = await run({ action: 'grep', phrase: 'Radweg' });
+    expect(out).toMatchObject({ exhaustive: true, totalHits: 14, sourcesWithHits: 12 });
+    const shown = out.perSource as Array<Record<string, unknown>>;
+    expect(shown).toHaveLength(10);
+    expect(shown[0]).toMatchObject({ sourceId: 'd12', count: 3 });
+    expect(registered[0]!.results).toHaveLength(10);
+  });
+
   it('needs a phrase of at least two characters', async () => {
     const { run } = makeCtx();
     expect((await run({ action: 'grep' })).error).toBe(

@@ -24,6 +24,7 @@ prose                            27   10.8 %    12
 (ohne Tier-Eintrag: 8 — Tier-1/2-Zweige journalisieren nicht)
 classifier.tier  (241)
     tier2_notebook_tool_ask       0
+    tier2_thread_notebook_tool_ask    0
     tier2.7_mcp_followup          0
     tier2.7_sharepic_followup     8
     tier2.9_docs_help             1
