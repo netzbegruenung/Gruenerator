@@ -126,7 +126,25 @@ describe('citeQuote', () => {
       incompleteReason: null,
       sourcesScanned: 1,
       candidates: [],
+      candidatesTotal: 0,
     });
+  });
+
+  it('caps the candidate list but reports the true total', async () => {
+    const docs = Array.from({ length: 12 }, (_, i) => ({
+      id: `d${i}`,
+      title: `Kopie ${i}`,
+      text: `Nr. ${i}: Der Radweg kommt 2027.`,
+    }));
+    const { deps } = fakeNotebookDeps(docs);
+    const out = await citeQuote(
+      { collectionId: 'n1', userId: 'u1', quote: 'Der Radweg kommt 2027' },
+      deps
+    );
+    expect(out.found).toBe(false);
+    if (out.found) return;
+    expect(out.candidates).toHaveLength(10);
+    expect(out.candidatesTotal).toBe(12);
   });
 });
 
