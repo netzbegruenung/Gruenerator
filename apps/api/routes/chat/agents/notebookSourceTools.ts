@@ -262,7 +262,10 @@ Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt d
       mode: z.enum(['hybrid', 'vector', 'text']).default('hybrid').describe('find'),
       rerank: z.boolean().default(false).describe('find: Passagen neu bewerten (langsamer)'),
       phrase: z.string().min(2).optional().describe('grep: Wort oder Wortfolge'),
-      caseSensitive: z.boolean().optional().describe('grep: Groß/klein beachten'),
+      caseSensitive: z
+        .boolean()
+        .optional()
+        .describe('grep: Groß/klein beachten (dann zählen auch Akzente exakt)'),
       contexts: z.number().int().min(0).max(5).optional().describe('grep: Fundstellen je Quelle'),
       lemmas: z.boolean().optional().describe('stats: häufigste Lemmata'),
       lemmaOf: z.array(z.string()).optional().describe('stats: Wortformen dieser Lemmata'),
