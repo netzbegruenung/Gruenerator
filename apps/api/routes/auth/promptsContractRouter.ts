@@ -16,6 +16,7 @@ import { and, eq } from 'drizzle-orm';
 import { customPrompts, savedPrompts } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { sessionHasAiConsent } from '../../middleware/requireAiConsent.js';
 import { getIntermediateModel } from '../../services/ai/providers.js';
 import { getPromptVectorService } from '../../services/prompts/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -36,7 +37,14 @@ function generateSlug(): string {
   return randomBytes(6).toString('hex');
 }
 
-async function generatePromptName(promptText: string): Promise<string> {
+// Ohne Art.-9-Einwilligung kein Modellaufruf — das Speichern selbst ist keine
+// KI-Funktion und darf daran nicht scheitern.
+async function generatePromptName(
+  promptText: string,
+  aiAllowed: boolean,
+  fallback = 'Mein Prompt'
+): Promise<string> {
+  if (!aiAllowed) return fallback;
   try {
     const result = await generateText({
       model: getIntermediateModel('trivial'),
@@ -46,10 +54,10 @@ async function generatePromptName(promptText: string): Promise<string> {
     });
 
     const name = result.text.trim();
-    return name || 'Mein Prompt';
+    return name || fallback;
   } catch (error) {
     log.warn('Failed to generate prompt name:', error);
-    return 'Mein Prompt';
+    return fallback;
   }
 }
 
@@ -143,7 +151,10 @@ export const promptsContractRouter = s.router(promptsContract, {
       }
 
       const slug = generateSlug();
-      const name = await generatePromptName(prompt.trim());
+      const name = await generatePromptName(
+        prompt.trim(),
+        sessionHasAiConsent(getAuthedUser(args.req))
+      );
 
       const db = getDrizzleInstance();
       const rows = await db
@@ -230,7 +241,13 @@ export const promptsContractRouter = s.router(promptsContract, {
 
       const newPromptText = prompt?.trim() || existingPrompt.prompt;
       const promptChanged = Boolean(prompt && prompt.trim() !== existingPrompt.prompt);
-      const newName = promptChanged ? await generatePromptName(newPromptText) : existingPrompt.name;
+      const newName = promptChanged
+        ? await generatePromptName(
+            newPromptText,
+            sessionHasAiConsent(getAuthedUser(args.req)),
+            existingPrompt.name
+          )
+        : existingPrompt.name;
 
       const updated = await db
         .update(customPrompts)
