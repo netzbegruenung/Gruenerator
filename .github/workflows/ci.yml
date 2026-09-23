@@ -285,6 +285,23 @@ jobs:
   test:
     name: Tests
     runs-on: ubuntu-latest
+    # An empty database for `migrations.db.vitest.ts`: builds the schema from
+    # zero the way a fresh instance does on first boot (#2895). A grown
+    # database never shows a migration that only works on top of another.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      MIGRATIONS_TEST_DATABASE_URL: postgresql://gruenerator:gruenerator@localhost:5432/gruenerator
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -300,6 +317,14 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # The app role owns its database but is no superuser. schema.sql creates
+      # its own extensions, which only works while they stay trusted ones.
+      - name: Create the app role and its empty database
+        run: >-
+          psql postgresql://postgres:postgres@localhost:5432/postgres
+          -c "CREATE ROLE gruenerator LOGIN PASSWORD 'gruenerator'"
+          -c "CREATE DATABASE gruenerator OWNER gruenerator"
 
       - name: Run tests
         run: pnpm test
