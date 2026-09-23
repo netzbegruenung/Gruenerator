@@ -217,9 +217,9 @@ export const documentRecordSchema = z.object({
    */
   processing_error: z.string().nullish(),
   /**
-   * Ob „Neu indexieren" das Original noch erreicht (Wolke-Datei, URL,
-   * WordPress). Ein Upload ohne Original ist `false` — seine Datei ist nach
-   * der Verarbeitung gelöscht.
+   * Ob „Neu indexieren" das Original noch erreicht — nur Wolke-Dateien. Ein
+   * Upload ist `false` (seine Datei ist nach der Verarbeitung gelöscht), URL-
+   * und WordPress-Quellen auch (ein Neu-Crawl brächte keine Seitenzahlen).
    */
   reindexable: z.boolean().nullish(),
 });

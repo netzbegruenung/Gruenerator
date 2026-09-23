@@ -7,7 +7,6 @@ import { and, desc, eq } from 'drizzle-orm';
 
 import { documents, type Document } from '../../../database/schema/documents.js';
 import { getDrizzleInstance } from '../../../database/services/DrizzleService.js';
-import { parseMetadata } from '../../../routes/documents/helpers.js';
 
 import type {
   DocumentMetadata,
@@ -159,28 +158,45 @@ export async function updateDocumentMetadata(
       updateData.markdown_content = updates.markdownContent;
     if (updates.pageCount !== undefined) updateData.page_count = updates.pageCount;
 
+    // Metadaten atomar in der Datenbank zusammenführen, nicht lesen-ändern-
+    // schreiben: ein langer Verarbeitungslauf überschrieb sonst Tags oder
+    // Felder, die in der Zwischenzeit jemand anderes gesetzt hatte. `undefined`
+    // heißt wie bisher „Schlüssel entfernen".
+    let metadataRow: Record<string, unknown> | undefined;
     if (updates.additionalMetadata !== undefined) {
-      // Merge with existing metadata to avoid losing fields
-      const currentRows = await db
-        .select({ metadata: documents.metadata })
-        .from(documents)
-        .where(and(eq(documents.id, documentId), eq(documents.user_id, userId)))
-        .limit(1);
-      const current = currentRows[0];
-      const baseMeta = parseMetadata(current?.metadata);
-      updateData.metadata = JSON.stringify({
-        ...baseMeta,
-        ...updates.additionalMetadata,
-      });
+      const patch: Record<string, unknown> = {};
+      const removed: string[] = [];
+      for (const [key, value] of Object.entries(updates.additionalMetadata)) {
+        if (value === undefined) removed.push(key);
+        else patch[key] = value;
+      }
+      const rows = await postgres.query(
+        `UPDATE documents
+            SET metadata = (
+                  CASE jsonb_typeof(metadata)
+                    WHEN 'object' THEN metadata
+                    WHEN 'string' THEN (metadata #>> '{}')::jsonb
+                    ELSE '{}'::jsonb
+                  END - $3::text[]
+                ) || $4::jsonb
+          WHERE id = $1 AND user_id = $2
+          RETURNING *`,
+        [documentId, userId, removed, JSON.stringify(patch)]
+      );
+      metadataRow = rows[0] as Record<string, unknown> | undefined;
     }
 
-    const result = await postgres.update('documents', updateData, {
-      id: documentId,
-      user_id: userId,
-    });
+    const row =
+      Object.keys(updateData).length > 0 || !metadataRow
+        ? ((
+            await postgres.update('documents', updateData, {
+              id: documentId,
+              user_id: userId,
+            })
+          ).data[0] as Record<string, unknown>)
+        : metadataRow;
 
     console.log(`[PostgresDocumentService] Document ${documentId} updated`);
-    const row = result.data[0] as Record<string, unknown>;
     const createdAt =
       row.created_at instanceof Date ? row.created_at.toISOString() : (row.created_at as string);
     const updatedAt =

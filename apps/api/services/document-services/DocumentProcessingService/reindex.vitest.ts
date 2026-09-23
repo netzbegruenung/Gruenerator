@@ -45,18 +45,17 @@ const row = (over: Partial<ReindexRow> = {}): ReindexRow => ({
   user_id: OWNER,
   filename: 'antrag.pdf',
   status: 'completed',
-  source_url: null,
   wolke_share_link_id: null,
   wolke_file_path: null,
-  metadata: {},
+  vector_count: 12,
   ...over,
 });
 
 const WOLKE = row({ wolke_share_link_id: 'share-1', wolke_file_path: '/public.php/webdav/a.pdf' });
-const URL_SOURCE = row({
+const WOLKE_2 = row({
   id: 'doc-2',
-  filename: 'crawled_1.txt',
-  metadata: { originalUrl: 'https://gruene.de/a' },
+  wolke_share_link_id: 'share-1',
+  wolke_file_path: '/public.php/webdav/b.pdf',
 });
 const UPLOAD = row({ id: 'doc-3' });
 
@@ -79,7 +78,6 @@ function fakeDeps(rows: ReindexRow[], over: Partial<ReindexDeps> = {}) {
           const r = table.get(params[0] as string);
           if (r && !['uploaded', 'processing'].includes(r.status ?? '')) {
             r.status = 'uploaded';
-            r.metadata = { ...(r.metadata as object), reindex_origin: params[1] };
             updates.push(r.id);
           }
           return [];
@@ -147,13 +145,16 @@ describe('reindexDocument — Zugriff', () => {
 });
 
 describe('reindexDocument — welche Quelle ein Original hat', () => {
-  it('reiht Wolke-Dateien und URLs ein', async () => {
-    const { deps, table } = fakeDeps([WOLKE, URL_SOURCE]);
+  it('reiht Wolke-Dateien ein und merkt sich Herkunft, Vorzustand und Einreihzeit', async () => {
+    const { deps, updates } = fakeDeps([WOLKE]);
     expect((await reindexDocument('doc-1', OWNER, {}, deps)).status).toBe('queued');
-    expect((await reindexDocument('doc-2', OWNER, {}, deps)).status).toBe('queued');
-    expect(table.get('doc-1')?.metadata).toMatchObject({ reindex_origin: 'wolke' });
-    expect(table.get('doc-2')?.metadata).toMatchObject({ reindex_origin: 'url' });
-    expect(deps.kick).toHaveBeenCalledTimes(2);
+    expect(updates).toEqual(['doc-1']);
+    const sql = (deps.db.query as ReturnType<typeof vi.fn>).mock.calls
+      .map((c) => c[0] as string)
+      .find((q) => q.includes('UPDATE documents'));
+    expect(sql).toContain("'reindex_prev_searchable'");
+    expect(sql).toContain("'queued_at', NOW()");
+    expect(deps.kick).toHaveBeenCalledTimes(1);
   });
 
   it('sagt bei einem Upload ohne Original ehrlich nein und fasst ihn nicht an', async () => {
@@ -166,13 +167,10 @@ describe('reindexDocument — welche Quelle ein Original hat', () => {
     expect(deps.kick).not.toHaveBeenCalled();
   });
 
-  it('nimmt Wolke-Dateien in Formaten, die der Upload-Pfad nicht liest, nicht an', () => {
+  it('nimmt nur Wolke-Dateien in lesbaren Formaten — keine URL-, keine WordPress-Quelle', () => {
     expect(reindexOrigin({ ...WOLKE, filename: 'tabelle.xlsx' })).toBeNull();
-    expect(reindexOrigin(row({ metadata: { originalUrl: 'ftp://x' } }))).toBeNull();
-    expect(reindexOrigin(row({ source_url: 'https://wp.example/beitrag' }))).toEqual({
-      kind: 'url',
-      url: 'https://wp.example/beitrag',
-    });
+    // Eine URL- oder WordPress-Quelle hat keine Wolke-Felder — sie ist nicht dabei.
+    expect(reindexOrigin(row({ id: 'wp', filename: 'beitrag.md' }))).toBeNull();
   });
 
   it('isReindexable kommt ohne wolke_file_path aus', () => {
@@ -191,7 +189,7 @@ describe('reindexDocument — welche Quelle ein Original hat', () => {
 
 describe('reindexNotebookSources', () => {
   it('reiht nur erreichbare Quellen ein und zählt den Rest', async () => {
-    const { deps, updates } = fakeDeps([WOLKE, URL_SOURCE, UPLOAD]);
+    const { deps, updates } = fakeDeps([WOLKE, WOLKE_2, UPLOAD]);
     const result = await reindexNotebookSources('nb-1', EDITOR, deps);
     expect(result).toEqual({
       status: 'ok',
@@ -211,7 +209,7 @@ describe('reindexNotebookSources', () => {
   });
 
   it('ist beim Wiederholen idempotent', async () => {
-    const { deps, updates } = fakeDeps([WOLKE, URL_SOURCE]);
+    const { deps, updates } = fakeDeps([WOLKE, WOLKE_2]);
     await reindexNotebookSources('nb-1', OWNER, deps);
     const again = await reindexNotebookSources('nb-1', OWNER, deps);
     expect(again).toMatchObject({ queued: ['doc-1', 'doc-2'] });
@@ -219,7 +217,7 @@ describe('reindexNotebookSources', () => {
   });
 
   it('überspringt Quellen, deren Eigentümer*in nicht eingewilligt hat', async () => {
-    const other = row({ id: 'doc-4', user_id: 'other', source_url: 'https://gruene.at/x' });
+    const other = { ...WOLKE_2, id: 'doc-4', user_id: 'other' };
     const { deps } = fakeDeps([WOLKE, other], {
       hasAiConsent: vi.fn(async (id: string) => id !== 'other'),
     });
@@ -240,8 +238,12 @@ describe('processUploadedDocument — neu indexieren', () => {
     source_type: 'wolke',
     wolke_share_link_id: 'share-1',
     wolke_file_path: '/public.php/webdav/a.pdf',
-    source_url: null,
-    metadata: { reindex_origin: 'wolke', tags: ['Haushalt'], content_preview: 'alt' },
+    metadata: {
+      reindex_origin: 'wolke',
+      reindex_prev_searchable: true,
+      tags: ['Haushalt'],
+      content_preview: 'alt',
+    },
   };
 
   beforeEach(() => {
@@ -292,9 +294,15 @@ describe('processUploadedDocument — neu indexieren', () => {
     expect(final).toMatchObject({
       status: 'completed',
       pageCount: 1,
-      additionalMetadata: expect.objectContaining({ tags: ['Haushalt'], reindex_origin: null }),
+      additionalMetadata: expect.objectContaining({
+        reindex_origin: undefined,
+        queued_at: undefined,
+      }),
     });
     expect(final).not.toHaveProperty('title');
+    // Kein Schnappschuss der alten Metadaten: Tags, die während des Laufs
+    // jemand änderte, überschreibt der Lauf nicht (die DB führt zusammen).
+    expect(final.additionalMetadata).not.toHaveProperty('tags');
   });
 
   it('nimmt Datum und Gremium aus den Metadaten in die neue Nutzlast mit', async () => {
@@ -317,28 +325,11 @@ describe('processUploadedDocument — neu indexieren', () => {
     });
   });
 
-  it('kommt ohne Datum und Gremium aus, und eine URL-Quelle behält source_url', async () => {
-    const urlDoc = {
-      ...wolkeDoc,
-      filename: 'crawled_1.txt',
-      source_type: 'url',
-      wolke_share_link_id: null,
-      wolke_file_path: null,
-      metadata: { reindex_origin: 'url', originalUrl: 'https://gruene.de/a' },
-    };
-    await processUploadedDocument(
-      { updateDocumentMetadata, getDocumentById: vi.fn(async () => urlDoc) } as never,
-      { storeDocumentVectors, deleteDocumentVectors } as never,
-      'doc-1',
-      OWNER
-    );
-    expect(storeDocumentVectors.mock.calls[0]?.[4]).toMatchObject({
-      additionalPayload: { source_url: 'https://gruene.de/a' },
-    });
+  it('kommt ohne Datum und Gremium aus', async () => {
+    await run();
     const payload = (storeDocumentVectors.mock.calls[0]?.[4] as { additionalPayload: object })
       .additionalPayload;
-    expect(payload).not.toHaveProperty('published_at');
-    expect(payload).not.toHaveProperty('gremium');
+    expect(payload).toEqual({});
   });
 
   it('scheitert das Holen, bleiben die alten Punkte und die Quelle durchsuchbar', async () => {
@@ -353,7 +344,35 @@ describe('processUploadedDocument — neu indexieren', () => {
       expect.objectContaining({
         status: 'completed',
         additionalMetadata: expect.objectContaining({
-          reindex_origin: null,
+          reindex_origin: undefined,
+          processing_error: expect.stringContaining('Neu indexieren fehlgeschlagen'),
+        }),
+      })
+    );
+  });
+
+  it('war die Quelle schon vorher nicht durchsuchbar, bleibt sie failed — mit Grund', async () => {
+    fetchOriginal.mockRejectedValue(new Error('Die Wolke-Freigabe ist nicht mehr verfügbar.'));
+    const broken = {
+      ...wolkeDoc,
+      metadata: { ...wolkeDoc.metadata, reindex_prev_searchable: false },
+    };
+
+    await expect(
+      processUploadedDocument(
+        { updateDocumentMetadata, getDocumentById: vi.fn(async () => broken) } as never,
+        { storeDocumentVectors, deleteDocumentVectors } as never,
+        'doc-1',
+        OWNER
+      )
+    ).rejects.toThrow(/Wolke-Freigabe/);
+
+    expect(updateDocumentMetadata).toHaveBeenLastCalledWith(
+      'doc-1',
+      OWNER,
+      expect.objectContaining({
+        status: 'failed',
+        additionalMetadata: expect.objectContaining({
           processing_error: expect.stringContaining('Neu indexieren fehlgeschlagen'),
         }),
       })
