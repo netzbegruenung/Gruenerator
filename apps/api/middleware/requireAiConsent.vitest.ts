@@ -162,3 +162,24 @@ describe('hasAiConsent — Lesefehler', () => {
     expect(await hasAiConsent('u1', { failClosed: true })).toBe(true);
   });
 });
+
+describe('hasAiConsent — Hintergrundarbeit ohne Durchsetzungs-Schalter', () => {
+  beforeEach(() => {
+    envMock.ENFORCE_AI_CONSENT = false;
+    getProfileById.mockReset();
+  });
+
+  it('lässt ohne Schalter im Request-Pfad weiterhin durch, ohne das Profil zu lesen', async () => {
+    expect(await hasAiConsent('u1')).toBe(true);
+    expect(getProfileById).not.toHaveBeenCalled();
+  });
+
+  it('verlangt mit ignoreEnforceFlag eine echte Einwilligung', async () => {
+    getProfileById.mockResolvedValueOnce({ ai_consent_at: null });
+    expect(await hasAiConsent('u1', { failClosed: true, ignoreEnforceFlag: true })).toBe(false);
+    getProfileById.mockResolvedValueOnce({ ai_consent_at: '2026-01-01T00:00:00Z' });
+    expect(await hasAiConsent('u1', { failClosed: true, ignoreEnforceFlag: true })).toBe(true);
+    getProfileById.mockRejectedValueOnce(new Error('db weg'));
+    expect(await hasAiConsent('u1', { failClosed: true, ignoreEnforceFlag: true })).toBe(false);
+  });
+});

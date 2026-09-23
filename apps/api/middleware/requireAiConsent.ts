@@ -95,13 +95,18 @@ export function requireAiConsent(req: Request, res: Response, next: NextFunction
  * dort erreicht den MCP-Pfad sonst nie).
  *
  * Bei einem Lesefehler `true` (ausser mit `failClosed`): eine DB-Störung darf
- * im Request-Pfad nicht wie ein Widerruf wirken. Die Durchsetzung ist die zweite Verteidigungslinie, nicht die erste.
+ * im Request-Pfad nicht wie ein Widerruf wirken. Die Durchsetzung ist die
+ * zweite Verteidigungslinie, nicht die erste.
+ *
+ * Hintergrundarbeit ohne Request (`ignoreEnforceFlag`) verlangt IMMER eine
+ * erteilte Einwilligung: der Schalter schützt ausgelieferte Clients, die das
+ * Gate nicht kennen — ein Worker hat keinen Client, der sie nachholen könnte.
  */
 export async function hasAiConsent(
   userId: string,
-  opts: { failClosed?: boolean } = {}
+  opts: { failClosed?: boolean; ignoreEnforceFlag?: boolean } = {}
 ): Promise<boolean> {
-  if (!env.ENFORCE_AI_CONSENT) return true;
+  if (!env.ENFORCE_AI_CONSENT && !opts.ignoreEnforceFlag) return true;
   try {
     const profile = await getProfileService().getProfileById(userId);
     return profile?.ai_consent_at != null;
