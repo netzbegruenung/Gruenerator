@@ -26,6 +26,7 @@ import { getQdrantInstance } from '../../../../database/services/QdrantService/i
 import {
   scrollDocuments,
   batchDelete,
+  setPayload,
 } from '../../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../../utils/domainUtils.js';
 import { parallelLimit } from '../../../../utils/parallelLimit.js';
@@ -54,6 +55,7 @@ import { ContentExtractor } from './extractors/ContentExtractor.js';
 import { DateExtractor } from './extractors/DateExtractor.js';
 import { LinkExtractor } from './extractors/LinkExtractor.js';
 import { WpApiExtractor } from './extractors/WpApiExtractor.js';
+import { classifyFetch, goneVerdict, type FetchOutcome } from './goneState.js';
 import { SearchOperations } from './operations/SearchOperations.js';
 import { DocumentProcessor } from './processors/DocumentProcessor.js';
 import { isFreshlyIndexed } from './recheckSchedule.js';
@@ -607,13 +609,16 @@ export class LandesverbandScraper extends BaseScraper {
       // synchronous increments between awaits never interleave. `processed` is the
       // dispatch counter used only for progress logging.
       let processed = 0;
+      // Gone detection (goneState.ts) covers HTML article pages only; the PDF and
+      // Wolke branches above keep their own fetch paths and never delete.
+      const listingPaths = source.contentPaths.map((cp) => cp.path);
       const tasks = toProcess.map((url) => async (): Promise<void> => {
         const n = ++processed;
+        let stored: Record<string, unknown> | null = null;
         try {
-          if (
-            !forceUpdate &&
-            isFreshlyIndexed(url, await this.#storedPayload(url, targetCollection), Date.now())
-          ) {
+          // Read even under forceUpdate: the gone verdict below needs the stored mark.
+          stored = await this.#storedPayload(url, targetCollection);
+          if (!forceUpdate && isFreshlyIndexed(url, stored, Date.now())) {
             result.skipped++;
             return;
           }
@@ -641,15 +646,34 @@ export class LandesverbandScraper extends BaseScraper {
             return;
           }
 
-          const content = await ContentExtractor.extractPageContent(
-            url,
-            source,
-            this.#fetchUrl.bind(this)
-          );
+          let finalUrl = null as string | null;
+          const content = await ContentExtractor.extractPageContent(url, source, async (u) => {
+            const response = await this.#fetchUrl(u);
+            finalUrl = response.url || null;
+            return response;
+          });
+          const outcome = classifyFetch({
+            requestedUrl: url,
+            status: 200,
+            finalUrl,
+            listingPaths,
+          });
+          await this.#applyGoneVerdict(url, stored, outcome, targetCollection, result);
+          if (outcome === 'gone') {
+            result.skipped++;
+            result.skipReasons['gone_redirect'] = (result.skipReasons['gone_redirect'] || 0) + 1;
+            return;
+          }
+          // A renamed slug redirects: store under the final URL so the old and
+          // the new URL do not both end up in the index as near-identical twins.
+          const storeUrl =
+            outcome === 'moved' && finalUrl
+              ? (this.#normalizeUrl(finalUrl, source.baseUrl) ?? url)
+              : url;
           const storeResult = await this.documentProcessor.processAndStoreDocument(
             source,
             contentPath.type,
-            url,
+            storeUrl,
             content,
             targetCollection,
             source.maxAgeYears
@@ -659,10 +683,14 @@ export class LandesverbandScraper extends BaseScraper {
             if (storeResult.updated) result.updated++;
             else {
               result.stored++;
-              result.newArticles.push({ title: content.title || url, url, type: contentPath.type });
+              result.newArticles.push({
+                title: content.title || storeUrl,
+                url: storeUrl,
+                type: contentPath.type,
+              });
             }
             result.totalVectors += storeResult.vectors || 0;
-            this.log(`✓ [${n}/${toProcess.length}] ${content.title?.substring(0, 60) || url}`);
+            this.log(`✓ [${n}/${toProcess.length}] ${content.title?.substring(0, 60) || storeUrl}`);
           } else {
             result.skipped++;
             result.skipReasons[storeResult.reason || 'unknown'] =
@@ -682,6 +710,17 @@ export class LandesverbandScraper extends BaseScraper {
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          // Only a clean HTTP status reaches classifyFetch; anything else
+          // (timeouts, network, parser errors) is transient and never deletes.
+          if (error instanceof HttpStatusError) {
+            const outcome = classifyFetch({
+              requestedUrl: url,
+              status: error.status,
+              finalUrl: null,
+              listingPaths,
+            });
+            await this.#applyGoneVerdict(url, stored, outcome, targetCollection, result);
+          }
           // A link the listing still advertises but the host refuses to serve is
           // upstream's stale index, not a failure of this run. Counting it apart
           // keeps `errors` meaning "something broke"; foldDeadLinksIfNothingWorked
@@ -1146,6 +1185,52 @@ export class LandesverbandScraper extends BaseScraper {
       { limit: 1, withPayload: true, withVector: false }
     );
     return points.length > 0 ? points[0].payload : null;
+  }
+
+  /**
+   * Executes goneVerdict for the requested URL on the collection the path
+   * writes to. Best-effort like the archive prune: a Qdrant failure is logged
+   * and counted as an error, never thrown into the article task.
+   */
+  async #applyGoneVerdict(
+    url: string,
+    stored: Record<string, unknown> | null,
+    outcome: FetchOutcome,
+    collection: string,
+    result: ContentPathResult
+  ): Promise<void> {
+    const now = Date.now();
+    const verdict = goneVerdict(outcome, stored, now);
+    if (verdict === 'none') return;
+    const filter = { must: [{ key: 'source_url', match: { value: url } }] };
+    try {
+      if (verdict === 'mark') {
+        await setPayload(
+          this.qdrantClient,
+          collection,
+          { lv_gone_since: new Date(now).toISOString() },
+          filter
+        );
+      } else if (verdict === 'delete') {
+        await batchDelete(this.qdrantClient, collection, filter);
+        this.log(`Deleted points of gone page ${url} (${outcome})`);
+      } else {
+        await this.qdrantClient.deletePayload(collection, {
+          keys: ['lv_gone_since'],
+          filter,
+          wait: true,
+        });
+      }
+      if (verdict === 'mark' || verdict === 'delete') {
+        const reason = verdict === 'mark' ? 'gone_marked' : 'gone_deleted';
+        result.skipReasons[reason] = (result.skipReasons[reason] || 0) + 1;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[Landesverband] Gone ${verdict} failed for ${url}: ${message}`);
+      result.errors++;
+      addErrorSamples(result, `${url}: gone ${verdict} failed: ${message}`);
+    }
   }
 
   /**
