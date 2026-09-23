@@ -124,7 +124,7 @@ describe('fetchPdfDocument', () => {
         })
       );
 
-    const result = await fetchPdfDocument(LANDING_URL, { 'If-None-Match': '"f1"' }, fetchUrl);
+    const result = await fetchPdfDocument(LANDING_URL, {}, fetchUrl);
 
     expect(result.kind).toBe('pdf');
     if (result.kind !== 'pdf') return;
@@ -134,8 +134,48 @@ describe('fetchPdfDocument', () => {
     expect(result.landingTitle).toBe('Protokoll der LDK Güstrow 12. Oktober 2024');
     expect(fetchUrl).toHaveBeenLastCalledWith(
       'https://gruene-mv.de/download/protokoll-der-ldk-guestrow-12-oktober-2024/?wpdmdl=29195',
-      { headers: { 'If-None-Match': '"f1"' }, acceptStatus: [304] }
+      { headers: {}, acceptStatus: [304] }
     );
+  });
+
+  /**
+   * Die zwölf MV-Punkte tragen die Validatoren der Landingpage. Ihr
+   * `If-Modified-Since` (Abrufzeit) liegt nach dem Datum der Datei — die
+   * Datei-URL antwortete darauf mit 304 und der HTML-Punkt bliebe für immer.
+   */
+  it('sends no conditional headers for a URL that does not end in .pdf', async () => {
+    const stale = {
+      'If-None-Match': '"landing"',
+      'If-Modified-Since': 'Mon, 22 Sep 2026 11:23:12 GMT',
+    };
+    const fetchUrl = vi
+      .fn()
+      .mockResolvedValueOnce(response(LANDING_HTML, { headers: { 'content-type': 'text/html' } }))
+      .mockResolvedValueOnce(
+        response(PDF_BYTES, { headers: { 'content-type': 'application/pdf' } })
+      );
+
+    await fetchPdfDocument(LANDING_URL, stale, fetchUrl);
+
+    expect(fetchUrl.mock.calls.map(([, options]) => options)).toEqual([
+      { headers: {}, acceptStatus: [304] },
+      { headers: {}, acceptStatus: [304] },
+    ]);
+  });
+
+  it('keeps conditional headers for a .pdf URL, whatever its case', async () => {
+    const fetchUrl = vi.fn().mockResolvedValue(response('', { status: 304 }));
+
+    await fetchPdfDocument(
+      'https://x.de/uploads/Beschluss.PDF',
+      { 'If-None-Match': '"f1"' },
+      fetchUrl
+    );
+
+    expect(fetchUrl).toHaveBeenCalledWith('https://x.de/uploads/Beschluss.PDF', {
+      headers: { 'If-None-Match': '"f1"' },
+      acceptStatus: [304],
+    });
   });
 
   it('reports a 304 of the resolved file as not modified', async () => {

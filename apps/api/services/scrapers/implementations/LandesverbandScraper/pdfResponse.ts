@@ -61,15 +61,20 @@ export type PdfFetchResult =
 /**
  * Lädt ein Dokument des PDF-Archivs. `response` ist die Antwort, aus der der
  * Fingerprint zu bilden ist — bei einer Landingpage die der Datei.
+ *
+ * Bedingte Header nur für URLs auf `.pdf`: bei allen anderen können die
+ * gespeicherten Validatoren von einer Landingpage stammen (die MV-Punkte vor
+ * #3577), und ein 304 der Datei darauf würde den HTML-Punkt einfrieren.
  */
 export async function fetchPdfDocument(
   url: string,
-  headers: Record<string, string>,
+  storedHeaders: Record<string, string>,
   fetchUrl: (
     url: string,
     options: { headers: Record<string, string>; acceptStatus: number[] }
   ) => Promise<Response>
 ): Promise<PdfFetchResult> {
+  const headers = /\.pdf$/i.test(new URL(url).pathname) ? storedHeaders : {};
   const response = await fetchUrl(url, { headers, acceptStatus: [304] });
   if (response.status === 304) return { kind: 'not_modified' };
 
