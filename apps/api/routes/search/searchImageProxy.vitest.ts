@@ -95,8 +95,10 @@ vi.mock('undici', () => ({
 }));
 
 const { buildImageProxyPath } = await import('../../services/search/imageProxySignature.js');
-const { default: searchImageProxyRouter, createPinnedLookup } =
-  await import('./searchImageProxyRouter.js');
+const { default: searchImageProxyRouter } = await import('./searchImageProxyRouter.js');
+// The pinning primitives moved to urlSecurity when safeFetch started sharing
+// them; the invariant they carry is the same one asserted below.
+const { createPinnedLookup } = await import('../../utils/validation/urlSecurity.js');
 
 let server: Server;
 let baseUrl = '';
