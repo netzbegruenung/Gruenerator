@@ -735,4 +735,13 @@ describe('Wolke sources (stored as wolke://)', () => {
     });
     expect(out.ranking.map((r: any) => r.sourceId)).toEqual([HH_W]);
   });
+
+  it('grounds stats of one Wolke source like read: resolved url, stored documentId', async () => {
+    const { run, registered } = makeCtx({ more: wolkeDoc() });
+    await run({ action: 'stats', notebookId: 'hamburg', sourceId: HH_W });
+    expect(registered.at(-1)).toMatchObject({
+      url: `${WOLKE_LINK}Ordner/Grüne Antwort.pdf`,
+      documentId: HH_W,
+    });
+  });
 });
