@@ -275,7 +275,7 @@ export const NOTEBOOK_REGISTRY = [
     id: 'mecklenburg-vorpommern-notebook',
     title: 'Mecklenburg-Vorpommern',
     description:
-      'Durchsuchbar sind Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern.',
+      'Durchsuchbar sind Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern (Landesverband & Fraktion).',
     meta: 'Archiv',
     tags: ['Mecklenburg-Vorpommern', 'Beschlüsse', 'Presse'],
     order: 8,
