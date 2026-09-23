@@ -152,6 +152,16 @@ describe('listSystemSources', () => {
     expect(byName.items.map((r) => r.title)).toEqual(['Hafen', 'Radverkehr']);
   });
 
+  it('counts the categories of the whole collection, not only the filtered page', async () => {
+    const { deps } = makeSystemDeps(lvPoints());
+    const out = await listSystemSources(
+      { collection: resolved('hamburg'), filter: { titleContains: 'Hafen' } },
+      deps
+    );
+    expect(out.items.map((r) => r.id)).toEqual([HH_B]);
+    expect(out.categories).toEqual({ Beschluss: 1, Pressemitteilung: 1 });
+  });
+
   it(`never scrolls more than ${SYSTEM_LIST_SCROLL_MAX} points and flags exhaustive:false`, async () => {
     const { deps, scrollPage } = makeSystemDeps([], { endless: true });
     const out = await listSystemSources({ collection: resolved('deutschland'), limit: 5 }, deps);
