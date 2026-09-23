@@ -12,6 +12,7 @@ import {
   type FakePoint,
 } from './__fixtures__/fakeSystemCollection.js';
 import {
+  checkSystemSource,
   findSystemPassages,
   listSystemSources,
   loadSystemScanTexts,
@@ -422,5 +423,23 @@ describe('loadSystemScanTexts', () => {
     if ('error' in out) throw new Error(out.error);
     expect(out.exhaustive).toBe(false);
     expect(out.sources).toHaveLength(SYSTEM_SCAN_MAX_SOURCES);
+  });
+});
+
+describe('checkSystemSource', () => {
+  it('accepts a URL of this collection and refuses one of another', async () => {
+    const { deps, scrollPage } = makeSystemDeps(lvPoints());
+    const hh = resolved('hamburg');
+    expect(await checkSystemSource({ collection: hh, sourceUrl: HH_A }, deps)).toBeNull();
+    expect(await checkSystemSource({ collection: hh, sourceUrl: BE_A }, deps)).toHaveProperty(
+      'error'
+    );
+    expect(scrollPage.mock.calls[1]![1]).toEqual({
+      must: [
+        { key: 'source_url', match: { value: BE_A } },
+        { key: 'chunk_index', match: { value: 0 } },
+        { key: 'landesverband', match: { value: 'HH' } },
+      ],
+    });
   });
 });

@@ -347,6 +347,30 @@ export async function readSystemSourceText(
 }
 
 /**
+ * Die Zugehörigkeitsprüfung ohne Lesen — ein Chunk-0-Punkt mit der URL UNTER
+ * dem Standardfilter der Sammlung. Für `find`/`cite claim` mit sourceId, die
+ * den Text nicht brauchen; dieselbe Regel wie Schritt 1 von `readSystemSourceText`.
+ */
+export async function checkSystemSource(
+  input: { collection: SystemCollection; sourceUrl: string },
+  deps: Pick<SystemNotebookSourcesDeps, 'scrollPage'>
+): Promise<{ error: string } | null> {
+  if (!isUrl(input.sourceUrl)) return { error: NOT_A_URL };
+  const filter = applyDefaultFilter(input.collection.systemId, {
+    must: [
+      { key: 'source_url', match: { value: input.sourceUrl } },
+      { key: 'chunk_index', match: { value: 0 } },
+    ],
+  }) as QdrantFilter;
+  const page = await deps.scrollPage(input.collection.qdrantCollection, filter, {
+    limit: 1,
+    offset: null,
+    payload: ['source_url'],
+  });
+  return page.points.length ? null : { error: SOURCE_NOT_FOUND };
+}
+
+/**
  * Gliederung: aus `section_index`/`heading_path`, wo die Chunks sie tragen;
  * sonst nach Seiten (`Seite N`). Ohne beides leer.
  */
