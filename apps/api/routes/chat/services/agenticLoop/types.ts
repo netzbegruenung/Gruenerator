@@ -194,8 +194,9 @@ export const DEFAULT_LOOP_BUDGET: LoopBudget = {
 export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   research: 30_000,
   // Ein ganzes Notebook durchsuchen und dazu Postgres + Qdrant für jede Quelle —
-  // bei großen Notebooks mehr als die Standardfrist.
-  notebook_quellen: 30_000,
+  // bei großen Notebooks mehr als die Standardfrist. grep/stats lesen bis zu
+  // 4 Mio. Zeichen, stats mit Lemmata wartet dazu bis 30 s auf den NLP-Dienst.
+  notebook_quellen: 45_000,
   // A long text is several provider requests plus an ffmpeg encode, and the
   // provider runs them one at a time (#3208). Idempotent per turn, so this
   // cannot stack either.

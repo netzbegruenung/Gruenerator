@@ -74,12 +74,13 @@ describe('method texts', () => {
     expect(text).toContain('action="search"');
   });
 
-  it('walks the notebook method from list over find and read to the locators', () => {
+  it('walks the notebook method from list over find, read and cite to the locators', () => {
     const text = buildNotebookMethodText('Mein Notebook');
     const order = [
       '`notebooks` mit `action="list"`',
       '`action="find"`',
       '`action="read"`',
+      '`action="cite"`',
       'Fundstelle belegen',
     ];
     const positions = order.map((needle) => text.indexOf(needle));

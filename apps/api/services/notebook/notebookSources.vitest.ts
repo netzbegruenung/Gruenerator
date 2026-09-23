@@ -226,6 +226,12 @@ describe('listNotebookSources', () => {
     expect(asc.items.map((i) => i.id)).toEqual(['a', 'c', 'b']);
   });
 
+  it('sorts by text length (chars) descending by default, unknown last', async () => {
+    const { deps } = makeDeps({ rows, links: ['a', 'b', 'c'] });
+    const out = await listNotebookSources({ collectionId: 'n1', sortBy: 'chars' }, deps);
+    expect(out.items.map((i) => i.id)).toEqual(['a', 'b', 'c']);
+  });
+
   it('filters before paging and reports total after filtering', async () => {
     const { deps } = makeDeps({ rows, links: ['a', 'b', 'c'] });
     const out = await listNotebookSources(
