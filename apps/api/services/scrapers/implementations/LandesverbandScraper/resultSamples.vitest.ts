@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   addDeadLinkSamples,
+  addErrorSamples,
   foldDeadLinksIfNothingWorked,
   MAX_ERROR_SAMPLES,
   mergeQualityFlags,
@@ -117,6 +118,23 @@ describe('addDeadLinkSamples', () => {
     );
 
     expect(result.deadLinkMessages).toHaveLength(MAX_ERROR_SAMPLES);
+  });
+});
+
+describe('share tokens in samples', () => {
+  it('are masked in both buckets, whichever sync path fills them', () => {
+    const result = sourceResult();
+    const url = 'https://wolke.netzbegruenung.de/s/TESTTOKEN#/Antwort.pdf';
+
+    addErrorSamples(result, `Wolke ${url}: OCR failed`);
+    addDeadLinkSamples(result, `${url}: HTTP 404`);
+
+    expect(result.errorMessages).toEqual([
+      'Wolke https://wolke.netzbegruenung.de/s/<redacted>#/Antwort.pdf: OCR failed',
+    ]);
+    expect(result.deadLinkMessages).toEqual([
+      'https://wolke.netzbegruenung.de/s/<redacted>#/Antwort.pdf: HTTP 404',
+    ]);
   });
 });
 

@@ -30,7 +30,6 @@ import { upsertSyncEvents } from '../../services/monitor/ContentSyncEventsServic
 import { getContentStatsMarkdown } from '../../services/scrapers/contentStats.js';
 import { drainExtractionStats } from '../../services/scrapers/extractionRecorder.js';
 import { drainSyncEvents } from '../../services/scrapers/syncEventRecorder.js';
-import { redactShareTokens } from '../../services/scrapers/utils/wolkeShareSecrets.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toError, toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -409,18 +408,15 @@ async function runScopedLandesverband(
   // split was invented, not measured. Calling every failure "unreachable" is
   // what let a Landesverband scrape nothing for weeks and still read as a clean
   // run in the GitHub Actions summary.
-  //
-  // The samples end up verbatim in the public GitHub Actions log and step
-  // summary, so share tokens are masked here. The email above keeps them.
   return {
     stored: result.stored,
     updated: result.updated,
     skipped: result.skipped,
     fetchErrors: 0,
     errors: result.errors,
-    errorSamples: result.errorMessages.map(redactShareTokens),
+    errorSamples: result.errorMessages,
     deadLinks: result.deadLinks,
-    deadLinkSamples: result.deadLinkMessages.map(redactShareTokens),
+    deadLinkSamples: result.deadLinkMessages,
     skipReasons: result.skipReasons,
     qualityFlags: result.qualityFlags,
   };
