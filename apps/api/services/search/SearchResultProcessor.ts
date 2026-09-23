@@ -121,9 +121,10 @@ export function deduplicateResults(
 /**
  * Build references map from search results for citation processing.
  *
- * `date` is the source's real publication date (or upload date when
- * `allowCreatedAt` is set for user collections), or null when none — NOT the
- * response timestamp. Consumed by the answer prompt and returned in citations.
+ * `date` is the source's real publication date, or null when none — NOT the
+ * response timestamp and NOT the upload time. With `allowCreatedAt` (user
+ * collections) a dateless source carries its upload time as `uploaded_at`,
+ * which the prompt labels "hochgeladen" and citations never see.
  */
 export function buildReferencesMap(
   results: ExpandedChunkResult[],
@@ -134,13 +135,16 @@ export function buildReferencesMap(
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
     const id = String(i + 1);
+    const date = resolveSourceDate(r);
+    const uploadedAt = !date && options.allowCreatedAt ? r.created_at : undefined;
 
     referencesMap[id] = {
       title: r.title,
       snippets: [[r.snippet]],
       ...(r.chunk_text && { chunk_text: r.chunk_text }),
       description: null,
-      date: resolveSourceDate(r, { allowCreatedAt: options.allowCreatedAt }),
+      date,
+      ...(uploadedAt && { uploaded_at: uploadedAt }),
       source: 'qa_documents',
       document_id: r.document_id,
       source_url: r.source_url || null,

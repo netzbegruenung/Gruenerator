@@ -14,6 +14,7 @@ import {
   expandResultsToChunks,
   filterAndSortResults,
   sourceTextForPrompt,
+  validateAndInjectCitations,
 } from './SearchResultProcessor.js';
 
 import type { ExpandedChunkResult } from './types.js';
@@ -92,6 +93,52 @@ describe('buildReferencesMap', () => {
       },
     ]);
     expect(map['1'].chunk_type).toBeNull();
+  });
+});
+
+describe('buildReferencesMap: Upload-Zeit ist kein Quellendatum', () => {
+  const hit = (extra: Partial<ExpandedChunkResult>): ExpandedChunkResult => ({
+    document_id: 'doc-1',
+    source_url: null,
+    title: 'Beschluss',
+    snippet: 's',
+    filename: null,
+    similarity: 0.9,
+    chunk_index: 0,
+    page_number: null,
+    ...extra,
+  });
+
+  it('führt ein reines created_at als uploaded_at, nicht als date', () => {
+    const map = buildReferencesMap([hit({ created_at: '2026-03-12T10:00:00Z' })], {
+      allowCreatedAt: true,
+    });
+    expect(map['1'].date).toBeNull();
+    expect(map['1'].uploaded_at).toBe('2026-03-12T10:00:00Z');
+  });
+
+  it('lässt ein echtes Datum gewinnen und trägt dann keine Upload-Zeit', () => {
+    const map = buildReferencesMap(
+      [hit({ published_at: '2024-01-08', created_at: '2026-03-12T10:00:00Z' })],
+      { allowCreatedAt: true }
+    );
+    expect(map['1'].date).toBe('2024-01-08');
+    expect(map['1'].uploaded_at).toBeUndefined();
+  });
+
+  it('trägt ohne allowCreatedAt (Systemsammlung) keine Upload-Zeit', () => {
+    const map = buildReferencesMap([hit({ created_at: '2026-03-12T10:00:00Z' })]);
+    expect(map['1'].date).toBeNull();
+    expect(map['1'].uploaded_at).toBeUndefined();
+  });
+
+  it('gibt die Upload-Zeit nicht als Zitatdatum weiter', () => {
+    const map = buildReferencesMap([hit({ created_at: '2026-03-12T10:00:00Z' })], {
+      allowCreatedAt: true,
+    });
+    const { citations, sources } = validateAndInjectCitations('Aussage [1].', map);
+    expect(citations[0].date).toBeNull();
+    expect(sources[0].date).toBeNull();
   });
 });
 
