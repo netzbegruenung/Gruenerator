@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isRefetchable, parseCliArgs, planRepair } from './repair-lv-titles.js';
+import { assertSamePage, isRefetchable, parseCliArgs, planRepair } from './repair-lv-titles.js';
 
 const BERLIN = { baseUrl: 'https://gruene.berlin' };
 
@@ -111,5 +111,42 @@ describe('planRepair', () => {
 
   it('gibt null zurück, wenn nichts zu tun ist', () => {
     expect(planRepair({ title: 'Sauber', published_at: '2026-01-01' }, null)).toBeNull();
+  });
+});
+
+describe('assertSamePage', () => {
+  const URL_ = 'https://gruene.berlin/pressemitteilungen/x_3856';
+  const res = (
+    over: Partial<{ ok: boolean; status: number; redirected: boolean; url: string }>
+  ) => ({
+    ok: true,
+    status: 200,
+    redirected: false,
+    url: URL_,
+    ...over,
+  });
+
+  it('akzeptiert die angefragte Seite, auch mit abweichendem Schlussstrich', () => {
+    expect(() => assertSamePage(URL_, res({}))).not.toThrow();
+    expect(() => assertSamePage(URL_, res({ url: `${URL_}/` }))).not.toThrow();
+  });
+
+  it('verwirft Nicht-OK-Antworten', () => {
+    expect(() => assertSamePage(URL_, res({ ok: false, status: 404 }))).toThrow('HTTP 404');
+  });
+
+  it('verwirft eine Weiterleitung — sonst landete der Titel der Zielseite am Punkt', () => {
+    expect(() =>
+      assertSamePage(
+        URL_,
+        res({ redirected: true, url: 'https://gruene.berlin/pressemitteilungen' })
+      )
+    ).toThrow(/Weiterleitung/);
+  });
+
+  it('verwirft eine abweichende Ziel-URL auch ohne redirected-Flag', () => {
+    expect(() => assertSamePage(URL_, res({ url: 'https://gruene.berlin/' }))).toThrow(
+      /Weiterleitung/
+    );
   });
 });
