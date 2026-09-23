@@ -22,7 +22,8 @@ import {
   executeDirectSearch,
 } from '../chat/agents/directSearchExecutors.js';
 import { makeGroupsTool } from '../chat/agents/groupTools.js';
-import { makeNotebookSourcesTool } from '../chat/agents/notebookSourceTools.js';
+import { makeNotebookSourcesTool, READ_ACTIONS } from '../chat/agents/notebookSourceTools.js';
+import { WRITE_ACTIONS } from '../chat/agents/notebookSourceWriteActions.js';
 import { makeNotebooksTool } from '../chat/agents/notebookTools.js';
 import {
   makeBoardsTasksTool,
@@ -612,7 +613,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
 
     registerAiTool(server, 'notebooks', makeNotebooksTool(ctx), {
       description: contentWrite
-        ? `Zugriff auf die Notebooks der Person (Wissenssammlungen): auflisten (list — die id steht im ref; scope="mine" die eigenen, scope="system" die vom Grünerator gepflegten Wissenssammlungen, scope="basis" die öffentlich geteilten anderer), Details mit Dokumenten, Wolke-Ordnern und Freigaben (get), inhaltlich befragen (search mit id + query), anlegen (create; mit wolkeFolder {connectionId, path} wird der Ordner importiert), Wolke-Ordner anhängen (add_wolke_folder), Dokumente hinzufügen (add_documents), umbenennen (rename), Sichtbarkeit ändern (set_visibility), mit einem Projekt teilen (share_to_group), löschen (delete). create mit wolkeFolder, add_wolke_folder, set_visibility, share_to_group und delete verlangen das zweistufige confirm-Protokoll. search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`
+        ? `Zugriff auf die Notebooks der Person (Wissenssammlungen): auflisten (list — die id steht im ref; scope="mine" die eigenen, scope="system" die vom Grünerator gepflegten Wissenssammlungen, scope="basis" die öffentlich geteilten anderer), Details mit Dokumenten, Wolke-Ordnern und Freigaben (get), inhaltlich befragen (search mit id + query), anlegen (create; mit wolkeFolder {connectionId, path} wird der Ordner importiert), Wolke-Ordner anhängen (add_wolke_folder), Dokumente hinzufügen (add_documents), umbenennen (rename), Beschreibung, Anweisung und Labels ändern (update), Sichtbarkeit ändern (set_visibility), mit einem Projekt teilen (share_to_group), löschen (delete). create mit wolkeFolder, add_wolke_folder, set_visibility, share_to_group und delete verlangen das zweistufige confirm-Protokoll. search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`
         : `Die Notebooks der Person auflisten (list — die id steht im ref; scope="mine" die eigenen, scope="system" die vom Grünerator gepflegten Wissenssammlungen, scope="basis" die öffentlich geteilten anderer), Details ansehen (get) oder inhaltlich befragen (search mit id + query). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`,
       actions: contentWrite
         ? [
@@ -623,6 +624,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
             'add_wolke_folder',
             'add_documents',
             'rename',
+            'update',
             'set_visibility',
             'share_to_group',
             'delete',
@@ -651,11 +653,15 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
       ...(contentWrite ? {} : { readOnly: true }),
     });
 
-    // Alle vier Aktionen lesen nur — dieselbe Liste für content:read und content:write.
+    // Die Schreibaktionen sind direkt (privat, umkehrbar) — keine Karten, also
+    // auch keine Overrides fürs confirm-Protokoll.
+    const quellenRead = `Die Quellen EINES Notebooks (notebookId aus notebooks action="list"): auflisten (list, sortier- und filterbar — die sourceId steht im ref), gliedern (outline), lesen (read — ab Zeichen mit abschnitt.von, eine seite, eine section aus outline oder ein chunks-Bereich) und Passagen finden (find mit query, optional nur in einer sourceId). find liefert Rohpassagen mit Seite und Zeichenbereich — belege damit selbst.`;
     registerAiTool(server, 'notebook_quellen', makeNotebookSourcesTool(ctx), {
-      description: `Die Quellen EINES Notebooks (notebookId aus notebooks action="list"): auflisten (list, sortier- und filterbar — die sourceId steht im ref), gliedern (outline), lesen (read — ab Zeichen mit abschnitt.von, eine seite, eine section aus outline oder ein chunks-Bereich) und Passagen finden (find mit query, optional nur in einer sourceId). find liefert Rohpassagen mit Seite und Zeichenbereich — belege damit selbst.`,
-      actions: ['list', 'outline', 'read', 'find'],
-      readOnly: true,
+      description: contentWrite
+        ? `${quellenRead} Verwalten, direkt ohne Rückfrage: entfernen (remove — bleiben in der Bibliothek), verschieben oder kopieren (move/copy mit targetNotebookId), eigene Uploads umbenennen (rename) oder verschlagworten (tag mit add/remove), eine Notiz anlegen (add_note mit title + text) und EINE Webseite importieren (add_url — eine Seite, keine Website; erzeugt Einbettungen).`
+        : quellenRead,
+      actions: contentWrite ? [...READ_ACTIONS, ...WRITE_ACTIONS] : [...READ_ACTIONS],
+      ...(contentWrite ? {} : { readOnly: true }),
     });
   }
 
