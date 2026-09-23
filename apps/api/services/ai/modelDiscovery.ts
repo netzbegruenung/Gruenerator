@@ -62,6 +62,12 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   //   vision-fähigen Sibling (Regolo) und tauscht innerhalb der Lane dorthin —
   //   ein geprüfter Pfad, und sie protokolliert es.
   'gemma-4-31b-it': { name: 'Gemma 4 31B', reasoning: false, vision: false },
+  // Dasselbe Modell über Melious. Beide Flags aus demselben Grund wie eine
+  // Zeile höher: `reasoning: false`, weil der SDK-Pfad das Denken abschaltet
+  // (meliousThinkingFetch.ts); `vision: false` GEMESSEN — ein echter Bild-Turn
+  // antwortete am 23.09.2026 mit HTTP 400, obwohl die Hub-Seite Bildeingabe
+  // führt. Bild-Züge gehen damit an VISION_MODEL.
+  'gemma-4-31b:balanced': { name: 'Gemma 4 31B', reasoning: false, vision: false },
   // Scaleway's Gemma 4, MoE with 4B active parameters — the `heavy` stage.
   // `reasoning: true` is the honest flag (it thinks by DEFAULT), which is
   // exactly why its client forces `reasoning_effort: 'none'`; see

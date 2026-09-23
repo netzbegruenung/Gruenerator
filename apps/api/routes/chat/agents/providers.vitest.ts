@@ -168,18 +168,14 @@ describe('getContextWindow', () => {
     // Ollamas gemessene Kürzungsschwelle auf Verdigado — dorthin routet diese
     // Lane nicht mehr (services/ai/litellmRetired.ts).
     expect(getContextWindow('gpt-oss')).toBe(131_000);
-    // Gemma 4 trägt die 128k des Cortecs-Endpunkts, nicht die 262k der
-    // Gewichte. Die Begründung steht an EINER Stelle und wird hier bewusst
-    // nicht wiederholt: `GEMMA_31B_ON_CORTECS` in services/ai/gemmaHosts.ts.
-    // Kurz: der Katalog meldet inzwischen 262000, aber er ist für diese Zahl
-    // keine Quelle, und eine zu grosse Zahl ist keine Fehlermeldung, sondern
-    // eine stille Kürzung. Bewegen darf den Wert nur eine Nadelprobe (#3067).
-    // Die 64k-Decke davor war Ollamas Kürzungs-Schutz auf Verdigado; dorthin
-    // routet diese Lane nicht mehr.
+    // Gemma 4 trägt die 128k des Cortecs-Endpunkts: infercom lehnt über
+    // 131.072 laut ab, per Nadelprobe bestätigt (#3067, gemmaHosts.ts).
     expect(getContextWindow('gemma-4')).toBe(128_000);
-    // Der Regolo-Ausweich derselben Gewichte trägt weiterhin das volle Fenster
-    // — die beiden Seiten dieser Lane sind hier NICHT gleich gross.
-    expect(getContextWindow('gemma-regolo')).toBe(262_144);
+    // `gemma-regolo` löst seit dem Melious-Umzug auf Melious auf, und dessen
+    // Standardweg nimmt nur ~45k (Nadelprobe 23.09.2026). Die beiden Seiten
+    // dieser Lane sind NICHT gleich gross — diesmal ist der Ausweich kleiner.
+    expect(getContextWindow('gemma-regolo')).toBe(44_000);
+    expect(getContextWindow('melious')).toBe(44_000);
     expect(getContextWindow('regolo')).toBe(262_144);
   });
 

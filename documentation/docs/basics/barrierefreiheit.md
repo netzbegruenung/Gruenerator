@@ -68,7 +68,7 @@ Hilfreich ist: welche Seite, was du tun wolltest, und womit du arbeitest (Browse
 
 **Selbstbewertung**, kein externer Test. Konkret:
 
-- **axe-core** über 13 Routen der Web-Oberfläche — die Einstiegsseiten der Hauptbereiche — sowie über die Plusmenü-Überlagerung in zwei Fensterbreiten, jede davon in hellem **und** dunklem Modus. Zuletzt am 13. August 2026.
+- **axe-core** über 14 Routen der Web-Oberfläche — die Einstiegsseiten der Hauptbereiche — sowie über die Plusmenü-Überlagerung in zwei Fensterbreiten, jede davon in hellem **und** dunklem Modus. Zuletzt am 13. August 2026.
 - **ESLint-Regelsätze** (`jsx-a11y` für das Web, `react-native-a11y` für die Mobil-App) laufen bei jeder Änderung mit.
 - **Komponententests** mit `axe` an den Stellen, an denen ARIA von Hand gesetzt wird.
 
