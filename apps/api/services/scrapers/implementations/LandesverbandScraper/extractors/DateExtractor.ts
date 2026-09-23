@@ -76,6 +76,12 @@ const FILENAME_DAY_PATTERNS: DatePattern[] = [
   ...DAY_PATTERNS,
   { re: /(?<!\d)((?:19|20)\d{2})(\d{2})(\d{2})(?!\d)/, parse: ymd }, // 20230905_…
   {
+    // Leading YYMMDD token, no separators inside it: BE-F dlm-downloads name
+    // their files 250117_Positionspapier….pdf / 180828_Beschluss….pdf.
+    re: /^(\d{2})(\d{2})(\d{2})(?=[_-])/,
+    parse: (m) => ({ year: 2000 + parseInt(m[1]), month: parseInt(m[2]), day: parseInt(m[3]) }),
+  },
+  {
     // Year first, as SL names its files: 22-02-17-wahlprogramm = 2022-02-17
     re: /^(\d{2})-(\d{2})-(\d{2})(?!\d)/,
     parse: (m) => ({ ...ymd(m), year: 2000 + parseInt(m[1]) }),

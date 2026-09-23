@@ -270,3 +270,106 @@ describe('DateExtractor.extractDateFromPdfInfo — precision (#3575)', () => {
     expect(result.dateString).toBeNull();
   });
 });
+
+/**
+ * #3564: BE-F dlm-downloads file names use a compact YYMMDD leading token
+ * (250117_Positionspapier….pdf, 180828_Beschluss….pdf), not the YYYYMMDD form
+ * already handled above. Must not fire on a Drucksache number or any other
+ * digit run that isn't followed by `_`/`-`, and never on a future date.
+ */
+describe('DateExtractor.extractDateFromPdfInfo — BE-F leading YYMMDD file names (#3564)', () => {
+  it.each([
+    {
+      name: 'YYMMDD_ at the start of the file name',
+      fileName: '250117_Positionspapier_Klimaschutz.pdf',
+      dateString: '2025-01-17',
+      precision: 'day',
+    },
+    {
+      name: 'YYMMDD- at the start of the file name',
+      fileName: '180828-Beschluss_Verkehrswende.pdf',
+      dateString: '2018-08-28',
+      precision: 'day',
+    },
+  ])('$name', ({ fileName, dateString, precision }) => {
+    const result = DateExtractor.extractDateFromPdfInfo(fileName, fileName, '', 10);
+
+    expect(result.dateString).toBe(dateString);
+    expect(result.precision).toBe(precision);
+  });
+
+  it('a 6-digit Drucksache number after a prefix is not a leading-token date', () => {
+    const result = DateExtractor.extractDateFromPdfInfo(
+      'Drs_18-2345.pdf',
+      'Drs_18-2345.pdf',
+      '',
+      10
+    );
+
+    expect(result.dateString).toBeNull();
+  });
+
+  it('6 digits with no separator after them is not a date', () => {
+    const result = DateExtractor.extractDateFromPdfInfo('123456.pdf', '123456.pdf', '', 10);
+
+    expect(result.dateString).toBeNull();
+  });
+
+  it('a future leading YYMMDD token is rejected', () => {
+    const result = DateExtractor.extractDateFromPdfInfo(
+      '301231_Beschluss.pdf',
+      '301231_Beschluss.pdf',
+      '',
+      10
+    );
+
+    expect(result.dateString).toBeNull();
+  });
+});
+
+/**
+ * #3564: Wolke share files (Berlin Wahlprüfsteine, Saarland Parteitags-
+ * protokolle) are stored with `publishedAt: null` today even though the file
+ * name often carries a real date. LandesverbandScraper passes the bare file
+ * name as both `url` and `title` with an empty context, so only the file-name
+ * day tier can fire — never a folder or URL year.
+ */
+describe('DateExtractor.extractDateFromPdfInfo — Wolke file names (#3564)', () => {
+  it.each([
+    {
+      name: 'DD.MM.YYYY in an LPT file name',
+      fileName: 'LPT 08.11.2025 samt Anhang.pdf',
+      dateString: '2025-11-08',
+      precision: 'day',
+    },
+    {
+      name: 'YYYY-MM-DD leading a folder-style file name',
+      fileName: '2026-03-22-WKV Neunkirchen Protokoll',
+      dateString: '2026-03-22',
+      precision: 'day',
+    },
+    {
+      name: 'MM-DD-YYYY read as month-day, never rolled over',
+      fileName: '12-13-2025 Protokoll Parteirat.pdf',
+      dateString: '2025-12-13',
+      precision: 'day',
+    },
+  ])('$name', ({ fileName, dateString, precision }) => {
+    const result = DateExtractor.extractDateFromPdfInfo(fileName, fileName, '', 10);
+
+    expect(result.dateString).toBe(dateString);
+    expect(result.precision).toBe(precision);
+  });
+
+  it('a file name without any date stays null, never invented', () => {
+    const result = DateExtractor.extractDateFromPdfInfo(
+      'Wahlpruefstein_Verband_Antwort.pdf',
+      'Wahlpruefstein_Verband_Antwort.pdf',
+      '',
+      10
+    );
+
+    expect(result.dateString).toBeNull();
+    expect(result.precision).toBeNull();
+  });
+});
