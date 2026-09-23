@@ -216,6 +216,12 @@ export const documentRecordSchema = z.object({
    * failure was only ever visible until the editor was closed.
    */
   processing_error: z.string().nullish(),
+  /**
+   * Ob „Neu indexieren" das Original noch erreicht — nur Wolke-Dateien. Ein
+   * Upload ist `false` (seine Datei ist nach der Verarbeitung gelöscht), URL-
+   * und WordPress-Quellen auch (ein Neu-Crawl brächte keine Seitenzahlen).
+   */
+  reindexable: z.boolean().nullish(),
 });
 
 export const wolkeShareLinkSchema = z.object({
@@ -419,6 +425,32 @@ export const searchResultItemSchema = z.object({
   excerpt: z.string(),
   score: z.number(),
 });
+
+/**
+ * `queued`: der Worker holt das Original und indexiert neu. `unavailable`: es
+ * gibt kein erreichbares Original mehr — nie still aus dem gespeicherten Text.
+ */
+export const reindexDocumentStatusSchema = z.enum(['queued', 'unavailable']);
+export type ReindexDocumentStatus = z.infer<typeof reindexDocumentStatusSchema>;
+
+export const reindexDocumentResponseSchema = z.object({
+  success: z.literal(true),
+  status: reindexDocumentStatusSchema,
+  message: z.string(),
+});
+export type ReindexDocumentResponse = z.infer<typeof reindexDocumentResponseSchema>;
+
+export const reindexNotebookResponseSchema = z.object({
+  success: z.literal(true),
+  /** Eingereiht oder schon in Arbeit — diese IDs kann der Client beobachten. */
+  queued: z.array(z.string()),
+  /** Quellen ohne erreichbares Original, übersprungen. */
+  unavailable: z.number(),
+  /** Quellen, deren Eigentümer*in der KI-Verarbeitung nicht zugestimmt hat. */
+  consent_missing: z.number(),
+  message: z.string(),
+});
+export type ReindexNotebookResponse = z.infer<typeof reindexNotebookResponseSchema>;
 
 export const simpleSuccessMessageSchema = z.object({
   success: z.boolean(),

@@ -13,5 +13,6 @@ respond.answer_format            = research_expanded              complexity=mod
 loop.tool_guard                  = (none)
 loop.synth_verdict               = tool_plan_retried              textLength=58
 loop.synth_verdict               = retry_failed_empty             retryTextLength=58
+notebook.answer_mode             = (not reached)
 -- wire --
 intent=agentic agentic=true tools=[] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=94

@@ -432,7 +432,7 @@ async function read(
   if ('error' in source) return source;
   if (!source.text.trim()) return { error: 'Die Quelle hat keinen lesbaren Text.' };
 
-  const range = pickRange(args, source.chunkMap, source.chunks);
+  const range = pickRange(args, source.chunkMap, source.chunks, source.text);
   if ('error' in range) return range;
   const s = sliceSource(source.text, range, source.chunkMap);
   if (!s.slice) return { error: `abschnitt.von liegt hinter dem Ende (${s.total} Zeichen).` };

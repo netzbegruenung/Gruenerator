@@ -33,11 +33,16 @@ function build(overrides: {
   activeSkillMention?: string | null;
   activeRecipeId?: string | null;
   typedSkillMention?: string | null;
+  notebookAnswerMode?: 'auto' | 'chat' | 'praezision';
+  formattedMessages?: BuildRequestBodyParams['formattedMessages'];
 }): Record<string, unknown> {
   return buildRequestBody({
     effectiveMode: overrides.effectiveMode,
-    formattedMessages: [{ id: 'm1', role: 'user', parts: [{ type: 'text', text: 'Moin' }] }],
+    formattedMessages: overrides.formattedMessages ?? [
+      { id: 'm1', role: 'user', parts: [{ type: 'text', text: 'Moin' }] },
+    ],
     config: {
+      ...(overrides.notebookAnswerMode && { notebookAnswerMode: overrides.notebookAnswerMode }),
       threadId: 'e4d1c0aa-0000-4000-8000-000000000001',
       customSystemPrompt: overrides.customSystemPrompt ?? null,
       customRoleName: overrides.customRoleName ?? null,
@@ -150,5 +155,45 @@ describe('buildRequestBody — activeRecipeId', () => {
     });
     expect(body.activeSkillMention).toBe('presse');
     expect(body.activeRecipeId).toBeUndefined();
+  });
+});
+
+describe('buildRequestBody — notebook answer mode', () => {
+  it('sends the chosen answer mode on the notebook request', () => {
+    for (const mode of ['auto', 'chat', 'praezision'] as const) {
+      expect(build({ effectiveMode: 'notebook', notebookAnswerMode: mode }).answerMode).toBe(mode);
+    }
+  });
+
+  it('omits the field when no mode is set, so the server keeps answering in chat mode', () => {
+    expect(build({ effectiveMode: 'notebook' })).not.toHaveProperty('answerMode');
+  });
+
+  it('never sends it outside notebook mode', () => {
+    expect(build({ effectiveMode: 'chat', notebookAnswerMode: 'praezision' })).not.toHaveProperty(
+      'answerMode'
+    );
+  });
+
+  it('sends the whole history, with each earlier answer carrying its mode', () => {
+    const body = build({
+      effectiveMode: 'notebook',
+      notebookAnswerMode: 'auto',
+      formattedMessages: [
+        { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'Liste alle Quellen' }] },
+        {
+          id: 'a1',
+          role: 'assistant',
+          parts: [{ type: 'text', text: '1. …' }],
+          answerMode: 'praezision',
+        },
+        { id: 'u2', role: 'user', parts: [{ type: 'text', text: 'und die zweite?' }] },
+      ],
+    });
+    expect(body.messages).toEqual([
+      { role: 'user', content: 'Liste alle Quellen' },
+      { role: 'assistant', content: '1. …', answerMode: 'praezision' },
+      { role: 'user', content: 'und die zweite?' },
+    ]);
   });
 });

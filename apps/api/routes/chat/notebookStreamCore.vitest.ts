@@ -546,6 +546,40 @@ describe('trace id', () => {
   });
 });
 
+describe('completion metadata extra', () => {
+  async function completionWith(completionMetadata?: Record<string, unknown>) {
+    vi.clearAllMocks();
+    setupMocks();
+    const { req, res, sse, sent } = makeReqRes();
+    await handleNotebookStream({
+      req,
+      res,
+      sse,
+      messages: [{ role: 'user', content: 'Was steht zur sozialen Sicherung drin?' }],
+      collectionId: 'grundsatz-system',
+      ...(completionMetadata && { completionMetadata }),
+      closeStream: false,
+    });
+    return sent.find((e) => e.event === 'completion')?.data as {
+      metadata: Record<string, unknown>;
+    };
+  }
+
+  it('adds the answer mode to the completion metadata', async () => {
+    const completion = await completionWith({ answerMode: 'chat', answerModeReason: 'explicit' });
+    expect(completion.metadata).toMatchObject({
+      answerMode: 'chat',
+      answerModeReason: 'explicit',
+      depth: 'deep',
+    });
+  });
+
+  it('leaves the metadata unchanged without it (Grün-O-Mat)', async () => {
+    const completion = await completionWith();
+    expect(Object.keys(completion.metadata)).not.toContain('answerMode');
+  });
+});
+
 describe('standing instructions', () => {
   async function runWith(standingInstructions?: string[]) {
     vi.clearAllMocks();

@@ -32,6 +32,8 @@ vi.mock('../../../database/services/QdrantService.js', () => ({
       scroll: (...args: unknown[]) => scroll(...args),
       delete: (...args: unknown[]) => del(...args),
       upsert: (...args: unknown[]) => upsert(...args),
+      getCollection: () =>
+        Promise.resolve({ config: { params: { sparse_vectors: { bm25: { modifier: 'idf' } } } } }),
     },
   }),
 }));
@@ -82,7 +84,7 @@ function collectionWith(pageids: number[]): FakePoint[] {
 }
 
 /** MediaWiki: erst die Titelliste, danach je Batch der Seiteninhalt. */
-function mockWiki(allpages: Array<{ title: string; pageid: number }>) {
+function mockWiki(allpages: Array<{ title: string; pageid: number }>, content = 'Inhalt') {
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string) => {
@@ -98,7 +100,7 @@ function mockWiki(allpages: Array<{ title: string; pageid: number }>) {
                     title: a.title,
                     categories: [],
                     revisions: [
-                      { slots: { main: { '*': 'Inhalt' } }, timestamp: '2020-01-01T00:00:00Z' },
+                      { slots: { main: { '*': content } }, timestamp: '2020-01-01T00:00:00Z' },
                     ],
                   },
                 ])
@@ -195,5 +197,30 @@ describe('fullCrawl prunes articles deleted upstream', () => {
 
     await expect(crawl(0.9)).rejects.toThrow();
     expect(del).not.toHaveBeenCalled();
+  });
+});
+
+describe('stored chunks carry the BM25 sparse vector', () => {
+  it('attaches bm25 when the collection declares it', async () => {
+    // Der Scraper schrieb bis 09/2026 per `client.upsert` am Anreichern vorbei:
+    // 156 Punkte der migrierten Sammlung standen ohne Sparse-Vektor da (#3118).
+    points = [];
+    mockWiki(
+      [{ title: 'Radverkehr', pageid: 1 }],
+      'Radverkehr in der Kommune: Radwege, Fahrradstraßen und Abstellanlagen. '.repeat(3)
+    );
+
+    await crawl(0.9);
+
+    const stored = upsert.mock.calls.flatMap(
+      (c) => (c[1] as { points: Array<{ vector: unknown }> }).points
+    );
+    expect(stored.length).toBeGreaterThan(0);
+    for (const point of stored) {
+      expect(point.vector).toMatchObject({
+        '': [0.1, 0.2],
+        bm25: { indices: expect.any(Array), values: expect.any(Array) },
+      });
+    }
   });
 });

@@ -67,6 +67,16 @@ export {
   type NotebookDepthIconKey,
 } from './lib/notebookDepth';
 
+// Notebook answer mode — shared registry for the notebook page's mode picker
+export {
+  NOTEBOOK_ANSWER_MODES,
+  DEFAULT_NOTEBOOK_ANSWER_MODE,
+  notebookAnswerModeDef,
+  answerModeLabel,
+  answerModeAutoHint,
+  type NotebookAnswerModeDef,
+} from './lib/notebookAnswerMode';
+
 // Context & API Client
 export {
   chatFetch,
@@ -99,6 +109,14 @@ export {
   type GrueneratorAdapterConfig,
   type GrueneratorAdapterCallbacks,
 } from './runtime/GrueneratorModelAdapter';
+export {
+  applyToolStepResult,
+  buildToolStepCard,
+  toolStepResultMessage,
+  toolStepTitle,
+  type ToolStepResultData,
+  type ToolStepStartData,
+} from './runtime/GrueneratorModelAdapter/toolStepCards';
 export {
   createGrueneratorThreadListAdapter,
   getThreadType,
@@ -187,6 +205,7 @@ export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 export { PlusMenu } from './components/thread/PlusMenu';
 export { UserMessage } from './components/thread/UserMessage';
 export { AssistantMessage } from './components/thread/AssistantMessage';
+export { AnswerModeChip } from './components/message-parts/AnswerModeChip';
 export { WelcomeScreen } from './components/thread/WelcomeScreen';
 export {
   GrueneratorThreadListItem,

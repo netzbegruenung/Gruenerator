@@ -78,3 +78,23 @@ describe('AssistantMessage — evidenceWeak', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('AssistantMessage — answer mode chip', () => {
+  it('shows the mode of a notebook answer, live or reloaded', () => {
+    renderWith({ answerMode: 'praezision', answerModeReason: 'explicit' });
+    expect(screen.getByText('Präzisionsmodus')).toBeInTheDocument();
+    expect(screen.queryByText('automatisch gewählt')).toBeNull();
+  });
+
+  it('shows it while the answer is still streaming', () => {
+    renderWith({ answerMode: 'chat', answerModeReason: 'guard' }, { type: 'running' });
+    expect(screen.getByText('Chatmodus')).toBeInTheDocument();
+    expect(screen.getByText('automatisch gewählt')).toBeInTheDocument();
+  });
+
+  it('shows nothing on an answer without a mode', () => {
+    renderWith({});
+    expect(screen.queryByText('Chatmodus')).toBeNull();
+    expect(screen.queryByText('Präzisionsmodus')).toBeNull();
+  });
+});

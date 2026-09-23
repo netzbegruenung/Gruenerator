@@ -3,6 +3,7 @@
  * Fetches articles, categories, and metadata from kommunalwiki.boell.de
  */
 
+import { batchUpsert } from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { getQdrantInstance, type QdrantService } from '../../../database/services/QdrantService.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import {
@@ -398,7 +399,7 @@ export class KommunalwikiScraper extends BaseScraper {
     // Store in batches of 10
     for (let i = 0; i < points.length; i += 10) {
       const batch = points.slice(i, i + 10);
-      await this.qdrant!.client!.upsert(this.config.collectionName, { points: batch });
+      await batchUpsert(this.qdrant!.client!, this.config.collectionName, batch);
     }
 
     return { stored: true, chunks: chunks.length, vectors: points.length };

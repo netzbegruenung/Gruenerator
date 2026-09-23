@@ -1676,3 +1676,32 @@ describe('toolCatalog: Picker-Schlüssel, die nichts erreichten (#3307)', () => 
     expect(names).toContain('documents');
   });
 });
+
+describe('toolAllowlist (Präzisionsmodus der Notebook-Seite)', () => {
+  function namesWith(toolAllowlist?: readonly string[]): string[] {
+    const state = {
+      intent: 'agentic',
+      lastUserTextNoMentions: 'Wie viele Quellen liegen im Notebook?',
+      messages: [{ role: 'user', content: 'Wie viele Quellen liegen im Notebook?' }],
+      enabledTools: {},
+      agentConfig: { userId: 'u1' },
+    } as unknown as ChatGraphState;
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: { sse: { send: () => {} } as never, state, threadId: 't1' },
+      ...(toolAllowlist ? { toolAllowlist } : {}),
+    }).toolNames;
+  }
+
+  it('mounts only the allowed tools', () => {
+    expect(namesWith(['notebook_quellen'])).toEqual(['notebook_quellen']);
+  });
+
+  it('changes nothing when absent', () => {
+    const names = namesWith();
+    expect(names).toContain('notebook_quellen');
+    expect(names).toContain('gruenerator_search');
+    expect(names.length).toBeGreaterThan(5);
+  });
+});

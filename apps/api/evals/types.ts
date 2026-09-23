@@ -10,7 +10,11 @@
  * nothing. `loadCorpus()` now safeParses every line and names the file, line
  * number and offending path.
  */
-import { memoryKindSchema, notebookDepthSchema } from '@gruenerator/contracts';
+import {
+  memoryKindSchema,
+  notebookAnswerModeSchema,
+  notebookDepthSchema,
+} from '@gruenerator/contracts';
 import { DISPOSITION_BY_INTENT } from '@gruenerator/shared/chat-intents';
 import { z } from 'zod';
 
@@ -348,6 +352,9 @@ export const evalScenarioSchema = z
     collectionIds: z.array(z.string()).optional(),
     /** Notebook retrieval mode. Omit = server default. */
     notebookMode: evalNotebookModeSchema.optional(),
+    /** Antwortmodus der Notebook-Seite, als `answerMode` gesendet (nur
+     *  `surface: 'notebook'`). Omit = kein Feld = Server-Default `chat`. */
+    notebookAnswerMode: notebookAnswerModeSchema.optional(),
     turns: z.array(evalTurnSchema),
     /** Documented open bug: runs + reported separately, never fails the baseline. */
     knownFailure: z.boolean().optional(),
