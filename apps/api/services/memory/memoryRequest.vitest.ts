@@ -48,6 +48,8 @@ describe('looksLikeMemoryRequest', () => {
     ['bitte immer mid-sentence', 'Warum muss ich bitte immer alles selbst machen?'],
     ['nie wieder as slogan', 'Schreib einen Post zum 8. Mai: Nie wieder Krieg!'],
     ['nie wieder ist jetzt', 'Nie wieder ist jetzt – bitte erklär mir den Slogan.'],
+    ['von nun an as slogan', 'Schreib eine Story: Von nun an keine Waffenexporte mehr!'],
+    ['beim nächsten mal as slogan', 'Beim nächsten Mal keine Kompromisse mit der Union!'],
     // A bare statement about oneself carries no save marker; the loop decides.
     ['bare fact', 'Ich bin Sprecherin im KV Köln.'],
     // Product question about memory — reading needs no tool.
