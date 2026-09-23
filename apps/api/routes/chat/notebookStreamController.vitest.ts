@@ -30,10 +30,16 @@ vi.mock('./services/sseHelpers.js', async (importOriginal) => ({
   createSSEStream: () => fakeSse,
 }));
 
+const canWriteThread = vi.fn(async (..._args: unknown[]) => true);
+vi.mock('./services/threadAccessService.js', () => ({
+  canWriteThread: (...args: unknown[]) => canWriteThread(...args),
+}));
+
+const createThread = vi.fn(async (..._args: unknown[]) => ({ id: 'thread-1' }));
 const createMessage = vi.fn(async (..._args: unknown[]) => ({}));
 vi.mock('./services/threadPersistenceService.js', () => ({
   getUser: (req: { user?: unknown }) => req.user,
-  createThread: vi.fn(async () => ({ id: 'thread-1' })),
+  createThread: (...args: unknown[]) => createThread(...args),
   createMessage: (...args: unknown[]) => createMessage(...args),
   touchThread: vi.fn(async () => {}),
 }));
@@ -98,6 +104,7 @@ function persistedAssistantMetadata(): Record<string, unknown> {
 beforeEach(() => {
   sent.length = 0;
   vi.clearAllMocks();
+  canWriteThread.mockResolvedValue(true);
 });
 
 describe('POST /api/chat-service/notebook/stream — answer mode', () => {
@@ -171,5 +178,30 @@ describe('POST /api/chat-service/notebook/stream — answer mode', () => {
     };
     validate(req, res, () => {});
     expect(status).toBe(400);
+  });
+});
+
+describe('POST /api/chat-service/notebook/stream — thread ownership', () => {
+  it('never reuses a thread the user cannot write, in either branch', async () => {
+    canWriteThread.mockResolvedValue(false);
+    await post({ answerMode: 'praezision', threadId: 'foreign-thread' });
+    expect(canWriteThread).toHaveBeenCalledWith('foreign-thread', 'user-1');
+    expect(createThread).toHaveBeenCalled();
+    const params = runNotebookPraezisionTurn.mock.calls[0]![0] as Record<string, unknown>;
+    expect(params.threadId).toBe('thread-1');
+    expect(createMessage.mock.calls.every((c) => c[0] === 'thread-1')).toBe(true);
+
+    vi.clearAllMocks();
+    canWriteThread.mockResolvedValue(false);
+    await post({ threadId: 'foreign-thread' });
+    expect(createThread).toHaveBeenCalled();
+    expect(createMessage.mock.calls.every((c) => c[0] === 'thread-1')).toBe(true);
+  });
+
+  it("reuses the user's own thread", async () => {
+    await post({ answerMode: 'praezision', threadId: 'own-thread' });
+    expect(createThread).not.toHaveBeenCalled();
+    const params = runNotebookPraezisionTurn.mock.calls[0]![0] as Record<string, unknown>;
+    expect(params.threadId).toBe('own-thread');
   });
 });
