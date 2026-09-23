@@ -183,7 +183,7 @@ async function main(): Promise<void> {
       limit: 1000,
       with_payload: ['source_url'],
       with_vector: false,
-      offset: offset ?? undefined,
+      offset: offset ?? null,
     });
     for (const p of res.points) {
       const url = (p.payload ?? {}).source_url;
