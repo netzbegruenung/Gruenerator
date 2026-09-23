@@ -614,6 +614,10 @@ export class LandesverbandScraper extends BaseScraper {
       const listingPaths = source.contentPaths.map((cp) => cp.path);
       const goneDeletes: string[] = [];
       let fetched = 0;
+      // A redirect pair (old URL moved, new URL live) resolves to one storeUrl.
+      // Claimed synchronously (no await between has/add), so under
+      // ARTICLE_CONCURRENCY only the first task stores and embeds it.
+      const claimedStoreUrls = new Set<string>();
       const tasks = toProcess.map((url) => async (): Promise<void> => {
         const n = ++processed;
         let stored: Record<string, unknown> | null = null;
@@ -681,6 +685,13 @@ export class LandesverbandScraper extends BaseScraper {
             outcome === 'moved' && finalUrl
               ? (this.#normalizeUrl(finalUrl, source.baseUrl) ?? url)
               : url;
+          if (claimedStoreUrls.has(storeUrl)) {
+            result.skipped++;
+            result.skipReasons['duplicate_canonical'] =
+              (result.skipReasons['duplicate_canonical'] || 0) + 1;
+            return;
+          }
+          claimedStoreUrls.add(storeUrl);
           const storeResult = await this.documentProcessor.processAndStoreDocument(
             source,
             contentPath.type,
