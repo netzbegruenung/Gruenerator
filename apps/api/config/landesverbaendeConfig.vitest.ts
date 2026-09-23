@@ -14,8 +14,22 @@
  */
 import { describe, it, expect } from 'vitest';
 
-import { getSourceById, LANDESVERBAENDE_CONFIG } from './landesverbaendeConfig.js';
+import { LANDESVERBAENDE_CONFIG, getSourceById } from './landesverbaendeConfig.js';
 import { THUERINGEN_WAHLPROGRAMME, THUERINGEN_BESCHLUESSE } from './thueringenSources.js';
+
+/**
+ * #3564: dating the BE-F dlm-downloads file names correctly (see DateExtractor's
+ * leading-YYMMDD tier) pushes ~30 of 56 stored papers into 2017–2021, which is
+ * older than the source's old 5-year window. maxAgeYears must stay at 10 so
+ * dating them doesn't turn into silently dropping them as `too_old`.
+ */
+describe('landesverbaendeConfig — berlin-fraktion-beschluesse maxAgeYears (#3564)', () => {
+  it('keeps a 10-year window so 2017+ position papers survive dating', () => {
+    const source = getSourceById('berlin-fraktion-beschluesse');
+
+    expect(source?.maxAgeYears).toBe(10);
+  });
+});
 
 describe('thueringen-lv — Wahlprogramm/Beschluss PDF paths (#3579)', () => {
   const source = getSourceById('thueringen-lv');
