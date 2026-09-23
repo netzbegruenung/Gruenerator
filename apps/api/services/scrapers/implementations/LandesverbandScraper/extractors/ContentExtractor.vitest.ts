@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import * as cheerio from 'cheerio';
 import { describe, expect, it } from 'vitest';
 
 import { getSourceById } from '../../../../../config/landesverbaendeConfig.js';
@@ -223,8 +224,15 @@ describe('ContentExtractor — Seitenchrome im Artikeltext (#3574)', () => {
       fixtureFetch('gruene-berlin-beschluss-flinta-vollversammlung.html')
     );
 
+    // Drei getrennte <p>-Elemente — die Blocktrennung (#3573) setzt einen
+    // Zeilenumbruch zwischen sie, statt "Landesausschuss:Der" zusammenzukleben.
+    // Zwischen dem ersten und zweiten <p> bleibt es eine echte Leerzeile: die
+    // Fixture hat dort schon eingerücktes Whitespace vor `</p>` (Zeile 30/31 im
+    // Quelltext), das addiert sich mit unserem eingefügten Trenner zu zwei
+    // Zeilenumbrüchen — zwischen zweitem und drittem <p> steht im Quelltext
+    // kein Whitespace, dort bleibt es bei einem.
     expect(extracted.text).toBe(
-      '09.04.25 – Beschluss auf dem Landesausschuss:Der Landesausschuss beschließt, eine außerordentliche FLINTA-Vollversammlung einzuberufen.'
+      '09.04.25 –\n\nBeschluss auf dem Landesausschuss:\nDer Landesausschuss beschließt, eine außerordentliche FLINTA-Vollversammlung einzuberufen.'
     );
     expect(extracted.text).not.toContain('Kontakt');
     expect(extracted.text).not.toContain('Kategorie');
@@ -242,5 +250,93 @@ describe('ContentExtractor — Seitenchrome im Artikeltext (#3574)', () => {
 
     expect(extracted.bodyFallback).toBe(true);
     expect(extracted.text.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * cheerio's `.text()` joins adjacent block elements without a separator, so
+ * the last word of one block fuses with the first word of the next —
+ * "prüfenDas", "ermöglichenDie", "ausDer" (#3573). `blockText` inserts a
+ * separator after block elements and turns `<br>` into a newline before
+ * reading the text. Inline elements (span, a, strong, em) must NOT get a
+ * separator — that would split words apart instead ("Grü nen").
+ */
+describe('ContentExtractor.blockText (#3573)', () => {
+  function textOf(html: string, selector = '#c'): string {
+    const $ = cheerio.load(html);
+    return ContentExtractor.blockText($, $(selector));
+  }
+
+  it('trennt Geschwister-Blockelemente ohne Whitespace im Quelltext', () => {
+    expect(textOf('<div id="c"><h1>A</h1><h3>B</h3></div>')).toBe('A\nB\n');
+  });
+
+  it('ersetzt <br> durch einen Zeilenumbruch', () => {
+    expect(textOf('<div id="c">A<br>B</div>')).toBe('A\nB');
+  });
+
+  it('fügt bei Inline-Elementen keinen Trenner ein (kein "Grü nen")', () => {
+    expect(textOf('<p id="c">x <strong>fett</strong>y</p>')).toBe('x fetty');
+  });
+
+  it('mutiert das freigegebene Dokument nicht (Datum bleibt für spätere Selektoren lesbar)', () => {
+    const $ = cheerio.load(
+      '<div><time id="date">2026-01-01</time><div id="c"><h1>A</h1><h3>B</h3></div></div>'
+    );
+    ContentExtractor.blockText($, $('#c'));
+    expect($('#date').text()).toBe('2026-01-01');
+    // Der Container selbst darf durch den Aufruf ebenfalls nicht verändert sein.
+    expect($('#c').find('h1').length).toBe(1);
+    expect($('#c').html()).toBe('<h1>A</h1><h3>B</h3>');
+  });
+});
+
+/**
+ * Regressionsfälle aus der LV-Datenqualitäts-Erhebung (#3573).
+ */
+describe('ContentExtractor — verklebte Blöcke aus der Praxis (#3573)', () => {
+  it('sachsen-anhalt-fraktion (Neos): Titel und Anrisstext ohne Whitespace dazwischen bleiben getrennt', async () => {
+    // Die reale Fixture __fixtures__/gruene-fraktion-sachsen-anhalt-reerdigung.html
+    // hat zufällig einen Zeilenumbruch + Einrückung zwischen </h1> und dem
+    // Anrisstext (Zeile 14/15) und reproduziert das Verkleben deshalb NICHT
+    // mehr — die minifizierte Praxis-Seite aus der Erhebung hatte das nicht.
+    // Diese Fixture bildet genau den minifizierten Fall nach (kein Whitespace
+    // zwischen Tag-Ende und Anrisstext), wie ihn die Erhebung fand:
+    // "Reerdigung per Gesetz ermöglichenDie Landtagsfraktion...".
+    const html = `<!DOCTYPE html><html><body>
+      <main>
+      <div class="columns"><div class="columns__cell columns__cell--size-70">
+        <h1>Reerdigung per Gesetz ermöglichen</h1>Die Landtagsfraktion Bündnis 90/Die Grünen fordert die Landesregierung auf, Reerdigung als Bestattungsform gesetzlich zu ermöglichen.
+        <div class="neos-contentcollection"><div class="text"><p>${'Weiterer Fließtext, der die Zweihundert-Zeichen-Schranke sicher überschreitet. '.repeat(3)}</p></div></div>
+      </div></div>
+      </main>
+    </body></html>`;
+
+    const extracted = await ContentExtractor.extractPageContent(
+      'https://gruene-fraktion-sachsen-anhalt.de/pressemitteilungen/reerdigung-per-gesetz-ermoeglichen',
+      sourceById('sachsen-anhalt-fraktion'),
+      () => Promise.resolve(new Response(html))
+    );
+
+    expect(extracted.text).not.toContain('ermöglichenDie');
+    expect(extracted.text).toContain('ermöglichen\nDie Landtagsfraktion');
+  });
+
+  it('saarland-lv (WordPress): "Zoo aus<br />Der" bleibt getrennt', async () => {
+    const html = `<!DOCTYPE html><html><body>
+      <div class="entry-content">
+        <p>${'Ein hinreichend langer Artikeltext, der die Zweihundert-Zeichen-Schranke sicher überschreitet. '.repeat(3)}</p>
+        <p>Grüne Saar sprechen sich gegen Fuchsgehege im Neunkircher Zoo aus<br />Der Neunkircher Zoo plant eine Erweiterung.</p>
+      </div>
+    </body></html>`;
+
+    const extracted = await ContentExtractor.extractPageContent(
+      'https://gruene-saar.de/beispiel/',
+      sourceById('saarland-lv'),
+      () => Promise.resolve(new Response(html))
+    );
+
+    expect(extracted.text).not.toContain('Zoo ausDer');
+    expect(extracted.text).toContain('Zoo aus\nDer Neunkircher Zoo');
   });
 });

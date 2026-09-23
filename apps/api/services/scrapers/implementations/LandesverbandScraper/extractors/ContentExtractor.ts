@@ -5,8 +5,17 @@
  */
 
 import * as cheerio from 'cheerio';
+import { type AnyNode } from 'domhandler';
 
 import type { ExtractedContent } from '../types.js';
+
+/**
+ * Block-level Elemente, nach denen `blockText` einen Trenner einfügt.
+ * Inline-Elemente (span, a, strong, em, …) sind absichtlich NICHT dabei — ein
+ * Trenner dort würde Wörter auseinanderreißen ("Grü nen").
+ */
+const BLOCK_SEPARATOR_SELECTOR =
+  'p, li, h1, h2, h3, h4, h5, h6, div, td, th, tr, small, blockquote, section, article, header, footer, figcaption, dt, dd';
 
 interface ContentSelectors {
   title: string[];
@@ -27,6 +36,39 @@ interface SourceConfig {
  * Supports WordPress and Neos CMS with different extraction strategies
  */
 export class ContentExtractor {
+  /**
+   * Text von `el` mit einem Trenner nach jedem Block-Element und nach `<br>`.
+   * cheerio klebt beim reinen `.text()` sonst benachbarte Blöcke ohne
+   * Trennzeichen zusammen ("prüfenDas", "ausDer", #3573). Arbeitet auf einem
+   * Klon — mutiert nie das geteilte Dokument, das spätere Selektoren
+   * (Datum, Kategorien) im selben Aufruf noch lesen.
+   */
+  static blockText($: cheerio.CheerioAPI, el: cheerio.Cheerio<AnyNode>): string {
+    const $clone = el.clone();
+    $clone.find('br').replaceWith('\n');
+    $clone.find(BLOCK_SEPARATOR_SELECTOR).append('\n');
+    return $clone.text();
+  }
+
+  /**
+   * Whitespace-Normalisierung für extrahierten Text. Läuft zeilenweise, damit
+   * die von `blockText` gesetzten Zeilenumbrüche (Absatzgrenzen) erhalten
+   * bleiben — der Chunker (`smartChunkDocument` → `cleanTextForEmbedding(text,
+   * true)`) erkennt Überschriften/Absätze zeilenweise, ein einzeiliger Text
+   * würde ihm die Struktur nehmen. Reihenfolge ist wichtig: erst pro Zeile
+   * Whitespace kollabieren, DANN 3+ Zeilenumbrüche zusammenziehen — umgekehrt
+   * (wie zuvor) frisst `/\s+/g` die Zeilenumbrüche schon vorher weg und macht
+   * die Zeilenumbruch-Regel zu totem Code.
+   */
+  static normalizeWhitespace(text: string): string {
+    return text
+      .split('\n')
+      .map((line) => line.replace(/[ \t\u00a0]+/g, ' ').trim())
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
   /**
    * Extract content from WordPress page
    * Handles Elementor, Gutenberg, and classic themes
@@ -72,12 +114,17 @@ export class ContentExtractor {
       $(selectors.removeSelectors.join(', ')).remove();
     }
 
-    // Extract main content
+    // Extract main content. The 200-char gate is measured on the PLAIN text
+    // (matching the untouched selector-picking behaviour from #3574) — using
+    // the separated length here would let a handful of injected separators
+    // tip a borderline container (e.g. a wrapper that also holds a "Kategorie"/
+    // "Zurück" sidebar) over the threshold and pull in chrome that the gate
+    // was tuned to keep out.
     let contentText = '';
     for (const sel of selectors.content) {
       const el = $(sel);
       if (el.length && el.text().trim().length > 200) {
-        contentText = el.text();
+        contentText = ContentExtractor.blockText($, el);
         break;
       }
     }
@@ -92,14 +139,16 @@ export class ContentExtractor {
       for (const sel of selectors.content) {
         const el = $(sel);
         if (el.length && el.text().trim()) {
-          shortText = el.text();
+          shortText = ContentExtractor.blockText($, el);
           break;
         }
       }
       if (shortText) {
         contentText = shortText;
       } else {
-        contentText = $('main').text() || $('body').text();
+        const main = $('main');
+        const mainText = main.length ? ContentExtractor.blockText($, main) : '';
+        contentText = mainText || ContentExtractor.blockText($, $('body'));
         bodyFallback = true;
       }
     }
@@ -114,11 +163,7 @@ export class ContentExtractor {
       }
     });
 
-    // Clean text
-    contentText = contentText
-      .replace(/\s+/g, ' ') // Collapse whitespace
-      .replace(/\n{3,}/g, '\n\n') // Normalize line breaks
-      .trim();
+    contentText = ContentExtractor.normalizeWhitespace(contentText);
 
     return { title, publishedAt, text: contentText, categories, bodyFallback };
   }
@@ -160,12 +205,17 @@ export class ContentExtractor {
       $(selectors.removeSelectors.join(', ')).remove();
     }
 
-    // Extract main content
+    // Extract main content. The 200-char gate is measured on the PLAIN text
+    // (matching the untouched selector-picking behaviour from #3574) — using
+    // the separated length here would let a handful of injected separators
+    // tip a borderline container (e.g. a wrapper that also holds a "Kategorie"/
+    // "Zurück" sidebar) over the threshold and pull in chrome that the gate
+    // was tuned to keep out.
     let contentText = '';
     for (const sel of selectors.content) {
       const el = $(sel);
       if (el.length && el.text().trim().length > 200) {
-        contentText = el.text();
+        contentText = ContentExtractor.blockText($, el);
         break;
       }
     }
@@ -180,14 +230,16 @@ export class ContentExtractor {
       for (const sel of selectors.content) {
         const el = $(sel);
         if (el.length && el.text().trim()) {
-          shortText = el.text();
+          shortText = ContentExtractor.blockText($, el);
           break;
         }
       }
       if (shortText) {
         contentText = shortText;
       } else {
-        contentText = $('main').text() || $('body').text();
+        const main = $('main');
+        const mainText = main.length ? ContentExtractor.blockText($, main) : '';
+        contentText = mainText || ContentExtractor.blockText($, $('body'));
         bodyFallback = true;
       }
     }
@@ -202,11 +254,7 @@ export class ContentExtractor {
       }
     });
 
-    // Clean text
-    contentText = contentText
-      .replace(/\s+/g, ' ') // Collapse whitespace
-      .replace(/\n{3,}/g, '\n\n') // Normalize line breaks
-      .trim();
+    contentText = ContentExtractor.normalizeWhitespace(contentText);
 
     return { title, publishedAt, text: contentText, categories, bodyFallback };
   }
@@ -263,12 +311,17 @@ export class ContentExtractor {
       $(selectors.removeSelectors.join(', ')).remove();
     }
 
-    // Extract main content
+    // Extract main content. The 200-char gate is measured on the PLAIN text
+    // (matching the untouched selector-picking behaviour from #3574) — using
+    // the separated length here would let a handful of injected separators
+    // tip a borderline container (e.g. a wrapper that also holds a "Kategorie"/
+    // "Zurück" sidebar) over the threshold and pull in chrome that the gate
+    // was tuned to keep out.
     let contentText = '';
     for (const sel of selectors.content) {
       const el = $(sel);
       if (el.length && el.text().trim().length > 200) {
-        contentText = el.text();
+        contentText = ContentExtractor.blockText($, el);
         break;
       }
     }
@@ -283,14 +336,16 @@ export class ContentExtractor {
       for (const sel of selectors.content) {
         const el = $(sel);
         if (el.length && el.text().trim()) {
-          shortText = el.text();
+          shortText = ContentExtractor.blockText($, el);
           break;
         }
       }
       if (shortText) {
         contentText = shortText;
       } else {
-        contentText = $('main').text() || $('body').text();
+        const main = $('main');
+        const mainText = main.length ? ContentExtractor.blockText($, main) : '';
+        contentText = mainText || ContentExtractor.blockText($, $('body'));
         bodyFallback = true;
       }
     }
@@ -305,11 +360,7 @@ export class ContentExtractor {
       }
     });
 
-    // Clean text
-    contentText = contentText
-      .replace(/\s+/g, ' ')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+    contentText = ContentExtractor.normalizeWhitespace(contentText);
 
     return { title, publishedAt, text: contentText, categories, bodyFallback };
   }
