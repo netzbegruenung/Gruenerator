@@ -380,7 +380,8 @@ export class LandesverbandScraper extends BaseScraper {
             true, // isFile — PDF archive
             targetCollection,
             source.maxAgeYears,
-            fingerprint
+            // date_precision: 'year' heißt, das -06-15 ist geraten (#3575)
+            { ...fingerprint, date_precision: pdf.dateInfo.precision }
           );
 
           if (storeResult.stored) {

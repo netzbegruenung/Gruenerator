@@ -30,7 +30,9 @@ import { useAuthStore } from '../../stores/authStore';
 import { cn } from '../../utils/cn';
 import { downloadBlob } from '../../utils/downloadFile';
 import { formatAudioDuration } from '../../utils/formatAudioDuration';
+import { formatCount } from '../../utils/usageFormat';
 
+import FileImport from './components/FileImport';
 import ScriptAssistant from './components/ScriptAssistant';
 import VoiceEditor from './components/VoiceEditor';
 import VoiceResult from './components/VoiceResult';
@@ -123,6 +125,39 @@ const VoicePage = () => {
     });
   }, [pauseFits, text]);
 
+  // A file lands at the caret like a pause does. What does not fit the budget
+  // is cut — and said, in a toast that stays until it is dismissed: a
+  // Vorlesefassung that silently stops after page seven is worse than none.
+  const insertFile = (fileText: string, fileName: string) => {
+    const el = textareaRef.current;
+    // Read from the field, not from `text`: extraction takes seconds, and this
+    // closure dates from before it — typing in the meantime would be lost.
+    const current = el?.value ?? text;
+    const start = el?.selectionStart ?? current.length;
+    const end = el?.selectionEnd ?? start;
+    const before = current.slice(0, start);
+    const after = current.slice(end);
+    const room = def.maxChars - wireLength(before) - wireLength(after);
+    const inserted = clampToWire(fileText, Math.max(0, room));
+    if (inserted === '') {
+      toast.error(`Für „${fileName}" ist im Textfeld kein Platz mehr.`);
+      return;
+    }
+    setText(clampToWire(`${before}${inserted}${after}`, def.maxChars));
+    if (inserted.length < fileText.length) {
+      toast.warning(
+        `„${fileName}" war zu lang: eingefügt sind ${formatCount(wireLength(inserted))} von ${formatCount(wireLength(fileText))} Zeichen. Der Rest fehlt im Textfeld.`,
+        { duration: Infinity, closeButton: true }
+      );
+    }
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.focus();
+      const caret = start + inserted.length;
+      el.setSelectionRange(caret, caret);
+    });
+  };
+
   const submit = () => {
     if (!canSubmit) return;
     generate.mutate(request);
@@ -195,6 +230,7 @@ const VoicePage = () => {
               }}
             />
           }
+          fileImport={<FileImport onText={insertFile} />}
           settingsToggle={
             isPhone ? undefined : (
               <Button
