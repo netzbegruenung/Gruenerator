@@ -65,7 +65,8 @@ type ReasoningRule = ReasoningSetting | Record<Complexity, ReasoningSetting>;
  * left this union with the 07.08.2026 lane fold — they stay registered in
  * providers.ts for persisted thread ids and intermediate stages only.
  */
-export type AutoLaneId = 'gemma-litellm' | 'mistral-medium-3.5';
+export const AUTO_LANE_IDS = ['gemma-litellm', 'mistral-medium-3.5'] as const;
+export type AutoLaneId = (typeof AUTO_LANE_IDS)[number];
 
 interface AutoEntry {
   modelId: AutoLaneId;
