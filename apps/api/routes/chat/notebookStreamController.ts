@@ -14,12 +14,14 @@ import { memoryService } from '../../services/memory/index.js';
 import { withRetry } from '../../services/search/searchRetryStrategy.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { ThreadId, UserId } from '../../utils/types/branded.js';
 import { withTimeout } from '../../utils/withTimeout.js';
 
 import { handleNotebookStream } from './notebookStreamCore.js';
 import { resolveNotebookAnswerMode } from './services/notebookAnswerModeResolver.js';
 import { runNotebookPraezisionTurn } from './services/notebookPraezisionTurn.js';
 import { createSSEStream, sendChatWarning } from './services/sseHelpers.js';
+import { canWriteThread } from './services/threadAccessService.js';
 import {
   getUser,
   createThread,
@@ -118,7 +120,16 @@ router.post(
       : null;
     const userText = typeof lastUserMessage?.content === 'string' ? lastUserMessage.content : '';
 
-    let threadId: string | null = existingThreadId ?? null;
+    // Die id kommt vom Client: ein fremder oder gelöschter Thread wird nie
+    // weiterbenutzt (der Präzisionsmodus liest über sie Werkzeugschritte und
+    // Quellen) — wie in `streamContext` gibt es dann einen frischen.
+    let threadId: string | null =
+      existingThreadId && (await canWriteThread(ThreadId(existingThreadId), UserId(user.id)))
+        ? existingThreadId
+        : null;
+    if (existingThreadId && !threadId) {
+      log.warn(`[notebookStream] thread ${existingThreadId} not writable — starting a new one`);
+    }
     const sse = createSSEStream(res);
 
     // Create thread on first message
