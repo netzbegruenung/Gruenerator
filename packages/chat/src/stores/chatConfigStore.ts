@@ -4,9 +4,11 @@ import type { SharepicVariant } from '../hooks/useChatGraphStream';
 import type {
   ClientPlatform,
   CurrentBoard,
+  CurrentCanvas,
   EditorOperationsEvent,
   RoleRef,
 } from '@gruenerator/contracts';
+import type { UnauthorizedInfo } from '@gruenerator/shared/api';
 
 /** A raw file handed to the in-browser Python interpreter (Pyodide worker). */
 export interface PythonFile {
@@ -55,9 +57,12 @@ export interface ChatConfig {
    * Called on 401. A truthy (Promise-)return means "the session was probed and
    * is actually alive — retry the request once" (web routes this through the
    * shared handleUnauthorized authority); void/false means "don't retry".
+   * `info` carries the 401's code/requestId so the handler can report WHICH
+   * failure tore the session down instead of an anonymous one; every field is
+   * optional, so a zero-arg handler stays assignable.
    * Default: redirect to /login.
    */
-  onUnauthorized?: () => void | boolean | Promise<boolean | void>;
+  onUnauthorized?: (info?: UnauthorizedInfo) => void | boolean | Promise<boolean | void>;
   /** Client shell sent with chat requests; unset means 'web'. */
   platform?: ClientPlatform;
   /** API endpoint overrides (all have defaults matching current paths) */
@@ -95,10 +100,17 @@ export interface ChatConfig {
   onExportPdfLetterhead?: (content: string, title?: string) => Promise<void>;
   /** Opens a single sharepic variant in the canvas editor for editing. */
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
-  /** Renders a sharepic to a base64 PNG using the canvas editor. */
+  /**
+   * Renders a sharepic to a base64 PNG using the canvas editor.
+   *
+   * `quality: 'preview'` (the default) renders at display size — what the
+   * cards and the variant strip show. `'full'` renders at export resolution
+   * and is only worth its cost where the pixels leave the app: the download.
+   */
   renderSharepic?: (
     canvasType: string,
-    initialProps: Record<string, unknown>
+    initialProps: Record<string, unknown>,
+    options?: { quality?: 'preview' | 'full' }
   ) => Promise<string | null>;
   /** Runs Python in a browser Pyodide worker (in-chat code execution). */
   runPython?: RunPython;
@@ -206,7 +218,7 @@ export interface ResolvedEndpoints {
 
 interface ResolvedChatConfig {
   fetch: (url: string, options?: RequestInit) => Promise<Response>;
-  onUnauthorized: () => void | boolean | Promise<boolean | void>;
+  onUnauthorized: (info?: UnauthorizedInfo) => void | boolean | Promise<boolean | void>;
   endpoints: ResolvedEndpoints;
   docsBaseUrl?: string;
 }
@@ -236,6 +248,13 @@ export interface ChatRequestContext {
    * in the boards editor. Serialized from the live Yjs board each request.
    */
   currentBoard?: CurrentBoard;
+  /**
+   * The live sharepic the user is editing — primary context when chat is
+   * embedded in the studio sidebar, and the target of the loop's
+   * `edit_document` tool on the canvas surface. Snapshot + capabilities are
+   * read fresh from the canvas bridge each request.
+   */
+  currentCanvas?: CurrentCanvas;
 }
 
 export type ChatRequestContextProvider = () => Promise<ChatRequestContext> | ChatRequestContext;
@@ -261,21 +280,6 @@ export type DocumentEditTriggerHandler = (
 ) => void | Promise<void>;
 
 /**
- * Handler the boards-editor surface registers to receive `trigger_board_action`
- * SSE events. The handler calls POST /api/boards/:id/ai to plan operations and
- * applies them to the live Yjs board via the client-side executor.
- */
-export interface BoardActionTriggerPayload {
-  targetBoardId: string;
-  userPrompt: string;
-  referenceContent?: string;
-}
-
-export type BoardActionTriggerHandler = (
-  payload: BoardActionTriggerPayload
-) => void | Promise<void>;
-
-/**
  * Handler an editor surface registers to receive `editor_operations` SSE events
  * — the tool-based edit path (CHAT_EDIT_TOOL_SURFACES). The agentic loop planned
  * the ops server-side; the handler applies them in place (Univer / Yjs / Konva)
@@ -294,10 +298,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   ) => Promise<string | void>;
   onExportPdfLetterhead?: ChatConfig['onExportPdfLetterhead'];
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
-  renderSharepic?: (
-    canvasType: string,
-    initialProps: Record<string, unknown>
-  ) => Promise<string | null>;
+  renderSharepic?: ChatConfig['renderSharepic'];
   runPython?: RunPython;
   fetchSharepicState?: ChatConfig['fetchSharepicState'];
   fetchSharepicVersions?: ChatConfig['fetchSharepicVersions'];
@@ -327,10 +328,6 @@ interface ChatConfigStore extends ResolvedChatConfig {
     threadId: string,
     handler: DocumentEditTriggerHandler
   ) => () => void;
-  /** boardId → board-action dispatcher (boards editor surface only). */
-  boardActionHandlers: Map<string, BoardActionTriggerHandler>;
-  /** Register a board-action handler for a board. Returns the unregister function. */
-  registerBoardActionHandler: (boardId: string, handler: BoardActionTriggerHandler) => () => void;
   /** targetId → editor_operations dispatcher (tool-based edit path). */
   editorOpsHandlers: Map<string, EditorOperationsHandler>;
   /** Register an editor-operations handler for a target. Returns the unregister function. */
@@ -424,7 +421,6 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   chunkInspectorHref: undefined,
   contextProviders: new Map(),
   documentEditHandlers: new Map(),
-  boardActionHandlers: new Map(),
   editorOpsHandlers: new Map(),
   pendingRunSignal: null,
 
@@ -479,19 +475,6 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       if (after.get(threadId) === handler) {
         after.delete(threadId);
         set({ documentEditHandlers: after });
-      }
-    };
-  },
-
-  registerBoardActionHandler: (boardId, handler) => {
-    const next = new Map(get().boardActionHandlers);
-    next.set(boardId, handler);
-    set({ boardActionHandlers: next });
-    return () => {
-      const after = new Map(get().boardActionHandlers);
-      if (after.get(boardId) === handler) {
-        after.delete(boardId);
-        set({ boardActionHandlers: after });
       }
     };
   },

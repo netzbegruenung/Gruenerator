@@ -18,6 +18,8 @@ import React, {
 } from 'react';
 import { Layer } from 'react-konva';
 
+import { PAGE_ELEMENT_STATE_KEYS } from '../collab/pageElementStateKeys';
+import { useEmitHostStateChanges } from '../collab/useEmitHostStateChanges';
 import { useSelectionAwareness } from '../collab/useSelectionAwareness';
 import { useYjsCanvasBinding } from '../collab/useYjsCanvasBinding';
 import { useYjsPageStateSync } from '../collab/useYjsPageStateSync';
@@ -28,8 +30,9 @@ import {
 } from '../stores/CanvasStoreProvider';
 import {
   useCanvasInteractions,
-  useCanvasStoreSetup,
+  useCanvasStoreReset,
   useCanvasHistorySetup,
+  useFontGeneration,
   useFontLoader,
 } from '../hooks';
 import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
@@ -67,6 +70,12 @@ const SYNCED_IMAGE_KEYS = [
   'hasBackgroundImage',
 ] as const;
 
+// Everything the page must push back out itself. The image keys ride on the
+// host callbacks CanvasEditorRouter wires per canvas type; the element keys have
+// no host callback anywhere and are served by the writers CanvasEditor mints in
+// createPageSyncedCallbacks.
+const HOST_EMITTED_STATE_KEYS = [...SYNCED_IMAGE_KEYS, ...PAGE_ELEMENT_STATE_KEYS];
+
 import type { AlignmentDirection } from './Toolbar';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
@@ -85,6 +94,9 @@ export interface ToolbarStateReport {
   canRedo: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  /** Liegt die Auswahl in einer Instanz-Sammlung? Vorlagen-Elemente und Icons
+   *  nicht — siehe `utils/duplicateElement.ts`. */
+  canDuplicate: boolean;
 }
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
@@ -124,6 +136,23 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
    */
   autoSave?: boolean;
   /**
+   * Render-once snapshot, never shown or touched by a user — the offscreen
+   * root that `renderSharepicToImage` mounts to turn a chat sharepic into a
+   * preview image.
+   *
+   * Everything switched off here is editor machinery that a hidden, one-shot
+   * canvas still paid for: gallery auto-save (network writes, a `beforeunload`
+   * handler and its own pixelRatio-2 capture 1500ms after every history
+   * change), the global keydown handlers, and Konva's hit graph, which doubles
+   * the canvas memory per stage for events nothing will ever fire.
+   *
+   * Die Stage-Registry stand hier auch einmal: sie war nach `config.id`
+   * verschluesselt, sodass zwei Vorschauen derselben Vorlage einander und den
+   * Studio-Eintrag verdraengten. Sie ist mit #3406 ganz entfallen — gelesen
+   * hat sie niemand —, also gibt es hier nichts mehr abzuschalten.
+   */
+  preview?: boolean;
+  /**
    * Pushes this page's live state/actions/selection to the host on every
    * change — the multi-page editor's shared sidebar renders from it.
    */
@@ -134,8 +163,8 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
   ) => void;
   /**
    * When provided, the per-instance Zustand store is bound to the supplied
-   * page Y.Map. The page Y.Map owns its own `layers` (Y.Array<Y.Map>) and
-   * `config` (Y.Map) sub-collections so each page has independent state.
+   * page Y.Map. The page Y.Map owns its own `config` (Y.Map)
+   * sub-collection so each page has independent state.
    * Set in BOTH modes now (collab doc or the editor's local Y.Doc);
    * `provider` is only present in collab mode.
    */
@@ -168,6 +197,7 @@ export interface GenericCanvasRef {
   undo?: () => void;
   redo?: () => void;
   handleMoveLayer?: (direction: 'up' | 'down') => void;
+  handleDuplicate?: () => void;
   handleColorSelect?: (color: string) => void;
   handleOpacityChange?: (id: string, opacity: number, type: string) => void;
   handleFontSizeChange?: (id: string, size: number) => void;
@@ -192,6 +222,7 @@ function GenericCanvasWithRef<
     mobileBridge,
     onToolbarStateChange,
     onAutoSaveShareToken,
+    preview = false,
   } = props;
 
   const stageRef = useRef<CanvasStageRef>(null);
@@ -201,7 +232,7 @@ function GenericCanvasWithRef<
   const exportedImageRef = useRef<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
-  useCanvasStoreSetup(config.id, stageRef);
+  useCanvasStoreReset(preview ? null : config.id);
 
   // Dynamic maxContainerWidth for responsive rendering
   const [maxWidth, setMaxWidth] = useState(getOptimalContainerWidth());
@@ -226,32 +257,11 @@ function GenericCanvasWithRef<
     }
   }, [config, initialProps]);
 
-  // Sync background-image fields back to the host whenever they change. The
-  // config stores update only local component state for these (unlike text
+  // Push background-image fields and free-element collections back to the host.
+  // The config stores change both only in local component state (unlike text
   // fields, which sync through their own callbacks), so without this the chosen
-  // background image is lost on reload in the collaborative editor. Emitting the
-  // matching `on<Key>Change` callback routes the value through the same
-  // formState persistence path text fields use. No-op for keys the active
-  // canvas type doesn't wire in CanvasEditorRouter.buildCallbacks.
-  const prevSyncedRef = useRef<Record<string, unknown>>({});
-  const syncedSeededRef = useRef(false);
-  useEffect(() => {
-    const s = state as Record<string, unknown>;
-    if (!syncedSeededRef.current) {
-      // Seed on first render so initial state isn't re-emitted as a change.
-      syncedSeededRef.current = true;
-      for (const key of SYNCED_IMAGE_KEYS) prevSyncedRef.current[key] = s[key];
-      return;
-    }
-    for (const key of SYNCED_IMAGE_KEYS) {
-      const next = s[key];
-      if (next !== prevSyncedRef.current[key]) {
-        prevSyncedRef.current[key] = next;
-        const cbName = `on${key.charAt(0).toUpperCase()}${key.slice(1)}Change`;
-        callbacks[cbName]?.(next);
-      }
-    }
-  }, [state, callbacks]);
+  // background image and every added element is lost on reload (#3416).
+  useEmitHostStateChanges(state as Record<string, unknown>, callbacks, HOST_EMITTED_STATE_KEYS);
 
   // Every family the template actually paints. Derived from the elements rather
   // than read from `config.fonts.primary` alone: a Konva paint is not a DOM font
@@ -294,16 +304,17 @@ function GenericCanvasWithRef<
 
   // External edits to this page's `state` Y.Map (chat sharepic editing via
   // the Hocuspocus internal API) merge into the live component state.
-  // Rebuilding through createInitialState recomputes derived fields
-  // (balkenInstances, hasBackgroundImage); balkenInstances is dropped from
-  // the input so the primary balken regenerates from the new text/colors.
+  // Rebuilding through createInitialState recomputes the derived fields.
+  //
+  // Nothing is withheld from the merge. This used to delete `balkenInstances`
+  // so the dreizeilen bar would regenerate from the new text — but that bar is
+  // one entry in a collection users also add to by hand, and dropping the whole
+  // array took every hand-added balken with it (#3421). Which entry a template
+  // derives is the template's own knowledge, and `createInitialState` is where
+  // it already lives.
   const handleRemotePageState = useCallback(
     (partial: Record<string, unknown>) => {
-      setStateRaw((prev) => {
-        const merged: Record<string, unknown> = { ...prev, ...partial };
-        delete merged.balkenInstances;
-        return config.createInitialState(merged) as TState;
-      });
+      setStateRaw((prev) => config.createInitialState({ ...prev, ...partial }) as TState);
     },
     [config]
   );
@@ -376,10 +387,17 @@ function GenericCanvasWithRef<
     ]);
   }, [state]);
 
+  // `isFontAvailable` schlägt genau einmal um, und zwar sobald die
+  // GRUNDSCHNITTE da sind — bei PT Sans ist das schon beim Seitenaufbau der
+  // Fall, weil der Fließtext ihn benutzt. Fett und Kursiv treffen danach ein.
+  // `calculateLayout` misst aber mit (Auto-Fit-Schriftgrad, Y-Stapelung), also
+  // braucht es den Zähler zusätzlich, sonst stünde ein Slider-Untertext für
+  // immer in der Größe, die gegen den synthetisch gefetteten Regular passte.
+  const fontGeneration = useFontGeneration();
   const layout = useMemo<LayoutResult>(() => {
     return config.calculateLayout(state);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- layoutKey is a stable string derived from layout-relevant state fields
-  }, [config, layoutKey, isFontAvailable]);
+  }, [config, layoutKey, isFontAvailable, fontGeneration]);
 
   const { setSelectedElement, handleStageClick, handleSnapChange, getSnapTargets } =
     useCanvasInteractions({ stageRef });
@@ -401,7 +419,7 @@ function GenericCanvasWithRef<
   // explicit value (off in collab — Hocuspocus persists server-side — and off
   // beyond one page, where deck-level autosave takes over); standalone
   // consumers keep the historical default of on.
-  const autoSaveEnabled = !mobileBridge && (props.autoSave ?? true);
+  const autoSaveEnabled = !mobileBridge && !preview && (props.autoSave ?? true);
 
   // Fresh capture for the unmount-flush path — transformer hiding makes the
   // shot clean even while an element is still selected.
@@ -521,7 +539,9 @@ function GenericCanvasWithRef<
     setState: setStateWrapper,
     setSelectedElement,
     elements: config.elements,
+    layout,
     saveToHistory,
+    enabled: !preview,
   });
 
   const canvasItems = useMemo(() => buildCanvasItems(config, state), [config, state]);
@@ -633,6 +653,7 @@ function GenericCanvasWithRef<
       undo,
       redo,
       handleMoveLayer: (dir) => bridgeRef.current?.handleMoveLayer(dir),
+      handleDuplicate: () => bridgeRef.current?.handleDuplicate(),
       handleColorSelect: (color) => bridgeRef.current?.handleColorSelect(color),
       handleOpacityChange: (id, op, type) => bridgeRef.current?.handleOpacityChange(id, op, type),
       handleFontSizeChange: elementHandlers.handleFontSizeChange,
@@ -657,6 +678,7 @@ function GenericCanvasWithRef<
         responsive
         maxContainerWidth={maxWidth}
         onStageClick={handleStageClick}
+        listening={!preview}
         className={`${config.id}-stage`}
       >
         <CanvasRenderLayer

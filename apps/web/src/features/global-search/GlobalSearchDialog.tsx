@@ -70,7 +70,16 @@ function ResultRow({ item, onSelect }: { item: GlobalSearchItem; onSelect: () =>
         <span className={ICON_CHIP} aria-hidden="true" />
       )}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm text-foreground">{item.title}</span>
+        <span className="flex items-center gap-1.5">
+          <span className="min-w-0 flex-1 truncate text-sm text-foreground">{item.title}</span>
+          {/* Text, not a colour or an icon alone, so it reaches the row's
+              accessible name — opening an archived chat has to be a choice. */}
+          {item.archived && (
+            <span className="shrink-0 rounded bg-hover-alt px-1 py-px text-[10px] text-muted-foreground">
+              Archiviert
+            </span>
+          )}
+        </span>
         {item.subtitle && (
           <span className="block truncate text-xs text-muted-foreground">{item.subtitle}</span>
         )}

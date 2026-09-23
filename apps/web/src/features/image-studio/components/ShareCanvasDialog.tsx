@@ -1,5 +1,5 @@
 import { CollaboratorList, GroupShareControls } from '@gruenerator/docs';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import {
   Button,
   Dialog,
@@ -59,7 +59,7 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
           permissions: { read: true },
         },
       });
-      if (res.status !== 200) throw new Error('share failed');
+      if (res.status !== 200) throw new ApiError(res.status, 'share failed');
       setVorlageStatus('shared');
       setVorlageSharedGroupName(targetGroup?.name ?? null);
       setVorlageGroupId('');

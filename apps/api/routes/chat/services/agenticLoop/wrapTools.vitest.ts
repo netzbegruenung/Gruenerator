@@ -216,8 +216,11 @@ describe('wrapToolsForLoop', () => {
     const execute = vi.fn(async () => ({ results: [] }));
     const tools = wrapToolsForLoop({ search: { execute } } as unknown as ToolSet, ctx);
 
-    const out = (await run(tools, 'search', { query: 'x' })) as { error: string };
+    const out = (await run(tools, 'search', { query: 'x' })) as { error: string; guard?: string };
     expect(out.error).toBeTruthy();
+    // Markiert, damit die Wiederholungs-Nudge (loopEngine) einer Weisung
+    // „hör auf" nicht mit „versuch es erneut" widerspricht.
+    expect(out.guard).toBe('failure_cap');
     expect(execute).not.toHaveBeenCalled();
     // The tool never ran, so there is nothing to show or persist.
     expect(steps).toHaveLength(0);
@@ -639,6 +642,52 @@ describe('wrapToolsForLoop — Freigabe-Gate', () => {
   });
 });
 
+describe('wrapToolsForLoop — Rückfrage-Gate (ask_human)', () => {
+  it('führt nicht aus, zeichnet nichts auf und hält die Frage im Gate', async () => {
+    const held: Array<{ stepId: string; args: Record<string, unknown> }> = [];
+    const { ctx, events, steps } = makeCtx({
+      askGate: { hold: (call) => held.push(call) },
+    });
+    const execute = vi.fn(async () => ({ ok: true }));
+    const tools = wrapToolsForLoop({ ask_human: { execute } } as unknown as ToolSet, ctx);
+
+    const out = (await run(tools, 'ask_human', { question: 'Welche?' }, 'call_7')) as {
+      error?: string;
+    };
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(events).toHaveLength(0);
+    expect(steps).toHaveLength(0);
+    expect(held).toEqual([{ stepId: 'call_7', args: { question: 'Welche?' } }]);
+    expect(out.error).toContain('Antwort');
+  });
+
+  it('lässt andere Werkzeuge unberührt', async () => {
+    const held: unknown[] = [];
+    const { ctx, events, steps } = makeCtx({ askGate: { hold: (c) => held.push(c) } });
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+
+    await run(tools, 'search', { query: 'x' });
+
+    expect(held).toHaveLength(0);
+    expect(events.map((e) => e.event)).toEqual(['tool_step_start', 'tool_step_result']);
+    expect(steps).toHaveLength(1);
+  });
+
+  it('ohne Gate läuft ask_human als gewöhnliches Tool (defensiver Stub)', async () => {
+    const { ctx } = makeCtx();
+    const execute = vi.fn(async () => ({ error: 'ask_human wird nie direkt ausgeführt.' }));
+    const tools = wrapToolsForLoop({ ask_human: { execute } } as unknown as ToolSet, ctx);
+
+    await run(tools, 'ask_human', { question: 'x' });
+
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('wrapToolsForLoop — interne Felder', () => {
   it('entfernt rerankDegraded aus dem Modell-Ergebnis, meldet es aber an den Hook', async () => {
     const seen: unknown[] = [];
@@ -656,5 +705,56 @@ describe('wrapToolsForLoop — interne Felder', () => {
 
     expect(out).not.toHaveProperty('rerankDegraded');
     expect(seen[0]).toMatchObject({ rerankDegraded: true });
+  });
+
+  it('gibt refs nur dem Replay späterer Turns — das Modell hat die Zeilen schon', async () => {
+    const seen: unknown[] = [];
+    const { ctx } = makeCtx({ hooks: { afterToolCall: (e) => seen.push(e.result) } });
+    const tools = wrapToolsForLoop(
+      {
+        notebook_quellen: {
+          execute: () => Promise.resolve({ refs: 'A — https://x.de/a', results: [{ ref: 'a' }] }),
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+
+    const out = (await run(tools, 'notebook_quellen', { action: 'list' })) as Record<
+      string,
+      unknown
+    >;
+
+    expect(out).not.toHaveProperty('refs');
+    expect(out.results).toEqual([{ ref: 'a' }]);
+    expect(seen[0]).toMatchObject({ refs: 'A — https://x.de/a' });
+  });
+
+  it('gibt statt gekürzter Zeilen die refs, wenn die Zeilen nicht in den Deckel passen (#3590)', async () => {
+    const rows = Array.from({ length: 40 }, (_, i) => ({
+      title: `Pressemitteilung ${i}: ${'lang '.repeat(20)}`,
+      ref: `https://gruene.berlin/presse/mitteilung-${i}`,
+      sourceType: 'Webseite',
+    }));
+    const refs = rows.map((r) => `${r.title.slice(0, 40)} — ${r.ref}`).join('\n');
+    const { ctx } = makeCtx();
+    const tools = wrapToolsForLoop(
+      {
+        notebook_quellen: {
+          execute: () => Promise.resolve({ total: 40, exhaustive: true, refs, results: rows }),
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+
+    const out = (await run(tools, 'notebook_quellen', { action: 'list' })) as Record<
+      string,
+      unknown
+    >;
+
+    expect(out).not.toHaveProperty('preview');
+    expect(out).not.toHaveProperty('results');
+    expect(out.refs).toBe(refs);
+    expect(out.refs).toContain('mitteilung-39');
+    expect(out).toMatchObject({ total: 40, exhaustive: true });
   });
 });

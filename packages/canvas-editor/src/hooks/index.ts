@@ -8,7 +8,7 @@ export type {
   UseCanvasInteractionsResult,
 } from './useCanvasInteractions';
 
-export { useCanvasStoreSetup } from './useCanvasStoreSetup';
+export { useCanvasStoreReset } from './useCanvasStoreReset';
 
 export { useCanvasHistorySetup } from './useCanvasHistorySetup';
 export type { UseCanvasHistorySetupResult } from './useCanvasHistorySetup';
@@ -41,6 +41,7 @@ export type {
   UseCanvasLayerControlsResult,
 } from './useCanvasLayerControls';
 
+export { useFontGeneration } from './useFontGeneration';
 export { useFontLoader } from './useFontLoader';
 export type { UseFontLoaderOptions, UseFontLoaderResult } from './useFontLoader';
 

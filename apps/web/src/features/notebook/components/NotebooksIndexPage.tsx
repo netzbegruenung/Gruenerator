@@ -1,5 +1,5 @@
 import { deriveIndexingState } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import coverEigene from '@gruenerator/shared/assets/notebook-covers/eigene.webp';
 import coverLaenderverbaende from '@gruenerator/shared/assets/notebook-covers/landesverbaende.webp';
 import coverNeu from '@gruenerator/shared/assets/notebook-covers/notebook-neu.webp';
@@ -142,7 +142,7 @@ const publicNotebookMeta = (c: NotebookCollection): string | undefined =>
   c.creator_name ? `von ${c.creator_name}` : (c.description ?? undefined);
 
 /**
- * "Von der Basis" — publicly listed community notebooks, opened from the
+ * „Öffentlich" — publicly listed community notebooks, opened from the
  * category tile in the notebook row. Likes stay visible (not hover-revealed)
  * because the count is part of the card's information.
  */
@@ -152,7 +152,7 @@ const BasisNotebooks = memo(({ collections }: { collections: NotebookCollection[
 
   return (
     <section className="mt-md">
-      <SectionHeader title="Von der Basis" />
+      <SectionHeader title="Öffentlich" />
       <div className={NOTEBOOK_SCROLL_ROW}>
         {collections.map((c) => (
           <div key={c.id} className={NOTEBOOK_SCROLL_ITEM}>
@@ -237,7 +237,7 @@ const EigeneNotebooks = memo(
             permissions: { read: true, write: false, collaborative: false },
           },
         });
-        if (res.status !== 200) throw new Error('share failed');
+        if (res.status !== 200) throw new ApiError(res.status, 'share failed');
         setSharedInfo(collectionId);
         setTimeout(() => setSharedInfo(null), 2000);
       } catch {
@@ -558,7 +558,7 @@ WissenToolsRow.displayName = 'WissenToolsRow';
 
 /**
  * The /wissen gallery below the chat surface: notebook row with the expandable
- * category tiles (Landesverbände, Eigene, Von der Basis), the unified search and
+ * category tiles (Landesverbände, Eigene, Öffentlich), the unified search and
  * the tool tiles. Exported so it can be rendered on its own in tests — the page
  * itself drags the whole chat surface in.
  */
@@ -692,7 +692,7 @@ export function NotebooksIndexFooter() {
     [allNotebooks, favouriteIds]
   );
 
-  // "Von der Basis": öffentlich gelistete Notebooks anderer Nutzer*innen. Sie
+  // „Öffentlich": öffentlich gelistete Notebooks anderer Nutzer*innen. Sie
   // haben eine eigene aufklappbare Kategorie-Kachel (wie Landesverbände und
   // Eigene) und tauchen zusätzlich in der vereinten Suche auf. Eigene Notebooks
   // fallen raus — die stehen schon unter "Eigene".
@@ -817,10 +817,10 @@ export function NotebooksIndexFooter() {
             {basisCollections.length > 0 && (
               <div className={NOTEBOOK_SCROLL_ITEM}>
                 <NotebookGalleryCard
-                  title="Von der Basis"
+                  title="Öffentlich"
                   coverNode={
                     <NotebookCoverArt
-                      title="Von der Basis"
+                      title="Öffentlich"
                       subtitle={`${basisCollections.length} ${basisCollections.length === 1 ? 'öffentliches Notebook' : 'öffentliche Notebooks'}`}
                     />
                   }

@@ -83,6 +83,20 @@ describe('Bearbeitungs-Zusicherung — der Text entscheidet mit, nicht nur der I
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it('erzwingt auch auf der Dokument-Fläche — dort versendet das Werkzeug statt zu planen', async () => {
+    // Seit #3428 ist `doc` eine Werkzeug-Fläche wie die anderen: übergeht der
+    // Planer sie, gibt es gar keinen Bearbeitungsweg mehr (die Klassifikator-
+    // Stufe, die früher `trigger_doc_edit` schickte, ist weg).
+    const { run, execute } = harness({ editToolSurface: 'doc' }, 'Kürze den ersten Absatz');
+    await run();
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute.mock.calls[0][0]).toEqual({ instruction: 'Kürze den ersten Absatz' });
+
+    const frage = harness({ editToolSurface: 'doc' }, 'Worum geht es im ersten Absatz?');
+    await frage.run();
+    expect(frage.execute).not.toHaveBeenCalled();
+  });
+
   it('nimmt für Tabellen/Präsentationen das Dokument-Muster', async () => {
     const sheet = harness({ editToolSurface: 'sheet' }, 'Ergänze die Spalte Kosten');
     await sheet.run();

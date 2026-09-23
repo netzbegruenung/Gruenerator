@@ -1,6 +1,8 @@
+import { type TreeBudgetStatus } from '@gruenerator/contracts';
 import { AnimatePresence } from 'motion/react';
 import React, { useEffect, useCallback, useMemo } from 'react';
 
+import { formatTrees } from '../../../components/common/TreeBudgetLine';
 import { useAuthStore } from '../../../stores/authStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { useDraftAutoSave } from '../hooks/useDraftAutoSave';
@@ -17,10 +19,7 @@ import { isMintableCanvasType } from '../utils/canvasTypeFields';
 export interface StepFlowProps {
   onBack?: () => void;
   onStepChange?: (stepType: string) => void;
-  imageLimitData?: {
-    count: number;
-    canGenerate: boolean;
-  } | null;
+  imageLimitData?: TreeBudgetStatus | null;
 }
 
 export type AnimationDirection = number;
@@ -105,6 +104,9 @@ const StepFlow: React.FC<StepFlowProps> = ({
       currentStep?.afterComplete === 'generateImage' ||
       currentStep?.afterComplete === 'parallelPreload');
 
+  const remaining = imageLimitData?.remaining ?? null;
+  const canGenerate = remaining === null || remaining > 0;
+
   if (!currentStep) {
     return null;
   }
@@ -182,14 +184,14 @@ const StepFlow: React.FC<StepFlowProps> = ({
             ))}
         </AnimatePresence>
 
-        {imageLimitData && imageLimitData.count >= 8 && (
+        {remaining !== null && remaining <= 2 && (
           <div
-            className={`image-limit-indicator ${!imageLimitData.canGenerate ? 'image-limit-indicator--blocked' : ''}`}
+            className={`image-limit-indicator ${!canGenerate ? 'image-limit-indicator--blocked' : ''}`}
           >
             <span className="image-limit-indicator__text">
-              {imageLimitData.count}/10 Bilder heute
+              {remaining === 1 ? 'Noch 1 Baum heute' : `Noch ${formatTrees(remaining)} Bäume heute`}
             </span>
-            {!imageLimitData.canGenerate && (
+            {!canGenerate && (
               <span className="image-limit-indicator__blocked">Tageslimit erreicht</span>
             )}
           </div>

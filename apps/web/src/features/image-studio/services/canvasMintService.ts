@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 
 import { renderSharepicToImage } from '../renderSharepicToImage';
 import { getCanvasTypeFields, isMintableCanvasType } from '../utils/canvasTypeFields';
@@ -116,7 +116,7 @@ export async function mintCanvasFromStudioStore(state: ImageStudioState): Promis
     },
   });
   if (result.status !== 201) {
-    throw new Error(`Failed to create canvas (HTTP ${result.status})`);
+    throw new ApiError(result.status, `Failed to create canvas (HTTP ${result.status})`);
   }
 
   // Fire-and-forget: renderSharepicToImage mounts its own offscreen root on

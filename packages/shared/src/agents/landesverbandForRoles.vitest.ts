@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   isLvItemVisibleForRoles,
-  isLvNotebookVisibleForRoles,
   landesverbandHeadings,
   landesverbandIdsForRoles,
   landesverbandOfferForBundesland,
+  landesverbandShelfLabel,
   lvSkillMentionsForRoles,
 } from './landesverbandForRoles.js';
 import { LANDESVERBAENDE } from './landesverbaende.js';
@@ -122,16 +122,6 @@ describe('isLvItemVisibleForRoles', () => {
   });
 });
 
-describe('isLvNotebookVisibleForRoles', () => {
-  it('filtert LV-Notebooks, andere nie', () => {
-    expect(isLvNotebookVisibleForRoles('hessen-notebook', ['hessen'])).toBe(true);
-    expect(isLvNotebookVisibleForRoles('bayern-notebook', ['hessen'])).toBe(false);
-    expect(isLvNotebookVisibleForRoles('kommunalwiki-notebook', ['hessen'])).toBe(true);
-    expect(isLvNotebookVisibleForRoles('bayern-notebook', null)).toBe(true);
-    expect(isLvNotebookVisibleForRoles('bayern-notebook', [])).toBe(false);
-  });
-});
-
 describe('lvSkillMentionsForRoles', () => {
   it('liefert nur Rezepte des eigenen Landesverbands, kleingeschrieben', () => {
     const mentions = lvSkillMentionsForRoles(
@@ -201,5 +191,26 @@ describe('landesverbandHeadings', () => {
     expect(landesverbandHeadings(['hessen']).agents).toBe('Grüne Hessen');
     expect(landesverbandHeadings(['hessen']).skills).toBe('Rezepte aus Hessen');
     expect(landesverbandHeadings(['hessen', 'bayern']).agents).toBe('Deine Landesverbände');
+  });
+});
+
+describe('landesverbandShelfLabel', () => {
+  it('nennt den Verband beim Namen', () => {
+    expect(landesverbandShelfLabel(['hessen'])).toBe('Grüne Hessen');
+    expect(landesverbandShelfLabel(['berlin'])).toBe('Grüne Berlin');
+    expect(landesverbandShelfLabel(['hessen', 'bayern'])).toBe('Deine Landesverbände');
+  });
+
+  /**
+   * Der Unterschied zu `landesverbandHeadings`, und der einzige Grund für einen
+   * zweiten Helfer: ein Reiter über einem persönlichen Regal darf nicht
+   * „Landesverbände" heißen. Beide Plattformen zeigen das Regal ohnehin erst
+   * nach der Hydratation, dieser Zweig ist also der Notausgang.
+   */
+  it('fällt auf „Dein Landesverband" zurück, nicht auf die Überschrift', () => {
+    expect(landesverbandShelfLabel(null)).toBe('Dein Landesverband');
+    expect(landesverbandShelfLabel([])).toBe('Dein Landesverband');
+    expect(landesverbandShelfLabel(['gibtesnicht'])).toBe('Dein Landesverband');
+    expect(landesverbandHeadings(null).agents).toBe('Landesverbände');
   });
 });

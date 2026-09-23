@@ -9,6 +9,7 @@
  * `console.error` alone isn't captured in production (no captureConsole
  * integration in `index.tsx`).
  */
+import { ApiError } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import * as Sentry from '@sentry/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -73,7 +74,7 @@ describe('toastApiError', () => {
     toastApiError({ status: 500 }, { source: 'query' });
 
     expect(toastErrorMock).toHaveBeenCalledTimes(1);
-    expect(toastErrorMock).toHaveBeenCalledWith('KI-Dienst nicht verfügbar', expect.anything());
+    expect(toastErrorMock).toHaveBeenCalledWith('Serverfehler', expect.anything());
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
@@ -114,5 +115,71 @@ describe('toastApiError', () => {
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
 
     nowSpy.mockRestore();
+  });
+
+  /**
+   * GlitchTip #590. A 403 from `/api/auth/groups/:id/content` is the designed
+   * answer for a non-member, but the group hooks threw a bare `Error` that
+   * dropped the status. `getErrorMessage` then fell through to
+   * `defaultErrorMessage` — the exact condition guarding `captureException` —
+   * so an authorization outcome was filed as an unclassified crash. The pair
+   * below pins both halves: carrying the status silences Sentry, and dropping
+   * it still does not, which is what makes the first assertion meaningful.
+   */
+  it('does not report a status-carrying 403 to Sentry — it is classified, not a crash', () => {
+    toastApiError(new ApiError(403, 'Du bist nicht Mitglied dieser Gruppe.'), { source: 'query' });
+
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it('still reports the same failure once the status is dropped (the regression this guards)', () => {
+    toastApiError(new Error('Fehler beim Laden der Gruppeninhalte.'), { source: 'query' });
+
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * A stalled request (laptop sleep, network drop) fails as an AxiosError with
+ * NO `response` and `code: 'ECONNABORTED'` — axios' XHR adapter emits that
+ * code, or `'ETIMEDOUT'` when `transitional.clarifyTimeoutError` is set.
+ * Neither is an app bug, so neither may reach Sentry. Regression guard for
+ * GlitchTip issue 613 ("AxiosError: timeout of 900000ms exceeded"), where the
+ * dictionary keyed timeouts under `ERR_TIMEOUT` — a code axios never emits —
+ * so every timeout fell through to the unclassified branch and was reported.
+ */
+describe('toastApiError — axios timeouts', () => {
+  beforeEach(() => {
+    toastErrorMock.mockClear();
+    captureExceptionMock.mockClear();
+  });
+
+  function timeoutError(code: 'ECONNABORTED' | 'ETIMEDOUT') {
+    return {
+      isAxiosError: true,
+      name: 'AxiosError',
+      code,
+      message: 'timeout of 900000ms exceeded',
+    };
+  }
+
+  it.each(['ECONNABORTED', 'ETIMEDOUT'] as const)(
+    'classifies a %s timeout on a query and does not report it to Sentry',
+    (code) => {
+      toastApiError(timeoutError(code), { source: 'query' });
+
+      expect(captureExceptionMock).not.toHaveBeenCalled();
+      expect(toastErrorMock).toHaveBeenCalledWith('Zeitüberschreitung', expect.anything());
+    }
+  );
+
+  it('shows the timeout toast — not the generic fallback — for a mutation', () => {
+    toastApiError(timeoutError('ECONNABORTED'), { source: 'mutation' });
+
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      'Zeitüberschreitung',
+      expect.objectContaining({ description: expect.stringContaining('zu lange gedauert') })
+    );
   });
 });

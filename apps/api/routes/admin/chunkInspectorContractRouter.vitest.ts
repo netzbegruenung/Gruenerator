@@ -7,7 +7,7 @@
  *
  * Bauform nach routes/agents/agentVisibilityContractRouter.vitest.ts:9-43.
  */
-import { inspectDocumentResponseSchema } from '@gruenerator/contracts';
+import { inspectDocumentQuerySchema, inspectDocumentResponseSchema } from '@gruenerator/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const requireInstanceAdmin = vi.fn();
@@ -327,5 +327,54 @@ describe('chunkInspectorContract.inspectSearch (Nutzer-Notebook)', () => {
     expect(res.status).toBe(404);
     expect(getSearchContext).not.toHaveBeenCalled();
     expect(isDocumentInCollection).toHaveBeenCalledWith('nb-1', 'doc-fremd');
+  });
+});
+
+/**
+ * URL-förmige IDs überleben den Pfad nicht: der Reverse-Proxy dekodiert %2F
+ * und merged Slashes, bevor Express routet (beta, 03.09.2026). Sie reisen
+ * deshalb im Query-String; der Pfadparameter trägt den Platzhalter '-'.
+ */
+describe('chunkInspectorContract — documentId im Query-String', () => {
+  const url = 'https://kommunalwiki.boell.de/index.php/Zusammenarbeit_im_Team';
+
+  it('lässt query.documentId über den Pfad-Platzhalter gewinnen', async () => {
+    const router = await loadRouter();
+    const res = await router.inspectDocument({
+      req,
+      params: { documentId: '-' },
+      query: { collection: 'kommunalwiki-system', offset: 0, limit: 50, documentId: url },
+    } as never);
+
+    expect(res.status).toBe(200);
+    expect(inspectDocumentChunks).toHaveBeenCalledWith(url, 'kommunalwiki_documents', {
+      offset: 0,
+      limit: 50,
+    });
+  });
+
+  it('markiert Suchtreffer über die query-documentId', async () => {
+    getSearchContext.mockResolvedValue({
+      sortedResults: [{ document_id: url, chunk_index: 2, similarity: 0.9 }],
+    });
+    const router = await loadRouter();
+    const res = await router.inspectSearch({
+      req,
+      params: { documentId: '-' },
+      query: { collection: 'kommunalwiki-system', query: 'zusammenarbeit', documentId: url },
+    } as never);
+
+    expect(res.status).toBe(200);
+    expect((res.body as { hits: unknown[] }).hits).toEqual([{ index: 2, similarity: 0.9 }]);
+  });
+
+  it('nimmt der Vertrag das Feld an (Schema strippt es nicht)', () => {
+    const parsed = inspectDocumentQuerySchema.parse({
+      collection: 'kommunalwiki-system',
+      offset: 0,
+      limit: 50,
+      documentId: url,
+    });
+    expect(parsed.documentId).toBe(url);
   });
 });

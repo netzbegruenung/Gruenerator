@@ -20,6 +20,7 @@ import {
   getGreenPTProvider,
   getMistralProvider,
   getCortecsProvider,
+  getMeliousProvider,
   getRegoloProvider,
   getScalewayProvider,
   getScalewayTextProvider,
@@ -64,6 +65,7 @@ export const PROVIDER_NAMES = [
   'mistral',
   'litellm',
   'regolo',
+  'melious',
   'greenpt',
   'scaleway',
   'cortecs',
@@ -87,6 +89,7 @@ const PROVIDER_DEFAULTS = {
   // den gespeicherte Agenten-Konfigurationen weiterhin nennen dürfen (F0).
   litellm: RETIRED_LITELLM_DEFAULT.model,
   regolo: regoloTextDefault(),
+  melious: env.MELIOUS_DEFAULT_MODEL ?? 'gemma-4-31b:balanced',
   greenpt: env.GREENPT_DEFAULT_MODEL ?? 'mistral-medium-3.5-128b',
   // Gemma 4 26B-A4B. Named rather than inherited: Scaleway also serves
   // `mistral-medium-3.5-128b`, and an unnamed default here would quietly hand
@@ -201,6 +204,7 @@ export function getIntermediateModel(lane: IntermediateLaneId): LanguageModel {
 export {
   LITELLM_DEFAULT_BASE_URL,
   REGOLO_BASE_URL,
+  MELIOUS_BASE_URL,
   GREENPT_BASE_URL,
   MISTRAL_API_URL,
   isProviderConfigured,
@@ -302,6 +306,10 @@ function instantiateModel(
       const regolo = getRegoloProvider();
       return regolo.chat(modelId || PROVIDER_DEFAULTS.regolo);
     }
+    case 'melious': {
+      const melious = getMeliousProvider();
+      return melious.chat(modelId || PROVIDER_DEFAULTS.melious);
+    }
     case 'greenpt': {
       const greenpt = getGreenPTProvider();
       return greenpt.chat(modelId || PROVIDER_DEFAULTS.greenpt);
@@ -339,6 +347,8 @@ export function getDefaultModel(provider: ProviderName | string): string {
       return PROVIDER_DEFAULTS.litellm;
     case 'regolo':
       return PROVIDER_DEFAULTS.regolo;
+    case 'melious':
+      return PROVIDER_DEFAULTS.melious;
     case 'greenpt':
       return PROVIDER_DEFAULTS.greenpt;
     case 'scaleway':
@@ -363,6 +373,8 @@ export function getProviderDisplayName(provider: ProviderName | string): string 
       return 'Cortecs (ehem. LiteLLM)';
     case 'regolo':
       return 'Regolo AI';
+    case 'melious':
+      return 'Melious';
     case 'greenpt':
       return 'GreenPT';
     case 'scaleway':
@@ -381,6 +393,7 @@ export function normalizeProviderName(provider: string): ProviderName {
   const lower = provider.toLowerCase();
   if (lower === 'litellm') return 'litellm';
   if (lower === 'regolo') return 'regolo';
+  if (lower === 'melious') return 'melious';
   if (lower === 'greenpt') return 'greenpt';
   if (lower === 'scaleway') return 'scaleway';
   if (lower === 'cortecs') return 'cortecs';

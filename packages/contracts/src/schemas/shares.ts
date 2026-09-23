@@ -30,7 +30,11 @@ export type ShareMediaType = z.infer<typeof shareMediaTypeSchema>;
 
 /**
  * The full stored set — `shared_media.media_type`, whose CHECK constraint names
- * exactly these three (`schema.sql`).
+ * exactly these four (`schema.sql`).
+ *
+ * `'audio'` is what Grünerator Voice writes (generated speech, one row per
+ * output format). The share *write* endpoints never create it, so it stays out
+ * of {@link shareMediaTypeSchema}.
  *
  * `'transfer'` is the one that is easy to miss: the removed transfer feature
  * wrote file transfers into this same table (rows persist and stay
@@ -45,7 +49,7 @@ export type ShareMediaType = z.infer<typeof shareMediaTypeSchema>;
  * Same narrow-vs-stored split as {@link contentOriginSchema} /
  * {@link storedContentOriginSchema} above, for the same reason.
  */
-export const storedMediaTypeSchema = z.enum(['image', 'video', 'transfer']);
+export const storedMediaTypeSchema = z.enum(['image', 'video', 'transfer', 'audio']);
 export type StoredMediaType = z.infer<typeof storedMediaTypeSchema>;
 
 /**
@@ -184,6 +188,22 @@ export const shareListItemSchema = z.object({
   mediaType: z.string(),
   title: z.string().nullable(),
   thumbnailPath: z.string().nullable(),
+  /**
+   * The 400px WebP tile as a signed, versioned `/api/thumbs/media/...` URL.
+   *
+   * Prefer it over composing `/api/share/<token>/preview?w=400&fmt=webp`. That
+   * path carries no version segment, and an edit overwrites the bytes under the
+   * same share token, so it is capped at five minutes of freshness — every cold
+   * client start refetches every tile. This one changes whenever the content
+   * can, so it is served `immutable` for a year.
+   *
+   * Optional, and absent for three reasons that all mean "no picture to point
+   * at": thumbnail signing is not configured, the row is audio or a transfer,
+   * or it is a video whose poster frame has not been written. Consumers keep
+   * their existing fallback — a shipped mobile binary may be talking to an API
+   * older than this field.
+   */
+  thumbnailUrl: z.string().optional(),
   // BIGINT / NUMERIC arrive as strings from `pg`; older rows may hold numbers.
   fileSize: z.union([z.number(), z.string()]).nullable(),
   duration: z.union([z.number(), z.string()]).nullable(),

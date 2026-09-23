@@ -1,54 +1,86 @@
 ---
-sidebar_position: 1
-description: 'Einen eigenen Grünerator bauen, ohne technische Vorkenntnisse — per Beschreibung von der KI entwerfen lassen oder manuell im Formular.'
+sidebar_position: 4
+description: 'Einen eigenen Agenten in der Agentura erstellen, prüfen und im Chat testen.'
 ---
 
 import AgentTools from '@site/src/components/AgentTools';
 
-# Eigene Grüneratoren erstellen
+# Wie erstelle ich einen Agenten?
 
-Du kannst dir im Grünerator deine **eigenen Grüneratoren bauen** — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per **Beschreibung** (die KI erstellt einen Entwurf) oder **manuell** über das Formular.
+In der Agentura kannst du einen eigenen **Agenten** für eine Aufgabe erstellen, die du häufiger erledigst, zum Beispiel für Pressemitteilungen, Recherchen oder Social-Media-Texte. Du beschreibst zuerst in normalen Worten, was der Agent tun soll. Der Grünerator füllt daraus den Editor vor; vor dem Speichern kannst du alles kontrollieren und ändern.
 
 :::caution[Experimentell]
 Noch in der Erprobung: Verhalten und Funktionen können sich ändern. Melde Probleme gern dem Team.
 :::
 
-## Schritt 1: Den Creator öffnen
+## Schritt 1: Die Agentura öffnen
 
-Öffne die [Agentura](../../features/agentura.mdx), scrolle zum Abschnitt **Meine Grüneratoren** und klicke oben rechts auf **Neuer Grünerator**. Alternativ rufst du den Creator direkt unter `/agents/new` auf.
+Öffne die [Agentura](../../features/agentura.mdx). Die Kategorie **Meine Grüneratoren** ist bereits ausgewählt. Klicke rechts über den Karten auf **Neu → Agent**.
 
-## Schritt 2: Agent beschreiben (empfohlen)
+## Schritt 2: Den Agenten beschreiben
 
-Beschreibe in eigenen Worten, was er können soll — Zweck, Ton, Fähigkeiten. Zum Einstieg kannst du eines der Beispiele anklicken: **📰 Pressestelle**, **🚲 Recherche-Bot** oder **📣 Social Media**. Mit `Enter` baut der Grünerator daraus einen Entwurf und öffnet den Editor mit vorausgefüllten Feldern.
+Schreibe in das Eingabefeld, **wofür** du den Agenten brauchst, **wie** seine Antworten klingen sollen und **welche Fähigkeiten** er benötigt. Je konkreter die Beschreibung ist, desto brauchbarer wird der Entwurf.
+
+Zum Beispiel:
+
+> Ein Agent für Pressemitteilungen unseres Kreisverbands. Er soll sachlich und verständlich schreiben, vor dem Entwurf nach Anlass, Kernbotschaft und Zitaten fragen und bei Bedarf im Web recherchieren.
+
+Du kannst stattdessen eines der Beispiele **📰 Pressestelle**, **🚲 Recherche-Bot** oder **📣 Social Media** anklicken und den vorgeschlagenen Text anpassen. Schicke die Beschreibung mit der Pfeiltaste im Eingabefeld ab. Der Grünerator erstellt daraufhin einmalig einen Entwurf und öffnet den Editor. **Gespeichert ist der Agent zu diesem Zeitpunkt noch nicht.**
 
 ![Die Startseite des Creators mit dem Eingabefeld und den drei Beispiel-Chips Pressestelle, Recherche-Bot und Social Media](/img/guides/agent-creator-start.webp)
 
-:::tip[Lieber selbst ausfüllen?]
-Klicke auf **„Lieber manuell anlegen?"**, um den Editor mit leerem Formular zu öffnen (entspricht der Adresse `/agents/new/manual`).
+:::tip[Ohne KI-Entwurf starten]
+Über **„Lieber manuell anlegen?"** öffnest du denselben Editor mit leeren Feldern.
 :::
 
-## Schritt 3: Im Editor anpassen
+## Schritt 3: Den Entwurf unter „Grundlagen“ prüfen
 
-Links das Formular, rechts eine Live-**Vorschau**. Die Felder liegen in drei Tabs.
+Links siehst du das Formular, rechts die Vorschau der späteren Startseite. Prüfe zuerst im Tab **Grundlagen** die drei Pflichtfelder:
 
-**Grundlagen** — die drei Pflichtfelder: **Name** (samt Symbol aus dem Icon-Picker), **Beschreibung** (ein Satz, was er macht) und **Anleitung** — die eigentliche Anweisung an die KI, z. B. beginnend mit _„Du bist ein\*e …"_, mindestens 10 Zeichen.
+- **Name:** So erscheint der Agent in der Agentura. Über die Schaltfläche daneben kannst du sein Symbol ändern.
+- **Beschreibung:** Ein kurzer Satz, der anderen den Zweck erklärt.
+- **Anleitung:** Die Regeln für das Verhalten des Agenten. Hier sollte genau stehen, welche Aufgabe er hat, welche Angaben er vor dem Schreiben erfragen und wie er das Ergebnis aufbauen soll.
 
-**Werkzeuge** — was er können soll:
+**Speichern** bleibt deaktiviert, solange Name oder Beschreibung leer sind oder die Anleitung weniger als zehn Zeichen enthält.
+
+![Der von der KI vorausgefüllte Editor im Tab Grundlagen mit Name, Beschreibung, Anleitung und Vorschau](/img/guides/agent-creator-grundlagen.webp)
+
+Unter **Begrüßung & Startfragen** kannst du optional einen Begrüßungstext und anklickbare Beispielfragen eintragen. Eine Beispielfrage kommt jeweils in eine eigene Zeile. **Erweiterte Einstellungen** enthält Region, Tags und Modell; für den ersten Agenten kannst du die Voreinstellungen beibehalten.
+
+## Schritt 4: Werkzeuge auswählen
+
+Öffne den Tab **Werkzeuge**. Aktiviert ist nur, was der Agent im Gespräch verwenden darf. Prüfe die Auswahl besonders nach einem KI-Entwurf: Die KI kann passend zu deiner Beschreibung zusätzliche Werkzeuge einschalten. Beim manuellen Anlegen sind zunächst nur **Grünerator-Wissen** und **Recherche** aktiviert.
+
+![Der Tab Werkzeuge mit den aktivierten und verfügbaren Fähigkeiten des Agenten](/img/guides/agent-creator-werkzeuge.webp)
 
 <AgentTools />
 
-Ein `*` markiert die beiden, die ab Werk aktiv sind.
+Ein `*` markiert die beiden Voreinstellungen. Schalte weitere Werkzeuge nur ein, wenn dein Agent sie tatsächlich braucht. Für einen reinen Schreibassistenten sind beispielsweise Bildgenerierung und Formulare ausfüllen nicht nötig.
 
-Darunter steht **Quell-Links direkt im Antworttext** — für versandfertige E-Mails und Briefe: Artikel-URLs aus der Recherche erscheinen dann inline statt nur als Quellen-Karten.
+Die zusätzliche Option **Quell-Links direkt im Antworttext** ist für versandfertige E-Mails oder Briefe gedacht: Dann können konkrete Artikel-URLs aus der Recherche direkt im Text statt nur in den Quellen-Karten erscheinen.
 
-**Wissen** — welche Notebooks er automatisch durchsucht, Mehrfachauswahl möglich: **Grünerator-Notebooks** und, sobald du eigene hast, **Meine Notebooks**.
+## Schritt 5: Optional Notebooks hinzufügen
 
-Optional aufklappbar: **Begrüßung & Startfragen** (Begrüßungstext und Beispielfragen, eine pro Zeile) sowie **Erweiterte Einstellungen** (Region `de-DE`/`de-AT`, Tags, Modell).
+Im Tab **Wissen** kannst du ein oder mehrere Notebooks auswählen. Der Agent durchsucht die ausgewählten Notebooks dann automatisch als Wissensquelle. Neben den **Grünerator-Notebooks** erscheinen unter **Meine Notebooks** auch deine eigenen Notebooks.
 
-:::tip[Erst das Wissen, dann der Agent]
-Richte vorher ein [Notebook](../einsteigerinnen/eigenes-notebook-erstellen.md) mit euren Dokumenten ein. Wählst du es unter **Wissen** aus, antwortet dein Agent ausschließlich aus euren Quellen — mit nachprüfbaren Belegen.
+![Der Tab Wissen mit ausgewähltem Grünerator-Notebook](/img/guides/agent-creator-wissen.webp)
+
+:::note
+Ein ausgewähltes Notebook ist eine zusätzliche Wissensquelle. Es beschränkt den Agenten nicht automatisch ausschließlich auf diese Inhalte. Wenn er nur mit bestimmten Quellen arbeiten soll, schreibe diese Vorgabe zusätzlich eindeutig in die **Anleitung** und aktiviere keine unnötigen Recherche-Werkzeuge.
 :::
 
-## Schritt 4: Speichern und nutzen
+Falls du eigene Dateien verwenden möchtest, erstelle zuerst ein [Notebook](../einsteigerinnen/eigenes-notebook-erstellen.md) und kehre anschließend in den Agenten-Editor zurück.
 
-**Speichern** oben rechts wird aktiv, sobald die drei Pflichtfelder stehen. Danach landest du auf der Bearbeitungsseite und öffnest ihn von dort über **Im Chat öffnen**. Ändern kannst du ihn jederzeit über das Stift-Symbol auf seiner Karte.
+## Schritt 6: Speichern und testen
+
+Klicke oben rechts auf **Speichern**. Erst jetzt wird der Agent angelegt. Anschließend bleibst du auf seiner Bearbeitungsseite und kannst ihn über **Im Chat öffnen** ausprobieren.
+
+![Der gespeicherte Demo-Agent mit der Schaltfläche Im Chat öffnen](/img/guides/agent-creator-gespeichert.webp)
+
+Teste dabei mindestens:
+
+1. Fragt der Agent fehlende Angaben ab?
+2. Hält er Ton, Aufbau und Grenzen aus der Anleitung ein?
+3. Verwendet er nur die Werkzeuge und Wissensquellen, die du vorgesehen hast?
+
+Wenn etwas nicht passt, kehre zur Agentura zurück und wähle an der Karte **Bearbeiten** über das Stift-Symbol. Passe vor allem die **Anleitung** an, speichere erneut und teste noch einmal.

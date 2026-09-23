@@ -36,6 +36,8 @@ export interface UserAgentInput {
   skillMentions?: string[];
   fewShotExamples?: Array<{ input: string; output: string; reasoning?: string }>;
   inlineSourceLinks?: boolean;
+  defaultRecipeMention?: string | null;
+  defaultRecipeId?: string | null;
 }
 
 export type UserAgentPatch = Partial<UserAgentInput>;
@@ -67,6 +69,8 @@ function rowToAgent(row: UserAgentRow): Agent {
     ...(row.skill_mentions ? { skillMentions: row.skill_mentions } : {}),
     ...(row.few_shot_examples ? { fewShotExamples: row.few_shot_examples } : {}),
     ...(row.inline_source_links != null ? { inlineSourceLinks: row.inline_source_links } : {}),
+    ...(row.default_recipe_mention ? { defaultRecipeMention: row.default_recipe_mention } : {}),
+    ...(row.default_recipe_id ? { defaultRecipeId: row.default_recipe_id } : {}),
   };
 }
 
@@ -95,6 +99,8 @@ function inputToInsertValues(userId: string, input: UserAgentInput) {
     skill_mentions: input.skillMentions ?? null,
     few_shot_examples: input.fewShotExamples ?? null,
     inline_source_links: input.inlineSourceLinks ?? null,
+    default_recipe_mention: input.defaultRecipeMention ?? null,
+    default_recipe_id: input.defaultRecipeId ?? null,
   };
 }
 
@@ -121,6 +127,9 @@ function patchToUpdateValues(patch: UserAgentPatch): Record<string, unknown> {
   if (patch.skillMentions !== undefined) out.skill_mentions = patch.skillMentions;
   if (patch.fewShotExamples !== undefined) out.few_shot_examples = patch.fewShotExamples;
   if (patch.inlineSourceLinks !== undefined) out.inline_source_links = patch.inlineSourceLinks;
+  if (patch.defaultRecipeMention !== undefined)
+    out.default_recipe_mention = patch.defaultRecipeMention;
+  if (patch.defaultRecipeId !== undefined) out.default_recipe_id = patch.defaultRecipeId;
   return out;
 }
 
@@ -306,6 +315,35 @@ export async function getGroupSharedUserAgent(
     [identifier, requestingUserId],
     { table: 'user_agents' }
   );
+  return row ? rowToAgent(row) : undefined;
+}
+
+/**
+ * Last rung of the ladder: an agent whose owner opened it to every signed-in
+ * user. `share_mode` is the access check — it is what `setShareMode` gates on —
+ * while `is_public` only decides whether the agent is ALSO listed in the
+ * Agentura community shelf. So this deliberately does not filter on
+ * `is_public`: an agent opened to all but not listed is still usable, which is
+ * what 'authenticated' means.
+ *
+ * It also does not filter on locale. Locale narrows DISCOVERY
+ * (`listPublicUserAgents`); someone opening one specific agent has already
+ * found it, and filtering here would hide a German agent from an Austrian
+ * account that was handed the link.
+ *
+ * `identifier` is unique per OWNER, not globally, so the `LIMIT 1` has to pick
+ * one — same `created_at, id` order as `getGroupSharedUserAgent`, so the choice
+ * is stable across calls rather than left to the planner.
+ */
+export async function getPublicUserAgent(identifier: string): Promise<Agent | undefined> {
+  const db = getDrizzleInstance();
+  const rows = await db
+    .select()
+    .from(userAgents)
+    .where(and(eq(userAgents.identifier, identifier), eq(userAgents.share_mode, 'authenticated')))
+    .orderBy(userAgents.created_at, userAgents.id)
+    .limit(1);
+  const row = rows[0];
   return row ? rowToAgent(row) : undefined;
 }
 

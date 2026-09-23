@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { isReasoningStreamModel, streamWithReasoning } from '../regoloReasoningStream.js';
 
@@ -39,6 +39,13 @@ describe('isReasoningStreamModel', () => {
     // Dieselben Gewichte, andere Kennung. Ein Treffer hier hiesse, dass der
     // Denk-Strom eine Modell-ID an einen Host schickt, der sie nicht führt.
     expect(isReasoningStreamModel('cortecs', 'gemma4-31b')).toBe(false);
+  });
+
+  // Melious' Gemma ist der Ausweich der Antwortlane. Ohne diesen Zweig liefe ein
+  // Denk-Zug nach dem Ausweich über das SDK, wo meliousThinkingFetch `none`
+  // setzt — das Denken wäre still weg.
+  it('returns true for gemma-4-31b:balanced on melious', () => {
+    expect(isReasoningStreamModel('melious', 'gemma-4-31b:balanced')).toBe(true);
   });
 
   it('returns false for a regolo-only model asked on litellm', () => {
@@ -101,4 +108,42 @@ describe.skipIf(!process.env.REGOLO_API_KEY)('streamWithReasoning — live integ
     // scheiterte er still.
     await expect(run()).rejects.toThrow(/regolo reasoning stream unavailable/);
   }, 15_000);
+});
+
+describe('streamWithReasoning — Melious-Flavor nach Grösse', () => {
+  const ORIGINAL_ENV = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...ORIGINAL_ENV };
+    vi.unstubAllGlobals();
+  });
+
+  async function sentModel(chars: number): Promise<unknown> {
+    vi.resetModules();
+    process.env.MELIOUS_API_KEY = 'mel-key';
+    const { streamWithReasoning: stream } = await import('../regoloReasoningStream.js');
+    let body: Record<string, unknown> = {};
+    vi.stubGlobal('fetch', async (_input: RequestInfo | URL, init?: RequestInit) => {
+      body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      return new Response('data: [DONE]\n', { status: 200 });
+    });
+    for await (const _chunk of stream({
+      provider: 'melious',
+      model: 'gemma-4-31b:balanced',
+      messages: [{ role: 'user', content: 'x'.repeat(chars) }],
+      maxTokens: 2_000,
+      temperature: 0,
+    })) {
+      void _chunk;
+    }
+    return body.model;
+  }
+
+  it('bleibt bei einem kurzen Denk-Zug auf :balanced', async () => {
+    expect(await sentModel(1_000)).toBe('gemma-4-31b:balanced');
+  });
+
+  it('schickt einen grossen Denk-Zug an :speed', async () => {
+    expect(await sentModel(150_000)).toBe('gemma-4-31b:speed');
+  });
 });

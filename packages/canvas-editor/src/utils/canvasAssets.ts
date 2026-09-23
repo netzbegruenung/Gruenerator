@@ -16,6 +16,15 @@ export interface UniversalAsset {
 }
 
 /**
+ * Assets werden auf eine einheitliche Kantenlaenge normalisiert: `AssetPrimitive`
+ * rechnet die natuerliche Bildgroesse so um, dass die LAENGERE Seite bei
+ * `scale: 1` genau so viele Pixel misst. Wer aus einer Vorlagen-Grafik mit
+ * fester Breite/Hoehe eine Instanz macht, rechnet gegen dieselbe Zahl zurueck —
+ * darum steht sie hier und nicht im Primitiv.
+ */
+export const ASSET_TARGET_SIZE = 150;
+
+/**
  * Runtime instance of an asset placed on the canvas
  * Follows the same pattern as ShapeInstance and IllustrationInstance
  */
@@ -165,6 +174,47 @@ export const ALL_ASSETS: UniversalAsset[] = [
 ];
 
 /**
+ * Vorlagen-Varianten: dieselben Grafiken in genau der Ausfuehrung, die eine
+ * bestimmte Vorlage braucht — das weisse und das gelbe Anfuehrungszeichen, die
+ * hellgruene Sonnenblume.
+ *
+ * Sie stehen bewusst NICHT in `ALL_ASSETS`: in der freien Auswahl waeren drei
+ * fast gleiche Anfuehrungszeichen nur verwirrend, und ueber einem hellen
+ * Hintergrund ist die weisse Fassung unsichtbar. Aufloesen muss man sie
+ * trotzdem, seit eine duplizierte Vorlagen-Grafik zu einer Asset-Instanz wird
+ * (#3403) — die zeichnet sich ueber `getAssetById`.
+ */
+export const TEMPLATE_ASSETS: UniversalAsset[] = [
+  {
+    id: 'quote-mark-weiss',
+    src: SYSTEM_ASSETS.quote.white.src,
+    label: SYSTEM_ASSETS.quote.white.label,
+    category: 'mark',
+    tags: ['zitat', 'quote', 'weiß', 'weiss'],
+    audience: 'all',
+  },
+  {
+    id: 'quote-mark-gelb',
+    src: SYSTEM_ASSETS.quote.gelb.src,
+    label: SYSTEM_ASSETS.quote.gelb.label,
+    category: 'mark',
+    tags: ['zitat', 'quote', 'gelb'],
+    audience: 'de-AT',
+  },
+  {
+    id: 'sunflower-green-light',
+    src: SYSTEM_ASSETS.sunflower.greenLight.src,
+    label: SYSTEM_ASSETS.sunflower.greenLight.label,
+    category: 'decoration',
+    tags: ['blume', 'flower', 'grün', 'green', 'hell'],
+    audience: 'de-DE',
+  },
+];
+
+/** Katalog plus Vorlagen-Varianten — alles, was sich zu einer Grafik aufloesen laesst. */
+const RESOLVABLE_ASSETS: UniversalAsset[] = [...ALL_ASSETS, ...TEMPLATE_ASSETS];
+
+/**
  * Logo assets shown in the "Logos" (grafiken) category.
  * Only true logos (decoration) — marks like Anführungszeichen/Pfeil are excluded.
  */
@@ -203,10 +253,21 @@ export const CANVAS_RECOMMENDED_ASSETS: Record<string, string[]> = {
 };
 
 /**
- * Get asset by ID
+ * Get asset by ID — Katalog UND Vorlagen-Varianten, denn beide koennen als
+ * Asset-Instanz auf der Flaeche liegen.
  */
 export function getAssetById(id: string): UniversalAsset | undefined {
-  return ALL_ASSETS.find((asset) => asset.id === id);
+  return RESOLVABLE_ASSETS.find((asset) => asset.id === id);
+}
+
+/**
+ * Welche Grafik steckt hinter dieser Quelle? Die Bruecke von einer Vorlage, die
+ * ihre Bilder als `src` deklariert, zum Katalog, der sie ueber eine ID fuehrt —
+ * die Vorlagen-Elemente und die Katalog-Eintraege sind dieselben Bilder, nur
+ * zweimal aufgeschrieben (#3403).
+ */
+export function getAssetBySrc(src: string): UniversalAsset | undefined {
+  return RESOLVABLE_ASSETS.find((asset) => asset.src === src);
 }
 
 /**

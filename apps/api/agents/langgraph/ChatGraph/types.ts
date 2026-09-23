@@ -19,11 +19,13 @@ import type {
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { ArtifactKindId } from '../../../routes/chat/services/artifactKindRegistry.js';
 import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
+import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
 import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';
 import type {
   WolkeFileRef,
   ConnectFileRef,
   CurrentBoard,
+  CurrentCanvas,
   ConfirmActionType,
   ChartPayload,
   ArtifactPayload,
@@ -39,9 +41,8 @@ import type {
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
 import type { ModelMessage } from 'ai';
-import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
 
-export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
+export type { WolkeFileRef, ConnectFileRef, CurrentBoard, CurrentCanvas, SocialPostPayload };
 
 /**
  * Retrieval backends the classifier can request for one turn. When several are
@@ -287,6 +288,12 @@ export interface SearchResult {
   chunkIndex?: number | undefined;
   similarityScore?: number | undefined;
   collectionId?: string | undefined;
+  /** Fundstelle im Dokument (`notebook_quellen`): Seite und Zeichenbereich im Originaltext. */
+  pageNumber?: number | null;
+  charStart?: number | null;
+  charEnd?: number | null;
+  /** Der belegte Wortlaut, wenn er nicht der Anfang von `content` ist. */
+  citedText?: string;
   [key: string]: unknown;
 }
 
@@ -329,6 +336,7 @@ export interface Citation {
   chunkIndex?: number | undefined;
   similarityScore?: number | undefined;
   collectionId?: string | undefined;
+  pageNumber?: number | null;
   // Set when this citation came from a fan-out per-document retrieval
   // (multi-document chat). Lets the UI group source cards by referenced doc.
   documentSourceId?: string | undefined;
@@ -553,6 +561,7 @@ export interface ChatGraphInput {
   attachedWebpageUrls?: string[] | undefined;
   currentDocument?: CurrentDocument | undefined;
   currentBoard?: CurrentBoard | undefined;
+  currentCanvas?: CurrentCanvas | undefined;
   userLocale?: UserLocale | undefined;
   clientPlatform?: ClientPlatform | undefined;
   customSystemPrompt?: string | undefined;
@@ -564,6 +573,8 @@ export interface ChatGraphInput {
    */
   userRoles?: readonly RoleLandesverbandInput[] | undefined;
   activeSkillMention?: string | undefined;
+  /** Zeilen-id der gewählten Textform. Schlägt die Mention beim Nachschlag. */
+  activeRecipeId?: string | undefined;
   userInstructions?: string | undefined;
   contextWindowTokens?: number | undefined;
 }
@@ -635,6 +646,12 @@ export interface ChatGraphState {
    * `listThreadArtifacts`; empty when the thread produced none.
    */
   threadArtifacts?: ThreadToolContext[];
+  /**
+   * The notebook of the thread's last successful `notebook_quellen` call
+   * (`notebookIdFromSteps`). A follow-up tool ask that no longer names the
+   * notebook pins the tool on it; the tool resolves the same id itself.
+   */
+  threadNotebookId?: string | null;
   /** Last user text with mention tokens fully REMOVED — for regex heuristics
    *  that would false-positive on labels ("Bild generieren"). The messages on
    *  state carry the label form ("@Label") instead. */
@@ -748,6 +765,12 @@ export interface ChatGraphState {
   // context for board Q&A; presence + edit keywords route to edit_current_board.
   currentBoard: CurrentBoard | null;
 
+  // Live canvas state when chat is embedded in the sharepic studio sidebar.
+  // Primary context for sharepic Q&A (`text` is injected as AKTUELLES DOKUMENT)
+  // and the target of the loop's `edit_document` tool on the canvas surface
+  // (`snapshot`/`capabilities` feed runCanvasSuggest).
+  currentCanvas: CurrentCanvas | null;
+
   // Custom system prompt (replaces entire agent system prompt when set)
   customSystemPrompt: string | null;
 
@@ -765,13 +788,22 @@ export interface ChatGraphState {
   // appends the skill's `skillSystemPrompt` as an additive section.
   activeSkillMention: string | null;
 
+  // Zeilen-id der gewählten angelernten Textform. Sie ist der stabile
+  // Schlüssel: eine Umbenennung der Mention tauscht das Rezept damit nicht
+  // still aus. Gesetzt schlägt sie die Mention im Nachschlag
+  // (`resolveRecipeBody`) und zählt wie diese als ausdrückliche Wahl.
+  activeRecipeId: string | null;
+
   // Nachvollziehbarkeit: die Rezepte, die diesen Turn tatsächlich geformt
   // haben. Gesetzt von `buildSystemMessage` (Prompt-Tür: explizite/implizite
   // Mention oder Agent-Default) bzw. vom Loop aus der Rezept-Registry
   // (`rezept_laden`). Wandert in die `done`-Metadaten und die persistierte
   // Nachricht, damit die Oberfläche dezent ausweisen kann, welche
   // Schreibvorgabe galt.
-  usedRecipes?: { mention: string; title: string; source: 'system' | 'user' }[];
+  // `id` ist die Zeile, die den Turn getragen hat — vorhanden nur für eine
+  // angelernte Textform, weggelassen (nicht `null`) für einen Systemrumpf und
+  // für die Registry-Einträge des Loops, die keine id führen.
+  usedRecipes?: { mention: string; title: string; source: 'system' | 'user'; id?: string }[];
 
   // User profile instructions (from profiles.custom_prompt, additive to all modes)
   userInstructions: string | null;
@@ -1010,14 +1042,14 @@ export interface ChatGraphState {
   // Literal: dieses Feld war der siebte Schreiber derselben Menge, und ein hier
   // fehlender Wert hätte im Katalog stumm kein Werkzeug montiert.
   compoundGenerationKind?: ArtifactKindId | null;
-  // Compound "research + edit the OPEN doc/board" (editor sidebars): runs the
-  // research loop, then emits trigger_doc_edit/trigger_board_action with the
-  // gathered sources as reference material. Synth writes only a short confirm.
+  // Compound "research + edit the OPEN artefact" (editor sidebars): runs the
+  // research loop, then feeds the gathered sources to the `edit_document` tool
+  // as reference material. Synth writes only a short confirm.
   compoundEdit?: boolean;
   // Tool-based editor edit: the resolved editor surface whose `edit_document`
-  // tool the loop mounts. Set only for surfaces with a tool path
-  // (routing.TOOL_EDIT_SURFACES); null/undefined keeps the legacy
-  // trigger_doc_edit path for the still-live surfaces.
+  // tool the loop mounts. Null/undefined means the turn has NO edit path at all
+  // (a kill-switch in `decideEditToolLoop` held it back) — `buildArtifactNotes`
+  // makes the model say so rather than answer as if it had edited.
   editToolSurface?: 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas' | null;
   // Human summary of edits the edit_document tool made THIS turn (set by
   // editorTools). Feeds the synth prompt so the model confirms the change in
@@ -1397,4 +1429,11 @@ export interface ChatSearchResult {
   messageRole: 'user' | 'assistant';
   matchedAt: string;
   threadUpdatedAt: string;
+  /**
+   * Archive state of the matched thread. Required, not optional: every producer
+   * has to say it out loud, because a consumer that shows archived hits (the
+   * sidebar search) must be able to mark them, and one that does not must not
+   * silently inherit a default that says "regular" for a thread nobody checked.
+   */
+  threadStatus: 'regular' | 'archived';
 }

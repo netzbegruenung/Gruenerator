@@ -15,16 +15,11 @@
 
 import { SKILLS } from '@gruenerator/shared/agents';
 
-import {
-  embedUntrusted,
-  INSTRUCTION_HIERARCHY_RULE,
-} from '../../../../routes/chat/services/untrustedContent.js';
-import { getInternalSkillPrompt } from '../../../../services/skills/internalPrompts.js';
-import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
+import { INSTRUCTION_HIERARCHY_RULE } from '../../../../routes/chat/services/untrustedContent.js';
+import { resolveRecipeBody } from '../../../../services/recipes/resolveRecipeBody.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import { detectSocialPlatform } from './classifierHeuristics.js';
-import { deriveTextFormMention } from './textFormMention.js';
 
 import type { SocialTextPlatform } from '../types.js';
 
@@ -133,7 +128,7 @@ const SOCIAL_SKILL_MENTIONS: ReadonlySet<string> = new Set(
  * Klassifikator ging woandershin" trennen, weil BEIDE Fälle keine Zeile
  * erzeugten (#2938).
  */
-function logChoice(mention: string | null, quelle: 'nutzer' | 'system' | 'rubrik'): void {
+function logChoice(mention: string | null, quelle: 'user' | 'system' | 'rubrik'): void {
   log.info(`[Rezept] Social-Handwerk mention=${mention ?? 'keine'} quelle=${quelle}`);
 }
 
@@ -169,7 +164,7 @@ function logChoice(mention: string | null, quelle: 'nutzer' | 'system' | 'rubrik
  * dritte Verhalten wieder: `/facebook` auf einem erkannten Instagram-Turn nimmt
  * das Facebook-Rezept, müsste aber den Instagram-Stil ziehen. Die Reihenfolge
  * ist damit dieselbe wie in `respondNode` — erst die wirksame Mention bestimmen,
- * dann `deriveTextFormMention` darauf (seit #2935 die EXAKTE Mention, kein
+ * dann `resolveRecipeBody` darauf (seit #2935 die EXAKTE Mention, kein
  * Präfix-Falten).
  *
  * Async, weil der Nachschlag in die Datenbank geht (gecacht, 1 h). Beide
@@ -185,22 +180,16 @@ export async function craftGuidanceForPlatform(
       ? activeSkillMention
       : (platform ?? null);
 
-  const textFormMention = mention ? deriveTextFormMention(mention) : null;
-  const userTextForm =
-    userId && textFormMention ? await getTextFormForInjection(userId, textFormMention) : null;
-  if (userTextForm) {
-    // Eingefasst wie auf den beiden anderen Wegen: Nutzertext, der einen
-    // Systemprompt erreicht, ohne dass die Person ihn in DIESEM Turn ausgewählt
-    // hat. Die Regelhierarchie kommt mit, sonst steht hier eine
-    // `<untrusted_content>`-Markierung, die der Prompt nirgends erklärt.
-    logChoice(mention, 'nutzer');
-    return `## PLATTFORM-HANDWERK\n\n${embedUntrusted('nutzer_anweisung', userTextForm.styleBlock)}${INSTRUCTION_HIERARCHY_RULE}`;
-  }
-
-  const recipe = mention ? getInternalSkillPrompt(mention) : null;
-  if (recipe) {
-    logChoice(mention, 'system');
-    return `## PLATTFORM-HANDWERK\n\n${recipe}`;
+  // Derselbe Nachschlag wie auf den beiden anderen Wegen — angelernter Stil vor
+  // mitgeliefertem Rezepttext, unter der Mention, die die Weiche ERGEBEN hat.
+  const resolved = mention ? await resolveRecipeBody({ mention, userId: userId ?? null }) : null;
+  if (resolved) {
+    // Der Rumpf einer angelernten Textform kommt bereits eingefasst zurück;
+    // dann muss die Regelhierarchie mit, sonst steht hier eine
+    // `<untrusted_content>`-Markierung, die der Prompt nirgends erklärt. Der
+    // mitgelieferte Rezepttext ist eine eigene Anweisung und braucht sie nicht.
+    logChoice(mention, resolved.source);
+    return `## PLATTFORM-HANDWERK\n\n${resolved.body}${resolved.untrusted ? INSTRUCTION_HIERARCHY_RULE : ''}`;
   }
   logChoice(mention, 'rubrik');
   // Der Auffang nimmt die Familie der gewählten Textform mit — und zwar in

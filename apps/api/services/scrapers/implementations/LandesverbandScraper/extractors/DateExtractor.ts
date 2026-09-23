@@ -4,12 +4,14 @@
  * Cost optimization: Extract dates BEFORE expensive Mistral OCR to skip old PDFs
  */
 
-import type { DateExtractionResult } from '../types.js';
+import type { DateExtractionResult, DatePrecision } from '../types.js';
 
 const GERMAN_MONTHS: Record<string, number> = {
   januar: 1,
   februar: 2,
   märz: 3,
+  maerz: 3,
+  marz: 3,
   april: 4,
   mai: 5,
   juni: 6,
@@ -24,6 +26,116 @@ const GERMAN_MONTHS: Record<string, number> = {
 const GERMAN_MONTH_PATTERN =
   /(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/i;
 
+const SLUG_MONTH =
+  'januar|februar|maerz|marz|märz|april|mai|juni|juli|august|september|oktober|november|dezember';
+
+interface DateParts {
+  year: number;
+  month: number;
+  day: number;
+}
+
+interface DatePattern {
+  re: RegExp;
+  parse: (m: RegExpMatchArray) => DateParts;
+}
+
+const ymd = (m: RegExpMatchArray): DateParts => ({
+  year: parseInt(m[1]),
+  month: parseInt(m[2]),
+  day: parseInt(m[3]),
+});
+const dmy = (m: RegExpMatchArray): DateParts => ({
+  year: parseInt(m[3]),
+  month: parseInt(m[2]),
+  day: parseInt(m[1]),
+});
+const monthName = (name: string): number => GERMAN_MONTHS[name.toLowerCase()] ?? 0;
+
+// Full dates, in priority order.
+const DAY_PATTERNS: DatePattern[] = [
+  { re: /(\d{4})-(\d{1,2})-(\d{1,2})/, parse: ymd }, // 2023-05-15
+  {
+    // 15-05-2023; 12-13-2025 can only be month-day and must not roll over into 2026
+    re: /(\d{1,2})-(\d{1,2})-(\d{4})/,
+    parse: (m) => {
+      const parts = dmy(m);
+      return parts.month > 12 && parts.day <= 12
+        ? { ...parts, month: parts.day, day: parts.month }
+        : parts;
+    },
+  },
+  { re: /(\d{1,2})\.(\d{1,2})\.(\d{4})/, parse: dmy }, // 15.05.2023
+  { re: /(\d{1,2})_(\d{1,2})_(\d{4})/, parse: dmy }, // 15_05_2023
+  { re: /(\d{4})_(\d{1,2})_(\d{1,2})/, parse: ymd }, // 2023_05_15
+  { re: GERMAN_MONTH_PATTERN, parse: (m) => ({ ...dmy(m), month: monthName(m[2]) }) }, // 24. Mai 2025
+];
+
+// Only in a file name or URL slug: compact forms that would misfire in prose.
+const FILENAME_DAY_PATTERNS: DatePattern[] = [
+  ...DAY_PATTERNS,
+  { re: /(?<!\d)((?:19|20)\d{2})(\d{2})(\d{2})(?!\d)/, parse: ymd }, // 20230905_…
+  {
+    // Leading YYMMDD token, no separators inside it: BE-F dlm-downloads name
+    // their files 250117_Positionspapier….pdf / 180828_Beschluss….pdf.
+    // Genuinely ambiguous for a leading YYYYMM from 2001-2012: e.g. "200106_…"
+    // reads as 2020-01-06 here, but "2001"+"06" (June 2001, YYYYMM) is an
+    // equally valid parse of the same six digits — only when the middle two
+    // digits (our month) fall in 01-12 does "20" + that pair form a real
+    // alternate year. No confirmed BE-F case uses YYYYMM, so this stays
+    // YYMMDD until one does.
+    re: /^(\d{2})(\d{2})(\d{2})(?=[_-])/,
+    parse: (m) => ({ year: 2000 + parseInt(m[1]), month: parseInt(m[2]), day: parseInt(m[3]) }),
+  },
+  {
+    // Year first, as SL names its files: 22-02-17-wahlprogramm = 2022-02-17
+    re: /^(\d{2})-(\d{2})-(\d{2})(?!\d)/,
+    parse: (m) => ({ ...ymd(m), year: 2000 + parseInt(m[1]) }),
+  },
+  {
+    re: new RegExp(`(?:^|[-_])(\\d{1,2})-(${SLUG_MONTH})-(\\d{4})(?!\\d)`, 'i'), // 12-oktober-2024
+    parse: (m) => ({ ...dmy(m), month: monthName(m[2]) }),
+  },
+];
+
+// Context only. Two-digit day and month, so "Az. 1.2.10" is no date; global
+// so an impossible first match does not hide a valid later one.
+const SHORT_YEAR_PATTERN: DatePattern = {
+  re: /(?<![\d.])(\d{2})\.(\d{2})\.(\d{2})(?![\d.])/g, // 26.03.22
+  parse: (m) => ({ ...dmy(m), year: 2000 + parseInt(m[3]) }),
+};
+
+// URL only. The upload month is an upper bound (files are often uploaded
+// long after the Parteitag), so it ranks below the archive folder — and a
+// slug month after it is a target date (kommunalwahl-mai-2024), not the
+// publication.
+const FOLDER_MONTH_PATTERN: DatePattern = {
+  re: /\/((?:19|20)\d{2})-(\d{1,2})\//, // /2022-03/
+  parse: (m) => ({ ...ymd(m), day: 1 }),
+};
+const SLUG_MONTH_PATTERN: DatePattern = {
+  re: new RegExp(`(?:^|[-_/])(${SLUG_MONTH})-(\\d{4})(?!\\d)`, 'i'), // september-2022
+  parse: (m) => ({ year: parseInt(m[2]), month: monthName(m[1]), day: 1 }),
+};
+const UPLOAD_MONTH_PATTERN: DatePattern = {
+  re: /\/uploads\/(?:sites\/\d+\/)?(\d{4})\/(\d{1,2})\//,
+  parse: (m) => ({ ...ymd(m), day: 1 }),
+};
+
+// Year-only fallbacks. A year in a slug or file name is often a TARGET year
+// (Landtagswahl 2026, `_2024_im_Blick`), so the URL's folder year goes first.
+const URL_YEAR_PATTERN: DatePattern = {
+  re: /\/((?:19|20)\d{2})\//,
+  parse: (m) => ({ year: parseInt(m[1]), month: 6, day: 15 }),
+};
+const YEAR_PATTERNS: DatePattern[] = [
+  /_(20[0-2]\d)_/, // Year between underscores: LDK_2023_Potsdam (\b never matches next to _, a word char)
+  /\b(20[0-2]\d)\b/, // Year only: 2023
+  /\b(199\d)\b/, // Year only: 1990s
+].map((re) => ({ re, parse: (m) => ({ year: parseInt(m[1]), month: 6, day: 15 }) }));
+
+const PDF_FILENAME = /[^\s|/]+\.pdf/gi;
+
 /**
  * Date extraction utilities
  * Static methods for parsing dates from various sources
@@ -31,90 +143,103 @@ const GERMAN_MONTH_PATTERN =
 export class DateExtractor {
   /**
    * Extract date from PDF URL, title, or context string
-   * Returns date, dateString, and isTooOld flag (>10 years old)
+   * Returns date, dateString, isTooOld flag (> maxAgeYears old) and precision.
+   *
+   * Signal order: file-name day date > day date in URL/title/context >
+   * archive folder or slug month > upload month > year only. A year alone
+   * still yields YYYY-06-15 (null would turn the PDF into a `no_date` skip on
+   * paths without processUndatedPdfs) but is marked `precision: 'year'`.
    *
    * Cost optimization: This runs BEFORE expensive Mistral OCR
    * Saved ~96% of OCR costs on test data by filtering old PDFs
    */
-  static extractDateFromPdfInfo(url: string, title: string, context: string): DateExtractionResult {
-    const tenYearsAgo = new Date();
-    tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
-    const currentYear = new Date().getFullYear();
-
-    // Full-date patterns (in priority order)
-    const strongPatterns = [
-      /(\d{4})-(\d{1,2})-(\d{1,2})/, // ISO format: 2023-05-15
-      /(\d{1,2})-(\d{1,2})-(\d{4})/, // US format: 05-15-2023
-      /(\d{1,2})\.(\d{1,2})\.(\d{4})/, // German format: 15.05.2023
-      /(\d{1,2})_(\d{1,2})_(\d{4})/, // Underscore: 15_05_2023
-      /(\d{4})_(\d{1,2})_(\d{1,2})/, // Underscore ISO: 2023_05_15
-      GERMAN_MONTH_PATTERN, // German text month: 24. Mai 2025
-    ];
-    // Year-only fallbacks. Tried only after NO text yielded a full date:
-    // WordPress upload paths (/uploads/2025/07/) put the upload year in the
-    // URL, which must not outrank a real publish date in the link context
-    // (e.g. "29.04.2023 | Landesdelegiertenkonferenz" next to the PDF link).
-    const weakPatterns = [
-      /_(20[0-2]\d)_/, // Year between underscores: LDK_2023_Potsdam (\b never matches next to _, a word char)
-      /\b(20[0-2]\d)\b/, // Year only: 2023
-      /\b(199\d)\b/, // Year only: 1990s
-    ];
-
-    // Try to extract date from URL, title, or context (in priority order)
+  static extractDateFromPdfInfo(
+    url: string,
+    title: string,
+    context: string,
+    maxAgeYears: number
+  ): DateExtractionResult {
     const texts = [url, title, context].filter(Boolean);
+    const fileNames = [
+      url.split(/[?#]/)[0].replace(/\/$/, '').split('/').pop() ?? '',
+      ...Array.from(`${title} ${context}`.matchAll(PDF_FILENAME), (m) => m[0]),
+    ].filter(Boolean);
+    const upload = this.#firstMatch([url], [UPLOAD_MONTH_PATTERN], 'month');
+    const slugMonth = this.#firstMatch([url], [SLUG_MONTH_PATTERN], 'month');
+    const slugMonthBeforeUpload =
+      slugMonth &&
+      (!upload || slugMonth.year * 12 + slugMonth.month <= upload.year * 12 + upload.month)
+        ? slugMonth
+        : null;
 
-    for (const patterns of [strongPatterns, weakPatterns])
-      for (const text of texts) {
-        for (const pattern of patterns) {
-          const match = text.match(pattern);
-          if (match) {
-            let year: number | undefined, month: number | undefined, day: number | undefined;
+    const found =
+      this.#firstMatch(fileNames, FILENAME_DAY_PATTERNS, 'day') ??
+      this.#firstMatch(texts, DAY_PATTERNS, 'day') ??
+      // DD.MM.YY (BB headings: "Landesdelegiertenkonferenz am 26.03.22:")
+      this.#firstMatch([context], [SHORT_YEAR_PATTERN], 'day') ??
+      this.#firstMatch([url], [FOLDER_MONTH_PATTERN], 'month') ??
+      slugMonthBeforeUpload ??
+      upload ??
+      this.#firstMatch([url], [URL_YEAR_PATTERN], 'year') ??
+      this.#firstMatch(texts, YEAR_PATTERNS, 'year');
 
-            if (match.length === 4) {
-              // Check for German text month (e.g. "24. Mai 2025")
-              const germanMonth = GERMAN_MONTHS[match[2].toLowerCase()];
-              if (germanMonth) {
-                year = parseInt(match[3]);
-                month = germanMonth;
-                day = parseInt(match[1]) || 1;
-              } else if (match[1].length === 4) {
-                // Format: YYYY-MM-DD or YYYY_MM_DD
-                year = parseInt(match[1]);
-                month = parseInt(match[2]) || 1;
-                day = parseInt(match[3]) || 1;
-              } else if (match[3].length === 4) {
-                // Format: DD-MM-YYYY or DD.MM.YYYY or DD_MM_YYYY
-                year = parseInt(match[3]);
-                month = parseInt(match[2]) || 1;
-                day = parseInt(match[1]) || 1;
-              }
-            } else if (match.length === 2) {
-              // Year only - use mid-year date
-              year = parseInt(match[1]);
-              month = 6;
-              day = 15;
-            }
+    if (!found) return { date: null, dateString: null, isTooOld: null, precision: null };
 
-            // Validate year range (1990 to current year)
-            if (year && year >= 1990 && year <= currentYear) {
-              const date = new Date(year, (month || 1) - 1, day || 1);
-              // Build the string from the parsed fields, not via toISOString():
-              // the Date is local midnight, so the UTC round-trip shifts it to
-              // the previous day on any timezone east of UTC.
-              const mm = String(month || 1).padStart(2, '0');
-              const dd = String(day || 1).padStart(2, '0');
-              return {
-                date,
-                dateString: `${year}-${mm}-${dd}`,
-                isTooOld: date < tenYearsAgo,
-              };
-            }
-          }
+    const { year, month, day, precision } = found;
+    const date = new Date(year, month - 1, day);
+    // Build the string from the parsed fields, not via toISOString():
+    // the Date is local midnight, so the UTC round-trip shifts it to
+    // the previous day on any timezone east of UTC.
+    const mm = String(month).padStart(2, '0');
+    const dd = String(day).padStart(2, '0');
+    return {
+      date,
+      dateString: `${year}-${mm}-${dd}`,
+      isTooOld: this.isDateTooOld(date, maxAgeYears),
+      precision,
+    };
+  }
+
+  /**
+   * Wolke share files (#3564): only a literal day date in the file name is a
+   * real signal. `extractDateFromPdfInfo` falls back to a bare year or a slug
+   * month when no day pattern matches — a mention like "Wahlpruefsteine 2021
+   * BUND.pdf" or a target year like "Landtagswahl-2026-Programm.pdf" would
+   * otherwise read as a (wrong) publish date. `maxAgeYears` doesn't matter
+   * here — callers ignore `isTooOld` for Wolke files — so a fixed value is
+   * enough.
+   */
+  static extractWolkeFileNameDate(
+    fileName: string
+  ): Pick<DateExtractionResult, 'dateString' | 'precision'> {
+    const result = this.extractDateFromPdfInfo(fileName, fileName, '', 10);
+    return result.precision === 'day'
+      ? { dateString: result.dateString, precision: result.precision }
+      : { dateString: null, precision: null };
+  }
+
+  static #firstMatch(
+    texts: string[],
+    patterns: DatePattern[],
+    precision: DatePrecision
+  ): (DateParts & { precision: DatePrecision }) | null {
+    const currentYear = new Date().getFullYear();
+    for (const text of texts) {
+      for (const { re, parse } of patterns) {
+        const matches = re.global ? Array.from(text.matchAll(re)) : [text.match(re)];
+        for (const match of matches) {
+          if (!match) continue;
+          const parts = parse(match);
+          // Validate year range (1990 to current year) and reject impossible
+          // days instead of letting Date roll 31.02. over into March.
+          if (parts.year < 1990 || parts.year > currentYear) continue;
+          const date = new Date(parts.year, parts.month - 1, parts.day);
+          if (date.getMonth() !== parts.month - 1 || date.getDate() !== parts.day) continue;
+          return { ...parts, precision };
         }
       }
-
-    // No date found
-    return { date: null, dateString: null, isTooOld: null };
+    }
+    return null;
   }
 
   /**

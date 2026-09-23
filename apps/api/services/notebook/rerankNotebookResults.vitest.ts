@@ -6,7 +6,7 @@ vi.mock('../search/rerankPipeline.js', () => ({
   rerankPipeline: (...args: unknown[]) => rerankPipeline(...args),
 }));
 
-import { rerankNotebookResults } from './rerankNotebookResults.js';
+import { cutNotebookResults, rerankNotebookResults } from './rerankNotebookResults.js';
 
 import type { ExpandedChunkResult, ReferencesMap } from '../search/types.js';
 
@@ -119,7 +119,7 @@ describe('rerankNotebookResults', () => {
     expect(out.results.map((r) => r.similarity)).toEqual([0.5, 0.51, 0.52]);
   });
 
-  it('forwards instruct to rerankPipeline when given', async () => {
+  it('forwards mode and instruct when given', async () => {
     rerankPipeline.mockResolvedValue({
       rankedIndices: [0, 1, 2],
       scores: new Map([
@@ -134,15 +134,16 @@ describe('rerankNotebookResults', () => {
       results,
       referencesMap,
       question: 'Warum?',
-      instruct: 'Test-Instruct',
+      mode: 'filter',
+      instruct: 'Bevorzuge amtliche Quellen',
     });
 
-    expect(rerankPipeline).toHaveBeenCalledWith(
-      expect.objectContaining({ instruct: 'Test-Instruct' })
-    );
+    const call = rerankPipeline.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(call.mode).toBe('filter');
+    expect(call.instruct).toBe('Bevorzuge amtliche Quellen');
   });
 
-  it('omits instruct from the rerankPipeline call when absent', async () => {
+  it('omits mode and instruct when absent', async () => {
     rerankPipeline.mockResolvedValue({
       rankedIndices: [0, 1, 2],
       scores: new Map([
@@ -155,8 +156,9 @@ describe('rerankNotebookResults', () => {
 
     await rerankNotebookResults({ results, referencesMap, question: 'Warum?' });
 
-    const call = rerankPipeline.mock.calls[0][0] as Record<string, unknown>;
-    expect('instruct' in call).toBe(false);
+    const call = rerankPipeline.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(call).not.toHaveProperty('mode');
+    expect(call).not.toHaveProperty('instruct');
   });
 
   it('defaults applyDiversity to true when omitted (byte-identical to today)', async () => {
@@ -194,5 +196,43 @@ describe('rerankNotebookResults', () => {
     });
 
     expect(rerankPipeline).toHaveBeenCalledWith(expect.objectContaining({ applyDiversity: false }));
+  });
+});
+
+describe('cutNotebookResults', () => {
+  it('keeps the first `limit` results in retrieval order, without calling the pipeline', () => {
+    const out = cutNotebookResults({ results, referencesMap, limit: 3 });
+
+    expect(rerankPipeline).not.toHaveBeenCalled();
+    expect(out.results.map((r) => r.document_id)).toEqual(['doc-0', 'doc-1', 'doc-2']);
+    // Order is retrieval order — untouched, not resorted by similarity.
+    expect(out.results.map((r) => r.similarity)).toEqual([0.5, 0.51, 0.52]);
+  });
+
+  it('renumbers the reference map to 1..n for the kept results', () => {
+    const out = cutNotebookResults({ results, referencesMap, limit: 3 });
+
+    expect(Object.keys(out.referencesMap)).toEqual(['1', '2', '3']);
+    expect(Object.values(out.referencesMap).map((r) => r.document_id)).toEqual([
+      'doc-0',
+      'doc-1',
+      'doc-2',
+    ]);
+    // The retrieval score is untouched — no rerank score to write back.
+    expect(Object.values(out.referencesMap).map((r) => r.similarity_score)).toEqual([
+      0.5, 0.51, 0.52,
+    ]);
+  });
+
+  it('is a no-op when `limit` is at or above the result count', () => {
+    const out = cutNotebookResults({ results, referencesMap, limit: results.length });
+
+    expect(out.results).toEqual(results);
+    expect(Object.keys(out.referencesMap)).toEqual(Object.keys(referencesMap));
+    expect(out.referencesMap).toEqual(referencesMap);
+
+    const wider = cutNotebookResults({ results, referencesMap, limit: results.length + 10 });
+    expect(wider.results).toEqual(results);
+    expect(wider.referencesMap).toEqual(referencesMap);
   });
 });

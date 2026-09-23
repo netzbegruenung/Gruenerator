@@ -60,8 +60,35 @@ export function buildToolFailureNote(steps: PersistedStep[]): string {
     'Diese Aufrufe haben KEIN Ergebnis geliefert. Sag ehrlich und konkret, was nicht geklappt hat. ' +
     'Tu NICHT so, als hättest du die Inhalte trotzdem gesehen: keine Zusammenfassung, kein Vergleich, ' +
     'kein Prüfergebnis und keine Bestätigung zu etwas, das nur über einen dieser Aufrufe zu erfahren ' +
-    'gewesen wäre. Erfinde keine IDs, Links, Dateinamen oder Inhalte als Ersatz.'
+    'gewesen wäre. Erfinde keine IDs, Links, Dateinamen oder Inhalte als Ersatz. ' +
+    // Live 23.09.2026: „Kein Notebook ausgewählt" wurde zu „ich habe keine
+    // Funktion, das Notebook zu durchsuchen" — das Werkzeug gab es.
+    'Behaupte NIE, dir fehle eine Funktion oder ein Werkzeug dafür — sag, dass der Aufruf ' +
+    'fehlgeschlagen ist und warum.'
   );
+}
+
+/**
+ * Native tools that ran OK and returned NOTHING. Neither note above covers that
+ * (failures stop at `!ok`, empty-ok is MCP-only), so the split synth saw plain
+ * silence — live 15.09.2026 `media` → `{ resultCount: 0 }` became "eingefügt".
+ */
+export function buildEmptyResultNote(steps: PersistedStep[]): string {
+  const empty = steps.filter((s) => !s.serverName && isEmptyOkResult(s.result));
+  if (empty.length === 0) return '';
+  const lines = empty.map((s) => `- ${s.toolName}: lieferte KEINE Einträge`);
+  return (
+    `\n\nLEERE ERGEBNISSE IN DIESEM TURN:\n${lines.join('\n')}\n\n` +
+    'Diese Aufrufe haben funktioniert, aber nichts zurückgegeben. Sag das knapp, wenn es die Frage betrifft.'
+  );
+}
+
+// `results: []` only — `resultCount` is not always an entry count (a notebook
+// answer carries `resultCount: citations.length` beside a full `answer`).
+function isEmptyOkResult(result: Record<string, unknown>): boolean {
+  if (!readMcpResult(result).ok) return false;
+  const results = result.results;
+  return Array.isArray(results) && results.length === 0;
 }
 
 /** Whether any MCP connector call this turn failed — the same predicate

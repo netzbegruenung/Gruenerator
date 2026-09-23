@@ -31,6 +31,7 @@ export {
   generateDisplayUrl,
 } from './lib/validation';
 export { getFileIcon, buildNextcloudFileUrl, sortFoldersFirst } from './lib/fileUtils';
+export { CONNECTION_ERROR_MESSAGES, connectionErrorMessage } from './lib/connectionErrors';
 
 // React Query hooks
 export {

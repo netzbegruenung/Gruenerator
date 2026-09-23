@@ -83,6 +83,36 @@ export const contentSyncResultSchema = z.object({
   deadLinks: z.number().optional(),
   /** URLs hinter `deadLinks`, serverseitig gedeckelt wie `errorSamples`. */
   deadLinkSamples: z.array(z.string()).optional(),
+  /**
+   * Warum übersprungen wurde, als Zähler je Grund (`too_old`, `unchanged`,
+   * `too_short`, …). Die Summe `skipped` verbirgt, was ein Lauf kostet: ein vor
+   * dem Abruf verworfenes Dokument ist gratis, ein `too_old` nach dem Abruf
+   * wird jede Nacht neu geholt (#3200). Optional, weil ein Backend-Stand vor
+   * diesem Feld schlicht nichts sendet.
+   */
+  skipReasons: z.record(z.string(), z.number()).optional(),
+  /**
+   * Landesverbände: Zähler je Datenqualitäts-Defektklasse unter den
+   * gespeicherten/aktualisierten Dokumenten (`title_fallback`, `title_generic`,
+   * `date_missing_html`, `date_year_only`, `body_fallback` — siehe
+   * `DocumentProcessor.qualityFlagsFor`). Optional, weil nur dieser eine
+   * Scraper das Feld sendet und ein Backend-Stand vor diesem Feld nichts
+   * schickt.
+   */
+  qualityFlags: z.record(z.string(), z.number()).optional(),
+  /**
+   * KommunalWiki: Punkte gelöschter Wiki-Seiten, die der Lauf entfernt hat.
+   * Der Crawl läuft über `list=allpages` und sieht deshalb nur, was es noch
+   * gibt — ohne diesen Abgleich bleibt jede gelöschte Seite für immer stehen
+   * (#3198). Optional, weil ein Backend-Stand vor diesem Feld nichts sendet.
+   */
+  pruned: z.number().optional(),
+  /**
+   * Warum NICHT aufgeräumt wurde. Gesetzt, wenn eines der beiden Gatter
+   * gegriffen hat (leere Seitenliste oder Mengenschwelle) — ohne dieses Feld
+   * ist ein abgewürgter Lauf von einem sauberen nicht zu unterscheiden.
+   */
+  pruneSkippedReason: z.string().optional(),
   fetchErrors: z.number(),
   durationMs: z.number(),
 });

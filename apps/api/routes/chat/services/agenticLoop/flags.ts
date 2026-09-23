@@ -31,6 +31,16 @@ export function isMcpReplayEnabled(): boolean {
 }
 
 /**
+ * `ask_human` als Loop-Tool (#3220): der Zug kann mitten in der Werkzeugphase
+ * eine Rückfrage stellen und pausieren. Default ON — der Suspend/Resume-Pfad
+ * ist derselbe wie bei der Werkzeug-Freigabe und die Karte existiert auf allen
+ * Clients. Opt out mit CHAT_LOOP_ASK_HUMAN=false (ohne Deploy wirksam).
+ */
+export function isLoopAskHumanEnabled(): boolean {
+  return process.env.CHAT_LOOP_ASK_HUMAN !== 'false';
+}
+
+/**
  * Cross-Encoder für die Dokumentsuche des Loops (`gruenerator_search`).
  *
  * Default AUS — und damit bewusst die Umkehr der beiden Schalter darüber.

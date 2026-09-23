@@ -11,13 +11,12 @@
 
 import { type ImageEditReference, type KiLabelMode } from '@gruenerator/contracts';
 import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
+import { type ImageFormatId } from '@gruenerator/shared/image-studio';
 import { File } from 'expo-file-system';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
 import { base64ToFileUri, removeBackgroundRemote, requestCameraPermission } from './imageStudio';
-
-import type { BevAspect } from '../components/image-studio/bild-editor/types';
 
 /** A stored image: a local file URI plus its source pixel dimensions. */
 export interface BevImageRef {
@@ -31,20 +30,6 @@ export type ImageEditType = 'universal' | 'green-edit';
 const MAX_EDIT_IMAGES = 8; // contract cap: active version + references
 const TOTAL_INPUT_BUDGET_MP = 8; // mirrors the server-side BFL input budget
 const MAX_UPLOAD_EDGE = 1400; // keep uploaded sources modest
-
-// Outpaint budget — mirrors the server-side values used by the web „Vergrößern".
-const MIN_OUTPAINT_SIDE = 256;
-const MAX_OUTPAINT_SIDE = 2048;
-const MAX_OUTPAINT_AREA = 4_194_304;
-const SAME_RATIO_EXPANSION = 1.22;
-
-const ASPECT_VALUE: Record<BevAspect, number> = {
-  '16:9': 16 / 9,
-  '4:3': 4 / 3,
-  '1:1': 1,
-  '3:4': 3 / 4,
-  '9:16': 9 / 16,
-};
 
 let fileCounter = 0;
 function uniqueName(ext: string): string {
@@ -147,7 +132,8 @@ export async function editAiImageMobile(
     result.status === 400 ||
     result.status === 401 ||
     result.status === 429 ||
-    result.status === 500
+    result.status === 500 ||
+    result.status === 503
   ) {
     throw new Error(result.body.error);
   }
@@ -156,53 +142,25 @@ export async function editAiImageMobile(
   return `data:image/jpeg;base64,${result.body.image.base64}`;
 }
 
-export function computeOutpaintGeometry(
-  srcW: number,
-  srcH: number,
-  aspect: BevAspect
-): { width: number; height: number } {
-  const target = ASPECT_VALUE[aspect];
-  const input = srcW / srcH;
-  let tw: number;
-  let th: number;
-  if (Math.abs(input - target) < 0.01) {
-    tw = Math.round(srcW * SAME_RATIO_EXPANSION);
-    th = Math.round(srcH * SAME_RATIO_EXPANSION);
-  } else if (input > target) {
-    tw = srcW;
-    th = Math.round(srcW / target);
-  } else {
-    tw = Math.round(srcH * target);
-    th = srcH;
-  }
-  return { width: tw, height: th };
-}
-
-/** Outpaint (Vergrößern) via the multipart `/imagine/outpaint` route. Returns a data URL. */
+/**
+ * Outpaint (Vergrößern) via the multipart `/imagine/outpaint` route. Returns a data URL.
+ *
+ * The canvas geometry is the server's job: it derives the target from the
+ * source and scales both down when the budget demands it, so every offered
+ * format is reachable from here.
+ */
 export async function outpaintMobile(
   ref: BevImageRef,
-  aspect: BevAspect,
+  aspect: ImageFormatId,
   kiLabel: KiLabelMode
 ): Promise<string> {
-  const geo = computeOutpaintGeometry(ref.width, ref.height, aspect);
-  if (Math.max(geo.width, geo.height) > MAX_OUTPAINT_SIDE) {
-    throw new Error(
-      `Dein Bild ist zu groß für das Format ${aspect}. Bitte ein kleineres Bild verwenden.`
-    );
-  }
-  if (geo.width < MIN_OUTPAINT_SIDE || geo.width * geo.height > MAX_OUTPAINT_AREA) {
-    throw new Error('Zielgröße außerhalb des erlaubten Bereichs.');
-  }
-
   const form = new FormData();
   form.append('image', {
     uri: ref.uri,
     name: 'image.jpg',
     type: 'image/jpeg',
   } as unknown as Blob);
-  form.append('aspectRatio', 'custom');
-  form.append('width', String(geo.width));
-  form.append('height', String(geo.height));
+  form.append('aspectRatio', aspect);
   if (kiLabel !== 'full') form.append('kiLabel', kiLabel);
 
   const res = await getGlobalApiClient().post<{

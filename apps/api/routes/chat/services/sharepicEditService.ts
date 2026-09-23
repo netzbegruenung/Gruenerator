@@ -15,22 +15,21 @@
  */
 import {
   buildSharepicSnapshot,
+  CANVAS_TEMPLATE_FIELDS,
   getSharepicTemplateDescriptor,
+  getSharepicVariantLabel,
   sharepicOpsToStatePatch,
-  sliderDeckOpsToPagePatches,
   type CanvasAiOperation,
   type SharepicTemplateDescriptor,
-  type SliderDeckOperation,
 } from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { escapeRegExp } from '../../../services/BaseSearchService/textUtils.js';
 import { createCanvas } from '../../../services/canvas/canvasRepository.js';
 import {
   applyCanvasStatePatch,
-  applyDeckChanges,
   getCurrentCanvasState,
   seedCanvasPages,
-  type CanvasPageDef,
 } from '../../../services/canvas/canvasStateService.js';
 import {
   insertCanvasVersion,
@@ -172,11 +171,107 @@ export interface ResolvedTarget {
   messageId: string | null;
 }
 
+/** Several variants, nothing picked. `labels` in thumbnail order. */
+export interface AmbiguousTarget {
+  ambiguous: true;
+  labels: string[];
+}
+
+const ORDINALS = ['erste', 'zweite', 'dritte', 'vierte'] as const;
+
+/** "Variante 3", "3. Variante", "die dritte Variante". */
+const VARIANT_POSITION_RE =
+  /(?<!\p{L})(?:variante\s*(\d)|(\d)\.\s*variante|(erste|zweite|dritte|vierte)n?\s+variante)(?!\p{L})/iu;
+
+export interface VariantReference {
+  /** 0-based, thumbnail order; may be out of range. */
+  index: number;
+  /** Named AS a variant ("Variante 3", "die Info-Variante"). A bare label ("das
+   *  Zitat") is also ordinary content in an edit instruction, so it only breaks a tie. */
+  explicit: boolean;
+}
+
+/** Cheap pre-check so an instruction that names no variant never reads the
+ *  message table when an active row would answer. */
+const ANY_LABEL_RE = new RegExp(
+  `(?<!\\p{L})(?:${[...new Set(Object.values(CANVAS_TEMPLATE_FIELDS).map((f) => f.label))]
+    .filter((label) => label !== 'Sharepic')
+    .map(escapeRegExp)
+    .join('|')})(?!\\p{L})`,
+  'iu'
+);
+const mayNameVariant = (instruction: string): boolean =>
+  VARIANT_POSITION_RE.test(instruction) || ANY_LABEL_RE.test(instruction);
+
+const single = (indices: readonly number[]): number | null =>
+  indices.length === 1 ? (indices[0] ?? null) : null;
+
+/**
+ * The variant the instruction names, or null. `canvasTypes` in thumbnail order —
+ * that order IS the number the person typed. "Sharepic" (the `simple` label)
+ * never counts: it names the artifact.
+ */
+export function parseVariantReference(
+  instruction: string,
+  canvasTypes: readonly string[]
+): VariantReference | null {
+  const m = VARIANT_POSITION_RE.exec(instruction);
+  if (m) {
+    const ordinal = m[3]?.toLowerCase() as (typeof ORDINALS)[number] | undefined;
+    const index = ordinal ? ORDINALS.indexOf(ordinal) : Number(m[1] ?? m[2]) - 1;
+    return { index, explicit: true };
+  }
+  const labels = canvasTypes.map((t) => getSharepicVariantLabel(t));
+  const matching = (pattern: (label: string) => string): number[] =>
+    labels.flatMap((label, i) =>
+      label &&
+      label.toLowerCase() !== 'sharepic' &&
+      new RegExp(`(?<!\\p{L})(?:${pattern(escapeRegExp(label))})(?!\\p{L})`, 'iu').test(instruction)
+        ? [i]
+        : []
+    );
+  const compound = single(matching((l) => `${l}[\\s-]*variante|variante[\\s„"]*${l}`));
+  if (compound != null) return { index: compound, explicit: true };
+  const bare = single(matching((l) => l));
+  return bare != null ? { index: bare, explicit: false } : null;
+}
+
+function ambiguousFrom(hits: readonly VariantHit[]): AmbiguousTarget {
+  return {
+    ambiguous: true,
+    labels: hits.map((h) => getSharepicVariantLabel(h.variant.canvasType)),
+  };
+}
+
+function fromRow(row: ThreadCanvasRow): ResolvedTarget {
+  return {
+    variantId: row.variant_id,
+    canvasId: row.canvas_id,
+    canvasType: row.canvas_type,
+    initialProps: {},
+    messageId: null,
+  };
+}
+
+function fromHit(hit: VariantHit, rows: readonly ThreadCanvasRow[]): ResolvedTarget {
+  const bound = rows.find((r) => r.variant_id === hit.variant.id);
+  return {
+    variantId: hit.variant.id,
+    canvasId: bound?.canvas_id ?? hit.variant.canvasId ?? null,
+    canvasType: hit.variant.canvasType,
+    initialProps: hit.variant.initialProps ?? {},
+    messageId: hit.messageId,
+  };
+}
+
 /**
  * Decide which variant the instruction targets:
- * explicit selection → active/known canvas row → sole variant of the last
- * sharepic message. Returns 'ambiguous' when several variants exist and
- * nothing is selected, null when the thread has no sharepic at all.
+ * explicit selection → the variant the TEXT names → active/known canvas row →
+ * sole variant of the last sharepic message. Returns an `AmbiguousTarget`
+ * when several variants exist and nothing picks one, null when the thread has
+ * no sharepic at all. An explicit "Variante N" outranks the active row (it
+ * remembers the last edit, the text says what is wanted now); a bare label
+ * only breaks a tie.
  */
 export async function resolveTarget(
   threadId: string,
@@ -184,57 +279,42 @@ export async function resolveTarget(
     variantId: string;
     canvasId?: string | null | undefined;
     canvasType: string;
-  } | null
-): Promise<ResolvedTarget | 'ambiguous' | null> {
+  } | null,
+  instruction: string | null = null
+): Promise<ResolvedTarget | AmbiguousTarget | null> {
   const rows = await listThreadCanvases(threadId);
 
   if (currentSharepic) {
     const row = rows.find((r) => r.variant_id === currentSharepic.variantId);
-    if (row) {
-      return {
-        variantId: row.variant_id,
-        canvasId: row.canvas_id,
-        canvasType: row.canvas_type,
-        initialProps: {},
-        messageId: null,
-      };
-    }
+    if (row) return fromRow(row);
     const { hits } = await findVariants(threadId, currentSharepic.variantId);
     const hit = hits[0];
-    if (hit) {
-      return {
-        variantId: hit.variant.id,
-        canvasId: hit.variant.canvasId ?? null,
-        canvasType: hit.variant.canvasType,
-        initialProps: hit.variant.initialProps ?? {},
-        messageId: hit.messageId,
-      };
-    }
-    return null;
+    return hit ? fromHit(hit, rows) : null;
   }
 
   const active = rows.find((r) => r.is_active) ?? rows[0];
-  if (active) {
-    return {
-      variantId: active.variant_id,
-      canvasId: active.canvas_id,
-      canvasType: active.canvas_type,
-      initialProps: {},
-      messageId: null,
-    };
-  }
+  const named = instruction != null && mayNameVariant(instruction);
+  if (active && !named) return fromRow(active);
 
   const { hits, latestMessageVariantCount } = await findVariants(threadId, null);
-  if (hits.length === 0) return null;
-  if (latestMessageVariantCount > 1) return 'ambiguous';
-  const hit = hits[0];
-  return {
-    variantId: hit.variant.id,
-    canvasId: hit.variant.canvasId ?? null,
-    canvasType: hit.variant.canvasType,
-    initialProps: hit.variant.initialProps ?? {},
-    messageId: hit.messageId,
-  };
+  const ref =
+    instruction && named && hits.length > 0
+      ? parseVariantReference(
+          instruction,
+          hits.map((h) => h.variant.canvasType)
+        )
+      : null;
+  if (ref && (ref.explicit || !active)) {
+    const hit = hits[ref.index];
+    if (hit) return fromHit(hit, rows);
+    if (hits.length > 1) return ambiguousFrom(hits);
+  }
+
+  if (active) return fromRow(active);
+  const first = hits[0];
+  if (!first) return null;
+  if (latestMessageVariantCount > 1) return ambiguousFrom(hits);
+  return fromHit(first, rows);
 }
 
 /**
@@ -245,7 +325,7 @@ export async function resolveTarget(
  * resolution can never disagree. They used to: the router asked
  * `getLastSharepicVariant`, which reads only the single most recent assistant
  * message, so one intervening reply made an existing sharepic invisible.
- * 'ambiguous' counts as existing — several variants is still a target.
+ * An `AmbiguousTarget` counts as existing — several variants is still a target.
  */
 export async function threadHasSharepic(threadId: string): Promise<boolean> {
   try {
@@ -400,6 +480,8 @@ export function appendRejectedOpsNote(
   return `${reply}\n\nNicht übernommen: ${reasons} ` + 'Im Studio lässt sich das direkt anpassen.';
 }
 
+const NO_BACKGROUND_IMAGE_REASON = 'Kein passendes Hintergrundbild gefunden';
+
 /**
  * Core of an edit: validate ops against the descriptor, resolve stock-image
  * queries, apply the patch (live-broadcasts into open studio tabs), snapshot
@@ -422,6 +504,8 @@ export async function applySharepicOpsToCanvas(args: {
     args;
 
   const opsResult = sharepicOpsToStatePatch(descriptor, operations, state);
+  const rejected = opsResult.rejected.map((r) => ({ kind: r.op.kind, reason: r.reason }));
+  let appliedKinds = opsResult.applied.map((o) => o.kind);
 
   // Resolve stock-photo queries server-side (dreizeilen background).
   if (opsResult.imageQueries.length > 0 && descriptor.backgroundImage) {
@@ -435,10 +519,13 @@ export async function applySharepicOpsToCanvas(args: {
       opsResult.patch.hasBackgroundImage = true;
     } catch (err) {
       log.warn(`[SharepicEdit] Image selection failed: ${err}`);
+      // The op validated but wrote nothing — report it as not applied so the
+      // reply cannot describe a background that never changed (#3290).
+      rejected.push({ kind: 'set-background-image', reason: NO_BACKGROUND_IMAGE_REASON });
+      appliedKinds = appliedKinds.filter((k) => k !== 'set-background-image');
     }
   }
 
-  const rejected = opsResult.rejected.map((r) => ({ kind: r.op.kind, reason: r.reason }));
   if (rejected.length > 0) {
     log.warn(
       `[SharepicEdit] Rejected ops: ${rejected.map((r) => `${r.kind}: ${r.reason}`).join(' | ')}`
@@ -482,91 +569,7 @@ export async function applySharepicOpsToCanvas(args: {
     ok: true,
     version,
     newState,
-    appliedKinds: opsResult.applied.map((o) => o.kind),
-    rejected,
-  };
-}
-
-export type ApplySliderOpsOutcome =
-  | {
-      ok: true;
-      version: number;
-      newPages: CanvasPageDef[];
-      appliedKinds: string[];
-      rejected: Array<{ kind: string; reason: string }>;
-    }
-  | { ok: false; reason: string; rejected: Array<{ kind: string; reason: string }> };
-
-/**
- * Deck sibling of `applySharepicOpsToCanvas`: validate deck ops, write
- * pageId-addressed patches / page ops through the Hocuspocus internal API
- * (live-broadcasts into open studio tabs), snapshot a `{ pages }` version
- * and emit `sharepic_updated` with the full page set.
- */
-export async function applySliderOpsToDeck(args: {
-  canvasId: string;
-  variantId: string;
-  descriptor: SharepicTemplateDescriptor;
-  pages: CanvasPageDef[];
-  operations: SliderDeckOperation[];
-  summary: string;
-  userId: string;
-  sse: SSEWriter;
-}): Promise<ApplySliderOpsOutcome> {
-  const { canvasId, variantId, descriptor, pages, operations, summary, userId, sse } = args;
-
-  const result = sliderDeckOpsToPagePatches(descriptor, operations, pages);
-  const rejected = result.rejected.map((r) => ({ kind: r.op.kind, reason: r.reason }));
-  if (rejected.length > 0) {
-    log.warn(
-      `[SliderDeck] Rejected ops: ${rejected.map((r) => `${r.kind}: ${r.reason}`).join(' | ')}`
-    );
-  }
-
-  if (result.pagePatches.length === 0 && result.pageOps.length === 0) {
-    return {
-      ok: false,
-      reason: rejected[0]?.reason ?? 'Keine anwendbare Änderung',
-      rejected,
-    };
-  }
-
-  await applyDeckChanges(canvasId, {
-    // Always sent: re-seeds decks whose mint ran while Hocuspocus was down.
-    seedPages: pages,
-    pagePatches: result.pagePatches,
-    pageOps: result.pageOps,
-    newPages: result.newPages,
-  });
-
-  const version = await insertCanvasVersion({
-    canvasId,
-    state: { pages: result.newPages },
-    summary,
-    origin: 'chat-edit',
-    userId,
-  });
-
-  sse.send('sharepic_updated', {
-    variantId,
-    canvasId,
-    version,
-    canvasType: descriptor.id,
-    pages: result.newPages.map((p) => p.state),
-    summary,
-  });
-
-  log.info(
-    `[SliderDeck] Applied v${version} on ${canvasId} (${operations.length} op(s): ${operations
-      .map((o) => o.kind)
-      .join(', ')}, ${result.newPages.length} pages)`
-  );
-
-  return {
-    ok: true,
-    version,
-    newPages: result.newPages,
-    appliedKinds: result.applied.map((o) => o.kind),
+    appliedKinds,
     rejected,
   };
 }
@@ -613,14 +616,16 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
   const { sse, req, threadId, userId, instruction, currentSharepic } = args;
 
   try {
-    const target = await resolveTarget(threadId, currentSharepic);
+    const target = await resolveTarget(threadId, currentSharepic, instruction);
     if (!target) return false;
 
-    if (target === 'ambiguous') {
+    if ('ambiguous' in target) {
+      const options = target.labels.map((label, i) => `${i + 1} ${label}`).join(', ');
       await finishWithText(
         args,
-        'Welche Variante soll ich bearbeiten? Aktiviere auf der gewünschten Karte ' +
-          '"Im Chat bearbeiten" und schick mir die Änderung dann noch einmal.'
+        `Welche Variante soll ich bearbeiten? Hier gibt es ${options}. ` +
+          'Schreib mir zum Beispiel „Variante 2: <deine Änderung>" — oder aktiviere auf der ' +
+          'gewünschten Karte „Im Chat bearbeiten" und schick mir die Änderung noch einmal.'
       );
       return true;
     }
@@ -668,6 +673,10 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
     });
 
     if (!editResult.ok) {
+      if ('reply' in editResult) {
+        await finishWithText(args, editResult.reply);
+        return true;
+      }
       sse.send('sharepic_edit_error', { variantId: target.variantId, error: editResult.error });
       await finishWithText(
         args,

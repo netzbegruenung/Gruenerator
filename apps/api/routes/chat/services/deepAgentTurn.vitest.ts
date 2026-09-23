@@ -5,10 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * or it returns `null` and lets the old `@deepresearch` path answer.
  *
  * Almost every case below is therefore about what happens when something goes
- * wrong — and specifically about the quota, which must be charged if and only if
- * the user actually got a report. Whether an allowance EXISTS is not this
- * module's question any more; the caller settles that for both engines, and
- * `deepResearchQuota.vitest.ts` covers it.
+ * wrong. The budget is not this module's question at all: the caller books one
+ * run for both engines and hands it back when neither delivered — see
+ * `searchBranch.vitest.ts`.
  */
 
 // Typed returns rather than bare `vi.fn()`: the forwarding mocks below hand
@@ -16,7 +15,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // unsafe return the type-aware lint rules reject.
 const runDeepAgentResearch = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const createDocumentWithContent = vi.fn<(...args: unknown[]) => Promise<{ id: string }>>();
-const chargeDeepResearch = vi.fn<(userId: string) => Promise<void>>();
+const recordRunDocument = vi.fn<(...args: unknown[]) => Promise<void>>();
 let linkupService: unknown = {};
 const envMock = {
   CORTECS_API_KEY: 'sk-test',
@@ -26,16 +25,17 @@ vi.mock('../../../config/env.js', () => ({ env: envMock }));
 vi.mock('../../../services/research/deepAgent/index.js', () => ({
   runDeepAgentResearch: (...args: unknown[]) => runDeepAgentResearch(...args),
 }));
+// The registry writes through the real PostgresService, which boots and migrates
+// whatever database answers on localhost:5432 (#3552).
+vi.mock('../../../services/research/deepAgent/runRegistry.js', () => ({
+  recordRunDocument: (...args: unknown[]) => recordRunDocument(...args),
+}));
 vi.mock('../../../services/docs/DocGenerationService.js', () => ({
   createDocumentWithContent: (...args: unknown[]) => createDocumentWithContent(...args),
 }));
 vi.mock('../../../services/search/LinkupService.js', () => ({
   getLinkupService: () => linkupService,
 }));
-vi.mock('./deepResearchQuota.js', () => ({
-  chargeDeepResearch: (userId: string) => chargeDeepResearch(userId),
-}));
-
 const { runDeepAgentTurn } = await import('./deepAgentTurn.js');
 
 function makeSse() {
@@ -61,6 +61,7 @@ const STATE = {
 const GOOD_RESULT = {
   markdown: `# Bericht\n\n${'Text. '.repeat(100)}\n\n## Quellen\n\n1. A — https://a.example`,
   title: 'Bericht',
+  threadId: 'thread-7',
   summary: 'Wien will 2040 klimaneutral sein.',
   partial: false,
   sources: [{ url: 'https://a.example', title: 'A' }],
@@ -88,7 +89,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   envMock.CORTECS_API_KEY = 'sk-test';
   linkupService = {};
-  chargeDeepResearch.mockResolvedValue();
   createDocumentWithContent.mockResolvedValue({ id: 'doc-42' });
   runDeepAgentResearch.mockResolvedValue(GOOD_RESULT);
 });
@@ -139,6 +139,7 @@ describe('success', () => {
     expect(markdown).toContain('## Quellen');
     expect(subtype).toBe('docs');
     expect(userId).toBe('user-1');
+    expect(recordRunDocument).toHaveBeenCalledWith('thread-7', 'doc-42');
 
     expect(patch.deepResearchAnswer).toBe('Wien will 2040 klimaneutral sein.');
     expect(sse.payloadOf('document_created')).toMatchObject({
@@ -171,21 +172,6 @@ describe('success', () => {
       status: 'done',
       documentUrl: '/office/doc-42',
     });
-  });
-
-  it('charges the quota only after the document exists', async () => {
-    const order: string[] = [];
-    createDocumentWithContent.mockImplementation(async () => {
-      order.push('document');
-      return { id: 'doc-42' };
-    });
-    chargeDeepResearch.mockImplementation(async () => {
-      order.push('quota');
-    });
-
-    await run(makeSse());
-
-    expect(order).toEqual(['document', 'quota']);
   });
 
   it('marks a partial report in the chat message', async () => {
@@ -234,29 +220,26 @@ describe('success', () => {
 });
 
 describe('failure', () => {
-  it('leaves the quota untouched when the run yields no report', async () => {
+  it('falls through when the run yields no report', async () => {
     runDeepAgentResearch.mockResolvedValue(null);
     const sse = makeSse();
 
     expect(await run(sse)).toBeNull();
-    expect(chargeDeepResearch).not.toHaveBeenCalled();
     expect(createDocumentWithContent).not.toHaveBeenCalled();
     expect(sse.events()).toContain('warning');
   });
 
-  it('leaves the quota untouched when the agent throws', async () => {
+  it('falls through when the agent throws', async () => {
     runDeepAgentResearch.mockRejectedValue(new Error('boom'));
 
     expect(await run(makeSse())).toBeNull();
-    expect(chargeDeepResearch).not.toHaveBeenCalled();
   });
 
-  it('leaves the quota untouched when the document cannot be created', async () => {
+  it('falls through when the document cannot be created', async () => {
     createDocumentWithContent.mockRejectedValue(new Error('db down'));
     const sse = makeSse();
 
     expect(await run(sse)).toBeNull();
-    expect(chargeDeepResearch).not.toHaveBeenCalled();
     expect(sse.events()).toContain('warning');
   });
 });

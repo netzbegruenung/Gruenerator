@@ -10,7 +10,7 @@ import {
   useIsMobile,
 } from '@gruenerator/ui';
 import { type MutableRefObject, memo, useCallback, useMemo, useState } from 'react';
-import { PiGearSix, PiSparkle } from 'react-icons/pi';
+import { PiGearSix, PiRepeat, PiSparkle } from 'react-icons/pi';
 import { RiSpyLine } from 'react-icons/ri';
 
 import { useUserAgents } from '../../../features/agents/api';
@@ -109,7 +109,7 @@ export const GrueneratorenSidebarSection = memo(function GrueneratorenSidebarSec
         <DropdownMenuTrigger asChild>
           <button className={menuLinkClass(false, false, collapsed)} type="button">
             <RiSpyLine aria-hidden="true" className={iconClass} />
-            <span className={titleClass}>Grüneratoren</span>
+            <span className={titleClass}>Agents</span>
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -118,9 +118,9 @@ export const GrueneratorenSidebarSection = memo(function GrueneratorenSidebarSec
           sideOffset={8}
           className="w-72 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl"
         >
-          <DropdownMenuLabel>Grüneratoren</DropdownMenuLabel>
+          <DropdownMenuLabel>Agents</DropdownMenuLabel>
           {agents.length === 0 ? (
-            <div className="px-2 py-1.5 text-xs text-grey-500">Noch keine Grüneratoren.</div>
+            <div className="px-2 py-1.5 text-xs text-grey-500">Noch keine Agents.</div>
           ) : (
             agents.map((a) => (
               <DropdownMenuItem
@@ -133,6 +133,12 @@ export const GrueneratorenSidebarSection = memo(function GrueneratorenSidebarSec
             ))
           )}
           <DropdownMenuSeparator />
+          {/* Die einzige Tür zu den selbstlaufenden Aufgaben: /wiederkehrend war
+              von nirgends verlinkt, obwohl Chat-Werkzeug und Doku dorthin zeigen. */}
+          <DropdownMenuItem onSelect={() => openPath('/wiederkehrend', 'Automatisierungen')}>
+            <PiRepeat className="size-4" />
+            <span>Automatisierungen</span>
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => openPath('/agentura', 'Grüneratoren')}>
             <PiGearSix className="size-4" />
             <span>Alle Grüneratoren &amp; Verwaltung</span>

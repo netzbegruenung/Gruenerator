@@ -27,13 +27,17 @@ export interface FormState {
   openingMessage: string;
   openingQuestions: string;
   enabledTools: string[];
-  skillMentions: string[];
   /** Inject source URLs into the model context so links appear inline (e.g. emails). */
   inlineSourceLinks: boolean;
   defaultNotebookIds: string[];
+  /** Mention of the recipe the chat loads when the user picks none. `defaultRecipeId`
+   * wins when both are set. See `Agent.defaultRecipeMention`. */
+  defaultRecipeMention: string | null;
+  /** Row id of the default recipe (own/shared/public) — the stable handle across renames. */
+  defaultRecipeId: string | null;
   tags: string;
   model: string;
-  provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'greenpt' | 'cortecs';
+  provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'melious' | 'greenpt' | 'cortecs';
   maxTokens: number;
   temperature: number;
 }
@@ -50,9 +54,10 @@ export const EMPTY_FORM: FormState = {
   openingMessage: '',
   openingQuestions: '',
   enabledTools: ['search', 'web'],
-  skillMentions: [],
   inlineSourceLinks: false,
   defaultNotebookIds: [],
+  defaultRecipeMention: null,
+  defaultRecipeId: null,
   tags: '',
   model: DEFAULT_AGENT_MODEL.model,
   provider: DEFAULT_AGENT_MODEL.provider,
@@ -91,9 +96,10 @@ export function formToPayload(form: FormState) {
     openingQuestions,
     locale: form.locale,
     enabledTools: form.enabledTools,
-    skillMentions: form.skillMentions,
     inlineSourceLinks: form.inlineSourceLinks,
     defaultNotebookIds: form.defaultNotebookIds,
+    defaultRecipeMention: form.defaultRecipeMention,
+    defaultRecipeId: form.defaultRecipeId,
   };
 }
 
@@ -113,9 +119,10 @@ export function hydrateFormState(agent: Agent): FormState {
     // Fall back to defaults (not []) so a legacy agent with no enabledTools
     // doesn't silently narrow to zero tools.
     enabledTools: [...(agent.enabledTools ?? DEFAULT_USER_AGENT_TOOLS)],
-    skillMentions: [...(agent.skillMentions ?? [])],
     inlineSourceLinks: agent.inlineSourceLinks ?? false,
     defaultNotebookIds: agent.defaultNotebookIds ? [...agent.defaultNotebookIds] : [],
+    defaultRecipeMention: agent.defaultRecipeMention ?? null,
+    defaultRecipeId: agent.defaultRecipeId ?? null,
     tags: agent.tags.join(', '),
     model: agent.model,
     provider: agent.provider,

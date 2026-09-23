@@ -1,3 +1,4 @@
+import { stripInlineMarks } from '@gruenerator/contracts';
 import { FaShare } from 'react-icons/fa';
 
 import { GenericShareSection, type GenericShareSectionProps } from '../sidebar';
@@ -21,7 +22,9 @@ export function createShareSection<TState, TActions = unknown>(
   return section({
     component: GenericShareSection,
     propsFactory: (state, _actions, context) => {
-      const canvasText = getCanvasText(state);
+      // Zum Teilen und Kopieren nur der Text — die Auszeichnungsmarker
+      // (`**`, `_`) gehören auf die Leinwand, nicht in einen Beitrag.
+      const canvasText = stripInlineMarks(getCanvasText(state));
 
       // Note: autoSaveStatus removed - DownloadSubsection reads directly from useAutoSaveStore
       return {

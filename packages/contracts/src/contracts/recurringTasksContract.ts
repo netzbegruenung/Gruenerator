@@ -102,6 +102,8 @@ export const recurringTasksContract = c.router(
         202: recurringTaskItemResponseSchema,
         401: recurringTaskErrorResponseSchema,
         404: recurringTaskErrorResponseSchema,
+        /** Für diese Aufgabe läuft bereits ein Lauf (#3221). */
+        409: recurringTaskErrorResponseSchema,
         500: recurringTaskErrorResponseSchema,
       },
       summary: 'Run a recurring task once immediately',

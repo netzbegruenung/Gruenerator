@@ -15,7 +15,7 @@ Diese Dokumentation wurde mit [Docusaurus](https://docusaurus.io/) erstellt und 
 
 `docs/guides/` beantwortet **eine Aufgabe**, während die Bereichs-Doku (`chat/`, `office/`, …) beschreibt, **was es gibt**. Ein Guide wiederholt die Referenz nicht, er verlinkt sie am Ende.
 
-**Ablage:** Ordner = Erfahrungsstand (`einsteigerinnen/`, später weitere), `tags:` im Frontmatter = Aufgabenfeld (`kommunikation`, `gremienarbeit`, `wissen`, `verwaltung`). Docusaurus baut aus den Tags eigene Übersichtsseiten unter `/docs/tags/…`.
+**Ablage:** Ordner = Erfahrungsstand oder Reifegrad (`einsteigerinnen/`, `fortgeschrittene/`, `experimentell/`), `tags:` im Frontmatter = Aufgabenfeld (`kommunikation`, `gremienarbeit`, `wissen`, `verwaltung`). Docusaurus baut aus den Tags eigene Übersichtsseiten unter `/docs/tags/…`.
 
 **Form:**
 

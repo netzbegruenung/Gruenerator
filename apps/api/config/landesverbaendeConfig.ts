@@ -24,6 +24,8 @@ import {
   type LandesverbandSourceType,
 } from '@gruenerator/shared/search';
 
+import { THUERINGEN_WAHLPROGRAMME, THUERINGEN_BESCHLUESSE } from './thueringenSources.js';
+
 export type ContentType = LandesverbandContentType;
 export type CMSType = 'wordpress' | 'neos' | 'typo3' | 'custom' | 'drupal';
 export type SourceType = LandesverbandSourceType;
@@ -41,9 +43,15 @@ export interface ContentPath {
   paginateWithinAgeLimit?: boolean; // Optional: stop paginating once a listing page holds no item within source.maxAgeYears. Reverse-chronological listings only. Bounds discovery to the age window instead of maxPages (which mis-covers archives deeper/shallower than the window). Reads listing dates via contentSelectors.date; no-op if maxAgeYears is unset or no date parses.
   sitemapUrls?: string[]; // Optional: fetch URLs from sitemaps instead of pagination
   sitemapFilter?: string; // Optional: filter sitemap URLs (e.g., '/presse/')
-  staticUrls?: string[]; // Optional: fixed list of URLs to scrape directly (bypasses pagination and sitemap)
+  staticUrls?: (string | { url: string; title: string; date?: string })[]; // Optional: fixed list of URLs to scrape directly (bypasses pagination and sitemap). A plain string derives its title from the filename (isPdfArchive) or the fetched page (HTML branch); { url, title } overrides that with a given title — isPdfArchive only, the HTML branch reads only `.url`. `date` (ISO YYYY-MM-DD) is optional and isPdfArchive-only: it rides through extractPdfLinks as `context`, so DateExtractor's strong ISO pattern picks it up before ever falling back to the WordPress upload-year folder in the URL (#3579).
   disableOffPathFilter?: boolean; // Optional: when true, skip the post-discovery filter that requires URLs to share the listing-path prefix. Auto-applied when sitemapUrls or wpApi is set, since both yield canonical URLs that rarely match the human-facing listing path (e.g. TYPO3 sitemaps emit /news/ while listings live under /nachrichten/; WP root-permalinks publish at /<slug>/ regardless of the /category/X listing seed).
-  wpApi?: { categoryId?: number; categoryIds?: number[]; maxPages?: number; boundByAge?: boolean }; // Optional: discover articles via WordPress REST API (/wp-json/wp/v2/posts?categories=…). Bypasses HTML-listing pagination entirely; required for WP sites with root-permalink structure where /category/X/ is a virtual index. Pass `categoryIds` to union several categories in one query (comma-separated = WP OR) instead of one source per category. Set `boundByAge` to add an `after=<now - maxAgeYears>` filter on full runs, so discovery skips out-of-window posts server-side instead of fetching (and 404-ing on) years of ancient archive entries that the store-stage age filter would drop anyway.
+  wpApi?: {
+    categoryId?: number;
+    categoryIds?: number[];
+    excludeCategoryIds?: number[];
+    maxPages?: number;
+    boundByAge?: boolean;
+  }; // Optional: discover articles via WordPress REST API (/wp-json/wp/v2/posts?categories=…). Bypasses HTML-listing pagination entirely; required for WP sites with root-permalink structure where /category/X/ is a virtual index. Pass `categoryIds` to union several categories in one query (comma-separated = WP OR) instead of one source per category. Pass `excludeCategoryIds` for `categories_exclude` (WP AND NOT) to drop posts that also carry a non-article category (e.g. event notices). Set `boundByAge` to add an `after=<now - maxAgeYears>` filter on full runs, so discovery skips out-of-window posts server-side instead of fetching (and 404-ing on) years of ancient archive entries that the store-stage age filter would drop anyway.
   wolkeShare?: { shareLink: string; recursive?: boolean }; // Optional: pull documents from a public Nextcloud "Wolke" share (wolke.netzbegruenung.de/s/<token>) via WebDAV instead of HTML/WP discovery. Files are etag-deduped, so an unchanged file is skipped before download+OCR. Reusable by any source; see services/scrapers/utils/wolkeShareHandler.ts.
   recentSkip?: boolean; // Optional: skip this content path in the incremental hourly `--recent` run so heavy PDF/OCR/Wolke paths only run in the nightly full crawl. etag/freshness dedup still bounds the nightly cost.
 }
@@ -54,7 +62,23 @@ export interface ContentSelectors {
   content: string[];
   categories: string[];
   author: string[];
+  // Optional: elements to strip from the whole page before content matching —
+  // e.g. a share bar or contact box nested inside the content container that a
+  // selector change alone can't remove (#3574).
+  removeSelectors?: string[];
 }
+
+/**
+ * Age limit for a source that does not set `maxAgeYears` — three do not today
+ * (hamburg-lv-beschluesse, wahlprogramm-be, wahlprogramm-lsa), and the field
+ * stays optional, so new ones will land here too.
+ *
+ * Exported rather than written as a literal at each use: the store stage
+ * (`DocumentProcessor`) and the pre-fetch rejected-URL gate must agree on it.
+ * While they did not, the gate cached rejections for exactly those sources and
+ * never read them back — inert precisely where no counter would reveal it.
+ */
+export const DEFAULT_MAX_AGE_YEARS = 10;
 
 export interface LandesverbandSource {
   id: LandesverbandSourceId;
@@ -67,7 +91,7 @@ export interface LandesverbandSource {
   contentSelectors: ContentSelectors;
   excludePatterns: string[];
   qdrantCollection?: string; // Optional: custom collection name (default: landesverbaende_documents)
-  maxAgeYears?: number; // Optional: max age of content in years (default: 10)
+  maxAgeYears?: number; // Optional: max age of content in years (default: DEFAULT_MAX_AGE_YEARS)
   notificationEmail?: string; // Optional: email to notify when new articles are indexed
   dormant?: boolean; // Optional: when true, scrapeAllSources skips this source. Set for sources that no longer publish (e.g. dissolved Fraktionen). Direct scrapeSource(id) calls are unaffected.
 }
@@ -144,8 +168,10 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           disableOffPathFilter: true,
         },
         {
-          // Wahlprogramm PDF given directly. staticUrls + isPdfArchive OCRs the
-          // PDF (the year 2026 is parsed from the filename for the date).
+          // Wahlprogramm PDF given directly. staticUrls on an isPdfArchive path
+          // skips fetching a listing page entirely and OCRs these PDFs directly
+          // (the year 2026 is parsed from the filename for the date); path and
+          // listSelector below are unused in this case (#3579).
           type: 'wahlprogramm',
           path: '/',
           listSelector: 'a[href$=".pdf"]',
@@ -189,11 +215,25 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       contentSelectors: {
         title: ['h1', 'h2.headline', '.page-title', 'meta[property="og:title"]'],
         date: ['.mb-tiny', 'time', '.date', '.publication-date'],
-        content: ['article', '.content-main', '.text-content', 'main'],
+        // `.columns__cell--size-70` holds the lead + body; `.neos-contentcollection`
+        // (nested inside it) does NOT — the lead is a bare text node before it, so
+        // targeting the collection directly would lose it. Strip the photo credit,
+        // date label and back-link that otherwise leak into the body (#3574).
+        content: ['.columns__cell--size-70', 'article', '.content-main', '.text-content', 'main'],
+        removeSelectors: ['.image__copyright', '.mb-tiny', '.back-to-parent-link__wrapper'],
         categories: ['a[href*="/themen/"]', '.tags a'],
         author: ['.author', '.written-by'],
       },
-      excludePatterns: ['/_Resources/', '/assets/', '#', 'javascript:', '.pdf', '.jpg', '.png'],
+      excludePatterns: [
+        '/_Resources/',
+        '/assets/',
+        '/pressemitteilungen/pressefotos',
+        '#',
+        'javascript:',
+        '.pdf',
+        '.jpg',
+        '.png',
+      ],
     },
 
     // ═══════════════════════════════════════════════════════════════════
@@ -291,7 +331,16 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           '.post-date',
           'meta[property="article:published_time"]',
         ],
-        content: ['.elementor-widget-container', '.entry-content', 'article', 'main'],
+        // `.elementor-widget-container` matches every widget on the page (date,
+        // title, taxonomy, …), not just the body — target the post-content widget
+        // directly and keep the broad selector only as a fallback (#3574).
+        content: [
+          '.elementor-widget-theme-post-content',
+          '.elementor-widget-container',
+          '.entry-content',
+          'article',
+          'main',
+        ],
         categories: ['.elementor-post-taxonomy a', 'a[rel="category tag"]', '.post-categories a'],
         author: ['.author-name', '.elementor-author-name'],
       },
@@ -429,6 +478,22 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
           wpApi: { categoryId: 5 },
         },
+        {
+          // Regierungsprogramm PDF, previously only in the hand-run scrape-bayern.ts
+          // (source_id 'bayern-lv', not part of this config — #3579). staticUrls +
+          // isPdfArchive skips fetching a listing page; { url, title } gives it a
+          // readable title instead of the filename-derived "Regierungsprogramm final 22 06 2023".
+          type: 'wahlprogramm',
+          path: '/',
+          listSelector: 'a[href$=".pdf"]',
+          isPdfArchive: true,
+          staticUrls: [
+            {
+              url: 'https://www.gruene-bayern.de/dateien/Regierungsprogramm_final_22_06_2023.pdf',
+              title: 'Regierungsprogramm der Grünen Bayern 2023',
+            },
+          ],
+        },
       ],
       contentSelectors: {
         title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
@@ -487,18 +552,35 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           listSelector: '.press-teaser__title a',
           disableOffPathFilter: true,
           paginationLinkSelector: '.page-navigation__next a',
-          // ~3.75 listing pages/month; 230 pages reaches back ~5 years to match the
-          // maxAgeYears window. Articles past the 5-year cutoff are dropped at processing.
-          maxPages: 230,
+          // 230 pages walked back ~6.4 years (to April 2020), past the 5-year
+          // maxAgeYears window — undated legacy pages in that overshoot bypass the
+          // age filter entirely and get stored (#3580). Verified live (page=160
+          // ≈ late June/early July 2021, page=150 ≈ October 2021): 160 pages
+          // reaches just past the 5-year-back cutoff. Articles past the cutoff
+          // are still dropped at processing.
+          maxPages: 160,
         },
       ],
       contentSelectors: {
-        // Detail pages use `.document-title` / `.document-content__main`. The date is a
-        // bare <p> with no markup — ContentExtractor's TYPO3 German-long-form date
-        // fallback handles it (no usable date selector exists here).
+        // Detail pages use `.document-title` / `.document-content__main`. The printed
+        // date is a bare <p> with no class, as the first direct child of the large
+        // content column — matched structurally below. It can differ by a day or two
+        // from the lede, which often names a nearby event date and would otherwise
+        // win via ContentExtractor's TYPO3 German-long-form-date fallback scan of the
+        // whole <main> (#3565). Legacy pages print no date at all and still rely on
+        // that fallback.
         title: ['h1.document-title', 'h1', 'meta[property="og:title"]'],
-        date: ['time[datetime]', 'meta[property="article:published_time"]'],
+        date: [
+          'time[datetime]',
+          'meta[property="article:published_time"]',
+          '.document-content__main > .l-container > .l-column > p',
+        ],
         content: ['.document-content__main', '.news-text-wrap', 'article', 'main'],
+        // `.document-content__main` also contains a share bar and a contact box
+        // (spokesperson name, phone, social URLs) — strip them rather than
+        // switching selectors: the legacy `/presse/pressemitteilungen/` template
+        // has no `.document-content__content` to target instead (#3574).
+        removeSelectors: ['.document-content__sharing', 'aside.document-content__complementary'],
         categories: ['.news-category a', '.categories a'],
         author: ['.author', '.byline'],
       },
@@ -551,8 +633,22 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         },
       ],
       contentSelectors: {
-        title: ['h1', 'meta[property="og:title"]'],
-        date: ['time[datetime]', '.tx_xblog_pi1 .date', 'meta[property="article:published_time"]'],
+        // Die Einzelseiten haben kein <h1>; der Titel steht als <h2> im Kopf der
+        // Einzelansicht. og:title taugt nicht als Titel: EXT:seo_dynamic_tag hängt
+        // dort den Anrisstext an („Titel: Heute haben die…", #3560). Die Kacheln
+        // der Seitenleiste tragen ebenfalls <h2>, darum der Pfad über .xBlog.single.
+        title: ['.xBlog.single .xBlogItem header h2', 'h1', 'meta[property="og:title"]'],
+        // .xBlog.single .ce-bodytext p.inlineleft ist das gedruckte Datum ("DD.MM.YY –")
+        // am Anfang jedes Beitrags — vor der Meta-Angabe, die nur den TYPO3-
+        // Datensatzstand trägt und beliebig weit vom gedruckten Datum abweicht
+        // (#3565). time[datetime]/.tx_xblog_pi1 .date existieren auf gruene.berlin
+        // nicht, bleiben aber als Rückfall stehen.
+        date: [
+          'time[datetime]',
+          '.tx_xblog_pi1 .date',
+          '.xBlog.single .ce-bodytext p.inlineleft',
+          'meta[property="article:published_time"]',
+        ],
         // gruene.berlin (TYPO3 xBlog) renders the page body in .ce-bodytext inside
         // the single-view .xBlog.single — NOT .tx_xblog_pi1 (empty in the rendered
         // DOM) or .bodytext (wrong class). Targeting the body element avoids the
@@ -609,9 +705,12 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           // Eigener content_type, damit sie im „Typ"-Filter als eigene Kategorie
           // stehen und nicht unter Beschlüsse verschwinden.
           //
-          // Wolke-Dateien werden ohne published_at gespeichert (der WebDAV-mtime
-          // ist kein Veröffentlichungsdatum). Das ist hier erwünscht: sonst
-          // würde der 5-Jahres-Alterfilter die 2021er-Antworten wieder wegwerfen.
+          // Wolke-Dateien werden seit #3564 aus dem Dateinamen datiert (der
+          // WebDAV-mtime bleibt ungenutzt); ein Name ohne erkennbares Datum
+          // bleibt weiterhin null statt geraten. Der Share ist ein kuratierter
+          // Ordner — ein Datum darf eine Datei nie aus dem Alterfilter fallen
+          // lassen, deshalb ruft LandesverbandScraper processAndStoreDocument
+          // mit ignoreMaxAge: true auf (kein Backfill der alten Punkte hier).
           // `path`/`listSelector` sind bei wolkeShare ungenutzte Pflichtfelder.
           type: 'wahlpruefstein',
           path: '/wolke/xfFABYzM7pX83Fj/',
@@ -621,8 +720,15 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         },
       ],
       contentSelectors: {
-        title: ['h1', 'meta[property="og:title"]'],
-        date: ['time[datetime]', '.tx_xblog_pi1 .date', 'meta[property="article:published_time"]'],
+        // Titel: siehe berlin-lv-presse (#3560).
+        title: ['.xBlog.single .xBlogItem header h2', 'h1', 'meta[property="og:title"]'],
+        // Datum: siehe berlin-lv-presse (#3565).
+        date: [
+          'time[datetime]',
+          '.tx_xblog_pi1 .date',
+          '.xBlog.single .ce-bodytext p.inlineleft',
+          'meta[property="article:published_time"]',
+        ],
         // gruene.berlin (TYPO3 xBlog) renders the page body in .ce-bodytext inside
         // the single-view .xBlog.single — NOT .tx_xblog_pi1 (empty in the rendered
         // DOM) or .bodytext (wrong class). Targeting the body element avoids the
@@ -688,7 +794,11 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       type: 'fraktion',
       baseUrl: 'https://gruene-fraktion.berlin',
       cms: 'wordpress',
-      maxAgeYears: 5,
+      // Beschluss-/Positionspapiere bleiben aktuelle Positionen der Fraktion,
+      // nicht Tagesnachrichten — 10 Jahre statt 5 halten die 2017er-Papiere,
+      // sobald sie nach #3564 korrekt aus dem Dateinamen datiert werden (sonst
+      // würden ~30 von 56 gespeicherten Papieren beim nächsten Lauf `too_old`).
+      maxAgeYears: 10,
       contentPaths: [
         {
           type: 'beschluss',
@@ -734,6 +844,43 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           path: '/category/service/pressemitteilungen/',
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
           wpApi: { categoryId: 243 },
+        },
+        {
+          // Wahlprogramm PDFs previously only lived in the hand-run scrape-thueringen.ts
+          // (source_id 'thueringen-lv-wahlprogramme', not part of this config — #3579).
+          // staticUrls + isPdfArchive skips fetching a listing page; titles AND dates come
+          // from THUERINGEN_WAHLPROGRAMME rather than the filename/upload-path — several of
+          // these PDFs were re-uploaded under a later /uploads/YYYY/MM/ folder, and without
+          // an explicit date DateExtractor would date them by that reupload year instead of
+          // their real one. maxAgeYears above (12y) already covers a Landtagswahlprogramm
+          // through its ~5y legislative period. recentSkip: 98 PDFs total across both paths
+          // below — too heavy for the hourly --recent run, nightly-only like every other
+          // multi-PDF isPdfArchive path in this file.
+          type: 'wahlprogramm',
+          path: '/',
+          listSelector: 'a[href$=".pdf"]',
+          isPdfArchive: true,
+          processUndatedPdfs: true,
+          recentSkip: true,
+          staticUrls: THUERINGEN_WAHLPROGRAMME.map((pdf) => ({
+            url: pdf.url,
+            title: pdf.title,
+            date: pdf.date,
+          })),
+        },
+        {
+          // Same fix, for the LDK-Beschluss PDFs (previously scrape-thueringen.ts, #3579).
+          type: 'beschluss',
+          path: '/',
+          listSelector: 'a[href$=".pdf"]',
+          isPdfArchive: true,
+          processUndatedPdfs: true,
+          recentSkip: true,
+          staticUrls: THUERINGEN_BESCHLUESSE.map((pdf) => ({
+            url: pdf.url,
+            title: pdf.title,
+            date: pdf.date,
+          })),
         },
       ],
       contentSelectors: {
@@ -867,13 +1014,17 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         // h1 is the site logo link; the headline is the h2 inside the
         // single-news container's <header>.
         title: ['.news.single header h2', 'meta[property="og:title"]', 'h1'],
-        // No bare 'time' selector: the sidebar event calendar renders upcoming
-        // dates as <time> tags, which previously stamped every article with a
-        // future event date.
+        // .ce-bodytext p.inlineleft (the printed "DD.MM.YY –") wins over the meta
+        // record time, which can differ by days to weeks (#3565). A handful of
+        // articles render a <p class="teaser"> before the date paragraph, but the
+        // class selector still lands on the actual date, not the teaser. No bare
+        // 'time' selector: the sidebar event calendar renders upcoming dates as
+        // <time> tags with no datetime attribute, which previously stamped every
+        // article with a future event date.
         date: [
+          '.ce-bodytext p.inlineleft',
           'meta[property="article:published_time"]',
           'time[datetime]',
-          '.ce-bodytext p.inlineleft',
         ],
         content: ['.ce-bodytext', '.news-text', '.bodytext'],
         categories: ['.news-category', '.tags a', 'a[href*="/themen/"]'],
@@ -909,13 +1060,10 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           isPdfArchive: true,
           maxPages: 1,
         },
-        {
-          type: 'beschluss',
-          path: '/partei/parteitage/beschluesse/2022-1',
-          listSelector: 'a[href$=".pdf"]',
-          isPdfArchive: true,
-          maxPages: 1,
-        },
+        // '/partei/parteitage/beschluesse/2022-1' removed (#3580): despite the
+        // slug, it serves the 2023 LDK page — a duplicate of brandenburg-lv's
+        // WordPress uploads for the same 16 Beschluss PDFs (correct 2023-04-29
+        // date there vs. this archive's invented 2023-06-15).
       ],
       contentSelectors: {
         title: ['.news.single header h2', 'meta[property="og:title"]', 'h1'],
@@ -970,7 +1118,17 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       contentSelectors: {
         title: ['h1.eintrag-titel', 'meta[property="og:title"]', 'h1'],
         date: ['.zeit', '.meta', 'time[datetime]', 'meta[property="article:published_time"]'],
-        content: ['.daten', '.inhalt.einspaltig', 'main article', 'article'],
+        // `.daten` also matches every "Pressemitteilungen zum Thema" related-post
+        // card on the page — scope both the primary selector and the fallback to
+        // the article's own (non-related) `.inhalt` block (#3574). The related
+        // block itself carries `.keindruck` alongside `.einspaltig`, so the
+        // fallback needs the same exclusion, not just the primary selector.
+        content: [
+          '.inhalt:not(.keindruck) > .daten',
+          '.inhalt.einspaltig:not(.keindruck)',
+          'main article',
+          'article',
+        ],
         categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
         author: ['.author-name', '.byline', '.entry-author'],
       },
@@ -1015,7 +1173,17 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       contentSelectors: {
         title: ['h1.eintrag-titel', 'meta[property="og:title"]', 'h1'],
         date: ['.zeit', '.meta', 'time[datetime]', 'meta[property="article:published_time"]'],
-        content: ['.daten', '.inhalt.einspaltig', 'main article', 'article'],
+        // `.daten` also matches every "Pressemitteilungen zum Thema" related-post
+        // card on the page — scope both the primary selector and the fallback to
+        // the article's own (non-related) `.inhalt` block (#3574). The related
+        // block itself carries `.keindruck` alongside `.einspaltig`, so the
+        // fallback needs the same exclusion, not just the primary selector.
+        content: [
+          '.inhalt:not(.keindruck) > .daten',
+          '.inhalt.einspaltig:not(.keindruck)',
+          'main article',
+          'article',
+        ],
         categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
         author: ['.author-name', '.byline', '.entry-author'],
       },
@@ -1062,15 +1230,23 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           // Topic categories the user listed (bildung, demokratie-recht, energie,
           // europa, finanzen, geschlechtergerechtigkeit, gesundheit, kultur,
           // landwirtschaft, soziales, tierschutz, umwelt, verkehr, wirtschaft,
-          // wissenschaft) unioned in one query. Overlap with pressemitteilungen is
-          // deduped by source_url in Qdrant.
+          // wissenschaft), plus Allgemein/Klimaschutzkonzept-Check/Positionspapiere
+          // and the whole Sommerreihe series (bare category + 2023/2024/2025)
+          // (id-verified live via /wp-json/wp/v2/categories, see #3580: the
+          // whitelist missed ~48 political posts filed only under these) unioned
+          // in one query. Overlap with pressemitteilungen is deduped by
+          // source_url in Qdrant. excludeCategoryIds drops Termine (122) meeting
+          // notices — presse (cat 7) does NOT get this exclusion, 8 real press
+          // releases also carry Termine.
           type: 'blog',
           path: '/',
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
           wpApi: {
             categoryIds: [
-              109, 108, 117, 118, 115, 113, 112, 119, 111, 116, 106, 114, 105, 107, 110,
+              109, 108, 117, 118, 115, 113, 112, 119, 111, 116, 106, 114, 105, 107, 110, 1, 154,
+              155, 140, 152, 164, 142,
             ],
+            excludeCategoryIds: [122],
             boundByAge: true,
           },
         },
@@ -1149,27 +1325,10 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           ],
           disableOffPathFilter: true,
         },
-        {
-          // Public Nextcloud "Wolke" share (documents/Wahlprüfsteine). etag-deduped
-          // + recentSkip so it only runs in the nightly full crawl, not hourly.
-          // NOTE: verify folder contents via NextcloudApiClient.listFolder on first
-          // run — if the share is password-protected the WebDAV auth needs the pw.
-          // `path`/`listSelector` are unused placeholders for wolkeShare paths
-          // (discovery comes from the share, not an HTML listing) but the
-          // ContentPath type requires them.
-          type: 'beschluss',
-          path: '/wolke/kPJQGMzGzm9HD3T/',
-          listSelector: '',
-          wolkeShare: { shareLink: 'https://wolke.netzbegruenung.de/s/kPJQGMzGzm9HD3T' },
-          recentSkip: true,
-        },
-        {
-          type: 'beschluss',
-          path: '/wolke/nEsxEzSnadTde3w/',
-          listSelector: '',
-          wolkeShare: { shareLink: 'https://wolke.netzbegruenung.de/s/nEsxEzSnadTde3w' },
-          recentSkip: true,
-        },
+        // Die zwei Wolke-Freigaben (Wahlprüfsteine-Arbeitsordner, Protokolle) sind
+        // bewusst nicht mehr konfiguriert: beide enthielten personenbezogene und
+        // interne Dateien. Die öffentlichen Antworten bleiben als gespeicherte
+        // Punkte erhalten; neu eingelesen wird erst nach Freigabe des LV.
       ],
       contentSelectors: {
         title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],

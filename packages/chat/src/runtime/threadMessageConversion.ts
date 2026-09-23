@@ -6,10 +6,8 @@
 // runtime lives in GrueneratorChatRuntime.tsx and is loaded lazily.
 
 import { type ThreadMessageLike, type ToolCallMessagePart } from '@assistant-ui/react';
-import { socialPostPayloadSchema, bahnPayloadSchema } from '@gruenerator/contracts';
 
 import {
-  coerceSharepicVariants,
   type ComputeData,
   type GeneratedImage,
   type Citation,
@@ -20,6 +18,7 @@ import { ATTACHMENT_META_PART_NAME, type AttachmentMetaData } from '../lib/attac
 import { mapRawCitationsToChat } from '../lib/citationUtils';
 import { isPastedTextAttachment, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
 import { TOOL_APPROVAL_OPTIONS } from '../lib/toolApproval';
+import { buildToolDerivedCustom } from '../lib/toolDerivedCustom';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import { type DocumentCreatedData } from '../types/messageMetadata';
 
@@ -96,6 +95,16 @@ export interface LoadedMessage {
         serverName?: string;
       }>;
       resolved?: boolean | 'expired';
+    };
+    /** Eine Loop-Rückfrage (`ask_human`, #3220). Solange `resolved` falsch ist,
+     *  zeigt der Thread nach einem Reload wieder die beantwortbare Karte. */
+    pendingClarification?: {
+      askTurnId: string;
+      toolCallId: string;
+      question: string;
+      options?: string[];
+      resolved?: boolean;
+      answer?: string;
     };
   };
 }
@@ -182,8 +191,9 @@ export const PASSTHROUGH_METADATA_FIELDS = [
  * Single seam: rebuild the `custom` render metadata from a persisted message.
  * Two kinds of field —
  *  - PASSTHROUGH_METADATA_FIELDS: verbatim metadata→custom copies.
- *  - tool-derived (sharepic / reel): extracted from persisted tool-call results
- *    with the same validation the live stream applies.
+ *  - tool-derived (sharepic / social post / bahn / reel): extracted from
+ *    persisted tool-call results by `buildToolDerivedCustom`, shared with the
+ *    native adapter.
  * `senderId` and `streamMetadata` are special-cased (paired / derived).
  */
 function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string, unknown> {
@@ -203,56 +213,9 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
     if (value) custom[field] = value;
   }
 
-  // Tool-derived: sharepic variant stack. Validate on reload the same way the
-  // live stream does — drop any variant with a non-canonical canvasType so the
-  // studio handoff stays safe.
-  const sharepicCall = metadata.toolCalls?.find((tc) => tc.toolName === 'sharepic');
-  const validSharepicVariants = coerceSharepicVariants(
-    (sharepicCall?.result as { variants?: unknown } | undefined)?.variants
-  );
-  if (validSharepicVariants) custom.sharepicData = { variants: validSharepicVariants };
-
-  // Tool-derived: EXPERIMENTAL combined social post (text half). Validate on
-  // reload the same way the live stream's Zod wire schema does; the persisted
-  // result additionally carries `versions`, which the head schema ignores.
-  const socialPostCall = metadata.toolCalls?.find((tc) => tc.toolName === 'social_post');
-  if (socialPostCall?.result) {
-    const parsedPost = socialPostPayloadSchema.safeParse(socialPostCall.result);
-    if (parsedPost.success) custom.socialPostData = parsedPost.data;
-  }
-
-  // Tool-derived: Deutsche-Bahn departure board. The condensed timetable a
-  // `bahn__*` loop step returned as its result IS the BahnPayload the live
-  // `bahn` SSE event carried. The LAST step that PARSES wins (freshest board) —
-  // not merely the last bahn__ step: the prompt instructs a raw
-  // get_full_timetable_changes call AFTER the condensed timetable, which must
-  // not shadow the board on reload.
-  for (const tc of [...(metadata.toolCalls ?? [])].reverse()) {
-    if (!tc.toolName.startsWith('bahn__')) continue;
-    const bahnContent = (tc.result as { content?: unknown } | undefined)?.content;
-    if (typeof bahnContent !== 'string') continue;
-    try {
-      const parsedBahn = bahnPayloadSchema.safeParse(JSON.parse(bahnContent));
-      if (parsedBahn.success) {
-        custom.bahnData = parsedBahn.data;
-        break;
-      }
-    } catch {
-      /* raw (non-condensed) tool result — keep looking */
-    }
-  }
-
-  // Tool-derived: reel cards. The persisted tool results carry payloads
-  // identical to the reel_processing / reel_picker SSE events.
-  const reelProcessingCall = metadata.toolCalls?.find((tc) => tc.toolName === 'reel_processing');
-  if (reelProcessingCall?.result) custom.reelProcessing = reelProcessingCall.result;
-  const reelPickerProjects = (
-    metadata.toolCalls?.find((tc) => tc.toolName === 'reel_picker')?.result as
-      { projects?: unknown } | undefined
-  )?.projects;
-  if (Array.isArray(reelPickerProjects) && reelPickerProjects.length > 0) {
-    custom.reelPicker = { projects: reelPickerProjects };
-  }
+  // Tool-derived (sharepic / social post / bahn / reel) — shared with the
+  // native adapter, see lib/toolDerivedCustom.ts.
+  Object.assign(custom, buildToolDerivedCustom(metadata.toolCalls));
 
   // Derived: drives the message-action affordances (copy/regenerate context)
   // and the thumbs feedback button (traceId), so it must survive reload.
@@ -368,21 +331,39 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
 
       const contentParts: Array<{ type: 'text'; text: string } | ToolCallLike> = [];
 
-      const cardFor = (tc: PersistedToolCall, parentId: string): ToolCallLike => ({
-        type: 'tool-call' as const,
-        toolCallId: tc.toolCallId || `tc_${m.id}`,
-        toolName: tc.toolName,
-        args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
-        // Live, parseSSEStream folds `ok` into `result`; do the same here so a
-        // reloaded card reaches the identical shape and reports the identical
-        // outcome. Without this a failed call reloads as a green tick.
-        result:
-          tc.ok === false && tc.result && typeof tc.result === 'object'
-            ? { ...(tc.result as Record<string, unknown>), ok: false }
-            : tc.result,
-        parentId,
-        ...(tc.narration ? { narration: tc.narration } : {}),
-      });
+      const cardFor = (tc: PersistedToolCall, parentId: string): ToolCallLike => {
+        // Eine beantwortete Loop-Rückfrage: die Karte liest `args.question`/
+        // `args.options` und rendert `String(result)` als Antwort-Pill — das
+        // generische `{query}`-Mapping und das Ergebnis-Objekt zeigten sonst
+        // eine leere Frage und "[object Object]".
+        if (tc.toolName === 'ask_human') {
+          const args = (tc.args ?? {}) as Record<string, unknown>;
+          const answer = (tc.result as Record<string, unknown> | undefined)?.answer;
+          return {
+            type: 'tool-call' as const,
+            toolCallId: tc.toolCallId || `tc_${m.id}`,
+            toolName: tc.toolName,
+            args: args as ToolCallMessagePart['args'],
+            result: answer != null ? String(answer) : tc.result,
+            parentId,
+          };
+        }
+        return {
+          type: 'tool-call' as const,
+          toolCallId: tc.toolCallId || `tc_${m.id}`,
+          toolName: tc.toolName,
+          args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
+          // Live, parseSSEStream folds `ok` into `result`; do the same here so a
+          // reloaded card reaches the identical shape and reports the identical
+          // outcome. Without this a failed call reloads as a green tick.
+          result:
+            tc.ok === false && tc.result && typeof tc.result === 'object'
+              ? { ...(tc.result as Record<string, unknown>), ok: false }
+              : tc.result,
+          parentId,
+          ...(tc.narration ? { narration: tc.narration } : {}),
+        };
+      };
 
       const toolCalls = m.metadata?.toolCalls;
       const hasOffsets = toolCalls?.some((tc) => typeof tc.textOffset === 'number') ?? false;
@@ -421,6 +402,18 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         // Legacy / split turns: cards first, then the full text — unchanged.
         if (toolCalls) {
           for (const tc of toolCalls) {
+            if (tc.toolName === 'ask_human') {
+              // Gleiche Sonderform wie in `cardFor`: echte args, Antwort als String.
+              const answer = (tc.result as Record<string, unknown> | undefined)?.answer;
+              contentParts.push({
+                type: 'tool-call' as const,
+                toolCallId: tc.toolCallId || `tc_${m.id}`,
+                toolName: tc.toolName,
+                args: (tc.args ?? {}) as ToolCallMessagePart['args'],
+                result: answer != null ? String(answer) : tc.result,
+              });
+              continue;
+            }
             contentParts.push({
               type: 'tool-call' as const,
               toolCallId: tc.toolCallId || `tc_${m.id}`,
@@ -454,6 +447,23 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
       // und bleibt entscheidbar. Die vollen Übergabewerte bleiben hier stehen —
       // wer freigibt, muss sehen, was übergeben wird (die normalen Karten oben
       // führen bewusst nur `query`).
+      // Offene Loop-Rückfragen überleben den Reload genauso: die ask_human-
+      // Karte kommt ohne Ergebnis zurück und bleibt beantwortbar (der Redis-
+      // Zustand dahinter hält 24 h).
+      const pendingClar = m.metadata?.pendingClarification;
+      const clarUnresolved = pendingClar != null && pendingClar.resolved !== true;
+      if (clarUnresolved) {
+        contentParts.push({
+          type: 'tool-call' as const,
+          toolCallId: pendingClar.toolCallId,
+          toolName: 'ask_human',
+          args: {
+            question: pendingClar.question,
+            ...(pendingClar.options ? { options: pendingClar.options } : {}),
+          } as ToolCallMessagePart['args'],
+        });
+      }
+
       const pending = m.metadata?.pendingApproval;
       const pendingUnresolved = pending && pending.resolved !== true;
       if (pendingUnresolved) {
@@ -529,8 +539,9 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         content: contentParts,
         id: m.id,
         // Ohne `requires-action` verweigert assistant-ui die Antwort auf eine
-        // Freigabe — die Karte wäre nach einem Reload nur noch Dekoration.
-        ...(pendingUnresolved && pending?.resolved !== 'expired'
+        // Freigabe oder Rückfrage — die Karte wäre nach einem Reload nur noch
+        // Dekoration.
+        ...((pendingUnresolved && pending?.resolved !== 'expired') || clarUnresolved
           ? { status: { type: 'requires-action' as const, reason: 'tool-calls' as const } }
           : {}),
         ...(createdAt && !Number.isNaN(createdAt.getTime()) ? { createdAt } : {}),

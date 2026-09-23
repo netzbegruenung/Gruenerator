@@ -4,10 +4,19 @@
  *
  * Rein: Turn-Zustand plus zwei Flags. Einzeln geprüft in
  * `artifactNotes.vitest.ts`.
+ *
+ * Unified mode gets only `buildPreLoopEditNotes`; see there for why the rest
+ * is split-only.
  */
 import { NO_ARTIFACT_URL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 
-import { resolveEditorSurfaceKind } from './routing.js';
+import {
+  EDITOR_SURFACE_NOUNS,
+  isEditToolEnabled,
+  resolveEditorSurfaceKind,
+  TOOL_EDIT_SURFACES,
+  type EditorSurfaceKind,
+} from './routing.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 
@@ -23,6 +32,102 @@ export const ARTIFACT_TOOL_NAMES = [
   'create_board',
   'edit_document',
 ] as const;
+
+/** Is the surface's artefact actually open, with an addressable id? Each
+ *  surface carries its target in its own state field. */
+function hasOpenEditTarget(state: ChatGraphState, kind: EditorSurfaceKind): boolean {
+  if (kind === 'board') return state.currentBoard?.id != null;
+  if (kind === 'canvas') return state.currentCanvas?.id != null;
+  return state.currentDocument?.id != null;
+}
+
+/**
+ * An editor sidebar whose artefact IS open, whose toggle IS on — and whose
+ * `edit_document` was nevertheless not mounted, because `decideEditToolLoop`
+ * refused the turn (image attachment, selected notebook, secondary intent, a
+ * forced tool, a compound turn). That leaves NO edit path at all: nothing plans
+ * ops, nothing dispatches, and without the note below the model is told only
+ * that it sits in an editor and answers as if it had edited.
+ *
+ * `doc` used to be excluded here because it still had the classifier's
+ * `trigger_doc_edit` stage to fall back on. Since #3428 that stage is gone and
+ * the doc dispatch lives in the tool, so a missing tool means the same thing on
+ * every surface — which is the whole point of the trade-off `decideEditToolLoop`
+ * makes: those turns are allowed to skip the edit, but never to pretend.
+ */
+function noEditPathSurface(
+  state: ChatGraphState,
+  surface: EditSurfaceReading
+): EditorSurfaceKind | null {
+  if (surface.kind == null || !surface.toggleOn) return null;
+  const orphaned =
+    TOOL_EDIT_SURFACES.has(surface.kind) &&
+    hasOpenEditTarget(state, surface.kind) &&
+    state.editToolSurface == null;
+  return orphaned ? surface.kind : null;
+}
+
+/**
+ * The two facts every note below keys on, resolved ONCE per call.
+ *
+ * Not a convenience: `buildArtifactNotes` prints two MUTUALLY EXCLUSIVE notes
+ * ("die KI-Bearbeitung ist ausgeschaltet" vs. "in diesem Zug kann nicht
+ * bearbeitet werden"), and they are only exclusive as long as both read the
+ * same answer. Asking twice is how that guarantee is lost. See
+ * `isEditToolEnabled` for the same failure one layer down.
+ */
+interface EditSurfaceReading {
+  kind: EditorSurfaceKind | null;
+  toggleOn: boolean;
+}
+
+function readEditSurface(state: ChatGraphState): EditSurfaceReading {
+  return {
+    kind: resolveEditorSurfaceKind(state.agentConfig?.identifier, state.enabledTools),
+    toggleOn: isEditToolEnabled(state.enabledTools),
+  };
+}
+
+/**
+ * The two notes whose facts exist BEFORE the loop runs: the sidebar's AI-edit
+ * toggle and the router's edit-path decision. Split mode gets them through
+ * {@link buildArtifactNotes}; unified mode has no synth prompt and gets them
+ * spliced into its system prompt (agenticRespondService). One builder, so both
+ * modes print the same sentence and the two notes stay mutually exclusive.
+ *
+ * Every other note in this module keys on tool RESULTS (`generatedImage`,
+ * `sharepicVariants`, `createdDocument`, `createdBoard`, `editorEditsSummary`),
+ * which the tool handlers write mid-loop. Unified mode sees those as the tool
+ * results themselves — each producing tool returns a `note` with the same
+ * instruction (domainTools.ts, editorTools.ts) — so they are split-only on
+ * purpose (#3439).
+ */
+export function buildPreLoopEditNotes(state: ChatGraphState): string {
+  const note = preLoopEditNote(state, readEditSurface(state));
+  return note ? `\n\n${note}` : '';
+}
+
+/** '' | toggle-off | no-edit-path — never both (`toggleOn` decides). */
+function preLoopEditNote(state: ChatGraphState, surface: EditSurfaceReading): string {
+  if (surface.kind != null && !surface.toggleOn) return editToggleOffNote(surface.kind);
+  const kind = noEditPathSurface(state, surface);
+  return kind == null ? '' : noEditPathNote(kind);
+}
+
+/** Editor surface with the AI-edit toggle OFF: the edit tool is NOT mounted,
+ *  so any "I changed X" would be a false claim the client never applied. */
+function editToggleOffNote(kind: EditorSurfaceKind): string {
+  const artefact = EDITOR_SURFACE_NOUNS[kind];
+  const geoeffnete = artefact.gender === 'f' ? 'die geöffnete' : 'das geöffnete';
+  return `HINWEIS: Die KI-Bearbeitung ist ausgeschaltet — du kannst ${geoeffnete} ${artefact.noun} nur ANSEHEN und Fragen dazu beantworten, aber NICHTS ändern. Wird eine Änderung gewünscht, sag freundlich und knapp, dass die Bearbeitung ausgeschaltet ist (Stift-Symbol im Chat), und behaupte NIEMALS, etwas geändert/eingetragen zu haben.`;
+}
+
+/** One sentence, one place — both loop modes print the same thing. */
+function noEditPathNote(kind: EditorSurfaceKind): string {
+  const artefact = EDITOR_SURFACE_NOUNS[kind];
+  const geoeffnete = artefact.gender === 'f' ? 'die geöffnete' : 'das geöffnete';
+  return `HINWEIS: In diesem Zug kann ${geoeffnete} ${artefact.noun} nicht direkt bearbeitet werden. Beschreibe die gewünschte Änderung als Text und behaupte nicht, sie vorgenommen zu haben.`;
+}
 
 /**
  * The synth model's only channel for "what did this turn actually produce".
@@ -43,6 +148,9 @@ export function buildArtifactNotes(
   }
 ): { notes: string; capabilityNote: string; producedArtifact: boolean } {
   const artifactToolMounted = opts.artifactToolMounted;
+  // Surface + AI-edit toggle, read ONCE and passed on — see `EditSurfaceReading`.
+  const surface = readEditSurface(state);
+  const noEditPathKind = noEditPathSurface(state, surface);
   // Split mode has no tool returns in the synth context — without these
   // notes the synthesizer is blind to artifacts the gather phase produced.
   const artifacts = [
@@ -70,7 +178,12 @@ export function buildArtifactNotes(
     state.createdBoard != null
       ? `HINWEIS: In diesem Turn wurde bereits ein Board ("${state.createdBoard.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und nenne den Pfad genau so: /boards/${state.createdBoard.boardId}. ${NO_ARTIFACT_URL_RULE}`
       : '',
-    state.compoundEdit === true
+    // Gated on there BEING an edit path: `compoundEdit` and `editToolLoop` are
+    // decided separately (a `secondaryIntent` kills the second and not the
+    // first), and since #3428 nothing outside the loop inserts anything. Left
+    // ungated, this note and the "kann in diesem Zug nicht bearbeitet werden"
+    // note below would arrive together and contradict each other.
+    state.compoundEdit === true && noEditPathKind == null
       ? 'HINWEIS: Die recherchierten Inhalte werden gerade in das GEÖFFNETE Dokument eingefügt. Schreibe NUR eine KURZE Bestätigung (1–2 Sätze), die das Thema nennt und sagt, dass es ins Dokument eingearbeitet wird — KEINE lange Ausformulierung (der Inhalt landet im Dokument, nicht im Chat).'
       : '',
     // The edit tool PLANNED a change for the open artefact this turn and sent
@@ -89,17 +202,18 @@ export function buildArtifactNotes(
     //    on reload. Ordering past tense here is what produced that sentence.
     //
     // Present tense is the honest form of what the server actually knows.
+    //
+    // The doc surface adds one clause, because its apply path ends somewhere
+    // else: BlockNote writes suggestion MARKS, and the change is only in the
+    // document once the person accepts them. The unified loop reads the same
+    // fact off the tool result (`note`); split mode has no tool results in the
+    // writing context, so it has to be said here.
     state.editorEditsSummary
-      ? `HINWEIS: Die gewünschte Änderung ist geplant und wird gerade in die GEÖFFNETE Datei übernommen: ${state.editorEditsSummary}. Sag das dem*der Nutzer*in KURZ in der GEGENWART (1 Satz, z.B. „Die Folien werden gerade aktualisiert — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits ausgelöst. Behaupte aber ebenso NICHT, sie sei fertig GESPEICHERT: das Übernehmen geschieht in der geöffneten Datei.`
+      ? `HINWEIS: Die gewünschte Änderung ist geplant und wird gerade in die GEÖFFNETE Datei übernommen: ${state.editorEditsSummary}. Sag das dem*der Nutzer*in KURZ in der GEGENWART (1 Satz, z.B. „Die Folien werden gerade aktualisiert — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits ausgelöst. Behaupte aber ebenso NICHT, sie sei fertig GESPEICHERT: das Übernehmen geschieht in der geöffneten Datei.${state.editToolSurface === 'doc' ? ' Im Dokument erscheint sie als VORSCHLAG — nenne das und sag dazu, dass die Person ihn dort annehmen oder verwerfen kann.' : ''}`
       : '',
-    // Editor surface with the AI-edit toggle OFF: the edit tool is NOT
-    // mounted, so any "I changed X" would be a false claim the client never
-    // applied. Force the model to say editing is off instead.
-    resolveEditorSurfaceKind(state.agentConfig?.identifier, state.enabledTools) != null &&
-    state.enabledTools?.['edit_current_doc'] !== true &&
-    state.enabledTools?.['edit_current_board'] !== true
-      ? 'HINWEIS: Die KI-Bearbeitung ist ausgeschaltet — du kannst das geöffnete Dokument nur ANSEHEN und Fragen dazu beantworten, aber NICHTS ändern. Wird eine Änderung gewünscht, sag freundlich und knapp, dass die Bearbeitung ausgeschaltet ist (Stift-Symbol im Chat), und behaupte NIEMALS, etwas geändert/eingetragen zu haben.'
-      : '',
+    // The two pre-loop notes (toggle off / no edit path this turn) are
+    // mutually exclusive by construction — see `preLoopEditNote`.
+    preLoopEditNote(state, surface),
   ]
     .filter(Boolean)
     .map((n) => `\n\n${n}`)

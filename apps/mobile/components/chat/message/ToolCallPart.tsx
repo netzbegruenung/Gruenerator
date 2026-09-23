@@ -198,6 +198,7 @@ function ApprovalOrPart(props: ToolCallProps) {
   return (
     <ToolApprovalCard
       toolName={toolName}
+      args={props.args}
       approval={approval}
       respondToApproval={respondToApproval}
       theme={theme}

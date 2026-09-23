@@ -10,6 +10,7 @@
     "compute",
     "create_pdf",
     "create_presentation",
+    "create_recurring_task",
     "create_sheet",
     "direct",
     "edit_current_board",
@@ -80,6 +81,11 @@
       "title": "Verbundene Accounts",
       "description": "Dateien aus verbundenen Diensten einfügen",
       "mention": "@connect"
+    },
+    "create_recurring_task": {
+      "title": "Wiederkehrende Aufgabe",
+      "description": "Einen Grünerator regelmäßig von selbst laufen lassen",
+      "mention": "@wiederkehrend"
     },
     "deepresearch": {
       "title": "Tiefenrecherche",
@@ -219,9 +225,17 @@
       "label": "Frühere Chats",
       "description": "Durchsucht frühere Unterhaltungen — im aktuellen Projekt oder über alle Chats hinweg."
     },
+    "text_uebersetzen": {
+      "label": "Übersetzung",
+      "description": "Übersetzt Texte mit DeepL, inklusive Grünen-Glossar."
+    },
     "user_content": {
       "label": "Eigene Inhalte",
       "description": "Durchsucht die eigenen gespeicherten Texte und Dokumente."
+    },
+    "vertonen": {
+      "label": "Vertonen",
+      "description": "Macht aus einem Text eine Audiodatei zum Herunterladen – Ansage, Vorlesefassung oder Audiodeskription. Die Datei landet in der Mediathek."
     },
     "vision": {
       "label": "Bildanalyse",

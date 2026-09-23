@@ -52,14 +52,34 @@ export const transparencyFootprintSchema = z.object({
   emissions_g: z.number(),
   emissions_g_low: z.number(),
   emissions_g_high: z.number(),
+  /**
+   * The three ways a watt-hour can enter `energy_wh`, as shares of it. They are
+   * mutually exclusive and, wherever `energy_wh > 0`, they sum to 1 — energy
+   * that fits none of them is not counted at all and shows up as a shortfall in
+   * `covered_share` instead.
+   *
+   * Published as three fields rather than two plus a subtraction because the
+   * middle one is the LARGEST in practice, and a page that names only the ends
+   * reads as though the rest were missing.
+   */
   /** 0..1 — share of the counted energy that was metered by the provider. */
   measured_share: z.number(),
+  /** 0..1 — share whose model we metered OURSELVES and then extrapolated over
+   *  token counts. No provider figure per request, but the coefficient comes
+   *  from a measurement of that exact model, not from a neighbouring one. */
+  calibrated_share: z.number(),
   /** 0..1 — share of the energy whose MODEL was never metered anywhere, so it
    *  is valued from the bracket between two models that were. Costed at the
    *  centre of that bracket since the mid-estimate change; it used to be its
    *  ceiling, which is what the name still remembers. */
   bounded_share: z.number(),
-  /** 0..1 — share of GENERATED tokens a footprint covers. Output-weighted. */
+  /**
+   * 0..1 — share of GENERATED tokens a footprint covers. Output-weighted.
+   *
+   * NOT a fourth slice of the three above: the denominator here is tokens, not
+   * energy. A lane with no coefficient contributes no energy at all, so it
+   * never reaches the shares — it is missing from this number instead.
+   */
   covered_share: z.number(),
   /** The image half of the two totals above. One image outweighs hundreds of
    *  chat turns, so a combined figure would read as a chat footprint. */
@@ -149,6 +169,30 @@ export const transparencyFeatureEntrySchema = usageByFeatureEntrySchema.extend({
   emissions_g: z.number(),
 });
 
+/** Current, model-neutral inputs of the public token-footprint calculation. */
+export const transparencyCalculationSchema = z.object({
+  version: z.string(),
+  direct_measurement: z.object({
+    energy: z.literal('provider-reported kWh × 1,000 = Wh'),
+    emissions: z.literal('provider-reported g CO2e'),
+  }),
+  estimated_text: z.object({
+    formula: z.literal(
+      '(input_tokens × input_mwh_per_token + output_tokens × output_mwh_per_token + requests × fixed_mwh_per_request) × provider_pue / calibration_pue'
+    ),
+    calibration_pue: z.number(),
+    profiles: z.array(
+      z.object({
+        basis: z.enum(['calibrated', 'bounded']),
+        input_mwh_per_token: z.number(),
+        output_mwh_per_token: z.number(),
+        fixed_mwh_per_request: z.number(),
+      })
+    ),
+  }),
+  emissions_formula: z.literal('energy_kwh × grid_g_per_kwh = g CO2e'),
+});
+
 export const getTransparencyStatsResponseSchema = z.object({
   success: z.literal(true),
   days: z.number(),
@@ -175,6 +219,8 @@ export const getTransparencyStatsResponseSchema = z.object({
   suppressed_days: z.number(),
   totals: usageTotalsSchema,
   footprint: transparencyFootprintSchema,
+  /** Calculation constants for reproducing estimates; generated from live code. */
+  calculation: transparencyCalculationSchema,
   providers: z.array(transparencyProviderEntrySchema),
   daily: z.array(transparencyDayEntrySchema),
   byFeature: z.array(transparencyFeatureEntrySchema),
@@ -185,6 +231,17 @@ export const transparencyErrorResponseSchema = z.object({
   error: z.string(),
 });
 
+/**
+ * Optional segment of the platform: the users whose profile locale is Germany
+ * or Austria. Same vocabulary as the monitor's `MonitorLocale`.
+ *
+ * Absent means the whole instance. A profile with no locale ("Land unbekannt",
+ * see `profiles.locale`) is in neither segment, so `de` + `at` is smaller than
+ * the unsegmented figure — by design, not by rounding.
+ */
+export const transparencyLocaleSchema = z.enum(['de', 'at']);
+
+export type TransparencyLocale = z.infer<typeof transparencyLocaleSchema>;
 export type TransparencyFootprintDto = z.infer<typeof transparencyFootprintSchema>;
 export type TransparencyProviderEntryDto = z.infer<typeof transparencyProviderEntrySchema>;
 export type TransparencyDayEntryDto = z.infer<typeof transparencyDayEntrySchema>;

@@ -22,6 +22,9 @@ const FULL_PAYLOAD: QdrantResultPayload = {
   content_type: 'paragraph',
   page_number: 7,
   chunk_type: 'table',
+  embedding_model: 'mistral-embed',
+  char_start: 120,
+  char_end: 1580,
   created_at: '2024-01-01T00:00:00Z',
   title: 'A Title',
   filename: 'file.pdf',
@@ -42,6 +45,9 @@ const REQUIRED_KEYS = [
   'content_type',
   'page_number',
   'chunk_type',
+  'embedding_model',
+  'char_start',
+  'char_end',
   'created_at',
   'published_at',
   'source_id',
@@ -56,6 +62,9 @@ describe('buildChunkPayloadFields', () => {
     expect(out.page_number).toBe(7);
     expect(out.content_type).toBe('paragraph');
     expect(out.chunk_type).toBe('table');
+    expect(out.embedding_model).toBe('mistral-embed');
+    expect(out.char_start).toBe(120);
+    expect(out.char_end).toBe(1580);
     expect(out.source_id).toBe('src-9');
     expect(out.published_at).toBe('2024-03-01T00:00:00Z');
     expect(out.url).toBe('https://example.org/x');
@@ -92,6 +101,13 @@ describe('buildChunkPayloadFields', () => {
     expect(out.quality_score).toBeNull();
     expect(out.page_number).toBeNull();
     expect(out.chunk_type).toBeNull();
+    // Ein Punkt aus der Zeit vor #3224 trägt das Feld nicht. `null` ist die
+    // Antwort „unbekannt, also alt" und darf nie zu '' verrutschen.
+    expect(out.embedding_model).toBeNull();
+    // Ein Chunk aus der Zeit vor #3223, oder einer, der im Rohtext nicht
+    // auffindbar war. Beide Felder fallen zusammen aus, nie einzeln.
+    expect(out.char_start).toBeNull();
+    expect(out.char_end).toBeNull();
     expect(out.published_at).toBeNull();
     expect(out.documents.title).toBe('Untitled');
   });

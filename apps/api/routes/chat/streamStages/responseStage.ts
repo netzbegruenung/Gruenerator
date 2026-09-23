@@ -27,7 +27,11 @@ import { type RoutingStageResult } from './routingStage.js';
 import { type CleanupPending, type MaybeHandled, type StreamBody } from './types.js';
 
 import type { ChatGraphState, CreatedDocument } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { PendingToolCall, PersistedStep } from '../services/agenticLoop/types.js';
+import type {
+  PendingAskRequest,
+  PendingToolCall,
+  PersistedStep,
+} from '../services/agenticLoop/types.js';
 import type { StreamContext } from '../services/streamContext.js';
 import type { Request } from 'express';
 
@@ -74,6 +78,8 @@ export interface ResponseStageOutput {
   langfuseTraceId: string | undefined;
   /** Gesetzt ⇒ der Zug pausiert; der Router suspendiert statt zu persistieren. */
   pendingApproval?: PendingToolCall[];
+  /** Gesetzt ⇒ der Zug pausiert an einer Rückfrage (`ask_human`). */
+  pendingAsk?: PendingAskRequest;
 }
 
 export async function runResponseStage({
@@ -175,8 +181,9 @@ export async function runResponseStage({
     } = agentic);
     pendingApproval = agentic.pendingApproval;
     // Ein pausierter Zug hat keine fertige Antwort: die Nachschritte (Artefakt-
-    // Auslöser, Pipeline-Agenten, Persistenz) laufen erst nach der Freigabe.
-    if (pendingApproval && pendingApproval.length > 0) {
+    // Auslöser, Pipeline-Agenten, Persistenz) laufen erst nach der Freigabe
+    // bzw. der Antwort auf die Rückfrage.
+    if ((pendingApproval && pendingApproval.length > 0) || agentic.pendingAsk) {
       return {
         handled: false,
         finalState,
@@ -187,7 +194,8 @@ export async function runResponseStage({
         createdBoard,
         agenticSteps,
         langfuseTraceId,
-        pendingApproval,
+        ...(pendingApproval && pendingApproval.length > 0 ? { pendingApproval } : {}),
+        ...(agentic.pendingAsk ? { pendingAsk: agentic.pendingAsk } : {}),
       };
     }
   } else {

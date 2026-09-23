@@ -1,5 +1,4 @@
 import { useEditorStore } from '../stores/editorStore';
-import { getDocUndoManager, type UndoableEditor } from '../hooks/useDocUndoState';
 import { getDocAIExtension, isDocAIForked } from './aiExtension';
 
 /**
@@ -30,7 +29,6 @@ export function acceptDocumentAI(documentId: string): AcceptDocumentAIResult {
   const ext = getDocAIExtension(documentId);
   if (!ext) return 'no-extension';
 
-  const editor = useEditorStore.getState().getEditor(documentId);
   const { provider, ydoc } = useEditorStore.getState().getDocContext(documentId) ?? {
     provider: null,
     ydoc: null,
@@ -48,32 +46,16 @@ export function acceptDocumentAI(documentId: string): AcceptDocumentAIResult {
   };
   ydoc?.on('update', onUpdate);
 
-  // Make the accepted AI change undoable. ForkYDoc.merge() applies it via
-  // `Y.applyUpdate(doc, update, editor)` — origin = the editor instance — but
-  // BlockNote's yUndo UndoManager only tracks the ySync origin, so AI merges
-  // never enter the undo stack (BlockNote's own comment there is wrong for the
-  // collab case). Yjs fires `beforeTransaction` *before* the UndoManager's
-  // capture decision on `afterTransaction`, so this hook adds the editor as a
-  // tracked origin on the current (post-merge-recreated) UndoManager just in
-  // time for that same transaction to be captured — as one undo step, on this
-  // user's stack only. The listener is removed in finally; the tracked origin
-  // it registers persists on that UndoManager for the editor's lifetime, which
-  // is harmless — normal edits use the ySync origin, so only editor-origin
-  // updates (i.e. future AI merges) stay undoable, which is exactly the goal.
-  const onBeforeTransaction = (tx: { origin: unknown }) => {
-    if (editor && tx.origin === editor) {
-      // getDocUndoManager centralizes the y-prosemirror plugin-state reach (see
-      // useDocUndoState). addTrackedOrigin accepts any origin.
-      getDocUndoManager(editor as unknown as UndoableEditor)?.addTrackedOrigin(editor);
-    }
-  };
-  ydoc?.on('beforeTransaction', onBeforeTransaction);
-
+  // Note on undoability: the plugin's own UndoManager cannot capture the AI
+  // merge (ForkYDoc.merge() applies it while the carried-over manager is
+  // already destroyed; an earlier beforeTransaction/addTrackedOrigin hook here
+  // provably never worked). guardDocUndoAcrossAIFork owns this instead: a
+  // standalone capture manager on the original fragment records the merge and
+  // hands it to the rebuilt manager, so accept IS one undo step (#3261).
   try {
     ext.acceptChanges();
   } finally {
     ydoc?.off('update', onUpdate);
-    ydoc?.off('beforeTransaction', onBeforeTransaction);
   }
 
   const stillForked = isDocAIForked(documentId);

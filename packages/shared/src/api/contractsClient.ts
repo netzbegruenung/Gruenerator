@@ -18,12 +18,15 @@
 
 import {
   threadsContract,
+  chatThreadSharingContract,
   exportsContract,
+  speechContract,
   recentValuesContract,
   recentActivityContract,
   contentContract,
   itemUsageContract,
   userUsageContract,
+  treesContract,
   transparencyContract,
   globalSearchContract,
   researchContract,
@@ -66,6 +69,7 @@ import {
   chunkInspectorContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
+  translationContract,
   lvAdminAssignmentContract,
   landesverbandAdminContract,
   userTextFormsContract,
@@ -75,7 +79,6 @@ import {
   groupsContract,
   userProfileContract,
   canvasContract,
-  canvasAiContract,
   monitorContract,
   sitesContract,
   texteContract,
@@ -252,11 +255,13 @@ const VALIDATED_CLIENT_OPTS = {
 // which may not be exported in all @ts-rest/core minor versions.
 const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
 const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
+const _speechClient = () => initClient(speechContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OPTS);
 const _contentClient = () => initClient(contentContract, CLIENT_OPTS);
 const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
 const _userUsageClient = () => initClient(userUsageContract, CLIENT_OPTS);
+const _treesClient = () => initClient(treesContract, CLIENT_OPTS);
 const _transparencyClient = () => initClient(transparencyContract, CLIENT_OPTS);
 const _globalSearchClient = () => initClient(globalSearchContract, CLIENT_OPTS);
 const _researchClient = () => initClient(researchContract, CLIENT_OPTS);
@@ -278,6 +283,7 @@ const _notebookWordpressClient = () => initClient(notebookWordpressContract, CLI
 const _userWebsitesClient = () => initClient(userWebsitesContract, CLIENT_OPTS);
 const _letterheadsClient = () => initClient(letterheadsContract, CLIENT_OPTS);
 const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
+const _chatThreadSharingClient = () => initClient(chatThreadSharingContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
 const _memoryClient = () => initClient(memoryContract, CLIENT_OPTS);
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
@@ -299,6 +305,7 @@ const _agentVisibilityClient = () => initClient(agentVisibilityContract, CLIENT_
 const _chunkInspectorClient = () => initClient(chunkInspectorContract, CLIENT_OPTS);
 const _skillVisibilityClient = () => initClient(skillVisibilityContract, CLIENT_OPTS);
 const _instanceAdminOverviewClient = () => initClient(instanceAdminOverviewContract, CLIENT_OPTS);
+const _translationClient = () => initClient(translationContract, CLIENT_OPTS);
 const _lvAdminAssignmentClient = () => initClient(lvAdminAssignmentContract, CLIENT_OPTS);
 const _landesverbandAdminClient = () => initClient(landesverbandAdminContract, CLIENT_OPTS);
 const _userTextFormsClient = () => initClient(userTextFormsContract, CLIENT_OPTS);
@@ -309,7 +316,6 @@ const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
 const _userProfileClient = () => initClient(userProfileContract, CLIENT_OPTS);
 // Validiert (nicht nur für den Studio-Tab) — siehe VALIDATED_CLIENT_OPTS.
 const _canvasClient = () => initClient(canvasContract, VALIDATED_CLIENT_OPTS);
-const _canvasAiClient = () => initClient(canvasAiContract, CLIENT_OPTS);
 const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
 const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
 const _texteClient = () => initClient(texteContract, CLIENT_OPTS);
@@ -324,11 +330,13 @@ const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
   exports: ReturnType<typeof _exportsClient>;
+  speech: ReturnType<typeof _speechClient>;
   recentValues: ReturnType<typeof _recentValuesClient>;
   recentActivity: ReturnType<typeof _recentActivityClient>;
   content: ReturnType<typeof _contentClient>;
   itemUsage: ReturnType<typeof _itemUsageClient>;
   userUsage: ReturnType<typeof _userUsageClient>;
+  trees: ReturnType<typeof _treesClient>;
   transparency: ReturnType<typeof _transparencyClient>;
   globalSearch: ReturnType<typeof _globalSearchClient>;
   research: ReturnType<typeof _researchClient>;
@@ -350,10 +358,12 @@ export interface ContractsClient {
   userWebsites: ReturnType<typeof _userWebsitesClient>;
   letterheads: ReturnType<typeof _letterheadsClient>;
   notebookSharing: ReturnType<typeof _notebookSharingClient>;
+  chatThreadSharing: ReturnType<typeof _chatThreadSharingClient>;
   notifications: ReturnType<typeof _notificationsClient>;
   memory: ReturnType<typeof _memoryClient>;
   email: ReturnType<typeof _emailClient>;
   feedback: ReturnType<typeof _feedbackClient>;
+  translation: ReturnType<typeof _translationClient>;
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
   mcpServers: ReturnType<typeof _mcpServersClient>;
@@ -380,7 +390,6 @@ export interface ContractsClient {
   groups: ReturnType<typeof _groupsClient>;
   userProfile: ReturnType<typeof _userProfileClient>;
   canvas: ReturnType<typeof _canvasClient>;
-  canvasAi: ReturnType<typeof _canvasAiClient>;
   monitor: ReturnType<typeof _monitorClient>;
   sites: ReturnType<typeof _sitesClient>;
   texte: ReturnType<typeof _texteClient>;
@@ -415,6 +424,7 @@ export function getContractsClient(): ContractsClient {
     content: _contentClient(),
     itemUsage: _itemUsageClient(),
     userUsage: _userUsageClient(),
+    trees: _treesClient(),
     transparency: _transparencyClient(),
     globalSearch: _globalSearchClient(),
     research: _researchClient(),
@@ -436,10 +446,12 @@ export function getContractsClient(): ContractsClient {
     userWebsites: _userWebsitesClient(),
     letterheads: _letterheadsClient(),
     notebookSharing: _notebookSharingClient(),
+    chatThreadSharing: _chatThreadSharingClient(),
     notifications: _notificationsClient(),
     memory: _memoryClient(),
     email: _emailClient(),
     feedback: _feedbackClient(),
+    translation: _translationClient(),
     modelPreferences: _modelPreferencesClient(),
     imageModelPreference: _imageModelPreferenceClient(),
     mcpServers: _mcpServersClient(),
@@ -466,7 +478,6 @@ export function getContractsClient(): ContractsClient {
     groups: _groupsClient(),
     userProfile: _userProfileClient(),
     canvas: _canvasClient(),
-    canvasAi: _canvasAiClient(),
     monitor: _monitorClient(),
     sites: _sitesClient(),
     texte: _texteClient(),
@@ -475,6 +486,7 @@ export function getContractsClient(): ContractsClient {
     imagePicker: _imagePickerClient(),
     sharesRead: _sharesReadClient(),
     prompts: _promptsClient(),
+    speech: _speechClient(),
   };
 
   return _client;

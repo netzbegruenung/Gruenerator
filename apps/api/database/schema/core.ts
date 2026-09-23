@@ -65,6 +65,7 @@ export const profiles = pgTable(
       .default([]),
     document_mode: text('document_mode').notNull().default('manual'),
     default_startpage: text('default_startpage').notNull().default('chat'),
+    tts_voice_id: text('tts_voice_id'),
     user_defaults: jsonb('user_defaults')
       .$type<Record<string, Record<string, unknown>>>()
       .notNull()

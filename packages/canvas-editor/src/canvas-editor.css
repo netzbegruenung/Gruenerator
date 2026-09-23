@@ -31,7 +31,8 @@
   transition: border-color 0.15s ease;
 }
 
-.heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active) .canvas-stage-container::after {
+.heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active)
+  .canvas-stage-container::after {
   border-color: var(--border-color-hover, rgba(0, 0, 0, 0.15));
 }
 
@@ -39,11 +40,13 @@
   border-color: var(--tanne, #0a2b1e);
 }
 
-[data-theme="dark"] .heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active) .canvas-stage-container::after {
+[data-theme='dark']
+  .heterogeneous-multipage__page-wrapper:hover:not(.heterogeneous-multipage__page-wrapper--active)
+  .canvas-stage-container::after {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-[data-theme="dark"] .heterogeneous-multipage__page-wrapper--active .canvas-stage-container::after {
+[data-theme='dark'] .heterogeneous-multipage__page-wrapper--active .canvas-stage-container::after {
   border-color: var(--tanne-light, #1a5c40);
 }
 
@@ -77,13 +80,16 @@
   transition: transform 0.12s ease-out;
 }
 
-/* ── Bottom-fixed page navigator: leave clearance so last page can scroll above it ── */
-.heterogeneous-multipage__pages-container.has-page-navigator {
-  padding-bottom: 6.5rem;
+/* ── Bottom-fixed bar: leave clearance so the last page can scroll above it.
+      The value covers the tallest variant (with thumbnail strip); without the
+      strip the bar is shorter and some slack is left over. Below 900px the
+      layout hides the bar entirely. ── */
+.heterogeneous-multipage__pages-container.has-bottom-bar {
+  padding-bottom: 4.5rem;
 }
 
 @media (max-width: 899px) {
-  .heterogeneous-multipage__pages-container.has-page-navigator {
+  .heterogeneous-multipage__pages-container.has-bottom-bar {
     padding-bottom: 0;
   }
 }
@@ -106,13 +112,13 @@ body:has(#subsection-bar-portal:not(:empty)) .sidebar-tab-bar {
 }
 
 /* ── Number input spinner hiding ── */
-input[type="number"].hide-spinner::-webkit-outer-spin-button,
-input[type="number"].hide-spinner::-webkit-inner-spin-button {
+input[type='number'].hide-spinner::-webkit-outer-spin-button,
+input[type='number'].hide-spinner::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-input[type="number"].hide-spinner {
+input[type='number'].hide-spinner {
   -moz-appearance: textfield;
 }
 
@@ -136,11 +142,106 @@ input[type="number"].hide-spinner {
   border-radius: 3px;
 }
 
-[data-theme="dark"] .scrollbar-thin {
+[data-theme='dark'] .scrollbar-thin {
   scrollbar-color: var(--grey-600) transparent;
 }
 
-[data-theme="dark"] .scrollbar-thin::-webkit-scrollbar-thumb {
+[data-theme='dark'] .scrollbar-thin::-webkit-scrollbar-thumb {
   background-color: var(--grey-600);
 }
 
+/* ── RichTextField (tiptap) — ProseMirror bringt kein Styling mit ── */
+/* Der Editor sitzt als Portal über dem Leinwand-Text und erbt dessen Schrift
+   und Farbe aus einem Inline-Style; hier steht nur, was ProseMirror selbst
+   nicht setzt. */
+.canvas-rte {
+  position: relative;
+}
+
+.canvas-rte__content {
+  outline: 2px solid var(--primary-600);
+  outline-offset: 2px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: none;
+}
+
+.canvas-rte__content p {
+  margin: 0;
+}
+
+/*
+ * Die Schrift des Feldes gilt bis ins letzte Kind.
+ *
+ * Das Overlay setzt `font-family` als Inline-Style auf den RAHMEN und lässt
+ * sie nach innen erben — so, wie Größe, Farbe und Zeilenhöhe es tun. Die
+ * globale Typografie der Web-App trägt aber
+ *
+ *     p, li, div, span { font-family: 'PT Sans', Arial, sans-serif; }
+ *
+ * und ein Treffer auf dem Element selbst schlägt IMMER den geerbten Wert,
+ * egal wie niedrig seine Spezifität ist. Der ProseMirror-Knoten ist ein
+ * `div`, seine Absätze sind `p`: der Editor zeigte damit PT Sans, während
+ * die Leinwand daneben die Hausschrift zeichnete. Nur `font-family` war
+ * betroffen — für die übrigen Eigenschaften gibt es keine solche Regel,
+ * deshalb stimmten Größe und Farbe und nur die Schrift nicht.
+ *
+ * Der alte `<textarea>`-Editor war immun, weil `textarea` in jener Liste
+ * nicht vorkommt. Der Fehler kam also nicht mit tiptap, sondern mit dem
+ * Wechsel auf ein `contenteditable`-Element.
+ *
+ * `*` statt einer Aufzählung der vier Element-Namen: die Regel dort oben
+ * darf wachsen, ohne dass es hier wieder auffällt.
+ */
+.canvas-rte__content,
+.canvas-rte__content * {
+  font-family: inherit;
+}
+
+/*
+ * Aufzählungen tragen den hängenden Einzug der Leinwand: der Marker steht am
+ * linken Rand des FELDES, und alle Zeilen eines Punktes fluchten dahinter —
+ * genau das, was `layoutRichTextBlock` zeichnet. Den Einzug reicht das Overlay
+ * als `--canvas-rte-list-indent` herein, mit derselben gemessenen Breite, auf
+ * der auch der Umbruch sitzt; ohne ihn bräche der Editor auf der vollen
+ * Feldbreite um, und der Text spränge beim Schließen neu.
+ *
+ * `list-style-type`, NICHT die Kurzform `list-style`: die setzt jede nicht
+ * genannte Langform auf ihren Anfangswert zurück. Sie stand hier eine Regel
+ * NACH `list-style-position: inside` und machte daraus wieder `outside` — der
+ * Marker hing damit links aus dem Feld heraus, neben dem Text statt in ihm.
+ */
+.canvas-rte__content ul,
+.canvas-rte__content ol {
+  margin: 0;
+  padding-left: var(--canvas-rte-list-indent, 1em);
+  list-style-position: outside;
+}
+
+.canvas-rte__content ul {
+  list-style-type: disc;
+}
+
+.canvas-rte__content ol {
+  list-style-type: decimal;
+}
+
+/* Platzhalter der tiptap-Placeholder-Extension */
+.canvas-rte__content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--editor-placeholder);
+}
+
+.canvas-rte__floating-toolbar {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--editor-border);
+  border-radius: 0.5rem;
+  background: var(--editor-surface);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}

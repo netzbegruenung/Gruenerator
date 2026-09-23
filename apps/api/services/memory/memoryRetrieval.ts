@@ -5,7 +5,7 @@
  * in the prompt is not a rule. Facts: all of them while there are few (a
  * semantic search over ten sentences buys nothing and costs an embedding
  * call); above `FACT_INLINE_LIMIT` the closest `FACT_SEARCH_LIMIT` to the
- * question. When the search fails or finds nothing above threshold, the most
+ * question. When the search fails or returns nothing, the most
  * recent facts go in instead of nothing: an outage must not make the assistant
  * forget, it may only make it less precise.
  */

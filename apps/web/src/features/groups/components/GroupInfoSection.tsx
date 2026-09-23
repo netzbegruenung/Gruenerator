@@ -1,6 +1,6 @@
 import { type GroupContentType } from '@gruenerator/contracts';
 import { getAgentSlug } from '@gruenerator/shared/agents';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import {
   Badge,
   Button,
@@ -372,7 +372,8 @@ const GroupInfoSection = memo(
             permissions: options.permissions,
           },
         });
-        if (res.status !== 200) throw new Error('share failed');
+        if (res.status !== 200)
+          throw apiErrorFromResponse(res, 'Inhalt konnte nicht geteilt werden.');
       },
       []
     );
@@ -685,7 +686,7 @@ const GroupInfoSection = memo(
                 getLink: (item) => `/notebook/${item.id}`,
               },
               {
-                label: 'Grüneratoren',
+                label: 'Agents',
                 items: sharedContent.agents,
                 contentType: 'user_agents',
                 icon: PiRobot,

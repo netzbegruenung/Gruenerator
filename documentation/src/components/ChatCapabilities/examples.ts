@@ -332,7 +332,10 @@ export const EXAMPLES: CapabilityExample[] = [
     intent: 'create_recurring_task',
     group: 'erstellen',
     label: 'Wiederkehrende Aufgabe',
-    hint: 'Ein Auftrag, den der Grünerator regelmäßig von selbst ausführt.',
+    // Seit die Fähigkeit `@wiederkehrend` trägt, ziehen Titel, Beschreibung und
+    // Mention aus der Registry — der `hint` war die Krücke für genau deren
+    // Fehlen.
+    mentionable: 'create_recurring_task',
     questions: [
       'Schick mir jeden Montag eine Zusammenfassung der Nachrichten zur Klimapolitik.',
       'Erinnere mich monatlich daran, die Umfragewerte zu prüfen.',

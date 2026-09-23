@@ -29,6 +29,8 @@ export async function shareFile(
   options?: {
     mimeType?: string;
     dialogTitle?: string;
+    /** The file's UTI. iOS routes the document by this one, not by `mimeType`. */
+    uti?: string;
   }
 ): Promise<void> {
   const isAvailable = await Sharing.isAvailableAsync();
@@ -39,7 +41,7 @@ export async function shareFile(
   await Sharing.shareAsync(fileUri, {
     mimeType: options?.mimeType || 'video/mp4',
     dialogTitle: options?.dialogTitle || 'Teilen',
-    UTI: Platform.OS === 'ios' ? 'public.movie' : undefined,
+    UTI: Platform.OS === 'ios' ? (options?.uti ?? 'public.movie') : undefined,
   });
 }
 

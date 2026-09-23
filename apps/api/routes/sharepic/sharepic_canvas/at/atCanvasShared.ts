@@ -12,6 +12,9 @@ import { fileURLToPath } from 'url';
 import { loadImage, type SKRSContext2D as Ctx, type Image } from '@napi-rs/canvas';
 
 import { registerFonts } from '../../../../services/sharepic/canvas/fileManagement.js';
+import { wrapTextLines as wrapText } from '../../../../services/sharepic/textLayout.js';
+
+export { wrapText };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -386,24 +389,6 @@ export function drawHeadlineStack(ctx: Ctx, zones: HeadlineZone[], align: 'left'
     y += l.size * AT_BRAND.lineHeightFactor;
     prevKind = l.kind;
   }
-}
-
-/** Word-wrap `text` to `maxWidth` using the currently-set ctx font. */
-export function wrapText(ctx: Ctx, text: string, maxWidth: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let current = '';
-  for (const w of words) {
-    const test = current ? `${current} ${w}` : w;
-    if (ctx.measureText(test).width > maxWidth && current) {
-      lines.push(current);
-      current = w;
-    } else {
-      current = test;
-    }
-  }
-  if (current) lines.push(current);
-  return lines;
 }
 
 /** Draw a centred (or given-align) multi-line block; returns the next y. */

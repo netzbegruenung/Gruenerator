@@ -76,3 +76,15 @@ export function checkCloudShareLink(link: string): CloudShareLinkCheck {
 export function isCloudShareUrl(value: string): boolean {
   return parseCloudShareLink(value) !== null;
 }
+
+/**
+ * Ist dieser Wert ein Freigabe-Link, wo ein DATEIPFAD stehen sollte? Trifft
+ * die volle URL genauso wie den nackten URL-Pfad (`s/<token>`), den ein
+ * Modell aus einem geposteten Link herausschneidet — genau so lief `read`
+ * mit `path: 's/4oKeBG2t…'` gegen die falsche gespeicherte Verbindung.
+ */
+export function looksLikeCloudSharePath(value: string): boolean {
+  const v = value.trim();
+  if (!v) return false;
+  return isCloudShareUrl(v) || /^\/?(?:index\.php\/)?s\/[A-Za-z0-9]+\/?$/.test(v);
+}

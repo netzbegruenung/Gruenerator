@@ -9,16 +9,20 @@ import { z } from 'zod';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
-import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { FluxImageService, buildFluxPrompt } from '../../services/flux/index.js';
+import {
+  getTreeBudget,
+  toTreeBudgetStatusDto,
+  treeBudgetSpentMessage,
+  treeCostForImage,
+  TreeBudgetUnavailableError,
+} from '../../services/trees/index.js';
 import { getImageModelForUser } from '../../services/user/imageModelPreference.js';
 import { createLogger } from '../../utils/logger.js';
-import { redisClient } from '../../utils/redis/index.js';
 import { applyKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
 
 const log = createLogger('imaginePure');
 const router = express.Router();
-const imageCounter = new ImageGenerationCounter(redisClient);
 
 // ============================================================================
 // Type Definitions
@@ -34,7 +38,7 @@ const imaginePureSchema = z.object({
   imageModel: z.enum(IMAGE_MODEL_IDS as [ImageModelId, ...ImageModelId[]]).nullish(),
   // Deprecated legacy alias kept for one release for non-UI callers.
   // 'ionos' is accepted but remapped — the IONOS backend is retired.
-  backend: z.enum(['hosted', 'regolo', 'ionos']).nullish(),
+  backend: z.enum(['hosted', 'regolo', 'melious', 'ionos']).nullish(),
   seed: z.number().nullish(),
   width: z.number().nullish(),
   height: z.number().nullish(),
@@ -114,17 +118,6 @@ router.post(
         return res.status(401).json({ success: false, error: 'Authentication required' });
       }
 
-      const limitStatus = await imageCounter.checkLimit(userId);
-      if (!limitStatus.canGenerate) {
-        log.debug(`[ImaginePure] Request rejected: User ${userId} has reached daily limit`);
-        return res.status(429).json({
-          success: false,
-          error: 'Daily image generation limit reached',
-          data: limitStatus,
-          message: `You have reached your daily limit of ${limitStatus.limit} image generations. Try again tomorrow.`,
-        });
-      }
-
       // Normalize nullish (null | undefined) → default value. The schema uses
       // .nullish() on optional body fields so the frontend can send null;
       // destructuring defaults only fire for undefined, not null, so we
@@ -146,7 +139,7 @@ router.post(
           ? (rawImageModel as ImageModelId)
           : null;
       if (!selectedModelId && rawBackend) {
-        if (rawBackend === 'regolo') selectedModelId = 'regolo-image';
+        if (rawBackend === 'regolo' || rawBackend === 'melious') selectedModelId = 'regolo-image';
         else selectedModelId = 'flux-pro';
       }
       if (!selectedModelId) {
@@ -211,7 +204,25 @@ router.post(
         `[ImaginePure] Using image model ${selectedModelId} (backend: ${selectedModel.backend}, cost: ${selectedModel.costMultiplier}×)`
       );
 
-      const flux = await FluxImageService.create(selectedModel.backend, selectedModel.modelPath);
+      const cost = treeCostForImage(selectedModel.costMultiplier);
+      const budget = getTreeBudget();
+      const reservation = await budget.reserve(userId, cost);
+      if (!reservation.ok) {
+        if (reservation.reason === 'unavailable') {
+          return res
+            .status(503)
+            .json({ success: false, error: new TreeBudgetUnavailableError().message });
+        }
+        log.debug(`[ImaginePure] Request rejected: User ${userId} has reached the tree budget`);
+        const message = treeBudgetSpentMessage(reservation.status, cost);
+        return res.status(429).json({
+          success: false,
+          error: message,
+          data: toTreeBudgetStatusDto(reservation.status),
+          message,
+        });
+      }
+
       const fluxOptions: {
         width: number;
         height: number;
@@ -229,10 +240,18 @@ router.post(
         fluxOptions.seed = seed;
       }
 
-      const { stored: fluxResult } = (await flux.generateFromPrompt(
-        fluxPrompt,
-        fluxOptions
-      )) as FluxGenerationResult;
+      let fluxResult: StoredImageResult;
+      try {
+        // Inside the try: a failing `create()` would otherwise keep the booking.
+        const flux = await FluxImageService.create(selectedModel.backend, selectedModel.modelPath);
+        ({ stored: fluxResult } = (await flux.generateFromPrompt(
+          fluxPrompt,
+          fluxOptions
+        )) as FluxGenerationResult);
+      } catch (error) {
+        await budget.release(userId, cost, reservation.status.day);
+        throw error;
+      }
 
       log.debug(`[ImaginePure] FLUX image generated, size: ${fluxResult.size} bytes`);
 
@@ -255,13 +274,7 @@ router.post(
       const filePath = path.join(baseDir, filename);
       fs.writeFileSync(filePath, labeledBuffer);
 
-      const costUnits = Math.round(selectedModel.costMultiplier * 100);
-      await imageCounter.incrementCount(userId, costUnits);
-      const updatedLimitStatus = await imageCounter.checkLimit(userId);
-
-      log.debug(
-        `[ImaginePure] Image saved to ${filePath}, updated usage: ${updatedLimitStatus.count}/${updatedLimitStatus.limit}`
-      );
+      log.debug(`[ImaginePure] Image saved to ${filePath}`);
 
       const base64Output = `data:image/png;base64,${labeledBuffer.toString('base64')}`;
 
@@ -282,11 +295,7 @@ router.post(
           costMultiplier: selectedModel.costMultiplier,
           timestamp: now.toISOString(),
         },
-        usage: {
-          count: updatedLimitStatus.count,
-          remaining: updatedLimitStatus.remaining,
-          limit: updatedLimitStatus.limit,
-        },
+        usage: toTreeBudgetStatusDto(reservation.status),
       });
     } catch (error: unknown) {
       const errMsg = error instanceof Error ? error.message : String(error);

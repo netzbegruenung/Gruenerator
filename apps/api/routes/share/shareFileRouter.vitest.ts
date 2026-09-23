@@ -30,15 +30,28 @@ const envMock = {
 vi.mock('../../config/env.js', () => ({ env: envMock }));
 
 const getShareByToken = vi.fn();
+const recordView = vi.fn();
+const recordDownload = vi.fn();
 let mediaPath = '';
 let videoPath = '';
 let thumbPath = '';
+// A path that resolves but is never written, so the handler's stat() fails —
+// the upload race, where the row is already listed and the bytes are not there.
+let unwrittenPath = '';
 
 vi.mock('./shareServices.js', () => ({
   getSharedMediaService: async () => ({
     getShareByToken,
+    recordView,
+    recordDownload,
     getMediaFilePath: (p: string | null) =>
-      p === 'video' ? videoPath : p === 'image' ? mediaPath : null,
+      p === 'video'
+        ? videoPath
+        : p === 'image'
+          ? mediaPath
+          : p === 'unwritten'
+            ? unwrittenPath
+            : null,
     getThumbnailFilePath: (p: string | null) => (p ? thumbPath : null),
     getOriginalImagePath: () => null,
   }),
@@ -74,6 +87,7 @@ beforeAll(async () => {
   mediaPath = path.join(tmpDir, 'media.png');
   videoPath = path.join(tmpDir, 'media.mp4');
   thumbPath = path.join(tmpDir, 'thumbnail.jpg');
+  unwrittenPath = path.join(tmpDir, 'not-written-yet.png');
   await sharp({ create: { width: 600, height: 400, channels: 3, background: '#008939' } })
     .png()
     .toFile(mediaPath);
@@ -84,6 +98,13 @@ beforeAll(async () => {
   await fs.writeFile(videoPath, Buffer.alloc(1000, 7));
 
   const app = express();
+  // Stand-in for the `optionalAuth` that routes.ts mounts on /api/share: the
+  // owner exemption reads `req.user`, so the tests need a way to be somebody.
+  app.use('/api/share', (req, _res, next) => {
+    const id = req.headers['x-test-user'];
+    if (typeof id === 'string') (req as express.Request & { user?: unknown }).user = { id };
+    next();
+  });
   app.use('/api/share', shareFileRouter);
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -100,6 +121,8 @@ afterAll(async () => {
 
 beforeEach(() => {
   getShareByToken.mockReset();
+  recordView.mockReset();
+  recordDownload.mockReset();
   getShareByToken.mockResolvedValue(imageShare());
 });
 
@@ -232,11 +255,21 @@ describe('GET /:shareToken/preview', () => {
   });
 
   it.each([
-    ['a missing share', null, 404],
+    // 410, not 404: a share that is gone is gone, and <img> retries cannot read
+    // a body to find that out. A file that has not landed yet stays 404 below.
+    ['a missing share', null, 410],
     ['a failed conversion', imageShare({ status: 'failed' }), 500],
   ])('reports %s', async (_label, share, status) => {
     getShareByToken.mockResolvedValue(share);
     expect((await get('/api/share/abc123/preview')).status).toBe(status);
+  });
+
+  it('keeps 404 for a share whose bytes have not landed yet', async () => {
+    // The upload race: the row exists and is listed, the file is still being
+    // written. Distinct from the 410 above precisely so the client retries this
+    // one and gives up on that one.
+    getShareByToken.mockResolvedValue(imageShare({ file_path: 'unwritten' }));
+    expect((await get('/api/share/abc123/preview')).status).toBe(404);
   });
 
   it('keeps answering 202 while a share is still processing', async () => {
@@ -281,5 +314,92 @@ describe('GET /:shareToken/thumbnail', () => {
     );
     const after = await get('/api/share/abc123/thumbnail');
     expect(after.headers.get('etag')).not.toBe(before.headers.get('etag'));
+  });
+});
+
+/**
+ * Share links expire; image paths do not.
+ *
+ * The asymmetry is the whole design and the easiest thing to "tidy up" into an
+ * outage: `/preview`, `/thumbnail` and `/stream` are not share links, they are
+ * how the Mediathek, the workplace strip, the Studio galleries, the canvas
+ * editor and the candidate-site builder fetch every image in the product. A
+ * deadline on those blanks the product for everyone, including the owner, and
+ * it would do so quietly — 30 days after a deploy nobody would still connect to.
+ */
+describe('share link expiry', () => {
+  const PAST = '2026-01-01T00:00:00.000Z';
+  const FUTURE = '2999-01-01T00:00:00.000Z';
+  const OWNER = 'owner-1';
+  const expired = (o: Record<string, unknown> = {}) =>
+    imageShare({ user_id: OWNER, expires_at: PAST, ...o });
+
+  it('answers the share page with 410 once the link is past its date', async () => {
+    getShareByToken.mockResolvedValue(expired());
+    const res = await get('/api/share/abc123');
+    expect(res.status).toBe(410);
+    expect((await res.json()).error).toBe('Dieser Link ist abgelaufen.');
+  });
+
+  it('keeps the transfer wording for the feature that introduced the column', async () => {
+    getShareByToken.mockResolvedValue(expired({ media_type: 'transfer' }));
+    const res = await get('/api/share/abc123');
+    expect((await res.json()).error).toBe('Dieser Transfer-Link ist abgelaufen.');
+  });
+
+  it('does not count a view on a dead link', async () => {
+    getShareByToken.mockResolvedValue(expired());
+    await get('/api/share/abc123');
+    expect(recordView).not.toHaveBeenCalled();
+  });
+
+  it('still serves the owner their own expired share', async () => {
+    getShareByToken.mockResolvedValue(expired());
+    const res = await get('/api/share/abc123', { headers: { 'x-test-user': OWNER } });
+    expect(res.status).toBe(200);
+  });
+
+  it('does not let a different signed-in account past the date', async () => {
+    getShareByToken.mockResolvedValue(expired());
+    const res = await get('/api/share/abc123', { headers: { 'x-test-user': 'somebody-else' } });
+    expect(res.status).toBe(410);
+  });
+
+  it('serves a share whose date has not arrived', async () => {
+    getShareByToken.mockResolvedValue(imageShare({ user_id: OWNER, expires_at: FUTURE }));
+    expect((await get('/api/share/abc123')).status).toBe(200);
+  });
+
+  it('serves a row the backfill has not reached — NULL is not expired', async () => {
+    getShareByToken.mockResolvedValue(imageShare({ user_id: OWNER, expires_at: null }));
+    expect((await get('/api/share/abc123')).status).toBe(200);
+  });
+
+  it('reports the deadline for an image, not just for transfers', async () => {
+    getShareByToken.mockResolvedValue(imageShare({ user_id: OWNER, expires_at: FUTURE }));
+    const body = (await (await get('/api/share/abc123')).json()) as {
+      share: { expiresAt: string | null };
+    };
+    expect(body.share.expiresAt).toBe(FUTURE);
+  });
+
+  it('refuses the download of a dead link', async () => {
+    getShareByToken.mockResolvedValue(expired());
+    expect((await get('/api/share/abc123/download')).status).toBe(410);
+  });
+
+  it.each(['preview?w=200&fmt=webp', 'thumbnail'])(
+    'keeps serving /%s past the date — these are image paths, not share links',
+    async (route) => {
+      getShareByToken.mockResolvedValue(expired({ thumbnail_path: 'abc123/thumbnail.jpg' }));
+      expect((await get(`/api/share/abc123/${route}`)).status).toBe(200);
+    }
+  );
+
+  it('keeps streaming video past the date, for the same reason', async () => {
+    getShareByToken.mockResolvedValue(
+      expired({ media_type: 'video', file_path: 'video', mime_type: 'video/mp4' })
+    );
+    expect((await get('/api/share/abc123/stream')).status).toBe(200);
   });
 });

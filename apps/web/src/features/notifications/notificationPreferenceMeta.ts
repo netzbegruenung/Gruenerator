@@ -117,23 +117,26 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     icon: LayoutDashboard,
     group: 'board',
   },
+  // Eigene Gruppe statt „Board": wer Board-Lärm abstellte, verlor sonst die
+  // Ergebnisse seiner selbstlaufenden Aufgaben gleich mit — die laufen aber
+  // auch ganz ohne Board.
   agent_task_completed: {
-    label: 'Agent-Aufgabe fertig',
-    description: 'Wenn der Grünerator eine an ihn delegierte Aufgabe erledigt hat',
+    label: 'Lauf erledigt',
+    description: 'Wenn eine wiederkehrende Aufgabe oder ein Board-Zeitplan fertig ist',
     icon: Sparkles,
-    group: 'board',
+    group: 'automations',
   },
   agent_task_failed: {
-    label: 'Agent-Aufgabe fehlgeschlagen',
-    description: 'Wenn der Grünerator eine delegierte Aufgabe nicht erledigen konnte',
+    label: 'Lauf fehlgeschlagen',
+    description: 'Wenn ein geplanter Lauf nicht ausgeführt werden konnte',
     icon: Sparkles,
-    group: 'board',
+    group: 'automations',
   },
   agent_task_awaiting_review: {
-    label: 'Agent-Aufgabe zur Prüfung',
+    label: 'Lauf wartet auf Freigabe',
     description: 'Wenn ein geplanter Lauf auf deine Freigabe wartet',
     icon: Sparkles,
-    group: 'board',
+    group: 'automations',
   },
 
   // Gruppen

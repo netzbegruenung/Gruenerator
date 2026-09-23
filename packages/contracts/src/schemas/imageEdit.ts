@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { imageModelIdSchema } from './imageModelPreference.js';
+import { treeBudgetStatusSchema } from './trees.js';
 
 /**
  * Schemas for POST /api/image-edit — FLUX.2 image editing with one or more
@@ -25,6 +26,15 @@ export const imageEditTypeSchema = z.enum(['universal', 'green-edit', 'ally-make
 
 /** AI-label variants for generated/edited images (default: 'full'). */
 export const kiLabelModeSchema = z.enum(['full', 'short', 'none']);
+
+/**
+ * Output/target formats offered by the Bild-Editor. Crosses the wire twice:
+ * as the `aspectRatio` field of `/imagine/outpaint` and — resolved to pixel
+ * dimensions — as `width`/`height` of `/imagine/pure`. The dimensions behind
+ * each id live in `IMAGE_FORMATS` (`@gruenerator/shared/image-studio`), which
+ * derives its ids from this enum.
+ */
+export const imageFormatIdSchema = z.enum(['4:5', '1:1', '4:3', '3:4', '16:9', '9:16']);
 
 export const imageEditBodySchema = z.object({
   /** Natural-language edit instruction; may reference "Bild 1", "Bild 2", … */
@@ -53,11 +63,7 @@ export const imageEditSuccessSchema = z.object({
   /** The structured prompt that was sent to the image model. */
   prompt: z.string(),
   model: imageModelIdSchema,
-  usage: z.object({
-    count: z.number(),
-    remaining: z.number(),
-    limit: z.number(),
-  }),
+  usage: treeBudgetStatusSchema,
 });
 
 export const imageEditErrorSchema = z.object({
@@ -66,13 +72,7 @@ export const imageEditErrorSchema = z.object({
 });
 
 export const imageEditQuotaErrorSchema = imageEditErrorSchema.extend({
-  data: z
-    .object({
-      count: z.number(),
-      remaining: z.number(),
-      limit: z.number(),
-    })
-    .nullish(),
+  data: treeBudgetStatusSchema.nullish(),
 });
 
 export type ImageEditReference = z.infer<typeof imageEditReferenceSchema>;
@@ -80,3 +80,4 @@ export type ImageEditBody = z.infer<typeof imageEditBodySchema>;
 export type ImageEditSuccess = z.infer<typeof imageEditSuccessSchema>;
 export type ImageEditType = z.infer<typeof imageEditTypeSchema>;
 export type KiLabelMode = z.infer<typeof kiLabelModeSchema>;
+export type ImageFormatId = z.infer<typeof imageFormatIdSchema>;

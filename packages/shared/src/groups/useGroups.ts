@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { getContractsClient, getGlobalApiClient } from '../api/index.js';
+import { apiErrorFromResponse, getContractsClient, getGlobalApiClient } from '../api/index.js';
 
 import {
   GROUPS_QUERY_KEY,
@@ -14,25 +14,16 @@ import {
   type VerifyTokenResult,
 } from './types.js';
 
-/**
- * Safely read a `message` off a ts-rest error body. The client response type
- * widens the body to `unknown` for non-2xx (undeclared) statuses, so we extract
- * defensively rather than asserting the error-schema shape.
- */
-export function errMessage(body: unknown, fallback = 'Aktion fehlgeschlagen.'): string {
-  if (body && typeof body === 'object' && 'message' in body) {
-    const m = (body as { message?: unknown }).message;
-    if (typeof m === 'string') return m;
-  }
-  return fallback;
-}
+// `errMessage` moved next to `ApiError`, where `apiErrorFromResponse` uses it.
+// Re-exported so the groups barrel and its consumers resolve it unchanged.
+export { errMessage } from '../api/index.js';
 
 export const useUserGroups = (options: { enabled?: boolean } = {}) =>
   useQuery({
     queryKey: GROUPS_QUERY_KEY,
     queryFn: async (): Promise<GroupSummary[]> => {
       const res = await getContractsClient().groups.listUserGroups();
-      if (res.status !== 200) throw new Error('Fehler beim Laden der Gruppen.');
+      if (res.status !== 200) throw apiErrorFromResponse(res, 'Fehler beim Laden der Gruppen.');
       return res.body.groups as GroupSummary[];
     },
     staleTime: 2 * 60 * 1000,
@@ -47,14 +38,21 @@ export const useGroupDetails = (groupId: string | null | undefined) =>
       const res = await getContractsClient().groups.getDetails({
         params: { groupId: groupId ?? '' },
       });
-      if (res.status !== 200) throw new Error('Fehler beim Laden der Gruppendetails.');
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Fehler beim Laden der Gruppendetails.');
       return {
-        group: res.body.group as GroupDetail,
+        group: res.body.group,
         membership: res.body.membership as GroupMembership,
       };
     },
     enabled: !!groupId,
     staleTime: 60 * 1000,
+    // Opening a Projekt must not show a name/role from an earlier visit.
+    refetchOnMount: 'always',
+    // Callers render this failure inline (GroupDetailSection has its own 403
+    // panel, ChatPage only loses a greeting name), so the global query toast
+    // stays out of it.
+    meta: { silent: true },
   });
 
 export const useGroupMembers = (groupId: string | null | undefined) =>
@@ -64,7 +62,8 @@ export const useGroupMembers = (groupId: string | null | undefined) =>
       const res = await getContractsClient().groups.listMembers({
         params: { groupId: groupId ?? '' },
       });
-      if (res.status !== 200) throw new Error('Fehler beim Laden der Gruppenmitglieder.');
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Fehler beim Laden der Gruppenmitglieder.');
       return res.body.members as GroupMember[];
     },
     enabled: !!groupId,
@@ -86,7 +85,7 @@ export const useCreateGroup = () => {
           ...(input.groupType ? { groupType: input.groupType } : {}),
         },
       });
-      if (res.status !== 200) throw new Error('Fehler beim Erstellen des Space.');
+      if (res.status !== 200) throw apiErrorFromResponse(res, 'Fehler beim Erstellen des Space.');
       return res.body.group as GroupSummary;
     },
     onSuccess: () => {
@@ -100,7 +99,7 @@ export const useDeleteGroup = () => {
   return useMutation({
     mutationFn: async (groupId: string) => {
       const res = await getContractsClient().groups.deleteGroup({ params: { groupId } });
-      if (res.status !== 200) throw new Error(errMessage(res.body));
+      if (res.status !== 200) throw apiErrorFromResponse(res);
       return groupId;
     },
     onSuccess: (groupId) => {
@@ -123,7 +122,7 @@ export const useUpdateGroupInfo = (groupId: string) => {
         params: { groupId },
         body: input,
       });
-      if (res.status !== 200) throw new Error(errMessage(res.body));
+      if (res.status !== 200) throw apiErrorFromResponse(res);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
@@ -140,7 +139,7 @@ export const useUpdateGroupName = (groupId: string) => {
         params: { groupId },
         body: { name },
       });
-      if (res.status !== 200) throw new Error(errMessage(res.body));
+      if (res.status !== 200) throw apiErrorFromResponse(res);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
@@ -156,7 +155,7 @@ export const useVerifyJoinToken = (joinToken: string | null | undefined) =>
       const res = await getContractsClient().groups.verifyToken({
         params: { joinToken: joinToken ?? '' },
       });
-      if (res.status !== 200) throw new Error(errMessage(res.body));
+      if (res.status !== 200) throw apiErrorFromResponse(res);
       return { group: res.body.group, alreadyMember: res.body.alreadyMember };
     },
     enabled: !!joinToken,
@@ -170,7 +169,7 @@ export const useJoinGroup = () => {
   return useMutation({
     mutationFn: async (joinToken: string) => {
       const res = await getContractsClient().groups.joinByToken({ body: { joinToken } });
-      if (res.status !== 200) throw new Error(errMessage(res.body));
+      if (res.status !== 200) throw apiErrorFromResponse(res);
       return { group: res.body.group, alreadyMember: res.body.alreadyMember ?? false };
     },
     onSuccess: () => {
@@ -184,7 +183,7 @@ export const useLeaveGroup = () => {
   return useMutation({
     mutationFn: async (groupId: string) => {
       const res = await getContractsClient().groups.leaveGroup({ params: { groupId } });
-      if (res.status !== 200) throw new Error(errMessage(res.body));
+      if (res.status !== 200) throw apiErrorFromResponse(res);
       return groupId;
     },
     onSuccess: (groupId) => {
@@ -203,7 +202,7 @@ export const useUpdateMemberRole = (groupId: string) => {
         params: { groupId, memberId: input.memberId },
         body: { role: input.role },
       });
-      if (res.status !== 200) throw new Error(errMessage(res.body));
+      if (res.status !== 200) throw apiErrorFromResponse(res);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: groupMembersKey(groupId) });
@@ -224,7 +223,7 @@ export const useSetGroupMute = (groupId: string) => {
         params: { groupId },
         body: { muted },
       });
-      if (res.status !== 200) throw new Error(errMessage(res.body));
+      if (res.status !== 200) throw apiErrorFromResponse(res);
       return res.body.muted;
     },
     onSuccess: () => {
@@ -238,7 +237,7 @@ export const useAddGroupLink = (groupId: string) => {
   return useMutation({
     mutationFn: async (link: Omit<GroupLink, 'id'>) => {
       const res = await getContractsClient().groups.addLink({ params: { groupId }, body: link });
-      if (res.status !== 200) throw new Error(errMessage(res.body));
+      if (res.status !== 200) throw apiErrorFromResponse(res);
       return res.body.link as GroupLink;
     },
     onSuccess: () => {
@@ -256,7 +255,7 @@ export const useUpdateGroupLink = (groupId: string) => {
         params: { groupId, linkId },
         body: link,
       });
-      if (res.status !== 200) throw new Error(errMessage(res.body));
+      if (res.status !== 200) throw apiErrorFromResponse(res);
       return res.body.link as GroupLink;
     },
     onSuccess: () => {
@@ -270,8 +269,7 @@ export const useDeleteGroupLink = (groupId: string) => {
   return useMutation({
     mutationFn: async (linkId: string) => {
       const res = await getContractsClient().groups.deleteLink({ params: { groupId, linkId } });
-      if (res.status !== 200)
-        throw new Error(errMessage(res.body, 'Fehler beim Löschen des Links.'));
+      if (res.status !== 200) throw apiErrorFromResponse(res, 'Fehler beim Löschen des Links.');
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: groupDetailsKey(groupId) });

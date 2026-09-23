@@ -8,9 +8,9 @@
  *
  * 1. **It is the most expensive call in the product.** `depth: 'deep'` plus a
  *    synthesis pass, 15–30s. So it is reachable only by the explicit mention and
- *    capped per user per day — the same shape as the image gate, because it is
- *    the same kind of problem. The cap itself lives in `deepResearchQuota.ts`,
- *    shared with the agent engine that sits in front of this one.
+ *    metered against the shared daily Bäume budget. The booking itself lives in
+ *    `deepResearchQuota.ts` and is made by the caller, once for this engine and
+ *    the agent engine that sits in front of it.
  * 2. **The answer already exists.** Nothing downstream may re-synthesise it: a
  *    model run over a finished text costs a second LLM pass, paraphrases what we
  *    paid for, and renumbers citations it does not understand.
@@ -31,7 +31,6 @@ import { getLinkupService } from '../../../services/search/LinkupService.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { stripOutOfRangeCitations } from './agenticLoop/citationStrip.js';
-import { chargeDeepResearch } from './deepResearchQuota.js';
 import { sendChatWarning } from './sseHelpers.js';
 
 import type { SSEWriter } from './sseHelpers.js';
@@ -107,8 +106,8 @@ export function toRegistryOrderedSources(sources: LinkupSource[]): SearchResult[
  * no user, or a failed call. Falling through is deliberate: a user who asked for
  * depth still gets a researched answer, one tier down, rather than an error. The
  * caller has already set `explicitDeepRequest`, so that fallback lands on
- * `tiefenrecherche` rather than being clamped. The daily allowance is not one of
- * these cases: the caller settles it for both engines before either starts.
+ * `tiefenrecherche` rather than being clamped. The daily budget is not one of
+ * these cases: the caller books it for both engines before either starts.
  *
  * On success the caller MUST skip both the search node and the rerank node —
  * reranking reorders `searchResults`, which is exactly the coupling above.
@@ -156,9 +155,6 @@ export async function runDeepResearchTurn(params: {
     );
     return null;
   }
-
-  // Counted only now: a failed call must not cost the user a run.
-  await chargeDeepResearch(userId);
 
   const searchResults = toRegistryOrderedSources(result.sources);
   const citations = buildCitations(searchResults);

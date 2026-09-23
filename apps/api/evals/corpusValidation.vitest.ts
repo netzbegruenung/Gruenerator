@@ -122,6 +122,8 @@ describe('the checked-in corpus', () => {
       systemMcp: true,
       deepResearch: true,
       bgstKorpus: true,
+      memory: true,
+      userNotebook: true,
     });
     expect(all.length).toBeGreaterThan(100);
   });
@@ -164,6 +166,8 @@ describe('the checked-in corpus', () => {
       systemMcp: true,
       deepResearch: true,
       bgstKorpus: true,
+      memory: true,
+      userNotebook: true,
     });
     expect(new Set(all.map((s) => s.id)).size).toBe(all.length);
   });

@@ -9,6 +9,7 @@ import { MEDIA_ENDPOINTS } from '../constants.js';
 import type {
   MediaFilters,
   MediaListResponse,
+  MediaType,
   MediaItemResponse,
   MediaUploadResponse,
   MediaUpdateParams,
@@ -154,7 +155,7 @@ export async function deleteMedia(id: string): Promise<MediaDeleteResponse> {
  */
 export async function searchMedia(
   query: string,
-  options: { type?: 'image' | 'video' | 'all'; limit?: number } = {}
+  options: { type?: MediaType | 'all'; limit?: number } = {}
 ): Promise<MediaListResponse> {
   const client = getGlobalApiClient();
 

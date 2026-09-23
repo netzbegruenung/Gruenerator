@@ -9,11 +9,10 @@
  */
 
 import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
-import { HiPhotograph, HiSparkles } from 'react-icons/hi';
+import { HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
-import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { AssetsSection, BackgroundSection } from '../sidebar';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
@@ -205,16 +204,9 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     },
     toolsTab,
     uploadsTab,
-    {
-      id: 'ai',
-      icon: HiSparkles,
-      label: 'KI',
-      ariaLabel: 'KI-Vorschläge',
-    },
     chatTab,
   ],
 
-  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
   // 'background' used to be hidden too, on the theory that clicking the photo
   // opens it. But `background-image` only renders in image mode with a picture
   // already set, and a fresh freeform starts on the colour plane — so the one
@@ -297,8 +289,6 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     ...createCommonSectionEntries('freeform', freeformAiCapabilities),
 
     share: createShareSection<FreeformState>('freeform', () => ''),
-
-    ai: createAiSectionRegistration('freeform', freeformAiCapabilities),
   },
 
   elements: [

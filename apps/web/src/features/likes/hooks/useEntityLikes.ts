@@ -1,7 +1,8 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
+import { shouldRetryQuery } from '../../../components/utils/queryRetry';
 import { useAuthStore } from '../../../stores/authStore';
 
 import type { NotebookCollection } from '../../../types/notebook';
@@ -17,12 +18,12 @@ async function fetchLikedIds(entityType: EntityLikeType): Promise<string[]> {
   const client = getContractsClient();
   if (entityType === 'notebook') {
     const result = await client.notebookCollections.listMyLikedCollections();
-    if (result.status !== 200) throw new Error('Konnte Likes nicht laden');
+    if (result.status !== 200) throw new ApiError(result.status, 'Konnte Likes nicht laden');
     return result.body.liked_ids;
   }
   // template
   const result = await client.templateInteractions.listMyLikedTemplates();
-  if (result.status !== 200) throw new Error('Konnte Likes nicht laden');
+  if (result.status !== 200) throw new ApiError(result.status, 'Konnte Likes nicht laden');
   return result.body.liked_ids;
 }
 
@@ -33,12 +34,12 @@ async function callLike(
   const client = getContractsClient();
   if (entityType === 'notebook') {
     const result = await client.notebookCollections.likeCollection({ params: { id: entityId } });
-    if (result.status !== 200) throw new Error('Like fehlgeschlagen');
+    if (result.status !== 200) throw new ApiError(result.status, 'Like fehlgeschlagen');
     return { liked: true, count: result.body.count };
   }
   // template
   const result = await client.templateInteractions.likeTemplate({ params: { id: entityId } });
-  if (result.status !== 200) throw new Error('Like fehlgeschlagen');
+  if (result.status !== 200) throw new ApiError(result.status, 'Like fehlgeschlagen');
   return { liked: true, count: result.body.count };
 }
 
@@ -49,12 +50,12 @@ async function callUnlike(
   const client = getContractsClient();
   if (entityType === 'notebook') {
     const result = await client.notebookCollections.unlikeCollection({ params: { id: entityId } });
-    if (result.status !== 200) throw new Error('Unlike fehlgeschlagen');
+    if (result.status !== 200) throw new ApiError(result.status, 'Unlike fehlgeschlagen');
     return { liked: false, count: result.body.count };
   }
   // template
   const result = await client.templateInteractions.unlikeTemplate({ params: { id: entityId } });
-  if (result.status !== 200) throw new Error('Unlike fehlgeschlagen');
+  if (result.status !== 200) throw new ApiError(result.status, 'Unlike fehlgeschlagen');
   return { liked: false, count: result.body.count };
 }
 
@@ -123,7 +124,7 @@ export function useEntityLikes(entityType: EntityLikeType): UseEntityLikesResult
     queryKey: likedIdsQueryKey(entityType),
     queryFn: () => fetchLikedIds(entityType),
     enabled: isAuthenticated,
-    retry: 1,
+    retry: (failureCount, error) => shouldRetryQuery(failureCount, error, 1),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });

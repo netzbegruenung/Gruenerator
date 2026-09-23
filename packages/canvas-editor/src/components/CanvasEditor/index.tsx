@@ -42,10 +42,12 @@ import { getCategoryForTemplate } from '../../utils/templateRegistry';
 
 import { PageThumbnailStrip } from '../PageThumbnailStrip';
 import { Toolbar } from '../Toolbar';
+import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
 import { ContextToolbar } from '../TopBar/ContextToolbar';
 import { MobileContextBar } from '../TopBar/MobileContextBar';
 import { AddPageButton, TemplatePickerFlyout } from '../TemplatePickerFlyout';
 
+import { PAGE_ELEMENT_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { PageWrapper } from './PageWrapper';
@@ -184,7 +186,8 @@ function CanvasEditorInner({
     if (!wrapped) {
       wrapped = createPageSyncedCallbacks(
         () => callbacksRef.current,
-        (partial) => updatePageStateRef.current(pageId, partial)
+        (partial) => updatePageStateRef.current(pageId, partial),
+        PAGE_ELEMENT_STATE_KEYS
       );
       cache.set(pageId, wrapped);
     }
@@ -228,7 +231,7 @@ function CanvasEditorInner({
   // Pinch and ctrl/cmd+wheel drive the same zoom as the CanvasMetaBar buttons
   useZoomGestures(pagesContainerRef, setZoom);
 
-  // Every page binds its layers/config to its page Y.Map — in collab mode
+  // Every page binds its config to its page Y.Map — in collab mode
   // that syncs to peers, in local mode it makes duplicate/move/undo carry
   // the full page content (the Y.Doc is the single source of truth).
   // Bindings are identity-cached per page: a fresh object per render would
@@ -421,7 +424,8 @@ function CanvasEditorInner({
         prev.canUndo === report.canUndo &&
         prev.canRedo === report.canRedo &&
         prev.canMoveUp === report.canMoveUp &&
-        prev.canMoveDown === report.canMoveDown
+        prev.canMoveDown === report.canMoveDown &&
+        prev.canDuplicate === report.canDuplicate
       ) {
         return prev;
       }
@@ -1033,6 +1037,7 @@ function CanvasEditorInner({
           activeFloatingModule: toolbarState.activeFloatingModule ?? null,
           canMoveUp: toolbarState.canMoveUp ?? false,
           canMoveDown: toolbarState.canMoveDown ?? false,
+          canDuplicate: toolbarState.canDuplicate ?? false,
           handlers: {
             ...toolbarHandlers,
             onEditImage: () => setActiveTab('image-adjust'),
@@ -1054,7 +1059,14 @@ function CanvasEditorInner({
       <MobileContextBar {...contextControlsProps} />
     ) : null;
 
-  const showPageNavigator = !isMobileBridge && pages.length > 1;
+  // Die untere Leiste trägt zwei Dinge, und nur eines davon hängt an der
+  // Seitenzahl: der Miniaturen-Streifen ist erst im Deck sinnvoll, die
+  // Meta-Leiste daneben (Zoom-Regler, Vollbild, Seitenanzeige) gilt immer.
+  // Bis hierher hing beides an derselben Bedingung — bei einer einzelnen Seite
+  // fiel damit auch der Zoom weg und war nur noch per Pinch bzw. Strg/Cmd+Rad
+  // erreichbar.
+  const showBottomBar = !isMobileBridge;
+  const showPageStrip = showBottomBar && pages.length > 1;
   const currentTemplateId = pages[currentPageIndex]?.configId;
   const sliderVariantHandler = pages[0]?.configId === 'slider' ? handleAddSliderVariant : undefined;
   // Restrict the template picker to the same category as the current template
@@ -1062,24 +1074,49 @@ function CanvasEditorInner({
   // can't insert a presentation slide.
   const categoryFilter = currentTemplateId ? getCategoryForTemplate(currentTemplateId) : undefined;
 
-  const bottomBar = showPageNavigator ? (
-    <div className="canvas-bottom-bar flex items-stretch bg-[var(--editor-surface)] border-t border-[var(--editor-border)]">
-      <div className="flex-1 min-w-0">
-        <PageThumbnailStrip
-          pages={pages}
-          currentPageIndex={currentPageIndex}
-          thumbnails={pageThumbnails}
-          loadedConfigs={loadedConfigs}
-          currentTemplateId={currentTemplateId}
-          canAddMore={canAddMore}
-          onSelect={handleThumbnailSelect}
-          onAddPage={handleAddPage}
-          onDuplicateCurrent={duplicateCurrentPage}
-          onAddSliderVariant={sliderVariantHandler}
-          templateFilter={categoryFilter}
-        />
-      </div>
-      <div className="shrink-0 flex items-center border-l border-[var(--editor-border)]">
+  // Die Leiste selbst ist durchsichtig und rahmenlos — sie liegt über der
+  // Fläche, statt eine eigene Kante zu bilden, und fängt außerhalb ihrer
+  // Kapseln keine Klicks ab. Lesbar bleiben die Bedienteile durch je eine
+  // eigene, leicht durchscheinende Kapsel.
+  const bottomBarGroup =
+    'flex items-center rounded-xl border border-[var(--editor-border)] bg-[var(--editor-surface)]/80 shadow-sm backdrop-blur-sm pointer-events-auto';
+  const bottomBar = showBottomBar ? (
+    <div className="canvas-bottom-bar pointer-events-none flex items-center gap-2 px-2 pb-2">
+      {showPageStrip ? (
+        <div className="min-w-0 flex-1">
+          <div className={cn('w-fit max-w-full', bottomBarGroup)}>
+            <PageThumbnailStrip
+              pages={pages}
+              currentPageIndex={currentPageIndex}
+              thumbnails={pageThumbnails}
+              loadedConfigs={loadedConfigs}
+              currentTemplateId={currentTemplateId}
+              canAddMore={canAddMore}
+              onSelect={handleThumbnailSelect}
+              onAddPage={handleAddPage}
+              onDuplicateCurrent={duplicateCurrentPage}
+              onAddSliderVariant={sliderVariantHandler}
+              templateFilter={categoryFilter}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="min-w-0 flex-1">
+          {canAddMore && (
+            <div className={cn('w-fit px-1.5 py-1', bottomBarGroup)}>
+              <AddPageButton
+                onSelectTemplate={handleAddPage}
+                onDuplicateCurrent={duplicateCurrentPage}
+                currentTemplateId={currentTemplateId}
+                onAddSliderVariant={sliderVariantHandler}
+                templateFilter={categoryFilter}
+                compact
+              />
+            </div>
+          )}
+        </div>
+      )}
+      <div className={cn('shrink-0', bottomBarGroup)}>
         <CanvasMetaBar
           pageCount={pageCount}
           currentPageIndex={currentPageIndex}
@@ -1092,90 +1129,108 @@ function CanvasEditorInner({
 
   return (
     <UserUploadsProvider>
-      <CanvasEditorLayout
-        sidebar={panel}
-        tabBar={tabBar}
-        actions={null}
-        toolbar={toolbarElement}
-        contextBar={contextBarElement}
-        bottomBar={bottomBar}
-        hideMobileChrome={isMobileBridge}
-        externalSidebar={isExternalSidebar}
-        subsectionBar={webSubsectionBar}
-      >
-        {mobileContextBarElement}
-        <div
-          ref={pagesContainerRef}
-          onPointerDown={handleWorkAreaPointerDown}
-          className={cn(
-            'heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs',
-            showPageNavigator && 'has-page-navigator'
-          )}
+      {/* Die Text-Bearbeitung sitzt an der Wurzel des Editors, nicht je Seite:
+          nur so liegt sie über der Kontextleiste, die ihre Formatierungsknöpfe
+          zeigt. Der Provider in `CanvasStage` merkt, dass er einen über sich
+          hat, und reicht durch. Ob die Leiste die Knöpfe wirklich übernimmt,
+          meldet sie selbst an — im Brücken-Modus rendern wir sie nicht, und
+          dann zeigt das Overlay wieder seine eigene Karte. */}
+      <CanvasTextEditorProvider>
+        <CanvasEditorLayout
+          sidebar={panel}
+          tabBar={tabBar}
+          actions={null}
+          toolbar={toolbarElement}
+          contextBar={contextBarElement}
+          bottomBar={bottomBar}
+          hideMobileChrome={isMobileBridge}
+          externalSidebar={isExternalSidebar}
+          subsectionBar={webSubsectionBar}
         >
-          {pages.map((page, index) => {
-            const config = loadedConfigs.get(page.configId);
-            if (!config) return null;
+          {mobileContextBarElement}
+          <div
+            ref={pagesContainerRef}
+            onPointerDown={handleWorkAreaPointerDown}
+            className={cn(
+              'heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs',
+              showBottomBar && 'has-bottom-bar'
+            )}
+          >
+            {pages.map((page, index) => {
+              const config = loadedConfigs.get(page.configId);
+              if (!config) return null;
 
-            const isActive = index === currentPageIndex;
-            const canDelete = pageCount > 1;
+              const isActive = index === currentPageIndex;
+              const canDelete = pageCount > 1;
 
-            return (
-              <PageWrapper
-                key={page.id}
-                page={page}
-                index={index}
-                pageCount={pageCount}
-                config={config}
-                isActive={isActive}
-                canDelete={canDelete}
-                canvasRef={canvasRefsRef.current[index]}
-                pageRef={pageDomRefsRef.current[index]}
-                onSelect={handlePageSelect}
-                onDelete={removePage}
-                onMovePage={movePage}
-                onDuplicatePage={duplicatePage}
-                onChangeTemplate={handleOpenTemplateChange}
-                onExport={handleExport}
-                onCancel={onCancel}
-                callbacks={getCallbacksForPage(page.id)}
-                multiPageExport={index === 0 ? multiPageExportProps : undefined}
-                onStateChange={handlePageStateChange}
-                onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
-                onAutoSaveShareToken={onAutoSaveShareToken}
-                autoSave={false}
-                mobileBridge={isActive ? mobileBridge : undefined}
-                pageBinding={pageBindingAt(index, page.id, isActive)}
-              />
-            );
-          })}
+              return (
+                <PageWrapper
+                  key={page.id}
+                  page={page}
+                  index={index}
+                  pageCount={pageCount}
+                  config={config}
+                  isActive={isActive}
+                  canDelete={canDelete}
+                  canvasRef={canvasRefsRef.current[index]}
+                  pageRef={pageDomRefsRef.current[index]}
+                  onSelect={handlePageSelect}
+                  onDelete={removePage}
+                  onMovePage={movePage}
+                  onDuplicatePage={duplicatePage}
+                  onChangeTemplate={handleOpenTemplateChange}
+                  onExport={handleExport}
+                  onCancel={onCancel}
+                  callbacks={getCallbacksForPage(page.id)}
+                  multiPageExport={index === 0 ? multiPageExportProps : undefined}
+                  onStateChange={handlePageStateChange}
+                  onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
+                  onAutoSaveShareToken={onAutoSaveShareToken}
+                  autoSave={false}
+                  mobileBridge={isActive ? mobileBridge : undefined}
+                  pageBinding={pageBindingAt(index, page.id, isActive)}
+                />
+              );
+            })}
 
-          {templateChangePage && (
-            <TemplatePickerFlyout
-              isOpen
-              mode="replace"
-              anchorRef={pageDomRefsRef.current[templateChangePage.index]}
-              onSelectTemplate={handleSelectTemplateChange}
-              onClose={handleCloseTemplateChange}
-              currentTemplateId={templateChangePage.configId}
-              templateFilter={categoryFilter}
-            />
-          )}
-
-          {/* Tail AddPageButton — only when no strip is shown (single page or mobile bridge) */}
-          {canAddMore && !showPageNavigator && (
-            <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs">
-              <AddPageButton
-                onSelectTemplate={handleAddPage}
-                onDuplicateCurrent={duplicateCurrentPage}
-                currentTemplateId={currentTemplateId}
-                disabled={!canAddMore}
-                onAddSliderVariant={sliderVariantHandler}
+            {templateChangePage && (
+              <TemplatePickerFlyout
+                isOpen
+                mode="replace"
+                anchorRef={pageDomRefsRef.current[templateChangePage.index]}
+                onSelectTemplate={handleSelectTemplateChange}
+                onClose={handleCloseTemplateChange}
+                currentTemplateId={templateChangePage.configId}
                 templateFilter={categoryFilter}
               />
-            </div>
-          )}
-        </div>
-      </CanvasEditorLayout>
+            )}
+
+            {/* Seite hinzufügen unter der Fläche — für die Fälle, in denen die
+                untere Leiste den Knopf nicht trägt: im Brücken-Modus (dort gibt
+                es gar keine Leiste) und unterhalb von 900 px, wo
+                `CanvasEditorLayout` sie per `max-canvas-mobile:hidden`
+                ausblendet. Die Breakpoint-Bedingung steht hier gespiegelt, weil
+                nur CSS sie kennt. */}
+            {canAddMore && !showPageStrip && (
+              <div
+                className={cn(
+                  'w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs',
+                  showBottomBar && 'canvas-mobile:hidden'
+                )}
+              >
+                <AddPageButton
+                  onSelectTemplate={handleAddPage}
+                  onDuplicateCurrent={duplicateCurrentPage}
+                  currentTemplateId={currentTemplateId}
+                  disabled={!canAddMore}
+                  onAddSliderVariant={sliderVariantHandler}
+                  templateFilter={categoryFilter}
+                />
+              </div>
+            )}
+          </div>
+        </CanvasEditorLayout>
+      </CanvasTextEditorProvider>
     </UserUploadsProvider>
   );
 }

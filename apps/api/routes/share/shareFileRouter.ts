@@ -34,7 +34,7 @@ import { transferService } from '../../services/transferService.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { getSharedMediaService } from './shareServices.js';
+import { getSharedMediaService, type SharedMediaService } from './shareServices.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { SharedMediaRow } from '../../types/media.js';
@@ -114,6 +114,10 @@ router.get(
         });
       }
 
+      if (shareLinkExpired(share, req)) {
+        return res.status(410).json({ success: false, error: expiredLinkMessage(share) });
+      }
+
       await service.recordView(shareToken);
 
       const shareObj: NonNullable<ShareInfoResponse['share']> = {
@@ -125,6 +129,9 @@ router.get(
         status: share.status || 'ready',
         createdAt: share.created_at,
         ...(share.sharer_name != null ? { sharerName: share.sharer_name } : {}),
+        // Every type now carries a deadline, so the owner can see when their
+        // link goes dead instead of finding out from a recipient.
+        expiresAt: share.expires_at ?? null,
       };
       const response: ShareInfoResponse = {
         success: true,
@@ -132,19 +139,10 @@ router.get(
       };
 
       if (share.media_type === 'transfer') {
-        // Check expiry for transfers
-        if (share.expires_at && new Date(share.expires_at) < new Date()) {
-          return res.status(410).json({
-            success: false,
-            error: 'Dieser Transfer-Link ist abgelaufen.',
-          });
-        }
-
         response.share!.fileName = share.file_name;
         response.share!.fileSize = share.file_size;
         response.share!.mimeType = share.mime_type;
         response.share!.isPasswordProtected = !!share.password_hash;
-        response.share!.expiresAt = share.expires_at ?? null;
         response.share!.transferMessage = share.transfer_message ?? null;
 
         const files = share.transfer_files;
@@ -157,8 +155,10 @@ router.get(
             })
           );
         }
-      } else if (share.media_type === 'video') {
+      } else if (share.media_type === 'video' || share.media_type === 'audio') {
         response.share!.duration = share.duration;
+        // The public page picks the download extension from this (mp3 vs WAV).
+        if (share.media_type === 'audio') response.share!.mimeType = share.mime_type;
       } else {
         const metadata = (
           typeof share.image_metadata === 'string'
@@ -290,9 +290,48 @@ router.get(
 );
 
 /**
+ * Has this share's link passed its `expires_at`, for whoever is asking?
+ *
+ * Never for the owner. `/share/<token>` is also where someone checks their own
+ * share, and the row stays in their Mediathek regardless — expiry closes the
+ * *link*, so it applies to people who could only have arrived through one.
+ * `optionalAuth` is mounted on `/api/share` (routes.ts), so `req.user` is
+ * populated here when a session exists.
+ *
+ * Only the two routes that *are* that link ask this: the share page and its
+ * download. The image paths (`/preview`, `/thumbnail`, `/stream`) deliberately
+ * do not — they render the Mediathek, the galleries, the canvas editor and the
+ * candidate sites, so a deadline there would blank the product rather than
+ * close a share. See `SHARE_LINK_MAX_AGE_DAYS` for the full rationale; do not
+ * "fix" the inconsistency by adding a check to those three.
+ */
+function shareLinkExpired(share: SharedMediaRow, req: Request): boolean {
+  if (!share.expires_at) return false;
+  if (new Date(share.expires_at) >= new Date()) return false;
+  const viewerId = (req as AuthenticatedRequest).user?.id;
+  return viewerId !== share.user_id;
+}
+
+/** Wording for a dead link; transfers keep their own, older sentence. */
+function expiredLinkMessage(share: SharedMediaRow): string {
+  return share.media_type === 'transfer'
+    ? 'Dieser Transfer-Link ist abgelaufen.'
+    : 'Dieser Link ist abgelaufen.';
+}
+
+/**
  * Resolve a share to a readable media file, or answer the request and return
  * null. Shared by /preview and /stream so the two cannot drift on which
  * statuses are visible.
+ *
+ * A share row that does not exist answers 410, not 404, because the two cases
+ * are not the same to a caller and used to be indistinguishable. A row that is
+ * gone is gone for good; a row whose bytes have not landed yet is the normal
+ * race right after upload (the share is listed in "Zuletzt" before the file is
+ * written) and is worth retrying. Both used to be 404, so `PreviewImage` — which
+ * only sees an <img> error event and no status — had to retry either way, and
+ * every deleted image cost four requests before it gave up. 410 lets the client
+ * stop after the first one without giving up on the race.
  */
 async function resolveShareMedia(
   shareToken: string,
@@ -302,7 +341,7 @@ async function resolveShareMedia(
   const share = await service.getShareByToken(shareToken);
 
   if (!share) {
-    res.status(404).json({ error: 'Medium nicht gefunden' });
+    res.status(410).json({ error: 'Medium nicht gefunden' });
     return null;
   }
   if (share.status === 'processing') {
@@ -329,27 +368,77 @@ async function resolveShareMedia(
   return { share, mediaPath, fileSize: stat.size };
 }
 
-/** Byte-range video streaming. */
-function streamVideo(req: Request, res: Response, mediaPath: string, fileSize: number): void {
+/** Byte-range streaming for video and audio — what `<video>`/`<audio>` need to seek. */
+function streamMedia(
+  req: Request,
+  res: Response,
+  mediaPath: string,
+  fileSize: number,
+  contentType: string
+): void {
   const range = req.headers.range;
 
   if (range) {
-    const parts = range.replace(/bytes=/, '').split('-');
-    const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    // `bytes=a-b`, `bytes=a-` and the suffix form `bytes=-n` (RFC 7233), which
+    // some players send for the trailer. Anything else, or a start past the
+    // file, is a 416 — before this the NaN reached `createReadStream` after
+    // the 206 header was already out.
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    const suffix = match && match[1] === '' ? Number(match[2]) : null;
+    const start = match
+      ? suffix !== null
+        ? Math.max(0, fileSize - suffix)
+        : Number(match[1])
+      : NaN;
+    const end =
+      match && match[2] !== '' && suffix === null
+        ? Math.min(Number(match[2]), fileSize - 1)
+        : fileSize - 1;
+
+    if (
+      !match ||
+      !Number.isFinite(start) ||
+      (suffix !== null && !suffix) ||
+      start >= fileSize ||
+      start > end
+    ) {
+      res.writeHead(416, { 'Content-Range': `bytes */${fileSize}` });
+      res.end();
+      return;
+    }
 
     res.writeHead(206, {
       'Content-Range': `bytes ${start}-${end}/${fileSize}`,
       'Accept-Ranges': 'bytes',
       'Content-Length': end - start + 1,
-      'Content-Type': 'video/mp4',
+      'Content-Type': contentType,
     });
     fs.createReadStream(mediaPath, { start, end }).pipe(res);
     return;
   }
 
-  res.writeHead(200, { 'Content-Length': fileSize, 'Content-Type': 'video/mp4' });
+  res.writeHead(200, { 'Content-Length': fileSize, 'Content-Type': contentType });
   fs.createReadStream(mediaPath).pipe(res);
+}
+
+/**
+ * Video keeps the `video/mp4` it always advertised — a QuickTime upload
+ * streamed as `video/quicktime` would stop playing in Firefox, which trusts
+ * the header where Chrome sniffs. Audio rows carry their real mime type.
+ */
+function streamContentType(share: SharedMediaRow): string {
+  return share.media_type === 'video' ? 'video/mp4' : share.mime_type || 'audio/mpeg';
+}
+
+/**
+ * Extension for the download filename. Audio rows always carry a mime type
+ * and use the service's one map; the image/video branches keep their old
+ * answers (an unknown image mime stays "png", not "bin").
+ */
+function downloadExtension(share: SharedMediaRow, service: SharedMediaService): string {
+  if (share.media_type === 'video') return 'mp4';
+  if (share.media_type === 'audio') return service.getExtensionFromMime(share.mime_type);
+  return share.mime_type === 'image/jpeg' ? 'jpg' : 'png';
 }
 
 /**
@@ -364,11 +453,11 @@ router.get('/:shareToken/stream', async (req: Request<ShareTokenParams>, res: Re
   try {
     const resolved = await resolveShareMedia(req.params.shareToken, res);
     if (!resolved) return;
-    if (resolved.share.media_type !== 'video') {
-      res.status(404).json({ error: 'Kein Video' });
+    if (resolved.share.media_type !== 'video' && resolved.share.media_type !== 'audio') {
+      res.status(404).json({ error: 'Kein Video oder Audio' });
       return;
     }
-    streamVideo(req, res, resolved.mediaPath, resolved.fileSize);
+    streamMedia(req, res, resolved.mediaPath, resolved.fileSize, streamContentType(resolved.share));
   } catch (error) {
     log.error('Failed to stream media:', error);
     res.status(500).json({ error: 'Fehler beim Laden des Videos' });
@@ -399,8 +488,8 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
     if (!resolved) return;
     const { share, mediaPath, fileSize } = resolved;
 
-    if (share.media_type === 'video') {
-      streamVideo(req, res, mediaPath, fileSize);
+    if (share.media_type === 'video' || share.media_type === 'audio') {
+      streamMedia(req, res, mediaPath, fileSize, streamContentType(share));
       return;
     }
 
@@ -477,12 +566,12 @@ router.get(
         return;
       }
 
-      if (share.media_type === 'transfer') {
-        if (share.expires_at && new Date(share.expires_at) < new Date()) {
-          res.status(410).json({ success: false, error: 'Dieser Transfer-Link ist abgelaufen.' });
-          return;
-        }
+      if (shareLinkExpired(share, req)) {
+        res.status(410).json({ success: false, error: expiredLinkMessage(share) });
+        return;
+      }
 
+      if (share.media_type === 'transfer') {
         // scrypt format: "salt:hash"
         const password = req.headers['x-transfer-password'] as string;
         if (share.password_hash) {
@@ -601,9 +690,7 @@ router.get(
           .replace(/[^a-zA-Z0-9_-]/g, '_')
           .substring(0, 50);
 
-        const extension =
-          share.media_type === 'video' ? 'mp4' : share.mime_type === 'image/jpeg' ? 'jpg' : 'png';
-        const filename = `${sanitizedTitle}_gruenerator.${extension}`;
+        const filename = `${sanitizedTitle}_gruenerator.${downloadExtension(share, service)}`;
 
         res.setHeader(
           'Content-Type',

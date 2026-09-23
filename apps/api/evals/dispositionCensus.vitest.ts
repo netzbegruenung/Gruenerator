@@ -105,7 +105,8 @@ describe('Klassifikator-Dispositionszählung über den Eval-Korpus', () => {
       `Die Baseline wurde über ${baselineTotal} Turns erzeugt, der Korpus hat ` +
         `jetzt ${run.turns.length}. Das ist fast immer ein veralteter Branch: ` +
         'erst `git merge origin/master`, dann erneut messen. Bleibt der ' +
-        'Unterschied, hat dieser PR den Korpus geändert — dann CENSUS_UPDATE=1.'
+        'Unterschied, hat dieser PR den Korpus geändert — oder master selbst ' +
+        'hat es ohne neue Baseline getan (#3614) —, dann CENSUS_UPDATE=1.'
     ).toBe(baselineTotal);
 
     expect(

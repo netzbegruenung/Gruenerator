@@ -5,6 +5,8 @@
 
 import fs from 'fs';
 
+import { hasAiConsent } from '../../../middleware/requireAiConsent.js';
+
 import { chunkAndEmbedText } from './chunkingPipeline.js';
 import { capStoredText, extractTextFromFile, generateContentPreview } from './textExtraction.js';
 
@@ -127,6 +129,13 @@ export async function processUploadedDocument(
   };
 
   try {
+    // Art.-9-Einwilligung: der Ingest läuft im Worker ohne Request (Upload-Assistent,
+    // Notebook-Speichern, Wolke). OCR und Einbettung sind KI-Verarbeitung; der
+    // catch unten verbucht das Dokument mit diesem Grund als gescheitert.
+    if (!(await hasAiConsent(userId))) {
+      throw new Error('Für die KI-Verarbeitung fehlt die Einwilligung nach Art. 9 DSGVO.');
+    }
+
     await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
       status: 'processing',
       // Clear a previous run's reason, so a retry doesn't show a stale error.

@@ -77,7 +77,8 @@ export interface CloudDownload {
   size: number;
 }
 
-export type CloudConnectionErrorCode = 'invalid_link' | 'not_found' | 'forbidden' | 'unknown';
+export type CloudConnectionErrorCode =
+  'invalid_link' | 'not_found' | 'forbidden' | 'file_drop' | 'unknown';
 
 export interface CloudConnectionTest {
   ok: boolean;

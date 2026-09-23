@@ -1,5 +1,5 @@
 import { type ContentItem, type ContentKind, type VideoContentItem } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
 export type { ContentItem, ContentKind };
@@ -38,7 +38,7 @@ export function useContent(kinds: readonly ContentKind[], limit: number) {
         query: { kind: kinds.join(','), limit: String(limit) },
       });
       if (res.status !== 200) {
-        throw new Error('Inhalte konnten nicht geladen werden.');
+        throw new ApiError(res.status, 'Inhalte konnten nicht geladen werden.');
       }
       return res.body;
     },

@@ -30,6 +30,9 @@ function build(overrides: {
   customSystemPrompt?: string | null;
   customRoleName?: string | null;
   customRoleRef?: typeof ROLE | null;
+  activeSkillMention?: string | null;
+  activeRecipeId?: string | null;
+  typedSkillMention?: string | null;
 }): Record<string, unknown> {
   return buildRequestBody({
     effectiveMode: overrides.effectiveMode,
@@ -39,9 +42,11 @@ function build(overrides: {
       customSystemPrompt: overrides.customSystemPrompt ?? null,
       customRoleName: overrides.customRoleName ?? null,
       customRoleRef: overrides.customRoleRef ?? null,
+      activeSkillMention: overrides.activeSkillMention ?? null,
+      activeRecipeId: overrides.activeRecipeId ?? null,
     } as unknown as BuildRequestBodyParams['config'],
     effectiveAgentId: 'gruenerator-universal',
-    typedSkillMention: null,
+    typedSkillMention: overrides.typedSkillMention ?? null,
     safeCustomEnabledTools: null,
     extractedAttachments: [],
     notebookIds: [],
@@ -60,6 +65,7 @@ function build(overrides: {
     hasDocumentChat: false,
     injectedCurrentDocument: undefined,
     injectedCurrentBoard: undefined,
+    injectedCurrentCanvas: undefined,
     injectedAttachmentContext: undefined,
     seededInitialAssistantMessage: undefined,
     currentSharepic: null,
@@ -115,5 +121,34 @@ describe('buildRequestBody — der Rollen-Dreiklang', () => {
     });
     expect(body.customSystemPrompt).toBeUndefined();
     expect(body.roleRef).toEqual(ROLE);
+  });
+});
+
+describe('buildRequestBody — activeRecipeId', () => {
+  it('carries the ambient recipe id alongside its skill mention', () => {
+    const body = build({
+      effectiveMode: 'chat',
+      activeSkillMention: 'omveinladungen',
+      activeRecipeId: 'recipe-omv-1',
+    });
+    expect(body.activeSkillMention).toBe('omveinladungen');
+    expect(body.activeRecipeId).toBe('recipe-omv-1');
+  });
+
+  it('leaves it out for a system skill (no id set)', () => {
+    const body = build({ effectiveMode: 'chat', activeSkillMention: 'presse' });
+    expect(body.activeSkillMention).toBe('presse');
+    expect(body.activeRecipeId).toBeUndefined();
+  });
+
+  it('drops the ambient recipe id when the message types its own mention', () => {
+    const body = build({
+      effectiveMode: 'chat',
+      activeSkillMention: 'omveinladungen',
+      activeRecipeId: 'recipe-omv-1',
+      typedSkillMention: 'presse',
+    });
+    expect(body.activeSkillMention).toBe('presse');
+    expect(body.activeRecipeId).toBeUndefined();
   });
 });

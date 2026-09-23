@@ -4,10 +4,15 @@ import {
   useUserLandesverbaende,
   type AgentListItem,
 } from '@gruenerator/chat';
+import { type TextForm } from '@gruenerator/contracts';
 import {
+  AGENTURA_TYPE_LABELS,
+  DEFAULT_CATEGORY,
+  DEFAULT_TYPE,
   SKILL_CATEGORY_LABELS,
   SKILL_CATEGORY_ORDER,
   agenturaCategoriesForPlatform,
+  agenturaMetaLine,
   getSystemAgent,
   getVisibleSystemAgentsForLocale,
   isAdminVisibleSkill,
@@ -17,11 +22,13 @@ import {
   isSkillOfferedIn,
   landesverbandLabel,
   landesverbandRegion,
+  matchesAgenturaType,
   type Agent,
   type AgenturaCategoryKey,
+  type AgenturaType,
 } from '@gruenerator/shared/agents';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
@@ -34,26 +41,57 @@ import {
   useColorScheme,
 } from 'react-native';
 
+import { MarketCard } from '../../components/agentura/MarketCard';
+import { ShelfTabs, TypeFilterRow } from '../../components/agentura/MarketFilters';
 import { agentIcon } from '../../components/chat/sidebarIcons';
-import { ChipGroup, ListGroup, ListRow, SkeletonRows } from '../../components/common';
+import { ListGroup, SkeletonRows } from '../../components/common';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { CURRENT_INSTANCE } from '../../config/instance';
+import { useOwnRecipes } from '../../hooks/agents/useOwnRecipes';
 import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
 import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 
-/** How many agents the "Empfohlen" shelf shows before it stops being a shortcut. */
-const FEATURED_LIMIT = 8;
+/**
+ * Regal-Schild je Kategorie. Ein `Record` über die volle Schlüssel-Union, nicht
+ * ein Nachschlagen mit Rückfall: ein neues Regal in der geteilten Registry
+ * scheitert hier am Compiler, bis es ein Symbol hat. `empfohlen` und
+ * `favoriten` sind stillgelegt (`platforms: []`) und erscheinen nie — der
+ * Eintrag bleibt trotzdem, weil der Typ die Union verlangt.
+ */
+const SHELF_ICONS: Record<AgenturaCategoryKey, IoniconsIconName> = {
+  empfohlen: 'star-outline',
+  meine: 'sparkles-outline',
+  landesverband: 'location-outline',
+  community: 'globe-outline',
+  gruenerator: 'storefront-outline',
+  favoriten: 'star',
+};
+
+/**
+ * Nur die Gattungen, die es mobil gibt. „Wiederkehrend" und „Favoriten" führt
+ * dieser Bildschirm nicht — sie kämen immer leer zurück.
+ */
+const MOBILE_TYPE_FILTERS = (['all', 'agent', 'recipe'] as const).map((id) => ({
+  id,
+  label: AGENTURA_TYPE_LABELS[id],
+}));
 
 /**
  * The Agentura — the market of Grüneratoren, as a full screen in the style of
  * the four tabs.
  *
  * Read-only by construction: creating, editing, sharing and favouriting all stay
- * on web. What mobile adds over the old flat list is the ability to *find*
- * something — shelves and a search field, since ~30 official Grüneratoren in one
- * ungrouped column is not a list anybody reads.
+ * on web. Deshalb trägt die Kachel hier kein Aktionsmenü und die Seite keinen
+ * „Neu"-Knopf — beides zeigte nur Wege, die auf dem Telefon nirgends hinführen.
+ * Aus demselben Grund bietet der Typ-Filter nur „Alle", „Agents" und
+ * „Rezepte": wiederkehrende Aufgaben und Favoriten gibt es mobil nicht, und ein
+ * Filter, der immer leer zurückkommt, ist ein kaputter Filter.
+ *
+ * Regale und Typ-Filter sind dieselben wie im Web (`agenturaCategoriesForPlatform`,
+ * `matchesAgenturaType`), und das Regal ist wie dort eine flache Liste statt
+ * überschriebener Abschnitte.
  */
 export default function AgentsScreen() {
   const colorScheme = useColorScheme();
@@ -62,7 +100,8 @@ export default function AgentsScreen() {
   const router = useRouter();
   const { locale } = useAuth();
 
-  const [shelf, setShelf] = useState<AgenturaCategoryKey>('empfohlen');
+  const [shelf, setShelf] = useState<AgenturaCategoryKey>(DEFAULT_CATEGORY);
+  const [type, setType] = useState<AgenturaType>(DEFAULT_TYPE);
   const [search, setSearch] = useState('');
   const query = search.trim().toLowerCase();
 
@@ -72,8 +111,9 @@ export default function AgentsScreen() {
     isLoading: publicLoading,
     error: publicError,
   } = usePublicUserAgents();
+  const { data: ownRecipes = [] } = useOwnRecipes();
 
-  // Die Landesverbands-Zuteilung: LV-Grüneratoren und -Rezepte gehören den
+  // Die Landesverbands-Zuteilung: LV-Agents und -Rezepte gehören den
   // Leuten des jeweiligen Verbands, gebunden an die Rolle „Mitarbeiter*in
   // Landesgeschäftsstelle". Gefiltert wird an der QUELLE — beide Regale, die
   // Kategorien und die Suche erben es damit von selbst; ein Filter nur auf den
@@ -81,7 +121,7 @@ export default function AgentsScreen() {
   //
   // `lvIds === null` heißt „Rollen noch nicht geladen" und lässt durch, damit
   // die Ladephase nichts wegnimmt, was gleich wieder erscheint.
-  const { lvIds } = useUserLandesverbaende();
+  const { lvIds, shelfLabel: lvShelfLabel, isHydrated: rolesLoaded } = useUserLandesverbaende();
 
   const systemAgents = useMemo(
     () =>
@@ -100,18 +140,12 @@ export default function AgentsScreen() {
     [systemAgents]
   );
 
-  // "Von der Basis": publicly-listed community agents, minus the ones the user
+  // „Öffentlich": publicly-listed community agents, minus the ones the user
   // already owns (those show under "Meine Grüneratoren").
   const communityAgents = useMemo(
     () => publicAgents.filter((pa) => !userAgents.some((ua) => ua.identifier === pa.identifier)),
     [publicAgents, userAgents]
   );
-
-  const featuredAgents = useMemo(() => {
-    const pinned = generalSystemAgents.filter((a) => a.pinnedToSidebar);
-    const pool = pinned.length > 0 ? pinned : generalSystemAgents;
-    return pool.slice(0, FEATURED_LIMIT);
-  }, [generalSystemAgents]);
 
   const hiddenSkillMentions = useHiddenSkillMentions();
 
@@ -161,67 +195,97 @@ export default function AgentsScreen() {
   // A recipe is a composer mention, not an agent selection: open a fresh chat
   // with the mention already typed, so the next thing the user does is describe
   // the task rather than remember the syntax.
-  const openSkill = useCallback(
-    (skill: AgentListItem) => {
+  const openWithComposerText = useCallback(
+    (text: string) => {
       router.push(
         routeWithParams('/(focused)/chat-conversation', {
           threadId: 'new',
-          initialComposerText: `${skill.mention} `,
+          initialComposerText: text,
         })
       );
     },
     [router]
   );
 
-  const shelves = useMemo(() => agenturaCategoriesForPlatform('mobile'), []);
+  const openSkill = useCallback(
+    (skill: AgentListItem) => openWithComposerText(`${skill.mention} `),
+    [openWithComposerText]
+  );
+
+  // Das Landesverbands-Regal nennt seinen Verband beim Namen („Grüne Hessen").
+  // Vor der Hydratation ist `lvIds` `null` — der Name stünde also nicht fest und
+  // das Regal zeigte obendrein die Inhalte ALLER Verbände (der sichere Ausgang
+  // für Filter, siehe `useUserLandesverbaende`). Deshalb erscheint es erst, wenn
+  // die Rollen geladen sind, und trägt dann `lvShelfLabel` statt `cat.label`.
+  const shelves = useMemo(
+    () =>
+      agenturaCategoriesForPlatform('mobile')
+        .filter((c) => c.key !== 'landesverband' || rolesLoaded)
+        .map((c) => (c.key === 'landesverband' ? { ...c, label: lvShelfLabel } : c)),
+    [rolesLoaded, lvShelfLabel]
+  );
   const activeShelf = shelves.find((c) => c.key === shelf);
 
   const matches = (fields: (string | undefined)[]) =>
     fields.some((f) => f?.toLowerCase().includes(query));
 
-  const agentRow = (agent: Agent, last: boolean): ReactNode => (
-    <ListRow
-      key={agent.identifier}
-      icon={agentIcon(agent.iconKey)}
-      title={agent.title}
-      value={agent.description}
-      valueLines={2}
-      onPress={() => openAgent(agent)}
-      last={last}
-    />
-  );
+  /**
+   * Eine fertig gezeichnete Kachel. Keine Union über die Quellen: Agent, Rezept
+   * aus dem Katalog und eigenes Rezept unterscheiden sich hier nur noch in
+   * Symbol, Zeile und Ziel — `kind` und `isFavorite` sind alles, was der
+   * gemeinsame Typ-Filter braucht.
+   */
+  interface MarketItem {
+    key: string;
+    kind: 'agent' | 'recipe';
+    isFavorite: boolean;
+    icon: IoniconsIconName;
+    title: string;
+    meta: string;
+    description?: string;
+    onPress: () => void;
+  }
 
-  const skillRow = (skill: AgentListItem, last: boolean): ReactNode => (
-    <ListRow
-      key={skill.mention}
-      icon={agentIcon(skill.iconKey)}
-      title={skill.title}
-      value={skill.description}
-      valueLines={2}
-      onPress={() => openSkill(skill)}
-      last={last}
-    />
-  );
+  const agentItem = (agent: Agent): MarketItem => ({
+    key: `a-${agent.identifier}`,
+    kind: 'agent',
+    isFavorite: false,
+    icon: agentIcon(agent.iconKey),
+    title: agent.title,
+    meta: agenturaMetaLine([
+      'Agent',
+      isLandesverbandIdentifier(agent.identifier) && landesverbandLabel(agent.identifier),
+    ]),
+    description: agent.description,
+    onPress: () => openAgent(agent),
+  });
 
-  const group = (nodes: ReactNode[]): ReactNode => <ListGroup>{nodes}</ListGroup>;
+  const skillItem = (skill: AgentListItem): MarketItem => ({
+    key: `s-${skill.mention}`,
+    kind: 'recipe',
+    isFavorite: false,
+    icon: agentIcon(skill.iconKey),
+    title: skill.title,
+    meta: agenturaMetaLine([
+      'Rezept',
+      isLandesverbandIdentifier(skill.identifier)
+        ? landesverbandLabel(skill.identifier)
+        : SKILL_CATEGORY_LABELS[skill.skillCategory ?? 'sonstiges'],
+    ]),
+    description: skill.description,
+    onPress: () => openSkill(skill),
+  });
 
-  const agentGroup = (list: readonly Agent[]): ReactNode =>
-    group(list.map((a, i) => agentRow(a, i === list.length - 1)));
-
-  const section = (key: string, heading: string, body: ReactNode): ReactNode => (
-    <View key={key} style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>{heading}</Text>
-      {body}
-    </View>
-  );
-
-  // What a shelf of agents looks like before it arrives: the same `ListGroup`
-  // card, the same rows with their round badge and two lines.
-  const shelfSkeleton = (
-    <ListGroup>
-      <SkeletonRows count={6} leading={44} on="card" />
-    </ListGroup>
-  );
+  const recipeItem = (recipe: TextForm): MarketItem => ({
+    key: `r-${recipe.id}`,
+    kind: 'recipe',
+    isFavorite: false,
+    icon: agentIcon(recipe.iconKey ?? 'sparkles'),
+    title: recipe.title,
+    meta: 'Rezept',
+    description: recipe.description ?? `@${recipe.mention}`,
+    onPress: () => openWithComposerText(`@${recipe.mention} `),
+  });
 
   const emptyNote = (text: string): ReactNode => (
     <View style={styles.empty}>
@@ -230,103 +294,88 @@ export default function AgentsScreen() {
     </View>
   );
 
-  // --- Body -----------------------------------------------------------------
-  let body: ReactNode;
+  // What a shelf looks like before it arrives.
+  const shelfSkeleton = (
+    <ListGroup>
+      <SkeletonRows count={6} leading={44} on="card" />
+    </ListGroup>
+  );
+
+  // --- Items ----------------------------------------------------------------
+  // Jedes Regal ist eine flache Liste. Die Reihenfolge trägt, was vorher
+  // Abschnittsüberschriften trugen: Eigenes zuerst, Angeheftetes vor dem Rest,
+  // Landesverbände nach Region.
+  let shelfItems: MarketItem[] = [];
+  let loading = false;
+  let loadError: string | null = null;
 
   if (query) {
-    const foundAgents = [...userAgents, ...communityAgents, ...systemAgents].filter((a) =>
-      matches([a.title, a.description, a.identifier])
-    );
-    const foundSkills = skills.filter((s) => matches([s.title, s.description, s.mention]));
-    body =
-      foundAgents.length + foundSkills.length === 0 ? (
-        emptyNote('Keine Treffer. Versuch ein anderes Stichwort.')
-      ) : (
-        <View style={styles.sections}>
-          {foundAgents.length > 0 && section('s-agents', 'Grüneratoren', agentGroup(foundAgents))}
-          {foundSkills.length > 0 &&
-            section(
-              's-skills',
-              'Rezepte',
-              group(foundSkills.map((s, i) => skillRow(s, i === foundSkills.length - 1)))
-            )}
-        </View>
-      );
-  } else if (shelf === 'empfohlen') {
-    // No loading or error branch here on purpose: "Empfohlen" comes from the
-    // bundled system-agent registry, so it is complete before any request
-    // finishes. Blocking it on the user-agents call put a network error in front
-    // of a shelf that never needed the network.
-    body = agentGroup(featuredAgents);
+    shelfItems = [
+      ...[...userAgents, ...communityAgents, ...systemAgents]
+        .filter((a) => matches([a.title, a.description, a.identifier]))
+        .map(agentItem),
+      ...ownRecipes
+        .filter((r) => matches([r.title, r.description ?? undefined, r.mention]))
+        .map(recipeItem),
+      ...skills.filter((s) => matches([s.title, s.description, s.mention])).map(skillItem),
+    ];
   } else if (shelf === 'meine') {
-    body = isLoading
-      ? shelfSkeleton
-      : error
-        ? emptyNote('Deine Grüneratoren konnten nicht geladen werden.')
-        : userAgents.length > 0
-          ? agentGroup(userAgents)
-          : emptyNote(
-              'Du hast noch keine eigenen Grüneratoren. Anlegen geht am Rechner — hier findest du sie danach wieder.'
-            );
+    loading = isLoading;
+    loadError = error ? 'Deine Agents konnten nicht geladen werden.' : null;
+    shelfItems = [...userAgents.map(agentItem), ...ownRecipes.map(recipeItem)];
+  } else if (shelf === 'landesverband') {
+    const byRegion = <T,>(list: readonly T[], id: (t: T) => string): T[] =>
+      [...list].sort((a, b) =>
+        landesverbandRegion(id(a)).localeCompare(landesverbandRegion(id(b)))
+      );
+    shelfItems = [
+      ...byRegion(lvSystemAgents, (a) => a.identifier).map(agentItem),
+      ...byRegion(lvSkills, (s) => s.identifier).map(skillItem),
+    ];
   } else if (shelf === 'community') {
-    body = publicLoading
-      ? shelfSkeleton
-      : publicError
-        ? emptyNote('Die Grüneratoren von der Basis konnten nicht geladen werden.')
-        : communityAgents.length > 0
-          ? agentGroup(communityAgents)
-          : // Only says "none yet" once we know: a request still in flight or a failed
-            // one is not an empty shelf.
-            emptyNote('Noch keine öffentlich geteilten Grüneratoren von der Basis.');
+    loading = publicLoading;
+    loadError = publicError ? 'Die öffentlichen Agents konnten nicht geladen werden.' : null;
+    shelfItems = communityAgents.map(agentItem);
   } else {
-    // "Offizielle": the flat 30-item list this screen used to be, now split into
-    // the sub-sections web has — general agents, Landesverbände, then recipes.
-    const lvSorted = [
-      ...lvSystemAgents.map((a) => ({
-        region: landesverbandRegion(a.identifier),
-        order: 0,
-        node: a,
-      })),
-    ].sort((a, b) => a.region.localeCompare(b.region));
-
-    body = (
-      <View style={styles.sections}>
-        {generalSystemAgents.length > 0 && agentGroup(generalSystemAgents)}
-        {lvSorted.length > 0 &&
-          section(
-            'lv',
-            'Landesverbände',
-            group(
-              lvSorted.map((e, i) => (
-                <ListRow
-                  key={e.node.identifier}
-                  icon={agentIcon(e.node.iconKey)}
-                  title={e.node.title}
-                  value={landesverbandLabel(e.node.identifier)}
-                  onPress={() => openAgent(e.node)}
-                  last={i === lvSorted.length - 1}
-                />
-              ))
-            )
-          )}
-        {lvSkills.length > 0 &&
-          section(
-            'lv-skills',
-            'Rezepte der Landesverbände',
-            group(lvSkills.map((s, i) => skillRow(s, i === lvSkills.length - 1)))
-          )}
-        {SKILL_CATEGORY_ORDER.map((cat) => {
-          const list = skillsByCategory.get(cat) ?? [];
-          if (list.length === 0) return null;
-          return section(
-            `cat-${cat}`,
-            SKILL_CATEGORY_LABELS[cat],
-            group(list.map((s, i) => skillRow(s, i === list.length - 1)))
-          );
-        })}
-      </View>
-    );
+    // „Offizielle": die angehefteten zuerst — das ist, was „Empfohlen" als
+    // eigenes Regal war, bevor es eine Reihung wurde.
+    const pinned = generalSystemAgents.filter((a) => a.pinnedToSidebar);
+    const rest = generalSystemAgents.filter((a) => !a.pinnedToSidebar);
+    shelfItems = [
+      ...[...pinned, ...rest].map(agentItem),
+      ...SKILL_CATEGORY_ORDER.flatMap((cat) => (skillsByCategory.get(cat) ?? []).map(skillItem)),
+    ];
   }
+
+  const items = shelfItems.filter((item) => matchesAgenturaType(type, item));
+  const filteredOut = shelfItems.length > 0 && items.length === 0;
+
+  const emptyText = filteredOut
+    ? 'Hier gibt es nichts dieser Art. Wähl oben „Alle", um wieder alles zu sehen.'
+    : query
+      ? 'Keine Treffer. Versuch ein anderes Stichwort.'
+      : (activeShelf?.emptyText ?? 'Hier ist gerade nichts vorhanden.');
+
+  const body: ReactNode = loading ? (
+    shelfSkeleton
+  ) : loadError ? (
+    emptyNote(loadError)
+  ) : items.length > 0 ? (
+    <View style={styles.list}>
+      {items.map((item) => (
+        <MarketCard
+          key={item.key}
+          icon={item.icon}
+          title={item.title}
+          meta={item.meta}
+          description={item.description}
+          onPress={item.onPress}
+        />
+      ))}
+    </View>
+  ) : (
+    emptyNote(emptyText)
+  );
 
   return (
     <ScreenScaffold title="Agentura" onBack={() => router.back()}>
@@ -359,16 +408,29 @@ export default function AgentsScreen() {
             </Pressable>
           )}
         </View>
+      </View>
 
-        {/* Hidden while searching: results already run across every shelf, so a
-            highlighted chip would claim a filter that isn't being applied. */}
-        {!query && (
-          <ChipGroup
-            options={shelves.map((c) => ({ id: c.key, label: c.label }))}
-            selected={shelf}
-            onSelect={(v) => setShelf(v as AgenturaCategoryKey)}
-          />
-        )}
+      {/* Hidden while searching: results already run across every shelf, so a
+          highlighted tab would claim a filter that isn't being applied. */}
+      {!query && (
+        <ShelfTabs
+          options={shelves.map((c) => ({
+            id: c.key,
+            label: c.label,
+            icon: SHELF_ICONS[c.key],
+          }))}
+          active={shelf}
+          onSelect={(key) => {
+            setShelf(key);
+            // Sonst öffnet das nächste Regal vorgefiltert auf eine Gattung, die
+            // es vielleicht gar nicht führt — und liest sich als leer.
+            setType(DEFAULT_TYPE);
+          }}
+        />
+      )}
+
+      <View style={styles.typeRow}>
+        <TypeFilterRow options={MOBILE_TYPE_FILTERS} active={type} onSelect={setType} />
       </View>
 
       <ScrollView
@@ -377,11 +439,6 @@ export default function AgentsScreen() {
         showsVerticalScrollIndicator={false}
         keyboardDismissMode="on-drag"
       >
-        {!query && activeShelf?.description ? (
-          <Text style={[styles.blurb, { color: theme.textSecondary }]}>
-            {activeShelf.description}
-          </Text>
-        ) : null}
         {body}
       </ScrollView>
     </ScreenScaffold>
@@ -419,25 +476,12 @@ const styles = StyleSheet.create({
     // rather than ending flush against the bottom edge.
     paddingBottom: spacing.xxlarge * 2,
   },
-  blurb: {
-    fontFamily: BODY_FONT,
-    fontSize: 13,
-    lineHeight: 18,
-    paddingBottom: spacing.medium,
-  },
-  sections: {
-    gap: spacing.xlarge,
-  },
-  section: {
+  list: {
     gap: spacing.small,
   },
-  sectionTitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    paddingHorizontal: spacing.xsmall,
+  typeRow: {
+    paddingTop: spacing.small,
+    paddingBottom: spacing.small,
   },
   empty: {
     alignItems: 'center',

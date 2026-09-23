@@ -13,7 +13,7 @@ import {
 import {
   GEMMA_31B_ALTERNATE,
   GEMMA_31B_ON_CORTECS,
-  GEMMA_31B_ON_REGOLO,
+  GEMMA_31B_ON_MELIOUS,
   GEMMA_31B_PRIMARY,
 } from '../../../services/ai/gemmaHosts.js';
 
@@ -29,7 +29,7 @@ import { LOOP_SYNTH_FALLBACK, LOOP_SYNTH_PRIMARY, mayWriteAnswer } from './autoP
  * damit auf ein Verbots-Modell.
  */
 const WRITER_MODELS = new Set([
-  GEMMA_31B_ON_REGOLO.model,
+  GEMMA_31B_ON_MELIOUS.model,
   GEMMA_31B_ON_CORTECS.model,
   'mistral-medium-2604',
 ]);
@@ -168,18 +168,14 @@ describe('getContextWindow', () => {
     // Ollamas gemessene Kürzungsschwelle auf Verdigado — dorthin routet diese
     // Lane nicht mehr (services/ai/litellmRetired.ts).
     expect(getContextWindow('gpt-oss')).toBe(131_000);
-    // Gemma 4 trägt die 128k des Cortecs-Endpunkts, nicht die 262k der
-    // Gewichte. Die Begründung steht an EINER Stelle und wird hier bewusst
-    // nicht wiederholt: `GEMMA_31B_ON_CORTECS` in services/ai/gemmaHosts.ts.
-    // Kurz: der Katalog meldet inzwischen 262000, aber er ist für diese Zahl
-    // keine Quelle, und eine zu grosse Zahl ist keine Fehlermeldung, sondern
-    // eine stille Kürzung. Bewegen darf den Wert nur eine Nadelprobe (#3067).
-    // Die 64k-Decke davor war Ollamas Kürzungs-Schutz auf Verdigado; dorthin
-    // routet diese Lane nicht mehr.
+    // Gemma 4 trägt die 128k des Cortecs-Endpunkts: infercom lehnt über
+    // 131.072 laut ab, per Nadelprobe bestätigt (#3067, gemmaHosts.ts).
     expect(getContextWindow('gemma-4')).toBe(128_000);
-    // Der Regolo-Ausweich derselben Gewichte trägt weiterhin das volle Fenster
-    // — die beiden Seiten dieser Lane sind hier NICHT gleich gross.
-    expect(getContextWindow('gemma-regolo')).toBe(262_144);
+    // `gemma-regolo` löst seit dem Melious-Umzug auf Melious auf. Dessen
+    // Standardweg nimmt nur ~45k; grössere Züge gehen auf `:speed` (131k,
+    // Nadelprobe 23.09.2026), daher dieselben 128k wie Cortecs.
+    expect(getContextWindow('gemma-regolo')).toBe(128_000);
+    expect(getContextWindow('melious')).toBe(128_000);
     expect(getContextWindow('regolo')).toBe(262_144);
   });
 
@@ -240,18 +236,20 @@ describe('getModelConfig', () => {
     expect(getModelConfig('litellm')).toBe(getModelConfig('gpt-oss'));
     expect(getModelConfig('gpt-oss-regolo')).toBe(getModelConfig('gpt-oss'));
     expect(getModelConfig('gemma-litellm')).toBe(getModelConfig('gemma-4'));
-    // `gemma-regolo` ist seit dem 25.08.2026 NICHT mehr dasselbe Objekt wie
+    // `gemma-regolo` ist seit dem 14.09.2026 NICHT mehr dasselbe Objekt wie
     // `gemma-4`: die Antwortlane liegt auf Cortecs, und dieser Alias ist die
-    // ausdrücklich Regolo benennende Kennung — zugleich das Ausweichziel der
-    // Cortecs-Seite. Zwei Kennungen, die verschiedene Hosts MEINEN, dürfen
-    // nicht auf dieselbe Konfiguration zeigen, sonst zeigt der Ausweg auf sich
-    // selbst. Was der Alias garantieren muss, ist nur: er löst auf, und er
-    // meint Regolo.
+    // historisch Regolo benennende Kennung (F0, persistiert) — er bedient seit
+    // dem Melious-Umzug Melious und kann keinen Regolo-Textaufruf mehr
+    // auslösen. Zwei Kennungen, die verschiedene Hosts MEINEN, dürfen nicht auf
+    // dieselbe Konfiguration zeigen, sonst zeigt der Ausweg auf sich selbst.
+    // Was der Alias garantieren muss, ist nur: er löst auf, und er meint den
+    // Gemma-Ausweichhost.
     expect(getModelConfig('gemma-regolo')).not.toBeNull();
     expect(getModelConfig('gemma-regolo')).toMatchObject({
-      provider: GEMMA_31B_ON_REGOLO.provider,
-      model: GEMMA_31B_ON_REGOLO.model,
+      provider: GEMMA_31B_ON_MELIOUS.provider,
+      model: GEMMA_31B_ON_MELIOUS.model,
     });
+    expect(getModelConfig('gemma-melious')).toBe(getModelConfig('gemma-regolo'));
   });
 
   it('returns null for unknown model', () => {

@@ -14,9 +14,7 @@ function AgentBuilderPage() {
   const [searchParams] = useSearchParams();
   const variant = searchParams.get('mode') === 'recurring' ? 'recurring' : 'agent';
 
-  useDocumentTitle(
-    variant === 'recurring' ? 'Neuer wiederkehrender Grünerator-Agent' : 'Neuer Grünerator-Agent'
-  );
+  useDocumentTitle(variant === 'recurring' ? 'Neuer wiederkehrender Agent' : 'Neuer Agent');
 
   return <AgentEditor mode="create" initialState={EMPTY_FORM} variant={variant} />;
 }

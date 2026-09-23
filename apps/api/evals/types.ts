@@ -10,7 +10,7 @@
  * nothing. `loadCorpus()` now safeParses every line and names the file, line
  * number and offending path.
  */
-import { notebookDepthSchema } from '@gruenerator/contracts';
+import { memoryKindSchema, notebookDepthSchema } from '@gruenerator/contracts';
 import { DISPOSITION_BY_INTENT } from '@gruenerator/shared/chat-intents';
 import { z } from 'zod';
 
@@ -167,6 +167,9 @@ export const evalExpectSchema = z
     toolNameMatches: z.string().optional(),
     toolsMustNotInclude: z.array(z.string()).optional(),
     maxToolCalls: z.number().optional(),
+    /** Mehrteilige Aufträge: ein Planer, der nach dem ersten Aufruf aufhört,
+     *  erfüllt `toolsMustInclude` trotzdem (#3627). */
+    minToolCalls: z.number().optional(),
     generatesSharepic: z.boolean().optional(),
     /**
      * Whether the turn may create/update a persistent artifact — a document, or a
@@ -376,9 +379,9 @@ export const evalScenarioSchema = z
      *
      * Eigene Lane, weil ein Lauf Minuten dauert und Geld kostet — der
      * Rechercheagent kauft gewöhnliche Suchen plus bis zu zwei `deep`-Suchen —
-     * und weil die Tagesration (`DEEP_RESEARCH_DAILY_LIMIT`, 3) geteilt ist:
-     * jeder Default-Lauf würde sie verbrauchen und den nächsten Lauf mit einer
-     * Absage messen statt mit einem Lauf. Der Weg war bis hierher komplett
+     * und weil jeder Lauf einen Baum aus dem geteilten Tagesbudget kostet:
+     * jeder Default-Lauf würde davon zehren und den nächsten Lauf irgendwann
+     * mit einer Absage messen statt mit einem Lauf. Der Weg war bis hierher komplett
      * unbeobachtet (R1 §5: null Szenarien), was ihn zur gefährlichsten Lücke
      * machte — die Lane existiert, damit „unbeobachtet" zu „auf Abruf messbar"
      * wird.
@@ -400,6 +403,35 @@ export const evalScenarioSchema = z
      * misst damit alles NACH dem Retrieval.
      */
     bgstKorpusLane: z.boolean().optional(),
+    /**
+     * Die Notebook-Auswahl des Composers, als `notebookIds` im Chat-Body
+     * (nur `surface: 'chat'`). Anders als ein `@[…](notebook:…)`-Token im
+     * Prompt ist das die stille Auswahl, die jeden Turn scoped. Darf den
+     * Platzhalter `{{EVAL_USER_NOTEBOOK_ID}}` tragen (siehe `userNotebookLane`).
+     */
+    notebookIds: z.array(z.string()).optional(),
+    /**
+     * Braucht ein EIGENES Notebook des Eval-Kontos — für Fälle, die das
+     * Verhalten auf eigenen Quellen prüfen (System-Notebooks liest
+     * `notebook_quellen` seit #3536 nur lesend), und der Runner kann keines
+     * anlegen. Übersprungen ohne
+     * EVAL_USER_NOTEBOOK_ID; dessen Wert ersetzt `{{EVAL_USER_NOTEBOOK_ID}}` in
+     * Prompt und `notebookIds`.
+     */
+    userNotebookLane: z.boolean().optional(),
+    /**
+     * Das Gedächtnis des Eval-Kontos für dieses Szenario: vor dem ersten Turn
+     * über `/api/memory` angelegt, danach wieder gelöscht. Übersprungen ohne
+     * EVAL_MEMORY=1.
+     *
+     * Eigene Lane, weil das Gedächtnis am KONTO hängt, nicht am Thread: jedes
+     * parallel laufende Szenario desselben Kontos sähe diese Einträge mit. Der
+     * Runner fährt die Lane deshalb nur mit EVAL_CONCURRENCY=1 und nur gegen
+     * ein Konto, dessen Gedächtnis vorher leer ist.
+     */
+    memories: z
+      .array(z.object({ kind: memoryKindSchema, text: z.string().min(1) }).strict())
+      .optional(),
   })
   .strict()
   .refine((s) => s.surface !== 'notebook' || (s.collectionIds?.length ?? 0) > 0, {

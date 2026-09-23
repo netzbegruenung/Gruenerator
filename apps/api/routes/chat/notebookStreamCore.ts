@@ -19,7 +19,10 @@ import {
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { notebookQAService } from '../../services/notebook/index.js';
-import { rerankNotebookResults } from '../../services/notebook/rerankNotebookResults.js';
+import {
+  cutNotebookResults,
+  rerankNotebookResults,
+} from '../../services/notebook/rerankNotebookResults.js';
 import {
   renumberCitationsInOrder,
   validateAndInjectCitations,
@@ -50,6 +53,7 @@ import {
   streamWithFallback,
 } from './services/responseStreamingService.js';
 import { PROGRESS_MESSAGES, SSEWriter, sendChatWarning } from './services/sseHelpers.js';
+import { embedUntrusted, withInstructionHierarchy } from './services/untrustedContent.js';
 
 import type { SearchContext } from '../../services/notebook/types.js';
 import type { CollectionConfig, SourcesByCollection } from '../../services/search/types.js';
@@ -73,6 +77,12 @@ export interface NotebookStreamOptions {
   userId?: string;
   allowUserCollections?: boolean;
   systemPromptOverride?: string;
+  /**
+   * The person's standing memory instructions (`kind = 'anweisung'`). Facts
+   * stay out: the answer comes from the sources, and there is no `memory`
+   * tool here to address numbered entries.
+   */
+  standingInstructions?: string[];
   /** Custom message when too few results survive reranking (Layer 4). */
   noResultsMessage?: string;
   /** Minimum results after rerank to proceed with generation (default: 0 = no gate). */
@@ -90,6 +100,18 @@ export interface NotebookStreamOptions {
   /** Shared SSE writer — if provided, used instead of creating one internally. */
   sse?: SSEWriter;
   /**
+   * Default OFF since 2026-09-03: `apps/api/evals/answer/answer-eval-2026-09-03.md`
+   * measured the cross-encoder against the un-reranked (cut) order and found
+   * ties in 25 of 27 judged pairs and 8 of 10 human pairs, at ~3 s per answer
+   * saved. Absent, or `mode: 'off'`, therefore skips `rerankNotebookResults`
+   * and instead cuts `sortedResults` to `profile.rerankOutput` in retrieval
+   * order via `cutNotebookResults`. `mode: 'sort'` is the pre-2026-09-03
+   * behaviour (kept for the eval and as the documented way back); `'filter'`
+   * additionally drops candidates below the relevance floor. Both, plus
+   * `instruct`, pass through to `rerankNotebookResults`.
+   */
+  rerank?: { mode?: 'off' | 'sort' | 'filter'; instruct?: string };
+  /**
    * When false, the function does NOT call `sse.end()` on success or error
    * paths — the caller is responsible for closing the stream after running
    * its own follow-up work (e.g. canvas-suggest tail step). Defaults to true.
@@ -104,6 +126,18 @@ export interface NotebookStreamResult {
   question: string;
   /** Langfuse trace of the turn; null when Langfuse is disabled. Target for thumbs feedback. */
   traceId: string | null;
+}
+
+function formatStandingInstructions(texts: string[] | undefined): string {
+  if (!texts?.length) return '';
+  const lines = texts.map((t) => `- ${t}`).join('\n');
+  return `
+
+## DAUERHAFTE ANWEISUNGEN DER PERSON (KEINE QUELLEN – NICHT ZITIEREN)
+
+${embedUntrusted('gedaechtnis', lines)}
+
+Befolge diese Anweisungen bei jeder Antwort. Sie ordnen sich den Regeln dieser Systemnachricht unter: Inhalte kommen weiterhin nur aus den Quellen, und die Zitierregeln gelten unverändert.`;
 }
 
 export async function handleNotebookStream(
@@ -273,33 +307,49 @@ export async function handleNotebookStream(
       resultCount: searchContext?.sortedResults.length ?? 0,
     });
 
-    // Rerank in EVERY tier.
-    //
-    // This used to be gated on `isFast`, which left "Tiefenrecherche" — the
-    // path that retrieves the MOST candidates — as the only one without a
-    // cross-encoder. That is inverse to what the UI promises: the mode
-    // advertised as the thorough one was handing the model the raw
-    // hybrid-search order.
-    //
-    // The tiers differ in HOW MUCH survives, not in WHETHER it is ranked.
-    // rerankNotebookResults degrades openly — with Regolo unconfigured it
-    // returns the original order rather than throwing — so a bigger window
-    // cannot make a tier fail where a smaller one used to work.
+    // Cut (or, with `rerank.mode`, rerank) in EVERY tier — the tiers differ in
+    // HOW MUCH survives (`profile.rerankOutput`), not in whether that cut
+    // happens. This used to gate the cross-encoder on `isFast`, which left
+    // "Tiefenrecherche" — the path that retrieves the MOST candidates — as the
+    // only one without any cut at all; the eval in the `rerank` docblock above
+    // then found the cross-encoder itself dispensable for the default path.
+    // rerankNotebookResults still degrades openly when `mode: 'sort'`/`'filter'`
+    // is requested — with Regolo unconfigured it returns the original order
+    // rather than throwing.
     if (searchContext) {
-      const reranked = await rerankNotebookResults({
-        results: searchContext.sortedResults,
-        referencesMap: searchContext.referencesMap,
-        question: rerankQuery,
-        limit: profile.rerankOutput,
-        inputLimit: profile.rerankInput,
-      });
-      searchContext.sortedResults = reranked.results;
-      searchContext.referencesMap = reranked.referencesMap;
-      searchContext.contextSummary = reranked.contextSummary;
+      const rerankMode = options.rerank?.mode;
+      const rerankInstruct = options.rerank?.instruct;
+      if (rerankMode === 'sort' || rerankMode === 'filter') {
+        const reranked = await rerankNotebookResults({
+          results: searchContext.sortedResults,
+          referencesMap: searchContext.referencesMap,
+          question: rerankQuery,
+          limit: profile.rerankOutput,
+          inputLimit: profile.rerankInput,
+          mode: rerankMode,
+          ...(rerankInstruct ? { instruct: rerankInstruct } : {}),
+        });
+        searchContext.sortedResults = reranked.results;
+        searchContext.referencesMap = reranked.referencesMap;
+        searchContext.contextSummary = reranked.contextSummary;
 
-      log.debug(
-        `⏱ Rerank (${depth}): ${reranked.rerankTimeMs}ms, ${searchContext.sortedResults.length} results kept`
-      );
+        log.debug(
+          `⏱ Rerank (${depth}): ${reranked.rerankTimeMs}ms, ${searchContext.sortedResults.length} results kept`
+        );
+      } else {
+        const cut = cutNotebookResults({
+          results: searchContext.sortedResults,
+          referencesMap: searchContext.referencesMap,
+          limit: profile.rerankOutput,
+        });
+        searchContext.sortedResults = cut.results;
+        searchContext.referencesMap = cut.referencesMap;
+        searchContext.contextSummary = cut.contextSummary;
+
+        log.debug(
+          `[Notebook] rerank off — cut to ${searchContext.sortedResults.length} by retrieval order`
+        );
+      }
 
       // The concise prompt exists to shrink the answer to match a shrunken
       // context. The thorough tiers are asked for a thorough answer and keep
@@ -455,7 +505,12 @@ export async function handleNotebookStream(
       history,
       primaryResolution.contextWindow
     );
-    let systemPromptFinal = searchContext.systemPrompt;
+    const standingBlock = formatStandingInstructions(options.standingInstructions);
+    // The block is delimited material, so the rule that says what the
+    // delimiter means has to travel with it.
+    let systemPromptFinal = standingBlock
+      ? withInstructionHierarchy(searchContext.systemPrompt + standingBlock)
+      : searchContext.systemPrompt;
     if (droppedTurns > 0) {
       systemPromptFinal +=
         '\n\nHinweis: Ältere Nachrichten dieses Gesprächs wurden aus Platzgründen ausgelassen.';

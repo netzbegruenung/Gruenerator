@@ -17,6 +17,7 @@ import {
   listRecurringTasks,
   toApiTask,
   updateRecurringTask,
+  startManualRecurringRun,
 } from '../../services/recurringTasks/recurringTasksRepository.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
@@ -104,9 +105,19 @@ export const recurringTasksContractRouter = s.router(recurringTasksContract, {
       const row = await getRecurringTaskRow(userId, args.params.id);
       if (!row) return notFound;
       // Run once immediately, regardless of paused state, WITHOUT touching the
-      // schedule (next_run_at) or enabled flag. The runner records the run and
+      // schedule (next_run_at) or enabled flag. The runner finishes the run and
       // notifies; fire-and-forget so the request returns fast.
-      void runRecurringTask(row);
+      //
+      // Der Lauf wird ZUERST angelegt: das ist zugleich die Sperre gegen einen
+      // Handlauf, der einen laufenden Worker-Lauf derselben Aufgabe überlappt.
+      const runId = await startManualRecurringRun(row.id);
+      if (!runId) {
+        return {
+          status: 409 as const,
+          body: { success: false, message: 'Für diese Aufgabe läuft bereits ein Lauf.' },
+        };
+      }
+      void runRecurringTask(row, runId);
       return { status: 202 as const, body: { success: true, task: toApiTask(row) } };
     } catch (error) {
       const err = error as Error;

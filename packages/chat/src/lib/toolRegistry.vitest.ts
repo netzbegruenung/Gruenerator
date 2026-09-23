@@ -308,6 +308,24 @@ describe('loop-catalog tool parsers', () => {
     if (vm.kind === 'text-note') expect(vm.text).toContain('keine Vorgaben');
   });
 
+  it('sharepic_edit names the change, never the canvas UUIDs (#3289)', () => {
+    const vm = resolveToolEntry('sharepic_edit').parse(
+      { query: 'Füge die Bullet Points ein' },
+      {
+        canvasId: '0b7e2b1a-4d9a-4a4e-8f3b-1c2d3e4f5a6b',
+        variantId: 'v-3',
+        version: 4,
+        summary: 'Drei Bullet Points in Zeile 2 ergänzt',
+        canvasType: 'info',
+      }
+    );
+    expect(vm.kind).toBe('text-note');
+    if (vm.kind === 'text-note') {
+      expect(vm.text).toBe('Drei Bullet Points in Zeile 2 ergänzt');
+      expect(vm.text).not.toContain('0b7e2b1a');
+    }
+  });
+
   it('create_pdf surfaces every self-check problem as its own row', () => {
     const vm = resolveToolEntry('create_pdf').parse(
       {},
@@ -325,6 +343,27 @@ describe('loop-catalog tool parsers', () => {
       expect(values).toContain('datum');
       expect(values).toContain('Schriftgröße');
     }
+  });
+
+  it('vertonen names the file and its length, not the whole text', () => {
+    const vm = resolveToolEntry('vertonen').parse(
+      { text: 'Ein langer Text, der gesprochen wurde.' },
+      { ok: true, fileName: 'ansage.mp3', laenge: '1:23 Minuten' }
+    );
+    expect(vm.kind).toBe('text-note');
+    if (vm.kind === 'text-note') {
+      expect(vm.text).toContain('ansage.mp3');
+      expect(vm.text).toContain('1:23 Minuten');
+    }
+  });
+
+  it('vertonen shows the quota message instead of a success line', () => {
+    const vm = resolveToolEntry('vertonen').parse(
+      {},
+      { error: 'Das tägliche Kontingent ist aufgebraucht.' }
+    );
+    expect(vm.kind).toBe('text-note');
+    if (vm.kind === 'text-note') expect(vm.text).toContain('Kontingent');
   });
 
   it('create_board names the board — it has no second surface', () => {
@@ -429,6 +468,161 @@ describe('loop-catalog tool parsers', () => {
       }
     );
     expect(vm.kind).toBe('citations');
+  });
+
+  // notebook_quellen: vier Formen (notebookSourceTools.ts) — Zeilen, Gliederung,
+  // Textscheibe, Passagen mit Fundstelle.
+  it('notebook_quellen renders list, outline, read and find in their own shapes', () => {
+    const parse = resolveToolEntry('notebook_quellen').parse;
+    expect(
+      parse({ action: 'list' }, { results: [{ title: 'Antrag', url: '/notebooks/x', ref: 'd1' }] })
+        .kind
+    ).toBe('citations');
+
+    const outline = parse(
+      { action: 'outline' },
+      { outline: [{ heading: 'Beschluss', chunkFrom: 1, chunkTo: 2, pageFrom: 2, pageTo: 3 }] }
+    );
+    expect(outline).toMatchObject({
+      kind: 'key-value',
+      entries: [{ label: 'Beschluss', value: 'Chunks 1–2 · S. 2–3' }],
+    });
+
+    const read = parse(
+      { action: 'read' },
+      {
+        source: { id: 'd1', title: 'Antrag' },
+        from: 0,
+        to: 22,
+        total: 60,
+        text: 'Der Radweg kommt 2027.',
+      }
+    );
+    expect(read).toEqual({
+      kind: 'text-note',
+      text: 'Antrag · Zeichen 0–22 von 60\n\nDer Radweg kommt 2027.',
+    });
+
+    const find = parse(
+      { action: 'find' },
+      {
+        notebook: 'Kreisverband',
+        passages: [{ title: 'Antrag', pageNumber: 2, excerpt: 'Der Radweg kommt 2027.' }],
+      }
+    );
+    expect(find.kind).toBe('key-value');
+    if (find.kind === 'key-value') {
+      expect(find.citations[0]).toMatchObject({
+        title: 'Antrag, S. 2',
+        snippet: 'Der Radweg kommt 2027.',
+      });
+    }
+
+    expect(
+      parse({ action: 'read' }, { error: 'Quelle nicht in diesem Notebook oder kein Zugriff.' })
+    ).toEqual({ kind: 'text-note', text: 'Quelle nicht in diesem Notebook oder kein Zugriff.' });
+  });
+
+  // notebook_quellen grep/stats/rank/cite (notebookSourceReadActions.ts): Zeilen je
+  // Quelle, Zählung als Schlüssel/Wert, Zitatprüfung als Zitatliste. Eine
+  // unvollständige Zählung sagt das auch in der Karte.
+  it('notebook_quellen renders grep, stats, rank and cite', () => {
+    const parse = resolveToolEntry('notebook_quellen').parse;
+
+    expect(
+      parse(
+        { action: 'grep' },
+        {
+          phrase: 'Radweg',
+          exhaustive: false,
+          totalHits: 3,
+          perSource: [
+            { sourceId: 'd1', title: 'Antrag', count: 2, contexts: [] },
+            { sourceId: 'd2', title: 'Protokoll', count: 1, contexts: [] },
+          ],
+        }
+      )
+    ).toMatchObject({
+      kind: 'key-value',
+      entries: [
+        { label: '„Radweg"', value: 'mindestens 3 Treffer (nicht alle Quellen gelesen)' },
+        { label: 'Antrag', value: '2 Treffer' },
+        { label: 'Protokoll', value: '1 Treffer' },
+      ],
+    });
+
+    expect(
+      parse(
+        { action: 'stats' },
+        {
+          exhaustive: true,
+          totals: { chars: 49, words: 8, sentences: 3, paragraphs: 2, pages: 2, chunks: 4 },
+          lemmas: [{ lemma: 'radweg', pos: 'NOUN', count: 2 }],
+          note: 'Lemma-Zählungen sind gerade nicht verfügbar.',
+        }
+      )
+    ).toMatchObject({
+      kind: 'key-value',
+      entries: [
+        { label: 'Wörter', value: '8' },
+        { label: 'Zeichen', value: '49' },
+        { label: 'Sätze', value: '3' },
+        { label: 'Absätze', value: '2' },
+        { label: 'Seiten', value: '2' },
+        { label: 'Chunks', value: '4' },
+        { label: 'Häufigste Lemmata', value: 'radweg 2' },
+        { label: 'Hinweis', value: 'Lemma-Zählungen sind gerade nicht verfügbar.' },
+      ],
+    });
+
+    expect(
+      parse(
+        { action: 'rank' },
+        { ranking: [{ rank: 1, sourceId: 'd2', title: 'Protokoll', value: 9, unit: 'Seiten' }] }
+      )
+    ).toMatchObject({ kind: 'key-value', entries: [{ label: '1. Protokoll', value: '9 Seiten' }] });
+
+    const found = parse(
+      { action: 'cite' },
+      { found: true, title: 'Antrag', pageNumber: 2, matched: 'Der Radweg kommt 2027' }
+    );
+    expect(found.kind).toBe('citations');
+    if (found.kind === 'citations') {
+      expect(found.citations[0]).toMatchObject({
+        title: 'Antrag, S. 2',
+        snippet: 'Der Radweg kommt 2027',
+      });
+    }
+
+    expect(
+      parse(
+        { action: 'cite' },
+        { found: false, candidates: [], note: 'Das Zitat steht so in keiner Quelle.' }
+      )
+    ).toEqual({ kind: 'text-note', text: 'Das Zitat steht so in keiner Quelle.' });
+  });
+
+  // Die Schreibaktionen (notebookSourceWriteActions.ts) liefern {ok, note, …} —
+  // die Notiz ist das Ergebnis, nicht ein <dl>-Dump der Zähler.
+  it('notebook_quellen renders write outcomes as their note', () => {
+    const parse = resolveToolEntry('notebook_quellen').parse;
+    const note =
+      '1 Quelle(n) aus „Kreisverband" entfernt. Aus dem Notebook entfernt — die Dokumente bleiben in der Bibliothek (rückgängig mit notebooks add_documents).';
+    expect(
+      parse({ action: 'remove' }, { ok: true, removed: 1, skipped: [], remaining: 1, note })
+    ).toEqual({ kind: 'text-note', text: note });
+    expect(
+      parse(
+        { action: 'add_url' },
+        {
+          ok: true,
+          sourceId: 'd9',
+          title: 'Seite',
+          documentCount: 3,
+          note: 'Seite „Seite" liegt jetzt im Notebook „Kreisverband".',
+        }
+      )
+    ).toEqual({ kind: 'text-note', text: 'Seite „Seite" liegt jetzt im Notebook „Kreisverband".' });
   });
 
   // groups: `get` liefert ein `{group}`-Detailobjekt (groupTools.ts); `content`

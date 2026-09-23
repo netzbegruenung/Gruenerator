@@ -128,7 +128,7 @@ export interface ControllableCanvasWrapperProps {
   externalMobileMode?: boolean;
   /**
    * When provided, the editor enters collaborative mode: pages (state,
-   * layers, config) are bound to the supplied Y.Doc. The local initialState
+   * config) are bound to the supplied Y.Doc. The local initialState
    * is used only as a seed when the Y.Doc is empty; subsequent changes flow
    * through the Y.Doc and onStateChange is suppressed.
    */

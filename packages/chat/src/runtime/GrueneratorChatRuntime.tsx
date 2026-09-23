@@ -187,6 +187,7 @@ function useGrueneratorThreadRuntime() {
     customRoleRef,
     customEnabledTools,
     activeSkillMention,
+    activeRecipeId,
     pinnedConnector,
   } = useAgentStore(
     useShallow((s) => ({
@@ -201,6 +202,7 @@ function useGrueneratorThreadRuntime() {
       customRoleRef: s.customRoleRef,
       customEnabledTools: s.customEnabledTools,
       activeSkillMention: s.activeSkillMention,
+      activeRecipeId: s.activeRecipeId,
       pinnedConnector: s.pinnedConnector,
     }))
   );
@@ -227,6 +229,7 @@ function useGrueneratorThreadRuntime() {
       customRoleRef,
       customEnabledTools,
       activeSkillMention,
+      activeRecipeId,
       pinnedConnector,
     };
   }, [
@@ -241,6 +244,7 @@ function useGrueneratorThreadRuntime() {
     customRoleRef,
     customEnabledTools,
     activeSkillMention,
+    activeRecipeId,
     pinnedConnector,
   ]);
 
@@ -500,7 +504,10 @@ export function GrueneratorChatRuntimeProvider({
     [onExternalThreadClick, activePath]
   );
 
-  const navigationCtx = useMemo(() => (onNavigate ? { navigate: onNavigate } : null), [onNavigate]);
+  const navigationCtx = useMemo(
+    () => (onNavigate ? { navigate: onNavigate, activePath } : null),
+    [onNavigate, activePath]
+  );
 
   return (
     <ChatRuntimeReadyProvider>

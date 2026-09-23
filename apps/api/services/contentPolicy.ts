@@ -32,14 +32,23 @@ export const CONTENT_INTEGRITY_BULLETS = `- Erfinde NIEMALS Zitate, Zahlen, Stud
 - Erzeuge keine Inhalte, die Gruppen wegen Herkunft, Religion, Geschlecht, sexueller Orientierung oder Behinderung herabsetzen.`;
 
 /**
- * For generators that answer in free text and can therefore decline in prose.
- * Used by the social-post composer and the post editor.
+ * Marker line a prose generator answers with when it declines. A decline in
+ * free prose is only recognisable through `looksLikeRefusal`, whose verb
+ * allowlist cannot converge on an open class; a fixed marker can be read.
  */
-export const CONTENT_INTEGRITY_RULES = `
+export const CONTENT_REFUSAL_MARKER_RE = /^\s*ABLEHNUNG:\s*(.*)$/im;
 
-REGELN (nicht verhandelbar):
+/**
+ * For the social-post editor: it answers with the finished post as prose, so a
+ * decline has to be told apart from a new version — hence the marker line
+ * instead of "decline in a sentence". The revision clause exists because the
+ * post is the user's own draft: shortening or re-toning it is never a
+ * violation, only what the instruction asks to ADD can be.
+ */
+export const CONTENT_INTEGRITY_POST_EDIT_RULES = `## INHALTSREGELN (nicht verhandelbar)
 ${CONTENT_INTEGRITY_BULLETS}
-- Läuft die Anfrage einer dieser drei Regeln zuwider, schreibe KEINEN Entwurf — auch keinen mit Vorbehalt, keinen "als Beispiel" und keinen abgeschwächten. Antworte stattdessen mit einem deutschen Satz, der begründet, warum du das nicht schreibst, und biete wenn möglich eine zulässige Alternative an (etwa eine belegte Aussage statt eines erfundenen Zitats).`;
+- Bearbeitungs-Kontext: Der aktuelle Post ist ein Entwurf der Nutzer*in. Anweisungen zu Länge, Ton, Aufbau, Emojis oder Hashtags sind nie ein Verstoß — setze sie um. Ein Verstoß liegt nur vor, wenn die Anweisung verlangt, einen Inhalt hinzuzufügen oder so umzuschreiben, dass er einer dieser drei Regeln zuwiderläuft.
+- Verlangt die Anweisung so einen Inhalt, schreibe KEINE neue Fassung — auch keine mit Vorbehalt, keine "als Beispiel" und keine abgeschwächte. Gib dann ausschließlich die Zeile \`ABLEHNUNG: <kurze deutsche Begründung>\` aus und sonst nichts.`;
 
 /**
  * One sentence for the chat answer prompt. Short on purpose: the assistant is
@@ -54,10 +63,11 @@ ${CONTENT_INTEGRITY_BULLETS}
 export const CONTENT_INTEGRITY_ANSWER_RULE = `Schreibe keine Texte, die einer real existierenden Person ein unbelegtes Zitat zuschreiben oder eine Gruppe wegen Herkunft, Religion, Geschlecht, sexueller Orientierung oder Behinderung herabsetzen — auch nicht als Entwurf, Beispiel oder mit Vorbehalt. Sag in einem Satz, warum, und biete eine zulässige Alternative an.`;
 
 /**
- * For tool-forced editors, which have no prose channel: they MUST return
- * operations, so "decline in a sentence" is not an available move. The rule has
- * to bind what the operations may WRITE instead.
+ * Editing an existing campaign draft is an authoring task. A quote-shaped
+ * layout alone must not turn that draft into a sourced historical quotation.
  */
 export const CONTENT_INTEGRITY_EDIT_RULES = `Inhaltsregeln (nicht verhandelbar):
 ${CONTENT_INTEGRITY_BULLETS}
+- Bearbeitungs-Kontext: Der vorhandene Sharepic-Text ist ein bearbeitbarer Kampagnenentwurf. Vorlagenname "Zitat", Feldname "quote", Anführungszeichen und eine Namenszeile sind allein KEIN Beleg, dass der Text eine bereits getätigte Äußerung dokumentiert. Wünsche wie "den Zitattext verlängern", "kürzer" oder "anders formulieren" beauftragen dich, diesen Entwurf selbst zu überarbeiten. Verwende den aktuellen Text als Ausgangspunkt, behalte seine Aussage bei und liefere den vollständigen überarbeiteten Text als set-text-Operation. Verlange dafür keinen fertigen Ersatztext. Ergänze keine erfundenen Fakten oder neuen Behauptungen über die genannte Person.
+- Die Regel zum belegten Wortlaut gilt, wenn die Anfrage oder der Kontext ausdrücklich eine tatsächlich getätigte Äußerung einer real existierenden Person als Originalzitat verlangt oder kennzeichnet. Erfinde dann keine Fortsetzung und gib einen umformulierten Entwurf nicht als historisch belegten Wortlaut aus.
 - Verlangt die Anweisung so einen Inhalt, dann setze sie NICHT um: lass den betroffenen Text unverändert und begründe in "reply" in einem Satz, warum du diese eine Änderung nicht vornimmst.`;

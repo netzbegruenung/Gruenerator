@@ -28,12 +28,6 @@ const mcpUrl = (): string => {
     ? `https://mcp.${host.replace(/^www\./, '')}`
     : 'https://mcp.gruenerator.eu';
 };
-// Die App-Sektion ist vorerst ausgeblendet — auf true stellen, um Hero und
-// App-Karten (Play Store + TestFlight) wieder anzuzeigen. MCP bleibt immer sichtbar.
-// Beim Wiederanschalten auch den Footer-Link in Header/menuData.tsx zurückbenennen
-// (Connect → Apps & Connect).
-const SHOW_APPS = false as boolean;
-
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=de.gruenerator.app';
 // Public TestFlight beta link — swap for the App Store URL once the app is public.
 const TESTFLIGHT_URL = 'https://testflight.apple.com/join/WZnQJzvU';
@@ -116,7 +110,7 @@ const Hero = ({ device }: { device: VisitorDevice }) => {
         <p className="mt-2 max-w-md text-sm text-grey-600 dark:text-grey-400 sm:text-base">
           {device
             ? 'Direkt loslegen — die passende App für dieses Gerät.'
-            : 'Die App gibt es für iPhone (TestFlight-Beta) und Android. Scanne den QR-Code oder öffne die Seite auf deinem Handy.'}
+            : 'Die App gibt es für iPhone und iPad (TestFlight-Beta) sowie Android. Scanne den QR-Code oder öffne die Seite auf deinem Mobilgerät.'}
         </p>
 
         <div className="mt-5 flex flex-wrap gap-2.5">
@@ -230,7 +224,7 @@ const AppCardsGrid = ({ device }: { device: VisitorDevice }) => (
   <div className="mb-12 grid grid-cols-1 gap-4 sm:grid-cols-2">
     <AppCard
       title="iOS"
-      sub="TestFlight · Beta · ab iOS 16"
+      sub="TestFlight · Beta · ab iOS/iPadOS 16.4"
       icon={<FaApple className="text-[26px]" />}
       detected={device === 'ios'}
       qrUrl={TESTFLIGHT_URL}
@@ -242,24 +236,44 @@ const AppCardsGrid = ({ device }: { device: VisitorDevice }) => (
           </a>
         </Button>
         <p className="text-xs text-grey-500">
-          Der Link führt zu Apples TestFlight — die kostenlose TestFlight-App wird dabei
-          mitinstalliert, falls sie fehlt.
+          Installiere zuerst Apples kostenlose TestFlight-App und nimm danach die öffentliche
+          Beta-Einladung an.
         </p>
+        <a
+          href={`${getDocsUrl()}/docs/guides/experimentell/iphone-ipad-app-installieren`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 inline-flex items-center gap-1.5 text-xs text-link underline underline-offset-2 hover:opacity-80"
+        >
+          Installationsanleitung
+          <HiExternalLink />
+        </a>
       </div>
     </AppCard>
 
     <AppCard
       title="Android"
-      sub="Play Store · Open Beta"
+      sub="Google Play · Experimentell"
       icon={<FaAndroid className="text-[26px]" />}
       detected={device === 'android'}
       qrUrl={PLAY_STORE_URL}
     >
-      <Button asChild variant={device === 'android' ? 'brand' : 'brand-outline'}>
-        <a href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer">
-          Bei Google Play
+      <div className="flex flex-col gap-1.5">
+        <Button asChild variant={device === 'android' ? 'brand' : 'brand-outline'}>
+          <a href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer">
+            Bei Google Play
+          </a>
+        </Button>
+        <a
+          href={`${getDocsUrl()}/docs/guides/experimentell/android-app-installieren`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 inline-flex items-center gap-1.5 text-xs text-link underline underline-offset-2 hover:opacity-80"
+        >
+          Installationsanleitung
+          <HiExternalLink />
         </a>
-      </Button>
+      </div>
     </AppCard>
   </div>
 );
@@ -321,7 +335,7 @@ const McpSection = () => {
       </div>
 
       <a
-        href={`${getDocsUrl()}/docs/integrationen/ki-chat-einrichten`}
+        href={`${getDocsUrl()}/docs/guides/fortgeschrittene/gruenerator-mit-ki-chat-verbinden`}
         target="_blank"
         rel="noopener noreferrer"
         className="mt-4 inline-flex items-center gap-1.5 text-sm text-link underline underline-offset-2 hover:opacity-80"
@@ -339,32 +353,27 @@ const AppsPage = () => {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-12 lg:px-10">
       <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground-heading sm:text-3xl">
-        {SHOW_APPS ? 'Apps & Connect' : 'Connect'}
+        Apps & Connect
       </h1>
       <p className="mb-7 max-w-prose text-sm text-grey-600 dark:text-grey-400 sm:text-base">
-        {SHOW_APPS
-          ? 'Hol dir den Grünerator aufs Smartphone — und verbinde deine KI-Clients direkt mit dem Grünerator MCP-Server.'
-          : 'Verbinde deine KI-Clients direkt mit dem Grünerator MCP-Server.'}
+        Hol dir den Grünerator aufs Smartphone — und verbinde deine KI-Clients direkt mit dem
+        Grünerator MCP-Server.
       </p>
 
-      {SHOW_APPS && (
-        <>
-          <Hero device={device} />
+      <Hero device={device} />
 
-          <div className="mb-1.5 flex flex-wrap items-center gap-2.5">
-            <h2 className="text-lg font-bold text-foreground-heading sm:text-xl">
-              Apps für dein Smartphone
-            </h2>
-            <Badge variant="outline">Experimentell</Badge>
-          </div>
-          <p className="mb-4 max-w-prose text-sm text-grey-600 dark:text-grey-400">
-            Die Apps befinden sich noch in einer experimentellen Phase — es kann vereinzelt zu
-            Fehlern kommen. Feedback hilft uns, sie besser zu machen.
-          </p>
+      <div className="mb-1.5 flex flex-wrap items-center gap-2.5">
+        <h2 className="text-lg font-bold text-foreground-heading sm:text-xl">
+          Apps für dein Smartphone
+        </h2>
+        <Badge variant="outline">Experimentell</Badge>
+      </div>
+      <p className="mb-4 max-w-prose text-sm text-grey-600 dark:text-grey-400">
+        Die Apps befinden sich noch in einer experimentellen Phase — es kann vereinzelt zu Fehlern
+        kommen. Feedback hilft uns, sie besser zu machen.
+      </p>
 
-          <AppCardsGrid device={device} />
-        </>
-      )}
+      <AppCardsGrid device={device} />
 
       <McpSection />
     </div>

@@ -6,6 +6,12 @@ und Personen (`persons`) bestimmt. Konsumiert wird er über HTTP von
 `apps/api/services/nlp/nlpClient.ts`; die Ergebnisse landen in Qdrant-Payloads
 und in `notebook_keyword_snapshots`.
 
+Endpunkte: `/analyze/topics`, `/analyze/keywords`, `/analyze/persons` und
+`/analyze/text-stats` — Token-, Wort- und Satzzahl je Text plus die häufigsten
+Inhaltslemmata und die Wortformen gefragter Lemmata, für `notebook_quellen
+action="stats"`. Der Dienst läuft ohne Parser; die Satzzahl kommt dort aus der
+Satzendzeichen-Zählung in `text_stats.py`.
+
 ## Tests
 
 ```bash

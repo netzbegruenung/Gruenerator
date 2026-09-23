@@ -1,0 +1,82 @@
+---
+sidebar_position: 5
+description: 'Ein eigenes Rezept in der Agentura erstellen — beschreiben oder manuell — und im Chat testen.'
+---
+
+# Wie erstelle ich ein eigenes Rezept?
+
+Ein **Rezept** ist eine Schreibvorgabe für eine bestimmte Textsorte: Aufbau, Ton und Länge, einmal festgelegt und danach per `@mention` auf jeden Agenten anwendbar. Anders als ein Agent ist ein Rezept kein eigenständiges Gegenüber — es ist eine Vorlage, die du im Chat kurz aktivierst, etwa `@presse` für eine Pressemitteilung oder ein selbst gebautes `@einladung` für Einladungen zur Mitgliederversammlung.
+
+In der Agentura kannst du dir eigene Rezepte für Textsorten bauen, die du häufiger schreibst.
+
+## Schritt 1: Die Agentura öffnen
+
+Öffne die [Agentura](../../features/agentura.mdx) und klicke rechts über den Karten auf **Neu → Rezept**. Alternativ öffnest du die Kategorie **Meine Rezepte** und klickst dort auf **Neues Rezept**.
+
+## Schritt 2: Einen Weg wählen
+
+Auf der Startseite des Rezept-Erstellers stehen dir zwei Wege offen:
+
+- **Beschreiben**: Schreibe ins Eingabefeld, wofür das Rezept gedacht ist — zum Beispiel „Ein Rezept für Einladungen zur Mitgliederversammlung: förmlicher Ton, mit Tagesordnung und Anmeldehinweis." Der Grünerator erstellt daraus einmalig einen Entwurf und öffnet den Editor.
+- **Manuell**: Über **„Lieber manuell anlegen?"** öffnest du denselben Editor mit leeren Feldern.
+
+**Gespeichert ist das Rezept in keinem der beiden Fälle, solange du nicht auf Speichern klickst.**
+
+## Schritt 3: Grundlagen prüfen
+
+Links siehst du das Formular, rechts die Vorschau. Das Formular ist nicht aufgeteilt — alle Felder stehen untereinander. Oben legst du fest:
+
+- **Name:** So erscheint das Rezept in der Agentura. Über die Schaltfläche daneben kannst du sein Symbol ändern.
+- **@mention:** Der Name, mit dem du das Rezept im Chat aufrufst (z. B. `@einladung`). Er wird beim Anlegen aus dem Namen abgeleitet und lässt sich danach nicht mehr ändern.
+- **Beschreibung:** Ein kurzer Satz, der erklärt, wofür das Rezept gedacht ist.
+
+**Speichern** bleibt deaktiviert, solange Name oder Anleitung leer sind.
+
+## Schritt 4: Die Anleitung schreiben
+
+Unter **Anleitung** trägst du die eigentliche Schreibvorgabe ein: Ton, Aufbau, Länge und alles, was das Ergebnis konsequent einhalten soll. Dieser Text wird dem Modell als Schreibvorgabe gegeben.
+
+:::tip[Ein Rezept, eine Textsorte]
+Baue je Textsorte ein eigenes Rezept, statt mehrere Anlässe in eine Anleitung zu mischen — das hält die Vorgabe eindeutig und das Ergebnis vorhersehbar.
+:::
+
+:::caution[Keine Fakten oder Namen in die Anleitung]
+Die Anleitung beschreibt Stil und Aufbau — nicht Inhalte. Konkrete Fakten, Namen oder Themen gibst du beim Aufruf im Chat mit (`@einladung Klimaschutz-AG, 12. März`), nicht fest in der Anleitung. So bleibt das Rezept für jeden Anlass wiederverwendbar.
+:::
+
+## Schritt 5: Optional aus Beispielen anlernen
+
+Statt die Anleitung selbst zu schreiben, kannst du sie aus vorhandenen Texten ableiten lassen. Öffne dazu unterhalb des Anleitungsfeldes die Klappe **„Aus Beispielen lernen"**:
+
+1. Füge mehrere Beispieltexte in das eine Textfeld ein — hintereinander, getrennt durch eine Zeile aus `---`, eine Überschrift wie „Beispiel 2", eine Nummerierung oder doppelte Leerzeilen. Alternativ lädst du PDF-, Word-, PowerPoint-, Bild- oder Textdateien hoch.
+2. Klicke auf **„Gemeinsamkeiten erkennen"**. Der Grünerator leitet daraus eine Anleitung ab und trägt sie in das Feld **Anleitung** darüber ein. Der Knopf bleibt gesperrt, solange das Rezept keinen Namen hat — der Name beschriftet den erkannten Stil.
+3. Prüfe und passe das Ergebnis dort an — die KI liefert einen Entwurf, keine endgültige Vorgabe. Steht schon eine Anleitung im Feld, fragt der Grünerator vorher nach: die Analyse schreibt sie komplett neu.
+
+## Schritt 6: Speichern und testen
+
+Klicke oben rechts auf **Speichern**. Anschließend kannst du das Rezept über **Im Chat verwenden** direkt ausprobieren. Teste dabei, ob Ton, Aufbau und Länge der Anleitung entsprechen — passt etwas nicht, passe die **Anleitung** an und speichere erneut.
+
+## Ein mitgeliefertes Rezept anpassen
+
+Rezepte, die der Grünerator mitbringt (z. B. Presse, Instagram, Facebook, Landesverbands-Rezepte), kannst du mit deinem eigenen Stil überschreiben, ohne sie neu zu bauen: Öffne das Rezept in der Agentura und klicke auf seiner Detailseite auf **„Mit eigenen Beispielen anpassen"**. Das öffnet denselben Editor — Name und `@mention` sind dabei fest vorgegeben, Anleitung und Beispiele füllst du selbst. Danach zeigt die Detailseite des Rezepts das Abzeichen **„Du hast diesen Stil angepasst"**, und die Schaltfläche heißt fortan **„Angepassten Stil bearbeiten"**.
+
+## Teilen
+
+Unter **Teilen** am Ende des Formulars (nur bei bereits gespeicherten eigenen Rezepten) legst du die Sichtbarkeit fest:
+
+- **Privat** — nur du siehst das Rezept.
+- **Mit Projekten geteilt** — du wählst eines oder mehrere deiner Projekte aus; alle Mitglieder können das Rezept dann im Chat nutzen.
+- **Mit Anmeldung** — alle eingeloggten Nutzer\*innen können es aufrufen.
+
+Zusätzlich kannst du dein Rezept **„Öffentlich"** listen, damit es andere in der Agentura entdecken. Dafür bestätigst du einmal, dass du die Inhalte besitzt (oder zur Veröffentlichung berechtigt bist) oder dass sie öffentlich verfügbar sind — dieses Attest erscheint, sobald du die Listung aktivierst.
+
+## Als Standard-Rezept an einem eigenen Agenten hinterlegen
+
+Baust du einen eigenen Agenten, kannst du im Tab **Grundlagen** unter **Standard-Rezept (optional)** eines deiner Rezepte auswählen. Der Agent verwendet es dann automatisch, sobald du im Chat kein anderes Rezept per `@mention` wählst. Wie du einen eigenen Agenten anlegst, steht unter [Eigene Agents erstellen](./eigene-agentinnen-erstellen.mdx).
+
+## Tipps für die Nutzung
+
+- **Ein Rezept je Textsorte** — mische nicht mehrere Anlässe in eine Anleitung.
+- **Keine Fakten oder Namen in die Anleitung** — die gibst du beim Aufruf im Chat mit.
+- **Kombiniere Rezept + Quelle + Thema** im Chat, z. B. `@presse @grundsatz Klimaschutz in Kommunen`.
+- **Schau dir ähnliche Rezepte in der Agentura an**, bevor du eines neu baust — vielleicht reicht ein angepasster Stil eines mitgelieferten Rezepts.

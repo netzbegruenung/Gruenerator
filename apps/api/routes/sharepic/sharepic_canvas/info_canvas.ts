@@ -16,6 +16,13 @@ import {
   bufferToBase64,
 } from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { isValidHexColor } from '../../../services/sharepic/canvas/utils.js';
+import {
+  drawRichLines,
+  layoutRichTextLines,
+  wrapTextLines as wrapText,
+  type BlockFont,
+  type RichLayoutedLine,
+} from '../../../services/sharepic/textLayout.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -46,6 +53,7 @@ const BODY_TEXT_WIDTH = CANVAS_WIDTH - BODY_TEXT_MARGIN - MARGIN; // 905
 const HEADER_LINE_HEIGHT_RATIO = 1.2;
 const BODY_LINE_HEIGHT_RATIO = 1.4;
 const HEADER_BOTTOM_SPACING = 40;
+const BODY_FONT_FAMILY = 'PT Sans';
 
 // Single sunflower overlay, bottom-right — only its top-left quadrant is visible,
 // reproducing the look the baked-in flower used to have on the tanne background.
@@ -55,15 +63,10 @@ const SUNFLOWER_Y = CANVAS_HEIGHT - 440; // 910
 // Text must stay above the flower so it is never clipped or overlapped.
 const CONTENT_BOTTOM = SUNFLOWER_Y - 30; // ~880
 
-interface ParsedBody {
-  firstSentence: string;
-  remainingText: string;
-}
-
 interface InfoTextData {
-  header: string | undefined;
-  bodyFirstSentence: string | undefined;
-  bodyRemaining: string | undefined;
+  header: string;
+  /** Markdown-lite: `**fett**`, `_kursiv_`, `• Punkt` — siehe `@gruenerator/contracts`. */
+  body: string;
 }
 
 interface InfoParams {
@@ -79,18 +82,14 @@ interface InfoLayout {
   headerFontSize: number;
   arrowY: number;
   bodyStartY: number;
-  bodyLines: WordWithFont[][];
+  bodyLines: RichLayoutedLine[];
   bodyFontSize: number;
-}
-
-interface WordWithFont {
-  text: string;
-  font: string;
 }
 
 interface InfoRequestBody {
   header?: string;
   body?: string;
+  /** Ältere Clients schicken den Text zweigeteilt; der erste Satz wurde fett gesetzt. */
   bodyFirstSentence?: string;
   bodyRemaining?: string;
   bgColor?: string;
@@ -100,131 +99,23 @@ interface InfoRequestBody {
   bodyFontSize?: string;
 }
 
-function parseBodyText(bodyText: string): ParsedBody {
-  if (!bodyText || typeof bodyText !== 'string') {
-    return { firstSentence: '', remainingText: '' };
+const bodyFont = (fontSize: number): BlockFont => ({ fontFamily: BODY_FONT_FAMILY, fontSize });
+
+/**
+ * Der Body ist EIN Text mit Auszeichnung — dieselbe Form, die der Editor
+ * zeigt. Früher setzte der Server den ersten Satz von sich aus fett, während
+ * die Vorschau ihn regular zeigte: Export und Vorschau widersprachen sich.
+ * Jetzt steht die Fettung sichtbar im Text (`**…**`), wer sie will. Die alte
+ * Drahtform `bodyFirstSentence`/`bodyRemaining` (F0) bleibt lesbar und
+ * ergibt exakt das bisherige Bild.
+ */
+function resolveBody(input: InfoRequestBody): string {
+  const { body, bodyFirstSentence, bodyRemaining } = input;
+  if (bodyFirstSentence || bodyRemaining) {
+    const first = bodyFirstSentence?.trim() ? `**${bodyFirstSentence.trim()}**` : '';
+    return `${first} ${bodyRemaining?.trim() ?? ''}`.trim();
   }
-
-  const sentenceEndRegex = /[.!?](?=\s+[A-Z])/;
-  const match = bodyText.match(sentenceEndRegex);
-
-  if (match && match.index !== undefined) {
-    const firstSentence = bodyText.substring(0, match.index).trim();
-    const remainingText = bodyText.substring(match.index + 1).trim();
-    return { firstSentence, remainingText };
-  }
-
-  return { firstSentence: bodyText, remainingText: '' };
-}
-
-async function processInfoText(textData: Partial<InfoTextData>): Promise<InfoTextData> {
-  const { header, bodyFirstSentence, bodyRemaining } = textData;
-
-  if (!header && !bodyFirstSentence && !bodyRemaining) {
-    throw new Error('Mindestens ein Textfeld (Header oder Body) muss angegeben werden');
-  }
-
-  return {
-    header: header || '',
-    bodyFirstSentence: bodyFirstSentence || '',
-    bodyRemaining: bodyRemaining || '',
-  };
-}
-
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (let i = 0; i < words.length; i++) {
-    const testLine = currentLine + words[i] + ' ';
-    const metrics = ctx.measureText(testLine);
-    const testWidth = metrics.width;
-
-    if (testWidth > maxWidth && i > 0) {
-      lines.push(currentLine.trim());
-      currentLine = words[i] + ' ';
-    } else {
-      currentLine = testLine;
-    }
-  }
-  lines.push(currentLine.trim());
-  return lines;
-}
-
-function renderWordsWithFonts(
-  ctx: CanvasRenderingContext2D,
-  wordsWithFont: WordWithFont[],
-  x: number,
-  y: number,
-  color: string
-): void {
-  let currentX = x;
-
-  wordsWithFont.forEach((wordObj, index) => {
-    ctx.font = wordObj.font;
-    ctx.fillStyle = color;
-
-    const wordWidth = ctx.measureText(wordObj.text).width;
-    ctx.fillText(wordObj.text, currentX, y);
-
-    if (index < wordsWithFont.length - 1) {
-      const spaceWidth = ctx.measureText(' ').width;
-      currentX += wordWidth + spaceWidth;
-    }
-  });
-}
-
-function buildWordsWithFont(
-  bodyFirstSentence: string,
-  bodyRemaining: string,
-  bodyFontSize: number
-): WordWithFont[] {
-  const fullBodyText = `${bodyFirstSentence} ${bodyRemaining}`.trim();
-  const allWords = fullBodyText.split(' ').filter(Boolean);
-  const firstSentenceWordCount = bodyFirstSentence
-    ? bodyFirstSentence.split(' ').filter(Boolean).length
-    : 0;
-
-  return allWords.map((word, index) => ({
-    text: word,
-    font:
-      index < firstSentenceWordCount
-        ? `${bodyFontSize}px PTSans-Bold`
-        : `${bodyFontSize}px PTSans-Regular`,
-  }));
-}
-
-function wrapWordsWithFont(
-  ctx: CanvasRenderingContext2D,
-  wordsWithFont: WordWithFont[],
-  maxWidth: number
-): WordWithFont[][] {
-  const lines: WordWithFont[][] = [];
-  let currentLine: WordWithFont[] = [];
-
-  for (const wordObj of wordsWithFont) {
-    const testLine = [...currentLine, wordObj];
-    let testLineWidth = 0;
-    testLine.forEach((w, idx) => {
-      ctx.font = w.font;
-      testLineWidth += ctx.measureText(w.text).width;
-      if (idx < testLine.length - 1) {
-        testLineWidth += ctx.measureText(' ').width;
-      }
-    });
-
-    if (testLineWidth > maxWidth && currentLine.length > 0) {
-      lines.push(currentLine);
-      currentLine = [wordObj];
-    } else {
-      currentLine = testLine;
-    }
-  }
-  if (currentLine.length > 0) {
-    lines.push(currentLine);
-  }
-  return lines;
+  return body?.trim() ?? '';
 }
 
 function computeInfoLayout(
@@ -246,12 +137,9 @@ function computeInfoLayout(
   const arrowY = currentY;
   const bodyStartY = currentY;
 
-  const words = buildWordsWithFont(
-    processedText.bodyFirstSentence || '',
-    processedText.bodyRemaining || '',
-    bodyFontSize
-  );
-  const bodyLines = wrapWordsWithFont(ctx, words, BODY_TEXT_WIDTH);
+  const bodyLines = processedText.body
+    ? layoutRichTextLines(ctx, processedText.body, BODY_TEXT_WIDTH, bodyFont(bodyFontSize))
+    : [];
   const bodyBottom = bodyStartY + bodyLines.length * bodyFontSize * BODY_LINE_HEIGHT_RATIO;
 
   return { headerLines, headerFontSize, arrowY, bodyStartY, bodyLines, bodyFontSize, bodyBottom };
@@ -289,12 +177,11 @@ function fitInfoLayout(
     );
     if (layout.bodyLines.length > maxLines) {
       const trimmed = layout.bodyLines.slice(0, maxLines);
-      const lastLine = trimmed[trimmed.length - 1];
-      const lastWord = lastLine[lastLine.length - 1];
-      lastLine[lastLine.length - 1] = {
-        ...lastWord,
-        text: `${lastWord.text.replace(/[.,;:!?]+$/, '')}…`,
-      };
+      const lastLine = trimmed[trimmed.length - 1]!;
+      const lastRun = lastLine.runs[lastLine.runs.length - 1];
+      if (lastRun) {
+        lastRun.text = `${lastRun.text.replace(/[.,;:!?\s]+$/, '')}…`;
+      }
       layout = { ...layout, bodyLines: trimmed };
     }
   }
@@ -357,14 +244,15 @@ async function createInfoImage(
     }
 
     // Body
-    ctx.fillStyle = bodyColor;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    let bodyY = layout.bodyStartY;
-    for (const line of layout.bodyLines) {
-      renderWordsWithFonts(ctx, line, BODY_TEXT_MARGIN, bodyY, bodyColor);
-      bodyY += layout.bodyFontSize * BODY_LINE_HEIGHT_RATIO;
-    }
+    drawRichLines(ctx, layout.bodyLines, {
+      x: BODY_TEXT_MARGIN,
+      y: layout.bodyStartY,
+      lineHeight: layout.bodyFontSize * BODY_LINE_HEIGHT_RATIO,
+      font: bodyFont(layout.bodyFontSize),
+      color: bodyColor,
+    });
 
     const rawBuffer = canvas.toBuffer('image/png');
     return optimizeCanvasBuffer(rawBuffer);
@@ -376,17 +264,8 @@ async function createInfoImage(
 
 router.post('/', upload.single('image'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const {
-      header,
-      body,
-      bodyFirstSentence,
-      bodyRemaining,
-      bgColor,
-      headerColor,
-      bodyColor,
-      headerFontSize,
-      bodyFontSize,
-    } = req.body as InfoRequestBody;
+    const input = req.body as InfoRequestBody;
+    const { header, bgColor, headerColor, bodyColor, headerFontSize, bodyFontSize } = input;
 
     const modParams: InfoParams = {
       bgColor: isValidHexColor(bgColor) ? bgColor! : DEFAULT_BG_COLOR,
@@ -405,20 +284,13 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
       bodyFontSize: Math.max(30, Math.min(60, modParams.bodyFontSize)),
     };
 
-    let parsedBodyFirstSentence = bodyFirstSentence;
-    let parsedBodyRemaining = bodyRemaining;
-
-    if (body && !bodyFirstSentence && !bodyRemaining) {
-      const parsed = parseBodyText(body);
-      parsedBodyFirstSentence = parsed.firstSentence;
-      parsedBodyRemaining = parsed.remainingText;
+    const processedText: InfoTextData = {
+      header: header?.trim() ?? '',
+      body: resolveBody(input),
+    };
+    if (!processedText.header && !processedText.body) {
+      throw new Error('Mindestens ein Textfeld (Header oder Body) muss angegeben werden');
     }
-
-    const processedText = await processInfoText({
-      header,
-      bodyFirstSentence: parsedBodyFirstSentence,
-      bodyRemaining: parsedBodyRemaining,
-    });
 
     const generatedImageBuffer = await createInfoImage(processedText, infoValidatedParams);
 

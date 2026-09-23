@@ -44,7 +44,7 @@ export function SocialPostSharepicColumn({ data }: { data: SharepicData }) {
             key={variant.id}
             variant={variant}
             isSelected={variant.id === selected.id}
-            onSelect={() => setSelectedId(variant.id)}
+            onSelect={setSelectedId}
             className="w-full"
           />
         ))}
@@ -79,7 +79,7 @@ function SharepicColumnContent({
   const handleDownload = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      download();
+      void download();
     },
     [download]
   );

@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 
-export type AgentProvider = 'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'greenpt' | 'cortecs';
+export type AgentProvider =
+  'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'melious' | 'greenpt' | 'cortecs';
 
 export type SkillIcon = ComponentType<{ className?: string }>;
 
@@ -152,6 +153,9 @@ export interface Agent {
   /** Fire the example search on every content-creation turn. See the frontmatter schema. */
   alwaysSearchesExamples?: boolean;
   /**
+   * @deprecated 2026-09-18 — see defaultRecipeMention. Kept readable so agents
+   * created before the switch keep rendering; not written by new saves.
+   *
    * System skill `mention` strings (e.g. `'presse'`, `'antrag'`) surfaced as
    * clickable quick-starts on this agent's chat landing. Each resolves via
    * `resolveSkillMention` to the skill's `promptTemplate`, which is inserted
@@ -219,6 +223,12 @@ export interface Agent {
    * composer mention always wins.
    */
   defaultRecipeMention?: string;
+  /**
+   * Row id of the default recipe (a user recipe, own/shared/public) — the
+   * stable handle across renames. Wins over `defaultRecipeMention` when both
+   * are set. See `EffectiveRecipeChoice`/`resolveEffectiveRecipeMention`.
+   */
+  defaultRecipeId?: string;
 }
 
 export type AgentCategory = 'gruppen';

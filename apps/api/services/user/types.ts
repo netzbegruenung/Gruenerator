@@ -42,6 +42,8 @@ export interface ProfileUpdateData {
   chat_color?: string | undefined;
   beta_features?: Record<string, boolean> | undefined;
   user_defaults?: Record<string, Record<string, unknown>> | undefined;
+  /** `null` clears the choice; the default voice then applies. */
+  tts_voice_id?: string | null | undefined;
   [key: string]: unknown;
 }
 

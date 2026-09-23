@@ -1,3 +1,4 @@
+import { rejectAbortedResponse } from '@gruenerator/shared/api';
 import axios from 'axios';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -16,7 +17,7 @@ export function setSitesUnauthorizedHandler(handler: (() => void) | null): void 
 }
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => rejectAbortedResponse(response),
   (error: unknown) => {
     if (axios.isAxiosError(error) && error.response?.status === 401 && unauthorizedHandler) {
       unauthorizedHandler();

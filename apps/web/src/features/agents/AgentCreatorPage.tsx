@@ -1,6 +1,6 @@
 import { type DraftedAgentSpec } from '@gruenerator/contracts';
 import { useCallback, useState } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 
 import AgentEditor from './AgentEditor';
 import { EMPTY_FORM, type FormState } from './agentFormState';
@@ -24,7 +24,7 @@ function specToFormState(spec: DraftedAgentSpec): Partial<FormState> {
     openingMessage: spec.openingMessage,
     openingQuestions: spec.openingQuestions.join('\n'),
     enabledTools: spec.enabledTools,
-    skillMentions: spec.skillMentions,
+    defaultRecipeMention: spec.defaultRecipeMention ?? null,
   };
 }
 
@@ -36,23 +36,13 @@ function specToFormState(spec: DraftedAgentSpec): Partial<FormState> {
 function AgentCreatorPage() {
   const draftMut = useDraftAgent();
   const [searchParams] = useSearchParams();
-  const location = useLocation();
   const variant = searchParams.get('mode') === 'recurring' ? 'recurring' : 'agent';
-  // Prefill from "Texte anlernen" → "Als Grünerator anlegen": jump straight into
-  // the build wizard with the learned style as the systemRole.
-  const prefillTextForm = (
-    location.state as { prefillTextForm?: { title: string; systemRole: string } } | null
-  )?.prefillTextForm;
   const [description, setDescription] = useState('');
-  const [initialState, setInitialState] = useState<Partial<FormState> | null>(
-    prefillTextForm
-      ? { title: prefillTextForm.title, systemRole: prefillTextForm.systemRole }
-      : null
-  );
-  const [phase, setPhase] = useState<'start' | 'build'>(prefillTextForm ? 'build' : 'start');
+  const [initialState, setInitialState] = useState<Partial<FormState> | null>(null);
+  const [phase, setPhase] = useState<'start' | 'build'>('start');
   const [error, setError] = useState<string | null>(null);
 
-  useDocumentTitle(variant === 'recurring' ? 'Neue wiederkehrende Aufgabe' : 'Neuer Grünerator');
+  useDocumentTitle(variant === 'recurring' ? 'Neue wiederkehrende Aufgabe' : 'Neuer Agent');
 
   const handleGenerate = useCallback(async () => {
     if (description.trim().length === 0) return;
@@ -99,6 +89,6 @@ function AgentCreatorPage() {
 }
 
 export default withAuthRequired(AgentCreatorPage, {
-  title: 'Neuer Grünerator',
+  title: 'Neuer Agent',
   fallback: <div className="flex min-h-0 flex-1 bg-background" />,
 });

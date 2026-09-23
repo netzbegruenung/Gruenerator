@@ -1,0 +1,589 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import {
+  assertSamePage,
+  classifyPoint,
+  groupSourcesByHost,
+  isEmptyPlaceholder,
+  isRefetchable,
+  parseCliArgs,
+  planDateRepair,
+  planGone,
+  planPointRepair,
+  planRepair,
+  runGroups,
+} from './repair-lv-payload.js';
+
+const BERLIN = { baseUrl: 'https://gruene.berlin' };
+
+describe('parseCliArgs', () => {
+  it('ist ohne --write ein Trockenlauf', () => {
+    expect(parseCliArgs(['--titles', '--source', 'berlin-lv-presse'])).toEqual({
+      args: {
+        sources: ['berlin-lv-presse'],
+        all: false,
+        titles: true,
+        overwriteDates: null,
+        gone: false,
+        refetch: false,
+        write: false,
+        limit: null,
+        parallel: 4,
+      },
+    });
+  });
+
+  it('nimmt --source mehrfach und --limit als Zahl', () => {
+    expect(
+      parseCliArgs([
+        '--titles',
+        '--source',
+        'berlin-lv-presse',
+        '--source',
+        'berlin-lv-beschluesse',
+        '--refetch',
+        '--limit',
+        '5',
+        '--write',
+      ])
+    ).toEqual({
+      args: {
+        sources: ['berlin-lv-presse', 'berlin-lv-beschluesse'],
+        all: false,
+        titles: true,
+        overwriteDates: null,
+        gone: false,
+        refetch: true,
+        write: true,
+        limit: 5,
+        parallel: 4,
+      },
+    });
+  });
+
+  it('verlangt --source oder --all, aber nicht beides', () => {
+    expect(parseCliArgs(['--titles'])).toHaveProperty('error');
+    expect(parseCliArgs(['--titles', '--all', '--source', 'x'])).toHaveProperty('error');
+  });
+
+  it('verweigert --refetch zusammen mit --all — das wäre ein Voll-Abruf aller Seiten', () => {
+    expect(parseCliArgs(['--titles', '--all', '--refetch'])).toHaveProperty('error');
+  });
+
+  it('lehnt unbekannte Argumente ab', () => {
+    expect(parseCliArgs(['--titles', '--source', 'x', '--force'])).toHaveProperty('error');
+  });
+
+  it('verlangt mindestens eine Regel — ohne gibt es keinen stillen Standard', () => {
+    expect(parseCliArgs(['--source', 'x'])).toHaveProperty('error');
+    expect(parseCliArgs(['--all', '--write'])).toHaveProperty('error');
+  });
+
+  it('nimmt --overwrite-dates mit einem bekannten Regelnamen', () => {
+    expect(parseCliArgs(['--all', '--overwrite-dates', 'mid-june'])).toEqual({
+      args: {
+        sources: [],
+        all: true,
+        titles: false,
+        overwriteDates: 'mid-june',
+        gone: false,
+        refetch: false,
+        write: false,
+        limit: null,
+        parallel: 4,
+      },
+    });
+  });
+
+  it('lehnt fehlende und unbekannte Datumsregeln ab', () => {
+    expect(parseCliArgs(['--all', '--overwrite-dates'])).toHaveProperty('error');
+    expect(parseCliArgs(['--all', '--overwrite-dates', 'june'])).toHaveProperty('error');
+  });
+
+  it('verweigert --refetch ohne --titles — nur die Titelregel liest die Seite neu', () => {
+    expect(
+      parseCliArgs(['--source', 'x', '--overwrite-dates', 'mid-june', '--refetch'])
+    ).toHaveProperty('error');
+  });
+
+  it('verweigert --overwrite-dates visible-date zusammen mit --all — das wäre ein Voll-Abruf aller Seiten', () => {
+    expect(parseCliArgs(['--all', '--overwrite-dates', 'visible-date'])).toHaveProperty('error');
+    expect(
+      parseCliArgs(['--source', 'berlin-lv-presse', '--overwrite-dates', 'visible-date'])
+    ).not.toHaveProperty('error');
+  });
+
+  it('nimmt --parallel als Zahl ≥ 1, Standard ist 4', () => {
+    expect(parseCliArgs(['--titles', '--all'])).toHaveProperty('args.parallel', 4);
+    expect(parseCliArgs(['--titles', '--all', '--parallel', '3'])).toHaveProperty(
+      'args.parallel',
+      3
+    );
+  });
+
+  it('lehnt --parallel unter 1 und Nicht-Zahlen ab', () => {
+    expect(parseCliArgs(['--titles', '--all', '--parallel', '0'])).toHaveProperty('error');
+    expect(parseCliArgs(['--titles', '--all', '--parallel', 'x'])).toHaveProperty('error');
+  });
+});
+
+describe('isRefetchable', () => {
+  it('holt nur HTML-Seiten vom Host der Quelle', () => {
+    expect(isRefetchable('https://gruene.berlin/beschluesse/x_3765', BERLIN)).toBe(true);
+  });
+
+  it('lässt Wolke-Dateien und PDFs aus', () => {
+    expect(
+      isRefetchable('https://wolke.netzbegruenung.de/s/xfFABYzM7pX83Fj#/WPS.pdf', BERLIN)
+    ).toBe(false);
+    expect(isRefetchable('https://gruene.berlin/fileadmin/a.pdf', BERLIN)).toBe(false);
+  });
+});
+
+describe('planRepair', () => {
+  const stored = {
+    title: 'Unser Wahlprogramm - Kapitel 3: &nbsp;\nBerlin gestaltet Zukunft\nBerlin steht für...',
+    published_at: '2026-03-27T15:20:03',
+  };
+
+  it('übernimmt den neu ausgelesenen Titel', () => {
+    expect(
+      planRepair(stored, { title: 'Unser Wahlprogramm - Kapitel 3', publishedAt: '2026-03-27' })
+    ).toEqual({ title: 'Unser Wahlprogramm - Kapitel 3' });
+  });
+
+  it('überschreibt ein vorhandenes Datum nicht', () => {
+    expect(planRepair(stored, { title: 'X', publishedAt: '2020-01-01' })).not.toHaveProperty(
+      'published_at'
+    );
+  });
+
+  it('trägt ein fehlendes Datum nach, wenn die Seite eines im ISO-Format liefert', () => {
+    expect(
+      planRepair({ title: 'X', published_at: null }, { title: 'X', publishedAt: '2026-05-06' })
+    ).toEqual({ published_at: '2026-05-06' });
+    expect(
+      planRepair({ title: 'X', published_at: null }, { title: 'X', publishedAt: 'gestern' })
+    ).toBeNull();
+  });
+
+  it('räumt ohne Abruf nur Leerraum und &nbsp; auf', () => {
+    expect(planRepair({ title: 'Haltung ist hot ', published_at: null }, null)).toEqual({
+      title: 'Haltung ist hot',
+    });
+  });
+
+  it('fällt bei leerem Abruf-Titel auf die Normalisierung zurück', () => {
+    expect(
+      planRepair(
+        { title: 'a&nbsp;b', published_at: '2026-01-01' },
+        { title: '', publishedAt: null }
+      )
+    ).toEqual({ title: 'a b' });
+  });
+
+  it('gibt null zurück, wenn nichts zu tun ist', () => {
+    expect(planRepair({ title: 'Sauber', published_at: '2026-01-01' }, null)).toBeNull();
+  });
+});
+
+describe('planDateRepair — mid-june', () => {
+  const pdf = (url: string, title: string, published_at: string | null) => ({
+    source_url: url,
+    title,
+    published_at,
+  });
+
+  it('ersetzt die Jahresmitte-Schätzung, wenn der Titel ein volles Datum trägt', () => {
+    expect(
+      planDateRepair(
+        pdf(
+          'https://gruene.example/uploads/2023/LDK_Beschluss.pdf',
+          'LDK 29.04.2023',
+          '2023-06-15'
+        ),
+        'mid-june'
+      )
+    ).toEqual({ published_at: '2023-04-29' });
+  });
+
+  it('zählt als unresolved, wenn auch die Neuberechnung nur das Jahr kennt', () => {
+    expect(
+      planDateRepair(
+        pdf('https://gruene.example/uploads/2023/Beschluss.pdf', 'Beschluss', '2023-06-15'),
+        'mid-june'
+      )
+    ).toBe('unresolved');
+  });
+
+  it('zählt als unresolved statt null über ein Datum zu schreiben', () => {
+    expect(
+      planDateRepair(
+        pdf('https://gruene.example/files/Beschluss.pdf', 'Beschluss', '2023-06-15'),
+        'mid-june'
+      )
+    ).toBe('unresolved');
+  });
+
+  it('lässt Daten ohne den Defekt unangetastet', () => {
+    expect(
+      planDateRepair(
+        pdf('https://gruene.example/files/LDK_2023-04-29.pdf', 'LDK', '2023-05-02'),
+        'mid-june'
+      )
+    ).toBe('unchanged');
+    expect(
+      planDateRepair(pdf('https://gruene.example/files/a.pdf', 'LDK 29.04.2023', null), 'mid-june')
+    ).toBe('unchanged');
+  });
+
+  it('fasst HTML-Seiten nicht an — dort ist der 15. Juni ein echtes Datum', () => {
+    expect(
+      planDateRepair(
+        pdf('https://gruene.example/presse/sommerfest', 'Sommerfest 01.07.2023', '2023-06-15'),
+        'mid-june'
+      )
+    ).toBe('unchanged');
+  });
+});
+
+describe('planDateRepair — visible-date (#3565)', () => {
+  const html = (url: string, published_at: string | null) => ({
+    source_url: url,
+    title: 'X',
+    published_at,
+  });
+  const URL_ = 'https://gruene.berlin/pressemitteilungen/berlin-steht-zusammen_3856';
+
+  it('patcht, wenn das neu ausgelesene sichtbare Datum vom gespeicherten abweicht', () => {
+    expect(
+      planDateRepair(html(URL_, '2026-07-23T11:11:58'), 'visible-date', {
+        title: 'X',
+        publishedAt: '2026-07-26',
+      })
+    ).toEqual({ published_at: '2026-07-26' });
+  });
+
+  it('zählt als unchanged, wenn das sichtbare Datum dem gespeicherten entspricht', () => {
+    expect(
+      planDateRepair(html(URL_, '2026-07-26'), 'visible-date', {
+        title: 'X',
+        publishedAt: '2026-07-26',
+      })
+    ).toBe('unchanged');
+  });
+
+  it('zählt als unresolved statt null über ein vorhandenes Datum zu schreiben, wenn kein Abruf vorliegt oder kein sichtbares Datum gefunden wurde', () => {
+    expect(planDateRepair(html(URL_, '2026-07-23T11:11:58'), 'visible-date', null)).toBe(
+      'unresolved'
+    );
+    expect(
+      planDateRepair(html(URL_, '2026-07-23T11:11:58'), 'visible-date', {
+        title: 'X',
+        publishedAt: null,
+      })
+    ).toBe('unresolved');
+  });
+});
+
+describe('isEmptyPlaceholder', () => {
+  it('erkennt die TYPO3-xBlog-Platzhalterseite ("Uups, kein Eintrag vorhanden")', () => {
+    expect(isEmptyPlaceholder('BeschlüsseUups, kein Eintrag vorhanden.')).toBe(true);
+  });
+
+  it('lässt echten Seiteninhalt unangetastet', () => {
+    expect(isEmptyPlaceholder('26.07.26 – Zu dem mutmaßlichen islamistischen Anschlag …')).toBe(
+      false
+    );
+  });
+});
+
+describe('planPointRepair (#3565)', () => {
+  const point = (published_at: string | null) => ({
+    source_url: 'https://gruene.berlin/pressemitteilungen/berlin-steht-zusammen_3856',
+    title: 'Alt',
+    published_at,
+  });
+
+  it('holt höchstens einmal, wenn --titles --refetch UND --overwrite-dates visible-date zusammen laufen', async () => {
+    let calls = 0;
+    const fetchExtracted = async () => {
+      calls++;
+      return { title: 'Neu', publishedAt: '2026-07-26', text: 'Body' };
+    };
+
+    const result = await planPointRepair(
+      point('2026-07-23T11:11:58'),
+      { titles: true, refetch: true, overwriteDates: 'visible-date' },
+      true,
+      fetchExtracted
+    );
+
+    expect(calls).toBe(1);
+    expect(result.patch).toEqual({ title: 'Neu', published_at: '2026-07-26' });
+    expect(result.fetchAttempted).toBe(true);
+    expect(result.fetchError).toBeNull();
+  });
+
+  it('holt nicht, wenn weder --refetch noch visible-date verlangt sind', async () => {
+    let calls = 0;
+    const fetchExtracted = async () => {
+      calls++;
+      return { title: 'Neu', publishedAt: null, text: '' };
+    };
+
+    const result = await planPointRepair(
+      point(null),
+      { titles: true, refetch: false, overwriteDates: null },
+      true,
+      fetchExtracted
+    );
+
+    expect(calls).toBe(0);
+    expect(result.fetchAttempted).toBe(false);
+  });
+
+  it('holt nicht, wenn die Seite nicht abrufbar ist (PDF/Wolke)', async () => {
+    let calls = 0;
+    const result = await planPointRepair(
+      point('2026-07-23T11:11:58'),
+      { titles: false, refetch: false, overwriteDates: 'visible-date' },
+      false,
+      async () => {
+        calls++;
+        return { title: 'X', publishedAt: '2026-07-26', text: 'Body' };
+      }
+    );
+
+    expect(calls).toBe(0);
+    expect(result.fetchAttempted).toBe(false);
+    expect(result.unresolved).toBe(true);
+  });
+
+  it('zählt eine leere xBlog-Platzhalterseite als unresolved, statt die Meta-Angabe zu übernehmen', async () => {
+    const result = await planPointRepair(
+      point('2026-07-23T11:11:58'),
+      { titles: false, refetch: false, overwriteDates: 'visible-date' },
+      true,
+      async () => ({
+        title: 'Beschlüsse',
+        publishedAt: '2026-07-23T11:11:58',
+        text: 'BeschlüsseUups, kein Eintrag vorhanden.',
+      })
+    );
+
+    expect(result.unresolved).toBe(true);
+    expect(result.patch).toEqual({});
+  });
+
+  it('zählt einen fehlgeschlagenen Abruf, statt ihn stillschweigend wie „kein Datum" zu behandeln', async () => {
+    const result = await planPointRepair(
+      point('2026-07-23T11:11:58'),
+      { titles: false, refetch: false, overwriteDates: 'visible-date' },
+      true,
+      async () => {
+        throw new Error('HTTP 500');
+      }
+    );
+
+    expect(result.fetchError).toBe('HTTP 500');
+    expect(result.unresolved).toBe(true);
+  });
+});
+
+describe('classifyPoint', () => {
+  it('zählt jeden Punkt genau einmal — ein Patch schlägt unresolved', () => {
+    expect(classifyPoint({ title: 'X' }, true)).toBe('wouldPatch');
+    expect(classifyPoint({}, true)).toBe('unresolved');
+    expect(classifyPoint({}, false)).toBe('unchanged');
+  });
+});
+
+describe('parseCliArgs — --gone', () => {
+  it('nimmt --gone mit --source', () => {
+    const parsed = parseCliArgs(['--gone', '--source', 'berlin-lv-presse']);
+    expect(parsed).toHaveProperty('args.gone', true);
+    expect(parsed).toHaveProperty('args.write', false);
+  });
+
+  it('verweigert --gone mit --all — jede Seite aller Quellen abzurufen ist zu viel Last', () => {
+    expect(parseCliArgs(['--gone', '--all'])).toHaveProperty('error');
+  });
+
+  it('verweigert --gone zusammen mit einer Payload-Regel — gelöschte Punkte patcht man nicht', () => {
+    expect(parseCliArgs(['--gone', '--titles', '--source', 'x'])).toHaveProperty('error');
+    expect(
+      parseCliArgs(['--gone', '--overwrite-dates', 'mid-june', '--source', 'x'])
+    ).toHaveProperty('error');
+  });
+});
+
+describe('planGone', () => {
+  const URL_OLD =
+    'https://gruene-sachsen-anhalt.de/pressemitteilungen/landesregierung-beim-hitzeschutz';
+  const URL_NEW = 'https://gruene-sachsen-anhalt.de/pressemitteilungen/hitzeschutz-im-blindflug';
+  const LISTING = ['/pressemitteilungen/'];
+  const indexed = (urls: string[]) => async (url: string) => urls.includes(url);
+  const none = indexed([]);
+
+  it('löscht 404 und 410 — der Lauf zählt als bestätigender zweiter', async () => {
+    expect(await planGone(URL_OLD, { status: 404, finalUrl: null }, LISTING, none)).toEqual({
+      outcome: 'gone',
+      remove: true,
+    });
+    expect((await planGone(URL_OLD, { status: 410, finalUrl: null }, LISTING, none)).remove).toBe(
+      true
+    );
+  });
+
+  it('löscht die alte URL eines umbenannten Slugs, wenn das Ziel indexiert ist', async () => {
+    expect(
+      await planGone(
+        URL_OLD,
+        { status: 200, finalUrl: `${URL_NEW}#top` },
+        LISTING,
+        indexed([URL_NEW])
+      )
+    ).toEqual({ outcome: 'moved', remove: true });
+  });
+
+  it('behält die alte URL, wenn das Ziel nicht indexiert ist — sie ist die einzige Kopie', async () => {
+    expect(await planGone(URL_OLD, { status: 200, finalUrl: URL_NEW }, LISTING, none)).toEqual({
+      outcome: 'moved',
+      remove: false,
+      targetMissing: true,
+    });
+  });
+
+  it('löscht eine Weiterleitung auf die Listing-Seite', async () => {
+    expect(
+      (
+        await planGone(
+          URL_OLD,
+          { status: 200, finalUrl: 'https://gruene-sachsen-anhalt.de/pressemitteilungen' },
+          LISTING,
+          none
+        )
+      ).remove
+    ).toBe(true);
+  });
+
+  it('behält lebende Seiten, Schrägstrich-Weiterleitungen und vorübergehende Fehler', async () => {
+    expect(await planGone(URL_OLD, { status: 200, finalUrl: URL_OLD }, LISTING, none)).toEqual({
+      outcome: 'live',
+      remove: false,
+    });
+    expect(
+      (await planGone(URL_OLD, { status: 200, finalUrl: `${URL_OLD}/` }, LISTING, none)).remove
+    ).toBe(false);
+    for (const status of [503, 403, null]) {
+      expect(await planGone(URL_OLD, { status, finalUrl: null }, LISTING, none)).toEqual({
+        outcome: 'transient',
+        remove: false,
+      });
+    }
+  });
+});
+
+describe('assertSamePage', () => {
+  const URL_ = 'https://gruene.berlin/pressemitteilungen/x_3856';
+  const res = (
+    over: Partial<{ ok: boolean; status: number; redirected: boolean; url: string }>
+  ) => ({
+    ok: true,
+    status: 200,
+    redirected: false,
+    url: URL_,
+    ...over,
+  });
+
+  it('akzeptiert die angefragte Seite, auch mit abweichendem Schlussstrich', () => {
+    expect(() => assertSamePage(URL_, res({}))).not.toThrow();
+    expect(() => assertSamePage(URL_, res({ url: `${URL_}/` }))).not.toThrow();
+  });
+
+  it('verwirft Nicht-OK-Antworten', () => {
+    expect(() => assertSamePage(URL_, res({ ok: false, status: 404 }))).toThrow('HTTP 404');
+  });
+
+  it('verwirft eine Weiterleitung — sonst landete der Titel der Zielseite am Punkt', () => {
+    expect(() =>
+      assertSamePage(
+        URL_,
+        res({ redirected: true, url: 'https://gruene.berlin/pressemitteilungen' })
+      )
+    ).toThrow(/Weiterleitung/);
+  });
+
+  it('verwirft eine abweichende Ziel-URL auch ohne redirected-Flag', () => {
+    expect(() => assertSamePage(URL_, res({ url: 'https://gruene.berlin/' }))).toThrow(
+      /Weiterleitung/
+    );
+  });
+});
+
+describe('groupSourcesByHost', () => {
+  it('gruppiert zwei Quellen desselben Hosts zusammen, andere einzeln', () => {
+    const berlinPresse = { sourceId: 'berlin-lv-presse', baseUrl: 'https://gruene.berlin' };
+    const berlinBeschluesse = {
+      sourceId: 'berlin-lv-beschluesse',
+      baseUrl: 'https://gruene.berlin',
+    };
+    const sachsen = { sourceId: 'sachsen-lv', baseUrl: 'https://gruene-sachsen.de' };
+
+    expect(groupSourcesByHost([berlinPresse, sachsen, berlinBeschluesse])).toEqual([
+      [berlinPresse, berlinBeschluesse],
+      [sachsen],
+    ]);
+  });
+});
+
+describe('runGroups', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('isoliert einen Fehler auf seine eigene Gruppe — andere Gruppen laufen zu Ende', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const berlinPresse = { sourceId: 'berlin-lv-presse', collection: 'c' };
+    const berlinBeschluesse = { sourceId: 'berlin-lv-beschluesse', collection: 'c' };
+    const sachsen = { sourceId: 'sachsen-lv', collection: 'c' };
+    const done: string[] = [];
+
+    const { failed } = await runGroups(
+      [[berlinPresse, berlinBeschluesse], [sachsen]],
+      async (scope) => {
+        if (scope.sourceId === 'berlin-lv-presse') throw new Error('kaputt');
+        done.push(scope.sourceId as string);
+      },
+      2
+    );
+
+    expect(failed).toEqual(['berlin-lv-presse']);
+    // berlin-lv-beschluesse lief nicht mehr — dieselbe Gruppe bricht ab.
+    expect(done).toEqual(['sachsen-lv']);
+    expect(errorSpy).toHaveBeenCalledWith('[error] berlin-lv-presse: kaputt');
+  });
+
+  it('meldet mehrere fehlgeschlagene Quellen aus verschiedenen Gruppen', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const a = { sourceId: 'a', collection: 'c' };
+    const b = { sourceId: 'b', collection: 'c' };
+
+    const { failed } = await runGroups(
+      [[a], [b]],
+      async (scope) => {
+        throw new Error(`${scope.sourceId} kaputt`);
+      },
+      2
+    );
+
+    expect(failed.sort()).toEqual(['a', 'b']);
+  });
+
+  it('meldet nichts, wenn keine Quelle fehlschlägt', async () => {
+    const a = { sourceId: 'a', collection: 'c' };
+    const { failed } = await runGroups([[a]], async () => {}, 2);
+    expect(failed).toEqual([]);
+  });
+});

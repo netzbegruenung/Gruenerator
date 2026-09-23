@@ -1,4 +1,4 @@
-import { type ShareStatus } from '@gruenerator/contracts';
+import { type ShareStatus, type StoredMediaType } from '@gruenerator/contracts';
 import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
 
 import { SOURCE_CONTENT_ORIGINS } from './sharedMediaOrigin.js';
@@ -96,6 +96,9 @@ export const ORPHANED_SHARE_STATUSES = [
  */
 export const LIBRARY_ITEM_CLAUSE = 'COALESCE(is_library_item, TRUE) = TRUE';
 
+/** The media types every feed renderer knows how to show. */
+export const VISUAL_MEDIA_TYPES = ['image', 'video'] as const;
+
 /**
  * WHERE fragment for a creation feed, `AND`-joined and ready to embed.
  *
@@ -116,7 +119,8 @@ export const LIBRARY_ITEM_CLAUSE = 'COALESCE(is_library_item, TRUE) = TRUE';
  */
 export function creationFeedWhere(
   params: unknown[],
-  status: ShareStatus | readonly ShareStatus[] | null
+  status: ShareStatus | readonly ShareStatus[] | null,
+  mediaType: StoredMediaType | null = null
 ): string {
   const clauses: string[] = [];
 
@@ -129,6 +133,18 @@ export function creationFeedWhere(
   // `IS NULL` tolerance, same reason.
   params.push([...SOURCE_CONTENT_ORIGINS]);
   clauses.push(`(content_origin IS NULL OR content_origin != ALL($${params.length}))`);
+
+  // An explicit type wins (`?type=audio` must be able to match). Without one,
+  // every creation feed renders `<img>`/`<video>` and asks for thumbnails;
+  // generated speech (Grünerator Voice) has neither and stays out. Transfer
+  // rows stay in, as before.
+  if (mediaType) {
+    params.push(mediaType);
+    clauses.push(`media_type = $${params.length}`);
+  } else {
+    params.push([...VISUAL_MEDIA_TYPES, 'transfer']);
+    clauses.push(`media_type = ANY($${params.length})`);
+  }
 
   // `typeof` rather than `Array.isArray`: the latter narrows a
   // `readonly string[]` to `any[]`, and the spread that follows then trips

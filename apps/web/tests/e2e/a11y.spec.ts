@@ -102,6 +102,11 @@ const ROUTES = [
   '/transkription',
   '/suche',
   '/projekte',
+  // Der Übersetzer war nie in dieser Liste, und genau deshalb konnte #3507
+  // entstehen und unbemerkt bleiben: seine Ergebnisfläche stand dunkel auf
+  // 1,04:1, und die einzige Stelle im Haus, die den Dunkelmodus überhaupt
+  // misst, sah die Route nicht an.
+  '/uebersetzer',
 ];
 
 /**
@@ -336,7 +341,7 @@ Oberfläche.`
 }
 
 /**
- * Überlagerungen, die erst nach einem Klick im DOM stehen.
+ * Flächen, die erst nach einem Klick im DOM stehen.
  *
  * Der Grund für diesen Block: die Routen-Prüfungen oben messen den Zustand
  * direkt nach dem Laden. Menüs, Dialoge und Blätter sind zu diesem Zeitpunkt
@@ -345,6 +350,12 @@ Oberfläche.`
  * über das Plusmenü, weil die Lane nie eines geöffnet hat. Ein grüner Haken
  * über eine Fläche, die nicht im DOM war, ist dieselbe Fehlerklasse wie die
  * übersprungenen Prüfungen weiter oben: er sieht aus wie eine Zusage.
+ *
+ * Dasselbe gilt für ein Tab-Panel, das nicht obenauf liegt: Radix hängt es ab.
+ * `/uebersetzer` stand hier und meldete nie etwas über den Dokument-Tab — dort
+ * saß eine Ablegefläche, die axe als `nested-interactive` ablehnt, und die
+ * Lane ist nie hingegangen. Deshalb trägt jeder Eintrag seinen eigenen
+ * `oeffnen`-Schritt statt eines festen Klicks aufs Plusmenü.
  *
  * Gemessen wird nur die Überlagerung (`include`), nicht die ganze Seite —
  * sonst meldet jeder Eintrag hier die Routen-Befunde ein zweites Mal und der
@@ -363,6 +374,7 @@ const OVERLAYS = [
     viewport: { width: 1280, height: 720 },
     // Radix' DropdownMenuContent
     scope: '[role="menu"]',
+    oeffnen: (page: Page) => page.getByRole('button', { name: 'Aktionen und Modus' }).click(),
     // `scrollable-region-focusable` trifft hier zu und ist trotzdem kein
     // Hindernis. Der Befund stimmt im DOM: `DropdownMenuContent` trägt
     // `overflow-y-auto` und eine gedeckelte Höhe, und seit dem Umbau ist die
@@ -385,6 +397,25 @@ const OVERLAYS = [
     viewport: { width: 390, height: 844 },
     // Das Blatt ist ein Radix-Dialog, siehe ResponsiveMenu.
     scope: '[role="dialog"]',
+    oeffnen: (page: Page) => page.getByRole('button', { name: 'Aktionen und Modus' }).click(),
+    disableRules: [],
+  },
+  {
+    // Der Tab, auf dem die Ablegefläche sitzt. Gemessen wird nur das sichtbare
+    // Panel: die abgehängten tragen `hidden` und gehören nicht zur Aussage.
+    name: 'Übersetzer: Dokument-Tab',
+    route: '/uebersetzer',
+    viewport: { width: 1280, height: 720 },
+    scope: '[role="tabpanel"]:not([hidden])',
+    oeffnen: (page: Page) => page.getByRole('tab', { name: 'Dokument' }).click(),
+    disableRules: [],
+  },
+  {
+    name: 'Übersetzer: Bild-Tab',
+    route: '/uebersetzer',
+    viewport: { width: 1280, height: 720 },
+    scope: '[role="tabpanel"]:not([hidden])',
+    oeffnen: (page: Page) => page.getByRole('tab', { name: 'Bild' }).click(),
     disableRules: [],
   },
 ];
@@ -410,7 +441,7 @@ test.describe('Barrierefreiheit: Überlagerungen', () => {
           await page.setViewportSize(overlay.viewport);
           await gotoAuthenticated(page, theme, overlay.route);
 
-          await page.getByRole('button', { name: 'Aktionen und Modus' }).click();
+          await overlay.oeffnen(page);
 
           const inhalt = page.locator(overlay.scope);
           await expect(

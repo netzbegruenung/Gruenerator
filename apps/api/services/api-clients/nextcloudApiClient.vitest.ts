@@ -7,9 +7,12 @@ import { describe, expect, it } from 'vitest';
 import { CloudPathError } from '../../utils/validation/cloudPaths.js';
 
 import NextcloudApiClient, {
+  NextcloudHttpError,
   WebdavParseError,
+  classifyWebdavStatus,
   isWebdavSelfEntry,
   parseWebDAVResponse,
+  statusOf,
 } from './nextcloudApiClient.js';
 
 const PREFIX = '/public.php/webdav';
@@ -181,5 +184,36 @@ describe('path guard', () => {
     // Der Wächter steht VOR dem try. Stünde er darin, käme er als
     // „Failed to list folder" heraus und jeder Aufrufer müsste raten.
     await expect(client.listFolder('../x')).rejects.toThrow(/nicht aus der Freigabe/);
+  });
+});
+
+describe('classifyWebdavStatus', () => {
+  // Live-measured semantics of public.php/webdav: auth is checked BEFORE path
+  // resolution, so 401 always means the token was rejected (share deleted,
+  // expired, or password-protected) — never a wrong path. 405 on a read verb
+  // is a file-drop (upload only) share.
+  it('maps the measured status codes to their one meaning', () => {
+    expect(classifyWebdavStatus(401)).toBe('invalid_link');
+    expect(classifyWebdavStatus(403)).toBe('forbidden');
+    expect(classifyWebdavStatus(404)).toBe('not_found');
+    expect(classifyWebdavStatus(405)).toBe('file_drop');
+  });
+
+  it('leaves everything else unclassified', () => {
+    expect(classifyWebdavStatus(500)).toBe('unknown');
+    expect(classifyWebdavStatus(undefined)).toBe('unknown');
+  });
+});
+
+describe('NextcloudHttpError', () => {
+  it('carries the status through, and statusOf reads it back', () => {
+    const err = new NextcloudHttpError('nope', 405, 'Method Not Allowed');
+    expect(statusOf(err)).toBe(405);
+    expect(err.name).toBe('NextcloudHttpError');
+  });
+
+  it('statusOf yields undefined for foreign errors', () => {
+    expect(statusOf(new Error('x'))).toBeUndefined();
+    expect(statusOf('not even an error')).toBeUndefined();
   });
 });

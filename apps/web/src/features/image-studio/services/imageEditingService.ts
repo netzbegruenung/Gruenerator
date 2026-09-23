@@ -1,5 +1,5 @@
 import { type ImageEditReference, type KiLabelMode } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 
 import apiClient from '../../../components/utils/apiClient';
 
@@ -122,12 +122,13 @@ export async function editAiImage(
     result.status === 400 ||
     result.status === 401 ||
     result.status === 429 ||
-    result.status === 500
+    result.status === 500 ||
+    result.status === 503
   ) {
-    throw new Error(result.body.error);
+    throw new ApiError(result.status, result.body.error);
   }
   if (result.status !== 200) {
-    throw new Error('Bearbeitung fehlgeschlagen');
+    throw new ApiError(result.status, 'Bearbeitung fehlgeschlagen');
   }
 
   const base64 = `data:image/jpeg;base64,${result.body.image.base64}`;

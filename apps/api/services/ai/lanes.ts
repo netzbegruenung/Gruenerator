@@ -113,6 +113,9 @@ export const AI_LANES = {
     model: GEMMA_4,
     structuredMode: 'tool',
   },
+  // Grünerator Voice: the spoken script a person edits before synthesis. Same
+  // slot as `rede` — it is finished German prose, only meant for the ear.
+  voice_script: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
 
   // — Candidate-site content. Mistral, which the route always intended; it used
   //   to say so with a top-level `provider` that selected the adapter without
@@ -134,8 +137,30 @@ export const AI_LANES = {
   board_generation: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
   canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
 
+  // — Editor-Op-Planer (board/sheet/presentation), der `edit_document`-
+  //   Werkzeug im agentischen Loop (#3426). Erzwungener Tool-Call wie die
+  //   Zeilen darüber; alle drei planten vorher auf einer privaten Kette
+  //   (mistral → melious → cortecs), die diese Tabelle nicht so ausdrücken
+  //   kann — `laneFallback` kennt nur die generische Kette und die
+  //   Sharepic-Kette, beide filtern den Primär (hier mistral) heraus und
+  //   liefern für DIESE drei Lanes dasselbe Ergebnis (cortecs, melious), nur
+  //   in vertauschter Reihenfolge gegenüber der alten privaten Kette. Sheet
+  //   und Presentation waren zuvor auf Mistral GEPINNT ohne Ausweichkette
+  //   ("fail loudly" statt leise herabzustufen) — eine Lane hat dafür kein
+  //   Feld, sie bekommen jetzt dieselbe generische Ausweichkette.
+  editor_ops_board: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  editor_ops_sheet: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  editor_ops_presentation: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+
   // — Fast helper tasks. Alle auf der `standard`-Stufe: kurze Ausgabe, aber
   //   nutzersichtbare Latenz. Ein Edit an der Stufe bewegt alle fünf.
+  // Ergebnis-Prüfung für Hintergrundläufe (#3221): kurzes JSON-Verdikt über
+  // Aufgabe vs. Ergebnis, keine nutzersichtbare Latenz — kein Pinning nötig.
+  background_verify: {
+    provider: LANE.provider,
+    model: LANE.model,
+    structuredMode: 'tool',
+  },
   image_picker: {
     provider: LANE.provider,
     model: LANE.model,
@@ -289,7 +314,7 @@ export function providerForModel(modelName = ''): ProviderName {
  * Und einen anderen hatte der Proxy nicht: sein zweiter Alias
  * (`verdigado-think`) denkt ebenfalls, unabschaltbar.
  */
-export const GENERIC_FALLBACK: readonly ProviderName[] = ['cortecs', 'regolo', 'mistral'];
+export const GENERIC_FALLBACK: readonly ProviderName[] = ['cortecs', 'melious', 'mistral'];
 
 /**
  * Failover order after the primary. Two chains: sharepics lead with Mistral
@@ -299,7 +324,7 @@ export const GENERIC_FALLBACK: readonly ProviderName[] = ['cortecs', 'regolo', '
 export function laneFallback(lane: LaneId): readonly ProviderName[] {
   const primary = AI_LANES[lane].provider;
   const chain = lane.startsWith('sharepic_')
-    ? (['mistral', 'cortecs', 'regolo'] as const)
+    ? (['mistral', 'cortecs', 'melious'] as const)
     : GENERIC_FALLBACK;
   return chain.filter((p) => p !== primary);
 }

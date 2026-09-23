@@ -75,7 +75,13 @@ function ActionButton({
 
   if (isLoading) {
     return (
-      <button disabled className={cn(base, 'bg-primary text-primary-foreground cursor-default')}>
+      <button
+        type="button"
+        disabled
+        className={cn(base, 'bg-primary text-primary-foreground cursor-default')}
+        aria-label="Absenden"
+        aria-busy="true"
+      >
         <span className="size-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
       </button>
     );
@@ -132,8 +138,10 @@ function ActionButton({
 
   return (
     <button
+      type="button"
       onClick={onSubmit}
       className={cn(base, 'bg-primary text-primary-foreground hover:bg-primary/90')}
+      aria-label="Absenden"
     >
       <ArrowRight className="size-3.5" />
     </button>

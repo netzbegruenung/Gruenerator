@@ -5,7 +5,7 @@
  * drei Handlern verteilt lagen und der Chat (Karte `set_notebook_visibility`)
  * dieselben Regeln braucht. Zwei Invarianten, beide aus dem Router:
  *
- * - Eine Abstufung unter 'authenticated' löscht die Listung „Von der Basis":
+ * - Eine Abstufung unter 'authenticated' löscht die Listung „Öffentlich":
  *   die Listenabfrage und `checkNotebookAccess` müssen im Gleichschritt
  *   bleiben, sonst steht ein Notebook in der Liste, das niemand öffnen darf
  *   (der ursprüngliche Orphan-Listing-Fehler).
@@ -68,7 +68,7 @@ export function planNotebookVisibility(
       return {
         ok: false,
         error:
-          'Bitte zuerst Sichtbarkeit auf „Mit Anmeldung" setzen, dann auf Von der Basis listen.',
+          'Bitte zuerst Sichtbarkeit auf „Mit Anmeldung" setzen, dann auf „Öffentlich" listen.',
       };
     }
     updates.is_public = true;

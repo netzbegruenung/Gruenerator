@@ -44,7 +44,7 @@ import {
   streamAndAccumulate,
 } from '../chat/services/responseStreamingService.js';
 import { createSSEStream } from '../chat/services/sseHelpers.js';
-import { canAccessThread } from '../chat/services/threadAccessService.js';
+import { canWriteThread } from '../chat/services/threadAccessService.js';
 import {
   createThread,
   createMessage,
@@ -143,13 +143,14 @@ export const searchGraphContractRouter = s.router(searchGraphContract, {
       // ── Thread resolution (before any state is built, so a rejected id never
       // reaches the pipeline) ──
       // Reuse a client-supplied thread only if this user may actually write to
-      // it. `canAccessThread` enforces owner / explicit permission / public /
-      // group-shared — the same gate ChatGraph uses for its message writes — and
-      // rejects non-UUID ids, which chat_threads.id (uuid) would otherwise turn
-      // into a Postgres 22P02. Anything it rejects mints a fresh thread instead
-      // of erroring the stream.
+      // it. `canWriteThread` enforces owner / explicit permission / public /
+      // writable group share — the same gate ChatGraph uses for its message
+      // writes (read-only shares are excluded) — and rejects non-UUID ids,
+      // which chat_threads.id (uuid) would otherwise turn into a Postgres
+      // 22P02. Anything it rejects mints a fresh thread instead of erroring
+      // the stream.
       let activeThreadId = threadId ?? undefined;
-      if (activeThreadId && !(await canAccessThread(ThreadId(activeThreadId), UserId(userId)))) {
+      if (activeThreadId && !(await canWriteThread(ThreadId(activeThreadId), UserId(userId)))) {
         log.warn(
           `[SearchGraph] threadId "${activeThreadId}" not accessible for user ${userId} — minting a new thread`
         );

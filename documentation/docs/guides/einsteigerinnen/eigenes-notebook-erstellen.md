@@ -1,10 +1,10 @@
 ---
 sidebar_position: 3
-title: Eigenes Notebook erstellen
+title: Wie erstelle ich ein eigenes Notebook?
 description: 'In zehn Minuten eure Dokumente zu einem durchsuchbaren Notebook bündeln — für Anträge, Beschlüsse, Programme oder Pressemitteilungen.'
 ---
 
-# Eigenes Notebook erstellen
+# Wie erstelle ich ein eigenes Notebook?
 
 In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür ein paar Dateien.
 
@@ -35,5 +35,5 @@ Beim Erstellen gehört das Notebook nur dir. Ob und für wen es sichtbar wird, e
 ## Weiterlesen
 
 - [Notebooks](../../features/notebooks.md) — Quellarten, Teilen, Verwaltung, häufige Fragen
-- [Wolke einbinden](../fortgeschrittene/gruene-wolke-einbinden.md) — Voraussetzung, um Wolke-Ordner anzuhängen
-- [Landesverband-Grüneratoren](../../features/landesverbaende.md) — Österreich: vorgefertigte Wissensdatenbank der Grünen Österreich
+- [Wie binde ich die Grüne Wolke ein?](../fortgeschrittene/gruene-wolke-einbinden.md) — Voraussetzung, um Wolke-Ordner anzuhängen
+- [Landesverband-Agents](../../features/landesverbaende.md) — Österreich: vorgefertigte Wissensdatenbank der Grünen Österreich

@@ -12,6 +12,7 @@ import { type QdrantClient } from '@qdrant/js-client-rest';
 
 import { env } from '../../../../config/env.js';
 import {
+  DEFAULT_MAX_AGE_YEARS,
   getSourceById,
   getSourcesByType,
   getSourcesByLandesverband,
@@ -25,6 +26,7 @@ import { getQdrantInstance } from '../../../../database/services/QdrantService/i
 import {
   scrollDocuments,
   batchDelete,
+  setPayload,
 } from '../../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../../utils/domainUtils.js';
 import { parallelLimit } from '../../../../utils/parallelLimit.js';
@@ -38,22 +40,33 @@ import {
   recordRedundantExtraction,
 } from '../../extractionRecorder.js';
 import {
+  CACHEABLE_REJECTION_REASON,
+  loadRejectedUrls,
+  rememberRejection,
+} from '../../rejectedUrlGate.js';
+import {
   conditionalHeaders,
   fingerprintResponse,
   isSameFile,
 } from '../../utils/binaryFingerprint.js';
 import { collectWolkeShareFiles, extractWolkeFileText } from '../../utils/wolkeShareHandler.js';
 
+import { staleDocumentsFilter } from './archiveFilter.js';
 import { ContentExtractor } from './extractors/ContentExtractor.js';
 import { DateExtractor } from './extractors/DateExtractor.js';
-import { LinkExtractor } from './extractors/LinkExtractor.js';
+import { isGenericLinkText, LinkExtractor } from './extractors/LinkExtractor.js';
 import { WpApiExtractor } from './extractors/WpApiExtractor.js';
+import { allowGoneDeletes, classifyFetch, goneVerdict, type FetchOutcome } from './goneState.js';
 import { SearchOperations } from './operations/SearchOperations.js';
+import { fetchPdfDocument } from './pdfResponse.js';
 import { DocumentProcessor } from './processors/DocumentProcessor.js';
+import { isFreshlyIndexed } from './recheckSchedule.js';
 import {
   addDeadLinkSamples,
   addErrorSamples,
   foldDeadLinksIfNothingWorked,
+  mergeQualityFlags,
+  mergeSkipReasons,
 } from './resultSamples.js';
 
 import type {
@@ -65,53 +78,6 @@ import type {
   ProcessResult,
 } from './types.js';
 import type { ScraperResult } from '../../types.js';
-
-/**
- * Re-fetch an already-indexed URL once its last indexing is older than this.
- * Living documents (Wahlprogramme, revised Beschlüsse) keep a stable URL but
- * change in place; a permanent "URL exists → skip" gate froze them forever.
- * On a re-fetch the content-hash diff in DocumentProcessor decides whether to
- * actually re-embed, so unchanged pages cost only an HTTP GET, not embeddings.
- */
-const RECHECK_AFTER_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
-
-/**
- * Content published longer ago than this is treated as settled: it no longer
- * changes in place, so once indexed we never re-fetch it. This bounds the
- * per-run re-check set to recent/living content instead of re-walking a
- * multi-year archive every run — the re-fetch cost that pushed big LVs (BE, HH)
- * past the sync timeout. Pages without a parseable published date fall through
- * to the RECHECK_AFTER_MS window, so unknown-age content is still re-checked.
- */
-const RECHECK_MAX_CONTENT_AGE_MS = 2 * 365 * 24 * 60 * 60 * 1000; // ~2 years
-
-/**
- * Layer-1 freshness gate. True when the caller should skip the document entirely.
- * Skips an already-indexed URL when EITHER:
- *   - its content was published more than RECHECK_MAX_CONTENT_AGE_MS ago
- *     (settled history — never re-fetched once indexed), OR
- *   - it was last indexed within RECHECK_AFTER_MS (recently re-checked).
- * Missing, timestamp-less (legacy), or stale recent points return false so the
- * caller re-fetches. What the re-fetch then costs is decided one layer down: for
- * PDFs by the file fingerprint (before extraction), for HTML pages by the
- * DocumentProcessor content-hash diff (before embedding).
- */
-function isFreshlyIndexed(payload: Record<string, unknown> | null): boolean {
-  if (!payload) return false;
-
-  const publishedAt = payload.published_at as string | undefined;
-  if (publishedAt) {
-    const contentAge = Date.now() - new Date(publishedAt).getTime();
-    if (Number.isFinite(contentAge) && contentAge > RECHECK_MAX_CONTENT_AGE_MS) {
-      return true;
-    }
-  }
-
-  const indexedAt = payload.indexed_at as string | undefined;
-  if (!indexedAt) return false;
-  const age = Date.now() - new Date(indexedAt).getTime();
-  return Number.isFinite(age) && age >= 0 && age < RECHECK_AFTER_MS;
-}
 
 /**
  * Cold archive collection for documents past their source's maxAgeYears. Stale
@@ -240,6 +206,7 @@ export class LandesverbandScraper extends BaseScraper {
       deadLinkMessages: [],
       totalVectors: 0,
       skipReasons: {},
+      qualityFlags: {},
       newArticles: [],
     };
 
@@ -257,18 +224,27 @@ export class LandesverbandScraper extends BaseScraper {
       const pdfLinks = await this.linkExtractor.extractPdfLinks(source, contentPath);
       this.log(`Found ${pdfLinks.length} PDF links`);
 
+      const ageLimit = source.maxAgeYears ?? DEFAULT_MAX_AGE_YEARS;
+
       // Extract dates BEFORE expensive OCR (cost optimization)
       const pdfLinksWithDates = pdfLinks.map((pdf) => ({
         ...pdf,
-        dateInfo: DateExtractor.extractDateFromPdfInfo(pdf.url, pdf.title, pdf.context),
+        dateInfo: DateExtractor.extractDateFromPdfInfo(pdf.url, pdf.title, pdf.context, ageLimit),
       }));
 
+      // No rejectedUrlGate here (unlike the HTML branch): DocumentProcessor's
+      // own too_old check (STEP 2) can never fire for a PDF that reaches it —
+      // it re-evaluates the exact same dateInfo.dateString against the exact
+      // same ageLimit computed above, and an undated PDF passes publishedAt:
+      // null, which skips that check entirely. A pre-filtered too_old PDF is
+      // also rejected here, before any download, so there is nothing to save
+      // by remembering it. See #3576 review round 2.
       const recentPdfs = pdfLinksWithDates.filter((pdf) => pdf.dateInfo.isTooOld === false);
       const oldPdfs = pdfLinksWithDates.filter((pdf) => pdf.dateInfo.isTooOld === true);
       const undatedPdfs = pdfLinksWithDates.filter((pdf) => pdf.dateInfo.isTooOld === null);
 
       if (oldPdfs.length > 0) {
-        this.log(`Skipping ${oldPdfs.length} PDFs older than 10 years`);
+        this.log(`Skipping ${oldPdfs.length} PDFs older than ${ageLimit} years`);
         result.skipped += oldPdfs.length;
         result.skipReasons['too_old'] = (result.skipReasons['too_old'] || 0) + oldPdfs.length;
       }
@@ -317,7 +293,7 @@ export class LandesverbandScraper extends BaseScraper {
         const pdf = toProcess[i];
         try {
           const stored = forceUpdate ? null : await this.#storedPayload(pdf.url, targetCollection);
-          if (isFreshlyIndexed(stored)) {
+          if (isFreshlyIndexed(pdf.url, stored, Date.now())) {
             result.skipped++;
             recordExtractionSkip('freshly_indexed');
             continue;
@@ -325,20 +301,28 @@ export class LandesverbandScraper extends BaseScraper {
 
           // Layer 2: bedingter GET. Bestätigt der Server den gespeicherten ETag
           // bzw. Last-Modified mit 304, entfällt schon der Download.
-          const response = await this.#fetchUrl(pdf.url, {
-            headers: conditionalHeaders(stored),
-            acceptStatus: [304],
-          });
+          const fetched = await fetchPdfDocument(
+            pdf.url,
+            conditionalHeaders(stored),
+            this.#fetchUrl.bind(this)
+          );
 
-          if (response.status === 304) {
+          if (fetched.kind === 'not_modified') {
             result.skipped++;
             result.skipReasons['unchanged'] = (result.skipReasons['unchanged'] || 0) + 1;
             recordExtractionSkip('not_modified');
             continue;
           }
 
-          const arrayBuffer = await response.arrayBuffer();
-          const pdfBuffer = Buffer.from(arrayBuffer);
+          if (fetched.kind === 'not_pdf') {
+            result.skipped++;
+            result.skipReasons['not_pdf'] = (result.skipReasons['not_pdf'] || 0) + 1;
+            continue;
+          }
+
+          const { bytes: pdfBuffer, response } = fetched;
+          const title =
+            isGenericLinkText(pdf.title) && fetched.landingTitle ? fetched.landingTitle : pdf.title;
 
           // Layer 3: Byte-Fingerprint. Server ohne brauchbare Validatoren liefern
           // die Datei erneut aus; identische Bytes heißen aber, dass Extraktion
@@ -388,25 +372,29 @@ export class LandesverbandScraper extends BaseScraper {
             contentPath.type,
             pdf.url,
             {
-              title: pdf.title,
+              title,
               text,
               publishedAt: pdf.dateInfo.dateString,
               categories: [],
+              bodyFallback: false,
             },
+            true, // isFile — PDF archive
             targetCollection,
             source.maxAgeYears,
-            fingerprint
+            // date_precision: 'year' heißt, das -06-15 ist geraten (#3575)
+            { ...fingerprint, date_precision: pdf.dateInfo.precision }
           );
 
           if (storeResult.stored) {
             if (storeResult.updated) result.updated++;
             else {
               result.stored++;
-              result.newArticles.push({ title: pdf.title, url: pdf.url, type: contentPath.type });
+              result.newArticles.push({ title, url: pdf.url, type: contentPath.type });
             }
             result.totalVectors += storeResult.vectors || 0;
+            mergeQualityFlags(result, storeResult.qualityFlags ?? {});
             this.log(
-              `✓ PDF [${i + 1}/${toProcess.length}] ${pdf.title} (${pdf.dateInfo.dateString || 'no date'})`
+              `✓ PDF [${i + 1}/${toProcess.length}] ${title} (${pdf.dateInfo.dateString || 'no date'})`
             );
           } else {
             result.skipped++;
@@ -497,14 +485,36 @@ export class LandesverbandScraper extends BaseScraper {
           recordExtraction({ method: extraction.method, pages: extraction.pages });
           const text = extraction.text;
           const title = file.name.replace(/\.[^.]+$/, '');
+          // Der WebDAV-mtime ist kein Veröffentlichungsdatum, aber der
+          // Dateiname trägt oft ein echtes Datum (LPT 08.11.2025 samt
+          // Anhang.pdf, 2026-03-22-…). Nur Tages-Genauigkeit zählt (siehe
+          // DateExtractor.extractWolkeFileNameDate) — alles andere bleibt null
+          // statt geraten (#3564).
+          const dateInfo = DateExtractor.extractWolkeFileNameDate(file.name);
           const storeResult = await this.documentProcessor.processAndStoreDocument(
             source,
             contentPath.type,
             file.url,
-            { title, text, publishedAt: null, categories: [] },
+            { title, text, publishedAt: dateInfo.dateString, categories: [], bodyFallback: false },
+            true, // isFile — Wolke share
             targetCollection,
             source.maxAgeYears,
-            file.etag ? { wolke_etag: file.etag } : undefined
+            {
+              ...(file.etag ? { wolke_etag: file.etag } : {}),
+              date_precision: dateInfo.precision,
+              // Marks the point for staleDocumentsFilter (#archiveStaleDocuments):
+              // ignoreMaxAge below only protects ingestion, the archive pass runs
+              // later and re-derives staleness from published_at on its own, so
+              // without this marker a dated Wolke point would survive ingestion
+              // and then get archived on the very same scrapeSource run (#3564).
+              // Set unconditionally — not every Wolke file has an etag to key
+              // wolke_etag off, but every Wolke point must carry this.
+              age_exempt: true,
+            },
+            // Wolke shares are curated folders, shared on purpose — the file's
+            // own date must never age it out, same as `publishedAt: null` did
+            // before dating existed (#3564).
+            true
           );
 
           if (storeResult.stored) {
@@ -514,6 +524,7 @@ export class LandesverbandScraper extends BaseScraper {
               result.newArticles.push({ title, url: file.url, type: contentPath.type });
             }
             result.totalVectors += storeResult.vectors || 0;
+            mergeQualityFlags(result, storeResult.qualityFlags ?? {});
             this.log(`✓ Wolke [${i + 1}/${toProcess.length}] ${title}`);
           } else {
             result.skipped++;
@@ -536,7 +547,11 @@ export class LandesverbandScraper extends BaseScraper {
 
       if (contentPath.staticUrls && contentPath.staticUrls.length > 0) {
         this.log(`Using ${contentPath.staticUrls.length} static URLs for ${contentPath.type}`);
-        articleLinks = contentPath.staticUrls;
+        // { url, title } entries exist for isPdfArchive titles; the HTML branch
+        // derives its own title from the fetched page, so only the url matters here.
+        articleLinks = contentPath.staticUrls.map((entry) =>
+          typeof entry === 'string' ? entry : entry.url
+        );
       } else if (contentPath.wpApi) {
         this.log(
           `Using WordPress REST API discovery (category ${contentPath.wpApi.categoryId}) for ${contentPath.type}`
@@ -631,48 +646,175 @@ export class LandesverbandScraper extends BaseScraper {
         return result;
       }
 
+      // Third gate, and the only one that sits in front of the fetch for a URL
+      // that was never stored. The two gates below key on an existing Qdrant
+      // point, which a rejected document never writes — so without this the
+      // same pages are downloaded and extracted on every walk (#3200). Loaded
+      // once per content path rather than per URL; `forceUpdate` bypasses it
+      // like every other gate.
+      const rejectedUrls = forceUpdate
+        ? new Map<string, string>()
+        : await loadRejectedUrls(source.id);
+
       // Process discovered articles with bounded concurrency (see ARTICLE_CONCURRENCY).
       // Counters mutate from each task — safe under Node's single thread, where the
       // synchronous increments between awaits never interleave. `processed` is the
       // dispatch counter used only for progress logging.
       let processed = 0;
+      // Gone detection (goneState.ts) covers HTML article pages only; the PDF and
+      // Wolke branches above keep their own fetch paths and never delete.
+      const listingPaths = source.contentPaths.map((cp) => cp.path);
+      const goneDeletes: string[] = [];
+      let fetched = 0;
+      // A redirect pair (old URL moved, new URL live) resolves to one storeUrl.
+      // Claimed synchronously (no await between has/add), so under
+      // ARTICLE_CONCURRENCY only the first task stores and embeds it.
+      const claimedStoreUrls = new Set<string>();
       const tasks = toProcess.map((url) => async (): Promise<void> => {
         const n = ++processed;
+        let stored: Record<string, unknown> | null = null;
         try {
-          if (!forceUpdate && isFreshlyIndexed(await this.#storedPayload(url, targetCollection))) {
+          // Read even under forceUpdate: the gone verdict below needs the stored mark.
+          stored = await this.#storedPayload(url, targetCollection);
+          if (!forceUpdate && isFreshlyIndexed(url, stored, Date.now())) {
             result.skipped++;
             return;
           }
 
-          const content = await ContentExtractor.extractPageContent(
+          // Re-decided against the source's *current* age limit rather than
+          // trusted as a blocklist, so widening maxAgeYears brings these URLs
+          // back on the next run. Counted under its own reason: `too_old` is a
+          // page we paid to fetch, `too_old_gated` is the saving, and folding
+          // them together would hide whether this gate works at all.
+          // The default matters: `maxAgeYears` is optional, and the processor
+          // rejects against DEFAULT_MAX_AGE_YEARS when it is unset. Requiring a
+          // configured value here would write rows for those sources and never
+          // read them back — the gate inert exactly where nothing reveals it,
+          // since `too_old_gated` would simply never increment.
+          const rejectedPublishedAt = rejectedUrls.get(url);
+          if (
+            rejectedPublishedAt &&
+            DateExtractor.isDateTooOld(
+              new Date(rejectedPublishedAt),
+              source.maxAgeYears ?? DEFAULT_MAX_AGE_YEARS
+            )
+          ) {
+            result.skipped++;
+            result.skipReasons['too_old_gated'] = (result.skipReasons['too_old_gated'] || 0) + 1;
+            return;
+          }
+
+          let finalUrl = null as string | null;
+          fetched++;
+          const content = await ContentExtractor.extractPageContent(url, source, async (u) => {
+            const response = await this.#fetchUrl(u);
+            finalUrl = response.url || null;
+            return response;
+          });
+          const outcome = classifyFetch({
+            requestedUrl: url,
+            status: 200,
+            finalUrl,
+            listingPaths,
+          });
+          await this.#applyGoneVerdict(
+            source.id,
             url,
-            source,
-            this.#fetchUrl.bind(this)
-          );
-          const storeResult = await this.documentProcessor.processAndStoreDocument(
-            source,
-            contentPath.type,
-            url,
-            content,
+            stored,
+            outcome,
             targetCollection,
-            source.maxAgeYears
+            result,
+            goneDeletes
           );
+          if (outcome === 'gone') {
+            result.skipped++;
+            result.skipReasons['gone_redirect'] = (result.skipReasons['gone_redirect'] || 0) + 1;
+            return;
+          }
+          // A renamed slug redirects: store under the final URL so the old and
+          // the new URL do not both end up in the index as near-identical twins.
+          const storeUrl =
+            outcome === 'moved' && finalUrl
+              ? (this.#normalizeUrl(finalUrl, source.baseUrl) ?? url)
+              : url;
+          if (claimedStoreUrls.has(storeUrl)) {
+            result.skipped++;
+            result.skipReasons['duplicate_canonical'] =
+              (result.skipReasons['duplicate_canonical'] || 0) + 1;
+            return;
+          }
+          claimedStoreUrls.add(storeUrl);
+          // Release the claim when nothing was stored, so a later task of the
+          // pair may still try. A task already skipped stays skipped; the next
+          // run re-fetches the unstored URL anyway, since it is not fresh.
+          let storeResult: ProcessResult;
+          try {
+            storeResult = await this.documentProcessor.processAndStoreDocument(
+              source,
+              contentPath.type,
+              storeUrl,
+              content,
+              false, // isFile — HTML article
+              targetCollection,
+              source.maxAgeYears
+            );
+          } catch (error) {
+            claimedStoreUrls.delete(storeUrl);
+            throw error;
+          }
+          if (!storeResult.stored) claimedStoreUrls.delete(storeUrl);
 
           if (storeResult.stored) {
             if (storeResult.updated) result.updated++;
             else {
               result.stored++;
-              result.newArticles.push({ title: content.title || url, url, type: contentPath.type });
+              result.newArticles.push({
+                title: content.title || storeUrl,
+                url: storeUrl,
+                type: contentPath.type,
+              });
             }
             result.totalVectors += storeResult.vectors || 0;
-            this.log(`✓ [${n}/${toProcess.length}] ${content.title?.substring(0, 60) || url}`);
+            mergeQualityFlags(result, storeResult.qualityFlags ?? {});
+            this.log(`✓ [${n}/${toProcess.length}] ${content.title?.substring(0, 60) || storeUrl}`);
           } else {
             result.skipped++;
             result.skipReasons[storeResult.reason || 'unknown'] =
               (result.skipReasons[storeResult.reason || 'unknown'] || 0) + 1;
+            // Remember only a rejection that cannot reverse on its own, and only
+            // with the date that justified it — a stub page that is `too_short`
+            // today may be filled in next week, so caching that would make the
+            // update invisible. See rejectedUrlGate.
+            if (storeResult.reason === CACHEABLE_REJECTION_REASON && content.publishedAt) {
+              await rememberRejection({
+                url,
+                sourceId: source.id,
+                reason: storeResult.reason,
+                publishedAt: content.publishedAt,
+              });
+            }
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          // Only a clean HTTP status reaches classifyFetch; anything else
+          // (timeouts, network, parser errors) is transient and never deletes.
+          if (error instanceof HttpStatusError) {
+            const outcome = classifyFetch({
+              requestedUrl: url,
+              status: error.status,
+              finalUrl: null,
+              listingPaths,
+            });
+            await this.#applyGoneVerdict(
+              source.id,
+              url,
+              stored,
+              outcome,
+              targetCollection,
+              result,
+              goneDeletes
+            );
+          }
           // A link the listing still advertises but the host refuses to serve is
           // upstream's stale index, not a failure of this run. Counting it apart
           // keeps `errors` meaning "something broke"; foldDeadLinksIfNothingWorked
@@ -691,6 +833,7 @@ export class LandesverbandScraper extends BaseScraper {
         }
       });
       await parallelLimit(tasks, ARTICLE_CONCURRENCY);
+      await this.#deleteGonePages(source.id, goneDeletes, fetched, targetCollection, result);
     }
 
     return result;
@@ -726,6 +869,8 @@ export class LandesverbandScraper extends BaseScraper {
       deadLinks: 0,
       deadLinkMessages: [],
       totalVectors: 0,
+      skipReasons: {},
+      qualityFlags: {},
       contentTypes: {},
       newArticles: [],
     };
@@ -744,6 +889,8 @@ export class LandesverbandScraper extends BaseScraper {
       result.deadLinks += pathResult.deadLinks;
       addDeadLinkSamples(result, ...pathResult.deadLinkMessages);
       result.totalVectors += pathResult.totalVectors;
+      mergeSkipReasons(result, pathResult.skipReasons);
+      mergeQualityFlags(result, pathResult.qualityFlags);
       // Accumulate into the per-type bucket: a source can have several paths of the
       // same content type (e.g. multiple `beschluss` PDF archives + Wolke shares),
       // so overwriting would report only the last path's counts for that type.
@@ -758,9 +905,8 @@ export class LandesverbandScraper extends BaseScraper {
         addDeadLinkSamples(existing, ...pathResult.deadLinkMessages);
         existing.totalVectors += pathResult.totalVectors;
         existing.newArticles.push(...pathResult.newArticles);
-        for (const [reason, count] of Object.entries(pathResult.skipReasons)) {
-          existing.skipReasons[reason] = (existing.skipReasons[reason] || 0) + count;
-        }
+        mergeSkipReasons(existing, pathResult.skipReasons);
+        mergeQualityFlags(existing, pathResult.qualityFlags);
       } else {
         result.contentTypes[contentPath.type] = pathResult;
       }
@@ -851,6 +997,8 @@ export class LandesverbandScraper extends BaseScraper {
       deadLinks: 0,
       deadLinkMessages: [],
       totalVectors: 0,
+      skipReasons: {},
+      qualityFlags: {},
       bySource: {},
       duration: 0,
     };
@@ -901,6 +1049,8 @@ export class LandesverbandScraper extends BaseScraper {
         totalResult.deadLinks += outcome.result.deadLinks;
         addDeadLinkSamples(totalResult, ...outcome.result.deadLinkMessages);
         totalResult.totalVectors += outcome.result.totalVectors;
+        mergeSkipReasons(totalResult, outcome.result.skipReasons);
+        mergeQualityFlags(totalResult, outcome.result.qualityFlags);
         totalResult.bySource[outcome.sourceId] = outcome.result;
       } else {
         totalResult.errors++;
@@ -1030,8 +1180,10 @@ export class LandesverbandScraper extends BaseScraper {
     }
 
     // Download
-    const response = await this.#fetchUrl(pdfUrl);
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const fetched = await fetchPdfDocument(pdfUrl, {}, this.#fetchUrl.bind(this));
+    if (fetched.kind === 'not_pdf') return { stored: false, reason: 'not_pdf' };
+    if (fetched.kind === 'not_modified') return { stored: false, reason: 'unchanged' };
+    const buffer = fetched.bytes;
 
     // OCR
     const filename = pdfUrl.split('/').pop() || 'document.pdf';
@@ -1059,7 +1211,8 @@ export class LandesverbandScraper extends BaseScraper {
       source,
       'beschluss',
       pdfUrl,
-      { title, text, publishedAt, categories: [] },
+      { title, text, publishedAt, categories: [], bodyFallback: false },
+      true, // isFile — manual PDF ingest
       targetCollection,
       source.maxAgeYears
     );
@@ -1137,17 +1290,110 @@ export class LandesverbandScraper extends BaseScraper {
     return points.length > 0 ? points[0].payload : null;
   }
 
+  #goneFilter(sourceId: string, url: string) {
+    return {
+      must: [
+        { key: 'source_id', match: { value: sourceId } },
+        { key: 'source_url', match: { value: url } },
+      ],
+    };
+  }
+
+  /**
+   * Executes goneVerdict for the requested URL on the collection the path
+   * writes to. Marks and clears run inline; a delete is only collected into
+   * `deleteCandidates` and runs after the walk, behind allowGoneDeletes.
+   * Best-effort like the archive prune: a Qdrant failure is logged and counted
+   * as an error, never thrown into the article task.
+   */
+  async #applyGoneVerdict(
+    sourceId: string,
+    url: string,
+    stored: Record<string, unknown> | null,
+    outcome: FetchOutcome,
+    collection: string,
+    result: ContentPathResult,
+    deleteCandidates: string[]
+  ): Promise<void> {
+    const now = Date.now();
+    const verdict = goneVerdict(outcome, stored, now);
+    if (verdict === 'none') return;
+    if (verdict === 'delete') {
+      deleteCandidates.push(url);
+      return;
+    }
+    const filter = this.#goneFilter(sourceId, url);
+    try {
+      if (verdict === 'mark') {
+        await setPayload(
+          this.qdrantClient,
+          collection,
+          { lv_gone_since: new Date(now).toISOString() },
+          filter
+        );
+        result.skipReasons['gone_marked'] = (result.skipReasons['gone_marked'] || 0) + 1;
+      } else {
+        await this.qdrantClient.deletePayload(collection, {
+          keys: ['lv_gone_since'],
+          filter,
+          wait: true,
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[Landesverband] Gone ${verdict} failed for ${url}: ${message}`);
+      result.errors++;
+      addErrorSamples(result, `${url}: gone ${verdict} failed: ${message}`);
+    }
+  }
+
+  /**
+   * Deletes the confirmed gone pages of one content path, unless there are more
+   * than allowGoneDeletes permits — then all are deferred and their marks kept,
+   * so a CMS-wide outage never empties a source unattended.
+   */
+  async #deleteGonePages(
+    sourceId: string,
+    urls: string[],
+    fetched: number,
+    collection: string,
+    result: ContentPathResult
+  ): Promise<void> {
+    if (urls.length === 0) return;
+    if (!allowGoneDeletes({ deletes: urls.length, fetched })) {
+      console.warn(
+        `[Landesverband] ⚠ ${sourceId}: ${urls.length} of ${fetched} fetched pages confirmed gone — above the delete cap, deferred`
+      );
+      result.skipReasons['gone_delete_deferred'] =
+        (result.skipReasons['gone_delete_deferred'] || 0) + urls.length;
+      return;
+    }
+    for (const url of urls) {
+      try {
+        await batchDelete(this.qdrantClient, collection, this.#goneFilter(sourceId, url));
+        result.skipReasons['gone_deleted'] = (result.skipReasons['gone_deleted'] || 0) + 1;
+        this.log(`Deleted points of gone page ${url}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`[Landesverband] Gone delete failed for ${url}: ${message}`);
+        result.errors++;
+        addErrorSamples(result, `${url}: gone delete failed: ${message}`);
+      }
+    }
+  }
+
   /**
    * Enforce the source's age cap on documents that are ALREADY stored by moving
    * them to the cold archive collection instead of deleting them.
    *
    * The DocumentProcessor age filter only rejects new content at ingestion.
    * Documents indexed before a source's window was tightened linger forever:
-   * isFreshlyIndexed never re-fetches settled history (published > 2y ago) and
-   * dedup only ever touches URLs that are re-encountered. Sachsen-Anhalt, for
-   * example, was scraped under the 10-year default before its 5-year cap was
-   * set, so 2016–2020 documents stayed in the live collection and surfaced in
-   * the notebook.
+   * isFreshlyIndexed re-fetches settled history (published > 2y ago) only once
+   * per RECHECK_SPREAD_DAYS, and dedup only ever touches URLs that are
+   * re-encountered — and a re-fetch past the cap ends in `too_old`, it does
+   * not remove the stored point. Sachsen-Anhalt, for example, was scraped
+   * under the 10-year default before its 5-year cap was set, so 2016–2020
+   * documents stayed in the live collection and surfaced in the notebook.
    *
    * Stale points (published_at older than maxAgeYears) are copied — vectors and
    * payload intact — into LANDESVERBAENDE_ARCHIVE_COLLECTION, then deleted from
@@ -1157,11 +1403,17 @@ export class LandesverbandScraper extends BaseScraper {
    *
    * Undated points are kept in the live collection — consistent with the
    * ingestion filter (DocumentProcessor STEP 2), which only rejects dated
-   * content. Sources without a configured cap are left untouched. The copy uses
-   * the same deterministic point ids, so the move is idempotent: a re-run
-   * re-archives the same ids (overwriting in the archive) before deleting. We
-   * archive a batch before deleting it, so a mid-run failure never loses data —
-   * worst case a point is duplicated into the archive and re-deleted next run.
+   * content. Sources without a configured cap are left untouched. `age_exempt:
+   * true` points (Wolke shares, #3564) are excluded from the scroll filter
+   * itself: their dating uses `ignoreMaxAge` at ingestion precisely so a real
+   * old file-name date survives, and this pass has no notion of that flag — it
+   * only re-derives staleness from `published_at` — so without the exclusion a
+   * freshly-dated Wolke point would be archived right back out on the same
+   * `scrapeSource` run that just stored it. The copy uses the same
+   * deterministic point ids, so the move is idempotent: a re-run re-archives
+   * the same ids (overwriting in the archive) before deleting. We archive a
+   * batch before deleting it, so a mid-run failure never loses data — worst
+   * case a point is duplicated into the archive and re-deleted next run.
    *
    * @returns number of points moved to the archive
    */
@@ -1179,7 +1431,7 @@ export class LandesverbandScraper extends BaseScraper {
       // Phase 1: cheap payload-only scroll to find stale point ids.
       do {
         const page = await this.qdrantClient.scroll(liveCollection, {
-          filter: { must: [{ key: 'source_id', match: { value: source.id } }] },
+          filter: staleDocumentsFilter(source.id),
           with_payload: { include: ['published_at'] },
           with_vector: false,
           limit: 256,

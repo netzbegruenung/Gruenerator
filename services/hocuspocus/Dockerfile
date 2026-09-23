@@ -6,12 +6,16 @@
 # =============================================================================
 FROM node:22-slim AS builder
 
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable
 
 WORKDIR /app
 
 # Copy workspace config + base tsconfigs (contracts/shared tsconfigs extend tsconfig.base.json)
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+# pnpm validates every `patchedDependencies` entry in pnpm-workspace.yaml
+# before it installs anything, so the patch files have to be in the image
+# even when the patched package is outside this filter's closure.
+COPY patches ./patches
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/query/package.json ./packages/query/
@@ -20,7 +24,7 @@ COPY packages/contracts/package.json ./packages/contracts/
 COPY services/hocuspocus/package.json ./services/hocuspocus/
 
 # Install dependencies (trailing ... pulls workspace deps: @gruenerator/shared, @gruenerator/contracts)
-# --node-linker overrides .npmrc's node-linker=hoisted (kept because Metro/RN in
+# --node-linker overrides pnpm-workspace.yaml's nodeLinker: hoisted (kept because Metro/RN in
 # apps/mobile needs it). The hoisted linker materializes the ENTIRE lockfile
 # regardless of --filter — 4799 packages / 4.5 GB for every scope, which is what
 # made a cold image build take ~1 h. --shamefully-hoist keeps the flat
@@ -70,13 +74,17 @@ LABEL org.opencontainers.image.vendor="netzbegruenung"
 # Install curl for healthcheck
 RUN apk add --no-cache curl
 
-# Create non-root user and /app directory with correct ownership
+# Create non-root user and /app directory with correct ownership.
+# .cache is created here on purpose: the install below mounts a cache at
+# .cache/pnpm, and BuildKit would otherwise create that parent as root and leave
+# corepack unable to write its own .cache/node next to it (EACCES on mkdir).
 RUN addgroup -g 1001 gruenerator && \
     adduser -u 1001 -G gruenerator -s /bin/sh -D gruenerator && \
-    mkdir -p /app && chown gruenerator:gruenerator /app
+    mkdir -p /app /home/gruenerator/.cache && \
+    chown gruenerator:gruenerator /app /home/gruenerator/.cache
 
 # Install pnpm
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable
 
 WORKDIR /app
 
@@ -84,6 +92,7 @@ WORKDIR /app
 COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-workspace.yaml ./
 COPY --from=builder --chown=gruenerator:gruenerator /app/package.json ./
 COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
+COPY --from=builder --chown=gruenerator:gruenerator /app/patches ./patches
 
 # Copy package.json files for workspace structure (needed for pnpm to resolve workspace deps)
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
@@ -96,8 +105,20 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/pac
 USER gruenerator
 
 # Install production dependencies only (trailing ... pulls workspace deps)
-RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store \
-    pnpm install --prod --frozen-lockfile --filter @gruenerator/hocuspocus...
+# --node-linker is as load-bearing here as in the builder above, and for the
+# same reason. See the note at the matching line in apps/api/Dockerfile: #3351
+# moved nodeLinker: hoisted from .npmrc (which no production stage copies) into
+# pnpm-workspace.yaml (which every production stage copies), so --filter stopped
+# restricting anything. This image went 109 MB -> 1453 MB, installing Expo,
+# Metro, Tauri and Docusaurus into a server with no cross-package deps at all.
+# The second mount is from the same bump: pnpm 12 caches a full packument per
+# lockfile entry under ~/.cache/pnpm while verifying the supply-chain policies,
+# 2.4 GB of registry JSON that was being baked into the image because only the
+# store was mounted. See the longer note in apps/api/Dockerfile.
+RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store,uid=1001,gid=1001 \
+    --mount=type=cache,id=pnpm-prod-meta,target=/home/gruenerator/.cache/pnpm,uid=1001,gid=1001 \
+    pnpm install --prod --frozen-lockfile --node-linker=isolated --shamefully-hoist \
+        --filter @gruenerator/hocuspocus...
 
 # Copy compiled workspace packages. The package.json files already ship with
 # the correct runtime exports map (`"default": "./dist/*.js"`), so Node's

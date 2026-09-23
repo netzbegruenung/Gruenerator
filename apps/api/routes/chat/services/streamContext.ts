@@ -42,6 +42,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { captureSseError } from '../../../utils/observability/captureSseError.js';
 import { ThreadId, UserId } from '../../../utils/types/branded.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
+import { notebookIdFromSteps } from '../agents/notebookSourceTools.js';
 import { getPipelineAgent } from '../agents/pipelines/index.js';
 import { getContextWindow } from '../agents/providers.js';
 
@@ -59,8 +60,9 @@ import {
   filterEmptyAssistantMessages,
   sanitizeUIFileParts,
 } from './messageHelpers.js';
+import { notebookIdsForTurn } from './notebookScopeFromText.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
-import { canAccessThread } from './threadAccessService.js';
+import { canWriteThread } from './threadAccessService.js';
 import {
   getUser,
   getUserMessageTexts,
@@ -151,7 +153,7 @@ export function inlineMaterialAttachment(
 // chat_threads.id is a uuid column. A client may send a local-only sentinel id
 // (e.g. "__LOCALID_..." from the lazy-thread-creation runtime, or the sheet /
 // deck editor sidebars) for a thread it has not persisted yet — that is not a
-// UUID and must never reach canAccessThread's `WHERE id = $1`, or Postgres
+// UUID and must never reach the access service's `WHERE id = $1`, or Postgres
 // throws 22P02 and the whole turn 500s. Treat any non-UUID id as "no thread
 // yet" and mint a fresh one.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -231,11 +233,13 @@ export async function buildStreamContext({
     connectFiles: rawConnectFiles,
     currentDocument: rawCurrentDocument,
     currentBoard: rawCurrentBoard,
+    currentCanvas: rawCurrentCanvas,
     customSystemPrompt: rawCustomSystemPrompt,
     roleRef: rawRoleRef,
     roleName: rawRoleName,
     initialAssistantMessage: rawInitialAssistantMessage,
     activeSkillMention: rawActiveSkillMention,
+    activeRecipeId: rawActiveRecipeId,
     enabledTools,
     modelId,
     attachments,
@@ -276,11 +280,21 @@ export async function buildStreamContext({
     return { done: true };
   }
 
+  // Ohne Auswahl scoped ein im Text genanntes Notebook („im Berlin-Notebook")
+  // den Turn wie eine Erwähnung — ab hier derselbe Weg, samt Besitzprüfung.
+  const turnNotebookIds = await notebookIdsForTurn({
+    explicitIds: mergedNotebookIds,
+    hasDefaultNotebook: !!rawDefaultNotebookId,
+    userId,
+    text: sanitizeMentionTokens(lastUserTextFromClient(clientMessages), 'remove'),
+    locale: user.locale ?? null,
+  });
+
   // @notebook mentions are the turn naming a notebook out loud — the one case a
   // merely *hidden* notebook still resolves, so a link or thread shared from
   // another instance keeps working. Only `block` and `enabled: false` say no here.
-  const systemNotebookIds = mergedNotebookIds.filter(isNotebookResolvable);
-  const userNotebookUuids = mergedNotebookIds.filter(isUserNotebookId);
+  const systemNotebookIds = turnNotebookIds.filter(isNotebookResolvable);
+  const userNotebookUuids = turnNotebookIds.filter(isUserNotebookId);
   const { documentIds: notebookDocumentIds, resolvedUserNotebookIds } =
     userNotebookUuids.length > 0
       ? await resolveUserNotebookDocumentIds(userId, userNotebookUuids)
@@ -496,8 +510,8 @@ export async function buildStreamContext({
 
   if (actualThreadId && lastUserMessage) {
     if (!isNewThread) {
-      if (!(await canAccessThread(ThreadId(actualThreadId), UserId(userId)))) {
-        // The client-supplied threadId is gone or not accessible — most often a
+      if (!(await canWriteThread(ThreadId(actualThreadId), UserId(userId)))) {
+        // The client-supplied threadId is gone or not writable — most often a
         // freshly-created empty thread reaped by the sidebar's auto-cleanup race
         // mid-send, or a stale client id. Recover gracefully by minting a new
         // thread for this user instead of hard-erroring. Safe: a foreign/deleted
@@ -819,6 +833,11 @@ export async function buildStreamContext({
     // the loop's `edit_document` tool aborts with "Es ist kein Board geöffnet" —
     // the router only ever read `currentBoard` off the raw body.
     currentBoard: rawCurrentBoard ?? undefined,
+    // Live canvas of the sharepic studio sidebar. Same reason as currentBoard:
+    // without it the graph state has no canvas, so the loop's `edit_document`
+    // tool aborts with "Es ist kein Sharepic geöffnet" and the model never sees
+    // the sharepic text (it rides `currentCanvas.text`, not currentDocument).
+    currentCanvas: rawCurrentCanvas ?? undefined,
     userLocale: user.locale ?? 'de-DE',
     clientPlatform: rawPlatform ?? 'web',
     customSystemPrompt,
@@ -829,6 +848,12 @@ export async function buildStreamContext({
     // field is the store's ambient choice (and the only carrier old clients
     // have, so it stays honored).
     activeSkillMention: mentionTokenFields.skillMention ?? rawActiveSkillMention ?? undefined,
+    // Die Zeilen-id der gewählten Textform. Kein Token-Gegenstück: Mention-Tokens
+    // nennen die Mention, die id kommt nur aus dem Body — und schlägt sie im
+    // Nachschlag, weil eine Umbenennung die Zeile sonst still austauschte.
+    // Genau deshalb weicht sie einem Token: siehe `activeRecipeIdForTurn`.
+    activeRecipeId:
+      activeRecipeIdForTurn(mentionTokenFields.skillMention, rawActiveRecipeId) ?? undefined,
     userInstructions,
     contextWindowTokens,
   });
@@ -855,6 +880,7 @@ export async function buildStreamContext({
     ]);
     initialState.lastToolContext = toolContext;
     initialState.threadArtifacts = history?.artifacts() ?? [];
+    initialState.threadNotebookId = notebookIdFromSteps(history?.toolSteps() ?? []);
     // Weitergereicht statt verworfen: der agentische Loop las bis hierher
     // dieselben Zeilen ein zweites und drittes Mal (Tool-Replay und
     // Quellen-Rehydrierung). Bleibt es null, weil der Lesevorgang scheiterte,
@@ -929,6 +955,24 @@ export interface MentionTokenFields {
   docMentionIds: string[];
   /** Rezept/Textform aus einem `skill:`-Token — letzter gewinnt. */
   skillMention: string | null;
+}
+
+/**
+ * Welche Rezept-ZEILE der Turn pinnt.
+ *
+ * Die id kommt ausschliesslich aus dem Body und ist damit die AMBIENTE Wahl des
+ * Stores; ein `skill:`-Token steht dagegen IN der Nachricht und sagt, was
+ * genau diese Nachricht bestellt hat. Beides nebeneinander stehen zu lassen
+ * ginge schief, weil die id die Mention im Nachschlag schlägt: beim
+ * Erneut-Senden einer bearbeiteten, bereits getokenten Nachricht gewänne so das
+ * ambiente Rezept gegen das getippte. Trägt die Nachricht ein Token, fällt die
+ * id also weg — das Token nennt die Mention, und die entscheidet.
+ */
+export function activeRecipeIdForTurn(
+  tokenSkillMention: string | null,
+  bodyRecipeId: string | null | undefined
+): string | null {
+  return tokenSkillMention ? null : (bodyRecipeId ?? null);
 }
 
 function unionIds(a: string[] | null | undefined, b: string[]): string[] {

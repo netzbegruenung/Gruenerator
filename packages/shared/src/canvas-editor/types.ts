@@ -15,65 +15,6 @@ export interface CanvasState {
 }
 
 // =============================================================================
-// LAYER TYPES
-// =============================================================================
-
-export type LayerType = 'image' | 'text' | 'shape';
-
-export interface BaseLayer {
-  id: string;
-  type: LayerType;
-  name?: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation: number;
-  scaleX: number;
-  scaleY: number;
-  visible: boolean;
-  locked: boolean;
-}
-
-export interface ImageLayer extends BaseLayer {
-  type: 'image';
-  src: string;
-  naturalWidth: number;
-  naturalHeight: number;
-  opacity: number;
-}
-
-export interface TextLayer extends BaseLayer {
-  type: 'text';
-  text: string;
-  fontFamily: string;
-  fontSize: number;
-  fontStyle: 'normal' | 'italic' | 'bold' | 'bold italic';
-  textAlign: 'left' | 'center' | 'right';
-  verticalAlign: 'top' | 'middle' | 'bottom';
-  fill: string;
-  stroke?: string;
-  strokeWidth?: number;
-  lineHeight?: number;
-  wrap: 'word' | 'char' | 'none';
-  padding?: number;
-}
-
-export type ShapeType = 'rect' | 'circle' | 'ellipse' | 'line';
-
-export interface ShapeLayer extends BaseLayer {
-  type: 'shape';
-  shapeType: ShapeType;
-  fill: string;
-  stroke: string;
-  strokeWidth: number;
-  cornerRadius?: number;
-  points?: number[];
-}
-
-export type Layer = ImageLayer | TextLayer | ShapeLayer;
-
-// =============================================================================
 // TRANSFORM TYPES
 // =============================================================================
 
@@ -145,23 +86,9 @@ export interface CanvasEditorConfig {
 // =============================================================================
 
 export interface CanvasHistoryEntry<TComponentState = Record<string, unknown>> {
-  layers: Layer[];
   selectedLayerIds: string[];
   timestamp: number;
   componentState?: TComponentState;
-}
-
-// =============================================================================
-// EVENT TYPES
-// =============================================================================
-
-export interface CanvasEvents {
-  onLayerSelect?: (layerIds: string[]) => void;
-  onLayerChange?: (layer: Layer) => void;
-  onLayerAdd?: (layer: Layer) => void;
-  onLayerRemove?: (layerId: string) => void;
-  onExport?: (result: ExportResult) => void;
-  onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
 }
 
 // =============================================================================
@@ -194,21 +121,4 @@ export const DEFAULT_TRANSFORM_CONFIG: TransformConfig = {
     minWidth: 20,
     minHeight: 20,
   },
-};
-
-export const DEFAULT_TEXT_LAYER: Omit<TextLayer, 'id' | 'x' | 'y' | 'width' | 'height' | 'text'> = {
-  type: 'text',
-  rotation: 0,
-  scaleX: 1,
-  scaleY: 1,
-  visible: true,
-  locked: false,
-  fontFamily: 'Arial',
-  fontSize: 24,
-  fontStyle: 'normal',
-  textAlign: 'left',
-  verticalAlign: 'top',
-  fill: '#000000',
-  wrap: 'word',
-  lineHeight: 1.2,
 };

@@ -14,7 +14,11 @@ import { applyCompaction, pruneMessages } from '../services/contextPruningServic
 import { resolveLaneContextFloor } from '../services/laneContextFloor.js';
 
 import type { ChatGraphState, CreatedDocument } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { PendingToolCall, PersistedStep } from '../services/agenticLoop/types.js';
+import type {
+  PendingAskRequest,
+  PendingToolCall,
+  PersistedStep,
+} from '../services/agenticLoop/types.js';
 import type { SharepicVariant } from '../services/sharepicVariantHelpers.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 import type { StreamBody, StreamContext } from '../services/streamContext.js';
@@ -53,6 +57,8 @@ export interface AgenticAnswer {
   langfuseTraceId: string | undefined;
   /** Gesetzt ⇒ der Zug pausiert und wartet auf eine Werkzeug-Freigabe. */
   pendingApproval?: PendingToolCall[];
+  /** Gesetzt ⇒ der Zug pausiert und wartet auf die Antwort einer Rückfrage. */
+  pendingAsk?: PendingAskRequest;
 }
 
 export async function runAgenticAnswer({
@@ -160,5 +166,6 @@ export async function runAgenticAnswer({
     agenticSteps: outcome.steps,
     langfuseTraceId,
     ...(outcome.pendingApproval != null && { pendingApproval: outcome.pendingApproval }),
+    ...(outcome.pendingAsk != null && { pendingAsk: outcome.pendingAsk }),
   };
 }

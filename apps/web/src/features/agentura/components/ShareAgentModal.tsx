@@ -1,7 +1,7 @@
 /**
  * Modal for managing user-agent (Agentura) sharing: visibility
  * (private/groups/authenticated), the set of groups the agent is shared with,
- * and the "Von der Basis" public-discovery toggle. That toggle is shown in
+ * and the „Öffentlich" public-discovery toggle. That toggle is shown in
  * every visibility mode; enabling it from a lower mode auto-promotes
  * visibility to 'authenticated' first (the backend invariant for a listing).
  *
@@ -88,9 +88,9 @@ export function ShareAgentModal({ identifier, open, onOpenChange }: ShareAgentMo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[42rem]">
         <DialogHeader>
-          <DialogTitle>Grünerator-Agent teilen</DialogTitle>
+          <DialogTitle>Agent teilen</DialogTitle>
           <DialogDescription>
-            Lege fest, wer diesen Grünerator-Agenten sehen und im Chat nutzen darf.
+            Lege fest, wer diesen Agenten sehen und im Chat nutzen darf.
           </DialogDescription>
         </DialogHeader>
 
@@ -171,8 +171,7 @@ export function ShareAgentModal({ identifier, open, onOpenChange }: ShareAgentMo
                   </Select>
                 ) : myGroupsQuery.data && myGroupsQuery.data.length === 0 ? (
                   <p className="text-xs text-grey-500">
-                    Du bist noch in keiner Gruppe. Tritt einer Gruppe bei, um Grüneratoren zu
-                    teilen.
+                    Du bist noch in keiner Gruppe. Tritt einer Gruppe bei, um Agents zu teilen.
                   </p>
                 ) : null}
               </div>
@@ -184,18 +183,17 @@ export function ShareAgentModal({ identifier, open, onOpenChange }: ShareAgentMo
               </p>
             ) : null}
 
-            {/* "Von der Basis" public listing. Shown in every visibility mode so
+            {/* „Öffentlich" public listing. Shown in every visibility mode so
                 it's discoverable — enabling it from a lower mode first promotes
                 Sichtbarkeit to 'authenticated' (the backend invariant for an
                 Agentura listing), then lists the agent. */}
             <div className="flex items-start justify-between gap-md rounded-lg border border-grey-200 p-md dark:border-grey-700">
               <div className="space-y-xs">
                 <Label htmlFor="agent-agentura-toggle" className="text-sm">
-                  Auf „Von der Basis“ listen
+                  Auf „Öffentlich“ listen
                 </Label>
                 <p className="text-xs text-grey-500 dark:text-grey-400">
-                  Dein Grünerator-Agent erscheint dann in der Agentura unter „Von der Basis“ zum
-                  Entdecken.
+                  Dein Agent erscheint dann in der Agentura unter „Öffentlich“ zum Entdecken.
                 </p>
                 {!isPublic && shareMode !== 'authenticated' ? (
                   <p className="text-xs text-grey-500 dark:text-grey-400">

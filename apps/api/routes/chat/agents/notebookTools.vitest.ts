@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
 import { makeNotebooksTool, type NotebookToolDeps } from './notebookTools.js';
+import { collectionsForLocale } from './searchTools.js';
 
 // `emitToolConfirmAction` legt die Karte in Redis ab; ohne erreichbares Redis
 // antwortet der Client nie. Gemockt wird nur der Speicher, die Karte samt
@@ -57,6 +58,8 @@ interface CtxOptions {
   query?: (sql: string, params: unknown[]) => unknown[];
   preview?: NotebookToolDeps['preview'];
   search?: NotebookToolDeps['search'];
+  /** Antwort auf `scope='basis'` — die öffentlich gelisteten Notebooks. */
+  publicCollections?: NotebookCollection[];
   groups?: Array<{ id: string; name: string; role: string }>;
   registry?: SourceRegistry;
   userText?: string;
@@ -115,6 +118,7 @@ function makeCtx(opts: CtxOptions = {}) {
     access: vi.fn(async () => opts.access ?? OWNER),
     search:
       opts.search ?? vi.fn(async () => ({ ok: false as const, error: 'Suche nicht konfiguriert' })),
+    listPublic: vi.fn(async () => opts.publicCollections ?? []),
     preview: opts.preview ?? vi.fn(async () => ({ error: 'Vorschau nicht konfiguriert' })),
     findGroups: vi.fn(async () =>
       (opts.groups ?? []).map((g) => ({ ...g, slug_suffix: null, member_count: 1 }))
@@ -151,6 +155,79 @@ describe('list', () => {
       },
     ]);
     expect(registered).toHaveLength(1);
+  });
+
+  it('lists the system notebooks, keyed by what gruenerator_search accepts', async () => {
+    const { run } = makeCtx();
+    const result = await run({ action: 'list', scope: 'system' });
+    const rows = result.results as Array<{ title: string; type: string; ref: string }>;
+
+    expect(result.scope).toBe('system');
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => r.type === 'System-Notebook')).toBe(true);
+
+    // Die tragende Zusicherung: jede genannte Sammlung ist auch durchsuchbar.
+    // Ohne sie kann die Ableitung still abdriften und der Agent nennt Korpora,
+    // die `gruenerator_search` nicht annimmt.
+    const searchable = collectionsForLocale('de-AT');
+    expect(rows.map((r) => r.ref).filter((key) => !searchable.includes(key))).toEqual([]);
+  });
+
+  it('scopes the system list to the locale of the session', async () => {
+    const { run } = makeCtx();
+    const rows = (await run({ action: 'list', scope: 'system' })).results as Array<{ ref: string }>;
+    // Die Sitzung ist de-AT; die deutschen Landesverbände gehören nicht hinein.
+    expect(rows.map((r) => r.ref)).toEqual([...collectionsForLocale('de-AT')]);
+    expect(rows.map((r) => r.ref)).not.toContain('hessen');
+  });
+
+  it('points each system notebook at notebook_quellen with its key', async () => {
+    const { run } = makeCtx();
+    const rows = (await run({ action: 'list', scope: 'system' })).results as Array<{
+      ref: string;
+      snippet: string;
+    }>;
+    for (const r of rows) {
+      expect(r.snippet).toContain(`notebook_quellen mit notebookId=${r.ref}`);
+    }
+  });
+
+  it('lists publicly listed notebooks without the caller’s own', async () => {
+    const mine = collection({ id: 'n1', user_id: 'user-1', name: 'Meins' });
+    const theirs = collection({
+      id: 'n2',
+      user_id: 'user-2',
+      name: 'Klimaanträge',
+      slug_suffix: 'Qq7wE2',
+      description: 'Anträge aus dem Kreisverband',
+      is_public: true,
+    });
+    const { run } = makeCtx({ publicCollections: [mine, theirs] });
+    const result = await run({ action: 'list', scope: 'basis' });
+
+    expect(result.scope).toBe('basis');
+    expect(result.results).toEqual([
+      {
+        title: 'Klimaanträge',
+        url: '/notebooks/klimaantraege-Qq7wE2',
+        type: 'Öffentliches Notebook',
+        snippet: 'Anträge aus dem Kreisverband',
+        ref: 'n2',
+      },
+    ]);
+  });
+
+  it('passes the session locale to the public listing', async () => {
+    const { run, deps } = makeCtx();
+    await run({ action: 'list', scope: 'basis' });
+    expect(deps.listPublic).toHaveBeenCalledWith('de-AT');
+  });
+
+  it('defaults to the caller’s own notebooks', async () => {
+    const { run, helper } = makeCtx();
+    const result = await run({ action: 'list' });
+    expect(result.scope).toBe('mine');
+    expect(helper.getUserNotebookCollections).toHaveBeenCalled();
   });
 
   it('refuses without a signed-in person', async () => {
@@ -509,6 +586,62 @@ describe('rename', () => {
       'Berechtigung'
     );
     expect(helper.updateNotebookCollection).not.toHaveBeenCalled();
+  });
+});
+
+describe('update', () => {
+  it('needs at least one field', async () => {
+    const { run, helper } = makeCtx();
+    expect(String((await run({ action: 'update', id: 'n1' })).error)).toContain('customPrompt');
+    expect(helper.updateNotebookCollection).not.toHaveBeenCalled();
+  });
+
+  it('is refused for a reader', async () => {
+    const { run, helper } = makeCtx({ access: READER });
+    const result = await run({ action: 'update', id: 'n1', description: 'Neu' });
+    expect(String(result.error)).toContain('Berechtigung');
+    expect(helper.updateNotebookCollection).not.toHaveBeenCalled();
+  });
+
+  it('is refused when the message rules out persistent changes', async () => {
+    const { run, helper } = makeCtx({ userText: 'Ändere nichts, antworte nur im Chat.' });
+    const result = await run({ action: 'update', id: 'n1', description: 'Neu' });
+    expect(String(result.error)).toContain('schließt Änderungen aus');
+    expect(helper.updateNotebookCollection).not.toHaveBeenCalled();
+  });
+
+  it('refuses more than 10 labels or labels over 40 characters', async () => {
+    const { run, helper } = makeCtx();
+    const many = Array.from({ length: 11 }, (_, i) => `L${i}`);
+    expect(String((await run({ action: 'update', id: 'n1', labels: many })).error)).toContain('10');
+    expect(
+      String((await run({ action: 'update', id: 'n1', labels: ['x'.repeat(41)] })).error)
+    ).toContain('40');
+    expect(helper.updateNotebookCollection).not.toHaveBeenCalled();
+  });
+
+  it('writes description, custom prompt and labels, keeping the other settings', async () => {
+    const { run, helper, notes } = makeCtx({ access: EDITOR });
+    const result = await run({
+      action: 'update',
+      id: 'n1',
+      description: ' Anträge ',
+      customPrompt: 'Antworte knapp.',
+      labels: [' Verkehr ', '', 'Klima'],
+    });
+    expect(result.ok).toBe(true);
+    expect(helper.updateNotebookCollection).toHaveBeenCalledWith('n1', {
+      description: 'Anträge',
+      custom_prompt: 'Antworte knapp.',
+      settings: { wolke_folders: [], linked_docs: [], labels: ['Verkehr', 'Klima'] },
+    });
+    expect(notes).toHaveLength(1);
+  });
+
+  it('touches only the fields it was given', async () => {
+    const { run, helper } = makeCtx();
+    await run({ action: 'update', id: 'n1', customPrompt: '' });
+    expect(helper.updateNotebookCollection).toHaveBeenCalledWith('n1', { custom_prompt: null });
   });
 });
 

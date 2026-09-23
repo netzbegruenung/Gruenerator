@@ -11,7 +11,7 @@ import {
   type BoardScheduleInput,
   type BoardScheduleUpdate,
 } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -31,7 +31,8 @@ export function useScheduledAgentRuns(boardId: string | undefined, cardId?: stri
     queryFn: async () => {
       if (!boardId) return [];
       const res = await getContractsClient().boardSchedules.listSchedules({ params: { boardId } });
-      if (res.status !== 200) throw new Error('Zeitpläne konnten nicht geladen werden');
+      if (res.status !== 200)
+        throw new ApiError(res.status, 'Zeitpläne konnten nicht geladen werden');
       return res.body;
     },
   });
@@ -45,7 +46,7 @@ export function useScheduledAgentRuns(boardId: string | undefined, cardId?: stri
         params: { boardId },
         query: cardId ? { cardId } : {},
       });
-      if (res.status !== 200) throw new Error('Läufe konnten nicht geladen werden');
+      if (res.status !== 200) throw new ApiError(res.status, 'Läufe konnten nicht geladen werden');
       return res.body;
     },
   });
@@ -57,7 +58,8 @@ export function useScheduledAgentRuns(boardId: string | undefined, cardId?: stri
         params: { boardId, cardId: input.cardId },
         body: input.schedule,
       });
-      if (res.status !== 201) throw new Error('Zeitplan konnte nicht erstellt werden');
+      if (res.status !== 201)
+        throw new ApiError(res.status, 'Zeitplan konnte nicht erstellt werden');
       return res.body;
     },
     onSuccess: () => {
@@ -74,7 +76,8 @@ export function useScheduledAgentRuns(boardId: string | undefined, cardId?: stri
         params: { boardId, scheduleId: input.scheduleId },
         body: input.patch,
       });
-      if (res.status !== 200) throw new Error('Zeitplan konnte nicht geändert werden');
+      if (res.status !== 200)
+        throw new ApiError(res.status, 'Zeitplan konnte nicht geändert werden');
       return res.body;
     },
     onSuccess: invalidate,
@@ -88,7 +91,8 @@ export function useScheduledAgentRuns(boardId: string | undefined, cardId?: stri
         params: { boardId, scheduleId },
         body: {},
       });
-      if (res.status !== 200) throw new Error('Zeitplan konnte nicht gelöscht werden');
+      if (res.status !== 200)
+        throw new ApiError(res.status, 'Zeitplan konnte nicht gelöscht werden');
     },
     onSuccess: () => {
       toast.success('Zeitplan gelöscht.');
@@ -104,7 +108,7 @@ export function useScheduledAgentRuns(boardId: string | undefined, cardId?: stri
         params: { boardId, scheduleId },
         body: {},
       });
-      if (res.status !== 202) throw new Error('Lauf konnte nicht gestartet werden');
+      if (res.status !== 202) throw new ApiError(res.status, 'Lauf konnte nicht gestartet werden');
       return res.body;
     },
     onSuccess: () => {
@@ -121,7 +125,7 @@ export function useScheduledAgentRuns(boardId: string | undefined, cardId?: stri
         params: { boardId, taskId },
         body: {},
       });
-      if (res.status !== 200) throw new Error('Lauf konnte nicht bestätigt werden');
+      if (res.status !== 200) throw new ApiError(res.status, 'Lauf konnte nicht bestätigt werden');
     },
     onSuccess: () => {
       toast.success('Lauf freigegeben.');
@@ -138,7 +142,7 @@ export function useScheduledAgentRuns(boardId: string | undefined, cardId?: stri
         params: { boardId, taskId: input.taskId },
         body: input.instruction ? { instruction: input.instruction } : {},
       });
-      if (res.status !== 202) throw new Error('Lauf konnte nicht wiederholt werden');
+      if (res.status !== 202) throw new ApiError(res.status, 'Lauf konnte nicht wiederholt werden');
       return res.body;
     },
     onSuccess: () => {

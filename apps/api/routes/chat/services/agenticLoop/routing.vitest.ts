@@ -6,6 +6,9 @@ import {
   looksLikeCompoundGeneration,
   looksLikeCompoundEdit,
   isEditorSurface,
+  isEditToolEnabled,
+  hasDocumentContextEditTool,
+  isDocumentContextEditAllowed,
   compoundGenerationKind,
   decideRunAgentic,
   resolveEditorSurfaceKind,
@@ -58,6 +61,18 @@ describe('looksLikeToolableQuestion', () => {
     // Eigene Textformen und Rezepte.
     ['personal textformen', 'zeig meine textformen'],
     ['personal rezepte', 'meine rezepte bitte'],
+    // Quellen im Notebook verwalten (notebook_quellen) — „meinem" fehlte in der
+    // Possessiv-Liste, „Quelle"/„Notiz" als Nomen.
+    ['source remove, dativ', 'entferne die Quelle Radweg aus meinem Notebook'],
+    ['note into notebook', 'leg eine Notiz in mein Notebook'],
+    ['personal quellen', 'sortier meine quellen nach datum'],
+    ['personal notizen', 'meine notizen bitte'],
+    ['notizbuch singular', 'kopier das in meinem notizbuch'],
+    // Ein Adjektiv zwischen `meinem` und dem Notebook darf nicht aus dem Loop fallen.
+    ['meinem alten notebook', 'entferne die Quelle aus meinem alten Notebook'],
+    ['meinem geteilten notebook', 'leg eine Notiz in meinem geteilten Notebook an'],
+    ['meinem eigenen notizbuch', 'kopier das in meinem eigenen notizbuch'],
+    ['räum aus meinem geteilten notebook', 'räum das aus meinem geteilten Notebook'],
   ];
   it.each(toolable)('routes a real question into the loop: %s', (_label, q) => {
     expect(looksLikeToolableQuestion(q)).toBe(true);
@@ -84,6 +99,14 @@ describe('looksLikeToolableQuestion', () => {
     ['empty', '   '],
     // „Agentur" ist kein Agent — die Wortgrenze hinter `agent(en)?` hält es draußen.
     ['agentur, not agent', 'meine Agentur für Arbeit'],
+    // Der Notebook-Wortschatz darf keine Schreibaufträge in den Loop ziehen:
+    // `meinem` gilt nur vor Notebook, `Quellen` nur nach mein/meine.
+    ['rede zu meinem projekt', 'schreib eine Rede zu meinem Projekt'],
+    ['quellen im eigenen text', 'prüfe in meinem Text die Quellen'],
+    // „erzähl mir was zu meinem neuen Projekt" ginge über das Fragewort „was"
+    // (TOOLABLE_QUESTION_RE) in den Loop, nicht über diesen Wortschatz — die
+    // Variante ohne Fragewort prüft, was hier zu prüfen ist.
+    ['meinem neuen projekt', 'schreib einen Post zu meinem neuen Projekt'],
   ];
   it.each(fastPath)('keeps a fast-path turn out of the loop: %s', (_label, q) => {
     expect(looksLikeToolableQuestion(q)).toBe(false);
@@ -904,9 +927,26 @@ describe('isEditorSurface', () => {
   it('true when an edit_current_* tool is enabled, false otherwise', () => {
     expect(isEditorSurface({ edit_current_doc: true })).toBe(true);
     expect(isEditorSurface({ edit_current_board: true })).toBe(true);
+    // The studio sidebar's key. Without it a sharepic turn loses the "never
+    // spawn a NEW artifact / no generate_image" gate in the tool catalog.
+    expect(isEditorSurface({ edit_current_canvas: true })).toBe(true);
     expect(isEditorSurface({ search: true, web: true })).toBe(false);
     expect(isEditorSurface({ edit_current_doc: false })).toBe(false);
+    expect(isEditorSurface({ edit_current_canvas: false })).toBe(false);
     expect(isEditorSurface(undefined)).toBe(false);
+  });
+});
+
+describe('isEditToolEnabled', () => {
+  it('is true for any surface key', () => {
+    expect(isEditToolEnabled({ edit_current_doc: true })).toBe(true);
+    expect(isEditToolEnabled({ edit_current_sheet: true })).toBe(true);
+    expect(isEditToolEnabled({ edit_current_presentation: true })).toBe(true);
+    expect(isEditToolEnabled({ edit_current_board: true })).toBe(true);
+    expect(isEditToolEnabled({ edit_current_canvas: true })).toBe(true);
+    expect(isEditToolEnabled({ edit_current_canvas: false })).toBe(false);
+    expect(isEditToolEnabled({ search: true })).toBe(false);
+    expect(isEditToolEnabled(undefined)).toBe(false);
   });
 });
 
@@ -924,11 +964,67 @@ describe('resolveEditorSurfaceKind', () => {
   it('falls back to the enabled edit_current_* tool for a custom agent', () => {
     expect(resolveEditorSurfaceKind('my-custom-agent', { edit_current_board: true })).toBe('board');
     expect(resolveEditorSurfaceKind('my-custom-agent', { edit_current_doc: true })).toBe('doc');
+    expect(resolveEditorSurfaceKind('my-custom-agent', { edit_current_sheet: true })).toBe('sheet');
+    expect(resolveEditorSurfaceKind('my-custom-agent', { edit_current_presentation: true })).toBe(
+      'presentation'
+    );
+    expect(resolveEditorSurfaceKind(undefined, { edit_current_canvas: true })).toBe('canvas');
+  });
+
+  // Die Seitenleisten schicken je EINEN Schlüssel — ausser während der
+  // Übergangsfrist, in der Tabellen und Präsentationen `edit_current_doc`
+  // mitschicken, damit ein älteres Backend das Werkzeug noch montiert (#3438).
+  // Genau dafür steht der spezifischere Schlüssel in `EDITOR_EDIT_TOOL_KEYS`
+  // VOR `edit_current_doc`: sonst fiele die Doppelsendung auf die doc-Fläche
+  // zurück — der Fehler, den dieser PR behebt.
+  it('prefers the surface-specific key when the doc key is sent alongside it', () => {
+    expect(
+      resolveEditorSurfaceKind('my-custom-agent', {
+        edit_current_doc: true,
+        edit_current_sheet: true,
+      })
+    ).toBe('sheet');
+    expect(
+      resolveEditorSurfaceKind('my-custom-agent', {
+        edit_current_doc: true,
+        edit_current_presentation: true,
+      })
+    ).toBe('presentation');
+  });
+
+  // Diese Paarung schickt niemand. Sie steht hier, damit die Reihenfolge der
+  // Registry festgenagelt ist statt zufällig: ein Gleichstand ist ein
+  // Stichentscheid, kein Merkmal.
+  it('pins the registry order for a key pair no sidebar sends', () => {
+    expect(
+      resolveEditorSurfaceKind('my-custom-agent', {
+        edit_current_doc: true,
+        edit_current_board: true,
+      })
+    ).toBe('board');
   });
 
   it('returns null for a non-editor turn', () => {
     expect(resolveEditorSurfaceKind('gruenerator-chat', { search: true })).toBeNull();
     expect(resolveEditorSurfaceKind(undefined, undefined)).toBeNull();
+  });
+});
+
+describe('document-context edit keys', () => {
+  it('hasDocumentContextEditTool: doc, sheet and presentation share currentDocument', () => {
+    expect(hasDocumentContextEditTool({ edit_current_doc: true })).toBe(true);
+    expect(hasDocumentContextEditTool({ edit_current_sheet: true })).toBe(true);
+    expect(hasDocumentContextEditTool({ edit_current_presentation: true })).toBe(true);
+    expect(hasDocumentContextEditTool({ edit_current_board: true })).toBe(false);
+    expect(hasDocumentContextEditTool(null)).toBe(false);
+  });
+
+  it('isDocumentContextEditAllowed: an explicit false on any of the three blocks the fast path', () => {
+    expect(isDocumentContextEditAllowed(undefined)).toBe(true);
+    expect(isDocumentContextEditAllowed({ edit_current_doc: true })).toBe(true);
+    expect(isDocumentContextEditAllowed({ edit_current_sheet: false })).toBe(false);
+    expect(isDocumentContextEditAllowed({ edit_current_presentation: false })).toBe(false);
+    expect(isDocumentContextEditAllowed({ edit_current_board: false })).toBe(true);
   });
 });
 
@@ -961,9 +1057,14 @@ describe('decideEditToolLoop', () => {
     expect(decideEditToolLoop({ ...base, surfaceKind: 'board' })).toBe(true);
   });
 
-  it('keeps the legacy dispatch path for docs and canvas (no plan-and-send tool)', () => {
-    expect(decideEditToolLoop({ ...base, surfaceKind: 'doc' })).toBe(false);
-    expect(decideEditToolLoop({ ...base, surfaceKind: 'canvas' })).toBe(false);
+  it('enters the loop for canvas too (plan-and-send)', () => {
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'canvas' })).toBe(true);
+  });
+
+  it('enters the loop for docs too (dispatch strategy, #3428)', () => {
+    // The doc surface no longer has a path OUTSIDE the loop: the classifier
+    // stage that emitted `trigger_doc_edit` is gone, the tool dispatches it.
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'doc' })).toBe(true);
   });
 
   it('requires the loop to be enabled', () => {

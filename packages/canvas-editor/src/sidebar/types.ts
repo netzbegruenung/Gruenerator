@@ -26,7 +26,6 @@ export type SidebarTabId =
   | 'share'
   | 'uploads'
   | 'tools'
-  | 'ai'
   | 'chat'
   // Legacy/template-specific tab IDs (for backwards compatibility)
   | 'fontsize'

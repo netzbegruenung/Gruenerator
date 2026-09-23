@@ -1,5 +1,5 @@
 import { type UserTemplatePreview } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@gruenerator/ui';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { HiArrowLeft, HiOutlineSparkles, HiPhotograph } from 'react-icons/hi';
@@ -326,7 +326,8 @@ const AddTemplateModal = ({
           },
         });
         if (result.status !== 201) {
-          throw new Error(
+          throw new ApiError(
+            result.status,
             (result.body as { message?: string })?.message || 'Fehler beim Erstellen der Vorlage.'
           );
         }
@@ -343,7 +344,8 @@ const AddTemplateModal = ({
           },
         });
         if (result.status !== 201) {
-          throw new Error(
+          throw new ApiError(
+            result.status,
             (result.body as { message?: string })?.message || 'Fehler beim Einreichen der Vorlage.'
           );
         }
@@ -362,7 +364,8 @@ const AddTemplateModal = ({
           },
         });
         if (result.status !== 201) {
-          throw new Error(
+          throw new ApiError(
+            result.status,
             (result.body as { message?: string })?.message || 'Fehler beim Erstellen der Vorlage.'
           );
         }

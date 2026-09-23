@@ -54,8 +54,9 @@ const sampleTool = () =>
 
 describe('makeMcpPersonalCtx', () => {
   it('carries the userId and no threadId (SSE-confirm branches must fail safe)', () => {
-    const ctx = makeMcpPersonalCtx('user-1');
+    const ctx = makeMcpPersonalCtx('user-1', 'de-AT');
     expect(ctx.state.agentConfig?.userId).toBe('user-1');
+    expect(ctx.state.userLocale).toBe('de-AT');
     expect(ctx.threadId).toBeNull();
     expect(ctx.sourceRegistry.register([])).toBe('');
   });

@@ -163,21 +163,6 @@ export function isLvItemVisibleForRoles(
 }
 
 /**
- * Soll dieses Notebook in einem Picker angeboten werden? Gleiche Semantik wie
- * {@link isLvItemVisibleForRoles}: Nicht-LV-Notebooks und der noch unbekannte
- * Fall passieren immer, die geprüft-rollenlose Person sieht keine LV-Notebooks.
- */
-export function isLvNotebookVisibleForRoles(
-  notebookId: string,
-  lvIds: readonly string[] | null
-): boolean {
-  if (lvIds === null) return true;
-  const lv = LANDESVERBAENDE.find((entry) => entry.notebookId === notebookId);
-  if (!lv) return true;
-  return lvIds.includes(lv.id);
-}
-
-/**
  * Die `mention`s der Rezepte aus den eigenen Landesverbänden, kleingeschrieben —
  * das Format, in dem der Favoriten-Store sie hält. Rezepte, deren Agent
  * ausgeblendet ist, bleiben draußen: was nichts rendert, wird auch nicht
@@ -264,4 +249,22 @@ export function landesverbandHeadings(lvIds: readonly string[] | null): {
     return { agents: 'Deine Landesverbände', skills: 'Rezepte deiner Landesverbände' };
   }
   return { agents: 'Landesverbände', skills: 'Rezepte der Landesverbände' };
+}
+
+/**
+ * Beschriftung des Landesverbands-Regals in der Agentura, z. B. `['hessen']` →
+ * `'Grüne Hessen'`. Gleiche Beugung wie `landesverbandHeadings`, damit Reiter
+ * und Abschnitts-Überschrift nie auseinanderlaufen.
+ *
+ * Der Unterschied liegt allein im leeren Fall: eine Abschnitts-Überschrift darf
+ * „Landesverbände" heißen, ein persönlicher Reiter nicht. Beide Plattformen
+ * zeigen das Regal erst, wenn die Rollen geladen sind (`isHydrated`) — der
+ * Rückfall greift daher nur noch bei einer Rolle für einen Verband, den
+ * `LANDESVERBAENDE` nicht kennt.
+ */
+export function landesverbandShelfLabel(lvIds: readonly string[] | null): string {
+  const titles = (lvIds ?? []).map(landesverbandTitle).filter((t): t is string => t !== null);
+  if (titles.length === 1) return `Grüne ${titles[0]}`;
+  if (titles.length > 1) return 'Deine Landesverbände';
+  return 'Dein Landesverband';
 }

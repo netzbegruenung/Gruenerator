@@ -8,7 +8,11 @@
  * markdown block that later gets injected into the chat system prompt.
  */
 
-import { MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS, type TextFormType } from '@gruenerator/contracts';
+import {
+  MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
+  TEXT_FORM_TYPE_LABELS,
+  type TextFormType,
+} from '@gruenerator/contracts';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 
@@ -18,13 +22,6 @@ import { getModel } from '../ai/providers.js';
 const log = createLogger('TextFormAnalysisService');
 
 const ANALYSIS_MODEL = 'mistral-large-latest';
-
-const TEXT_TYPE_LABELS: Record<TextFormType, string> = {
-  instagram: 'Instagram-Posts',
-  facebook: 'Facebook-Posts',
-  presse: 'Pressemitteilungen',
-  antrag: 'Anträge',
-};
 
 // Structured extraction. Free strings/arrays — the deterministic renderer below
 // turns them into the injected block, so the model never has to format markdown.
@@ -131,5 +128,25 @@ export async function analyzeTextForm(
 
 /** Human-readable label for a preset text type (for prompts & headings). */
 export function textTypeLabel(textType: TextFormType): string {
-  return TEXT_TYPE_LABELS[textType];
+  return TEXT_FORM_TYPE_LABELS[textType];
+}
+
+/**
+ * The label a style is analyzed and rendered under. The title wins: it is what
+ * the person named the recipe, and since the contract requires it there is
+ * always one. `textType` only fills in for a caller that has none.
+ *
+ * It used to be the other way round, which quietly discarded the more precise
+ * name — a Landesverband's "Pressemitteilungen Hessen" carries `textType:
+ * 'presse'` and was analyzed and rendered as plain "Pressemitteilungen". The
+ * preset case loses nothing: a preset's title IS its canonical label
+ * (`TEXT_FORM_TYPE_LABELS`, seeded by `classifyRecipeMention`).
+ *
+ * Single source for a decision `analyze`, `create` and `add_examples` each
+ * re-implemented.
+ */
+export function textFormLabel(textType: TextFormType | null | undefined, title: string): string {
+  const named = title.trim();
+  if (named.length > 0) return named;
+  return textType ? textTypeLabel(textType) : named;
 }

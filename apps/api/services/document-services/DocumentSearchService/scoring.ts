@@ -33,6 +33,8 @@ export function extractChunkData(chunk: DocumentRawChunk): DocumentChunkData {
     content_type: chunk.content_type ?? null,
     page_number: chunk.page_number ?? null,
     chunk_type: chunk.chunk_type ?? null,
+    char_start: chunk.char_start ?? null,
+    char_end: chunk.char_end ?? null,
     similarity: chunk.similarity,
     token_count: chunk.token_count,
     ...(typeof chunk.quality_score === 'number' && { quality_score: chunk.quality_score }),

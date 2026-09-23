@@ -45,6 +45,9 @@ export const chatThreads = pgTable(
     tags: jsonb('tags').$type<string[]>().notNull().default([]),
     // Stable 6-char key for Notion-style thread URLs (/chat/<titel>-<suffix>).
     slug_suffix: text('slug_suffix'),
+    // Link-Freigabe: 'authenticated' = lesbar für jede angemeldete Person mit
+    // dem /chat/geteilt/<slug>-Link. Nicht is_public (das gewährt Schreibzugriff).
+    share_mode: text('share_mode').notNull().default('private'),
     // Sticky MCP scope: last connected server the loop was scoped to, so an
     // unscoped follow-up re-scopes to it instead of fanning out. No FK (loose).
     last_mcp_server_id: uuid('last_mcp_server_id'),

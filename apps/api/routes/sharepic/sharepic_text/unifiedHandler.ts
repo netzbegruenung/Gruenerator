@@ -57,15 +57,35 @@ interface TypeConfig {
   mainKey: string;
   maxLengths?: Record<string, number>;
   coverMaxLengths?: Record<string, number>;
+  /**
+   * Felder, in denen eine Aufzählung und Auszeichnung (`**fett**`, `_kursiv_`)
+   * stehen dürfen — nur hier bleiben Zeilenumbrüche und Marker erhalten
+   * (`sanitizeField`). Überschriften, Dreizeiler, Zitate und Datums-/Ortsfelder
+   * sind bewusst NICHT dabei: dort wäre ein Umbruch immer ein Fehler des
+   * Modells, kein Gestaltungsmittel. Muss zu den `richText`-Feldern der
+   * Editor-Vorlagen passen — `multilineFields.vitest.ts` prüft das.
+   */
+  multilineFields?: string[];
+  /**
+   * Felder, in denen zusätzlich Auszeichnung (`**fett**`, `_kursiv_`) stehen
+   * darf — Teilmenge von {@link multilineFields}. Enger, weil nur Felder in
+   * PT Sans echte Fett- und Kursivschnitte haben; in GrueneTypeNeue (Titel,
+   * Veranstaltungsbeschreibung, Simple-Unterzeile) würde beides synthetisiert
+   * und Vorschau und Export liefen auseinander. Muss zu `richText` am
+   * Descriptor passen — `multilineFields.vitest.ts` prüft das.
+   */
+  markupFields?: string[];
 }
 
-const TYPE_CONFIGS: Record<string, TypeConfig> = {
+export const TYPE_CONFIGS: Record<string, TypeConfig> = {
   info: {
     fields: ['header', 'subheader', 'body', 'suchbegriff'],
     mainKey: 'mainInfo',
     // body headroom above the prompt's 150-250 target so a slightly-long final
     // sentence is kept whole (sentence-safe trim), not chopped. Renderer auto-fits.
     maxLengths: { header: 65, subheader: 125, body: 300 },
+    multilineFields: ['body'],
+    markupFields: ['body'],
   },
   // Österreich: eigenes Sujet mit eigenen Feldern. Der Resolver unten wählt
   // diesen Eintrag über dieselbe `<type>_at`-Konvention wie den Prompt.
@@ -94,6 +114,7 @@ const TYPE_CONFIGS: Record<string, TypeConfig> = {
     fields: ['titel', 'tag', 'datum', 'zeit', 'ort', 'adresse', 'beschreibung', 'suchbegriff'],
     mainKey: 'mainEvent',
     maxLengths: { titel: 35, ort: 45, adresse: 45, beschreibung: 150 },
+    multilineFields: ['beschreibung'],
   },
   zitat: {
     fields: ['zitat'],
@@ -111,6 +132,7 @@ const TYPE_CONFIGS: Record<string, TypeConfig> = {
     fields: ['headline', 'subtext', 'suchbegriff'],
     mainKey: 'mainSimple',
     maxLengths: { headline: 50, subtext: 150 },
+    multilineFields: ['subtext'],
   },
   slider: {
     fields: ['label', 'headline', 'subtext', 'subtext2', 'suchbegriff'],
@@ -118,6 +140,8 @@ const TYPE_CONFIGS: Record<string, TypeConfig> = {
     mainKey: 'mainSlider',
     maxLengths: { label: 25, headline: 130, subtext: 200, subtext2: 200 },
     coverMaxLengths: { label: 25, headline: 70, subtext: 100, subtext2: 0 },
+    multilineFields: ['subtext', 'subtext2'],
+    markupFields: ['subtext', 'subtext2'],
   },
 };
 
@@ -199,6 +223,33 @@ export interface UnifiedTextBody {
   _campaignPrompt?: unknown;
 }
 
+/**
+ * Die eine Formulierung dafür, wie Auszeichnung in einem Sharepic-Text
+ * aussieht. Drei Türen sprechen sie: die Textgenerierung hier, die
+ * Chat-Bearbeitung (`sharepicEditLlm`) und die Studio-Vorschläge
+ * (`buildCanvasSuggestPrompt`). Was der Editor rendert, steht in
+ * `@gruenerator/contracts` (`inlineMarks.ts`) — die Regel hier muss dieselbe
+ * Form beschreiben, sonst tippt das Modell etwas, das niemand zeichnet.
+ */
+export const SHAREPIC_MARKUP_RULES = [
+  'Auszeichnung nur in längeren Textfeldern (Text, Beschreibung, Unterzeile) und sparsam: **fett** für ein bis zwei Schlüsselbegriffe — im Info-Text den ersten Satz —, _kursiv_ für Titel und Zitate, <u>unterstrichen</u> nur auf ausdrücklichen Wunsch.',
+  'Nie in Überschriften, Dreizeilern, Zitaten, Datums- oder Ortsfeldern. Kein anderes Markdown: kein "#", keine Links, keine Tabellen.',
+];
+
+/**
+ * Formatregeln für alle Sharepic-Typen. Zentral wie {@link SHAREPIC_SAFETY_RULES},
+ * weil sonst zehn Prompt-JSONs dieselbe Regel führen müssten. Ohne sie liefert
+ * das Modell Aufzählungen als Markdown (`- Punkt`) oder als Fließtext — beides
+ * kam bisher ohnehin nie durch, weil `sanitizeField` jeden Umbruch schluckte.
+ */
+export const SHAREPIC_FORMAT_RULES = `
+
+FORMAT:
+- Aufzählungen nur, wo sie dem Inhalt entsprechen — Fließtext bleibt Fließtext.
+- Eine Aufzählung schreibst du als eine Zeile je Punkt, jede beginnt mit "• " (nicht "-", "*" oder "1.").
+- Keine Leerzeilen zwischen den Punkten.
+- ${SHAREPIC_MARKUP_RULES.join('\n- ')}`;
+
 export type UnifiedTextResult =
   | {
       success: true;
@@ -249,9 +300,12 @@ export async function generateUnifiedTexts(
   // rules here covers every type from one place. `replaceTemplate` ran only on
   // the user content, so `{{partyName}}` reached the model as a literal
   // placeholder — resolve it here too.
+  // `SHAREPIC_FORMAT_RULES` hing bis hierher NIRGENDS: die Konstante war
+  // definiert und exportiert, aber kein Prompt trug sie — das Modell bekam die
+  // Aufzählungsregel nie zu sehen.
   const systemPrompt = `${replaceTemplate(promptConfig.systemRole ?? '', {
     partyName: body.partyName || 'Bündnis 90/Die Grünen',
-  })}${SHAREPIC_SAFETY_RULES}`;
+  })}${SHAREPIC_SAFETY_RULES}${SHAREPIC_FORMAT_RULES}`;
   const template =
     count === 1
       ? promptConfig.singleItemTemplate || promptConfig.requestTemplate || ''
@@ -331,7 +385,10 @@ export async function generateUnifiedTexts(
             isCover && config.coverMaxLengths ? config.coverMaxLengths : config.maxLengths;
           const processedData: Record<string, string> = {};
           for (const [key, value] of Object.entries(parseResult.data)) {
-            let processed = sanitizeField(value);
+            let processed = sanitizeField(value, {
+              keepListBreaks: config.multilineFields?.includes(key) ?? false,
+              keepMarks: config.markupFields?.includes(key) ?? false,
+            });
             if (limits?.[key]) {
               // Prose body fields must not be chopped mid-sentence.
               processed =
@@ -364,7 +421,10 @@ export async function generateUnifiedTexts(
 
         const processedData: Record<string, string> = {};
         for (const [key, value] of Object.entries(parseResult.data)) {
-          let processed = sanitizeField(value);
+          let processed = sanitizeField(value, {
+            keepListBreaks: config.multilineFields?.includes(key) ?? false,
+            keepMarks: config.markupFields?.includes(key) ?? false,
+          });
           if (config.maxLengths?.[key]) {
             // Prose body fields must not be chopped mid-sentence.
             processed =

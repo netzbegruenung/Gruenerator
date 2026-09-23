@@ -34,14 +34,14 @@ Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennze
 
 - **`@kürzel`** — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. **Nur ein Teil der Fähigkeiten hat so ein Kürzel**, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Vieles erkennt der Grünerator auch ohne Erwähnung zuverlässig an der Formulierung allein. `@wetter` gibt es zusätzlich als Kürzel, sobald der Wetterdienst als Zusatzquelle verbunden ist — genau wie bei Bahn, tagesschau, trivago und Gesetze (siehe unten).
 - **experimentell** — noch jung. Funktioniert, kann sich aber in Bedienung und Ergebnis noch ändern und ist nicht überall verfügbar. Verlass dich für etwas Wichtiges nicht blind darauf.
-- **Werkzeug: …** — diese Fähigkeit lässt sich in eigenen Grüneratoren gezielt an- und abschalten.
+- **Werkzeug: …** — diese Fähigkeit lässt sich in eigenen Agents gezielt an- und abschalten.
 - **Zusatzquelle: …** — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago, Gesetze), der pro Umgebung angebunden wird. Fehlt die Anbindung gerade, bleibt die Frage nicht unbeantwortet: der Grünerator weicht auf die Websuche aus — bei Zugverbindungen dann ohne Live-Daten.
 
 <ChatCapabilities />
 
 ## Wenn etwas nicht geht
 
-**Manches ist nur in der Web-Version möglich.** Reel-Untertitel bearbeiten und Excel-/CSV-Vorlagen ausfüllen brauchen die große Oberfläche; in der App wirst du dorthin weitergeleitet. Sharepics entstehen dagegen auch in der App — du siehst sie direkt im Gespräch, kannst sie teilen und speichern; zum Feinschliff öffnet sich der Editor eingebettet, ohne dass du die App verlässt.
+**Manches ist nur in der Web-Version möglich.** Excel-/CSV-Vorlagen ausfüllen braucht die große Oberfläche; die App öffnet dafür den Web-Editor eingebettet. Reel-Untertitel bearbeitest du dagegen auch direkt in der App. Sharepics entstehen dagegen auch in der App — du siehst sie direkt im Gespräch, kannst sie teilen und speichern; zum Feinschliff öffnet sich der Editor eingebettet, ohne dass du die App verlässt.
 
 **Einige Quellen decken nur Deutschland ab.** Bundestag, Abgeordnetenwatch, Bahn, tagesschau und Gesetze (deutsches Bundesrecht) beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus.
 
@@ -49,7 +49,7 @@ Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennze
 
 **Erfindet der Grünerator nichts?** Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter [Risiken und Gefahren von LLMs](../basics/risiken-und-gefahren-von-llms.md).
 
-**Du nutzt den Grünerator in ChatGPT, Claude oder Le Chat?** Dort steht ein kleinerer Funktionsumfang bereit — was dann möglich ist, steht unter [Was kann ich den MCP-Server fragen?](../integrationen/mcp-was-kann-ich-fragen.mdx).
+**Du nutzt den Grünerator in ChatGPT, Claude oder Le Chat?** Dort steht ein kleinerer Funktionsumfang bereit — was dann möglich ist, steht unter [Was kann ich den Grünerator-MCP-Server fragen?](../sonstiges/mcp-was-kann-ich-fragen.mdx).
 
 :::note[Diese Seite hält sich selbst aktuell]
 Namen, Beschreibungen und Kürzel stammen direkt aus dem Programmcode des Grünerators. Kommt eine neue Fähigkeit dazu, meldet sich die Doku-Prüfung automatisch mit einem Hinweis, bis sie hier mit Musterfragen beschrieben ist — die Liste kann also nicht stillschweigend veralten.

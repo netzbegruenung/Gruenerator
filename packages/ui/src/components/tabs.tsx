@@ -64,7 +64,18 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
         'group-data-[variant=line]/tabs-list:data-[state=active]:shadow-none',
         '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
         'group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent',
-        'data-[state=active]:bg-background data-[state=active]:text-foreground dark:data-[state=active]:border-grey-700 dark:data-[state=active]:bg-grey-800/30 dark:data-[state=active]:text-foreground',
+        // The active state, routed through variables so a caller can restyle
+        // it. Written as `dark:` utilities these defaults quietly won: a
+        // caller's `data-[state=active]:bg-secondary-600` and our
+        // `dark:data-[state=active]:bg-grey-800/30` are different Tailwind
+        // variants, so tailwind-merge keeps both and the `dark:` one takes dark
+        // mode — a passed className restyled the active tab in light mode only.
+        // Through a variable both sides are the same utility, so the caller's
+        // class replaces ours and the then-unused variable does nothing. The
+        // values are exactly what the utilities compiled to before.
+        'data-[state=active]:border-(color:--tabs-active-border) data-[state=active]:bg-(color:--tabs-active-bg) data-[state=active]:text-(color:--tabs-active-fg)',
+        '[--tabs-active-bg:var(--color-background)] [--tabs-active-border:transparent] [--tabs-active-fg:var(--color-foreground)]',
+        'dark:[--tabs-active-bg:color-mix(in_oklab,var(--color-grey-800)_30%,transparent)] dark:[--tabs-active-border:var(--color-grey-700)]',
         'after:absolute after:bg-foreground after:opacity-0 after:transition-opacity',
         'group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:h-0.5',
         'group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:-right-1 group-data-[orientation=vertical]/tabs:after:w-0.5',

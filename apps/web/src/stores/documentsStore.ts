@@ -3,11 +3,11 @@ import {
   type DocumentStatusValue,
   type UploadOnlyResponse,
 } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
-import apiClient from '../components/utils/apiClient';
+import apiClient, { SERVER_TASK_TIMEOUT_MS } from '../components/utils/apiClient';
 
 type DocumentStatus = DocumentStatusValue;
 
@@ -535,7 +535,8 @@ export const useDocumentsStore = create<DocumentsStore>()(
               url: url.trim(),
               title: title.trim(),
               group_id: groupId,
-            }
+            },
+            { timeout: SERVER_TASK_TIMEOUT_MS }
           );
           const result = response.data;
 
@@ -723,7 +724,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
             params: { id: documentId },
           });
           if (res.status !== 200) {
-            throw new Error('Failed to refresh document');
+            throw new ApiError(res.status, 'Failed to refresh document');
           }
           // The contract types the row with honest wire types (string status,
           // nullable filename/created_at/page_count) that are wider than this
@@ -815,10 +816,11 @@ export const useDocumentsStore = create<DocumentsStore>()(
             }, 200);
           }
 
-          const response = await apiClient.post<WolkeImportApiResponse>('/documents/wolke/import', {
-            shareLinkId,
-            files,
-          });
+          const response = await apiClient.post<WolkeImportApiResponse>(
+            '/documents/wolke/import',
+            { shareLinkId, files },
+            { timeout: SERVER_TASK_TIMEOUT_MS }
+          );
           if (progressInterval) clearInterval(progressInterval);
           const result = response.data;
 

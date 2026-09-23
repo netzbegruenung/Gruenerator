@@ -4,6 +4,7 @@ import { MessagePrimitive, useAui, useAuiState, useMessageQuote } from '@assista
 import { Pencil } from 'lucide-react';
 import { useState } from 'react';
 
+import { useReadonlyMode } from '../../context/ReadonlyModeContext';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { UserMessageAttachments } from '../assistant-ui/attachment';
@@ -93,6 +94,7 @@ export function UserMessage() {
   const runtime = useAui().message;
   const density = useChatDensity();
   const isCompact = density === 'compact';
+  const readOnly = useReadonlyMode();
   const [editing, setEditing] = useState(false);
   const custom = message.metadata?.custom as
     { senderId?: string; senderName?: string; roleName?: string } | undefined;
@@ -155,15 +157,17 @@ export function UserMessage() {
               <div className="mt-1 flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
                 <MessageTime className="mr-1" />
                 <MessageBranchPicker />
-                <button
-                  type="button"
-                  onClick={beginEdit}
-                  className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-                  aria-label="Bearbeiten"
-                  title="Bearbeiten"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={beginEdit}
+                    className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+                    aria-label="Bearbeiten"
+                    title="Bearbeiten"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </>
           )}

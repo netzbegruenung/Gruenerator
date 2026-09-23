@@ -21,6 +21,7 @@ import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHea
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
+import { notebookForPrompt } from '../../agents/notebookSourceTools.js';
 import {
   getLoopSynthFallbackModel,
   resolveLoopPlannerLane,
@@ -41,6 +42,8 @@ import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { isToolApprovalEnabled } from './approvalPolicy.js';
+import { buildPreLoopEditNotes } from './artifactNotes.js';
+import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
 import { ATTACHED_DOCS_TOOL, retrievableAttachedSources } from './attachedDocuments.js';
 import {
   assembleToolCatalog,
@@ -81,7 +84,7 @@ import { loadAllowlist } from './toolApprovalRepo.js';
 import { createToolCostLedger } from './toolCostLedger.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
 import { logTurnSummary } from './turnSummary.js';
-import { type PendingToolCall, type PersistedStep } from './types.js';
+import { type PendingAskRequest, type PendingToolCall, type PersistedStep } from './types.js';
 import { composeToolHooks } from './wrapTools.js';
 
 import type {
@@ -130,6 +133,17 @@ export interface AgenticResponseOutcome {
   modelName: string;
   /** Gesetzt ⇒ der Zug pausiert und wartet auf eine Werkzeug-Freigabe. */
   pendingApproval?: PendingToolCall[];
+  /** Gesetzt ⇒ der Zug pausiert und wartet auf die Antwort einer Rückfrage
+   *  (`ask_human`). Gewinnt gegen `pendingApproval`, wenn beide anstehen. */
+  pendingAsk?: PendingAskRequest;
+  /**
+   * Wie der Nie-Werfen-Vertrag diesen Zug aufgelöst hat. Fehlt ⇒ echte
+   * Antwort. Der Request-Pfad ignoriert das Feld (der Text IST dort die
+   * ehrliche Auskunft an die Person); ein headless Aufrufer (#3221) braucht
+   * es, weil er sonst den Entschuldigungs- bzw. „keine Antwort"-Text als
+   * fertiges Ergebnis ablegen würde.
+   */
+  degraded?: 'no_answer' | 'aborted' | 'failed';
 }
 
 /**
@@ -155,6 +169,13 @@ export async function streamAgenticResponse(
      *  Null (absent, or the shared read failed) falls back to reading here, which
      *  keeps each failure as narrow as it was before. */
     toolHistory?: ThreadToolHistory | null;
+    /** Headless-Läufe (#3221): weder Nutzer-MCP noch verwaltete Connectoren
+     *  montieren. Ohne die kann das Freigabe-Gate strukturell nicht feuern —
+     *  und ein Hintergrundlauf hat niemanden, den er fragen könnte. */
+    disableMcp?: boolean;
+    /** Suchfamilie auf die Picker-Auswahl eines gebundenen Agenten beschränken
+     *  (siehe `buildChatToolCatalog.searchToolKeys`). */
+    searchToolKeys?: readonly string[];
     /** Fortsetzung nach einer Freigabe: `scopeKey` → wie oft er das Gate noch
      *  passieren darf. Genau die Einmal-Freigaben dieser Entscheidung. */
     grantedOnce?: ReadonlyMap<string, number>;
@@ -178,6 +199,8 @@ export async function streamAgenticResponse(
     req,
     threadId,
     toolHistory,
+    disableMcp,
+    searchToolKeys,
     grantedOnce,
     resumeApproval,
   } = params;
@@ -211,6 +234,11 @@ export async function streamAgenticResponse(
   let answerReplaced: AnswerReplacement | null = null;
   // Außerhalb des try, weil der Abbruchpfad die zurückgehaltenen Aufrufe liest.
   let approvalGate: ToolApprovalGate | null = null;
+  // Wie der Nie-Werfen-Vertrag den Zug auflöste — an genau den Stellen gesetzt,
+  // die Ersatztext produzieren. Siehe AgenticResponseOutcome.degraded.
+  let degraded: AgenticResponseOutcome['degraded'] | null = null;
+  // Wie das Freigabe-Gate: der Abbruchpfad und der Rückgabewert lesen es.
+  let askGate: AskHumanGate | null = null;
 
   // Computed BEFORE the model is resolved: the same number decides the lane
   // (precise + reasoning on) and, further down, whether the writer gives up the
@@ -251,6 +279,8 @@ export async function streamAgenticResponse(
       sourceRegistry,
       sse,
       ...(req && { req }),
+      ...(disableMcp ? { disableMcp } : {}),
+      ...(searchToolKeys?.length ? { searchToolKeys } : {}),
       threadId: threadId ?? null,
     });
     const { tools, recipeCatalog, recipeRegistry, toolLabels } = assembled;
@@ -309,7 +339,9 @@ export async function streamAgenticResponse(
     const toolActivity = createToolActivity();
     // Einmal pro Zug gelesen; ein Ausfall liefert die leere Menge, also „fragen".
     const approvalUserId = agentConfig.userId ?? null;
-    const approvalEnabled = isToolApprovalEnabled() && approvalUserId != null;
+    // `disableMcp` (headless): ohne Connectoren kann das Gate nicht feuern —
+    // der Allowlist-Read wäre bei jedem Hintergrundlauf reine Kosten.
+    const approvalEnabled = !disableMcp && isToolApprovalEnabled() && approvalUserId != null;
     approvalGate = createToolApprovalGate({
       enabled: approvalEnabled,
       allowlist: approvalEnabled
@@ -323,6 +355,7 @@ export async function streamAgenticResponse(
       serverNameFor: (name) => toolLabels.get(name)?.serverName,
       ...(grantedOnce ? { grantedOnce } : {}),
     });
+    askGate = createAskHumanGate();
     // Zwei Beobachter am selben Haken: die Kostenrechnung zählt JEDEN Aufruf,
     // die Rerank-Warnung feuert höchstens einmal je Turn. `composeToolHooks`
     // isoliert dabei jeden Beobachter einzeln — ein werfender Kostenzähler
@@ -337,6 +370,7 @@ export async function streamAgenticResponse(
       toolActivity,
       toolLabels,
       approvalGate,
+      askGate,
       // Reads `mode` lazily: it's finalized further down, before the loop runs.
       getTextOffset: () => (mode === 'unified' ? emitter.text.length : null),
       takeNarration: () => emitter.takeNarration(),
@@ -426,13 +460,24 @@ export async function streamAgenticResponse(
     // Same predicate the catalog used to decide what to mount — read once here
     // so prompt and toolset can never disagree about whether searching is on.
     const researchBanned = forbidsNewResearch(finalState.lastUserTextNoMentions ?? lastUserText);
+    // Editor sidebar, artefact open — toggle off, or toggle on but no edit
+    // path this turn. Split mode gets both via `buildArtifactNotes` in the
+    // synth prompt; unified mode has no synth prompt, so they have to arrive
+    // here or the model promises an edit that nothing will make (or hides
+    // that editing is off).
+    const preLoopEditNotes = mode === 'unified' ? buildPreLoopEditNotes(finalState) : '';
+    // Das gewählte Notebook, sonst das, mit dem der Thread zuletzt gearbeitet hat.
+    const promptNotebook = notebookForPrompt(
+      finalState.notebookIds?.[0] ?? finalState.threadNotebookId,
+      finalState.userLocale ?? null
+    );
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified', Object.keys(wrapped), sourceRegistry.carriedSize > 0)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${renderRecipeCatalog(recipeCatalog)}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified', Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${renderRecipeCatalog(recipeCatalog)}`
     );
     const { abortSignal, writeAbortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,
       reqSignal,
-      approvalGate.signal
+      AbortSignal.any([approvalGate.signal, askGate.signal])
     );
 
     // Der Zustand, den die frühere Closure einfach SAH, steht jetzt als
@@ -678,7 +723,7 @@ export async function streamAgenticResponse(
       // tool card already carries.
       onNarration: (s) => emitter.handleNarration(s),
       validateAnswer: createAnswerValidator(),
-      suspended: () => approvalGate?.hasPending() ?? false,
+      suspended: () => (approvalGate?.hasPending() ?? false) || (askGate?.hasPending() ?? false),
     });
     emitter.flush();
     answerReplaced = loopResult.replacement ?? null;
@@ -707,11 +752,23 @@ export async function streamAgenticResponse(
       // Replacement text invalidates offsets recorded against the streamed
       // (whitespace-only) text — drop them so reload keeps cards-first.
       for (const s of steps) delete s.textOffset;
-      emitter.replaceAndStream(
-        finalState.editorEditsSummary
-          ? `Erledigt — ${finalState.editorEditsSummary}.`
-          : 'Ich konnte dazu leider keine passende Antwort finden. Magst du deine Frage anders formulieren?'
-      );
+      if (finalState.editorEditsSummary) {
+        // The doc surface DISPATCHES its edit (editorTools, strategy
+        // 'dispatch'): BlockNote turns it into suggestion marks the person
+        // still has to accept. "Erledigt" would be the one claim the server
+        // cannot make — nothing acknowledges the apply, and the change is not
+        // in the document until someone says so.
+        emitter.replaceAndStream(
+          finalState.editToolSurface === 'doc'
+            ? `${finalState.editorEditsSummary} — die Änderung erscheint als Vorschlag im Dokument, den du annehmen oder verwerfen kannst.`
+            : `Erledigt — ${finalState.editorEditsSummary}.`
+        );
+      } else {
+        degraded = 'no_answer';
+        emitter.replaceAndStream(
+          'Ich konnte dazu leider keine passende Antwort finden. Magst du deine Frage anders formulieren?'
+        );
+      }
     }
   } catch (err) {
     // Anything the dedupe still holds is real answer text — release it before
@@ -722,11 +779,20 @@ export async function streamAgenticResponse(
       err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError');
     // Eine Pause ist kein Abbruch: weder Entschuldigungstext noch „abgebrochen"-
     // Zusatz. Der Teiltext bleibt, wie er ist, und wird unten mitgegeben.
-    if (err instanceof TurnSuspendedError || approvalGate?.hasPending()) {
-      log.info(`[Agentic] Zug pausiert — ${approvalGate?.pending().length ?? 0} Freigabe(n) offen`);
+    if (err instanceof TurnSuspendedError || approvalGate?.hasPending() || askGate?.hasPending()) {
+      log.info(
+        askGate?.hasPending()
+          ? '[Agentic] Zug pausiert — Rückfrage an die Nutzer*in offen'
+          : `[Agentic] Zug pausiert — ${approvalGate?.pending().length ?? 0} Freigabe(n) offen`
+      );
     } else {
       log.warn(`[Agentic] loop ${aborted ? 'stopped (budget/abort)' : 'failed'}: ${msg}`);
       const outcome = resolveAbortOutcome({ text: emitter.text, aborted });
+      // NUR wenn der Ausgang die Antwort wirklich ersetzt/markiert: ein
+      // genuiner Fehler NACH fertig gestreamter Antwort (outcome == null,
+      // z. B. ein werfender Artefakt-Hook) lässt eine vollständige, richtige
+      // Antwort stehen — ein headless Aufrufer würde sie sonst wegwerfen.
+      if (outcome != null) degraded = aborted ? 'aborted' : 'failed';
       if (outcome?.mode === 'replace') {
         for (const s of steps) delete s.textOffset;
         emitter.replaceAndStream(outcome.delta);
@@ -745,6 +811,23 @@ export async function streamAgenticResponse(
   // Vor jeder Nachbearbeitung: ein pausierter Zug hat keine fertige Antwort, an
   // der eine Zitat-Klammer, eine PDF-Notiz oder der „keine Antwort"-Rückfall
   // etwas zu korrigieren hätten. Die Teilantwort geht unverändert weiter.
+  //
+  // Die Rückfrage GEWINNT gegen die Freigabe, wenn Geschwister-Aufrufe beide
+  // Gates im selben Step getroffen haben: die Antwort auf die Frage entscheidet
+  // erst, ob der zurückgehaltene Aufruf überhaupt gewollt ist — die Fortsetzung
+  // versucht ihn erneut, und DANN hält ihn das Freigabe-Gate.
+  const pendingAsk = askGate?.pending() ?? null;
+  if (pendingAsk) {
+    costLedger.log();
+    return {
+      fullText: emitter.text,
+      steps,
+      citations: sourceRegistry.getCitations(),
+      sources: sourceRegistry.getResults(MAX_SOURCES),
+      modelName: resolution?.modelName ?? agentConfig.model,
+      pendingAsk,
+    };
+  }
   if (approvalGate?.hasPending()) {
     costLedger.log();
     return {
@@ -831,6 +914,7 @@ export async function streamAgenticResponse(
     // threw away half the research of a thorough turn.
     sources: sourceRegistry.getResults(MAX_SOURCES),
     modelName: resolution?.modelName ?? agentConfig.model,
+    ...(degraded != null ? { degraded } : {}),
   };
 }
 

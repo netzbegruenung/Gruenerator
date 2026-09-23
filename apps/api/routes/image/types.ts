@@ -6,10 +6,6 @@ import { type Request } from 'express';
 
 import { type UserProfile } from '../../services/user/types.js';
 
-import type {
-  ImageGenerationStatus,
-  ImageGenerationResult,
-} from '../../services/counters/types.js';
 import type { ImageCatalogEntry } from '../../services/image/types.js';
 import type { ParamsDictionary } from 'express-serve-static-core';
 
@@ -22,40 +18,6 @@ import type { ParamsDictionary } from 'express-serve-static-core';
  */
 export interface AuthenticatedRequest<P = ParamsDictionary> extends Request<P> {
   user?: UserProfile | undefined;
-}
-
-// ============================================================================
-// Image Generation Types
-// ============================================================================
-
-/**
- * Response for generation status endpoint
- */
-export interface GenerationStatusResponse {
-  success: boolean;
-  data?: ImageGenerationStatus & {
-    timeUntilReset: string;
-    userId: string;
-  };
-  error?: string | undefined;
-}
-
-/**
- * Response for increment endpoint
- */
-export interface GenerationIncrementResponse {
-  success: boolean;
-  data?: ImageGenerationResult | undefined;
-  error?: string | undefined;
-}
-
-/**
- * Response for reset endpoint
- */
-export interface GenerationResetResponse {
-  success: boolean;
-  message?: string | undefined;
-  error?: string | undefined;
 }
 
 // ============================================================================

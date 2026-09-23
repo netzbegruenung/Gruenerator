@@ -41,7 +41,7 @@ export function getFallbackModelForProvider(provider: ProviderName): ModelName {
  * Sharepic-specific fallback chain: Mistral (Magistral) → Cortecs → Regolo.
  * LiteLLM stand hier bis zum 29.08.2026 — siehe services/ai/litellmRetired.ts.
  */
-export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'cortecs', 'regolo'];
+export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'cortecs', 'melious'];
 
 /**
  * The error thrown once every provider in a chain has failed.
@@ -79,7 +79,7 @@ export async function tryFallbackProviders(
   execForProvider: ProviderExecutor,
   requestId: string,
   data: FallbackProviderData,
-  chain: ProviderName[] = ['cortecs', 'regolo', 'mistral']
+  chain: ProviderName[] = ['cortecs', 'melious', 'mistral']
 ): Promise<ExecutionResponse> {
   let lastError: Error | undefined;
   const attemptedProviders: ProviderName[] = [];

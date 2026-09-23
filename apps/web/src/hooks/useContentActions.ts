@@ -3,12 +3,12 @@ import {
   type ExportToDocsResponse,
   type TodoListResponse,
 } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import apiClient from '../components/utils/apiClient';
+import apiClient, { SERVER_TASK_TIMEOUT_MS } from '../components/utils/apiClient';
 import { extractHTMLContent } from '../components/utils/contentExtractor';
 
 interface UseContentActionsOptions {
@@ -85,10 +85,11 @@ export function useContentActions({
     try {
       const content = getContent();
       const title = getTitle();
-      const res = await apiClient.post<TodoListResponse>('/voice/todo-list', {
-        text: content,
-        title,
-      });
+      const res = await apiClient.post<TodoListResponse>(
+        '/voice/todo-list',
+        { text: content, title },
+        { timeout: SERVER_TASK_TIMEOUT_MS }
+      );
       const html = res.data?.content ?? '';
       const docRes = await apiClient.post<ExportToDocsResponse>('/docs/from-export', {
         content: html,
@@ -127,7 +128,8 @@ export function useContentActions({
         },
       });
       // A non-201 used to fall through as a no-op, which reads as a dead button.
-      if (result.status !== 201) throw new Error('Board konnte nicht erstellt werden');
+      if (result.status !== 201)
+        throw new ApiError(result.status, 'Board konnte nicht erstellt werden');
       void navigate(`/boards/${result.body.board.id}`, {
         state: { generatedStructure: result.body.generatedStructure },
       });

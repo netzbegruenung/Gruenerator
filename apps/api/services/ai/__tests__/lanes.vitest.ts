@@ -99,16 +99,16 @@ describe('laneFallback', () => {
   it('leaves the creation families the second Gemma host, then Mistral', () => {
     // Finished texts run on Gemma 4, structured creation on Mistral.
     //
-    // `regolo` steht seit dem 25.08.2026 MIT in der Kette der Textlanes, und
+    // `melious` steht seit dem 14.09.2026 MIT in der Kette der Textlanes, und
     // das ist ein Gewinn, kein Nebeneffekt: der Gemma-Primär liegt jetzt auf
-    // Cortecs (services/ai/gemmaHosts.ts), also filtert `laneFallback` Regolo
-    // nicht mehr als eigenen Primär heraus — und Regolo ist der ZWEITE Host
-    // derselben Gewichte.
+    // Cortecs (services/ai/gemmaHosts.ts), also filtert `laneFallback` Melious
+    // nicht mehr als eigenen Primär heraus — und Melious ist der ZWEITE Host
+    // derselben Gewichte (GEMMA_31B_ALTERNATE, vormals Regolo).
     //
     // Cortecs steht seit dem 28.08.2026 in der Kette, taucht hier aber NICHT
     // auf: es ist der Primär dieser Lanes, und `laneFallback` filtert den.
-    expect(laneFallback('antrag')).toEqual(['regolo', 'mistral']);
-    expect(laneFallback('social')).toEqual(['regolo', 'mistral']);
+    expect(laneFallback('antrag')).toEqual(['melious', 'mistral']);
+    expect(laneFallback('social')).toEqual(['melious', 'mistral']);
   });
 
   it('gives the GreenPT artefact lane a host of its own model family', () => {
@@ -116,7 +116,7 @@ describe('laneFallback', () => {
     // steht — also bleiben alle übrig. Cortecs vorn ist hier der Punkt: bis
     // zum 28.08.2026 enthielt die Ausweichkette dieser Lane keinen einzigen
     // Host desselben Gemma 4, auf dem ihr Primär läuft.
-    expect(laneFallback('doc_generation')).toEqual(['cortecs', 'regolo', 'mistral']);
+    expect(laneFallback('doc_generation')).toEqual(['cortecs', 'melious', 'mistral']);
   });
 
   /**

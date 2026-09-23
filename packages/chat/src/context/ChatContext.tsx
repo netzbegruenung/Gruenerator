@@ -6,7 +6,12 @@
  * use the config store's current values for backwards compatibility.
  */
 
-import { ApiError, UnauthorizedError } from '@gruenerator/shared/api';
+import {
+  ApiError,
+  UnauthorizedError,
+  unauthorizedInfoFromResponse,
+  type UnauthorizedInfo,
+} from '@gruenerator/shared/api';
 
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
@@ -19,7 +24,7 @@ export interface ChatApiClient {
 
 export function createChatApiClient(
   fetchFn: (url: string, options?: RequestInit) => Promise<Response>,
-  onUnauthorized: () => void | boolean | Promise<boolean | void>
+  onUnauthorized: (info?: UnauthorizedInfo) => void | boolean | Promise<boolean | void>
 ): ChatApiClient {
   async function request<T>(
     endpoint: string,
@@ -39,7 +44,11 @@ export function createChatApiClient(
       // Otherwise throw a typed error (message stays 'Unauthorized' for the
       // chat runtime's unhandled-rejection suppressor) so callers can tell an
       // auth failure apart from an offline/network error.
-      const shouldRetry = await onUnauthorized();
+      // The body carries `code`/`requestId`; read it before handing the 401 on,
+      // or the teardown this triggers reports `auth.401code: unknown`.
+      const shouldRetry = await onUnauthorized(
+        await unauthorizedInfoFromResponse(response, endpoint)
+      );
       if (shouldRetry && !retried) {
         return request<T>(endpoint, options, true);
       }

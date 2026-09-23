@@ -50,9 +50,9 @@ describe('formatEnergy', () => {
 
 describe('carComparison', () => {
   it('switches unit on the rounded value', () => {
-    // 1500 g / 150 g per km = 10 km exactly.
-    expect(carComparison(1500)).toBe('10 km Autofahrt');
-    expect(carComparison(150)).toBe('1.000 m Autofahrt');
+    // 164 g = 1 person-kilometre in the UBA TREMOD 2024 reference.
+    expect(carComparison(1640)).toBe('10 km Pkw-Fahrt');
+    expect(carComparison(164)).toBe('1.000 m Pkw-Fahrt');
   });
 });
 

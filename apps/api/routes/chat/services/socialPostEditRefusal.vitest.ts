@@ -30,6 +30,7 @@ vi.mock('../../../services/ai/execution/index.js', () => ({
 
 const { handleSocialPostTextEdit, SOCIAL_EDIT_REFUSAL_TEXT } =
   await import('./socialPostEditService.js');
+const { CONTENT_INTEGRITY_POST_EDIT_RULES } = await import('../../../services/contentPolicy.js');
 
 const ORIGINAL_TEXT = 'Klimaschutz heißt bezahlbar wohnen. #Klimaschutz';
 
@@ -138,6 +139,30 @@ describe('handleSocialPostTextEdit — model declines', () => {
     await runEdit('Dabei kann ich dir leider nicht helfen.', sse);
 
     expect(updates).toEqual([]);
+  });
+
+  it('reads the ABLEHNUNG marker the prompt asks for', async () => {
+    // A decline in a verb the prose detector does not know — the marker is
+    // what keeps it out of the version history.
+    const { updates } = wirePostgres();
+    const { sse, events } = makeSse();
+
+    await runEdit('ABLEHNUNG: Das wäre ein erfundenes Zitat über eine reale Person.', sse);
+
+    expect(updates).toEqual([]);
+    const delta = events.find((e) => e.type === 'text_delta')?.payload as { text: string };
+    expect(delta.text).toBe(SOCIAL_EDIT_REFUSAL_TEXT);
+  });
+
+  it('puts the content rules into the edit prompt', async () => {
+    wirePostgres();
+    const { sse } = makeSse();
+
+    await runEdit('Wohnen muss bezahlbar bleiben! #Klimaschutz', sse);
+
+    expect(JSON.stringify(executeProvider.mock.calls[0])).toContain(
+      JSON.stringify(CONTENT_INTEGRITY_POST_EDIT_RULES).slice(1, -1)
+    );
   });
 
   it('still applies a legitimate edit', async () => {

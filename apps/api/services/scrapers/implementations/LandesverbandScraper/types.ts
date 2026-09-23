@@ -3,6 +3,9 @@
  * All interfaces and types used by the scraper modules
  */
 
+/** How much of a PDF date was actually found; `year` means the -06-15 is invented. */
+export type DatePrecision = 'day' | 'month' | 'year';
+
 /**
  * Date extraction result with age validation
  */
@@ -13,6 +16,7 @@ export interface DateExtractionResult {
   dateString: string | null;
   /** Whether date is older than threshold (10 years) */
   isTooOld: boolean | null;
+  precision: DatePrecision | null;
 }
 
 /**
@@ -41,6 +45,12 @@ export interface ExtractedContent {
   text: string;
   /** Category tags */
   categories: string[];
+  /**
+   * Whether no configured content selector had usable text and extraction fell
+   * back to `main`/`body` — a signal that the stored text may carry page chrome
+   * (nav, sidebar, footer) instead of the article (#3574).
+   */
+  bodyFallback: boolean;
 }
 
 /**
@@ -57,6 +67,13 @@ export interface ProcessResult {
   vectors?: number | undefined;
   /** Whether this was an update of existing document */
   updated?: boolean | undefined;
+  /**
+   * Data-quality defect classes this document shows, each counted once
+   * (`{title_fallback: 1, ...}`). Set only when `stored` is true — an
+   * unchanged/skipped document was never re-evaluated, so it has no fresh
+   * verdict to report. See `qualityFlagsFor` for the classes.
+   */
+  qualityFlags?: Record<string, number> | undefined;
 }
 
 /**
@@ -93,6 +110,11 @@ export interface ContentPathResult {
   totalVectors: number;
   /** Skip reasons with counts */
   skipReasons: Record<string, number>;
+  /**
+   * Data-quality defect classes among stored/updated documents, summed like
+   * `skipReasons` (see `resultSamples.mergeQualityFlags`).
+   */
+  qualityFlags: Record<string, number>;
   /** Metadata of newly stored articles (for notifications) */
   newArticles: NewArticle[];
 }
@@ -131,6 +153,10 @@ export interface SourceResult {
   deadLinkMessages: string[];
   /** Total vectors created */
   totalVectors: number;
+  /** Why documents were skipped, summed over all content paths (see ContentPathResult.skipReasons). */
+  skipReasons: Record<string, number>;
+  /** Summed over all content paths. See ContentPathResult.qualityFlags. */
+  qualityFlags: Record<string, number>;
   /** Results by content type */
   contentTypes: Record<string, ContentPathResult>;
   /** Metadata of newly stored articles (for notifications) */
@@ -183,6 +209,10 @@ export interface LandesverbandFullResult {
   deadLinkMessages: string[];
   /** Total vectors created */
   totalVectors: number;
+  /** Why documents were skipped, summed over all sources. */
+  skipReasons: Record<string, number>;
+  /** Summed over all sources. See ContentPathResult.qualityFlags. */
+  qualityFlags: Record<string, number>;
   /** Results by source ID */
   bySource: Record<string, SourceResult>;
   /** Duration in seconds */
