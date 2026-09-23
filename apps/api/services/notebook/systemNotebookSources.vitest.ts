@@ -199,6 +199,29 @@ describe('readSystemSourceText', () => {
     expect(out.chunkMap[1]).toEqual({ index: 1, charStart: 21, charEnd: 44, pageNumber: 2 });
   });
 
+  it('prefers the paged chunks over a fallback text capped at 500 chunks', async () => {
+    const url = 'https://gruene.de/lang';
+    const texts = Array.from({ length: 600 }, (_, i) => `Absatz ${i}.`);
+    const { deps, getSystemDocumentFullTextByUrl } = makeSystemDeps(
+      fakeDoc('grundsatz_documents', url, texts, { title: 'Lang' })
+    );
+    // Schritt 2 von getSystemDocumentFullTextByUrl: ein Scroll, limit 500, nicht geblättert.
+    getSystemDocumentFullTextByUrl.mockResolvedValueOnce({
+      success: true,
+      fullText: texts.slice(0, 500).join('\n\n'),
+      chunkCount: 500,
+      title: 'Lang',
+    });
+    const out = await readSystemSourceText(
+      { collection: resolved('deutschland'), sourceUrl: url },
+      deps
+    );
+    if ('error' in out) throw new Error(out.error);
+    expect(out.origin).toBe('chunks');
+    expect(out.text).toBe(texts.join('\n\n'));
+    expect(out.chunkMap).toHaveLength(600);
+  });
+
   it('refuses a URL from another collection before reading its chunks', async () => {
     const { deps, getDocumentChunks, getSystemDocumentFullTextByUrl } = makeSystemDeps(lvPoints());
     // Berlin liegt in derselben Qdrant-Sammlung — nur der Standardfilter trennt.
