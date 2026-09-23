@@ -613,6 +613,7 @@ export class LandesverbandScraper extends BaseScraper {
       // Wolke branches above keep their own fetch paths and never delete.
       const listingPaths = source.contentPaths.map((cp) => cp.path);
       const goneDeletes: string[] = [];
+      let fetched = 0;
       const tasks = toProcess.map((url) => async (): Promise<void> => {
         const n = ++processed;
         let stored: Record<string, unknown> | null = null;
@@ -648,6 +649,7 @@ export class LandesverbandScraper extends BaseScraper {
           }
 
           let finalUrl = null as string | null;
+          fetched++;
           const content = await ContentExtractor.extractPageContent(url, source, async (u) => {
             const response = await this.#fetchUrl(u);
             finalUrl = response.url || null;
@@ -756,13 +758,7 @@ export class LandesverbandScraper extends BaseScraper {
         }
       });
       await parallelLimit(tasks, ARTICLE_CONCURRENCY);
-      await this.#deleteGonePages(
-        source.id,
-        goneDeletes,
-        toProcess.length,
-        targetCollection,
-        result
-      );
+      await this.#deleteGonePages(source.id, goneDeletes, fetched, targetCollection, result);
     }
 
     return result;
@@ -1276,14 +1272,14 @@ export class LandesverbandScraper extends BaseScraper {
   async #deleteGonePages(
     sourceId: string,
     urls: string[],
-    processed: number,
+    fetched: number,
     collection: string,
     result: ContentPathResult
   ): Promise<void> {
     if (urls.length === 0) return;
-    if (!allowGoneDeletes(urls.length, processed)) {
+    if (!allowGoneDeletes({ deletes: urls.length, fetched })) {
       console.warn(
-        `[Landesverband] ⚠ ${sourceId}: ${urls.length} of ${processed} pages confirmed gone — above the delete cap, deferred`
+        `[Landesverband] ⚠ ${sourceId}: ${urls.length} of ${fetched} fetched pages confirmed gone — above the delete cap, deferred`
       );
       result.skipReasons['gone_delete_deferred'] =
         (result.skipReasons['gone_delete_deferred'] || 0) + urls.length;
