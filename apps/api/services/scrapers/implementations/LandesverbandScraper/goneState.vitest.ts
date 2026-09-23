@@ -1,0 +1,143 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  GONE_CONFIRM_AFTER_MS,
+  GONE_MARK_MAX_AGE_MS,
+  allowGoneDeletes,
+  classifyFetch,
+  goneVerdict,
+} from './goneState.js';
+
+const PAGE = 'https://gruene-sachsen-anhalt.de/pressemitteilungen/landesregierung-beim-hitzeschutz';
+const LISTING = ['/pressemitteilungen/'];
+const HOUR = 60 * 60 * 1000;
+const now = Date.UTC(2026, 8, 23, 12);
+const iso = (ms: number) => new Date(ms).toISOString();
+
+const redirectTo = (finalUrl: string) =>
+  classifyFetch({ requestedUrl: PAGE, status: 200, finalUrl, listingPaths: LISTING });
+
+describe('classifyFetch', () => {
+  it('404 und 410 sind weg', () => {
+    for (const status of [404, 410]) {
+      expect(
+        classifyFetch({ requestedUrl: PAGE, status, finalUrl: null, listingPaths: LISTING })
+      ).toBe('gone');
+    }
+  });
+
+  it('5xx, 403 und Netzfehler sind vorübergehend, nie weg', () => {
+    for (const status of [500, 503, 403, 401, null]) {
+      expect(
+        classifyFetch({ requestedUrl: PAGE, status, finalUrl: null, listingPaths: LISTING })
+      ).toBe('transient');
+    }
+  });
+
+  it('200 ohne Weiterleitung ist live', () => {
+    expect(redirectTo(PAGE)).toBe('live');
+    expect(
+      classifyFetch({ requestedUrl: PAGE, status: 200, finalUrl: null, listingPaths: LISTING })
+    ).toBe('live');
+  });
+
+  it('Weiterleitung auf einen anderen Pfad desselben Hosts ist umgezogen', () => {
+    expect(
+      redirectTo('https://gruene-sachsen-anhalt.de/pressemitteilungen/hitzeschutz-im-blindflug')
+    ).toBe('moved');
+  });
+
+  it('nur Schrägstrich, Query oder www/https geändert ist keine Weiterleitung', () => {
+    expect(redirectTo(`${PAGE}/`)).toBe('live');
+    expect(redirectTo(`${PAGE}?L=0`)).toBe('live');
+    expect(redirectTo(PAGE.replace('https://', 'https://www.'))).toBe('live');
+    expect(
+      classifyFetch({
+        requestedUrl: PAGE.replace('https://', 'http://'),
+        status: 200,
+        finalUrl: PAGE,
+        listingPaths: LISTING,
+      })
+    ).toBe('live');
+  });
+
+  it('Weiterleitung auf die Startseite oder die Listing-Seite ist weg', () => {
+    expect(redirectTo('https://gruene-sachsen-anhalt.de/')).toBe('gone');
+    expect(redirectTo('https://gruene-sachsen-anhalt.de')).toBe('gone');
+    expect(redirectTo('https://gruene-sachsen-anhalt.de/pressemitteilungen')).toBe('gone');
+  });
+
+  it('Weiterleitung auf einen anderen Host ist weg', () => {
+    expect(redirectTo('https://gruene.de/pressemitteilungen/hitzeschutz-im-blindflug')).toBe(
+      'gone'
+    );
+  });
+});
+
+describe('goneVerdict', () => {
+  const stored = (mark: string | null) => (mark ? { lv_gone_since: mark } : { title: 'x' });
+
+  it('markiert beim ersten Sichten', () => {
+    expect(goneVerdict('gone', stored(null), now)).toBe('mark');
+    expect(goneVerdict('moved', stored(null), now)).toBe('mark');
+  });
+
+  it('wartet, solange die Marke jünger als 24 h ist', () => {
+    expect(goneVerdict('gone', stored(iso(now - 2 * HOUR)), now)).toBe('none');
+    expect(goneVerdict('gone', stored(iso(now - GONE_CONFIRM_AFTER_MS + 1)), now)).toBe('none');
+  });
+
+  it('löscht beim zweiten Sichten nach mindestens 24 h', () => {
+    expect(goneVerdict('gone', stored(iso(now - GONE_CONFIRM_AFTER_MS)), now)).toBe('delete');
+    expect(goneVerdict('moved', stored(iso(now - 3 * 24 * HOUR)), now)).toBe('delete');
+  });
+
+  it('räumt die Marke, wenn die Seite wieder antwortet', () => {
+    expect(goneVerdict('live', stored(iso(now - 2 * HOUR)), now)).toBe('clear');
+    expect(goneVerdict('live', stored(null), now)).toBe('none');
+  });
+
+  it('lässt bei vorübergehenden Fehlern alles, wie es ist', () => {
+    expect(goneVerdict('transient', stored(null), now)).toBe('none');
+    expect(goneVerdict('transient', stored(iso(now - 5 * 24 * HOUR)), now)).toBe('none');
+  });
+
+  it('tut nichts ohne gespeicherte Punkte', () => {
+    expect(goneVerdict('gone', null, now)).toBe('none');
+  });
+
+  it('behandelt eine unlesbare Marke wie keine Marke — markiert neu statt zu löschen', () => {
+    expect(goneVerdict('gone', stored('kaputt'), now)).toBe('mark');
+  });
+});
+
+describe('goneVerdict — Bestätigungsfenster', () => {
+  it('markiert neu statt zu löschen, wenn die Marke älter als 14 Tage ist', () => {
+    const old = { lv_gone_since: iso(now - GONE_MARK_MAX_AGE_MS - HOUR) };
+    expect(goneVerdict('gone', old, now)).toBe('mark');
+    expect(goneVerdict('gone', { lv_gone_since: iso(now - GONE_MARK_MAX_AGE_MS) }, now)).toBe(
+      'delete'
+    );
+  });
+});
+
+describe('allowGoneDeletes — Schutzschalter', () => {
+  it('erlaubt bis zu fünf Löschungen auch bei kleinen Läufen', () => {
+    expect(allowGoneDeletes({ deletes: 5, fetched: 3 })).toBe(true);
+    expect(allowGoneDeletes({ deletes: 6, fetched: 10 })).toBe(false);
+  });
+
+  it('erlaubt bis zu 20 % der abgerufenen URLs', () => {
+    expect(allowGoneDeletes({ deletes: 20, fetched: 100 })).toBe(true);
+    expect(allowGoneDeletes({ deletes: 21, fetched: 100 })).toBe(false);
+  });
+
+  it('misst gegen die abgerufenen Seiten, nicht gegen das Listing', () => {
+    // Listing 500, davon 60 wirklich abgerufen (Rest vom Frische-Gatter übersprungen), alle 60 weg.
+    expect(allowGoneDeletes({ deletes: 60, fetched: 60 })).toBe(false);
+  });
+
+  it('hält eine Quelle auf, die jede Seite mit 404 beantwortet', () => {
+    expect(allowGoneDeletes({ deletes: 400, fetched: 400 })).toBe(false);
+  });
+});
