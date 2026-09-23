@@ -52,7 +52,7 @@ export interface ContentPath {
     maxPages?: number;
     boundByAge?: boolean;
   }; // Optional: discover articles via WordPress REST API (/wp-json/wp/v2/posts?categories=…). Bypasses HTML-listing pagination entirely; required for WP sites with root-permalink structure where /category/X/ is a virtual index. Pass `categoryIds` to union several categories in one query (comma-separated = WP OR) instead of one source per category. Pass `excludeCategoryIds` for `categories_exclude` (WP AND NOT) to drop posts that also carry a non-article category (e.g. event notices). Set `boundByAge` to add an `after=<now - maxAgeYears>` filter on full runs, so discovery skips out-of-window posts server-side instead of fetching (and 404-ing on) years of ancient archive entries that the store-stage age filter would drop anyway.
-  wolkeShare?: { shareLink: string; recursive?: boolean }; // Optional: pull documents from a public Nextcloud "Wolke" share (wolke.netzbegruenung.de/s/<token>) via WebDAV instead of HTML/WP discovery. Files are etag-deduped, so an unchanged file is skipped before download+OCR. Reusable by any source; see services/scrapers/utils/wolkeShareHandler.ts.
+  wolkeShare?: { shareKey: string; recursive?: boolean }; // Optional: pull documents from a public Nextcloud "Wolke" share via WebDAV instead of HTML/WP discovery. The share link is a credential and never lives in this public repo: `shareKey` names its entry in <INTERN_CONTENT_DIR>/wolke-shares.json (see utils/wolkeShareSecrets.ts). Files are etag-deduped, so an unchanged file is skipped before download+OCR. Reusable by any source; see services/scrapers/utils/wolkeShareHandler.ts.
   recentSkip?: boolean; // Optional: skip this content path in the incremental hourly `--recent` run so heavy PDF/OCR/Wolke paths only run in the nightly full crawl. etag/freshness dedup still bounds the nightly cost.
 }
 
@@ -713,9 +713,9 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           // mit ignoreMaxAge: true auf (kein Backfill der alten Punkte hier).
           // `path`/`listSelector` sind bei wolkeShare ungenutzte Pflichtfelder.
           type: 'wahlpruefstein',
-          path: '/wolke/xfFABYzM7pX83Fj/',
+          path: '/wolke/berlin-wahlpruefsteine/',
           listSelector: '',
-          wolkeShare: { shareLink: 'https://wolke.netzbegruenung.de/s/xfFABYzM7pX83Fj' },
+          wolkeShare: { shareKey: 'berlin-wahlpruefsteine' },
           recentSkip: true,
         },
       ],

@@ -50,13 +50,13 @@ Berlin ist unser... — https://gruene.berlin/beschluesse/unser-wahlprogramm-kap
 [5] Unser Wahlprogramm - Kapitel 2: &nbsp;
 Berlin hält zusammen
 Berlin ist unser... — https://gruene.berlin/beschluesse/unser-wahlprogramm-kapitel-2_3764
-[6] WPS-Gruene-Berlin-2026-07-17-ACE-Antwort — https://wolke.netzbegruenung.de/s/xfFABYzM7pX83Fj#/WPS-Gruene-Berlin-2026-07-17-ACE-Antwort.pdf
+[6] WPS-Gruene-Berlin-2026-07-17-ACE-Antwort — https://wolke.netzbegruenung.de/s/<redacted>#/WPS-Gruene-Berlin-2026-07-17-ACE-Antwort.pdf
 [7] Beschluss "Moderne Mobilität für Berlin" — https://gruene-fraktion.berlin/download/beschluss-moderne-mobilitaet-fuer-berlin/
 [8] Schwarz-rotes Haushaltschaos gefährdet Zukunft Berlins: vorläufiger Beschluss auf der... — https://gruene.berlin/beschluesse/schwarz-rotes-haushaltschaos-gefaehrdet-zukunft-berlins_3479
 [9] Unser Wahlprogramm - Kapitel 2: &nbsp;
 Berlin hält zusammen
 Berlin ist unser... — https://gruene.berlin/beschluesse/unser-wahlprogramm-kapitel-2_3764
-[10] WPS-Gruene-Berlin-2026-07-17-ACE-Antwort — https://wolke.netzbegruenung.de/s/xfFABYzM7pX83Fj#/WPS-Gruene-Berlin-2026-07-17-ACE-Antwort.pdf
+[10] WPS-Gruene-Berlin-2026-07-17-ACE-Antwort — https://wolke.netzbegruenung.de/s/<redacted>#/WPS-Gruene-Berlin-2026-07-17-ACE-Antwort.pdf
 [11] Unser Wahlprogramm - Kapitel 3: &nbsp;
 Berlin gestaltet Zukunft
 Berlin steht für... — https://gruene.berlin/beschluesse/unser-wahlprogramm-kapitel-3_3765
@@ -108,13 +108,13 @@ Berlin ist unser... — https://gruene.berlin/beschluesse/unser-wahlprogramm-kap
 [5] Unser Wahlprogramm - Kapitel 2: &nbsp;
 Berlin hält zusammen
 Berlin ist unser... — https://gruene.berlin/beschluesse/unser-wahlprogramm-kapitel-2_3764
-[6] WPS-Gruene-Berlin-2026-07-17-ACE-Antwort — https://wolke.netzbegruenung.de/s/xfFABYzM7pX83Fj#/WPS-Gruene-Berlin-2026-07-17-ACE-Antwort.pdf
+[6] WPS-Gruene-Berlin-2026-07-17-ACE-Antwort — https://wolke.netzbegruenung.de/s/<redacted>#/WPS-Gruene-Berlin-2026-07-17-ACE-Antwort.pdf
 [7] Unser Wahlprogramm - Kapitel 3: &nbsp;
 Berlin gestaltet Zukunft
 Berlin steht für... — https://gruene.berlin/beschluesse/unser-wahlprogramm-kapitel-3_3765
 [8] Beschluss "Moderne Mobilität für Berlin" — https://gruene-fraktion.berlin/download/beschluss-moderne-mobilitaet-fuer-berlin/
 [9] Schwarz-rotes Haushaltschaos gefährdet Zukunft Berlins: vorläufiger Beschluss auf der... — https://gruene.berlin/beschluesse/schwarz-rotes-haushaltschaos-gefaehrdet-zukunft-berlins_3479
-[10] WPS-Gruene-Berlin-2026-07-17-ACE-Antwort — https://wolke.netzbegruenung.de/s/xfFABYzM7pX83Fj#/WPS-Gruene-Berlin-2026-07-17-ACE-Antwort.pdf
+[10] WPS-Gruene-Berlin-2026-07-17-ACE-Antwort — https://wolke.netzbegruenung.de/s/<redacted>#/WPS-Gruene-Berlin-2026-07-17-ACE-Antwort.pdf
 [11] Ermäßigtes 29-Euro-Deutschlandticket für Auszubildende! — https://gruene-fraktion.berlin/pressemitteilungen/ermaessigtes-29-euro-deutschlandticket-fuer-auszubildende/
 [12] Ermäßigtes 29-Euro-Deutschlandticket für Auszubildende! — https://gruene-fraktion.berlin/pressemitteilungen/ermaessigtes-29-euro-deutschlandticket-fuer-auszubildende/
 [13] Beschluss "Moderne Mobilität für Berlin" — https://gruene-fraktion.berlin/download/beschluss-moderne-mobilitaet-fuer-berlin/

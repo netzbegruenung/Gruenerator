@@ -133,9 +133,9 @@ describe('isRefetchable', () => {
   });
 
   it('lässt Wolke-Dateien und PDFs aus', () => {
-    expect(
-      isRefetchable('https://wolke.netzbegruenung.de/s/xfFABYzM7pX83Fj#/WPS.pdf', BERLIN)
-    ).toBe(false);
+    expect(isRefetchable('https://wolke.netzbegruenung.de/s/TESTTOKEN#/WPS.pdf', BERLIN)).toBe(
+      false
+    );
     expect(isRefetchable('https://gruene.berlin/fileadmin/a.pdf', BERLIN)).toBe(false);
   });
 });
