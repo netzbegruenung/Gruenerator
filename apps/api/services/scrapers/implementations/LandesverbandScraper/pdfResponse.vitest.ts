@@ -178,6 +178,28 @@ describe('fetchPdfDocument', () => {
     });
   });
 
+  // Die gespeicherten Validatoren gehören zur ursprünglichen URL, nie zur
+  // aufgelösten Datei — auch wenn eine frühere .pdf-URL zur Landingpage wird.
+  it('never sends the stored validators to the resolved file', async () => {
+    const fetchUrl = vi
+      .fn()
+      .mockResolvedValueOnce(response(LANDING_HTML, { headers: { 'content-type': 'text/html' } }))
+      .mockResolvedValueOnce(
+        response(PDF_BYTES, { headers: { 'content-type': 'application/pdf' } })
+      );
+
+    await fetchPdfDocument(
+      'https://gruene-mv.de/uploads/beschluss.pdf',
+      { 'If-None-Match': '"old-pdf"' },
+      fetchUrl
+    );
+
+    expect(fetchUrl.mock.calls.map(([, options]) => options)).toEqual([
+      { headers: { 'If-None-Match': '"old-pdf"' }, acceptStatus: [304] },
+      { headers: {}, acceptStatus: [304] },
+    ]);
+  });
+
   it('reports a 304 of the resolved file as not modified', async () => {
     const fetchUrl = vi
       .fn()
