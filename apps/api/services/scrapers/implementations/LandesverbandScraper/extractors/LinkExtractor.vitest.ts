@@ -131,6 +131,26 @@ describe('extractPdfLinks — context carries the date (#3575)', () => {
     expect(link('kommunalwahl-2024').date.dateString).toBe('2022-03-26');
   });
 
+  it('Elementor: an undated section heading stops the walk back to an older dated one', async () => {
+    const html = `
+      <div class="e-con">
+        <div class="elementor-widget elementor-widget-heading"><h3>24. Mai 2025 - LDK Güstrow</h3></div>
+        <div class="elementor-widget"><a href="/download/beschluss-a/">Beschluss A</a></div>
+        <div class="elementor-widget elementor-widget-heading"><h2>Satzung und Geschäftsordnung</h2></div>
+        <div class="elementor-widget"><a href="/download/satzung/">Satzung</a></div>
+      </div>`;
+
+    const links = await extractor(html).extractPdfLinks(SOURCE, CONTENT_PATH);
+    const satzung = links.find((l) => l.url.includes('satzung'));
+
+    expect(links.find((l) => l.url.includes('beschluss-a'))?.context).toContain('24. Mai 2025');
+    expect(satzung?.context).not.toContain('24. Mai 2025');
+    expect(
+      DateExtractor.extractDateFromPdfInfo(satzung!.url, satzung!.title, satzung!.context, 10)
+        .dateString
+    ).toBeNull();
+  });
+
   it('BE-F: the file-name anchor of a dlm-downloads item reaches the context', async () => {
     const link = await linksFromFixture(
       'gruene-fraktion-berlin-beschluesse-dlm.html',
