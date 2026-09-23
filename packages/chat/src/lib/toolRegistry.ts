@@ -449,9 +449,12 @@ function parseNotebooksVM(args: unknown, result: unknown): ToolResultVM {
 // notebook_quellen: list sind Zeilen wie bei den anderen Personal-Data-Werkzeugen;
 // outline eine Gliederung (eine Zeile je Abschnitt), read eine Textscheibe und
 // find Rohpassagen mit Fundstelle — als Zitatliste wie `notebooks.search`.
+// Die Schreibaktionen liefern {ok, note, …}: die Notiz ist das Ergebnis.
 function parseNotebookSourcesVM(args: unknown, result: unknown): ToolResultVM {
   const error = getString(result, 'error');
   if (error) return { kind: 'text-note', text: error };
+  const note = getString(result, 'note');
+  if (note && getBoolean(result, 'ok')) return { kind: 'text-note', text: note };
 
   const outline = getArray(result, 'outline');
   if (outline) {

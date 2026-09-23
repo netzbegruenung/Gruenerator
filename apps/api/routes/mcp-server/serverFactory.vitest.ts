@@ -29,6 +29,8 @@ vi.mock('../chat/services/intentExecutionService.js', () => ({
 
 const { McpServer } = await import('@modelcontextprotocol/sdk/server/mcp.js');
 const { buildAuthenticatedMcpServer } = await import('./serverFactory.js');
+const { READ_ACTIONS } = await import('../chat/agents/notebookSourceTools.js');
+const { WRITE_ACTIONS } = await import('../chat/agents/notebookSourceWriteActions.js');
 
 interface Built {
   tools: Map<string, { config: Record<string, unknown> }>;
@@ -140,5 +142,22 @@ describe('method discovery', () => {
   it('registers filter discovery only together with the search scope', () => {
     expect(build(['search']).tools.has('gruenerator_get_filters')).toBe(true);
     expect(build(['content:read']).tools.has('gruenerator_get_filters')).toBe(false);
+  });
+});
+
+describe('notebook source management', () => {
+  it('offers the notebook_quellen write actions and notebooks.update only with content:write', () => {
+    const writer = build(['content:read', 'content:write']);
+    // Aus den Werkzeug-Listen abgeleitet: kommt dort eine Leseaktion dazu, zieht
+    // der MCP-Server mit, ohne dass diese Liste gepflegt werden muss.
+    expect(enumOptions(writer, 'notebook_quellen', 'action')).toEqual([
+      ...READ_ACTIONS,
+      ...WRITE_ACTIONS,
+    ]);
+    expect(enumOptions(writer, 'notebooks', 'action')).toContain('update');
+
+    const reader = build(['content:read']);
+    expect(enumOptions(reader, 'notebook_quellen', 'action')).toEqual([...READ_ACTIONS]);
+    expect(enumOptions(reader, 'notebooks', 'action')).not.toContain('update');
   });
 });

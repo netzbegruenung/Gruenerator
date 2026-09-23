@@ -88,9 +88,13 @@ const CHITCHAT_RE = /^(wer bist du|was (kannst|bist) du|wie geht|wie heißt du|h
 // `erinnerung(en)` likewise with recurring_tasks: „meine Erinnerungen bitte“.
 // `agent(en)` with user_agents: „meine Agenten“, „meine Grünerator-Agenten“ —
 // the trailing `\b` keeps „meine Agentur“ out. `rezepte`/`textformen` with
-// the recipes tool: „meine Textformen“, „meine Rezepte“.
+// the recipes tool: „meine Textformen“, „meine Rezepte“. `quellen?`/`notiz(en)`
+// with notebook_quellen: „sortier meine Quellen“; `notizb[üu]ch\w*` covers the
+// singular. The dative `meinem` only counts before a notebook noun, with at
+// most two words between („aus meinem geteilten Notebook“) — as a general
+// possessive it would pull „schreib eine Rede zu meinem Projekt“ into the loop.
 const PERSONAL_DATA_RE =
-  /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notebooks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|projekte?|inhalte?|wolke|erinnerung(?:en)?|(?:gr[üu]nerator-)?agent(?:en|innen|in)?|rezepte?|textform(?:en)?)\b/i;
+  /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notebooks?|notizb[üu]ch\w*|quellen?|notiz(?:en)?|sammlung\w*|reels?|sharepics?|gruppen?|projekte?|inhalte?|wolke|erinnerung(?:en)?|(?:gr[üu]nerator-)?agent(?:en|innen|in)?|rezepte?|textform(?:en)?)\b|\bmeinem\s+(?:[\wäöüß-]+\s+){0,2}(?:notebooks?|notizb[üu]ch\w*)\b/i;
 
 /**
  * The whole turn (after stripping a leading greeting) is assistant-directed

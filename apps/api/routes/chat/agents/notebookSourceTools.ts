@@ -15,8 +15,8 @@
  * System-Notebooks sind (noch) außen vor: ihre Inhalte liegen in eigenen
  * Qdrant-Sammlungen ohne `documents`-Zeilen.
  *
- * Aktionen stehen in `READ_ACTIONS`; schreibende Aktionen kommen als eigene
- * Liste dazu.
+ * Aktionen stehen in `READ_ACTIONS`; die schreibenden in `WRITE_ACTIONS`
+ * (`notebookSourceWriteActions.ts`).
  */
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
@@ -49,6 +49,15 @@ import { rerankNotebookResults } from '../../../services/notebook/rerankNotebook
 import { createLogger } from '../../../utils/logger.js';
 import { checkNotebookAccess } from '../../notebook/notebookAccess.js';
 
+import {
+  isWriteAction,
+  NOT_FOUND,
+  resolveWriteDeps,
+  runWriteAction,
+  WRITE_ACTIONS,
+  WRITE_FAILURE_BY_ACTION,
+  type NotebookSourceWriteDeps,
+} from './notebookSourceWriteActions.js';
 import { notebookUrl } from './notebookTools.js';
 import {
   groundNote,
@@ -71,10 +80,9 @@ export type NotebookSourceToolDeps = NotebookSourcesDeps;
 
 /** `PersonalToolCtx` plus optionale Fakes — der Katalog reicht den Ctx ohne `deps`. */
 export type NotebookSourceToolCtx = PersonalToolCtx & {
-  deps?: Partial<NotebookSourceToolDeps>;
+  deps?: Partial<NotebookSourceToolDeps> & Partial<NotebookSourceWriteDeps>;
 };
 
-const NOT_FOUND = 'Notebook nicht gefunden oder kein Zugriff.';
 const NO_NOTEBOOK =
   'Kein Notebook ausgewählt — gib notebookId an (aus notebooks action="list", Feld ref).';
 const EXCERPT_CHARS = 300;
@@ -176,6 +184,7 @@ function pickRange(
 export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   const deps = resolveDeps(ctx.deps);
+  const writeDeps = resolveWriteDeps(ctx.deps);
 
   /** Ausdrückliche id, sonst das erste im Chat gewählte eigene Notebook. */
   async function resolveNotebook(
@@ -207,9 +216,11 @@ NUTZE FÜR: welche Dokumente im Notebook liegen, mit Typ, Datum, Seiten und Umfa
 
 NICHT für: Notebooks auflisten/anlegen/teilen (dafür 'notebooks'), die grüne Inhaltsdatenbank (dafür 'gruenerator_search').
 
+NUTZE FÜR (direkt, umkehrbar): Quellen aus dem Notebook entfernen (remove — sie bleiben in der Bibliothek), in ein anderes Notebook verschieben oder kopieren (move/copy mit targetNotebookId), eigene Uploads umbenennen (rename) oder verschlagworten (tag), eine Notiz anlegen (add_note) und EINE Webseite importieren (add_url — eine Seite, keine ganze Website; erzeugt Einbettungen, kostet).
+
 Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt das im Chat ausgewählte Notebook.`,
     inputSchema: z.object({
-      action: z.enum(READ_ACTIONS),
+      action: z.enum([...READ_ACTIONS, ...WRITE_ACTIONS]),
       notebookId: z.string().optional().describe('Notebook-ID; ohne Angabe das ausgewählte'),
       sourceId: z
         .string()
@@ -239,6 +250,18 @@ Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt d
       query: z.string().optional().describe('find: wonach gesucht wird'),
       mode: z.enum(['hybrid', 'vector', 'text']).default('hybrid').describe('find'),
       rerank: z.boolean().default(false).describe('find: Passagen neu bewerten (langsamer)'),
+      sourceIds: z
+        .array(z.string())
+        .min(1)
+        .max(50)
+        .optional()
+        .describe('remove, move, copy: Quellen aus list (ref)'),
+      targetNotebookId: z.string().optional().describe('move, copy: Ziel-Notebook'),
+      title: z.string().min(1).max(200).optional().describe('rename, add_note; add_url optional'),
+      add: z.array(z.string()).optional().describe('tag: hinzufügen'),
+      remove: z.array(z.string()).optional().describe('tag: entfernen'),
+      text: z.string().min(20).max(200_000).optional().describe('add_note: Inhalt'),
+      url: z.string().optional().describe('add_url: eine öffentliche http(s)-Seite'),
     }),
     execute: async (args) => {
       const userId = requireUserId(state);
@@ -246,6 +269,12 @@ Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt d
       // `return await` in allen Zweigen: ohne `await` liefe eine abgelehnte
       // Zusage am `catch` vorbei, samt Rohtext bis zum Modell.
       try {
+        if (isWriteAction(args.action)) {
+          return await runWriteAction(
+            { ...args, action: args.action },
+            { state, sourceRegistry, userId, deps: writeDeps, resolveNotebook }
+          );
+        }
         const target = await resolveNotebook(args.notebookId);
         if ('error' in target) return target;
         const { collection } = target;
@@ -270,7 +299,11 @@ Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt d
         // Der Rohtext bleibt im Log: englische Interna („Too many document
         // IDs") sind keine Auskunft für das Modell.
         log.warn(`[notebook_quellen] ${args.action} failed`, err);
-        return { error: FAILURE_BY_ACTION[args.action] };
+        return {
+          error: isWriteAction(args.action)
+            ? WRITE_FAILURE_BY_ACTION[args.action]
+            : FAILURE_BY_ACTION[args.action],
+        };
       }
     },
   });
