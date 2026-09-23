@@ -708,7 +708,11 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       type: 'fraktion',
       baseUrl: 'https://gruene-fraktion.berlin',
       cms: 'wordpress',
-      maxAgeYears: 5,
+      // Beschluss-/Positionspapiere bleiben aktuelle Positionen der Fraktion,
+      // nicht Tagesnachrichten — 10 Jahre statt 5 halten die 2017er-Papiere,
+      // sobald sie nach #3564 korrekt aus dem Dateinamen datiert werden (sonst
+      // würden ~30 von 56 gespeicherten Papieren beim nächsten Lauf `too_old`).
+      maxAgeYears: 10,
       contentPaths: [
         {
           type: 'beschluss',
