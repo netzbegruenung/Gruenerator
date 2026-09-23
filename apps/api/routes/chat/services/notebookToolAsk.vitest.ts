@@ -163,6 +163,28 @@ describe('looksLikeNotebookToolAsk — gegen den Eval-Korpus', () => {
   });
 });
 
+// Re-Review PR #3568: „notiere" fehlte in der Schreibliste. Jeder
+// Schreibauftrag, den das Werkzeug-Tor erkennt, muss auch als Schreibauftrag
+// gelten — sonst pinnt ein System-Notebook ein Werkzeug, das nur ablehnt.
+describe('looksLikeNotebookWriteAsk — deckt jedes Schreibverb des Werkzeug-Tors', () => {
+  it.each([
+    'Entferne die Quelle aus dem Berlin-Notebook',
+    'Verschiebe die Quelle ins andere Notebook',
+    'Kopiere die Quelle ins andere Notebook',
+    'Notiere im Berlin-Notebook, dass die Frist verlängert ist',
+    'Tagge die Quelle mit Verkehr',
+    'Kannst du die Quelle umbenennen?',
+    'Kannst du die Quelle entfernen?',
+    'Kannst du die Quelle verschieben?',
+    'Kannst du die Quelle kopieren?',
+    'Kannst du das im Notebook notieren?',
+    'Kannst du die Quelle taggen?',
+  ])('%s', (text) => {
+    expect(looksLikeNotebookToolAsk(text)).toBe(true);
+    expect(looksLikeNotebookWriteAsk(text)).toBe(true);
+  });
+});
+
 describe('looksLikeNotebookWriteAsk — Schreibaufträge (System-Notebooks sind schreibgeschützt)', () => {
   it.each([
     'Entferne die alte Pressemitteilung aus dem Notebook',
