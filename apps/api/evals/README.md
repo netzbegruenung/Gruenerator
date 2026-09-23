@@ -145,6 +145,7 @@ Log-Lücke halten, bevor daraus ein Befund wird.
 | `EVAL_MCP=1`                    | —                       | include `"mcpLane"` scenarios (needs setup)        |
 | `EVAL_SYSTEM_MCP=1`             | —                       | include `"systemMcpLane"` (bahn/wetter/news/hotel) |
 | `EVAL_ALLOW_GENERIC_PERSONAS=1` | —                       | run without `INTERN_CONTENT_DIR` (warns)           |
+| `EVAL_MEMORY=1`                 | —                       | include `memories` scenarios (seed + clean memory) |
 | `EVAL_CONCURRENCY`              | 1                       | scenarios in parallel (turns stay serial)          |
 | `EVAL_BASELINE`                 | `./baseline.json`       | regression baseline (per-lane in CI)               |
 | `EVAL_UPDATE_BASELINE=1`        | —                       | overwrite the baseline with this run               |
