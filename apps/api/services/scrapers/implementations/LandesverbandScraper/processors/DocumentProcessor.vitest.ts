@@ -82,6 +82,16 @@ const store = (fingerprint?: Record<string, unknown>) =>
     fingerprint
   );
 
+const storeWith = (content: { title?: string; publishedAt?: string | null }) =>
+  makeProcessor().processAndStoreDocument(
+    SOURCE,
+    'beschluss',
+    URL_UNDER_TEST,
+    { title: 'Beschluss', text: TEXT, publishedAt: null, categories: [], ...content },
+    'landesverbaende_documents',
+    10
+  );
+
 beforeEach(() => {
   vi.clearAllMocks();
   batchUpsert.mockResolvedValue(undefined);
@@ -90,9 +100,17 @@ beforeEach(() => {
 });
 
 describe('processAndStoreDocument — unchanged text', () => {
+  const HASH = `hash:${TEXT.length}`;
+
   it('backfills a fingerprint the stored point does not have yet', async () => {
     scrollDocuments.mockResolvedValue([
-      { payload: { content_hash: `hash:${TEXT.length}`, indexed_at: '2026-08-01T00:00:00.000Z' } },
+      {
+        payload: {
+          content_hash: HASH,
+          title: 'Beschluss',
+          indexed_at: '2026-08-01T00:00:00.000Z',
+        },
+      },
     ]);
 
     const result = await store({ file_hash: 'abc123', source_etag: '"v1"' });
@@ -102,7 +120,7 @@ describe('processAndStoreDocument — unchanged text', () => {
     expect(setPayload).toHaveBeenCalledWith(
       expect.anything(),
       'landesverbaende_documents',
-      { file_hash: 'abc123', source_etag: '"v1"' },
+      { file_hash: 'abc123', source_etag: '"v1"', checked_at: expect.any(String) },
       { must: [{ key: 'source_url', match: { value: URL_UNDER_TEST } }] }
     );
   });
@@ -111,7 +129,8 @@ describe('processAndStoreDocument — unchanged text', () => {
     scrollDocuments.mockResolvedValue([
       {
         payload: {
-          content_hash: `hash:${TEXT.length}`,
+          content_hash: HASH,
+          title: 'Beschluss',
           file_hash: 'abc123',
           source_etag: '"v1"',
         },
@@ -123,27 +142,67 @@ describe('processAndStoreDocument — unchanged text', () => {
     expect(setPayload).toHaveBeenCalledWith(
       expect.anything(),
       'landesverbaende_documents',
-      { source_etag: '"v2"' },
+      { source_etag: '"v2"', checked_at: expect.any(String) },
       expect.anything()
     );
   });
 
-  it('writes nothing when the stored fingerprint already matches', async () => {
+  it('writes only checked_at when fingerprint, title and date already match', async () => {
     scrollDocuments.mockResolvedValue([
-      { payload: { content_hash: `hash:${TEXT.length}`, file_hash: 'abc123' } },
+      { payload: { content_hash: HASH, title: 'Beschluss', file_hash: 'abc123' } },
     ]);
 
     await store({ file_hash: 'abc123' });
 
-    expect(setPayload).not.toHaveBeenCalled();
+    expect(setPayload).toHaveBeenCalledTimes(1);
+    expect(setPayload.mock.calls[0][2]).toEqual({ checked_at: expect.any(String) });
   });
 
-  it('stays a no-op for callers that pass no fingerprint', async () => {
-    scrollDocuments.mockResolvedValue([{ payload: { content_hash: `hash:${TEXT.length}` } }]);
+  it('writes only checked_at for callers that pass no fingerprint', async () => {
+    scrollDocuments.mockResolvedValue([{ payload: { content_hash: HASH, title: 'Beschluss' } }]);
 
     await store(undefined);
 
-    expect(setPayload).not.toHaveBeenCalled();
+    expect(setPayload).toHaveBeenCalledTimes(1);
+    expect(setPayload.mock.calls[0][2]).toEqual({ checked_at: expect.any(String) });
+  });
+
+  it('heals a title the extractor now reads differently — in the same single write', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Beschluss&nbsp;\nAnrisstext' } },
+    ]);
+
+    await store({ file_hash: 'abc123' });
+
+    expect(setPayload).toHaveBeenCalledTimes(1);
+    expect(setPayload.mock.calls[0][2]).toEqual({
+      file_hash: 'abc123',
+      title: 'Beschluss',
+      checked_at: expect.any(String),
+    });
+  });
+
+  it('heals a date the extractor now reads differently', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Beschluss', published_at: '2023-06-15' } },
+    ]);
+
+    await storeWith({ publishedAt: '2023-04-29' });
+
+    expect(setPayload.mock.calls[0][2]).toEqual({
+      published_at: '2023-04-29',
+      checked_at: expect.any(String),
+    });
+  });
+
+  it('never writes an empty title or a null date over a stored one', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Beschluss', published_at: '2023-04-29' } },
+    ]);
+
+    await storeWith({ title: '', publishedAt: null });
+
+    expect(setPayload.mock.calls[0][2]).toEqual({ checked_at: expect.any(String) });
   });
 });
 
@@ -157,6 +216,20 @@ describe('processAndStoreDocument — changed text', () => {
     expect(setPayload).not.toHaveBeenCalled();
     const [, , points] = batchUpsert.mock.calls[0] as [unknown, string, { payload: unknown }[]];
     expect(points[0].payload).toMatchObject({ file_hash: 'abc123' });
+  });
+
+  it('stamps checked_at next to indexed_at on a normal store', async () => {
+    scrollDocuments.mockResolvedValue([]);
+
+    await store(undefined);
+
+    const [, , points] = batchUpsert.mock.calls[0] as [
+      unknown,
+      string,
+      { payload: Record<string, unknown> }[],
+    ];
+    expect(points[0].payload.checked_at).toEqual(expect.any(String));
+    expect(points[0].payload.checked_at).toBe(points[0].payload.indexed_at);
   });
 });
 
