@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   assertSamePage,
   classifyPoint,
+  isEmptyPlaceholder,
   isRefetchable,
   parseCliArgs,
   planDateRepair,
+  planPointRepair,
   planRepair,
 } from './repair-lv-payload.js';
 
@@ -259,6 +261,111 @@ describe('planDateRepair — visible-date (#3565)', () => {
         publishedAt: null,
       })
     ).toBe('unresolved');
+  });
+});
+
+describe('isEmptyPlaceholder', () => {
+  it('erkennt die TYPO3-xBlog-Platzhalterseite ("Uups, kein Eintrag vorhanden")', () => {
+    expect(isEmptyPlaceholder('BeschlüsseUups, kein Eintrag vorhanden.')).toBe(true);
+  });
+
+  it('lässt echten Seiteninhalt unangetastet', () => {
+    expect(isEmptyPlaceholder('26.07.26 – Zu dem mutmaßlichen islamistischen Anschlag …')).toBe(
+      false
+    );
+  });
+});
+
+describe('planPointRepair (#3565)', () => {
+  const point = (published_at: string | null) => ({
+    source_url: 'https://gruene.berlin/pressemitteilungen/berlin-steht-zusammen_3856',
+    title: 'Alt',
+    published_at,
+  });
+
+  it('holt höchstens einmal, wenn --titles --refetch UND --overwrite-dates visible-date zusammen laufen', async () => {
+    let calls = 0;
+    const fetchExtracted = async () => {
+      calls++;
+      return { title: 'Neu', publishedAt: '2026-07-26', text: 'Body' };
+    };
+
+    const result = await planPointRepair(
+      point('2026-07-23T11:11:58'),
+      { titles: true, refetch: true, overwriteDates: 'visible-date' },
+      true,
+      fetchExtracted
+    );
+
+    expect(calls).toBe(1);
+    expect(result.patch).toEqual({ title: 'Neu', published_at: '2026-07-26' });
+    expect(result.fetchAttempted).toBe(true);
+    expect(result.fetchError).toBeNull();
+  });
+
+  it('holt nicht, wenn weder --refetch noch visible-date verlangt sind', async () => {
+    let calls = 0;
+    const fetchExtracted = async () => {
+      calls++;
+      return { title: 'Neu', publishedAt: null, text: '' };
+    };
+
+    const result = await planPointRepair(
+      point(null),
+      { titles: true, refetch: false, overwriteDates: null },
+      true,
+      fetchExtracted
+    );
+
+    expect(calls).toBe(0);
+    expect(result.fetchAttempted).toBe(false);
+  });
+
+  it('holt nicht, wenn die Seite nicht abrufbar ist (PDF/Wolke)', async () => {
+    let calls = 0;
+    const result = await planPointRepair(
+      point('2026-07-23T11:11:58'),
+      { titles: false, refetch: false, overwriteDates: 'visible-date' },
+      false,
+      async () => {
+        calls++;
+        return { title: 'X', publishedAt: '2026-07-26', text: 'Body' };
+      }
+    );
+
+    expect(calls).toBe(0);
+    expect(result.fetchAttempted).toBe(false);
+    expect(result.unresolved).toBe(true);
+  });
+
+  it('zählt eine leere xBlog-Platzhalterseite als unresolved, statt die Meta-Angabe zu übernehmen', async () => {
+    const result = await planPointRepair(
+      point('2026-07-23T11:11:58'),
+      { titles: false, refetch: false, overwriteDates: 'visible-date' },
+      true,
+      async () => ({
+        title: 'Beschlüsse',
+        publishedAt: '2026-07-23T11:11:58',
+        text: 'BeschlüsseUups, kein Eintrag vorhanden.',
+      })
+    );
+
+    expect(result.unresolved).toBe(true);
+    expect(result.patch).toEqual({});
+  });
+
+  it('zählt einen fehlgeschlagenen Abruf, statt ihn stillschweigend wie „kein Datum" zu behandeln', async () => {
+    const result = await planPointRepair(
+      point('2026-07-23T11:11:58'),
+      { titles: false, refetch: false, overwriteDates: 'visible-date' },
+      true,
+      async () => {
+        throw new Error('HTTP 500');
+      }
+    );
+
+    expect(result.fetchError).toBe('HTTP 500');
+    expect(result.unresolved).toBe(true);
   });
 });
 
