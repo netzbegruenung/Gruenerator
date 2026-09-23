@@ -12,8 +12,9 @@ import {
   findPassages,
   resolveSourceInNotebook,
   type NotebookSourcesDeps,
+  type Passage,
 } from './notebookSources.js';
-import { chunkAt, loadScanTexts, pageAt, type ScannedSource } from './sourceGrep.js';
+import { chunkAt, loadScanTexts, pageAt, type ScanLoad, type ScannedSource } from './sourceGrep.js';
 import { splitSentences } from './sourceStats.js';
 
 export const FUZZY_THRESHOLD = 0.9;
@@ -266,9 +267,17 @@ export async function citeQuote(
   );
   if ('error' in loaded) return loaded;
 
+  return locateQuoteInSources(loaded, input.quote);
+}
+
+/** Das Zitat in bereits geladenen Texten — geteilt von eigenen und System-Notebooks. */
+export function locateQuoteInSources(
+  loaded: ScanLoad,
+  quote: string
+): QuoteLocated | QuoteNotLocated {
   const hits: Located[] = [];
   for (const source of loaded.sources) {
-    const r = locateQuote(source.text, input.quote);
+    const r = locateQuote(source.text, quote);
     if (r.found) hits.push({ ...r, source });
   }
 
@@ -348,8 +357,16 @@ export async function supportClaim(
     },
     deps
   );
-  const claimWords = contentWords(input.claim);
-  if (claimWords.size === 0) return { candidates: [], reranked };
+  return { candidates: claimCandidates(passages, input.claim), reranked };
+}
+
+/**
+ * Die Belegsätze aus gefundenen Passagen — geteilt von eigenen und
+ * System-Notebooks.
+ */
+export function claimCandidates(passages: readonly Passage[], claim: string): CiteCandidate[] {
+  const claimWords = contentWords(claim);
+  if (claimWords.size === 0) return [];
 
   const scored = passages.flatMap((p, passageRank) =>
     splitSentences(p.text).flatMap((s) => {
@@ -374,5 +391,5 @@ export async function supportClaim(
     })
   );
   scored.sort((a, b) => b.overlap - a.overlap || a.passageRank - b.passageRank);
-  return { candidates: scored.slice(0, CLAIM_CANDIDATES).map((s) => s.candidate), reranked };
+  return scored.slice(0, CLAIM_CANDIDATES).map((s) => s.candidate);
 }
