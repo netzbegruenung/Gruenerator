@@ -33,7 +33,7 @@ const { drainIngestQueue } = await import('./documentIngestWorker.js');
 const claimCalls = () =>
   pgQuery.mock.calls.filter(([sql]) => String(sql).includes('FOR UPDATE SKIP LOCKED'));
 const giveUpCall = () =>
-  pgQuery.mock.calls.find(([sql]) => String(sql).includes("SET status = 'failed'"));
+  pgQuery.mock.calls.find(([sql]) => String(sql).includes('processing_attempts >= $1'));
 
 /**
  * Antwortet auf die Aufräum-Query mit [] und liefert die übergebenen Dokumente
@@ -149,5 +149,22 @@ describe('Aufgeben nach zu vielen Versuchen', () => {
     // Ohne diesen Pfad würde ein Dokument, das die Pipeline jedes Mal
     // abstürzen lässt, für immer neu geclaimt werden.
     expect(call![1][0]).toBe(3);
+  });
+
+  it('ein erschöpftes Neu-Indexieren einer durchsuchbaren Quelle fällt auf die alte Fassung zurück', async () => {
+    queueContains();
+    await drainIngestQueue();
+
+    const sql = String(giveUpCall()![0]);
+    // Vorher durchsuchbar → completed mit Hinweis, sonst failed wie bisher.
+    expect(sql).toMatch(/reindex_prev_searchable/);
+    expect(sql).toMatch(/THEN 'completed'\s+ELSE 'failed'/);
+    expect(sql).toContain('Die bisherige Fassung bleibt durchsuchbar.');
+    expect(sql).toContain('Bitte lade die Datei erneut hoch.');
+    // Die Markierungen des Laufs gehen weg, sonst stellte sich die Zeile nie
+    // wieder hinten an und würde beim nächsten Fehlschlag falsch beurteilt.
+    for (const key of ['reindex_origin', 'queued_at', 'reindex_prev_searchable']) {
+      expect(sql).toContain(`'${key}'`);
+    }
   });
 });
