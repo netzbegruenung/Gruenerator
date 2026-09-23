@@ -34,6 +34,7 @@ import {
   chunksOrThrow,
   findPassages,
   listNotebookSources,
+  matchSourceByName,
   loadPassagePageEnds,
   outlineSource,
   readSourceText,
@@ -136,6 +137,8 @@ const FILTER_KEYS = [
   'dateTo',
 ] as const;
 const EXCERPT_CHARS = 300;
+/** So viele refs gehen mit einem Fehler „Quelle nicht gefunden" zurück — das Maximum von list. */
+const SOURCE_HINT_LIMIT = 50;
 
 /** Fester Text je Aktion, wenn ein Dienst ausfällt — nie „nichts gefunden". */
 const FAILURE_BY_ACTION: Record<(typeof READ_ACTIONS)[number], string> = {
@@ -195,6 +198,25 @@ export function notebookForPrompt(
   const system = resolveSystemCollection(id, collectionsForLocale(locale));
   if (!system || 'error' in system) return null;
   return { id, name: system.collection.name };
+}
+
+/**
+ * Die Quellen eines eigenen Notebooks für den Prompt des Präzisionsmodus: ref
+ * und Titel, damit schon der gepinnte erste Aufruf eine echte sourceId trägt,
+ * statt sie zu raten. System-Notebooks und fehlender Zugriff → `null`.
+ */
+export async function sourcesForPrompt(
+  collectionId: string,
+  userId: string,
+  limit: number,
+  partial?: Partial<NotebookSourceToolDeps>
+): Promise<{ total: number; items: Array<{ ref: string; title: string }> } | null> {
+  if (!isUserNotebookId(collectionId)) return null;
+  const deps = resolveDeps(partial);
+  const access = await deps.access(collectionId, userId);
+  if (!access.exists || !access.canRead) return null;
+  const { total, items } = await listNotebookSources({ collectionId, sortBy: 'name', limit }, deps);
+  return { total, items: items.map((r) => ({ ref: r.id, title: r.title })) };
 }
 
 /**
@@ -627,6 +649,16 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       return await listSources(collection, args);
     }
 
+    const resolved = await resolveSourceArg(collection, userId, args);
+    if ('error' in resolved) return resolved;
+    return await runSourceRead(collection, resolved.args, userId);
+  }
+
+  async function runSourceRead(
+    collection: NotebookCollection,
+    args: ToolArgs,
+    userId: string
+  ): Promise<Record<string, unknown>> {
     if (args.action === 'find') return await find(collection, userId, args);
     if (isScanReadAction(args.action)) {
       return await runScanReadAction(args.action, args, {
@@ -645,6 +677,45 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
     if (!source.ok) return { error: source.error };
     if (args.action === 'outline') return await outline(collection, args.sourceId, source);
     return await read(collection, args.sourceId, source, args);
+  }
+
+  /**
+   * Der Planer rät die sourceId trotz Beschreibung, wenn der erste Aufruf
+   * gepinnt ist und er noch keine Liste gesehen hat (Testserver 23.09.2026:
+   * „was steht auf seite 2 der niederschrift" → read mit geratener ID → Fehler,
+   * Turn aufgegeben). Ein eindeutiger Name wird zur Quelle; sonst geht die
+   * Liste der refs mit dem Fehler zurück, damit der nächste Schritt trifft.
+   * Die Zugriffsregel bleibt `resolveSourceInNotebook` — hier wird nur übersetzt.
+   */
+  async function resolveSourceArg(
+    collection: NotebookCollection,
+    userId: string,
+    args: ToolArgs
+  ): Promise<{ args: ToolArgs } | { error: string; sources?: unknown }> {
+    const needsSource = args.action === 'outline' || args.action === 'read';
+    const wanted = args.sourceId?.trim();
+    if (!wanted && !needsSource) return { args };
+    if (wanted && (await deps.helper.isDocumentInCollection(collection.id, wanted))) {
+      return { args };
+    }
+    if (!(await canRead(collection.id, userId))) return { error: NOT_FOUND };
+
+    const { items } = await listNotebookSources(
+      { collectionId: collection.id, sortBy: 'name', limit: SOURCE_HINT_LIMIT },
+      deps
+    );
+    const match = wanted ? matchSourceByName(items, wanted) : items.length === 1 ? items[0] : null;
+    if (match) {
+      log.info(
+        `[notebook_quellen] ${args.action}: sourceId ${JSON.stringify(wanted ?? null)} → ${match.id}`
+      );
+      return { args: { ...args, sourceId: match.id } };
+    }
+    if (!wanted) return { args };
+    return {
+      error: `Keine Quelle „${wanted}" in diesem Notebook. Nimm ref aus sources und rufe ${args.action} erneut auf.`,
+      sources: items.map((r) => ({ ref: r.id, title: r.title })),
+    };
   }
 
   async function canRead(collectionId: string, userId: string): Promise<boolean> {
