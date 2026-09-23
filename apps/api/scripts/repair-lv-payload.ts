@@ -1,32 +1,40 @@
 /**
- * Titel (und fehlende Daten) bereits gespeicherter Landesverbands-Punkte
- * reparieren (#3560) — gezielt, nur Payload, standardmäßig ein Trockenlauf.
+ * Payload bereits gespeicherter Landesverbands-Punkte nach festen Regeln
+ * reparieren (#3560, #3578) — gezielt, nur Payload, standardmäßig ein
+ * Trockenlauf.
  *
  * Warum ein eigenes Skript: Der Content-Hash-Gatter in `DocumentProcessor`
- * überspringt jede Seite, deren Text sich nicht geändert hat. Ein reparierter
- * Titel-Selektor erreicht deshalb nur neue oder geänderte Seiten; die Titel
- * der übrigen Punkte bleiben, wie sie sind. Ein `--force`-Lauf würde alles neu
- * einbetten — für einen falschen Titel ist das der falsche Preis (CLAUDE.md:
- * nie ein Voll-Rescrape).
+ * heilt Titel und Datum nur bei Seiten, die erneut abgerufen werden; PDFs und
+ * Wolke-Dateien enden schon vorher an den Datei-Gattern (304, gleiche Bytes).
+ * Ein `--force`-Lauf würde alles neu einbetten — für einen falschen Titel oder
+ * ein falsches Datum ist das der falsche Preis (CLAUDE.md: nie ein
+ * Voll-Rescrape).
  *
- * Zwei Arten:
- *   - ohne `--refetch`: nur `ContentExtractor.normalizeTitle` auf den
- *     gespeicherten Titel (`&nbsp;`, U+00A0, Zeilenumbrüche). Kein Abruf.
- *   - mit `--refetch` (nur mit `--source`): jede HTML-Seite der Quelle wird
- *     neu geholt und mit den aktuellen `contentSelectors` ausgelesen. Nötig für
- *     gruene.berlin, wo der gespeicherte Titel den Anrisstext trägt, der sich
- *     aus dem Titel allein nicht wegschneiden lässt. Wolke-Dateien und PDFs
- *     werden nie geholt, nur normalisiert.
+ * Regeln (mindestens eine ist Pflicht):
+ *   - `--titles`: ohne `--refetch` nur `ContentExtractor.normalizeTitle` auf
+ *     den gespeicherten Titel (`&nbsp;`, U+00A0, Zeilenumbrüche). Mit
+ *     `--refetch` (nur mit `--source`) wird jede HTML-Seite der Quelle neu
+ *     geholt und mit den aktuellen `contentSelectors` ausgelesen — nötig für
+ *     gruene.berlin, wo der gespeicherte Titel den Anrisstext trägt. Wolke-
+ *     Dateien und PDFs werden nie geholt, nur normalisiert. Ein vorhandenes
+ *     `published_at` wird hier nie überschrieben, ein fehlendes nur mit einem
+ *     ISO-Datum nachgetragen.
+ *   - `--overwrite-dates <regel>`: überschreibt ein VORHANDENES `published_at`
+ *     nur, wenn der gespeicherte Wert zum benannten Defekt passt. Die Regeln
+ *     stehen in `DATE_RULES`:
+ *       mid-june — die Jahr-only-Schätzung für PDFs (`-06-15`). Neu berechnet
+ *       aus URL und Titel per `DateExtractor.extractDateFromPdfInfo`, ohne
+ *       Abruf; liefert auch die Neuberechnung nur ein Jahr oder gar nichts,
+ *       zählt der Punkt als `unresolved` und bleibt, wie er ist.
  *
  * Geschrieben wird per `setPayload` auf alle Chunks derselben `source_url`.
  * Die Vektoren bleiben unverändert — sie wurden mit dem alten Titel als
- * Präfix eingebettet; der alte Titel enthält den neuen, das ist hinnehmbar.
- * Ein vorhandenes `published_at` wird nie überschrieben, ein fehlendes nur mit
- * einem ISO-Datum nachgetragen.
+ * Präfix eingebettet; das ist hinnehmbar.
  *
  * Aufruf (aus apps/api):
- *   npx tsx scripts/repair-lv-titles.ts --source berlin-lv-presse --source berlin-lv-beschluesse --refetch
- *   npx tsx scripts/repair-lv-titles.ts --all
+ *   npx tsx scripts/repair-lv-payload.ts --titles --source berlin-lv-presse --source berlin-lv-beschluesse --refetch
+ *   npx tsx scripts/repair-lv-payload.ts --titles --all
+ *   npx tsx scripts/repair-lv-payload.ts --overwrite-dates mid-june --all
  *   … jeweils mit --write, um wirklich zu schreiben; --limit N begrenzt die Punkte je Quelle.
  *
  * dotenv muss vor jedem App-Import laufen (config/env.js liest die Umgebung
@@ -38,6 +46,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import dotenv from 'dotenv';
 
 import { ContentExtractor } from '../services/scrapers/implementations/LandesverbandScraper/extractors/ContentExtractor.js';
+import { DateExtractor } from '../services/scrapers/implementations/LandesverbandScraper/extractors/DateExtractor.js';
 
 import { type QdrantClient } from '@qdrant/js-client-rest';
 import { type LandesverbandSource } from '../config/landesverbaendeConfig.js';
@@ -45,6 +54,8 @@ import { type LandesverbandSource } from '../config/landesverbaendeConfig.js';
 interface CliArgs {
   sources: string[];
   all: boolean;
+  titles: boolean;
+  overwriteDates: string | null;
   refetch: boolean;
   write: boolean;
   limit: number | null;
@@ -66,7 +77,7 @@ interface Patch {
 }
 
 const USAGE =
-  'Usage: repair-lv-titles.ts (--source <id> [--source <id> …] [--refetch] | --all) [--limit N] [--write]';
+  'Usage: repair-lv-payload.ts (--titles [--refetch] | --overwrite-dates <regel>) … (--source <id> [--source <id> …] | --all) [--limit N] [--write]';
 const DEFAULT_COLLECTION = 'landesverbaende_documents';
 const UA = 'Gruenerator-Bot/1.0 (+https://gruenerator.eu)';
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
@@ -76,7 +87,15 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
 const REFETCH_DELAY_MS = 300;
 
 export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: string } {
-  const args: CliArgs = { sources: [], all: false, refetch: false, write: false, limit: null };
+  const args: CliArgs = {
+    sources: [],
+    all: false,
+    titles: false,
+    overwriteDates: null,
+    refetch: false,
+    write: false,
+    limit: null,
+  };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--source') {
@@ -84,7 +103,16 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
       if (!id) return { error: `--source braucht eine Quellen-ID. ${USAGE}` };
       args.sources.push(id);
     } else if (arg === '--all') args.all = true;
-    else if (arg === '--refetch') args.refetch = true;
+    else if (arg === '--titles') args.titles = true;
+    else if (arg === '--overwrite-dates') {
+      const rule = argv[++i];
+      if (!rule || !Object.hasOwn(DATE_RULES, rule)) {
+        return {
+          error: `--overwrite-dates braucht eine Regel: ${Object.keys(DATE_RULES).join(', ')}.`,
+        };
+      }
+      args.overwriteDates = rule;
+    } else if (arg === '--refetch') args.refetch = true;
     else if (arg === '--write') args.write = true;
     else if (arg === '--limit') {
       const n = Number(argv[++i]);
@@ -92,7 +120,11 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
       args.limit = n;
     } else return { error: `Unbekanntes Argument: ${arg}. ${USAGE}` };
   }
+  if (!args.titles && !args.overwriteDates) return { error: USAGE };
   if (args.all === args.sources.length > 0) return { error: USAGE };
+  if (args.refetch && !args.titles) {
+    return { error: '--refetch nur mit --titles: nur die Titelregel liest die Seite neu.' };
+  }
   if (args.all && args.refetch) {
     return { error: '--refetch nur mit --source: --all --refetch holt jede Seite neu.' };
   }
@@ -116,6 +148,42 @@ export function planRepair(stored: StoredFields, extracted: Extracted | null): P
     patch.published_at = extracted.publishedAt;
   }
   return Object.keys(patch).length > 0 ? patch : null;
+}
+
+/** `unchanged`: der Defekt liegt nicht vor. `unresolved`: er liegt vor, aber es gibt keinen besseren Wert. */
+type DateVerdict = { published_at: string } | 'unchanged' | 'unresolved';
+type DateRule = (point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'>) => DateVerdict;
+
+const MID_JUNE = /-06-15/;
+
+export const DATE_RULES: Record<string, DateRule> = {
+  'mid-june': (point) => {
+    if (!point.published_at || !MID_JUNE.test(point.published_at)) return 'unchanged';
+    if (!/\.pdf$/i.test(point.source_url.split('?')[0])) return 'unchanged';
+    const { dateString } = DateExtractor.extractDateFromPdfInfo(point.source_url, point.title, '');
+    if (!dateString || MID_JUNE.test(dateString)) return 'unresolved';
+    return dateString === point.published_at ? 'unchanged' : { published_at: dateString };
+  },
+};
+
+export function planDateRepair(
+  point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'>,
+  rule: string
+): DateVerdict {
+  return DATE_RULES[rule](point);
+}
+
+/**
+ * Jeder Punkt landet in genau einem Topf, damit die Zählung `geprüft` ergibt:
+ * wer irgendeinen Patch bekommt, ist `wouldPatch`, auch wenn eine Datumsregel
+ * für ihn `unresolved` meldet.
+ */
+export function classifyPoint(
+  patch: Patch,
+  unresolved: boolean
+): 'wouldPatch' | 'unresolved' | 'unchanged' {
+  if (Object.keys(patch).length > 0) return 'wouldPatch';
+  return unresolved ? 'unresolved' : 'unchanged';
 }
 
 interface StoredPoint {
@@ -215,35 +283,54 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `[repair-lv-titles] ${args.write ? 'SCHREIBT' : 'Trockenlauf (--write zum Schreiben)'}`
+    `[repair-lv-payload] ${args.write ? 'SCHREIBT' : 'Trockenlauf (--write zum Schreiben)'}`
   );
 
   for (const scope of scopes) {
     const all = await scrollChunkZero(client, scope.collection, scope.sourceId);
     const points = args.limit ? all.slice(0, args.limit) : all;
-    const counts = { scanned: points.length, title: 0, date: 0, fetchFailed: 0, written: 0 };
+    const counts = { scanned: points.length, wouldPatch: 0, unchanged: 0, unresolved: 0 };
+    const extra = { title: 0, date: 0, fetchFailed: 0, written: 0 };
     const samples: string[] = [];
 
     for (const point of points) {
-      const source = getSourceById(point.source_id);
-      let extracted: Extracted | null = null;
-      if (args.refetch && source && isRefetchable(point.source_url, source)) {
-        try {
-          extracted = await ContentExtractor.extractPageContent(point.source_url, source, fetchOk);
-        } catch (error) {
-          counts.fetchFailed++;
-          console.warn(`  [fetch] ${point.source_url}: ${(error as Error).message}`);
+      let patch: Patch = {};
+      let unresolved = false;
+
+      if (args.titles) {
+        const source = getSourceById(point.source_id);
+        let extracted: Extracted | null = null;
+        if (args.refetch && source && isRefetchable(point.source_url, source)) {
+          try {
+            extracted = await ContentExtractor.extractPageContent(
+              point.source_url,
+              source,
+              fetchOk
+            );
+          } catch (error) {
+            extra.fetchFailed++;
+            console.warn(`  [fetch] ${point.source_url}: ${(error as Error).message}`);
+          }
+          await sleep(REFETCH_DELAY_MS);
         }
-        await sleep(REFETCH_DELAY_MS);
+        patch = planRepair(point, extracted) ?? {};
       }
 
-      const patch = planRepair(point, extracted);
-      if (!patch) continue;
-      if (patch.title !== undefined) counts.title++;
-      if (patch.published_at !== undefined) counts.date++;
-      if (samples.length < 10) {
+      if (args.overwriteDates) {
+        const verdict = planDateRepair(point, args.overwriteDates);
+        if (verdict === 'unresolved') unresolved = true;
+        else if (verdict !== 'unchanged') patch.published_at = verdict.published_at;
+      }
+
+      if (patch.title !== undefined) extra.title++;
+      if (patch.published_at !== undefined) extra.date++;
+      const bucket = classifyPoint(patch, unresolved);
+      counts[bucket]++;
+      if (bucket !== 'wouldPatch') continue;
+      if (samples.length < 5) {
+        const old = { title: point.title, published_at: point.published_at };
         samples.push(
-          `  ${point.source_url}\n    ${JSON.stringify(point.title)}\n  → ${JSON.stringify(patch)}`
+          `  ${point.source_url}\n    ${JSON.stringify(old)}\n  → ${JSON.stringify(patch)}`
         );
       }
 
@@ -257,14 +344,17 @@ async function main(): Promise<void> {
             ],
           },
         });
-        counts.written++;
+        extra.written++;
       }
     }
 
     console.log(`\n═══ ${scope.sourceId ?? `${scope.collection} (alle Quellen)`} ═══`);
     console.log(samples.join('\n'));
     console.log(
-      `  geprüft ${counts.scanned} · Titel ${counts.title} · Datum ${counts.date} · Abruf fehlgeschlagen ${counts.fetchFailed} · geschrieben ${counts.written}`
+      `  geprüft ${counts.scanned} = would-patch ${counts.wouldPatch} + unchanged ${counts.unchanged} + unresolved ${counts.unresolved} (unresolved nur ohne jeden Patch)`
+    );
+    console.log(
+      `  davon Titel ${extra.title} · Datum ${extra.date} · Abruf fehlgeschlagen ${extra.fetchFailed} · geschrieben ${extra.written}`
     );
   }
 }

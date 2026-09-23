@@ -40,6 +40,9 @@
  *                   substitute this id for `{{EVAL_USER_NOTEBOOK_ID}}` in their
  *                   prompts and `notebookIds`. Must be a notebook the bypass
  *                   user owns (see corpus/notebook-tools.jsonl).
+ *   EVAL_MEMORY=1   include scenarios that seed the eval account's memory
+ *                   (`memories`). Needs EVAL_CONCURRENCY=1 and an account whose
+ *                   memory is empty — both checked before the first request.
  *   EVAL_CONCURRENCY  scenarios to run in parallel (default 1; turns stay serial)
  *   EVAL_BASELINE   baseline JSON path (default ./evals/baseline.json)
  *   EVAL_UPDATE_BASELINE=1  overwrite the baseline with this run's results
@@ -132,6 +135,7 @@ function selectedCorpus(): EvalScenario[] {
     systemMcp: process.env.EVAL_SYSTEM_MCP === '1',
     deepResearch: process.env.EVAL_DEEP_RESEARCH === '1',
     bgstKorpus: process.env.EVAL_BGST_KORPUS === '1',
+    memory: process.env.EVAL_MEMORY === '1',
     userNotebook: USER_NOTEBOOK_ID !== '',
   });
 }
@@ -158,6 +162,113 @@ async function postSse(
   } catch (err) {
     return { rawBody: '', networkError: err instanceof Error ? err.message : String(err) };
   }
+}
+
+async function memoryRequest(
+  method: 'GET' | 'POST' | 'DELETE',
+  path: string,
+  body?: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method,
+    headers: {
+      'content-type': 'application/json',
+      ...(BYPASS ? { 'x-dev-auth-bypass': BYPASS } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    throw new Error(`${method} ${path}: HTTP ${res.status} ${String(json.message ?? '')}`.trim());
+  }
+  return json;
+}
+
+/**
+ * Das Gedächtnis gehört dem Konto, nicht dem Szenario. Parallel liefe jedes
+ * andere Szenario mit fremden Einträgen im Prompt, und ein Konto mit eigenen
+ * Einträgen verfälscht jeden Fall. Ein leeres Konto zu Beginn ist zugleich,
+ * was `clearRunMemories` das vollständige Leeren erlaubt.
+ */
+async function assertMemoryLaneUsable(corpus: EvalScenario[]): Promise<void> {
+  if (!corpus.some((s) => s.memories)) return;
+  if (CONCURRENCY !== 1) {
+    throw new Error(
+      'Memory-Szenarien brauchen EVAL_CONCURRENCY=1 (das Gedächtnis hängt am Konto).'
+    );
+  }
+  const { memories } = (await memoryRequest('GET', '/api/memory')) as { memories: unknown[] };
+  if (memories.length > 0) {
+    throw new Error(
+      `Das Eval-Konto hat schon ${memories.length} Erinnerung(en) — sie stünden in jedem Prompt. ` +
+        'Erst leeren (Einstellungen → Gedächtnis), der Runner löscht keine fremden Einträge.'
+    );
+  }
+}
+
+/** Set once a memory scenario could not leave the account empty — every later
+ *  scenario would carry foreign entries in its prompt, so none of them runs. */
+let memoryDirty: string | null = null;
+
+function failedResult(scenario: EvalScenario, error: string): CaseResult {
+  return {
+    id: scenario.id,
+    category: scenario.category,
+    prompt: scenario.turns[0]?.prompt ?? '',
+    latencyMs: 0,
+    intent: null,
+    agentic: false,
+    toolNames: [],
+    error,
+    assertions: [],
+    passed: false,
+    turns: [],
+  };
+}
+
+/**
+ * Leert das Konto nach einem Memory-Szenario vollständig. Das ist nur zulässig,
+ * weil `assertMemoryLaneUsable` vor dem Lauf ein leeres Konto verlangt: alles,
+ * was jetzt darin steht, hat dieser Lauf angelegt — auch, was das Modell über
+ * das `memory`-Werkzeug selbst gespeichert hat.
+ */
+async function clearRunMemories(): Promise<string | null> {
+  try {
+    // The contract declares `body: z.object({})` — without it the delete is a 400.
+    await memoryRequest('DELETE', '/api/memory', {});
+    const { memories } = (await memoryRequest('GET', '/api/memory')) as { memories: unknown[] };
+    return memories.length === 0
+      ? null
+      : `${memories.length} Erinnerung(en) nach dem Aufräumen übrig`;
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
+}
+
+async function withMemories(
+  scenario: EvalScenario,
+  run: () => Promise<CaseResult>
+): Promise<CaseResult> {
+  if (memoryDirty) return failedResult(scenario, `übersprungen: ${memoryDirty}`);
+  if (!scenario.memories) return run();
+
+  let result: CaseResult;
+  try {
+    for (const m of scenario.memories) await memoryRequest('POST', '/api/memory', m);
+    result = await run();
+  } catch (err) {
+    result = failedResult(
+      scenario,
+      `Gedächtnis anlegen: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+
+  const leftover = await clearRunMemories();
+  if (leftover) {
+    memoryDirty = `Eval-Konto nicht leer (${leftover})`;
+    return { ...result, passed: false, error: result.error ?? memoryDirty };
+  }
+  return result;
 }
 
 function record(scenarioId: string, turnIdx: number, suffix: string, rawBody: string): void {
@@ -583,6 +694,13 @@ async function main(): Promise<void> {
     console.warn('⚠  EVAL_BYPASS_TOKEN not set — requests will likely 401.\n');
   }
 
+  try {
+    await assertMemoryLaneUsable(corpus);
+  } catch (err) {
+    console.error(`✖  ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
+
   const personas = internalPromptsVerdict();
   if (personas.ok) {
     console.log(`Personas:   intern (${personas.detail})`);
@@ -614,7 +732,7 @@ async function main(): Promise<void> {
   async function worker(): Promise<void> {
     while (cursor < corpus.length) {
       const scenario = corpus[cursor++];
-      const r = await runScenario(scenario);
+      const r = await withMemories(scenario, () => runScenario(scenario));
       results.push(r);
       done++;
       process.stdout.write(`[${done}/${total}] `);
