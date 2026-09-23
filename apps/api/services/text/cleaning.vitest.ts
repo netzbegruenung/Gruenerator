@@ -44,6 +44,30 @@ describe('cleanTextForEmbedding — OCR letter-spacing join stays intra-line (#3
   });
 });
 
+describe('cleanTextForEmbedding — justified text-layer lines are not glued (#3570)', () => {
+  it('keeps words apart when a line spaces several words widely', () => {
+    const line = 'ma-Governance,   denn   Klimaschutz   muss   endlich   eine Querschnittsaufgabe';
+    const expected = 'ma-Governance, denn Klimaschutz muss endlich eine Querschnittsaufgabe';
+    expect(cleanTextForEmbedding(line, true)).toBe(expected);
+    expect(cleanTextForEmbedding(line, false)).toBe(expected);
+  });
+
+  it('still joins a single OCR split inside an otherwise single-spaced line', () => {
+    expect(cleanTextForEmbedding('am 3. No  vember wählen', true)).toBe('am 3. November wählen');
+  });
+
+  it('decides per line', () => {
+    const text = 'Auch   die   Bezirke   sollen\nim No  vember';
+    expect(cleanTextForEmbedding(text, true)).toBe('Auch die Bezirke sollen\nim November');
+  });
+
+  it('collapses 2-space justified gaps to single spaces in the structured path', () => {
+    expect(cleanTextForEmbedding('denn  Klimaschutz  muss  endlich', true)).toBe(
+      'denn Klimaschutz muss endlich'
+    );
+  });
+});
+
 describe('cleanTextForEmbedding — existing behaviour unchanged', () => {
   it('removes null bytes', () => {
     expect(cleanTextForEmbedding('a\0b')).toBe('ab');
