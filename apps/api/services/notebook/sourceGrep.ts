@@ -243,6 +243,21 @@ export function grepSources(
   return { totalHits, perSource };
 }
 
+/**
+ * Die Quellen, die grep zeigt und als Quelle registriert: die mit den meisten
+ * Treffern. `totalHits` und `sourcesWithHits` zählen weiter alle — „Klimaschutz"
+ * im Berlin-Notebook traf 203 Quellen, und alle 203 samt Fundstellen landeten
+ * in Quellenliste und gespeichertem Ergebnis (166k Zeichen, Testserver 23.09.2026).
+ */
+export const GREP_SHOWN_DEFAULT = 10;
+
+export function shownGrepSources(
+  perSource: readonly GrepSourceRow[],
+  limit: number | undefined
+): GrepSourceRow[] {
+  return perSource.slice(0, limit ?? GREP_SHOWN_DEFAULT);
+}
+
 export interface ScanLoad {
   sources: ScannedSource[];
   /** `false`, sobald ein Teil des Notebooks nicht gelesen wurde. */

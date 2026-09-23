@@ -74,8 +74,10 @@ const NOTEBOOK_TOOL_ASK = new RegExp(
       // ── Orte und Mengen ──
       // „wie oft" nur als Zählauftrag — „wie oft wird der Vorstand gewählt"
       // ist eine Inhaltsfrage. „vor"/„auf" nur als abgetrennte Vorsilbe am
-      // Satzende („kommt … vor?"), nicht als Präposition („steht vor Gericht").
-      'wie\\s+oft\\s+(?:wird|kommt|taucht|steht)\\s+[^.?!]{0,80}?(?<![\\wäöüß])(?:erw(?:ä|ae)hnt|genannt|verwendet|(?:vor|auf)(?=\\s*(?:[.?!]|$)))',
+      // Satz- oder Teilsatzende („kommt … vor?", „kommt … vor, und …"), nicht
+      // als Präposition („steht vor Gericht") und nicht vor einem Nebensatz
+      // („kommt es vor, dass …" ist eine Inhaltsfrage).
+      'wie\\s+oft\\s+(?:wird|kommt|taucht|steht)\\s+[^.?!]{0,80}?(?<![\\wäöüß])(?:erw(?:ä|ae)hnt|genannt|verwendet|(?:vor|auf)(?=\\s*(?:[.?!;]|,(?!\\s*(?:dass|wenn|ob)(?![\\wäöüß]))|$)))',
       'wie\\s+viele\\s+(?:w(?:ö|oe)rter|seiten|quellen|dokumente|treffer)',
       'seite\\s+\\d+',
       'abschnitt\\s+\\d+',
