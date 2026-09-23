@@ -169,7 +169,12 @@ export const GEMMA_31B_ON_REGOLO: GemmaHost = {
 
 /** Melious' European routing endpoint serving the same Gemma 4 31B weights.
  *
- *  ── 44k, nicht die 256k der Hub-Seite ──
+ *  ── 128k über zwei Flavors, nicht die 256k der Hub-Seite ──
+ *
+ *  Das Fenster gilt für die LOGISCHE Lane: bis ~40k geht der Zug an
+ *  `:balanced`, darüber tauscht `meliousWireModel` (`meliousThinkingFetch.ts`)
+ *  auf `:speed` (infercom/DE, 130.574 Tokens mit Nadel gefunden). Die Zahlen
+ *  unten beschreiben den `:balanced`-Weg.
  *
  *  Nadelprobe am 23.09.2026 (Markierung am Anfang, 20 Ausgabe-Tokens,
  *  `reasoning_effort: 'none'`): `:balanced` vermittelt an Melious' eigenen
@@ -192,10 +197,11 @@ export const GEMMA_31B_ON_REGOLO: GemmaHost = {
  *  bei 0–15k Kontext, gleiche Messung. Das ist der Grund, warum Melious der
  *  Ausweich bleibt und nicht der Primär wird.
  *
- *  `:speed` erreichte einmal infercom/DE und nahm dort 60k — aber welcher
- *  Upstream antwortet, entscheidet Melious pro Anfrage, und keine Variante
- *  sagt ein Fenster zu. Deshalb gilt der bestätigte Wert des Standardwegs, mit
- *  Reserve unter der Kante wie bei Cortecs.
+ *  `:speed` vermittelte in allen Läufen an infercom/DE (131.072) — welcher
+ *  Upstream antwortet, sagt Melious aber nicht zu. Die 128k stehen deshalb mit
+ *  derselben Reserve unter der Kante wie bei Cortecs, und ein Umrouten von
+ *  `:speed` fiele als lauter 400 in die Fallback-Kette. `:eco` landet auf
+ *  demselben FI-Knoten wie `:balanced` und bringt kein Fenster.
  *
  *  Bilder: HTTP 400 auf einen echten Bild-Turn (23.09.2026), obwohl die
  *  Hub-Seite Bildeingabe führt — wie bei Cortecs beschreibt der Katalog die
@@ -208,7 +214,7 @@ export const GEMMA_31B_ON_REGOLO: GemmaHost = {
 export const GEMMA_31B_ON_MELIOUS: GemmaHost = {
   provider: 'melious',
   model: 'gemma-4-31b:balanced',
-  contextWindow: 44_000,
+  contextWindow: 128_000,
   laneId: 'gemma-melious',
 };
 

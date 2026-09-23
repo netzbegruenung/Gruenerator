@@ -171,11 +171,11 @@ describe('getContextWindow', () => {
     // Gemma 4 trägt die 128k des Cortecs-Endpunkts: infercom lehnt über
     // 131.072 laut ab, per Nadelprobe bestätigt (#3067, gemmaHosts.ts).
     expect(getContextWindow('gemma-4')).toBe(128_000);
-    // `gemma-regolo` löst seit dem Melious-Umzug auf Melious auf, und dessen
-    // Standardweg nimmt nur ~45k (Nadelprobe 23.09.2026). Die beiden Seiten
-    // dieser Lane sind NICHT gleich gross — diesmal ist der Ausweich kleiner.
-    expect(getContextWindow('gemma-regolo')).toBe(44_000);
-    expect(getContextWindow('melious')).toBe(44_000);
+    // `gemma-regolo` löst seit dem Melious-Umzug auf Melious auf. Dessen
+    // Standardweg nimmt nur ~45k; grössere Züge gehen auf `:speed` (131k,
+    // Nadelprobe 23.09.2026), daher dieselben 128k wie Cortecs.
+    expect(getContextWindow('gemma-regolo')).toBe(128_000);
+    expect(getContextWindow('melious')).toBe(128_000);
     expect(getContextWindow('regolo')).toBe(262_144);
   });
 
