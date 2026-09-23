@@ -40,6 +40,8 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
     handleDragLeave,
     handleRemoveDocument,
     handleRemoveDocuments,
+    handleReindexDocument,
+    handleReindexAll,
     handleUnstageFile,
     handleCommitStagedUpload,
     handleWolkeDocsImported,
@@ -100,6 +102,8 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
             loading={loading}
             onRemove={handleRemoveDocument}
             onRemoveMany={handleRemoveDocuments}
+            onReindex={handleReindexDocument}
+            onReindexAll={handleReindexAll}
             onAddClick={() => fileInputRef.current?.click()}
           />
 

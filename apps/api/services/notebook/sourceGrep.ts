@@ -16,6 +16,7 @@
  */
 import { applyContextCap, applyCountCap } from '../../utils/contextCap.js';
 import { escapeRegExp } from '../BaseSearchService/textUtils.js';
+import { maskPageMarkers } from '../document-services/TextChunker/pageMarkerProcessing.js';
 
 import {
   fetchDocumentMetadata,
@@ -154,7 +155,10 @@ function buildPattern(phrase: string, opts: GrepOptions): RegExp {
  * dazwischen beliebig; ohne `caseSensitive` gefaltet (Groß/klein und
  * Diakritika egal).
  */
-export function grepText(text: string, phrase: string, opts: GrepOptions): GrepTextResult {
+export function grepText(raw: string, phrase: string, opts: GrepOptions): GrepTextResult {
+  // `## Seite N` ist Struktur, kein Inhalt. Längentreu ausgeblendet, damit die
+  // Offsets weiter in den gespeicherten Text zeigen.
+  const text = maskPageMarkers(raw);
   const pattern = buildPattern(phrase, opts);
   const fold = !opts.caseSensitive;
   const { chars, map } = prepareHaystack(text, fold);

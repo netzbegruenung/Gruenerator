@@ -25,6 +25,8 @@ import path from 'path';
 
 import { sanitizeFilename } from '../../utils/validation/security.js';
 
+import { joinPagesWithMarkers, type PageMarkerOptions } from './pageMarkers.js';
+
 import type { ExtractionResult } from './types.js';
 import type { Mistral } from '@mistralai/mistralai';
 import type {
@@ -46,11 +48,30 @@ const IMAGE_EXTENSIONS = new Set([
 ]);
 
 /**
+ * Mit `pageMarkers` trägt jede Seite ihre Nummer aus `page.index` — nicht
+ * ihre Position unter den nicht-leeren Seiten, sonst rückte nach einer leeren
+ * Seite jede weitere um eins nach vorn.
+ */
+function joinOcrPages(
+  pages: ReadonlyArray<{ index: number; markdown: string }>,
+  options: PageMarkerOptions
+): string {
+  if (options.pageMarkers) {
+    return joinPagesWithMarkers(pages.map((p) => ({ page: p.index + 1, text: p.markdown })));
+  }
+  return pages
+    .map((page) => page.markdown)
+    .filter((text) => text.trim())
+    .join('\n\n---\n\n');
+}
+
+/**
  * Extract text from document using Mistral OCR 4 API
  */
 export async function extractTextWithMistralOCR(
   filePath: string,
-  getMediaTypeFn: (ext: string) => string
+  getMediaTypeFn: (ext: string) => string,
+  options: PageMarkerOptions = {}
 ): Promise<ExtractionResult> {
   const startTime = Date.now();
 
@@ -85,10 +106,7 @@ export async function extractTextWithMistralOCR(
       throw new Error('No pages returned from Mistral OCR');
     }
 
-    const allText = ocrResponse.pages
-      .map((page) => page.markdown)
-      .filter((text) => text.trim())
-      .join('\n\n---\n\n');
+    const allText = joinOcrPages(ocrResponse.pages, options);
 
     if (!allText.trim()) {
       throw new Error('No text extracted from document');
@@ -137,7 +155,8 @@ const IMAGE_MIME_TYPES = new Set([
 export async function extractBase64WithMistralOCR(
   base64Data: string,
   filename: string,
-  mimeType: string
+  mimeType: string,
+  options: PageMarkerOptions = {}
 ): Promise<ExtractionResult> {
   filename = sanitizeFilename(filename, 'document');
   const startTime = Date.now();
@@ -167,10 +186,7 @@ export async function extractBase64WithMistralOCR(
       throw new Error('No pages returned from Mistral OCR');
     }
 
-    const allText = ocrResponse.pages
-      .map((page) => page.markdown)
-      .filter((text) => text.trim())
-      .join('\n\n---\n\n');
+    const allText = joinOcrPages(ocrResponse.pages, options);
 
     if (!allText.trim()) {
       throw new Error('No text extracted from document');

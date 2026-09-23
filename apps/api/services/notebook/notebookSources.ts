@@ -13,6 +13,7 @@
  * Notebooks lesbar, ohne dass der user_id-Filter in `documentRetrieval` fällt.
  */
 import { applyContextCap } from '../../utils/contextCap.js';
+import { buildPageRangesFromRaw } from '../document-services/TextChunker/pageMarkerProcessing.js';
 
 import { type rerankNotebookResults } from './rerankNotebookResults.js';
 
@@ -25,6 +26,7 @@ import type {
   DocumentChunkItem,
   DocumentChunksResult,
 } from '../document-services/DocumentSearchService/types.js';
+import type { PageRange } from '../document-services/TextChunker/types.js';
 import type { DocDateKind } from '../documentMeta/headerMeta.js';
 import type { ExpandedChunkResult } from '../search/types.js';
 
@@ -448,6 +450,15 @@ export interface SourceSlice {
   pageRange: { from: number; to: number } | null;
 }
 
+/**
+ * Seitenbereiche aus den `## Seite N`-Marken des gespeicherten Texts. Genauer
+ * als die Chunks: eine kurze Seite hat oft keinen Chunk, der auf ihr beginnt,
+ * steht aber als eigene Marke im Text. Leer, wenn der Text keine Marken hat.
+ */
+export function markedPageRanges(text: string): PageRange[] {
+  return buildPageRangesFromRaw(text);
+}
+
 export function sliceSource(
   text: string,
   opts: { von: number; zeichen?: number | undefined },
@@ -461,9 +472,13 @@ export function sliceSource(
   );
   const slice = text.slice(from, from + chars);
   const to = from + slice.length;
-  const pages = chunkMap
-    .filter((c) => c.pageNumber !== null && c.charStart < to && c.charEnd > from)
-    .map((c) => c.pageNumber as number);
+  const marked = markedPageRanges(text);
+  const pages =
+    marked.length > 0
+      ? marked.filter((r) => r.start < to && r.end > from).map((r) => r.page)
+      : chunkMap
+          .filter((c) => c.pageNumber !== null && c.charStart < to && c.charEnd > from)
+          .map((c) => c.pageNumber as number);
   return {
     slice,
     from,
