@@ -13,6 +13,7 @@ import {
   type FakePoint,
 } from '../../../services/notebook/__fixtures__/fakeSystemCollection.js';
 import { SYSTEM_READ_ONLY } from '../../../services/notebook/systemNotebookSources.js';
+import { buildToolObservationReplay } from '../services/agenticLoop/mcpReplay.js';
 
 import {
   makeNotebookSourcesTool,
@@ -67,6 +68,8 @@ function makeCtx(
     searchResults?: DocumentResult[];
     nlp?: StatsNlp;
     recentSteps?: PersistedStep[];
+    /** Eine Hamburger Quelle ohne Datum. */
+    extraPoints?: boolean;
   } = {}
 ) {
   const registered: Array<Record<string, any>> = [];
@@ -84,7 +87,13 @@ function makeCtx(
     messages: [],
     notebookIds: opts.notebookIds ?? [],
   } as unknown as ChatGraphState;
-  const system = makeSystemDeps(points(), {
+  const undated = opts.extraPoints
+    ? fakeDoc(LV, 'https://gruene-hamburg.de/ohne-datum', ['Hafen ohne Datum.'], {
+        landesverband: 'HH',
+        title: 'Ohne Datum',
+      })
+    : [];
+  const system = makeSystemDeps([...points(), ...undated], {
     ...(opts.searchResults ? { searchResults: opts.searchResults } : {}),
   });
   const helper = {
@@ -279,7 +288,8 @@ describe('grep, stats, rank, cite', () => {
   it('counts a phrase across the collection, never outside it', async () => {
     const { run, registered } = makeCtx();
     const out = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Wärmepumpe' });
-    expect(out).toMatchObject({ exhaustive: true, totalHits: 2, sourcesScanned: 2 });
+    // Gelesen werden nur die Quellen, in denen der Volltextindex das Wort fand.
+    expect(out).toMatchObject({ exhaustive: true, totalHits: 2, sourcesScanned: 1 });
     expect(out.perSource).toEqual([expect.objectContaining({ sourceId: HH_A, url: HH_A })]);
     expect(registered[0]).toMatchObject({ url: HH_A, collectionId: 'hamburg' });
   });
@@ -419,6 +429,84 @@ describe('live findings 23.09.2026', () => {
     });
     expect(out.error).toMatch(/Keine Quelle passt zu filter/);
     expect(system.search).not.toHaveBeenCalled();
+  });
+
+  it('grep and rank by=term count over the chunk_text index, not by reading every source', async () => {
+    const { run, system } = makeCtx();
+    const grep = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Wärmepumpe' });
+    expect(grep.exhaustive).toBe(true);
+    const ranked = await run({ action: 'rank', notebookId: 'hamburg', by: 'term', query: 'Klima' });
+    expect(ranked.exhaustive).toBe(true);
+    expect(system.getSystemDocumentFullTextByUrl).not.toHaveBeenCalled();
+    const filters = system.scrollPage.mock.calls.map((c) => JSON.stringify(c[1]));
+    expect(filters.some((f) => f.includes('"chunk_text"'))).toBe(true);
+  });
+
+  it('says how many undated sources a date filter left out', async () => {
+    const { run } = makeCtx({ extraPoints: true });
+    const filter = { dateFrom: '2025-01-01' };
+    const listed = await run({ action: 'list', notebookId: 'hamburg', filter });
+    expect(listed.undatedExcluded).toBe(1);
+    expect(listed.note).toMatch(/1 Quelle ohne Datum fehlt/);
+    const grep = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Hafen', filter });
+    expect(grep.undatedExcluded).toBe(1);
+    const unfiltered = await run({ action: 'list', notebookId: 'hamburg' });
+    expect(unfiltered.undatedExcluded).toBeUndefined();
+    expect(unfiltered.note).toBeUndefined();
+  });
+
+  it('list and rank carry one line per source for later turns (refs)', async () => {
+    const { run } = makeCtx();
+    const listed = await run({ action: 'list', notebookId: 'hamburg' });
+    expect(listed.refs).toBe(`Hafen — ${HH_B} (2026-01-15)\nRadverkehr — ${HH_A} (2025-03-01)`);
+    const ranked = await run({ action: 'rank', notebookId: 'hamburg', by: 'term', query: 'Klima' });
+    expect(ranked.refs).toBe(`1. Hafen — ${HH_B} (1 Treffer)`);
+  });
+
+  it('a 20-row list keeps every ref in the replay of a later turn (#3561)', async () => {
+    const berlin: FakePoint[] = Array.from({ length: 20 }, (_, i) =>
+      fakeDoc(
+        LV,
+        `https://gruene-fraktion.berlin/pressemitteilungen/kuerzungen-im-haushalt-2026-teil-${i}/`,
+        ['Text.'],
+        {
+          landesverband: 'BE',
+          title: `Kürzungen im Haushalt 2026 treffen Klimaschutz und Verkehrswende, Teil ${i}`,
+          published_at: `2026-0${1 + (i % 9)}-1${i % 10}T09:49:15+01:00`,
+          content_type: 'presse',
+        }
+      )
+    ).flat();
+    const { deps } = makeCtx();
+    const system = makeSystemDeps(berlin);
+    const tool = makeNotebookSourcesTool({
+      state: {
+        agentConfig: { userId: 'user-1' },
+        userLocale: 'de-DE',
+        messages: [],
+        notebookIds: [],
+      } as unknown as ChatGraphState,
+      sse: { send: () => {} } as unknown as SSEWriter,
+      threadId: 't1',
+      sourceRegistry: { note: () => {}, register: () => '' } as unknown as SourceRegistry,
+      deps: { ...deps, scrollPage: system.scrollPage } as NotebookSourceToolDeps,
+    });
+    const args = { action: 'list', notebookId: 'berlin', limit: 20, mode: 'hybrid', rerank: false };
+    const result = (await (tool.execute as (a: unknown, o: unknown) => Promise<ToolResult>)(
+      args,
+      {}
+    ))!;
+    expect(result.results).toHaveLength(20);
+    // Das ganze Ergebnis sprengt jede Vorschau — deshalb die kompakten refs.
+    expect(JSON.stringify(result).length).toBeGreaterThan(6000);
+
+    const replay = buildToolObservationReplay(
+      [{ toolCallId: 'c1', toolName: 'notebook_quellen', args, result }],
+      new Set(['notebook_quellen'])
+    );
+    const value = (replay[1]!.content as Array<{ output: { value: string } }>)[0]!.output.value;
+    expect(value.length).toBeLessThanOrEqual(4001);
+    for (const row of result.results as ToolResult[]) expect(value).toContain(row.ref);
   });
 
   it('grep over a narrow filter reads only those sources', async () => {

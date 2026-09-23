@@ -26,7 +26,7 @@ import {
   locateQuoteInSources,
   type CiteCandidate,
 } from '../../../services/notebook/sourceCite.js';
-import { grepSources } from '../../../services/notebook/sourceGrep.js';
+import { grepSources, type ScanLoad } from '../../../services/notebook/sourceGrep.js';
 import { statsFromLoad, type StatsNlp } from '../../../services/notebook/sourceStats.js';
 import {
   checkSystemSource,
@@ -35,6 +35,7 @@ import {
   hasSystemFilter,
   listSystemSources,
   loadSystemScanTexts,
+  loadSystemTermMatches,
   outlineSystemSource,
   readSystemSourceText,
   NOT_A_URL,
@@ -51,10 +52,12 @@ import { rankManualSearchResults } from '../../../services/search/manualSearchRa
 
 import { pickRange, type CharRange } from './notebookSourceRange.js';
 import {
+  compactRefs,
   notExhaustiveCounts,
   notExhaustiveGrep,
   RANK_DEFAULT_LIMIT,
   RANK_MIN_SCORE,
+  rankRefs,
   renderStats,
   STATS_CHARS,
   type RankBy,
@@ -135,9 +138,66 @@ function echoFilter(f: SystemSourceFilter | undefined): Record<string, unknown> 
 async function scopedUrls(
   filter: SystemSourceFilter | undefined,
   ctx: SystemActionCtx
-): Promise<string[] | null> {
+): Promise<{ urls: string[]; exhaustive: boolean; undatedExcluded: number } | null> {
   if (!filter) return null;
-  return (await filterSystemSourceUrls({ collection: ctx.collection, filter }, ctx.deps)).urls;
+  return await filterSystemSourceUrls({ collection: ctx.collection, filter }, ctx.deps);
+}
+
+/**
+ * Ein Datumsfilter lässt Quellen ohne `published_at` still weg — in Berlin
+ * gut jede fünfte. Das Ergebnis sagt es mit Zahl, damit „alle Beschlüsse aus
+ * 2025" nicht als vollständig gelesen wird.
+ */
+function withUndated(result: Record<string, unknown>, undated: number): Record<string, unknown> {
+  if (undated <= 0) return result;
+  const said =
+    undated === 1
+      ? '1 Quelle ohne Datum fehlt, weil dateFrom/dateTo gesetzt ist.'
+      : `${undated} Quellen ohne Datum fehlen, weil dateFrom/dateTo gesetzt ist.`;
+  const note = [typeof result.note === 'string' ? result.note : null, said]
+    .filter(Boolean)
+    .join(' ');
+  return { ...result, undatedExcluded: undated, note };
+}
+
+type TermLoad = ScanLoad & {
+  accept?: ((matched: string) => boolean) | undefined;
+  undatedExcluded: number;
+};
+
+/**
+ * Die Texte für grep und rank by=term über die ganze Sammlung (bzw. `filter`):
+ * zuerst über den Volltextindex (`loadSystemTermMatches`, vollständig), nur
+ * wenn die Phrase dort kein Wort hat, über das Lesen ganzer Quellen.
+ */
+async function loadTermTexts(
+  phrase: string,
+  filter: SystemSourceFilter | undefined,
+  ctx: SystemActionCtx
+): Promise<TermLoad | { error: string }> {
+  const { collection, deps } = ctx;
+  const scope = await scopedUrls(filter, ctx);
+  const undatedExcluded = scope?.undatedExcluded ?? 0;
+  if (scope?.urls.length === 0) {
+    const reason = scope.exhaustive ? null : 'Sammlung zu groß';
+    return { sources: [], exhaustive: reason === null, incompleteReason: reason, undatedExcluded };
+  }
+  const matched = await loadSystemTermMatches(
+    { collection, phrase, ...(scope ? { sourceUrls: scope.urls } : {}) },
+    deps
+  );
+  if (!matched) {
+    return await loadSystemScanTexts({ collection, filter, prefilterQuery: phrase }, deps);
+  }
+  if (scope && !scope.exhaustive) {
+    return {
+      ...matched,
+      exhaustive: false,
+      incompleteReason: [matched.incompleteReason, 'Sammlung zu groß'].filter(Boolean).join(', '),
+      undatedExcluded,
+    };
+  }
+  return { ...matched, undatedExcluded };
 }
 
 const NO_SOURCE_IN_FILTER = 'Keine Quelle passt zu filter — lockere ihn oder prüfe ihn mit list.';
@@ -202,7 +262,7 @@ async function list(
 ): Promise<Record<string, unknown>> {
   const { collection, deps, sourceRegistry } = ctx;
   const filter = systemFilter(args);
-  const { total, items, exhaustive, categories } = await listSystemSources(
+  const { total, items, exhaustive, categories, undatedExcluded } = await listSystemSources(
     {
       collection,
       sortBy: args.sortBy,
@@ -227,19 +287,25 @@ async function list(
   } else {
     groundRows(sourceRegistry, results);
   }
-  return {
-    notebook: collection.name,
-    collection: collection.key,
-    total,
-    exhaustive,
-    offset: args.offset ?? 0,
-    limit: Math.min(50, args.limit ?? 20),
-    sortBy: args.sortBy ?? 'date',
-    ...echoFilter(filter),
-    categories,
-    results,
-    ...(exhaustive ? {} : { note: LIST_CAPPED }),
-  };
+  return withUndated(
+    {
+      notebook: collection.name,
+      collection: collection.key,
+      total,
+      exhaustive,
+      offset: args.offset ?? 0,
+      limit: Math.min(50, args.limit ?? 20),
+      sortBy: args.sortBy ?? 'date',
+      ...echoFilter(filter),
+      categories,
+      ...(exhaustive ? {} : { note: LIST_CAPPED }),
+      refs: compactRefs(
+        items.map((r) => ({ title: r.title, ref: r.id, detail: r.createdAt?.slice(0, 10) }))
+      ),
+      results,
+    },
+    undatedExcluded
+  );
 }
 
 async function outline(
@@ -330,14 +396,17 @@ async function find(
     if (missing) return missing;
   }
   const filter = args.sourceId ? undefined : systemFilter(args);
-  const urls = await scopedUrls(filter, ctx);
-  if (urls?.length === 0) return { error: NO_SOURCE_IN_FILTER, ...echoFilter(filter) };
+  const scope = await scopedUrls(filter, ctx);
+  const undated = scope?.undatedExcluded ?? 0;
+  if (scope?.urls.length === 0) {
+    return withUndated({ error: NO_SOURCE_IN_FILTER, ...echoFilter(filter) }, undated);
+  }
   const { passages, reranked } = await findSystemPassages(
     {
       collection,
       query,
       sourceUrl: args.sourceId,
-      ...(urls ? { sourceUrls: urls } : {}),
+      ...(scope ? { sourceUrls: scope.urls } : {}),
       mode: args.mode,
       limit: args.limit ?? 10,
       rerank: args.rerank,
@@ -358,7 +427,7 @@ async function find(
       `System-Notebook „${collection.name}"`,
       `Keine Passage zu „${query}" gefunden.`
     );
-    return { ...base, resultCount: 0, passages: [] };
+    return withUndated({ ...base, resultCount: 0, passages: [] }, undated);
   }
   const sources = sourceRegistry.register(
     passages.map((p): SearchResult => ({
@@ -371,23 +440,26 @@ async function find(
       citedText: p.text,
     }))
   );
-  return {
-    ...base,
-    resultCount: passages.length,
-    passages: passages.map((p) => ({
-      sourceId: p.sourceId,
-      url: p.sourceId,
-      title: p.title,
-      chunkIndex: p.chunkIndex,
-      pageNumber: p.pageNumber,
-      charStart: p.charStart,
-      charEnd: p.charEnd,
-      score: p.score,
-      hasTerm: p.hasTerm,
-      excerpt: p.text.slice(0, EXCERPT_CHARS),
-    })),
-    sources,
-  };
+  return withUndated(
+    {
+      ...base,
+      resultCount: passages.length,
+      passages: passages.map((p) => ({
+        sourceId: p.sourceId,
+        url: p.sourceId,
+        title: p.title,
+        chunkIndex: p.chunkIndex,
+        pageNumber: p.pageNumber,
+        charStart: p.charStart,
+        charEnd: p.charEnd,
+        score: p.score,
+        hasTerm: p.hasTerm,
+        excerpt: p.text.slice(0, EXCERPT_CHARS),
+      })),
+      sources,
+    },
+    undated
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -402,14 +474,14 @@ async function grep(
   if (phrase.length < 2) return { error: 'grep braucht phrase (mindestens 2 Zeichen).' };
   const { collection, deps, sourceRegistry } = ctx;
   const filter = args.sourceId ? undefined : systemFilter(args);
-  const loaded = await loadSystemScanTexts(
-    { collection, sourceUrl: args.sourceId, filter, prefilterQuery: phrase },
-    deps
-  );
+  const loaded: TermLoad | { error: string } = args.sourceId
+    ? await loadSystemScanTexts({ collection, sourceUrl: args.sourceId }, deps)
+    : await loadTermTexts(phrase, filter, ctx);
   if ('error' in loaded) return loaded;
   const counted = grepSources(loaded.sources, phrase, {
     caseSensitive: args.caseSensitive,
     contexts: args.contexts,
+    accept: loaded.accept,
   });
   if (counted.perSource.length === 0) {
     groundNote(
@@ -435,18 +507,21 @@ async function grep(
       })
     );
   }
-  return {
-    notebook: collection.name,
-    collection: collection.key,
-    phrase,
-    ...echoFilter(filter),
-    exhaustive: loaded.exhaustive,
-    totalHits: counted.totalHits,
-    sourcesScanned: loaded.sources.length,
-    sourcesWithHits: counted.perSource.length,
-    perSource: counted.perSource.map((s) => ({ ...s, url: s.sourceId })),
-    ...(loaded.exhaustive ? {} : { note: notExhaustiveGrep(loaded.incompleteReason) }),
-  };
+  return withUndated(
+    {
+      notebook: collection.name,
+      collection: collection.key,
+      phrase,
+      ...echoFilter(filter),
+      exhaustive: loaded.exhaustive,
+      totalHits: counted.totalHits,
+      sourcesScanned: loaded.sources.length,
+      sourcesWithHits: counted.perSource.length,
+      perSource: counted.perSource.map((s) => ({ ...s, url: s.sourceId })),
+      ...(loaded.exhaustive ? {} : { note: notExhaustiveGrep(loaded.incompleteReason) }),
+    },
+    loaded.undatedExcluded
+  );
 }
 
 async function stats(
@@ -457,8 +532,9 @@ async function stats(
   const filter = args.sourceId ? undefined : systemFilter(args);
   const loaded = await loadSystemScanTexts({ collection, sourceUrl: args.sourceId, filter }, deps);
   if ('error' in loaded) return loaded;
+  const { undatedExcluded, ...load } = loaded;
   const result = await statsFromLoad(
-    loaded,
+    load,
     {
       sourceId: args.sourceId,
       lemmas: args.lemmas ?? false,
@@ -487,13 +563,16 @@ async function stats(
   ]
     .filter(Boolean)
     .join(' ');
-  return {
-    notebook: collection.name,
-    collection: collection.key,
-    ...echoFilter(filter),
-    ...result,
-    ...(note ? { note } : {}),
-  };
+  return withUndated(
+    {
+      notebook: collection.name,
+      collection: collection.key,
+      ...echoFilter(filter),
+      ...result,
+      ...(note ? { note } : {}),
+    },
+    undatedExcluded
+  );
 }
 
 async function rank(
@@ -514,15 +593,19 @@ async function rank(
   let rows: Array<Omit<RankRow, 'rank'>>;
   let exhaustive: boolean | null = null;
   let incompleteReason: string | null = null;
+  let undated = 0;
 
   if (by === 'relevance') {
-    const urls = await scopedUrls(filter, ctx);
-    if (urls?.length === 0) return { error: NO_SOURCE_IN_FILTER, ...echoFilter(filter) };
+    const scope = await scopedUrls(filter, ctx);
+    undated = scope?.undatedExcluded ?? 0;
+    if (scope?.urls.length === 0) {
+      return withUndated({ error: NO_SOURCE_IN_FILTER, ...echoFilter(filter) }, undated);
+    }
     const docs = await searchSystemDocuments(
       {
         collection,
         query,
-        ...(urls ? { sourceUrls: urls } : {}),
+        ...(scope ? { sourceUrls: scope.urls } : {}),
         mode: 'hybrid',
         limit: limit * 3,
       },
@@ -541,6 +624,7 @@ async function rank(
     }));
   } else if (by === 'date') {
     const listed = await listSystemSources({ collection, sortBy: 'date', filter, limit }, deps);
+    undated = listed.undatedExcluded;
     exhaustive = listed.exhaustive;
     incompleteReason = listed.exhaustive ? null : 'Sammlung zu groß';
     rows = listed.items.map((r) => ({
@@ -549,32 +633,33 @@ async function rank(
       value: r.createdAt?.slice(0, 10) ?? null,
       unit: 'Datum',
     }));
-  } else {
-    // term, length, pages: aus den gelesenen Texten — Länge und Seiten stehen
-    // bei System-Quellen in keiner Liste.
-    const loaded = await loadSystemScanTexts(
-      { collection, filter, ...(by === 'term' ? { prefilterQuery: query } : {}) },
-      deps
-    );
+  } else if (by === 'term') {
+    const loaded = await loadTermTexts(query, filter, ctx);
     if ('error' in loaded) return loaded;
     exhaustive = loaded.exhaustive;
     incompleteReason = loaded.incompleteReason;
-    if (by === 'term') {
-      rows = grepSources(loaded.sources, query, {})
-        .perSource.slice(0, limit)
-        .map((s) => ({ sourceId: s.sourceId, title: s.title, value: s.count, unit: 'Treffer' }));
-    } else {
-      const measured = loaded.sources.map((s) => ({
-        sourceId: s.sourceId,
-        title: s.title,
-        value: by === 'length' ? s.text.length : systemSourceSize(s.chunkMap).pages,
-        unit: by === 'length' ? ('Zeichen' as const) : ('Seiten' as const),
-      }));
-      rows = measured
-        .filter((r) => r.value !== null)
-        .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
-        .slice(0, limit);
-    }
+    undated = loaded.undatedExcluded;
+    rows = grepSources(loaded.sources, query, { accept: loaded.accept })
+      .perSource.slice(0, limit)
+      .map((s) => ({ sourceId: s.sourceId, title: s.title, value: s.count, unit: 'Treffer' }));
+  } else {
+    // length, pages: aus den gelesenen Texten — Länge und Seiten stehen bei
+    // System-Quellen in keiner Liste.
+    const loaded = await loadSystemScanTexts({ collection, filter }, deps);
+    if ('error' in loaded) return loaded;
+    exhaustive = loaded.exhaustive;
+    incompleteReason = loaded.incompleteReason;
+    undated = loaded.undatedExcluded;
+    const measured = loaded.sources.map((s) => ({
+      sourceId: s.sourceId,
+      title: s.title,
+      value: by === 'length' ? s.text.length : systemSourceSize(s.chunkMap).pages,
+      unit: by === 'length' ? ('Zeichen' as const) : ('Seiten' as const),
+    }));
+    rows = measured
+      .filter((r) => r.value !== null)
+      .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
+      .slice(0, limit);
   }
 
   const ranking: RankRow[] = rows.map((r, i) => ({ rank: i + 1, ...r }));
@@ -598,16 +683,20 @@ async function rank(
       )
     );
   }
-  return {
-    notebook: collection.name,
-    collection: collection.key,
-    by,
-    ...(query ? { query } : {}),
-    ...echoFilter(filter),
-    ...(exhaustive === null ? {} : { exhaustive }),
-    ...(exhaustive === false ? { note: notExhaustiveCounts(incompleteReason) } : {}),
-    ranking,
-  };
+  return withUndated(
+    {
+      notebook: collection.name,
+      collection: collection.key,
+      by,
+      ...(query ? { query } : {}),
+      ...echoFilter(filter),
+      ...(exhaustive === null ? {} : { exhaustive }),
+      ...(exhaustive === false ? { note: notExhaustiveCounts(incompleteReason) } : {}),
+      refs: rankRefs(ranking),
+      ranking,
+    },
+    undated
+  );
 }
 
 function candidateSource(c: CiteCandidate, collection: SystemCollection): SearchResult {
@@ -637,14 +726,17 @@ async function cite(
       const missing = await checkSystemSource({ collection, sourceUrl: args.sourceId }, deps);
       if (missing) return missing;
     }
-    const urls = await scopedUrls(filter, ctx);
-    if (urls?.length === 0) return { error: NO_SOURCE_IN_FILTER, ...echoFilter(filter) };
+    const scope = await scopedUrls(filter, ctx);
+    const undated = scope?.undatedExcluded ?? 0;
+    if (scope?.urls.length === 0) {
+      return withUndated({ error: NO_SOURCE_IN_FILTER, ...echoFilter(filter) }, undated);
+    }
     const { passages } = await findSystemPassages(
       {
         collection,
         query: claim,
         sourceUrl: args.sourceId,
-        ...(urls ? { sourceUrls: urls } : {}),
+        ...(scope ? { sourceUrls: scope.urls } : {}),
         mode: 'hybrid',
         limit: CLAIM_PASSAGES,
         rerank: true,
@@ -658,10 +750,10 @@ async function cite(
         label,
         `Kein Satz in den gefundenen Passagen deckt sich mit „${claim}".`
       );
-      return { claim, candidates: [] };
+      return withUndated({ claim, candidates: [] }, undated);
     }
     const sources = sourceRegistry.register(candidates.map((c) => candidateSource(c, collection)));
-    return { claim, candidates, sources };
+    return withUndated({ claim, candidates, sources }, undated);
   }
 
   const quote = zitat as string;
@@ -670,7 +762,8 @@ async function cite(
     deps
   );
   if ('error' in loaded) return loaded;
-  const out = locateQuoteInSources(loaded, quote);
+  const { undatedExcluded, ...load } = loaded;
+  const out = locateQuoteInSources(load, quote);
   if (out.found) {
     const sources = sourceRegistry.register([
       {
@@ -682,21 +775,24 @@ async function cite(
         citedText: out.matched,
       },
     ]);
-    return { ...out, url: out.sourceId, sources };
+    return withUndated({ ...out, url: out.sourceId, sources }, undatedExcluded);
   }
   if (out.candidates.length > 0) {
     const sources = sourceRegistry.register(
       out.candidates.map((c) => candidateSource(c, collection))
     );
-    return {
-      ...out,
-      note: 'Das Zitat steht in mehreren Quellen — nenne die gemeinte oder frage nach.',
-      sources,
-    };
+    return withUndated(
+      {
+        ...out,
+        note: 'Das Zitat steht in mehreren Quellen — nenne die gemeinte oder frage nach.',
+        sources,
+      },
+      undatedExcluded
+    );
   }
   const missing = out.exhaustive
     ? `Das Zitat „${quote}" steht so in keiner Quelle.`
     : `Das Zitat „${quote}" steht in keiner der gelesenen Quellen — nicht alle Quellen wurden gelesen (${out.incompleteReason ?? 'unvollständig'}).`;
   groundNote(sourceRegistry, label, missing);
-  return { ...out, note: missing };
+  return withUndated({ ...out, note: missing }, undatedExcluded);
 }

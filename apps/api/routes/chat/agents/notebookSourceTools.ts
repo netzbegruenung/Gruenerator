@@ -57,6 +57,7 @@ import { getRecentToolSteps } from '../services/threadPersistenceService.js';
 
 import { pickRange } from './notebookSourceRange.js';
 import {
+  compactRefs,
   isScanReadAction,
   RANK_BY,
   runScanReadAction,
@@ -407,7 +408,7 @@ NUTZE FÜR (direkt, umkehrbar): Quellen aus dem Notebook entfernen (remove — s
 
 Die sourceId stammt aus list (Feld ref) — rate sie nie. Eine Quelle nach Namen suchen: list mit filter.titleContains; nach Inhalt: find.
 Ohne notebookId gilt das im Chat ausgewählte Notebook, sonst das zuletzt in diesem Chat genutzte.
-System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="list" scope="system" (z. B. deutschland, hamburg, berlin); die sourceId ist dort die URL der Quelle. list nennt die Kategorien (categories) für filter.category; filter.dateFrom/dateTo grenzen auch find, rank, grep und stats ein. Nur lesen.`,
+System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="list" scope="system" (z. B. deutschland, hamburg, berlin); die sourceId ist dort die URL der Quelle. list nennt die Kategorien (categories) für filter.category; filter.dateFrom/dateTo grenzen auch find, rank, grep und stats ein (Quellen ohne Datum fallen dann weg — undatedExcluded). grep zählt dort alle Quellen; Akzente schreibe wie im Original (Charité, nicht Charite). Nur lesen.`,
     inputSchema,
     execute: async (rawArgs) => {
       const userId = requireUserId(state);
@@ -526,6 +527,9 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       limit: Math.min(50, args.limit ?? 20),
       sortBy: args.sortBy ?? 'date',
       ...(args.filter ? { filter: args.filter } : {}),
+      refs: compactRefs(
+        items.map((r) => ({ title: r.title, ref: r.id, detail: r.createdAt?.slice(0, 10) }))
+      ),
       results,
     };
   }
