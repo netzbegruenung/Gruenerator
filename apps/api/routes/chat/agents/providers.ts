@@ -228,14 +228,14 @@ const GEMMA_4_MELIOUS: ModelConfigSingle = {
   // Mechanismus ist deshalb nicht kosmetisch, sondern tragend — jede
   // Konfiguration zieht ihr Fenster aus ihrem eigenen Host-Deskriptor.
   //
-  // WORAUF ZU ACHTEN IST, wenn jemand die Ausweichrichtung ändert:
-  // `ResolvedModelTuple.sibling` führt nur provider/model, kein Fenster — bei
-  // einem Ausweich bleibt also die Zahl des PRIMÄRS stehen. Von der
-  // Antwortlane aus ist das harmlos (Cortecs 128k → Regolo 262k, es wird
-  // grösser). Andersherum ist es die stille Kürzung von oben: wer `gemma-regolo`
-  // auflöst (262k) und von dort auf Cortecs ausweicht, hat gegen 262k bemessen
-  // und landet auf 128k. Diese Kennung ist backend-only und wird heute von
-  // nichts von selbst gewählt — wer das ändert, misst vorher.
+  // WORAUF ZU ACHTEN IST: `ResolvedModelTuple.sibling` führt nur
+  // provider/model, kein Fenster — bei einem Ausweich bleibt die Zahl des
+  // PRIMÄRS stehen. Seit der Nadelprobe vom 23.09.2026 heisst das für die
+  // Antwortlane: Cortecs 128k → Melious 44k, es wird KLEINER. Ein Zug, der
+  // Cortecs' Fenster ausnutzt und dort am ersten Token scheitert, bekommt auf
+  // Melious einen lauten 400 statt einer Antwort. Das ist der Preis des
+  // Ausweichs und bewusst hingenommen (die Alternative wäre, jeden Zug gegen
+  // 44k zu kürzen); gerechnet gegen die Fenster von GEMMA_31B_ON_MELIOUS.
   //
   // `streamWithFallback` ist single-step by design — der eigene Fallback des
   // Ausweichs (`gemma-regolo`) greift auf DIESEM Weg also nicht.
@@ -414,8 +414,10 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   melious: {
     kind: 'single',
     provider: 'melious',
-    model: env.MELIOUS_DEFAULT_MODEL || 'gemma-4-31b:balanced',
-    contextWindow: CTX_FULL,
+    model: env.MELIOUS_DEFAULT_MODEL || GEMMA_31B_ON_MELIOUS.model,
+    // Der gemessene Wert des Standardwegs, nicht CTX_FULL — siehe
+    // GEMMA_31B_ON_MELIOUS. Ein gegen 262k bemessener Prompt bekam hier einen 400.
+    contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
   },
   // Backend-only lane and, since 03.08.2026, no longer an auto-policy target
   // (its auto-policy role moved to `gemma-4-26b`, which was itself folded into

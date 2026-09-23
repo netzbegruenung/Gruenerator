@@ -168,13 +168,47 @@ export const GEMMA_31B_ON_REGOLO: GemmaHost = {
 };
 
 /** Melious' European routing endpoint serving the same Gemma 4 31B weights.
- *  `:speed` keeps normal interactive turns on the documented non-reasoning
- *  route; callers that need a different Melious flavor may use their own
- *  model suffix. */
+ *
+ *  ── 44k, nicht die 256k der Hub-Seite ──
+ *
+ *  Nadelprobe am 23.09.2026 (Markierung am Anfang, 20 Ausgabe-Tokens,
+ *  `reasoning_effort: 'none'`): `:balanced` vermittelt an Melious' eigenen
+ *  Knoten (`environment_impact.provider_id: 'melious'`, `location: 'FI'`), und
+ *  der nimmt Prompt + Ausgabe bis rund 45.056 Tokens:
+ *
+ *    in=44.859  → 200, Nadel gefunden
+ *    in≈45.050  → 400 `invalid_request_error` („malformed"), nach 0,5 s
+ *    in≳131k    → 400 `context_length_exceeded` (Melious' eigene Vorprüfung)
+ *
+ *  Kein Byte-Limit (90 KB Ziffern scheitern, 214 KB Prosa gehen durch) und
+ *  keine Zeitsperre (der 400 kommt sofort). Die Grenze ist also LAUT, nicht
+ *  still — aber ein gegen 262k bemessener Prompt scheitert hier sicher.
+ *
+ *  Zweite Grenze, die kein Fenster ist: Melious' Gateway trennt nach 60 s.
+ *  Der FI-Knoten brauchte für 42–44k Tokens Prompt 48–56 s bis zur Antwort und
+ *  riss unter paralleler Last schon bei 26k die 60 s. Cortecs beantwortete
+ *  dieselben Prompts in 3–6 s (infercom) bzw. 6–11 s (berget), 120k in 15 s.
+ *  Bei kurzen Prompts ist Melious dagegen schneller: ~95 tok/s gegen ~40 tok/s
+ *  bei 0–15k Kontext, gleiche Messung. Das ist der Grund, warum Melious der
+ *  Ausweich bleibt und nicht der Primär wird.
+ *
+ *  `:speed` erreichte einmal infercom/DE und nahm dort 60k — aber welcher
+ *  Upstream antwortet, entscheidet Melious pro Anfrage, und keine Variante
+ *  sagt ein Fenster zu. Deshalb gilt der bestätigte Wert des Standardwegs, mit
+ *  Reserve unter der Kante wie bei Cortecs.
+ *
+ *  Bilder: HTTP 400 auf einen echten Bild-Turn (23.09.2026), obwohl die
+ *  Hub-Seite Bildeingabe führt — wie bei Cortecs beschreibt der Katalog die
+ *  Gewichte, nicht den Endpunkt.
+ *
+ *  Denken: dieser Host denkt OHNE Vorgabe (~300 Reasoning-Tokens auf eine
+ *  Zwei-Satz-Frage, 3–4 s statt 1 s). Abgeschaltet wird es auf dem SDK-Pfad
+ *  (`meliousThinkingFetch.ts`), angeschaltet im Denk-Strom
+ *  (`regoloReasoningStream.ts`). */
 export const GEMMA_31B_ON_MELIOUS: GemmaHost = {
   provider: 'melious',
   model: 'gemma-4-31b:balanced',
-  contextWindow: 262_144,
+  contextWindow: 44_000,
   laneId: 'gemma-melious',
 };
 
@@ -182,41 +216,33 @@ export const GEMMA_31B_ON_MELIOUS: GemmaHost = {
  *  (Luxemburg, Verarbeitung Deutschland); `berget` steht daneben, siehe die
  *  Messung im Kopf dieser Datei.
  *
- *  ── 128k, und warum die Zahl NICHT dem Katalog folgt ──
+ *  ── 128k, per Nadelprobe bestätigt (23.09.2026, Issue #3067) ──
  *
- *  Hier stand bis zum 31.08.2026 als Begründung: „`GET /v1/models` meldet für
- *  `gemma-4-31b-it` `context_size: 128000`". Das war am 25.08.2026 richtig und
- *  ist es nicht geblieben — am 31.08.2026 meldet derselbe Endpunkt für dasselbe
- *  Modell **262000**, also genau das, was die Gewichte tragen und was Regolos
- *  Seite der Lane führt.
+ *  Der Katalog meldet seit dem 31.08.2026 `context_size: 262000`. Das gilt nur
+ *  für EINEN der beiden Unteranbieter, und ohne Vorgabe wählt der Router pro
+ *  Anfrage selbst — er nahm an diesem Tag in allen Läufen infercom.
  *
- *  Die Zahl bleibt trotzdem bei 128.000, und zwar nicht aus Trägheit: **der
- *  Katalog ist hier keine Quelle.** Diese Datei führt den Beleg dafür selbst —
- *  derselbe Katalog versprach für dieses Modell Bildfähigkeit, und ein echter
- *  Bild-Turn antwortete mit HTTP 500. Ein zu grosses Fenster ist ausserdem
- *  keine Fehlermeldung, sondern eine STILLE Kürzung: der Aufruf gelingt, das
- *  Modell antwortet über ein Fragment, und nichts sagt es. Ein zu kleines
- *  kostet nur Kontext, den man laut nachrechnen kann. Die Richtung der
- *  Unsicherheit entscheidet also, welcher Wert hier stehen darf: der zuletzt
- *  ENDE-ZU-ENDE bestätigte, nicht der zuletzt behauptete.
+ *  Markierung am Anfang, 20 Ausgabe-Tokens, je Unteranbieter erzwungen
+ *  (`allowed_providers`):
  *
- *  Was den Wert bewegen darf, ist eine Nadelprobe (Issue #3067). Sie stand als
- *  Beispiel an `CTX_VERDIGADO` und ist mit dessen Stilllegung aus dem Baum
- *  verschwunden; hier ist sie in vier Schritten:
+ *                  in=59.530   in=120.008   in=140.747   in≈202k
+ *    infercom      gefunden    gefunden     400          400
+ *    berget        gefunden    gefunden     gefunden     —
  *
- *    1. Eine Markierung an den ANFANG des Prompts, dann Füllung bis zur
- *       Zielgrösse, dann die Bitte, die Markierung zu wiederholen.
- *    2. `usage.prompt_tokens` aus der Antwort zurücklesen. Bricht der Wert weit
- *       unter das Gesendete ein, hat der Endpunkt still gekürzt — das ist das
- *       Signal, nicht der HTTP-Status.
- *    3. Einklammern: eine Grösse unter und eine über der vermuteten Decke. Ein
- *       einzelner Punkt lokalisiert keine Kante.
- *    4. BEIDE Unteranbieter messen (`allowed_providers: ['infercom']` bzw.
- *       `['berget']`). Das Fenster hängt am Endpunkt, und ohne Vorgabe wählt
- *       der Router pro Anfrage selbst.
+ *    infercom: „maximum context length is 131072 tokens"
+ *    berget:   „maximum context length is 262144 tokens" (400 bei 281.833)
  *
- *  `scripts/probeCortecs.ts` ist die Vorlage — es ruft roh gegen
- *  `/v1/chat/completions` und gibt `usage.prompt_tokens` als `in=…tok` aus. */
+ *  Die Decke ist also infercoms 131.072, und sie ist LAUT: kein Unteranbieter
+ *  kürzte still, `usage.prompt_tokens` kam jedes Mal vollständig zurück. 128k
+ *  bleibt, weil der Router infercom wählen darf; 262k wäre nur mit erzwungenem
+ *  berget wahr, und das kostet gemessen die doppelte Zeit (120k: 36,7 s gegen
+ *  15,0 s). Der Katalog beschreibt auch hier nicht den Endpunkt, sondern den
+ *  günstigsten Fall.
+ *
+ *  Wer neu misst: Markierung an den ANFANG, bis zur Zielgrösse auffüllen, eine
+ *  Grösse unter und eine über der Kante, BEIDE Unteranbieter einzeln — und
+ *  `usage.prompt_tokens` zurücklesen, denn eine stille Kürzung zeigt sich dort
+ *  und nicht im HTTP-Status. `scripts/probeCortecs.ts` ist die Vorlage. */
 export const GEMMA_31B_ON_CORTECS: GemmaHost = {
   provider: 'cortecs',
   model: 'gemma-4-31b-it',
