@@ -39,6 +39,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 /** Gitignored sibling checkout used in development when the env var is unset. */
 const DEV_FALLBACK_DIR = resolve(__dirname, '../../../../.external/gruenerator-intern');
 
+/** Root of the private content checkout. Also read by `wolkeShareSecrets.ts`. */
+export function internContentRoot(): string {
+  return env.INTERN_CONTENT_DIR ?? DEV_FALLBACK_DIR;
+}
+
 /** Strips an accidental YAML frontmatter block — the private files carry none. */
 const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
 
@@ -58,8 +63,7 @@ type Kind = 'skills' | 'agents' | 'rollen' | 'skills/_base';
 const caches = new Map<Kind, Map<string, string>>();
 
 function load(kind: Kind): Map<string, string> {
-  const root = env.INTERN_CONTENT_DIR ?? DEV_FALLBACK_DIR;
-  const dir = resolve(root, kind);
+  const dir = resolve(internContentRoot(), kind);
   const prompts = new Map<string, string>();
 
   let files: string[];

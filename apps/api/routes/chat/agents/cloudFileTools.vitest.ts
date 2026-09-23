@@ -380,7 +380,7 @@ describe('share-URL path guard', () => {
     const { run } = makeCtx({ list });
     const result = await run({
       action: 'list',
-      path: 'https://wolke.netzbegruenung.de/s/4oKeBG2t236tXTA',
+      path: 'https://wolke.netzbegruenung.de/s/TESTTOKEN',
     });
     expect(String(result.error)).toContain('Freigabe-Link');
     expect(list).not.toHaveBeenCalled();
