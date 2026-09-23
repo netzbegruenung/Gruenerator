@@ -241,7 +241,9 @@ export class DocumentProcessor {
     existingPayload: Record<string, unknown>
   ): Promise<void> {
     const candidates: Record<string, unknown> = { ...(extraPayload ?? {}) };
-    if (extracted.title) candidates.title = extracted.title;
+    // Normalisiert wie beim Speichern (STEP 5), sonst kippte der Titel hin und her.
+    const title = ContentExtractor.normalizeTitle(extracted.title);
+    if (title) candidates.title = title;
     if (
       extracted.publishedAt &&
       !(existingPayload.published_at && YEAR_ONLY_GUESS.test(extracted.publishedAt))
