@@ -552,3 +552,34 @@ describe('buildToolReplay — was wiederkommt und was nicht', () => {
     ]);
   });
 });
+
+describe('assembleToolCatalog — toolAllowlist', () => {
+  it('reicht die Liste an den Katalog durch und montiert nichts daneben', async () => {
+    const buildChatToolCatalog = vi.fn(() => ({
+      tools: { notebook_quellen: { execute: async () => ({}) } },
+      toolNames: ['notebook_quellen'],
+    }));
+    const buildRecipeCatalog = vi.fn(async () => [
+      { mention: 'presse', title: 'PM', description: 'PM', source: 'system' as const },
+    ]);
+    const assembled = await assembleToolCatalog(
+      {
+        state: fakeState(),
+        sourceRegistry: createSourceRegistry(),
+        sse: fakeSse().sse,
+        threadId: 't1',
+        toolAllowlist: ['notebook_quellen'],
+      },
+      deps({
+        buildChatToolCatalog:
+          buildChatToolCatalog as unknown as CatalogDeps['buildChatToolCatalog'],
+        buildRecipeCatalog,
+      })
+    );
+    expect(buildChatToolCatalog.mock.calls[0]![0]).toMatchObject({
+      toolAllowlist: ['notebook_quellen'],
+    });
+    expect(Object.keys(assembled.tools)).toEqual(['notebook_quellen']);
+    expect(buildRecipeCatalog).not.toHaveBeenCalled();
+  });
+});
