@@ -787,6 +787,7 @@ describe('convertNotebookLoadedMessages', () => {
           toolName: 'notebook_quellen',
           args: { query: '' },
           result: { count: 3 },
+          parentId: 's1',
         },
         {
           type: 'tool-call',
@@ -794,6 +795,8 @@ describe('convertNotebookLoadedMessages', () => {
           toolName: 'notebook_quellen',
           args: { query: '' },
           result: { error: 'nicht gefunden', ok: false },
+          // Same run as the first card, so the group renders as one.
+          parentId: 's1',
         },
         { type: 'text', text: 'Es sind drei Quellen [1].' },
       ]);

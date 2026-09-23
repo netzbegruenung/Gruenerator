@@ -326,6 +326,49 @@ describe('NotebookModelAdapter — answer mode', () => {
     });
   });
 
+  it('groups the cards as one run and holds back the empty text while tools run', async () => {
+    const { results } = await runTurn([
+      { event: 'tool_step_start', data: { stepId: 's1', toolName: 'notebook_quellen' } },
+      { event: 'tool_step_start', data: { stepId: 's2', toolName: 'notebook_quellen' } },
+      {
+        event: 'tool_step_result',
+        data: { stepId: 's2', toolName: 'notebook_quellen', ok: true },
+      },
+      COMPLETION,
+    ]);
+    const midStream = (results[1] as unknown as { content: Array<Record<string, unknown>> })
+      .content;
+    expect(midStream.map((p) => p.type)).toEqual(['tool-call', 'tool-call']);
+    const final = (results.at(-1) as unknown as { content: Array<Record<string, unknown>> })
+      .content;
+    expect(final.map((p) => p.type)).toEqual(['tool-call', 'tool-call', 'text']);
+    expect(final[0]).toMatchObject({ toolCallId: 's1', parentId: 's1' });
+    expect(final[1]).toMatchObject({ toolCallId: 's2', parentId: 's1', result: { ok: true } });
+  });
+
+  it('keeps cards and chip when the stream fails before any text', async () => {
+    const { results } = await runTurn([
+      {
+        event: 'answer_mode',
+        data: { requested: 'auto', resolved: 'praezision', reason: 'guard' },
+      },
+      { event: 'tool_step_start', data: { stepId: 's1', toolName: 'notebook_quellen' } },
+      { event: 'error', data: { error: 'Modell nicht erreichbar.' } },
+    ]);
+    const last = results.at(-1) as unknown as {
+      content: Array<Record<string, unknown>>;
+      status?: { type: string };
+      metadata?: { custom?: Record<string, unknown> };
+    };
+    expect(last.content.map((p) => p.type)).toEqual(['tool-call', 'text']);
+    expect(String(last.content[1]!.text)).toContain('Modell nicht erreichbar');
+    expect(last.status?.type).toBe('incomplete');
+    expect(last.metadata?.custom).toMatchObject({
+      answerMode: 'praezision',
+      answerModeReason: 'guard',
+    });
+  });
+
   it('keeps one card per stepId when a start repeats', async () => {
     const start: Frame = {
       event: 'tool_step_start',

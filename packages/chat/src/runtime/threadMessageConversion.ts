@@ -358,9 +358,11 @@ export function convertNotebookLoadedMessages(messages: LoadedMessage[]): Thread
 
     // Precision answers ran the agentic loop: its steps come back as the
     // cards the live stream showed, above the text (no interleaving offsets).
-    const cards = (m.metadata?.toolCalls ?? []).map((tc) =>
+    // One run sharing the first card's id, so the group renders as it did live.
+    const parts = (m.metadata?.toolCalls ?? []).map((tc) =>
       persistedToolCallToPart(tc, `tc_${m.id}`)
     );
+    const cards = parts.map((p) => ({ ...p, parentId: parts[0]!.toolCallId }));
 
     return {
       role: 'assistant' as const,
