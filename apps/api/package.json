@@ -37,6 +37,7 @@
     "eval:notebook": "cross-env EVAL_NOTEBOOK=1 EVAL_FILTER=notebook NODE_OPTIONS=--conditions=development npx tsx evals/runChatEval.ts",
     "test:auth": "cross-env NODE_OPTIONS=--conditions=development npx tsx tests/betterAuth.test.ts && cross-env NODE_OPTIONS=--conditions=development npx tsx tests/betterAuth.accountCreation.test.ts",
     "test:watch": "vitest",
+    "test:notebook-live": "cross-env NOTEBOOK_LIVE=1 vitest run routes/chat/agents/notebookSourceTools.live.vitest.ts",
     "start:backend": "cross-env PORT=3001 NODE_OPTIONS=--conditions=development npx tsx --import ./instrument.ts server.ts",
     "start": "cross-env NODE_OPTIONS=--conditions=development npx tsx --import ./instrument.ts server.ts",
     "dev": "cross-env HOCUSPOCUS_ENABLED=true NODE_OPTIONS=--conditions=development npx tsx watch --import ./instrument.ts server.ts",
