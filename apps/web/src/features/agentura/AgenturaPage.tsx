@@ -214,6 +214,13 @@ type MarketItem =
   | { kind: 'recipe'; isFavorite: boolean; entry: RecipeEntry }
   | { kind: 'task'; isFavorite: boolean; task: RecurringTask };
 
+/** Reihenfolge und Beschriftung der Abschnitte — dieselben Gattungen wie der Typ-Filter. */
+const SECTIONS: { kind: MarketItem['kind']; label: string; icon: IconType }[] = [
+  { kind: 'agent', label: 'Agents', icon: PiSparkle },
+  { kind: 'recipe', label: 'Rezepte', icon: PiFileText },
+  { kind: 'task', label: 'Wiederkehrende Aufgaben', icon: PiRepeat },
+];
+
 function AgenturaPage() {
   const navigate = useNavigate();
   const firstName = useFirstName();
@@ -556,6 +563,7 @@ function AgenturaPage() {
       icon={<AgentIcon agent={entry.agent} isUser={entry.isUser} />}
       title={entry.agent.title}
       meta={agentMeta(entry.agent)}
+      headingLevel={3}
       description={entry.agent.description}
       onSelect={() => handleSelectAgent(entry.agent)}
       isFavorite={isFavorite}
@@ -579,6 +587,7 @@ function AgenturaPage() {
       icon={entry.icon}
       title={entry.title}
       meta={recipeMeta(entry)}
+      headingLevel={3}
       description={entry.description}
       onSelect={() => handleSelectRecipe(entry.mention)}
       isFavorite={isFavorite}
@@ -612,12 +621,13 @@ function AgenturaPage() {
   const sortRecipeEntries = (entries: RecipeEntry[]) => sortBy(entries, sort, (e) => e.title);
 
   /**
-   * Ein Regal ist eine flache Liste — keine Abschnitte mehr.
+   * Die Kacheln eines Regals. Gerendert wird nach Gattung in Abschnitten
+   * (`SECTIONS`) — die Reihenfolge hier gilt innerhalb eines Abschnitts.
    *
-   * Vorher zerfiel jedes Regal in überschriebene Unterabschnitte („Empfohlen",
-   * „Weitere", fünf Rezept-Gänge, „Geteilt mit Gruppen"). Das ordnete die Seite
-   * zwar, zwang aber jede Suche nach einer Gattung durch alle Abschnitte. Diese
-   * Aufgabe hat jetzt der Typ-Filter, und das Raster bleibt ein Raster.
+   * Früher zerfiel ein Regal in Herkunfts-Abschnitte („Empfohlen", „Weitere",
+   * fünf Rezept-Gänge, „Geteilt mit Gruppen"); das zwang jede Suche nach einer
+   * Gattung durch alle. Die Abschnitte folgen deshalb jetzt dem Typ-Filter:
+   * „Rezepte" oben zeigt genau den Abschnitt „Rezepte".
    *
    * `empfohlen` kommt hier nie an: das Regal ist mobil-only (Registry), und die
    * Regalliste dieser Seite kommt aus `agenturaCategoriesForPlatform('web')`.
@@ -840,9 +850,7 @@ function AgenturaPage() {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               {/* Die Kachel zeigt den Takt, nicht den Betrieb — Verlauf,
-                  Fehlertexte und Ergebnisse stehen auf /wiederkehrend. Der
-                  Einstieg lag vorher an der Abschnittsüberschrift, die es im
-                  flachen Raster nicht mehr gibt. */}
+                  Fehlertexte und Ergebnisse stehen auf /wiederkehrend. */}
               <DropdownMenuItem onClick={() => navigate('/wiederkehrend')}>
                 <PiClockCounterClockwise />
                 <span>Verlauf &amp; Steuerung</span>
@@ -860,7 +868,30 @@ function AgenturaPage() {
       </span>
 
       {items.length > 0 ? (
-        <div className={GRID}>{items.map(renderItem)}</div>
+        <div className="flex flex-col gap-xl">
+          {SECTIONS.map((section) => {
+            const sectionItems = items.filter((item) => item.kind === section.kind);
+            if (sectionItems.length === 0) return null;
+            const headingId = `agentura-section-${section.kind}`;
+            return (
+              <section key={section.kind} aria-labelledby={headingId}>
+                <div className="mb-md flex items-center gap-xs">
+                  <section.icon aria-hidden="true" className="h-4 w-4 text-foreground-muted" />
+                  <h2
+                    id={headingId}
+                    className="m-0 text-sm font-semibold uppercase tracking-wide text-foreground-muted"
+                  >
+                    {section.label}
+                  </h2>
+                  <span className="text-xs font-semibold text-foreground-muted">
+                    {sectionItems.length}
+                  </span>
+                </div>
+                <div className={GRID}>{sectionItems.map(renderItem)}</div>
+              </section>
+            );
+          })}
+        </div>
       ) : (
         <EmptyState
           icon={EmptyIcon}

@@ -152,19 +152,23 @@ beforeEach(() => {
 });
 
 describe('AgenturaPage — Meine Rezepte', () => {
-  it('zeigt eigenes und geteiltes Rezept in einem flachen Raster, eigenes zuerst', async () => {
+  it('zeigt eigenes und geteiltes Rezept im Abschnitt „Rezepte", eigenes zuerst', async () => {
     list.mockResolvedValue({
       status: 200,
       body: { success: true, forms: [ownRow(), sharedRow()] },
     });
     const { container } = renderPage();
 
-    expect(await screen.findByRole('heading', { name: 'Eigenes Rezept' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Geteiltes Rezept' })).toBeInTheDocument();
+    const section = await screen.findByRole('region', { name: 'Rezepte' });
+    expect(
+      within(section).getByRole('heading', { level: 3, name: 'Eigenes Rezept' })
+    ).toBeInTheDocument();
+    expect(within(section).getByRole('heading', { name: 'Geteiltes Rezept' })).toBeInTheDocument();
 
+    // Abschnitte gibt es nur nach Gattung und nur mit Inhalt — kein leerer
+    // „Agents"-Kopf, keine Herkunfts-Fächer wie früher.
+    expect(screen.queryByRole('region', { name: 'Agents' })).not.toBeInTheDocument();
     const text = container.textContent ?? '';
-    // Die Abschnitte sind weg — stünde eine dieser Überschriften noch da, wäre
-    // das Raster wieder in Regalfächer zerfallen.
     expect(text).not.toContain('Wiederkehrende Aufgaben');
     expect(text).not.toContain('Geteilt mit Gruppen');
     expect(text.indexOf('Eigenes Rezept')).toBeLessThan(text.indexOf('Geteiltes Rezept'));
