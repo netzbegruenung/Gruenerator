@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { GONE_CONFIRM_AFTER_MS, classifyFetch, goneVerdict } from './goneState.js';
+import {
+  GONE_CONFIRM_AFTER_MS,
+  GONE_MARK_MAX_AGE_MS,
+  allowGoneDeletes,
+  classifyFetch,
+  goneVerdict,
+} from './goneState.js';
 
 const PAGE = 'https://gruene-sachsen-anhalt.de/pressemitteilungen/landesregierung-beim-hitzeschutz';
 const LISTING = ['/pressemitteilungen/'];
@@ -102,5 +108,31 @@ describe('goneVerdict', () => {
 
   it('behandelt eine unlesbare Marke wie keine Marke — markiert neu statt zu löschen', () => {
     expect(goneVerdict('gone', stored('kaputt'), now)).toBe('mark');
+  });
+});
+
+describe('goneVerdict — Bestätigungsfenster', () => {
+  it('markiert neu statt zu löschen, wenn die Marke älter als 14 Tage ist', () => {
+    const old = { lv_gone_since: iso(now - GONE_MARK_MAX_AGE_MS - HOUR) };
+    expect(goneVerdict('gone', old, now)).toBe('mark');
+    expect(goneVerdict('gone', { lv_gone_since: iso(now - GONE_MARK_MAX_AGE_MS) }, now)).toBe(
+      'delete'
+    );
+  });
+});
+
+describe('allowGoneDeletes — Schutzschalter', () => {
+  it('erlaubt bis zu fünf Löschungen auch bei kleinen Läufen', () => {
+    expect(allowGoneDeletes(5, 3)).toBe(true);
+    expect(allowGoneDeletes(6, 10)).toBe(false);
+  });
+
+  it('erlaubt bis zu 20 % der verarbeiteten URLs', () => {
+    expect(allowGoneDeletes(20, 100)).toBe(true);
+    expect(allowGoneDeletes(21, 100)).toBe(false);
+  });
+
+  it('hält eine Quelle auf, die jede Seite mit 404 beantwortet', () => {
+    expect(allowGoneDeletes(400, 400)).toBe(false);
   });
 });

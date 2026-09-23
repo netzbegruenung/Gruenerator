@@ -249,47 +249,63 @@ describe('parseCliArgs — --gone', () => {
 describe('planGone', () => {
   const URL_OLD =
     'https://gruene-sachsen-anhalt.de/pressemitteilungen/landesregierung-beim-hitzeschutz';
+  const URL_NEW = 'https://gruene-sachsen-anhalt.de/pressemitteilungen/hitzeschutz-im-blindflug';
   const LISTING = ['/pressemitteilungen/'];
+  const indexed = (urls: string[]) => async (url: string) => urls.includes(url);
+  const none = indexed([]);
 
-  it('löscht 404 und 410 — der Lauf zählt als bestätigender zweiter', () => {
-    expect(planGone(URL_OLD, { status: 404, finalUrl: null }, LISTING)).toEqual({
+  it('löscht 404 und 410 — der Lauf zählt als bestätigender zweiter', async () => {
+    expect(await planGone(URL_OLD, { status: 404, finalUrl: null }, LISTING, none)).toEqual({
       outcome: 'gone',
       remove: true,
     });
-    expect(planGone(URL_OLD, { status: 410, finalUrl: null }, LISTING).remove).toBe(true);
+    expect((await planGone(URL_OLD, { status: 410, finalUrl: null }, LISTING, none)).remove).toBe(
+      true
+    );
   });
 
-  it('löscht die alte URL eines umbenannten Slugs', () => {
+  it('löscht die alte URL eines umbenannten Slugs, wenn das Ziel indexiert ist', async () => {
     expect(
-      planGone(
+      await planGone(
         URL_OLD,
-        {
-          status: 200,
-          finalUrl: 'https://gruene-sachsen-anhalt.de/pressemitteilungen/hitzeschutz-im-blindflug',
-        },
-        LISTING
+        { status: 200, finalUrl: `${URL_NEW}#top` },
+        LISTING,
+        indexed([URL_NEW])
       )
     ).toEqual({ outcome: 'moved', remove: true });
   });
 
-  it('löscht eine Weiterleitung auf die Listing-Seite', () => {
+  it('behält die alte URL, wenn das Ziel nicht indexiert ist — sie ist die einzige Kopie', async () => {
+    expect(await planGone(URL_OLD, { status: 200, finalUrl: URL_NEW }, LISTING, none)).toEqual({
+      outcome: 'moved',
+      remove: false,
+      targetMissing: true,
+    });
+  });
+
+  it('löscht eine Weiterleitung auf die Listing-Seite', async () => {
     expect(
-      planGone(
-        URL_OLD,
-        { status: 200, finalUrl: 'https://gruene-sachsen-anhalt.de/pressemitteilungen' },
-        LISTING
+      (
+        await planGone(
+          URL_OLD,
+          { status: 200, finalUrl: 'https://gruene-sachsen-anhalt.de/pressemitteilungen' },
+          LISTING,
+          none
+        )
       ).remove
     ).toBe(true);
   });
 
-  it('behält lebende Seiten, Schrägstrich-Weiterleitungen und vorübergehende Fehler', () => {
-    expect(planGone(URL_OLD, { status: 200, finalUrl: URL_OLD }, LISTING)).toEqual({
+  it('behält lebende Seiten, Schrägstrich-Weiterleitungen und vorübergehende Fehler', async () => {
+    expect(await planGone(URL_OLD, { status: 200, finalUrl: URL_OLD }, LISTING, none)).toEqual({
       outcome: 'live',
       remove: false,
     });
-    expect(planGone(URL_OLD, { status: 200, finalUrl: `${URL_OLD}/` }, LISTING).remove).toBe(false);
+    expect(
+      (await planGone(URL_OLD, { status: 200, finalUrl: `${URL_OLD}/` }, LISTING, none)).remove
+    ).toBe(false);
     for (const status of [503, 403, null]) {
-      expect(planGone(URL_OLD, { status, finalUrl: null }, LISTING)).toEqual({
+      expect(await planGone(URL_OLD, { status, finalUrl: null }, LISTING, none)).toEqual({
         outcome: 'transient',
         remove: false,
       });

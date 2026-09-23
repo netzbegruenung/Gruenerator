@@ -55,7 +55,7 @@ import { ContentExtractor } from './extractors/ContentExtractor.js';
 import { DateExtractor } from './extractors/DateExtractor.js';
 import { LinkExtractor } from './extractors/LinkExtractor.js';
 import { WpApiExtractor } from './extractors/WpApiExtractor.js';
-import { classifyFetch, goneVerdict, type FetchOutcome } from './goneState.js';
+import { allowGoneDeletes, classifyFetch, goneVerdict, type FetchOutcome } from './goneState.js';
 import { SearchOperations } from './operations/SearchOperations.js';
 import { DocumentProcessor } from './processors/DocumentProcessor.js';
 import { isFreshlyIndexed } from './recheckSchedule.js';
@@ -612,6 +612,7 @@ export class LandesverbandScraper extends BaseScraper {
       // Gone detection (goneState.ts) covers HTML article pages only; the PDF and
       // Wolke branches above keep their own fetch paths and never delete.
       const listingPaths = source.contentPaths.map((cp) => cp.path);
+      const goneDeletes: string[] = [];
       const tasks = toProcess.map((url) => async (): Promise<void> => {
         const n = ++processed;
         let stored: Record<string, unknown> | null = null;
@@ -658,7 +659,15 @@ export class LandesverbandScraper extends BaseScraper {
             finalUrl,
             listingPaths,
           });
-          await this.#applyGoneVerdict(url, stored, outcome, targetCollection, result);
+          await this.#applyGoneVerdict(
+            source.id,
+            url,
+            stored,
+            outcome,
+            targetCollection,
+            result,
+            goneDeletes
+          );
           if (outcome === 'gone') {
             result.skipped++;
             result.skipReasons['gone_redirect'] = (result.skipReasons['gone_redirect'] || 0) + 1;
@@ -719,7 +728,15 @@ export class LandesverbandScraper extends BaseScraper {
               finalUrl: null,
               listingPaths,
             });
-            await this.#applyGoneVerdict(url, stored, outcome, targetCollection, result);
+            await this.#applyGoneVerdict(
+              source.id,
+              url,
+              stored,
+              outcome,
+              targetCollection,
+              result,
+              goneDeletes
+            );
           }
           // A link the listing still advertises but the host refuses to serve is
           // upstream's stale index, not a failure of this run. Counting it apart
@@ -739,6 +756,13 @@ export class LandesverbandScraper extends BaseScraper {
         }
       });
       await parallelLimit(tasks, ARTICLE_CONCURRENCY);
+      await this.#deleteGonePages(
+        source.id,
+        goneDeletes,
+        toProcess.length,
+        targetCollection,
+        result
+      );
     }
 
     return result;
@@ -1187,22 +1211,39 @@ export class LandesverbandScraper extends BaseScraper {
     return points.length > 0 ? points[0].payload : null;
   }
 
+  #goneFilter(sourceId: string, url: string) {
+    return {
+      must: [
+        { key: 'source_id', match: { value: sourceId } },
+        { key: 'source_url', match: { value: url } },
+      ],
+    };
+  }
+
   /**
    * Executes goneVerdict for the requested URL on the collection the path
-   * writes to. Best-effort like the archive prune: a Qdrant failure is logged
-   * and counted as an error, never thrown into the article task.
+   * writes to. Marks and clears run inline; a delete is only collected into
+   * `deleteCandidates` and runs after the walk, behind allowGoneDeletes.
+   * Best-effort like the archive prune: a Qdrant failure is logged and counted
+   * as an error, never thrown into the article task.
    */
   async #applyGoneVerdict(
+    sourceId: string,
     url: string,
     stored: Record<string, unknown> | null,
     outcome: FetchOutcome,
     collection: string,
-    result: ContentPathResult
+    result: ContentPathResult,
+    deleteCandidates: string[]
   ): Promise<void> {
     const now = Date.now();
     const verdict = goneVerdict(outcome, stored, now);
     if (verdict === 'none') return;
-    const filter = { must: [{ key: 'source_url', match: { value: url } }] };
+    if (verdict === 'delete') {
+      deleteCandidates.push(url);
+      return;
+    }
+    const filter = this.#goneFilter(sourceId, url);
     try {
       if (verdict === 'mark') {
         await setPayload(
@@ -1211,9 +1252,7 @@ export class LandesverbandScraper extends BaseScraper {
           { lv_gone_since: new Date(now).toISOString() },
           filter
         );
-      } else if (verdict === 'delete') {
-        await batchDelete(this.qdrantClient, collection, filter);
-        this.log(`Deleted points of gone page ${url} (${outcome})`);
+        result.skipReasons['gone_marked'] = (result.skipReasons['gone_marked'] || 0) + 1;
       } else {
         await this.qdrantClient.deletePayload(collection, {
           keys: ['lv_gone_since'],
@@ -1221,15 +1260,46 @@ export class LandesverbandScraper extends BaseScraper {
           wait: true,
         });
       }
-      if (verdict === 'mark' || verdict === 'delete') {
-        const reason = verdict === 'mark' ? 'gone_marked' : 'gone_deleted';
-        result.skipReasons[reason] = (result.skipReasons[reason] || 0) + 1;
-      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[Landesverband] Gone ${verdict} failed for ${url}: ${message}`);
       result.errors++;
       addErrorSamples(result, `${url}: gone ${verdict} failed: ${message}`);
+    }
+  }
+
+  /**
+   * Deletes the confirmed gone pages of one content path, unless there are more
+   * than allowGoneDeletes permits — then all are deferred and their marks kept,
+   * so a CMS-wide outage never empties a source unattended.
+   */
+  async #deleteGonePages(
+    sourceId: string,
+    urls: string[],
+    processed: number,
+    collection: string,
+    result: ContentPathResult
+  ): Promise<void> {
+    if (urls.length === 0) return;
+    if (!allowGoneDeletes(urls.length, processed)) {
+      console.warn(
+        `[Landesverband] ⚠ ${sourceId}: ${urls.length} of ${processed} pages confirmed gone — above the delete cap, deferred`
+      );
+      result.skipReasons['gone_delete_deferred'] =
+        (result.skipReasons['gone_delete_deferred'] || 0) + urls.length;
+      return;
+    }
+    for (const url of urls) {
+      try {
+        await batchDelete(this.qdrantClient, collection, this.#goneFilter(sourceId, url));
+        result.skipReasons['gone_deleted'] = (result.skipReasons['gone_deleted'] || 0) + 1;
+        this.log(`Deleted points of gone page ${url}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`[Landesverband] Gone delete failed for ${url}: ${message}`);
+        result.errors++;
+        addErrorSamples(result, `${url}: gone delete failed: ${message}`);
+      }
     }
   }
 
