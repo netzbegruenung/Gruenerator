@@ -21,6 +21,13 @@ export const truncateForPreview = (content: string | null | undefined, maxLength
 const stripMarkdownCache = new Map<string, string>();
 const CACHE_MAX_SIZE = 500;
 
+/**
+ * `## Seite N` setzt die Upload-Pipeline vor jede PDF-Seite, damit Zitate eine
+ * Seitenzahl tragen. Für Menschen ist es Struktur, kein Inhalt.
+ */
+export const stripPageMarkerLines = (content: string): string =>
+  content.replace(/^##[ \t]*Seite[ \t]+\d+[ \t]*(?:\r?\n)*/gm, '').trim();
+
 export const stripMarkdownForPreview = (
   content: string | null | undefined,
   maxLength = 300
@@ -35,7 +42,7 @@ export const stripMarkdownForPreview = (
     return stripMarkdownCache.get(cacheKey)!;
   }
 
-  const cleaned = content
+  const cleaned = stripPageMarkerLines(content)
     .replace(/^#{1,6}\s+/gm, '') // # Headers
     .replace(/\*\*\*([^*]+)\*\*\*/g, '$1') // ***bold+italic***
     .replace(/\*\*([^*]+)\*\*/g, '$1') // **bold**

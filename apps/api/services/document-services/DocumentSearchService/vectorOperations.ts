@@ -11,6 +11,7 @@
 import { chunkToNumericId } from '../../../database/services/QdrantService/utils.js';
 import { embeddingPayload } from '../embeddingProvenance.js';
 import { offsetPayload } from '../offsetPayload.js';
+import { pagePayload } from '../pagePayload.js';
 import { structurePayload } from '../structurePayload.js';
 
 import type {
@@ -65,6 +66,7 @@ export async function storeDocumentVectors(
       ...structurePayload(chunk),
       ...embeddingPayload(),
       ...offsetPayload(chunk),
+      ...pagePayload(chunk),
       token_count: chunk.tokens || 0,
       source_type: metadata.sourceType || 'manual',
       wolke_share_link_id: metadata.wolkeShareLinkId || null,

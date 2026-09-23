@@ -25,6 +25,8 @@ import {
   listMyLikedCollectionsResponseSchema,
   resolveCollectionResponseSchema,
   getCollectionResponseSchema,
+  reindexDocumentResponseSchema,
+  reindexNotebookResponseSchema,
 } from '../schemas/notebookCollections.js';
 
 const c = initContract();
@@ -223,6 +225,46 @@ export const notebookCollectionsContract = c.router(
         500: notebookErrorResponseSchema,
       },
       summary: 'Remove a document from a notebook collection',
+    },
+
+    /**
+     * POST /api/auth/notebook-collections/:id/documents/:documentId/reindex
+     * Re-fetch one source's original (Wolke files only) and
+     * index it again under the same document id. 200 with status
+     * `unavailable` when no original is reachable.
+     */
+    reindexDocument: {
+      method: 'POST',
+      path: '/api/auth/notebook-collections/:id/documents/:documentId/reindex',
+      pathParams: z.object({ id: z.string(), documentId: z.string() }),
+      body: c.noBody(),
+      responses: {
+        200: reindexDocumentResponseSchema,
+        401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Re-index one notebook source from its original',
+    },
+
+    /**
+     * POST /api/auth/notebook-collections/:id/reindex
+     * Queue every source of the notebook whose original is reachable.
+     */
+    reindexNotebook: {
+      method: 'POST',
+      path: '/api/auth/notebook-collections/:id/reindex',
+      pathParams: z.object({ id: z.string() }),
+      body: c.noBody(),
+      responses: {
+        200: reindexNotebookResponseSchema,
+        401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Re-index all notebook sources with a reachable original',
     },
 
     /**
