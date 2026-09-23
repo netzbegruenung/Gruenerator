@@ -15,6 +15,7 @@ import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ioni
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
+  Text,
   TextInput,
   Pressable,
   StyleSheet,
@@ -35,7 +36,7 @@ import {
   pickedDocumentToAttachment,
   type PickedDocument,
 } from '../../services/documentPicker';
-import { colors, spacing } from '../../theme';
+import { borderRadius, chatType, colors, spacing } from '../../theme';
 import { ComposerAttachmentUI } from '../chat/AttachmentUI';
 import { ComposerActionSheet } from '../chat/ComposerActionSheet';
 import { DocumentBrowserSheet } from '../chat/DocumentBrowserSheet';
@@ -90,6 +91,10 @@ export interface ComposerAccessory {
   onPress: () => void;
   active?: boolean;
   accessibilityLabel?: string;
+  /** Renders a compact labelled chip next to Send instead of the left-aligned
+   *  icon button — for a picker whose current value should stay readable
+   *  (the notebook answer mode, like web's picker beside Send). */
+  label?: string;
 }
 
 export interface ComposerProps {
@@ -479,7 +484,7 @@ function ComposerBody({
         }
         leading={leading}
         toolbarExtra={
-          props.accessory ? (
+          props.accessory && !props.accessory.label ? (
             <Pressable
               onPress={props.accessory.onPress}
               style={composerIconButtonStyle(variant)}
@@ -491,6 +496,26 @@ function ComposerBody({
                 size={iconSize}
                 color={props.accessory.active ? colors.primary[600] : theme.textSecondary}
               />
+            </Pressable>
+          ) : null
+        }
+        beforeAction={
+          props.accessory?.label ? (
+            <Pressable
+              onPress={props.accessory.onPress}
+              style={[styles.accessoryChip, { borderColor: theme.border }]}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={props.accessory.accessibilityLabel ?? props.accessory.label}
+            >
+              <Ionicons name={props.accessory.icon} size={14} color={theme.textSecondary} />
+              <Text
+                style={[styles.accessoryChipText, { color: theme.textSecondary }]}
+                numberOfLines={1}
+              >
+                {props.accessory.label}
+              </Text>
+              <Ionicons name="chevron-down" size={12} color={theme.textSecondary} />
             </Pressable>
           ) : null
         }
@@ -731,6 +756,18 @@ const styles = StyleSheet.create({
   },
   edge: {
     paddingTop: spacing.xsmall,
+  },
+  accessoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 30,
+    paddingHorizontal: spacing.xsmall,
+    borderRadius: borderRadius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  accessoryChipText: {
+    ...chatType.chatLabel,
   },
 });
 

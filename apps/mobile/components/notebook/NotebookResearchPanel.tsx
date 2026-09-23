@@ -1,6 +1,9 @@
 import {
+  DEFAULT_NOTEBOOK_ANSWER_MODE,
   DEFAULT_NOTEBOOK_DEPTH,
+  NOTEBOOK_ANSWER_MODES,
   NOTEBOOK_DEPTHS,
+  notebookAnswerModeDef,
   notebookDepthDef,
   useFetchFullText,
 } from '@gruenerator/chat';
@@ -38,6 +41,7 @@ import { BottomSheet } from '../common/BottomSheet';
 import { Composer } from '../common/Composer';
 import { Fab } from '../common/Fab';
 
+import { NotebookAnswerModeSheet, useAnswerModeAccessory } from './NotebookAnswerModeSheet';
 import { NotebookOverview } from './NotebookOverview';
 import { ResearchResultCard } from './ResearchResultCard';
 
@@ -143,6 +147,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
   const [selected, setSelected] = useState<ResearchResult | null>(null);
   const [filtersSheetVisible, setFiltersSheetVisible] = useState(false);
+  const [answerModeSheetVisible, setAnswerModeSheetVisible] = useState(false);
   // Chat is the default input (a composer that hands off to the chat screen, like
   // the start screen); a search FAB switches to inline manuelle Recherche.
   const [inputMode, setInputMode] = useState<InputMode>('chat');
@@ -165,6 +170,10 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   // The depth is a persisted preference, not a per-notebook filter.
   const depth = usePreferencesStore((st) => st.notebookDepth);
   const setDepth = usePreferencesStore((st) => st.setNotebookDepth);
+  const answerMode = usePreferencesStore((st) => st.notebookAnswerMode);
+  const setAnswerMode = usePreferencesStore((st) => st.setNotebookAnswerMode);
+  const openAnswerModeSheet = useCallback(() => setAnswerModeSheetVisible(true), []);
+  const answerModeAccessory = useAnswerModeAccessory(openAnswerModeSheet);
   const availableCollections = getResearchCollectionIds(notebookId);
 
   useEffect(() => {
@@ -213,6 +222,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   const activeCount =
     (isChat ? 0 : (mode !== 'hybrid' ? 1 : 0) + (sortBy !== 'relevance' ? 1 : 0)) +
     (isChat && depth !== DEFAULT_NOTEBOOK_DEPTH ? 1 : 0) +
+    (isChat && answerMode !== DEFAULT_NOTEBOOK_ANSWER_MODE ? 1 : 0) +
     (collectionIds ? 1 : 0) +
     keywordFilterCount;
 
@@ -241,6 +251,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
       // Zählt hier in `activeCount`, also muss "Zurücksetzen" sie mitnehmen —
       // obwohl sie als Einstellung das Sheet überlebt.
       void setDepth(DEFAULT_NOTEBOOK_DEPTH);
+      void setAnswerMode(DEFAULT_NOTEBOOK_ANSWER_MODE);
       return;
     }
     setMode('hybrid');
@@ -280,6 +291,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
               // Same sheet as manuelle Recherche — depth, sources and categories
               // shape the KI answer too, so it has to be reachable from here.
               onSettings={() => setFiltersSheetVisible(true)}
+              accessory={answerModeAccessory}
             />
           </View>
         ) : (
@@ -418,6 +430,27 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
           </Pressable>
         </View>
         <ScrollView style={styles.sheetScroll}>
+          {isChat && (
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Antwortmodus</Text>
+              <View style={styles.filterValues}>
+                {NOTEBOOK_ANSWER_MODES.map((m) => (
+                  <OptionChip
+                    key={m.mode}
+                    label={m.label}
+                    active={answerMode === m.mode}
+                    onPress={() => void setAnswerMode(m.mode)}
+                    theme={theme}
+                    accent={accent}
+                    onAccent={onAccent}
+                  />
+                ))}
+              </View>
+              <Text style={[styles.filterSectionHint, { color: theme.textSecondary }]}>
+                {notebookAnswerModeDef(answerMode).description}
+              </Text>
+            </View>
+          )}
           {/* Nur im KI-Chat: die drei Stufen, die Web am Notebook-Composer
               zeigt. Auf die manuelle Recherche wirken sie nicht. */}
           {isChat && (
@@ -561,6 +594,12 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
           </Text>
         </Pressable>
       </BottomSheet>
+
+      <NotebookAnswerModeSheet
+        visible={answerModeSheetVisible}
+        onClose={() => setAnswerModeSheetVisible(false)}
+        theme={theme}
+      />
 
       <CitationDetailSheet
         citation={selected ? toCitation(selected) : null}
