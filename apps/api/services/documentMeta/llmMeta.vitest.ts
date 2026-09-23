@@ -226,4 +226,30 @@ describe('extractDocumentMeta', () => {
     expect(meta.dates.filter((d) => d.kind === 'beschluss')).toHaveLength(2);
     expect(meta.source).toBe('heuristic+llm');
   });
+
+  it('stellt ein drittes, belegtes Beschlussdatum des Modells nach vorn', async () => {
+    const text =
+      'Beschluss des Parteirats vom 05.10.2024\nÄnderung: Beschluss des Parteirats vom 12.03.2024\n' +
+      'Die Versammlung am 20.11.2024 hat die Fassung angenommen.';
+    const aiObject = vi.fn().mockResolvedValue({
+      ok: true,
+      data: raw({
+        dates: [
+          {
+            date: '2024-11-20',
+            kind: 'beschluss',
+            evidence: 'Die Versammlung am 20.11.2024 hat die Fassung angenommen.',
+          },
+        ],
+      }),
+    });
+    const meta = await extractDocumentMeta(
+      { text, filename: null, locale: 'de-DE', aiAllowed: true, now: NOW },
+      { aiObject }
+    );
+    expect(meta.date).toBe('2024-11-20');
+    expect(meta.conflict).toBe(false);
+    expect(meta.dates.filter((d) => d.date === '2024-11-20')).toHaveLength(1);
+    expect(meta.dates.filter((d) => d.kind === 'beschluss')).toHaveLength(3);
+  });
 });
