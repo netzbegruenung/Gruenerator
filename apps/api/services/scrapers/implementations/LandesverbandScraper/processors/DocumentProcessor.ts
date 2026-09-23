@@ -113,6 +113,9 @@ export class DocumentProcessor {
    *   used for `qualityFlagsFor` — the caller already knows which path it runs.
    * @param collectionOverride - Optional collection name override (uses default if not provided)
    * @param maxAgeYears - Optional max age in years (default: 10)
+   * @param ignoreMaxAge - Skip the age filter even though publishedAt is set. Wolke shares are
+   *   curated on purpose and must never age out just because their file name now carries a real
+   *   date (#3564) — before dating them, `publishedAt: null` had the same effect by construction.
    */
   async processAndStoreDocument(
     source: LandesverbandSource,
@@ -122,7 +125,8 @@ export class DocumentProcessor {
     isFile: boolean,
     collectionOverride?: string,
     maxAgeYears?: number,
-    extraPayload?: Record<string, unknown>
+    extraPayload?: Record<string, unknown>,
+    ignoreMaxAge?: boolean
   ): Promise<ProcessResult> {
     const { title, text, publishedAt, categories } = content;
     const targetCollection = collectionOverride || this.collectionName;
@@ -139,7 +143,7 @@ export class DocumentProcessor {
     }
 
     // STEP 2: Age filter - skip content older than configured years
-    if (publishedAt) {
+    if (publishedAt && !ignoreMaxAge) {
       const pubDate = new Date(publishedAt);
       if (DateExtractor.isDateTooOld(pubDate, ageLimit)) {
         return { stored: false, reason: 'too_old' };
