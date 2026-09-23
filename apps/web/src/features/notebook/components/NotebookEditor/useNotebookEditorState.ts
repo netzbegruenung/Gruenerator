@@ -14,7 +14,7 @@ import { type ImportedLinkedDoc } from '../NotebookEditorDocsSection';
 import { type ImportedWolkeDocument } from '../NotebookEditorWolkeSection';
 import { type ImportedWordpressDocument } from '../NotebookEditorWordpressSection';
 
-import { settleReindex } from './reindexWatch';
+import { REINDEX_TIMEOUT_MESSAGE, settleReindex, splitTimedOut } from './reindexWatch';
 import {
   MAX_DOCUMENTS,
   TOTAL_STEPS,
@@ -369,9 +369,12 @@ export function useNotebookEditorState({
   // poller per document: the per-document endpoint only answers the owner, and
   // "Alle neu indexieren" would otherwise start one poller per source.
   const [reindexWatched, setReindexWatched] = useState<string[]>([]);
+  const reindexStartedAt = useRef(new Map<string, number>());
 
   const watchReindex = useCallback((ids: string[]) => {
     if (ids.length === 0) return;
+    const now = Date.now();
+    ids.forEach((id) => reindexStartedAt.current.set(id, now));
     setReindexWatched((prev) => [...new Set([...prev, ...ids])]);
     setIndexingDocIds((prev) => new Set([...prev, ...ids]));
     setFailedDocs((prev) => {
@@ -385,28 +388,62 @@ export function useNotebookEditorState({
   useEffect(() => {
     if (!collectionId || reindexWatched.length === 0) return;
     let cancelled = false;
+
+    // Stop watching `ids`: spinner off, and — when the outcome is unknown —
+    // the same "takes unusually long" marker the upload path shows.
+    const finish = (ids: string[], failures: Array<[string, string]>, next: string[]) => {
+      const gone = new Set(ids);
+      gone.forEach((id) => reindexStartedAt.current.delete(id));
+      setIndexingDocIds((prev) => new Set([...prev].filter((id) => !gone.has(id))));
+      if (failures.length > 0) setFailedDocs((prev) => new Map([...prev, ...failures]));
+      setReindexWatched(next);
+    };
+    const giveUp = (ids: string[]) =>
+      finish(
+        ids,
+        ids.map((id) => [id, REINDEX_TIMEOUT_MESSAGE]),
+        reindexWatched.filter((id) => !ids.includes(id))
+      );
+
     const timer = setTimeout(() => {
       void getContractsClient()
         .notebookCollections.getCollection({ params: { slugOrId: collectionId } })
         .then((result) => {
-          if (cancelled || result.status !== 200) return;
+          if (cancelled) return;
+          // No answer we can read: stop polling instead of leaving spinners
+          // spinning forever.
+          if (result.status !== 200) {
+            giveUp(reindexWatched);
+            return;
+          }
           const settled = settleReindex(reindexWatched, result.body.collection.documents ?? []);
-          const finished = new Set(reindexWatched.filter((id) => !settled.running.includes(id)));
-          if (finished.size === 0) {
+          const { timedOut, running } = splitTimedOut(
+            settled.running,
+            reindexStartedAt.current,
+            Date.now()
+          );
+          const finished = reindexWatched.filter((id) => !running.includes(id));
+          settled.keptOld.forEach((reason) => toast.error(reason));
+          if (finished.length === 0) {
             // Nothing changed — a new array re-arms the timer for the next tick.
             setReindexWatched([...reindexWatched]);
             return;
           }
-          setIndexingDocIds((prev) => new Set([...prev].filter((id) => !finished.has(id))));
-          if (settled.failed.length > 0) {
-            setFailedDocs((prev) => new Map([...prev, ...settled.failed]));
-          }
-          settled.keptOld.forEach((reason) => toast.error(reason));
-          setReindexWatched(settled.running);
+          finish(
+            finished,
+            [
+              ...settled.failed,
+              ...timedOut.map((id): [string, string] => [id, REINDEX_TIMEOUT_MESSAGE]),
+            ],
+            running
+          );
         })
         .catch(() => {
-          // Network hiccup: try again on the next tick.
-          if (!cancelled) setReindexWatched([...reindexWatched]);
+          if (cancelled) return;
+          // Network hiccup: try again next tick, but not forever.
+          const { timedOut } = splitTimedOut(reindexWatched, reindexStartedAt.current, Date.now());
+          if (timedOut.length > 0) giveUp(timedOut);
+          else setReindexWatched([...reindexWatched]);
         });
     }, REINDEX_POLL_MS);
     return () => {

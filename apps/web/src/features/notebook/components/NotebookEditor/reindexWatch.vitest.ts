@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { settleReindex } from './reindexWatch';
+import { settleReindex, splitTimedOut } from './reindexWatch';
 
 describe('settleReindex', () => {
   it('trennt laufende, gescheiterte, alte-Fassung-behalten und fertige Quellen', () => {
@@ -19,6 +19,19 @@ describe('settleReindex', () => {
       failed: [['c', 'Neu indexieren fehlgeschlagen: x']],
       keptOld: ['Neu indexieren fehlgeschlagen: y'],
       done: ['e'],
+    });
+  });
+});
+
+describe('splitTimedOut', () => {
+  it('gibt Quellen nach dem Limit auf, jüngere laufen weiter', () => {
+    const started = new Map([
+      ['alt', 0],
+      ['neu', 10 * 60_000],
+    ]);
+    expect(splitTimedOut(['alt', 'neu', 'ohne'], started, 16 * 60_000)).toEqual({
+      timedOut: ['alt'],
+      running: ['neu', 'ohne'],
     });
   });
 });
