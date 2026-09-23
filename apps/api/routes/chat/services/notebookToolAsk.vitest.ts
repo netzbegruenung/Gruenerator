@@ -54,6 +54,11 @@ describe('looksLikeNotebookToolAsk — trifft (Ort oder Menge)', () => {
     'Wörtlich bitte: was steht zum Ehrenamt?',
     'Gib mir die Anträge sortiert nach Datum',
     'Welche Quelle ist die längste?',
+    // Live-Test Berlin-Notebook 23.09.2026: Filter nach Titel, Stellen mit
+    // Zahl und Relevanz-Rangfolge sind Werkzeugaufträge, keine Inhaltsfragen.
+    'Welche Quellen im Berlin-Notebook haben „Wahlprogramm" im Titel?',
+    'Finde im Berlin-Notebook die fünf Stellen, an denen es am konkretesten um die Verkehrswende geht.',
+    'Welche 10 Quellen aus 2025 im Berlin-Notebook sind am relevantesten für Klimaneutralität?',
   ])('%s', (text) => {
     expect(looksLikeNotebookToolAsk(text)).toBe(true);
   });
@@ -98,6 +103,11 @@ describe('looksLikeNotebookToolAsk — trifft NICHT', () => {
     'Wie oft steht die Partei vor der Frage, ob sie koaliert?',
     'Gibt es Unterschiede in der Förderung, je nach Datum des Antrags?',
     'Welche Fristen gelten nach Name des Verfahrens?',
+    // „finde" als Meinung, auch mit Wörtern dazwischen.
+    'Die Formulierung finde ich an vielen Stellen zu weich.',
+    'Ich finde, an mehreren Stellen fehlt der Bezug.',
+    // „am relevantesten" ohne Quellen-Bezug ist eine Inhaltsfrage.
+    'Welche Maßnahme ist am relevantesten für den Klimaschutz?',
     '',
   ])('%s', (text) => {
     expect(looksLikeNotebookToolAsk(text)).toBe(false);
