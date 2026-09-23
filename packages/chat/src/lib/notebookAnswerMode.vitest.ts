@@ -7,6 +7,7 @@ import { notebookAnswerModeSchema, notebookResolvedAnswerModeSchema } from '@gru
 import { describe, expect, it } from 'vitest';
 
 import {
+  answerModeAutoHint,
   answerModeLabel,
   DEFAULT_NOTEBOOK_ANSWER_MODE,
   NOTEBOOK_ANSWER_MODES,
@@ -48,6 +49,17 @@ describe('answerModeLabel', () => {
   it('has a label for every resolved mode', () => {
     for (const mode of notebookResolvedAnswerModeSchema.options) {
       expect(answerModeLabel(mode)).not.toBe('');
+    }
+  });
+});
+
+describe('answerModeAutoHint', () => {
+  it('marks only the guard-made choices as automatic', () => {
+    expect(answerModeAutoHint('pregate')).toBe('automatisch gewählt');
+    expect(answerModeAutoHint('guard')).toBe('automatisch gewählt');
+    expect(answerModeAutoHint('guard_fallback')).toBe('automatisch gewählt');
+    for (const r of ['explicit', 'ineligible', 'default', null, undefined] as const) {
+      expect(answerModeAutoHint(r)).toBeNull();
     }
   });
 });

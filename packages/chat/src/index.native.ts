@@ -54,6 +54,14 @@ export {
   type GrueneratorAdapterCallbacks,
 } from './runtime/GrueneratorModelAdapter';
 export {
+  applyToolStepResult,
+  buildToolStepCard,
+  toolStepResultMessage,
+  toolStepTitle,
+  type ToolStepResultData,
+  type ToolStepStartData,
+} from './runtime/GrueneratorModelAdapter/toolStepCards';
+export {
   createGrueneratorThreadListAdapter,
   getThreadType,
   getNotebookCollectionId,
@@ -160,6 +168,7 @@ export {
   DEFAULT_NOTEBOOK_ANSWER_MODE,
   notebookAnswerModeDef,
   answerModeLabel,
+  answerModeAutoHint,
   type NotebookAnswerModeDef,
 } from './lib/notebookAnswerMode';
 
