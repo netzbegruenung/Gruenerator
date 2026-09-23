@@ -53,6 +53,28 @@ const SEARCH_ASKS = [
   `${SEARCH_VERB}[^.?!,]{0,80}?(?<![\\wäöüß])(?:stellen?|passagen?|textstellen?|zitate?)(?![\\wäöüß])[^.?!,]{0,60}?(?<![\\wäöüß])(?:raus|heraus)`,
 ];
 
+/**
+ * Fundort-Fragen: „Auf welcher Seite steht …", „Welche Seiten …". „Seite" ist
+ * doppeldeutig — „Auf welcher Seite stehen die Grünen in der Debatte?" fragt
+ * nach einer Position, nicht nach einem Blatt. Deshalb zählt die Frage nur mit
+ * einem Dokument-Bezug im selben Satz: ein Zitat in Anführungszeichen, ein
+ * Dokument als Ort („im Antrag", „des Programms"), ein Textstück als
+ * Gegenstand (Begriff, Zitat, Stelle, …) oder ein Verb, das nur Texte tun
+ * („erwähnt", „genannt", „geht es um") — nicht über ein Komma hinweg, außer
+ * „…, dass". „Seitenzahl" ist eindeutig.
+ */
+const PAGE_ANCHOR = [
+  '[„"»‚\'“]\\S*',
+  `(?<![\\wäöüß])(?:im|in|aus|vom|von|des|der)\\s+(?:(?:dem|der|den|des|diesem|dieser|dieses|meinem|meiner|meines|unserem|unserer|unseres)\\s+)?${DOCUMENT_NOUN}`,
+  '(?<![\\wäöüß])(?:begriff\\w*|wort|w(?:ö|oe)rter|zitat\\w*|satz|s(?:ä|ae)tze|formulierung\\w*|stellen?|textstellen?|passagen?|absatz|abs(?:ä|ae)tze|tabellen?|grafik\\w*|abbildung\\w*)',
+  '(?<![\\wäöüß])(?:erw(?:ä|ae)hnt|genannt|behandelt|beschrieben|thematisiert|aufgef(?:ü|ue)hrt|zitiert|definiert|geht\\s+es\\s+um)',
+  ',\\s*dass',
+].join('|');
+const PAGE_ASKS = [
+  `(?:(?:auf|in)\\s+welche[rn]?|welche)\\s+seiten?(?![\\wäöüß])[^.?!;,]{0,100}?(?:${PAGE_ANCHOR})`,
+  'seitenzahl(?:en)?\\s+(?:von|f(?:ü|ue)r|zu|zum|zur|dazu)',
+];
+
 const REQUEST_INFINITIVES = `(?:sortieren|z(?:ä|ae)hlen|ordnen|auflisten|vorlesen|(?:ö|oe)ffnen|zitieren|${WRITE_INFINITIVES})`;
 
 /** Bittrahmen mit Infinitiv — nicht über ein Komma hinweg. */
@@ -102,6 +124,7 @@ const NOTEBOOK_TOOL_ASK = new RegExp(
       'wie\\s+oft\\s+(?:wird|kommt|taucht|steht)\\s+[^.?!]{0,80}?(?<![\\wäöüß])(?:erw(?:ä|ae)hnt|genannt|verwendet|(?:vor|auf)(?=\\s*(?:[.?!;]|,(?!\\s*(?:dass|wenn|ob)(?![\\wäöüß]))|$)))',
       'wie\\s+viele\\s+(?:w(?:ö|oe)rter|seiten|quellen|dokumente|treffer)',
       'seite\\s+\\d+',
+      ...PAGE_ASKS,
       'abschnitt\\s+\\d+',
       'kapitel\\s+\\d+',
       'w(?:ö|oe)rtlich',
