@@ -504,7 +504,7 @@ function ComposerBody({
             <Pressable
               onPress={props.accessory.onPress}
               style={[styles.accessoryChip, { borderColor: theme.border }]}
-              hitSlop={6}
+              hitSlop={ACCESSORY_CHIP_HIT_SLOP}
               accessibilityRole="button"
               accessibilityLabel={props.accessory.accessibilityLabel ?? props.accessory.label}
             >
@@ -748,6 +748,10 @@ export function Composer(props: ComposerProps) {
   );
 }
 
+// 36 + 2×8 clears the 44pt target vertically; the side slop stays small so the
+// chip's touch area does not reach into Send beside it.
+const ACCESSORY_CHIP_HIT_SLOP = { top: 8, bottom: 8, left: 4, right: 4 };
+
 const styles = StyleSheet.create({
   attachmentsRow: {
     flexDirection: 'row',
@@ -761,7 +765,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    height: 30,
+    // minHeight, not height: a large font scale must grow the chip, not clip it.
+    minHeight: 36,
     paddingHorizontal: spacing.xsmall,
     borderRadius: borderRadius.pill,
     borderWidth: StyleSheet.hairlineWidth,
