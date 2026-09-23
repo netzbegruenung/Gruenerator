@@ -73,7 +73,16 @@ export function buildToolUsageBlock(
   /** Names of the tools actually mounted this turn. Omitted keeps every rule —
    *  callers that do not know the toolset must not silently lose guidance. */
   toolNames?: readonly string[],
-  hasCarriedSources = false
+  hasCarriedSources = false,
+  /**
+   * Das Notebook dieses Threads bzw. Turns (`notebookForPrompt`). Der Planer sah
+   * es sonst nur indirekt — im Verlauf und in alten Werkzeugaufrufen —, und die
+   * einzige Suchregel nannte `gruenerator_search` und das Web: „die neuesten
+   * Beiträge zum Thema Verkehr" ging im Thread des Berlin-Notebooks an die
+   * Websuche (Testserver 23.09.2026). Ein Hinweis, kein Scope: die Websuche
+   * bleibt für alles, was nicht im Notebook steht.
+   */
+  notebook: { id: string; name: string | null } | null = null
 ): string {
   // Which rules this turn can even act on. Read off the mounted toolset, not
   // off an intent: the toolset is the ground truth about what the model can do,
@@ -106,8 +115,14 @@ export function buildToolUsageBlock(
       '- Antworte am Ende IMMER auf Deutsch (Du-Form, Genderstern).',
     ].join('\n');
   }
+  const hasNotebookTool = toolNames === undefined || toolNames.includes('notebook_quellen');
   return [
     'ARBEITSWEISE MIT TOOLS:',
+    ...(notebook && hasNotebookTool
+      ? [
+          `- DIESER CHAT ARBEITET MIT ${notebook.name ? `DEM NOTEBOOK „${notebook.name}"` : 'EINEM NOTEBOOK'} (notebookId: ${notebook.id}). Fragen zu seinen Inhalten — Positionen, Beschlüsse, Pressemitteilungen, „die neuesten Beiträge" — beantwortest du ZUERST mit notebook_quellen (find für Inhalte, list mit sortBy date für das Neueste). Die Websuche nur ergänzend oder für Themen, die nicht im Notebook stehen.`,
+        ]
+      : []),
     // Search rules, gated on the mounted toolset. A turn without a search tool
     // cannot act on any of them, and ~1.350 chars of unusable instruction is
     // not free: it pushes the rules that DO apply further from the output.
