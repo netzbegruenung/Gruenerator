@@ -167,7 +167,17 @@ beforeAll(async () => {
   restoreNetwork = installNetworkGuard();
   app = await startChatApp({ decisionJournal: capture.middleware });
   if (UPDATE && !existsSync(MAPS_DIR)) mkdirSync(MAPS_DIR, { recursive: true });
-});
+
+  // Ein Wegwerf-Turn traegt die Einmalkosten des ersten Requests (Lazy-Imports,
+  // Mock-Fabriken, JIT): lokal ~55 ms gegen 3–10 ms fuer jeden weiteren Turn,
+  // egal welches Szenario zuerst laeuft. Im ersten Testfall riss genau das unter
+  // der Last der vollen Suite die 5 s (#3226). `beforeEach` setzt danach alles
+  // zurueck; der Hook haengt an `hookTimeout` (Vorgabe 10 s), daher die eigene Grenze.
+  const [warmup] = LOOP_SCENARIOS;
+  pinChatEnv();
+  loopScript.script(...warmup.streams);
+  await runTurn(app.baseUrl, { messages: [userTurn(warmup.prompt)] });
+}, 60_000);
 
 afterAll(async () => {
   await app.close();

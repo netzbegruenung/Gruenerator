@@ -546,3 +546,39 @@ describe('decideTurnPlan — die Suchfamilie am Erwähnungs-Pfad (IST vor dem R3
     expect(deepresearchFields.lane).toBe('single-pass');
   });
 });
+
+// Der Klassifikator pinnt `notebook_quellen`, wenn ein Turn mit gewähltem
+// Notebook etwas MIT den Quellen tun will (`looksLikeNotebookToolAsk`). Kein
+// eigener Zweig hier: der Pin auf `agentic` IST `mustLoop`, und das hebt die
+// Notebook-Sperre auf. Diese Fälle halten fest, dass es dabei bleibt.
+describe('decideTurnPlan — Notebook-Werkzeugauftrag', () => {
+  const notebookPin = {
+    intent: 'agentic' as ChatIntentId,
+    mentionPinnedTool: 'notebook_quellen',
+    hasSelectedNotebook: true,
+    lastUserText: 'Sortiere die Quellen nach Datum',
+  };
+
+  it('geht mit gewähltem Notebook in die Schleife', () => {
+    const p = plan(notebookPin);
+    expect(p.runAgentic).toBe(true);
+    expect(p.lane).toBe('loop');
+    expect(p.intent).toBe('agentic');
+  });
+
+  it('eine gewöhnliche Notebook-Frage bleibt im Einzeldurchlauf', () => {
+    const p = plan({
+      intent: 'search',
+      hasSelectedNotebook: true,
+      lastUserText: 'Was steht im Notebook zur Wärmewende?',
+    });
+    expect(p.runAgentic).toBe(false);
+    expect(p.intent).toBe('search');
+  });
+
+  // Darum pinnt der Klassifikator bei benannten Agenten nicht: `isCompound`
+  // hebt auch `mustLoop` nicht auf.
+  it('ein benannter Agent (isCompound) bleibt trotz Pin draussen', () => {
+    expect(plan({ ...notebookPin, isCompound: true }).runAgentic).toBe(false);
+  });
+});

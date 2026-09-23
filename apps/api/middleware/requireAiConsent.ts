@@ -17,13 +17,14 @@
  * Einwilligung und wäre ab dem Deploy von allen KI-Funktionen ausgesperrt.
  */
 
-import { AI_CONSENT_REQUIRED_CODE } from '@gruenerator/contracts';
+import { AI_CONSENT_REQUIRED_CODE, type UserProfile } from '@gruenerator/contracts';
 import { type Request, type Response, type NextFunction } from 'express';
 
 import { env } from '../config/env.js';
 import { getProfileService } from '../services/user/index.js';
 import { createLogger } from '../utils/logger.js';
 
+import { type ApiKeyContext } from './apiKeyMiddleware.js';
 import { type AuthenticatedRequest } from './types.js';
 
 const log = createLogger('requireAiConsent');
@@ -47,6 +48,21 @@ function maybeLogObserved(userId: string, path: string): void {
   }
 }
 
+const CONSENT_REQUIRED_BODY = {
+  error: 'AI consent required',
+  code: AI_CONSENT_REQUIRED_CODE,
+  message:
+    'Für die KI-Funktionen fehlt Deine ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO.',
+};
+
+/**
+ * Das Urteil von `requireAiConsent` ohne Antwort — für KI-Nebenwirkungen, die
+ * ohne Einwilligung still entfallen, statt die ganze Anfrage abzuweisen.
+ */
+export function sessionHasAiConsent(user: Pick<UserProfile, 'ai_consent_at'>): boolean {
+  return !env.ENFORCE_AI_CONSENT || user.ai_consent_at != null;
+}
+
 /**
  * Muss **nach** `requireAuth` laufen. Ohne aufgelöste Sitzung lässt die
  * Middleware durch: die 401 gehört `requireAuth`, und ein 403 auf einen
@@ -65,12 +81,7 @@ export function requireAiConsent(req: Request, res: Response, next: NextFunction
   }
 
   log.warn('[AiConsent] blocked user=%s path=%s', user.id, path);
-  res.status(403).json({
-    error: 'AI consent required',
-    code: AI_CONSENT_REQUIRED_CODE,
-    message:
-      'Für die KI-Funktionen fehlt Deine ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO.',
-  });
+  res.status(403).json(CONSENT_REQUIRED_BODY);
 }
 
 /**
@@ -95,6 +106,25 @@ export async function hasAiConsent(userId: string): Promise<boolean> {
     log.warn('[AiConsent] profile read failed for %s: %s', userId, (err as Error).message);
     return true;
   }
+}
+
+/**
+ * Dasselbe für `/api/v1` (API-Schlüssel oder MCP-OAuth-Sitzung): dort setzt die
+ * Anmeldung `req.apiKey`, nicht `req.user`. Muss nach `requireApiKey` bzw.
+ * `requireAddinAuth` laufen.
+ */
+export async function requireApiKeyAiConsent(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  // Der Typ-Import zieht die `req.apiKey`-Erweiterung auch in Programme, die
+  // `apiKeyMiddleware.ts` sonst nicht sehen (tsconfig.integration.json).
+  const apiKey: ApiKeyContext | undefined = req.apiKey;
+  const userId = apiKey?.userId;
+  if (!userId || (await hasAiConsent(userId))) return next();
+  log.warn('[AiConsent] blocked api-key user=%s path=%s', userId, req.originalUrl.split('?')[0]);
+  res.status(403).json(CONSENT_REQUIRED_BODY);
 }
 
 export default requireAiConsent;

@@ -4,7 +4,7 @@ const Nutzungsbedingungen = () => {
   return (
     <div className="page-container">
       <h1>Nutzungsbedingungen</h1>
-      <p>Stand: 2. September 2026</p>
+      <p>Stand: 23. September 2026</p>
 
       <h2>§ 1 Geltungsbereich</h2>
       <p>
@@ -138,16 +138,12 @@ const Nutzungsbedingungen = () => {
 
       <h2 id="nutzung-ki-generierter-inhalte">§ 5 Nutzung KI-generierter Inhalte</h2>
       <p>
-        (1) Die Plattform nutzt verschiedene KI-Modelle zur Inhaltserstellung. Du kannst pro Anfrage
-        selbst wählen, welches Modell und damit welcher Anbieter Deine Eingaben verarbeitet. Es
-        kommen ausschließlich Anbieter mit Verarbeitung in der EU zum Einsatz:
+        (1) Die Plattform nutzt verschiedene KI-Modelle zur Inhaltserstellung. Welcher Anbieter
+        Deine Eingaben verarbeitet, richtet sich nach der genutzten Funktion; im Chat kannst Du das
+        Modell selbst wählen. Es kommen ausschließlich Anbieter mit Verarbeitung in der EU zum
+        Einsatz. Welche das sind, steht in der Übersicht der Auftragsverarbeiter in unserer{' '}
+        <a href="/datenschutz">Datenschutzerklärung</a>.
       </p>
-      <ul>
-        <li>Mistral AI (EU-Server, Frankreich)</li>
-        <li>KI-Modelle der netzbegrünung e.V. (eigene Server, EU)</li>
-        <li>Seeweb/Regolo AI (EU-Server, Italien)</li>
-        <li>KugelAudio (Sprachausgabe; Sitz Berlin, Verarbeitung in der EU)</li>
-      </ul>
       <p>
         (2){' '}
         <strong>

@@ -8,6 +8,7 @@ import { Router, type Response } from 'express';
 import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import ImageSelectionService from '../../services/image/ImageSelectionService.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
@@ -98,6 +99,7 @@ const generateFromPromptSchema = z.object({
 router.post(
   '/generate-from-prompt',
   requireAuth,
+  requireAiConsent,
   validateBody(generateFromPromptSchema),
   async (
     req: TypedRequest<z.infer<typeof generateFromPromptSchema>>,

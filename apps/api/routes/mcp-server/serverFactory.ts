@@ -22,7 +22,8 @@ import {
   executeDirectSearch,
 } from '../chat/agents/directSearchExecutors.js';
 import { makeGroupsTool } from '../chat/agents/groupTools.js';
-import { makeNotebookSourcesTool } from '../chat/agents/notebookSourceTools.js';
+import { makeNotebookSourcesTool, READ_ACTIONS } from '../chat/agents/notebookSourceTools.js';
+import { WRITE_ACTIONS } from '../chat/agents/notebookSourceWriteActions.js';
 import { makeNotebooksTool } from '../chat/agents/notebookTools.js';
 import {
   makeBoardsTasksTool,
@@ -70,6 +71,7 @@ import {
 } from './methodPrompts.js';
 
 import type { McpAuthContext } from './mcpAuth.js';
+import type { UserLocale } from '../../agents/langgraph/ChatGraph/types.js';
 import type { QAResponse } from '../../services/notebook/types.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Request } from 'express';
@@ -335,12 +337,14 @@ export interface McpServerBuildOptions {
   scopes: Set<string>;
   /** Nur beim Schlüssel-Weg gesetzt — trägt die Landesverbands-Freigabe. */
   apiKey?: McpAuthContext['apiKey'];
+  /** Aus dem Profil — steuert, welche System-Notebooks die Tools freigeben. */
+  userLocale: UserLocale;
   /** The live Express request — carries req.user. */
   req: Request;
 }
 
 export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpServer {
-  const { userId, scopes, apiKey, req } = opts;
+  const { userId, scopes, apiKey, userLocale, req } = opts;
   const has = (s: string) => scopes.has(s);
   const contentRead = has('content:read');
   const contentWrite = has('content:write');
@@ -355,7 +359,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
     }
   );
 
-  const ctx = makeMcpPersonalCtx(userId);
+  const ctx = makeMcpPersonalCtx(userId, userLocale);
 
   registerMethod(server);
 
@@ -612,7 +616,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
 
     registerAiTool(server, 'notebooks', makeNotebooksTool(ctx), {
       description: contentWrite
-        ? `Zugriff auf die Notebooks der Person (Wissenssammlungen): auflisten (list — die id steht im ref; scope="mine" die eigenen, scope="system" die vom Grünerator gepflegten Wissenssammlungen, scope="basis" die öffentlich geteilten anderer), Details mit Dokumenten, Wolke-Ordnern und Freigaben (get), inhaltlich befragen (search mit id + query), anlegen (create; mit wolkeFolder {connectionId, path} wird der Ordner importiert), Wolke-Ordner anhängen (add_wolke_folder), Dokumente hinzufügen (add_documents), umbenennen (rename), Sichtbarkeit ändern (set_visibility), mit einem Projekt teilen (share_to_group), löschen (delete). create mit wolkeFolder, add_wolke_folder, set_visibility, share_to_group und delete verlangen das zweistufige confirm-Protokoll. search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`
+        ? `Zugriff auf die Notebooks der Person (Wissenssammlungen): auflisten (list — die id steht im ref; scope="mine" die eigenen, scope="system" die vom Grünerator gepflegten Wissenssammlungen, scope="basis" die öffentlich geteilten anderer), Details mit Dokumenten, Wolke-Ordnern und Freigaben (get), inhaltlich befragen (search mit id + query), anlegen (create; mit wolkeFolder {connectionId, path} wird der Ordner importiert), Wolke-Ordner anhängen (add_wolke_folder), Dokumente hinzufügen (add_documents), umbenennen (rename), Beschreibung, Anweisung und Labels ändern (update), Sichtbarkeit ändern (set_visibility), mit einem Projekt teilen (share_to_group), löschen (delete). create mit wolkeFolder, add_wolke_folder, set_visibility, share_to_group und delete verlangen das zweistufige confirm-Protokoll. search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`
         : `Die Notebooks der Person auflisten (list — die id steht im ref; scope="mine" die eigenen, scope="system" die vom Grünerator gepflegten Wissenssammlungen, scope="basis" die öffentlich geteilten anderer), Details ansehen (get) oder inhaltlich befragen (search mit id + query). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`,
       actions: contentWrite
         ? [
@@ -623,6 +627,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
             'add_wolke_folder',
             'add_documents',
             'rename',
+            'update',
             'set_visibility',
             'share_to_group',
             'delete',
@@ -651,11 +656,15 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
       ...(contentWrite ? {} : { readOnly: true }),
     });
 
-    // Alle Aktionen lesen nur — dieselbe Liste für content:read und content:write.
+    // Die Schreibaktionen sind direkt (privat, umkehrbar) — keine Karten, also
+    // auch keine Overrides fürs confirm-Protokoll.
+    const quellenRead = `Die Quellen EINES Notebooks (notebookId aus notebooks action="list"; für ein System-Notebook der Sammlungsschlüssel aus scope="system", z. B. deutschland — dort ist die sourceId die URL der Quelle, und es lässt sich nur lesen): auflisten (list, sortier- und filterbar — die sourceId steht im ref), gliedern (outline), lesen (read — ab Zeichen mit abschnitt.von, eine seite, eine section aus outline oder ein chunks-Bereich) und Passagen finden (find mit query, optional nur in einer sourceId). find liefert Rohpassagen mit Seite und Zeichenbereich — belege damit selbst. Außerdem: wörtliche Vorkommen zählen (grep mit phrase), Umfang und Lemmata zählen (stats), Quellen ordnen (rank mit by), ein Zitat prüfen oder Belege für eine Behauptung finden (cite mit zitat oder claim). exhaustive=false heißt: nicht alle Quellen gelesen — Zahlen sind dann Untergrenzen.`;
     registerAiTool(server, 'notebook_quellen', makeNotebookSourcesTool(ctx), {
-      description: `Die Quellen EINES Notebooks (notebookId aus notebooks action="list"; für ein System-Notebook der Sammlungsschlüssel aus scope="system", z. B. deutschland — dort ist die sourceId die URL der Quelle): auflisten (list, sortier- und filterbar — die sourceId steht im ref), gliedern (outline), lesen (read — ab Zeichen mit abschnitt.von, eine seite, eine section aus outline oder ein chunks-Bereich) und Passagen finden (find mit query, optional nur in einer sourceId). find liefert Rohpassagen mit Seite und Zeichenbereich — belege damit selbst. Außerdem: wörtliche Vorkommen zählen (grep mit phrase), Umfang und Lemmata zählen (stats), Quellen ordnen (rank mit by), ein Zitat prüfen oder Belege für eine Behauptung finden (cite mit zitat oder claim). exhaustive=false heißt: nicht alle Quellen gelesen — Zahlen sind dann Untergrenzen.`,
-      actions: ['list', 'outline', 'read', 'find', 'grep', 'stats', 'rank', 'cite'],
-      readOnly: true,
+      description: contentWrite
+        ? `${quellenRead} Verwalten, direkt ohne Rückfrage: entfernen (remove — bleiben in der Bibliothek), verschieben oder kopieren (move/copy mit targetNotebookId), eigene Uploads umbenennen (rename) oder verschlagworten (tag mit add/remove), eine Notiz anlegen (add_note mit title + text) und EINE Webseite importieren (add_url — eine Seite, keine Website; erzeugt Einbettungen).`
+        : quellenRead,
+      actions: contentWrite ? [...READ_ACTIONS, ...WRITE_ACTIONS] : [...READ_ACTIONS],
+      ...(contentWrite ? {} : { readOnly: true }),
     });
   }
 

@@ -107,7 +107,7 @@ function makeCtx(
       { mode: 'hybrid', rerank: false, ...args },
       {}
     )) ?? {};
-  return { run, registered, notes, helper, system };
+  return { run, registered, notes, helper, system, deps };
 }
 
 describe('resolution', () => {
@@ -155,11 +155,36 @@ describe('resolution', () => {
     );
   });
 
-  it('refuses write actions on a system notebook', async () => {
-    const { run, system } = makeCtx();
-    const out = await run({ action: 'add_documents', notebookId: 'hamburg' });
-    expect(out).toEqual({ error: SYSTEM_READ_ONLY });
-    expect(system.scrollPage).not.toHaveBeenCalled();
+  it('refuses write actions on a system notebook, as source and as move target', async () => {
+    const byKey = makeCtx();
+    expect(await byKey.run({ action: 'remove', notebookId: 'hamburg', sourceIds: [HH_A] })).toEqual(
+      { error: SYSTEM_READ_ONLY }
+    );
+    expect(byKey.system.scrollPage).not.toHaveBeenCalled();
+
+    const bySelection = makeCtx({ notebookIds: ['hamburg-notebook'] });
+    expect(
+      await bySelection.run({ action: 'add_note', title: 'Notiz', text: 'x'.repeat(40) })
+    ).toEqual({ error: SYSTEM_READ_ONLY });
+
+    const intoSystem = makeCtx();
+    intoSystem.helper.getNotebookCollection.mockImplementation((async (id: string) =>
+      id === 'nb-1' ? { id: 'nb-1', name: 'Eigenes', user_id: 'user-1' } : null) as never);
+    vi.mocked(intoSystem.deps.access).mockResolvedValue({
+      exists: true,
+      isOwner: true,
+      canRead: true,
+      canEdit: true,
+    } as never);
+    expect(
+      await intoSystem.run({
+        action: 'move',
+        notebookId: 'nb-1',
+        sourceIds: ['d1'],
+        targetNotebookId: 'hamburg',
+      })
+    ).toEqual({ error: SYSTEM_READ_ONLY });
+    expect(intoSystem.helper.getCollectionDocuments).not.toHaveBeenCalled();
   });
 });
 

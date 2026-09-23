@@ -18,8 +18,8 @@
  * `execute`. Dort gilt statt `resolveSourceInNotebook` „Schlüssel ∈
  * `collectionsForLocale`" und „die URL hat Punkte unter dem Standardfilter".
  *
- * Aktionen stehen in `READ_ACTIONS`; schreibende Aktionen kommen als eigene
- * Liste dazu.
+ * Aktionen stehen in `READ_ACTIONS`; die schreibenden in `WRITE_ACTIONS`
+ * (`notebookSourceWriteActions.ts`).
  */
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
@@ -63,6 +63,15 @@ import {
   SCAN_READ_ACTIONS,
 } from './notebookSourceReadActions.js';
 import { runSystemAction } from './notebookSourceSystemActions.js';
+import {
+  isWriteAction,
+  NOT_FOUND,
+  resolveWriteDeps,
+  runWriteAction,
+  WRITE_ACTIONS,
+  WRITE_FAILURE_BY_ACTION,
+  type NotebookSourceWriteDeps,
+} from './notebookSourceWriteActions.js';
 import { notebookUrl } from './notebookTools.js';
 import {
   groundNote,
@@ -92,10 +101,9 @@ export type NotebookSourceToolDeps = Omit<NotebookSourcesDeps, 'documentService'
 
 /** `PersonalToolCtx` plus optionale Fakes — der Katalog reicht den Ctx ohne `deps`. */
 export type NotebookSourceToolCtx = PersonalToolCtx & {
-  deps?: Partial<NotebookSourceToolDeps>;
+  deps?: Partial<NotebookSourceToolDeps> & Partial<NotebookSourceWriteDeps>;
 };
 
-const NOT_FOUND = 'Notebook nicht gefunden oder kein Zugriff.';
 const NO_NOTEBOOK =
   'Kein Notebook ausgewählt — gib notebookId an (aus notebooks action="list", Feld ref).';
 const EXCERPT_CHARS = 300;
@@ -179,6 +187,7 @@ const filterSchema = z.object({
 export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   const deps = resolveDeps(ctx.deps);
+  const writeDeps = resolveWriteDeps(ctx.deps);
 
   type Target =
     | { kind: 'user'; collection: NotebookCollection }
@@ -217,6 +226,16 @@ export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
     return firstSystem ?? firstSystemError ?? { error: NO_NOTEBOOK };
   }
 
+  /** Für die Schreibaktionen: ein System-Notebook ist nie Quelle oder Ziel. */
+  async function resolveOwnNotebook(
+    explicit: string | undefined
+  ): Promise<{ collection: NotebookCollection } | { error: string }> {
+    const target = await resolveNotebook(explicit);
+    if ('error' in target) return target;
+    if (target.kind === 'system') return { error: SYSTEM_READ_ONLY };
+    return { collection: target.collection };
+  }
+
   return tool({
     description: `Die Quellen EINES Notebooks: auflisten, gliedern, lesen und Passagen mit Fundstelle finden.
 
@@ -229,10 +248,12 @@ exhaustive=false: nicht alles gelesen — Zahlen nie als Gesamtzahl nennen.
 
 NICHT für: Notebooks auflisten/anlegen/teilen (dafür 'notebooks'), die grüne Inhaltsdatenbank (dafür 'gruenerator_search').
 
+NUTZE FÜR (direkt, umkehrbar): Quellen aus dem Notebook entfernen (remove — sie bleiben in der Bibliothek), in ein anderes Notebook verschieben oder kopieren (move/copy mit targetNotebookId), eigene Uploads umbenennen (rename) oder verschlagworten (tag), eine Notiz anlegen (add_note) und EINE Webseite importieren (add_url — eine Seite, keine ganze Website; erzeugt Einbettungen, kostet).
+
 Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt das im Chat ausgewählte Notebook.
 System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="list" scope="system" (z. B. deutschland, hamburg); die sourceId ist dort die URL der Quelle. Nur lesen.`,
     inputSchema: z.object({
-      action: z.enum(READ_ACTIONS),
+      action: z.enum([...READ_ACTIONS, ...WRITE_ACTIONS]),
       notebookId: z
         .string()
         .optional()
@@ -285,6 +306,18 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       by: z.enum(RANK_BY).optional().describe('rank: Kriterium'),
       zitat: z.string().min(8).optional().describe('cite: wörtliches Zitat'),
       claim: z.string().min(8).optional().describe('cite: Behauptung'),
+      sourceIds: z
+        .array(z.string())
+        .min(1)
+        .max(50)
+        .optional()
+        .describe('remove, move, copy: Quellen aus list (ref)'),
+      targetNotebookId: z.string().optional().describe('move, copy: Ziel-Notebook'),
+      title: z.string().min(1).max(200).optional().describe('rename, add_note; add_url optional'),
+      add: z.array(z.string()).optional().describe('tag: hinzufügen'),
+      remove: z.array(z.string()).optional().describe('tag: entfernen'),
+      text: z.string().min(20).max(200_000).optional().describe('add_note: Inhalt'),
+      url: z.string().optional().describe('add_url: eine öffentliche http(s)-Seite'),
     }),
     execute: async (args) => {
       const userId = requireUserId(state);
@@ -292,6 +325,12 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       // `return await` in allen Zweigen: ohne `await` liefe eine abgelehnte
       // Zusage am `catch` vorbei, samt Rohtext bis zum Modell.
       try {
+        if (isWriteAction(args.action)) {
+          return await runWriteAction(
+            { ...args, action: args.action },
+            { state, sourceRegistry, userId, deps: writeDeps, resolveNotebook: resolveOwnNotebook }
+          );
+        }
         const target = await resolveNotebook(args.notebookId);
         if ('error' in target) return target;
         if (target.kind === 'system') {
@@ -334,7 +373,11 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
         // Der Rohtext bleibt im Log: englische Interna („Too many document
         // IDs") sind keine Auskunft für das Modell.
         log.warn(`[notebook_quellen] ${args.action} failed`, err);
-        return { error: FAILURE_BY_ACTION[args.action] };
+        return {
+          error: isWriteAction(args.action)
+            ? WRITE_FAILURE_BY_ACTION[args.action]
+            : FAILURE_BY_ACTION[args.action],
+        };
       }
     },
   });

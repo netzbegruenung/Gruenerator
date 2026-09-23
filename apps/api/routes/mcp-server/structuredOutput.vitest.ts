@@ -83,6 +83,7 @@ function buildTools() {
   buildAuthenticatedMcpServer({
     userId: 'user-1',
     scopes: new Set(['search']),
+    userLocale: 'de-DE',
     req: {} as never,
   });
   spy.mockRestore();
