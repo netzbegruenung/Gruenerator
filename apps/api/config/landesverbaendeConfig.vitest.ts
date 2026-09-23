@@ -18,15 +18,17 @@ describe('thueringen-lv — Wahlprogramm/Beschluss PDF paths (#3579)', () => {
     expect(source).toBeDefined();
   });
 
-  it('has an isPdfArchive wahlprogramm path with all Wahlprogramm PDFs as staticUrls', () => {
+  it('has an isPdfArchive wahlprogramm path with all Wahlprogramm PDFs as staticUrls, skipped hourly', () => {
     const path = source?.contentPaths.find((cp) => cp.type === 'wahlprogramm');
     expect(path?.isPdfArchive).toBe(true);
+    expect(path?.recentSkip).toBe(true);
     expect(path?.staticUrls?.length).toBe(THUERINGEN_WAHLPROGRAMME.length);
   });
 
-  it('has an isPdfArchive beschluss path with all Beschluss PDFs as staticUrls', () => {
+  it('has an isPdfArchive beschluss path with all Beschluss PDFs as staticUrls, skipped hourly', () => {
     const path = source?.contentPaths.find((cp) => cp.type === 'beschluss');
     expect(path?.isPdfArchive).toBe(true);
+    expect(path?.recentSkip).toBe(true);
     expect(path?.staticUrls?.length).toBe(THUERINGEN_BESCHLUESSE.length);
   });
 

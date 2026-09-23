@@ -778,11 +778,14 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           // staticUrls + isPdfArchive skips fetching a listing page; titles come from
           // THUERINGEN_WAHLPROGRAMME rather than the filename. maxAgeYears above (12y)
           // already covers a Landtagswahlprogramm through its ~5y legislative period.
+          // recentSkip: 98 PDFs total across both paths below — too heavy for the hourly
+          // --recent run, nightly-only like every other multi-PDF isPdfArchive path here.
           type: 'wahlprogramm',
           path: '/',
           listSelector: 'a[href$=".pdf"]',
           isPdfArchive: true,
           processUndatedPdfs: true,
+          recentSkip: true,
           staticUrls: THUERINGEN_WAHLPROGRAMME.map((pdf) => ({ url: pdf.url, title: pdf.title })),
         },
         {
@@ -792,6 +795,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           listSelector: 'a[href$=".pdf"]',
           isPdfArchive: true,
           processUndatedPdfs: true,
+          recentSkip: true,
           staticUrls: THUERINGEN_BESCHLUESSE.map((pdf) => ({ url: pdf.url, title: pdf.title })),
         },
       ],
