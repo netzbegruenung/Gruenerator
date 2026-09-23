@@ -9,9 +9,18 @@ packages:
 #
 # A version must be seven days old before pnpm resolves it, transitives
 # included. The hijacked releases of 2025 (chalk/debug, Shai-Hulud) were
-# pulled within 48 h. Existing lockfile entries are untouched, so
-# --frozen-lockfile installs never see this. Excluded: the two families we
-# sometimes need on the day a bugfix ships.
+# pulled within 48 h. Excluded: the families we sometimes need on the day a
+# bugfix ships.
+#
+# pnpm 12 checks the WHOLE lockfile against this gate on every install,
+# --frozen-lockfile in CI and in the image builds included, not only new
+# resolutions. A young entry can therefore only sit in the lockfile if it is
+# excluded below; resolving one that is not is refused. So a lockfile that
+# passed the gate never blocks a later re-resolution. When one does
+# (ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION naming entries nobody just added),
+# the lockfile was written around the gate -- that is the finding, not the
+# gate. Under pnpm 10, which re-checked locked entries only when re-resolving,
+# the same state froze every dependency change for seven days (#3216).
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
   # Security fix GHSA-vwc7-r8mq-g2x9 (symlink extraction escape) used at runtime
