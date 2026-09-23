@@ -73,7 +73,8 @@ export const WRITE_FAILURE_BY_ACTION: Record<WriteAction, string> = {
     'Die Seite ließ sich gerade nicht importieren — es wurde nichts bestätigt, bitte später erneut versuchen.',
 };
 
-const NOT_FOUND = 'Notebook nicht gefunden oder kein Zugriff.';
+/** Auch die Antwort von `resolveNotebook` im Lese-Werkzeug — `transferSources` vergleicht dagegen. */
+export const NOT_FOUND = 'Notebook nicht gefunden oder kein Zugriff.';
 const NO_EDIT = 'Keine Berechtigung, dieses Notebook zu bearbeiten.';
 const TARGET_NOT_FOUND = 'Ziel-Notebook nicht gefunden oder kein Zugriff.';
 const TARGET_NO_EDIT = 'Keine Berechtigung, das Ziel-Notebook zu bearbeiten.';
