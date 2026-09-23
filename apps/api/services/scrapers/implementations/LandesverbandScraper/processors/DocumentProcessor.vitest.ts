@@ -244,6 +244,29 @@ describe('processAndStoreDocument — unchanged text, write budget and date guar
     });
   });
 
+  it('compares the normalised title, so a raw file-name title does not flip it back', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'LSVD Saar', checked_at: hoursAgo(2) } },
+    ]);
+
+    await storeWith({ title: 'LSVD Saar  \n' });
+
+    expect(setPayload).not.toHaveBeenCalled();
+  });
+
+  it('heals a stored raw title to its normalised form', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'LSVD Saar  \n', checked_at: hoursAgo(2) } },
+    ]);
+
+    await storeWith({ title: 'LSVD Saar  \n' });
+
+    expect(setPayload.mock.calls[0][2]).toEqual({
+      title: 'LSVD Saar',
+      checked_at: expect.any(String),
+    });
+  });
+
   it('never downgrades a stored date to the -06-15 year-only guess', async () => {
     scrollDocuments.mockResolvedValue([
       { payload: { content_hash: HASH, title: 'Beschluss', published_at: '2023-04-29' } },
@@ -319,5 +342,39 @@ describe('processAndStoreDocument — default age limit', () => {
     // Guards the other direction: a default of 0 would make the case above
     // pass too, while quietly rejecting everything.
     expect(result.stored).toBe(true);
+  });
+});
+
+describe('processAndStoreDocument — title normalization for file sources', () => {
+  beforeEach(() => {
+    scrollDocuments.mockResolvedValue([]);
+  });
+
+  it('normalizes a Wolke/PDF file-name title the HTML extractor never sees', async () => {
+    await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'wahlpruefstein',
+      'https://wolke.netzbegruenung.de/s/x#/LSVD Saar .docx',
+      { title: 'LSVD Saar  \n', text: TEXT, publishedAt: null, categories: [] },
+      'landesverbaende_documents',
+      10
+    );
+
+    const points = batchUpsert.mock.calls[0][2] as Array<{ payload: { title: string } }>;
+    expect(points.map((p) => p.payload.title)).toEqual(points.map(() => 'LSVD Saar'));
+  });
+
+  it('falls back to the source label when the title is only whitespace', async () => {
+    await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'beschluss',
+      URL_UNDER_TEST,
+      { title: ' &nbsp; ', text: TEXT, publishedAt: null, categories: [] },
+      'landesverbaende_documents',
+      10
+    );
+
+    const points = batchUpsert.mock.calls[0][2] as Array<{ payload: { title: string } }>;
+    expect(points[0].payload.title).toMatch(/^Grüne Berlin - /);
   });
 });

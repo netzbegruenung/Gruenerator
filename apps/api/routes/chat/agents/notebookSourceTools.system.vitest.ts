@@ -13,6 +13,7 @@ import {
   type FakePoint,
 } from '../../../services/notebook/__fixtures__/fakeSystemCollection.js';
 import { SYSTEM_READ_ONLY } from '../../../services/notebook/systemNotebookSources.js';
+import { buildToolObservationReplay } from '../services/agenticLoop/mcpReplay.js';
 
 import {
   makeNotebookSourcesTool,
@@ -67,6 +68,11 @@ function makeCtx(
     searchResults?: DocumentResult[];
     nlp?: StatsNlp;
     recentSteps?: PersistedStep[];
+    /** Eine Hamburger Quelle ohne Datum. */
+    extraPoints?: boolean;
+    /** Weitere Hamburger Quellen — über SYSTEM_SCAN_MAX_SOURCES geht grep an den Index. */
+    more?: FakePoint[];
+    textIndex?: Record<string, unknown> | null;
   } = {}
 ) {
   const registered: Array<Record<string, any>> = [];
@@ -84,8 +90,15 @@ function makeCtx(
     messages: [],
     notebookIds: opts.notebookIds ?? [],
   } as unknown as ChatGraphState;
-  const system = makeSystemDeps(points(), {
+  const undated = opts.extraPoints
+    ? fakeDoc(LV, 'https://gruene-hamburg.de/ohne-datum', ['Hafen ohne Datum.'], {
+        landesverband: 'HH',
+        title: 'Ohne Datum',
+      })
+    : [];
+  const system = makeSystemDeps([...points(), ...undated, ...(opts.more ?? [])], {
     ...(opts.searchResults ? { searchResults: opts.searchResults } : {}),
+    ...(opts.textIndex !== undefined ? { textIndex: opts.textIndex } : {}),
   });
   const helper = {
     getNotebookCollection: vi.fn(async () => null),
@@ -98,6 +111,7 @@ function makeCtx(
     access: vi.fn(),
     rerank: system.rerank,
     scrollPage: system.scrollPage,
+    chunkTextIndex: system.chunkTextIndex,
     documentService: system.deps.documentService,
     recentSteps: vi.fn(async () => opts.recentSteps ?? []),
     ...(opts.nlp ? { nlp: opts.nlp } : {}),
@@ -419,6 +433,131 @@ describe('live findings 23.09.2026', () => {
     });
     expect(out.error).toMatch(/Keine Quelle passt zu filter/);
     expect(system.search).not.toHaveBeenCalled();
+  });
+
+  // Mehr als SYSTEM_SCAN_MAX_SOURCES Hamburger Quellen, eine mit zwei Schreibweisen.
+  const manyHamburg = (): FakePoint[] =>
+    Array.from({ length: 205 }, (_, i) =>
+      fakeDoc(
+        LV,
+        `https://gruene-hamburg.de/n/${i}`,
+        [i === 7 ? 'Charite und Charité.' : `Text ${i}.`],
+        {
+          landesverband: 'HH',
+          title: `Nr ${i}`,
+          published_at: '2024-01-01',
+        }
+      )
+    ).flat();
+
+  const usedIndex = (system: ReturnType<typeof makeCtx>['system']) =>
+    system.scrollPage.mock.calls.some((c) => JSON.stringify(c[1]).includes('"chunk_text"'));
+
+  it('reads a scope of at most 200 sources whole — accents fold, no count rule needed', async () => {
+    const { run, system } = makeCtx();
+    const out = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Warmepumpe' });
+    expect(out).toMatchObject({ exhaustive: true, totalHits: 2, sourcesScanned: 2 });
+    expect(out.countRule).toBeUndefined();
+    expect(usedIndex(system)).toBe(false);
+  });
+
+  it('counts over the chunk_text index beyond 200 sources and says what it counted', async () => {
+    const { run, system } = makeCtx({ more: manyHamburg() });
+    const grep = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Charite' });
+    expect(grep).toMatchObject({
+      exhaustive: true,
+      totalHits: 1,
+      sourcesScanned: 207,
+      sourcesWithHits: 1,
+      otherSpellings: { charité: 1 },
+    });
+    expect(grep.countRule).toMatch(/nur Groß\/klein egal/);
+    expect(grep.note).toMatch(/1× als „charité"/);
+    const ranked = await run({
+      action: 'rank',
+      notebookId: 'hamburg',
+      by: 'term',
+      query: 'Charite',
+    });
+    expect(ranked.exhaustive).toBe(true);
+    expect(ranked.countRule).toMatch(/nur Groß\/klein egal/);
+    expect(usedIndex(system)).toBe(true);
+    expect(system.getSystemDocumentFullTextByUrl).not.toHaveBeenCalled();
+  });
+
+  it('does not claim exhaustive via the index when the collection has none', async () => {
+    const { run, system } = makeCtx({ more: manyHamburg(), textIndex: null });
+    const grep = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Charite' });
+    expect(grep.exhaustive).toBe(false);
+    expect(grep.countRule).toBeUndefined();
+    expect(usedIndex(system)).toBe(false);
+  });
+
+  it('says how many undated sources a date filter left out', async () => {
+    const { run } = makeCtx({ extraPoints: true });
+    const filter = { dateFrom: '2025-01-01' };
+    const listed = await run({ action: 'list', notebookId: 'hamburg', filter });
+    expect(listed.undatedExcluded).toBe(1);
+    expect(listed.note).toMatch(/1 Quelle ohne Datum fehlt/);
+    const grep = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Hafen', filter });
+    expect(grep.undatedExcluded).toBe(1);
+    const unfiltered = await run({ action: 'list', notebookId: 'hamburg' });
+    expect(unfiltered.undatedExcluded).toBeUndefined();
+    expect(unfiltered.note).toBeUndefined();
+  });
+
+  it('list and rank carry one line per source for later turns (refs)', async () => {
+    const { run } = makeCtx();
+    const listed = await run({ action: 'list', notebookId: 'hamburg' });
+    expect(listed.refs).toBe(`Hafen — ${HH_B} (2026-01-15)\nRadverkehr — ${HH_A} (2025-03-01)`);
+    const ranked = await run({ action: 'rank', notebookId: 'hamburg', by: 'term', query: 'Klima' });
+    expect(ranked.refs).toBe(`1. Hafen — ${HH_B} (1 Treffer)`);
+  });
+
+  it('a 20-row list keeps every ref in the replay of a later turn (#3561)', async () => {
+    const berlin: FakePoint[] = Array.from({ length: 20 }, (_, i) =>
+      fakeDoc(
+        LV,
+        `https://gruene-fraktion.berlin/pressemitteilungen/kuerzungen-im-haushalt-2026-teil-${i}/`,
+        ['Text.'],
+        {
+          landesverband: 'BE',
+          title: `Kürzungen im Haushalt 2026 treffen Klimaschutz und Verkehrswende, Teil ${i}`,
+          published_at: `2026-0${1 + (i % 9)}-1${i % 10}T09:49:15+01:00`,
+          content_type: 'presse',
+        }
+      )
+    ).flat();
+    const { deps } = makeCtx();
+    const system = makeSystemDeps(berlin);
+    const tool = makeNotebookSourcesTool({
+      state: {
+        agentConfig: { userId: 'user-1' },
+        userLocale: 'de-DE',
+        messages: [],
+        notebookIds: [],
+      } as unknown as ChatGraphState,
+      sse: { send: () => {} } as unknown as SSEWriter,
+      threadId: 't1',
+      sourceRegistry: { note: () => {}, register: () => '' } as unknown as SourceRegistry,
+      deps: { ...deps, scrollPage: system.scrollPage } as NotebookSourceToolDeps,
+    });
+    const args = { action: 'list', notebookId: 'berlin', limit: 20, mode: 'hybrid', rerank: false };
+    const result = (await (tool.execute as (a: unknown, o: unknown) => Promise<ToolResult>)(
+      args,
+      {}
+    ))!;
+    expect(result.results).toHaveLength(20);
+    // Das ganze Ergebnis sprengt jede Vorschau — deshalb die kompakten refs.
+    expect(JSON.stringify(result).length).toBeGreaterThan(6000);
+
+    const replay = buildToolObservationReplay(
+      [{ toolCallId: 'c1', toolName: 'notebook_quellen', args, result }],
+      new Set(['notebook_quellen'])
+    );
+    const value = (replay[1]!.content as Array<{ output: { value: string } }>)[0]!.output.value;
+    expect(value.length).toBeLessThanOrEqual(4001);
+    for (const row of result.results as ToolResult[]) expect(value).toContain(row.ref);
   });
 
   it('grep over a narrow filter reads only those sources', async () => {
