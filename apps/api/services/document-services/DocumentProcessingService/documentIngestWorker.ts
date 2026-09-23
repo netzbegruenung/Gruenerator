@@ -120,7 +120,9 @@ async function claimNextDocument(): Promise<ClaimedDocument | null> {
                  )
                )
            AND COALESCE(processing_attempts, 0) < $2
-         ORDER BY created_at
+         -- Ein neu indexiertes Dokument stellt sich hinten an (queued_at),
+         -- statt mit seinem alten created_at frische Uploads zu überholen.
+         ORDER BY COALESCE((metadata->>'queued_at')::timestamptz, created_at)
            FOR UPDATE SKIP LOCKED
          LIMIT 1
       )

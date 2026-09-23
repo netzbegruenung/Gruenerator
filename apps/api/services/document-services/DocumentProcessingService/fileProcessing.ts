@@ -102,21 +102,24 @@ export async function processFileUpload(
   };
 }
 
+/** Die Markierungen eines Neu-Indexierens, entfernt, sobald der Lauf endet. */
+const REINDEX_DONE = {
+  reindex_origin: undefined,
+  reindex_prev_searchable: undefined,
+  queued_at: undefined,
+} as const;
+
 /**
  * Was ein Neu-Indexieren aus der alten Nutzlast mitnehmen muss, weil es die
- * Punkte löscht und neu schreibt: die Quell-URL und — sobald der
- * Metadaten-Worker sie gesetzt hat — Datum und Gremium. Der Worker läuft für
+ * Punkte löscht und neu schreibt: Datum und Gremium, sobald der
+ * Metadaten-Worker sie gesetzt hat. Der Worker läuft für
  * ein Dokument nicht zweimal; ohne das hier wären sie nach dem ersten Klick weg.
  */
-function reindexCarryPayload(
-  origin: ReindexOrigin,
-  metadata: Record<string, unknown> | null
-): Record<string, unknown> {
+function reindexCarryPayload(metadata: Record<string, unknown> | null): Record<string, unknown> {
   const docMeta = metadata?.doc_meta;
   const gremium =
     docMeta && typeof docMeta === 'object' ? (docMeta as { gremium?: unknown }).gremium : null;
   return {
-    ...(origin.kind === 'url' ? { source_url: origin.url } : {}),
     ...(typeof metadata?.published_at === 'string' ? { published_at: metadata.published_at } : {}),
     ...(typeof gremium === 'string' && gremium ? { gremium } : {}),
   };
@@ -140,6 +143,9 @@ export async function processUploadedDocument(
   // geholt werden muss. Bis `vectorsReplaced` bleiben die alten Punkte stehen.
   let reindex: ReindexOrigin | null = null;
   let vectorsReplaced = false;
+  // Nur wer vorher durchsuchbar war, fällt bei einem Fehlschlag auf die alte
+  // Fassung zurück; eine schon kaputte Quelle bleibt `failed`, mit Grund.
+  let prevSearchable = false;
 
   // Helper: write current pipeline stage into documents.metadata JSONB so the
   // frontend status poll can surface "Wird gescannt / Wird zerlegt / Wird indexiert".
@@ -209,17 +215,16 @@ export async function processUploadedDocument(
             user_id: userId,
             filename: document.filename ?? null,
             status: null,
-            source_url: typeof document.source_url === 'string' ? document.source_url : null,
             wolke_share_link_id:
               typeof document.wolke_share_link_id === 'string'
                 ? document.wolke_share_link_id
                 : null,
             wolke_file_path:
               typeof document.wolke_file_path === 'string' ? document.wolke_file_path : null,
-            metadata,
           })
         : null;
       if (!reindex) throw new Error('Uploaded file not found on disk');
+      prevSearchable = metadata?.reindex_prev_searchable === true;
       file = await fetchOriginal(reindex, document, userId);
     }
 
@@ -262,11 +267,11 @@ export async function processUploadedDocument(
         title: document.title,
         filename: document.filename,
         // Ein neu indexiertes Dokument behält, was sein erster Ingest in die
-        // Nutzlast schrieb: Wolke-Herkunft bzw. die Quell-URL.
+        // Nutzlast schrieb: die Wolke-Herkunft.
         ...(reindex?.kind === 'wolke'
           ? { wolkeShareLinkId: reindex.shareLinkId, wolkeFilePath: reindex.filePath }
           : {}),
-        ...(reindex ? { additionalPayload: reindexCarryPayload(reindex, metadata) } : {}),
+        ...(reindex ? { additionalPayload: reindexCarryPayload(metadata) } : {}),
       },
       async (upserted, total) => {
         await markStage('upserting', { current: upserted, total });
@@ -282,9 +287,11 @@ export async function processUploadedDocument(
       markdownContent: capStoredText(extractedText),
       ...(extraction.pageCount !== null ? { pageCount: extraction.pageCount } : {}),
       additionalMetadata: {
-        ...metadata,
+        // Nur die eigenen Felder — der Rest wird in der Datenbank
+        // zusammengeführt, damit Tags oder Metadaten, die während des Laufs
+        // jemand anderes schrieb, nicht vom Schnappschuss überschrieben werden.
         filePath: undefined,
-        reindex_origin: null,
+        ...REINDEX_DONE,
         content_preview: generateContentPreview(extractedText),
         ...(extraction.extractionMethod ? { extractionMethod: extraction.extractionMethod } : {}),
       },
@@ -320,13 +327,13 @@ export async function processUploadedDocument(
     );
 
     try {
-      if (reindex && !vectorsReplaced) {
+      if (reindex && !vectorsReplaced && prevSearchable) {
         // Das Original war nicht zu holen oder nicht zu lesen, die alten Punkte
         // stehen noch: die Quelle bleibt durchsuchbar, der Grund steht dabei.
         await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
           status: 'completed',
           additionalMetadata: {
-            reindex_origin: null,
+            ...REINDEX_DONE,
             processing_error: `Neu indexieren fehlgeschlagen: ${
               error instanceof Error ? error.message : 'unbekannter Fehler'
             } Die bisherige Fassung bleibt durchsuchbar.`,
@@ -341,8 +348,12 @@ export async function processUploadedDocument(
         await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
           status: 'failed',
           additionalMetadata: {
-            processing_error:
-              error instanceof Error ? error.message : 'Verarbeitung fehlgeschlagen',
+            ...(reindex ? REINDEX_DONE : {}),
+            processing_error: reindex
+              ? `Neu indexieren fehlgeschlagen: ${error instanceof Error ? error.message : 'unbekannter Fehler'}`
+              : error instanceof Error
+                ? error.message
+                : 'Verarbeitung fehlgeschlagen',
             processing_stage: null,
             processing_progress: null,
           },

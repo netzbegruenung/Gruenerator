@@ -229,7 +229,7 @@ export const notebookCollectionsContract = c.router(
 
     /**
      * POST /api/auth/notebook-collections/:id/documents/:documentId/reindex
-     * Re-fetch one source's original (Wolke file, URL, WordPress post) and
+     * Re-fetch one source's original (Wolke files only) and
      * index it again under the same document id. 200 with status
      * `unavailable` when no original is reachable.
      */

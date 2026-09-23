@@ -4,11 +4,12 @@
  * Kein eigenes Jobsystem: die `documents`-Tabelle ist die Warteschlange (siehe
  * `documentIngestWorker.ts`). Das Neu-Indexieren setzt die Zeile nur zurück auf
  * `uploaded` und merkt sich in `metadata.reindex_origin`, woher das Original
- * kommt; der Worker holt es dann in `processUploadedDocument` selbst — Wolke
- * per Download, URL/WordPress per Crawl — und fährt denselben Weg wie ein
+ * kommt; der Worker lädt die Wolke-Datei dann in `processUploadedDocument`
+ * selbst herunter und fährt denselben Weg wie ein
  * Upload: Extraktion mit Seitenmarken, Zerlegen, Punkte ersetzen. Die
  * Dokument-ID bleibt, damit auch Notebook-Mitgliedschaft, Tags und Metadaten.
  *
+ * Nur Wolke-Dateien (siehe `reindexOrigin.ts`, warum nicht URL/WordPress).
  * Ein Upload ohne erreichbares Original wird NICHT eingereiht: die Datei ist
  * nach der Verarbeitung gelöscht (`fileProcessing.ts`), und ein „Neu
  * indexieren" aus dem gespeicherten Text brächte keine Seitenzahlen, würde
@@ -66,7 +67,7 @@ async function defaultDeps(): Promise<ReindexDeps> {
 }
 
 const ROW_COLUMNS =
-  'id, user_id, filename, status, source_url, wolke_share_link_id, wolke_file_path, metadata';
+  'id, user_id, filename, status, wolke_share_link_id, wolke_file_path, vector_count';
 
 /**
  * Setzt eingereihte Zeilen zurück auf `uploaded`. Die Bedingung auf den Status
@@ -85,7 +86,14 @@ async function enqueue(
               processing_attempts = 0,
               metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
                 'reindex_origin', $2::text,
-                'processing_error', NULL
+                'processing_error', NULL,
+                -- War die Quelle vorher durchsuchbar? Nur dann darf ein
+                -- gescheiterter Lauf auf die alte Fassung zurückfallen.
+                'reindex_prev_searchable',
+                  (COALESCE(status, '') = 'completed' AND COALESCE(vector_count, 0) > 0),
+                -- Reihenfolge in der Warteschlange: eingereiht jetzt, nicht
+                -- beim ersten Upload — sonst überholt es frische Uploads.
+                'queued_at', NOW()
               )
         WHERE id = $1 AND COALESCE(status, '') NOT IN ('uploaded', 'processing')`,
       [id, origin.kind]
