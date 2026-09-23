@@ -939,13 +939,10 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           isPdfArchive: true,
           maxPages: 1,
         },
-        {
-          type: 'beschluss',
-          path: '/partei/parteitage/beschluesse/2022-1',
-          listSelector: 'a[href$=".pdf"]',
-          isPdfArchive: true,
-          maxPages: 1,
-        },
+        // '/partei/parteitage/beschluesse/2022-1' removed (#3580): despite the
+        // slug, it serves the 2023 LDK page — a duplicate of brandenburg-lv's
+        // WordPress uploads for the same 16 Beschluss PDFs (correct 2023-04-29
+        // date there vs. this archive's invented 2023-06-15).
       ],
       contentSelectors: {
         title: ['.news.single header h2', 'meta[property="og:title"]', 'h1'],
