@@ -280,14 +280,23 @@ export class LinkExtractor {
     if (contentPath.staticUrls?.length) {
       const seenStaticUrls = new Set<string>();
       return contentPath.staticUrls
-        .map((url) => this.normalizeUrl(url, source.baseUrl))
-        .filter((url): url is string => url !== null)
-        .filter((url) => {
-          if (seenStaticUrls.has(url)) return false;
-          seenStaticUrls.add(url);
-          return true;
+        .map((entry) => {
+          const rawUrl = typeof entry === 'string' ? entry : entry.url;
+          const normalized = this.normalizeUrl(rawUrl, source.baseUrl);
+          if (!normalized) return null;
+          const title = typeof entry === 'string' ? titleFromPdfUrl(normalized) : entry.title;
+          // The optional `date` (ISO YYYY-MM-DD) rides in as `context`, so DateExtractor's
+          // strong ISO pattern picks it up before ever falling back to the WordPress
+          // upload-year folder in the URL (#3579 fix round 1).
+          const context = typeof entry === 'string' ? '' : (entry.date ?? '');
+          return { url: normalized, title, context };
         })
-        .map((url) => ({ url, title: titleFromPdfUrl(url), context: '' }));
+        .filter((link): link is PdfLink => link !== null)
+        .filter((link) => {
+          if (seenStaticUrls.has(link.url)) return false;
+          seenStaticUrls.add(link.url);
+          return true;
+        });
     }
 
     const pageUrl = source.baseUrl + contentPath.path;
