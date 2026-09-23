@@ -3,24 +3,30 @@
  * — kein Qdrant. Die Landesverbände teilen sich `landesverbaende_documents`;
  * daran hängt die Zugehörigkeitsregel.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   fakeDoc,
   fakeSearchDoc,
   makeSystemDeps,
+  VERIFIED_TEXT_INDEX,
   type FakePoint,
 } from './__fixtures__/fakeSystemCollection.js';
+import { grepSources } from './sourceGrep.js';
 import {
+  cachedChunkTextIndex,
   checkSystemSource,
+  filterSystemSourceUrls,
   findSystemPassages,
   listSystemSources,
   loadSystemScanTexts,
+  loadSystemTermMatches,
   outlineSystemSource,
   readSystemSourceText,
   resolveSystemCollection,
   SYSTEM_LIST_SCROLL_MAX,
   SYSTEM_SCAN_MAX_SOURCES,
+  SYSTEM_TEXT_MATCH_MAX_POINTS,
   type SystemCollection,
 } from './systemNotebookSources.js';
 
@@ -456,6 +462,251 @@ describe('loadSystemScanTexts', () => {
     if ('error' in out) throw new Error(out.error);
     expect(out.exhaustive).toBe(false);
     expect(out.sources).toHaveLength(SYSTEM_SCAN_MAX_SOURCES);
+  });
+});
+
+describe('undated sources under a date filter', () => {
+  const undated = (): FakePoint[] => [
+    ...lvPoints(),
+    ...fakeDoc(LV, 'https://gruene-hamburg.de/ohne-datum', ['Ohne Datum.'], {
+      landesverband: 'HH',
+      title: 'Ohne Datum',
+      primary_category: 'Beschluss',
+    }),
+  ];
+
+  it('counts the sources a date range leaves out because they have no date', async () => {
+    const { deps } = makeSystemDeps(undated());
+    const c = resolved('hamburg');
+    const filter = { dateFrom: '2025-01-01' };
+    const listed = await listSystemSources({ collection: c, filter }, deps);
+    expect(listed.total).toBe(2);
+    expect(listed.undatedExcluded).toBe(1);
+    const urls = await filterSystemSourceUrls({ collection: c, filter }, deps);
+    expect(urls.undatedExcluded).toBe(1);
+    const scan = await loadSystemScanTexts({ collection: c, filter }, deps);
+    if ('error' in scan) throw new Error(scan.error);
+    expect(scan.undatedExcluded).toBe(1);
+  });
+
+  it('counts only undated sources the other filter fields would have kept, and 0 without dates', async () => {
+    const { deps } = makeSystemDeps(undated());
+    const c = resolved('hamburg');
+    const other = await listSystemSources(
+      { collection: c, filter: { dateTo: '2030-01-01', category: 'Pressemitteilung' } },
+      deps
+    );
+    expect(other.undatedExcluded).toBe(0);
+    const noDate = await listSystemSources(
+      { collection: c, filter: { category: 'beschluss' } },
+      deps
+    );
+    expect(noDate.total).toBe(2);
+    expect(noDate.undatedExcluded).toBe(0);
+  });
+});
+
+describe('cachedChunkTextIndex', () => {
+  it('asks Qdrant once per collection and does not keep a failure', async () => {
+    let fail = true;
+    const fetchSchema = vi.fn(async (c: string) => {
+      if (fail) throw new Error('down');
+      return { chunk_text: { data_type: 'text', params: { ...VERIFIED_TEXT_INDEX } }, c };
+    });
+    const lookup = cachedChunkTextIndex(fetchSchema);
+    expect(await lookup('a')).toBeNull();
+    fail = false;
+    expect(await lookup('a')).toEqual(VERIFIED_TEXT_INDEX);
+    expect(await lookup('a')).toEqual(VERIFIED_TEXT_INDEX);
+    expect(await lookup('b')).toEqual(VERIFIED_TEXT_INDEX);
+    expect(fetchSchema).toHaveBeenCalledTimes(3);
+  });
+
+  it('is null without a chunk_text text index', async () => {
+    const lookup = cachedChunkTextIndex(async () => ({ chunk_text: { data_type: 'keyword' } }));
+    expect(await lookup('a')).toBeNull();
+  });
+});
+
+describe('loadSystemTermMatches', () => {
+  const count = (
+    load: { sources: Parameters<typeof grepSources>[0]; accept: (m: string) => boolean },
+    phrase: string
+  ) => grepSources(load.sources, phrase, { accept: load.accept });
+
+  function many(n: number, withTerm: number[]): FakePoint[] {
+    const points: FakePoint[] = [];
+    for (let i = 0; i < n; i++) {
+      const text = withTerm.includes(i) ? `Mehr Klimaschutz für ${i}.` : `Text ${i}.`;
+      points.push(...fakeDoc('grundsatz_documents', `https://gruene.de/${i}`, [text]));
+    }
+    return points;
+  }
+
+  it(`counts over the chunk_text index beyond ${SYSTEM_SCAN_MAX_SOURCES} sources, exhaustively`, async () => {
+    const { deps, scrollPage, getSystemDocumentFullTextByUrl } = makeSystemDeps(
+      many(SYSTEM_SCAN_MAX_SOURCES + 50, [3, 120, 240])
+    );
+    const out = await loadSystemTermMatches(
+      { collection: resolved('deutschland'), phrase: 'Klimaschutz' },
+      deps
+    );
+    if (!out) throw new Error('no index path');
+    expect(out.exhaustive).toBe(true);
+    expect(out.sources.map((s) => s.sourceId).sort()).toEqual([
+      'https://gruene.de/120',
+      'https://gruene.de/240',
+      'https://gruene.de/3',
+    ]);
+    expect(count(out, 'Klimaschutz').totalHits).toBe(3);
+    expect(getSystemDocumentFullTextByUrl).not.toHaveBeenCalled();
+    const [, filter, opts] = scrollPage.mock.calls[0]!;
+    expect(filter.must).toContainEqual({
+      should: [{ key: 'chunk_text', match: { text: 'klimaschutz' } }],
+    });
+    expect(opts.payload).toContain('chunk_text');
+  });
+
+  it('keeps the default filter and the URL scope', async () => {
+    const { deps, scrollPage } = makeSystemDeps(lvPoints());
+    const out = await loadSystemTermMatches(
+      { collection: resolved('hamburg'), phrase: 'Klima', sourceUrls: [HH_B] },
+      deps
+    );
+    expect(out?.sources.map((s) => s.sourceId)).toEqual([HH_B]);
+    const [, filter] = scrollPage.mock.calls[0]!;
+    expect(filter.must).toContainEqual({ key: 'landesverband', match: { value: 'HH' } });
+    expect(filter.must).toContainEqual({ key: 'source_url', match: { any: [HH_B] } });
+  });
+
+  it('counts a hit in the overlap of two chunks once', async () => {
+    const shared = 'Klimaschutz ist Aufgabe aller Ressorts.';
+    const { deps } = makeSystemDeps(
+      fakeDoc('grundsatz_documents', 'https://gruene.de/o', [
+        `Vorwort. ${shared}`,
+        `${shared} Danach Klimaschutz im Verkehr.`,
+      ])
+    );
+    const out = await loadSystemTermMatches(
+      { collection: resolved('deutschland'), phrase: 'Klimaschutz' },
+      deps
+    );
+    if (!out) throw new Error('no index path');
+    expect(out.sources[0]!.text).toBe(`Vorwort. ${shared} Danach Klimaschutz im Verkehr.`);
+    expect(count(out, 'Klimaschutz').totalHits).toBe(2);
+  });
+
+  it('uses char_start/char_end for the overlap where the chunks carry them', async () => {
+    const url = 'https://gruene.de/offsets';
+    const point = (i: number, text: string, start: number) => ({
+      qdrantCollection: 'grundsatz_documents',
+      payload: {
+        source_url: url,
+        title: 'Offsets',
+        chunk_index: i,
+        chunk_text: text,
+        char_start: start,
+        char_end: start + text.length,
+      },
+    });
+    // 6 Zeichen Überlappung laut Offsets — zu kurz für den Textvergleich.
+    const { deps } = makeSystemDeps([point(0, 'Vorn Radweg', 0), point(1, 'Radweg hinten', 5)]);
+    const out = await loadSystemTermMatches(
+      { collection: resolved('deutschland'), phrase: 'Radweg' },
+      deps
+    );
+    if (!out) throw new Error('no index path');
+    expect(out.sources[0]!.text).toBe('Vorn Radweg hinten');
+    expect(count(out, 'Radweg').totalHits).toBe(1);
+  });
+
+  it('finds decomposed (NFD) umlauts and text written without them', async () => {
+    const { deps } = makeSystemDeps([
+      ...fakeDoc('grundsatz_documents', 'https://gruene.de/nfd', ['Die Wa\u0308rmepumpe.']),
+      ...fakeDoc('grundsatz_documents', 'https://gruene.de/ascii', ['Die Warmepumpe.']),
+      ...fakeDoc('grundsatz_documents', 'https://gruene.de/nfc', ['Die Wärmepumpe.']),
+    ]);
+    const out = await loadSystemTermMatches(
+      { collection: resolved('deutschland'), phrase: 'Wärmepumpe' },
+      deps
+    );
+    if (!out) throw new Error('no index path');
+    expect(count(out, 'Wärmepumpe').totalHits).toBe(3);
+  });
+
+  it('does not count an accent the phrase does not carry — the index cannot find it', async () => {
+    const { deps } = makeSystemDeps([
+      ...fakeDoc('grundsatz_documents', 'https://gruene.de/a', ['Orbán und Orban.']),
+    ]);
+    const out = await loadSystemTermMatches(
+      { collection: resolved('deutschland'), phrase: 'Orban' },
+      deps
+    );
+    if (!out) throw new Error('no index path');
+    expect(count(out, 'Orban').totalHits).toBe(1);
+  });
+
+  it('finds CO₂ for CO2 and CO2 for CO₂', async () => {
+    const { deps } = makeSystemDeps([
+      ...fakeDoc('grundsatz_documents', 'https://gruene.de/sub', ['Weniger CO₂ ausstoßen.']),
+      ...fakeDoc('grundsatz_documents', 'https://gruene.de/plain', ['Weniger CO2 ausstoßen.']),
+    ]);
+    for (const phrase of ['CO2', 'CO₂']) {
+      const out = await loadSystemTermMatches(
+        { collection: resolved('deutschland'), phrase },
+        deps
+      );
+      if (!out) throw new Error('no index path');
+      expect(count(out, phrase).totalHits, phrase).toBe(2);
+    }
+  });
+
+  it('matches every word of a phrase, in order, once', async () => {
+    const { deps, scrollPage } = makeSystemDeps(
+      fakeDoc('grundsatz_documents', 'https://gruene.de/p', [
+        'Der soziale Wohnungsbau. Wohnungsbau, sozial und soziale.',
+      ])
+    );
+    const out = await loadSystemTermMatches(
+      { collection: resolved('deutschland'), phrase: 'soziale  Wohnungsbau' },
+      deps
+    );
+    if (!out) throw new Error('no index path');
+    expect(count(out, 'soziale Wohnungsbau').totalHits).toBe(1);
+    const [, filter] = scrollPage.mock.calls[0]!;
+    expect(filter.must).toContainEqual({
+      should: [{ key: 'chunk_text', match: { text: 'wohnungsbau' } }],
+    });
+  });
+
+  it('gives up (null) when the collection has no chunk_text index, or another one', async () => {
+    for (const textIndex of [null, { ...VERIFIED_TEXT_INDEX, tokenizer: 'multilingual' }]) {
+      const { deps, scrollPage } = makeSystemDeps(lvPoints(), { textIndex });
+      expect(
+        await loadSystemTermMatches({ collection: resolved('hamburg'), phrase: 'Klima' }, deps)
+      ).toBeNull();
+      expect(scrollPage).not.toHaveBeenCalled();
+    }
+  });
+
+  it('gives up (null) when no word of the phrase is long enough for the index', async () => {
+    const { deps, scrollPage } = makeSystemDeps(lvPoints());
+    expect(
+      await loadSystemTermMatches({ collection: resolved('hamburg'), phrase: 'a b' }, deps)
+    ).toBeNull();
+    expect(scrollPage).not.toHaveBeenCalled();
+  });
+
+  it(`stops after ${SYSTEM_TEXT_MATCH_MAX_POINTS} points and says so`, async () => {
+    const { deps, scrollPage } = makeSystemDeps([], { endless: true });
+    const out = await loadSystemTermMatches(
+      { collection: resolved('deutschland'), phrase: 'Klimaschutz' },
+      deps
+    );
+    expect(out?.exhaustive).toBe(false);
+    expect(out?.incompleteReason).toMatch(/Abschnitte/);
+    const scrolled = scrollPage.mock.calls.reduce((s, c) => s + c[2].limit, 0);
+    expect(scrolled).toBe(SYSTEM_TEXT_MATCH_MAX_POINTS);
   });
 });
 

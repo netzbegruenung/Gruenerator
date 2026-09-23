@@ -16,8 +16,19 @@
  * dasselbe Idiom wie `agenturaContext.ts`.
  */
 
-const REQUEST_INFINITIVES =
-  '(?:sortieren|z(?:ä|ae)hlen|ordnen|auflisten|vorlesen|(?:ö|oe)ffnen|zitieren|umbenennen|entfernen|verschieben|kopieren|notieren|taggen)';
+/**
+ * Die Schreibverben — EINE Liste für beide Tore: das Werkzeug-Tor unten und
+ * `looksLikeNotebookWriteAsk`, das System-Notebooks (schreibgeschützt) vom Pin
+ * ausnimmt. Zwei Listen drifteten schon einmal („notiere" fehlte der zweiten).
+ */
+const WRITE_IMPERATIVES = ['entferne?', 'verschiebe?', 'kopiere?', 'notiere?', 'tagge?'];
+const WRITE_INFINITIVES = '(?:umbenennen|entfernen|verschieben|kopieren|notieren|taggen)';
+
+const REQUEST_INFINITIVES = `(?:sortieren|z(?:ä|ae)hlen|ordnen|auflisten|vorlesen|(?:ö|oe)ffnen|zitieren|${WRITE_INFINITIVES})`;
+
+/** Bittrahmen mit Infinitiv — nicht über ein Komma hinweg. */
+const requestFrame = (infinitives: string): string =>
+  `(?:kannst|k(?:ö|oe)nntest|w(?:ü|ue)rdest|bitte)\\s+[^.?!,]{0,80}?(?<![\\wäöüß])${infinitives}`;
 
 const NOTEBOOK_TOOL_ASK = new RegExp(
   [
@@ -42,15 +53,11 @@ const NOTEBOOK_TOOL_ASK = new RegExp(
       // „Finde im Notebook die fünf Stellen …" — Wörter dazwischen, aber nicht
       // „finde ich" und nicht über ein Komma („Ich finde, an mehreren Stellen …").
       '(?<!ich\\s{1,3})finde?\\s+(?!ich(?![\\wäöüß]))[^.?!,]{0,60}?(?<![\\wäöüß])(?:stellen|passagen|textstellen)',
-      'entferne?',
-      'verschiebe?',
-      'kopiere?',
-      'notiere?',
-      'tagge?',
+      ...WRITE_IMPERATIVES,
       // Bittrahmen mit Infinitiv: „kannst du die Quellen sortieren", „bitte
       // alle Anträge auflisten". Nicht über ein Komma hinweg — „kannst du mir
       // sagen, welche Maßnahmen zählen" ist wieder eine Inhaltsfrage.
-      `(?:kannst|k(?:ö|oe)nntest|w(?:ü|ue)rdest|bitte)\\s+[^.?!,]{0,80}?(?<![\\wäöüß])${REQUEST_INFINITIVES}`,
+      requestFrame(REQUEST_INFINITIVES),
       // ── Orte und Mengen ──
       // „wie oft" nur als Zählauftrag — „wie oft wird der Vorstand gewählt"
       // ist eine Inhaltsfrage. „vor"/„auf" nur als abgetrennte Vorsilbe am
@@ -82,23 +89,15 @@ export function looksLikeNotebookToolAsk(text: string | null | undefined): boole
 }
 
 /**
- * Die Schreib-Teilmenge: Quellen entfernen, verschieben, kopieren, umbenennen,
- * taggen. System-Notebooks sind schreibgeschützt — ein solcher Auftrag an
- * eines bekommt keinen Pin auf ein Werkzeug, das nur ablehnen kann. Dieselbe
- * Form wie oben: Imperativ, oder Infinitiv nur im Bittrahmen.
+ * Die Schreib-Teilmenge: Quellen entfernen, verschieben, kopieren, notieren,
+ * umbenennen, taggen — aus denselben Listen wie das Werkzeug-Tor oben.
+ * System-Notebooks sind schreibgeschützt; ein solcher Auftrag an eines bekommt
+ * keinen Pin auf ein Werkzeug, das nur ablehnen kann.
  */
-const WRITE_INFINITIVES = '(?:umbenennen|entfernen|verschieben|kopieren|taggen)';
 const NOTEBOOK_WRITE_ASK = new RegExp(
   [
     '(?<![\\wäöüß])(?:',
-    [
-      'entferne?',
-      'verschiebe?',
-      'kopiere?',
-      'tagge?',
-      'benenne',
-      `(?:kannst|k(?:ö|oe)nntest|w(?:ü|ue)rdest|bitte)\\s+[^.?!,]{0,80}?(?<![\\wäöüß])${WRITE_INFINITIVES}`,
-    ].join('|'),
+    [...WRITE_IMPERATIVES, requestFrame(WRITE_INFINITIVES)].join('|'),
     ')(?![\\wäöüß])',
   ].join(''),
   'i'
