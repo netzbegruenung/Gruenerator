@@ -34,8 +34,7 @@ import {
   chunksOrThrow,
   findPassages,
   listNotebookSources,
-  loadMarkedPageRanges,
-  markedPageAt,
+  loadPassagePageEnds,
   outlineSource,
   readSourceText,
   renderOutline,
@@ -781,21 +780,26 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
   }
 
   /**
-   * Seiten einer Passage nach den `## Seite N`-Marken ihrer Quelle: der Chunk
-   * trägt nur die Seite, auf der er beginnt. Ohne Marken bleibt es dabei.
+   * Die letzte Seite einer Passage, die über einen Seitenwechsel reicht — der
+   * Chunk trägt nur die Seite, auf der er beginnt. Ein Fehler hier kostet nur
+   * `pageTo`, nie das Ergebnis.
    */
-  async function withMarkedPages(
+  async function withPageEnds(
     passages: readonly Passage[]
   ): Promise<Array<Passage & { pageTo: number | null }>> {
-    const ids = [...new Set(passages.filter((p) => p.charStart !== null).map((p) => p.sourceId))];
-    const marked = await loadMarkedPageRanges(deps.db, ids);
-    return passages.map((p) => {
-      const ranges = marked.get(p.sourceId);
-      if (!ranges || p.charStart === null) return { ...p, pageTo: null };
-      const from = markedPageAt(ranges, p.charStart) ?? p.pageNumber;
-      const to = p.charEnd === null ? null : markedPageAt(ranges, p.charEnd - 1);
-      return { ...p, pageNumber: from, pageTo: to ?? from };
-    });
+    const spans = passages.flatMap((p, k) =>
+      p.charStart !== null && p.charEnd !== null && p.charEnd > p.charStart
+        ? [{ k, sourceId: p.sourceId, charStart: p.charStart, charEnd: p.charEnd }]
+        : []
+    );
+    let ends = new Map<number, number>();
+    try {
+      ends = await loadPassagePageEnds(deps.db, spans);
+    } catch (err) {
+      log.warn('[notebook_quellen] find: page ends lookup failed', err);
+    }
+    const byPassage = new Map(spans.map((s, n) => [s.k, ends.get(n) ?? null]));
+    return passages.map((p, k) => ({ ...p, pageTo: byPassage.get(k) ?? null }));
   }
 
   async function find(
@@ -832,7 +836,7 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       deps
     );
     const { reranked } = found;
-    const passages = await withMarkedPages(found.passages);
+    const passages = await withPageEnds(found.passages);
     const base = { notebook: collection.name, query, mode: args.mode, reranked };
     if (passages.length === 0) {
       groundNote(

@@ -468,18 +468,31 @@ export function markedPageAt(marked: readonly PageRange[], offset: number): numb
   return marked.find((r) => r.start <= offset && offset < r.end)?.page ?? null;
 }
 
-/** Die Seitenmarken je Quelle — nur Quellen, deren Text Marken trägt. */
-export async function loadMarkedPageRanges(
+/**
+ * Die letzte Seite, die eine Passage erreicht: die höchste `## Seite N`-Marke
+ * INNERHALB ihres Zeichenbereichs, auf die dort noch Text folgt. Die Startseite kennt
+ * der Chunk schon genau. Gelesen werden nur die Seitenzahlen, nicht der Text.
+ * Schlüssel ist der Index in `spans`; ohne Marke im Bereich kein Eintrag.
+ */
+export async function loadPassagePageEnds(
   db: Pick<PostgresService, 'query'>,
-  ids: readonly string[]
-): Promise<Map<string, PageRange[]>> {
-  if (ids.length === 0) return new Map();
-  const rows = await db.query<{ id: string; markdown_content: string }>(
-    `SELECT id, markdown_content FROM documents
-      WHERE id = ANY($1) AND markdown_content ~* '##\\s*Seite\\s+\\d'`,
-    [ids]
+  spans: ReadonlyArray<{ sourceId: string; charStart: number; charEnd: number }>
+): Promise<Map<number, number>> {
+  if (spans.length === 0) return new Map();
+  const rows = await db.query<{ i: string | number; page: number | null }>(
+    `SELECT x.i,
+            (SELECT max(m[1]::int)
+               FROM regexp_matches(substr(d.markdown_content, x.s + 1, x.e - x.s),
+                                   '##\\s*Seite\\s+(\\d+)\\s*\\S', 'gi') AS m) AS page
+       FROM unnest($1::uuid[], $2::int[], $3::int[]) WITH ORDINALITY AS x(id, s, e, i)
+       JOIN documents d ON d.id = x.id`,
+    [spans.map((p) => p.sourceId), spans.map((p) => p.charStart), spans.map((p) => p.charEnd)]
   );
-  return new Map(rows.map((r) => [r.id, markedPageRanges(r.markdown_content)]));
+  const out = new Map<number, number>();
+  for (const r of rows) {
+    if (r.page !== null) out.set(Number(r.i) - 1, Number(r.page));
+  }
+  return out;
 }
 
 export function sliceSource(

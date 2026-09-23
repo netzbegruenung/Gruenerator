@@ -9,7 +9,7 @@ import {
   fetchDocumentMetadata,
   findPassages,
   listNotebookSources,
-  loadMarkedPageRanges,
+  loadPassagePageEnds,
   markedPageAt,
   markedPageRanges,
   outlineSource,
@@ -477,13 +477,24 @@ describe('markedPageAt', () => {
   });
 });
 
-describe('loadMarkedPageRanges', () => {
-  it('skips the query without ids and maps rows to page ranges', async () => {
-    const query = vi.fn(async () => [{ id: 'd1', markdown_content: '## Seite 4\nText' }]);
-    expect((await loadMarkedPageRanges({ query } as never, [])).size).toBe(0);
+describe('loadPassagePageEnds', () => {
+  it('skips the query without spans and returns the highest marker page per span', async () => {
+    const query = vi.fn(async () => [
+      { i: '1', page: 3 },
+      { i: '2', page: null },
+    ]);
+    expect((await loadPassagePageEnds({ query } as never, [])).size).toBe(0);
     expect(query).not.toHaveBeenCalled();
-    const out = await loadMarkedPageRanges({ query } as never, ['d1']);
-    expect(out.get('d1')?.map((r) => r.page)).toEqual([4]);
+    const out = await loadPassagePageEnds({ query } as never, [
+      { sourceId: 'd1', charStart: 0, charEnd: 50 },
+      { sourceId: 'd1', charStart: 50, charEnd: 90 },
+    ]);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('regexp_matches'), [
+      ['d1', 'd1'],
+      [0, 50],
+      [50, 90],
+    ]);
+    expect([...out]).toEqual([[0, 3]]);
   });
 });
 
