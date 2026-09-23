@@ -19,7 +19,6 @@ import { isUserSelectableTool } from '@gruenerator/shared/agents';
 import { sortByUsage } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { isRecipeUsableForAgent } from '../../services/recipes/recipeMentionAccess.js';
 import { loadUserRoles } from '../../services/roles/userRoles.js';
 import { getUsageMap } from '../../services/usage/ItemUsageService.js';
@@ -224,59 +223,8 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
 
   draft: async (args) => {
     try {
-      const userId = getAuthedUser(args.req).id;
-      const { threadId, description } = args.body;
-
-      // Guided-assistant path: a one-shot freeform brief. No thread to load —
-      // wrap it as a single user message and synthesize directly.
-      if (description) {
-        const spec = await draftAgentSpec([{ role: 'user', content: description }]);
-        return { status: 200 as const, body: { success: true, spec } };
-      }
-
-      // Conversational path: load the (ownership-checked) thread messages.
-      if (!threadId) {
-        return {
-          status: 400 as const,
-          body: { success: false, message: 'Noch keine Unterhaltung zum Auswerten vorhanden.' },
-        };
-      }
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      const threads = await postgres.query<{ user_id: string }>(
-        `SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
-        [threadId]
-      );
-      if (threads.length === 0) {
-        return {
-          status: 404 as const,
-          body: { success: false, message: 'Thread nicht gefunden.' },
-        };
-      }
-      if (threads[0].user_id !== userId) {
-        return { status: 403 as const, body: { success: false, message: 'Keine Berechtigung.' } };
-      }
-
-      const rows = await postgres.query<{ role: string; content: unknown }>(
-        `SELECT role, content FROM chat_messages
-         WHERE thread_id = $1 AND role IN ('user', 'assistant')
-         ORDER BY created_at ASC
-         LIMIT 60`,
-        [threadId]
-      );
-      const messages = rows
-        .map((r) => ({ role: r.role, content: String(r.content ?? '').trim() }))
-        .filter((m) => m.content.length > 0);
-
-      if (messages.length === 0) {
-        return {
-          status: 400 as const,
-          body: { success: false, message: 'Noch keine Unterhaltung zum Auswerten vorhanden.' },
-        };
-      }
-
-      const spec = await draftAgentSpec(messages);
+      getAuthedUser(args.req);
+      const spec = await draftAgentSpec([{ role: 'user', content: args.body.description }]);
       return { status: 200 as const, body: { success: true, spec } };
     } catch (error) {
       const err = error as Error;
