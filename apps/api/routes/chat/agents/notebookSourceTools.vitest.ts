@@ -368,8 +368,11 @@ describe('outline', () => {
     expect(registered[0]!.opts).toEqual({ snippetChars: 4000 });
   });
 
-  it('needs a sourceId', async () => {
-    const { run } = makeCtx();
+  it('needs a sourceId when the notebook has more than one source', async () => {
+    const { run } = makeCtx({
+      rows: [docRow(), docRow({ id: 'd2', title: 'Protokoll' })],
+      links: ['d1', 'd2'],
+    });
     expect((await run({ action: 'outline' })).error).toMatch(/sourceId/);
   });
 
@@ -378,6 +381,53 @@ describe('outline', () => {
     expect((await run({ action: 'outline', sourceId: 'dx' })).error).toBe(
       'Quelle nicht in diesem Notebook oder kein Zugriff.'
     );
+  });
+});
+
+describe('geratene sourceId', () => {
+  const ROWS = [
+    docRow(),
+    docRow({ id: 'd2', title: 'Ausschuss_Digitalisierung_Niederschrift_2026.pdf' }),
+  ];
+  function twoSources() {
+    const ctx = makeCtx({ rows: ROWS, links: ['d1', 'd2'] });
+    ctx.helper.isDocumentInCollection.mockImplementation(async (_c: string, id: string) =>
+      ['d1', 'd2'].includes(id)
+    );
+    return ctx;
+  }
+
+  it('reads the only source of a notebook without a sourceId', async () => {
+    const { run } = makeCtx();
+    expect((await run({ action: 'read', seite: 2 })).source).toEqual({
+      id: 'd1',
+      title: 'Antrag Radweg',
+    });
+  });
+
+  it('turns a guessed name into the one source whose title contains it', async () => {
+    const { run, documentService } = twoSources();
+    await run({ action: 'read', sourceId: 'Niederschrift', seite: 2 });
+    expect(documentService.getDocumentChunks).toHaveBeenCalledWith('owner-1', 'd2');
+  });
+
+  it('returns the refs with the error when the name matches nothing', async () => {
+    const { run, documentService } = twoSources();
+    const out = await run({ action: 'read', sourceId: 'Haushaltsplan', seite: 2 });
+    expect(out.error).toMatch(/Keine Quelle „Haushaltsplan"/);
+    expect(out.sources).toEqual([
+      { ref: 'd1', title: 'Antrag Radweg' },
+      { ref: 'd2', title: 'Ausschuss_Digitalisierung_Niederschrift_2026.pdf' },
+    ]);
+    expect(documentService.getDocumentChunks).not.toHaveBeenCalled();
+  });
+
+  it('does not resolve names for a reader without access', async () => {
+    const { run, helper } = makeCtx({ access: DENIED, inCollection: false });
+    expect((await run({ action: 'read', sourceId: 'Niederschrift' })).error).toBe(
+      'Notebook nicht gefunden oder kein Zugriff.'
+    );
+    expect(helper.getCollectionDocuments).not.toHaveBeenCalled();
   });
 });
 
