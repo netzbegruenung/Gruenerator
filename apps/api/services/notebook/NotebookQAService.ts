@@ -41,7 +41,7 @@ import { getEnrichedPersonSearchService } from '../bundestag/index.js';
 import { DocumentSearchService } from '../document-services/index.js';
 import { queryIntentService } from '../QueryIntentService/QueryIntentService.js';
 import { type QdrantFilter } from '../QueryIntentService/types.js';
-import { buildContextSummary } from '../search/contextSummary.js';
+import { buildContextSummary, sourceDatePart } from '../search/contextSummary.js';
 import {
   expandResultsToChunks,
   deduplicateResults,
@@ -1004,9 +1004,7 @@ export class NotebookQAService {
         const ref = referencesMap[id];
         const text = sourceTextForPrompt(ref);
         const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
-        const dateLabel = formatDe(ref.date);
-        const datePart = dateLabel ? `(Datum: ${dateLabel}) ` : '';
-        return `${id}. ${collectionTag}${datePart}${ref.title} — "${text}"`;
+        return `${id}. ${collectionTag}${sourceDatePart(ref)}${ref.title} — "${text}"`;
       })
       .join('\n');
 
