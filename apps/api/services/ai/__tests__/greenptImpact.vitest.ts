@@ -24,7 +24,12 @@ const MEASURED = {
 
 describe('parseImpact', () => {
   it('reads energy and emissions off a real response', () => {
-    expect(parseImpact(MEASURED)).toEqual({ energyWms: 3_112_097, emissionsUg: 26_311 });
+    expect(parseImpact(MEASURED)).toEqual({
+      energyWms: 3_112_097,
+      emissionsUg: 26_311,
+      inputTokens: 36,
+      outputTokens: 187,
+    });
   });
 
   it('returns null for the speech-to-text response shape', () => {
@@ -48,12 +53,17 @@ describe('parseImpactFromSse', () => {
     const sse = [
       'data: {"choices":[{"delta":{"content":"Hallo"}}]}',
       '',
-      `data: ${JSON.stringify({ choices: [], usage: { total_tokens: 37 }, impact: MEASURED.impact })}`,
+      `data: ${JSON.stringify({ choices: [], usage: MEASURED.usage, impact: MEASURED.impact })}`,
       '',
       'data: [DONE]',
       '',
     ].join('\n');
-    expect(parseImpactFromSse(sse)).toEqual({ energyWms: 3_112_097, emissionsUg: 26_311 });
+    expect(parseImpactFromSse(sse)).toEqual({
+      energyWms: 3_112_097,
+      emissionsUg: 26_311,
+      inputTokens: 36,
+      outputTokens: 187,
+    });
   });
 
   it('survives a truncated leading frame', () => {
@@ -100,6 +110,8 @@ describe('captureImpact', () => {
         feature: 'chat',
         energyWms: 3_112_097,
         emissionsUg: 26_311,
+        inputTokens: 36,
+        outputTokens: 187,
       })
     );
   });

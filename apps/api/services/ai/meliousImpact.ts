@@ -4,10 +4,12 @@ import { createLogger } from '../../utils/logger.js';
 import { getUsageFeature, getUsageUserId } from '../../utils/usageContext.js';
 import { recordImpact } from '../usage/UsageTrackingService.js';
 
+import { parseUsageTokens } from './greenptImpact.js';
+
 const log = createLogger('meliousImpact');
 const TAP_CEILING_MS = 300_000;
 
-type Impact = { energyWms: number; emissionsUg: number };
+type Impact = { energyWms: number; emissionsUg: number; inputTokens: number; outputTokens: number };
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -23,7 +25,7 @@ export function parseMeliousImpact(body: unknown): Impact | null {
   const emissionsUg =
     typeof carbonG === 'number' && Number.isFinite(carbonG) ? carbonG * 1_000_000 : 0;
   if (energyWms <= 0 && emissionsUg <= 0) return null;
-  return { energyWms, emissionsUg };
+  return { energyWms, emissionsUg, ...parseUsageTokens(body) };
 }
 
 export function meliousModelFromRequest(body: unknown): string | null {

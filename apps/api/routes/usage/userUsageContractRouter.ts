@@ -20,6 +20,7 @@ import {
   marketIntensityFor,
   estimateImageFootprint,
   referenceFootprint,
+  unmeasuredRemainder,
 } from '../../services/usage/energyFootprint.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -144,8 +145,10 @@ export const userUsageContractRouter = s.router(userUsageContract, {
 
         if (unit === 'tokens') {
           textOutputTokens += row.outputTokens;
+          const rest = unmeasuredRemainder(row);
           if (row.energyWms > 0) {
-            // Measured beats estimated: GreenPT already told us the truth.
+            // Measured beats estimated: the provider already told us the truth —
+            // but only for the calls it measured, see `unmeasuredRemainder`.
             energyWms += row.energyWms;
             measuredEnergyWms += row.energyWms;
             emissionsUg += row.emissionsUg;
@@ -157,25 +160,21 @@ export const userUsageContractRouter = s.router(userUsageContract, {
               marketIntensityFor(row.provider)
             );
             if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += row.energyWms;
-            coveredOutputTokens += row.outputTokens;
-            coveredRequests += row.requests;
-          } else {
-            const estimate = estimateFootprint({
-              provider: row.provider,
-              model: row.model,
-              inputTokens: row.inputTokens,
-              outputTokens: row.outputTokens,
-              requests: row.requests,
-            });
-            if (estimate) {
-              energyWms += estimate.energyWms;
-              emissionsUg += estimate.emissionsUg;
-              marketEmissionsUg += estimate.marketEmissionsUg;
-              if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += estimate.energyWms;
-              coveredOutputTokens += row.outputTokens;
-              coveredRequests += row.requests;
-              if (estimate.basis === 'bound') boundedEnergyWms += estimate.energyWms;
-            }
+            coveredOutputTokens += row.outputTokens - rest.outputTokens;
+            coveredRequests += row.requests - rest.requests;
+          }
+          const estimate =
+            rest.requests + rest.inputTokens + rest.outputTokens > 0
+              ? estimateFootprint({ provider: row.provider, model: row.model, ...rest })
+              : null;
+          if (estimate) {
+            energyWms += estimate.energyWms;
+            emissionsUg += estimate.emissionsUg;
+            marketEmissionsUg += estimate.marketEmissionsUg;
+            if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += estimate.energyWms;
+            coveredOutputTokens += rest.outputTokens;
+            coveredRequests += rest.requests;
+            if (estimate.basis === 'bound') boundedEnergyWms += estimate.energyWms;
           }
         }
 

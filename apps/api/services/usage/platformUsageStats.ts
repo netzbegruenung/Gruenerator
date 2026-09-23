@@ -52,6 +52,7 @@ import {
   marketIntensityFor,
   referenceFootprint,
   TOKEN_CALIBRATION_PUE,
+  unmeasuredRemainder,
 } from './energyFootprint.js';
 
 import type {
@@ -269,6 +270,9 @@ export async function computePlatformUsageStats(
       ops: sql<number>`sum(${userUsageDaily.ops})::float8`,
       energyWms: sql<number>`sum(${userUsageDaily.energyWms})::float8`,
       emissionsUg: sql<number>`sum(${userUsageDaily.emissionsUg})::float8`,
+      measuredRequests: sql<number>`sum(${userUsageDaily.measuredRequests})::float8`,
+      measuredInputTokens: sql<number>`sum(${userUsageDaily.measuredInputTokens})::float8`,
+      measuredOutputTokens: sql<number>`sum(${userUsageDaily.measuredOutputTokens})::float8`,
     })
     .from(userUsageDaily)
     .where(and(inArray(userUsageDaily.day, dayList), scope))
@@ -381,9 +385,11 @@ export async function computePlatformUsageStats(
 
     if (unit === 'tokens') {
       textOutputTokens += row.outputTokens;
+      const rest = unmeasuredRemainder(row);
       if (row.energyWms > 0) {
         // Measured beats estimated, and a measurement has no band: both ends of
-        // the range get the same value.
+        // the range get the same value. It covers only the measured calls; the
+        // remainder is estimated below.
         energyWms += row.energyWms;
         measuredEnergyWms += row.energyWms;
         emissionsUg += row.emissionsUg;
@@ -391,20 +397,15 @@ export async function computePlatformUsageStats(
         emissionsUgLow += row.emissionsUg;
         energyWmsHigh += row.energyWms;
         emissionsUgHigh += row.emissionsUg;
-        rowEmissionsUg = row.emissionsUg;
+        rowEmissionsUg += row.emissionsUg;
         marketEmissionsUg += emissionsFromEnergy(row.energyWms, marketIntensityFor(row.provider));
         if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += row.energyWms;
-        coveredOutputTokens += row.outputTokens;
-        coveredRequests += row.requests;
+        coveredOutputTokens += row.outputTokens - rest.outputTokens;
+        coveredRequests += row.requests - rest.requests;
         addProvider(row.provider, row.energyWms, row.emissionsUg, 'tokens');
-      } else {
-        const base = {
-          provider: row.provider,
-          model: row.model,
-          inputTokens: row.inputTokens,
-          outputTokens: row.outputTokens,
-          requests: row.requests,
-        };
+      }
+      if (rest.requests + rest.inputTokens + rest.outputTokens > 0) {
+        const base = { provider: row.provider, model: row.model, ...rest };
         const mid = estimateFootprint(base);
         if (mid) {
           const low = estimateFootprint({ ...base, bound: 'low' });
@@ -415,11 +416,11 @@ export async function computePlatformUsageStats(
           emissionsUgLow += low?.emissionsUg ?? mid.emissionsUg;
           energyWmsHigh += high?.energyWms ?? mid.energyWms;
           emissionsUgHigh += high?.emissionsUg ?? mid.emissionsUg;
-          rowEmissionsUg = mid.emissionsUg;
+          rowEmissionsUg += mid.emissionsUg;
           marketEmissionsUg += mid.marketEmissionsUg;
           if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += mid.energyWms;
-          coveredOutputTokens += row.outputTokens;
-          coveredRequests += row.requests;
+          coveredOutputTokens += rest.outputTokens;
+          coveredRequests += rest.requests;
           if (mid.basis === 'bound') boundedEnergyWms += mid.energyWms;
           else calibratedEnergyWms += mid.energyWms;
           addProvider(row.provider, mid.energyWms, mid.emissionsUg, 'tokens');
