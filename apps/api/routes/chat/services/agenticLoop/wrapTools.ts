@@ -115,23 +115,31 @@ export function stripInternalFields<T>(output: T): T {
 }
 
 /**
- * Felder, die nur der Replay späterer Turns braucht (`mcpReplay.ts`). `refs`
- * wiederholt die Zeilen eines `notebook_quellen`-list/rank-Ergebnisses als eine
- * Zeile je Quelle — im laufenden Turn stehen dieselben Zeilen schon in
- * `results`/`ranking`; doppelt geschickt schöbe es das Ergebnis über die
- * 6000 Zeichen von `truncateResultForModel`.
+ * `refs` wiederholt die Zeilen eines `notebook_quellen`-list/rank-Ergebnisses
+ * (`results`/`ranking`) als eine Zeile je Quelle, Titel gekappt, höchstens
+ * 50 Zeilen. Passen die Zeilen unter `maxChars`, sieht das Modell nur sie und
+ * `refs` bleibt dem Replay späterer Turns (`mcpReplay.ts`). Passen sie nicht,
+ * machte `truncateResultForModel` daraus eine abgeschnittene Vorschau und die
+ * hinteren Quellen kämen nie an (#3590) — dann bekommt das Modell `refs` statt
+ * der Zeilen, ungekürzt, weil der Erzeuger es schon begrenzt hat.
  */
 // `refs` ist für `notebook_quellen` reserviert: ein anderes Werkzeug mit `refs` verlöre es
 // hier still aus dem laufenden Turn.
-const REPLAY_ONLY_FIELDS: readonly string[] = ['refs'];
+const REFS_FIELD = 'refs';
+const ROWS_REPEATED_BY_REFS: readonly string[] = ['results', 'ranking'];
+const REFS_EXEMPT: ReadonlySet<string> = new Set(['sources', REFS_FIELD]);
 
-function stripReplayOnlyFields<T>(output: T): T {
-  if (!output || typeof output !== 'object' || Array.isArray(output)) return output;
-  const record = output as Record<string, unknown>;
-  if (!REPLAY_ONLY_FIELDS.some((field) => field in record)) return output;
-  const copy = { ...record };
-  for (const field of REPLAY_ONLY_FIELDS) delete copy[field];
-  return copy as T;
+function resultForModel(output: unknown, maxChars: number): unknown {
+  if (!output || typeof output !== 'object' || Array.isArray(output)) {
+    return truncateResultForModel(output, maxChars);
+  }
+  const { [REFS_FIELD]: refs, ...rows } = output as Record<string, unknown>;
+  if (typeof refs !== 'string') return truncateResultForModel(output, maxChars);
+  const lean = truncateResultForModel(rows, maxChars) as Record<string, unknown>;
+  if (lean._truncated !== true) return lean;
+  const compact: Record<string, unknown> = { ...rows, [REFS_FIELD]: refs };
+  for (const field of ROWS_REPEATED_BY_REFS) delete compact[field];
+  return truncateResultForModel(compact, maxChars, REFS_EXEMPT);
 }
 
 /**
@@ -691,10 +699,7 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
 
       // Model-facing payload only — the full result already went to the card /
       // persisted step above, and the hooks above have seen the internal fields.
-      return truncateResultForModel(
-        stripReplayOnlyFields(stripInternalFields(output)),
-        maxResultChars
-      );
+      return resultForModel(stripInternalFields(output), maxResultChars);
     };
 
     wrapped[toolName] = { ...toolDef, execute: wrappedExecute } as ToolSet[string];
