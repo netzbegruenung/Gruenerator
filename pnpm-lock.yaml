@@ -23088,7 +23088,7 @@ snapshots:
       '@ai-sdk/provider': 4.0.15
       '@ai-sdk/provider-utils': 5.0.41(zod@4.5.4)
       '@vercel/oidc': 3.2.0
-      zod: 3.25.76
+      zod: 4.5.4
 
   '@ai-sdk/mistral@4.0.44(zod@3.25.76)':
     dependencies:
@@ -23142,7 +23142,7 @@ snapshots:
       '@workflow/serde': 4.1.0
       eventsource-parser: 3.1.1
       undici: 8.10.2
-      zod: 3.25.76
+      zod: 4.5.4
 
   '@ai-sdk/provider@3.0.15':
     dependencies:
@@ -36224,7 +36224,7 @@ snapshots:
       '@ai-sdk/gateway': 4.0.82(zod@4.5.4)
       '@ai-sdk/provider': 4.0.15
       '@ai-sdk/provider-utils': 5.0.41(zod@4.5.4)
-      zod: 3.25.76
+      zod: 4.5.4
 
   ajv-errors@1.0.1(ajv@6.15.0):
     dependencies:
