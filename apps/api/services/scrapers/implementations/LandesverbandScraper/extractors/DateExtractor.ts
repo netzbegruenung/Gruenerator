@@ -78,6 +78,12 @@ const FILENAME_DAY_PATTERNS: DatePattern[] = [
   {
     // Leading YYMMDD token, no separators inside it: BE-F dlm-downloads name
     // their files 250117_Positionspapier….pdf / 180828_Beschluss….pdf.
+    // Genuinely ambiguous for a leading YYYYMM from 2001-2012: e.g. "200106_…"
+    // reads as 2020-01-06 here, but "2001"+"06" (June 2001, YYYYMM) is an
+    // equally valid parse of the same six digits — only when the middle two
+    // digits (our month) fall in 01-12 does "20" + that pair form a real
+    // alternate year. No confirmed BE-F case uses YYYYMM, so this stays
+    // YYMMDD until one does.
     re: /^(\d{2})(\d{2})(\d{2})(?=[_-])/,
     parse: (m) => ({ year: 2000 + parseInt(m[1]), month: parseInt(m[2]), day: parseInt(m[3]) }),
   },
@@ -192,6 +198,24 @@ export class DateExtractor {
       isTooOld: this.isDateTooOld(date, maxAgeYears),
       precision,
     };
+  }
+
+  /**
+   * Wolke share files (#3564): only a literal day date in the file name is a
+   * real signal. `extractDateFromPdfInfo` falls back to a bare year or a slug
+   * month when no day pattern matches — a mention like "Wahlpruefsteine 2021
+   * BUND.pdf" or a target year like "Landtagswahl-2026-Programm.pdf" would
+   * otherwise read as a (wrong) publish date. `maxAgeYears` doesn't matter
+   * here — callers ignore `isTooOld` for Wolke files — so a fixed value is
+   * enough.
+   */
+  static extractWolkeFileNameDate(
+    fileName: string
+  ): Pick<DateExtractionResult, 'dateString' | 'precision'> {
+    const result = this.extractDateFromPdfInfo(fileName, fileName, '', 10);
+    return result.precision === 'day'
+      ? { dateString: result.dateString, precision: result.precision }
+      : { dateString: null, precision: null };
   }
 
   static #firstMatch(

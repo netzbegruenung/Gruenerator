@@ -298,10 +298,10 @@ describe('DateExtractor.extractDateFromPdfInfo — BE-F leading YYMMDD file name
     expect(result.precision).toBe(precision);
   });
 
-  it('a 6-digit Drucksache number after a prefix is not a leading-token date', () => {
+  it('a 6-digit Drucksache number that is not at the start of the name is not a date', () => {
     const result = DateExtractor.extractDateFromPdfInfo(
-      'Drs_18-2345.pdf',
-      'Drs_18-2345.pdf',
+      'Drs_182345_Antrag.pdf',
+      'Drs_182345_Antrag.pdf',
       '',
       10
     );
@@ -330,11 +330,13 @@ describe('DateExtractor.extractDateFromPdfInfo — BE-F leading YYMMDD file name
 /**
  * #3564: Wolke share files (Berlin Wahlprüfsteine, Saarland Parteitags-
  * protokolle) are stored with `publishedAt: null` today even though the file
- * name often carries a real date. LandesverbandScraper passes the bare file
- * name as both `url` and `title` with an empty context, so only the file-name
- * day tier can fire — never a folder or URL year.
+ * name often carries a real date. `extractWolkeFileNameDate` runs the bare
+ * file name through the normal file-name day tier, but — unlike PDFs — a
+ * month/year fallback is never good enough: a bare year in the name is often
+ * just a mention or a target year, not a publish date, so only a literal day
+ * date counts and anything less precise comes back null.
  */
-describe('DateExtractor.extractDateFromPdfInfo — Wolke file names (#3564)', () => {
+describe('DateExtractor.extractWolkeFileNameDate (#3564)', () => {
   it.each([
     {
       name: 'DD.MM.YYYY in an LPT file name',
@@ -355,19 +357,28 @@ describe('DateExtractor.extractDateFromPdfInfo — Wolke file names (#3564)', ()
       precision: 'day',
     },
   ])('$name', ({ fileName, dateString, precision }) => {
-    const result = DateExtractor.extractDateFromPdfInfo(fileName, fileName, '', 10);
+    const result = DateExtractor.extractWolkeFileNameDate(fileName);
 
     expect(result.dateString).toBe(dateString);
     expect(result.precision).toBe(precision);
   });
 
   it('a file name without any date stays null, never invented', () => {
-    const result = DateExtractor.extractDateFromPdfInfo(
-      'Wahlpruefstein_Verband_Antwort.pdf',
-      'Wahlpruefstein_Verband_Antwort.pdf',
-      '',
-      10
-    );
+    const result = DateExtractor.extractWolkeFileNameDate('Wahlpruefstein_Verband_Antwort.pdf');
+
+    expect(result.dateString).toBeNull();
+    expect(result.precision).toBeNull();
+  });
+
+  it('a bare mentioned year is a mention, not a publish date', () => {
+    const result = DateExtractor.extractWolkeFileNameDate('Wahlprüfsteine 2021 BUND.pdf');
+
+    expect(result.dateString).toBeNull();
+    expect(result.precision).toBeNull();
+  });
+
+  it('a target year in the file name is not a publish date either', () => {
+    const result = DateExtractor.extractWolkeFileNameDate('Landtagswahl-2026-Programm.pdf');
 
     expect(result.dateString).toBeNull();
     expect(result.precision).toBeNull();
