@@ -59,6 +59,15 @@
  *   npx tsx scripts/repair-lv-payload.ts --gone --source sachsen-anhalt-lv
  *   … jeweils mit --write, um wirklich zu schreiben; --limit N begrenzt die Punkte je Quelle.
  *
+ * Bei mehreren `--source`: Quellen laufen mit `--parallel N` (Standard 4)
+ * gleichzeitig, gruppiert nach Host ihrer `baseUrl` — zwei Quellen desselben
+ * LV-Webauftritts (z. B. gruene.berlin) laufen nie parallel, das Pacing
+ * innerhalb einer Quelle (300 ms bzw. 1/s) bleibt unverändert. Die Ausgabe je
+ * Quelle erscheint erst als ganzer Block, wenn diese Quelle fertig ist. Wirft
+ * eine Quelle einen Fehler, bricht das nur ihre eigene Host-Gruppe ab
+ * (restliche Quellen dieser Gruppe werden übersprungen); alle anderen Gruppen
+ * laufen weiter, der Prozess endet am Schluss mit Exit-Code 1.
+ *
  * dotenv muss vor jedem App-Import laufen (config/env.js liest die Umgebung
  * beim Import) — daher die dynamischen Importe.
  */
@@ -66,6 +75,8 @@ import { basename } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 import dotenv from 'dotenv';
+
+import { parallelLimit } from '../utils/parallelLimit.js';
 
 import { ContentExtractor } from '../services/scrapers/implementations/LandesverbandScraper/extractors/ContentExtractor.js';
 import { DateExtractor } from '../services/scrapers/implementations/LandesverbandScraper/extractors/DateExtractor.js';
@@ -88,6 +99,7 @@ interface CliArgs {
   refetch: boolean;
   write: boolean;
   limit: number | null;
+  parallel: number;
 }
 
 interface StoredFields {
@@ -106,8 +118,8 @@ interface Patch {
 }
 
 const USAGE =
-  'Usage: repair-lv-payload.ts (--titles [--refetch] | --overwrite-dates <regel>) … (--source <id> [--source <id> …] | --all) [--limit N] [--write]\n' +
-  '       repair-lv-payload.ts --gone --source <id> [--source <id> …] [--limit N] [--write]';
+  'Usage: repair-lv-payload.ts (--titles [--refetch] | --overwrite-dates <regel>) … (--source <id> [--source <id> …] | --all) [--limit N] [--parallel N] [--write]\n' +
+  '       repair-lv-payload.ts --gone --source <id> [--source <id> …] [--limit N] [--parallel N] [--write]';
 const DEFAULT_COLLECTION = 'landesverbaende_documents';
 const UA = 'Gruenerator-Bot/1.0 (+https://gruenerator.eu)';
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
@@ -132,6 +144,7 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
     refetch: false,
     write: false,
     limit: null,
+    parallel: 4,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -156,6 +169,10 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
       const n = Number(argv[++i]);
       if (!Number.isInteger(n) || n <= 0) return { error: `--limit braucht eine Zahl > 0.` };
       args.limit = n;
+    } else if (arg === '--parallel') {
+      const n = Number(argv[++i]);
+      if (!Number.isInteger(n) || n < 1) return { error: `--parallel braucht eine Zahl ≥ 1.` };
+      args.parallel = n;
     } else return { error: `Unbekanntes Argument: ${arg}. ${USAGE}` };
   }
   if (args.gone && (args.titles || args.overwriteDates)) {
@@ -187,6 +204,55 @@ export function isRefetchable(url: string, source: Pick<LandesverbandSource, 'ba
   } catch {
     return false;
   }
+}
+
+/**
+ * Gruppiert Quellen nach Host ihrer `baseUrl`, damit zwei Quellen desselben
+ * LV-Webauftritts (z. B. berlin-lv-presse und berlin-lv-beschluesse, beide
+ * gruene.berlin) nie gleichzeitig abgerufen werden — Parallelität läuft nur
+ * über Host-Gruppen hinweg, nie innerhalb einer.
+ */
+export function groupSourcesByHost<T extends { baseUrl: string }>(sources: T[]): T[][] {
+  const groups = new Map<string, T[]>();
+  for (const source of sources) {
+    const host = new URL(source.baseUrl).host;
+    const group = groups.get(host);
+    if (group) group.push(source);
+    else groups.set(host, [source]);
+  }
+  return [...groups.values()];
+}
+
+/**
+ * Führt Host-Gruppen über `parallelLimit`, isoliert dabei aber Fehler: Wirft
+ * `worker` für eine Quelle, bricht das nur ihre eigene Gruppe ab (die
+ * restlichen Quellen dieser Gruppe werden übersprungen) — alle anderen
+ * Gruppen laufen unbeeinflusst weiter. Ohne diese Isolation würde eine
+ * einzelne Ablehnung `parallelLimit` insgesamt scheitern lassen und
+ * Nachbar-Gruppen, die noch mitten im Schreiben sind, hart abbrechen.
+ */
+export async function runGroups<T extends { sourceId: string | null; collection: string }>(
+  groups: T[][],
+  worker: (scope: T) => Promise<void>,
+  parallel: number
+): Promise<{ failed: string[] }> {
+  const failed: string[] = [];
+  await parallelLimit(
+    groups.map((group) => async () => {
+      for (const scope of group) {
+        try {
+          await worker(scope);
+        } catch (error) {
+          const id = scope.sourceId ?? scope.collection;
+          console.error(`[error] ${id}: ${(error as Error).message}`);
+          failed.push(id);
+          return;
+        }
+      }
+    }),
+    parallel
+  );
+  return { failed };
 }
 
 export function planRepair(stored: StoredFields, extracted: Extracted | null): Patch | null {
@@ -451,69 +517,144 @@ async function main(): Promise<void> {
     ...(env.QDRANT_BASIC_AUTH_PASSWORD && { basicAuthPassword: env.QDRANT_BASIC_AUTH_PASSWORD }),
   });
 
-  const scopes: Array<{ sourceId: string | null; collection: string }> = [];
-  if (args.all) scopes.push({ sourceId: null, collection: DEFAULT_COLLECTION });
+  const sourceScopes: Array<{ sourceId: string; collection: string; baseUrl: string }> = [];
   for (const id of args.sources) {
     const source = getSourceById(id);
     if (!source) {
       console.error(`Unbekannte Quelle: ${id}`);
       process.exit(1);
     }
-    scopes.push({ sourceId: id, collection: source.qdrantCollection || DEFAULT_COLLECTION });
+    sourceScopes.push({
+      sourceId: id,
+      collection: source.qdrantCollection || DEFAULT_COLLECTION,
+      baseUrl: source.baseUrl,
+    });
   }
 
   console.log(
     `[repair-lv-payload] ${args.write ? 'SCHREIBT' : 'Trockenlauf (--write zum Schreiben)'}`
   );
 
-  for (const scope of scopes) {
-    const all = await scrollChunkZero(client, scope.collection, scope.sourceId);
-    const points = args.limit ? all.slice(0, args.limit) : all;
+  // Zeilen laufen pro Quelle in `lines`, damit sie erst als ganzer Block
+  // erscheinen, wenn diese Quelle fertig ist — sonst würden parallele Quellen
+  // ihre Ausgaben verschränken.
+  async function processScope(scope: {
+    sourceId: string | null;
+    collection: string;
+  }): Promise<void> {
+    const lines: string[] = [];
+    try {
+      const all = await scrollChunkZero(client, scope.collection, scope.sourceId);
+      const points = args.limit ? all.slice(0, args.limit) : all;
 
-    if (args.gone && scope.sourceId) {
-      const source = getSourceById(scope.sourceId);
-      const listingPaths = source ? source.contentPaths.map((cp) => cp.path) : [];
-      const tally: Record<FetchOutcome | 'skipped', number> = {
-        live: 0,
-        moved: 0,
-        gone: 0,
-        transient: 0,
-        skipped: 0,
-      };
-      let targetMissing = 0;
-      const isIndexed = async (url: string): Promise<boolean> => {
-        const res = await client.scroll(scope.collection, {
-          filter: { must: [{ key: 'source_url', match: { value: url } }] },
-          limit: 1,
-          with_payload: false,
-          with_vector: false,
-        });
-        return res.points.length > 0;
-      };
-      const goneSamples: string[] = [];
-      let wouldDelete = 0;
-      let deleted = 0;
-      for (const point of points) {
-        if (!source || !isRefetchable(point.source_url, source)) {
-          tally.skipped++;
-          continue;
+      if (args.gone && scope.sourceId) {
+        const source = getSourceById(scope.sourceId);
+        const listingPaths = source ? source.contentPaths.map((cp) => cp.path) : [];
+        const tally: Record<FetchOutcome | 'skipped', number> = {
+          live: 0,
+          moved: 0,
+          gone: 0,
+          transient: 0,
+          skipped: 0,
+        };
+        let targetMissing = 0;
+        const isIndexed = async (url: string): Promise<boolean> => {
+          const res = await client.scroll(scope.collection, {
+            filter: { must: [{ key: 'source_url', match: { value: url } }] },
+            limit: 1,
+            with_payload: false,
+            with_vector: false,
+          });
+          return res.points.length > 0;
+        };
+        const goneSamples: string[] = [];
+        let wouldDelete = 0;
+        let deleted = 0;
+        for (const point of points) {
+          if (!source || !isRefetchable(point.source_url, source)) {
+            tally.skipped++;
+            continue;
+          }
+          const result = await probe(point.source_url);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          const plan = await planGone(point.source_url, result, listingPaths, isIndexed);
+          const { outcome, remove } = plan;
+          tally[outcome]++;
+          if (plan.targetMissing) targetMissing++;
+          if (!remove) continue;
+          wouldDelete++;
+          if (goneSamples.length < 10) {
+            goneSamples.push(
+              `  [${outcome}] ${point.source_url} (HTTP ${result.status}${result.finalUrl && result.finalUrl !== point.source_url ? ` → ${result.finalUrl}` : ''})`
+            );
+          }
+          if (args.write) {
+            await client.delete(scope.collection, {
+              wait: true,
+              filter: {
+                must: [
+                  { key: 'source_id', match: { value: point.source_id } },
+                  { key: 'source_url', match: { value: point.source_url } },
+                ],
+              },
+            });
+            deleted++;
+          }
         }
-        const result = await probe(point.source_url);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        const plan = await planGone(point.source_url, result, listingPaths, isIndexed);
-        const { outcome, remove } = plan;
-        tally[outcome]++;
-        if (plan.targetMissing) targetMissing++;
-        if (!remove) continue;
-        wouldDelete++;
-        if (goneSamples.length < 10) {
-          goneSamples.push(
-            `  [${outcome}] ${point.source_url} (HTTP ${result.status}${result.finalUrl && result.finalUrl !== point.source_url ? ` → ${result.finalUrl}` : ''})`
+        lines.push(`\n═══ ${scope.sourceId} — --gone ═══`);
+        lines.push(goneSamples.join('\n'));
+        lines.push(
+          `  geprüft ${points.length} = live ${tally.live} + umgezogen ${tally.moved} (davon Ziel nicht indexiert, behalten: ${targetMissing}) + weg ${tally.gone} + vorübergehend ${tally.transient} + nicht abgerufen ${tally.skipped}`
+        );
+        lines.push(
+          `  ${args.write ? 'gelöscht' : 'würde löschen'} ${args.write ? deleted : wouldDelete} URL(s)`
+        );
+        console.log(lines.join('\n'));
+        return;
+      }
+
+      const counts = { scanned: points.length, wouldPatch: 0, unchanged: 0, unresolved: 0 };
+      const extra = { title: 0, date: 0, fetchFailed: 0, written: 0 };
+      const samples: string[] = [];
+
+      for (const point of points) {
+        const source = getSourceById(point.source_id);
+        const refetchable = Boolean(source) && isRefetchable(point.source_url, source!);
+
+        const result = await planPointRepair(
+          point,
+          { titles: args.titles, refetch: args.refetch, overwriteDates: args.overwriteDates },
+          refetchable,
+          () => ContentExtractor.extractPageContent(point.source_url, source!, fetchOk)
+        );
+        if (result.fetchAttempted) await sleep(REFETCH_DELAY_MS);
+        if (result.fetchError) {
+          extra.fetchFailed++;
+          // Sofort auf stderr (nicht erst im Block am Ende) — bei parallelen
+          // Quellen ist das sonst die einzige Stelle, die sofort auffällt, wenn
+          // eine Quelle beim Abruf hängt oder durchgängig fehlschlägt.
+          console.warn(
+            `[fetch:${scope.sourceId ?? scope.collection}] ${point.source_url}: ${result.fetchError}`
+          );
+          lines.push(`  [fetch] ${point.source_url}: ${result.fetchError}`);
+        }
+
+        const { patch, unresolved } = result;
+        if (patch.title !== undefined) extra.title++;
+        if (patch.published_at !== undefined) extra.date++;
+        const bucket = classifyPoint(patch, unresolved);
+        counts[bucket]++;
+        if (bucket !== 'wouldPatch') continue;
+        if (samples.length < 5) {
+          const old = { title: point.title, published_at: point.published_at };
+          samples.push(
+            `  ${point.source_url}\n    ${JSON.stringify(old)}\n  → ${JSON.stringify(patch)}`
           );
         }
+
         if (args.write) {
-          await client.delete(scope.collection, {
-            wait: true,
+          await client.setPayload(scope.collection, {
+            payload: patch as Record<string, unknown>,
             filter: {
               must: [
                 { key: 'source_id', match: { value: point.source_id } },
@@ -521,75 +662,41 @@ async function main(): Promise<void> {
               ],
             },
           });
-          deleted++;
+          extra.written++;
         }
       }
-      console.log(`\n═══ ${scope.sourceId} — --gone ═══`);
-      console.log(goneSamples.join('\n'));
-      console.log(
-        `  geprüft ${points.length} = live ${tally.live} + umgezogen ${tally.moved} (davon Ziel nicht indexiert, behalten: ${targetMissing}) + weg ${tally.gone} + vorübergehend ${tally.transient} + nicht abgerufen ${tally.skipped}`
+
+      lines.push(`\n═══ ${scope.sourceId ?? `${scope.collection} (alle Quellen)`} ═══`);
+      lines.push(samples.join('\n'));
+      lines.push(
+        `  geprüft ${counts.scanned} = would-patch ${counts.wouldPatch} + unchanged ${counts.unchanged} + unresolved ${counts.unresolved} (unresolved nur ohne jeden Patch)`
       );
-      console.log(
-        `  ${args.write ? 'gelöscht' : 'würde löschen'} ${args.write ? deleted : wouldDelete} URL(s)`
+      lines.push(
+        `  davon Titel ${extra.title} · Datum ${extra.date} · Abruf fehlgeschlagen ${extra.fetchFailed} · geschrieben ${extra.written}`
       );
-      continue;
+      console.log(lines.join('\n'));
+    } catch (error) {
+      // Der Block dieser Quelle ist noch nichts wert (keine Zusammenfassung),
+      // aber was bis zum Fehler gesammelt wurde, geht nicht verloren.
+      if (lines.length > 0) console.log(lines.join('\n'));
+      throw error;
     }
+  }
 
-    const counts = { scanned: points.length, wouldPatch: 0, unchanged: 0, unresolved: 0 };
-    const extra = { title: 0, date: 0, fetchFailed: 0, written: 0 };
-    const samples: string[] = [];
-
-    for (const point of points) {
-      const source = getSourceById(point.source_id);
-      const refetchable = Boolean(source) && isRefetchable(point.source_url, source!);
-
-      const result = await planPointRepair(
-        point,
-        { titles: args.titles, refetch: args.refetch, overwriteDates: args.overwriteDates },
-        refetchable,
-        () => ContentExtractor.extractPageContent(point.source_url, source!, fetchOk)
-      );
-      if (result.fetchAttempted) await sleep(REFETCH_DELAY_MS);
-      if (result.fetchError) {
-        extra.fetchFailed++;
-        console.warn(`  [fetch] ${point.source_url}: ${result.fetchError}`);
-      }
-
-      const { patch, unresolved } = result;
-      if (patch.title !== undefined) extra.title++;
-      if (patch.published_at !== undefined) extra.date++;
-      const bucket = classifyPoint(patch, unresolved);
-      counts[bucket]++;
-      if (bucket !== 'wouldPatch') continue;
-      if (samples.length < 5) {
-        const old = { title: point.title, published_at: point.published_at };
-        samples.push(
-          `  ${point.source_url}\n    ${JSON.stringify(old)}\n  → ${JSON.stringify(patch)}`
-        );
-      }
-
-      if (args.write) {
-        await client.setPayload(scope.collection, {
-          payload: patch as Record<string, unknown>,
-          filter: {
-            must: [
-              { key: 'source_id', match: { value: point.source_id } },
-              { key: 'source_url', match: { value: point.source_url } },
-            ],
-          },
-        });
-        extra.written++;
-      }
+  if (args.all) {
+    await processScope({ sourceId: null, collection: DEFAULT_COLLECTION });
+  } else {
+    // Innerhalb einer Host-Gruppe sequentiell (dasselbe Pacing wie heute);
+    // Parallelität nur über Host-Gruppen hinweg, per --parallel begrenzt.
+    // Fehler in einer Quelle isolieren nur ihre Gruppe (runGroups) — sonst
+    // würde eine einzelne Ablehnung parallelLimit insgesamt scheitern lassen
+    // und Nachbar-Gruppen mitten im Schreiben abbrechen.
+    const hostGroups = groupSourcesByHost(sourceScopes);
+    const { failed } = await runGroups(hostGroups, processScope, args.parallel);
+    if (failed.length > 0) {
+      console.error(`[repair-lv-payload] fehlgeschlagen: ${failed.join(', ')}`);
+      process.exitCode = 1;
     }
-
-    console.log(`\n═══ ${scope.sourceId ?? `${scope.collection} (alle Quellen)`} ═══`);
-    console.log(samples.join('\n'));
-    console.log(
-      `  geprüft ${counts.scanned} = would-patch ${counts.wouldPatch} + unchanged ${counts.unchanged} + unresolved ${counts.unresolved} (unresolved nur ohne jeden Patch)`
-    );
-    console.log(
-      `  davon Titel ${extra.title} · Datum ${extra.date} · Abruf fehlgeschlagen ${extra.fetchFailed} · geschrieben ${extra.written}`
-    );
   }
 }
 

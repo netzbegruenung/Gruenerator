@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   assertSamePage,
   classifyPoint,
+  groupSourcesByHost,
   isEmptyPlaceholder,
   isRefetchable,
   parseCliArgs,
@@ -10,6 +11,7 @@ import {
   planGone,
   planPointRepair,
   planRepair,
+  runGroups,
 } from './repair-lv-payload.js';
 
 const BERLIN = { baseUrl: 'https://gruene.berlin' };
@@ -26,6 +28,7 @@ describe('parseCliArgs', () => {
         refetch: false,
         write: false,
         limit: null,
+        parallel: 4,
       },
     });
   });
@@ -53,6 +56,7 @@ describe('parseCliArgs', () => {
         refetch: true,
         write: true,
         limit: 5,
+        parallel: 4,
       },
     });
   });
@@ -86,6 +90,7 @@ describe('parseCliArgs', () => {
         refetch: false,
         write: false,
         limit: null,
+        parallel: 4,
       },
     });
   });
@@ -106,6 +111,19 @@ describe('parseCliArgs', () => {
     expect(
       parseCliArgs(['--source', 'berlin-lv-presse', '--overwrite-dates', 'visible-date'])
     ).not.toHaveProperty('error');
+  });
+
+  it('nimmt --parallel als Zahl ≥ 1, Standard ist 4', () => {
+    expect(parseCliArgs(['--titles', '--all'])).toHaveProperty('args.parallel', 4);
+    expect(parseCliArgs(['--titles', '--all', '--parallel', '3'])).toHaveProperty(
+      'args.parallel',
+      3
+    );
+  });
+
+  it('lehnt --parallel unter 1 und Nicht-Zahlen ab', () => {
+    expect(parseCliArgs(['--titles', '--all', '--parallel', '0'])).toHaveProperty('error');
+    expect(parseCliArgs(['--titles', '--all', '--parallel', 'x'])).toHaveProperty('error');
   });
 });
 
@@ -501,5 +519,71 @@ describe('assertSamePage', () => {
     expect(() => assertSamePage(URL_, res({ url: 'https://gruene.berlin/' }))).toThrow(
       /Weiterleitung/
     );
+  });
+});
+
+describe('groupSourcesByHost', () => {
+  it('gruppiert zwei Quellen desselben Hosts zusammen, andere einzeln', () => {
+    const berlinPresse = { sourceId: 'berlin-lv-presse', baseUrl: 'https://gruene.berlin' };
+    const berlinBeschluesse = {
+      sourceId: 'berlin-lv-beschluesse',
+      baseUrl: 'https://gruene.berlin',
+    };
+    const sachsen = { sourceId: 'sachsen-lv', baseUrl: 'https://gruene-sachsen.de' };
+
+    expect(groupSourcesByHost([berlinPresse, sachsen, berlinBeschluesse])).toEqual([
+      [berlinPresse, berlinBeschluesse],
+      [sachsen],
+    ]);
+  });
+});
+
+describe('runGroups', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('isoliert einen Fehler auf seine eigene Gruppe — andere Gruppen laufen zu Ende', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const berlinPresse = { sourceId: 'berlin-lv-presse', collection: 'c' };
+    const berlinBeschluesse = { sourceId: 'berlin-lv-beschluesse', collection: 'c' };
+    const sachsen = { sourceId: 'sachsen-lv', collection: 'c' };
+    const done: string[] = [];
+
+    const { failed } = await runGroups(
+      [[berlinPresse, berlinBeschluesse], [sachsen]],
+      async (scope) => {
+        if (scope.sourceId === 'berlin-lv-presse') throw new Error('kaputt');
+        done.push(scope.sourceId as string);
+      },
+      2
+    );
+
+    expect(failed).toEqual(['berlin-lv-presse']);
+    // berlin-lv-beschluesse lief nicht mehr — dieselbe Gruppe bricht ab.
+    expect(done).toEqual(['sachsen-lv']);
+    expect(errorSpy).toHaveBeenCalledWith('[error] berlin-lv-presse: kaputt');
+  });
+
+  it('meldet mehrere fehlgeschlagene Quellen aus verschiedenen Gruppen', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const a = { sourceId: 'a', collection: 'c' };
+    const b = { sourceId: 'b', collection: 'c' };
+
+    const { failed } = await runGroups(
+      [[a], [b]],
+      async (scope) => {
+        throw new Error(`${scope.sourceId} kaputt`);
+      },
+      2
+    );
+
+    expect(failed.sort()).toEqual(['a', 'b']);
+  });
+
+  it('meldet nichts, wenn keine Quelle fehlschlägt', async () => {
+    const a = { sourceId: 'a', collection: 'c' };
+    const { failed } = await runGroups([[a]], async () => {}, 2);
+    expect(failed).toEqual([]);
   });
 });
