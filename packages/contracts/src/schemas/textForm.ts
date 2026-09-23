@@ -293,22 +293,15 @@ export const textFormIsPublicBodySchema = z.object({
   public_ownership: publicOwnershipSchema.nullable(),
 });
 
-// ── Conversational draft ─────────────────────────────────────────────────────
+// ── Draft ────────────────────────────────────────────────────────────────────
 
 /**
- * POST /api/text-forms/draft — synthesize a spec from either a creator
- * conversation (`threadId`, server loads the ownership-checked messages) or a
- * one-shot freeform brief (`description`). Exactly one of the two is required.
- * Mirrors `draftAgentBodySchema`.
+ * POST /api/text-forms/draft — synthesize a spec from a one-shot freeform
+ * brief. Mirrors `draftAgentBodySchema`.
  */
-export const draftRecipeBodySchema = z
-  .object({
-    description: z.string().min(1).max(2000).optional(),
-    threadId: z.string().min(1).optional(),
-  })
-  .refine((d) => Boolean(d.threadId) || Boolean(d.description), {
-    message: 'threadId oder description erforderlich',
-  });
+export const draftRecipeBodySchema = z.object({
+  description: z.string().min(1).max(2000),
+});
 export type DraftRecipeBody = z.infer<typeof draftRecipeBodySchema>;
 
 /**
