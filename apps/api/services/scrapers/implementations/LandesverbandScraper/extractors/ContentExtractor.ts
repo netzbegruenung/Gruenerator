@@ -5,8 +5,19 @@
  */
 
 import * as cheerio from 'cheerio';
+import { type AnyNode } from 'domhandler';
 
 import type { ExtractedContent } from '../types.js';
+
+/**
+ * Block-level Elemente, vor UND nach denen `blockText` einen Trenner einfügt.
+ * Inline-Elemente (span, a, strong, em, small, …) sind absichtlich NICHT
+ * dabei — ein Trenner dort würde Wörter auseinanderreißen ("Grü nen",
+ * "inkl.MwSt" bei `<small>`). Der Foto-Credit-Fall (`<small>Foto: …</small>`
+ * verklebt mit dem folgenden Datum) läuft über `removeSelectors`, nicht hier.
+ */
+const BLOCK_SEPARATOR_SELECTOR =
+  'p, li, h1, h2, h3, h4, h5, h6, div, td, th, tr, blockquote, section, article, header, footer, figcaption, dt, dd';
 
 interface ContentSelectors {
   title: string[];
@@ -27,6 +38,123 @@ interface SourceConfig {
  * Supports WordPress and Neos CMS with different extraction strategies
  */
 export class ContentExtractor {
+  /**
+   * Text von `el` mit einem Trenner vor UND nach jedem Block-Element und nach
+   * `<br>`. cheerio klebt beim reinen `.text()` sonst benachbarte Blöcke ohne
+   * Trennzeichen zusammen ("prüfenDas", "ausDer", "IntroPara", #3573). Läuft
+   * pro Element aus `el` einzeln und fügt die Ergebnisse mit `\n\n` zusammen —
+   * derselbe Absatztrenner wie an einer berührenden Blockgrenze innerhalb
+   * eines Wurzelelements (einheitlich, nicht ein Einzel- gegen ein
+   * Doppel-`\n`). Matcht der Content-Selektor mehrere Geschwister-Wurzeln
+   * (z. B. `.wp-block-paragraph` mit 2 Treffern), bräuchten die sonst
+   * ebenfalls einen Trenner, aber cheerios `.before()`/`.after()` sind No-Ops
+   * auf einem eigenständig geklonten (elternlosen) Wurzelknoten — verifiziert,
+   * bevor hier auf `$clone.filter(SEL).add($clone.find(SEL))` gesetzt wurde:
+   * das ändert am geklonten Text nichts, weil die Wurzel keinen Parent hat, an
+   * dem ein Geschwisterknoten hängen könnte.
+   *
+   * Arbeitet je Wurzel auf einem Klon — mutiert nie das geteilte Dokument,
+   * das spätere Selektoren (Datum, Kategorien) im selben Aufruf noch lesen.
+   */
+  static blockText($: cheerio.CheerioAPI, el: cheerio.Cheerio<AnyNode>): string {
+    return el
+      .map((_, node) => {
+        const $clone = $(node).clone();
+        // HTML kollabiert jede Whitespace-Folge (auch Zeilenumbrüche aus der
+        // Quelltext-Einrückung) zu einem Leerzeichen. Das muss VOR dem
+        // Einfügen unserer eigenen Trenner passieren, sonst hinge `full_text`
+        // (und `content_hash`) von der Einrückung des Templates ab.
+        $clone
+          .find('*')
+          .addBack()
+          .contents()
+          .each((_, contentNode) => {
+            if (contentNode.type === 'text') {
+              contentNode.data = contentNode.data.replace(/\s+/g, ' ');
+            }
+          });
+        $clone.find('br').replaceWith('\n');
+        const blocks = $clone.find(BLOCK_SEPARATOR_SELECTOR);
+        blocks.before('\n');
+        blocks.after('\n');
+        return $clone.text();
+      })
+      .get()
+      .join('\n\n');
+  }
+
+  /**
+   * Whitespace-Normalisierung für extrahierten Text. Läuft zeilenweise, damit
+   * die von `blockText` gesetzten Zeilenumbrüche (Absatzgrenzen) erhalten
+   * bleiben — der Chunker (`smartChunkDocument` → `cleanTextForEmbedding(text,
+   * true)`) erkennt Überschriften/Absätze zeilenweise, ein einzeiliger Text
+   * würde ihm die Struktur nehmen. Reihenfolge ist wichtig: erst pro Zeile
+   * Whitespace kollabieren, DANN 3+ Zeilenumbrüche zusammenziehen — umgekehrt
+   * (wie zuvor) frisst `/\s+/g` die Zeilenumbrüche schon vorher weg und macht
+   * die Zeilenumbruch-Regel zu totem Code.
+   *
+   * `[^\S\n]` trifft jedes Whitespace-Zeichen außer `\n` — also Tab, Formfeed,
+   * Vertical-Tab, NBSP, die Unicode-Leerräume U+2000–U+200A/U+3000, nicht nur
+   * das ASCII-Leerzeichen. Nötig bleibt der Schritt trotz der Kollabierung in
+   * `blockText`, weil zwei für sich schon kollabierte Textknoten an einer
+   * Grenze (z. B. Inline-Element-Rand) immer noch zwei Leerzeichen aneinander-
+   * reihen können.
+   */
+  static normalizeWhitespace(text: string): string {
+    return text
+      .split('\n')
+      .map((line) => line.replace(/[^\S\n]+/g, ' ').trim())
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  /**
+   * Wählt den Content-Text — identisch in allen drei CMS-Extraktionsmethoden,
+   * deshalb hier einmal statt dreimal dupliziert.
+   *
+   * Der 200-Zeichen-Schwellenwert wird auf dem UNGETRENNTEN Text gemessen
+   * (`el.text()`), nicht auf dem mit `blockText` separator-versehenen — das
+   * entspricht exakt dem in #3574 austarierten Selektor-Verhalten. Würde man
+   * auf der getrennten Länge gaten, könnten die eingefügten Trenner einen
+   * knapp unter 200 Zeichen liegenden Container (der z. B. zusätzlich eine
+   * "Kategorie"/"Zurück"-Seitenleiste enthält) über die Schwelle heben und
+   * genau die Seitenchrome hereinziehen, die der Schwellenwert ausschließen
+   * soll.
+   *
+   * Fällt keiner der Selektoren durch die Schwelle, nimmt der Rückfall den
+   * ERSTEN Selektor mit irgendeinem nicht-leeren Text (nicht den längsten, der
+   * weiterhin Seitenchrome mitziehen kann) — erst wenn auch das leer bleibt,
+   * main/body (#3574). `main`s Text wird getrimmt geprüft, nicht nur auf
+   * Leerstring: ein `<main>` ohne echten Inhalt (nur verschachtelte leere
+   * Blockelemente) kann nach `blockText` allein aus eingefügten
+   * Zeilenumbrüchen bestehen — das ist kein Inhalt und muss auf `body`
+   * zurückfallen.
+   */
+  static #extractContentText(
+    $: cheerio.CheerioAPI,
+    selectors: string[]
+  ): { text: string; bodyFallback: boolean } {
+    for (const sel of selectors) {
+      const el = $(sel);
+      if (el.length && el.text().trim().length > 200) {
+        return { text: ContentExtractor.blockText($, el), bodyFallback: false };
+      }
+    }
+
+    for (const sel of selectors) {
+      const el = $(sel);
+      if (el.length && el.text().trim()) {
+        return { text: ContentExtractor.blockText($, el), bodyFallback: false };
+      }
+    }
+
+    const main = $('main');
+    const mainText = main.length ? ContentExtractor.blockText($, main) : '';
+    const text = mainText.trim() ? mainText : ContentExtractor.blockText($, $('body'));
+    return { text, bodyFallback: true };
+  }
+
   /**
    * Extract content from WordPress page
    * Handles Elementor, Gutenberg, and classic themes
@@ -72,37 +200,9 @@ export class ContentExtractor {
       $(selectors.removeSelectors.join(', ')).remove();
     }
 
-    // Extract main content
-    let contentText = '';
-    for (const sel of selectors.content) {
-      const el = $(sel);
-      if (el.length && el.text().trim().length > 200) {
-        contentText = el.text();
-        break;
-      }
-    }
-
-    // Fallback: no selector cleared the 200-char gate (e.g. a genuinely short
-    // Beschluss). Take the FIRST configured selector with any non-empty text —
-    // not the longest, which can pull in sidebar/nav chrome — before falling
-    // back to main/body (#3574).
-    let bodyFallback = false;
-    if (!contentText || contentText.trim().length < 200) {
-      let shortText = '';
-      for (const sel of selectors.content) {
-        const el = $(sel);
-        if (el.length && el.text().trim()) {
-          shortText = el.text();
-          break;
-        }
-      }
-      if (shortText) {
-        contentText = shortText;
-      } else {
-        contentText = $('main').text() || $('body').text();
-        bodyFallback = true;
-      }
-    }
+    const picked = ContentExtractor.#extractContentText($, selectors.content);
+    let contentText = picked.text;
+    const bodyFallback = picked.bodyFallback;
 
     // Extract categories
     const categories: string[] = [];
@@ -114,11 +214,7 @@ export class ContentExtractor {
       }
     });
 
-    // Clean text
-    contentText = contentText
-      .replace(/\s+/g, ' ') // Collapse whitespace
-      .replace(/\n{3,}/g, '\n\n') // Normalize line breaks
-      .trim();
+    contentText = ContentExtractor.normalizeWhitespace(contentText);
 
     return { title, publishedAt, text: contentText, categories, bodyFallback };
   }
@@ -160,37 +256,9 @@ export class ContentExtractor {
       $(selectors.removeSelectors.join(', ')).remove();
     }
 
-    // Extract main content
-    let contentText = '';
-    for (const sel of selectors.content) {
-      const el = $(sel);
-      if (el.length && el.text().trim().length > 200) {
-        contentText = el.text();
-        break;
-      }
-    }
-
-    // Fallback: no selector cleared the 200-char gate (e.g. a genuinely short
-    // Beschluss). Take the FIRST configured selector with any non-empty text —
-    // not the longest, which can pull in sidebar/nav chrome — before falling
-    // back to main/body (#3574).
-    let bodyFallback = false;
-    if (!contentText || contentText.trim().length < 200) {
-      let shortText = '';
-      for (const sel of selectors.content) {
-        const el = $(sel);
-        if (el.length && el.text().trim()) {
-          shortText = el.text();
-          break;
-        }
-      }
-      if (shortText) {
-        contentText = shortText;
-      } else {
-        contentText = $('main').text() || $('body').text();
-        bodyFallback = true;
-      }
-    }
+    const picked = ContentExtractor.#extractContentText($, selectors.content);
+    let contentText = picked.text;
+    const bodyFallback = picked.bodyFallback;
 
     // Extract categories
     const categories: string[] = [];
@@ -202,11 +270,7 @@ export class ContentExtractor {
       }
     });
 
-    // Clean text
-    contentText = contentText
-      .replace(/\s+/g, ' ') // Collapse whitespace
-      .replace(/\n{3,}/g, '\n\n') // Normalize line breaks
-      .trim();
+    contentText = ContentExtractor.normalizeWhitespace(contentText);
 
     return { title, publishedAt, text: contentText, categories, bodyFallback };
   }
@@ -269,37 +333,9 @@ export class ContentExtractor {
       $(selectors.removeSelectors.join(', ')).remove();
     }
 
-    // Extract main content
-    let contentText = '';
-    for (const sel of selectors.content) {
-      const el = $(sel);
-      if (el.length && el.text().trim().length > 200) {
-        contentText = el.text();
-        break;
-      }
-    }
-
-    // Fallback: no selector cleared the 200-char gate (e.g. a genuinely short
-    // Beschluss). Take the FIRST configured selector with any non-empty text —
-    // not the longest, which can pull in sidebar/nav chrome — before falling
-    // back to main/body (#3574).
-    let bodyFallback = false;
-    if (!contentText || contentText.trim().length < 200) {
-      let shortText = '';
-      for (const sel of selectors.content) {
-        const el = $(sel);
-        if (el.length && el.text().trim()) {
-          shortText = el.text();
-          break;
-        }
-      }
-      if (shortText) {
-        contentText = shortText;
-      } else {
-        contentText = $('main').text() || $('body').text();
-        bodyFallback = true;
-      }
-    }
+    const picked = ContentExtractor.#extractContentText($, selectors.content);
+    let contentText = picked.text;
+    const bodyFallback = picked.bodyFallback;
 
     // Extract categories
     const categories: string[] = [];
@@ -311,11 +347,7 @@ export class ContentExtractor {
       }
     });
 
-    // Clean text
-    contentText = contentText
-      .replace(/\s+/g, ' ')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+    contentText = ContentExtractor.normalizeWhitespace(contentText);
 
     return { title, publishedAt, text: contentText, categories, bodyFallback };
   }
