@@ -15,6 +15,9 @@ on:
       - 'package.json'
       - 'patches/**'
       - '.dockerignore'
+      - 'tsconfig.base.json'
+      - 'tsconfig.strict-migration.json'
+      - 'CHANGELOG.md'
       - 'nginx.conf'
       - 'docker-compose.prod.yml'
       - '.github/workflows/build-images.yml'
@@ -154,6 +157,9 @@ jobs:
               - 'patches/**'
               - '.dockerignore'
               - '.github/workflows/build-images.yml'
+            tsconfig: &tsconfig
+              - 'tsconfig.base.json'
+              - 'tsconfig.strict-migration.json'
             shared:
               - 'packages/shared/**'
               - 'packages/core/**'
@@ -175,14 +181,18 @@ jobs:
               - 'packages/wolke/**'
               - 'packages/sites/**'
               - 'packages/sites-design/**'
+              - 'CHANGELOG.md'
               - *install
+              - *tsconfig
             api:
               - 'apps/api/**'
+              - 'services/hocuspocus/**'
               - 'packages/shared/**'
               - 'packages/core/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
               - *install
+              - *tsconfig
             hocuspocus:
               - 'services/hocuspocus/**'
               - 'packages/shared/**'
@@ -190,6 +200,7 @@ jobs:
               - 'packages/contracts/**'
               - 'packages/query/**'
               - *install
+              - *tsconfig
             gruen-o-mat:
               - 'apps/gruen-o-mat/**'
               - 'packages/chat/**'
@@ -201,6 +212,7 @@ jobs:
               - 'packages/ui/**'
               - 'packages/collab/**'
               - *install
+              - *tsconfig
             nlp:
               - 'services/nlp/**'
             doku:
