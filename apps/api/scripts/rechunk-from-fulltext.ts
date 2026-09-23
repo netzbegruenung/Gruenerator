@@ -32,6 +32,7 @@ import dotenv from 'dotenv';
 import { buildEmbeddingTextsForChunks } from '../services/document-services/embeddingText.js';
 import { embeddingPayload } from '../services/document-services/embeddingProvenance.js';
 import { offsetPayload } from '../services/document-services/offsetPayload.js';
+import { pagePayload } from '../services/document-services/pagePayload.js';
 import { structurePayload } from '../services/document-services/structurePayload.js';
 import { type Chunk, type ChunkMetadata } from '../services/document-services/TextChunker/types.js';
 import { generatePointId, stringToNumericHash } from '../utils/validation/hash.js';
@@ -306,7 +307,6 @@ export function rebuildChunkPayload(
   const carried: Record<string, unknown> = { ...headPayload };
   for (const key of RECOMPUTED_PAYLOAD_KEYS) delete carried[key];
 
-  const pageNumber = headPayload.page_number;
   const carriesTokenCount = Object.prototype.hasOwnProperty.call(headPayload, 'token_count');
 
   return {
@@ -318,11 +318,11 @@ export function rebuildChunkPayload(
     ...offsetPayload(chunk),
     quality_score: ctx.qualityScore,
     ...(carriesTokenCount ? { token_count: chunk.tokens } : {}),
-    // NIE schätzen: full_text trägt keine Seitenmarker, der Chunker hat also
-    // keine Seiteninformation, und die anteilige Schätzung aus
-    // ProgramPdfScraper.ts:390-396 ist nicht reproduzierbar, sobald sich die
-    // Chunk-Zahl ändert.
-    ...(typeof pageNumber === 'number' ? { page_number: pageNumber } : {}),
+    // NIE schätzen: nur eine Seite, die der Chunker aus `## Seite N`-Markern
+    // im full_text abgeleitet hat. Die Seite des Kopf-Punkts auf alle Chunks zu
+    // kopieren wäre eine Schätzung, ebenso die anteilige aus
+    // ProgramPdfScraper.ts:390-396.
+    ...pagePayload(chunk),
     indexed_at: ctx.now,
     // rechunked_at NICHT hier setzen: wer zwischen Upsert und Löschen abstürzt,
     // soll bei einem erneuten --resume-Lauf wieder gefunden werden. Der

@@ -261,48 +261,6 @@ export function announcesPendingWork(text: string): boolean {
 }
 
 /**
- * Whether an answer looks CUT OFF rather than finished: a completed German
- * answer ends on punctuation, so a trailing letter or digit is the signature of
- * a stream that stopped mid-sentence.
- *
- * The point of this check is WHERE it runs. The identical test also runs in the
- * chat client (`parseSSEStream`, search for "looksCutOff") over the text the
- * browser actually assembled, so the two logs together localise a truncation
- * report without a repro:
- *
- *   server suspicious + client suspicious → generation stopped early
- *                                            (pair it with finishReason)
- *   server clean      + client suspicious → the tail was lost after the server
- *                                            handed it over (transport/render)
- *
- * The live case that motivated this was the second kind — 513 chars generated,
- * 414 on screen — and it cost an entire investigation to establish, because
- * neither side said anything at all.
- */
-/**
- * Fewer words than this and an unpunctuated ending says nothing: that is the
- * shape of a LABEL, not of a severed sentence.
- *
- * Empirical, not invented. A QA session asked for three literal wordings and
- * got a warning for each — "KEINE DATEN", "Korrigiert", "Klarwasser
- * gespeichert" (1–2 words), all three perfect answers — beside ONE real
- * truncation. Meanwhile the shortest cut this check exists to catch runs six
- * words ("Im Vergleich zu anderen rechtspopulistischen Pa"). Five sits in that
- * gap. It is a threshold, not a law: a cut after four words slips through, and
- * that is the price of a warning that means something when it appears.
- *
- * Mirrored in `parseSSEStream` — change both, or the cross-check between the
- * two logs stops comparing like with like.
- */
-export const TRUNCATION_MIN_WORDS = 5;
-
-export function looksCutOff(text: string): boolean {
-  const trimmed = text.trimEnd();
-  if (trimmed.split(/\s+/).filter(Boolean).length < TRUNCATION_MIN_WORDS) return false;
-  return /[\p{L}\p{N}]$/u.test(trimmed);
-}
-
-/**
  * The chat-template control tokens with which the open-weight models wrap a
  * tool call. They are protocol, never content: the SDK parses real ones out of
  * the stream long before the text reaches here, so an occurrence in the answer
