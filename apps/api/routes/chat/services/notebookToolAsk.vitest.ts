@@ -93,6 +93,9 @@ describe('looksLikeNotebookToolAsk — trifft (Ort oder Menge)', () => {
     'Welche Seite ist das Zitat zum Ehrenamt?',
     'Gib mir die Seitenzahl zu diesem Zitat',
     'Nenne die Seitenzahlen für die Stellen zum Radverkehr',
+    'Auf welcher Seite stehen die Stellen zum Radverkehr?',
+    'Auf welcher Seite des Grundsatzprogramms steht das?',
+    'Auf welcher Seite heißt es, dass die Kita-Gebühren fallen?',
   ])('%s', (text) => {
     expect(looksLikeNotebookToolAsk(text)).toBe(true);
   });
@@ -115,6 +118,14 @@ describe('looksLikeNotebookToolAsk — trifft NICHT', () => {
     'Auf welcher Seite der Straße soll der Radweg entstehen?',
     'Welche Seiten der Stadt profitieren vom Ausbau?',
     'Die Seitenzahl ist mir egal, was fordern wir zum Klimaschutz?',
+    // Review PR #3652: „stellen" als Verb, Komposita, Nominativ-„der", „…, dass".
+    'Auf welche Seite stellen sich die Grünen im Streit ums Tempolimit?',
+    'Auf welcher Seite stehen die Grünen und welche Forderungen stellen sie?',
+    'Auf welcher Seite stehen die Grünen in der Programmdebatte?',
+    'Welche Seite hat sich in der Satzungsfrage durchgesetzt?',
+    'Auf welcher Seite steht der Antragsteller?',
+    'Welche Seite behauptet, dass der Radweg zu teuer ist?',
+    'Welche Seite glaubt, dass die Wärmepumpe scheitert?',
     // Nomen, die wie Verben anfangen.
     'Welche Zahlen nennt das Notebook zum Haushalt?',
     'Gibt es eine Reihe von Maßnahmen zur Verkehrswende?',

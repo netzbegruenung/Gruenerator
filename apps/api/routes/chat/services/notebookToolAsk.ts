@@ -59,16 +59,26 @@ const SEARCH_ASKS = [
  * nach einer Position, nicht nach einem Blatt. Deshalb zählt die Frage nur mit
  * einem Dokument-Bezug im selben Satz: ein Zitat in Anführungszeichen, ein
  * Dokument als Ort („im Antrag", „des Programms"), ein Textstück als
- * Gegenstand (Begriff, Zitat, Stelle, …) oder ein Verb, das nur Texte tun
+ * Gegenstand (Begriff, Zitat, die Stelle, …) oder ein Verb, das nur Texte tun
  * („erwähnt", „genannt", „geht es um") — nicht über ein Komma hinweg, außer
- * „…, dass". „Seitenzahl" ist eindeutig.
+ * „steht/heißt es, dass". „Seitenzahl" ist eindeutig.
  */
+/**
+ * Dokument-Nomen für den Seiten-Anker: nur Flexionsendungen, keine beliebigen
+ * Komposita — „Programmdebatte", „Satzungsfrage", „Antragsteller" sind keine
+ * Dokumente. Die gebräuchlichen Komposita stehen ausgeschrieben da.
+ */
+const PAGE_DOCUMENT_NOUN =
+  '(?:notebook|dokument|quelle|(?:wahl|grundsatz|regierungs)?programm|kapitel|koalitionsvertr(?:a|ä|ae)g|antr(?:a|ä|ae)g|beschl(?:u|ü|ue)ss|pdf|protokoll|satzung|positionspapier|pressemitteilung)(?:e|en|es|n|s)?';
 const PAGE_ANCHOR = [
   '[„"»‚\'“]\\S*',
-  `(?<![\\wäöüß])(?:im|in|aus|vom|von|des|der)\\s+(?:(?:dem|der|den|des|diesem|dieser|dieses|meinem|meiner|meines|unserem|unserer|unseres)\\s+)?${DOCUMENT_NOUN}`,
-  '(?<![\\wäöüß])(?:begriff\\w*|wort|w(?:ö|oe)rter|zitat\\w*|satz|s(?:ä|ae)tze|formulierung\\w*|stellen?|textstellen?|passagen?|absatz|abs(?:ä|ae)tze|tabellen?|grafik\\w*|abbildung\\w*)',
+  `(?<![\\wäöüß])(?:im|in|aus|vom|von|des)\\s+(?:(?:dem|der|den|des|diesem|dieser|dieses|meinem|meiner|meines|unserem|unserer|unseres)\\s+)?${PAGE_DOCUMENT_NOUN}`,
+  // „Stelle(n)" nur als Nomen mit Begleiter — „welche Forderungen stellen sie" ist ein Verb.
+  '(?<![\\wäöüß])(?:(?:die|den|der|diese[rn]?|alle[rn]?|\\d+)\\s+stellen?|textstellen?)',
+  '(?<![\\wäöüß])(?:begriff\\w*|wort|w(?:ö|oe)rter|zitat\\w*|satz|s(?:ä|ae)tze|formulierung\\w*|passagen?|absatz|abs(?:ä|ae)tze|tabellen?|grafik\\w*|abbildung\\w*)',
   '(?<![\\wäöüß])(?:erw(?:ä|ae)hnt|genannt|behandelt|beschrieben|thematisiert|aufgef(?:ü|ue)hrt|zitiert|definiert|geht\\s+es\\s+um)',
-  ',\\s*dass',
+  // „…, dass" nur hinter einem Verb des Geschriebenen — „welche Seite behauptet, dass" ist ein Streit.
+  '(?<![\\wäöüß])(?:steht|hei(?:ß|ss)t(?:\\s+es)?|findet\\s+sich)\\s*,\\s*dass',
 ].join('|');
 const PAGE_ASKS = [
   `(?:(?:auf|in)\\s+welche[rn]?|welche)\\s+seiten?(?![\\wäöüß])[^.?!;,]{0,100}?(?:${PAGE_ANCHOR})`,
