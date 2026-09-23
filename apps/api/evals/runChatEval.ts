@@ -120,6 +120,9 @@ interface WireMessage {
   id: string;
   role: 'user' | 'assistant';
   parts: { type: 'text'; text: string }[];
+  /** Notebook-Fläche: in welchem Modus diese Antwort lief (`answer_mode`-Event)
+   *  — der Client schickt ihn in der History mit, der Auto-Wächter liest ihn. */
+  answerMode?: 'chat' | 'praezision';
 }
 
 function wireMessage(id: string, role: 'user' | 'assistant', text: string): WireMessage {
@@ -331,9 +334,11 @@ async function runTurn(
         messages: messages.map((m) => ({
           role: m.role,
           content: m.parts.map((p) => p.text).join(''),
+          ...(m.answerMode ? { answerMode: m.answerMode } : {}),
         })),
         collectionIds: scenario.collectionIds ?? [],
         ...(scenario.notebookMode ? { mode: scenario.notebookMode } : {}),
+        ...(scenario.notebookAnswerMode ? { answerMode: scenario.notebookAnswerMode } : {}),
         ...(ctx.threadId ? { threadId: ctx.threadId } : {}),
       }
     : {
@@ -424,7 +429,10 @@ async function runTurn(
   if (trace.threadId && !ctx.threadId) ctx.threadId = trace.threadId;
   ctx.history.push(userMessage);
   if (trace.fullText) {
-    ctx.history.push(wireMessage(`eval-${scenario.id}-t${turnIdx}-a`, 'assistant', trace.fullText));
+    const answer = wireMessage(`eval-${scenario.id}-t${turnIdx}-a`, 'assistant', trace.fullText);
+    const resolved = events.find((e) => e.event === 'answer_mode')?.data.resolved;
+    if (resolved === 'chat' || resolved === 'praezision') answer.answerMode = resolved;
+    ctx.history.push(answer);
   }
   scenarioCtx.priorArtifactIds.push(...trace.artifactIds);
   if (trace.sharepicVariants.length > 0) {
