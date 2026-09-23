@@ -633,7 +633,9 @@ async function stats(
         title: `Statistik: ${heading}`,
         content: renderStats(heading, result),
         collectionId: collection.key,
-        ...(result.source ? { documentId: result.source.id, url: result.source.id } : {}),
+        ...(result.source
+          ? { documentId: result.source.id, url: resolveWolkeDisplayUrl(result.source.id) }
+          : {}),
       },
     ],
     { snippetChars: STATS_CHARS }

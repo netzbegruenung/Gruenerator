@@ -23,6 +23,10 @@ import {
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { scrollDocuments } from '../../database/services/QdrantService/operations/batchOperations.js';
 import { getQdrantDocumentService } from '../../services/document-services/index.js';
+import {
+  resolveWolkeDisplayUrl,
+  toStoredWolkeUrl,
+} from '../../services/scrapers/utils/wolkeShareSecrets.js';
 import { rankManualSearchResults } from '../../services/search/manualSearchRanking.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -226,7 +230,9 @@ export const researchContractRouter = s.router(researchContract, {
 
   similar: async (args) => {
     const startTime = Date.now();
-    const { sourceUrl, collectionId, limit } = args.body;
+    const { collectionId, limit } = args.body;
+    // Clients carry the resolved Wolke link; the payload stores `wolke://…`.
+    const sourceUrl = toStoredWolkeUrl(args.body.sourceUrl);
 
     const systemConfig = getSystemCollectionConfig(collectionId);
     if (!systemConfig) {
@@ -303,7 +309,9 @@ export const researchContractRouter = s.router(researchContract, {
         return {
           document_id: String(payload.document_id || item.id),
           title: String(payload.title || 'Unbekanntes Dokument'),
-          source_url: (payload.source_url as string) || null,
+          source_url: payload.source_url
+            ? resolveWolkeDisplayUrl(payload.source_url as string)
+            : null,
           relevant_content: truncateSnippet(
             String(payload.relevant_content || payload.content || payload.text || '')
           ),
