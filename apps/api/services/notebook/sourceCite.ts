@@ -8,8 +8,11 @@
  * Wortfenster (Dice-Koeffizient auf Wortmengen ≥ 0,9). Die Offsets zeigen
  * immer in den Originaltext, damit die Fundstelle zitierbar ist.
  */
+import { createLogger } from '../../utils/logger.js';
+
 import {
   findPassages,
+  loadPassagePageEnds,
   markedPageRanges,
   resolveSourceInNotebook,
   type NotebookSourcesDeps,
@@ -28,6 +31,7 @@ const CLAIM_MIN_OVERLAP = 2;
 const CONTENT_TOKEN_MIN = 4;
 
 const NOT_FOUND = 'Notebook nicht gefunden oder kein Zugriff.';
+const log = createLogger('notebook:sourceCite');
 
 export type LocateMethod = 'exact' | 'normalized' | 'fuzzy';
 
@@ -363,7 +367,41 @@ export async function supportClaim(
     },
     deps
   );
-  return { candidates: claimCandidates(passages, input.claim), reranked };
+  const candidates = claimCandidates(passages, input.claim);
+  return { candidates: await withSentencePages(candidates, passages, deps.db), reranked };
+}
+
+/**
+ * Die Seite des Belegsatzes, nicht die seiner Passage: ein Chunk trägt die
+ * Seite, auf der er BEGINNT, der Satz kann hinter einer `## Seite N`-Marke
+ * stehen. Gesucht wird die letzte Marke zwischen Passagenanfang und dem ersten
+ * Zeichen des Satzes. Ein Fehler hier kostet nur die genauere Seite.
+ */
+async function withSentencePages(
+  candidates: CiteCandidate[],
+  passages: readonly Passage[],
+  db: NotebookSourcesDeps['db']
+): Promise<CiteCandidate[]> {
+  const spans = candidates.flatMap((c, k) => {
+    const passage = passages.find(
+      (p) => p.sourceId === c.sourceId && p.chunkIndex === c.chunkIndex
+    );
+    if (!passage || passage.charStart === null || c.charStart === null) return [];
+    if (c.charStart <= passage.charStart) return [];
+    return [{ k, sourceId: c.sourceId, charStart: passage.charStart, charEnd: c.charStart + 1 }];
+  });
+  if (spans.length === 0) return candidates;
+  let pages = new Map<number, number>();
+  try {
+    pages = await loadPassagePageEnds(db, spans);
+  } catch (err) {
+    log.warn('[notebook_quellen] cite: sentence page lookup failed', err);
+  }
+  const byCandidate = new Map(spans.map((s, n) => [s.k, pages.get(n)]));
+  return candidates.map((c, k) => {
+    const page = byCandidate.get(k);
+    return page === undefined ? c : { ...c, pageNumber: page };
+  });
 }
 
 /**
