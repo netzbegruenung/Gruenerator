@@ -121,6 +121,96 @@ describe('buildPrepareStep — forced fallback tool', () => {
   });
 });
 
+// Live 23.09.2026: der einzige Aufruf (`notebook_quellen`) scheiterte mit
+// einer Meldung, die sagte, wie es geht — der Planer hörte nach einem Schritt
+// auf, und die Antwort behauptete, die Funktion gebe es nicht.
+describe('buildPrepareStep — one retry after a step whose calls all failed', () => {
+  const never = () => false;
+  const NO_NB = 'Kein Notebook ausgewählt — gib notebookId an.';
+  const failedStep = {
+    content: [
+      { type: 'tool-call', toolName: 'notebook_quellen' },
+      { type: 'tool-result', toolName: 'notebook_quellen', output: { error: NO_NB } },
+    ],
+  };
+  const okStep = {
+    content: [
+      { type: 'tool-result', toolName: 'notebook_quellen', output: { error: NO_NB } },
+      { type: 'tool-result', toolName: 'web_search', output: { results: [] } },
+    ],
+  };
+
+  it('nudges the next step with the tool name and its error', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    const out = prep({ stepNumber: 1, steps: [failedStep] });
+    expect(out.toolChoice).toBeUndefined();
+    expect(out.system).toContain('sys');
+    expect(out.system).toContain('notebook_quellen');
+    expect(out.system).toContain(NO_NB);
+    expect(out.system).toMatch(/erneut/);
+    expect(out.system).toMatch(/Behaupte NIE/);
+  });
+
+  it('counts a thrown tool (tool-error part) as failed too', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    const out = prep({
+      stepNumber: 1,
+      steps: [
+        { content: [{ type: 'tool-error', toolName: 'documents', error: new Error('boom') }] },
+      ],
+    });
+    expect(out.system).toContain('documents');
+    expect(out.system).toContain('boom');
+  });
+
+  it('only once per turn', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    expect(prep({ stepNumber: 1, steps: [failedStep] }).system).toContain('notebook_quellen');
+    expect(prep({ stepNumber: 2, steps: [failedStep, failedStep] })).toEqual({});
+  });
+
+  // Review PR #3568: eine Wächter-Absage („Zu viele Fehlversuche … erkläre,
+  // was nicht geklappt hat") ist eine Weisung, kein behebbarer Fehler.
+  it('not after a guard refusal', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    const guarded = {
+      content: [
+        {
+          type: 'tool-result',
+          toolName: 'notebook_quellen',
+          output: { error: 'Zu viele Fehlversuche mit diesem Tool', guard: 'failure_cap' },
+        },
+      ],
+    };
+    expect(prep({ stepNumber: 1, steps: [guarded] })).toEqual({});
+  });
+
+  it('not when one call of the step succeeded', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    expect(prep({ stepNumber: 1, steps: [okStep] })).toEqual({});
+  });
+
+  it('not after a step without tool calls', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    expect(prep({ stepNumber: 1, steps: [{ content: [{ type: 'text' }] }] })).toEqual({});
+  });
+
+  it('force-finish still wins on the last step', () => {
+    const prep = buildPrepareStep('sys', 'SUFF', 2, never, false);
+    expect(prep({ stepNumber: 1, steps: [failedStep] })).toEqual({
+      toolChoice: 'none',
+      system: 'sysSUFF',
+    });
+  });
+
+  it('keeps a forced fallback tool and adds the nudge to its system', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false, () => 'web_search');
+    const out = prep({ stepNumber: 1, steps: [failedStep] });
+    expect(out.toolChoice).toEqual({ type: 'tool', toolName: 'web_search' });
+    expect(out.system).toContain('notebook_quellen');
+  });
+});
+
 // Fake models are opaque tags — the engine only forwards them to
 // streamText/generateText, and the injected fakes read `.id` to assert which
 // model drove which phase.

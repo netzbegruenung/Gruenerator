@@ -39,6 +39,9 @@ const NOTEBOOK_TOOL_ASK = new RegExp(
       'zitiere?',
       // „Ich finde die Stelle gut" ist eine Meinung, kein Suchauftrag.
       '(?<!ich\\s{1,3})finde?\\s+(?:mir\\s+)?(?:die\\s+)?(?:stelle|passage|textstelle|das\\s+zitat)',
+      // „Finde im Notebook die fünf Stellen …" — Wörter dazwischen, aber nicht
+      // „finde ich" und nicht über ein Komma („Ich finde, an mehreren Stellen …").
+      '(?<!ich\\s{1,3})finde?\\s+(?!ich(?![\\wäöüß]))[^.?!,]{0,60}?(?<![\\wäöüß])(?:stellen|passagen|textstellen)',
       'entferne?',
       'verschiebe?',
       'kopiere?',
@@ -62,6 +65,11 @@ const NOTEBOOK_TOOL_ASK = new RegExp(
       // eine Inhaltsfrage.
       '(?:sortiert|geordnet|gereiht|gruppiert)\\s+nach\\s+(?:datum|name|l(?:ä|ae)nge|seiten|relevanz)',
       '(?:quellen?|dokumente?)\\s+(?:ist|sind)\\s+(?:die|das|am)\\s+(?:l(?:ä|ae)ngst|k(?:ü|ue)rzest|neuest|(?:ä|ae)ltest)\\w*',
+      // Rangfolge nach Relevanz — nur mit Quellen als Gegenstand.
+      '(?:quellen?|dokumente?)\\s+[^.?!,]{0,60}?am\\s+relevantesten',
+      // Filter nach dem Titel — nur mit Quellen als Gegenstand: „was bedeutet
+      // das Wort im Titel des Programms" ist eine Inhaltsfrage.
+      '(?:quellen?|dokumente?)\\s+[^.?!,]{0,60}?im\\s+titel',
     ].join('|'),
     ')(?![\\wäöüß])',
   ].join(''),
@@ -71,4 +79,32 @@ const NOTEBOOK_TOOL_ASK = new RegExp(
 export function looksLikeNotebookToolAsk(text: string | null | undefined): boolean {
   if (!text) return false;
   return NOTEBOOK_TOOL_ASK.test(text);
+}
+
+/**
+ * Die Schreib-Teilmenge: Quellen entfernen, verschieben, kopieren, umbenennen,
+ * taggen. System-Notebooks sind schreibgeschützt — ein solcher Auftrag an
+ * eines bekommt keinen Pin auf ein Werkzeug, das nur ablehnen kann. Dieselbe
+ * Form wie oben: Imperativ, oder Infinitiv nur im Bittrahmen.
+ */
+const WRITE_INFINITIVES = '(?:umbenennen|entfernen|verschieben|kopieren|taggen)';
+const NOTEBOOK_WRITE_ASK = new RegExp(
+  [
+    '(?<![\\wäöüß])(?:',
+    [
+      'entferne?',
+      'verschiebe?',
+      'kopiere?',
+      'tagge?',
+      'benenne',
+      `(?:kannst|k(?:ö|oe)nntest|w(?:ü|ue)rdest|bitte)\\s+[^.?!,]{0,80}?(?<![\\wäöüß])${WRITE_INFINITIVES}`,
+    ].join('|'),
+    ')(?![\\wäöüß])',
+  ].join(''),
+  'i'
+);
+
+export function looksLikeNotebookWriteAsk(text: string | null): boolean {
+  if (!text) return false;
+  return NOTEBOOK_WRITE_ASK.test(text);
 }

@@ -238,6 +238,60 @@ function tryLenientJsonParse(raw: string): unknown {
   }
 }
 
+/** Was `prepareStep` von einem gelaufenen Schritt liest — ein Ausschnitt von
+ *  `StepResult`, damit die Tests ohne das SDK auskommen. */
+export interface PreparedStepView {
+  content: ReadonlyArray<{ type: string; toolName?: string; output?: unknown; error?: unknown }>;
+}
+
+const errorText = (value: unknown): string =>
+  value instanceof Error
+    ? value.message
+    : typeof value === 'string'
+      ? value
+      : JSON.stringify(value);
+
+/**
+ * Hat JEDER Werkzeugaufruf dieses Schritts gescheitert, die Nudge für den
+ * nächsten — sonst null. Gescheitert heißt: ein `tool-error` (geworfen) oder
+ * ein Ergebnis `{ error }` (so meldet `wrapToolsForLoop` jeden Fehlschlag).
+ *
+ * Live 23.09.2026: `notebook_quellen` scheiterte mit „Kein Notebook ausgewählt
+ * — gib notebookId an (aus notebooks action="list", Feld ref)", der Planer
+ * hörte nach diesem einen Schritt auf, und die Antwort behauptete, eine solche
+ * Funktion gebe es nicht. Die Meldung sagte, wie es weitergeht; gelesen hat sie
+ * niemand. Kein erzwungener Aufruf (`toolChoice`): ist der Fehler nicht zu
+ * beheben (Dienst down), soll das Modell ehrlich antworten dürfen.
+ */
+export function failedStepRetryNudge(step: PreparedStepView | null): string | null {
+  if (!step) return null;
+  const outcomes = step.content.flatMap((part) => {
+    if (part.type === 'tool-error') {
+      return [{ toolName: part.toolName, error: part.error, guarded: false }];
+    }
+    if (part.type !== 'tool-result') return [];
+    const output =
+      part.output && typeof part.output === 'object'
+        ? (part.output as { error?: unknown; guard?: unknown })
+        : null;
+    return [
+      { toolName: part.toolName, error: output?.error ?? null, guarded: output?.guard != null },
+    ];
+  });
+  // Eine Wächter-Absage (`wrapToolsForLoop`, Feld `guard`) ist eine Weisung
+  // („hör auf", „andere Suche") — keine Nudge, die ihr widerspricht.
+  if (outcomes.length === 0 || outcomes.some((o) => o.error == null || o.guarded)) return null;
+  const lines = outcomes
+    .map((o) => `- ${o.toolName ?? 'Werkzeug'}: ${errorText(o.error).slice(0, 300)}`)
+    .join('\n');
+  return (
+    `\n\nDER LETZTE WERKZEUGAUFRUF IST FEHLGESCHLAGEN:\n${lines}\n` +
+    'Lies die Fehlermeldung. Sagt sie, was fehlt oder falsch war (z. B. eine Angabe, die ein anderes Werkzeug liefert), dann korrigiere den Aufruf und versuche es JETZT genau einmal erneut. ' +
+    'Behaupte NIE, dir fehle dafür eine Funktion oder ein Werkzeug — das Werkzeug gibt es, nur dieser Aufruf ist fehlgeschlagen. ' +
+    'Lässt sich der Fehler nicht beheben, sag ehrlich, dass der Aufruf fehlgeschlagen ist und warum.'
+  );
+}
+
 /** prepareStep shared by both modes: on the last step (or when forceFinish
  *  trips) strip tools AND explain why via a per-step system override. */
 export function buildPrepareStep(
@@ -266,15 +320,25 @@ export function buildPrepareStep(
    *  (see {@link pinnedFirstTool}). Only consulted while `forceFirstToolCall`
    *  holds — the research ban vetoes both, and it vetoes first. */
   firstToolName: string | null = null
-): ({ stepNumber }: { stepNumber: number }) => {
+): ({ stepNumber, steps }: { stepNumber: number; steps?: ReadonlyArray<PreparedStepView> }) => {
   toolChoice?: 'none' | 'required' | { type: 'tool'; toolName: string };
   system?: string;
 } {
-  return ({ stepNumber }) => {
-    const extra = extraSystem();
+  // Eine Nudge pro Zug: scheitert auch der zweite Versuch, bleibt es dabei.
+  let retryNudged = false;
+  return ({ stepNumber, steps }) => {
     if (stepNumber >= maxSteps - 1 || forceFinish()) {
-      return { toolChoice: 'none' as const, system: `${baseSystem}${extra}${finishSuffix}` };
+      return {
+        toolChoice: 'none' as const,
+        system: `${baseSystem}${extraSystem()}${finishSuffix}`,
+      };
     }
+    let nudge = '';
+    if (stepNumber > 0 && !retryNudged) {
+      nudge = failedStepRetryNudge(steps?.at(-1) ?? null) ?? '';
+      if (nudge) retryNudged = true;
+    }
+    const extra = `${extraSystem()}${nudge}`;
     // Explicit-scope MCP FOLLOW-UP: the small planner otherwise answers from
     // prose without ever calling the connector (observed: intent=mcp steps=0,
     // "Tally gibt nur die interne ID zurück" fabricated). Require a tool call on
