@@ -15,12 +15,13 @@
  *    oder unlesbare Antwort → chat (`guard_fallback`). Im Zweifel chat: der
  *    Loop ist um ein Vielfaches teurer als die RAG-Pipeline.
  */
-import { toolReadsSystemNotebook } from '../../../agents/langgraph/ChatGraph/nodes/classifierNode.js';
 import { isUserNotebookId } from '../../../config/notebookCollectionMap.js';
 import { aiText } from '../../../services/ai/generate.js';
+import { resolveSystemCollection } from '../../../services/notebook/systemNotebookSources.js';
 import { recordDecision, type BranchOf } from '../../../utils/decisionJournal.js';
 import { createLogger } from '../../../utils/logger.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
+import { collectionsForLocale } from '../agents/searchTools.js';
 
 import { looksLikeNotebookToolAsk, looksLikeNotebookWriteAsk } from './notebookToolAsk.js';
 
@@ -79,17 +80,22 @@ export interface NotebookAnswerModeResolution {
 }
 
 /**
- * Kann der Loop mindestens ein Notebook der Seite lesen? Dieselbe Regel wie
- * der Werkzeug-Handoff im Klassifikator: ein eigenes Notebook, oder ein
- * System-Notebook aus EINER Sammlung, die der Locale zusteht.
+ * Kann der Loop mindestens ein Notebook der Seite lesen? Ein eigenes
+ * Notebook, oder ein System-Notebook aus EINER Sammlung, die der Locale
+ * zusteht. Die Seite schickt System-Ids (`berlin-system`), nicht die Slugs
+ * des Chats (`berlin-notebook`) — deshalb `resolveSystemCollection`, das
+ * Schlüssel, System-Id und Slug kennt, wie `notebook_quellen` selbst.
  */
 export function isPraezisionEligible(
   collectionIds: readonly string[],
   userLocale: string | null
 ): boolean {
-  return collectionIds.some(
-    (id) => isUserNotebookId(id) || toolReadsSystemNotebook(id, userLocale)
-  );
+  const allowed = collectionsForLocale(userLocale);
+  return collectionIds.some((id) => {
+    const system = resolveSystemCollection(id, allowed);
+    if (system) return !('error' in system);
+    return isUserNotebookId(id);
+  });
 }
 
 function messageText(content: unknown): string {
