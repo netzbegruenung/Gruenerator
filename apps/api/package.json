@@ -83,7 +83,7 @@
     "@ai-sdk/openai": "^4.0.67",
     "@anthropic-ai/sdk": "^0.115.0",
     "@better-auth/drizzle-adapter": "^1.6.26",
-    "@blocknote/xl-ai": "^0.54.2",
+    "@blocknote/xl-ai": "^0.55.0",
     "@crawlee/cheerio": "^3.18.1",
     "@crawlee/core": "^3.18.1",
     "@crawlee/playwright": "^3.18.1",
