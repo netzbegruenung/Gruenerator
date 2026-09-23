@@ -359,6 +359,14 @@ export function runAssertions(
     );
   }
 
+  if (expect.minToolCalls != null) {
+    results.push(
+      trace.toolCalls.length >= expect.minToolCalls
+        ? ok('minToolCalls')
+        : fail('minToolCalls', `${trace.toolCalls.length} < ${expect.minToolCalls}`)
+    );
+  }
+
   if (expect.offersPersistentAction !== undefined) {
     // Same shape as generatesSharepic, same reason: `false` is the load-bearing
     // case. A confirm_action card counts as "offered" — the user is one click
