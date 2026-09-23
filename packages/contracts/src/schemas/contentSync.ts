@@ -92,6 +92,15 @@ export const contentSyncResultSchema = z.object({
    */
   skipReasons: z.record(z.string(), z.number()).optional(),
   /**
+   * Landesverbände: Zähler je Datenqualitäts-Defektklasse unter den
+   * gespeicherten/aktualisierten Dokumenten (`title_fallback`, `title_generic`,
+   * `date_missing_html`, `date_year_only`, `body_fallback` — siehe
+   * `DocumentProcessor.qualityFlagsFor`). Optional, weil nur dieser eine
+   * Scraper das Feld sendet und ein Backend-Stand vor diesem Feld nichts
+   * schickt.
+   */
+  qualityFlags: z.record(z.string(), z.number()).optional(),
+  /**
    * KommunalWiki: Punkte gelöschter Wiki-Seiten, die der Lauf entfernt hat.
    * Der Crawl läuft über `list=allpages` und sieht deshalb nur, was es noch
    * gibt — ohne diesen Abgleich bleibt jede gelöschte Seite für immer stehen

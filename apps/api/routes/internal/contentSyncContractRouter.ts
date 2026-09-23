@@ -57,6 +57,12 @@ interface SyncResult {
    */
   skipReasons?: Record<string, number | { count: number }>;
   /**
+   * Landesverbände only: Zähler je Datenqualitäts-Defektklasse unter den
+   * gespeicherten/aktualisierten Dokumenten. Plain counts, unlike
+   * `skipReasons` — nur dieser Scraper füllt das Feld.
+   */
+  qualityFlags?: Record<string, number>;
+  /**
    * KommunalWiki: aufgeräumte Punkte gelöschter Seiten bzw. warum nicht.
    * `null` statt `undefined`, weil `CrawlResult` den Nicht-Fall ausdrücklich
    * als `null` führt und der Scraper hier direkt durchgereicht wird.
@@ -412,6 +418,7 @@ async function runScopedLandesverband(
     deadLinks: result.deadLinks,
     deadLinkSamples: result.deadLinkMessages,
     skipReasons: result.skipReasons,
+    qualityFlags: result.qualityFlags,
   };
 }
 
@@ -516,6 +523,9 @@ async function executeSyncRun(
         ...(result.deadLinks ? { deadLinks: result.deadLinks } : {}),
         ...(result.deadLinkSamples?.length ? { deadLinkSamples: result.deadLinkSamples } : {}),
         ...(skipReasons ? { skipReasons } : {}),
+        ...(result.qualityFlags && Object.keys(result.qualityFlags).length > 0
+          ? { qualityFlags: result.qualityFlags }
+          : {}),
         ...(result.pruned ? { pruned: result.pruned } : {}),
         ...(result.pruneSkippedReason ? { pruneSkippedReason: result.pruneSkippedReason } : {}),
         fetchErrors: result.fetchErrors ?? 0,

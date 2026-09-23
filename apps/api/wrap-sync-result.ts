@@ -9,6 +9,8 @@
  * Usage: echo '<api response json>' | npx tsx wrap-sync-result.ts \
  *          --id <id> --http-code <code> [--dry-run] [--force]
  */
+import { fileURLToPath } from 'node:url';
+
 import { type SourceGroupResult, type SyncSummary } from './types/syncTypes.js';
 
 interface Args {
@@ -57,6 +59,7 @@ interface ApiResponse {
   deadLinks?: number;
   deadLinkSamples?: string[];
   skipReasons?: Record<string, number>;
+  qualityFlags?: Record<string, number>;
   pruned?: number;
   pruneSkippedReason?: string;
   fetchErrors?: number;
@@ -64,21 +67,16 @@ interface ApiResponse {
   error?: string;
 }
 
-async function main() {
-  const { id, httpCode, dryRun, force } = parseArgs();
-  const raw = await readStdin();
-
-  let response: ApiResponse;
-  try {
-    response = JSON.parse(raw) as ApiResponse;
-  } catch {
-    response = { error: `Unparseable response (HTTP ${httpCode}): ${raw.slice(0, 500)}` };
-  }
-
+/** Pure mapping from one API response to a `SourceGroupResult` — see `main`. */
+export function buildSourceResult(
+  id: string,
+  httpCode: number,
+  response: ApiResponse
+): SourceGroupResult {
   const durationSec = Math.round((response.durationMs ?? 0) / 1000);
   const succeeded = httpCode === 200 && response.success === true;
 
-  const sourceResult: SourceGroupResult = succeeded
+  return succeeded
     ? {
         id,
         name: response.name ?? id,
@@ -92,6 +90,9 @@ async function main() {
         ...(response.deadLinkSamples?.length ? { deadLinkSamples: response.deadLinkSamples } : {}),
         ...(response.skipReasons && Object.keys(response.skipReasons).length > 0
           ? { skipReasons: response.skipReasons }
+          : {}),
+        ...(response.qualityFlags && Object.keys(response.qualityFlags).length > 0
+          ? { qualityFlags: response.qualityFlags }
           : {}),
         ...(response.pruned ? { pruned: response.pruned } : {}),
         ...(response.pruneSkippedReason ? { pruneSkippedReason: response.pruneSkippedReason } : {}),
@@ -110,6 +111,22 @@ async function main() {
         status: 'failed',
         error: response.error ?? `HTTP ${httpCode}`,
       };
+}
+
+async function main() {
+  const { id, httpCode, dryRun, force } = parseArgs();
+  const raw = await readStdin();
+
+  let response: ApiResponse;
+  try {
+    response = JSON.parse(raw) as ApiResponse;
+  } catch {
+    response = { error: `Unparseable response (HTTP ${httpCode}): ${raw.slice(0, 500)}` };
+  }
+
+  const sourceResult = buildSourceResult(id, httpCode, response);
+  const durationSec = sourceResult.duration;
+  const succeeded = sourceResult.status === 'success';
 
   const summary: SyncSummary = {
     timestamp: new Date().toISOString(),
@@ -132,7 +149,11 @@ async function main() {
   process.stdout.write(JSON.stringify(summary, null, 2));
 }
 
-main().catch((err) => {
-  console.error('Fatal error:', err);
-  process.exit(1);
-});
+// Only run the CLI when executed directly — importing `buildSourceResult` for
+// tests must not also trigger stdin/argv parsing and a `process.exit`.
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((err) => {
+    console.error('Fatal error:', err);
+    process.exit(1);
+  });
+}
