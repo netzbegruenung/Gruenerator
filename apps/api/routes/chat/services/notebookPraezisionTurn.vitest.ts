@@ -30,7 +30,8 @@ function fakeSse(): { sse: SSEWriter; sent: Sent[] } {
   return { sse, sent };
 }
 
-const fakeRes = (): Response => ({ on: vi.fn(), writableEnded: false }) as unknown as Response;
+const fakeRes = (destroyed = false): Response =>
+  ({ on: vi.fn(), writableEnded: false, destroyed }) as unknown as Response;
 
 function outcome(over: Partial<AgenticResponseOutcome> = {}): AgenticResponseOutcome {
   return {
@@ -60,7 +61,9 @@ function outcome(over: Partial<AgenticResponseOutcome> = {}): AgenticResponseOut
   };
 }
 
-function setup(opts: { outcome?: AgenticResponseOutcome; messages?: unknown[] } = {}) {
+function setup(
+  opts: { outcome?: AgenticResponseOutcome; messages?: unknown[]; resDestroyed?: boolean } = {}
+) {
   const { sse, sent } = fakeSse();
   const loopCalls: Array<Record<string, unknown>> = [];
   const deps: NotebookPraezisionDeps = {
@@ -89,7 +92,7 @@ function setup(opts: { outcome?: AgenticResponseOutcome; messages?: unknown[] } 
     runNotebookPraezisionTurn(
       {
         req: {} as Request,
-        res: fakeRes(),
+        res: fakeRes(opts.resDestroyed ?? false),
         sse,
         messages: (opts.messages ?? [
           { role: 'user', content: 'Frühere Frage' },
@@ -192,6 +195,30 @@ describe('runNotebookPraezisionTurn', () => {
     expect(await run()).toBeNull();
     expect(sent.find((e) => e.event === 'error')!.data.code).toBe('invalid_request');
     expect(deps.initializeChatState).not.toHaveBeenCalled();
+  });
+});
+
+describe('runNotebookPraezisionTurn — setup failures', () => {
+  it('sends an error and returns null when the state cannot be built', async () => {
+    const { run, sent, deps } = setup();
+    vi.mocked(deps.initializeChatState).mockRejectedValueOnce(new Error('agent not found'));
+    expect(await run()).toBeNull();
+    const error = sent.find((e) => e.event === 'error')!.data;
+    expect(error).toMatchObject({ code: 'internal', retryable: true });
+    expect(deps.streamAgenticResponse).not.toHaveBeenCalled();
+  });
+
+  it('sends an error and returns null when the system prompt cannot be built', async () => {
+    const { run, sent, deps } = setup();
+    vi.mocked(deps.buildSystemMessage).mockRejectedValueOnce(new Error('db down'));
+    expect(await run()).toBeNull();
+    expect(sent.find((e) => e.event === 'error')!.data.code).toBe('internal');
+  });
+
+  it('aborts the loop at once when the client is already gone', async () => {
+    const { run, loopCalls } = setup({ resDestroyed: true });
+    await run();
+    expect((loopCalls[0]!.reqSignal as AbortSignal).aborted).toBe(true);
   });
 });
 

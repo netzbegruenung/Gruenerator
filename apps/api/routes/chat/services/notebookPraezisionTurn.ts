@@ -166,39 +166,44 @@ export async function runNotebookPraezisionTurn(
   const history: ModelMessage[] = normalizeNotebookHistory(
     messages.slice(0, messages.lastIndexOf(lastUser))
   ).map((m) => ({ role: m.role, content: m.content.replace(/\[cite:(\d+)\]/g, '[$1]') }));
-  const loopMessages = pruneMessages(
-    [...history, { role: 'user', content: question }],
-    resolveLaneContextFloor(null) ?? undefined
-  );
+  const turnMessages: ModelMessage[] = [...history, { role: 'user', content: question }];
+  const laneFloor = resolveLaneContextFloor(null);
+  const loopMessages =
+    laneFloor != null ? pruneMessages(turnMessages, laneFloor) : pruneMessages(turnMessages);
 
-  const state = await deps.initializeChatState({
-    messages: loopMessages,
-    ...(threadId ? { threadId } : {}),
-    agentId: getDefaultAgentId(),
-    userId,
-    enabledTools: {},
-    notebookIds: collectionIds,
-    userLocale,
-  });
-  state.agentConfig.userId = userId;
-  state.intent = 'agentic';
-  state.mentionPinnedTool = TOOL;
-  state.notebookScopeLock = { ids: [...collectionIds], readOnly: true };
-  state.lastUserTextNoMentions = question;
-
-  const baseSystem = await deps.buildSystemMessage(state, { retrievalExpected: true });
-  const systemMessage = `${baseSystem}${praezisionBlock(collectionIds, userLocale)}${formatStandingInstructions(params.standingInstructions)}`;
-
+  // Vor dem Aufbau: ein Client, der schon weg ist, soll keinen Loop starten.
   const requestId = `notebook_praezision_${Date.now()}`;
-  const deadline = createTurnDeadline(requestId);
   const clientGone = new AbortController();
-  params.res.on('close', () => {
-    if (!params.res.writableEnded) clientGone.abort();
-  });
+  if (params.res.destroyed || params.res.writableEnded) {
+    clientGone.abort();
+  } else {
+    params.res.on('close', () => {
+      if (!params.res.writableEnded) clientGone.abort();
+    });
+  }
 
   let traceId: string | null = null;
   let outcome: AgenticResponseOutcome;
+  const deadline = createTurnDeadline(requestId);
   try {
+    const state = await deps.initializeChatState({
+      messages: loopMessages,
+      ...(threadId ? { threadId } : {}),
+      agentId: getDefaultAgentId(),
+      userId,
+      enabledTools: {},
+      notebookIds: collectionIds,
+      userLocale,
+    });
+    state.agentConfig.userId = userId;
+    state.intent = 'agentic';
+    state.mentionPinnedTool = TOOL;
+    state.notebookScopeLock = { ids: [...collectionIds], readOnly: true };
+    state.lastUserTextNoMentions = question;
+
+    const baseSystem = await deps.buildSystemMessage(state, { retrievalExpected: true });
+    const systemMessage = `${baseSystem}${praezisionBlock(collectionIds, userLocale)}${formatStandingInstructions(params.standingInstructions)}`;
+
     outcome = await withLangfuseTrace(
       {
         name: 'notebook-praezision-turn',
@@ -223,7 +228,9 @@ export async function runNotebookPraezisionTurn(
       }
     );
   } catch (err) {
-    // streamAgenticResponse wirft nicht; was hier ankommt, stammt aus dem Aufbau.
+    // streamAgenticResponse wirft nicht; was hier ankommt, stammt aus dem Aufbau
+    // (Zustand, Systemprompt) — ohne diese Meldung hinge der Client nach
+    // `answer_mode` ohne Antwort.
     log.error('[NotebookPraezision] turn failed:', err);
     sse.send('error', {
       error: PROGRESS_MESSAGES.internalError,
