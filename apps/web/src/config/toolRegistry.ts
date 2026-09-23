@@ -69,8 +69,8 @@ export interface ToolDefinition {
 }
 
 // Within each surface, order follows this array (favourites, tile strips, menu
-// rows all read top to bottom). Only the search catalog needs its own order
-// (SEARCH_ORDER below) because it contradicts the studio tile order.
+// rows all read top to bottom). The search catalog and the "Weitere" menu keep
+// their own order (SEARCH_ORDER / MENU_ORDER below).
 const TOOLS = [
   {
     id: 'office',
@@ -296,7 +296,7 @@ const TOOLS = [
   },
   {
     id: 'mcp',
-    title: 'MCP',
+    title: 'Apps & MCP',
     path: '/apps',
     icon: { actions: 'link' },
     menuItem: { description: 'ChatGPT & Co verbinden' },
@@ -445,6 +445,8 @@ type ThemedToolId = Extract<(typeof TOOLS)[number], { theme: true }>['id'];
 /** Every key TOOL_THEME must define: themed tools plus the office create tiles. */
 export type ToolThemeId = ThemedToolId | OfficeSuiteActionId;
 
+type MenuItemToolId = Extract<(typeof TOOLS)[number], { menuItem: object }>['id'];
+
 type SearchIdOf<T> = T extends { search: { id: infer I extends string } }
   ? I
   : T extends { search: object; id: infer I extends string }
@@ -492,6 +494,18 @@ const LEGACY_FAVOURITE_ITEMS: readonly {
   { id: 'gruppen', title: 'Projekte', path: '/projekte', icon: { navigation: 'projekte' } },
   { id: 'spaces', title: 'Projekte', path: '/projekte', icon: { navigation: 'projekte' } },
 ];
+
+// Row order of the "Weitere" menu — reorder the menu here, not in TOOLS. Every
+// `menuItem` tool must be listed; toolMenus() throws on a missing one.
+const MENU_ORDER = [
+  'uebersetzer',
+  'mcp',
+  'voice',
+  'transkription',
+  'scanner',
+  'zeichenzaehler',
+  'newsletter',
+] as const satisfies readonly MenuItemToolId[];
 
 // Curated search-catalog order. Deliberately its own list: the catalog wants
 // tool-reel/tool-studio first and tool-imagine before tool-vorlagen, which
@@ -578,18 +592,26 @@ export interface DerivedToolMenu {
 // There is a single menu today, so every `menuItem` tool belongs to the one
 // `menuRoot` tool ("Weitere").
 export function toolMenus(): DerivedToolMenu[] {
-  const items: DerivedTile[] = [];
-  for (const tool of ALL_TOOLS) {
-    if (!tool.menuItem) continue;
-    items.push({
+  const menuTools = ALL_TOOLS.filter((tool) => tool.menuItem);
+  const unordered = menuTools.filter(
+    (tool) => !(MENU_ORDER as readonly string[]).includes(tool.id)
+  );
+  if (unordered.length > 0) {
+    throw new Error(
+      `menuItem tool missing from MENU_ORDER: ${unordered.map((t) => t.id).join(', ')}`
+    );
+  }
+  const items: DerivedTile[] = MENU_ORDER.map((id) => {
+    const tool = menuTools.find((t) => t.id === id)!;
+    return {
       id: tool.id,
       title: tool.title,
-      description: tool.menuItem.description,
+      description: tool.menuItem!.description,
       ...(tool.path != null ? { path: tool.path } : {}),
       ...(tool.href != null ? { href: tool.href } : {}),
       icon: resolveToolIcon(tool.icon),
-    });
-  }
+    };
+  });
   const menus: DerivedToolMenu[] = [];
   for (const tool of ALL_TOOLS) {
     if (!tool.menuRoot) continue;
