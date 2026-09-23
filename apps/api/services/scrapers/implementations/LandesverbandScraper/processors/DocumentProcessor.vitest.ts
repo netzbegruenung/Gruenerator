@@ -497,6 +497,26 @@ describe('processAndStoreDocument — title normalization for file sources', () 
     expect(points.map((p) => p.payload.title)).toEqual(points.map(() => 'LSVD Saar'));
   });
 
+  it('collapses non-breaking spaces, double spaces and line breaks (#3577)', async () => {
+    await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'beschluss',
+      URL_UNDER_TEST,
+      {
+        title: 'Protokoll\u00a0der LDK  Güstrow\n 12. Oktober 2024 ',
+        text: TEXT,
+        publishedAt: null,
+        categories: [],
+      },
+      true, // isFile
+      'landesverbaende_documents',
+      10
+    );
+
+    const points = batchUpsert.mock.calls[0][2] as Array<{ payload: { title: string } }>;
+    expect(points[0].payload.title).toBe('Protokoll der LDK Güstrow 12. Oktober 2024');
+  });
+
   it('falls back to the source label when the title is only whitespace', async () => {
     await makeProcessor().processAndStoreDocument(
       SOURCE,

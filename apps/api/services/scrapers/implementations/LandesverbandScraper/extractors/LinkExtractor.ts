@@ -16,6 +16,15 @@ import type { PdfLink } from '../types.js';
 import type { CheerioAPI } from 'cheerio';
 import type { AnyNode } from 'domhandler';
 
+const FALLBACK_TITLE = 'Dokument';
+
+const GENERIC_LINK_TEXT = /^(dokument|herunterladen|download|pdf|hier)?[.:!…]*$/i;
+
+/** Linktexte, die nichts über das Dokument sagen, zählen als leer (#3577). */
+export function isGenericLinkText(text: string): boolean {
+  return GENERIC_LINK_TEXT.test(text.trim());
+}
+
 /**
  * Derives a title from a PDF URL's filename. staticUrls skips the listing
  * page entirely, so there's no `<a>` text to read a title from (#3579).
@@ -271,14 +280,23 @@ export class LinkExtractor {
     if (contentPath.staticUrls?.length) {
       const seenStaticUrls = new Set<string>();
       return contentPath.staticUrls
-        .map((url) => this.normalizeUrl(url, source.baseUrl))
-        .filter((url): url is string => url !== null)
-        .filter((url) => {
-          if (seenStaticUrls.has(url)) return false;
-          seenStaticUrls.add(url);
-          return true;
+        .map((entry) => {
+          const rawUrl = typeof entry === 'string' ? entry : entry.url;
+          const normalized = this.normalizeUrl(rawUrl, source.baseUrl);
+          if (!normalized) return null;
+          const title = typeof entry === 'string' ? titleFromPdfUrl(normalized) : entry.title;
+          // The optional `date` (ISO YYYY-MM-DD) rides in as `context`, so DateExtractor's
+          // strong ISO pattern picks it up before ever falling back to the WordPress
+          // upload-year folder in the URL (#3579 fix round 1).
+          const context = typeof entry === 'string' ? '' : (entry.date ?? '');
+          return { url: normalized, title, context };
         })
-        .map((url) => ({ url, title: titleFromPdfUrl(url), context: '' }));
+        .filter((link): link is PdfLink => link !== null)
+        .filter((link) => {
+          if (seenStaticUrls.has(link.url)) return false;
+          seenStaticUrls.add(link.url);
+          return true;
+        });
     }
 
     const pageUrl = source.baseUrl + contentPath.path;
@@ -287,21 +305,31 @@ export class LinkExtractor {
     const $ = cheerio.load(html);
 
     const pdfLinks: PdfLink[] = [];
-    const seen = new Set<string>();
+    const seen = new Map<string, PdfLink>();
 
     $(contentPath.listSelector).each((_, el) => {
       const href = $(el).attr('href');
       if (href && (href.includes('.pdf') || href.includes('/download/'))) {
         const normalizedUrl = this.normalizeUrl(href, source.baseUrl);
         if (normalizedUrl) {
-          if (seen.has(normalizedUrl)) return;
-          seen.add(normalizedUrl);
+          const title = [$(el).text().trim(), $(el).attr('title')?.trim() ?? ''].find(
+            (candidate) => !isGenericLinkText(candidate)
+          );
 
-          pdfLinks.push({
+          // Oft steht vor dem Titel-Anker ein Icon-Anker auf dieselbe URL.
+          const known = seen.get(normalizedUrl);
+          if (known) {
+            if (title && known.title === FALLBACK_TITLE) known.title = title;
+            return;
+          }
+
+          const link: PdfLink = {
             url: normalizedUrl,
-            title: $(el).text().trim() || $(el).attr('title') || 'Dokument',
+            title: title ?? FALLBACK_TITLE,
             context: this.extractContextWithHeadings($, el),
-          });
+          };
+          seen.set(normalizedUrl, link);
+          pdfLinks.push(link);
         }
       }
     });
