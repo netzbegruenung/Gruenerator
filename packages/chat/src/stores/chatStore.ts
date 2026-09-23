@@ -1,4 +1,10 @@
-import { type NotebookDepth, type RoleRef, type SearchMode } from '@gruenerator/contracts';
+import {
+  notebookAnswerModeSchema,
+  type NotebookAnswerMode,
+  type NotebookDepth,
+  type RoleRef,
+  type SearchMode,
+} from '@gruenerator/contracts';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import {
   TEXT_MODELS,
@@ -10,6 +16,7 @@ import {
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { DEFAULT_NOTEBOOK_ANSWER_MODE } from '../lib/notebookAnswerMode';
 import { DEFAULT_NOTEBOOK_DEPTH } from '../lib/notebookDepth';
 import { notifyError, notifyWarning } from '../lib/notify';
 import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/resolveAutoModel';
@@ -131,6 +138,8 @@ interface AgentState {
    * source/category filters it is persisted and survives a reload.
    */
   notebookDepth: NotebookDepth;
+  /** Notebook answer mode (Automatisch/Chat/Präzision) — a preference like the depth. */
+  notebookAnswerMode: NotebookAnswerMode;
   customSystemPrompt: string | null;
   customRoleName: string | null;
   /**
@@ -187,6 +196,7 @@ interface AgentState {
   setThreadMode: (mode: ThreadMode) => void;
   setSearchMode: (mode: SearchMode) => void;
   setNotebookDepth: (depth: NotebookDepth) => void;
+  setNotebookAnswerMode: (mode: NotebookAnswerMode) => void;
   setCompactionState: (state: CompactionState) => void;
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
@@ -252,6 +262,7 @@ export const useAgentStore = create<AgentState>()(
       threadMode: 'chat' as ThreadMode,
       searchMode: 'web' as SearchMode,
       notebookDepth: DEFAULT_NOTEBOOK_DEPTH,
+      notebookAnswerMode: DEFAULT_NOTEBOOK_ANSWER_MODE,
       customSystemPrompt: null,
       customRoleName: null,
       customRoleRef: null,
@@ -370,6 +381,8 @@ export const useAgentStore = create<AgentState>()(
       setSearchMode: (mode) => set({ searchMode: mode }),
 
       setNotebookDepth: (depth) => set({ notebookDepth: depth }),
+
+      setNotebookAnswerMode: (mode) => set({ notebookAnswerMode: mode }),
 
       setCompactionState: (state) => set({ compactionState: state }),
 
@@ -559,7 +572,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 17,
+      version: 18,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -687,6 +700,12 @@ export const useAgentStore = create<AgentState>()(
           // message could be filed into whatever thread was open last session.
           delete state.currentThreadId;
         }
+        if (version < 18) {
+          // New preference. Anything stored under the name that is not a wire
+          // value (there was none before v18) falls back to the default.
+          const parsed = notebookAnswerModeSchema.safeParse(state.notebookAnswerMode);
+          state.notebookAnswerMode = parsed.success ? parsed.data : DEFAULT_NOTEBOOK_ANSWER_MODE;
+        }
         return state;
       },
       partialize: (state) => ({
@@ -702,6 +721,7 @@ export const useAgentStore = create<AgentState>()(
         selectedNotebookId: state.selectedNotebookId,
         searchMode: state.searchMode,
         notebookDepth: state.notebookDepth,
+        notebookAnswerMode: state.notebookAnswerMode,
         // Survive a reload that happens between text generation and the first
         // user message (no thread exists yet, so server-side persistence
         // hasn't kicked in). Cleared once the backend confirms thread_created.

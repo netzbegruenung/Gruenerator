@@ -35,6 +35,8 @@ import { SharepicVariantCard } from '../SharepicVariantCard';
 import { SocialPostCard } from '../SocialPostCard';
 
 import { AgentBadge } from './AgentBadge';
+import { AnswerModeChip } from './AnswerModeChip';
+import { buildAnswerModeChipView } from './answerModeChipView';
 import { AssistantActionBar } from './AssistantActionBar';
 import { AssistantTextPart } from './AssistantTextPart';
 import { BranchPicker } from './BranchPicker';
@@ -77,6 +79,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const artifactData = metadata.artifactData;
   const searchImages = metadata.searchImages;
   const interrupted = metadata.interrupted;
+  const answerModeChip = buildAnswerModeChipView(metadata);
 
   // Which Grünerator wrote this. `getCustomAgentMentionables()` is a plain read
   // of the module-level catalogue `useMentionablesSync` fills, so it re-resolves
@@ -133,6 +136,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
           {shouldShowAgentBadge(agent, getDefaultAgent()) && (
             <AgentBadge agent={agent} theme={theme} />
           )}
+          {answerModeChip && <AnswerModeChip view={answerModeChip} theme={theme} />}
           <ChatStatusLine
             isStreaming={isStreaming}
             hasOwnDetail={hasOwnDetail}

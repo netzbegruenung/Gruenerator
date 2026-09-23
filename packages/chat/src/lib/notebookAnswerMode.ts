@@ -1,4 +1,8 @@
-import { type NotebookAnswerMode, type NotebookResolvedAnswerMode } from '@gruenerator/contracts';
+import {
+  type NotebookAnswerMode,
+  type NotebookAnswerModeReason,
+  type NotebookResolvedAnswerMode,
+} from '@gruenerator/contracts';
 
 export interface NotebookAnswerModeDef {
   mode: NotebookAnswerMode;
@@ -57,7 +61,22 @@ const RESOLVED_LABELS: Record<NotebookResolvedAnswerMode, string> = {
   praezision: 'Präzisionsmodus',
 };
 
+/** Status line while a precision turn works through the sources. */
+export const PRAEZISION_PROGRESS_MESSAGE = 'Präzisionsmodus: arbeite direkt mit den Quellen…';
+
 /** The chip on an answer: which mode it actually ran in. */
 export function answerModeLabel(resolved: NotebookResolvedAnswerMode): string {
   return RESOLVED_LABELS[resolved];
+}
+
+/** Reasons that mean the auto guard picked the mode, not the person. */
+const AUTO_CHOSEN_REASONS: ReadonlySet<NotebookAnswerModeReason> = new Set([
+  'pregate',
+  'guard',
+  'guard_fallback',
+]);
+
+/** The quiet hint beside the chip when auto decided; `null` otherwise. */
+export function answerModeAutoHint(reason: NotebookAnswerModeReason | null): string | null {
+  return reason && AUTO_CHOSEN_REASONS.has(reason) ? 'automatisch gewählt' : null;
 }

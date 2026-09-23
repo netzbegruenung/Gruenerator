@@ -1,4 +1,4 @@
-import { isAiConsentRequiredBody } from '@gruenerator/contracts';
+import { isAiConsentRequiredBody, notebookResolvedAnswerModeSchema } from '@gruenerator/contracts';
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { notifyAiConsentRequired, unauthorizedInfoFromResponse } from '@gruenerator/shared/api';
 import { buildMentionToken } from '@gruenerator/shared/utils';
@@ -485,7 +485,19 @@ export function createGrueneratorModelAdapter(
           parts.push({ type: 'text', text: '' });
         }
 
-        return { id: m.id, role: m.role, parts };
+        // Notebook threads only: the auto guard reads the previous answer's
+        // mode to keep a follow-up in it. Other surfaces send what they always did.
+        const answerMode =
+          config.threadMode === 'notebook' && m.role === 'assistant'
+            ? notebookResolvedAnswerModeSchema.safeParse(m.metadata?.custom?.answerMode)
+            : null;
+
+        return {
+          id: m.id,
+          role: m.role,
+          parts,
+          ...(answerMode?.success ? { answerMode: answerMode.data } : {}),
+        };
       });
 
       // Resolve effective mode: an agent with routeTo='search' forces 'search' mode
