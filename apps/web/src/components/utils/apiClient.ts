@@ -4,6 +4,7 @@ import {
   createApiClient,
   getApiLocale,
   notifyAiConsentRequired,
+  rejectAbortedResponse,
   setApiLocale,
   setGlobalApiClient,
 } from '@gruenerator/shared/api';
@@ -705,7 +706,7 @@ apiClient.interceptors.request.use(
 //
 // Routes tagged `skipAuthRedirect: true` bypass the whole path.
 apiClient.interceptors.response.use(
-  (response: AxiosResponse) => response,
+  (response: AxiosResponse) => rejectAbortedResponse(response),
   async (error: AxiosError) => {
     const config = error.config;
     if (config?.skipAuthRedirect) {
