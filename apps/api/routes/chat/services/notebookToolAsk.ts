@@ -39,6 +39,9 @@ const NOTEBOOK_TOOL_ASK = new RegExp(
       'zitiere?',
       // „Ich finde die Stelle gut" ist eine Meinung, kein Suchauftrag.
       '(?<!ich\\s{1,3})finde?\\s+(?:mir\\s+)?(?:die\\s+)?(?:stelle|passage|textstelle|das\\s+zitat)',
+      // „Finde im Notebook die fünf Stellen …" — Wörter dazwischen, aber nicht
+      // „finde ich" und nicht über ein Komma („Ich finde, an mehreren Stellen …").
+      '(?<!ich\\s{1,3})finde?\\s+(?!ich(?![\\wäöüß]))[^.?!,]{0,60}?(?<![\\wäöüß])(?:stellen|passagen|textstellen)',
       'entferne?',
       'verschiebe?',
       'kopiere?',
@@ -62,6 +65,10 @@ const NOTEBOOK_TOOL_ASK = new RegExp(
       // eine Inhaltsfrage.
       '(?:sortiert|geordnet|gereiht|gruppiert)\\s+nach\\s+(?:datum|name|l(?:ä|ae)nge|seiten|relevanz)',
       '(?:quellen?|dokumente?)\\s+(?:ist|sind)\\s+(?:die|das|am)\\s+(?:l(?:ä|ae)ngst|k(?:ü|ue)rzest|neuest|(?:ä|ae)ltest)\\w*',
+      // Rangfolge nach Relevanz — nur mit Quellen als Gegenstand.
+      '(?:quellen?|dokumente?)\\s+[^.?!]{0,60}?am\\s+relevantesten',
+      // Filter nach dem Titel einer Quelle.
+      'im\\s+titel',
     ].join('|'),
     ')(?![\\wäöüß])',
   ].join(''),
