@@ -17,6 +17,7 @@
  * 'aborted'/'failed' → Failed-Pfad, 'none' → prüfen und liefern.
  */
 import { type RecurringTask } from '../../database/schema/recurringTasks.js';
+import { hasAiConsent } from '../../middleware/requireAiConsent.js';
 import {
   runHeadlessAgenticTurn as runHeadlessAgenticTurnReal,
   type HeadlessTurnResult,
@@ -80,6 +81,11 @@ export async function runRecurringTask(
   let verdict: RunVerdict | null = null;
   let turn: HeadlessTurnResult;
   try {
+    // Art.-9-Einwilligung: der Lauf hat keinen Request, `requireAiConsent`
+    // sieht ihn nie. Ein Widerruf nach dem Anlegen muss auch hier greifen.
+    if (!(await hasAiConsent(task.user_id))) {
+      throw new Error('Für die KI-Funktionen fehlt die Einwilligung nach Art. 9 DSGVO.');
+    }
     const turnParams = {
       instruction: task.instruction,
       userId: task.user_id,

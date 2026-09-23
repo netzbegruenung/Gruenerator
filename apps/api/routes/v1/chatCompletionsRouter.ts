@@ -22,6 +22,7 @@ import { z } from 'zod';
 
 import { assertScope } from '../../middleware/apiKeyMiddleware.js';
 import { apiKeyRateLimit } from '../../middleware/apiKeyRateLimitMiddleware.js';
+import { requireApiKeyAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import {
   forwardChatCompletion,
@@ -42,6 +43,7 @@ const router: Router = Router();
 
 router.use(requireAddinAuth);
 router.use(apiKeyRateLimit('chat-completions'));
+router.use(requireApiKeyAiConsent);
 
 const REQUIRED_SCOPE = 'chat:completions';
 
