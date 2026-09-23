@@ -14,6 +14,7 @@ import {
   type Citation as ChatCitation,
   type FallbackInfo,
 } from '../hooks/useChatGraphStream';
+import { PRAEZISION_PROGRESS_MESSAGE } from '../lib/notebookAnswerMode';
 import { notifyWarning } from '../lib/notify';
 import { AUTO_MODEL_ID, resolveAutoModel } from '../lib/resolveAutoModel';
 import { parseSSELine } from '../lib/sseParser';
@@ -50,9 +51,6 @@ function normalizeCiteMarkers(text: string): string {
 const HISTORY_MAX_MESSAGES = 12;
 /** Carried passages only need to identify the cited place, not repeat the chunk. */
 const HISTORY_CITATION_TEXT_MAX_CHARS = 600;
-
-/** Status line while a precision turn works through the sources. */
-const PRAEZISION_PROGRESS_MESSAGE = 'Präzisionsmodus: arbeite direkt mit den Quellen…';
 
 interface WireHistoryMessage {
   role: 'user' | 'assistant';

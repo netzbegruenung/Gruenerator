@@ -178,6 +178,27 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     }
   });
 
+  // Mobile reloads notebook threads through this converter, so the mode chip
+  // has to survive here too, not only in `convertNotebookLoadedMessages`.
+  it('rehydrates the notebook answer mode and its reason', () => {
+    const custom = customOf({ answerMode: 'praezision', answerModeReason: 'pregate' });
+    expect(custom.answerMode).toBe('praezision');
+    expect(custom.answerModeReason).toBe('pregate');
+  });
+
+  it('keeps the mode without a reason, and drops an unknown mode or reason', () => {
+    expect(customOf({ answerMode: 'chat', answerModeReason: 'bogus' })).toMatchObject({
+      answerMode: 'chat',
+    });
+    expect('answerModeReason' in customOf({ answerMode: 'chat', answerModeReason: 'bogus' })).toBe(
+      false
+    );
+    expect('answerMode' in customOf({ answerMode: 'turbo', answerModeReason: 'guard' })).toBe(
+      false
+    );
+    expect('answerMode' in customOf({ intent: 'direct' })).toBe(false);
+  });
+
   it('drops an interrupted assistant row that has neither text nor tool cards', () => {
     const result = convertToThreadMessageLike([
       { id: 'm1', role: 'assistant', content: '', metadata: { interrupted: true } },

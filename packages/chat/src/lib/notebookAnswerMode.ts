@@ -61,6 +61,9 @@ const RESOLVED_LABELS: Record<NotebookResolvedAnswerMode, string> = {
   praezision: 'Präzisionsmodus',
 };
 
+/** Status line while a precision turn works through the sources. */
+export const PRAEZISION_PROGRESS_MESSAGE = 'Präzisionsmodus: arbeite direkt mit den Quellen…';
+
 /** The chip on an answer: which mode it actually ran in. */
 export function answerModeLabel(resolved: NotebookResolvedAnswerMode): string {
   return RESOLVED_LABELS[resolved];

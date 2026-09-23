@@ -3,7 +3,11 @@ import {
   editorOperationsEventSchema,
   isCanvasTemplateType,
   chatStreamEventSchemas,
+  notebookAnswerModeReasonSchema,
+  notebookResolvedAnswerModeSchema,
   type ChatErrorEventPayload,
+  type NotebookAnswerModeReason,
+  type NotebookResolvedAnswerMode,
   type SocialPostPayload,
   type BahnPayload,
   type SharepicUpdatedEvent,
@@ -11,6 +15,7 @@ import {
 import { subtypeToArtifactKind } from '@gruenerator/shared/docs';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
+import { PRAEZISION_PROGRESS_MESSAGE } from '../../lib/notebookAnswerMode';
 import { notifyError, notifyWarning } from '../../lib/notify';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { parseSSELine } from '../../lib/sseParser';
@@ -202,6 +207,9 @@ export async function* parseSSEStream(
   let receivedReelProcessing: ReelProcessingData | null = null;
   let receivedReelPicker: ReelPickerData | null = null;
   let evidenceWeakAccum: string | null = null;
+  // Notebook answers only (`answer_mode`): which mode this turn runs in.
+  let receivedAnswerMode: NotebookResolvedAnswerMode | null = null;
+  let receivedAnswerModeReason: NotebookAnswerModeReason | null = null;
   let activeToolCall: ToolCallPart | null = null;
   const allToolCalls: ToolCallPart[] = [...(carryOver?.toolCalls ?? [])];
   // Agentic tool-loop steps, keyed by stepId. The loop can run several tools in
@@ -341,6 +349,10 @@ export async function* parseSSEStream(
     if (receivedReelProcessing) custom.reelProcessing = receivedReelProcessing;
     if (receivedReelPicker) custom.reelPicker = receivedReelPicker;
     if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
+    if (receivedAnswerMode) {
+      custom.answerMode = receivedAnswerMode;
+      if (receivedAnswerModeReason) custom.answerModeReason = receivedAnswerModeReason;
+    }
     if (agentInfo?.agentId) {
       custom.agentId = agentInfo.agentId;
       if (agentInfo.agentMention) custom.agentMention = agentInfo.agentMention;
@@ -1382,6 +1394,23 @@ export async function* parseSSEStream(
         }
 
         // ── Notebook mode events ──
+        case 'answer_mode': {
+          // Read from the raw frame: the wire gate coerces an unknown mode to
+          // `chat`, and a guessed chip is worse than none. Same rule as web.
+          const raw = rawData as { resolved?: unknown; reason?: unknown };
+          const resolved = notebookResolvedAnswerModeSchema.safeParse(raw.resolved);
+          if (!resolved.success) break;
+          receivedAnswerMode = resolved.data;
+          const reason = notebookAnswerModeReasonSchema.safeParse(raw.reason);
+          receivedAnswerModeReason = reason.success ? reason.data : null;
+          if (receivedAnswerMode === 'praezision') {
+            transitionStep('searching', PRAEZISION_PROGRESS_MESSAGE);
+            currentProgress = { stage: 'searching', message: PRAEZISION_PROGRESS_MESSAGE };
+          }
+          yield buildResult();
+          break;
+        }
+
         case 'completion': {
           sawTerminalEvent = true;
           // `completion` carries EITHER shape (see the union in the wire
