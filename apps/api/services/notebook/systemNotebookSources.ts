@@ -591,7 +591,11 @@ export async function loadSystemScanTexts(
     { budget, explicit: Boolean(input.sourceUrl) }
   );
   if ('error' in read) return read;
-  const reason = incompleteReason(tooLarge || read.tooLarge, read.unreadable);
+  const reason = incompleteReason(
+    tooLarge || read.tooLarge,
+    read.unreadable,
+    Boolean(input.sourceUrl)
+  );
   return { sources: read.sources, exhaustive: reason === null, incompleteReason: reason };
 }
 

@@ -42,8 +42,10 @@ const NOT_FOUND = 'Notebook nicht gefunden oder kein Zugriff.';
  * „Heizöl" eine Grenze. `\p{L}\p{N}_` umfasst `[\wäöüßÄÖÜ]` und dazu jeden
  * anderen Buchstaben (é, ł, …).
  */
-const BEFORE = '(?<![\\p{L}\\p{N}_])';
-const AFTER = '(?![\\p{L}\\p{N}_])';
+const BEFORE = '(?<![\\p{L}\\p{N}\\p{M}_])';
+// `\p{M}`: ein Kombinationszeichen hinter dem letzten Buchstaben (NFD „Cafe"+´)
+// ist noch Wort — sonst träfe „Cafe" im exakten Modus „Café".
+const AFTER = '(?![\\p{L}\\p{N}\\p{M}_])';
 
 const SOFT_HYPHEN = '\u00AD';
 
@@ -160,8 +162,12 @@ export function grepText(text: string, phrase: string, opts: GrepOptions): GrepT
     if (hits.length >= maxContexts) continue;
     const charStart = map[m.index]!;
     let charEnd = map[m.index + m[0].length - 1]! + 1;
-    // Ein NFD-Akzent hinter dem letzten Buchstaben gehört zum Treffer.
-    while (charEnd < text.length && COMBINING_MARK.test(text[charEnd]!)) charEnd += 1;
+    // Gefaltet: ein NFD-Akzent hinter dem letzten Buchstaben gehört zum
+    // Treffer (die Faltung hat ihn aus `chars` entfernt). Exakt: die Phrase
+    // trägt ihn selbst oder es ist kein Treffer.
+    if (fold) {
+      while (charEnd < text.length && COMBINING_MARK.test(text[charEnd]!)) charEnd += 1;
+    }
     hits.push({
       charStart,
       charEnd,
@@ -238,9 +244,17 @@ export interface ScanLoad {
   incompleteReason: string | null;
 }
 
-export function incompleteReason(tooLarge: boolean, unreadable: number): string | null {
+export function incompleteReason(
+  tooLarge: boolean,
+  unreadable: number,
+  singleSource: boolean
+): string | null {
   const reasons = [
-    tooLarge ? 'Notebook zu groß' : null,
+    tooLarge
+      ? singleSource
+        ? 'Quelle zu groß — lies sie mit read abschnittsweise'
+        : 'Notebook zu groß'
+      : null,
     unreadable === 1
       ? '1 Quelle nicht lesbar'
       : unreadable > 1
@@ -326,7 +340,11 @@ export async function loadScanTexts(
     { budget, explicit: Boolean(input.sourceId) }
   );
   if ('error' in read) return read;
-  const reason = incompleteReason(tooLarge || read.tooLarge, read.unreadable);
+  const reason = incompleteReason(
+    tooLarge || read.tooLarge,
+    read.unreadable,
+    Boolean(input.sourceId)
+  );
   return { sources: read.sources, exhaustive: reason === null, incompleteReason: reason };
 }
 
