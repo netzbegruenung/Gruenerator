@@ -208,12 +208,7 @@ class GreenPTRerankService {
 
     const impact = parseImpact(data);
     if (impact) {
-      recordImpact({
-        provider: 'greenpt',
-        model: RERANK_MODEL,
-        energyWms: impact.energyWms,
-        emissionsUg: impact.emissionsUg,
-      });
+      recordImpact({ provider: 'greenpt', model: RERANK_MODEL, ...impact });
     }
 
     const results: RerankResultItem[] = data.results.map((r) => ({
