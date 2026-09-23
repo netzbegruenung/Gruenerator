@@ -573,3 +573,48 @@ describe('live findings 23.09.2026', () => {
     expect(out.exhaustive).toBe(true);
   });
 });
+
+// Testserver 24.09.2026: „Welche Kategorien gibt es?" → „keine Kategorien". Der
+// Schreiber im split-Modus sieht keine Werkzeug-Rückgaben, nur Quellen und
+// Notizen — Kennzahlen, die nur im Rückgabewert stehen, erreichen ihn nie.
+describe('what the writer sees in split mode', () => {
+  it('list leaves a note with total, exhaustive and the categories', async () => {
+    const { run, notes } = makeCtx();
+    const out = await run({ action: 'list', notebookId: 'hamburg' });
+    const [title, content] = notes.at(-1) ?? ['', ''];
+    expect(title).toContain('list');
+    expect(content).toContain('total: 2');
+    expect(content).toContain('exhaustive: ja');
+    for (const [category, count] of Object.entries(out.categories as Record<string, number>)) {
+      expect(content).toContain(`${category} ${count}`);
+    }
+  });
+
+  it('grep leaves a note with the totals, not only the per-source rows', async () => {
+    const { run, notes } = makeCtx();
+    await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Wärmepumpe' });
+    const [, content] = notes.at(-1) ?? ['', ''];
+    expect(content).toContain('totalHits: 2');
+    expect(content).toContain('sourcesScanned: 2');
+    expect(content).toContain('exhaustive: ja');
+  });
+
+  it('rank leaves a note with the criterion and the filter', async () => {
+    const { run, notes } = makeCtx();
+    await run({
+      action: 'rank',
+      notebookId: 'hamburg',
+      by: 'date',
+      filter: { dateFrom: '2020-01-01' },
+    });
+    const [, content] = notes.at(-1) ?? ['', ''];
+    expect(content).toContain('by: date');
+    expect(content).toContain('dateFrom=2020-01-01');
+  });
+
+  it('find and read leave no summary note — their sources carry the content', async () => {
+    const { run, notes } = makeCtx();
+    await run({ action: 'read', notebookId: 'hamburg', sourceId: HH_A });
+    expect(notes).toEqual([]);
+  });
+});

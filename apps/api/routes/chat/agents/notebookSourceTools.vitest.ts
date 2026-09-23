@@ -560,7 +560,9 @@ describe('grep', () => {
     const out = await run({ action: 'grep', phrase: 'Mondbasis' });
     expect(out).toMatchObject({ totalHits: 0, exhaustive: true, perSource: [] });
     expect(registered).toEqual([]);
-    expect(notes).toEqual([['Notebook „Kreisverband"', 'Keine Treffer für „Mondbasis".']]);
+    expect(notes[0]).toEqual(['Notebook „Kreisverband"', 'Keine Treffer für „Mondbasis".']);
+    expect(notes[1]?.[1]).toContain('totalHits: 0');
+    expect(notes[1]?.[1]).toContain('exhaustive: ja');
   });
 });
 
@@ -898,13 +900,15 @@ describe('was der Schreiber im split-Modus sieht', () => {
     expect(registry.getCitations().map((c) => c.pageNumber)).toEqual([2, 3]);
   });
 
-  it('puts the source list into the sources, not into VORGÄNGE', async () => {
+  it('puts the source rows into the sources and only the counts into VORGÄNGE', async () => {
     const registry = createSourceRegistry();
     const { run } = makeCtx({ registry });
     await run({ action: 'list' });
     expect(registry.freshSize).toBe(1);
-    expect(registry.renderAll()).toContain('Antrag Radweg');
-    expect(registry.renderAll()).not.toContain('VORGÄNGE IN DIESEM TURN');
+    const [sources, vorgaenge = ''] = registry.renderAll().split('VORGÄNGE IN DIESEM TURN');
+    expect(sources).toContain('Antrag Radweg');
+    expect(vorgaenge).toContain('total: 1');
+    expect(vorgaenge).not.toContain('Antrag Radweg');
   });
 
   it('keeps an empty find in VORGÄNGE and out of the sources', async () => {
