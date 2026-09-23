@@ -385,7 +385,6 @@ const envSchema = z.object({
   ENABLE_DEBUG: boolFlag(false),
   ENABLE_VERBOSE: boolFlag(false),
   ENABLE_TELEMETRY: boolFlag(true),
-  MEM0_TELEMETRY: z.string().optional(),
 
   // ── Rate limiting ──────────────────────────────────────────────────────
   DISABLE_RATE_LIMITS: boolFlag(false),
