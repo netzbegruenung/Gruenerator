@@ -114,6 +114,22 @@ describe('grepText', () => {
     expect(r.hits[0]!.context).toBe(`${'a '.repeat(60).trim()} Radweg ${'b '.repeat(59).trim()}`);
     expect(ok(grepText(text, 'Radweg', { contexts: 0 })).hits).toEqual([]);
   });
+
+  it('counts only the hits `accept` lets through, with the original spelling', () => {
+    const text = 'Orbán sagt, Orban sagt, ORBAN sagt.';
+    const seen: string[] = [];
+    const r = ok(
+      grepText(text, 'Orban', {
+        accept: (m) => {
+          seen.push(m);
+          return m.toLowerCase() === 'orban';
+        },
+      })
+    );
+    expect(seen).toEqual(['Orbán', 'Orban', 'ORBAN']);
+    expect(r.count).toBe(2);
+    expect(r.hits.map((h) => h.charStart)).toEqual([12, 24]);
+  });
 });
 
 describe('grepSources', () => {

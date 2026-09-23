@@ -77,9 +77,21 @@ const store = (fingerprint?: Record<string, unknown>) =>
     'beschluss',
     URL_UNDER_TEST,
     { title: 'Beschluss', text: TEXT, publishedAt: null, categories: [], bodyFallback: false },
+    true, // isFile — URL_UNDER_TEST is a .pdf
     'landesverbaende_documents',
     10,
     fingerprint
+  );
+
+const storeWith = (content: { title?: string; publishedAt?: string | null }) =>
+  makeProcessor().processAndStoreDocument(
+    SOURCE,
+    'beschluss',
+    URL_UNDER_TEST,
+    { title: 'Beschluss', text: TEXT, publishedAt: null, categories: [], ...content },
+    true, // isFile — URL_UNDER_TEST is a .pdf
+    'landesverbaende_documents',
+    10
   );
 
 beforeEach(() => {
@@ -90,9 +102,17 @@ beforeEach(() => {
 });
 
 describe('processAndStoreDocument — unchanged text', () => {
+  const HASH = `hash:${TEXT.length}`;
+
   it('backfills a fingerprint the stored point does not have yet', async () => {
     scrollDocuments.mockResolvedValue([
-      { payload: { content_hash: `hash:${TEXT.length}`, indexed_at: '2026-08-01T00:00:00.000Z' } },
+      {
+        payload: {
+          content_hash: HASH,
+          title: 'Beschluss',
+          indexed_at: '2026-08-01T00:00:00.000Z',
+        },
+      },
     ]);
 
     const result = await store({ file_hash: 'abc123', source_etag: '"v1"' });
@@ -102,7 +122,7 @@ describe('processAndStoreDocument — unchanged text', () => {
     expect(setPayload).toHaveBeenCalledWith(
       expect.anything(),
       'landesverbaende_documents',
-      { file_hash: 'abc123', source_etag: '"v1"' },
+      { file_hash: 'abc123', source_etag: '"v1"', checked_at: expect.any(String) },
       { must: [{ key: 'source_url', match: { value: URL_UNDER_TEST } }] }
     );
   });
@@ -111,7 +131,8 @@ describe('processAndStoreDocument — unchanged text', () => {
     scrollDocuments.mockResolvedValue([
       {
         payload: {
-          content_hash: `hash:${TEXT.length}`,
+          content_hash: HASH,
+          title: 'Beschluss',
           file_hash: 'abc123',
           source_etag: '"v1"',
         },
@@ -123,27 +144,139 @@ describe('processAndStoreDocument — unchanged text', () => {
     expect(setPayload).toHaveBeenCalledWith(
       expect.anything(),
       'landesverbaende_documents',
-      { source_etag: '"v2"' },
+      { source_etag: '"v2"', checked_at: expect.any(String) },
       expect.anything()
     );
   });
 
-  it('writes nothing when the stored fingerprint already matches', async () => {
+  it('writes only checked_at when fingerprint, title and date already match', async () => {
     scrollDocuments.mockResolvedValue([
-      { payload: { content_hash: `hash:${TEXT.length}`, file_hash: 'abc123' } },
+      { payload: { content_hash: HASH, title: 'Beschluss', file_hash: 'abc123' } },
     ]);
 
     await store({ file_hash: 'abc123' });
 
-    expect(setPayload).not.toHaveBeenCalled();
+    expect(setPayload).toHaveBeenCalledTimes(1);
+    expect(setPayload.mock.calls[0][2]).toEqual({ checked_at: expect.any(String) });
   });
 
-  it('stays a no-op for callers that pass no fingerprint', async () => {
-    scrollDocuments.mockResolvedValue([{ payload: { content_hash: `hash:${TEXT.length}` } }]);
+  it('writes only checked_at for callers that pass no fingerprint', async () => {
+    scrollDocuments.mockResolvedValue([{ payload: { content_hash: HASH, title: 'Beschluss' } }]);
+
+    await store(undefined);
+
+    expect(setPayload).toHaveBeenCalledTimes(1);
+    expect(setPayload.mock.calls[0][2]).toEqual({ checked_at: expect.any(String) });
+  });
+
+  it('heals a title the extractor now reads differently — in the same single write', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Beschluss&nbsp;\nAnrisstext' } },
+    ]);
+
+    await store({ file_hash: 'abc123' });
+
+    expect(setPayload).toHaveBeenCalledTimes(1);
+    expect(setPayload.mock.calls[0][2]).toEqual({
+      file_hash: 'abc123',
+      title: 'Beschluss',
+      checked_at: expect.any(String),
+    });
+  });
+
+  it('heals a date the extractor now reads differently', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Beschluss', published_at: '2023-06-15' } },
+    ]);
+
+    await storeWith({ publishedAt: '2023-04-29' });
+
+    expect(setPayload.mock.calls[0][2]).toEqual({
+      published_at: '2023-04-29',
+      checked_at: expect.any(String),
+    });
+  });
+
+  it('never writes an empty title or a null date over a stored one', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Beschluss', published_at: '2023-04-29' } },
+    ]);
+
+    await storeWith({ title: '', publishedAt: null });
+
+    expect(setPayload.mock.calls[0][2]).toEqual({ checked_at: expect.any(String) });
+  });
+});
+
+describe('processAndStoreDocument — unchanged text, write budget and date guard', () => {
+  const HASH = `hash:${TEXT.length}`;
+  const hoursAgo = (h: number) => new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
+
+  it('skips the write when nothing moved and checked_at is younger than 24h', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Beschluss', checked_at: hoursAgo(2) } },
+    ]);
 
     await store(undefined);
 
     expect(setPayload).not.toHaveBeenCalled();
+  });
+
+  it('refreshes checked_at when nothing moved but it is older than 24h', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Beschluss', checked_at: hoursAgo(25) } },
+    ]);
+
+    await store(undefined);
+
+    expect(setPayload).toHaveBeenCalledTimes(1);
+    expect(setPayload.mock.calls[0][2]).toEqual({ checked_at: expect.any(String) });
+  });
+
+  it('still writes a real change even when checked_at is fresh', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Beschluss', checked_at: hoursAgo(2) } },
+    ]);
+
+    await store({ file_hash: 'abc123' });
+
+    expect(setPayload.mock.calls[0][2]).toEqual({
+      file_hash: 'abc123',
+      checked_at: expect.any(String),
+    });
+  });
+
+  it('compares the normalised title, so a raw file-name title does not flip it back', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'LSVD Saar', checked_at: hoursAgo(2) } },
+    ]);
+
+    await storeWith({ title: 'LSVD Saar  \n' });
+
+    expect(setPayload).not.toHaveBeenCalled();
+  });
+
+  it('heals a stored raw title to its normalised form', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'LSVD Saar  \n', checked_at: hoursAgo(2) } },
+    ]);
+
+    await storeWith({ title: 'LSVD Saar  \n' });
+
+    expect(setPayload.mock.calls[0][2]).toEqual({
+      title: 'LSVD Saar',
+      checked_at: expect.any(String),
+    });
+  });
+
+  it('never downgrades a stored date to the -06-15 year-only guess', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Beschluss', published_at: '2023-04-29' } },
+    ]);
+
+    await storeWith({ publishedAt: '2023-06-15' });
+
+    expect(setPayload.mock.calls[0][2]).toEqual({ checked_at: expect.any(String) });
   });
 });
 
@@ -158,6 +291,20 @@ describe('processAndStoreDocument — changed text', () => {
     const [, , points] = batchUpsert.mock.calls[0] as [unknown, string, { payload: unknown }[]];
     expect(points[0].payload).toMatchObject({ file_hash: 'abc123' });
   });
+
+  it('stamps checked_at next to indexed_at on a normal store', async () => {
+    scrollDocuments.mockResolvedValue([]);
+
+    await store(undefined);
+
+    const [, , points] = batchUpsert.mock.calls[0] as [
+      unknown,
+      string,
+      { payload: Record<string, unknown> }[],
+    ];
+    expect(points[0].payload.checked_at).toEqual(expect.any(String));
+    expect(points[0].payload.checked_at).toBe(points[0].payload.indexed_at);
+  });
 });
 
 describe('processAndStoreDocument — qualityFlags', () => {
@@ -169,6 +316,7 @@ describe('processAndStoreDocument — qualityFlags', () => {
       'beschluss',
       URL_UNDER_TEST,
       { title: '', text: TEXT, publishedAt: '2023-05-20', categories: [], bodyFallback: false },
+      true, // isFile
       'landesverbaende_documents',
       10
     );
@@ -185,12 +333,35 @@ describe('processAndStoreDocument — qualityFlags', () => {
       'beschluss',
       URL_UNDER_TEST,
       { title: '', text: TEXT, publishedAt: '2023-05-20', categories: [], bodyFallback: false },
+      true, // isFile
       'landesverbaende_documents',
       10
     );
 
     expect(result).toEqual({ stored: false, reason: 'unchanged' });
     expect(result.qualityFlags).toBeUndefined();
+  });
+
+  /**
+   * Regression: `isFile` used to be guessed from the URL's extension, which
+   * misclassified extension-less `/download/` links (and `.pdf#page=2`
+   * fragments) as HTML. The caller now passes it explicitly, so an
+   * extension-less file URL never gets flagged as a bare HTML page.
+   */
+  it('does not flag date_missing_html for an extension-less file URL when isFile is passed explicitly', async () => {
+    scrollDocuments.mockResolvedValue([]);
+
+    const result = await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'beschluss',
+      'https://gruene-berlin.de/download/dokument123',
+      { title: 'Beschluss', text: TEXT, publishedAt: null, categories: [], bodyFallback: false },
+      true, // isFile — the PDF-archive path knows this is a file even without a .pdf extension
+      'landesverbaende_documents',
+      10
+    );
+
+    expect(result.qualityFlags).not.toHaveProperty('date_missing_html');
   });
 });
 
@@ -202,7 +373,7 @@ describe('qualityFlagsFor', () => {
   const base = {
     originalTitle: 'Beschluss zur Klimapolitik',
     storedTitle: 'Beschluss zur Klimapolitik',
-    url: 'https://gruene-berlin.de/beschluss.pdf',
+    isFile: true,
     publishedAt: '2023-05-20',
     bodyFallback: false,
   };
@@ -227,41 +398,33 @@ describe('qualityFlagsFor', () => {
   });
 
   it('flags date_missing_html for an HTML document with no publish date', () => {
-    expect(
-      qualityFlagsFor({
-        ...base,
-        url: 'https://gruene-berlin.de/artikel/klimapolitik',
-        publishedAt: null,
-      })
-    ).toContain('date_missing_html');
+    expect(qualityFlagsFor({ ...base, isFile: false, publishedAt: null })).toContain(
+      'date_missing_html'
+    );
   });
 
   it('does not flag date_missing_html when a date was found', () => {
-    expect(
-      qualityFlagsFor({ ...base, url: 'https://gruene-berlin.de/artikel/klimapolitik' })
-    ).not.toContain('date_missing_html');
+    expect(qualityFlagsFor({ ...base, isFile: false })).not.toContain('date_missing_html');
   });
 
-  it('does not flag date_missing_html for a file URL with no publish date (Wolke shares)', () => {
-    expect(qualityFlagsFor({ ...base, publishedAt: null })).not.toContain('date_missing_html');
+  it('does not flag date_missing_html for a file with no publish date (Wolke shares) — isFile is authoritative, not a URL guess', () => {
+    expect(qualityFlagsFor({ ...base, isFile: true, publishedAt: null })).not.toContain(
+      'date_missing_html'
+    );
   });
 
-  it('flags date_year_only for the year-only guess (-06-15) on a file URL', () => {
+  it('flags date_year_only for the year-only guess (-06-15) on a file', () => {
     expect(qualityFlagsFor({ ...base, publishedAt: '2023-06-15' })).toContain('date_year_only');
   });
 
-  it('does not flag date_year_only for a real date on a file URL', () => {
+  it('does not flag date_year_only for a real date on a file', () => {
     expect(qualityFlagsFor(base)).not.toContain('date_year_only');
   });
 
   it('does not flag date_year_only for an HTML document, even with a -06-15 date', () => {
-    expect(
-      qualityFlagsFor({
-        ...base,
-        url: 'https://gruene-berlin.de/artikel/klimapolitik',
-        publishedAt: '2023-06-15',
-      })
-    ).not.toContain('date_year_only');
+    expect(qualityFlagsFor({ ...base, isFile: false, publishedAt: '2023-06-15' })).not.toContain(
+      'date_year_only'
+    );
   });
 
   it('flags body_fallback when the extractor fell back to main/body', () => {
@@ -292,6 +455,7 @@ describe('processAndStoreDocument — default age limit', () => {
       'beschluss',
       URL_UNDER_TEST,
       { title: 'Beschluss', text: TEXT, publishedAt, categories: [], bodyFallback: false },
+      true, // isFile
       'landesverbaende_documents',
       undefined
     );
@@ -310,5 +474,41 @@ describe('processAndStoreDocument — default age limit', () => {
     // Guards the other direction: a default of 0 would make the case above
     // pass too, while quietly rejecting everything.
     expect(result.stored).toBe(true);
+  });
+});
+
+describe('processAndStoreDocument — title normalization for file sources', () => {
+  beforeEach(() => {
+    scrollDocuments.mockResolvedValue([]);
+  });
+
+  it('normalizes a Wolke/PDF file-name title the HTML extractor never sees', async () => {
+    await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'wahlpruefstein',
+      'https://wolke.netzbegruenung.de/s/x#/LSVD Saar .docx',
+      { title: 'LSVD Saar  \n', text: TEXT, publishedAt: null, categories: [] },
+      true, // isFile — Wolke share
+      'landesverbaende_documents',
+      10
+    );
+
+    const points = batchUpsert.mock.calls[0][2] as Array<{ payload: { title: string } }>;
+    expect(points.map((p) => p.payload.title)).toEqual(points.map(() => 'LSVD Saar'));
+  });
+
+  it('falls back to the source label when the title is only whitespace', async () => {
+    await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'beschluss',
+      URL_UNDER_TEST,
+      { title: ' &nbsp; ', text: TEXT, publishedAt: null, categories: [] },
+      true, // isFile
+      'landesverbaende_documents',
+      10
+    );
+
+    const points = batchUpsert.mock.calls[0][2] as Array<{ payload: { title: string } }>;
+    expect(points[0].payload.title).toMatch(/^Grüne Berlin - /);
   });
 });

@@ -54,7 +54,7 @@ export async function runRecallStage({
   // Explicit: the user referenced a past conversation (classifier/regex).
   // Proactive: first turn of a new thread — surface a relevant past chat so
   // the assistant can continue with continuity, gated on the same
-  // memory_enabled toggle as mem0. The `chat_history` tool handles its own
+  // memory_enabled toggle as the memory block. The `chat_history` tool handles its own
   // retrieval, so skip the proactive pass for it.
   const explicitRecall =
     classifiedState.searchSources?.includes('chat_history') && !!classifiedState.searchQuery;
