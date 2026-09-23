@@ -49,7 +49,7 @@ import { useBlockNoteComments } from '../../hooks/useBlockNoteComments';
 import { useResolveUsers } from '../../hooks/useResolveUsers';
 import { useMentionUsers } from '../../hooks/useMentionUsers';
 import { useDocsAdapter } from '../../context/DocsContext';
-import { useIsTouchDevice } from '@gruenerator/shared/hooks';
+import { useIsTouchDevice, useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { useEditorPreferencesStore } from '../../stores/editorPreferencesStore';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Mention } from './Mention';
@@ -192,6 +192,10 @@ const BlockNoteEditorInner = ({
       blockEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
   }, []);
+
+  // DocsEditorPage pads its scroll container by this offset, so the caret can be
+  // scrolled above the keyboard even at the end of the document.
+  useMobileKeyboardOffset(wrapperRef);
 
   // Keep the caret clear of the keyboard and the mobile toolbar on touch devices
   useEffect(() => {
