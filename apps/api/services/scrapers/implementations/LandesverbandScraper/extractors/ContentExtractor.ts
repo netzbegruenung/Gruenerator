@@ -231,8 +231,14 @@ export class ContentExtractor {
     for (const sel of selectors.date) {
       const el = $(sel).first();
       if (el.length) {
-        publishedAt = el.attr('datetime') || el.attr('content') || el.text().trim();
-        if (publishedAt) break;
+        const candidate = el.attr('datetime') || el.attr('content') || el.text().trim();
+        // A selector's text only wins if it actually looks like a date — the
+        // first match for some sources is a teaser/prose paragraph, not the
+        // date itself (#3565). Otherwise fall through to the next selector.
+        if (candidate && ContentExtractor.looksLikeDate(candidate)) {
+          publishedAt = candidate;
+          break;
+        }
       }
     }
 
@@ -312,6 +318,24 @@ export class ContentExtractor {
       .trim();
 
     return { title, publishedAt, text: contentText, categories, bodyFallback };
+  }
+
+  /**
+   * Whether `text` looks like a date at all (ISO, DD.MM.YY(YY), or a German
+   * long-form month name) — used to skip a date selector whose first match is
+   * prose rather than the date itself (#3565).
+   */
+  private static looksLikeDate(text: string): boolean {
+    const trimmed = text.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return true;
+    if (
+      /\d{1,2}\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4}/i.test(
+        trimmed
+      )
+    ) {
+      return true;
+    }
+    return /\d{1,2}\.\d{1,2}\.\d{2,4}(?!\d)/.test(trimmed);
   }
 
   /**

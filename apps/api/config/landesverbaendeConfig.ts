@@ -544,11 +544,19 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         },
       ],
       contentSelectors: {
-        // Detail pages use `.document-title` / `.document-content__main`. The date is a
-        // bare <p> with no markup — ContentExtractor's TYPO3 German-long-form date
-        // fallback handles it (no usable date selector exists here).
+        // Detail pages use `.document-title` / `.document-content__main`. The printed
+        // date is a bare <p> with no class, as the first direct child of the large
+        // content column — matched structurally below. It can differ by a day or two
+        // from the lede, which often names a nearby event date and would otherwise
+        // win via ContentExtractor's TYPO3 German-long-form-date fallback scan of the
+        // whole <main> (#3565). Legacy pages print no date at all and still rely on
+        // that fallback.
         title: ['h1.document-title', 'h1', 'meta[property="og:title"]'],
-        date: ['time[datetime]', 'meta[property="article:published_time"]'],
+        date: [
+          'time[datetime]',
+          'meta[property="article:published_time"]',
+          '.document-content__main > .l-container > .l-column > p',
+        ],
         content: ['.document-content__main', '.news-text-wrap', 'article', 'main'],
         // `.document-content__main` also contains a share bar and a contact box
         // (spokesperson name, phone, social URLs) — strip them rather than
@@ -612,7 +620,17 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         // dort den Anrisstext an („Titel: Heute haben die…", #3560). Die Kacheln
         // der Seitenleiste tragen ebenfalls <h2>, darum der Pfad über .xBlog.single.
         title: ['.xBlog.single .xBlogItem header h2', 'h1', 'meta[property="og:title"]'],
-        date: ['time[datetime]', '.tx_xblog_pi1 .date', 'meta[property="article:published_time"]'],
+        // .xBlog.single .ce-bodytext p.inlineleft ist das gedruckte Datum ("DD.MM.YY –")
+        // am Anfang jedes Beitrags — vor der Meta-Angabe, die nur den TYPO3-
+        // Datensatzstand trägt und beliebig weit vom gedruckten Datum abweicht
+        // (#3565). time[datetime]/.tx_xblog_pi1 .date existieren auf gruene.berlin
+        // nicht, bleiben aber als Rückfall stehen.
+        date: [
+          'time[datetime]',
+          '.tx_xblog_pi1 .date',
+          '.xBlog.single .ce-bodytext p.inlineleft',
+          'meta[property="article:published_time"]',
+        ],
         // gruene.berlin (TYPO3 xBlog) renders the page body in .ce-bodytext inside
         // the single-view .xBlog.single — NOT .tx_xblog_pi1 (empty in the rendered
         // DOM) or .bodytext (wrong class). Targeting the body element avoids the
@@ -683,7 +701,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       contentSelectors: {
         // Titel: siehe berlin-lv-presse (#3560).
         title: ['.xBlog.single .xBlogItem header h2', 'h1', 'meta[property="og:title"]'],
-        date: ['time[datetime]', '.tx_xblog_pi1 .date', 'meta[property="article:published_time"]'],
+        // Datum: siehe berlin-lv-presse (#3565).
+        date: [
+          'time[datetime]',
+          '.tx_xblog_pi1 .date',
+          '.xBlog.single .ce-bodytext p.inlineleft',
+          'meta[property="article:published_time"]',
+        ],
         // gruene.berlin (TYPO3 xBlog) renders the page body in .ce-bodytext inside
         // the single-view .xBlog.single — NOT .tx_xblog_pi1 (empty in the rendered
         // DOM) or .bodytext (wrong class). Targeting the body element avoids the
@@ -928,13 +952,17 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         // h1 is the site logo link; the headline is the h2 inside the
         // single-news container's <header>.
         title: ['.news.single header h2', 'meta[property="og:title"]', 'h1'],
-        // No bare 'time' selector: the sidebar event calendar renders upcoming
-        // dates as <time> tags, which previously stamped every article with a
-        // future event date.
+        // .ce-bodytext p.inlineleft (the printed "DD.MM.YY –") wins over the meta
+        // record time, which can differ by days to weeks (#3565). A handful of
+        // articles render a <p class="teaser"> before the date paragraph, but the
+        // class selector still lands on the actual date, not the teaser. No bare
+        // 'time' selector: the sidebar event calendar renders upcoming dates as
+        // <time> tags with no datetime attribute, which previously stamped every
+        // article with a future event date.
         date: [
+          '.ce-bodytext p.inlineleft',
           'meta[property="article:published_time"]',
           'time[datetime]',
-          '.ce-bodytext p.inlineleft',
         ],
         content: ['.ce-bodytext', '.news-text', '.bodytext'],
         categories: ['.news-category', '.tags a', 'a[href*="/themen/"]'],
