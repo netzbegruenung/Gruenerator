@@ -114,7 +114,7 @@ const log = createLogger('ChatGraph:Classifier');
 /** Liest `notebook_quellen` dieses System-Notebook? Eine Sammlung, und die
  *  steht der Locale zu — dieselbe Prüfung wie im Werkzeug
  *  (`resolveSystemCollection` gegen `collectionsForLocale`). */
-function toolReadsSystemNotebook(id: string, locale: string | null): boolean {
+export function toolReadsSystemNotebook(id: string, locale: string | null): boolean {
   const keys = resolveNotebookCollections([id]);
   return keys.length === 1 && collectionsForLocale(locale).includes(keys[0]!);
 }
