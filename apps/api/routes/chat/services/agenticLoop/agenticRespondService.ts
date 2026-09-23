@@ -21,6 +21,7 @@ import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHea
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
+import { notebookForPrompt } from '../../agents/notebookSourceTools.js';
 import {
   getLoopSynthFallbackModel,
   resolveLoopPlannerLane,
@@ -465,12 +466,18 @@ export async function streamAgenticResponse(
     // here or the model promises an edit that nothing will make (or hides
     // that editing is off).
     const preLoopEditNotes = mode === 'unified' ? buildPreLoopEditNotes(finalState) : '';
+    // Das gewählte Notebook, sonst das, mit dem der Thread zuletzt gearbeitet hat.
+    const promptNotebook = notebookForPrompt(
+      finalState.notebookIds?.[0] ?? finalState.threadNotebookId,
+      finalState.userLocale ?? null
+    );
     const toolUsageBlock = buildToolUsageBlock(
       budget.maxSteps,
       researchBanned,
       mode === 'unified',
       Object.keys(wrapped),
-      sourceRegistry.carriedSize > 0
+      sourceRegistry.carriedSize > 0,
+      promptNotebook
     );
     const recipeCatalogBlock = renderRecipeCatalog(recipeCatalog);
     const toolSystem = withInstructionHierarchy(
