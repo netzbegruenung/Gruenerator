@@ -14,6 +14,7 @@ import { type ImportedLinkedDoc } from '../NotebookEditorDocsSection';
 import { type ImportedWolkeDocument } from '../NotebookEditorWolkeSection';
 import { type ImportedWordpressDocument } from '../NotebookEditorWordpressSection';
 
+import { settleReindex } from './reindexWatch';
 import {
   MAX_DOCUMENTS,
   TOTAL_STEPS,
@@ -25,6 +26,8 @@ import {
   type NotebookEditorFormData,
   type UploadedDocument,
 } from './shared';
+
+const REINDEX_POLL_MS = 4000;
 
 function reindexErrorMessage(result: { status: number; body: unknown }): string {
   const body = result.body as { error?: unknown } | null;
@@ -188,12 +191,7 @@ export function useNotebookEditorState({
               });
               return;
             }
-            if (result.status !== 'failed') {
-              // Only a failed re-index leaves a reason on a completed document:
-              // the old version stays searchable, but the user asked for a new one.
-              if (result.error) toast.error(result.error);
-              return;
-            }
+            if (result.status !== 'failed') return;
             setFailedDocs((prev) => {
               const next = new Map(prev);
               next.set(id, result.error ?? 'Das Dokument konnte nicht gelesen werden.');
@@ -367,6 +365,56 @@ export function useNotebookEditorState({
 
   const collectionId = editingCollection?.id ?? null;
 
+  // Re-indexing is watched through ONE notebook fetch per tick, not a status
+  // poller per document: the per-document endpoint only answers the owner, and
+  // "Alle neu indexieren" would otherwise start one poller per source.
+  const [reindexWatched, setReindexWatched] = useState<string[]>([]);
+
+  const watchReindex = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    setReindexWatched((prev) => [...new Set([...prev, ...ids])]);
+    setIndexingDocIds((prev) => new Set([...prev, ...ids]));
+    setFailedDocs((prev) => {
+      if (!ids.some((id) => prev.has(id))) return prev;
+      const next = new Map(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!collectionId || reindexWatched.length === 0) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void getContractsClient()
+        .notebookCollections.getCollection({ params: { slugOrId: collectionId } })
+        .then((result) => {
+          if (cancelled || result.status !== 200) return;
+          const settled = settleReindex(reindexWatched, result.body.collection.documents ?? []);
+          const finished = new Set(reindexWatched.filter((id) => !settled.running.includes(id)));
+          if (finished.size === 0) {
+            // Nothing changed — a new array re-arms the timer for the next tick.
+            setReindexWatched([...reindexWatched]);
+            return;
+          }
+          setIndexingDocIds((prev) => new Set([...prev].filter((id) => !finished.has(id))));
+          if (settled.failed.length > 0) {
+            setFailedDocs((prev) => new Map([...prev, ...settled.failed]));
+          }
+          settled.keptOld.forEach((reason) => toast.error(reason));
+          setReindexWatched(settled.running);
+        })
+        .catch(() => {
+          // Network hiccup: try again on the next tick.
+          if (!cancelled) setReindexWatched([...reindexWatched]);
+        });
+    }, REINDEX_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [collectionId, reindexWatched]);
+
   const handleReindexDocument = useCallback(
     async (id: string) => {
       if (!collectionId) return;
@@ -383,12 +431,12 @@ export function useNotebookEditorState({
           return;
         }
         toast.success(result.body.message);
-        watchIndexing([id]);
+        watchReindex([id]);
       } catch {
         toast.error('Neu indexieren ist fehlgeschlagen.');
       }
     },
-    [collectionId, watchIndexing]
+    [collectionId, watchReindex]
   );
 
   const handleReindexAll = useCallback(async () => {
@@ -403,11 +451,11 @@ export function useNotebookEditorState({
       }
       if (result.body.queued.length === 0) toast.error(result.body.message);
       else toast.success(result.body.message);
-      watchIndexing(result.body.queued);
+      watchReindex(result.body.queued);
     } catch {
       toast.error('Neu indexieren ist fehlgeschlagen.');
     }
-  }, [collectionId, watchIndexing]);
+  }, [collectionId, watchReindex]);
 
   const handleDocsImported = useCallback(
     (docs: ImportedLinkedDoc[]) => {
