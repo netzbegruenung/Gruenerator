@@ -53,6 +53,10 @@ const STALE_PROCESSING_MS = 20 * 60 * 1000;
  */
 const LAST_ACTIVITY_SQL = 'GREATEST(processing_started_at, updated_at)';
 
+/** Die Zeile kam über „Neu indexieren" und war vorher durchsuchbar. */
+const PREV_SEARCHABLE_SQL =
+  "(jsonb_typeof(metadata) = 'object' AND metadata->>'reindex_prev_searchable' = 'true')";
+
 /** Give up after this many claims so a poison document cannot loop forever. */
 const MAX_ATTEMPTS = 3;
 
@@ -74,11 +78,24 @@ interface ClaimedDocument {
 async function failExhaustedDocuments(): Promise<number> {
   const postgres = getPostgresInstance();
   const rows = (await postgres.query(
+    // Ein Neu-Indexieren einer vorher durchsuchbaren Quelle fällt auf die alte
+    // Fassung zurück, statt eine funktionierende Quelle als kaputt zu melden;
+    // die Markierungen des Laufs gehen in jedem Fall weg. (SET sieht die ALTE
+    // Zeile — beide Ausdrücke lesen denselben Vorzustand.)
     `UPDATE documents
-        SET status = 'failed',
-            metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
+        SET status = CASE WHEN ${PREV_SEARCHABLE_SQL} THEN 'completed'
+                          ELSE 'failed' END,
+            metadata = (
+              CASE WHEN jsonb_typeof(metadata) = 'object'
+                   THEN metadata - ARRAY['reindex_origin', 'queued_at', 'reindex_prev_searchable']
+                   ELSE COALESCE(metadata, '{}'::jsonb)
+              END
+            ) || jsonb_build_object(
               'processing_error',
-              'Die Verarbeitung wurde mehrfach abgebrochen. Bitte lade die Datei erneut hoch.'
+              CASE WHEN ${PREV_SEARCHABLE_SQL}
+                   THEN 'Neu indexieren wurde mehrfach abgebrochen. Die bisherige Fassung bleibt durchsuchbar.'
+                   ELSE 'Die Verarbeitung wurde mehrfach abgebrochen. Bitte lade die Datei erneut hoch.'
+              END
             )
       WHERE status = 'processing'
         AND processing_attempts >= $1
@@ -120,7 +137,9 @@ async function claimNextDocument(): Promise<ClaimedDocument | null> {
                  )
                )
            AND COALESCE(processing_attempts, 0) < $2
-         ORDER BY created_at
+         -- Ein neu indexiertes Dokument stellt sich hinten an (queued_at),
+         -- statt mit seinem alten created_at frische Uploads zu überholen.
+         ORDER BY COALESCE((metadata->>'queued_at')::timestamptz, created_at)
            FOR UPDATE SKIP LOCKED
          LIMIT 1
       )

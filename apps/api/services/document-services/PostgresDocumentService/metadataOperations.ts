@@ -7,7 +7,6 @@ import { and, desc, eq } from 'drizzle-orm';
 
 import { documents, type Document } from '../../../database/schema/documents.js';
 import { getDrizzleInstance } from '../../../database/services/DrizzleService.js';
-import { parseMetadata } from '../../../routes/documents/helpers.js';
 
 import type {
   DocumentMetadata,
@@ -74,6 +73,7 @@ export async function saveDocumentMetadata(
       status: metadata.status || 'processing',
       source_url: metadata.sourceUrl || null,
       markdown_content: metadata.markdownContent ?? null,
+      ...(metadata.pageCount !== undefined ? { page_count: metadata.pageCount } : {}),
       metadata: metadata.additionalMetadata ? JSON.stringify(metadata.additionalMetadata) : null,
     };
 
@@ -156,29 +156,54 @@ export async function updateDocumentMetadata(
     if (updates.lastSyncedAt !== undefined) updateData.last_synced_at = updates.lastSyncedAt;
     if (updates.markdownContent !== undefined)
       updateData.markdown_content = updates.markdownContent;
+    if (updates.pageCount !== undefined) updateData.page_count = updates.pageCount;
 
+    // EINE Anweisung für Spalten und Metadaten. Metadaten werden in der
+    // Datenbank zusammengeführt, nicht lesen-ändern-schreiben: ein langer
+    // Verarbeitungslauf überschrieb sonst Tags, die in der Zwischenzeit jemand
+    // setzte. Und nicht in zwei Anweisungen: stürzt der Prozess dazwischen,
+    // stünden Metadaten (filePath entfernt) ohne Spalten (status). `undefined`
+    // heißt wie bisher „Schlüssel entfernen".
+    const params: unknown[] = [documentId, userId];
+    const sets: string[] = [];
     if (updates.additionalMetadata !== undefined) {
-      // Merge with existing metadata to avoid losing fields
-      const currentRows = await db
-        .select({ metadata: documents.metadata })
-        .from(documents)
-        .where(and(eq(documents.id, documentId), eq(documents.user_id, userId)))
-        .limit(1);
-      const current = currentRows[0];
-      const baseMeta = parseMetadata(current?.metadata);
-      updateData.metadata = JSON.stringify({
-        ...baseMeta,
-        ...updates.additionalMetadata,
-      });
+      const patch: Record<string, unknown> = {};
+      const removed: string[] = [];
+      for (const [key, value] of Object.entries(updates.additionalMetadata)) {
+        if (value === undefined) removed.push(key);
+        else patch[key] = value;
+      }
+      params.push(removed, JSON.stringify(patch));
+      sets.push(`metadata = (
+                  CASE jsonb_typeof(metadata)
+                    WHEN 'object' THEN metadata
+                    WHEN 'string' THEN (metadata #>> '{}')::jsonb
+                    ELSE '{}'::jsonb
+                  END - $3::text[]
+                ) || $4::jsonb`);
+    }
+    // Spaltennamen stammen aus der festen Liste oben, nie aus der Eingabe.
+    for (const [column, value] of Object.entries(updateData)) {
+      params.push(value);
+      sets.push(`${column} = $${params.length}`);
     }
 
-    const result = await postgres.update('documents', updateData, {
-      id: documentId,
-      user_id: userId,
-    });
+    const row =
+      sets.length > 0
+        ? ((
+            await postgres.query(
+              `UPDATE documents SET ${sets.join(', ')} WHERE id = $1 AND user_id = $2 RETURNING *`,
+              params
+            )
+          )[0] as Record<string, unknown>)
+        : ((
+            await postgres.update('documents', updateData, {
+              id: documentId,
+              user_id: userId,
+            })
+          ).data[0] as Record<string, unknown>);
 
     console.log(`[PostgresDocumentService] Document ${documentId} updated`);
-    const row = result.data[0] as Record<string, unknown>;
     const createdAt =
       row.created_at instanceof Date ? row.created_at.toISOString() : (row.created_at as string);
     const updatedAt =

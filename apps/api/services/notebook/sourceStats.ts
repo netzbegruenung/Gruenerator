@@ -11,6 +11,7 @@
  * Die Texte kommen über `loadScanTexts` und tragen dessen `exhaustive`.
  */
 import { applyContextCap } from '../../utils/contextCap.js';
+import { removePageMarkerLines } from '../OcrService/pageMarkers.js';
 
 import { fetchDocumentMetadata, type NotebookSourcesDeps } from './notebookSources.js';
 import { loadScanTexts, type ScanLoad, type ScannedSource } from './sourceGrep.js';
@@ -67,7 +68,9 @@ export function splitSentences(text: string): Array<{ text: string; start: numbe
   return out;
 }
 
-export function textStats(text: string): TextCounts {
+export function textStats(raw: string): TextCounts {
+  // Seitenmarken zählen weder als Wörter noch als Absätze.
+  const text = removePageMarkerLines(raw);
   return {
     chars: text.length,
     words: text.match(WORD)?.length ?? 0,
@@ -260,8 +263,9 @@ export async function statsFromLoad(
       lemmaTextsComplete = false;
       break;
     }
-    const text = applyContextCap(s.text, remaining, 'notebook_quellen:stats-lemmas', false);
-    if (text.length < s.text.length) lemmaTextsComplete = false;
+    const plain = removePageMarkerLines(s.text);
+    const text = applyContextCap(plain, remaining, 'notebook_quellen:stats-lemmas', false);
+    if (text.length < plain.length) lemmaTextsComplete = false;
     remaining -= text.length;
     texts.push({ id: s.sourceId, text });
   }

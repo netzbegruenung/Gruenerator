@@ -5,6 +5,7 @@ import {
   HiDocumentText,
   HiExclamationCircle,
   HiGlobeAlt,
+  HiRefresh,
   HiUpload,
   HiX,
 } from 'react-icons/hi';
@@ -42,6 +43,8 @@ interface DocumentRowProps {
   loading: boolean;
   onToggleSelect: (id: string) => void;
   onRemove: (id: string) => void;
+  /** Only for sources whose original is still reachable. */
+  onReindex: ((id: string) => void) | null;
 }
 
 function DocumentRowInner({
@@ -53,6 +56,7 @@ function DocumentRowInner({
   loading,
   onToggleSelect,
   onRemove,
+  onReindex,
 }: DocumentRowProps) {
   const displayName = doc.filename || doc.title;
   const SourceIcon = SOURCE_ICONS[source];
@@ -123,6 +127,21 @@ function DocumentRowInner({
           <span className="sr-only">{`${displayName}: nicht durchsuchbar — ${failure}`}</span>
         </span>
       ) : null}
+
+      {onReindex && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+          onClick={() => onReindex(doc.id)}
+          disabled={loading || indexing}
+          aria-label={`${doc.title} neu indexieren`}
+          title="Neu indexieren"
+        >
+          <HiRefresh size={12} />
+        </Button>
+      )}
 
       <Button
         type="button"

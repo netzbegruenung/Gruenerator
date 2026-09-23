@@ -4,6 +4,7 @@ import {
   type WolkeFolderRef,
   type WordpressSiteRef,
 } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import { useState, useEffect, useCallback, useMemo, useRef, type DragEvent } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
@@ -13,6 +14,7 @@ import { type ImportedLinkedDoc } from '../NotebookEditorDocsSection';
 import { type ImportedWolkeDocument } from '../NotebookEditorWolkeSection';
 import { type ImportedWordpressDocument } from '../NotebookEditorWordpressSection';
 
+import { REINDEX_TIMEOUT_MESSAGE, settleReindex, splitTimedOut } from './reindexWatch';
 import {
   MAX_DOCUMENTS,
   TOTAL_STEPS,
@@ -24,6 +26,16 @@ import {
   type NotebookEditorFormData,
   type UploadedDocument,
 } from './shared';
+
+const REINDEX_POLL_MS = 4000;
+
+function reindexErrorMessage(result: { status: number; body: unknown }): string {
+  const body = result.body as { error?: unknown } | null;
+  if ((result.status === 403 || result.status === 404) && typeof body?.error === 'string') {
+    return body.error;
+  }
+  return 'Neu indexieren ist fehlgeschlagen.';
+}
 
 interface UseNotebookEditorStateArgs {
   onSave: (data: NotebookEditorSavePayload) => Promise<void>;
@@ -87,6 +99,7 @@ export function useNotebookEditorState({
           editingCollection.documents.map((doc) => ({
             id: doc.id,
             title: doc.title || 'Dokument',
+            ...(doc.reindexable ? { reindexable: true } : {}),
             ...(doc.source_type === 'wolke'
               ? { source: 'wolke' as const }
               : doc.source_type === 'wordpress'
@@ -350,6 +363,137 @@ export function useNotebookEditorState({
     [forgetFailed]
   );
 
+  const collectionId = editingCollection?.id ?? null;
+
+  // Re-indexing is watched through ONE notebook fetch per tick, not a status
+  // poller per document: the per-document endpoint only answers the owner, and
+  // "Alle neu indexieren" would otherwise start one poller per source.
+  const [reindexWatched, setReindexWatched] = useState<string[]>([]);
+  const reindexStartedAt = useRef(new Map<string, number>());
+
+  const watchReindex = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    const now = Date.now();
+    ids.forEach((id) => reindexStartedAt.current.set(id, now));
+    setReindexWatched((prev) => [...new Set([...prev, ...ids])]);
+    setIndexingDocIds((prev) => new Set([...prev, ...ids]));
+    setFailedDocs((prev) => {
+      if (!ids.some((id) => prev.has(id))) return prev;
+      const next = new Map(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!collectionId || reindexWatched.length === 0) return;
+    let cancelled = false;
+
+    // Stop watching `ids`: spinner off, and — when the outcome is unknown —
+    // the same "takes unusually long" marker the upload path shows.
+    const finish = (ids: string[], failures: Array<[string, string]>, next: string[]) => {
+      const gone = new Set(ids);
+      gone.forEach((id) => reindexStartedAt.current.delete(id));
+      setIndexingDocIds((prev) => new Set([...prev].filter((id) => !gone.has(id))));
+      if (failures.length > 0) setFailedDocs((prev) => new Map([...prev, ...failures]));
+      setReindexWatched(next);
+    };
+    const giveUp = (ids: string[]) =>
+      finish(
+        ids,
+        ids.map((id) => [id, REINDEX_TIMEOUT_MESSAGE]),
+        reindexWatched.filter((id) => !ids.includes(id))
+      );
+
+    const timer = setTimeout(() => {
+      void getContractsClient()
+        .notebookCollections.getCollection({ params: { slugOrId: collectionId } })
+        .then((result) => {
+          if (cancelled) return;
+          // No answer we can read: stop polling instead of leaving spinners
+          // spinning forever.
+          if (result.status !== 200) {
+            giveUp(reindexWatched);
+            return;
+          }
+          const settled = settleReindex(reindexWatched, result.body.collection.documents ?? []);
+          const { timedOut, running } = splitTimedOut(
+            settled.running,
+            reindexStartedAt.current,
+            Date.now()
+          );
+          const finished = reindexWatched.filter((id) => !running.includes(id));
+          settled.keptOld.forEach((reason) => toast.error(reason));
+          if (finished.length === 0) {
+            // Nothing changed — a new array re-arms the timer for the next tick.
+            setReindexWatched([...reindexWatched]);
+            return;
+          }
+          finish(
+            finished,
+            [
+              ...settled.failed,
+              ...timedOut.map((id): [string, string] => [id, REINDEX_TIMEOUT_MESSAGE]),
+            ],
+            running
+          );
+        })
+        .catch(() => {
+          if (cancelled) return;
+          // Network hiccup: try again next tick, but not forever.
+          const { timedOut } = splitTimedOut(reindexWatched, reindexStartedAt.current, Date.now());
+          if (timedOut.length > 0) giveUp(timedOut);
+          else setReindexWatched([...reindexWatched]);
+        });
+    }, REINDEX_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [collectionId, reindexWatched]);
+
+  const handleReindexDocument = useCallback(
+    async (id: string) => {
+      if (!collectionId) return;
+      try {
+        const result = await getContractsClient().notebookCollections.reindexDocument({
+          params: { id: collectionId, documentId: id },
+        });
+        if (result.status !== 200) {
+          toast.error(reindexErrorMessage(result));
+          return;
+        }
+        if (result.body.status === 'unavailable') {
+          toast.error(result.body.message);
+          return;
+        }
+        toast.success(result.body.message);
+        watchReindex([id]);
+      } catch {
+        toast.error('Neu indexieren ist fehlgeschlagen.');
+      }
+    },
+    [collectionId, watchReindex]
+  );
+
+  const handleReindexAll = useCallback(async () => {
+    if (!collectionId) return;
+    try {
+      const result = await getContractsClient().notebookCollections.reindexNotebook({
+        params: { id: collectionId },
+      });
+      if (result.status !== 200) {
+        toast.error(reindexErrorMessage(result));
+        return;
+      }
+      if (result.body.queued.length === 0) toast.error(result.body.message);
+      else toast.success(result.body.message);
+      watchReindex(result.body.queued);
+    } catch {
+      toast.error('Neu indexieren ist fehlgeschlagen.');
+    }
+  }, [collectionId, watchReindex]);
+
   const handleDocsImported = useCallback(
     (docs: ImportedLinkedDoc[]) => {
       if (docs.length === 0) return;
@@ -569,6 +713,8 @@ export function useNotebookEditorState({
     handleDragLeave,
     handleRemoveDocument,
     handleRemoveDocuments,
+    handleReindexDocument: collectionId ? handleReindexDocument : null,
+    handleReindexAll: collectionId ? handleReindexAll : null,
     handleUnstageFile,
     handleCommitStagedUpload,
     handleWolkeDocsImported,
