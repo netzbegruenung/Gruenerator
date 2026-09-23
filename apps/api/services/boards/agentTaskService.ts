@@ -305,19 +305,22 @@ export async function completeWithChildAgentTasks(
 
 /**
  * What a child task needs from the graph (#3549): the request it was split
- * from, and the cards of the tasks it waits for — their results feed its context.
+ * from, and each predecessor's card plus result document. result_document_id
+ * is written in the same UPDATE that makes the predecessor claimable-past, so
+ * it is always there by the time this task is claimed.
  */
-export async function taskGraphContext(
-  task: AgentTask
-): Promise<{ parentTaskText: string | null; predecessorCardIds: string[] }> {
+export async function taskGraphContext(task: AgentTask): Promise<{
+  parentTaskText: string | null;
+  predecessors: Array<{ cardId: string; resultDocumentId: string | null }>;
+}> {
   const [parent, predecessors] = await Promise.all([
     task.parent_task_id
       ? db.query<{ task_text: string }>(`SELECT task_text FROM agent_tasks WHERE id = $1`, [
           task.parent_task_id,
         ])
       : Promise.resolve([]),
-    db.query<{ card_id: string }>(
-      `SELECT p.card_id FROM agent_task_dependencies d
+    db.query<{ card_id: string; result_document_id: string | null }>(
+      `SELECT p.card_id, p.result_document_id FROM agent_task_dependencies d
          JOIN agent_tasks p ON p.id = d.depends_on_task_id
         WHERE d.task_id = $1`,
       [task.id]
@@ -325,7 +328,10 @@ export async function taskGraphContext(
   ]);
   return {
     parentTaskText: parent[0]?.task_text ?? null,
-    predecessorCardIds: predecessors.map((r) => r.card_id),
+    predecessors: predecessors.map((r) => ({
+      cardId: r.card_id,
+      resultDocumentId: r.result_document_id,
+    })),
   };
 }
 
