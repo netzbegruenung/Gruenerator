@@ -333,8 +333,14 @@ export async function readSystemSourceText(
   const joined = chunks.map((c) => c.text).join('\n\n');
   const title = full.title || '(ohne Titel)';
   // `full_text` liegt nur auf manchen Chunk-0-Punkten; sonst IST der Text die
-  // Verkettung der Chunks, und deren Offsets gelten.
-  if (full.fullText && full.fullText !== joined) {
+  // Verkettung der Chunks, und deren Offsets gelten. Ob er aus der Nutzlast
+  // kam, sagt nur `chunkCount === 1` (Schritt 1 dort) — der Rückfall (Schritt
+  // 2) scrollt ungeblättert höchstens 500 Chunks und wäre bei längeren
+  // Dokumenten ein abgeschnittener Text; dann gilt die geblätterte Verkettung.
+  // Kein Längenvergleich: überlappende Chunks machen `joined` auch bei echtem
+  // `full_text` länger.
+  const fromPayload = full.chunkCount === 1 && full.fullText !== joined;
+  if (full.fullText && fromPayload) {
     return {
       title,
       text: full.fullText,
@@ -563,6 +569,7 @@ export async function loadSystemScanTexts(
         );
         const candidates = [...new Set(passages.map((p) => p.sourceId))];
         const rest = ids.filter((id) => !candidates.includes(id));
+        // Der Rest wird nur angehängt, damit die Log-Zeile des Deckels die Gesamtzahl nennt.
         ids = applyCountCap(
           [...candidates, ...rest],
           candidates.length,

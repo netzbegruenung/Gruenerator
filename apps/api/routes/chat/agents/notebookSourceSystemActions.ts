@@ -36,6 +36,7 @@ import {
   outlineSystemSource,
   readSystemSourceText,
   searchSystemDocuments,
+  SYSTEM_LIST_SCROLL_MAX,
   systemSourceSize,
   type SystemCollection,
   type SystemNotebookSourcesDeps,
@@ -62,8 +63,7 @@ import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
 const EXCERPT_CHARS = 300;
 const CLAIM_PASSAGES = 8;
-const LIST_CAPPED =
-  'Die Sammlung ist größer, als list durchsieht — total zählt nur die ersten 5000 Quellen. Grenze mit filter ein oder suche mit find.';
+const LIST_CAPPED = `Die Sammlung ist größer, als list durchsieht — total zählt nur die ersten ${SYSTEM_LIST_SCROLL_MAX} Quellen. Grenze mit filter ein oder suche mit find.`;
 
 export interface SystemActionArgs extends ScanActionArgs {
   action: string;
