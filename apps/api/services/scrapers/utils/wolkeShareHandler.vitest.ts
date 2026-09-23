@@ -39,6 +39,13 @@ describe('isExcludedWolkeFileName', () => {
     expect(isExcludedWolkeFileName('Antwort-Entwurf-v2.pdf')).toBe(true);
   });
 
+  it('matches "intern" only as a word', () => {
+    expect(isExcludedWolkeFileName('Protokoll_intern.pdf')).toBe(true);
+    expect(isExcludedWolkeFileName('Intern-Vermerk.pdf')).toBe(true);
+    expect(isExcludedWolkeFileName('WPS_Internationale Jugendarbeit-Antwort.pdf')).toBe(false);
+    expect(isExcludedWolkeFileName('20210601_Grüne Antworten_WPS_Internet.pdf')).toBe(false);
+  });
+
   it('extends the defaults with extra case-insensitive substrings', () => {
     expect(isExcludedWolkeFileName('Geheimpapier.pdf')).toBe(false);
     expect(isExcludedWolkeFileName('Geheimpapier.pdf', ['geheim'])).toBe(true);
