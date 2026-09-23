@@ -6,7 +6,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 import { pickRange } from '../../routes/chat/agents/notebookSourceRange.js';
-import { readSourceText } from '../notebook/notebookSources.js';
+import { outlineSource, readSourceText } from '../notebook/notebookSources.js';
 
 import { getDocumentChunks } from './DocumentSearchService/documentRetrieval.js';
 import { storeDocumentVectors } from './DocumentSearchService/vectorOperations.js';
@@ -15,8 +15,10 @@ import { smartChunkDocument } from './TextChunker/index.js';
 
 import type { QdrantOperations } from '../../database/services/QdrantOperations.js';
 
+// Eine Seite länger als ein Chunk (1600 Zeichen), wie auf echten PDF-Seiten:
+// die Seite eines Chunks ist die Seite, auf der er BEGINNT.
 const para = (word: string) =>
-  `${word} ist ein Satz über die Wärmewende in der Kommune. `.repeat(8);
+  `${word} ist ein Satz über die Wärmewende in der Kommune. `.repeat(40);
 
 const MARKED = [
   '## Seite 1',
@@ -73,10 +75,12 @@ describe('Seitenzahlen: Marke → Chunk → Qdrant-Payload → Leser', () => {
     const { stored } = await roundTrip(MARKED);
     const pages = stored.map((p) => p.payload.page_number);
     expect(new Set(pages)).toEqual(new Set([1, 2, 4]));
+    // Die Seite eines Chunks ist die, auf der sein erstes Wort steht.
     for (const p of stored) {
       const text = p.payload.chunk_text as string;
-      if (text.includes('Seite-zwei-Inhalt')) expect(p.payload.page_number).toBe(2);
-      if (text.includes('Seite-vier-Inhalt')) expect(p.payload.page_number).toBe(4);
+      if (text.startsWith('Seite-eins-Inhalt')) expect(p.payload.page_number).toBe(1);
+      if (text.startsWith('Seite-zwei-Inhalt')) expect(p.payload.page_number).toBe(2);
+      if (text.startsWith('Seite-vier-Inhalt')) expect(p.payload.page_number).toBe(4);
     }
   });
 
@@ -101,6 +105,71 @@ describe('Seitenzahlen: Marke → Chunk → Qdrant-Payload → Leser', () => {
 
     const range = pickRange({ seite: 3 }, source.chunkMap, source.chunks);
     expect(range).toEqual({ error: expect.stringContaining('keine Seitenzahlen') });
+  });
+});
+
+// Ein Abschnitt, der über eine Seitengrenze läuft: die Überschrift steht auf
+// Seite 1, ihr Text geht auf Seite 2 weiter. Seitenweises Zerlegen verlor dort
+// den Überschriftenpfad, zählte die Abschnitte je Seite neu und erzeugte je
+// Seite einen Gliederungseintrag ohne Überschrift.
+const SPANNING = [
+  '## Seite 1',
+  '',
+  '# Wärmeplanung',
+  '',
+  para('Anfang-der-Wärmeplanung'),
+  '',
+  '## Seite 2',
+  '',
+  para('Fortsetzung-der-Wärmeplanung'),
+  '',
+  '# Mobilität',
+  '',
+  para('Radwege-Inhalt'),
+].join('\n');
+
+describe('Seitenzahlen über Abschnittsgrenzen hinweg', () => {
+  it('behält Überschrift und Abschnitt über die Seitengrenze', async () => {
+    const { stored } = await roundTrip(SPANNING);
+    const cont = stored.find((p) =>
+      (p.payload.chunk_text as string).startsWith('Fortsetzung-der-Wärmeplanung')
+    );
+    const start = stored.find((p) =>
+      (p.payload.chunk_text as string).includes('Anfang-der-Wärmeplanung')
+    );
+    expect(cont?.payload.heading_path).toEqual(['Wärmeplanung']);
+    expect(cont?.payload.section_index).toBe(start?.payload.section_index);
+    expect(start?.payload.page_number).toBe(1);
+    expect(cont?.payload.page_number).toBe(2);
+  });
+
+  it('Gliederung ohne Phantom-Abschnitte, section liest den richtigen Text', async () => {
+    const { source } = await roundTrip(SPANNING);
+    const outline = outlineSource(source.chunks);
+    expect(outline.map((e) => e.heading)).toEqual(['Wärmeplanung', 'Mobilität']);
+    expect(outline[0]).toMatchObject({ pageFrom: 1, pageTo: 2 });
+
+    const section = outline[0].sectionIndex as number;
+    const range = pickRange({ section }, source.chunkMap, source.chunks);
+    if ('error' in range) throw new Error(range.error);
+    const slice = source.text.slice(range.von, range.von + (range.zeichen ?? 0));
+    expect(slice).toContain('Anfang-der-Wärmeplanung');
+    expect(slice).toContain('Fortsetzung-der-Wärmeplanung');
+    expect(slice).not.toContain('Radwege-Inhalt');
+  });
+
+  it('Offsets zeigen in den gespeicherten Rohtext samt Marken', async () => {
+    const { stored } = await roundTrip(SPANNING);
+    for (const p of stored) {
+      const { char_start: from, char_end: to } = p.payload as {
+        char_start: number;
+        char_end: number;
+      };
+      expect(typeof from).toBe('number');
+      const raw = SPANNING.slice(from, to).replace(/\s+/g, '');
+      const firstWord = (p.payload.chunk_text as string).split(/\s+/)[0].replace(/\s+/g, '');
+      expect(raw.startsWith(firstWord)).toBe(true);
+    }
   });
 });
 
