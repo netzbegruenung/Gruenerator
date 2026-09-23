@@ -26,6 +26,7 @@ import {
 } from '../../../../document-services/index.js';
 import { mistralEmbeddingService } from '../../../../mistral/index.js';
 import { recordSyncEvent, toExcerpt } from '../../../syncEventRecorder.js';
+import { ContentExtractor } from '../extractors/ContentExtractor.js';
 import { DateExtractor } from '../extractors/DateExtractor.js';
 
 import type { LandesverbandSource } from '../../../../../config/landesverbaendeConfig.js';
@@ -121,7 +122,7 @@ export class DocumentProcessor {
 
     // STEP 5: Build document title
     const documentTitle =
-      title ||
+      ContentExtractor.normalizeTitle(title || '') ||
       `${source.name} - ${(CONTENT_TYPE_LABELS as Record<string, string>)[effectiveContentType] || effectiveContentType}`;
 
     // STEP 6: Chunk document
