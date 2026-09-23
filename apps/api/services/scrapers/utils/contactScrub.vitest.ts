@@ -35,6 +35,20 @@ describe('scrubThirdPartyContacts', () => {
     expect(redactions).toBe(3);
   });
 
+  it('redacts look-alike domains that are not the party', () => {
+    for (const address of [
+      'info@gruenderzentrum-berlin.de',
+      'kontakt@existenzgruendung.de',
+      'buero@gruene-liga.de',
+      'post@grueneliga-berlin.de',
+    ]) {
+      expect(scrubThirdPartyContacts(`Kontakt: ${address}`)).toEqual({
+        text: 'Kontakt: [E-Mail entfernt]',
+        redactions: 1,
+      });
+    }
+  });
+
   it('keeps a party address while redacting a third-party one in the same text', () => {
     const { text, redactions } = scrubThirdPartyContacts(
       'Ansprechpartnerin: wahlpruefsteine@gruene-berlin.de, privat: x@posteo.de'
