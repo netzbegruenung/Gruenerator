@@ -183,9 +183,10 @@
       {
         "id": "mecklenburg-vorpommern-system",
         "name": "Grüne Mecklenburg-Vorpommern",
-        "description": "Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern",
+        "description": "Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern (Landesverband & Fraktion)",
         "codes": [
-          "MV"
+          "MV",
+          "MV-F"
         ]
       },
       {
