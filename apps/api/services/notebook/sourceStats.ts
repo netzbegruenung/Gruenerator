@@ -13,7 +13,7 @@
 import { applyContextCap } from '../../utils/contextCap.js';
 
 import { fetchDocumentMetadata, type NotebookSourcesDeps } from './notebookSources.js';
-import { loadScanTexts } from './sourceGrep.js';
+import { loadScanTexts, type ScanLoad, type ScannedSource } from './sourceGrep.js';
 
 import type { textStatsBatched, checkHealth } from '../nlp/nlpClient.js';
 import type { FormCount, LemmaCount, TextStatsResult } from '../nlp/types.js';
@@ -191,16 +191,42 @@ export async function computeSourceStats(
     loaded.sources.map((s) => s.sourceId)
   );
   const meta = new Map(metaRows.map((r) => [String(r.id), r]));
-  const rows: StatsRow[] = loaded.sources.map((s) => {
-    const m = meta.get(s.sourceId);
-    return {
-      sourceId: s.sourceId,
-      title: s.title,
-      ...textStats(s.text),
-      pages: typeof m?.page_count === 'number' && m.page_count > 0 ? m.page_count : null,
-      chunks: typeof m?.vector_count === 'number' ? m.vector_count : null,
-    };
-  });
+  return await statsFromLoad(
+    loaded,
+    input,
+    (s) => {
+      const m = meta.get(s.sourceId);
+      return {
+        pages: typeof m?.page_count === 'number' && m.page_count > 0 ? m.page_count : null,
+        chunks: typeof m?.vector_count === 'number' ? m.vector_count : null,
+      };
+    },
+    deps.nlp
+  );
+}
+
+/**
+ * Die Zählung über bereits geladene Texte — geteilt von eigenen Notebooks
+ * (`computeSourceStats`) und System-Notebooks. `sizeOf` liefert Seiten und
+ * Chunks je Quelle; woher, weiß nur der Aufrufer.
+ */
+export async function statsFromLoad(
+  loaded: ScanLoad,
+  input: {
+    sourceId?: string | undefined;
+    lemmas: boolean;
+    lemmaOf?: string[] | undefined;
+    topN: number;
+  },
+  sizeOf: (s: ScannedSource) => { pages: number | null; chunks: number | null },
+  nlp: StatsNlp
+): Promise<SourceStatsResult> {
+  const rows: StatsRow[] = loaded.sources.map((s) => ({
+    sourceId: s.sourceId,
+    title: s.title,
+    ...textStats(s.text),
+    ...sizeOf(s),
+  }));
   const sum = (pick: (r: StatsRow) => number | null) =>
     rows.reduce((s, r) => s + (pick(r) ?? 0), 0);
 
@@ -240,9 +266,9 @@ export async function computeSourceStats(
     texts.push({ id: s.sourceId, text });
   }
 
-  const healthy = await deps.nlp.checkHealth();
+  const healthy = await nlp.checkHealth();
   const nlpResults = healthy
-    ? await deps.nlp.textStatsBatched(texts, {
+    ? await nlp.textStatsBatched(texts, {
         topN: LEMMA_PER_TEXT,
         lemmaOf,
         deadlineMs: NLP_DEADLINE_MS,

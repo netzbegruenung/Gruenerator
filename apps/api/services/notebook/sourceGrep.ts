@@ -244,7 +244,7 @@ export interface ScanLoad {
   incompleteReason: string | null;
 }
 
-function incompleteReason(
+export function incompleteReason(
   tooLarge: boolean,
   unreadable: number,
   singleSource: boolean
@@ -286,7 +286,6 @@ export async function loadScanTexts(
 ): Promise<ScanLoad | { error: string }> {
   const budget = input.charBudget ?? SCAN_CHAR_BUDGET;
   let tooLarge = false;
-  let unreadable = 0;
   let ids: string[];
 
   if (input.sourceId) {
@@ -324,36 +323,68 @@ export async function loadScanTexts(
     }
   }
 
+  const read = await readScanSources(
+    ids,
+    async (sourceId) => {
+      const resolved = await resolveSourceInNotebook(
+        { collectionId: input.collectionId, sourceId, userId: input.userId },
+        deps
+      );
+      if (!resolved.ok) return { error: resolved.error };
+      const { text, chunkMap } = await readSourceText(
+        { sourceId, ownerUserId: resolved.ownerUserId },
+        deps
+      );
+      return { title: resolved.title, text, chunkMap };
+    },
+    { budget, explicit: Boolean(input.sourceId) }
+  );
+  if ('error' in read) return read;
+  const reason = incompleteReason(
+    tooLarge || read.tooLarge,
+    read.unreadable,
+    Boolean(input.sourceId)
+  );
+  return { sources: read.sources, exhaustive: reason === null, incompleteReason: reason };
+}
+
+/**
+ * Liest Quellen der Reihe nach unter einem Zeichenbudget — geteilt von
+ * `loadScanTexts` (eigene Notebooks) und `loadSystemScanTexts`
+ * (System-Notebooks). `explicit`: eine ausdrücklich genannte Quelle — ihr
+ * Fehler ist dann die Antwort, statt als „nicht lesbar" mitzuzählen.
+ */
+export async function readScanSources(
+  ids: readonly string[],
+  read: (sourceId: string) => Promise<Omit<ScannedSource, 'sourceId'> | { error: string }>,
+  opts: { budget: number; explicit: boolean }
+): Promise<
+  { sources: ScannedSource[]; tooLarge: boolean; unreadable: number } | { error: string }
+> {
   const sources: ScannedSource[] = [];
+  let tooLarge = false;
+  let unreadable = 0;
   let used = 0;
   for (let i = 0; i < ids.length; i += READ_CONCURRENCY) {
-    if (used >= budget) {
+    if (used >= opts.budget) {
       tooLarge = true;
       break;
     }
     const batch = await Promise.all(
-      ids.slice(i, i + READ_CONCURRENCY).map(async (sourceId) => {
-        const resolved = await resolveSourceInNotebook(
-          { collectionId: input.collectionId, sourceId, userId: input.userId },
-          deps
-        );
-        if (!resolved.ok) return { sourceId, error: resolved.error };
-        const { text, chunkMap } = await readSourceText(
-          { sourceId, ownerUserId: resolved.ownerUserId },
-          deps
-        );
-        return { sourceId, title: resolved.title, text, chunkMap };
-      })
+      ids.slice(i, i + READ_CONCURRENCY).map(async (sourceId) => ({
+        sourceId,
+        loaded: await read(sourceId),
+      }))
     );
-    for (const loaded of batch) {
+    for (const { sourceId, loaded } of batch) {
       if ('error' in loaded) {
         // Eine ausdrücklich genannte Quelle: der Fehler ist die Antwort. Im
         // Notebook-Lauf fehlt sie der Zählung — also nicht vollständig.
-        if (input.sourceId) return { error: loaded.error };
+        if (opts.explicit) return { error: loaded.error };
         unreadable += 1;
         continue;
       }
-      const remaining = budget - used;
+      const remaining = opts.budget - used;
       if (remaining <= 0) {
         tooLarge = true;
         break;
@@ -361,9 +392,8 @@ export async function loadScanTexts(
       const text = applyContextCap(loaded.text, remaining, 'notebook_quellen:scan', false);
       if (text.length < loaded.text.length) tooLarge = true;
       used += text.length;
-      sources.push({ ...loaded, text });
+      sources.push({ ...loaded, sourceId, text });
     }
   }
-  const reason = incompleteReason(tooLarge, unreadable, Boolean(input.sourceId));
-  return { sources, exhaustive: reason === null, incompleteReason: reason };
+  return { sources, tooLarge, unreadable };
 }
