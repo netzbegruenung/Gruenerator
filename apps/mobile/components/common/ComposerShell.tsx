@@ -115,6 +115,8 @@ interface ComposerShellProps {
   leading?: React.ReactNode;
   /** Beside `leading`, still left-aligned — e.g. the notebook filter accessory. */
   toolbarExtra?: React.ReactNode;
+  /** Right before `action` — e.g. the notebook answer-mode chip. */
+  beforeAction?: React.ReactNode;
   /** Far-right control — the merged mic / send / cancel button. */
   action: React.ReactNode;
 }
@@ -128,6 +130,7 @@ export function ComposerShell({
   input,
   leading,
   toolbarExtra,
+  beforeAction,
   action,
 }: ComposerShellProps) {
   const resolvedTheme = useTheme();
@@ -148,6 +151,7 @@ export function ComposerShell({
           {leading}
           {toolbarExtra}
           {input}
+          {beforeAction}
           {action}
         </View>
       ) : (
@@ -157,6 +161,7 @@ export function ComposerShell({
             {leading}
             {toolbarExtra}
             <View style={styles.spacer} />
+            {beforeAction}
             {action}
           </View>
         </View>

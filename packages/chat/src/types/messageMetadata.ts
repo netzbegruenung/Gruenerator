@@ -15,6 +15,8 @@ import type { CodeArtifact } from '../stores/artifactLiveStore';
 import type {
   ConfirmActionType,
   DocumentCreatedEvent,
+  NotebookAnswerModeReason,
+  NotebookResolvedAnswerMode,
   SocialPostPayload,
   BahnPayload,
 } from '@gruenerator/contracts';
@@ -106,5 +108,8 @@ export type ChatMessageMetadata = {
   answerText?: string;
   linkConfig?: LinkConfig;
   sourcesByCollection?: Record<string, unknown>;
+  /** The mode the notebook answer ran in (`answer_mode` event / persisted row). */
+  answerMode?: NotebookResolvedAnswerMode;
+  answerModeReason?: NotebookAnswerModeReason;
   [key: string]: unknown;
 };
