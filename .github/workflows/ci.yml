@@ -288,11 +288,13 @@ jobs:
     # An empty database for `migrations.db.vitest.ts`: builds the schema from
     # zero the way a fresh instance does on first boot (#2895). A grown
     # database never shows a migration that only works on top of another.
+    # Trust auth on a throwaway container: no password literals, which secret
+    # scanners (GitGuardian) would flag.
     services:
       postgres:
         image: postgres:17
         env:
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
@@ -301,7 +303,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      MIGRATIONS_TEST_DATABASE_URL: postgresql://gruenerator:gruenerator@localhost:5432/gruenerator
+      MIGRATIONS_TEST_DATABASE_URL: postgresql://gruenerator@localhost:5432/gruenerator
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -322,8 +324,8 @@ jobs:
       # its own extensions, which only works while they stay trusted ones.
       - name: Create the app role and its empty database
         run: >-
-          psql postgresql://postgres:postgres@localhost:5432/postgres
-          -c "CREATE ROLE gruenerator LOGIN PASSWORD 'gruenerator'"
+          psql postgresql://postgres@localhost:5432/postgres
+          -c "CREATE ROLE gruenerator LOGIN"
           -c "CREATE DATABASE gruenerator OWNER gruenerator"
 
       - name: Run tests
