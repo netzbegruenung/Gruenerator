@@ -32,6 +32,7 @@ import {
   extractTextWithMistralOCR as extractMistral,
   extractBase64WithMistralOCR,
 } from './mistralIntegration.js';
+import { stripPageMarkers, type PageMarkerOptions } from './pageMarkers.js';
 import {
   getPdfJs as loadPdfJs,
   openPdfDocument as openPdf,
@@ -99,7 +100,6 @@ export class OCRService {
   async getPdfJs(): Promise<PdfjsLib> {
     if (this._pdfjsLib) return this._pdfjsLib;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pdfjsLib = await loadPdfJs();
 
     // Configure worker path — use createRequire to resolve from the actual
@@ -109,7 +109,6 @@ export class OCRService {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this._pdfjsLib = pdfjsLib;
     return pdfjsLib;
   }
@@ -118,7 +117,6 @@ export class OCRService {
    * Open PDF document with PDF.js
    */
   async openPdfDocument(pdfPath: string): Promise<PdfjsLib> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pdfjsLib = await this.getPdfJs();
     return await openPdf(pdfPath, pdfjsLib);
   }
@@ -186,10 +184,15 @@ export class OCRService {
    * Extract text from documents using the configured OCR provider.
    * Provider is controlled by OCR_PROVIDER env var: 'mistral' (default) or 'docling'.
    * When set to 'docling', falls back to Mistral if the Docling sidecar is unreachable.
+   *
+   * `pageMarkers` setzt `## Seite N` vor jede Seite (Mistral, PDF.js; Docling
+   * liefert keine Seiten). Nur der Dokument-Ingest will das — siehe
+   * `pageMarkers.ts`, warum alle anderen Aufrufer es NICHT dürfen.
    */
   async extractTextFromDocument(
     filePath: string,
-    preferredProvider?: OcrProvider
+    preferredProvider?: OcrProvider,
+    options: PageMarkerOptions = {}
   ): Promise<DocumentExtractionResult> {
     const startTime = Date.now();
     const fileExtension = path.extname(filePath).toLowerCase();
@@ -232,15 +235,18 @@ export class OCRService {
           `[OCRService] PDF is text-native (confidence=${(parseCheck.confidence * 100).toFixed(0)}%), using direct extraction`
         );
         try {
-          result = await this.extractTextDirectlyFromPDF(filePath);
-          // Verify extraction produced meaningful text, fall through to OCR if not
-          if (result.text && result.text.length >= 50) {
+          result = await this.extractTextDirectlyFromPDF(filePath, options);
+          // Verify extraction produced meaningful text, fall through to OCR if not.
+          // Marken zählen nicht mit — sonst trüge ein Scan mit einer Ziffer je
+          // Seite die Mindestlänge allein über seine `## Seite N`-Zeilen.
+          const body = options.pageMarkers ? stripPageMarkers(result.text ?? '') : result.text;
+          if (body && body.length >= 50) {
             usedProvider = 'pdfjs-direct';
           } else {
             console.log(
               `[OCRService] Direct extraction yielded insufficient text (${result.text?.length ?? 0} chars), falling back to OCR`
             );
-            result = await this.extractTextWithMistralOCR(filePath);
+            result = await this.extractTextWithMistralOCR(filePath, options);
             usedProvider = 'mistral-ocr';
           }
         } catch (directError) {
@@ -248,7 +254,7 @@ export class OCRService {
             `[OCRService] Direct PDF extraction failed, falling back to OCR:`,
             (directError as Error).message
           );
-          result = await this.extractTextWithMistralOCR(filePath);
+          result = await this.extractTextWithMistralOCR(filePath, options);
           usedProvider = 'mistral-ocr';
         }
       } else if (configuredProvider === 'docling') {
@@ -261,19 +267,19 @@ export class OCRService {
             usedProvider = 'docling';
           } catch (doclingError) {
             console.warn(`[OCRService] Docling failed, falling back to Mistral OCR:`, doclingError);
-            result = await this.extractTextWithMistralOCR(filePath);
+            result = await this.extractTextWithMistralOCR(filePath, options);
             usedProvider = 'mistral-ocr';
           }
         } else {
           console.log(
             `[OCRService] Docling unavailable, falling back to Mistral OCR for ${fileExtension} document`
           );
-          result = await this.extractTextWithMistralOCR(filePath);
+          result = await this.extractTextWithMistralOCR(filePath, options);
           usedProvider = 'mistral-ocr';
         }
       } else {
         console.log(`[OCRService] Using Mistral OCR for ${fileExtension} document`);
-        result = await this.extractTextWithMistralOCR(filePath);
+        result = await this.extractTextWithMistralOCR(filePath, options);
         usedProvider = 'mistral-ocr';
       }
 
@@ -297,8 +303,11 @@ export class OCRService {
   /**
    * Use Mistral OCR to extract text as markdown
    */
-  async extractTextWithMistralOCR(filePath: string): Promise<ExtractionResult> {
-    return await extractMistral(filePath, getMediaType);
+  async extractTextWithMistralOCR(
+    filePath: string,
+    options: PageMarkerOptions = {}
+  ): Promise<ExtractionResult> {
+    return await extractMistral(filePath, getMediaType, options);
   }
 
   /**
@@ -318,12 +327,16 @@ export class OCRService {
   /**
    * Extract text directly from PDF using PDF.js
    */
-  async extractTextDirectlyFromPDF(pdfPath: string): Promise<ExtractionResult> {
+  async extractTextDirectlyFromPDF(
+    pdfPath: string,
+    options: PageMarkerOptions = {}
+  ): Promise<ExtractionResult> {
     return await extractDirect(
       pdfPath,
       this.openPdfDocument.bind(this),
       this.applyMarkdownFormatting.bind(this),
-      this.maxPages
+      this.maxPages,
+      options
     );
   }
 

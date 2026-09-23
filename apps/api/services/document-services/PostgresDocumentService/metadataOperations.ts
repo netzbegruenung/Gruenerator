@@ -74,6 +74,7 @@ export async function saveDocumentMetadata(
       status: metadata.status || 'processing',
       source_url: metadata.sourceUrl || null,
       markdown_content: metadata.markdownContent ?? null,
+      ...(metadata.pageCount !== undefined ? { page_count: metadata.pageCount } : {}),
       metadata: metadata.additionalMetadata ? JSON.stringify(metadata.additionalMetadata) : null,
     };
 
@@ -156,6 +157,7 @@ export async function updateDocumentMetadata(
     if (updates.lastSyncedAt !== undefined) updateData.last_synced_at = updates.lastSyncedAt;
     if (updates.markdownContent !== undefined)
       updateData.markdown_content = updates.markdownContent;
+    if (updates.pageCount !== undefined) updateData.page_count = updates.pageCount;
 
     if (updates.additionalMetadata !== undefined) {
       // Merge with existing metadata to avoid losing fields
