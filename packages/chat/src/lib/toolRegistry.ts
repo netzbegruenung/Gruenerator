@@ -449,12 +449,17 @@ function parseNotebooksVM(args: unknown, result: unknown): ToolResultVM {
 // notebook_quellen: list sind Zeilen wie bei den anderen Personal-Data-Werkzeugen;
 // outline eine Gliederung (eine Zeile je Abschnitt), read eine Textscheibe und
 // find Rohpassagen mit Fundstelle — als Zitatliste wie `notebooks.search`.
+// grep/rank sind Zeilen je Quelle, stats Schlüssel/Wert, cite eine Zitatliste
+// (notebookSourceReadActions.ts). `exhaustive: false` steht sichtbar in der Karte.
 // Die Schreibaktionen liefern {ok, note, …}: die Notiz ist das Ergebnis.
 function parseNotebookSourcesVM(args: unknown, result: unknown): ToolResultVM {
   const error = getString(result, 'error');
   if (error) return { kind: 'text-note', text: error };
   const note = getString(result, 'note');
   if (note && getBoolean(result, 'ok')) return { kind: 'text-note', text: note };
+
+  const scan = parseNotebookSourceScanVM(result);
+  if (scan) return scan;
 
   const outline = getArray(result, 'outline');
   if (outline) {
@@ -509,6 +514,108 @@ function parseNotebookSourcesVM(args: unknown, result: unknown): ToolResultVM {
   }
 
   return parsePersonalDataVM(args, result);
+}
+
+function keyValue(entries: KeyValueEntry[]): ToolResultVM {
+  return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+}
+
+function notebookSourceCitation(item: unknown, index: number, excerptKey: string) {
+  const page = getNumber(item, 'pageNumber');
+  const title = getString(item, 'title') ?? 'Quelle';
+  return toSerializableCitation(
+    { title: page != null ? `${title}, S. ${page}` : title, excerpt: getString(item, excerptKey) },
+    index,
+    'document'
+  );
+}
+
+/** grep, stats, rank und cite — `null` für die übrigen Formen. */
+function parseNotebookSourceScanVM(result: unknown): ToolResultVM | null {
+  // `getBoolean` meldet ein fehlendes Feld als false — hier zählt, ob es da ist.
+  const has = (key: string) => typeof result === 'object' && result !== null && key in result;
+  const incomplete = has('exhaustive') && !getBoolean(result, 'exhaustive');
+  const note = getString(result, 'note');
+
+  const totals = getObject(result, 'totals');
+  if (totals) {
+    const labels: Array<[string, string]> = [
+      ['words', 'Wörter'],
+      ['chars', 'Zeichen'],
+      ['sentences', 'Sätze'],
+      ['paragraphs', 'Absätze'],
+      ['pages', 'Seiten'],
+      ['chunks', 'Chunks'],
+    ];
+    const entries: KeyValueEntry[] = labels.flatMap(([key, label]) => {
+      const n = getNumber(totals, key);
+      return n == null ? [] : [{ label, value: incomplete ? `mindestens ${n}` : String(n) }];
+    });
+    const lemmas = getArray(result, 'lemmas') ?? [];
+    if (lemmas.length) {
+      entries.push({
+        label: 'Häufigste Lemmata',
+        value: lemmas
+          .slice(0, 10)
+          .map((l) => `${getString(l, 'lemma') ?? '?'} ${getNumber(l, 'count') ?? '?'}`)
+          .join(', '),
+      });
+    }
+    for (const l of getArray(result, 'lemmaOf') ?? []) {
+      entries.push({
+        label: `Formen von „${getString(l, 'lemma') ?? '?'}"`,
+        value: String(getNumber(l, 'total') ?? 0),
+      });
+    }
+    if (note) entries.push({ label: 'Hinweis', value: note });
+    return keyValue(entries);
+  }
+
+  const totalHits = getNumber(result, 'totalHits');
+  const perSource = getArray(result, 'perSource');
+  if (totalHits != null && perSource) {
+    const phrase = getString(result, 'phrase') ?? '';
+    return keyValue([
+      {
+        label: `„${phrase}"`,
+        value: incomplete
+          ? `mindestens ${totalHits} Treffer (nicht alle Quellen gelesen)`
+          : `${totalHits} Treffer`,
+      },
+      ...perSource.map((p) => ({
+        label: getString(p, 'title') ?? 'Quelle',
+        value: `${getNumber(p, 'count') ?? 0} Treffer`,
+      })),
+    ]);
+  }
+
+  const ranking = getArray(result, 'ranking');
+  if (ranking) {
+    const entries: KeyValueEntry[] = ranking.map((r) => {
+      const value = getString(r, 'value') ?? getNumber(r, 'value');
+      return {
+        label: `${getNumber(r, 'rank') ?? '?'}. ${getString(r, 'title') ?? 'Quelle'}`,
+        value: `${value ?? '—'} ${getString(r, 'unit') ?? ''}`.trim(),
+      };
+    });
+    if (note) entries.push({ label: 'Hinweis', value: note });
+    return keyValue(entries);
+  }
+
+  if (has('found') && getBoolean(result, 'found')) {
+    return { kind: 'citations', citations: [notebookSourceCitation(result, 0, 'matched')] };
+  }
+  const candidates = getArray(result, 'candidates');
+  if (has('found') || candidates) {
+    if (!candidates?.length) {
+      return { kind: 'text-note', text: note ?? 'Keine passende Stelle gefunden.' };
+    }
+    return {
+      kind: 'citations',
+      citations: candidates.slice(0, 5).map((c, i) => notebookSourceCitation(c, i, 'sentence')),
+    };
+  }
+  return null;
 }
 
 // groups: `get` liefert ein `{group}`-Detailobjekt (groupTools.ts) — ohne Zweig

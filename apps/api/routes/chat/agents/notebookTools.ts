@@ -163,7 +163,8 @@ export function notebookUrl(c: Pick<NotebookCollection, 'id' | 'name' | 'slug_su
  * schon einmal behoben hat.
  *
  * Der Handle ist deshalb der `collection`-Schlüssel und NICHT eine URL: der
- * nächste Schritt des Modells ist `gruenerator_search`, kein Klick. Die
+ * nächste Schritt des Modells ist `gruenerator_search` oder `notebook_quellen`
+ * (der Schlüssel ist dort die notebookId), kein Klick. Die
  * Web-Pfade der System-Notebooks (`/notebooks/grundsatz` für `deutschland`…)
  * stehen nur in der Frontend-Config und sind serverseitig nicht ableitbar — ein
  * geratener Link wäre schlechter als keiner.
@@ -175,7 +176,11 @@ export function systemNotebookRows(locale: UserLocale | null): ResultRow[] {
       canonical?.name ?? key,
       '',
       'System-Notebook',
-      [canonical?.description, `Suchen mit gruenerator_search, collection="${key}"`]
+      [
+        canonical?.description,
+        `Suchen mit gruenerator_search, collection="${key}"`,
+        `Quellen lesen/zählen: notebook_quellen mit notebookId=${key}`,
+      ]
         .filter(Boolean)
         .join(' — '),
       key

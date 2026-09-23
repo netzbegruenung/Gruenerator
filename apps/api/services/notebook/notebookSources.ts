@@ -112,7 +112,8 @@ export async function fetchDocumentMetadata(
   );
 }
 
-export type SourceSortBy = 'name' | 'date' | 'pages' | 'size' | 'words' | 'status' | 'type';
+export type SourceSortBy =
+  'name' | 'date' | 'pages' | 'size' | 'words' | 'chars' | 'status' | 'type';
 export type SortOrder = 'asc' | 'desc';
 
 export interface SourceFilter {
@@ -187,13 +188,20 @@ const SORT_KEY: Record<SourceSortBy, (r: NotebookSourceRow) => string | number |
   pages: (r) => r.pages,
   size: (r) => r.sizeBytes,
   words: (r) => r.words,
+  chars: (r) => r.chars,
   status: (r) => r.status,
   type: (r) => r.sourceType,
 };
 
-const DESC_BY_DEFAULT: ReadonlySet<SourceSortBy> = new Set(['date', 'pages', 'size', 'words']);
+export const DESC_BY_DEFAULT: ReadonlySet<SourceSortBy> = new Set([
+  'date',
+  'pages',
+  'size',
+  'words',
+  'chars',
+]);
 
-function compareRows(sortBy: SourceSortBy, order: SortOrder) {
+export function compareRows(sortBy: SourceSortBy, order: SortOrder) {
   const key = SORT_KEY[sortBy];
   const sign = order === 'asc' ? 1 : -1;
   const byTitle = (a: NotebookSourceRow, b: NotebookSourceRow) =>
@@ -318,7 +326,7 @@ export interface SourceText {
  * Chunktext der Reihe nach im Original gesucht. Nicht gefunden (Chunk trägt
  * z. B. einen Überschriften-Präfix) → er beginnt, wo der vorige endete.
  */
-function locateInOriginal(text: string, chunks: DocumentChunkItem[]): ChunkLocator[] {
+export function locateInOriginal(text: string, chunks: DocumentChunkItem[]): ChunkLocator[] {
   let cursor = 0;
   return chunks.map((c) => {
     let start: number;
@@ -340,7 +348,7 @@ function locateInOriginal(text: string, chunks: DocumentChunkItem[]): ChunkLocat
  * Offsets in den aus Chunks zusammengesetzten Text. Die Nutzlast-Offsets zeigen
  * ins Original und gelten hier NICHT.
  */
-function locateInJoined(chunks: DocumentChunkItem[]): ChunkLocator[] {
+export function locateInJoined(chunks: DocumentChunkItem[]): ChunkLocator[] {
   let cursor = 0;
   return chunks.map((c, i) => {
     const start = cursor + (i === 0 ? 0 : 2);
