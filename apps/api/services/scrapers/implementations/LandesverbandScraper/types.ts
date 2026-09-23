@@ -3,6 +3,9 @@
  * All interfaces and types used by the scraper modules
  */
 
+/** How much of a PDF date was actually found; `year` means the -06-15 is invented. */
+export type DatePrecision = 'day' | 'month' | 'year';
+
 /**
  * Date extraction result with age validation
  */
@@ -13,6 +16,7 @@ export interface DateExtractionResult {
   dateString: string | null;
   /** Whether date is older than threshold (10 years) */
   isTooOld: boolean | null;
+  precision: DatePrecision | null;
 }
 
 /**
