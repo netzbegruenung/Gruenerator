@@ -49,6 +49,25 @@ describe('createSourceRegistry', () => {
     expect(block).toBe('[1] A <https://example.org/a> (2025-09-01) — alpha');
   });
 
+  // Im split-Modus sieht der Schreiber nur diese Zeile: ohne Seite las er
+  // `read seite=2` als Text ohne Seitenangabe (Testserver 24.09.2026).
+  it('puts the page in the snippet line, next to the date', () => {
+    const reg = createSourceRegistry();
+    const block = reg.register([
+      result({ title: 'Niederschrift', content: 'TOP 3', pageNumber: 2 }),
+      result({
+        title: 'Beschluss',
+        content: 'Radweg',
+        pageNumber: 4,
+        publishedDate: '2026-02-24T00:00:00.000Z',
+      }),
+      result({ title: 'Notiz', content: 'ohne', pageNumber: null }),
+    ]);
+    expect(block).toBe(
+      '[1] Niederschrift (S. 2) — TOP 3\n[2] Beschluss (2026-02-24, S. 4) — Radweg\n[3] Notiz — ohne'
+    );
+  });
+
   it('omits the date segment when the source carries none or an unparseable one', () => {
     const reg = createSourceRegistry();
     // An unusable value must read as "no date", never as data: a source line
