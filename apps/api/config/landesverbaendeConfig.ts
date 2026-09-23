@@ -53,6 +53,7 @@ export interface ContentPath {
     boundByAge?: boolean;
   }; // Optional: discover articles via WordPress REST API (/wp-json/wp/v2/posts?categories=…). Bypasses HTML-listing pagination entirely; required for WP sites with root-permalink structure where /category/X/ is a virtual index. Pass `categoryIds` to union several categories in one query (comma-separated = WP OR) instead of one source per category. Pass `excludeCategoryIds` for `categories_exclude` (WP AND NOT) to drop posts that also carry a non-article category (e.g. event notices). Set `boundByAge` to add an `after=<now - maxAgeYears>` filter on full runs, so discovery skips out-of-window posts server-side instead of fetching (and 404-ing on) years of ancient archive entries that the store-stage age filter would drop anyway.
   wolkeShare?: { shareKey: string; recursive?: boolean }; // Optional: pull documents from a public Nextcloud "Wolke" share via WebDAV instead of HTML/WP discovery. The share link is a credential and never lives in this public repo: `shareKey` names its entry in <INTERN_CONTENT_DIR>/wolke-shares.json (see utils/wolkeShareSecrets.ts). Files are etag-deduped, so an unchanged file is skipped before download+OCR. Reusable by any source; see services/scrapers/utils/wolkeShareHandler.ts.
+  ageExempt?: boolean; // Optional, isPdfArchive only: the source's maxAgeYears never ages these PDFs out — neither at ingestion nor in the archive pass (points carry `age_exempt: true`, like Wolke shares). For a hand-listed current programme that must outlive a 5-year window until the next election (#3606). Expiry is manual: replace or remove the staticUrls entry.
   recentSkip?: boolean; // Optional: skip this content path in the incremental hourly `--recent` run so heavy PDF/OCR/Wolke paths only run in the nightly full crawl. etag/freshness dedup still bounds the nightly cost.
 }
 
@@ -483,10 +484,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           // (source_id 'bayern-lv', not part of this config — #3579). staticUrls +
           // isPdfArchive skips fetching a listing page; { url, title } gives it a
           // readable title instead of the filename-derived "Regierungsprogramm final 22 06 2023".
+          // ageExempt: the 5-year window would drop it 2028-06-22, before the
+          // autumn 2028 Landtagswahl, while it is still the current programme (#3606).
           type: 'wahlprogramm',
           path: '/',
           listSelector: 'a[href$=".pdf"]',
           isPdfArchive: true,
+          ageExempt: true,
           staticUrls: [
             {
               url: 'https://www.gruene-bayern.de/dateien/Regierungsprogramm_final_22_06_2023.pdf',
