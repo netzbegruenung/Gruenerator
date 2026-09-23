@@ -627,10 +627,10 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           //
           // Wolke-Dateien werden seit #3564 aus dem Dateinamen datiert (der
           // WebDAV-mtime bleibt ungenutzt); ein Name ohne erkennbares Datum
-          // bleibt weiterhin null statt geraten. Der Etag-Gate hält bereits
-          // gespeicherte, unveränderte Antworten aus dem 5-Jahres-Alterfilter
-          // heraus — nur neue/geänderte Dateien durchlaufen ihn (kein Backfill
-          // der alten Punkte hier, siehe #3564).
+          // bleibt weiterhin null statt geraten. Der Share ist ein kuratierter
+          // Ordner — ein Datum darf eine Datei nie aus dem Alterfilter fallen
+          // lassen, deshalb ruft LandesverbandScraper processAndStoreDocument
+          // mit ignoreMaxAge: true auf (kein Backfill der alten Punkte hier).
           // `path`/`listSelector` sind bei wolkeShare ungenutzte Pflichtfelder.
           type: 'wahlpruefstein',
           path: '/wolke/xfFABYzM7pX83Fj/',
