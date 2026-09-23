@@ -1,8 +1,10 @@
-import { DEFAULT_NOTEBOOK_DEPTH } from '@gruenerator/chat';
+import { DEFAULT_NOTEBOOK_ANSWER_MODE, DEFAULT_NOTEBOOK_DEPTH } from '@gruenerator/chat';
 import {
   chatBackgroundSchema,
+  notebookAnswerModeSchema,
   notebookDepthSchema,
   type ChatBackground,
+  type NotebookAnswerMode,
   type NotebookDepth,
 } from '@gruenerator/contracts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,6 +17,7 @@ const THEME_STORAGE_KEY = 'themeMode';
 const PERFORMANCE_MODE_STORAGE_KEY = 'performanceMode';
 const CHAT_BACKGROUND_STORAGE_KEY = 'chatBackground';
 const NOTEBOOK_DEPTH_STORAGE_KEY = 'notebookDepth';
+const NOTEBOOK_ANSWER_MODE_STORAGE_KEY = 'notebookAnswerMode';
 
 // Drives the whole app: every screen reads useColorScheme() from react-native,
 // and Appearance.setColorScheme overrides what that returns. RN passes the value
@@ -63,6 +66,9 @@ interface PreferencesState {
    * not change per notebook.
    */
   notebookDepth: NotebookDepth;
+  /** Notebook answer mode (Automatisch/Chat/Präzision) — a standing preference
+   *  like the depth, for the same reason. */
+  notebookAnswerMode: NotebookAnswerMode;
 }
 
 interface PreferencesActions {
@@ -71,6 +77,7 @@ interface PreferencesActions {
   setPerformanceMode: (enabled: boolean) => Promise<void>;
   setChatBackground: (background: ChatBackground) => Promise<void>;
   setNotebookDepth: (depth: NotebookDepth) => Promise<void>;
+  setNotebookAnswerMode: (mode: NotebookAnswerMode) => Promise<void>;
 }
 
 type PreferencesStore = PreferencesState & PreferencesActions;
@@ -81,22 +88,26 @@ export const usePreferencesStore = create<PreferencesStore>()((set) => ({
   performanceMode: false,
   chatBackground: null,
   notebookDepth: DEFAULT_NOTEBOOK_DEPTH,
+  notebookAnswerMode: DEFAULT_NOTEBOOK_ANSWER_MODE,
 
   loadPreferences: async () => {
     try {
       // All keys before anything is set: this runs on the startup path, awaited
       // alongside the session probe, and performance mode has to be known before
       // the tabs mount — flipping it later remounts the focused screen.
-      const [storedTheme, storedPerformance, storedBackground, storedDepth] = await Promise.all([
-        AsyncStorage.getItem(THEME_STORAGE_KEY),
-        AsyncStorage.getItem(PERFORMANCE_MODE_STORAGE_KEY),
-        AsyncStorage.getItem(CHAT_BACKGROUND_STORAGE_KEY),
-        AsyncStorage.getItem(NOTEBOOK_DEPTH_STORAGE_KEY),
-      ]);
+      const [storedTheme, storedPerformance, storedBackground, storedDepth, storedAnswerMode] =
+        await Promise.all([
+          AsyncStorage.getItem(THEME_STORAGE_KEY),
+          AsyncStorage.getItem(PERFORMANCE_MODE_STORAGE_KEY),
+          AsyncStorage.getItem(CHAT_BACKGROUND_STORAGE_KEY),
+          AsyncStorage.getItem(NOTEBOOK_DEPTH_STORAGE_KEY),
+          AsyncStorage.getItem(NOTEBOOK_ANSWER_MODE_STORAGE_KEY),
+        ]);
       // Parsed rather than trusted: a key written by an older build may have
       // been dropped from the enum since.
       const background = chatBackgroundSchema.safeParse(storedBackground);
       const depth = notebookDepthSchema.safeParse(storedDepth);
+      const answerMode = notebookAnswerModeSchema.safeParse(storedAnswerMode);
       const mode: ThemeMode =
         storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system'
           ? storedTheme
@@ -107,6 +118,7 @@ export const usePreferencesStore = create<PreferencesStore>()((set) => ({
         performanceMode: storedPerformance === 'true',
         chatBackground: background.success ? background.data : null,
         notebookDepth: depth.success ? depth.data : DEFAULT_NOTEBOOK_DEPTH,
+        notebookAnswerMode: answerMode.success ? answerMode.data : DEFAULT_NOTEBOOK_ANSWER_MODE,
         isLoading: false,
       });
     } catch {
@@ -137,6 +149,15 @@ export const usePreferencesStore = create<PreferencesStore>()((set) => ({
     set({ notebookDepth: depth });
     try {
       await AsyncStorage.setItem(NOTEBOOK_DEPTH_STORAGE_KEY, depth);
+    } catch {
+      // Non-fatal: the choice still applies this session, just won't persist.
+    }
+  },
+
+  setNotebookAnswerMode: async (mode) => {
+    set({ notebookAnswerMode: mode });
+    try {
+      await AsyncStorage.setItem(NOTEBOOK_ANSWER_MODE_STORAGE_KEY, mode);
     } catch {
       // Non-fatal: the choice still applies this session, just won't persist.
     }
