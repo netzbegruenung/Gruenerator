@@ -26,6 +26,13 @@
  *       aus URL und Titel per `DateExtractor.extractDateFromPdfInfo`, ohne
  *       Abruf; liefert auch die Neuberechnung nur ein Jahr oder gar nichts,
  *       zählt der Punkt als `unresolved` und bleibt, wie er ist.
+ *   - `--gone` (nur mit `--source`, allein): holt jede HTML-Seite der Quelle
+ *     (1 Anfrage/s) und LÖSCHT mit `--write` alle Punkte einer URL, die
+ *     `goneState.classifyFetch` als weg (404/410, Weiterleitung auf Startseite,
+ *     Listing oder fremden Host) oder umgezogen (anderer Pfad) einstuft (#3566).
+ *     Der Lauf zählt als bestätigende zweite Sichtung, die Marke
+ *     `lv_gone_since` des Scrapers wird übersprungen. 403, 5xx und Netzfehler
+ *     löschen nie.
  *
  * Geschrieben wird per `setPayload` auf alle Chunks derselben `source_url`.
  * Die Vektoren bleiben unverändert — sie wurden mit dem alten Titel als
@@ -35,6 +42,7 @@
  *   npx tsx scripts/repair-lv-payload.ts --titles --source berlin-lv-presse --source berlin-lv-beschluesse --refetch
  *   npx tsx scripts/repair-lv-payload.ts --titles --all
  *   npx tsx scripts/repair-lv-payload.ts --overwrite-dates mid-june --all
+ *   npx tsx scripts/repair-lv-payload.ts --gone --source sachsen-anhalt-lv
  *   … jeweils mit --write, um wirklich zu schreiben; --limit N begrenzt die Punkte je Quelle.
  *
  * dotenv muss vor jedem App-Import laufen (config/env.js liest die Umgebung
@@ -46,6 +54,11 @@ import dotenv from 'dotenv';
 
 import { ContentExtractor } from '../services/scrapers/implementations/LandesverbandScraper/extractors/ContentExtractor.js';
 import { DateExtractor } from '../services/scrapers/implementations/LandesverbandScraper/extractors/DateExtractor.js';
+import {
+  classifyFetch,
+  goneVerdict,
+  type FetchOutcome,
+} from '../services/scrapers/implementations/LandesverbandScraper/goneState.js';
 
 import { type QdrantClient } from '@qdrant/js-client-rest';
 import { type LandesverbandSource } from '../config/landesverbaendeConfig.js';
@@ -55,6 +68,7 @@ interface CliArgs {
   all: boolean;
   titles: boolean;
   overwriteDates: string | null;
+  gone: boolean;
   refetch: boolean;
   write: boolean;
   limit: number | null;
@@ -76,7 +90,8 @@ interface Patch {
 }
 
 const USAGE =
-  'Usage: repair-lv-payload.ts (--titles [--refetch] | --overwrite-dates <regel>) … (--source <id> [--source <id> …] | --all) [--limit N] [--write]';
+  'Usage: repair-lv-payload.ts (--titles [--refetch] | --overwrite-dates <regel>) … (--source <id> [--source <id> …] | --all) [--limit N] [--write]\n' +
+  '       repair-lv-payload.ts --gone --source <id> [--source <id> …] [--limit N] [--write]';
 const DEFAULT_COLLECTION = 'landesverbaende_documents';
 const UA = 'Gruenerator-Bot/1.0 (+https://gruenerator.eu)';
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
@@ -87,6 +102,7 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
     all: false,
     titles: false,
     overwriteDates: null,
+    gone: false,
     refetch: false,
     write: false,
     limit: null,
@@ -107,7 +123,8 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
         };
       }
       args.overwriteDates = rule;
-    } else if (arg === '--refetch') args.refetch = true;
+    } else if (arg === '--gone') args.gone = true;
+    else if (arg === '--refetch') args.refetch = true;
     else if (arg === '--write') args.write = true;
     else if (arg === '--limit') {
       const n = Number(argv[++i]);
@@ -115,7 +132,13 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
       args.limit = n;
     } else return { error: `Unbekanntes Argument: ${arg}. ${USAGE}` };
   }
-  if (!args.titles && !args.overwriteDates) return { error: USAGE };
+  if (args.gone && (args.titles || args.overwriteDates)) {
+    return { error: '--gone steht allein: gelöschte Punkte bekommen keinen Patch.' };
+  }
+  if (args.gone && args.all) {
+    return { error: '--gone nur mit --source: --all holt jede Seite aller Quellen.' };
+  }
+  if (!args.titles && !args.overwriteDates && !args.gone) return { error: USAGE };
   if (args.all === args.sources.length > 0) return { error: USAGE };
   if (args.refetch && !args.titles) {
     return { error: '--refetch nur mit --titles: nur die Titelregel liest die Seite neu.' };
@@ -181,6 +204,23 @@ export function classifyPoint(
   return unresolved ? 'unresolved' : 'unchanged';
 }
 
+interface Probe {
+  status: number | null;
+  finalUrl: string | null;
+}
+
+/** Wie ein Scraper-Lauf, dessen Marke schon älter als 24 h ist: jedes `gone`/`moved` wird gelöscht. */
+const CONFIRMED_MARK = { lv_gone_since: new Date(0).toISOString() };
+
+export function planGone(
+  url: string,
+  probe: Probe,
+  listingPaths: string[]
+): { outcome: FetchOutcome; remove: boolean } {
+  const outcome = classifyFetch({ requestedUrl: url, ...probe, listingPaths });
+  return { outcome, remove: goneVerdict(outcome, CONFIRMED_MARK, Date.now()) === 'delete' };
+}
+
 interface StoredPoint {
   source_url: string;
   source_id: string;
@@ -230,6 +270,19 @@ async function fetchOk(url: string): Promise<Response> {
   return res;
 }
 
+async function probe(url: string): Promise<Probe> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': UA },
+      signal: AbortSignal.timeout(15000),
+    });
+    await res.body?.cancel();
+    return { status: res.status, finalUrl: res.url || null };
+  } catch {
+    return { status: null, finalUrl: null };
+  }
+}
+
 async function main(): Promise<void> {
   const parsed = parseCliArgs(process.argv.slice(2));
   if ('error' in parsed) {
@@ -268,6 +321,60 @@ async function main(): Promise<void> {
   for (const scope of scopes) {
     const all = await scrollChunkZero(client, scope.collection, scope.sourceId);
     const points = args.limit ? all.slice(0, args.limit) : all;
+
+    if (args.gone && scope.sourceId) {
+      const source = getSourceById(scope.sourceId);
+      const listingPaths = source ? source.contentPaths.map((cp) => cp.path) : [];
+      const tally: Record<FetchOutcome | 'skipped', number> = {
+        live: 0,
+        moved: 0,
+        gone: 0,
+        transient: 0,
+        skipped: 0,
+      };
+      const goneSamples: string[] = [];
+      let wouldDelete = 0;
+      let deleted = 0;
+      for (const point of points) {
+        if (!source || !isRefetchable(point.source_url, source)) {
+          tally.skipped++;
+          continue;
+        }
+        const result = await probe(point.source_url);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const { outcome, remove } = planGone(point.source_url, result, listingPaths);
+        tally[outcome]++;
+        if (!remove) continue;
+        wouldDelete++;
+        if (goneSamples.length < 10) {
+          goneSamples.push(
+            `  [${outcome}] ${point.source_url} (HTTP ${result.status}${result.finalUrl && result.finalUrl !== point.source_url ? ` → ${result.finalUrl}` : ''})`
+          );
+        }
+        if (args.write) {
+          await client.delete(scope.collection, {
+            wait: true,
+            filter: {
+              must: [
+                { key: 'source_id', match: { value: point.source_id } },
+                { key: 'source_url', match: { value: point.source_url } },
+              ],
+            },
+          });
+          deleted++;
+        }
+      }
+      console.log(`\n═══ ${scope.sourceId} — --gone ═══`);
+      console.log(goneSamples.join('\n'));
+      console.log(
+        `  geprüft ${points.length} = live ${tally.live} + umgezogen ${tally.moved} + weg ${tally.gone} + vorübergehend ${tally.transient} + nicht abgerufen ${tally.skipped}`
+      );
+      console.log(
+        `  ${args.write ? 'gelöscht' : 'würde löschen'} ${args.write ? deleted : wouldDelete} URL(s)`
+      );
+      continue;
+    }
+
     const counts = { scanned: points.length, wouldPatch: 0, unchanged: 0, unresolved: 0 };
     const extra = { title: 0, date: 0, fetchFailed: 0, written: 0 };
     const samples: string[] = [];
