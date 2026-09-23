@@ -26,6 +26,24 @@ export function isGenericLinkText(text: string): boolean {
 }
 
 /**
+ * Derives a title from a PDF URL's filename. staticUrls skips the listing
+ * page entirely, so there's no `<a>` text to read a title from (#3579).
+ */
+export function titleFromPdfUrl(url: string): string {
+  const filename = url.split('/').pop() ?? '';
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(filename);
+  } catch {
+    decoded = filename;
+  }
+  return decoded
+    .replace(/\.[^./]+$/, '')
+    .replace(/[-_]+/g, ' ')
+    .trim();
+}
+
+/**
  * Link extraction with pagination support
  * Dependencies injected via constructor for easy testing
  */
@@ -259,6 +277,19 @@ export class LinkExtractor {
    * Deduplicates by URL (pages may list the same PDF in multiple sections)
    */
   async extractPdfLinks(source: LandesverbandSource, contentPath: ContentPath): Promise<PdfLink[]> {
+    if (contentPath.staticUrls?.length) {
+      const seenStaticUrls = new Set<string>();
+      return contentPath.staticUrls
+        .map((url) => this.normalizeUrl(url, source.baseUrl))
+        .filter((url): url is string => url !== null)
+        .filter((url) => {
+          if (seenStaticUrls.has(url)) return false;
+          seenStaticUrls.add(url);
+          return true;
+        })
+        .map((url) => ({ url, title: titleFromPdfUrl(url), context: '' }));
+    }
+
     const pageUrl = source.baseUrl + contentPath.path;
     const response = await this.fetchUrl(pageUrl);
     const html = await response.text();
