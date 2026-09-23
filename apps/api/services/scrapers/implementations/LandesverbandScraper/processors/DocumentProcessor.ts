@@ -40,6 +40,58 @@ import type { QdrantClient } from '@qdrant/js-client-rest';
 const YEAR_ONLY_GUESS = /-06-15$/;
 const CHECKED_AT_REFRESH_MS = 24 * 60 * 60 * 1000;
 
+/** Stored title matching one of the LV sites' generic link-label texts, not a real title. */
+const GENERIC_TITLE_PATTERN = /^(dokument|herunterladen|download|pdf|hier)[.:!…]*$/i;
+
+/** Input `qualityFlagsFor` needs to decide which defect classes apply. */
+export interface QualityFlagDoc {
+  /**
+   * `ContentExtractor.normalizeTitle(content.title)` — the normalized title
+   * BEFORE the `<source.name> - <label>` fallback. Must be normalized, not
+   * `content.title` raw: a whitespace/`&nbsp;`-only title normalizes to `''`
+   * and falls back too, so checking the raw string would miss it.
+   */
+  originalTitle: string;
+  /** The title actually stored (after the fallback, if any). */
+  storedTitle: string;
+  /**
+   * Whether this document came from the PDF-archive or Wolke-share path
+   * (downloaded and read as a file) rather than the HTML-article path
+   * (scraped as a page). Passed in by the caller — the scraper already knows
+   * which path it is running, so this is never guessed from the URL's shape
+   * (a URL guess previously misclassified extension-less `/download/` links
+   * and `.pdf#page=2` fragments).
+   */
+  isFile: boolean;
+  publishedAt: string | null;
+  bodyFallback: boolean;
+}
+
+/**
+ * Data-quality defect classes for one stored/updated document (#3573–#3580).
+ * Pure and side-effect-free so it can be tested as a truth table; the caller
+ * turns the result into per-run counts (see `resultSamples.mergeQualityFlags`).
+ */
+export function qualityFlagsFor(doc: QualityFlagDoc): string[] {
+  const flags: string[] = [];
+
+  if (!doc.originalTitle) flags.push('title_fallback');
+  if (GENERIC_TITLE_PATTERN.test(doc.storedTitle.trim())) flags.push('title_generic');
+
+  if (!doc.isFile && doc.publishedAt === null) flags.push('date_missing_html');
+  // DateExtractor.extractDateFromPdfInfo's year-only fallback guesses June
+  // 15th when only a year is found. A precision field would say this
+  // outright; until one exists (P4, not on this branch) the date's shape is
+  // the only signal available here.
+  if (doc.isFile && doc.publishedAt && YEAR_ONLY_GUESS.test(doc.publishedAt)) {
+    flags.push('date_year_only');
+  }
+
+  if (doc.bodyFallback) flags.push('body_fallback');
+
+  return flags;
+}
+
 /**
  * Document processing orchestration
  * Dependencies injected via constructor for testability
@@ -56,6 +108,9 @@ export class DocumentProcessor {
   /**
    * Process and store document in Qdrant
    * Full pipeline: validate → deduplicate → chunk → embed → store
+   * @param isFile - Whether the caller is the PDF-archive or Wolke-share path
+   *   (downloaded file) rather than the HTML-article path (scraped page). Only
+   *   used for `qualityFlagsFor` — the caller already knows which path it runs.
    * @param collectionOverride - Optional collection name override (uses default if not provided)
    * @param maxAgeYears - Optional max age in years (default: 10)
    * @param ignoreMaxAge - Skip the age filter even though publishedAt is set. Wolke shares are
@@ -67,6 +122,7 @@ export class DocumentProcessor {
     contentType: string,
     url: string,
     content: ExtractedContent,
+    isFile: boolean,
     collectionOverride?: string,
     maxAgeYears?: number,
     extraPayload?: Record<string, unknown>,
@@ -141,8 +197,9 @@ export class DocumentProcessor {
 
     // STEP 5: Build document title — hier treffen HTML-, PDF- und Wolke-Pfad
     // zusammen; Dateinamen-Titel sähen den HTML-Extraktor sonst nie (#3560).
+    const normalizedTitle = ContentExtractor.normalizeTitle(title);
     const documentTitle =
-      ContentExtractor.normalizeTitle(title) ||
+      normalizedTitle ||
       `${source.name} - ${(CONTENT_TYPE_LABELS as Record<string, string>)[effectiveContentType] || effectiveContentType}`;
 
     // STEP 6: Chunk document
@@ -222,11 +279,20 @@ export class DocumentProcessor {
       publishedAt: publishedAt || null,
     });
 
+    const flags = qualityFlagsFor({
+      originalTitle: normalizedTitle,
+      storedTitle: documentTitle,
+      isFile,
+      publishedAt: publishedAt || null,
+      bodyFallback: content.bodyFallback,
+    });
+
     return {
       stored: true,
       chunks: chunks.length,
       vectors: points.length,
       updated: existing,
+      qualityFlags: Object.fromEntries(flags.map((flag) => [flag, 1])),
     };
   }
 

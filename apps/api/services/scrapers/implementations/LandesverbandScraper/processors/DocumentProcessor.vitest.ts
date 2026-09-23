@@ -49,7 +49,7 @@ vi.mock('../../../syncEventRecorder.js', () => ({
   toExcerpt: (t: string) => t.slice(0, 10),
 }));
 
-const { DocumentProcessor } = await import('./DocumentProcessor.js');
+const { DocumentProcessor, qualityFlagsFor } = await import('./DocumentProcessor.js');
 
 const SOURCE = {
   id: 'be',
@@ -77,6 +77,7 @@ const store = (fingerprint?: Record<string, unknown>) =>
     'beschluss',
     URL_UNDER_TEST,
     { title: 'Beschluss', text: TEXT, publishedAt: null, categories: [], bodyFallback: false },
+    true, // isFile — URL_UNDER_TEST is a .pdf
     'landesverbaende_documents',
     10,
     fingerprint
@@ -88,6 +89,7 @@ const storeWith = (content: { title?: string; publishedAt?: string | null }) =>
     'beschluss',
     URL_UNDER_TEST,
     { title: 'Beschluss', text: TEXT, publishedAt: null, categories: [], ...content },
+    true, // isFile — URL_UNDER_TEST is a .pdf
     'landesverbaende_documents',
     10
   );
@@ -291,6 +293,7 @@ describe('processAndStoreDocument — unchanged text, date precision', () => {
       'beschluss',
       URL_UNDER_TEST,
       { title: 'Beschluss', text: TEXT, publishedAt, categories: [] },
+      true, // isFile — PDF
       'landesverbaende_documents',
       10,
       { file_hash: 'abc123', date_precision: precision }
@@ -387,6 +390,135 @@ describe('processAndStoreDocument — changed text', () => {
   });
 });
 
+describe('processAndStoreDocument — qualityFlags', () => {
+  it('counts a fallback title on a freshly stored document', async () => {
+    scrollDocuments.mockResolvedValue([]);
+
+    const result = await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'beschluss',
+      URL_UNDER_TEST,
+      { title: '', text: TEXT, publishedAt: '2023-05-20', categories: [], bodyFallback: false },
+      true, // isFile
+      'landesverbaende_documents',
+      10
+    );
+
+    expect(result.stored).toBe(true);
+    expect(result.qualityFlags).toMatchObject({ title_fallback: 1 });
+  });
+
+  it('does not count anything for an unchanged document', async () => {
+    scrollDocuments.mockResolvedValue([{ payload: { content_hash: `hash:${TEXT.length}` } }]);
+
+    const result = await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'beschluss',
+      URL_UNDER_TEST,
+      { title: '', text: TEXT, publishedAt: '2023-05-20', categories: [], bodyFallback: false },
+      true, // isFile
+      'landesverbaende_documents',
+      10
+    );
+
+    expect(result).toEqual({ stored: false, reason: 'unchanged' });
+    expect(result.qualityFlags).toBeUndefined();
+  });
+
+  /**
+   * Regression: `isFile` used to be guessed from the URL's extension, which
+   * misclassified extension-less `/download/` links (and `.pdf#page=2`
+   * fragments) as HTML. The caller now passes it explicitly, so an
+   * extension-less file URL never gets flagged as a bare HTML page.
+   */
+  it('does not flag date_missing_html for an extension-less file URL when isFile is passed explicitly', async () => {
+    scrollDocuments.mockResolvedValue([]);
+
+    const result = await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'beschluss',
+      'https://gruene-berlin.de/download/dokument123',
+      { title: 'Beschluss', text: TEXT, publishedAt: null, categories: [], bodyFallback: false },
+      true, // isFile — the PDF-archive path knows this is a file even without a .pdf extension
+      'landesverbaende_documents',
+      10
+    );
+
+    expect(result.qualityFlags).not.toHaveProperty('date_missing_html');
+  });
+});
+
+/**
+ * The data-quality defect classes counted at store time (#3573–#3580). Each
+ * case flips exactly one input to isolate what triggers the flag.
+ */
+describe('qualityFlagsFor', () => {
+  const base = {
+    originalTitle: 'Beschluss zur Klimapolitik',
+    storedTitle: 'Beschluss zur Klimapolitik',
+    isFile: true,
+    publishedAt: '2023-05-20',
+    bodyFallback: false,
+  };
+
+  it('flags title_fallback when the content had no title', () => {
+    expect(qualityFlagsFor({ ...base, originalTitle: '' })).toContain('title_fallback');
+  });
+
+  it('does not flag title_fallback when the content had a title', () => {
+    expect(qualityFlagsFor(base)).not.toContain('title_fallback');
+  });
+
+  it.each(['Dokument', 'Herunterladen', 'Download:', 'PDF', 'Hier.', 'hier!'])(
+    'flags title_generic for the generic stored title %j',
+    (storedTitle) => {
+      expect(qualityFlagsFor({ ...base, storedTitle })).toContain('title_generic');
+    }
+  );
+
+  it('does not flag title_generic for a real title', () => {
+    expect(qualityFlagsFor(base)).not.toContain('title_generic');
+  });
+
+  it('flags date_missing_html for an HTML document with no publish date', () => {
+    expect(qualityFlagsFor({ ...base, isFile: false, publishedAt: null })).toContain(
+      'date_missing_html'
+    );
+  });
+
+  it('does not flag date_missing_html when a date was found', () => {
+    expect(qualityFlagsFor({ ...base, isFile: false })).not.toContain('date_missing_html');
+  });
+
+  it('does not flag date_missing_html for a file with no publish date (Wolke shares) — isFile is authoritative, not a URL guess', () => {
+    expect(qualityFlagsFor({ ...base, isFile: true, publishedAt: null })).not.toContain(
+      'date_missing_html'
+    );
+  });
+
+  it('flags date_year_only for the year-only guess (-06-15) on a file', () => {
+    expect(qualityFlagsFor({ ...base, publishedAt: '2023-06-15' })).toContain('date_year_only');
+  });
+
+  it('does not flag date_year_only for a real date on a file', () => {
+    expect(qualityFlagsFor(base)).not.toContain('date_year_only');
+  });
+
+  it('does not flag date_year_only for an HTML document, even with a -06-15 date', () => {
+    expect(qualityFlagsFor({ ...base, isFile: false, publishedAt: '2023-06-15' })).not.toContain(
+      'date_year_only'
+    );
+  });
+
+  it('flags body_fallback when the extractor fell back to main/body', () => {
+    expect(qualityFlagsFor({ ...base, bodyFallback: true })).toContain('body_fallback');
+  });
+
+  it('does not flag body_fallback when a configured selector matched', () => {
+    expect(qualityFlagsFor(base)).not.toContain('body_fallback');
+  });
+});
+
 /**
  * `maxAgeYears` is optional and three sources leave it unset, so this default
  * is what actually decides their content. It is also the seam the pre-fetch
@@ -406,6 +538,7 @@ describe('processAndStoreDocument — default age limit', () => {
       'beschluss',
       URL_UNDER_TEST,
       { title: 'Beschluss', text: TEXT, publishedAt, categories: [], bodyFallback: false },
+      true, // isFile
       'landesverbaende_documents',
       undefined
     );
@@ -444,6 +577,7 @@ describe('processAndStoreDocument — ignoreMaxAge (Wolke, #3564)', () => {
       'wahlpruefstein',
       URL_UNDER_TEST,
       { title: 'Antwort', text: TEXT, publishedAt, categories: [] },
+      true, // isFile — Wolke share
       'landesverbaende_documents',
       5,
       undefined,
@@ -482,6 +616,7 @@ describe('processAndStoreDocument — wolke heals a null date to a day-precision
       'wahlpruefstein',
       URL_UNDER_TEST,
       { title: 'Antwort', text: TEXT, publishedAt: '2025-11-08', categories: [] },
+      true, // isFile — Wolke share
       'landesverbaende_documents',
       5,
       { wolke_etag: '"v2"', date_precision: 'day' },
@@ -509,6 +644,7 @@ describe('processAndStoreDocument — title normalization for file sources', () 
       'wahlpruefstein',
       'https://wolke.netzbegruenung.de/s/x#/LSVD Saar .docx',
       { title: 'LSVD Saar  \n', text: TEXT, publishedAt: null, categories: [] },
+      true, // isFile — Wolke share
       'landesverbaende_documents',
       10
     );
@@ -528,6 +664,7 @@ describe('processAndStoreDocument — title normalization for file sources', () 
         publishedAt: null,
         categories: [],
       },
+      true, // isFile
       'landesverbaende_documents',
       10
     );
@@ -537,16 +674,21 @@ describe('processAndStoreDocument — title normalization for file sources', () 
   });
 
   it('falls back to the source label when the title is only whitespace', async () => {
-    await makeProcessor().processAndStoreDocument(
+    const result = await makeProcessor().processAndStoreDocument(
       SOURCE,
       'beschluss',
       URL_UNDER_TEST,
       { title: ' &nbsp; ', text: TEXT, publishedAt: null, categories: [] },
+      true, // isFile
       'landesverbaende_documents',
       10
     );
 
     const points = batchUpsert.mock.calls[0][2] as Array<{ payload: { title: string } }>;
     expect(points[0].payload.title).toMatch(/^Grüne Berlin - /);
+    // Regression: title_fallback used to be decided from the RAW title, so a
+    // whitespace/&nbsp;-only title (normalizes to '', then falls back) never
+    // set the flag even though the fallback fired.
+    expect(result.qualityFlags).toMatchObject({ title_fallback: 1 });
   });
 });

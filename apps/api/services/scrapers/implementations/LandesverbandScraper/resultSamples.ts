@@ -36,6 +36,20 @@ export function mergeSkipReasons(
   }
 }
 
+/**
+ * Quality flags are counts too, and merge exactly like skipReasons: summed
+ * unchanged from document (`DocumentProcessor.qualityFlagsFor`) to content path
+ * to source to the full result.
+ */
+export function mergeQualityFlags(
+  target: { qualityFlags: Record<string, number> },
+  from: Record<string, number>
+): void {
+  for (const [flag, count] of Object.entries(from)) {
+    target.qualityFlags[flag] = (target.qualityFlags[flag] || 0) + count;
+  }
+}
+
 export function addDeadLinkSamples(
   target: { deadLinkMessages: string[] },
   ...messages: string[]
