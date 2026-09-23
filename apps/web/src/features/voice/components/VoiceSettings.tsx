@@ -36,7 +36,7 @@ function Group({ id, label, children }: { id: string; label: string; children: R
 
 const SEGMENTED = 'w-full gap-1 rounded-lg bg-grey-100 p-1 dark:bg-grey-800';
 const SEGMENT =
-  'h-auto min-h-8 shrink grow basis-0 whitespace-normal rounded-md py-1 hover:bg-transparent hover:text-foreground data-[state=on]:bg-background-pure data-[state=on]:font-medium data-[state=on]:text-foreground data-[state=on]:shadow-sm';
+  'h-auto min-h-8 shrink grow basis-0 whitespace-normal rounded-md py-1 hover:bg-transparent hover:text-foreground data-[state=on]:bg-background-pure dark:data-[state=on]:bg-grey-700 data-[state=on]:font-medium data-[state=on]:text-foreground data-[state=on]:shadow-sm';
 const CARD =
   'h-auto min-h-14 w-full flex-col items-start gap-xxs whitespace-normal rounded-lg border border-grey-200 px-sm py-sm text-left hover:bg-hover-alt hover:text-foreground dark:border-grey-700 data-[state=on]:border-primary-500 data-[state=on]:bg-primary-500/5 data-[state=on]:text-foreground dark:data-[state=on]:border-primary-400 dark:data-[state=on]:bg-primary-400/10';
 
