@@ -181,17 +181,20 @@ export function mergeMeta(heuristic: HeaderMeta, llm: VerifiedLlmMeta): HeaderMe
   const confirmed = llm.dates.filter((d) => known.has(key(d)));
 
   // Bei zwei Beschlussdaten entscheidet das Modell, welches DAS Datum ist:
-  // das bestätigte rückt nach vorn, das andere bleibt in der Liste.
-  const pick = heuristic.conflict
-    ? llm.dates.find((d) => d.kind === 'beschluss' && known.has(key(d)))
-    : null;
-  const ordered = pick
+  // das bestätigte rückt nach vorn, die anderen bleiben in der Liste. Nennt
+  // es ein drittes, belegtes Beschlussdatum, rückt dieses nach vorn.
+  const llmBeschluss = heuristic.conflict
+    ? (llm.dates.find((d) => d.kind === 'beschluss' && known.has(key(d))) ??
+      llm.dates.find((d) => d.kind === 'beschluss'))
+    : undefined;
+  const pick = llmBeschluss ?? null;
+  const dates = pick
     ? [
-        ...heuristic.dates.filter((d) => key(d) === key(pick)),
+        pick,
         ...heuristic.dates.filter((d) => key(d) !== key(pick)),
+        ...added.filter((d) => key(d) !== key(pick)),
       ]
-    : heuristic.dates;
-  const dates = [...ordered, ...added];
+    : [...heuristic.dates, ...added];
 
   const gremiumFromLlm = !heuristic.gremium && llm.gremium ? llm.gremium : null;
   const contributed =
