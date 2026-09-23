@@ -122,7 +122,7 @@ describe('LinkExtractor.extractPdfLinks — staticUrls', () => {
       isPdfArchive: true,
       staticUrls: [
         {
-          url: 'https://www.gruene-lsa.de/dateien/Regierungsprogramm_final_22_06_2023.pdf',
+          url: 'https://www.gruene-bayern.de/dateien/Regierungsprogramm_final_22_06_2023.pdf',
           title: 'Regierungsprogramm der Grünen Bayern 2023',
         },
       ],
@@ -132,7 +132,7 @@ describe('LinkExtractor.extractPdfLinks — staticUrls', () => {
 
     expect(links).toEqual([
       {
-        url: 'https://www.gruene-lsa.de/dateien/Regierungsprogramm_final_22_06_2023.pdf',
+        url: 'https://www.gruene-bayern.de/dateien/Regierungsprogramm_final_22_06_2023.pdf',
         title: 'Regierungsprogramm der Grünen Bayern 2023',
         context: '',
       },
@@ -172,6 +172,114 @@ describe('LinkExtractor.extractPdfLinks — staticUrls', () => {
       {
         url: 'https://www.gruene-lsa.de/wp-content/uploads/2024/08/programm.pdf',
         title: 'programm',
+        context: '',
+      },
+    ]);
+  });
+
+  it("carries an object entry's date through as context, for DateExtractor's strong ISO pattern", async () => {
+    const fetchUrl = vi.fn();
+    const extractor = new LinkExtractor(
+      fetchUrl,
+      normalizeUrl,
+      () => false,
+      () => Promise.resolve()
+    );
+
+    const source = makeSource();
+    const contentPath: ContentPath = {
+      type: 'wahlprogramm',
+      path: '/',
+      listSelector: 'a[href$=".pdf"]',
+      isPdfArchive: true,
+      staticUrls: [
+        {
+          url: 'https://www.gruene-lsa.de/wp-content/uploads/2021/03/Landtagswahlprogramm-2014.pdf',
+          title: 'Landtagswahlprogramm 2014',
+          date: '2014-01-01',
+        },
+      ],
+    };
+
+    const links = await extractor.extractPdfLinks(source, contentPath);
+
+    expect(links).toEqual([
+      {
+        url: 'https://www.gruene-lsa.de/wp-content/uploads/2021/03/Landtagswahlprogramm-2014.pdf',
+        title: 'Landtagswahlprogramm 2014',
+        context: '2014-01-01',
+      },
+    ]);
+  });
+
+  it('dedupes staticUrls that normalize to the same URL, keeping the first', async () => {
+    const fetchUrl = vi.fn();
+    const extractor = new LinkExtractor(
+      fetchUrl,
+      normalizeUrl,
+      () => false,
+      () => Promise.resolve()
+    );
+
+    const source = makeSource();
+    const contentPath: ContentPath = {
+      type: 'wahlprogramm',
+      path: '/',
+      listSelector: 'a[href$=".pdf"]',
+      isPdfArchive: true,
+      staticUrls: [
+        'https://www.gruene-lsa.de/wp-content/uploads/2026/05/Programm-zur-Landtagswahl-2026.pdf',
+        // Same document, written relative — a plausible copy/paste slip in a
+        // hand-maintained config list. Must normalize to the same URL and be
+        // dropped, not OCR'd/stored twice.
+        '/wp-content/uploads/2026/05/Programm-zur-Landtagswahl-2026.pdf',
+      ],
+    };
+
+    const links = await extractor.extractPdfLinks(source, contentPath);
+
+    expect(links).toEqual([
+      {
+        url: 'https://www.gruene-lsa.de/wp-content/uploads/2026/05/Programm-zur-Landtagswahl-2026.pdf',
+        title: 'Programm zur Landtagswahl 2026',
+        context: '',
+      },
+    ]);
+    expect(fetchUrl).not.toHaveBeenCalled();
+  });
+
+  it('dedupes an object entry against an equivalent string entry, keeping the first (object) title', async () => {
+    const fetchUrl = vi.fn();
+    const extractor = new LinkExtractor(
+      fetchUrl,
+      normalizeUrl,
+      () => false,
+      () => Promise.resolve()
+    );
+
+    const source = makeSource({ baseUrl: 'https://www.gruene-bayern.de' });
+    const contentPath: ContentPath = {
+      type: 'wahlprogramm',
+      path: '/',
+      listSelector: 'a[href$=".pdf"]',
+      isPdfArchive: true,
+      staticUrls: [
+        {
+          url: 'https://www.gruene-bayern.de/dateien/Regierungsprogramm_final_22_06_2023.pdf',
+          title: 'Regierungsprogramm der Grünen Bayern 2023',
+        },
+        // Same document as a relative string — must normalize to the same URL
+        // and be dropped, not re-added with a filename-derived title.
+        '/dateien/Regierungsprogramm_final_22_06_2023.pdf',
+      ],
+    };
+
+    const links = await extractor.extractPdfLinks(source, contentPath);
+
+    expect(links).toEqual([
+      {
+        url: 'https://www.gruene-bayern.de/dateien/Regierungsprogramm_final_22_06_2023.pdf',
+        title: 'Regierungsprogramm der Grünen Bayern 2023',
         context: '',
       },
     ]);
