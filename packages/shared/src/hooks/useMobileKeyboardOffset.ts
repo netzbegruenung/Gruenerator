@@ -4,17 +4,6 @@ import { useIsTouchDevice } from './useIsTouchDevice.js';
 
 import type { RefObject } from 'react';
 
-interface VirtualKeyboard extends EventTarget {
-  overlaysContent: boolean;
-  boundingRect: DOMRectReadOnly;
-}
-
-declare global {
-  interface Navigator {
-    virtualKeyboard?: VirtualKeyboard;
-  }
-}
-
 interface MobileKeyboardOffsetOptions {
   /** Called (debounced 100ms) when the keyboard offset changes. */
   onOffsetChange?: () => void;
@@ -23,8 +12,9 @@ interface MobileKeyboardOffsetOptions {
 /**
  * Sets CSS custom property `--mobile-keyboard-offset` on both the referenced
  * element AND `:root` so ancestors/siblings can add bottom padding to their
- * scroll containers. Uses VirtualKeyboard API (Chrome/Edge) with VisualViewport
- * fallback (Safari/Firefox).
+ * scroll containers. Measured from the Visual Viewport, not the VirtualKeyboard
+ * API: its `overlaysContent = true` is page-global and sticky, and stops the
+ * visual viewport from shrinking, which BlockNote's mobile toolbar relies on.
  */
 export function useMobileKeyboardOffset<T extends HTMLElement>(
   ref: RefObject<T | null>,
@@ -52,20 +42,6 @@ export function useMobileKeyboardOffset<T extends HTMLElement>(
     const clearRootVar = () =>
       document.documentElement.style.removeProperty('--mobile-keyboard-offset');
 
-    // Prefer VirtualKeyboard API (Chrome/Edge 94+)
-    const vk = navigator.virtualKeyboard;
-    if (vk) {
-      vk.overlaysContent = true;
-      const onGeometryChange = () => setOffset(vk.boundingRect.height);
-      vk.addEventListener('geometrychange', onGeometryChange);
-      return () => {
-        vk.removeEventListener('geometrychange', onGeometryChange);
-        clearTimeout(debounceTimer);
-        clearRootVar();
-      };
-    }
-
-    // Fallback: Visual Viewport API (Safari, older browsers)
     const vp = window.visualViewport;
     if (!vp) return;
 

@@ -33,6 +33,9 @@ minimumReleaseAgeExclude:
   - 'assistant-cloud'
   - 'safe-content-frame'
   - '@blocknote/*'
+  # @blocknote/* 0.55.0 requires prosemirror-view ^1.42.4, published 2026-09-18.
+  # Exact version only; inert once it passes the gate on 2026-09-25, remove then.
+  - 'prosemirror-view@1.42.4'
 # Fail the install when a package's provenance trust level drops between
 # releases (trusted publishing -> token), the signature of a taken-over
 # maintainer account.
@@ -301,13 +304,13 @@ overrides:
   katex: ^0.18.1
   pyodide: ^314.0.5
   react-dropzone: ^19.1.1
-  prosemirror-view: ^1.42.2
-  '@blocknote/core': ^0.54.0
-  '@blocknote/react': ^0.54.0
-  '@blocknote/shadcn': ^0.54.0
-  '@blocknote/xl-ai': ^0.54.0
-  '@blocknote/xl-docx-exporter': ^0.54.0
-  '@blocknote/xl-odt-exporter': ^0.54.0
+  prosemirror-view: ^1.42.4
+  '@blocknote/core': ^0.55.0
+  '@blocknote/react': ^0.55.0
+  '@blocknote/shadcn': ^0.55.0
+  '@blocknote/xl-ai': ^0.55.0
+  '@blocknote/xl-docx-exporter': ^0.55.0
+  '@blocknote/xl-odt-exporter': ^0.55.0
   '@assistant-ui/core': ^0.3.18
   '@assistant-ui/store': ^0.3.13
   '@assistant-ui/react': ^0.15.19
