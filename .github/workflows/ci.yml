@@ -155,10 +155,11 @@ jobs:
       - name: No orphaned test files
         run: node scripts/check-orphan-tests.mjs
 
-      # A package copied by a Dockerfile but missing from that image's
-      # paths-filter means a change to it builds nothing: the workflow runs
-      # (`packages/**` is in the trigger), every job is skipped, and the merged
-      # change never ships. Nothing turns red — so this does.
+      # A file copied by a Dockerfile but missing from that image's
+      # paths-filter means a change to it builds nothing: the workflow runs,
+      # every job is skipped, and the merged change never ships. Nothing turns
+      # red — so this does. Also checks the push/pull_request triggers against
+      # the filters, the second layer that can drift the same way (#3389).
       - name: Image build filters cover their Dockerfiles
         run: node scripts/check-image-build-filters.mjs
 
