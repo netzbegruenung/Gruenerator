@@ -183,6 +183,37 @@ describe('ContentExtractor — Seitenchrome im Artikeltext (#3574)', () => {
     expect(extracted.text).toContain('Kleine Anfrage von Cornelia Lüddemann');
     expect(extracted.text).not.toContain('Foto: pixabay/pexels.com');
     expect(extracted.text).not.toContain('Hier gelangen Sie zurück zur Übersicht');
+    expect(extracted.text).not.toContain('24.11.2022');
+  });
+
+  it('hessen-fraktion: Rückfallselektor .inhalt.einspaltig:not(.keindruck) schließt den Verwandten-Block ebenfalls aus', async () => {
+    // .daten ist hier kein direktes Kind von .inhalt — die Primärregel
+    // `.inhalt:not(.keindruck) > .daten` trifft also nicht, und der Rückfall
+    // `.inhalt.einspaltig:not(.keindruck)` muss greifen, ohne den
+    // Verwandten-Block ("keindruck") mitzunehmen.
+    const html = `<!DOCTYPE html><html><body>
+      <div class="inhalt einspaltig padding-rechts-80">
+        <div class="wrapper">
+          <div class="daten"><h1 class="eintrag-titel">Titel des Artikels</h1>
+          <p>${'Ein hinreichend langer Artikeltext, der die Zweihundert-Zeichen-Schranke sicher überschreitet. '.repeat(3)}</p>
+          </div>
+        </div>
+      </div>
+      <div class="inhalt padding-oben-80 einspaltig keindruck">
+        <h2>Pressemitteilungen zum Thema</h2>
+        <div class="daten"><h3 class="eintrag-titel"><a href="#">Verwandter Beitrag</a></h3></div>
+      </div>
+    </body></html>`;
+
+    const extracted = await ContentExtractor.extractPageContent(
+      'https://www.gruene-hessen.de/landtag/pressemitteilungen/beispiel/',
+      sourceById('hessen-fraktion'),
+      () => Promise.resolve(new Response(html))
+    );
+
+    expect(extracted.text).toContain('Ein hinreichend langer Artikeltext');
+    expect(extracted.text).not.toContain('Verwandter Beitrag');
+    expect(extracted.text).not.toContain('Pressemitteilungen zum Thema');
   });
 
   it('berlin-lv-beschluesse: eine kurze Seite fällt nicht auf body zurück (135 < 200 Zeichen)', async () => {
@@ -200,5 +231,16 @@ describe('ContentExtractor — Seitenchrome im Artikeltext (#3574)', () => {
     expect(extracted.text).not.toContain('Listenansicht');
     expect(extracted.text).not.toContain('Zurück');
     expect(extracted.bodyFallback).toBe(false);
+  });
+
+  it('bodyFallback ist true, wenn wirklich auf main/body zurückgefallen wird', async () => {
+    const extracted = await ContentExtractor.extractPageContent(
+      'https://gruene.berlin/x',
+      { cms: 'typo3', contentSelectors: { title: [], date: [], content: [] } },
+      fixtureFetch('gruene-berlin-beschluss-flinta-vollversammlung.html')
+    );
+
+    expect(extracted.bodyFallback).toBe(true);
+    expect(extracted.text.length).toBeGreaterThan(0);
   });
 });

@@ -399,6 +399,7 @@ export class LandesverbandScraper extends BaseScraper {
               text,
               publishedAt: pdf.dateInfo.dateString,
               categories: [],
+              bodyFallback: false,
             },
             targetCollection,
             source.maxAgeYears,
@@ -508,7 +509,7 @@ export class LandesverbandScraper extends BaseScraper {
             source,
             contentPath.type,
             file.url,
-            { title, text, publishedAt: null, categories: [] },
+            { title, text, publishedAt: null, categories: [], bodyFallback: false },
             targetCollection,
             source.maxAgeYears,
             file.etag ? { wolke_etag: file.etag } : undefined
@@ -1113,7 +1114,7 @@ export class LandesverbandScraper extends BaseScraper {
       source,
       'beschluss',
       pdfUrl,
-      { title, text, publishedAt, categories: [] },
+      { title, text, publishedAt, categories: [], bodyFallback: false },
       targetCollection,
       source.maxAgeYears
     );
