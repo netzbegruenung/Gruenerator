@@ -1,5 +1,7 @@
 import { vi } from 'vitest';
 
+import { type UserMemoryRow } from '../../../../database/schema/index.js';
+
 /**
  * Module-shaped factories for the `vi.mock` blocks. The `vi.mock` CALLS stay
  * literal in each test file — whether a `vi.mock` registered from an imported
@@ -222,4 +224,51 @@ export function resetMockControls(): void {
   pipelineStates.clear();
   roleControl.roles = [];
   roleControl.bausteine = {};
+  memoryControl.rows = [];
+  memoryControl.search = [];
+  memoryControl.listError = null;
+  memoryControl.searchCalls.length = 0;
+}
+
+/**
+ * Das Gedächtnis der Person — die zwei Speicher hinter `memoryService` und
+ * `loadTurnMemories`. Ohne diesen Doppelgänger scheitert `list` am fehlenden
+ * Pool, der `catch` in `streamContext` schluckt das, und JEDER Turn läuft ohne
+ * Gedächtnis, ohne dass ein Test es merkt.
+ *
+ * `search` ist, was die Faktensuche liefert (IDs, beste zuerst) — oder der
+ * Fehler, den sie wirft.
+ */
+export interface MemoryControl {
+  rows: UserMemoryRow[];
+  search: string[] | Error;
+  listError: Error | null;
+  searchCalls: Array<{ query: string; limit: number }>;
+}
+export const memoryControl: MemoryControl = {
+  rows: [],
+  search: [],
+  listError: null,
+  searchCalls: [],
+};
+
+export function memoryStoreMock(original: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...original,
+    drizzleMemoryDb: {
+      ...(original.drizzleMemoryDb as Record<string, unknown>),
+      list: () =>
+        memoryControl.listError
+          ? Promise.reject(memoryControl.listError)
+          : Promise.resolve([...memoryControl.rows]),
+    },
+    qdrantMemoryVectors: {
+      ...(original.qdrantMemoryVectors as Record<string, unknown>),
+      search: (_userId: string, query: string, limit: number) => {
+        memoryControl.searchCalls.push({ query, limit });
+        const result = memoryControl.search;
+        return result instanceof Error ? Promise.reject(result) : Promise.resolve(result);
+      },
+    },
+  };
 }

@@ -43,7 +43,13 @@ export interface ContentPath {
   sitemapFilter?: string; // Optional: filter sitemap URLs (e.g., '/presse/')
   staticUrls?: string[]; // Optional: fixed list of URLs to scrape directly (bypasses pagination and sitemap)
   disableOffPathFilter?: boolean; // Optional: when true, skip the post-discovery filter that requires URLs to share the listing-path prefix. Auto-applied when sitemapUrls or wpApi is set, since both yield canonical URLs that rarely match the human-facing listing path (e.g. TYPO3 sitemaps emit /news/ while listings live under /nachrichten/; WP root-permalinks publish at /<slug>/ regardless of the /category/X listing seed).
-  wpApi?: { categoryId?: number; categoryIds?: number[]; maxPages?: number; boundByAge?: boolean }; // Optional: discover articles via WordPress REST API (/wp-json/wp/v2/posts?categories=…). Bypasses HTML-listing pagination entirely; required for WP sites with root-permalink structure where /category/X/ is a virtual index. Pass `categoryIds` to union several categories in one query (comma-separated = WP OR) instead of one source per category. Set `boundByAge` to add an `after=<now - maxAgeYears>` filter on full runs, so discovery skips out-of-window posts server-side instead of fetching (and 404-ing on) years of ancient archive entries that the store-stage age filter would drop anyway.
+  wpApi?: {
+    categoryId?: number;
+    categoryIds?: number[];
+    excludeCategoryIds?: number[];
+    maxPages?: number;
+    boundByAge?: boolean;
+  }; // Optional: discover articles via WordPress REST API (/wp-json/wp/v2/posts?categories=…). Bypasses HTML-listing pagination entirely; required for WP sites with root-permalink structure where /category/X/ is a virtual index. Pass `categoryIds` to union several categories in one query (comma-separated = WP OR) instead of one source per category. Pass `excludeCategoryIds` for `categories_exclude` (WP AND NOT) to drop posts that also carry a non-article category (e.g. event notices). Set `boundByAge` to add an `after=<now - maxAgeYears>` filter on full runs, so discovery skips out-of-window posts server-side instead of fetching (and 404-ing on) years of ancient archive entries that the store-stage age filter would drop anyway.
   wolkeShare?: { shareLink: string; recursive?: boolean }; // Optional: pull documents from a public Nextcloud "Wolke" share (wolke.netzbegruenung.de/s/<token>) via WebDAV instead of HTML/WP discovery. Files are etag-deduped, so an unchanged file is skipped before download+OCR. Reusable by any source; see services/scrapers/utils/wolkeShareHandler.ts.
   recentSkip?: boolean; // Optional: skip this content path in the incremental hourly `--recent` run so heavy PDF/OCR/Wolke paths only run in the nightly full crawl. etag/freshness dedup still bounds the nightly cost.
 }
@@ -54,6 +60,10 @@ export interface ContentSelectors {
   content: string[];
   categories: string[];
   author: string[];
+  // Optional: elements to strip from the whole page before content matching —
+  // e.g. a share bar or contact box nested inside the content container that a
+  // selector change alone can't remove (#3574).
+  removeSelectors?: string[];
 }
 
 /**
@@ -156,8 +166,10 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           disableOffPathFilter: true,
         },
         {
-          // Wahlprogramm PDF given directly. staticUrls + isPdfArchive OCRs the
-          // PDF (the year 2026 is parsed from the filename for the date).
+          // Wahlprogramm PDF given directly. staticUrls on an isPdfArchive path
+          // skips fetching a listing page entirely and OCRs these PDFs directly
+          // (the year 2026 is parsed from the filename for the date); path and
+          // listSelector below are unused in this case (#3579).
           type: 'wahlprogramm',
           path: '/',
           listSelector: 'a[href$=".pdf"]',
@@ -201,11 +213,25 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       contentSelectors: {
         title: ['h1', 'h2.headline', '.page-title', 'meta[property="og:title"]'],
         date: ['.mb-tiny', 'time', '.date', '.publication-date'],
-        content: ['article', '.content-main', '.text-content', 'main'],
+        // `.columns__cell--size-70` holds the lead + body; `.neos-contentcollection`
+        // (nested inside it) does NOT — the lead is a bare text node before it, so
+        // targeting the collection directly would lose it. Strip the photo credit,
+        // date label and back-link that otherwise leak into the body (#3574).
+        content: ['.columns__cell--size-70', 'article', '.content-main', '.text-content', 'main'],
+        removeSelectors: ['.image__copyright', '.mb-tiny', '.back-to-parent-link__wrapper'],
         categories: ['a[href*="/themen/"]', '.tags a'],
         author: ['.author', '.written-by'],
       },
-      excludePatterns: ['/_Resources/', '/assets/', '#', 'javascript:', '.pdf', '.jpg', '.png'],
+      excludePatterns: [
+        '/_Resources/',
+        '/assets/',
+        '/pressemitteilungen/pressefotos',
+        '#',
+        'javascript:',
+        '.pdf',
+        '.jpg',
+        '.png',
+      ],
     },
 
     // ═══════════════════════════════════════════════════════════════════
@@ -303,7 +329,16 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           '.post-date',
           'meta[property="article:published_time"]',
         ],
-        content: ['.elementor-widget-container', '.entry-content', 'article', 'main'],
+        // `.elementor-widget-container` matches every widget on the page (date,
+        // title, taxonomy, …), not just the body — target the post-content widget
+        // directly and keep the broad selector only as a fallback (#3574).
+        content: [
+          '.elementor-widget-theme-post-content',
+          '.elementor-widget-container',
+          '.entry-content',
+          'article',
+          'main',
+        ],
         categories: ['.elementor-post-taxonomy a', 'a[rel="category tag"]', '.post-categories a'],
         author: ['.author-name', '.elementor-author-name'],
       },
@@ -499,9 +534,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           listSelector: '.press-teaser__title a',
           disableOffPathFilter: true,
           paginationLinkSelector: '.page-navigation__next a',
-          // ~3.75 listing pages/month; 230 pages reaches back ~5 years to match the
-          // maxAgeYears window. Articles past the 5-year cutoff are dropped at processing.
-          maxPages: 230,
+          // 230 pages walked back ~6.4 years (to April 2020), past the 5-year
+          // maxAgeYears window — undated legacy pages in that overshoot bypass the
+          // age filter entirely and get stored (#3580). Verified live (page=160
+          // ≈ late June/early July 2021, page=150 ≈ October 2021): 160 pages
+          // reaches just past the 5-year-back cutoff. Articles past the cutoff
+          // are still dropped at processing.
+          maxPages: 160,
         },
       ],
       contentSelectors: {
@@ -511,6 +550,11 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         title: ['h1.document-title', 'h1', 'meta[property="og:title"]'],
         date: ['time[datetime]', 'meta[property="article:published_time"]'],
         content: ['.document-content__main', '.news-text-wrap', 'article', 'main'],
+        // `.document-content__main` also contains a share bar and a contact box
+        // (spokesperson name, phone, social URLs) — strip them rather than
+        // switching selectors: the legacy `/presse/pressemitteilungen/` template
+        // has no `.document-content__content` to target instead (#3574).
+        removeSelectors: ['.document-content__sharing', 'aside.document-content__complementary'],
         categories: ['.news-category a', '.categories a'],
         author: ['.author', '.byline'],
       },
@@ -933,13 +977,10 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           isPdfArchive: true,
           maxPages: 1,
         },
-        {
-          type: 'beschluss',
-          path: '/partei/parteitage/beschluesse/2022-1',
-          listSelector: 'a[href$=".pdf"]',
-          isPdfArchive: true,
-          maxPages: 1,
-        },
+        // '/partei/parteitage/beschluesse/2022-1' removed (#3580): despite the
+        // slug, it serves the 2023 LDK page — a duplicate of brandenburg-lv's
+        // WordPress uploads for the same 16 Beschluss PDFs (correct 2023-04-29
+        // date there vs. this archive's invented 2023-06-15).
       ],
       contentSelectors: {
         title: ['.news.single header h2', 'meta[property="og:title"]', 'h1'],
@@ -994,7 +1035,17 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       contentSelectors: {
         title: ['h1.eintrag-titel', 'meta[property="og:title"]', 'h1'],
         date: ['.zeit', '.meta', 'time[datetime]', 'meta[property="article:published_time"]'],
-        content: ['.daten', '.inhalt.einspaltig', 'main article', 'article'],
+        // `.daten` also matches every "Pressemitteilungen zum Thema" related-post
+        // card on the page — scope both the primary selector and the fallback to
+        // the article's own (non-related) `.inhalt` block (#3574). The related
+        // block itself carries `.keindruck` alongside `.einspaltig`, so the
+        // fallback needs the same exclusion, not just the primary selector.
+        content: [
+          '.inhalt:not(.keindruck) > .daten',
+          '.inhalt.einspaltig:not(.keindruck)',
+          'main article',
+          'article',
+        ],
         categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
         author: ['.author-name', '.byline', '.entry-author'],
       },
@@ -1039,7 +1090,17 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       contentSelectors: {
         title: ['h1.eintrag-titel', 'meta[property="og:title"]', 'h1'],
         date: ['.zeit', '.meta', 'time[datetime]', 'meta[property="article:published_time"]'],
-        content: ['.daten', '.inhalt.einspaltig', 'main article', 'article'],
+        // `.daten` also matches every "Pressemitteilungen zum Thema" related-post
+        // card on the page — scope both the primary selector and the fallback to
+        // the article's own (non-related) `.inhalt` block (#3574). The related
+        // block itself carries `.keindruck` alongside `.einspaltig`, so the
+        // fallback needs the same exclusion, not just the primary selector.
+        content: [
+          '.inhalt:not(.keindruck) > .daten',
+          '.inhalt.einspaltig:not(.keindruck)',
+          'main article',
+          'article',
+        ],
         categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
         author: ['.author-name', '.byline', '.entry-author'],
       },
@@ -1086,15 +1147,23 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           // Topic categories the user listed (bildung, demokratie-recht, energie,
           // europa, finanzen, geschlechtergerechtigkeit, gesundheit, kultur,
           // landwirtschaft, soziales, tierschutz, umwelt, verkehr, wirtschaft,
-          // wissenschaft) unioned in one query. Overlap with pressemitteilungen is
-          // deduped by source_url in Qdrant.
+          // wissenschaft), plus Allgemein/Klimaschutzkonzept-Check/Positionspapiere
+          // and the whole Sommerreihe series (bare category + 2023/2024/2025)
+          // (id-verified live via /wp-json/wp/v2/categories, see #3580: the
+          // whitelist missed ~48 political posts filed only under these) unioned
+          // in one query. Overlap with pressemitteilungen is deduped by
+          // source_url in Qdrant. excludeCategoryIds drops Termine (122) meeting
+          // notices — presse (cat 7) does NOT get this exclusion, 8 real press
+          // releases also carry Termine.
           type: 'blog',
           path: '/',
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
           wpApi: {
             categoryIds: [
-              109, 108, 117, 118, 115, 113, 112, 119, 111, 116, 106, 114, 105, 107, 110,
+              109, 108, 117, 118, 115, 113, 112, 119, 111, 116, 106, 114, 105, 107, 110, 1, 154,
+              155, 140, 152, 164, 142,
             ],
+            excludeCategoryIds: [122],
             boundByAge: true,
           },
         },

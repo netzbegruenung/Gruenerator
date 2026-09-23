@@ -45,6 +45,12 @@ export interface ExtractedContent {
   text: string;
   /** Category tags */
   categories: string[];
+  /**
+   * Whether no configured content selector had usable text and extraction fell
+   * back to `main`/`body` — a signal that the stored text may carry page chrome
+   * (nav, sidebar, footer) instead of the article (#3574).
+   */
+  bodyFallback: boolean;
 }
 
 /**

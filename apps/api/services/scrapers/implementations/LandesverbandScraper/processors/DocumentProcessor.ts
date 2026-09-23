@@ -34,6 +34,13 @@ import type { ProcessResult, ExtractedContent } from '../types.js';
 import type { QdrantClient } from '@qdrant/js-client-rest';
 
 /**
+ * DateExtractor's year-only fallback — never a better date than one already
+ * stored. Only for callers without `date_precision` (HTML pages); PDFs say it.
+ */
+const YEAR_ONLY_GUESS = /-06-15$/;
+const CHECKED_AT_REFRESH_MS = 24 * 60 * 60 * 1000;
+
+/**
  * Document processing orchestration
  * Dependencies injected via constructor for testability
  */
@@ -113,7 +120,15 @@ export class DocumentProcessor {
       // zurückkehren, bliebe der Punkt für immer ohne Fingerprint und die Datei
       // würde in jedem Lauf neu heruntergeladen und ausgelesen — genau der
       // Aufwand, den der Fingerprint einspart.
-      await this.#refreshExtraPayload(targetCollection, url, extraPayload, existingPayload);
+      // Dasselbe gilt für Titel und Datum: ein reparierter Extraktor erreicht
+      // sonst nur Seiten, deren Text sich geändert hat (#3578).
+      await this.#refreshStoredPayload(
+        targetCollection,
+        url,
+        { title, publishedAt },
+        extraPayload,
+        existingPayload
+      );
       return { stored: false, reason: 'unchanged' };
     }
 
@@ -153,6 +168,7 @@ export class DocumentProcessor {
 
     // STEP 8: Build Qdrant points (with quality scoring)
     const curatedLists = getCuratedListsForUrl(url);
+    const now = new Date().toISOString();
     const points = chunks.map((chunk, index) => ({
       id: this.generatePointId(url, index),
       vector: embeddings[index],
@@ -178,7 +194,8 @@ export class DocumentProcessor {
         primary_category: categories?.[0] || null,
         subcategories: categories || [],
         published_at: publishedAt || null,
-        indexed_at: new Date().toISOString(),
+        indexed_at: now,
+        checked_at: now,
         source: 'landesverbaende_gruene',
         ...(curatedLists.length > 0 ? { curated_lists: curatedLists } : {}),
         ...(extraPayload ?? {}),
@@ -214,24 +231,49 @@ export class DocumentProcessor {
   }
 
   /**
-   * Write back only those `extraPayload` keys whose stored value differs.
-   * Nothing to patch → no Qdrant call, so the common steady-state re-check stays
-   * a single scroll.
+   * One `setPayload` per unchanged document: the `extraPayload` keys and the
+   * extracted title/date whose stored value differs, plus `checked_at`, on
+   * which the staggered re-check keys (`indexed_at` stays the embedding time).
+   * An empty title or a null date is never written over a stored value — SL
+   * PDFs with processUndatedPdfs and every Wolke file pass `publishedAt: null`;
+   * neither is a year-only guess over a stored date (`date_precision: 'year'`,
+   * or the `-06-15` regex for callers that pass no precision). A refused date
+   * takes its `date_precision` with it, so the pair stays consistent. Young pages
+   * are re-fetched on every run past RECHECK_AFTER_MS (this branch never bumps
+   * `indexed_at`), so a bare `checked_at` is only rewritten once it is a day old.
    */
-  async #refreshExtraPayload(
+  async #refreshStoredPayload(
     targetCollection: string,
     url: string,
+    extracted: { title: string; publishedAt: string | null },
     extraPayload: Record<string, unknown> | undefined,
     existingPayload: Record<string, unknown>
   ): Promise<void> {
-    if (!extraPayload) return;
+    const candidates: Record<string, unknown> = { ...(extraPayload ?? {}) };
+    // Normalisiert wie beim Speichern (STEP 5), sonst kippte der Titel hin und her.
+    const title = ContentExtractor.normalizeTitle(extracted.title);
+    if (title) candidates.title = title;
+    const yearOnly =
+      extraPayload && 'date_precision' in extraPayload
+        ? extraPayload.date_precision === 'year'
+        : YEAR_ONLY_GUESS.test(extracted.publishedAt ?? '');
+    if (extracted.publishedAt && !(existingPayload.published_at && yearOnly)) {
+      candidates.published_at = extracted.publishedAt;
+    } else {
+      delete candidates.date_precision;
+    }
     const patch = Object.fromEntries(
-      Object.entries(extraPayload).filter(([key, value]) => existingPayload[key] !== value)
+      Object.entries(candidates).filter(([key, value]) => existingPayload[key] !== value)
     );
-    if (Object.keys(patch).length === 0) return;
 
-    await setPayload(this.qdrantClient, targetCollection, patch, {
-      must: [{ key: 'source_url', match: { value: url } }],
-    });
+    const checkedAt = new Date(String(existingPayload.checked_at ?? '')).getTime();
+    if (Object.keys(patch).length === 0 && Date.now() - checkedAt < CHECKED_AT_REFRESH_MS) return;
+
+    await setPayload(
+      this.qdrantClient,
+      targetCollection,
+      { ...patch, checked_at: new Date().toISOString() },
+      { must: [{ key: 'source_url', match: { value: url } }] }
+    );
   }
 }
