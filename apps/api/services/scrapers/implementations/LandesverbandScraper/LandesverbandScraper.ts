@@ -49,8 +49,9 @@ import {
   fingerprintResponse,
   isSameFile,
 } from '../../utils/binaryFingerprint.js';
+import { scrubThirdPartyContacts } from '../../utils/contactScrub.js';
 import { collectWolkeShareFiles, extractWolkeFileText } from '../../utils/wolkeShareHandler.js';
-import { resolveWolkeShareLink } from '../../utils/wolkeShareSecrets.js';
+import { redactShareTokens, resolveWolkeShareLink } from '../../utils/wolkeShareSecrets.js';
 
 import { staleDocumentsFilter } from './archiveFilter.js';
 import { ContentExtractor } from './extractors/ContentExtractor.js';
@@ -444,7 +445,7 @@ export class LandesverbandScraper extends BaseScraper {
     } else if (contentPath.wolkeShare) {
       // Public Nextcloud "Wolke" share as a content source. etag dedup skips
       // download+OCR for unchanged files (so this stays cheap on re-runs).
-      const { shareKey, recursive = true } = contentPath.wolkeShare;
+      const { shareKey, recursive = true, excludeNames } = contentPath.wolkeShare;
       const shareLink = resolveWolkeShareLink(shareKey);
       if (!shareLink) {
         console.warn(
@@ -456,7 +457,12 @@ export class LandesverbandScraper extends BaseScraper {
       }
       let collected: Awaited<ReturnType<typeof collectWolkeShareFiles>>;
       try {
-        collected = await collectWolkeShareFiles(shareLink, recursive, this.log.bind(this));
+        collected = await collectWolkeShareFiles(
+          shareLink,
+          recursive,
+          this.log.bind(this),
+          excludeNames
+        );
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Unknown error';
         console.error(
@@ -467,7 +473,12 @@ export class LandesverbandScraper extends BaseScraper {
         return result;
       }
 
-      const { client, files } = collected;
+      const { client, files, excludedByName } = collected;
+      if (excludedByName > 0) {
+        result.skipped += excludedByName;
+        result.skipReasons.wolke_excluded_name =
+          (result.skipReasons.wolke_excluded_name ?? 0) + excludedByName;
+      }
       const toProcess = maxDocuments ? files.slice(0, maxDocuments) : files;
 
       // Dry run: report new vs already-stored, don't download/OCR/store.
@@ -519,7 +530,10 @@ export class LandesverbandScraper extends BaseScraper {
 
           const extraction = await extractWolkeFileText(client, file);
           recordExtraction({ method: extraction.method, pages: extraction.pages });
-          const text = extraction.text;
+          // Wolke files carry third-party contact data (e.g. Wahlprüfsteine
+          // respondents' private e-mails/phones) that HTML pages never do —
+          // scrub before storing, not the public web-page path.
+          const { text, redactions } = scrubThirdPartyContacts(extraction.text);
           const title = file.name.replace(/\.[^.]+$/, '');
           // Der WebDAV-mtime ist kein Veröffentlichungsdatum, aber der
           // Dateiname trägt oft ein echtes Datum (LPT 08.11.2025 samt
@@ -561,6 +575,9 @@ export class LandesverbandScraper extends BaseScraper {
             }
             result.totalVectors += storeResult.vectors || 0;
             mergeQualityFlags(result, storeResult.qualityFlags ?? {});
+            if (redactions > 0) {
+              result.qualityFlags.pii_redacted = (result.qualityFlags.pii_redacted ?? 0) + 1;
+            }
             this.log(`✓ Wolke [${i + 1}/${toProcess.length}] ${title}`);
           } else {
             result.skipped++;
@@ -572,7 +589,9 @@ export class LandesverbandScraper extends BaseScraper {
           await this.delay(this.crawlDelay);
         } catch (error) {
           const msg = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[Landesverband] ✗ Wolke error in ${source.id} (${file.url}): ${msg}`);
+          console.error(
+            `[Landesverband] ✗ Wolke error in ${source.id} (${redactShareTokens(file.url)}): ${msg}`
+          );
           result.errors++;
           addErrorSamples(result, `Wolke ${file.url}: ${msg}`);
         }
