@@ -52,9 +52,10 @@ import { collectWolkeShareFiles, extractWolkeFileText } from '../../utils/wolkeS
 
 import { ContentExtractor } from './extractors/ContentExtractor.js';
 import { DateExtractor } from './extractors/DateExtractor.js';
-import { LinkExtractor } from './extractors/LinkExtractor.js';
+import { isGenericLinkText, LinkExtractor } from './extractors/LinkExtractor.js';
 import { WpApiExtractor } from './extractors/WpApiExtractor.js';
 import { SearchOperations } from './operations/SearchOperations.js';
+import { fetchPdfDocument } from './pdfResponse.js';
 import { DocumentProcessor } from './processors/DocumentProcessor.js';
 import { isFreshlyIndexed } from './recheckSchedule.js';
 import {
@@ -295,20 +296,28 @@ export class LandesverbandScraper extends BaseScraper {
 
           // Layer 2: bedingter GET. Bestätigt der Server den gespeicherten ETag
           // bzw. Last-Modified mit 304, entfällt schon der Download.
-          const response = await this.#fetchUrl(pdf.url, {
-            headers: conditionalHeaders(stored),
-            acceptStatus: [304],
-          });
+          const fetched = await fetchPdfDocument(
+            pdf.url,
+            conditionalHeaders(stored),
+            this.#fetchUrl.bind(this)
+          );
 
-          if (response.status === 304) {
+          if (fetched.kind === 'not_modified') {
             result.skipped++;
             result.skipReasons['unchanged'] = (result.skipReasons['unchanged'] || 0) + 1;
             recordExtractionSkip('not_modified');
             continue;
           }
 
-          const arrayBuffer = await response.arrayBuffer();
-          const pdfBuffer = Buffer.from(arrayBuffer);
+          if (fetched.kind === 'not_pdf') {
+            result.skipped++;
+            result.skipReasons['not_pdf'] = (result.skipReasons['not_pdf'] || 0) + 1;
+            continue;
+          }
+
+          const { bytes: pdfBuffer, response } = fetched;
+          const title =
+            isGenericLinkText(pdf.title) && fetched.landingTitle ? fetched.landingTitle : pdf.title;
 
           // Layer 3: Byte-Fingerprint. Server ohne brauchbare Validatoren liefern
           // die Datei erneut aus; identische Bytes heißen aber, dass Extraktion
@@ -358,7 +367,7 @@ export class LandesverbandScraper extends BaseScraper {
             contentPath.type,
             pdf.url,
             {
-              title: pdf.title,
+              title,
               text,
               publishedAt: pdf.dateInfo.dateString,
               categories: [],
@@ -373,11 +382,11 @@ export class LandesverbandScraper extends BaseScraper {
             if (storeResult.updated) result.updated++;
             else {
               result.stored++;
-              result.newArticles.push({ title: pdf.title, url: pdf.url, type: contentPath.type });
+              result.newArticles.push({ title, url: pdf.url, type: contentPath.type });
             }
             result.totalVectors += storeResult.vectors || 0;
             this.log(
-              `✓ PDF [${i + 1}/${toProcess.length}] ${pdf.title} (${pdf.dateInfo.dateString || 'no date'})`
+              `✓ PDF [${i + 1}/${toProcess.length}] ${title} (${pdf.dateInfo.dateString || 'no date'})`
             );
           } else {
             result.skipped++;
@@ -1051,8 +1060,10 @@ export class LandesverbandScraper extends BaseScraper {
     }
 
     // Download
-    const response = await this.#fetchUrl(pdfUrl);
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const fetched = await fetchPdfDocument(pdfUrl, {}, this.#fetchUrl.bind(this));
+    if (fetched.kind === 'not_pdf') return { stored: false, reason: 'not_pdf' };
+    if (fetched.kind === 'not_modified') return { stored: false, reason: 'unchanged' };
+    const buffer = fetched.bytes;
 
     // OCR
     const filename = pdfUrl.split('/').pop() || 'document.pdf';
