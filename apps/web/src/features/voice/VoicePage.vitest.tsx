@@ -1,6 +1,7 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
+import { toast } from '@gruenerator/ui';
 import { http, HttpResponse } from 'msw';
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../test/msw-server';
 
@@ -277,5 +278,80 @@ describe('VoicePage', () => {
 
     await user.click(screen.getByRole('button', { name: /Einstellungen: / }));
     expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe('VoicePage — Datei einfügen', () => {
+  const EXTRACT = '*/api/scanner/extract';
+
+  function extracted(text: string) {
+    return http.post(EXTRACT, () =>
+      HttpResponse.json({
+        success: true,
+        text,
+        pageCount: 1,
+        method: 'pdfjs-direct',
+        fileInfo: { originalname: 'antrag.pdf', size: 100, mimetype: 'application/pdf' },
+      })
+    );
+  }
+
+  function fileInput(container: HTMLElement): HTMLInputElement {
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    if (!input) throw new Error('no file input');
+    return input;
+  }
+
+  const pdf = () => new File(['%PDF'], 'antrag.pdf', { type: 'application/pdf' });
+
+  it('inserts the cleaned text at the caret', async () => {
+    server.use(extracted('# Antrag\n\nWir for-\ndern mehr Busse.\n1\n'));
+    const { user, container } = renderWithProviders(<VoicePage />);
+    expect(screen.getByRole('button', { name: 'Datei einfügen' })).toBeInTheDocument();
+
+    fireEvent.change(textarea(), { target: { value: 'Vorher. Nachher.' } });
+    textarea().setSelectionRange(8, 8);
+    await user.upload(fileInput(container), pdf());
+
+    await waitFor(() =>
+      expect(textarea()).toHaveValue('Vorher. Antrag\n\nWir fordern mehr Busse.Nachher.')
+    );
+  });
+
+  it('cuts a file that does not fit and says so in a toast that stays', async () => {
+    const warning = vi.spyOn(toast, 'warning');
+    server.use(extracted('a'.repeat(30_000)));
+    const { user, container } = renderWithProviders(<VoicePage />);
+
+    await user.upload(fileInput(container), pdf());
+
+    await waitFor(() => expect(textarea()).toHaveValue('a'.repeat(24_576)));
+    expect(warning).toHaveBeenCalledWith(
+      expect.stringContaining('24.576 von 30.000 Zeichen'),
+      expect.objectContaining({ duration: Infinity })
+    );
+    warning.mockRestore();
+  });
+
+  it("shows the route's own error message when the file cannot be read", async () => {
+    const error = vi.spyOn(toast, 'error');
+    server.use(
+      http.post(EXTRACT, () =>
+        HttpResponse.json(
+          {
+            success: false,
+            error: 'Seitenlimit überschritten: Die Datei hat 40 Seiten (maximal 20 erlaubt).',
+          },
+          { status: 400 }
+        )
+      )
+    );
+    const { user, container } = renderWithProviders(<VoicePage />);
+
+    await user.upload(fileInput(container), pdf());
+
+    await waitFor(() => expect(error).toHaveBeenCalledWith(expect.stringContaining('Seitenlimit')));
+    expect(textarea()).toHaveValue('');
+    error.mockRestore();
   });
 });
