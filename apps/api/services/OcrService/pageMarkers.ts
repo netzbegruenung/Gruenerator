@@ -33,5 +33,10 @@ export function joinPagesWithMarkers(pages: readonly NumberedPageText[]): string
 
 /** Der Text ohne die Markenzeilen — für Vorschau und Mindestlängen-Prüfung. */
 export function stripPageMarkers(text: string): string {
-  return text.replace(/^##[ \t]*Seite[ \t]+\d+[ \t]*(?:\r?\n)*/gm, '').trim();
+  return removePageMarkerLines(text).trim();
+}
+
+/** Wie `stripPageMarkers`, aber sonst zeichengenau — für Zählungen. */
+export function removePageMarkerLines(text: string): string {
+  return text.replace(/^##[ \t]*Seite[ \t]+\d+[ \t]*(?:\r?\n)*/gm, '');
 }
