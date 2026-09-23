@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuiState } from '@assistant-ui/store';
+import { type NotebookAnswerMode, type NotebookDepth } from '@gruenerator/contracts';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -29,8 +30,6 @@ import { GrueneratorComposer } from '../thread/GrueneratorComposer';
 
 import { type CategoryFilterField } from './CategoryFilterDropdown';
 import { type SourceFilterCollection } from './SourceFilterDropdown';
-
-import type { NotebookAnswerMode, NotebookDepth } from '@gruenerator/contracts';
 
 /** Semantic icon key → lucide component. The registry stays renderer-agnostic. */
 const DEPTH_ICONS: Record<NotebookDepthIconKey, typeof Zap> = {
