@@ -264,7 +264,12 @@ function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS, prior 
   );
   const url = typeof r.url === 'string' && r.url.trim() ? ` <${r.url.trim()}>` : '';
   const day = publishedDay(r);
-  const date = day ? ` (${day})` : '';
+  // Die Seite gehört in die Zeile: der Schreiber im split-Modus sieht nur sie.
+  // Ohne sie las er `read seite=2` als Text ohne Seitenangabe und meldete
+  // „keine Seitenmarkierungen" (Testserver 24.09.2026).
+  const page = typeof r.pageNumber === 'number' && r.pageNumber > 0 ? `S. ${r.pageNumber}` : null;
+  const meta = [day, page].filter(Boolean).join(', ');
+  const date = meta ? ` (${meta})` : '';
   const mark = prior ? ' (frühere Recherche)' : '';
   return `[${index}]${mark} ${title}${url}${date}${body ? ` — ${body}` : ''}`;
 }
