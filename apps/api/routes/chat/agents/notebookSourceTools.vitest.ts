@@ -303,11 +303,40 @@ describe('list', () => {
       title: 'Antrag Radweg',
       url: '/notebooks/kreisverband-Ab3xK9',
       ref: 'd1',
-      snippet: 'manual · 2026-09-01 · 4 S. · 1200 Wörter',
+      snippet: 'manual · hochgeladen 2026-09-01 · 4 S. · 1200 Wörter',
     });
-    expect(results[1]?.snippet).toBe('manual · 2026-09-01 · ~100 Wörter');
+    expect(results[1]?.snippet).toBe('manual · hochgeladen 2026-09-01 · ~100 Wörter');
     expect(registered).toHaveLength(1);
     expect(out.refs).toBe('Antrag Radweg — d1 (2026-09-01)\nProtokoll — d2 (2026-09-01)');
+  });
+
+  it('nennt Dokumentdatum, Art und Gremium vor der Upload-Zeit und filtert nach Gremium', async () => {
+    const { run } = makeCtx({
+      rows: [
+        docRow({
+          metadata: {
+            wordCount: 1200,
+            doc_meta: {
+              version: 1,
+              date: '2024-01-08',
+              dateKind: 'beschluss',
+              gremium: 'Bundesvorstand',
+            },
+          },
+        }),
+        docRow({ id: 'd2', title: 'Protokoll', page_count: null, metadata: {}, chars: 650 }),
+      ],
+      links: ['d1', 'd2'],
+    });
+    const out = await run({ action: 'list', sortBy: 'name' });
+    const results = out.results as Array<Record<string, unknown>>;
+    expect(results[0]?.snippet).toBe(
+      'manual · Beschluss 2024-01-08 (Bundesvorstand) · hochgeladen 2026-09-01 · 4 S. · 1200 Wörter'
+    );
+    expect(out.refs).toBe('Antrag Radweg — d1 (2024-01-08)\nProtokoll — d2 (2026-09-01)');
+
+    const filtered = await run({ action: 'list', filter: { gremium: 'Bundesvorstand' } });
+    expect((filtered.results as unknown[]).length).toBe(1);
   });
 });
 
@@ -661,6 +690,18 @@ describe('stats', () => {
 });
 
 describe('rank', () => {
+  it('ranks by the document date before the upload time', async () => {
+    const rows = [
+      docRow({ metadata: { doc_meta: { version: 1, date: '2027-01-01', dateKind: 'stand' } } }),
+      TWO_ROWS[1],
+    ];
+    const { run } = makeCtx({ rows, links: ['d1', 'd2'] });
+    const byDate = await run({ action: 'rank', by: 'date' });
+    expect(
+      (byDate.ranking as Array<{ sourceId: string; value: string }>).map((r) => r.value)
+    ).toEqual(['2027-01-01', '2026-09-10']);
+  });
+
   it('ranks by date, length and pages from the source metadata', async () => {
     const { run, registered } = makeCtx({ rows: TWO_ROWS, links: ['d1', 'd2'] });
     const byDate = await run({ action: 'rank', by: 'date' });

@@ -27,6 +27,7 @@ import type {
   DocumentChunksResult,
 } from '../document-services/DocumentSearchService/types.js';
 import type { PageRange } from '../document-services/TextChunker/types.js';
+import type { DocDateKind } from '../documentMeta/headerMeta.js';
 import type { ExpandedChunkResult } from '../search/types.js';
 
 /**
@@ -123,6 +124,7 @@ export interface SourceFilter {
   status?: string | undefined;
   titleContains?: string | undefined;
   tag?: string | undefined;
+  gremium?: string | undefined;
 }
 
 export interface NotebookSourceRow {
@@ -138,6 +140,10 @@ export interface NotebookSourceRow {
   chars: number | null;
   status: string | null;
   createdAt: string | null;
+  /** Datum aus dem Dokumentkopf (`metadata.doc_meta`) — nicht die Upload-Zeit. */
+  docDate: string | null;
+  docDateKind: DocDateKind | null;
+  gremium: string | null;
   tags: string[];
 }
 
@@ -151,6 +157,29 @@ function parseMetadata(raw: unknown): Record<string, unknown> {
     }
   }
   return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+}
+
+function docMetaOf(meta: Record<string, unknown>): {
+  docDate: string | null;
+  docDateKind: DocDateKind | null;
+  gremium: string | null;
+} {
+  const dm =
+    meta.doc_meta && typeof meta.doc_meta === 'object'
+      ? (meta.doc_meta as Record<string, unknown>)
+      : {};
+  const str = (v: unknown) => (typeof v === 'string' && v ? v : null);
+  const docDate = str(dm.date);
+  return {
+    docDate,
+    docDateKind: docDate ? (str(dm.dateKind) as DocDateKind | null) : null,
+    gremium: str(dm.gremium),
+  };
+}
+
+/** Das Datum, nach dem eine Quelle sortiert wird: Dokumentdatum, sonst Upload. */
+export function sortDateOf(r: NotebookSourceRow): string | null {
+  return r.docDate ?? r.createdAt;
 }
 
 function toSourceRow(row: DocumentMetadataRow): NotebookSourceRow {
@@ -178,6 +207,7 @@ function toSourceRow(row: DocumentMetadataRow): NotebookSourceRow {
     chars,
     status: row.status ?? null,
     createdAt: created,
+    ...docMetaOf(meta),
     tags: Array.isArray(meta.tags)
       ? meta.tags.filter((t): t is string => typeof t === 'string')
       : [],
@@ -186,7 +216,10 @@ function toSourceRow(row: DocumentMetadataRow): NotebookSourceRow {
 
 const SORT_KEY: Record<SourceSortBy, (r: NotebookSourceRow) => string | number | null> = {
   name: (r) => r.title.toLocaleLowerCase('de'),
-  date: (r) => (r.createdAt ? Date.parse(r.createdAt) : null),
+  date: (r) => {
+    const d = sortDateOf(r);
+    return d ? Date.parse(d) : null;
+  },
   pages: (r) => r.pages,
   size: (r) => r.sizeBytes,
   words: (r) => r.words,
@@ -234,6 +267,12 @@ function matchesFilter(row: NotebookSourceRow, filter: SourceFilter | undefined)
     return false;
   }
   if (filter.tag && !row.tags.includes(filter.tag)) return false;
+  if (
+    filter.gremium &&
+    row.gremium?.toLocaleLowerCase('de') !== filter.gremium.toLocaleLowerCase('de')
+  ) {
+    return false;
+  }
   return true;
 }
 
