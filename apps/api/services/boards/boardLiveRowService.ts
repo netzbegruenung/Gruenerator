@@ -24,6 +24,8 @@ const INTERNAL_TOKEN = process.env.HOCUSPOCUS_INTERNAL_TOKEN || '';
 const FETCH_TIMEOUT_MS = 5000;
 
 export interface NewCardRow {
+  /** Set when the caller needs the card id afterwards; otherwise generated. */
+  id?: string;
   title: string;
   status?: string;
   description?: string;
@@ -67,7 +69,7 @@ export async function addRowsToBoardLive(
   }
 
   // Fallback: raw DB upsert (appears on next board load). addRowsToBoard reads
-  // the same title/status/description/dueDate keys off each row.
+  // the same id/title/status/description/dueDate keys off each row.
   await addRowsToBoard(boardId, rows as unknown as Array<Record<string, unknown>>, userId);
   return false;
 }

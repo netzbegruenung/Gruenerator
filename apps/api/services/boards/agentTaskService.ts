@@ -57,6 +57,35 @@ export function flowTaskText(flow: BoardAiTask): string {
   return flow.task.type === 'custom' ? flow.task.prompt : `KI-Aufgabe: ${flow.task.preset}`;
 }
 
+/**
+ * The instruction for a card a person gave no written ask for: assigned to an
+ * agent, or created by a decomposing run that also works it (#3549). It anchors
+ * the agent to the card's title + description — without that anchor a strong
+ * agent persona drifts to something unrelated to the board. The worker adds the
+ * full card context (column, comments, documents) on top.
+ */
+export function cardTaskText(cardTitle: string | null, cardDescription: string | null): string {
+  const title = cardTitle?.trim();
+  const description = cardDescription?.trim();
+  const cardBody = [
+    title ? `Titel: ${title}` : '',
+    description ? `Beschreibung:\n${description}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  return (
+    'Du wurdest einer Aufgabe auf einem Board zugewiesen. Bearbeite die in dieser Karte ' +
+    'beschriebene Aufgabe. Stütze dich ausschließlich auf den Karteninhalt sowie die Kommentare ' +
+    'und verknüpften Dokumente aus dem bereitgestellten Kontext. Bleibe strikt beim Thema der ' +
+    'Karte und erfinde keine fremden Themen.' +
+    (cardBody
+      ? `\n\n${cardBody}`
+      : '\n\n(Die Karte hat noch keinen Titel und keine Beschreibung — orientiere dich an den ' +
+        'Kommentaren und dem Kontext der Karte.)')
+  );
+}
+
 export async function enqueueAgentTask(params: EnqueueAgentTaskParams): Promise<AgentTask> {
   const rows = await db.query<AgentTask>(
     `INSERT INTO agent_tasks (board_id, card_id, trigger_comment_id, requested_by, task_text, locale, flow_config, agent_id, schedule_id, require_review)
@@ -99,13 +128,21 @@ export async function claimNextAgentTask(): Promise<AgentTask | null> {
          -- Rückzieh-Pause: ein frisch fehlgeschlagener Versuch wartet
          -- attempts*2 Minuten, statt sofort im nächsten 5-Sekunden-Tick wieder
          -- zu starten. attempts = 0 heisst „noch nie versucht" → sofort.
-         WHERE (status = 'pending' AND updated_at <= now() - make_interval(mins => attempts * 2))
+         WHERE ((status = 'pending' AND updated_at <= now() - make_interval(mins => attempts * 2))
             -- Die attempts-Bedingung ist load-bearing: der Übergang nach
             -- 'failed' liegt allein im catch des Workers, den ein Absturz nie
             -- erreicht. Ohne die Bedingung kreist eine Aufgabe, die den Prozess
             -- tötet, für immer: holen, abstürzen, 10 Minuten, holen.
             OR (status = 'running' AND started_at < now() - make_interval(mins => $1)
-                AND attempts < max_attempts)
+                AND attempts < max_attempts))
+         -- Graph (#3549): a task waits in 'pending' until every predecessor has
+         -- delivered. awaiting_review counts — the result exists, the review
+         -- note sits on the predecessor's card.
+         AND NOT EXISTS (
+           SELECT 1 FROM agent_task_dependencies d
+             JOIN agent_tasks p ON p.id = d.depends_on_task_id
+            WHERE d.task_id = agent_tasks.id
+              AND p.status NOT IN ('completed', 'awaiting_review'))
          ORDER BY created_at
          FOR UPDATE SKIP LOCKED
          LIMIT 1
@@ -187,6 +224,115 @@ export async function sweepDeadAgentTasks(): Promise<AgentTask[]> {
       RETURNING *`,
     [STALE_RUNNING_MINUTES]
   );
+}
+
+/**
+ * Fails every pending task whose predecessor failed for good (#3549). Without
+ * this it would sit in 'pending' forever, skipped by the claim query. Covers one
+ * level per call; the worker repeats it until nothing is left, so a chain fails
+ * through within one tick.
+ */
+export async function failTasksBlockedByFailure(): Promise<AgentTask[]> {
+  return db.query<AgentTask>(
+    `UPDATE agent_tasks t
+        SET status = 'failed',
+            error = 'Abgebrochen: eine vorausgehende Aufgabe ist fehlgeschlagen.',
+            completed_at = now(), updated_at = now()
+      WHERE t.status = 'pending'
+        AND EXISTS (
+          SELECT 1 FROM agent_task_dependencies d
+            JOIN agent_tasks p ON p.id = d.depends_on_task_id
+           WHERE d.task_id = t.id AND p.status = 'failed')
+      RETURNING t.*`
+  );
+}
+
+export interface ChildAgentTask {
+  cardId: string;
+  taskText: string;
+  /** Positions in the same list this child waits for. Must point backwards. */
+  dependsOn: number[];
+}
+
+/**
+ * Completes a decomposing run and queues one task per card it should also work
+ * (#3549) — in one transaction, so a crash can't leave the children queued with
+ * the parent still retryable (which would queue them a second time). Children
+ * inherit board, requester, locale and agent from the parent.
+ */
+export async function completeWithChildAgentTasks(
+  parent: AgentTask,
+  children: ChildAgentTask[]
+): Promise<void> {
+  await db.transaction(async (client) => {
+    const ids: string[] = [];
+    for (const child of children) {
+      const { rows } = await client.query<{ id: string }>(
+        `INSERT INTO agent_tasks (board_id, card_id, requested_by, task_text, locale, agent_id, parent_task_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id`,
+        [
+          parent.board_id,
+          child.cardId,
+          parent.requested_by,
+          child.taskText,
+          parent.locale,
+          parent.agent_id,
+          parent.id,
+        ]
+      );
+      ids.push(rows[0].id);
+    }
+    const edges = children.flatMap((child, i) =>
+      child.dependsOn.filter((d) => d < i).map((d) => [ids[i], ids[d]] as const)
+    );
+    if (edges.length > 0) {
+      await client.query(
+        `INSERT INTO agent_task_dependencies (task_id, depends_on_task_id)
+         SELECT * FROM unnest($1::uuid[], $2::uuid[])`,
+        [edges.map((e) => e[0]), edges.map((e) => e[1])]
+      );
+    }
+    await client.query(
+      `UPDATE agent_tasks
+          SET status = 'completed', error = NULL, completed_at = now(), updated_at = now()
+        WHERE id = $1`,
+      [parent.id]
+    );
+  });
+  log.info(`Agent task ${parent.id} queued ${children.length} child task(s)`);
+}
+
+/**
+ * What a child task needs from the graph (#3549): the request it was split
+ * from, and each predecessor's card plus result document. result_document_id
+ * is written in the same UPDATE that makes the predecessor claimable-past, so
+ * it is always there by the time this task is claimed.
+ */
+export async function taskGraphContext(task: AgentTask): Promise<{
+  parentTaskText: string | null;
+  predecessors: Array<{ cardId: string; resultDocumentId: string | null }>;
+}> {
+  const [parent, predecessors] = await Promise.all([
+    task.parent_task_id
+      ? db.query<{ task_text: string }>(`SELECT task_text FROM agent_tasks WHERE id = $1`, [
+          task.parent_task_id,
+        ])
+      : Promise.resolve([]),
+    db.query<{ card_id: string; result_document_id: string | null }>(
+      `SELECT p.card_id, p.result_document_id FROM agent_task_dependencies d
+         JOIN agent_tasks p ON p.id = d.depends_on_task_id
+        WHERE d.task_id = $1`,
+      [task.id]
+    ),
+  ]);
+  return {
+    parentTaskText: parent[0]?.task_text ?? null,
+    predecessors: predecessors.map((r) => ({
+      cardId: r.card_id,
+      resultDocumentId: r.result_document_id,
+    })),
+  };
 }
 
 /**

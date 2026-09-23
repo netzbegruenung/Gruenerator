@@ -30,7 +30,13 @@ beforeEach(() => {
 describe('generateTaskList', () => {
   it('parses the model answer into tasks', async () => {
     await expect(generateTaskList('Plane die Kampagne')).resolves.toEqual([
-      { title: 'Termin festlegen', description: 'Mit dem Vorstand abstimmen', dueDate: null },
+      {
+        title: 'Termin festlegen',
+        description: 'Mit dem Vorstand abstimmen',
+        dueDate: null,
+        byAgent: false,
+        dependsOn: [],
+      },
     ]);
   });
 
