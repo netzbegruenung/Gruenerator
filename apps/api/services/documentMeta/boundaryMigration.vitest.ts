@@ -26,6 +26,8 @@ describe('document_meta_boundary', () => {
 
   it('legt nichts an documents an, was syncSchemaColumns vorbelegen könnte', () => {
     expect(migration).not.toMatch(/ALTER TABLE documents/i);
+    // Ein Teilindex für den Neu-Zweig ist erlaubt — er belegt keine Zeile vor.
+    expect(migration).toMatch(/CREATE INDEX IF NOT EXISTS idx_documents_doc_meta_pending/);
     expect(schema).not.toMatch(/doc_meta/);
     expect(schema).not.toMatch(/document_meta_boundary/);
   });

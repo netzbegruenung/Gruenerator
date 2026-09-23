@@ -18,7 +18,9 @@ vi.mock('../document-services/DocumentSearchService/index.js', () => ({
 vi.mock('../../middleware/requireAiConsent.js', () => ({ hasAiConsent: vi.fn() }));
 vi.mock('../ai/generate.js', () => ({ aiObject: vi.fn() }));
 
-const { DOC_META_VERSION, drainDocMetaQueue } = await import('./documentMetaWorker.js');
+const { DOC_META_VERSION, defaultDeps, drainDocMetaQueue } =
+  await import('./documentMetaWorker.js');
+const { hasAiConsent } = await import('../../middleware/requireAiConsent.js');
 
 type Row = Record<string, unknown>;
 
@@ -82,6 +84,7 @@ const doc = (over: Row = {}): Row => ({
   content_preview: null,
   existing_published_at: null,
   previous_mirror: null,
+  previous_gremium: null,
   vector_count: 3,
   ...over,
 });
@@ -143,6 +146,20 @@ describe('Claim', () => {
     expect(Number(params?.[5])).toBeGreaterThanOrEqual(120_000);
   });
 
+  it('zählt Versuche nur für die aktuelle Version — ein Versionswechsel setzt sie zurück', async () => {
+    const deps = makeDeps({ claims: [] });
+    await drainDocMetaQueue(deps);
+    const [sql] = claimSql(deps);
+    const attemptsOfThisVersion =
+      "CASE WHEN (metadata->'doc_meta_claim'->>'version')::int = $1 THEN (metadata->'doc_meta_claim'->>'attempts')::int END";
+    // Gezählt wird in der Auswahl UND beim Hochzählen nur ein Claim derselben Version.
+    expect(sql).toContain(`COALESCE(${attemptsOfThisVersion}, 0) < $3`);
+    expect(sql).toContain(
+      `COALESCE(${attemptsOfThisVersion.replaceAll('metadata', 'd.metadata')}, 0) + 1`
+    );
+    expect(sql).toMatch(/'version', \$1::int/);
+  });
+
   it('markiert den Claim mit Zeit und Versuchszähler, damit ein toter Lauf zurückkommt', async () => {
     const deps = makeDeps({ claims: [] });
     await drainDocMetaQueue(deps);
@@ -180,6 +197,16 @@ describe('Bereitschaft der Vektoren', () => {
 });
 
 describe('Einwilligung', () => {
+  it('verlangt im Standard-Deps eine echte Einwilligung, auch ohne ENFORCE_AI_CONSENT', async () => {
+    const deps = defaultDeps();
+    vi.mocked(hasAiConsent).mockResolvedValueOnce(false);
+    expect(await deps.hasAiConsent('user-1')).toBe(false);
+    expect(hasAiConsent).toHaveBeenCalledWith('user-1', {
+      failClosed: true,
+      ignoreEnforceFlag: true,
+    });
+  });
+
   it('wertet einen Fehler beim Lesen der Einwilligung als Nein', async () => {
     const deps = makeDeps({ claims: [doc({ head: 'Stand: 08.01.2024' })] });
     deps.hasAiConsent.mockRejectedValueOnce(new Error('db weg'));
@@ -228,6 +255,21 @@ describe('Spiegel nach published_at', () => {
     expect(deps.setPayload).toHaveBeenCalledWith(
       { documentId: 'doc-1', userId: 'user-1' },
       { published_at: null }
+    );
+  });
+
+  it('räumt ein früher gesetztes Gremium in Qdrant ab, wenn die neue Version keines findet', async () => {
+    const deps = makeDeps({
+      claims: [
+        doc({ head: 'Stand: 08.01.2024', filename: 'x.pdf', previous_gremium: 'Parteirat' }),
+      ],
+      backfill: true,
+      consent: false,
+    });
+    await drainDocMetaQueue(deps);
+    expect(deps.setPayload).toHaveBeenCalledWith(
+      { documentId: 'doc-1', userId: 'user-1' },
+      { published_at: '2024-01-08', gremium: null }
     );
   });
 

@@ -47,6 +47,7 @@ async function dryRun(limit: number, withLlm: boolean): Promise<void> {
             metadata->>'content_preview' AS content_preview,
             metadata->>'published_at' AS existing_published_at,
             metadata->'doc_meta'->>'publishedAt' AS previous_mirror,
+            metadata->'doc_meta'->>'gremium' AS previous_gremium,
             vector_count
        FROM documents
       WHERE status = 'completed'

@@ -76,6 +76,8 @@ export interface ClaimedDocMetaRow {
   content_preview: string | null;
   existing_published_at: string | null;
   previous_mirror: string | null;
+  /** Gremium des vorigen Laufs — nur wir schreiben es nach Qdrant. */
+  previous_gremium: string | null;
   vector_count: number | null;
 }
 
@@ -100,7 +102,8 @@ export const CLAIM_SQL = `UPDATE documents d
     SET metadata = COALESCE(d.metadata, '{}'::jsonb) || jsonb_build_object(
           'doc_meta_claim', jsonb_build_object(
             'at', NOW(),
-            'attempts', COALESCE((d.metadata->'doc_meta_claim'->>'attempts')::int, 0) + 1))
+            'version', $1::int,
+            'attempts', COALESCE(CASE WHEN (d.metadata->'doc_meta_claim'->>'version')::int = $1 THEN (d.metadata->'doc_meta_claim'->>'attempts')::int END, 0) + 1))
   WHERE d.id = (
     SELECT id
       FROM documents
@@ -115,7 +118,9 @@ export const CLAIM_SQL = `UPDATE documents d
              OR ($2::boolean AND COALESCE((metadata->'doc_meta'->>'version')::int, 0) <> $1)
            )
        AND GREATEST(created_at, updated_at) < NOW() - ($6::text || ' milliseconds')::interval
-       AND COALESCE((metadata->'doc_meta_claim'->>'attempts')::int, 0) < $3
+       -- Versuche zählen nur für die laufende Version: nach einem Versionswechsel
+       -- (und damit im Backfill) bekommt ein früher aufgegebenes Dokument neue.
+       AND COALESCE(CASE WHEN (metadata->'doc_meta_claim'->>'version')::int = $1 THEN (metadata->'doc_meta_claim'->>'attempts')::int END, 0) < $3
        AND (
              metadata->'doc_meta_claim' IS NULL
              OR (metadata->'doc_meta_claim'->>'at')::timestamptz
@@ -130,6 +135,7 @@ export const CLAIM_SQL = `UPDATE documents d
             d.metadata->>'content_preview' AS content_preview,
             d.metadata->>'published_at' AS existing_published_at,
             d.metadata->'doc_meta'->>'publishedAt' AS previous_mirror,
+            d.metadata->'doc_meta'->>'gremium' AS previous_gremium,
             d.vector_count`;
 
 /**
@@ -238,6 +244,7 @@ async function processDocument(row: ClaimedDocMetaRow, deps: DocMetaDeps): Promi
   if (mirror) payload.published_at = mirror;
   if (clearMirror) payload.published_at = null;
   if (record.gremium) payload.gremium = record.gremium;
+  else if (row.previous_gremium) payload.gremium = null;
   if (Object.keys(payload).length > 0) {
     await deps.setPayload({ documentId: row.id, userId: row.user_id }, payload);
   }
@@ -340,7 +347,7 @@ export function defaultDeps(): DocMetaDeps {
       });
       return result.count;
     },
-    hasAiConsent: (userId) => hasAiConsent(userId, { failClosed: true }),
+    hasAiConsent: (userId) => hasAiConsent(userId, { failClosed: true, ignoreEnforceFlag: true }),
     aiObject,
     backfill: env.DOCUMENT_META_BACKFILL,
   };
