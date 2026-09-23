@@ -42,14 +42,16 @@ export class ContentExtractor {
    * Text von `el` mit einem Trenner vor UND nach jedem Block-Element und nach
    * `<br>`. cheerio klebt beim reinen `.text()` sonst benachbarte Blöcke ohne
    * Trennzeichen zusammen ("prüfenDas", "ausDer", "IntroPara", #3573). Läuft
-   * pro Element aus `el` einzeln und fügt die Ergebnisse mit `\n` zusammen —
-   * matcht der Content-Selektor mehrere Geschwister-Wurzeln (z. B.
-   * `.wp-block-paragraph` mit 2 Treffern), bräuchten die sonst ebenfalls einen
-   * Trenner, aber cheerios `.before()`/`.after()` sind No-Ops auf einem
-   * eigenständig geklonten (elternlosen) Wurzelknoten — verifiziert, bevor
-   * hier auf `$clone.filter(SEL).add($clone.find(SEL))` gesetzt wurde: das
-   * ändert am geklonten Text nichts, weil die Wurzel keinen Parent hat, an dem
-   * ein Geschwisterknoten hängen könnte.
+   * pro Element aus `el` einzeln und fügt die Ergebnisse mit `\n\n` zusammen —
+   * derselbe Absatztrenner wie an einer berührenden Blockgrenze innerhalb
+   * eines Wurzelelements (einheitlich, nicht ein Einzel- gegen ein
+   * Doppel-`\n`). Matcht der Content-Selektor mehrere Geschwister-Wurzeln
+   * (z. B. `.wp-block-paragraph` mit 2 Treffern), bräuchten die sonst
+   * ebenfalls einen Trenner, aber cheerios `.before()`/`.after()` sind No-Ops
+   * auf einem eigenständig geklonten (elternlosen) Wurzelknoten — verifiziert,
+   * bevor hier auf `$clone.filter(SEL).add($clone.find(SEL))` gesetzt wurde:
+   * das ändert am geklonten Text nichts, weil die Wurzel keinen Parent hat, an
+   * dem ein Geschwisterknoten hängen könnte.
    *
    * Arbeitet je Wurzel auf einem Klon — mutiert nie das geteilte Dokument,
    * das spätere Selektoren (Datum, Kategorien) im selben Aufruf noch lesen.
@@ -78,7 +80,7 @@ export class ContentExtractor {
         return $clone.text();
       })
       .get()
-      .join('\n');
+      .join('\n\n');
   }
 
   /**
