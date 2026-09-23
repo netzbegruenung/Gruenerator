@@ -292,6 +292,7 @@ describe('list', () => {
     });
     expect(results[1]?.snippet).toBe('manual · 2026-09-01 · ~100 Wörter');
     expect(registered).toHaveLength(1);
+    expect(out.refs).toBe('Antrag Radweg — d1 (2026-09-01)\nProtokoll — d2 (2026-09-01)');
   });
 });
 
@@ -633,6 +634,9 @@ describe('rank', () => {
       { rank: 1, sourceId: 'd2', title: 'Protokoll', value: '2026-09-10', unit: 'Datum' },
       { rank: 2, sourceId: 'd1', title: 'Antrag Radweg', value: '2026-09-01', unit: 'Datum' },
     ]);
+    expect(byDate.refs).toBe(
+      '1. Protokoll — d2 (2026-09-10 Datum)\n2. Antrag Radweg — d1 (2026-09-01 Datum)'
+    );
     expect(registered).toHaveLength(1);
     const byLength = await run({ action: 'rank', by: 'length' });
     expect((byLength.ranking as Array<{ value: unknown }>).map((r) => r.value)).toEqual([
