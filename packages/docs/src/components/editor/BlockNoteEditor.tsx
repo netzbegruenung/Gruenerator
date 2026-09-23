@@ -49,7 +49,7 @@ import { useBlockNoteComments } from '../../hooks/useBlockNoteComments';
 import { useResolveUsers } from '../../hooks/useResolveUsers';
 import { useMentionUsers } from '../../hooks/useMentionUsers';
 import { useDocsAdapter } from '../../context/DocsContext';
-import { useIsTouchDevice, useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
+import { useIsTouchDevice } from '@gruenerator/shared/hooks';
 import { useEditorPreferencesStore } from '../../stores/editorPreferencesStore';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Mention } from './Mention';
@@ -158,7 +158,8 @@ const BlockNoteEditorInner = ({
   const isTouchDevice = useIsTouchDevice();
   const toolbarMode = useEditorPreferencesStore((s) => s.toolbarMode);
   const theme = useDocumentTheme();
-  const staticToolbar = useStaticFormattingToolbar || isTouchDevice || toolbarMode === 'fixed';
+  // Touch devices get BlockNote's own mobile toolbar, which only the controller renders.
+  const staticToolbar = useStaticFormattingToolbar || (!isTouchDevice && toolbarMode === 'fixed');
   const getMentionMenuItems = useMentionUsers(provider ?? null);
   const hasInitialized = useRef(false);
   const [isReady, setIsReady] = useState(false);
@@ -183,8 +184,7 @@ const BlockNoteEditorInner = ({
     const rect = sel.getRangeAt(0).getBoundingClientRect();
     const vp = window.visualViewport;
     const toolbarHeight =
-      wrapperRef.current?.querySelector('.bn-formatting-toolbar')?.getBoundingClientRect().height ||
-      44;
+      document.querySelector('.bn-mobile-formatting-toolbar')?.getBoundingClientRect().height || 44;
     const visibleBottom = vp ? vp.offsetTop + vp.height - toolbarHeight : window.innerHeight;
     const visibleTop = vp?.offsetTop ?? 0;
 
@@ -193,29 +193,22 @@ const BlockNoteEditorInner = ({
     }
   }, []);
 
-  useMobileKeyboardOffset(wrapperRef, { onOffsetChange: scrollSelectionIntoView });
-
-  // Editor-specific: toggle selection class + scroll selection into view on text select
+  // Keep the caret clear of the keyboard and the mobile toolbar on touch devices
   useEffect(() => {
     if (!isTouchDevice) return;
 
-    const updateSelectionClass = () => {
-      const sel = window.getSelection();
-      const hasSelection = !!sel && !sel.isCollapsed && sel.toString().length > 0;
-      wrapperRef.current?.classList.toggle('has-selection', hasSelection);
-    };
-
     let scrollTimer: ReturnType<typeof setTimeout>;
-
-    const onSelectionChange = () => {
-      updateSelectionClass();
+    const scheduleScroll = () => {
       clearTimeout(scrollTimer);
       scrollTimer = setTimeout(scrollSelectionIntoView, 100);
     };
 
-    document.addEventListener('selectionchange', onSelectionChange);
+    const vp = window.visualViewport;
+    document.addEventListener('selectionchange', scheduleScroll);
+    vp?.addEventListener('resize', scheduleScroll);
     return () => {
-      document.removeEventListener('selectionchange', onSelectionChange);
+      document.removeEventListener('selectionchange', scheduleScroll);
+      vp?.removeEventListener('resize', scheduleScroll);
       clearTimeout(scrollTimer);
     };
   }, [isTouchDevice, scrollSelectionIntoView]);
@@ -534,10 +527,10 @@ const BlockNoteEditorInner = ({
     () => (
       <FormattingToolbar>
         {toolbarItems}
-        {!suggestionModeEnabled && <AIToolbarButton />}
+        {!isTouchDevice && !suggestionModeEnabled && <AIToolbarButton />}
       </FormattingToolbar>
     ),
-    [toolbarItems, suggestionModeEnabled]
+    [toolbarItems, isTouchDevice, suggestionModeEnabled]
   );
 
   if (!editor) {
