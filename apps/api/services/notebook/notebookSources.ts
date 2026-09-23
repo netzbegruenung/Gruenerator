@@ -307,6 +307,32 @@ export async function listNotebookSources(
   return { total: filtered.length, items: filtered.slice(offset, offset + limit) };
 }
 
+/**
+ * Die Quelle zu einer sourceId, die kein ref dieses Notebooks ist — meist ein
+ * geratener Name („Niederschrift", der Dateiname). Genau eine Quelle im
+ * Notebook, oder genau ein Titel, der den Namen enthält (oder in ihm steht);
+ * sonst `null`.
+ */
+export function matchSourceByName(
+  rows: readonly NotebookSourceRow[],
+  wanted: string
+): NotebookSourceRow | null {
+  if (rows.length === 1) return rows[0] ?? null;
+  const norm = (s: string) =>
+    s
+      .toLocaleLowerCase('de')
+      .replace(/\.[a-z0-9]{2,4}$/, '')
+      .replace(/[_\-.\s]+/g, ' ')
+      .trim();
+  const w = norm(wanted);
+  if (w.length < 3) return null;
+  const hits = rows.filter((r) => {
+    const t = norm(r.title);
+    return t.length >= 3 && (t.includes(w) || w.includes(t));
+  });
+  return hits.length === 1 ? (hits[0] ?? null) : null;
+}
+
 // ---------------------------------------------------------------------------
 // Zugriff
 // ---------------------------------------------------------------------------
