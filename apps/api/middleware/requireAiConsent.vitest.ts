@@ -35,7 +35,8 @@ vi.mock('../services/user/index.js', () => ({
   getProfileService: () => ({ getProfileById }),
 }));
 
-const { requireAiConsent, requireApiKeyAiConsent } = await import('./requireAiConsent.js');
+const { hasAiConsent, requireAiConsent, requireApiKeyAiConsent } =
+  await import('./requireAiConsent.js');
 
 function mockReq(user?: Partial<UserProfile>): Request {
   return {
@@ -137,5 +138,48 @@ describe('requireApiKeyAiConsent — /api/v1 (API-Schlüssel, MCP-OAuth)', () =>
     await requireApiKeyAiConsent(apiKeyReq(), res, next);
     expect(next).toHaveBeenCalledOnce();
     expect(getProfileById).not.toHaveBeenCalled();
+  });
+});
+
+describe('hasAiConsent — Lesefehler', () => {
+  beforeEach(() => {
+    envMock.ENFORCE_AI_CONSENT = true;
+    getProfileById.mockReset();
+  });
+
+  it('lässt im Request-Pfad bei einem Lesefehler durch', async () => {
+    getProfileById.mockRejectedValueOnce(new Error('db weg'));
+    expect(await hasAiConsent('u1')).toBe(true);
+  });
+
+  it('verweigert für Hintergrundarbeit bei einem Lesefehler (failClosed)', async () => {
+    getProfileById.mockRejectedValueOnce(new Error('db weg'));
+    expect(await hasAiConsent('u1', { failClosed: true })).toBe(false);
+  });
+
+  it('bleibt mit failClosed bei erteilter Einwilligung bei ja', async () => {
+    getProfileById.mockResolvedValueOnce({ ai_consent_at: '2026-01-01T00:00:00Z' });
+    expect(await hasAiConsent('u1', { failClosed: true })).toBe(true);
+  });
+});
+
+describe('hasAiConsent — Hintergrundarbeit ohne Durchsetzungs-Schalter', () => {
+  beforeEach(() => {
+    envMock.ENFORCE_AI_CONSENT = false;
+    getProfileById.mockReset();
+  });
+
+  it('lässt ohne Schalter im Request-Pfad weiterhin durch, ohne das Profil zu lesen', async () => {
+    expect(await hasAiConsent('u1')).toBe(true);
+    expect(getProfileById).not.toHaveBeenCalled();
+  });
+
+  it('verlangt mit ignoreEnforceFlag eine echte Einwilligung', async () => {
+    getProfileById.mockResolvedValueOnce({ ai_consent_at: null });
+    expect(await hasAiConsent('u1', { failClosed: true, ignoreEnforceFlag: true })).toBe(false);
+    getProfileById.mockResolvedValueOnce({ ai_consent_at: '2026-01-01T00:00:00Z' });
+    expect(await hasAiConsent('u1', { failClosed: true, ignoreEnforceFlag: true })).toBe(true);
+    getProfileById.mockRejectedValueOnce(new Error('db weg'));
+    expect(await hasAiConsent('u1', { failClosed: true, ignoreEnforceFlag: true })).toBe(false);
   });
 });
