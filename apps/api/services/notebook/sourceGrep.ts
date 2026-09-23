@@ -53,6 +53,12 @@ export interface GrepOptions {
   caseSensitive?: boolean | undefined;
   /** Wie viele Treffer mit Kontext zurückkommen (0–5, Standard 3). Gezählt werden alle. */
   contexts?: number | undefined;
+  /**
+   * Nur Treffer, deren Originalschreibung hier durchgeht, zählen. Die
+   * Volltextsuche der System-Notebooks (`loadSystemTermMatches`) engt damit
+   * die Faltung auf die Schreibweisen ein, die ihr Index sicher findet.
+   */
+  accept?: (matched: string) => boolean;
 }
 
 export interface GrepHit {
@@ -158,8 +164,6 @@ export function grepText(text: string, phrase: string, opts: GrepOptions): GrepT
   const hits: GrepHit[] = [];
   for (const m of chars.matchAll(pattern)) {
     if (m[0].length === 0) continue;
-    count += 1;
-    if (hits.length >= maxContexts) continue;
     const charStart = map[m.index]!;
     let charEnd = map[m.index + m[0].length - 1]! + 1;
     // Gefaltet: ein NFD-Akzent hinter dem letzten Buchstaben gehört zum
@@ -168,6 +172,9 @@ export function grepText(text: string, phrase: string, opts: GrepOptions): GrepT
     if (fold) {
       while (charEnd < text.length && COMBINING_MARK.test(text[charEnd]!)) charEnd += 1;
     }
+    if (opts.accept && !opts.accept(text.slice(charStart, charEnd))) continue;
+    count += 1;
+    if (hits.length >= maxContexts) continue;
     hits.push({
       charStart,
       charEnd,
