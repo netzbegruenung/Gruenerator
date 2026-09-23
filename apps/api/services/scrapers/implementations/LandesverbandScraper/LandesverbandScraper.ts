@@ -702,14 +702,24 @@ export class LandesverbandScraper extends BaseScraper {
             return;
           }
           claimedStoreUrls.add(storeUrl);
-          const storeResult = await this.documentProcessor.processAndStoreDocument(
-            source,
-            contentPath.type,
-            storeUrl,
-            content,
-            targetCollection,
-            source.maxAgeYears
-          );
+          // Release the claim when nothing was stored, so a later task of the
+          // pair may still try. A task already skipped stays skipped; the next
+          // run re-fetches the unstored URL anyway, since it is not fresh.
+          let storeResult: ProcessResult;
+          try {
+            storeResult = await this.documentProcessor.processAndStoreDocument(
+              source,
+              contentPath.type,
+              storeUrl,
+              content,
+              targetCollection,
+              source.maxAgeYears
+            );
+          } catch (error) {
+            claimedStoreUrls.delete(storeUrl);
+            throw error;
+          }
+          if (!storeResult.stored) claimedStoreUrls.delete(storeUrl);
 
           if (storeResult.stored) {
             if (storeResult.updated) result.updated++;
