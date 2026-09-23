@@ -1095,20 +1095,21 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           // Topic categories the user listed (bildung, demokratie-recht, energie,
           // europa, finanzen, geschlechtergerechtigkeit, gesundheit, kultur,
           // landwirtschaft, soziales, tierschutz, umwelt, verkehr, wirtschaft,
-          // wissenschaft), plus Allgemein/Klimaschutzkonzept-Check/Sommerreihe/
-          // Positionspapiere (id-verified live via /wp-json/wp/v2/categories, see
-          // #3580: the whitelist missed ~48 political posts filed only under
-          // these) unioned in one query. Overlap with pressemitteilungen is
-          // deduped by source_url in Qdrant. excludeCategoryIds drops Termine
-          // (122) meeting notices — presse (cat 7) does NOT get this exclusion,
-          // 8 real press releases also carry Termine.
+          // wissenschaft), plus Allgemein/Klimaschutzkonzept-Check/Positionspapiere
+          // and the whole Sommerreihe series (bare category + 2023/2024/2025)
+          // (id-verified live via /wp-json/wp/v2/categories, see #3580: the
+          // whitelist missed ~48 political posts filed only under these) unioned
+          // in one query. Overlap with pressemitteilungen is deduped by
+          // source_url in Qdrant. excludeCategoryIds drops Termine (122) meeting
+          // notices — presse (cat 7) does NOT get this exclusion, 8 real press
+          // releases also carry Termine.
           type: 'blog',
           path: '/',
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
           wpApi: {
             categoryIds: [
               109, 108, 117, 118, 115, 113, 112, 119, 111, 116, 106, 114, 105, 107, 110, 1, 154,
-              155, 142,
+              155, 140, 152, 164, 142,
             ],
             excludeCategoryIds: [122],
             boundByAge: true,
