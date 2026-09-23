@@ -269,6 +269,9 @@ export class LinkExtractor {
 
     const pdfLinks: PdfLink[] = [];
     const seen = new Map<string, PdfLink>();
+    const elementorHeadings = $('.elementor-widget').length
+      ? this.#datedHeadingBeforeEachLink($, contentPath.listSelector)
+      : null;
 
     $(contentPath.listSelector).each((_, el) => {
       const href = $(el).attr('href');
@@ -289,7 +292,7 @@ export class LinkExtractor {
           const link: PdfLink = {
             url: normalizedUrl,
             title: title ?? FALLBACK_TITLE,
-            context: this.extractContextWithHeadings($, el),
+            context: this.extractContextWithHeadings($, el, elementorHeadings),
           };
           seen.set(normalizedUrl, link);
           pdfLinks.push(link);
@@ -305,16 +308,19 @@ export class LinkExtractor {
    * PDF archive pages often have dates in <h3>/<h4> headings above groups of links.
    * Order: a heading sibling of the link's <p>/<li> (BB: h3 + p inside one
    * div), then headings before the surrounding containers, and on Elementor
-   * pages the last dated heading anywhere before the link (MV: heading and
-   * download list are sibling widgets). A file-name anchor next to the link
+   * pages the heading right before the link in document order, if it is
+   * dated (MV: heading and download list are sibling widgets). A file-name
+   * anchor next to the link
    * goes first so the length cap never drops it (BE-F dlm-downloads).
    */
-  private extractContextWithHeadings($: CheerioAPI, el: AnyNode): string {
+  private extractContextWithHeadings(
+    $: CheerioAPI,
+    el: AnyNode,
+    elementorHeadings: Map<AnyNode, string> | null
+  ): string {
     const parentText = $(el).parent().text().trim().substring(0, 200);
     const fileName = this.#fileNameAnchorText($, el);
-    const headingText =
-      ($(el).closest('.elementor-widget').length ? this.#lastDatedHeadingBefore($, el) : '') ||
-      this.#nearestHeading($, el);
+    const headingText = elementorHeadings?.get(el) || this.#nearestHeading($, el);
 
     const prefix = [fileName, headingText].filter(Boolean).join(' | ');
     if (!prefix) return parentText;
@@ -341,14 +347,23 @@ export class LinkExtractor {
     return '';
   }
 
-  #lastDatedHeadingBefore($: CheerioAPI, el: AnyNode): string {
-    // add() sorts into document order
-    const nodes = $('h2, h3, h4').add(el).toArray();
-    for (let i = nodes.indexOf(el) - 1; i >= 0; i--) {
-      const text = $(nodes[i]).text().replace(/\s+/g, ' ').trim();
-      if (DATED_HEADING.test(text)) return text;
-    }
-    return '';
+  /**
+   * One pass in document order: each link gets the heading right before it,
+   * but only if that heading is dated. An undated section heading in between
+   * ends the section, so its links never inherit an older section's date.
+   */
+  #datedHeadingBeforeEachLink($: CheerioAPI, listSelector: string): Map<AnyNode, string> {
+    const byLink = new Map<AnyNode, string>();
+    let current = '';
+    $(`h2, h3, h4, ${listSelector}`).each((_, node) => {
+      if ($(node).is('h2, h3, h4')) {
+        const text = $(node).text().replace(/\s+/g, ' ').trim();
+        current = DATED_HEADING.test(text) ? text : '';
+      } else {
+        byLink.set(node, current);
+      }
+    });
+    return byLink;
   }
 
   #fileNameAnchorText($: CheerioAPI, el: AnyNode): string {
