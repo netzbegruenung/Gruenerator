@@ -77,6 +77,21 @@ function namedExactly(name: string): RegExp {
   );
 }
 
+/** Ort + Wort mit Großbuchstaben + ein weiteres Wort — die Form, die
+ *  `namedExactly` für einen eigenen Namen ohne „Notebook" verlangt. */
+const OWN_NAME_SHAPE = new RegExp(
+  `${B}(?:[Ii]m|[Ii]n|[Aa]us)(?:\\s+(?:dem|meinem|unserem))?\\s+${OPEN_QUOTE}[A-ZÄÖÜ][\\wäöüß]*[\\s-]+[\\wäöüß]`
+);
+const NOTEBOOK_WORD_RE = new RegExp(`${B}${NOTEBOOK_WORD}${E}`, 'i');
+
+/**
+ * Kann dieser Text überhaupt ein eigenes Notebook nennen? Das billige Tor vor
+ * der Qdrant-Liste: „Hallo" und die meisten Inhaltsfragen kosten dann nichts.
+ */
+export function mayNameOwnNotebook(text: string): boolean {
+  return NOTEBOOK_WORD_RE.test(text) || OWN_NAME_SHAPE.test(text);
+}
+
 const wordCount = (name: string): number =>
   name
     .trim()
@@ -85,7 +100,7 @@ const wordCount = (name: string): number =>
 
 /** Die eine id, die der Text nennt — oder `null` bei keinem oder mehreren Treffern. */
 export function findNotebookNamedInText(
-  text: string | null | undefined,
+  text: string | null,
   candidates: readonly NotebookNameCandidate[]
 ): string | null {
   if (!text?.trim()) return null;
@@ -106,9 +121,7 @@ export function findNotebookNamedInText(
 }
 
 /** System-Notebooks, die dieser Turn beim Namen nennen darf. */
-export function systemNotebookCandidates(
-  locale: string | null | undefined
-): NotebookNameCandidate[] {
+export function systemNotebookCandidates(locale: string | null): NotebookNameCandidate[] {
   const allowed = collectionsForLocale(locale);
   return NOTEBOOK_REGISTRY.filter((nb) => {
     const keys = NOTEBOOK_COLLECTION_MAP[nb.id] ?? [];
@@ -123,13 +136,16 @@ export function systemNotebookCandidates(
 // ── Eigene Notebooks: ein Scroll pro Konto und Minute, nicht pro Turn ────────
 
 const OWN_TTL_MS = 60_000;
+/** Ein Ausfall wird kurz gemerkt: sonst wartete bei langsamem Qdrant JEDER
+ *  Turn ohne Auswahl die volle Frist vor dem ersten Token. */
+const OWN_FAILURE_TTL_MS = 15_000;
 /**
  * Die Liste läuft vor dem Klassifikator, also vor dem ersten Token. Hängt
  * Qdrant, fällt nur der Scope auf eigene Notebooks weg; System-Notebooks
  * treffen weiter.
  */
 export const OWN_NOTEBOOK_LIST_TIMEOUT_MS = 1_500;
-const ownCache = new Map<string, { at: number; notebooks: OwnNotebook[] }>();
+const ownCache = new Map<string, { expiresAt: number; notebooks: OwnNotebook[] }>();
 
 interface OwnNotebook {
   id: string;
@@ -139,6 +155,21 @@ interface OwnNotebook {
 /** Nur für Tests: den Prozess-Cache leeren. */
 export function resetOwnNotebookNameCache(): void {
   ownCache.clear();
+}
+
+/** Nur für Tests: wie viele Konten der Cache gerade hält. */
+export function ownNotebookNameCacheSize(): number {
+  return ownCache.size;
+}
+
+/** Schreibt und räumt dabei Abgelaufenes weg — sonst wüchse die Map mit
+ *  jedem Konto, das der Prozess je gesehen hat. */
+function remember(userId: string, notebooks: OwnNotebook[], ttlMs: number): void {
+  const now = Date.now();
+  for (const [key, entry] of ownCache) {
+    if (entry.expiresAt <= now) ownCache.delete(key);
+  }
+  ownCache.set(userId, { expiresAt: now + ttlMs, notebooks });
 }
 
 async function listOwnNotebooksDefault(userId: string): Promise<OwnNotebook[]> {
@@ -155,18 +186,18 @@ async function ownNotebooks(
   listOwn: (userId: string) => Promise<OwnNotebook[]>
 ): Promise<OwnNotebook[]> {
   const hit = ownCache.get(userId);
-  if (hit && Date.now() - hit.at < OWN_TTL_MS) return hit.notebooks;
+  if (hit && Date.now() < hit.expiresAt) return hit.notebooks;
   try {
     const notebooks = await withTimeout(
       listOwn(userId),
       OWN_NOTEBOOK_LIST_TIMEOUT_MS,
       'own notebook names'
     );
-    ownCache.set(userId, { at: Date.now(), notebooks });
+    remember(userId, notebooks, OWN_TTL_MS);
     return notebooks;
   } catch (err) {
-    // Nicht cachen: beim nächsten Turn neu fragen. System-Notebooks treffen weiter.
-    log.warn('[NotebookScope] own notebook list failed', err);
+    remember(userId, [], OWN_FAILURE_TTL_MS);
+    log.warn('own notebook list failed', err);
     return [];
   }
 }
@@ -180,17 +211,17 @@ async function ownNotebooks(
 export async function resolveNotebookScopeFromText(params: {
   userId: string;
   text: string;
-  locale: string | null | undefined;
+  locale: string | null;
   listOwn?: (userId: string) => Promise<OwnNotebook[]>;
 }): Promise<string | null> {
   const { userId, text, locale, listOwn = listOwnNotebooksDefault } = params;
   if (!text.trim()) return null;
-  const own = await ownNotebooks(userId, listOwn);
+  const own = mayNameOwnNotebook(text) ? await ownNotebooks(userId, listOwn) : [];
   const id = findNotebookNamedInText(text, [
     ...systemNotebookCandidates(locale),
     ...own.map((nb) => ({ id: nb.id, names: [nb.name], own: true })),
   ]);
-  if (id) log.info(`[NotebookScope] from text: ${id}`);
+  if (id) log.info(`from text: ${id}`);
   return id;
 }
 
@@ -203,7 +234,7 @@ export async function notebookIdsForTurn(params: {
   hasDefaultNotebook: boolean;
   userId: string;
   text: string;
-  locale: string | null | undefined;
+  locale: string | null;
   listOwn?: (userId: string) => Promise<OwnNotebook[]>;
 }): Promise<string[]> {
   const { explicitIds, hasDefaultNotebook, ...rest } = params;
