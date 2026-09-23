@@ -544,7 +544,11 @@ export class LandesverbandScraper extends BaseScraper {
             {
               ...(file.etag ? { wolke_etag: file.etag } : {}),
               date_precision: dateInfo.precision,
-            }
+            },
+            // Wolke shares are curated folders, shared on purpose — the file's
+            // own date must never age it out, same as `publishedAt: null` did
+            // before dating existed (#3564).
+            true
           );
 
           if (storeResult.stored) {
