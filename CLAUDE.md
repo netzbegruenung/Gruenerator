@@ -63,7 +63,7 @@ User-facing/shareable resource URLs use a Notion-style slug — `slugifyName(nam
 
 ### Database & Migrations
 
-- **PostgreSQL**: Schema at `apps/api/database/postgres/schema.sql`. Migrations in `database/postgres/migrations/`, auto-run on startup via `PostgresService.init()`. No `BEGIN`/`COMMIT` in migrations (runner wraps in transaction).
+- **PostgreSQL**: Schema at `apps/api/database/postgres/schema.sql`. Migrations in `database/postgres/migrations/`, auto-run on startup via `PostgresService.init()`. No `BEGIN`/`COMMIT` in migrations (runner wraps in transaction). **Fresh instance:** on a database without `profiles` the runner loads `schema.sql` first, then retries failed migrations until a pass makes no progress (files run lexicographically, not in dependency order). Provisioning only needs the app role to own the database — `uuid-ossp`/`pg_trgm` are trusted extensions (PG ≥ 13), schema.sql creates them itself. `migrations.db.vitest.ts` builds from zero against the Postgres service in the CI `Tests` job; a migration that fails there fails on every new instance.
 - **Redis**: Sessions, caching, rate limiting.
 - **Qdrant**: Vector embeddings for semantic search.
 
