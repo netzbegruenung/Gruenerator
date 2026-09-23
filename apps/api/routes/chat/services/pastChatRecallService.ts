@@ -14,9 +14,10 @@
  *    subtitle content, reusing `searchReels`.
  * `rerankRecall` then cross-ranks all three sources.
  *
- * This is deliberately separate from mem0 fact memory: mem0 stores distilled
- * facts about the user; this returns raw conversation excerpts and document
- * references with titles and dates the model can reference naturally.
+ * This is deliberately separate from the explicit memory (services/memory),
+ * which stores what the user asked to be remembered; this returns raw
+ * conversation excerpts and document references with titles and dates the
+ * model can reference naturally.
  */
 
 import { sanitizeMentionTokens } from '@gruenerator/shared/utils';

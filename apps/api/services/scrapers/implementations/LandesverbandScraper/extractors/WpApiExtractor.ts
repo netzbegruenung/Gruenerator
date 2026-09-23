@@ -22,6 +22,21 @@ interface WpPost {
   link: string;
 }
 
+/** Builds the WP REST API posts URL, incl. optional categories_exclude (WP AND NOT). */
+export function buildWpApiUrl(
+  baseUrl: string,
+  categories: string,
+  page: number,
+  perPage: number,
+  excludeCategoryIds: number[] | undefined,
+  recentQuery: string
+): string {
+  const excludeQuery = excludeCategoryIds?.length
+    ? `&categories_exclude=${excludeCategoryIds.join(',')}`
+    : '';
+  return `${baseUrl}/wp-json/wp/v2/posts?categories=${categories}&per_page=${perPage}&page=${page}&_fields=link${excludeQuery}${recentQuery}`;
+}
+
 export class WpApiExtractor {
   constructor(
     private fetchUrl: (url: string) => Promise<Response>,
@@ -36,7 +51,13 @@ export class WpApiExtractor {
   ): Promise<string[]> {
     if (!contentPath.wpApi) return [];
 
-    const { categoryId, categoryIds, maxPages = 50, boundByAge = false } = contentPath.wpApi;
+    const {
+      categoryId,
+      categoryIds,
+      excludeCategoryIds,
+      maxPages = 50,
+      boundByAge = false,
+    } = contentPath.wpApi;
     // Union several categories in one query (comma-separated = WP OR). Falls back
     // to the single categoryId. Dedup by URL still happens downstream in Qdrant.
     const categories = (
@@ -68,7 +89,14 @@ export class WpApiExtractor {
     let page = 1;
 
     while (page <= maxPages) {
-      const url = `${source.baseUrl}/wp-json/wp/v2/posts?categories=${categories}&per_page=${perPage}&page=${page}&_fields=link${recentQuery}`;
+      const url = buildWpApiUrl(
+        source.baseUrl,
+        categories,
+        page,
+        perPage,
+        excludeCategoryIds,
+        recentQuery
+      );
       let response: Response;
       try {
         response = await this.fetchUrl(url);

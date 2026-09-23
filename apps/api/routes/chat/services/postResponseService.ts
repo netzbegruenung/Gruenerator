@@ -242,7 +242,6 @@ export interface PersistParams {
   lastUserMessage: ModelMessage;
   processedMeta: ProcessedAttachmentMeta[];
   requestId: string;
-  /** Whether the user has the memory beta feature enabled (profiles.memory_enabled). */
   /** Effective agent that produced this response; persisted so the agent
    *  avatar/badge rehydrates on thread reload. Null/omitted for the default
    *  universal chat (no badge). */
