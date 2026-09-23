@@ -67,6 +67,41 @@ describe('classifyFetch', () => {
     expect(redirectTo('https://gruene-sachsen-anhalt.de/pressemitteilungen')).toBe('gone');
   });
 
+  it('Weiterleitung auf eine übergeordnete Rubrik ist weg (#3601)', () => {
+    expect(
+      classifyFetch({
+        requestedUrl: 'https://gruene-bayern.de/themen/klima/artikel-x',
+        status: 200,
+        finalUrl: 'https://gruene-bayern.de/themen/',
+        listingPaths: LISTING,
+      })
+    ).toBe('gone');
+  });
+
+  it('Umbenennung innerhalb derselben Rubrik bleibt umgezogen (#3601)', () => {
+    expect(
+      classifyFetch({
+        requestedUrl: 'https://gruene-bayern.de/presse/alt-slug',
+        status: 200,
+        finalUrl: 'https://gruene-bayern.de/presse/neu-slug',
+        listingPaths: ['/presse/'],
+      })
+    ).toBe('moved');
+    expect(redirectTo(`${PAGE}-neu`)).toBe('moved');
+  });
+
+  it('paginierte Listing-Seite und Listing-Pfad mit Query sind weg (#3601)', () => {
+    expect(redirectTo('https://gruene-sachsen-anhalt.de/pressemitteilungen/page/2/')).toBe('gone');
+    expect(
+      classifyFetch({
+        requestedUrl: 'https://gruene-bayern.de/artikel-x',
+        status: 200,
+        finalUrl: 'https://gruene-bayern.de/aktuelles?kategorie=presse',
+        listingPaths: ['/aktuelles?kategorie=presse'],
+      })
+    ).toBe('gone');
+  });
+
   it('Weiterleitung auf einen anderen Host ist weg', () => {
     expect(redirectTo('https://gruene.de/pressemitteilungen/hitzeschutz-im-blindflug')).toBe(
       'gone'

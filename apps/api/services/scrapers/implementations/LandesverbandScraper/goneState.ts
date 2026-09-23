@@ -36,8 +36,10 @@ export function allowGoneDeletes(run: { deletes: number; fetched: number }): boo
  *   final URL, the requested one is gone. fetch follows redirects and hides the
  *   code, so 302/307 count like 301; acceptable because a move only deletes
  *   after persisting 24h and within the allowGoneDeletes cap;
- * - `gone`: 404/410, or redirected to another host, the site root or a listing
- *   page — nothing there to store;
+ * - `gone`: 404/410, or redirected to another host, the site root, a listing
+ *   page (also paginated, `/page/N`) or a parent section of the requested path
+ *   (`/themen/klima/artikel` → `/themen/`) — nothing there to store. A redirect
+ *   within the same section (`/presse/alt` → `/presse/neu`) stays `moved`;
  * - `transient`: anything else, including network errors (`status: null`).
  */
 export type FetchOutcome = 'live' | 'moved' | 'gone' | 'transient';
@@ -55,7 +57,11 @@ interface FetchResult {
 }
 
 function pathKey(path: string): string {
-  return path.replace(/\/+$/, '');
+  return path.replace(/[?#].*$/, '').replace(/\/+$/, '');
+}
+
+function listingKey(path: string): string {
+  return pathKey(path).replace(/\/page\/\d+$/, '');
 }
 
 function hostKey(host: string): string {
@@ -79,8 +85,11 @@ export function classifyFetch(result: FetchResult): FetchOutcome {
   if (hostKey(requested.hostname) !== hostKey(final.hostname)) return 'gone';
 
   const finalPath = pathKey(final.pathname);
-  if (finalPath === pathKey(requested.pathname)) return 'live';
-  if (finalPath === '' || result.listingPaths.some((p) => pathKey(p) === finalPath)) return 'gone';
+  const requestedPath = pathKey(requested.pathname);
+  if (finalPath === requestedPath) return 'live';
+  if (finalPath === '' || requestedPath.startsWith(`${finalPath}/`)) return 'gone';
+  const finalListing = listingKey(finalPath);
+  if (result.listingPaths.some((p) => listingKey(p) === finalListing)) return 'gone';
   return 'moved';
 }
 
