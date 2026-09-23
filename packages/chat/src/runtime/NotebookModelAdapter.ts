@@ -28,6 +28,7 @@ import {
   type ToolStepResultData,
   type ToolStepStartData,
 } from './GrueneratorModelAdapter/toolStepCards';
+import { type ToolCallPart } from './GrueneratorModelAdapter/types';
 import {
   ChatStreamError,
   errorStatus,
@@ -35,7 +36,6 @@ import {
   STREAM_INTERRUPTED_MESSAGE,
 } from './streamErrorMessage';
 
-import type { ToolCallPart } from './GrueneratorModelAdapter/types';
 import type {
   ChatModelAdapter,
   ChatModelRunOptions,
@@ -382,8 +382,8 @@ export function createNotebookModelAdapter(
       let resultIdAccum: string | undefined;
       let linkConfigAccum: LinkConfig | undefined;
       let evidenceWeakAccum: string | undefined;
-      let answerModeAccum: NotebookResolvedAnswerMode | undefined;
-      let answerModeReasonAccum: NotebookAnswerModeReason | undefined;
+      let answerModeAccum: NotebookResolvedAnswerMode | null = null;
+      let answerModeReasonAccum: NotebookAnswerModeReason | null = null;
       // Precision turns run the agentic loop: its tool steps render as cards
       // above the answer text, keyed by stepId (parallel steps interleave).
       const toolCards: ToolCallPart[] = [];
@@ -430,10 +430,14 @@ export function createNotebookModelAdapter(
           parts.push({ type: 'reasoning' as const, text: accumulatedReasoning });
         }
         parts.push(...toolCards);
-        parts.push({
-          type: 'text' as const,
-          text: final ? normalizeCiteMarkers(accumulatedText) : accumulatedText,
-        });
+        // No empty text part behind the cards: it would close the card run and
+        // hide the group header while the loop is still working.
+        if (accumulatedText || toolCards.length === 0) {
+          parts.push({
+            type: 'text' as const,
+            text: final ? normalizeCiteMarkers(accumulatedText) : accumulatedText,
+          });
+        }
 
         return {
           content: parts,
@@ -486,6 +490,10 @@ export function createNotebookModelAdapter(
                 const title = toolStepTitle(stepData);
                 if (!toolCardsById.has(stepData.stepId)) {
                   const card = buildToolStepCard(stepData, title, stepData.narration);
+                  // One contiguous run above the text: every card shares the
+                  // first card's id, so the group renders as one (cf. chat's
+                  // orderPushCard).
+                  card.parentId = toolCards[0]?.toolCallId ?? card.toolCallId;
                   toolCardsById.set(stepData.stepId, card);
                   toolCards.push(card);
                 }
@@ -746,10 +754,9 @@ export function createNotebookModelAdapter(
         // Stream errored before any answer arrived — surface the real cause
         // (e.g. backend `error` SSE event) instead of the misleading
         // "keine passende Antwort" fallback.
-        yield {
-          content: [{ type: 'text' as const, text: streamErrorMessage(streamErrorEncountered) }],
-          status: errorStatus(streamErrorEncountered),
-        };
+        // Tool cards and the mode chip stay: they show how far the turn got.
+        accumulatedText = streamErrorMessage(streamErrorEncountered);
+        yield { ...buildResult(true), status: errorStatus(streamErrorEncountered) };
       } else {
         accumulatedText =
           'Leider konnte ich keine passende Antwort finden. Bitte versuche es mit einer anderen Frage.';
