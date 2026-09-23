@@ -244,6 +244,29 @@ describe('processAndStoreDocument — unchanged text, write budget and date guar
     });
   });
 
+  it('compares the normalised title, so a raw file-name title does not flip it back', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'LSVD Saar', checked_at: hoursAgo(2) } },
+    ]);
+
+    await storeWith({ title: 'LSVD Saar  \n' });
+
+    expect(setPayload).not.toHaveBeenCalled();
+  });
+
+  it('heals a stored raw title to its normalised form', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'LSVD Saar  \n', checked_at: hoursAgo(2) } },
+    ]);
+
+    await storeWith({ title: 'LSVD Saar  \n' });
+
+    expect(setPayload.mock.calls[0][2]).toEqual({
+      title: 'LSVD Saar',
+      checked_at: expect.any(String),
+    });
+  });
+
   it('never downgrades a stored date to the -06-15 year-only guess', async () => {
     scrollDocuments.mockResolvedValue([
       { payload: { content_hash: HASH, title: 'Beschluss', published_at: '2023-04-29' } },
