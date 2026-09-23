@@ -143,12 +143,34 @@ export function ground(
 export function groundRows(reg: SourceRegistry, rows: ResultRow[]): void {
   ground(
     reg,
-    rows.map((r) => ({
+    rows.map((r) => ({ title: r.title, content: rowContent(r), ...(r.url ? { url: r.url } : {}) }))
+  );
+}
+
+/**
+ * Wie `groundRows`, aber jede Zeile als ganze Notebook-Quelle (`documentId` =
+ * `ref`). Nur so teilt sie die Zitatnummer mit Fundstellen derselben Quelle aus
+ * find/grep/cite, statt eine zweite zu bekommen (#3626).
+ */
+export function groundSourceRows(
+  reg: SourceRegistry,
+  rows: ResultRow[],
+  collectionId: string
+): void {
+  reg.register(
+    rows.map((r): SearchResult => ({
+      source: 'notebook',
       title: r.title,
-      content: [r.type, r.title, r.snippet].filter(Boolean).join(' — '),
-      ...(r.url ? { url: r.url } : {}),
+      content: rowContent(r),
+      url: r.url,
+      documentId: r.ref ?? r.url,
+      collectionId,
     }))
   );
+}
+
+function rowContent(r: ResultRow): string {
+  return [r.type, r.title, r.snippet].filter(Boolean).join(' — ');
 }
 
 /**

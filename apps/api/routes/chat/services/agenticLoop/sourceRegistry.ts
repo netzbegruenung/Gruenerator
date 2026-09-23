@@ -187,11 +187,19 @@ function resultKey(r: SearchResult): string {
   // Ausnahme: eine Fundstelle mit Zeichenbereich (`notebook_quellen`) IST eine
   // bestimmte Stelle, kein bester Chunk einer Anfrage — zwei Stellen aus einer
   // Quelle sind zwei Belege. Nur wer `charStart` setzt, landet hier.
-  if (r.documentId && 'charStart' in r) {
-    return `doc::${r.collectionId ?? ''}::${r.documentId}::${r.charStart ?? ''}::${r.chunkIndex ?? ''}`;
+  if (isPassage(r)) {
+    return `${sourceKey(r)}::${r.charStart ?? ''}::${r.chunkIndex ?? ''}`;
   }
-  if (r.documentId) return `doc::${r.collectionId ?? ''}::${r.documentId}`;
-  return `${r.url ?? ''}::${r.title ?? ''}::${(r.content ?? '').slice(0, 80)}`;
+  return sourceKey(r) ?? `${r.url ?? ''}::${r.title ?? ''}::${(r.content ?? '').slice(0, 80)}`;
+}
+
+/** Die Quelle hinter einem Treffer, ohne Fundstelle — `null` ohne Dokument-ID. */
+function sourceKey(r: SearchResult): string | null {
+  return r.documentId ? `doc::${r.collectionId ?? ''}::${r.documentId}` : null;
+}
+
+function isPassage(r: SearchResult): boolean {
+  return Boolean(r.documentId) && 'charStart' in r;
 }
 
 /**
@@ -276,8 +284,26 @@ interface Entry {
 export function createSourceRegistry(): SourceRegistry {
   const entries: Entry[] = [];
   const indexByKey = new Map<string, number>();
+  // Erster Eintrag je Quelle (`sourceKey`), gleich ob ganze Quelle oder Fundstelle.
+  const indexBySource = new Map<string, number>();
   // Per-turn outcome lines (see `note`). Never sources.
   const notes: string[] = [];
+
+  /**
+   * Eine ganze Quelle (`list`-Zeile, Gliederung) und eine Fundstelle derselben
+   * Quelle sind EINE Quelle: eine Nummer, nicht zwei. Live 23.09.2026 (#3626)
+   * bekam jedes Wahlprogramm-Kapitel zwei Nummern, weil `grep` es in einem
+   * Turn als Fundstelle und `list` im nächsten als Zeile registrierte. Zwei
+   * Fundstellen bleiben dagegen zwei Belege — deshalb übernimmt eine Fundstelle
+   * nur einen Eintrag, der selbst noch keine Fundstelle ist.
+   */
+  const sameSourceIndex = (r: SearchResult): number | undefined => {
+    const key = sourceKey(r);
+    const index = key ? indexBySource.get(key) : undefined;
+    if (index === undefined || !isPassage(r)) return index;
+    const entry = entries[index - 1];
+    return entry && !isPassage(entry.result) ? index : undefined;
+  };
 
   /** Returns the 1-based number of the entry, whether newly added or already
    *  present. A search that re-finds a carried source must still SHOW it to the
@@ -288,7 +314,7 @@ export function createSourceRegistry(): SourceRegistry {
     // them here would desync the model's [N] from done.citations.
     if ((r.content ?? '').trim().length === 0) return null;
     const key = resultKey(r);
-    const existing = indexByKey.get(key);
+    const existing = indexByKey.get(key) ?? sameSourceIndex(r);
     if (existing !== undefined) {
       const entry = entries[existing - 1];
       // A tool with longer prose may re-find a source registered under the
@@ -298,8 +324,16 @@ export function createSourceRegistry(): SourceRegistry {
       // Anfrage. Wird dasselbe Dokument diesen Turn neu abgerufen, ist der neue
       // Inhalt der zur aktuellen Frage passende — sonst behielte der Eintrag
       // Passagen, die niemand mehr gesucht hat. Nur diese Richtung: frisch
-      // ersetzt mitgeführt, nie umgekehrt.
-      if (entry && entry.prior && !prior) entry.result = r;
+      // ersetzt mitgeführt, nie umgekehrt. Quer zur Fundstelle zählt der Beleg:
+      // eine Fundstelle ersetzt die ganze Quelle, nie umgekehrt.
+      if (entry && isPassage(r) !== isPassage(entry.result)) {
+        if (isPassage(r)) {
+          entry.result = r;
+          indexByKey.set(key, existing);
+        }
+      } else if (entry && entry.prior && !prior) {
+        entry.result = r;
+      }
       // Re-found by a search THIS turn: it is no longer only prior research,
       // so it drops the marker and starts counting toward `freshSize`.
       if (entry && !prior) entry.prior = false;
@@ -310,6 +344,8 @@ export function createSourceRegistry(): SourceRegistry {
     }
     entries.push({ result: r, cap, prior, seeded });
     indexByKey.set(key, entries.length);
+    const source = sourceKey(r);
+    if (source && !indexBySource.has(source)) indexBySource.set(source, entries.length);
     return entries.length;
   };
 
