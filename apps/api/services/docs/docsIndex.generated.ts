@@ -356,7 +356,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/sonstiges/inhaltsdatenbank",
     "title": "Inhaltsdatenbank",
     "category": "Sonstiges",
-    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 64.724 Vektoren in der Datenbank gespeichert."
+    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 65.971 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/sonstiges/mcp-was-kann-ich-fragen",
@@ -3049,7 +3049,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverbände",
     "anchor": "#landesverbände",
     "category": "Sonstiges",
-    "text": "Die Landesverbände-Sammlung enthält 25.620 Vektoren aus 13 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Berlin | BE | 4.023 | Saarland | SL | 3.484 | Hessen Fraktion | HE-F | 3.234 | Bayern Fraktion | BY-F | 2.902 | Mecklenburg-Vorpommern Fraktion | MV-F | 2.445 | Berlin Fraktion | BE-F | 2.263 | Brandenburg | BB | 2.170 | Mecklenburg-Vorpommern | MV | 1.545 | Sachsen-Anhalt Fraktion | LSA-F | 1.416 | Thüringen | TH | 779 | Bayern | BY | 721 | Hessen | HE | 355 | Sachsen-Anhalt | LSA | 283 | Gesamt | | 25.620 |"
+    "text": "Die Landesverbände-Sammlung enthält 26.625 Vektoren aus 13 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Berlin | BE | 4.971 | Saarland | SL | 3.495 | Hessen Fraktion | HE-F | 3.256 | Bayern Fraktion | BY-F | 2.925 | Mecklenburg-Vorpommern Fraktion | MV-F | 2.446 | Berlin Fraktion | BE-F | 2.280 | Brandenburg | BB | 2.177 | Mecklenburg-Vorpommern | MV | 1.520 | Sachsen-Anhalt Fraktion | LSA-F | 1.410 | Thüringen | TH | 791 | Bayern | BY | 717 | Hessen | HE | 356 | Sachsen-Anhalt | LSA | 281 | Gesamt | | 26.625 |"
   },
   {
     "url": "/docs/sonstiges/inhaltsdatenbank",
@@ -3057,7 +3057,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sammlungen",
     "anchor": "#sammlungen",
     "category": "Sonstiges",
-    "text": "Sammlung | Vektoren | ---------------------- | ---------: | Landesverbände | 25.620 | Abgeordnetenwatch | 20.956 | KommunalWiki | 8.034 | Bundestag | 3.274 | Böll-Stiftung | 2.223 | gruene.at | 1.007 | Grundsatzprogramm | 968 | gruene.de | 859 | Grüne Österreich | 645 | Grünblog | 601 | Social-Media-Beispiele | 537 | Gesamt | 64.724 |"
+    "text": "Sammlung | Vektoren | ---------------------- | ---------: | Landesverbände | 26.625 | Abgeordnetenwatch | 21.157 | KommunalWiki | 6.776 | Bundestag | 3.272 | Böll-Stiftung | 2.540 | gruene.at | 1.666 | Grundsatzprogramm | 968 | Grünblog | 910 | gruene.de | 875 | Grüne Österreich | 645 | Social-Media-Beispiele | 537 | Gesamt | 65.971 |"
   },
   {
     "url": "/docs/sonstiges/inhaltsdatenbank",
@@ -3065,7 +3065,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Übersicht",
     "anchor": "#übersicht",
     "category": "Sonstiges",
-    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 64.724 Vektoren in der Datenbank gespeichert."
+    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 65.971 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/sonstiges/mcp-was-kann-ich-fragen",
