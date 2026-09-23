@@ -786,10 +786,33 @@ describe('Notebook branch — tool ask pins notebook_quellen', () => {
     expect(result.mentionPinnedTool).toBeUndefined();
   });
 
-  it('system notebook only → stays a search (notebook_quellen rejects system notebooks)', async () => {
+  // `notebook_quellen` liest System-Notebooks mit EINER Sammlung (seit #3536) —
+  // der Berlin-Fall aus dem Live-Test 23.09.2026, genannt oder erwähnt.
+  it('system notebook with one collection + tool ask → agentic with the pin', async () => {
+    const state = buildState({
+      userMessage: 'Liste die 20 neuesten Quellen im Berlin-Notebook aus 2026.',
+      notebookIds: ['berlin-notebook'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  it('system notebook + plain question stays the single-pass notebook search', async () => {
+    const state = buildState({
+      userMessage: 'Was steht im Berlin-Notebook zu Mieten?',
+      notebookIds: ['berlin-notebook'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('search');
+    expect(result.gatherSources).toEqual(['notebook-search']);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('multi-collection system notebook → stays a search (notebook_quellen cannot open it)', async () => {
     const state = buildState({
       userMessage: 'Sortiere die Quellen nach Datum',
-      notebookIds: ['grundsatz-system'],
+      notebookIds: ['gruenerator-notebook'],
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('search');

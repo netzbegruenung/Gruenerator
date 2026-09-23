@@ -19,7 +19,10 @@
 import { type ChatIntentId, degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
 import { isCloudShareUrl } from '@gruenerator/shared/utils';
 
-import { isUserNotebookId } from '../../../../config/notebookCollectionMap.js';
+import {
+  isUserNotebookId,
+  resolveNotebookCollections,
+} from '../../../../config/notebookCollectionMap.js';
 import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhitelist.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
@@ -834,11 +837,15 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // Notebook-Sperre in `decideRunAgentic` auf; das Werkzeug fällt ohne
       // `notebookId` auf das gewählte Notebook zurück. Nicht bei benannten
       // Agenten (`isCompound` hält sie im Einzeldurchlauf, der Pin liefe dort
-      // ins Leere) und nicht bei reinen System-Notebooks, die das Werkzeug
-      // ablehnt. Alles andere bleibt die gemessene Notebook-Suche unten.
+      // ins Leere) und nicht bei System-Notebooks aus mehreren Sammlungen
+      // („alle"), die das Werkzeug nicht öffnen kann — eines mit EINER
+      // Sammlung liest es (Berlin, Bayern …). Alles andere bleibt die gemessene
+      // Notebook-Suche unten.
       if (
         !isNonDefaultAgent &&
-        state.notebookIds.some(isUserNotebookId) &&
+        state.notebookIds.some(
+          (id) => isUserNotebookId(id) || resolveNotebookCollections([id]).length === 1
+        ) &&
         // Ohne Erwähnungen gelesen: `messages` tragen sie als „@Label", und ein
         // Notebook namens „Kapitel 3 Satzung" pinnte sonst bei jeder Erwähnung.
         looksLikeNotebookToolAsk(state.lastUserTextNoMentions ?? userContent)
