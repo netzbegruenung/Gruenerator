@@ -62,6 +62,11 @@ vi.mock('./services/notebookPraezisionTurn.js', () => ({
   runNotebookPraezisionTurn: (...args: unknown[]) => runNotebookPraezisionTurn(...args),
 }));
 
+const aiText = vi.fn(async (..._args: unknown[]) => 'praezision');
+vi.mock('../../services/ai/generate.js', () => ({
+  aiText: (...args: unknown[]) => aiText(...args),
+}));
+
 await import('./notebookStreamController.js');
 
 type Mw = (req: unknown, res: unknown, next: () => void) => void;
@@ -116,6 +121,7 @@ describe('POST /api/chat-service/notebook/stream — answer mode', () => {
       citations: [{ index: '1' }],
       sources: [{ document_id: 'd1' }],
       answerMode: 'chat',
+      answerModeReason: 'default',
     });
   });
 
@@ -136,6 +142,7 @@ describe('POST /api/chat-service/notebook/stream — answer mode', () => {
       sources: [{ document_id: 'd1' }],
       traceId: 't'.repeat(32),
       answerMode: 'praezision',
+      answerModeReason: 'explicit',
       toolCalls: [{ toolCallId: 'c1', toolName: 'notebook_quellen', args: {}, result: {} }],
     });
   });
@@ -157,6 +164,48 @@ describe('POST /api/chat-service/notebook/stream — answer mode', () => {
       reason: 'ineligible',
     });
     expect(persistedAssistantMetadata().answerMode).toBe('chat');
+  });
+
+  it('runs a tool ask in auto straight to precision, without the guard', async () => {
+    await post({ answerMode: 'auto' });
+    expect(aiText).not.toHaveBeenCalled();
+    expect(sent.find((e) => e.event === 'answer_mode')!.data).toEqual({
+      requested: 'auto',
+      resolved: 'praezision',
+      reason: 'pregate',
+    });
+    expect(persistedAssistantMetadata()).toMatchObject({
+      answerMode: 'praezision',
+      answerModeReason: 'pregate',
+    });
+  });
+
+  it('hands the guard the question and the previous exchange with its mode', async () => {
+    await post({
+      answerMode: 'auto',
+      messages: [
+        { role: 'user', content: 'Liste die neuesten Quellen auf.' },
+        { role: 'assistant', content: '1. A 2. B', answerMode: 'praezision' },
+        { role: 'user', content: 'Und was steht in der zweiten?' },
+      ],
+    });
+    const prompt = (aiText.mock.calls[0]![0] as { prompt: string }).prompt;
+    expect(prompt).toContain('Nutzer*in: Liste die neuesten Quellen auf.');
+    expect(prompt).toContain('Antwort (Modus: praezision): 1. A 2. B');
+    expect(prompt).toContain('Letzte Nachricht: "Und was steht in der zweiten?"');
+    expect(runNotebookPraezisionTurn.mock.calls[0]![0]).toMatchObject({
+      answerModeReason: 'guard',
+    });
+  });
+
+  it('tolerates an unknown answer mode on a history entry', async () => {
+    await post({
+      messages: [
+        { role: 'assistant', content: 'A', answerMode: 'turbo' },
+        { role: 'user', content: 'Frage?' },
+      ],
+    });
+    expect(handleNotebookStream).toHaveBeenCalled();
   });
 
   it('rejects an unknown mode at the contract', async () => {
