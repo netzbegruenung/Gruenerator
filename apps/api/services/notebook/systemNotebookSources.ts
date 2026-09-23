@@ -204,6 +204,9 @@ function toRow(payload: Record<string, unknown>, url: string): NotebookSourceRow
     chars: null,
     status: null,
     createdAt: str(payload.published_at),
+    docDate: null,
+    docDateKind: null,
+    gremium: null,
     tags: [],
   };
 }
