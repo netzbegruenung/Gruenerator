@@ -5,7 +5,11 @@
  * Delegates to the shared notebookStreamCore for SSE streaming logic.
  */
 
-import { notebookAnswerModeSchema, notebookDepthSchema } from '@gruenerator/contracts';
+import {
+  notebookAnswerModeSchema,
+  notebookDepthSchema,
+  notebookResolvedAnswerModeSchema,
+} from '@gruenerator/contracts';
 import { z } from 'zod';
 
 import { requireAiConsent } from '../../middleware/requireAiConsent.js';
@@ -18,7 +22,10 @@ import { ThreadId, UserId } from '../../utils/types/branded.js';
 import { withTimeout } from '../../utils/withTimeout.js';
 
 import { handleNotebookStream } from './notebookStreamCore.js';
-import { resolveNotebookAnswerMode } from './services/notebookAnswerModeResolver.js';
+import {
+  notebookGuardHistory,
+  resolveNotebookAnswerMode,
+} from './services/notebookAnswerModeResolver.js';
 import { runNotebookPraezisionTurn } from './services/notebookPraezisionTurn.js';
 import { createSSEStream, sendChatWarning } from './services/sseHelpers.js';
 import { canWriteThread } from './services/threadAccessService.js';
@@ -45,6 +52,9 @@ const notebookStreamMessageSchema = z
     role: z.string(),
     content: z.union([z.string(), z.array(z.record(z.unknown()))]),
     citations: z.array(z.record(z.unknown())).nullish(),
+    /** Modus einer früheren Antwort — Kontext für den Auto-Wächter. Tolerant:
+     *  ein unbekannter Wert macht den Request nicht ungültig. */
+    answerMode: notebookResolvedAnswerModeSchema.nullish().catch(null),
   })
   .passthrough();
 
@@ -194,13 +204,16 @@ router.post(
       : collectionId
         ? [collectionId]
         : [];
+    const answerModeStart = Date.now();
     const { decision, warning } = await resolveNotebookAnswerMode({
       requested: answerMode ?? null,
       collectionIds: pageCollectionIds,
       userLocale,
+      question: userText,
+      history: notebookGuardHistory(rawMessages ?? []),
     });
     log.info(
-      `[NotebookAnswerMode] requested=${decision.requested ?? '-'} resolved=${decision.resolved} reason=${decision.reason}`
+      `[NotebookAnswerMode] requested=${decision.requested ?? '-'} resolved=${decision.resolved} reason=${decision.reason} ms=${Date.now() - answerModeStart}`
     );
     if (warning) sendChatWarning(sse, warning);
     sse.send('answer_mode', decision);
@@ -261,6 +274,7 @@ router.post(
                   sources: result.sources,
                   ...(result.traceId && { traceId: result.traceId }),
                   answerMode: decision.resolved,
+                  answerModeReason: decision.reason,
                   ...('steps' in result &&
                     Array.isArray(result.steps) &&
                     result.steps.length > 0 && { toolCalls: result.steps }),
