@@ -14,6 +14,7 @@
  */
 import {
   listNotebookSources,
+  sortDateOf,
   type NotebookSourceRow,
   type NotebookSourcesDeps,
 } from '../../../services/notebook/notebookSources.js';
@@ -300,7 +301,7 @@ const METADATA_RANK: Record<
     value: (r: NotebookSourceRow) => number | string | null;
   }
 > = {
-  date: { sortBy: 'date', unit: 'Datum', value: (r) => r.createdAt?.slice(0, 10) ?? null },
+  date: { sortBy: 'date', unit: 'Datum', value: (r) => sortDateOf(r)?.slice(0, 10) ?? null },
   length: { sortBy: 'chars', unit: 'Zeichen', value: (r) => r.chars },
   pages: { sortBy: 'pages', unit: 'Seiten', value: (r) => r.pages },
 };

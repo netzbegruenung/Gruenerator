@@ -266,6 +266,59 @@ describe('listNotebookSources', () => {
   });
 });
 
+describe('listNotebookSources — Dokumentdatum und Gremium', () => {
+  const docMeta = (date: string, kind: string, gremium: string | null) => ({
+    doc_meta: { version: 1, date, dateKind: kind, gremium },
+  });
+  const rows = [
+    // Hochgeladen zuletzt, beschlossen am frühesten.
+    docRow({
+      id: 'bv',
+      title: 'Klimaschutz jetzt',
+      created_at: new Date('2026-03-12'),
+      metadata: docMeta('2024-01-08', 'beschluss', 'Bundesvorstand'),
+    }),
+    docRow({
+      id: 'pr',
+      title: 'Klimaschutz jetzt',
+      created_at: new Date('2026-01-01'),
+      metadata: docMeta('2025-06-01', 'beschluss', 'Parteirat'),
+    }),
+    // Ohne Dokumentdatum: die Upload-Zeit zählt.
+    docRow({ id: 'up', title: 'Notiz', created_at: new Date('2024-06-01'), metadata: {} }),
+  ];
+
+  it('trägt Dokumentdatum, Art und Gremium in die Zeile', async () => {
+    const { deps } = makeDeps({ rows, links: ['bv', 'pr', 'up'] });
+    const out = await listNotebookSources({ collectionId: 'n1' }, deps);
+    expect(out.items.find((i) => i.id === 'bv')).toMatchObject({
+      docDate: '2024-01-08',
+      docDateKind: 'beschluss',
+      gremium: 'Bundesvorstand',
+    });
+    expect(out.items.find((i) => i.id === 'up')).toMatchObject({
+      docDate: null,
+      docDateKind: null,
+      gremium: null,
+    });
+  });
+
+  it('sortiert nach Dokumentdatum, sonst nach Upload', async () => {
+    const { deps } = makeDeps({ rows, links: ['bv', 'pr', 'up'] });
+    const out = await listNotebookSources({ collectionId: 'n1', sortBy: 'date' }, deps);
+    expect(out.items.map((i) => i.id)).toEqual(['pr', 'up', 'bv']);
+  });
+
+  it('filtert nach Gremium, gross/klein egal, ohne gleichnamige Titel zu verschmelzen', async () => {
+    const { deps } = makeDeps({ rows, links: ['bv', 'pr', 'up'] });
+    const out = await listNotebookSources(
+      { collectionId: 'n1', filter: { gremium: 'parteirat' } },
+      deps
+    );
+    expect(out.items.map((i) => i.id)).toEqual(['pr']);
+  });
+});
+
 describe('resolveSourceInNotebook', () => {
   it('returns the owner of the source, not the caller', async () => {
     const { deps } = makeDeps({ rows: [docRow({ user_id: 'owner-9' })] });
