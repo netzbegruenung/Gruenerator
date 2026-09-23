@@ -350,6 +350,25 @@ describe('extractPdfLinks — context carries the date (#3575)', () => {
     ).toBeNull();
   });
 
+  it('Elementor: an undated stop is final, the unbounded container walk does not undo it', async () => {
+    // The dated h3 is a direct sibling of the list; the undated h4 sits one
+    // level deeper, so the container walk alone would skip it.
+    const html = `
+      <div class="elementor-widget">
+        <h3>24. Mai 2025 - LDK Güstrow</h3>
+        <div class="inner"><h4>Satzung und Geschäftsordnung</h4></div>
+        <div class="list"><a href="/download/satzung/">Satzung</a></div>
+      </div>`;
+
+    const [satzung] = await extractor(html).extractPdfLinks(SOURCE, CONTENT_PATH);
+
+    expect(satzung.context).not.toContain('24. Mai 2025');
+    expect(
+      DateExtractor.extractDateFromPdfInfo(satzung.url, satzung.title, satzung.context, 10)
+        .dateString
+    ).toBeNull();
+  });
+
   it('BE-F: the file-name anchor of a dlm-downloads item reaches the context', async () => {
     const link = await linksFromFixture(
       'gruene-fraktion-berlin-beschluesse-dlm.html',
