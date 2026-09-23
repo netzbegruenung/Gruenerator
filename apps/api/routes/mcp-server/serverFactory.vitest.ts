@@ -58,6 +58,7 @@ function build(scopes: string[]): Built {
     buildAuthenticatedMcpServer({
       userId: 'user-1',
       scopes: new Set(scopes),
+      userLocale: 'de-DE',
       req: { app: { locals: {} } } as never,
     });
   } finally {
