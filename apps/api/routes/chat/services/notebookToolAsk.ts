@@ -24,6 +24,16 @@
 const WRITE_IMPERATIVES = ['entferne?', 'verschiebe?', 'kopiere?', 'notiere?', 'tagge?'];
 const WRITE_INFINITIVES = '(?:umbenennen|entfernen|verschieben|kopieren|notieren|taggen)';
 
+/**
+ * Was zwischen Verb und Nomen stehen darf: Artikel, Menge, Superlativ — „zeig
+ * mir fünf Stellen", „die 10 neuesten Quellen", „die wichtigsten drei Quellen".
+ * Nichts sonst, damit „zeig mir, wie …" und „die wichtigsten Unterschiede"
+ * nicht treffen.
+ */
+const COUNT =
+  '(?:\\d+|zwei|drei|vier|f(?:ü|ue)nf|sechs|sieben|acht|neun|zehn|zw(?:ö|oe)lf|zwanzig)';
+const AMOUNT = `(?:(?:die|alle)\\s+)?(?:${COUNT}\\s+)?(?:[a-zäöüß]+sten\\s+)?(?:${COUNT}\\s+)?`;
+
 const REQUEST_INFINITIVES = `(?:sortieren|z(?:ä|ae)hlen|ordnen|auflisten|vorlesen|(?:ö|oe)ffnen|zitieren|${WRITE_INFINITIVES})`;
 
 /** Bittrahmen mit Infinitiv — nicht über ein Komma hinweg. */
@@ -45,7 +55,10 @@ const NOTEBOOK_TOOL_ASK = new RegExp(
       'liste?\\s+(?:mir\\s+)?(?:alle|die)',
       'lies',
       '(?:ö|oe)ffne',
-      'zeige?\\s+(?:mir\\s+)?(?:die\\s+)?(?:seiten?|quellen?|stellen?|gliederung|inhaltsverzeichnis)',
+      `zeige?\\s+(?:mir\\s+)?${AMOUNT}(?:seiten?|quellen?|stellen?|gliederung|inhaltsverzeichnis)`,
+      // „Nenne mir die 10 relevantesten Quellen" — nur mit Quellen als Gegenstand:
+      // „nenne mir die wichtigsten Forderungen" ist eine Inhaltsfrage.
+      `nenne?\\s+(?:mir\\s+)?${AMOUNT}quellen`,
       'belege?\\s+(?:mir\\s+|bitte\\s+)?(?:das|dies\\w*|die|es|mit)',
       'zitiere?',
       // „Ich finde die Stelle gut" ist eine Meinung, kein Suchauftrag.
