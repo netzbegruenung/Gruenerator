@@ -6,16 +6,24 @@
  * workers). Two kinds of task:
  *  - AI-column flow tasks (flow_config set) → delegated to runFlow (source → AI →
  *    output nodes).
- *  - Legacy @-mention tasks → classify, generate (with live search/research tools),
- *    then answer in the comment thread or create a document; notify the requester.
+ *  - Legacy @-mention tasks → classify, run the full agentic loop headless (with a
+ *    result check + one repair round), then answer in the comment thread or
+ *    create a document; notify the requester.
  */
 import { type CommentBlock } from '@gruenerator/contracts';
 
 import { type AgentTask } from '../../database/schema/agentTasks.js';
 import { hasAiConsent } from '../../middleware/requireAiConsent.js';
+import {
+  runHeadlessAgenticTurn,
+  type HeadlessTurnParams,
+  type HeadlessTurnResult,
+} from '../../routes/chat/services/agenticLoop/runHeadlessAgenticTurn.js';
 import { createLogger } from '../../utils/logger.js';
 import { runWithUsageContext } from '../../utils/usageContext.js';
 import { aiText } from '../ai/generate.js';
+import { type RunVerdict } from '../backgroundRuns/runVerifier.js';
+import { needsHumanReview, runVerifiedTurn } from '../backgroundRuns/verifiedTurn.js';
 import { createDocumentWithContent } from '../docs/DocGenerationService.js';
 import { createNotification } from '../notifications/NotificationService.js';
 
@@ -25,9 +33,11 @@ import {
   generateTaskList,
 } from './agentFlow/artifactGen.js';
 import { buildCardAgentContext } from './agentFlow/cardContext.js';
-import { deriveTitle, generateFromState, prepareAgentState } from './agentFlow/generate.js';
+import { deriveTitle, prepareAgentState } from './agentFlow/generate.js';
 import { runFlow } from './agentFlow/index.js';
 import {
+  BOARD_REPAIR_DEADLINE_MS,
+  BOARD_TURN_DEADLINE_MS,
   claimNextAgentTask,
   completeAgentTask,
   failOrRetryAgentTask,
@@ -260,16 +270,28 @@ async function processTask(task: AgentTask): Promise<void> {
       return;
     }
 
-    // Research → prose (search/research tools). Structured artifacts always
-    // research first, then structure the researched prose — the same split the
-    // chat compound loop uses. The model calls the tools only when the task
-    // needs them.
-    const research = () =>
-      generateFromState(prepared, {
-        longForm: true,
-        slotLabel: `board-agent-${task.id}`,
-        ...(cardContext != null && { contextBlock: cardContext }),
-      });
+    // Every path runs the full agentic loop headless (#3221) on the state the
+    // classifier already produced.
+    const turnParams: Omit<HeadlessTurnParams, 'longForm'> = {
+      instruction: task.task_text,
+      userId: task.requested_by,
+      agentId: task.agent_id,
+      userLocale,
+      slotLabel: `board-agent-${task.id}`,
+      deadlineMs: BOARD_TURN_DEADLINE_MS,
+      prepared,
+      ...(cardContext != null && { contextBlock: cardContext }),
+    };
+
+    // Research → prose. Structured artifacts always research first, then
+    // structure the researched prose — the same split the chat compound loop
+    // uses. Not checked: the checker would judge prose against a request for
+    // a table/slides/cards and object to the format, not the content.
+    const research = async (): Promise<string> => {
+      const turn = await runHeadlessAgenticTurn({ ...turnParams, longForm: true });
+      throwIfBroken(turn);
+      return turn.degraded === 'none' ? turn.text : '';
+    };
 
     if (deliverable === 'sheet' || deliverable === 'presentation') {
       const researched = await research();
@@ -346,14 +368,17 @@ async function processTask(task: AgentTask): Promise<void> {
     // Text document / comment path.
     const isDocument = deliverable === 'document';
 
-    const content = await generateFromState(prepared, {
-      longForm: isDocument,
-      slotLabel: `board-agent-${task.id}`,
-      ...(cardContext != null && { contextBlock: cardContext }),
-    });
+    const { turn, content, verdict } = await runVerifiedTurn(
+      { ...turnParams, longForm: isDocument },
+      { verifyInstruction: task.task_text, repairDeadlineMs: BOARD_REPAIR_DEADLINE_MS }
+    );
+    throwIfBroken(turn);
     if (!content) {
       throw new Error('Der Agent lieferte kein Ergebnis');
     }
+    // Handoff: the result is delivered either way; a lingering objection is
+    // said where the result lands, so a human looks before relying on it.
+    const note = reviewNote(verdict);
 
     // Deliver a created text artifact: spin up a document and reply with a link.
     const deliverAsDocument = async (): Promise<void> => {
@@ -368,14 +393,16 @@ async function processTask(task: AgentTask): Promise<void> {
       await inheritBoardSharingToDocument(doc.id, task.board_id);
       await linkAgentDocumentToCard(task.board_id, task.card_id, doc.id, title, task.requested_by);
 
-      await completeAgentTask(task.id, doc.id);
+      await completeAgentTask(task.id, doc.id, verdict);
 
       // In-app + push + email (createNotification fans out per the user's prefs).
       await createNotification({
         userId: task.requested_by,
         type: 'agent_task_completed',
         title: `Dein Dokument ist fertig: ${title}`,
-        body: 'Der Grünerator hat deine Aufgabe erledigt. Öffne das Dokument, um das Ergebnis zu sehen.',
+        body:
+          note ??
+          'Der Grünerator hat deine Aufgabe erledigt. Öffne das Dokument, um das Ergebnis zu sehen.',
         actionUrl: relativeUrl,
         metadata: {
           boardId: task.board_id,
@@ -389,6 +416,7 @@ async function processTask(task: AgentTask): Promise<void> {
       await finishComment([
         { type: 'text', text: '✅ Fertig! Dokument erstellt und mit der Karte verknüpft: ' },
         { type: 'link', text: title, url: relativeUrl },
+        ...(note ? [{ type: 'text' as const, text: `\n\n${note}` }] : []),
       ]);
 
       log.info(`Agent task ${task.id} completed → document ${doc.id}`);
@@ -403,13 +431,13 @@ async function processTask(task: AgentTask): Promise<void> {
     }
 
     if (!isDocument && !looksLongForm(content)) {
-      await completeAgentTask(task.id, null);
-      await finishComment([{ type: 'text', text: content }]);
+      await completeAgentTask(task.id, null, verdict);
+      await finishComment([{ type: 'text', text: note ? `${content}\n\n${note}` : content }]);
       await createNotification({
         userId: task.requested_by,
         type: 'agent_task_completed',
         title: 'Der Grünerator hat geantwortet',
-        body: content.length > 140 ? content.slice(0, 139) + '…' : content,
+        body: note ?? (content.length > 140 ? content.slice(0, 139) + '…' : content),
         actionUrl: `/boards/${task.board_id}?card=${task.card_id}`,
         metadata: { boardId: task.board_id, cardId: task.card_id, taskId: task.id },
         groupKey: `agent-task-${task.id}`,
@@ -469,6 +497,24 @@ async function classifyDeliverable(taskText: string): Promise<DeliverableKind> {
     log.warn('Deliverable classification failed, defaulting to document', { error: errMsg(err) });
     return 'document';
   }
+}
+
+/**
+ * The loop never throws; it replaces hard failures with apology text that must
+ * not become a result. Throwing hands them to the retry/failure path below.
+ */
+function throwIfBroken(turn: HeadlessTurnResult): void {
+  if (turn.degraded === 'aborted' || turn.degraded === 'failed') {
+    throw new Error(turn.degradedReason ?? `agentic turn degraded: ${turn.degraded}`);
+  }
+}
+
+/** The visible handoff for a result the check still objects to, or null. */
+function reviewNote(verdict: RunVerdict | null): string | null {
+  if (!needsHumanReview(verdict)) return null;
+  return `⚠️ Die automatische Prüfung hat Zweifel am Ergebnis${
+    verdict.hint ? ` („${verdict.hint}")` : ''
+  }. Bitte sieh es dir genau an, bevor du dich darauf verlässt.`;
 }
 
 function errMsg(error: unknown): string {

@@ -1,9 +1,9 @@
 /**
  * Headless-Einstieg in den vollen agentischen Loop (#3221, Face 1).
  *
- * Hintergrundläufe (heute: wiederkehrende Aufgaben) liefen bisher über den
- * 5-Schritt-Kern `agentFlow/generate.ts` — ohne Budget, Stall-Guard,
- * Quellen-Registry und Guards. Dieser Einstieg fährt denselben Loop wie ein
+ * Hintergrundläufe (wiederkehrende Aufgaben, Board-Agent) liefen bisher über
+ * einen 5-Schritt-Kern ohne Budget, Stall-Guard, Quellen-Registry und Guards.
+ * Dieser Einstieg fährt denselben Loop wie ein
  * Chat-Turn, nur ohne Leitung: `createNullSSE()` statt Response-gebundenem
  * Writer, kein `req` (Compound-Fat-Tools bleiben unmontiert), kein Thread,
  * keine MCP-Kataloge (`disableMcp` — ein Hintergrundlauf hat niemanden, der
@@ -21,6 +21,7 @@ import {
   DOCUMENT_MODE,
   COMMENT_MODE,
   prepareAgentState,
+  type PreparedAgentState,
 } from '../../../../services/boards/agentFlow/generate.js';
 import { withLangfuseTrace } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -83,6 +84,12 @@ export interface HeadlessTurnParams {
   feedback?: { hint: string; priorDraft: string };
   /** Harte Decke über dem Lauf. Default: die hardCap des Loop-Budgets. */
   deadlineMs?: number;
+  /** Hintergrundmaterial (z. B. Karteninhalt, Kommentare, verknüpfte Dokumente)
+   *  — hängt an der Aufgabe in der User-Message, nicht im Systemprompt. */
+  contextBlock?: string;
+  /** Schon klassifizierter Zustand für genau diese `instruction` — spart die
+   *  zweite Klassifikation, wenn der Aufrufer den Intent vorab brauchte. */
+  prepared?: PreparedAgentState;
 }
 
 export interface HeadlessTurnResult {
@@ -118,24 +125,37 @@ export async function runHeadlessAgenticTurn(
   p: HeadlessTurnParams,
   deps: HeadlessTurnDeps = defaultDeps
 ): Promise<HeadlessTurnResult> {
-  const { finalState } = await deps.prepareAgentState(p.instruction, p.userLocale, {
-    agentId: p.agentId ?? null,
-    userId: p.userId,
-  });
+  const prepared =
+    p.prepared ??
+    (await deps.prepareAgentState(p.instruction, p.userLocale, {
+      agentId: p.agentId ?? null,
+      userId: p.userId,
+    }));
 
   // Schreibende Werkzeuge abschalten, BEVOR der Katalog gebaut wird. Das Gate
   // sitzt in `toolCatalog` auf `state.enabledTools[key] !== false`, also genügt
-  // die Zustandsänderung — kein zweiter Katalog-Pfad.
+  // die Zustandsänderung — kein zweiter Katalog-Pfad. Als Kopie, weil ein
+  // übergebener Zustand auch die Reparatur-Runde trägt.
   const withheld: Record<string, boolean> = {};
   for (const key of HEADLESS_WITHHELD_TOOLS) withheld[key] = false;
-  finalState.enabledTools = { ...finalState.enabledTools, ...withheld };
+  const finalState = {
+    ...prepared.finalState,
+    enabledTools: { ...prepared.finalState.enabledTools, ...withheld },
+  };
 
   // `retrievalExpected` wie im Request-Pfad: der Prompt entsteht, bevor ein
   // Tool lief — eine Zitatzahl von 0 sagt hier nichts über die Antwort.
   const baseSystem = await deps.buildSystemMessage(finalState, { retrievalExpected: true });
   const systemMessage = `${baseSystem}${p.longForm ? DOCUMENT_MODE : COMMENT_MODE}${NO_QUESTIONS_MODE}`;
 
-  const messages: ModelMessage[] = [{ role: 'user', content: p.instruction }];
+  const messages: ModelMessage[] = [
+    {
+      role: 'user',
+      content: p.contextBlock
+        ? `${p.instruction}\n\n---\n## Kontext der Karte (Hintergrundmaterial für genau diese Aufgabe)\n${p.contextBlock}`
+        : p.instruction,
+    },
+  ];
   if (p.feedback) {
     messages.push({
       role: 'user',
@@ -151,8 +171,7 @@ export async function runHeadlessAgenticTurn(
   const timer = setTimeout(() => controller.abort(), p.deadlineMs ?? DEFAULT_LOOP_BUDGET.hardCapMs);
   timer.unref?.();
 
-  // Picker-Auswahl nur bei gebundenem Agenten — Universal-Läufe bleiben breit
-  // (dieselbe Tür wie `generateFromState.restrictToAgentTools`).
+  // Picker-Auswahl nur bei gebundenem Agenten — Universal-Läufe bleiben breit.
   const agentToolKeys = finalState.agentConfig.enabledTools;
   const searchToolKeys =
     p.restrictToAgentTools && agentToolKeys?.length ? agentToolKeys : undefined;

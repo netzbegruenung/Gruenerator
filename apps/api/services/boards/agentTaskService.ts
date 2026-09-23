@@ -10,6 +10,7 @@ import { type BoardAiTask, type BoardFlowConfig, type CommentBlock } from '@grue
 import { type AgentTask } from '../../database/schema/agentTasks.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
+import { type RunVerdict } from '../backgroundRuns/runVerifier.js';
 
 import { bumpCardComments } from './boardLiveSignalService.js';
 import { GRUENERATOR_BOT_USER_ID } from './grueneratorBot.js';
@@ -20,6 +21,12 @@ const log = createLogger('agentTaskService');
 // A task left in 'running' longer than this is assumed to belong to a crashed
 // worker and becomes claimable again (the attempt was already counted at claim).
 const STALE_RUNNING_MINUTES = 10;
+
+// Decken für den vollen Loop (#3221). Erster Lauf plus Reparatur-Runde plus zwei
+// Prüfungen, Quelle und Ausgabe müssen sicher unter STALE_RUNNING_MINUTES
+// bleiben — sonst holt ein anderer Worker die noch laufende Aufgabe erneut.
+export const BOARD_TURN_DEADLINE_MS = 240_000;
+export const BOARD_REPAIR_DEADLINE_MS = 180_000;
 
 export interface EnqueueAgentTaskParams {
   boardId: string;
@@ -109,29 +116,39 @@ export async function claimNextAgentTask(): Promise<AgentTask | null> {
   return rows[0] ?? null;
 }
 
-export async function completeAgentTask(taskId: string, documentId: string | null): Promise<void> {
+export async function completeAgentTask(
+  taskId: string,
+  documentId: string | null,
+  verdict: RunVerdict | null = null
+): Promise<void> {
   await db.query(
     `UPDATE agent_tasks
-        SET status = 'completed', result_document_id = $2, error = NULL,
+        SET status = 'completed', result_document_id = $2, error = NULL, verdict = $3,
             completed_at = now(), updated_at = now()
       WHERE id = $1`,
-    [taskId, documentId]
+    [taskId, documentId, verdict ? JSON.stringify(verdict) : null]
   );
 }
 
 /**
- * Park a finished run for human review (Phase 2). The work is done and the result
- * (comment/document) is already posted by the output nodes; this only flips the
- * status so the card UI can surface Accept / Redo. `completed_at` is stamped so run
+ * Park a finished run for human review — either because the schedule asked for it
+ * (`require_review`) or because the result check still objected after the repair
+ * round (#3221). The work is done and the result (comment/document) is already
+ * posted by the output nodes; this only flips the status so the card UI can
+ * surface Accept / Redo. `completed_at` is stamped so run
  * history shows when the work landed.
  */
-export async function parkTaskForReview(taskId: string, documentId: string | null): Promise<void> {
+export async function parkTaskForReview(
+  taskId: string,
+  documentId: string | null,
+  verdict: RunVerdict | null = null
+): Promise<void> {
   await db.query(
     `UPDATE agent_tasks
-        SET status = 'awaiting_review', result_document_id = $2, error = NULL,
+        SET status = 'awaiting_review', result_document_id = $2, error = NULL, verdict = $3,
             completed_at = now(), updated_at = now()
       WHERE id = $1`,
-    [taskId, documentId]
+    [taskId, documentId, verdict ? JSON.stringify(verdict) : null]
   );
 }
 

@@ -38,6 +38,10 @@ export const agent_tasks = pgTable('agent_tasks', {
   // a comment @-mention or a card assignment. A TEXT slug, never a UUID. Null = the
   // default universal agent. See migrations/add_agent_task_agent_id.sql.
   agent_id: text('agent_id'),
+  // Verdikt der Ergebnis-Prüfung (#3221), wie recurring_task_runs.verdict. Null
+  // bei alten Läufen und wenn nicht geprüft wurde. See
+  // migrations/zz_20260923_agent_tasks_verdict.sql.
+  verdict: jsonb('verdict').$type<{ ok: boolean; hint?: string; repaired?: boolean } | null>(),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   started_at: timestamp('started_at', { withTimezone: true }),

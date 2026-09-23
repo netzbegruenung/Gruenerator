@@ -3,8 +3,8 @@
  *
  * Sheets/presentations reuse the chat compound-loop's structure generator
  * `runDocGeneration` (generate JSON structure → create the collaborative
- * document). Research already happened upstream: the @mention path runs
- * `generateFromState` (search/research tools) first and feeds the researched
+ * document). Research already happened upstream: the @mention path runs the
+ * headless agentic loop (`runHeadlessAgenticTurn`) first and feeds the researched
  * prose in here; the AI-column path passes its already-researched `content`.
  * So these helpers do a single structure-generation pass, no research of their
  * own — exactly the split the chat loop uses (loop model researches, fat tool
