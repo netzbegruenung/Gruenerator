@@ -13,8 +13,7 @@
  * purged by hand (see rejectedUrlGate.ts).
  */
 import { DateExtractor } from './extractors/DateExtractor.js';
-
-import type { DateExtractionResult, PdfLink } from './types.js';
+import { type DateExtractionResult, type PdfLink } from './types.js';
 
 /** A PdfLink after DateExtractor.extractDateFromPdfInfo has run over it. */
 export type DatedPdfLink = PdfLink & { dateInfo: DateExtractionResult };
