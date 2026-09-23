@@ -177,13 +177,13 @@ async function main(): Promise<void> {
   );
 
   const urls = new Set<string>();
-  let offset: string | number | Record<string, unknown> | null | undefined = undefined;
+  let offset: string | number | Record<string, unknown> | null | undefined;
   do {
     const res = await client.scroll(COLLECTION, {
       limit: 1000,
       with_payload: ['source_url'],
       with_vector: false,
-      ...(offset !== undefined && offset !== null ? { offset } : {}),
+      offset: offset ?? undefined,
     });
     for (const p of res.points) {
       const url = (p.payload ?? {}).source_url;
