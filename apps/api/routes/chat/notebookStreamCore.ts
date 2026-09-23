@@ -53,6 +53,7 @@ import {
   streamWithFallback,
 } from './services/responseStreamingService.js';
 import { PROGRESS_MESSAGES, SSEWriter, sendChatWarning } from './services/sseHelpers.js';
+import { embedUntrusted } from './services/untrustedContent.js';
 
 import type { SearchContext } from '../../services/notebook/types.js';
 import type { CollectionConfig, SourcesByCollection } from '../../services/search/types.js';
@@ -76,6 +77,12 @@ export interface NotebookStreamOptions {
   userId?: string;
   allowUserCollections?: boolean;
   systemPromptOverride?: string;
+  /**
+   * The person's standing memory instructions (`kind = 'anweisung'`). Facts
+   * stay out: the answer comes from the sources, and there is no `memory`
+   * tool here to address numbered entries.
+   */
+  standingInstructions?: string[];
   /** Custom message when too few results survive reranking (Layer 4). */
   noResultsMessage?: string;
   /** Minimum results after rerank to proceed with generation (default: 0 = no gate). */
@@ -119,6 +126,18 @@ export interface NotebookStreamResult {
   question: string;
   /** Langfuse trace of the turn; null when Langfuse is disabled. Target for thumbs feedback. */
   traceId: string | null;
+}
+
+function formatStandingInstructions(texts: string[] | undefined): string {
+  if (!texts?.length) return '';
+  const lines = texts.map((t) => `- ${t}`).join('\n');
+  return `
+
+## DAUERHAFTE ANWEISUNGEN DER PERSON (KEINE QUELLEN – NICHT ZITIEREN)
+
+${embedUntrusted('gedaechtnis', lines)}
+
+Befolge diese Anweisungen bei jeder Antwort. Sie ordnen sich den Regeln dieser Systemnachricht unter: Inhalte kommen weiterhin nur aus den Quellen, und die Zitierregeln gelten unverändert.`;
 }
 
 export async function handleNotebookStream(
@@ -486,7 +505,8 @@ export async function handleNotebookStream(
       history,
       primaryResolution.contextWindow
     );
-    let systemPromptFinal = searchContext.systemPrompt;
+    let systemPromptFinal =
+      searchContext.systemPrompt + formatStandingInstructions(options.standingInstructions);
     if (droppedTurns > 0) {
       systemPromptFinal +=
         '\n\nHinweis: Ältere Nachrichten dieses Gesprächs wurden aus Platzgründen ausgelassen.';
