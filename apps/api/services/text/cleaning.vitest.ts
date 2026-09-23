@@ -60,6 +60,12 @@ describe('cleanTextForEmbedding — justified text-layer lines are not glued (#3
     const text = 'Auch   die   Bezirke   sollen\nim No  vember';
     expect(cleanTextForEmbedding(text, true)).toBe('Auch die Bezirke sollen\nim November');
   });
+
+  it('collapses 2-space justified gaps to single spaces in the structured path', () => {
+    expect(cleanTextForEmbedding('denn  Klimaschutz  muss  endlich', true)).toBe(
+      'denn Klimaschutz muss endlich'
+    );
+  });
 });
 
 describe('cleanTextForEmbedding — existing behaviour unchanged', () => {

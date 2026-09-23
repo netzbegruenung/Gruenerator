@@ -78,11 +78,13 @@ export function cleanTextForEmbedding(text: string, preserveStructure = false): 
   // Only on lines with a single wide gap: justified text-layer PDFs space
   // every word of a line ("denn   Klimaschutz   muss   endlich", #3570), and
   // joining there glued real words. An OCR split is an isolated gap.
+  // A justified line gets single spaces instead — the structured collapse
+  // below only catches runs of 3+.
   out = out
     .split('\n')
     .map((line) =>
       (line.trim().match(/[^\S\n]{2,}/g) ?? []).length > 1
-        ? line
+        ? line.replace(/(\S)[^\S\n]{2,}(?=\S)/g, '$1 ')
         : line.replace(/([a-zäöüß])[^\S\n]{2,}([a-zäöüß])/g, '$1$2')
     )
     .join('\n');
