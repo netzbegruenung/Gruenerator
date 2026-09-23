@@ -274,6 +274,15 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
   // native adapter, see lib/toolDerivedCustom.ts.
   Object.assign(custom, buildToolDerivedCustom(metadata.toolCalls));
 
+  // The notebook mode chip. Mobile reloads notebook threads through this
+  // converter, not `convertNotebookLoadedMessages`; validated, not copied.
+  const answerMode = notebookResolvedAnswerModeSchema.safeParse(metadata.answerMode);
+  if (answerMode.success) {
+    custom.answerMode = answerMode.data;
+    const reason = notebookAnswerModeReasonSchema.safeParse(metadata.answerModeReason);
+    if (reason.success) custom.answerModeReason = reason.data;
+  }
+
   // Derived: drives the message-action affordances (copy/regenerate context)
   // and the thumbs feedback button (traceId), so it must survive reload.
   if (metadata.intent || metadata.traceId) {

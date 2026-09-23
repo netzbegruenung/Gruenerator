@@ -18,7 +18,14 @@ import type {
   ReelProcessingData,
 } from '../../types/messageMetadata';
 import type { ChatModelRunResult, ToolCallMessagePart } from '@assistant-ui/react';
-import type { RoleRef, BahnPayload, NotebookDepth } from '@gruenerator/contracts';
+import type {
+  RoleRef,
+  BahnPayload,
+  NotebookAnswerMode,
+  NotebookAnswerModeReason,
+  NotebookDepth,
+  NotebookResolvedAnswerMode,
+} from '@gruenerator/contracts';
 
 export type GrueneratorMessageMetadata = {
   progress?: ChatProgress;
@@ -48,6 +55,9 @@ export type GrueneratorMessageMetadata = {
   /** Notebook found little relevant to answer with (`evidence_weak`); rendered
    *  as a quiet note under the answer instead of a toast (AssistantMessage.tsx). */
   evidenceWeak?: string;
+  /** Notebook answers only: the mode the answer ran in (`answer_mode` event). */
+  answerMode?: NotebookResolvedAnswerMode;
+  answerModeReason?: NotebookAnswerModeReason;
   [key: string]: unknown;
 };
 
@@ -69,6 +79,9 @@ export interface GrueneratorAdapterConfig {
   notebookFilters?: Record<string, string[]>;
   /** Notebook retrieval depth; defaults to `DEFAULT_NOTEBOOK_DEPTH`. */
   notebookMode?: NotebookDepth;
+  /** Notebook answer mode, sent as `answerMode`. Absent → field omitted, and
+   *  the server answers in chat mode (old behaviour). */
+  notebookAnswerMode?: NotebookAnswerMode;
   threadMode?: ThreadMode;
   searchMode?: SearchMode;
   customSystemPrompt?: string | null;
