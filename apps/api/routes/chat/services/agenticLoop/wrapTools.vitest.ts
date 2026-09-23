@@ -216,8 +216,11 @@ describe('wrapToolsForLoop', () => {
     const execute = vi.fn(async () => ({ results: [] }));
     const tools = wrapToolsForLoop({ search: { execute } } as unknown as ToolSet, ctx);
 
-    const out = (await run(tools, 'search', { query: 'x' })) as { error: string };
+    const out = (await run(tools, 'search', { query: 'x' })) as { error: string; guard?: string };
     expect(out.error).toBeTruthy();
+    // Markiert, damit die Wiederholungs-Nudge (loopEngine) einer Weisung
+    // „hör auf" nicht mit „versuch es erneut" widerspricht.
+    expect(out.guard).toBe('failure_cap');
     expect(execute).not.toHaveBeenCalled();
     // The tool never ran, so there is nothing to show or persist.
     expect(steps).toHaveLength(0);

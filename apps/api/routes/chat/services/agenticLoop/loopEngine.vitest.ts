@@ -169,6 +169,22 @@ describe('buildPrepareStep — one retry after a step whose calls all failed', (
     expect(prep({ stepNumber: 2, steps: [failedStep, failedStep] })).toEqual({});
   });
 
+  // Review PR #3568: eine Wächter-Absage („Zu viele Fehlversuche … erkläre,
+  // was nicht geklappt hat") ist eine Weisung, kein behebbarer Fehler.
+  it('not after a guard refusal', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    const guarded = {
+      content: [
+        {
+          type: 'tool-result',
+          toolName: 'notebook_quellen',
+          output: { error: 'Zu viele Fehlversuche mit diesem Tool', guard: 'failure_cap' },
+        },
+      ],
+    };
+    expect(prep({ stepNumber: 1, steps: [guarded] })).toEqual({});
+  });
+
   it('not when one call of the step succeeded', () => {
     const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
     expect(prep({ stepNumber: 1, steps: [okStep] })).toEqual({});

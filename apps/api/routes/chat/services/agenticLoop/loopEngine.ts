@@ -263,19 +263,24 @@ const errorText = (value: unknown): string =>
  * niemand. Kein erzwungener Aufruf (`toolChoice`): ist der Fehler nicht zu
  * beheben (Dienst down), soll das Modell ehrlich antworten dürfen.
  */
-export function failedStepRetryNudge(step: PreparedStepView | undefined): string | null {
+export function failedStepRetryNudge(step: PreparedStepView | null): string | null {
   if (!step) return null;
   const outcomes = step.content.flatMap((part) => {
-    if (part.type === 'tool-error') return [{ toolName: part.toolName, error: part.error }];
+    if (part.type === 'tool-error') {
+      return [{ toolName: part.toolName, error: part.error, guarded: false }];
+    }
     if (part.type !== 'tool-result') return [];
-    const output = part.output;
-    const error =
-      output && typeof output === 'object' && 'error' in output
-        ? (output as { error?: unknown }).error
+    const output =
+      part.output && typeof part.output === 'object'
+        ? (part.output as { error?: unknown; guard?: unknown })
         : null;
-    return [{ toolName: part.toolName, error: error ?? null }];
+    return [
+      { toolName: part.toolName, error: output?.error ?? null, guarded: output?.guard != null },
+    ];
   });
-  if (outcomes.length === 0 || outcomes.some((o) => o.error == null)) return null;
+  // Eine Wächter-Absage (`wrapToolsForLoop`, Feld `guard`) ist eine Weisung
+  // („hör auf", „andere Suche") — keine Nudge, die ihr widerspricht.
+  if (outcomes.length === 0 || outcomes.some((o) => o.error == null || o.guarded)) return null;
   const lines = outcomes
     .map((o) => `- ${o.toolName ?? 'Werkzeug'}: ${errorText(o.error).slice(0, 300)}`)
     .join('\n');
@@ -330,7 +335,7 @@ export function buildPrepareStep(
     }
     let nudge = '';
     if (stepNumber > 0 && !retryNudged) {
-      nudge = failedStepRetryNudge(steps?.at(-1)) ?? '';
+      nudge = failedStepRetryNudge(steps?.at(-1) ?? null) ?? '';
       if (nudge) retryNudged = true;
     }
     const extra = `${extraSystem()}${nudge}`;
