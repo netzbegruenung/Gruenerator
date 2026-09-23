@@ -50,7 +50,7 @@ type Handler = (args: Record<string, unknown>) => Promise<{
  * Capture the handlers at registration. Spying on the prototype avoids reaching
  * into the SDK's private registry, whose shape is not ours to depend on.
  */
-function notebooksTool(): { handler: Handler } {
+function notebooksTool(userLocale: 'de-DE' | 'de-AT' = 'de-DE'): { handler: Handler } {
   const tools = new Map<string, Handler>();
   const spy = vi.spyOn(McpServer.prototype, 'registerTool').mockImplementation(function (
     this: unknown,
@@ -65,6 +65,7 @@ function notebooksTool(): { handler: Handler } {
     buildAuthenticatedMcpServer({
       userId: 'user-1',
       scopes: new Set(['content:read']),
+      userLocale,
       req: { app: { locals: {} } } as never,
     });
   } finally {
@@ -180,5 +181,19 @@ describe('notebooks.search over MCP', () => {
     const res = await notebooksTool().handler({ action: 'search', id: 'nb-1', query: '  ' });
     expect(res.content[0].text).toContain('braucht id');
     expect(askSingleCollection).not.toHaveBeenCalled();
+  });
+});
+
+describe('notebooks.list scope=system over MCP', () => {
+  // The chat factory gates system notebooks on state.userLocale; the MCP ctx
+  // must carry it or every connector gets the de-DE set.
+  it('offers an AT account the Austrian corpus', async () => {
+    const res = await notebooksTool('de-AT').handler({ action: 'list', scope: 'system' });
+    expect(res.content[0].text).toContain('oesterreich');
+  });
+
+  it('keeps it from a DE account', async () => {
+    const res = await notebooksTool('de-DE').handler({ action: 'list', scope: 'system' });
+    expect(res.content[0].text).not.toContain('oesterreich');
   });
 });

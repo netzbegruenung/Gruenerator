@@ -70,6 +70,7 @@ import {
 } from './methodPrompts.js';
 
 import type { McpAuthContext } from './mcpAuth.js';
+import type { UserLocale } from '../../agents/langgraph/ChatGraph/types.js';
 import type { QAResponse } from '../../services/notebook/types.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Request } from 'express';
@@ -335,12 +336,14 @@ export interface McpServerBuildOptions {
   scopes: Set<string>;
   /** Nur beim Schlüssel-Weg gesetzt — trägt die Landesverbands-Freigabe. */
   apiKey?: McpAuthContext['apiKey'];
+  /** Aus dem Profil — steuert, welche System-Notebooks die Tools freigeben. */
+  userLocale: UserLocale;
   /** The live Express request — carries req.user. */
   req: Request;
 }
 
 export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpServer {
-  const { userId, scopes, apiKey, req } = opts;
+  const { userId, scopes, apiKey, userLocale, req } = opts;
   const has = (s: string) => scopes.has(s);
   const contentRead = has('content:read');
   const contentWrite = has('content:write');
@@ -355,7 +358,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
     }
   );
 
-  const ctx = makeMcpPersonalCtx(userId);
+  const ctx = makeMcpPersonalCtx(userId, userLocale);
 
   registerMethod(server);
 
