@@ -61,7 +61,7 @@ export function buildLegacyWolkeFileUrl(shareLink: string, rel: string): string 
  * comes back unchanged.
  */
 export function resolveWolkeDisplayUrl(url: string, root: string = internContentRoot()): string {
-  if (!url.startsWith(WOLKE_SCHEME)) return url;
+  if (typeof url !== 'string' || !url.startsWith(WOLKE_SCHEME)) return url;
   const rest = url.slice(WOLKE_SCHEME.length);
   const slash = rest.indexOf('/');
   if (slash <= 0) return url;
@@ -75,6 +75,8 @@ export function resolveWolkeDisplayUrl(url: string, root: string = internContent
  * else comes back unchanged.
  */
 export function toStoredWolkeUrl(url: string, root: string = internContentRoot()): string {
+  // Callers pass request parameters; a repeated query key arrives as an array.
+  if (typeof url !== 'string') return url;
   const hash = url.indexOf('#/');
   if (hash < 0 || !url.includes('wolke.netzbegruenung.de/')) return url;
   const link = url.slice(0, hash);
