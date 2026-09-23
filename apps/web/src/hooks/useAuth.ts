@@ -1,5 +1,5 @@
 import { type UserProfile } from '@gruenerator/contracts';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, queryOptions, useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import apiClient, { notifyAuthConfirmed } from '../components/utils/apiClient';
@@ -469,7 +469,7 @@ const buildE2EBypassAuthData = (): AuthData => {
  * that short-circuited the bootstrap signal. Running side effects exactly once
  * per fetch in the queryFn body has no equivalent silent-skip path.
  */
-const applyAuthAnswer = (data: AuthData, queryClient: ReturnType<typeof useQueryClient>) => {
+const applyAuthAnswer = (data: AuthData, queryClient: QueryClient) => {
   const { isAuthenticated: currentIsAuthenticated, user: currentUser } = useAuthStore.getState();
 
   if (data.isAuthenticated && data.user) {
@@ -553,6 +553,80 @@ const applyAuthAnswer = (data: AuthData, queryClient: ReturnType<typeof useQuery
   }
 };
 
+/**
+ * The one definition of the `authStatus` query. `useAuth` mounts it actively;
+ * `useAuthBootstrap` observes it with `enabled: false`. Both observers must pass
+ * the same options: an observer writes its options onto the shared query on
+ * every render, and one without `queryFn` also logs a dev error (#3500).
+ */
+export const authStatusQueryOptions = queryOptions<AuthData>({
+  queryKey: ['authStatus'],
+  // Background auth-bootstrap probe with its own complete fallbacks (retry
+  // with backoff, keep last-good session, redirect-on-dead-session via the
+  // apiClient interceptor). A transient probe failure is NOT user-actionable,
+  // so opt out of the global error toast (App.tsx QueryCache.onError) —
+  // otherwise it surfaces the generic "Ein unerwarteter Fehler …" toast on
+  // every logged-out page load, same noise `toastApiError` already skips 401 for.
+  meta: { silent: true },
+  queryFn: async ({ client }): Promise<AuthData> => {
+    if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true' && isE2EBypassAllowedHost()) {
+      const data = buildE2EBypassAuthData();
+      applyAuthAnswer(data, client);
+      return data;
+    }
+
+    const result = await probeAuthStatus();
+    sessionDebug('authq.result', {
+      kind: result.kind,
+      errorStatus:
+        result.kind === 'transient-error'
+          ? ((result.error as { status?: number; response?: { status?: number } })?.status ??
+            (result.error as { response?: { status?: number } })?.response?.status)
+          : undefined,
+      errorName:
+        result.kind === 'transient-error' ? (result.error as { name?: string })?.name : undefined,
+    });
+    if (result.kind === 'transient-error') {
+      // We couldn't reach or trust the server — this is NOT a logout. Leave
+      // the optimistic store state AND the localStorage caches untouched.
+      // Throw so React Query retries and enters its error branch; the
+      // last-good `data` (or `initialData`) survives, so a logged-in user
+      // keeps rendering instead of being torn down to `/login`.
+      throw result.error;
+    }
+
+    const data: AuthData =
+      result.kind === 'authenticated'
+        ? { isAuthenticated: true, user: result.user }
+        : { isAuthenticated: false };
+    // `guest` flows through here too: applyAuthAnswer's else-branch wipes
+    // the cache and clears the store — correct, the server definitively
+    // said there is no session.
+    applyAuthAnswer(data, client);
+    return data;
+  },
+  staleTime: 5 * 60 * 1000, // 5 minutes
+  gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+  // `queryFn` now only throws on transient (transport/server) failures —
+  // a genuine guest answer resolves normally — so every throw is worth
+  // retrying. Backoff rides out a backend deploy / cold-start window.
+  retry: (failureCount) => failureCount < 3,
+  retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+  // Auth specifically must stay live: sessions can die while a tab sits
+  // idle (Better Auth cookie revalidation against a stale row). On focus
+  // we want the UI to learn about it immediately, rather than waiting for
+  // the next user-triggered API call to 401 and trip the redirect path.
+  refetchOnWindowFocus: true,
+  // 'always' so a fresh page load (Cmd+R, Keycloak callback redirect,
+  // cross-device logout) revalidates against the backend even when the
+  // 5-minute persisted positive cache seeds React Query via `initialData`.
+  // The combination of cache-positive-only + refetchOnMount:'always' gives
+  // us instant /workplace render on the warm path AND prompt correction
+  // when the cached state has gone stale.
+  refetchOnMount: 'always',
+  refetchOnReconnect: true,
+});
+
 export const useAuth = (options: AuthOptions = {}) => {
   const { skipAuth = false, lazy = false, instant = false } = options;
 
@@ -576,8 +650,6 @@ export const useAuth = (options: AuthOptions = {}) => {
     setLoginIntent,
   } = useAuthStore();
 
-  const queryClient = useQueryClient();
-
   // Read the instant-auth cache once at mount. Used both to seed React Query
   // via `initialData` (so the splash never shows on the warm path) and to
   // skip the dev-only server-health probe.
@@ -595,75 +667,11 @@ export const useAuth = (options: AuthOptions = {}) => {
     isLoading: isQueryLoading,
     error: queryError,
     refetch: refetchAuth,
-  } = useQuery<AuthData>({
-    queryKey: ['authStatus'],
-    // Background auth-bootstrap probe with its own complete fallbacks (retry
-    // with backoff, keep last-good session, redirect-on-dead-session via the
-    // apiClient interceptor). A transient probe failure is NOT user-actionable,
-    // so opt out of the global error toast (App.tsx QueryCache.onError) —
-    // otherwise it surfaces the generic "Ein unerwarteter Fehler …" toast on
-    // every logged-out page load, same noise `toastApiError` already skips 401 for.
-    meta: { silent: true },
-    queryFn: async (): Promise<AuthData> => {
-      if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true' && isE2EBypassAllowedHost()) {
-        const data = buildE2EBypassAuthData();
-        applyAuthAnswer(data, queryClient);
-        return data;
-      }
-
-      const result = await probeAuthStatus();
-      sessionDebug('authq.result', {
-        kind: result.kind,
-        errorStatus:
-          result.kind === 'transient-error'
-            ? ((result.error as { status?: number; response?: { status?: number } })?.status ??
-              (result.error as { response?: { status?: number } })?.response?.status)
-            : undefined,
-        errorName:
-          result.kind === 'transient-error' ? (result.error as { name?: string })?.name : undefined,
-      });
-      if (result.kind === 'transient-error') {
-        // We couldn't reach or trust the server — this is NOT a logout. Leave
-        // the optimistic store state AND the localStorage caches untouched.
-        // Throw so React Query retries and enters its error branch; the
-        // last-good `data` (or `initialData`) survives, so a logged-in user
-        // keeps rendering instead of being torn down to `/login`.
-        throw result.error;
-      }
-
-      const data: AuthData =
-        result.kind === 'authenticated'
-          ? { isAuthenticated: true, user: result.user }
-          : { isAuthenticated: false };
-      // `guest` flows through here too: applyAuthAnswer's else-branch wipes
-      // the cache and clears the store — correct, the server definitively
-      // said there is no session.
-      applyAuthAnswer(data, queryClient);
-      return data;
-    },
+  } = useQuery({
+    ...authStatusQueryOptions,
     enabled: isServerAvailable && !skipAuth,
     initialData: cachedEntry?.data,
     initialDataUpdatedAt: cachedEntry?.timestamp,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
-    // `queryFn` now only throws on transient (transport/server) failures —
-    // a genuine guest answer resolves normally — so every throw is worth
-    // retrying. Backoff rides out a backend deploy / cold-start window.
-    retry: (failureCount) => failureCount < 3,
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
-    // Auth specifically must stay live: sessions can die while a tab sits
-    // idle (Better Auth cookie revalidation against a stale row). On focus
-    // we want the UI to learn about it immediately, rather than waiting for
-    // the next user-triggered API call to 401 and trip the redirect path.
-    refetchOnWindowFocus: true,
-    // 'always' so a fresh page load (Cmd+R, Keycloak callback redirect,
-    // cross-device logout) revalidates against the backend even when the
-    // 5-minute persisted positive cache seeds React Query via `initialData`.
-    // The combination of cache-positive-only + refetchOnMount:'always' gives
-    // us instant /workplace render on the warm path AND prompt correction
-    // when the cached state has gone stale.
-    refetchOnMount: 'always',
-    refetchOnReconnect: true,
   });
 
   // Calculate loading states with optimizations

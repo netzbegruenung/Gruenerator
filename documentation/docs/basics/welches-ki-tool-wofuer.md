@@ -4,9 +4,11 @@ description: 'Texte, Bilder, Recherche, Transkription: welches Werkzeug für wel
 
 # Welches KI-Tool wofür
 
-## 1. Texterstellung: Claude/Gruenerator
+## 1. Texterstellung: Claude
 
-[Claude](https://claude.ai) von Anthropic eignet sich hervorragend für die Erstellung hochwertiger Texte und zeichnet sich durch gute Deutschkenntnisse aus. Speziell für Die Grünen gibt es den [Grünerator](https://gruenerator.de), der anhand grüner Sprache trainiert wurde und Pressemitteilungen, Social-Media-Beiträge und Anträge erstellt.
+[Claude](https://claude.ai) von Anthropic eignet sich hervorragend für die Erstellung hochwertiger Texte und zeichnet sich durch gute Deutschkenntnisse aus.
+
+Speziell für Die Grünen gibt es den [Grünerator](https://gruenerator.de), der Pressemitteilungen, Social-Media-Beiträge und Anträge in grüner Sprache erstellt. Er ist ein eigenständiges Werkzeug und baut nicht auf Claude auf: Er nutzt ausschließlich Modelle europäischer Anbieter (siehe [Grünerator Pro-EU](./gruenerator-pro-eu.md)).
 
 ## 2. Allrounder: ChatGPT
 

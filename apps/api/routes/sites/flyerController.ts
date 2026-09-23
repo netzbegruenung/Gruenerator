@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { runFlyerToSiteGraph } from '../../agents/langgraph/FlyerToSiteGraph/FlyerToSiteGraph.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -35,6 +36,7 @@ const flyerBodySchema = z.object({
 router.post(
   '/',
   requireAuth as express.RequestHandler,
+  requireAiConsent,
   upload.single('flyer') as express.RequestHandler,
   validateBody(flyerBodySchema) as express.RequestHandler,
   async (req: TypedRequest<z.infer<typeof flyerBodySchema>>, res: Response): Promise<void> => {

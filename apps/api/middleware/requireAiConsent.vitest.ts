@@ -30,7 +30,12 @@ vi.mock('../config/env.js', () => ({
   },
 }));
 
-const { requireAiConsent } = await import('./requireAiConsent.js');
+const getProfileById = vi.fn();
+vi.mock('../services/user/index.js', () => ({
+  getProfileService: () => ({ getProfileById }),
+}));
+
+const { requireAiConsent, requireApiKeyAiConsent } = await import('./requireAiConsent.js');
 
 function mockReq(user?: Partial<UserProfile>): Request {
   return {
@@ -91,5 +96,46 @@ describe('requireAiConsent', () => {
     requireAiConsent(mockReq(), res, next);
     expect(next).toHaveBeenCalledOnce();
     expect(res.statusCode).toBeUndefined();
+  });
+});
+
+describe('requireApiKeyAiConsent — /api/v1 (API-Schlüssel, MCP-OAuth)', () => {
+  const apiKeyReq = (userId?: string): Request =>
+    ({
+      originalUrl: '/api/v1/chat/completions',
+      ...(userId ? { apiKey: { userId } } : {}),
+    }) as unknown as Request;
+
+  beforeEach(() => {
+    envMock.ENFORCE_AI_CONSENT = true;
+    getProfileById.mockReset();
+  });
+
+  it('antwortet ohne Einwilligung mit 403 und eigenem Code', async () => {
+    getProfileById.mockResolvedValue({ ai_consent_at: null });
+    const res = mockRes();
+    const next = vi.fn();
+    await requireApiKeyAiConsent(apiKeyReq('u1'), res, next);
+    expect(getProfileById).toHaveBeenCalledWith('u1');
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(403);
+    expect((res.body as { code?: string }).code).toBe(AI_CONSENT_REQUIRED_CODE);
+  });
+
+  it('lässt mit Einwilligung durch', async () => {
+    getProfileById.mockResolvedValue({ ai_consent_at: '2026-08-10T10:00:00.000Z' });
+    const res = mockRes();
+    const next = vi.fn();
+    await requireApiKeyAiConsent(apiKeyReq('u1'), res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.statusCode).toBeUndefined();
+  });
+
+  it('lässt ohne Schlüssel-Kontext durch — die 401 gehört der Anmeldung', async () => {
+    const res = mockRes();
+    const next = vi.fn();
+    await requireApiKeyAiConsent(apiKeyReq(), res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(getProfileById).not.toHaveBeenCalled();
   });
 });

@@ -18,6 +18,13 @@ name: Content Sync Watchdog
 # full run" is defined once — a second copy is how a rename demotes the nightly
 # run in one place while the other still believes in it.
 #
+# Content Sync is now dispatched by the Grünerator API (workflow_dispatch, see
+# apps/api/services/scrapers/contentSyncDispatcher.ts) because the crons stayed
+# throttled. The measurement does not care how a run was started: the action
+# lists runs of every event and recognises a full run by its `Sync gruene-de`
+# job, which a dispatched full run has as well. So this keeps watching whichever
+# of the two is actually starting the runs.
+#
 # It is itself a cron and can itself be dropped. That is tolerable in a way the
 # sync is not: every tick evaluates the whole trailing window, so a lost tick is
 # fully covered by the next one. A lost sync slot is simply gone.
@@ -118,7 +125,7 @@ jobs:
           # not — and a real collapse shows up here first anyway: fewer runs is
           # what a dropped schedule *is*.
           if [ "$RUNS_24H" -lt "$MIN_RUNS_24H" ]; then
-            echo "::error::Only $RUNS_24H successful Content Sync runs in the last 24 h (expected 18, floor $MIN_RUNS_24H). GitHub is dropping the schedule — see #2972."
+            echo "::error::Only $RUNS_24H successful Content Sync runs in the last 24 h (expected 18, floor $MIN_RUNS_24H). Neither the API dispatcher nor the GitHub schedule is starting the runs — check the API logs for ContentSyncDispatcher and see #2972."
             FAILED=1
           fi
 
