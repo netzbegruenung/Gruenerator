@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuiState } from '@assistant-ui/store';
+import { type NotebookAnswerMode, type NotebookDepth } from '@gruenerator/contracts';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -17,18 +18,18 @@ import {
 import { BookOpen, Telescope, Zap } from 'lucide-react';
 import { LuSettings2 } from 'react-icons/lu';
 
+import { NOTEBOOK_ANSWER_MODES, notebookAnswerModeDef } from '../../lib/notebookAnswerMode';
 import {
   NOTEBOOK_DEPTHS,
   notebookDepthDef,
   type NotebookDepthIconKey,
 } from '../../lib/notebookDepth';
 import { composerToolbarButtonClass } from '../../lib/utils';
+import { type ComposerOption, ComposerOptionPicker } from '../thread/ComposerOptionPicker';
 import { GrueneratorComposer } from '../thread/GrueneratorComposer';
 
 import { type CategoryFilterField } from './CategoryFilterDropdown';
 import { type SourceFilterCollection } from './SourceFilterDropdown';
-
-import type { NotebookDepth } from '@gruenerator/contracts';
 
 /** Semantic icon key → lucide component. The registry stays renderer-agnostic. */
 const DEPTH_ICONS: Record<NotebookDepthIconKey, typeof Zap> = {
@@ -36,6 +37,15 @@ const DEPTH_ICONS: Record<NotebookDepthIconKey, typeof Zap> = {
   deep: BookOpen,
   ultra: Telescope,
 };
+
+const ANSWER_MODE_OPTIONS: ComposerOption<NotebookAnswerMode>[] = NOTEBOOK_ANSWER_MODES.map(
+  (m) => ({
+    id: m.mode,
+    name: m.label,
+    description: m.description,
+    ...(m.recommended ? { recommendedLabel: 'Empfohlen' } : {}),
+  })
+);
 
 export interface SourceFilterConfig {
   collections: SourceFilterCollection[];
@@ -58,6 +68,9 @@ interface NotebookComposerProps {
   categoryFilters?: CategoryFilterConfig;
   mode?: NotebookDepth;
   onModeChange?: (mode: NotebookDepth) => void;
+  /** Answer mode picker beside the send button — only where the surface offers it. */
+  answerMode?: NotebookAnswerMode;
+  onAnswerModeChange?: (mode: NotebookAnswerMode) => void;
 }
 
 function CategoryFilterItems({
@@ -298,8 +311,11 @@ export function NotebookComposer({
   categoryFilters,
   mode,
   onModeChange,
+  answerMode,
+  onAnswerModeChange,
 }: NotebookComposerProps) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
+  const activeAnswerMode = answerMode ? notebookAnswerModeDef(answerMode) : null;
 
   return (
     <GrueneratorComposer
@@ -323,6 +339,20 @@ export function NotebookComposer({
             categoryFilters={categoryFilters}
           />
         ),
+        ...(activeAnswerMode && onAnswerModeChange
+          ? {
+              sendAdornment: (
+                <ComposerOptionPicker
+                  options={ANSWER_MODE_OPTIONS}
+                  value={activeAnswerMode.mode}
+                  onChange={onAnswerModeChange}
+                  sheetTitle="Antwortmodus wählen"
+                  sectionTitle="Antwortmodus"
+                  ariaLabel={`Antwortmodus wählen – ${activeAnswerMode.label}`}
+                />
+              ),
+            }
+          : {}),
       }}
     />
   );

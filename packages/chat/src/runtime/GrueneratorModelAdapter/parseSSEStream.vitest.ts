@@ -550,3 +550,120 @@ describe('parseSSEStream warning — evidence_weak', () => {
     expect(custom.evidenceWeak).toBeUndefined();
   });
 });
+
+/**
+ * Mobile notebook threads run through this parser, not NotebookModelAdapter:
+ * the `answer_mode` event is what puts the mode chip on the answer, and a
+ * precision turn's cards must survive the notebook-shaped `completion` that
+ * replaces the streamed text.
+ */
+describe('parseSSEStream notebook answer mode', () => {
+  async function lastResult(events: Array<{ event: string; data: unknown }>) {
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last:
+      { content: ContentPart[]; metadata?: { custom?: Record<string, unknown> } } | undefined;
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as typeof last;
+    }
+    return { content: last?.content ?? [], custom: last?.metadata?.custom ?? {} };
+  }
+
+  it('puts the resolved mode and reason on custom', async () => {
+    const { custom } = await lastResult([
+      {
+        event: 'answer_mode',
+        data: { requested: 'auto', resolved: 'praezision', reason: 'guard' },
+      },
+      { event: 'completion', data: { answer: 'A', text: 'A' } },
+    ]);
+    expect(custom.answerMode).toBe('praezision');
+    expect(custom.answerModeReason).toBe('guard');
+  });
+
+  it('keeps the mode when the reason is unknown, and shows none for an unknown mode', async () => {
+    const known = await lastResult([
+      { event: 'answer_mode', data: { requested: null, resolved: 'chat', reason: 'neu' } },
+      { event: 'completion', data: { text: 'A' } },
+    ]);
+    expect(known.custom.answerMode).toBe('chat');
+    expect(known.custom.answerModeReason).toBeUndefined();
+
+    const unknown = await lastResult([
+      { event: 'answer_mode', data: { requested: 'auto', resolved: 'turbo', reason: 'guard' } },
+      { event: 'completion', data: { text: 'A' } },
+    ]);
+    expect(unknown.custom.answerMode).toBeUndefined();
+  });
+
+  it('leaves custom untouched on a turn without the event', async () => {
+    const { custom } = await lastResult([
+      { event: 'text_delta', data: { text: 'Hallo' } },
+      { event: 'done', data: { citations: [] } },
+    ]);
+    expect(custom).not.toHaveProperty('answerMode');
+    expect(custom).not.toHaveProperty('answerModeReason');
+  });
+
+  it('shows the precision status line as soon as the mode is known', async () => {
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    const events = [
+      {
+        event: 'answer_mode',
+        data: { requested: 'praezision', resolved: 'praezision', reason: 'explicit' },
+      },
+    ];
+    let progress: { stage?: string; message?: string } | undefined;
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      progress ??= (result.metadata?.custom as { progress?: typeof progress } | undefined)
+        ?.progress;
+    }
+    expect(progress?.stage).toBe('searching');
+    expect(progress?.message).toMatch(/Präzisionsmodus/);
+  });
+
+  it('a precision completion replaces the streamed text and keeps the loop cards', async () => {
+    const { content, custom } = await lastResult([
+      {
+        event: 'answer_mode',
+        data: { requested: 'auto', resolved: 'praezision', reason: 'pregate' },
+      },
+      {
+        event: 'tool_step_start',
+        data: { stepId: 's1', toolName: 'notebook_quellen', args: { action: 'list' } },
+      },
+      {
+        event: 'tool_step_result',
+        data: { stepId: 's1', toolName: 'notebook_quellen', ok: true, result: { count: 3 } },
+      },
+      { event: 'text_delta', data: { text: 'Entwurf ' } },
+      {
+        event: 'completion',
+        data: {
+          answer: 'Es sind drei Quellen [1].',
+          text: 'Es sind drei Quellen [1].',
+          citations: [
+            {
+              index: '1',
+              cited_text: 'Zitat',
+              document_title: 'Programm',
+              document_id: 'd1',
+              collection_id: 'c1',
+            },
+          ],
+          sources: [],
+          allSources: [],
+          metadata: { answerMode: 'praezision', answerModeReason: 'pregate' },
+        },
+      },
+    ]);
+
+    expect(content.map((p) => p.type)).toEqual(['tool-call', 'text']);
+    expect(content.find(isCard)?.toolName).toBe('notebook_quellen');
+    expect(content.filter(isText).map((p) => p.text)).toEqual(['Es sind drei Quellen [1].']);
+    expect(custom.answerMode).toBe('praezision');
+    expect((custom.citations as Array<{ id: number; title: string }>)[0]).toMatchObject({
+      id: 1,
+      title: 'Programm',
+    });
+  });
+});
