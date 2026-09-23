@@ -70,7 +70,7 @@ import {
   type RankRow,
   type ScanActionArgs,
 } from './notebookSourceReadActions.js';
-import { groundNote, groundRows, makeRow } from './personalDataTools.js';
+import { groundNote, groundSourceRows, makeRow } from './personalDataTools.js';
 
 import type { SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
@@ -348,7 +348,7 @@ async function list(
   if (results.length === 0) {
     groundNote(sourceRegistry, `System-Notebook „${collection.name}"`, 'Keine passenden Quellen.');
   } else {
-    groundRows(sourceRegistry, results);
+    groundSourceRows(sourceRegistry, results, collection.key);
   }
   return withUndated(
     {
@@ -740,7 +740,7 @@ async function rank(
       'Keine Quellen zum Ordnen.'
     );
   } else {
-    groundRows(
+    groundSourceRows(
       ctx.sourceRegistry,
       ranking.map((r) =>
         makeRow(
@@ -750,7 +750,8 @@ async function rank(
           `${r.rank}. ${r.value ?? '—'} ${r.unit}`,
           r.sourceId
         )
-      )
+      ),
+      collection.key
     );
   }
   return withUndated(
