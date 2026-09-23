@@ -18,6 +18,7 @@ import multer from 'multer';
 import { z } from 'zod';
 
 import authMiddleware from '../../middleware/authMiddleware.js';
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { ocrService } from '../../services/OcrService/index.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
@@ -55,6 +56,7 @@ const scannerBodySchema = z.object({
 router.post(
   '/extract',
   authMiddleware.requireAuth,
+  requireAiConsent,
   upload.single('file'),
   validateBody(scannerBodySchema) as RequestHandler,
   async (
