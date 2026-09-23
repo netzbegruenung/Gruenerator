@@ -94,17 +94,22 @@ export function requireAiConsent(req: Request, res: Response, next: NextFunction
  * steht (die Einwilligung wurde beim Anmelden im Web erteilt, der Widerruf
  * dort erreicht den MCP-Pfad sonst nie).
  *
- * Bei einem Lesefehler `true`: eine DB-Störung darf nicht wie ein Widerruf
- * wirken. Die Durchsetzung ist die zweite Verteidigungslinie, nicht die erste.
+ * Bei einem Lesefehler `true` (ausser mit `failClosed`): eine DB-Störung darf
+ * im Request-Pfad nicht wie ein Widerruf wirken. Die Durchsetzung ist die zweite Verteidigungslinie, nicht die erste.
  */
-export async function hasAiConsent(userId: string): Promise<boolean> {
+export async function hasAiConsent(
+  userId: string,
+  opts: { failClosed?: boolean } = {}
+): Promise<boolean> {
   if (!env.ENFORCE_AI_CONSENT) return true;
   try {
     const profile = await getProfileService().getProfileById(userId);
     return profile?.ai_consent_at != null;
   } catch (err) {
     log.warn('[AiConsent] profile read failed for %s: %s', userId, (err as Error).message);
-    return true;
+    // Hintergrundarbeit (`failClosed`) wartet lieber einen Lauf, als ohne
+    // geprüfte Einwilligung ein Modell zu fragen — hier wartet niemand.
+    return !opts.failClosed;
   }
 }
 
