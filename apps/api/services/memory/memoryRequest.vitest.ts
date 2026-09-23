@@ -26,6 +26,12 @@ describe('looksLikeMemoryRequest', () => {
     ['grundsätzlich bitte', 'Grundsätzlich bitte in der Sie-Form.'],
     ['künftig keine', 'Künftig keine Emojis mehr.'],
     ['umlaut boundary', 'Zukünftig immer mit Betreffzeile.'],
+    // The phrasings the memory tool description names as save triggers.
+    ['nie wieder … bitte', 'Nie wieder Gendersternchen, bitte.'],
+    ['von nun an', 'Von nun an bitte immer mit Quellen.'],
+    ['beim nächsten mal', 'Beim nächsten Mal bitte kürzer.'],
+    ['bitte immer', 'Bitte immer in der Sie-Form.'],
+    ['bitte nie after a sentence', 'Danke. Bitte nie wieder Emojis.'],
   ];
   it.each(requests)('recognises a memory request: %s', (_label, text) => {
     expect(looksLikeMemoryRequest(text)).toBe(true);
@@ -39,6 +45,11 @@ describe('looksLikeMemoryRequest', () => {
     ['in Zukunft as topic', 'Wie sieht Mobilität in Zukunft aus?'],
     ['generell as adverb', 'Wie steht die Partei generell zur Atomkraft?'],
     ['immer without the marker', 'Warum wird die Miete immer teurer?'],
+    ['bitte immer mid-sentence', 'Warum muss ich bitte immer alles selbst machen?'],
+    ['nie wieder as slogan', 'Schreib einen Post zum 8. Mai: Nie wieder Krieg!'],
+    ['nie wieder ist jetzt', 'Nie wieder ist jetzt – bitte erklär mir den Slogan.'],
+    // A bare statement about oneself carries no save marker; the loop decides.
+    ['bare fact', 'Ich bin Sprecherin im KV Köln.'],
     // Product question about memory — reading needs no tool.
     ['product question', 'Merkst du dir eigentlich, was ich schreibe?'],
     ['read request', 'Was weißt du über mich?'],
