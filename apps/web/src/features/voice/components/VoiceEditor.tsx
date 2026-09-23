@@ -18,6 +18,8 @@ export interface VoiceEditorProps {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   /** The "Text mit KI entwerfen" trigger, so the editor owns no drafting state. */
   assistant: ReactNode;
+  /** The "Datei einfügen" trigger — likewise owned by the page. */
+  fileImport: ReactNode;
   /** The settings toggle in the toolbar — absent on phones, where it is a row below. */
   settingsToggle?: ReactNode;
   /** The opened settings, folded out under the toolbar inside the same card. */
@@ -40,6 +42,7 @@ export default function VoiceEditor({
   pauseFits,
   textareaRef,
   assistant,
+  fileImport,
   settingsToggle,
   settingsPanel,
 }: VoiceEditorProps) {
@@ -82,6 +85,7 @@ export default function VoiceEditor({
 
       <div className="flex items-center gap-xs border-t border-grey-200 px-sm py-xs dark:border-grey-700">
         {assistant}
+        {fileImport}
         <Button
           type="button"
           variant="ghost"
