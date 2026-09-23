@@ -37,7 +37,7 @@ Der Grünerator bedient zwei unterschiedliche Grüne Parteien:
 
 Das sind nicht regionale Varianten desselben Stils — es sind verschiedene Organisationen mit unterschiedlichen Namen, Strukturen und Positionen. Deshalb trainieren wir **separate LoRA-Adapter** für jedes Land, die auf demselben Basismodell laufen.
 
-Die Sprache der Nutzer\*in (Deutsch/Deutschland oder Deutsch/Österreich) bestimmt automatisch, welcher Adapter verwendet wird — ohne Mehrkosten.
+Sobald die Adapter angebunden sind, soll die Sprache der Nutzer\*in (Deutsch/Deutschland oder Deutsch/Österreich) automatisch bestimmen, welcher Adapter verwendet wird — ohne Mehrkosten. Diese Anbindung steht noch aus (siehe „Nächste Schritte“ unten).
 
 ## Welche Daten verwenden wir?
 
