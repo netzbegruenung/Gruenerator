@@ -41,19 +41,29 @@ describe('ContentExtractor — Berliner Einzelseiten', () => {
       'berlin-lv-beschluesse' as const,
       'gruene-berlin-wahlprogramm-kapitel-3.html',
       'Unser Wahlprogramm - Kapitel 3',
-      '2026-03-27T15:20:03',
+      // Sichtbares Datum (15.02.26) statt Datensatzstand (2026-03-27), #3565.
+      '2026-02-15',
     ],
     [
       'berlin-lv-beschluesse' as const,
       'gruene-berlin-beschluss-pflegenottelefon.html',
       'Pflegenottelefon für Berlin – schnelle Hilfe im Pflegekrisenfall',
-      '2025-12-17T10:59:01',
+      // Sichtbares Datum (10.12.25) statt Datensatzstand (2025-12-17), #3565.
+      '2025-12-10',
     ],
     [
       'berlin-lv-presse' as const,
       'gruene-berlin-pressemitteilung-expo.html',
       'EXPO-Absage von Wegner: Wer regiert Berlin?',
-      '2026-05-06T12:30:36',
+      // Sichtbares Datum und Datensatzstand fallen hier auf denselben Tag,
+      // aber das sichtbare Datum trägt keine Uhrzeit (#3565).
+      '2026-05-06',
+    ],
+    [
+      'berlin-lv-presse' as const,
+      'gruene-berlin-steht-zusammen.html',
+      'Berlin steht zusammen!',
+      '2026-07-26',
     ],
   ])('%s / %s: Titel aus der Einzelansicht, ohne Anrisstext', async (id, file, title, date) => {
     const extracted = await ContentExtractor.extractPageContent(
@@ -90,6 +100,50 @@ describe('ContentExtractor — Berliner Einzelseiten', () => {
     expect(extracted.title.startsWith('Unser Wahlprogramm - Kapitel 3: Berlin gestaltet')).toBe(
       true
     );
+  });
+});
+
+/**
+ * Das gedruckte Datum auf der Seite ist nicht immer der TYPO3-Datensatzstand
+ * (#3565): berlin-lv-presse/-beschluesse, brandenburg-archive-presse und
+ * bayern-fraktion-presse zeigen alle drei ein anderes Datum, als die Meta-
+ * Angabe bzw. der <main>-Langdatum-Scan zurückgibt.
+ */
+describe('ContentExtractor — sichtbares Datum statt Datensatzstand (#3565)', () => {
+  it('brandenburg-archive-presse: p.inlineleft schlägt article:published_time, trotz Teaser-Absatz davor', async () => {
+    const extracted = await ContentExtractor.extractPageContent(
+      'https://archiv.gruene-brandenburg.de/startseite/single-news/zehn-jahre-nach-der-selbstenttarnung-des-nsu',
+      sourceById('brandenburg-archive-presse'),
+      fixtureFetch('gruene-brandenburg-archiv-nsu.html')
+    );
+
+    expect(extracted.publishedAt).toBe('2021-11-03');
+  });
+
+  it('bayern-fraktion-presse: das gedruckte Datum schlägt die Unterzeile im <main>-Scan', async () => {
+    const extracted = await ContentExtractor.extractPageContent(
+      'https://www.gruene-fraktion-bayern.de/themen/umwelt-natur/2023/grundwasser-schuetzen-ausverkauf-verhindern/',
+      sourceById('bayern-fraktion-presse'),
+      fixtureFetch('gruene-fraktion-bayern-grundwasser-lede-datum.html')
+    );
+
+    expect(extracted.publishedAt).toBe('2023-03-01');
+  });
+
+  it('ein Datumsselektor ohne Datumsmuster fällt durch statt Prosa als Datum zu übernehmen', async () => {
+    const html = `<!DOCTYPE html><html><head>
+      <meta property="article:published_time" content="2024-01-02T10:00:00" />
+    </head><body>
+      <div class="ce-bodytext"><p class="inlineleft">Aktualisiert</p></div>
+    </body></html>`;
+
+    const extracted = await ContentExtractor.extractPageContent(
+      'https://archiv.gruene-brandenburg.de/startseite/single-news/x',
+      sourceById('brandenburg-archive-presse'),
+      () => Promise.resolve(new Response(html))
+    );
+
+    expect(extracted.publishedAt).toBe('2024-01-02T10:00:00');
   });
 });
 
