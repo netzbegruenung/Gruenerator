@@ -351,7 +351,10 @@ export class LinkExtractor {
   ): string {
     const parentText = $(el).parent().text().trim().substring(0, 200);
     const fileName = this.#fileNameAnchorText($, el);
-    const headingText = elementorHeadings?.get(el) || this.#nearestHeading($, el);
+    // On Elementor pages an undated heading is a deliberate stop (''), not a miss.
+    const headingText = elementorHeadings
+      ? (elementorHeadings.get(el) ?? '')
+      : this.#nearestHeading($, el);
 
     const prefix = [fileName, headingText].filter(Boolean).join(' | ');
     if (!prefix) return parentText;
