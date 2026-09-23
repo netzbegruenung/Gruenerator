@@ -182,8 +182,20 @@ describe('looksLikeNotebookToolAsk — gegen den Eval-Korpus', () => {
   // Planer-Prompt (`buildToolUsageBlock`, #3630) — pinnte das Tor sie, wäre
   // der Hinweis ein Scope.
   const REACHED_BY_PLANNER_HINT = new Set(['nbtool-berlin-thread-followup-content']);
+  // Notebook-Seite: dort entscheidet das Tor nur im Auto-Modus und nur als
+  // Vorfilter. Was erst der LLM-Wächter erreicht, oder was vor dem Tor schon
+  // entschieden ist (nicht lesbare Sammlung), prüft der Korpus, nicht das Tor.
+  const REACHED_BY_ANSWER_MODE_GUARD = new Set([
+    'nbmode-auto-guard-quote-check',
+    'nbmode-auto-guard-full-list',
+    'nbmode-auto-followup-praezision',
+    'nbmode-auto-ineligible',
+  ]);
   const turns = loadCorpus(fileURLToPath(new URL('../../../evals', import.meta.url)), all)
     .filter((s) => !REACHED_BY_PLANNER_HINT.has(s.id))
+    .filter((s) => !REACHED_BY_ANSWER_MODE_GUARD.has(s.id))
+    // Ohne `auto` fragt die Notebook-Seite das Tor gar nicht (explizit oder Default).
+    .filter((s) => s.surface !== 'notebook' || s.notebookAnswerMode === 'auto')
     .flatMap((s) => s.turns);
   const wants = (t: (typeof turns)[number]) =>
     t.expect.toolsMustInclude?.includes('notebook_quellen') ?? false;
