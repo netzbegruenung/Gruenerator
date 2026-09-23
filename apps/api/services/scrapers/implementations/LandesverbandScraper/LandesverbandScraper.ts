@@ -51,6 +51,7 @@ import {
 } from '../../utils/binaryFingerprint.js';
 import { collectWolkeShareFiles, extractWolkeFileText } from '../../utils/wolkeShareHandler.js';
 
+import { staleDocumentsFilter } from './archiveFilter.js';
 import { ContentExtractor } from './extractors/ContentExtractor.js';
 import { DateExtractor } from './extractors/DateExtractor.js';
 import { isGenericLinkText, LinkExtractor } from './extractors/LinkExtractor.js';
@@ -484,15 +485,36 @@ export class LandesverbandScraper extends BaseScraper {
           recordExtraction({ method: extraction.method, pages: extraction.pages });
           const text = extraction.text;
           const title = file.name.replace(/\.[^.]+$/, '');
+          // Der WebDAV-mtime ist kein Veröffentlichungsdatum, aber der
+          // Dateiname trägt oft ein echtes Datum (LPT 08.11.2025 samt
+          // Anhang.pdf, 2026-03-22-…). Nur Tages-Genauigkeit zählt (siehe
+          // DateExtractor.extractWolkeFileNameDate) — alles andere bleibt null
+          // statt geraten (#3564).
+          const dateInfo = DateExtractor.extractWolkeFileNameDate(file.name);
           const storeResult = await this.documentProcessor.processAndStoreDocument(
             source,
             contentPath.type,
             file.url,
-            { title, text, publishedAt: null, categories: [], bodyFallback: false },
+            { title, text, publishedAt: dateInfo.dateString, categories: [], bodyFallback: false },
             true, // isFile — Wolke share
             targetCollection,
             source.maxAgeYears,
-            file.etag ? { wolke_etag: file.etag } : undefined
+            {
+              ...(file.etag ? { wolke_etag: file.etag } : {}),
+              date_precision: dateInfo.precision,
+              // Marks the point for staleDocumentsFilter (#archiveStaleDocuments):
+              // ignoreMaxAge below only protects ingestion, the archive pass runs
+              // later and re-derives staleness from published_at on its own, so
+              // without this marker a dated Wolke point would survive ingestion
+              // and then get archived on the very same scrapeSource run (#3564).
+              // Set unconditionally — not every Wolke file has an etag to key
+              // wolke_etag off, but every Wolke point must carry this.
+              age_exempt: true,
+            },
+            // Wolke shares are curated folders, shared on purpose — the file's
+            // own date must never age it out, same as `publishedAt: null` did
+            // before dating existed (#3564).
+            true
           );
 
           if (storeResult.stored) {
@@ -1381,11 +1403,17 @@ export class LandesverbandScraper extends BaseScraper {
    *
    * Undated points are kept in the live collection — consistent with the
    * ingestion filter (DocumentProcessor STEP 2), which only rejects dated
-   * content. Sources without a configured cap are left untouched. The copy uses
-   * the same deterministic point ids, so the move is idempotent: a re-run
-   * re-archives the same ids (overwriting in the archive) before deleting. We
-   * archive a batch before deleting it, so a mid-run failure never loses data —
-   * worst case a point is duplicated into the archive and re-deleted next run.
+   * content. Sources without a configured cap are left untouched. `age_exempt:
+   * true` points (Wolke shares, #3564) are excluded from the scroll filter
+   * itself: their dating uses `ignoreMaxAge` at ingestion precisely so a real
+   * old file-name date survives, and this pass has no notion of that flag — it
+   * only re-derives staleness from `published_at` — so without the exclusion a
+   * freshly-dated Wolke point would be archived right back out on the same
+   * `scrapeSource` run that just stored it. The copy uses the same
+   * deterministic point ids, so the move is idempotent: a re-run re-archives
+   * the same ids (overwriting in the archive) before deleting. We archive a
+   * batch before deleting it, so a mid-run failure never loses data — worst
+   * case a point is duplicated into the archive and re-deleted next run.
    *
    * @returns number of points moved to the archive
    */
@@ -1403,7 +1431,7 @@ export class LandesverbandScraper extends BaseScraper {
       // Phase 1: cheap payload-only scroll to find stale point ids.
       do {
         const page = await this.qdrantClient.scroll(liveCollection, {
-          filter: { must: [{ key: 'source_id', match: { value: source.id } }] },
+          filter: staleDocumentsFilter(source.id),
           with_payload: { include: ['published_at'] },
           with_vector: false,
           limit: 256,

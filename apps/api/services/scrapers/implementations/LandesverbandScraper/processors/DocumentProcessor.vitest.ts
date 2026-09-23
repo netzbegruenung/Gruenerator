@@ -560,6 +560,79 @@ describe('processAndStoreDocument — default age limit', () => {
   });
 });
 
+/**
+ * Wolke shares are curated folders shared on purpose (#3564) — dating a file
+ * from its name must never make it age out where `publishedAt: null` used to
+ * bypass the check by construction. `ignoreMaxAge` keeps the date on the
+ * payload but skips the too_old rejection.
+ */
+describe('processAndStoreDocument — ignoreMaxAge (Wolke, #3564)', () => {
+  beforeEach(() => {
+    scrollDocuments.mockResolvedValue([]);
+  });
+
+  const storeDated = (publishedAt: string, ignoreMaxAge?: boolean) =>
+    makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'wahlpruefstein',
+      URL_UNDER_TEST,
+      { title: 'Antwort', text: TEXT, publishedAt, categories: [] },
+      true, // isFile — Wolke share
+      'landesverbaende_documents',
+      5,
+      undefined,
+      ignoreMaxAge
+    );
+
+  it('rejects a 2019 doc under a 5-year source by default', async () => {
+    await expect(storeDated('2019-01-01')).resolves.toEqual({ stored: false, reason: 'too_old' });
+  });
+
+  it('stores the same 2019 doc under a 5-year source when ignoreMaxAge is set', async () => {
+    const result = await storeDated('2019-01-01', true);
+
+    expect(result).toMatchObject({ stored: true });
+  });
+});
+
+/**
+ * The date must travel through `content.publishedAt` — the heal candidate
+ * `#refreshStoredPayload` reads — never only through `extraPayload`; that
+ * would bypass the pairing guard from bec016acb and could let `date_precision`
+ * land on a point whose `published_at` stays null. Exercises the exact call
+ * shape the Wolke branch uses: an etag change with unchanged text, where the
+ * file name now resolves to a day-precision date the stored point never had.
+ */
+describe('processAndStoreDocument — wolke heals a null date to a day-precision one (#3564)', () => {
+  const HASH = `hash:${TEXT.length}`;
+
+  it('writes published_at and date_precision together in the same patch', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Antwort', published_at: null, wolke_etag: '"v1"' } },
+    ]);
+
+    const result = await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'wahlpruefstein',
+      URL_UNDER_TEST,
+      { title: 'Antwort', text: TEXT, publishedAt: '2025-11-08', categories: [] },
+      true, // isFile — Wolke share
+      'landesverbaende_documents',
+      5,
+      { wolke_etag: '"v2"', date_precision: 'day' },
+      true
+    );
+
+    expect(result).toEqual({ stored: false, reason: 'unchanged' });
+    expect(setPayload.mock.calls[0][2]).toEqual({
+      wolke_etag: '"v2"',
+      published_at: '2025-11-08',
+      date_precision: 'day',
+      checked_at: expect.any(String),
+    });
+  });
+});
+
 describe('processAndStoreDocument — title normalization for file sources', () => {
   beforeEach(() => {
     scrollDocuments.mockResolvedValue([]);
