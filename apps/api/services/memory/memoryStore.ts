@@ -32,7 +32,16 @@ const log = createLogger('MemoryStore');
  *  (`scripts/dropLegacyMem0Points.ts`) removes them for good. */
 export const USER_MEMORIES_COLLECTION = 'user_memories';
 
-const FACT_SCORE_THRESHOLD = 0.3;
+/**
+ * Rank only: 0 keeps every hit. mistral-embed puts any two short German sentences
+ * above ~0.55 cosine, and the unrelated facts overlap the relevant ones
+ * (measured 2026-09-23: 7 relevant pairs 0.72–0.83, 119 unrelated 0.55–0.79),
+ * so no threshold separates them — the old 0.3 filtered nothing. Nor could
+ * one help: an empty result falls back to the most recent facts
+ * (`memoryRetrieval.ts`), which are no more relevant than low-ranked hits.
+ * The rank does the work: the relevant fact came first for every query.
+ */
+const FACT_SCORE_FLOOR = 0;
 
 export interface NewMemory {
   userId: string;
@@ -180,12 +189,14 @@ export const qdrantMemoryVectors: MemoryVectors = {
     };
     const hits = await q.vectorSearch(USER_MEMORIES_COLLECTION, vector, filter, {
       limit,
-      threshold: FACT_SCORE_THRESHOLD,
+      threshold: FACT_SCORE_FLOOR,
     });
     const ids = hits
       .map((h) => (h.payload?.memory_id as string | undefined) ?? null)
       .filter((id): id is string => typeof id === 'string');
-    log.debug(`[Memory] fact search: ${ids.length}/${limit} hits`);
+    log.debug(
+      `[Memory] fact search: ${ids.length}/${limit} hits, scores ${hits.map((h) => h.score.toFixed(3)).join(', ')}`
+    );
     return ids;
   },
 };
