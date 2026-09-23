@@ -5,11 +5,7 @@
 
 import { vectorConfig } from '../../../config/vectorConfig.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
-import {
-  detectContentType,
-  detectMarkdownStructure,
-  extractPageNumber,
-} from '../../content/index.js';
+import { detectContentType, detectMarkdownStructure } from '../../content/index.js';
 
 import {
   sentenceSegments,
@@ -232,7 +228,6 @@ export function enrichChunkWithMetadata(
 ): Chunk {
   const contentType = detectContentType(chunk.text);
   const md = detectMarkdownStructure(chunk.text);
-  const pageNumberDetected = extractPageNumber(chunk.text);
   const qualityCfg = vectorConfig.get('quality');
   const quality = qualityCfg.enabled
     ? chunkQualityService.calculateQualityScore(chunk.text, { contentType })
@@ -250,11 +245,11 @@ export function enrichChunkWithMetadata(
         tables: md.tables || 0,
         code_blocks: md.codeBlocks || 0,
       },
-      // Prefer pre-set page_number (e.g., from page-splitting) over detection
-      page_number:
-        chunk.metadata && chunk.metadata.page_number != null
-          ? chunk.metadata.page_number
-          : pageNumberDetected,
+      // Seitenzahlen kommen NUR aus `## Seite N`-Marken (Seitenzerlegung in
+      // smartChunkDocument). Früher riet hier ein Muster auf „Seite 12" am
+      // Zeilenanfang — in einem DOCX oder einer Webseite, die „Seite 3 des
+      // Antrags" erwähnt, erfand das eine Seite, und der Leser zitierte sie.
+      page_number: chunk.metadata?.page_number ?? null,
       quality_score: Number.isFinite(quality) ? quality : 0,
     },
   };

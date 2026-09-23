@@ -8,7 +8,12 @@ import fs from 'fs';
 import { hasAiConsent } from '../../../middleware/requireAiConsent.js';
 
 import { chunkAndEmbedText } from './chunkingPipeline.js';
-import { capStoredText, extractTextFromFile, generateContentPreview } from './textExtraction.js';
+import {
+  capStoredText,
+  extractDocumentFromFile,
+  generateContentPreview,
+  type FileExtraction,
+} from './textExtraction.js';
 
 import type {
   UploadedFile,
@@ -46,7 +51,10 @@ export async function processFileUpload(
 ): Promise<FileUploadResult> {
   console.log(`[DocumentProcessingService] Processing file upload: ${title}`);
 
-  const extractedText = knownText?.trim() ? knownText : await extractTextFromFile(file);
+  const extraction: FileExtraction = knownText?.trim()
+    ? { text: knownText, pageCount: null, extractionMethod: null }
+    : await extractDocumentFromFile(file, { pageMarkers: true });
+  const extractedText = extraction.text;
 
   if (!extractedText || extractedText.trim().length === 0) {
     throw new Error('No text could be extracted from the document');
@@ -62,8 +70,10 @@ export async function processFileUpload(
     fileSize: file.size,
     status: 'completed',
     markdownContent: capStoredText(extractedText),
+    ...(extraction.pageCount !== null ? { pageCount: extraction.pageCount } : {}),
     additionalMetadata: {
       content_preview: generateContentPreview(extractedText),
+      ...(extraction.extractionMethod ? { extractionMethod: extraction.extractionMethod } : {}),
     },
   });
 
@@ -165,7 +175,8 @@ export async function processUploadedDocument(
     };
 
     await markStage('extracting');
-    const extractedText = await extractTextFromFile(file);
+    const extraction = await extractDocumentFromFile(file, { pageMarkers: true });
+    const extractedText = extraction.text;
     if (!extractedText || extractedText.trim().length === 0) {
       throw new Error(
         'Aus diesem Dokument konnte kein Text gelesen werden. Prüfe, ob die Datei Text enthält.'
@@ -214,10 +225,12 @@ export async function processUploadedDocument(
       // chunks in Qdrant are overlapping fragments, so without this the only way
       // back to the full text is re-fetching (and for uploads, not at all).
       markdownContent: capStoredText(extractedText),
+      ...(extraction.pageCount !== null ? { pageCount: extraction.pageCount } : {}),
       additionalMetadata: {
         ...metadata,
         filePath: undefined,
         content_preview: generateContentPreview(extractedText),
+        ...(extraction.extractionMethod ? { extractionMethod: extraction.extractionMethod } : {}),
       },
     });
 
