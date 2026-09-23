@@ -134,7 +134,11 @@ interface CtxOptions {
   linksThrow?: string;
   /** Originaltext je Quelle; sonst gilt `markdown` für alle. */
   markdownById?: Record<string, string>;
+  pageEndsError?: string;
   nlp?: StatsNlp;
+  scopeLock?: { ids: string[]; readOnly: boolean };
+  /** notebookId des vorigen Turns (Thread-Rückfall). */
+  threadNotebookId?: string;
 }
 
 function makeCtx(opts: CtxOptions = {}) {
@@ -155,6 +159,7 @@ function makeCtx(opts: CtxOptions = {}) {
     userLocale: 'de-DE',
     messages: [],
     notebookIds: opts.notebookIds ?? ['n1'],
+    ...(opts.scopeLock ? { notebookScopeLock: opts.scopeLock } : {}),
   } as unknown as ChatGraphState;
 
   const row = opts.collection === undefined ? collection() : opts.collection;
@@ -173,6 +178,15 @@ function makeCtx(opts: CtxOptions = {}) {
   };
   const db = {
     query: vi.fn(async (sql: string, params: unknown[]) => {
+      if (sql.includes('regexp_matches')) {
+        if (opts.pageEndsError) throw new Error(opts.pageEndsError);
+        const [ids, starts, ends] = params as [string[], number[], number[]];
+        return ids.map((id, k) => {
+          const span = (opts.markdownById?.[id] ?? '').slice(starts[k], ends[k]);
+          const pages = [...span.matchAll(/##\s*Seite\s+(\d+)\s*\S/gi)].map((m) => Number(m[1]));
+          return { i: String(k + 1), page: pages.length ? Math.max(...pages) : null };
+        });
+      }
       if (sql.includes('markdown_content FROM documents')) {
         const own = opts.markdownById?.[String(params[0])];
         if (own !== undefined) return [{ markdown_content: own }];
@@ -213,7 +227,18 @@ function makeCtx(opts: CtxOptions = {}) {
     documentService,
     access: vi.fn(async () => opts.access ?? OWNER),
     rerank: vi.fn(),
-    recentSteps: vi.fn(async () => []),
+    recentSteps: vi.fn(async () =>
+      opts.threadNotebookId
+        ? [
+            {
+              toolCallId: 'c0',
+              toolName: 'notebook_quellen',
+              args: { action: 'list', notebookId: opts.threadNotebookId },
+              result: {},
+            },
+          ]
+        : []
+    ),
     ...(opts.nlp ? { nlp: opts.nlp } : {}),
   } as unknown as NotebookSourceToolDeps;
   const tool = makeNotebookSourcesTool({ state, sse, threadId: 't1', sourceRegistry, deps });
@@ -288,11 +313,40 @@ describe('list', () => {
       title: 'Antrag Radweg',
       url: '/notebooks/kreisverband-Ab3xK9',
       ref: 'd1',
-      snippet: 'manual · 2026-09-01 · 4 S. · 1200 Wörter',
+      snippet: 'manual · hochgeladen 2026-09-01 · 4 S. · 1200 Wörter',
     });
-    expect(results[1]?.snippet).toBe('manual · 2026-09-01 · ~100 Wörter');
+    expect(results[1]?.snippet).toBe('manual · hochgeladen 2026-09-01 · ~100 Wörter');
     expect(registered).toHaveLength(1);
     expect(out.refs).toBe('Antrag Radweg — d1 (2026-09-01)\nProtokoll — d2 (2026-09-01)');
+  });
+
+  it('nennt Dokumentdatum, Art und Gremium vor der Upload-Zeit und filtert nach Gremium', async () => {
+    const { run } = makeCtx({
+      rows: [
+        docRow({
+          metadata: {
+            wordCount: 1200,
+            doc_meta: {
+              version: 1,
+              date: '2024-01-08',
+              dateKind: 'beschluss',
+              gremium: 'Bundesvorstand',
+            },
+          },
+        }),
+        docRow({ id: 'd2', title: 'Protokoll', page_count: null, metadata: {}, chars: 650 }),
+      ],
+      links: ['d1', 'd2'],
+    });
+    const out = await run({ action: 'list', sortBy: 'name' });
+    const results = out.results as Array<Record<string, unknown>>;
+    expect(results[0]?.snippet).toBe(
+      'manual · Beschluss 2024-01-08 (Bundesvorstand) · hochgeladen 2026-09-01 · 4 S. · 1200 Wörter'
+    );
+    expect(out.refs).toBe('Antrag Radweg — d1 (2024-01-08)\nProtokoll — d2 (2026-09-01)');
+
+    const filtered = await run({ action: 'list', filter: { gremium: 'Bundesvorstand' } });
+    expect((filtered.results as unknown[]).length).toBe(1);
   });
 });
 
@@ -449,6 +503,37 @@ describe('find', () => {
       relevance: 0.8,
       citedText: 'Der Radweg kommt 2027.',
     });
+  });
+
+  // Die Passage (24–46) beginnt auf Seite 2 und reicht über die Marke von Seite 3.
+  const marked = '## Seite 2\n' + 'x'.repeat(13) + 'Der\n## Seite 3\nRadweg kommt 2027.';
+
+  it('reports the last page a passage reaches from the markers inside its span', async () => {
+    const { run } = makeCtx({ searchResults, markdownById: { d1: marked } });
+    const out = await run({ action: 'find', query: 'Radweg' });
+    expect(out.passages).toEqual([
+      expect.objectContaining({ pageNumber: 2, pageTo: 3, charStart: 24, charEnd: 46 }),
+    ]);
+  });
+
+  it('omits pageTo when no page content starts inside the passage', async () => {
+    // Die Marke steht am Ende der Passage, ohne Inhalt der neuen Seite davor.
+    const trailing = '## Seite 2\n' + 'x'.repeat(13) + 'Der Radweg\n## Seite 3\nkommt 2027.';
+    const { run } = makeCtx({ searchResults, markdownById: { d1: trailing } });
+    const out = await run({ action: 'find', query: 'Radweg' });
+    expect(out.passages).toEqual([expect.not.objectContaining({ pageTo: expect.anything() })]);
+  });
+
+  it('still answers when the page lookup fails', async () => {
+    const { run } = makeCtx({
+      searchResults,
+      markdownById: { d1: marked },
+      pageEndsError: 'db down',
+    });
+    const out = await run({ action: 'find', query: 'Radweg' });
+    expect(out.resultCount).toBe(1);
+    expect(out.passages).toEqual([expect.objectContaining({ pageNumber: 2 })]);
+    expect(out.passages).toEqual([expect.not.objectContaining({ pageTo: expect.anything() })]);
   });
 
   it('narrows to one source after checking it belongs to the notebook', async () => {
@@ -646,6 +731,18 @@ describe('stats', () => {
 });
 
 describe('rank', () => {
+  it('ranks by the document date before the upload time', async () => {
+    const rows = [
+      docRow({ metadata: { doc_meta: { version: 1, date: '2027-01-01', dateKind: 'stand' } } }),
+      TWO_ROWS[1],
+    ];
+    const { run } = makeCtx({ rows, links: ['d1', 'd2'] });
+    const byDate = await run({ action: 'rank', by: 'date' });
+    expect(
+      (byDate.ranking as Array<{ sourceId: string; value: string }>).map((r) => r.value)
+    ).toEqual(['2027-01-01', '2026-09-10']);
+  });
+
   it('ranks by date, length and pages from the source metadata', async () => {
     const { run, registered } = makeCtx({ rows: TWO_ROWS, links: ['d1', 'd2'] });
     const byDate = await run({ action: 'rank', by: 'date' });
@@ -934,5 +1031,58 @@ describe('was der Schreiber im split-Modus sieht', () => {
     await run({ action: 'find', query: 'Mond' });
     expect(registry.freshSize).toBe(0);
     expect(registry.renderAll()).toContain('VORGÄNGE IN DIESEM TURN');
+  });
+});
+
+describe('Präzisionsmodus: Scope-Sperre', () => {
+  const LOCK = { ids: ['n1'], readOnly: true };
+
+  it('refuses a notebook outside the page, even one the person could read', async () => {
+    const { run, deps } = makeCtx({
+      scopeLock: LOCK,
+      collection: collection({ id: 'n2', name: 'Anderes' }),
+    });
+    const out = await run({ action: 'list', notebookId: 'n2' });
+    expect(out.error).toMatch(/Präzisionsmodus/);
+    expect(deps.access).not.toHaveBeenCalled();
+  });
+
+  it('reads a notebook of the page', async () => {
+    const { run } = makeCtx({ scopeLock: LOCK });
+    expect((await run({ action: 'list', notebookId: 'n1' })).notebook).toBe('Kreisverband');
+  });
+
+  it('falls back to the thread notebook only when it is on the page', async () => {
+    const outside = makeCtx({
+      scopeLock: LOCK,
+      notebookIds: [],
+      threadNotebookId: 'n2',
+      collection: collection({ id: 'n2' }),
+    });
+    const refused = await outside.run({ action: 'list' });
+    expect(refused.error).toMatch(/notebookId/);
+    expect(outside.helper.getNotebookCollection).not.toHaveBeenCalledWith('n2');
+
+    const inside = makeCtx({ scopeLock: LOCK, notebookIds: [], threadNotebookId: 'n1' });
+    expect((await inside.run({ action: 'list' })).notebook).toBe('Kreisverband');
+  });
+
+  it('refuses every write action when read-only, before touching anything', async () => {
+    const { run, deps, db } = makeCtx({ scopeLock: LOCK });
+    for (const args of [
+      { action: 'remove', sourceIds: ['d1'] },
+      { action: 'add_note', title: 'Notiz', text: 'x'.repeat(40) },
+      { action: 'move', sourceIds: ['d1'], targetNotebookId: 'n1' },
+    ]) {
+      expect((await run(args)).error).toMatch(/Präzisionsmodus/);
+    }
+    expect(deps.access).not.toHaveBeenCalled();
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  it('leaves writes alone when the lock is not read-only', async () => {
+    const { run } = makeCtx({ scopeLock: { ids: ['n1'], readOnly: false } });
+    const out = await run({ action: 'remove', sourceIds: ['d1'] });
+    expect(String(out.error ?? '')).not.toMatch(/Präzisionsmodus/);
   });
 });

@@ -7,8 +7,9 @@ import { cleanTextForEmbedding } from '../../text/index.js';
 
 import { mergeSiblingTextBlocks, segmentBlocks, splitTableBlock } from './blockSegmentation.js';
 import { sentenceRepack, enrichChunkWithMetadata } from './chunkPostProcessing.js';
-import { splitTextByPageMarkers } from './pageMarkerProcessing.js';
+import { maskPageMarkers } from './pageMarkerProcessing.js';
 import { ParagraphChunker } from './paragraphSplitter.js';
+import { findPageMarkers, resolvePageNumberForOffset } from './sentenceSegmentation.js';
 import { buildOffsetMap, locateChunk } from './sourceOffsets.js';
 import { hierarchicalChunkDocument } from './structureAwareChunking.js';
 import { estimateTokens } from './validation.js';
@@ -104,49 +105,45 @@ export async function smartChunkDocument(
 ): Promise<Chunk[]> {
   const { baseMetadata = {} } = options;
 
-  // STEP 1: Detect page markers BEFORE any text cleaning
-  // Use raw text to find page markers reliably
-  const pages = splitTextByPageMarkers(text);
+  // Seitenmarken werden durch gleich lange Leerzeichen ersetzt, und das
+  // Dokument läuft in EINEM Durchgang durch den Chunker. Seitenweise zerlegt
+  // begann an jeder Seitengrenze ein neuer Überschriftenstapel: ein Abschnitt,
+  // der auf Seite 1 beginnt und auf Seite 2 weiterläuft, verlor dort Pfad und
+  // Abschnittsnummer, und die Gliederung bekam je Seite einen Eintrag ohne
+  // Überschrift. Gleiche Länge heißt: jeder Index im maskierten Text ist der
+  // Index im Rohtext — die Offsets unten bleiben ohne Umrechnung gültig. Ohne
+  // Marken ist der Text unverändert (`chunkingGolden.vitest.ts`).
+  const markers = findPageMarkers(text);
+  const masked = markers.length > 0 ? maskPageMarkers(text) : text;
 
   try {
     const paragraphChunker = new ParagraphChunker();
-
-    let all: Chunk[] = [];
-    if (pages.length === 0) {
-      // No pages detected - process entire document
-      all = await chunkStructured(paragraphChunker, text, baseMetadata);
-    } else {
-      // Process each page separately; die Blockzerlegung läuft innerhalb einer Seite
-      for (const p of pages) {
-        const pageMeta = { ...baseMetadata, page_number: p.pageNumber };
-        const repacked = await chunkStructured(paragraphChunker, p.textWithoutMarker, pageMeta);
-        // Ensure page_number is set on every chunk (prefer explicit over detection)
-        all.push(
-          ...repacked.map((c) => ({
-            ...c,
-            metadata: { ...c.metadata, page_number: p.pageNumber },
-          }))
-        );
-      }
-    }
+    const all = await chunkStructured(paragraphChunker, masked, baseMetadata);
 
     // Reindex chunks globally, enrich metadata, and locate each chunk in the
     // RAW text. Hier und nur hier liegen Rohtext und fertige Chunks zugleich
     // vor. Warum nachträglich gesucht statt durchgereicht wird — und warum die
     // Zahlen aus `sentenceRepack` dafür unbrauchbar sind — steht im
     // Kopfkommentar von `sourceOffsets.ts`.
-    const offsets = buildOffsetMap(text);
+    const offsets = buildOffsetMap(masked);
     let cursor = 0;
     return all.map((c, i) => {
       const enriched = enrichChunkWithMetadata({ ...c, index: i }, baseMetadata);
       const at = locateChunk(offsets, enriched.text, cursor);
-      // Nicht gefunden heißt: kein Offset. Ein geratener wäre schlimmer als
-      // keiner, weil eine Sprungmarke ihm glauben würde.
+      // Nicht gefunden heißt: kein Offset und keine Seite. Ein geratener Wert
+      // wäre schlimmer als keiner, weil eine Sprungmarke ihm glauben würde.
       if (!at) return enriched;
       cursor = at.cursor;
       return {
         ...enriched,
-        metadata: { ...enriched.metadata, startPosition: at.start, endPosition: at.end },
+        metadata: {
+          ...enriched.metadata,
+          startPosition: at.start,
+          endPosition: at.end,
+          ...(markers.length > 0
+            ? { page_number: resolvePageNumberForOffset(markers, null, at.start) }
+            : {}),
+        },
       };
     });
   } catch (_e) {

@@ -559,8 +559,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Dev-only: bind a decision journal per turn and dump it to CHAT_DECISION_LOG_DIR
   // so the live eval lane can render a decision map. Returns null — and mounts
   // nothing — unless NODE_ENV is development AND the directory is configured.
+  // Auch auf der Notebook-Seite: dort fällt `notebook.answer_mode`.
   const decisionLog = decisionLogMiddleware();
-  if (decisionLog) app.use('/api/chat-graph', decisionLog);
+  if (decisionLog) {
+    app.use('/api/chat-graph', decisionLog);
+    app.use('/api/chat-service/notebook/stream', decisionLog);
+  }
   // Nur der Titel-Generator: der Verlauf muss nach einem Widerruf lesbar bleiben.
   app.use('/api/chat-service/threads/:threadId/generate-title', requireAiConsent);
   mountThreadsContractRouter(app);

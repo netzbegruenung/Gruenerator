@@ -170,3 +170,213 @@ describe('NotebookModelAdapter — warning', () => {
     expect(custom.evidenceWeak).toBeUndefined();
   });
 });
+
+describe('NotebookModelAdapter — answer mode', () => {
+  const COMPLETION: Frame = {
+    event: 'completion',
+    data: { answer: 'Drei Quellen [1].', citations: [], sources: [], allSources: [] },
+  };
+
+  /** Runs one turn with the given config and prior messages; returns results + request body. */
+  async function runTurn(
+    frames: Frame[],
+    config: Record<string, unknown> = {},
+    prior: unknown[] = []
+  ): Promise<{ results: ChatModelRunResult[]; body: Record<string, unknown> }> {
+    let body: Record<string, unknown> = {};
+    useChatConfigStore.setState({
+      fetch: async (_url: string, init?: RequestInit) => {
+        body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return sseResponse([frames]);
+      },
+    });
+    useAgentStore.setState({ selectedModel: 'gruenerator-ultra' });
+    const adapter = createNotebookModelAdapter(
+      () => ({ collectionId: 'berlin-system', ...config }),
+      {}
+    );
+    const stream = adapter.run({
+      messages: [
+        ...prior,
+        { role: 'user', content: [{ type: 'text', text: 'Liste alle Quellen' }] },
+      ],
+    } as unknown as Parameters<typeof adapter.run>[0]) as AsyncGenerator<ChatModelRunResult, void>;
+    const results: ChatModelRunResult[] = [];
+    for await (const r of stream) results.push(r);
+    return { results, body };
+  }
+
+  const customOf = (r: ChatModelRunResult | undefined) =>
+    ((r as { metadata?: { custom?: Record<string, unknown> } } | undefined)?.metadata?.custom ??
+      {}) as Record<string, unknown>;
+
+  it('sends answerMode when the surface sets it, and nothing otherwise', async () => {
+    const withMode = await runTurn([COMPLETION], { answerMode: 'auto' });
+    expect(withMode.body.answerMode).toBe('auto');
+    const without = await runTurn([COMPLETION]);
+    expect('answerMode' in without.body).toBe(false);
+  });
+
+  it('carries an earlier answer’s mode in the wire history', async () => {
+    const { body } = await runTurn([COMPLETION], { answerMode: 'auto' }, [
+      { role: 'user', content: [{ type: 'text', text: 'Wie viele Quellen?' }] },
+      {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Zwölf.' }],
+        metadata: { custom: { answerMode: 'praezision' } },
+      },
+    ]);
+    const history = body.messages as Array<Record<string, unknown>>;
+    expect(history[1]).toMatchObject({ role: 'assistant', answerMode: 'praezision' });
+    expect('answerMode' in history[0]!).toBe(false);
+  });
+
+  describe('wire history by depth and answer mode', () => {
+    const PRIOR = [
+      { role: 'user', content: [{ type: 'text', text: 'Wie viele Quellen?' }] },
+      {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Zwölf.' }],
+        metadata: { custom: { answerMode: 'chat' } },
+      },
+    ];
+    const historyLength = async (config: Record<string, unknown>) =>
+      ((await runTurn([COMPLETION], config, PRIOR)).body.messages as unknown[]).length - 1;
+
+    it('is sent at deep depth with an answer mode, carrying the earlier mode', async () => {
+      const { body } = await runTurn([COMPLETION], { mode: 'deep', answerMode: 'auto' }, PRIOR);
+      const messages = body.messages as Array<Record<string, unknown>>;
+      expect(messages).toHaveLength(3);
+      expect(messages[1]).toMatchObject({ role: 'assistant', answerMode: 'chat' });
+    });
+
+    it('is sent even at fast depth when auto or precision may run', async () => {
+      expect(await historyLength({ mode: 'fast', answerMode: 'auto' })).toBe(2);
+      expect(await historyLength({ mode: 'fast', answerMode: 'praezision' })).toBe(2);
+    });
+
+    it('stays off at fast depth without an answer mode or with explicit chat (Grün-O-Mat)', async () => {
+      expect(await historyLength({ mode: 'fast' })).toBe(0);
+      expect(await historyLength({ mode: 'fast', answerMode: 'chat' })).toBe(0);
+    });
+  });
+
+  it('stamps answer_mode on the message live, with a precision progress line', async () => {
+    const { results } = await runTurn([
+      {
+        event: 'answer_mode',
+        data: { requested: 'auto', resolved: 'praezision', reason: 'guard' },
+      },
+      COMPLETION,
+    ]);
+    const first = customOf(results[0]);
+    expect(first.answerMode).toBe('praezision');
+    expect(first.answerModeReason).toBe('guard');
+    expect(first.progress).toMatchObject({ message: expect.stringContaining('Präzisionsmodus') });
+    // …and it stays on the final frame.
+    expect(customOf(results.at(-1))).toMatchObject({
+      answerMode: 'praezision',
+      answerModeReason: 'guard',
+    });
+  });
+
+  it('leaves the fields off when no answer_mode event came', async () => {
+    const { results } = await runTurn([COMPLETION]);
+    const custom = customOf(results.at(-1));
+    expect(custom.answerMode).toBeUndefined();
+    expect(custom.answerModeReason).toBeUndefined();
+  });
+
+  it('renders loop tool steps as cards before the answer text', async () => {
+    const { results } = await runTurn([
+      {
+        event: 'answer_mode',
+        data: { requested: 'praezision', resolved: 'praezision', reason: 'explicit' },
+      },
+      {
+        event: 'tool_step_start',
+        data: {
+          stepId: 's1',
+          toolName: 'notebook_quellen',
+          args: { action: 'list' },
+          title: 'Quellen',
+        },
+      },
+      {
+        event: 'tool_step_result',
+        data: {
+          stepId: 's1',
+          toolName: 'notebook_quellen',
+          ok: true,
+          summary: '3 Quellen',
+          result: { count: 3 },
+        },
+      },
+      { event: 'text_delta', data: { text: 'Drei Quellen [1].' } },
+      COMPLETION,
+    ]);
+    const content = (results.at(-1) as unknown as { content: Array<Record<string, unknown>> })
+      .content;
+    expect(content.map((p) => p.type)).toEqual(['tool-call', 'text']);
+    expect(content[0]).toMatchObject({
+      toolCallId: 's1',
+      toolName: 'notebook_quellen',
+      args: { query: 'Quellen', action: 'list' },
+      result: { count: 3, ok: true, summary: '3 Quellen' },
+    });
+  });
+
+  it('groups the cards as one run and holds back the empty text while tools run', async () => {
+    const { results } = await runTurn([
+      { event: 'tool_step_start', data: { stepId: 's1', toolName: 'notebook_quellen' } },
+      { event: 'tool_step_start', data: { stepId: 's2', toolName: 'notebook_quellen' } },
+      {
+        event: 'tool_step_result',
+        data: { stepId: 's2', toolName: 'notebook_quellen', ok: true },
+      },
+      COMPLETION,
+    ]);
+    const midStream = (results[1] as unknown as { content: Array<Record<string, unknown>> })
+      .content;
+    expect(midStream.map((p) => p.type)).toEqual(['tool-call', 'tool-call']);
+    const final = (results.at(-1) as unknown as { content: Array<Record<string, unknown>> })
+      .content;
+    expect(final.map((p) => p.type)).toEqual(['tool-call', 'tool-call', 'text']);
+    expect(final[0]).toMatchObject({ toolCallId: 's1', parentId: 's1' });
+    expect(final[1]).toMatchObject({ toolCallId: 's2', parentId: 's1', result: { ok: true } });
+  });
+
+  it('keeps cards and chip when the stream fails before any text', async () => {
+    const { results } = await runTurn([
+      {
+        event: 'answer_mode',
+        data: { requested: 'auto', resolved: 'praezision', reason: 'guard' },
+      },
+      { event: 'tool_step_start', data: { stepId: 's1', toolName: 'notebook_quellen' } },
+      { event: 'error', data: { error: 'Modell nicht erreichbar.' } },
+    ]);
+    const last = results.at(-1) as unknown as {
+      content: Array<Record<string, unknown>>;
+      status?: { type: string };
+      metadata?: { custom?: Record<string, unknown> };
+    };
+    expect(last.content.map((p) => p.type)).toEqual(['tool-call', 'text']);
+    expect(String(last.content[1]!.text)).toContain('Modell nicht erreichbar');
+    expect(last.status?.type).toBe('incomplete');
+    expect(last.metadata?.custom).toMatchObject({
+      answerMode: 'praezision',
+      answerModeReason: 'guard',
+    });
+  });
+
+  it('keeps one card per stepId when a start repeats', async () => {
+    const start: Frame = {
+      event: 'tool_step_start',
+      data: { stepId: 's1', toolName: 'notebook_quellen' },
+    };
+    const { results } = await runTurn([start, start, COMPLETION]);
+    const content = (results.at(-1) as unknown as { content: Array<Record<string, unknown>> })
+      .content;
+    expect(content.filter((p) => p.type === 'tool-call')).toHaveLength(1);
+  });
+});

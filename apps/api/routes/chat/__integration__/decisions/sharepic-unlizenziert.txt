@@ -12,5 +12,6 @@ classifier.tier                  = tier3.8_generation_scope       decidedNoArtif
 respond.answer_format            = (not reached)
 loop.tool_guard                  = (none)
 loop.synth_verdict               = (not reached)
+notebook.answer_mode             = (not reached)
 -- wire --
 intent=null agentic=false tools=[] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=179

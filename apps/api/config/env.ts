@@ -97,6 +97,13 @@ const envSchema = z.object({
    */
   ENFORCE_AI_CONSENT: boolFlag(false),
   /**
+   * Lässt den Kopfdaten-Worker (services/documentMeta) auch Dokumente lesen,
+   * die vor dem Feature da waren oder mit einer älteren Version verarbeitet
+   * wurden. Aus, bis ein Trockenlauf (scripts/document-meta-backfill.ts
+   * --dry-run) geprüft ist — neue Uploads laufen immer.
+   */
+  DOCUMENT_META_BACKFILL: boolFlag(false),
+  /**
    * Directory the chat decision journal is written to, one JSON file per turn
    * (utils/decisionLog.ts). Lets the live eval lane render the same decision
    * map the simulated lane produces, without putting decision ids on the wire.

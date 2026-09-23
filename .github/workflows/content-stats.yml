@@ -1,0 +1,80 @@
+name: Content Stats
+
+# Refreshes documentation/docs/sonstiges/inhaltsdatenbank.md once a month.
+# Content Sync and Social Media Sync used to do this after every run, which
+# opened a stats PR several times a day.
+on:
+  schedule:
+    - cron: '37 9 1 * *' # 1st of each month, after the nightly full sync
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: content-stats
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Update content stats page
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
+
+      - name: Update content stats page
+        run: |
+          curl -sfS -H "x-admin-token: $ADMIN_TOKEN" \
+            "$CONTENT_SYNC_API_URL/api/internal/content-sync/stats" \
+            | jq -r '.markdown' > documentation/docs/sonstiges/inhaltsdatenbank.md
+
+          # Jetzt formatieren, nicht erst beim Commit. Das `pnpm install` dieses
+          # Jobs setzt über `prepare: husky` den core.hooksPath, also löst der
+          # `git commit` in peter-evans/create-pull-request lint-staged aus, und
+          # dessen `prettier --write` richtet die Tabellen dieser .md aus. Läuft
+          # das erst dort, ist die Reihenfolge falsch: der Index unten entsteht
+          # dann aus dem UNformatierten Markdown und trägt dessen Trennzeilen,
+          # während die .md formatiert danebenliegt — zwei Dateien in einem
+          # Commit, die sich widersprechen. `docsIndex.generated.ts` steht in
+          # .prettierignore und wird byteweise verglichen, also repariert der
+          # Hook das nicht mit; `docs:index:check` färbt danach master und jeden
+          # fremden PR rot, und weil der Commit `[skip ci]` trägt, merkt es der
+          # eigene Lauf nie. Belegt am 27.08.2026 in b738946877 (Lauf
+          # 33084619987: create-pull-request 15:00:55, `prettier --write`
+          # 15:00:56). Prettier ist idempotent — der Hook findet danach nichts
+          # mehr zu ändern.
+          pnpm exec prettier --write documentation/docs/sonstiges/inhaltsdatenbank.md
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
+
+      # Die Statistikseite ist eine indexierte Doku-Seite. Wird sie geschrieben,
+      # ohne den Chat-Index nachzuziehen, ist `docsIndex.generated.ts` veraltet —
+      # und weil `docs:index:check` ein IMMER laufender Pflicht-Check ist (CI-Job
+      # „Format & Generated" und Docs Build), färbt dieser Lauf danach
+      # jeden fremden PR rot. Genau so passiert am 10.08.2026, zweimal an einem
+      # Abend (#2493, #2504). Der Generator importiert nur node:-Builtins, also
+      # genügt bares `node` — kein Setup, kein Install.
+      - name: Regenerate the chat docs index
+        run: node documentation/scripts/generate-docs-index.mjs
+
+      - name: Create PR for stats page update
+        uses: peter-evans/create-pull-request@v8
+        with:
+          commit-message: 'docs: update content stats [skip ci]'
+          title: 'docs: update content stats'
+          body: 'Automated monthly content stats update.'
+          branch: automated/content-stats-update
+          add-paths: |
+            documentation/docs/sonstiges/inhaltsdatenbank.md
+            apps/api/services/docs/docsIndex.generated.ts
+          delete-branch: true
+          labels: automated

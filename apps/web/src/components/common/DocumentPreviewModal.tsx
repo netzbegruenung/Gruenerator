@@ -1,7 +1,7 @@
 import { motion } from 'motion/react';
 import React from 'react';
 
-import { formatDate } from '../utils/documentOverviewUtils';
+import { formatDate, stripPageMarkerLines } from '../utils/documentOverviewUtils';
 
 import { Markdown } from './Markdown';
 
@@ -57,13 +57,12 @@ const DocumentPreviewModal = ({
       return notebook.description || notebook.custom_prompt || 'Keine Beschreibung verfügbar';
     }
     if (document) {
-      return (
+      const content =
         document.markdown_content ||
         document.full_content ||
         document.content_preview ||
-        document.ocr_text ||
-        'Kein Inhalt verfügbar'
-      );
+        document.ocr_text;
+      return content ? stripPageMarkerLines(content) : 'Kein Inhalt verfügbar';
     }
     return 'Kein Inhalt verfügbar';
   };

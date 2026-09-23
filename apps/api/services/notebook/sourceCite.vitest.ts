@@ -96,6 +96,24 @@ describe('citeQuote', () => {
     });
   });
 
+  it('names the page from the page markers when the chunk starts a page earlier', async () => {
+    const text =
+      '## Seite 1\nEinleitung.\n\n## Seite 2\nDer Radweg kommt 2027.\n\n## Seite 3\nEnde.';
+    const { deps } = fakeNotebookDeps([
+      {
+        id: 'd1',
+        title: 'Antrag',
+        text,
+        chunks: [fakeChunk({ index: 0, text, charStart: 0, charEnd: text.length, pageNumber: 1 })],
+      },
+    ]);
+    const out = await citeQuote(
+      { collectionId: 'n1', userId: 'u1', quote: 'Der Radweg kommt 2027' },
+      deps
+    );
+    expect(out).toMatchObject({ found: true, pageNumber: 2, chunkIndex: 0 });
+  });
+
   it('returns both sources as candidates when the quote is in two', async () => {
     const { deps } = fakeNotebookDeps([
       { id: 'd1', title: 'Antrag', text: 'Der Radweg kommt 2027.' },

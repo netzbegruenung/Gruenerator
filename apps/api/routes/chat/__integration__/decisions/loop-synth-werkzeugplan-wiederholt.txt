@@ -12,5 +12,6 @@ classifier.tier                  = tier3.5_loop_demotion          confidence=0.8
 respond.answer_format            = research_expanded              complexity=moderate intent=agentic retrievalExpected=true sourceCount=0 synthesisMode=none taskShape=none
 loop.tool_guard                  = (none)
 loop.synth_verdict               = tool_plan_retried              textLength=58
+notebook.answer_mode             = (not reached)
 -- wire --
 intent=agentic agentic=true tools=[] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=135

@@ -1,7 +1,19 @@
-import { Button, Input, SectionHeader } from '@gruenerator/ui';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Button,
+  Input,
+  SectionHeader,
+} from '@gruenerator/ui';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { HiSearch, HiX } from 'react-icons/hi';
+import { HiRefresh, HiSearch, HiX } from 'react-icons/hi';
 
 import { cn } from '../../../../utils/cn';
 
@@ -26,6 +38,9 @@ interface DocumentsPanelProps {
   loading: boolean;
   onRemove: (id: string) => void;
   onRemoveMany: (ids: string[]) => void;
+  /** Null outside an existing notebook — there is nothing on the server to re-index yet. */
+  onReindex: ((id: string) => void) | null;
+  onReindexAll: (() => void) | null;
   onAddClick: () => void;
 }
 
@@ -37,6 +52,8 @@ export default function DocumentsPanel({
   loading,
   onRemove,
   onRemoveMany,
+  onReindex,
+  onReindexAll,
   onAddClick,
 }: DocumentsPanelProps) {
   const [query, setQuery] = useState('');
@@ -88,6 +105,11 @@ export default function DocumentsPanel({
   }, [onRemoveMany, visibleSelectedIds]);
 
   const filtered = Boolean(query.trim()) || activeSource !== null;
+  const reindexableCount = useMemo(
+    () => documents.filter((e) => e.doc.reindexable).length,
+    [documents]
+  );
+  const [confirmReindexAll, setConfirmReindexAll] = useState(false);
 
   // Failed documents stay in the list — they still occupy a slot and the user
   // may want to see which file it was — but they get named up front, because a
@@ -99,16 +121,53 @@ export default function DocumentsPanel({
 
   return (
     <>
+      {onReindexAll && (
+        <AlertDialog open={confirmReindexAll} onOpenChange={setConfirmReindexAll}>
+          <AlertDialogContent size="sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {reindexableCount === 1
+                  ? '1 Wolke-Datei neu indexieren?'
+                  : `${reindexableCount} Wolke-Dateien neu indexieren?`}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Die Dateien werden neu aus der Wolke geholt und mit Seitenzahlen indexiert.
+                Hochgeladene Dateien, Webseiten und WordPress-Beiträge bleiben, wie sie sind.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+              <AlertDialogAction onClick={onReindexAll}>Neu indexieren</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
       <SectionHeader
         title="Dokumente"
         onCreate={onAddClick}
         createLabel="Dokumente hinzufügen"
         actions={
-          <span
-            className="text-sm text-grey-500"
-            title="Alle Quellen zusammen — Uploads, Wolke, verlinkte Docs und WordPress."
-          >
-            {documentCount}/{MAX_DOCUMENTS} gesamt
+          <span className="flex items-center gap-sm">
+            {onReindexAll && reindexableCount > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmReindexAll(true)}
+                disabled={loading}
+                title="Holt Wolke-Dateien neu und indexiert sie mit Seitenzahlen"
+              >
+                <HiRefresh size={12} aria-hidden />
+                Alle neu indexieren
+              </Button>
+            )}
+            <span
+              className="text-sm text-grey-500"
+              title="Alle Quellen zusammen — Uploads, Wolke, verlinkte Docs und WordPress."
+            >
+              {documentCount}/{MAX_DOCUMENTS} gesamt
+            </span>
           </span>
         }
       />
@@ -258,6 +317,7 @@ export default function DocumentsPanel({
                         loading={loading}
                         onToggleSelect={toggleSelect}
                         onRemove={onRemove}
+                        onReindex={entry.doc.reindexable ? onReindex : null}
                       />
                     </div>
                   );

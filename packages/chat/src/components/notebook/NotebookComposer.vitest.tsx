@@ -9,10 +9,11 @@
  * from three. The tier now shows as its own icon rather than as a word, so the
  * accessible name is the only place its identity is spelled out.
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
+import { NOTEBOOK_ANSWER_MODES } from '../../lib/notebookAnswerMode';
 import { NOTEBOOK_DEPTHS } from '../../lib/notebookDepth';
 
 import { NotebookComposer } from './NotebookComposer';
@@ -23,11 +24,16 @@ import type { NotebookDepth } from '@gruenerator/contracts';
 const composerProps: { showModelPicker?: boolean }[] = [];
 vi.mock('../thread/GrueneratorComposer', () => ({
   GrueneratorComposer: (props: {
-    slots?: { leading?: React.ReactNode };
+    slots?: { leading?: React.ReactNode; sendAdornment?: React.ReactNode };
     showModelPicker?: boolean;
   }) => {
     composerProps.push({ showModelPicker: props.showModelPicker });
-    return <div>{props.slots?.leading}</div>;
+    return (
+      <div>
+        <div data-testid="leading">{props.slots?.leading}</div>
+        <div data-testid="send-adornment">{props.slots?.sendAdornment}</div>
+      </div>
+    );
   },
 }));
 vi.mock('@assistant-ui/store', () => ({
@@ -109,5 +115,66 @@ describe('NotebookComposer — depth control', () => {
     // mode; a tier pill there would claim a setting that does not exist.
     render(<NotebookComposer />);
     expect(screen.queryByText('Klein')).not.toBeInTheDocument();
+  });
+});
+
+describe('NotebookComposer — answer mode picker', () => {
+  it('renders nothing beside send when the surface does not pass an answer mode', () => {
+    // Grün-O-Mat and the canvas chat use the same composer without the props.
+    render(<NotebookComposer mode="deep" onModeChange={vi.fn()} />);
+    expect(screen.getByTestId('send-adornment')).toBeEmptyDOMElement();
+  });
+
+  it('sits beside send and names the current mode on its trigger', () => {
+    render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        answerMode="auto"
+        onAnswerModeChange={vi.fn()}
+      />
+    );
+    const trigger = within(screen.getByTestId('send-adornment')).getByRole('button', {
+      name: /Antwortmodus wählen – Automatisch/,
+    });
+    expect(trigger).toHaveTextContent('Automatisch');
+  });
+
+  it('offers every registry mode with the recommended badge and reports the wire id', async () => {
+    const user = userEvent.setup();
+    const onAnswerModeChange = vi.fn();
+    render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        answerMode="chat"
+        onAnswerModeChange={onAnswerModeChange}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /Antwortmodus wählen/ }));
+
+    const items = await screen.findAllByRole('menuitem');
+    expect(items).toHaveLength(NOTEBOOK_ANSWER_MODES.length);
+    expect(within(items[0]).getByText('Empfohlen')).toBeVisible();
+
+    await user.click(screen.getByRole('menuitem', { name: /Präzision/ }));
+    await waitFor(() => expect(onAnswerModeChange).toHaveBeenCalledWith('praezision'));
+  });
+
+  it('keeps the search depth in the left settings dropdown', () => {
+    render(
+      <NotebookComposer
+        mode="ultra"
+        onModeChange={vi.fn()}
+        answerMode="auto"
+        onAnswerModeChange={vi.fn()}
+      />
+    );
+    expect(
+      within(screen.getByTestId('leading')).getByRole('button', { name: /Suchtiefe: Ultra/ })
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('send-adornment')).queryByRole('button', { name: /Suchtiefe/ })
+    ).not.toBeInTheDocument();
   });
 });

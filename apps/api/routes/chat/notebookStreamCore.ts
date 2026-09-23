@@ -117,6 +117,12 @@ export interface NotebookStreamOptions {
    * its own follow-up work (e.g. canvas-suggest tail step). Defaults to true.
    */
   closeStream?: boolean;
+  /**
+   * Zusätzliche Felder für `metadata` jeder `completion` dieses Turns (der
+   * Antwortmodus der Notebook-Seite). Fehlt ⇒ Metadata unverändert — der
+   * Grün-O-Mat setzt es nicht.
+   */
+  completionMetadata?: Record<string, unknown>;
 }
 
 export interface NotebookStreamResult {
@@ -128,7 +134,7 @@ export interface NotebookStreamResult {
   traceId: string | null;
 }
 
-function formatStandingInstructions(texts: string[] | undefined): string {
+export function formatStandingInstructions(texts: string[] | undefined): string {
   if (!texts?.length) return '';
   const lines = texts.map((t) => `- ${t}`).join('\n');
   return `
@@ -156,6 +162,7 @@ export async function handleNotebookStream(
     allowUserCollections = true,
     documentIds,
     emitEvidenceWarning = true,
+    completionMetadata = {},
   } = options;
 
   // An omitted mode has always meant the thorough tier here (`isFast` was
@@ -408,6 +415,7 @@ export async function handleNotebookStream(
         metadata: {
           totalResults: searchContext.sortedResults.length,
           qualityGateTriggered: true,
+          ...completionMetadata,
         },
       });
       if (options.closeStream !== false) sse.end();
@@ -465,6 +473,7 @@ export async function handleNotebookStream(
           isMulti: !!collectionIds && collectionIds.length > 0,
           totalResults: 0,
           citationsCount: 0,
+          ...completionMetadata,
         },
       });
       if (options.closeStream !== false) sse.end();
@@ -602,7 +611,11 @@ export async function handleNotebookStream(
         citations: [],
         sources: [],
         allSources: [],
-        metadata: { totalResults: searchContext.sortedResults.length, leakageDetected: true },
+        metadata: {
+          totalResults: searchContext.sortedResults.length,
+          leakageDetected: true,
+          ...completionMetadata,
+        },
       });
       if (options.closeStream !== false) sse.end();
       // Return the fallback instead of null: the controller only persists when
@@ -662,6 +675,7 @@ export async function handleNotebookStream(
         depth,
         queryCount: queries.length,
         ...(traceId ? { traceId } : {}),
+        ...completionMetadata,
       },
     });
 

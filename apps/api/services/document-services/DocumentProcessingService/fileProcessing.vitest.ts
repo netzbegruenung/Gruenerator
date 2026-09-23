@@ -4,7 +4,7 @@
  * Der Chat-Pfad extrahiert den Text bereits, bevor er hier ankommt
  * (`processAttachments` → `extractTextFromBase64` → Mistral OCR). Ohne den
  * `knownText`-Parameter lief dieselbe Datei danach ein zweites Mal durch eine
- * ANDERE Kette: `extractTextFromFile` → `extractTextFromDocument` prüft die
+ * ANDERE Kette: `extractDocumentFromFile` → `extractTextFromDocument` prüft die
  * Direkt-Lesbarkeit vorweg und nimmt bei einem Text-PDF PDF.js.
  *
  * Die zwei Fassungen sind nicht bloss zwei Zeichenzahlen. Indiziert — und damit
@@ -14,16 +14,21 @@
  * Das Modell hat daraus treu, aber falsch rekonstruiert — der Fehler sah wie
  * eine Halluzination aus und sass zwei Ebenen tiefer.
  */
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const extractTextFromFile = vi.fn();
+const extractDocumentFromFile = vi.fn();
+const extracted = (text: string) => ({ text, pageCount: null, extractionMethod: null });
 const chunkAndEmbedText = vi.fn();
 
 vi.mock('./textExtraction.js', async () => {
   const actual = await vi.importActual<typeof import('./textExtraction.js')>('./textExtraction.js');
   return {
     ...actual,
-    extractTextFromFile: (...args: unknown[]) => extractTextFromFile(...args) as unknown,
+    extractDocumentFromFile: (...args: unknown[]) => extractDocumentFromFile(...args) as unknown,
   };
 });
 
@@ -54,7 +59,7 @@ const services = () => ({
 });
 
 beforeEach(() => {
-  extractTextFromFile.mockReset();
+  extractDocumentFromFile.mockReset();
   chunkAndEmbedText.mockReset().mockResolvedValue({ chunks: ['c'], embeddings: [[0.1]] });
   saveDocumentMetadata.mockReset().mockResolvedValue({ id: 'doc-1', title: 'datenschutz.pdf' });
   storeDocumentVectors.mockReset().mockResolvedValue(undefined);
@@ -67,7 +72,7 @@ describe('processFileUpload — knownText', () => {
 
     await processFileUpload(pg, qdrant, 'u1', file, 'datenschutz.pdf', 'documentchat', bekannt);
 
-    expect(extractTextFromFile).not.toHaveBeenCalled();
+    expect(extractDocumentFromFile).not.toHaveBeenCalled();
     // …und indiziert wird genau dieser Text, nicht ein zweiter.
     expect(chunkAndEmbedText.mock.calls[0]?.[0]).toBe(bekannt);
   });
@@ -76,11 +81,11 @@ describe('processFileUpload — knownText', () => {
     // Der Notebook-Upload und die Skripte reichen nichts durch — für sie darf
     // sich nichts ändern.
     const { pg, qdrant } = services();
-    extractTextFromFile.mockResolvedValue('aus der Datei gelesen');
+    extractDocumentFromFile.mockResolvedValue(extracted('aus der Datei gelesen'));
 
     await processFileUpload(pg, qdrant, 'u1', file, 'datenschutz.pdf');
 
-    expect(extractTextFromFile).toHaveBeenCalledOnce();
+    expect(extractDocumentFromFile).toHaveBeenCalledOnce();
     expect(chunkAndEmbedText.mock.calls[0]?.[0]).toBe('aus der Datei gelesen');
   });
 
@@ -88,11 +93,11 @@ describe('processFileUpload — knownText', () => {
     // Ein leerer Anhangstext ist ein Fehlschlag weiter oben, kein Auftrag,
     // nichts zu indizieren.
     const { pg, qdrant } = services();
-    extractTextFromFile.mockResolvedValue('aus der Datei gelesen');
+    extractDocumentFromFile.mockResolvedValue(extracted('aus der Datei gelesen'));
 
     await processFileUpload(pg, qdrant, 'u1', file, 'datenschutz.pdf', 'documentchat', '   ');
 
-    expect(extractTextFromFile).toHaveBeenCalledOnce();
+    expect(extractDocumentFromFile).toHaveBeenCalledOnce();
     expect(chunkAndEmbedText.mock.calls[0]?.[0]).toBe('aus der Datei gelesen');
   });
 });
@@ -114,7 +119,7 @@ describe('processUploadedDocument — Art.-9-Einwilligung', () => {
 
     expect(hasAiConsent).toHaveBeenCalledWith('u1');
     expect(getDocumentById).not.toHaveBeenCalled();
-    expect(extractTextFromFile).not.toHaveBeenCalled();
+    expect(extractDocumentFromFile).not.toHaveBeenCalled();
     expect(chunkAndEmbedText).not.toHaveBeenCalled();
     expect(updateDocumentMetadata).toHaveBeenCalledWith(
       'doc-1',
@@ -124,6 +129,69 @@ describe('processUploadedDocument — Art.-9-Einwilligung', () => {
         additionalMetadata: expect.objectContaining({
           processing_error: expect.stringContaining('Einwilligung'),
         }),
+      })
+    );
+  });
+});
+
+describe('Seitenzahlen — nur der Dokument-Ingest setzt Marken', () => {
+  it('processFileUpload liest mit Marken und speichert page_count und Methode', async () => {
+    const { pg, qdrant } = services();
+    extractDocumentFromFile.mockResolvedValue({
+      text: '## Seite 1\n\nPräambel',
+      pageCount: 7,
+      extractionMethod: 'pdfjs-direct',
+    });
+
+    await processFileUpload(pg, qdrant, 'u1', file, 'antrag.pdf');
+
+    expect(extractDocumentFromFile).toHaveBeenCalledWith(file, { pageMarkers: true });
+    expect(saveDocumentMetadata).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({
+        pageCount: 7,
+        markdownContent: '## Seite 1\n\nPräambel',
+        additionalMetadata: expect.objectContaining({
+          extractionMethod: 'pdfjs-direct',
+          content_preview: 'Präambel',
+        }),
+      })
+    );
+  });
+
+  it('processUploadedDocument schreibt page_count und Methode an die Zeile', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pages-'));
+    const filePath = path.join(dir, 'antrag.pdf');
+    fs.writeFileSync(filePath, '%PDF-1.4');
+    extractDocumentFromFile.mockResolvedValue({
+      text: '## Seite 2\n\nBeschluss',
+      pageCount: 3,
+      extractionMethod: 'mistral-ocr',
+    });
+    const updateDocumentMetadata = vi.fn().mockResolvedValue(undefined);
+    const getDocumentById = vi.fn().mockResolvedValue({
+      id: 'doc-1',
+      title: 'Antrag',
+      filename: 'antrag.pdf',
+      source_type: 'manual',
+      metadata: { filePath, mimetype: 'application/pdf' },
+    });
+
+    await processUploadedDocument(
+      { updateDocumentMetadata, getDocumentById } as never,
+      { storeDocumentVectors } as never,
+      'doc-1',
+      'u1'
+    );
+
+    expect(extractDocumentFromFile.mock.calls[0]?.[1]).toEqual({ pageMarkers: true });
+    expect(updateDocumentMetadata).toHaveBeenCalledWith(
+      'doc-1',
+      'u1',
+      expect.objectContaining({
+        status: 'completed',
+        pageCount: 3,
+        additionalMetadata: expect.objectContaining({ extractionMethod: 'mistral-ocr' }),
       })
     );
   });
