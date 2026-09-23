@@ -18,6 +18,7 @@ import { buildToolObservationReplay } from '../services/agenticLoop/mcpReplay.js
 import {
   makeNotebookSourcesTool,
   normalizeArgs,
+  notebookForPrompt,
   type NotebookSourceToolDeps,
 } from './notebookSourceTools.js';
 
@@ -638,5 +639,24 @@ describe('what the writer sees in split mode', () => {
     const { run, notes } = makeCtx();
     await run({ action: 'read', notebookId: 'hamburg', sourceId: HH_A });
     expect(notes).toEqual([]);
+  });
+});
+
+describe('notebookForPrompt', () => {
+  it('names a system notebook by collection key or slug', () => {
+    expect(notebookForPrompt('hamburg', 'de-DE')).toEqual({ id: 'hamburg', name: 'Grüne Hamburg' });
+    expect(notebookForPrompt('hamburg-notebook', 'de-DE')?.name).toBe('Grüne Hamburg');
+  });
+
+  it('keeps an own notebook as an id without a name', () => {
+    expect(notebookForPrompt('3f1c2b4e-0000-4000-8000-000000000001', 'de-DE')).toEqual({
+      id: '3f1c2b4e-0000-4000-8000-000000000001',
+      name: null,
+    });
+  });
+
+  it('is null without an id or for a system notebook this locale cannot read', () => {
+    expect(notebookForPrompt(null, 'de-DE')).toBeNull();
+    expect(notebookForPrompt('hamburg', 'de-AT')).toBeNull();
   });
 });
