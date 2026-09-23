@@ -9,6 +9,9 @@ import {
   fetchDocumentMetadata,
   findPassages,
   listNotebookSources,
+  loadMarkedPageRanges,
+  markedPageAt,
+  markedPageRanges,
   outlineSource,
   readSourceText,
   resolveSourceInNotebook,
@@ -456,6 +459,31 @@ describe('sliceSource', () => {
       { index: 2, charStart: 260, charEnd: 300, pageNumber: 5 },
     ]);
     expect(out.pageRange).toEqual({ from: 3, to: 4 });
+  });
+});
+
+describe('markedPageAt', () => {
+  const TEXT_3P = '## Seite 1\nEins.\n## Seite 2\nZwei.\n## Seite 3\nDrei.';
+
+  it('maps an offset to the page whose marker precedes it', () => {
+    const ranges = markedPageRanges(TEXT_3P);
+    expect(markedPageAt(ranges, TEXT_3P.indexOf('Eins'))).toBe(1);
+    expect(markedPageAt(ranges, TEXT_3P.indexOf('Zwei'))).toBe(2);
+    expect(markedPageAt(ranges, TEXT_3P.indexOf('Drei'))).toBe(3);
+  });
+
+  it('returns null without markers', () => {
+    expect(markedPageAt(markedPageRanges('Kein Marker.'), 3)).toBeNull();
+  });
+});
+
+describe('loadMarkedPageRanges', () => {
+  it('skips the query without ids and maps rows to page ranges', async () => {
+    const query = vi.fn(async () => [{ id: 'd1', markdown_content: '## Seite 4\nText' }]);
+    expect((await loadMarkedPageRanges({ query } as never, [])).size).toBe(0);
+    expect(query).not.toHaveBeenCalled();
+    const out = await loadMarkedPageRanges({ query } as never, ['d1']);
+    expect(out.get('d1')?.map((r) => r.page)).toEqual([4]);
   });
 });
 

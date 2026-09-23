@@ -177,6 +177,12 @@ function makeCtx(opts: CtxOptions = {}) {
   };
   const db = {
     query: vi.fn(async (sql: string, params: unknown[]) => {
+      if (sql.includes('markdown_content ~*')) {
+        const ids = params[0] as string[];
+        return Object.entries(opts.markdownById ?? {})
+          .filter(([id, text]) => ids.includes(id) && /##\s*Seite\s+\d/i.test(text))
+          .map(([id, markdown_content]) => ({ id, markdown_content }));
+      }
       if (sql.includes('markdown_content FROM documents')) {
         const own = opts.markdownById?.[String(params[0])];
         if (own !== undefined) return [{ markdown_content: own }];
@@ -493,6 +499,16 @@ describe('find', () => {
       relevance: 0.8,
       citedText: 'Der Radweg kommt 2027.',
     });
+  });
+
+  it('reports the page span of a passage from the page markers of its source', async () => {
+    // Offset 24 liegt auf Seite 2, das Passagenende (45) hinter der Marke von Seite 3.
+    const marked = '## Seite 2\n' + 'x'.repeat(13) + 'Der Radweg\n## Seite 3\nkommt 2027.';
+    const { run } = makeCtx({ searchResults, markdownById: { d1: marked } });
+    const out = await run({ action: 'find', query: 'Radweg' });
+    expect(out.passages).toEqual([
+      expect.objectContaining({ pageNumber: 2, pageTo: 3, charStart: 24, charEnd: 46 }),
+    ]);
   });
 
   it('narrows to one source after checking it belongs to the notebook', async () => {

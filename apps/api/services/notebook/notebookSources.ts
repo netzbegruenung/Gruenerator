@@ -459,6 +459,29 @@ export function markedPageRanges(text: string): PageRange[] {
   return buildPageRangesFromRaw(text);
 }
 
+/**
+ * Die Seite eines Offsets nach den `## Seite N`-Marken — `null` ohne Marken
+ * oder vor der ersten. Ein Chunk trägt die Seite, auf der er BEGINNT; ein
+ * Treffer hinter einem Seitenwechsel im selben Chunk stünde sonst eine Seite zu früh.
+ */
+export function markedPageAt(marked: readonly PageRange[], offset: number): number | null {
+  return marked.find((r) => r.start <= offset && offset < r.end)?.page ?? null;
+}
+
+/** Die Seitenmarken je Quelle — nur Quellen, deren Text Marken trägt. */
+export async function loadMarkedPageRanges(
+  db: Pick<PostgresService, 'query'>,
+  ids: readonly string[]
+): Promise<Map<string, PageRange[]>> {
+  if (ids.length === 0) return new Map();
+  const rows = await db.query<{ id: string; markdown_content: string }>(
+    `SELECT id, markdown_content FROM documents
+      WHERE id = ANY($1) AND markdown_content ~* '##\\s*Seite\\s+\\d'`,
+    [ids]
+  );
+  return new Map(rows.map((r) => [r.id, markedPageRanges(r.markdown_content)]));
+}
+
 export function sliceSource(
   text: string,
   opts: { von: number; zeichen?: number | undefined },
