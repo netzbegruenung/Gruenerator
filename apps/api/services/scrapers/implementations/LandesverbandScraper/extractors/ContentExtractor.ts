@@ -7,6 +7,8 @@
 import * as cheerio from 'cheerio';
 import { type AnyNode } from 'domhandler';
 
+import { normalizeGermanDate } from '../../../../documentMeta/germanDates.js';
+
 import type { ExtractedContent } from '../types.js';
 
 /**
@@ -373,60 +375,7 @@ export class ContentExtractor {
    * Passes through already-ISO strings unchanged.
    */
   static normalizeGermanDate(dateStr: string): string {
-    const trimmed = dateStr.trim();
-
-    // German long-form text month (e.g., "21. Mai 2026"). Some TYPO3 sites
-    // (gruene-fraktion-bayern.de) render the publish date this way with no
-    // <time>/datetime markup.
-    const textMonthMatch = trimmed.match(
-      /(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/i
-    );
-    if (textMonthMatch) {
-      const months: Record<string, string> = {
-        januar: '01',
-        februar: '02',
-        märz: '03',
-        april: '04',
-        mai: '05',
-        juni: '06',
-        juli: '07',
-        august: '08',
-        september: '09',
-        oktober: '10',
-        november: '11',
-        dezember: '12',
-      };
-      const day = textMonthMatch[1].padStart(2, '0');
-      const month = months[textMonthMatch[2].toLowerCase()];
-      const year = textMonthMatch[3];
-      if (month) return `${year}-${month}-${day}`;
-    }
-
-    // DD.MM.YYYY (e.g., "19.02.2026"). Try the 4-digit year first so that
-    // "02.04.2026" doesn't get partially matched as DD.MM.YY ("02.04.20").
-    // The (?!\d) lookahead prevents capturing a 4-digit year as a 2-digit one.
-    const longMatch = trimmed.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})(?!\d)/);
-    if (longMatch) {
-      const day = longMatch[1].padStart(2, '0');
-      const month = longMatch[2].padStart(2, '0');
-      const year = longMatch[3];
-      return `${year}-${month}-${day}`;
-    }
-
-    // DD.MM.YY (e.g., "19.02.26"). Pivot at 50: 00-50 is 20xx, 51-99 is 19xx —
-    // none of our sources predate 1951, and this keeps a stray "29.04.99" from
-    // landing in the future as 2099.
-    const shortMatch = trimmed.match(/(\d{1,2})\.(\d{1,2})\.(\d{2})(?!\d)/);
-    if (shortMatch) {
-      const day = shortMatch[1].padStart(2, '0');
-      const month = shortMatch[2].padStart(2, '0');
-      const yy = parseInt(shortMatch[3], 10);
-      const year = yy > 50 ? 1900 + yy : 2000 + yy;
-      return `${year}-${month}-${day}`;
-    }
-
-    // Already ISO or other format — pass through
-    return trimmed;
+    return normalizeGermanDate(dateStr);
   }
 
   /**
