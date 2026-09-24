@@ -78,9 +78,21 @@
  *      table itself stays in place until manually dropped (non-destructive
  *      cleanup), but nothing reads or writes it anymore.
  *
+ *   7. Every auth request 500 after the better-auth 1.7 deploy (#3667).
+ *      `mcp({ resource })` seeds `ba_oauth_resources` in the plugin's
+ *      `init`, and `betterAuth()` runs that at module import — before
+ *      `PostgresService.init()` has applied the migration creating the
+ *      table. The library defers on a missing table, but matches only
+ *      `err.message`, and Drizzle wraps the pg error as `Failed query: …`
+ *      with the real text in `cause`. The rejection is cached in
+ *      `auth.$context`, so the process stays broken until restart. Fix:
+ *      `patches/@better-auth__oauth-provider@1.7.5.patch` catches the
+ *      init-time seed and leaves it to the lazy `seedResourcesOnce` path.
+ *
  * Run: `pnpm --filter @gruenerator/api test`
  */
 
+import { oauthProvider } from '@better-auth/oauth-provider';
 import pg from 'pg';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
@@ -213,5 +225,30 @@ describe('web-handoff endpoints are registered', () => {
   it('keeps the handoff behind its own path under the auth basePath', () => {
     expect(auth.api.webHandoff.path).toBe('/web-handoff');
     expect(auth.api.webHandoffMint.path).toBe('/web-handoff/mint');
+  });
+});
+
+describe('regression #3667 — OAuth resource seed must not poison auth init', () => {
+  it('plugin init resolves when the resource table is not migrated yet', async () => {
+    const drizzleError = new Error(
+      'Failed query: select "id" from "ba_oauth_resources" where "ba_oauth_resources"."identifier" = $1',
+      { cause: new Error('relation "ba_oauth_resources" does not exist') }
+    );
+    const plugin = oauthProvider({
+      loginPage: '/login',
+      consentPage: '/consent',
+      resources: ['https://mcp.example.org'],
+      disableJwtPlugin: true,
+    });
+    const ctx = {
+      options: {},
+      baseURL: 'http://localhost:3000/api/auth/v2',
+      adapter: {
+        findOne: () => Promise.reject(drizzleError),
+        create: () => Promise.reject(drizzleError),
+      },
+    };
+
+    await expect((plugin.init as (c: unknown) => Promise<unknown>)(ctx)).resolves.toBeDefined();
   });
 });
