@@ -146,6 +146,46 @@ describe('extractTextFromBase64 mit Seitenmarken', () => {
     expect(result.text).toBe('## Seite 1\n\nOCR-Text');
   });
 
+  it('fällt für einen Scan auf Docling zurück, wenn Mistral OCR ausfällt', async () => {
+    mistral.extractBase64WithMistralOCR.mockRejectedValue(new Error('503'));
+
+    const result = await service.extractTextFromBase64(SCAN_BASE64, 'scan.pdf', 'application/pdf', {
+      pageMarkers: true,
+    });
+
+    expect(docling.extractBase64WithDocling).toHaveBeenCalledWith(SCAN_BASE64, 'scan.pdf');
+    expect(result.text).toBe('Docling');
+  });
+
+  it('nimmt pdfjs als letzten Ausweg, wenn Mistral ausfällt und Docling fehlt', async () => {
+    mistral.extractBase64WithMistralOCR.mockRejectedValue(new Error('503'));
+    docling.isDoclingAvailable.mockResolvedValue(false);
+
+    const result = await service.extractTextFromBase64(SCAN_BASE64, 'scan.pdf', 'application/pdf', {
+      pageMarkers: true,
+    });
+
+    expect(docling.extractBase64WithDocling).not.toHaveBeenCalled();
+    expect(result.method).toBe('pdfjs-dist');
+  });
+
+  it('erkennt eine PDF auch am Dateinamen, wenn der MIME-Typ fehlt', async () => {
+    const result = await service.extractTextFromBase64(
+      FIXTURE_BASE64,
+      'Datenschutz.PDF',
+      'application/octet-stream',
+      { pageMarkers: true }
+    );
+
+    expect(docling.isDoclingAvailable).not.toHaveBeenCalled();
+    expect(mistral.extractPagesWithMistralOCR).toHaveBeenCalledWith(
+      FIXTURE_BASE64,
+      'application/pdf',
+      [3, 4]
+    );
+    expect(splitTextByPageMarkers(result.text)).toHaveLength(8);
+  }, 30_000);
+
   it('lässt DOCX weiter über Docling laufen', async () => {
     const mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     const result = await service.extractTextFromBase64('ZmFrZQ==', 'antrag.docx', mime, {

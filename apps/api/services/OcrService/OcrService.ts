@@ -112,6 +112,7 @@ export class OCRService {
   async getPdfJs(): Promise<PdfjsLib> {
     if (this._pdfjsLib) return this._pdfjsLib;
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pdfjsLib = await loadPdfJs();
 
     // Configure worker path — use createRequire to resolve from the actual
@@ -121,6 +122,7 @@ export class OCRService {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this._pdfjsLib = pdfjsLib;
     return pdfjsLib;
   }
@@ -129,6 +131,7 @@ export class OCRService {
    * Open PDF document with PDF.js
    */
   async openPdfDocument(pdfPath: string): Promise<PdfjsLib> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pdfjsLib = await this.getPdfJs();
     return await openPdf(pdfPath, pdfjsLib);
   }
@@ -137,6 +140,7 @@ export class OCRService {
    * Open base64-encoded PDF with PDF.js
    */
   async openPdfFromBase64(base64Data: string): Promise<PdfjsLib> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pdfjsLib = await this.getPdfJs();
     return await openPdfBase64(base64Data, pdfjsLib);
   }
@@ -436,7 +440,8 @@ export class OCRService {
   /**
    * Base64-PDF mit Seitenmarken: derselbe Weg wie `extractTextFromDocument` —
    * text-native PDFs über pdfjs (Tabellenseiten über Mistral), Scans über
-   * Mistral OCR. Docling kommt hier nicht vor, es liefert keine Seiten.
+   * Mistral OCR. Docling liefert keine Seiten und springt nur ein, wenn Mistral
+   * ausfällt — ein Text ohne Marken ist besser als ein leerer Scan.
    */
   private async extractMarkedPdfFromBase64(
     base64Data: string,
@@ -479,12 +484,27 @@ export class OCRService {
       return await extractBase64WithMistralOCR(base64Data, filename, 'application/pdf', options);
     } catch (mistralError) {
       console.warn(
-        '[OCRService] Mistral OCR failed for %s, trying PDF.js as last resort: %s',
+        '[OCRService] Mistral OCR failed for %s: %s',
         safeFilename,
         (mistralError as Error).message
       );
-      return this.extractTextFromBase64PDF(base64Data, filename, options);
     }
+
+    if (await checkDocling()) {
+      try {
+        console.log('[OCRService] Using Docling (no page markers) for: %s', safeFilename);
+        return await extractBase64Docling(base64Data, filename);
+      } catch (doclingError) {
+        console.warn(
+          '[OCRService] Docling failed for %s: %s',
+          safeFilename,
+          (doclingError as Error).message
+        );
+      }
+    }
+
+    console.warn('[OCRService] Trying PDF.js as last resort for: %s', safeFilename);
+    return this.extractTextFromBase64PDF(base64Data, filename, options);
   }
 
   /**
@@ -556,7 +576,8 @@ export class OCRService {
    * Extract text from any base64-encoded attachment.
    * Routes by MIME type:
    * - text-decodable (text/*, code, markdown, CSV, JSON, etc.) → direct UTF-8 decode
-   * - PDFs with `pageMarkers` → `extractMarkedPdfFromBase64` (pdfjs / Mistral, no Docling)
+   * - PDFs (MIME type or `.pdf` name) with `pageMarkers` → `extractMarkedPdfFromBase64`
+   *   (pdfjs / Mistral; Docling only when Mistral fails)
    * - all other documents → Docling (primary) → Mistral OCR (fallback) → PDF.js (PDF-only last resort)
    */
   async extractTextFromBase64(
@@ -577,7 +598,9 @@ export class OCRService {
       };
     }
 
-    if (options.pageMarkers && mimeType === 'application/pdf') {
+    // Browser schicken PDFs gelegentlich als application/octet-stream.
+    const isPdf = mimeType === 'application/pdf' || filename.toLowerCase().endsWith('.pdf');
+    if (options.pageMarkers && isPdf) {
       return this.extractMarkedPdfFromBase64(base64Data, filename, options);
     }
 
