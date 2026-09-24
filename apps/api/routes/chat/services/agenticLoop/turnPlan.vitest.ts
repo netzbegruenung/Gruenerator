@@ -53,6 +53,7 @@ const base: TurnPlanInput = {
   pipelineForceIntent: null,
   mentionPinnedTool: null,
   mentionPinnedArtifactKind: null,
+  agenturaCreateOrder: false,
 };
 
 const plan = (o: Partial<TurnPlanInput>) => decideTurnPlan({ ...base, ...o });
@@ -375,6 +376,28 @@ describe('decideTurnPlan — Endgültigkeit des Intents', () => {
     expect(p.runAgentic).toBe(false);
     expect(p.intent).toBe('web');
     expect(p.backfillSearchQuery).toBe(true);
+  });
+});
+
+describe('decideTurnPlan — Anlegeauftrag für die Agentura (#3679)', () => {
+  const order = { intent: 'agentic' as ChatIntentId, agenturaCreateOrder: true };
+
+  it('kommt mit gewähltem Notebook in die Schleife — ohne Pin', () => {
+    const p = plan({ ...order, hasSelectedNotebook: true });
+    expect(p.runAgentic).toBe(true);
+    expect(p.intent).toBe('agentic');
+    // Ohne den Auftrag hält die Notebook-Sperre denselben Turn draußen.
+    const plain = plan({ ...order, agenturaCreateOrder: false, hasSelectedNotebook: true });
+    expect(plain.runAgentic).toBe(false);
+  });
+
+  it('wirkt nur auf einen `agentic`-Vorschlag', () => {
+    const p = plan({ ...order, intent: 'search', hasSelectedNotebook: true });
+    expect(p.runAgentic).toBe(false);
+  });
+
+  it('ein Bildanhang sperrt ihn trotzdem aus', () => {
+    expect(plan({ ...order, hasImageAttachments: true }).runAgentic).toBe(false);
   });
 });
 

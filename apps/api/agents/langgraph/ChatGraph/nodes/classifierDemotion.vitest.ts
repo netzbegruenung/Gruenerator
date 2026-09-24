@@ -477,6 +477,8 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
       // `agentic_to_search`-Auffang darunter überhaupt erst zur Frage macht:
       // ein Pin würde den Turn in die Schleife zwingen statt ihn zu degradieren.
       mentionPinnedTool: null,
+      mentionPinnedArtifactKind: null,
+      agenturaCreateOrder: false,
     });
     expect(plan.runAgentic).toBe(false);
     expect(plan.intent).toBe('search');

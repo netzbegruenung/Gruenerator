@@ -724,17 +724,15 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // zur Zusammenfassung; ein Anhang (klein, @Dokument, oder vektorisiert als
     // `documentChatIds`), eine Wolke- oder Connect-Datei zwang den Turn sonst
     // in die Zwangssuche des Einzeldurchlaufs. Die Schleife bringt beides
-    // selbst mit (Anhang-Seed samt `document_chat`, `cloud_files`). Anders als beim Dauerauftrag OHNE Pin: ein
-    // Pin erzwingt den ersten Aufruf, und ein Fehlalarm („ein Rezept für
-    // Kürbissuppe") legte dann ohne Rückfrage ein Rezept an — das Werkzeug zu
-    // wählen bleibt dem Planer.
+    // selbst mit (Anhang-Seed samt `document_chat`, `cloud_files`). Anders als
+    // beim Dauerauftrag OHNE Pin: ein Pin erzwingt den ersten Aufruf, und ein
+    // Fehlalarm („ein Rezept für Kürbissuppe") legte dann ohne Rückfrage ein
+    // Rezept an — das Werkzeug zu wählen bleibt dem Planer.
     //
-    // Nicht bei gewähltem Notebook: ohne Pin hält die Notebook-Sperre in
-    // `decideRunAgentic` den Turn ohnehin im Einzeldurchlauf, und dort ist die
-    // Notebook-Suche unten der bessere Ausgang als ein `agentic` ohne Executor.
-    const agenturaTarget = hasNotebooks
-      ? null
-      : agenturaCreateTarget(state.lastUserTextNoMentions ?? userContent);
+    // Auch mit gewähltem Notebook: `agenturaCreateOrder` hebt in `turnPlan` die
+    // Notebook-Sperre auf, und die Schleife liest das Notebook selbst
+    // (`notebook_quellen`, im Prompt benannt), bevor sie das Rezept anlegt.
+    const agenturaTarget = agenturaCreateTarget(state.lastUserTextNoMentions ?? userContent);
     if (agenturaTarget) {
       log.info(`[Classifier] Agentura create order → loop (${agenturaTarget})`);
       recordDecision('classifier.tier', 'tier2_agentura_create', {
@@ -749,6 +747,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           agenturaTarget === 'recipes'
             ? 'Auftrag, ein Rezept anzulegen → Schleife mit recipes'
             : 'Auftrag, einen Grünerator-Agenten anzulegen → Schleife mit user_agents',
+        agenturaCreateOrder: true,
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,

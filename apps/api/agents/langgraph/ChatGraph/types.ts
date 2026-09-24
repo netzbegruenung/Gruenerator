@@ -1109,6 +1109,16 @@ export interface ChatGraphState {
   // Tabelle also nur, solange das Wort „Tabelle" auch dastand.
   mentionPinnedArtifactKind?: ArtifactCreateKind | null | undefined;
 
+  // Ein Auftrag, ein Rezept oder einen Grünerator-Agenten ANZULEGEN — gesetzt
+  // vom Klassifikator (`tier2_agentura_create`) neben `intent: 'agentic'`.
+  // Gegenstück zu `mentionPinnedTool` ohne dessen zweite Hälfte: der Turn MUSS
+  // in die Schleife (nur dort sind `recipes`/`user_agents` montiert, `agentic`
+  // hat keinen Einzeldurchlauf), auch mit gewähltem Notebook — aber der erste
+  // Aufruf wird NICHT erzwungen. Ein Pin erzwänge ihn, und dann legte ein
+  // Fehlalarm ohne Rückfrage ein Rezept an, bzw. das Rezept entstünde, bevor
+  // das gewählte Notebook gelesen ist.
+  agenturaCreateOrder?: boolean | undefined;
+
   // The first-party MANAGED connectors this turn mounts (`bahn`, `wetter`,
   // `gesetze`, …). Set by the vocabulary trigger in the router, or by an
   // explicit `@gesetze`-style mention. Empty/absent = mount none.
