@@ -4,6 +4,7 @@
  * Handles document processing, embedding generation, and database updates
  */
 
+import { promises as fs } from 'fs';
 import { createRequire } from 'module';
 import path from 'path';
 
@@ -31,11 +32,13 @@ import {
 import {
   extractTextWithMistralOCR as extractMistral,
   extractBase64WithMistralOCR,
+  extractPagesWithMistralOCR,
 } from './mistralIntegration.js';
-import { stripPageMarkers, type PageMarkerOptions } from './pageMarkers.js';
+import { replaceMarkedPages, stripPageMarkers, type PageMarkerOptions } from './pageMarkers.js';
 import {
   getPdfJs as loadPdfJs,
   openPdfDocument as openPdf,
+  openPdfFromBase64 as openPdfBase64,
   getPDFInfo as getPdfInfo,
   canExtractTextDirectly as checkParseability,
   extractTextDirectlyFromPDF as extractDirect,
@@ -79,6 +82,15 @@ interface QdrantClient {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PdfjsLib = any;
 
+/**
+ * Mehr Tabellenseiten als das, und die ganze Datei geht an Mistral OCR — dann
+ * ist es ein tabellenlastiges Dokument, und die pdfjs-Seiten dazwischen lohnen
+ * das Zusammensetzen nicht.
+ */
+const MAX_MISTRAL_TABLE_PAGES = 20;
+
+type PdfProvider = 'pdfjs-direct' | 'pdfjs-direct+mistral-tables' | 'mistral-ocr';
+
 export class OCRService {
   private isProcessing: Map<string, boolean>;
   private maxPages: number;
@@ -100,7 +112,6 @@ export class OCRService {
   async getPdfJs(): Promise<PdfjsLib> {
     if (this._pdfjsLib) return this._pdfjsLib;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pdfjsLib = await loadPdfJs();
 
     // Configure worker path — use createRequire to resolve from the actual
@@ -110,7 +121,6 @@ export class OCRService {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this._pdfjsLib = pdfjsLib;
     return pdfjsLib;
   }
@@ -119,9 +129,16 @@ export class OCRService {
    * Open PDF document with PDF.js
    */
   async openPdfDocument(pdfPath: string): Promise<PdfjsLib> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pdfjsLib = await this.getPdfJs();
     return await openPdf(pdfPath, pdfjsLib);
+  }
+
+  /**
+   * Open base64-encoded PDF with PDF.js
+   */
+  async openPdfFromBase64(base64Data: string): Promise<PdfjsLib> {
+    const pdfjsLib = await this.getPdfJs();
+    return await openPdfBase64(base64Data, pdfjsLib);
   }
 
   /**
@@ -190,7 +207,9 @@ export class OCRService {
    *
    * `pageMarkers` setzt `## Seite N` vor jede Seite (Mistral, PDF.js; Docling
    * liefert keine Seiten). Nur der Dokument-Ingest will das — siehe
-   * `pageMarkers.ts`, warum alle anderen Aufrufer es NICHT dürfen.
+   * `pageMarkers.ts`, warum alle anderen Aufrufer es NICHT dürfen. Mit Marken
+   * gehen erkannte Tabellenseiten zusätzlich an Mistral OCR
+   * (`applyTablePages`).
    */
   async extractTextFromDocument(
     filePath: string,
@@ -244,7 +263,12 @@ export class OCRService {
           // Seite die Mindestlänge allein über seine `## Seite N`-Zeilen.
           const body = options.pageMarkers ? stripPageMarkers(result.text ?? '') : result.text;
           if (body && body.length >= 50) {
-            usedProvider = 'pdfjs-direct';
+            const direct: ExtractionResult = result;
+            ({ result, provider: usedProvider } = await this.applyTablePages(
+              direct,
+              async () => (await fs.readFile(filePath)).toString('base64'),
+              () => this.extractTextWithMistralOCR(filePath, options)
+            ));
           } else {
             console.log(
               `[OCRService] Direct extraction yielded insufficient text (${result.text?.length ?? 0} chars), falling back to OCR`
@@ -300,6 +324,47 @@ export class OCRService {
       const totalTime = Date.now() - startTime;
       console.error(`[OCRService] OCR extraction failed after ${totalTime}ms:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Tabellenseiten, die pdfjs erkannt hat (`result.tablePages`, nur mit
+   * `pageMarkers`), durch Mistrals Markdown ersetzen — nur diese Seiten gehen
+   * an die API. Bei mehr als `MAX_MISTRAL_TABLE_PAGES` liest Mistral die ganze
+   * Datei. Scheitert Mistral, bleibt der pdfjs-Text: eine Tabelle als
+   * Fliesstext ist besser als kein Dokument.
+   */
+  private async applyTablePages(
+    result: ExtractionResult,
+    readBase64: () => Promise<string>,
+    ocrWholeFile: () => Promise<ExtractionResult>
+  ): Promise<{ result: ExtractionResult; provider: PdfProvider }> {
+    const tablePages = result.tablePages ?? [];
+    if (tablePages.length === 0) return { result, provider: 'pdfjs-direct' };
+
+    try {
+      if (tablePages.length > MAX_MISTRAL_TABLE_PAGES) {
+        console.log(
+          `[OCRService] ${tablePages.length} table pages (> ${MAX_MISTRAL_TABLE_PAGES}), using Mistral OCR for the whole file`
+        );
+        return { result: await ocrWholeFile(), provider: 'mistral-ocr' };
+      }
+      console.log(`[OCRService] Table pages ${tablePages.join(', ')} → Mistral OCR`);
+      const markdown = await extractPagesWithMistralOCR(
+        await readBase64(),
+        'application/pdf',
+        tablePages
+      );
+      return {
+        result: { ...result, text: replaceMarkedPages(result.text, markdown) },
+        provider: 'pdfjs-direct+mistral-tables',
+      };
+    } catch (error) {
+      console.warn(
+        `[OCRService] Mistral OCR for table pages failed, keeping PDF.js text:`,
+        (error as Error).message
+      );
+      return { result, provider: 'pdfjs-direct' };
     }
   }
 
@@ -362,9 +427,64 @@ export class OCRService {
    */
   async extractTextFromBase64PDF(
     base64Data: string,
-    filename: string = 'unknown.pdf'
+    filename: string = 'unknown.pdf',
+    options: PageMarkerOptions = {}
   ): Promise<ExtractionResult> {
-    return await extractBase64(base64Data, filename, this.getPdfJs.bind(this));
+    return await extractBase64(base64Data, filename, this.getPdfJs.bind(this), options);
+  }
+
+  /**
+   * Base64-PDF mit Seitenmarken: derselbe Weg wie `extractTextFromDocument` —
+   * text-native PDFs über pdfjs (Tabellenseiten über Mistral), Scans über
+   * Mistral OCR. Docling kommt hier nicht vor, es liefert keine Seiten.
+   */
+  private async extractMarkedPdfFromBase64(
+    base64Data: string,
+    filename: string,
+    options: PageMarkerOptions
+  ): Promise<ExtractionResult> {
+    const safeFilename = sanitizeFilename(filename, 'unknown');
+    let parseCheck: ParseabilityCheck | null = null;
+    try {
+      parseCheck = await checkParseability(base64Data, this.openPdfFromBase64.bind(this));
+    } catch {
+      // Non-fatal: Mistral OCR can still read PDFs pdfjs cannot open
+    }
+
+    if (parseCheck?.isParseable && parseCheck.confidence >= 0.8) {
+      try {
+        const direct = await this.extractTextFromBase64PDF(base64Data, filename, options);
+        if (stripPageMarkers(direct.text ?? '').length >= 50) {
+          const { result, provider } = await this.applyTablePages(
+            direct,
+            () => Promise.resolve(base64Data),
+            () => extractBase64WithMistralOCR(base64Data, filename, 'application/pdf', options)
+          );
+          return { ...result, stats: { ...result.stats, method: provider } };
+        }
+        console.log(
+          '[OCRService] Direct extraction of %s yielded insufficient text, falling back to OCR',
+          safeFilename
+        );
+      } catch (directError) {
+        console.warn(
+          '[OCRService] Direct PDF extraction failed for %s, falling back to OCR: %s',
+          safeFilename,
+          (directError as Error).message
+        );
+      }
+    }
+
+    try {
+      return await extractBase64WithMistralOCR(base64Data, filename, 'application/pdf', options);
+    } catch (mistralError) {
+      console.warn(
+        '[OCRService] Mistral OCR failed for %s, trying PDF.js as last resort: %s',
+        safeFilename,
+        (mistralError as Error).message
+      );
+      return this.extractTextFromBase64PDF(base64Data, filename, options);
+    }
   }
 
   /**
@@ -436,12 +556,14 @@ export class OCRService {
    * Extract text from any base64-encoded attachment.
    * Routes by MIME type:
    * - text-decodable (text/*, code, markdown, CSV, JSON, etc.) → direct UTF-8 decode
-   * - all documents → Docling (primary) → Mistral OCR (fallback) → PDF.js (PDF-only last resort)
+   * - PDFs with `pageMarkers` → `extractMarkedPdfFromBase64` (pdfjs / Mistral, no Docling)
+   * - all other documents → Docling (primary) → Mistral OCR (fallback) → PDF.js (PDF-only last resort)
    */
   async extractTextFromBase64(
     base64Data: string,
     filename: string,
-    mimeType: string
+    mimeType: string,
+    options: PageMarkerOptions = {}
   ): Promise<ExtractionResult> {
     filename = sanitizeFilename(filename, 'attachment');
     if (this.isTextDecodable(mimeType, filename)) {
@@ -453,6 +575,10 @@ export class OCRService {
         confidence: 1.0,
         stats: { pages: 1, successfulPages: 1, method: 'utf8-decode' },
       };
+    }
+
+    if (options.pageMarkers && mimeType === 'application/pdf') {
+      return this.extractMarkedPdfFromBase64(base64Data, filename, options);
     }
 
     const safeFilename = sanitizeFilename(filename, 'unknown');
