@@ -152,6 +152,20 @@ describe('Agentura-Anlegeauftrag mit gewählten Quellen', () => {
     expect(out.reasoning).toMatch(/Rezept anzulegen/);
   });
 
+  it('großer Anhang (vektorisiert, documentChatIds): Schleife statt Zwangssuche', async () => {
+    const out = await classify(ORDER, { documentChatIds: ['doc-1'] } as Partial<ChatGraphState>);
+    expect(out.intent).toBe('agentic');
+    expect(out.reasoning).toMatch(/Rezept anzulegen/);
+  });
+
+  it('„Zusammenfassung" als Textsorte schlägt den Zusammenfassungs-Zweig nicht', async () => {
+    const out = await classify(
+      'Erstell mir ein Rezept für die Zusammenfassung von Sitzungsprotokollen',
+      { documentChatIds: ['doc-1'] } as Partial<ChatGraphState>
+    );
+    expect(out.intent).toBe('agentic');
+  });
+
   it('Wolke-Datei: Schleife statt Zwangssuche — der Loop hat cloud_files', async () => {
     const out = await classify(ORDER, {
       wolkeFiles: [{ shareLinkId: 's', path: '/leitfaden.pdf', name: 'leitfaden.pdf' }],
