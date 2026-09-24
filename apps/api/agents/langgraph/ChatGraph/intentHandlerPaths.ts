@@ -35,9 +35,11 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
     'DEPRECATED as a verdict — still reachable through the heuristic hint and persisted metadata.intent; treated exactly like produktion everywhere it is read',
   greeting:
     'falls through to response generation like direct, but never carries thread sources, never cites and never enters the agentic loop — decided by GREETING_PREFIX_PATTERN before any LLM runs',
-  research: 'handled via search branch (intent !== direct)',
+  research:
+    '@recherche pins web_search into the agentic loop; otherwise handled via search branch — the kill-switch fallback and the only path for the @deepresearch variant',
   compare: 'handled via search branch — multi-document comparison, same path as research',
-  search: 'handled via search branch (intent !== direct)',
+  search:
+    '@dokumente pins gruenerator_search into the agentic loop; otherwise handled via search branch — the kill-switch fallback, and a selected notebook keeps the turn there',
   web: 'handled via search branch (intent !== direct)',
   examples: 'handled via search branch (intent !== direct)',
   pressemitteilung_examples:
