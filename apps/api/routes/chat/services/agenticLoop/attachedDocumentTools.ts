@@ -136,6 +136,55 @@ function located(id: string, title: string, content: string): SearchResult {
   return { source: `documentchat:${id}`, title, content, relevance: 1, documentSourceId: id };
 }
 
+/**
+ * Volltext in Scheiben (`abschnitt`), statt Ähnlichkeitssuche.
+ *
+ * Über denselben Loader wie `seite`, `wortsuche` und `zitat`: die Offsets im
+ * Wegweiser und in deren Fundstellen zeigen damit in DENSELBEN Text
+ * (`markdown_content`, sonst die aneinandergereihten Chunks). Vorher las
+ * `abschnitt` über `getMultipleDocumentsFullText` — andere Verkettung, 20
+ * Chunks je Dokument — und ein `abschnitt.von` aus einem Seiten-Wegweiser
+ * landete an der falschen Stelle.
+ *
+ * Der Ausweg für Fragen, die keine brauchbare Suchanfrage hergeben (Open WebUIs
+ * `view_file`, LobeHubs `readKnowledge`). Für „fasse zusammen" ist trotzdem
+ * `summarize` der richtige Weg — Map-Reduce über den ganzen Text, nicht dessen
+ * erste Scheibe.
+ */
+export async function readAttachedSlice(
+  input: {
+    userId: string | null;
+    sources: readonly DocumentSource[];
+    from: number;
+    chars?: number | undefined;
+  },
+  partialDeps?: Partial<AttachedDocDeps>
+): Promise<SearchResult[]> {
+  const { userId, sources } = input;
+  if (!userId || sources.length === 0) return [];
+  const deps = await resolveDeps(partialDeps);
+  const readable = await readableIds(userId, sources, deps.db);
+  const results: SearchResult[] = [];
+  for (const doc of sources) {
+    const source = await readAttached(doc.id, userId, readable, deps);
+    if ('error' in source) continue;
+    const s = sliceSource(source.text, { von: input.from, zeichen: input.chars }, source.chunkMap);
+    if (!s.slice) continue;
+    // Der Wegweiser ist der einzige Weg, auf dem das Modell erfährt, dass noch
+    // etwas kommt. Er steht VORN: gekappt wird immer der Schwanz (in
+    // `applyContextCap` und in der gemeinsamen Schrumpfung von `renderAll`).
+    const marker =
+      s.to < s.total
+        ? `[Zeichen ${s.from}–${s.to} von ${s.total} — weiter mit abschnitt.von=${s.to}]`
+        : `[Zeichen ${s.from}–${s.to} von ${s.total} — Ende des Dokuments]`;
+    results.push({
+      ...located(doc.id, doc.label, `${marker}\n\n${s.slice}`),
+      ...(s.pageRange ? { pageNumber: s.pageRange.from, pageTo: s.pageRange.to } : {}),
+    });
+  }
+  return results;
+}
+
 export async function runAttachedDocumentMode(
   args: AttachedDocModeArgs,
   ctx: AttachedDocCtx
@@ -173,7 +222,7 @@ async function readPage(
     s.pageRange && s.pageRange.to > s.pageRange.from
       ? `Seite ${s.pageRange.from}–${s.pageRange.to}`
       : `Seite ${seite}`;
-  // Vorn, nicht hinten: gekappt wird der Schwanz (wie in `readAttachedDocumentSlice`).
+  // Vorn, nicht hinten: gekappt wird der Schwanz (wie in `readAttachedSlice`).
   const marker =
     s.to < pageEnd
       ? `[${pageLabel}, Zeichen ${s.from}–${s.to} von ${s.total} — die Seite geht weiter mit abschnitt.von=${s.to}]`
