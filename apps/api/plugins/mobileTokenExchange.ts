@@ -125,7 +125,8 @@ export const mobileTokenExchange = () => {
               // in `user.validateUserInfo` und dessen Kontext. Wir kommen hier
               // aus einem gegen die Keycloak-JWKS geprüften ID-Token, also
               // `oauth` — mit dem `authSource` als Provider und den geprüften
-              // Claims als rohem Profil.
+              // Claims als rohem Profil. `providerId` ist dort nur eine Beschriftung
+              // (nicht leer), kein Abgleich mit den registrierten Providern.
               {
                 method: 'oauth',
                 oauth: { providerId: authSource || 'mobile', profile: { ...payload } },
