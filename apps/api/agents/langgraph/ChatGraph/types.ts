@@ -1407,6 +1407,18 @@ export interface ShareUserAgentPayload {
 }
 
 /**
+ * Ein eigenes Rezept mit einem Projekt teilen. `mention` ist der Schlüssel,
+ * über den `shareTextFormWithGroup` die Zeile der Eigentümer*in findet;
+ * `title` ist für Meldung und Karte.
+ */
+export interface ShareTextFormPayload {
+  mention: string;
+  title: string;
+  groupId: string;
+  groupName: string;
+}
+
+/**
  * Pending action stored in Redis while awaiting user confirmation.
  * Discriminated union ensures type-safe payload access per action type.
  */
@@ -1432,6 +1444,7 @@ export type PendingAction = {
   | { type: 'create_recurring_task'; payload: CreateRecurringTaskPayload }
   | { type: 'create_user_agent'; payload: CreateUserAgentPayload }
   | { type: 'share_user_agent'; payload: ShareUserAgentPayload }
+  | { type: 'share_text_form'; payload: ShareTextFormPayload }
 );
 
 /**
