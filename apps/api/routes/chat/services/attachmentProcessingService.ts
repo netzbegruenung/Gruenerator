@@ -215,10 +215,14 @@ export async function processAttachments(
         : null;
 
       try {
+        // Mit Seitenmarken: das Modell liest `## Seite N` im Volltext, und ein
+        // grosser Anhang bekommt darüber `page_number` je Chunk. Die Chip-Vorschau
+        // entfernt sie wieder (messagesController).
         const result = await ocrService.extractTextFromBase64(
           attachment.data,
           attachment.name,
-          attachment.type
+          attachment.type,
+          { pageMarkers: true }
         );
 
         // Page counts are only meaningful for PDFs — the OCR service reports a

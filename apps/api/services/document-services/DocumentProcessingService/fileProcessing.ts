@@ -40,6 +40,8 @@ import type {
  * deren Leerzeichen INNERHALB eines Items in `str` ein, keine Join-Logik erreicht
  * das; der Eval nagelt den Mangel als bestehenden Test fest.
  * Ein Text pro Datei — derselbe, den das Modell im Anhang liest.
+ *
+ * `knownPageCount` gehört zu `knownText`: die Seitenzahl aus derselben Extraktion.
  */
 export async function processFileUpload(
   postgresDocumentService: PostgresDocumentServiceLike,
@@ -48,12 +50,13 @@ export async function processFileUpload(
   file: UploadedFile,
   title: string,
   sourceType: string = 'manual',
-  knownText?: string | null
+  knownText?: string | null,
+  knownPageCount: number | null = null
 ): Promise<FileUploadResult> {
   console.log(`[DocumentProcessingService] Processing file upload: ${title}`);
 
   const extraction: FileExtraction = knownText?.trim()
-    ? { text: knownText, pageCount: null, extractionMethod: null }
+    ? { text: knownText, pageCount: knownPageCount, extractionMethod: null }
     : await extractDocumentFromFile(file, { pageMarkers: true });
   const extractedText = extraction.text;
 
