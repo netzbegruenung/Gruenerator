@@ -173,8 +173,10 @@ describe('Agentura-Anlegeauftrag mit gewählten Quellen', () => {
     expect(out.intent).toBe('agentic');
   });
 
-  it('gewähltes Notebook: bleibt bei der Notebook-Suche (Notebook-Sperre ohne Pin)', async () => {
+  it('gewähltes Notebook: Schleife mit agenturaCreateOrder, ohne Pin (#3679)', async () => {
     const out = await classify(ORDER, { notebookIds: ['nb-1'] } as Partial<ChatGraphState>);
-    expect(out.reasoning ?? '').not.toMatch(/anzulegen/);
+    expect(out.intent).toBe('agentic');
+    expect(out.agenturaCreateOrder).toBe(true);
+    expect(out.mentionPinnedTool ?? null).toBeNull();
   });
 });
