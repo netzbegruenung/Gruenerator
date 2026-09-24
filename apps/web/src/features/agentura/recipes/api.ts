@@ -111,8 +111,7 @@ export function useAnalyzeRecipe() {
 
 /**
  * Synthesize a recipe spec from a one-shot freeform brief. Mirrors
- * `useDraftAgent`, minus the conversation-thread variant — the recipe
- * creator only offers the freeform brief.
+ * `useDraftAgent`.
  */
 export function useDraftRecipe() {
   return useMutation({

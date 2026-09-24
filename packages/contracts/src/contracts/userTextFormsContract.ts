@@ -58,9 +58,8 @@ export const userTextFormsContract = c.router(
     },
 
     /**
-     * POST /api/text-forms/draft — synthesize a recipe spec from either a
-     * creator conversation (`threadId`) or a one-shot freeform brief
-     * (`description`). Declared before the `:mention` routes so `draft` is not
+     * POST /api/text-forms/draft — synthesize a recipe spec from a one-shot
+     * freeform brief (`description`). Declared before the `:mention` routes so `draft` is not
      * swallowed as a mention.
      */
     draft: {
@@ -71,11 +70,9 @@ export const userTextFormsContract = c.router(
         200: textFormDraftResponseSchema,
         400: textFormErrorResponseSchema,
         401: textFormErrorResponseSchema,
-        403: textFormErrorResponseSchema,
-        404: textFormErrorResponseSchema,
         500: textFormErrorResponseSchema,
       },
-      summary: 'Draft a recipe spec from a conversation or brief',
+      summary: 'Draft a recipe spec from a freeform brief',
     },
 
     /**
