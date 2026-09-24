@@ -704,15 +704,17 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
   }
 
   // ── recipes (content-Scope: die Textform ist Inhalt des Kontos) ───────────
-  // Keine Overrides nötig: create und add_examples laufen direkt, delete
+  // Keine Overrides nötig: create, update und add_examples laufen direkt, delete
   // fragt selbst über confirm=true. Die Rümpfe der Systemrezepte gibt das
   // Werkzeug auch hier nicht heraus (parteiinterne Grenze).
   if (contentRead) {
     registerAiTool(server, 'recipes', makeRecipesTool(ctx), {
       description: contentWrite
-        ? `Rezepte und eigene Textformen der Person („Texte anlernen"): alle Rezepte und eigenen Textformen auflisten (list — die mention steht im ref), Details ansehen (get — bei eigenen Textformen mit Beispielen, Stilblock, Beschreibung, Icon und Sichtbarkeit, bei mitgelieferten Rezepten nur Titel und Beschreibung), aus Beispieltexten eine eigene Textform anlernen (create mit title, examples; optional mention, textType, description, iconKey — die Mention eines mitgelieferten Rezepts ersetzt dessen Stilvorgaben), Beispiele ergänzen (add_examples), löschen (delete, zweistufiges confirm-Protokoll). Freigeben an Projekte und Veröffentlichen in der Agentura laufen über die Einstellungen/Agentura, nicht über dieses Werkzeug. Anwenden eines Rezepts ist Sache des Chats, nicht dieses Werkzeugs.`
+        ? `Rezepte und eigene Textformen der Person („Texte anlernen"): alle Rezepte und eigenen Textformen auflisten (list — die mention steht im ref), Details ansehen (get — bei eigenen Textformen mit Beispielen, Stilblock, Beschreibung, Icon und Sichtbarkeit, bei mitgelieferten Rezepten nur Titel und Beschreibung), ein neues Rezept aus einer Beschreibung anlegen (create mit brief; optional title, mention, description, iconKey) oder aus Beispieltexten eine eigene Textform anlernen (create mit title, examples; optional mention, textType, description, iconKey — die Mention eines mitgelieferten Rezepts ersetzt dessen Stilvorgaben), Titel, Beschreibung, Icon oder Anweisungen ändern (update mit mention), Beispiele ergänzen (add_examples), löschen (delete, zweistufiges confirm-Protokoll). Freigeben an Projekte und Veröffentlichen in der Agentura laufen über die Einstellungen/Agentura, nicht über dieses Werkzeug. Anwenden eines Rezepts ist Sache des Chats, nicht dieses Werkzeugs.`
         : `Die Rezepte und eigenen Textformen der Person auflisten (list — die mention steht im ref) oder Details ansehen (get).`,
-      actions: contentWrite ? ['list', 'get', 'create', 'add_examples', 'delete'] : ['list', 'get'],
+      actions: contentWrite
+        ? ['list', 'get', 'create', 'update', 'add_examples', 'delete']
+        : ['list', 'get'],
       ...(contentWrite ? {} : { readOnly: true }),
     });
   }

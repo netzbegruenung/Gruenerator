@@ -334,7 +334,7 @@ function summarize(result: unknown): string | undefined {
         : `Grünerator-Agent „${a.title}"`;
     }
   }
-  // `recipes`: get liefert ein Detailobjekt, create/add_examples eines mit
+  // `recipes`: get liefert ein Detailobjekt, create/update/add_examples eines mit
   // Beispielzahl — sonst hieße es nur „ok".
   if (r.recipe && typeof r.recipe === 'object') {
     const t = r.recipe as { title?: unknown; source?: unknown; exampleCount?: unknown };
