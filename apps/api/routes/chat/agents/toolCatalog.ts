@@ -48,13 +48,15 @@ import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import {
   ATTACHED_DOC_SNIPPET_CHARS,
   ATTACHED_DOCS_TOOL,
-  readAttachedDocumentSlice,
   retrievableAttachedSources,
   retrieveAttachedDocuments,
   SLICE_DEFAULT_CHARS,
   SLICE_REGISTER_CHARS,
 } from '../services/agenticLoop/attachedDocuments.js';
-import { runAttachedDocumentMode } from '../services/agenticLoop/attachedDocumentTools.js';
+import {
+  readAttachedSlice,
+  runAttachedDocumentMode,
+} from '../services/agenticLoop/attachedDocumentTools.js';
 import { isLoopRerankEnabled } from '../services/agenticLoop/flags.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
 import {
@@ -782,9 +784,11 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
           // Frage selbst — die trifft bei „worum geht es hier" nur Zufälliges.
           const readSlice = abschnitt != null || (!query && scoped.length === 1);
           const results = readSlice
-            ? await readAttachedDocumentSlice(state, scoped, {
+            ? await readAttachedSlice({
+                userId: state.agentConfig.userId ?? null,
+                sources: scoped,
                 from: abschnitt?.von ?? 0,
-                ...(abschnitt?.zeichen != null && { chars: abschnitt.zeichen }),
+                chars: abschnitt?.zeichen,
               })
             : await retrieveAttachedDocuments(state, query ?? '', { sources: scoped });
 

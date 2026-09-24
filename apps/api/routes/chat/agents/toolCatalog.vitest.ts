@@ -72,8 +72,10 @@ vi.mock(
 );
 
 const attachedMode = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
+const attachedSlice = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
 vi.mock('../services/agenticLoop/attachedDocumentTools.js', () => ({
   runAttachedDocumentMode: (...a: unknown[]) => attachedMode(...a),
+  readAttachedSlice: (...a: unknown[]) => attachedSlice(...a),
 }));
 
 const agentConfig = { identifier: 'test' } as unknown as AgentConfig;
@@ -1319,9 +1321,15 @@ describe('toolCatalog dokumente_lesen', () => {
   });
 
   it('liest mit `abschnitt` den Volltext in Scheiben', async () => {
-    documentFullText.mockResolvedValue({
-      documents: [{ id: 'doc-1', fullText: `Anfang. ${'x'.repeat(30_000)}` }],
-    });
+    attachedSlice.mockReset();
+    attachedSlice.mockResolvedValue([
+      {
+        source: 'documentchat:doc-1',
+        title: 'Beschlusspapier.pdf',
+        content: '[Zeichen 0–10000 von 30008 — weiter mit abschnitt.von=10000]\n\nAnfang.',
+        relevance: 1,
+      },
+    ]);
     const { tools } = catalogWithDocs([pdf]);
 
     const out = (await execOf(tools.dokumente_lesen)(
@@ -1331,9 +1339,12 @@ describe('toolCatalog dokumente_lesen', () => {
 
     expect(out.resultCount).toBe(1);
     expect(out.sources).toContain('Anfang.');
-    // Der Wegweiser steht vor dem Text, nicht dahinter: gekappt wird der
-    // Schwanz, und am Ende wäre er genau dann weg, wenn er gebraucht wird.
-    expect(out.sources).toContain('[Zeichen 0–10000 von 30008 — weiter mit abschnitt.von=10000]');
+    expect(out.sources).toContain('weiter mit abschnitt.von=10000');
+    // Derselbe Loader wie seite/wortsuche/zitat — nicht mehr der Chunk-Volltext.
+    expect(attachedSlice).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u1', from: 0, sources: [pdf] })
+    );
+    expect(documentFullText).not.toHaveBeenCalled();
     expect(fanout).not.toHaveBeenCalled();
   });
 
@@ -1362,7 +1373,10 @@ describe('toolCatalog dokumente_lesen', () => {
    * die trifft bei „worum geht es hier" nur Zufälliges.
    */
   it('liest den Anfang, wenn weder Suchbegriff noch Abschnitt kommen', async () => {
-    documentFullText.mockResolvedValue({ documents: [{ id: 'doc-1', fullText: 'Kurzer Text.' }] });
+    attachedSlice.mockReset();
+    attachedSlice.mockResolvedValue([
+      { source: 'documentchat:doc-1', title: 'Beschlusspapier.pdf', content: 'Kurzer Text.' },
+    ]);
     const { tools } = catalogWithDocs([pdf]);
 
     const out = (await execOf(tools.dokumente_lesen)({}, { toolCallId: 'c1' })) as {
