@@ -3,6 +3,7 @@ import { HiUser, HiUserGroup } from 'react-icons/hi';
 import { Link } from 'react-router-dom';
 
 import { getToolTheme } from '../../../config/toolTheme';
+import { resolveApiAssetUrl } from '../../../utils/platform';
 
 // Square projekte-blue tile mirroring the OfficeTile idiom (aspect-square,
 // rounded-2xl, icon pinned top / label pinned bottom) so the "Deine Projekte"
@@ -31,7 +32,15 @@ export function ProjektTile({ projekt }: { projekt: GroupSummary }) {
       <span className="flex items-start justify-between">
         <span className="flex size-10 items-center justify-center overflow-hidden rounded-full bg-white/70 dark:bg-white/10">
           {projekt.avatar_url ? (
-            <img src={projekt.avatar_url} alt="" className="size-full object-cover" />
+            // avatar_url is the stored filename, not a URL; it changes on every
+            // upload, so it doubles as the cache-buster.
+            <img
+              src={resolveApiAssetUrl(
+                `/api/auth/groups/${projekt.id}/avatar?v=${encodeURIComponent(projekt.avatar_url)}`
+              )}
+              alt=""
+              className="size-full object-cover"
+            />
           ) : (
             <span className={`text-sm font-bold ${theme?.icon ?? 'text-secondary-600'}`}>
               {getGroupInitials(projekt.name)}
