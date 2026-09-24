@@ -312,22 +312,13 @@ async function startWorker(): Promise<void> {
   // cron itself (#2972). Cluster-safe: each slot is claimed once in Redis.
   startContentSyncDispatcher();
 
-  // TUS Upload Handler — registered before compression middleware.
-  // TUS uploads are binary streams that don't benefit from compression
-  // and authenticate via upload ID.
-  const tusUploadPath = '/api/subtitler/upload';
-  app.all(tusUploadPath, (req: Request, res: Response) => {
-    void tusServer.handle(req, res);
-  });
-  app.all(tusUploadPath + '/*splat', (req: Request, res: Response) => {
-    void tusServer.handle(req, res);
-  });
-
-  // Plain binary upload for non-TUS clients (mobile uses expo-file-system's
-  // native uploader). Registered here — before compression and the body
-  // parsers — so `req` stays the raw byte stream and writes straight to disk.
-  // IP-rate-limited and behind requireAuth: the handler writes the request body
-  // straight to disk, and its only client (mobile) always sends a bearer token.
+  // Upload endpoints — registered before compression and the body parsers, so
+  // `req` stays the raw byte stream and writes straight to disk. All of them
+  // are IP-rate-limited and behind requireAuth: an open endpoint that writes up
+  // to 500 MB per upload to disk is a standing invitation. requireAuth reads
+  // req.headers only (cookie or bearer), so it works on the raw stream; the
+  // CORS middleware registered further up already answers OPTIONS preflights
+  // itself, so TUS's non-POST verbs are not blocked by it.
   const uploadBinaryLimiter =
     process.env.DISABLE_RATE_LIMITS === 'true'
       ? (_req: Request, _res: Response, next: NextFunction) => next()
@@ -338,6 +329,31 @@ async function startWorker(): Promise<void> {
           legacyHeaders: false,
           message: { error: 'Zu viele Uploads. Bitte versuche es später erneut.' },
         });
+  // TUS counts uploads, not requests: a 500 MB file is ~100 PATCH chunks of
+  // 5 MB, which would exhaust the per-upload budget on its own. Only the POST
+  // that creates an upload is limited.
+  const tusCreationLimiter = (req: Request, res: Response, next: NextFunction) => {
+    if (req.method === 'POST') return uploadBinaryLimiter(req, res, next);
+    next();
+  };
+
+  // TUS uploads for the subtitler (web, desktop, and pre-05/2026 mobile
+  // binaries, which already sent a bearer token).
+  const tusUploadPath = '/api/subtitler/upload';
+  app.all(tusUploadPath, tusCreationLimiter, requireAuth, (req: Request, res: Response) => {
+    void tusServer.handle(req, res);
+  });
+  app.all(
+    tusUploadPath + '/*splat',
+    tusCreationLimiter,
+    requireAuth,
+    (req: Request, res: Response) => {
+      void tusServer.handle(req, res);
+    }
+  );
+
+  // Plain binary upload for non-TUS clients (mobile uses expo-file-system's
+  // native uploader).
   app.post(
     '/api/subtitler/upload-binary',
     uploadBinaryLimiter,
@@ -347,20 +363,14 @@ async function startWorker(): Promise<void> {
     }
   );
 
-  // Audio uploads for the Transkription feature. Unlike the subtitler TUS path
-  // above, this one is behind requireAuth: its only client is a logged-in page,
-  // and an open endpoint that writes up to 500 MB per upload straight to disk is
-  // a standing invitation. requireAuth reads req.headers only (cookie or bearer),
-  // so it works here even though the body parsers run later; the CORS middleware
-  // registered further up already answers OPTIONS preflights itself, so TUS's
-  // non-POST verbs are not blocked by it.
+  // Audio uploads for the Transkription feature.
   const audioUploadPath = '/api/audio/upload';
-  app.all(audioUploadPath, uploadBinaryLimiter, requireAuth, (req: Request, res: Response) => {
+  app.all(audioUploadPath, tusCreationLimiter, requireAuth, (req: Request, res: Response) => {
     void tusServer.handle(req, res);
   });
   app.all(
     audioUploadPath + '/*splat',
-    uploadBinaryLimiter,
+    tusCreationLimiter,
     requireAuth,
     (req: Request, res: Response) => {
       void tusServer.handle(req, res);
