@@ -597,6 +597,55 @@ describe('user_agents: share_to_group (card)', () => {
   });
 });
 
+describe('user_agents: duplicate (card, #3675)', () => {
+  it('copies an own agent into a create_user_agent card with a fresh identifier', async () => {
+    stored.mockClear();
+    const { run, sseEvents } = makeCtx();
+    const out = await run({ action: 'duplicate', identifier: 'presse-kv-ab12cd' });
+    expect(out).toMatchObject({ ok: true, needsConfirmation: true });
+    const [, payload] = sseEvents[0] as [string, { type: string }];
+    expect(payload.type).toBe('create_user_agent');
+    const pending = stored.mock.calls[0][0] as { payload: { input: Record<string, unknown> } };
+    const input = pending.payload.input;
+    expect(input.title).toBe('Presse KV (Kopie)');
+    expect(input.identifier).toMatch(/^presse-kv-kopie-[a-z0-9]{6}$/);
+    expect(input).toMatchObject({
+      systemRole: LONG_ROLE,
+      enabledTools: ['search', 'web'],
+      skillMentions: ['presse'],
+      defaultNotebookIds: ['nb-1'],
+    });
+  });
+
+  it('takes an explicit title', async () => {
+    stored.mockClear();
+    const { run } = makeCtx();
+    await run({ action: 'duplicate', identifier: 'presse-kv-ab12cd', title: 'Presse OV' });
+    const pending = stored.mock.calls[0][0] as { payload: { input: { title: string } } };
+    expect(pending.payload.input.title).toBe('Presse OV');
+  });
+
+  it('keeps a long title within 100 characters', async () => {
+    stored.mockClear();
+    const { run } = makeCtx({ own: agent({ title: 'x'.repeat(100) }) });
+    await run({ action: 'duplicate', identifier: 'presse-kv-ab12cd' });
+    const pending = stored.mock.calls[0][0] as { payload: { input: { title: string } } };
+    expect(pending.payload.input.title).toHaveLength(100);
+    expect(pending.payload.input.title.endsWith(' (Kopie)')).toBe(true);
+  });
+
+  it("shared or system agents are not copied (their role is not the caller's)", async () => {
+    const { run, sseEvents } = makeCtx({ own: null });
+    expect(await run({ action: 'duplicate', identifier: 'wahlkampf-xy' })).toMatchObject({
+      error: expect.stringMatching(/gehört dir nicht/),
+    });
+    expect(await run({ action: 'duplicate', identifier: 'gruenerator-presse' })).toMatchObject({
+      error: expect.stringMatching(/System-Grünerator/),
+    });
+    expect(sseEvents).toHaveLength(0);
+  });
+});
+
 describe('user_agents: delete (two-step)', () => {
   it('asks first', async () => {
     const { run, deps } = makeCtx();

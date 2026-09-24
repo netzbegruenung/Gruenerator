@@ -37,11 +37,11 @@ export const CONFIRM_ACTION_GATED_TOOLS: ReadonlySet<string> = new Set([
   // `create` ist eine Karte, `delete` der `confirm=true`-Zweischritt; der Rest
   // ist privat und umkehrbar.
   'recurring_tasks',
-  // `create` und `share_to_group` sind Karten, `delete` der Zweischritt;
-  // `update` ist privat und umkehrbar.
+  // `create`, `duplicate` und `share_to_group` sind Karten, `delete` der
+  // Zweischritt; `update` ist privat und umkehrbar.
   'user_agents',
-  // `delete` ist der `confirm=true`-Zweischritt; `create`, `update` und
-  // `add_examples` sind privat und umkehrbar, sie zeigen keine Karte.
+  // `share_to_group` ist eine Karte, `delete` der `confirm=true`-Zweischritt;
+  // `create`, `update` und `add_examples` sind privat und umkehrbar.
   'recipes',
 ]);
 

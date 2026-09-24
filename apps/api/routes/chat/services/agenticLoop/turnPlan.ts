@@ -176,6 +176,13 @@ export interface TurnPlanInput {
    * gebaut würde.
    */
   mentionPinnedArtifactKind: ArtifactCreateKind | null;
+  /**
+   * Der Klassifikator hat einen Anlegeauftrag für ein Rezept oder einen
+   * Grünerator-Agenten erkannt (`state.agenturaCreateOrder`). Wirkt wie ein
+   * Pin auf das Gate (`mustLoop`), setzt aber keinen — der erste Aufruf bleibt
+   * frei, siehe dort.
+   */
+  agenturaCreateOrder: boolean;
 }
 
 /**
@@ -332,10 +339,16 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   //    Dokumentensuche statt PolitPro, und damit schlechter als vor der
   //    Stilllegung des Intents.
   const pinnedTool = p.mentionPinnedTool;
+  //
+  // Ein Anlegeauftrag für die Agentura beantwortet nur die ERSTE Frage wie ein
+  // Pin: `recipes`/`user_agents` gibt es nur in der Schleife, also muss er
+  // hinein, auch an der Notebook-Sperre vorbei. Die zweite Hälfte des Pins —
+  // der erzwungene erste Aufruf — fehlt mit Absicht: das gewählte Notebook
+  // soll gelesen sein, bevor das Rezept entsteht.
   const mustLoop =
     proposedIntent === 'mcp' ||
     p.systemToolIntents.has(proposedIntent) ||
-    (pinnedTool != null && proposedIntent === 'agentic');
+    ((pinnedTool != null || p.agenturaCreateOrder) && proposedIntent === 'agentic');
   const forcedLoop = forcesLoopLane(proposedIntent) || pinnedTool != null;
 
   // ── 1. Editor-Fläche ──────────────────────────────────────────────────────

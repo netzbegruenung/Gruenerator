@@ -14,9 +14,17 @@ import { deriveRecipeMention } from '../../../services/user/textFormKind.js';
 
 import { makeRecipesTool, type RecipeToolDeps } from './textFormTools.js';
 
+// Die Freigabe-Karte legt die Aktion in Redis ab — gemockt wird nur der
+// Speicher, die Karte samt `CONFIRM_ACTION_CONFIG` bleibt echt.
+const stored = vi.hoisted(() => vi.fn<(action: unknown) => Promise<void>>(async () => {}));
+vi.mock('../services/pendingActionStore.js', () => ({
+  pendingActionStore: { store: (action: unknown) => stored(action) },
+}));
+
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { RecipeCatalogEntry } from './recipeCatalog.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
+import type { UserGroupRow } from '../../../services/groups/groupQueries.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 import type { DraftedRecipeSpec, TextForm } from '@gruenerator/contracts';
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
@@ -87,6 +95,8 @@ interface CtxOptions {
   /** `undefined` = der State trägt keine Rollen (MCP-Ctx) → `loadUserRoles`. */
   roles?: RoleLandesverbandInput[] | undefined;
   loadedRoles?: RoleLandesverbandInput[];
+  groups?: UserGroupRow[];
+  threadId?: string | null;
 }
 
 function makeCtx(opts: CtxOptions = {}) {
@@ -101,7 +111,10 @@ function makeCtx(opts: CtxOptions = {}) {
         return '[1] Auszug';
       },
     } as unknown as SourceRegistry);
-  const sse = { send: () => {} } as unknown as SSEWriter;
+  const sseEvents: Array<[string, unknown]> = [];
+  const sse = {
+    send: (event: string, data: unknown) => sseEvents.push([event, data]),
+  } as unknown as SSEWriter;
   const state = {
     agentConfig: { userId: opts.userId === undefined ? 'user-1' : opts.userId },
     messages: opts.userText ? [{ role: 'user', content: opts.userText }] : [],
@@ -147,15 +160,26 @@ function makeCtx(opts: CtxOptions = {}) {
       return [...system, ...user];
     }),
     loadUserRoles: vi.fn(async () => (opts.loadedRoles ?? []) as never),
+    findGroups: vi.fn(async () => opts.groups ?? [member()]),
   };
-  const tool = makeRecipesTool({ state, sse, threadId: 'thread-1', sourceRegistry, deps });
+  const threadId = opts.threadId === undefined ? 'thread-1' : opts.threadId;
+  const tool = makeRecipesTool({ state, sse, threadId, sourceRegistry, deps });
   const run = async (args: Record<string, unknown>): Promise<ToolResult> =>
     (await (tool.execute as (a: unknown, o: unknown) => Promise<ToolResult>)(
       { limit: 40, confirm: false, ...args },
       {}
     )) ?? {};
-  return { run, notes, registered, deps, tool };
+  return { run, notes, registered, deps, tool, sseEvents };
 }
+
+const member = (over: Partial<UserGroupRow> = {}): UserGroupRow => ({
+  id: 'g1',
+  name: 'Klima-AG',
+  slug_suffix: null,
+  role: 'member',
+  member_count: 3,
+  ...over,
+});
 
 const DRAFT: DraftedRecipeSpec = {
   title: 'Einladung Ortsverband',
@@ -392,6 +416,8 @@ describe('recipes: parteiinterne Grenze — Systemrezepte ohne Rumpf', () => {
       'deleteTextForm',
       // Few-shot-frei von parteiinternen Rümpfen (Docblock `textFormDraftService.ts`).
       'draftRecipeSpec',
+      // Projekte der Person, für share_to_group — Namen und Rollen, keine Inhalte.
+      'findGroups',
       'listTextForms',
       'loadUserRoles',
       'recipeCatalog',
@@ -412,8 +438,8 @@ describe('recipes: parteiinterne Grenze — Systemrezepte ohne Rumpf', () => {
   });
 });
 
-describe('recipes: F0 — action enum stays list/get/create/update/add_examples/delete', () => {
-  it('has no share/publish/draft action: widening visibility stays a human decision', () => {
+describe('recipes: F0 — action enum grows only additively', () => {
+  it('has no publish action: public listing is a human legal attestation', () => {
     const { tool } = makeCtx();
     const schema = tool.inputSchema as { shape: { action: { options: string[] } } };
     expect(schema.shape.action.options).toEqual([
@@ -422,8 +448,76 @@ describe('recipes: F0 — action enum stays list/get/create/update/add_examples/
       'create',
       'update',
       'add_examples',
+      'share_to_group',
       'delete',
     ]);
+  });
+});
+
+describe('recipes: share_to_group (card, #3674)', () => {
+  it('emits a share_text_form card for an own custom recipe', async () => {
+    stored.mockClear();
+    const { run, sseEvents } = makeCtx();
+    const out = await run({
+      action: 'share_to_group',
+      mention: 'omveinladungen',
+      groupName: 'Klima',
+    });
+    expect(out).toMatchObject({ ok: true, needsConfirmation: true });
+    const [event, payload] = sseEvents[0] as [string, { type: string; metadata: unknown[] }];
+    expect(event).toBe('confirm_action');
+    expect(payload.type).toBe('share_text_form');
+    const pending = stored.mock.calls[0][0] as { payload: Record<string, unknown> };
+    expect(pending.payload).toEqual({
+      mention: 'omveinladungen',
+      title: 'OV-Einladungen',
+      groupId: 'g1',
+      groupName: 'Klima-AG',
+    });
+  });
+
+  it('refuses an overridden system recipe before any card (not_custom)', async () => {
+    const { run, sseEvents, deps } = makeCtx({
+      forms: [form({ kind: 'preset', mention: 'presse', title: 'Mein PM-Stil' })],
+    });
+    expect(
+      await run({ action: 'share_to_group', mention: 'presse', groupName: 'Klima' })
+    ).toMatchObject({ error: expect.stringMatching(/System-Rezept/) });
+    expect(sseEvents).toHaveLength(0);
+    expect(deps.findGroups).not.toHaveBeenCalled();
+  });
+
+  it('ignores public groups the person is not a member of', async () => {
+    const { run, sseEvents } = makeCtx({ groups: [member({ role: '' })] });
+    expect(
+      await run({ action: 'share_to_group', mention: 'omveinladungen', groupName: 'Klima' })
+    ).toMatchObject({ error: expect.stringMatching(/dem du angehörst/) });
+    expect(sseEvents).toHaveLength(0);
+  });
+
+  it('cannot share a recipe that was shared TO the person', async () => {
+    const { run, sseEvents } = makeCtx({ forms: [form({ sharedFromGroup: 'Fraktion' })] });
+    expect(
+      await run({ action: 'share_to_group', mention: 'omveinladungen', groupName: 'Klima' })
+    ).toMatchObject({ error: expect.any(String) });
+    expect(sseEvents).toHaveLength(0);
+  });
+
+  it('already shared: says so instead of a second card', async () => {
+    const { run, sseEvents } = makeCtx({
+      forms: [form({ sharedWithGroups: [{ groupId: 'g1', groupName: 'Klima-AG' }] })],
+    });
+    expect(
+      await run({ action: 'share_to_group', mention: 'omveinladungen', groupName: 'Klima' })
+    ).toMatchObject({ ok: true, note: expect.stringMatching(/schon/) });
+    expect(sseEvents).toHaveLength(0);
+  });
+
+  it('needs a thread — no human, no card', async () => {
+    const { run } = makeCtx({ threadId: null });
+    expect(
+      await run({ action: 'share_to_group', mention: 'omveinladungen', groupName: 'Klima' })
+    ).toMatchObject({ error: expect.stringMatching(/nicht möglich/) });
   });
 });
 

@@ -132,6 +132,13 @@ export const CONFIRM_ACTION_CONFIG: Record<
     icon: 'share-2',
     confirmLabel: 'Teilen',
   },
+  share_text_form: {
+    title: 'Rezept teilen',
+    description:
+      'Das Rezept wird mit dem Projekt geteilt — die Mitglieder können es im Chat per @mention benutzen, aber nicht bearbeiten.',
+    icon: 'share-2',
+    confirmLabel: 'Teilen',
+  },
 };
 
 /**
