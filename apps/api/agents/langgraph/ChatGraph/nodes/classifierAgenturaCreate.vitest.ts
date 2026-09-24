@@ -105,8 +105,8 @@ function buildState(userMessage: string): ChatGraphState {
   } as unknown as ChatGraphState;
 }
 
-async function classify(text: string) {
-  return (await classifierNode(buildState(text))) as Partial<ChatGraphState>;
+async function classify(text: string, over: Partial<ChatGraphState> = {}) {
+  return (await classifierNode({ ...buildState(text), ...over })) as Partial<ChatGraphState>;
 }
 
 describe('Agentura-Anlegeauftrag → Schleife, kein Pin', () => {
@@ -139,6 +139,28 @@ describe('Agentura-Anlegeauftrag → Schleife, kein Pin', () => {
     'Wie erstelle ich ein eigenes Rezept?',
   ])('%s → kein Anlegeauftrag', async (text) => {
     const out = await classify(text);
+    expect(out.reasoning ?? '').not.toMatch(/anzulegen/);
+  });
+});
+
+describe('Agentura-Anlegeauftrag mit gewählten Quellen', () => {
+  const ORDER = 'Erstell mir ein Rezept für Instagram-Posts aus diesem Leitfaden';
+
+  it('@Dokument: Schleife statt Zwangssuche — der Loop bringt den Anhang-Seed mit', async () => {
+    const out = await classify(ORDER, { documentIds: ['doc-1'] } as Partial<ChatGraphState>);
+    expect(out.intent).toBe('agentic');
+    expect(out.reasoning).toMatch(/Rezept anzulegen/);
+  });
+
+  it('Wolke-Datei: Schleife statt Zwangssuche — der Loop hat cloud_files', async () => {
+    const out = await classify(ORDER, {
+      wolkeFiles: [{ shareLinkId: 's', path: '/leitfaden.pdf', name: 'leitfaden.pdf' }],
+    } as unknown as Partial<ChatGraphState>);
+    expect(out.intent).toBe('agentic');
+  });
+
+  it('gewähltes Notebook: bleibt bei der Notebook-Suche (Notebook-Sperre ohne Pin)', async () => {
+    const out = await classify(ORDER, { notebookIds: ['nb-1'] } as Partial<ChatGraphState>);
     expect(out.reasoning ?? '').not.toMatch(/anzulegen/);
   });
 });
