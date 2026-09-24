@@ -13,6 +13,7 @@ import { getToolGradient } from '../../../config/toolTheme';
 import { useAuthStore } from '../../../stores/authStore';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
+import { getTusAuthOptions } from '../../../utils/tusAuth';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
 import { parseSubtitleBlocks, formatSubtitleBlocks } from '../utils/subtitleSegmentUtils';
 import { getVideoMetadata, TUS_UPLOAD_ENDPOINT, type VideoMetadata } from '../utils/videoUtils';
@@ -294,12 +295,14 @@ const SubtitlerPage = (): React.ReactElement => {
         setError(null);
 
         const metadata = await getVideoMetadata(file);
+        const authOptions = await getTusAuthOptions();
 
         const upload = new tus.Upload(file, {
           endpoint: TUS_UPLOAD_ENDPOINT,
           retryDelays: [0, 3000, 5000, 10000, 20000],
           chunkSize: 5 * 1024 * 1024,
           metadata: { filename: file.name, filetype: file.type },
+          ...authOptions,
           onError: (err) => {
             setError('Upload fehlgeschlagen. Bitte versuche es erneut.');
             setIsUploading(false);
