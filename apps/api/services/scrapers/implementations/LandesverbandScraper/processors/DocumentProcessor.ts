@@ -92,6 +92,27 @@ export function qualityFlagsFor(doc: QualityFlagDoc): string[] {
   return flags;
 }
 
+interface ProcessAndStoreOptions {
+  /**
+   * Whether the caller is the PDF-archive or Wolke-share path (downloaded file)
+   * rather than the HTML-article path (scraped page). Only used for
+   * `qualityFlagsFor` — the caller already knows which path it runs.
+   */
+  isFile: boolean;
+  /** Collection name override (uses the processor's default if not provided) */
+  collectionOverride?: string;
+  /** Max age in years (default: DEFAULT_MAX_AGE_YEARS) */
+  maxAgeYears?: number | undefined;
+  extraPayload?: Record<string, unknown> | undefined;
+  /**
+   * Skip the age filter even though publishedAt is set. Wolke shares are
+   * curated on purpose and must never age out just because their file name now
+   * carries a real date (#3564) — before dating them, `publishedAt: null` had
+   * the same effect by construction.
+   */
+  ignoreMaxAge?: boolean;
+}
+
 /**
  * Document processing orchestration
  * Dependencies injected via constructor for testability
@@ -108,25 +129,16 @@ export class DocumentProcessor {
   /**
    * Process and store document in Qdrant
    * Full pipeline: validate → deduplicate → chunk → embed → store
-   * @param isFile - Whether the caller is the PDF-archive or Wolke-share path
-   *   (downloaded file) rather than the HTML-article path (scraped page). Only
-   *   used for `qualityFlagsFor` — the caller already knows which path it runs.
-   * @param collectionOverride - Optional collection name override (uses default if not provided)
-   * @param maxAgeYears - Optional max age in years (default: 10)
-   * @param ignoreMaxAge - Skip the age filter even though publishedAt is set. Wolke shares are
-   *   curated on purpose and must never age out just because their file name now carries a real
-   *   date (#3564) — before dating them, `publishedAt: null` had the same effect by construction.
+   *
+   * Options stay an inline object literal at every call site: the excess-property
+   * check only catches a misspelled key there, not in a pre-built variable (#3624).
    */
   async processAndStoreDocument(
     source: LandesverbandSource,
     contentType: string,
     url: string,
     content: ExtractedContent,
-    isFile: boolean,
-    collectionOverride?: string,
-    maxAgeYears?: number,
-    extraPayload?: Record<string, unknown>,
-    ignoreMaxAge?: boolean
+    { isFile, collectionOverride, maxAgeYears, extraPayload, ignoreMaxAge }: ProcessAndStoreOptions
   ): Promise<ProcessResult> {
     const { title, text, publishedAt, categories } = content;
     const targetCollection = collectionOverride || this.collectionName;
