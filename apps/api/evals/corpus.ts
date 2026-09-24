@@ -96,6 +96,8 @@ export interface CorpusFilter {
   memory: boolean;
   /** Szenarien, die ein eigenes Notebook des Eval-Kontos brauchen. */
   userNotebook: boolean;
+  /** Szenarien, die ein angehängtes mehrseitiges Dokument des Eval-Kontos brauchen. */
+  attachedDoc: boolean;
 }
 
 /** Glob evals/corpus/*.jsonl plus the legacy single-file corpus, then filter. */
@@ -130,6 +132,7 @@ export function loadCorpus(here: string, opts: CorpusFilter): EvalScenario[] {
     if (s.deepResearchLane && !opts.deepResearch) return false;
     if (s.bgstKorpusLane && !opts.bgstKorpus) return false;
     if (s.userNotebookLane && !opts.userNotebook) return false;
+    if (s.attachedDocLane && !opts.attachedDoc) return false;
     if (s.memories && !opts.memory) return false;
     if (!opts.filter) return true;
     return opts.filter
