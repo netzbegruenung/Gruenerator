@@ -81,3 +81,42 @@ describe('GET /api/chat-service/messages — notebook answer mode', () => {
     ).not.toHaveProperty('answerModeReason');
   });
 });
+
+describe('GET /api/chat-service/messages — attachment preview', () => {
+  it('strips the page markers a PDF attachment carries for the model', async () => {
+    query.mockResolvedValueOnce([
+      {
+        id: 'm1',
+        role: 'user',
+        content: 'Was steht drin?',
+        tool_calls: null,
+        tool_results: null,
+        user_id: 'u1',
+        status: 'complete',
+        created_at: '2026-09-23T10:00:00Z',
+        attachments: [
+          {
+            id: 'a1',
+            name: 'antrag.pdf',
+            contentType: 'application/pdf',
+            preview: '## Seite 1\n\nPräambel\n\n## Seite 2\n\nBeschluss',
+            truncated: false,
+            pageCount: 2,
+          },
+        ],
+      },
+    ]);
+    let body: unknown;
+    const res = {
+      status: () => res,
+      json: (b: unknown) => {
+        body = b;
+        return res;
+      },
+    };
+    await handler({ query: { threadId: 't1' }, user: { id: 'u1' } }, res);
+
+    const [message] = body as Array<{ attachments: Array<{ preview: string }> }>;
+    expect(message!.attachments[0]!.preview).toBe('Präambel\n\nBeschluss');
+  });
+});

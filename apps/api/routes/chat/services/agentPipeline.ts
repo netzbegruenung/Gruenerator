@@ -39,6 +39,7 @@ import { intermediateLane } from '../../../agents/langgraph/ChatGraph/llmConfig.
 import { aiText } from '../../../services/ai/generate.js';
 import { isModelSlow, recordSlowVerdict } from '../../../services/ai/modelHealth.js';
 import { type ProviderName } from '../../../services/ai/providers.js';
+import { stripPageMarkers } from '../../../services/OcrService/pageMarkers.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { startStepHeartbeat, type SSEWriter } from './sseHelpers.js';
@@ -122,8 +123,10 @@ export function resolveOriginalText(
   lastUserText: string,
   promptIsPastedText = false
 ): string {
+  // PDF-Anhänge tragen `## Seite N` für das Modell; eine Überarbeitung soll sie
+  // nicht als Überschriften übernehmen.
   const material = [state.attachmentContext ?? '', state.documentMentionContext ?? '']
-    .map((c) => c.trim())
+    .map((c) => stripPageMarkers(c))
     .filter(Boolean);
   const instruction = lastUserText.trim();
 
@@ -175,7 +178,7 @@ function carriedOriginalText(state: MaterialState): string {
     // Stabil: bei gleichem Zeitstempel (zwei Anhänge desselben Turns) bleibt die
     // Listenreihenfolge, der letzte gewinnt.
     .sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0));
-  return docs[docs.length - 1]?.extractedText?.trim() ?? '';
+  return stripPageMarkers(docs[docs.length - 1]?.extractedText ?? '');
 }
 
 /** Ein Ziel der Lane: Primär oder Sibling. */

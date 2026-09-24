@@ -23,7 +23,8 @@ vi.mock('fs', () => ({
 const { extractBase64WithMistralOCR, extractTextWithMistralOCR } =
   await import('./mistralIntegration.js');
 const { extractTextDirectlyFromPDF, extractTextFromBase64PDF } = await import('./pdfOperations.js');
-const { joinPagesWithMarkers, stripPageMarkers } = await import('./pageMarkers.js');
+const { joinPagesWithMarkers, replaceMarkedPages, stripPageMarkers } =
+  await import('./pageMarkers.js');
 
 const getMediaType = () => 'application/pdf';
 
@@ -87,6 +88,21 @@ function fakePdf() {
 
 const identity = (t: string) => t;
 
+/** Eine Seite mit einem Raster aus 3 × 3 Zellen — `pageHasTable` schlägt an. */
+const tableItems = [700, 686, 672].flatMap((y) => [
+  { str: 'Posten', transform: [10, 0, 0, 10, 60, y], width: 30 },
+  { str: 'Betrag', transform: [10, 0, 0, 10, 220, y], width: 30 },
+  { str: 'Ressort', transform: [10, 0, 0, 10, 380, y], width: 35 },
+]);
+
+function pdfWithTableOnPage2() {
+  const pages: Record<number, () => Promise<unknown>> = {
+    1: async () => ({ getTextContent: async () => ({ items: [item('Erste Seite')] }) }),
+    2: async () => ({ getTextContent: async () => ({ items: tableItems }) }),
+  };
+  return { numPages: 2, getPage: (n: number) => pages[n]() };
+}
+
 describe('PDF.js — Seitenmarken', () => {
   it('behält die Nummer, wenn eine Seite scheitert oder leer ist', async () => {
     const result = await extractTextDirectlyFromPDF(
@@ -117,6 +133,67 @@ describe('PDF.js — Seitenmarken', () => {
 
     const plain = await extractTextFromBase64PDF('ZmFrZQ==', 'a.pdf', getPdfJs);
     expect(plain.text).not.toContain('## Seite');
+  });
+});
+
+describe('PDF.js — Tabellenseiten', () => {
+  it('meldet Tabellenseiten nur mit Marken, der Text bleibt derselbe', async () => {
+    const marked = await extractTextDirectlyFromPDF(
+      '/tmp/a.pdf',
+      async () => pdfWithTableOnPage2(),
+      identity,
+      1000,
+      { pageMarkers: true }
+    );
+    expect(marked.tablePages).toEqual([2]);
+
+    const plain = await extractTextDirectlyFromPDF(
+      '/tmp/a.pdf',
+      async () => pdfWithTableOnPage2(),
+      identity
+    );
+    expect(plain).not.toHaveProperty('tablePages');
+    expect(plain.text).toBe(stripPageMarkers(marked.text));
+  });
+
+  it('base64-PDF: dieselbe Erkennung', async () => {
+    const getPdfJs = async () => ({
+      getDocument: () => ({ promise: Promise.resolve(pdfWithTableOnPage2()) }),
+    });
+    const marked = await extractTextFromBase64PDF('ZmFrZQ==', 'a.pdf', getPdfJs, {
+      pageMarkers: true,
+    });
+    expect(marked.tablePages).toEqual([2]);
+    const plain = await extractTextFromBase64PDF('ZmFrZQ==', 'a.pdf', getPdfJs);
+    expect(plain).not.toHaveProperty('tablePages');
+  });
+});
+
+describe('replaceMarkedPages', () => {
+  const text = 'Vorspann\n\n## Seite 1\n\nEins\n\n## Seite 2\n\nZwei a b c\n\n## Seite 3\n\nDrei';
+
+  it('ersetzt nur die Zielseite, alle Marken bleiben stehen', () => {
+    expect(replaceMarkedPages(text, new Map([[2, '| a | b | c |\n| --- | --- | --- |\n']]))).toBe(
+      'Vorspann\n\n## Seite 1\n\nEins\n\n## Seite 2\n\n| a | b | c |\n| --- | --- | --- |\n\n## Seite 3\n\nDrei'
+    );
+  });
+
+  it('ersetzt auch die letzte Seite, ohne Anhängsel', () => {
+    expect(replaceMarkedPages(text, new Map([[3, 'Drei neu']]))).toBe(
+      'Vorspann\n\n## Seite 1\n\nEins\n\n## Seite 2\n\nZwei a b c\n\n## Seite 3\n\nDrei neu'
+    );
+  });
+
+  it('lässt den Text bei leerer Ersatzfassung oder unbekannter Seite unverändert', () => {
+    expect(
+      replaceMarkedPages(
+        text,
+        new Map([
+          [2, '  '],
+          [9, 'neun'],
+        ])
+      )
+    ).toBe(text);
   });
 });
 
