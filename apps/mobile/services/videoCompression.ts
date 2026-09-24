@@ -1,8 +1,8 @@
 import { compress, getMetadata, cancel } from 'expo-image-and-video-compressor';
 
-// nginx currently caps /api/ request bodies at 100MB (PR #1253 raises it to
-// 500MB but is not deployed yet) — keep uploads safely below the cap. Lower
-// this is also just good for mobile upload times.
+// The production nginx (Salt) caps request bodies at 100MB on both proxy hops —
+// keep uploads safely below the cap. Smaller is also just good for mobile
+// upload times.
 const TARGET_UPLOAD_BYTES = 90 * 1024 * 1024;
 const AUDIO_BITRATE_BUDGET = 128_000;
 const MIN_VIDEO_BITRATE = 1_000_000;
