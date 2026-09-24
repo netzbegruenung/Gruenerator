@@ -406,16 +406,18 @@ export class LandesverbandScraper extends BaseScraper {
               categories: [],
               bodyFallback: false,
             },
-            true, // isFile — PDF archive
-            targetCollection,
-            source.maxAgeYears,
-            // date_precision: 'year' heißt, das -06-15 ist geraten (#3575)
             {
-              ...fingerprint,
-              date_precision: pdf.dateInfo.precision,
-              ...(ageExempt ? { age_exempt: true } : {}),
-            },
-            ageExempt
+              isFile: true, // PDF archive
+              collectionOverride: targetCollection,
+              maxAgeYears: source.maxAgeYears,
+              // date_precision: 'year' heißt, das -06-15 ist geraten (#3575)
+              extraPayload: {
+                ...fingerprint,
+                date_precision: pdf.dateInfo.precision,
+                ...(ageExempt ? { age_exempt: true } : {}),
+              },
+              ignoreMaxAge: ageExempt,
+            }
           );
 
           if (storeResult.stored) {
@@ -578,25 +580,27 @@ export class LandesverbandScraper extends BaseScraper {
             contentPath.type,
             file.url,
             { title, text, publishedAt: dateInfo.dateString, categories: [], bodyFallback: false },
-            true, // isFile — Wolke share
-            targetCollection,
-            source.maxAgeYears,
             {
-              ...(file.etag ? { wolke_etag: file.etag } : {}),
-              date_precision: dateInfo.precision,
-              // Marks the point for staleDocumentsFilter (#archiveStaleDocuments):
-              // ignoreMaxAge below only protects ingestion, the archive pass runs
-              // later and re-derives staleness from published_at on its own, so
-              // without this marker a dated Wolke point would survive ingestion
-              // and then get archived on the very same scrapeSource run (#3564).
-              // Set unconditionally — not every Wolke file has an etag to key
-              // wolke_etag off, but every Wolke point must carry this.
-              age_exempt: true,
-            },
-            // Wolke shares are curated folders, shared on purpose — the file's
-            // own date must never age it out, same as `publishedAt: null` did
-            // before dating existed (#3564).
-            true
+              isFile: true, // Wolke share
+              collectionOverride: targetCollection,
+              maxAgeYears: source.maxAgeYears,
+              extraPayload: {
+                ...(file.etag ? { wolke_etag: file.etag } : {}),
+                date_precision: dateInfo.precision,
+                // Marks the point for staleDocumentsFilter (#archiveStaleDocuments):
+                // ignoreMaxAge below only protects ingestion, the archive pass runs
+                // later and re-derives staleness from published_at on its own, so
+                // without this marker a dated Wolke point would survive ingestion
+                // and then get archived on the very same scrapeSource run (#3564).
+                // Set unconditionally — not every Wolke file has an etag to key
+                // wolke_etag off, but every Wolke point must carry this.
+                age_exempt: true,
+              },
+              // Wolke shares are curated folders, shared on purpose — the file's
+              // own date must never age it out, same as `publishedAt: null` did
+              // before dating existed (#3564).
+              ignoreMaxAge: true,
+            }
           );
 
           if (storeResult.stored) {
@@ -841,9 +845,11 @@ export class LandesverbandScraper extends BaseScraper {
               contentPath.type,
               storeUrl,
               content,
-              false, // isFile — HTML article
-              targetCollection,
-              source.maxAgeYears
+              {
+                isFile: false, // HTML article
+                collectionOverride: targetCollection,
+                maxAgeYears: source.maxAgeYears,
+              }
             );
           } catch (error) {
             claimedStoreUrls.delete(storeUrl);
@@ -1299,9 +1305,11 @@ export class LandesverbandScraper extends BaseScraper {
       'beschluss',
       pdfUrl,
       { title, text, publishedAt, categories: [], bodyFallback: false },
-      true, // isFile — manual PDF ingest
-      targetCollection,
-      source.maxAgeYears
+      {
+        isFile: true, // manual PDF ingest
+        collectionOverride: targetCollection,
+        maxAgeYears: source.maxAgeYears,
+      }
     );
   }
 
