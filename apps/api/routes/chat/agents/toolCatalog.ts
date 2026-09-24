@@ -54,6 +54,7 @@ import {
   SLICE_DEFAULT_CHARS,
   SLICE_REGISTER_CHARS,
 } from '../services/agenticLoop/attachedDocuments.js';
+import { runAttachedDocumentMode } from '../services/agenticLoop/attachedDocumentTools.js';
 import { isLoopRerankEnabled } from '../services/agenticLoop/flags.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
 import {
@@ -716,7 +717,12 @@ NUTZE WENN eine Frage sich auf eine angehängte Datei bezieht und die bereits ge
 
 - Für eine gezielte Frage: \`query\` mit einem präzisen Suchbegriff.
 - Wenn die Frage keinen brauchbaren Suchbegriff hergibt (z. B. „was steht am Anfang", „lies weiter"): \`abschnitt\` mit \`von\` als Zeichenposition — die Antwort sagt dir, wo du weiterlesen kannst.
-- Auch wenn die Frage Vollständigkeit verlangt („alle …", „wie viele …", jede Zeile einer Tabelle, eine ganze Liste): \`abschnitt\`, nicht \`query\` — die Passagensuche ordnet nach Relevanz und liefert nur die besten Treffer, nie alle.${mehrere ? '\n- `dateiname` grenzt auf eine der Dateien ein.' : ''}
+- Auch wenn die Frage Vollständigkeit verlangt („alle …", „wie viele …", jede Zeile einer Tabelle, eine ganze Liste): \`abschnitt\`, nicht \`query\` — die Passagensuche ordnet nach Relevanz und liefert nur die besten Treffer, nie alle.
+- „Seite N": \`seite\`.
+- „wie oft / alle Stellen mit Wort X": \`wortsuche\` statt \`abschnitt\` — zählt vollständig, mit Seite je Fundstelle.
+- „steht das so drin / stimmt das Zitat": \`zitat\` mit dem Wortlaut.${mehrere ? '\n- `dateiname` grenzt auf eine der Dateien ein.' : ''}
+
+Genau ein Modus je Aufruf.
 
 NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summarize\`, das den vollständigen Text verarbeitet statt einzelner Passagen.`,
         inputSchema: z.object({
@@ -735,8 +741,24 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
             })
             .optional()
             .describe('Volltext abschnittsweise lesen statt suchen'),
+          seite: z.number().int().min(1).optional().describe('Seitenzahl lesen'),
+          wortsuche: z
+            .object({
+              phrase: z.string().describe('Wort oder Wortfolge'),
+              grossKlein: z.boolean().optional().describe('Groß/klein beachten'),
+            })
+            .optional()
+            .describe('Alle Vorkommen zählen'),
+          zitat: z.string().optional().describe('Wortlaut, der im Dokument stehen soll'),
         }),
-        execute: async ({ query, dateiname, abschnitt }) => {
+        execute: async ({ query, dateiname, abschnitt, seite, wortsuche, zitat }) => {
+          const modes = [query, abschnitt, seite, wortsuche, zitat].filter((m) => m != null);
+          if (modes.length > 1) {
+            return {
+              error:
+                'Genau ein Modus je Aufruf: query, abschnitt, seite, wortsuche oder zitat — für mehrere Fragen mehrere Aufrufe.',
+            };
+          }
           const scoped = dateiname
             ? attachedSources.filter((s) => s.label.toLowerCase() === dateiname.toLowerCase())
             : attachedSources;
@@ -746,6 +768,13 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
                 `Keine angehängte Datei namens "${dateiname}". Verfügbar: ` +
                 attachedSources.map((s) => s.label).join(', '),
             };
+          }
+
+          if (seite != null || wortsuche != null || zitat != null) {
+            return runAttachedDocumentMode(
+              { seite, wortsuche, zitat },
+              { userId: state.agentConfig.userId ?? null, sources: scoped, sourceRegistry }
+            );
           }
 
           // Weder Suchbegriff noch Abschnitt: bei genau einer Datei ist der

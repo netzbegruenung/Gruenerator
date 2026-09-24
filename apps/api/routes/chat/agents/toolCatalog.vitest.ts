@@ -71,6 +71,11 @@ vi.mock(
   })
 );
 
+const attachedMode = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
+vi.mock('../services/agenticLoop/attachedDocumentTools.js', () => ({
+  runAttachedDocumentMode: (...a: unknown[]) => attachedMode(...a),
+}));
+
 const agentConfig = { identifier: 'test' } as unknown as AgentConfig;
 
 type Exec = (i: unknown, o: { toolCallId: string }) => Promise<unknown>;
@@ -1366,6 +1371,48 @@ describe('toolCatalog dokumente_lesen', () => {
 
     expect(out.sources).toContain('Kurzer Text.');
     expect(fanout).not.toHaveBeenCalled();
+  });
+
+  it('lehnt mehr als einen Modus je Aufruf ab', async () => {
+    const { tools } = catalogWithDocs([pdf]);
+    const out = (await execOf(tools.dokumente_lesen)(
+      { query: 'Rad', seite: 3 },
+      { toolCallId: 'c1' }
+    )) as { error: string };
+    expect(out.error).toMatch(/Genau ein Modus/);
+    expect(fanout).not.toHaveBeenCalled();
+    expect(attachedMode).not.toHaveBeenCalled();
+  });
+
+  it('reicht seite, wortsuche und zitat mit den eingegrenzten Anhängen durch', async () => {
+    attachedMode.mockReset();
+    attachedMode.mockResolvedValue({ resultCount: 1 });
+    const zweite = { kind: 'document_chat', id: 'doc-2', label: 'Antrag.docx' };
+    const { tools } = catalogWithDocs([pdf, zweite]);
+
+    await execOf(tools.dokumente_lesen)(
+      { seite: 4, dateiname: 'antrag.docx' },
+      { toolCallId: 'c1' }
+    );
+    await execOf(tools.dokumente_lesen)({ wortsuche: { phrase: 'Rad' } }, { toolCallId: 'c2' });
+
+    const [args, ctx] = attachedMode.mock.calls[0] as [
+      Record<string, unknown>,
+      { userId: string | null; sources: { id: string }[] },
+    ];
+    expect(args.seite).toBe(4);
+    expect(ctx.userId).toBe('u1');
+    expect(ctx.sources.map((s) => s.id)).toEqual(['doc-2']);
+    const [, ctx2] = attachedMode.mock.calls[1] as [unknown, { sources: { id: string }[] }];
+    expect(ctx2.sources.map((s) => s.id)).toEqual(['doc-1', 'doc-2']);
+    expect(fanout).not.toHaveBeenCalled();
+  });
+
+  it('nennt Seite, Wortsuche und Zitat in der Beschreibung', () => {
+    const description = catalogWithDocs([pdf]).tools.dokumente_lesen?.description ?? '';
+    expect(description).toContain('`seite`');
+    expect(description).toContain('`wortsuche`');
+    expect(description).toContain('`zitat`');
   });
 
   it('grenzt über `dateiname` ein und sagt es, wenn der Name nicht passt', async () => {
