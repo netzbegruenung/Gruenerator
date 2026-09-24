@@ -497,6 +497,13 @@ export function markedPageAt(marked: readonly PageRange[], offset: number): numb
  * INNERHALB ihres Zeichenbereichs, auf die dort noch Text folgt. Die Startseite kennt
  * der Chunk schon genau. Gelesen werden nur die Seitenzahlen, nicht der Text.
  * Schlüssel ist der Index in `spans`; ohne Marke im Bereich kein Eintrag.
+ *
+ * Die Offsets sind JS-Offsets (UTF-16), `substr` zählt Codepoints. Deshalb wird
+ * jedes Zeichen außerhalb der BMP vorher zu zwei Zeichen — sonst säße das Fenster
+ * hinter jedem Emoji eine Stelle zu weit rechts (#3656). Gekürzt auf das längste
+ * Fenster je Dokument: `left` in Codepoints reicht immer mindestens so weit.
+ * `MATERIALIZED`, weil der Planer die Ersetzung sonst in die Unterabfrage je
+ * Passage schiebt — dann liefe sie pro Passage über bis zu 10 MB statt einmal.
  */
 export async function loadPassagePageEnds(
   db: Pick<PostgresService, 'query'>,
@@ -504,12 +511,20 @@ export async function loadPassagePageEnds(
 ): Promise<Map<number, number>> {
   if (spans.length === 0) return new Map();
   const rows = await db.query<{ i: string | number; page: number | null }>(
-    `SELECT x.i,
+    `WITH x AS (
+       SELECT * FROM unnest($1::uuid[], $2::int[], $3::int[]) WITH ORDINALITY AS x(id, s, e, i)
+     ), u AS MATERIALIZED (
+       SELECT d.id,
+              regexp_replace(left(d.markdown_content, w.e),
+                             '[\\U00010000-\\U0010FFFF]', '..', 'g') AS md
+         FROM (SELECT id, max(e) AS e FROM x GROUP BY id) w
+         JOIN documents d ON d.id = w.id
+     )
+     SELECT x.i,
             (SELECT max(m[1]::int)
-               FROM regexp_matches(substr(d.markdown_content, x.s + 1, x.e - x.s),
+               FROM regexp_matches(substr(u.md, x.s + 1, x.e - x.s),
                                    '##\\s*Seite\\s+(\\d+)\\s*\\S', 'gi') AS m) AS page
-       FROM unnest($1::uuid[], $2::int[], $3::int[]) WITH ORDINALITY AS x(id, s, e, i)
-       JOIN documents d ON d.id = x.id`,
+       FROM x JOIN u ON u.id = x.id`,
     [spans.map((p) => p.sourceId), spans.map((p) => p.charStart), spans.map((p) => p.charEnd)]
   );
   const out = new Map<number, number>();
