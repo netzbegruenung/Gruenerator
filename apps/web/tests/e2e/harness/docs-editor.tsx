@@ -40,6 +40,16 @@ function ComposerStandIn() {
   return <textarea ref={ref} aria-label="Composer" />;
 }
 
+// `?layout=docs` rebuilds the touch layout of `/office/:id` (DocsEditorPage: a
+// `bn-scroll-container` root, top bar, nested scroll surface) around a
+// document long enough to scroll.
+const docsLayout = new URLSearchParams(location.search).get('layout') === 'docs';
+const initialContent = docsLayout
+  ? Array.from({ length: 40 }, (_, i) => `<p>Absatz ${i + 1}: Hallo Welt aus dem Harness</p>`).join(
+      ''
+    )
+  : '<p>Hallo Welt aus dem Harness</p>';
+
 function Harness() {
   useEffect(() => {
     window.__docsEditorHarness = {
@@ -63,15 +73,30 @@ function Harness() {
     };
   }, []);
 
+  const editor = (
+    <BlockNoteEditor
+      documentId="harness"
+      initialContent={initialContent}
+      showComments={false}
+      showDictationButton={false}
+    />
+  );
+
   return (
     <DocsProvider adapter={adapter}>
-      <BlockNoteEditor
-        documentId="harness"
-        initialContent="<p>Hallo Welt aus dem Harness</p>"
-        showComments={false}
-        showDictationButton={false}
-      />
-      <ComposerStandIn />
+      {docsLayout ? (
+        <div className="bn-scroll-container" style={{ display: 'flex', flexDirection: 'column' }}>
+          <header style={{ height: 56, flexShrink: 0, borderBottom: '1px solid #ddd' }} />
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+            <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>{editor}</div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {editor}
+          <ComposerStandIn />
+        </>
+      )}
     </DocsProvider>
   );
 }
