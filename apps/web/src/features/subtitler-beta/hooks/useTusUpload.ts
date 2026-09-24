@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import * as tus from 'tus-js-client';
 
+import { getTusAuthOptions } from '../../../utils/tusAuth';
 import { getVideoMetadata, TUS_UPLOAD_ENDPOINT } from '../../subtitler/utils/videoUtils';
 
 import type { VideoMetadata } from '../../subtitler/utils/videoUtils';
@@ -26,13 +27,14 @@ export function useTusUpload() {
         setProgress(0);
         setError(null);
 
-        getVideoMetadata(file)
-          .then((metadata) => {
+        Promise.all([getVideoMetadata(file), getTusAuthOptions()])
+          .then(([metadata, authOptions]) => {
             const tusUpload = new tus.Upload(file, {
               endpoint: TUS_UPLOAD_ENDPOINT,
               retryDelays: [0, 3000, 5000, 10000, 20000],
               chunkSize: 5 * 1024 * 1024,
               metadata: { filename: file.name, filetype: file.type },
+              ...authOptions,
               onError: () => {
                 const msg = 'Upload fehlgeschlagen. Bitte versuche es erneut.';
                 setError(msg);
