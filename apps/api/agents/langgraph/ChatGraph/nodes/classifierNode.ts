@@ -32,6 +32,7 @@ import {
   looksLikeToolableQuestion,
   looksLikeUnsourcedWritingOrder,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import { agenturaCreateTarget } from '../../../../routes/chat/services/agenturaContext.js';
 import {
   looksLikeNotebookToolAsk,
   looksLikeNotebookWriteAsk,
@@ -943,6 +944,36 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         searchQuery: userContent.slice(0, 500),
         detectedFilters: null,
         reasoning: 'Werkzeugauftrag im Thread eines Notebooks → Werkzeug notebook_quellen',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // Ein Rezept oder einen Grünerator-Agenten ANLEGEN geht in die Schleife,
+    // wo `recipes`/`user_agents` montiert sind — VOR den Textsorten- und
+    // Anhang-Schnellpfaden unten: „erstell mir ein Rezept für Instagram-Posts"
+    // nennt eine Textsorte, und der Social-Post-Pfad machte daraus einen Post
+    // (`produktion`); ein angehängtes Beispiel („ein Rezept aus dieser Datei")
+    // zwang den Turn sonst in den Einzeldurchlauf. Anders als beim Dauerauftrag
+    // OHNE Pin: ein Pin erzwingt den ersten Aufruf, und ein Fehlalarm („ein
+    // Rezept für Kürbissuppe") legte dann ohne Rückfrage ein Rezept an — das
+    // Werkzeug zu wählen bleibt dem Planer.
+    const agenturaTarget = agenturaCreateTarget(state.lastUserTextNoMentions ?? userContent);
+    if (agenturaTarget) {
+      log.info(`[Classifier] Agentura create order → loop (${agenturaTarget})`);
+      recordDecision('classifier.tier', 'tier2_agentura_create', {
+        inputs: { target: agenturaTarget },
+      });
+      return {
+        intent: 'agentic',
+        searchSources: [],
+        searchQuery: userContent.slice(0, 500),
+        detectedFilters: null,
+        reasoning:
+          agenturaTarget === 'recipes'
+            ? 'Auftrag, ein Rezept anzulegen → Schleife mit recipes'
+            : 'Auftrag, einen Grünerator-Agenten anzulegen → Schleife mit user_agents',
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,

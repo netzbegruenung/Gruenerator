@@ -127,3 +127,54 @@ export function mentionsRecipes(text: string | null | undefined): boolean {
   if (!text) return false;
   return RECIPE_VOCABULARY.test(text);
 }
+
+/**
+ * „Soll dieser Turn ein Rezept oder einen Grünerator-Agenten ANLEGEN?" — der
+ * Pin für den Klassifikator, nicht das Montage-Tor oben.
+ *
+ * Ein Anlegeauftrag nennt fast immer eine Textsorte („ein Rezept für
+ * Instagram-Posts", „einen Agenten, der Pressemitteilungen schreibt"), und die
+ * Textsorten-Schnellpfade des Klassifikators griffen das Nomen, bevor jemand
+ * fragte, WAS erstellt wird: der Turn schrieb einen Post. Deshalb muss das
+ * Rezept/der Agent das OBJEKT des Erstell-Verbs sein — direkt dahinter, nur
+ * durch Füllwörter und Artikel getrennt („erstell mir bitte ein neues Rezept")
+ * oder, bei nachgestelltem Verb, davor („ein neues Rezept … anlegen?").
+ * „Erstelle einen Instagram-Post über unseren Agenten-Workshop" hat einen
+ * anderen Gegenstand und bleibt ein Schreibauftrag.
+ *
+ * Satzweise wie `looksLikeRecurringOrder`: eine Rückfrage im ersten Satz löscht
+ * keinen Auftrag im zweiten.
+ */
+const CREATE_VERB = '(?:erstell\\w*|bau\\w*|leg\\w*|richte?\\w*|mach\\w*)';
+const TRAILING_CREATE_VERB = '(?:anlegen|erstellen|bauen|einrichten|machen)';
+const FILLER = '(?:(?:mir|uns|bitte|doch|mal|du|kurz|schnell|gerne?)\\s+){0,3}';
+const DETERMINER =
+  '(?:ein(?:e[nms]?)?|neue[nsr]?|eigene[nsr]?|weitere[nsr]?)\\s+(?:(?:neue[nsr]?|eigene[nsr]?|kleine[nsr]?|weitere[nsr]?)\\s+)?';
+const RECIPE_OBJECT = 'rezept(?:e|es)?';
+const AGENT_OBJECT = `(?:(?:gr[üu]nerator|ki)-)?${AGENT_WORD}`;
+const END = '(?![\\wäöüß-])';
+
+function createPattern(object: string): RegExp {
+  return new RegExp(
+    `(?<![\\wäöüß])(?:${CREATE_VERB}\\s+${FILLER}${DETERMINER}${object}${END}|${DETERMINER}${object}${END}.*\\s${TRAILING_CREATE_VERB}(?![\\wäöüß]))`,
+    'i'
+  );
+}
+
+const RECIPE_CREATE = createPattern(RECIPE_OBJECT);
+const AGENT_CREATE = createPattern(AGENT_OBJECT);
+
+/** „Wie erstelle ich ein Rezept?" fragt nach der Anleitung — das beantwortet die Doku-Suche. */
+const HOW_DO_I = /(?<![\wäöüß])wie\s+(?:[\wäöüß]+\s+){0,2}?ich(?![\wäöüß])/i;
+
+export function agenturaCreateTarget(
+  text: string | null | undefined
+): 'recipes' | 'user_agents' | null {
+  if (!text) return null;
+  for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+    if (HOW_DO_I.test(sentence)) continue;
+    if (RECIPE_CREATE.test(sentence)) return 'recipes';
+    if (AGENT_CREATE.test(sentence)) return 'user_agents';
+  }
+  return null;
+}
