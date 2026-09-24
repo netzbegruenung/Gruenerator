@@ -49,7 +49,7 @@ import { useBlockNoteComments } from '../../hooks/useBlockNoteComments';
 import { useResolveUsers } from '../../hooks/useResolveUsers';
 import { useMentionUsers } from '../../hooks/useMentionUsers';
 import { useDocsAdapter } from '../../context/DocsContext';
-import { useIsTouchDevice, useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
+import { useIsTouchDevice } from '@gruenerator/shared/hooks';
 import { useEditorPreferencesStore } from '../../stores/editorPreferencesStore';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Mention } from './Mention';
@@ -128,6 +128,13 @@ const EDITOR_DOM_ATTRIBUTES = {
   editor: { class: 'blocknote-editor-content' },
 } as const;
 
+// BlockNote sets ProseMirror's `scrollMargin` (where to scroll the caret) to
+// 72px top and bottom, but leaves `scrollThreshold` (when to scroll) at 0, so a
+// caret under the mobile toolbar still counts as visible. Match the bottom.
+const EDITOR_TIPTAP_OPTIONS = {
+  editorProps: { scrollThreshold: { top: 0, left: 0, right: 0, bottom: 72 } },
+};
+
 const schema = BlockNoteSchema.create({
   blockSpecs: defaultBlockSpecs,
   inlineContentSpecs: {
@@ -163,59 +170,10 @@ const BlockNoteEditorInner = ({
   const getMentionMenuItems = useMentionUsers(provider ?? null);
   const hasInitialized = useRef(false);
   const [isReady, setIsReady] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
   // Read live in the attribution closure so identity resolving after mount still
   // applies, without churning the editor.
   const localUserRef = useRef(localUser);
   localUserRef.current = localUser;
-
-  const scrollSelectionIntoView = useCallback(() => {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-
-    const anchorNode = sel.anchorNode;
-    const anchorEl =
-      anchorNode?.nodeType === Node.ELEMENT_NODE
-        ? (anchorNode as Element)
-        : (anchorNode?.parentElement ?? null);
-    const blockEl = anchorEl?.closest('[data-id], .bn-block-content') ?? anchorEl;
-    if (!blockEl) return;
-
-    const rect = sel.getRangeAt(0).getBoundingClientRect();
-    const vp = window.visualViewport;
-    const toolbarHeight =
-      document.querySelector('.bn-mobile-formatting-toolbar')?.getBoundingClientRect().height || 44;
-    const visibleBottom = vp ? vp.offsetTop + vp.height - toolbarHeight : window.innerHeight;
-    const visibleTop = vp?.offsetTop ?? 0;
-
-    if (rect.bottom > visibleBottom || rect.top < visibleTop) {
-      blockEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }
-  }, []);
-
-  // DocsEditorPage pads its scroll container by this offset, so the caret can be
-  // scrolled above the keyboard even at the end of the document.
-  useMobileKeyboardOffset(wrapperRef);
-
-  // Keep the caret clear of the keyboard and the mobile toolbar on touch devices
-  useEffect(() => {
-    if (!isTouchDevice) return;
-
-    let scrollTimer: ReturnType<typeof setTimeout>;
-    const scheduleScroll = () => {
-      clearTimeout(scrollTimer);
-      scrollTimer = setTimeout(scrollSelectionIntoView, 100);
-    };
-
-    const vp = window.visualViewport;
-    document.addEventListener('selectionchange', scheduleScroll);
-    vp?.addEventListener('resize', scheduleScroll);
-    return () => {
-      document.removeEventListener('selectionchange', scheduleScroll);
-      vp?.removeEventListener('resize', scheduleScroll);
-      clearTimeout(scrollTimer);
-    };
-  }, [isTouchDevice, scrollSelectionIntoView]);
 
   const collaborationUser = useMemo(() => {
     if (!provider?.awareness) return null;
@@ -369,6 +327,7 @@ const BlockNoteEditorInner = ({
     } as any,
     extensions,
     domAttributes: EDITOR_DOM_ATTRIBUTES,
+    _tiptapOptions: EDITOR_TIPTAP_OPTIONS,
   };
 
   const editor = useCreateBlockNote(
@@ -543,7 +502,6 @@ const BlockNoteEditorInner = ({
 
   return (
     <div
-      ref={wrapperRef}
       className={`blocknote-wrapper relative${staticToolbar ? ' blocknote-static-toolbar' : ''}`}
     >
       <ErrorBoundary>
