@@ -4,10 +4,11 @@
  * verstümmelt ankommt, kann keine noch so gute Suche wiederherstellen.
  *
  * Deterministisch und ohne Netz: nur die PDF.js-Direktextraktion, also der Pfad,
- * den `OcrService` für text-native PDFs wählt. Seit #2828 umgeht der Chat-Anhang
- * ihn (der OCR-Text wird durchgereicht); der Dokument-Upload über
- * `processUploadedDocument` läuft weiter hier hindurch. Der Vergleich mit Mistral OCR braucht einen API-Schlüssel und
- * steht als Skript daneben (`compareExtractors.ts`).
+ * den `OcrService` für text-native PDFs wählt — für Chat-Anhänge wie für den
+ * Dokument-Upload. Mit Seitenmarken gehen erkannte Tabellenseiten zusätzlich an
+ * Mistral OCR (`OcrService/tableDetection.ts`); die zweispaltige Tabelle hier
+ * gehört bewusst nicht dazu. Der Vergleich mit Mistral OCR braucht einen
+ * API-Schlüssel und steht als Skript daneben (`compareExtractors.ts`).
  *
  * Die Zusicherungen unten bilden ZWEI Sachen ab, deutlich getrennt:
  *   1. den Stand seit #2830: die Items werden geometrie-basiert zusammengesetzt
