@@ -396,6 +396,41 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
       };
     }
 
+    case 'share_text_form': {
+      const { shareTextFormWithGroup, getTextFormSharing, updateTextFormSharing } =
+        await import('../../services/user/textFormRepository.js');
+      const { sharingFailure } = await import('../userTextForms/textFormRouterHelpers.js');
+      const { mention, title, groupId, groupName } = action.payload;
+      // Derselbe Pfad wie `userTextFormsContract.share`: Besitz- und
+      // Teilbarkeitsprüfung (`isShareableTextForm`) im Repository, Mitgliedschaft
+      // im SQL. Ein Nicht-Mitglied fügt still nichts ein — darum die Probe auf
+      // die zurückgegebene Liste.
+      const shares = await shareTextFormWithGroup(action.userId, mention, groupId);
+      if (shares === null) {
+        throw new ConfirmActionRefusal(
+          'Rezept nicht gefunden, oder es ist ein angepasstes System-Rezept — die lassen sich nicht teilen.'
+        );
+      }
+      if (!shares.some((s) => s.groupId === groupId)) {
+        throw new ConfirmActionRefusal(`Du bist nicht Mitglied im Projekt „${groupName}".`);
+      }
+      // Die Agentura zeigt die Projektliste nur bei `share_mode = 'groups'` —
+      // ein privat gebliebenes Rezept wäre geteilt, ohne dass die Eigentümer*in
+      // die Freigabe dort sähe oder zurücknehmen könnte. `authenticated` bleibt
+      // stehen: das ist schon weiter als ein Projekt.
+      const current = await getTextFormSharing(action.userId, mention);
+      if (current?.share_mode === 'private') {
+        const failure = sharingFailure(
+          await updateTextFormSharing(action.userId, mention, { share_mode: 'groups' })
+        );
+        if (failure) throw new ConfirmActionRefusal(failure.message);
+      }
+      return {
+        message: `Rezept **„${title}"** (@${mention}) wurde mit **„${groupName}"** geteilt.`,
+        url: `/gruppen/${groupId}`,
+      };
+    }
+
     default: {
       const _exhaustive: never = action;
       throw new Error(`Unknown action type: ${(action as PendingAction).type}`);

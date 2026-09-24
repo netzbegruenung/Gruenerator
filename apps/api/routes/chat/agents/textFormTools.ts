@@ -13,6 +13,9 @@
  * hinterlegt hat.
  *
  * Gatter, nach Wirkung sortiert:
+ * - Karte (`confirm_action`): mit einem Projekt teilen — die Mitglieder sehen
+ *   das Rezept danach. Ausgeführt in `confirmController.executeAction`, wie
+ *   `user_agents.share_to_group`.
  * - `confirm=true` im Werkzeug: Löschen.
  * - direkt: anlegen, ändern und ergänzen — privat, umkehrbar (delete), nur die
  *   Person selbst sieht die Textform. Die Analyse ist ein Modellaufruf; die Deckel
@@ -33,13 +36,13 @@
  * (`wahlpruefstein`) ist nicht überschreibbar; das sagt das Werkzeug, statt
  * die Mention still als `custom` zu speichern, was die Route mit 409 abweist.
  *
- * Keine Freigabe- oder Veröffentlichungs-Aktion: `public_ownership` ist eine
- * menschliche Rechtsversicherung für die Auflistung in der Agentura, die ein
- * Modell nicht selbst abgeben darf. Eine Projekt-Freigabe über dieses
- * Werkzeug hätte dasselbe Problem — das Modell würde die Sichtbarkeit
- * ausweiten und die eigene Rückfrage gleich mit beantworten. `description`
- * und `iconKey` lassen sich beim Anlernen mitgeben (create); Freigeben an
- * Projekte und Veröffentlichen bleiben Sache der Einstellungen/Agentura.
+ * Keine Veröffentlichungs-Aktion: `public_ownership` ist eine menschliche
+ * Rechtsversicherung für die Auflistung in der Agentura, die ein Modell nicht
+ * selbst abgeben darf. Die Projekt-Freigabe dagegen läuft über eine Karte —
+ * das Modell fordert sie an, die Person bestätigt sie; so kann es die
+ * Sichtbarkeit nicht ausweiten und die eigene Rückfrage gleich mitbeantworten.
+ * Ein angepasstes Systemrezept ist nicht teilbar (`isShareableTextForm`); das
+ * sagt das Werkzeug schon vor der Karte.
  *
  * Dienste kommen über `ctx.deps` herein, damit der Test ohne Postgres und
  * Modellaufruf jede Aktion durchspielen kann.
@@ -69,6 +72,7 @@ import {
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { findGroups } from '../../../services/groups/groupQueries.js';
 import { loadUserRoles } from '../../../services/roles/userRoles.js';
 import {
   analyzeTextForm,
@@ -86,7 +90,9 @@ import {
   listTextForms,
   upsertTextForm,
 } from '../../../services/user/textFormRepository.js';
+import { isShareableTextForm } from '../../../services/user/textFormVisibility.js';
 import { collectTakenMentions } from '../../userTextForms/textFormRouterHelpers.js';
+import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
 
 import {
   groundNote,
@@ -99,6 +105,8 @@ import {
 } from './personalDataTools.js';
 import { buildRecipeCatalog } from './recipeCatalog.js';
 
+import type { PendingAction } from '../../../agents/langgraph/ChatGraph/types.js';
+
 export interface RecipeToolDeps {
   listTextForms: typeof listTextForms;
   upsertTextForm: typeof upsertTextForm;
@@ -110,6 +118,7 @@ export interface RecipeToolDeps {
   recipeCatalog: typeof buildRecipeCatalog;
   /** Nur wenn der State keine Rollen trägt (MCP): die Zuteilung der LV-Rezepte. */
   loadUserRoles: typeof loadUserRoles;
+  findGroups: typeof findGroups;
 }
 
 /** `PersonalToolCtx` plus optionale Fakes — der Katalog reicht den Ctx ohne `deps`. */
@@ -124,6 +133,7 @@ export function resolveRecipeDeps(partial: Partial<RecipeToolDeps> | undefined):
     draftRecipeSpec: partial?.draftRecipeSpec ?? draftRecipeSpec,
     recipeCatalog: partial?.recipeCatalog ?? buildRecipeCatalog,
     loadUserRoles: partial?.loadUserRoles ?? loadUserRoles,
+    findGroups: partial?.findGroups ?? findGroups,
   };
 }
 
@@ -165,9 +175,9 @@ function clampIconKey(raw: string | undefined): string | null {
 
 /**
  * `shareMode`/`isPublic` als eine der drei Stufen, die die Person hier zu
- * sehen bekommt. Es gibt keine Freigabe-Aktion in diesem Werkzeug (s.
- * Docblock) — `authenticated` ohne `isPublic` ist von hier aus nicht
- * herstellbar und zeigt sich darum als „privat".
+ * sehen bekommt. `authenticated` ohne `isPublic` ist von hier aus nicht
+ * herstellbar (nur die Projekt-Freigabe, s. Docblock) und zeigt sich darum als
+ * „privat".
  */
 function visibilityLabel(form: TextForm): string {
   if (form.isPublic) return 'öffentlich in Agentura';
@@ -207,25 +217,33 @@ function normalizeExamples(
 // ---------------------------------------------------------------------------
 
 export function makeRecipesTool(ctx: RecipeToolCtx): Tool {
-  const { state, threadId, sourceRegistry } = ctx;
+  const { state, sse, threadId, sourceRegistry } = ctx;
   const deps = resolveRecipeDeps(ctx.deps);
   const userLocale = state.userLocale ?? null;
 
   return tool({
     description: `Verwaltet Rezepte und die eigenen Textformen der Person („Texte anlernen"): welche Rezepte es gibt, was in einem eigenen Rezept steckt, ein neues Rezept aus einer Beschreibung oder aus Beispieltexten anlegen, ändern, Beispiele ergänzen, löschen. recipes verwaltet, rezept_laden wendet an.
 
-NUTZE FÜR: alle verfügbaren Rezepte und eigenen Textformen auflisten (list), Details ansehen — bei einer eigenen Textform Beispiele, Stilblock und Textsorte, bei einem mitgelieferten Rezept nur Titel und Beschreibung (get mit mention), ein neues Rezept aus einer Beschreibung anlegen — „erstell mir ein Rezept für OV-Einladungen", „bau ein Rezept, das Pressemitteilungen kürzer macht" (create mit brief; optional title, mention, description, iconKey), aus Beispieltexten eine eigene Textform anlernen — „lern meinen Schreibstil", „so schreibe ich Instagram-Posts" (create mit title, examples; optional mention, textType), Titel, Beschreibung, Icon oder Anweisungen eines eigenen Rezepts ändern (update mit mention und den neuen Feldern; die mention selbst bleibt), Beispiele zu einer eigenen Textform nachschieben (add_examples mit mention, examples), eine eigene Textform löschen (delete mit mention und confirm=true nach Zustimmung).
+NUTZE FÜR: alle verfügbaren Rezepte und eigenen Textformen auflisten (list), Details ansehen — bei einer eigenen Textform Beispiele, Stilblock und Textsorte, bei einem mitgelieferten Rezept nur Titel und Beschreibung (get mit mention), ein neues Rezept aus einer Beschreibung anlegen — „erstell mir ein Rezept für OV-Einladungen", „bau ein Rezept, das Pressemitteilungen kürzer macht" (create mit brief; optional title, mention, description, iconKey), aus Beispieltexten eine eigene Textform anlernen — „lern meinen Schreibstil", „so schreibe ich Instagram-Posts" (create mit title, examples; optional mention, textType), Titel, Beschreibung, Icon oder Anweisungen eines eigenen Rezepts ändern (update mit mention und den neuen Feldern; die mention selbst bleibt), Beispiele zu einer eigenen Textform nachschieben (add_examples mit mention, examples), ein eigenes Rezept mit einem Projekt teilen (share_to_group mit mention und groupName; wird der Person als Karte zur Bestätigung angezeigt — kündige es nicht als geteilt an), eine eigene Textform löschen (delete mit mention und confirm=true nach Zustimmung).
 
 NICHT für: ein Rezept ANWENDEN, also einen Text in einer Form schreiben (dafür 'rezept_laden'), einen Grünerator-Agenten anlegen oder ändern (dafür 'user_agents'), den Text eines mitgelieferten Rezepts lesen (nicht einsehbar).
 
 brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, Anlass, Ton, Aufbau —, möglichst in ihren eigenen Worten und vollständig. Die Beispiele für create und add_examples sind die Texte der Person selbst — aus der Nachricht oder aus angehängten Dokumenten; übergib sie wörtlich, je Beispiel ein Eintrag. Eine eigene Textform mit der Mention eines mitgelieferten Rezepts (presse, instagram, facebook oder ein Landesverbands-Rezept) ersetzt dessen Stilvorgaben; ohne solche Mention entsteht eine zusätzliche Textform, die im Chat als @mention nutzbar ist. Anlegen dauert einige Sekunden (Entwurf bzw. Stilanalyse); zeig der Person danach die Anweisungen und den Link zum Bearbeiten.`,
     inputSchema: z.object({
-      action: z.enum(['list', 'get', 'create', 'update', 'add_examples', 'delete']),
+      action: z.enum([
+        'list',
+        'get',
+        'create',
+        'update',
+        'add_examples',
+        'share_to_group',
+        'delete',
+      ]),
       mention: z
         .string()
         .optional()
         .describe(
-          'Mention der Textform, aus list Feld ref (get, update, add_examples, delete; create: optional, sonst aus title bzw. dem Entwurf)'
+          'Mention der Textform, aus list Feld ref (get, update, add_examples, share_to_group, delete; create: optional, sonst aus title bzw. dem Entwurf)'
         ),
       title: z
         .string()
@@ -258,6 +276,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
         .describe(
           'Icon-Schlüssel aus dem Icon-Katalog (create, update); ein unbekannter Schlüssel wird auf ein Standardicon geklemmt'
         ),
+      groupName: z.string().optional().describe('Zielprojekt (share_to_group)'),
       confirm: z
         .boolean()
         .default(false)
@@ -291,6 +310,7 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
 
       if (action === 'update') return updateTextForm(userId, own, args);
       if (action === 'add_examples') return addExamples(userId, own, args.examples);
+      if (action === 'share_to_group') return shareCard(userId, own, args.groupName);
 
       // delete
       // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
@@ -668,6 +688,59 @@ brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, An
     const note = `Textform „${updated.title}" (@${updated.mention}): ${added} Beispiel${added === 1 ? '' : 'e'} ergänzt, jetzt ${examples.length} — der Stil wurde neu analysiert.`;
     groundNote(sourceRegistry, 'Textform ergänzt', note);
     return { ok: true, note, ...summarize(updated) };
+  }
+
+  // -------------------------------------------------------------------------
+  // share_to_group — Karte
+  // -------------------------------------------------------------------------
+
+  async function shareCard(
+    userId: string,
+    form: TextForm,
+    groupName: string | undefined
+  ): Promise<Record<string, unknown>> {
+    if (!threadId) return { error: 'Teilen ist in diesem Kontext nicht möglich.' };
+    if (!groupName?.trim()) return { error: 'share_to_group braucht groupName.' };
+    // Vor der Karte, nicht erst beim Klick: eine Karte, die nach Bestätigung
+    // mit „nicht teilbar" scheitert, hätte die Person umsonst gefragt.
+    if (!isShareableTextForm(form.kind, form.mention)) {
+      return {
+        error: `„${form.title}" (@${form.mention}) ist ein angepasstes System-Rezept — die lassen sich nicht teilen, nur eigene Rezepte.`,
+      };
+    }
+    // Nur Projekte, in denen die Person Mitglied ist — `findGroups` liefert auch
+    // öffentliche Gruppen mit leerer Rolle.
+    const group = (await deps.findGroups(userId, groupName.trim(), 5)).find((g) => g.role);
+    if (!group) return { error: `Kein Projekt „${groupName}" gefunden, dem du angehörst.` };
+    if (form.sharedWithGroups.some((g) => g.groupId === group.id)) {
+      const note = `„${form.title}" ist schon mit „${group.name}" geteilt.`;
+      groundNote(sourceRegistry, 'Teilen', note);
+      return { ok: true, note };
+    }
+
+    const pending: PendingAction = {
+      actionId: newActionId(),
+      threadId,
+      userId,
+      title: 'Rezept teilen',
+      preview: `„${form.title}" → ${group.name}`,
+      createdAt: Date.now(),
+      type: 'share_text_form',
+      payload: {
+        mention: form.mention,
+        title: form.title,
+        groupId: group.id,
+        groupName: group.name,
+      },
+    };
+    await emitToolConfirmAction(sse, pending, [
+      { key: 'Rezept', value: `${form.title} (@${form.mention})` },
+      { key: 'Projekt', value: group.name },
+      { key: 'Berechtigung', value: 'Benutzen, nicht bearbeiten' },
+    ]);
+    const note = `Bestätigung zum Teilen von „${form.title}" mit „${group.name}" angefordert.`;
+    groundNote(sourceRegistry, 'Teilen', note);
+    return { ok: true, needsConfirmation: true, note };
   }
 
   /**
