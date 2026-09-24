@@ -40,6 +40,10 @@
  *                   substitute this id for `{{EVAL_USER_NOTEBOOK_ID}}` in their
  *                   prompts and `notebookIds`. Must be a notebook the bypass
  *                   user owns (see corpus/notebook-tools.jsonl).
+ *   EVAL_ATTACHED_DOC_ID  include scenarios tagged `attachedDocLane` and
+ *                   substitute this id for `{{EVAL_ATTACHED_DOC_ID}}` in their
+ *                   `documentChatIds`. Must be a multi-page document the bypass
+ *                   user uploaded in a chat (see corpus/attached-doc-tools.jsonl).
  *   EVAL_MEMORY=1   include scenarios that seed the eval account's memory
  *                   (`memories`). Needs EVAL_CONCURRENCY=1 and an account whose
  *                   memory is empty — both checked before the first request.
@@ -98,6 +102,8 @@ function withUserNotebook(text: string): string {
   return text.replaceAll('{{EVAL_USER_NOTEBOOK_ID}}', USER_NOTEBOOK_ID);
 }
 
+const ATTACHED_DOC_ID = process.env.EVAL_ATTACHED_DOC_ID?.trim() ?? '';
+
 const CONCURRENCY = (() => {
   const n = Number.parseInt(process.env.EVAL_CONCURRENCY ?? '', 10);
   return Number.isInteger(n) && n >= 1 ? n : 1;
@@ -140,6 +146,7 @@ function selectedCorpus(): EvalScenario[] {
     bgstKorpus: process.env.EVAL_BGST_KORPUS === '1',
     memory: process.env.EVAL_MEMORY === '1',
     userNotebook: USER_NOTEBOOK_ID !== '',
+    attachedDoc: ATTACHED_DOC_ID !== '',
   });
 }
 
@@ -348,6 +355,13 @@ async function runTurn(
         ...(currentSharepic ? { currentSharepic } : {}),
         ...(scenario.notebookIds
           ? { notebookIds: scenario.notebookIds.map(withUserNotebook) }
+          : {}),
+        ...(scenario.documentChatIds
+          ? {
+              documentChatIds: scenario.documentChatIds.map((id) =>
+                id.replaceAll('{{EVAL_ATTACHED_DOC_ID}}', ATTACHED_DOC_ID)
+              ),
+            }
           : {}),
       };
 
