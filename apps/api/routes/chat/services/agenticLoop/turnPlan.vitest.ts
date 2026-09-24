@@ -503,47 +503,58 @@ describe('decideTurnPlan — der Degradierungsfall der Loop-Achse', () => {
 });
 
 /**
- * Der IST-Stand der Suchfamilie am Erwähnungs-Pfad, festgenagelt VOR dem
- * Lane-Flip aus Phase R3 — damit der Flip als Diff in Zusicherungen erscheint
- * und nicht nur als Zeilenänderung in einer Tabelle.
- *
- * Und mit ihm der Befund, der den Flip gefährlich macht: `@deepresearch` ist
- * eine VARIANTE von `research` (`forcedIntentStage` setzt genau denselben
- * Intent plus `forcedTool`), und der Entscheider bekommt heute kein einziges
- * Feld, an dem er die beiden unterscheiden könnte. Solange die Familie
- * `single-pass` trägt, ist das folgenlos — beide bleiben einzeln. Ab dem Flip
- * wäre es der stille Tod des Dossier-Wegs: seine beiden Engines lesen
- * `deepResearchRequested` ausschliesslich im Einzeldurchlauf
- * (`intentHandlers/searchBranch.ts`), ein in die Schleife gehobener Turn liefe
- * als gewöhnliche Recherche weiter und niemand sähe einen Fehler.
+ * Die Suchfamilie am Erwähnungs-Pfad. `@recherche`/`@dokumente` pinnen ihr
+ * Werkzeug, und der Pin trägt den Turn in die Schleife; der Intent bleibt —
+ * an ihm hängen Auto-Politik, Formatregel und Zitatform.
  */
-describe('decideTurnPlan — die Suchfamilie am Erwähnungs-Pfad (IST vor dem R3-Flip)', () => {
-  it.each(['research', 'search', 'web'] as const)(
-    '%s: eine Erwähnung hält den Turn im Einzeldurchlauf',
-    (intent) => {
-      const p = plan({ intent, forcedTool: true });
-      expect(p.lane).toBe('single-pass');
-      expect(p.runAgentic).toBe(false);
-      expect(p.intent).toBe(intent);
-    }
-  );
+describe('decideTurnPlan — die Suchfamilie am Erwähnungs-Pfad', () => {
+  it.each([
+    ['research', 'web_search'],
+    ['search', 'gruenerator_search'],
+  ] as const)('%s: die Erwähnung führt den Turn per Pin in die Schleife', (intent, pin) => {
+    const p = plan({ intent, forcedTool: true, mentionPinnedTool: pin });
+    expect(p.lane).toBe('loop');
+    expect(p.runAgentic).toBe(true);
+    expect(p.intent).toBe(intent);
+  });
 
-  /**
-   * Und die Kehrseite, als Aussage über die EINGABE statt über das Ergebnis:
-   * `TurnPlanInput` führt kein Feld, das die Tiefenrecherche benennt. Der
-   * Entscheider bekommt für `@deepresearch` genau das, was `forcedIntentStage`
-   * auch für `@recherche` setzt — `intent: 'research'`, `forcedTool: true`,
-   * Werkzeug-Pin gelöscht —, und ein zweiter Aufruf mit denselben Werten wäre
-   * eine Tautologie, kein Beweis.
-   *
-   * Diese Zeile ist deshalb der Beweis: sie fällt in dem Moment, in dem jemand
-   * dem Entscheider das trennende Feld gibt — und genau das MUSS beim Lane-Flip
-   * passieren, sonst reisst er den Dossier-Weg mit.
-   */
-  it('hat am Entscheider kein Feld, das die Tiefenrecherche benennt', () => {
-    expect(Object.keys(base).filter((k) => /deep/i.test(k))).toEqual([]);
-    const deepresearchFields = plan({ intent: 'research', forcedTool: true });
-    expect(deepresearchFields.lane).toBe('single-pass');
+  // Was ohne Pin ankommt, bleibt einzeln: `@deepresearch` (forcedIntentStage
+  // setzt dort keinen Pin, seine Engines leben nur im Einzeldurchlauf) und der
+  // Alt-Token `web`, für den es keine Erwähnung und kein Zielwerkzeug gibt.
+  it.each(['research', 'web'] as const)('%s ohne Pin bleibt im Einzeldurchlauf', (intent) => {
+    const p = plan({ intent, forcedTool: true });
+    expect(p.lane).toBe('single-pass');
+    expect(p.runAgentic).toBe(false);
+    expect(p.intent).toBe(intent);
+  });
+
+  // `forcedLoop` hebt nur den forcedTool-Notausschalter auf, nicht die
+  // Notebook-Sperre: eine Frage an ein gewähltes Notebook bleibt auf dessen
+  // RAG-Pfad. In die Schleife kommt ein Notebook-Turn nur als Werkzeugauftrag
+  // (Pin `notebook_quellen` auf `agentic`, siehe unten).
+  it.each([
+    ['search', 'gruenerator_search'],
+    ['research', 'web_search'],
+  ] as const)('%s-Erwähnung mit gewähltem Notebook bleibt einzeln', (intent, pin) => {
+    const p = plan({ intent, forcedTool: true, mentionPinnedTool: pin, hasSelectedNotebook: true });
+    expect(p.lane).toBe('single-pass');
+    expect(p.intent).toBe(intent);
+  });
+
+  it.each([
+    ['Verbund', { isCompound: true }],
+    ['Bildanhang', { hasImageAttachments: true }],
+    ['zweiter Intent', { secondaryIntent: 'image' }],
+    ['Schleife aus', { loopEnabled: false }],
+  ] as const)('%s hält den erwähnten Turn weiterhin einzeln', (_name, over) => {
+    const p = plan({
+      intent: 'search',
+      forcedTool: true,
+      mentionPinnedTool: 'gruenerator_search',
+      ...over,
+    });
+    expect(p.lane).toBe('single-pass');
+    expect(p.intent).toBe('search');
   });
 });
 
