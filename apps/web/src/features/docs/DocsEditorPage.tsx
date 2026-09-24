@@ -24,7 +24,7 @@ import {
   type Document,
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
-import { useMediaQuery } from '@gruenerator/shared/hooks';
+import { useIsTouchDevice, useMediaQuery } from '@gruenerator/shared/hooks';
 import { Fab, Skeleton, useIsMobile, useScreenCornerReservation } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -304,6 +304,11 @@ function EditorContent() {
   );
   // Tailwind max-md boundary — below it the sidebar is a full-screen overlay.
   const isMobile = useMediaQuery('(max-width: 767px)');
+  // BlockNote pins `bn-scroll-container` to the visual viewport, so the keyboard
+  // shrinks the page instead of panning it, and the mobile toolbar stays on the
+  // keyboard. Touch only: on desktop it would pin the page to a pinch zoom. Not
+  // in the chat's embed iframe, whose viewport the keyboard doesn't resize.
+  const pinToVisualViewport = useIsTouchDevice() && !isInlineEmbed;
   // Mode and panel are independent: on desktop enabling still auto-opens the
   // sidebar for review, but on mobile the panel is a full-screen overlay that
   // would trap the user, so it only opens via "Änderungen prüfen".
@@ -618,7 +623,9 @@ function EditorContent() {
         : activeSidebar;
 
   return (
-    <div className="h-full flex flex-col relative">
+    <div
+      className={`h-full flex flex-col relative${pinToVisualViewport ? ' bn-scroll-container' : ''}`}
+    >
       {isInlineEmbed ? (
         <EditorFAB
           showDisconnected={showDisconnected}
@@ -898,7 +905,7 @@ function EditorContent() {
       <div className="flex-1 flex flex-row overflow-hidden max-md:flex-col">
         <div
           data-tour="docs-surface"
-          className={`flex-1 min-w-0 overflow-y-auto scrollbar-thin py-4 px-6 max-sm:px-0 max-sm:pt-0 max-sm:pb-[var(--mobile-keyboard-offset,0px)] ${
+          className={`flex-1 min-w-0 overflow-y-auto scrollbar-thin py-4 px-6 max-sm:px-0 max-sm:pt-0 ${
             isDesktopApp()
               ? // Desktop app only: match the editor backdrop to the top bar so
                 // there's no white-bar-over-gray seam. The `docs-editor-desktop`
