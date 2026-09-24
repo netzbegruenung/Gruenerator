@@ -686,6 +686,15 @@ export const auth = betterAuth({
   ],
 });
 
+// Seit 1.7 schreibt die Initialisierung in die Datenbank (`mcp()` legt seine
+// Ressource an), und das Promise dahinter wartet niemand ab: ohne Datenbank
+// wurde daraus eine unbehandelte Ablehnung — in jeder Testdatei, die dieses
+// Modul auch nur transitiv lädt, und im Betrieb ohne Hinweis im Log. Anfragen
+// scheitern weiterhin laut, weil jede `$context` selbst abwartet.
+auth.$context.catch((err: unknown) => {
+  log.error('[BetterAuth] initialization failed: %s', err);
+});
+
 export type BetterAuthType = typeof auth;
 export type BetterAuthSession = typeof auth.$Infer.Session;
 
