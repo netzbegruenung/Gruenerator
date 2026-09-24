@@ -109,18 +109,6 @@
   --bn-colors-side-menu: var(--grey-500, #6b7280);
 }
 
-/* Formatting toolbar customization */
-.bn-formatting-toolbar {
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--grey-200, #e5e7eb);
-}
-
-[data-theme='dark'] .bn-formatting-toolbar {
-  border-color: var(--grey-600, #4b5563);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
 /* Side menu customization */
 .bn-side-menu {
   opacity: 0.5;
