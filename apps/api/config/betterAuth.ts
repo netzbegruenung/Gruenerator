@@ -191,6 +191,8 @@ const rawMcpPlugin = mcp({
   // 1.7 —, sie liefen sonst am Token-Endpunkt auf `invalid_target`. Es gibt
   // genau eine Ressource, also kostet das Abschalten hier keine Trennschärfe.
   enforcePerClientResources: false,
+  // PKCE: kein Schalter nötig — 1.7 verlangt es, solange ein Client es nicht
+  // ausdrücklich abwählt (`requirePKCE ?? true`, auch für übernommene Clients).
 });
 
 const mcpPlugin = rawMcpPlugin as unknown as BetterAuthPlugin;
