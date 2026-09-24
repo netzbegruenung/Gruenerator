@@ -313,6 +313,10 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       description: 'Web & Quellen – automatische Suchtiefe',
       avatar: '🔬',
       backgroundColor: '#7C3AED',
+      // Die Suchtiefe braucht keinen eigenen Pin: `web_search` hat `gruendlich`
+      // als Voreinstellung — dieselbe Stufe, die `resolveSearchTier` dem
+      // Intent im Einzeldurchlauf gibt.
+      pinsTool: 'web_search',
     },
     // @deepresearch is a VARIANT, not an intent of its own: same class of work,
     // same routing, only the engine and the output shape differ. It must be
@@ -348,6 +352,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       description: 'Parteiprogramme & Beschlüsse durchsuchen',
       avatar: '📄',
       backgroundColor: '#316049',
+      pinsTool: 'gruenerator_search',
     },
   },
   web: {
