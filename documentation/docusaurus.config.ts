@@ -378,12 +378,29 @@ const config: Config = {
         ...SECTIONS.filter((s) => s.navbar === 'direct')
           .slice()
           .sort((a, b) => (a.navbarOrder ?? Infinity) - (b.navbarOrder ?? Infinity))
-          .map((s) => ({
-            type: 'docSidebar' as const,
-            sidebarId: s.sidebarId,
-            label: s.label,
-            position: 'left' as const,
-          })),
+          .map((s) =>
+            s.id === 'features'
+              ? {
+                  type: 'dropdown' as const,
+                  label: s.label,
+                  position: 'left' as const,
+                  items: [
+                    { label: 'Überblick', to: s.intro },
+                    ...SECTIONS.filter((candidate) => candidate.navbar === 'features').map(
+                      (candidate) => ({ label: candidate.label, to: candidate.intro })
+                    ),
+                    ...s.topPages
+                      .filter((page) => page.to !== s.intro)
+                      .map((page) => ({ label: page.label, to: page.to })),
+                  ],
+                }
+              : {
+                  type: 'docSidebar' as const,
+                  sidebarId: s.sidebarId,
+                  label: s.label,
+                  position: 'left' as const,
+                }
+          ),
         {
           to: EXTRA_LINKS.webinare.to,
           label: EXTRA_LINKS.webinare.label,
