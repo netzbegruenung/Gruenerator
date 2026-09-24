@@ -15,8 +15,8 @@ export type DocSection = {
   intro: string;
   /** Matches a key in sidebars.ts. */
   sidebarId: string;
-  /** Every main section gets its own navbar entry. */
-  navbar: 'direct';
+  /** Main navbar entry, or nested below the Features entry. */
+  navbar: 'direct' | 'features';
   /**
    * Position among the 'direct' navbar entries, lowest first. Entries without
    * one keep their array order behind those that have one.
@@ -109,7 +109,7 @@ export const SECTIONS: DocSection[] = [
       'Im Gespräch arbeiten: fragen, recherchieren, Dateien mitgeben, Inhalte erstellen.',
     intro: '/docs/chat/ki-chat',
     sidebarId: 'chatSidebar',
-    navbar: 'direct',
+    navbar: 'features',
     topPages: [
       { label: 'Was kann ich fragen?', to: '/docs/chat/was-kann-ich-fragen' },
       { label: 'KI-Modelle', to: '/docs/chat/ki-modelle' },
