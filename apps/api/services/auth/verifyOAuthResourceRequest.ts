@@ -34,11 +34,22 @@ interface ResourceRequestInput {
   url: string;
 }
 
+interface VerifyOptions {
+  verifyOptions: { audience: string; issuer: string };
+}
+
 interface ResourceClientActions {
+  verifyAccessTokenRequest: (
+    request: ResourceRequestInput,
+    opts: VerifyOptions
+  ) => Promise<Record<string, unknown>>;
+}
+
+interface BoundResourceClient {
   verifyAccessTokenRequest: (request: ResourceRequestInput) => Promise<Record<string, unknown>>;
 }
 
-let actions: Promise<ResourceClientActions> | null = null;
+let actions: Promise<BoundResourceClient> | null = null;
 
 /**
  * `config/betterAuth.js` baut beim Import einen Postgres-Pool auf und löst
@@ -46,15 +57,28 @@ let actions: Promise<ResourceClientActions> | null = null;
  * der ihn anfasst — an einer vollständigen Auth-Umgebung. Deshalb erst beim
  * ersten Aufruf laden und danach festhalten.
  */
-async function loadActions(): Promise<ResourceClientActions> {
-  const [{ oauthProviderResourceClient }, { auth }] = await Promise.all([
+async function loadActions(): Promise<BoundResourceClient> {
+  const [{ oauthProviderResourceClient }, { auth }, { MCP_RESOURCE_URL }] = await Promise.all([
     import('@better-auth/oauth-provider/resource-client'),
     import('../../config/betterAuth.js'),
+    import('../../config/mcpServer.js'),
   ]);
-  return oauthProviderResourceClient(auth).getActions() as unknown as ResourceClientActions;
+  const client = oauthProviderResourceClient(auth).getActions() as unknown as ResourceClientActions;
+  // Ohne ausdrückliche Angabe prüft der Resource-Client `aud` UND `iss` gegen
+  // die nackte `baseURL`. Unsere Token tragen aber die MCP-Ressource als `aud`
+  // und `baseURL` + `basePath` als `iss` (so signiert `jwt()`) — jedes Token
+  // fiele durch. Beides deshalb aus derselben Quelle wie beim Ausstellen.
+  const verifyOptions = {
+    audience: MCP_RESOURCE_URL,
+    issuer: (await auth.$context).baseURL,
+  };
+  return {
+    verifyAccessTokenRequest: (request) =>
+      client.verifyAccessTokenRequest(request, { verifyOptions }),
+  };
 }
 
-function getActions(): Promise<ResourceClientActions> {
+function getActions(): Promise<BoundResourceClient> {
   // Der Merker darf nur einen ERFOLGREICHEN Ladevorgang festhalten. Ein
   // abgelehntes Promise stehen zu lassen hiesse: ein einziger vorübergehender
   // Fehler beim Laden legt den OAuth-Weg für die Lebensdauer des Prozesses
