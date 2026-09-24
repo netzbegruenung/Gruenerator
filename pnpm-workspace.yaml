@@ -194,7 +194,29 @@ allowBuilds:
 # inputs (52 hand-picked, 20 000 random strings over an alphabet of letters,
 # `@`, `.`, `-`, `_`, `+`, `/`, `,`, umlauts, an emoji, `§` and newlines): the
 # produced link nodes are identical for every one of them.
+#
+# `@better-auth/oauth-provider@1.7.5` seeds `ba_oauth_resources` in its plugin
+# `init` (because `mcp({ resource })` in apps/api/config/betterAuth.ts passes a
+# resource). `betterAuth()` runs that init at module import, before
+# PostgresService has applied the migration that creates the table, and caches
+# the result in `auth.$context`. The plugin means to defer on a missing table,
+# but its MISSING_TABLE_PATTERN only tests `err.message`, and Drizzle wraps the
+# pg error as `Failed query: …` with `relation … does not exist` in `cause`. So
+# the first boot after a deploy rejected `$context` for good, and every auth
+# request answered 500 until the process restarted (beta, 24.09.2026, #3670).
+#
+# The patch catches the init-time seed and logs a warning. The library's own
+# lazy path (`getResource` -> `seedResourcesOnce`) then seeds on the first
+# resource access. It is not a silent swallow: that path resets and rethrows on
+# failure, so a seed that keeps failing fails every resource lookup loudly and
+# is retried on the next one. Only the resource endpoints fail, not sign-in.
+# The patch is chosen over building `auth` lazily after migrations because
+# `auth` is a module-level export that 15 files import. Guarded by incident 7 in
+# apps/api/config/authRegressions.vitest.ts. Drop it once upstream matches the
+# pattern against `cause` or stops seeding in `init`. pnpm fails the install when
+# the patch no longer applies, so a better-auth bump cannot skip it silently.
 patchedDependencies:
+  '@better-auth/oauth-provider@1.7.5': patches/@better-auth__oauth-provider@1.7.5.patch
   decode-uri-component@0.2.2: patches/decode-uri-component@0.2.2.patch
   mdast-util-gfm-autolink-literal@2.0.1: patches/mdast-util-gfm-autolink-literal@2.0.1.patch
 
