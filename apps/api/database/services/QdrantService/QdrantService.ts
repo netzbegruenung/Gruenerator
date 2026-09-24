@@ -142,8 +142,11 @@ export class QdrantService {
   }
 
   private _startInitialization(): void {
+    // Through init(), not _performInit(): an init() that started in the same
+    // tick owns initPromise, and overwriting it with the no-op early return of
+    // a second _performInit() made isAvailable() report false until connected.
     setTimeout(() => {
-      this.initPromise = this._performInit();
+      void this.init();
     }, 0);
   }
 
