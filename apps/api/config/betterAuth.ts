@@ -366,7 +366,7 @@ export const auth = betterAuth({
     // under its OLD Redis key while returning before it ever reaches the DB
     // (better-auth 1.6.25, db/internal-adapter.mjs). The consent step is the
     // one caller that changes the identifier, so the code handed to the client
-    // never exists as a key and `/mcp/token` answers `invalid_grant`.
+    // never exists as a key and the token endpoint answers `invalid_grant`.
     storeInDatabase: true,
     fields: {
       expiresAt: 'expires_at',
