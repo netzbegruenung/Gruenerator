@@ -215,3 +215,32 @@ export async function extractBase64WithMistralOCR(
     throw new Error(`Mistral OCR extraction failed: ${errorMessage}`);
   }
 }
+
+/**
+ * Liest nur ausgewählte Seiten einer PDF mit Mistral OCR — für Tabellenseiten,
+ * deren pdfjs-Text die Spalten verliert. `pages` ist 1-basiert wie die
+ * Seitenmarken; die API zählt ab 0 und gibt in `page.index` die Seite im
+ * Dokument zurück, nicht die Position in der Auswahl (live geprüft am
+ * 24.09.2026: `pages: [2, 3]` → `index` 2 und 3). Abgerechnet werden nur die
+ * angefragten Seiten.
+ */
+export async function extractPagesWithMistralOCR(
+  base64Data: string,
+  mimeType: string,
+  pages: readonly number[]
+): Promise<Map<number, string>> {
+  const mod = await import('../ai/mistralClient.js');
+  const mistralClient: Mistral = mod.default || mod;
+
+  const ocrResponse = await mistralClient.ocr.process({
+    model: 'mistral-ocr-4-0',
+    document: {
+      type: 'document_url',
+      documentUrl: `data:${mimeType};base64,${base64Data}`,
+    } satisfies DocumentURLChunk,
+    includeImageBase64: false,
+    pages: pages.map((p) => p - 1),
+  });
+
+  return new Map((ocrResponse.pages ?? []).map((p) => [p.index + 1, p.markdown]));
+}
