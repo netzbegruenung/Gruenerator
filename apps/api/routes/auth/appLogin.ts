@@ -142,8 +142,13 @@ router.get('/login', loginLimiter, async (req: AuthRequest, res: Response): Prom
     // Auth rejects the state as a replay, and the browser gets 302'd to
     // `/?error=please_restart_the_process` — which renders as the marketing
     // homepage and hangs `WebBrowser.openAuthSessionAsync()` forever.
-    const response = await auth.api.signInWithOAuth2({
-      body: { providerId, callbackURL },
+    // 1.7 macht aus jedem genericOAuth-Provider einen echten Social-Provider:
+    // `signInWithOAuth2` und `/sign-in/oauth2` sind ersatzlos weg, der Weg
+    // heisst jetzt `signInSocial` mit `provider` statt `providerId`. Die
+    // Provider-Kennungen bleiben unveraendert, also aendert sich an
+    // `SOURCE_TO_PROVIDER` und an den Zeilen in `ba_accounts` nichts.
+    const response = await auth.api.signInSocial({
+      body: { provider: providerId, callbackURL },
       headers: fromNodeHeaders(req.headers),
       asResponse: true,
     });
@@ -152,7 +157,7 @@ router.get('/login', loginLimiter, async (req: AuthRequest, res: Response): Prom
 
     if (!url) {
       const noUrlErr = new Error(
-        `signInWithOAuth2 returned no URL (provider=${providerId}, callbackURL=${callbackURL})`
+        `signInSocial returned no URL (provider=${providerId}, callbackURL=${callbackURL})`
       );
       noUrlErr.name = 'OAuthInitNoURL';
       log.error('[AppLogin] %s', noUrlErr.message);
