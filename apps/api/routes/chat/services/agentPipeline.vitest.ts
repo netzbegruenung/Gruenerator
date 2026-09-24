@@ -536,6 +536,30 @@ describe('resolveOriginalText', () => {
       'Nochmal bitte'
     );
   });
+
+  describe('Seitenmarken aus PDF-Anhängen', () => {
+    const seite1 = 'Auf dem Parteitag in Sassnitz. '.repeat(10).trim();
+    const seite2 = 'Beschluss zur Mobilitätswende. '.repeat(10).trim();
+    const markiert = `## Seite 1\n\n${seite1}\n\n## Seite 2\n\n${seite2}`;
+    const ohne = `${seite1}\n\n${seite2}`;
+
+    it('nimmt sie aus dem Anhang dieses Turns heraus', () => {
+      const state = {
+        ...leer,
+        attachmentContext: `### antrag.pdf (Volltext-Auszug)\n\n${markiert}`,
+      };
+      const result = resolveOriginalText(state, 'Überarbeite das');
+      expect(result).not.toMatch(/## Seite \d/);
+      expect(result).toBe(`### antrag.pdf (Volltext-Auszug)\n\n${ohne}`);
+    });
+
+    it('nimmt sie aus dem mitgeführten Thread-Anhang heraus', () => {
+      const pdf = anhang(markiert, { name: 'antrag.pdf', mimeType: 'application/pdf' });
+      expect(resolveOriginalText({ ...leer, threadAttachments: [pdf] }, 'Nochmal kürzer')).toBe(
+        ohne
+      );
+    });
+  });
 });
 
 describe('Pipeline-Registry', () => {
