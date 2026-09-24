@@ -2365,7 +2365,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 2: Einen Weg wählen",
     "anchor": "#schritt-2-einen-weg-wählen",
     "category": "Guides",
-    "text": "Auf der Startseite des Rezept-Erstellers stehen dir zwei Wege offen: Beschreiben: Schreibe ins Eingabefeld, wofür das Rezept gedacht ist — zum Beispiel „Ein Rezept für Einladungen zur Mitgliederversammlung: förmlicher Ton, mit Tagesordnung und Anmeldehinweis.\" Der Grünerator erstellt daraus einmalig einen Entwurf und öffnet den Editor. Manuell: Über „Lieber manuell anlegen?\" öffnest du denselben Editor mit leeren Feldern. Gespeichert ist das Rezept in keinem der beiden Fälle, solange du nicht auf Speichern klickst."
+    "text": "Auf der Startseite des Rezept-Erstellers stehen dir zwei Wege offen: Beschreiben: Schreibe ins Eingabefeld, wofür das Rezept gedacht ist — zum Beispiel „Ein Rezept für Einladungen zur Mitgliederversammlung: förmlicher Ton, mit Tagesordnung und Anmeldehinweis.\" Der Grünerator erstellt daraus einmalig einen Entwurf und öffnet den Editor. Manuell: Über „Lieber manuell anlegen?\" öffnest du denselben Editor mit leeren Feldern. Gespeichert ist das Rezept in keinem der beiden Fälle, solange du nicht auf Speichern klickst. Du kannst ein Rezept auch im Chat anlegen, etwa mit „Erstell mir ein Rezept für Einladungen zur Mitgliederversammlung\". Der Chat speichert es dann sofort und zeigt dir die Anleitung sowie einen Link zum Bearbeiten. Prüfe sie in der Agentura, wie ab Schritt 3 beschrieben. Auch Name, Beschreibung und Anleitung eines eigenen Rezepts kannst du im Chat ändern lassen."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",

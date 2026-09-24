@@ -5,14 +5,17 @@
  * EIN Werkzeug mit `action`-Enum wie `userAgentTools.ts` (Katalogbudget).
  * `rezept_laden` (`recipeTools.ts`) WENDET ein Rezept an; dieses Werkzeug
  * VERWALTET: welche Rezepte es gibt, was in einer eigenen Textform steckt,
- * eine neue aus Beispielen anlernen, Beispiele nachschieben, löschen. Bis
- * 09/2026 ging das nur über die Einstellungen — der Chat konnte nicht einmal
- * sagen, ob die Person einen eigenen Presse-Stil hinterlegt hat.
+ * eine neue anlegen — aus Beispielen angelernt oder aus einer Beschreibung
+ * entworfen (`draftRecipeSpec`, derselbe Entwurf wie „Rezept erstellen" in der
+ * Agentura) —, Titel/Beschreibung/Icon/Anweisungen ändern, Beispiele
+ * nachschieben, löschen. Bis 09/2026 ging das nur über die Einstellungen — der
+ * Chat konnte nicht einmal sagen, ob die Person einen eigenen Presse-Stil
+ * hinterlegt hat.
  *
  * Gatter, nach Wirkung sortiert:
  * - `confirm=true` im Werkzeug: Löschen.
- * - direkt: anlernen und ergänzen — privat, umkehrbar (delete), nur die Person
- *   selbst sieht die Textform. Die Analyse ist ein Modellaufruf; die Deckel
+ * - direkt: anlegen, ändern und ergänzen — privat, umkehrbar (delete), nur die
+ *   Person selbst sieht die Textform. Die Analyse ist ein Modellaufruf; die Deckel
  *   aus dem Contract (`MAX_TEXT_FORM_EXAMPLES`, `_TOTAL_CHARS`) gelten hier wie
  *   am HTTP-Pfad, damit ein langer Anhang das Kontextfenster nicht sprengt.
  *
@@ -45,6 +48,8 @@ import {
   MAX_TEXT_FORM_EXAMPLES,
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
   MAX_TEXT_FORM_STYLE_CHARS,
+  MAX_TEXT_FORM_TITLE_CHARS,
+  draftRecipeBodySchema,
   textFormDescriptionSchema,
   textFormExamplesChars,
   textFormIconKeySchema,
@@ -52,6 +57,7 @@ import {
   type TextForm,
   type TextFormKind,
   type TextFormType,
+  type DraftedRecipeSpec,
 } from '@gruenerator/contracts';
 import {
   DEFAULT_AGENT_ICON,
@@ -69,6 +75,7 @@ import {
   textFormLabel,
   textTypeLabel,
 } from '../../../services/user/textFormAnalysisService.js';
+import { draftRecipeSpec } from '../../../services/user/textFormDraftService.js';
 import {
   deriveRecipeMention,
   normalizeTextFormMention,
@@ -79,6 +86,7 @@ import {
   listTextForms,
   upsertTextForm,
 } from '../../../services/user/textFormRepository.js';
+import { collectTakenMentions } from '../../userTextForms/textFormRouterHelpers.js';
 
 import {
   groundNote,
@@ -96,6 +104,8 @@ export interface RecipeToolDeps {
   upsertTextForm: typeof upsertTextForm;
   deleteTextForm: typeof deleteTextForm;
   analyzeTextForm: typeof analyzeTextForm;
+  /** Der Entwurf hinter „Rezept erstellen" in der Agentura: Beschreibung → Titel, Mention, Anweisungen. */
+  draftRecipeSpec: typeof draftRecipeSpec;
   /** Alle Rezepte, die das Modell kennen darf — dieselbe Liste wie `rezept_laden`. */
   recipeCatalog: typeof buildRecipeCatalog;
   /** Nur wenn der State keine Rollen trägt (MCP): die Zuteilung der LV-Rezepte. */
@@ -111,6 +121,7 @@ export function resolveRecipeDeps(partial: Partial<RecipeToolDeps> | undefined):
     upsertTextForm: partial?.upsertTextForm ?? upsertTextForm,
     deleteTextForm: partial?.deleteTextForm ?? deleteTextForm,
     analyzeTextForm: partial?.analyzeTextForm ?? analyzeTextForm,
+    draftRecipeSpec: partial?.draftRecipeSpec ?? draftRecipeSpec,
     recipeCatalog: partial?.recipeCatalog ?? buildRecipeCatalog,
     loadUserRoles: partial?.loadUserRoles ?? loadUserRoles,
   };
@@ -137,6 +148,19 @@ const KIND_LABEL: Record<TextFormKind, string> = {
 
 export function recipeUrl(mention: string): string {
   return `/agentura/rezept/${mention}`;
+}
+
+function recipeEditUrl(mention: string): string {
+  return `${recipeUrl(mention)}/bearbeiten`;
+}
+
+const RECIPE_CREATOR_URL = '/agentura/rezept/neu';
+
+/** Ein unbekannter Icon-Schlüssel wird auf das Standardicon geklemmt; leer heißt „nicht gesetzt". */
+function clampIconKey(raw: string | undefined): string | null {
+  const key = raw?.trim();
+  if (!key) return null;
+  return isSuggestedAgentIcon(key) ? key : DEFAULT_AGENT_ICON;
 }
 
 /**
@@ -188,22 +212,36 @@ export function makeRecipesTool(ctx: RecipeToolCtx): Tool {
   const userLocale = state.userLocale ?? null;
 
   return tool({
-    description: `Verwaltet Rezepte und die eigenen Textformen der Person („Texte anlernen"): welche Rezepte es gibt, was in einer eigenen Textform steckt, eine neue Textform aus Beispieltexten anlernen, Beispiele ergänzen, löschen. recipes verwaltet, rezept_laden wendet an.
+    description: `Verwaltet Rezepte und die eigenen Textformen der Person („Texte anlernen"): welche Rezepte es gibt, was in einem eigenen Rezept steckt, ein neues Rezept aus einer Beschreibung oder aus Beispieltexten anlegen, ändern, Beispiele ergänzen, löschen. recipes verwaltet, rezept_laden wendet an.
 
-NUTZE FÜR: alle verfügbaren Rezepte und eigenen Textformen auflisten (list), Details ansehen — bei einer eigenen Textform Beispiele, Stilblock und Textsorte, bei einem mitgelieferten Rezept nur Titel und Beschreibung (get mit mention), aus Beispieltexten eine eigene Textform anlernen — „lern meinen Schreibstil", „so schreibe ich Instagram-Posts" (create mit title, examples; optional mention, textType), Beispiele zu einer eigenen Textform nachschieben (add_examples mit mention, examples), eine eigene Textform löschen (delete mit mention und confirm=true nach Zustimmung).
+NUTZE FÜR: alle verfügbaren Rezepte und eigenen Textformen auflisten (list), Details ansehen — bei einer eigenen Textform Beispiele, Stilblock und Textsorte, bei einem mitgelieferten Rezept nur Titel und Beschreibung (get mit mention), ein neues Rezept aus einer Beschreibung anlegen — „erstell mir ein Rezept für OV-Einladungen", „bau ein Rezept, das Pressemitteilungen kürzer macht" (create mit brief; optional title, mention, description, iconKey), aus Beispieltexten eine eigene Textform anlernen — „lern meinen Schreibstil", „so schreibe ich Instagram-Posts" (create mit title, examples; optional mention, textType), Titel, Beschreibung, Icon oder Anweisungen eines eigenen Rezepts ändern (update mit mention und den neuen Feldern; die mention selbst bleibt), Beispiele zu einer eigenen Textform nachschieben (add_examples mit mention, examples), eine eigene Textform löschen (delete mit mention und confirm=true nach Zustimmung).
 
 NICHT für: ein Rezept ANWENDEN, also einen Text in einer Form schreiben (dafür 'rezept_laden'), einen Grünerator-Agenten anlegen oder ändern (dafür 'user_agents'), den Text eines mitgelieferten Rezepts lesen (nicht einsehbar).
 
-Die Beispiele für create und add_examples sind die Texte der Person selbst — aus der Nachricht oder aus angehängten Dokumenten; übergib sie wörtlich, je Beispiel ein Eintrag. Eine eigene Textform mit der Mention eines mitgelieferten Rezepts (presse, instagram, facebook oder ein Landesverbands-Rezept) ersetzt dessen Stilvorgaben; ohne solche Mention entsteht eine zusätzliche Textform, die im Chat als @mention nutzbar ist. Anlernen dauert einige Sekunden (Stilanalyse).`,
+brief ist die Beschreibung der Person, was das Rezept tun soll — Textsorte, Anlass, Ton, Aufbau —, möglichst in ihren eigenen Worten und vollständig. Die Beispiele für create und add_examples sind die Texte der Person selbst — aus der Nachricht oder aus angehängten Dokumenten; übergib sie wörtlich, je Beispiel ein Eintrag. Eine eigene Textform mit der Mention eines mitgelieferten Rezepts (presse, instagram, facebook oder ein Landesverbands-Rezept) ersetzt dessen Stilvorgaben; ohne solche Mention entsteht eine zusätzliche Textform, die im Chat als @mention nutzbar ist. Anlegen dauert einige Sekunden (Entwurf bzw. Stilanalyse); zeig der Person danach die Anweisungen und den Link zum Bearbeiten.`,
     inputSchema: z.object({
-      action: z.enum(['list', 'get', 'create', 'add_examples', 'delete']),
+      action: z.enum(['list', 'get', 'create', 'update', 'add_examples', 'delete']),
       mention: z
         .string()
         .optional()
         .describe(
-          'Mention der Textform, aus list Feld ref (get, add_examples, delete; create: optional, sonst aus title)'
+          'Mention der Textform, aus list Feld ref (get, update, add_examples, delete; create: optional, sonst aus title bzw. dem Entwurf)'
         ),
-      title: z.string().max(80).optional().describe('Anzeigename der neuen Textform (create)'),
+      title: z
+        .string()
+        .max(MAX_TEXT_FORM_TITLE_CHARS)
+        .optional()
+        .describe('Anzeigename (create; bei create mit brief optional, update)'),
+      brief: draftRecipeBodySchema.shape.description
+        .optional()
+        .describe('Beschreibung, was das neue Rezept tun soll (create ohne examples)'),
+      instructions: z
+        .string()
+        .max(MAX_TEXT_FORM_STYLE_CHARS)
+        .optional()
+        .describe(
+          'Neue Anweisungen (Stilblock) eines eigenen Rezepts, vollständig statt als Diff (update)'
+        ),
       textType: textFormTypeSchema
         .optional()
         .describe('Textsorte der Beispiele, wenn sie zu einer passt (create)'),
@@ -214,11 +252,11 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
         .describe('Beispieltexte der Person, je Eintrag ein Text (create, add_examples)'),
       description: textFormDescriptionSchema
         .optional()
-        .describe('Kurzbeschreibung für die Agentura/mention-Auswahl (create)'),
+        .describe('Kurzbeschreibung für die Agentura/mention-Auswahl (create, update)'),
       iconKey: textFormIconKeySchema
         .optional()
         .describe(
-          'Icon-Schlüssel aus dem Icon-Katalog (create); ein unbekannter Schlüssel wird auf ein Standardicon geklemmt'
+          'Icon-Schlüssel aus dem Icon-Katalog (create, update); ein unbekannter Schlüssel wird auf ein Standardicon geklemmt'
         ),
       confirm: z
         .boolean()
@@ -251,6 +289,7 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
       );
       if (!own) return { error: NOT_FOUND };
 
+      if (action === 'update') return updateTextForm(userId, own, args);
       if (action === 'add_examples') return addExamples(userId, own, args.examples);
 
       // delete
@@ -414,7 +453,7 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
   }
 
   // -------------------------------------------------------------------------
-  // create — validieren → analysieren → speichern (direkt)
+  // create — aus Beispielen (analysieren) oder aus brief (entwerfen) → speichern (direkt)
   // -------------------------------------------------------------------------
 
   async function createTextForm(
@@ -423,6 +462,7 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
       title?: string | undefined;
       mention?: string | undefined;
       textType?: TextFormType | undefined;
+      brief?: string | undefined;
       examples?: string[] | undefined;
       description?: string | undefined;
       iconKey?: string | undefined;
@@ -431,14 +471,48 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
     const forbidden = refuseForbiddenAction(state);
     if (forbidden) return forbidden;
 
-    const title = args.title?.trim() ?? '';
-    if (!title) return { error: 'create braucht title — den Namen der Textform.' };
-    const examples = normalizeExamples(args.examples);
-    if ('error' in examples) return examples;
+    // Beispiele schlagen die Beschreibung: wer eigene Texte mitgibt, will den
+    // eigenen Stil angelernt haben, nicht einen erfundenen.
+    const brief = args.brief?.trim() ?? '';
+    const fromBrief = brief !== '' && !(args.examples ?? []).some((e) => e.trim());
 
+    let examples: Array<{ content: string }> = [];
+    if (!fromBrief) {
+      if (!args.title?.trim()) return { error: 'create braucht title — den Namen der Textform.' };
+      const normalized = normalizeExamples(args.examples);
+      if ('error' in normalized) {
+        return {
+          error: `${normalized.error} Ohne Beispiele geht create mit brief — einer Beschreibung, was das Rezept tun soll.`,
+        };
+      }
+      examples = normalized;
+    }
+
+    const ownForms = await deps.listTextForms(userId);
+
+    let draft: DraftedRecipeSpec | null = null;
+    if (fromBrief) {
+      try {
+        draft = await deps.draftRecipeSpec({
+          messages: [{ role: 'user', content: brief }],
+          takenMentions: collectTakenMentions(ownForms),
+        });
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        return {
+          error: `Der Entwurf für das Rezept ist fehlgeschlagen (${reason}). Es wurde nichts gespeichert — später erneut versuchen oder in der Agentura (${RECIPE_CREATOR_URL}) anlegen.`,
+        };
+      }
+      if (!draft.styleBlock) {
+        return { error: 'Der Entwurf hat keine Anweisungen ergeben. Es wurde nichts gespeichert.' };
+      }
+    }
+
+    // Explizit genannte Felder gewinnen gegen den Entwurf — wie bei `user_agents`.
+    const title = (args.title?.trim() || draft?.title || '').slice(0, MAX_TEXT_FORM_TITLE_CHARS);
     const requested = args.mention?.trim()
       ? normalizeTextFormMention(args.mention)
-      : deriveRecipeMention(title);
+      : (draft?.mention ?? deriveRecipeMention(title));
 
     // Welche Art entsteht — dieselbe Regel wie `userTextFormsContractRouter.save`.
     // Sie läuft VOR der Kollisionsprüfung, weil sie die Mention noch
@@ -467,27 +541,28 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
 
     // Eine Mention gehört genau einer Zeile; `upsert` würde die bestehende
     // still ersetzen — mitsamt allen Beispielen, die die Person dort schon
-    // gesammelt hat. Dafür gibt es add_examples.
-    const existing = (await deps.listTextForms(userId)).find(
-      (f) => f.mention === mention && !f.sharedFromGroup
-    );
+    // gesammelt hat. Dafür gibt es update und add_examples.
+    const existing = ownForms.find((f) => f.mention === mention && !f.sharedFromGroup);
     if (existing) {
       return {
-        error: `Die Textform „${existing.title}" (@${mention}) gibt es schon. Beispiele nachschieben geht mit add_examples, neu anfangen mit delete.`,
+        error: `Die Textform „${existing.title}" (@${mention}) gibt es schon. Ändern geht mit update, Beispiele nachschieben mit add_examples, neu anfangen mit delete.`,
       };
     }
 
-    const description = args.description?.trim() ? args.description.trim() : null;
-    const iconKeyInput = args.iconKey?.trim();
-    const iconKey = iconKeyInput
-      ? isSuggestedAgentIcon(iconKeyInput)
-        ? iconKeyInput
-        : DEFAULT_AGENT_ICON
-      : null;
+    const description = args.description?.trim() || draft?.description || null;
+    const iconKey = clampIconKey(args.iconKey) ?? draft?.iconKey ?? null;
 
-    const label = textFormLabel(textType, title);
-    const analyzed = await analyzeSafely(label, examples);
-    if ('error' in analyzed) return analyzed;
+    let styleBlock: string;
+    let model: string | null;
+    if (draft) {
+      styleBlock = draft.styleBlock;
+      model = null;
+    } else {
+      const analyzed = await analyzeSafely(textFormLabel(textType, title), examples);
+      if ('error' in analyzed) return analyzed;
+      styleBlock = analyzed.styleBlock;
+      model = analyzed.model;
+    }
 
     const form = await deps.upsertTextForm(userId, {
       kind,
@@ -495,18 +570,73 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
       mention,
       title,
       examples,
-      styleBlock: analyzed.styleBlock,
-      model: analyzed.model,
+      styleBlock,
+      model,
       description,
       iconKey,
     });
-    const count = `${examples.length} Beispiel${examples.length === 1 ? '' : 'en'}`;
+    const origin = draft
+      ? 'aus deiner Beschreibung angelegt'
+      : `aus ${examples.length} Beispiel${examples.length === 1 ? '' : 'en'} angelernt`;
     const note =
       kind === 'custom'
-        ? `Textform „${form.title}" aus ${count} angelernt — im Chat als @${form.mention} nutzbar, ändern in der Agentura (${RECIPES_SETTINGS_URL}).`
-        : `Eigener Stil für @${form.mention} aus ${count} angelernt — er ersetzt ab jetzt die mitgelieferten Vorgaben dieses Rezepts. Ändern in der Agentura (${RECIPES_SETTINGS_URL}).`;
-    groundNote(sourceRegistry, 'Textform angelernt', note);
-    return { ok: true, note, ...summarize(form) };
+        ? `Textform „${form.title}" ${origin} — im Chat als @${form.mention} nutzbar, ändern in der Agentura (${recipeEditUrl(form.mention)}).`
+        : `Eigener Stil für @${form.mention} ${origin} — er ersetzt ab jetzt die mitgelieferten Vorgaben dieses Rezepts. Ändern in der Agentura (${RECIPES_SETTINGS_URL}).`;
+    groundNote(sourceRegistry, 'Textform angelegt', note);
+    return {
+      ok: true,
+      note,
+      ...summarize(form),
+      ...(draft ? { instructions: truncate(form.styleBlock, STYLE_ANSWER_CHARS) } : {}),
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // update — Titel, Beschreibung, Icon, Anweisungen (direkt, owner-scoped)
+  // -------------------------------------------------------------------------
+
+  async function updateTextForm(
+    userId: string,
+    form: TextForm,
+    args: {
+      title?: string | undefined;
+      description?: string | undefined;
+      iconKey?: string | undefined;
+      instructions?: string | undefined;
+    }
+  ): Promise<Record<string, unknown>> {
+    const title = args.title?.trim();
+    const description = args.description?.trim();
+    const iconKey = clampIconKey(args.iconKey);
+    const instructions = args.instructions?.trim();
+    if (!title && !description && !iconKey && !instructions) {
+      return {
+        error: 'update braucht mindestens eines von title, description, iconKey, instructions.',
+      };
+    }
+
+    const updated = await deps.upsertTextForm(userId, {
+      kind: form.kind,
+      textType: form.textType,
+      mention: form.mention,
+      title: title ? title.slice(0, MAX_TEXT_FORM_TITLE_CHARS) : form.title,
+      examples: [...form.examples],
+      // Handgeschriebene Anweisungen stammen aus keiner Analyse — wie am HTTP-Pfad kein Modell.
+      styleBlock: instructions ? instructions.slice(0, MAX_TEXT_FORM_STYLE_CHARS) : form.styleBlock,
+      model: instructions ? null : form.model,
+      // `undefined` lässt das gespeicherte Feld stehen (`mergeOptionalColumn`).
+      description: description || undefined,
+      iconKey: iconKey ?? undefined,
+    });
+    const changed = [
+      title && 'Titel',
+      description && 'Beschreibung',
+      iconKey && 'Icon',
+      instructions && 'Anweisungen',
+    ].filter(Boolean);
+    const note = `Textform „${updated.title}" (@${updated.mention}) geändert: ${changed.join(', ')}.`;
+    groundNote(sourceRegistry, 'Textform geändert', note);
+    return { ok: true, note, ...summarize(updated) };
   }
 
   // -------------------------------------------------------------------------
