@@ -1,0 +1,17 @@
+diff --git a/dist/authorize-riRRCSbC.mjs b/dist/authorize-riRRCSbC.mjs
+index 3242d48eb31e844240b0cd9f5931580f3c5367c2..ff390e2dce21a7162a229c95d167d5c3c6940725 100644
+--- a/dist/authorize-riRRCSbC.mjs
++++ b/dist/authorize-riRRCSbC.mjs
+@@ -4404,7 +4404,11 @@ const oauthProvider = (options) => {
+ 		onRequest: handleIssuerMetadataRequest,
+ 		init: async (ctx) => {
+ 			if (ctx.options.secondaryStorage && ctx.options.session?.storeSessionInDatabase !== true) throw new BetterAuthError("OAuth Provider requires `session.storeSessionInDatabase: true` when using secondaryStorage");
+-			await seedResources(ctx, opts);
++			try {
++				await seedResources(ctx, opts);
++			} catch (err) {
++				logger.warn(`oauth-provider: resource seed at init failed, deferring to first access — ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`);
++			}
+ 			logEnforcePerClientResourcesResolution(opts);
+ 			if (!opts.disableJwtPlugin) {
+ 				const jwtPluginOptions = getJwtPlugin(ctx)?.options;
