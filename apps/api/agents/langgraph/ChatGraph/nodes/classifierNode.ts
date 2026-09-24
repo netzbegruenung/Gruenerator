@@ -716,6 +716,45 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // Ein Rezept oder einen Grünerator-Agenten ANLEGEN geht in die Schleife,
+    // wo `recipes`/`user_agents` montiert sind — VOR allen Kontext-Zweigen
+    // von Tier 2: „erstell mir ein Rezept für Instagram-Posts" nennt eine
+    // Textsorte, und der Social-Post-Pfad machte daraus einen Post
+    // (`produktion`); „ein Rezept für die Zusammenfassung …" mit Anhang wurde
+    // zur Zusammenfassung; ein Anhang (klein, @Dokument, oder vektorisiert als
+    // `documentChatIds`), eine Wolke- oder Connect-Datei zwang den Turn sonst
+    // in die Zwangssuche des Einzeldurchlaufs. Die Schleife bringt beides
+    // selbst mit (Anhang-Seed samt `document_chat`, `cloud_files`). Anders als beim Dauerauftrag OHNE Pin: ein
+    // Pin erzwingt den ersten Aufruf, und ein Fehlalarm („ein Rezept für
+    // Kürbissuppe") legte dann ohne Rückfrage ein Rezept an — das Werkzeug zu
+    // wählen bleibt dem Planer.
+    //
+    // Nicht bei gewähltem Notebook: ohne Pin hält die Notebook-Sperre in
+    // `decideRunAgentic` den Turn ohnehin im Einzeldurchlauf, und dort ist die
+    // Notebook-Suche unten der bessere Ausgang als ein `agentic` ohne Executor.
+    const agenturaTarget = hasNotebooks
+      ? null
+      : agenturaCreateTarget(state.lastUserTextNoMentions ?? userContent);
+    if (agenturaTarget) {
+      log.info(`[Classifier] Agentura create order → loop (${agenturaTarget})`);
+      recordDecision('classifier.tier', 'tier2_agentura_create', {
+        inputs: { target: agenturaTarget },
+      });
+      return {
+        intent: 'agentic',
+        searchSources: [],
+        searchQuery: userContent.slice(0, 500),
+        detectedFilters: null,
+        reasoning:
+          agenturaTarget === 'recipes'
+            ? 'Auftrag, ein Rezept anzulegen → Schleife mit recipes'
+            : 'Auftrag, einen Grünerator-Agenten anzulegen → Schleife mit user_agents',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
     // ── TIER 2: Context intents (resource presence, no mutation keywords) ──
     // Summary detection: when documents/attachments are present AND user asks for summary,
     // force summary intent. Without documents, "fasse zusammen" goes to LLM for disambiguation
@@ -793,44 +832,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Search-capable mentions take precedence over context-only branches.
     // Co-present anchors (boards / doc-mentions / files / images) still inject
     // into the system prompt via respondNode regardless of intent.
-
-    // Ein Rezept oder einen Grünerator-Agenten ANLEGEN geht in die Schleife,
-    // wo `recipes`/`user_agents` montiert sind — VOR den Such- und
-    // Textsorten-Schnellpfaden unten: „erstell mir ein Rezept für
-    // Instagram-Posts" nennt eine Textsorte, und der Social-Post-Pfad machte
-    // daraus einen Post (`produktion`); ein @Dokument, eine Wolke- oder
-    // Connect-Datei („ein Rezept aus @Leitfaden") zwang den Turn sonst in die
-    // Zwangssuche des Einzeldurchlaufs. Die Schleife bringt beides selbst mit
-    // (Anhang-Seed, `cloud_files`). Anders als beim Dauerauftrag OHNE Pin: ein
-    // Pin erzwingt den ersten Aufruf, und ein Fehlalarm („ein Rezept für
-    // Kürbissuppe") legte dann ohne Rückfrage ein Rezept an — das Werkzeug zu
-    // wählen bleibt dem Planer.
-    //
-    // Nicht bei gewähltem Notebook: ohne Pin hält die Notebook-Sperre in
-    // `decideRunAgentic` den Turn ohnehin im Einzeldurchlauf, und dort ist die
-    // Notebook-Suche unten der bessere Ausgang als ein `agentic` ohne Executor.
-    const agenturaTarget = hasNotebooks
-      ? null
-      : agenturaCreateTarget(state.lastUserTextNoMentions ?? userContent);
-    if (agenturaTarget) {
-      log.info(`[Classifier] Agentura create order → loop (${agenturaTarget})`);
-      recordDecision('classifier.tier', 'tier2_agentura_create', {
-        inputs: { target: agenturaTarget },
-      });
-      return {
-        intent: 'agentic',
-        searchSources: [],
-        searchQuery: userContent.slice(0, 500),
-        detectedFilters: null,
-        reasoning:
-          agenturaTarget === 'recipes'
-            ? 'Auftrag, ein Rezept anzulegen → Schleife mit recipes'
-            : 'Auftrag, einen Grünerator-Agenten anzulegen → Schleife mit user_agents',
-        hasTemporal: temporal.hasTemporal,
-        complexity,
-        classificationTimeMs: Date.now() - startTime,
-      };
-    }
 
     if (hasDocuments && userContent.length > 0) {
       return classifyWithForcedSearch({
