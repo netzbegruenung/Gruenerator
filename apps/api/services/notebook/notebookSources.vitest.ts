@@ -489,11 +489,15 @@ describe('loadPassagePageEnds', () => {
       { sourceId: 'd1', charStart: 0, charEnd: 50 },
       { sourceId: 'd1', charStart: 50, charEnd: 90 },
     ]);
-    expect(query).toHaveBeenCalledWith(expect.stringContaining('regexp_matches'), [
-      ['d1', 'd1'],
-      [0, 50],
-      [50, 90],
-    ]);
+    // UTF-16-Offsets gegen Codepoints: Astralzeichen werden vor `substr` verdoppelt (#3656).
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("'[\\U00010000-\\U0010FFFF]', '..'"),
+      [
+        ['d1', 'd1'],
+        [0, 50],
+        [50, 90],
+      ]
+    );
     expect([...out]).toEqual([[0, 3]]);
   });
 });
