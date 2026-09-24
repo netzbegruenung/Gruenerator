@@ -190,22 +190,15 @@ export const userAgentErrorResponseSchema = z.object({
   agent: userAgentSchema.optional(),
 });
 
-// ── Conversational draft (creator) ────────────────────────────────────────────
+// ── Draft (creator) ───────────────────────────────────────────────────────────
 
 /**
- * POST /api/user-agents/draft — synthesize a spec from either a creator
- * conversation (`threadId`, server loads the ownership-checked messages) or a
- * one-shot freeform brief (`description`, the guided-assistant entry point).
- * Exactly one of the two is required.
+ * POST /api/user-agents/draft — synthesize a spec from a one-shot freeform
+ * brief (the guided-assistant entry point).
  */
-export const draftAgentBodySchema = z
-  .object({
-    threadId: z.string().min(1).optional(),
-    description: z.string().min(1).max(2000).optional(),
-  })
-  .refine((d) => Boolean(d.threadId) || Boolean(d.description), {
-    message: 'threadId oder description erforderlich',
-  });
+export const draftAgentBodySchema = z.object({
+  description: z.string().min(1).max(2000),
+});
 
 /**
  * The agent spec the creator synthesizes from the conversation. A subset of the
