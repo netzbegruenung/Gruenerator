@@ -55,7 +55,7 @@ export const userAgentsContract = c.router(
       summary: 'Create a user agent',
     },
 
-    /** POST /api/user-agents/draft — synthesize an agent spec from a creator conversation. */
+    /** POST /api/user-agents/draft — synthesize an agent spec from a freeform brief. */
     draft: {
       method: 'POST',
       path: '/api/user-agents/draft',
@@ -64,11 +64,9 @@ export const userAgentsContract = c.router(
         200: userAgentDraftResponseSchema,
         400: userAgentErrorResponseSchema,
         401: userAgentErrorResponseSchema,
-        403: userAgentErrorResponseSchema,
-        404: userAgentErrorResponseSchema,
         500: userAgentErrorResponseSchema,
       },
-      summary: 'Draft an agent spec from the creator conversation',
+      summary: 'Draft an agent spec from a freeform brief',
     },
 
     /**
