@@ -203,10 +203,22 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst…"
   },
   {
+    "url": "/docs/guides/einsteigerinnen/erinnerungen-erstellen",
+    "title": "Wie erstelle ich Erinnerungen?",
+    "category": "Guides",
+    "lead": "Am Ende weiß der Grünerator wichtige, wiederkehrende Dinge über deine Arbeit auch in einem neuen Chat — zum Beispiel deine Funktion oder wie du Texte am liebsten formulierst. Du behältst dabei die Ko…"
+  },
+  {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
     "title": "Wie erstelle ich ein gemeinsames Projekt?",
     "category": "Guides",
     "lead": "Am Ende hast du einen gemeinsamen Bereich, in den du andere Menschen einladen und Inhalte wie Notebooks aufnehmen kannst. Die Team-Variante eines Projekts heißt in der aktuellen Oberfläche noch „Grup…"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",
+    "title": "Wie personalisiere ich den Grünerator?",
+    "category": "Guides",
+    "lead": "Am Ende berücksichtigt der Grünerator deine wiederkehrenden Hinweise bei jeder Antwort — zum Beispiel Ansprache, Ton und die Perspektive, aus der du arbeitest. Du musst sie dann nicht mehr in jeden A…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -1828,6 +1840,30 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Notebooks — Quellarten, Teilen, Verwaltung, häufige Fragen Wie binde ich die Grüne Wolke ein? — Voraussetzung, um Wolke-Ordner anzuhängen Landesverband-Agents — Österreich: vorgefertigte Wissensdatenbank der Grünen Österreich"
   },
   {
+    "url": "/docs/guides/einsteigerinnen/erinnerungen-erstellen",
+    "pageTitle": "Wie erstelle ich Erinnerungen?",
+    "heading": "Wie erstelle ich Erinnerungen?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Am Ende weiß der Grünerator wichtige, wiederkehrende Dinge über deine Arbeit auch in einem neuen Chat — zum Beispiel deine Funktion oder wie du Texte am liebsten formulierst. Du behältst dabei die Kontrolle: Jede Erinnerung lässt sich ansehen, ändern, exportieren oder löschen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/erinnerungen-erstellen",
+    "pageTitle": "Wie erstelle ich Erinnerungen?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Einstellungen öffnen. Klicke unten in der Seitenleiste auf dein Profilbild und wähle Einstellungen. Direkt dorthin führt auch /settings/erinnerungen. Erinnerungen auswählen. Klicke links auf Erinnerungen und dann oben rechts auf Hinzufügen. Hier siehst du alle gespeicherten Erinnerungen. Eine einzelne, nützliche Information eintragen. Schreibe einen Fakt oder eine dauerhafte Vorliebe in das Textfeld, zum Beispiel: Wähle bei Bedarf ein Thema wie Profil, Kontext oder Präferenz und klicke auf Speichern. Das Thema hilft dir später beim Filtern; für den Grünerator ist vor allem der Text entscheidend. Erinnerungen pflegen. Mit dem Stift auf einer Erinnerung kannst du sie berichtigen. Mit dem Papierkorb entfernst du sie einzeln. Über das Suchfeld und die Kategorien findest du Einträge schnell wieder; Exportieren lädt alle Erinnerungen als JSON-Datei herunter. „Ich bin im Kreisverband Beispielstadt und möchte kurze Pressemitteilungen\" speicherst du besser als zwei Erinnerungen. Dann kannst du eine davon ändern, ohne die andere anzufassen. Erinnerungen können auch aus Gesprächen entstehen. Schau deshalb gelegentlich in diesen Bereich, korrigiere Veraltetes und lösche, was der Grünerator…"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/erinnerungen-erstellen",
+    "pageTitle": "Wie erstelle ich Erinnerungen?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Den Grünerator personalisieren — allgemeine Hinweise für jede Antwort hinterlegen Einstellungen — alle Funktionen des Bereichs im Überblick"
+  },
+  {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
     "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
     "heading": "Wie erstelle ich ein gemeinsames Projekt?",
@@ -1890,6 +1926,30 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wenn-etwas-fehlt",
     "category": "Guides",
     "text": "Kein Einladungslink im Menü? Dann handelt es sich wahrscheinlich um ein persönliches Projekt oder du bist kein Admin. Einladungen gibt es nur bei gemeinsamen Projekten. „Notebooks“ wird nicht angeboten? Die Auswahl zeigt nur Kategorien, in denen dir Inhalte zur Verfügung stehen. Erstelle zunächst eines oder prüfe, ob du Zugriff auf ein Notebook hast. Das Plus bei „Geteilte Inhalte“ fehlt? Nur Admins können Inhalte hinzufügen oder entfernen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",
+    "pageTitle": "Wie personalisiere ich den Grünerator?",
+    "heading": "Wie personalisiere ich den Grünerator?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Am Ende berücksichtigt der Grünerator deine wiederkehrenden Hinweise bei jeder Antwort — zum Beispiel Ansprache, Ton und die Perspektive, aus der du arbeitest. Du musst sie dann nicht mehr in jeden Auftrag schreiben."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",
+    "pageTitle": "Wie personalisiere ich den Grünerator?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Einstellungen öffnen. Klicke unten in der Seitenleiste auf dein Profilbild und wähle Einstellungen. Alternativ öffnest du direkt /settings/personalisierung. Zu Personalisierung wechseln. Wähle links Personalisierung. Oben findest du das Feld Anweisungen; darunter kannst du bei Bedarf deine Rolle hinzufügen. Dauerhafte Anweisungen formulieren. Schreibe kurz, was der Grünerator immer beachten soll. Gute Anweisungen sind konkret und gelten für viele deiner Aufgaben, etwa: Namen, Fristen oder einmalige Aufträge gehören dagegen in den jeweiligen Chat. Speichern. Sobald du das Feld änderst, erscheint der Button Speichern. Klicke darauf. Die Anweisung gilt anschließend auf allen Geräten, auf denen du mit deinem Konto angemeldet bist. Rolle ergänzen (optional). Über Erste Rolle hinzufügen legst du fest, aus welchem Arbeitskontext du schreibst — etwa für einen Kreisverband, eine Fraktion oder einen Landesverband. Der Grünerator kann seine Vorschläge dadurch besser auf deine Perspektive zuschneiden. Starte mit einer oder zwei Anweisungen. Wenn Antworten trotzdem nicht passen, ergänze eine konkrete Regel oder formuliere eine bestehende klarer. So bleibt nachvollziehbar, warum der Grünerator…"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",
+    "pageTitle": "Wie personalisiere ich den Grünerator?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Erinnerungen im Grünerator erstellen — einzelne Fakten dauerhaft speichern und verwalten Einstellungen — alle persönlichen Einstellungen im Überblick"
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
