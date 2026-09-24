@@ -42,12 +42,16 @@ const router: Router = express.Router();
  */
 async function signOutAndForwardCookies(req: Request, res: Response): Promise<void> {
   try {
-    const betterAuthResponse = await auth.api.signOut({
+    // `signOut` ist der einzige Endpunkt, dessen Rückgabe better-auth 1.7 unter
+    // `asResponse: true` als `any` typisiert — `signInSocial` daneben in
+    // `appLogin.ts` ist sauber typisiert. Die Behauptung hält fest, was
+    // tatsächlich zurückkommt, statt das `any` durch die Datei laufen zu lassen.
+    const betterAuthResponse = (await auth.api.signOut({
       headers: fromNodeHeaders(req.headers),
       asResponse: true,
-    });
+    })) as globalThis.Response;
     const cookies: string[] = [];
-    betterAuthResponse.headers.forEach((value, key) => {
+    betterAuthResponse.headers.forEach((value: string, key: string) => {
       if (key.toLowerCase() === 'set-cookie') cookies.push(value);
     });
     if (cookies.length) res.setHeader('Set-Cookie', cookies);

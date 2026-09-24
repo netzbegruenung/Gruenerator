@@ -32,7 +32,7 @@ export function getCorsOrigins(includeDevOrigins = false): string[] {
   // die aus dem `key` im Manifest folgt — sie steht deshalb ausgeschrieben
   // hier, wie die Tauri-Schemata darüber. Ohne diesen Eintrag scheitert nicht
   // erst der API-Aufruf, sondern schon die dynamische Client-Registrierung der
-  // Anmeldung (`/api/auth/v2/mcp/register`): der strikte Validator wirft, und
+  // Anmeldung (`/api/auth/v2/oauth2/register`): der strikte Validator wirft, und
   // der Fehlerpfad antwortet mit der Keycloak-Anmeldeseite — also HTML, wo der
   // Client JSON erwartet.
   //

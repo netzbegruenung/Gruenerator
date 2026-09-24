@@ -16,7 +16,13 @@ interface ActiveSessionEntry {
   expiresAt: number;
 }
 
-function parseJson<T>(raw: string | null): T | null {
+/**
+ * `SecondaryStorage.get` gibt seit better-auth 1.7 `unknown` zurück statt
+ * `string | null` — ein Adapter darf bereits geparste Werte liefern. Unserer
+ * (Redis) liefert weiterhin Zeichenketten; alles andere ist für uns kein Wert.
+ */
+function parseJson<T>(raw: unknown): T | null {
+  if (typeof raw !== 'string') return null;
   if (!raw) return null;
   try {
     return JSON.parse(raw) as T;
