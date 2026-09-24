@@ -427,6 +427,19 @@ export const evalScenarioSchema = z
      */
     userNotebookLane: z.boolean().optional(),
     /**
+     * Angehängte Dokumente des Turns, als `documentChatIds` im Chat-Body — so,
+     * wie ein Folge-Turn nach einem Upload sie mitschickt. Darf den Platzhalter
+     * `{{EVAL_ATTACHED_DOC_ID}}` tragen (siehe `attachedDocLane`).
+     */
+    documentChatIds: z.array(z.string()).optional(),
+    /**
+     * Braucht ein mehrseitiges, im Chat hochgeladenes Dokument des Eval-Kontos
+     * (`documents`-Zeile vom Typ `documentchat`, die id aus `document_indexed`).
+     * Der Runner kann keines hochladen. Übersprungen ohne EVAL_ATTACHED_DOC_ID;
+     * dessen Wert ersetzt `{{EVAL_ATTACHED_DOC_ID}}` in `documentChatIds`.
+     */
+    attachedDocLane: z.boolean().optional(),
+    /**
      * Das Gedächtnis des Eval-Kontos für dieses Szenario: vor dem ersten Turn
      * über `/api/memory` angelegt, danach wieder gelöscht. Übersprungen ohne
      * EVAL_MEMORY=1.

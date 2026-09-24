@@ -26,37 +26,33 @@ import type {
   SearchResult,
 } from '../../../../agents/langgraph/ChatGraph/types.js';
 
-/**
- * Volltext-Scheibe: wie viel Text ein `abschnitt`-Aufruf ohne eigene Angabe
- * bekommt. Übernommen von Open WebUIs `view_file`
- * (`VIEW_FILE_DEFAULT_MAX_CHARS`) — groß genug, dass ein Kapitel am Stück
- * ankommt, klein genug, dass drei Aufrufe noch in jede Lane passen.
- */
 export const ATTACHED_DOCS_TOOL = 'dokumente_lesen';
 
-export const SLICE_DEFAULT_CHARS = 10_000;
-
 /**
- * Was von einer Volltext-Scheibe wirklich beim Modell ankommt: die Kappung in
- * `sourceRegistry.register`. Steht hier statt am Werkzeug, weil sie die
- * Obergrenze der Scheibe BESTIMMT — eine Scheibe, die grösser ist als das, was
- * registriert wird, verliert stillschweigend ihr Ende.
- */
-export const SLICE_REGISTER_CHARS = 12_000;
-
-/** Platz für den Wegweiser, der mit im selben Feld steht. */
-const SLICE_HINT_RESERVE = 400;
-
-/**
- * Obergrenze je Aufruf, damit ein geratenes `zeichen: 999999` nicht die Lane
- * sprengt — und, wichtiger, damit der Wegweiser nicht lügt.
+ * Die Zahlen der Volltext-Scheibe (`abschnitt`). Geschnitten wird sie in
+ * `attachedDocumentTools.ts` mit `sliceSource`, derselben Funktion wie
+ * `seite` — deshalb stehen die Zahlen in `notebookSources` und hier nur als
+ * Re-Export.
  *
- * Sie ist vom Registrierungs-Deckel ABGELEITET, nicht frei gewählt. Stand sie
- * darüber (40.000 gegen 12.000), schnitt `applyContextCap` den Rest ab: das
- * Modell bekam 12k Text, läse im Wegweiser aber „Zeichen 0–40000" und
- * übersprünge beim Weiterlesen still 28k.
+ * - `SLICE_DEFAULT_CHARS`: was ein `abschnitt`-Aufruf ohne eigene Angabe
+ *   bekommt. Übernommen von Open WebUIs `view_file`
+ *   (`VIEW_FILE_DEFAULT_MAX_CHARS`) — groß genug, dass ein Kapitel am Stück
+ *   ankommt, klein genug, dass drei Aufrufe noch in jede Lane passen.
+ * - `SLICE_REGISTER_CHARS`: was wirklich beim Modell ankommt, die Kappung in
+ *   `sourceRegistry.register`. Sie BESTIMMT die Obergrenze der Scheibe — eine
+ *   Scheibe, die grösser ist als das, was registriert wird, verliert
+ *   stillschweigend ihr Ende.
+ * - `SLICE_MAX_CHARS`: Obergrenze je Aufruf, vom Registrierungs-Deckel
+ *   ABGELEITET (minus Platz für den Wegweiser). Stand sie darüber (40.000 gegen
+ *   12.000), schnitt `applyContextCap` den Rest ab: das Modell bekam 12k Text,
+ *   läse im Wegweiser aber „Zeichen 0–40000" und übersprünge beim Weiterlesen
+ *   still 28k.
  */
-export const SLICE_MAX_CHARS = SLICE_REGISTER_CHARS - SLICE_HINT_RESERVE;
+export {
+  SLICE_DEFAULT_CHARS,
+  SLICE_MAX_CHARS,
+  SLICE_REGISTER_CHARS,
+} from '../../../../services/notebook/notebookSources.js';
 
 /**
  * Wie viel von einer PASSAGENSUCHE über die angehängten Dokumente beim Modell
@@ -151,67 +147,4 @@ export async function retrieveAttachedDocuments(
   const flat = Object.values(fanout.perSourceResults).flat();
   flat.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
   return flat;
-}
-
-/**
- * Volltext in Scheiben, statt Ähnlichkeitssuche.
- *
- * Der Ausweg für Fragen, die keine brauchbare Suchanfrage hergeben. Beide
- * Referenzimplementierungen haben ihn und brauchen ihn: Open WebUIs `view_file`
- * (`offset`/`max_chars`) und LobeHubs `readKnowledge` (Volltext ohne
- * Chunk-Limit). Eine Ähnlichkeitssuche nach „fasse zusammen" trifft sonst nur
- * zufällige Passagen.
- *
- * Für „fasse zusammen" ist trotzdem `summarize` der richtige Weg — das ist
- * Map-Reduce über den ganzen Text, nicht dessen erste Scheibe.
- */
-export async function readAttachedDocumentSlice(
-  state: ChatGraphState,
-  sources: DocumentSource[],
-  opts: { from: number; chars?: number }
-): Promise<SearchResult[]> {
-  const userId = state.agentConfig.userId;
-  if (sources.length === 0 || !userId) return [];
-
-  const from = Math.max(0, Math.floor(opts.from));
-  const chars = Math.min(
-    SLICE_MAX_CHARS,
-    Math.max(1, Math.floor(opts.chars ?? SLICE_DEFAULT_CHARS))
-  );
-
-  const { getQdrantDocumentService } =
-    await import('../../../../services/document-services/DocumentSearchService/index.js');
-  const bulk = await getQdrantDocumentService().getMultipleDocumentsFullText(
-    userId,
-    sources.map((s) => s.id)
-  );
-
-  const labelById = new Map(sources.map((s) => [s.id, s.label] as const));
-  const results: SearchResult[] = [];
-  for (const doc of bulk.documents) {
-    const text = doc.fullText ?? '';
-    if (!text) continue;
-    const slice = text.slice(from, from + chars);
-    if (!slice) continue;
-    const end = from + slice.length;
-    // Der Wegweiser ist der einzige Weg, auf dem das Modell erfährt, dass noch
-    // etwas kommt — ohne ihn liest es eine Scheibe und hält sie für das Ganze.
-    //
-    // Er steht VORN, nicht hinten: gekappt wird immer der Schwanz (in
-    // `applyContextCap` und in der gemeinsamen Schrumpfung von `renderAll`,
-    // sobald mehrere Quellen um dasselbe Budget konkurrieren). Am Ende wäre er
-    // genau in den Fällen weg, für die er gebaut ist.
-    const marker =
-      end < text.length
-        ? `[Zeichen ${from}–${end} von ${text.length} — weiter mit abschnitt.von=${end}]`
-        : `[Zeichen ${from}–${end} von ${text.length} — Ende des Dokuments]`;
-    results.push({
-      source: `documentchat:${doc.id}`,
-      title: labelById.get(doc.id) ?? 'Dokument',
-      content: `${marker}\n\n${slice}`,
-      relevance: 1,
-      documentSourceId: doc.id,
-    });
-  }
-  return results;
 }

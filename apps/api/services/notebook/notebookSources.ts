@@ -31,10 +31,8 @@ import type { DocDateKind } from '../documentMeta/headerMeta.js';
 import type { ExpandedChunkResult } from '../search/types.js';
 
 /**
- * Dieselben Zahlen wie `dokumente_lesen` (`agenticLoop/attachedDocuments.ts`),
- * dort mit Begründung. Nicht importiert, weil jenes Modul `searchNode` und
- * damit den ganzen ChatGraph mitzieht — eine Service-Naht darf das nicht.
- * Wer die Zahlen dort ändert, ändert sie hier mit.
+ * Die Scheiben-Zahlen für `notebook_quellen` UND `dokumente_lesen` —
+ * `agenticLoop/attachedDocuments.ts` re-exportiert sie, die Begründung steht dort.
  */
 export const SLICE_DEFAULT_CHARS = 10_000;
 export const SLICE_REGISTER_CHARS = 12_000;
