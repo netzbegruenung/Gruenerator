@@ -340,7 +340,8 @@ export async function enrichContext(opts: {
             // Der Text von oben, nicht noch einmal extrahiert. Sonst laufen zwei
             // Ketten über dieselbe Datei und die Zitate stehen auf einer anderen
             // Fassung als der, die das Modell als Anhang liest.
-            attMeta?.extractedText
+            attMeta?.extractedText,
+            attMeta?.pageCount ?? null
           );
 
           initialState.documentChatIds.push(result.id);

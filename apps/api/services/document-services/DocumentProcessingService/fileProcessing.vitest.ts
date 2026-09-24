@@ -102,6 +102,37 @@ describe('processFileUpload — knownText', () => {
   });
 });
 
+describe('processFileUpload — knownPageCount', () => {
+  it('speichert die Seitenzahl aus der Anhangs-Extraktion', async () => {
+    const { pg, qdrant } = services();
+
+    await processFileUpload(
+      pg,
+      qdrant,
+      'u1',
+      file,
+      'datenschutz.pdf',
+      'documentchat',
+      '## Seite 1\n\nPräambel',
+      8
+    );
+
+    expect(extractDocumentFromFile).not.toHaveBeenCalled();
+    expect(saveDocumentMetadata).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ pageCount: 8 })
+    );
+  });
+
+  it('lässt page_count weg, wenn keine Seitenzahl mitkommt', async () => {
+    const { pg, qdrant } = services();
+
+    await processFileUpload(pg, qdrant, 'u1', file, 'notiz.docx', 'documentchat', 'Text');
+
+    expect(saveDocumentMetadata.mock.calls[0]?.[1]).not.toHaveProperty('pageCount');
+  });
+});
+
 describe('processUploadedDocument — Art.-9-Einwilligung', () => {
   it('liest ohne Einwilligung nichts aus und verbucht den Grund am Dokument', async () => {
     hasAiConsent.mockResolvedValueOnce(false);
