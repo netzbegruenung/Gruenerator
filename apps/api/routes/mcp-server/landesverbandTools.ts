@@ -7,7 +7,8 @@
  *
  * **Eigene Achse, kein MCP-Scope.** Der Landesverbands-Zugriff hängt an
  * `api_keys.scopes.landesverbaende`, nicht an den OAuth-Scopes. Als Eintrag in
- * `MCP_SCOPES` stünde er in `MCP_DEFAULT_SCOPE` — und ein claude.ai-Client, der
+ * `MCP_SCOPES` stünde er in `MCP_CLIENT_REGISTRATION_SCOPES` — und ein
+ * claude.ai-Client, der
  * ohne `scope`-Parameter anfragt, bekäme ihn wortlos mitgeliefert, ohne je
  * einen Landesverband zu haben. Dasselbe Argument wie bei
  * `CHAT_COMPLETIONS_SCOPE`.

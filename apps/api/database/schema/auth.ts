@@ -50,23 +50,18 @@ export const ba_accounts = pgTable(
       .references(() => profiles.id, { onDelete: 'cascade' }),
     account_id: text('account_id').notNull(),
     provider_id: text('provider_id').notNull(),
-    /**
-     * better-auth 1.7 keys external accounts on (issuer, accountId). Nullable
-     * while 1.6.x is still writing rows without it; `backfillAccountIssuer`
-     * stamps stragglers on every boot until the upgrade lands.
-     */
-    issuer: text('issuer'),
     access_token: text('access_token'),
     refresh_token: text('refresh_token'),
     access_token_expires_at: timestamp('access_token_expires_at', { withTimezone: true }),
+    refresh_token_expires_at: timestamp('refresh_token_expires_at', { withTimezone: true }),
     scope: text('scope'),
     id_token: text('id_token'),
+    password: text('password'),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
     userIdx: index('idx_ba_accounts_user').on(table.user_id),
-    issuerAccountIdx: index('idx_ba_accounts_issuer_account').on(table.issuer, table.account_id),
     userProviderUnique: unique('ba_accounts_user_provider_unique').on(
       table.user_id,
       table.provider_id

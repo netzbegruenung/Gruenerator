@@ -18,8 +18,11 @@ vi.mock('../../middleware/apiKeyMiddleware.js', () => ({
   verifyApiKey: (...a: unknown[]) => verifyApiKey(...a),
 }));
 
-vi.mock('../../config/betterAuth.js', () => ({
-  auth: { api: { getMcpSession: vi.fn().mockResolvedValue(null) } },
+// Seit better-auth 1.7 hängt der OAuth-Weg nicht mehr an `auth.api`, sondern an
+// der JWKS-Prüfung in diesem Modul. Hier steht es auf „kein gültiges Token",
+// damit die Prüfungen unten allein den Schlüsselweg messen.
+vi.mock('../../services/auth/verifyOAuthResourceRequest.js', () => ({
+  verifyOAuthResourceRequest: vi.fn().mockResolvedValue(null),
 }));
 
 const { resolveMcpAuth } = await import('./mcpAuth.js');
