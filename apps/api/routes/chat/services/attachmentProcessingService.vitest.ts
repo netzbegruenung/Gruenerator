@@ -130,3 +130,23 @@ describe('processAttachments — pdfFormCandidates', () => {
     expect(mockReadFormFields).not.toHaveBeenCalled();
   });
 });
+
+describe('processAttachments — Seitenmarken', () => {
+  beforeEach(() => {
+    mockReadFormFields.mockReset().mockResolvedValue([]);
+    mockExtract
+      .mockReset()
+      .mockResolvedValue({ text: '## Seite 1\n\nPräambel\n\n## Seite 2\n\nA1', pageCount: 2 });
+  });
+
+  it('fordert die Marken an und reicht den markierten Text samt Seitenzahl weiter', async () => {
+    const { processedMeta, attachmentContext } = await processAttachments([pdf()], 'req-1');
+
+    expect(mockExtract).toHaveBeenCalledWith('cGRm', 'Antrag.pdf', 'application/pdf', {
+      pageMarkers: true,
+    });
+    expect(processedMeta[0].extractedText).toBe('## Seite 1\n\nPräambel\n\n## Seite 2\n\nA1');
+    expect(processedMeta[0].pageCount).toBe(2);
+    expect(attachmentContext).toContain('## Seite 2\n\nA1');
+  });
+});
