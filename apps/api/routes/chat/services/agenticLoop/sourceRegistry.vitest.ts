@@ -644,7 +644,7 @@ describe('sourceRegistry.note', () => {
     });
 
     /**
-     * Volltext-Scheiben (`readAttachedDocumentSlice`) tragen bewusst KEINE
+     * Volltext-Scheiben (`readAttachedSlice`) tragen bewusst KEINE
      * Dokument-ID. Bekämen sie eine, wären zwei Scheiben desselben Dokuments
      * ein Eintrag — und das Modell verlöre beim Weiterlesen alles, was es
      * vorher gelesen hat.
