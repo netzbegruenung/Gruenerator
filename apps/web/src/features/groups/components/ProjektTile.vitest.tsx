@@ -60,6 +60,16 @@ describe('ProjektTile', () => {
     expect(screen.getByText('MP')).toBeInTheDocument();
   });
 
+  it('loads the avatar from the group avatar endpoint, not the stored filename', () => {
+    const { container } = renderWithProviders(
+      <ProjektTile projekt={{ ...teamProjekt, avatar_url: 'projekt-2-1700000000000.webp' }} />
+    );
+    expect(container.querySelector('img')).toHaveAttribute(
+      'src',
+      '/api/auth/groups/projekt-2/avatar?v=projekt-2-1700000000000.webp'
+    );
+  });
+
   it('has no axe violations', async () => {
     const { container } = renderWithProviders(<ProjektTile projekt={teamProjekt} />);
     expect(await axe(container)).toHaveNoViolations();
