@@ -128,12 +128,11 @@ const EDITOR_DOM_ATTRIBUTES = {
   editor: { class: 'blocknote-editor-content' },
 } as const;
 
-// ProseMirror keeps the caret this far clear of the scroll container's edges
-// (threshold: when to scroll, margin: where to). The bottom leaves room for
-// BlockNote's mobile toolbar, which covers the container above the keyboard.
-const CARET_CLEARANCE = { top: 5, left: 5, right: 5, bottom: 64 };
+// BlockNote sets ProseMirror's `scrollMargin` (where to scroll the caret) to
+// 72px top and bottom, but leaves `scrollThreshold` (when to scroll) at 0, so a
+// caret under the mobile toolbar still counts as visible. Match the bottom.
 const EDITOR_TIPTAP_OPTIONS = {
-  editorProps: { scrollThreshold: CARET_CLEARANCE, scrollMargin: CARET_CLEARANCE },
+  editorProps: { scrollThreshold: { top: 0, left: 0, right: 0, bottom: 72 } },
 };
 
 const schema = BlockNoteSchema.create({

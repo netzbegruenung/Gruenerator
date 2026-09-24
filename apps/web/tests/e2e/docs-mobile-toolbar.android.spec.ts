@@ -13,7 +13,7 @@
  * - die Leiste liegt bündig auf der Tastatur,
  * - der Visual Viewport verschiebt sich nie (die Seite hängt an BlockNotes
  *   `bn-scroll-container`),
- * - der Cursor bleibt beim Tippen über der Leiste (ProseMirrors `scrollMargin`).
+ * - der Cursor bleibt beim Tippen über der Leiste (ProseMirrors `scrollThreshold`).
  *
  * Läuft in keinem Workflow und überspringt sich ohne angeschlossenes Gerät:
  *   cd apps/web && pnpm exec playwright test docs-mobile-toolbar.android.spec.ts

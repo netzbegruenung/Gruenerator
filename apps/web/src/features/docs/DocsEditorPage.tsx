@@ -306,8 +306,9 @@ function EditorContent() {
   const isMobile = useMediaQuery('(max-width: 767px)');
   // BlockNote pins `bn-scroll-container` to the visual viewport, so the keyboard
   // shrinks the page instead of panning it, and the mobile toolbar stays on the
-  // keyboard. Touch only: on desktop it would pin the page to a pinch zoom.
-  const isTouchDevice = useIsTouchDevice();
+  // keyboard. Touch only: on desktop it would pin the page to a pinch zoom. Not
+  // in the chat's embed iframe, whose viewport the keyboard doesn't resize.
+  const pinToVisualViewport = useIsTouchDevice() && !isInlineEmbed;
   // Mode and panel are independent: on desktop enabling still auto-opens the
   // sidebar for review, but on mobile the panel is a full-screen overlay that
   // would trap the user, so it only opens via "Änderungen prüfen".
@@ -622,7 +623,9 @@ function EditorContent() {
         : activeSidebar;
 
   return (
-    <div className={`h-full flex flex-col relative${isTouchDevice ? ' bn-scroll-container' : ''}`}>
+    <div
+      className={`h-full flex flex-col relative${pinToVisualViewport ? ' bn-scroll-container' : ''}`}
+    >
       {isInlineEmbed ? (
         <EditorFAB
           showDisconnected={showDisconnected}
