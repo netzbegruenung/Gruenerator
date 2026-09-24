@@ -11,6 +11,7 @@ import {
 } from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { removePageMarkerLines } from '../../services/OcrService/pageMarkers.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
@@ -162,7 +163,8 @@ router.get('/', async (req, res) => {
                 id: record.id,
                 name: record.name,
                 contentType: record.contentType,
-                preview: record.preview,
+                // PDF-Anhänge tragen `## Seite N` für das Modell, nicht für Menschen.
+                preview: removePageMarkerLines(record.preview),
                 truncated: record.truncated,
                 ...(typeof record.size === 'number' && { size: record.size }),
                 ...(typeof record.pageCount === 'number' && { pageCount: record.pageCount }),
