@@ -32,12 +32,14 @@ import {
 } from './mcpServer.js';
 
 import type { BetterAuthPlugin } from 'better-auth';
+import type { GenericOAuthConfig } from 'better-auth/plugins/generic-oauth';
 
 const KC_BASE = env.KEYCLOAK_BASE_URL;
 const KC_REALM = env.KEYCLOAK_REALM;
 const KC_CLIENT_ID = env.KEYCLOAK_CLIENT_ID;
 const KC_CLIENT_SECRET = env.KEYCLOAK_CLIENT_SECRET ?? '';
-const DISCOVERY_URL = `${KC_BASE}/realms/${KC_REALM}/.well-known/openid-configuration`;
+const KC_REALM_URL = `${KC_BASE}/realms/${KC_REALM}`;
+const DISCOVERY_URL = `${KC_REALM_URL}/.well-known/openid-configuration`;
 
 const log = createLogger('BetterAuth');
 
@@ -49,12 +51,24 @@ const log = createLogger('BetterAuth');
  * füllt der `account.create.after`-Hook es unmittelbar danach, sofern der IdP
  * überhaupt eines nennt.
  */
-function keycloakProvider(id: string, idpHint: string) {
+function keycloakProvider(id: string, idpHint: string): GenericOAuthConfig {
   return {
     providerId: id,
     clientId: KC_CLIENT_ID,
     clientSecret: KC_CLIENT_SECRET,
     discoveryUrl: DISCOVERY_URL,
+    // Ab 1.7 holt `genericOAuth` die Discovery beim Start statt bei der ersten
+    // Anmeldung, und ein Provider ohne eigene Endpunkte wird übersprungen, wenn
+    // sie scheitert — ein beim Boot kurz unerreichbares Keycloak legte die
+    // Anmeldung bis zum nächsten Neustart still. Keycloaks Pfade sind fest; die
+    // Discovery liefert weiter Issuer und JWKS für die ID-Token-Prüfung.
+    authorizationUrl: `${KC_REALM_URL}/protocol/openid-connect/auth`,
+    tokenUrl: `${KC_REALM_URL}/protocol/openid-connect/token`,
+    userInfoUrl: `${KC_REALM_URL}/protocol/openid-connect/userinfo`,
+    endSessionEndpoint: `${KC_REALM_URL}/protocol/openid-connect/logout`,
+    // Ohne Discovery gälte der Provider als reines OAuth und läse `profile.id`,
+    // das Keycloak nicht schickt. `sub` ist, was 1.6 als `account_id` schrieb.
+    accountSubject: ({ profile }) => profile.sub ?? '',
     scopes: ['openid', 'profile', 'email', 'offline_access'],
     authorizationUrlParams: { kc_idp_hint: idpHint },
     mapProfileToUser: (profile: Record<string, unknown>) =>
