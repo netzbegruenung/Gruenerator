@@ -10,8 +10,8 @@
  *
  * Canonical usage at every mutating call site:
  *
- *   const response = await auth.api.signInWithOAuth2({
- *     body: { providerId, callbackURL },
+ *   const response = await auth.api.signInSocial({
+ *     body: { provider: providerId, callbackURL },
  *     headers: fromNodeHeaders(req.headers),
  *     asResponse: true,                       // <- mandatory
  *   });

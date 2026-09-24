@@ -1,9 +1,12 @@
+import { cimd } from '@better-auth/cimd';
+import { fetchClientMetadataResource } from '@better-auth/cimd/node';
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
+import { mcp } from '@better-auth/mcp';
 import { betterAuth } from 'better-auth';
 import { createAuthMiddleware } from 'better-auth/api';
-import { mcp } from 'better-auth/plugins';
 import { bearer } from 'better-auth/plugins/bearer';
 import { genericOAuth } from 'better-auth/plugins/generic-oauth';
+import { jwt } from 'better-auth/plugins/jwt';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 
@@ -21,18 +24,22 @@ import { env } from './env.js';
 import { syncLocaleFromProvider } from './localeSync.js';
 import { mapKeycloakProfileToUser } from './mapKeycloakProfileToUser.js';
 import {
+  MCP_CLIENT_REGISTRATION_SCOPES,
   MCP_CONSENT_PAGE,
-  MCP_DEFAULT_SCOPE,
   MCP_LOGIN_PAGE,
   MCP_OAUTH_SCOPES_SUPPORTED,
   MCP_RESOURCE_URL,
 } from './mcpServer.js';
 
+import type { BetterAuthPlugin } from 'better-auth';
+import type { GenericOAuthConfig } from 'better-auth/plugins/generic-oauth';
+
 const KC_BASE = env.KEYCLOAK_BASE_URL;
 const KC_REALM = env.KEYCLOAK_REALM;
 const KC_CLIENT_ID = env.KEYCLOAK_CLIENT_ID;
 const KC_CLIENT_SECRET = env.KEYCLOAK_CLIENT_SECRET ?? '';
-const DISCOVERY_URL = `${KC_BASE}/realms/${KC_REALM}/.well-known/openid-configuration`;
+const KC_REALM_URL = `${KC_BASE}/realms/${KC_REALM}`;
+const DISCOVERY_URL = `${KC_REALM_URL}/.well-known/openid-configuration`;
 
 const log = createLogger('BetterAuth');
 
@@ -44,12 +51,24 @@ const log = createLogger('BetterAuth');
  * füllt der `account.create.after`-Hook es unmittelbar danach, sofern der IdP
  * überhaupt eines nennt.
  */
-function keycloakProvider(id: string, idpHint: string) {
+function keycloakProvider(id: string, idpHint: string): GenericOAuthConfig {
   return {
     providerId: id,
     clientId: KC_CLIENT_ID,
     clientSecret: KC_CLIENT_SECRET,
     discoveryUrl: DISCOVERY_URL,
+    // Ab 1.7 holt `genericOAuth` die Discovery beim Start statt bei der ersten
+    // Anmeldung, und ein Provider ohne eigene Endpunkte wird übersprungen, wenn
+    // sie scheitert — ein beim Boot kurz unerreichbares Keycloak legte die
+    // Anmeldung bis zum nächsten Neustart still. Keycloaks Pfade sind fest; die
+    // Discovery liefert weiter Issuer und JWKS für die ID-Token-Prüfung.
+    authorizationUrl: `${KC_REALM_URL}/protocol/openid-connect/auth`,
+    tokenUrl: `${KC_REALM_URL}/protocol/openid-connect/token`,
+    userInfoUrl: `${KC_REALM_URL}/protocol/openid-connect/userinfo`,
+    endSessionEndpoint: `${KC_REALM_URL}/protocol/openid-connect/logout`,
+    // Ohne Discovery gälte der Provider als reines OAuth und läse `profile.id`,
+    // das Keycloak nicht schickt. `sub` ist, was 1.6 als `account_id` schrieb.
+    accountSubject: ({ profile }) => profile.sub ?? '',
     scopes: ['openid', 'profile', 'email', 'offline_access'],
     authorizationUrlParams: { kc_idp_hint: idpHint },
     mapProfileToUser: (profile: Record<string, unknown>) =>
@@ -114,6 +133,69 @@ export const SESSION_COOKIE_PREFIX =
 const pgConfig = loadConfig();
 const pool = new pg.Pool(pgConfig);
 const db = drizzle(pool, { schema });
+
+/**
+ * Der MCP-Autorisierungsserver, vor `betterAuth()` gebaut, weil sein Typ eine
+ * Zurechtrückung braucht.
+ *
+ * **Wurzel.** `better-call` führt `zod` als OPTIONALEN Peer. Bei
+ * `@better-auth/mcp` ist `better-call` selbst ein Peer und wird daher aus dem
+ * Kontext von `apps/api` aufgelöst — wo unser bewusster `zod: ^3.24.1`-Pin
+ * gilt. `better-auth` und `@better-auth/core` führen dasselbe Paket als echte
+ * Abhängigkeit mit eigenem zod 4. Im Lockfile stehen deshalb
+ * `better-call@1.4.0(zod@4.5.4)` und `better-call@1.4.0(zod@3.25.76)`
+ * nebeneinander, und TypeScript hält deren `EndpointOptions` für verschieden.
+ *
+ * **Warum es nicht bei einer Meldung bleibt.** Solange der Fehler steht, fällt
+ * `betterAuth()` auf seinen Basistyp zurück: `BetterAuthUser` verliert
+ * sämtliche `additionalFields` (`is_admin`, `locale`, `first_name`, …) UND
+ * `auth.api.getSession()` liefert `any` — quer durch `authMiddleware`,
+ * `appLogin`, `resolveUpgradeAuth`, `userProfileContractRouter`,
+ * `OffboardingService`. `tsc` schweigt dazu (`skipLibCheck`), erst ESLints
+ * `no-unsafe-*` macht es sichtbar. Ein `@ts-expect-error` hilft nicht: es
+ * unterdrückt die Meldung und lässt den Schaden stehen.
+ *
+ * **Deshalb die Behauptung, und zwar aufs ganze Plugin.** Gemessen gegen die
+ * Auflösung, die die CI tatsächlich installiert: eine engere Behauptung nur auf
+ * `endpoints` reicht dort NICHT, das `any` bleibt. Preis ist, dass die
+ * Endpunkte dieses Plugins in `auth.api` nur generisch typisiert sind — die
+ * eine Stelle, die einen davon braucht, steht in `server.ts` und sagt es dort.
+ *
+ * **Auflösbar** nur, indem `apps/api` auf zod 4 geht. `pnpm.overrides`
+ * (`better-call>zod`, `@better-auth/mcp>zod`) erreichen optionale Peers nicht,
+ * `packageExtensions` ändern den Lockfile an der Stelle nicht, und
+ * `better-call` direkt in `apps/api` zu deklarieren kippt es ins Gegenteil
+ * (37 von 38 Verweisen auf zod 3) — alles drei gemessen.
+ */
+const rawMcpPlugin = mcp({
+  loginPage: MCP_LOGIN_PAGE,
+  consentPage: MCP_CONSENT_PAGE,
+  resource: MCP_RESOURCE_URL,
+  // Alles, was ausgestellt werden darf — nicht nur die MCP-Rechte. Fehlt
+  // `chat:completions` hier, weist der Server die Anfrage des Excel-Add-ins als
+  // unbekannten Scope ab.
+  scopes: [...MCP_OAUTH_SCOPES_SUPPORTED],
+  // Was ein frisch registrierter Client bekommt. Bewusst enger als `scopes` —
+  // siehe die Begründung an der Konstante.
+  clientRegistrationDefaultScopes: [...MCP_CLIENT_REGISTRATION_SCOPES],
+  accessTokenExpiresIn: 3600,
+  refreshTokenExpiresIn: 60 * 60 * 24 * 30,
+  // 1.7 schaltet die dynamische Registrierung nicht mehr mit `mcp()` mit ein;
+  // ohne diese zwei Flaggen antwortet `/oauth2/register` mit 403 und kein
+  // MCP-Konnektor kommt mehr durch die Erstverbindung.
+  allowDynamicClientRegistration: true,
+  allowUnauthenticatedClientRegistration: true,
+  // Der Standard ist `true` und verlangt für jede angefragte Ressource eine
+  // Zeile in `ba_oauth_client_resources`. Die aus 1.6 übernommenen Clients
+  // haben keine — die Verknüpfung entsteht erst bei einer Registrierung unter
+  // 1.7 —, sie liefen sonst am Token-Endpunkt auf `invalid_target`. Es gibt
+  // genau eine Ressource, also kostet das Abschalten hier keine Trennschärfe.
+  enforcePerClientResources: false,
+  // PKCE: kein Schalter nötig — 1.7 verlangt es, solange ein Client es nicht
+  // ausdrücklich abwählt (`requirePKCE ?? true`, auch für übernommene Clients).
+});
+
+const mcpPlugin = rawMcpPlugin as unknown as BetterAuthPlugin;
 
 // One-shot config snapshot at module load — answers "what URL did the
 // container actually pick up?" without requiring a request to fire.
@@ -240,7 +322,9 @@ export const auth = betterAuth({
       accessToken: 'access_token',
       refreshToken: 'refresh_token',
       accessTokenExpiresAt: 'access_token_expires_at',
+      refreshTokenExpiresAt: 'refresh_token_expires_at',
       idToken: 'id_token',
+      password: 'password',
       scope: 'scope',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
@@ -284,7 +368,7 @@ export const auth = betterAuth({
     // under its OLD Redis key while returning before it ever reaches the DB
     // (better-auth 1.6.25, db/internal-adapter.mjs). The consent step is the
     // one caller that changes the identifier, so the code handed to the client
-    // never exists as a key and `/mcp/token` answers `invalid_grant`.
+    // never exists as a key and the token endpoint answers `invalid_grant`.
     storeInDatabase: true,
     fields: {
       expiresAt: 'expires_at',
@@ -306,6 +390,47 @@ export const auth = betterAuth({
       } catch (err) {
         log.warn('secondaryStorage.get failed for ba:%s — falling back to DB: %s', key, err);
         return null;
+      }
+    },
+    // Neu und verpflichtend seit 1.7. Für Einmalwerte (Verifikations-Codes)
+    // gedacht; `GETDEL` erledigt das in einem Schritt, ohne das Fenster
+    // zwischen Lesen und Löschen, in dem ein zweiter Prozess denselben Wert
+    // noch einmal bekäme. Fehlerbehandlung wie bei `get`: mit
+    // `verification.storeInDatabase: true` ist Postgres der Rückfall.
+    getAndDelete: async (key) => {
+      try {
+        const value = await redisClient.getDel(`ba:${key}`);
+        return value ?? null;
+      } catch (err) {
+        log.warn(
+          'secondaryStorage.getAndDelete failed for ba:%s — falling back to DB: %s',
+          key,
+          err
+        );
+        return null;
+      }
+    },
+    // Neu und verpflichtend seit 1.7: die Ratenbegrenzung (`storage:
+    // 'secondary-storage'` weiter unten) zählt darüber. `INCR` + `EXPIRE` in
+    // einem Lua-Skript, weil beides zusammen atomar sein muss: als zwei
+    // Aufrufe kann der Prozess dazwischen sterben und der Zähler bliebe ohne
+    // Ablauf stehen — dieser Eimer wäre dann dauerhaft dicht. Das `if` sorgt
+    // dafür, dass nur die Anlage die Frist setzt, spätere Zählschritte sie
+    // also nicht verlängern.
+    increment: async (key, ttl) => {
+      try {
+        const count = await redisClient.eval(
+          "local c = redis.call('INCR', KEYS[1]) if c == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end return c",
+          { keys: [`ba:${key}`], arguments: [String(ttl)] }
+        );
+        return typeof count === 'number' ? count : Number(count);
+      } catch (err) {
+        // Bewusst durchlassen statt die Anfrage zu killen: ein totes Redis
+        // legte sonst jeden ratenbegrenzten Endpunkt lahm. 0 heisst „unter
+        // jedem Limit"; der Schutz fällt für die Dauer der Störung weg, was
+        // die Fehlerzeile sichtbar macht.
+        log.error('secondaryStorage.increment failed for ba:%s — rate limit open: %s', key, err);
+        return 0;
       }
     },
     set: async (key, value, ttl) => {
@@ -476,7 +601,13 @@ export const auth = betterAuth({
   // code). Benign replay/expiry codes are skipped to keep bot noise out.
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
-      if (!ctx.path.startsWith('/oauth2/callback')) return;
+      // 1.7 macht aus jedem genericOAuth-Provider einen echten
+      // Social-Provider: der Rückweg heißt jetzt `/callback/:id`, nicht
+      // mehr `/oauth2/callback/:id` — dieser Pfad gehört ab 1.7 dem
+      // OAuth-Provider-Plugin. Bliebe das Präfix stehen, feuerte dieser
+      // Haken nie wieder und die stillen Callback-Fehler wären erneut
+      // unsichtbar, ohne dass irgendetwas rot würde.
+      if (!ctx.path.startsWith('/callback/')) return;
       const location = ctx.context.responseHeaders?.get('location');
       if (location == null) return;
       let code: string | null = null;
@@ -521,6 +652,12 @@ export const auth = betterAuth({
   },
 
   plugins: [
+    // Pflicht ab 1.7, nicht Kür: der Autorisierungsserver signiert Access- und
+    // ID-Token damit und veröffentlicht die Schlüssel unter
+    // `/api/auth/v2/jwks`. Das ersetzt das alte Modell „opakes Token +
+    // Datenbank-Nachschlag" — Ressourcenserver prüfen jetzt gegen JWKS, was
+    // auch der Grund ist, warum `getMcpSession` ersatzlos entfallen ist.
+    jwt(),
     genericOAuth({
       config: [
         keycloakProvider('keycloak-netzbegruenung', 'netzbegruenung'),
@@ -535,34 +672,29 @@ export const auth = betterAuth({
     // Must sit after `bearer()` — it resolves the caller via that plugin.
     webViewHandoff(),
     // OAuth 2.1 AS (DCR + PKCE) for the authenticated MCP endpoint. Keycloak
-    // stays the only IdP: /mcp/authorize rides the existing session, the
-    // after-hook resumes the flow post-login. The plugin skips consent unless
-    // `prompt=consent` — the shim in server.ts forces it.
-    mcp({
-      loginPage: MCP_LOGIN_PAGE,
-      resource: MCP_RESOURCE_URL,
-      oidcConfig: {
-        // required by OIDCOptions' type; the plugin overrides it anyway
-        loginPage: MCP_LOGIN_PAGE,
-        requirePKCE: true,
-        // Alles, was ausgestellt werden darf — nicht nur die MCP-Rechte.
-        // Fehlt `chat:completions` hier, weist der Server die Anfrage des
-        // Excel-Add-ins als unbekannten Scope ab.
-        scopes: [...MCP_OAUTH_SCOPES_SUPPORTED],
-        defaultScope: MCP_DEFAULT_SCOPE,
-        accessTokenExpiresIn: 3600,
-        refreshTokenExpiresIn: 60 * 60 * 24 * 30,
-        consentPage: MCP_CONSENT_PAGE,
-        metadata: { scopes_supported: MCP_OAUTH_SCOPES_SUPPORTED },
-      },
-      // Read by getMCPProviderMetadata (AS metadata merge) but missing from
-      // MCPOptions in better-auth 1.6.23 — spread-cast around the type lag.
-      ...({ metadata: { scopes_supported: MCP_OAUTH_SCOPES_SUPPORTED } } as unknown as Record<
-        string,
-        never
-      >),
+    // stays the only IdP: /oauth2/authorize rides the existing session, the
+    // after-hook resumes the flow post-login. Die Zustimmungsseite steuert ab
+    // 1.7 das Plugin selbst — der Shim in `server.ts` ist deshalb entfallen.
+    mcpPlugin,
+    // Client ID Metadata Documents: MCP 2026-07-28 verlangt sie normativ.
+    // Der Node-Transport bringt die geforderte Härtung mit (DNS einmal
+    // auflösen, Adresse an die Verbindung pinnen, Weiterleitungen nicht
+    // folgen) — genau das, was sich nicht durch Umwickeln von `fetch`
+    // nachbauen lässt.
+    cimd({
+      fetchClientMetadataResource,
+      metadataProfile: 'mcp-2026-07-28',
     }),
   ],
+});
+
+// Seit 1.7 schreibt die Initialisierung in die Datenbank (`mcp()` legt seine
+// Ressource an), und das Promise dahinter wartet niemand ab: ohne Datenbank
+// wurde daraus eine unbehandelte Ablehnung — in jeder Testdatei, die dieses
+// Modul auch nur transitiv lädt, und im Betrieb ohne Hinweis im Log. Anfragen
+// scheitern weiterhin laut, weil jede `$context` selbst abwartet.
+auth.$context.catch((err: unknown) => {
+  log.error('[BetterAuth] initialization failed: %s', err);
 });
 
 export type BetterAuthType = typeof auth;

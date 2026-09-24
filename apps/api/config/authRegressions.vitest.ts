@@ -23,7 +23,8 @@
  *      DB is unreachable.
  *
  *   3. Mobile OAuth Set-Cookie drop (branch fix/mobile-auth-cookie-forwarding).
- *      `auth.api.signInWithOAuth2(...)` called without `asResponse: true`
+ *      `auth.api.signInSocial(...)` (bis better-auth 1.7: `signInWithOAuth2`)
+ *      called without `asResponse: true`
  *      silently drops Better Auth's state + PKCE cookies, so the Keycloak
  *      round-trip comes back without `__Secure-ba.state`. Better Auth then
  *      treats the callback as a `state_mismatch` replay and redirects to
