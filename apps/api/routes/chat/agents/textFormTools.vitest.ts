@@ -18,7 +18,7 @@ import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.j
 import type { RecipeCatalogEntry } from './recipeCatalog.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
-import type { TextForm } from '@gruenerator/contracts';
+import type { DraftedRecipeSpec, TextForm } from '@gruenerator/contracts';
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 
 type ToolResult = Record<string, unknown>;
@@ -81,6 +81,7 @@ interface CtxOptions {
   forms?: TextForm[];
   catalog?: RecipeCatalogEntry[];
   analysis?: { styleBlock: string; model: string } | Error;
+  draft?: DraftedRecipeSpec | Error;
   registry?: SourceRegistry;
   userText?: string;
   /** `undefined` = der State trägt keine Rollen (MCP-Ctx) → `loadUserRoles`. */
@@ -125,6 +126,10 @@ function makeCtx(opts: CtxOptions = {}) {
       if (analysis instanceof Error) throw analysis;
       return analysis;
     }),
+    draftRecipeSpec: vi.fn(async () => {
+      if (opts.draft instanceof Error) throw opts.draft;
+      return opts.draft ?? DRAFT;
+    }),
     recipeCatalog: vi.fn(async () => {
       // Wie das echte `buildRecipeCatalog`: eigene Textformen stehen als Zeile
       // im Katalog, Presets/Rezept-Stile nicht (sie sind die Systemzeile).
@@ -151,6 +156,14 @@ function makeCtx(opts: CtxOptions = {}) {
     )) ?? {};
   return { run, notes, registered, deps, tool };
 }
+
+const DRAFT: DraftedRecipeSpec = {
+  title: 'Einladung Ortsverband',
+  mention: 'einladung-ortsverband',
+  description: 'Einladungen zur OV-Sitzung, warm und mit allen Eckdaten.',
+  iconKey: 'PiMegaphone',
+  styleBlock: '## Einladung\n\nNenne Datum, Uhrzeit, Ort und Tagesordnung.',
+};
 
 const CREATE_ARGS = {
   action: 'create',
@@ -377,6 +390,8 @@ describe('recipes: parteiinterne Grenze — Systemrezepte ohne Rumpf', () => {
     expect(Object.keys(deps).sort()).toEqual([
       'analyzeTextForm',
       'deleteTextForm',
+      // Few-shot-frei von parteiinternen Rümpfen (Docblock `textFormDraftService.ts`).
+      'draftRecipeSpec',
       'listTextForms',
       'loadUserRoles',
       'recipeCatalog',
@@ -397,7 +412,7 @@ describe('recipes: parteiinterne Grenze — Systemrezepte ohne Rumpf', () => {
   });
 });
 
-describe('recipes: F0 — action enum stays list/get/create/add_examples/delete', () => {
+describe('recipes: F0 — action enum stays list/get/create/update/add_examples/delete', () => {
   it('has no share/publish/draft action: widening visibility stays a human decision', () => {
     const { tool } = makeCtx();
     const schema = tool.inputSchema as { shape: { action: { options: string[] } } };
@@ -405,6 +420,7 @@ describe('recipes: F0 — action enum stays list/get/create/add_examples/delete'
       'list',
       'get',
       'create',
+      'update',
       'add_examples',
       'delete',
     ]);
@@ -822,5 +838,168 @@ describe('was der Schreiber im split-Modus wirklich sieht', () => {
     const block = registry.renderAll();
     expect(block).toContain('VORGÄNGE IN DIESEM TURN');
     expect(block).toContain('@newsletter-intro');
+  });
+});
+
+describe('recipes: create from brief (direct)', () => {
+  const BRIEF = 'Ein Rezept, das Einladungen zu unseren OV-Sitzungen schreibt.';
+
+  it('drafts title, mention and instructions from the brief and stores a custom form', async () => {
+    const { run, deps, notes } = makeCtx();
+    const out = await run({ action: 'create', brief: BRIEF });
+    expect(deps.draftRecipeSpec).toHaveBeenCalledWith({
+      messages: [{ role: 'user', content: BRIEF }],
+      takenMentions: expect.any(Set),
+    });
+    // Die eigenen Mentions stehen in der Kollisionsliste — der Entwurf weicht aus.
+    const taken = vi.mocked(deps.draftRecipeSpec).mock.calls[0][0].takenMentions;
+    expect(taken.has('omveinladungen')).toBe(true);
+    expect(taken.has('presse')).toBe(true);
+    expect(deps.analyzeTextForm).not.toHaveBeenCalled();
+    expect(deps.upsertTextForm).toHaveBeenCalledWith('user-1', {
+      kind: 'custom',
+      textType: null,
+      mention: 'einladung-ortsverband',
+      title: 'Einladung Ortsverband',
+      examples: [],
+      styleBlock: DRAFT.styleBlock,
+      model: null,
+      description: DRAFT.description,
+      iconKey: 'PiMegaphone',
+    });
+    expect(out).toMatchObject({
+      ok: true,
+      recipe: { mention: 'einladung-ortsverband', kind: 'custom', exampleCount: 0 },
+      instructions: expect.stringContaining('Datum, Uhrzeit'),
+    });
+    expect(notes[0][1]).toContain('aus deiner Beschreibung angelegt');
+    expect(notes[0][1]).toContain('/agentura/rezept/einladung-ortsverband/bearbeiten');
+  });
+
+  it('explicit title, mention and description win over the draft', async () => {
+    const { run, deps } = makeCtx();
+    await run({
+      action: 'create',
+      brief: BRIEF,
+      title: 'OV-Post',
+      mention: 'ov-post',
+      description: 'Eigene Beschreibung.',
+    });
+    expect(deps.upsertTextForm).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        mention: 'ov-post',
+        title: 'OV-Post',
+        description: 'Eigene Beschreibung.',
+        styleBlock: DRAFT.styleBlock,
+      })
+    );
+  });
+
+  it('examples win over the brief: the own style is analyzed, nothing is drafted', async () => {
+    const { run, deps } = makeCtx();
+    await run({ ...CREATE_ARGS, brief: BRIEF });
+    expect(deps.draftRecipeSpec).not.toHaveBeenCalled();
+    expect(deps.analyzeTextForm).toHaveBeenCalled();
+  });
+
+  it('without brief and without examples it points to brief and writes nothing', async () => {
+    const { run, deps } = makeCtx();
+    expect(await run({ action: 'create', title: 'Leer' })).toMatchObject({
+      error: expect.stringMatching(/mindestens einen Beispieltext.*brief/),
+    });
+    expect(deps.draftRecipeSpec).not.toHaveBeenCalled();
+    expect(deps.upsertTextForm).not.toHaveBeenCalled();
+  });
+
+  it('a failed draft stores nothing', async () => {
+    const { run, deps } = makeCtx({ draft: new Error('timeout') });
+    expect(await run({ action: 'create', brief: BRIEF })).toMatchObject({
+      error: expect.stringMatching(/Entwurf.*fehlgeschlagen \(timeout\).*nichts gespeichert/),
+    });
+    expect(deps.upsertTextForm).not.toHaveBeenCalled();
+  });
+
+  it('refuses an explicit mention that already exists', async () => {
+    const { run, deps } = makeCtx();
+    expect(await run({ action: 'create', brief: BRIEF, mention: 'omveinladungen' })).toMatchObject({
+      error: expect.stringMatching(/gibt es schon.*update/),
+    });
+    expect(deps.upsertTextForm).not.toHaveBeenCalled();
+  });
+
+  it('refuses when the message rules out changes', async () => {
+    const { run, deps } = makeCtx({ userText: 'Keine Aktion, nur erklären.' });
+    expect(await run({ action: 'create', brief: BRIEF })).toMatchObject({
+      error: expect.stringMatching(/schließt/),
+    });
+    expect(deps.draftRecipeSpec).not.toHaveBeenCalled();
+  });
+});
+
+describe('recipes: update (direct, owner-scoped)', () => {
+  it('replaces instructions and keeps title, examples, kind and the untouched optional fields', async () => {
+    const { run, deps, notes } = makeCtx();
+    const out = await run({
+      action: 'update',
+      mention: '@omveinladungen',
+      instructions: '  ## Neu\n\nImmer mit Anfahrt.  ',
+    });
+    expect(out).toMatchObject({ ok: true, recipe: { mention: 'omveinladungen' } });
+    expect(deps.upsertTextForm).toHaveBeenCalledWith('user-1', {
+      kind: 'custom',
+      textType: null,
+      mention: 'omveinladungen',
+      title: 'OV-Einladungen',
+      examples: form().examples,
+      styleBlock: '## Neu\n\nImmer mit Anfahrt.',
+      model: null,
+      description: undefined,
+      iconKey: undefined,
+    });
+    expect(deps.analyzeTextForm).not.toHaveBeenCalled();
+    expect(notes[0][1]).toContain('geändert: Anweisungen');
+  });
+
+  it('renames and re-describes without touching the analyzed style', async () => {
+    const { run, deps } = makeCtx();
+    await run({
+      action: 'update',
+      mention: 'omveinladungen',
+      title: 'Einladungen OV Mitte',
+      description: 'Für den OV Mitte.',
+      iconKey: 'KeinBekanntesIcon',
+    });
+    expect(deps.upsertTextForm).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        title: 'Einladungen OV Mitte',
+        description: 'Für den OV Mitte.',
+        iconKey: DEFAULT_AGENT_ICON,
+        styleBlock: LONG_STYLE,
+        model: 'mistral-large-latest',
+      })
+    );
+  });
+
+  it('needs at least one field', async () => {
+    const { run, deps } = makeCtx();
+    expect(await run({ action: 'update', mention: 'omveinladungen' })).toMatchObject({
+      error: expect.stringMatching(/mindestens eines/),
+    });
+    expect(deps.upsertTextForm).not.toHaveBeenCalled();
+  });
+
+  it('a shared or unknown form is "nicht gefunden"', async () => {
+    const { run, deps } = makeCtx({
+      forms: [form({ mention: 'kv-mail', sharedFromGroup: 'Klima-AG' })],
+    });
+    expect(await run({ action: 'update', mention: 'kv-mail', title: 'x' })).toMatchObject({
+      error: expect.stringMatching(/Keine eigene Textform/),
+    });
+    expect(await run({ action: 'update', mention: 'gibtsnicht', title: 'x' })).toMatchObject({
+      error: expect.stringMatching(/Keine eigene Textform/),
+    });
+    expect(deps.upsertTextForm).not.toHaveBeenCalled();
   });
 });

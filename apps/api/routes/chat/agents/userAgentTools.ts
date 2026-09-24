@@ -368,7 +368,7 @@ export function makeUserAgentsTool(ctx: UserAgentToolCtx): Tool {
 
 NUTZE FÜR: die eigenen und die aus Projekten geteilten Grünerator-Agenten auflisten (list), Details eines Agenten ansehen — Rolle, Werkzeuge, Rezepte, Notebooks, Sichtbarkeit (get mit identifier), einen neuen Agenten anlegen — „bau mir einen Agenten, der …" (create mit brief; optional title, systemRole, enabledTools, skillMentions, defaultNotebookIds), einen eigenen Agenten ändern (update mit identifier und den neuen Feldern), mit einem Projekt teilen (share_to_group mit identifier und groupName), löschen (delete mit confirm=true nach Zustimmung).
 
-NICHT für: eine wiederkehrende Aufgabe für einen Agenten einrichten (dafür 'recurring_tasks'), Rezepte oder Textformen verwalten (dafür 'rezept_laden' zum Anwenden), das Projekt selbst (dafür 'groups'), die System-Grüneratoren der Plattform (die lassen sich nicht ändern).
+NICHT für: eine wiederkehrende Aufgabe für einen Agenten einrichten (dafür 'recurring_tasks'), Rezepte oder Textformen anlegen und verwalten (dafür 'recipes'; anwenden mit 'rezept_laden'), das Projekt selbst (dafür 'groups'), die System-Grüneratoren der Plattform (die lassen sich nicht ändern).
 
 Für create genügt brief: eine Beschreibung in ganzen Sätzen, was der Agent tun soll, für wen und in welchem Ton — daraus wird die Systemrolle entworfen; mit update lässt sie sich danach verfeinern. Anlegen und Teilen werden der Person als Karte zur Bestätigung angezeigt — kündige nichts als angelegt oder geteilt an, was nur angefordert ist. Ein Agent wird über identifier (aus list, Feld ref) benannt; geteilte Agenten sind nur lesbar.`,
     inputSchema: z.object({
