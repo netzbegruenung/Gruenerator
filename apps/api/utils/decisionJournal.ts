@@ -85,6 +85,8 @@ export const DECISION_POINTS = {
       // Gewähltes Notebook + Werkzeugauftrag → Schleife mit `notebook_quellen`.
       'tier2_notebook_tool_ask',
       'tier2_thread_notebook_tool_ask',
+      // Rezept/Grünerator-Agent anlegen → Schleife, vor den Textsorten-Pfaden.
+      'tier2_agentura_create',
       'tier2.7_mcp_followup',
       'tier2.7_sharepic_followup',
       'tier2.9_docs_help',
