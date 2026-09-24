@@ -34,6 +34,8 @@ export interface ExtractionResult {
     processingTimeMs?: number | undefined;
     method?: string | undefined;
   };
+  /** 1-basiert; nur mit `pageMarkers` und nur aus pdfjs — siehe `tableDetection.ts`. */
+  tablePages?: number[];
 }
 
 export interface DocumentExtractionResult extends ExtractionResult {
@@ -47,6 +49,7 @@ export interface PageExtractionResult {
   success: boolean;
   text: string;
   error?: string | undefined;
+  hasTable?: boolean;
 }
 
 export interface PDFInfo {
