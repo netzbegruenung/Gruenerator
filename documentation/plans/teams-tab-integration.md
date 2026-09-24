@@ -128,7 +128,7 @@ Die `LoginProviders`-Komponente hat bereits einen `onLogin`-Prop (Zeile 23 in `L
 Aenderungen:
 
 1. `isInIframe()` importieren
-2. Pop-up-Handler erstellen, der `/api/auth/v2/sign-in/oauth2` aufruft und URL im Pop-up oeffnet
+2. Pop-up-Handler erstellen, der `/api/auth/v2/sign-in/social` aufruft und URL im Pop-up oeffnet
 3. `onLogin={inIframe ? handleIframeLogin : undefined}` an `<LoginProviders>` uebergeben
 
 ```typescript
@@ -140,12 +140,12 @@ const inIframe = isInIframe();
 const handleIframeLogin = async (provider: LoginProvider, callbackURL: string) => {
   setIsAuthenticating(true);
   try {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/v2/sign-in/oauth2`, {
+    const response = await fetch(`${AUTH_BASE_URL}/auth/v2/sign-in/social`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
-        providerId: provider.betterAuthProviderId,
+        provider: provider.betterAuthProviderId,
         callbackURL,
       }),
     });
