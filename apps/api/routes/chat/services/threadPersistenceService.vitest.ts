@@ -24,6 +24,7 @@ const {
   discardPendingAssistantIfEmpty,
   deleteEmptyStreamingRows,
   deleteTrailingAssistant,
+  getRecentToolSteps,
   readThreadToolHistory,
 } = await import('./threadPersistenceService.js');
 
@@ -177,4 +178,56 @@ describe('readThreadToolHistory.lastTurnToolSteps', () => {
     ]);
     expect((await readThreadToolHistory('thread-1')).lastTurnToolSteps()).toEqual([]);
   });
+});
+
+describe('toolSteps order', () => {
+  const call = (id: string, args: Record<string, unknown>, result: Record<string, unknown>) => ({
+    toolCallId: id,
+    toolName: 'notebook_quellen',
+    args,
+    result,
+  });
+
+  it('is oldest → newest across AND inside turns', async () => {
+    queryMock.mockResolvedValueOnce([
+      { tool_results: { toolCalls: [call('b1', {}, {}), call('b2', {}, {})] }, is_last_turn: true },
+      {
+        tool_results: { toolCalls: [call('a1', {}, {}), call('a2', {}, {})] },
+        is_last_turn: false,
+      },
+    ]);
+    const steps = await getRecentToolSteps('thread-1', 10);
+    expect(steps.map((s) => s.toolCallId)).toEqual(['a1', 'a2', 'b1', 'b2']);
+  });
+
+  it('keeps the NEWEST calls of a turn when the limit cuts into it', async () => {
+    queryMock.mockResolvedValueOnce([
+      {
+        tool_results: { toolCalls: [call('c1', {}, {}), call('c2', {}, {}), call('c3', {}, {})] },
+        is_last_turn: true,
+      },
+    ]);
+    const steps = await getRecentToolSteps('thread-1', 2);
+    expect(steps.map((s) => s.toolCallId)).toEqual(['c2', 'c3']);
+  });
+
+  it('the thread notebook is the explicit later call, not the pinned first one', async () => {
+    // Gepinnter erster Aufruf ohne id (Ergebnis: hamburg), danach ausdrücklich berlin.
+    const { notebookIdFromSteps } = await import('../agents/notebookSourceTools.js');
+    queryMock.mockResolvedValueOnce([
+      {
+        tool_results: {
+          toolCalls: [
+            call('p1', { action: 'list' }, { notebookId: 'hamburg' }),
+            call('p2', { action: 'list', notebookId: 'berlin' }, { notebookId: 'berlin' }),
+          ],
+        },
+        is_last_turn: true,
+      },
+    ]);
+    const history = await readThreadToolHistory('thread-1');
+    expect(notebookIdFromSteps(history.toolSteps())).toBe('berlin');
+    expect(notebookIdFromSteps(history.lastTurnToolSteps())).toBe('berlin');
+    // Der Import zieht den ganzen Werkzeugbaum — beim ersten Mal langsam.
+  }, 60_000);
 });
