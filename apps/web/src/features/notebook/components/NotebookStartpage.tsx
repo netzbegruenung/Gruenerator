@@ -1,9 +1,10 @@
 import {
   NotebookComposer,
   type CategoryFilterConfig,
+  type NotebookComposerMode,
   type SourceFilterConfig,
 } from '@gruenerator/chat';
-import { type NotebookAnswerMode, type NotebookDepth } from '@gruenerator/contracts';
+import { type NotebookDepth } from '@gruenerator/contracts';
 import { cn } from '@gruenerator/ui';
 import { useMemo, useState, type ReactNode } from 'react';
 import { HiOutlineChartBar, HiOutlineClock, HiOutlineSparkles } from 'react-icons/hi2';
@@ -36,8 +37,8 @@ interface NotebookStartpageProps {
   composerCategoryFilters?: CategoryFilterConfig;
   mode: NotebookDepth;
   onModeChange: (mode: NotebookDepth) => void;
-  answerMode?: NotebookAnswerMode;
-  onAnswerModeChange?: (mode: NotebookAnswerMode) => void;
+  answerMode?: NotebookComposerMode;
+  onAnswerModeChange?: (mode: NotebookComposerMode) => void;
   recentCollectionIds: string[];
   showRecentSourceLabel?: boolean;
   showStats?: boolean;

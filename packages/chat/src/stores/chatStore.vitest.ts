@@ -138,6 +138,14 @@ describe('notebookAnswerMode persistence (v18)', () => {
     expect(migrate({ notebookAnswerMode: 'turbo' }, 17).notebookAnswerMode).toBe('auto');
   });
 
+  it('persists the client-only Manuell without a version bump', () => {
+    // Every value stored before is still valid, so no migrate step; builds that
+    // predate Manuell read it tolerantly through notebookAnswerModeDef.
+    useAgentStore.getState().setNotebookAnswerMode('manuell');
+    const persisted = options.partialize!(useAgentStore.getState()) as Record<string, unknown>;
+    expect(persisted.notebookAnswerMode).toBe('manuell');
+  });
+
   it('is persisted and settable', () => {
     useAgentStore.getState().setNotebookAnswerMode('praezision');
     expect(useAgentStore.getState().notebookAnswerMode).toBe('praezision');
