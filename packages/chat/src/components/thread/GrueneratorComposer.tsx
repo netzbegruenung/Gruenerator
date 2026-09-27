@@ -797,8 +797,10 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         // inert (canSend false on empty text), so send explicitly. Non-empty
         // drafts keep the normal path — the Root onSubmit flush covers them.
         // A running turn only blocks this when the thread cannot queue; with a
-        // queue the send is what puts the draft in line.
+        // queue the send is what puts the draft in line. A search field never
+        // sends — its Enter belongs to the Root onSubmit (onSearchSubmit).
         if (
+          !onSearchSubmit &&
           e.key === 'Enter' &&
           !e.shiftKey &&
           !e.nativeEvent.isComposing &&
@@ -885,6 +887,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       mention.selectedIndex,
       handleSelect,
       dismissPopover,
+      onSearchSubmit,
       composerRuntime,
       isRunning,
       canQueue,
