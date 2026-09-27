@@ -22,6 +22,7 @@ import {
   NOTEBOOK_ANSWER_MODES,
   NOTEBOOK_COMPOSER_MODES,
   notebookComposerModeDef,
+  type MagicIntent,
   type NotebookComposerMode,
   type NotebookComposerModeDef,
 } from '../../lib/notebookAnswerMode';
@@ -53,6 +54,7 @@ const toOption = (m: NotebookComposerModeDef): ComposerOption<NotebookComposerMo
 });
 const ANSWER_MODE_OPTIONS = NOTEBOOK_ANSWER_MODES.map(toOption);
 const COMPOSER_MODE_OPTIONS = NOTEBOOK_COMPOSER_MODES.map(toOption);
+const MAGIC_INTENT_LABELS: Record<MagicIntent, string> = { suche: 'Suche', chat: 'Chat' };
 
 export interface SourceFilterConfig {
   collections: SourceFilterCollection[];
@@ -81,6 +83,9 @@ interface NotebookComposerProps {
   /** Offers „Manuell“ in the picker; while it is selected the composer searches
    *  instead of asking the model and hands the text here. */
   onManualSubmit?: (text: string) => void;
+  /** What Magic Search („auto“) recognised in the typed text — only on the
+   *  start page. „suche“ searches like „Manuell“, „chat“ sends. */
+  magicIntent?: MagicIntent | null;
 }
 
 function CategoryFilterItems({
@@ -321,6 +326,7 @@ export function NotebookComposer({
   answerMode,
   onAnswerModeChange,
   onManualSubmit,
+  magicIntent,
 }: NotebookComposerProps) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   // Without a manual handler `manuell` is not on offer, and a stored one falls
@@ -329,6 +335,11 @@ export function NotebookComposer({
     ? notebookComposerModeDef(answerMode === 'manuell' && !onManualSubmit ? null : answerMode)
     : null;
   const isManual = activeAnswerMode?.mode === 'manuell';
+  // Magic Search can only search where the surface can.
+  const activeMagicIntent =
+    activeAnswerMode?.mode === 'auto' && onManualSubmit ? (magicIntent ?? null) : null;
+  const searches = isManual || activeMagicIntent === 'suche';
+  const magicSuffix = activeMagicIntent ? MAGIC_INTENT_LABELS[activeMagicIntent] : null;
 
   return (
     <GrueneratorComposer
@@ -336,10 +347,11 @@ export function NotebookComposer({
       variant="pill"
       placeholder={placeholder}
       disclaimer={
-        isManual
+        searches
           ? 'Treffer kommen direkt aus den Quellen, ohne KI.'
           : 'KI-generierte Antworten können ungenau sein — bitte vor der Veröffentlichung prüfen.'
       }
+      {...(searches ? { disclaimerCompact: 'Treffer direkt aus den Quellen, ohne KI.' } : {})}
       showMentions={false}
       showPlusMenu={false}
       showToolToggles={false}
@@ -347,7 +359,7 @@ export function NotebookComposer({
       // nebeneinander und meinten Verschiedenes. Im Notebook löst 'Automatisch'
       // ohnehin immer auf Ultra auf — die Suchtiefe ist hier die Qualitätswahl.
       showModelPicker={false}
-      {...(isManual && onManualSubmit ? { onSearchSubmit: onManualSubmit } : {})}
+      {...(searches && onManualSubmit ? { onSearchSubmit: onManualSubmit } : {})}
       slots={{
         leading: (
           <NotebookSettingsDropdown
@@ -366,7 +378,8 @@ export function NotebookComposer({
                   onChange={onAnswerModeChange}
                   sheetTitle="Antwortmodus wählen"
                   sectionTitle="Antwortmodus"
-                  ariaLabel={`Antwortmodus wählen – ${activeAnswerMode.label}`}
+                  {...(magicSuffix ? { valueSuffix: magicSuffix } : {})}
+                  ariaLabel={`Antwortmodus wählen – ${activeAnswerMode.label}${magicSuffix ? ` · ${magicSuffix}` : ''}`}
                 />
               ),
             }

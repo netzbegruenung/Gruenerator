@@ -14,7 +14,11 @@ import {
   type Citation as ChatCitation,
   type FallbackInfo,
 } from '../hooks/useChatGraphStream';
-import { PRAEZISION_PROGRESS_MESSAGE } from '../lib/notebookAnswerMode';
+import {
+  detectMagicIntent,
+  PRAEZISION_PROGRESS_MESSAGE,
+  toNotebookAnswerMode,
+} from '../lib/notebookAnswerMode';
 import { notifyWarning } from '../lib/notify';
 import { AUTO_MODEL_ID, resolveAutoModel } from '../lib/resolveAutoModel';
 import { parseSSELine } from '../lib/sseParser';
@@ -163,8 +167,11 @@ export interface NotebookAdapterConfig {
    */
   getExtraParams?: () => Record<string, unknown> | undefined;
   mode?: NotebookDepth;
-  /** Answer mode (Automatisch/Chat/Präzision). Omitted ⇒ the server answers in chat mode. */
+  /** Answer mode (Magic Search/Chat/Präzision). Omitted ⇒ the server answers in chat mode. */
   answerMode?: NotebookAnswerMode;
+  /** Magic Search: with `auto`, a first question is read here at send time and
+   *  goes out as `chat`; later turns stay `auto`. */
+  magicSearch?: boolean;
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
@@ -305,6 +312,12 @@ export function createNotebookModelAdapter(
           ? buildWireHistory(messages, lastUserMessage)
           : [];
 
+      const firstTurn = messages.filter((m) => m.role === 'user').length === 1;
+      const answerMode =
+        config.answerMode === 'auto' && config.magicSearch && firstTurn
+          ? toNotebookAnswerMode('auto', detectMagicIntent(question))
+          : config.answerMode;
+
       const payload = {
         messages: [...wireHistory, { role: 'user', content: question }],
         ...(isMulti
@@ -312,7 +325,7 @@ export function createNotebookModelAdapter(
           : { collectionId: config.collectionId || config.collectionIds?.[0] }),
         ...(config.filters && { filters: config.filters }),
         ...(config.mode && { mode: config.mode }),
-        ...(config.answerMode && { answerMode: config.answerMode }),
+        ...(answerMode && { answerMode }),
         ...(config.documentIds?.length && { documentIds: config.documentIds }),
         ...(config.threadId && { threadId: config.threadId }),
         model: selectedModel,
