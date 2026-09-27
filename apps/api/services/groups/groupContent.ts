@@ -27,7 +27,7 @@ import { getPostgresAndCheckMembership } from './groupMembership.js';
 import { normalizeSharePermissions } from './groupSharePermissions.js';
 
 import type { PostgresService } from '../../database/services/PostgresService.js';
-import type { GroupContentType, ShareContentBody } from '@gruenerator/contracts';
+import type { GroupContentType, GroupShareMeta, ShareContentBody } from '@gruenerator/contracts';
 
 /** Contract-Typ → Tabelle, wo die beiden auseinanderfallen. */
 export const CONTENT_TABLE_NAME_MAP: Record<string, string> = {
@@ -60,6 +60,8 @@ export interface ShareContentToGroupInput {
   contentId: string;
   groupId: string;
   permissions: ShareContentBody['permissions'];
+  /** Notiz für den Gruppen-Feed; leer zählt als keine. */
+  note?: string | null;
   /** Anzeigename für die Benachrichtigung der anderen Mitglieder. */
   sharerName: string;
 }
@@ -113,6 +115,7 @@ export async function shareContentToGroup(
   deps: ShareContentDeps = defaultDeps()
 ): Promise<ShareContentOutcome> {
   const { userId, contentType, contentId, groupId, permissions, sharerName } = input;
+  const note = input.note?.trim() || null;
   const { postgres } = deps;
   await deps.checkMembership(groupId, userId);
 
@@ -191,8 +194,8 @@ export async function shareContentToGroup(
 
   const sharePermissions = normalizeSharePermissions(permissions ?? undefined);
   await postgres.exec(
-    'INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions) VALUES ($1, $2, $3, $4, $5)',
-    [contentType, contentId, groupId, userId, JSON.stringify(sharePermissions)]
+    'INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions, note) VALUES ($1, $2, $3, $4, $5, $6)',
+    [contentType, contentId, groupId, userId, JSON.stringify(sharePermissions), note]
   );
 
   void postgres
@@ -218,6 +221,11 @@ export async function shareContentToGroup(
 // ---------------------------------------------------------------------------
 
 interface ShareRecord {
+  share_id: string;
+  note: string | null;
+  pinned_at: string | Date | null;
+  pinned_by_name: string | null;
+  comment_count: number | string;
   content_type: string;
   content_id: string;
   shared_at: string;
@@ -230,6 +238,16 @@ interface ShareRecord {
 interface ContentItem {
   id: string;
   [key: string]: unknown;
+}
+
+function toShareMeta(r: ShareRecord): GroupShareMeta {
+  return {
+    shareId: r.share_id,
+    note: r.note,
+    pinnedAt: r.pinned_at instanceof Date ? r.pinned_at.toISOString() : r.pinned_at,
+    pinnedByName: r.pinned_at ? r.pinned_by_name : null,
+    commentCount: Number(r.comment_count) || 0,
+  };
 }
 
 /** Die Buckets der Gruppenseite; Schlüssel wie in `GroupContentResponse['content']`. */
@@ -276,10 +294,14 @@ export async function hydrateGroupContent(
   const { postgres } = deps;
   const sharedContent =
     ((await postgres.query(
-      `SELECT gcs.content_type, gcs.content_id, gcs.shared_at, gcs.permissions,
-              gcs.shared_by_user_id, p.first_name, p.display_name
+      `SELECT gcs.id AS share_id, gcs.content_type, gcs.content_id, gcs.shared_at, gcs.permissions,
+              gcs.shared_by_user_id, p.first_name, p.display_name,
+              gcs.note, gcs.pinned_at,
+              COALESCE(pp.display_name, pp.first_name) AS pinned_by_name,
+              (SELECT COUNT(*) FROM group_share_comments c WHERE c.share_id = gcs.id) AS comment_count
          FROM group_content_shares gcs
          LEFT JOIN profiles p ON p.id = gcs.shared_by_user_id
+         LEFT JOIN profiles pp ON pp.id = gcs.pinned_by
         WHERE gcs.group_id = $1
         ORDER BY gcs.shared_at DESC`,
       [groupId],
@@ -529,6 +551,7 @@ export async function hydrateGroupContent(
         shared_at: shareInfo?.shared_at,
         group_permissions: parsedPermissions,
         shared_by_name: shareInfo?.display_name || shareInfo?.first_name || 'Unknown User',
+        share: shareInfo ? toShareMeta(shareInfo) : null,
         ...(type === 'database' && {
           template_type: (parsedMetadata.template_type as string) || 'template',
           external_url: item.external_url,

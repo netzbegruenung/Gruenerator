@@ -58,6 +58,31 @@ export const group_join_requests = pgTable('group_join_requests', {
   reviewed_at: timestamp('reviewed_at', { withTimezone: true }),
 });
 
+// Laufzeit-DDL in schema.sql bzw. zz_20260927_group_feed.sql; hier nur die Typquelle.
+export const group_content_shares = pgTable('group_content_shares', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  group_id: uuid('group_id'),
+  shared_by_user_id: uuid('shared_by_user_id'),
+  content_type: text('content_type').notNull(),
+  content_id: text('content_id').notNull(),
+  permissions: jsonb('permissions').$type<Record<string, unknown>>().default({}),
+  shared_at: timestamp('shared_at', { withTimezone: true }).defaultNow(),
+  note: text('note'),
+  pinned_at: timestamp('pinned_at', { withTimezone: true }),
+  pinned_by: uuid('pinned_by'),
+});
+
+export const group_share_comments = pgTable('group_share_comments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  share_id: uuid('share_id').notNull(),
+  group_id: uuid('group_id').notNull(),
+  user_id: uuid('user_id'),
+  body: text('body').notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type GroupRow = InferSelectModel<typeof groups>;
 export type GroupMembershipRow = InferSelectModel<typeof group_memberships>;
 export type GroupJoinRequestRow = InferSelectModel<typeof group_join_requests>;
+export type GroupContentShareRow = InferSelectModel<typeof group_content_shares>;
+export type GroupShareCommentRow = InferSelectModel<typeof group_share_comments>;

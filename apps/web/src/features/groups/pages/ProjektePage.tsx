@@ -130,10 +130,10 @@ const ProjektePage = () => {
     />
   );
 
-  // Detail view — unchanged compact shell.
+  // Detail view — feed plus sidebar needs the wide shell.
   if (idOrSlug) {
     return (
-      <PageContainer maxWidth="sm">
+      <PageContainer maxWidth="lg">
         {banners}
         {resolvedGroupId ? (
           <GroupDetailSection

@@ -17,6 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
   Skeleton,
+  Textarea,
 } from '@gruenerator/ui';
 import { useQueries } from '@tanstack/react-query';
 import { ChevronLeft, XIcon } from 'lucide-react';
@@ -87,6 +88,8 @@ interface SharePermissions {
 interface ShareOptions {
   permissions: SharePermissions;
   targetGroupId: string;
+  /** Erscheint im Gruppen-Feed über jedem geteilten Beitrag. */
+  note: string | null;
 }
 
 interface AddContentToGroupModalProps {
@@ -154,6 +157,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
   const [contentPage, setContentPage] = useState(1);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [note, setNote] = useState('');
   const [linkTitle, setLinkTitle] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [linkDescription, setLinkDescription] = useState('');
@@ -174,6 +178,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
       setActiveCategory(null);
       setContentPage(1);
       setSearchQuery('');
+      setNote('');
       setLinkTitle('');
       setLinkUrl('');
       setLinkDescription('');
@@ -295,6 +300,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
           return onShareContent(contentType, resolvedId, {
             permissions: READ_ONLY_PERMISSIONS,
             targetGroupId: groupId,
+            note: note.trim() || null,
           });
         })
       );
@@ -309,7 +315,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
     } finally {
       setIsSaving(false);
     }
-  }, [selectedItems, totalSelectedCount, onShareContent, groupId, onSuccess, onError]);
+  }, [selectedItems, totalSelectedCount, onShareContent, groupId, note, onSuccess, onError]);
 
   // Categories with items (+ links always available if onAddLink provided)
   const availableCategories = useMemo(() => {
@@ -644,6 +650,17 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
                 </PaginationItem>
               </PaginationContent>
             </Pagination>
+          )}
+          {activeCategory !== 'links' && (
+            <Textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Notiz für die Gruppe (optional) – wofür ist das gedacht?"
+              aria-label="Notiz für die Gruppe"
+              maxLength={500}
+              rows={2}
+              className="w-full resize-none"
+            />
           )}
           <div className="flex justify-end gap-sm w-full">
             <Button variant="outline" onClick={onClose} disabled={isSaving}>
