@@ -13,6 +13,7 @@ import { z } from 'zod';
 import {
   contentPermissionsBodySchema,
   createGroupBodySchema,
+  createGroupShareCommentBodySchema,
   deleteContentBodySchema,
   discoverGroupsResponseSchema,
   groupContentResponseSchema,
@@ -25,9 +26,12 @@ import {
   groupMuteResponseSchema,
   groupOkResponseSchema,
   groupResolveResponseSchema,
+  groupShareCommentResponseSchema,
+  groupShareCommentsResponseSchema,
   groupSuccessResponseSchema,
   groupVisibilityResponseSchema,
   groupVorlagenResponseSchema,
+  updateGroupShareBodySchema,
   inviteToGroupBodySchema,
   inviteToGroupResponseSchema,
   joinByTokenBodySchema,
@@ -496,5 +500,71 @@ export const groupsContract = c.router({
       500: groupErrorResponseSchema,
     },
     summary: 'List tag-matched templates for a group',
+  },
+
+  // ── Feed: pin/note, comments per share ────────────────────────────────────
+
+  updateGroupShare: {
+    method: 'PATCH',
+    path: '/api/auth/groups/:groupId/shares/:shareId',
+    pathParams: z.object({ groupId: z.string(), shareId: z.string().uuid() }),
+    body: updateGroupShareBodySchema,
+    responses: {
+      200: groupOkResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Pin/unpin a share (admin) or edit its note (admin or sharer)',
+  },
+
+  listGroupShareComments: {
+    method: 'GET',
+    path: '/api/auth/groups/:groupId/shares/:shareId/comments',
+    pathParams: z.object({ groupId: z.string(), shareId: z.string().uuid() }),
+    responses: {
+      200: groupShareCommentsResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'List comments on a shared item',
+  },
+
+  createGroupShareComment: {
+    method: 'POST',
+    path: '/api/auth/groups/:groupId/shares/:shareId/comments',
+    pathParams: z.object({ groupId: z.string(), shareId: z.string().uuid() }),
+    body: createGroupShareCommentBodySchema,
+    responses: {
+      201: groupShareCommentResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Comment on a shared item',
+  },
+
+  deleteGroupShareComment: {
+    method: 'DELETE',
+    path: '/api/auth/groups/:groupId/shares/:shareId/comments/:commentId',
+    pathParams: z.object({
+      groupId: z.string(),
+      shareId: z.string().uuid(),
+      commentId: z.string().uuid(),
+    }),
+    responses: {
+      200: groupOkResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Delete a comment (author or admin)',
   },
 });

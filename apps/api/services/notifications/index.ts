@@ -9,7 +9,7 @@ export {
   deleteOldNotifications,
 } from './NotificationService.js';
 
-export { notifyGroupMembers, notifyGroupAdmins } from './groupNotifications.js';
+export { notifyGroupMembers, notifyGroupAdmins, notifyGroupUsers } from './groupNotifications.js';
 
 // Kein `unsubscribeFromUserNotifications` mehr: abgemeldet wird über den
 // Rückgabewert von `subscribeToUserNotifications`, weil eine Person mehrere

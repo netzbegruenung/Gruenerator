@@ -2,6 +2,8 @@ export {
   ALLOWED_LINK_ICONS,
   GROUPS_QUERY_KEY,
   buildGroupInviteUrl,
+  groupContentKey,
+  groupShareCommentsKey,
   buildGroupPath,
   getGroupInitials,
   groupDetailsKey,
@@ -18,6 +20,10 @@ export {
 export {
   errMessage,
   useAddGroupLink,
+  useAddGroupShareComment,
+  useDeleteGroupShareComment,
+  useGroupShareComments,
+  useUpdateGroupShare,
   useCreateGroup,
   useDeleteGroup,
   useDeleteGroupAvatar,
@@ -35,3 +41,18 @@ export {
   useUserGroups,
   useVerifyJoinToken,
 } from './useGroups.js';
+
+export {
+  GROUP_FEED_KINDS,
+  filterGroupFeed,
+  formatFeedDate,
+  groupFeedByKind,
+  groupFeedKindMeta,
+  isPinned,
+  personInitials,
+  sortGroupFeed,
+  toGroupFeedItems,
+  type GroupFeedItem,
+  type GroupFeedKind,
+  type ToGroupFeedItemsOptions,
+} from './feed.js';
