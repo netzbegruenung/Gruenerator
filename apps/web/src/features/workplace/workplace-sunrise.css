@@ -258,9 +258,10 @@
    `bg-primary` utility by name: Tailwind's generated class names are not a
    contract, the token is. Every primary accent in the composer (send button,
    its hover, the active voice button, the quote block) follows the preset.
-   Scoped to the workplace hero — the same composer at /suche, im Notebook und
-   in der Chat-Runtime stays brand green. Falls back to the brand tokens when a
-   preset defines no accent (neutral). */
+   Scoped to the workplace hero, the chat overview and the notebook composer
+   (magenta, NOTEBOOK_COMPOSER_ACCENT) — the same composer at /suche and in the
+   chat thread stays brand green. Falls back to the brand tokens when a preset
+   defines no accent (neutral). */
 .workplace-chat-accent {
   /* Rückfall auf --color-primary-val statt direkt auf die Rampenstufe, damit
      der Hero ohne Preset dieselbe themeabhängige Stufe erbt wie der Rest. */
