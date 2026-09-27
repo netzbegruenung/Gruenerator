@@ -40,7 +40,7 @@ function pickString(payload: Record<string, unknown>, ...keys: string[]): string
   return null;
 }
 
-function toCard(
+export function toCard(
   payload: Record<string, unknown>,
   collectionId: string,
   collectionName: string,
@@ -56,6 +56,7 @@ function toCard(
   const sourceLabel = pickString(
     payload,
     'source_label',
+    'source_name',
     'source_id',
     'content_type',
     'primary_category'
@@ -136,16 +137,14 @@ export function byPublishedAtDesc(
   return b.publishedAt.localeCompare(a.publishedAt);
 }
 
-export function dedupeByUrlOrTitle(
-  cards: NotebookRecentDocumentCard[]
-): NotebookRecentDocumentCard[] {
+export function dedupeByUrlOrTitle<T extends NotebookRecentDocumentCard>(cards: T[]): T[] {
   // Dedup by URL AND by title. The title key catches duplicates that the URL
   // key misses: TYPO3 alias paths for the same article (/nachrichten/X vs
   // /pressemitteilungen/X) and the same article cross-indexed in multiple
   // system collections (e.g. Wahlprogramm chapters in both Beschlüsse and
   // Wahlprogramm). Sort already prefers newest, so the first occurrence wins.
   const seen = new Set<string>();
-  const result: NotebookRecentDocumentCard[] = [];
+  const result: T[] = [];
   for (const card of cards) {
     const urlKey = card.url ? `url:${card.url}` : null;
     const titleKey = `title:${card.title}`;

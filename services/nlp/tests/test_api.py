@@ -14,6 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from topic_classifier import api
+from topic_classifier.analyzer import PERSONS_VERSION
 from topic_classifier.lexicons import TopicCategory
 
 
@@ -71,6 +72,8 @@ class TestHealth:
         assert body["status"] == "ok"
         assert body["model"] == "de_core_news_lg"
         assert body["topics"] == len(TopicCategory)
+        # Read by notebookEnrichmentService to decide which payloads are stale.
+        assert body["persons_version"] == PERSONS_VERSION
 
     def test_reports_loading_before_the_model_is_ready(self, client, no_classifier):
         # The Docker HEALTHCHECK only asserts HTTP 200, so this stays 200 while
