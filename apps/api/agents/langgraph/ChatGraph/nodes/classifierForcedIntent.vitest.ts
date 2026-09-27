@@ -1013,6 +1013,10 @@ describe('Follow-up on a notebook tool turn pins notebook_quellen', () => {
       ],
       ['Hier sind die Titel. Soll ich dazu eine Pressemitteilung schreiben?', "ja, mach's bitte"],
       ['Hier sind die Titel. Soll ich ein Sharepic dazu erstellen?', 'ja dann mach das'],
+      [
+        'Ich habe 5 Pressemitteilungen gefunden. Soll ich daraus einen Post machen? Sag mir einfach Bescheid!',
+        'ja mach',
+      ],
     ])('after a creation offer: %s → %s stays unpinned', async (offer, confirmation) => {
       const result = await classifierNode(withOffer(offer, confirmation));
       expect(result.mentionPinnedTool).toBeUndefined();
