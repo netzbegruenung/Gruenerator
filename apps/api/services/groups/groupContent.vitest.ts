@@ -292,12 +292,65 @@ describe('hydrateGroupContent', () => {
       'collaborative_documents',
       'documents',
       'generators',
+      'group_posts',
       'notebooks',
       'system_agents',
       'system_notebooks',
       'templates',
       'texts',
       'user_agents',
+    ]);
+  });
+
+  it('resolves a feed post with its files, scoped to the group', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM group_content_shares')) {
+        return [
+          {
+            content_type: 'group_post',
+            content_id: 'p1',
+            shared_at: '2026-09-27T10:00:00Z',
+            permissions: {},
+            shared_by_user_id: 'u2',
+            first_name: 'Jana',
+            display_name: null,
+            share_id: 'share-p1',
+            note: null,
+            pinned_at: null,
+            pinned_by_name: null,
+            comment_count: 0,
+          },
+        ];
+      }
+      if (sql.includes('FROM group_posts')) {
+        return [
+          {
+            id: 'p1',
+            body: 'Wer hilft am Samstag?',
+            author_id: 'u2',
+            files: [
+              { id: 'f1', file_name: 'Plan.pdf', mime_type: 'application/pdf', size_bytes: 9 },
+            ],
+          },
+        ];
+      }
+      return [];
+    });
+    const out = await hydrateGroupContent('g1', {
+      postgres: { query } as unknown as HydrateGroupContentDeps['postgres'],
+      getNotebookCollectionsByIds: vi.fn(async () => []) as never,
+      listUserAgentsByIds: vi.fn(async () => []),
+    });
+    const postCall = query.mock.calls.find(([sql]) => sql.includes('FROM group_posts'));
+    expect(postCall?.[1]).toEqual([['p1'], 'g1']);
+    expect(out.group_posts).toEqual([
+      expect.objectContaining({
+        id: 'p1',
+        body: 'Wer hilft am Samstag?',
+        shared_by_name: 'Jana',
+        files: [expect.objectContaining({ file_name: 'Plan.pdf' })],
+        share: expect.objectContaining({ shareId: 'share-p1' }),
+      }),
     ]);
   });
 

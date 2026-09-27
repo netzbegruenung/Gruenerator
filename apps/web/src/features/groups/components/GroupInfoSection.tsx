@@ -248,6 +248,7 @@ const GroupInfoSection = memo(
       [cloneTemplate, navigate]
     );
     const [showAddContent, setShowAddContent] = useState(false);
+    const [shareInitialNote, setShareInitialNote] = useState('');
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now());
 
@@ -496,7 +497,10 @@ const GroupInfoSection = memo(
             {canShare && (
               <Button
                 variant="brand"
-                onClick={() => setShowAddContent(true)}
+                onClick={() => {
+                  setShareInitialNote('');
+                  setShowAddContent(true);
+                }}
                 className="max-sm:size-9 max-sm:rounded-full max-sm:p-0"
               >
                 <PiPlus aria-hidden />
@@ -624,17 +628,26 @@ const GroupInfoSection = memo(
 
         <GroupContentArea
           groupId={groupId}
+          groupName={data?.groupInfo?.name ?? ''}
           items={feedItems}
           isLoading={isLoadingSharedContent}
           isAdmin={!!data?.isAdmin}
           isPersonal={isPersonal}
+          isSystem={isSystem}
           currentUserId={currentUserId ?? null}
           currentUserName={currentUserName ?? null}
           members={members ?? []}
           description={data?.groupInfo?.description ?? null}
           linkCount={groupLinks.length}
           onShowMembers={() => setMembersDialogOpen(true)}
-          onOpenShare={canShare ? () => setShowAddContent(true) : null}
+          onOpenShare={
+            canShare
+              ? (note) => {
+                  setShareInitialNote(note ?? '');
+                  setShowAddContent(true);
+                }
+              : null
+          }
           onRemove={
             data?.isAdmin && onUnshareContent
               ? (item) => onUnshareContent(item.id, item.contentType)
@@ -664,6 +677,7 @@ const GroupInfoSection = memo(
           isOpen={showAddContent}
           onClose={() => setShowAddContent(false)}
           groupId={groupId}
+          initialNote={shareInitialNote}
           onShareContent={handleShareContent}
           onSuccess={() => {
             setShowAddContent(false);

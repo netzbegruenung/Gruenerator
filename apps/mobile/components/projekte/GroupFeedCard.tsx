@@ -15,6 +15,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../theme';
 
 import { FEED_KIND_ICONS } from './feedIcons';
+import { GroupPostBody } from './GroupPostBody';
 
 /** Vorschau je Art — Sharepic als Bild, Text als Blatt, der Rest als Symbol. */
 export function FeedPreview({ item, height }: { item: GroupFeedItem; height: number }) {
@@ -24,7 +25,11 @@ export function FeedPreview({ item, height }: { item: GroupFeedItem; height: num
 
   return (
     <View style={[styles.preview, { height, backgroundColor: theme.surface }]}>
-      {isImage && item.thumbnailUrl ? (
+      {item.post?.body ? (
+        <Text style={[styles.postSnippet, { color: theme.text }]} numberOfLines={6}>
+          {item.post.body}
+        </Text>
+      ) : isImage && item.thumbnailUrl ? (
         <Image
           source={{ uri: item.thumbnailUrl }}
           style={StyleSheet.absoluteFill}
@@ -57,6 +62,9 @@ export function FeedPreview({ item, height }: { item: GroupFeedItem; height: num
 
 interface GroupFeedCardProps {
   item: GroupFeedItem;
+  groupId: string;
+  /** Für die Bilder eines Beitrags; die Dateien sind nur für Mitglieder lesbar. */
+  token: string | null;
   canComment: boolean;
   onOpen: (item: GroupFeedItem) => void;
   onShowComments: (item: GroupFeedItem) => void;
@@ -64,6 +72,8 @@ interface GroupFeedCardProps {
 
 export const GroupFeedCard = memo(function GroupFeedCard({
   item,
+  groupId,
+  token,
   canComment,
   onOpen,
   onShowComments,
@@ -117,22 +127,28 @@ export const GroupFeedCard = memo(function GroupFeedCard({
 
       {share?.note ? <Text style={[styles.note, { color: theme.text }]}>{share.note}</Text> : null}
 
-      <Pressable
-        onPress={() => onOpen(item)}
-        disabled={!openable}
-        accessibilityRole={openable ? 'button' : 'image'}
-        accessibilityLabel={openable ? `${item.title} öffnen` : item.title}
-        style={styles.previewWrap}
-      >
-        <FeedPreview item={item} height={240} />
-      </Pressable>
+      {item.post ? (
+        <GroupPostBody groupId={groupId} postId={item.id} post={item.post} token={token} />
+      ) : (
+        <>
+          <Pressable
+            onPress={() => onOpen(item)}
+            disabled={!openable}
+            accessibilityRole={openable ? 'button' : 'image'}
+            accessibilityLabel={openable ? `${item.title} öffnen` : item.title}
+            style={styles.previewWrap}
+          >
+            <FeedPreview item={item} height={240} />
+          </Pressable>
 
-      <View style={styles.titleBlock}>
-        <Text style={styles.kindLabel}>{kind.label}</Text>
-        <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
-          {item.title}
-        </Text>
-      </View>
+          <View style={styles.titleBlock}>
+            <Text style={styles.kindLabel}>{kind.label}</Text>
+            <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
+              {item.title}
+            </Text>
+          </View>
+        </>
+      )}
 
       <View style={styles.footer}>
         {canComment && share ? (
@@ -228,6 +244,17 @@ const styles = StyleSheet.create({
   },
   paperTitle: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '700', lineHeight: 19 },
   paperLine: { height: 8, borderRadius: 4 },
+  postSnippet: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    padding: 14,
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    lineHeight: 20,
+  },
   iconTile: {
     width: 72,
     height: 72,
