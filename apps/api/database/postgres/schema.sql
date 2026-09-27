@@ -166,7 +166,19 @@ CREATE TABLE IF NOT EXISTS group_content_shares (
     content_type TEXT NOT NULL,
     content_id TEXT NOT NULL,
     permissions JSONB DEFAULT '{}',
-    shared_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    shared_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    note TEXT,
+    pinned_at TIMESTAMPTZ,
+    pinned_by UUID REFERENCES profiles(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS group_share_comments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    share_id UUID NOT NULL REFERENCES group_content_shares(id) ON DELETE CASCADE,
+    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    body TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS group_instructions (
@@ -756,6 +768,8 @@ CREATE INDEX IF NOT EXISTS idx_group_memberships_user_id ON group_memberships(us
 CREATE INDEX IF NOT EXISTS idx_group_memberships_group_id ON group_memberships(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_content_shares_group_content ON group_content_shares(group_id, content_type, content_id);
 CREATE INDEX IF NOT EXISTS idx_group_content_shares_shared_by ON group_content_shares(shared_by_user_id);
+CREATE INDEX IF NOT EXISTS idx_group_content_shares_pinned ON group_content_shares(group_id, pinned_at) WHERE pinned_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_group_share_comments_share ON group_share_comments(share_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_id ON group_instructions(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_is_active ON group_instructions(is_active);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_active ON group_instructions(group_id, is_active);
