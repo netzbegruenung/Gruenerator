@@ -36,6 +36,9 @@ const SEARCH_PROGRESS_TOOLS: ReadonlySet<string> = new Set([
   // the plumbing of a document the user attached themselves.
   'dokumente_lesen',
   'expand_attachment',
+  // The loader of toolScope.ts has no result worth a card: it only switches the
+  // personal-content tools on. Their own calls then draw the cards.
+  'meine_inhalte_laden',
 ]);
 
 /** Whether this tool reports through the status line instead of a card. */

@@ -77,10 +77,6 @@ export function isLoopRerankEnabled(): boolean {
  * dreht ein eigener, einzeiliger PR den Default, und das Flag bleibt der
  * Rückwärtsgang. Einschalten mit LOOP_TOOL_SCOPE_ENFORCE=true (ohne Deploy
  * wirksam).
- *
- * Vor dem Einschalten fehlt noch eines: der Lader `meine_inhalte_laden` hat
- * keinen Eintrag in `UI_TOOL_NAMES`/`TOOL_METADATA` (packages/chat) und
- * erschiene als rohe Werkzeug-Pille mit seinem Wire-Namen.
  */
 export function isToolScopeEnforced(): boolean {
   return process.env.LOOP_TOOL_SCOPE_ENFORCE === 'true';
