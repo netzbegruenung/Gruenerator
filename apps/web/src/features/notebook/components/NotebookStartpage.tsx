@@ -181,6 +181,7 @@ export function NotebookStartpage({
             answerMode={answerMode}
             onAnswerModeChange={onAnswerModeChange}
             magicIntent={magicIntent}
+            settingsClassName={NOTEBOOK_COMPOSER_ACCENT}
             {...(manualSearchAvailable ? { onManualSubmit: setSubmitted } : {})}
           />
         </div>
