@@ -2,10 +2,14 @@ import { type CategoryFilterConfig } from '@gruenerator/chat';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import useDebounce from '../../../components/hooks/useDebounce';
-import ActiveFilterChips from '../manual-search/ActiveFilterChips';
 import { ParsedFilterChips } from '../manual-search/ParsedFilterChips';
+import { type ResearchView } from '../manual-search/ResearchHitCard';
 import { ResearchResultsList } from '../manual-search/ResearchResultsList';
-import { ResearchSearchOptions, SORT_LABELS } from '../manual-search/ResearchSearchOptions';
+import {
+  ResearchResultsToolbar,
+  researchOptionsAdjusted,
+  resetResearchOptions,
+} from '../manual-search/ResearchResultsToolbar';
 import { LIVE_SEARCH_MIN_LENGTH, useLiveResearch } from '../manual-search/useLiveResearch';
 import {
   activeFiltersToApi,
@@ -16,6 +20,30 @@ import {
 import { describeParsedFilters, parseResearchIntent } from '../omni/parseResearchIntent';
 
 const DEBOUNCE_MS = 300;
+
+/** Per-browser memory of grid vs. list; storage may be unavailable. */
+const VIEW_KEY = 'gr-notebook-research-view';
+
+function readView(): ResearchView {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid';
+  } catch {
+    return 'grid';
+  }
+}
+
+function useResearchView() {
+  const [view, setView] = useState<ResearchView>(readView);
+  const change = (next: ResearchView) => {
+    setView(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // Not remembered, still switched.
+    }
+  };
+  return [view, change] as const;
+}
 
 /** Facets the hit list can offer itself; any of them the settings menu already
  *  carries is taken from there instead, so chat and list filter alike. */
@@ -37,6 +65,8 @@ interface NotebookLiveSearchProps {
   emptyHint: string;
   /** Shown until the text is long enough to search (the browse sub-tabs). */
   idle?: ReactNode;
+  /** A search's answer (hits or none) is on screen. */
+  onAnswered?: () => void;
 }
 
 /**
@@ -51,6 +81,7 @@ export function NotebookLiveSearch({
   sharedFilters,
   emptyHint,
   idle,
+  onAnswered,
 }: NotebookLiveSearchProps) {
   const trimmed = text.trim();
   const debounced = useDebounce(trimmed, DEBOUNCE_MS);
@@ -59,6 +90,7 @@ export function NotebookLiveSearch({
   const hasFacets = !notebookId;
 
   const filters = useResearchFilters(collectionIds);
+  const [view, setView] = useResearchView();
   const { setFiltersEnabled } = filters;
   // The facet vocabulary feeds the query parser, so it is needed as soon as a
   // search runs, not only when the options open. Cached for ten minutes.
@@ -116,42 +148,45 @@ export function NotebookLiveSearch({
     sortBy,
   });
 
+  const debouncing = query !== trimmed && live.results.length === 0;
+  const answered = typing && !live.isPending && !debouncing;
+  useEffect(() => {
+    if (answered) onAnswered?.();
+  }, [answered, onAnswered]);
+
   if (!typing) return <>{idle}</>;
+  // Nothing half-built while the first search runs: the list arrives with its
+  // answer, together with the composer moving up.
+  if (!answered && live.results.length === 0) return null;
 
   const sharedKeys = new Set(sharedFilters?.fields.map((f) => f.field) ?? []);
-  const debouncing = query !== trimmed && live.results.length === 0;
 
   return (
-    <ResearchResultsList
-      results={live.results}
-      metadata={live.metadata}
-      isPending={live.isPending || debouncing}
-      isError={live.isError}
-      emptyHint={emptyHint}
-      metaSuffix={sortBy !== 'relevance' ? ` · sortiert nach ${SORT_LABELS[sortBy]}` : ''}
-      toolbar={
-        hasFacets ? (
-          <>
-            <ResearchSearchOptions
-              filters={filters}
-              facetFields={LIST_FACETS.filter((f) => !sharedKeys.has(f))}
-            />
-            {filters.activeFilterCount > 0 && (
-              <ActiveFilterChips
-                filterFields={filters.filterFields}
-                activeFilters={filters.activeFilters}
-                onRemoveValue={filters.removeFilterValue}
-                onClearFilter={filters.clearFilter}
-                onClearAll={filters.clearAllFilters}
-              />
-            )}
+    <div className="duration-500 animate-in fade-in slide-in-from-bottom-2 motion-reduce:animate-none">
+      <ResearchResultsList
+        results={live.results}
+        metadata={live.metadata}
+        isPending={live.isPending || debouncing}
+        isError={live.isError}
+        emptyHint={emptyHint}
+        view={view}
+        {...(researchOptionsAdjusted(filters)
+          ? { onResetOptions: () => resetResearchOptions(filters) }
+          : {})}
+        toolbar={
+          <ResearchResultsToolbar
+            filters={filters}
+            facetFields={hasFacets ? LIST_FACETS.filter((f) => !sharedKeys.has(f)) : []}
+            view={view}
+            onViewChange={setView}
+          >
             <ParsedFilterChips
               chips={chips}
               onDrop={(key) => setDropped({ query, keys: [...droppedKeys, key] })}
             />
-          </>
-        ) : undefined
-      }
-    />
+          </ResearchResultsToolbar>
+        }
+      />
+    </div>
   );
 }
