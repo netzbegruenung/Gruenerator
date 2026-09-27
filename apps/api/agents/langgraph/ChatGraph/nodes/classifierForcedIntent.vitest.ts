@@ -919,3 +919,98 @@ describe('Notebook branch — tool ask pins notebook_quellen', () => {
     expect(result.mentionPinnedTool).toBeUndefined();
   });
 });
+
+// Beta 27.09.2026, ein Thread über mehrere Landesverbands-Notebooks.
+describe('LV notebook tool asks (beta 27.09.2026)', () => {
+  it.each([
+    ['thueringen-notebook', 'Wie viele Beschlüsse gibt es seit Januar 2026?'],
+    ['hessen-notebook', 'In wie vielen Dokumenten kommt „Wasserstoff“ vor?'],
+    ['brandenburg-notebook', 'Welche Quellen gibt es zum Thema Braunkohle? Nur die Titel.'],
+  ])('%s + %s → agentic with the pin', async (notebookId, text) => {
+    const state = buildState({
+      userMessage: text,
+      lastUserTextNoMentions: text,
+      notebookIds: [notebookId],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+});
+
+describe('Follow-up on a notebook tool turn pins notebook_quellen', () => {
+  const USER_NOTEBOOK = '3f1c2b7a-9d4e-4c5b-8a6f-1e2d3c4b5a69';
+
+  it.each([
+    'nun die vorletzte',
+    'und die nächste?',
+    'ja dann mach das',
+    'noch mal genauer',
+    'die dritte davon',
+    'das stimmt nicht',
+  ])('after a notebook turn: %s → pin', async (userMessage) => {
+    const state = buildState({
+      userMessage,
+      lastTurnNotebookId: 'mecklenburg-vorpommern',
+      threadNotebookId: 'mecklenburg-vorpommern',
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  it('after a turn without notebook_quellen (thread used one earlier) → no pin', async () => {
+    const state = buildState({
+      userMessage: 'nun die vorletzte',
+      lastTurnNotebookId: null,
+      threadNotebookId: 'mecklenburg-vorpommern',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it.each([
+    'mach daraus einen Instagram-Post',
+    'schreib eine PM dazu',
+    'erstelle ein Sharepic dazu',
+    'danke',
+    'super, danke!',
+    'kürze das auf drei Sätze',
+  ])('creation, thanks and rewrites keep their route: %s', async (userMessage) => {
+    const state = buildState({
+      userMessage,
+      lastTurnNotebookId: 'mecklenburg-vorpommern',
+      threadNotebookId: 'mecklenburg-vorpommern',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('write follow-up on a system notebook → no pin (read-only)', async () => {
+    const state = buildState({
+      userMessage: 'entferne die dritte davon',
+      lastTurnNotebookId: 'berlin',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('write follow-up on a user notebook → pin', async () => {
+    const state = buildState({
+      userMessage: 'entferne die dritte davon',
+      lastTurnNotebookId: USER_NOTEBOOK,
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  it('a long new question after a notebook turn is not a follow-up', async () => {
+    const state = buildState({
+      userMessage:
+        'Wie hat sich die Förderung von Wärmepumpen in Deutschland seit 2020 entwickelt und was plant die Regierung?',
+      lastTurnNotebookId: 'mecklenburg-vorpommern',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+});

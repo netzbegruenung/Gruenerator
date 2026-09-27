@@ -24,6 +24,7 @@ const {
   discardPendingAssistantIfEmpty,
   deleteEmptyStreamingRows,
   deleteTrailingAssistant,
+  readThreadToolHistory,
 } = await import('./threadPersistenceService.js');
 
 /** Collapse whitespace so assertions don't depend on SQL formatting. */
@@ -144,5 +145,36 @@ describe('deleteTrailingAssistant (regression)', () => {
     expect(q).toContain('MAX(created_at)');
     expect(q).toContain("role = 'user'");
     expect(params()).toEqual(['thread-1']);
+  });
+});
+
+describe('readThreadToolHistory.lastTurnToolSteps', () => {
+  const nbStep = { toolCallId: 'c1', toolName: 'notebook_quellen', args: {}, result: {} };
+
+  it('returns the steps of the newest row when it is the last completed turn', async () => {
+    queryMock.mockResolvedValueOnce([
+      { tool_results: { toolCalls: [nbStep] }, is_last_turn: true },
+      { tool_results: { toolCalls: [{ ...nbStep, toolCallId: 'c0' }] }, is_last_turn: false },
+    ]);
+    const history = await readThreadToolHistory('thread-1');
+    expect(history.lastTurnToolSteps()).toEqual([nbStep]);
+    expect(sql()).toContain("last.status = 'complete'");
+  });
+
+  it('is empty when the last turn ran no tool', async () => {
+    queryMock.mockResolvedValueOnce([
+      { tool_results: { intent: 'produktion', toolCalls: [] }, is_last_turn: true },
+      { tool_results: { toolCalls: [nbStep] }, is_last_turn: false },
+    ]);
+    expect((await readThreadToolHistory('thread-1')).lastTurnToolSteps()).toEqual([]);
+  });
+
+  it('is empty when the newest row with metadata is not the last turn', async () => {
+    // Der letzte Turn schrieb keine Metadaten (HITL-Ergebnis) — die neueste
+    // Zeile ist dann ein älterer Turn und zählt nicht als „der vorige".
+    queryMock.mockResolvedValueOnce([
+      { tool_results: { toolCalls: [nbStep] }, is_last_turn: false },
+    ]);
+    expect((await readThreadToolHistory('thread-1')).lastTurnToolSteps()).toEqual([]);
   });
 });
