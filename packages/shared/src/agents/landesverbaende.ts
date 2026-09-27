@@ -153,25 +153,27 @@ export const LANDESVERBAENDE = [
     wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-sachsen-anhalt',
     hub: { slug: 'gruene-sachsen-anhalt', name: 'Grüne Sachsen-Anhalt' },
   },
-  {
-    id: 'sachsen',
-    title: 'Sachsen',
-    codes: 'SN',
-    notebookId: 'sachsen-notebook',
-    homepage: 'https://gruene-sachsen.de',
-    themes:
-      'Strukturwandel in der Lausitz und im Mitteldeutschen Revier, Demokratie und Schutz vor Rechtsextremismus, Bildung und Lehrkräftemangel, Mobilität im ländlichen Raum, sorbisches Leben und Kultur, Natur- und Klimaschutz (Erzgebirge, Elbe)',
-    audience: 'de-DE',
-    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-sachsen',
-    buergerAgentId: 'gruenerator-buergeranfragen-sachsen',
-    wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-sachsen',
-    // Hub trotz verstecktem Notebook: die Verstecken-Kaskade in `system.ts` löst
-    // die Agent-Ids ÜBER LV_HUBS auf — ohne Hub-Eintrag bliebe kein Agent
-    // verborgen. Dass der Hub selbst nicht durchschlägt, leistet erst das Gate
-    // in `getLandesverbandHubBySlug`; die gefilterte Plural-Variante hat keine
-    // Aufrufer und hätte `/agents/gruene-sachsen` offen gelassen.
-    hub: { slug: 'gruene-sachsen', name: 'Grüne Sachsen' },
-  },
+  // Sachsen vorerst auskommentiert (#3713): Notebook steht auf `enabled: false`,
+  // und für die drei generierten Agenten liegen keine internen Personas vor.
+  // {
+  //   id: 'sachsen',
+  //   title: 'Sachsen',
+  //   codes: 'SN',
+  //   notebookId: 'sachsen-notebook',
+  //   homepage: 'https://gruene-sachsen.de',
+  //   themes:
+  //     'Strukturwandel in der Lausitz und im Mitteldeutschen Revier, Demokratie und Schutz vor Rechtsextremismus, Bildung und Lehrkräftemangel, Mobilität im ländlichen Raum, sorbisches Leben und Kultur, Natur- und Klimaschutz (Erzgebirge, Elbe)',
+  //   audience: 'de-DE',
+  //   prAgentId: 'gruenerator-oeffentlichkeitsarbeit-sachsen',
+  //   buergerAgentId: 'gruenerator-buergeranfragen-sachsen',
+  //   wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-sachsen',
+  //   // Hub trotz verstecktem Notebook: die Verstecken-Kaskade in `system.ts` löst
+  //   // die Agent-Ids ÜBER LV_HUBS auf — ohne Hub-Eintrag bliebe kein Agent
+  //   // verborgen. Dass der Hub selbst nicht durchschlägt, leistet erst das Gate
+  //   // in `getLandesverbandHubBySlug`; die gefilterte Plural-Variante hat keine
+  //   // Aufrufer und hätte `/agents/gruene-sachsen` offen gelassen.
+  //   hub: { slug: 'gruene-sachsen', name: 'Grüne Sachsen' },
+  // },
   {
     id: 'hessen',
     title: 'Hessen',
