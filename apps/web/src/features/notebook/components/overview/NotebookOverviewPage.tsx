@@ -175,7 +175,9 @@ function OverviewBody({ config }: { config: NotebookConfig }) {
           {(overview.contentTypes.length > 1 || overview.sources.length > 1) && (
             <SourceMix overview={overview} />
           )}
-          {overview.terms && <TermCloud terms={overview.terms} />}
+          {overview.terms && (
+            <TermCloud terms={overview.terms} documents={overview.totals.documents} />
+          )}
           {agents.length > 0 && <NotebookGrueneratoren agents={agents} hub={hub} />}
         </div>
       )}

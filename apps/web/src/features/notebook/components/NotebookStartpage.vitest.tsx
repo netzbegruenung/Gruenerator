@@ -215,8 +215,6 @@ describe('NotebookStartpage — one composer', () => {
         answerMode="auto"
         onAnswerModeChange={vi.fn()}
         recentCollectionIds={['berlin-system']}
-        showStats={false}
-        showLastAdded={false}
       />
     );
     expect(gradient).not.toHaveClass('opacity-0');

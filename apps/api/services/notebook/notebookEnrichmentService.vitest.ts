@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { alreadyEnriched } from './notebookEnrichmentService.js';
+import { alreadyEnriched, NLP_VERSION } from './notebookEnrichmentService.js';
 
 const enriched = {
   nlp_enriched_at: '2026-09-27T02:00:00.000Z',
-  nlp_version: 3,
+  nlp_version: NLP_VERSION,
   content_hash: 'abc',
   nlp_content_hash: 'abc',
 };
