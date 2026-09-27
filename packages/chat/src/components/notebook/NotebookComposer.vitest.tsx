@@ -151,7 +151,7 @@ describe('NotebookComposer — answer mode picker', () => {
     const trigger = within(screen.getByTestId('send-adornment')).getByRole('button', {
       name: /Antwortmodus wählen – Magic Search/,
     });
-    expect(trigger).toHaveTextContent('Magic Search');
+    expect(trigger).toHaveTextContent(/^Magic$/);
   });
 
   it('offers every registry mode with the recommended badge and reports the wire id', async () => {
@@ -308,15 +308,13 @@ describe('NotebookComposer — Magic Search', () => {
   it.each([
     ['suche', 'Suche'],
     ['chat', 'Chat'],
-  ] as const)('says on the picker what it recognised (%s)', (intent, label) => {
+  ] as const)('names what it recognised to screen readers only (%s)', (intent, label) => {
     renderMagic(intent);
     const trigger = within(screen.getByTestId('send-adornment')).getByRole('button', {
       name: `Antwortmodus wählen – Magic Search · ${label}`,
     });
-    expect(trigger).toHaveTextContent(`Magic Search · ${label}`);
-    // Narrow screens keep the short name alone — the send button shows the
-    // intent there, and the suffix squeezed the input.
-    expect(trigger.querySelector('.sm\\:hidden')).toHaveTextContent(/^Magic$/);
+    // The send button shows the intent; the label stays short on every width.
+    expect(trigger).toHaveTextContent(/^Magic$/);
   });
 
   it('keeps the suffix off the option list', async () => {

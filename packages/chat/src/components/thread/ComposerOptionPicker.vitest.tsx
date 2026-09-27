@@ -80,23 +80,6 @@ describe('ComposerOptionPicker', () => {
     }
   });
 
-  it('adds the suffix to the full label only, not the narrow one', () => {
-    render(
-      <ComposerOptionPicker
-        options={OPTIONS}
-        value="b"
-        onChange={vi.fn()}
-        sheetTitle="Option wählen"
-        sectionTitle="Optionen"
-        ariaLabel="Option wählen"
-        valueSuffix="Zusatz"
-      />
-    );
-    const trigger = screen.getByRole('button', { name: 'Option wählen' });
-    expect(trigger.querySelector('.max-sm\\:hidden')).toHaveTextContent(/^Beta · Zusatz$/);
-    expect(trigger.querySelector('.sm\\:hidden')).toHaveTextContent(/^B$/);
-  });
-
   it('takes a custom trigger label', () => {
     render(
       <ComposerOptionPicker
