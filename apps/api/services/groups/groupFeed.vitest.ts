@@ -16,6 +16,8 @@ interface Fake {
   role?: 'admin' | 'member' | null;
   groupType?: 'standard' | 'personal';
   createdBy?: string;
+  isSystem?: boolean;
+  instanceAdmin?: boolean;
   share?: { id: string; shared_by_user_id: string | null } | null;
   comment?: { user_id: string | null } | null;
   earlierCommenters?: string[];
@@ -30,6 +32,7 @@ function fakeDeps(f: Fake = {}) {
         role: f.role ?? 'member',
         group_type: f.groupType ?? 'standard',
         created_by: f.createdBy ?? 'creator',
+        is_system: f.isSystem ?? false,
       };
     }
     if (sql.includes('FROM group_content_shares')) {
@@ -76,6 +79,7 @@ function fakeDeps(f: Fake = {}) {
   const deps = {
     postgres: { exec, queryOne, query } as unknown as GroupFeedDeps['postgres'],
     notify,
+    isInstanceAdmin: vi.fn(async () => f.instanceAdmin ?? false),
   } satisfies GroupFeedDeps;
   return { deps, exec, notify };
 }
@@ -130,6 +134,25 @@ describe('updateGroupShare', () => {
     await expect(updateGroupShare({ ...ids, pinned: true, note: null }, deps)).rejects.toThrow(
       'nicht Mitglied'
     );
+  });
+});
+
+describe('system group', () => {
+  it('ignores group role and creator; only instance admins pin', async () => {
+    const asGroupAdmin = fakeDeps({ role: 'admin', createdBy: 'u1', isSystem: true });
+    expect(
+      (await updateGroupShare({ ...ids, pinned: true, note: null }, asGroupAdmin.deps)).status
+    ).toBe(403);
+    const asInstanceAdmin = fakeDeps({ role: 'member', isSystem: true, instanceAdmin: true });
+    expect(
+      (await updateGroupShare({ ...ids, pinned: true, note: null }, asInstanceAdmin.deps)).status
+    ).toBe(200);
+  });
+
+  it('lets every member comment', async () => {
+    const { deps } = fakeDeps({ role: 'member', isSystem: true });
+    const out = await createShareComment({ ...ids, body: 'Danke!', authorName: 'Kim' }, deps);
+    expect(out.status).toBe(201);
   });
 });
 

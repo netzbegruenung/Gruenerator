@@ -23,7 +23,7 @@ import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.
 import { notifyGroupMembers } from '../notifications/index.js';
 import { listUserAgentsByIds } from '../userAgents/userAgentsRepository.js';
 
-import { getPostgresAndCheckMembership } from './groupMembership.js';
+import { assertCanShareToGroup } from './groupMembership.js';
 import { normalizeSharePermissions } from './groupSharePermissions.js';
 
 import type { PostgresService } from '../../database/services/PostgresService.js';
@@ -90,7 +90,7 @@ function defaultDeps(): ShareContentDeps {
   return {
     postgres: getPostgresInstance(),
     checkMembership: async (groupId, userId) => {
-      await getPostgresAndCheckMembership(groupId, userId, false);
+      await assertCanShareToGroup(groupId, userId);
     },
     getNotebookCollection: (id) => helper.getNotebookCollection(id),
     updateNotebookCollection: (id, patch) => helper.updateNotebookCollection(id, patch),

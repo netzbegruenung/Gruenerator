@@ -19,10 +19,12 @@ import {
   joinGroupByToken,
   updateGroupInfo,
 } from '../../../../services/groups/groupMutations.js';
+import { SYSTEM_GROUP_FORBIDDEN } from '../../../../services/groups/systemGroup.js';
 import {
   createNotification,
   notifyGroupMembers,
 } from '../../../../services/notifications/index.js';
+import { isInstanceAdmin } from '../../../../utils/adminAuthz.js';
 import { getPostgresAndCheckMembership } from '../groupCore.js';
 
 import {
@@ -60,7 +62,7 @@ export const coreRoutes = {
       const groupIds = memberships.map((m) => m.group_id);
       const groupsData = (await postgres.query(
         `SELECT g.id, g.name, g.description, g.created_at, g.created_by, g.join_token, g.settings,
-                g.avatar_url, g.links, g.slug_suffix, g.group_type,
+                g.avatar_url, g.links, g.slug_suffix, g.group_type, g.is_system,
                 (SELECT COUNT(*)::int FROM group_memberships gm WHERE gm.group_id = g.id) AS member_count
            FROM groups g WHERE g.id = ANY($1)
           ORDER BY g.created_at DESC`, // neuestes Projekt zuerst — ohne das ist die Reihenfolge beliebig
@@ -78,28 +80,37 @@ export const coreRoutes = {
         links: StoredGroupLink[] | null;
         slug_suffix: string | null;
         group_type: 'standard' | 'personal' | null;
+        is_system: boolean | null;
         member_count: number;
       }>;
+
+      // The system group has no group admins; only instance admins act there.
+      const instanceAdmin = groupsData.some((g) => g.is_system)
+        ? await isInstanceAdmin(userId)
+        : false;
 
       const byId = new Map(memberships.map((m) => [m.group_id, m]));
       const groups = (groupsData || []).map((group) => {
         const m = byId.get(group.id);
         const role = m?.role || 'member';
+        const isSystem = Boolean(group.is_system);
         return {
           id: group.id,
           name: group.name,
           description: group.description ?? null,
           created_at: toIsoOrNull(group.created_at),
           created_by: group.created_by ?? null,
-          join_token: group.join_token ?? null,
+          join_token: isSystem ? null : (group.join_token ?? null),
           settings: group.settings ?? null,
           avatar_url: group.avatar_url ?? null,
           links: group.links ?? null,
           role,
           joined_at: toIsoOrNull(m?.joined_at),
-          isAdmin: group.created_by === userId || role === 'admin',
+          isAdmin: isSystem ? instanceAdmin : group.created_by === userId || role === 'admin',
           group_type: group.group_type ?? 'standard',
-          member_count: group.member_count,
+          is_system: isSystem,
+          // No member info in the system group — everyone is in it.
+          member_count: isSystem ? 0 : group.member_count,
           slug_suffix: group.slug_suffix ?? null,
         };
       });
@@ -195,7 +206,7 @@ export const coreRoutes = {
       await postgres.ensureInitialized();
 
       const groupData = (await postgres.queryOne(
-        'SELECT name, created_by, avatar_url, group_type FROM groups WHERE id = $1',
+        'SELECT name, created_by, avatar_url, group_type, is_system FROM groups WHERE id = $1',
         [groupId],
         { table: 'groups' }
       )) as {
@@ -203,12 +214,20 @@ export const coreRoutes = {
         created_by: string;
         avatar_url?: string | null;
         group_type?: string | null;
+        is_system?: boolean | null;
       } | null;
 
       if (!groupData) {
         return {
           status: 404 as const,
           body: { success: false as const, message: 'Gruppe nicht gefunden.' },
+        };
+      }
+
+      if (groupData.is_system) {
+        return {
+          status: 403 as const,
+          body: { success: false as const, message: SYSTEM_GROUP_FORBIDDEN },
         };
       }
 
@@ -306,7 +325,7 @@ export const coreRoutes = {
         `SELECT gm.role, gm.joined_at, gm.notifications_muted,
                 g.id, g.name, g.description, g.created_at, g.created_by, g.join_token,
                 g.settings, g.avatar_url, g.links, g.is_public, g.audience, g.slug_suffix,
-                g.group_type
+                g.group_type, g.is_system
            FROM group_memberships gm
            JOIN groups g ON g.id = gm.group_id
           WHERE gm.group_id = $1 AND gm.user_id = $2`,
@@ -329,6 +348,7 @@ export const coreRoutes = {
         audience: 'de-DE' | 'de-AT' | 'all' | null;
         slug_suffix: string | null;
         group_type: 'standard' | 'personal' | null;
+        is_system: boolean | null;
       } | null;
 
       if (!row) {
@@ -338,7 +358,10 @@ export const coreRoutes = {
         };
       }
 
-      const isAdmin = row.role === 'admin' || row.created_by === userId;
+      const isSystem = Boolean(row.is_system);
+      const isAdmin = isSystem
+        ? await isInstanceAdmin(userId)
+        : row.role === 'admin' || row.created_by === userId;
 
       return {
         status: 200 as const,
@@ -350,13 +373,14 @@ export const coreRoutes = {
             description: row.description ?? null,
             created_at: toIsoOrNull(row.created_at),
             created_by: row.created_by ?? null,
-            join_token: row.join_token ?? null,
+            join_token: isSystem ? null : (row.join_token ?? null),
             settings: row.settings ?? null,
             avatar_url: row.avatar_url ?? null,
             links: row.links ?? [],
             is_public: row.is_public ?? false,
             audience: row.audience ?? 'all',
             group_type: row.group_type ?? 'standard',
+            is_system: isSystem,
             slug_suffix: row.slug_suffix ?? null,
           },
           membership: {
@@ -600,18 +624,29 @@ export const coreRoutes = {
       await postgres.ensureInitialized();
 
       const row = (await postgres.queryOne(
-        `SELECT gm.role, g.created_by, g.name
+        `SELECT gm.role, g.created_by, g.name, g.is_system
            FROM group_memberships gm
            JOIN groups g ON g.id = gm.group_id
           WHERE gm.group_id = $1 AND gm.user_id = $2`,
         [groupId, userId],
         { table: 'group_memberships' }
-      )) as { role: string; created_by: string; name: string } | null;
+      )) as { role: string; created_by: string; name: string; is_system: boolean | null } | null;
 
       if (!row) {
         return {
           status: 404 as const,
           body: { success: false as const, message: 'Du bist nicht Mitglied dieser Gruppe.' },
+        };
+      }
+
+      if (row.is_system) {
+        return {
+          status: 400 as const,
+          body: {
+            success: false as const,
+            message:
+              'Das Grünerator-Projekt kann nicht verlassen werden. Du kannst es stummschalten.',
+          },
         };
       }
 
@@ -692,7 +727,12 @@ export const coreRoutes = {
     const { groupId } = args.params;
     try {
       const userId = getUserId(args.req);
-      const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
+      const { postgres, isSystem } = await getPostgresAndCheckMembership(groupId, userId, false);
+
+      // Everyone is in the system group; its member list is never exposed.
+      if (isSystem) {
+        return { status: 200 as const, body: { success: true as const, members: [] } };
+      }
 
       const members = (await postgres.query(
         `SELECT gm.user_id, gm.role, gm.joined_at, p.first_name, p.display_name, p.avatar_robot_id
@@ -742,7 +782,13 @@ export const coreRoutes = {
         };
       }
 
-      const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
+      const { postgres, isSystem } = await getPostgresAndCheckMembership(groupId, userId, true);
+      if (isSystem) {
+        return {
+          status: 400 as const,
+          body: { success: false as const, message: SYSTEM_GROUP_FORBIDDEN },
+        };
+      }
 
       const [group, targetMembership] = await Promise.all([
         postgres.queryOne('SELECT created_by, name FROM groups WHERE id = $1', [groupId], {

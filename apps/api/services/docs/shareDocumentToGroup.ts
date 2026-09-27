@@ -1,5 +1,6 @@
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
+import { assertCanShareToGroup } from '../groups/groupMembership.js';
 
 const log = createLogger('ShareDocumentToGroup');
 
@@ -26,6 +27,8 @@ export async function shareDocumentToGroup(opts: {
   if (!doc.length || doc[0].created_by !== userId) {
     throw new Error('Nur die erstellende Person kann Dokumente teilen.');
   }
+
+  await assertCanShareToGroup(groupId, userId);
 
   const existing = (await pg.query(
     `SELECT id FROM group_content_shares

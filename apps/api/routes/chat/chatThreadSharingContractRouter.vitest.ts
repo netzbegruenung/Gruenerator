@@ -15,9 +15,15 @@ import type { Request } from 'express';
 
 const queryMock = vi.fn();
 const accessLevelMock = vi.fn();
+const canShareMock = vi.fn();
 
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: queryMock }),
+}));
+
+vi.mock('../../services/groups/groupMembership.js', () => ({
+  assertCanShareToGroup: canShareMock,
+  listShareTargetGroups: vi.fn(),
 }));
 
 vi.mock('./services/threadAccessService.js', () => ({
@@ -36,6 +42,7 @@ const reqAs = (userId: string) => ({ user: { id: userId } }) as unknown as Reque
 beforeEach(() => {
   queryMock.mockReset();
   accessLevelMock.mockReset();
+  canShareMock.mockReset().mockResolvedValue({});
 });
 
 describe('resolveShared', () => {
@@ -131,10 +138,9 @@ describe('shareWithGroup', () => {
     expect(res.status).toBe(403);
   });
 
-  it('403s when the owner is not an active member of the group', async () => {
-    queryMock
-      .mockResolvedValueOnce([{ user_id: OWNER }]) // ownership
-      .mockResolvedValueOnce([]); // membership
+  it('403s when the owner may not share into the group (non-member or system group)', async () => {
+    queryMock.mockResolvedValueOnce([{ user_id: OWNER }]); // ownership
+    canShareMock.mockRejectedValueOnce(new Error('Keine Berechtigung für diese Aktion.'));
 
     const res = await chatThreadSharingContractRouter.shareWithGroup({
       req: reqAs(OWNER),
@@ -148,7 +154,6 @@ describe('shareWithGroup', () => {
   it("writes write:false for mode 'read' via INSERT when no share exists", async () => {
     queryMock
       .mockResolvedValueOnce([{ user_id: OWNER }]) // ownership
-      .mockResolvedValueOnce([{ '?column?': 1 }]) // membership
       .mockResolvedValueOnce([]) // UPDATE matched nothing
       .mockResolvedValueOnce([]); // INSERT
 
@@ -159,7 +164,7 @@ describe('shareWithGroup', () => {
     } as never);
 
     expect(res.status).toBe(200);
-    const insertCall = queryMock.mock.calls[3];
+    const insertCall = queryMock.mock.calls[2];
     expect(String(insertCall?.[0])).toContain('INSERT INTO group_content_shares');
     // canWrite param is false for Nur lesen.
     expect(insertCall?.[1]).toEqual([THREAD_ID, GROUP_ID, OWNER, false]);
@@ -168,7 +173,6 @@ describe('shareWithGroup', () => {
   it('switches an existing share via UPDATE (upsert semantics, no 409)', async () => {
     queryMock
       .mockResolvedValueOnce([{ user_id: OWNER }]) // ownership
-      .mockResolvedValueOnce([{ '?column?': 1 }]) // membership
       .mockResolvedValueOnce([{ id: 'share-1' }]); // UPDATE matched
 
     const res = await chatThreadSharingContractRouter.shareWithGroup({
@@ -179,8 +183,8 @@ describe('shareWithGroup', () => {
 
     expect(res.status).toBe(200);
     // No INSERT after a matched UPDATE.
-    expect(queryMock).toHaveBeenCalledTimes(3);
-    const updateCall = queryMock.mock.calls[2];
+    expect(queryMock).toHaveBeenCalledTimes(2);
+    const updateCall = queryMock.mock.calls[1];
     expect(String(updateCall?.[0])).toContain('UPDATE group_content_shares');
     expect(updateCall?.[1]).toEqual([THREAD_ID, GROUP_ID, true]);
   });
