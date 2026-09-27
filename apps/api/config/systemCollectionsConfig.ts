@@ -710,6 +710,26 @@ export function isAgentOnlyCollectionId(id: string): boolean {
   return SYSTEM_COLLECTIONS[id]?.agentOnly === true;
 }
 
+/** True when the document reader (`GET /api/research/document`) may open this
+ *  system collection's documents. */
+export function isReaderCollectionId(id: string): boolean {
+  return id in SYSTEM_COLLECTIONS && !isAgentOnlyCollectionId(id);
+}
+
+/**
+ * The reader's collection id for a citation's `collectionId`, which is the
+ * chat-facing key (`brandenburg`) on most paths and the system id on a few.
+ * `null` for everything the reader cannot open — user notebooks carry their
+ * own UUID, which matches neither.
+ */
+export function readerCollectionIdFor(collectionId: string | undefined): string | null {
+  if (!collectionId) return null;
+  const id = isReaderCollectionId(collectionId)
+    ? collectionId
+    : getCanonicalByKey(collectionId)?.id;
+  return id && isReaderCollectionId(id) ? id : null;
+}
+
 /**
  * Build a collection object suitable for notebook graph processing
  */

@@ -338,6 +338,8 @@ export interface Citation {
   chunkIndex?: number | undefined;
   similarityScore?: number | undefined;
   collectionId?: string | undefined;
+  /** See `readerCollectionId` in chatCitationBase. */
+  readerCollectionId?: string | undefined;
   pageNumber?: number | null;
   // Set when this citation came from a fan-out per-document retrieval
   // (multi-document chat). Lets the UI group source cards by referenced doc.
