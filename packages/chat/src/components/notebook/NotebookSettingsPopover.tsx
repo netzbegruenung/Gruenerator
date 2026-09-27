@@ -139,8 +139,11 @@ function scopeCount(
     const selected = sourceFilters.collections.filter((c) =>
       sourceFilters.selectedIds.includes(c.id)
     );
-    if (selected.some((c) => c.documentCount == null)) return null;
-    return selected.reduce((sum, c) => sum + Number(c.documentCount ?? 0), 0);
+    // Page configs may label a source instead of counting it ('3 Programme',
+    // 'Wiki') — then there is no number to give.
+    const counts = selected.map((c) => c.documentCount);
+    if (!counts.every((n): n is number => typeof n === 'number')) return null;
+    return counts.reduce((sum, n) => sum + n, 0);
   }
   return null;
 }
