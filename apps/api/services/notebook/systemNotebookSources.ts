@@ -373,6 +373,56 @@ export async function filterSystemSourceUrls(
   };
 }
 
+const CATEGORY_MIN_STEM = 4;
+
+/** Beide Umlaut-Schreibweisen: „Beschlüsse" trifft `beschluss`, „Wahlprüfsteine" `wahlpruefstein`. */
+function categoryForms(s: string): string[] {
+  const lower = s.trim().toLocaleLowerCase('de');
+  const bare = lower.normalize('NFD').replace(/\p{M}/gu, '');
+  const spelled = lower
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss');
+  return [...new Set([lower, bare, spelled])];
+}
+
+/**
+ * Der gespeicherte Kategoriewert, den ein Modell meint. `filter.category`
+ * vergleicht exakt, und das Modell rät „pressemitteilung", wo die Sammlung
+ * `presse` speichert — live gab das still `total: 0`, und der Schreiber
+ * erfand daraus „es gibt nur eine Pressemitteilung" (MV, 1.362 Quellen).
+ * Deshalb: exakt, sonst ein Präfix in eine der beiden Richtungen (Plural,
+ * Kompositum), bei mehreren der längste Wert. `used: null` heißt: kein Wert
+ * passt — ein Fehler für den Aufrufer, keine leere Menge.
+ */
+export async function resolveSystemCategory(
+  input: { collection: SystemCollection; category: string },
+  deps: Pick<SystemNotebookSourcesDeps, 'scrollPage'>
+): Promise<{ used: string | null; values: Record<string, number> }> {
+  const { rows } = await scrollSystemSources(input.collection, deps);
+  const values: Record<string, number> = {};
+  for (const r of rows) {
+    for (const v of new Set([r.sourceType, r.documentType])) {
+      if (v) values[v] = (values[v] ?? 0) + 1;
+    }
+  }
+  const asked = categoryForms(input.category);
+  const known = Object.keys(values);
+  const exact = known.find((v) => categoryForms(v).some((f) => asked.includes(f)));
+  if (exact) return { used: exact, values };
+  const stems = known.filter((v) =>
+    categoryForms(v).some((f) =>
+      asked.some(
+        (a) =>
+          Math.min(a.length, f.length) >= CATEGORY_MIN_STEM && (a.startsWith(f) || f.startsWith(a))
+      )
+    )
+  );
+  stems.sort((a, b) => b.length - a.length || (values[b] ?? 0) - (values[a] ?? 0));
+  return { used: stems[0] ?? null, values };
+}
+
 const SUGGEST_MAX = 5;
 const SUGGEST_MIN_WORD = 4;
 

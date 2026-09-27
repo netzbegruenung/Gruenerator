@@ -27,6 +27,7 @@ import {
   SYSTEM_LIST_SCROLL_MAX,
   SYSTEM_SCAN_MAX_SOURCES,
   SYSTEM_TEXT_MATCH_MAX_POINTS,
+  resolveSystemCategory,
   type SystemCollection,
 } from './systemNotebookSources.js';
 
@@ -178,6 +179,30 @@ describe('listSystemSources', () => {
     expect(out.documentTypes).toEqual({ antrag: 1 });
     const byType = await listSystemSources({ collection: c, filter: { category: 'Antrag' } }, deps);
     expect(byType.items.map((r) => r.id)).toEqual([HH_A]);
+  });
+
+  it('resolves guessed category labels to the stored value', async () => {
+    const { deps } = makeSystemDeps([
+      ...fakeDoc(LV, 'https://gruene-hamburg.de/p', ['Presse.'], {
+        landesverband: 'HH',
+        primary_category: 'presse',
+      }),
+      ...fakeDoc(LV, 'https://gruene-hamburg.de/w', ['Frage.'], {
+        landesverband: 'HH',
+        primary_category: 'wahlpruefstein',
+        content_type: 'beschluss',
+      }),
+    ]);
+    const c = resolved('hamburg');
+    const used = async (category: string) =>
+      (await resolveSystemCategory({ collection: c, category }, deps)).used;
+    expect(await used('presse')).toBe('presse');
+    expect(await used('pressemitteilung')).toBe('presse');
+    expect(await used('Pressemitteilungen')).toBe('presse');
+    expect(await used('Wahlprüfsteine')).toBe('wahlpruefstein');
+    expect(await used('Beschlüsse')).toBe('beschluss');
+    expect(await used('Antrag')).toBeNull();
+    expect(await used('pr')).toBeNull();
   });
 
   it('leaves documentTypes out when no source carries a content_type', async () => {

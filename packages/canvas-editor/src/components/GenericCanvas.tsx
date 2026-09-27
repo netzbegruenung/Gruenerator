@@ -46,6 +46,7 @@ import { calculateAttributionOverlay } from '../utils/attributionOverlay';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
 import { captureStageImage } from '../utils/captureStage';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
+import { PendingImagesContext } from '../utils/pendingImages';
 import { getOptimalContainerWidth } from '../utils/viewport';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
@@ -188,6 +189,9 @@ export interface GenericCanvasRef {
     includeBackground?: boolean;
   }) => string | undefined;
   captureCanvas: () => Promise<string | null>;
+  /** False while an image element's source is still loading — a capture
+   *  taken then is missing that image. */
+  imagesSettled: () => boolean;
   /** Lightweight JPEG capture for sending the canvas to vision models. */
   captureCanvasForAi: () => Promise<string | null>;
   /** Clears this page's element selection — the per-page store lives behind
@@ -226,6 +230,7 @@ function GenericCanvasWithRef<
   } = props;
 
   const stageRef = useRef<CanvasStageRef>(null);
+  const [pendingImages] = useState(() => new Set<string>());
 
   // Export state (used by auto-save and attribution overlay)
   const [exportedImage, setExportedImage] = useState<string | null>(null);
@@ -647,6 +652,7 @@ function GenericCanvasWithRef<
         await ensureFontsReady();
         return captureStageImage(stageRef.current);
       },
+      imagesSettled: () => pendingImages.size === 0,
       captureCanvasForAi: async () =>
         captureStageImage(stageRef.current, { format: 'jpeg', pixelRatio: 1, quality: 0.85 }),
       deselect: () => setSelectedElement(null),
@@ -664,11 +670,18 @@ function GenericCanvasWithRef<
       handleBlurChange: (id, blur) => bridgeRef.current?.handleBlurChange(id, blur),
       handleGradientSelect: (gradient) => bridgeRef.current?.handleGradientSelect(gradient),
     }),
-    [undo, redo, elementHandlers.handleFontSizeChange, handleAlign, setSelectedElement]
+    [
+      undo,
+      redo,
+      elementHandlers.handleFontSizeChange,
+      handleAlign,
+      setSelectedElement,
+      pendingImages,
+    ]
   );
 
   return (
-    <>
+    <PendingImagesContext.Provider value={pendingImages}>
       <CanvasStage
         ref={stageRef}
         width={stageWidth}
@@ -728,7 +741,7 @@ function GenericCanvasWithRef<
         mobileBridge={mobileBridge}
         handleFontSizeChange={elementHandlers.handleFontSizeChange}
       />
-    </>
+    </PendingImagesContext.Provider>
   );
 }
 
