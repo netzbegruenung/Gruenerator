@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { COLLECTION_SCHEMAS, OPTIMIZER_PRESETS } from './qdrantCollectionsSchema.js';
+import { SYSTEM_COLLECTIONS } from './systemCollectionsConfig.js';
 
 describe('optimizer presets', () => {
   // A segment never grows past max_segment_size, so a threshold at or above the
@@ -23,5 +24,24 @@ describe('documents collection indexes', () => {
     const fields = COLLECTION_SCHEMAS.documents!.indexes.map((i) => i.field);
     expect(fields).toContain('document_id');
     expect(fields).toContain('source_type');
+  });
+});
+
+describe('date_range filter fields', () => {
+  // getDateRange scrolls with order_by, which Qdrant rejects without a range
+  // index — the filter UI then shows unbounded pickers (#3711).
+  it('have a range-capable index in every system collection that offers them', () => {
+    for (const config of Object.values(SYSTEM_COLLECTIONS)) {
+      const schema = COLLECTION_SCHEMAS[config.qdrantCollection];
+      if (!schema) continue;
+      for (const field of config.filterableFields ?? []) {
+        if (field.type !== 'date_range') continue;
+        const index = schema.indexes.find((i) => i.field === field.field);
+        expect(
+          index?.type,
+          `${config.qdrantCollection}.${field.field} needs a datetime index`
+        ).toMatch(/^(datetime|integer|float)$/);
+      }
+    }
   });
 });
