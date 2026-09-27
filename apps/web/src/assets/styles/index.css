@@ -649,3 +649,10 @@
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* Unlayered on purpose: must beat the launcher's `flex` utility.
+   Surfaces with a full-width bottom bar (mobile canvas editor) offer feedback
+   in their own menu — the floating launcher would cover their controls. */
+body:has([data-suppress-feedback-launcher]) .feedback-widget-fab {
+  display: none;
+}

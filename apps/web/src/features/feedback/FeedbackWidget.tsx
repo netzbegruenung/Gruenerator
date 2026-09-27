@@ -11,12 +11,13 @@ import {
   DialogHeader,
   DialogTitle,
   Textarea,
+  registerFeedbackRequestHandler,
   toast,
 } from '@gruenerator/ui';
 import { useMutation } from '@tanstack/react-query';
 import { Info, Loader2, Maximize2 } from 'lucide-react';
 import { domToJpeg } from 'modern-screenshot';
-import { useCallback, useState, type JSX } from 'react';
+import { useCallback, useEffect, useState, type JSX } from 'react';
 
 import DraggableFeedbackLauncher, { type LauncherCorner } from './DraggableFeedbackLauncher';
 
@@ -132,6 +133,13 @@ export default function FeedbackWidget({
       setCapturing(false);
     });
   }, []);
+
+  // Surfaces that hide the launcher (mobile canvas editor) open the dialog
+  // from their own menu.
+  useEffect(() => {
+    if (!visible) return;
+    return registerFeedbackRequestHandler(handleLauncherClick);
+  }, [visible, handleLauncherClick]);
 
   if (!visible) return null;
 

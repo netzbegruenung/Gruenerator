@@ -22,6 +22,11 @@ export {
   ResponsiveMenuToggle,
 } from './components/responsive-menu';
 export { useAutoAdvance } from './hooks/use-auto-advance';
+export {
+  registerFeedbackRequestHandler,
+  canRequestFeedback,
+  requestFeedback,
+} from './feedbackRequest';
 export { DotIndicators } from './components/dot-indicators';
 export { DocumentCard, type DocumentCardProps } from './components/document-card';
 export { TweetCard, TweetXIcon, type TweetCardProps } from './components/tweet-card';
