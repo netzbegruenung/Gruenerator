@@ -182,6 +182,20 @@ describe('buildCitations — enriched fields', () => {
     expect(citations[0].collectionId).toBe('deutschland');
   });
 
+  it('names the reader collection for a readable system collection with a URL', () => {
+    const [citation] = buildCitations([makeResult({ collectionId: 'brandenburg' })]);
+    expect(citation.readerCollectionId).toBe('brandenburg-system');
+  });
+
+  it('names no reader collection for user notebooks or sources without URL', () => {
+    const [userNotebook] = buildCitations([
+      makeResult({ collectionId: '0f8b6c1e-2d4a-4b8e-9c3f-5a6d7e8f9a0b' }),
+    ]);
+    const [noUrl] = buildCitations([makeResult({ collectionId: 'brandenburg', url: undefined })]);
+    expect(userNotebook).not.toHaveProperty('readerCollectionId');
+    expect(noUrl).not.toHaveProperty('readerCollectionId');
+  });
+
   it('threads pageNumber from SearchResult to Citation, and only when present', () => {
     expect(buildCitations([makeResult({ pageNumber: 12 })])[0].pageNumber).toBe(12);
     expect(buildCitations([makeResult({ pageNumber: null })])[0]).not.toHaveProperty('pageNumber');
@@ -437,6 +451,28 @@ describe('renumberAnswerCitations', () => {
 
     expect(text).toBe('Keine Belege hier.');
     expect(citations).toHaveLength(2);
+  });
+
+  // `[Titel](quelle:N)` is a citation in link form. A scanner blind to it
+  // would drop a source cited only by link and leave the link on a stale id.
+  it('renumbers source links together with markers, in order of appearance', () => {
+    const { text, citations } = renumberAnswerCitations(
+      '- [Kohleausstieg](quelle:4)\n- [Tagebau](quelle:2), dazu [4].',
+      [1, 2, 3, 4].map(makeCitation)
+    );
+
+    expect(text).toBe('- [Kohleausstieg](quelle:1)\n- [Tagebau](quelle:2), dazu [1].');
+    expect(citations.map((c) => c.title)).toEqual(['Quelle 4', 'Quelle 2']);
+  });
+
+  it('reads a numeric link label as a label, not as a marker', () => {
+    const { text, citations } = renumberAnswerCitations(
+      'Siehe [2024](quelle:3).',
+      [1, 2, 3].map(makeCitation)
+    );
+
+    expect(text).toBe('Siehe [2024](quelle:1).');
+    expect(citations.map((c) => c.title)).toEqual(['Quelle 3']);
   });
 
   it('ignores a marker the source list has no entry for', () => {
