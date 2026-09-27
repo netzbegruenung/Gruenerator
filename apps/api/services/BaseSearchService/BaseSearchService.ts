@@ -412,6 +412,8 @@ export class BaseSearchService {
           published_at: this.extractPublishedAt(chunk),
           source_url: chunk.url || undefined,
           source_id: chunk.source_id ?? null,
+          content_type_label: chunk.content_type_label ?? null,
+          source_name: chunk.source_name ?? null,
           chunks: [],
           maxSimilarity: 0,
           avgSimilarity: 0,
@@ -425,6 +427,8 @@ export class BaseSearchService {
       if (!docData.source_id && chunk.source_id) {
         docData.source_id = chunk.source_id;
       }
+      docData.content_type_label ??= chunk.content_type_label ?? null;
+      docData.source_name ??= chunk.source_name ?? null;
       if (!docData.published_at) {
         const pub = this.extractPublishedAt(chunk);
         if (pub) docData.published_at = pub;
@@ -512,6 +516,8 @@ export class BaseSearchService {
         published_at: doc.published_at ?? null,
         source_url: doc.source_url,
         source_id: doc.source_id ?? null,
+        content_type_label: doc.content_type_label ?? null,
+        source_name: doc.source_name ?? null,
         relevant_content: relevantContent,
         similarity_score: enhancedScore.finalScore - noTermMatchPenalty,
         max_similarity: enhancedScore.maxSimilarity,
@@ -893,6 +899,8 @@ export class BaseSearchService {
           published_at: this.extractPublishedAt(chunk),
           source_url: chunk.url || undefined,
           source_id: chunk.source_id ?? null,
+          content_type_label: chunk.content_type_label ?? null,
+          source_name: chunk.source_name ?? null,
           chunks: [],
           maxSimilarity: 0,
           avgSimilarity: 0,
@@ -914,6 +922,8 @@ export class BaseSearchService {
       if (!docData.source_id && chunk.source_id) {
         docData.source_id = chunk.source_id;
       }
+      docData.content_type_label ??= chunk.content_type_label ?? null;
+      docData.source_name ??= chunk.source_name ?? null;
       const chunkData = this.extractChunkData(chunk);
 
       // Lexical-aware adjustments
@@ -1044,6 +1054,8 @@ export class BaseSearchService {
         published_at: doc.published_at ?? null,
         source_url: doc.source_url,
         source_id: doc.source_id ?? null,
+        content_type_label: doc.content_type_label ?? null,
+        source_name: doc.source_name ?? null,
         relevant_content: relevantContent,
         similarity_score: Math.max(
           0,
