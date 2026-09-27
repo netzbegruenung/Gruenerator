@@ -103,8 +103,6 @@ function renderPage(answerMode: NotebookComposerMode, text: string) {
       answerMode={answerMode}
       onAnswerModeChange={vi.fn()}
       recentCollectionIds={['berlin-system']}
-      showStats={false}
-      showLastAdded={false}
     />
   );
 }

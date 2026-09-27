@@ -207,6 +207,9 @@ const NotebookResolverPage = lazy(() =>
     default: m.NotebookResolver,
   }))
 );
+const NotebookOverviewPage = lazy(
+  () => import('../features/notebook/components/overview/NotebookOverviewPage')
+);
 const NotebookCreatePage = lazy(() =>
   import('../features/notebook/components/NotebookEditorPage').then((m) => ({
     default: m.NotebookCreatePage,
@@ -517,6 +520,11 @@ const standardRoutes: RouteConfig[] = [
   {
     path: '/notebooks/meine/neu',
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/neu') })),
+  },
+  {
+    path: '/notebooks/:idOrSlug/uebersicht',
+    component: NotebookOverviewPage,
+    layoutMode: 'sidebarOnly',
   },
   {
     path: '/notebooks/:idOrSlug',

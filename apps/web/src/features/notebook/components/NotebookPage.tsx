@@ -15,6 +15,7 @@ import {
   type CategoryFilterField,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
+import { cn } from '@gruenerator/ui';
 import React, { useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
@@ -73,10 +74,6 @@ interface NotebookPageContentProps {
   threadId?: string | null;
   /** Additional content rendered below the startpage sections (e.g. a notebook gallery on the root page). */
   startpageFooter?: ReactNode;
-  /** Disable the Statistiken section (e.g. for small dynamic user notebooks). Defaults to true. */
-  showStats?: boolean;
-  /** Disable the built-in "Zuletzt hinzugefügt" section (caller renders its own). Defaults to true. */
-  showLastAdded?: boolean;
   /** Disable the example-question chip grid below the composer. Defaults to true. */
   showExamples?: boolean;
   /** Disable the manual research tab (dynamic user notebooks have no system collection scope). Defaults to true. */
@@ -98,6 +95,8 @@ interface NotebookPageContentProps {
   /** Disable the startpage's own page background when embedded in a surface
    *  that paints its own (workplace "Wissen" tab tint). Defaults to true. */
   pageGradient?: boolean;
+  /** A fixed Chat | Übersicht pill sits over the top row; keep the thread clear of it. */
+  withTabBar?: boolean;
 }
 
 interface NotebookPageProps {
@@ -109,14 +108,13 @@ export const NotebookPageContent = ({
   documentIds,
   threadId: threadIdProp,
   startpageFooter,
-  showStats = true,
-  showLastAdded = true,
   showExamples = true,
   showManualSearch = true,
   hideGlobalChat = false,
   manualSearchNotebookId,
   omniComposer = false,
   pageGradient = true,
+  withTabBar = false,
 }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
   const isSingleSystem = !isMulti && config.collections[0]?.id.endsWith('-system');
@@ -315,11 +313,6 @@ export const NotebookPageContent = ({
     return entry?.mention ?? null;
   }, [config.id]);
 
-  // Canonical notebook id (matches LV agents' `defaultNotebookIds`). For dynamic
-  // user notebooks `config.id` is a UUID, so this matches no agent and the
-  // agents section self-hides.
-  const notebookId = `${config.id}-notebook`;
-
   const chatContent = (
     <NotebookChatProvider
       collections={providerCollections}
@@ -356,14 +349,10 @@ export const NotebookPageContent = ({
                   answerMode={answerMode}
                   onAnswerModeChange={setAnswerMode}
                   recentCollectionIds={recentCollectionIds}
-                  showRecentSourceLabel={isMulti}
-                  showStats={showStats}
-                  showLastAdded={showLastAdded}
                   showManualSearch={showManualSearch}
                   hideGlobalChat={hideGlobalChat}
                   manualSearchNotebookId={manualSearchNotebookId}
                   notebookMention={notebookMention}
-                  notebookId={notebookId}
                   omniComposer={omniComposer}
                   pageGradient={pageGradient}
                   footer={startpageFooter}
@@ -372,7 +361,9 @@ export const NotebookPageContent = ({
             </AuiIf>
             <AuiIf condition={(s) => !s.thread.isEmpty}>
               <div className="flex min-h-0 h-full flex-col">
-                <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
+                <ThreadPrimitive.Viewport
+                  className={cn('flex flex-1 flex-col overflow-y-auto px-4', withTabBar && 'pt-12')}
+                >
                   <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
                     <ThreadPrimitive.Messages
                       components={{
@@ -493,8 +484,6 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
       <NotebookIndexingNotice state={indexingState} counts={collection.indexing_counts} />
       <NotebookPageContent
         config={config}
-        showStats={false}
-        showLastAdded={false}
         showManualSearch
         manualSearchNotebookId={collection.id}
       />

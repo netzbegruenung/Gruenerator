@@ -1,5 +1,5 @@
 import { type CategoryFilterConfig } from '@gruenerator/chat';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import useDebounce from '../../../components/hooks/useDebounce';
 import { ParsedFilterChips } from '../manual-search/ParsedFilterChips';
@@ -63,8 +63,6 @@ interface NotebookLiveSearchProps {
   /** The composer settings' facet filters — what the chat is filtered by. */
   sharedFilters?: CategoryFilterConfig;
   emptyHint: string;
-  /** Shown until the text is long enough to search (the browse sub-tabs). */
-  idle?: ReactNode;
   /** A search's answer (hits or none) is on screen. */
   onAnswered?: () => void;
 }
@@ -80,7 +78,6 @@ export function NotebookLiveSearch({
   notebookId,
   sharedFilters,
   emptyHint,
-  idle,
   onAnswered,
 }: NotebookLiveSearchProps) {
   const trimmed = text.trim();
@@ -154,7 +151,7 @@ export function NotebookLiveSearch({
     if (answered) onAnswered?.();
   }, [answered, onAnswered]);
 
-  if (!typing) return <>{idle}</>;
+  if (!typing) return null;
   // Nothing half-built while the first search runs: the list arrives with its
   // answer, together with the composer moving up.
   if (!answered && live.results.length === 0) return null;
