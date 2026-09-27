@@ -197,4 +197,28 @@ describe('NotebookStartpage — one composer', () => {
     await screen.findByText('Mietendeckel jetzt');
     expect(hero).toHaveClass('pt-10');
   });
+
+  it('fades the gradient out while the composer is up and back once it is centred', async () => {
+    const { container, rerender } = renderPage('auto', 'Mieten');
+    const gradient = container.querySelector('.\\-z-10')!;
+    expect(gradient).not.toHaveClass('opacity-0');
+    await screen.findByText('Mietendeckel jetzt');
+    expect(gradient).toHaveClass('opacity-0');
+
+    composer.text = '';
+    rerender(
+      <NotebookStartpage
+        title="Was möchtest du über die Grünen Berlin wissen?"
+        placeholder="Stell deine Frage…"
+        mode="deep"
+        onModeChange={vi.fn()}
+        answerMode="auto"
+        onAnswerModeChange={vi.fn()}
+        recentCollectionIds={['berlin-system']}
+        showStats={false}
+        showLastAdded={false}
+      />
+    );
+    expect(gradient).not.toHaveClass('opacity-0');
+  });
 });
