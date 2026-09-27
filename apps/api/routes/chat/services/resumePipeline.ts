@@ -25,6 +25,7 @@ import {
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types.js';
+import { promptCacheKeyForThread } from '../../../services/ai/promptCacheKey.js';
 import {
   BOTH_LANES_FAILED,
   buildAiTelemetry,
@@ -668,6 +669,7 @@ export async function runChatGraphResume({
               sse,
               logPrefix: '[ChatGraph:Resume]',
               ...(resumeTelemetry && { telemetry: resumeTelemetry }),
+              promptCacheKey: promptCacheKeyForThread(requestContext.actualThreadId ?? null),
             }),
         });
         // Both lanes dead → null, not a throw. Mark it, or the failed resume

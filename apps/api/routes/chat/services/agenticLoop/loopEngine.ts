@@ -488,8 +488,8 @@ export interface LoopEngineParams {
   maxOutputTokens?: number;
   /**
    * Per-request provider options for the phases that run on the SELECTED model
-   * — unified and synth. Today this carries exactly one thing: Mistral's
-   * `reasoningEffort`.
+   * — unified and synth. Today this carries Mistral's `reasoningEffort` and
+   * `promptCacheKey`.
    *
    * It has to be threaded through rather than baked into the model instance
    * because `@ai-sdk/mistral` takes the effort per request, not per client. And
