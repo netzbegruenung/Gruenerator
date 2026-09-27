@@ -1,6 +1,6 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { type GroupFeedItem } from '@gruenerator/shared/groups';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 
@@ -67,8 +67,8 @@ describe('GroupFeedCard', () => {
     expect(screen.getByRole('button', { name: 'Lösen' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('loads the thread on demand and posts a comment', async () => {
-    let posted: unknown = null;
+  it('loads the thread on demand, comments and replies inside a thread', async () => {
+    const posted: unknown[] = [];
     server.use(
       http.get(COMMENTS_URL, () =>
         HttpResponse.json({
@@ -77,6 +77,7 @@ describe('GroupFeedCard', () => {
             {
               id: 'c1',
               shareId: SHARE,
+              parentId: null,
               userId: 'u2',
               authorName: 'Tom Krüger',
               body: 'Das Zitat nach vorne.',
@@ -86,16 +87,18 @@ describe('GroupFeedCard', () => {
         })
       ),
       http.post(COMMENTS_URL, async ({ request }) => {
-        posted = await request.json();
+        const body = (await request.json()) as { body: string; parentId?: string };
+        posted.push(body);
         return HttpResponse.json(
           {
             success: true,
             comment: {
-              id: 'c2',
+              id: `c${posted.length + 1}`,
               shareId: SHARE,
+              parentId: body.parentId ?? null,
               userId: 'me',
               authorName: 'Moritz Wächter',
-              body: 'Mach ich.',
+              body: body.body,
               createdAt: '2026-09-27T09:00:00Z',
             },
           },
@@ -111,15 +114,91 @@ describe('GroupFeedCard', () => {
 
     expect(await screen.findByText('Das Zitat nach vorne.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Antworten' }));
-    expect(screen.getByRole('textbox', { name: 'Kommentar schreiben' })).toHaveValue('@Tom ');
+    const replyBox = screen.getByRole('textbox', { name: 'Antwort an Tom Krüger' });
+    expect(replyBox).toHaveValue('@Tom ');
+    expect(replyBox).toHaveFocus();
 
-    await user.clear(screen.getByRole('textbox', { name: 'Kommentar schreiben' }));
-    await user.type(screen.getByRole('textbox', { name: 'Kommentar schreiben' }), 'Mach ich.');
+    await user.type(replyBox, 'mach ich.{Enter}');
+    await waitFor(() => expect(posted).toEqual([{ body: '@Tom mach ich.', parentId: 'c1' }]));
+
+    const replies = await screen.findByRole('list', { name: 'Antworten auf Tom Krüger' });
+    expect(within(replies).getByText('@Tom mach ich.')).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Antwort an Tom Krüger' })).toBeNull();
+
+    await user.type(screen.getByRole('textbox', { name: 'Kommentar schreiben' }), 'Neuer Punkt');
     await user.click(screen.getByRole('button', { name: 'Senden' }));
-
-    await waitFor(() => expect(posted).toEqual({ body: 'Mach ich.' }));
-    expect(await screen.findByText('Mach ich.')).toBeInTheDocument();
+    await waitFor(() => expect(posted.at(-1)).toEqual({ body: 'Neuer Punkt' }));
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('names the person answered when replying to a reply', async () => {
+    const posted: unknown[] = [];
+    server.use(
+      http.get(COMMENTS_URL, () =>
+        HttpResponse.json({
+          success: true,
+          comments: [
+            {
+              id: 'c1',
+              shareId: SHARE,
+              parentId: null,
+              userId: 'u2',
+              authorName: 'Tom Krüger',
+              body: 'Oben',
+              createdAt: '2026-09-26T09:00:00Z',
+            },
+            {
+              id: 'c2',
+              shareId: SHARE,
+              parentId: 'c1',
+              userId: 'u3',
+              authorName: 'Anna Lorenz',
+              body: 'Darunter',
+              createdAt: '2026-09-26T10:00:00Z',
+            },
+          ],
+        })
+      ),
+      http.post(COMMENTS_URL, async ({ request }) => {
+        posted.push(await request.json());
+        return HttpResponse.json({ success: false }, { status: 500 });
+      })
+    );
+    const { user } = renderWithProviders(<GroupFeedCard {...baseProps} />);
+    await user.click(screen.getByRole('button', { name: 'Kommentare (1)' }));
+    const replies = await screen.findByRole('list', { name: 'Antworten auf Tom Krüger' });
+    await user.click(within(replies).getByRole('button', { name: 'Antworten' }));
+
+    const box = screen.getByRole('textbox', { name: 'Antwort an Anna Lorenz' });
+    expect(box).toHaveValue('@Anna ');
+    await user.type(box, 'ok{Enter}');
+    await waitFor(() => expect(posted).toEqual([{ body: '@Anna ok', parentId: 'c1' }]));
+  });
+
+  it('closes an open reply with Escape', async () => {
+    server.use(
+      http.get(COMMENTS_URL, () =>
+        HttpResponse.json({
+          success: true,
+          comments: [
+            {
+              id: 'c1',
+              shareId: SHARE,
+              parentId: null,
+              userId: 'u2',
+              authorName: 'Tom Krüger',
+              body: 'Oben',
+              createdAt: '2026-09-26T09:00:00Z',
+            },
+          ],
+        })
+      )
+    );
+    const { user } = renderWithProviders(<GroupFeedCard {...baseProps} />);
+    await user.click(screen.getByRole('button', { name: 'Kommentare (1)' }));
+    await user.click(await screen.findByRole('button', { name: 'Antworten' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('textbox', { name: 'Antwort an Tom Krüger' })).toBeNull();
   });
 
   it('hides comments where the group does not allow them', () => {
