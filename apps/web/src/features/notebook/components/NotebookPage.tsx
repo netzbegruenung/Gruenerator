@@ -24,6 +24,7 @@ import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { getNotebookById } from '../config/notebooksConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
 import { useNotebookCollection } from '../hooks/useNotebookCollection';
+import { NOTEBOOK_COMPOSER_ACCENT } from '../notebookTheme';
 import useNotebookStore from '../stores/notebookStore';
 
 import { NotebookAccessError } from './NotebookAccessError';
@@ -380,15 +381,17 @@ export const NotebookPageContent = ({
                     />
                   </div>
                 </ThreadPrimitive.Viewport>
-                <NotebookComposer
-                  placeholder={config.placeholder}
-                  sourceFilters={sourceFilters}
-                  categoryFilters={categoryFilters}
-                  mode={mode}
-                  onModeChange={setMode}
-                  answerMode={answerMode}
-                  onAnswerModeChange={setAnswerMode}
-                />
+                <div className={NOTEBOOK_COMPOSER_ACCENT}>
+                  <NotebookComposer
+                    placeholder={config.placeholder}
+                    sourceFilters={sourceFilters}
+                    categoryFilters={categoryFilters}
+                    mode={mode}
+                    onModeChange={setMode}
+                    answerMode={answerMode}
+                    onAnswerModeChange={setAnswerMode}
+                  />
+                </div>
               </div>
             </AuiIf>
           </ThreadPrimitive.Root>
