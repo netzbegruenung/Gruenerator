@@ -21,6 +21,7 @@ import { LuCheck, LuChevronDown, LuLayoutGrid, LuList } from 'react-icons/lu';
 
 import { NOTEBOOK_ACCENT_TEXT } from '../notebookTheme';
 
+import { datePresets, type DateRange } from './datePresets';
 import { type ResearchView } from './ResearchHitCard';
 import {
   type FilterFieldConfig,
@@ -55,30 +56,6 @@ const DATE_FIELD = 'published_at';
 // Neutral on/off for the view switch — brand green here read as a filter.
 const VIEW_ITEM =
   'text-grey-500 data-[state=on]:bg-grey-100 data-[state=on]:text-foreground dark:data-[state=on]:bg-grey-800';
-
-interface DateRange {
-  date_from?: string;
-  date_to?: string;
-}
-
-const isoDay = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-function datePresets(now: Date): { label: string; range: DateRange }[] {
-  const daysAgo = (n: number) =>
-    isoDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - n));
-  const year = now.getFullYear();
-  return [
-    { label: 'Jederzeit', range: {} },
-    { label: 'Letzte 30 Tage', range: { date_from: daysAgo(30) } },
-    { label: 'Letzte 12 Monate', range: { date_from: daysAgo(365) } },
-    { label: String(year), range: { date_from: `${year}-01-01`, date_to: `${year}-12-31` } },
-    {
-      label: String(year - 1),
-      range: { date_from: `${year - 1}-01-01`, date_to: `${year - 1}-12-31` },
-    },
-  ];
-}
 
 /** A control's trigger: the current value, in magenta once it differs from the default. */
 function ControlTrigger({
