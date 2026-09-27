@@ -163,6 +163,13 @@ export class PostgresService {
         );
       }
 
+      try {
+        const { ensureSystemGroup } = await import('../../../services/groups/systemGroup.js');
+        await ensureSystemGroup();
+      } catch (error) {
+        console.warn('[PostgresService] ⚠️ System group setup skipped:', (error as Error).message);
+      }
+
       // Auto-sync schema columns (non-critical — log internally)
       let schemaOk = true;
       try {

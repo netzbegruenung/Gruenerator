@@ -33,6 +33,9 @@ export const groups = pgTable('groups', {
   // Stable 6-char tail for Notion-style URLs (`/gruppen/<name>-<suffix>`).
   // Nullable until the boot-time backfill fills legacy rows.
   slug_suffix: text('slug_suffix'),
+  // The one system group: every profile is a member, only instance admins
+  // share, and member info is never exposed. See services/groups/systemGroup.ts.
+  is_system: boolean('is_system').notNull().default(false),
 });
 
 export const group_memberships = pgTable('group_memberships', {

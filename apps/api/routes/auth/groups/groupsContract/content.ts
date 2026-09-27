@@ -147,7 +147,7 @@ export const contentRoutes = {
     const { contentType, permissions } = args.body;
     try {
       const userId = getUserId(args.req);
-      const { postgres, membership } = await getPostgresAndCheckMembership(groupId, userId, false);
+      const { postgres, isAdmin } = await getPostgresAndCheckMembership(groupId, userId, false);
 
       const shareRecord = await postgres.queryOne<{ shared_by_user_id: string }>(
         'SELECT shared_by_user_id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
@@ -161,7 +161,6 @@ export const contentRoutes = {
         };
       }
 
-      const isAdmin = membership.role === 'admin';
       const isSharer = shareRecord.shared_by_user_id === userId;
       if (!isAdmin && !isSharer) {
         return {
@@ -197,9 +196,9 @@ export const contentRoutes = {
     const { contentType } = args.body;
     try {
       const userId = getUserId(args.req);
-      const { postgres, membership } = await getPostgresAndCheckMembership(groupId, userId, false);
+      const { postgres, isAdmin } = await getPostgresAndCheckMembership(groupId, userId, false);
 
-      if (membership.role !== 'admin') {
+      if (!isAdmin) {
         return {
           status: 403 as const,
           body: {

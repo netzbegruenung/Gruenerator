@@ -16,6 +16,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { notifyGroupMembers } from '../notifications/index.js';
 
 import { getPostgresAndCheckMembership } from './groupMembership.js';
+import { SYSTEM_GROUP_FORBIDDEN } from './systemGroup.js';
 
 /** The columns the create insert returns; `created_at` is a raw pg value. */
 export type CreatedGroupRow = Pick<
@@ -157,22 +158,14 @@ export async function updateGroupInfo(
   input: UpdateGroupInfoInput
 ): Promise<UpdateGroupInfoOutcome> {
   const { name, description, settings } = input;
-  const postgres = getPostgresInstance();
-  await postgres.ensureInitialized();
-
-  const membershipAndGroup = (await postgres.queryOne(
-    `SELECT gm.role, g.created_by
-       FROM group_memberships gm
-       JOIN groups g ON g.id = gm.group_id
-      WHERE gm.group_id = $1 AND gm.user_id = $2`,
-    [groupId, userId],
-    { table: 'group_memberships' }
-  )) as { role: string; created_by: string } | null;
-
-  if (!membershipAndGroup) {
+  let postgres: ReturnType<typeof getPostgresInstance>;
+  let isAdmin: boolean;
+  try {
+    ({ postgres, isAdmin } = await getPostgresAndCheckMembership(groupId, userId));
+  } catch {
     return { status: 403, success: false, message: 'Du bist nicht Mitglied dieser Gruppe.' };
   }
-  if (membershipAndGroup.role !== 'admin' && membershipAndGroup.created_by !== userId) {
+  if (!isAdmin) {
     return {
       status: 403,
       success: false,
@@ -229,7 +222,9 @@ export async function setGroupVisibility(
   userId: string,
   input: GroupVisibility
 ): Promise<GroupVisibility | null> {
-  const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
+  const { postgres, isSystem } = await getPostgresAndCheckMembership(groupId, userId, true);
+  // Everyone is already in the system group; listing it publicly means nothing.
+  if (isSystem) throw new Error(SYSTEM_GROUP_FORBIDDEN);
   return (await postgres.queryOne(
     `UPDATE groups SET is_public = $1, audience = $2, updated_at = CURRENT_TIMESTAMP
        WHERE id = $3
