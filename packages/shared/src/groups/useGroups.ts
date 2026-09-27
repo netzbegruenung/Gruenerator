@@ -433,10 +433,10 @@ export const useGroupShareComments = (
 export const useAddGroupShareComment = (groupId: string, shareId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: string) => {
+    mutationFn: async (input: { body: string; parentId?: string | null }) => {
       const res = await getContractsClient().groups.createGroupShareComment({
         params: { groupId, shareId },
-        body: { body },
+        body: input,
       });
       if (res.status !== 201)
         throw apiErrorFromResponse(res, 'Kommentar konnte nicht gesendet werden.');
@@ -464,8 +464,11 @@ export const useDeleteGroupShareComment = (groupId: string, shareId: string) => 
       return commentId;
     },
     onSuccess: (commentId) => {
+      // Wie der Server (ON DELETE SET NULL): Antworten bleiben und rücken nach oben.
       qc.setQueryData<GroupShareComment[]>(groupShareCommentsKey(groupId, shareId), (prev) =>
-        (prev ?? []).filter((c) => c.id !== commentId)
+        (prev ?? [])
+          .filter((c) => c.id !== commentId)
+          .map((c) => (c.parentId === commentId ? { ...c, parentId: null } : c))
       );
       void qc.invalidateQueries({ queryKey: groupContentKey(groupId) });
     },
