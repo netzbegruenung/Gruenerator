@@ -1,5 +1,7 @@
 import path from 'node:path';
 
+import babel from '@rolldown/plugin-babel';
+import { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 // Resolve workspace packages (@gruenerator/shared) to their TS sources. Shared by
@@ -34,6 +36,15 @@ export default defineConfig({
       {
         // React component/render lane for the chat UI (message-part cards, tool-ui).
         // Kept separate so the node lane stays fast and globs never overlap.
+        //
+        // The dom lane runs the React Compiler — the SAME babel preset the
+        // production build applies in apps/web/vite.config.ts. The compiler only
+        // ever ran on `vite build`, so compiled output was first executed in
+        // production; that shipped a hook-order crash (React #311) when the
+        // compiler memoized `useRef` calls inside an array literal in
+        // SwapLabel. With the preset here, component tests execute the same
+        // compiled code the bundle ships.
+        plugins: [babel({ presets: [reactCompilerPreset()] })],
         resolve,
         test: {
           name: 'dom',
@@ -51,7 +62,15 @@ export default defineConfig({
           // name has no `@` and so never matched the scoped pattern — it stayed
           // externalized and Node-resolved @radix-ui/react-slot's nested react.
           // apps/web's config carries the same note.
-          server: { deps: { inline: [/radix-ui/, '@gruenerator/ui'] } },
+          // `@tanstack/react-query` ships its OWN nested react (measured
+          // 08/2026: 19.2.3 under the package, 19.2.8 hoisted), so a component
+          // that reaches a data hook — the plus menu does, via the recipe
+          // library modal — crashes with "Cannot read properties of null
+          // (reading 'useContext')" unless it is inlined too and goes through
+          // the alias. apps/web's config carries the same list.
+          server: {
+            deps: { inline: ['@tanstack/react-query', /radix-ui/, '@gruenerator/ui'] },
+          },
         },
       },
     ],

@@ -23,7 +23,8 @@
  *      DB is unreachable.
  *
  *   3. Mobile OAuth Set-Cookie drop (branch fix/mobile-auth-cookie-forwarding).
- *      `auth.api.signInWithOAuth2(...)` called without `asResponse: true`
+ *      `auth.api.signInSocial(...)` (bis better-auth 1.7: `signInWithOAuth2`)
+ *      called without `asResponse: true`
  *      silently drops Better Auth's state + PKCE cookies, so the Keycloak
  *      round-trip comes back without `__Secure-ba.state`. Better Auth then
  *      treats the callback as a `state_mismatch` replay and redirects to
@@ -77,9 +78,21 @@
  *      table itself stays in place until manually dropped (non-destructive
  *      cleanup), but nothing reads or writes it anymore.
  *
+ *   7. Every auth request 500 after the better-auth 1.7 deploy (#3667).
+ *      `mcp({ resource })` seeds `ba_oauth_resources` in the plugin's
+ *      `init`, and `betterAuth()` runs that at module import — before
+ *      `PostgresService.init()` has applied the migration creating the
+ *      table. The library defers on a missing table, but matches only
+ *      `err.message`, and Drizzle wraps the pg error as `Failed query: …`
+ *      with the real text in `cause`. The rejection is cached in
+ *      `auth.$context`, so the process stays broken until restart. Fix:
+ *      `patches/@better-auth__oauth-provider@1.7.5.patch` catches the
+ *      init-time seed and leaves it to the lazy `seedResourcesOnce` path.
+ *
  * Run: `pnpm --filter @gruenerator/api test`
  */
 
+import { oauthProvider } from '@better-auth/oauth-provider';
 import pg from 'pg';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
@@ -192,5 +205,50 @@ describe.skipIf(!dbReachable)('regression e74c3176 — ba_accounts UNIQUE constr
 
   it('UNIQUE index does NOT include user_id (would block realm-migration relink)', () => {
     expect(uniqueColumns).not.toContain('user_id');
+  });
+});
+
+describe('web-handoff endpoints are registered', () => {
+  // The mobile app has been calling GET /api/auth/v2/web-handoff since before
+  // the endpoint existed (apps/mobile/app/(fullscreen)/web-viewer.tsx), which
+  // 404'd every embedded group view. These assertions pin that the plugin is
+  // actually wired into the auth instance — a plugin that fails to register
+  // is silent at build time and only shows up as a 404 at runtime.
+  it('exposes the two-step mint endpoint', () => {
+    expect(auth.api).toHaveProperty('webHandoffMint');
+  });
+
+  it('exposes the redeem/redirect endpoint the shipped app already calls', () => {
+    expect(auth.api).toHaveProperty('webHandoff');
+  });
+
+  it('keeps the handoff behind its own path under the auth basePath', () => {
+    expect(auth.api.webHandoff.path).toBe('/web-handoff');
+    expect(auth.api.webHandoffMint.path).toBe('/web-handoff/mint');
+  });
+});
+
+describe('regression #3667 — OAuth resource seed must not poison auth init', () => {
+  it('plugin init resolves when the resource table is not migrated yet', async () => {
+    const drizzleError = new Error(
+      'Failed query: select "id" from "ba_oauth_resources" where "ba_oauth_resources"."identifier" = $1',
+      { cause: new Error('relation "ba_oauth_resources" does not exist') }
+    );
+    const plugin = oauthProvider({
+      loginPage: '/login',
+      consentPage: '/consent',
+      resources: ['https://mcp.example.org'],
+      disableJwtPlugin: true,
+    });
+    const ctx = {
+      options: {},
+      baseURL: 'http://localhost:3000/api/auth/v2',
+      adapter: {
+        findOne: () => Promise.reject(drizzleError),
+        create: () => Promise.reject(drizzleError),
+      },
+    };
+
+    await expect((plugin.init as (c: unknown) => Promise<unknown>)(ctx)).resolves.toBeDefined();
   });
 });

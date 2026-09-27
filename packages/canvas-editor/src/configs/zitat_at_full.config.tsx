@@ -1,8 +1,9 @@
 /**
  * Zitat AT Full Canvas Configuration (Österreich / de-AT)
  *
- * Foto vollflächig, darüber ein dunkelgrüner Verlauf, darauf mittig das gelbe
- * Anführungszeichen, das weiße Zitat und der gelbe Name; Logo rechts oben.
+ * Foto vollflächig, darüber ein leichter grauer Verlauf, darauf mittig das
+ * gelbe Anführungszeichen, das weiße Zitat und der gelbe Name; Logo rechts
+ * oben.
  *
  * Eigene Geometrie über ZITAT_AT_CONFIG — die deutsche ZITAT_CONFIG setzt
  * linksbündig am Bildboden und trägt kein Logo, was mit der CI 2026 nicht
@@ -12,6 +13,7 @@
 import { getBrandTheme } from '../brand/theme';
 import { ZITAT_AT_CONFIG, calculateZitatAtLayout } from '../utils/zitatAtLayout';
 
+import { DEFAULT_PHOTO_BACKGROUND_AT, PHOTO_BACKGROUND_COLORS_AT } from './backgroundPalettes';
 import {
   createAiCapabilities,
   createImageTwoTextCanvas,
@@ -112,6 +114,8 @@ const logoElement: ImageElementConfig<ZitatAtState> = {
   height: Z.logo.height,
   src: AT.logo?.src ?? '',
   draggable: true,
+  opacityStateKey: 'logoOpacity',
+  offsetKey: 'logoOffset',
 };
 
 const baseZitatAtConfig = createImageTwoTextCanvas({
@@ -123,10 +127,18 @@ const baseZitatAtConfig = createImageTwoTextCanvas({
   primaryField: { key: 'quote', label: 'Zitat' },
   secondaryField: { key: 'name', label: 'Name' },
   calculateLayout,
+  // See zitat_full: the quote mark's keys are not part of the factory's base
+  // state, so they need the passthrough to survive a re-seed.
+  passthroughStateKeys: ['quoteMarkOffset', 'quoteMarkOpacity', 'logoOpacity', 'logoOffset'],
   elements: [quoteMarkElement, quoteTextElement, nameTextElement, logoElement],
   features: { icons: true, shapes: true, illustrations: true },
-  // Kein `gradientOpacity`: über dem Foto liegt nichts. Anders als beim
-  // deutschen Zitat, das einen schwarzen Verlauf für den Textkontrast setzt.
+  backgroundColors: PHOTO_BACKGROUND_COLORS_AT,
+  defaultBackgroundColor: DEFAULT_PHOTO_BACKGROUND_AT,
+  // Anders als beim deutschen Zitat kein schwarzer Verlauf für Textkontrast,
+  // sondern nur ein leichter grauer Schleier — die österreichische CI kennt
+  // keinen grünen oder schwarzen Verlauf.
+  gradientOpacity: Z.gradient.bottomOpacity,
+  gradientColor: Z.gradient.color,
   getCanvasText: (state) => {
     const quote = state.quote || '';
     const name = state.name || '';
@@ -151,6 +163,7 @@ const zitatAtAiCapabilities = createAiCapabilities<ZitatAtState, ImageTwoTextAct
       setter: (a) => a.setSecondary,
     },
   ],
+  background: { read: (s) => (s.backgroundColor ?? DEFAULT_PHOTO_BACKGROUND_AT) as `#${string}` },
 });
 
 export const zitatAtFullConfig = wrapWithAi(baseZitatAtConfig, 'zitat-at', zitatAtAiCapabilities);

@@ -6,8 +6,7 @@
  * Schema:
  *   meta      Y.Map  — `pagesSeeded` watermark, one-shot migration markers
  *   pagesById Y.Map<pageId, page>
- *   page      Y.Map  — { id, configId, pos, state: Y.Map,
- *                        layers: Y.Array<Y.Map>, config: Y.Map }
+ *   page      Y.Map  — { id, configId, pos, state: Y.Map, config: Y.Map }
  *
  * Ordering uses a fractional `pos` key (lexicographic, base-62): moving a page
  * writes ONE key on the existing Y.Map, so the page keeps its CRDT identity —
@@ -24,8 +23,6 @@ export interface PageDef {
   id: string;
   configId: string;
   state: Record<string, unknown>;
-  /** Optional free-element layers (deck restore) — created on demand otherwise. */
-  layers?: Array<Record<string, unknown>>;
   config?: Record<string, unknown>;
 }
 
@@ -34,7 +31,7 @@ export interface PageView {
   configId: string;
   pos: string;
   state: Record<string, unknown>;
-  /** Reference to the page's Y.Map — used by GenericCanvas for layers/config binding. */
+  /** Reference to the page's Y.Map — used by GenericCanvas for config binding. */
   yMap: Y.Map<unknown>;
 }
 
@@ -42,7 +39,6 @@ export interface SerializedPage {
   id: string;
   configId: string;
   state: Record<string, unknown>;
-  layers: Array<Record<string, unknown>>;
   config: Record<string, unknown>;
 }
 
@@ -113,19 +109,8 @@ export function buildPage(def: PageDef, pos: string): Y.Map<unknown> {
   const state = new Y.Map<unknown>();
   for (const [k, v] of Object.entries(def.state)) state.set(k, v);
   page.set(YDOC_KEYS.state, state);
-  // layers & config are otherwise created on demand by bindCanvasStoreToYMap
+  // config is otherwise created on demand by bindCanvasStoreToYMap
   // when the page first mounts in a GenericCanvas.
-  if (def.layers && def.layers.length > 0) {
-    const layers = new Y.Array<Y.Map<unknown>>();
-    layers.push(
-      def.layers.map((layer) => {
-        const m = new Y.Map<unknown>();
-        for (const [k, v] of Object.entries(layer)) m.set(k, v);
-        return m;
-      })
-    );
-    page.set(YDOC_KEYS.layers, layers);
-  }
   if (def.config && Object.keys(def.config).length > 0) {
     const config = new Y.Map<unknown>();
     for (const [k, v] of Object.entries(def.config)) config.set(k, v);
@@ -140,7 +125,7 @@ const cloneYMapShallow = (source: Y.Map<unknown>): Y.Map<unknown> => {
   return copy;
 };
 
-/** Deep-clone a page's state, layers and config into a fresh Y.Map. */
+/** Deep-clone a page's state and config into a fresh Y.Map. */
 export function clonePage(source: Y.Map<unknown>, newId: string, pos: string): Y.Map<unknown> {
   const page = new Y.Map<unknown>();
   page.set(YDOC_KEYS.id, newId);
@@ -152,15 +137,6 @@ export function clonePage(source: Y.Map<unknown>, newId: string, pos: string): Y
     YDOC_KEYS.state,
     sourceState instanceof Y.Map ? cloneYMapShallow(sourceState) : new Y.Map<unknown>()
   );
-
-  const sourceLayers = source.get(YDOC_KEYS.layers);
-  if (sourceLayers instanceof Y.Array) {
-    const layers = new Y.Array<Y.Map<unknown>>();
-    layers.push(
-      (sourceLayers as Y.Array<Y.Map<unknown>>).toArray().map((m) => cloneYMapShallow(m))
-    );
-    page.set(YDOC_KEYS.layers, layers);
-  }
 
   const sourceConfig = source.get(YDOC_KEYS.config);
   if (sourceConfig instanceof Y.Map) {
@@ -222,7 +198,7 @@ export function appendPage(doc: Y.Doc, def: PageDef): void {
   getPagesMap(doc).set(def.id, buildPage(def, posForInsert(doc, Number.MAX_SAFE_INTEGER)));
 }
 
-/** Clone `sourceId` (state + layers + config) and insert it right after the source. */
+/** Clone `sourceId` (state + config) and insert it right after the source. */
 export function duplicatePageById(doc: Y.Doc, sourceId: string, newId: string): boolean {
   const pagesMap = getPagesMap(doc);
   const source = pagesMap.get(sourceId);
@@ -292,8 +268,7 @@ export function updatePageStateById(
 
 /**
  * Convert a page to another template in place: replaces `configId` and the
- * whole `state` map while keeping id, pos and layers (free elements survive
- * the template switch).
+ * whole `state` map while keeping id and pos.
  */
 export function setPageConfigById(
   doc: Y.Doc,
@@ -339,16 +314,11 @@ export function seedPagesIfEmpty(doc: Y.Doc, defs: PageDef[]): boolean {
 
 export function serializeDeck(doc: Y.Doc): SerializedPage[] {
   return readPages(doc).map((view) => {
-    const layersY = view.yMap.get(YDOC_KEYS.layers);
     const configY = view.yMap.get(YDOC_KEYS.config);
     return {
       id: view.id,
       configId: view.configId,
       state: view.state,
-      layers:
-        layersY instanceof Y.Array
-          ? (layersY as Y.Array<Y.Map<unknown>>).toArray().map((m) => m.toJSON())
-          : [],
       config: configY instanceof Y.Map ? configY.toJSON() : {},
     };
   });
@@ -360,8 +330,8 @@ export function serializeDeck(doc: Y.Doc): SerializedPage[] {
  * One-shot lazy migration of pre-`pagesById` docs. Handles, in order:
  *  1. `pages` Y.Array (previous multi-page container) → pagesById with pos
  *     derived from array order.
- *  2. `legacy_root` / top-level `layers`+`config` (single-page collab docs
- *     from before pages existed) → one promoted page.
+ *  2. `legacy_root` / top-level `config` (single-page collab docs from before
+ *     pages existed) → one promoted page.
  * Idempotent: marked in `meta` and skipped when pagesById already has pages.
  * Runs inside one transaction — pass the caller's origin.
  */
@@ -386,27 +356,16 @@ export function migrateLegacyDoc(doc: Y.Doc): void {
   }
 
   const legacyRoot = doc.getMap<unknown>(YDOC_KEYS.legacyRoot);
-  const hasLegacyLayersType = doc.share.has(YDOC_KEYS.layers);
   const hasLegacyConfigType = doc.share.has(YDOC_KEYS.config);
-  const legacyLayers = hasLegacyLayersType ? doc.getArray<Y.Map<unknown>>(YDOC_KEYS.layers) : null;
   const legacyConfig = hasLegacyConfigType ? doc.getMap<unknown>(YDOC_KEYS.config) : null;
 
-  const legacyHasContent =
-    legacyRoot.size > 0 ||
-    (legacyLayers !== null && legacyLayers.length > 0) ||
-    (legacyConfig !== null && legacyConfig.size > 0);
+  const legacyHasContent = legacyRoot.size > 0 || (legacyConfig !== null && legacyConfig.size > 0);
   if (!legacyHasContent) return;
 
   const promoted = buildPage(
     { id: `legacy-${Date.now()}`, configId: 'unknown', state: {} },
     posBetween(null, null)
   );
-  if (legacyLayers && legacyLayers.length > 0) {
-    const layers = new Y.Array<Y.Map<unknown>>();
-    layers.push(legacyLayers.toArray().map((m) => cloneYMapShallow(m)));
-    promoted.set(YDOC_KEYS.layers, layers);
-    legacyLayers.delete(0, legacyLayers.length);
-  }
   if (legacyConfig && legacyConfig.size > 0) {
     promoted.set(YDOC_KEYS.config, cloneYMapShallow(legacyConfig));
     for (const k of Array.from(legacyConfig.keys())) legacyConfig.delete(k);

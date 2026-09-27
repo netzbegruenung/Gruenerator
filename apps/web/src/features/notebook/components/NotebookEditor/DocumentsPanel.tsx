@@ -1,7 +1,19 @@
-import { Button, Input, SectionHeader } from '@gruenerator/ui';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Button,
+  Input,
+  SectionHeader,
+} from '@gruenerator/ui';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { HiSearch, HiX } from 'react-icons/hi';
+import { HiRefresh, HiSearch, HiX } from 'react-icons/hi';
 
 import { cn } from '../../../../utils/cn';
 
@@ -21,9 +33,14 @@ interface DocumentsPanelProps {
   documents: DocumentWithSource[];
   documentCount: number;
   indexingDocIds: Set<string>;
+  /** Documents whose processing failed, keyed by id with the reason. */
+  failedDocs: Map<string, string>;
   loading: boolean;
   onRemove: (id: string) => void;
   onRemoveMany: (ids: string[]) => void;
+  /** Null outside an existing notebook — there is nothing on the server to re-index yet. */
+  onReindex: ((id: string) => void) | null;
+  onReindexAll: (() => void) | null;
   onAddClick: () => void;
 }
 
@@ -31,9 +48,12 @@ export default function DocumentsPanel({
   documents,
   documentCount,
   indexingDocIds,
+  failedDocs,
   loading,
   onRemove,
   onRemoveMany,
+  onReindex,
+  onReindexAll,
   onAddClick,
 }: DocumentsPanelProps) {
   const [query, setQuery] = useState('');
@@ -85,22 +105,95 @@ export default function DocumentsPanel({
   }, [onRemoveMany, visibleSelectedIds]);
 
   const filtered = Boolean(query.trim()) || activeSource !== null;
+  const reindexableCount = useMemo(
+    () => documents.filter((e) => e.doc.reindexable).length,
+    [documents]
+  );
+  const [confirmReindexAll, setConfirmReindexAll] = useState(false);
+
+  // Failed documents stay in the list — they still occupy a slot and the user
+  // may want to see which file it was — but they get named up front, because a
+  // single red row inside a thousand is not something anyone scrolls to find.
+  const failedIds = useMemo(
+    () => documents.filter((e) => failedDocs.has(e.doc.id)).map((e) => e.doc.id),
+    [documents, failedDocs]
+  );
 
   return (
     <>
+      {onReindexAll && (
+        <AlertDialog open={confirmReindexAll} onOpenChange={setConfirmReindexAll}>
+          <AlertDialogContent size="sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {reindexableCount === 1
+                  ? '1 Wolke-Datei neu indexieren?'
+                  : `${reindexableCount} Wolke-Dateien neu indexieren?`}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Die Dateien werden neu aus der Wolke geholt und mit Seitenzahlen indexiert.
+                Hochgeladene Dateien, Webseiten und WordPress-Beiträge bleiben, wie sie sind.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+              <AlertDialogAction onClick={onReindexAll}>Neu indexieren</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
       <SectionHeader
         title="Dokumente"
         onCreate={onAddClick}
         createLabel="Dokumente hinzufügen"
         actions={
-          <span
-            className="text-sm text-grey-500"
-            title="Alle Quellen zusammen — Uploads, Wolke, verlinkte Docs und WordPress."
-          >
-            {documentCount}/{MAX_DOCUMENTS} gesamt
+          <span className="flex items-center gap-sm">
+            {onReindexAll && reindexableCount > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmReindexAll(true)}
+                disabled={loading}
+                title="Holt Wolke-Dateien neu und indexiert sie mit Seitenzahlen"
+              >
+                <HiRefresh size={12} aria-hidden />
+                Alle neu indexieren
+              </Button>
+            )}
+            <span
+              className="text-sm text-grey-500"
+              title="Alle Quellen zusammen — Uploads, Wolke, verlinkte Docs und WordPress."
+            >
+              {documentCount}/{MAX_DOCUMENTS} gesamt
+            </span>
           </span>
         }
       />
+
+      {failedIds.length > 0 && (
+        <div
+          role="status"
+          className="flex flex-col gap-sm rounded-lg border border-red-300 bg-red-50 px-md py-sm text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between dark:border-red-900 dark:bg-red-950/30 dark:text-red-200"
+        >
+          <span>
+            {failedIds.length === 1
+              ? '1 Dokument konnte nicht gelesen werden und taucht in keiner Suche auf.'
+              : `${failedIds.length} Dokumente konnten nicht gelesen werden und tauchen in keiner Suche auf.`}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onRemoveMany(failedIds)}
+            disabled={loading}
+            className="shrink-0"
+          >
+            Entfernen
+          </Button>
+        </div>
+      )}
 
       {documents.length === 0 ? (
         <div className="rounded-xl border border-dashed border-grey-300 px-md py-xl text-center dark:border-grey-700">
@@ -219,10 +312,12 @@ export default function DocumentsPanel({
                         doc={entry.doc}
                         source={entry.source}
                         indexing={indexingDocIds.has(entry.doc.id)}
+                        failure={failedDocs.get(entry.doc.id) ?? null}
                         selected={selectedIds.has(entry.doc.id)}
                         loading={loading}
                         onToggleSelect={toggleSelect}
                         onRemove={onRemove}
+                        onReindex={entry.doc.reindexable ? onReindex : null}
                       />
                     </div>
                   );

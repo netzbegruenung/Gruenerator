@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { classifierNode } from './classifierNode.js';
+const executeProvider = vi.fn();
+vi.mock('../../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
+}));
+
+const { classifierNode } = await import('./classifierNode.js');
 
 import type { ChatGraphState, SearchIntent, ThreadToolContext } from '../types.js';
 
@@ -42,34 +47,36 @@ const DOCUMENT: ThreadToolContext = {
   label: 'Antrag Straßenbäume',
 };
 
-/** Der Auflöser und die LLM-Stufe teilen sich den Worker-Pool. Unterschieden
- *  wird am Systemprompt — der des Auflösers ist der einzige, der mit „Ein
- *  Gespräch hat mehrere Artefakte erzeugt" beginnt. */
-function makeWorkerPool(editTargetAnswer: string | (() => never)) {
+/** Alle Auflöser gehen durch dieselbe Tür (`executeProvider`). Unterschieden
+ *  wird am Systemprompt — der des Bearbeitungsziel-Auflösers ist der einzige,
+ *  der mit „Ein Gespräch hat mehrere Artefakte erzeugt" beginnt. */
+function scriptEditTarget(editTargetAnswer: string | (() => never)) {
   const editTargetCalls: string[] = [];
-  const processRequest = vi.fn(async (req: { systemPrompt?: string }) => {
-    if (req.systemPrompt?.startsWith('Ein Gespräch hat mehrere Artefakte')) {
-      editTargetCalls.push(req.systemPrompt);
-      if (typeof editTargetAnswer === 'function') editTargetAnswer();
-      return { content: editTargetAnswer };
+  executeProvider.mockReset();
+  executeProvider.mockImplementation(
+    async (_provider: string, _id: string, req: { systemPrompt?: string }) => {
+      if (req.systemPrompt?.startsWith('Ein Gespräch hat mehrere Artefakte')) {
+        editTargetCalls.push(req.systemPrompt);
+        if (typeof editTargetAnswer === 'function') editTargetAnswer();
+        return { content: editTargetAnswer, success: true, stop_reason: 'stop' };
+      }
+      return {
+        content: JSON.stringify({ intent: 'direct', reasoning: 'LLM-Stufe', searchQuery: null }),
+        success: true,
+        stop_reason: 'stop',
+      };
     }
-    return {
-      content: JSON.stringify({ intent: 'direct', reasoning: 'LLM-Stufe', searchQuery: null }),
-    };
-  });
-  return { processRequest, editTargetCalls };
+  );
+  return { editTargetCalls };
 }
 
-function buildState(
-  overrides: Partial<ChatGraphState> & { userMessage: string; pool: { processRequest: unknown } }
-): ChatGraphState {
-  const { userMessage, pool, ...rest } = overrides;
+function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }): ChatGraphState {
+  const { userMessage, ...rest } = overrides;
   return {
     messages: [{ role: 'user' as const, content: userMessage }],
     threadId: 'thread-1',
     agentConfig: STUB_AGENT_CONFIG,
     enabledTools: { search: true, web: true, image: true, image_edit: true },
-    aiWorkerPool: pool,
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
@@ -96,13 +103,12 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   const BOTH = [SHAREPIC, DOCUMENT];
 
   it('trifft das ältere Dokument, wenn der Auflöser darauf zeigt', async () => {
-    const pool = makeWorkerPool('2');
+    const pool = scriptEditTarget('2');
     const result = await classifierNode(
       buildState({
         userMessage: 'Kürze die Begründung auf die Hälfte',
         lastToolContext: SHAREPIC,
         threadArtifacts: BOTH,
-        pool,
       })
     );
     expect(pool.editTargetCalls).toHaveLength(1);
@@ -111,13 +117,12 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   });
 
   it('bleibt beim Sharepic, wenn der Auflöser auf das neueste Artefakt zeigt', async () => {
-    const pool = makeWorkerPool('1');
+    const pool = scriptEditTarget('1');
     const result = await classifierNode(
       buildState({
         userMessage: 'Mach den Text größer',
         lastToolContext: SHAREPIC,
         threadArtifacts: BOTH,
-        pool,
       })
     );
     expect(result.intent).toBe('sharepic');
@@ -126,13 +131,12 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   it('fällt bei „keines" auf das heutige Verhalten zurück, nicht auf „kein Artefakt"', async () => {
     // Der Auflöser darf einen Folgeauftrag UMLENKEN, nie unterdrücken: sonst
     // verliert eine Fehlantwort des Modells dem Nutzer die Bearbeitung ganz.
-    const pool = makeWorkerPool('0');
+    const pool = scriptEditTarget('0');
     const result = await classifierNode(
       buildState({
         userMessage: 'Kürze die Begründung auf die Hälfte',
         lastToolContext: DOCUMENT,
         threadArtifacts: [DOCUMENT, SHAREPIC],
-        pool,
       })
     );
     expect(result.intent).toBe('modify_doc');
@@ -140,7 +144,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   });
 
   it('fällt zurück, wenn der Auflöser wegbricht', async () => {
-    const pool = makeWorkerPool(() => {
+    const pool = scriptEditTarget(() => {
       throw new Error('provider down');
     });
     const result = await classifierNode(
@@ -148,7 +152,6 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         userMessage: 'Kürze die Begründung auf die Hälfte',
         lastToolContext: DOCUMENT,
         threadArtifacts: [DOCUMENT, SHAREPIC],
-        pool,
       })
     );
     expect(result.intent).toBe('modify_doc');
@@ -157,26 +160,24 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   it('fragt gar nicht, wenn die Nachricht kein Bearbeitungsauftrag ist', async () => {
     // Eine neue Sachfrage in einem Thread mit Artefakten: die Antwort wäre
     // „keines" per Konstruktion, der Aufruf also reine Latenz.
-    const pool = makeWorkerPool('1');
+    const pool = scriptEditTarget('1');
     await classifierNode(
       buildState({
         userMessage: 'Erklär mir den Unterschied zwischen Nationalrat und Bundesrat in Österreich',
         lastToolContext: SHAREPIC,
         threadArtifacts: BOTH,
-        pool,
       })
     );
     expect(pool.editTargetCalls).toHaveLength(0);
   });
 
   it('fragt gar nicht, wenn der Thread nur ein Artefakt hat', async () => {
-    const pool = makeWorkerPool('1');
+    const pool = scriptEditTarget('1');
     const result = await classifierNode(
       buildState({
         userMessage: 'Mach den Text größer',
         lastToolContext: SHAREPIC,
         threadArtifacts: [SHAREPIC],
-        pool,
       })
     );
     expect(pool.editTargetCalls).toHaveLength(0);
@@ -186,13 +187,12 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   it('ignoriert eine Nummer ausserhalb der Liste, statt zu raten', async () => {
     // „3" bei zwei Artefakten heisst: das Modell hat nicht gewählt. Für es zu
     // raten ist der Weg, auf dem das falsche Artefakt bearbeitet wird.
-    const pool = makeWorkerPool('3');
+    const pool = scriptEditTarget('3');
     const result = await classifierNode(
       buildState({
         userMessage: 'Kürze die Begründung auf die Hälfte',
         lastToolContext: DOCUMENT,
         threadArtifacts: [DOCUMENT, SHAREPIC],
-        pool,
       })
     );
     expect(pool.editTargetCalls).toHaveLength(1);
@@ -201,13 +201,12 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
   });
 
   it('liest die Nummer auch aus einem Satz', async () => {
-    const pool = makeWorkerPool('Nummer 2.');
+    const pool = scriptEditTarget('Nummer 2.');
     const result = await classifierNode(
       buildState({
         userMessage: 'Kürze die Begründung auf die Hälfte',
         lastToolContext: SHAREPIC,
         threadArtifacts: BOTH,
-        pool,
       })
     );
     expect(result.intent).toBe('modify_doc');

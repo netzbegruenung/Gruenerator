@@ -3,17 +3,18 @@
  * Uses React Query with the profileApiService for consistent caching and state management
  * Syncs with profileStore for UI state management and optimistic updates
  */
+import { deriveIndexingState } from '@gruenerator/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { useProfileStore } from '../../../stores/profileStore';
+import { invalidateFileMentions } from '../../notebook/utils/invalidateFileMentions';
 import {
   type AnweisungenSaveData,
   type AnweisungenWissen,
   type BundleOptions,
   type Document,
-  type Memory,
   type Profile,
   type ProfileBundle,
   type SavedText,
@@ -45,7 +46,6 @@ export const QUERY_KEYS = {
   userTexts: (userId: string | undefined) => ['userTexts', userId] as const,
   userTemplates: (userId: string | undefined) => ['userTemplates', userId] as const,
   availableDocuments: (userId: string | undefined) => ['availableDocuments', userId] as const,
-  memories: (userId: string | undefined) => ['memories', userId] as const,
 };
 
 // === PROFILE DATA ===
@@ -95,7 +95,6 @@ export const useBundledProfileData = (options: BundleOptions = {}) => {
     includeCustomGenerators: true,
     includeUserTexts: false,
     includeUserTemplates: false,
-    includeMemories: false,
   };
 
   const mergedOptions: Required<BundleOptions> = { ...defaultOptions, ...options };
@@ -196,6 +195,17 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     refetchOnWindowFocus: false,
     refetchOnMount: true,
     retry: 1,
+    // Indexing finishes in the background, with nothing pushing the result to
+    // the client. Without this poll a freshly created notebook kept its "Wird
+    // indexiert" badge until the user reloaded — the 15-minute staleTime made
+    // "it never becomes ready" the normal experience. Stops on its own once
+    // every notebook is settled.
+    refetchInterval: (q) =>
+      (q.state.data ?? []).some(
+        (c) => (c.indexing_state ?? deriveIndexingState(c.documents ?? [])) === 'indexing'
+      )
+        ? 5000
+        : false,
   });
 
   const createMutation = useMutation({
@@ -203,6 +213,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
       void queryClient.invalidateQueries({ queryKey: ['notebook', 'collection'] });
+      invalidateFileMentions(queryClient);
     },
   });
 
@@ -217,6 +228,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
       void queryClient.invalidateQueries({ queryKey: ['notebook', 'collection'] });
+      invalidateFileMentions(queryClient);
     },
   });
 
@@ -225,6 +237,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
       void queryClient.invalidateQueries({ queryKey: ['notebook', 'collection'] });
+      invalidateFileMentions(queryClient);
     },
   });
 
@@ -233,6 +246,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
       void queryClient.invalidateQueries({ queryKey: ['notebook', 'collection'] });
+      invalidateFileMentions(queryClient);
     },
   });
 
@@ -385,46 +399,6 @@ export const useAvailableDocuments = ({ enabled = true }: EnabledOnlyOptions = {
   });
 
   return query;
-};
-
-// === MEMORY (MEM0RY) ===
-export const useMemories = ({ isActive, enabled = true }: TabHookOptions = {}) => {
-  const user = useAuthStore((s) => s.user);
-  const queryClient = useQueryClient();
-
-  const query = useQuery<Memory[], Error>({
-    queryKey: QUERY_KEYS.memories(user?.id),
-    queryFn: () => profileApiService.getMemories(user!.id),
-    enabled: enabled && !!user?.id && isActive,
-    staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    gcTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
-    refetchOnWindowFocus: false,
-  });
-
-  const addMemoryMutation = useMutation({
-    mutationFn: ({ text, topic }: { text: string; topic: string }) =>
-      profileApiService.addMemory(text, topic),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.memories(user?.id) });
-    },
-  });
-
-  const deleteMemoryMutation = useMutation({
-    mutationFn: profileApiService.deleteMemory,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.memories(user?.id) });
-    },
-  });
-
-  return {
-    query,
-    addMemory: (text: string, topic: string = '') => addMemoryMutation.mutateAsync({ text, topic }),
-    deleteMemory: deleteMemoryMutation.mutateAsync,
-    isAddingMemory: addMemoryMutation.isPending,
-    isDeletingMemory: deleteMemoryMutation.isPending,
-    addError: addMemoryMutation.error,
-    deleteError: deleteMemoryMutation.error,
-  };
 };
 
 // === LEGACY COMPATIBILITY ===

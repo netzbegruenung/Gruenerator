@@ -1,5 +1,4 @@
 import {
-  type ComponentProps,
   useCallback,
   useEffect,
   useMemo,
@@ -29,7 +28,7 @@ import {
 } from '@blocknote/react';
 import { filterSuggestionItems } from '@blocknote/core/extensions';
 import { ForkYDocExtension, withCollaboration } from '@blocknote/core/yjs';
-import { BlockNoteView, ShadCNDefaultComponents } from '@blocknote/shadcn';
+import { BlockNoteView } from '@blocknote/shadcn';
 import {
   AIExtension,
   AIMenuController,
@@ -42,7 +41,6 @@ import { DefaultChatTransport } from 'ai';
 import '@blocknote/core/fonts/inter.css';
 import '@blocknote/shadcn/style.css';
 import '@blocknote/xl-ai/style.css';
-import { Tooltip as TooltipPrimitive } from 'radix-ui';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 
@@ -51,13 +49,17 @@ import { useBlockNoteComments } from '../../hooks/useBlockNoteComments';
 import { useResolveUsers } from '../../hooks/useResolveUsers';
 import { useMentionUsers } from '../../hooks/useMentionUsers';
 import { useDocsAdapter } from '../../context/DocsContext';
-import { useIsTouchDevice, useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
+import { useIsTouchDevice } from '@gruenerator/shared/hooks';
 import { useEditorPreferencesStore } from '../../stores/editorPreferencesStore';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Mention } from './Mention';
 import { EditorDictationButton } from './EditorDictationButton';
 import { SuggestionPopover } from './SuggestionPopover';
 import { isDocAIForked } from '../../lib/aiExtension';
+import { disableGcOnAIFork } from '../../lib/forkedDocGc';
+import { guardDocUndoAcrossAIFork, type UndoGuardEditor } from '../../lib/undoAcrossAIFork';
+import { carryUndoAcrossEditorRecreate } from '../../lib/undoAcrossRecreate';
+import { type UndoableEditor } from '../../hooks/useDocUndoState';
 import { SuggestChangesExtension } from '../../lib/suggestChangesExtension';
 import { useSuggestionMode } from '../../hooks/useSuggestionMode';
 import './BlockNoteEditor.css';
@@ -126,6 +128,13 @@ const EDITOR_DOM_ATTRIBUTES = {
   editor: { class: 'blocknote-editor-content' },
 } as const;
 
+// BlockNote sets ProseMirror's `scrollMargin` (where to scroll the caret) to
+// 72px top and bottom, but leaves `scrollThreshold` (when to scroll) at 0, so a
+// caret under the mobile toolbar still counts as visible. Match the bottom.
+const EDITOR_TIPTAP_OPTIONS = {
+  editorProps: { scrollThreshold: { top: 0, left: 0, right: 0, bottom: 72 } },
+};
+
 const schema = BlockNoteSchema.create({
   blockSpecs: defaultBlockSpecs,
   inlineContentSpecs: {
@@ -134,17 +143,6 @@ const schema = BlockNoteSchema.create({
   },
   styleSpecs: defaultStyleSpecs,
 });
-
-// BlockNote's shadcn Tooltip wraps each instance in its own TooltipProvider,
-// creating triple-nested providers inside the Toolbar. This override removes
-// the redundant inner provider — the Toolbar already provides one.
-function ToolbarTooltip(props: ComponentProps<typeof TooltipPrimitive.Root>) {
-  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
-}
-
-const shadCNComponentOverrides = {
-  Tooltip: { ...ShadCNDefaultComponents.Tooltip, Tooltip: ToolbarTooltip },
-};
 
 const BlockNoteEditorInner = ({
   documentId,
@@ -167,67 +165,15 @@ const BlockNoteEditorInner = ({
   const isTouchDevice = useIsTouchDevice();
   const toolbarMode = useEditorPreferencesStore((s) => s.toolbarMode);
   const theme = useDocumentTheme();
-  const staticToolbar = useStaticFormattingToolbar || isTouchDevice || toolbarMode === 'fixed';
+  // Touch devices get BlockNote's own mobile toolbar, which only the controller renders.
+  const staticToolbar = useStaticFormattingToolbar || (!isTouchDevice && toolbarMode === 'fixed');
   const getMentionMenuItems = useMentionUsers(provider ?? null);
   const hasInitialized = useRef(false);
   const [isReady, setIsReady] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
   // Read live in the attribution closure so identity resolving after mount still
   // applies, without churning the editor.
   const localUserRef = useRef(localUser);
   localUserRef.current = localUser;
-
-  const scrollSelectionIntoView = useCallback(() => {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-
-    const anchorNode = sel.anchorNode;
-    const anchorEl =
-      anchorNode?.nodeType === Node.ELEMENT_NODE
-        ? (anchorNode as Element)
-        : (anchorNode?.parentElement ?? null);
-    const blockEl = anchorEl?.closest('[data-id], .bn-block-content') ?? anchorEl;
-    if (!blockEl) return;
-
-    const rect = sel.getRangeAt(0).getBoundingClientRect();
-    const vp = window.visualViewport;
-    const toolbarHeight =
-      wrapperRef.current?.querySelector('.bn-formatting-toolbar')?.getBoundingClientRect().height ||
-      44;
-    const visibleBottom = vp ? vp.offsetTop + vp.height - toolbarHeight : window.innerHeight;
-    const visibleTop = vp?.offsetTop ?? 0;
-
-    if (rect.bottom > visibleBottom || rect.top < visibleTop) {
-      blockEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }
-  }, []);
-
-  useMobileKeyboardOffset(wrapperRef, { onOffsetChange: scrollSelectionIntoView });
-
-  // Editor-specific: toggle selection class + scroll selection into view on text select
-  useEffect(() => {
-    if (!isTouchDevice) return;
-
-    const updateSelectionClass = () => {
-      const sel = window.getSelection();
-      const hasSelection = !!sel && !sel.isCollapsed && sel.toString().length > 0;
-      wrapperRef.current?.classList.toggle('has-selection', hasSelection);
-    };
-
-    let scrollTimer: ReturnType<typeof setTimeout>;
-
-    const onSelectionChange = () => {
-      updateSelectionClass();
-      clearTimeout(scrollTimer);
-      scrollTimer = setTimeout(scrollSelectionIntoView, 100);
-    };
-
-    document.addEventListener('selectionchange', onSelectionChange);
-    return () => {
-      document.removeEventListener('selectionchange', onSelectionChange);
-      clearTimeout(scrollTimer);
-    };
-  }, [isTouchDevice, scrollSelectionIntoView]);
 
   const collaborationUser = useMemo(() => {
     if (!provider?.awareness) return null;
@@ -381,6 +327,7 @@ const BlockNoteEditorInner = ({
     } as any,
     extensions,
     domAttributes: EDITOR_DOM_ATTRIBUTES,
+    _tiptapOptions: EDITOR_TIPTAP_OPTIONS,
   };
 
   const editor = useCreateBlockNote(
@@ -425,6 +372,31 @@ const BlockNoteEditorInner = ({
       );
     }
 
+    // The AI fork is a fresh Y.Doc with Yjs' default GC on, which breaks the
+    // positions xl-ai tracks across streamed chunks. See disableGcOnAIFork.
+    const stopForkGcGuard = disableGcOnAIFork(editor, {
+      syncedYdoc: ydoc ?? null,
+      isCollaborative: Boolean(collaborationOptions),
+    });
+
+    // The same fork/merge cycle destroys the yUndo UndoManager while ProseMirror
+    // carries it over in the plugin state — without this guard, undo/redo is
+    // dead for the rest of the session after the first AI invocation. With the
+    // fragment it additionally captures the accepted AI merge as an undo step
+    // (#3261). See guardDocUndoAcrossAIFork.
+    const stopUndoGuard = guardDocUndoAcrossAIFork(editor as unknown as UndoGuardEditor, {
+      isCollaborative: Boolean(collaborationOptions),
+      fragment: fragment ?? null,
+    });
+
+    // useCreateBlockNote recreates the editor when its deps change identity
+    // (threadStore flip, provider remount) — carry the undo history onto the
+    // next incarnation instead of silently resetting it (#3262).
+    const stopUndoCarry = carryUndoAcrossEditorRecreate(
+      editor as unknown as UndoableEditor,
+      fragment ?? null
+    );
+
     // Fix checkbox multi-click: intercept click on checkbox inputs and
     // toggle the block directly via editor API, bypassing ProseMirror's
     // slow event pipeline that drops native change events.
@@ -454,12 +426,17 @@ const BlockNoteEditorInner = ({
     return () => {
       editorDom?.removeEventListener('click', handleCheckboxClick);
       clearTimeout(timeoutId);
+      // Park the history first, while the undo plugin state is still intact.
+      stopUndoCarry();
+      stopForkGcGuard();
+      stopUndoGuard();
       removeEditor(documentId);
     };
   }, [
     editor,
     documentId,
     ydoc,
+    fragment,
     provider,
     collaborationOptions,
     setEditorInStore,
@@ -513,10 +490,10 @@ const BlockNoteEditorInner = ({
     () => (
       <FormattingToolbar>
         {toolbarItems}
-        {!suggestionModeEnabled && <AIToolbarButton />}
+        {!isTouchDevice && !suggestionModeEnabled && <AIToolbarButton />}
       </FormattingToolbar>
     ),
-    [toolbarItems, suggestionModeEnabled]
+    [toolbarItems, isTouchDevice, suggestionModeEnabled]
   );
 
   if (!editor) {
@@ -525,7 +502,6 @@ const BlockNoteEditorInner = ({
 
   return (
     <div
-      ref={wrapperRef}
       className={`blocknote-wrapper relative${staticToolbar ? ' blocknote-static-toolbar' : ''}`}
     >
       <ErrorBoundary>
@@ -534,7 +510,6 @@ const BlockNoteEditorInner = ({
           editor={editor}
           theme={theme}
           editable={editable}
-          shadCNComponents={shadCNComponentOverrides}
           formattingToolbar={false}
           slashMenu={false}
           sideMenu={false}

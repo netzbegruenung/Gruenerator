@@ -6,6 +6,7 @@ export type {
   AgentParams,
   AgentProvider,
   FewShotExample,
+  LvEbene,
   Skill,
   SkillCategory,
   SkillIcon,
@@ -16,8 +17,10 @@ export { AGENT_CATEGORY_LABELS, SKILL_CATEGORY_LABELS } from './types.js';
 export {
   isAgentVisibleForLocale,
   isAgentVisibleForPlatform,
+  matchesRecipeAudience,
   localizeAgent,
   getSystemAgentsForLocale,
+  getCuratableSystemAgents,
   getVisibleSystemAgentsForLocale,
 } from './audience.js';
 
@@ -25,13 +28,21 @@ export {
   SYSTEM_AGENTS,
   VISIBLE_SYSTEM_AGENTS,
   DEFAULT_SYSTEM_AGENT_ID,
+  DISABLED_LV_AGENT_IDS,
   getSystemAgent,
   type SystemAgentId,
 } from './system.js';
 
+export { isAdminVisibleAgent } from './agentVisibility.js';
 export { isAdminVisibleSkill } from './skillVisibility.js';
 
-export { SKILLS, resolveSkillMention } from './skills/index.js';
+export {
+  SKILLS,
+  resolveSkillMention,
+  canonicalSkillMention,
+  hasSystemRecipe,
+  lvEbeneForSkillMention,
+} from './skills/index.js';
 
 export {
   USER_SELECTABLE_TOOLS,
@@ -43,7 +54,10 @@ export {
 
 export {
   AGENTURA_CATEGORIES,
+  AGENTURA_TYPE_LABELS,
+  AGENTURA_TYPE_VALUES,
   DEFAULT_CATEGORY,
+  DEFAULT_TYPE,
   SKILL_CATEGORY_ORDER,
   SORT_LABELS,
   SORT_VALUES,
@@ -52,7 +66,14 @@ export {
   type AgenturaCategoryKey,
   type AgenturaPlatform,
   type AgenturaSort,
+  type AgenturaType,
 } from './agenturaCategories.js';
+
+export {
+  agenturaMetaLine,
+  matchesAgenturaType,
+  type AgenturaFilterable,
+} from './agenturaFilter.js';
 
 export { getAgentSlug, resolveAgentSlug } from './slug.js';
 
@@ -65,17 +86,35 @@ export {
 } from './landesverbaende.js';
 
 export {
+  isLandesverbandRolle,
+  isLvItemVisibleForRoles,
+  landesverbandHeadings,
+  landesverbandIdsForRoles,
+  landesverbandOfferForBundesland,
+  landesverbandShelfLabel,
+  landesverbandTitle,
+  lvSkillMentionsForRoles,
+  type LandesverbandOffer,
+  type RoleLandesverbandInput,
+} from './landesverbandForRoles.js';
+
+export {
   LV_HUBS,
   type LvHub,
   getLandesverbandHubBySlug,
   getLandesverbandHubs,
   getHubMemberAgentIds,
+  hasLandesverbandContentIn,
 } from './landesverbandHubs.js';
 
+export { isSkillOfferedIn, skillPolicyOffers, type SkillInstanceView } from './skillInstances.js';
+
 export {
+  AGENT_ICON_KEYS,
   DEFAULT_AGENT_ICON,
   SUGGESTED_AGENT_ICONS,
   isSuggestedAgentIcon,
+  type AgentIconKey,
   type SuggestedAgentIcon,
 } from './agentIcons.js';
 

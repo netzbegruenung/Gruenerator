@@ -86,6 +86,7 @@ export type CollectionKey =
   | 'mecklenburg-vorpommern'
   | 'brandenburg'
   | 'sachsen-anhalt'
+  | 'sachsen'
   | 'hessen'
   | 'satzungen'
   | 'gruenblog';

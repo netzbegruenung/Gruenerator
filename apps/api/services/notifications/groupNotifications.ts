@@ -18,7 +18,7 @@ interface NotifyGroupParams {
 }
 
 export async function notifyGroupMembers(params: NotifyGroupParams): Promise<void> {
-  const { groupId, excludeUserId, type, title, body, actionUrl, metadata } = params;
+  const { groupId, excludeUserId } = params;
 
   try {
     const db = getPostgresInstance();
@@ -35,26 +35,10 @@ export async function notifyGroupMembers(params: NotifyGroupParams): Promise<voi
 
     if (!members || members.length === 0) return;
 
-    const groupName = group?.name || 'Gruppe';
-
-    await Promise.all(
-      members.map((m) =>
-        createNotification({
-          userId: m.user_id,
-          type,
-          title,
-          body,
-          actionUrl,
-          metadata: { groupId, groupName, ...metadata },
-          groupKey: `group:${groupId}`,
-        }).catch((err: unknown) => {
-          log.warn('Failed to notify group member', {
-            userId: m.user_id,
-            groupId,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        })
-      )
+    await deliver(
+      members.map((m) => m.user_id),
+      group?.name || 'Gruppe',
+      params
     );
   } catch (err) {
     log.warn('Failed to notify group members', { groupId, error: (err as Error).message });
@@ -67,7 +51,7 @@ export async function notifyGroupMembers(params: NotifyGroupParams): Promise<voi
  * them.
  */
 export async function notifyGroupAdmins(params: NotifyGroupParams): Promise<void> {
-  const { groupId, excludeUserId, type, title, body, actionUrl, metadata } = params;
+  const { groupId, excludeUserId } = params;
 
   try {
     const db = getPostgresInstance();
@@ -88,28 +72,74 @@ export async function notifyGroupAdmins(params: NotifyGroupParams): Promise<void
     const group = (await db.queryOne('SELECT name FROM groups WHERE id = $1', [groupId], {
       table: 'groups',
     })) as { name: string } | null;
-    const groupName = group?.name || 'Gruppe';
 
-    await Promise.all(
-      admins.map((a) =>
-        createNotification({
-          userId: a.user_id,
-          type,
-          title,
-          body,
-          actionUrl,
-          metadata: { groupId, groupName, ...metadata },
-          groupKey: `group:${groupId}`,
-        }).catch((err: unknown) => {
-          log.warn('Failed to notify group admin', {
-            userId: a.user_id,
-            groupId,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        })
-      )
+    await deliver(
+      admins.map((a) => a.user_id),
+      group?.name || 'Gruppe',
+      params
     );
   } catch (err) {
     log.warn('Failed to notify group admins', { groupId, error: (err as Error).message });
   }
+}
+
+/**
+ * Notify specific users of a group (e.g. the sharer and earlier commenters of
+ * a feed post), excluding one user and anyone who is no longer an active member.
+ */
+export async function notifyGroupUsers(
+  params: NotifyGroupParams & { userIds: string[] }
+): Promise<void> {
+  const { groupId, excludeUserId, userIds } = params;
+  const candidates = [...new Set(userIds)].filter((id) => id !== excludeUserId);
+  if (candidates.length === 0) return;
+
+  try {
+    const db = getPostgresInstance();
+    const [members, group] = await Promise.all([
+      db.query(
+        'SELECT user_id FROM group_memberships WHERE group_id = $1 AND user_id = ANY($2::uuid[]) AND is_active = TRUE',
+        [groupId, candidates]
+      ) as Promise<Array<{ user_id: string }>>,
+      db.queryOne('SELECT name FROM groups WHERE id = $1', [groupId], {
+        table: 'groups',
+      }) as Promise<{ name: string } | null>,
+    ]);
+    if (!members || members.length === 0) return;
+
+    await deliver(
+      members.map((m) => m.user_id),
+      group?.name || 'Gruppe',
+      params
+    );
+  } catch (err) {
+    log.warn('Failed to notify group users', { groupId, error: (err as Error).message });
+  }
+}
+
+async function deliver(
+  userIds: string[],
+  groupName: string,
+  params: NotifyGroupParams
+): Promise<void> {
+  const { groupId, type, title, body, actionUrl, metadata } = params;
+  await Promise.all(
+    userIds.map((userId) =>
+      createNotification({
+        userId,
+        type,
+        title,
+        body,
+        actionUrl,
+        metadata: { groupId, groupName, ...metadata },
+        groupKey: `group:${groupId}`,
+      }).catch((err: unknown) => {
+        log.warn('Failed to notify group user', {
+          userId,
+          groupId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      })
+    )
+  );
 }

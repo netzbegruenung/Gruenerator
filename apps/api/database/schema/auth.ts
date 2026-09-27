@@ -53,8 +53,10 @@ export const ba_accounts = pgTable(
     access_token: text('access_token'),
     refresh_token: text('refresh_token'),
     access_token_expires_at: timestamp('access_token_expires_at', { withTimezone: true }),
+    refresh_token_expires_at: timestamp('refresh_token_expires_at', { withTimezone: true }),
     scope: text('scope'),
     id_token: text('id_token'),
+    password: text('password'),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
@@ -83,6 +85,26 @@ export const ba_verification = pgTable(
 );
 
 /**
+ * Signing keys for the better-auth `jwt()` plugin, which 1.7 requires alongside
+ * `@better-auth/mcp`: it mints the ID/access tokens and serves `/jwks`, which is
+ * how resource servers verify them once the opaque-token lookup is gone.
+ *
+ * Export key MUST stay `jwks` — the plugin's model name; the SQL identifier
+ * follows the `ba_` convention.
+ *
+ * Source-of-truth migration: `database/postgres/migrations/add_better_auth_v17_jwks.sql`
+ */
+export const jwks = pgTable('ba_jwks', {
+  id: text('id').primaryKey(),
+  publicKey: text('public_key').notNull(),
+  privateKey: text('private_key').notNull(),
+  alg: text('alg'),
+  crv: text('crv'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * Drizzle relations for joins. Better Auth's `findOAuthUser` issues a query
  * with `join: { user: true }` — when `experimental.joins` is enabled in
  * Better Auth options, the Drizzle adapter uses `db.query.ba_accounts.findFirst({ with: { user: true } })`,
@@ -109,3 +131,4 @@ export const ba_sessionsRelations = relations(ba_sessions, ({ one }) => ({
 export type BaSessionRow = InferSelectModel<typeof ba_sessions>;
 export type BaAccountRow = InferSelectModel<typeof ba_accounts>;
 export type BaVerificationRow = InferSelectModel<typeof ba_verification>;
+export type JwksRow = InferSelectModel<typeof jwks>;

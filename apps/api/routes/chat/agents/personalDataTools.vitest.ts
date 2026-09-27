@@ -7,9 +7,8 @@ import {
   makeDocumentsTool,
   makeReadArtifactTool,
   makeFindContentTool,
-  makeGroupsTool,
   makeMediaTool,
-  makeNotebooksTool,
+  makeSearchThreadsTool,
   type PersonalToolCtx,
 } from './personalDataTools.js';
 
@@ -23,9 +22,7 @@ const listUserBoards = vi.fn();
 const loadBoardState = vi.fn();
 const resolveCardDisplay = vi.fn();
 const updateCard = vi.fn();
-const listUserGroups = vi.fn();
 const findGroups = vi.fn();
-const getGroupByToken = vi.fn();
 const hasWriteAccess = vi.fn();
 const emitToolConfirmAction = vi.fn();
 const dbQuery = vi.fn();
@@ -35,11 +32,11 @@ const searchReels = vi.fn().mockResolvedValue([]);
 const getReelTranscript = vi.fn().mockResolvedValue(null);
 const getUserShares = vi.fn();
 const deleteShare = vi.fn();
-const nbGetUserCollections = vi.fn();
-const nbGetCollection = vi.fn();
-const nbUpdate = vi.fn();
-const nbDelete = vi.fn();
 const readArtifactContent = vi.fn();
+const recallPastChats = vi.fn();
+const listRecentThreads = vi.fn();
+const getThreadRecallContext = vi.fn();
+const resolveSpaceThreadIds = vi.fn();
 
 vi.mock('../../docs/docsSearch.js', () => ({
   searchOfficeContent: (...a: unknown[]) => searchOfficeContent(...a),
@@ -58,11 +55,7 @@ vi.mock('../../../services/boards/boardCardWriteService.js', () => ({
   updateCard: (...a: unknown[]) => updateCard(...a),
 }));
 vi.mock('../../../services/groups/groupQueries.js', () => ({
-  listUserGroups: (...a: unknown[]) => listUserGroups(...a),
   findGroups: (...a: unknown[]) => findGroups(...a),
-}));
-vi.mock('../../../services/groups/groupMutations.js', () => ({
-  getGroupByToken: (...a: unknown[]) => getGroupByToken(...a),
 }));
 vi.mock('../../workplace/recentActivityController.js', () => ({
   aggregateRecentActivity: (...a: unknown[]) => aggregateRecentActivity(...a),
@@ -82,7 +75,6 @@ vi.mock('../../../services/sharedMediaService.js', () => ({
     getUserShares: (...a: unknown[]) => getUserShares(...a),
     deleteShare: (...a: unknown[]) => deleteShare(...a),
   }),
-  USER_VISIBLE_SHARE_STATUSES: ['ready', 'draft'],
 }));
 vi.mock('../../../services/subtitler/ProjectService.js', () => ({
   getSubtitlerProjectService: () => ({
@@ -99,13 +91,11 @@ vi.mock('../../../services/subtitler/reelSearch.js', () => ({
 vi.mock('../services/artifactReader.js', () => ({
   readArtifactContent: (...a: unknown[]) => readArtifactContent(...a),
 }));
-vi.mock('../../../database/services/NotebookQdrantHelper.js', () => ({
-  NotebookQdrantHelper: class {
-    getUserNotebookCollections = (...a: unknown[]) => nbGetUserCollections(...a);
-    getNotebookCollection = (...a: unknown[]) => nbGetCollection(...a);
-    updateNotebookCollection = (...a: unknown[]) => nbUpdate(...a);
-    deleteNotebookCollection = (...a: unknown[]) => nbDelete(...a);
-  },
+vi.mock('../services/pastChatRecallService.js', () => ({
+  recallPastChats: (...a: unknown[]) => recallPastChats(...a),
+  listRecentThreads: (...a: unknown[]) => listRecentThreads(...a),
+  getThreadRecallContext: (...a: unknown[]) => getThreadRecallContext(...a),
+  resolveSpaceThreadIds: (...a: unknown[]) => resolveSpaceThreadIds(...a),
 }));
 
 // --- helpers -----------------------------------------------------------------
@@ -223,6 +213,24 @@ describe('find_content', () => {
     });
     expect(registry.size).toBe(1);
     expect(registry.renderAll()).toContain('Klimaplan');
+  });
+
+  // #3345: the coverage sentence advertised Notebooks while both paths are
+  // Postgres-only (office documents + reels / the activity feed). "such in
+  // meinen Notebooks nach X" therefore landed here and got a confidently empty
+  // answer. The split is on "NUTZE WENN", this description's own divider between
+  // what the tool COVERS and where to go instead — so the redirect may keep
+  // naming notebooks while the promise above it may not.
+  it('does not claim to cover notebooks, and redirects to the notebooks tool', () => {
+    const description = makeFindContentTool(ctx('u1')).description ?? '';
+    const [coverage, guidance] = description.split('NUTZE WENN');
+    expect(guidance, 'description lost its "NUTZE WENN" marker').toBeTruthy();
+    expect(
+      coverage,
+      'find_content reaches no notebook: searchOfficeContent reads collaborative_documents ' +
+        'and aggregateRecentActivity has no notebook fetcher. Wire one in or leave the claim out.'
+    ).not.toMatch(/notizb|notebook/i);
+    expect(guidance, 'the redirect to the notebooks tool went missing').toContain("'notebooks'");
   });
 });
 
@@ -460,72 +468,6 @@ describe('boards_tasks', () => {
   });
 });
 
-// --- groups ------------------------------------------------------------------
-describe('groups', () => {
-  it('list maps memberships to rows', async () => {
-    listUserGroups.mockResolvedValue([
-      { id: 'g1', name: 'Klima', slug_suffix: 'ab12', role: 'admin', member_count: 7 },
-    ]);
-    const out = (await exec(makeGroupsTool(ctx('u1')), { action: 'list', limit: 15 })) as {
-      results: Array<{ title: string; url: string }>;
-    };
-    expect(out.results[0].title).toBe('Klima');
-    expect(out.results[0].url).toContain('/gruppen/');
-  });
-
-  it('create without a name → error, no confirm', async () => {
-    const out = (await exec(makeGroupsTool(ctx('u1')), { action: 'create', limit: 15 })) as {
-      error?: string;
-    };
-    expect(out.error).toMatch(/name/);
-    expect(emitToolConfirmAction).not.toHaveBeenCalled();
-  });
-
-  it('create emits a create_group confirm with name + description', async () => {
-    const out = (await exec(makeGroupsTool(ctx('u1')), {
-      action: 'create',
-      name: 'Klima-AG',
-      description: 'Für den Klimaschutz',
-      limit: 15,
-    })) as { ok?: boolean };
-    expect(out.ok).toBe(true);
-    const [, action] = emitToolConfirmAction.mock.calls[0] as [
-      unknown,
-      { type: string; payload: unknown },
-    ];
-    expect(action.type).toBe('create_group');
-    expect(action.payload).toMatchObject({ name: 'Klima-AG', description: 'Für den Klimaschutz' });
-  });
-
-  it('join with an unknown token → error, no confirm', async () => {
-    getGroupByToken.mockResolvedValue(null);
-    const out = (await exec(makeGroupsTool(ctx('u1')), {
-      action: 'join',
-      joinToken: 'deadbeef',
-      limit: 15,
-    })) as { error?: string };
-    expect(out.error).toMatch(/Einladungslink/);
-    expect(emitToolConfirmAction).not.toHaveBeenCalled();
-  });
-
-  it('join emits a join_group confirm naming the resolved group', async () => {
-    getGroupByToken.mockResolvedValue({ id: 'g1', name: 'Klima' });
-    const out = (await exec(makeGroupsTool(ctx('u1')), {
-      action: 'join',
-      joinToken: 'tok123',
-      limit: 15,
-    })) as { ok?: boolean };
-    expect(out.ok).toBe(true);
-    expect(getGroupByToken).toHaveBeenCalledWith('tok123');
-    const [, action] = emitToolConfirmAction.mock.calls[0] as [
-      unknown,
-      { type: string; payload: unknown },
-    ];
-    expect(action.type).toBe('join_group');
-    expect(action.payload).toMatchObject({ joinToken: 'tok123', groupName: 'Klima' });
-  });
-});
-
 // --- media -------------------------------------------------------------------
 describe('media', () => {
   it('list merges reels and sharepics with follow-up refs', async () => {
@@ -541,6 +483,78 @@ describe('media', () => {
     const refs = out.results.map((r) => r.ref);
     expect(refs).toContain('reel:p1');
     expect(refs).toContain('sharepic:tok');
+  });
+
+  // Sharepics and KI-Bilder are separate products with separate sections in
+  // every gallery. Before this split the tool called every image a "Sharepic",
+  // so asking the chat for "meine Sharepics" answered with KI images too and
+  // the model had nothing to tell them apart by.
+  const images = [
+    { share_token: 'pic', title: 'Dreizeiler', media_type: 'image', content_origin: 'sharepic' },
+    { share_token: 'ki', title: 'Windrad', media_type: 'image', content_origin: 'ki' },
+    // Written before `content_origin` existed: classified off `image_type`,
+    // exactly as the galleries do for those rows.
+    { share_token: 'alt', title: 'Alt', media_type: 'image', image_type: 'pure-create' },
+  ];
+
+  it('labels images by what made them instead of calling them all Sharepics', async () => {
+    getUserProjects.mockResolvedValue([]);
+    getUserShares.mockResolvedValue(images);
+    const out = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'list',
+      type: 'all',
+      limit: 15,
+    })) as { results: Array<{ type: string; ref?: string }> };
+
+    expect(out.results.map((r) => [r.ref, r.type])).toEqual([
+      ['sharepic:pic', 'Sharepic'],
+      ['sharepic:ki', 'KI-Bild'],
+      ['sharepic:alt', 'KI-Bild'],
+    ]);
+  });
+
+  it('type filters instead of describing: "sharepic" and "ki" each return only their own', async () => {
+    getUserProjects.mockResolvedValue([]);
+    getUserShares.mockResolvedValue(images);
+
+    const sharepics = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'list',
+      type: 'sharepic',
+      limit: 15,
+    })) as { results: Array<{ ref?: string }> };
+    expect(sharepics.results.map((r) => r.ref)).toEqual(['sharepic:pic']);
+
+    getUserShares.mockResolvedValue(images);
+    const ki = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'list',
+      type: 'ki',
+      limit: 15,
+    })) as { results: Array<{ ref?: string }> };
+    expect(ki.results.map((r) => r.ref)).toEqual(['sharepic:ki', 'sharepic:alt']);
+
+    // Reels stay out of both image buckets.
+    expect(getUserProjects).not.toHaveBeenCalled();
+    // A filtered ask reads a wider window than `limit`, or the KI images sitting
+    // below the 15 most recent Sharepics would never be reachable at all.
+    expect(getUserShares).toHaveBeenLastCalledWith('u1', 'image', ['ready', 'draft'], 100);
+  });
+
+  it('still honours limit after filtering', async () => {
+    getUserProjects.mockResolvedValue([]);
+    getUserShares.mockResolvedValue(
+      Array.from({ length: 8 }, (_, i) => ({
+        share_token: `k${i}`,
+        title: `KI ${i}`,
+        media_type: 'image',
+        content_origin: 'ki',
+      }))
+    );
+    const out = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'list',
+      type: 'ki',
+      limit: 3,
+    })) as { resultCount: number };
+    expect(out.resultCount).toBe(3);
   });
 
   it('delete without confirm asks first; with confirm routes to the right service', async () => {
@@ -656,47 +670,6 @@ describe('media', () => {
 });
 
 // --- notebooks ---------------------------------------------------------------
-describe('notebooks', () => {
-  it('rename is refused when the collection belongs to someone else', async () => {
-    nbGetCollection.mockResolvedValue({ id: 'n1', name: 'Fremd', user_id: 'other' });
-    const out = (await exec(makeNotebooksTool(ctx('u1')), {
-      action: 'rename',
-      id: 'n1',
-      name: 'Neu',
-      confirm: false,
-      limit: 15,
-    })) as { error?: string };
-    expect(out.error).toMatch(/kein Zugriff/);
-    expect(nbUpdate).not.toHaveBeenCalled();
-  });
-
-  it('rename updates an owned collection', async () => {
-    nbGetCollection.mockResolvedValue({ id: 'n1', name: 'Alt', user_id: 'u1' });
-    nbUpdate.mockResolvedValue({ success: true });
-    const out = (await exec(makeNotebooksTool(ctx('u1')), {
-      action: 'rename',
-      id: 'n1',
-      name: 'Neu',
-      confirm: false,
-      limit: 15,
-    })) as { ok?: boolean };
-    expect(out.ok).toBe(true);
-    expect(nbUpdate).toHaveBeenCalledWith('n1', { name: 'Neu' });
-  });
-
-  it('delete needs a two-step confirm', async () => {
-    nbGetCollection.mockResolvedValue({ id: 'n1', name: 'Alt', user_id: 'u1' });
-    const out = (await exec(makeNotebooksTool(ctx('u1')), {
-      action: 'delete',
-      id: 'n1',
-      confirm: false,
-      limit: 15,
-    })) as { needsConfirmation?: boolean };
-    expect(out.needsConfirmation).toBe(true);
-    expect(nbDelete).not.toHaveBeenCalled();
-  });
-});
-
 // --- read_artifact -----------------------------------------------------------
 
 /**
@@ -814,6 +787,35 @@ describe('read_artifact', () => {
     expect(out.error).toMatch(/nicht gefunden|kein Zugriff/);
   });
 
+  it('übersetzt einen 22P02 in eine Anweisung statt in SQL-Prosa', async () => {
+    // 13.08.2026: das Modell las `Dokument a13dc241` aus unserer eigenen
+    // Quellenliste und gab die acht Zeichen als id zurück. Postgres antwortete
+    // mit „invalid input syntax for type uuid", und genau das stand danach als
+    // Werkzeug-Ergebnis im Loop — ein Fehler, mit dem das Modell nichts
+    // anfangen kann, über einen Wert, den es für richtig hielt.
+    readArtifactContent.mockRejectedValueOnce(
+      new Error('Database query failed: invalid input syntax for type uuid: "a13dc241"')
+    );
+    const out = (await exec(makeReadArtifactTool(ctx('u1')), {
+      kind: 'doc',
+      id: 'a13dc241',
+    })) as { error?: string };
+
+    expect(out.error).not.toMatch(/invalid input syntax|Database query failed/);
+    expect(out.error).toMatch(/vollständige id/);
+  });
+
+  it('lässt eine PDF-Referenz durch, die keine blanke uuid ist', async () => {
+    // Kein Vorab-Filter auf uuid: ein erzeugtes PDF heißt `<uuid>.pdf`, und ein
+    // Guard, der das abwiese, nähme dem Modell sein eigenes Artefakt weg.
+    readArtifactContent.mockResolvedValueOnce('Fact Sheet, Seite 1');
+    const out = (await exec(makeReadArtifactTool(ctx('u1')), {
+      kind: 'pdf',
+      id: 'b3b6f307-90b7-465a-a5fe-d76ae8a0d69c.pdf',
+    })) as { content?: string };
+    expect(out.content).toContain('Fact Sheet');
+  });
+
   it('caps a huge artifact and says that it did', async () => {
     readArtifactContent.mockResolvedValueOnce('x'.repeat(20_000));
     const out = (await exec(makeReadArtifactTool(ctx('u1')), {
@@ -823,5 +825,68 @@ describe('read_artifact', () => {
     expect(out.truncated).toBe(true);
     expect(out.content.length).toBeLessThan(20_000);
     expect(out.content).toContain('[gekürzt]');
+  });
+});
+
+// --- search_threads ----------------------------------------------------------
+describe('search_threads', () => {
+  it('no query → lists the most recent chats instead of erroring', async () => {
+    dbQuery.mockResolvedValue([]); // getCurrentSpaceId → no space
+    listRecentThreads.mockResolvedValue([
+      {
+        threadId: 'th1',
+        threadTitle: 'Hitzeschutz-Tweets',
+        threadSlugSuffix: 'ab12cd',
+        agentId: 'default',
+        snippet: 'Tweet-Optionen zum Abkühl-Sofortprogramm',
+        messageRole: 'assistant',
+        matchedAt: '2026-08-10T00:00:00.000Z',
+        threadUpdatedAt: '2026-08-10T00:00:00.000Z',
+      },
+    ]);
+    const out = (await exec(makeSearchThreadsTool(ctx('u1')), {
+      action: 'search',
+      scope: 'all',
+      limit: 5,
+    })) as { resultCount: number; results: Array<{ title: string; url: string }> };
+    expect(recallPastChats).not.toHaveBeenCalled();
+    expect(listRecentThreads).toHaveBeenCalledWith('u1', { limit: 5, excludeThreadId: 't1' });
+    expect(out.resultCount).toBe(1);
+    expect(out.results[0].title).toBe('Hitzeschutz-Tweets');
+    expect(out.results[0].url).toContain('ab12cd');
+  });
+
+  it('with query → keyword+semantic recall, not the recency list', async () => {
+    dbQuery.mockResolvedValue([]);
+    recallPastChats.mockResolvedValue([]);
+    await exec(makeSearchThreadsTool(ctx('u1')), {
+      action: 'search',
+      query: 'Hitzeschutz',
+      scope: 'all',
+      limit: 5,
+    });
+    expect(listRecentThreads).not.toHaveBeenCalled();
+    expect(recallPastChats).toHaveBeenCalledWith('u1', 'Hitzeschutz', {
+      limit: 5,
+      excludeThreadId: 't1',
+    });
+  });
+
+  it('no query in a Space → recency list stays scoped to the sibling threads', async () => {
+    dbQuery.mockResolvedValue([{ group_id: 'g1' }]); // getCurrentSpaceId → Space
+    resolveSpaceThreadIds.mockResolvedValue({
+      ok: true,
+      threads: [
+        { id: 'th1', title: 'A' },
+        { id: 'th2', title: 'B' },
+      ],
+    });
+    listRecentThreads.mockResolvedValue([]);
+    await exec(makeSearchThreadsTool(ctx('u1')), { action: 'search', scope: 'space', limit: 3 });
+    expect(listRecentThreads).toHaveBeenCalledWith('u1', {
+      limit: 3,
+      excludeThreadId: 't1',
+      threadIds: ['th1', 'th2'],
+    });
   });
 });

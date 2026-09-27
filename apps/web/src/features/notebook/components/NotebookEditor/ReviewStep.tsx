@@ -24,10 +24,19 @@ export default function ReviewStep({ state }: ReviewStepProps) {
     linkedDocs,
     labels,
     uploadedDocuments,
+    failedDocs,
+    indexingDocIds,
     loading,
     handleBack,
     submitForm,
   } = state;
+
+  // A notebook whose every source failed to be read cannot answer anything, so
+  // creating it just produces a broken notebook the user has to debug later.
+  // Documents still indexing do NOT block: that finishes server-side either way,
+  // and the notebook page shows the progress.
+  const usableDocuments = uploadedDocuments.filter((doc) => !failedDocs.has(doc.id));
+  const indexingCount = uploadedDocuments.filter((doc) => indexingDocIds.has(doc.id)).length;
 
   return (
     <div className="flex flex-col gap-lg">
@@ -46,6 +55,16 @@ export default function ReviewStep({ state }: ReviewStepProps) {
               {wordpressDocuments.length > 0 && `, ${wordpressDocuments.length} von WordPress`}
             </span>
           </div>
+          {/* The summary line above counts what was added, not what is readable.
+              Without this, a review page listing "5 eigene" gave no hint that
+              two of them could not be read. */}
+          {(indexingCount > 0 || failedDocs.size > 0) && (
+            <p className="m-0 text-sm text-grey-500">
+              {usableDocuments.length} von {uploadedDocuments.length} Quellen bereit
+              {indexingCount > 0 && `, ${indexingCount} wird noch indexiert`}
+              {failedDocs.size > 0 && `, ${failedDocs.size} nicht lesbar`}.
+            </p>
+          )}
           {labels.length > 0 && (
             <div>
               <p className="mb-xs text-sm text-grey-500">Labels</p>
@@ -72,7 +91,7 @@ export default function ReviewStep({ state }: ReviewStepProps) {
         <Button
           type="button"
           onClick={submitForm}
-          disabled={loading || uploadedDocuments.length === 0 || !watchedName.trim()}
+          disabled={loading || usableDocuments.length === 0 || !watchedName.trim()}
         >
           {loading ? 'Wird erstellt…' : 'Notebook erstellen'}
         </Button>

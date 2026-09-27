@@ -29,6 +29,9 @@ interface ChatStatusLineProps {
   hasOwnDetail: boolean;
   /** Length of the answer text so far — the line retires once it starts. */
   textLength: number;
+  /** …unless the turn took a step AFTER that text: an agentic loop still at
+   *  work, whose later nodes would otherwise run behind an empty line. */
+  stepAfterText?: boolean;
   progress: ChatProgress | undefined;
   theme: Theme;
   /** The running retrieval step ("Websuche „Klimageld""). */
@@ -45,6 +48,7 @@ export function ChatStatusLine({
   isStreaming,
   hasOwnDetail,
   textLength,
+  stepAfterText = false,
   progress,
   theme,
   toolStatus = null,
@@ -56,6 +60,7 @@ export function ChatStatusLine({
     hasText: textLength > 0,
     stage: progress?.stage,
     hasProgress: progress != null,
+    stepAfterText,
   });
 
   if (!isStreaming || view === 'none') return null;

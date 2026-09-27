@@ -1,3 +1,4 @@
+import { autoAssignedRole } from '@gruenerator/shared/roles';
 import { Button } from '@gruenerator/ui';
 import { type QueryClient } from '@tanstack/react-query';
 import { Check } from 'lucide-react';
@@ -9,6 +10,7 @@ import BackgroundTab from './BackgroundTab';
 import FriendsTab, { prefetch as prefetchFriends } from './FriendsTab';
 import RolesSection from './RolesSection';
 
+import { CURRENT_INSTANCE } from '@/config/instance';
 import { userDefaultsQuery } from '@/features/user-defaults/userDefaultsQueries';
 import { cn } from '@/utils/cn';
 
@@ -16,7 +18,7 @@ import { cn } from '@/utils/cn';
  * Die einmalige Einrichtung — der erste Bereich der Einstellungen, und der
  * einzige, der wieder verschwindet.
  *
- * Die drei Schritte rendern die Bereiche, die es ohnehin gibt (Rollen,
+ * Die Schritte rendern die Bereiche, die es ohnehin gibt (Rollen,
  * Friends, Hintergrund), statt eigene Kurzfassungen davon. Eine zweite,
  * schlankere Rollenauswahl neben der echten wäre genau die Art Zweitkopie, die
  * still veraltet: Was in „Personalisierung" dazukommt, wäre in der Einrichtung
@@ -29,7 +31,9 @@ import { cn } from '@/utils/cn';
  */
 
 export const prefetch = (queryClient: QueryClient) => {
-  // Schritt 2 zieht Profil und Wolke-Freigaben, Schritt 1 die Rollen.
+  // Der Friends-Schritt zieht Profil und Wolke-Freigaben, der Rollen-Schritt
+  // die Rollen — und wo dieser wegfällt, ist der Vorabruf trotzdem richtig: es
+  // ist derselbe Aufruf, mit dem der Server die Instanz-Rolle vergibt.
   prefetchFriends(queryClient);
   void queryClient.prefetchQuery(userDefaultsQuery);
 };
@@ -41,7 +45,7 @@ interface OnboardingStep {
   Body: ComponentType;
 }
 
-const STEPS: OnboardingStep[] = [
+const ALL_STEPS: OnboardingStep[] = [
   {
     id: 'rolle',
     title: 'Was machst du bei den Grünen?',
@@ -62,6 +66,17 @@ const STEPS: OnboardingStep[] = [
     Body: BackgroundTab,
   },
 ];
+
+/**
+ * Eine Instanz, die genau eine Rolle führt, vergibt sie selbst — der Server tut
+ * das beim Lesen der User-Defaults. Der Schritt bliebe dann eine Frage mit einer
+ * möglichen Antwort, deren Antwort schon eingetragen ist; er fällt weg, und die
+ * Einrichtung ist zweistufig.
+ */
+const STEPS: OnboardingStep[] =
+  autoAssignedRole(CURRENT_INSTANCE) !== null
+    ? ALL_STEPS.filter((s) => s.id !== 'rolle')
+    : ALL_STEPS;
 
 const OnboardingTab = () => {
   const [stepIndex, setStepIndex] = useState(0);

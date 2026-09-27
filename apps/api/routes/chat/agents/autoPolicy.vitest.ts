@@ -1,4 +1,5 @@
 import { searchIntentSchema } from '@gruenerator/contracts';
+import { intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 import { describe, it, expect } from 'vitest';
 
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
@@ -75,9 +76,9 @@ describe('autoPolicy — a non-off reasoning setting is always actionable', () =
 });
 
 describe('autoPolicy — lane assignment per task shape', () => {
-  it('direct answers take the speed lane with reasoning OFF', () => {
+  it('direct answers take the Gemma content lane with reasoning OFF', () => {
     const sel = resolveAutoSelection({ intent: 'direct', complexity: 'simple' });
-    expect(sel.modelId).toBe('litellm');
+    expect(sel.modelId).toBe('gemma-litellm');
     expect(sel.reasoning).toBe('off');
   });
 
@@ -119,23 +120,85 @@ describe('autoPolicy — lane assignment per task shape', () => {
     }
   });
 
-  it('short/structured turns take the small Gemma lane', () => {
-    // Reporting/summarising over material that is already in context. Since
-    // 03.08.2026 that is Gemma 4 26B (Scaleway, GreenPT on failover) rather than
-    // Mistral Small 4: both only narrate, so the deciding argument is the German,
-    // and keeping A and B in one family means a turn changes size, not voice.
+  /**
+   * Die eine Stelle, an der die Suchfamilie in der Auto-Politik auseinander
+   * fällt — festgenagelt statt nur beschrieben, weil R3 die drei Intents auf
+   * EINEN Ausführungsweg legt und eine stille Verschiebung sonst niemandem
+   * auffiele.
+   *
+   * `>=` oben lässt jede Anhebung durch; hier stehen die Werte selbst. Der
+   * Grund für den Unterschied ist die Materialmenge des EINZELDURCHLAUFS
+   * (`resolveSearchTier`: `research` → `gruendlich` = 10 Quellen, `search`/
+   * `web` → `standard` = 5), nicht das Wort „Recherche" — siehe den Kommentar
+   * an der Tabellenzeile.
+   */
+  it('nagelt die eine Stufe fest, in der die Suchfamilie auseinander fällt', () => {
+    const grades = (intent: string) =>
+      (['simple', 'moderate', 'complex'] as const).map(
+        (complexity) => resolveAutoSelection({ intent, complexity }).reasoning
+      );
+
+    expect(grades('research')).toEqual(['low', 'medium', 'medium']);
+    for (const intent of ['search', 'web']) {
+      expect(grades(intent), intent).toEqual(['low', 'low', 'medium']);
+    }
+    // Das Etikett, das die MEISTEN Loop-Turns tragen (Tier-3.5-Demotion), denkt
+    // flach — der Unterschied hängt also an der Erwähnung, nicht an der Arbeit.
+    expect(grades('agentic')).toEqual(['low', 'low', 'low']);
+  });
+
+  it('short/structured turns take the Gemma content lane', () => {
+    // Reporting/summarising over material that is already in context. Folded
+    // into the single Gemma 4 (31B) lane on 07.08.2026 — see the lane comment
+    // in autoPolicy.ts.
     for (const intent of [
       'mcp',
       'summary',
       'chat_history',
       'scrape_url',
-      'compute',
       'chart',
       'bahn',
       'wetter',
       'umfragen',
     ]) {
-      expect(resolveAutoSelection({ intent }).modelId, intent).toBe('gemma-4-26b');
+      expect(resolveAutoSelection({ intent }).modelId, intent).toBe('gemma-litellm');
+    }
+  });
+
+  it('report-lane intents keep reasoning OFF at every complexity', () => {
+    // Load-bearing, not decorative: the lane's current host (Regolo) honours
+    // `enable_thinking`, so a graded setting here would actually buy reasoning
+    // tokens for turns that only report material already in context.
+    for (const intent of [
+      'mcp',
+      'summary',
+      'chat_history',
+      'chart',
+      'scrape_url',
+      'bahn',
+      'wetter',
+      'hotel',
+      'reise',
+      'umfragen',
+      'hilfe',
+    ]) {
+      for (const complexity of COMPLEXITIES) {
+        expect(
+          resolveAutoSelection({ intent, complexity }).reasoning,
+          `${intent}/${complexity}`
+        ).toBe('off');
+      }
+    }
+  });
+
+  it('compute narrates pre-computed figures on the Mistral lane, not the shared writer', () => {
+    // 02.08.2026 incident: the shared writer filled a narration gap with its
+    // own arithmetic. Moved off the shared content lane on 07.08.2026 so a
+    // future change to that lane can't reintroduce the regression here too.
+    for (const complexity of COMPLEXITIES) {
+      const sel = resolveAutoSelection({ intent: 'compute', complexity });
+      expect(sel.modelId).toBe('mistral-medium-3.5');
+      expect(sel.reasoning).toBe('off');
     }
   });
 
@@ -233,22 +296,6 @@ describe('autoPolicy — complexity grading', () => {
     }
   });
 
-  it('the small Gemma lane never thinks — measured, not assumed', () => {
-    // Live probe: thinking is correct but costs ~1.6–2k chars of reasoning on a
-    // trivial question, `low` barely reduces it (no native dial), and a small
-    // token budget was consumed entirely by reasoning → empty answer. Too
-    // expensive for the lane chosen FOR speed. The rule survived the move off
-    // Small 4 because the host now ENFORCES it: scalewayThinkingFetch pins
-    // `reasoning_effort: 'none'`. See the note in autoPolicy.ts.
-    for (const intent of ALL_INTENTS) {
-      for (const complexity of COMPLEXITIES) {
-        const sel = resolveAutoSelection({ intent, complexity });
-        if (sel.modelId !== 'gemma-4-26b') continue;
-        expect(sel.reasoning, `${intent}/${complexity}`).toBe('off');
-      }
-    }
-  });
-
   it('grading never changes the lane, only the effort', () => {
     for (const intent of ALL_INTENTS) {
       const lanes = new Set(
@@ -263,18 +310,49 @@ describe('autoPolicy — agent routing hint', () => {
   const CREATIVE_AGENT = 'gruenerator-rede-schreiber'; // autoRoutingHint: 'creative'
   const PRECISE_AGENT = 'gruenerator-bundestag'; // autoRoutingHint: 'precise'
 
-  it('overrides the lane on shape-less intents', () => {
-    expect(resolveAutoSelection({ intent: 'direct', agentId: CREATIVE_AGENT }).modelId).toBe(
-      'gemma-litellm'
-    );
+  it('the precise hint overrides the lane on shape-less intents', () => {
     expect(resolveAutoSelection({ intent: 'direct', agentId: PRECISE_AGENT }).modelId).toBe(
       'mistral-medium-3.5'
+    );
+  });
+
+  it('the creative hint is currently a no-op — every shape-less intent already defaults to Gemma', () => {
+    // Documents intent, not a real override: since the 07.08.2026 lane fold,
+    // GEMMA is what a shape-less intent resolves to with NO agent at all, so
+    // this assertion would pass identically with the 'creative' branch deleted
+    // from resolveAutoSelection. Kept as a tripwire — if a future
+    // HINT_OVERRIDABLE intent's default stops being GEMMA, this test should
+    // start failing and prompt re-adding a real branch.
+    expect(resolveAutoSelection({ intent: 'direct', agentId: CREATIVE_AGENT }).modelId).toBe(
+      resolveAutoSelection({ intent: 'direct' }).modelId
     );
   });
 
   it('does NOT override an intent that already has a task shape', () => {
     const sel = resolveAutoSelection({ intent: 'create_sheet', agentId: CREATIVE_AGENT });
     expect(sel.modelId).toBe('mistral-medium-3.5');
+  });
+
+  it('überschreibbar sind genau die prose-Dispositionen plus agentic', () => {
+    // HINT_OVERRIDABLE wird seit dem Registry-Rollout aus der Dispositions-Achse
+    // abgeleitet statt aufgezählt. Diese Zusicherung ist der Ort, an dem die
+    // Ableitung als AUSSAGE lesbar ist: „keine eigene Aufgabenform" ist genau,
+    // was `prose` heisst, und `agentic` kommt als Auffangwert dazu.
+    //
+    // Geprüft über den PRECISE-Hint, weil der creative-Zweig seit der
+    // Lane-Faltung wirkungslos ist (siehe oben) — precise hebt auf
+    // mistral-medium-3.5 und macht die Grenze damit sichtbar.
+    const overridable = ALL_INTENTS.filter(
+      (intent) =>
+        resolveAutoSelection({ intent, agentId: PRECISE_AGENT }).modelId !==
+        resolveAutoSelection({ intent }).modelId
+    );
+    const expected = [...intentsWithDisposition('prose'), 'agentic'].filter(
+      // Der Hint kann nur etwas ändern, wo die Vorgabe nicht ohnehin die
+      // Zielspur ist.
+      (intent) => resolveAutoSelection({ intent }).modelId !== 'mistral-medium-3.5'
+    );
+    expect([...overridable].sort()).toEqual([...expected].sort());
   });
 
   it('leaves the reasoning grading untouched', () => {
@@ -288,7 +366,9 @@ describe('autoPolicy — agent routing hint', () => {
   });
 
   it('an unknown agent id is ignored rather than fatal', () => {
-    expect(resolveAutoSelection({ intent: 'direct', agentId: 'nope' }).modelId).toBe('litellm');
+    expect(resolveAutoSelection({ intent: 'direct', agentId: 'nope' }).modelId).toBe(
+      'gemma-litellm'
+    );
   });
 });
 
@@ -339,5 +419,161 @@ describe('autoPolicy — classifier-less surfaces', () => {
     expect(resolveAutoSelection({ surface: 'notebook', complexity: 'complex' }).reasoning).toBe(
       'high'
     );
+  });
+});
+
+describe('autoPolicy — taskShape override', () => {
+  it('routes neutral intents with an output contract to the precise lane', () => {
+    for (const intent of ['produktion', 'direct', 'agentic'] as const) {
+      expect(resolveAutoSelection({ intent, taskShape: 'code' }).modelId).toBe(
+        'mistral-medium-3.5'
+      );
+      expect(resolveAutoSelection({ intent, taskShape: 'strict_format' }).modelId).toBe(
+        'mistral-medium-3.5'
+      );
+    }
+  });
+
+  it('leaves non-neutral intents on their table lane', () => {
+    // A search turn with a JSON wish still answers over sources on its lane;
+    // pinned tool intents are already precise.
+    expect(resolveAutoSelection({ intent: 'web', taskShape: 'code' }).modelId).toBe(
+      'gemma-litellm'
+    );
+    expect(resolveAutoSelection({ intent: 'create_sheet', taskShape: 'code' }).modelId).toBe(
+      'mistral-medium-3.5'
+    );
+  });
+
+  it('beats a creative agent hint — format fidelity over voice', () => {
+    // gruenerator-universal has no hint; use the shape override on top of the
+    // hint path via an agent that hints creative, if configured. The contract
+    // is positional: taskShape applies AFTER the hint.
+    const selection = resolveAutoSelection({
+      intent: 'produktion',
+      agentId: 'gruenerator-universal',
+      taskShape: 'code',
+    });
+    expect(selection.modelId).toBe('mistral-medium-3.5');
+  });
+
+  it('no shape → unchanged speed lane', () => {
+    expect(resolveAutoSelection({ intent: 'produktion' }).modelId).toBe('gemma-litellm');
+  });
+});
+
+describe('resolveAutoSelection — carried material', () => {
+  // The signal that needs no wording. Measured 13.08.2026: a 10.149-char
+  // article, pasted once and carried into three follow-up turns.
+  const ARTICLE = 10_149;
+
+  it('routes document work to the precise lane', () => {
+    expect(resolveAutoSelection({ intent: 'agentic', materialChars: ARTICLE }).modelId).toBe(
+      'mistral-medium-3.5'
+    );
+    expect(resolveAutoSelection({ intent: 'produktion', materialChars: ARTICLE }).modelId).toBe(
+      'mistral-medium-3.5'
+    );
+  });
+
+  it('turns reasoning on, which the intent table never did', () => {
+    // `agentic` carries a flat 'low' that no complexity staffing touches — all
+    // four turns of the live run were graded 'low', two of them at
+    // complexity=complex, and the model then rated 8/8 paragraphs "vollständig"
+    // and missed a modality shift.
+    expect(resolveAutoSelection({ intent: 'agentic', complexity: 'complex' }).reasoning).toBe(
+      'low'
+    );
+    expect(
+      resolveAutoSelection({ intent: 'agentic', complexity: 'complex', materialChars: ARTICLE })
+        .reasoning
+    ).toBe('medium');
+  });
+
+  it('never lowers reasoning an intent already asked for', () => {
+    const withMaterial = resolveAutoSelection({
+      intent: 'produktion',
+      complexity: 'complex',
+      agentId: 'gruenerator-universal',
+      materialChars: ARTICLE,
+    });
+    expect(withMaterial.reasoning).not.toBe('off');
+  });
+
+  it('a short quote is not document work', () => {
+    // A pasted sentence must not move the whole turn to the slow lane.
+    expect(resolveAutoSelection({ intent: 'produktion', materialChars: 400 }).modelId).toBe(
+      'gemma-litellm'
+    );
+    expect(resolveAutoSelection({ intent: 'produktion', materialChars: 2_999 }).modelId).toBe(
+      'gemma-litellm'
+    );
+    expect(resolveAutoSelection({ intent: 'produktion', materialChars: 3_000 }).modelId).toBe(
+      'mistral-medium-3.5'
+    );
+  });
+
+  it('leaves pinned tool intents alone', () => {
+    // Same scope as the shape and hint overrides.
+    expect(resolveAutoSelection({ intent: 'web', materialChars: ARTICLE }).modelId).toBe(
+      'gemma-litellm'
+    );
+  });
+
+  it('needs no taskShape to fire — that is the point', () => {
+    // The wording-based detector could only ever recognise the phrasings it was
+    // built against. This one reads a length.
+    const selection = resolveAutoSelection({
+      intent: 'agentic',
+      complexity: 'moderate',
+      materialChars: ARTICLE,
+    });
+    expect(selection.modelId).toBe('mistral-medium-3.5');
+    expect(selection.reasoning).toBe('medium');
+  });
+});
+
+describe('resolveAutoSelection — Pipeline-Agenten', () => {
+  // Der Lauf, der diese Regel erzwungen hat: 5.838 Zeichen Fachtext an den
+  // Agenten „Einfache Sprache". Material-Regel + `autoRoutingHint: 'precise'`
+  // ergaben mistral-medium-3.5 mit reasoning=medium — auf Mistral binär, also
+  // volles Denken. Drei Minuten Denken, kein Antwort-Token, Turn verloren.
+  const ES = 'gruenerator-einfache-sprache';
+  const MATERIAL = 5_838;
+
+  it('bleibt auf Gemma 4, auch mit Material und precise-Hint', () => {
+    const selection = resolveAutoSelection({
+      intent: 'produktion',
+      complexity: 'moderate',
+      agentId: ES,
+      materialChars: MATERIAL,
+    });
+    expect(selection.modelId).toBe('gemma-litellm');
+    // Denken versuchsweise aus (14.08.2026): auf dieser Lane kam es in keinem
+    // gemessenen Lauf durch, jeder endete im Rückfall „zweiter Versuch ohne
+    // Denken". Was der Test festhält, ist die Lane und ihre Unverdrehbarkeit —
+    // der Reasoning-Wert ist hier bewusst mitgeprüft, damit ein Zurückdrehen
+    // eine sichtbare Entscheidung bleibt und kein Nebeneffekt.
+    expect(selection.reasoning).toBe('off');
+  });
+
+  it('lässt sich auch von taskShape nicht wegdrehen', () => {
+    expect(
+      resolveAutoSelection({ intent: 'produktion', agentId: ES, taskShape: 'strict_format' })
+        .modelId
+    ).toBe('gemma-litellm');
+  });
+
+  it('ein gewöhnlicher Agent mit demselben Material bleibt auf der präzisen Lane', () => {
+    // Die Material-Regel ist NICHT zurückgenommen, sie gilt nur nicht für die
+    // Agenten, die ihre Prüfung selbst mitbringen.
+    const selection = resolveAutoSelection({
+      intent: 'produktion',
+      complexity: 'moderate',
+      agentId: 'gruenerator-universal',
+      materialChars: MATERIAL,
+    });
+    expect(selection.modelId).toBe('mistral-medium-3.5');
+    expect(selection.reasoning).toBe('medium');
   });
 });

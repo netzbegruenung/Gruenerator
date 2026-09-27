@@ -8,7 +8,7 @@
 import { processResponseWithTitle } from '../prompt/index.js';
 
 import type {
-  AIWorkerResult,
+  AiResult,
   AttachmentInfo,
   SuccessResponse,
   ErrorResponse,
@@ -20,23 +20,23 @@ import type { Response } from 'express';
  * Creates a standardized success response
  */
 export function createSuccessResponse(
-  result: AIWorkerResult | string,
+  result: AiResult | string,
   routePath: string,
   formData: Record<string, unknown> = {},
   additionalMetadata: Record<string, unknown> = {}
 ): SuccessResponse {
   // Process response with title extraction if it's an AI result
-  let processedResult: AIWorkerResult =
+  let processedResult: AiResult =
     typeof result === 'string' ? { success: true, content: result } : result;
 
   if (typeof result === 'object' && result.success && result.content) {
-    processedResult = processResponseWithTitle(result as AIWorkerResult, routePath, formData);
+    processedResult = processResponseWithTitle(result as AiResult, routePath, formData);
   }
 
   // Build base response object
   const response: SuccessResponse = {
     success: true,
-    content: processedResult.content || (result as AIWorkerResult).content || String(result),
+    content: processedResult.content || (result as AiResult).content || String(result),
     metadata: {
       ...processedResult.metadata,
       ...additionalMetadata,
@@ -44,7 +44,7 @@ export function createSuccessResponse(
     },
   };
 
-  const agent = processedResult.agent || (result as AIWorkerResult).agent || formData.agent;
+  const agent = processedResult.agent || (result as AiResult).agent || formData.agent;
   if (agent) {
     response.agent = agent as string;
   }
@@ -56,7 +56,7 @@ export function createSuccessResponse(
  * Creates a standardized success response with attachment and web search source metadata
  */
 export function createSuccessResponseWithAttachments(
-  result: AIWorkerResult,
+  result: AiResult,
   routePath: string,
   formData: Record<string, unknown>,
   attachmentInfo: AttachmentInfo
@@ -112,7 +112,7 @@ export function createErrorResponse(
  */
 export function sendSuccessResponse(
   res: Response,
-  result: AIWorkerResult | string,
+  result: AiResult | string,
   routePath: string,
   formData: Record<string, unknown> = {},
   additionalMetadata: Record<string, unknown> = {}
@@ -131,7 +131,7 @@ export function sendSuccessResponse(
  */
 export function sendSuccessResponseWithAttachments(
   res: Response,
-  result: AIWorkerResult,
+  result: AiResult,
   routePath: string,
   formData: Record<string, unknown>,
   attachmentInfo: AttachmentInfo

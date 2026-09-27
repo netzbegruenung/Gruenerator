@@ -1,6 +1,6 @@
 import { buildGroupPath } from '@gruenerator/shared/groups';
 import { extractSlugSuffix } from '@gruenerator/shared/utils';
-import { SectionHeader, StatusBanner } from '@gruenerator/ui';
+import { Button, SectionHeader, StatusBanner } from '@gruenerator/ui';
 import { useState, useCallback, useRef } from 'react';
 import { HiUser, HiUserGroup } from 'react-icons/hi';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -9,12 +9,7 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import PageContainer from '../../../components/common/PageContainer';
 import { getToolGradient } from '../../../config/toolTheme';
 import { useFirstName } from '../../../hooks/useFirstName';
-import {
-  OFFICE_SCROLL_ITEM,
-  OFFICE_SCROLL_ROW,
-  OfficeActionTile,
-  officeStripStyle,
-} from '../../workplace/components/ToolsSection';
+import { OFFICE_PILL_ROW, OfficeActionPill } from '../../workplace/components/ToolsSection';
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 import GroupDetailSection from '../components/GroupDetailSection';
 import GroupsCreateSection from '../components/GroupsCreateSection';
@@ -47,8 +42,16 @@ const ProjektePage = () => {
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { userGroups, createGroup, isCreatingGroup, isCreateGroupError, createGroupError } =
-    useGroups({ isActive: true });
+  const {
+    userGroups,
+    isLoadingGroups,
+    isErrorGroups,
+    refetchGroups,
+    createGroup,
+    isCreatingGroup,
+    isCreateGroupError,
+    createGroupError,
+  } = useGroups({ isActive: true });
   const inviteToGroup = useInviteToGroup();
 
   const showSuccess = useCallback((msg: string) => {
@@ -127,10 +130,10 @@ const ProjektePage = () => {
     />
   );
 
-  // Detail view — unchanged compact shell.
+  // Detail view — feed plus sidebar needs the wide shell.
   if (idOrSlug) {
     return (
-      <PageContainer maxWidth="sm">
+      <PageContainer maxWidth="lg">
         {banners}
         {resolvedGroupId ? (
           <GroupDetailSection
@@ -168,30 +171,42 @@ const ProjektePage = () => {
       </WorkplaceHero>
 
       <section className="mb-xl mt-md">
-        <div className={OFFICE_SCROLL_ROW} style={officeStripStyle(2, { maxTilePx: 200 })}>
-          <div className={OFFICE_SCROLL_ITEM}>
-            <OfficeActionTile
-              styleKey="projekte"
-              icon={HiUser}
-              title="Projekt erstellen"
-              description="Nur für dich — organisiere deine Chats & Inhalte."
-              onClick={() => openCreate('personal')}
-            />
-          </div>
-          <div className={OFFICE_SCROLL_ITEM}>
-            <OfficeActionTile
-              styleKey="projekte"
-              icon={HiUserGroup}
-              title="Gruppe erstellen"
-              description="Mit Team — Mitglieder, geteilte Inhalte & Beitritt."
-              onClick={() => openCreate('standard')}
-            />
-          </div>
+        <div className={OFFICE_PILL_ROW}>
+          <OfficeActionPill
+            styleKey="projekte"
+            icon={HiUser}
+            title="Projekt erstellen"
+            onClick={() => openCreate('personal')}
+          />
+          <OfficeActionPill
+            styleKey="projekte"
+            icon={HiUserGroup}
+            title="Gruppe erstellen"
+            onClick={() => openCreate('standard')}
+          />
         </div>
       </section>
 
       <SectionHeader title="Deine Projekte" />
-      {userGroups && userGroups.length === 0 ? (
+      {/* „Noch keine Projekte" ist die härteste Aussage dieser Fläche und darf
+          nur aus einer bestätigt leeren Liste kommen. `userGroups` ist
+          `query.data ?? []`, also auch dann leer, wenn noch geladen wird oder
+          der Abruf gescheitert ist — ein Fehler bliebe hier sonst als „du hast
+          nichts" stehen, weil `refetchOnWindowFocus` aus ist und der Toast bei
+          401 unterdrückt wird. Warum `isLoadingGroups` genau der richtige
+          Ladezustand ist, steht am Hook. */}
+      {isLoadingGroups ? (
+        <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
+          Projekte werden geladen…
+        </p>
+      ) : isErrorGroups ? (
+        <div className="py-lg text-center">
+          <p className="mb-md text-foreground">Deine Projekte konnten nicht geladen werden.</p>
+          <Button variant="outline" size="sm" onClick={() => void refetchGroups()}>
+            Erneut versuchen
+          </Button>
+        </div>
+      ) : userGroups.length === 0 ? (
         <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
           Noch keine Projekte vorhanden. Erstelle dein erstes Projekt über das Feld oben.
         </p>

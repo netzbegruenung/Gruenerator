@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
@@ -15,7 +16,10 @@ const log = createLogger('FlyerToSite:extract');
 
 export async function extractNode(state: FlyerToSiteState): Promise<Partial<FlyerToSiteState>> {
   const startTime = Date.now();
-  const tempPath = path.join(os.tmpdir(), `flyer-${Date.now()}-${state.originalFilename}`);
+  // Only the extension of the uploaded name is kept — the rest is client-supplied
+  // and `../` in it would escape os.tmpdir() (path traversal / arbitrary write).
+  const ext = path.extname(state.originalFilename).slice(0, 16);
+  const tempPath = path.join(os.tmpdir(), `flyer-${randomUUID()}${ext}`);
 
   try {
     await fs.writeFile(tempPath, state.pdfBuffer);

@@ -1,5 +1,5 @@
 ---
-iconKey: PiProjectorScreenChart
+iconKey: projector-screen-chart
 identifier: gruenerator-presentations-editor
 hiddenFromInventory: true
 title: Präsentations-Assistent
@@ -39,7 +39,7 @@ enabledTools:
   - web_search
   - research
   - summarize
-  - edit_current_doc
+  - edit_current_presentation
   - scrape_url
   - find_content
   - recall_memory

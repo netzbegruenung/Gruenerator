@@ -14,18 +14,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockExecuteDirectSearch = vi.fn();
 const mockExecuteDirectWebSearch = vi.fn();
 const mockExecuteDirectExamplesSearch = vi.fn();
-const mockExecuteResearch = vi.fn();
 
 vi.mock('../../../../routes/chat/agents/directSearch.js', () => ({
   executeDirectSearch: (...args: any[]) => mockExecuteDirectSearch(...args),
   executeDirectWebSearch: (...args: any[]) => mockExecuteDirectWebSearch(...args),
   executeDirectExamplesSearch: (...args: any[]) => mockExecuteDirectExamplesSearch(...args),
-  executeResearch: (...args: any[]) => mockExecuteResearch(...args),
 }));
 
-const mockSelectAndCrawlTopUrls = vi.fn();
+const mockCrawlAndDistill = vi.fn();
 vi.mock('../../../../services/search/CrawlingService.js', () => ({
-  selectAndCrawlTopUrls: (...args: any[]) => mockSelectAndCrawlTopUrls(...args),
+  crawlAndDistill: (...args: any[]) => mockCrawlAndDistill(...args),
 }));
 
 const mockExpandQuery = vi.fn();
@@ -89,7 +87,6 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     threadId: null,
     agentConfig: makeAgentConfig(),
     enabledTools: { search: true },
-    aiWorkerPool: null,
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
@@ -498,7 +495,7 @@ describe('searchNode – multi-source with defaultNotebookCollectionIds', () => 
     });
 
     mockExpandQuery.mockResolvedValue({ alternatives: [] });
-    mockSelectAndCrawlTopUrls.mockImplementation(async (results: any[]) =>
+    mockCrawlAndDistill.mockImplementation(async (results: any[]) =>
       results.map((r: any) => ({ ...r, crawled: false }))
     );
   });
@@ -567,7 +564,7 @@ describe('searchNode – web intent', () => {
     });
 
     mockExpandQuery.mockResolvedValue({ alternatives: ['Klimapolitik aktuell'] });
-    mockSelectAndCrawlTopUrls.mockImplementation(async (results: any[]) =>
+    mockCrawlAndDistill.mockImplementation(async (results: any[]) =>
       results.map((r: any) => ({ ...r, crawled: false }))
     );
   });

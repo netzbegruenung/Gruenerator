@@ -1,10 +1,13 @@
+import { isAiConsentRequiredBody } from '@gruenerator/contracts';
 import axios, {
+  AxiosError,
   type AxiosInstance,
-  type AxiosError,
   type AxiosRequestConfig,
+  type AxiosResponse,
   type InternalAxiosRequestConfig,
 } from 'axios';
 
+import { notifyAiConsentRequired } from './aiConsentSignal.js';
 import { getApiLocale } from './locale.js';
 
 import type { ApiConfig } from '../types/auth.js';
@@ -17,6 +20,26 @@ export type AuthMode = 'cookie' | 'bearer';
  * `onUnauthorized` so the probe can't re-enter the interceptor and recurse.
  */
 export type AuthRequestConfig = AxiosRequestConfig & { skipAuthRefresh?: boolean };
+
+/**
+ * A request the browser tore down (page reload/navigation while it was in
+ * flight) ends with status 0. axios `settle()` resolves any response whose
+ * status is falsy without consulting `validateStatus`, so it reaches callers
+ * as a success with `data === ''`. Reject it the way axios itself rejects a
+ * network drop, so the retry predicate and the error dictionary recognise it.
+ * Call from a *success* interceptor — `validateStatus` cannot catch this.
+ */
+export function rejectAbortedResponse<T extends AxiosResponse>(response: T): T {
+  if (response.status === 0) {
+    throw new AxiosError(
+      'Network Error',
+      AxiosError.ERR_NETWORK,
+      response.config,
+      response.request
+    );
+  }
+  return response;
+}
 
 export interface CreateApiClientOptions extends ApiConfig {
   authMode: AuthMode;
@@ -64,6 +87,7 @@ export function createApiClient(options: CreateApiClientOptions): AxiosInstance 
   // Response interceptor - handle 401 errors with retry after token refresh
   client.interceptors.response.use(
     (response) => {
+      rejectAbortedResponse(response);
       // Better Auth's bearer() plugin can return a refreshed session token via
       // the `set-auth-token` response header. Persist it so the stored token
       // never drifts from the server session. No-op on web (no handler passed).
@@ -76,6 +100,13 @@ export function createApiClient(options: CreateApiClientOptions): AxiosInstance 
       return response;
     },
     async (error: AxiosError) => {
+      // Einwilligung fehlt: kein Anmeldeproblem — der Store hält nur einen
+      // veralteten Zeitstempel. Melden statt toasten, dann zeigt das Gate sich
+      // selbst. Vor dem 401-Zweig, damit kein Refresh-Versuch dazwischenkommt.
+      if (error.response?.status === 403 && isAiConsentRequiredBody(error.response.data)) {
+        notifyAiConsentRequired();
+        return Promise.reject(error);
+      }
       const originalRequest = error.config as
         | (InternalAxiosRequestConfig & { _retried?: boolean; skipAuthRefresh?: boolean })
         | undefined;

@@ -87,12 +87,20 @@ const FAILURE_RULES: readonly FailureRule[] = [
   },
 ];
 
+/**
+ * Node errno codes (ECONNREFUSED, ENOENT). Case-sensitive on purpose: under
+ * `/i` the class also matched "einmal" and "erneut", and every authored
+ * sentence containing such a word collapsed to the generic message.
+ */
+const ERRNO_CODE = /\bE[A-Z]{4,}\b/;
+
 /** Does this read like tooling output rather than a message we authored? */
 function isTechnical(message: string): boolean {
   return (
-    /ffmpeg|ffprobe|libx26|x264|x265|avcodec|libav|Conversion failed|exited with code|@ 0x|Parsed_|Stream #|\bE[A-Z]{4,}\b|\bat .+:\d+:\d+/i.test(
+    /ffmpeg|ffprobe|libx26|x264|x265|avcodec|libav|Conversion failed|exited with code|@ 0x|Parsed_|Stream #|\bat .+:\d+:\d+/i.test(
       message
     ) ||
+    ERRNO_CODE.test(message) ||
     message.includes('\n') ||
     message.length > 200
   );

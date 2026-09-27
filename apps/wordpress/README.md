@@ -77,7 +77,7 @@ Wir nutzen eine vereinfachte Git-Flow Struktur:
 Wir nutzen [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
-typ(bereich): beschreibung
+type(scope): description
 
 - Detaillierte Beschreibung (optional)
 - Weitere Details (optional)
@@ -95,16 +95,18 @@ Typen:
 Beispiel:
 
 ```bash
-git commit -m "feat(profil): Füge Lebenslauf-Block hinzu"
+git commit -m "feat(profil): add cv block"
 ```
 
 ### Pull Requests
 
 1. Fork das Repository
-2. Erstelle einen Feature-Branch (`git checkout -b feature/NeuesFeature`)
-3. Committe Deine Änderungen (`git commit -m 'feat: Füge neues Feature hinzu'`)
-4. Push in den Branch (`git push origin feature/NeuesFeature`)
+2. Erstelle einen Feature-Branch (`git checkout -b feature/amazing-feature`)
+3. Committe Deine Änderungen (`git commit -m 'feat: add amazing feature'`)
+4. Push in den Branch (`git push origin feature/amazing-feature`)
 5. Öffne einen Pull Request
+
+Alles, was auf GitHub landet, wird auf **Englisch** geschrieben: Commit-Nachrichten, Branch-Namen, PR-Titel und -Beschreibungen, Issues und Kommentare.
 
 ## 📝 Lizenz
 

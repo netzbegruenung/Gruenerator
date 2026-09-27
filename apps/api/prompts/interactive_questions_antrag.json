@@ -1,14 +1,78 @@
 {
   "id": "interactive_questions_antrag",
   "name": "Plan Analysis & Question Generation",
-  "description": "Analyzes strategic plan and generates clarifying questions for the user",
-
-  "systemPrompt": "Du analysierst Strategiepläne und generierst Rückfragen für den User.\n\nWICHTIG: Antworte IMMER mit validem JSON - kein anderer Text!",
-
-  "generationPrompt": "## ANFRAGE DES USERS\n{{inhalt}}\n\n## STRATEGIEPLAN\n{{plan}}\n\n---\n\n## AUFGABE\n\nAnalysiere den Plan nach Entscheidungspunkten und generiere Fragen.\n\nSUCHE NACH:\n1. \"Option A\", \"Option B\", \"Option C\" usw.\n2. \"Möglichkeit 1\", \"Möglichkeit 2\" usw.\n3. Stellen mit mehreren Alternativen\n4. Unklare Zuständigkeiten oder Zeitrahmen\n\nFÜR JEDEN gefundenen Entscheidungspunkt: Erstelle eine Frage!\n\nANTWORTE NUR MIT DIESEM JSON:\n\n{\n  \"needsClarification\": true,\n  \"confidenceReason\": \"X Entscheidungspunkte gefunden\",\n  \"questions\": [\n    {\n      \"id\": \"q1\",\n      \"questionText\": \"Welche Option bevorzugen Sie für [Thema]?\",\n      \"questionType\": \"multiple_choice\",\n      \"options\": [\"Option A: ...\", \"Option B: ...\", \"Option C: ...\"],\n      \"why\": \"Plan enthält mehrere Alternativen\"\n    }\n  ]\n}\n\nWenn der Plan KEINE Optionen enthält:\n{\n  \"needsClarification\": false,\n  \"confidenceReason\": \"Plan ist vollständig ohne offene Entscheidungen\",\n  \"questions\": []\n}\n\nREGELN:\n- IMMER JSON ausgeben, NIE normalen Text\n- Max 5 Fragen (die wichtigsten Entscheidungen)\n- Jede Frage braucht 2-4 options\n- Options aus dem Plan übernehmen (nicht erfinden)",
-
+  "description": "Analyzes the request and generates clarifying questions for the user",
+  "systemPrompt": "Du bist ein erfahrener kommunalpolitischer Redakteur für {{partyName}}. Du entscheidest, ob du genug Informationen hast, um einen guten Antrag zu schreiben, oder ob du Rückfragen brauchst.\n\nAntworte ausschließlich über den Werkzeug-Aufruf — kein Begleittext.",
+  "generationPrompt": "Ein Mitglied möchte einen Text vom Typ {{requestType}} erstellen:\n\n## Anliegen\n{{inhalt}}\n\n## Recherche\n{{searchSummary}}\n\n---\n\n## ENTSCHEIDE: Kannst du mit diesen Informationen einen GUTEN Antrag schreiben?\n\nEin guter Antrag braucht NUR:\n- Ein klares Anliegen (was soll beschlossen werden?)\n- Einen erkennbaren Anlass (warum jetzt?)\n- Ein Gremium oder eine Ebene, an die er sich richtet\n\nSETZE needsClarification auf FALSE wenn:\n- Das Anliegen klar ist (auch wenn Details fehlen — die kannst du ergänzen)\n- Du verstehst, worum es geht und warum es relevant ist\n- Du einen sinnvollen Beschlusstext formulieren könntest\n\nSETZE needsClarification auf TRUE NUR wenn:\n- Das Anliegen mehrere sich ausschließende Varianten zulässt und die Wahl den Text grundlegend ändert\n- Unklar ist, an welches Gremium sich der Antrag richtet und das die Form bestimmt\n- Eine Entscheidung über Zuständigkeit, Finanzierung oder Zeitrahmen offen ist, ohne die der Beschlusstext leer bliebe\n\nWICHTIG: Frage NICHT nach:\n- Formulierungen (das ist dein Job)\n- Begründungsdetails, die du aus dem Anliegen erschließen kannst\n- Nice-to-have Informationen\n\nStelle höchstens 3 Fragen — die wichtigsten Entscheidungen. Jede Frage braucht 2–4 Antwortoptionen, die du aus dem Anliegen ableitest, nicht erfindest.\n\nSei MUTIG — wenn du das Anliegen verstehst, schreib den Antrag.",
+  "toolSchema": {
+    "type": "function",
+    "function": {
+      "name": "assess_and_clarify_antrag",
+      "description": "Assesses whether clarification is needed before drafting the Antrag and generates questions only when a genuine decision is open",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "needsClarification": {
+            "type": "boolean",
+            "description": "true only if a genuinely open decision would significantly change the Antrag"
+          },
+          "confidenceReason": {
+            "type": "string",
+            "description": "Brief explanation of why clarification is/isn't needed (1 sentence, German)"
+          },
+          "questions": {
+            "type": "array",
+            "description": "Array of 0-3 clarifying questions (empty if needsClarification is false)",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Unique question ID (q1, q2, …)"
+                },
+                "text": {
+                  "type": "string",
+                  "description": "The question text in German — must address a REAL open decision about the Antrag"
+                },
+                "uncertainty": {
+                  "type": "string",
+                  "description": "What stays undecided without an answer (1 short sentence, German)"
+                },
+                "options": {
+                  "type": "array",
+                  "description": "2-4 answer options in German, derived from the request rather than invented",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "emojis": {
+                  "type": "array",
+                  "description": "One emoji per option, same order",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": ["text", "options"]
+            }
+          }
+        },
+        "required": ["needsClarification", "confidenceReason", "questions"]
+      }
+    }
+  },
   "options": {
     "max_tokens": 1500,
-    "temperature": 0.1
+    "temperature": 0.1,
+    "tool_choice": "any"
+  },
+  "questionDefaults": {
+    "questionFormat": "multiple_choice",
+    "allowCustom": true,
+    "allowMultiSelect": false,
+    "skipOption": {
+      "text": "Überspringen",
+      "emoji": "⏭️"
+    }
   }
 }

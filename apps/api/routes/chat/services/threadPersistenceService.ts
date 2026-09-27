@@ -5,6 +5,7 @@
  * Wraps PostgreSQL queries for thread CRUD and message storage.
  */
 
+import { type RoleRef } from '@gruenerator/contracts';
 import { generateSlugSuffix } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
@@ -456,24 +457,41 @@ interface ThreadToolRow extends ArtifactMetadataShape {
  * guard the four projections each carried: they now simply find no key and keep
  * scanning older messages, exactly as before.
  */
-async function readThreadToolRows(threadId: string): Promise<ThreadToolRow[]> {
+async function readThreadToolRows(threadId: string): Promise<ThreadToolRows> {
   const postgres = getPostgresInstance();
   const rows = (await postgres.query(
-    `SELECT tool_results FROM chat_messages
+    `SELECT tool_results,
+            id = (SELECT last.id FROM chat_messages last
+                  WHERE last.thread_id = $1 AND last.role = 'assistant' AND last.status = 'complete'
+                  ORDER BY last.created_at DESC LIMIT 1) AS is_last_turn
+     FROM chat_messages
      WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
      ORDER BY created_at DESC LIMIT ${WIDEST_ROW_WINDOW}`,
     [threadId]
-  )) as Array<{ tool_results?: unknown }>;
-  return rows.map((row) => {
-    const raw = row.tool_results;
-    if (!raw) return {};
-    try {
-      const meta: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      return meta && typeof meta === 'object' ? (meta as ThreadToolRow) : {};
-    } catch {
-      return {}; // malformed row — skipped by every projection, scanning continues
-    }
-  });
+  )) as Array<{ tool_results?: unknown; is_last_turn?: boolean | null }>;
+  return {
+    rows: rows.map((row) => {
+      const raw = row.tool_results;
+      if (!raw) return {};
+      try {
+        const meta: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        return meta && typeof meta === 'object' ? (meta as ThreadToolRow) : {};
+      } catch {
+        return {}; // malformed row — skipped by every projection, scanning continues
+      }
+    }),
+    newestIsLastTurn: rows[0]?.is_last_turn === true,
+  };
+}
+
+/**
+ * The rows skip assistant messages without metadata (an aborted turn, a HITL
+ * confirm result), so the newest row is not necessarily the turn right before
+ * this one. `newestIsLastTurn` says whether it is.
+ */
+interface ThreadToolRows {
+  rows: ThreadToolRow[];
+  newestIsLastTurn: boolean;
 }
 
 /**
@@ -489,15 +507,36 @@ async function readThreadToolRows(threadId: string): Promise<ThreadToolRow[]> {
 export interface ThreadToolHistory {
   artifacts(limit?: number): ThreadToolContext[];
   toolSteps(limit?: number): PersistedStep[];
+  /** The tool steps of the assistant turn right before this one — empty when it ran none. */
+  lastTurnToolSteps(): PersistedStep[];
   sources(limit?: number): SearchResult[];
   lastGeneratedImageUrl(): string | null;
 }
 
+/**
+ * This thread's completed user messages, oldest first — the source for
+ * `backfillEmptyUserMessages`. Capped: only the tail can align with what a client
+ * replays, and a long thread must not pull its whole history on every turn.
+ */
+export async function getUserMessageTexts(threadId: string, limit = 20): Promise<string[]> {
+  const postgres = getPostgresInstance();
+  const rows = await postgres.query(
+    `SELECT content FROM chat_messages
+     WHERE thread_id = $1 AND role = 'user' AND status = 'complete' AND content IS NOT NULL
+     ORDER BY created_at DESC
+     LIMIT $2`,
+    [threadId, limit]
+  );
+  return rows.map((row) => row.content as string).reverse();
+}
+
 export async function readThreadToolHistory(threadId: string): Promise<ThreadToolHistory> {
-  const rows = await readThreadToolRows(threadId);
+  const { rows, newestIsLastTurn } = await readThreadToolRows(threadId);
   return {
     artifacts: (limit = 4) => toArtifacts(rows, limit),
     toolSteps: (limit = 6) => toToolSteps(rows, limit),
+    lastTurnToolSteps: () =>
+      newestIsLastTurn ? toToolSteps(rows.slice(0, 1), Number.MAX_SAFE_INTEGER) : [],
     sources: (limit = 10) => toSources(rows, limit),
     lastGeneratedImageUrl: () => toLastGeneratedImageUrl(rows),
   };
@@ -523,7 +562,7 @@ export async function listThreadArtifacts(
   threadId: string,
   limit = 4
 ): Promise<ThreadToolContext[]> {
-  return toArtifacts(await readThreadToolRows(threadId), limit);
+  return toArtifacts((await readThreadToolRows(threadId)).rows, limit);
 }
 
 function toArtifacts(rows: ThreadToolRow[], limit: number): ThreadToolContext[] {
@@ -601,7 +640,7 @@ function labelOf(value: unknown): string | null {
  * with "Bitte hänge ein Bild an".
  */
 export async function getLastGeneratedImageUrl(threadId: string): Promise<string | null> {
-  return toLastGeneratedImageUrl(await readThreadToolRows(threadId));
+  return toLastGeneratedImageUrl((await readThreadToolRows(threadId)).rows);
 }
 
 function toLastGeneratedImageUrl(rows: ThreadToolRow[]): string | null {
@@ -620,14 +659,18 @@ function toLastGeneratedImageUrl(rows: ThreadToolRow[]): string | null {
  * search filters on tool name). Bounded so replay stays token-cheap.
  */
 export async function getRecentToolSteps(threadId: string, limit = 6): Promise<PersistedStep[]> {
-  return toToolSteps(await readThreadToolRows(threadId), limit);
+  return toToolSteps((await readThreadToolRows(threadId)).rows, limit);
 }
 
 function toToolSteps(rows: ThreadToolRow[], limit: number): PersistedStep[] {
+  // Newest first throughout, then one reverse: rows come newest first, but a
+  // row's calls are stored in call order, so they are walked backwards here.
+  // Walking them forwards reversed the order inside a turn and made the
+  // turn's FIRST call look like its newest.
   const steps: PersistedStep[] = [];
   for (const row of rows.slice(0, ROW_WINDOW.toolSteps)) {
     const calls = (Array.isArray(row.toolCalls) ? row.toolCalls : []) as PersistedStep[];
-    for (const c of calls) {
+    for (const c of [...calls].reverse()) {
       if (c && typeof c === 'object' && typeof (c as PersistedStep).toolName === 'string') {
         steps.push(c);
       }
@@ -662,7 +705,7 @@ export async function getRecentThreadSources(
   threadId: string,
   limit = 10
 ): Promise<SearchResult[]> {
-  return toSources(await readThreadToolRows(threadId), limit);
+  return toSources((await readThreadToolRows(threadId)).rows, limit);
 }
 
 function toSources(rows: ThreadToolRow[], limit: number): SearchResult[] {
@@ -686,18 +729,20 @@ function toSources(rows: ThreadToolRow[], limit: number): SearchResult[] {
 export interface ThreadSettings {
   custom_system_prompt: string | null;
   custom_enabled_tools: Record<string, boolean> | null;
+  role_ref: RoleRef | null;
 }
 
 export async function getThreadSettings(threadId: string): Promise<ThreadSettings | null> {
   const postgres = getPostgresInstance();
   const result = await postgres.query(
-    `SELECT custom_system_prompt, custom_enabled_tools FROM chat_threads WHERE id = $1`,
+    `SELECT custom_system_prompt, custom_enabled_tools, role_ref FROM chat_threads WHERE id = $1`,
     [threadId]
   );
   if (!result[0]) return null;
   return {
     custom_system_prompt: (result[0].custom_system_prompt as string) || null,
     custom_enabled_tools: (result[0].custom_enabled_tools as Record<string, boolean>) || null,
+    role_ref: (result[0].role_ref as RoleRef) || null,
   };
 }
 
@@ -707,6 +752,7 @@ export async function updateThreadSettings(
   settings: {
     customSystemPrompt?: string | null;
     customEnabledTools?: Record<string, boolean> | null;
+    roleRef?: RoleRef | null;
   }
 ): Promise<boolean> {
   const postgres = getPostgresInstance();
@@ -723,6 +769,12 @@ export async function updateThreadSettings(
   if (settings.customEnabledTools !== undefined) {
     setClauses.push(`custom_enabled_tools = $${paramIdx}`);
     params.push(settings.customEnabledTools ? JSON.stringify(settings.customEnabledTools) : null);
+    paramIdx++;
+  }
+
+  if (settings.roleRef !== undefined) {
+    setClauses.push(`role_ref = $${paramIdx}`);
+    params.push(settings.roleRef ? JSON.stringify(settings.roleRef) : null);
     paramIdx++;
   }
 

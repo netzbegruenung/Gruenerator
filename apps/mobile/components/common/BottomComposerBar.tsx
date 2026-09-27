@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Keyboard, Platform, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { spacing } from '../../theme';
-import { FLOATING_TAB_BAR_HEIGHT } from '../../theme/layout';
+import { useTabBarClearance } from '../../hooks/useTabBarClearance';
+import { spacing, typeScale } from '../../theme';
+import { COMPOSER_BOTTOM_INSET_RAISED } from '../../theme/layout';
 
 import { Composer, useComposerEdge, type ComposerProps } from './Composer';
 
@@ -36,7 +36,6 @@ export function BottomComposerBar({
   onDismissEmpty?: () => void;
   onClose?: () => void;
 }) {
-  const insets = useSafeAreaInsets();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const edge = useComposerEdge();
 
@@ -51,16 +50,14 @@ export function BottomComposerBar({
     };
   }, []);
 
-  // iOS: the floating tab bar is already inside insets.bottom, so clearing that inset +
-  // a small gap sits the composer just above it. Android: the capsule tab bar is
-  // absolutely positioned (ClassicTabLayout), so the navigator reserves no space for it
-  // and the composer has to clear it itself. Keyboard open → collapse to a gap (the tab
-  // bar hides) and let KeyboardAvoidingView lift the composer.
-  const idlePadding =
-    Platform.OS === 'ios'
-      ? insets.bottom + spacing.xsmall
-      : insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.xsmall;
-  const paddingBottom = keyboardVisible ? spacing.xsmall : idlePadding;
+  // Keyboard open → collapse to the seam and let KeyboardAvoidingView lift the
+  // composer (the tab bar hides, so there is nothing left to clear). The seam is
+  // `COMPOSER_BOTTOM_INSET_RAISED` — the same number the thread's composer and the
+  // start screen's docking spacer dock onto. This bar carried its own `spacing.xsmall`
+  // from before that constant was measured, which put it 3.5dp tighter than the other
+  // two composers on the same handset.
+  const idlePadding = useTabBarClearance(spacing.xsmall);
+  const paddingBottom = keyboardVisible ? typeScale(COMPOSER_BOTTOM_INSET_RAISED) : idlePadding;
 
   return (
     // `automaticOffset`: the bar is nested below the header + inside a flex column,

@@ -31,7 +31,8 @@ export type FormattedBlock =
     }
   | { kind: 'code'; text: string; lang: string | null }
   | { kind: 'table'; header: FormattedSegment[][]; rows: FormattedSegment[][][] }
-  | { kind: 'divider' };
+  | { kind: 'divider' }
+  | { kind: 'image'; src: string; alt: string };
 
 export interface ParsedElement {
   content: string;

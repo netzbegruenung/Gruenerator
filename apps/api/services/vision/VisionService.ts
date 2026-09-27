@@ -1,3 +1,4 @@
+import { parseDataUrl, stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import { generateText } from 'ai';
 
 import { env } from '../../config/env.js';
@@ -72,18 +73,12 @@ function resolveVisionModel(options?: VisionOptions) {
 }
 
 function stripBase64Prefix(imageSource: string): string {
-  if (imageSource.startsWith('data:')) {
-    return imageSource.replace(/^data:image\/[^;]+;base64,/, '');
-  }
-  return imageSource;
+  return stripDataUrlPrefix(imageSource);
 }
 
 function guessMimeType(imageSource: string): string {
-  if (imageSource.startsWith('data:')) {
-    const match = imageSource.match(/^data:(image\/[^;]+);base64,/);
-    if (match) return match[1];
-  }
-  return 'image/jpeg';
+  const parsed = parseDataUrl(imageSource);
+  return parsed?.mediaType.startsWith('image/') ? parsed.mediaType : 'image/jpeg';
 }
 
 export class VisionService {

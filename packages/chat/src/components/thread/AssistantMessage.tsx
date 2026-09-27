@@ -12,22 +12,26 @@ import {
   selectReasoningText,
   selectSearchSources,
   selectSearchStatusLabel,
+  selectStepAfterText,
   type StatusPartLike,
 } from '../../lib/toolStatusLine';
+import { cn } from '../../lib/utils';
 import { useUserAgentsRegistry } from '../../stores/userAgentsRegistry';
 import { HiddenReasoning, HiddenReasoningGroup } from '../assistant-ui/reasoning';
 import { GrueneratorHomeIconLoading } from '../icons';
+import { AnswerModeChip } from '../message-parts/AnswerModeChip';
 import { ArtifactCard } from '../message-parts/ArtifactCard';
 import { BahnCard } from '../message-parts/BahnCard';
 import { ChatChart } from '../message-parts/ChatChart';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
 import { ComputeCard } from '../message-parts/ComputeCard';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
+import { ImageGenerationFrame } from '../message-parts/ImageGenerationFrame';
 import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
 import { MessageErrorBanner } from '../message-parts/MessageErrorBanner';
 import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
-import { ProgressIndicator } from '../message-parts/ProgressIndicator';
+import { MessageDaySeparator } from '../message-parts/MessageTimestamp';
 import { SearchImagesSection } from '../message-parts/SearchImagesSection';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
 import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
@@ -35,10 +39,9 @@ import { SkillBadge } from '../message-parts/SkillBadge';
 import { SocialPostCard } from '../message-parts/SocialPostCard';
 import { StreamingStatusLine } from '../message-parts/StreamingStatusLine';
 import { ToolCallGroup } from '../message-parts/ToolCallGroup';
-import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
 import { DocumentCreatedCard } from '../tool-ui/DocumentCreatedCard';
-import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
+import { GrueneratorToolFallback } from '../tool-ui/GrueneratorToolUIs';
 import { ReelPickerCard } from '../tool-ui/ReelPickerCard';
 import { ReelProcessingCard } from '../tool-ui/ReelProcessingCard';
 
@@ -73,6 +76,10 @@ const partComponents = {
   Reasoning: HiddenReasoning,
   ReasoningGroup: HiddenReasoningGroup,
   ToolGroup: ToolCallGroup,
+  // Konnektor-Werkzeuge tragen erst zur Laufzeit gebildete Namen und stehen
+  // deshalb in keiner Toolkit-Registry. Ohne Fallback rendern sie nichts —
+  // auch keine Freigabe-Karte.
+  tools: { Fallback: GrueneratorToolFallback },
 };
 
 export const AssistantMessage = memo(function AssistantMessage() {
@@ -88,6 +95,11 @@ export const AssistantMessage = memo(function AssistantMessage() {
   // (notebook QA, eigener chat) leave it unset → no agent avatar/badge. We do
   // NOT fall back to the currently-selected agent: selection is ambient UI state,
   // not message provenance, and leaks the wrong agent into notebook answers.
+  // In lokale Variablen gezogen, damit die useMemo-Deps exakt den gelesenen
+  // Werten entsprechen — optional-gechainte Deps (`custom?.agentId`) kann der
+  // React Compiler nicht erhalten und überspringt sonst die ganze Komponente.
+  const agentMention = custom?.agentMention ?? null;
+  const agentId = custom?.agentId ?? null;
   const messageAgent = useMemo<
     | {
         identifier: string;
@@ -98,10 +110,10 @@ export const AssistantMessage = memo(function AssistantMessage() {
       }
     | undefined
   >(() => {
-    const skill = custom?.agentMention
-      ? agentsList.find((a) => a.mention === custom.agentMention)
-      : custom?.agentId
-        ? agentsList.find((a) => a.identifier === custom.agentId)
+    const skill = agentMention
+      ? agentsList.find((a) => a.mention === agentMention)
+      : agentId
+        ? agentsList.find((a) => a.identifier === agentId)
         : undefined;
     if (skill) {
       return {
@@ -114,8 +126,8 @@ export const AssistantMessage = memo(function AssistantMessage() {
     }
     // User agents aren't in the skills catalog — resolve from the registry and
     // map their Phosphor `iconKey` through the dynamic resolver.
-    if (custom?.agentId) {
-      const ua = userAgents.find((a) => a.identifier === custom.agentId);
+    if (agentId) {
+      const ua = userAgents.find((a) => a.identifier === agentId);
       if (ua) {
         return {
           identifier: ua.identifier,
@@ -127,7 +139,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
       }
     }
     return undefined;
-  }, [custom?.agentMention, custom?.agentId, userAgents]);
+  }, [agentMention, agentId, userAgents]);
 
   const isNonDefaultAgent = messageAgent != null && messageAgent.identifier !== getDefaultAgent();
   const fetchFullText = useFetchFullText();
@@ -147,6 +159,8 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const hasOwnDetail =
     message.content.some((p) => p.type === 'tool-call') ||
     message.content.some((p) => p.type === 'reasoning');
+  // …except on an agentic turn, which keeps working after its first sentence.
+  const stepAfterText = selectStepAfterText(statusParts);
   const toolStatus = selectSearchStatusLabel(statusParts);
   const reasoningText = selectReasoningText(statusParts);
   const statusSources = useMemo(() => selectSearchSources(statusParts), [statusParts]);
@@ -157,17 +171,25 @@ export const AssistantMessage = memo(function AssistantMessage() {
   );
   const additionalSources = custom?.additionalSources as AdditionalSource[] | undefined;
   const searchImages = custom?.searchImages;
+  // Rezept-Attribution: dezente Zeile unter der Antwort, damit nachvollziehbar
+  // ist, welche Schreibvorgabe galt (z.B. das LV-Presserezept statt des
+  // generischen). Kommt live über `done.metadata.recipesUsed` und auf Reload
+  // aus der persistierten Nachricht (threadMessageConversion).
+  const recipesUsed = custom?.streamMetadata?.recipesUsed;
 
+  // `citations` resolved, not `custom.citations`: the Word export renders its
+  // "Verwendete Quellen" appendix from this list, and a notebook answer restored
+  // from an older stored message carries its sources only as `rawCitations`.
   const actionsMetadata = useMemo(() => {
     if (!custom) return undefined;
     return {
-      citations: custom.citations,
+      citations,
       searchResults: custom.searchResults,
       intent: custom.streamMetadata?.intent,
       searchCount: custom.streamMetadata?.searchCount,
       generatedImage: custom.generatedImage,
     };
-  }, [custom]);
+  }, [custom, citations]);
 
   const showSearchResults = !isStreaming && citations.length > 0;
 
@@ -196,127 +218,184 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const showActions = !isStreaming && textContent.length > 0;
 
   return (
-    <MessagePrimitive.Root
-      className={
-        isCompact
-          ? 'group mx-auto flex w-full min-w-0 items-start gap-2'
-          : 'group mx-auto flex w-full min-w-0 max-w-3xl items-start gap-4'
-      }
-    >
-      {messageAgent ? (
-        <div
-          className={
-            isCompact
-              ? 'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-white'
-              : 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-white'
-          }
-          style={{ backgroundColor: messageAgent.backgroundColor }}
-        >
-          <messageAgent.icon className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden />
-        </div>
-      ) : (
-        // Stays mounted (rather than swapping to a placeholder) so the
-        // built-in bar/dot fade in GrueneratorHomeIconLoading keeps running,
-        // and fades its own opacity out once streaming ends — an unmount
-        // would cut that transition short and reserve the footprint anyway.
-        <GrueneratorHomeIconLoading
-          loading={isStreaming}
-          width={isCompact ? 24 : 32}
-          height={isCompact ? 24 : 32}
-          className="flex-shrink-0"
-          style={{ opacity: isStreaming ? 1 : 0, transition: 'opacity 0.3s ease' }}
-          aria-hidden={!isStreaming}
-        />
-      )}
-      <div className="min-w-0 flex-1">
-        {isNonDefaultAgent && messageAgent && (
-          <SkillBadge
-            avatar={messageAgent.avatar}
-            icon={messageAgent.icon}
-            title={messageAgent.title}
-            backgroundColor={messageAgent.backgroundColor}
+    <>
+      <MessageDaySeparator />
+      <MessagePrimitive.Root
+        // No `gap` on the row: the icon column carries its own right margin so it
+        // can collapse to nothing together with its width (a flex gap survives a
+        // zero-width item and would leave the indent half in place).
+        className={
+          isCompact
+            ? 'group mx-auto flex w-full min-w-0 items-start'
+            : 'group mx-auto flex w-full min-w-0 max-w-3xl items-start'
+        }
+      >
+        {messageAgent ? (
+          <div
+            className={
+              isCompact
+                ? 'mr-2 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-white'
+                : 'mr-4 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-white'
+            }
+            style={{ backgroundColor: messageAgent.backgroundColor }}
+          >
+            <messageAgent.icon className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden />
+          </div>
+        ) : (
+          // Stays mounted (rather than swapping to a placeholder) so the
+          // built-in bar/dot fade in GrueneratorHomeIconLoading keeps running,
+          // and fades its own opacity out once streaming ends — an unmount
+          // would cut that transition short.
+          //
+          // On a phone the faded-out icon must also give up its FOOTPRINT: a
+          // 32px column plus a 16px gap left every finished answer indented by
+          // 48px against 16px of right padding, which reads as a broken margin.
+          // The column collapses in step with the opacity fade; from `sm` up it
+          // stays put, where it lines the answer up with agent-avatar turns.
+          <div
+            className={cn(
+              'flex-shrink-0 overflow-hidden transition-[width,margin] duration-300 ease-out',
+              isCompact ? 'mr-2 w-6' : isStreaming ? 'mr-4 w-8' : 'mr-0 w-0 sm:mr-4 sm:w-8'
+            )}
+          >
+            <GrueneratorHomeIconLoading
+              loading={isStreaming}
+              width={isCompact ? 24 : 32}
+              height={isCompact ? 24 : 32}
+              className="flex-shrink-0"
+              style={{ opacity: isStreaming ? 1 : 0, transition: 'opacity 0.3s ease' }}
+              aria-hidden={!isStreaming}
+            />
+          </div>
+        )}
+        {/* `relative`: `sr-only` ist `position: absolute`. Ohne positionierten
+            Elternteil INNERHALB des Scrollbereichs ist der Enthaltenden-Block der
+            Thread-Root oberhalb des Viewports — die Viewport-Kappung greift dann
+            nicht, und die statische Position der Marke (weit unten im Verlauf)
+            verlängert das Dokument um tausende Pixel. */}
+        <div className="relative min-w-0 flex-1">
+          {/* Offenlegung der KI-Interaktion (Art. 50 Abs. 1 KI-VO). Sichtbar
+            trägt das Icon die Zuordnung, es ist aber aria-hidden — ohne diese
+            Zeile sagt der Screenreader nicht, wer hier spricht. */}
+          <span className="sr-only">KI-generierte Antwort:</span>
+          {isNonDefaultAgent && messageAgent && (
+            <SkillBadge
+              avatar={messageAgent.avatar}
+              icon={messageAgent.icon}
+              title={messageAgent.title}
+              backgroundColor={messageAgent.backgroundColor}
+            />
+          )}
+          {/* Notebook answers: which mode ran — live from `answer_mode`, and
+              after a reload from the persisted row. Older answers carry none. */}
+          {custom?.answerMode && (
+            <div>
+              <AnswerModeChip mode={custom.answerMode} reason={custom.answerModeReason ?? null} />
+            </div>
+          )}
+
+          <StreamingStatusLine
+            isStreaming={isStreaming}
+            hasOwnDetail={hasOwnDetail}
+            stepAfterText={stepAfterText}
+            textContent={textContent}
+            custom={custom}
+            toolStatus={toolStatus}
+            reasoningText={reasoningText}
+            sources={statusSources}
           />
-        )}
 
-        <StreamingStatusLine
-          isStreaming={isStreaming}
-          hasOwnDetail={hasOwnDetail}
-          textContent={textContent}
-          custom={custom}
-          toolStatus={toolStatus}
-          reasoningText={reasoningText}
-          sources={statusSources}
-        />
+          {custom?.socialPostData && (
+            <SocialPostCard
+              post={custom.socialPostData}
+              {...(custom.sharepicData ? { sharepicData: custom.sharepicData } : {})}
+            />
+          )}
+          {custom?.sharepicData && !custom?.generatedImage && !custom?.socialPostData && (
+            <SharepicVariantStack data={custom.sharepicData} />
+          )}
+          {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
 
-        {custom?.socialPostData && (
-          <SocialPostCard
-            post={custom.socialPostData}
-            {...(custom.sharepicData ? { sharepicData: custom.sharepicData } : {})}
-          />
-        )}
-        {custom?.sharepicData && !custom?.generatedImage && !custom?.socialPostData && (
-          <SharepicVariantStack data={custom.sharepicData} />
-        )}
-        {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
+          {/* Platzhalter-Rahmen, solange das KI-Bild noch generiert wird. Nur für
+              die Bild-Intents (Generierung + Bearbeitung) — Sharepics/Social
+              Posts rendern ihre eigenen Karten und teilen bloß dieselbe
+              progress-Stage. */}
+          {isStreaming &&
+            !custom?.generatedImage &&
+            custom?.progress?.stage === 'generating_image' &&
+            (custom.progress.intent === 'image' || custom.progress.intent === 'image_edit') && (
+              <ImageGenerationFrame />
+            )}
 
-        {/* Above the answer, not under it: on a turn that found pictures they are
+          {/* Above the answer, not under it: on a turn that found pictures they are
             the first thing the reader looks at, and a gallery that follows a
             1000-word text is a gallery nobody scrolls to. */}
-        {showSearchImages && searchImages && <SearchImagesSection images={searchImages} />}
+          {showSearchImages && searchImages && <SearchImagesSection images={searchImages} />}
 
-        <CitationProvider citations={citations} fetchFullText={fetchFullText}>
-          <MessagePrimitive.Parts components={partComponents} />
-        </CitationProvider>
+          <CitationProvider citations={citations} fetchFullText={fetchFullText}>
+            <MessagePrimitive.Parts components={partComponents} />
+          </CitationProvider>
 
-        <MessageErrorBanner />
+          <MessageErrorBanner />
 
-        {custom?.interrupted && (
-          <p className="text-xs text-foreground-muted italic">Antwort wurde unterbrochen</p>
-        )}
+          {custom?.interrupted && (
+            <p className="text-xs text-foreground-muted italic">Antwort wurde unterbrochen</p>
+          )}
 
-        {!isStreaming && custom?.chartData && <ChatChart data={custom.chartData} />}
+          {!isStreaming && custom?.evidenceWeak && (
+            <p className="text-xs text-foreground-muted italic">{custom.evidenceWeak}</p>
+          )}
 
-        {!isStreaming && custom?.artifactData && <ArtifactCard artifact={custom.artifactData} />}
-        {!isStreaming && custom?.computeData && <ComputeCard data={custom.computeData} />}
-        {!isStreaming && custom?.bahnData && <BahnCard data={custom.bahnData} />}
+          {!isStreaming && custom?.chartData && <ChatChart data={custom.chartData} />}
 
-        {!isStreaming && custom?.confirmAction && (
-          <ConfirmActionCard action={custom.confirmAction} />
-        )}
+          {!isStreaming && custom?.artifactData && <ArtifactCard artifact={custom.artifactData} />}
+          {!isStreaming && custom?.computeData && <ComputeCard data={custom.computeData} />}
+          {!isStreaming && custom?.bahnData && <BahnCard data={custom.bahnData} />}
 
-        {!isStreaming && custom?.createdDocument && (
-          <DocumentCreatedCard document={custom.createdDocument} />
-        )}
+          {!isStreaming && custom?.confirmAction && (
+            <ConfirmActionCard action={custom.confirmAction} />
+          )}
 
-        {!isStreaming && custom?.reelProcessing && (
-          <ReelProcessingCard data={custom.reelProcessing} />
-        )}
+          {!isStreaming && custom?.createdDocument && (
+            <DocumentCreatedCard document={custom.createdDocument} />
+          )}
 
-        {!isStreaming && custom?.reelPicker && <ReelPickerCard data={custom.reelPicker} />}
+          {!isStreaming && custom?.reelProcessing && (
+            <ReelProcessingCard data={custom.reelProcessing} />
+          )}
 
-        {showActions && (
-          <MessageActions
-            content={textContent}
-            metadata={actionsMetadata}
-            showFeedback={custom?.streamMetadata?.traceId != null}
-            {...(showSearchResults
-              ? { sources: citations, sourcesOpen, onToggleSources: toggleSources }
-              : {})}
-          />
-        )}
+          {!isStreaming && custom?.reelPicker && <ReelPickerCard data={custom.reelPicker} />}
 
-        {showSearchResults && (
-          <SearchResultsSection
-            citations={citations}
-            additionalSources={additionalSources}
-            {...(showActions ? { open: sourcesOpen, onOpenChange: setSourcesOpen } : {})}
-          />
-        )}
+          {showActions && (
+            <MessageActions
+              content={textContent}
+              metadata={actionsMetadata}
+              showFeedback={custom?.streamMetadata?.traceId != null}
+              {...(showSearchResults
+                ? { sources: citations, sourcesOpen, onToggleSources: toggleSources }
+                : {})}
+            />
+          )}
 
-        {!isStreaming && custom?.progress?.memoryContext && (
-          <MemoryIndicator memoryContext={custom.progress.memoryContext} />
-        )}
-      </div>
-    </MessagePrimitive.Root>
+          {showSearchResults && (
+            <SearchResultsSection
+              citations={citations}
+              additionalSources={additionalSources}
+              {...(showActions ? { open: sourcesOpen, onOpenChange: setSourcesOpen } : {})}
+            />
+          )}
+
+          {!isStreaming && recipesUsed && recipesUsed.length > 0 && (
+            <p className="mt-1 text-xs text-foreground-muted">
+              Rezept: {recipesUsed.map((r) => r.title).join(' · ')}
+            </p>
+          )}
+
+          {!isStreaming && custom?.progress?.memoryContext && (
+            <MemoryIndicator memoryContext={custom.progress.memoryContext} />
+          )}
+        </div>
+      </MessagePrimitive.Root>
+    </>
   );
 });

@@ -4,19 +4,18 @@
  * Bypasses the complex chat flow for direct, no-followup generation
  */
 
-import { Router, type Request, type Response } from 'express';
+import { Router, type Response } from 'express';
 import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import ImageSelectionService from '../../services/image/ImageSelectionService.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { handleUnifiedRequest } from './sharepic_text/unifiedHandler.js';
-
-import type { SharepicRequest } from './sharepic_text/types.js';
+import { generateUnifiedTexts, toSharepicTextWireBody } from './sharepic_text/unifiedHandler.js';
 
 const log = createLogger('promptRoute');
 const router = Router();
@@ -100,6 +99,7 @@ const generateFromPromptSchema = z.object({
 router.post(
   '/generate-from-prompt',
   requireAuth,
+  requireAiConsent,
   validateBody(generateFromPromptSchema),
   async (
     req: TypedRequest<z.infer<typeof generateFromPromptSchema>>,
@@ -145,58 +145,23 @@ router.post(
         }
       }
 
-      // Store original body and modify for the Claude handler
-      const originalBody = req.body;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-      (req as any).body = {
+      // Der Express-freie Kern, direkt aufgerufen. Vorher stand hier ein
+      // Mock-`res` um `handleUnifiedRequest`, das `req.body` mutieren und den
+      // Statuscode als `_statusCode` in den Antwortrumpf schmuggeln musste,
+      // um ihn hinter der `json()`-Fassade wieder herauszubekommen.
+      const result = await generateUnifiedTexts(type, {
         thema: theme,
         details: trimmedPrompt,
         name: userName,
         count: 1,
-      };
+      });
 
-      // Create a mock response to capture the result from handleUnifiedRequest.
-      // Typed as Response but only implements the json() and status().json() subset
-      // that handleUnifiedRequest actually calls.
-      let capturedResponse: Record<string, unknown> | null = null;
-      const customRes = {
-        json: (data: Record<string, unknown>) => {
-          capturedResponse = data;
-          return customRes as unknown as Response;
-        },
-        status: (code: number) => {
-          return {
-            json: (data: Record<string, unknown>) => {
-              capturedResponse = { ...data, _statusCode: code };
-              return customRes as unknown as Response;
-            },
-          };
-        },
-      } as unknown as Response;
-
-      // Call the unified handler
-      await handleUnifiedRequest(req as Request as SharepicRequest, customRes, type);
-
-      // Restore original body
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-      (req as any).body = originalBody;
-
-      if (!capturedResponse) {
-        res.status(500).json({
-          success: false,
-          error: 'Keine Antwort vom Textgenerator erhalten',
-        });
+      if (!result.success) {
+        res.status(result.status).json({ success: false, error: result.error });
         return;
       }
 
-      // Use type assertion to help TypeScript with closure-captured mutable variables
-      const response = capturedResponse as Record<string, unknown>;
-
-      // Check for error status
-      if (response._statusCode && response._statusCode !== 200) {
-        res.status(response._statusCode as number).json(response);
-        return;
-      }
+      const response = toSharepicTextWireBody(result, type, userName);
 
       // Transform the response based on type
       const responseData = transformResponse(type, response, userName);
@@ -206,12 +171,9 @@ router.post(
       if (TYPES_REQUIRING_IMAGE.includes(type)) {
         try {
           log.debug(`[PromptRoute] Selecting image for type: ${type}, theme: ${theme}`);
-          const imageResult = await ImageSelectionService.selectBestImage(
-            theme,
-            req.app.locals.aiWorkerPool,
-            { maxCandidates: 5 },
-            req
-          );
+          const imageResult = await ImageSelectionService.selectBestImage(theme, {
+            maxCandidates: 5,
+          });
 
           if (imageResult?.selectedImage) {
             selectedImage = {

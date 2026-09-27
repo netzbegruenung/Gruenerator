@@ -4,7 +4,7 @@
  * These tests verify that the classifierNode correctly routes when
  * multiple resource types are present simultaneously (boards + docs + images).
  *
- * The forced-intent checks return BEFORE hitting the LLM, so aiWorkerPool
+ * The forced-intent checks return BEFORE hitting the LLM, so the model door
  * is stubbed but never called.
  *
  * Run with: pnpm --filter @gruenerator/api test -- classifierForcedIntent
@@ -45,7 +45,6 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
       image: true,
       image_edit: true,
     },
-    aiWorkerPool: null as any,
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
@@ -311,6 +310,78 @@ describe('Tier 2 — context intents (resource presence only)', () => {
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('produktion');
+  });
+
+  it('file attachment + agent default notebook collections → search', async () => {
+    const state = buildState({
+      userMessage: 'Antworte auf diese E-Mail einer Bürgerin:',
+      attachmentContext:
+        'Sehr geehrte Damen und Herren, wie steht Ihre Partei zur Stadtentwicklung in Pankow?',
+      defaultNotebookCollectionIds: ['berlin'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('search');
+    expect(result.searchQuery).not.toBeNull();
+  });
+
+  it('file attachment + default notebook document ids → search', async () => {
+    const state = buildState({
+      userMessage: 'was steht dazu in unseren Beschlüssen?',
+      attachmentContext: 'Inhalt der hochgeladenen Datei...',
+      defaultNotebookDocumentIds: ['nb-doc-1'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('search');
+  });
+
+  it('file attachment + default notebook + summary keywords → summary (tier 2 wins)', async () => {
+    const state = buildState({
+      userMessage: 'fasse die Datei zusammen',
+      attachmentContext: 'Inhalt der hochgeladenen Datei...',
+      defaultNotebookCollectionIds: ['berlin'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('summary');
+  });
+
+  // Ein erzwungener Suchturn entscheidet, WIE er sammelt — nicht, was er
+  // schuldet. `documentSubtype` stand hier kurzzeitig, damit respondNode die
+  // bestellte Textsorte kennt; das Nomen sagt aber nur, dass das Wort FIEL.
+  // Auf genau diesen Pfaden ist die Abruf-Formulierung die haeufige („was steht
+  // in der Pressemitteilung", „fasse den Antrag zusammen"), und ein daraus
+  // gebauter Hinweis liesse das Modell schreiben statt suchen. Die bestellte
+  // Form haengt jetzt am Rezept (`getOrderedTextFormNote`).
+  describe('the forced search carries no Textsorte verdict', () => {
+    it.each([
+      ['attachment + default notebook', { defaultNotebookCollectionIds: ['berlin'] }],
+      ['@notebook', { notebookIds: ['nb-1'] }],
+      ['@document', { documentIds: ['doc-1'] }],
+      ['@dokumentchat', { documentChatIds: ['dc-1'] }],
+    ] as const)('stays a search on the %s path', async (_label, mention) => {
+      const state = buildState({
+        userMessage: 'schreibe darauf basierend einen Antrag für mehr Hitzeschutz für Alfter',
+        attachmentContext: 'Die Grünen fordern ein Abkühl-Sofortprogramm...',
+        ...mention,
+      });
+      const result = await classifierNode(state);
+      expect(result.intent).toBe('search');
+      expect(result.searchQuery).not.toBeNull();
+      expect(result.documentSubtype).toBeUndefined();
+    });
+
+    // Die Gegenprobe, die ein zu breites Praedikat gerissen haette: hier faellt
+    // kein Textsorten-Wort, und der Turn muss sich genauso verhalten wie zuvor.
+    it('leaves a plain reply request untouched', async () => {
+      const state = buildState({
+        userMessage: 'Antworte auf diese E-Mail einer Bürgerin:',
+        attachmentContext:
+          'Sehr geehrte Damen und Herren, wie steht Ihre Partei zur Stadtentwicklung in Pankow?',
+        defaultNotebookCollectionIds: ['berlin'],
+      });
+      const result = await classifierNode(state);
+      expect(result.intent).toBe('search');
+      expect(result.documentSubtype).toBeUndefined();
+    });
   });
 });
 
@@ -658,5 +729,364 @@ describe('Tier 2.7 — follow-up on the thread last artifact (lastToolContext)',
     });
     const result = await classifierNode(state);
     expect(result.intent).not.toBe('mcp');
+  });
+});
+
+// ── Notebook-Werkzeugauftrag ─────────────────────────────────────────────
+// Ein gewähltes Notebook zwingt den Turn in die Suche — ausser er will etwas
+// MIT den Quellen tun (sortieren, zählen, eine Seite lesen). Dann geht er mit
+// `notebook_quellen` gepinnt in die Schleife, wie der Dauerauftrag in Tier 3.4.
+
+describe('Notebook branch — tool ask pins notebook_quellen', () => {
+  const USER_NOTEBOOK = '3f1c2b7a-9d4e-4c5b-8a6f-1e2d3c4b5a69';
+
+  it('user notebook + tool ask → agentic with the pin, no gather sources', async () => {
+    const state = buildState({
+      userMessage: 'Sortiere die Quellen nach Datum',
+      notebookIds: [USER_NOTEBOOK],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+    expect(result.gatherSources).toBeUndefined();
+  });
+
+  it('user notebook + locator ask → agentic with the pin', async () => {
+    const state = buildState({
+      userMessage: 'Was steht auf Seite 12?',
+      notebookIds: [USER_NOTEBOOK],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  it.each([
+    'Was steht im Notebook zur Wärmewende?',
+    'Fasse das Notebook zusammen',
+    'Wie ist die Lage in Seitenstetten?',
+  ])('plain notebook question stays a notebook search: %s', async (userMessage) => {
+    const state = buildState({ userMessage, notebookIds: [USER_NOTEBOOK] });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('search');
+    expect(result.gatherSources).toEqual(['notebook-search']);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('a mention label is not read as the ask ("@Kapitel 3 Satzung" + plain question → no pin)', async () => {
+    // Die Nachrichten tragen Erwähnungen als „@Label"; ein Notebook-Name mit
+    // „Kapitel 3" pinnte sonst bei jeder Erwähnung.
+    const state = buildState({
+      userMessage: '@Kapitel 3 Satzung Was steht zur Wärmewende?',
+      lastUserTextNoMentions: 'Was steht zur Wärmewende?',
+      notebookIds: [USER_NOTEBOOK],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('search');
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  // `notebook_quellen` liest System-Notebooks mit EINER Sammlung (seit #3536) —
+  // der Berlin-Fall aus dem Live-Test 23.09.2026, genannt oder erwähnt.
+  it('system notebook with one collection + tool ask → agentic with the pin', async () => {
+    const state = buildState({
+      userMessage: 'Liste die 20 neuesten Quellen im Berlin-Notebook aus 2026.',
+      notebookIds: ['berlin-notebook'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  it('system notebook + plain question stays the single-pass notebook search', async () => {
+    const state = buildState({
+      userMessage: 'Was steht im Berlin-Notebook zu Mieten?',
+      notebookIds: ['berlin-notebook'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('search');
+    expect(result.gatherSources).toEqual(['notebook-search']);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  // Review PR #3568: ein System-Notebook außerhalb der Locale lehnt das
+  // Werkzeug ab, ein Schreibauftrag an ein System-Notebook ebenso
+  // (schreibgeschützt) — beides bleibt die Suche wie vorher.
+  it('system notebook outside the user locale → stays a search', async () => {
+    const state = buildState({
+      userMessage: 'Liste die 20 neuesten Quellen im Berlin-Notebook aus 2026.',
+      notebookIds: ['berlin-notebook'],
+      userLocale: 'de-AT',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('write ask on a system notebook → stays a search (read-only)', async () => {
+    const state = buildState({
+      userMessage: 'Entferne die alte Pressemitteilung aus dem Notebook',
+      notebookIds: ['berlin-notebook'],
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('„Notiere" on a system notebook → no pin (write verb shared with the tool-ask gate)', async () => {
+    const state = buildState({
+      userMessage: 'Notiere im Berlin-Notebook, dass die Frist verlängert ist',
+      notebookIds: ['berlin-notebook'],
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('write ask on a user notebook still pins', async () => {
+    const state = buildState({
+      userMessage: 'Entferne die alte Pressemitteilung aus dem Notebook',
+      notebookIds: [USER_NOTEBOOK],
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  // Testserver 24.09.2026: Folgefragen ohne „Notebook" im Text verloren das
+  // Notebook — der Planer griff zu `gruenerator_search` und riet die Sammlung
+  // (einmal „berlin", einmal „deutschland"). Hat der Thread schon mit
+  // `notebook_quellen` gearbeitet, pinnt ein Werkzeugauftrag das Werkzeug; es
+  // nimmt dann das Notebook des Threads (`notebookFromThread`).
+  it('no notebook in the turn, but the thread used one + tool ask → pin', async () => {
+    const state = buildState({
+      userMessage: 'Nenne mir die 10 relevantesten Quellen aus 2025 zum Thema Klimaneutralität.',
+      threadNotebookId: 'berlin',
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  it('thread notebook + plain question → no pin', async () => {
+    const state = buildState({
+      userMessage: 'Wie viele Einwohner hat Berlin?',
+      threadNotebookId: 'berlin',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('tool ask without a thread notebook → no pin', async () => {
+    const state = buildState({ userMessage: 'Zeig mir fünf Stellen zur Verkehrswende.' });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('thread system notebook + write ask → no pin (read-only)', async () => {
+    const state = buildState({
+      userMessage: 'Entferne die alte Pressemitteilung',
+      threadNotebookId: 'berlin',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('thread user notebook + write ask → pin', async () => {
+    const state = buildState({
+      userMessage: 'Entferne die alte Pressemitteilung',
+      threadNotebookId: USER_NOTEBOOK,
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  it('multi-collection system notebook → stays a search (notebook_quellen cannot open it)', async () => {
+    const state = buildState({
+      userMessage: 'Sortiere die Quellen nach Datum',
+      notebookIds: ['gruenerator-notebook'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('search');
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('named agent → stays the gather-then-apply search (isCompound keeps it single-pass)', async () => {
+    const state = buildState({
+      userMessage: 'Sortiere die Quellen nach Datum',
+      notebookIds: [USER_NOTEBOOK],
+      agentConfig: { ...STUB_AGENT_CONFIG, identifier: 'pressesprecher', isSystemDefault: false },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('search');
+    expect(result.gatherSources).toEqual(['notebook-search']);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+});
+
+// Beta 27.09.2026, ein Thread über mehrere Landesverbands-Notebooks.
+describe('LV notebook tool asks (beta 27.09.2026)', () => {
+  it.each([
+    ['thueringen-notebook', 'Wie viele Beschlüsse gibt es seit Januar 2026?'],
+    ['hessen-notebook', 'In wie vielen Dokumenten kommt „Wasserstoff“ vor?'],
+    ['brandenburg-notebook', 'Welche Quellen gibt es zum Thema Braunkohle? Nur die Titel.'],
+  ])('%s + %s → agentic with the pin', async (notebookId, text) => {
+    const state = buildState({
+      userMessage: text,
+      lastUserTextNoMentions: text,
+      notebookIds: [notebookId],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+});
+
+describe('Follow-up on a notebook tool turn pins notebook_quellen', () => {
+  const USER_NOTEBOOK = '3f1c2b7a-9d4e-4c5b-8a6f-1e2d3c4b5a69';
+
+  it.each([
+    'nun die vorletzte',
+    'und die nächste?',
+    'ja dann mach das',
+    'noch mal genauer',
+    'die dritte davon',
+    'das stimmt nicht',
+  ])('after a notebook turn: %s → pin', async (userMessage) => {
+    const state = buildState({
+      userMessage,
+      lastTurnNotebookId: 'mecklenburg-vorpommern',
+      threadNotebookId: 'mecklenburg-vorpommern',
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  // Voriger Turn las das Notebook, der Thread hält zudem ein Sharepic: eine
+  // Sharepic-Bearbeitung bleibt bei Tier 2.7, ein Anschluss an die Liste nicht.
+  describe('with a sharepic in the thread', () => {
+    const afterSharepic = { kind: 'sharepic' as const, ref: 'canvas-1', label: 'Sharepic' };
+
+    it.each(['Und jetzt noch die Uhrzeit 15 Uhr ergänzen', 'Anderer Hintergrund bitte'])(
+      'sharepic edit keeps tier2.7: %s',
+      async (userMessage) => {
+        const state = buildState({
+          userMessage,
+          lastTurnNotebookId: 'mecklenburg-vorpommern',
+          lastToolContext: afterSharepic,
+        });
+        const result = await classifierNode(state);
+        expect(result.intent).toBe('sharepic');
+        expect(result.mentionPinnedTool).toBeUndefined();
+      }
+    );
+
+    it.each(['und die nächste?', 'noch mal'])(
+      'a follow-up to the notebook turn still pins: %s',
+      async (userMessage) => {
+        const state = buildState({
+          userMessage,
+          lastTurnNotebookId: 'mecklenburg-vorpommern',
+          lastToolContext: afterSharepic,
+        });
+        const result = await classifierNode(state);
+        expect(result.mentionPinnedTool).toBe('notebook_quellen');
+      }
+    );
+  });
+
+  // Review #3714: eine nackte Bestätigung nimmt das Angebot der vorigen
+  // Antwort an — nur ein Nachschlage-Angebot pinnt.
+  describe('bare confirmation reads the previous offer', () => {
+    const withOffer = (offer: string, confirmation: string) =>
+      buildState({
+        userMessage: confirmation,
+        lastTurnNotebookId: 'mecklenburg-vorpommern',
+        messages: [
+          { role: 'user' as const, content: 'Liste die neuesten Pressemitteilungen auf' },
+          { role: 'assistant' as const, content: offer },
+          { role: 'user' as const, content: confirmation },
+        ],
+      });
+
+    it.each([
+      [
+        'Ich habe 5 Pressemitteilungen gefunden. Soll ich daraus einen Social-Media-Post machen?',
+        'ja mach',
+      ],
+      ['Hier sind die Titel. Soll ich dazu eine Pressemitteilung schreiben?', "ja, mach's bitte"],
+      ['Hier sind die Titel. Soll ich ein Sharepic dazu erstellen?', 'ja dann mach das'],
+      [
+        'Ich habe 5 Pressemitteilungen gefunden. Soll ich daraus einen Post machen? Sag mir einfach Bescheid!',
+        'ja mach',
+      ],
+    ])('after a creation offer: %s → %s stays unpinned', async (offer, confirmation) => {
+      const result = await classifierNode(withOffer(offer, confirmation));
+      expect(result.mentionPinnedTool).toBeUndefined();
+    });
+
+    it.each([
+      [
+        'Das ist die neueste Pressemitteilung. Sollte es weitere Texte geben, müsste ich diese neu nachschlagen.',
+        'ja dann mach das',
+      ],
+      ['Hier ist der Text. Soll ich die vorletzte Pressemitteilung auch vorlesen?', 'ja mach'],
+      ['Das sind fünf Treffer. Soll ich weitere suchen?', 'ja, mach weiter'],
+    ])('after a lookup offer: %s → %s pins', async (offer, confirmation) => {
+      const result = await classifierNode(withOffer(offer, confirmation));
+      expect(result.mentionPinnedTool).toBe('notebook_quellen');
+    });
+  });
+
+  it('after a turn without notebook_quellen (thread used one earlier) → no pin', async () => {
+    const state = buildState({
+      userMessage: 'nun die vorletzte',
+      lastTurnNotebookId: null,
+      threadNotebookId: 'mecklenburg-vorpommern',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it.each([
+    'mach daraus einen Instagram-Post',
+    'schreib eine PM dazu',
+    'erstelle ein Sharepic dazu',
+    'danke',
+    'super, danke!',
+    'kürze das auf drei Sätze',
+  ])('creation, thanks and rewrites keep their route: %s', async (userMessage) => {
+    const state = buildState({
+      userMessage,
+      lastTurnNotebookId: 'mecklenburg-vorpommern',
+      threadNotebookId: 'mecklenburg-vorpommern',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('write follow-up on a system notebook → no pin (read-only)', async () => {
+    const state = buildState({
+      userMessage: 'entferne die dritte davon',
+      lastTurnNotebookId: 'berlin',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('write follow-up on a user notebook → pin', async () => {
+    const state = buildState({
+      userMessage: 'entferne die dritte davon',
+      lastTurnNotebookId: USER_NOTEBOOK,
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  it('a long new question after a notebook turn is not a follow-up', async () => {
+    const state = buildState({
+      userMessage:
+        'Wie hat sich die Förderung von Wärmepumpen in Deutschland seit 2020 entwickelt und was plant die Regierung?',
+      lastTurnNotebookId: 'mecklenburg-vorpommern',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
   });
 });

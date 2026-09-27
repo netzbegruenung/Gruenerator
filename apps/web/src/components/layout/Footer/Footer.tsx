@@ -1,6 +1,8 @@
 import { FaTwitter, FaLinkedin, FaInstagram } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 
+import { TRANSPARENCY_NOTICE } from '../../../config/transparencyNotice';
+
 const Footer = () => {
   return (
     <footer
@@ -53,6 +55,9 @@ const Footer = () => {
               · <Link to="/ki-transparenz">KI-Transparenz</Link>
             </p>
           </div>
+          <p className="m-0 mt-md text-[0.8em] text-muted-foreground text-center max-[575px]:text-[0.75em]">
+            {TRANSPARENCY_NOTICE}
+          </p>
         </div>
       </div>
     </footer>

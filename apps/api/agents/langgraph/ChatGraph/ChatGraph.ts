@@ -30,6 +30,10 @@ import {
   getAgentForUser,
   getDefaultAgentId,
 } from '../../../routes/chat/agents/agentLoader.js';
+import {
+  applyAgentToolWhitelist,
+  shouldApplyAgentToolWhitelist,
+} from '../../../routes/chat/agents/agentToolWhitelist.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { ChatGraphInput, ChatGraphState, SearchIntent } from './types.js';
@@ -108,20 +112,28 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
       ? (await resolveUserNotebookDocumentIds(input.userId, agentUserNotebookUuids)).documentIds
       : [];
 
+  // The request record carries the composer toggles; a user-created agent's
+  // `enabledTools` array narrows it here (explicit `false` per unchosen picker
+  // key — the gates read `!== false`). Computed AFTER the skill-mention block
+  // so it sees the final agentConfig. See agentToolWhitelist.ts / #3299.
+  const requestedTools = input.enabledTools || {
+    search: true,
+    web: true,
+    person: true,
+    examples: true,
+    research: true,
+    image: true,
+  };
+  const enabledTools = shouldApplyAgentToolWhitelist(agentConfig)
+    ? applyAgentToolWhitelist(agentConfig, requestedTools)
+    : requestedTools;
+
   return {
     // Input
     messages: input.messages,
     threadId: input.threadId || null,
     agentConfig,
-    enabledTools: input.enabledTools || {
-      search: true,
-      web: true,
-      person: true,
-      examples: true,
-      research: true,
-      image: true,
-    },
-    aiWorkerPool: input.aiWorkerPool,
+    enabledTools,
     userLocale: input.userLocale || 'de-DE',
     clientPlatform: input.clientPlatform || 'web',
     lastToolContext: null,
@@ -131,6 +143,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     imageAttachments: input.imageAttachments || [],
     threadAttachments: input.threadAttachments || [],
     hasTabularAttachment: input.hasTabularAttachment ?? false,
+    cloudConnectionCount: input.cloudConnectionCount ?? 0,
     pdfFormAttachments: input.pdfFormAttachments || [],
     clientCanRunPython: input.clientCanRunPython ?? false,
 
@@ -150,6 +163,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
 
     // Document chat scoping (from @dokumentchat multi-select)
     documentChatIds: input.documentChatIds || [],
+    documentChatLabels: input.documentChatLabels ?? {},
 
     // Board context (from @board mentions, populated by controller)
     boardIds: input.boardIds || [],
@@ -158,10 +172,14 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     // Sheet context (from @sheet mentions, populated by controller)
     sheetIds: input.sheetIds || [],
     sheetContext: null,
+    sheetEditId: null,
 
     // Collaborative document context (from @doc mentions, populated by controller)
     docMentionIds: input.docMentionIds || [],
     documentMentionContext: null,
+
+    // Vom Router gesetzt, wenn dieser Turn einem Pipeline-Agenten gehört.
+    pipelineSourceText: null,
 
     // Wolke (Nextcloud) file refs (from @wolke mentionable, validated by controller)
     wolkeFiles: input.wolkeFiles || [],
@@ -169,7 +187,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     // Connected-account (Nango) file refs (from @connect mentionable)
     connectFiles: input.connectFiles || [],
 
-    // URLs attached via @web mentionable (unioned into detectedUrls by classifier)
+    // URLs attached via @link mentionable (unioned into detectedUrls by classifier)
     attachedWebpageUrls: input.attachedWebpageUrls || [],
 
     // Current open document (docs editor surface)
@@ -178,17 +196,27 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     // Live board (boards editor surface)
     currentBoard: input.currentBoard || null,
 
+    // Live canvas (sharepic studio sidebar)
+    currentCanvas: input.currentCanvas || null,
+
     // Custom system prompt (from thread or user settings)
     customSystemPrompt: input.customSystemPrompt || null,
+    roleBausteinActive: input.roleBausteinActive === true,
+    userRoles: input.userRoles ?? [],
 
     // Active skill (drives platform-specific prompt fragment in respondNode)
     activeSkillMention: input.activeSkillMention || null,
+    // Die Zeile dazu, falls die Oberfläche eine id mitschickt — sie schlägt die
+    // Mention im Nachschlag (`resolveRecipeBody`).
+    activeRecipeId: input.activeRecipeId || null,
 
     // User profile instructions (from profiles.custom_prompt)
     userInstructions: input.userInstructions || null,
 
     // Memory context (will be set by controller before graph execution)
     memoryContext: null,
+    memories: null,
+    memoryEnabled: false,
     memoryRetrieveTimeMs: 0,
 
     // Chat history context (will be set by controller when classifier detects past conversation reference)
@@ -226,7 +254,6 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     clarificationQuestion: null,
     clarificationOptions: null,
     detectedFilters: null,
-    platform: null,
 
     // Research brief (will be set by briefGenerator node for complex research)
     researchBrief: null,
@@ -260,9 +287,6 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     // Document summarization (will be set by summarizeNode)
     summaryContext: null,
     summaryTimeMs: 0,
-
-    // Combined social post (set by the execution stage for social_post)
-    socialPostResult: null,
 
     // Chart generation (will be set by chart node)
     chartData: null,

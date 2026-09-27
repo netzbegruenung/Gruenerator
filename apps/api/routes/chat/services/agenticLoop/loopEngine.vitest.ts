@@ -10,9 +10,14 @@ import {
   FORCE_FINISH_GATHER_SUFFIX,
   SYNTH_RETRY_SYSTEM_SUFFIX,
   SYNTH_REFUSAL_TEXT,
+  SYNTH_CUTOFF_RETRY_SUFFIX,
+  SYNTH_INVALID_JSON_RETRY_SUFFIX,
+  SYNTH_DEGENERATE_RETRY_SUFFIX,
+  TurnSuspendedError,
   type LoopDeps,
   type LoopEngineParams,
 } from './loopEngine.js';
+import { DEGENERATION_NOTICE } from './degeneration.js';
 
 import type { ModelMessage } from 'ai';
 
@@ -34,6 +39,182 @@ describe('buildPrepareStep — forceFirstToolCall', () => {
     const prep = buildPrepareStep('sys', 'SUFF', 1, never, true);
     // maxSteps=1 → step 0 is the last step → toolChoice:'none' + finish system
     expect(prep({ stepNumber: 0 })).toEqual({ toolChoice: 'none', system: 'sysSUFF' });
+  });
+
+  // Eine @-Erwähnung hat ein Werkzeug benannt. `required` würde nur IRGENDEINEN
+  // Aufruf garantieren — und der Erwähnungstext ist zu diesem Zeitpunkt aus der
+  // Nachricht entfernt, das Modell sieht die Wahl also nicht mehr.
+  it('nennt das erwähnte Werkzeug auf Schritt 0 statt nur "required"', () => {
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      true,
+      undefined,
+      undefined,
+      'bundestag'
+    );
+    expect(prep({ stepNumber: 0 })).toEqual({
+      toolChoice: { type: 'tool', toolName: 'bundestag' },
+    });
+    // Danach entscheidet wieder der Planer.
+    expect(prep({ stepNumber: 1 })).toEqual({});
+  });
+
+  it('ohne den Zwang wirkt der Name gar nicht — der Bann vetot zuerst', () => {
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      false,
+      undefined,
+      undefined,
+      'bundestag'
+    );
+    expect(prep({ stepNumber: 0 })).toEqual({});
+  });
+});
+
+describe('buildPrepareStep — welche Werkzeuge mitgehen', () => {
+  const never = () => false;
+  const scope = () => ['gruenerator_search', 'meine_inhalte_laden'];
+
+  it('lässt den Aufruf unverändert, solange nichts zurückgestellt ist', () => {
+    // `undefined` ist das Verhalten vor toolScope.ts — kein `activeTools`-Feld,
+    // also schickt das SDK den ganzen montierten Katalog.
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false, undefined, undefined, null);
+    expect(prep({ stepNumber: 0 })).toEqual({});
+  });
+
+  it('schneidet auf JEDEM Zweig, auch auf dem Schlussschritt', () => {
+    // `toolChoice: 'none'` unterdrückt den AUFRUF, nicht die Definitionen: ohne
+    // das Feld hier zahlt der Schlussschritt den vollen Katalog noch einmal.
+    const prep = buildPrepareStep(
+      'sys',
+      'SUFF',
+      1,
+      never,
+      false,
+      undefined,
+      undefined,
+      null,
+      scope
+    );
+    expect(prep({ stepNumber: 0 })).toEqual({
+      toolChoice: 'none',
+      system: 'sysSUFF',
+      activeTools: ['gruenerator_search', 'meine_inhalte_laden'],
+    });
+  });
+
+  it('schneidet auch, wenn ein Werkzeug erzwungen wird', () => {
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      true,
+      () => 'web_search',
+      undefined,
+      'bundestag',
+      scope
+    );
+    // Beide benannten Werkzeuge hängen sich an den Umfang an — siehe
+    // "ein benanntes Werkzeug geht immer mit".
+    expect(prep({ stepNumber: 0 })).toEqual({
+      toolChoice: { type: 'tool', toolName: 'bundestag' },
+      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'bundestag'],
+    });
+    expect(prep({ stepNumber: 1 })).toEqual({
+      toolChoice: { type: 'tool', toolName: 'web_search' },
+      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'web_search'],
+    });
+  });
+
+  it('liest den Umfang bei JEDEM Schritt neu — ein Lader wirkt sofort', () => {
+    // Der Getter ist der Punkt: ruft das Modell in Schritt 0 den Lader, muss
+    // Schritt 1 die geöffnete Gruppe sehen. Ein eingefangenes Array wäre blind.
+    let offen = false;
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      false,
+      undefined,
+      undefined,
+      null,
+      () => (offen ? undefined : ['gruenerator_search', 'meine_inhalte_laden'])
+    );
+    expect(prep({ stepNumber: 0 })).toEqual({
+      activeTools: ['gruenerator_search', 'meine_inhalte_laden'],
+    });
+    offen = true;
+    expect(prep({ stepNumber: 1 })).toEqual({});
+  });
+});
+
+describe('buildPrepareStep — ein benanntes Werkzeug geht immer mit', () => {
+  const never = () => false;
+  // Der Umfang zeigt `documents` nicht. Wird es trotzdem benannt, muss die
+  // Definition mit — sonst verlangt derselbe Schritt einen Aufruf und liefert
+  // das Werkzeug nicht mit.
+  const eng = () => ['gruenerator_search', 'meine_inhalte_laden'];
+
+  it('hängt das erwähnte Werkzeug an den Umfang an', () => {
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      true,
+      undefined,
+      undefined,
+      'documents',
+      eng
+    );
+    expect(prep({ stepNumber: 0 })).toEqual({
+      toolChoice: { type: 'tool', toolName: 'documents' },
+      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'documents'],
+    });
+  });
+
+  it('hängt das erzwungene Ausweich-Werkzeug an den Umfang an', () => {
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      false,
+      () => 'documents',
+      undefined,
+      null,
+      eng
+    );
+    expect(prep({ stepNumber: 1 })).toEqual({
+      toolChoice: { type: 'tool', toolName: 'documents' },
+      activeTools: ['gruenerator_search', 'meine_inhalte_laden', 'documents'],
+    });
+  });
+
+  it('dupliziert nicht, wenn das Werkzeug ohnehin mitgeht', () => {
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      false,
+      () => 'gruenerator_search',
+      undefined,
+      null,
+      eng
+    );
+    expect(prep({ stepNumber: 1 })).toEqual({
+      toolChoice: { type: 'tool', toolName: 'gruenerator_search' },
+      activeTools: ['gruenerator_search', 'meine_inhalte_laden'],
+    });
   });
 });
 
@@ -81,13 +262,103 @@ describe('buildPrepareStep — forced fallback tool', () => {
   });
 });
 
+// Live 23.09.2026: der einzige Aufruf (`notebook_quellen`) scheiterte mit
+// einer Meldung, die sagte, wie es geht — der Planer hörte nach einem Schritt
+// auf, und die Antwort behauptete, die Funktion gebe es nicht.
+describe('buildPrepareStep — one retry after a step whose calls all failed', () => {
+  const never = () => false;
+  const NO_NB = 'Kein Notebook ausgewählt — gib notebookId an.';
+  const failedStep = {
+    content: [
+      { type: 'tool-call', toolName: 'notebook_quellen' },
+      { type: 'tool-result', toolName: 'notebook_quellen', output: { error: NO_NB } },
+    ],
+  };
+  const okStep = {
+    content: [
+      { type: 'tool-result', toolName: 'notebook_quellen', output: { error: NO_NB } },
+      { type: 'tool-result', toolName: 'web_search', output: { results: [] } },
+    ],
+  };
+
+  it('nudges the next step with the tool name and its error', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    const out = prep({ stepNumber: 1, steps: [failedStep] });
+    expect(out.toolChoice).toBeUndefined();
+    expect(out.system).toContain('sys');
+    expect(out.system).toContain('notebook_quellen');
+    expect(out.system).toContain(NO_NB);
+    expect(out.system).toMatch(/erneut/);
+    expect(out.system).toMatch(/Behaupte NIE/);
+  });
+
+  it('counts a thrown tool (tool-error part) as failed too', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    const out = prep({
+      stepNumber: 1,
+      steps: [
+        { content: [{ type: 'tool-error', toolName: 'documents', error: new Error('boom') }] },
+      ],
+    });
+    expect(out.system).toContain('documents');
+    expect(out.system).toContain('boom');
+  });
+
+  it('only once per turn', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    expect(prep({ stepNumber: 1, steps: [failedStep] }).system).toContain('notebook_quellen');
+    expect(prep({ stepNumber: 2, steps: [failedStep, failedStep] })).toEqual({});
+  });
+
+  // Review PR #3568: eine Wächter-Absage („Zu viele Fehlversuche … erkläre,
+  // was nicht geklappt hat") ist eine Weisung, kein behebbarer Fehler.
+  it('not after a guard refusal', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    const guarded = {
+      content: [
+        {
+          type: 'tool-result',
+          toolName: 'notebook_quellen',
+          output: { error: 'Zu viele Fehlversuche mit diesem Tool', guard: 'failure_cap' },
+        },
+      ],
+    };
+    expect(prep({ stepNumber: 1, steps: [guarded] })).toEqual({});
+  });
+
+  it('not when one call of the step succeeded', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    expect(prep({ stepNumber: 1, steps: [okStep] })).toEqual({});
+  });
+
+  it('not after a step without tool calls', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    expect(prep({ stepNumber: 1, steps: [{ content: [{ type: 'text' }] }] })).toEqual({});
+  });
+
+  it('force-finish still wins on the last step', () => {
+    const prep = buildPrepareStep('sys', 'SUFF', 2, never, false);
+    expect(prep({ stepNumber: 1, steps: [failedStep] })).toEqual({
+      toolChoice: 'none',
+      system: 'sysSUFF',
+    });
+  });
+
+  it('keeps a forced fallback tool and adds the nudge to its system', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false, () => 'web_search');
+    const out = prep({ stepNumber: 1, steps: [failedStep] });
+    expect(out.toolChoice).toEqual({ type: 'tool', toolName: 'web_search' });
+    expect(out.system).toContain('notebook_quellen');
+  });
+});
+
 // Fake models are opaque tags — the engine only forwards them to
 // streamText/generateText, and the injected fakes read `.id` to assert which
 // model drove which phase.
 const plannerModel = { id: 'planner' } as unknown as LoopEngineParams['plannerModel'];
 const synthModel = { id: 'synth' } as unknown as LoopEngineParams['synthModel'];
 
-type Part = { type: string; text?: string; error?: unknown };
+type Part = { type: string; text?: string; error?: unknown; finishReason?: string };
 type StreamOpts = {
   model: { id: string };
   tools?: Record<string, { execute?: (i: unknown, o: { toolCallId: string }) => Promise<unknown> }>;
@@ -262,6 +533,81 @@ describe('runAgenticLoop — split (planner/executor)', () => {
     const out = await runAgenticLoop(baseParams({ mode: 'split' }), deps);
 
     expect(out.text).toBe('RECOVERED');
+  });
+
+  /**
+   * The 20.08.2026 stall: the planner went silent after its last tool returned
+   * and nothing in the loop noticed. The effective deadline was GreenPT's own
+   * 120s fetch timeout — the turn finished in 139.7s.
+   *
+   * Silence is only a hang once nothing could legitimately still be running, so
+   * the window is derived from the longest per-call timeout among the tools
+   * MOUNTED THIS TURN (see `mountedToolCeilingMs`).
+   */
+  describe('gather stall guard', () => {
+    it('gives up on a silent planner and still answers from what was gathered', async () => {
+      vi.useFakeTimers();
+      try {
+        const deps: LoopDeps = {
+          generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+          streamText: ((o: StreamOpts) => {
+            if (o.model.id === 'planner') {
+              // Accepts the request, then never yields anything.
+              return {
+                stream: (async function* () {
+                  await new Promise(() => {});
+                })(),
+              } as unknown as ReturnType<LoopDeps['streamText']>;
+            }
+            return streamOf([{ type: 'text-delta', text: 'RECOVERED' }]);
+          }) as unknown as LoopDeps['streamText'],
+        };
+
+        const pending = runAgenticLoop(
+          baseParams({ mode: 'split', abortSignal: new AbortController().signal }),
+          deps
+        );
+        // No tools mounted → the tight window (per-call timeout + slack = 35s).
+        await vi.advanceTimersByTimeAsync(40_000);
+
+        expect((await pending).text).toBe('RECOVERED');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('waits out a slow tool instead of calling it a stall', async () => {
+      vi.useFakeTimers();
+      try {
+        const deps: LoopDeps = {
+          generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+          streamText: ((o: StreamOpts) => {
+            if (o.model.id === 'planner') {
+              // 80s of silence — legitimate while `create_pdf` (90s cap) runs.
+              return streamOf([{ type: 'text-delta', text: 'plane…' }], () =>
+                vi.advanceTimersByTimeAsync(80_000)
+              );
+            }
+            return streamOf([{ type: 'text-delta', text: 'FERTIG' }]);
+          }) as unknown as LoopDeps['streamText'],
+        };
+
+        const pending = runAgenticLoop(
+          baseParams({
+            mode: 'split',
+            // Mounting the generation tool is what buys the wider window.
+            tools: { create_pdf: {} } as unknown as LoopEngineParams['tools'],
+            abortSignal: new AbortController().signal,
+          }),
+          deps
+        );
+        await vi.advanceTimersByTimeAsync(120_000);
+
+        expect((await pending).text).toBe('FERTIG');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });
 
@@ -572,6 +918,34 @@ describe('runAgenticLoop — split gather narration', () => {
     expect(onNarration).not.toHaveBeenCalledWith('nie erreicht');
   });
 
+  it('forwards the planner’s thinking — the tool phase used to have none', async () => {
+    // Split mode runs the thinking lanes (GreenPT/Regolo gpt-oss). Dropping the
+    // gather reasoning left every one of those turns with an empty "Gedanken"
+    // panel until the answer was already being written.
+    const onReasoning = vi.fn();
+    const onText = vi.fn();
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) =>
+        o.model.id === 'planner'
+          ? streamOf([
+              { type: 'reasoning-delta', text: 'Ich brauche erst die Quelle.' },
+              { type: 'text-delta', text: 'Ich suche.' },
+            ])
+          : streamOf([
+              { type: 'reasoning-delta', text: 'Jetzt formulieren.' },
+              { type: 'text-delta', text: 'FINAL' },
+            ])) as unknown as LoopDeps['streamText'],
+    };
+
+    await runAgenticLoop(baseParams({ mode: 'split', onReasoning, onText }), deps);
+
+    expect(onReasoning).toHaveBeenCalledWith('Ich brauche erst die Quelle.');
+    expect(onReasoning).toHaveBeenCalledWith('Jetzt formulieren.');
+    // The planner's thinking is thinking, not answer text.
+    expect(onText).not.toHaveBeenCalledWith('Ich brauche erst die Quelle.');
+  });
+
   it('flushes a trailing partial (punctuation-free) sentence at phase end', async () => {
     const onNarration = vi.fn();
     const deps: LoopDeps = {
@@ -795,5 +1169,313 @@ describe('looksLikeToolPlanLeak — markup is not a leaked plan', () => {
     expect(looksLikeToolPlanLeak('Erledigt — die Spalte wurde ergänzt.', ['web_search'])).toBe(
       false
     );
+  });
+});
+
+describe('runAgenticLoop — split validation retry (validateAnswer)', () => {
+  const LONG_INVALID = `${'Viel Text vorab. '.repeat(20)}[{"kaputt": ,{`; // > 200 chars, gate open
+  const SHORT_INVALID = '[{"kaputt": ,{';
+  const VALID = '[{"name": "Anna", "stunden": 4}]';
+
+  /** streamText fake: planner streams nothing useful; synth pass N streams
+   *  synthTexts[N]. Records each synth call's system prompt. */
+  function synthSequence(synthTexts: string[], finishReasons: (string | null)[] = []) {
+    const synthSystems: string[] = [];
+    let synthCall = 0;
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') return streamOf([]);
+        const idx = synthCall++;
+        synthSystems.push(o.system ?? '');
+        const parts: Part[] = [{ type: 'text-delta', text: synthTexts[idx] ?? '' }];
+        const fr = finishReasons[idx];
+        if (fr) parts.push({ type: 'finish', finishReason: fr });
+        return streamOf(parts);
+      }) as unknown as LoopDeps['streamText'],
+    };
+    return { deps, synthSystems, calls: () => synthCall };
+  }
+
+  const validateJson = (t: string): string | null =>
+    t.includes('kaputt') ? SYNTH_INVALID_JSON_RETRY_SUFFIX : null;
+
+  it('swaps a still-buffered invalid answer silently for the valid retry', async () => {
+    const { deps, synthSystems, calls } = synthSequence([SHORT_INVALID, VALID]);
+    const onText = vi.fn();
+    const out = await runAgenticLoop(baseParams({ onText, validateAnswer: validateJson }), deps);
+    expect(out.text).toBe(VALID);
+    expect(out.replacedStreamed).toBeUndefined();
+    // Der Tausch muss aus dem Ergebnis ablesbar bleiben: er ist die stärkste
+    // Änderung an dem, was ein Mensch liest, und sonst im Betrieb spurlos.
+    expect(out.replacement).toBe('validation_retry');
+    // The invalid pass never reached the client — only the retry did.
+    const streamed = onText.mock.calls.map((c) => c[0]).join('');
+    expect(streamed).toBe(VALID);
+    expect(calls()).toBe(2);
+    expect(synthSystems[1]).toContain(SYNTH_INVALID_JSON_RETRY_SUFFIX);
+  });
+
+  it('flags an already-streamed invalid answer for completion replacement', async () => {
+    const { deps } = synthSequence([LONG_INVALID, VALID]);
+    const onText = vi.fn();
+    const out = await runAgenticLoop(baseParams({ onText, validateAnswer: validateJson }), deps);
+    expect(out.text).toBe(VALID);
+    expect(out.replacedStreamed).toBe(true);
+    expect(out.replacement).toBe('validation_retry_streamed');
+    // The invalid pass was on the wire; the retry itself stays silent.
+    const streamed = onText.mock.calls.map((c) => c[0]).join('');
+    expect(streamed).toBe(LONG_INVALID);
+  });
+
+  it('keeps the first answer when the retry is invalid too', async () => {
+    const { deps, calls } = synthSequence([SHORT_INVALID, SHORT_INVALID]);
+    const onText = vi.fn();
+    const out = await runAgenticLoop(baseParams({ onText, validateAnswer: validateJson }), deps);
+    expect(out.text).toBe(SHORT_INVALID);
+    expect(out.replacedStreamed).toBeUndefined();
+    expect(out.replacement).toBeUndefined();
+    expect(calls()).toBe(2);
+    // First answer flushes after the failed retry — nothing is lost.
+    expect(onText.mock.calls.map((c) => c[0]).join('')).toBe(SHORT_INVALID);
+  });
+
+  it('never swaps a streamed answer for a canned refusal from the retry', async () => {
+    const { deps } = synthSequence([SHORT_INVALID, 'Ich kann diese Anfrage nicht erfüllen.']);
+    const out = await runAgenticLoop(baseParams({ validateAnswer: validateJson }), deps);
+    expect(out.text).toBe(SHORT_INVALID);
+  });
+
+  it('does not run a second pass for a valid answer', async () => {
+    const { deps, calls } = synthSequence([VALID]);
+    const out = await runAgenticLoop(baseParams({ validateAnswer: validateJson }), deps);
+    expect(out.text).toBe(VALID);
+    expect(calls()).toBe(1);
+  });
+
+  it('retries on an abnormal finishReason even without validateAnswer', async () => {
+    const CUT = 'Dieser Satz endet mitten im';
+    const DONE = 'Dieser Satz endet mitten im Wort — jetzt aber vollständig zu Ende geschrieben.';
+    const { deps, synthSystems } = synthSequence([CUT, DONE], ['length', null]);
+    const out = await runAgenticLoop(baseParams({}), deps);
+    expect(out.text).toBe(DONE);
+    expect(synthSystems[1]).toContain(SYNTH_CUTOFF_RETRY_SUFFIX);
+  });
+});
+
+describe('runAgenticLoop — repetition degeneration', () => {
+  // The live incident shape (12.08.2026): a correct answer, then the model
+  // cannot stop and streams terminator spam until an external cap fires.
+  // The prose VARIES per sentence — a verbatim-repeated sentence would itself
+  // (correctly) count as degenerate.
+  const proseSentence = (i: number): string =>
+    `Punkt ${i}: Die Grünen fordern eine Ausbildungsgarantie mit ${i * 3} Maßnahmen und einem BAföG-Plus von ${i * 11} Euro, damit junge Menschen im Wahlkreis ${i * 7} unabhängig vom Elternhaus lernen können. `;
+  const PROSE_TOTAL = Array.from({ length: 40 }, (_, i) => proseSentence(i)).join('').length;
+  const SPAM_PHRASE = '--- Ende.** --- Fertig.** --- Danke! 😊 --- Abschluss.** --- FINAL --- ';
+
+  /** A stream that yields healthy prose, then ENDLESS spam — it only stops when
+   *  the consumer stops pulling, which is exactly what the guard must do. */
+  function endlessSpamStream(): ReturnType<LoopDeps['streamText']> {
+    return {
+      stream: (async function* () {
+        for (let i = 0; i < 40; i++) yield { type: 'text-delta', text: proseSentence(i) };
+        while (true) yield { type: 'text-delta', text: SPAM_PHRASE };
+      })(),
+    } as unknown as ReturnType<LoopDeps['streamText']>;
+  }
+
+  it('unified: aborts the endless stream, trims the spam tail and requests a completion replace', async () => {
+    const onText = vi.fn();
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: (() => endlessSpamStream()) as unknown as LoopDeps['streamText'],
+    };
+    const out = await runAgenticLoop(baseParams({ mode: 'unified', onText }), deps);
+    // Without the guard this test never terminates — the stream is endless.
+    expect(out.replacedStreamed).toBe(true);
+    expect(out.text).toContain('Ausbildungsgarantie');
+    // No notice: the spam repeats a handful of phrases, so nothing the reader
+    // needed was removed and "may be incomplete" would be a false alarm.
+    expect(out.text).not.toContain(DEGENERATION_NOTICE);
+    expect(out.text.length).toBeLessThan(PROSE_TOTAL + 500);
+    // The wire saw SOME spam (unified streams live) but detection bounded it.
+    const streamed = onText.mock.calls.map((c) => c[0]).join('');
+    expect(streamed.length).toBeLessThan(PROSE_TOTAL + 8000);
+  });
+
+  it('split: a degenerate first pass triggers the dedicated retry suffix and a completion replace', async () => {
+    const synthSystems: string[] = [];
+    let synthCall = 0;
+    const CLEAN = 'Die Antwort in einem Satz — und dann ist Schluss.';
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') return streamOf([]);
+        synthSystems.push(o.system ?? '');
+        if (synthCall++ === 0) return endlessSpamStream();
+        return streamOf([{ type: 'text-delta', text: CLEAN }]);
+      }) as unknown as LoopDeps['streamText'],
+    };
+    const out = await runAgenticLoop(baseParams({}), deps);
+    // A recovered answer carries NO notice — the retry discards the trimmed
+    // pass wholesale, and nothing was cut from what the user ends up with.
+    expect(out.text).toBe(CLEAN);
+    // The degenerate pass had already opened the gate → completion replace.
+    expect(out.replacedStreamed).toBe(true);
+    expect(synthSystems[1]).toContain(SYNTH_DEGENERATE_RETRY_SUFFIX);
+  });
+
+  it('split: retries even when the trim left NOTHING (spam from the first token)', async () => {
+    const synthSystems: string[] = [];
+    let synthCall = 0;
+    const CLEAN = 'Die Antwort in einem Satz — und dann ist Schluss.';
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') return streamOf([]);
+        synthSystems.push(o.system ?? '');
+        if (synthCall++ === 0) {
+          // No healthy prefix at all — the most complete degeneration.
+          return {
+            stream: (async function* () {
+              while (true) yield { type: 'text-delta', text: SPAM_PHRASE };
+            })(),
+          } as unknown as ReturnType<LoopDeps['streamText']>;
+        }
+        return streamOf([{ type: 'text-delta', text: CLEAN }]);
+      }) as unknown as LoopDeps['streamText'],
+    };
+    const out = await runAgenticLoop(baseParams({}), deps);
+    // Regression (review finding): the empty-text gate used to skip the retry
+    // here, shipping the generic no-answer fallback instead.
+    expect(synthCall).toBe(2);
+    expect(out.text).toBe(CLEAN);
+    expect(out.replacedStreamed).toBe(true);
+    expect(synthSystems[1]).toContain(SYNTH_DEGENERATE_RETRY_SUFFIX);
+  });
+
+  it('split: keeps the TRIMMED text and still replaces the wire when the retry degenerates too', async () => {
+    let synthCall = 0;
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') return streamOf([]);
+        synthCall++;
+        return endlessSpamStream();
+      }) as unknown as LoopDeps['streamText'],
+    };
+    const out = await runAgenticLoop(baseParams({}), deps);
+    expect(synthCall).toBe(2);
+    expect(out.text).toContain('Ausbildungsgarantie');
+    expect(out.text).not.toContain('Abschluss.**');
+    expect(out.text).not.toContain(DEGENERATION_NOTICE);
+    expect(out.replacedStreamed).toBe(true);
+  });
+
+  // The notice's OTHER branch — a cut that really did take content — is unit
+  // tested in degeneration.vitest.ts (`cutLostContent`). It has no fixture
+  // here on purpose: junk rich enough in vocabulary to count as loss is also
+  // too varied to trip the detector, so any stream that produced both would be
+  // a construction, not a case. That the notice is now rare is the point.
+});
+
+describe('runAgenticLoop — reasoning reaches the writing phases', () => {
+  // The auto policy grades a reasoning strength for every turn and
+  // `resolveModel` pins a thinking turn to the Mistral API for it. Until
+  // 13.08.2026 no phase then sent the option that switches thinking on — the
+  // lane moved, the reasoning did not.
+  const REASONING = { mistral: { reasoningEffort: 'high' } };
+
+  type OptsWithProvider = StreamOpts & { providerOptions?: Record<string, unknown> };
+
+  it('forwards it to the unified pass', async () => {
+    const seen: (Record<string, unknown> | undefined)[] = [];
+    const deps: LoopDeps = {
+      streamText: ((o: OptsWithProvider) => {
+        seen.push(o.providerOptions);
+        return streamOf([{ type: 'text-delta', text: 'ok' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+
+    await runAgenticLoop(baseParams({ mode: 'unified', providerOptions: REASONING }), deps);
+
+    expect(seen).toEqual([REASONING]);
+  });
+
+  it('forwards it to the synth pass but NOT to the planner', async () => {
+    // The planner is a fixed lane reached through an OpenAI-compat client — a
+    // `mistral` block would be dropped there in silence, and the planner has no
+    // prose to think about anyway.
+    const seen: { model: string; providerOptions?: Record<string, unknown> }[] = [];
+    const deps: LoopDeps = {
+      streamText: ((o: OptsWithProvider) => {
+        seen.push({
+          model: o.model.id,
+          ...(o.providerOptions && { providerOptions: o.providerOptions }),
+        });
+        return streamOf([{ type: 'text-delta', text: 'ok' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+
+    await runAgenticLoop(baseParams({ mode: 'split', providerOptions: REASONING }), deps);
+
+    expect(seen).toEqual([{ model: 'planner' }, { model: 'synth', providerOptions: REASONING }]);
+  });
+
+  it('sends nothing when the turn does not think', async () => {
+    const seen: (Record<string, unknown> | undefined)[] = [];
+    const deps: LoopDeps = {
+      streamText: ((o: OptsWithProvider) => {
+        seen.push(o.providerOptions);
+        return streamOf([{ type: 'text-delta', text: 'ok' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+
+    await runAgenticLoop(baseParams({ mode: 'unified' }), deps);
+
+    expect(seen).toEqual([undefined]);
+  });
+});
+
+// Eine Freigabe-Pause muss den Zug WIRKLICH beenden. Der Nachweis ist nötig,
+// weil `gather()` jeden Fehler fängt und danach zur Synthese degradiert: ohne
+// die ausdrückliche Prüfung schriebe der Zug eine Antwort, während die Person
+// noch entscheidet — und `afterGather` erzeugte dabei Artefakte.
+describe('runAgenticLoop — Werkzeug-Freigabe pausiert den Zug', () => {
+  const deps: LoopDeps = {
+    streamText: (() =>
+      streamOf([
+        { type: 'text-delta', text: 'SOLLTE_NICHT_ERSCHEINEN' },
+      ])) as unknown as LoopDeps['streamText'],
+    generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+  };
+
+  it('bricht im geteilten Modus vor Synthese und Artefakt-Garantie ab', async () => {
+    const afterGather = vi.fn(async () => {});
+    await expect(
+      runAgenticLoop(baseParams({ mode: 'split', afterGather, suspended: () => true }), deps)
+    ).rejects.toThrow(TurnSuspendedError);
+    expect(afterGather).not.toHaveBeenCalled();
+  });
+
+  it('bricht im vereinten Modus vor der Artefakt-Garantie ab', async () => {
+    const afterGather = vi.fn(async () => {});
+    await expect(
+      runAgenticLoop(baseParams({ mode: 'unified', afterGather, suspended: () => true }), deps)
+    ).rejects.toThrow(TurnSuspendedError);
+    expect(afterGather).not.toHaveBeenCalled();
+  });
+
+  it('lässt einen Zug ohne Pause unverändert laufen', async () => {
+    const afterGather = vi.fn(async () => {});
+    const out = await runAgenticLoop(
+      baseParams({ mode: 'unified', afterGather, suspended: () => false }),
+      deps
+    );
+    expect(out.text).toBe('SOLLTE_NICHT_ERSCHEINEN');
+    expect(afterGather).toHaveBeenCalledTimes(1);
   });
 });

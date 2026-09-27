@@ -16,7 +16,13 @@ import {
 import { BRAND } from '../../../utils/domainUtils.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
-import { smartChunkDocument } from '../../document-services/index.js';
+import {
+  smartChunkDocument,
+  buildEmbeddingTextsForChunks,
+  structurePayload,
+  embeddingPayload,
+  offsetPayload,
+} from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
 import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
@@ -620,7 +626,9 @@ export class BoellStiftungScraper extends BaseScraper {
     }
 
     const chunkTexts = chunks.map((c) => c.text);
-    const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
+    const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
+      buildEmbeddingTextsForChunks(chunks, content.title)
+    );
 
     const subcategories = [...(content.topics || [])];
     if (content.region && !subcategories.includes(content.region)) {
@@ -636,6 +644,9 @@ export class BoellStiftungScraper extends BaseScraper {
         content_hash: contentHash,
         chunk_index: index,
         chunk_text: chunkTexts[index],
+        ...structurePayload(chunk),
+        ...embeddingPayload(),
+        ...offsetPayload(chunk),
         quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
         content_type: content.contentType,
         primary_category: content.topic,
@@ -881,8 +892,8 @@ export class BoellStiftungScraper extends BaseScraper {
       filter.must.push({ key: 'primary_category', match: { value: topic } });
     }
 
-    const searchResult = await this.qdrant.client!.search(this.config.collectionName, {
-      vector: queryVector,
+    const searchResult = await this.qdrant.client!.query(this.config.collectionName, {
+      query: queryVector,
       ...(filter.must.length > 0 ? { filter } : {}),
       limit: limit * 3,
       score_threshold: threshold,
@@ -890,7 +901,7 @@ export class BoellStiftungScraper extends BaseScraper {
     });
 
     const articlesMap = new Map<string, BoellArticleResult>();
-    for (const hit of searchResult) {
+    for (const hit of searchResult.points) {
       const payload = hit.payload as Record<string, unknown> | null;
       if (!payload) continue;
       const articleId = String(payload.article_id ?? '');

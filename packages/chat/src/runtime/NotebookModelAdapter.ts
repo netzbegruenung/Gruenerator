@@ -1,14 +1,39 @@
 import {
+  notebookAnswerModeReasonSchema,
+  notebookResolvedAnswerModeSchema,
+  type NotebookAnswerMode,
+  type NotebookAnswerModeReason,
+  type NotebookCitation,
+  type NotebookDepth,
+  type NotebookResolvedAnswerMode,
+  type NotebookSource,
+} from '@gruenerator/contracts';
+
+import {
   type ChatProgress,
   type Citation as ChatCitation,
   type FallbackInfo,
 } from '../hooks/useChatGraphStream';
+import {
+  detectMagicIntent,
+  PRAEZISION_PROGRESS_MESSAGE,
+  toNotebookAnswerMode,
+} from '../lib/notebookAnswerMode';
 import { notifyWarning } from '../lib/notify';
 import { AUTO_MODEL_ID, resolveAutoModel } from '../lib/resolveAutoModel';
 import { parseSSELine } from '../lib/sseParser';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useAgentStore } from '../stores/chatStore';
 
+import {
+  applyToolStepResult,
+  buildToolStepCard,
+  toolStepResultMessage,
+  toolStepTitle,
+  type ToolStepResultData,
+  type ToolStepStartData,
+} from './GrueneratorModelAdapter/toolStepCards';
+import { type ToolCallPart } from './GrueneratorModelAdapter/types';
 import {
   ChatStreamError,
   errorStatus,
@@ -21,10 +46,88 @@ import type {
   ChatModelRunOptions,
   ChatModelRunResult,
 } from '@assistant-ui/react';
-import type { NotebookCitation, NotebookDepth, NotebookSource } from '@gruenerator/contracts';
 
 function normalizeCiteMarkers(text: string): string {
   return text.replace(/\[cite:(\d+)\]/g, '[$1]');
+}
+
+/** Client-side coarse cap on history length; the server holds the fine, token-based budget. */
+const HISTORY_MAX_MESSAGES = 12;
+/** Carried passages only need to identify the cited place, not repeat the chunk. */
+const HISTORY_CITATION_TEXT_MAX_CHARS = 600;
+
+interface WireHistoryMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  citations?: Array<Record<string, unknown>>;
+  /** The mode an earlier answer ran in — the auto guard carries it forward. */
+  answerMode?: NotebookResolvedAnswerMode;
+}
+
+/**
+ * Minimal subset of a raw notebook citation for the history payload — enough
+ * for the server's carried-source merge (identity + passage), nothing more.
+ */
+function pickHistoryCitation(c: Record<string, unknown>): Record<string, unknown> {
+  return {
+    index: String(c.index ?? ''),
+    ...(typeof c.document_id === 'string' && { document_id: c.document_id }),
+    ...(typeof c.document_title === 'string' && { document_title: c.document_title }),
+    ...(typeof c.title === 'string' && { title: c.title }),
+    ...(typeof c.cited_text === 'string' && {
+      cited_text: c.cited_text.slice(0, HISTORY_CITATION_TEXT_MAX_CHARS),
+    }),
+    ...(typeof c.source_url === 'string' && { source_url: c.source_url }),
+    ...(typeof c.chunk_index === 'number' && { chunk_index: c.chunk_index }),
+    ...(typeof c.page_number === 'number' && { page_number: c.page_number }),
+    ...(typeof c.filename === 'string' && { filename: c.filename }),
+    ...(typeof c.similarity_score === 'number' && { similarity_score: c.similarity_score }),
+    ...(typeof c.collection_id === 'string' && { collection_id: c.collection_id }),
+    ...(typeof c.collection_name === 'string' && { collection_name: c.collection_name }),
+    ...(typeof c.date === 'string' && { date: c.date }),
+  };
+}
+
+/**
+ * Conversation history for the wire — every tier but `fast`. Prior messages
+ * travel as `{role, content, citations?}`; `rawCitations` from the message
+ * metadata (present after a live turn, a localStorage resume and a thread
+ * reload) let the server merge previously cited sources into the new turn.
+ */
+function buildWireHistory(
+  messages: ChatModelRunOptions['messages'],
+  lastUserMessage: ChatModelRunOptions['messages'][number] | undefined
+): WireHistoryMessage[] {
+  if (!lastUserMessage) return [];
+  const prior = messages.slice(0, messages.lastIndexOf(lastUserMessage));
+  const history: WireHistoryMessage[] = [];
+  for (const m of prior) {
+    if (m.role !== 'user' && m.role !== 'assistant') continue;
+    const text = m.content
+      .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+      .map((p) => p.text)
+      .join('')
+      .trim();
+    if (!text) continue;
+    const custom = m.metadata?.custom as Record<string, unknown> | undefined;
+    const raw = custom?.rawCitations;
+    const citations = Array.isArray(raw)
+      ? (raw as Array<Record<string, unknown>>)
+          .filter((c) => c && typeof c === 'object')
+          .map(pickHistoryCitation)
+      : [];
+    const answerMode =
+      m.role === 'assistant'
+        ? notebookResolvedAnswerModeSchema.safeParse(custom?.answerMode)
+        : null;
+    history.push({
+      role: m.role,
+      content: text,
+      ...(citations.length > 0 && { citations }),
+      ...(answerMode?.success && { answerMode: answerMode.data }),
+    });
+  }
+  return history.slice(-HISTORY_MAX_MESSAGES);
 }
 
 function mapToChatCitations(citations: Citation[]): ChatCitation[] {
@@ -39,6 +142,7 @@ function mapToChatCitations(citations: Citation[]): ChatCitation[] {
     documentId: c.document_id,
     chunkIndex: c.chunk_index,
     similarityScore: c.similarity_score,
+    pageNumber: c.page_number ?? null,
     collectionId: c.collection_id,
   }));
 }
@@ -63,6 +167,11 @@ export interface NotebookAdapterConfig {
    */
   getExtraParams?: () => Record<string, unknown> | undefined;
   mode?: NotebookDepth;
+  /** Answer mode (Magic Search/Chat/Präzision). Omitted ⇒ the server answers in chat mode. */
+  answerMode?: NotebookAnswerMode;
+  /** Magic Search: with `auto`, a first question is read here at send time and
+   *  goes out as `chat`; later turns stay `auto`. */
+  magicSearch?: boolean;
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
@@ -111,6 +220,7 @@ interface StreamCompletionData {
   sources: Source[];
   allSources: unknown[];
   sourcesByCollection?: Record<string, unknown>;
+  metadata?: { traceId?: string };
 }
 
 export interface NotebookAdapterCallbacks {
@@ -189,14 +299,33 @@ export function createNotebookModelAdapter(
         console.warn('[Notebook] getExtraParams threw:', err);
       }
 
+      // The server's depth profile is the authority on what happens to
+      // history (prompt inclusion is Ultra-only, `deep` rewrites the search
+      // query against it) — the client just avoids shipping payload no tier
+      // would use. `fast` (Grün-O-Mat) stays history-free — unless the auto
+      // guard or the precision loop may run: both read the conversation at
+      // every depth, while the RAG branch at `fast` still ignores it.
+      const historyForAnswerMode =
+        config.answerMode === 'auto' || config.answerMode === 'praezision';
+      const wireHistory =
+        config.mode !== 'fast' || historyForAnswerMode
+          ? buildWireHistory(messages, lastUserMessage)
+          : [];
+
+      const firstTurn = messages.filter((m) => m.role === 'user').length === 1;
+      const answerMode =
+        config.answerMode === 'auto' && config.magicSearch && firstTurn
+          ? toNotebookAnswerMode('auto', detectMagicIntent(question))
+          : config.answerMode;
+
       const payload = {
-        messages: [{ role: 'user', content: question }],
+        messages: [...wireHistory, { role: 'user', content: question }],
         ...(isMulti
           ? { collectionIds: config.collectionIds }
           : { collectionId: config.collectionId || config.collectionIds?.[0] }),
         ...(config.filters && { filters: config.filters }),
-        locale: config.locale,
         ...(config.mode && { mode: config.mode }),
+        ...(answerMode && { answerMode }),
         ...(config.documentIds?.length && { documentIds: config.documentIds }),
         ...(config.threadId && { threadId: config.threadId }),
         model: selectedModel,
@@ -263,8 +392,25 @@ export function createNotebookModelAdapter(
       let sourcesByCollectionAccum: Record<string, unknown> | undefined;
       let resultIdAccum: string | undefined;
       let linkConfigAccum: LinkConfig | undefined;
+      let evidenceWeakAccum: string | undefined;
+      let answerModeAccum: NotebookResolvedAnswerMode | null = null;
+      let answerModeReasonAccum: NotebookAnswerModeReason | null = null;
+      // Precision turns run the agentic loop: its tool steps render as cards
+      // above the answer text, keyed by stepId (parallel steps interleave).
+      const toolCards: ToolCallPart[] = [];
+      const toolCardsById = new Map<string, ToolCallPart>();
 
-      function buildResult(): ChatModelRunResult {
+      /**
+       * Live yields carry the text RAW. `useSmooth` (assistant-ui) only
+       * animates while each new text extends the displayed one; `[cite:3` →
+       * `[3]` is not an extension, so rewriting mid-stream reset the reveal on
+       * every completed marker. The renderer handles both wire forms on the
+       * syntax tree (`remarkCitationMarkers`). Only the final yield normalises
+       * — and it marks the message complete in the SAME yield, because it also
+       * swaps in the renumbered backend answer: on a non-running message
+       * useSmooth snaps to the new text instead of re-typing it.
+       */
+      function buildResult(final = false): ChatModelRunResult {
         const custom: Record<string, unknown> = {};
         if (currentProgress) custom.progress = currentProgress;
         if (completionCitations.length > 0) custom.citations = completionCitations;
@@ -275,19 +421,39 @@ export function createNotebookModelAdapter(
         if (linkConfigAccum) custom.linkConfig = linkConfigAccum;
         if (resultIdAccum) custom.resultId = resultIdAccum;
         if (sourcesByCollectionAccum) custom.sourcesByCollection = sourcesByCollectionAccum;
+        if (completionData?.metadata?.traceId) {
+          custom.streamMetadata = {
+            intent: 'direct',
+            searchCount: 0,
+            traceId: completionData.metadata.traceId,
+          };
+        }
+        if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
+        if (answerModeAccum) custom.answerMode = answerModeAccum;
+        if (answerModeReasonAccum) custom.answerModeReason = answerModeReasonAccum;
         custom.question = question;
         custom.answerText = accumulatedText;
 
-        const parts: Array<{ type: 'text'; text: string } | { type: 'reasoning'; text: string }> =
-          [];
+        const parts: Array<
+          { type: 'text'; text: string } | { type: 'reasoning'; text: string } | ToolCallPart
+        > = [];
         if (accumulatedReasoning) {
           parts.push({ type: 'reasoning' as const, text: accumulatedReasoning });
         }
-        parts.push({ type: 'text' as const, text: normalizeCiteMarkers(accumulatedText) });
+        parts.push(...toolCards);
+        // No empty text part behind the cards: it would close the card run and
+        // hide the group header while the loop is still working.
+        if (accumulatedText || toolCards.length === 0) {
+          parts.push({
+            type: 'text' as const,
+            text: final ? normalizeCiteMarkers(accumulatedText) : accumulatedText,
+          });
+        }
 
         return {
           content: parts,
           metadata: { custom },
+          ...(final && { status: { type: 'complete' as const, reason: 'stop' as const } }),
         };
       }
 
@@ -310,6 +476,58 @@ export function createNotebookModelAdapter(
                 const { threadId } = data as { threadId: string };
                 console.debug('[Notebook] Thread created:', threadId);
                 callbacks.onThreadCreated?.(threadId);
+                break;
+              }
+
+              case 'answer_mode': {
+                // Which mode this answer runs in — the chip on the message shows
+                // it from here on. An unknown mode shows no chip rather than a
+                // guessed one; an unknown reason just drops the hint.
+                const payload = data as { resolved?: unknown; reason?: unknown };
+                const resolved = notebookResolvedAnswerModeSchema.safeParse(payload.resolved);
+                if (!resolved.success) break;
+                answerModeAccum = resolved.data;
+                const reason = notebookAnswerModeReasonSchema.safeParse(payload.reason);
+                if (reason.success) answerModeReasonAccum = reason.data;
+                if (answerModeAccum === 'praezision') {
+                  currentProgress = { stage: 'searching', message: PRAEZISION_PROGRESS_MESSAGE };
+                }
+                yield buildResult();
+                break;
+              }
+
+              case 'tool_step_start': {
+                const stepData = data as ToolStepStartData;
+                const title = toolStepTitle(stepData);
+                if (!toolCardsById.has(stepData.stepId)) {
+                  const card = buildToolStepCard(stepData, title, stepData.narration);
+                  // One contiguous run above the text: every card shares the
+                  // first card's id, so the group renders as one (cf. chat's
+                  // orderPushCard).
+                  card.parentId = toolCards[0]?.toolCallId ?? card.toolCallId;
+                  toolCardsById.set(stepData.stepId, card);
+                  toolCards.push(card);
+                }
+                currentProgress = { stage: 'searching', message: title };
+                yield buildResult();
+                break;
+              }
+
+              case 'tool_step_result': {
+                const resultData = data as ToolStepResultData;
+                const pending = toolCardsById.get(resultData.stepId);
+                if (pending) {
+                  const updated = applyToolStepResult(pending, resultData);
+                  toolCardsById.set(resultData.stepId, updated);
+                  toolCards[toolCards.indexOf(pending)] = updated;
+                }
+                // Parallel steps: the stage moves on only once none is running.
+                const stillOpen = toolCards.some((c) => c.result == null);
+                const message = toolStepResultMessage(resultData);
+                currentProgress = stillOpen
+                  ? { ...currentProgress, stage: 'searching', message }
+                  : { stage: 'generating', message };
+                yield buildResult();
                 break;
               }
 
@@ -407,7 +625,14 @@ export function createNotebookModelAdapter(
                 // Non-fatal degradation the backend wants the user to know
                 // about. Without this case the event fell into `default:` and
                 // was dropped on every notebook surface.
-                const { message } = data as { code: string; message: string };
+                const { code, message } = data as { code: string; message: string };
+                // `evidence_weak` ist keine Störung, sondern eine Aussage über
+                // GENAU DIESE Antwort. Ein Toast steht über der Seite und
+                // gehört zu keiner Nachricht; der Satz gehört unter den Text.
+                if (code === 'evidence_weak') {
+                  if (message) evidenceWeakAccum = message;
+                  break;
+                }
                 if (message) notifyWarning(message);
                 break;
               }
@@ -507,7 +732,7 @@ export function createNotebookModelAdapter(
         // the wrong sources or fall off the map entirely.
         accumulatedText = completionData.answer;
 
-        yield buildResult();
+        yield buildResult(true);
 
         const metadata: NotebookMessageMetadata = {
           citations: completionCitations,
@@ -533,21 +758,20 @@ export function createNotebookModelAdapter(
         // interruption notice, and mark the turn failed so the retry
         // affordance appears.
         accumulatedText += `\n\n⚠️ **${STREAM_INTERRUPTED_MESSAGE}**`;
-        yield { ...buildResult(), status: errorStatus(streamErrorEncountered) };
+        yield { ...buildResult(true), status: errorStatus(streamErrorEncountered) };
       } else if (accumulatedText) {
-        yield buildResult();
+        yield buildResult(true);
       } else if (streamErrorEncountered) {
         // Stream errored before any answer arrived — surface the real cause
         // (e.g. backend `error` SSE event) instead of the misleading
         // "keine passende Antwort" fallback.
-        yield {
-          content: [{ type: 'text' as const, text: streamErrorMessage(streamErrorEncountered) }],
-          status: errorStatus(streamErrorEncountered),
-        };
+        // Tool cards and the mode chip stay: they show how far the turn got.
+        accumulatedText = streamErrorMessage(streamErrorEncountered);
+        yield { ...buildResult(true), status: errorStatus(streamErrorEncountered) };
       } else {
         accumulatedText =
           'Leider konnte ich keine passende Antwort finden. Bitte versuche es mit einer anderen Frage.';
-        yield buildResult();
+        yield buildResult(true);
       }
     },
   };

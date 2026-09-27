@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildMcpOutcomeNote, buildToolFailureNote } from './agenticRespondService.js';
+import {
+  buildMcpOutcomeNote,
+  buildEmptyResultNote,
+  buildToolFailureNote,
+  buildToolPayloadNote,
+  mcpHasFailure,
+} from './toolOutcome.js';
 import { readMcpResult } from './types.js';
 
 import type { PersistedStep } from './types.js';
@@ -151,6 +157,16 @@ describe('buildToolFailureNote', () => {
     expect(note).toMatch(/Erfinde keine IDs/);
   });
 
+  // Live 23.09.2026: nach „Kein Notebook ausgewählt" schrieb die Antwort, es
+  // gebe keine Funktion, das Notebook zu durchsuchen.
+  it('forbids claiming the capability does not exist', () => {
+    const note = buildToolFailureNote([
+      step({ toolName: 'notebook_quellen', result: { error: 'Kein Notebook ausgewählt' } }),
+    ]);
+    expect(note).toMatch(/Behaupte NIE, dir fehle eine Funktion/);
+    expect(note).toMatch(/fehlgeschlagen ist und warum/);
+  });
+
   it('stays silent on a clean turn', () => {
     expect(buildToolFailureNote([])).toBe('');
     expect(buildToolFailureNote([step({ toolName: 'web_search', result: { results: [] } })])).toBe(
@@ -165,5 +181,116 @@ describe('buildToolFailureNote', () => {
       result: { error: 'no workspace' },
     });
     expect(buildToolFailureNote([mcpFailure])).toBe('');
+  });
+});
+
+describe('buildEmptyResultNote', () => {
+  it('names a native tool that ran fine and returned nothing', () => {
+    // The live shape: `media` answered { resultCount: 0, results: [] } and the
+    // writer reported an edit.
+    const note = buildEmptyResultNote([
+      step({ toolName: 'media', result: { resultCount: 0, results: [] } }),
+    ]);
+    expect(note).toMatch(/media: lieferte KEINE Einträge/);
+  });
+
+  it('stays silent when results exist, on errors, and on connector steps', () => {
+    expect(
+      buildEmptyResultNote([step({ toolName: 'media', result: { resultCount: 1, results: [{}] } })])
+    ).toBe('');
+    // Failures belong to buildToolFailureNote — no double report.
+    expect(buildEmptyResultNote([step({ toolName: 'media', result: { error: 'boom' } })])).toBe('');
+    // A notebook answer with zero citations is an answer, not an empty result.
+    expect(
+      buildEmptyResultNote([
+        step({ toolName: 'notebooks', result: { answer: 'Die Satzung …', resultCount: 0 } }),
+      ])
+    ).toBe('');
+    expect(
+      buildEmptyResultNote([
+        step({ serverName: 'Tally', toolName: 'm1__list', result: { content: '' } }),
+      ])
+    ).toBe('');
+  });
+});
+
+describe('mcpHasFailure', () => {
+  it('is false with no MCP steps or only successful ones', () => {
+    expect(mcpHasFailure([])).toBe(false);
+    expect(mcpHasFailure([step({ toolName: 'gruenerator_search' })])).toBe(false);
+    expect(mcpHasFailure([step({ serverName: 'Sally', result: { content: 'ok' } })])).toBe(false);
+  });
+
+  it('is true when any MCP call failed', () => {
+    expect(mcpHasFailure([step({ serverName: 'Tally', result: { error: 'no workspace' } })])).toBe(
+      true
+    );
+  });
+});
+
+describe('buildToolPayloadNote', () => {
+  it('reicht den Digest von summarize an den Schreiber durch', () => {
+    const note = buildToolPayloadNote([
+      step({ toolName: 'summarize', result: { summary: 'Der Beschluss regelt die KI-Nutzung.' } }),
+    ]);
+    expect(note).toContain('ERGEBNISSE EIGENER WERKZEUGE IN DIESEM TURN:');
+    expect(note).toContain('Der Beschluss regelt die KI-Nutzung.');
+    // Der Satz, der den beobachteten Ausfall benennt: das Modell fragte zurück,
+    // welches Dokument gemeint sei, während der Digest fertig vorlag.
+    expect(note).toContain('Sag NIEMALS, dir liege kein Dokument');
+  });
+
+  /**
+   * Eine benannte Liste, keine Pauschalregel. Wer registriert, trägt seine
+   * Nutzlast schon im Quellenblock — eine zweite Kopie verdoppelte sie im
+   * Prompt.
+   */
+  it('schweigt zu Werkzeugen, die ihre Treffer registrieren', () => {
+    expect(
+      buildToolPayloadNote([
+        step({ toolName: 'web_search', result: { resultCount: 3, sources: '[1] …' } }),
+        step({ toolName: 'dokumente_lesen', result: { resultCount: 1, sources: '[2] …' } }),
+      ])
+    ).toBe('');
+  });
+
+  it('überlässt Fehlschläge und Leerlauf dem Fehler-Hinweis', () => {
+    expect(buildToolPayloadNote([])).toBe('');
+    expect(
+      buildToolPayloadNote([step({ toolName: 'summarize', result: { error: 'kein Text' } })])
+    ).toBe('');
+    expect(buildToolPayloadNote([step({ toolName: 'summarize', result: { summary: '  ' } })])).toBe(
+      ''
+    );
+  });
+
+  it('lässt einen gleichnamigen Konnektor bei buildMcpOutcomeNote', () => {
+    expect(
+      buildToolPayloadNote([
+        step({ serverName: 'Fremd', toolName: 'summarize', result: { summary: 'fremd' } }),
+      ])
+    ).toBe('');
+  });
+
+  /**
+   * Derselbe Deckel wie bei den Konnektor-Inhalten, und aus demselben Grund:
+   * die Regel im Block verlangt, nichts Relevantes wegzulassen. Ein früh
+   * abgeschnittener Digest macht daraus die Anweisung, eine halbe
+   * Zusammenfassung als ganze auszugeben.
+   */
+  it('deckelt eine übergrosse Nutzlast, statt den Prompt zu sprengen', () => {
+    const note = buildToolPayloadNote([
+      step({ toolName: 'summarize', result: { summary: 'x'.repeat(40_000) } }),
+    ]);
+    expect(note.length).toBeLessThan(30_000);
+  });
+
+  it('nimmt mehrere Nutzlast-Werkzeuge desselben Turns mit', () => {
+    const note = buildToolPayloadNote([
+      step({ toolName: 'summarize', result: { summary: 'Digest' } }),
+      step({ toolName: 'product_knowledge', result: { knowledge: 'Der Grünerator kann …' } }),
+    ]);
+    expect(note).toContain('Digest');
+    expect(note).toContain('Der Grünerator kann …');
   });
 });

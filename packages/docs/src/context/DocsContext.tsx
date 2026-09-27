@@ -1,6 +1,10 @@
 'use client';
 
-import { UnauthorizedError } from '@gruenerator/shared/api';
+import {
+  UnauthorizedError,
+  unauthorizedInfoFromResponse,
+  type UnauthorizedInfo,
+} from '@gruenerator/shared/api';
 import { createContext, useContext, type ReactNode } from 'react';
 
 /**
@@ -24,8 +28,11 @@ export interface DocsAdapter {
    * Called on 401. A truthy (Promise-)return means "the session was probed and
    * is alive — retry the request once" (web routes this through the shared
    * handleUnauthorized authority); void/false means redirect / don't retry.
+   * `info` carries the 401's code/requestId so the handler can report WHICH
+   * failure tore the session down; every field is optional, so a zero-arg
+   * implementation stays assignable.
    */
-  onUnauthorized(): void | boolean | Promise<boolean | void>;
+  onUnauthorized(info?: UnauthorizedInfo): void | boolean | Promise<boolean | void>;
   /** Navigate to a document (platform-specific routing) */
   navigateToDocument(documentId: string): void;
   /** Navigate to document list */
@@ -96,7 +103,9 @@ export function createDocsApiClient(adapter: DocsAdapter): DocsApiClient {
       // A truthy return means "probe says the session is alive — retry once".
       // Otherwise throw a typed error so the query fails fast (the web app's
       // retry predicate skips 401) instead of rendering a stale partial list.
-      const shouldRetry = await adapter.onUnauthorized();
+      const shouldRetry = await adapter.onUnauthorized(
+        await unauthorizedInfoFromResponse(response, url)
+      );
       if (shouldRetry && !retried) {
         return request<T>(endpoint, options, docsOptions, true);
       }

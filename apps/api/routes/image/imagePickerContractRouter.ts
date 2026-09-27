@@ -14,7 +14,9 @@
  * matches its own routes first; unmatched paths fall through to the legacy
  * router (which handles GET /stock-image/:filename binary serving).
  *
- * No requireAuth at prefix — image picker routes are public per legacy router.
+ * requireAuth sits on the /api/image-picker prefix in routes.ts, mounted BEFORE
+ * this call — createExpressEndpoints registers handlers directly on `app`, so a
+ * guard added after it would never run for these routes.
  */
 
 import { imagePickerContract } from '@gruenerator/contracts';
@@ -24,7 +26,6 @@ import ImageSelectionService from '../../services/image/ImageSelectionService.js
 import { enhanceWithAttribution } from '../../services/image/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { safeFetch } from '../../utils/validation/urlSecurity.js';
 
@@ -67,8 +68,7 @@ export const imagePickerContractRouter = s.router(imagePickerContract, {
         options.maxCandidates = maxCandidates;
       }
 
-      const workerPool = getAIWorkerPool(args.req);
-      const result = await imagePickerService.selectBestImage(text, workerPool, options, args.req);
+      const result = await imagePickerService.selectBestImage(text, options);
 
       return {
         status: 200 as const,

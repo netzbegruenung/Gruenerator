@@ -9,11 +9,10 @@
  */
 
 import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
-import { HiPhotograph, HiSparkles } from 'react-icons/hi';
+import { HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
-import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { AssetsSection, BackgroundSection } from '../sidebar';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
@@ -23,6 +22,7 @@ import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
+import { carryInstanceState } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
@@ -204,22 +204,20 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     },
     toolsTab,
     uploadsTab,
-    {
-      id: 'ai',
-      icon: HiSparkles,
-      label: 'KI',
-      ariaLabel: 'KI-Vorschläge',
-    },
     chatTab,
   ],
 
-  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
-  // 'background' tab kept registered but hidden — opened via getAutoSwitchTab when
-  // the canvas background is clicked.
-  getVisibleTabs: () => ['text', 'elements', 'tools', 'uploads', 'chat'],
+  // 'background' used to be hidden too, on the theory that clicking the photo
+  // opens it. But `background-image` only renders in image mode with a picture
+  // already set, and a fresh freeform starts on the colour plane — so the one
+  // template that can do both had no way in until it was already in image mode.
+  getVisibleTabs: () => ['background', 'text', 'elements', 'tools', 'uploads', 'chat'],
 
   getAutoSwitchTab: (selectedElement) => {
-    if (selectedElement === 'background') return 'background';
+    // Only `background-image` is clickable; it is draggable and transformable.
+    // The colour plane is id `background-color` and drawn `listening={false}`,
+    // so the `background` branch that used to sit here was doubly dead.
+    if (selectedElement === 'background-image') return 'background';
     if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
@@ -291,8 +289,6 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     ...createCommonSectionEntries('freeform', freeformAiCapabilities),
 
     share: createShareSection<FreeformState>('freeform', () => ''),
-
-    ai: createAiSectionRegistration('freeform', freeformAiCapabilities),
   },
 
   elements: [
@@ -344,22 +340,13 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
     imageAttribution: (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
 
-    // Empty element arrays
-    assetInstances: [],
-    selectedIcons: [],
-    iconStates: {},
-    shapeInstances: [],
-    illustrationInstances: [],
-    additionalTexts: [],
-    pillBadgeInstances: [],
-    circleBadgeInstances: [],
-    balkenInstances: [],
-    frameInstances: [],
-    chartInstances: [],
-    userImageInstances: [],
+    // Alles selbst Hinzugefuegte. Stand hier hart auf `[]`, und weil
+    // Karten-Render und Chat-Bearbeitung durch diese Funktion neu setzen,
+    // war die ganze freie Flaeche danach leer.
+    ...carryInstanceState(props),
 
     // Layer ordering
-    layerOrder: [],
+    layerOrder: (props.layerOrder as string[] | undefined) ?? [],
 
     // UI state
     isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,

@@ -11,26 +11,29 @@ import {
   getCanonicalByKey,
   getMcpExposedCollections,
 } from '../../config/systemCollectionsConfig.js';
-import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { Sentry } from '../../lib/sentry.js';
 import { lookupUmfragen } from '../../services/monitor/UmfragenService.js';
-import { notebookQAService } from '../../services/notebook/NotebookQAService.js';
+import { runNotebookSearch } from '../../services/notebook/notebookToolSearch.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import {
   executeDirectExamplesSearch,
   executeDirectPressemitteilungExamples,
   executeDirectSearch,
 } from '../chat/agents/directSearchExecutors.js';
+import { makeGroupsTool } from '../chat/agents/groupTools.js';
+import { makeNotebookSourcesTool, READ_ACTIONS } from '../chat/agents/notebookSourceTools.js';
+import { WRITE_ACTIONS } from '../chat/agents/notebookSourceWriteActions.js';
+import { makeNotebooksTool } from '../chat/agents/notebookTools.js';
 import {
   makeBoardsTasksTool,
   makeDocumentsTool,
   makeFindContentTool,
-  makeGroupsTool,
   makeMediaTool,
-  makeNotebooksTool,
 } from '../chat/agents/personalDataTools.js';
+import { makeRecurringTasksTool } from '../chat/agents/recurringTaskTools.js';
+import { makeRecipesTool } from '../chat/agents/textFormTools.js';
+import { makeUserAgentsTool } from '../chat/agents/userAgentTools.js';
 import { runBoardGeneration, runDocGeneration } from '../chat/services/intentExecutionService.js';
 import {
   computeMergedFilters,
@@ -48,18 +51,27 @@ import {
 import { hasLandesverbandAccess, registerLandesverbandTools } from './landesverbandTools.js';
 import {
   addCardDirect,
+  addWolkeFolderMcp,
   createGroupDirect,
+  createNotebookMcp,
+  createRecurringTaskMcp,
+  createUserAgentMcp,
   joinGroupDirect,
+  setGroupVisibilityMcp,
+  setNotebookVisibilityMcp,
   shareDocToGroupMcp,
+  shareNotebookMcp,
+  shareUserAgentMcp,
 } from './mcpMutations.js';
 import {
   buildCollectionCatalog,
   buildMethodDocument,
-  buildNotizbuchPrompt,
+  buildNotebookPrompt,
   buildRecherchePrompt,
 } from './methodPrompts.js';
 
 import type { McpAuthContext } from './mcpAuth.js';
+import type { UserLocale } from '../../agents/langgraph/ChatGraph/types.js';
 import type { QAResponse } from '../../services/notebook/types.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Request } from 'express';
@@ -69,32 +81,30 @@ const log = createLogger('McpServerFactory');
 /**
  * Derived from the canonical config, NOT from the chat catalog.
  *
- * `ALL_COLLECTIONS` is the chat agent's allow-list — eight entries, tuned for
- * what a chat agent should reach by default. Using it here silently hid twelve
- * `mcpExposed` collections, every Landesverband among them, from a surface
- * whose whole job is exposure. v1 has served them from `/api/v1/collections`
- * all along, so v2 was the narrower of the two.
+ * `ALL_COLLECTIONS` is the chat agent's allow-list. It used to be eight
+ * hand-written entries, and using it here silently hid twelve `mcpExposed`
+ * collections, every Landesverband among them, from a surface whose whole job
+ * is exposure. v1 had served them from `/api/v1/collections` all along, so v2
+ * was the narrower of the two.
+ *
+ * The chat list has since been derived from this same config for exactly that
+ * reason (the loop could not search a Landesverband either). The two stay
+ * separate anyway: this surface is not locale-filtered and does not bundle
+ * Austria behind one key, both of which that list does for the chat client.
+ *
+ * Deliberately NOT gated by the instance policy either, though `searchTools.ts`
+ * gates the chat list. `hide` is curation, not access: it takes content out of
+ * galleries, pickers and *implicit* search while a directly named target keeps
+ * resolving — and an MCP client naming a collection is naming it, not
+ * discovering it. Keeping a deployment's content out of MCP entirely is what
+ * `mcpExposed: false` on the collection is for. Gating here would also have
+ * dropped `gruene` from production's published enum, which external clients
+ * have searched since v1.
  */
 const SEARCH_COLLECTIONS = getMcpExposedCollections()
   .map((c) => c.key)
   .filter((key) => key !== 'examples')
   .sort() as [string, ...string[]];
-
-let notebookHelperSingleton: NotebookQdrantHelper | null = null;
-function notebookHelper(): NotebookQdrantHelper {
-  notebookHelperSingleton ??= new NotebookQdrantHelper();
-  return notebookHelperSingleton;
-}
-
-/**
- * `askSingleCollection` signals these two states by throwing. They are ordinary
- * outcomes for a tool call, not failures, so they get their own German text
- * instead of the bridge's generic "prüfe die übergebenen IDs".
- */
-const NOTEBOOK_QA_ERRORS: Record<string, string> = {
-  'Collection not found or access denied': 'Notizbuch nicht gefunden oder kein Zugriff.',
-  'No documents found in this collection': 'Dieses Notizbuch enthält noch keine Dokumente.',
-};
 
 /**
  * The cited answer IS this tool's payload, so it leaves as markdown text:
@@ -116,9 +126,9 @@ export function renderNotebookAnswer(result: QAResponse, notebookName: string): 
   return `${result.answer}\n\nQuellen (${notebookName}):\n${lines.join('\n')}`;
 }
 
-const INSTRUCTIONS = `Grünerator MCP (angemeldet): Zugriff auf die eigenen Grünerator-Inhalte der angemeldeten Person (Dokumente, Boards/Aufgaben, Notizbücher, Gruppen, Medien) plus die Programm- und Beschlusssuche von Bündnis 90/Die Grünen (DE) und den Grünen (AT).
+const INSTRUCTIONS = `Grünerator MCP (angemeldet): Zugriff auf die eigenen Grünerator-Inhalte der angemeldeten Person (Dokumente, Boards/Aufgaben, Notebooks, Gruppen, Medien) plus die Programm- und Beschlusssuche von Bündnis 90/Die Grünen (DE) und den Grünen (AT).
 
-Für belegte Antworten aus mehreren Quellen gilt ein festes Vorgehen: die Resource gruenerator://methode beschreibt Ablauf und Zitierprotokoll, gruenerator://sammlungen listet die durchsuchbaren Sammlungen. Die Prompts "recherche" und "notizbuch-antwort" bringen beides fertig mit.
+Für belegte Antworten aus mehreren Quellen gilt ein festes Vorgehen: die Resource gruenerator://methode beschreibt Ablauf und Zitierprotokoll, gruenerator://sammlungen listet die durchsuchbaren Sammlungen. Die Prompts "recherche" und "notebook-antwort" bringen beides fertig mit.
 
 Regeln:
 - Kein Tool schreibt dir den Text der Recherche — die Synthese aus den Treffern ist deine Aufgabe. Ausnahme: notebooks mit action="search" liefert bereits eine belegte Antwort.
@@ -244,19 +254,40 @@ function registerMethod(server: McpServer): void {
   );
 
   server.registerPrompt(
-    'notizbuch-antwort',
+    'notebook-antwort',
     {
-      title: 'Antwort aus einem eigenen Notizbuch',
+      title: 'Antwort aus einem eigenen Notebook',
       description:
         'Befragt den eigenen Quellenbestand und fasst die Treffer mit Quellenangaben zusammen.',
       argsSchema: {
         frage: z.string().describe('Die inhaltliche Frage'),
-        notizbuch: z.string().optional().describe('Name des Notizbuchs, falls bekannt'),
+        notebook: z.string().optional().describe('Name des Notebooks, falls bekannt'),
+      },
+    },
+    ({ frage, notebook }) => ({
+      description: 'Notebook-Antwort mit Quellen',
+      messages: buildNotebookPrompt(frage, notebook),
+    })
+  );
+
+  // Deprecated alias for `notebook-antwort`, retired 27.08.2027. MCP prompt
+  // names are frozen the moment a client references one, so the rename
+  // Notizbuch → Notebook (27.08.2026) had to be additive: same handler, old
+  // name, old argument name. Drop this block once no client asks for it.
+  server.registerPrompt(
+    'notizbuch-antwort',
+    {
+      title: 'Antwort aus einem eigenen Notebook (veraltet: notizbuch-antwort)',
+      description:
+        'Veraltet — nutze `notebook-antwort`. Befragt den eigenen Quellenbestand und fasst die Treffer mit Quellenangaben zusammen.',
+      argsSchema: {
+        frage: z.string().describe('Die inhaltliche Frage'),
+        notizbuch: z.string().optional().describe('Name des Notebooks, falls bekannt'),
       },
     },
     ({ frage, notizbuch }) => ({
-      description: 'Notizbuch-Antwort mit Quellen',
-      messages: buildNotizbuchPrompt(frage, notizbuch),
+      description: 'Notebook-Antwort mit Quellen',
+      messages: buildNotebookPrompt(frage, notizbuch),
     })
   );
 
@@ -266,7 +297,7 @@ function registerMethod(server: McpServer): void {
     {
       title: 'Methode: belegt aus mehreren Quellen antworten',
       description:
-        'Ablauf und Zitierprotokoll für Antworten aus den Grünen-Sammlungen und aus eigenen Notizbüchern.',
+        'Ablauf und Zitierprotokoll für Antworten aus den Grünen-Sammlungen und aus eigenen Notebooks.',
       mimeType: 'text/markdown',
     },
     () => ({
@@ -306,12 +337,14 @@ export interface McpServerBuildOptions {
   scopes: Set<string>;
   /** Nur beim Schlüssel-Weg gesetzt — trägt die Landesverbands-Freigabe. */
   apiKey?: McpAuthContext['apiKey'];
-  /** The live Express request — carries app.locals.aiWorkerPool and req.user. */
+  /** Aus dem Profil — steuert, welche System-Notebooks die Tools freigeben. */
+  userLocale: UserLocale;
+  /** The live Express request — carries req.user. */
   req: Request;
 }
 
 export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpServer {
-  const { userId, scopes, apiKey, req } = opts;
+  const { userId, scopes, apiKey, userLocale, req } = opts;
   const has = (s: string) => scopes.has(s);
   const contentRead = has('content:read');
   const contentWrite = has('content:write');
@@ -326,7 +359,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
     }
   );
 
-  const ctx = makeMcpPersonalCtx(userId);
+  const ctx = makeMcpPersonalCtx(userId, userLocale);
 
   registerMethod(server);
 
@@ -583,42 +616,105 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
 
     registerAiTool(server, 'notebooks', makeNotebooksTool(ctx), {
       description: contentWrite
-        ? `Zugriff auf die EIGENEN Notizbücher (Quellensammlungen): auflisten (list), inhaltlich befragen (search mit id + query), umbenennen (rename), löschen (delete mit confirm-Protokoll). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`
-        : `Die EIGENEN Notizbücher auflisten (list) oder inhaltlich befragen (search mit id + query). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`,
-      actions: contentWrite ? ['list', 'search', 'rename', 'delete'] : ['list', 'search'],
-      extraShape: {
-        query: z.string().optional().describe('Suchfrage (nur bei action="search")'),
-      },
+        ? `Zugriff auf die Notebooks der Person (Wissenssammlungen): auflisten (list — die id steht im ref; scope="mine" die eigenen, scope="system" die vom Grünerator gepflegten Wissenssammlungen, scope="basis" die öffentlich geteilten anderer), Details mit Dokumenten, Wolke-Ordnern und Freigaben (get), inhaltlich befragen (search mit id + query), anlegen (create; mit wolkeFolder {connectionId, path} wird der Ordner importiert), Wolke-Ordner anhängen (add_wolke_folder), Dokumente hinzufügen (add_documents), umbenennen (rename), Beschreibung, Anweisung und Labels ändern (update), Sichtbarkeit ändern (set_visibility), mit einem Projekt teilen (share_to_group), löschen (delete). create mit wolkeFolder, add_wolke_folder, set_visibility, share_to_group und delete verlangen das zweistufige confirm-Protokoll. search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`
+        : `Die Notebooks der Person auflisten (list — die id steht im ref; scope="mine" die eigenen, scope="system" die vom Grünerator gepflegten Wissenssammlungen, scope="basis" die öffentlich geteilten anderer), Details ansehen (get) oder inhaltlich befragen (search mit id + query). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`,
+      actions: contentWrite
+        ? [
+            'list',
+            'get',
+            'search',
+            'create',
+            'add_wolke_folder',
+            'add_documents',
+            'rename',
+            'update',
+            'set_visibility',
+            'share_to_group',
+            'delete',
+          ]
+        : ['list', 'get', 'search'],
       overrides: {
+        // Die belegte Antwort IST das Ergebnis — als Markdown, nicht als
+        // Registry-Eintrag wie im Chat.
         search: async (args) => {
-          const id = typeof args.id === 'string' ? args.id : null;
-          const query = typeof args.query === 'string' ? args.query.trim() : '';
-          if (!id || !query) return { error: 'search braucht id (aus list) und query.' };
-          const collection = await notebookHelper().getNotebookCollection(id);
-          if (!collection) return { error: 'Notizbuch nicht gefunden oder kein Zugriff.' };
-          try {
-            const result = await notebookQAService.askSingleCollection({
-              collectionId: id,
-              question: query,
-              userId,
-              aiWorkerPool: getAIWorkerPool(req),
-              // Both are REQUIRED for user collections — the service throws
-              // without them. Passing the already-fetched row mirrors
-              // notebookContractRouter and hands the access decision to
-              // `checkNotebookAccess` inside the service, which is the
-              // canonical predicate (owner / share_mode / group membership).
-              getCollectionFn: async () => collection,
-              getDocumentIdsFn: async (cid) =>
-                (await notebookHelper().getCollectionDocuments(cid)).map((d) => d.document_id),
-            });
-            return renderNotebookAnswer(result, collection.name);
-          } catch (err) {
-            const mapped = NOTEBOOK_QA_ERRORS[(err as Error).message];
-            if (mapped) return { error: mapped };
-            throw err;
-          }
+          const id = typeof args.id === 'string' ? args.id : '';
+          const query = typeof args.query === 'string' ? args.query : '';
+          const outcome = await runNotebookSearch({ collectionId: id, query, userId });
+          if (!outcome.ok) return { error: outcome.error };
+          return renderNotebookAnswer(outcome.result, outcome.notebookName);
         },
+        // Die Karten des Chats als zweistufiges confirm-Protokoll.
+        ...(contentWrite
+          ? {
+              create: (args) => createNotebookMcp(userId, args),
+              add_wolke_folder: (args) => addWolkeFolderMcp(userId, args),
+              set_visibility: (args) => setNotebookVisibilityMcp(userId, args),
+              share_to_group: (args) => shareNotebookMcp(userId, args),
+            }
+          : {}),
       },
+      ...(contentWrite ? {} : { readOnly: true }),
+    });
+
+    // Die Schreibaktionen sind direkt (privat, umkehrbar) — keine Karten, also
+    // auch keine Overrides fürs confirm-Protokoll.
+    const quellenRead = `Die Quellen EINES Notebooks (notebookId aus notebooks action="list"; für ein System-Notebook der Sammlungsschlüssel aus scope="system", z. B. deutschland — dort ist die sourceId die URL der Quelle, und es lässt sich nur lesen): auflisten (list, sortier- und filterbar — die sourceId steht im ref), gliedern (outline), lesen (read — ab Zeichen mit abschnitt.von, eine seite, eine section aus outline oder ein chunks-Bereich) und Passagen finden (find mit query, optional nur in einer sourceId). find liefert Rohpassagen mit Seite und Zeichenbereich — belege damit selbst. Außerdem: wörtliche Vorkommen zählen (grep mit phrase), Umfang und Lemmata zählen (stats), Quellen ordnen (rank mit by), ein Zitat prüfen oder Belege für eine Behauptung finden (cite mit zitat oder claim). exhaustive=false heißt: nicht alle Quellen gelesen — Zahlen sind dann Untergrenzen.`;
+    registerAiTool(server, 'notebook_quellen', makeNotebookSourcesTool(ctx), {
+      description: contentWrite
+        ? `${quellenRead} Verwalten, direkt ohne Rückfrage: entfernen (remove — bleiben in der Bibliothek), verschieben oder kopieren (move/copy mit targetNotebookId), eigene Uploads umbenennen (rename) oder verschlagworten (tag mit add/remove), eine Notiz anlegen (add_note mit title + text) und EINE Webseite importieren (add_url — eine Seite, keine Website; erzeugt Einbettungen).`
+        : quellenRead,
+      actions: contentWrite ? [...READ_ACTIONS, ...WRITE_ACTIONS] : [...READ_ACTIONS],
+      ...(contentWrite ? {} : { readOnly: true }),
+    });
+  }
+
+  // ── recurring_tasks (content-Scope: die Aufgabe erzeugt Inhalte im Konto) ──
+  if (contentRead) {
+    registerAiTool(server, 'recurring_tasks', makeRecurringTasksTool(ctx), {
+      description: contentWrite
+        ? `Zugriff auf die wiederkehrenden Aufgaben der Person (ein Grünerator-Agent läuft von selbst im Takt): auflisten (list — die id steht im ref), Details samt letzten Läufen (get), einrichten (create mit title, instruction, recurrence {frequency, hour, minute, byweekday?, bymonthday?}; optional delivery, agentIdentifier, emailNotify, timezone), ändern (update), pausieren (pause), fortsetzen (resume), einmal sofort laufen lassen (run_now), löschen (delete). create und delete verlangen das zweistufige confirm-Protokoll.`
+        : `Die wiederkehrenden Aufgaben der Person auflisten (list — die id steht im ref) oder Details samt letzten Läufen ansehen (get).`,
+      actions: contentWrite
+        ? ['list', 'get', 'create', 'update', 'pause', 'resume', 'run_now', 'delete']
+        : ['list', 'get'],
+      ...(contentWrite
+        ? { overrides: { create: (args) => createRecurringTaskMcp(userId, args) } }
+        : { readOnly: true }),
+    });
+  }
+
+  // ── user_agents (content-Scope: der Agent ist Inhalt des Kontos) ──────────
+  if (contentRead) {
+    registerAiTool(server, 'user_agents', makeUserAgentsTool(ctx), {
+      description: contentWrite
+        ? `Zugriff auf die eigenen Grünerator-Agenten der Person (Agentura): auflisten (list — der identifier steht im ref, geteilte Agenten sind markiert), Details mit Rolle, Werkzeugen, Rezepten, Notebooks und Sichtbarkeit (get), aus einer Beschreibung neu anlegen (create mit brief; optional title, systemRole, enabledTools, skillMentions, defaultNotebookIds — die Rolle wird entworfen), ändern (update), mit einem Projekt teilen (share_to_group mit groupName), löschen (delete). create, share_to_group und delete verlangen das zweistufige confirm-Protokoll. System-Grüneratoren (gruenerator-…) sind hier nicht erreichbar.`
+        : `Die eigenen und die aus Projekten geteilten Grünerator-Agenten der Person auflisten (list — der identifier steht im ref) oder Details ansehen (get).`,
+      actions: contentWrite
+        ? ['list', 'get', 'create', 'update', 'share_to_group', 'delete']
+        : ['list', 'get'],
+      ...(contentWrite
+        ? {
+            overrides: {
+              create: (args) => createUserAgentMcp(userId, args),
+              share_to_group: (args) => shareUserAgentMcp(userId, args),
+            },
+          }
+        : { readOnly: true }),
+    });
+  }
+
+  // ── recipes (content-Scope: die Textform ist Inhalt des Kontos) ───────────
+  // Keine Overrides nötig: create, update und add_examples laufen direkt, delete
+  // fragt selbst über confirm=true. Die Rümpfe der Systemrezepte gibt das
+  // Werkzeug auch hier nicht heraus (parteiinterne Grenze).
+  if (contentRead) {
+    registerAiTool(server, 'recipes', makeRecipesTool(ctx), {
+      description: contentWrite
+        ? `Rezepte und eigene Textformen der Person („Texte anlernen"): alle Rezepte und eigenen Textformen auflisten (list — die mention steht im ref), Details ansehen (get — bei eigenen Textformen mit Beispielen, Stilblock, Beschreibung, Icon und Sichtbarkeit, bei mitgelieferten Rezepten nur Titel und Beschreibung), ein neues Rezept aus einer Beschreibung anlegen (create mit brief; optional title, mention, description, iconKey) oder aus Beispieltexten eine eigene Textform anlernen (create mit title, examples; optional mention, textType, description, iconKey — die Mention eines mitgelieferten Rezepts ersetzt dessen Stilvorgaben), Titel, Beschreibung, Icon oder Anweisungen ändern (update mit mention), Beispiele ergänzen (add_examples), löschen (delete, zweistufiges confirm-Protokoll). Freigeben an Projekte und Veröffentlichen in der Agentura laufen über die Einstellungen/Agentura, nicht über dieses Werkzeug. Anwenden eines Rezepts ist Sache des Chats, nicht dieses Werkzeugs.`
+        : `Die Rezepte und eigenen Textformen der Person auflisten (list — die mention steht im ref) oder Details ansehen (get).`,
+      actions: contentWrite
+        ? ['list', 'get', 'create', 'update', 'add_examples', 'delete']
+        : ['list', 'get'],
       ...(contentWrite ? {} : { readOnly: true }),
     });
   }
@@ -641,7 +737,6 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
         const created = await runDocGeneration({
           kind,
           userContent: prompt,
-          aiWorkerPool: getAIWorkerPool(req),
           req,
           userId,
         });
@@ -664,7 +759,6 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
       guarded('create_board', async ({ prompt }) => {
         const created = await runBoardGeneration({
           userContent: prompt,
-          aiWorkerPool: getAIWorkerPool(req),
           req,
           userId,
         });
@@ -681,20 +775,25 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
     const groupsWrite = has('groups:write');
     registerAiTool(server, 'groups', makeGroupsTool(ctx), {
       description: groupsWrite
-        ? `Zugriff auf die Gruppen der Person: auflisten (list), per Name finden (find), neue Gruppe anlegen (create), per Einladungstoken beitreten (join). join verlangt das zweistufige confirm-Protokoll (Mitglieder werden benachrichtigt).`
-        : `Die Gruppen der Person auflisten (list) oder per Name finden (find).`,
-      actions: groupsWrite ? ['list', 'find', 'create', 'join'] : ['list', 'find'],
+        ? `Zugriff auf die Projekte (Gruppen) der Person: auflisten (list — die id steht im ref), per Name finden (find), Details ansehen (get), die geteilten Inhalte mit Links auflisten (content), neues Projekt anlegen (create), per Einladungstoken beitreten (join), Name/Beschreibung ändern (update, nur Admins), öffentlich listen oder privat stellen (set_visibility mit isPublic, nur Admins). join und set_visibility verlangen das zweistufige confirm-Protokoll. Mitglieder verwalten ist hier nicht möglich.`
+        : `Die Projekte (Gruppen) der Person auflisten (list — die id steht im ref), per Name finden (find), Details ansehen (get) oder die geteilten Inhalte mit Links auflisten (content).`,
+      actions: groupsWrite
+        ? ['list', 'find', 'get', 'content', 'create', 'join', 'update', 'set_visibility']
+        : ['list', 'find', 'get', 'content'],
       ...(groupsWrite
         ? {
             extraShape: {
               confirm: z
                 .boolean()
                 .default(false)
-                .describe('Nur bei join: erst true setzen, nachdem die Person zugestimmt hat.'),
+                .describe(
+                  'Nur bei join und set_visibility: erst true setzen, nachdem die Person zugestimmt hat.'
+                ),
             },
             overrides: {
               create: (args) => createGroupDirect(userId, args),
               join: (args) => joinGroupDirect(userId, args),
+              set_visibility: (args) => setGroupVisibilityMcp(userId, args),
             },
           }
         : { readOnly: true }),
@@ -706,7 +805,6 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
     registerLandesverbandTools(server, {
       userId,
       landesverbaende: apiKey.landesverbaende,
-      apiKeyId: apiKey.id,
     });
   }
 

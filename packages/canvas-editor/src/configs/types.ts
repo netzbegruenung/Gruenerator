@@ -91,6 +91,13 @@ export interface TextElementConfig<
   padding?: PositionValue<TState>;
   /** Enable inline editing */
   editable?: boolean;
+  /**
+   * Der Text trägt Markdown-lite (`**fett**`, `_kursiv_`, `<u>…</u>`, Listen)
+   * und wird mit dem Rich-Text-Editor bearbeitet. Nur für Felder in einer
+   * Schrift mit echten Fett-/Kursiv-Schnitten (PT Sans) setzen — GrueneTypeNeue
+   * hat nur einen Schnitt, dort würde beides synthetisiert.
+   */
+  richText?: boolean;
   /** Enable dragging */
   draggable?: boolean;
   /** Enable transform handles */
@@ -153,6 +160,13 @@ export interface ImageElementConfig<
    * fixed-aspect canvas.
    */
   coverFit?: boolean;
+  /**
+   * When true, the scaled box is re-anchored on the slot's centre instead of
+   * scaling about the top-left origin (the default). Use for fixed photo slots
+   * (e.g. the veranstaltung band) that are not draggable: zoom then magnifies
+   * about the centre with no drift into a corner and no re-centring needed.
+   */
+  centerZoom?: boolean;
 }
 
 /** Rectangle element configuration */
@@ -275,6 +289,8 @@ export interface SectionContext {
   captureCanvasImageForAi?: () => Promise<string | null>;
   onDownload?: () => void;
   onNavigateToGallery?: () => void;
+  /** Opens the host's "als Vorlage speichern" flow; the entry hides without it. */
+  onSaveAsTemplate?: () => void;
   /** Font color from layout meta (for text elements) */
   fontColor?: string;
   /** Additional metadata from layout calculations */
@@ -321,7 +337,6 @@ export type CanvasConfigId =
   // Österreich (de-AT) variants
   | 'zitat-at'
   | 'zitat-pure-at'
-  | 'dreizeilen-at'
   | 'dreizeilen-overlay-at'
   | 'info-at'
   | 'freeform-at';

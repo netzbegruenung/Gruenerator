@@ -17,6 +17,7 @@ import { sendGroupInviteEmail } from '../../../../services/email/index.js';
 import {
   createGroupForUser,
   joinGroupByToken,
+  updateGroupInfo,
 } from '../../../../services/groups/groupMutations.js';
 import {
   createNotification,
@@ -61,7 +62,8 @@ export const coreRoutes = {
         `SELECT g.id, g.name, g.description, g.created_at, g.created_by, g.join_token, g.settings,
                 g.avatar_url, g.links, g.slug_suffix, g.group_type,
                 (SELECT COUNT(*)::int FROM group_memberships gm WHERE gm.group_id = g.id) AS member_count
-           FROM groups g WHERE g.id = ANY($1)`,
+           FROM groups g WHERE g.id = ANY($1)
+          ORDER BY g.created_at DESC`, // neuestes Projekt zuerst — ohne das ist die Reihenfolge beliebig
         [groupIds],
         { table: 'groups' }
       )) as Array<{
@@ -193,10 +195,15 @@ export const coreRoutes = {
       await postgres.ensureInitialized();
 
       const groupData = (await postgres.queryOne(
-        'SELECT name, created_by, avatar_url FROM groups WHERE id = $1',
+        'SELECT name, created_by, avatar_url, group_type FROM groups WHERE id = $1',
         [groupId],
         { table: 'groups' }
-      )) as { name: string; created_by: string; avatar_url?: string | null } | null;
+      )) as {
+        name: string;
+        created_by: string;
+        avatar_url?: string | null;
+        group_type?: string | null;
+      } | null;
 
       if (!groupData) {
         return {
@@ -231,6 +238,7 @@ export const coreRoutes = {
         actionUrl: '/gruppen',
       });
 
+      let memberCount = 0;
       await postgres.transaction(async (client) => {
         await postgres.transactionExec(
           client,
@@ -242,16 +250,32 @@ export const coreRoutes = {
           'DELETE FROM group_content_shares WHERE group_id = $1',
           [groupId]
         );
-        await postgres.transactionExec(
+        const memberships = await postgres.transactionExec(
           client,
           'DELETE FROM group_memberships WHERE group_id = $1',
           [groupId]
         );
+        memberCount = memberships.changes;
         const result = await postgres.transactionExec(client, 'DELETE FROM groups WHERE id = $1', [
           groupId,
         ]);
         if (result.changes === 0) throw new Error('Group not found or already deleted');
       });
+
+      // Der einzige Beleg, dass es diese Gruppe je gab. Das Löschen ist hart
+      // (kein `deleted_at`, keine Audit-Zeile), und die Benachrichtigung oben
+      // erreicht per `excludeUserId` gerade die löschende Person nicht — ein
+      // Solo-Projekt verschwand damit spurlos, und die Frage „gelöscht oder nie
+      // angelegt?" war hinterher nicht mehr zu beantworten.
+      // Der Name kommt von der Person und geht ungeprüft durch: `JSON.stringify`
+      // escapt Zeilenumbrüche und Anführungszeichen, sonst könnte ein Name wie
+      // `x\n[groupsContract.deleteGroup] deleted group=…` eine zweite, erfundene
+      // Zeile ins Log schreiben — und damit genau die Beweiskraft zerstören,
+      // für die diese Zeile da ist.
+      log.info(
+        `[groupsContract.deleteGroup] deleted group=${groupId} name=${JSON.stringify(groupData.name)} ` +
+          `type=${groupData.group_type ?? 'unknown'} members=${memberCount} by=${userId}`
+      );
 
       if (groupData.avatar_url) {
         const avatarPath = path.join(AVATAR_UPLOAD_DIR, path.basename(groupData.avatar_url));
@@ -357,75 +381,28 @@ export const coreRoutes = {
     const { name, description, settings } = args.body;
     try {
       const userId = getUserId(args.req);
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      const membershipAndGroup = (await postgres.queryOne(
-        `SELECT gm.role, g.created_by
-           FROM group_memberships gm
-           JOIN groups g ON g.id = gm.group_id
-          WHERE gm.group_id = $1 AND gm.user_id = $2`,
-        [groupId, userId],
-        { table: 'group_memberships' }
-      )) as { role: string; created_by: string } | null;
-
-      if (!membershipAndGroup) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, message: 'Du bist nicht Mitglied dieser Gruppe.' },
-        };
-      }
-      if (membershipAndGroup.role !== 'admin' && membershipAndGroup.created_by !== userId) {
-        return {
-          status: 403 as const,
-          body: {
-            success: false as const,
-            message: 'Keine Berechtigung zum Ändern der Gruppendetails.',
-          },
-        };
-      }
-
-      const updateFields: string[] = [];
-      const updateValues: Array<string | null> = [];
-      let paramIndex = 1;
-
-      if (name != null) {
-        if (!name.trim()) {
+      const outcome = await updateGroupInfo(groupId, userId, {
+        ...(name !== undefined ? { name } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(settings !== undefined ? { settings } : {}),
+      });
+      switch (outcome.status) {
+        case 200:
+          return {
+            status: 200 as const,
+            body: { success: true as const, message: outcome.message },
+          };
+        case 400:
           return {
             status: 400 as const,
-            body: { success: false as const, message: 'Gruppenname darf nicht leer sein.' },
+            body: { success: false as const, message: outcome.message },
           };
-        }
-        updateFields.push(`name = $${paramIndex++}`);
-        updateValues.push(name.trim());
+        case 403:
+          return {
+            status: 403 as const,
+            body: { success: false as const, message: outcome.message },
+          };
       }
-      if (description !== undefined) {
-        updateFields.push(`description = $${paramIndex++}`);
-        updateValues.push(description?.trim() || null);
-      }
-      if (settings != null) {
-        updateFields.push(`settings = $${paramIndex++}`);
-        updateValues.push(JSON.stringify(settings));
-      }
-
-      if (updateFields.length === 0) {
-        return {
-          status: 400 as const,
-          body: { success: false as const, message: 'Keine Änderungen angegeben.' },
-        };
-      }
-
-      updateValues.push(groupId);
-      const result = await postgres.exec(
-        `UPDATE groups SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`,
-        updateValues
-      );
-      if (result.changes === 0) throw new Error('Group not found or no changes made');
-
-      return {
-        status: 200 as const,
-        body: { success: true as const, message: 'Gruppendetails erfolgreich aktualisiert.' },
-      };
     } catch (error) {
       log.error('[groupsContract.updateInfo] Error:', error);
       return {

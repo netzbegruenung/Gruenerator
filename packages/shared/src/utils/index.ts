@@ -11,6 +11,7 @@ export {
 
 // Stable citation keys for search hits (shared by both MCP servers)
 export { buildSourceRef, canonicalizeSourceUrl, type SourceRefInput } from './sourceRefs.js';
+export { formatResearchHitCount } from './researchHitLabel.js';
 
 // String distance and similarity utilities
 export {
@@ -46,6 +47,21 @@ export {
   extractSlugSuffix,
 } from './slug.js';
 
+// Chat thread titles — the sidebar budget and the word-boundary clamp,
+// shared so the server's writers and the client's optimistic title agree
+export { MAX_THREAD_TITLE_CHARS, clampThreadTitle } from './threadTitle.js';
+
+// Nextcloud share links — one parser for API, web and the chat classifier
+export {
+  parseCloudShareLink,
+  checkCloudShareLink,
+  isCloudShareUrl,
+  looksLikeCloudSharePath,
+  type ParsedCloudShareLink,
+  type CloudShareLinkCheck,
+  type CloudShareLinkProblem,
+} from './cloudShareLink.js';
+
 // Usage-based ranking (favourites-first ordering for notebooks & agents)
 export { compareUsageStats, sortByUsage } from './usageRanking.js';
 export type { UsageStat, UsageMap } from './usageRanking.js';
@@ -55,6 +71,16 @@ export { mcpBrandColor } from './mcpBrand.js';
 
 // Time-of-day + locale-aware greeting (web Workplace + mobile Chat home)
 export { getGreeting, isPrideMonth, type GreetingOptions } from './greeting.js';
+
+// Data-URL-Parsing (base64) — payload-sicher, siehe dataUrl.ts
+export {
+  parseDataUrl,
+  extractBase64,
+  stripDataUrlPrefix,
+  isDataUrl,
+  decodedByteLength,
+  type ParsedDataUrl,
+} from './dataUrl.js';
 
 // Natural-language notebook/research query parser (region/date/topic)
 export { parseNotebookQuery } from './notebookQuery.js';
@@ -69,3 +95,17 @@ export {
   mentionTokenRegex,
 } from './mentionTokens.js';
 export type { MentionToken, MentionTokenType } from './mentionTokens.js';
+
+// Source links ([Titel](quelle:N)) — citation-backed document links, FE/BE spec
+export {
+  SOURCE_LINK_SCHEME,
+  sourceLinkRegex,
+  citationReferenceRegex,
+  parseSourceLinkHref,
+  sourceLinksToCitations,
+} from './sourceLinks.js';
+
+// German-aware sentence boundaries — read-aloud pipelining (voice) and
+// server-side chunking of long texts for Grünerator Voice (api)
+export { splitSentences } from './sentenceSplitter.js';
+export type { SplitResult } from './sentenceSplitter.js';

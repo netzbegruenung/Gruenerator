@@ -3,6 +3,7 @@
  * Handles routing between Mistral, LiteLLM, and other providers
  */
 
+import { GEMMA_31B_PRIMARY } from '../ai/gemmaHosts.js';
 import { intermediateLane } from '../ai/intermediateLanes.js';
 
 import type {
@@ -17,29 +18,6 @@ import type {
 const LANE = intermediateLane('standard');
 
 /**
- * Check if a model name is compatible with LiteLLM
- */
-export function isLiteLLMCompatibleModel(modelName: string = ''): boolean {
-  const name = String(modelName || '').toLowerCase();
-  // LiteLLM models are the official verdigado-* aliases, gpt-oss prefixes,
-  // or mistral/mixtral variants. Exclude Mistral API models (mistral-medium-2604, etc.)
-  if (name.includes('verdigado')) {
-    return true;
-  }
-  if (name.includes('gpt-oss') || name.includes('gpt-4') || name.includes('gpt-3')) {
-    return true;
-  }
-  if (name.includes('mixtral') && !name.includes('-latest')) {
-    return true;
-  }
-  // Mistral API models are NOT litellm compatible
-  if (name.includes('mistral-')) {
-    return false;
-  }
-  return false;
-}
-
-/**
  * Infer provider from model name patterns
  */
 export function determineProviderFromModel(modelName: string = ''): ProviderName {
@@ -52,13 +30,14 @@ export function determineProviderFromModel(modelName: string = ''): ProviderName
   ) {
     return 'mistral';
   }
-  // OpenAI-compatible models via LiteLLM
+  // Cortecs seit dem 29.08.2026 — spiegelt `providerForModel` in
+  // services/ai/lanes.ts, das der lebende Pfad ist. Stand bis dahin auf
+  // `litellm`, dessen Ziele stillgelegt sind (services/ai/litellmRetired.ts).
   if (name.includes('gpt-') || name.includes('openai')) {
-    return 'litellm';
+    return 'cortecs';
   }
-  // Mixtral models via LiteLLM
   if (name.includes('mistral') || name.includes('mixtral')) {
-    return 'litellm';
+    return 'cortecs';
   }
   // Llama models via Regolo (hosts Llama-3.3-70B-Instruct)
   if (name.includes('llama') || name.includes('meta-llama')) {
@@ -87,7 +66,7 @@ interface SelectProviderParams {
  * Gründen:
  *
  *  - STRUCTURE_TYPES treiben das Modell durch einen ERZWUNGENEN TOOL-CALL
- *    (generateStructured), und GPT-OSS macht keinen. Ein PDF ist in Produktion
+ *    (aiObject), und GPT-OSS macht keinen. Ein PDF ist in Produktion
  *    zweimal mit `stop_reason=stop` und Prosa statt Tool-Call gescheitert; der
  *    Repo sperrt dieses Modell bereits als Synth-Lane wegen "verified
  *    tool-call fail" (AVOID_AS_SYNTH, routes/chat/agents/autoPolicy.ts).
@@ -97,11 +76,11 @@ interface SelectProviderParams {
  *    beste Deutsch schreibt, und das ist Gemma 4 — deshalb sitzt es schon im
  *    Synth-Slot des Chat-Loops (LOOP_SYNTH_PRIMARY) und in der Gemma-Lane der
  *    Auto-Policy.
- *    → regolo/gemma4-31b.
+ *    → das dichte Gemma 4 31B, Host laut services/ai/gemmaHosts.ts.
  *
  * Bei den Anträgen ersetzt das einen bewussten GPT-OSS-Pin mit der Notiz
  * "reasoning handled via reasoningEffort". Auf DIESEM Pfad galt sie nie: der
- * Worker-Pfad (workers/providers/execute.ts) reicht überhaupt keine
+ * Ausführungspfad (services/ai/execution/execute.ts) reicht überhaupt keine
  * Reasoning-Option durch. Im Streaming-Pfad
  * (agents/langgraph/streamingProcessor.ts) gilt sie — der nutzt diese Tabelle
  * und setzt die providerspezifische Option passend zum gewählten Provider.
@@ -113,6 +92,13 @@ const STRUCTURE_TYPES: ReadonlySet<string> = new Set([
   // drin — siehe ARTIFACT_MODEL.
   'board_generation',
   'canvas_ai_suggest', // Canvas-Vorschläge + Sharepic-/Social-Edits
+  // Editor-Op-Planer (board/sheet/presentation) hinter `edit_document`. Matcht
+  // hier ohnehin nur den Basis-Default (mistral/STRUCTURE_MODEL) — explizit
+  // notiert wie ihre Geschwister oben, für den Fall, dass der Default je
+  // divergiert.
+  'editor_ops_board',
+  'editor_ops_sheet',
+  'editor_ops_presentation',
   'website', // Kandidat*innen-Seiten: langes strukturiertes JSON
   // Sharepics — Slogans und Zitatzeilen, keine Fließtexte. Bleiben auf
   // Mistral: dass es hier "noticeably better German slogans/quotes" liefert,
@@ -148,26 +134,30 @@ const TEXT_TYPES: ReadonlySet<string> = new Set([
   'buergeranfragen',
   // Social
   'social',
-  'social_post_generation',
   'social_post_edit',
   'subtitler_social',
+  // Grünerator Voice — der gesprochene Entwurf (/api/voice/speech/script)
+  'voice_script',
 ]);
 
 /** `mistral-medium-2604` === "Mistral Medium 3.5" (services/ai/modelDiscovery.ts). */
 const STRUCTURE_MODEL = 'mistral-medium-2604';
 
 /**
- * Gemma 4 lives on Regolo. Naming it explicitly is not optional: the Regolo
- * DEFAULT is `qwen3.5-122b`, and qwen is excluded by policy (AVOID_AS_SYNTH).
+ * Gemma 4, dichtes 31B — Host und Modellname kommen aus
+ * `services/ai/gemmaHosts.ts`.
  *
- * The chat lane now agrees. `gemma-litellm` used to resolve to the slow
- * `verdigado-think` host, which is why this constant had to spell out the
- * Regolo pair; it points at these same weights on Regolo now (see
- * GEMMA_4_REGOLO in routes/chat/agents/providers.ts). The two paths no longer
- * disagree about where Gemma 4 runs.
+ * Diese Datei ist nur noch das Prüfmittel des Paritätstests in
+ * `services/ai/__tests__/lanes.vitest.ts` (siehe CLAUDE.md). Genau deshalb
+ * darf sie den Host NICHT ein zweites Mal notieren: der Test fährt beide
+ * Tabellen gegeneinander, und ein hier zurückgebliebener `'regolo'` würde bei
+ * jedem Anbieterwechsel als Paritätsbruch erscheinen, obwohl niemand die
+ * Lane-Zuordnung angefasst hat. Bewacht wird die Zuordnung — WELCHE Typen
+ * Gemma bekommen —, nicht der Vertragspartner. Der wird eine Ebene höher
+ * einmal entschieden.
  */
-const TEXT_PROVIDER = 'regolo';
-const TEXT_MODEL = 'gemma4-31b';
+const TEXT_PROVIDER = GEMMA_31B_PRIMARY.provider;
+const TEXT_MODEL = GEMMA_31B_PRIMARY.model;
 
 /**
  * PDF, Präsentation, Sheet und Dokument — Gemma 4 auf GreenPT statt Mistral
@@ -178,7 +168,7 @@ const TEXT_MODEL = 'gemma4-31b';
  * gemessen am 03.08.2026 gegen die echten Prompts, Schemata und Validatoren
  * (langes PDF, 14-Folien-Deck) rief Mistral das Tool in keinem einzigen Lauf
  * auf. Es schrieb das JSON als Prosa und lief in `finish_reason=length` —
- * gerettet hat es nur der Text-Fallback in generateStructured, und der nur in
+ * gerettet hat es nur der Text-Fallback in aiObject, und der nur in
  * 2 von 4 Läufen. Mit größerem Budget wird es schlechter statt besser: bei
  * 12.000 Tokens 187 s, bei 16.000 Tokens 248 s, beide Male in Wiederholung
  * degeneriert (Tool-Name ```jsonljsonljsonljsonl). Auf der Mistral-API wie auf
@@ -268,7 +258,8 @@ export function selectProviderAndModel({
     type === 'antrag_question_generation' ||
     type === 'antrag_qa_summary' ||
     type === 'gruenerator_ask' ||
-    type === 'gruenerator_ask_grundsatz'
+    type === 'gruenerator_ask_grundsatz' ||
+    type === 'background_verify'
   ) {
     provider = LANE.provider;
     model = options.model || LANE.model;
@@ -277,11 +268,10 @@ export function selectProviderAndModel({
   // Respect explicit provider at top-level if present (routes may set data.provider)
   if (options.explicitProvider) {
     provider = options.explicitProvider;
-    // When explicitly using litellm, ensure model is litellm-compatible
-    if (provider === 'litellm' && !isLiteLLMCompatibleModel(model)) {
-      // Use explicitly provided litellm model or default
-      model = isLiteLLMCompatibleModel(options.model) ? options.model! : 'verdigado-pro';
-    }
+    // `litellm` wird als Name noch gelesen (F0) und von `getModel` auf Cortecs
+    // umgebogen — services/ai/litellmRetired.ts. Ein Modellname wird hier
+    // deshalb nicht mehr eingesetzt: die Stilllegung wählt ihn, und ein
+    // verdigado-Alias, der bis dorthin durchkäme, wäre bei Cortecs ein 404.
   }
 
   // MAIN_LLM_OVERRIDE environment variable

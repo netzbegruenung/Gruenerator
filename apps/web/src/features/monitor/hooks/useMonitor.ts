@@ -18,6 +18,7 @@ import {
   type PollData,
   type PollParliament,
   type PollsHistoryData,
+  type PollsOverviewResponse,
   type StateElectionResult,
   type StateElectionsData,
   type TopicScore,
@@ -36,6 +37,18 @@ function localeQuery(locale?: MonitorLocale): { locale?: MonitorLocale } {
   return locale ? { locale } : {};
 }
 
+/**
+ * Throw an error that still knows its HTTP status.
+ *
+ * Both the global retry guard (`App.tsx`) and the toast filter (`toastError.ts`)
+ * decide on `err.status` — a bare `new Error(...)` leaves that `undefined`, so
+ * neither guard fires. That is why a permanent 404 on `/monitor/latest` turned
+ * into three requests every five minutes, each with a toast, forever.
+ */
+function monitorError(res: { status: number }, message: string): Error {
+  return Object.assign(new Error(message), { status: res.status });
+}
+
 /** Link config for monitor citation renderers (briefing + positions card). */
 export const MONITOR_CITATION_LINK_CONFIG = {
   type: 'vectorDocument' as const,
@@ -44,23 +57,49 @@ export const MONITOR_CITATION_LINK_CONFIG = {
   titleKey: 'document_title',
 };
 
-/** Map contract citations to the shape CitationTextRenderer/-SourcesDisplay expect. */
+/**
+ * Map contract citations to the shape CitationTextRenderer/-SourcesDisplay expect.
+ *
+ * `document_id`/`chunk_index` werden WEGGELASSEN statt auf `undefined` gesetzt:
+ * die Gatter in CitationBadge.tsx:40 und CitationSourcesDisplay.tsx:72 prüfen
+ * `chunk_index !== undefined`, und `chunkIndex: 0` muss durchkommen — deshalb
+ * `!== undefined` und nicht `!!`.
+ *
+ * Beide Schlüssel werden nur GEMEINSAM gesetzt: `MONITOR_CITATION_LINK_CONFIG`
+ * baut aus `document_id` allein schon einen Dokumentlink (`getDocumentUrl` in
+ * citationStore.ts), aber das Modal kann den Kontext nur mit BEIDEN IDs holen
+ * — ein Zitat mit `documentId`, aber ohne `chunkIndex` bekäme sonst einen Link
+ * auf einen Kontext, der sich nie laden lässt.
+ */
 export function mapMonitorCitations(citations: MonitorCitation[] | undefined) {
-  return (citations ?? []).map((c) => ({
-    index: Number(c.id),
-    document_title: c.title,
-    source_url: c.url,
-    cited_text: c.snippet,
-  }));
+  return (citations ?? []).map((c) => {
+    const hasContextKeys = c.documentId !== undefined && c.chunkIndex !== undefined;
+    return {
+      index: Number(c.id),
+      document_title: c.title,
+      source_url: c.url,
+      cited_text: c.snippet,
+      ...(hasContextKeys ? { document_id: c.documentId, chunk_index: c.chunkIndex } : {}),
+    };
+  });
 }
 
+/**
+ * The latest snapshot, or `null` when the backend has none yet.
+ *
+ * 404 here means "no monitor run has happened on this instance", which is a
+ * legitimate empty state (a fresh environment, a failed hourly job) and not an
+ * error — so consumers render the empty view rather than an error view. Same
+ * shape as the notebook/group resolvers (`useNotebookResolver`).
+ */
 export function useMonitorSnapshot(locale?: MonitorLocale) {
   return useQuery({
     queryKey: ['monitor', 'latest', locale],
-    queryFn: async (): Promise<MonitorSnapshot> => {
+    queryFn: async (): Promise<MonitorSnapshot | null> => {
       const res = await getContractsClient().monitor.latest({ query: localeQuery(locale) });
       if (res.status === 200) return res.body;
-      throw new Error('Monitor-Daten konnten nicht geladen werden.');
+      if (res.status === 404) return null;
+      throw monitorError(res, 'Monitor-Daten konnten nicht geladen werden.');
     },
     refetchInterval: 5 * 60 * 1000,
     staleTime: 2 * 60 * 1000,
@@ -74,7 +113,7 @@ export function useMonitorHistory(days = 7) {
     queryFn: async (): Promise<MonitorHistoryEntry[]> => {
       const res = await getContractsClient().monitor.history({ query: { days } });
       if (res.status === 200) return res.body;
-      throw new Error('Verlauf konnte nicht geladen werden.');
+      throw monitorError(res, 'Verlauf konnte nicht geladen werden.');
     },
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
@@ -91,7 +130,7 @@ export function useTopicArticles(topic: TopicCategory | null, locale?: MonitorLo
         query: localeQuery(locale),
       });
       if (res.status === 200) return res.body;
-      throw new Error('Artikel konnten nicht geladen werden.');
+      throw monitorError(res, 'Artikel konnten nicht geladen werden.');
     },
     enabled: !!topic,
     staleTime: 2 * 60 * 1000,
@@ -107,7 +146,7 @@ export function useMonitorSearch(query: string, locale?: MonitorLocale) {
         query: { q: query, ...localeQuery(locale) },
       });
       if (res.status === 200) return res.body;
-      throw new Error('Suche fehlgeschlagen.');
+      throw monitorError(res, 'Suche fehlgeschlagen.');
     },
     enabled: query.length >= 2,
     staleTime: 2 * 60 * 1000,
@@ -123,7 +162,7 @@ export function useKeywordInsights(locale?: MonitorLocale) {
         query: localeQuery(locale),
       });
       if (res.status === 200) return res.body;
-      throw new Error('Keyword-Insights konnten nicht geladen werden.');
+      throw monitorError(res, 'Keyword-Insights konnten nicht geladen werden.');
     },
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
@@ -136,7 +175,7 @@ export function useMonitorBriefing(locale?: MonitorLocale) {
     queryFn: async (): Promise<MonitorBriefingResult> => {
       const res = await getContractsClient().monitor.briefing({ query: localeQuery(locale) });
       if (res.status === 200) return res.body;
-      throw new Error('Briefing konnte nicht geladen werden.');
+      throw monitorError(res, 'Briefing konnte nicht geladen werden.');
     },
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
@@ -149,10 +188,31 @@ export function usePolls(parliament = 'deutschland') {
     queryFn: async (): Promise<PollData> => {
       const res = await getContractsClient().monitor.polls({ query: { parliament } });
       if (res.status === 200) return res.body;
-      throw new Error('Umfragedaten konnten nicht geladen werden.');
+      throw monitorError(res, 'Umfragedaten konnten nicht geladen werden.');
     },
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
+  });
+}
+
+/**
+ * Green share per parliament for the choropleth map — ONE request.
+ *
+ * Replaces a loop of 16 `usePolls` calls, which fanned out to 48 upstream
+ * PolitPro requests in under a second and tripped its rate limit.
+ */
+export function usePollsOverview(country: 'DE' | 'AT' = 'DE', enabled = true) {
+  return useQuery({
+    queryKey: ['monitor', 'polls', 'overview', country],
+    queryFn: async (): Promise<PollsOverviewResponse> => {
+      const res = await getContractsClient().monitor.pollsOverview({ query: { country } });
+      if (res.status === 200) return res.body;
+      throw monitorError(res, 'Umfrageübersicht konnte nicht geladen werden.');
+    },
+    enabled,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    retry: 1,
   });
 }
 
@@ -162,7 +222,7 @@ export function useEuGreens() {
     queryFn: async (): Promise<EuGreensData> => {
       const res = await getContractsClient().monitor.euGreens();
       if (res.status === 200) return res.body;
-      throw new Error('EU-Daten konnten nicht geladen werden.');
+      throw monitorError(res, 'EU-Daten konnten nicht geladen werden.');
     },
     staleTime: 60 * 60 * 1000,
     gcTime: 120 * 60 * 1000,
@@ -176,7 +236,7 @@ export function useEuGreensHistory(enabled = true) {
     queryFn: async (): Promise<EuGreensHistoryData> => {
       const res = await getContractsClient().monitor.euGreensHistory();
       if (res.status === 200) return res.body;
-      throw new Error('EU-Trenddaten konnten nicht geladen werden.');
+      throw monitorError(res, 'EU-Trenddaten konnten nicht geladen werden.');
     },
     enabled,
     staleTime: 6 * 60 * 60 * 1000,
@@ -194,7 +254,7 @@ export function useEuGreenProfile(countryCode: string | null) {
         query: { country: countryCode },
       });
       if (res.status === 200) return res.body;
-      throw new Error('Partei-Profil konnte nicht geladen werden.');
+      throw monitorError(res, 'Partei-Profil konnte nicht geladen werden.');
     },
     enabled: !!countryCode,
     staleTime: 24 * 60 * 60 * 1000,
@@ -209,7 +269,7 @@ export function usePollsHistory(parliament = 'deutschland', enabled = true) {
     queryFn: async (): Promise<PollsHistoryData> => {
       const res = await getContractsClient().monitor.pollsHistory({ query: { parliament } });
       if (res.status === 200) return res.body;
-      throw new Error('Trendverlauf konnte nicht geladen werden.');
+      throw monitorError(res, 'Trendverlauf konnte nicht geladen werden.');
     },
     enabled,
     staleTime: 6 * 60 * 60 * 1000,
@@ -224,7 +284,7 @@ export function usePollParliaments() {
     queryFn: async (): Promise<PollParliament[]> => {
       const res = await getContractsClient().monitor.pollParliaments();
       if (res.status === 200) return res.body;
-      throw new Error('Parlamente konnten nicht geladen werden.');
+      throw monitorError(res, 'Parlamente konnten nicht geladen werden.');
     },
     staleTime: 60 * 60 * 1000,
   });
@@ -236,7 +296,7 @@ export function useWatcherEntities() {
     queryFn: async (): Promise<WatcherEntityInfo[]> => {
       const res = await getContractsClient().monitor.entities();
       if (res.status === 200) return res.body;
-      throw new Error('Watcher-Entitäten konnten nicht geladen werden.');
+      throw monitorError(res, 'Watcher-Entitäten konnten nicht geladen werden.');
     },
     staleTime: 60 * 60 * 1000,
     gcTime: 120 * 60 * 1000,
@@ -253,7 +313,7 @@ export function useEntityResults(entityId: string | null, locale?: MonitorLocale
         query: localeQuery(locale),
       });
       if (res.status === 200) return res.body;
-      throw new Error('Entitäts-Ergebnisse konnten nicht geladen werden.');
+      throw monitorError(res, 'Entitäts-Ergebnisse konnten nicht geladen werden.');
     },
     enabled: !!entityId,
     staleTime: 5 * 60 * 1000,
@@ -271,7 +331,7 @@ export function useEntitySummary(entityId: string | null, locale?: MonitorLocale
         query: localeQuery(locale),
       });
       if (res.status === 200) return res.body;
-      throw new Error('Zusammenfassung konnte nicht geladen werden.');
+      throw monitorError(res, 'Zusammenfassung konnte nicht geladen werden.');
     },
     enabled: !!entityId,
     staleTime: 10 * 60 * 1000,
@@ -290,7 +350,7 @@ export function useWhatHappened(
         query: { ...opts, ...localeQuery(locale) },
       });
       if (res.status === 200) return res.body;
-      throw new Error('Neue Inhalte konnten nicht geladen werden.');
+      throw monitorError(res, 'Neue Inhalte konnten nicht geladen werden.');
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
@@ -306,7 +366,7 @@ export function useWhatHappenedSummary(date: string, locale?: MonitorLocale, ena
         query: { date, ...localeQuery(locale) },
       });
       if (res.status === 200) return res.body;
-      throw new Error('Zusammenfassung konnte nicht erstellt werden.');
+      throw monitorError(res, 'Zusammenfassung konnte nicht erstellt werden.');
     },
     enabled,
     staleTime: 10 * 60 * 1000,
@@ -323,7 +383,7 @@ export function useBriefingRefresh(locale?: MonitorLocale) {
         query: localeQuery(locale),
       });
       if (res.status === 200) return res.body;
-      throw new Error('Briefing konnte nicht neu generiert werden.');
+      throw monitorError(res, 'Briefing konnte nicht neu generiert werden.');
     },
     onSuccess: () => {
       // Briefing and positions card derive from the same hot-topic analysis —
@@ -340,7 +400,7 @@ export function useMonitorRefresh() {
     mutationFn: async () => {
       const res = await getContractsClient().monitor.refresh();
       if (res.status === 200) return res.body;
-      throw new Error('Aktualisierung fehlgeschlagen.');
+      throw monitorError(res, 'Aktualisierung fehlgeschlagen.');
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['monitor'] });
@@ -354,7 +414,7 @@ export function useMeinungsbild() {
     queryFn: async (): Promise<MeinungsbildData> => {
       const res = await getContractsClient().monitor.meinungsbild();
       if (res.status === 200) return res.body;
-      throw new Error('Meinungsbild-Daten konnten nicht geladen werden.');
+      throw monitorError(res, 'Meinungsbild-Daten konnten nicht geladen werden.');
     },
     staleTime: 60 * 60 * 1000,
     gcTime: 120 * 60 * 1000,
@@ -367,7 +427,7 @@ export function useStateElections() {
     queryFn: async (): Promise<StateElectionsData> => {
       const res = await getContractsClient().monitor.elections();
       if (res.status === 200) return res.body;
-      throw new Error('Wahlergebnisse konnten nicht geladen werden.');
+      throw monitorError(res, 'Wahlergebnisse konnten nicht geladen werden.');
     },
     staleTime: 24 * 60 * 60 * 1000,
     gcTime: 48 * 60 * 60 * 1000,
@@ -393,7 +453,7 @@ export function useTopicDocuments(keyword?: string, locale: MonitorLocale = 'de'
         },
       });
       if (res.status === 200) return res.body.results;
-      throw new Error('Dokumente konnten nicht geladen werden.');
+      throw monitorError(res, 'Dokumente konnten nicht geladen werden.');
     },
     enabled: !!keyword && keyword.length >= 2,
     staleTime: 30 * 60 * 1000,

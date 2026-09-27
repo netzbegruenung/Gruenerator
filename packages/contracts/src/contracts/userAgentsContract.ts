@@ -6,7 +6,8 @@
  * /api/user-agents prefix in routes.ts).
  *
  * Route ordering note: `get`, `update`, `remove` share the `:identifier` param
- * route.
+ * route, so every static sub-path (`draft`, `mentionable`) is declared before
+ * them — createExpressEndpoints registers in declaration order.
  */
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
@@ -16,6 +17,7 @@ import {
   updateUserAgentBodySchema,
   draftAgentBodySchema,
   userAgentsListResponseSchema,
+  mentionableUserAgentsListResponseSchema,
   userAgentItemResponseSchema,
   userAgentDeleteResponseSchema,
   userAgentDraftResponseSchema,
@@ -53,7 +55,7 @@ export const userAgentsContract = c.router(
       summary: 'Create a user agent',
     },
 
-    /** POST /api/user-agents/draft — synthesize an agent spec from a creator conversation. */
+    /** POST /api/user-agents/draft — synthesize an agent spec from a freeform brief. */
     draft: {
       method: 'POST',
       path: '/api/user-agents/draft',
@@ -62,11 +64,25 @@ export const userAgentsContract = c.router(
         200: userAgentDraftResponseSchema,
         400: userAgentErrorResponseSchema,
         401: userAgentErrorResponseSchema,
-        403: userAgentErrorResponseSchema,
-        404: userAgentErrorResponseSchema,
         500: userAgentErrorResponseSchema,
       },
-      summary: 'Draft an agent spec from the creator conversation',
+      summary: 'Draft an agent spec from a freeform brief',
+    },
+
+    /**
+     * GET /api/user-agents/mentionable — own agents PLUS agents shared into a
+     * group the caller belongs to, as the lean picker projection. Registered
+     * before `get` so the static path wins over the `:identifier` param route.
+     */
+    listMentionable: {
+      method: 'GET',
+      path: '/api/user-agents/mentionable',
+      responses: {
+        200: mentionableUserAgentsListResponseSchema,
+        401: userAgentErrorResponseSchema,
+        500: userAgentErrorResponseSchema,
+      },
+      summary: 'List the agents the caller can @mention',
     },
 
     /** GET /api/user-agents/:identifier — a single owned agent. */

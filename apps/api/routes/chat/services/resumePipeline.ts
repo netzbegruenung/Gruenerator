@@ -16,6 +16,7 @@ import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
 import {
   buildSystemMessage,
   briefGeneratorNode,
+  wantsResearchBrief,
   classifierNode,
   pandasComputeNode,
   computeVerifierNode,
@@ -24,24 +25,25 @@ import {
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types.js';
+import { promptCacheKeyForThread } from '../../../services/ai/promptCacheKey.js';
 import {
   BOTH_LANES_FAILED,
   buildAiTelemetry,
   withLangfuseTrace,
 } from '../../../services/telemetry/langfuseTelemetry.js';
-import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getContextWindow } from '../agents/providers.js';
 
-import {
-  ARTIFACT_CONFIRMATION_TEXTS,
-  buildPostWithSharepicsConfirmation,
-  buildSharepicConfirmation,
-} from './artifactConfirmations.js';
+import { runToolApprovalResume } from './agenticLoop/approvalResume.js';
+import { runClarificationLoopResume } from './agenticLoop/clarificationResume.js';
+import { ARTIFACT_CONFIRMATION_TEXTS, buildSharepicConfirmation } from './artifactConfirmations.js';
+import { injectImageAttachments } from './attachmentProcessingService.js';
 import { persistComputeAssets } from './computeAssetStorage.js';
 import { hasBrokenComputeValues } from './computeResultSanity.js';
 import { pruneMessages } from './contextPruningService.js';
+import { imageVisibility } from './imageVisibility.js';
 import { executeIntentPipeline, reportUnavailableSources } from './intentExecutionService.js';
+import { loopClarificationStateStore } from './loopClarificationStateStore.js';
 import { extractTextContent } from './messageHelpers.js';
 import { createPendingAssistantWriter } from './pendingAssistantWriter.js';
 import { pipelineStateStore } from './pipelineStateStore.js';
@@ -68,6 +70,7 @@ import {
   discardPendingAssistantIfEmpty,
   getUser,
 } from './threadPersistenceService.js';
+import { turnMaterialChars } from './turnMaterial.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ServerInferRequest } from '@ts-rest/core';
@@ -120,6 +123,28 @@ export async function runChatGraphResume({
     if (!resumeInput) {
       return sseFail(sse, 'Ungültige Resume-Anfrage.', { code: 'invalid_request' });
     }
+    // Werkzeug-Freigabe: eigener Zustand, eigene Fortsetzung. Steht VOR allem
+    // anderen, weil dieser Zweig weder den Klärungs-Zustand noch die
+    // Einzeldurchlauf-Pipeline berührt.
+    if (resumeInput.kind === 'tool_approval') {
+      const approvalUser = getUser(req);
+      if (!approvalUser?.id) {
+        return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
+      }
+      const result = await runToolApprovalResume({
+        req,
+        sse,
+        threadId,
+        userId: approvalUser.id,
+        ...(resumeInput.approvalTurnId != null && { approvalTurnId: resumeInput.approvalTurnId }),
+        decisions: resumeInput.decisions,
+        fail: (message, code) => ({
+          handled: true as const,
+          ...sseFail(sse, message, { code }),
+        }),
+      });
+      return { status: result.status, body: result.body };
+    }
     if (resumeInput.kind === 'client_tool' && resumeInput.toolName !== 'run_python') {
       return sseFail(sse, 'Dieser Tool-Typ wird noch nicht unterstützt.', {
         code: 'invalid_request',
@@ -130,6 +155,38 @@ export async function runChatGraphResume({
     const user = getUser(req);
     if (!user?.id) {
       return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
+    }
+
+    // Eine ask_human-Antwort hat zwei mögliche Absender-Zustände: die
+    // Pre-Loop-Klärung (pipelineStateStore, Single-Pass-Fortsetzung unten) und
+    // die Loop-Rückfrage (#3220, eigener Zustand + agentische Fortsetzung).
+    // Der Wire-Body ist identisch — entschieden wird am gespeicherten Zustand.
+    // Liegen BEIDE vor (Stale-Shadowing: 24 h gegen 10 min TTL), gewinnt der
+    // jüngere.
+    if (resumeInput.kind === 'ask_human') {
+      const loopState = await loopClarificationStateStore.get(threadId);
+      if (loopState) {
+        const pipelineState = await pipelineStateStore.get(threadId);
+        if (!pipelineState || loopState.createdAt >= pipelineState.createdAt) {
+          const result = await runClarificationLoopResume({
+            req,
+            sse,
+            threadId,
+            userId: user.id,
+            answer: resumeInput.answer,
+            fail: (message, code) => ({
+              handled: true as const,
+              ...sseFail(sse, message, { code }),
+            }),
+          });
+          return { status: result.status, body: result.body };
+        }
+        // Der jüngere Pre-Loop-Zustand gewinnt — dann ist der ältere
+        // Loop-Zustand überholt und muss WEG: sonst überlebt er (24 h TTL)
+        // den 10-Minuten-Zustand und eine spätere ask_human-Antwort liefe
+        // gegen die falsche, längst überholte Frage.
+        await loopClarificationStateStore.delete(threadId);
+      }
     }
 
     const stored = await pipelineStateStore.get(threadId);
@@ -149,17 +206,14 @@ export async function runChatGraphResume({
     // pipelineStateStore strips the PDF bytes before writing to Redis (they are
     // already in processedMeta — storing both would double the payload). Rebuild
     // the field here so the PDF form tools still work on a resumed turn.
+    // `fileData` presence IS the fillability verdict here (only fillable PDFs
+    // get bytes persisted) — with one known gap: a fillable PDF over
+    // MAX_PDF_BYTES_PERSISTED has no bytes anywhere after the original request
+    // ended, so the "oversized form stays usable on its upload turn" guarantee
+    // (#2835) does not survive a resume. Nothing to rebuild it from.
     classifiedState.pdfFormAttachments = requestContext.processedMeta
       .filter((m) => m.mimeType === 'application/pdf' && m.fileData != null)
       .map((m) => ({ name: m.name, data: m.fileData as string }));
-
-    const aiWorkerPool = getAIWorkerPool(req);
-    if (!aiWorkerPool) {
-      return sseFail(sse, PROGRESS_MESSAGES.aiUnavailable, {
-        code: 'provider_unavailable',
-        retryable: true,
-      });
-    }
 
     log.info(
       `[ChatGraph:Resume] Thread ${threadId}, ${
@@ -204,7 +258,6 @@ export async function runChatGraphResume({
       const tryCorrectionRound = async (errorText: string): Promise<boolean> => {
         const retries = classifiedState.pandasComputeRetries ?? 0;
         if (retries >= 1) return false;
-        classifiedState.aiWorkerPool = aiWorkerPool;
         const { pythonCode, computeFailed } = await pandasComputeNode(classifiedState, {
           ...(classifiedState.pandasLastCode != null && {
             previousCode: classifiedState.pandasLastCode,
@@ -278,7 +331,6 @@ export async function runChatGraphResume({
           (classifiedState.pandasComputeRetries ?? 0) < 1 &&
           classifiedState.pandasLastCode
         ) {
-          classifiedState.aiWorkerPool = aiWorkerPool;
           const verdict = await computeVerifierNode(classifiedState, payload);
           if (!verdict.plausible) {
             const hint =
@@ -354,8 +406,8 @@ export async function runChatGraphResume({
       );
     }
 
-    // === Sharepic / social_post resume: the answer is the topic — regenerate and finish ===
-    if (classifiedState.intent === 'sharepic' || classifiedState.intent === 'social_post') {
+    // === Sharepic resume: the answer is the topic — regenerate and finish ===
+    if (classifiedState.intent === 'sharepic') {
       const resumedIntent = classifiedState.intent;
       // Combine the original (topic-less) request with the answer so any variant
       // hint ("zitat sharepic") survives and the answer supplies the subject.
@@ -370,11 +422,7 @@ export async function runChatGraphResume({
         reasoning: `Resumed: ${userAnswer}`,
       });
 
-      const {
-        finalState: resumedFinalState,
-        sharepicVariants,
-        socialPost,
-      } = await executeIntentPipeline({
+      const { finalState: resumedFinalState, sharepicVariants } = await executeIntentPipeline({
         classifiedState,
         sse,
         forcedTool: requestContext.forcedTool,
@@ -385,21 +433,12 @@ export async function runChatGraphResume({
 
       const n = sharepicVariants.length;
       const fullText =
-        resumedIntent === 'social_post'
-          ? socialPost != null || n > 0
-            ? n > 0
-              ? buildPostWithSharepicsConfirmation(n)
-              : ARTIFACT_CONFIRMATION_TEXTS.postWithoutSharepic
-            : ARTIFACT_CONFIRMATION_TEXTS.genericFailed
-          : n > 0
-            ? buildSharepicConfirmation(n)
-            : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
+        n > 0 ? buildSharepicConfirmation(n) : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
       sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
       sse.send('text_delta', { text: fullText });
 
-      // Persist the artifacts too — without the sharepic/social_post tool
-      // calls the card can't rehydrate on reload and later text edits would
-      // fall through to the sharepic edit branch.
+      // Persist the artifacts too — without the sharepic tool call the card
+      // can't rehydrate on reload.
       const artifactPersist = await persistResumedResponse({
         threadId: requestContext.actualThreadId!,
         fullText,
@@ -409,9 +448,9 @@ export async function runChatGraphResume({
         processedMeta: requestContext.processedMeta,
         userMessageId: requestContext.userMessageId ?? null,
         sharepicVariants,
-        socialPost,
       });
-      if (!artifactPersist.ok) sendChatWarning(sse, 'persist_failed');
+      if (artifactPersist.discarded) sendChatWarning(sse, 'turn_discarded');
+      else if (!artifactPersist.ok) sendChatWarning(sse, 'persist_failed');
 
       sse.send('done', {
         ...(requestContext.actualThreadId != null && {
@@ -469,7 +508,11 @@ export async function runChatGraphResume({
       const toolEnabled = forcedTool || enabledTools?.[classifiedState.intent] !== false;
       if (toolEnabled) {
         let searchInputState = classifiedState;
-        if (classifiedState.complexity === 'complex' && classifiedState.intent === 'research') {
+        // Dieselbe Bedingung wie beim ersten Anlauf (`searchBranch`). Sie stand
+        // hier enger (`complex` statt `complex|moderate`), also blieb ein
+        // wiederaufgenommener `moderate`-Recherche-Turn ohne den Brief, den
+        // derselbe Turn ohne Unterbrechung bekommen hätte.
+        if (wantsResearchBrief(classifiedState)) {
           const briefResult = await briefGeneratorNode(classifiedState);
           searchInputState = { ...classifiedState, ...briefResult } as ChatGraphState;
         }
@@ -556,6 +599,11 @@ export async function runChatGraphResume({
 
     const systemMessage = await buildSystemMessage(finalState);
     const resumeImageAttachments = requestContext.imageAttachments ?? [];
+    // Dieselbe Frage wie im Einzeldurchlauf, dieselbe Antwort: sieht das Modell
+    // die Bilder? Dieser Pfad baute die Nachrichtenliste bisher OHNE sie und
+    // ließ den Systemprompt trotzdem „sind in der Nachricht sichtbar“ sagen
+    // (#3313) — die Bauanleitung für eine erfundene Bildbeschreibung.
+    const resumeImagesVisible = imageVisibility(finalState) === 'visible';
     const agentConfigForResolve2 = {
       provider: finalState.agentConfig.provider as string,
       model: finalState.agentConfig.model,
@@ -565,10 +613,12 @@ export async function runChatGraphResume({
     };
     const resumeRequestId = `resume_contract_${Date.now()}`;
     const resolution2 = await resolveModel(agentConfigForResolve2, modelId, resumeRequestId, {
-      hasImages: resumeImageAttachments.length > 0,
+      hasImages: resumeImagesVisible,
       intent: finalState.intent,
       agentId: finalState.agentConfig.identifier,
       ...(finalState.complexity != null && { complexity: finalState.complexity }),
+      ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
+      materialChars: turnMaterialChars(finalState),
     });
     if (resolution2.unknownModelId) {
       sse.send('warning', {
@@ -581,54 +631,57 @@ export async function runChatGraphResume({
     // persisted to Redis, so entries written before this change would arrive
     // without the field for the whole 10-minute TTL window.
     const prunedValidMessages = pruneMessages(validMessages, getContextWindow(modelId));
-    const messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
+    let messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
+    if (resumeImagesVisible) {
+      messagesForAI = injectImageAttachments(
+        messagesForAI as Parameters<typeof injectImageAttachments>[0],
+        resumeImageAttachments,
+        resumeRequestId
+      );
+    }
     const lastUserMsg = [...validMessages].reverse().find((m) => m.role === 'user');
     const traceInput = lastUserMsg ? extractTextContent(lastUserMsg.content) : '';
 
-    let fullText: string | null;
     let resumeTraceId: string | undefined;
     const resumeTelemetry = buildAiTelemetry('chat-graph.resume');
-    try {
-      // One trace per resumed turn — propagateAttributes sets trace-level
-      // user/session (AI SDK telemetry carries no metadata of its own) and the
-      // traceId feeds the feedback button.
-      fullText = await withLangfuseTrace(
-        {
-          name: 'chat-turn',
-          ...(requestContext.userId && { userId: requestContext.userId }),
-          ...(requestContext.actualThreadId && { sessionId: requestContext.actualThreadId }),
-          metadata: { requestId: resumeRequestId, intent: finalState.intent },
-        },
-        async (trace) => {
-          resumeTraceId = trace.traceId;
-          const text = await streamWithFallback({
-            primary: resolution2,
-            sse,
-            logPrefix: '[ChatGraph:Resume]',
-            buildStream: async (r) =>
-              // No output cap (OpenWebUI-style) — see chatGraphContractRouter.
-              streamForResolution({
-                resolution: r,
-                messages: messagesForAI,
-                temperature: finalState.agentConfig.params.temperature,
-                sse,
-                logPrefix: '[ChatGraph:Resume]',
-                ...(resumeTelemetry && { telemetry: resumeTelemetry }),
-              }),
-          });
-          // Both lanes dead → null, not a throw. Mark it, or the failed resume
-          // reads as a successful turn.
-          trace.update(
-            text === null
-              ? { input: traceInput, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
-              : { input: traceInput, output: text }
-          );
-          return text;
-        }
-      );
-    } finally {
-      if (resolution2.releaseSlot) await resolution2.releaseSlot();
-    }
+    // One trace per resumed turn — propagateAttributes sets trace-level
+    // user/session (AI SDK telemetry carries no metadata of its own) and the
+    // traceId feeds the feedback button.
+    const fullText: string | null = await withLangfuseTrace(
+      {
+        name: 'chat-turn',
+        ...(requestContext.userId && { userId: requestContext.userId }),
+        ...(requestContext.actualThreadId && { sessionId: requestContext.actualThreadId }),
+        metadata: { requestId: resumeRequestId, intent: finalState.intent },
+      },
+      async (trace) => {
+        resumeTraceId = trace.traceId;
+        const text = await streamWithFallback({
+          primary: resolution2,
+          sse,
+          logPrefix: '[ChatGraph:Resume]',
+          buildStream: async (r) =>
+            // No output cap (OpenWebUI-style) — see chatGraphContractRouter.
+            streamForResolution({
+              resolution: r,
+              messages: messagesForAI,
+              temperature: finalState.agentConfig.params.temperature,
+              sse,
+              logPrefix: '[ChatGraph:Resume]',
+              ...(resumeTelemetry && { telemetry: resumeTelemetry }),
+              promptCacheKey: promptCacheKeyForThread(requestContext.actualThreadId ?? null),
+            }),
+        });
+        // Both lanes dead → null, not a throw. Mark it, or the failed resume
+        // reads as a successful turn.
+        trace.update(
+          text === null
+            ? { input: traceInput, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
+            : { input: traceInput, output: text }
+        );
+        return text;
+      }
+    );
 
     if (fullText === null) {
       await cleanupPending(true);
@@ -650,7 +703,8 @@ export async function runChatGraphResume({
       ...(resumeTraceId != null && { traceId: resumeTraceId }),
       pendingMessageId: pendingId,
     });
-    if (!persistOutcome.ok) sendChatWarning(sse, 'persist_failed');
+    if (persistOutcome.discarded) sendChatWarning(sse, 'turn_discarded');
+    else if (!persistOutcome.ok) sendChatWarning(sse, 'persist_failed');
 
     const totalTimeMs = Date.now() - startTime;
     sse.send('done', {

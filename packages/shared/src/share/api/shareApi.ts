@@ -4,18 +4,20 @@
  */
 
 import { apiRequest } from '../../api/client.js';
+import { getContractsClient } from '../../api/contractsClient.js';
+import { ApiError } from '../../api/errors.js';
 
 import type {
   ShareResponse,
   ShareListResponse,
   DeleteShareResponse,
-  SaveAsTemplateResponse,
   CreateVideoShareParams,
   CreateImageShareParams,
   UpdateImageShareParams,
   ShareMediaType,
   ShareStatus,
 } from '../types.js';
+import type { RecentSharesResponse } from '@gruenerator/contracts';
 
 /**
  * API endpoints for sharing
@@ -33,9 +35,6 @@ export const SHARE_ENDPOINTS = {
   UPDATE_IMAGE: (token: string) => `/share/${token}/image`,
   DELETE_SHARE: (token: string) => `/share/${token}`,
   PUBLISH: (token: string) => `/share/${token}/publish`,
-  SAVE_AS_TEMPLATE: (token: string) => `/share/${token}/save-as-template`,
-  PUSH_TO_PHONE: '/share/push-to-phone',
-  DEVICES: '/share/devices',
 } as const;
 
 /**
@@ -96,9 +95,20 @@ export async function getUserShares(
  * The bounded counterpart to `getUserShares`, which has no `limit` parameter and
  * falls back to the service default of 100 rows — more than any recents strip can
  * show, over mobile data. Images only; the endpoint hardcodes the media type.
+ *
+ * Goes through the contracts client, so the rows are parsed against
+ * `shareListItemSchema` at the boundary. Returns the contract-derived
+ * `RecentSharesResponse`, not the hand-written `ShareListResponse` the rest of
+ * this module still uses: the latter promises fields this endpoint never sends.
  */
-export async function getRecentShares(limit = 20): Promise<ShareListResponse> {
-  return apiRequest<ShareListResponse>('get', `${SHARE_ENDPOINTS.RECENT_SHARES}?limit=${limit}`);
+export async function getRecentShares(limit = 20): Promise<RecentSharesResponse> {
+  const res = await getContractsClient().sharesRead.recentShares({
+    query: { limit: String(limit) },
+  });
+  if (res.status !== 200) {
+    throw new ApiError(res.status, `Letzte Shares konnten nicht geladen werden (${res.status})`);
+  }
+  return res.body;
 }
 
 /**
@@ -123,57 +133,6 @@ export async function deleteShare(shareToken: string): Promise<DeleteShareRespon
 }
 
 /**
- * Save a share as a public template
- */
-export async function saveAsTemplate(
-  shareToken: string,
-  title: string,
-  visibility: 'private' | 'unlisted' | 'public' = 'private'
-): Promise<SaveAsTemplateResponse> {
-  return apiRequest<SaveAsTemplateResponse>('post', SHARE_ENDPOINTS.SAVE_AS_TEMPLATE(shareToken), {
-    title,
-    visibility,
-  });
-}
-
-// ============================================================================
-// PUSH TO PHONE
-// ============================================================================
-
-export interface UserDevice {
-  id: string;
-  device_name: string | null;
-  device_type: string;
-  has_push_token: boolean;
-  last_used_at: string | null;
-}
-
-export interface PushToPhoneResponse {
-  success: boolean;
-  pushedToDevices: number;
-  error?: string;
-}
-
-export interface DevicesResponse {
-  success: boolean;
-  devices: UserDevice[];
-}
-
-/**
- * Get user's registered mobile devices
- */
-export async function getUserDevices(): Promise<DevicesResponse> {
-  return apiRequest<DevicesResponse>('get', SHARE_ENDPOINTS.DEVICES);
-}
-
-/**
- * Push shared content to user's mobile device(s)
- */
-export async function pushToPhone(shareToken: string): Promise<PushToPhoneResponse> {
-  return apiRequest<PushToPhoneResponse>('post', SHARE_ENDPOINTS.PUSH_TO_PHONE, { shareToken });
-}
-
-/**
  * Share API object for convenient access
  */
 export const shareApi = {
@@ -186,8 +145,5 @@ export const shareApi = {
   getShareInfo,
   deleteShare,
   publishShare,
-  saveAsTemplate,
-  getUserDevices,
-  pushToPhone,
   endpoints: SHARE_ENDPOINTS,
 };

@@ -1,5 +1,6 @@
 ---
 identifier: gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt
+defaultRecipeMention: 'presse-sachsen-anhalt-partei'
 autoRoutingHint: creative
 audience: de-DE
 title: Öffentlichkeitsarbeit Sachsen-Anhalt
@@ -41,7 +42,6 @@ enabledTools:
   - image
   - memory
   - memory_save
-  - self_review
 defaultFilter:
   landesverband:
     - LSA

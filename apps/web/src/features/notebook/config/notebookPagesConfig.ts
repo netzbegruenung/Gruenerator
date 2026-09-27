@@ -566,6 +566,35 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
   },
+  sachsen: {
+    id: 'sachsen',
+    slug: 'sachsen',
+    title: 'Frag Grüne Sachsen',
+    authTitle: 'Frag Grüne Sachsen',
+    collectionType: 'single',
+    collections: [{ id: 'sachsen-system', name: 'Grüne Sachsen' }],
+    startPageTitle: 'Was möchtest du über die Grünen Sachsen wissen?',
+    placeholder: 'Stell deine Frage zu den Grünen Sachsen...',
+    headerIcon: HiInformationCircle,
+    exampleQuestions: [
+      { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen Sachsen zum Klimaschutz?' },
+      { icon: '🗳️', tag: 'Wahlprogramm', text: 'Was steht im Wahlprogramm zur Landtagswahl 2024?' },
+      {
+        icon: '🏛️',
+        tag: 'Demokratie',
+        text: 'Welche Positionen gibt es zum Schutz der Demokratie?',
+      },
+    ],
+    documents: [
+      { title: 'Pressemitteilungen', detail: 'Aktuelle und archivierte PMs' },
+      { title: 'Beschlüsse', detail: 'Beschlüsse von Landesversammlung und Landesparteirat' },
+      { title: 'Landtagswahlprogramm 2024', detail: 'Wahlprogramm zur Landtagswahl' },
+    ],
+    externalUrl: 'https://gruene-sachsen.de',
+    persistMessages: true,
+    useSystemUserId: true,
+    systemUserId: SYSTEM_USER_ID,
+  },
   hessen: {
     id: 'hessen',
     slug: 'hessen',
@@ -737,6 +766,34 @@ export const getNotebookConfig = (configId: string): NotebookConfig => {
 export const getNotebookConfigBySlug = (slug: string): NotebookConfig | undefined => {
   return Object.values(NOTEBOOK_CONFIGS).find((c) => c.slug === slug);
 };
+
+/**
+ * The page that owns a system collection, e.g. `bayern-system` → the Bayern
+ * notebook. Thread rows know only the collection a conversation ran against,
+ * and for most notebooks the slug happens to be the collection id minus
+ * `-system` — but not for all (`oesterreich-gruene-system` lives at
+ * `/notebooks/oesterreich`), so links must resolve through here rather than
+ * through string surgery.
+ *
+ * Single-collection pages only: a collection that appears solely inside the
+ * multi-source startpage has no page of its own to open.
+ */
+export const getNotebookConfigByCollectionId = (
+  collectionId: string
+): NotebookConfig | undefined => {
+  return Object.values(NOTEBOOK_CONFIGS).find(
+    (c) => c.collectionType === 'single' && c.collections[0]?.id === collectionId
+  );
+};
+
+/**
+ * The system notebook behind a `/notebooks/:idOrSlug` segment. A thread row links
+ * by collection, and for most notebooks that is the slug plus `-system`; where the
+ * two differ (`oesterreich-gruene-system` lives at `/notebooks/oesterreich`) the
+ * second lookup catches it.
+ */
+export const getSystemNotebookConfig = (idOrSlug: string): NotebookConfig | undefined =>
+  getNotebookConfigBySlug(idOrSlug) ?? getNotebookConfigByCollectionId(`${idOrSlug}-system`);
 
 export const getNotebookPath = (config: { slug: string | null }): string => {
   return config.slug === null ? '/notebooks' : `/notebooks/${config.slug}`;

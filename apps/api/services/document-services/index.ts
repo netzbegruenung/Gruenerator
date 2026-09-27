@@ -29,14 +29,27 @@ export {
 // DocumentQnAService - Question-answering capabilities
 export { DocumentQnAService } from './DocumentQnAService/index.js';
 
+// Embedding input enrichment
+export { buildEmbeddingText, buildEmbeddingTextsForChunks } from './embeddingText.js';
+
+// Strukturfelder für das Qdrant-Payload
+export { structurePayload } from './structurePayload.js';
+export type { ChunkStructurePayload } from './structurePayload.js';
+
+// Einbettungs-Herkunft für das Qdrant-Payload
+export { embeddingPayload } from './embeddingProvenance.js';
+export type { EmbeddingProvenancePayload } from './embeddingProvenance.js';
+
+// Zeichen-Offsets im Quelldokument für das Qdrant-Payload
+export { offsetPayload } from './offsetPayload.js';
+export type { ChunkOffsetPayload } from './offsetPayload.js';
+
 // TextChunker - Text segmentation utilities
 export {
   smartChunkDocument,
   smartChunkDocumentAsync,
   hierarchicalChunkDocument,
   estimateTokens,
-  LangChainChunker,
-  langChainChunker,
 } from './TextChunker/index.js';
 
 // Re-export types from all submodules

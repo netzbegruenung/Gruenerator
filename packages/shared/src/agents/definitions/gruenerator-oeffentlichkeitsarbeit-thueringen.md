@@ -1,5 +1,6 @@
 ---
 identifier: gruenerator-oeffentlichkeitsarbeit-thueringen
+defaultRecipeMention: 'presse-thueringen'
 autoRoutingHint: creative
 audience: de-DE
 title: Öffentlichkeitsarbeit Thüringen
@@ -41,7 +42,6 @@ enabledTools:
   - image
   - memory
   - memory_save
-  - self_review
 defaultFilter:
   landesverband:
     - TH

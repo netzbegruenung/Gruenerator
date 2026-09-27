@@ -1,0 +1,510 @@
+/**
+ * Der eine Turn-Entscheider: „wie läuft dieser Turn, und unter welchem Intent?"
+ *
+ * Die Antwort lag bisher auf drei Schichten, die sich gegenseitig korrigierten —
+ * der Klassifikator schlug einen Intent vor, das Router-Gate entschied getrennt
+ * über die Schleife, und wenn beide nicht zusammenpassten, schrieb der Router
+ * den Intent hinterher um (`agentic`→`search`, System-Tool→`web`). Die
+ * Umschreibung war kein Sonderfall, sondern die Naht: `executeIntentPipeline`
+ * hat keinen `agentic`-Zweig, ein demotierter Turn wäre dort gestrandet.
+ *
+ * Hier fällt beides in EINER Funktion, in der Reihenfolge, in der es fallen
+ * muss, und `plan.intent` ist danach endgültig — niemand schreibt ihn mehr um.
+ * Die Prädikate selbst sind unverändert aus `routing.ts` übernommen; diese Datei
+ * ordnet sie, sie erfindet nichts.
+ *
+ * Rein und importarm wie `routing.ts`, aus demselben Grund: was der Aufrufer nur
+ * mit einem schweren Import beantworten kann (verwaltete Konnektoren,
+ * Pipeline-Agent, PDF-Formularlage), wird als Feld hereingereicht statt hier
+ * geholt. `decisionJournal` ist der einzige Zusatz und selbst ein Blatt.
+ */
+import {
+  type ArtifactCreateKind,
+  CHAT_INTENTS,
+  type ChatIntentId,
+  dispositionOf,
+  forcesLoopLane,
+} from '@gruenerator/shared/chat-intents';
+
+import { recordDecision } from '../../../../utils/decisionJournal.js';
+
+import {
+  compoundGenerationKind,
+  decideEditToolLoop,
+  decideRunAgentic,
+  hasDocumentContextEditTool,
+  isEditorSurface,
+  isEditToolEnabled,
+  looksLikeCompoundEdit,
+  resolveEditorSurfaceKind,
+  type CompoundGenerationKind,
+  type EditorSurfaceKind,
+} from './routing.js';
+
+/**
+ * Die Lane dieses Turns — die eine Achse, an der hängt, WER ihn ausführt.
+ *
+ * Bis Phase N war dieser Typ Dekoration: er nannte fünf Ausführungspfade, und
+ * gelesen hat ihn niemand. Alles hinter dem Entscheider fragte `runAgentic`,
+ * einen Boolean, der dieselbe Entscheidung ein zweites Mal ausdrückte — und
+ * `edit-loop`/`compound-edit` waren ein DRITTES Mal dasselbe, denn `TurnPlan`
+ * führt `editToolLoop`/`compoundEdit` ohnehin als eigene Felder. Drei
+ * Schreibweisen einer Entscheidung sind drei Gelegenheiten, sie auseinander
+ * laufen zu lassen.
+ *
+ * Jetzt trägt die Lane das Vokabular des Zielbilds, `runAgentic` ist aus ihr
+ * ABGELEITET (`lane === 'loop'`), und die beiden Editor-Varianten sind nur noch
+ * das, was sie immer waren: Eigenschaften eines Loop-Turns.
+ *
+ * Die Zuordnung kommt aus der Registry (`dispositionOf`), nicht aus einer
+ * Literalliste — sonst wäre sie die vierte Schreibweise. Was ein Intent
+ * bedeutet, steht in `dispositions.ts`; hier steht nur, welcher Ausführende zu
+ * welcher Bedeutung gehört.
+ */
+export type TurnLane =
+  /** Gruss. Kein Werkzeug, kein Material, nichts zu erden. */
+  | 'greeting'
+  /**
+   * Schreibarbeit am gelieferten Material, ohne Werkzeug. Trägt auch den
+   * Pipeline-Agenten (Einfache/Leichte Sprache): der zwingt den Intent auf
+   * `produktion`, und dass eine eigene Kette ihn ausführt, steht in
+   * `pipelineAgent` — das ist eine Eigenschaft des Turns, keine eigene Lane.
+   */
+  | 'produktion'
+  /**
+   * Artefakt mit eigener deterministischer Route — Erzeugung (Bild, Sharepic,
+   * Tabelle, Präsentation, PDF) und die Bearbeitungs-Familie. Disposition
+   * `artifact` oder `anchor`: beides Entscheidungen, die VOR der Antwort
+   * feststehen müssen, weil sie Geld, Kontingent oder einen HITL-Vertrag kosten.
+   */
+  | 'pipeline'
+  /** Die agentische Schleife. Alles Werkzeug-/Rezept-Förmige. */
+  | 'loop'
+  /**
+   * Der Rest-Einzeldurchlauf (`executeIntentPipeline`) — heute vor allem die
+   * Recherche-Familie (`search`/`web`/`research`/`compare`/`examples`) und die
+   * gegatterten Sonderwege (`summary`/`compute`/`chat_history`/`scrape_url`).
+   * `@recherche`/`@dokumente` gehen per Werkzeug-Pin in die Schleife; hier
+   * landen sie nur, wenn ein Notausschalter greift.
+   *
+   * Diese Lane ist das benannte Restproblem, nicht ein Ziel: sie verschwindet
+   * mit der Recherche-Konsolidierung (6 Maschinen → ein Loop-Suchpfad), dem
+   * Folgevorhaben nach N. Solange sie existiert, ist sie der Grund, warum die
+   * Lane-Entscheidung NACH der Intent-Feinwahl fällt statt vor ihr — die
+   * Executoren dahinter unterscheiden sich je Intent.
+   */
+  | 'single-pass';
+
+export interface TurnPlan {
+  lane: TurnLane;
+  /**
+   * Der endgültige Intent. Enthält bereits die Auffang-Umschreibungen
+   * (`fallbackIntentFor`) — nach `decideTurnPlan` schreibt ihn niemand mehr um.
+   */
+  intent: ChatIntentId;
+  /** `lane` läuft in der agentischen Schleife. Abgeleitet, nicht zweitentschieden. */
+  runAgentic: boolean;
+  /**
+   * Recherche + Bearbeitung des offenen Artefakts. Eigenschaft eines
+   * `loop`-Turns, nicht eine eigene Lane: `artifactEmitStage` fragt beide
+   * Editor-Varianten getrennt, und ein Turn kann zugleich `editToolLoop` sein.
+   */
+  compoundEdit: boolean;
+  editToolLoop: boolean;
+  /** Die Fläche, deren `edit_document` montiert wird — nur bei `editToolLoop`. */
+  editToolSurface: EditorSurfaceKind | null;
+  compoundGenerationKind: CompoundGenerationKind | null;
+  /**
+   * Der System-Tool-Auffang hat auf `web` umgeschrieben. Diese Intents sind
+   * NON_SEARCH, der Klassifikator hat `searchQuery` also genullt — ohne
+   * Nachtrag würde der Web-Zweig nach '' suchen.
+   */
+  backfillSearchQuery: boolean;
+}
+
+export interface TurnPlanInput {
+  /** CHAT_AGENT_LOOP — EINMAL pro Turn gelesen und hier hereingereicht. */
+  loopEnabled: boolean;
+  /** AGENTIC_INTENTS, injiziert wie bei {@link decideRunAgentic}. */
+  agenticIntents: ReadonlySet<string>;
+  /** SYSTEM_TOOL_INTENTS — ihre Werkzeuge existieren nur in der Schleife. */
+  systemToolIntents: ReadonlySet<string>;
+  /** Der VORSCHLAG des Klassifikators. Das Ergebnis steht in `plan.intent`. */
+  intent: ChatIntentId;
+  lastUserText: string;
+  forcedTool: boolean;
+  isCompound: boolean;
+  hasSelectedNotebook: boolean;
+  hasManagedSources: boolean;
+  hasImageAttachments: boolean;
+  secondaryIntent: string | null;
+  isPdfFillRequest: boolean;
+  classifierContradictedResearch: boolean;
+  hasOwnMaterial: boolean;
+  /** Die Werkzeug-Schalter der Fläche — ein `edit_current_*`-Schlüssel je Fläche. */
+  enabledTools: Record<string, boolean> | null;
+  /** Agenten-Kennung, für die Auflösung der Editor-Fläche. */
+  agentIdentifier: string | null;
+  /** Ein offenes Dokument MIT id — nur ein adressierbares Ziel ist bearbeitbar. */
+  hasOpenDocumentId: boolean;
+  hasOpenBoardId: boolean;
+  /**
+   * Überhaupt ein Board-Editor offen. Bewusst schwächer als
+   * {@link hasOpenBoardId} und als eigenes Feld geführt: die
+   * `modify_board`-Demotion fragt nur nach der Präsenz, das Bearbeitungsziel
+   * nach der id. Zusammengelegt wäre der Unterschied unsichtbar.
+   */
+  hasOpenBoardSurface: boolean;
+  /** Ein offenes Sharepic MIT id (Studio-Seitenleiste, `currentCanvas`). */
+  hasOpenCanvasId: boolean;
+  /** Ein @board-Mention oder mitgeschickte boardIds benennen ein Ziel. */
+  hasNamedBoard: boolean;
+  /** Sharepic-Verfeinerung — hält die Verbund-Erzeugung aus dem Weg. */
+  isSharepicRefinement: boolean;
+  /** Der erzwungene Intent des Pipeline-Agenten, oder null. */
+  pipelineForceIntent: ChatIntentId | null;
+  /**
+   * Das Werkzeug, das eine @-Erwähnung festgezurrt hat (`mentionPinnedTool`).
+   * Der zweite Weg in die Schleife neben der `forcedLane`-Achse — siehe unten.
+   */
+  mentionPinnedTool: string | null;
+  /**
+   * Die von einer `@…-erstellen`-Erwähnung festgezurrte Artefaktart
+   * (`mentionPinnedArtifactKind`). Schlägt die Substantiv-Ableitung, nicht die
+   * Verbund-Gitter: OB der Turn ein Verbund ist, entscheidet weiterhin das
+   * Recherchesignal bzw. der Erstell-Auftrag — die Erwähnung sagt nur, WAS
+   * gebaut würde.
+   */
+  mentionPinnedArtifactKind: ArtifactCreateKind | null;
+  /**
+   * Der Klassifikator hat einen Anlegeauftrag für ein Rezept oder einen
+   * Grünerator-Agenten erkannt (`state.agenturaCreateOrder`). Wirkt wie ein
+   * Pin auf das Gate (`mustLoop`), setzt aber keinen — der erste Aufruf bleibt
+   * frei, siehe dort.
+   */
+  agenturaCreateOrder: boolean;
+}
+
+/**
+ * Worauf ein Intent zurückfällt, dem die Schleife verwehrt bleibt.
+ *
+ * Alle drei Fälle sind dieselbe Aussage: der Intent bezeichnet eine Ausführung,
+ * die es nur IN der Schleife gibt. `agentic` hat in `executeIntentPipeline` gar
+ * keinen Zweig, die System-Tool-Intents (`umfragen`/`hilfe`) haben dort ihre
+ * Werkzeuge nicht, und seit Phase N gilt das auch für die Parlaments-Abrufe:
+ * ihre dünnen Einzeldurchlauf-Türen sind gefallen, der Kern hängt nur noch am
+ * Loop-Werkzeug. Ein Turn, den ein Notausschalter (Verbund, erzwungenes
+ * Werkzeug, Bild-Anhang, ausgeschaltete Schleife, gewählte Wissenssammlung)
+ * draußen hält, muss also woanders hin, statt zu stranden.
+ *
+ * Der dritte Fall nennt die beiden Intents NICHT beim Namen — er fragt die
+ * Registry. `forcedLane: 'loop'` heisst ab hier „hat keinen Einzeldurchlauf",
+ * und wohin so ein Turn ausweicht, steht als `degradeTo` schon dort, weil die
+ * Locale-Degradierung dieselbe Frage stellt: eine Quelle ist nicht erreichbar,
+ * die Frage soll trotzdem beantwortet werden. Ein Intent der Achse OHNE
+ * `degradeTo` (heute `mcp`) bleibt bewusst unberührt — für ihn wäre eine
+ * Websuche keine Degradierung, sondern eine andere Antwort als die gewählte
+ * Quelle.
+ *
+ * Die Prüfungen sind nacheinander, nicht ausschließend — so standen sie im
+ * Router. Überschneiden können sie sich nicht: `agentic` ist weder
+ * System-Tool-Intent noch auf der Loop-Achse.
+ */
+function fallbackIntentFor(
+  intent: ChatIntentId,
+  isSystemToolIntent: boolean
+): { intent: ChatIntentId; backfillSearchQuery: boolean } {
+  let next = intent;
+  let backfillSearchQuery = false;
+  // Dies IST der Opt-out-Pfad, nicht bloss ein Wiederaufnahme-Rest. Tier 3.5
+  // demotiert ein Prosa-Verdikt seit dem 16.08.2026 unabhängig von
+  // CHAT_AGENT_LOOP, gerade damit ein abruf-förmiger Turn hier ankommt und
+  // sucht, statt beim Klassifikator als `produktion` — also als Antwort aus dem
+  // Gedächtnis — liegenzubleiben. Mit ausgeschalteter Schleife ist dieser Zweig
+  // deshalb der Normalfall. Dazu weiterhin der WIEDERAUFNAHME-Pfad: ein
+  // gespeicherter `agentic`-Intent, der nach einem Deploy mit umgelegtem
+  // Schalter fortgesetzt wird.
+  if (next === 'agentic') {
+    recordDecision('router.intent_override', 'agentic_to_search', {
+      inputs: { intentBefore: 'agentic', runAgentic: false },
+    });
+    next = 'search';
+  }
+  if (isSystemToolIntent) {
+    recordDecision('router.intent_override', 'system_tool_to_web', {
+      inputs: { intentBefore: next, runAgentic: false, isSystemToolIntent },
+    });
+    next = 'web';
+    backfillSearchQuery = true;
+  }
+  // Der Degradierungsfall der Loop-Achse. `backfillSearchQuery` aus demselben
+  // Grund wie oben: das Ziel ist ein Suchintent, und ein Turn ohne Suchanfrage
+  // suchte nach ''.
+  const degradeTo = forcesLoopLane(next) ? CHAT_INTENTS[next].degradeTo : undefined;
+  if (degradeTo) {
+    recordDecision('router.intent_override', 'loop_only_degraded', {
+      inputs: { intentBefore: next, runAgentic: false, degradeTo },
+    });
+    next = degradeTo;
+    backfillSearchQuery = true;
+  }
+  return { intent: next, backfillSearchQuery };
+}
+
+/**
+ * Die Lane zum endgültigen Intent — die Registry beantwortet es, nicht diese
+ * Datei.
+ *
+ * Gefragt wird erst, wenn der Turn NICHT in die Schleife geht; `loop` ist die
+ * Antwort auf das Gate, nicht auf den Intent. Alles danach ist eine Aussage
+ * über die Disposition, also über die Frage „was muss vor der Antwort
+ * feststehen?" — und genau die trennt einen Artefakt-Turn (kostet Geld oder
+ * einen HITL-Vertrag, eigene Route) vom Rest-Einzeldurchlauf.
+ *
+ * `greeting` steht vor der Disposition, weil es innerhalb von `prose` die
+ * Ausnahme ist: es erbt nichts, erdet nichts, hat kein Material. Genau dafür
+ * wurde es abgespalten (siehe `GROUNDABLE_PROSE_INTENTS`).
+ *
+ * Ein Intent ohne Disposition kann es nicht geben — die Karte ist total über
+ * `ChatIntentId` und bricht den Build, sobald jemand einen Intent hinzufügt.
+ * Der `null`-Zweig ist deshalb kein Auffang, sondern die Antwort auf einen
+ * Intent, den die Registry nicht kennt: derselbe Weg wie bisher.
+ */
+function laneFor(runAgentic: boolean, intent: ChatIntentId): TurnLane {
+  if (runAgentic) return 'loop';
+  if (intent === 'greeting') return 'greeting';
+  const disposition = dispositionOf(intent);
+  if (disposition === 'prose') return 'produktion';
+  if (disposition === 'artifact' || disposition === 'anchor') return 'pipeline';
+  return 'single-pass';
+}
+
+/**
+ * Die eine Entscheidung pro Turn. Genau EINMAL aufrufen — die Journal-Einträge
+ * (`router.run_agentic`, `router.intent_override`) hängen daran und ein zweiter
+ * Aufruf hieße im Entscheidungsprotokoll, ein Gitter habe zweimal gefeuert.
+ *
+ * Sortierstufen, in dieser Reihenfolge:
+ *  1. Editor-Fläche — welches Artefakt wird bearbeitet, mit welchem Pfad.
+ *  2. Intent-Korrekturen VOR dem Gate (Board-Demotion, Pipeline-Zwang), weil das
+ *     Gate den korrigierten Intent bewerten muss.
+ *  3. Das Loop-Gate selbst.
+ *  4. Der Auffang-Intent für alles, was das Gate ausgesperrt hat.
+ */
+export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
+  const proposedIntent = p.intent;
+  // Für einen `mcp`-Turn heisst `forcedTool` „die Person hat DIESEN Konnektor
+  // gewählt" (via @<server>), NICHT „ein deterministisches Einzelwerkzeug
+  // anheften" — er darf also trotzdem in die Schleife, die dann die MCP-Tools
+  // dieses Servers montiert. `umfragen` (PolitPro) und `hilfe` (hausinterner
+  // Doku-Index) sind native Domain-Tools, immer verfügbar, und erzwingen das
+  // Gate bedingungslos. `hilfe` MUSS dabei sein: @doku setzt `forcedTool`, und
+  // ohne diese Ausnahme hielte `decideRunAgentic` den Turn einzeln — dort
+  // existiert `gruenerator_docs_search` nicht, die Erwähnung täte still nichts.
+  //
+  // Die fünf System-MCP-Intents erzwangen das Gate früher ebenfalls hier, über
+  // eine Verfügbarkeitsprüfung, die auch das Land trug. Beide Aufgaben stecken
+  // heute in `hasManagedSources`: der Trigger benennt die Konnektoren, und
+  // `loadManagedMcpCatalog` wendet Länderfilter und Opt-out an der Montage
+  // selbst an — ein Ort statt zweier, die sich einig sein mussten.
+  //
+  // Aus dem VORGESCHLAGENEN Intent, vor jeder Korrektur unten: ein Turn, den die
+  // Board-Demotion auf `agentic` zieht, war nie ein MCP-Turn, und ein
+  // Pipeline-Zwang macht aus `hilfe` kein `produktion`, das noch Werkzeuge
+  // erwartet — dieses Gate soll die Schleife für die ERWÄHNUNG erzwingen.
+  //
+  // Das Literal (`mcp | umfragen | hilfe`) beantwortete ZWEI Fragen auf einmal,
+  // die nur deshalb dieselbe Antwort hatten, weil dieselben drei Intents beide
+  // Male gemeint waren. Sie fallen ab dem ersten Flip auseinander:
+  //
+  //  - `mustLoop` — für diesen Intent gibt es GAR KEINEN Einzeldurchlauf.
+  //    `mcp` steht ausdrücklich daneben statt in `systemToolIntents`: die
+  //    Menge dort beschreibt die nativen Domain-Werkzeuge, und ein `mcp`-Turn
+  //    ohne Schleife fiele über `fallbackIntentFor` auf `web` — eine Websuche
+  //    statt des gewählten Konnektors.
+  //  - `forcedLoop` — eine Erwähnung dieses Intents gehört in die Schleife.
+  //    Das ist die `forcedLane`-Achse der Registry, und nur sie darf ein Intent
+  //    tragen, der einen eigenen Executor HAT.
+  //
+  // Ein per Erwähnung gepinntes WERKZEUG beantwortet beide Fragen noch einmal,
+  // ohne einen Intent zu bemühen — genau dafür gibt es den Pin:
+  //
+  //  - Es gehört in die Schleife, denn dort und nur dort existieren Werkzeuge.
+  //    Der Pin IST die Wahl der Person, also darf er denselben Notausschalter
+  //    aufheben wie die Achse.
+  //  - Trägt kein Intent den Turn (`agentic` hat in `executeIntentPipeline`
+  //    keinen Zweig), kann ihn NUR die Schleife ausführen. Ohne diese Hälfte
+  //    fiele `@umfragen` mit ausgeschalteter Schleife oder gewählter
+  //    Wissenssammlung über `fallbackIntentFor` auf `search` — eine
+  //    Dokumentensuche statt PolitPro, und damit schlechter als vor der
+  //    Stilllegung des Intents.
+  const pinnedTool = p.mentionPinnedTool;
+  //
+  // Ein Anlegeauftrag für die Agentura beantwortet nur die ERSTE Frage wie ein
+  // Pin: `recipes`/`user_agents` gibt es nur in der Schleife, also muss er
+  // hinein, auch an der Notebook-Sperre vorbei. Die zweite Hälfte des Pins —
+  // der erzwungene erste Aufruf — fehlt mit Absicht: das gewählte Notebook
+  // soll gelesen sein, bevor das Rezept entsteht.
+  const mustLoop =
+    proposedIntent === 'mcp' ||
+    p.systemToolIntents.has(proposedIntent) ||
+    ((pinnedTool != null || p.agenturaCreateOrder) && proposedIntent === 'agentic');
+  const forcedLoop = forcesLoopLane(proposedIntent) || pinnedTool != null;
+
+  // ── 1. Editor-Fläche ──────────────────────────────────────────────────────
+  // Editor-Seitenleisten (docs/sheets/presentations/boards) BEARBEITEN das
+  // offene Dokument — sie erzeugen nie ein neues.
+  const editorSurface = isEditorSurface(p.enabledTools);
+  // Das Ziel hängt am AKTIVIERTEN Bearbeitungswerkzeug, nicht daran, welches
+  // Artefakt zufällig im Kontext liegt: eine Board-Seitenleiste, die auch ein
+  // referenziertes Dokument trägt, muss trotzdem das BOARD bearbeiten.
+  //
+  // Lokal, nicht im `TurnPlan`: der einzige Leser ausserhalb war die Stufe, die
+  // `trigger_doc_edit` schickte (#3428). Was der Plan davon trägt, sind die
+  // beiden Aussagen, die ihn steuern — `compoundEdit` und `editToolSurface`.
+  const editTarget: 'doc' | 'board' | 'canvas' | null =
+    hasDocumentContextEditTool(p.enabledTools) && p.hasOpenDocumentId
+      ? 'doc'
+      : p.enabledTools?.['edit_current_board'] === true && p.hasOpenBoardId
+        ? 'board'
+        : p.enabledTools?.['edit_current_canvas'] === true && p.hasOpenCanvasId
+          ? 'canvas'
+          : null;
+
+  // Verbund aus Recherche + Erzeugung: eine Erzeugungsbitte (Sharepic,
+  // Präsentation, Tabelle, Textdokument, Board) MIT ausdrücklichem
+  // Recherchesignal geht mit dem passenden Fett-Werkzeug durch die Schleife;
+  // reine Erzeugung behält die direkte Zuteilung. Die ART wird aus dem Intent
+  // ODER — bei einem auf `agentic` demotierten Turn — aus dem Substantiv im Text
+  // gewonnen, damit „mach mir eine Tabelle draus" das Tabellen-Werkzeug montiert.
+  const compoundKind =
+    !p.forcedTool && !p.isSharepicRefinement && !editorSurface
+      ? compoundGenerationKind(proposedIntent, p.lastUserText, p.mentionPinnedArtifactKind)
+      : null;
+
+  // Verbund „recherchiere UND bau es ins offene Dokument ein". Dieselben
+  // Notausschalter wie {@link decideRunAgentic}, damit das Erzwingen der
+  // Schleife hier sie nicht umgehen kann.
+  const compoundEdit =
+    editorSurface &&
+    editTarget != null &&
+    !p.forcedTool &&
+    p.loopEnabled &&
+    !p.isCompound &&
+    !p.hasSelectedNotebook &&
+    !p.hasImageAttachments &&
+    looksLikeCompoundEdit(p.lastUserText);
+
+  // Werkzeugbasierte Editor-Bearbeitung: der Turn geht mit dem `edit_document`
+  // der Fläche in die Schleife, damit das MODELL suchen und das OFFENE Artefakt
+  // ändern kann — vier Flächen über `editor_operations`, die Dokument-Fläche
+  // über den `trigger_doc_edit`-Versand aus demselben Werkzeug. Was passiert,
+  // wenn die Notausschalter den Turn zurückhalten, steht bei
+  // {@link decideEditToolLoop}.
+  const editToolSurfaceKind = resolveEditorSurfaceKind(p.agentIdentifier, p.enabledTools);
+  const editToolLoop = decideEditToolLoop({
+    loopEnabled: p.loopEnabled,
+    surfaceKind: editToolSurfaceKind,
+    editToolEnabled: isEditToolEnabled(p.enabledTools),
+    hasEditTarget: editTarget != null,
+    forcedTool: p.forcedTool,
+    isCompound: p.isCompound,
+    hasSelectedNotebook: p.hasSelectedNotebook,
+    hasImageAttachments: p.hasImageAttachments,
+    secondaryIntent: p.secondaryIntent,
+  });
+
+  // ── 2. Intent-Korrekturen VOR dem Gate ────────────────────────────────────
+  let intent: ChatIntentId = proposedIntent;
+  // Konversationelles Board-Anhängen („häng den fertigen Post an mein Board"):
+  // der Klassifikator sagt modify_board, aber der Einzeldurchlauf-Pfad braucht
+  // ein ausdrückliches @board-Ziel und rät sonst zum Copy-Paste. Ohne benanntes
+  // UND ohne offenes Board auf `agentic` demotieren, damit das boards_tasks-
+  // Werkzeug der Schleife das Board über den Namen auflöst.
+  if (intent === 'modify_board' && !p.hasNamedBoard && !p.hasOpenBoardSurface && !p.forcedTool) {
+    recordDecision('router.intent_override', 'modify_board_to_agentic', {
+      inputs: {
+        intentBefore: 'modify_board',
+        hasRawBoardIds: p.hasNamedBoard,
+        hasOpenBoard: p.hasOpenBoardSurface,
+      },
+    });
+    intent = 'agentic';
+  }
+
+  // Ein Pipeline-Agent (routes/chat/agents/pipelines/) geht NIE über die
+  // Schleife. Übertragen ist reine Textarbeit am mitgelieferten Material, und
+  // die Prüfung dahinter ist eine eigene Kette statt eines Werkzeugs. Der erste
+  // Einfache-Sprache-Lauf (13.08.2026) belegte beide Hälften: 19 Werkzeuge
+  // montiert, KEINES benutzt (`steps=0`) — bezahlt wurden trotzdem 2661 Zeichen
+  // Werkzeugregeln und 1141 Zeichen Rezept-Katalog im Systemprompt, aus dem das
+  // Modell dann die Nachbarrolle „Rückübersetzung" in seine Ausgabe zog.
+  //
+  // `produktion` und nicht `direct`: der Turn IST eine Schreibaufgabe mit
+  // eigenem Material, und `direct` ist seit #2269 F0 — es wird nur noch gelesen,
+  // nicht mehr neu vergeben. Beides nötig, weil `produktion` zwar prosa-dispon-
+  // iert ist, die Rettungsregel in decideRunAgentic es aber dennoch in die
+  // Schleife heben könnte.
+  if (p.pipelineForceIntent != null && intent !== p.pipelineForceIntent) {
+    recordDecision('router.intent_override', 'einfache_sprache_to_produktion', {
+      inputs: { intentBefore: intent },
+    });
+    intent = p.pipelineForceIntent;
+  }
+
+  // ── 3. Das Loop-Gate ──────────────────────────────────────────────────────
+  // Kurzschluss-Reihenfolge unverändert: ein Pipeline-Agent vetot, danach
+  // beantworten die beiden Editor-Varianten die Frage bereits, und erst zuletzt
+  // wird das allgemeine Gate befragt (und protokolliert).
+  const runAgentic =
+    p.pipelineForceIntent == null &&
+    (editToolLoop ||
+      compoundEdit ||
+      decideRunAgentic({
+        loopEnabled: p.loopEnabled,
+        agenticIntents: p.agenticIntents,
+        intent,
+        lastUserText: p.lastUserText,
+        forcedTool: p.forcedTool,
+        mustLoop,
+        forcedLoop,
+        hasManagedSources: p.hasManagedSources,
+        isCompound: p.isCompound,
+        hasSelectedNotebook: p.hasSelectedNotebook,
+        secondaryIntent: p.secondaryIntent,
+        compoundGeneration: compoundKind != null,
+        hasImageAttachments: p.hasImageAttachments,
+        isPdfFillRequest: p.isPdfFillRequest,
+        classifierContradictedResearch: p.classifierContradictedResearch,
+        hasOwnMaterial: p.hasOwnMaterial,
+      }));
+
+  // ── 4. Auffang-Intent ─────────────────────────────────────────────────────
+  // Gegen den KORRIGIERTEN Intent, anders als das Gate oben. Der Auffang
+  // beantwortet eine andere Frage — nicht „was hat die Person gemeint", sondern
+  // „kann `executeIntentPipeline` ausführen, was hier steht". Gegen den
+  // Vorschlag gemessen nahm er dem Pipeline-Agenten die Festlegung zurück, für
+  // die dessen Veto überhaupt existiert: `hilfe` + Einfache Sprache ergab ein
+  // erzwungenes `produktion`, das der Auffang zu `web` machte — eine Websuche
+  // für einen Turn, der reine Textarbeit am mitgelieferten Material ist.
+  const isSystemToolIntent = p.systemToolIntents.has(intent);
+  const fallback = runAgentic
+    ? { intent, backfillSearchQuery: false }
+    : fallbackIntentFor(intent, isSystemToolIntent);
+
+  const lane = laneFor(runAgentic, fallback.intent);
+
+  return {
+    lane,
+    intent: fallback.intent,
+    // Abgeleitet, nicht zweitentschieden: `runAgentic` IST die Loop-Lane. Das
+    // Feld bleibt, weil die Aufrufer eine Ja/Nein-Frage stellen; es kann aber
+    // nicht mehr von der Lane abweichen.
+    runAgentic: lane === 'loop',
+    compoundEdit,
+    editToolLoop,
+    editToolSurface: editToolLoop ? editToolSurfaceKind : null,
+    compoundGenerationKind: compoundKind,
+    backfillSearchQuery: fallback.backfillSearchQuery,
+  };
+}

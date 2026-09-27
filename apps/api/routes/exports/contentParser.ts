@@ -195,6 +195,34 @@ function inlineSegments(tokens: Token[] | undefined): FormattedSegment[] {
   return trimEdges(segments);
 }
 
+/**
+ * A paragraph that is nothing but image tokens (plus whitespace and line
+ * breaks) becomes real `image` blocks. Images mixed into running text keep the
+ * alt-text-link fallback from `walkInline` — an inline picture has no own line
+ * to sit on, a standalone one does.
+ */
+function standaloneImages(tokens: Token[]): FormattedBlock[] | null {
+  const images: FormattedBlock[] = [];
+
+  for (const token of tokens) {
+    if (token.type === 'image') {
+      const image = token as Tokens.Image;
+      if (image.href) {
+        images.push({ kind: 'image', src: image.href, alt: decodeEntities(image.text || '') });
+      }
+    } else if (token.type === 'br' || token.type === 'space') {
+      continue;
+    } else if (token.type === 'text') {
+      const text = token as Tokens.Text;
+      if ((text.tokens && text.tokens.length > 0) || text.text.trim()) return null;
+    } else {
+      return null;
+    }
+  }
+
+  return images.length > 0 ? images : null;
+}
+
 interface WalkContext {
   quoteDepth: number;
   listLevel: number;
@@ -210,9 +238,13 @@ function walkBlocks(tokens: Token[], ctx: WalkContext, into: FormattedBlock[]): 
         into.push({ kind: 'heading', level: Math.min(Math.max(heading.depth, 1), 6), segments });
       }
     } else if (token.type === 'paragraph' || token.type === 'text') {
-      const segments = inlineSegments(
-        (token as Tokens.Paragraph).tokens ?? [token as unknown as Token]
-      );
+      const inline = (token as Tokens.Paragraph).tokens ?? [token as unknown as Token];
+      const images = standaloneImages(inline);
+      if (images) {
+        into.push(...images);
+        continue;
+      }
+      const segments = inlineSegments(inline);
       if (segments.length > 0) {
         into.push({ kind: 'paragraph', segments, quoteDepth: ctx.quoteDepth });
       }

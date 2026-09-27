@@ -16,9 +16,9 @@ export function ExperimentalAgentBanner({ className }: { className?: string }) {
       variant="warning"
       className={className}
     >
-      <strong>Experimentelles Feature</strong> — Eigene Grüneratoren sind noch in der Erprobung.
-      Verhalten und Funktionen können sich ändern, und nicht alles funktioniert schon zuverlässig.
-      Bitte melde Probleme dem Team.
+      <strong>Experimentelles Feature</strong> — Eigene Agents sind noch in der Erprobung. Verhalten
+      und Funktionen können sich ändern, und nicht alles funktioniert schon zuverlässig. Bitte melde
+      Probleme dem Team.
     </DismissableBanner>
   );
 }

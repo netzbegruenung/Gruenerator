@@ -16,14 +16,28 @@
  *   Residual:   The rule table's own verdict, named for what it is
  */
 
-import { degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
+import { type ChatIntentId, degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
+import { isCloudShareUrl } from '@gruenerator/shared/utils';
 
+import {
+  isUserNotebookId,
+  resolveNotebookCollections,
+} from '../../../../config/notebookCollectionMap.js';
+import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhitelist.js';
+import { collectionsForLocale } from '../../../../routes/chat/agents/searchTools.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
+  isDocumentContextEditAllowed,
+  isReferentialFollowup,
   looksLikeSelfContainedTurn,
   looksLikeToolableQuestion,
   looksLikeUnsourcedWritingOrder,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import { agenturaCreateTarget } from '../../../../routes/chat/services/agenturaContext.js';
+import {
+  looksLikeNotebookToolAsk,
+  looksLikeNotebookWriteAsk,
+} from '../../../../routes/chat/services/notebookToolAsk.js';
 import { isSharepicEditInstruction } from '../../../../routes/chat/services/sharepicEditHeuristics.js';
 import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
@@ -47,7 +61,7 @@ import {
   heuristicClassify,
   extractSearchTopic,
   extractMessageText,
-  extractUrls,
+  crawlableUrls,
   extractDomainScope,
   wantsImageResults,
   formatConversationHistory,
@@ -56,9 +70,9 @@ import {
   isImageEditInstruction,
   mentionsImageNoun,
   looksMultiTopic,
+  BOARD_MODIFY_PATTERN,
   DOC_MODIFY_PATTERN,
   HEURISTIC_CONFIDENCE_THRESHOLD,
-  detectSocialPlatform,
   nounNearCreateVerb,
   NOUN_TRIGGER_MAX_LENGTH,
   SOCIAL_BARE_NOUN_PATTERN,
@@ -67,12 +81,14 @@ import {
   isAmbiguousGraphicRequest,
 } from './classifierHeuristics.js';
 import {
+  carriesPastedBody,
   detectComplexity,
   detectDocumentSubtype,
   detectSearchSources,
   CHAT_HISTORY_DIRECT,
   CHAT_HISTORY_KEYWORDS,
   CURRENT_THREAD_REFERENCE,
+  DEMOTABLE_HEURISTIC_INTENTS,
   NON_SEARCH_INTENTS,
   NO_RETRIEVAL_VERDICTS,
   looksLikeDocsHelpQuestion,
@@ -82,6 +98,8 @@ import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
 import { resolveEditTarget } from './editTargetResolver.js';
 import {
   ARTIFACT_NOUN_BY_KIND,
+  asksForChatDeliverable,
+  CREATION_VERB_RE,
   forbidsPersistentAction,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
@@ -96,20 +114,26 @@ import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
 const log = createLogger('ChatGraph:Classifier');
 
-/** Heuristic verdicts eligible for loop demotion (Tier 3.5): the retrieval
- *  family only — every member is in AGENTIC_INTENTS and none is platform-
- *  gated. Generation intents (sharepic, social_post, image, ...) and
- *  interrupt/confirm intents must keep the LLM tier so their gates, HITL and
- *  fixed UX contracts stay intact. */
-const DEMOTABLE_HEURISTIC_INTENTS: ReadonlySet<string> = new Set([
+/** Liest `notebook_quellen` dieses System-Notebook? Eine Sammlung, und die
+ *  steht der Locale zu — dieselbe Prüfung wie im Werkzeug
+ *  (`resolveSystemCollection` gegen `collectionsForLocale`). */
+function toolReadsSystemNotebook(id: string, locale: string | null): boolean {
+  const keys = resolveNotebookCollections([id]);
+  return keys.length === 1 && collectionsForLocale(locale).includes(keys[0]!);
+}
+
+/**
+ * Verdicts the compare upgrade may rewrite when ≥2 doc sources meet a compare
+ * verb. Other intents (image, summary, modify_doc, ...) are user-driven and
+ * must not be silently rerouted.
+ *
+ * Consumer policy, not an intent property — and at module scope because it was
+ * being rebuilt on every classification call.
+ */
+const COMPARE_UPGRADEABLE: ReadonlySet<ChatIntentId> = new Set([
   'search',
-  'web',
-  'examples',
-  'pressemitteilung_examples',
-  'compare',
-  'abgeordnetenwatch',
-  'bundestag',
-]);
+  'research',
+] as const satisfies readonly ChatIntentId[]);
 
 // Content-creation agent (öffentlichkeitsarbeit) routing heuristics.
 // Module-scope so V8 doesn't recompile per classification call. Hoisted out
@@ -170,6 +194,89 @@ function matchMcpServerByName(userContent: string, servers: McpClassifierServer[
   return hits.length === 1 ? hits[0]!.id : null;
 }
 
+// „ja dann mach das", „mach weiter" — eine Bestätigung ohne eigenen
+// Gegenstand. `isReferentialFollowup` schließt sie aus, weil „mach" ein
+// Erstellverb ist; ohne Objekt erstellt sie aber nichts.
+const BARE_CONFIRMATION =
+  /^\s*(?:(?:ja|ok(?:ay)?|gut|genau)[\s,!.]*)?(?:dann\s+)?(?:bitte\s+)?mach(?:e|'?s)?(?:\s+(?:das|es|weiter|mal))?(?:\s+bitte)?[\s!.]*$/iu;
+
+// `isReferentialFollowup` erkennt nur die EIN-Wort-Höflichkeit; „super,
+// danke!" käme durch.
+const THANKS = /(?<!\p{L})(?:danke\p{L}*|dank|thx)(?!\p{L})/iu;
+
+// Die Schreibverben aus `WRITING_ORDER_RE` (agenticLoop/routing.ts) ohne
+// dessen Textsorten-Nomen: „Soll ich die vorletzte Pressemitteilung
+// vorlesen?" ist ein Nachschlage-Angebot, kein Schreibauftrag.
+const WRITING_VERB = /(?<!\p{L})(?:schreib|formulier|verfass|entwirf|entwerfe)\p{L}*/iu;
+
+/**
+ * Liest sich der Turn als Bearbeitung eines Artefakts, das der Thread hält?
+ * Dieselben Muster wie Tier 2.7, das tiefer unten entscheidet. Der Anschluss
+ * an einen Notebook-Turn steht dann zurück, sonst nähme er Tier 2.7 einen
+ * Folgeauftrag weg („Und jetzt noch die Uhrzeit ergänzen" nach Notebook-Turn
+ * UND Sharepic). Nach 2.7 verschieben geht nicht: `last_tool_context` bleibt
+ * über Notebook-Turns stehen, und 2.7s MCP-Zweig nähme dann „nun die
+ * vorletzte" für einen alten Konnektor.
+ */
+function editsThreadArtifact(state: ChatGraphState, text: string): boolean {
+  const kinds = new Set(
+    [state.lastToolContext, ...(state.threadArtifacts ?? [])].map((a) => a?.kind)
+  );
+  return (
+    ((kinds.has('document') || kinds.has('sheet')) && DOC_MODIFY_PATTERN.test(text)) ||
+    (kinds.has('image') &&
+      (hasImageEditVerb(text) || isImageRegenRequest(text) || isImageEditInstruction(text))) ||
+    (kinds.has('sharepic') && isSharepicEditInstruction(text))
+  );
+}
+
+/**
+ * Das Angebot, das eine nackte Bestätigung annimmt: die letzte Frage der
+ * vorigen Antwort, sonst ihr letzter Satz. Die Frage zuerst, weil ein Füllsatz
+ * dahinter („Sag mir einfach Bescheid!") das Angebot sonst verdeckt. `null`
+ * ohne vorige Antwort im Verlauf.
+ */
+function previousAssistantOffer(messages: ChatGraphState['messages']): string | null {
+  const lastUser = messages.map((m) => m.role).lastIndexOf('user');
+  const previous = messages
+    .slice(0, lastUser === -1 ? messages.length : lastUser)
+    .filter((m) => m.role === 'assistant')
+    .pop();
+  if (!previous) return null;
+  const sentences = extractMessageText(previous.content)
+    .split(/(?<=[.?!])\s+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  return [...sentences].reverse().find((x) => x.endsWith('?')) ?? sentences.at(-1) ?? null;
+}
+
+/**
+ * Setzt dieser Turn nur die Werkzeugarbeit des vorigen fort? Kurz und
+ * rückbezüglich (`isReferentialFollowup`: keine Höflichkeit, kein
+ * Umschreiben, kein Erstellverb, ≤ 8 Wörter), kein Dank, und weder Artefakt
+ * (`GENERATION_SIGNAL`) noch Schreibauftrag.
+ *
+ * Eine nackte Bestätigung („ja mach das") sagt selbst nichts — sie nimmt das
+ * Angebot am Ende der vorigen Antwort an. Pin nur, wenn das kein Erstell- oder
+ * Schreibangebot war („Soll ich daraus einen Social-Media-Post machen?" bleibt
+ * beim heutigen Weg; „…, müsste ich diese neu nachschlagen." pinnt).
+ */
+function continuesNotebookTurn(text: string, messages: ChatGraphState['messages']): boolean {
+  if (BARE_CONFIRMATION.test(text)) {
+    const offer = previousAssistantOffer(messages);
+    return !(
+      offer &&
+      (CREATION_VERB_RE.test(offer) || GENERATION_SIGNAL.test(offer) || WRITING_VERB.test(offer))
+    );
+  }
+  return (
+    isReferentialFollowup(text) &&
+    !THANKS.test(text) &&
+    !GENERATION_SIGNAL.test(text) &&
+    !looksLikeUnsourcedWritingOrder(text, { hasOwnMaterial: false })
+  );
+}
+
 export async function classifierNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const result = await classifierNodeImpl(state);
 
@@ -182,14 +289,13 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     connectFiles: state.connectFiles ?? [],
     threadAttachments: state.threadAttachments ?? [],
     currentDocument: state.currentDocument ?? null,
+    documentChatLabels: state.documentChatLabels ?? {},
   });
 
   // Upgrade search/research → 'compare' when the user explicitly asks for a
-  // comparison and ≥2 doc sources are in play. Other intents (image, summary,
-  // modify_doc, ...) are user-driven and shouldn't be silently rerouted.
+  // comparison and ≥2 doc sources are in play (see COMPARE_UPGRADEABLE).
   const lastUserMessage = state.messages.filter((m) => m.role === 'user').pop();
   const userText = extractMessageText(lastUserMessage?.content);
-  const COMPARE_UPGRADEABLE: ReadonlySet<SearchIntent> = new Set(['search', 'research']);
   let intent = result.intent ?? state.intent;
   if (
     intent &&
@@ -227,6 +333,28 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // downgrade would run the web search on the empty string.
   let downgradedSearchQuery: string | null = null;
 
+  // Pasted/attached URLs are resolved HERE, above the summary demotion, because
+  // a link is material: "<url> zusammenfassen" used to be demoted to `web` (the
+  // demotion only looked for documents) and then searched the web for the bare
+  // verb "zusammenfassen".
+  // Agent must allow scraping (whitelist holds 'scrape'; one agent uses the tool
+  // name 'scrape_url') and the user must not have toggled it off in the composer.
+  const agentAllowsScrape = agentAllowsTool(
+    { enabledTools: state.agentConfig?.enabledTools },
+    'scrape'
+  );
+  const scrapeEnabled = agentAllowsScrape && state.enabledTools?.['scrape'] !== false;
+  // @link-attached URLs are explicit user intent — union them with auto-detected
+  // ones (deduped, attached first so they rank highest in scrape_url).
+  // Auch die ausdrücklich angehängten: ein Wolke-Freigabe-Link liefert beim
+  // Crawlen die SPA-Hülle, egal ob er getippt oder über @link angehängt wurde.
+  const attachedUrls = scrapeEnabled
+    ? (state.attachedWebpageUrls ?? []).filter((url) => !isCloudShareUrl(url))
+    : [];
+  const detectedUrls = scrapeEnabled
+    ? [...new Set([...attachedUrls, ...crawlableUrls(userText)])]
+    : [];
+
   // `summary` is not a wording, it is a STATE: material is already here, so skip
   // the search node (ChatGraph routes it straight to respond), drop the product
   // persona and use the cheap lane. Tier 2 derives it correctly — it fires only
@@ -246,14 +374,29 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // all. Reading it too narrowly downgraded "fasse die Datei zusammen" — with
   // the file right there — to a web search. Err toward keeping `summary`: a
   // false keep is the old behaviour, a false downgrade breaks a working feature.
+  //
+  // `carriesPastedBody` ist derselbe Satz für den Fall, in dem das Material gar
+  // keinen Anhang hat, weil es EINGEFÜGT wurde. Ohne ihn wird der eingefügte
+  // Text selbst zur Web-Suchanfrage (`downgradedSearchQuery = userText`) — im
+  // Sicherheits-Korpus die Bürgeranfrage samt ihrer Injektions-Nutzlast.
   const hasMaterialToSummarise =
     documentSources.length > 0 ||
     !!state.attachmentContext ||
     (state.imageAttachments?.length ?? 0) > 0 ||
-    (state.pdfFormAttachments?.length ?? 0) > 0;
+    (state.pdfFormAttachments?.length ?? 0) > 0 ||
+    carriesPastedBody(userText);
   if (intent === 'summary' && !hasMaterialToSummarise && !CURRENT_THREAD_REFERENCE.test(userText)) {
-    log.info('[Classifier] summary without any document source → web (nothing to summarise)');
-    intent = 'web';
+    if (detectedUrls.length > 0) {
+      // The page IS the material. Not `summary` (that intent skips the search
+      // node, so the link would never be fetched) and not `web` (searching for
+      // "zusammenfassen" returns dictionary entries and summariser tools —
+      // observed live). scrape_url crawls it and respond summarises the result.
+      log.info('[Classifier] summary without documents but with URL(s) → scrape_url');
+      intent = 'scrape_url';
+    } else {
+      log.info('[Classifier] summary without any document source → web (nothing to summarise)');
+      intent = 'web';
+    }
     downgradedSearchQuery = userText;
   }
 
@@ -311,20 +454,6 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // the scrape_url slot directly; otherwise it rides as the secondary intent so
   // "schreib einen Tweet zu <url>" both crawls the page AND drafts the tweet.
   let secondaryIntent = result.secondaryIntent ?? null;
-  // Agent must allow scraping (whitelist holds 'scrape'; one agent uses the tool
-  // name 'scrape_url') and the user must not have toggled it off in the composer.
-  const scrapeWhitelist = state.agentConfig?.enabledTools;
-  const agentAllowsScrape =
-    !scrapeWhitelist ||
-    scrapeWhitelist.includes('scrape') ||
-    scrapeWhitelist.includes('scrape_url');
-  const scrapeEnabled = agentAllowsScrape && state.enabledTools?.['scrape'] !== false;
-  // @web-attached URLs are explicit user intent — union them with auto-detected
-  // ones (deduped, attached first so they rank highest in scrape_url).
-  const attachedUrls = scrapeEnabled ? (state.attachedWebpageUrls ?? []) : [];
-  const detectedUrls = scrapeEnabled
-    ? [...new Set([...attachedUrls, ...extractUrls(userText)])]
-    : [];
   if (detectedUrls.length > 0) {
     if (!intent || NO_RETRIEVAL_VERDICTS.has(intent)) {
       intent = 'scrape_url';
@@ -377,8 +506,12 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // is kept so the answer prompt can warn the model before it acts. Deliberately
   // NOT a rejection: pasted mails and citizen inquiries legitimately contain
   // instruction-shaped language, and blocking them would break summarisation.
+  //
+  // Only MATERIAL is scanned, never `userText`: the user's own message is the
+  // trusted instruction channel. Scanning it meant every structured prompt
+  // ("## Kontext … ## Ton") tripped the warning and the answer opened by
+  // accusing its own author of a manipulation attempt.
   const injectionSuspected =
-    containsInstructionMarkers(userText) ||
     containsInstructionMarkers(state.attachmentContext ?? '') ||
     containsInstructionMarkers(state.currentDocument?.markdown ?? '');
   if (injectionSuspected) {
@@ -478,7 +611,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
   log.info('[Classifier] Starting intent classification');
 
   try {
-    const { messages, aiWorkerPool } = state;
+    const { messages } = state;
 
     // Extract user message content (handles both string and AI SDK v6 parts format)
     const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
@@ -525,6 +658,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const hasImageAttachments = state.imageAttachments && state.imageAttachments.length > 0;
     const hasAnyDocuments =
       hasDocumentChat || hasDocuments || hasAttachmentContext || hasCurrentDocument;
+    // @sheet mentions. currentDocument is shared with docs/presentations, so a
+    // sheet open in its own editor is already covered by hasCurrentDocument.
+    const hasSheetMentions = state.sheetIds && state.sheetIds.length > 0;
 
     // "Did the user supply the substance?" — the single answer the writing-order
     // rule consults (Tier 3.5 below, and `decideRunAgentic` in the router). The
@@ -542,17 +678,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // These are the most specific signals — a user explicitly requesting a change
     // to a referenced resource. Must be checked BEFORE passive context checks,
     // otherwise an image attachment or OCR text would shadow the mutation intent.
-    // Imperative edit verbs only. Uses `-e`/`-en` imperative/infinitive endings
-    // (NOT bare stems) so participles/nouns in QUESTIONS don't misfire — e.g.
-    // "was wurde geändert/gelöscht/markiert?", "welche Labels gibt es?",
-    // "wie ist es sortiert?" must NOT route to an edit. Noun keywords (label,
-    // status, …) only count when preceded by an edit verb (füge … hinzu /
-    // erstelle / setze … / weise … zu).
-    // Leading `(?<![\p{L}])` (not `\b`) so umlaut-initial verbs (ändere,
-    // überarbeite) match after a space — `\b` fails there since ä/ü aren't ASCII
-    // word chars. `u` flag enables \p{L}.
-    const boardModifyPattern =
-      /(?<![\p{L}])(f(?:ü|ue)ge?\s+\S.{0,40}?\s+hinzu|neue[rs]?\s+(karte|aufgabe|spalte|feld|ansicht)|erstelle\s+\S.{0,40}?\s*(aufgabe|karte|spalte|ansicht|feld)|erstelle\s+(aufgabe|karte|spalte|ansicht|feld)|aktualisiere|(?:ä|ae)ndere|erg(?:ä|ae)nze|(?:ü|ue)berarbeite|vereinfache|(?:um)?strukturiere?|l(?:ö|oe)sche?|entferne|verschiebe|sortiere?|kommentiere|markiere|weise\s+\S.{0,40}?\s+zu\b|setze?\s+\S.{0,40}?\s+(?:f(?:ä|ae)llig|frist|status|zust(?:ä|ae)ndig|als|auf|zu\b)|setze?\s+(f(?:ä|ae)llig|frist|status|zust(?:ä|ae)ndig))/iu;
     const docModifyPattern = DOC_MODIFY_PATTERN;
 
     // Open board in the boards-editor surface + modification keywords → live edit
@@ -564,7 +689,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       hasCurrentBoard &&
       editCurrentBoardAllowed &&
       userContent.length > 0 &&
-      boardModifyPattern.test(userContent)
+      BOARD_MODIFY_PATTERN.test(userContent)
     ) {
       const classificationTimeMs = Date.now() - startTime;
       log.info(`[Classifier] Live board edit (regex fast-path) → edit_current_board`);
@@ -580,7 +705,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
-    if (hasBoards && userContent.length > 0 && boardModifyPattern.test(userContent)) {
+    if (hasBoards && userContent.length > 0 && BOARD_MODIFY_PATTERN.test(userContent)) {
       const classificationTimeMs = Date.now() - startTime;
       log.info(
         `[Classifier] Board mutation detected (${state.boardIds.length} board(s)), forcing modify_board intent`
@@ -602,11 +727,21 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // editor surface always has currentDocument, and we want the live-edit path
     // (Yjs-synced, undoable in-place) instead of /chat's modify_doc HITL flow
     // (DB-only update, breaks Yjs).
-    // Honor the docs-sidebar "AI may edit document" toggle: when the client
-    // explicitly disables `edit_current_doc`, fall through to normal intent
-    // classification so the assistant answers conversationally instead of
-    // patching the open document.
-    const editCurrentDocAllowed = state.enabledTools?.edit_current_doc !== false;
+    // Honor the sidebar's "AI may edit" toggle: when the client explicitly
+    // disables its surface key, fall through to normal intent classification so
+    // the assistant answers conversationally instead of patching the open
+    // document. All three currentDocument surfaces count — docs, sheets and
+    // presentations each send their own key now (#3438).
+    //
+    // Seit #3428 EMITTIERT dieses Verdikt nichts mehr von sich aus: den
+    // `trigger_doc_edit`-Versand macht das Loop-Werkzeug `edit_document`, und
+    // ob es montiert wird, entscheidet die FLÄCHE (`decideEditToolLoop`), nicht
+    // der Intent. Was `edit_current_doc` noch tut, ist steuern — es ist eines
+    // von drei Signalen der Bearbeitungs-Zusicherung (`loopGuarantees`) und
+    // wählt im Einzeldurchlauf den Antworttext. Diese Schnellbahn und
+    // `docsIntentTiebreak` bleiben deshalb bis zu einem Eval-Lauf stehen; ihre
+    // Abschaffung hängt an ihm (#3428), nicht an diesem Umbau.
+    const editCurrentDocAllowed = isDocumentContextEditAllowed(state.enabledTools);
 
     if (hasCurrentDocument && editCurrentDocAllowed && userContent.length > 0) {
       // Layer 1: fast-path regex. Covers the common explicit-edit verbs
@@ -630,11 +765,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // phrasings the regex can't ("mach das knackiger", "polish this",
       // "kannst du das anders?", "ja, mach das" as a follow-up). Hard 800ms
       // timeout, fail-safe to chat path. See docsIntentTiebreak.ts.
-      const tiebreak = await classifyDocsIntentTiebreak({
-        userContent,
-        conversationContext,
-        aiWorkerPool,
-      });
+      const tiebreak = await classifyDocsIntentTiebreak({ userContent, conversationContext });
       if (tiebreak === 'edit') {
         const classificationTimeMs = Date.now() - startTime;
         log.info(`[Classifier] Live document edit (LLM tiebreak) → edit_current_doc`);
@@ -670,6 +801,44 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // Ein Rezept oder einen Grünerator-Agenten ANLEGEN geht in die Schleife,
+    // wo `recipes`/`user_agents` montiert sind — VOR allen Kontext-Zweigen
+    // von Tier 2: „erstell mir ein Rezept für Instagram-Posts" nennt eine
+    // Textsorte, und der Social-Post-Pfad machte daraus einen Post
+    // (`produktion`); „ein Rezept für die Zusammenfassung …" mit Anhang wurde
+    // zur Zusammenfassung; ein Anhang (klein, @Dokument, oder vektorisiert als
+    // `documentChatIds`), eine Wolke- oder Connect-Datei zwang den Turn sonst
+    // in die Zwangssuche des Einzeldurchlaufs. Die Schleife bringt beides
+    // selbst mit (Anhang-Seed samt `document_chat`, `cloud_files`). Anders als
+    // beim Dauerauftrag OHNE Pin: ein Pin erzwingt den ersten Aufruf, und ein
+    // Fehlalarm („ein Rezept für Kürbissuppe") legte dann ohne Rückfrage ein
+    // Rezept an — das Werkzeug zu wählen bleibt dem Planer.
+    //
+    // Auch mit gewähltem Notebook: `agenturaCreateOrder` hebt in `turnPlan` die
+    // Notebook-Sperre auf, und die Schleife liest das Notebook selbst
+    // (`notebook_quellen`, im Prompt benannt), bevor sie das Rezept anlegt.
+    const agenturaTarget = agenturaCreateTarget(state.lastUserTextNoMentions ?? userContent);
+    if (agenturaTarget) {
+      log.info(`[Classifier] Agentura create order → loop (${agenturaTarget})`);
+      recordDecision('classifier.tier', 'tier2_agentura_create', {
+        inputs: { target: agenturaTarget },
+      });
+      return {
+        intent: 'agentic',
+        searchSources: [],
+        searchQuery: userContent.slice(0, 500),
+        detectedFilters: null,
+        reasoning:
+          agenturaTarget === 'recipes'
+            ? 'Auftrag, ein Rezept anzulegen → Schleife mit recipes'
+            : 'Auftrag, einen Grünerator-Agenten anzulegen → Schleife mit user_agents',
+        agenturaCreateOrder: true,
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
     // ── TIER 2: Context intents (resource presence, no mutation keywords) ──
     // Summary detection: when documents/attachments are present AND user asks for summary,
     // force summary intent. Without documents, "fasse zusammen" goes to LLM for disambiguation
@@ -696,7 +865,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'DocumentChat',
         docCount: state.documentChatIds.length,
-        aiWorkerPool,
         userContent,
         conversationContext,
         topicalContext,
@@ -753,7 +921,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'Document',
         docCount: state.documentIds.length,
-        aiWorkerPool,
         userContent,
         conversationContext,
         topicalContext,
@@ -769,7 +936,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'Wolke',
         docCount: state.wolkeFiles.length,
-        aiWorkerPool,
         userContent,
         conversationContext,
         topicalContext,
@@ -786,7 +952,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'Connect',
         docCount: state.connectFiles.length,
-        aiWorkerPool,
         userContent,
         conversationContext,
         topicalContext,
@@ -800,6 +965,45 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Also detect compound queries: notebook + non-default agent = gather-then-apply pipeline.
     if (hasNotebooks) {
       const isNonDefaultAgent = state.agentConfig.identifier !== 'gruenerator-universal';
+
+      // Ein Werkzeugauftrag an ein EIGENES Notebook („sortiere die Quellen",
+      // „was steht auf Seite 12") geht in die Schleife, mit `notebook_quellen`
+      // als erstem Aufruf — dieselbe Form wie der Dauerauftrag in Tier 3.4. Der
+      // Pin macht den Turn zu `mustLoop` (`turnPlan`), das hebt die
+      // Notebook-Sperre in `decideRunAgentic` auf; das Werkzeug fällt ohne
+      // `notebookId` auf das gewählte Notebook zurück. Nicht bei benannten
+      // Agenten (`isCompound` hält sie im Einzeldurchlauf, der Pin liefe dort
+      // ins Leere). Ein System-Notebook nur, wenn das Werkzeug es lesen kann —
+      // EINE Sammlung, in der Locale des Turns — und nicht für einen
+      // Schreibauftrag (schreibgeschützt). Alles andere bleibt die gemessene
+      // Notebook-Suche unten.
+      if (
+        !isNonDefaultAgent &&
+        state.notebookIds.some(
+          (id) =>
+            isUserNotebookId(id) ||
+            (toolReadsSystemNotebook(id, state.userLocale ?? null) &&
+              !looksLikeNotebookWriteAsk(state.lastUserTextNoMentions ?? userContent))
+        ) &&
+        // Ohne Erwähnungen gelesen: `messages` tragen sie als „@Label", und ein
+        // Notebook namens „Kapitel 3 Satzung" pinnte sonst bei jeder Erwähnung.
+        looksLikeNotebookToolAsk(state.lastUserTextNoMentions ?? userContent)
+      ) {
+        log.info('[Classifier] Notebook tool ask → loop with notebook_quellen pinned');
+        recordDecision('classifier.tier', 'tier2_notebook_tool_ask', {});
+        return {
+          intent: 'agentic',
+          mentionPinnedTool: 'notebook_quellen',
+          searchSources: [],
+          searchQuery: userContent.slice(0, 500),
+          detectedFilters: null,
+          reasoning: 'Werkzeugauftrag an ein gewähltes Notebook → Werkzeug notebook_quellen',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+
       const gatherSources: GatherSource[] = ['notebook-search'];
 
       // Empty user content after mention stripping (e.g., "@hamburg @presse")
@@ -829,7 +1033,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'Notebook',
         docCount: state.notebookIds.length,
-        aiWorkerPool,
         userContent,
         conversationContext,
         topicalContext,
@@ -840,10 +1043,106 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       });
     }
 
+    // Kein Notebook im Turn, aber der Thread hat schon mit `notebook_quellen`
+    // gearbeitet: ein Werkzeugauftrag („zeig mir fünf Stellen …", „nenne mir die
+    // 10 relevantesten Quellen …") pinnt das Werkzeug, das dann das Notebook des
+    // Threads nimmt. Ohne Pin griff der Planer zu `gruenerator_search` und riet
+    // die Sammlung — live einmal „deutschland" statt Berlin (Testserver
+    // 24.09.2026). Kein Scope wie oben: eine Inhaltsfrage im selben Thread
+    // bleibt frei. Ein System-Notebook nicht für Schreibaufträge.
+    const threadNotebookId = state.threadNotebookId;
+    const askText = state.lastUserTextNoMentions ?? userContent;
+    if (
+      threadNotebookId &&
+      state.agentConfig.identifier === 'gruenerator-universal' &&
+      looksLikeNotebookToolAsk(askText) &&
+      (isUserNotebookId(threadNotebookId) || !looksLikeNotebookWriteAsk(askText))
+    ) {
+      log.info('[Classifier] Tool ask in a notebook thread → loop with notebook_quellen pinned');
+      recordDecision('classifier.tier', 'tier2_thread_notebook_tool_ask', {});
+      return {
+        intent: 'agentic',
+        mentionPinnedTool: 'notebook_quellen',
+        searchSources: [],
+        searchQuery: userContent.slice(0, 500),
+        detectedFilters: null,
+        reasoning: 'Werkzeugauftrag im Thread eines Notebooks → Werkzeug notebook_quellen',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // Der Turn davor hat mit `notebook_quellen` gearbeitet, und dieser knüpft
+    // nur daran an („nun die vorletzte", „die dritte davon", „ja dann mach
+    // das"). Ohne Pin fiel so ein Turn als vage Anschlussfrage auf
+    // `produktion` ohne Werkzeug (Beta 27.09.2026: „kein Werkzeug in diesem
+    // Turn"). Nicht für Erstellaufträge („mach daraus einen Post", „schreib
+    // eine PM dazu"), Höflichkeiten, Schreibaufträge an ein System-Notebook
+    // und nicht, wenn der Turn eigenes Material mitbringt.
+    const lastTurnNotebookId = state.lastTurnNotebookId;
+    if (
+      lastTurnNotebookId &&
+      state.agentConfig.identifier === 'gruenerator-universal' &&
+      !hasAttachmentContext &&
+      !hasImageAttachments &&
+      !hasBoards &&
+      !hasDocMentions &&
+      !hasCurrentDocument &&
+      continuesNotebookTurn(askText, messages) &&
+      !editsThreadArtifact(state, userContent) &&
+      (isUserNotebookId(lastTurnNotebookId) || !looksLikeNotebookWriteAsk(askText))
+    ) {
+      log.info(
+        '[Classifier] Follow-up on a notebook tool turn → loop with notebook_quellen pinned'
+      );
+      recordDecision('classifier.tier', 'tier2_notebook_turn_followup', {});
+      return {
+        intent: 'agentic',
+        mentionPinnedTool: 'notebook_quellen',
+        searchSources: [],
+        searchQuery: userContent.slice(0, 500),
+        detectedFilters: null,
+        reasoning: 'Anschluss an einen Notebook-Werkzeugturn → Werkzeug notebook_quellen',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
     // Context-only fallback branches — fire only when no search-capable
     // mention above already routed the request.
 
     if (hasAttachmentContext && userContent.length > 0) {
+      // Agent-bound default notebooks (or a deliberate composer pick): the
+      // attachment is working material (e.g. a pasted citizen email), but the
+      // answer must still be grounded in the notebook. `produktion` would skip
+      // the search stage entirely (intentExecutionService), so the mandatory
+      // research step of notebook-bound agents would silently never run. The
+      // topic for the query refiner lives in the attachment, not in the typed
+      // instruction ("Antworte auf diese E-Mail: …"), so pass an excerpt as
+      // topical context.
+      const defaultNotebookScopeCount =
+        (state.defaultNotebookCollectionIds?.length ?? 0) +
+        (state.defaultNotebookDocumentIds?.length ?? 0);
+      if (defaultNotebookScopeCount > 0) {
+        return classifyWithForcedSearch({
+          reason: 'AttachmentDefaultNotebook',
+          docCount: defaultNotebookScopeCount,
+          userContent,
+          conversationContext,
+          topicalContext: [
+            topicalContext,
+            `- Inhalt der hochgeladenen Datei: "${extractAttachmentTopicHint(state.attachmentContext!)}"`,
+          ]
+            .filter(Boolean)
+            .join('\n'),
+          temporal,
+          complexity,
+          startTime,
+        });
+      }
+
       log.info(
         `[Classifier] File attachment detected (${state.attachmentContext!.length} chars), forcing produktion intent`
       );
@@ -921,38 +1220,45 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // search node fires before respondNode.
     const agentWantsExamples =
       Array.isArray(state.agentConfig.enabledTools) &&
-      (state.agentConfig.enabledTools.includes('examples') ||
-        state.agentConfig.enabledTools.includes('pressemitteilung_examples')) &&
+      state.agentConfig.enabledTools.includes('examples') &&
       state.agentConfig.alwaysSearchesExamples === true;
     // For content-creation agents, the noun alone is enough — typical prompts
-    // are bare noun-phrases like "PM zu X" or "Tweet zur Verkehrswende"
-    // without an explicit creation verb. PMs and social-media posts live in
-    // different Qdrant collections, so split them into two intents and use
-    // secondaryIntent for mixed prompts ("Tweet UND PM zu X") so the search
-    // node can fan out.
+    // are bare noun-phrases like "Tweet zur Verkehrswende" without an explicit
+    // creation verb.
+    //
+    // Der PM-Arm ist mit dem Verdikt weg. Er lautete „wantsPm ?
+    // pressemitteilung_examples : social_post" plus `secondaryIntent:
+    // 'examples'` für gemischte Aufforderungen („Tweet UND PM zu X"). Gemessen
+    // erreichte er genau EINEN ausgelieferten Agenten: `alwaysSearchesExamples`
+    // steht nur auf `gruenerator-ricarda-lang` (Tweets, `enabledTools:
+    // ['examples']`, Sammlung `ricarda_lang_tweets`) — die LV-PR-Agenten, die
+    // `pressemitteilung_examples` in `enabledTools` führen, setzen das Flag
+    // nicht. Das Feld ist auch nirgends einstellbar (kein UI, keine Spalte).
+    // Eine PM-Aufforderung an den Tweet-Agenten fällt jetzt in die normale
+    // Klassifikation und schreibt mit dem Rezept `presse`, statt LV-PMs gegen
+    // eine Tweet-Sammlung zu suchen.
     if (agentWantsExamples && userContent.length > 0) {
-      const wantsPm = PM_NOUN_PATTERN.test(userContent);
-      const wantsSocial = SOCIAL_NOUN_PATTERN.test(userContent);
-      if (wantsPm || wantsSocial) {
-        // Social-only prompts route to `social_post` (text; a sharepic half
-        // only when the message names one). Mixed PM+social prompts keep the
-        // dual-search behavior.
-        const primary: SearchIntent = wantsPm ? 'pressemitteilung_examples' : 'social_post';
-        const secondary: SearchIntent | null = wantsPm && wantsSocial ? 'examples' : null;
-        // Platform hint for the social composer/generator. Null when
-        // unspecified → generic rubric.
-        const platform = detectSocialPlatform(userContent);
+      if (SOCIAL_NOUN_PATTERN.test(userContent)) {
+        // Das Verdikt hiess `social_post` und ist mit ihm gefallen. Was der
+        // Block WOLLTE, steht in seinem eigenen Namen: `alwaysSearchesExamples`
+        // — der Turn soll auf echten Posts der Kanäle gegründet sein, und
+        // genau das tut `examples`. Die Kombischeibe (Karte, Sharepic-Hälfte,
+        // eigene Rubrik) war nie das, wonach das Flag fragte.
+        //
+        // Die Textsorte trägt jetzt das Rezept: `examples` ist ein
+        // Einzeldurchlauf, und `deriveImplicitRecipeMention` wählt darauf
+        // `instagram`/`facebook`/… aus demselben Nutzertext, aus dem hier
+        // vorher `platform` gelesen wurde.
         log.info(
-          `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → primary=${primary}${secondary ? `, secondary=${secondary}` : ''}${platform ? `, platform=${platform}` : ''}`
+          `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → examples (Social-Auftrag)`
         );
         return {
-          intent: primary,
-          secondaryIntent: secondary,
-          platform,
+          intent: 'examples',
+          secondaryIntent: null,
           searchSources: [],
           searchQuery: extractSearchTopic(userContent) || userContent,
           detectedFilters: null,
-          reasoning: `Agent ${state.agentConfig.identifier} requires ${primary}${secondary ? ` + ${secondary}` : ''} grounding for content creation`,
+          reasoning: `Agent ${state.agentConfig.identifier} requires example grounding for content creation`,
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,
@@ -1074,21 +1380,34 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     if (looksLikeSocialCreation && userContent.length >= 10) {
       if (hasExplicitSharepicWord(userContent) && !POST_NOUN_PATTERN.test(userContent)) {
         // "Sharepic für Instagram" — a sharepic ask that merely names a
-        // platform. Defer to the sharepic route. Naming both ("Post mit
-        // Sharepic") stays here: social_post carries the sharepic half itself.
+        // platform. Defer to the sharepic route.
+        //
+        // Der zweite Halbsatz von früher („Post mit Sharepic" bleibt hier, weil
+        // social_post die Sharepic-Hälfte selbst trägt) ist mit dem Verdikt weg:
+        // ein Post-Auftrag ist jetzt ein Schreibauftrag, kein Artefakt-Auftrag.
+        // „Post MIT Sharepic" nennt das Post-Nomen und fällt deshalb weiter in
+        // den Zweig darunter — es wird zum Text, und das Sharepic bestellt man
+        // im nächsten Turn (oder direkt mit „Sharepic zu …").
         log.info('[Classifier] Sharepic-only ask with a platform hint — deferring');
       } else {
-        const platform = detectSocialPlatform(userContent);
-        log.info(
-          `[Classifier] Social post creation → social_post${platform ? ` (platform=${platform})` : ''}`
-        );
+        // Das Gitter bleibt, das Verdikt wechselt. Ein Social-Post ist eine
+        // TEXTSORTE, keine Artefaktart: `produktion` ist der Einzeldurchlauf,
+        // auf dem `deriveImplicitRecipeMention` das Rezept (`instagram`,
+        // `facebook`, `twitter`, `linkedin`, `reel`) setzt — korpusgestützt,
+        // mit AT-Gabelung, mit angelerntem Stil und mit LV-Vorzug. Die
+        // eingebaute Rubrik des alten Zweigs widersprach den Rezepten messbar.
+        //
+        // Warum der Block überhaupt stehenbleibt, statt die Heuristik machen zu
+        // lassen: er ist der Grund, warum ein Schreibauftrag nicht als
+        // Beispiel-Stöberei (`examples`, deren Verbliste `schreib` enthält) und
+        // nicht als Schleifen-Turn endet. Nur das Etikett war falsch.
+        log.info('[Classifier] Social post creation → produktion (Rezept schreibt)');
         return {
-          intent: 'social_post',
-          platform,
+          intent: 'produktion',
           searchSources: [],
           searchQuery: extractSearchTopic(userContent) || userContent,
           detectedFilters: null,
-          reasoning: 'Social post creation',
+          reasoning: 'Social post creation — Rezept auf dem Einzeldurchlauf',
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,
@@ -1121,7 +1440,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         // "Gib den Stand als JSON aus, keine Dokumentaktion" matches the modify
         // verbs and used to update the thread's last document anyway — this tier
         // is purely positive-patterned and had no negation check.
-        !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.document)
+        !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.document) &&
+        // "Erstelle eine aktualisierte Zusammenfassung in zwei Stichpunkten"
+        // orders a CHAT answer — the modify verb belongs to the summary, not
+        // the artifact. Sticks only when the document itself is named.
+        !asksForChatDeliverable(userContent, ARTIFACT_NOUN_BY_KIND.document)
       ) {
         log.info('[Classifier] Follow-up doc edit via lastToolContext → modify_doc', {
           ref: tc.ref,
@@ -1133,6 +1456,39 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           searchQuery: null,
           detectedFilters: null,
           reasoning: 'lastToolContext(document) + modification keywords → modify_doc on last doc',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+      // "Mach die erste Zeile fett" after a chat-created sheet: without this
+      // branch the follow-up fell through to GenerationScope, whose intent
+      // space is creation-only — it silently created a second, unrelated
+      // sheet instead of editing the one just made.
+      if (
+        tc.kind === 'sheet' &&
+        tc.ref &&
+        !hasCurrentDocument &&
+        !hasSheetMentions &&
+        !hasAnyDocuments &&
+        !hasBoards &&
+        docModifyPattern.test(userContent) &&
+        !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.sheet) &&
+        // Same escape as the doc branch: a summary/bullet-point order without
+        // the word "Tabelle" wants the answer in chat, not 7 sheet ops
+        // (QA 08/2026: the two Stichpunkte never appeared).
+        !asksForChatDeliverable(userContent, ARTIFACT_NOUN_BY_KIND.sheet)
+      ) {
+        log.info('[Classifier] Follow-up sheet edit via lastToolContext → edit_sheet', {
+          ref: tc.ref,
+        });
+        return {
+          intent: 'edit_sheet',
+          sheetEditId: tc.ref,
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'lastToolContext(sheet) + modification keywords → edit_sheet on last sheet',
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,
@@ -1456,15 +1812,22 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // Ein Dauerauftrag geht in die Schleife, nicht auf einen Intent: der Pin
+    // auf `recurring_tasks` zwingt den Turn hinein (`turnPlan`) und benennt den
+    // ersten Werkzeugaufruf (`pinnedFirstTool`), so wie `@umfragen` es über die
+    // Erwähnung tut — nur dass hier der Detektor pinnt. Der Loop-Planer füllt
+    // Takt und Zustellung selbst, und das Anlegen ist eine Karte; bis 09/2026
+    // schrieb der Intent `create_recurring_task` ohne Bestätigung in die DB.
     if (looksLikeRecurringOrder(userContent)) {
-      log.info('[Classifier] Recurring order (direct route, LLM skipped)');
+      log.info('[Classifier] Recurring order → loop with recurring_tasks pinned (LLM skipped)');
       recordDecision('classifier.tier', 'tier3.4_recurring_order', {});
       return {
-        intent: 'create_recurring_task',
+        intent: 'agentic',
+        mentionPinnedTool: 'recurring_tasks',
         searchSources: [],
         searchQuery: userContent.slice(0, 500),
         detectedFilters: null,
-        reasoning: 'Wiederkehrender Auftrag (Takt + Zustellung erkannt)',
+        reasoning: 'Wiederkehrender Auftrag (Takt + Zustellung erkannt) → Werkzeug recurring_tasks',
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,
@@ -1539,11 +1902,28 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // trigger names the connectors directly and opens the loop for them, so a
     // timetable question now takes the ordinary demotion path with its tools
     // already mounted. Holding it back would only delay that.
+    // Der Schalter gilt nur für die eine der zwei Türen, und der Unterschied ist
+    // der Preis der Demotion: sie TAUSCHT das Verdikt gegen `agentic`.
+    //
+    //  - Ein benanntes Abruf-Verdikt (`web`, `examples`, `bundestag`, …) kann
+    //    `executeIntentPipeline` selbst ausführen. Mit ausgeschalteter Schleife
+    //    wäre der Tausch also ein Verlust: der Entscheider fängt `agentic`
+    //    pauschal mit `search` auf, aus einer Websuche würde eine Qdrant-Suche.
+    //    Hier bleibt das Gate.
+    //  - Ein Prosa-Verdikt hat nichts zu verlieren. `produktion` heisst „aus dem
+    //    Gedächtnis antworten", und genau das ist die Antwortform, gegen die
+    //    diese Stufe gebaut ist. Mit ausgeschalteter Schleife ist der Auffang
+    //    auf `search` die bessere Antwort, nicht die schlechtere — deshalb
+    //    demotiert diese Tür unabhängig vom Schalter.
+    //
+    // Vorher hing das Gate über beiden. Der Opt-out-Pfad sagte damit zweierlei
+    // Verschiedenes zugleich: der Klassifikator liess einen abruf-förmigen Turn
+    // bei `produktion`, während der `agentic_to_search`-Auffang des Entscheiders
+    // für genau diesen Fall „dann such eben" vorsah und nie erreicht wurde.
     const demotable =
-      isAgenticLoopEnabled() &&
-      (DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent) ||
-        (NO_RETRIEVAL_VERDICTS.has(heuristic.intent) &&
-          (looksLikeToolableQuestion(userContent) || unsourcedWriting || !selfContained)));
+      (isAgenticLoopEnabled() && DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent)) ||
+      (NO_RETRIEVAL_VERDICTS.has(heuristic.intent) &&
+        (looksLikeToolableQuestion(userContent) || unsourcedWriting || !selfContained));
 
     const demoteToLoop = (tier: 'tier3.5_loop_demotion') => {
       log.info(
@@ -1613,11 +1993,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       GENERATION_SIGNAL.test(userContent) &&
       !isNegatedArtifactRequest(userContent, GENERATION_SIGNAL)
     ) {
-      const generation = await resolveGenerationScope({
-        userContent,
-        conversationContext,
-        aiWorkerPool,
-      });
+      const generation = await resolveGenerationScope({ userContent, conversationContext });
       if (generation !== null) {
         const resolvedIntent = generation === 'keine' ? 'produktion' : generation.intent;
         log.info(`[Classifier] Generation scope → ${resolvedIntent} (LLM tier skipped)`);
@@ -1669,10 +2045,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     return {
       intent: residualIntent,
-      // Recovered here rather than carried: `social_post` is reachable as a
-      // low-confidence heuristic verdict, and the composer rubric is
-      // platform-specific.
-      platform: residualIntent === 'social_post' ? detectSocialPlatform(userContent) : null,
       searchSources: detectSearchSources(userContent, residualIntent),
       searchQuery: (heuristic.searchQuery ?? extractSearchTopic(userContent) ?? userContent).slice(
         0,
@@ -1739,6 +2111,17 @@ function extractDocumentTopicHint(
 }
 
 /**
+ * Excerpt of an attachment's text for the query refiner. The typed user
+ * message of an attachment turn often carries no topic at all ("Antworte auf
+ * diese E-Mail: …") — the subject lives in the attachment. Mirrors
+ * extractDocumentTopicHint, minus the markdown stripping (attachments arrive
+ * as plain extracted text).
+ */
+function extractAttachmentTopicHint(attachmentContext: string): string {
+  return attachmentContext.replace(/\s+/g, ' ').trim().slice(0, 300);
+}
+
+/**
  * Compact topical hint for the query optimizer so anaphoric pronouns
  * ("dazu", "dies", "darüber", "dieses Dokument") can resolve to a concrete
  * subject. Skips `documentChat` — that anchor lives in its own classifier
@@ -1802,22 +2185,22 @@ async function pickThreadArtifact(
     isSharepicEditInstruction(userContent);
   if (!looksReferential) return fallback;
 
-  const index = await resolveEditTarget({
-    userContent,
-    artifacts,
-    aiWorkerPool: state.aiWorkerPool,
-  });
+  const index = await resolveEditTarget({ userContent, artifacts });
   return index == null ? fallback : artifacts[index];
 }
 
 /**
- * Helper for the 3 near-identical "force search intent with LLM query optimization" blocks.
- * Used by document chat, document mention, and notebook mention paths.
+ * Helper for the six near-identical "force search intent with LLM query
+ * optimization" blocks: @dokumentchat, @document, @wolke, @connect, @notebook
+ * and the attachment + default-notebook path.
+ *
+ * Everything that must hold for ALL forced-search turns belongs in HERE, not at
+ * the call sites — a field set at one of the six is a field missing from five,
+ * and the header used to count three, so the omission reads as complete.
  */
 async function classifyWithForcedSearch(opts: {
   reason: string;
   docCount: number;
-  aiWorkerPool: ChatGraphState['aiWorkerPool'];
   userContent: string;
   conversationContext: string | null;
   topicalContext: string | null;
@@ -1829,7 +2212,6 @@ async function classifyWithForcedSearch(opts: {
   const {
     reason,
     docCount,
-    aiWorkerPool,
     userContent,
     conversationContext,
     topicalContext,
@@ -1854,16 +2236,20 @@ async function classifyWithForcedSearch(opts: {
   // used. `documentSubtype` and `targetGroupName` are read only by document-
   // CREATION and share paths, which a forced-search turn never reaches.
   //
+  // `documentSubtype` was briefly set here, so that a search turn could tell
+  // respondNode which Textsorte it owed. It is gone again because the noun it
+  // detects answers "did the user SAY this word", not "did the user ORDER it" —
+  // and on these six paths the retrieval phrasing is the common one: "was steht
+  // in der Pressemitteilung", "fasse den Antrag zusammen". A note built on that
+  // tells the model to WRITE the thing it was asked to FIND. The ordered form
+  // now hangs on the recipe instead (`getOrderedTextFormNote` in respondNode),
+  // which carries its own negation/meta/transformation guards.
+  //
   // `secondaryIntent` is the one real behaviour change: it is now always null
   // here, so these turns stop being kicked out of the agentic loop by
   // `decideRunAgentic`'s secondary kill-switch. A document/notebook turn now
   // reaches the loop, where the model can actually call the retrieval tools.
-  const refined = await refineSearchQuery({
-    userContent,
-    conversationContext,
-    topicalContext,
-    aiWorkerPool,
-  });
+  const refined = await refineSearchQuery({ userContent, conversationContext, topicalContext });
   const optimizedQuery = refined?.query || extractSearchTopic(userContent) || userContent;
 
   log.info(
@@ -1903,6 +2289,6 @@ export {
 
 export type { HeuristicResult } from './classifierHeuristics.js';
 
-export { heuristicExtractFilters, LANDESVERBAND_ALIASES } from './classifierFilters.js';
+export { heuristicExtractFilters } from './classifierFilters.js';
 
 export { detectComplexity, detectSearchSources } from './classifierSignals.js';

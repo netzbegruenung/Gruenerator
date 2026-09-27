@@ -4,13 +4,21 @@ import {
   type FeedbackButtonMode,
   type StartPage,
   type SupportedLocale,
+  type TtsVoiceId,
   type UserProfile,
 } from '@gruenerator/contracts';
-import { getContractsClient, setApiLocale } from '@gruenerator/shared/api';
+import {
+  ApiError,
+  getContractsClient,
+  registerAiConsentRequiredHandler,
+  setApiLocale,
+} from '@gruenerator/shared/api';
+import { getPinnedLocale } from '@gruenerator/shared/instances';
 import { toast } from '@gruenerator/ui';
 import { create } from 'zustand';
 
 import apiClient, { setLoggingOutFlag } from '../components/utils/apiClient';
+import { CURRENT_INSTANCE } from '../config/instance';
 import { INSTANT_AUTH_CACHE, LOGIN_INTENT, LOGOUT_TIMESTAMP } from '../features/auth/storageKeys';
 import { authClient } from '../lib/authClient';
 import { sessionDebug } from '../lib/sessionDebug';
@@ -89,11 +97,22 @@ export interface AuthStore {
   updateLocale: (newLocale: SupportedLocale) => Promise<boolean>;
   updateChatBackground: (background: ChatBackground) => Promise<boolean>;
   updateStartPage: (page: StartPage) => Promise<boolean>;
+  updateTtsVoice: (voiceId: TtsVoiceId | null) => Promise<boolean>;
   updateFeedbackButton: (mode: FeedbackButtonMode) => Promise<boolean>;
   updateA11yPreference: (
     field: 'reduce_motion' | 'reduce_transparency' | 'show_skip_link',
     enabled: boolean
   ) => Promise<boolean>;
+  /**
+   * Ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO in die
+   * Verarbeitung besonderer Kategorien (die Eingaben können politische
+   * Meinungen enthalten). `true` erteilt, `false` widerruft.
+   *
+   * Nicht optimistisch: eine erteilte Einwilligung, die der Server nie
+   * angenommen hat, wäre eine falsche Behauptung genau an der Stelle, an der
+   * es auf den Nachweis ankommt.
+   */
+  setAiConsent: (granted: boolean) => Promise<boolean>;
 }
 
 // Detect browser locale for unauthenticated default
@@ -103,6 +122,20 @@ function detectBrowserLocale(): SupportedLocale {
     if (lang?.startsWith('de-AT')) return 'de-AT';
   }
   return 'de-DE';
+}
+
+/**
+ * The locale this app actually runs in: the instance's pin if it has one,
+ * otherwise the user's stored preference, otherwise the browser guess.
+ *
+ * The pin outranks the stored value on purpose. An instance that pins its
+ * locale does not deploy the other country's notebooks, agents and recipes, so
+ * honouring a `de-AT` profile there would not translate the app — it would
+ * empty it, and the settings switch that produced the value is gone too, which
+ * would leave no way back. `GeneralTab` hides the switch from the same source.
+ */
+function effectiveLocale(stored?: string | null): SupportedLocale {
+  return getPinnedLocale(CURRENT_INSTANCE) ?? (stored as SupportedLocale) ?? detectBrowserLocale();
 }
 
 // Storage key aliases. The literals live in `features/auth/storageKeys.ts` so every
@@ -156,12 +189,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   selectedMessageColor: '#008939', // Default Klee
 
   // Locale/language preference
-  locale: detectBrowserLocale(),
+  locale: effectiveLocale(),
 
   // Main actions
   setAuthState: (data: AuthStateData) => {
-    const userLocale: SupportedLocale =
-      (data.user?.locale as SupportedLocale) || detectBrowserLocale();
+    const userLocale: SupportedLocale = effectiveLocale(data.user?.locale);
     // Let every API client advertise the profile locale from here on. Until
     // this point the header carries the browser guess, which is wrong for an
     // AT user on a German-language browser.
@@ -231,7 +263,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     // No profile any more — fall back to the browser guess, in the store and on
     // the wire alike, so the next (anonymous) request stops claiming the old
     // user's locale.
-    const browserLocaleOnLogout = detectBrowserLocale();
+    const browserLocaleOnLogout = effectiveLocale();
     setApiLocale(browserLocaleOnLogout);
 
     // Reset store to default state
@@ -265,7 +297,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
     const res = await getContractsClient().userProfile.updateProfile({ body });
     if (res.status !== 200) {
-      throw new Error(`Profil-Update fehlgeschlagen (HTTP ${res.status})`);
+      throw new ApiError(res.status, `Profil-Update fehlgeschlagen (HTTP ${res.status})`);
     }
 
     // Update user in store with new profile data
@@ -282,7 +314,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       body: { avatar_robot_id: Number(avatarRobotId) },
     });
     if (res.status !== 200) {
-      throw new Error(`Avatar-Update fehlgeschlagen (HTTP ${res.status})`);
+      throw new ApiError(res.status, `Avatar-Update fehlgeschlagen (HTTP ${res.status})`);
     }
 
     // Update user in store with new avatar
@@ -301,7 +333,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       const res = await getContractsClient().userProfile.updateMessageColor({ body: { color } });
       if (res.status !== 200) {
-        throw new Error(`Message Color Update fehlgeschlagen (HTTP ${res.status})`);
+        throw new ApiError(res.status, `Message Color Update fehlgeschlagen (HTTP ${res.status})`);
       }
 
       return res.body.messageColor;
@@ -499,7 +531,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
 
       if (res.status !== 200) {
-        throw new Error(`Konto-Löschung fehlgeschlagen (HTTP ${res.status})`);
+        throw new ApiError(res.status, `Konto-Löschung fehlgeschlagen (HTTP ${res.status})`);
       }
 
       // Clear local auth state
@@ -645,9 +677,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         }
       }
 
-      // Update store
+      // Update store. `user.locale` muss mitziehen: es ist der rohe Profilwert,
+      // an dem das LocaleGate erkennt, ob das Land bekannt ist — bliebe er leer,
+      // stünde der Dialog nach der Wahl sofort wieder da.
       setApiLocale(newLocale);
-      set({ locale: newLocale });
+      set((state) => ({
+        locale: newLocale,
+        ...(state.user && { user: { ...state.user, locale: newLocale } }),
+      }));
 
       return true;
     } catch (error: unknown) {
@@ -671,7 +708,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         body: { background },
       });
       if (result.status !== 200) {
-        throw new Error(`HTTP ${result.status}`);
+        throw new ApiError(result.status, `HTTP ${result.status}`);
       }
       return true;
     } catch (error: unknown) {
@@ -709,6 +746,37 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[AuthStore] Error updating start page:', errorMessage);
       toast.error('Startseite konnte nicht gespeichert werden.');
+      return false;
+    }
+  },
+
+  // Voice for speech output. `null` clears the choice; the server then uses
+  // DEFAULT_TTS_VOICE_ID. Persisted via the profile update contract like the
+  // start page, so the session caches learn about it on the same path.
+  updateTtsVoice: async (voiceId: TtsVoiceId | null): Promise<boolean> => {
+    try {
+      const result = await getContractsClient().userProfile.updateProfile({
+        body: { tts_voice_id: voiceId },
+      });
+      if (result.status !== 200) {
+        console.error('[AuthStore] Error updating voice:', result.status);
+        toast.error('Stimme konnte nicht gespeichert werden.');
+        return false;
+      }
+
+      set((state) => ({
+        // The profile omits the field when cleared; drop the stale value so the
+        // settings row falls back to "Standard" instead of showing the old one.
+        user: state.user
+          ? { ...state.user, tts_voice_id: undefined, ...result.body.profile }
+          : null,
+      }));
+
+      return true;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[AuthStore] Error updating voice:', errorMessage);
+      toast.error('Stimme konnte nicht gespeichert werden.');
       return false;
     }
   },
@@ -755,7 +823,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         body: { [field]: enabled },
       });
       if (result.status !== 200) {
-        throw new Error(`HTTP ${result.status}`);
+        throw new ApiError(result.status, `HTTP ${result.status}`);
       }
       return true;
     } catch (error: unknown) {
@@ -768,7 +836,41 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       return false;
     }
   },
+
+  setAiConsent: async (granted: boolean): Promise<boolean> => {
+    try {
+      const result = await getContractsClient().userProfile.updateProfile({
+        body: { ai_consent: granted },
+      });
+      if (result.status !== 200) {
+        throw new ApiError(result.status, `HTTP ${result.status}`);
+      }
+      const ai_consent_at = result.body.profile?.ai_consent_at ?? null;
+      set((state) => ({
+        user: state.user ? { ...state.user, ai_consent_at } : null,
+      }));
+      return true;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[AuthStore] Error updating AI consent:', errorMessage);
+      toast.error('Einwilligung konnte nicht gespeichert werden.');
+      return false;
+    }
+  },
 }));
+
+// Der Server hat einen KI-Eingang mit „Einwilligung fehlt" abgewiesen. Damit
+// ist der Zeitstempel im Store nachweislich veraltet — auf `null` gezogen
+// erscheint AiConsentGate von selbst, statt dass die Nutzer*in vor einem Fehler
+// steht, den sie im Dialog längst ausräumen könnte. Web hält einen eigenen
+// Auth-Store, muss sich also eigens eintragen (Mobile erbt die Registrierung
+// aus dem geteilten Store).
+registerAiConsentRequiredHandler(() => {
+  const { user } = useAuthStore.getState();
+  if (user && user.ai_consent_at != null) {
+    useAuthStore.setState({ user: { ...user, ai_consent_at: null } });
+  }
+});
 
 // Export legacy helpers for backward compatibility
 export { legacyHelpers };

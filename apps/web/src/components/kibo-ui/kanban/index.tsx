@@ -27,7 +27,6 @@ import {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
-import tunnel from 'tunnel-rat';
 
 import type {
   Announcements,
@@ -35,14 +34,13 @@ import type {
   DndContextProps,
   DraggableAttributes,
   DraggableSyntheticListeners,
+  DragCancelEvent,
   DragEndEvent,
   DragOverEvent,
   DragStartEvent,
 } from '@dnd-kit/core';
 
 import { cn } from '@/utils/cn';
-
-const t = tunnel();
 
 export type { DragEndEvent } from '@dnd-kit/core';
 
@@ -63,14 +61,12 @@ type KanbanContextProps<
 > = {
   columns: C[];
   data: T[];
-  activeCardId: string | null;
   cardsByColumn: Map<string, T[]>;
 };
 
 const KanbanContext = createContext<KanbanContextProps>({
   columns: [],
   data: [],
-  activeCardId: null,
   cardsByColumn: new Map(),
 });
 
@@ -176,7 +172,6 @@ const KanbanCardInner = <T extends KanbanItemProps = KanbanItemProps>({
     // mitten in einer deutschen Oberfläche vor.
     attributes: { roleDescription: 'Aufgabenkarte' },
   });
-  const { activeCardId } = useContext(KanbanContext) as KanbanContextProps;
 
   const style = useMemo(
     () => ({ transition, transform: CSS.Transform.toString(transform) }),
@@ -199,41 +194,26 @@ const KanbanCardInner = <T extends KanbanItemProps = KanbanItemProps>({
   );
 
   return (
-    <>
-      <div style={style} {...pointerListeners} ref={setNodeRef}>
-        <div
-          className={cn(
-            'group/kanban-card relative cursor-grab rounded-[6px] bg-background-pure dark:bg-[#282828] border border-grey-200 dark:border-[#333] shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:shadow-none transition-shadow hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:hover:shadow-none',
-            isDragging && 'pointer-events-none cursor-grabbing opacity-30',
-            className
-          )}
+    <div style={style} {...pointerListeners} ref={setNodeRef}>
+      <div
+        className={cn(
+          'group/kanban-card relative cursor-grab rounded-[6px] bg-background-pure dark:bg-[#282828] border border-grey-200 dark:border-[#333] shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:shadow-none transition-shadow hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:hover:shadow-none',
+          isDragging && 'pointer-events-none cursor-grabbing opacity-30',
+          className
+        )}
+      >
+        <button
+          type="button"
+          aria-label={`Karte „${name}" verschieben`}
+          className="absolute right-0.5 top-0.5 z-20 cursor-grab touch-none rounded border-none bg-transparent p-0.5 text-grey-400 opacity-0 transition-opacity hover:bg-grey-200 hover:text-foreground focus-visible:opacity-100 group-hover/kanban-card:opacity-100 dark:hover:bg-grey-800"
+          {...attributes}
+          {...listeners}
         >
-          <button
-            type="button"
-            aria-label={`Karte „${name}" verschieben`}
-            className="absolute right-0.5 top-0.5 z-20 cursor-grab touch-none rounded border-none bg-transparent p-0.5 text-grey-400 opacity-0 transition-opacity hover:bg-grey-200 hover:text-foreground focus-visible:opacity-100 group-hover/kanban-card:opacity-100 dark:hover:bg-grey-800"
-            {...attributes}
-            {...listeners}
-          >
-            <DragGrip />
-          </button>
-          {children ?? <p className="m-0 font-medium text-sm">{name}</p>}
-        </div>
+          <DragGrip />
+        </button>
+        {children ?? <p className="m-0 font-medium text-sm">{name}</p>}
       </div>
-      {activeCardId === id && (
-        <t.In>
-          <div
-            className={cn(
-              'cursor-grab rounded-[6px] bg-background-pure dark:bg-[#282828] shadow-lg ring-2 ring-primary-500 border border-grey-200 dark:border-[#333]',
-              isDragging && 'cursor-grabbing',
-              className
-            )}
-          >
-            {children ?? <p className="m-0 font-medium text-sm">{name}</p>}
-          </div>
-        </t.In>
-      )}
-    </>
+    </div>
   );
 };
 
@@ -288,6 +268,12 @@ export type KanbanProviderProps<
   onDragStart?: (event: DragStartEvent) => void;
   onDragEnd?: (event: DragEndEvent) => void;
   onDragOver?: (event: DragOverEvent) => void;
+  onDragCancel?: (event: DragCancelEvent) => void;
+  /**
+   * Inhalt der Karte im DragOverlay. Ohne diese Funktion zeigt das Overlay
+   * nur den Kartennamen.
+   */
+  renderOverlay?: (item: T) => ReactNode;
 };
 
 export const KanbanProvider = <
@@ -298,6 +284,8 @@ export const KanbanProvider = <
   onDragStart,
   onDragEnd,
   onDragOver,
+  onDragCancel,
+  renderOverlay,
   className,
   columns,
   data,
@@ -315,6 +303,7 @@ export const KanbanProvider = <
   );
 
   const itemById = useMemo(() => new Map(data.map((item) => [item.id, item])), [data]);
+  const activeItem = activeCardId === null ? null : (itemById.get(activeCardId) ?? null);
   const itemIndexById = useMemo(() => new Map(data.map((item, i) => [item.id, i])), [data]);
   const columnById = useMemo(() => new Map(columns.map((col) => [col.id, col])), [columns]);
   const columnIds = useMemo(() => columns.map((col) => col.id), [columns]);
@@ -428,6 +417,18 @@ export const KanbanProvider = <
     [columnById, itemById, columns, onColumnReorder, itemIndexById, data, onDataChange, onDragEnd]
   );
 
+  // dnd-kit bricht ein Ziehen auch von sich aus ab — Escape, `visibilitychange`
+  // (Tab in den Hintergrund, Rechner in den Ruhezustand). Ohne diesen Zweig
+  // bliebe `activeCardId` bis zum nächsten Ziehen stehen und das Overlay
+  // zeigte die Karte weiter.
+  const handleDragCancel = useCallback(
+    (event: DragCancelEvent) => {
+      setActiveCardId(null);
+      onDragCancel?.(event);
+    },
+    [onDragCancel]
+  );
+
   const announcements: Announcements = useMemo(
     () => ({
       onDragStart({ active }) {
@@ -453,8 +454,8 @@ export const KanbanProvider = <
   );
 
   const contextValue = useMemo(
-    () => ({ columns, data, activeCardId, cardsByColumn }),
-    [columns, data, activeCardId, cardsByColumn]
+    () => ({ columns, data, cardsByColumn }),
+    [columns, data, cardsByColumn]
   );
 
   return (
@@ -462,6 +463,7 @@ export const KanbanProvider = <
       <DndContext
         accessibility={{ announcements }}
         collisionDetection={collisionDetection}
+        onDragCancel={handleDragCancel}
         onDragEnd={handleDragEnd}
         onDragOver={handleDragOver}
         onDragStart={handleDragStart}
@@ -474,10 +476,24 @@ export const KanbanProvider = <
           </SortableContext>
           {after}
         </div>
+        {/* Das Overlay wird hier direkt aus der aktiven Karte gebaut, nicht wie
+            in der kibo-ui-Vorlage per tunnel-rat aus dem Kartenbaum
+            herausgereicht. Der Tunnel schrieb in einem Layout-Effekt der Karte
+            in einen externen Store, den das Overlay per useSyncExternalStore
+            las — eine Kette aus lauter Layout-Phase-Updates, an deren Ende
+            React #185 (GlitchTip 540/471, Issue #3214) auslöste. */}
         {typeof window !== 'undefined' &&
           createPortal(
             <DragOverlay>
-              <t.Out />
+              {activeItem && (
+                <div className="cursor-grabbing rounded-[6px] border border-grey-200 bg-background-pure shadow-lg ring-2 ring-primary-500 dark:border-[#333] dark:bg-[#282828]">
+                  {renderOverlay ? (
+                    renderOverlay(activeItem)
+                  ) : (
+                    <p className="m-0 font-medium text-sm">{activeItem.name}</p>
+                  )}
+                </div>
+              )}
             </DragOverlay>,
             document.body
           )}

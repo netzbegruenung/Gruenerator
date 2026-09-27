@@ -9,7 +9,7 @@ import {
 import { useAuiState } from '@assistant-ui/store';
 import { useCollaborators, PresenceAvatars, TypingIndicator } from '@gruenerator/collab';
 import { QuoteIcon } from 'lucide-react';
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { useChatCollaborationContext } from '../../context/ChatCollaborationContext';
 import { useActiveAgentMeta } from '../../lib/useActiveAgentMeta';
@@ -22,6 +22,8 @@ import { ChatDensityContext, type ChatDensity } from './chatDensityContext';
 import { CompactionIndicator } from './CompactionIndicator';
 import { GrueneratorComposer } from './GrueneratorComposer';
 import { InlineAttachmentNotice } from './InlineAttachmentNotice';
+import { ThreadLoadingSkeleton } from './ThreadLoadingSkeleton';
+import { ThreadSearchBar } from './ThreadSearchBar';
 import { UserMessage } from './UserMessage';
 import { WelcomeScreen } from './WelcomeScreen';
 
@@ -40,6 +42,12 @@ interface GrueneratorThreadProps {
     sendAdornment?: ReactNode;
   };
   requireProfileHydration?: boolean;
+  /**
+   * Strg/Cmd+F opens find-in-conversation. Off by default: the side-panel
+   * assistants (Docs, Sheets, Präsentationen, Boards) render this same thread
+   * next to a document, and there Cmd+F belongs to the document.
+   */
+  enableSearch?: boolean;
   enablePastedTextAttachments?: boolean;
   /**
    * Extra classes on the thread's root. The one surface a consumer can dress:
@@ -83,14 +91,21 @@ function VoiceOrbOverlay() {
   // the live transcript (auto-rendered from emitTranscript) stays visible
   // and the user reads the conversation in parallel with the audio.
   return (
-    <button
-      type="button"
-      onClick={() => disconnect()}
-      aria-label="Sprachsitzung beenden"
-      className="absolute left-1/2 top-6 z-30 -translate-x-1/2 rounded-full p-2 transition-transform animate-in fade-in zoom-in-90 duration-300 hover:scale-105"
-    >
-      <VoiceOrb className="size-44 drop-shadow-2xl md:size-56" />
-    </button>
+    <div className="absolute left-1/2 top-6 z-30 flex -translate-x-1/2 flex-col items-center gap-1 animate-in fade-in zoom-in-90 duration-300">
+      <button
+        type="button"
+        onClick={() => disconnect()}
+        aria-label="Sprachsitzung beenden"
+        className="rounded-full p-2 transition-transform hover:scale-105"
+      >
+        <VoiceOrb className="size-44 drop-shadow-2xl md:size-56" />
+      </button>
+      {/* Kennzeichnung als KI-Dialog (Art. 50 Abs. 1 KI-VO): der Orb allein
+          sagt nicht, dass hier eine KI antwortet. */}
+      <p className="rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-foreground-muted backdrop-blur">
+        KI-Sprachdialog — Antworten werden von einer KI erzeugt
+      </p>
+    </div>
   );
 }
 
@@ -105,6 +120,7 @@ export function GrueneratorThread({
   showModelPicker,
   composerSlots,
   requireProfileHydration,
+  enableSearch = false,
   className,
   composerVariant = 'card',
   enablePastedTextAttachments,
@@ -112,6 +128,30 @@ export function GrueneratorThread({
 }: GrueneratorThreadProps = {}) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const messageComponents = useMemo(() => ({ UserMessage, AssistantMessage }), []);
+  // The Viewport owns the scroll box AND the viewport context provider, which
+  // is rendered inside it — a sibling above cannot read that context, but the
+  // primitive forwards its ref, so the element itself is reachable.
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  // Bumped on every Cmd+F so a second press re-selects the field rather than
+  // closing the bar; the bar focuses whenever this changes.
+  const [searchFocusToken, setSearchFocusToken] = useState(0);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+
+  useEffect(() => {
+    if (!enableSearch) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'f' || !(event.metaKey || event.ctrlKey) || event.altKey) return;
+      // Scoping the browser's own find to this conversation is the feature:
+      // native find also matches the composer, the sidebar and every tool chip,
+      // and has no notion of "hit 3 of 12 in this thread".
+      event.preventDefault();
+      setSearchOpen(true);
+      setSearchFocusToken((token) => token + 1);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [enableSearch]);
   const collab = useChatCollaborationContext();
   const collaborators = useCollaborators(collab?.provider ?? null);
   const isCompact = density === 'compact';
@@ -130,12 +170,28 @@ export function GrueneratorThread({
           </div>
         )}
 
-        <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden scrollbar-thin">
+        {enableSearch && searchOpen && (
+          <ThreadSearchBar
+            viewportRef={viewportRef}
+            focusToken={searchFocusToken}
+            onClose={closeSearch}
+            className="absolute top-3 left-1/2 z-20 -translate-x-1/2"
+          />
+        )}
+
+        <ThreadPrimitive.Viewport
+          ref={viewportRef}
+          className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden scrollbar-thin"
+        >
+          {/* `relative` hält absolut positionierte Nachfahren (v. a. `sr-only`)
+              im Scrollbereich: sonst ist ihr Enthaltender-Block der Root
+              oberhalb des Viewports, ihr Überhang entkommt dessen Kappung und
+              verlängert das Dokument. */}
           <div
             className={
               isCompact
-                ? 'flex flex-grow flex-col gap-2 px-2 pt-3 pb-2'
-                : 'flex flex-grow flex-col gap-6 px-4 pt-8 pb-4 sm:px-6 lg:px-8'
+                ? 'relative flex flex-grow flex-col gap-2 px-2 pt-3 pb-2'
+                : 'relative flex flex-grow flex-col gap-6 px-4 pt-8 pb-4 sm:px-6 lg:px-8'
             }
           >
             <AuiIf condition={(s) => s.thread.isEmpty}>
@@ -149,6 +205,10 @@ export function GrueneratorThread({
                   ? { welcomeQuestion: activeAgent.welcomeQuestion }
                   : {})}
               />
+            </AuiIf>
+
+            <AuiIf condition={(s) => s.thread.isLoading}>
+              <ThreadLoadingSkeleton compact={isCompact} />
             </AuiIf>
 
             <CompactionIndicator />

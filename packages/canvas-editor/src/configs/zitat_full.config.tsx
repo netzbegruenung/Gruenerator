@@ -7,6 +7,7 @@
 
 import { ZITAT_CONFIG, calculateZitatLayout } from '../utils/zitatLayout';
 
+import { DEFAULT_PHOTO_BACKGROUND_DE, PHOTO_BACKGROUND_COLORS_DE } from './backgroundPalettes';
 import {
   createAiCapabilities,
   createImageTwoTextCanvas,
@@ -97,8 +98,14 @@ const baseZitatConfig = createImageTwoTextCanvas({
   primaryField: { key: 'quote', label: 'Zitat' },
   secondaryField: { key: 'name', label: 'Name' },
   calculateLayout,
+  // The quote mark reads these two keys but the factory's base state does not
+  // declare them, so without the passthrough every chat edit to it was dropped
+  // by the initial-state whitelist. Same list as zitat_pure_full.
+  passthroughStateKeys: ['quoteMarkOffset', 'quoteMarkOpacity'],
   elements: [quoteMarkElement, quoteTextElement, nameTextElement],
   features: { icons: true, shapes: true, illustrations: true },
+  backgroundColors: PHOTO_BACKGROUND_COLORS_DE,
+  defaultBackgroundColor: DEFAULT_PHOTO_BACKGROUND_DE,
   gradientOpacity: ZITAT_CONFIG.gradient.bottomOpacity,
   getCanvasText: (state) => {
     const quote = state.quote || '';
@@ -124,6 +131,7 @@ const zitatAiCapabilities = createAiCapabilities<ZitatState, ImageTwoTextActions
       setter: (a) => a.setSecondary,
     },
   ],
+  background: { read: (s) => (s.backgroundColor ?? DEFAULT_PHOTO_BACKGROUND_DE) as `#${string}` },
 });
 
 export const zitatFullConfig = wrapWithAi(baseZitatConfig, 'zitat', zitatAiCapabilities);

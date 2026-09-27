@@ -59,6 +59,9 @@ interface BuildOpts {
   connectFiles: ConnectFileRef[];
   threadAttachments: ChatGraphState['threadAttachments'];
   currentDocument: ChatGraphState['currentDocument'];
+  /** documentId → Dateiname für Anhänge, die in DIESEM Turn hochgeladen wurden
+   *  und deshalb noch in keiner `threadAttachments`-Zeile stehen. */
+  documentChatLabels?: Record<string, string> | undefined;
 }
 
 /**
@@ -69,13 +72,45 @@ interface BuildOpts {
  */
 export function buildDocumentSources(opts: BuildOpts): DocumentSource[] {
   const sources: DocumentSource[] = [];
+  // An attachment that was vectorized carries its Qdrant id — that id is what
+  // arrives here as a documentChatId, so the file's real name is recoverable.
+  const nameByDocumentId = new Map([
+    // Anhänge früherer Turns …
+    ...(opts.threadAttachments ?? [])
+      .filter((a) => !a.isImage && a.documentId)
+      .map((a) => [a.documentId as string, a.name] as const),
+    // … und die dieses Turns, die es noch in keine Anhang-Zeile geschafft
+    // haben (die entsteht erst nach der Antwort). Zuletzt, damit der frische
+    // Name gewinnt, falls dieselbe id in beiden steht.
+    ...Object.entries(opts.documentChatLabels ?? {}),
+  ]);
+  let unnamed = 0;
+  /**
+   * A label for a source we only know by id.
+   *
+   * Never a slice of the id. `Dokument a13dc241` was rendered into the system
+   * prompt by getSynthesisGuidance ("1. **Dokument a13dc241** (Quelle 1)"), the
+   * model read it as the document's identifier and handed it to `read_artifact`
+   * — which passed it to `WHERE id = $2::uuid` and got 22P02 back. Twice in one
+   * turn on 13.08.2026. A truncated identifier is not an identifier, and the
+   * eight characters told the reader nothing a counter doesn't.
+   */
+  const fallbackLabel = (noun: string): string => `${noun} ${++unnamed}`;
 
   for (const id of opts.documentIds) {
-    sources.push({ kind: 'document', id, label: `Datei ${shortId(id)}` });
+    sources.push({
+      kind: 'document',
+      id,
+      label: nameByDocumentId.get(id) ?? fallbackLabel('Datei'),
+    });
   }
 
   for (const id of opts.documentChatIds) {
-    sources.push({ kind: 'document_chat', id, label: `Dokument ${shortId(id)}` });
+    sources.push({
+      kind: 'document_chat',
+      id,
+      label: nameByDocumentId.get(id) ?? fallbackLabel('Dokument'),
+    });
   }
 
   for (const id of opts.docMentionIds) {
@@ -84,7 +119,11 @@ export function buildDocumentSources(opts: BuildOpts): DocumentSource[] {
     // separate Qdrant index to retrieve from. Skip it here so it isn't fanned
     // out as a phantom 0-result search source. Mirrors classifierNode.ts:150-152.
     if (id === opts.currentDocument?.id) continue;
-    sources.push({ kind: 'doc_mention', id, label: `@${shortId(id)}` });
+    sources.push({
+      kind: 'doc_mention',
+      id,
+      label: nameByDocumentId.get(id) ?? fallbackLabel('Dokument'),
+    });
   }
 
   for (const id of opts.notebookIds) {
@@ -130,11 +169,6 @@ export function buildDocumentSources(opts: BuildOpts): DocumentSource[] {
   }
 
   return sources;
-}
-
-function shortId(id: string): string {
-  if (id.length <= 8) return id;
-  return id.slice(0, 8);
 }
 
 function notebookLabel(id: string): string {

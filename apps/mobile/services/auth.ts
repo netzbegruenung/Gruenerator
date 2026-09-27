@@ -1,3 +1,4 @@
+import { useUserProfileStore } from '@gruenerator/chat/stores';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useAuthStore, setAuthStoreConfig } from '@gruenerator/shared/stores';
 import { isAxiosError } from 'axios';
@@ -7,6 +8,8 @@ import * as WebBrowser from 'expo-web-browser';
 import { getErrorMessage } from '../utils/errors';
 
 import { getGlobalApiClient, API_ENDPOINTS } from './api';
+import { type AuthSource } from './loginProviders';
+import { queryClient } from './queryClient';
 import { secureStorage } from './storage';
 
 import type { ProfileUpdateBody } from '@gruenerator/contracts';
@@ -16,8 +19,10 @@ WebBrowser.maybeCompleteAuthSession();
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
-export type AuthSource =
-  'gruenerator-login' | 'gruenes-netz-login' | 'netzbegruenung-login' | 'gruene-oesterreich-login';
+// Derived from the provider table rather than spelled out again — see
+// `loginProviders.ts` for why it is defined over there. Re-exported so the
+// callers that have always imported it from here keep working.
+export type { AuthSource };
 
 export const REDIRECT_URI = makeRedirectUri({
   scheme: 'gruenerator',
@@ -40,6 +45,17 @@ export function configureAuthStore(): void {
   setAuthStoreConfig({
     onClearAuth: async () => {
       await secureStorage.clearAll();
+      // Das Profil der abgemeldeten Person mit abräumen — sonst hielte der
+      // Store ihre Rollen weiter, `isHydrated` bliebe true, und das nächste
+      // Konto sähe bis zum Eintreffen seiner eigenen Antwort die
+      // Landesverbands-Zuteilung des vorigen. Also genau der Fehler, gegen den
+      // die Zuteilung überhaupt da ist, nur mit vertauschten Konten.
+      //
+      // Beide Speicher, nicht einer: der Query-Cache hält dieselbe Antwort
+      // unter einem kontounabhängigen Schlüssel und würde den Store beim
+      // nächsten Mount sofort wieder damit füllen.
+      queryClient.clear();
+      useUserProfileStore.getState().reset();
     },
 
     // Both go through the contracts client rather than raw axios. Two things
@@ -68,6 +84,17 @@ export function configureAuthStore(): void {
 
     updateMessageColorApi: async (color: string) => {
       await apiClient.patch(API_ENDPOINTS.AUTH_PROFILE_COLOR, { color });
+    },
+
+    // Eigener Weg statt updateProfileApi: `ai_consent` ist kein Profilfeld,
+    // sondern die Anweisung daran, und der Server antwortet mit dem Zeitstempel,
+    // den er gesetzt hat.
+    setAiConsentApi: async (granted: boolean) => {
+      const res = await getContractsClient().userProfile.updateProfile({
+        body: { ai_consent: granted },
+      });
+      if (res.status !== 200) throw new Error('Einwilligung konnte nicht gespeichert werden.');
+      return res.body.profile.ai_consent_at ?? null;
     },
 
     updateLocaleApi: async (locale: 'de-DE' | 'de-AT') => {

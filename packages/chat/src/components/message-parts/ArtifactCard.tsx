@@ -2,14 +2,14 @@
 
 import { Code2, ExternalLink } from 'lucide-react';
 
-import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
+import { useArtifactLiveStore, type CodeArtifact } from '../../stores/artifactLiveStore';
 
 /**
  * Inline chat card for a generated artifact. The docked ArtifactPanel scrolls
  * away during a long conversation; clicking this card re-opens the artifact in
  * the panel (mirrors how SharepicVariantCard re-activates a sharepic).
  */
-export function ArtifactCard({ artifact }: { artifact: ActiveArtifact }) {
+export function ArtifactCard({ artifact }: { artifact: CodeArtifact }) {
   const activeId = useArtifactLiveStore((s) => s.activeArtifact?.id);
   const isOpen = activeId === artifact.id;
 

@@ -169,14 +169,15 @@ export const createDocumentBodySchema = z.object({
 
 /**
  * Body for PUT /api/docs/:id (updateDocument). Replaces the legacy raw controller
- * route. `content`/`wolke_live_sync` are kept so this fully covers the old PUT
- * (title/folder rename is the common case; content + live-sync are editor paths).
+ * route. `content` is kept so this fully covers the old PUT (title/folder rename
+ * is the common case; content is the editor path). `wolke_live_sync` was removed
+ * with the write access to Wolke — old clients still sending it get the key
+ * stripped, not a 400.
  */
 export const updateDocumentBodySchema = z.object({
   title: z.string().nullish(),
   folder_id: z.string().nullish(),
   content: z.string().nullish(),
-  wolke_live_sync: z.boolean().nullish(),
 });
 export type UpdateDocumentBody = z.infer<typeof updateDocumentBodySchema>;
 
@@ -279,9 +280,11 @@ export type ExportToDocsResponse = z.infer<typeof exportToDocsResponseSchema>;
 // ── chat → docs live-edit bridge ─────────────────────────────────────────────
 
 /**
- * Payload of the `trigger_doc_edit` SSE event. The chat backend (ChatGraph,
- * intent=edit_current_doc) forwards a doc-edit instruction to the docs editor
- * surface, which dispatches it into BlockNote's AIExtension.
+ * Payload of the `trigger_doc_edit` SSE event. The chat backend forwards a
+ * doc-edit instruction to the docs editor surface, which dispatches it into
+ * BlockNote's AIExtension. Since #3428 the sender is the agentic loop's
+ * `edit_document` tool and `userPrompt` is the MODEL's instruction, not the raw
+ * user text a classifier verdict forwarded.
  *
  * `referenceContent` carries prior assistant text the user referenced
  * ("dies/das einfügen"); it IS sent over the wire and so must be in the type —

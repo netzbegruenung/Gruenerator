@@ -41,7 +41,7 @@ export function LoginProviders({
       if (result === false) return;
     }
 
-    const callbackURL = redirectTo || '/workplace';
+    const callbackURL = redirectTo || '/start';
 
     if (onLogin) {
       onLogin(provider, callbackURL);

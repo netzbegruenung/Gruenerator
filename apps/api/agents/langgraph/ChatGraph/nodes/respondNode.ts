@@ -7,9 +7,24 @@
  * This separation keeps the graph transport-agnostic and testable.
  */
 
-import { SKILLS } from '@gruenerator/shared/agents';
+import { SKILLS, canonicalSkillMention } from '@gruenerator/shared/agents';
+import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
-import { getRetrievalBudget } from '../../../../routes/chat/services/messageHelpers.js';
+import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
+import {
+  EDITOR_SURFACE_NOUNS,
+  looksLikeChitchatTurn,
+  resolveEditorSurfaceKind,
+} from '../../../../routes/chat/services/agenticLoop/routing.js';
+import {
+  type ImageVisibility,
+  imageVisibility,
+} from '../../../../routes/chat/services/imageVisibility.js';
+import {
+  extractTextContent,
+  fairShare,
+  getRetrievalBudget,
+} from '../../../../routes/chat/services/messageHelpers.js';
 import {
   embedUntrusted,
   INJECTION_WARNING_NOTE,
@@ -23,9 +38,12 @@ import {
 import { CONTENT_INTEGRITY_ANSWER_RULE } from '../../../../services/contentPolicy.js';
 import { buildDocsPageMap } from '../../../../services/docs/docsIndex.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
-import { getInternalSkillPrompt } from '../../../../services/skills/internalPrompts.js';
 import { type Locale } from '../../../../services/localization/types.js';
-import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
+import { resolveRecipeBody } from '../../../../services/recipes/resolveRecipeBody.js';
+import {
+  selectRelevantExcerpt,
+  type ExcerptMode,
+} from '../../../../services/search/relevantExcerpt.js';
 import { recordDecision, type BranchOf } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
@@ -37,11 +55,14 @@ import {
   artifactsFromTurn,
   buildArtifactInventory,
   renderArtifactInventory,
+  NO_PHANTOM_ACTION_RULE,
 } from './artifactInventory.js';
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
-import { looksLikeDocsHelpQuestion } from './classifierSignals.js';
-import { deriveTextFormMention } from './textFormMention.js';
+import { looksLikeDocsHelpQuestion, looksLikeGeltungsfrage } from './classifierSignals.js';
+import { resolveEffectiveRecipeMention } from './effectiveRecipeMention.js';
+import { stripQuotedSpans } from './fastPathGuards.js';
+import { SOURCE_LINK_RULE } from './sourceLinkRule.js';
 
 import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
 
@@ -61,19 +82,80 @@ const ATTACHMENT_LIMITS = {
   TOTAL_BUDGET_CHARS: 20000,
 };
 
+/**
+ * Floor per document when the total budget is split evenly across N
+ * attachments (see {@link limitAttachmentContext}). Keeps a "compare these 3
+ * files" turn from silently dropping the last file once the total budget is
+ * spent — every attachment gets at least this many characters.
+ */
+const ATTACHMENT_MIN_DOC_CHARS = 1500;
+
 /** Chars reserved for the "[...N Zeichen gekürzt...]" marker. */
 const TRUNCATION_MARKER_CHARS = 60;
 
 /**
+ * Der Text, gegen den ein Auszug ausgewählt wird, wenn Suchergebnisse gekürzt
+ * werden: `searchQuery` ist die Anfrage, mit der die Chunks GEHOLT wurden, also
+ * genau der Massstab, an dem sie beurteilt gehören. Ohne Suchlauf bleibt die
+ * letzte Nachricht.
+ */
+function retrievalQuery(state: ChatGraphState): string {
+  return state.searchQuery?.trim() || lastUserText(state);
+}
+
+/**
+ * Für Anhänge andersherum. Dort hat oft gar keine Suche stattgefunden, und die
+ * Frage steht wörtlich in der Nachricht („was genau steht unter Löschfristen").
+ */
+function attachmentQuery(state: ChatGraphState): string {
+  return lastUserText(state) || (state.searchQuery ?? '');
+}
+
+/**
  * Smart document truncation.
- * Keeps the introduction (60%) and conclusion (40%) for better context.
- * Documents typically have important info at the start and end.
+ *
+ * With a `query`, keeps the passages that have to do with it. Without one,
+ * keeps the introduction (60%) and conclusion (40%) — documents typically have
+ * important info at the start and end, and with nothing to select on that is
+ * the best guess available.
+ *
+ * The query argument is opt-in per call site on purpose. This function is
+ * reached from seven places and only some of them know what was asked; a
+ * default of "always try to be query-aware" would have to invent a query for
+ * the rest. Where no query is passed the output is byte-identical to what it
+ * was before the argument existed — see `respondNode.vitest.ts`, whose
+ * head/tail assertions call it exactly that way.
+ *
+ * Why it matters here: the 60/40 split is a positional cut. It asks where text
+ * sits, never whether it answers the question — the second of the two cuts the
+ * `PassageDistiller` header named, and the reason #2824 exists. On a 100k-char
+ * PDF cut to 25k it keeps a title page and a colophon and drops the table the
+ * question was about.
+ *
+ * `mode` follows the shape of the input, not the caller's taste. A whole
+ * document (`passages`, the default) can have its answer scattered over three
+ * places, and the gap markers say so. A single retrieval chunk (`contiguous`)
+ * is already one coherent unit picked for relevance — cutting it into pieces
+ * costs the reader the thread for nothing. Measured only for the cross-encoder
+ * so far, where the composed form judged worse (Hit@1 34,6 → 32,7 %); for the
+ * answer model this is reasoning by analogy and NOT measured.
  */
 export function truncateDocument(
   text: string,
-  limit: number = ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS
+  limit: number = ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS,
+  query?: string | null,
+  mode: ExcerptMode = 'passages'
 ): string {
   if (!text || text.length <= limit) return text;
+
+  const excerpt = selectRelevantExcerpt(text, query, limit, mode);
+  if (excerpt) {
+    log.info(
+      `[respondNode:attachment] query-focused cut: ${text.length} → ${excerpt.text.length} chars ` +
+        `(${excerpt.keptPassages} passage(s), best at offset ${excerpt.firstRelevantOffset})`
+    );
+    return excerpt.text;
+  }
 
   const removedChars = text.length - limit;
   const marker = `\n\n[...${removedChars.toLocaleString('de-DE')} Zeichen gekürzt...]\n\n`;
@@ -106,10 +188,11 @@ export function truncateDocument(
  * Apply total budget limit to already-formatted attachment context.
  * Parses individual documents and truncates as needed.
  */
-function limitAttachmentContext(
+export function limitAttachmentContext(
   context: string,
   contextWindowTokens?: number,
-  budget: number = ATTACHMENT_LIMITS.TOTAL_BUDGET_CHARS
+  budget: number = ATTACHMENT_LIMITS.TOTAL_BUDGET_CHARS,
+  query?: string | null
 ): string {
   budget = getRetrievalBudget(contextWindowTokens, budget);
   if (!context || context.length <= budget) return context;
@@ -120,7 +203,7 @@ function limitAttachmentContext(
 
   if (docMatches.length === 0) {
     // No structured documents found, just truncate the whole thing
-    return truncateDocument(context, budget);
+    return truncateDocument(context, budget, query);
   }
 
   // Split into individual documents
@@ -137,30 +220,33 @@ function limitAttachmentContext(
     documents.push({ header, content });
   }
 
-  // Apply per-document limit and total budget
-  let totalChars = 0;
+  // Fair per-document share instead of first-come-first-served: with N
+  // attachments (e.g. "compare these 3 files"), every document gets a
+  // guaranteed slice of the budget rather than the first ones consuming it
+  // whole and later ones being dropped entirely. Mirrors the fan-out RAG
+  // path's `perSourceLimit` (searchNode.ts, executeMultiDocFanout).
+  const perDocBudget = fairShare(budget, ATTACHMENT_MIN_DOC_CHARS, documents.length);
+
   const limited: string[] = [];
-  let omittedCount = 0;
+  const omittedHeaders: string[] = [];
 
   for (const doc of documents) {
-    if (totalChars >= budget) {
-      omittedCount++;
+    if (!doc.content) {
+      omittedHeaders.push(doc.header.replace(/^### /, ''));
       continue;
     }
 
-    const remaining = budget - totalChars;
-    const perDocLimit = Math.min(ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS, remaining);
-    const truncated = truncateDocument(doc.content, perDocLimit);
+    const perDocLimit = Math.min(ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS, perDocBudget);
+    const truncated = truncateDocument(doc.content, perDocLimit, query);
 
     limited.push(`${doc.header}\n${truncated}`);
-    totalChars += truncated.length + doc.header.length + 1;
   }
 
-  if (omittedCount > 0) {
+  if (omittedHeaders.length > 0) {
     limited.push(
-      `\n[${omittedCount} weitere(s) Dokument(e) nicht einbezogen wegen Kontextbeschränkung]`
+      `\n[${omittedHeaders.length} Dokument(e) nicht einbezogen wegen Kontextbeschränkung: ${omittedHeaders.join(', ')}]`
     );
-    log.info(`[Attachment] Omitted ${omittedCount} documents due to context budget`);
+    log.info(`[Attachment] Omitted documents due to context budget: ${omittedHeaders.join(', ')}`);
   }
 
   const result = limited.join('\n\n---\n\n');
@@ -304,6 +390,7 @@ export async function formatSearchContext(
     return base * crawlBoost;
   });
   const totalWeightedRelevance = weightedRelevance.reduce((sum, w) => sum + w, 0) || 1;
+  const excerptQuery = retrievalQuery(state);
 
   const resultsText = sources
     .map((s, i) => {
@@ -311,7 +398,7 @@ export async function formatSearchContext(
         200,
         Math.floor(((weightedRelevance[i] ?? 0) / totalWeightedRelevance) * budget)
       );
-      const body = formatSourceChunks(s, charBudget);
+      const body = formatSourceChunks(s, charBudget, excerptQuery);
       // When the agent writes inline links (e.g. ready-to-send emails), expose
       // the source URL to the model so it can cite the concrete article instead
       // of falling back to a hardcoded homepage. Normal chat omits it and uses
@@ -335,18 +422,22 @@ export async function formatSearchContext(
  * sees distinct evidence under the same `[N]`. Char budget is split evenly
  * across the chunks, with a per-chunk floor.
  */
-function formatSourceChunks(source: CitableSource, totalCharBudget: number): string {
+function formatSourceChunks(source: CitableSource, totalCharBudget: number, query: string): string {
   const chunks = source.chunks.slice(0, 4); // bounded — popover still has the full set
   if (chunks.length === 1) {
     const text = chunks[0].content ?? '';
-    return text.length > totalCharBudget ? truncateDocument(text, totalCharBudget) : text;
+    return text.length > totalCharBudget
+      ? truncateDocument(text, totalCharBudget, query, 'contiguous')
+      : text;
   }
   const perChunkBudget = Math.max(150, Math.floor(totalCharBudget / chunks.length));
   return chunks
     .map((c, i) => {
       const text = c.content ?? '';
       const truncated =
-        text.length > perChunkBudget ? truncateDocument(text, perChunkBudget) : text;
+        text.length > perChunkBudget
+          ? truncateDocument(text, perChunkBudget, query, 'contiguous')
+          : text;
       return `--- Auszug ${i + 1}:\n${truncated}`;
     })
     .join('\n\n');
@@ -384,6 +475,7 @@ function formatPerSourceContext(state: ChatGraphState): string {
 
   const TOTAL_BUDGET = 8000;
   const perDocBudget = Math.floor(TOTAL_BUDGET / sources.length);
+  const query = retrievalQuery(state);
 
   const blocks = sources.map((s) => {
     const chunks = s.chunks.slice(0, 6);
@@ -391,27 +483,52 @@ function formatPerSourceContext(state: ChatGraphState): string {
       .map((r, i) => {
         const charBudget = Math.max(150, Math.floor(perDocBudget / Math.max(1, chunks.length)));
         const content =
-          r.content.length > charBudget ? truncateDocument(r.content, charBudget) : r.content;
+          r.content.length > charBudget
+            ? truncateDocument(r.content, charBudget, query, 'contiguous')
+            : r.content;
         return `(${s.id}.${i + 1}) **${r.title}**\n${content}`.trim();
       })
       .join('\n\n');
-    return `### Dokument ${s.id}: ${s.title}\n\n${inner}`;
+    // Label mirrors the inline path's "(Volltext-Auszug)" marker so the model
+    // knows this is a RAG excerpt, not the whole file — and that more can be
+    // fetched (see the expand_attachment tool) if the excerpt isn't enough.
+    return `### Dokument ${s.id}: ${s.title} (Ausschnitt, weitere Inhalte über Suche verfügbar)\n\n${inner}`;
   });
 
   return `\n\n## QUELLEN PRO DOKUMENT\n\n${blocks.join('\n\n')}\n\n---\n[Ende der dokumentbezogenen Quellen. Halte die Aussagen je Dokument auseinander.]`;
 }
 
 /**
- * Format the open document (docs-editor surface) as the primary conversation
- * context. Distinct framing from `formatAttachmentContext` — this IS the
- * document the user is talking about, not a side-loaded reference.
+ * Format the open document (docs/sheets/presentations editor surfaces) as the
+ * primary conversation context. Distinct framing from `formatAttachmentContext`
+ * — this IS the document the user is talking about, not a side-loaded reference.
+ *
+ * The sharepic studio has no `currentDocument`: it sends the structured
+ * sharepic text as `currentCanvas.text`. It goes under the SAME heading, which
+ * is what the sharepic-editor prompt names ("Das **AKTUELLE DOKUMENT** ist der
+ * strukturierte Text dieses Sharepics") — the studio used to fake a
+ * `currentDocument` to get exactly this block.
  */
 function formatCurrentDocument(state: ChatGraphState): string {
-  if (!state.currentDocument) {
+  const open = state.currentDocument
+    ? state.currentDocument
+    : state.currentCanvas
+      ? {
+          title: state.currentCanvas.template,
+          markdown: state.currentCanvas.text,
+          selectionText: null,
+        }
+      : null;
+  if (!open) {
     return '';
   }
-  const { title, markdown, selectionText } = state.currentDocument;
-  const limitedMarkdown = limitAttachmentContext(markdown, state.contextWindowTokens);
+  const { title, markdown, selectionText } = open;
+  const limitedMarkdown = limitAttachmentContext(
+    markdown,
+    state.contextWindowTokens,
+    undefined,
+    attachmentQuery(state)
+  );
   const titleLine = title ? `Titel: ${title}\n\n` : '';
   const selection = selectionText
     ? `\n\n### AUSGEWÄHLTER TEXT\n\n${selectionText.slice(0, 4000)}`
@@ -433,7 +550,12 @@ function formatAttachmentContext(state: ChatGraphState): string {
   }
 
   // Apply truncation limits to prevent context explosion
-  const limitedContext = limitAttachmentContext(state.attachmentContext, state.contextWindowTokens);
+  const limitedContext = limitAttachmentContext(
+    state.attachmentContext,
+    state.contextWindowTokens,
+    undefined,
+    attachmentQuery(state)
+  );
 
   return `
 
@@ -443,27 +565,68 @@ ${embedUntrusted('anhang', limitedContext)}`;
 }
 
 /**
+ * Warum die Bytes fehlen — je Grund ein Satz. „Nicht sichtbar“ steht nie ohne
+ * Grund da: ohne ihn liest es sich wie ein Fehler, und das Modell rät doch.
+ */
+const NOT_VISIBLE_REASON: Record<Exclude<ImageVisibility, 'visible'>, string> = {
+  // Unerreichbar — der Block unten steht hinter der Leerprüfung. Der Typ
+  // verlangt den Fall, und ein leerer Satz wäre die stillere Lüge.
+  none: 'Die Bilder sind NICHT in der Nachricht sichtbar.',
+  vision_off:
+    'Die Bildanalyse ist für diesen Grünerator ausgeschaltet — die Bilder sind NICHT in der Nachricht sichtbar.',
+  image_edit:
+    'Die Bilder sind NICHT in der Nachricht sichtbar — bei einer Bildbearbeitung bleiben die Rohbytes bewusst draußen.',
+};
+
+/**
+ * Woran sich das Modell stattdessen hält. Das entscheidet NICHT der Intent,
+ * sondern ob der BILDVERGLEICH-Block unten wirklich gerendert wird: seine
+ * Beschreibungen sind zwei Vision-Aufrufe in `imageEditNode`, die beide
+ * fehlschlagen dürfen. Auf einen fehlenden Abschnitt zu zeigen ist derselbe
+ * Fehler wie eine erfundene Sichtbarkeit — nur eine Zeile tiefer.
+ */
+const GROUNDED_CLAUSE =
+  'Stütze dich auf den BILDVERGLEICH-Block unten und rate nichts, was dort nicht steht.';
+const UNGROUNDED_CLAUSE =
+  'Es liegt auch keine Beschreibung davon vor. Sage das offen und rate den Inhalt nicht.';
+
+/**
  * Format image attachment context for the system message.
  * Instructs the model to acknowledge and describe the attached images.
  */
 function formatImageContext(state: ChatGraphState): string {
   const sections: string[] = [];
 
+  // Vision-grounded before/after descriptions populated by imageEditNode after a
+  // successful FLUX edit. Lets respondNode narrate the actual change instead of
+  // hallucinating ("I can't edit images") when the model isn't itself vision-capable.
+  // Beide Aufrufe dürfen fehlschlagen, deshalb wird die Zusage unten an DIESE
+  // Prüfung gehängt und nicht an den Intent.
+  const editDescriptions = state.imageEditDescriptions;
+  const hasEditDescriptions =
+    !!editDescriptions && !!(editDescriptions.original || editDescriptions.edited);
+
   if (state.imageAttachments && state.imageAttachments.length > 0) {
     const count = state.imageAttachments.length;
     const names = state.imageAttachments.map((img) => img.name).join(', ');
+    // Ob die Bytes wirklich in der Nachricht stehen, beantwortet EINE Stelle
+    // für alle Antwortpfade (#3307, #3313). Vorher entschied das hier ein
+    // eigener Ausdruck, und der Bearbeitungs- wie der Wiederaufnahme-Pfad
+    // widersprachen ihm — ein Modell, dem man sagt, es sehe ein Bild, das ihm
+    // niemand gegeben hat, beschreibt es trotzdem.
+    const visibility = imageVisibility(state);
+    const sentence =
+      visibility === 'visible'
+        ? 'Die Bilder sind in der Nachricht sichtbar.'
+        : `${NOT_VISIBLE_REASON[visibility]} ${hasEditDescriptions ? GROUNDED_CLAUSE : UNGROUNDED_CLAUSE}`;
     sections.push(`
 
 ## ANGEHÄNGTE BILDER
 
-Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bilder sind in der Nachricht sichtbar.`);
+Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). ${sentence}`);
   }
 
-  // Vision-grounded before/after descriptions populated by imageEditNode after a
-  // successful FLUX edit. Lets respondNode narrate the actual change instead of
-  // hallucinating ("I can't edit images") when the model isn't itself vision-capable.
-  const editDescriptions = state.imageEditDescriptions;
-  if (editDescriptions && (editDescriptions.original || editDescriptions.edited)) {
+  if (editDescriptions && hasEditDescriptions) {
     const before = editDescriptions.original ?? '(keine Beschreibung verfügbar)';
     const after = editDescriptions.edited ?? '(keine Beschreibung verfügbar)';
     sections.push(`
@@ -477,6 +640,54 @@ Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}
   return sections.join('');
 }
 
+/** Unter dieser Länge ist eine Textgleichheit keine Aussage, sondern Zufall. */
+const DEDUP_MIN_CHARS = 500;
+
+const squashWhitespace = (text: string): string => text.replace(/\s+/g, ' ').trim();
+
+/**
+ * Die einzelnen Dokumentrümpfe, die der Live-Anhangsblock in diesen Prompt trägt.
+ *
+ * Der Block ist aus `### <name> (Volltext-Auszug)`-Abschnitten zusammengesetzt
+ * (`contextEnrichmentService.ts`), getrennt durch `---`; angehängte Referenz-
+ * Abschnitte folgen derselben Form. Wir zerlegen ihn, damit die Dublettenprüfung
+ * auf ganzen Dokumenten arbeitet statt auf Teilstrings: ein `includes()` über den
+ * ganzen Block verschluckt eine kurze gespeicherte Zeile schon dann, wenn ihr Text
+ * zufällig irgendwo in einem völlig anderen Live-Dokument vorkommt — lautlos, ohne
+ * Log und ohne Budget-Warnung.
+ */
+function liveAttachmentBodies(liveAttachmentContext: string): string[] {
+  if (!liveAttachmentContext) return [];
+  return liveAttachmentContext
+    .split(/\n\s*---+\s*\n/)
+    .map((section) => squashWhitespace(section.replace(/^\s*(#{1,6}[^\n]*\n+)+/, '')))
+    .filter(Boolean);
+}
+
+/**
+ * Steht der Dokumenttext ohnehin schon wörtlich in der Historie?
+ *
+ * Gemessen auf test am 13.08.2026: ein eingefügter 10.149-Zeichen-Artikel wird
+ * als Anhang gebunden UND bleibt die erste Nutzernachricht. Ab Turn 2 lag er
+ * zweimal im Prompt (Basis-Prompt 3.414 → 14.306 Zeichen), die daran zu prüfende
+ * Übersetzung nur einmal — 2:1 zugunsten des Ausgangstexts, bei einer Aufgabe,
+ * die genau diese beiden gegeneinander lesen soll.
+ *
+ * Geprüft wird gegen die Nachrichten, die tatsächlich mitgehen: hat die Kürzung
+ * die Historie-Kopie entfernt, greift die Gleichheit nicht und der Anhang wird
+ * wie bisher eingespielt. Die Wiedereinspielung bleibt also der Rückfall, sie
+ * hört nur auf, eine Dopplung zu sein.
+ */
+function alreadyVerbatimInConversation(
+  extractedText: string | null | undefined,
+  conversationText: string
+): boolean {
+  if (!extractedText || !conversationText) return false;
+  const needle = squashWhitespace(extractedText);
+  if (needle.length < DEDUP_MIN_CHARS) return false;
+  return squashWhitespace(conversationText).includes(needle);
+}
+
 /**
  * Format thread attachments (from previous messages) as context.
  * Documents re-inject their FULL extracted text (budget-capped) so a file stays
@@ -485,9 +696,12 @@ Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}
  * Images carry a vision-generated description as their summary, letting
  * follow-up turns reason about an earlier image without re-sending the pixels.
  */
-function formatThreadAttachmentsContext(
+export function formatThreadAttachmentsContext(
   attachments: ThreadAttachment[],
-  contextWindowTokens?: number
+  contextWindowTokens?: number,
+  conversationText = '',
+  liveAttachmentContext = '',
+  query = ''
 ): string {
   if (!attachments || attachments.length === 0) {
     return '';
@@ -495,18 +709,57 @@ function formatThreadAttachmentsContext(
 
   const sections: string[] = [];
 
+  // Every document text already placed in THIS prompt. Seeded with the live
+  // attachment block, then grown as rows are emitted, so the same file cannot
+  // appear twice — neither live-vs-stored nor stored-vs-stored.
+  //
+  // `alreadyVerbatimInConversation` below is a different check and stays: it
+  // compares against the message HISTORY, which never contains the attachment
+  // text (`sanitizeUIFileParts` strips those parts before conversion) — which
+  // is precisely why it could not catch this duplication.
+  const emitted = new Set<string>();
+  const liveBodies = liveAttachmentBodies(liveAttachmentContext);
+
+  // Ein Rumpf zählt als schon vorhanden, wenn er einem Live-Dokument gleicht —
+  // oder wenn eine der beiden Seiten in der anderen steckt UND der übereinstimmende
+  // Text lang genug ist, um eine Aussage statt eines Zufalls zu sein (dieselbe
+  // Schwelle wie `alreadyVerbatimInConversation`). Beide Richtungen sind nötig:
+  // gespeichert liegt der volle Text, live kann derselbe Text als Zusammenfassung
+  // oder budget-gekürzt ankommen, also ist mal die eine, mal die andere Seite kürzer.
+  const alsoInLiveBlock = (body: string): boolean =>
+    liveBodies.some((live) => {
+      if (live === body) return true;
+      if (Math.min(live.length, body.length) < DEDUP_MIN_CHARS) return false;
+      return live.includes(body) || body.includes(live);
+    });
+
   const docBlocks = attachments
     // Docs with a documentId were embedded into Qdrant — they come back via
     // per-query RAG retrieval (searchNode), so don't also dump their full text
     // here (would duplicate and blow the budget). Small docs stay full-context.
     .filter((a) => !a.isImage && !a.documentId && (a.extractedText || a.summary))
-    .map((a, i) => `### ${i + 1}. ${a.name}\n\n${a.extractedText ?? a.summary}`)
+    .filter((a) => !alreadyVerbatimInConversation(a.extractedText, conversationText))
+    .filter((a) => {
+      const body = squashWhitespace(a.extractedText ?? a.summary ?? '');
+      if (!body) return false;
+      if (emitted.has(body)) return false;
+      if (alsoInLiveBlock(body)) return false;
+      emitted.add(body);
+      return true;
+    })
+    .map((a, i) => {
+      // Tells the model whether it sees the full document or only a digest —
+      // otherwise it can't tell an inline full-text extract apart from a
+      // vectorized doc's RAG chunks and may present a partial view as complete.
+      const label = a.extractedText ? 'Volltext-Auszug' : 'Zusammenfassung';
+      return `### ${i + 1}. ${a.name} (${label})\n\n${a.extractedText ?? a.summary}`;
+    })
     .join('\n\n');
 
   if (docBlocks) {
     // Reuse the same per-document + total budget limiter as current-turn
     // attachments so re-injected full text can't blow the context window.
-    const docs = limitAttachmentContext(docBlocks, contextWindowTokens);
+    const docs = limitAttachmentContext(docBlocks, contextWindowTokens, undefined, query);
     sections.push(`
 
 ## FRÜHERE DOKUMENTE IN DIESEM GESPRÄCH
@@ -688,25 +941,66 @@ ${documentMentionContext}`;
 }
 
 /**
- * Format memory context from mem0 cross-thread memories.
- * These are persistent facts and preferences about the user,
- * grouped by category (identity, preference, context, etc.).
+ * Nagelt fest, WELCHEN Text der Einfache-Sprache-Agent überträgt.
+ *
+ * Ohne diesen Block wählt das Modell selbst aus allem, was im Kontext steht —
+ * und dort liegt bei jedem Folge-Turn auch der Volltext aller früheren Anhänge
+ * (`formatThreadAttachmentsContext`). Die Prüfkette dahinter sieht dagegen nur
+ * den aktuellen Turn. Genau diese Schere ging am 13.08.2026 auf: übertragen
+ * wurde der Artikel aus dem vorigen Turn, geprüft wurde gegen das frisch
+ * eingefügte Material — und der Bericht meldete für eine handwerklich saubere
+ * Fassung „Halluzination, ABLEHNUNG".
+ *
+ * Der Block wiederholt das Material wörtlich, statt darauf zu verweisen: er ist
+ * die einzige Stelle, an der Schritt 1 und Schritt 3 denselben String meinen.
+ *
+ * Er ist ausserdem der EINZIGE Material-Block eines Pipeline-Turns: die Aufrufer
+ * schweigen dann (`isPinnedTransfer`). Ein Hinweis „nimm das andere nicht" neben
+ * dem anderen ist eine Bitte; ein leerer Kontext ist eine Tatsache.
  */
-function formatMemoryContext(memoryContext: string | null): string {
+function formatPipelineSourceText(original: string | null): string {
+  if (!original) return '';
+
+  return `
+
+## ZU ÜBERTRAGENDER TEXT
+
+Übertrage GENAU den folgenden Text — vollständig, ohne Kürzung. Er ist das einzige
+Material dieses Turns; die Nachrichten davor sind Anweisungen an dich, kein
+Ausgangstext. Dieselbe Fassung wird anschließend gegen genau diesen Text geprüft.
+
+<<<ORIGINAL
+${original}
+ORIGINAL>>>`;
+}
+
+/**
+ * The person's explicit memory: standing instructions and facts, numbered
+ * by services/memory/memoryPrompt.ts so the `memory` tool can address them.
+ */
+function formatMemoryContext(memoryContext: string | null, hasProfile: boolean): string {
   if (!memoryContext || memoryContext.trim() === '') {
     return '';
   }
 
+  // Profile text and memory instructions can contradict each other ("Sie-Form"
+  // in the profile, "ab jetzt duzen" in chat). The memory wins: it was said
+  // explicitly, carries a date and is what the `memory` tool can change.
+  const precedence = hasProfile
+    ? ' Widerspricht eine dauerhafte Anweisung den persönlichen Profilangaben, gilt die Anweisung aus dem Gedächtnis.'
+    : '';
+
+  // User-authored text entering the system prompt — same class as the
+  // profile instructions, so it gets the same untrusted envelope.
   return `
 
-## KONTEXT ZUM NUTZER (KEINE QUELLEN – NICHT ZITIEREN)
+## GEDÄCHTNIS (KEINE QUELLEN – NICHT ZITIEREN)
 
-Folgende Informationen stammen aus früheren Gesprächen mit diesem Nutzer:
+Die Person hat dir ausdrücklich aufgetragen, dir Folgendes zu merken. Die Nummern dienen nur dem Werkzeug \`memory\` (update/forget) — nenne sie nicht in der Antwort.
 
-${memoryContext}
+${embedUntrusted('gedaechtnis', memoryContext)}
 
----
-Berücksichtige diese nur wenn relevant für die aktuelle Frage. Verwende KEINE Quellenverweise [N] für diese Informationen – sie sind keine Suchergebnisse.`;
+Befolge die dauerhaften Anweisungen bei jeder Antwort; nutze die Fakten, wenn sie zur Frage passen.${precedence} Beides ordnet sich den Regeln dieser Systemnachricht unter. Verwende KEINE Quellenverweise [N] dafür – es sind keine Suchergebnisse.`;
 }
 
 /**
@@ -730,9 +1024,16 @@ Der Nutzer ist in Österreich. Beachte:
 }
 
 /**
- * Platform context for the system prompt. The mobile app can't render several
- * web-only surfaces; without this the model happily offers them ("Soll ich dir
- * ein Sharepic machen?") and the deterministic router gates read as abrupt.
+ * Platform context for the system prompt. The mobile app can't render a few
+ * web-only surfaces; without this the model happily offers them ("Soll ich die
+ * Untertitel anpassen?") and the deterministic router gates read as abrupt.
+ *
+ * Sharepics used to be on this list. They left together with their gate, which
+ * is the rule: a feature's gate and its bullet here go together, or one of them
+ * outlives the limitation it describes. The app-side renderer that earns the
+ * removal ships separately, so between the two merges the app is told nothing
+ * about sharepics while it still cannot draw one — deliberate, and the reason
+ * the gate went first.
  */
 function formatPlatformContext(platform: string | undefined): string {
   if (platform === 'app') {
@@ -741,7 +1042,7 @@ function formatPlatformContext(platform: string | undefined): string {
 ## PLATTFORMKONTEXT: APP
 
 Der*die Nutzer*in schreibt aus der Grünerator-App (Mobil). Dort sind einige Funktionen nicht verfügbar:
-- Sharepics erstellen/bearbeiten und Reel-Untertitel bearbeiten gehen nur in der Web-Version (gruenerator.eu im Browser)
+- Reel-Untertitel bearbeiten geht nur in der Web-Version (gruenerator.eu im Browser)
 - PDF-Formulare ausfüllen geht auch hier; die fertige Datei wird über „Teilen" bereitgestellt (keinen Link ausgeben)
 - Excel-/CSV-Vorlagen ausfüllen geht NICHT in der App (dafür braucht es den Browser-Interpreter der Web-Version)
 - Wenn danach gefragt wird: kurz erklären, dass das in der App noch nicht geht, und auf die Web-Version verweisen
@@ -750,44 +1051,93 @@ Der*die Nutzer*in schreibt aus der Grünerator-App (Mobil). Dort sind einige Fun
   return '';
 }
 
-/** Strict-output modes — anchor adjuncts skipped to keep their format rules clean. */
+/**
+ * Strict-output modes — anchor adjuncts skipped to keep their format rules clean.
+ *
+ * `edit_current_doc` was in this set and is NOT any more (#3428). It was here
+ * because the mode demanded ONE sentence and the `## ZUSÄTZLICHER KONTEXT`
+ * block would have muddied it; that mode text is gone. What decides it now is
+ * consistency with the other editor surfaces: the sharepic studio reaches the
+ * SAME adjunct (`anchorContext` gives `currentCanvas` the `currentDocument`
+ * anchor) on its tool turns, under intents that were never in this set — so a
+ * doc tool turn skipping it would be the odd one out. The adjunct's wording
+ * fits both doc cases: "Schreibe das Dokument NICHT um, AUSSER der*die
+ * Nutzer*in fragt explizit danach" is satisfied by an explicit edit ask, and on
+ * a turn without the tool it is the mode guidance, not the adjunct, that says
+ * the edit cannot happen.
+ */
 const MODES_WITHOUT_ANCHORS: ReadonlySet<ChatGraphState['intent']> = new Set([
-  'edit_current_doc',
   'image_edit',
   'image',
   'chart',
 ]);
 
-const EDIT_CURRENT_DOC_GUIDANCE =
-  '\nDu hast eine Änderung am aktuellen Dokument angefordert. Antworte mit EINEM EINZIGEN kurzen Satz auf Deutsch, der bestätigt, was du gleich änderst (z.B. "Kürze den letzten Absatz."). Schreibe NICHT den geänderten Text aus — die Bearbeitung passiert direkt im Dokument. Keine Aufzählungen, keine Markdown-Formatierung, keine Quellenverweise.';
+/**
+ * Was ein `edit_current_doc`-Turn im Prompt bekommt — und das hängt NICHT am
+ * Intent allein.
+ *
+ * Dieser Prompt-Bau erreicht beide Pfade: `responseSinglePass` ruft ihn, und
+ * `responseAgentic` gibt denselben `systemMessage` an das werkzeughaltende
+ * Modell weiter. Das Verdikt `edit_current_doc` sagt also nichts darüber, ob
+ * dieser Zug bearbeiten kann — das sagt `state.editToolSurface`, gesetzt von
+ * `decideTurnPlan`, wenn `edit_document` montiert ist.
+ *
+ * Ist es montiert, schweigt diese Stelle, genau wie bei `edit_current_board`,
+ * `edit_sheet` und `edit_current_canvas`, die hier gar keinen Fall haben: die
+ * Anweisung, das Werkzeug zu rufen, steht in der Persona und in der
+ * Werkzeugbeschreibung. Ein Absagetext daneben wäre ein direkter Widerspruch
+ * dazu — und stand bis zur Korrektur genau so im Prompt jedes Dokument-Zuges,
+ * auf dem das Werkzeug lief.
+ *
+ * Der Grund für die Absage bleibt bewusst ungenannt: er ist technisch und für
+ * die Person bedeutungslos. Was zählt, ist, dass sie den Vorschlag als Text
+ * bekommt und ihn selbst einsetzen kann.
+ *
+ * Das Substantiv kommt von der Fläche, nicht vom Intent: der Doc-Fast-Path
+ * feuert auch in der Tabellen- und Präsentations-Seitenleiste (#3438).
+ */
+function getDocEditGuidance(state: ChatGraphState): string {
+  if (state.editToolSurface != null) return '';
+  const kind = resolveEditorSurfaceKind(state.agentConfig?.identifier, state.enabledTools) ?? 'doc';
+  const { noun, gender } = EDITOR_SURFACE_NOUNS[kind];
+  const das = gender === 'f' ? 'die' : 'das';
+  const es = gender === 'f' ? 'sie' : 'es';
+  return `\nDu kannst ${das} ${noun} in diesem Zug nicht direkt bearbeiten. Beginne deine Antwort auf Deutsch mit genau diesem Satz: "Ich kann ${das} ${noun} in diesem Zug nicht direkt bearbeiten — hier ist mein Vorschlag als Text:" Schreibe danach die gewünschte Fassung vollständig aus, damit sie sich von Hand übernehmen lässt. Behaupte NIEMALS, du hättest ${das} ${noun} geändert oder würdest ${es} gleich ändern.`;
+}
 
 const SUMMARY_GUIDANCE =
   '\nDer*die Nutzer*in hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.';
 
-const CHART_GUIDANCE = `\nDer*die Nutzer*in möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.
-Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
-
-\`\`\`chart
-{"type":"bar","title":"Titel","data":[{"name":"A","wert":10},{"name":"B","wert":20}],"xKey":"name","yKeys":["wert"]}
-\`\`\`
-
-Regeln:
-- type: "bar", "line", "area", "pie" oder "donut"
-- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey
-- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")
-- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
-- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
-- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
-
 /**
- * Chart guidance. When the run_python interrupt already computed the values
- * (chart over an attached spreadsheet), the model must chart EXACTLY those
- * numbers — the plain CHART_GUIDANCE's "plausible Daten" licence produced
+ * Chart guidance, in its two variants.
+ *
+ * `computed` is for the case where the run_python interrupt already produced the
+ * values (chart over an attached spreadsheet): the model must then chart EXACTLY
+ * those numbers, because the other variant's "plausible Daten" licence produced
  * fabricated category splits in beta.
+ *
+ * Composed rather than written out twice — the format block and half the rules
+ * are identical, and as two literals a rule added to one was invisible to the
+ * other.
  */
-function getChartGuidance(state: ChatGraphState): string {
-  if (state.computedResult && state.computedResultFresh) {
-    return `\nDer*die Nutzer*in möchte ein Diagramm. Die Werte wurden bereits deterministisch per Code berechnet (siehe BERECHNUNGSERGEBNIS) — verwende AUSSCHLIESSLICH diese Werte und erfinde KEINE Zahlen.
+function buildChartGuidance(computed: boolean): string {
+  const intro = computed
+    ? 'Der*die Nutzer*in möchte ein Diagramm. Die Werte wurden bereits deterministisch per Code berechnet (siehe BERECHNUNGSERGEBNIS) — verwende AUSSCHLIESSLICH diese Werte und erfinde KEINE Zahlen.'
+    : 'Der*die Nutzer*in möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.';
+
+  const rules = computed
+    ? [
+        '- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey — die Werte EXAKT aus dem BERECHNUNGSERGEBNIS übernehmen',
+        '- xKey: Name des Feldes für die X-Achse; yKeys: Array der Wert-Feldnamen',
+      ]
+    : [
+        '- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey',
+        '- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")',
+        '- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])',
+        '- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind',
+      ];
+
+  return `\n${intro}
 Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
 
 \`\`\`chart
@@ -796,21 +1146,25 @@ Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diese
 
 Regeln:
 - type: "bar", "line", "area", "pie" oder "donut"
-- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey — die Werte EXAKT aus dem BERECHNUNGSERGEBNIS übernehmen
-- xKey: Name des Feldes für die X-Achse; yKeys: Array der Wert-Feldnamen
+${rules.join('\n')}
 - Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
-  }
+}
+
+const CHART_GUIDANCE = buildChartGuidance(false);
+
+function getChartGuidance(state: ChatGraphState): string {
+  if (state.computedResult && state.computedResultFresh) return buildChartGuidance(true);
   return CHART_GUIDANCE;
 }
 
 const ARTIFACT_GUIDANCE = `\nDer*die Nutzer*in möchte ein darstellbares Artefakt (HTML/CSS oder SVG). Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann GENAU EINEN Code-Block mit dem vollständigen, in sich geschlossenen Artefakt:
 
-- Für Web-/Layout-Inhalte: ein \`\`\`html-Block mit komplettem, eigenständigem HTML (inkl. \`<style>\` inline, KEINE externen Ressourcen, KEINE \`<script>\`-Tags — das Artefakt wird in einer gesperrten Sandbox ohne JavaScript gerendert).
+- Für Web-/Layout-Inhalte: ein \`\`\`html-Block mit komplettem, eigenständigem HTML (inkl. \`<style>\` inline). Inline \`<script>\`-Tags sind erlaubt und werden ausgeführt — das Artefakt läuft in einer Sandbox mit \`allow-scripts\` (opakes Origin, keine Netzwerkzugriffe: \`fetch\`/\`XHR\`/externe Bilder funktionieren dort NICHT). Interaktive Elemente wie Zähler, Formulare oder kleine Demos also gerne per Inline-Script umsetzen.
 - Für Vektorgrafiken/Diagramme/Icons: ein \`\`\`svg-Block mit einem vollständigen \`<svg>\`-Element (mit \`viewBox\`, ohne \`<script>\`).
 
 Regeln:
 - Nur EIN Code-Block, vollständig und eigenständig lauffähig.
-- Kein externer CSS-/JS-/Bild-Link, keine \`<script>\`-Tags (werden ohnehin entfernt).
+- Keine externen CSS-/JS-/Bild-Links und keine Netzwerkzugriffe (\`fetch\`, \`XHR\`, externe \`<img src="https://...">\`) — die Sandbox blockiert sie ohnehin. Nur Inline-\`<style>\`/\`<script>\` und \`data:\`-Bilder funktionieren.
 - Nutze wo passend die Grünen-Markenfarbe (#005538) und klares, barrierearmes Layout.`;
 
 // Compute guidance is state-aware (mirrors image/image_edit): when a
@@ -868,8 +1222,7 @@ const GREETING_GUIDANCE =
 // otherwise narrates research or a delivered image FROM THE HISTORY (observed
 // live: "laut meiner Recherche …" and "hier ist dein Bild" with zero tool
 // calls). Safe unconditionally on `direct` — a direct turn produces neither.
-const DIRECT_HONESTY_NOTE =
-  '\nWICHTIG: In diesem Turn wurde NICHTS recherchiert und KEIN Bild/Dokument/Sharepic erstellt. Behaupte daher keine Recherche, keine Quellen/[N]-Belege und kein soeben erzeugtes Bild oder Dokument. Beziehst du dich auf etwas aus einem früheren Turn, mach das explizit ("vorhin"); für neue sachliche Angaben sag ehrlich, dass du sie nachschlagen müsstest.';
+const DIRECT_HONESTY_NOTE = `\nWICHTIG: In diesem Turn wurde NICHTS recherchiert und KEIN Bild/Dokument/Sharepic erstellt oder geändert. Behaupte daher keine Recherche und keine Quellen/[N]-Belege. ${NO_PHANTOM_ACTION_RULE} Beziehst du dich auf etwas aus einem früheren Turn, mach das explizit ("vorhin"); für neue sachliche Angaben sag ehrlich, dass du sie nachschlagen müsstest.`;
 
 /**
  * The no-file half of the same honesty, split out because it is needed on turns
@@ -928,6 +1281,44 @@ function getForbiddenActionNote(state: ChatGraphState): string {
 const SEARCH_GUIDANCE =
   '\nDu hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.';
 
+/**
+ * Eine Recherche-Antwort, die die BESTELLTE Textform vergisst.
+ *
+ * Zwei Turns im selben Thread, beta 20.08.2026:
+ *   `/presse mehr artenschutz in ludwigshafen` → Recherche-Briefing mit Tabelle
+ *   „schreibe eine pressemitteilung …" (ohne Mention) → korrekte Pressemitteilung
+ *
+ * Der Unterschied ist nicht, OB das Rezept im Prompt stand, sondern WO. Bei der
+ * ausdrücklichen Wahl unterdrückt `catalogAssembly` das `rezept_laden`-Werkzeug
+ * (gegen Doppel-Injektion) und der Rezepttext steht ganz oben im System-Prompt,
+ * weit vor SEARCH_GUIDANCE („Beantworte die Frage primär aus diesen
+ * Ergebnissen"). Ohne Mention lädt das Modell dasselbe Rezept selbst als
+ * Werkzeug-Ergebnis, unmittelbar bevor es schreibt — und befolgt es. Die
+ * ausdrückliche Wahl war damit der SCHWÄCHERE der beiden Wege.
+ *
+ * Dieser Hinweis stellt die bestellte Form an der späten Stelle wieder her.
+ *
+ * Er hängt am REZEPT, nicht an einer erkannten Textsorte im Text. „Was steht in
+ * der Pressemitteilung?", „finde unsere Pressemitteilungen zu Windkraft",
+ * „fasse den Antrag zusammen" nennen dieselbe Textsorte und bestellen sie
+ * nicht — und auf den Abruf-Pfaden (@wolke, @document, @dokumentchat,
+ * @notebook) ist genau das der Normalfall. `activeSkillMention` kommt entweder
+ * aus der Composer-Wahl oder aus `deriveImplicitRecipeMention`, das Verneinung,
+ * Meta-Fragen und Umformungs-Aufträge bereits abweist; `defaultRecipeMention`
+ * ist bewusst NICHT gemeint, sonst bekäme jede Sachfrage an einen
+ * LV-Agenten eine Pressemitteilung als Antwort.
+ */
+function getOrderedTextFormNote(state: ChatGraphState): string {
+  const mention = state.activeSkillMention;
+  if (!mention) return '';
+  // Der Anzeigename lebt an genau einer Stelle, der Registry. Eine zweite
+  // Tabelle hier wäre eine Kopie, die beim nächsten Rezept veraltet — und sie
+  // müsste zusätzlich das Genus jedes Namens mitführen. Der Name steht deshalb
+  // in Anführungszeichen statt in einem Artikel.
+  const title = SKILLS.find((s) => s.mention === canonicalSkillMention(mention))?.title ?? mention;
+  return `\nDer*die Nutzer*in hat die Textform „${title}" gewählt. Die Recherche ist das Mittel, nicht das Ergebnis: Liefere den fertigen Text in dieser Form, nicht eine Zusammenfassung der Quellenlage darüber.`;
+}
+
 // Calibration, not fabrication. "Erfinde keine Fakten" already bans inventing;
 // it says nothing about how SURE to sound about something a source itself marks
 // as unresolved. Observed live: a web-researched biography reported a disputed
@@ -937,6 +1328,45 @@ const SEARCH_GUIDANCE =
 // contested claim as settled is the worse of the two failures.
 const SOURCE_HEDGING_RULE =
   'Widersprechen sich die Quellen zu einer Aussage, oder markiert eine Quelle sie selbst als ungeklärt, vermutet oder offiziell, dann übernimm diese Einschränkung in die Antwort. Gib eine strittige Angabe nie als feststehend wieder.';
+
+/**
+ * Stand-Disziplin für Geltungsfragen (#2949).
+ *
+ * Die erzwungene Suche allein repariert den Fall NICHT — das ist der Kern des
+ * Befunds. Ein Turn, der zwei Nachrichtenartikel zitiert, macht denselben
+ * Fehler: Meldungen über einen Änderungsvorschlag lesen sich wie Meldungen über
+ * geltendes Recht, und die Antwort sieht danach belegt aus. Deshalb steht hier
+ * eine Regel über die FORM der Auskunft, nicht über das Beschaffen.
+ *
+ * Warum im Basis-Prompt und nicht in `synthPrompt.ts`: das ist die einzige Naht,
+ * die alle vier Pfade erreicht. Der `AKTUALITÄT`-Absatz dort hängt am
+ * Quellenblock und fehlt damit genau dann, wenn nichts gefunden wurde — also im
+ * gemessenen Fall. Er bleibt trotzdem stehen: er handelt vom Abgleich
+ * widersprüchlicher Quellendaten, diese Regel von der Trennung Geltung/Vorhaben.
+ *
+ * Gegattert, nicht immer an: eine Begrüssung soll dafür keine Token zahlen.
+ */
+const GELTUNGSSTAND_RULE =
+  'GELTUNGSSTAND: Diese Frage zielt auf einen Rechts- oder Verfahrensstand. Trenne deshalb ausdrücklich, was HEUTE GILT, von dem, was erst vorgeschlagen, verhandelt oder beschlossen-aber-noch-nicht-in-Kraft ist. Benenne für das Geltende den Rechtsakt (Titel bzw. Nummer), für das Nicht-Geltende das Verfahrensstadium (Vorschlag, Trilog, Überprüfungsklausel, Ratifizierung). Nenne den Stand mit Datum ("Stand: März 2026"). Eine Meldung ÜBER einen Änderungsvorschlag ist keine Meldung über geltendes Recht — auch eine tagesaktuelle Quelle belegt nur, dass verhandelt wird, nicht dass sich die Rechtslage geändert hat. Hast du in diesem Turn nichts nachgeschlagen, sag ausdrücklich, dass der Stand ungeprüft ist und wann er zuletzt gesichert war.';
+
+/**
+ * Trägt dieser Turn die Stand-Disziplin? Ein Prädikat, zwei Verbraucher: dieselbe
+ * Funktion entscheidet im Klassifikator (`web.geltungsfrage`), ob gesucht werden
+ * MUSS. Getrennte Detektoren wären hier die naheliegende Drift — der Zwang
+ * feuerte, die Formregel nicht, und der Turn suchte brav, um dann doch einen
+ * Vorschlag als geltendes Recht zu referieren.
+ *
+ * Dieselbe Funktion genügt dafür NICHT — sie muss auch dieselbe SICHT bekommen.
+ * Der Klassifikator gibt ihr `m.stripped`, also den Text ohne zitierte Spannen
+ * („eine zitierte Passage ist fremde Rede"). Roher Text hier hiesse: „Ein
+ * Kollege fragte: ‚Gilt das Gesetz noch?'" erzwingt keinen Abruf, bekommt aber
+ * die Rechtsstand-Regel ins Prompt — die Drift, vor der der Absatz darüber
+ * warnt, nur über die Eingabe statt über einen zweiten Detektor.
+ */
+function geltungsstandNote(state: ChatGraphState): string {
+  const text = state.lastUserTextNoMentions || lastUserText(state);
+  return looksLikeGeltungsfrage(stripQuotedSpans(text)) ? `\n\n${GELTUNGSSTAND_RULE}` : '';
+}
 
 /**
  * The artefact-action intents (save_as_doc / modify_doc / share_doc /
@@ -952,8 +1382,33 @@ const SOURCE_HEDGING_RULE =
  * Gemma 4 and, less often, Mistral Medium), which is why it belongs in the
  * prompt rather than in the model choice.
  */
-const ARTEFACT_ACTION_GUIDANCE =
-  '\nWICHTIG: Der Grünerator legt Dokumente selbst an, ändert und teilt sie — das passiert automatisch, direkt nachdem du geantwortet hast. Behaupte deshalb NIEMALS, du könntest keine Dokumente oder Dateien erstellen, speichern oder teilen, und verweise NICHT auf Kopieren/Einfügen, ein Dateisystem oder einen Umweg über ein anderes Menü. Bestätige die Aktion knapp in einem Satz (z.B. „Ich lege das als Dokument an.") und schreibe den Inhalt NICHT noch einmal aus.';
+const ARTEFACT_CAPABILITY_NOTE =
+  '\nWICHTIG: Der Grünerator legt Dokumente selbst an, ändert und teilt sie — das passiert automatisch, direkt nachdem du geantwortet hast. Behaupte deshalb NIEMALS, du könntest keine Dokumente oder Dateien erstellen, speichern oder teilen, und verweise NICHT auf Kopieren/Einfügen, ein Dateisystem oder einen Umweg über ein anderes Menü.';
+
+/**
+ * save_as_doc / share_doc / modify_board: the answer text is NOT the artefact.
+ * save_as_doc re-generates the document from its own generator (Stage 4c) with
+ * the answer merely as context; share/board carry ids, not prose. Repeating the
+ * content here would only duplicate it into the chat.
+ */
+const ARTEFACT_CONFIRM_ONLY =
+  ' Bestätige die Aktion knapp in einem Satz (z.B. „Ich lege das als Dokument an.") und schreibe den Inhalt NICHT noch einmal aus.';
+
+/**
+ * modify_doc is the one intent where the answer text IS the artefact: the
+ * confirm card carries `newContent: fullText` (confirmActionService), and the
+ * confirm flow writes exactly that over the document.
+ *
+ * From 27b8a205a (23.07.2026) until this commit, modify_doc shared the
+ * confirm-only tail above — so the model was told to answer with a single
+ * sentence, and that sentence was the payload that would replace the whole
+ * document. Nobody hit it live only because the Yjs live-state guard in
+ * confirmController refuses the write for any document that was ever opened.
+ * Two independent things must therefore stay true together, which is why they
+ * are named in both places: the tail below and MIN_MODIFY_DOC_CONTENT_CHARS.
+ */
+const ARTEFACT_REWRITE_FULL =
+  ' Gib die vollständige neue Fassung des Dokuments aus — sie ersetzt den bisherigen Inhalt eins zu eins. Kürze nicht auf eine Zusammenfassung, lass keinen unveränderten Abschnitt weg und antworte nicht nur mit einer Bestätigung.';
 
 /**
  * Synthesis-mode guidance for multi-document chat.
@@ -992,23 +1447,27 @@ function getSynthesisGuidance(state: ChatGraphState): string {
  * but pointed at nothing. Every other such turn stays closed; that is the
  * regression guard this whole design rests on.
  *
- * `greeting` has no exception at all: the source carry never runs for it (see
- * CARRY_ELIGIBLE_INTENTS), so it is closed unconditionally.
+ * `greeting` has no exception at all: the source carry never runs for it — the
+ * same `isGroundableProse` that gates citations here gates the carry — so it is
+ * closed unconditionally by the guard clause below.
+ *
+ * The gated set is `isGroundableProse`: the `prose` disposition without
+ * `greeting`, derived in `@gruenerator/shared/chat-intents`. It used to be a
+ * third hand-written copy of the same two ids, next to `NO_TOOL_VERDICTS` and
+ * `CARRY_ELIGIBLE_INTENTS`.
  */
-const CITATION_GATED_INTENTS: ReadonlySet<string> = new Set(['produktion', 'direct']);
-
 export function citableSourcesAvailable(state: ChatGraphState): boolean {
   if (state.intent === 'greeting') return false;
   return (
     state.searchResults.length > 0 &&
-    (!CITATION_GATED_INTENTS.has(state.intent) || state.sourcesCarriedFromThread === true)
+    (!isGroundableProse(state.intent) || state.sourcesCarriedFromThread === true)
   );
 }
 
 export function getModeGuidance(state: ChatGraphState): string {
   switch (state.intent) {
     case 'edit_current_doc':
-      return EDIT_CURRENT_DOC_GUIDANCE;
+      return getDocEditGuidance(state);
     case 'summary':
       return SUMMARY_GUIDANCE;
     case 'chart':
@@ -1037,11 +1496,12 @@ export function getModeGuidance(state: ChatGraphState): string {
         getForbiddenActionNote(state)
       );
     case 'save_as_doc':
-      return DIRECT_GUIDANCE + ARTEFACT_ACTION_GUIDANCE;
+      return DIRECT_GUIDANCE + ARTEFACT_CAPABILITY_NOTE + ARTEFACT_CONFIRM_ONLY;
     case 'modify_doc':
+      return SEARCH_GUIDANCE + ARTEFACT_CAPABILITY_NOTE + ARTEFACT_REWRITE_FULL;
     case 'modify_board':
     case 'share_doc':
-      return SEARCH_GUIDANCE + ARTEFACT_ACTION_GUIDANCE;
+      return SEARCH_GUIDANCE + ARTEFACT_CAPABILITY_NOTE + ARTEFACT_CONFIRM_ONLY;
     case 'compare':
     case 'research':
     case 'search':
@@ -1049,9 +1509,9 @@ export function getModeGuidance(state: ChatGraphState): string {
     case 'examples':
     case 'pressemitteilung_examples':
     case 'sharepic':
-      return SEARCH_GUIDANCE;
+      return SEARCH_GUIDANCE + getOrderedTextFormNote(state);
     default:
-      return SEARCH_GUIDANCE;
+      return SEARCH_GUIDANCE + getOrderedTextFormNote(state);
   }
 }
 
@@ -1166,8 +1626,32 @@ const ENUMERABLE_CLAUSE =
  * belongs here and was missing: it is what the classifier's Tier-3.5 demotion
  * produces, i.e. the label most loop turns actually carry. Without it a demoted
  * turn could not reach the expanded rule even once the source count was right.
+ *
+ * `search` ist AUSGENOMMEN, und zwar seit die Regel `state.intent === 'research'
+ * || state.intent === 'web'` hiess — die Menge hat den Ausschluss geerbt, nie
+ * begründet. Was sie sagt, sagt ihr Name: EXTERN. `search` bedient die
+ * hauseigenen Dokumente (Programme, Beschlüsse), die drei anderen das offene
+ * Web bzw. den Loop, der beides mischt.
+ *
+ * Der Zweig ist erreichbar und bleibt es (geprüft in
+ * `answerFormatOwner.vitest.ts`, wo die Fälle einzeln stehen): über
+ * `@dokumente`, über `fallbackIntentFor` (`agentic` → `search`, sobald die
+ * Schleife aus ist) und über ein Klassifikator-Verdikt, das ein Notausschalter
+ * einzeln hält. Der Lane-Flip aus Phase R3 ändert daran nichts — er verschiebt
+ * die Lane, nicht den Intent.
+ *
+ * Bekannter Preis, absichtlich nicht in R3 bezahlt: über
+ * `fallbackIntentFor` entscheidet damit ein Deployment-Schalter über die
+ * Antwortform. Derselbe Turn ist mit Schleife `agentic` (Gliederungsregel) und
+ * ohne sie `search` (generischer Satz). Eine Formänderung, die kein
+ * Korpus-Szenario beobachtet, gehört nicht in denselben PR wie ein gemessener
+ * Lane-Wechsel.
  */
-const EXTERNAL_RESEARCH_INTENTS: ReadonlySet<string> = new Set(['research', 'web', 'agentic']);
+const EXTERNAL_RESEARCH_INTENTS: ReadonlySet<ChatIntentId> = new Set([
+  'research',
+  'web',
+  'agentic',
+]);
 
 /**
  * Intents whose own guidance block (see `getModeGuidance`) already prescribes
@@ -1179,7 +1663,7 @@ const EXTERNAL_RESEARCH_INTENTS: ReadonlySet<string> = new Set(['research', 'web
  * `compute` only say what to talk about, not how to shape it, so the generic
  * rule still applies to them.
  */
-const INTENTS_WITH_OWN_FORMAT: ReadonlySet<string> = new Set([
+const INTENTS_WITH_OWN_FORMAT: ReadonlySet<ChatIntentId> = new Set([
   'edit_current_doc',
   'image_edit',
   'chart',
@@ -1207,7 +1691,17 @@ function buildAnswerFormatRule(
    * sources. Both are decided before the prompt is written; neither is a guess
    * about the model.
    */
-  retrievalExpected = false
+  retrievalExpected = false,
+  /**
+   * Der Titel der aktiven Textform — oder null, wenn keine im Prompt steht.
+   *
+   * Bewusst der TITEL und nicht `state.activeSkillMention`: Eigentümer ist das
+   * eingesetzte Fragment, nicht die Absicht. `getInternalSkillPrompt` liefert
+   * null, wenn das interne Rezept-Verzeichnis nicht ausgerollt ist — dann
+   * stünde „halte dich an die oben aktive Textform" über einer Stelle, an der
+   * nichts liegt, und die generische Regel fiele ersatzlos weg.
+   */
+  activeTextForm: string | null = null
 ): string {
   // A multi-document turn already has its format prescribed by the comparison /
   // multi-doc block (table, per-doc bullets, grounded prose). A second structure
@@ -1233,6 +1727,9 @@ function buildAnswerFormatRule(
         // A mode NAME, not a flag — keep the name, it distinguishes the
         // multi-doc shapes that share the `synthesis_*` branches.
         synthesisMode: state.synthesisMode ?? 'none',
+        // Visible on EVERY branch, not just the one it owns: "the user drew a
+        // table and we still ordered prose" has to be readable off the map.
+        taskShape: state.taskShape ?? 'none',
       },
     });
   };
@@ -1254,12 +1751,55 @@ function buildAnswerFormatRule(
   // block below counts on rules 1–4 existing.
   const formatOwner = state.synthesisMode
     ? `synthesis:${state.synthesisMode}`
-    : INTENTS_WITH_OWN_FORMAT.has(String(state.intent))
+    : INTENTS_WITH_OWN_FORMAT.has(state.intent)
       ? `intent:${String(state.intent)}`
       : null;
   if (formatOwner != null) {
     note('own_format', { formatOwner });
     return 'Form und Umfang dieser Antwort sind oben bereits vorgegeben — halte dich genau daran.';
+  }
+
+  // The third owner, and the only one that isn't ours: the user prescribed the
+  // output shape in the turn itself. `detectTaskShape` already finds it — a
+  // drawn table skeleton, "gib ausschließlich …", "genau drei Sätze", a
+  // machine format — and until now the finding only picked the model lane.
+  //
+  // The 13.08.2026 run is what this costs. Turn 3 handed over a full table
+  // header row and turn 4 an "erstelle ausschließlich"-restriction; both were
+  // classified `agentic`, so neither reached the two owners above and both got
+  // "2-4 Absätze mit klarer Struktur" ordered from the system prompt — against
+  // the contract standing in the user's own message. The answers argued with
+  // generic completeness rules instead of the ones the turn was given.
+  //
+  // The sentence differs from the one above on purpose: that prescription
+  // stands HIGHER IN THIS PROMPT, this one stands in the conversation. Pointing
+  // at "oben" would send the model looking for something that isn't there.
+  if (state.taskShape != null) {
+    note('own_format', { formatOwner: `task_shape:${state.taskShape}` });
+    return 'Form und Umfang gibt der Auftrag der*des Nutzer*in vor — halte dich genau an das dort verlangte Format und füge nichts hinzu, was es nicht vorsieht.';
+  }
+
+  // Der vierte Besitzer, und der einzige, der bis 20.08.2026 keiner war: eine
+  // GEWÄHLTE Textform. Ein Rezept schreibt Aufbau, Länge, Ton und Zitierweise
+  // vollständig vor — dieselbe Achse, die diese Regel sonst bedient.
+  //
+  // Live gemessen: `/presse mehr artenschutz in ludwigshafen` lief als
+  // `agentic` mit `retrievalExpected`, fiel damit in `research_expanded` und
+  // bekam „Bis zu 6 Absätze … gliedere sie mit Überschriften … setze sie als
+  // Aufzählung … hebe Namen, Jahreszahlen und Kennzahlen mit **Fettung**
+  // hervor" — buchstäblich die Form, die dann herauskam: sechs Abschnitte,
+  // Tabelle, Aufzählungen, fettgesetzte Jahreszahlen. Kein Pressetext.
+  //
+  // Das Rezept stand im selben Prompt, nur ganz oben; diese Regel steht unter
+  // ANTWORT-REGELN, also zuletzt. Der Turn danach ohne Mention gelang genau
+  // deshalb: dort holt sich das Modell das Rezept über `rezept_laden` als
+  // Werkzeug-Ergebnis, unmittelbar bevor es schreibt — nach dieser Regel.
+  //
+  // Steht NACH `taskShape`: schreibt die Person im Auftrag selbst eine Form vor
+  // („gib mir ausschließlich drei Sätze"), gewinnt ihr Satz gegen das Rezept.
+  if (activeTextForm) {
+    note('own_format', { formatOwner: `textform:${activeTextForm}` });
+    return 'Form und Umfang gibt die oben aktive Textform vor — halte dich genau an deren Aufbau, Länge und Ton und füge keine Gliederung hinzu, die sie nicht vorsieht.';
   }
 
   if (state.complexity === 'complex') {
@@ -1271,7 +1811,7 @@ function buildAnswerFormatRule(
     return 'Kurze, präzise Antworten (1-2 Absätze)';
   }
 
-  const isExternalResearch = EXTERNAL_RESEARCH_INTENTS.has(String(state.intent));
+  const isExternalResearch = EXTERNAL_RESEARCH_INTENTS.has(state.intent);
   if (isExternalResearch && (retrievalExpected || sourceCount >= STRUCTURE_SOURCE_THRESHOLD)) {
     note('research_expanded');
     // "darfst du gliedern — Pflicht ist das nicht" was permission nobody took:
@@ -1300,25 +1840,36 @@ export interface SystemMessageOptions {
 }
 
 /**
- * Build the complete system message with agent role and search context.
+ * Composer paths (press, social-media): a sibling composer node has already
+ * produced an intent-specific system prompt and stored it on state.responseText.
+ * Use it verbatim — bypassing the generic search-context / anchor / citation
+ * machinery that doesn't apply to a fresh content-creation turn.
+ * Defensive: routing in ChatGraph already forks composer intents away from
+ * respondNode, so this branch only fires if routing changes upstream.
  */
-export async function buildSystemMessage(
-  state: ChatGraphState,
-  opts: SystemMessageOptions = {}
-): Promise<string> {
-  // Composer paths (press, social-media): a sibling composer node has already
-  // produced an intent-specific system prompt and stored it on state.responseText.
-  // Use it verbatim — bypassing the generic search-context / anchor / citation
-  // machinery that doesn't apply to a fresh content-creation turn.
-  // Defensive: routing in ChatGraph already forks composer intents away from
-  // respondNode, so this branch only fires if routing changes upstream.
+function composerBypass(state: ChatGraphState): string | null {
   if (
     (state.intent === 'pressemitteilung_examples' || state.intent === 'examples') &&
     state.responseText
   ) {
     return state.responseText;
   }
+  return null;
+}
 
+type PromptBranch = 'default' | 'custom';
+
+/**
+ * Alle Ableitungen für den Systemprompt, getrennt vom Zusammenbau.
+ *
+ * Hier läuft alles, was nicht rein ist oder woran eine spätere Regel hängt:
+ * der Rezept-Nachschlag (Platte/Datenbank) samt `state.usedRecipes`, das
+ * Produktwissen, `formatSearchContext`, und `hasUntrusted`, das die fertigen
+ * Material-Blöcke liest. Reihenfolge und Anzahl dieser Aufrufe sind dieselben
+ * wie vor der Blockliste — die Blöcke lesen nur noch fertige Werte, sonst
+ * liefen Formatter doppelt und ihre Kürzungswarnungen stünden zweimal im Log.
+ */
+async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessageOptions) {
   const {
     agentConfig,
     intent,
@@ -1331,21 +1882,46 @@ export async function buildSystemMessage(
   } = state;
   const searchContext = await formatSearchContext(state, !!agentConfig.inlineSourceLinks);
   const perSourceContext = formatPerSourceContext(state);
-  const currentDocumentContext = formatCurrentDocument(state);
-  const attachmentContext = formatAttachmentContext(state);
+  // Ein Pipeline-Agent hat seinen Ausgangstext schon gewählt (`resolveOriginalText`)
+  // und bekommt ihn weiter unten wörtlich angeheftet. Die übrigen Material-Blöcke
+  // schweigen dann: solange sie danebenstehen, ist die Anheftung eine Bitte, die
+  // das Modell abwägen darf — und am 13.08.2026 wog es falsch ab und übertrug den
+  // Artikel aus dem Thread-Kontext, während die Prüfkette gegen den angehefteten
+  // Text mass. Ein Übertragungs-Turn hat genau ein Original, und welches, steht
+  // schon fest.
+  const isPinnedTransfer = !!state.pipelineSourceText;
+  const currentDocumentContext = isPinnedTransfer ? '' : formatCurrentDocument(state);
+  const attachmentContext = isPinnedTransfer ? '' : formatAttachmentContext(state);
   const imageContext = formatImageContext(state);
   const summaryContextFormatted = formatSummaryContext(summaryContext);
   const computedResultFormatted = formatComputedResultContext(computedResult);
   const tabularComputeGuidance = formatTabularComputeGuidance(state);
-  const threadAttachmentsContext = formatThreadAttachmentsContext(
-    threadAttachments,
-    state.contextWindowTokens
-  );
-  const memoryContextFormatted = formatMemoryContext(memoryContext);
+  const threadAttachmentsContext = isPinnedTransfer
+    ? ''
+    : formatThreadAttachmentsContext(
+        threadAttachments,
+        state.contextWindowTokens,
+        (state.messages ?? []).map((m) => extractTextContent(m.content)).join('\n'),
+        // The live block is built independently of the stored rows, and on the
+        // turn a file is uploaded it IS one of them. Hand it over so the same
+        // text isn't sent twice (measured 20.08.2026: 5794 chars → 11632).
+        //
+        // Bewusst der ROHE Zustandswert, nicht der formatierte Block: der ist
+        // budget-gekürzt (`limitAttachmentContext`) und durch `preventBreakout`
+        // gelaufen. Beides verändert den Text, gegen den wir vergleichen — die
+        // Dublette bliebe dann genau in den Fällen unerkannt, in denen sie am
+        // teuersten ist.
+        state.attachmentContext ?? '',
+        attachmentQuery(state)
+      );
+  const memoryContextFormatted = formatMemoryContext(memoryContext, !!state.userInstructions);
   const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
   const boardContextFormatted = formatBoardContext(boardContext);
   const sheetContextFormatted = formatSheetContext(state.sheetContext);
-  const docMentionContextFormatted = formatDocumentMentionContext(documentMentionContext);
+  const docMentionContextFormatted = isPinnedTransfer
+    ? ''
+    : formatDocumentMentionContext(documentMentionContext);
+  const pipelineSourceText = formatPipelineSourceText(state.pipelineSourceText);
   const localeContext = formatLocaleContext(state.userLocale);
   const platformContext = formatPlatformContext(state.clientPlatform);
 
@@ -1374,8 +1950,23 @@ export async function buildSystemMessage(
   // recompute or filter independently here, or the model's [N] markers can
   // drift from the rendered Citation array (the original wolke bug).
   const sourceCount = state.citations.length;
-  // Polished-content suppresses inline citations only when generating output;
-  // research questions always cite inline regardless of contentType heuristics.
+  // Ein erkannter Textsorten-Auftrag (Pressemitteilung, Rede, Artikel) soll als
+  // fertiges Dokument lesbar sein, also ohne [1] im Fliesstext — die Quellen
+  // stehen daneben.
+  //
+  // Der Ausschluss nennt `search` und meinte „eine FRAGE, keine Textbestellung".
+  // Beides trifft sich nur auf einem Weg, und der ist die Erwähnung:
+  // `contentType` setzen ausschliesslich die drei `produktion.*`-Regeln der
+  // Heuristik, den Intent überschreibt danach `forcedIntentStage`. Also trennt
+  // diese Zeile heute zwei Erwähnungen derselben Familie —
+  // `@dokumente` + „schreib eine PM über X" zitiert inline, `@recherche` +
+  // derselbe Satz nicht.
+  //
+  // Bleibt in R3 unangetastet: welche Seite richtig ist, ist eine Produktfrage
+  // (entscheidet eine Erwähnung nur die QUELLE oder auch die FORM?) und keine
+  // Lane-Frage. Beide Seiten stehen als Zusicherung in
+  // `answerFormatOwner.vitest.ts`, damit die Antwort sichtbar wird, wenn sie
+  // jemand gibt.
   const isPolishedContent = !!state.contentType && intent !== 'search';
 
   let citationInstruction = '';
@@ -1391,10 +1982,12 @@ export async function buildSystemMessage(
 6. Zitiere 1-2 Quellen pro Kernaussage — nicht jeder Satz braucht eine Referenz.
 7. Setze die Referenz direkt nach der Aussage, z.B.: "Die Grünen fordern ein Tempolimit [1]." Stützen mehrere Quellen dieselbe Aussage, fasse sie in EINER Klammer zusammen: [1, 3].
 8. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.
-9. ${SOURCE_HEDGING_RULE}`;
+9. ${SOURCE_HEDGING_RULE}
+10. ${SOURCE_LINK_RULE}`;
   }
 
   const today = formatGermanDate();
+  const geltungsstand = geltungsstandNote(state);
 
   // User profile instructions (additive — included in all modes). When no
   // profile/roles are set, an explicit guard stops the model from inventing a
@@ -1422,8 +2015,10 @@ export async function buildSystemMessage(
   const isNeutralTurn = intent === 'summary';
   const userQuestion = lastUserText(state);
   const productIdentity = isNeutralTurn ? '' : buildCompactProductIdentity(state.userLocale);
+  // Der Block macht I/O (versteckte Agenten, verbundene MCP-Server) — im
+  // Rollen-Chat wird er nie gerendert, also dort gar nicht erst gebaut.
   let productKnowledge = '';
-  if (!isNeutralTurn && isProductMetaQuestion(userQuestion)) {
+  if (!state.customSystemPrompt && !isNeutralTurn && isProductMetaQuestion(userQuestion)) {
     productKnowledge = await buildProductKnowledgeBlock({
       locale: state.userLocale,
       userId: state.agentConfig?.userId ?? null,
@@ -1438,11 +2033,179 @@ export async function buildSystemMessage(
   // loop — CHITCHAT_RE pins "hilfe"/"was kannst du" to the single-pass path,
   // where `gruenerator_docs_search` does not exist. Complementary to that tool,
   // not redundant: the map lists the pages, the tool retrieves section text.
+  //
+  // Hängt am gepinnten WERKZEUG statt am Intent `hilfe`. Der Intent deckte zwei
+  // verschiedene Fälle in einer Bedingung ab, und nur einer davon brauchte ihn:
+  // die Prosa-Frage kommt aus Tier 2.9, das auf genau diesem Gitter feuert und
+  // deshalb schon vom zweiten Glied getragen wird; die ERWÄHNUNG dagegen kann
+  // jeden Text tragen und ist an ihrer Wahl zu erkennen, nicht am Wortlaut.
   const docsPageMap =
-    !isNeutralTurn && (intent === 'hilfe' || looksLikeDocsHelpQuestion(userQuestion))
+    !isNeutralTurn &&
+    (state.mentionPinnedTool === 'gruenerator_docs_search' ||
+      looksLikeDocsHelpQuestion(userQuestion))
       ? buildDocsPageMap()
       : '';
   if (docsPageMap) log.debug('[Respond] docs page map attached');
+
+  // Active-skill prompt fragment: appended when the user's chat composer had a
+  // /skill mention active for this turn. Each platform skill carries its own
+  // spec (Insta 600 chars, Twitter 280, PM structure …) so the agent's base
+  // systemRole stays platform-agnostic and slim.
+  //
+  // Without an explicit mention, the agent's `defaultRecipeMention` (its core
+  // text form, e.g. `presse-berlin`) fills in — but only on the single-pass
+  // path: on the agentic branch (`retrievalExpected`) the loop mounts
+  // `rezept_laden` and the model picks the recipe itself; baking one in here
+  // would double-inject and overrule that choice. Der Rückfall ist LV-bewusst
+  // (`roleAwareDefaultRecipeMention`): ein generischer Default wird für eine
+  // Person mit genau einer Landesverbands-Rolle zur Variante dieses Verbands.
+  //
+  // Single-pass is a necessary condition, not a sufficient one: chitchat and
+  // help turns ("was kannst du?", "hilfe") also run single-pass with a
+  // non-neutral intent (`greeting`/`hilfe`, or `produktion` via the residual).
+  // They are not write turns — priming them with ~2k tokens of press-release
+  // formatting would waste the token bilanz this fallback exists to protect,
+  // so they are excluded the same way `isProductMetaQuestion`/`docsPageMap`
+  // already special-case them above.
+  //
+  // VOR dem `customSystemPrompt`-Zweig berechnet, weil auch der ein Fragment
+  // bekommen kann: eine ausdrücklich gewählte Mention gilt in JEDEM Rollen-Chat,
+  // egal ob die Persona ein server-eigener Baustein oder frei getippt ist —
+  // sonst schreibt die aktivierte Rolle jede bestellte Textsorte formlos. Der
+  // Agent-Default dagegen gilt in beiden Custom-Fällen nie: eine Persona sagt
+  // bereits, wie geschrieben wird, ein ungefragtes Rezept wäre dort ein zweiter
+  // Formatgeber. Dieselbe Trennung macht `catalogAssembly` für `rezept_laden`
+  // im Loop. Regeln und Herleitung in `effectiveRecipeMention.ts`.
+  const isWriteEligibleTurn =
+    !opts.retrievalExpected &&
+    !isNeutralTurn &&
+    intent !== 'greeting' &&
+    !looksLikeChitchatTurn(userQuestion) &&
+    !isProductMetaQuestion(userQuestion) &&
+    !docsPageMap;
+  const effectiveRecipe = resolveEffectiveRecipeMention({
+    activeSkillMention: state.activeSkillMention,
+    activeRecipeId: state.activeRecipeId,
+    customSystemPrompt: state.customSystemPrompt,
+    isWriteEligibleTurn,
+    agentDefault: () =>
+      roleAwareDefaultRecipeMention(agentConfig, {
+        userRoles: state.userRoles,
+        userLocale: state.userLocale,
+      }),
+    agentDefaultRecipeId: agentConfig.defaultRecipeId ?? null,
+  });
+  const effectiveSkillMention = effectiveRecipe.mention;
+
+  // Der EINE Nachschlag. Gepinnte Zeile vor angelerntem Stil („Texte anlernen")
+  // vor mitgeliefertem Rezepttext — und er entscheidet gleich mit, unter welcher
+  // Überschrift das Ergebnis läuft (`replacesSystem`) und ob es eingefasst ist
+  // (`untrusted`). Hier standen dafür bis zur Vereinheitlichung drei eigene
+  // Aufrufe, und sie sind dreimal von den beiden anderen Pfaden abgewichen
+  // (#2930, #2937, #2939); die Herleitung steht im Kopf von
+  // `services/recipes/resolveRecipeBody.ts`.
+  //
+  // `userId` fällt auf dem neutralen Zusammenfassungs-Turn weg — genau wie
+  // bisher: der angelernte Stil hat in einer objektiven Zusammenfassung nichts
+  // zu suchen, ein ausdrücklich gewähltes Systemrezept schon.
+  const resolved =
+    effectiveSkillMention || effectiveRecipe.recipeId
+      ? await resolveRecipeBody({
+          mention: effectiveSkillMention,
+          recipeId: effectiveRecipe.recipeId,
+          userId: isNeutralTurn ? null : (agentConfig.userId ?? null),
+        })
+      : null;
+
+  // Der Rumpf einer angelernten Textform ist im Nachschlag BEREITS eingefasst
+  // (`embedUntrusted`) — hier nicht ein zweites Mal, das ist nicht idempotent.
+  //
+  // Die Überschrift: gibt es ein Systemrezept, steht dessen Titel darin
+  // („## AKTIVE PLATTFORM: PM Hessen (Partei)"), auch wenn der Rumpf ein
+  // angelernter Stil ist — der Stil ersetzt den Rezepttext, nicht das Rezept.
+  // Nur die freie Mention ohne Systemrezept läuft unter ihrem eigenen Namen.
+  const skillFragment = resolved
+    ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}`
+    : '';
+
+  // Dieselbe Vokabel wie die Werkzeug-Tür (`[recipeTools] [Rezept] gewählt=…
+  // quelle=…`), damit im Log vergleichbar wird, welcher der beiden Wege ein
+  // Rezept getragen hat. Ohne diese Zeile war die Prompt-Tür stumm: ein Turn
+  // mit ausdrücklicher Wahl sieht im Log exakt aus wie einer ohne, weil die
+  // Wahl `rezept_laden` gerade abhängt (`catalogAssembly`). Genau daran ließ
+  // sich der Ausfall vom 20.08.2026 nicht am Log entscheiden.
+  // Was das Modell wirklich vor sich hat — `quelle=fehlt`, wenn kein Rezepttext
+  // gefunden wurde. Die Formatregel unten hängt daran, nicht an der blossen
+  // Absicht.
+  const activeTextFormTitle = resolved ? resolved.title : null;
+
+  if (effectiveSkillMention || effectiveRecipe.recipeId) {
+    const quelle = resolved?.source ?? 'fehlt';
+    log.info(
+      `[Rezept] Prompt-Fragment mention=${effectiveSkillMention ?? '-'} id=${effectiveRecipe.recipeId ?? '-'} quelle=${quelle} gewaehlt=${state.activeSkillMention || state.activeRecipeId ? 'ja' : 'agent-standard'}`
+    );
+  }
+
+  // Nachvollziehbarkeit: nur was WIRKLICH im Prompt steht, wird ausgewiesen —
+  // Absicht ohne gefundenen Rezepttext (`quelle=fehlt`) bleibt draußen. Auf
+  // Loop-Turns überschreibt die Registry diesen Wert, wenn das Modell selbst
+  // lädt (`agenticRespondService`).
+  //
+  // Ausgewiesen wird die Mention der ZEILE, nicht die der Anfrage: ein per id
+  // gepinntes Rezept läuft unter seinem eigenen Namen, und die Abzeichenzeile
+  // soll dasselbe nennen wie die Überschrift im Prompt (#2939). Der Prompttext
+  // bleibt draußen — hier steht nur, WAS galt.
+  if (resolved) {
+    state.usedRecipes = [
+      {
+        mention: resolved.mention,
+        title: resolved.title,
+        source: resolved.source,
+        ...(resolved.id ? { id: resolved.id } : {}),
+      },
+    ];
+  }
+
+  const shared = {
+    state,
+    opts,
+    sourceCount,
+    activeTextFormTitle,
+    hasSources,
+    citationInstruction,
+    skillFragment,
+    today,
+    geltungsstand,
+    localeContext,
+    platformContext,
+    productIdentity,
+    productKnowledge,
+    docsPageMap,
+    userInstructionsFormatted,
+    intentGuidance,
+    memoryContextFormatted,
+    chatHistoryFormatted,
+    boardContextFormatted,
+    sheetContextFormatted,
+    docMentionContextFormatted,
+    threadAttachmentsContext,
+    currentDocumentContext,
+    attachmentContext,
+    imageContext,
+    artifactInventory,
+    summaryContextFormatted,
+    computedResultFormatted,
+    tabularComputeGuidance,
+    searchContext,
+    perSourceContext,
+    pipelineSourceText,
+    // What broke in this turn, in the model's own words. A warning event is
+    // telemetry only — without this block the model happily presents a degraded
+    // turn as a complete one (answering an arithmetic question from memory after
+    // the compute step failed, for instance).
+    degradationBlock: renderDegradationNotes(state.degradationNotes),
+    injectionWarning: state.injectionSuspected ? INJECTION_WARNING_NOTE : '',
+  };
 
   // Custom system prompt: replaces the entire agent prompt when set.
   //
@@ -1457,10 +2220,19 @@ export async function buildSystemMessage(
       state.customSystemPrompt,
       (state.userLocale as Locale) || 'de-DE'
     );
-    return `${customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}
-
-${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSuspected ? INJECTION_WARNING_NOTE : ''}`;
+    // `skillFragment` ist hier gefüllt, sobald eine Mention wirkt — ausdrücklich
+    // gewählt oder über einen Katalog-Baustein (siehe `effectiveRecipeMention.ts`):
+    // das Rezept bestimmt die FORM, die Rolle die Stimme.
+    return {
+      branch: 'custom' as PromptBranch,
+      ctx: {
+        ...shared,
+        customSystemPrompt,
+        systemRole: '',
+        // Im Rollen-Chat steht die Hierarchie-Regel unbedingt.
+        hierarchyRule: INSTRUCTION_HIERARCHY_RULE,
+      },
+    };
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -1471,73 +2243,174 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   const rawSystemRole = isNeutralTurn ? NEUTRAL_SUMMARY_ROLE : agentConfig.systemRole;
   const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
 
-  // Active-skill prompt fragment: appended only when the user's chat composer
-  // had a /skill mention active for this turn. Each platform skill carries its
-  // own spec (Insta 600 chars, Twitter 280, PM structure …) so the agent's
-  // base systemRole stays platform-agnostic and slim.
-  const activeSkill = state.activeSkillMention
-    ? SKILLS.find((s) => s.mention === state.activeSkillMention)
-    : undefined;
-
-  // Per-user learned writing style ("Texte anlernen") takes precedence over the
-  // standard skill prompt when the user has trained one for the active mention:
-  //   - preset (Presse/Instagram/…): the learned block REPLACES the system
-  //     skill's standard prompt (komplett ersetzen);
-  //   - custom mention (no system skill, e.g. /omveinladungen): injected as its
-  //     own "## AKTIVE TEXTFORM" block onto the base agent.
-  // See services/user/textFormRepository.ts (cached, no LLM on the hot path).
-  const textFormMention = deriveTextFormMention(state.activeSkillMention, activeSkill);
-  const userTextForm =
-    !isNeutralTurn && agentConfig.userId && textFormMention
-      ? await getTextFormForInjection(agentConfig.userId, textFormMention)
-      : null;
-
-  let skillFragment = '';
-  if (userTextForm) {
-    skillFragment = activeSkill
-      ? `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${userTextForm.styleBlock}`
-      : `\n\n## AKTIVE TEXTFORM: ${userTextForm.title}\n${userTextForm.styleBlock}`;
-  } else if (activeSkill) {
-    // The prompt body is party-internal and deliberately absent from `SKILLS`,
-    // which ships in the web and mobile bundles — it is read from disk here
-    // instead. Null means the directory was never rolled out; the turn then runs
-    // on the agent's base systemRole. See services/skills/internalPrompts.ts.
-    const internalPrompt = getInternalSkillPrompt(activeSkill.mention);
-    if (internalPrompt) {
-      skillFragment = `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${internalPrompt}`;
-    }
-  }
-
-  // What broke in this turn, in the model's own words. A warning event is
-  // telemetry only — without this block the model happily presents a degraded
-  // turn as a complete one (answering an arithmetic question from memory after
-  // the compute step failed, for instance).
-  const degradationBlock = renderDegradationNotes(state.degradationNotes);
-
   // The hierarchy rule is only meaningful when untrusted material is actually
   // present; the warning only when that material looks like it carries an
   // attack (classifier flag). Adding either unconditionally would spend context
   // on every trivial turn.
+  //
+  // Die Liste muss JEDEN `embedUntrusted`-Aufruf oben abdecken, sonst steht der
+  // `<untrusted_content>`-Marker unerklärt im Prompt — ein Kontext-Posten ohne
+  // die Regel, die ihn erst bedeutungsvoll macht. Die beiden Nutzertext-Fälle
+  // fehlten: die Profilanweisungen seit jeher, der angelernte Stil seit er
+  // ebenfalls eingefasst wird. Beide treffen genau den häufigen Turn ohne
+  // Anhang und ohne Suche, in dem sonst gar nichts Untrusted vorkommt.
   const hasUntrusted =
     threadAttachmentsContext !== '' ||
     currentDocumentContext !== '' ||
     attachmentContext !== '' ||
     searchContext !== '' ||
-    perSourceContext !== '';
+    perSourceContext !== '' ||
+    Boolean(resolved?.untrusted) ||
+    !!state.userInstructions ||
+    !!memoryContext;
   const hierarchyRule = hasUntrusted ? INSTRUCTION_HIERARCHY_RULE : '';
-  const injectionWarning = state.injectionSuspected ? INJECTION_WARNING_NOTE : '';
 
-  return `${systemRole}${skillFragment}${degradationBlock}
-Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
+  return {
+    branch: 'default' as PromptBranch,
+    ctx: { ...shared, customSystemPrompt: '', systemRole, hierarchyRule },
+  };
+}
+
+type PromptBlockContext = Awaited<ReturnType<typeof buildPromptBlockContext>>['ctx'];
+
+/**
+ * Ein benannter Block des Systemprompts. Die `id` ist F1 (CLAUDE.md): einmal
+ * vergeben, wird sie nicht umbenannt — Tests und Diagnose hängen daran.
+ */
+interface PromptBlock {
+  readonly id: string;
+  /** Welche Zusammenbauten diesen Block auswählen. */
+  readonly branches: readonly PromptBranch[];
+  readonly render: (ctx: PromptBlockContext) => string;
+}
+
+const BOTH: readonly PromptBranch[] = ['default', 'custom'];
+const DEFAULT_ONLY: readonly PromptBranch[] = ['default'];
+const CUSTOM_ONLY: readonly PromptBranch[] = ['custom'];
+
+/**
+ * Die Reihenfolge des Systemprompts — als Daten.
+ *
+ * Der Rollen-Chat (`customSystemPrompt`) ist eine AUSWAHL aus dieser einen
+ * Liste, kein zweites Template: ein Zweig kann Blöcke auslassen, aber nicht
+ * umordnen. Führende Zeilenumbrüche gehören zum Block, der Zusammenbau ist ein
+ * `join('')`. Wer einen Block ergänzt, trägt ihn hier ein — mit seinem Zweig —
+ * und bekommt ihn damit auch in `activePromptBlocks` und im Golden-Test zu
+ * sehen (`respondNodePrompt.vitest.ts`).
+ */
+const PROMPT_BLOCKS = [
+  { id: 'custom-system-prompt', branches: CUSTOM_ONLY, render: (ctx) => ctx.customSystemPrompt },
+  { id: 'system-role', branches: DEFAULT_ONLY, render: (ctx) => ctx.systemRole },
+  { id: 'skill-fragment', branches: BOTH, render: (ctx) => ctx.skillFragment },
+  { id: 'degradation-notes', branches: DEFAULT_ONLY, render: (ctx) => ctx.degradationBlock },
+  { id: 'datum', branches: BOTH, render: (ctx) => `\nHeutiges Datum: ${ctx.today}` },
+  { id: 'geltungsstand', branches: BOTH, render: (ctx) => ctx.geltungsstand },
+  { id: 'locale-context', branches: BOTH, render: (ctx) => ctx.localeContext },
+  { id: 'platform-context', branches: BOTH, render: (ctx) => ctx.platformContext },
+  { id: 'product-identity', branches: DEFAULT_ONLY, render: (ctx) => ctx.productIdentity },
+  { id: 'product-knowledge', branches: DEFAULT_ONLY, render: (ctx) => ctx.productKnowledge },
+  { id: 'docs-page-map', branches: DEFAULT_ONLY, render: (ctx) => ctx.docsPageMap },
+  { id: 'user-instructions', branches: BOTH, render: (ctx) => ctx.userInstructionsFormatted },
+  { id: 'intent-guidance', branches: DEFAULT_ONLY, render: (ctx) => ctx.intentGuidance },
+  { id: 'memory-context', branches: BOTH, render: (ctx) => ctx.memoryContextFormatted },
+  { id: 'chat-history', branches: BOTH, render: (ctx) => ctx.chatHistoryFormatted },
+  { id: 'board-context', branches: BOTH, render: (ctx) => ctx.boardContextFormatted },
+  { id: 'sheet-context', branches: BOTH, render: (ctx) => ctx.sheetContextFormatted },
+  {
+    id: 'document-mention-context',
+    branches: BOTH,
+    render: (ctx) => ctx.docMentionContextFormatted,
+  },
+  { id: 'thread-attachments', branches: BOTH, render: (ctx) => ctx.threadAttachmentsContext },
+  { id: 'current-document', branches: BOTH, render: (ctx) => ctx.currentDocumentContext },
+  { id: 'attachments', branches: BOTH, render: (ctx) => ctx.attachmentContext },
+  { id: 'image-context', branches: BOTH, render: (ctx) => ctx.imageContext },
+  { id: 'artifact-inventory', branches: BOTH, render: (ctx) => ctx.artifactInventory },
+  { id: 'summary-context', branches: BOTH, render: (ctx) => ctx.summaryContextFormatted },
+  { id: 'computed-result', branches: BOTH, render: (ctx) => ctx.computedResultFormatted },
+  {
+    id: 'tabular-compute-guidance',
+    branches: BOTH,
+    render: (ctx) => ctx.tabularComputeGuidance,
+  },
+  { id: 'search-context', branches: BOTH, render: (ctx) => ctx.searchContext },
+  { id: 'per-source-context', branches: BOTH, render: (ctx) => ctx.perSourceContext },
+  { id: 'pipeline-source-text', branches: DEFAULT_ONLY, render: (ctx) => ctx.pipelineSourceText },
+  {
+    id: 'custom-citation-instruction',
+    branches: CUSTOM_ONLY,
+    render: (ctx) => (ctx.hasSources ? `\n${ctx.citationInstruction}` : ''),
+  },
+  {
+    id: 'custom-integrity-rule',
+    branches: CUSTOM_ONLY,
+    render: () => `\n\n${CONTENT_INTEGRITY_ANSWER_RULE}`,
+  },
+  {
+    id: 'answer-rules',
+    branches: DEFAULT_ONLY,
+    // Die Formatregel protokolliert ihre Entscheidung (`recordDecision`) — sie
+    // darf also nur laufen, wenn der Block auch gewählt ist.
+    render: (ctx) => `
 
 ## ANTWORT-REGELN
 1. ${SCOPE_RULE}
-2. ${buildAnswerFormatRule(state, sourceCount, opts.retrievalExpected ?? false)}
+2. ${buildAnswerFormatRule(ctx.state, ctx.sourceCount, ctx.opts.retrievalExpected ?? false, ctx.activeTextFormTitle)}
 3. Antworte auf Deutsch. Sind Quellen fremdsprachig, formuliere SPRACHLICH eigenständig statt wörtlich zu übersetzen — INHALTLICH bleibst du exakt bei der Quelle und ergänzt nichts, was dort nicht steht. Kannst du eine Aussage nicht nachvollziehbar auf Deutsch wiedergeben, lass sie weg statt zu raten
 4. Erfinde keine Fakten oder Quellennamen
 5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt
 6. Kompakte Formatierung: Maximal eine Leerzeile zwischen Absätzen. Keine doppelten Leerzeilen, keine horizontalen Trennlinien (---)
-7. ${CONTENT_INTEGRITY_ANSWER_RULE}${citationInstruction}${hierarchyRule}${injectionWarning}`;
+7. ${CONTENT_INTEGRITY_ANSWER_RULE}`,
+  },
+  { id: 'citation-instruction', branches: DEFAULT_ONLY, render: (ctx) => ctx.citationInstruction },
+  { id: 'instruction-hierarchy', branches: BOTH, render: (ctx) => ctx.hierarchyRule },
+  { id: 'injection-warning', branches: BOTH, render: (ctx) => ctx.injectionWarning },
+] as const satisfies readonly PromptBlock[];
+
+type PromptBlockId = (typeof PROMPT_BLOCKS)[number]['id'];
+
+export const PROMPT_BLOCK_ORDER: readonly PromptBlockId[] = PROMPT_BLOCKS.map((b) => b.id);
+
+function renderPromptBlocks(
+  branch: PromptBranch,
+  ctx: PromptBlockContext
+): { id: PromptBlockId; text: string }[] {
+  return PROMPT_BLOCKS.filter((b) => b.branches.includes(branch)).map((b) => ({
+    id: b.id,
+    text: b.render(ctx),
+  }));
+}
+
+/**
+ * Build the complete system message with agent role and search context.
+ */
+export async function buildSystemMessage(
+  state: ChatGraphState,
+  opts: SystemMessageOptions = {}
+): Promise<string> {
+  const bypass = composerBypass(state);
+  if (bypass !== null) return bypass;
+
+  const { branch, ctx } = await buildPromptBlockContext(state, opts);
+  return renderPromptBlocks(branch, ctx)
+    .map((b) => b.text)
+    .join('');
+}
+
+/**
+ * Welche Blöcke bei diesem Zustand Text beitragen, in Prompt-Reihenfolge.
+ * Derselbe Weg wie {@link buildSystemMessage} — inklusive seiner Nebenwirkungen.
+ */
+export async function activePromptBlocks(
+  state: ChatGraphState,
+  opts: SystemMessageOptions = {}
+): Promise<PromptBlockId[]> {
+  if (composerBypass(state) !== null) return [];
+
+  const { branch, ctx } = await buildPromptBlockContext(state, opts);
+  return renderPromptBlocks(branch, ctx)
+    .filter((b) => b.text !== '')
+    .map((b) => b.id);
 }
 
 /**

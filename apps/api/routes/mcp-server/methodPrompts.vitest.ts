@@ -16,7 +16,7 @@ import {
   buildCorpusMethodText,
   buildMethodDocument,
   buildNotebookMethodText,
-  buildNotizbuchPrompt,
+  buildNotebookPrompt,
   buildRecherchePrompt,
 } from './methodPrompts.js';
 
@@ -68,10 +68,25 @@ describe('method texts', () => {
   });
 
   it('derives the notebook method from the general draft prompt', () => {
-    const text = buildNotebookMethodText('Mein Notizbuch');
-    expect(text.startsWith(buildDraftPromptGeneral('Mein Notizbuch', 'mcp').system)).toBe(true);
+    const text = buildNotebookMethodText('Mein Notebook');
+    expect(text.startsWith(buildDraftPromptGeneral('Mein Notebook', 'mcp').system)).toBe(true);
     expect(text).toContain('action="list"');
     expect(text).toContain('action="search"');
+  });
+
+  it('walks the notebook method from list over find, read and cite to the locators', () => {
+    const text = buildNotebookMethodText('Mein Notebook');
+    const order = [
+      '`notebooks` mit `action="list"`',
+      '`action="find"`',
+      '`action="read"`',
+      '`action="cite"`',
+      'Fundstelle belegen',
+    ];
+    const positions = order.map((needle) => text.indexOf(needle));
+    expect(positions.every((p) => p >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    expect(text).not.toContain('Rerank');
   });
 
   it('tells the client that synthesis is its own job, with the one exception', () => {
@@ -123,7 +138,7 @@ describe('prompt exchanges', () => {
   });
 
   it('asks which notebook is meant when none was named', () => {
-    expect(buildNotizbuchPrompt('Frage')[0].content.text).toContain('Frage die Person');
-    expect(buildNotizbuchPrompt('Frage', 'Verkehr')[0].content.text).toContain('„Verkehr"');
+    expect(buildNotebookPrompt('Frage')[0].content.text).toContain('Frage die Person');
+    expect(buildNotebookPrompt('Frage', 'Verkehr')[0].content.text).toContain('„Verkehr"');
   });
 });

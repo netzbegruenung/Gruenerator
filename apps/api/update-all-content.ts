@@ -19,6 +19,12 @@
  *                             For hourly runs; the nightly run omits it for a full walk.
  *   --dry-run                Preview without storing (only supported by landesverbaende)
  *   --concurrency <n>        Max parallel source groups (default: 2)
+ *   --prune-max-share <n>    KommunalWiki only: raise the cap on removing points
+ *                             whose wiki page was deleted upstream, as a share of
+ *                             the collection (default 0.1). The cap exists so a
+ *                             truncated-but-successful page list cannot empty the
+ *                             collection, so raising it is a deliberate one-off —
+ *                             the cleanup after #3198 needs about 0.3.
  *
  * Examples:
  *   npx tsx apps/api/update-all-content.ts                              # Sync all
@@ -26,9 +32,16 @@
  *   npx tsx apps/api/update-all-content.ts --landesverband BE           # Only Berlin LV
  *   npx tsx apps/api/update-all-content.ts --dry-run                    # Preview
  *   npx tsx apps/api/update-all-content.ts --force                      # Force re-index
+ *   npx tsx apps/api/update-all-content.ts --source kommunalwiki --prune-max-share 0.3
  *
  * Run: npx tsx apps/api/update-all-content.ts
+ *
+ * Locally, `.env` is read from the current working directory.
  */
+
+// Must stay the first import: config/env.js snapshots process.env when it is
+// evaluated, and ESM evaluates imports in source order.
+import 'dotenv/config';
 
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -41,13 +54,19 @@ import {
   loadLandesverbandContacts,
 } from './config/landesverbaendeConfig.js';
 import { sendContentSyncEmail } from './services/email/emailService.js';
+import { drainExtractionStats } from './services/scrapers/extractionRecorder.js';
 import { getAbgeordnetenwatchScraperService } from './services/scrapers/implementations/AbgeordnetenwatchScraper/index.js';
 import { boellStiftungScraperService } from './services/scrapers/implementations/BoellStiftungScraper.js';
 import { bundestagScraperService } from './services/scrapers/implementations/BundestagScraper/index.js';
 import { gruenblogScraperService } from './services/scrapers/implementations/GruenblogScraper.js';
 import { grueneAtScraperService } from './services/scrapers/implementations/GrueneAtScraper.js';
+import { grueneDeScraperService } from './services/scrapers/implementations/GrueneDeScraper.js';
 import { kommunalwikiScraper } from './services/scrapers/implementations/KommunalwikiScraper.js';
 import { landesverbandScraperService } from './services/scrapers/implementations/LandesverbandScraper/index.js';
+import {
+  grundsatzPdfScraperService,
+  oesterreichPdfScraperService,
+} from './services/scrapers/implementations/ProgramPdfScraper.js';
 import { scrapeAndIndexSocialMedia } from './services/scrapers/implementations/SocialMediaExamplesScraper.js';
 import { drainSyncEvents } from './services/scrapers/syncEventRecorder.js';
 import { type SourceGroupResult, type SyncSummary } from './types/syncTypes.js';
@@ -61,6 +80,8 @@ interface CliArgs {
   recent: boolean;
   concurrency: number;
   noEmail: boolean;
+  /** KommunalWiki: Obergrenze fürs Aufräumen gelöschter Seiten, Anteil der Punkte. */
+  pruneMaxShare?: number;
 }
 
 function parseArgs(): CliArgs {
@@ -96,6 +117,17 @@ function parseArgs(): CliArgs {
       case '--no-email':
         result.noEmail = true;
         break;
+      case '--prune-max-share': {
+        const share = Number.parseFloat(args[++i]);
+        // Einen Unsinnswert still auf den Standard fallen zu lassen wäre hier
+        // falsch: wer die Grenze anhebt, will genau diese Zahl — nicht heimlich
+        // wieder 0,1 und damit einen Lauf, der nichts aufräumt.
+        if (!Number.isFinite(share) || share < 0 || share > 1) {
+          throw new Error(`--prune-max-share expects a share between 0 and 1, got "${args[i]}"`);
+        }
+        result.pruneMaxShare = share;
+        break;
+      }
       default:
         break;
     }
@@ -121,21 +153,34 @@ interface SourceGroup {
  * and notified nobody — that is how Saarland produced zero documents unnoticed.
  *
  * Unlike the gruenblog / gruene-at / böll scrapers, this one reports a single
- * undifferentiated `errors` count with no `skipReasons`, so there is nothing to
- * split. `fetchErrors: 0` says exactly that instead of guessing.
+ * undifferentiated `errors` count; its `skipReasons` count skips (`too_old`,
+ * `unchanged`, …), not failures, so there is nothing to split. `fetchErrors: 0`
+ * says exactly that instead of guessing.
  */
 function reportLandesverbandResult(result: {
   stored: number;
   updated: number;
   skipped: number;
   errors: number;
-}): { stored: number; updated: number; skipped: number; fetchErrors: number; errors: number } {
+  skipReasons: Record<string, number>;
+  qualityFlags: Record<string, number>;
+}): {
+  stored: number;
+  updated: number;
+  skipped: number;
+  fetchErrors: number;
+  errors: number;
+  skipReasons: Record<string, number>;
+  qualityFlags: Record<string, number>;
+} {
   return {
     stored: result.stored,
     updated: result.updated,
     skipped: result.skipped,
     fetchErrors: 0,
     errors: result.errors,
+    skipReasons: result.skipReasons,
+    qualityFlags: result.qualityFlags,
   };
 }
 
@@ -191,6 +236,61 @@ const SOURCE_GROUPS: SourceGroup[] = [
     },
   },
   {
+    id: 'gruene-de',
+    name: 'Gruene Deutschland (gruene.de)',
+    timeoutMs: 45 * 60 * 1000,
+    async run(args) {
+      await grueneDeScraperService.init();
+      const result = await grueneDeScraperService.fullCrawl({
+        forceUpdate: args.force,
+      });
+      const fetchErrors = result.skipReasons?.fetch_error?.count ?? 0;
+      return {
+        stored: result.stored,
+        updated: result.updated,
+        skipped: result.skipped,
+        fetchErrors,
+        errors: Math.max(0, result.errors - fetchErrors),
+      };
+    },
+  },
+  {
+    id: 'grundsatz',
+    name: 'Grundsatzprogramme (PDF)',
+    timeoutMs: 30 * 60 * 1000,
+    async run(args) {
+      await grundsatzPdfScraperService.init();
+      const result = await grundsatzPdfScraperService.fullCrawl({
+        forceUpdate: args.force,
+      });
+      return {
+        stored: result.stored,
+        updated: result.updated,
+        skipped: result.skipped,
+        fetchErrors: 0,
+        errors: result.errors,
+      };
+    },
+  },
+  {
+    id: 'oesterreich',
+    name: 'Die Gruenen Oesterreich – Programme (PDF)',
+    timeoutMs: 30 * 60 * 1000,
+    async run(args) {
+      await oesterreichPdfScraperService.init();
+      const result = await oesterreichPdfScraperService.fullCrawl({
+        forceUpdate: args.force,
+      });
+      return {
+        stored: result.stored,
+        updated: result.updated,
+        skipped: result.skipped,
+        fetchErrors: 0,
+        errors: result.errors,
+      };
+    },
+  },
+  {
     id: 'abgeordnetenwatch',
     name: 'Abgeordnetenwatch (Abstimmungen + Nebentätigkeiten)',
     // Full backfill enriches ~1,900 Abstimmungen with one votes-call each
@@ -221,6 +321,7 @@ const SOURCE_GROUPS: SourceGroup[] = [
       await kommunalwikiScraper.init();
       const result = await kommunalwikiScraper.fullCrawl({
         forceUpdate: args.force,
+        ...(args.pruneMaxShare !== undefined && { pruneMaxShare: args.pruneMaxShare }),
       });
       return {
         stored: result.stored,
@@ -228,6 +329,8 @@ const SOURCE_GROUPS: SourceGroup[] = [
         skipped: result.skipped,
         fetchErrors: result.errors,
         errors: 0,
+        ...(result.pruned > 0 ? { pruned: result.pruned } : {}),
+        ...(result.pruneSkippedReason ? { pruneSkippedReason: result.pruneSkippedReason } : {}),
       };
     },
   },
@@ -492,6 +595,8 @@ async function main() {
     { stored: 0, updated: 0, skipped: 0, fetchErrors: 0, errors: 0 }
   );
 
+  const extraction = drainExtractionStats();
+
   const failed = results.filter((r) => r.status === 'failed');
   const succeeded = results.filter((r) => r.status === 'success');
 
@@ -504,12 +609,38 @@ async function main() {
   console.log(`  Skipped:    ${totals.skipped}`);
   if (totals.fetchErrors > 0) console.log(`  Unreachable:${totals.fetchErrors}`);
   if (totals.errors > 0) console.log(`  Errors:     ${totals.errors}`);
+  console.log('----------------------------------------');
+  console.log(
+    `  Ausgelesen: ${extraction.documents} Dok. / ${extraction.pages} S. ` +
+      `(davon OCR: ${extraction.ocrDocuments} / ${extraction.ocrPages})`
+  );
+  console.log(`  Umsonst:    ${extraction.redundant} (ausgelesen, Text unverändert)`);
+  console.log(
+    `  Gespart:    ${extraction.skipped.not_modified} (304) | ` +
+      `${extraction.skipped.same_bytes} (gleiche Bytes) | ` +
+      `${extraction.skipped.freshly_indexed} (frisch)`
+  );
   console.log('========================================\n');
 
   if (totals.stored > 0) {
     console.log('New documents by source:');
     for (const r of results.filter((r) => r.stored > 0)) {
       console.log(`  ${r.id}: +${r.stored}`);
+    }
+    console.log('');
+  }
+
+  const pruned = results.filter((r) => (r.pruned ?? 0) > 0);
+  const pruneSkipped = results.filter((r) => r.pruneSkippedReason);
+  if (pruned.length > 0 || pruneSkipped.length > 0) {
+    console.log('Pruned (pages deleted upstream):');
+    for (const r of pruned) {
+      console.log(`  ${r.id}: -${r.pruned} points`);
+    }
+    // Eigene WARN-Zeile: ein abgewürgtes Aufräumen ist in den Zahlen oben
+    // unsichtbar — es sieht exakt aus wie „es gab nichts aufzuräumen".
+    for (const r of pruneSkipped) {
+      console.log(`  WARN ${r.id}: not pruned — ${r.pruneSkippedReason}`);
     }
     console.log('');
   }
@@ -538,6 +669,7 @@ async function main() {
       fetchErrors: totals.fetchErrors,
       errors: totals.errors,
     },
+    extraction,
     totalDuration: Math.round((Date.now() - syncStart) / 1000),
   };
 
@@ -577,6 +709,7 @@ async function main() {
             totalDuration: summary.totalDuration,
             sources: summary.sources,
             totals: summary.totals,
+            extraction: summary.extraction,
             runUrl,
             dryRun: args.dryRun,
           });

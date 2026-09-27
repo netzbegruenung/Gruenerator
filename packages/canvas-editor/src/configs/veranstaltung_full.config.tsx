@@ -3,10 +3,9 @@
  * Event sharepic with photo, green section, and date circle
  */
 
-import { HiPhotograph, HiSparkles } from 'react-icons/hi';
+import { HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
 import { AssetsSection, FrameSettingsSection, ImageBackgroundSection } from '../sidebar/sections';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { CANVAS_RECOMMENDED_ASSETS, type AssetInstance } from '../utils/canvasAssets';
@@ -25,6 +24,7 @@ import {
   createFrameActions,
   createUserImageActions,
 } from './factory/actionFactories';
+import { carryInstanceState } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
@@ -59,6 +59,7 @@ export interface VeranstaltungFullState {
   backgroundImageFile?: File | Blob | null;
   imageOffset: { x: number; y: number };
   imageScale: number;
+  backgroundImageOpacity?: number;
   isBackgroundLocked: boolean;
   customEventTitleFontSize: number | null;
   customBeschreibungFontSize: number | null;
@@ -66,6 +67,8 @@ export interface VeranstaltungFullState {
   beschreibungOpacity?: number;
   titleColor?: string;
   beschreibungColor?: string;
+  eventTitlePosition?: { x: number; y: number };
+  beschreibungPosition?: { x: number; y: number };
   assetInstances: AssetInstance[];
   isDesktop: boolean;
   // Icons & Shapes
@@ -88,6 +91,9 @@ export interface VeranstaltungFullState {
   // Frame instances
   frameInstances: FrameInstance[];
   userImageInstances: UserImageInstance[];
+
+  /** z-order of the collections above; carried by `carryInstanceState`. */
+  layerOrder: string[];
   // Attribution
   imageAttribution?: StockImageAttribution | null;
 
@@ -97,6 +103,25 @@ export interface VeranstaltungFullState {
 // ============================================================================
 // ACTIONS TYPE
 // ============================================================================
+
+/**
+ * Uebernimmt die Schluessel, die die Werkzeugleiste an Titel und Beschreibung
+ * schreibt (Deckkraft, Farbe, gezogene Position), aus dem Seed. Fehlende
+ * Schluessel bleiben weg statt als `undefined` im Zustand zu stehen.
+ */
+function carryTextStyling(props: Record<string, unknown>): Partial<VeranstaltungFullState> {
+  const keys = [
+    'eventTitleOpacity',
+    'beschreibungOpacity',
+    'titleColor',
+    'beschreibungColor',
+    'eventTitlePosition',
+    'beschreibungPosition',
+  ];
+  return Object.fromEntries(
+    keys.filter((k) => props[k] != null).map((k) => [k, props[k]])
+  ) as Partial<VeranstaltungFullState>;
+}
 
 export interface VeranstaltungFullActions {
   setEventTitle: (val: string) => void;
@@ -239,6 +264,8 @@ function createDateCircleTextLines(
 /**
  * Create initial date circle badge instance
  */
+const DATE_CIRCLE_ID = 'date-circle';
+
 function createInitialDateCircleBadge(
   weekday: string,
   date: string,
@@ -246,7 +273,7 @@ function createInitialDateCircleBadge(
 ): CircleBadgeInstance {
   const circleConfig = VERANSTALTUNG_CONFIG.circle;
   return {
-    id: 'date-circle',
+    id: DATE_CIRCLE_ID,
     x: circleConfig.centerX,
     y: circleConfig.centerY,
     radius: circleConfig.radius,
@@ -257,6 +284,32 @@ function createInitialDateCircleBadge(
     opacity: 1,
     textLines: createDateCircleTextLines(weekday, date, time),
   };
+}
+
+/**
+ * Haelt den Datumskreis am Termin, ohne die Bearbeitung wegzuwerfen.
+ *
+ * `createInitialState` baut nicht nur den ersten Zustand: Karten-Render und
+ * Chat-Bearbeitung setzen den vollen alten Zustand hier neu. Ein festes
+ * `[createInitialDateCircleBadge(...)]` verwarf dabei jede Verschiebung, jede
+ * Groessenaenderung und alle selbst hinzugefuegten Kreise. Uebernommen wird
+ * deshalb der bestehende Kreis, ueberschrieben nur die Zeilen aus dem Termin.
+ */
+function carryDateCircleBadges(
+  props: Record<string, unknown>,
+  weekday: string,
+  date: string,
+  time: string
+): CircleBadgeInstance[] {
+  // Am Vorhandensein des Schluessels entschieden, nicht an der Laenge: eine
+  // leere Liste heisst "der Kreis wurde entfernt". Neu angelegte Seiten
+  // bringen den Schluessel gar nicht erst mit.
+  if (!Array.isArray(props.circleBadgeInstances)) {
+    return [createInitialDateCircleBadge(weekday, date, time)];
+  }
+  const carried = props.circleBadgeInstances as CircleBadgeInstance[];
+  const textLines = createDateCircleTextLines(weekday, date, time);
+  return carried.map((badge) => (badge.id === DATE_CIRCLE_ID ? { ...badge, textLines } : badge));
 }
 
 // ============================================================================
@@ -355,11 +408,9 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     },
     toolsTab,
     uploadsTab,
-    { id: 'ai', icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
     chatTab,
   ],
 
-  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
   getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat'],
 
   getAutoSwitchTab: (selectedElement) =>
@@ -367,7 +418,9 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       ? 'chart-settings'
       : selectedElement?.startsWith('frame-')
         ? 'frame-settings'
-        : null,
+        : selectedElement === 'background-image'
+          ? 'image'
+          : null,
 
   sections: {
     image: section({
@@ -429,12 +482,51 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     share: createShareSection<VeranstaltungFullState>('veranstaltung', (state) =>
       `${state.eventTitle}\n${state.beschreibung}\n${state.weekday} ${state.date} ${state.time}\n${state.locationName}`.trim()
     ),
-    ai: createAiSectionRegistration('veranstaltung', veranstaltungAiCapabilities),
   },
 
-  // Veranstaltung has complex elements (circle with rotated text, clipped photo)
-  // that don't fit the generic element model well. Using simplified elements.
+  // The date circle (rotated text) doesn't fit the generic element model and is
+  // rendered via circleBadgeInstances; the photo band, title and description are
+  // standard elements.
   elements: [
+    // Green plane behind the photo slot (order -1). The band is a partial-height
+    // cover image, so when it is zoomed out (scale < 1) or no photo is picked the
+    // slot is not fully covered — this plane fills the exposed area with the
+    // template green instead of a transparent hole, mirroring the color-backed
+    // photo templates.
+    {
+      id: 'band-background',
+      type: 'rect',
+      x: 0,
+      y: 0,
+      order: -1,
+      width: VERANSTALTUNG_CONFIG.canvas.width,
+      height: VERANSTALTUNG_CONFIG.photo.height,
+      fill: VERANSTALTUNG_CONFIG.greenSection.color,
+      listening: false,
+    },
+    // Photo band at the top (40% of the canvas). coverFit center-crops to 2:1 to
+    // match the backend reference (veranstaltung_canvas.ts). Fixed slot, not
+    // draggable, and centerZoom so the shared 0.5–3 zoom magnifies about the slot
+    // centre: zoom-in is a centred crop (no top-left bias, no re-centre needed)
+    // and zoom-out shrinks toward the centre over the green plane behind it
+    // instead of leaving a corner gap. order 0 keeps it behind the green section.
+    {
+      id: 'background-image',
+      type: 'image',
+      x: 0,
+      y: 0,
+      order: 0,
+      width: VERANSTALTUNG_CONFIG.canvas.width,
+      height: VERANSTALTUNG_CONFIG.photo.height,
+      srcKey: 'currentImageSrc',
+      offsetKey: 'imageOffset',
+      scaleKey: 'imageScale',
+      draggable: false,
+      lockedKey: 'isBackgroundLocked',
+      opacityStateKey: 'backgroundImageOpacity',
+      coverFit: true,
+      centerZoom: true,
+    },
     // Green section background
     {
       id: 'green-section',
@@ -481,6 +573,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       opacityStateKey: 'eventTitleOpacity',
       fill: (state: VeranstaltungFullState, _layout: LayoutResult) => state.titleColor ?? '#FFFFFF',
       fillStateKey: 'titleColor',
+      positionStateKey: 'eventTitlePosition',
     },
     // Description
     {
@@ -517,6 +610,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       fill: (state: VeranstaltungFullState, _layout: LayoutResult) =>
         state.beschreibungColor ?? '#FFFFFF',
       fillStateKey: 'beschreibungColor',
+      positionStateKey: 'beschreibungPosition',
     },
     // Date circle is now rendered via circleBadgeInstances for text support
   ],
@@ -540,25 +634,27 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       backgroundImageFile: (props.backgroundImageFile as File | Blob | null | undefined) ?? null,
       imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
       imageScale: (props.imageScale as number | undefined) ?? 1,
-      isBackgroundLocked: false,
-      customEventTitleFontSize: null,
-      customBeschreibungFontSize: null,
-      eventTitleOpacity: 1,
-      beschreibungOpacity: 1,
-      assetInstances: [],
+      backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
+      // Carried, not hard-reset — see createImageTwoTextCanvas.
+      isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
+      // Carried over from props for the same reason as the two-text factories:
+      // card renders and remote-sync re-seeds run through here, so hard-nulling
+      // silently reverted a chat "Schrift größer" edit on the next render.
+      customEventTitleFontSize:
+        (props.customEventTitleFontSize as number | null | undefined) ?? null,
+      customBeschreibungFontSize:
+        (props.customBeschreibungFontSize as number | null | undefined) ?? null,
+      // Aus den Props statt hart auf 1: dieselbe Begruendung wie bei den
+      // Schriftgroessen darueber. Farbe und gezogene Position standen
+      // ueberhaupt nicht hier und fielen bei jedem Re-Seed weg.
+      ...carryTextStyling(props),
+      // Alles selbst Hinzugefuegte statt hart `[]`: sonst raeumt jede
+      // Chat-Bearbeitung Icons, Formen und Zusatztexte ab. Der Datumskreis
+      // ueberschreibt seinen Schluessel gleich darunter.
+      ...carryInstanceState(props),
       isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-      selectedIcons: [],
-      iconStates: {},
-      shapeInstances: [],
       selectedShapeId: null,
-      illustrationInstances: [],
-      additionalTexts: [],
-      circleBadgeInstances: [createInitialDateCircleBadge(weekday, date, time)],
-      pillBadgeInstances: [],
-      balkenInstances: [],
-      frameInstances: [],
-      chartInstances: [],
-      userImageInstances: [],
+      circleBadgeInstances: carryDateCircleBadges(props, weekday, date, time),
       imageAttribution:
         (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
     };

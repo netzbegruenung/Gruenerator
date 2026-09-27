@@ -7,17 +7,23 @@
  * - Source grouping by collection
  */
 
+import { citationReferenceRegex, SOURCE_LINK_SCHEME } from '@gruenerator/shared/utils';
+
+import { vectorConfig } from '../../config/vectorConfig.js';
+import { PROMPT_SOURCE_MAX_CHARS } from '../document-services/TextChunker/chunkBudget.js';
+
 import { recencyBoost, resolveSourceDate } from './recency.js';
+import { selectRelevantExcerpt } from './relevantExcerpt.js';
 
 import type {
   SearchResultInput,
   ExpandedChunkResult,
+  ReferenceData,
   ReferencesMap,
   Citation,
   Source,
   ValidationResult,
   FilterOptions,
-  DedupeOptions,
   CollectionConfig,
   SourcesByCollection,
 } from './types.js';
@@ -49,10 +55,15 @@ export function expandResultsToChunks(
           source_id: r.source_id ?? null,
           title,
           snippet: chunk.preview || '',
+          ...(chunk.text && { chunk_text: chunk.text }),
           filename: r.filename || null,
           similarity: r.similarity_score || 0,
+          ...(r.dense_similarity_score != null && {
+            dense_similarity: r.dense_similarity_score,
+          }),
           chunk_index: chunk.chunk_index,
           page_number: chunk.page_number ?? null,
+          chunk_type: chunk.chunk_type ?? null,
           published_at: publishedAt,
           ...(createdAt && { created_at: createdAt }),
           ...(collectionId && { collection_id: collectionId }),
@@ -66,10 +77,15 @@ export function expandResultsToChunks(
         source_id: r.source_id ?? null,
         title,
         snippet: r.relevant_content || r.chunk_text || '',
+        ...(r.chunk_text && { chunk_text: r.chunk_text }),
         filename: r.filename || null,
         similarity: typeof r.similarity_score === 'number' ? r.similarity_score : 0,
+        ...(r.dense_similarity_score != null && {
+          dense_similarity: r.dense_similarity_score,
+        }),
         chunk_index: r.chunk_index || 0,
         page_number: null,
+        chunk_type: null,
         published_at: publishedAt,
         ...(createdAt && { created_at: createdAt }),
         ...(collectionId && { collection_id: collectionId }),
@@ -107,9 +123,10 @@ export function deduplicateResults(
 /**
  * Build references map from search results for citation processing.
  *
- * `date` is the source's real publication date (or upload date when
- * `allowCreatedAt` is set for user collections), or null when none — NOT the
- * response timestamp. Consumed by the answer prompt and returned in citations.
+ * `date` is the source's real publication date, or null when none — NOT the
+ * response timestamp and NOT the upload time. With `allowCreatedAt` (user
+ * collections) a dateless source carries its upload time as `uploaded_at`,
+ * which the prompt labels "hochgeladen" and citations never see.
  */
 export function buildReferencesMap(
   results: ExpandedChunkResult[],
@@ -120,12 +137,16 @@ export function buildReferencesMap(
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
     const id = String(i + 1);
+    const date = resolveSourceDate(r);
+    const uploadedAt = !date && options.allowCreatedAt ? r.created_at : undefined;
 
     referencesMap[id] = {
       title: r.title,
       snippets: [[r.snippet]],
+      ...(r.chunk_text && { chunk_text: r.chunk_text }),
       description: null,
-      date: resolveSourceDate(r, { allowCreatedAt: options.allowCreatedAt }),
+      date,
+      ...(uploadedAt && { uploaded_at: uploadedAt }),
       source: 'qa_documents',
       document_id: r.document_id,
       source_url: r.source_url || null,
@@ -133,6 +154,7 @@ export function buildReferencesMap(
       similarity_score: r.similarity,
       chunk_index: r.chunk_index,
       page_number: r.page_number,
+      chunk_type: r.chunk_type ?? null,
       ...(r.collection_id && { collection_id: r.collection_id }),
       ...(r.collection_name && { collection_name: r.collection_name }),
     };
@@ -142,11 +164,79 @@ export function buildReferencesMap(
 }
 
 /**
+ * Per-source budget for prompt context.
+ *
+ * Chunks target ~1600 characters and a table chunk is capped at exactly this
+ * number (`TABLE_CHUNK_MAX_CHARS`), so this passes a retrieved chunk through
+ * whole in the ordinary case. The previous 300/400-character cut meant a model
+ * asked to quote a passage, name a speaker or read a figure was working from
+ * the chunk's opening sentences while the sentence that matched the query sat
+ * in the discarded remainder.
+ *
+ * The number itself lives in `chunkBudget.ts`, next to the chunk sizes it caps.
+ */
+export { PROMPT_SOURCE_MAX_CHARS };
+
+/**
+ * The text of a source as the model should see it: the full chunk when the
+ * search layer supplied one, falling back to the display snippet.
+ *
+ * Eine Tabelle IST ihre Zeilenstruktur. `\s+ → ' '` macht aus einem sauber
+ * geschnittenen Tabellen-Chunk eine Zeile, in der keine Zelle mehr einer Spalte
+ * zuzuordnen ist — die ganze Arbeit der Blockzerlegung käme so nie beim Modell
+ * an. Deshalb behalten `chunk_type: 'table'`-Referenzen ihre Zeilenumbrüche;
+ * innerhalb einer Zeile wird weiter normalisiert.
+ */
+export function sourceTextForPrompt(
+  ref: ReferenceData,
+  maxChars: number = PROMPT_SOURCE_MAX_CHARS
+): string {
+  const text = ref.chunk_text || ref.snippets[0]?.[0] || '';
+  const clipped = text.slice(0, maxChars);
+
+  if (ref.chunk_type === 'table') {
+    const lines = clipped
+      .split('\n')
+      .map((line) => line.replace(/[ \t]+/g, ' ').trim())
+      .filter((line) => line.length > 0);
+
+    // Ein Schnitt bei `maxChars` landet mitten in einer Zeile. Eine halbe
+    // Tabellenzeile ordnet keine Zelle mehr einer Spalte zu — sie fällt weg,
+    // statt dem Modell eine abgeschnittene Zahl als ganze anzubieten. Ob die
+    // Zeile ganz ist, sagt nur die Schnittstelle selbst: ein Schnitt hinter
+    // einem inneren `|` hinterlässt eine Zeile, die sauber auf `|` endet und
+    // trotzdem Spalten verloren hat.
+    const cutOnLineBoundary = clipped.endsWith('\n') || text.charAt(maxChars) === '\n';
+    if (text.length > maxChars && lines.length > 1 && !cutOnLineBoundary) {
+      lines.pop();
+    }
+
+    return lines.join('\n').trim();
+  }
+
+  return clipped.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Drop the prompt-only fields before a result goes over the wire.
+ *
+ * `chunk_text` exists so the answer prompt and the reranker can read the whole
+ * retrieved chunk; the client's citation list is served by `snippet`. Emitting
+ * it would put roughly 1.5 KB per source into every completion event for a
+ * field nothing on the other side reads.
+ */
+export function toClientSource(result: ExpandedChunkResult): ExpandedChunkResult {
+  const { chunk_text: _chunkText, ...rest } = result;
+  return rest;
+}
+
+/**
  * Validate draft content and inject citation markers
  */
 export function validateAndInjectCitations(
   draft: string,
-  referencesMap: ReferencesMap
+  referencesMap: ReferencesMap,
+  options: { question?: string } = {}
 ): ValidationResult {
   const validIds = new Set(Object.keys(referencesMap));
   const errors: string[] = [];
@@ -181,11 +271,27 @@ export function validateAndInjectCitations(
     content = content.replace(re, `[cite:${id}]`);
   }
 
+  // Dieselbe Decke wie die Suchvorschau (`CONTENT_MAX_EXCERPT_LENGTH`, 1500):
+  // der Ausschnitt wird VERSCHOBEN, nicht gekürzt. Ein engerer Deckel hier
+  // kostet zweimal — einmal in der Karte und einmal im nächsten Zug, denn
+  // `notebookHistoryService` trägt `cited_text` als `chunk_text` weiter.
+  const citedTextMaxChars = vectorConfig.get('content').maxExcerptLength;
   const citations: Citation[] = [...usedIds].map((id) => {
     const ref = referencesMap[id];
+    const head = ref.snippets[0]?.[0] || '';
+    const excerpt =
+      options.question && ref.chunk_text
+        ? selectRelevantExcerpt(ref.chunk_text, options.question, citedTextMaxChars, 'contiguous')
+        : null;
+    // `null` heisst: der Chunk passt unter die Decke, oder die Frage trägt kein
+    // Signal — im zweiten Fall bleibt der Fallback unter der Decke gekappt,
+    // statt den ganzen (womöglich mehrere-KB-langen) Chunk zu zitieren.
+    const citedText =
+      excerpt?.text ??
+      (options.question && ref.chunk_text ? ref.chunk_text.slice(0, citedTextMaxChars) : head);
     return {
       index: id,
-      cited_text: ref.snippets[0]?.[0] || '',
+      cited_text: citedText,
       document_title: ref.title,
       document_id: ref.document_id,
       source_url: ref.source_url || null,
@@ -251,18 +357,12 @@ export function validateAndInjectCitations(
   };
 }
 
-/**
- * Inline citation markers, single (`[1]`) and grouped (`[1, 3]`). Mirrors the
- * pattern the chat renderer matches on
- * (packages/chat CitationMarkdownText), because a marker form the renderer
- * shows but this scanner misses would be renumbered inconsistently: its ids
- * would count as uncited, drop out of the map, and keep their stale numbers.
- * Rebuilt per use — a shared /g regex carries `lastIndex` between calls.
- */
-const CITATION_MARKER_PATTERN = /\[(\d+(?:\s*,\s*\d+)*)\]/g;
-
 function splitMarkerIds(inner: string): string[] {
   return inner.split(',').map((id) => id.trim());
+}
+
+function referenceIds(linkId: string | undefined, markerIds: string | undefined): string[] {
+  return linkId !== undefined ? [linkId] : splitMarkerIds(markerIds ?? '');
 }
 
 /**
@@ -280,9 +380,9 @@ export function renumberCitationsInOrder<T>(
   const seenOrder: string[] = [];
   let match;
 
-  const scan = new RegExp(CITATION_MARKER_PATTERN);
+  const scan = citationReferenceRegex();
   while ((match = scan.exec(draft)) !== null) {
-    for (const id of splitMarkerIds(match[1])) {
+    for (const id of referenceIds(match[2], match[3])) {
       if (!seenOrder.includes(id) && originalReferencesMap[id]) {
         seenOrder.push(id);
       }
@@ -299,12 +399,15 @@ export function renumberCitationsInOrder<T>(
   // unknown stay verbatim — an out-of-range id the model invented is a separate
   // problem from renumbering, and silently deleting text here would hide it.
   const renumberedDraft = draft.replace(
-    new RegExp(CITATION_MARKER_PATTERN),
-    (full, inner: string) => {
-      const mapped = splitMarkerIds(inner)
+    citationReferenceRegex(),
+    (full, label: string | undefined, linkId: string | undefined, inner: string | undefined) => {
+      const mapped = referenceIds(linkId, inner)
         .map((id) => oldToNew[id])
         .filter((id): id is string => !!id);
-      return mapped.length > 0 ? `[${mapped.join(', ')}]` : full;
+      if (mapped.length === 0) return full;
+      return label !== undefined
+        ? `[${label}](${SOURCE_LINK_SCHEME}:${mapped[0]})`
+        : `[${mapped.join(', ')}]`;
     }
   );
 
@@ -320,10 +423,26 @@ export function renumberCitationsInOrder<T>(
 /**
  * Sort results by similarity, with a mild recency boost as a secondary factor.
  *
- * The `threshold` gate is on raw `similarity` (recency only re-orders sources
- * that already qualify — it never rescues a weak source). The boost is additive
- * and small (see recency.ts), so content quality stays decisive; dateless
- * sources get boost 0 and keep pure-similarity behaviour.
+ * Der Schnitt läuft auf `dense_similarity ?? similarity` (#3166): auf einer
+ * server-seitig fusionierten Sammlung ist `similarity` ein Fusionswert, und
+ * die Konstante 0,35 ist als Kosinus geschrieben — RRF liegt auf Rang 1 bei
+ * ≈ 1,0, DBSF läuft nahe 0 aus, dieselbe Zahl schneidet je Arm einen anderen
+ * Anteil weg. SORTIERT wird weiter auf `similarity`: der Fusionswert bleibt
+ * das Ranking-Signal, neu ist ausschliesslich, worauf geschnitten wird.
+ *
+ * Der Rückfall ist Pflicht, nicht Vorsicht — aber NICHT weil dem Alt-Pfad ein
+ * Kosinus fehlt (er hat einen pro Chunk). `dense_similarity` wird
+ * absichtlich NUR aus dem server-seitigen Score-Join befüllt (Fix-Runde 1):
+ * auf dem Alt-Pfad trägt `similarity` bereits Begriffstreffer-, Diversitäts-
+ * und Hybrid-Boni oben auf dem Kosinus, die dieses Feld nicht kennt — ein
+ * Schnitt gegen den unboosteten Kosinus dort würde die 42 Alt-Kontrollfälle
+ * verschieben, die dieser Umbau explizit unverändert lassen soll.
+ *
+ * The gate runs on `dense_similarity ?? similarity`, never on the
+ * recency-boosted `effective()` — recency only re-orders sources that already
+ * qualify, it never rescues a weak source. The boost is additive and small
+ * (see recency.ts), so content quality stays decisive; dateless sources get
+ * boost 0 and keep pure-similarity behaviour.
  */
 export function filterAndSortResults(
   results: ExpandedChunkResult[],
@@ -335,9 +454,69 @@ export function filterAndSortResults(
     r.similarity + recencyBoost(resolveSourceDate(r, { allowCreatedAt }), now);
 
   return results
-    .filter((r) => r.similarity >= threshold)
+    .filter((r) => (r.dense_similarity ?? r.similarity) >= threshold)
     .sort((a, b) => effective(b) - effective(a))
     .slice(0, limit);
+}
+
+/**
+ * Pick results across several DISTINCT questions, giving each a share of the
+ * budget instead of letting absolute scores decide alone.
+ *
+ * Needed for decomposed batch questions. Flattening first and cutting at
+ * `limit` sorts sub-questions against each other, so a part whose evidence
+ * simply scores lower — a name in a side clause against a headline figure —
+ * loses every one of its chunks and gets answered with "not in the sources"
+ * while its chunk sat just below the cut. Round-robin gives each part its turn
+ * before any part gets a second chunk; leftover slots still go by score.
+ *
+ * One group per question, NOT per query string: rewordings of one question
+ * belong in a single group. Splitting them would hand a fair share to each
+ * phrasing, letting a weak hit from a worse rewording take a slot from a
+ * stronger hit of the best one — the opposite of what fairness is for here.
+ *
+ * With one group this is exactly `filterAndSortResults`, so the ordinary
+ * single-question path is unchanged at every depth tier.
+ */
+export function selectAcrossQueryGroups(
+  groups: ExpandedChunkResult[][],
+  options: FilterOptions = {}
+): ExpandedChunkResult[] {
+  const nonEmpty = groups.filter((g) => g.length > 0);
+  if (nonEmpty.length <= 1) {
+    return filterAndSortResults(nonEmpty[0] ?? [], options);
+  }
+
+  const { limit = 40, ...rest } = options;
+  const ranked = nonEmpty.map((g) => filterAndSortResults(g, { ...rest, limit: Infinity }));
+
+  const selected: ExpandedChunkResult[] = [];
+  const seen = new Set<string>();
+  const cursors = ranked.map(() => 0);
+
+  let progressed = true;
+  while (selected.length < limit && progressed) {
+    progressed = false;
+    for (let g = 0; g < ranked.length && selected.length < limit; g++) {
+      const group = ranked[g] ?? [];
+      let cursor = cursors[g] ?? 0;
+      while (cursor < group.length) {
+        const candidate = group[cursor];
+        cursor += 1;
+        if (!candidate) continue;
+        // Same identity as deduplicateResults — skip what another group took.
+        const key = `${candidate.collection_id ?? ''}:${candidate.document_id}:${candidate.chunk_index}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        selected.push(candidate);
+        progressed = true;
+        break;
+      }
+      cursors[g] = cursor;
+    }
+  }
+
+  return selected;
 }
 
 /**
@@ -403,7 +582,7 @@ export function groupSourcesByCollection(
 
     const allSources: ExpandedChunkResult[] = collectionResults
       .filter((r) => !citedDocChunks.has(`${r.document_id}:${r.chunk_index}`))
-      .map((r) => r);
+      .map(toClientSource);
 
     sourcesByCollection[collectionId] = {
       name: config.name,
@@ -413,77 +592,6 @@ export function groupSourcesByCollection(
   }
 
   return sourcesByCollection;
-}
-
-/**
- * Normalize a single search result for consistent processing
- */
-export function normalizeSearchResult(r: Record<string, unknown>): ExpandedChunkResult {
-  const title = (r.title || r.document_title || r.filename || 'Unbenanntes Dokument') as string;
-  const rawSnippet = (r.relevant_content || r.chunk_text || r.content || r.snippet || '') as string;
-  const snippet = rawSnippet.slice(0, 500);
-  const topChunks = r.top_chunks as Array<Record<string, unknown>> | undefined;
-  const top = topChunks?.[0] || ({} as Record<string, unknown>);
-  return {
-    document_id: (r.document_id || '') as string,
-    title,
-    snippet,
-    filename: (r.filename || null) as string | null,
-    similarity: typeof r.similarity_score === 'number' ? r.similarity_score : 0,
-    chunk_index: ((top.chunk_index ?? r.chunk_index) || 0) as number,
-    page_number: (top.page_number ?? null) as number | null,
-    source_url: (r.source_url || r.url || null) as string | null,
-  };
-}
-
-/**
- * Deduplicate and diversify results with per-document limits
- */
-export function dedupeAndDiversify(
-  results: ExpandedChunkResult[],
-  opts: DedupeOptions = {}
-): ExpandedChunkResult[] {
-  const limitPerDoc = opts.limitPerDoc ?? 4;
-  const maxTotal = opts.maxTotal ?? 12;
-
-  const sorted = [...results].sort(
-    (a, b) => b.similarity - a.similarity || String(a.title).localeCompare(String(b.title))
-  );
-
-  const seenPerDoc = new Map<string, number>();
-  const out: ExpandedChunkResult[] = [];
-
-  for (const r of sorted) {
-    const key = r.document_id || r.source_url || r.title;
-    const count = seenPerDoc.get(key) || 0;
-    if (count >= limitPerDoc) continue;
-    seenPerDoc.set(key, count + 1);
-    out.push(r);
-    if (out.length >= maxTotal) break;
-  }
-
-  return out;
-}
-
-/**
- * Summarize references map for AI prompts
- */
-export function summarizeReferencesForPrompt(
-  refMap: ReferencesMap,
-  maxChars: number = 4000
-): string {
-  const lines: string[] = [];
-  for (const id of Object.keys(refMap)) {
-    const ref = refMap[id];
-    const snippet =
-      Array.isArray(ref.snippets) && ref.snippets[0] && Array.isArray(ref.snippets[0])
-        ? String(ref.snippets[0].join(' '))
-        : '';
-    const short = snippet.slice(0, 150).replace(/\s+/g, ' ').trim();
-    lines.push(`${id}. ${ref.title} — "${short}"`);
-  }
-  const joined = lines.join('\n');
-  return joined.length > maxChars ? joined.slice(0, maxChars) : joined;
 }
 
 /**

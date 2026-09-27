@@ -402,9 +402,70 @@ export function calculateSliderLayout(
   };
 }
 
+export const DEFAULT_SLIDER_COLOR_SCHEME: SliderColorScheme = 'sand-tanne';
+
 /**
- * Get colors for a given color scheme
+ * Narrow an unknown value to a known scheme id.
+ *
+ * Persisted `initial_state` is not a typed channel: the studio store carries a
+ * `colorScheme` of an entirely different shape (a `{background}[]` palette for
+ * the legacy sharepic generator), and older documents may carry ids we no
+ * longer ship. Both are truthy, so a `?? 'sand-tanne'` default does NOT catch
+ * them — only membership does.
+ */
+export function isSliderColorScheme(value: unknown): value is SliderColorScheme {
+  // `hasOwn`, not `in`: `'toString' in colorSchemes` is true via the prototype
+  // chain and would resolve to a function, whose `.arrowFill` is undefined —
+  // the same silent-undefined footgun one level down.
+  return typeof value === 'string' && Object.hasOwn(SLIDER_CONFIG.colorSchemes, value);
+}
+
+/**
+ * Get colors for a given color scheme.
+ *
+ * Total by construction: an unknown scheme falls back to the default instead of
+ * returning `undefined`. Every call site reads a field straight off the result
+ * (`.arrowFill`, `.headlineText`, …), so a partial lookup here surfaces as a
+ * `Cannot read properties of undefined` at the *caller* — which is how a
+ * palette-shaped `colorScheme` in a minted canvas took down the whole slider
+ * render instead of just picking the wrong colours.
  */
 export function getSliderColors(scheme: SliderColorScheme) {
-  return SLIDER_CONFIG.colorSchemes[scheme];
+  return SLIDER_CONFIG.colorSchemes[
+    isSliderColorScheme(scheme) ? scheme : DEFAULT_SLIDER_COLOR_SCHEME
+  ];
+}
+
+/**
+ * Slider colours when a background photo covers the plane.
+ *
+ * The rule matches every sibling photo template: white text plus a contrast
+ * scrim — an arbitrary photograph has no predictable luminance, so the derived
+ * scheme text colours would land unreadable about half the time. The pill keeps
+ * its state-driven colour: a filled chip over an image is legible whether it
+ * picks the tanne or the sand variant, and a per-slide pill colour the user
+ * picked stays theirs. The arrow follows the text (white), matching the sibling
+ * "force white" rule — the scrim darkens the bottom of the frame so a light
+ * arrow reads there.
+ */
+export const SLIDER_PHOTO_OVERLAY = {
+  headlineText: '#FFFFFF',
+  subtextText: '#FFFFFF',
+  arrowFill: '#FFFFFF',
+} as const;
+
+export interface SliderStateLike {
+  colorScheme: SliderColorScheme;
+  currentImageSrc?: string | null;
+}
+
+/**
+ * Scheme colours, overridden by the photo overlay while a background picture
+ * covers the plane. Same total-by-construction contract as `getSliderColors`:
+ * callers read fields straight off the result.
+ */
+export function getSliderColorsForState(state: SliderStateLike) {
+  const base = getSliderColors(state.colorScheme);
+  if (!state.currentImageSrc) return base;
+  return { ...base, ...SLIDER_PHOTO_OVERLAY };
 }

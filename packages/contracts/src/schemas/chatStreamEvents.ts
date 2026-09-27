@@ -3,6 +3,12 @@ import { z } from 'zod';
 import { bahnPayloadSchema } from './bahn.js';
 import { canvasTemplateTypeSchema } from './canvasTemplateDescriptors.js';
 import { notebookCitationSchema } from './notebook.js';
+import {
+  notebookAnswerModeEventSchema,
+  notebookAnswerModeReasonSchema,
+  notebookAnswerModeSchema,
+  notebookResolvedAnswerModeSchema,
+} from './notebookAnswerMode.js';
 import { socialPostPayloadSchema } from './socialPost.js';
 
 /**
@@ -65,6 +71,11 @@ export const chatWarningCodeSchema = z.enum([
   'doc_creation_failed',
   // Persistence
   'persist_failed',
+  // Turn superseded by a concurrent regenerate/edit before its pending row
+  // could be finalized — the generated content is intentionally NOT
+  // persisted (see postResponseService.ts), so the client needs a distinct
+  // signal to stop waiting instead of reading `persist_failed`.
+  'turn_discarded',
   // Artefact creation
   'board_creation_failed',
   'task_creation_failed',
@@ -76,12 +87,23 @@ export const chatWarningCodeSchema = z.enum([
   // Retrieval / sources
   'source_unavailable',
   'rerank_degraded',
+  'citation_invalid',
+  // Das Notebook hat zur Frage nichts gefunden, was nah genug liegt: der dichte
+  // Spitzenwert VOR dem Rerank lag unter der kalibrierten Schwelle (#3140).
+  // Kein Defekt und keine Verweigerung — die Antwort streamt mit denselben
+  // Quellen weiter, der Hinweis steht darunter.
+  'evidence_weak',
   'research_plan_failed',
-  // `@deepresearch` was asked for but not served: the daily quota is spent or the
-  // call failed. Distinct from `research_plan_failed` — the turn did NOT degrade
+  // `@deepresearch` was asked for but not served: the daily Bäume budget is
+  // spent, could not be checked, or the call failed. Distinct from `research_plan_failed` — the turn did NOT degrade
   // in quality accidentally, it was capped on purpose, and the message names the
   // reset time. Always carries a `messageOverride`.
   'deep_research_quota_spent',
+  // The research agent ran but produced no usable report, so the turn fell back
+  // to the ordinary deep-research answer. Worth telling the user: the run cost
+  // them minutes of waiting, and silence would read as the long path having
+  // simply been slow.
+  'deep_agent_failed',
   'classifier_degraded',
   'summary_partial',
   'recall_degraded',
@@ -93,6 +115,15 @@ export const chatWarningCodeSchema = z.enum([
   // them, so its tools were withheld this turn (rug pull). Distinct from
   // `mcp_unreachable`: the server answered fine, we declined to trust it.
   'mcp_tools_drifted',
+  // Ein `mcp`-Turn (@<server>) lief NICHT in der Schleife, wo die Werkzeuge des
+  // Servers montiert werden — ein Einzeldurchlauf-Notausschalter (Bildanhang,
+  // Verbund-Agent, zweiter Intent) hat ihn draussen gehalten. Weder `unreachable`
+  // noch `drifted`: der Server ist gesund, wir haben ihn nur nicht gefragt.
+  // Anders als die uebrigen Konnektor-Codes kann die Person das abstellen.
+  'mcp_not_consulted',
+  // Notebook-Seite: Präzision war ausdrücklich gewählt, aber kein Notebook der
+  // Seite ist für `notebook_quellen` lesbar — die Antwort läuft im Chatmodus.
+  'notebook_praezision_unavailable',
   // Compute
   'compute_failed',
   // Provider / privacy
@@ -156,6 +187,10 @@ export const searchIntentSchema = z.enum([
   'modify_board',
   'share_doc',
   'create_sheet',
+  // Follow-up edit on an already-created sheet (Tier 2.7 lastToolContext
+  // pickup) — plans typed ops via the same planner the in-editor AI assistant
+  // uses, distinct from create_sheet.
+  'edit_sheet',
   'create_presentation',
   // Finished, downloadable CI-styled PDF (optionally with Grünen letterhead).
   'create_pdf',
@@ -297,6 +332,24 @@ export const confirmActionTypeSchema = z.enum([
   'share_doc',
   'create_group',
   'join_group',
+  // Additiv (F0): ausgelieferte Clients kennen den Wert nicht und rendern die
+  // Karte über ihren Fallback — sie fällt nicht aus, sie sieht nur generisch aus.
+  'add_cloud_connection',
+  // Notebook-Karten des `notebooks`-Werkzeugs (09/2026), ebenfalls additiv.
+  'attach_wolke_folder',
+  'set_notebook_visibility',
+  'share_notebook',
+  // Projekt-Karte des `groups`-Werkzeugs (09/2026), additiv.
+  'set_group_visibility',
+  // Karte des `recurring_tasks`-Werkzeugs (09/2026), additiv. Gleichnamig mit
+  // dem stillgelegten Intent, bewusst: es ist dieselbe Handlung, nur mit
+  // Bestätigung statt stillem Schreiben.
+  'create_recurring_task',
+  // Karten des `user_agents`-Werkzeugs (09/2026), additiv.
+  'create_user_agent',
+  'share_user_agent',
+  // Karte des `recipes`-Werkzeugs (09/2026), additiv.
+  'share_text_form',
 ]);
 export type ConfirmActionType = z.infer<typeof confirmActionTypeSchema>;
 
@@ -367,6 +420,45 @@ export const artifactPayloadSchema = z.object({
   content: z.string(),
 });
 export type ArtifactPayload = z.infer<typeof artifactPayloadSchema>;
+
+/**
+ * `research_log_*` SSE payloads — the live progress of a deep research run,
+ * rendered in the artifact side panel while the run is in flight.
+ *
+ * Two events rather than one: `research_log_start` opens the panel, every
+ * `research_log_update` merges into what is already there. That merge is why the
+ * fields are all optional — an update carries only what changed, and an older
+ * client that does not know these event names ignores both (unregistered events
+ * pass the gate untouched), which is exactly the degradation we want on shipped
+ * mobile binaries.
+ *
+ * `documentUrl` arrives on the last update, when the report has become a real
+ * document; the panel then hands off to the ordinary document view.
+ */
+export const researchLogStepSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  status: z.enum(['running', 'done', 'failed']),
+});
+export type ResearchLogStep = z.infer<typeof researchLogStepSchema>;
+
+export const researchLogStartSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+});
+export type ResearchLogStart = z.infer<typeof researchLogStartSchema>;
+
+export const researchLogUpdateSchema = z.object({
+  id: z.string(),
+  /** The plan from `write_todos`. Replaces the previous plan wholesale. */
+  plan: z.array(researchLogStepSchema).optional(),
+  /** Tool activity. Merged by step id, appended when the id is new. */
+  steps: z.array(researchLogStepSchema).optional(),
+  status: z.enum(['running', 'done', 'failed']).optional(),
+  documentUrl: z.string().optional(),
+  documentId: z.string().optional(),
+});
+export type ResearchLogUpdate = z.infer<typeof researchLogUpdateSchema>;
 
 /**
  * `compute` SSE payload — the deterministic result of the `compute` intent.
@@ -502,7 +594,13 @@ const chatCitationBase = z.object({
   documentId: z.string().optional(),
   chunkIndex: z.number().optional(),
   similarityScore: z.number().optional(),
+  /** Seite im Ursprungsdokument, wenn der Chunk eine trägt (PDF-Ingest). */
+  pageNumber: z.number().nullable().optional(),
   collectionId: z.string().optional(),
+  /** System-Collection-ID, unter der `GET /api/research/document` das Dokument
+   *  per `url` öffnet (z. B. `brandenburg-system`). Nur gesetzt, wenn der
+   *  Reader es lesen kann — `collectionId` trägt den Chat-Key (`brandenburg`). */
+  readerCollectionId: z.string().optional(),
   /** Set on fan-out per-document retrieval, so the UI can group source cards
    *  by the document they answer for. */
   documentSourceId: z.string().optional(),
@@ -514,6 +612,16 @@ export type ChatCitation = z.infer<typeof chatCitationBase>;
 
 export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   thread_created: z.object({ threadId: z.string() }).passthrough(),
+  // Notebook page: which answer mode this turn runs in. `.catch` for the same
+  // reason as `intent` below — the gate DROPS a rejected event, and a reason or
+  // mode added later must not cost an older client the whole event.
+  answer_mode: notebookAnswerModeEventSchema
+    .extend({
+      requested: notebookAnswerModeSchema.nullable().catch(null),
+      resolved: notebookResolvedAnswerModeSchema.catch('chat'),
+      reason: notebookAnswerModeReasonSchema.catch('default'),
+    })
+    .passthrough(),
   intent: z
     .object({
       // `.catch` instead of a bare enum: the gate DROPS any event it rejects,
@@ -580,6 +688,8 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
     .passthrough(),
   chart_data: z.object({ chart: chartPayloadSchema.passthrough().optional() }).passthrough(),
   artifact: z.object({ artifact: artifactPayloadSchema.passthrough().optional() }).passthrough(),
+  research_log_start: researchLogStartSchema.passthrough(),
+  research_log_update: researchLogUpdateSchema.passthrough(),
   compute: z.object({ compute: computePayloadSchema.passthrough().optional() }).passthrough(),
   bahn: z.object({ bahn: bahnPayloadSchema.passthrough().optional() }).passthrough(),
   // variants stay unknown[] here: per-item validation (sharepicVariantSchema)
@@ -684,12 +794,24 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   warning: z.object({ code: z.string(), message: z.string() }).passthrough(),
   interrupt: z
     .object({
-      interruptType: z.enum(['clarification', 'client_tool']),
+      interruptType: z.enum(['clarification', 'client_tool', 'tool_approval']),
       question: z.string().optional(),
       options: z.array(z.string()).optional(),
       toolName: z.string().optional(),
       args: flexibleRecord.optional(),
       threadId: z.string().optional(),
+      approvalTurnId: z.string().optional(),
+      calls: z
+        .array(
+          z.object({
+            toolCallId: z.string(),
+            toolName: z.string(),
+            args: flexibleRecord,
+            title: z.string().optional(),
+            serverName: z.string().optional(),
+          })
+        )
+        .optional(),
     })
     .passthrough(),
   done: z

@@ -16,10 +16,37 @@
  * Env:
  *   EVAL_BASE_URL   backend base (default http://localhost:3001)
  *   EVAL_BYPASS_TOKEN  x-dev-auth-bypass token (required unless the backend is open)
- *   EVAL_MODEL_ID   force a model lane for every case (e.g. 'mistral' / 'gemma-4')
+ *   EVAL_MODEL_ID   pin a model lane for every case (e.g. 'gemma-4').
+ *                   ACHTUNG: 'mistral' und 'auto' pinnen NICHT — `resolveModel`
+ *                   behandelt beide als „auto", der Lauf misst dann die
+ *                   Auto-Policy. Eine echte Mistral-Lane heisst
+ *                   'mistral-medium-3.5'. Siehe README, Abschnitt „Run".
  *   EVAL_FILTER     only run cases whose id/category contains this substring
+ *   EVAL_ALLOW_GENERIC_PERSONAS=1  run even though INTERN_CONTENT_DIR is missing
+ *                   (der Lauf misst dann generische Personas — siehe
+ *                   internalPromptsVerdict)
  *   EVAL_SLOW=1     include scenarios tagged `slow` (golden long threads)
  *   EVAL_NOTEBOOK=1 include notebook-surface scenarios (tagged `notebookLane`)
+ *   EVAL_LOOP_OFF=1 das Backend läuft mit CHAT_AGENT_LOOP=false — Turns mit
+ *                  `expectWhenLoopOff` prüfen dann jene Zusicherung
+ *   EVAL_DEEP_RESEARCH=1  include the real `@deepresearch` runs (tagged
+ *                   `deepResearchLane`). Minutes and money per run, and they
+ *                   spend the shared daily allowance — off by default.
+ *   EVAL_SYSTEM_MCP=1  include scenarios that need the SYSTEM MCP servers
+ *                   (bahn/wetter/news/hotel; tagged `systemMcpLane`). Ohne die
+ *                   `SYSTEM_MCP_*_URL` am Backend weicht der Loop auf
+ *                   `web_search` aus — rot, ohne Aussage über den Code.
+ *   EVAL_USER_NOTEBOOK_ID  include scenarios tagged `userNotebookLane` and
+ *                   substitute this id for `{{EVAL_USER_NOTEBOOK_ID}}` in their
+ *                   prompts and `notebookIds`. Must be a notebook the bypass
+ *                   user owns (see corpus/notebook-tools.jsonl).
+ *   EVAL_ATTACHED_DOC_ID  include scenarios tagged `attachedDocLane` and
+ *                   substitute this id for `{{EVAL_ATTACHED_DOC_ID}}` in their
+ *                   `documentChatIds`. Must be a multi-page document the bypass
+ *                   user uploaded in a chat (see corpus/attached-doc-tools.jsonl).
+ *   EVAL_MEMORY=1   include scenarios that seed the eval account's memory
+ *                   (`memories`). Needs EVAL_CONCURRENCY=1 and an account whose
+ *                   memory is empty — both checked before the first request.
  *   EVAL_CONCURRENCY  scenarios to run in parallel (default 1; turns stay serial)
  *   EVAL_BASELINE   baseline JSON path (default ./evals/baseline.json)
  *   EVAL_UPDATE_BASELINE=1  overwrite the baseline with this run's results
@@ -33,7 +60,7 @@
  * Deterministic assertions only — no model calls here. The LLM-judge pass
  * (eval:judge) consumes the enriched last-run.json this writes.
  */
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -61,6 +88,22 @@ const BYPASS = process.env.EVAL_BYPASS_TOKEN ?? '';
 const MODEL_ID = process.env.EVAL_MODEL_ID;
 const FILTER = process.env.EVAL_FILTER ?? '';
 const SLOW = process.env.EVAL_SLOW === '1';
+/**
+ * Der Operator sagt der Auswertung, dass das Backend mit `CHAT_AGENT_LOOP=false`
+ * läuft. Ein Szenario kann das nicht selbst wissen: die Flagge wird
+ * backend-seitig zur Request-Zeit gelesen, der Harness postet nur gegen einen
+ * Server, den jemand anders gestartet hat. Turns mit `expectWhenLoopOff`
+ * prüfen dann diese Zusicherung statt `expect`.
+ */
+const LOOP_OFF = process.env.EVAL_LOOP_OFF === '1';
+const USER_NOTEBOOK_ID = process.env.EVAL_USER_NOTEBOOK_ID?.trim() ?? '';
+
+function withUserNotebook(text: string): string {
+  return text.replaceAll('{{EVAL_USER_NOTEBOOK_ID}}', USER_NOTEBOOK_ID);
+}
+
+const ATTACHED_DOC_ID = process.env.EVAL_ATTACHED_DOC_ID?.trim() ?? '';
+
 const CONCURRENCY = (() => {
   const n = Number.parseInt(process.env.EVAL_CONCURRENCY ?? '', 10);
   return Number.isInteger(n) && n >= 1 ? n : 1;
@@ -83,6 +126,9 @@ interface WireMessage {
   id: string;
   role: 'user' | 'assistant';
   parts: { type: 'text'; text: string }[];
+  /** Notebook-Fläche: in welchem Modus diese Antwort lief (`answer_mode`-Event)
+   *  — der Client schickt ihn in der History mit, der Auto-Wächter liest ihn. */
+  answerMode?: 'chat' | 'praezision';
 }
 
 function wireMessage(id: string, role: 'user' | 'assistant', text: string): WireMessage {
@@ -95,6 +141,12 @@ function selectedCorpus(): EvalScenario[] {
     slow: SLOW,
     mcp: process.env.EVAL_MCP === '1',
     notebook: process.env.EVAL_NOTEBOOK === '1',
+    systemMcp: process.env.EVAL_SYSTEM_MCP === '1',
+    deepResearch: process.env.EVAL_DEEP_RESEARCH === '1',
+    bgstKorpus: process.env.EVAL_BGST_KORPUS === '1',
+    memory: process.env.EVAL_MEMORY === '1',
+    userNotebook: USER_NOTEBOOK_ID !== '',
+    attachedDoc: ATTACHED_DOC_ID !== '',
   });
 }
 
@@ -120,6 +172,113 @@ async function postSse(
   } catch (err) {
     return { rawBody: '', networkError: err instanceof Error ? err.message : String(err) };
   }
+}
+
+async function memoryRequest(
+  method: 'GET' | 'POST' | 'DELETE',
+  path: string,
+  body?: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method,
+    headers: {
+      'content-type': 'application/json',
+      ...(BYPASS ? { 'x-dev-auth-bypass': BYPASS } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    throw new Error(`${method} ${path}: HTTP ${res.status} ${String(json.message ?? '')}`.trim());
+  }
+  return json;
+}
+
+/**
+ * Das Gedächtnis gehört dem Konto, nicht dem Szenario. Parallel liefe jedes
+ * andere Szenario mit fremden Einträgen im Prompt, und ein Konto mit eigenen
+ * Einträgen verfälscht jeden Fall. Ein leeres Konto zu Beginn ist zugleich,
+ * was `clearRunMemories` das vollständige Leeren erlaubt.
+ */
+async function assertMemoryLaneUsable(corpus: EvalScenario[]): Promise<void> {
+  if (!corpus.some((s) => s.memories)) return;
+  if (CONCURRENCY !== 1) {
+    throw new Error(
+      'Memory-Szenarien brauchen EVAL_CONCURRENCY=1 (das Gedächtnis hängt am Konto).'
+    );
+  }
+  const { memories } = (await memoryRequest('GET', '/api/memory')) as { memories: unknown[] };
+  if (memories.length > 0) {
+    throw new Error(
+      `Das Eval-Konto hat schon ${memories.length} Erinnerung(en) — sie stünden in jedem Prompt. ` +
+        'Erst leeren (Einstellungen → Gedächtnis), der Runner löscht keine fremden Einträge.'
+    );
+  }
+}
+
+/** Set once a memory scenario could not leave the account empty — every later
+ *  scenario would carry foreign entries in its prompt, so none of them runs. */
+let memoryDirty: string | null = null;
+
+function failedResult(scenario: EvalScenario, error: string): CaseResult {
+  return {
+    id: scenario.id,
+    category: scenario.category,
+    prompt: scenario.turns[0]?.prompt ?? '',
+    latencyMs: 0,
+    intent: null,
+    agentic: false,
+    toolNames: [],
+    error,
+    assertions: [],
+    passed: false,
+    turns: [],
+  };
+}
+
+/**
+ * Leert das Konto nach einem Memory-Szenario vollständig. Das ist nur zulässig,
+ * weil `assertMemoryLaneUsable` vor dem Lauf ein leeres Konto verlangt: alles,
+ * was jetzt darin steht, hat dieser Lauf angelegt — auch, was das Modell über
+ * das `memory`-Werkzeug selbst gespeichert hat.
+ */
+async function clearRunMemories(): Promise<string | null> {
+  try {
+    // The contract declares `body: z.object({})` — without it the delete is a 400.
+    await memoryRequest('DELETE', '/api/memory', {});
+    const { memories } = (await memoryRequest('GET', '/api/memory')) as { memories: unknown[] };
+    return memories.length === 0
+      ? null
+      : `${memories.length} Erinnerung(en) nach dem Aufräumen übrig`;
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
+}
+
+async function withMemories(
+  scenario: EvalScenario,
+  run: () => Promise<CaseResult>
+): Promise<CaseResult> {
+  if (memoryDirty) return failedResult(scenario, `übersprungen: ${memoryDirty}`);
+  if (!scenario.memories) return run();
+
+  let result: CaseResult;
+  try {
+    for (const m of scenario.memories) await memoryRequest('POST', '/api/memory', m);
+    result = await run();
+  } catch (err) {
+    result = failedResult(
+      scenario,
+      `Gedächtnis anlegen: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+
+  const leftover = await clearRunMemories();
+  if (leftover) {
+    memoryDirty = `Eval-Konto nicht leer (${leftover})`;
+    return { ...result, passed: false, error: result.error ?? memoryDirty };
+  }
+  return result;
 }
 
 function record(scenarioId: string, turnIdx: number, suffix: string, rawBody: string): void {
@@ -156,7 +315,11 @@ async function runTurn(
     });
   }
 
-  const userMessage = wireMessage(`eval-${scenario.id}-t${turnIdx}`, 'user', turn.prompt);
+  const userMessage = wireMessage(
+    `eval-${scenario.id}-t${turnIdx}`,
+    'user',
+    withUserNotebook(turn.prompt)
+  );
   const messages = [...padded, ...ctx.history, userMessage];
   const modelId = scenario.modelId ?? MODEL_ID;
   // Mimic the client's "Im Chat bearbeiten" toggle: target the variant created
@@ -178,9 +341,11 @@ async function runTurn(
         messages: messages.map((m) => ({
           role: m.role,
           content: m.parts.map((p) => p.text).join(''),
+          ...(m.answerMode ? { answerMode: m.answerMode } : {}),
         })),
         collectionIds: scenario.collectionIds ?? [],
         ...(scenario.notebookMode ? { mode: scenario.notebookMode } : {}),
+        ...(scenario.notebookAnswerMode ? { answerMode: scenario.notebookAnswerMode } : {}),
         ...(ctx.threadId ? { threadId: ctx.threadId } : {}),
       }
     : {
@@ -188,6 +353,16 @@ async function runTurn(
         ...(modelId ? { modelId } : {}),
         ...(ctx.threadId ? { threadId: ctx.threadId } : {}),
         ...(currentSharepic ? { currentSharepic } : {}),
+        ...(scenario.notebookIds
+          ? { notebookIds: scenario.notebookIds.map(withUserNotebook) }
+          : {}),
+        ...(scenario.documentChatIds
+          ? {
+              documentChatIds: scenario.documentChatIds.map((id) =>
+                id.replaceAll('{{EVAL_ATTACHED_DOC_ID}}', ATTACHED_DOC_ID)
+              ),
+            }
+          : {}),
       };
 
   const logId = `${scenario.id}.t${turnIdx}`;
@@ -258,13 +433,20 @@ async function runTurn(
     }
   }
 
-  const assertions = runAssertions(trace, turn.expect, scenarioCtx);
+  // §5(b) des R2-Abnahme-Berichts: mit ausgeschalteter Schleife beschreibt
+  // `expect` teils den falschen Zustand. Ein Turn, der das weiss, trägt seine
+  // Wirkungs-Zusicherung für diesen Fall selbst mit.
+  const effectiveExpect = LOOP_OFF && turn.expectWhenLoopOff ? turn.expectWhenLoopOff : turn.expect;
+  const assertions = runAssertions(trace, effectiveExpect, scenarioCtx);
 
   // Thread the context forward.
   if (trace.threadId && !ctx.threadId) ctx.threadId = trace.threadId;
   ctx.history.push(userMessage);
   if (trace.fullText) {
-    ctx.history.push(wireMessage(`eval-${scenario.id}-t${turnIdx}-a`, 'assistant', trace.fullText));
+    const answer = wireMessage(`eval-${scenario.id}-t${turnIdx}-a`, 'assistant', trace.fullText);
+    const resolved = events.find((e) => e.event === 'answer_mode')?.data.resolved;
+    if (resolved === 'chat' || resolved === 'praezision') answer.answerMode = resolved;
+    ctx.history.push(answer);
   }
   scenarioCtx.priorArtifactIds.push(...trace.artifactIds);
   if (trace.sharepicVariants.length > 0) {
@@ -297,8 +479,8 @@ async function runTurn(
     error: trace.error,
     assertions,
     passed: assertions.every((a) => a.pass),
-    ...(turn.expect.judge ? { judge: turn.expect.judge } : {}),
-    ...(turn.expect.judgeFacts ? { judgeFacts: turn.expect.judgeFacts } : {}),
+    ...(effectiveExpect.judge ? { judge: effectiveExpect.judge } : {}),
+    ...(effectiveExpect.judgeFacts ? { judgeFacts: effectiveExpect.judgeFacts } : {}),
   };
 }
 
@@ -486,6 +668,44 @@ function report(results: CaseResult[]): void {
   if (regressions > 0 || passed < scored.length) process.exitCode = 1;
 }
 
+/**
+ * Laufen die internen Prompts mit — oder misst dieser Lauf ein Produkt ohne sie?
+ *
+ * Rezept- und Persona-Texte liegen nicht im öffentlichen Repo, sondern werden
+ * zur Laufzeit aus `INTERN_CONTENT_DIR` gelesen (siehe
+ * `services/skills/internalPrompts.ts`). Fehlt das Verzeichnis, startet das
+ * Backend trotzdem: jede Persona fällt auf eine generische zurück, und der Lauf
+ * misst ein anderes Produkt, als er zu messen glaubt. Im Lauf vom 18.08.2026
+ * war genau das der Fall — sichtbar nur als ERROR-Zeile im Backend-Log, die
+ * niemand las, während die Qualitätsurteile weiterliefen.
+ *
+ * Der Harness prüft dieselben zwei Orte, die das Backend prüft. Zeigt
+ * EVAL_BASE_URL auf einen fremden Host, kann er GAR NICHTS prüfen — dann sagt
+ * er das, statt eine Entwarnung zu erfinden, die er nicht belegen kann.
+ */
+function internalPromptsVerdict(): { ok: boolean; local: boolean; detail: string } {
+  const local = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(BASE_URL);
+  if (!local) {
+    return {
+      ok: false,
+      local: false,
+      detail: `${BASE_URL} ist ein fremder Host — der Harness sieht dessen Platte nicht`,
+    };
+  }
+  const root =
+    process.env.INTERN_CONTENT_DIR?.trim() || join(HERE, '../../../.external/gruenerator-intern');
+  const agents = join(root, 'agents');
+  let count = 0;
+  try {
+    count = readdirSync(agents).filter((f) => f.endsWith('.md')).length;
+  } catch {
+    return { ok: false, local: true, detail: `kein Verzeichnis unter ${agents}` };
+  }
+  return count > 0
+    ? { ok: true, local: true, detail: `${count} Personas aus ${root}` }
+    : { ok: false, local: true, detail: `${agents} ist leer` };
+}
+
 async function main(): Promise<void> {
   const corpus = selectedCorpus();
   if (corpus.length === 0) {
@@ -494,6 +714,30 @@ async function main(): Promise<void> {
   }
   if (!BYPASS) {
     console.warn('⚠  EVAL_BYPASS_TOKEN not set — requests will likely 401.\n');
+  }
+
+  try {
+    await assertMemoryLaneUsable(corpus);
+  } catch (err) {
+    console.error(`✖  ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
+
+  const personas = internalPromptsVerdict();
+  if (personas.ok) {
+    console.log(`Personas:   intern (${personas.detail})`);
+  } else if (process.env.EVAL_ALLOW_GENERIC_PERSONAS === '1') {
+    console.warn(
+      `⚠  Personas: generisch — Qualitätsurteile nicht belastbar (${personas.detail})\n`
+    );
+  } else {
+    console.error(
+      `✖  INTERN_CONTENT_DIR fehlt oder ist leer (${personas.detail}).\n` +
+        '   Ohne die internen Prompts misst der Lauf generische Personas und generische\n' +
+        '   Rezepte — jedes Qualitätsurteil daraus ist unbelastbar.\n' +
+        '   Setz INTERN_CONTENT_DIR, oder erzwing den Lauf mit EVAL_ALLOW_GENERIC_PERSONAS=1.'
+    );
+    process.exit(1);
   }
 
   // Bounded-concurrency worker pool. Turns within a scenario stay sequential
@@ -510,7 +754,7 @@ async function main(): Promise<void> {
   async function worker(): Promise<void> {
     while (cursor < corpus.length) {
       const scenario = corpus[cursor++];
-      const r = await runScenario(scenario);
+      const r = await withMemories(scenario, () => runScenario(scenario));
       results.push(r);
       done++;
       process.stdout.write(`[${done}/${total}] `);

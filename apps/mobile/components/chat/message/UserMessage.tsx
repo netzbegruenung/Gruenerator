@@ -1,6 +1,6 @@
 import { MessagePrimitive, useAui, useAuiState } from '@assistant-ui/react-native';
 import { parseMentionTokens } from '@gruenerator/shared/utils';
-import { memo, useCallback, type ReactNode } from 'react';
+import { Fragment, memo, useCallback, type ReactNode } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
@@ -8,6 +8,7 @@ import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../the
 import { MessageAttachmentUI } from '../AttachmentUI';
 
 import { BranchPicker } from './BranchPicker';
+import { MessageDaySeparator } from './MessageDaySeparator';
 import { messageLayout } from './messageLayout';
 
 /** Durable mention tokens (@[Label](type:id)) render as chips; plain text passes through. */
@@ -52,26 +53,29 @@ export const UserMessage = memo(function UserMessage() {
   }, [aui, isEditing]);
 
   return (
-    <MessagePrimitive.Root style={[messageLayout.row, messageLayout.userRow]}>
-      <Pressable
-        onLongPress={handleLongPress}
-        delayLongPress={350}
-        testID="chat-message-edit"
-        accessibilityLabel="Nachricht bearbeiten"
-        style={({ pressed }) => [
-          styles.bubble,
-          styles.bubbleWidth,
-          styles.bubbleFill,
-          pressed && styles.bubblePressed,
-        ]}
-      >
-        <MessagePrimitive.Attachments>{renderAttachment}</MessagePrimitive.Attachments>
-        <MessagePrimitive.Parts components={userPartComponents} />
-      </Pressable>
-      <View style={styles.actionBar}>
-        <BranchPicker theme={theme} />
-      </View>
-    </MessagePrimitive.Root>
+    <Fragment>
+      <MessageDaySeparator />
+      <MessagePrimitive.Root style={[messageLayout.row, messageLayout.userRow]}>
+        <Pressable
+          onLongPress={handleLongPress}
+          delayLongPress={350}
+          testID="chat-message-edit"
+          accessibilityLabel="Nachricht bearbeiten"
+          style={({ pressed }) => [
+            styles.bubble,
+            styles.bubbleWidth,
+            styles.bubbleFill,
+            pressed && styles.bubblePressed,
+          ]}
+        >
+          <MessagePrimitive.Attachments>{renderAttachment}</MessagePrimitive.Attachments>
+          <MessagePrimitive.Parts components={userPartComponents} />
+        </Pressable>
+        <View style={styles.actionBar}>
+          <BranchPicker theme={theme} />
+        </View>
+      </MessagePrimitive.Root>
+    </Fragment>
   );
 });
 

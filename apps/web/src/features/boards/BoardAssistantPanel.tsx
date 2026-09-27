@@ -4,6 +4,7 @@ import { BoardAssistantChat } from './BoardAssistantChat';
 import { BoardAssistantProvider } from './BoardAssistantProvider';
 
 import type { BoardMutations } from './applyBoardOperations';
+import type { BoardView, Row } from './types';
 
 interface BoardAssistantPanelProps {
   boardId: string;
@@ -11,7 +12,7 @@ interface BoardAssistantPanelProps {
   userName: string | null;
   boardTitle: string | null;
   /** Live board mutation surface (lifted useBoardState from BoardContent). */
-  boardState: BoardMutations;
+  boardState: BoardMutations & { rows: Row[]; views: BoardView[] };
   /** Active view's grouping field — AI column/status ops target this field. */
   groupByFieldId?: string;
   /**

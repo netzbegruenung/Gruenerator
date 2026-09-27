@@ -39,7 +39,6 @@ vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
 }));
 vi.mock('../../services/user/ProfileService.js', () => ({ getProfileService: () => ({}) }));
 vi.mock('../../services/monitor/UmfragenService.js', () => ({ lookupUmfragen: vi.fn() }));
-vi.mock('../../utils/getAIWorkerPool.js', () => ({ getAIWorkerPool: () => ({}) }));
 vi.mock('./mcpMutations.js', () => ({
   addCardDirect: vi.fn(),
   createGroupDirect: vi.fn(),
@@ -84,6 +83,7 @@ function buildTools() {
   buildAuthenticatedMcpServer({
     userId: 'user-1',
     scopes: new Set(['search']),
+    userLocale: 'de-DE',
     req: {} as never,
   });
   spy.mockRestore();
@@ -267,7 +267,7 @@ describe('renderNotebookAnswer', () => {
           { index: '1', document_title: 'Papier', source_url: '/docs/a', document_id: 'doc-a' },
         ],
       } as never,
-      'Mein Notizbuch'
+      'Mein Notebook'
     );
     expect(out).toMatch(/\[1\] Papier — \S+\/docs\/a \[ref: [a-z0-9]+\]/);
   });

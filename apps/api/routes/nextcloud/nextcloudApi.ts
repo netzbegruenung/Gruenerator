@@ -1,10 +1,11 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 
-import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
-import NextcloudApiClient from '../../services/api-clients/nextcloudApiClient.js';
+import NextcloudApiClient, {
+  type ConnectionTestResult,
+} from '../../services/api-clients/nextcloudApiClient.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -24,15 +25,6 @@ const testConnectionSchema = z.object({
   shareLink: z.string().url(),
 });
 
-const uploadSchema = z.object({
-  shareLinkId: z.string(),
-  content: z.string(),
-  filename: z.string(),
-  folderPath: z.string().nullish(),
-  documentId: z.string().uuid().optional(),
-  enableLiveSync: z.boolean().optional(),
-});
-
 const updateShareLinkSchema = z.object({
   label: z.string().nullish(),
   is_active: z.boolean().nullish(),
@@ -40,7 +32,6 @@ const updateShareLinkSchema = z.object({
 
 type SaveShareLinkBody = z.infer<typeof saveShareLinkSchema>;
 type TestConnectionBody = z.infer<typeof testConnectionSchema>;
-type UploadBody = z.infer<typeof uploadSchema>;
 type UpdateShareLinkBody = z.infer<typeof updateShareLinkSchema>;
 
 const router: Router = Router();
@@ -229,7 +220,10 @@ router.post(
         finalShareToken || ''
       );
 
-      let connectionTest: { success: boolean; message: string } | null = null;
+      // Der volle Typ, nicht `{success, message}`: die schmalere Annotation
+      // strippte den `errorCode`, den das Frontend für die deutsche
+      // Fehlerdeutung braucht — der Wert war längst da.
+      let connectionTest: ConnectionTestResult | null = null;
       try {
         const client = await NextcloudApiClient.create(shareLink);
         connectionTest = await client.testConnection();
@@ -242,6 +236,7 @@ router.post(
         connectionTest = {
           success: false,
           message: testErr.message,
+          errorCode: 'invalid_link',
         };
       }
 
@@ -349,7 +344,22 @@ router.post(
         return;
       }
 
-      const client = await NextcloudApiClient.create(shareLink);
+      // Wirft der Client-Bau (Format/SSRF), ist das ein unbrauchbarer LINK,
+      // kein Serverfehler — ohne errorCode fiele der Wizard in den
+      // nichtssagenden unknown-Zweig.
+      let client: NextcloudApiClient;
+      try {
+        client = await NextcloudApiClient.create(shareLink);
+      } catch (createError) {
+        const createErr = createError as Error;
+        log.warn('[NextcloudApi] Share link rejected before test', { error: createErr.message });
+        res.json({
+          success: false,
+          message: toUserFacingMessage(createErr),
+          errorCode: 'invalid_link',
+        } satisfies ConnectionTestResult);
+        return;
+      }
       const testResult = await client.testConnection();
 
       res.json(testResult);
@@ -359,315 +369,8 @@ router.post(
       res.status(500).json({
         success: false,
         message: toUserFacingMessage(err),
-      });
-    }
-  }
-);
-
-/**
- * Browse folders in a Nextcloud share
- * GET /api/nextcloud/share-links/:id/browse?path=
- */
-router.get(
-  '/share-links/:id/browse',
-  async (req: Request<{ id: string }>, res: Response): Promise<void> => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const shareLinkId = req.params.id;
-      const folderPath = (req.query.path as string) || '';
-
-      log.debug('[NextcloudApi] Browsing folder', { userId, shareLinkId, folderPath });
-
-      if (!shareLinkId) {
-        res.status(400).json({ error: 'Share link ID is required' });
-        return;
-      }
-
-      const shareLink = await NextcloudShareManager.getShareLinkById(userId, shareLinkId);
-
-      if (!shareLink || !shareLink.is_active) {
-        res.status(404).json({ error: 'Share link not found or inactive' });
-        return;
-      }
-
-      const client = await NextcloudApiClient.create(shareLink.share_link);
-      const items = await client.listFolder(folderPath || undefined);
-
-      res.json({
-        success: true,
-        path: folderPath,
-        items,
-      });
-    } catch (error) {
-      const err = error as Error;
-      log.error('[NextcloudApi] Error browsing folder', { error: err.message });
-      res.status(500).json({
-        error: 'Failed to browse folder',
-        message: toUserFacingMessage(err),
-      });
-    }
-  }
-);
-
-/**
- * Upload file to a Nextcloud share
- * POST /api/nextcloud/upload
- */
-router.post(
-  '/upload',
-  validateBody(uploadSchema),
-  async (req: TypedRequest<UploadBody>, res: Response): Promise<void> => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const { shareLinkId, content, filename, folderPath, documentId, enableLiveSync } = req.body;
-
-      log.debug('[NextcloudApi] Uploading file to Nextcloud', {
-        userId,
-        filename,
-        shareLinkId,
-        folderPath,
-        documentId,
-        enableLiveSync,
-      });
-
-      if (!shareLinkId) {
-        res.status(400).json({ error: 'Share link ID is required' });
-        return;
-      }
-
-      if (!content) {
-        res.status(400).json({ error: 'File content is required' });
-        return;
-      }
-
-      if (!filename) {
-        res.status(400).json({ error: 'Filename is required' });
-        return;
-      }
-
-      const shareLink = await NextcloudShareManager.getShareLinkById(userId, shareLinkId);
-
-      if (!shareLink || !shareLink.is_active) {
-        res.status(404).json({ error: 'Share link not found or inactive' });
-        return;
-      }
-
-      const client = await NextcloudApiClient.create(shareLink.share_link);
-      const uploadResult = await client.uploadFile(content, filename, folderPath ?? undefined);
-
-      if (uploadResult.success && documentId) {
-        try {
-          const wolkeFilePath = folderPath ? `${folderPath}/${filename}` : filename;
-          const db = getPostgresInstance();
-          const updates: string[] = [
-            'wolke_share_link_id = $1',
-            'wolke_file_path = $2',
-            'last_synced_at = NOW()',
-          ];
-          const values: unknown[] = [shareLinkId, wolkeFilePath];
-          let paramIndex = 3;
-
-          if (uploadResult.etag) {
-            updates.push(`wolke_etag = $${paramIndex++}`);
-            values.push(uploadResult.etag);
-          }
-          if (enableLiveSync !== undefined) {
-            updates.push(`wolke_live_sync = $${paramIndex++}`);
-            values.push(enableLiveSync);
-          }
-
-          values.push(documentId);
-          values.push(userId);
-
-          const idParam = paramIndex++;
-          const userParam = paramIndex;
-
-          await db.query(
-            `UPDATE collaborative_documents
-             SET ${updates.join(', ')}
-             WHERE id = $${idParam}
-               AND created_by = $${userParam}
-               AND is_deleted = false`,
-            values
-          );
-        } catch (linkErr) {
-          const linkError = linkErr as Error;
-          log.warn('[NextcloudApi] Upload succeeded but document link write failed', {
-            documentId,
-            error: linkError.message,
-          });
-        }
-      }
-
-      res.json(uploadResult);
-    } catch (error) {
-      const err = error as Error;
-      log.error('[NextcloudApi] Error uploading file', { error: err.message });
-
-      if (err.message.includes('not found')) {
-        res.status(404).json({
-          success: false,
-          message: toUserFacingMessage(err),
-        });
-        return;
-      }
-
-      if (err.message.includes('Authentication failed') || err.message.includes('forbidden')) {
-        res.status(403).json({
-          success: false,
-          message: toUserFacingMessage(err),
-        });
-        return;
-      }
-
-      res.status(500).json({
-        success: false,
-        message: toUserFacingMessage(err),
-      });
-    }
-  }
-);
-
-/**
- * Upload test file to a Nextcloud share
- * POST /api/nextcloud/upload-test
- */
-router.post(
-  '/upload-test',
-  validateBody(uploadSchema),
-  async (req: TypedRequest<UploadBody>, res: Response): Promise<void> => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const { shareLinkId, content, filename } = req.body;
-
-      log.debug('[NextcloudApi] Uploading test file to Nextcloud', {
-        userId,
-        filename,
-        shareLinkId,
-      });
-
-      if (!shareLinkId) {
-        res.status(400).json({
-          success: false,
-          message: 'Share link ID is required',
-        });
-        return;
-      }
-
-      if (!content) {
-        res.status(400).json({
-          success: false,
-          message: 'File content is required',
-        });
-        return;
-      }
-
-      if (!filename) {
-        res.status(400).json({
-          success: false,
-          message: 'Filename is required',
-        });
-        return;
-      }
-
-      const shareLink = await NextcloudShareManager.getShareLinkById(userId, shareLinkId);
-
-      if (!shareLink || !shareLink.is_active) {
-        res.status(404).json({
-          success: false,
-          message: 'Share link not found or inactive',
-        });
-        return;
-      }
-
-      const client = await NextcloudApiClient.create(shareLink.share_link);
-      const uploadResult = await client.uploadFile(content, filename);
-
-      res.json(uploadResult);
-    } catch (error) {
-      const err = error as Error;
-      log.error('[NextcloudApi] Error uploading test file', { error: err.message });
-
-      if (err.message.includes('not found')) {
-        res.status(404).json({
-          success: false,
-          message: toUserFacingMessage(err),
-        });
-        return;
-      }
-
-      if (err.message.includes('Authentication failed') || err.message.includes('forbidden')) {
-        res.status(403).json({
-          success: false,
-          message: toUserFacingMessage(err),
-        });
-        return;
-      }
-
-      res.status(500).json({
-        success: false,
-        message: toUserFacingMessage(err),
-      });
-    }
-  }
-);
-
-/**
- * Get share information (list files)
- * GET /api/nextcloud/share-links/:id/info
- */
-router.get(
-  '/share-links/:id/info',
-  async (req: Request<{ id: string }>, res: Response): Promise<void> => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const shareLinkId = req.params.id;
-
-      log.debug('[NextcloudApi] Getting share info', { userId, shareLinkId });
-
-      if (!shareLinkId) {
-        res.status(400).json({ error: 'Share link ID is required' });
-        return;
-      }
-
-      const shareLink = await NextcloudShareManager.getShareLinkById(userId, shareLinkId);
-
-      if (!shareLink || !shareLink.is_active) {
-        res.status(404).json({ error: 'Share link not found or inactive' });
-        return;
-      }
-
-      const client = await NextcloudApiClient.create(shareLink.share_link);
-      const shareInfo = await client.getShareInfo();
-
-      res.json(shareInfo);
-    } catch (error) {
-      const err = error as Error;
-      log.error('[NextcloudApi] Error getting share info', { error: err.message });
-      res.status(500).json({
-        error: 'Failed to get share information',
-        message: toUserFacingMessage(err),
-      });
+        errorCode: 'unknown',
+      } satisfies ConnectionTestResult);
     }
   }
 );
@@ -732,36 +435,5 @@ router.put(
     }
   }
 );
-
-/**
- * Debug route to check database state
- * GET /api/nextcloud/debug/database-state
- */
-router.get('/debug/database-state', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    log.debug('[NextcloudApi] Debug: Checking database state', { userId });
-
-    const dbState = await NextcloudShareManager.checkDatabaseState(userId);
-
-    res.json({
-      success: true,
-      debug: true,
-      ...dbState,
-    });
-  } catch (error) {
-    const err = error as Error;
-    log.error('[NextcloudApi] Error checking database state', { error: err.message });
-    res.status(500).json({
-      error: 'Failed to check database state',
-      message: toUserFacingMessage(err),
-    });
-  }
-});
 
 export default router;

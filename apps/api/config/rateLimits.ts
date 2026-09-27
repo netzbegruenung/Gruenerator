@@ -43,8 +43,6 @@ export interface RateLimitConfig {
     docs_ai: ResourceConfig;
     pdf_export: ResourceConfig;
     gruen_o_mat: ResourceConfig;
-    canvas_ai: ResourceConfig;
-    canvas_chat_edit: ResourceConfig;
   };
   anonymousIdentifierStrategy: ('sessionID' | 'ip')[];
   enableAnalytics: boolean;
@@ -90,24 +88,6 @@ const rateLimitConfig: RateLimitConfig = {
     gruen_o_mat: {
       anonymous: { limit: 20, window: 'daily' },
       authenticated: { limit: 50, window: 'daily' },
-      premium: { limit: Infinity, window: 'daily' },
-    },
-
-    // Canvas AI suggestions (sidebar prompt → operations)
-    // Tighter than text generation because each request is short and
-    // template-scoped, but cheap enough to allow generous authenticated use.
-    canvas_ai: {
-      anonymous: { limit: 5, window: 'daily' },
-      authenticated: { limit: 100, window: 'daily' },
-      premium: { limit: Infinity, window: 'daily' },
-    },
-
-    // Canvas chat-edit (streaming research + tail canvas-AI-suggest).
-    // Each request triggers two LLM calls (chat-graph respond + canvas-suggest),
-    // so the bucket is tighter than canvas_ai despite the shared downstream.
-    canvas_chat_edit: {
-      anonymous: { limit: 0, window: 'daily' },
-      authenticated: { limit: 60, window: 'daily' },
       premium: { limit: Infinity, window: 'daily' },
     },
   },

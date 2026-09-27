@@ -8,20 +8,40 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: monitor-refresh
-  cancel-in-progress: false
-
 jobs:
+  # One job per deployment. Without this, the cron only ever reached ONE
+  # instance and every other environment answered `GET /api/monitor/latest`
+  # with 404 forever — `getLatestSnapshot` has no lazy rebuild, so an instance
+  # that is never refreshed cannot heal itself.
+  #
+  # Only `prod` is required. Beta is best-effort: it is frequently mid-deploy,
+  # and a red cron there would train everyone to ignore this workflow.
   refresh:
-    name: Refresh monitor snapshot
+    name: Refresh monitor snapshot (${{ matrix.target.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    continue-on-error: ${{ matrix.target.name != 'prod' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: prod
+            url: ${{ vars.MONITOR_API_URL || 'https://gruenerator.eu' }}
+          - name: beta
+            url: ${{ vars.MONITOR_BETA_API_URL }}
+    # Per target, so prod and beta never queue behind each other.
+    concurrency:
+      group: monitor-refresh-${{ matrix.target.name }}
+      cancel-in-progress: false
     env:
-      API_URL: ${{ vars.MONITOR_API_URL || 'https://gruenerator.eu' }}
+      API_URL: ${{ matrix.target.url }}
     steps:
+      # An unset URL means that environment isn't configured — skip rather than
+      # curl an empty host. The guard sits on the steps, not on the job: the
+      # `matrix` context is not available in `jobs.<id>.if`.
       - name: Trigger refresh
         id: refresh
+        if: matrix.target.url != ''
         continue-on-error: true
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
@@ -54,16 +74,17 @@ jobs:
           fi
 
       - name: Generate summary
-        if: always()
+        if: always() && matrix.target.url != ''
         run: |
           STATUS='${{ steps.refresh.outputs.status }}'
           RESULT='${{ steps.refresh.outputs.result }}'
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           REPO="${{ github.repository }}"
+          TARGET='${{ matrix.target.name }}'
 
           if [ "$STATUS" = "missing-secret" ]; then
             {
-              echo "## :x: Monitor Refresh — ADMIN_TOKEN missing"
+              echo "## :x: Monitor Refresh ($TARGET) — ADMIN_TOKEN missing"
               echo ""
               echo "The \`ADMIN_TOKEN\` repository secret is empty or unset."
               echo "Set it with: \`gh secret set ADMIN_TOKEN --repo $REPO\`"
@@ -76,7 +97,7 @@ jobs:
 
           if [ "$STATUS" = "403" ]; then
             {
-              echo "## :x: Monitor Refresh — Auth rejected (HTTP 403)"
+              echo "## :x: Monitor Refresh ($TARGET) — Auth rejected (HTTP 403)"
               echo ""
               echo "The API rejected the admin token. The \`ADMIN_TOKEN\` GitHub secret does not match the server's \`env.ADMIN_TOKEN\` at $API_URL."
               echo ""
@@ -87,7 +108,7 @@ jobs:
 
           if [ "$STATUS" = "000" ] || [ -z "$STATUS" ]; then
             {
-              echo "## :x: Monitor Refresh — Network failure"
+              echo "## :x: Monitor Refresh ($TARGET) — Network failure"
               echo ""
               echo "Could not reach $API_URL (timeout, DNS, or TLS error)."
               echo ""
@@ -98,7 +119,7 @@ jobs:
 
           if [ "$STATUS" != "200" ]; then
             {
-              echo "## :x: Monitor Refresh — HTTP $STATUS"
+              echo "## :x: Monitor Refresh ($TARGET) — HTTP $STATUS"
               echo ""
               echo "Refresh endpoint at $API_URL returned an unexpected status."
               echo ""
@@ -118,7 +139,7 @@ jobs:
           fi
 
           {
-            echo "## $ICON Monitor Refresh"
+            echo "## $ICON Monitor Refresh ($TARGET)"
             echo ""
             echo "**Date:** $(date -u '+%d.%m.%Y %H:%M UTC')"
             echo "**Run:** [${{ github.run_id }}]($RUN_URL)"
@@ -130,5 +151,5 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail if refresh had errors
-        if: steps.refresh.outcome == 'failure'
+        if: matrix.target.url != '' && steps.refresh.outcome == 'failure'
         run: exit 1

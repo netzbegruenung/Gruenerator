@@ -8,7 +8,7 @@
  * an OpenAI-compat upstream streams alongside the answer is silently dropped.
  * Two of our upstreams do exactly that:
  *   - Regolo / vLLM (Qwen3, gpt-oss, Gemma 4): `delta.reasoning_content`,
- *     gated behind the chat-template flag `enable_thinking`.
+ *     gesteuert über `reasoning_effort` (`none` schaltet ab).
  *   - Verdigado / LiteLLM / Ollama (Gemma 4 `verdigado-think`):
  *     `delta.reasoning`, on by default.
  * To surface either to our UI (Reasoning/ReasoningGroup components), we bypass
@@ -21,7 +21,15 @@
 
 import { env } from '../../config/env.js';
 
-import { isProviderConfigured, SCALEWAY_MISTRAL_MODELS } from './providerInstances.js';
+import { cortecsBaseUrl } from './cortecsEndpoint.js';
+import { assertSovereignUpstream, SOVEREIGN_ZDR_PROVIDERS } from './cortecsRequestPolicy.js';
+import { meliousWireModel } from './meliousThinkingFetch.js';
+import { recordModelSample } from './modelHealth.js';
+import {
+  isScalewayMistralRoutingEnabled,
+  MELIOUS_BASE_URL,
+  SCALEWAY_MISTRAL_MODELS,
+} from './providerInstances.js';
 import { scalewayBaseUrl } from './scalewayEndpoint.js';
 
 import type { ModelMessage } from 'ai';
@@ -63,23 +71,73 @@ const REGOLO_ENDPOINT = 'https://api.regolo.ai/v1/chat/completions';
 
 /**
  * Models that stream reasoning to us, keyed by provider. Regolo's vLLM family
- * needs `enable_thinking: true` (the inverse of the `regoloFetchWithThinkingDisabled`
- * default we apply on the SDK path); LiteLLM's Ollama-backed aliases
- * (`verdigado-think` = Gemma 4, `verdigado-pro` = gpt-oss) emit `reasoning` by
- * default and need no flag.
+ * bekommt hier ein echtes `reasoning_effort` (die Umkehr des `none`, das
+ * `regoloFetchWithThinkingDisabled` auf dem SDK-Pfad setzt); LiteLLM's
+ * Ollama-backed aliases (`verdigado-think` = Gemma 4, `verdigado-pro` =
+ * gpt-oss) emit `reasoning` by default and need no flag.
  */
 const REGOLO_REASONING_MODELS = new Set([
-  'qwen3.5-122b',
-  'qwen3.6-27b',
   'gpt-oss-120b',
   'gemma4-31b',
   // Small 4 is reasoning-capable but ran with thinking hard-off everywhere
   // (it was only ever the intermediate model). The auto policy can now grade it up
   // to `low` on moderate/complex turns; without this entry that grading would
-  // be silently ignored — the SDK path forces enable_thinking:false.
+  // be silently ignored — the SDK path forces reasoning_effort:'none'.
   'mistral-small-4-119b',
 ]);
-const LITELLM_REASONING_MODELS = new Set(['verdigado-think', 'verdigado-pro']);
+/** Leer seit dem 29.08.2026: der Host bedient kein Ziel mehr, und `getModel`
+ *  biegt den Namen vorher auf Cortecs um (./litellmRetired.ts). Das Set bleibt
+ *  stehen, damit der Zweig unten symmetrisch zu den anderen Anbietern liest —
+ *  und damit sichtbar ist, dass hier NICHTS mehr denkt, statt dass der Zweig
+ *  ersatzlos fehlt. */
+const LITELLM_REASONING_MODELS = new Set<string>();
+
+/**
+ * Cortecs-Modelle, die uns Denken streamen — und der Hebel dafür ist ein
+ * ANDERER als bei Regolo.
+ *
+ * Gemessen 25.08.2026 live gegen api.cortecs.ai (`gemma-4-31b-it`, identischer
+ * Prompt, max_tokens 1500, Zeichen Reasoning / Zeichen Inhalt):
+ *
+ *   nichts                                  0 / 1005
+ *   reasoning_effort: 'low' | 'medium' | 'high'
+ *                                           0 / 1005   ← HTTP 200, wirkungslos
+ *   reasoning_effort: 'none'                HTTP 400    ← „value must be one of
+ *                                                          'low','medium','high'"
+ *   chat_template_kwargs.enable_thinking=true
+ *                                        1387 / 1335   ← der Hebel, der wirkt
+ *   chat_template_kwargs.enable_thinking=false
+ *                                           0 / 1013   ← und er schaltet auch ab
+ *
+ * Zwei Dinge, die im Repo bis zu diesem Tag falsch standen und deshalb hier
+ * ausdrücklich gerade gerückt werden:
+ *
+ *  1. „infercom weist `reasoning_effort` mit HTTP 400 ab" — genau umgekehrt.
+ *     Die gradierten Werte gehen durch und tun nichts, `none` ist der
+ *     abgelehnte. Ein Modell, das einen Parameter annimmt und ignoriert, ist
+ *     die teuerste Sorte Fehler: er sieht wie ein funktionierender Regler aus.
+ *  2. Diese Lane könne über Cortecs nicht denken. Sie kann — nur nicht über
+ *     den Hebel, den Regolo benutzt.
+ *
+ * Der Wert wird deshalb NICHT aus `effort` abgeleitet: `enable_thinking` ist
+ * binär, und dieses Modul zu erreichen heisst bereits „denken an". Eine Stufe
+ * hineinzulesen, die der Upstream nicht anbietet, ist derselbe Fehler wie bei
+ * Regolos Gemma (low/medium/high → 2533/2589/2412 Zeichen, also Rauschen).
+ */
+const CORTECS_REASONING_MODELS = new Set(['gemma-4-31b-it']);
+
+/**
+ * Melious' Gemma 4 31B (`gemmaHosts.ts`, GEMMA_31B_ON_MELIOUS) — der Ausweich
+ * der Gemma-Antwortlane und die zweite Seite von `heavy`/`pruefung`.
+ *
+ * Der Hebel ist `reasoning_effort`, wie bei Regolo: `none` schaltet ab (das tut
+ * `meliousThinkingFetch.ts` auf dem SDK-Pfad), die gradierten Werte schalten
+ * an. Gemessen 23.09.2026, Reasoning-Tokens: low 252 · medium 1124 · high 572
+ * auf zwei verschiedenen Fragen — also „an", keine verlässliche Stufe, derselbe
+ * Befund wie bei Regolos Gemma. `chat_template_kwargs.enable_thinking` wirkt
+ * hier NICHT. Das Denken kommt als `delta.reasoning_content`.
+ */
+const MELIOUS_REASONING_MODELS = new Set(['gemma-4-31b:balanced']);
 
 /**
  * Mistral Medium 3.5 on Scaleway, when Scaleway is configured.
@@ -98,17 +156,20 @@ const LITELLM_REASONING_MODELS = new Set(['verdigado-think', 'verdigado-pro']);
  * cannot read at all; that asymmetry is why the fallback for this lane is the
  * `@ai-sdk/mistral` path and never a raw replay (see streamForResolution).
  *
- * Without a Scaleway key this returns null and the lane keeps its previous
- * behaviour — thinking served by the Mistral API through the SDK.
+ * Ohne Scaleway-Routing (Schlüssel fehlt oder `SCALEWAY_MISTRAL_ROUTING` aus —
+ * derzeit der Normalfall) gibt das null zurück und die Lane behält ihr
+ * vorheriges Verhalten: Denken über die Mistral-API durchs SDK.
  */
 function scalewayReasoningModel(model: string): string | null {
-  if (!isProviderConfigured('scaleway')) return null;
+  if (!isScalewayMistralRoutingEnabled()) return null;
   return SCALEWAY_MISTRAL_MODELS[model] ?? null;
 }
 
 export function isReasoningStreamModel(provider: string, model: string): boolean {
   if (provider === 'regolo') return REGOLO_REASONING_MODELS.has(model);
   if (provider === 'litellm') return LITELLM_REASONING_MODELS.has(model);
+  if (provider === 'cortecs') return CORTECS_REASONING_MODELS.has(model);
+  if (provider === 'melious') return MELIOUS_REASONING_MODELS.has(model);
   if (provider === 'mistral') return scalewayReasoningModel(model) !== null;
   return false;
 }
@@ -130,33 +191,72 @@ export class ReasoningStreamUnavailableError extends Error {
 }
 
 /**
- * gpt-oss exposes a native low/medium/high `reasoning_effort` dial. The other
- * lanes only have on/off (a chat-template flag or nothing at all), so effort is
- * deliberately NOT sent to them — an unknown body field is a needless risk on a
- * strict upstream.
+ * ── Warum Regolo `reasoning_effort` bekommt und kein `enable_thinking` ──
+ *
+ * Regolo nimmt `reasoning_effort` für JEDES seiner Modelle an — nicht nur für
+ * gpt-oss, wie hier bis 13.08.2026 stand. Es ist auch der bessere Hebel als
+ * `chat_template_kwargs.enable_thinking`, gemessen 13.08.2026 gegen
+ * api.regolo.ai (identischer Prompt, `max_tokens` 800–1500, Zeichen Reasoning
+ * bzw. Antworttext):
+ *
+ *   Modell               nichts     effort:high    effort:none   enable_thinking:true/false
+ *   gemma4-31b           0 / 1025   2412 / 1222    0 / 957       2600 / 1257   ·  0 / 959
+ *   mistral-small-4-119b 0 /  513   5526 /  184    0 / 288       5420 /    0   ·  0 / 214
+ *   gpt-oss-120b       334 /  594   1285 /  425    0 / 487        208 /  549   ·  208 / 633
+ *   qwen3.5-122b      3516 /    0   3487 /    0    0 / 532       3303 /    0   ·  0 / 518
+ *   qwen3.6-27b       2061 /  521   1799 /  436    0 / 504       2185 /  531   ·  0 / 432
+ *
+ * Zwei Konsequenzen, und beide sind der Grund für die Umstellung:
+ *
+ *  - `enable_thinking:false` schaltet gpt-oss NICHT ab (208 Zeichen mit wie
+ *    ohne Flag), `reasoning_effort:'none'` schon. Der Aus-Hebel auf dem
+ *    SDK-Pfad war für diese Lane also wirkungslos — siehe regoloThinkingFetch.
+ *  - Als Regler taugt der Dial nur dort, wo das Modell ihn kennt: gemma4-31b
+ *    liefert für low/medium/high 2533/2589/2412 Zeichen, also Rauschen statt
+ *    Stufen — dort heisst alles ausser `none` schlicht „an". Bei
+ *    mistral-small (3805/2830/5526) und gpt-oss ist ein Effekt messbar.
+ *    Wer `medium` als „halb so viel Denken" liest, liest auf Gemma etwas
+ *    hinein, das der Upstream nicht anbietet.
  */
-const EFFORT_AWARE_MODELS = new Set(['gpt-oss-120b', 'verdigado-pro']);
-
 function resolveConfig(
   provider: string,
   model: string,
   effort?: ThinkingEffort
 ): ReasoningStreamConfig | null {
-  const effortExtra = effort && EFFORT_AWARE_MODELS.has(model) ? { reasoning_effort: effort } : {};
-
   if (provider === 'regolo') {
     return {
       endpoint: REGOLO_ENDPOINT,
       apiKey: env.REGOLO_API_KEY,
-      bodyExtras: { chat_template_kwargs: { enable_thinking: true }, ...effortExtra },
+      // `high`, wenn der Aufrufer nichts sagt: dieses Modul zu erreichen heisst
+      // bereits „denken an", und `none` wäre die stille Umkehr davon.
+      bodyExtras: { reasoning_effort: effort ?? 'high' },
     };
   }
-  if (provider === 'litellm') {
-    const base = env.LITELLM_BASE_URL;
+  if (provider === 'cortecs') {
     return {
-      endpoint: base ? `${base}/v1/chat/completions` : '',
-      apiKey: env.LITELLM_API_KEY,
-      bodyExtras: { ...effortExtra },
+      endpoint: `${cortecsBaseUrl()}/chat/completions`,
+      apiKey: env.CORTECS_API_KEY,
+      // `effortExtra` bewusst NICHT gespreizt: gradierte Werte sind auf diesem
+      // Host wirkungslos und `none` wird mit 400 abgelehnt (Messreihe oben).
+      //
+      // Die drei Souveränitäts-Felder MÜSSEN hier stehen und sind keine
+      // Dopplung: dieser Pfad ist ein Roh-`fetch` und läuft NICHT durch
+      // `cortecsFetchWithPolicy`. Ohne sie wäre ausgerechnet der Denk-Pfad der
+      // eine, auf dem die ZDR-/EU-Weisung stillschweigend fehlt — und weil der
+      // Filter fail-open ist, würde das von aussen wie ein wirksamer aussehen.
+      bodyExtras: {
+        chat_template_kwargs: { enable_thinking: true },
+        eu_native: true,
+        allow_zero_data_retention: true,
+        allowed_providers: SOVEREIGN_ZDR_PROVIDERS,
+      },
+    };
+  }
+  if (provider === 'melious') {
+    return {
+      endpoint: `${MELIOUS_BASE_URL}/chat/completions`,
+      apiKey: env.MELIOUS_API_KEY,
+      bodyExtras: { reasoning_effort: effort ?? 'high' },
     };
   }
   if (provider === 'mistral') {
@@ -197,20 +297,24 @@ export async function* streamWithReasoning(
     throw new Error(`Endpoint for '${params.provider}' reasoning stream is not configured`);
   }
 
+  const body: Record<string, unknown> = {
+    model: config.model ?? params.model,
+    messages: params.messages,
+    ...(params.maxTokens != null && { max_tokens: params.maxTokens }),
+    temperature: params.temperature,
+    stream: true,
+    ...config.bodyExtras,
+  };
+  if (params.provider === 'melious') body.model = meliousWireModel(body) ?? body.model;
+
+  const startedAt = Date.now();
   const response = await fetch(config.endpoint, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${config.apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: config.model ?? params.model,
-      messages: params.messages,
-      ...(params.maxTokens != null && { max_tokens: params.maxTokens }),
-      temperature: params.temperature,
-      stream: true,
-      ...config.bodyExtras,
-    }),
+    body: JSON.stringify(body),
     ...(params.signal && { signal: params.signal }),
   });
 
@@ -219,9 +323,17 @@ export async function* streamWithReasoning(
     throw new ReasoningStreamUnavailableError(params.provider, response.status, body);
   }
 
+  // Dieselbe Nachprüfung, die `cortecsFetchWithPolicy` auf dem SDK-Pfad macht.
+  // Sie steht hier ein zweites Mal, weil dieser Pfad roh fetcht: der
+  // `allowed_providers`-Filter ist fail-open, also ist die Prüfung im
+  // Nachhinein das Einzige, was einen unerlaubten Unterauftragnehmer überhaupt
+  // sichtbar macht.
+  if (params.provider === 'cortecs') assertSovereignUpstream(response);
+
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let firstTextAt: number | null = null;
 
   try {
     while (true) {
@@ -247,11 +359,30 @@ export async function* streamWithReasoning(
 
         const delta = extractDelta(parsed);
         if (delta.reasoning) yield { type: 'reasoning', delta: delta.reasoning };
-        if (delta.text) yield { type: 'text', delta: delta.text };
+        if (delta.text) {
+          firstTextAt ??= Date.now();
+          yield { type: 'text', delta: delta.text };
+        }
       }
     }
   } finally {
     reader.releaseLock();
+    // Dieser Pfad ruft rohes `fetch` und geht damit an `withUsageTracking`
+    // vorbei — ohne das hier wäre ausgerechnet die Lane mit der längsten
+    // sichtbaren Wartezeit die einzige unbeobachtete.
+    //
+    // NUR Zeit bis zum ersten Antworttext, kein Durchsatz: der Strom trägt
+    // keine Token-Zahlen. Aus Zeichen zu schätzen hiesse, für dasselbe Modell
+    // zwei Einheiten in dieselbe Basislinie zu mischen. Vollständig zu schliessen
+    // wäre es mit `stream_options: { include_usage: true }` — je Upstream zu
+    // prüfen, weil ein unbekanntes Feld dort auch ein 400 sein kann.
+    recordModelSample({
+      provider: params.provider,
+      model: params.model,
+      outputTokens: 0,
+      durationMs: Date.now() - startedAt,
+      ttftMs: firstTextAt === null ? null : firstTextAt - startedAt,
+    });
   }
 }
 

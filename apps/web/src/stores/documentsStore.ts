@@ -1,10 +1,15 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import {
+  type DocumentStatusResponse as ContractDocumentStatusResponse,
+  type DocumentStatusValue,
+  type UploadOnlyResponse,
+} from '@gruenerator/contracts';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
-import apiClient from '../components/utils/apiClient';
+import apiClient, { SERVER_TASK_TIMEOUT_MS } from '../components/utils/apiClient';
 
-type DocumentStatus = 'completed' | 'processing' | 'pending' | 'uploaded' | 'failed';
+type DocumentStatus = DocumentStatusValue;
 
 // === API RESPONSE SHAPES ===
 interface DocumentsListResponse {
@@ -22,19 +27,37 @@ interface CombinedContentResponse {
   };
 }
 
-interface DocumentUploadResponse {
-  success: boolean;
-  message?: string;
-  data: Document;
-}
+/**
+ * Both shapes come from the contract now instead of being transcribed here.
+ * That transcription is how the status poll came to cast `data.status` straight
+ * into `DocumentStatus`: a field renamed on the server would not have failed
+ * anywhere, it would have shown up as a document stuck in its spinner forever.
+ * The upload route itself stays a raw multer handler — multipart does not go
+ * through ts-rest in this repo — but it answers with this same schema.
+ *
+ * `Partial` on the status payload because axios hands over whatever came back:
+ * the schema describes the 200, and the poll must also survive a 404 body.
+ */
+type DocumentUploadResponse = UploadOnlyResponse;
 
 interface DocumentStatusResponse {
-  data?: {
-    status: DocumentStatus;
-    vectorCount?: number;
-    processingStage?: 'extracting' | 'chunking' | 'upserting' | null;
-    processingProgress?: { stage: string; current: number; total: number } | null;
-  };
+  data?: Partial<ContractDocumentStatusResponse['data']>;
+}
+
+/**
+ * Terminal state of a poll. Carries the failure reason so the caller can name
+ * it; a bare status left the upload UI unable to say anything at all.
+ */
+export interface DocumentPollResult {
+  status: DocumentStatus;
+  error: string | null;
+  /**
+   * True when polling gave up before the document reached a terminal state.
+   * Distinct from `failed`: nothing is known to be wrong with the file, we just
+   * stopped watching. Callers must not read this as success — reporting the
+   * give-up as "done" is exactly what made a half-imported notebook look ready.
+   */
+  timedOut?: boolean;
 }
 
 interface DocumentDeleteResponse {
@@ -58,6 +81,17 @@ interface WolkeBrowseApiResponse {
   success: boolean;
   message?: string;
   files: WolkeFile[];
+  /** Subfolders seen — below the listed folder, or visited during a recursive walk. */
+  folderCount?: number;
+  /** Subfolders left unopened because the walk hit its depth limit. */
+  depthLimited?: boolean;
+  /** The walk stopped early at the file cap. */
+  truncated?: boolean;
+}
+
+export interface BrowseWolkeOptions {
+  path?: string;
+  recursive?: boolean;
 }
 
 /**
@@ -133,6 +167,8 @@ interface WolkeFile {
   sizeFormatted: string;
   lastModified: string;
   shareLinkId?: string;
+  /** Browse lists folders too — they are never importable. */
+  isDirectory?: boolean;
 }
 
 interface DocumentsState {
@@ -150,6 +186,9 @@ interface WolkeFileResponse {
   success: boolean;
   files: WolkeFile[];
   message?: string;
+  folderCount?: number;
+  depthLimited?: boolean;
+  truncated?: boolean;
 }
 
 interface WolkeImportResponse {
@@ -171,7 +210,7 @@ interface DocumentsActions {
   pollDocumentStatus: (
     documentId: string,
     onStatusChange?: (status: DocumentStatus) => void
-  ) => Promise<DocumentStatus>;
+  ) => Promise<DocumentPollResult>;
   crawlUrl: (url: string, title: string, groupId?: string | null) => Promise<Document>;
   deleteDocument: (documentId: string) => Promise<boolean>;
   searchDocuments: (query: string, options?: SearchOptions) => Promise<SearchResult[]>;
@@ -186,7 +225,10 @@ interface DocumentsActions {
   ) => void;
   updateDocumentTitle: (documentId: string, newTitle: string) => Promise<boolean>;
   refreshDocument: (documentId: string) => Promise<Document>;
-  browseWolkeFiles: (shareLinkId: string) => Promise<WolkeFileResponse>;
+  browseWolkeFiles: (
+    shareLinkId: string,
+    options?: BrowseWolkeOptions
+  ) => Promise<WolkeFileResponse>;
   importWolkeFiles: (
     shareLinkId: string,
     files: WolkeFile[],
@@ -417,12 +459,22 @@ export const useDocumentsStore = create<DocumentsStore>()(
 
       // Poll document status until it reaches a terminal state.
       // Terminal = chunks queryable in Qdrant: status='completed' && vectorCount>0, or 'failed'.
-      // 'uploaded' is transient (attach triggers processing); soft-timeout below bounds it.
+      //
+      // There used to be a 30s escape hatch for documents sitting in 'uploaded',
+      // which resolved as if the document were done. It existed because nothing
+      // started indexing until the document was attached to a notebook, so
+      // during creation the status could not move — and the wizard therefore
+      // showed a finished-looking row for a file that had not been read at all.
+      // Upload now kicks the ingest worker, so 'uploaded' is a brief hop; the
+      // bound below is a real give-up, reported as `timedOut` rather than
+      // disguised as success.
       pollDocumentStatus: async (documentId, onStatusChange) => {
-        const STUCK_UPLOADED_TIMEOUT_MS = 30_000;
+        // Generous: OCR plus embedding of a large scanned PDF legitimately runs
+        // for minutes, and a queue backlog adds to that.
+        const GIVE_UP_AFTER_MS = 15 * 60 * 1000;
         const startedAt = Date.now();
 
-        const poll = (): Promise<DocumentStatus> =>
+        const poll = (): Promise<DocumentPollResult> =>
           new Promise((resolve, reject) => {
             const interval = setInterval(async () => {
               try {
@@ -431,7 +483,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
                 );
                 const status = (response.data?.data?.status ?? 'pending') as DocumentStatus;
                 const vectorCount = response.data?.data?.vectorCount ?? 0;
-                console.debug('[notebook-upload] poll', { documentId, status, vectorCount });
+                const error = response.data?.data?.error ?? null;
 
                 if (onStatusChange) onStatusChange(status);
 
@@ -443,16 +495,18 @@ export const useDocumentsStore = create<DocumentsStore>()(
                 const isQueryable = status === 'completed' && vectorCount > 0;
                 if (isQueryable || status === 'failed') {
                   clearInterval(interval);
-                  resolve(status);
+                  resolve({ status, error });
                   return;
                 }
 
-                if (status === 'uploaded' && Date.now() - startedAt > STUCK_UPLOADED_TIMEOUT_MS) {
+                if (Date.now() - startedAt > GIVE_UP_AFTER_MS) {
                   console.warn(
-                    `[notebook-upload] doc ${documentId} stuck in 'uploaded' >${STUCK_UPLOADED_TIMEOUT_MS}ms — releasing spinner`
+                    `[notebook-upload] doc ${documentId} still '${status}' after ${Math.round(
+                      GIVE_UP_AFTER_MS / 60000
+                    )}min — stopped watching`
                   );
                   clearInterval(interval);
-                  resolve(status);
+                  resolve({ status, error, timedOut: true });
                 }
               } catch {
                 clearInterval(interval);
@@ -481,7 +535,8 @@ export const useDocumentsStore = create<DocumentsStore>()(
               url: url.trim(),
               title: title.trim(),
               group_id: groupId,
-            }
+            },
+            { timeout: SERVER_TASK_TIMEOUT_MS }
           );
           const result = response.data;
 
@@ -669,7 +724,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
             params: { id: documentId },
           });
           if (res.status !== 200) {
-            throw new Error('Failed to refresh document');
+            throw new ApiError(res.status, 'Failed to refresh document');
           }
           // The contract types the row with honest wire types (string status,
           // nullable filename/created_at/page_count) that are wider than this
@@ -691,7 +746,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
       },
 
       // Browse files in a Wolke share
-      browseWolkeFiles: async (shareLinkId) => {
+      browseWolkeFiles: async (shareLinkId, options = {}) => {
         set((state) => {
           state.isLoading = true;
           state.error = null;
@@ -699,8 +754,12 @@ export const useDocumentsStore = create<DocumentsStore>()(
 
         try {
           console.log('[DocumentsStore] Browsing Wolke files for share link:', shareLinkId);
+          const query = new URLSearchParams();
+          if (options.path) query.set('path', options.path);
+          if (options.recursive) query.set('recursive', 'true');
+          const suffix = query.size > 0 ? `?${query.toString()}` : '';
           const response = await apiClient.get<WolkeBrowseApiResponse>(
-            `/documents/wolke/browse/${shareLinkId}`
+            `/documents/wolke/browse/${shareLinkId}${suffix}`
           );
           const result = response.data;
 
@@ -757,10 +816,11 @@ export const useDocumentsStore = create<DocumentsStore>()(
             }, 200);
           }
 
-          const response = await apiClient.post<WolkeImportApiResponse>('/documents/wolke/import', {
-            shareLinkId,
-            files,
-          });
+          const response = await apiClient.post<WolkeImportApiResponse>(
+            '/documents/wolke/import',
+            { shareLinkId, files },
+            { timeout: SERVER_TASK_TIMEOUT_MS }
+          );
           if (progressInterval) clearInterval(progressInterval);
           const result = response.data;
 

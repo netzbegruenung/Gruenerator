@@ -22,6 +22,7 @@ import { visionService } from '../../../services/vision/VisionService.js';
 import { applyContextCap } from '../../../utils/contextCap.js';
 import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
+import { generateContentHash } from '../../../utils/validation/hash.js';
 import { getIntermediateModel } from '../agents/providers.js';
 
 import { isTabularAttachment } from './attachmentProcessingService.js';
@@ -39,6 +40,30 @@ const MAX_ATTACHMENTS_IN_CONTEXT = 5;
  */
 export const RAG_ATTACHMENT_THRESHOLD_CHARS = 20000;
 
+/**
+ * Content identity of one attachment, within one thread.
+ *
+ * Text documents are identified by their extracted text — the same file pasted
+ * or uploaded twice IS the same document, whatever the client called it. Images
+ * and other binaries have no extracted text, so they fall back to name + size;
+ * that is weaker (two different photos of the same byte length would collide)
+ * but it is scoped to a single thread, and the cost of a false match is one
+ * skipped duplicate rather than lost data.
+ *
+ * Must stay in sync with the backfill expression in
+ * `migrations/chat_thread_attachments_content_hash.sql`.
+ */
+export function attachmentContentHash(params: {
+  extractedText: string | null;
+  name: string;
+  sizeBytes: number;
+}): string {
+  const text = params.extractedText?.trim();
+  return text
+    ? generateContentHash(text)
+    : generateContentHash(`${params.name}:${params.sizeBytes}`);
+}
+
 export interface ThreadAttachment {
   id: string;
   name: string;
@@ -51,6 +76,13 @@ export interface ThreadAttachment {
    *  retrieve it via RAG instead of re-injecting its truncated full text. */
   documentId: string | null;
   summary: string | null;
+  /** Ob für diesen Anhang die ORIGINALBYTES in `file_data` liegen. Nur dann kann
+   *  ein späterer Turn die Datei selbst wieder anfassen (Tabellen-Reload,
+   *  `fill_pdf_form`) — geschrieben wird die Spalte nur für tabellarische
+   *  Anhänge und für PDFs, die `isFillablePdf` als Formular erkannt hat
+   *  (attachmentProcessingService). Ein PDF ohne Bytes ist damit ein PDF, von
+   *  dem beim Upload feststand, dass es kein ausfüllbares Formular ist. */
+  hasFileData: boolean;
   createdAt: Date;
 }
 
@@ -63,12 +95,18 @@ interface SaveAttachmentParams {
   sizeBytes: number;
   isImage: boolean;
   extractedText: string | null;
+  /** Page count from OCR (PDFs only) — display metadata for attachment chips. */
+  pageCount?: number;
   /** Base64 image bytes (images only) — used to generate a persistent vision
    *  description so follow-up turns can reason about the image. */
   imageData?: string;
   /** Base64 raw bytes (tabular files only) — persisted so the in-browser pandas
    *  interpreter can be rehydrated after a thread reload. */
   fileData?: string;
+  /** Qdrant id when this file was ALREADY vectorized in this turn
+   *  (`enrichContext`). Written straight into the row so nobody has to mint a
+   *  second id for the same bytes afterwards. */
+  documentId?: string;
 }
 
 /**
@@ -86,16 +124,26 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
     sizeBytes,
     isImage,
     extractedText,
+    pageCount,
     imageData,
     fileData,
+    documentId,
   } = params;
 
   const postgres = getPostgresInstance();
+  const contentHash = attachmentContentHash({ extractedText, name, sizeBytes });
 
+  // ON CONFLICT against the partial unique index on (thread_id, content_hash).
+  // The client re-sends the bytes on any turn whose last user message still
+  // carries the file (edit-resubmit, regenerate, a repeated paste), and without
+  // this each of those turns added a row — which the prompt builder then
+  // injected AGAIN in full, and which paid for its own LLM summary.
   const result = await postgres.query(
     `INSERT INTO chat_thread_attachments
-     (thread_id, message_id, user_id, name, mime_type, size_bytes, is_image, extracted_text, file_data)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     (thread_id, message_id, user_id, name, mime_type, size_bytes, is_image, extracted_text, page_count, file_data, document_id, content_hash)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+     ON CONFLICT (thread_id, content_hash) WHERE thread_id IS NOT NULL AND content_hash IS NOT NULL
+     DO NOTHING
      RETURNING id`,
     [
       threadId,
@@ -106,9 +154,32 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
       sizeBytes,
       isImage,
       extractedText,
+      pageCount ?? null,
       fileData ?? null,
+      documentId ?? null,
+      contentHash,
     ]
   );
+
+  // Empty result = the row was already there. Return the existing id and, above
+  // all, do NOT start another summary run for bytes we have already described.
+  if (result.length === 0) {
+    const existing = await postgres.query(
+      `SELECT id FROM chat_thread_attachments WHERE thread_id = $1 AND content_hash = $2 LIMIT 1`,
+      [threadId, contentHash]
+    );
+    const existingId = (existing[0] as { id: string } | undefined)?.id;
+    if (existingId) {
+      log.info(
+        `[AttachmentPersistence] ${name} already stored for thread ${threadId} — reusing ${existingId}`
+      );
+      return existingId;
+    }
+    // Should not happen: DO NOTHING fired but the row is gone. Fall through with
+    // a fresh id rather than throwing in a post-response path.
+    log.warn(`[AttachmentPersistence] Conflict on ${name} but no existing row found`);
+    return randomUUID();
+  }
 
   const attachmentId = (result[0] as { id: string }).id;
   log.info(`[AttachmentPersistence] Saved attachment ${name} for thread ${threadId}`);
@@ -116,7 +187,8 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
   if (isImage && imageData) {
     // Vision-describe the image once, in the background, and store it as the
     // attachment summary — this is what gives later text-only turns a memory of
-    // the image (formatThreadAttachmentsContext surfaces it as "FRÜHERE BILDER").
+    // the image (respondNode's `formatThreadAttachmentsContext` surfaces it as
+    // "FRÜHERE BILDER").
     generateImageSummary(attachmentId, imageData, mimeType).catch((err) => {
       reportBackgroundError(err, { job: 'attachment-image-summary', attachmentId });
     });
@@ -131,7 +203,14 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
 
 /**
  * Get all thread attachments for a thread.
- * Returns the most recent attachments, ordered by creation date descending.
+ *
+ * Picks the `limit` MOST RECENT rows (`ORDER BY created_at DESC`) but returns
+ * them oldest-first — the `reverse()` below is load-bearing, and the two steps
+ * mean different things: DESC decides WHICH attachments survive the limit,
+ * ascending order decides how they read in a prompt.
+ *
+ * This doc comment said "ordered by creation date descending" until 14.08.2026
+ * and sent a reviewer down exactly that path.
  */
 export async function getThreadAttachments(
   threadId: string,
@@ -140,7 +219,8 @@ export async function getThreadAttachments(
   const postgres = getPostgresInstance();
 
   const result = await postgres.query(
-    `SELECT id, name, mime_type, is_image, extracted_text, document_id, summary, created_at
+    `SELECT id, name, mime_type, is_image, extracted_text, document_id, summary, created_at,
+            file_data IS NOT NULL AS has_file_data
      FROM chat_thread_attachments
      WHERE thread_id = $1
      ORDER BY created_at DESC
@@ -156,6 +236,7 @@ export async function getThreadAttachments(
     extractedText: row.extracted_text as string | null,
     documentId: row.document_id as string | null,
     summary: row.summary as string | null,
+    hasFileData: row.has_file_data === true,
     createdAt: row.created_at as Date,
   }));
 
@@ -294,7 +375,7 @@ export async function embedThreadAttachmentForRag(params: {
   const { attachmentId, userId, name, extractedText } = params;
   const documentId = randomUUID();
 
-  const { chunks, embeddings } = await chunkAndEmbedText(extractedText);
+  const { chunks, embeddings } = await chunkAndEmbedText(extractedText, { title: name });
   await getQdrantDocumentService().storeDocumentVectors(userId, documentId, chunks, embeddings, {
     sourceType: 'chat_attachment',
     title: name,
@@ -427,34 +508,4 @@ export async function deleteThreadAttachments(threadId: string): Promise<void> {
   await postgres.query(`DELETE FROM chat_thread_attachments WHERE thread_id = $1`, [threadId]);
 
   log.info(`[AttachmentPersistence] Deleted all attachments for thread ${threadId}`);
-}
-
-/**
- * Format thread attachments as context for the system message.
- * Used when building the response to include previous document context.
- */
-export function formatThreadAttachmentsContext(attachments: ThreadAttachment[]): string {
-  if (attachments.length === 0) {
-    return '';
-  }
-
-  // Prefer the full extracted text (so a file stays chattable across turns);
-  // fall back to the short summary only for legacy rows without stored text.
-  const docs = attachments
-    .filter((a) => !a.isImage && (a.extractedText || a.summary))
-    .map((a, i) => `${i + 1}. **${a.name}**:\n${a.extractedText ?? a.summary}`)
-    .join('\n\n');
-
-  if (!docs) {
-    return '';
-  }
-
-  return `
-
-## FRÜHERE DOKUMENTE IN DIESEM GESPRÄCH
-
-${docs}
-
----
-Nutze diese Dokumentinhalte wenn der Nutzer sich darauf bezieht (z.B. "das PDF", "das Dokument", etc.).`;
 }

@@ -57,8 +57,6 @@ enabledTools:
   - scrape
   - memory
   - memory_save
-  - self_review
-  - draft_structured
 fewShotExamples:
   - input: 'Antrag: Die Stadt soll mehr öffentliche Trinkwasserbrunnen aufstellen'
     reasoning: 'Ich recherchiere zunächst Grüne Positionen zu Trinkwasser und öffentlicher Daseinsvorsorge, dann erstelle ich einen strukturierten Antrag mit allen Pflichtabschnitten.'
@@ -99,7 +97,7 @@ fewShotExamples:
 
       4. Wie wird die Beteiligung von Menschen mit Behinderungen und deren Verbänden bei der Planung des barrierefreien Umbaus sichergestellt?
   - input: 'Änderungsantrag zum Haushalt 2026: 200.000 € zusätzlich für Radwegeausbau, Deckung aus dem Investitionstitel Straßenneubau'
-    reasoning: 'Das ist ein Haushaltsantrag (Modus C). Ich rufe draft_structured mit dokumenttyp="haushaltsantrag" auf — Haushaltsstelle, Änderungsbetrag und Deckungsvorschlag sind die Pflichtangaben.'
+    reasoning: 'Das ist ein Haushaltsantrag (Modus C). Ich erstelle den strukturierten Haushaltsantrag — Haushaltsstelle, Änderungsbetrag und Deckungsvorschlag sind die Pflichtangaben.'
     output: |-
       # Änderungsantrag zum Haushalt 2026: Mittel für Radwegeausbau erhöhen
 
@@ -118,7 +116,7 @@ fewShotExamples:
       ## Begründung
       Der Anteil des Radverkehrs am Modal Split unserer Kommune liegt unter dem Bundesdurchschnitt. Der bestehende Haushaltsansatz reicht nicht aus, um das im Klimaschutzkonzept beschlossene Radwegenetz im notwendigen Tempo umzusetzen. Eine Umschichtung aus dem Straßenneubau ist sachgerecht: der Investitionstitel ist im Vorjahr nicht vollständig abgeflossen, gleichzeitig steigt der Bedarf an sicherer Radinfrastruktur (siehe Beschwerdelage Verkehrsausschuss 2025). Andere Kommunen vergleichbarer Größe investieren je Einwohner*in deutlich mehr in den Radverkehr.
   - input: 'Hier ist der Entwurf unseres Haushalts 2026 [Text folgt]. Was fällt euch dazu auf?'
-    reasoning: 'Das ist Modus A — Bewertung. Ich antworte mit strukturiertem Freitext (Gesamteinschätzung, Stärken, Schwächen, fehlende Akzente, Vergleichswerte, Verbesserungsvorschläge). Kein draft_structured.'
+    reasoning: 'Das ist Modus A — Bewertung. Ich antworte mit strukturiertem Freitext (Gesamteinschätzung, Stärken, Schwächen, fehlende Akzente, Vergleichswerte, Verbesserungsvorschläge).'
     output: |-
       ## Gesamteinschätzung
       Der Entwurf zeigt eine solide Ausgabenplanung im Pflichtbereich, lässt jedoch im Klima- und Sozialbereich klare grüne Akzente vermissen. Mehrere Punkte sollten in der Beratung nachgeschärft werden.

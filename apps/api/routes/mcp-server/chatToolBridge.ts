@@ -10,6 +10,7 @@ import { APP_BASE_URL } from '../../config/mcpServer.js';
 import { Sentry } from '../../lib/sentry.js';
 import { createLogger } from '../../utils/logger.js';
 
+import type { UserLocale } from '../../agents/langgraph/ChatGraph/types.js';
 import type { PersonalToolCtx } from '../chat/agents/personalDataTools.js';
 import type { SourceRegistry } from '../chat/services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../chat/services/sseHelpers.js';
@@ -19,6 +20,7 @@ import type { Tool } from 'ai';
 const noopRegistry: SourceRegistry = {
   register: () => '',
   seedCarried: () => {},
+  seedAttached: () => '',
   note: () => {},
   getResults: () => [],
   renderAll: () => '',
@@ -39,12 +41,14 @@ const noopSse = {
 } as unknown as SSEWriter;
 
 /**
- * The factories read only `state.agentConfig.userId` on paths reachable
- * without a threadId, so the skeleton state is a true boundary cast.
+ * The factories read only `state.agentConfig.userId` and `state.userLocale`
+ * on paths reachable without a threadId, so the skeleton state is a true
+ * boundary cast. `userLocale` gates the system collections
+ * (`collectionsForLocale`) — without it every MCP client is a de-DE user.
  */
-export function makeMcpPersonalCtx(userId: string): PersonalToolCtx {
+export function makeMcpPersonalCtx(userId: string, userLocale: UserLocale): PersonalToolCtx {
   return {
-    state: { agentConfig: { userId } } as unknown as PersonalToolCtx['state'],
+    state: { agentConfig: { userId }, userLocale } as unknown as PersonalToolCtx['state'],
     sse: noopSse,
     threadId: null,
     sourceRegistry: noopRegistry,

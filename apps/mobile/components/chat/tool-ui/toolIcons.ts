@@ -13,7 +13,13 @@ const TOOL_IONICON: Record<ToolIconKey, IoniconsIconName> = {
   image: 'image-outline',
   'external-link': 'open-outline',
   'message-circle': 'chatbubble-outline',
+  cloud: 'cloud-outline',
   file: 'document-text-outline',
+  presentation: 'easel-outline',
+  table: 'grid-outline',
+  board: 'albums-outline',
+  chart: 'bar-chart-outline',
+  audio: 'volume-high-outline',
 };
 
 export function toolIonicon(iconKey: ToolIconKey): IoniconsIconName {

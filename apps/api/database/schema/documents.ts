@@ -26,6 +26,12 @@ export const documents = pgTable('documents', {
   vector_count: integer('vector_count').default(0),
   last_synced_at: timestamp('last_synced_at', { withTimezone: true }),
   group_wolke_share_id: text('group_wolke_share_id'),
+  // Claim bookkeeping for the ingest worker: when the current run took the row
+  // (NULL = never claimed) and how often it has been tried. Together they let a
+  // run abandoned by a dying process be reclaimed instead of sitting on
+  // 'processing' forever.
+  processing_started_at: timestamp('processing_started_at', { withTimezone: true }),
+  processing_attempts: integer('processing_attempts').notNull().default(0),
 });
 
 export type Document = InferSelectModel<typeof documents>;

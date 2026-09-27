@@ -136,10 +136,20 @@ export function buildCanvasItems<
 }
 
 /**
+ * A config element that declares a negative `order` is a background plane: the
+ * solid colour, the photo over it, the contrast scrim. It says "behind
+ * everything" in the only vocabulary the config has.
+ */
+function isBackgroundPlane(item: CanvasItem): boolean {
+  return item.type === 'element' && (item.data.order ?? 0) < 0;
+}
+
+/**
  * Sort items by layerOrder array
  *
  * Items in layerOrder are rendered in that order.
- * Items not in layerOrder are appended (newly added items).
+ * Items not in layerOrder keep their default position: user-added ones are
+ * appended on top, background planes go to the back.
  */
 export function buildSortedRenderList(items: CanvasItem[], layerOrder: string[]): CanvasItem[] {
   const pendingItems = [...items];
@@ -154,10 +164,21 @@ export function buildSortedRenderList(items: CanvasItem[], layerOrder: string[])
     }
   });
 
-  // 2. Append remaining items (newly added or not tracked yet)
-  result.push(...pendingItems);
+  // 2. What is left is untracked, and there are two reasons for that. A shape
+  //    the user just added belongs on top — appending is right. A background
+  //    plane the template gained AFTER this layerOrder was saved does not:
+  //    appending would paint a full-bleed rect over the finished sharepic and
+  //    the document would open as a solid colour. So those go to the front, in
+  //    their declared order, and everything else keeps appending.
+  const behind = pendingItems.filter(isBackgroundPlane);
+  behind.sort((a, b) => {
+    const ao = a.type === 'element' ? (a.data.order ?? 0) : 0;
+    const bo = b.type === 'element' ? (b.data.order ?? 0) : 0;
+    return ao - bo;
+  });
+  const onTop = pendingItems.filter((item) => !isBackgroundPlane(item));
 
-  return result;
+  return [...behind, ...result, ...onTop];
 }
 
 /**

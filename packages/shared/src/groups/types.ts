@@ -1,3 +1,6 @@
+import { type GroupDetailDto } from '@gruenerator/contracts';
+
+import { PRODUCTION_WEB_ORIGIN } from '../instances/index.js';
 import { buildGroupSlug } from '../utils/slug.js';
 
 export const ALLOWED_LINK_ICONS = [
@@ -76,19 +79,13 @@ export interface GroupMember {
   [key: string]: unknown;
 }
 
-export interface GroupDetail {
-  id: string;
-  name: string;
-  description?: string | null;
-  avatar_url?: string | null;
-  join_token?: string;
-  created_at?: string;
-  created_by?: string;
-  links?: GroupLink[];
-  settings?: Record<string, unknown> | null;
-  /** Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`. */
-  slug_suffix?: string | null;
-}
+/**
+ * One group as `GET /api/auth/groups/:groupId/details` returns it. Derived from
+ * `groupDetailSchema` rather than hand-written: the copy that used to live here
+ * silently lacked `is_public`, `audience` and `group_type`, so every consumer
+ * that needed them had to cast the shape away.
+ */
+export type GroupDetail = GroupDetailDto;
 
 export interface GroupMembership {
   role: string;
@@ -106,6 +103,10 @@ export interface VerifyTokenResult {
 export const GROUPS_QUERY_KEY = ['userGroups'] as const;
 export const groupDetailsKey = (id: string) => ['groupDetails', id] as const;
 export const groupMembersKey = (id: string) => ['groupMembers', id] as const;
+/** Web (`useGroupSharing`) und App (`useGroupContent`) teilen diesen Schlüssel. */
+export const groupContentKey = (id: string) => ['groupContent', id] as const;
+export const groupShareCommentsKey = (groupId: string, shareId: string) =>
+  ['groupShareComments', groupId, shareId] as const;
 
 export const getGroupInitials = (name: string | null | undefined): string => {
   if (!name) return 'G';
@@ -115,7 +116,7 @@ export const getGroupInitials = (name: string | null | undefined): string => {
 };
 
 export const buildGroupInviteUrl = (joinToken: string): string =>
-  `https://gruenerator.eu/join-group/${joinToken}`;
+  `${PRODUCTION_WEB_ORIGIN}/join-group/${joinToken}`;
 
 /**
  * Path to a group's page. Uses the Notion-style slug when the suffix is known,

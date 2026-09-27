@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
+import { PiCopy } from 'react-icons/pi';
 
 import { FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
+
+import { useCanvasTextFormatting } from '../CanvasTextOverlay';
+import { TextFormatControls } from '../TextFormatControls';
 
 import { FloatingColorPicker } from './modules/FloatingColorPicker';
 import { FloatingFontSizeControl } from './modules/FloatingFontSizeControl';
@@ -20,8 +24,12 @@ export interface ContextControlsProps {
   activeFloatingModule: FloatingModuleState | null;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  /** Vorlagen-Elemente und Icons lassen sich nicht duplizieren — der Knopf
+   *  bleibt sichtbar und ausgegraut, statt zu verschwinden. */
+  canDuplicate: boolean;
   handlers: {
     handleMoveLayer: (direction: 'up' | 'down') => void;
+    handleDuplicate: () => void;
     handleColorSelect: (color: string) => void;
     handleOpacityChange: (id: string, opacity: number, type: string) => void;
     handleFontSizeChange: (id: string, size: number) => void;
@@ -34,6 +42,8 @@ export interface ContextControlsProps {
     onEditImage?: () => void;
   };
   onDelete?: () => void;
+  /** Clears the element selection. Escape does the same, but is invisible. */
+  onDeselect?: () => void;
 }
 
 const ICON_BTN =
@@ -52,10 +62,15 @@ export function ContextControls({
   activeFloatingModule,
   canMoveUp,
   canMoveDown,
+  canDuplicate,
   handlers,
   onDelete,
+  onDeselect,
 }: ContextControlsProps) {
   const [isColorPickerExpanded, setIsColorPickerExpanded] = useState(false);
+  // Fett/Kursiv/… nur, solange wirklich getippt wird: die Knöpfe bedienen die
+  // Auswahl IM Text, und ohne offenen Editor gibt es keine.
+  const formatting = useCanvasTextFormatting();
 
   const showColorFor = (type: FloatingModuleState['type']) => {
     if (type === 'text') {
@@ -69,7 +84,9 @@ export function ContextControls({
     if (type === 'shape') {
       return { color: activeFloatingModule?.data.fill ?? '#000000', variant: 'swatch' as const };
     }
-    if (type === 'icon' || type === 'illustration' || type === 'asset') {
+    // Assets are fixed-color brand graphics (PNG/SVG files) — AssetPrimitive
+    // has no color to set, so a swatch there would be a dead control.
+    if (type === 'icon' || type === 'illustration') {
       return { color: activeFloatingModule?.data.color ?? '#000000', variant: 'swatch' as const };
     }
     return null;
@@ -107,6 +124,21 @@ export function ContextControls({
         onFontSizeChange={(size) =>
           handlers.handleFontSizeChange(activeFloatingModule.data.id, size)
         }
+      />
+    );
+  }
+
+  // Die Schnitt-Gruppe steht bei der Schrift, nicht bei der Ausrichtung — wie
+  // in Canva, wo alles Typografische beieinanderliegt. Der Id-Vergleich hält
+  // die Knöpfe vom falschen Element fern, falls Auswahl und Sitzung je
+  // auseinanderlaufen.
+  if (isText && formatting && formatting.editingId === activeFloatingModule?.data.id) {
+    groups.push(
+      <TextFormatControls
+        key="format"
+        editor={formatting.editor}
+        marks={formatting.marks}
+        variant="contextBar"
       />
     );
   }
@@ -278,6 +310,30 @@ export function ContextControls({
     );
   }
 
+  // Direkt bei den Ebenen-Knöpfen: beides betrifft das Element als Ganzes,
+  // nicht sein Aussehen. Der Knopf bleibt bei Vorlagen-Elementen und Icons
+  // sichtbar, aber deaktiviert — verschwände er, wäre unklar, ob die Aktion
+  // fehlt oder nur hier nicht geht.
+  if (selectedElement) {
+    groups.push(
+      <button
+        key="duplicate"
+        className={ICON_BTN}
+        onClick={handlers.handleDuplicate}
+        disabled={!canDuplicate}
+        title={
+          canDuplicate
+            ? 'Duplizieren (Strg+D)'
+            : 'Dieses Element gehört zur Vorlage und lässt sich nicht duplizieren'
+        }
+        aria-label="Duplizieren (Strg+D)"
+        type="button"
+      >
+        <PiCopy size={18} />
+      </button>
+    );
+  }
+
   if (onDelete) {
     groups.push(
       <button
@@ -302,6 +358,36 @@ export function ContextControls({
         >
           <polyline points="3 6 5 6 21 6" />
           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        </svg>
+      </button>
+    );
+  }
+
+  // Last group: the only visible way out of a selection. Escape is bound in
+  // useCanvasKeyboardHandlers but nothing in the UI ever said so, and the
+  // artboard is fully covered by elements — clicking "somewhere empty" just
+  // selects the background image instead of deselecting.
+  if (onDeselect && selectedElement) {
+    groups.push(
+      <button
+        key="deselect"
+        className={ICON_BTN}
+        onClick={onDeselect}
+        title="Auswahl aufheben (Esc)"
+        aria-label="Auswahl aufheben (Esc)"
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M18 6 6 18" />
+          <path d="m6 6 12 12" />
         </svg>
       </button>
     );

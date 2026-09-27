@@ -42,6 +42,13 @@ export interface FilterableField<F extends FilterableFieldName = FilterableField
   valueLabels?: ValueLabelsFor<F>;
   // Backend-only facet (themes/persons): in the notebook UI, out of the MCP catalog.
   mcpHidden?: boolean;
+  /**
+   * Manual research only — `notebookContractRouter.getFilters`, which feeds the
+   * notebook CHAT surface, skips it. Set on facets whose values are only usable
+   * when you can see and pick them from a list, not when a chat turn silently
+   * carries them along.
+   */
+  researchOnly?: boolean;
 }
 
 export interface DefaultFilter {
@@ -182,11 +189,18 @@ const THEMES_FIELD: FilterableField<'themes'> = {
   mcpHidden: true,
 };
 
+/**
+ * Research-only: the value vocabulary is raw NER output, so it needs the manual
+ * search's visible chip list to be usable at all. In the chat filter menu it
+ * offered names that mostly say "this document mentions someone", and a chosen
+ * one then narrowed every following answer invisibly.
+ */
 const PERSONS_FIELD: FilterableField<'persons'> = {
   field: 'persons',
   label: 'Person',
   type: 'keyword',
   mcpHidden: true,
+  researchOnly: true,
 };
 
 export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
@@ -296,6 +310,12 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     qdrantCollection: 'kommunalwiki_documents',
     name: 'KommunalWiki',
     description: 'Fachwissen zur Kommunalpolitik (Heinrich-Böll-Stiftung)',
+    // German Kommunalpolitik — Gemeindeordnungen, Ratsarbeit, kommunale
+    // Haushalte. Austria has its own municipal law, so this is not a shared
+    // corpus. Declared now because the loop's collection list is locale-filtered
+    // on this field (`collectionsForLocale`, routes/chat/agents/searchTools.ts);
+    // it was previously undeclared only because nothing read it.
+    country: 'DE',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
@@ -346,6 +366,9 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     qdrantCollection: 'boell_stiftung_documents',
     name: 'Heinrich-Böll-Stiftung',
     description: 'Analysen, Dossiers und Atlanten der Heinrich-Böll-Stiftung',
+    // Same reasoning as `kommunalwiki`: a German foundation's output, declared
+    // so the locale filter has something to read.
+    country: 'DE',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
@@ -476,7 +499,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     mcpExposed: true,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Mecklenburg-Vorpommern',
-    description: 'Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern',
+    description:
+      'Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern (Landesverband & Fraktion)',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
@@ -486,7 +510,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
-    defaultFilter: { field: 'landesverband', value: 'MV' },
+    defaultFilter: { field: 'landesverband', value: ['MV', 'MV-F'] },
   },
   'brandenburg-system': {
     id: 'brandenburg-system',
@@ -526,6 +550,24 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: ['LSA', 'LSA-F'] },
+  },
+  'sachsen-system': {
+    id: 'sachsen-system',
+    key: 'sachsen',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    // Auf true stellen, sobald das sachsen-notebook eingeblendet wird (enabled-Flag).
+    mcpExposed: false,
+    qdrantCollection: 'landesverbaende_documents',
+    name: 'Grüne Sachsen',
+    description: 'Pressemitteilungen, Beschlüsse und Landtagswahlprogramm 2024 der Grünen Sachsen',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      LV_CONTENT_TYPE_FIELD,
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+    defaultFilter: { field: 'landesverband', value: 'SN' },
   },
   'hessen-system': {
     id: 'hessen-system',
@@ -668,6 +710,26 @@ export function isAgentOnlyCollectionId(id: string): boolean {
   return SYSTEM_COLLECTIONS[id]?.agentOnly === true;
 }
 
+/** True when the document reader (`GET /api/research/document`) may open this
+ *  system collection's documents. */
+export function isReaderCollectionId(id: string): boolean {
+  return id in SYSTEM_COLLECTIONS && !isAgentOnlyCollectionId(id);
+}
+
+/**
+ * The reader's collection id for a citation's `collectionId`, which is the
+ * chat-facing key (`brandenburg`) on most paths and the system id on a few.
+ * `null` for everything the reader cannot open — user notebooks carry their
+ * own UUID, which matches neither.
+ */
+export function readerCollectionIdFor(collectionId: string | undefined): string | null {
+  if (!collectionId) return null;
+  const id = isReaderCollectionId(collectionId)
+    ? collectionId
+    : getCanonicalByKey(collectionId)?.id;
+  return id && isReaderCollectionId(id) ? id : null;
+}
+
 /**
  * Build a collection object suitable for notebook graph processing
  */
@@ -794,6 +856,21 @@ export function applyDefaultFilter(
   return {
     ...existingFilter,
     must: [...existingMust, defaultMust] as QdrantFilter['must'],
+  };
+}
+
+/**
+ * Filter for facet value counts in a system collection: default filter plus
+ * `chunk_index = 0`, so each document counts once instead of once per chunk.
+ * Enrichment writes themes/persons onto every chunk of a document, so the head
+ * chunk carries the full values. System collections only — user uploads do not
+ * guarantee a head chunk per document.
+ */
+export function getFacetCountFilter(collectionId: string): Record<string, unknown> {
+  return {
+    ...applyDefaultFilter(collectionId, {
+      must: [{ key: 'chunk_index', match: { value: 0 } }],
+    }),
   };
 }
 

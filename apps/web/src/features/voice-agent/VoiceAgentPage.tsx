@@ -36,8 +36,14 @@ export default function VoiceAgentPage() {
 
   return (
     <div className="flex h-dvh flex-col bg-background">
+      {/* Kennzeichnung als KI-Dialog (Art. 50 Abs. 1 KI-VO) — steht über dem
+          Orb, weil sie vor dem ersten Wort gelesen werden muss. */}
+      <p className="flex-shrink-0 pt-lg text-center text-xs text-foreground-muted">
+        KI-Sprachdialog — Du sprichst mit einer KI. Bitte überprüfe wichtige Informationen.
+      </p>
+
       {/* Orb area */}
-      <div className="flex flex-shrink-0 items-center justify-center pt-xl pb-lg">
+      <div className="flex flex-shrink-0 items-center justify-center pt-lg pb-lg">
         <VoiceOrb
           phase={phase}
           isActive={isActive}

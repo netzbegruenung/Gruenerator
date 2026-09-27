@@ -2,13 +2,14 @@
  * Streaming Processor - SSE variant of processGraphRequest
  *
  * Reuses all prompt assembly infrastructure from PromptProcessor.ts
- * but replaces aiWorkerPool.processRequest() with streamText()
+ * but replaces the one-shot call with streamText()
  * for real-time token-by-token delivery via Server-Sent Events.
  */
 
 import { streamText } from 'ai';
 
 import { createSSEStream, sseInternalError } from '../../routes/chat/services/sseHelpers.js';
+import { clampToModelOutputLimit } from '../../services/ai/modelOutputLimits.js';
 import { getModel, type ProviderName } from '../../services/ai/providers.js';
 import {
   localizePromptObject,
@@ -17,7 +18,6 @@ import {
 } from '../../services/localization/index.js';
 import { selectProviderAndModel } from '../../services/providers/providerSelector.js';
 import { type ProviderOptions } from '../../services/providers/types.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { enrichRequest } from '../../utils/requestEnrichment.js';
 
@@ -190,7 +190,6 @@ export async function processGraphRequestStreaming(
         searchQuery: searchQuery || null,
         examples: [],
         provider,
-        aiWorkerPool: getAIWorkerPool(req),
         enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false,
       },
       req
@@ -284,9 +283,10 @@ export async function processGraphRequestStreaming(
      *    routes/chat/services/responseStreamingService.ts;
      *  - regolo takes NO reasoning option at all. Its provider id is 'regolo'
      *    (createOpenAI({name:'regolo'})), so an `openai` block would not reach
-     *    it anyway, and its fetch wrapper pins `enable_thinking: false` on
+     *    it anyway, and its fetch wrapper pins `reasoning_effort: 'none'` on
      *    every request (services/ai/regoloThinkingFetch.ts). Sending one would
-     *    be a lie in the code about what the lane does.
+     *    be a lie in the code about what the lane does — denkende Regolo-Züge
+     *    laufen über regoloReasoningStream, nicht über diesen Pfad.
      */
     let reasoningProviderOptions: Record<string, Record<string, string>> | undefined;
     if (reasoningEffort) {
@@ -338,15 +338,22 @@ export async function processGraphRequestStreaming(
       needsReasoning: reasoningProviderOptions?.mistral !== undefined,
     });
 
+    // Die Denk-Variante fordert 32768 und `max_tokens * 2` kann beliebig hoch
+    // liegen — beides über der Ausgabedecke von Mistral Medium 3.5 (16.384),
+    // und ein Überschreiten kostet nicht Länge, sondern den ganzen Aufruf
+    // (HTTP 400). Derselbe Clamp wie im Chat-Streamer, damit hier keine zweite
+    // Zahlentabelle entsteht.
+    const maxOutputTokens = clampToModelOutputLimit(
+      reasoningEffort ? 32768 : aiOptions.max_tokens ? aiOptions.max_tokens * 2 : 16384,
+      effectiveModel,
+      '[AgenticStream]'
+    );
+
     const result = streamText({
       model,
       system: promptResult.system,
       messages,
-      maxOutputTokens: reasoningEffort
-        ? 32768
-        : aiOptions.max_tokens
-          ? aiOptions.max_tokens * 2
-          : 16384,
+      ...(maxOutputTokens != null && { maxOutputTokens }),
       temperature: aiOptions.temperature ?? 0.7,
       abortSignal: abortController.signal,
       ...(reasoningProviderOptions ? { providerOptions: reasoningProviderOptions } : {}),

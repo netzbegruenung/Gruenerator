@@ -1,14 +1,16 @@
 /**
- * Canvas-suggest LLM call — extracted from `aiSuggestRoute.ts` so the
- * same retry/validation/filtering logic powers both the synchronous
- * route and the streaming chat-edit controller.
+ * Canvas-suggest LLM call — planner behind the chat loop's `edit_document`
+ * tool (`editorTools.ts`), its only caller now that `aiSuggestRoute.ts` (the
+ * dead studio "KI" tab's endpoint) has been removed. The streaming chat-edit
+ * controller that used to share this retry/validation/filtering logic has
+ * also been removed.
  *
  * This was the third hand-rolled copy of the forced-tool-call pattern
  * (alongside sharepicEditLlm and the artifact generators). It now runs on
- * `generateStructured`, which owns that pattern — with one behavioural gain:
+ * `aiObject`, which owns that pattern — with one behavioural gain:
  * the second attempt used to be a blind retry that re-sent the identical
  * prompt, so a model that omitted a required field had no reason to do
- * anything different. `generateStructured` feeds the invalid payload and the
+ * anything different. `aiObject` feeds the invalid payload and the
  * concrete validation error back at temperature 0 instead.
  *
  * Operation filtering lives in the `validate` callback rather than after the
@@ -26,7 +28,7 @@ import {
 } from '@gruenerator/contracts';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
-import { generateStructured } from '../../../services/ai/generateStructured.js';
+import { aiObject } from '../../../services/ai/generate.js';
 
 import {
   buildCanvasSuggestSystemPrompt,
@@ -36,16 +38,11 @@ import {
   type CanvasSuggestContextHints,
 } from './buildCanvasSuggestPrompt.js';
 
-import type { AIWorkerPool } from '../../../workers/types.js';
-
 export interface RunCanvasSuggestArgs {
   prompt: string;
   snapshot: CanvasAiSnapshot;
   capabilities: CanvasSuggestCapabilitiesView;
   contextHints?: CanvasSuggestContextHints;
-  aiWorkerPool: AIWorkerPool;
-  /** Optional Express request — passed through for tracing/correlation. */
-  req?: unknown;
   /** Tag prefix for log lines. Defaults to 'canvas_ai_suggest'. */
   logTag?: string;
 }
@@ -56,7 +53,7 @@ export type RunCanvasSuggestResult =
 export async function runCanvasSuggest(
   args: RunCanvasSuggestArgs
 ): Promise<RunCanvasSuggestResult> {
-  const { prompt, snapshot, capabilities, contextHints, aiWorkerPool, req, logTag } = args;
+  const { prompt, snapshot, capabilities, contextHints, logTag } = args;
 
   const rawSchema = zodToJsonSchema(canvasAiSuggestResponseSchema, {
     target: 'jsonSchema7',
@@ -65,12 +62,10 @@ export async function runCanvasSuggest(
 
   const supported = capabilities.supportedOperations;
 
-  const result = await generateStructured<CanvasAiSuggestion[]>({
-    aiWorkerPool,
-    ...(req !== undefined && { req }),
-    type: 'canvas_ai_suggest',
-    systemPrompt: buildCanvasSuggestSystemPrompt(snapshot, capabilities, contextHints),
-    userContent: buildCanvasSuggestUserMessage(prompt),
+  const result = await aiObject<CanvasAiSuggestion[]>({
+    lane: 'canvas_ai_suggest',
+    system: buildCanvasSuggestSystemPrompt(snapshot, capabilities, contextHints),
+    prompt: buildCanvasSuggestUserMessage(prompt),
     toolName: TOOL_NAME,
     toolDescription:
       'Reicht 3 bis 5 konkrete Vorschläge zur Verbesserung des aktuellen Sharepic-Entwurfs ein.',

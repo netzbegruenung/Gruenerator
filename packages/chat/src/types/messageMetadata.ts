@@ -11,10 +11,12 @@ import type {
   StreamMetadata,
 } from '../hooks/useChatGraphStream';
 import type { Citation as RawCitation, Source, LinkConfig } from '../runtime/NotebookModelAdapter';
-import type { ActiveArtifact } from '../stores/artifactLiveStore';
+import type { CodeArtifact } from '../stores/artifactLiveStore';
 import type {
   ConfirmActionType,
   DocumentCreatedEvent,
+  NotebookAnswerModeReason,
+  NotebookResolvedAnswerMode,
   SocialPostPayload,
   BahnPayload,
 } from '@gruenerator/contracts';
@@ -76,7 +78,7 @@ export type ChatMessageMetadata = {
   /** Text half of the EXPERIMENTAL combined social post (SocialPostCard). */
   socialPostData?: SocialPostPayload;
   chartData?: ChartData;
-  artifactData?: ActiveArtifact;
+  artifactData?: CodeArtifact;
   computeData?: ComputeData;
   bahnData?: BahnPayload;
   streamMetadata?: StreamMetadata;
@@ -89,6 +91,15 @@ export type ChatMessageMetadata = {
   /** Turn was interrupted mid-stream (row still status='streaming' on reload);
    *  the partial text renders normally plus a subtle marker. */
   interrupted?: boolean;
+  /**
+   * Das Notebook hat zur Frage wenig Passendes gefunden (`evidence_weak`).
+   * Trägt den SERVER-Text, keinen booleschen Schalter: der Satz lebt in
+   * `CHAT_WARNINGS.evidence_weak.message` und soll genau eine Quelle behalten.
+   *
+   * Bewusst NICHT in PASSTHROUGH_METADATA_FIELDS — der Hinweis ist
+   * zugscheibenlokal, siehe threadMessageConversion.ts.
+   */
+  evidenceWeak?: string;
   // Notebook specific
   rawCitations?: RawCitation[];
   sources?: Source[];
@@ -97,5 +108,8 @@ export type ChatMessageMetadata = {
   answerText?: string;
   linkConfig?: LinkConfig;
   sourcesByCollection?: Record<string, unknown>;
+  /** The mode the notebook answer ran in (`answer_mode` event / persisted row). */
+  answerMode?: NotebookResolvedAnswerMode;
+  answerModeReason?: NotebookAnswerModeReason;
   [key: string]: unknown;
 };

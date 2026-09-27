@@ -7,7 +7,6 @@ vi.mock('../../../../routes/chat/agents/directSearch.js', () => ({
   executeDirectSearch: (...a: unknown[]) => executeDirectSearch(...a),
   executeDirectExamplesSearch: vi.fn(),
   executeDirectWebSearch: (...a: unknown[]) => executeDirectWebSearch(...a),
-  executeResearch: vi.fn(),
 }));
 
 const { searchNode } = await import('./searchNode.js');
@@ -46,7 +45,6 @@ function buildState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     enabledTools: { search: true, web: true },
     // Query expansion is best-effort and wrapped in try/catch — a pool that
     // rejects exercises exactly the path a slow lane would take.
-    aiWorkerPool: { processRequest: vi.fn(async () => Promise.reject(new Error('no pool'))) },
     userLocale: 'de-DE',
     intent: 'search' as SearchIntent,
     searchQuery: 'Klimaschutz Programm',
@@ -120,7 +118,7 @@ describe('searchNode — Web-Fallback bei 0 internen Treffern', () => {
     executeDirectWebSearch.mockResolvedValue(webHit);
 
     const result = await searchNode(
-      buildState({ notebookCollectionIds: ['mein-notizbuch'] } as Partial<ChatGraphState>)
+      buildState({ notebookCollectionIds: ['mein-notebook'] } as Partial<ChatGraphState>)
     );
 
     expect(executeDirectWebSearch).not.toHaveBeenCalled();

@@ -19,13 +19,21 @@ import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
 import { getUsageFeature, getUsageUserId } from '../../utils/usageContext.js';
 
+import type { UsageUnit as ContractUsageUnit } from '@gruenerator/contracts';
+
 const log = createLogger('usageTracking');
 
 const FLUSH_INTERVAL_MS = 15_000;
 const FLUSH_THRESHOLD = 200;
 
-/** What is being counted — decides how the usage tab renders a row. */
-export type UsageUnit = 'tokens' | 'images' | 'transcriptions' | 'searches';
+/**
+ * What is being counted — decides how the usage tab renders a row.
+ *
+ * Derived from the contract rather than restated, so the wire enum and the
+ * server cannot drift apart. Note that for `speech_seconds` alone, `ops` carries
+ * a DURATION in whole seconds rather than a count of operations.
+ */
+export type UsageUnit = ContractUsageUnit;
 
 interface UsageDelta {
   userId: string;
@@ -38,9 +46,13 @@ interface UsageDelta {
   inputTokens: number;
   outputTokens: number;
   ops: number;
-  /** Measured footprint. GreenPT is the only provider that reports it. */
+  /** Measured footprint reported by GreenPT and Melious. */
   energyWms: number;
   emissionsUg: number;
+  /** The calls the measured footprint covers — see `unmeasuredRemainder` in energyFootprint.ts. */
+  measuredRequests: number;
+  measuredInputTokens: number;
+  measuredOutputTokens: number;
 }
 
 const buffer = new Map<string, UsageDelta>();
@@ -62,6 +74,9 @@ function add(entry: Omit<UsageDelta, 'day'>): void {
     existing.ops += entry.ops;
     existing.energyWms += entry.energyWms;
     existing.emissionsUg += entry.emissionsUg;
+    existing.measuredRequests += entry.measuredRequests;
+    existing.measuredInputTokens += entry.measuredInputTokens;
+    existing.measuredOutputTokens += entry.measuredOutputTokens;
   } else {
     buffer.set(key, { ...entry, day });
   }
@@ -106,6 +121,9 @@ export function recordTokenUsage(params: {
     ops: 0,
     energyWms: 0,
     emissionsUg: 0,
+    measuredRequests: 0,
+    measuredInputTokens: 0,
+    measuredOutputTokens: 0,
   });
 }
 
@@ -117,12 +135,18 @@ export function recordTokenUsage(params: {
  * a streamed response they arrive after the token counts have already been
  * booked. Both writes land on the same primary key, so Postgres sums them into
  * one row — `requests: 0` here keeps the request count from being doubled.
+ *
+ * The token counts are the measured call's own (from the response `usage`), so
+ * the read path knows which part of the row the footprint covers: one feature
+ * can mix measured and unmeasured calls of the same model in one row.
  */
 export function recordImpact(params: {
   provider: string;
   model: string;
   energyWms: number;
   emissionsUg: number;
+  inputTokens: number;
+  outputTokens: number;
   userId?: string | null;
   feature?: string | null;
 }): void {
@@ -141,6 +165,9 @@ export function recordImpact(params: {
     ops: 0,
     energyWms: Math.max(0, Math.round(params.energyWms || 0)),
     emissionsUg: Math.max(0, Math.round(params.emissionsUg || 0)),
+    measuredRequests: 1,
+    measuredInputTokens: Math.max(0, Math.round(params.inputTokens || 0)),
+    measuredOutputTokens: Math.max(0, Math.round(params.outputTokens || 0)),
   });
 }
 
@@ -170,6 +197,9 @@ export function recordOperation(params: {
     ops: params.count ?? 1,
     energyWms: 0,
     emissionsUg: 0,
+    measuredRequests: 0,
+    measuredInputTokens: 0,
+    measuredOutputTokens: 0,
   });
 }
 
@@ -203,6 +233,9 @@ export async function flushUsageBuffer(): Promise<void> {
             ops: sql`${userUsageDaily.ops} + excluded.ops`,
             energyWms: sql`${userUsageDaily.energyWms} + excluded.energy_wms`,
             emissionsUg: sql`${userUsageDaily.emissionsUg} + excluded.emissions_ug`,
+            measuredRequests: sql`${userUsageDaily.measuredRequests} + excluded.measured_requests`,
+            measuredInputTokens: sql`${userUsageDaily.measuredInputTokens} + excluded.measured_input_tokens`,
+            measuredOutputTokens: sql`${userUsageDaily.measuredOutputTokens} + excluded.measured_output_tokens`,
             updatedAt: new Date(),
           },
         });

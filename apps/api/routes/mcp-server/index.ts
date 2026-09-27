@@ -22,6 +22,8 @@ import {
   API_KEY_DEFAULT_RATE_LIMIT,
   consumeApiKeyRateLimit,
 } from '../../middleware/apiKeyRateLimitMiddleware.js';
+import { hasAiConsent } from '../../middleware/requireAiConsent.js';
+import { getProfileService } from '../../services/user/ProfileService.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { resolveMcpAuth } from './mcpAuth.js';
@@ -36,6 +38,7 @@ const log = createLogger('McpServer');
 const JSONRPC_UNAUTHORIZED = -32000;
 const JSONRPC_METHOD_NOT_ALLOWED = -32000;
 const JSONRPC_RATE_LIMITED = -32003;
+const JSONRPC_CONSENT_REQUIRED = -32004;
 
 const resourceUrl = new URL(MCP_RESOURCE_URL);
 const PROTECTED_RESOURCE_METADATA_URL = `${resourceUrl.origin}/.well-known/oauth-protected-resource${
@@ -109,16 +112,40 @@ router.post('/', async (req, res) => {
     }
   }
 
-  // aiWorkerPool's privacy counter reads only req.user.id — no need for a
+  // Art.-9-Einwilligung. Der MCP-Pfad braucht die Prüfung eigens: er löst seine
+  // Tokens selbst auf, sieht `requireAuth` nie und belegt `req.user` nur mit
+  // der ID. Wer hier ein Token hält, hat die Einwilligung beim Anmelden im Web
+  // erteilt — ein Widerruf dort erreicht den Konnektor sonst aber nie, und
+  // genau das wäre die Lücke. Kein `WWW-Authenticate`: die Anmeldung stimmt,
+  // eine erneute OAuth-Runde änderte nichts.
+  if (!(await hasAiConsent(authCtx.userId))) {
+    res.status(403).json({
+      jsonrpc: '2.0',
+      error: {
+        code: JSONRPC_CONSENT_REQUIRED,
+        message:
+          'Für die KI-Funktionen fehlt die ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO. Bitte einmal im Grünerator anmelden und einwilligen.',
+      },
+      id: null,
+    });
+    return;
+  }
+
+  // Der Privatsphäre-Zähler liest nur req.user.id — no need for a
   // full profile load per call (the augmentation types req.user as UserProfile).
   const reqWithUser = req as unknown as { user?: { id: string } };
   reqWithUser.user ??= { id: authCtx.userId };
 
   try {
+    // Web und Mobile lesen die Locale in streamContext aus dem Profil; der
+    // MCP-Pfad muss es selbst tun, sonst gibt collectionsForLocale jedem
+    // Konnektor die de-DE-Sammlungen.
+    const profile = await getProfileService().getProfileById(authCtx.userId);
     const server = buildAuthenticatedMcpServer({
       userId: authCtx.userId,
       scopes: authCtx.scopes,
       ...(authCtx.apiKey ? { apiKey: authCtx.apiKey } : {}),
+      userLocale: profile?.locale === 'de-AT' ? 'de-AT' : 'de-DE',
       req,
     });
     // No sessionIdGenerator → stateless mode (exactOptionalPropertyTypes

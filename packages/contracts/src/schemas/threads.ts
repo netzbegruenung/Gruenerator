@@ -5,7 +5,18 @@
  */
 import { z } from 'zod';
 
+import { roleRefSchema } from './roleRef.js';
+
 // ── Shared sub-schemas ──────────────────────────────────────────────────────
+
+/**
+ * `chat_threads.status`. The column is a plain VARCHAR with no CHECK, so this
+ * enum is the only thing that closes the set — which is why it lives here once
+ * instead of being spelled out at each of its call sites.
+ */
+export const threadStatusSchema = z.enum(['regular', 'archived']);
+
+export type ThreadStatus = z.infer<typeof threadStatusSchema>;
 
 export const lastMessageSchema = z.object({
   content: z.string(),
@@ -25,6 +36,12 @@ export const threadSchema = z.object({
   groupId: z.string().nullable(),
   tags: z.array(z.string()).default([]),
   slugSuffix: z.string().nullable(),
+  // How the caller sees this thread: own / per-user permission / via a group
+  // share. Optional (F0): older clients tolerate absence.
+  accessType: z.enum(['owner', 'shared', 'group']).nullable().optional(),
+  // True when the caller's only grant is a read-only group share — the
+  // sidebar routes such threads to the archive view instead of the live chat.
+  readOnly: z.boolean().nullable().optional(),
   createdAt: z.string(), // ISO date string
   updatedAt: z.string(),
   lastMessage: lastMessageSchema.nullable().optional(),
@@ -41,7 +58,7 @@ export const createThreadBodySchema = z.object({
 export const patchThreadBodySchema = z.object({
   threadId: z.string(),
   title: z.string().optional(),
-  status: z.enum(['regular', 'archived']).optional(),
+  status: threadStatusSchema.optional(),
   tags: z.array(z.string()).optional(),
   // File the thread into a Space (group), or null to remove it from its space.
   groupId: z.string().nullable().optional(),
@@ -50,6 +67,10 @@ export const patchThreadBodySchema = z.object({
 export const patchThreadSettingsBodySchema = z.object({
   customSystemPrompt: z.string().nullable().optional(),
   customEnabledTools: z.record(z.boolean()).nullable().optional(),
+  // Die gewählte Rolle. Eine Katalogrolle bringt keinen `customSystemPrompt`
+  // mit — ohne dieses Feld hätte der Thread nichts, woran er den Rollen-Modus
+  // nach einem Neuladen wiedererkennt, und fiele stumm auf „Chat" zurück.
+  roleRef: roleRefSchema.nullable().optional(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────
@@ -79,12 +100,19 @@ export const patchThreadResponseSchema = z.object({
 export const threadSettingsResponseSchema = z.object({
   customSystemPrompt: z.string().nullable(),
   customEnabledTools: z.record(z.boolean()).nullable(),
+  roleRef: roleRefSchema.nullable(),
 });
 
 export const generateTitleResponseSchema = z.object({
   status: z.enum(['accepted', 'skipped']),
   reason: z.string().optional(),
+  /** The title that reached the database, so the caller can show it right away.
+   *  Null — never absent — when nothing was written: no usable text yet, the
+   *  thread was renamed meanwhile, or the request was skipped. */
+  title: z.string().nullable(),
 });
+
+export type GenerateTitleResponse = z.infer<typeof generateTitleResponseSchema>;
 
 export const errorResponseSchema = z.object({
   error: z.string(),

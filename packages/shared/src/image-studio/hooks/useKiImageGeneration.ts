@@ -3,14 +3,17 @@
  * Hook for FLUX API-based KI image generation/editing
  */
 
+import { type KiLabelMode } from '@gruenerator/contracts';
 import { useState, useCallback } from 'react';
 
 import { getGlobalApiClient } from '../../api/client.js';
-import { KI_TYPE_CONFIGS } from '../constants.js';
+import { stripDataUrlPrefix } from '../../utils/dataUrl.js';
+import { getImageFormat, KI_TYPE_CONFIGS } from '../constants.js';
 
 import type {
   KiCreateRequest,
   KiEditRequest,
+  KiStyleVariant,
   UseKiImageGenerationOptions,
   UseKiImageGenerationReturn,
 } from '../types.js';
@@ -26,6 +29,29 @@ const KI_ERROR_MESSAGES = {
   NO_IMAGE_DATA: 'Kein Bild für die Bearbeitung vorhanden.',
   INSTRUCTION_TOO_SHORT: 'Die Beschreibung ist zu kurz.',
 };
+
+/**
+ * Request body for `/imagine/pure`.
+ *
+ * Exported so the fields the UI offers stay provable at the request boundary:
+ * the style variant, the chosen output format and the AI label all have to
+ * reach the backend, which otherwise silently falls back to its own defaults.
+ */
+export function buildPureCreateBody(request: KiCreateRequest): {
+  prompt: string;
+  variant: KiStyleVariant;
+  width?: number;
+  height?: number;
+  kiLabel?: KiLabelMode;
+} {
+  const format = request.format ? getImageFormat(request.format) : null;
+  return {
+    prompt: request.description,
+    variant: request.variant,
+    ...(format && { width: format.width, height: format.height }),
+    ...(request.kiLabel && { kiLabel: request.kiLabel }),
+  };
+}
 
 /**
  * Hook for KI image generation using FLUX API
@@ -126,10 +152,7 @@ export function useKiImageGeneration(
         const response = await client.post<{
           image?: { base64?: string } | string;
           imageUrl?: string;
-        }>(config.endpoint, {
-          prompt: request.description,
-          variant: request.variant,
-        });
+        }>(config.endpoint, buildPureCreateBody(request));
 
         // Extract image from response — API returns { image: { base64 } } or legacy { image: string }
         const rawImage = response.data?.image;
@@ -210,7 +233,7 @@ export function useKiImageGeneration(
         const formData = new FormData();
 
         // Convert base64 image to Blob
-        const cleanBase64 = request.imageData.replace(/^data:image\/\w+;base64,/, '');
+        const cleanBase64 = stripDataUrlPrefix(request.imageData);
         const binaryString = atob(cleanBase64);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {

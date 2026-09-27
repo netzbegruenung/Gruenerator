@@ -31,7 +31,7 @@ import { resolveSearchPlan, type SearchTier } from '../../../services/search/sea
 import { searxngService } from '../../../services/search/SearxngService.js';
 import { createLogger } from '../../../utils/logger.js';
 
-import { extractDomain, formatRelevance, truncateText } from './searchFormatting.js';
+import { extractDomainLabel, formatRelevance, truncateText } from './searchFormatting.js';
 
 import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
 import type { DocumentResult } from '../../../services/BaseSearchService/types.js';
@@ -69,6 +69,13 @@ export interface DirectSearchResult {
     collectionId?: string;
   }>;
   cached?: boolean;
+  /**
+   * Der Cross-Encoder war für diesen Aufruf bestellt und ist ausgefallen. Kein
+   * Fehler: die Reihenfolge ist die ohne Reranker. Gelesen wird das Feld vom
+   * Hook in `agenticLoop/rerankWarning.ts`; das MODELL sieht es nicht — der
+   * Umschlag entfernt es vor der Rückgabe (`wrapTools.ts`).
+   */
+  rerankDegraded?: boolean;
   error?: boolean;
   message?: string;
 }
@@ -178,6 +185,45 @@ function collapseAliasDuplicates(results: DocumentResult[]): DocumentResult[] {
 }
 
 /**
+ * Decke für das Übermaß, mit dem Qdrant befragt wird (`limit * 2`).
+ *
+ * Das Übermaß existiert, weil danach noch dedupliziert und auf `limit`
+ * beschnitten wird — ohne es fiele jeder Alias-Dublette ein echter Treffer zum
+ * Opfer. Die Decke begrenzt, was ein einzelner Aufruf kosten darf.
+ *
+ * Sie stand auf 30 und wurde damit bindend, sobald ein Aufrufer mehr als 15
+ * Treffer wollte: der notebook-gebundene Chat-Turn fordert seit dem Umstieg
+ * auf das Stufenprofil 40 und hätte stumm 30 bekommen — also weniger, als er
+ * gleich darauf an den Reranker weiterreicht.
+ *
+ * 80 statt 60, damit der grösste heutige Aufrufer (40) sein volles Übermaß
+ * behält. Bei 60 bekäme er 1,5× statt 2×, und die fehlende halbe Portion ist
+ * genau die Reserve, aus der `collapseAliasDuplicates` schöpft — auf den
+ * LV-Sammlungen, wo dieselbe Meldung unter mehreren URLs liegt, ist das kein
+ * Randfall. `chatNotebookDepth.vitest.ts` hält Decke und Stufenprofil
+ * aneinander.
+ */
+export const OVERFETCH_CEILING = 80;
+
+/**
+ * Grösstes `limit`, mit dem der Chunk-Reranker bestellt werden darf.
+ *
+ * Der Cross-Encoder bewertet die besten CHUNK_RERANK_POOL_MAX = 30 Chunks
+ * (`BaseSearchService.ts:90`); was darüber liegt, behält seinen Kosinus
+ * (`:889`) und konkurriert im SELBEN `sort` gegen Encoder-Werte — zwei Skalen,
+ * eine Sortierung. Abgerufen werden `round(min(limit·2, 80) · 3,0)` Chunks, bei
+ * limit 5 also genau 30. Ab 6 entstünde die Naht.
+ *
+ * Geklemmt wird deshalb das an Qdrant gereichte Limit auf dem rerankten Pfad,
+ * statt den Pool anzuheben: die 30 tragen ihre eigene Begründung
+ * (`BaseSearchService.ts:76-89`). Der `.slice(0, limit)` weiter unten bleibt
+ * unberührt — das Modell bekommt aber nur so viele Treffer, wie der geklemmte
+ * Kandidatenpool nach Gruppierung noch hergibt, nicht zwingend die volle
+ * angefragte Anzahl.
+ */
+export const RERANK_LIMIT_CLAMP = 5;
+
+/**
  * Execute a direct document search against Qdrant.
  * Replaces the MCP tool call for gruenerator_search.
  */
@@ -201,6 +247,14 @@ export async function executeDirectSearch(params: {
   searchMode?: 'hybrid' | 'vector' | 'text';
   /** Set false to bypass the service-level result cache for a fresh read. */
   useCache?: boolean;
+  /**
+   * Chunks VOR der Gruppierung durch den Cross-Encoder bewerten lassen.
+   * Opt-in: der Einzelpfad rerankt danach ohnehin in `rerankNode`, der
+   * MCP-Server gar nicht. Gesetzt wird es nur vom Werkzeugpfad des agentischen
+   * Loops (`toolCatalog` → `createSearchTools`), und nur mit
+   * LOOP_RERANK_ENABLED=true.
+   */
+  rerankChunks?: boolean;
 }): Promise<DirectSearchResult> {
   const {
     query,
@@ -210,7 +264,15 @@ export async function executeDirectSearch(params: {
     agentLandesverband,
     searchMode = 'hybrid',
     useCache,
+    rerankChunks,
   } = params;
+
+  // Nur auf dem rerankten Pfad geklemmt; ohne Reranker bleibt jedes Limit, wie
+  // es war — sonst würde ein ausgeschalteter Schalter die Trefferbreite ändern.
+  const qdrantLimit = Math.min(
+    (rerankChunks === true ? Math.min(limit, RERANK_LIMIT_CLAMP) : limit) * 2,
+    OVERFETCH_CEILING
+  );
 
   log.info(
     `[Direct Search] query="${query}" collection="${collection}" limit=${limit} mode=${searchMode}${filters ? ` filters=${JSON.stringify(filters)}` : ''}${agentLandesverband ? ` lv=${JSON.stringify(agentLandesverband)}` : ''}`
@@ -255,11 +317,11 @@ export async function executeDirectSearch(params: {
   }
 
   try {
-    let response = await documentSearchService.search({
+    const response = await documentSearchService.search({
       query,
       userId: undefined,
       options: {
-        limit: Math.min(limit * 2, 30),
+        limit: qdrantLimit,
         mode: searchMode,
         vectorWeight: searchParams.vectorWeight,
         textWeight: searchParams.textWeight,
@@ -268,48 +330,19 @@ export async function executeDirectSearch(params: {
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         additionalFilter,
+        ...(rerankChunks === true && { rerankChunks: true }),
         ...(useCache === undefined ? {} : { useCache }),
       },
     });
 
     if (!response.success || !response.results || response.results.length === 0) {
-      // If we had user filters, consider retrying without them
+      // User-selected filters (e.g. notebook source filter) are never dropped —
+      // no fallback retry without them.
       if (userFilter) {
-        const hasExplicitFilters = filters && Object.keys(filters).length > 0;
-        if (hasExplicitFilters) {
-          // Explicit user-selected filters (e.g. notebook source filter) — respect them
-          console.warn(
-            `[Direct Search] No results with explicit user filters for "${query}" in ${collection}. ` +
-              `NOT falling back to unfiltered search. Filters: ${JSON.stringify(filters)}`
-          );
-        } else {
-          // Auto-detected/heuristic filters — safe to retry without
-          log.info(
-            `[Direct Search] No results with auto-detected filters, retrying without for "${query}" in ${collection}`
-          );
-          const fallbackFilter = collectionDefault;
-          const fallbackResponse = await documentSearchService.search({
-            query,
-            userId: undefined,
-            options: {
-              limit: Math.min(limit * 2, 30),
-              mode: searchMode,
-              vectorWeight: searchParams.vectorWeight,
-              textWeight: searchParams.textWeight,
-              threshold: searchParams.threshold,
-              searchCollection: qdrantCollection,
-              recallLimit: searchParams.recallLimit,
-              qualityMin: searchParams.qualityMin,
-              additionalFilter: fallbackFilter,
-            },
-          });
-          if (fallbackResponse.success && fallbackResponse.results?.length > 0) {
-            log.info(
-              `[Direct Search] Fallback without auto-detected filters found ${fallbackResponse.results.length} results`
-            );
-            response = fallbackResponse;
-          }
-        }
+        console.warn(
+          `[Direct Search] No results with user filters for "${query}" in ${collection}. ` +
+            `NOT falling back to unfiltered search. Filters: ${JSON.stringify(filters)}`
+        );
       }
 
       // A backend failure is NOT "nothing found": conflating them made the tool
@@ -370,12 +403,17 @@ export async function executeDirectSearch(params: {
 
     log.info(`[Direct Search] Found ${formattedResults.length} results for "${query}"`);
 
+    // Der Marker hängt an der Antwort, die WIRKLICH gelaufen ist — auch wenn
+    // das der Rückfall-Aufruf war (`response` ist dann überschrieben).
+    const rerankDegraded = response.metadata?.rerankDegraded === true;
+
     return {
       collection,
       query,
       searchMode,
       resultsCount: formattedResults.length,
       results: formattedResults,
+      ...(rerankDegraded ? { rerankDegraded: true } : {}),
     };
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
@@ -514,8 +552,8 @@ export async function executeDirectPressemitteilungExamples(params: {
 /**
  * The chat's single web-retrieval door, at one of three tiers.
  *
- * `tier` replaces the old split between this function and `executeResearch`:
- * "recherchiere" no longer routes to a different engine, it routes here with a
+ * `tier` replaces the old split between this function and a second research
+ * engine: "recherchiere" no longer routes elsewhere, it routes here with a
  * deeper setting. `maxResults` stays an independent override for callers that
  * want a specific count (news widgets, compound turns); the tier only supplies
  * the default.
@@ -666,7 +704,7 @@ export async function executeDirectWebSearch(params: {
           title: decodeHtmlEntities(r.title) || 'Unbekannt',
           url: r.url,
           snippet: truncateText(decodeHtmlEntities(r.description ?? ''), snippetChars),
-          domain: extractDomain(r.url),
+          domain: extractDomainLabel(r.url),
           // GreenPT carries no date at all, so recency ranking scores nothing
           // for these hits. Null rather than invented: `resolveSourceDate`
           // treats an unparseable value as a real signal.
@@ -733,7 +771,7 @@ export async function executeDirectWebSearch(params: {
         title: decodeHtmlEntities(r.name) || 'Unbekannt',
         url: r.url,
         snippet: truncateText(decodeHtmlEntities(r.content), snippetChars),
-        domain: extractDomain(r.url),
+        domain: extractDomainLabel(r.url),
         // Was hard-coded `null`, so `recencyBoost`/`resolveSourceDate` scored
         // nothing for web hits — the one source type where freshness matters
         // most. Normalised rather than passed through: a value the ranking
@@ -741,9 +779,9 @@ export async function executeDirectWebSearch(params: {
         publishedDate: normalizePublishedDate(r.date),
       }));
       const linkupImages = imageEntries.slice(0, MAX_IMAGE_HITS).map((r) => ({
-        title: decodeHtmlEntities(r.name) || extractDomain(r.url) || 'Bild',
+        title: decodeHtmlEntities(r.name) || extractDomainLabel(r.url) || 'Bild',
         url: r.url,
-        domain: extractDomain(r.url),
+        domain: extractDomainLabel(r.url),
       }));
       log.info(
         `[Direct Web Search] Linkup returned ${linkupFormatted.length} results${linkupImages.length > 0 ? ` + ${linkupImages.length} images` : ''} for "${query}"`
@@ -806,7 +844,7 @@ export async function executeDirectWebSearch(params: {
         title: result.title || 'Unbekannt',
         url: result.url,
         snippet: truncateText(result.content || result.snippet || '', 300),
-        domain: result.domain || extractDomain(result.url),
+        domain: result.domain || extractDomainLabel(result.url),
         publishedDate: result.publishedDate || null,
       }));
 

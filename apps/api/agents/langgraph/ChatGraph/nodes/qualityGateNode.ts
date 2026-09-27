@@ -2,20 +2,20 @@
  * Quality Gate Node
  *
  * Lightweight LLM check after reranking to assess whether search results
- * sufficiently cover the user's query. If coverage is insufficient and
- * we haven't exceeded maxSearches, routes back to search with a refined query.
+ * sufficiently cover the user's query. On insufficient coverage it reports a
+ * score and a `refinedQuery`; acting on that is the caller's job.
  *
- * This enables iterative search: the graph can loop search → rerank → qualityGate → search
- * for up to maxSearches iterations before falling through to respond.
+ * The only caller is `searchGraphContractRouter`, and it retries search → rerank
+ * exactly ONCE — a single `if`, not a loop. The gate itself never runs a second
+ * time, so `maxSearches` bounds nothing beyond that one comparison (the executor
+ * nodes set `searchCount` to 1 rather than incrementing it).
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
+import { queryTerms } from '../../../../services/search/lexicalPassageScore.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
 
 import type { ChatGraphState } from '../types.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:QualityGate');
 
@@ -37,13 +37,49 @@ oder
 { "score": 2, "sufficient": false, "refinedQuery": "bessere Suchanfrage hier", "weakAspects": ["Aspekt1"] }`;
 
 /**
+ * Beyond this a refinement is a query in its own right, not a bare aspect.
+ * `researchOrchestrator`'s assessor is prompted for "kurze Suchphrasen" and
+ * returns one or two words; a four-word rewrite carries its own context.
+ */
+const MAX_ASPECT_TERMS = 2;
+
+/**
+ * Keep the entity context in a refinement query.
+ *
+ * Asked for "eine bessere Suchanfrage", the gate sometimes answers with the
+ * aspect it finds missing instead — a bare "Herkunft". Used as-is, a search
+ * engine gets no signal about WHO: exactly the failure `researchOrchestrator`
+ * documents at its own refinement step (Mona Neubaur's "Herkunft" search
+ * returned random Bachelorarbeiten), which it fixes by prefixing the original
+ * question. The retry in `searchGraphContractRouter` took `refinedQuery`
+ * unchecked, so that fix never reached this path.
+ *
+ * Prefixed only when the refinement is BOTH short enough to be an aspect and
+ * shares no content term with the original. A deliberate rewrite ("Vergleich
+ * Klimaziele SPD Grüne" for "Klimapolitik") is left alone — prefixing would
+ * re-weight the terms it dropped on purpose — and so is a narrowing that
+ * already names the entity ("Mona Neubaur Herkunft").
+ */
+export function carryQueryContext(original: string, refined: string): string {
+  const originalTerms = queryTerms(original);
+  if (originalTerms.length === 0) return refined;
+
+  const refinedTerms = queryTerms(refined);
+  if (refinedTerms.length > MAX_ASPECT_TERMS) return refined;
+
+  const carried = new Set(refinedTerms);
+  if (originalTerms.some((term) => carried.has(term))) return refined;
+
+  return `${original} ${refined}`;
+}
+
+/**
  * Quality gate node implementation.
  * Checks if search results adequately cover the query.
  */
 export async function qualityGateNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
-  const { searchResults, searchQuery, searchCount, maxSearches, aiWorkerPool, researchBrief } =
-    state;
+  const { searchResults, searchQuery, searchCount, maxSearches, researchBrief } = state;
 
   // Skip quality check if we've already used max searches or have few results
   if (searchCount >= maxSearches) {
@@ -88,28 +124,17 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
       .map((r, i) => `[${i + 1}] ${r.title}: ${r.content.slice(0, 150)}`)
       .join('\n');
 
-    const response = await aiWorkerPool.processRequest(
-      {
-        type: 'chat_quality_gate',
-        provider: LANE.provider,
-        systemPrompt: QUALITY_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: `Suchanfrage: "${searchQuery}"${researchBrief ? `\nRecherche-Kontext: ${researchBrief}` : ''}\n\nErgebnisse:\n${resultsSummary}`,
-          },
-        ],
-        options: {
-          model: LANE.model,
-          max_tokens: 80,
-          temperature: 0.0,
-          response_format: { type: 'json_object' },
-        },
-      },
-      null
-    );
+    const content = await aiText({
+      lane: 'chat_quality_gate',
+      pinned: 'standard',
+      system: QUALITY_PROMPT,
+      prompt: `Suchanfrage: "${searchQuery}"${researchBrief ? `\nRecherche-Kontext: ${researchBrief}` : ''}\n\nErgebnisse:\n${resultsSummary}`,
+      maxOutputTokens: 80,
+      temperature: 0.0,
+      json: true,
+    });
 
-    const parsed = parseQualityResponse(response.content || '');
+    const parsed = parseQualityResponse(content);
     const qualityAssessmentTimeMs = Date.now() - startTime;
 
     if (parsed) {
@@ -121,11 +146,12 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
         const weakInfo = parsed.weakAspects?.length
           ? ` (weak: ${parsed.weakAspects.join(', ')})`
           : '';
-        log.info(`[QualityGate] Refined query: "${parsed.refinedQuery}"${weakInfo}`);
+        const searchQuery = carryQueryContext(state.searchQuery ?? '', parsed.refinedQuery);
+        log.info(`[QualityGate] Refined query: "${searchQuery}"${weakInfo}`);
         return {
           qualityScore: parsed.score,
           qualityAssessmentTimeMs,
-          searchQuery: parsed.refinedQuery,
+          searchQuery,
         };
       }
 

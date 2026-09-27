@@ -10,9 +10,11 @@
  *   turns like "welche MCP-Server kennst du", model-decided).
  */
 
-import { getVisibleSystemAgentsForLocale } from '@gruenerator/shared/agents';
+import { getVisibleSystemAgentsForLocale, isAdminVisibleAgent } from '@gruenerator/shared/agents';
 
+import { CURRENT_INSTANCE } from '../../config/instance.js';
 import { getMcpExposedCollections } from '../../config/systemCollectionsConfig.js';
+import { getHiddenAgentIdentifiersCached } from '../agents/AdminHiddenAgentsService.js';
 import { localizePlaceholders } from '../localization/index.js';
 import { type Locale } from '../localization/types.js';
 import { getManagedConnectors, isSourceGermanOnly } from '../mcp/systemMcpServers.js';
@@ -81,25 +83,34 @@ const STATIC_TOOL_LINES = [
   '- KI-Bilder: Bildgenerierung im grünen Stil',
   '- Sharepics: Social-Media-Grafiken im Studio, Vorlagen im Grünen-Design',
   '- Reels: automatische Video-Untertitel',
-  '- Notebooks & Recherche: eigene Wissenssammlungen plus grüne Inhaltsdatenbank',
-  '- Agentura: spezialisierte Grüneratoren nutzen und eigene Agent*innen erstellen',
-  '- Gruppen/Spaces: gemeinsame Arbeitsbereiche im Team',
+  '- Notebooks & Recherche: eigene Wissenssammlungen plus grüne Inhaltsdatenbank — im Chat lassen sich Notebooks inhaltlich befragen, anlegen, aus einem Wolke-Ordner befüllen, mit Dokumenten ergänzen, in der Sichtbarkeit ändern und mit einem Projekt teilen',
+  '- Notebook-Quellen: im Chat lassen sich die Quellen eines Notebooks auflisten (sortiert und gefiltert), gliedern, seiten- oder abschnittsweise lesen und nach Stellen durchsuchen — Belege mit Seite und Fundstelle',
+  '- Grüne Wolke: eigene Nextcloud-Freigaben verbinden — Dateien lassen sich im Chat durchsuchen und lesen',
+  '- Agentura: spezialisierte Grüneratoren nutzen und eigene Grünerator-Agenten bauen — im Chat lassen sich die eigenen und die aus Projekten geteilten Agenten auflisten, ansehen, aus einer Beschreibung neu anlegen (die Rolle wird entworfen und als Karte bestätigt), ändern, mit einem Projekt teilen und löschen; die System-Grüneratoren selbst sind nicht änderbar',
+  '- Rezepte & Textformen (Texte anlernen): Rezepte sind Schreibvorgaben je Textsorte und Plattform, eigene Textformen ein aus Beispieltexten angelernter Stil — im Chat lassen sich alle Rezepte und eigenen Textformen auflisten, eine eigene Textform ansehen, aus Beispielen aus der Nachricht oder einem Anhang anlernen (auch als eigener Stil für ein mitgeliefertes Rezept), um Beispiele ergänzen und löschen; angewendet wird ein Rezept beim Schreiben über @mention oder von selbst',
+  '- Wiederkehrende Aufgaben (Agentura): ein Grünerator-Agent läuft von selbst täglich, wöchentlich oder monatlich und liefert das Ergebnis als Dokument, Chat oder Benachrichtigung — im Chat lassen sie sich einrichten (mit Bestätigung), auflisten, ändern, pausieren, sofort ausführen und löschen',
+  '- Projekte (Gruppen/Spaces): gemeinsame Arbeitsbereiche im Team — im Chat lassen sich Projekte auflisten, ansehen, ihre geteilten Inhalte durchsehen, anlegen, per Einladungslink beitreten, in Name und Beschreibung ändern und öffentlich listen; Mitglieder verwalten geht nur auf der Projektseite',
   '- Scanner, Transkription, Zeichenzähler: Dokumente digitalisieren, Audio verschriftlichen, Textlängen prüfen',
+  '- Übersetzer: Texte und Dokumente (DOCX, PPTX, PDF …) mit DeepL übersetzen, mit dem gepflegten Grünen-Glossar — im Chat übersetzt das Werkzeug text_uebersetzen Texte direkt',
   '- Monitor: Wahlumfragen, Themen und Stimmungsbilder beobachten',
 ];
 
-const agentLinesByLocale = new Map<Locale, string>();
+// Gepuffert nach Locale UND dem Stand der ausgeblendeten Agenten: schaltet ein
+// Admin einen Agenten weg, darf ihn der Systemprompt nicht weiter anpreisen.
+const agentLinesByLocale = new Map<string, string>();
 
-function formatAgentLines(locale: Locale): string {
-  const cached = agentLinesByLocale.get(locale);
+function formatAgentLines(locale: Locale, hiddenIdentifiers: readonly string[]): string {
+  const key = `${locale}|${[...hiddenIdentifiers].sort().join(',')}`;
+  const cached = agentLinesByLocale.get(key);
   if (cached) return cached;
-  const lines = getVisibleSystemAgentsForLocale(locale)
+  const lines = getVisibleSystemAgentsForLocale(locale, CURRENT_INSTANCE)
+    .filter((a) => isAdminVisibleAgent(a.identifier, hiddenIdentifiers))
     .map((a) => {
       const desc = a.description.length > 100 ? `${a.description.slice(0, 97)}…` : a.description;
       return `- ${a.title}: ${desc}`;
     })
     .join('\n');
-  agentLinesByLocale.set(locale, lines);
+  agentLinesByLocale.set(key, lines);
   return lines;
 }
 
@@ -170,6 +181,8 @@ export async function buildProductKnowledgeBlock(opts: {
 }): Promise<string> {
   const { locale, userId, question } = opts;
 
+  const hiddenAgentIdentifiers = await getHiddenAgentIdentifiersCached();
+
   const mcpSection =
     isMcpMetaQuestion(question) && userId
       ? `\n\n### Verbundene eigene MCP-Server\n${await formatConnectedServerLines(userId)}`
@@ -180,7 +193,7 @@ export async function buildProductKnowledgeBlock(opts: {
 ## GRÜNERATOR-WISSEN (Funktionen des Produkts)
 
 ### Grüneratoren (spezialisierte Assistenten, Agentura)
-${formatAgentLines(locale)}
+${formatAgentLines(locale, hiddenAgentIdentifiers)}
 
 ### Werkzeuge
 ${STATIC_TOOL_LINES.join('\n')}
@@ -191,8 +204,15 @@ ${formatCollectionLine()}
 ### Bereitgestellte Dienste (ohne Einrichtung nutzbar, per @-Erwähnung ansprechbar)
 ${formatManagedConnectorLines(locale)}${mcpSection}
 
-### Grünerator als MCP-Server für externe KI-Chats
-Über mcp.gruenerator.eu lassen sich in ChatGPT, Claude und anderen MCP-fähigen Chats nutzen: die grünen Wissenssammlungen, Social-Media-Beispiele und Umfragen, die eigenen Grünerator-Inhalte der angemeldeten Person (Dokumente, Boards und Aufgaben, Notizbücher, Projekte, Medien) sowie die Grüneratoren als fertige Prompts. Die Verbindung verlangt eine Anmeldung mit dem Grünerator-Konto; beim Verbinden wird zugestimmt, worauf der Chat zugreifen darf, und die Zustimmung ist jederzeit widerrufbar. Eigene MCP-Server können unter gruenerator.eu/apps verbunden und im Chat per @-Erwähnung genutzt werden. Anleitung: doku.gruenerator.eu.
+### Dokumentation gezielt durchsuchen
+Die Anleitungen von doku.gruenerator.eu lassen sich direkt im Chat durchsuchen — zwei Wege:
+- **@doku tippen** (auch @hilfe oder @anleitung): erzwingt die Doku-Suche für diese Nachricht.
+- **Ausdrücklich danach fragen**, und zwar so, dass sowohl die Doku als auch die gemeinte Funktion vorkommen — "Was steht in der Anleitung zu Sharepics?", "Gibt es eine Schritt-für-Schritt-Anleitung für Notebooks?". Ebenso greift eine Wie-Frage zu einer Grünerator-Funktion: "Wie erstelle ich ein Sharepic?", "Wo finde ich die Agentura?". Nennt eine Frage nur die Doku, ohne die Funktion zu benennen, wird nicht zwingend nachgeschlagen — dann hilft @doku.
 
-Beantworte Produktfragen aus diesem Block. Erfinde keine Funktionen, die hier nicht stehen; für Schritt-für-Schritt-Anleitungen verweise auf doku.gruenerator.eu.`;
+Die Doku deckt nicht jede Funktion ab und ist an manchen Stellen unvollständig oder älter als das Produkt. Findest du dort nichts Passendes, sag das offen, statt eine Anleitung zu erfinden, und verweise auf die Support-Seite gruenerator.eu/support.
+
+### Grünerator als MCP-Server für externe KI-Chats
+Über mcp.gruenerator.eu lassen sich in ChatGPT, Claude und anderen MCP-fähigen Chats nutzen: die grünen Wissenssammlungen, Social-Media-Beispiele und Umfragen, die eigenen Grünerator-Inhalte der angemeldeten Person (Dokumente, Boards und Aufgaben, Notebooks, Projekte, Medien) sowie die Grüneratoren als fertige Prompts. Die Verbindung verlangt eine Anmeldung mit dem Grünerator-Konto; beim Verbinden wird zugestimmt, worauf der Chat zugreifen darf, und die Zustimmung ist jederzeit widerrufbar. Eigene MCP-Server können unter gruenerator.eu/apps verbunden und im Chat per @-Erwähnung genutzt werden. Anleitung: doku.gruenerator.eu.
+
+Beantworte Produktfragen aus diesem Block. Erfinde keine Funktionen, die hier nicht stehen; für Schritt-für-Schritt-Anleitungen verweise auf doku.gruenerator.eu. Wenn jemand fragt, was du kannst oder wobei du hilfst, nenne zum Schluss in einem Satz, dass die Dokumentation direkt im Chat durchsuchbar ist — per @doku oder indem ausdrücklich nach der Anleitung zu einer Funktion gefragt wird.`;
 }

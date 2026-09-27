@@ -101,3 +101,29 @@ describe('OnboardingTab', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+/**
+ * Auf einer Instanz mit genau einer Rolle vergibt der Server sie beim Lesen der
+ * User-Defaults (`services/roles/instanceRoleAssignment.ts`). Der Schritt bliebe
+ * dann eine Frage mit einer möglichen Antwort — er fällt weg.
+ *
+ * `STEPS` entsteht beim Laden des Moduls, deshalb der eigene Block mit
+ * `resetModules` statt eines Schalters im Test darüber.
+ */
+describe('OnboardingTab where the instance assigns the role itself', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it('drops the role step', async () => {
+    vi.doMock('@/config/instance', () => ({ CURRENT_INSTANCE: 'bgst' }));
+
+    const { default: Onboarding } = await import('./OnboardingTab');
+    render(<Onboarding />);
+
+    expect(stepBody()).toBe('Friends');
+    expect(screen.queryByText('Was machst du bei den Grünen?')).toBeNull();
+
+    vi.doUnmock('@/config/instance');
+  });
+});

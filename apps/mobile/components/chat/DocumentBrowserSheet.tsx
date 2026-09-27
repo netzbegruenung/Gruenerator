@@ -10,6 +10,7 @@ import {
   TextInput,
   StyleSheet,
   ActivityIndicator,
+  useColorScheme,
 } from 'react-native';
 
 import {
@@ -19,6 +20,7 @@ import {
 } from '../../services/documentPicker';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
+import { SkeletonRows } from '../common/Skeleton';
 
 import type { Theme } from '../../theme/colors';
 import type {
@@ -26,6 +28,7 @@ import type {
   DocumentSearchResult,
   NotebookCollectionItem,
 } from '@gruenerator/chat';
+import type { NotebookIndexingState } from '@gruenerator/contracts';
 
 interface DocumentBrowserSheetProps {
   visible: boolean;
@@ -43,8 +46,16 @@ export function DocumentBrowserSheet({
   onSelect,
   onDismiss,
 }: DocumentBrowserSheetProps) {
-  const { collections, documents, texts, loadingCollections, loadingContent, searchInCollection } =
-    useFileMentionData(visible);
+  const {
+    collections,
+    documents,
+    texts,
+    loadingCollections,
+    loadingContent,
+    collectionsFailed,
+    contentFailed,
+    searchInCollection,
+  } = useFileMentionData(visible);
 
   const queryClient = useQueryClient();
   const refetchContent = useCallback(() => {
@@ -82,7 +93,7 @@ export function DocumentBrowserSheet({
 
   const handleDocSelect = useCallback(
     (
-      doc: { id: string; title: string; sourceType?: string },
+      doc: { id: string; title: string; sourceType?: string | null },
       collectionId?: string,
       collectionName?: string
     ) => {
@@ -174,20 +185,23 @@ export function DocumentBrowserSheet({
         </View>
       )}
 
-      {isLoading || uploading ? (
+      {uploading ? (
+        // An upload is a handler running, not a surface arriving — it keeps its
+        // spinner and its label. Only the browse below gets a skeleton.
         <View style={styles.loading}>
           <ActivityIndicator size="large" color={theme.textGreen} />
-          {uploading && (
-            <Text style={[styles.loadingLabel, { color: theme.textSecondary }]}>
-              Wird hochgeladen…
-            </Text>
-          )}
+          <Text style={[styles.loadingLabel, { color: theme.textSecondary }]}>
+            Wird hochgeladen…
+          </Text>
         </View>
+      ) : isLoading ? (
+        <SkeletonRows count={6} leading={32} meta={false} />
       ) : level.type === 'root' ? (
         <RootLevel
           collections={collections}
           documents={documents}
           texts={texts}
+          failed={collectionsFailed || contentFailed}
           theme={theme}
           onSelectCollection={(c) => setLevel({ type: 'collection', id: c.id, name: c.name })}
           onSelectDoc={handleDocSelect}
@@ -231,28 +245,43 @@ function RootLevel({
   collections,
   documents,
   texts,
+  failed,
   theme,
   onSelectCollection,
   onSelectDoc,
   onUpload,
 }: {
   collections: NotebookCollectionItem[];
-  documents: { id: string; title: string; sourceType?: string }[];
+  documents: { id: string; title: string; sourceType?: string | null }[];
   texts: { id: string; title: string }[];
+  /** A request failed. Without this an outage renders as "you have no files". */
+  failed: boolean;
   theme: Theme;
   onSelectCollection: (c: NotebookCollectionItem) => void;
-  onSelectDoc: (doc: { id: string; title: string; sourceType?: string }) => void;
+  onSelectDoc: (doc: { id: string; title: string; sourceType?: string | null }) => void;
   onUpload: () => void;
 }) {
+  const isDark = useColorScheme() === 'dark';
+  // Same contrast-aware pair as MessageErrorBanner — error[500] fails AA on
+  // either ground.
+  const errorTint = isDark ? colors.error[400] : colors.error[700];
   const isEmpty = collections.length === 0 && documents.length === 0 && texts.length === 0;
 
   if (isEmpty) {
     return (
       <View style={styles.emptyState}>
-        <Ionicons name="document-text-outline" size={48} color={theme.textSecondary} />
-        <Text style={[styles.emptyTitle, { color: theme.text }]}>Keine Dokumente vorhanden</Text>
+        <Ionicons
+          name={failed ? 'alert-circle-outline' : 'document-text-outline'}
+          size={48}
+          color={failed ? errorTint : theme.textSecondary}
+        />
+        <Text style={[styles.emptyTitle, { color: failed ? errorTint : theme.text }]}>
+          {failed ? 'Dokumente konnten nicht geladen werden.' : 'Keine Dokumente vorhanden'}
+        </Text>
         <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-          Lade ein Dokument hoch, um es im Chat zu referenzieren
+          {failed
+            ? 'Bitte versuche es später erneut.'
+            : 'Lade ein Dokument hoch, um es im Chat zu referenzieren'}
         </Text>
         <Pressable
           onPress={onUpload}
@@ -293,9 +322,7 @@ function RootLevel({
 
           {collections.length > 0 && (
             <>
-              <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
-                Notizbücher
-              </Text>
+              <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>Notebooks</Text>
               {collections.map((c) => (
                 <Pressable
                   key={c.id}
@@ -309,6 +336,7 @@ function RootLevel({
                   <Ionicons name="folder-outline" size={20} color={theme.textGreen} />
                   <View style={styles.rowText}>
                     <Text style={[styles.rowTitle, { color: theme.text }]}>{c.name}</Text>
+                    <IndexingHint state={c.indexingState} theme={theme} errorTint={errorTint} />
                   </View>
                   <Text style={[styles.badge, { color: theme.textSecondary }]}>
                     {c.documentCount}
@@ -356,6 +384,45 @@ function RootLevel({
   );
 }
 
+/**
+ * Says that a notebook cannot answer yet.
+ *
+ * Attaching one whose sources are still being indexed produces an answer built
+ * on nothing, and an empty result reads as "there is nothing about this in
+ * there" rather than "this is not ready". `ready`/`empty` render nothing — the
+ * count next to the row already says an empty notebook is empty. Wording kept
+ * identical to the web notebook cards.
+ */
+function IndexingHint({
+  state,
+  theme,
+  errorTint,
+}: {
+  state: NotebookIndexingState | null;
+  theme: Theme;
+  errorTint: string;
+}) {
+  if (state !== 'indexing' && state !== 'partial' && state !== 'failed') return null;
+
+  const label =
+    state === 'indexing'
+      ? 'Wird indexiert'
+      : state === 'failed'
+        ? 'Nicht durchsuchbar'
+        : 'Teilweise indexiert';
+
+  return (
+    <Text
+      style={[
+        styles.rowSubtitle,
+        { color: state === 'indexing' ? theme.textSecondary : errorTint },
+      ]}
+    >
+      {label}
+    </Text>
+  );
+}
+
 function CollectionDocs({
   collection,
   theme,
@@ -363,7 +430,7 @@ function CollectionDocs({
 }: {
   collection: NotebookCollectionItem | undefined;
   theme: Theme;
-  onSelect: (doc: { id: string; title: string; sourceType?: string }) => void;
+  onSelect: (doc: { id: string; title: string; sourceType?: string | null }) => void;
 }) {
   if (!collection || !collection.documents?.length) {
     return <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Keine Dokumente</Text>;

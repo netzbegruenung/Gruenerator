@@ -49,15 +49,20 @@
     "subtitle": "Recherche im Netz",
     "path": "/suche"
   },
-  "catalog.tool-transfer": {
-    "title": "Transfer",
-    "subtitle": "Dateien sicher übertragen",
-    "path": "/transfer"
-  },
   "catalog.tool-transkription": {
     "title": "Transkription",
     "subtitle": "Audio mit KI verschriftlichen",
     "path": "/transkription"
+  },
+  "catalog.tool-uebersetzer": {
+    "title": "Übersetzer",
+    "subtitle": "Texte & Dokumente mit DeepL übersetzen",
+    "path": "/uebersetzer"
+  },
+  "catalog.tool-voice": {
+    "title": "Grünerator Voice",
+    "subtitle": "Anrufbeantworter, Vorlesefassung & Audiodeskription",
+    "path": "/voice"
   },
   "catalog.tool-vorlagen": {
     "title": "Vorlagen",
@@ -116,7 +121,8 @@
   },
   "lv.schleswig-holstein": {
     "title": "Schleswig-Holstein",
-    "notebook": "schleswig-holstein"
+    "notebook": "schleswig-holstein",
+    "agentSlug": "gruene-schleswig-holstein"
   },
   "lv.thueringen": {
     "title": "Thüringen",
@@ -125,7 +131,7 @@
   },
   "menu.apps": {
     "title": "Apps & Connect",
-    "subtitle": "Apps für deine Geräte & KI-Chat-Integration",
+    "subtitle": "Apps und KI-Chat-Integration",
     "path": "/apps"
   },
   "menu.grueneratoren": {
@@ -181,7 +187,7 @@
     "subtitle": "Leeres Textdokument"
   },
   "workplace.mcp": {
-    "title": "MCP",
+    "title": "Apps & MCP",
     "subtitle": "ChatGPT & Co verbinden",
     "path": "/apps"
   },
@@ -221,6 +227,16 @@
     "title": "Transkription",
     "subtitle": "Audio zu Text",
     "path": "/transkription"
+  },
+  "workplace.uebersetzer": {
+    "title": "Übersetzer",
+    "subtitle": "Texte & Dokumente übersetzen",
+    "path": "/uebersetzer"
+  },
+  "workplace.voice": {
+    "title": "Voice",
+    "subtitle": "Text vertonen",
+    "path": "/voice"
   },
   "workplace.vorlagen": {
     "title": "Vorlagen",

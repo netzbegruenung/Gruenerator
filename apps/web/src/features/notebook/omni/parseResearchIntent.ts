@@ -1,4 +1,5 @@
 import { getNotebookConfigBySlug } from '../config/notebookPagesConfig';
+import { datePresets, daysAgo, isoDay } from '../manual-search/datePresets';
 import {
   type ActiveFilters,
   type FilterFieldConfig,
@@ -22,6 +23,8 @@ import { detectNotebookEntities, type OmniTarget } from './omniIntent';
 export interface ParsedResearchIntent {
   /** The full query — semantic/hybrid search tolerates the extra words and topic terms help recall. */
   semanticQuery: string;
+  /** The query minus recognised date phrases, recency words and standalone filler words; the full query when nothing is left. */
+  residualQuery: string;
   /** Region scope, when a Landesverband was named (omitted when the scope is already fixed). */
   collectionIds?: string[];
   filters: ActiveFilters;
@@ -31,6 +34,7 @@ export interface ParsedResearchIntent {
     region?: string;
     dateLabel?: string;
     themes?: string[];
+    persons?: string[];
   };
   /** Any structured scope/filter was detected — drives the "Gefiltert suchen" affordance. */
   hasStructure: boolean;
@@ -38,7 +42,7 @@ export interface ParsedResearchIntent {
 
 /** One recognised filter dimension, as a droppable chip / summary token. */
 export interface ParsedFilterChip {
-  /** The active-filter key ('region' | 'published_at' | 'themes'). */
+  /** The active-filter key ('region' | 'published_at' | 'themes' | 'persons'). */
   key: string;
   label: string;
 }
@@ -58,6 +62,9 @@ export function describeParsedFilters(parsed: ParsedResearchIntent): ParsedFilte
   }
   if (parsed.matched.themes?.length) {
     chips.push({ key: 'themes', label: parsed.matched.themes.join(', ') });
+  }
+  if (parsed.matched.persons?.length) {
+    chips.push({ key: 'persons', label: parsed.matched.persons.join(', ') });
   }
   return chips;
 }
@@ -118,7 +125,12 @@ const NUMBER_WORDS: Record<string, number> = {
   zehn: 10,
 };
 
-const RECENCY_RE = /\b(neuest\w*|neust\w*|aktuell\w*|jüngst\w*|juengst\w*|zuletzt)\b/i;
+// „Aktuelle Stunde“ is a parliamentary debate format, not recency. The leading
+// group stands in for a lookbehind (Safari 15 has none); replacements put it back.
+const RECENCY_WORDS = String.raw`(^|[^\p{L}])(?:neuest\p{L}*|neust\p{L}*|aktuell\p{L}*(?!\p{L})(?!\s+stunde)|jüngst\p{L}*|juengst\p{L}*|zuletzt)(?!\p{L})`;
+const RECENCY_RE = new RegExp(RECENCY_WORDS, 'iu');
+const RECENCY_WORD_RE = new RegExp(RECENCY_WORDS, 'giu');
+const FILLER_WORD_RE = /(^|[^\p{L}])(?:dokumente|texte|beiträge|artikel|alles|alle)(?!\p{L})/giu;
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 const startOfYear = (y: number): string => `${y}-01-01`;
@@ -144,10 +156,93 @@ interface DateMatch {
   date_from?: string;
   date_to?: string;
   label?: string;
+  /** Where the phrase sits in the text, so it can be cut from the residual query. */
+  span?: [number, number];
+}
+
+const spanOf = (m: RegExpMatchArray): [number, number] => [
+  m.index ?? 0,
+  (m.index ?? 0) + m[0].length,
+];
+
+const parseCount = (raw: string): number | undefined => {
+  const lower = raw.toLowerCase();
+  return /^\d+$/.test(lower) ? Number(lower) : NUMBER_WORDS[lower];
+};
+
+/** Same day `n` calendar months back, clamped to the target month's last day (31 Mar → 28/29 Feb). */
+function monthsAgo(now: Date, n: number): string {
+  const target = new Date(now.getFullYear(), now.getMonth() - n, 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  return isoDay(
+    new Date(target.getFullYear(), target.getMonth(), Math.min(now.getDate(), lastDay))
+  );
+}
+
+/** A toolbar preset's label when the range is exactly that preset, so the control can show it. */
+function presetLabel(now: Date, from?: string, to?: string): string | undefined {
+  return datePresets(now).find((p) => p.range.date_from === from && p.range.date_to === to)?.label;
+}
+
+/** Relative ranges ending today: "seit 30 Tagen", "letzte 2 Wochen", "letzten Monat", "dieses Jahr". */
+function detectRelativeDate(text: string, now: Date): DateMatch | null {
+  const counted = text.match(
+    /\b(?:seit|(?:in\s+den\s+)?letzte[nr]?)\s+(\d+|\p{L}+)\s+(tag(?:e|en)?|wochen?|monat(?:e|en)?)(?!\p{L})/iu
+  );
+  const n = counted ? parseCount(counted[1]) : undefined;
+  if (counted && n && n > 0 && n <= 366) {
+    const unit = counted[2].toLowerCase();
+    let from: string;
+    let fallback: string;
+    if (unit.startsWith('tag')) {
+      from = daysAgo(now, n);
+      fallback = n === 1 ? 'Letzter Tag' : `Letzte ${n} Tage`;
+    } else if (unit.startsWith('woche')) {
+      from = daysAgo(now, 7 * n);
+      fallback = n === 1 ? 'Letzte Woche' : `Letzte ${n} Wochen`;
+    } else {
+      // Twelve months is the toolbar's "Letzte 12 Monate" preset (365 days).
+      from = n === 12 ? daysAgo(now, 365) : monthsAgo(now, n);
+      fallback = n === 1 ? 'Letzter Monat' : `Letzte ${n} Monate`;
+    }
+    return { date_from: from, label: presetLabel(now, from) ?? fallback, span: spanOf(counted) };
+  }
+
+  const single = text.match(/\b(?:(?:in\s+der|im)\s+)?letzte[nr]?\s+(woche|monat)(?!\p{L})/iu);
+  if (single) {
+    const isWeek = single[1].toLowerCase() === 'woche';
+    const from = isWeek ? daysAgo(now, 7) : monthsAgo(now, 1);
+    return {
+      date_from: from,
+      label: isWeek ? 'Letzte Woche' : 'Letzter Monat',
+      span: spanOf(single),
+    };
+  }
+
+  const year = now.getFullYear();
+  const thisYear = text.match(/\b(?:in\s+)?dies(?:em|es)\s+jahr(?!\p{L})/iu);
+  const lastYear = text.match(
+    /\b(?:im\s+)?(?:letzte[ns]?|vergangene[ns]?|vorige[ns]?)\s+jahr(?!\p{L})/iu
+  );
+  const yearMatch = thisYear ?? lastYear;
+  if (yearMatch) {
+    const y = thisYear ? year : year - 1;
+    return {
+      date_from: startOfYear(y),
+      date_to: endOfYear(y),
+      label: String(y),
+      span: spanOf(yearMatch),
+    };
+  }
+
+  return null;
 }
 
 /** Best-effort German temporal phrase → ISO date range. */
-function detectDate(text: string): DateMatch {
+function detectDate(text: string, now: Date = new Date()): DateMatch {
+  const relative = detectRelativeDate(text, now);
+  if (relative) return relative;
+
   // zwischen 2022 und 2024 / von 2022 bis 2024
   const between = text.match(
     /\b(?:zwischen|von)\s+((?:19|20)\d{2})\s+(?:und|bis)\s+((?:19|20)\d{2})/i
@@ -157,7 +252,12 @@ function detectDate(text: string): DateMatch {
     const b = Number(between[2]);
     const lo = Math.min(a, b);
     const hi = Math.max(a, b);
-    return { date_from: startOfYear(lo), date_to: endOfYear(hi), label: `${lo}–${hi}` };
+    return {
+      date_from: startOfYear(lo),
+      date_to: endOfYear(hi),
+      label: `${lo}–${hi}`,
+      span: spanOf(between),
+    };
   }
 
   const monthAlt = Object.keys(MONTHS).join('|');
@@ -172,6 +272,7 @@ function detectDate(text: string): DateMatch {
     return {
       date_from: m ? startOfMonth(y, m) : startOfYear(y),
       label: `seit ${since[2] ? `${since[2]} ` : ''}${y}`,
+      span: spanOf(since),
     };
   }
 
@@ -185,23 +286,50 @@ function detectDate(text: string): DateMatch {
     return {
       date_to: m ? endOfMonth(y, m) : endOfYear(y),
       label: `bis ${until[2] ? `${until[2]} ` : ''}${y}`,
+      span: spanOf(until),
+    };
+  }
+
+  // aus 2023 / in 2023 / im Jahr 2023 — keyword-anchored, never a bare year.
+  const inYear = text.match(/\b(?:aus(?:\s+dem\s+jahr)?|in|im\s+jahr)\s+((?:19|20)\d{2})\b/i);
+  if (inYear) {
+    const y = Number(inYear[1]);
+    return {
+      date_from: startOfYear(y),
+      date_to: endOfYear(y),
+      label: String(y),
+      span: spanOf(inYear),
     };
   }
 
   // letzten N Jahren
   const lastN = text.match(/\bletzten?\s+(\d+|\w+)\s+jahren?\b/i);
   if (lastN) {
-    const raw = lastN[1].toLowerCase();
-    const n = /^\d+$/.test(raw) ? Number(raw) : NUMBER_WORDS[raw];
+    const n = parseCount(lastN[1]);
     if (n && n > 0 && n <= 50) {
-      const from = new Date().getFullYear() - n;
-      return { date_from: startOfYear(from), label: `letzte ${n} Jahre` };
+      const from = now.getFullYear() - n;
+      return { date_from: startOfYear(from), label: `letzte ${n} Jahre`, span: spanOf(lastN) };
     }
   }
 
   // No bare-year fallback: a standalone year mid-sentence ("Drucksache 2020",
   // "2024 Stimmen") is too often not a date. Dates must be keyword-anchored above.
   return {};
+}
+
+/** Drop date phrase, recency and filler words; fall back to the full query when nothing is left. */
+function buildResidualQuery(trimmed: string, dateSpan?: [number, number]): string {
+  const withoutDate = dateSpan
+    ? `${trimmed.slice(0, dateSpan[0])} ${trimmed.slice(dateSpan[1])}`
+    : trimmed;
+  const residual = withoutDate
+    .replace(RECENCY_WORD_RE, '$1 ')
+    .replace(FILLER_WORD_RE, '$1 ')
+    .replace(/\s+([,;:.!?])/g, '$1')
+    .replace(/([,;:])(?:\s*[,;:])+/g, '$1')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s\p{P}]+|[\s\p{P}]+$/gu, '');
+  return residual || trimmed;
 }
 
 /** Resolve a matched notebook target to its searchable system collection ids. */
@@ -261,6 +389,25 @@ export function parseResearchIntent(query: string, ctx: ParseContext): ParsedRes
     }
   }
 
+  // ── Persons — multi-word names from the facet vocabulary only ──────────────
+  const personsConfig = ctx.filterFields['persons'];
+  if (personsConfig?.values?.length) {
+    const hits: string[] = [];
+    const labels: string[] = [];
+    for (const { value } of personsConfig.values) {
+      const label = personsConfig.valueLabels?.[value] ?? value;
+      if (label.trim().split(/\s+/).length < 2) continue;
+      if (containsWord(text, label.toLowerCase()) || containsWord(text, value.toLowerCase())) {
+        hits.push(value);
+        labels.push(label);
+      }
+    }
+    if (hits.length > 0) {
+      filters['persons'] = hits;
+      matched.persons = labels;
+    }
+  }
+
   // ── Recency → sort ──────────────────────────────────────────────────────────
   const sortBy: SortOption | undefined = RECENCY_RE.test(text) ? 'date_desc' : undefined;
 
@@ -269,6 +416,7 @@ export function parseResearchIntent(query: string, ctx: ParseContext): ParsedRes
 
   return {
     semanticQuery: trimmed,
+    residualQuery: buildResidualQuery(trimmed, date.span),
     ...(collectionIds ? { collectionIds } : {}),
     filters,
     ...(sortBy ? { sortBy } : {}),

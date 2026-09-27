@@ -1,5 +1,7 @@
 import { type FUniver, type IWorkbookData } from '@gruenerator/sheets';
 
+import { downloadBlob } from '../../utils/downloadFile';
+
 import type * as XLSXNS from 'xlsx';
 
 /**
@@ -111,6 +113,8 @@ export function toXlsxFilename(title: string): string {
   return `${base}.xlsx`;
 }
 
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
 /**
  * Serialise the active workbook and download it as `.xlsx`. Lazy-loads SheetJS
  * (~1.8 MB) only when a user actually exports. No-op if no workbook is active.
@@ -124,5 +128,10 @@ export async function downloadActiveWorkbookAsXlsx(
   const snapshot = workbook.save();
   const XLSX = await import('xlsx');
   const book = buildXlsxWorkbook(XLSX, snapshot);
-  XLSX.writeFileXLSX(book, toXlsxFilename(title));
+  // Not writeFileXLSX: that clicks its own anchor deep inside SheetJS, which
+  // does nothing in the app's WebView and cannot be intercepted from here.
+  // With bookType stated explicitly the bytes are the same ones it would write
+  // — the round-trip test below already exercises this exact call.
+  const bytes = XLSX.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+  await downloadBlob(new Blob([bytes], { type: XLSX_MIME }), toXlsxFilename(title));
 }

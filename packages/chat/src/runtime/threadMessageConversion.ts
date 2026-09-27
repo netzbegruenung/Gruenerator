@@ -5,18 +5,24 @@
 // dragging the assistant-ui runtime chunk back onto the initial load. The heavy
 // runtime lives in GrueneratorChatRuntime.tsx and is loaded lazily.
 
-import { type ThreadMessageLike } from '@assistant-ui/react';
-import { socialPostPayloadSchema, bahnPayloadSchema } from '@gruenerator/contracts';
+import { type ThreadMessageLike, type ToolCallMessagePart } from '@assistant-ui/react';
+import {
+  notebookAnswerModeReasonSchema,
+  notebookResolvedAnswerModeSchema,
+} from '@gruenerator/contracts';
 
 import {
-  coerceSharepicVariants,
   type ComputeData,
   type GeneratedImage,
   type Citation,
   type SearchImage,
   type SearchResult,
 } from '../hooks/useChatGraphStream';
+import { ATTACHMENT_META_PART_NAME, type AttachmentMetaData } from '../lib/attachmentMeta';
+import { mapRawCitationsToChat } from '../lib/citationUtils';
 import { isPastedTextAttachment, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
+import { TOOL_APPROVAL_OPTIONS } from '../lib/toolApproval';
+import { buildToolDerivedCustom } from '../lib/toolDerivedCustom';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import { type DocumentCreatedData } from '../types/messageMetadata';
 
@@ -25,6 +31,8 @@ interface PersistedToolCall {
   toolName: string;
   args: Record<string, unknown>;
   result?: unknown;
+  /** Present (and false) only when the call failed — see PersistedStep.ok. */
+  ok?: false;
   /** Character index into the final answer text at this tool call's start —
    *  present only for unified-mode turns. When at least one tool call carries a
    *  numeric offset, reload interleaves text segments and cards in live order;
@@ -40,18 +48,27 @@ export interface LoadedMessage {
   id: string;
   role: string;
   content: string;
+  /** ISO timestamp of the persisted row (`chat_messages.created_at`). */
+  createdAt?: string;
   attachments?: Array<{
     id: string;
     name: string;
     contentType: string;
     preview: string;
     truncated: boolean;
+    /** Real file size in bytes (`size_bytes`) — absent on legacy responses. */
+    size?: number;
+    /** OCR page count (PDFs only) — absent for images and legacy rows. */
+    pageCount?: number;
   }>;
   metadata?: {
     intent?: string;
     searchCount?: number;
     traceId?: string;
     citations?: Citation[];
+    /** Notebook answers only: the collection/document entries the answer drew
+     *  on, persisted beside the citations and read by the sources panel. */
+    sources?: unknown[];
     searchResults?: SearchResult[];
     /** Web-search image hits. The proxy handle on each is minted at LOAD time by
      *  the backend, not stored — see `messagesController`. */
@@ -61,12 +78,91 @@ export interface LoadedMessage {
     computeData?: ComputeData;
     agentId?: string;
     toolCalls?: PersistedToolCall[];
+    /** Notebook answers only: the mode the answer ran in, and why (see
+     *  `notebookAnswerModeEventSchema`). Read defensively — `unknown` on purpose. */
+    answerMode?: unknown;
+    answerModeReason?: unknown;
     senderId?: string;
     senderName?: string | null;
     roleName?: string;
     /** Stamped by messagesController when the row is still status='streaming'
      *  after request end — i.e. the turn was interrupted (crash/abort). */
     interrupted?: boolean;
+    /** Rezept-Attribution des Turns (siehe `StreamMetadata.recipesUsed`). */
+    recipesUsed?: { mention: string; title: string; source?: 'system' | 'user' }[];
+    /** Werkzeugaufrufe, die auf eine Freigabe warten (oder gewartet haben).
+     *  Solange `resolved` falsch ist, zeigt der Thread nach einem Reload wieder
+     *  die Karte und kann entschieden werden. */
+    pendingApproval?: {
+      approvalTurnId: string;
+      calls: Array<{
+        toolCallId: string;
+        toolName: string;
+        args?: Record<string, unknown>;
+        title?: string;
+        serverName?: string;
+      }>;
+      resolved?: boolean | 'expired';
+    };
+    /** Eine Loop-Rückfrage (`ask_human`, #3220). Solange `resolved` falsch ist,
+     *  zeigt der Thread nach einem Reload wieder die beantwortbare Karte. */
+    pendingClarification?: {
+      askTurnId: string;
+      toolCallId: string;
+      question: string;
+      options?: string[];
+      resolved?: boolean;
+      answer?: string;
+    };
+  };
+}
+
+type ToolCallLike = {
+  readonly type: 'tool-call';
+  readonly toolCallId: string;
+  readonly toolName: string;
+  readonly args: ToolCallMessagePart['args'];
+  readonly result?: unknown;
+  readonly parentId?: string;
+  readonly narration?: string;
+  readonly approval?: ToolCallMessagePart['approval'];
+  readonly title?: string;
+  readonly serverName?: string;
+};
+
+/**
+ * One persisted loop step → the tool-call part the live stream built for it.
+ * Shared by the chat and the notebook reload.
+ */
+function persistedToolCallToPart(tc: PersistedToolCall, fallbackId: string): ToolCallLike {
+  // Eine beantwortete Loop-Rückfrage: die Karte liest `args.question`/
+  // `args.options` und rendert `String(result)` als Antwort-Pill — das
+  // generische `{query}`-Mapping und das Ergebnis-Objekt zeigten sonst
+  // eine leere Frage und "[object Object]".
+  if (tc.toolName === 'ask_human') {
+    const args = (tc.args ?? {}) as Record<string, unknown>;
+    const answer = (tc.result as Record<string, unknown> | undefined)?.answer;
+    return {
+      type: 'tool-call' as const,
+      toolCallId: tc.toolCallId || fallbackId,
+      toolName: tc.toolName,
+      args: args as ToolCallMessagePart['args'],
+      result: answer != null ? String(answer) : tc.result,
+    };
+  }
+  return {
+    type: 'tool-call' as const,
+    toolCallId: tc.toolCallId || fallbackId,
+    toolName: tc.toolName,
+    args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
+    // Live, parseSSEStream folds `ok` into `result`; do the same here so a
+    // reloaded card reaches the identical shape and reports the identical
+    // outcome. Without this a failed call reloads as a green tick.
+    result:
+      tc.ok === false && tc.result && typeof tc.result === 'object'
+        ? { ...(tc.result as Record<string, unknown>), ok: false }
+        : tc.result,
+    ...(tc.narration ? { narration: tc.narration } : {}),
   };
 }
 
@@ -129,6 +225,13 @@ function extractContent(content: unknown): string {
  * The regression test in `threadMessageConversion.vitest.ts` iterates this list
  * (and the tool-derived fields) and fails if a rich field is dropped on reload —
  * this is the guard that would have caught charts / createdDocument / agentId.
+ *
+ * ── Eine bewusste Ausnahme ──────────────────────────────────────────────────
+ * `custom.evidenceWeak` (#3140) steht NICHT in dieser Liste und überlebt einen
+ * Reload nicht. Das bricht die Invariante mit Absicht: persistieren hiesse,
+ * eine PROVISORISCHE Schwelle in die Datenbank zu schreiben, und der Schalter
+ * `NOTEBOOK_EVIDENCE_WEAK_ENABLED` ist noch aus. Nicht „reparieren", ohne die
+ * offene Frage 1 der Spec entschieden zu haben.
  */
 export const PASSTHROUGH_METADATA_FIELDS = [
   'citations',
@@ -145,8 +248,9 @@ export const PASSTHROUGH_METADATA_FIELDS = [
  * Single seam: rebuild the `custom` render metadata from a persisted message.
  * Two kinds of field —
  *  - PASSTHROUGH_METADATA_FIELDS: verbatim metadata→custom copies.
- *  - tool-derived (sharepic / reel): extracted from persisted tool-call results
- *    with the same validation the live stream applies.
+ *  - tool-derived (sharepic / social post / bahn / reel): extracted from
+ *    persisted tool-call results by `buildToolDerivedCustom`, shared with the
+ *    native adapter.
  * `senderId` and `streamMetadata` are special-cased (paired / derived).
  */
 function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string, unknown> {
@@ -166,55 +270,17 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
     if (value) custom[field] = value;
   }
 
-  // Tool-derived: sharepic variant stack. Validate on reload the same way the
-  // live stream does — drop any variant with a non-canonical canvasType so the
-  // studio handoff stays safe.
-  const sharepicCall = metadata.toolCalls?.find((tc) => tc.toolName === 'sharepic');
-  const validSharepicVariants = coerceSharepicVariants(
-    (sharepicCall?.result as { variants?: unknown } | undefined)?.variants
-  );
-  if (validSharepicVariants) custom.sharepicData = { variants: validSharepicVariants };
+  // Tool-derived (sharepic / social post / bahn / reel) — shared with the
+  // native adapter, see lib/toolDerivedCustom.ts.
+  Object.assign(custom, buildToolDerivedCustom(metadata.toolCalls));
 
-  // Tool-derived: EXPERIMENTAL combined social post (text half). Validate on
-  // reload the same way the live stream's Zod wire schema does; the persisted
-  // result additionally carries `versions`, which the head schema ignores.
-  const socialPostCall = metadata.toolCalls?.find((tc) => tc.toolName === 'social_post');
-  if (socialPostCall?.result) {
-    const parsedPost = socialPostPayloadSchema.safeParse(socialPostCall.result);
-    if (parsedPost.success) custom.socialPostData = parsedPost.data;
-  }
-
-  // Tool-derived: Deutsche-Bahn departure board. The condensed timetable a
-  // `bahn__*` loop step returned as its result IS the BahnPayload the live
-  // `bahn` SSE event carried. The LAST step that PARSES wins (freshest board) —
-  // not merely the last bahn__ step: the prompt instructs a raw
-  // get_full_timetable_changes call AFTER the condensed timetable, which must
-  // not shadow the board on reload.
-  for (const tc of [...(metadata.toolCalls ?? [])].reverse()) {
-    if (!tc.toolName.startsWith('bahn__')) continue;
-    const bahnContent = (tc.result as { content?: unknown } | undefined)?.content;
-    if (typeof bahnContent !== 'string') continue;
-    try {
-      const parsedBahn = bahnPayloadSchema.safeParse(JSON.parse(bahnContent));
-      if (parsedBahn.success) {
-        custom.bahnData = parsedBahn.data;
-        break;
-      }
-    } catch {
-      /* raw (non-condensed) tool result — keep looking */
-    }
-  }
-
-  // Tool-derived: reel cards. The persisted tool results carry payloads
-  // identical to the reel_processing / reel_picker SSE events.
-  const reelProcessingCall = metadata.toolCalls?.find((tc) => tc.toolName === 'reel_processing');
-  if (reelProcessingCall?.result) custom.reelProcessing = reelProcessingCall.result;
-  const reelPickerProjects = (
-    metadata.toolCalls?.find((tc) => tc.toolName === 'reel_picker')?.result as
-      { projects?: unknown } | undefined
-  )?.projects;
-  if (Array.isArray(reelPickerProjects) && reelPickerProjects.length > 0) {
-    custom.reelPicker = { projects: reelPickerProjects };
+  // The notebook mode chip. Mobile reloads notebook threads through this
+  // converter, not `convertNotebookLoadedMessages`; validated, not copied.
+  const answerMode = notebookResolvedAnswerModeSchema.safeParse(metadata.answerMode);
+  if (answerMode.success) {
+    custom.answerMode = answerMode.data;
+    const reason = notebookAnswerModeReasonSchema.safeParse(metadata.answerModeReason);
+    if (reason.success) custom.answerModeReason = reason.data;
   }
 
   // Derived: drives the message-action affordances (copy/regenerate context)
@@ -224,10 +290,96 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
       intent: metadata.intent ?? 'direct',
       searchCount: metadata.searchCount ?? 0,
       ...(metadata.traceId && { traceId: metadata.traceId }),
+      // Rezept-Attribution — reload half of the live `done.metadata.recipesUsed`.
+      ...(metadata.recipesUsed?.length ? { recipesUsed: metadata.recipesUsed } : {}),
     };
   }
 
   return custom;
+}
+
+/**
+ * The reload half of the notebook conversation, mirroring what
+ * `NotebookModelAdapter` builds live and `useNotebookChatBridge` rebuilds from
+ * the local cache. Kept separate from `convertToThreadMessageLike` because the
+ * two answer different questions: the chat path infers what a row is from its
+ * metadata, while here every assistant row is known to be a notebook answer.
+ *
+ * Citations arrive raw (snake_case, as the backend stored them) and are mapped
+ * to the shape the badge and sources layers read. `question` has no persisted
+ * home of its own — the Word export takes it as the document heading — so it is
+ * recovered from the user message the answer replied to.
+ */
+export function convertNotebookLoadedMessages(messages: LoadedMessage[]): ThreadMessageLike[] {
+  /**
+   * The question an answer replied to: the nearest preceding user row, not
+   * simply the row before. An answer can end up without its question —
+   * `notebookStreamController` persists the two separately, keeps the answer
+   * when the question's write fails, and writes no question row at all when the
+   * text is empty. Reading `idx - 1` blindly would then hand the next answer
+   * the *previous answer's* text as its heading.
+   */
+  const questionFor = (idx: number): string => {
+    for (let i = idx - 1; i >= 0; i--) {
+      const row = messages[i]!;
+      if (row.role !== 'assistant') return extractContent(row.content);
+    }
+    return '';
+  };
+
+  return messages.map((m, idx) => {
+    const text = extractContent(m.content);
+    if (m.role !== 'assistant') {
+      return { role: 'user' as const, content: [{ type: 'text' as const, text }], id: m.id };
+    }
+
+    // `citations` is one metadata key written by two different producers: the
+    // chat path stores them already mapped, the notebook path stores the raw
+    // snake_case records its retrieval returned. On a notebook thread it is
+    // always the latter, and mapping is what turns them into badges.
+    const rawCitations = (m.metadata?.citations ?? []) as unknown[];
+    const answerMode = notebookResolvedAnswerModeSchema.safeParse(m.metadata?.answerMode);
+    const answerModeReason = notebookAnswerModeReasonSchema.safeParse(m.metadata?.answerModeReason);
+    const custom: Record<string, unknown> = {
+      citations: mapRawCitationsToChat(rawCitations),
+      rawCitations,
+      sources: m.metadata?.sources ?? [],
+      question: questionFor(idx),
+      // Reload half of the thumbs feedback: the buttons only show when the
+      // trace id is here, the same shape NotebookModelAdapter builds live.
+      ...(m.metadata?.traceId
+        ? {
+            streamMetadata: {
+              intent: 'direct',
+              searchCount: 0,
+              traceId: m.metadata.traceId,
+            },
+          }
+        : {}),
+      // The mode chip — the reload half of the live `answer_mode` event.
+      ...(answerMode.success
+        ? {
+            answerMode: answerMode.data,
+            ...(answerModeReason.success && { answerModeReason: answerModeReason.data }),
+          }
+        : {}),
+    };
+
+    // Precision answers ran the agentic loop: its steps come back as the
+    // cards the live stream showed, above the text (no interleaving offsets).
+    // One run sharing the first card's id, so the group renders as it did live.
+    const parts = (m.metadata?.toolCalls ?? []).map((tc) =>
+      persistedToolCallToPart(tc, `tc_${m.id}`)
+    );
+    const cards = parts.map((p) => ({ ...p, parentId: parts[0]!.toolCallId }));
+
+    return {
+      role: 'assistant' as const,
+      content: [...cards, { type: 'text' as const, text }],
+      id: m.id,
+      metadata: { custom },
+    };
+  });
 }
 
 export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMessageLike[] {
@@ -247,26 +399,11 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
     .map((m) => {
       const textContent = extractContent(m.content);
 
-      type ToolCallLike = {
-        readonly type: 'tool-call';
-        readonly toolCallId: string;
-        readonly toolName: string;
-        readonly args: Record<string, string>;
-        readonly result?: unknown;
-        readonly parentId?: string;
-        readonly narration?: string;
-      };
-
       const contentParts: Array<{ type: 'text'; text: string } | ToolCallLike> = [];
 
       const cardFor = (tc: PersistedToolCall, parentId: string): ToolCallLike => ({
-        type: 'tool-call' as const,
-        toolCallId: tc.toolCallId || `tc_${m.id}`,
-        toolName: tc.toolName,
-        args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
-        result: tc.result,
+        ...persistedToolCallToPart(tc, `tc_${m.id}`),
         parentId,
-        ...(tc.narration ? { narration: tc.narration } : {}),
       });
 
       const toolCalls = m.metadata?.toolCalls;
@@ -306,6 +443,18 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         // Legacy / split turns: cards first, then the full text — unchanged.
         if (toolCalls) {
           for (const tc of toolCalls) {
+            if (tc.toolName === 'ask_human') {
+              // Gleiche Sonderform wie in `cardFor`: echte args, Antwort als String.
+              const answer = (tc.result as Record<string, unknown> | undefined)?.answer;
+              contentParts.push({
+                type: 'tool-call' as const,
+                toolCallId: tc.toolCallId || `tc_${m.id}`,
+                toolName: tc.toolName,
+                args: (tc.args ?? {}) as ToolCallMessagePart['args'],
+                result: answer != null ? String(answer) : tc.result,
+              });
+              continue;
+            }
             contentParts.push({
               type: 'tool-call' as const,
               toolCallId: tc.toolCallId || `tc_${m.id}`,
@@ -335,30 +484,108 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         contentParts.push({ type: 'text' as const, text: textContent });
       }
 
+      // Offene Werkzeug-Freigaben überleben den Reload: die Karte kommt zurück
+      // und bleibt entscheidbar. Die vollen Übergabewerte bleiben hier stehen —
+      // wer freigibt, muss sehen, was übergeben wird (die normalen Karten oben
+      // führen bewusst nur `query`).
+      // Offene Loop-Rückfragen überleben den Reload genauso: die ask_human-
+      // Karte kommt ohne Ergebnis zurück und bleibt beantwortbar (der Redis-
+      // Zustand dahinter hält 24 h).
+      const pendingClar = m.metadata?.pendingClarification;
+      const clarUnresolved = pendingClar != null && pendingClar.resolved !== true;
+      if (clarUnresolved) {
+        contentParts.push({
+          type: 'tool-call' as const,
+          toolCallId: pendingClar.toolCallId,
+          toolName: 'ask_human',
+          args: {
+            question: pendingClar.question,
+            ...(pendingClar.options ? { options: pendingClar.options } : {}),
+          } as ToolCallMessagePart['args'],
+        });
+      }
+
+      const pending = m.metadata?.pendingApproval;
+      const pendingUnresolved = pending && pending.resolved !== true;
+      if (pendingUnresolved) {
+        for (const call of pending.calls) {
+          contentParts.push({
+            type: 'tool-call' as const,
+            toolCallId: call.toolCallId,
+            toolName: call.toolName,
+            // Aus der Datenbank gelesenes JSON — die Form ist JSON-tauglich,
+            // der Typ der gespeicherten Metadaten ist nur weiter gefasst.
+            args: (call.args ?? {}) as ToolCallMessagePart['args'],
+            approval: {
+              id: call.toolCallId,
+              options: TOOL_APPROVAL_OPTIONS,
+              ...(pending.resolved === 'expired' ? { resolution: 'expired' as const } : {}),
+            },
+            // Wie im Live-Pfad: die Karte nennt den Dienst, nicht den
+            // Katalognamen.
+            ...(call.title != null && { title: call.title }),
+            ...(call.serverName != null && { serverName: call.serverName }),
+          });
+        }
+      }
+
       const custom = buildCustomMetadata(m.metadata);
-      const attachments = (m.attachments ?? [])
-        .filter((attachment) => isPastedTextAttachment(attachment.name, attachment.contentType))
-        .map((attachment) => ({
+      // All persisted attachments come back as display-only history data — the
+      // model adapter ignores data parts, while the backend re-injects
+      // persisted attachments itself. Pasted text keeps its dedicated preview
+      // part (card UI); every other file becomes a metadata chip (name, size,
+      // page count, extracted-text preview) — the bytes are not persisted.
+      const attachments = (m.attachments ?? []).map((attachment) => {
+        if (isPastedTextAttachment(attachment.name, attachment.contentType)) {
+          return {
+            id: attachment.id,
+            type: 'document' as const,
+            name: attachment.name,
+            contentType: attachment.contentType,
+            content: [
+              {
+                type: 'data' as const,
+                name: PASTED_TEXT_PREVIEW_PART_NAME,
+                data: { text: attachment.preview, truncated: attachment.truncated },
+              },
+            ],
+            status: { type: 'complete' as const },
+          };
+        }
+        const meta: AttachmentMetaData = {
+          ...(attachment.size != null ? { size: attachment.size } : {}),
+          ...(attachment.pageCount != null ? { pageCount: attachment.pageCount } : {}),
+          ...(attachment.preview
+            ? { preview: attachment.preview, truncated: attachment.truncated }
+            : {}),
+        };
+        return {
           id: attachment.id,
-          type: 'document' as const,
+          type: attachment.contentType.startsWith('image/')
+            ? ('image' as const)
+            : ('document' as const),
           name: attachment.name,
           contentType: attachment.contentType,
-          // This is display-only history data. The model adapter ignores data
-          // parts, while the backend re-injects persisted attachments itself.
-          content: [
-            {
-              type: 'data' as const,
-              name: PASTED_TEXT_PREVIEW_PART_NAME,
-              data: { text: attachment.preview, truncated: attachment.truncated },
-            },
-          ],
+          content: [{ type: 'data' as const, name: ATTACHMENT_META_PART_NAME, data: meta }],
           status: { type: 'complete' as const },
-        }));
+        };
+      });
+
+      // Without this, reloaded threads all get stamped "now" by the runtime and
+      // the day separators collapse onto the reload moment.
+      const createdAt = m.createdAt ? new Date(m.createdAt) : null;
 
       return {
         role: m.role as 'user' | 'assistant',
         content: contentParts,
         id: m.id,
+        // Ohne `requires-action` verweigert assistant-ui die Antwort auf eine
+        // Freigabe oder Rückfrage — die Karte wäre nach einem Reload nur noch
+        // Dekoration.
+        ...((pendingUnresolved && pending?.resolved !== 'expired') || clarUnresolved
+          ? { status: { type: 'requires-action' as const, reason: 'tool-calls' as const } }
+          : {}),
+        ...(createdAt && !Number.isNaN(createdAt.getTime()) ? { createdAt } : {}),
         ...(attachments.length > 0 ? { attachments } : {}),
         metadata: Object.keys(custom).length > 0 ? { custom } : undefined,
       };

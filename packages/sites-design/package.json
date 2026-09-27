@@ -16,9 +16,9 @@
   },
   "dependencies": {
     "@gruenerator/contracts": "workspace:*",
-    "@tiptap/core": "3.29.0",
-    "@tiptap/pm": "3.29.0",
-    "@tiptap/static-renderer": "3.29.0",
+    "@tiptap/core": "^3.31.3",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/static-renderer": "^3.31.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "embla-carousel-react": "^8.6.0",
@@ -26,8 +26,8 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
-    "@types/react": "19.2.17",
-    "@types/react-dom": "^19.2.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "^19.2.7",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {

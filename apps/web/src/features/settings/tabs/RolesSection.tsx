@@ -1,5 +1,6 @@
-import { type UserRole } from '@gruenerator/chat';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { type UserRole, useUserLandesverbaende } from '@gruenerator/chat';
+import { isLandesverbandRolle, landesverbandOfferForBundesland } from '@gruenerator/shared/agents';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { getInstance } from '@gruenerator/shared/instances';
 import {
   type EbeneConfig,
@@ -20,6 +21,10 @@ import {
   stripRoleBlock,
   ROLE_PROMPT_VERSION,
   searchMdBs,
+  offeredEbenen,
+  offeredRollen,
+  isCustomRolleOffered,
+  autoAssignedRole,
 } from '@gruenerator/shared/roles';
 import {
   Button,
@@ -30,12 +35,18 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  SmartInput,
-  type SmartInputOption,
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useEffect, useMemo, useRef, memo } from 'react';
 import { HiOutlineArrowLeft, HiOutlineArrowPath, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
+import { useNavigate } from 'react-router-dom';
 
 import { CURRENT_INSTANCE } from '../../../config/instance';
 import { QUERY_KEYS } from '../../../features/auth/hooks/useProfileData';
@@ -43,6 +54,7 @@ import { profileApiService, type Profile } from '../../../features/auth/services
 import { useAuthStore } from '../../../stores/authStore';
 import { platformFetch } from '../../../utils/platformFetch';
 import { useSetUserDefault, useUserDefault } from '../../user-defaults/userDefaultsQueries';
+import { useSettingsDialogStore } from '../settingsDialogStore';
 
 import { readCustomPrompt } from './customPromptField';
 
@@ -102,12 +114,15 @@ function RoleCard({
   onDelete,
   onRegenerate,
   regenerating,
+  fixed,
 }: {
   role: UserRole;
   ebenen: EbeneConfig[];
   onDelete: () => void;
   onRegenerate: () => void;
   regenerating: boolean;
+  /** Von der Instanz vergeben: kein Löschknopf, der Server setzt sie wieder. */
+  fixed: boolean;
 }) {
   const ebene = ebenen.find((e) => e.id === role.ebene);
   const subtitle = [role.gliederung, role.bundesland].filter(Boolean).join(' · ');
@@ -142,14 +157,16 @@ function RoleCard({
           <HiOutlineArrowPath className={`size-4 ${regenerating ? 'animate-spin' : ''}`} />
         </button>
       )}
-      <button
-        type="button"
-        onClick={onDelete}
-        className="shrink-0 p-1 text-grey-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 max-sm:opacity-100"
-        aria-label={`Rolle ${role.rolle} entfernen`}
-      >
-        <HiOutlineTrash className="size-4" />
-      </button>
+      {!fixed && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="shrink-0 p-1 text-grey-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 max-sm:opacity-100"
+          aria-label={`Rolle ${role.rolle} entfernen`}
+        >
+          <HiOutlineTrash className="size-4" />
+        </button>
+      )}
     </div>
   );
 }
@@ -170,14 +187,33 @@ export default function RolesSection() {
   const rollenMap = isAustrian ? AT_ROLLEN : DE_ROLLEN;
   const bundeslaender = isAustrian ? AT_BUNDESLAENDER : DE_BUNDESLAENDER;
 
-  const bundeslandOptions: SmartInputOption[] = useMemo(
-    () =>
-      bundeslaender.map((bl) => ({
-        value: bl.label,
-        label: bl.label,
-        description: bl.notebookId ? '● Notebook' : undefined,
-      })),
-    [bundeslaender]
+  // Was diese Instanz anbietet — nur für den Assistenten. Die Listen oben
+  // bleiben vollständig, weil die Bestandsrollen ihr Ebenen-Label daraus holen:
+  // eine gefilterte Liste ließe eine Rolle, die vor der Verengung entstand,
+  // ohne Beschriftung dastehen. Angebot ist nicht Zugang (siehe
+  // `instanceRoleOffer.ts`).
+  const wizardEbenen = useMemo(() => offeredEbenen(ebenen, CURRENT_INSTANCE), [ebenen]);
+  const customRolleOffered = isCustomRolleOffered(CURRENT_INSTANCE);
+  // Bei genau einer angebotenen Ebene ist die Frage „Auf welcher Ebene bist du
+  // aktiv?" keine Frage mehr — der Schritt entfällt und darf auch über „Zurück"
+  // nicht erreichbar sein.
+  const ebeneStepOffered = wizardEbenen.length > 1;
+
+  // Die Combobox filtert die Einträge selbst; sie bekommt deshalb die Namen und
+  // nicht die Konfiguration.
+  const bundeslandNamen = useMemo(() => bundeslaender.map((bl) => bl.label), [bundeslaender]);
+
+  // Die Landesverbands-Zuteilung dieser Person — dieselbe Quelle, aus der
+  // Agentur, Bibliothek und Mention-Menü sie lesen.
+  const { lvIds, headings: lvHeadings } = useUserLandesverbaende();
+  const navigate = useNavigate();
+  const closeSettings = useSettingsDialogStore((s) => s.close);
+  const goTo = useCallback(
+    (to: string) => {
+      closeSettings();
+      void navigate(to);
+    },
+    [closeSettings, navigate]
   );
 
   const [roles, setRoles] = useState<UserRole[]>(serverRoles ?? []);
@@ -194,12 +230,45 @@ export default function RolesSection() {
   const [wizardStep, setWizardStep] = useState<WizardStep>('ebene');
   const [wizEbene, setWizEbene] = useState<string | null>(null);
   const [wizBundesland, setWizBundesland] = useState<string | null>(null);
-  const [wizBundeslandQuery, setWizBundeslandQuery] = useState('');
   const [wizGliederung, setWizGliederung] = useState('');
   const [wizRolle, setWizRolle] = useState<string | null>(null);
   const [wizCustomRolle, setWizCustomRolle] = useState('');
   const [wizAbgeordnete, setWizAbgeordnete] = useState('');
   const [wizInstructions, setWizInstructions] = useState('');
+
+  const wizardRollen = useMemo(
+    () => (wizEbene ? offeredRollen(wizEbene, rollenMap[wizEbene] ?? [], CURRENT_INSTANCE) : []),
+    [wizEbene, rollenMap]
+  );
+
+  /**
+   * Was die gewählte Rolle freischaltet — einmal am Ende des Assistenten, nicht
+   * neben jedem Listeneintrag: die Bundesland-Combobox ist eine Auswahl, kein
+   * Ort für Fließtext.
+   *
+   * Nur für die Geschäftsstellen-Rolle: Kreis- und Ortsverbände geben zwar ein
+   * Bundesland an, und auf der Landesebene stehen auch Fraktion und
+   * Abgeordnetenbüro — die Landesverbands-Inhalte bekommt aber allein die
+   * Geschäftsstelle. Ein Hinweis anderswo wäre ein Versprechen, das die Rolle
+   * nicht einlöst. Der Schritt „Rolle" liegt vor diesem, `wizRolle` steht hier
+   * also schon fest.
+   */
+  const wizAngebot = useMemo(() => {
+    if (!wizEbene || !wizBundesland || !wizRolle) return null;
+    if (!isLandesverbandRolle(wizEbene, wizRolle)) return null;
+    const offer = landesverbandOfferForBundesland(isAustrian ? 'Österreich' : wizBundesland);
+    if (!offer) return null;
+
+    const teile = [offer.agents === 1 ? '1 Agenten' : `${offer.agents} Agenten`];
+    if (offer.skills > 0) teile.push(offer.skills === 1 ? '1 Rezept' : `${offer.skills} Rezepte`);
+    const aufzaehlung =
+      teile.length > 1 ? `${teile.slice(0, -1).join(', ')} und ${teile.at(-1)}` : teile[0];
+
+    return {
+      title: offer.title,
+      beschreibung: `${aufzaehlung} sowie das Notebook ${offer.title} erscheinen künftig in deiner Agentur und im Chat.`,
+    };
+  }, [wizEbene, wizBundesland, wizRolle, isAustrian]);
 
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -217,9 +286,14 @@ export default function RolesSection() {
   // role.
   const instanceDefaultRole = getInstance(CURRENT_INSTANCE).defaultRole;
 
+  // Vergibt die Instanz ihre eine Rolle selbst, gibt es hier nichts mehr
+  // hinzuzufügen und nichts zu entfernen — der Server schriebe sie beim
+  // nächsten Lesen der User-Defaults ohnehin zurück
+  // (`services/roles/instanceRoleAssignment.ts`).
+  const assignedRole = useMemo(() => autoAssignedRole(CURRENT_INSTANCE), []);
+
   const startAddRole = useCallback(() => {
     setAddingRole(true);
-    setWizBundeslandQuery('');
     setWizGliederung('');
     setWizCustomRolle('');
     setWizAbgeordnete('');
@@ -230,18 +304,26 @@ export default function RolesSection() {
       instanceDefaultRole !== undefined &&
       (rollenMap[instanceDefaultRole.ebeneId] ?? []).includes(instanceDefaultRole.rolle);
 
-    if (suggestDefault) {
-      setWizEbene(instanceDefaultRole.ebeneId);
+    // Zwei Wege, den Ebene-Schritt zu überspringen, und beide enden gleich: die
+    // Instanz schlägt eine Rolle vor, oder sie bietet ohnehin nur eine Ebene an.
+    const presetEbene = suggestDefault
+      ? instanceDefaultRole.ebeneId
+      : wizardEbenen.length === 1
+        ? wizardEbenen[0].id
+        : null;
+
+    if (presetEbene) {
+      setWizEbene(presetEbene);
       setWizBundesland(null);
-      setWizRolle(instanceDefaultRole.rolle);
-      setWizardStep(NEEDS_BUNDESLAND.has(instanceDefaultRole.ebeneId) ? 'bundesland' : 'rolle');
+      setWizRolle(suggestDefault ? instanceDefaultRole.rolle : null);
+      setWizardStep(NEEDS_BUNDESLAND.has(presetEbene) ? 'bundesland' : 'rolle');
     } else {
       setWizardStep('ebene');
       setWizEbene(null);
       setWizBundesland(null);
       setWizRolle(null);
     }
-  }, [roles.length, instanceDefaultRole, rollenMap]);
+  }, [roles.length, instanceDefaultRole, rollenMap, wizardEbenen]);
 
   const cancelAddRole = useCallback(() => {
     setAddingRole(false);
@@ -250,7 +332,6 @@ export default function RolesSection() {
   const handleWizEbene = useCallback((ebene: string) => {
     setWizEbene(ebene);
     setWizBundesland(null);
-    setWizBundeslandQuery('');
     setWizGliederung('');
     setWizRolle(null);
     setWizCustomRolle('');
@@ -265,7 +346,6 @@ export default function RolesSection() {
   const handleWizBundesland = useCallback(
     (bundesland: string) => {
       setWizBundesland(bundesland);
-      setWizBundeslandQuery(bundesland);
       if (wizEbene && NEEDS_LOCAL_NAME.has(wizEbene)) {
         setWizardStep('gliederung');
       } else {
@@ -279,19 +359,23 @@ export default function RolesSection() {
     if (wizGliederung.trim()) setWizardStep('rolle');
   }, [wizGliederung]);
 
-  const handleWizStepBack = useCallback(() => {
-    if (wizardStep === 'instructions') {
-      setWizardStep('rolle');
-    } else if (wizardStep === 'rolle') {
-      if (wizEbene && NEEDS_LOCAL_NAME.has(wizEbene)) setWizardStep('gliederung');
-      else if (wizEbene && NEEDS_BUNDESLAND.has(wizEbene)) setWizardStep('bundesland');
-      else setWizardStep('ebene');
-    } else if (wizardStep === 'gliederung') {
-      setWizardStep('bundesland');
-    } else if (wizardStep === 'bundesland') {
-      setWizardStep('ebene');
+  // Der Schritt hinter „Zurück", oder null, wenn es keinen gibt — dann bleibt
+  // der Knopf weg, statt auf einen übersprungenen Ebene-Schritt zu zeigen.
+  const wizardBackStep = useMemo((): WizardStep | null => {
+    if (wizardStep === 'instructions') return 'rolle';
+    if (wizardStep === 'rolle') {
+      if (wizEbene && NEEDS_LOCAL_NAME.has(wizEbene)) return 'gliederung';
+      if (wizEbene && NEEDS_BUNDESLAND.has(wizEbene)) return 'bundesland';
+      return ebeneStepOffered ? 'ebene' : null;
     }
-  }, [wizardStep, wizEbene]);
+    if (wizardStep === 'gliederung') return 'bundesland';
+    if (wizardStep === 'bundesland') return ebeneStepOffered ? 'ebene' : null;
+    return null;
+  }, [wizardStep, wizEbene, ebeneStepOffered]);
+
+  const handleWizStepBack = useCallback(() => {
+    if (wizardBackStep) setWizardStep(wizardBackStep);
+  }, [wizardBackStep]);
 
   const handleWizSelectRolle = useCallback((rolle: string) => {
     setWizRolle(rolle);
@@ -334,7 +418,7 @@ export default function RolesSection() {
             body: { custom_prompt: cleaned },
           });
           if (res.status !== 200) {
-            throw new Error(`Profil-Update fehlgeschlagen (HTTP ${res.status})`);
+            throw new ApiError(res.status, `Profil-Update fehlgeschlagen (HTTP ${res.status})`);
           }
           queryClient.setQueryData<Profile>(QUERY_KEYS.profile(userId), (current) =>
             current ? { ...current, custom_prompt: cleaned } : current
@@ -519,7 +603,7 @@ export default function RolesSection() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
-  const renderWizardBack = (
+  const renderWizardBack = !wizardBackStep ? null : (
     <button
       type="button"
       onClick={handleWizStepBack}
@@ -563,7 +647,7 @@ export default function RolesSection() {
             </div>
             <p className="text-sm text-grey-500 -mt-md">Auf welcher Ebene bist du aktiv?</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
-              {ebenen.map((e) => (
+              {wizardEbenen.map((e) => (
                 <SelectCard
                   key={e.id}
                   icon={e.icon}
@@ -580,14 +664,27 @@ export default function RolesSection() {
             <h2 className="text-lg font-semibold text-foreground-heading">
               In welchem Bundesland?
             </h2>
-            <SmartInput
-              value={wizBundeslandQuery}
-              onValueChange={(v) => setWizBundeslandQuery(v)}
-              onSelect={(option) => handleWizBundesland(option.label)}
-              options={bundeslandOptions}
-              placeholder="Bundesland eingeben..."
-              autoFocus
-            />
+            <Combobox
+              items={bundeslandNamen}
+              value={wizBundesland}
+              onValueChange={(name: string | null) => {
+                if (name) handleWizBundesland(name);
+              }}
+            >
+              <ComboboxInput placeholder="Bundesland eingeben..." autoFocus />
+              <ComboboxContent>
+                <ComboboxList>
+                  <ComboboxEmpty>Kein Bundesland gefunden</ComboboxEmpty>
+                  <ComboboxCollection>
+                    {(name: string) => (
+                      <ComboboxItem key={name} value={name}>
+                        <span>{name}</span>
+                      </ComboboxItem>
+                    )}
+                  </ComboboxCollection>
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
           </>
         ) : wizardStep === 'gliederung' ? (
           <>
@@ -629,21 +726,22 @@ export default function RolesSection() {
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
-              {wizEbene &&
-                (rollenMap[wizEbene] || []).map((rolle) => (
-                  <SelectCard
-                    key={rolle}
-                    label={rolle}
-                    selected={wizRolle === rolle}
-                    onClick={() => handleWizSelectRolle(rolle)}
-                  />
-                ))}
-              <SelectCard
-                label="Sonstige"
-                description="Eigene Rolle eingeben"
-                selected={wizRolle === 'custom'}
-                onClick={() => setWizRolle('custom')}
-              />
+              {wizardRollen.map((rolle) => (
+                <SelectCard
+                  key={rolle}
+                  label={rolle}
+                  selected={wizRolle === rolle}
+                  onClick={() => handleWizSelectRolle(rolle)}
+                />
+              ))}
+              {customRolleOffered && (
+                <SelectCard
+                  label="Sonstige"
+                  description="Eigene Rolle eingeben"
+                  selected={wizRolle === 'custom'}
+                  onClick={() => setWizRolle('custom')}
+                />
+              )}
             </div>
 
             {wizRolle === 'custom' && (
@@ -696,6 +794,14 @@ export default function RolesSection() {
               placeholder="z.B. Schreibe Pressemitteilungen immer mit Zitat des Fraktionsvorsitzenden."
               autoFocus
             />
+            {wizAngebot && (
+              <div className="rounded-lg border border-grey-200 bg-background-alt/40 p-md dark:border-grey-700">
+                <p className="text-sm font-medium text-foreground-heading">
+                  Du bekommst Zugang zum Landesverband {wizAngebot.title}
+                </p>
+                <p className="mt-xs text-sm text-foreground-muted">{wizAngebot.beschreibung}</p>
+              </div>
+            )}
             <div className="flex items-center gap-sm">
               <Button onClick={handleAddRole} disabled={generating}>
                 {generating ? 'Speichert…' : 'Rolle speichern'}
@@ -720,7 +826,7 @@ export default function RolesSection() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Deine Rollen</CardTitle>
-                {roles.length > 0 && (
+                {roles.length > 0 && !assignedRole && (
                   <Button variant="ghost" size="sm" onClick={startAddRole}>
                     <HiPlus className="size-4 mr-1" />
                     Hinzufügen
@@ -728,16 +834,26 @@ export default function RolesSection() {
                 )}
               </div>
               <CardDescription>
-                Definiere deine Rollen — der Grünerator passt sich automatisch an.
+                {assignedRole
+                  ? 'Diese Instanz führt genau eine Rolle — sie ist gesetzt, der Grünerator schreibt dafür.'
+                  : 'Definiere deine Rollen — der Grünerator passt sich automatisch an.'}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {roles.length === 0 ? (
                 <div className="text-center py-md">
-                  <Button variant="outline" onClick={startAddRole}>
-                    <HiPlus className="size-4 mr-1" />
-                    Erste Rolle hinzufügen
-                  </Button>
+                  {assignedRole ? (
+                    // Die Rolle kommt vom Server, beim Lesen der User-Defaults.
+                    // Sie fehlt hier also nur, solange die Abfrage läuft — ein
+                    // Knopf „Erste Rolle hinzufügen" wäre eine Aufforderung zu
+                    // etwas, das gerade von selbst passiert.
+                    <p className="m-0 text-sm text-grey-500 dark:text-grey-400">Wird geladen…</p>
+                  ) : (
+                    <Button variant="outline" onClick={startAddRole}>
+                      <HiPlus className="size-4 mr-1" />
+                      Erste Rolle hinzufügen
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col gap-sm">
@@ -746,6 +862,9 @@ export default function RolesSection() {
                       key={`${role.ebene}-${role.rolle}-${i}`}
                       role={role}
                       ebenen={ebenen}
+                      fixed={
+                        assignedRole?.ebene === role.ebene && assignedRole?.rolle === role.rolle
+                      }
                       onDelete={() => {
                         void handleDeleteRole(i);
                       }}
@@ -755,6 +874,35 @@ export default function RolesSection() {
                       regenerating={regeneratingIndex === i}
                     />
                   ))}
+                </div>
+              )}
+
+              {/* Die Zuteilung war bisher unsichtbar: man legte eine Rolle an
+                  und musste selbst darauf kommen, in der Agentur nachzusehen.
+                  Dieser Weg schließt den Kreis — er erscheint nur, wenn
+                  wirklich etwas zugeteilt ist, sonst führte er ins Leere. Der
+                  Dialog schließt mit, sonst läge die Agentur dahinter.
+
+                  Grüneratoren und Rezepte des Landesverbands stehen seit dem
+                  Regal-Umbau beide unter `cat=landesverband`, deshalb ein Knopf
+                  statt zwei. Die Kategorie steht AUSDRÜCKLICH im Link: ein
+                  nacktes `/agentura` öffnet immer „Meine Grüneratoren", und
+                  dort ist das Zugeteilte gerade nicht. */}
+              {lvIds !== null && lvIds.length > 0 && (
+                <div className="mt-md border-t border-grey-200 pt-md dark:border-grey-700">
+                  <p className="m-0 text-sm text-foreground-muted">
+                    Über deine Rolle sind dir die Inhalte von <strong>{lvHeadings.agents}</strong>{' '}
+                    zugeteilt.
+                  </p>
+                  <div className="mt-sm flex flex-wrap gap-sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => goTo('/agentura?cat=landesverband')}
+                    >
+                      Zu deinem Landesverband
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>

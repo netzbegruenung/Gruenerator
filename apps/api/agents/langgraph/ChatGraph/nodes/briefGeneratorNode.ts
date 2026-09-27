@@ -5,17 +5,38 @@
  * research brief for complex research queries. This prevents long conversation
  * history from diluting search intent.
  *
- * Only activates for complexity=complex OR moderate, AND intent=research.
- * All other queries pass through unchanged.
+ * Only activates for complexity=complex OR moderate, AND intent=research —
+ * siehe {@link wantsResearchBrief}.
+ *
+ * ## Position 4 der Gleichmacher-Liste (Phase R3): die Intent-Abfrage bleibt
+ *
+ * Der Knoten hat KEINEN Aufrufer in der agentischen Schleife und hatte nie
+ * einen — beide Aufrufstellen (`intentHandlers/searchBranch.ts`,
+ * `services/resumePipeline.ts`) liegen im Einzeldurchlauf. Der Lane-Flip macht
+ * ihn damit nicht tot, nur seltener: er bedient weiter jeden `research`-Turn,
+ * den ein Notausschalter aus der Schleife hält.
+ *
+ * An die TIEFE statt an den Intent zu koppeln (`gruendlich`+) wäre keine
+ * Gleichmachung, sondern eine Ausweitung: `resolveSearchTier` liefert
+ * `gruendlich` genau für `research` ODER für ein ausdrückliches
+ * „recherchiere gründlich" — der Brief käme also zu Turns hinzu, die ihn heute
+ * nicht bekommen, und kostet je einen stillen Modellaufruf (~1–3 s).
+ *
+ * Löschen wäre die andere Richtung, und dafür fehlt die Messung: was der Brief
+ * beiträgt, entscheidet sich im Rerank (`rerankNode` hängt ihn an die
+ * Rerank-Anfrage) und im Wiederholungs-Urteil (`qualityGateNode` gibt ihn als
+ * Recherche-Kontext mit). Beides ist Ende-zu-Ende nur gegen eine Lauf-zu-Lauf-
+ * Streuung messbar, die in der R2-Abnahme 14 von 19 Fehlschlägen erklärt hat.
+ * Bedingung für eine Löschung ist deshalb eine Retrieval-Messung
+ * (`evals/retrieval/`) mit und ohne Brief — nicht ein Chat-Lauf.
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
+
+import { extractMessageText } from './classifierHeuristics.js';
 
 import type { ChatGraphState } from '../types.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:BriefGenerator');
 
@@ -33,17 +54,20 @@ const MAX_CONVERSATION_MESSAGES = 5;
 const MAX_BRIEF_LENGTH = 500;
 
 /**
- * Extract text content from a message, handling both string and parts format.
+ * Ob dieser Turn einen Recherche-Auftrag bekommt.
+ *
+ * Exportiert, weil die Bedingung in DREI Fassungen stand: hier, in
+ * `searchBranch` (`willGenerateBrief`, das die Fortschrittszeile vorher
+ * braucht) und in `resumePipeline` — und die dritte war enger als die beiden
+ * anderen (`complex` statt `complex|moderate`), also blieb ein
+ * wiederaufgenommener `moderate`-Recherche-Turn ohne Brief, den derselbe Turn
+ * beim ersten Anlauf bekommen hätte. Eine Bedingung, ein Ort.
  */
-function extractMessageText(content: unknown): string {
-  if (typeof content === 'string') return content;
-  if (Array.isArray(content)) {
-    return content
-      .filter((p) => p && typeof p === 'object' && (p as Record<string, unknown>).type === 'text')
-      .map((p) => (p as { text: string }).text)
-      .join('');
-  }
-  return String(content || '');
+export function wantsResearchBrief(state: ChatGraphState): boolean {
+  return (
+    (state.complexity === 'complex' || state.complexity === 'moderate') &&
+    state.intent === 'research'
+  );
 }
 
 /**
@@ -53,7 +77,7 @@ function extractMessageText(content: unknown): string {
 export async function briefGeneratorNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
 
-  if (!['complex', 'moderate'].includes(state.complexity) || state.intent !== 'research') {
+  if (!wantsResearchBrief(state)) {
     log.info(`[BriefGenerator] Skipping — complexity=${state.complexity}, intent=${state.intent}`);
     return {};
   }
@@ -63,7 +87,7 @@ export async function briefGeneratorNode(state: ChatGraphState): Promise<Partial
   );
 
   try {
-    const { messages, searchQuery, subQueries, aiWorkerPool } = state;
+    const { messages, searchQuery, subQueries } = state;
 
     const recentMessages = messages.slice(-MAX_CONVERSATION_MESSAGES);
     const conversationSummary = recentMessages
@@ -83,22 +107,16 @@ Erkannte Suchquery: ${searchQuery || 'keine'}${subQueriesText}
 
 Erstelle einen klaren, fokussierten Recherche-Auftrag.`;
 
-    const response = await aiWorkerPool.processRequest(
-      {
-        type: 'chat_research_brief',
-        provider: LANE.provider,
-        systemPrompt: BRIEF_PROMPT,
-        messages: [{ role: 'user', content: userMessage }],
-        options: {
-          model: LANE.model,
-          max_tokens: 200,
-          temperature: 0.2,
-        },
-      },
-      null
-    );
+    const answer = await aiText({
+      lane: 'chat_research_brief',
+      pinned: 'standard',
+      system: BRIEF_PROMPT,
+      prompt: userMessage,
+      maxOutputTokens: 200,
+      temperature: 0.2,
+    });
 
-    const brief = (response.content || '').trim().slice(0, MAX_BRIEF_LENGTH);
+    const brief = answer.slice(0, MAX_BRIEF_LENGTH);
     const timeMs = Date.now() - startTime;
 
     if (!brief) {

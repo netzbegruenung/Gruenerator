@@ -29,6 +29,16 @@ const SEARCH_PROGRESS_TOOLS: ReadonlySet<string> = new Set([
   'gruenerator_docs_search',
   'search_sources',
   'bundestag',
+  // Same shape and role as `bundestag` — {resultCount, sources}, hits re-surface
+  // in the message's Quellen-Liste — so they belong in the line, not in a card.
+  'abgeordnetenwatch',
+  // Attachment readers: the turn's own documents. A card per slice would narrate
+  // the plumbing of a document the user attached themselves.
+  'dokumente_lesen',
+  'expand_attachment',
+  // The loader of toolScope.ts has no result worth a card: it only switches the
+  // personal-content tools on. Their own calls then draw the cards.
+  'meine_inhalte_laden',
 ]);
 
 /** Whether this tool reports through the status line instead of a card. */
@@ -108,6 +118,34 @@ export function selectHasVisibleToolCard(parts: ReadonlyArray<StatusPartLike>): 
 /** The tool names that still produce a card — the basis for all group chrome. */
 export function visibleToolNames(toolNames: ReadonlyArray<string>): ReadonlyArray<string> {
   return toolNames.filter((name) => !isSearchProgressTool(name));
+}
+
+/**
+ * Whether the turn took a step AFTER its answer text had already begun — the
+ * signature of a multi-step agentic turn, where the first prose is not the end
+ * of the work but a preamble between tool calls.
+ *
+ * The status line normally retires at the first token, on the assumption that
+ * text means the turn has stopped working. In the agentic loop that assumption
+ * is wrong: the model writes, calls a tool, thinks, writes again — and the line
+ * (which carries BOTH the stage label and the thinking dropdown) was gone from
+ * the first token on, so every step past the first had no surface at all.
+ *
+ * Read off the part ORDER, which the adapter keeps in true event order, so this
+ * needs no extra state and can only flip on: parts are append-only while the
+ * message streams. Empty text parts don't count — `buildResult` appends a
+ * trailing empty one after every card.
+ */
+export function selectStepAfterText(parts: ReadonlyArray<StatusPartLike>): boolean {
+  let sawText = false;
+  for (const part of parts) {
+    if (part.type === 'text') {
+      if (typeof part.text === 'string' && part.text.length > 0) sawText = true;
+    } else if (part.type === 'tool-call' && sawText) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------

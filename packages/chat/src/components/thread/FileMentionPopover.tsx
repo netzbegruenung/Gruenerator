@@ -1,5 +1,6 @@
 'use client';
 
+import { type NotebookIndexingState } from '@gruenerator/contracts';
 import {
   Badge,
   Command,
@@ -11,6 +12,7 @@ import {
   ScrollArea,
   Skeleton,
 } from '@gruenerator/ui';
+import { Upload } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
 import { useFileMentionData } from '../../hooks/useFileMentionData';
@@ -28,6 +30,37 @@ import type {
 
 type Level = 'root' | 'documents';
 
+/**
+ * Marks a notebook whose sources cannot answer a question yet.
+ *
+ * Mentioning one is worse than mentioning nothing: the notebook is attached, the
+ * search runs, and it finds nothing — which reads as "there is nothing about
+ * this in there" rather than "this is not ready". `ready`/`empty` render
+ * nothing; an empty notebook already shows its `0` count next to this.
+ * Deliberately the same wording as the web notebook cards' badge.
+ */
+function MentionIndexingHint({ state }: { state: NotebookIndexingState | null }) {
+  if (state !== 'indexing' && state !== 'partial' && state !== 'failed') return null;
+
+  const label =
+    state === 'indexing'
+      ? 'Wird indexiert'
+      : state === 'failed'
+        ? 'Nicht durchsuchbar'
+        : 'Teilweise indexiert';
+
+  return (
+    <span
+      title={label}
+      className={
+        state === 'indexing' ? 'text-xs text-foreground-muted' : 'text-xs text-destructive'
+      }
+    >
+      {label}
+    </span>
+  );
+}
+
 export type FileMentionSelection =
   { kind: 'document'; doc: DocumentMention } | { kind: 'collab'; doc: CollabDocSelection };
 
@@ -35,16 +68,32 @@ interface FileMentionPopoverProps {
   visible: boolean;
   onSelect: (selection: FileMentionSelection) => void;
   onDismiss: () => void;
+  /** Opens the OS file picker. The "+" menu offers one "Datei hinzufügen" row
+   * and lands here, so the local upload has to be reachable from inside. */
+  onUploadFile?: () => void;
 }
 
-export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMentionPopoverProps) {
+export function FileMentionPopover({
+  visible,
+  onSelect,
+  onDismiss,
+  onUploadFile,
+}: FileMentionPopoverProps) {
   const [level, setLevel] = useState<Level>('root');
   const [selectedCollection, setSelectedCollection] = useState<NotebookCollectionItem | null>(null);
   const [searchResults, setSearchResults] = useState<DocumentSearchResult[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { collections, documents, texts, loadingCollections, loadingContent, searchInCollection } =
-    useFileMentionData(visible);
+  const {
+    collections,
+    documents,
+    texts,
+    loadingCollections,
+    loadingContent,
+    collectionsFailed,
+    contentFailed,
+    searchInCollection,
+  } = useFileMentionData(visible);
 
   const collabDocs = useDocMentionables();
 
@@ -197,14 +246,36 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
             <ScrollArea className="h-full">
               {isRootLevel ? (
                 <>
+                  {/* Section 0: local upload — the "+" menu's single file row
+                      lands here, so the OS picker has to be one click away. */}
+                  {onUploadFile ? (
+                    <CommandGroup>
+                      <CommandItem
+                        value="Hochladen Foto Datei Gerät"
+                        onSelect={() => {
+                          onDismiss();
+                          onUploadFile();
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <Upload className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate text-sm">Fotos &amp; Dateien hochladen</span>
+                      </CommandItem>
+                    </CommandGroup>
+                  ) : null}
+
                   {/* Section 1: Notebooks */}
                   {loadingCollections ? (
                     <div className="space-y-2 p-3">
                       <Skeleton className="h-8 w-full" />
                       <Skeleton className="h-8 w-full" />
                     </div>
+                  ) : collectionsFailed ? (
+                    <p className="p-3 text-sm text-destructive">
+                      Notebooks konnten nicht geladen werden.
+                    </p>
                   ) : collections.length > 0 ? (
-                    <CommandGroup heading="Notizbücher">
+                    <CommandGroup heading="Notebooks">
                       {collections.map((collection) => (
                         <CommandItem
                           key={collection.id}
@@ -216,9 +287,12 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
                             <span className="text-base flex-shrink-0">📓</span>
                             <span className="truncate text-sm">{collection.name}</span>
                           </div>
-                          <Badge variant="secondary" className="flex-shrink-0 text-xs">
-                            {collection.documentCount}
-                          </Badge>
+                          <div className="flex flex-shrink-0 items-center gap-1.5">
+                            <MentionIndexingHint state={collection.indexingState} />
+                            <Badge variant="secondary" className="text-xs">
+                              {collection.documentCount}
+                            </Badge>
+                          </div>
                         </CommandItem>
                       ))}
                     </CommandGroup>
@@ -230,6 +304,10 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
                       <Skeleton className="h-8 w-full" />
                       <Skeleton className="h-8 w-full" />
                     </div>
+                  ) : contentFailed ? (
+                    <p className="p-3 text-sm text-destructive">
+                      Dokumente konnten nicht geladen werden.
+                    </p>
                   ) : documents.length > 0 ? (
                     <CommandGroup heading="Letzte Dokumente">
                       {documents.slice(0, 10).map((doc) => (
@@ -246,8 +324,9 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
                     </CommandGroup>
                   ) : null}
 
-                  {/* Section 3: Saved Texts */}
-                  {loadingContent ? null : texts.length > 0 ? (
+                  {/* Section 3: Saved Texts — same query as section 2, so its
+                      failure is already reported there; no second error row. */}
+                  {loadingContent || contentFailed ? null : texts.length > 0 ? (
                     <CommandGroup heading="Gespeicherte Texte">
                       {texts.slice(0, 10).map((text) => (
                         <CommandItem

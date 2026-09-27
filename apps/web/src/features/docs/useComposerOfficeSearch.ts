@@ -1,5 +1,5 @@
-import { type OfficeSearchItem } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { GLOBAL_SEARCH_MAX_QUERY_LENGTH, type OfficeSearchItem } from '@gruenerator/contracts';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
 import useDebounce from '../../components/hooks/useDebounce';
@@ -11,7 +11,7 @@ const DEBOUNCE_MS = 200;
 
 async function fetchOfficeSearch(query: string): Promise<OfficeSearchItem[]> {
   const result = await getContractsClient().globalSearch.officeSearch({ query: { q: query } });
-  if (result.status !== 200) throw new Error('Office-Suche fehlgeschlagen');
+  if (result.status !== 200) throw new ApiError(result.status, 'Office-Suche fehlgeschlagen');
   return result.body.items;
 }
 
@@ -28,7 +28,14 @@ export function useComposerOfficeSearch(input: string, enabled = true): OfficeSe
   const trimmed = input.trim();
   const debounced = useDebounce(trimmed, DEBOUNCE_MS);
   const settled = debounced === trimmed;
-  const active = enabled && settled && debounced.length >= MIN_OFFICE_QUERY_LENGTH;
+  // The composer input doubles as the AI prompt field. Anything longer than the
+  // contract's cap is a pasted prompt, not a document search: firing it would
+  // only produce a rejected request per keystroke (plus retries).
+  const active =
+    enabled &&
+    settled &&
+    debounced.length >= MIN_OFFICE_QUERY_LENGTH &&
+    debounced.length <= GLOBAL_SEARCH_MAX_QUERY_LENGTH;
 
   const { data } = useQuery({
     queryKey: ['composer-office-search', debounced],

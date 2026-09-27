@@ -20,6 +20,7 @@
  * an override and keeps its existing contract schema.
  */
 
+import { GEMMA_31B_PRIMARY } from './gemmaHosts.js';
 import { intermediateLane } from './intermediateLanes.js';
 
 import type { ProviderName } from './providers.js';
@@ -41,12 +42,15 @@ export interface LaneConfig {
 }
 
 const MISTRAL_MEDIUM = 'mistral-medium-2604';
-const VERDIGADO_PRO = 'verdigado-pro';
-/** Gemma 4 — named explicitly because Regolo's DEFAULT is qwen, which policy excludes. */
-const GEMMA_4 = 'gemma4-31b';
-/** Dasselbe Modell bei GreenPT, wo es unter kurzem Namen läuft und — anders als
- *  bei Regolo — den erzwungenen Tool-Call bedient statt JSON als Prosa zu
- *  schreiben. Siehe ARTIFACT_MODEL in services/providers/providerSelector.ts. */
+/** Gemma 4, dichtes 31B — Provider UND Modellname kommen aus `gemmaHosts.ts`,
+ *  der einen Stelle, die den Host wählt. Nicht hier benennen: die beiden Hosts
+ *  schreiben denselben Modellnamen verschieden, ein hart notierter Name
+ *  überlebt den nächsten Wechsel als 404. */
+const GEMMA_4 = GEMMA_31B_PRIMARY.model;
+/** Gemma 4 bei GreenPT — welche Gewichte, ist unbelegt (siehe GEMMA_4_GREENPT in
+ *  routes/chat/agents/providers.ts). Gewählt ist es dafür, dass es den
+ *  erzwungenen Tool-Call bedient statt JSON als Prosa zu schreiben, anders als
+ *  Regolo. Siehe ARTIFACT_MODEL in services/providers/providerSelector.ts. */
 const GEMMA_4_GREENPT = 'gemma4';
 
 /**
@@ -83,32 +87,42 @@ export const AI_LANES = {
   //   services/providers/providerSelector.ts.
   //
   //   Die Anträge saßen auf GPT-OSS mit der Notiz "reasoning is handled via
-  //   reasoningEffort". Auf DIESEM Pfad stimmte das nie: der Worker-Pool
-  //   (workers/providers/execute.ts) reicht keine Reasoning-Option durch. Im
+  //   reasoningEffort". Auf DIESEM Pfad stimmte das nie: der Ausführungspfad
+  //   (services/ai/execution/execute.ts) reicht keine Reasoning-Option durch. Im
   //   Streaming-Pfad (agents/langgraph/streamingProcessor.ts) gilt sie und
   //   wird dort providerspezifisch gesetzt.
-  antrag: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  antrag_simple: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  kleine_anfrage: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  grosse_anfrage: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  universal: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  leichte_sprache: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  custom_prompt: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  protokoll: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  rede: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  wahlprogramm: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  buergeranfragen: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  social: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  social_post_generation: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  social_post_edit: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  subtitler_social: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  antrag: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  antrag_simple: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  kleine_anfrage: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  grosse_anfrage: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  universal: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  leichte_sprache: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  custom_prompt: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  protokoll: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  rede: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  wahlprogramm: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  buergeranfragen: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  social: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  social_post_edit: {
+    provider: GEMMA_31B_PRIMARY.provider,
+    model: GEMMA_4,
+    structuredMode: 'tool',
+  },
+  subtitler_social: {
+    provider: GEMMA_31B_PRIMARY.provider,
+    model: GEMMA_4,
+    structuredMode: 'tool',
+  },
+  // Grünerator Voice: the spoken script a person edits before synthesis. Same
+  // slot as `rede` — it is finished German prose, only meant for the ear.
+  voice_script: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
 
   // — Candidate-site content. Mistral, which the route always intended; it used
   //   to say so with a top-level `provider` that selected the adapter without
   //   selecting a matching model.
   website: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
 
-  // — Artefakte über erzwungene Tool-Calls (generateStructured). These had no
+  // — Artefakte über erzwungene Tool-Calls (aiObject). These had no
   //   lane at all, so both tables put them on `default` — GPT-OSS, which
   //   answers a forced tool call with prose. That killed a PDF generation in
   //   production: two attempts, both stop_reason=stop, no tool call.
@@ -123,8 +137,30 @@ export const AI_LANES = {
   board_generation: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
   canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
 
+  // — Editor-Op-Planer (board/sheet/presentation), der `edit_document`-
+  //   Werkzeug im agentischen Loop (#3426). Erzwungener Tool-Call wie die
+  //   Zeilen darüber; alle drei planten vorher auf einer privaten Kette
+  //   (mistral → melious → cortecs), die diese Tabelle nicht so ausdrücken
+  //   kann — `laneFallback` kennt nur die generische Kette und die
+  //   Sharepic-Kette, beide filtern den Primär (hier mistral) heraus und
+  //   liefern für DIESE drei Lanes dasselbe Ergebnis (cortecs, melious), nur
+  //   in vertauschter Reihenfolge gegenüber der alten privaten Kette. Sheet
+  //   und Presentation waren zuvor auf Mistral GEPINNT ohne Ausweichkette
+  //   ("fail loudly" statt leise herabzustufen) — eine Lane hat dafür kein
+  //   Feld, sie bekommen jetzt dieselbe generische Ausweichkette.
+  editor_ops_board: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  editor_ops_sheet: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  editor_ops_presentation: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+
   // — Fast helper tasks. Alle auf der `standard`-Stufe: kurze Ausgabe, aber
   //   nutzersichtbare Latenz. Ein Edit an der Stufe bewegt alle fünf.
+  // Ergebnis-Prüfung für Hintergrundläufe (#3221): kurzes JSON-Verdikt über
+  // Aufgabe vs. Ergebnis, keine nutzersichtbare Latenz — kein Pinning nötig.
+  background_verify: {
+    provider: LANE.provider,
+    model: LANE.model,
+    structuredMode: 'tool',
+  },
   image_picker: {
     provider: LANE.provider,
     model: LANE.model,
@@ -216,10 +252,19 @@ export function laneTarget(
  */
 export function providerForModel(modelName = ''): ProviderName {
   const name = String(modelName || '').toLowerCase();
-  // Before the generic gemma test below: `gemma-4-26b-a4b-it` is Scaleway's id,
-  // while `gemma4-31b` (no dash after gemma) is Regolo's. An operator who names
-  // the Scaleway one would otherwise land on the wrong host and get a 404.
+  // Before the generic gemma test below: die MoE-Variante `gemma-4-26b-a4b-it`
+  // ist NUR direkt bei Scaleway zu haben. Über Cortecs lief sie am 21.08.2026
+  // für einen halben Tag und ist dort unbedienbar geworden (der einzige
+  // brauchbare Unterauftragnehmer verschwand aus dem Katalog, der zweite ist
+  // quantisiert) — wer sie hier auf `cortecs` schickt, erntet genau diesen
+  // Filterfehler. `gemma4-31b` (ohne Bindestrich nach gemma) ist Regolos.
   if (name === 'gemma-4-26b-a4b-it') return 'scaleway';
+  // Das DICHTE 31B dagegen ist die Cortecs-Seite: Primär von `heavy` und
+  // `pruefung` und der Ausweich der Gemma-Antwortlane. Ohne diese Zeile fällt
+  // der Name durch die ganze Kette bis zum `return 'mistral'` am Ende — es
+  // gibt gar keinen generischen gemma-Test — und ein Operator bekäme einen 404
+  // von einem Anbieter, der das Modell nicht führt.
+  if (name === 'gemma-4-31b-it') return 'cortecs';
   if (
     name.includes('mistral-medium-') ||
     name.includes('mistral-large-') ||
@@ -227,23 +272,59 @@ export function providerForModel(modelName = ''): ProviderName {
   ) {
     return 'mistral';
   }
-  if (name.includes('gpt-') || name.includes('openai')) return 'litellm';
-  if (name.includes('mistral') || name.includes('mixtral')) return 'litellm';
+  // Bis zum 29.08.2026 zeigten diese beiden Zeilen auf `litellm`. Der Host ist
+  // stillgelegt (./litellmRetired.ts); ein Operator, der hier einen Namen
+  // setzt, bekäme sonst über den Umweg der Stilllegung IMMER dasselbe kleine
+  // Modell — egal welchen Namen er geschrieben hat. Cortecs führt beide
+  // Familien unter eigenen Kennungen.
+  if (name.includes('gpt-') || name.includes('openai')) return 'cortecs';
+  if (name.includes('mistral') || name.includes('mixtral')) return 'cortecs';
   if (name.includes('llama') || name.includes('meta-llama')) return 'regolo';
   if (name.startsWith('regolo/') || name.includes('regolo')) return 'regolo';
   return 'mistral';
 }
 
 /**
- * Failover order after the primary. Two chains, matching what
- * `providerFallback` runs today: sharepics lead with Mistral because short
- * creative German is what it is best at, everything else leads with the
- * cheapest capable lane.
+ * Failover order for everything that is not a sharepic. Exported because a
+ * PINNED call has no lane row to derive it from (see `AiCall.pinned` in
+ * `generate.ts`) and must not be routed through `resolveLane` to get one.
+ *
+ * Cortecs führt seit dem 28.08.2026 — es ist der Host des dichten Gemma 4 31B
+ * (`gemmaHosts.ts`), also desselben Modells, das schon Primär von 15 Textlanes
+ * ist, und mit 210,7 tok/s der schnellste gemessene. Für die Lanes, die es
+ * bereits als Primär führen, ändert das nichts: `laneFallback` filtert den
+ * eigenen Primär heraus. Es ändert die Kette genau für die anderen — allen
+ * voran `doc_generation` auf GreenPT, dessen Ausweichkette bis dahin keinen
+ * einzigen Host derselben Modellfamilie enthielt.
+ *
+ * Der Preis steht in `gemmaHosts.ts`: Cortecs ist VORAUSBEZAHLT, ein leeres
+ * Guthaben antwortet mit 401. Das ist ein schneller Fehlschlag, und die
+ * verbleibenden Anbieter stehen unverändert dahinter.
+ *
+ * ── 29.08.2026: `litellm` ist raus, und das ist der Kern von #3064 ──
+ *
+ * Ein Ausweichglied antwortet auf dem EIGENEN Standardmodell des Anbieters
+ * (siehe `runChain` in ./generate.ts), nicht auf dem des Primärs. Für litellm
+ * war das `verdigado-pro`, hinter dem am Proxy `gpt-oss:120b-ctx128k` liegt.
+ * Jede Lane mit kleinem Ausgabebudget, die bis hierher durchfiel, landete also
+ * auf einem Denkmodell, dessen Denk-Tokens gegen `max_tokens` zählen — der
+ * Thread-Titel aus #3064 bat um 64 Tokens und bekam 64 Tokens Vorrede.
+ *
+ * Ein Auffangort, der die Anfrage nicht beantworten KANN, ist kein Auffangort.
+ * Und einen anderen hatte der Proxy nicht: sein zweiter Alias
+ * (`verdigado-think`) denkt ebenfalls, unabschaltbar.
+ */
+export const GENERIC_FALLBACK: readonly ProviderName[] = ['cortecs', 'melious', 'mistral'];
+
+/**
+ * Failover order after the primary. Two chains: sharepics lead with Mistral
+ * because short creative German is what it is best at, everything else leads
+ * with the fastest capable lane.
  */
 export function laneFallback(lane: LaneId): readonly ProviderName[] {
   const primary = AI_LANES[lane].provider;
   const chain = lane.startsWith('sharepic_')
-    ? (['mistral', 'litellm', 'regolo'] as const)
-    : (['litellm', 'regolo', 'mistral'] as const);
+    ? (['mistral', 'cortecs', 'melious'] as const)
+    : GENERIC_FALLBACK;
   return chain.filter((p) => p !== primary);
 }

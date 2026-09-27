@@ -1,7 +1,9 @@
 /**
- * WolkeSyncService - Handles Nextcloud/Wolke folder synchronization
+ * WolkeSyncService - Processes files from Nextcloud/Wolke shares
  *
- * Syncs folders, processes files, and stores vectors in Qdrant
+ * Lists supported files, downloads and extracts them, and stores vectors in
+ * Qdrant. Callers: the manual import path (wolkeController POST /import), the
+ * notebook auto-sync watcher (WolkeWatchService) and wolkePendingContractRouter.
  */
 
 import fs from 'fs/promises';
@@ -10,7 +12,7 @@ import path from 'path';
 
 import { eq, and } from 'drizzle-orm';
 
-import { wolkeSyncStatus, documents } from '../../database/schema/index.js';
+import { documents } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
@@ -23,32 +25,26 @@ import {
 import { mistralEmbeddingService } from '../mistral/index.js';
 import { ocrService } from '../OcrService/index.js';
 
-import type { NextcloudFile, FileProcessResult, SyncResult } from './types.js';
-import type { NextcloudShareLink } from '../../utils/integrations/nextcloud/types.js';
+import { walkWolkeFolder } from './folderWalk.js';
+import {
+  isOcrWolkeExtension,
+  isPlaintextWolkeExtension,
+  isSupportedWolkeFile,
+  wolkeFileExtension,
+} from './supportedFileTypes.js';
 
-type WolkeSyncRow = typeof wolkeSyncStatus.$inferSelect;
+import type { NextcloudFile, FileProcessResult } from './types.js';
+import type { NextcloudShareLink } from '../../utils/integrations/nextcloud/types.js';
 
 export class WolkeSyncService {
   private postgres: ReturnType<typeof getPostgresInstance>;
   private qdrantService: DocumentSearchService;
   private documentService: ReturnType<typeof getPostgresDocumentService>;
-  private supportedFileTypes: string[];
 
   constructor() {
     this.postgres = getPostgresInstance();
     this.qdrantService = new DocumentSearchService();
     this.documentService = getPostgresDocumentService();
-    this.supportedFileTypes = [
-      '.pdf',
-      '.docx',
-      '.pptx',
-      '.png',
-      '.jpg',
-      '.jpeg',
-      '.avif',
-      '.txt',
-      '.md',
-    ];
   }
 
   /**
@@ -57,103 +53,6 @@ export class WolkeSyncService {
   async ensureInitialized(): Promise<void> {
     await this.postgres.ensureInitialized();
     await this.qdrantService.ensureInitialized();
-  }
-
-  /**
-   * Get or create sync status record
-   */
-  async getOrCreateSyncStatus(
-    userId: string,
-    shareLinkId: string,
-    folderPath: string = ''
-  ): Promise<WolkeSyncRow> {
-    try {
-      await this.ensureInitialized();
-      const db = getDrizzleInstance();
-
-      const existing = await db
-        .select()
-        .from(wolkeSyncStatus)
-        .where(
-          and(
-            eq(wolkeSyncStatus.userId, userId),
-            eq(wolkeSyncStatus.shareLinkId, shareLinkId),
-            eq(wolkeSyncStatus.folderPath, folderPath)
-          )
-        )
-        .limit(1);
-
-      if (existing.length > 0) {
-        return existing[0];
-      }
-
-      // Create new sync status
-      const created = await db
-        .insert(wolkeSyncStatus)
-        .values({
-          userId,
-          shareLinkId,
-          folderPath,
-          syncStatus: 'idle',
-          filesProcessed: 0,
-          filesFailed: 0,
-          autoSyncEnabled: false,
-        })
-        .returning();
-
-      console.log(`[WolkeSyncService] Created sync status record: ${created[0].id}`);
-      return created[0];
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error getting/creating sync status:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update sync status
-   */
-  async updateSyncStatus(
-    syncStatusId: string,
-    updates: Partial<{
-      lastSyncAt: Date;
-      syncStatus: 'idle' | 'syncing' | 'completed' | 'failed';
-      filesProcessed: number;
-      filesFailed: number;
-      auto_sync_enabled: boolean;
-    }>
-  ): Promise<WolkeSyncRow> {
-    try {
-      await this.ensureInitialized();
-      const db = getDrizzleInstance();
-
-      const updateValues: Partial<typeof wolkeSyncStatus.$inferInsert> = {};
-      if (updates.lastSyncAt !== undefined) {
-        updateValues.lastSyncAt = updates.lastSyncAt;
-      }
-      if (updates.syncStatus !== undefined) {
-        updateValues.syncStatus = updates.syncStatus;
-      }
-      if (updates.filesProcessed !== undefined) {
-        updateValues.filesProcessed = updates.filesProcessed;
-      }
-      if (updates.filesFailed !== undefined) {
-        updateValues.filesFailed = updates.filesFailed;
-      }
-      if (updates.auto_sync_enabled !== undefined) {
-        updateValues.autoSyncEnabled = updates.auto_sync_enabled;
-      }
-
-      const result = await db
-        .update(wolkeSyncStatus)
-        .set(updateValues)
-        .where(eq(wolkeSyncStatus.id, syncStatusId))
-        .returning();
-
-      return result[0];
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error updating sync status:', error);
-      throw error;
-    }
   }
 
   /**
@@ -180,52 +79,38 @@ export class WolkeSyncService {
   }
 
   /**
-   * List files in a Nextcloud folder
-   */
-  async listFolderContents(
-    shareLink: NextcloudShareLink,
-    _folderPath: string = ''
-  ): Promise<NextcloudFile[]> {
-    try {
-      const client = await NextcloudApiClient.create(shareLink.share_link);
-      const shareInfo = await client.getShareInfo();
-
-      if (!shareInfo.success) {
-        throw new Error('Failed to get share information');
-      }
-
-      // Filter for supported file types
-      const files = shareInfo.files ?? [];
-      const supportedFiles = files.filter((file) => {
-        const fileExtension = path.extname(file.name.toLowerCase());
-        return this.supportedFileTypes.includes(fileExtension);
-      });
-
-      console.log(`[WolkeSyncService] Found ${supportedFiles.length} supported files in folder`);
-      return supportedFiles as NextcloudFile[];
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error listing folder contents:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * List the supported files in a SPECIFIC folder of a share (honours
-   * folderPath, unlike listFolderContents which only sees the share root).
+   * List the supported files in a SPECIFIC folder of a share.
+   *
    * Uses the same `client.listFolder(folderPath)` the manual import path uses,
    * so `file.href` — the dedup key stored as documents.wolke_file_path — is
    * identical between detection and import. Reuses the shared supportedFileTypes
    * filter (no duplicated extension list).
+   *
+   * This replaced `listFolderContents`, which took a folderPath and ignored it
+   * (`_folderPath`), always listing the share root via `getShareInfo`. Syncing
+   * an attached subfolder therefore synced the wrong folder.
    */
   async listSupportedFilesInFolder(
     shareLink: NextcloudShareLink,
-    folderPath: string = ''
+    folderPath: string = '',
+    options: { includeSubfolders?: boolean } = {}
   ): Promise<NextcloudFile[]> {
     const client = await NextcloudApiClient.create(shareLink.share_link);
-    const files = await client.listFolder(folderPath || undefined);
-    return files.filter((file) =>
-      this.supportedFileTypes.includes(path.extname(file.name.toLowerCase()))
+    const listFolder = (path: string) => client.listFolder(path || undefined);
+
+    const files = options.includeSubfolders
+      ? (await walkWolkeFolder(listFolder, folderPath)).files
+      : await listFolder(folderPath);
+
+    const supported = files.filter(
+      (file) => !file.isDirectory && isSupportedWolkeFile(file.name)
     ) as NextcloudFile[];
+
+    console.log(
+      `[WolkeSyncService] Found ${supported.length} supported files in folder "${folderPath}"` +
+        (options.includeSubfolders ? ' (including subfolders)' : '')
+    );
+    return supported;
   }
 
   /**
@@ -316,7 +201,18 @@ export class WolkeSyncService {
 
       if (!fileHasChanged) {
         console.log(`[WolkeSyncService] File ${file.name} is up to date, skipping`);
-        return { skipped: true, reason: 'up_to_date' };
+        // Hand the id back. `hasFileChanged` only answers false when there IS an
+        // existing document, and a skip that names no document is
+        // indistinguishable from a file that vanished — a caller reconciling a
+        // folder against its notebook would drop the document over it.
+        // `POST /import` short-circuits this case earlier today, so nothing
+        // regresses; the next caller just shouldn't have to re-query what we
+        // already loaded (wolkePendingContractRouter does exactly that).
+        return {
+          skipped: true,
+          reason: 'up_to_date',
+          ...(existingDoc ? { documentId: String(existingDoc.id) } : {}),
+        };
       }
 
       console.log(
@@ -324,8 +220,8 @@ export class WolkeSyncService {
       );
 
       // Check if file type is supported
-      const fileExtension = path.extname(file.name).toLowerCase();
-      if (!this.supportedFileTypes.includes(fileExtension)) {
+      const fileExtension = wolkeFileExtension(file.name);
+      if (!isSupportedWolkeFile(file.name)) {
         console.warn(`[WolkeSyncService] Unsupported file type: ${file.name} (${fileExtension})`);
         return { skipped: true, reason: 'unsupported_file_type' };
       }
@@ -345,12 +241,14 @@ export class WolkeSyncService {
       console.log(`[WolkeSyncService] Extracting text from: ${file.name}`);
       let extractedText: string;
 
-      const supportedMistralTypes = ['.pdf', '.docx', '.pptx', '.png', '.jpg', '.jpeg', '.avif'];
-
-      if (supportedMistralTypes.includes(fileExtension)) {
+      if (isOcrWolkeExtension(fileExtension)) {
         // Use Mistral OCR for documents and images
         const tempDir = os.tmpdir();
-        const tempFileName = `wolke_sync_${Date.now()}_${file.name}`;
+        // The name comes from the remote share listing, so it never goes into
+        // the path unescaped — same rule as in `wolkeShareHandler`. The
+        // extension stays, OcrService dispatches on it.
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
+        const tempFileName = `wolke_sync_${Date.now()}_${safeName}`;
         const tempFilePath = path.join(tempDir, tempFileName);
 
         try {
@@ -366,7 +264,7 @@ export class WolkeSyncService {
           }
           throw error;
         }
-      } else if (['.txt', '.md'].includes(fileExtension)) {
+      } else if (isPlaintextWolkeExtension(fileExtension)) {
         // Plain text files
         extractedText = fileData.buffer.toString('utf-8');
       } else {
@@ -384,8 +282,6 @@ export class WolkeSyncService {
 
       // Chunk the text
       const chunks = await smartChunkDocument(extractedText, {
-        maxTokens: 400,
-        overlapTokens: 50,
         preserveSentences: true,
       });
 
@@ -492,214 +388,6 @@ export class WolkeSyncService {
       };
     } catch (error: unknown) {
       console.error(`[WolkeSyncService] Error processing file ${file.name}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Sync a folder from Wolke
-   */
-  async syncFolder(
-    userId: string,
-    shareLinkId: string,
-    folderPath: string = ''
-  ): Promise<SyncResult> {
-    try {
-      await this.ensureInitialized();
-
-      console.log(
-        `[WolkeSyncService] Starting sync for user ${userId}, share ${shareLinkId}, folder: ${folderPath}`
-      );
-
-      // Get or create sync status
-      const syncStatus = await this.getOrCreateSyncStatus(userId, shareLinkId, folderPath);
-
-      // Update status to syncing
-      await this.updateSyncStatus(syncStatus.id, {
-        syncStatus: 'syncing',
-        lastSyncAt: new Date(),
-      });
-
-      try {
-        const shareLink = await this.getShareLink(userId, shareLinkId);
-        const files = await this.listFolderContents(shareLink, folderPath);
-
-        let processedCount = 0;
-        let failedCount = 0;
-        const results: FileProcessResult[] = [];
-
-        // Process each file
-        for (const file of files) {
-          try {
-            const result = await this.processFile(userId, shareLinkId, file, shareLink);
-            results.push(result);
-
-            if (result.skipped) {
-              console.log(`[WolkeSyncService] Skipped file: ${file.name} (${result.reason})`);
-            } else if (result.success) {
-              processedCount++;
-              console.log(`[WolkeSyncService] Processed file: ${file.name}`);
-            }
-          } catch (error: unknown) {
-            failedCount++;
-            console.error(`[WolkeSyncService] Failed to process file ${file.name}:`, error);
-            results.push({
-              filename: file.name,
-              error: error instanceof Error ? error.message : String(error),
-              success: false,
-            });
-          }
-        }
-
-        // Update sync status to completed
-        await this.updateSyncStatus(syncStatus.id, {
-          syncStatus: 'completed',
-          filesProcessed: processedCount,
-          filesFailed: failedCount,
-        });
-
-        console.log(
-          `[WolkeSyncService] Sync completed: ${processedCount} processed, ${failedCount} failed`
-        );
-
-        return {
-          success: true,
-          syncStatusId: syncStatus.id,
-          totalFiles: files.length,
-          processedFiles: processedCount,
-          failedFiles: failedCount,
-          results,
-        };
-      } catch (error) {
-        // Update sync status to failed
-        await this.updateSyncStatus(syncStatus.id, {
-          syncStatus: 'failed',
-        });
-        throw error;
-      }
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error syncing folder:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get sync status for user
-   */
-  async getUserSyncStatus(userId: string): Promise<WolkeSyncRow[]> {
-    try {
-      await this.ensureInitialized();
-      const db = getDrizzleInstance();
-
-      const syncStatuses = await db
-        .select()
-        .from(wolkeSyncStatus)
-        .where(eq(wolkeSyncStatus.userId, userId))
-        .orderBy(wolkeSyncStatus.lastSyncAt);
-
-      return syncStatuses;
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error getting user sync status:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Enable/disable auto-sync for a folder
-   */
-  async setAutoSync(
-    userId: string,
-    shareLinkId: string,
-    folderPath: string,
-    enabled: boolean
-  ): Promise<{ success: boolean; autoSyncEnabled: boolean }> {
-    try {
-      await this.ensureInitialized();
-
-      const syncStatus = await this.getOrCreateSyncStatus(userId, shareLinkId, folderPath);
-
-      await this.updateSyncStatus(syncStatus.id, {
-        auto_sync_enabled: enabled,
-      });
-
-      console.log(
-        `[WolkeSyncService] Auto-sync ${enabled ? 'enabled' : 'disabled'} for sync ${syncStatus.id}`
-      );
-
-      return { success: true, autoSyncEnabled: enabled };
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error setting auto-sync:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Delete sync status and associated documents
-   */
-  async deleteSyncFolder(
-    userId: string,
-    shareLinkId: string,
-    folderPath: string
-  ): Promise<{
-    success: boolean;
-    deletedDocuments: number;
-    syncStatusId: string;
-  }> {
-    try {
-      await this.ensureInitialized();
-      const db = getDrizzleInstance();
-
-      // Get sync status
-      const syncStatusRows = await db
-        .select()
-        .from(wolkeSyncStatus)
-        .where(
-          and(
-            eq(wolkeSyncStatus.userId, userId),
-            eq(wolkeSyncStatus.shareLinkId, shareLinkId),
-            eq(wolkeSyncStatus.folderPath, folderPath)
-          )
-        )
-        .limit(1);
-
-      if (syncStatusRows.length === 0) {
-        throw new Error('Sync folder not found');
-      }
-
-      const syncStatusId = syncStatusRows[0].id;
-
-      // Get all documents from this sync folder
-      const syncDocuments = await db
-        .select({ id: documents.id })
-        .from(documents)
-        .where(and(eq(documents.user_id, userId), eq(documents.wolke_share_link_id, shareLinkId)));
-
-      // Delete vectors from Qdrant
-      if (syncDocuments.length > 0) {
-        for (const doc of syncDocuments) {
-          await this.qdrantService.deleteDocumentVectors(doc.id, userId);
-        }
-      }
-
-      // Delete document metadata
-      await db
-        .delete(documents)
-        .where(and(eq(documents.user_id, userId), eq(documents.wolke_share_link_id, shareLinkId)));
-
-      // Delete sync status
-      await db.delete(wolkeSyncStatus).where(eq(wolkeSyncStatus.id, syncStatusId));
-
-      console.log(
-        `[WolkeSyncService] Deleted sync folder and ${syncDocuments.length} associated documents`
-      );
-
-      return {
-        success: true,
-        deletedDocuments: syncDocuments.length,
-        syncStatusId,
-      };
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error deleting sync folder:', error);
       throw error;
     }
   }

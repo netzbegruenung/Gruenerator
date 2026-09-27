@@ -50,12 +50,12 @@ Political organizations need to create compelling, consistent content across mul
 
 Grünerator is built on **100% European infrastructure** with a commitment to digital sovereignty:
 
-| Principle                 | Implementation                                                                               |
-| ------------------------- | -------------------------------------------------------------------------------------------- |
-| **100% EU Hosting**       | All servers located exclusively in the European Union                                        |
-| **European AI Providers** | Mistral AI (France), verdigado & Regolo (EU-hosted open models), Black Forest Labs (Germany) |
-| **Self-hosted AI**        | Green-powered inference hosted by netzbegrünung e.V. and EU partners                         |
-| **75% EU Target**         | Minimum 75% of spending with European companies                                              |
+| Principle                 | Implementation                                                                                                                              |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **100% EU Hosting**       | All servers located exclusively in the European Union                                                                                       |
+| **European AI Providers** | Mistral AI (France), Cortecs, Regolo & Melious (EU-hosted open models), Black Forest Labs (Germany), KugelAudio (Germany, speech synthesis) |
+| **Self-hosted AI**        | Green-powered inference hosted by netzbegrünung e.V. and EU partners                                                                        |
+| **75% EU Target**         | Minimum 75% of spending with European companies                                                                                             |
 
 ### Key Features
 
@@ -173,10 +173,10 @@ Professional subtitle generation for videos:
 ┌───────────────────────────▼──────────────────────────────────┐
 │                         BACKEND                              │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
-│  │  Express 5   │  │   Cluster    │  │   AI Worker Pool   │  │
-│  │   Server     │──│   Workers    │──│ Mistral │ LiteLLM  │  │
-│  │              │  │              │  │ Regolo  │ GreenPT  │  │
-│  └──────────────┘  └──────────────┘  │      Scaleway      │  │
+│  │  Express 5   │  │   Cluster    │  │    AI (in-process) │  │
+│  │   Server     │──│   Workers    │──│ Mistral │ Regolo   │  │
+│  │              │  │              │  │ GreenPT │ Scaleway │  │
+│  └──────────────┘  └──────────────┘  │ Cortecs │ Melious  │  │
 │                                      └────────────────────┘  │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
 │  │  ChatGraph   │  │  Keycloak    │  │    PostgreSQL      │  │
@@ -194,9 +194,11 @@ Professional subtitle generation for videos:
 └──────────────────┘
 ```
 
+`litellm` (Verdigado) is a retired alias rather than a backend: stored configs still naming it are read tolerantly and transparently remapped to Cortecs (`apps/api/services/ai/litellmRetired.ts`), so `LITELLM_API_KEY` remains an accepted, optional variable.
+
 ### Key Patterns
 
-- **Cluster-based Workers** — Express servers scaled across CPU cores, AI calls via a dedicated worker pool
+- **Cluster Mode + In-Process AI** — Express 5 runs in Node cluster mode across CPU cores; AI calls execute in-process through `services/ai/generate.ts` (no separate worker pool)
 - **Agentic Chat Pipeline** — ChatGraph (classify → search → respond) with a tool-executing agent loop
 - **RAG Pipeline** — Qdrant vector search with cross-collection dedup and reranking
 - **Typed API Contracts** — ts-rest contracts + Zod schemas in `packages/contracts` as the single source of truth
@@ -321,9 +323,12 @@ User documentation lives in `documentation/` (Docusaurus, deployed to [doku.grue
 ```bash
 # AI APIs (EU providers)
 MISTRAL_API_KEY=...                    # Primary AI provider (France)
-LITELLM_API_KEY=...                    # EU-hosted open models via LiteLLM (verdigado)
-REGOLO_API_KEY=...                    # EU-hosted open models via Regolo (Italy)
+CORTECS_API_KEY=...                    # EU-hosted open models via Cortecs (serves former LiteLLM/verdigado targets)
+REGOLO_API_KEY=...                     # EU-hosted open models via Regolo (Italy)
+MELIOUS_API_KEY=...                    # EU-hosted open models via Melious (Gemma fallback host, Finland)
+LITELLM_API_KEY=...                    # Retired alias — still read for CI/scripts; requests are remapped to Cortecs
 BFL_API_KEY=...                        # Image generation (Black Forest Labs, Germany)
+KUGELAUDIO_API_KEY=...                 # Speech synthesis (KugelAudio, Berlin; EU endpoint)
 
 # Keycloak Authentication
 KEYCLOAK_BASE_URL=https://auth.example.com
@@ -331,8 +336,15 @@ KEYCLOAK_REALM=Gruenerator
 KEYCLOAK_CLIENT_ID=gruenerator
 KEYCLOAK_CLIENT_SECRET=...
 
-# Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/gruenerator
+# Database — either the POSTGRES_* set (as in .env.example) …
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_USER=gruenerator
+POSTGRES_PASSWORD=...
+POSTGRES_DATABASE=gruenerator
+POSTGRES_SSL=false
+# … or DATABASE_URL as a single-string override, which wins over all of them
+# DATABASE_URL=postgresql://user:pass@localhost:5432/gruenerator
 
 # Redis
 REDIS_URL=redis://localhost:6379
@@ -350,7 +362,7 @@ See `.env.example` for the full list.
 ### Frontend Environment Variables
 
 ```bash
-VITE_BACKEND_URL=http://localhost:3001
+VITE_API_BASE_URL=/api                 # API origin; defaults to /api (same-origin via the dev proxy)
 ```
 
 ---
@@ -404,21 +416,14 @@ pnpm run build:documentation   # Build documentation site
 
 ```
 documentation/
-├── docs/           # Main documentation pages
-│   ├── grundlagen/        # Basics and guides
-│   ├── konto/             # Profile and cloud features
-│   ├── chat/              # Content generation features
-│   ├── grueneratoren/     # Specialized generators
-│   ├── wissen/            # Notebooks and knowledge sources
-│   ├── office/            # Docs, boards, sheets, presentations
-│   ├── integrationen/     # MCP and third-party connectors
-│   ├── experimente/       # Monitor and other experimental features
-│   ├── archiv/            # Newsletter and Signal message archive
-│   └── ueber-den-gruenerator/  # About Grünerator
+├── docs/           # Articles, grouped by section
 ├── blog/           # News and updates
-├── src/            # Custom pages and components
+├── src/
+│   └── nav/sections.ts   # The sections: startpage grid, navbar, footer
 └── static/         # Images and assets
 ```
+
+The sections under `docs/` are deliberately not listed here: they are defined once in [`documentation/src/nav/sections.ts`](documentation/src/nav/sections.ts), and a copy in this README went stale the last time they were reorganised.
 
 ### Keeping Docs (and this README) Fresh
 
@@ -457,6 +462,8 @@ Contributions are welcome! Please read our [Contributing Guidelines](.github/CON
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+Write everything that lands on GitHub in **English** — commit messages, branch names, pull request titles and descriptions, issues and comments.
+
 ### Development Guidelines
 
 - Use **pnpm** for all commands (not npm or yarn)
@@ -478,6 +485,7 @@ Contributions are welcome! Please read our [Contributing Guidelines](.github/CON
 - [Netzbegrünung e.V.](https://netzbegruenung.de/) — Technical support, hosting, and self-hosted AI infrastructure
 - [Mistral AI](https://mistral.ai/) — Primary AI provider (France)
 - [Black Forest Labs](https://blackforestlabs.ai/) — Image generation (Germany)
+- [KugelAudio](https://kugelaudio.com/) — Speech synthesis (Germany)
 - All contributors and supporters of European digital sovereignty
 
 ---

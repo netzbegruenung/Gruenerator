@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 // `constants` object does not typecheck.
 import { Platform } from '../test/stubs/react-native';
 
-import { DEV_AUTH_BYPASS, isEmulator } from './devAuth';
+import { DEV_AUTH_BYPASS, DEV_BYPASS_USER, isEmulator } from './devAuth';
 
 /**
  * The dev login bypass must never run anywhere but a throwaway emulator. Two
@@ -73,5 +73,13 @@ describe('DEV_AUTH_BYPASS', () => {
     // asserts the shipped value — the gate that survives a stray .env on a build
     // machine.
     expect(DEV_AUTH_BYPASS).toBe(false);
+  });
+});
+
+describe('DEV_BYPASS_USER', () => {
+  it('arrives already consented, so the bypass is not stuck behind AiConsentGate', () => {
+    // Granting consent writes through the backend, which does not know this
+    // synthetic user — without a timestamp the modal gate cannot be passed (#3466).
+    expect(DEV_BYPASS_USER.ai_consent_at).toEqual(expect.any(String));
   });
 });

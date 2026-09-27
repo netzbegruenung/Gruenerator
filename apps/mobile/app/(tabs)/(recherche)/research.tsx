@@ -1,4 +1,5 @@
 import { getGlobalApiClient } from '@gruenerator/shared/api';
+import { formatResearchHitCount } from '@gruenerator/shared/utils';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
@@ -54,6 +55,8 @@ interface ResearchResult {
   relevant_content: string;
   similarity_score: number;
   chunk_count?: number;
+  /** Abschnitte mit wörtlichem Begriffstreffer — Untergrenze, siehe Contract. */
+  term_chunk_count?: number | null;
   top_chunks?: Array<{ preview: string; chunk_index: number; page_number: number | null }>;
   collection_id?: string;
   collection_name?: string;
@@ -897,10 +900,10 @@ export default function ResearchScreen() {
                   </Text>
                 </View>
               )}
-              {result.chunk_count != null && result.chunk_count > 1 && (
+              {((result.term_chunk_count ?? 0) > 0 || (result.chunk_count ?? 0) > 1) && (
                 <View style={[styles.collectionBadge, { backgroundColor: theme.surface }]}>
                   <Text style={[styles.collectionText, { color: theme.textSecondary }]}>
-                    {result.chunk_count} Abschnitte
+                    {formatResearchHitCount(result.term_chunk_count, result.chunk_count)}
                   </Text>
                 </View>
               )}

@@ -13,18 +13,21 @@ import { type SkillCategory } from './types.js';
  * `documentation/scripts/generate-agentura.mjs` parses this file by AST to
  * build the docs page, so the shape of the array literal is load-bearing:
  * keep the entries as plain object literals with string-literal values.
+ *
+ * Wording: „Grüneratoren" ist der Überbegriff über alles, was hier liegt —
+ * Agents, Rezepte und wiederkehrende Aufgaben. Wo das Wort neben „Rezepte"
+ * steht, benennt es die Gattung und heißt deshalb „Agents"; wo es für den
+ * ganzen Markt steht, bleibt es.
  */
 
 /** Where a shelf exists. Omitted means web-only — the safe default, since a
  *  shelf reaches mobile only once someone builds it there. */
 export type AgenturaPlatform = 'web' | 'mobile';
 
-const BOTH: readonly AgenturaPlatform[] = ['web', 'mobile'];
-
-/** Every category key the market can show. Skills + Landesverbände no longer have
- *  their own aisles — they live as sub-sections inside `gruenerator`. */
+/** Every category key the market can show. Rezepte haben kein eigenes Regal —
+ *  sie liegen als Unterabschnitte in `gruenerator` bzw. `landesverband`. */
 export type AgenturaCategoryKey =
-  'empfohlen' | 'meine' | 'gruppen' | 'community' | 'gruenerator' | 'favoriten';
+  'empfohlen' | 'meine' | 'landesverband' | 'community' | 'gruenerator' | 'favoriten';
 
 export interface AgenturaCategory {
   key: AgenturaCategoryKey;
@@ -44,47 +47,74 @@ export interface AgenturaCategory {
  */
 export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
   {
+    // Auf keiner Plattform mehr ein eigenes Regal: es war immer eine Auswahl
+    // aus den offiziellen Grüneratoren, und wer sie gesehen hatte, musste das
+    // Regal wechseln, um den Rest zu sehen. Die Auswahl lebt als Reihung
+    // weiter — `pinnedToSidebar` steht bei der Sortierung „Empfohlen" oben.
+    // Schlüssel bleibt: Registry-IDs werden stillgelegt, nicht entfernt.
     key: 'empfohlen',
     label: 'Empfohlen',
-    description: 'Beliebte Grüneratoren zum Einstieg — eine Auswahl über alle Regale hinweg.',
-    platforms: BOTH,
+    description: 'Beliebte Agents zum Einstieg — eine Auswahl über alle Regale hinweg.',
+    platforms: [],
   },
   {
     key: 'meine',
     label: 'Meine Grüneratoren',
-    description: 'Deine selbst erstellten Grüneratoren und wiederkehrenden Aufgaben.',
+    description:
+      'Deine selbst erstellten Agents, Rezepte, wiederkehrenden Aufgaben und was in deinen Gruppen geteilt wurde.',
     emptyText:
-      'Du hast noch keine eigenen Grüneratoren erstellt. Leg deinen ersten über „Neuer Grünerator-Agent" an.',
-    platforms: BOTH,
+      'Du hast noch keine eigenen Agents oder Rezepte erstellt. Leg deinen ersten über „Neu" an.',
+    platforms: ['web', 'mobile'],
   },
   {
-    key: 'gruppen',
-    label: 'Geteilt mit Gruppen',
-    description: 'Grüneratoren, die in deinen Gruppen geteilt wurden.',
+    // Erscheint nur mit Zuteilung — die Rolle „Mitarbeiter*in
+    // Landesgeschäftsstelle" (AT: Landesorganisation) IST der Zugang. Ohne sie
+    // wäre das Regal leer, und ein leeres Regal für elf fremde Landesverbände
+    // ist genau das Rauschen, das die Zuteilung abgeschafft hat.
+    //
+    // `label` ist nur noch der Notfall-Rückfall: beide Plattformen ersetzen ihn
+    // beim Rendern durch `landesverbandShelfLabel(lvIds)` und zeigen den Verband
+    // beim Namen („Grüne Hessen"). Das Literal bleibt trotzdem stehen — der
+    // Docs-Generator liest es per AST und verträgt keinen Funktionsaufruf.
+    key: 'landesverband',
+    label: 'Dein Landesverband',
+    description: 'Die Agents und Rezepte deines Landesverbands, über deine Rolle zugeteilt.',
+    platforms: ['web', 'mobile'],
   },
   {
     key: 'community',
-    label: 'Von der Basis',
-    description: 'Öffentlich geteilte Grüneratoren von der Basis.',
+    label: 'Öffentlich',
+    description: 'Öffentlich geteilte Agents und Rezepte von der Basis.',
     emptyText:
-      'Noch keine öffentlichen Grüneratoren. Sei der oder die Erste — teile einen deiner Grüneratoren über „Teilen" und aktiviere „Von der Basis".',
-    platforms: BOTH,
+      'Noch keine öffentlichen Agents. Sei der oder die Erste — teile einen deiner Agents über „Teilen" und aktiviere „Öffentlich".',
+    platforms: ['web', 'mobile'],
   },
   {
     key: 'gruenerator',
     label: 'Offizielle Grüneratoren',
-    description:
-      'Fertige Grüneratoren, Presse- & Social-Rezepte und Landesverbände von Grünerator.',
-    platforms: BOTH,
+    description: 'Fertige Agents sowie Presse- & Social-Rezepte von Grünerator.',
+    platforms: ['web', 'mobile'],
   },
   {
+    // Kein Regal mehr, sondern ein Typ-Filter (`AGENTURA_TYPE_VALUES`), der
+    // innerhalb des aktiven Regals filtert: „Favoriten" war nie eine eigene
+    // Gattung, sondern eine Markierung auf den anderen. Der Schlüssel bleibt
+    // trotzdem stehen — Registry-IDs werden nicht entfernt, nur stillgelegt,
+    // und `AGENTURA_CATEGORY_ICONS` ist auf die volle Union getippt.
     key: 'favoriten',
     label: 'Favoriten',
-    description: 'Deine gemerkten Grüneratoren und Rezepte.',
+    description: 'Deine gemerkten Agents und Rezepte.',
+    platforms: [],
   },
 ];
 
-export const DEFAULT_CATEGORY: AgenturaCategoryKey = 'empfohlen';
+/**
+ * Womit der Markt aufmacht. Fest „Meine Grüneratoren", nicht mehr abhängig
+ * davon, ob jemand schon eigene besitzt: eine Startseite, die je nach Bestand
+ * eine andere ist, kann man niemandem erklären — und der leere Zustand dieses
+ * Regals ist genau die Aufforderung, den ersten anzulegen.
+ */
+export const DEFAULT_CATEGORY: AgenturaCategoryKey = 'meine';
 
 /** The shelves a given platform actually shows, in registry order. */
 export function agenturaCategoriesForPlatform(platform: AgenturaPlatform): AgenturaCategory[] {
@@ -99,6 +129,29 @@ export const SKILL_CATEGORY_ORDER: SkillCategory[] = [
   'recherche',
   'sonstiges',
 ];
+
+/**
+ * Die Typ-Filter der Steuerleiste — quer zu den Regalen, nicht unter ihnen.
+ *
+ * Ein Regal sagt, *woher* etwas kommt (meins, mein Landesverband, die Basis,
+ * offiziell), der Typ-Filter sagt, *was* es ist. Beide greifen gleichzeitig:
+ * „Meine Grüneratoren" + `recipe` sind die eigenen Rezepte. `fav` filtert
+ * ebenfalls innerhalb des aktiven Regals und ersetzt damit das frühere
+ * Favoriten-Regal.
+ */
+export const AGENTURA_TYPE_VALUES = ['all', 'agent', 'recipe', 'task', 'fav'] as const;
+export type AgenturaType = (typeof AGENTURA_TYPE_VALUES)[number];
+
+export const AGENTURA_TYPE_LABELS: Record<AgenturaType, string> = {
+  all: 'Alle',
+  agent: 'Agents',
+  recipe: 'Rezepte',
+  task: 'Wiederkehrend',
+  fav: 'Favoriten',
+};
+
+/** Womit die Steuerleiste aufmacht. */
+export const DEFAULT_TYPE: AgenturaType = 'all';
 
 /** Sort options offered in the market header. */
 export const SORT_VALUES = ['empfohlen', 'az'] as const;

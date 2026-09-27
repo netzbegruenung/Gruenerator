@@ -1,7 +1,6 @@
 import { type GroupContentType } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import {
-  errMessage,
   useAddGroupLink,
   useCreateGroup,
   useDeleteGroup,
@@ -70,7 +69,7 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
     mutationFn: async (input: { groupId: string; name?: string; description?: string }) => {
       const { groupId, ...body } = input;
       const res = await getContractsClient().groups.updateInfo({ params: { groupId }, body });
-      if (res.status !== 200) throw new Error(errMessage(res.body));
+      if (res.status !== 200) throw apiErrorFromResponse(res);
       return { groupId, data: res.body };
     },
     onSuccess: ({ groupId }) => {
@@ -85,7 +84,7 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
         params: { groupId: input.groupId },
         body: { name: input.name },
       });
-      if (res.status !== 200) throw new Error(errMessage(res.body));
+      if (res.status !== 200) throw apiErrorFromResponse(res);
       return { groupId: input.groupId, data: res.body };
     },
     onSuccess: ({ groupId }) => {
@@ -148,7 +147,14 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
 
   return {
     userGroups: query.data ?? ([] as GroupSummary[]),
-    isLoadingGroups: query.isPending,
+    // `isLoading` ist `isPending && isFetching` — der erste Abruf, der wirklich
+    // läuft. Die beiden Hälften taugen einzeln nicht als Ladeanzeige:
+    // `isPending` bleibt true, solange die Abfrage deaktiviert ist (abgemeldet,
+    // Auth lädt noch) und ergäbe eine Anzeige, die nie endet; `isFetching` ist
+    // auch bei jedem Hintergrund-Refetch true und blendete die längst geladene
+    // Liste wieder aus — etwa bei der Invalidierung nach einem im Chat
+    // angelegten Projekt.
+    isLoadingGroups: query.isLoading,
     isFetchingGroups: query.isFetching,
     isErrorGroups: query.isError,
     errorGroups: query.error,
@@ -243,7 +249,8 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
       throw new Error('User not authenticated or group ID missing');
     }
     const res = await getContractsClient().groups.listGroupContent({ params: { groupId } });
-    if (res.status !== 200) throw new Error('Fehler beim Laden der Gruppeninhalte.');
+    if (res.status !== 200)
+      throw apiErrorFromResponse(res, 'Fehler beim Laden der Gruppeninhalte.');
     return res.body.content as GroupContentData;
   };
 
@@ -258,8 +265,13 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
     refetchOnWindowFocus: false,
     refetchOnMount: 'always' as const,
     refetchOnReconnect: true,
-    retry: (failureCount: number) => failureCount < 2,
+    // No local `retry` override: the global predicate in App.tsx skips
+    // 401/403/404 and still retries transient 5xx. Overriding it here meant an
+    // expected 403 was requested three times (GlitchTip #590).
     refetchInterval: false,
+    // GroupDetailSection renders this query's failure inline, so the global
+    // toast layer stays out of it.
+    meta: { silent: true },
   });
 
   const unshareContentMutation = useMutation({
@@ -269,7 +281,7 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
         params: { groupId, contentId },
         body: { contentType: contentType as GroupContentType },
       });
-      if (res.status !== 200) throw new Error(errMessage(res.body));
+      if (res.status !== 200) throw apiErrorFromResponse(res);
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: groupContentQueryKey });
@@ -298,7 +310,7 @@ export const useCloneCanvasTemplate = () => {
         body: {},
       });
       if (result.status !== 201) {
-        throw new Error(`Failed to clone canvas (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Vorlage konnte nicht kopiert werden.');
       }
       return result.body;
     },
@@ -318,7 +330,7 @@ export const useUpdateGroupSettings = (groupId: string | null) => {
         params: { groupId },
         body: { settings },
       });
-      if (res.status !== 200) throw new Error(errMessage(res.body));
+      if (res.status !== 200) throw apiErrorFromResponse(res);
       return res.body;
     },
     onSuccess: () => {
@@ -347,7 +359,7 @@ export const useInviteToGroup = () => {
         params: { groupId: input.groupId },
         body: { emails: input.emails },
       });
-      if (res.status !== 200) throw new Error(errMessage(res.body));
+      if (res.status !== 200) throw apiErrorFromResponse(res);
       return res.body;
     },
   });

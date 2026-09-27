@@ -1,5 +1,5 @@
 import { createLogger } from '../../utils/logger.js';
-import mistralClient from '../../workers/mistralClient.js';
+import mistralClient from '../ai/mistralClient.js';
 import { normalizeContextBias } from '../transcription/transcriptionBias.js';
 
 const log = createLogger('mistralVoice');

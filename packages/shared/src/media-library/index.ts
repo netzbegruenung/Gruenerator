@@ -26,6 +26,7 @@ export type {
   MediaUploadResponse,
   MediaUpdateResponse,
   MediaDeleteResponse,
+  MediaLibraryQuota,
 } from './types.js';
 
 // Constants
@@ -37,6 +38,9 @@ export {
   MAX_FILE_SIZE,
   DEFAULT_PAGINATION,
   MEDIA_LIMITS,
+  MEDIA_LIBRARY_ITEM_LIMIT,
+  MEDIA_LIBRARY_WARN_RATIO,
+  QUOTA_GATED_UPLOAD_SOURCES,
   UPLOAD_SOURCE_LABELS,
   MEDIA_TYPE_LABELS,
 } from './constants.js';
@@ -60,16 +64,27 @@ export {
   type DeclarableContentOrigin,
 } from './contentOrigin.js';
 
+// Gespeicherte Share-URL → ladbare Bild-URL
+export {
+  resolveStoredImageUrl,
+  sharedMediaPreviewUrl,
+  shareTokenFromShareUrl,
+  type SharedMediaPreviewOptions,
+} from './shareUrl.js';
+
 // Responsive thumbnail URL builder
 export {
   buildSharedMediaSrcSet,
+  shareCanvasPreviewUrl,
+  shareThumbnailPreviewUrl,
+  CANVAS_PREVIEW_WIDTH,
   DEFAULT_THUMBNAIL_WIDTHS,
   type SharedMediaSrcSet,
   type SharedMediaSrcSetOptions,
 } from './srcset.js';
 
 // Hooks
-export { useMediaLibrary } from './hooks/useMediaLibrary.js';
+export { useMediaLibrary, MEDIA_LIBRARY_QUERY_KEY } from './hooks/useMediaLibrary.js';
 export { useMediaUpload } from './hooks/useMediaUpload.js';
 
 // Stores

@@ -1,14 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
 
 import {
+  buildSystemMessage,
   formatSearchContext,
   formatTabularComputeGuidance,
   getModeGuidance,
   citableSourcesAvailable,
   truncateDocument,
+  limitAttachmentContext,
+  formatThreadAttachmentsContext,
 } from './respondNode.js';
 
-import type { ChatGraphState, ComputeData, SearchResult } from '../types.js';
+import type { ChatGraphState, ComputeData, SearchResult, ThreadAttachment } from '../types.js';
 
 vi.mock('../../../../utils/logger.js', () => ({
   createLogger: () => ({
@@ -41,7 +44,6 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     notebookDocumentIds: [],
     searchSources: ['web'],
     complexity: 'simple',
-    aiWorkerPool: null,
     // Default to a run_python-capable client (web) so the pandas-guidance
     // assertions below exercise the historical behavior; capability-less
     // clients (mobile/voice) are covered explicitly.
@@ -97,6 +99,171 @@ describe('truncateDocument', () => {
     for (const limit of [1, 60, 149, 150, 151, 400, 5000]) {
       expect(truncateDocument(long, limit).length, `limit=${limit}`).toBeLessThan(long.length);
     }
+  });
+});
+
+describe('truncateDocument — mit Anfrage (#2824)', () => {
+  /** Antwort weit hinten: genau der Fall, den 60/40 wegschneidet. */
+  const filler = Array.from(
+    { length: 40 },
+    (_, i) =>
+      `## Abschnitt ${i}\n\nAllgemeine Ausführungen zu Zuständigkeiten und Zeitplänen im Haus.`
+  ).join('\n\n');
+  const doc = `${filler}\n\n## Löschfristen\n\nDie Löschfristen betragen sechs Monate.\n\n${filler}`;
+
+  it('behält die Passage zur Frage, wo der 60/40-Schnitt sie verlöre', () => {
+    const positional = truncateDocument(doc, 1200);
+    expect(positional).not.toContain('Die Löschfristen betragen');
+
+    const focused = truncateDocument(doc, 1200, 'Wie lang sind die Löschfristen?');
+    expect(focused).toContain('Die Löschfristen betragen');
+    expect(focused.length).toBeLessThanOrEqual(1200);
+  });
+
+  it('fällt ohne verwertbares Signal auf den alten Schnitt zurück', () => {
+    // Byte-gleich: das ist die Zusicherung, die alle Aufrufer ohne Anfrage tragen.
+    expect(truncateDocument(doc, 1200, '')).toBe(truncateDocument(doc, 1200));
+    expect(truncateDocument(doc, 1200, 'und was ist mit dem')).toBe(truncateDocument(doc, 1200));
+  });
+
+  it('fällt zurück, wenn der Begriff überall gleich oft steht', () => {
+    // „fasse das Dokument zusammen" darf keine beliebige Auswahl auslösen.
+    const flat = Array.from(
+      { length: 60 },
+      (_, i) => `## Teil ${i}\n\nDieses Dokument beschreibt das Dokument und seine Teile.`
+    ).join('\n\n');
+    expect(truncateDocument(flat, 1200, 'fasse das Dokument zusammen')).toBe(
+      truncateDocument(flat, 1200)
+    );
+  });
+});
+
+describe('limitAttachmentContext — fair per-document split (M1/M3)', () => {
+  function doc(name: string, chars: number): string {
+    return `### ${name}\n\n${'A'.repeat(chars)}`;
+  }
+
+  it('keeps all N documents instead of dropping the last one under budget pressure', () => {
+    const context = [doc('A.pdf', 8000), doc('B.pdf', 8000), doc('C.pdf', 8000)].join(
+      '\n\n---\n\n'
+    );
+    // Old first-come-first-served behavior exhausted the budget on A and B,
+    // dropping C entirely — the exact failure mode of a 3-file comparison.
+    const out = limitAttachmentContext(context, undefined, 10_000);
+    expect(out).toContain('A.pdf');
+    expect(out).toContain('B.pdf');
+    expect(out).toContain('C.pdf');
+    expect(out).not.toContain('nicht einbezogen');
+  });
+
+  it('names omitted documents instead of only counting them', () => {
+    const context = [doc('Real.pdf', 500), '### Empty.pdf\n\n'].join('\n\n---\n\n');
+    const out = limitAttachmentContext(context, undefined, 200);
+    expect(out).toContain('nicht einbezogen');
+    expect(out).toContain('Empty.pdf');
+  });
+
+  it('leaves a single document untouched under a generous budget', () => {
+    const context = doc('Solo.pdf', 500);
+    const out = limitAttachmentContext(context, undefined, 10_000);
+    expect(out).toBe(context);
+  });
+
+  it('gives every document at least the minimum floor even with many attachments', () => {
+    const many = Array.from({ length: 10 }, (_, i) => doc(`F${i}.pdf`, 5000));
+    const out = limitAttachmentContext(many.join('\n\n---\n\n'), undefined, 5_000);
+    for (let i = 0; i < 10; i++) {
+      expect(out).toContain(`F${i}.pdf`);
+    }
+  });
+});
+
+/**
+ * Ein Such-Turn, der zugleich eine bestellte Textform schuldet.
+ *
+ * Live auf beta am 20.08.2026, zwei Turns im selben Thread: `/presse mehr
+ * artenschutz in ludwigshafen` kam als Recherche-Briefing zurueck, das
+ * mention-lose „schreibe eine pressemitteilung …" danach als korrekte
+ * Pressemitteilung. Die ausdrueckliche Wahl war der schwaechere Weg — sie
+ * unterdrueckt `rezept_laden` und legt den Rezepttext an den Anfang des
+ * System-Prompts, weit vor SEARCH_GUIDANCE.
+ */
+describe('getModeGuidance — bestellte Textform auf einem Such-Turn', () => {
+  it('nennt die gewaehlte Textform und sagt, dass sie das Ergebnis ist', () => {
+    const out = getModeGuidance(makeState({ intent: 'search', activeSkillMention: 'presse' }));
+    // Der Name kommt aus der Registry, nicht aus einer Tabelle in respondNode.
+    expect(out).toContain('Pressemitteilung');
+    expect(out).toMatch(/Recherche ist das Mittel/);
+    // Die Recherche-Anweisung bleibt daneben stehen.
+    expect(out).toContain('Recherche-Ergebnisse');
+  });
+
+  it('greift auch auf dem agentischen Pfad (intent=agentic faellt in den default-Zweig)', () => {
+    const out = getModeGuidance(makeState({ intent: 'agentic', activeSkillMention: 'presse' }));
+    expect(out).toMatch(/Recherche ist das Mittel/);
+  });
+
+  it('nimmt den LV-Titel, nicht den generischen', () => {
+    const out = getModeGuidance(
+      makeState({ intent: 'search', activeSkillMention: 'presse-hamburg' })
+    );
+    expect(out).toContain('PM Hamburg');
+  });
+
+  it('schweigt bei einer gewoehnlichen Recherchefrage', () => {
+    const out = getModeGuidance(makeState({ intent: 'search' }));
+    expect(out).not.toMatch(/Recherche ist das Mittel/);
+  });
+
+  // Der Kern des Umbaus: ein GENANNTES Textsorten-Nomen ist keine Bestellung.
+  // Genau diese Formulierungen sind auf den Abruf-Pfaden der Normalfall, und
+  // ein Hinweis darauf liesse das Modell schreiben statt suchen.
+  it('schweigt, wenn die Textsorte nur genannt und nicht bestellt ist', () => {
+    const out = getModeGuidance(
+      makeState({
+        intent: 'search',
+        documentSubtype: 'pressemitteilung',
+        lastUserTextNoMentions: 'Was steht in der Pressemitteilung zum Radentscheid?',
+      })
+    );
+    expect(out).not.toMatch(/Recherche ist das Mittel/);
+  });
+});
+
+/**
+ * Der Einzeldurchlauf mit `edit_current_doc` heisst seit #3428: die Bearbeitung
+ * findet NICHT statt. Bearbeitet wird nur noch aus der Schleife heraus, und
+ * hierher kommt genau der Zug, den `decideEditToolLoop` draussen gehalten hat
+ * (Bildanhang, Notebook, Zweit-Intent). Der alte Text versprach trotzdem eine
+ * Änderung — die Stufe, die sie ausgelöst hätte, gibt es nicht mehr.
+ */
+describe('getModeGuidance — edit_current_doc ohne Bearbeitungsweg', () => {
+  it('verspricht keine Bearbeitung mehr, sondern bestellt den Vorschlag als Text', () => {
+    const out = getModeGuidance(makeState({ intent: 'edit_current_doc' }));
+    expect(out).toContain('nicht direkt bearbeiten');
+    expect(out).toContain('hier ist mein Vorschlag als Text');
+    expect(out).not.toContain('die Bearbeitung passiert direkt im Dokument');
+  });
+
+  it('nennt die Tabelle, wenn der Doc-Fast-Path in der Tabellen-Seitenleiste feuert', () => {
+    const out = getModeGuidance(
+      makeState({
+        intent: 'edit_current_doc',
+        agentConfig: { identifier: 'gruenerator-sheets-editor' } as never,
+        enabledTools: { edit_current_sheet: true },
+      })
+    );
+    expect(out).toContain('Ich kann die Tabelle in diesem Zug nicht direkt bearbeiten');
+    expect(out).not.toContain('das Dokument');
+  });
+
+  // Der Intent allein entscheidet das nicht: derselbe Prompt-Bau beliefert den
+  // Loop, und dort IST das Werkzeug montiert. Der Absagetext stünde dann neben
+  // „Rufe IMMER edit_document auf" — siehe docsEditPrompt.vitest.ts für die
+  // Prüfung am fertigen Prompt.
+  it('schweigt, sobald das edit_document der Dokument-Fläche montiert ist', () => {
+    const out = getModeGuidance(makeState({ intent: 'edit_current_doc', editToolSurface: 'doc' }));
+    expect(out).toBe('');
   });
 });
 
@@ -286,6 +453,43 @@ describe('getModeGuidance for compute intent', () => {
   });
 });
 
+/**
+ * Both chart prompts, byte for byte.
+ *
+ * The two variants share their format block and most of their rules and were
+ * kept as two copy-pasted literals; they are now composed from one template.
+ * Pinning the exact strings is what makes that composition provable — a
+ * substring assertion would have passed through a dropped rule or a lost
+ * newline, and the model only ever sees the whole thing.
+ */
+const CHART_PROMPT_PLAUSIBLE = `\nDer*die Nutzer*in möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.
+Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
+
+\`\`\`chart
+{"type":"bar","title":"Titel","data":[{"name":"A","wert":10},{"name":"B","wert":20}],"xKey":"name","yKeys":["wert"]}
+\`\`\`
+
+Regeln:
+- type: "bar", "line", "area", "pie" oder "donut"
+- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey
+- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")
+- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
+- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
+- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
+
+const CHART_PROMPT_COMPUTED = `\nDer*die Nutzer*in möchte ein Diagramm. Die Werte wurden bereits deterministisch per Code berechnet (siehe BERECHNUNGSERGEBNIS) — verwende AUSSCHLIESSLICH diese Werte und erfinde KEINE Zahlen.
+Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
+
+\`\`\`chart
+{"type":"bar","title":"Titel","data":[{"name":"A","wert":10},{"name":"B","wert":20}],"xKey":"name","yKeys":["wert"]}
+\`\`\`
+
+Regeln:
+- type: "bar", "line", "area", "pie" oder "donut"
+- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey — die Werte EXAKT aus dem BERECHNUNGSERGEBNIS übernehmen
+- xKey: Name des Feldes für die X-Achse; yKeys: Array der Wert-Feldnamen
+- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
+
 describe('getModeGuidance for chart intent', () => {
   it('grounds the chart on the computed values when a fresh result exists', () => {
     const out = getModeGuidance(
@@ -295,12 +499,14 @@ describe('getModeGuidance for chart intent', () => {
         computedResultFresh: true,
       })
     );
+    expect(out).toBe(CHART_PROMPT_COMPUTED);
     expect(out).toContain('AUSSCHLIESSLICH');
     expect(out).not.toContain('plausible Daten');
   });
 
   it('falls back to the plausible-data guidance without a fresh result', () => {
     const out = getModeGuidance(makeState({ intent: 'chart', computedResult: null }));
+    expect(out).toBe(CHART_PROMPT_PLAUSIBLE);
     expect(out).toContain('plausible Daten');
     expect(out).not.toContain('AUSSCHLIESSLICH');
   });
@@ -397,5 +603,322 @@ describe('formatSearchContext routing', () => {
   it('returns empty string when there are no search results', async () => {
     const out = await formatSearchContext(makeState({ searchResults: [] }));
     expect(out).toBe('');
+  });
+});
+
+describe('formatThreadAttachmentsContext — kein doppelter Ausgangstext', () => {
+  const article = 'Die Grünen drängen auf einen Aktionsplan gegen Hitze. '.repeat(40);
+
+  const doc = (extractedText: string | null, over: Partial<ThreadAttachment> = {}) =>
+    ({
+      id: 'a1',
+      name: 'Eingefügter Text.txt',
+      isImage: false,
+      extractedText,
+      summary: 'Kurzfassung',
+      ...over,
+    }) as ThreadAttachment;
+
+  it('lässt den Anhang weg, wenn sein Text schon in der Historie steht', () => {
+    const out = formatThreadAttachmentsContext([doc(article)], undefined, `Nutzer: ${article}`);
+    expect(out).toBe('');
+  });
+
+  it('spielt ihn ein, wenn die Kürzung die Historie-Kopie entfernt hat', () => {
+    // Der Rückfall ist der Punkt: ohne Historie-Kopie ist die Wiedereinspielung
+    // die einzige Stelle, an der das Dokument den Prompt noch erreicht.
+    const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?');
+    expect(out).toContain('FRÜHERE DOKUMENTE');
+    expect(out).toContain('Volltext-Auszug');
+  });
+
+  it('greift nicht bei kurzen Texten, wo Gleichheit Zufall wäre', () => {
+    const out = formatThreadAttachmentsContext([doc('Hallo Welt')], undefined, 'Hallo Welt');
+    expect(out).toContain('FRÜHERE DOKUMENTE');
+  });
+
+  it('ist unempfindlich gegen abweichende Umbrüche', () => {
+    const inHistory = article.replace(/ /g, '\n');
+    const out = formatThreadAttachmentsContext([doc(article)], undefined, inHistory);
+    expect(out).toBe('');
+  });
+
+  it('lässt einen zweiten, nicht replizierten Anhang stehen', () => {
+    const other = 'Ein ganz anderes Dokument über Radwege. '.repeat(40);
+    const out = formatThreadAttachmentsContext(
+      [doc(article), doc(other, { id: 'a2', name: 'Radwege.txt' })],
+      undefined,
+      article
+    );
+    expect(out).toContain('Radwege.txt');
+    expect(out).not.toContain('Aktionsplan gegen Hitze');
+  });
+
+  it('rührt Bilder nicht an', () => {
+    const out = formatThreadAttachmentsContext(
+      [doc(null, { isImage: true, summary: 'Ein Foto von Katharina Dröge' })],
+      undefined,
+      'Ein Foto von Katharina Dröge'
+    );
+    expect(out).toContain('FRÜHERE BILDER');
+  });
+
+  // Live am 20.08.2026: eine Datei mit 5794 Zeichen erreichte das Modell als
+  // 11588 Zeichen. Zwei Wege dorthin — der Live-Anhang neben der gespeicherten
+  // Zeile, und ab dem dritten Turn zwei gespeicherte Zeilen derselben Datei.
+  // Die Historie-Prüfung darüber konnte beides nicht sehen: `sanitizeUIFileParts`
+  // entfernt die File-Parts, bevor die Historie gebaut wird.
+  describe('derselbe Text nur einmal im Prompt', () => {
+    it('lässt die gespeicherte Zeile weg, wenn der Live-Anhang denselben Text trägt', () => {
+      const live = `### Eingefügter Text.txt (Volltext-Auszug)\n\n${article}`;
+      const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
+      expect(out).toBe('');
+    });
+
+    it('spielt zwei gespeicherte Zeilen derselben Datei nur einmal ein', () => {
+      const out = formatThreadAttachmentsContext(
+        [doc(article), doc(article, { id: 'a2' })],
+        undefined,
+        'Und weiter?'
+      );
+      const treffer = out.match(/Volltext-Auszug/g) ?? [];
+      expect(treffer).toHaveLength(1);
+    });
+
+    it('lässt einen anderen Anhang neben dem Live-Anhang stehen', () => {
+      const other = 'Ein ganz anderes Dokument über Radwege. '.repeat(40);
+      const live = `### Eingefügter Text.txt (Volltext-Auszug)\n\n${article}`;
+      const out = formatThreadAttachmentsContext(
+        [doc(article), doc(other, { id: 'a2', name: 'Radwege.txt' })],
+        undefined,
+        'Und weiter?',
+        live
+      );
+      expect(out).toContain('Radwege.txt');
+      expect(out).not.toContain('Aktionsplan gegen Hitze');
+    });
+
+    it('verhält sich unverändert, wenn kein Live-Anhang übergeben wird', () => {
+      const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?');
+      expect(out).toContain('FRÜHERE DOKUMENTE');
+    });
+
+    // Der Teilstring-Vergleich braucht dieselbe Untergrenze wie die Historie-
+    // Prüfung: eine kurze gespeicherte Notiz kann zufällig irgendwo in einem
+    // völlig anderen Live-Dokument vorkommen. Ohne Schwelle fiele sie lautlos
+    // aus dem Prompt — ohne Log, ohne Budget-Warnung.
+    it('verschluckt keine kurze gespeicherte Zeile, die zufällig im Live-Text steht', () => {
+      const notiz = 'Gesamt: 12,50 €';
+      const live = `### Quartalsbericht.pdf (Volltext-Auszug)\n\n${article} Gesamt: 12,50 € Ende.`;
+      const out = formatThreadAttachmentsContext(
+        [doc(notiz, { name: 'Notiz.txt' })],
+        undefined,
+        'Und weiter?',
+        live
+      );
+      expect(out).toContain('Notiz.txt');
+      expect(out).toContain(notiz);
+    });
+
+    it('erkennt die Dublette auch, wenn der Live-Block gekürzt ankommt', () => {
+      // Der gespeicherte Volltext ist ungekürzt, der Live-Block kann es nicht
+      // sein — deshalb zählt die Überdeckung in beide Richtungen, sobald sie
+      // lang genug ist, um kein Zufall mehr zu sein.
+      const live = `### Eingefügter Text.txt (Volltext-Auszug)\n\n${article.slice(0, 1200)}`;
+      const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
+      expect(out).toBe('');
+    });
+
+    it('erkennt die Dublette, wenn der Live-Block mehrere Dokumente trägt', () => {
+      const other = 'Ein ganz anderes Dokument über Radwege. '.repeat(40);
+      const live = [
+        `### Radwege.txt (Volltext-Auszug)\n\n${other}`,
+        `### Eingefügter Text.txt (Volltext-Auszug)\n\n${article}`,
+      ].join('\n\n---\n\n');
+      const out = formatThreadAttachmentsContext([doc(article)], undefined, 'Und weiter?', live);
+      expect(out).toBe('');
+    });
+  });
+});
+
+describe('Pipeline-Turn: genau ein Ausgangstext im Prompt', () => {
+  const alt = 'Ein Artikel aus einem früheren Turn über Radwege. '.repeat(40);
+  const pinned = 'Die Grünen fordern ein Sofortprogramm für Klimaanlagen. '.repeat(20);
+
+  const state = (over: Partial<ChatGraphState> = {}) =>
+    makeState({
+      intent: 'produktion',
+      searchResults: [],
+      citations: [],
+      agentConfig: { identifier: 'gruenerator-einfache-sprache', systemRole: 'ROLLE …' },
+      threadAttachments: [
+        {
+          id: 'a1',
+          name: 'Eingefügter Text.txt',
+          mimeType: 'text/plain',
+          isImage: false,
+          extractedText: alt,
+          documentId: null,
+          summary: null,
+          createdAt: new Date('2026-08-13T21:38:00Z'),
+        } as ThreadAttachment,
+      ],
+      attachmentContext: alt,
+      documentMentionContext: alt,
+      ...over,
+    });
+
+  it('verdrängt jedes andere Material, sobald ein Text angeheftet ist', async () => {
+    // Solange beides im Prompt steht, ist die Anheftung eine Bitte — und am
+    // 13.08.2026 entschied sich das Modell für den Thread-Kontext, während die
+    // Prüfkette gegen den angehefteten Text mass.
+    const out = await buildSystemMessage(state({ pipelineSourceText: pinned }));
+    expect(out).toContain('ZU ÜBERTRAGENDER TEXT');
+    expect(out).toContain('Sofortprogramm für Klimaanlagen');
+    expect(out).not.toContain('Radwege');
+    expect(out).not.toContain('FRÜHERE DOKUMENTE');
+  });
+
+  it('lässt den gewöhnlichen Turn unberührt', async () => {
+    const out = await buildSystemMessage(state({ pipelineSourceText: null }));
+    expect(out).not.toContain('ZU ÜBERTRAGENDER TEXT');
+    expect(out).toContain('Radwege');
+  });
+});
+
+/**
+ * `vision` ("Bildanalyse") war der dritte Schlüssel ohne Gatter (#3307). Die
+ * Bytes hängt `responseSinglePass` an die Nachricht; dieser Prompt-Block sagt
+ * dem Modell, dass sie da sind. Beide müssen dieselbe Antwort geben — ein
+ * Prompt, der Sichtbarkeit behauptet, während die Injektion ausblieb, ist die
+ * Bauanleitung für eine erfundene Bildbeschreibung.
+ */
+describe('formatImageContext — die Sichtbarkeitszusage folgt dem vision-Schalter', () => {
+  const withImages = (enabledTools: Record<string, boolean>) =>
+    makeState({
+      intent: 'direct',
+      searchResults: [],
+      citations: [],
+      agentConfig: { identifier: 'gruenerator-universal' },
+      enabledTools,
+      imageAttachments: [{ name: 'plakat.png', type: 'image/png', data: 'AAAA' }],
+    } as unknown as Partial<ChatGraphState>);
+
+  it('sagt dem Modell, dass die Bilder sichtbar sind, wenn vision an ist', async () => {
+    const out = await buildSystemMessage(withImages({}));
+    expect(out).toContain('ANGEHÄNGTE BILDER');
+    expect(out).toContain('plakat.png');
+    expect(out).toContain('sind in der Nachricht sichtbar');
+  });
+
+  it('nennt die Bilder weiter, sagt aber, dass sie NICHT sichtbar sind', async () => {
+    // Verschweigen wäre die andere Falle: die Person hat ein Bild angehängt
+    // und erwartet eine Reaktion darauf, nicht Schweigen.
+    const out = await buildSystemMessage(withImages({ vision: false }));
+    expect(out).toContain('plakat.png');
+    expect(out).toContain('NICHT in der Nachricht sichtbar');
+    expect(out).not.toContain('Die Bilder sind in der Nachricht sichtbar');
+  });
+
+  it('zeigt bei image_edit auf den BILDVERGLEICH — wenn es ihn gibt', async () => {
+    // Der Einzeldurchlauf lässt die Bytes hier bewusst draußen; das Modell
+    // erzählt aus den Beschreibungen. Der Prompt behauptete trotzdem das
+    // Gegenteil, auf dem häufigsten Bild-Zug überhaupt (#3313).
+    const out = await buildSystemMessage(
+      makeState({
+        intent: 'image_edit',
+        searchResults: [],
+        citations: [],
+        agentConfig: { identifier: 'gruenerator-universal' },
+        enabledTools: {},
+        imageAttachments: [{ name: 'plakat.png', type: 'image/png', data: 'AAAA' }],
+        imageEditDescriptions: { original: 'ein rotes Plakat', edited: 'ein blaues Plakat' },
+      } as unknown as Partial<ChatGraphState>)
+    );
+    expect(out).toContain('plakat.png');
+    expect(out).toContain('NICHT in der Nachricht sichtbar');
+    // Nicht bloß das Wort: der Abschnitt muss wirklich dastehen.
+    expect(out).toContain('## BILDVERGLEICH');
+    expect(out).toContain('ein blaues Plakat');
+    expect(out).not.toContain('Die Bilder sind in der Nachricht sichtbar.');
+  });
+
+  it('zeigt auf keinen BILDVERGLEICH, wenn beide Vision-Aufrufe fehlschlugen', async () => {
+    // `imageEditNode` fängt beide describe()-Fehler zu null ab. Dann rendert der
+    // Abschnitt nicht — und ein Prompt, der auf ihn zeigt, ist derselbe Fehler
+    // wie eine erfundene Sichtbarkeit, nur eine Zeile tiefer.
+    const out = await buildSystemMessage(
+      makeState({
+        intent: 'image_edit',
+        searchResults: [],
+        citations: [],
+        agentConfig: { identifier: 'gruenerator-universal' },
+        enabledTools: {},
+        imageAttachments: [{ name: 'plakat.png', type: 'image/png', data: 'AAAA' }],
+        imageEditDescriptions: null,
+      } as unknown as Partial<ChatGraphState>)
+    );
+    expect(out).toContain('NICHT in der Nachricht sichtbar');
+    expect(out).toContain('keine Beschreibung davon vor');
+    expect(out).not.toContain('## BILDVERGLEICH');
+    expect(out).not.toContain('Stütze dich auf den BILDVERGLEICH-Block');
+  });
+
+  it('verweist auch bei abgeschalteter Bildanalyse auf vorhandene Beschreibungen', async () => {
+    // „Bildanalyse“ und „Bildbearbeitung“ sind zwei unabhängige Schalter: die
+    // Erdung kann da sein, während die Bytes es nicht sind.
+    const out = await buildSystemMessage(
+      makeState({
+        intent: 'image_edit',
+        searchResults: [],
+        citations: [],
+        agentConfig: { identifier: 'gruenerator-universal' },
+        enabledTools: { vision: false },
+        imageAttachments: [{ name: 'plakat.png', type: 'image/png', data: 'AAAA' }],
+        imageEditDescriptions: { original: 'ein rotes Plakat', edited: 'ein blaues Plakat' },
+      } as unknown as Partial<ChatGraphState>)
+    );
+    expect(out).toContain('Bildanalyse ist für diesen Grünerator ausgeschaltet');
+    expect(out).toContain('Stütze dich auf den BILDVERGLEICH-Block');
+    expect(out).not.toContain('keine Beschreibung davon vor');
+  });
+});
+
+/**
+ * Der Sharepic-Studio-Kanal. Die Seitenleiste schickte ihren Text bis #3427 als
+ * gefälschtes `currentDocument`, nur um diesen einen Block zu bekommen — der
+ * Agenten-Prompt nennt ihn namentlich („Das **AKTUELLE DOKUMENT** ist der
+ * strukturierte Text dieses Sharepics"). Mit dem eigenen Kanal muss dieselbe
+ * Überschrift stehen bleiben, sonst antwortet der Agent über ein Sharepic, das
+ * er nicht sieht.
+ */
+describe('formatCurrentDocument — das offene Sharepic steht unter derselben Überschrift', () => {
+  const canvasState = (over: Partial<ChatGraphState> = {}) =>
+    makeState({
+      intent: 'direct',
+      searchResults: [],
+      citations: [],
+      agentConfig: { identifier: 'gruenerator-sharepic-editor' },
+      currentCanvas: {
+        id: 'canvas-1',
+        template: 'zitat',
+        snapshot: { template: 'zitat', textFields: [], elementsSummary: [] },
+        capabilities: { supportedOperations: ['set-text'] },
+        text: 'Zitat: „Mehr Tempo beim Ausbau."',
+      },
+      ...over,
+    } as unknown as Partial<ChatGraphState>);
+
+  it('rendert currentCanvas.text als AKTUELLES DOKUMENT', async () => {
+    const out = await buildSystemMessage(canvasState());
+    expect(out).toContain('AKTUELLES DOKUMENT');
+    expect(out).toContain('Mehr Tempo beim Ausbau.');
+    // Der Anker-Zusatz hing bisher am gefälschten currentDocument.
+    expect(out).toContain('Im Editor ist ein Dokument geöffnet');
+  });
+
+  it('lässt den Block weg, wenn weder Dokument noch Sharepic offen ist', async () => {
+    const out = await buildSystemMessage(canvasState({ currentCanvas: null }));
+    expect(out).not.toContain('AKTUELLES DOKUMENT');
   });
 });

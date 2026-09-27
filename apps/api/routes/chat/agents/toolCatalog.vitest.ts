@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+import { ATTACHED_DOC_SNIPPET_CHARS } from '../services/agenticLoop/attachedDocuments.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
 import { buildChatToolCatalog } from './toolCatalog.js';
@@ -14,11 +15,32 @@ import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.j
 // the wrong field and silently registered nothing.
 const searchExec = vi.hoisted(() => vi.fn<(i: unknown, o: unknown) => Promise<unknown>>());
 const webExec = vi.hoisted(() => vi.fn<(i: unknown, o: unknown) => Promise<unknown>>());
-vi.mock('./searchTools.js', () => ({
-  createSearchTools: () => ({
-    gruenerator_search: { description: 'd', inputSchema: {}, execute: searchExec },
-    web_search: { description: 'd', inputSchema: {}, execute: webExec },
-  }),
+// Die Optionen, mit denen der Katalog die Fabrik aufruft — das Gatter für
+// `rerankSearchChunks` ist sonst von aussen nicht beobachtbar.
+const searchToolOptions = vi.hoisted(() => ({ last: null as Record<string, unknown> | null }));
+vi.mock('./searchTools.js', async (importOriginal) => ({
+  createSearchTools: (_agent: unknown, options: Record<string, unknown>) => {
+    searchToolOptions.last = options;
+    return {
+      gruenerator_search: { description: 'd', inputSchema: {}, execute: searchExec },
+      web_search: { description: 'd', inputSchema: {}, execute: webExec },
+      // Die Beispielkorpora tragen keine Quellen und kommen darum ohne
+      // eigenes `execute` aus — sie werden nur montiert oder eben nicht.
+      gruenerator_examples_search: { description: 'd', inputSchema: {} },
+      gruenerator_pressemitteilung_examples: { description: 'd', inputSchema: {} },
+    };
+  },
+  // Real implementation: the catalog's web gate is what the tests below assert,
+  // so stubbing it would make them prove nothing.
+  agentAllowsWebSearch: (await importOriginal<typeof import('./searchTools.js')>())
+    .agentAllowsWebSearch,
+}));
+
+// DeepL is a paid, key-gated door: the catalog must only carry the tool when
+// a service exists. Toggled per test, never a real client.
+const deeplConfigured = vi.hoisted(() => ({ current: false }));
+vi.mock('../../../services/translation/DeepLService.js', () => ({
+  getDeepLService: () => (deeplConfigured.current ? {} : null),
 }));
 
 const validateUrlForFetch = vi.fn<(u: string) => Promise<unknown>>();
@@ -28,6 +50,32 @@ vi.mock('../../../utils/validation/urlSecurity.js', () => ({
 }));
 vi.mock('../../../services/search/index.js', () => ({
   crawlAndDistill: (seeds: unknown, q: unknown, opts: unknown) => crawlAndDistill(seeds, q, opts),
+}));
+
+const fanout = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
+vi.mock('../../../agents/langgraph/ChatGraph/nodes/searchNode.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  executeMultiDocFanout: (...a: unknown[]) => fanout(...a),
+}));
+
+const documentFullText = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
+const documentSearch = vi.hoisted(() => vi.fn<(args: unknown) => Promise<unknown>>());
+vi.mock(
+  '../../../services/document-services/DocumentSearchService/index.js',
+  async (importOriginal) => ({
+    ...(await importOriginal<Record<string, unknown>>()),
+    getQdrantDocumentService: () => ({
+      search: documentSearch,
+      getMultipleDocumentsFullText: documentFullText,
+    }),
+  })
+);
+
+const attachedMode = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
+const attachedSlice = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
+vi.mock('../services/agenticLoop/attachedDocumentTools.js', () => ({
+  runAttachedDocumentMode: (...a: unknown[]) => attachedMode(...a),
+  readAttachedSlice: (...a: unknown[]) => attachedSlice(...a),
 }));
 
 const agentConfig = { identifier: 'test' } as unknown as AgentConfig;
@@ -78,6 +126,36 @@ describe('toolCatalog source harvesting (excerpt/snippet → content)', () => {
     expect(sourceRegistry.size).toBe(2); // ← was 0 before the fix
     expect(out.sources).toContain('[1]');
     expect(out.sources).toContain('Klimaneutralität'); // the excerpt actually reached the model
+  });
+
+  // The reader target comes from the hit's collection. Dropped here, a title
+  // the model links as `[Titel](quelle:N)` had nothing in-app to open.
+  it('keeps the collection a document hit came from, so its citation can open the reader', async () => {
+    searchExec.mockResolvedValue({
+      collection: 'brandenburg',
+      query: 'Braunkohle',
+      resultsCount: 1,
+      results: [
+        {
+          rank: 1,
+          relevance: 'high',
+          source: 'LEAG-Geheimplan zur Kohle',
+          url: 'https://gruene-brandenburg.de/leag',
+          excerpt: 'Die Bündnisgrünen fordern Aufklärung.',
+          collectionId: 'brandenburg',
+        },
+      ],
+    });
+    const sourceRegistry = createSourceRegistry();
+    const { tools } = buildChatToolCatalog({ agentConfig, sourceRegistry });
+    await execOf(tools.gruenerator_search)(
+      { query: 'Braunkohle', collection: 'grundsatz', limit: 5 },
+      { toolCallId: 'c1' }
+    );
+
+    const [citation] = sourceRegistry.getCitations();
+    expect(citation?.collectionId).toBe('brandenburg');
+    expect(citation?.readerCollectionId).toBe('brandenburg-system');
   });
 
   it('registers web results whose text lives in `snippet`', async () => {
@@ -169,6 +247,28 @@ describe('toolCatalog domain tool mounting', () => {
     );
   });
 
+  it('mounts text_uebersetzen only with a DeepL key, and respects the agent opt-out', () => {
+    deeplConfigured.current = false;
+    expect(catalogFor('search').toolNames).not.toContain('text_uebersetzen');
+
+    deeplConfigured.current = true;
+    expect(catalogFor('search').toolNames).toContain('text_uebersetzen');
+    expect(catalogFor('direct').toolNames).toContain('text_uebersetzen');
+
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const state = {
+      intent: 'search',
+      enabledTools: { text_uebersetzen: false },
+    } as unknown as ChatGraphState;
+    expect(
+      buildChatToolCatalog({ agentConfig, sourceRegistry, loop: { sse, state } }).toolNames
+    ).not.toContain('text_uebersetzen');
+    deeplConfigured.current = false;
+  });
+
   it('mounts no domain tools without a loop context (unit-test / non-loop path)', () => {
     const sourceRegistry = createSourceRegistry();
     const { toolNames } = buildChatToolCatalog({ agentConfig, sourceRegistry });
@@ -186,6 +286,8 @@ describe('toolCatalog domain tool mounting', () => {
     req?: boolean;
     enabledTools?: Record<string, boolean>;
     userText?: string;
+    /** Extra graph state — e.g. the resolved editor surface + its open target. */
+    extraState?: Record<string, unknown>;
   }) {
     const sourceRegistry = createSourceRegistry();
     const sse = { send: () => {} } as unknown as NonNullable<
@@ -197,6 +299,7 @@ describe('toolCatalog domain tool mounting', () => {
       compoundGeneration: opts.kind != null,
       compoundGenerationKind: opts.kind ?? null,
       ...(opts.userText ? { messages: [{ role: 'user', content: opts.userText }] } : {}),
+      ...opts.extraState,
     } as unknown as ChatGraphState;
     return buildChatToolCatalog({
       agentConfig,
@@ -260,10 +363,50 @@ describe('toolCatalog domain tool mounting', () => {
     ).not.toContain('create_board');
   });
 
+  it('mounts edit_document for the sharepic studio surface (plan-and-send)', () => {
+    const names = genCatalog({
+      kind: null,
+      enabledTools: { edit_current_canvas: true },
+      extraState: {
+        editToolSurface: 'canvas',
+        currentCanvas: {
+          id: 'canvas-1',
+          template: 'zitat',
+          snapshot: { template: 'zitat', textFields: [], elementsSummary: [] },
+          capabilities: { supportedOperations: ['set-text'] },
+          text: 'Zitat',
+        },
+      },
+    }).toolNames;
+    expect(names).toContain('edit_document');
+    // The studio edits the OPEN sharepic — it must never spawn a new artifact.
+    expect(names).not.toContain('sharepic');
+    expect(names).not.toContain('generate_image');
+    expect(names).not.toContain('create_document');
+  });
+
+  it('mounts edit_document for the docs surface (dispatch strategy, #3428)', () => {
+    const names = genCatalog({
+      kind: null,
+      enabledTools: { edit_current_doc: true },
+      extraState: {
+        editToolSurface: 'doc',
+        currentDocument: {
+          id: 'doc-1',
+          title: 'Antrag',
+          markdown: '# Antrag',
+          selectionText: null,
+        },
+      },
+    }).toolNames;
+    expect(names).toContain('edit_document');
+    expect(names).not.toContain('create_document');
+  });
+
   it('editor sidebars NEVER spawn a new artifact (create tools gated off when edit_current_* is on)', () => {
     // A docs/sheets/presentations sidebar (edit_current_doc enabled) editing its
     // open doc must not create a NEW one, even on a compound turn.
-    for (const editKey of ['edit_current_doc', 'edit_current_board']) {
+    for (const editKey of ['edit_current_doc', 'edit_current_board', 'edit_current_canvas']) {
       for (const kind of ['sharepic', 'presentation', 'sheet', 'document', 'board'] as const) {
         const names = genCatalog({ kind, enabledTools: { [editKey]: true } }).toolNames;
         expect(names, `${kind} must not mount in an ${editKey} surface`).not.toContain(
@@ -287,6 +430,184 @@ describe('toolCatalog domain tool mounting', () => {
       genCatalog({ intent: 'agentic', kind: null, userText: 'erstelle ein Bild von einem Igel' })
         .toolNames
     ).toContain('generate_image');
+  });
+});
+
+describe('toolCatalog recurring_tasks — drei Tore, sonst nicht montiert', () => {
+  function catalogFor(state: Record<string, unknown>) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: {
+        sse,
+        state: { intent: 'agentic', enabledTools: {}, ...state } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+  }
+  const withText = (text: string, over: Record<string, unknown> = {}) =>
+    catalogFor({ messages: [{ role: 'user', content: text }], ...over });
+
+  it('bleibt bei einem gewöhnlichen Turn weg — das Schema kostet auf jedem Turn', () => {
+    expect(withText('Was sagt das Wahlprogramm zum Tempolimit?')).not.toContain('recurring_tasks');
+    expect(withText('Leg eine Aufgabe auf dem Board an')).not.toContain('recurring_tasks');
+  });
+
+  it('montiert auf den Pin aus Tier 3.4, auch ohne ein Wort aus dem Vokabular', () => {
+    expect(withText('mach das bitte', { mentionPinnedTool: 'recurring_tasks' })).toContain(
+      'recurring_tasks'
+    );
+  });
+
+  it('montiert auf den Dauerauftrag selbst (zweiter Weg in die Schleife)', () => {
+    expect(withText('Erinnere mich jeden Montag um 9 an den Wochenbericht')).toContain(
+      'recurring_tasks'
+    );
+  });
+
+  it('montiert auf das Verwaltungs-Vokabular', () => {
+    expect(withText('Pausier meine Erinnerung für den Newsletter')).toContain('recurring_tasks');
+    expect(withText('Welche wiederkehrenden Aufgaben laufen bei mir?')).toContain(
+      'recurring_tasks'
+    );
+  });
+
+  it('liest den Text ohne Erwähnungen, wenn der Router ihn liefert', () => {
+    expect(
+      catalogFor({
+        messages: [{ role: 'user', content: '@irgendwas' }],
+        lastUserTextNoMentions: 'pausier die Erinnerung',
+      })
+    ).toContain('recurring_tasks');
+  });
+
+  it('respektiert das Opt-out des Agenten — auch gegen den Pin', () => {
+    expect(
+      withText('Erinnere mich jeden Montag an den Bericht', {
+        enabledTools: { recurring_tasks: false },
+        mentionPinnedTool: 'recurring_tasks',
+      })
+    ).not.toContain('recurring_tasks');
+  });
+});
+
+describe('toolCatalog user_agents — Vokabular oder User-Agent-Thread, sonst nicht montiert', () => {
+  function catalogFor(state: Record<string, unknown>, agent: AgentConfig = agentConfig) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    return buildChatToolCatalog({
+      agentConfig: agent,
+      sourceRegistry,
+      loop: {
+        sse,
+        state: {
+          intent: 'agentic',
+          enabledTools: {},
+          agentConfig: agent,
+          ...state,
+        } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+  }
+  const withText = (text: string, over: Record<string, unknown> = {}, agent?: AgentConfig) =>
+    catalogFor({ messages: [{ role: 'user', content: text }], ...over }, agent);
+
+  it('bleibt bei einem gewöhnlichen Turn weg', () => {
+    expect(withText('Was sagt das Wahlprogramm zum Tempolimit?')).not.toContain('user_agents');
+    expect(withText('Schreib eine PM zur Agentur für Arbeit')).not.toContain('user_agents');
+  });
+
+  it('montiert auf das Vokabular', () => {
+    expect(withText('Bau mir einen Agenten, der Pressemitteilungen schreibt')).toContain(
+      'user_agents'
+    );
+    expect(withText('Welche Grünerator-Agenten habe ich?')).toContain('user_agents');
+    expect(withText('Ändere die Systemrolle meines Agenten')).toContain('user_agents');
+  });
+
+  it('montiert, wenn der Thread mit einem User-Agent läuft — ohne Stichwort', () => {
+    const userAgent = {
+      identifier: 'presse-kv-ab12cd',
+      isUserAgent: true,
+    } as unknown as AgentConfig;
+    expect(withText('Antworte ab jetzt kürzer', {}, userAgent)).toContain('user_agents');
+    // Ein Registry-Agent montiert nicht — er ist im Werkzeug ohnehin tabu.
+    expect(withText('Antworte ab jetzt kürzer')).not.toContain('user_agents');
+  });
+
+  it('liest den Text ohne Erwähnungen, wenn der Router ihn liefert', () => {
+    expect(
+      catalogFor({
+        messages: [{ role: 'user', content: '@irgendwas' }],
+        lastUserTextNoMentions: 'zeig meine Agenten',
+      })
+    ).toContain('user_agents');
+  });
+
+  it('respektiert das Opt-out des Agenten — auch im User-Agent-Thread', () => {
+    const userAgent = {
+      identifier: 'presse-kv-ab12cd',
+      isUserAgent: true,
+    } as unknown as AgentConfig;
+    expect(
+      withText('Bau mir einen Agenten', { enabledTools: { user_agents: false } }, userAgent)
+    ).not.toContain('user_agents');
+  });
+});
+
+describe('toolCatalog recipes — nur Vokabular, sonst nicht montiert', () => {
+  function catalogFor(state: Record<string, unknown>) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: {
+        sse,
+        state: {
+          intent: 'agentic',
+          enabledTools: {},
+          agentConfig,
+          ...state,
+        } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+  }
+  const withText = (text: string, over: Record<string, unknown> = {}) =>
+    catalogFor({ messages: [{ role: 'user', content: text }], ...over });
+
+  it('bleibt bei einem gewöhnlichen Turn weg — auch bei einem Schreibauftrag „im Stil von"', () => {
+    expect(withText('Was sagt das Wahlprogramm zum Tempolimit?')).not.toContain('recipes');
+    expect(withText('Schreib eine PM im Stil der Grünen Hessen')).not.toContain('recipes');
+    expect(withText('Das Medikament ist rezeptfrei')).not.toContain('recipes');
+  });
+
+  it('montiert auf das Vokabular', () => {
+    expect(withText('Welche Rezepte gibt es?')).toContain('recipes');
+    expect(withText('Lern meinen Schreibstil aus diesen drei Texten')).toContain('recipes');
+    expect(withText('Lösch meine Textform für Einladungen')).toContain('recipes');
+  });
+
+  it('liest den Text ohne Erwähnungen, wenn der Router ihn liefert', () => {
+    expect(
+      catalogFor({
+        messages: [{ role: 'user', content: '@irgendwas' }],
+        lastUserTextNoMentions: 'zeig meine Textformen',
+      })
+    ).toContain('recipes');
+  });
+
+  it('respektiert das Opt-out des Agenten', () => {
+    expect(withText('Welche Rezepte gibt es?', { enabledTools: { recipes: false } })).not.toContain(
+      'recipes'
+    );
   });
 });
 
@@ -358,6 +679,228 @@ describe('toolCatalog scrape_url', () => {
       error?: string;
     };
     expect(out.error).toMatch(/nicht lesen/);
+  });
+});
+
+/**
+ * Die Formularwerkzeuge dürfen nur erscheinen, wenn ein FORMULAR erreichbar ist.
+ * Ob ein PDF eines ist, entscheidet der Upload (`isFillablePdf`) und hinterlässt
+ * die Antwort als `file_data` — `hasFileData` ist genau diese Spalte.
+ *
+ * Ohne das Gitter montete jedes PDF im Thread zwei Werkzeuge, die nicht
+ * gelingen KONNTEN: `getThreadPdfFiles` filtert auf `file_data IS NOT NULL` und
+ * lieferte nichts, das Werkzeug meldete „Es ist kein PDF-Formular angehängt" —
+ * während eines angehängt war. Live am 24.08.2026 kostete das einen Loop-Schritt
+ * auf einer Datenschutzerklärung.
+ */
+describe('toolCatalog: Formularwerkzeuge hängen am Formular, nicht am MIME-Typ', () => {
+  const catalogFor = (state: Record<string, unknown>) => {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: { sse, state: { intent: 'search', ...state } as unknown as ChatGraphState },
+    });
+    return toolNames;
+  };
+
+  const pdf = (over: Record<string, unknown> = {}) => ({
+    id: 'a1',
+    name: 'Datenschutzerklaerung.pdf',
+    mimeType: 'application/pdf',
+    hasFileData: false,
+    ...over,
+  });
+
+  it('lässt sie weg, wenn das PDF beim Upload als Nicht-Formular erkannt wurde', () => {
+    const names = catalogFor({ threadAttachments: [pdf()] });
+    expect(names).not.toContain('read_pdf_form');
+    expect(names).not.toContain('fill_pdf_form');
+  });
+
+  it('montiert sie für ein PDF aus einem FRÜHEREN Turn, dessen Bytes liegen', () => {
+    // Die Regression, gegen die das Gitter nicht schiessen darf: ein Formular,
+    // das im Upload-Turn kam, steht später nur noch in `threadAttachments`.
+    const names = catalogFor({ threadAttachments: [pdf({ hasFileData: true })] });
+    expect(names).toContain('read_pdf_form');
+    expect(names).toContain('fill_pdf_form');
+  });
+
+  it('montiert sie für ein Formular DIESES Turns', () => {
+    const names = catalogFor({
+      pdfFormAttachments: [{ name: 'Antrag.pdf', data: 'AAAA' }],
+      threadAttachments: [],
+    });
+    expect(names).toContain('read_pdf_form');
+  });
+
+  it('lässt sie weg, wenn gar kein PDF im Spiel ist', () => {
+    const names = catalogFor({
+      threadAttachments: [pdf({ mimeType: 'text/plain', hasFileData: true })],
+    });
+    expect(names).not.toContain('read_pdf_form');
+  });
+});
+
+/**
+ * `vertonen` erzeugt eine NEUE Datei. In einer Editor-Seitenleiste ist das
+ * falsch — dort wird das offene Dokument bearbeitet, nichts Neues angelegt.
+ */
+describe('toolCatalog: vertonen', () => {
+  const catalogFor = (state: Record<string, unknown>) => {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: { sse, state: { intent: 'search', ...state } as unknown as ChatGraphState },
+    });
+    return toolNames;
+  };
+
+  it('ist im normalen Chat montiert', () => {
+    expect(catalogFor({})).toContain('vertonen');
+  });
+
+  it('fehlt, wenn die Agentin es abgeschaltet hat', () => {
+    expect(catalogFor({ enabledTools: { vertonen: false } })).not.toContain('vertonen');
+  });
+
+  it('fehlt in einer Editor-Seitenleiste', () => {
+    expect(catalogFor({ enabledTools: { edit_current_doc: true } })).not.toContain('vertonen');
+  });
+});
+
+describe('toolCatalog expand_attachment (M4)', () => {
+  beforeEach(() => {
+    documentSearch.mockReset();
+  });
+
+  function catalogWithAttachments(threadAttachments: unknown[]) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const state = { intent: 'search', threadAttachments } as unknown as ChatGraphState;
+    const { tools } = buildChatToolCatalog({ agentConfig, sourceRegistry, loop: { sse, state } });
+    return { execute: execOf(tools.expand_attachment), sourceRegistry };
+  }
+
+  it('is not mounted outside a loop context', () => {
+    const sourceRegistry = createSourceRegistry();
+    const { toolNames } = buildChatToolCatalog({ agentConfig, sourceRegistry });
+    expect(toolNames).not.toContain('expand_attachment');
+  });
+
+  it('errors on an unknown attachment name instead of guessing', async () => {
+    const { execute } = catalogWithAttachments([
+      { id: 'a1', name: 'Bekannt.pdf', extractedText: 'Text', documentId: null },
+    ]);
+    const out = (await execute({ attachmentName: 'Unbekannt.pdf' }, { toolCallId: 'c1' })) as {
+      error?: string;
+    };
+    expect(out.error).toMatch(/Keine Datei/);
+    expect(documentSearch).not.toHaveBeenCalled();
+  });
+
+  it('registers the full inline text of a small (non-vectorized) attachment', async () => {
+    const { execute, sourceRegistry } = catalogWithAttachments([
+      {
+        id: 'a1',
+        name: 'Klein.pdf',
+        extractedText: 'Der volle Text von Klein.pdf',
+        documentId: null,
+      },
+    ]);
+    const out = (await execute({ attachmentName: 'klein.pdf' }, { toolCallId: 'c1' })) as {
+      resultCount?: number;
+      sources?: string;
+    };
+    expect(out.resultCount).toBe(1);
+    expect(sourceRegistry.size).toBe(1);
+    expect(documentSearch).not.toHaveBeenCalled();
+  });
+
+  it('queries the vector store scoped to the attachment for a large (vectorized) attachment', async () => {
+    // Eine Antwort, ein Dokument: `search()` gruppiert die Chunks vor der
+    // Rückgabe nach `document_id` (`groupAndRankHybridResults`), und gefiltert
+    // wird hier auf genau eine Datei. Die frühere Fassung dieses Tests liess
+    // zwei Treffer für dieselbe Datei kommen — einen Zustand, den die Suche
+    // nicht erzeugt.
+    documentSearch.mockResolvedValue({
+      results: [
+        {
+          document_id: 'doc-123',
+          title: 'Groß.pdf',
+          relevant_content: 'Mehr Inhalt',
+          similarity_score: 0.7,
+        },
+      ],
+    });
+    const { execute, sourceRegistry } = catalogWithAttachments([
+      { id: 'a2', name: 'Groß.pdf', extractedText: null, documentId: 'doc-123' },
+    ]);
+    const out = (await execute({ attachmentName: 'Groß.pdf' }, { toolCallId: 'c1' })) as {
+      resultCount?: number;
+    };
+    expect(documentSearch).toHaveBeenCalledTimes(1);
+    const call = documentSearch.mock.calls[0]?.[0] as { filters?: { documentIds?: string[] } };
+    expect(call.filters?.documentIds).toEqual(['doc-123']);
+    expect(out.resultCount).toBe(1);
+    expect(sourceRegistry.size).toBe(1);
+  });
+
+  /**
+   * Der Befund aus dem Review zu PR #2827: Nachladen ist ein zweiter Weg zu
+   * derselben Datei. Ohne `documentId` an den hier gebauten Treffern fällt er
+   * auf den Inhalts-Schlüssel zurück, findet den mitgeführten Eintrag nicht und
+   * legt einen zweiten Quellenplatz an — also genau die Verdopplung aus #2817,
+   * nur über den Werkzeugpfad statt über den Fan-out.
+   */
+  it('lädt in den mitgeführten Eintrag derselben Datei nach, statt einen zweiten anzulegen', async () => {
+    documentSearch.mockResolvedValue({
+      results: [
+        {
+          document_id: 'doc-123',
+          title: 'Groß.pdf',
+          relevant_content: 'Frisch nachgeladener Abschnitt',
+          similarity_score: 0.7,
+        },
+      ],
+    });
+    const { execute, sourceRegistry } = catalogWithAttachments([
+      { id: 'a2', name: 'Groß.pdf', extractedText: null, documentId: 'doc-123' },
+    ]);
+    // Was der Vorturn hinterlassen hat: dieselbe Datei, anderer Inhaltsanfang.
+    sourceRegistry.seedCarried([
+      {
+        source: 'documentchat:doc-123',
+        title: 'Groß.pdf',
+        content: 'Abschnitt aus dem Vorturn',
+        relevance: 0.6,
+        documentId: 'doc-123',
+      },
+    ]);
+    expect(sourceRegistry.size).toBe(1);
+
+    await execute({ attachmentName: 'Groß.pdf' }, { toolCallId: 'c1' });
+
+    expect(sourceRegistry.size).toBe(1);
+  });
+
+  it('errors when a matched attachment has neither vectorized id nor extracted text', async () => {
+    const { execute } = catalogWithAttachments([
+      { id: 'a3', name: 'Leer.pdf', extractedText: null, documentId: null },
+    ]);
+    const out = (await execute({ attachmentName: 'Leer.pdf' }, { toolCallId: 'c1' })) as {
+      error?: string;
+    };
+    expect(out.error).toMatch(/keinen nachladbaren Text/);
   });
 });
 
@@ -564,6 +1107,50 @@ describe('research ban (forbidsNewResearch → no search tools)', () => {
 });
 
 /**
+ * Corpus-bound agents (the Landesverband families) declare no web capability.
+ * Their prompt said so all along, but the catalog mounted `web_search` for
+ * every agent regardless — so the model searched the open web anyway. Only the
+ * two web doors close; the party corpora stay reachable.
+ */
+describe('agent web capability (agentAllowsWebSearch → no web doors)', () => {
+  function catalogForAgent(enabledTools?: string[]): string[] {
+    const state = {
+      lastUserTextNoMentions: 'Was sagt der Landesverband zur Stadtentwicklung?',
+      messages: [{ role: 'user', content: 'Was sagt der Landesverband zur Stadtentwicklung?' }],
+      enabledTools: {},
+    } as unknown as ChatGraphState;
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig: { identifier: 'lv-test', enabledTools } as unknown as AgentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: { sse: { send: () => {}, sendRaw: () => {}, end: () => {} } as never, state },
+    });
+    return toolNames;
+  }
+
+  it('unmounts both web doors for an agent without web capability', () => {
+    const names = catalogForAgent(['search', 'memory', 'self_review']);
+    expect(names).not.toContain('web_search');
+    expect(names).not.toContain('scrape_url');
+  });
+
+  it('keeps the party corpora reachable — no web is not no search', () => {
+    expect(catalogForAgent(['search', 'memory', 'self_review'])).toContain('gruenerator_search');
+  });
+
+  it('leaves an agent declaring raw tool names untouched', () => {
+    const names = catalogForAgent(['gruenerator_search', 'web_search']);
+    expect(names).toContain('web_search');
+    expect(names).toContain('scrape_url');
+  });
+
+  it('leaves an agent without any declaration untouched', () => {
+    const names = catalogForAgent();
+    expect(names).toContain('web_search');
+    expect(names).toContain('scrape_url');
+  });
+});
+
+/**
  * Image hits on the loop path.
  *
  * The lean `{resultCount, sources}` shape used to swallow them one hop after we
@@ -652,5 +1239,560 @@ describe('toolCatalog image hits', () => {
     expect(out.bilder).toBeUndefined();
     expect(send.mock.calls.some(([name]) => name === 'search_images')).toBe(false);
     expect(state.webImageResults).toBeUndefined();
+  });
+});
+
+/**
+ * `dokumente_lesen` — das Nachfass-Werkzeug für die Dokumente DIESES Turns.
+ *
+ * Gegated an den Dokumenten selbst, nicht an einer Konfiguration daneben: das
+ * ist der Unterschied zu LobeHub, dessen Gegenstück nur montiert wird, wenn der
+ * Agent zufällig eine Wissensdatenbank hat — und das Modell eine gerade
+ * hochgeladene Datei dann nicht mehr befragen kann.
+ */
+describe('toolCatalog dokumente_lesen', () => {
+  beforeEach(() => {
+    fanout.mockReset();
+    documentFullText.mockReset();
+  });
+
+  function catalogWithDocs(documentSources: unknown[]) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const state = {
+      intent: 'search',
+      documentSources,
+      searchQuery: 'Radverkehr',
+      agentConfig: { userId: 'u1' },
+    } as unknown as ChatGraphState;
+    const { tools, toolNames } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: { sse, state },
+    });
+    return { tools, toolNames, sourceRegistry };
+  }
+
+  const pdf = { kind: 'document_chat', id: 'doc-1', label: 'Beschlusspapier.pdf' };
+
+  it('ist montiert, sobald ein Dokument am Turn hängt', () => {
+    expect(catalogWithDocs([pdf]).toolNames).toContain('dokumente_lesen');
+  });
+
+  it('fehlt ohne angehängte Dokumente', () => {
+    expect(catalogWithDocs([]).toolNames).not.toContain('dokumente_lesen');
+  });
+
+  it('fehlt, wenn nur ein Notebook im Spiel ist', () => {
+    const { toolNames } = catalogWithDocs([{ kind: 'notebook', id: 'berlin', label: 'Berlin' }]);
+    expect(toolNames).not.toContain('dokumente_lesen');
+  });
+
+  it('sucht mit `query` über den Fan-out und trägt die Treffer als Quellen ein', async () => {
+    fanout.mockResolvedValue({
+      perSourceResults: {
+        'doc-1': [
+          {
+            source: 'documentchat:doc-1',
+            title: 'Beschlusspapier.pdf',
+            content: 'Der Radverkehr wird ausgebaut.',
+            relevance: 0.9,
+          },
+        ],
+      },
+      searchedCollections: [],
+      errors: [],
+    });
+    const { tools, sourceRegistry } = catalogWithDocs([pdf]);
+
+    const out = (await execOf(tools.dokumente_lesen)(
+      { query: 'Radverkehr' },
+      { toolCallId: 'c1' }
+    )) as { resultCount: number; sources: string };
+
+    expect(out.resultCount).toBe(1);
+    expect(sourceRegistry.size).toBe(1);
+    expect(out.sources).toContain('Der Radverkehr wird ausgebaut.');
+    expect(documentFullText).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Suchmodus und Vorab-Abruf fragen dieselben Anhänge über dieselbe Bauform ab.
+   * Liefen sie mit verschiedenen Deckeln, wäre dasselbe Ergebnis je nach
+   * Aufrufer unterschiedlich lang — und welcher gewinnt, hinge daran, wer
+   * zuerst registriert.
+   */
+  it('gibt der Passagensuche denselben Platz wie dem Vorab-Abruf', async () => {
+    const long = 'z'.repeat(ATTACHED_DOC_SNIPPET_CHARS - 100);
+    fanout.mockResolvedValue({
+      perSourceResults: {
+        'doc-1': [
+          {
+            source: 'documentchat:doc-1',
+            title: 'Beschlusspapier.pdf',
+            content: long,
+            relevance: 0.9,
+          },
+        ],
+      },
+      searchedCollections: [],
+      errors: [],
+    });
+    const { tools } = catalogWithDocs([pdf]);
+
+    const out = (await execOf(tools.dokumente_lesen)(
+      { query: 'Radverkehr' },
+      { toolCallId: 'c1' }
+    )) as { sources: string };
+
+    expect(out.sources).toContain(long);
+  });
+
+  it('liest mit `abschnitt` den Volltext in Scheiben', async () => {
+    attachedSlice.mockReset();
+    attachedSlice.mockResolvedValue([
+      {
+        source: 'documentchat:doc-1',
+        title: 'Beschlusspapier.pdf',
+        content: '[Zeichen 0–10000 von 30008 — weiter mit abschnitt.von=10000]\n\nAnfang.',
+        relevance: 1,
+      },
+    ]);
+    const { tools } = catalogWithDocs([pdf]);
+
+    const out = (await execOf(tools.dokumente_lesen)(
+      { abschnitt: { von: 0 } },
+      { toolCallId: 'c1' }
+    )) as { resultCount: number; sources: string };
+
+    expect(out.resultCount).toBe(1);
+    expect(out.sources).toContain('Anfang.');
+    expect(out.sources).toContain('weiter mit abschnitt.von=10000');
+    // Derselbe Loader wie seite/wortsuche/zitat — nicht mehr der Chunk-Volltext.
+    expect(attachedSlice).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u1', from: 0, sources: [pdf] })
+    );
+    expect(documentFullText).not.toHaveBeenCalled();
+    expect(fanout).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Die Scheibe wurde live nie gewählt: bei drei Turns zu derselben angehängten
+   * PDF griff der Planer dreimal zur Ähnlichkeitssuche, einmal davon mit exakt
+   * der Anfrage des Vorab-Abrufs. Das Tor war nur als „die Frage gibt keinen
+   * Suchbegriff her" formuliert — eine Aufzählungsfrage („nenne alle
+   * Löschfristen") gibt einen exzellenten Suchbegriff her und landete deshalb
+   * bei `query`, das nach Relevanz ordnet statt vollständig zu sein.
+   */
+  it('nennt Vollständigkeitsfragen als zweiten Grund für `abschnitt`', () => {
+    const { tools } = catalogWithDocs([pdf]);
+    const description = tools.dokumente_lesen?.description ?? '';
+
+    expect(description).toMatch(/Vollständigkeit/);
+    expect(description).toMatch(/nur die besten Treffer/);
+    // Die Abgrenzung zu `summarize` bleibt stehen: die Scheibe ist der Weg zu
+    // ALLEN Einträgen, nicht ein zweiter Weg zur Zusammenfassung.
+    expect(description).toContain('NICHT für eine Zusammenfassung');
+  });
+
+  /**
+   * Ohne Suchbegriff UND ohne Abschnitt bei genau einer Datei: der Anfang ist
+   * die ehrlichere Antwort als eine Ähnlichkeitssuche nach der Frage selbst —
+   * die trifft bei „worum geht es hier" nur Zufälliges.
+   */
+  it('liest den Anfang, wenn weder Suchbegriff noch Abschnitt kommen', async () => {
+    attachedSlice.mockReset();
+    attachedSlice.mockResolvedValue([
+      { source: 'documentchat:doc-1', title: 'Beschlusspapier.pdf', content: 'Kurzer Text.' },
+    ]);
+    const { tools } = catalogWithDocs([pdf]);
+
+    const out = (await execOf(tools.dokumente_lesen)({}, { toolCallId: 'c1' })) as {
+      sources: string;
+    };
+
+    expect(out.sources).toContain('Kurzer Text.');
+    expect(fanout).not.toHaveBeenCalled();
+  });
+
+  it('lehnt mehr als einen Modus je Aufruf ab', async () => {
+    const { tools } = catalogWithDocs([pdf]);
+    const out = (await execOf(tools.dokumente_lesen)(
+      { query: 'Rad', seite: 3 },
+      { toolCallId: 'c1' }
+    )) as { error: string };
+    expect(out.error).toMatch(/Genau ein Modus/);
+    expect(fanout).not.toHaveBeenCalled();
+    expect(attachedMode).not.toHaveBeenCalled();
+  });
+
+  it('reicht seite, wortsuche und zitat mit den eingegrenzten Anhängen durch', async () => {
+    attachedMode.mockReset();
+    attachedMode.mockResolvedValue({ resultCount: 1 });
+    const zweite = { kind: 'document_chat', id: 'doc-2', label: 'Antrag.docx' };
+    const { tools } = catalogWithDocs([pdf, zweite]);
+
+    await execOf(tools.dokumente_lesen)(
+      { seite: 4, dateiname: 'antrag.docx' },
+      { toolCallId: 'c1' }
+    );
+    await execOf(tools.dokumente_lesen)({ wortsuche: { phrase: 'Rad' } }, { toolCallId: 'c2' });
+
+    const [args, ctx] = attachedMode.mock.calls[0] as [
+      Record<string, unknown>,
+      { userId: string | null; sources: { id: string }[] },
+    ];
+    expect(args.seite).toBe(4);
+    expect(ctx.userId).toBe('u1');
+    expect(ctx.sources.map((s) => s.id)).toEqual(['doc-2']);
+    const [, ctx2] = attachedMode.mock.calls[1] as [unknown, { sources: { id: string }[] }];
+    expect(ctx2.sources.map((s) => s.id)).toEqual(['doc-1', 'doc-2']);
+    expect(fanout).not.toHaveBeenCalled();
+  });
+
+  it('nennt Seite, Wortsuche und Zitat in der Beschreibung', () => {
+    const description = catalogWithDocs([pdf]).tools.dokumente_lesen?.description ?? '';
+    expect(description).toContain('`seite`');
+    expect(description).toContain('`wortsuche`');
+    expect(description).toContain('`zitat`');
+  });
+
+  it('grenzt über `dateiname` ein und sagt es, wenn der Name nicht passt', async () => {
+    const zweite = { kind: 'document_chat', id: 'doc-2', label: 'Antrag.docx' };
+    fanout.mockResolvedValue({ perSourceResults: {}, searchedCollections: [], errors: [] });
+    const { tools } = catalogWithDocs([pdf, zweite]);
+
+    await execOf(tools.dokumente_lesen)(
+      { query: 'Rad', dateiname: 'Antrag.docx' },
+      { toolCallId: 'c1' }
+    );
+    const [, sources] = fanout.mock.calls[0] as [string, { id: string }[]];
+    expect(sources.map((s) => s.id)).toEqual(['doc-2']);
+
+    const out = (await execOf(tools.dokumente_lesen)(
+      { query: 'Rad', dateiname: 'gibtsnicht.pdf' },
+      { toolCallId: 'c2' }
+    )) as { error: string };
+    // Die Fehlermeldung nennt, was es GIBT — sonst rät das Modell weiter.
+    expect(out.error).toContain('Beschlusspapier.pdf');
+    expect(out.error).toContain('Antrag.docx');
+  });
+});
+
+describe('cloud_files mounting gate', () => {
+  function catalogWithCloud(opts: {
+    connections?: number;
+    userText?: string;
+    wolkeFiles?: number;
+    enabled?: boolean;
+    attachedWebpageUrls?: string[];
+  }) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const state = {
+      intent: 'agentic',
+      enabledTools: opts.enabled === false ? { cloud_files: false } : {},
+      cloudConnectionCount: opts.connections ?? 0,
+      ...(opts.wolkeFiles
+        ? { wolkeFiles: Array.from({ length: opts.wolkeFiles }, () => ({ shareLinkId: 'l1' })) }
+        : {}),
+      ...(opts.userText ? { messages: [{ role: 'user', content: opts.userText }] } : {}),
+      ...(opts.attachedWebpageUrls ? { attachedWebpageUrls: opts.attachedWebpageUrls } : {}),
+    } as unknown as ChatGraphState;
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: { sse, state, threadId: 't1' },
+    });
+  }
+
+  // Das primäre Tor. Wer eine Wolke hat, bekommt das Werkzeug auf JEDEM Turn —
+  // "Welche Ordner gibt es?" nennt die Wolke nicht, und eine erfundene
+  // Fehlanzeige sieht aus wie eine geprüfte Antwort.
+  it('mounts whenever the account has a connection, whatever the text says', () => {
+    const { toolNames } = catalogWithCloud({ connections: 1, userText: 'Was steht dazu an?' });
+    expect(toolNames).toContain('cloud_files');
+  });
+
+  // Ein Konto ohne Wolke zahlt nur, wenn es selbst davon anfängt.
+  it('stays out of the catalog for an account without a connection', () => {
+    const { toolNames } = catalogWithCloud({ userText: 'Schreib mir eine Pressemitteilung' });
+    expect(toolNames).not.toContain('cloud_files');
+  });
+
+  it('mounts on cloud vocabulary so a first connection can be added by chat', () => {
+    const { toolNames } = catalogWithCloud({
+      userText: 'Kannst du diesen Wolke-Link hinzufügen?',
+    });
+    expect(toolNames).toContain('cloud_files');
+  });
+
+  it('matches the vocabulary at the start of a sentence, umlauts and all', () => {
+    // `\b(Öffne)` scheitert am Satzanfang — deshalb Lookarounds. Hier zählt,
+    // dass ein Treffer am Wortanfang nach einem Umlaut-Wort noch greift.
+    const { toolNames } = catalogWithCloud({ userText: 'Öffne bitte die Nextcloud-Freigabe' });
+    expect(toolNames).toContain('cloud_files');
+  });
+
+  it('mounts when a Wolke file rides along without being named in the text', () => {
+    const { toolNames } = catalogWithCloud({ wolkeFiles: 1, userText: 'Fasse das zusammen' });
+    expect(toolNames).toContain('cloud_files');
+  });
+
+  // Ein über `@link` angehängter Freigabe-Link steht nur in den Anhangsdaten,
+  // nie im Text — das Vokabular-Tor sieht ihn also nicht. Ohne diesen Zweig
+  // wäre er seit dem `scrape_url`-Ausschluss ein stiller Blindgänger.
+  it('mounts on an @link-attached share link that the text never names', () => {
+    const { toolNames } = catalogWithCloud({
+      userText: 'Kannst du das hinzufügen?',
+      attachedWebpageUrls: ['https://wolke.netzbegruenung.de/s/AbCdEf'],
+    });
+    expect(toolNames).toContain('cloud_files');
+  });
+
+  it('stays out for an ordinary attached web page', () => {
+    const { toolNames } = catalogWithCloud({
+      userText: 'Fasse das zusammen',
+      attachedWebpageUrls: ['https://gruene.de/programm'],
+    });
+    expect(toolNames).not.toContain('cloud_files');
+  });
+
+  it('respects an agent that switched the tool off', () => {
+    const { toolNames } = catalogWithCloud({ connections: 2, enabled: false });
+    expect(toolNames).not.toContain('cloud_files');
+  });
+
+  // Live-Ausfall 29.08.2026 (test-Instanz): „welche wolke links sind verbunden“
+  // — beide Werkzeuge montiert, der Planer griff zu product_knowledge und
+  // antwortete mit der MCP-Doku. Die Abgrenzung muss in den BESCHREIBUNGEN
+  // stehen, denn dort trifft der Planer seine Wahl.
+  it('pairs cloud_files with a product_knowledge description that defers to it', () => {
+    const { tools, toolNames } = catalogWithCloud({
+      userText: 'welche wolke links sind verbunden',
+    });
+    expect(toolNames).toContain('cloud_files');
+    expect(toolNames).toContain('product_knowledge');
+    expect(tools.product_knowledge?.description ?? '').toContain('cloud_files');
+    expect(tools.cloud_files?.description ?? '').toContain('verbunden');
+  });
+
+  // Zweites Netz: greift der Planer trotzdem zuerst zu product_knowledge,
+  // verweist das ERGEBNIS auf cloud_files, und der nächste Schritt fängt sich.
+  it('appends the cloud_files redirect to a product_knowledge answer when mounted', async () => {
+    const { tools } = catalogWithCloud({ userText: 'welche wolke links sind verbunden' });
+    const out = (await execOf(tools.product_knowledge)({ topic: '' }, { toolCallId: 'c1' })) as {
+      knowledge: string;
+    };
+    expect(out.knowledge).toContain('cloud_files');
+    expect(out.knowledge).toContain('list_connections');
+  });
+
+  // Ein Konto MIT Wolke montiert cloud_files auf jedem Turn — der Verweis
+  // darf trotzdem nur auf Turns reiten, die die Wolke selbst nennen, sonst
+  // trägt jede Produktantwort dieser Konten einen fachfremden Fußnotensatz.
+  it('keeps the redirect off product answers that never name the Wolke', async () => {
+    const { tools, toolNames } = catalogWithCloud({
+      connections: 1,
+      userText: 'erzähl mir etwas über die notebooks funktion',
+    });
+    expect(toolNames).toContain('cloud_files');
+    const out = (await execOf(tools.product_knowledge)({ topic: '' }, { toolCallId: 'c1' })) as {
+      knowledge: string;
+    };
+    expect(out.knowledge).not.toContain('cloud_files');
+  });
+
+  // …aber nie auf ein Werkzeug, das dieser Turn gar nicht trägt.
+  it('keeps the redirect out when cloud_files is not mounted', async () => {
+    const { tools, toolNames } = catalogWithCloud({
+      userText: 'erzähl mir etwas über die notebooks funktion',
+    });
+    expect(toolNames).not.toContain('cloud_files');
+    const out = (await execOf(tools.product_knowledge)({ topic: '' }, { toolCallId: 'c1' })) as {
+      knowledge: string;
+    };
+    expect(out.knowledge).not.toContain('cloud_files');
+  });
+});
+
+describe('toolCatalog — Gatter des Chunk-Reranks', () => {
+  const originalFlag = process.env.LOOP_RERANK_ENABLED;
+
+  function buildLoopCatalog() {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const state = { intent: 'search', enabledTools: {} } as unknown as ChatGraphState;
+    return buildChatToolCatalog({ agentConfig, sourceRegistry, loop: { sse, state } });
+  }
+
+  beforeEach(() => {
+    searchToolOptions.last = null;
+  });
+
+  afterEach(() => {
+    if (originalFlag === undefined) delete process.env.LOOP_RERANK_ENABLED;
+    else process.env.LOOP_RERANK_ENABLED = originalFlag;
+  });
+
+  it('setzt die Option im Loop, wenn der Schalter an ist', () => {
+    process.env.LOOP_RERANK_ENABLED = 'true';
+    buildLoopCatalog();
+    expect(searchToolOptions.last).toMatchObject({ rerankSearchChunks: true });
+  });
+
+  it('setzt sie nicht, wenn der Schalter aus ist', () => {
+    delete process.env.LOOP_RERANK_ENABLED;
+    buildLoopCatalog();
+    expect(searchToolOptions.last).not.toHaveProperty('rerankSearchChunks');
+  });
+
+  it('setzt sie ausserhalb des Loops nie — auch nicht mit gesetztem Schalter', () => {
+    process.env.LOOP_RERANK_ENABLED = 'true';
+    buildChatToolCatalog({ agentConfig, sourceRegistry: createSourceRegistry() });
+    expect(searchToolOptions.last).not.toHaveProperty('rerankSearchChunks');
+  });
+});
+
+describe('toolCatalog memory tool mounting', () => {
+  function catalogWith(state: Partial<ChatGraphState>) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const full = { intent: 'search', enabledTools: {}, ...state } as unknown as ChatGraphState;
+    return buildChatToolCatalog({ agentConfig, sourceRegistry, loop: { sse, state: full } });
+  }
+
+  it('mounts `memory` only when the profile switch is on', () => {
+    // Off: the prompt carries no GEDÄCHTNIS block, so a tool that could save
+    // into a store nobody reads would be the same lie in the other direction.
+    expect(catalogWith({ memoryEnabled: false }).toolNames).not.toContain('memory');
+    expect(catalogWith({}).toolNames).not.toContain('memory');
+    expect(catalogWith({ memoryEnabled: true }).toolNames).toContain('memory');
+  });
+
+  it('honours an agent opting out via enabledTools', () => {
+    expect(
+      catalogWith({ memoryEnabled: true, enabledTools: { memory: false } }).toolNames
+    ).not.toContain('memory');
+  });
+});
+
+/**
+ * Drei Picker-Schlüssel standen im Agenten-Baukasten und erreichten kein
+ * einziges Gatter, und die Suchfamilie gehorchte auf dem Loop-Pfad anderen
+ * Regeln als auf dem Einzelpfad (#3307). Die Kästchen waren also nicht streng
+ * oder lasch — sie waren wirkungslos, was die teurere Ausfallform ist: die
+ * Person sieht eine Einstellung, die sie getroffen hat, und das Werkzeug
+ * antwortet trotzdem.
+ */
+describe('toolCatalog: Picker-Schlüssel, die nichts erreichten (#3307)', () => {
+  const catalogFor = (enabledTools: Record<string, boolean>) => {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: {
+        sse,
+        state: { intent: 'agentic', enabledTools, agentConfig } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+  };
+
+  it('lässt einen Turn ohne Abwahl unverändert', () => {
+    const names = catalogFor({});
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'gruenerator_search',
+        'gruenerator_examples_search',
+        'umfragen',
+        'find_content',
+        'documents',
+        'read_artifact',
+      ])
+    );
+  });
+
+  it('nimmt den Grünerator-Korpus weg, wenn `search` abgewählt ist', () => {
+    // Der Einzelpfad tat das längst (searchBranch über den Intent-Namen), der
+    // Loop montierte weiter — dasselbe Werkzeug, zwei Regeln.
+    const names = catalogFor({ search: false });
+    expect(names).not.toContain('gruenerator_search');
+    expect(names).toContain('web_search');
+  });
+
+  it('nimmt beide Beispielkorpora weg, wenn `examples` abgewählt ist', () => {
+    const names = catalogFor({ examples: false });
+    expect(names).not.toContain('gruenerator_examples_search');
+    expect(names).not.toContain('gruenerator_pressemitteilung_examples');
+    expect(names).toContain('gruenerator_search');
+  });
+
+  it('nimmt nur die Presse-Beispiele weg, wenn der Composer sie einzeln abwählt', () => {
+    // `pressemitteilung_examples` ist ein eigener Composer-Schalter (ToolKey in
+    // chatStore.ts) und ein eigener Klassifikator-Intent — der Einzelpfad
+    // gehorchte ihm, der Loop kannte nur `examples`.
+    const names = catalogFor({ pressemitteilung_examples: false });
+    expect(names).not.toContain('gruenerator_pressemitteilung_examples');
+    expect(names).toContain('gruenerator_examples_search');
+  });
+
+  it('lässt `umfragen` weg, wenn `meinungsbild` abgewählt ist', () => {
+    expect(catalogFor({ meinungsbild: false })).not.toContain('umfragen');
+  });
+
+  it('nimmt mit `user_content` die eigenen Inhalte weg — samt `read_artifact`', () => {
+    const names = catalogFor({ user_content: false });
+    expect(names).not.toContain('find_content');
+    expect(names).not.toContain('documents');
+    expect(names).not.toContain('read_artifact');
+    // Der Nachbar im selben Block bleibt: `search_threads` hat seinen eigenen
+    // Schlüssel ("Frühere Chats") und ist nicht gemeint.
+    expect(names).toContain('search_threads');
+  });
+
+  it('lässt die feineren Werkzeugschlüssel daneben weiter gelten', () => {
+    const names = catalogFor({ find_content: false });
+    expect(names).not.toContain('find_content');
+    expect(names).toContain('documents');
+  });
+});
+
+describe('toolAllowlist (Präzisionsmodus der Notebook-Seite)', () => {
+  function namesWith(toolAllowlist?: readonly string[]): string[] {
+    const state = {
+      intent: 'agentic',
+      lastUserTextNoMentions: 'Wie viele Quellen liegen im Notebook?',
+      messages: [{ role: 'user', content: 'Wie viele Quellen liegen im Notebook?' }],
+      enabledTools: {},
+      agentConfig: { userId: 'u1' },
+    } as unknown as ChatGraphState;
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: { sse: { send: () => {} } as never, state, threadId: 't1' },
+      ...(toolAllowlist ? { toolAllowlist } : {}),
+    }).toolNames;
+  }
+
+  it('mounts only the allowed tools', () => {
+    expect(namesWith(['notebook_quellen'])).toEqual(['notebook_quellen']);
+  });
+
+  it('changes nothing when absent', () => {
+    const names = namesWith();
+    expect(names).toContain('notebook_quellen');
+    expect(names).toContain('gruenerator_search');
+    expect(names.length).toBeGreaterThan(5);
   });
 });

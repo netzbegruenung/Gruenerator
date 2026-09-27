@@ -7,6 +7,12 @@ import {
   isProductMetaQuestion,
 } from './productKnowledge.js';
 
+// Ohne diese Attrappe liefe der Block in den Fail-open-Zweig des Dienstes und
+// prüfte damit den Fehlerfall statt des Normalfalls.
+vi.mock('../agents/AdminHiddenAgentsService.js', () => ({
+  getHiddenAgentIdentifiersCached: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock('../mcp/McpServerRegistry.js', () => ({
   McpServerRegistry: {
     list: vi.fn().mockResolvedValue([
@@ -104,6 +110,7 @@ describe('buildProductKnowledgeBlock', () => {
     expect(block).toContain('### Grüneratoren');
     expect(block).toContain('### Werkzeuge');
     expect(block).toContain('Sharepics');
+    expect(block).toContain('Grüne Wolke');
     expect(block).toContain('mcp.gruenerator.eu');
     expect(block).not.toContain('Satzungen');
   });

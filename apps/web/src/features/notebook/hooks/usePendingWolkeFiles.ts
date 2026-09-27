@@ -5,8 +5,10 @@
  * records new Wolke files as "pending"; these hooks let the owner list them,
  * import one on demand ("Hinzufügen"), dismiss one, and toggle hourly watching.
  */
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { invalidateFileMentions } from '../utils/invalidateFileMentions';
 
 const pendingKey = (collectionId: string) => ['wolkePending', collectionId] as const;
 
@@ -17,7 +19,7 @@ export function usePendingWolkeFiles(collectionId: string, enabled = true) {
       const client = getContractsClient();
       const result = await client.wolkePending.listPendingFiles({ params: { id: collectionId } });
       if (result.status !== 200) {
-        throw new Error(`Failed to load pending files (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to load pending files (HTTP ${result.status})`);
       }
       return result.body.pending;
     },
@@ -35,7 +37,7 @@ export function useAddPendingFile(collectionId: string) {
         params: { id: collectionId, pendingId },
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to add file (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to add file (HTTP ${result.status})`);
       }
       return result.body;
     },
@@ -44,6 +46,7 @@ export function useAddPendingFile(collectionId: string) {
       // The notebook gained a document — refresh its detail + listings.
       void queryClient.invalidateQueries({ queryKey: ['notebook', 'collection'] });
       void queryClient.invalidateQueries({ queryKey: ['notebookCollections'] });
+      invalidateFileMentions(queryClient);
     },
   });
 }
@@ -57,7 +60,7 @@ export function useDismissPendingFile(collectionId: string) {
         params: { id: collectionId, pendingId },
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to dismiss file (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to dismiss file (HTTP ${result.status})`);
       }
       return result.body;
     },
@@ -77,7 +80,7 @@ export function useSetNotebookAutoSync(collectionId: string) {
         body: { enabled },
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to update watch setting (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to update watch setting (HTTP ${result.status})`);
       }
       return result.body;
     },

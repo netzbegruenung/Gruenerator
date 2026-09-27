@@ -22,6 +22,8 @@ import { docsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { aiObject } from '../../services/ai/generate.js';
+import { viaLaxParser, withContent } from '../../services/ai/structuredParsing.js';
 import {
   softDeleteCollaborativeDocument,
   updateCollaborativeDocument,
@@ -29,13 +31,13 @@ import {
 } from '../../services/docs/CollaborativeDocumentService.js';
 import {
   DOCUMENT_GENERATION_PROMPT,
+  DOCUMENT_TOOL_SCHEMA,
   parseDocumentResponse,
   createDocumentWithContent,
 } from '../../services/docs/DocGenerationService.js';
 import { getDocPreview } from '../../services/docs/docPreview.js';
 import { shareToPermissionLevel } from '../../services/groups/groupSharePermissions.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { ensureDocChatThread } from '../chat/services/threadPersistenceService.js';
 
@@ -46,7 +48,11 @@ import {
   docListColumns,
   docsAccessWhere,
 } from './constants.js';
-import { checkDocumentAccess, autoGrantSharePermission } from './documentAccess.js';
+import {
+  checkDocumentAccess,
+  autoGrantSharePermission,
+  redactDocumentForReader,
+} from './documentAccess.js';
 
 import type { CollaborativeDocument } from './types.js';
 import type { UserProfile } from '../../services/user/types.js';
@@ -115,7 +121,7 @@ export const docsContractRouter = s.router(docsContract, {
 
       autoGrantSharePermission(document, userId);
 
-      return { status: 200 as const, body: document };
+      return { status: 200 as const, body: redactDocumentForReader(document, userId) };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log.error('[docsContract.getDocumentById] Error:', error);
@@ -130,12 +136,11 @@ export const docsContractRouter = s.router(docsContract, {
     try {
       const userId = getUserId(args.req);
       const { id } = args.params;
-      const { title, folder_id, content, wolke_live_sync } = args.body;
+      const { title, folder_id, content } = args.body;
       const result = await updateCollaborativeDocument(runQuery, id, userId, DOCS_ONLY_SUBTYPES, {
         title,
         folder_id,
         content,
-        wolke_live_sync,
       });
       if (result.status === 'not_found') {
         return { status: 404 as const, body: { error: 'Document not found' } };
@@ -679,22 +684,29 @@ export const docsContractRouter = s.router(docsContract, {
         };
       }
 
-      const aiResult = await getAIWorkerPool(args.req).processRequest(
-        {
-          type: 'doc_generation',
-          systemPrompt: DOCUMENT_GENERATION_PROMPT,
-          messages: [{ role: 'user', content: description.trim() }],
-          options: { temperature: 0.7 },
-        },
-        args.req
-      );
+      // Same schema-enforced path the chat surface uses (createDocumentArtifact):
+      // forced tool call + repair turn + truncation handling. Prompting for JSON
+      // and parsing whatever came back made this route fail with a 500 whenever
+      // the model wrapped its answer in prose or ran out of output budget.
+      const docResult = await aiObject({
+        lane: 'doc_generation',
+        system: DOCUMENT_GENERATION_PROMPT,
+        prompt: description.trim(),
+        toolName: 'create_document',
+        toolDescription: 'Erzeugt das Dokument als HTML mit Titel und subtype.',
+        schema: DOCUMENT_TOOL_SCHEMA,
+        validate: viaLaxParser(withContent(parseDocumentResponse), 'content fehlt oder ist leer'),
+        temperature: 0.7,
+        label: 'document',
+      });
 
-      const generated =
-        aiResult.success && aiResult.content ? parseDocumentResponse(aiResult.content) : null;
-      // Empty content is the parser's failure signal — creating the document
-      // anyway produced a blank artifact reported as a success (201).
-      if (!generated || !generated.content) {
-        log.warn('[docsContract.generateDocument] Model returned no parseable content');
+      // Every attempt failed: provider error, no tool call and no usable JSON,
+      // a rejected structure (empty `content` is the validator's failure
+      // signal), or an answer that stayed truncated through the repair turn.
+      // Reported as an error rather than created anyway — an empty parse used
+      // to become a blank document reported as a success (201).
+      if (!docResult.ok) {
+        log.warn(`[docsContract.generateDocument] Generation failed: ${docResult.error}`);
         return {
           status: 500 as const,
           body: {
@@ -703,6 +715,7 @@ export const docsContractRouter = s.router(docsContract, {
           },
         };
       }
+      const generated = docResult.data;
 
       const document = await createDocumentWithContent(
         generated.title,
@@ -805,18 +818,35 @@ export const docsContractRouter = s.router(docsContract, {
       const doc = await getOwnedShareRow(args.params.id, userId);
       if (doc.kind !== 'ok') return doc.response;
 
+      // Same safe default as setShareMode('public'): a freshly-public link is
+      // view-only, otherwise 'public' + 'editor' (the column default) grants any
+      // anonymous visitor write access over the WebSocket guest path.
+      const currentPermission = doc.row.share_permission ?? 'editor';
+      const nextPermission =
+        doc.row.share_mode !== 'public' && currentPermission === 'editor'
+          ? 'viewer'
+          : currentPermission;
+
       await db.query(
         `UPDATE collaborative_documents
-         SET is_public = true, share_mode = 'public', updated_at = CURRENT_TIMESTAMP
+         SET is_public = true,
+             share_mode = 'public',
+             share_permission = $2,
+             permissions = (
+               SELECT COALESCE(jsonb_object_agg(key, value), '{}'::jsonb)
+               FROM jsonb_each(COALESCE(permissions, '{}'::jsonb))
+               WHERE value->>'granted_by' IS DISTINCT FROM $3
+             ),
+             updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
-        [args.params.id]
+        [args.params.id, nextPermission, GRANTED_BY_SHARE_LINK]
       );
 
       return {
         status: 200 as const,
         body: {
           is_public: true,
-          share_permission: doc.row.share_permission ?? 'editor',
+          share_permission: nextPermission,
           share_mode: 'public',
         },
       };
@@ -833,11 +863,21 @@ export const docsContractRouter = s.router(docsContract, {
       if (doc.kind !== 'ok') return doc.response;
 
       const { permission } = args.body;
+      // Strip auto-granted link permissions so the new link level takes effect
+      // for everyone on reconnect. Without this, users who opened the link while
+      // it was 'editor' keep their persisted editor entry after a downgrade to
+      // 'viewer' — the column change alone would not revoke their write access.
       await db.query(
         `UPDATE collaborative_documents
-         SET share_permission = $1, updated_at = CURRENT_TIMESTAMP
+         SET share_permission = $1,
+             permissions = (
+               SELECT COALESCE(jsonb_object_agg(key, value), '{}'::jsonb)
+               FROM jsonb_each(COALESCE(permissions, '{}'::jsonb))
+               WHERE value->>'granted_by' IS DISTINCT FROM $3
+             ),
+             updated_at = CURRENT_TIMESTAMP
          WHERE id = $2`,
-        [permission, args.params.id]
+        [permission, args.params.id, GRANTED_BY_SHARE_LINK]
       );
 
       return {
@@ -862,6 +902,15 @@ export const docsContractRouter = s.router(docsContract, {
 
       const { mode } = args.body;
       const isPublic = mode === 'public';
+      const currentPermission = doc.row.share_permission ?? 'editor';
+
+      // A freshly-public link defaults to view-only: 'public' + 'editor' lets any
+      // anonymous visitor write over the WebSocket (guest auth). Enabling public
+      // editing must be a deliberate second action via setSharePermission.
+      const nextPermission =
+        mode === 'public' && doc.row.share_mode !== 'public' && currentPermission === 'editor'
+          ? 'viewer'
+          : currentPermission;
 
       if (mode === 'authenticated') {
         await db.query(
@@ -871,11 +920,13 @@ export const docsContractRouter = s.router(docsContract, {
           [mode, isPublic, args.params.id]
         );
       } else {
-        // Revoke auto-granted permissions when leaving authenticated mode.
+        // Revoke auto-granted link permissions when changing away from / into a
+        // link mode, so the effective link level is re-derived on reconnect.
         await db.query(
           `UPDATE collaborative_documents
            SET share_mode = $1,
                is_public = $2,
+               share_permission = $5,
                permissions = (
                  SELECT COALESCE(jsonb_object_agg(key, value), '{}'::jsonb)
                  FROM jsonb_each(COALESCE(permissions, '{}'::jsonb))
@@ -883,7 +934,7 @@ export const docsContractRouter = s.router(docsContract, {
                ),
                updated_at = CURRENT_TIMESTAMP
            WHERE id = $3`,
-          [mode, isPublic, args.params.id, GRANTED_BY_SHARE_LINK]
+          [mode, isPublic, args.params.id, GRANTED_BY_SHARE_LINK, nextPermission]
         );
       }
 
@@ -891,7 +942,7 @@ export const docsContractRouter = s.router(docsContract, {
         status: 200 as const,
         body: {
           is_public: isPublic,
-          share_permission: doc.row.share_permission ?? 'editor',
+          share_permission: mode === 'authenticated' ? currentPermission : nextPermission,
           share_mode: mode,
         },
       };

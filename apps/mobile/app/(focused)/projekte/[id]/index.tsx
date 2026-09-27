@@ -1,80 +1,83 @@
-import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
+import { filterGroupFeed, type GroupFeedItem } from '@gruenerator/shared/groups';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  useColorScheme,
-  ActivityIndicator,
   Pressable,
-  Linking,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 
-import { ListGroup, ListRow } from '../../../../components/common';
+import { SkeletonBar, SkeletonGroup, SkeletonRows } from '../../../../components/common';
 import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold';
-import { GroupAvatar } from '../../../../components/workplace/GroupAvatar';
-import { GroupContentSection } from '../../../../components/workplace/GroupContentSection';
-import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
-import {
-  colors,
-  spacing,
-  typography,
-  borderRadius,
-  lightTheme,
-  darkTheme,
-  BODY_FONT,
-} from '../../../../theme';
-import { roleLabel } from '../../../../utils/groups';
+import { GroupCommentsSheet } from '../../../../components/projekte/GroupCommentsSheet';
+import { GroupFeedCard } from '../../../../components/projekte/GroupFeedCard';
+import { GroupKindRows } from '../../../../components/projekte/GroupKindRows';
+import { openGroupFeedItem, useGroupFeed } from '../../../../hooks/useGroupContent';
+import { useGroupDetails } from '../../../../hooks/useGroups';
+import { useTheme } from '../../../../hooks/useTheme';
+import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
 
-const LINK_ICONS: Record<string, IoniconsIconName> = {
-  link: 'link',
-  globe: 'globe-outline',
-  mail: 'mail-outline',
-  calendar: 'calendar-outline',
-  chat: 'chatbubble-outline',
-  folder: 'folder-outline',
-  document: 'document-outline',
-  video: 'videocam-outline',
-  phone: 'call-outline',
-  drive: 'cloud-outline',
-};
+type ViewMode = 'feed' | 'all';
 
 /**
- * A single project, read-only.
- *
- * Everything that used to sit behind the ⋯ menu — rename, avatar, invite,
- * member roles, link editing, delete, leave — is gone; those are web's job. The
- * screen answers three questions instead: who is in it, what is linked, and what
- * has been shared.
+ * Ein Projekt bzw. eine Gruppe — in der App nur zum Lesen. Feed (neueste
+ * Freigaben, Angeheftetes oben) und „Alle" (eine Reihe je Art). Mitglieder,
+ * Links und Beschreibung stehen hinter dem Personen-Symbol auf der Info-Seite;
+ * Teilen, Anheften und Kommentieren bleiben dem Web.
  */
 export default function ProjektDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const theme = useTheme();
 
   const detailsQuery = useGroupDetails(id);
-  const membersQuery = useGroupMembers(id);
-
+  const feedQuery = useGroupFeed(id);
   const group = detailsQuery.data?.group;
-  const membership = detailsQuery.data?.membership;
-  const members = membersQuery.data ?? [];
-  const links = group?.links ?? [];
+  const isPersonal = group?.group_type === 'personal';
 
-  // Title falls back until the details land, so the header does not pop in.
+  const [view, setView] = useState<ViewMode>('feed');
+  const [query, setQuery] = useState('');
+  const [commentsFor, setCommentsFor] = useState<GroupFeedItem | null>(null);
+
+  const activeView: ViewMode = isPersonal ? 'all' : view;
+  const items = feedQuery.data ?? [];
+  const visible = filterGroupFeed(items, query);
+  const open = useCallback((item: GroupFeedItem) => openGroupFeedItem(router, item), [router]);
+
   const scaffold = (children: ReactNode): ReactNode => (
-    <ScreenScaffold title={group?.name ?? 'Projekt'} onBack={() => router.back()}>
+    <ScreenScaffold
+      title={group?.name ?? 'Projekt'}
+      onBack={() => router.back()}
+      headerRight={
+        <Pressable
+          onPress={() =>
+            router.push({ pathname: '/(focused)/projekte/[id]/info', params: { id: id ?? '' } })
+          }
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={isPersonal ? 'Projekt-Info anzeigen' : 'Gruppen-Info anzeigen'}
+          style={[styles.headerButton, { backgroundColor: theme.card }]}
+        >
+          <Ionicons name="people-outline" size={20} color={theme.text} />
+        </Pressable>
+      }
+    >
       {children}
     </ScreenScaffold>
   );
 
   if (detailsQuery.isPending) {
     return scaffold(
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+      <View style={styles.scrollContent}>
+        <SkeletonGroup style={styles.skeletonHead}>
+          <SkeletonBar width="100%" height={40} radius={12} />
+        </SkeletonGroup>
+        <SkeletonRows count={4} leading={44} />
       </View>
     );
   }
@@ -83,7 +86,7 @@ export default function ProjektDetailScreen() {
     return scaffold(
       <View style={styles.centered}>
         <Ionicons name="alert-circle" size={44} color={colors.semantic.error} />
-        {/* Same reason as the list: the shared hook's message says "Gruppe". */}
+        {/* The shared hook's message says "Gruppe"; this screen says "Projekt". */}
         <Text style={[styles.centeredText, { color: colors.semantic.error }]}>
           Projekt konnte nicht geladen werden.
         </Text>
@@ -101,123 +104,147 @@ export default function ProjektDetailScreen() {
     );
   }
 
-  const section = (title: string, body: ReactNode): ReactNode => (
-    <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>{title}</Text>
-      {body}
-    </View>
-  );
+  const segment = (key: ViewMode, label: string) => {
+    const selected = activeView === key;
+    return (
+      <Pressable
+        key={key}
+        onPress={() => setView(key)}
+        accessibilityRole="tab"
+        accessibilityState={{ selected }}
+        style={[styles.segment, selected && [styles.segmentOn, { backgroundColor: theme.card }]]}
+      >
+        <Text
+          style={[
+            styles.segmentText,
+            { color: selected ? theme.text : theme.textSecondary },
+            selected && styles.segmentTextOn,
+          ]}
+        >
+          {label}
+        </Text>
+      </Pressable>
+    );
+  };
+
+  const emptyText = query.trim()
+    ? `Kein Inhalt passt zu „${query.trim()}“.`
+    : isPersonal
+      ? 'In diesem Projekt liegt noch nichts.'
+      : 'Noch nichts geteilt.';
 
   return scaffold(
-    <ScrollView
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={detailsQuery.isRefetching}
-          onRefresh={() => {
-            void detailsQuery.refetch();
-            void membersQuery.refetch();
-          }}
-        />
-      }
-    >
-      <View style={styles.hero}>
-        <GroupAvatar name={group.name} avatarUrl={group.avatar_url} size={88} />
-        <Text style={[styles.groupName, { color: theme.text }]}>{group.name}</Text>
-        <View style={[styles.roleBadge, { backgroundColor: colors.primary[600] + '18' }]}>
-          <Text style={[styles.roleBadgeText, { color: colors.primary[600] }]}>
-            {roleLabel(membership?.isAdmin ? 'admin' : (membership?.role ?? 'member'))}
-          </Text>
+    <>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={feedQuery.isRefetching}
+            onRefresh={() => {
+              void detailsQuery.refetch();
+              void feedQuery.refetch();
+            }}
+          />
+        }
+      >
+        <View style={styles.padded}>
+          {!isPersonal && (
+            <View
+              accessibilityRole="tablist"
+              style={[styles.segmented, { backgroundColor: theme.buttonBackground }]}
+            >
+              {segment('feed', 'Feed')}
+              {segment('all', `Alle · ${items.length}`)}
+            </View>
+          )}
+          <View style={[styles.search, { backgroundColor: theme.buttonBackground }]}>
+            <Ionicons name="search" size={18} color={theme.textSecondary} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder={isPersonal ? 'Im Projekt suchen' : 'In der Gruppe suchen'}
+              placeholderTextColor={theme.textSecondary}
+              accessibilityLabel={isPersonal ? 'Im Projekt suchen' : 'In der Gruppe suchen'}
+              style={[styles.searchInput, { color: theme.text }]}
+              returnKeyType="search"
+            />
+          </View>
         </View>
-        {group.description ? (
-          <Text style={[styles.description, { color: theme.textSecondary }]}>
-            {group.description}
-          </Text>
-        ) : null}
-      </View>
 
-      {section(
-        `Mitglieder${members.length ? ` (${members.length})` : ''}`,
-        membersQuery.isPending ? (
-          <ActivityIndicator color={colors.primary[600]} />
-        ) : members.length === 0 ? (
-          <Text style={[styles.emptyLine, { color: theme.textSecondary }]}>
-            Keine Mitglieder gefunden.
+        {feedQuery.isPending ? (
+          <View style={styles.padded}>
+            <SkeletonRows count={3} leading={44} />
+          </View>
+        ) : feedQuery.isError ? (
+          <Text style={[styles.emptyLine, { color: colors.semantic.error }]}>
+            Inhalte konnten nicht geladen werden.
           </Text>
+        ) : visible.length === 0 ? (
+          <Text style={[styles.emptyLine, { color: theme.textSecondary }]}>{emptyText}</Text>
+        ) : activeView === 'feed' ? (
+          <View style={styles.padded}>
+            {visible.map((item) => (
+              <GroupFeedCard
+                key={item.key}
+                item={item}
+                canComment={!isPersonal}
+                onOpen={open}
+                onShowComments={setCommentsFor}
+              />
+            ))}
+          </View>
         ) : (
-          <ListGroup>
-            {members.map((member, i) => (
-              <ListRow
-                key={member.user_id}
-                icon="person-outline"
-                title={member.display_name ?? member.first_name ?? member.email ?? 'Mitglied'}
-                value={roleLabel(member.role)}
-                last={i === members.length - 1}
-              />
-            ))}
-          </ListGroup>
-        )
-      )}
-
-      {links.length > 0 &&
-        section(
-          'Links',
-          <ListGroup>
-            {links.map((link, i) => (
-              <ListRow
-                key={link.id}
-                icon={LINK_ICONS[link.icon] ?? 'link'}
-                title={link.title}
-                value={link.description ?? link.url}
-                onPress={() => void Linking.openURL(link.url)}
-                last={i === links.length - 1}
-              />
-            ))}
-          </ListGroup>
+          <GroupKindRows items={visible} showPinned={!query.trim()} onOpen={open} />
         )}
+      </ScrollView>
 
-      {id ? <GroupContentSection groupId={id} /> : null}
-    </ScrollView>
+      {id ? (
+        <GroupCommentsSheet groupId={id} item={commentsFor} onClose={() => setCommentsFor(null)} />
+      ) : null}
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    paddingHorizontal: spacing.medium,
-    paddingBottom: spacing.xxlarge * 2,
-    gap: spacing.xlarge,
-  },
-  hero: {
+  scrollContent: { paddingBottom: spacing.xxlarge * 2, gap: 14 },
+  padded: { paddingHorizontal: spacing.medium, gap: 14 },
+  skeletonHead: { paddingHorizontal: spacing.medium, paddingTop: spacing.medium },
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
-    gap: spacing.small,
-    paddingTop: spacing.medium,
-    paddingBottom: spacing.xsmall,
+    justifyContent: 'center',
   },
-  groupName: { ...typography.h2, textAlign: 'center' },
-  roleBadge: {
-    paddingHorizontal: spacing.small,
-    paddingVertical: 3,
-    borderRadius: borderRadius.full,
+  segmented: { flexDirection: 'row', padding: 3, borderRadius: 12 },
+  segment: { flex: 1, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 9 },
+  segmentOn: {
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
-  roleBadgeText: { fontFamily: BODY_FONT, fontSize: 12, fontWeight: '700' },
-  description: {
+  segmentText: { fontFamily: BODY_FONT, fontSize: 15 },
+  segmentTextOn: { fontWeight: '700' },
+  search: {
+    height: 44,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+  },
+  searchInput: { flex: 1, fontFamily: BODY_FONT, fontSize: 15, height: 44 },
+  emptyLine: {
     fontFamily: BODY_FONT,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
     textAlign: 'center',
-    paddingTop: 2,
+    paddingHorizontal: spacing.large,
+    paddingTop: spacing.large,
   },
-  section: { gap: spacing.small },
-  sectionTitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    paddingHorizontal: spacing.xsmall,
-  },
-  emptyLine: { fontFamily: BODY_FONT, fontSize: 14 },
   centered: {
     flex: 1,
     alignItems: 'center',

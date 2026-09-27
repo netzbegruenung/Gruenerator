@@ -22,6 +22,7 @@ import {
   notebookResearchSearchBodySchema,
   notebookResearchSearchResponseSchema,
   notebookStatsResponseSchema,
+  notebookOverviewResponseSchema,
 } from '../schemas/notebook.js';
 
 const c = initContract();
@@ -165,6 +166,24 @@ export const notebookContract = c.router(
         500: notebookErrorResponseSchema,
       },
       summary: 'Statistics across notebook collections',
+    },
+
+    /**
+     * GET /api/auth/notebook/collections/:id/overview
+     * Exact statistics for the Übersicht page of a single system notebook
+     * (12h server cache). No auth required (system-collection data only).
+     */
+    getCollectionOverview: {
+      method: 'GET',
+      path: '/api/auth/notebook/collections/:id/overview',
+      pathParams: z.object({ id: z.string() }),
+      query: z.object({ refresh: z.string().nullish() }),
+      responses: {
+        200: notebookOverviewResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Overview statistics for a system notebook',
     },
 
     /**

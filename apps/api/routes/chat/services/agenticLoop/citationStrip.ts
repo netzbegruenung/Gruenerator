@@ -7,14 +7,14 @@
  * streamed deltas with it).
  */
 
-/** Bracketed citation groups: [3] or [3, 7]. */
-const CITE_GROUP_RE = /\[(\d+(?:\s*,\s*\d+)*)\]/g;
+import { citationReferenceRegex } from '@gruenerator/shared/utils';
 
 /**
  * Drop or trim `[N]` markers whose numbers fall outside `1..maxId`. A group with
  * some valid + some invalid numbers keeps only the valid ones ("[2, 7]" → "[2]"
- * when maxId=3); an all-invalid group is removed entirely. Whitespace left by a
- * removed marker is tidied so the prose reads cleanly.
+ * when maxId=3); an all-invalid group is removed entirely. A source link to an
+ * unknown id keeps its title as plain text. Whitespace left by a removed marker
+ * is tidied so the prose reads cleanly.
  */
 export function stripOutOfRangeCitations(
   text: string,
@@ -23,13 +23,23 @@ export function stripOutOfRangeCitations(
   const max = Math.max(0, maxId);
   let changed = false;
 
-  const replaced = text.replace(CITE_GROUP_RE, (whole, inner: string) => {
-    const nums = inner.split(/\s*,\s*/).map((n) => Number(n));
-    const valid = nums.filter((n) => Number.isInteger(n) && n >= 1 && n <= max);
-    if (valid.length === nums.length) return whole; // all valid — untouched
-    changed = true;
-    return valid.length === 0 ? '' : `[${valid.join(', ')}]`;
-  });
+  const inRange = (n: number) => Number.isInteger(n) && n >= 1 && n <= max;
+
+  const replaced = text.replace(
+    citationReferenceRegex(),
+    (whole, label: string | undefined, linkId: string | undefined, inner: string | undefined) => {
+      if (label !== undefined) {
+        if (inRange(Number(linkId))) return whole;
+        changed = true;
+        return label;
+      }
+      const nums = (inner ?? '').split(/\s*,\s*/).map((n) => Number(n));
+      const valid = nums.filter(inRange);
+      if (valid.length === nums.length) return whole; // all valid — untouched
+      changed = true;
+      return valid.length === 0 ? '' : `[${valid.join(', ')}]`;
+    }
+  );
 
   if (!changed) return { text, changed: false };
 

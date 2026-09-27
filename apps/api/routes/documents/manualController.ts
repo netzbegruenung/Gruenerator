@@ -15,13 +15,20 @@ import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
-import express, { type Router, type Response } from 'express';
+import {
+  DOCUMENT_MAX_UPLOAD_BYTES,
+  DOCUMENT_UPLOAD_FORMAT_HINT,
+  resolveDocumentUploadFormat,
+  uploadOnlyBodySchema,
+  type UploadOnlyResponse,
+} from '@gruenerator/contracts';
+import express, { type Router, type Response, type NextFunction, type Request } from 'express';
 import multer from 'multer';
 
+import { kickIngestWorker } from '../../services/document-services/DocumentProcessingService/documentIngestWorker.js';
 import { getDocumentProcessingService } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
-import { fromParam, type DocumentId } from '../../utils/types/branded.js';
 
 import type {
   DocumentRequest,
@@ -62,14 +69,58 @@ const uploadDisk = multer({
       cb(null, dir);
     },
     filename: (_req, file, cb) => {
-      const uniqueName = `${randomUUID()}-${file.originalname}`;
-      cb(null, uniqueName);
+      // Only the extension of the client-supplied name is trusted — the rest
+      // can contain '/' or '..' segments that survive multer's path.join and
+      // escape PENDING_UPLOADS_DIR (path traversal / arbitrary file write).
+      const ext = path.extname(file.originalname).slice(0, 16);
+      cb(null, `${randomUUID()}${ext}`);
     },
   }),
   limits: {
-    fileSize: 50 * 1024 * 1024,
+    fileSize: DOCUMENT_MAX_UPLOAD_BYTES,
   },
 });
+
+/**
+ * Delete a pending upload, refusing any path that resolves outside
+ * PENDING_UPLOADS_DIR. The stored name is already reduced to `<uuid><ext>`
+ * above, so traversal cannot happen today — this keeps the deletion sink safe
+ * regardless of how the storage config changes later, and is what the two
+ * cleanup paths below share instead of calling unlink on their own.
+ */
+function removePendingUpload(filePath: string): void {
+  const resolved = path.resolve(filePath);
+  if (!resolved.startsWith(PENDING_UPLOADS_DIR + path.sep)) {
+    log.warn(`[upload] refusing to delete a path outside the pending directory: ${resolved}`);
+    return;
+  }
+  try {
+    fs.unlinkSync(resolved);
+  } catch {
+    // Non-critical cleanup error
+  }
+}
+
+/**
+ * Turn multer's own rejections into the same German, actionable message the
+ * type guard below uses. Without this the size limit surfaced through the
+ * global handler in server.ts, which talks about videos.
+ */
+function handleUploadRejection(
+  err: unknown,
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+    res.status(413).json({
+      success: false,
+      message: `Die Datei ist größer als ${Math.round(DOCUMENT_MAX_UPLOAD_BYTES / (1024 * 1024))} MB und kann nicht hochgeladen werden.`,
+    });
+    return;
+  }
+  next(err);
+}
 
 /**
  * POST /upload-only - Fast file upload to disk, no OCR/vectorization.
@@ -78,6 +129,7 @@ const uploadDisk = multer({
 router.post(
   '/upload-only',
   uploadDisk.single('document'),
+  handleUploadRejection,
   async (req: DocumentRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user?.id;
@@ -95,7 +147,33 @@ router.post(
         return;
       }
 
-      const title = (req.body as UploadManualRequestBody).title || file.originalname;
+      // Reject here rather than at extraction time: the file is only read
+      // minutes later by the deferred pipeline, and a failure there is a row
+      // the user has already moved on from.
+      if (!resolveDocumentUploadFormat(file.originalname, file.mimetype)) {
+        removePendingUpload(file.path);
+        res.status(415).json({
+          success: false,
+          message: `„${file.originalname}" kann nicht gelesen werden. Unterstützt werden: ${DOCUMENT_UPLOAD_FORMAT_HINT}.`,
+        });
+        return;
+      }
+
+      // The text field beside the file, validated rather than cast. multipart
+      // bodies arrive as strings from busboy, so `title` is the only thing to
+      // check — but casting it meant a client sending `title: 42` reached
+      // `.trim()` and produced a 500 that read like a server fault.
+      const parsedBody = uploadOnlyBodySchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        removePendingUpload(file.path);
+        res.status(400).json({
+          success: false,
+          message: 'Der Titel muss Text sein.',
+        });
+        return;
+      }
+
+      const title = parsedBody.data.title || file.originalname;
 
       const documentMetadata = await postgresDocumentService.saveDocumentMetadata(userId, {
         title: title.trim(),
@@ -114,7 +192,16 @@ router.post(
         `[POST /upload-only] File saved to disk: ${file.path}, doc ID: ${documentMetadata.id}`
       );
 
-      res.json({
+      // Start indexing now rather than when the document is attached to a
+      // notebook. Ingestion used to begin only on attach, so the upload wizard
+      // polled a process that had not started: the status sat on 'uploaded',
+      // the spinner timed out after 30s and the file looked ready while nothing
+      // had happened. Indexing now runs while the user finishes the wizard.
+      kickIngestWorker();
+
+      // Built against the contract's schema, so the one raw handler left on this
+      // route cannot drift from what the clients derive their types from.
+      const body: UploadOnlyResponse = {
         success: true,
         message: 'File uploaded successfully',
         data: {
@@ -123,17 +210,12 @@ router.post(
           filename: file.originalname,
           status: 'uploaded',
         },
-      });
+      };
+      res.json(body);
     } catch (error) {
       log.error('[POST /upload-only] Error:', error);
       // Clean up uploaded file on error
-      if (req.file?.path) {
-        try {
-          fs.unlinkSync(req.file.path);
-        } catch {
-          // Ignore cleanup error
-        }
-      }
+      if (req.file?.path) removePendingUpload(req.file.path);
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to upload file',
@@ -142,69 +224,13 @@ router.post(
   }
 );
 
-/**
- * GET /:id/status - Get document processing status
+/*
+ * GET /:id/status moved to documentsContractRouter.ts. Its shape is pinned by
+ * `documentStatusResponseSchema` rather than tidied: shipped mobile binaries
+ * poll this exact path, so the camelCase keys and the `data` envelope are
+ * frozen. The contract is registered on the app before this router is mounted,
+ * so a `/:id/status` re-added here would never be reached.
  */
-router.get(
-  '/:id/status',
-  async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const id = fromParam<DocumentId>(req.params.id);
-      const document = await postgresDocumentService.getDocumentById(id, userId);
-      if (!document) {
-        res.status(404).json({ success: false, message: 'Document not found' });
-        return;
-      }
-
-      log.debug(
-        `[GET /:id/status] poll user=${userId} doc=${req.params.id} status=${document.status}`
-      );
-
-      // Surface processing stage/progress from the metadata JSONB so the
-      // upload UI can render per-doc stage labels + an upsert progress bar.
-      const docMeta =
-        typeof document.metadata === 'string'
-          ? (JSON.parse(document.metadata) as Record<string, unknown>)
-          : ((document.metadata ?? {}) as Record<string, unknown>);
-      const processingStage =
-        (docMeta.processing_stage as 'extracting' | 'chunking' | 'upserting' | null | undefined) ??
-        null;
-      const processingProgress =
-        (docMeta.processing_progress as
-          | {
-              stage: string;
-              current: number;
-              total: number;
-            }
-          | null
-          | undefined) ?? null;
-
-      res.json({
-        success: true,
-        data: {
-          id: document.id,
-          status: document.status,
-          title: document.title,
-          vectorCount: document.vector_count || 0,
-          processingStage,
-          processingProgress,
-        },
-      });
-    } catch (error) {
-      log.error('[GET /:id/status] Error:', error);
-      res.status(500).json({
-        success: false,
-        message: (error as Error).message || 'Failed to get document status',
-      });
-    }
-  }
-);
 
 /**
  * POST /upload-manual - Manual file upload (no file storage, vectors only)

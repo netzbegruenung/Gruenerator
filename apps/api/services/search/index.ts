@@ -5,7 +5,6 @@
 
 // Export SearXNG Service (singleton instance)
 export { searxngService, default as SearxngServiceClass } from './SearxngService.js';
-export { type AIWorkerPool as SearxngAIWorkerPool } from './SearxngService.js';
 
 // Export SearchResultProcessor utilities
 export {
@@ -15,12 +14,16 @@ export {
   validateAndInjectCitations,
   renumberCitationsInOrder,
   filterAndSortResults,
+  selectAcrossQueryGroups,
+  sourceTextForPrompt,
+  toClientSource,
+  PROMPT_SOURCE_MAX_CHARS,
   groupSourcesByCollection,
-  normalizeSearchResult,
-  dedupeAndDiversify,
-  summarizeReferencesForPrompt,
   parseAIJsonResponse,
 } from './SearchResultProcessor.js';
+
+// Export composite-question decomposition
+export { splitCompositeQuestion } from './questionDecomposition.js';
 
 // Export retry strategy and circuit breaker
 export {
@@ -97,7 +100,6 @@ export type {
   Source,
   ValidationResult,
   FilterOptions,
-  DedupeOptions,
   CollectionConfig,
   CollectionSources,
   SourcesByCollection,

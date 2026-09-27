@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, beforeEach } from 'vitest';
 
-import { createAiWorkerPoolStub, type AiWorkerStub } from './aiWorkerPoolStub.js';
 import { pinChatEnv } from './env.js';
 import { resetThreadStore } from './fakeThreadStore.js';
 import { resetMockControls } from './mocks.js';
+import { createProviderStub, type ProviderStub } from './providerStub.js';
 import { respond } from './respondScript.js';
 import { startChatApp, type ChatApp, type ChatAppOptions } from './testApp.js';
 import { installNetworkGuard } from './trace.js';
@@ -11,7 +11,7 @@ import { installNetworkGuard } from './trace.js';
 export interface Suite {
   /** Valid only inside a test body (assigned in beforeAll). */
   baseUrl: () => string;
-  pool: AiWorkerStub;
+  pool: ProviderStub;
 }
 
 /**
@@ -21,13 +21,13 @@ export interface Suite {
  * fake store, the mock controls and the respond script, all reset below.
  */
 export function useChatApp(options: ChatAppOptions = {}): Suite {
-  const pool = createAiWorkerPoolStub();
+  const pool = createProviderStub();
   let app: ChatApp | null = null;
   let restoreNetwork: (() => void) | null = null;
 
   beforeAll(async () => {
     restoreNetwork = installNetworkGuard();
-    app = await startChatApp({ aiWorkerPool: pool, ...options });
+    app = await startChatApp(options);
   });
 
   afterAll(async () => {

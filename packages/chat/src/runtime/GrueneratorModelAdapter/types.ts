@@ -9,7 +9,7 @@ import type {
   ChartData,
   ComputeData,
 } from '../../hooks/useChatGraphStream';
-import type { ActiveArtifact } from '../../stores/artifactLiveStore';
+import type { CodeArtifact } from '../../stores/artifactLiveStore';
 import type { ToolKey, ThreadMode, SearchMode } from '../../stores/chatStore';
 import type {
   ConfirmActionData,
@@ -17,8 +17,15 @@ import type {
   ReelPickerData,
   ReelProcessingData,
 } from '../../types/messageMetadata';
-import type { ChatModelRunResult } from '@assistant-ui/react';
-import type { BahnPayload, NotebookDepth } from '@gruenerator/contracts';
+import type { ChatModelRunResult, ToolCallMessagePart } from '@assistant-ui/react';
+import type {
+  RoleRef,
+  BahnPayload,
+  NotebookAnswerMode,
+  NotebookAnswerModeReason,
+  NotebookDepth,
+  NotebookResolvedAnswerMode,
+} from '@gruenerator/contracts';
 
 export type GrueneratorMessageMetadata = {
   progress?: ChatProgress;
@@ -33,7 +40,7 @@ export type GrueneratorMessageMetadata = {
   generatedImage?: GeneratedImage;
   sharepicData?: SharepicData;
   chartData?: ChartData;
-  artifactData?: ActiveArtifact;
+  artifactData?: CodeArtifact;
   computeData?: ComputeData;
   bahnData?: BahnPayload;
   streamMetadata?: StreamMetadata;
@@ -45,6 +52,12 @@ export type GrueneratorMessageMetadata = {
   createdDocument?: DocumentCreatedData;
   reelProcessing?: ReelProcessingData;
   reelPicker?: ReelPickerData;
+  /** Notebook found little relevant to answer with (`evidence_weak`); rendered
+   *  as a quiet note under the answer instead of a toast (AssistantMessage.tsx). */
+  evidenceWeak?: string;
+  /** Notebook answers only: the mode the answer ran in (`answer_mode` event). */
+  answerMode?: NotebookResolvedAnswerMode;
+  answerModeReason?: NotebookAnswerModeReason;
   [key: string]: unknown;
 };
 
@@ -66,16 +79,22 @@ export interface GrueneratorAdapterConfig {
   notebookFilters?: Record<string, string[]>;
   /** Notebook retrieval depth; defaults to `DEFAULT_NOTEBOOK_DEPTH`. */
   notebookMode?: NotebookDepth;
+  /** Notebook answer mode, sent as `answerMode`. Absent → field omitted, and
+   *  the server answers in chat mode (old behaviour). */
+  notebookAnswerMode?: NotebookAnswerMode;
   threadMode?: ThreadMode;
   searchMode?: SearchMode;
   customSystemPrompt?: string | null;
   customRoleName?: string | null;
   /** Verweis auf die gewählte Rolle; der Prompttext bleibt server-seitig. */
-  customRoleRef?: { ebene: string; rolle: string } | null;
+  customRoleRef?: RoleRef | null;
   customEnabledTools?: Record<string, boolean> | null;
   /** Mention key of the active /skill (e.g. 'instagram'). Server appends the
    *  skill's `skillSystemPrompt` to the agent's systemRole when set. */
   activeSkillMention?: string | null;
+  /** Row id of `activeSkillMention` when it names a user recipe rather than a
+   *  system skill — lets the server resolve by id instead of by mention. */
+  activeRecipeId?: string | null;
   /** Pinned MCP connector — while set, the adapter injects its durable
    *  `@[Label](mcp:id)` token into every sent message and forces `mcp:<id>`,
    *  holding the tool scope across follow-ups. Web-only for now; null on other
@@ -86,6 +105,15 @@ export interface GrueneratorAdapterConfig {
 export interface GrueneratorAdapterCallbacks {
   onThreadCreated?: (threadId: string) => void;
   onComplete?: (metadata: StreamMetadata) => void;
+  /** The turn ended on a clarification the user has to answer, so the adapter
+   *  will now refuse every further run on this thread until the answer arrives.
+   *  Fired from the same statement that arms that refusal, which is why it is
+   *  the signal a message queue can trust: anything it sends next would be
+   *  appended to the thread and then aborted. Independent of
+   *  `unstable_humanToolNames` — the runtime only parks a message at
+   *  `requires-action` for surfaces that declare the tool, the adapter refuses
+   *  either way. */
+  onInterrupt?: () => void;
 }
 
 export interface ToolCallPart {
@@ -108,6 +136,16 @@ export interface ToolCallPart {
    *  mode). Rendered as muted text above the card and persisted with the turn;
    *  the durable form of the live `gather_narration` status line. */
   narration?: string;
+  /** Freigabe-Gate von assistant-ui: solange `approved` undefiniert und keine
+   *  `resolution` gesetzt ist, hält die Laufzeit den Zug an und die Karte zeigt
+   *  ihre Knöpfe. */
+  approval?: ToolCallMessagePart['approval'];
+  /** Anzeigename des Werkzeugs und Name des verbundenen Dienstes — nur an
+   *  Freigabe-Karten gesetzt. Wer freigibt, muss lesen können, wohin der Aufruf
+   *  geht; der Katalogname `m<key>__<tool>` sagt das nicht. Reisen wie
+   *  `narration` auf `message.parts` mit (siehe ToolNarration). */
+  title?: string;
+  serverName?: string;
 }
 
 export interface SourcePart {
@@ -133,4 +171,8 @@ export interface StreamOutcome {
    *  carried from the interrupt event because brand-new threads have no
    *  config.threadId yet. */
   clientToolInterrupt?: { toolName: string; args: Record<string, unknown>; threadId?: string };
+  /** Werkzeug-Freigabe: der Zug pausiert, bis die Person entschieden hat. Die
+   *  Karten stehen als `approval` an den Tool-Parts; hier steht nur, zu welcher
+   *  Pause die Antwort gehört. */
+  toolApprovalPending?: { approvalTurnId: string };
 }

@@ -14,6 +14,22 @@ import type { ThreadToolContext } from '../../../agents/langgraph/ChatGraph/type
 
 const log = createLogger('CreateTurn');
 
+/** Text is streamed in fixed-size slices, matching the previous handlers. */
+export const TEXT_CHUNK = 20;
+
+/**
+ * Stream a finished text as `text_delta` slices.
+ *
+ * The loop lived in four places with the slice width written out as a literal in
+ * three of them, so a change to the pacing would have applied to one turn kind
+ * and silently not to the others.
+ */
+export function streamTextInChunks(sse: SSEWriter, text: string): void {
+  for (let i = 0; i < text.length; i += TEXT_CHUNK) {
+    sse.send('text_delta', { text: text.slice(i, i + TEXT_CHUNK) });
+  }
+}
+
 /**
  * Close a create_* turn with an honest error instead of falling through to the
  * generic respond pipeline.

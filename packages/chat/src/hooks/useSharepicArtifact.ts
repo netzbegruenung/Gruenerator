@@ -1,6 +1,7 @@
+import { getSharepicVariantLabel, isMintableCanvasType } from '@gruenerator/contracts';
 import { useState, useCallback, useEffect, useRef } from 'react';
 
-import { notifyError } from '../lib/notify';
+import { notifyError, notifyWarning } from '../lib/notify';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useAgentStore } from '../stores/chatStore';
 import { useSharepicLiveStore } from '../stores/sharepicLiveStore';
@@ -14,19 +15,15 @@ export interface SharepicVersionEntry {
   summary: string | null;
 }
 
-const FALLBACK_LABELS: Record<string, string> = {
-  dreizeilen: 'Dreizeiler',
-  'zitat-pure': 'Zitat',
-  zitat: 'Zitat',
-  info: 'Info',
-  simple: 'Sharepic',
-  veranstaltung: 'Veranstaltung',
-  slider: 'Slider',
-  freeform: 'Freeform',
-};
-
+/**
+ * The server sends `label` with every variant; the fallback covers old threads
+ * persisted before it did, and now reads the same table the server labels from.
+ */
 export function sharepicLabel(variant: Pick<SharepicVariant, 'label' | 'canvasType'>): string {
-  return variant.label ?? FALLBACK_LABELS[variant.canvasType] ?? 'Sharepic';
+  if (variant.label) return variant.label;
+  return isMintableCanvasType(variant.canvasType)
+    ? getSharepicVariantLabel(variant.canvasType)
+    : 'Sharepic';
 }
 
 /**
@@ -109,7 +106,7 @@ export function useSharepicArtifact(variant: SharepicVariant) {
       return undefined;
     }
     setIsRendering(true);
-    renderFn(variant.canvasType, renderInput)
+    renderFn(variant.canvasType, renderInput, { quality: 'preview' })
       .then((dataUrl) => {
         if (cancelled) return;
         if (dataUrl) {
@@ -248,15 +245,30 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     }
   }, [variant.id, variant.canvasType, variant.initialProps, variant.label, canvasId]);
 
-  const download = useCallback(() => {
-    if (!imageBase64) return;
+  /**
+   * Re-renders at export resolution before saving. What the card shows is a
+   * preview — sized for a 420px slot, not for posting — so handing that file
+   * to the user would quietly ship them a downscaled sharepic. Falls back to
+   * the preview only if the full render fails, since a smaller file still
+   * beats a dead button.
+   */
+  const download = useCallback(async () => {
+    const renderFn = useChatConfigStore.getState().renderSharepic;
+    const full = renderFn
+      ? await renderFn(variant.canvasType, renderInput, { quality: 'full' }).catch(() => {
+          notifyWarning('Sharepic wird in Vorschau-Auflösung geladen');
+          return null;
+        })
+      : null;
+    const href = full ?? imageBase64;
+    if (!href) return;
     const link = document.createElement('a');
-    link.href = imageBase64;
+    link.href = href;
     link.download = `sharepic-${variant.canvasType}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [imageBase64, variant.canvasType]);
+  }, [imageBase64, variant.canvasType, renderInput]);
 
   const openInStudio = useCallback(() => {
     const threadId = useAgentStore.getState().currentThreadId;

@@ -21,12 +21,14 @@ import {
   getSystemCollectionConfig,
   getCollectionFilterableFields,
   getCollectionDefaultFilter,
+  getFacetCountFilter,
   getDefaultMultiCollectionIds,
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { getQdrantDocumentService } from '../../services/document-services/index.js';
 import { notebookQAService } from '../../services/notebook/index.js';
+import { getNotebookOverview } from '../../services/notebook/notebookOverviewService.js';
 import {
   byPublishedAtDesc,
   dedupeByUrlOrTitle,
@@ -34,10 +36,10 @@ import {
   normalizeRecentLimit,
 } from '../../services/notebook/notebookRecentService.js';
 import { getNotebookStats } from '../../services/notebook/notebookStatsService.js';
+import { rankManualSearchResults } from '../../services/search/manualSearchRanking.js';
 import { recordItemUsageSafe } from '../../services/usage/ItemUsageService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type NotebookId } from '../../utils/types/branded.js';
 import { highlightSnippet, truncateSnippet } from '../research/researchController.js';
@@ -67,6 +69,9 @@ const MODE_WEIGHTS: Record<'hybrid' | 'vector' | 'text', readonly [number, numbe
   vector: [1.0, 0.0],
   text: [0.0, 1.0],
 };
+
+/** Documents below this aggregated score never reach the result list. */
+const USER_NOTEBOOK_MIN_SCORE = 0.3;
 
 /**
  * Extract the authenticated user id or return a 401 contract response.
@@ -104,8 +109,13 @@ export const notebookContractRouter = s.router(notebookContract, {
         };
       }
 
-      const filterableFields = getCollectionFilterableFields(collectionId);
-      if (!filterableFields || filterableFields.length === 0) {
+      // `researchOnly` facets (persons) belong to the manual research surface,
+      // which reads them from `research.filters`. This endpoint only feeds the
+      // notebook chat.
+      const filterableFields = getCollectionFilterableFields(collectionId).filter(
+        (field) => !field.researchOnly
+      );
+      if (filterableFields.length === 0) {
         return {
           status: 200 as const,
           body: { collectionId, collectionName: systemConfig.name, filters: {} },
@@ -161,7 +171,7 @@ export const notebookContractRouter = s.router(notebookContract, {
               systemConfig.qdrantCollection,
               field.field,
               50,
-              baseFilter
+              getFacetCountFilter(collectionId)
             );
             filters[field.field] = {
               label: field.label,
@@ -208,7 +218,6 @@ export const notebookContractRouter = s.router(notebookContract, {
         question,
         collectionIds: collectionIds || getDefaultMultiCollectionIds(),
         requestFilters: filters,
-        aiWorkerPool: getAIWorkerPool(args.req),
         fastMode,
       });
 
@@ -232,7 +241,6 @@ export const notebookContractRouter = s.router(notebookContract, {
   },
 
   askSingle: async (args) => {
-    const startTime = Date.now();
     try {
       const auth = requireAuthUser(args.req);
       if (!auth.ok) return auth.response;
@@ -252,7 +260,6 @@ export const notebookContractRouter = s.router(notebookContract, {
         question,
         userId,
         requestFilters: filters,
-        aiWorkerPool: getAIWorkerPool(args.req),
         getCollectionFn: async (id: string) => {
           const systemConfig = getSystemCollectionConfig(id);
           if (systemConfig) return null;
@@ -264,18 +271,6 @@ export const notebookContractRouter = s.router(notebookContract, {
         },
         fastMode,
       });
-
-      try {
-        await notebookHelper.logNotebookUsage(
-          collectionId,
-          userId,
-          question.trim(),
-          (result.answer || '').length,
-          Date.now() - startTime
-        );
-      } catch (logError) {
-        log.error('[notebookContract.askSingle] Error logging usage:', logError);
-      }
 
       // Track usage for "favourites first" ordering (fire-and-forget).
       recordItemUsageSafe(userId, 'notebook', collectionId as string);
@@ -369,35 +364,12 @@ export const notebookContractRouter = s.router(notebookContract, {
         published_at: doc.published_at ?? null,
       }));
 
-      const dedupMap = new Map<string, (typeof tagged)[number]>();
-      for (const r of tagged) {
-        const key = r.source_url || r.document_id;
-        const existing = dedupMap.get(key);
-        if (!existing || r.similarity_score > existing.similarity_score) {
-          dedupMap.set(key, r);
-        }
-      }
-
-      let deduped = Array.from(dedupMap.values()).filter((r) => r.similarity_score >= 0.3);
-
-      if (effectiveSort === 'date_desc') {
-        deduped.sort((a, b) => {
-          const dateA = a.published_at || '';
-          const dateB = b.published_at || '';
-          if (dateB !== dateA) return dateB.localeCompare(dateA);
-          return b.similarity_score - a.similarity_score;
-        });
-      } else if (effectiveSort === 'date_asc') {
-        deduped.sort((a, b) => {
-          const dateA = a.published_at || '';
-          const dateB = b.published_at || '';
-          if (dateA !== dateB) return dateA.localeCompare(dateB);
-          return b.similarity_score - a.similarity_score;
-        });
-      } else {
-        deduped.sort((a, b) => b.similarity_score - a.similarity_score);
-      }
-      deduped = deduped.slice(0, effectiveLimit);
+      const deduped = rankManualSearchResults({
+        results: tagged,
+        sortBy: effectiveSort,
+        limit: effectiveLimit,
+        minScore: USER_NOTEBOOK_MIN_SCORE,
+      });
 
       const truncated = deduped.map((r) => ({
         document_id: r.document_id,
@@ -406,6 +378,7 @@ export const notebookContractRouter = s.router(notebookContract, {
         relevant_content: highlightSnippet(r.relevant_content, trimmed),
         similarity_score: r.similarity_score,
         chunk_count: r.chunk_count,
+        term_chunk_count: r.term_chunk_count,
         top_chunks: (r.top_chunks ?? []).map((c) => ({
           preview: truncateSnippet(c.preview, 200),
           chunk_index: c.chunk_index,
@@ -492,6 +465,19 @@ export const notebookContractRouter = s.router(notebookContract, {
     }
   },
 
+  getCollectionOverview: async (args) => {
+    const collectionId = args.params.id;
+    const refresh = args.query.refresh === '1' || args.query.refresh === 'true';
+    try {
+      const overview = await getNotebookOverview(collectionId, { refresh });
+      if (!overview) return { status: 404 as const, body: { error: 'unknown_collection' } };
+      return { status: 200 as const, body: overview };
+    } catch (error) {
+      log.error(`[notebookContract.getCollectionOverview] failed for ${collectionId}:`, error);
+      return { status: 500 as const, body: { error: 'overview_failed' } };
+    }
+  },
+
   getPublic: async (args) => {
     try {
       const accessToken = args.params.token;
@@ -538,7 +524,6 @@ export const notebookContractRouter = s.router(notebookContract, {
   },
 
   askPublic: async (args) => {
-    const startTime = Date.now();
     try {
       const accessToken = args.params.token;
       const question = args.body.question;
@@ -578,7 +563,6 @@ export const notebookContractRouter = s.router(notebookContract, {
         question,
         userId: collection.user_id,
         requestFilters: filters,
-        aiWorkerPool: getAIWorkerPool(args.req),
         getCollectionFn: async () => collection,
         getDocumentIdsFn: async (id: string) => {
           const docs = await notebookHelper.getCollectionDocuments(id);
@@ -586,18 +570,6 @@ export const notebookContractRouter = s.router(notebookContract, {
         },
         fastMode,
       });
-
-      try {
-        await notebookHelper.logNotebookUsage(
-          collection.id,
-          null,
-          question.trim(),
-          (result.answer || '').length,
-          Date.now() - startTime
-        );
-      } catch (logError) {
-        log.error('[notebookContract.askPublic] Error logging usage:', logError);
-      }
 
       return {
         status: 200 as const,

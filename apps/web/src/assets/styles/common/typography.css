@@ -302,9 +302,15 @@ h1, h2, h3, h4, h5, h6 {
     letter-spacing: -0.01em;
 }
 
-p, li, div, span {
-    font-family: 'PT Sans', Arial, sans-serif;
-}
+/* Es gibt hier bewusst KEINE Regel `p, li, div, span { font-family: … }`.
+   `body` oben setzt PT Sans, und geerbt wird es von allem, was selbst keine
+   eigene Schrift bekommt — die Element-Regel war also für den Normalfall
+   wirkungslos. Wirksam wurde sie nur da, wo ein Bauteil eine andere Schrift
+   auf einen Teilbaum legt: ein Treffer AUF dem Element schlägt den geerbten
+   Wert immer, egal wie niedrig seine Spezifität ist und egal, ob die Schrift
+   oben als Inline-Style steht. Damit konnte kein Bauteil mehr eine Schrift
+   nach innen vererben (#3399). Wer PT Sans auf einem fremden Teilbaum
+   erzwingen muss, tut das dort, wo dieser Teilbaum wohnt. */
 
 h1 {
     font-size: var(--font-size-4xl);

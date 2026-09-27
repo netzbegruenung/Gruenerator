@@ -1,9 +1,13 @@
+import { useMeasuredCornerReservation } from '@gruenerator/ui';
 import React from 'react';
 import { HiLink } from 'react-icons/hi';
 
 import type { ReactNode } from 'react';
 
 import { cn } from '../utils/cn';
+
+// Die Leiste füllt die untere Kante, ihre Höhe hängt am Seiten-Streifen.
+const BOTTOM_BAR_CORNERS = ['bottom-left', 'bottom-right'] as const;
 
 export const SIDEBAR_FONT_SIZES = {
   '--font-size-xxs': 'clamp(0.6rem, 0.576rem + 0.12vw, 0.7rem)',
@@ -53,6 +57,13 @@ export function CanvasEditorLayout({
 }: CanvasEditorLayoutProps) {
   const hasSidebar = Boolean(tabBar);
   const hasPanel = Boolean(sidebar);
+  const bottomBarRef = React.useRef<HTMLDivElement>(null);
+
+  useMeasuredCornerReservation(bottomBarRef, {
+    corner: BOTTOM_BAR_CORNERS,
+    axis: 'vertical',
+    active: Boolean(bottomBar),
+  });
 
   return (
     <div
@@ -108,6 +119,7 @@ export function CanvasEditorLayout({
       </div>
       {bottomBar && (
         <div
+          ref={bottomBarRef}
           className={cn(
             'canvas-editor-layout__bottom-bar fixed bottom-0 right-0 z-[140] left-[var(--canvas-host-inset-left,0px)] max-canvas-mobile:hidden',
             hasSidebar &&

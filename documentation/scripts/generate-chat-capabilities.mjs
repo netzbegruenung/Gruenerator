@@ -53,18 +53,27 @@ const SRC = {
   chatIntents: 'packages/shared/src/chat-intents/index.ts',
   userTools: 'packages/shared/src/agents/userTools.ts',
   systemMcp: 'apps/api/services/mcp/systemMcpServers.ts',
-  // CONTROLLER_HANDLED_INTENTS says how each intent is handled and flags the
-  // young ones EXPERIMENTAL, which makes it a better source for "is this
+  // INTENT_HANDLER_PATHS says how each intent is handled and flags the young
+  // ones EXPERIMENTAL, which makes it a better source for "is this
   // experimental?" than the enum's free-floating comments.
   //
-  // It is ALSO annotated `Record<SearchIntent, string>`, and this comment used
-  // to claim TypeScript forces it to cover every intent. It does not:
-  // `apps/api/tsconfig.json` excludes `**/*.vitest.ts`, so tsc never sees this
-  // file. Coverage is enforced by the test's runtime loop over
-  // `searchIntentSchema.options`, and by
-  // scripts/check-unenforced-exhaustive-maps.mjs, which fails CI if that loop
-  // is ever dropped.
-  intentNotes: 'apps/api/agents/langgraph/ChatGraph/intentPipeline.vitest.ts',
+  // It sat in `intentPipeline.vitest.ts` as `CONTROLLER_HANDLED_INTENTS` until
+  // the intent-registry rollout, and its `Record<SearchIntent, string>` was
+  // decoration there: `apps/api/tsconfig.json` excludes `**/*.vitest.ts`, so
+  // tsc never saw the file (the case that motivated
+  // scripts/check-unenforced-exhaustive-maps.mjs). It is a production module
+  // now, so the compiler enforces coverage — and the test's runtime loop over
+  // `searchIntentSchema.options` stays as the readable second belt.
+  intentNotes: 'apps/api/agents/langgraph/ChatGraph/intentHandlerPaths.ts',
+  // The Rezepte (`@presse`, `@instagram`, …). index.generated.ts is itself
+  // built from the skills' frontmatter, so it is already pure data.
+  skills: 'packages/shared/src/agents/skills/index.generated.ts',
+  skillTypes: 'packages/shared/src/agents/types.ts',
+  // The @-source registry (`@grundsatz`, `@thüringen`, …) shared by web/mobile
+  // galleries and the chat mention picker.
+  notebooks: 'packages/shared/src/notebooks/index.ts',
+  // Which keywords pin a sharepic request to a specific variant.
+  sharepicVariants: 'apps/api/routes/chat/services/sharepicVariantHelpers.ts',
 };
 
 function parse(relFile) {
@@ -78,6 +87,41 @@ function parse(relFile) {
   );
 }
 
+/**
+ * Die F0-Erstell-Token, aus `chat-intents/index.ts` gelesen.
+ *
+ * Nötig, weil `mentionables.ts` seinen `identifier` für die vier
+ * `@…-erstellen`-Einträge nicht mehr als Literal schreibt, sondern als
+ * `ARTIFACT_CREATE_TOKENS.<art>` — die Menge ist F0 und darf nur einen Schreiber
+ * haben. Ein reiner Literal-Leser sieht dort nichts und liesse die vier
+ * Fähigkeiten aus dem Handbuch fallen; genau das ist beim Umbau passiert und
+ * wird unten laut statt still.
+ */
+function readArtifactCreateTokens() {
+  const sf = parse(SRC.chatIntents);
+  const out = {};
+  walk(sf, (node) => {
+    if (!ts.isVariableDeclaration(node)) return;
+    if (!ts.isIdentifier(node.name) || node.name.text !== 'ARTIFACT_CREATE_TOKENS') return;
+    let init = node.initializer;
+    // `{...} as const` → das Objektliteral steckt in der Assertion.
+    while (init && ts.isAsExpression(init)) init = init.expression;
+    if (!init || !ts.isObjectLiteralExpression(init)) return;
+    for (const prop of init.properties) {
+      if (!ts.isPropertyAssignment(prop) || !prop.name) continue;
+      if (!ts.isIdentifier(prop.name) && !ts.isStringLiteral(prop.name)) continue;
+      if (!ts.isStringLiteral(prop.initializer)) continue;
+      out[prop.name.text] = prop.initializer.text;
+    }
+  });
+  if (Object.keys(out).length === 0) {
+    throw new Error(
+      `${SRC.chatIntents}: ARTIFACT_CREATE_TOKENS not extractable — the shape changed.`
+    );
+  }
+  return out;
+}
+
 function stringProp(obj, name) {
   for (const p of obj.properties) {
     if (
@@ -89,6 +133,43 @@ function stringProp(obj, name) {
     ) {
       return p.initializer.text;
     }
+  }
+  return undefined;
+}
+
+/** Dieselbe Lesart für ein Array von Zeichenketten (`instances: ['bgst']`). */
+function stringArrayProp(obj, name) {
+  for (const p of obj.properties) {
+    if (
+      ts.isPropertyAssignment(p) &&
+      p.name &&
+      ts.isIdentifier(p.name) &&
+      p.name.text === name &&
+      ts.isArrayLiteralExpression(p.initializer)
+    ) {
+      return p.initializer.elements
+        .filter((e) => ts.isStringLiteral(e) || ts.isNoSubstitutionTemplateLiteral(e))
+        .map((e) => e.text);
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Wie {@link stringProp}, aber für `<constName>.key` — aufgelöst über eine
+ * mitgegebene Tabelle. Der NAME der Konstante wird mitgeprüft: sonst löst jedes
+ * `Irgendwas.board` auf, und der Leser bestätigt eine Herkunft, die er nicht
+ * gelesen hat. Alles andere bleibt unauflösbar und wird beim Aufrufer zum
+ * Fehler.
+ */
+function constProp(obj, name, constName, table) {
+  for (const p of obj.properties) {
+    if (!ts.isPropertyAssignment(p) || !p.name || !ts.isIdentifier(p.name)) continue;
+    if (p.name.text !== name) continue;
+    const init = p.initializer;
+    if (!ts.isPropertyAccessExpression(init)) return undefined;
+    if (!ts.isIdentifier(init.expression) || init.expression.text !== constName) return undefined;
+    return table[init.name.text];
   }
   return undefined;
 }
@@ -153,7 +234,18 @@ function extractIntents() {
   return intents.filter((i) => !retired.has(i));
 }
 
-/** Intents marked `availability: 'retired'` in the registry (see CHAT_INTENTS). */
+/**
+ * Intents marked `availability: 'retired'` in the registry (see CHAT_INTENTS),
+ * MINUS those whose mention pins a tool or activates a recipe.
+ *
+ * The exception is what keeps the rule honest. Retiring an intent normally means
+ * the capability moved somewhere that has no @-trigger at all (the five managed
+ * connectors), so documenting it would advertise something that no longer
+ * answers. A mention carrying `pinsTool`/`activatesSkill` is the other case: the
+ * verdict died, the capability did not — the same token now reaches a loop tool
+ * or a recipe. `@umfragen` and `@pressemitteilungen` are those, and dropping
+ * them from the article would hide capabilities the picker still offers.
+ */
 function extractRetiredIntents() {
   const sf = parse(SRC.chatIntents);
   const decl = unwrap(findDeclaration(sf, 'CHAT_INTENTS'));
@@ -169,18 +261,22 @@ function extractRetiredIntents() {
     const id = ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name) ? prop.name.text : null;
     const value = unwrap(prop.initializer);
     if (!id || !value || !ts.isObjectLiteralExpression(value)) continue;
-    if (stringProp(value, 'availability') === 'retired') retired.add(id);
+    if (stringProp(value, 'availability') !== 'retired') continue;
+    const mention = objectProp(value, 'mention');
+    if (mention && (stringProp(mention, 'pinsTool') || stringProp(mention, 'activatesSkill')))
+      continue;
+    retired.add(id);
   }
   return retired;
 }
 
-/** Intents whose entry in CONTROLLER_HANDLED_INTENTS is marked EXPERIMENTAL. */
+/** Intents whose entry in INTENT_HANDLER_PATHS is marked EXPERIMENTAL. */
 function extractExperimentalIntents() {
   const sf = parse(SRC.intentNotes);
-  const decl = unwrap(findDeclaration(sf, 'CONTROLLER_HANDLED_INTENTS'));
+  const decl = unwrap(findDeclaration(sf, 'INTENT_HANDLER_PATHS'));
   if (!decl || !ts.isObjectLiteralExpression(decl)) {
     throw new Error(
-      `${SRC.intentNotes}: CONTROLLER_HANDLED_INTENTS not found as an object literal. ` +
+      `${SRC.intentNotes}: INTENT_HANDLER_PATHS not found as an object literal. ` +
         `It is the source for the "experimentell" badge; update generate-chat-capabilities.mjs.`
     );
   }
@@ -275,11 +371,24 @@ function extractIntentMentions() {
  */
 function extractMentionables() {
   const sf = parse(SRC.mentionables);
+  const tokens = readArtifactCreateTokens();
   const out = {};
   walk(sf, (node) => {
     if (!ts.isObjectLiteralExpression(node)) return;
-    const identifier = stringProp(node, 'identifier');
     const title = stringProp(node, 'title');
+    const identifier =
+      stringProp(node, 'identifier') ??
+      constProp(node, 'identifier', 'ARTIFACT_CREATE_TOKENS', tokens);
+    // Ein Eintrag MIT Titel und Erwähnung, dessen Kennung nicht auflösbar ist,
+    // ist der eine Fehler, den dieser Leser bisher still beging: er liess ihn
+    // weg, und die Fähigkeit verschwand aus dem Handbuch, ohne dass etwas rot
+    // wurde. Lieber der Build als ein zu kurzes Verzeichnis.
+    if (title && stringProp(node, 'mention') && !identifier) {
+      throw new Error(
+        `${SRC.mentionables}: mentionable "${title}" has an unresolvable \`identifier\` — ` +
+          `only string literals and ARTIFACT_CREATE_TOKENS.<kind> are understood.`
+      );
+    }
     if (!identifier || !title) return;
     const entry = { title };
     const description = stringProp(node, 'description');
@@ -362,6 +471,229 @@ function extractSystemSources() {
   return { sources: out, intentSources };
 }
 
+/** Numeric property (`order: 4`) of an object literal. */
+function numberProp(obj, name) {
+  for (const p of obj.properties) {
+    if (
+      ts.isPropertyAssignment(p) &&
+      p.name &&
+      ts.isIdentifier(p.name) &&
+      p.name.text === name &&
+      ts.isNumericLiteral(p.initializer)
+    ) {
+      return Number(p.initializer.text);
+    }
+  }
+  return undefined;
+}
+
+/** Object-literal property (`mention: {...}`) of an object literal. */
+function objectProp(obj, name) {
+  for (const p of obj.properties) {
+    if (ts.isPropertyAssignment(p) && p.name && ts.isIdentifier(p.name) && p.name.text === name) {
+      const value = unwrap(p.initializer);
+      if (ts.isObjectLiteralExpression(value)) return value;
+    }
+  }
+  return undefined;
+}
+
+/** `false` literal property (`enabled: false`) — undefined when absent or true. */
+function isFalseProp(obj, name) {
+  for (const p of obj.properties) {
+    if (ts.isPropertyAssignment(p) && p.name && ts.isIdentifier(p.name) && p.name.text === name) {
+      return p.initializer.kind === ts.SyntaxKind.FalseKeyword;
+    }
+  }
+  return false;
+}
+
+/**
+ * The Rezepte (`SKILLS` in the generated skills index), in
+ * registry order, plus the category labels the UI groups them under.
+ *
+ * A Landesverband that turned its notebook off (`enabled: false`) also has its
+ * Rezepte hidden from every picker (see `DISABLED_LV_AGENT_IDS` in
+ * packages/shared/src/agents/system.ts, which derives that from the same
+ * switch). The static equivalent: the disabled notebook's `defaultAgent` is
+ * the identifier its Rezepte carry, so those are skipped here.
+ */
+function extractSkills(disabledAgentIds) {
+  const sf = parse(SRC.skills);
+  const decl = unwrap(findDeclaration(sf, 'SKILLS'));
+  if (!decl || !ts.isArrayLiteralExpression(decl)) {
+    throw new Error(
+      `${SRC.skills}: SKILLS not found as an array literal. ` +
+        `It is the source for the Rezepte table; update generate-chat-capabilities.mjs.`
+    );
+  }
+  const skills = [];
+  for (const el of decl.elements) {
+    const obj = unwrap(el);
+    if (!obj || !ts.isObjectLiteralExpression(obj)) continue;
+    const title = stringProp(obj, 'title');
+    const mention = stringProp(obj, 'mention');
+    if (!title || !mention) continue;
+    const identifier = stringProp(obj, 'identifier');
+    if (identifier && disabledAgentIds.has(identifier)) continue;
+    // Ein Rezept, das seine Instanzen nennt, gibt es nur dort (`instances` in
+    // packages/shared/src/agents/skillInstances.ts). Die Doku beschreibt das
+    // Produkt, das unter gruenerator.eu läuft — ein Eintrag für ein Rezept, das
+    // dort niemand aufrufen kann, ist eine Zusage, die die Oberfläche nicht
+    // einlöst. Das statische Gegenstück zu `isSkillOfferedIn(skill,
+    // 'production')`; die Regel gilt genauso, wenn irgendwann eine andere
+    // Instanz eigene Rezepte bekommt.
+    const instances = stringArrayProp(obj, 'instances');
+    if (instances && !instances.includes('production')) continue;
+    const entry = {
+      // `@`, nicht `/`: Rezepte hatten früher einen eigenen Auslöser, der ist
+      // beim Zusammenlegen der beiden Listen weggefallen (Kopfkommentar in
+      // packages/chat/src/lib/mentionDetection.ts — `@` ist der einzige
+      // Trigger). Die Tabelle zeigte trotzdem weiter `/presse`, also einen
+      // Befehl, der im Eingabefeld nichts auslöst.
+      command: `@${mention}`,
+      title,
+      description: stringProp(obj, 'description') ?? '',
+      avatar: stringProp(obj, 'avatar') ?? '',
+      category: stringProp(obj, 'skillCategory') ?? 'sonstiges',
+    };
+    const audience = stringProp(obj, 'audience');
+    if (audience && audience !== 'all') entry.audience = audience;
+    skills.push(entry);
+  }
+  if (skills.length === 0) throw new Error(`${SRC.skills}: no Rezepte extracted.`);
+
+  const typesSf = parse(SRC.skillTypes);
+  const labelsDecl = unwrap(findDeclaration(typesSf, 'SKILL_CATEGORY_LABELS'));
+  const categoryLabels = {};
+  if (labelsDecl && ts.isObjectLiteralExpression(labelsDecl)) {
+    for (const p of labelsDecl.properties) {
+      if (!ts.isPropertyAssignment(p) || !p.name || !ts.isIdentifier(p.name)) continue;
+      if (ts.isStringLiteral(p.initializer)) categoryLabels[p.name.text] = p.initializer.text;
+    }
+  }
+  return { skills, categoryLabels };
+}
+
+/**
+ * The `@`-source registry (`NOTEBOOK_REGISTRY`) — every system notebook with
+ * its mention alias, sorted the way the galleries sort (the `order` field).
+ * Skips `enabled: false` (unroutable) and non-stable channels (not served on
+ * the public instance the docs describe).
+ */
+function extractNotebookSources() {
+  const disabledAgentIds = new Set();
+  const sf = parse(SRC.notebooks);
+  const decl = unwrap(findDeclaration(sf, 'NOTEBOOK_REGISTRY'));
+  if (!decl || !ts.isArrayLiteralExpression(decl)) {
+    throw new Error(
+      `${SRC.notebooks}: NOTEBOOK_REGISTRY not found as an array literal. ` +
+        `It is the source for the Quellen table; update generate-chat-capabilities.mjs.`
+    );
+  }
+  const sources = [];
+  for (const el of decl.elements) {
+    const obj = unwrap(el);
+    if (!obj || !ts.isObjectLiteralExpression(obj)) continue;
+    const id = stringProp(obj, 'id');
+    const mention = objectProp(obj, 'mention');
+    if (!id || !mention) continue;
+    if (isFalseProp(obj, 'enabled')) {
+      const defaultAgent = stringProp(obj, 'defaultAgent');
+      if (defaultAgent) disabledAgentIds.add(defaultAgent);
+      continue;
+    }
+    const channel = stringProp(obj, 'channel');
+    if (channel && channel !== 'stable') continue;
+    const alias = stringProp(mention, 'alias');
+    const title = stringProp(mention, 'title');
+    if (!alias || !title) continue;
+    const entry = {
+      id,
+      mention: `@${alias}`,
+      title,
+      description: stringProp(mention, 'description') ?? '',
+      avatar: stringProp(mention, 'avatar') ?? '',
+      category: stringProp(obj, 'category') ?? 'weitere',
+      order: numberProp(obj, 'order') ?? 0,
+    };
+    const audience = stringProp(obj, 'audience');
+    if (audience && audience !== 'all') entry.audience = audience;
+    sources.push(entry);
+  }
+  if (sources.length === 0) throw new Error(`${SRC.notebooks}: no sources extracted.`);
+  sources.sort((a, b) => a.order - b.order);
+  for (const s of sources) delete s.order;
+  return { sources, disabledAgentIds };
+}
+
+/** `/\b(sliders?|karussells?|…)\b/i` → human-readable keyword list. */
+function keywordsFromPattern(source) {
+  const inner = source.replace(/^\\b\(/, '').replace(/\)\\b$/, '');
+  return inner.split('|').map((token) =>
+    token
+      .replace(/\[\\s-\]\?/g, ' ')
+      .replace(/\[\s-\]\?/g, ' ')
+      .replace(/\\w\*/g, '…')
+      .replace(/s\?$/, '(s)')
+      .trim()
+  );
+}
+
+/**
+ * The sharepic variant keywords (`VARIANT_KEYWORDS`) plus which variants are
+ * part of the standard fanout (`SHAREPIC_VARIANT_TYPES`) — a variant outside
+ * that list (slider) only renders on explicit request.
+ */
+function extractSharepicVariants() {
+  const sf = parse(SRC.sharepicVariants);
+  const standardDecl = unwrap(findDeclaration(sf, 'SHAREPIC_VARIANT_TYPES'));
+  const standardOrder = [];
+  if (standardDecl && ts.isArrayLiteralExpression(standardDecl)) {
+    for (const el of standardDecl.elements) {
+      if (ts.isStringLiteral(el)) standardOrder.push(el.text);
+    }
+  }
+  const standard = new Set(standardOrder);
+
+  const decl = unwrap(findDeclaration(sf, 'VARIANT_KEYWORDS'));
+  if (!decl || !ts.isArrayLiteralExpression(decl)) {
+    throw new Error(
+      `${SRC.sharepicVariants}: VARIANT_KEYWORDS not found as an array literal. ` +
+        `It is the source for the Sharepic-Varianten table; update generate-chat-capabilities.mjs.`
+    );
+  }
+  const variants = [];
+  for (const el of decl.elements) {
+    const obj = unwrap(el);
+    if (!obj || !ts.isObjectLiteralExpression(obj)) continue;
+    const type = stringProp(obj, 'type');
+    if (!type) continue;
+    let pattern;
+    for (const p of obj.properties) {
+      if (
+        ts.isPropertyAssignment(p) &&
+        p.name &&
+        ts.isIdentifier(p.name) &&
+        p.name.text === 'pattern' &&
+        ts.isRegularExpressionLiteral(p.initializer)
+      ) {
+        pattern = p.initializer.text.replace(/^\/|\/[a-z]*$/g, '');
+      }
+    }
+    if (!pattern) continue;
+    variants.push({ type, keywords: keywordsFromPattern(pattern), standard: standard.has(type) });
+  }
+  if (variants.length === 0) {
+    throw new Error(`${SRC.sharepicVariants}: no variants extracted — the shape changed.`);
+  }
+  // Fanout order (SHAREPIC_VARIANT_TYPES), keyword-only variants after —
+  // VARIANT_KEYWORDS itself is ordered by match priority, not presentation.
+  const rank = (v) => (v.standard ? standardOrder.indexOf(v.type) : standardOrder.length);
+  variants.sort((a, b) => rank(a) - rank(b));
+  return variants;
+}
+
 function sortKeys(obj) {
   const sorted = {};
   for (const key of Object.keys(obj).sort()) sorted[key] = obj[key];
@@ -378,6 +710,8 @@ function generate() {
   ]
     .filter((i) => intents.includes(i))
     .sort();
+  const notebooks = extractNotebookSources();
+  const { skills, categoryLabels } = extractSkills(notebooks.disabledAgentIds);
   const manifest = {
     intents: intents.slice().sort(),
     experimentalIntents,
@@ -385,6 +719,10 @@ function generate() {
     userTools: sortKeys(extractUserTools()),
     systemSources: sortKeys(system.sources),
     systemIntentSources: sortKeys(system.intentSources),
+    skills,
+    skillCategoryLabels: categoryLabels,
+    notebookSources: notebooks.sources,
+    sharepicVariants: extractSharepicVariants(),
   };
   return {
     json: JSON.stringify(manifest, null, 2) + '\n',

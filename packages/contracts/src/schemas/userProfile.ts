@@ -5,13 +5,35 @@
 import { ROBOT_ID_MIN, ROBOT_ID_MAX } from '@gruenerator/core/avatar';
 import { z } from 'zod';
 
+import { ttsVoiceIdSchema } from './voice.js';
+
+/**
+ * Fehlercode, mit dem die KI-Eingänge eine fehlende Art.-9-Einwilligung
+ * abweisen (HTTP 403). Bewusst **nicht** 401: die Sitzung ist gültig, es fehlt
+ * nur die Einwilligung — auf 401 räumen beide Clients die Anmeldung ab.
+ *
+ * F0: der Wert steht in ausgelieferten Mobile-Binaries. Nicht umbenennen.
+ */
+export const AI_CONSENT_REQUIRED_CODE = 'ai_consent_required';
+
+/** Erkennt die 403-Antwort oben an einem beliebig getippten Fehlerrumpf. */
+export function isAiConsentRequiredBody(body: unknown): boolean {
+  return (
+    typeof body === 'object' &&
+    body !== null &&
+    (body as { code?: unknown }).code === AI_CONSENT_REQUIRED_CODE
+  );
+}
+
 // ── Request body schemas (moved from controller) ────────────────────────────
 
 /**
  * Closed set of default start pages — which Workplace surface the sidebar
  * "start" icon (and the root/login redirect) opens.
- *   'chat'     → /workplace           (Chat tab)
- *   'arbeiten' → /workplace/arbeiten  (Arbeiten tab)
+ *   'chat'     → /start      (Chat)
+ *   'arbeiten' → /workplace  (Arbeiten)
+ * F0: die Werte stehen in der Datenbank und in ausgelieferten Binaries — die
+ * Pfade dahinter dürfen sich ändern, die Enum-Werte nicht.
  */
 export const startPageSchema = z.enum(['chat', 'arbeiten']);
 export type StartPage = z.infer<typeof startPageSchema>;
@@ -55,6 +77,16 @@ export const profileUpdateBodySchema = z.object({
   reduce_motion: z.boolean().optional(),
   reduce_transparency: z.boolean().optional(),
   show_skip_link: z.boolean().optional(),
+  /** Voice for speech output; `null` returns to the default voice. */
+  tts_voice_id: ttsVoiceIdSchema.nullable().optional(),
+  /** The Gedächtnis switch in the Erinnerungen tab (profiles.memory_enabled). */
+  memory_enabled: z.boolean().optional(),
+  /**
+   * Ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO. Der Client
+   * schreibt nur „erteilt/widerrufen" — den Zeitstempel setzt der Server, damit
+   * der Nachweis nach Art. 7 Abs. 1 DSGVO nicht aus der Browseruhr stammt.
+   */
+  ai_consent: z.boolean().optional(),
 });
 
 /** The exact set of profile columns a client may write. */
@@ -174,6 +206,20 @@ export const userProfileSchema = z.object({
   reduce_motion: z.boolean().default(false),
   reduce_transparency: z.boolean().default(false),
   show_skip_link: z.boolean().default(true),
+  /** Absent means the default voice — see DEFAULT_TTS_VOICE_ID. */
+  tts_voice_id: ttsVoiceIdSchema.optional(),
+  /**
+   * ISO-Zeitstempel der Art.-9-Einwilligung; null = nicht erteilt.
+   *
+   * Better Auth führt das Feld als `type: 'date'` (TIMESTAMPTZ-Spalte) und
+   * liefert in `session.user` deshalb ein `Date`, während `profileMapper`
+   * bereits einen ISO-String liefert. Beide Eingaben akzeptieren und auf den
+   * String normalisieren — wie bei `created_at`/`updated_at`.
+   */
+  ai_consent_at: z
+    .union([z.string(), z.date()])
+    .nullish()
+    .transform((value) => (value instanceof Date ? value.toISOString() : value)),
   is_admin: z.boolean().optional(),
   groups_enabled: z.boolean().default(false),
   custom_generators: z.boolean().default(false),

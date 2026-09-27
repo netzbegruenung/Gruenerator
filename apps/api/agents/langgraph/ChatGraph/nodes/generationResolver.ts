@@ -34,14 +34,11 @@
  * exists for.
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
+import { withTimeout } from '../../../../utils/withTimeout.js';
 
-import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { ChatIntentId } from '@gruenerator/shared/chat-intents';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:GenerationScope');
 
@@ -80,7 +77,12 @@ const KIND_TO_INTENT = {
   präsentation: 'create_presentation',
   pdf: 'create_pdf',
   diagramm: 'chart',
-  social: 'social_post',
+  // `social: 'social_post'` stand hier, bis das Verdikt 08/2026 stillgelegt
+  // wurde. Ein Social-Post ist kein ARTEFAKT — er entsteht nicht neben der
+  // Antwort, er IST die Antwort. Das Wort ist deshalb auch aus dem Prompt
+  // unten gestrichen: bliebe es dort, antwortete das Modell weiter „social"
+  // und der Parser verwürfe es als unbekannt — ein bezahlter Aufruf ohne
+  // Ergebnis.
 } as const satisfies Record<string, ChatIntentId>;
 
 export type GenerationKind = keyof typeof KIND_TO_INTENT;
@@ -128,10 +130,9 @@ tabelle — eine Tabelle/Kalkulation als Datei
 praesentation — Folien
 pdf — ein PDF
 diagramm — ein Diagramm/Chart aus Zahlen
-social — ein fertiger Social-Media-Beitrag
 keine — alles andere
 
-"keine" ist die richtige Antwort für: zusammenfassen, kürzen, prüfen, erklären, umformulieren, übersetzen, beraten — auch wenn dabei ein langer Text entsteht. Ein Text IN der Antwort ist kein Artefakt.
+"keine" ist die richtige Antwort für: einen Social-Media-Post oder eine Pressemitteilung schreiben, zusammenfassen, kürzen, prüfen, erklären, umformulieren, übersetzen, beraten — auch wenn dabei ein langer Text entsteht. Ein Text IN der Antwort ist kein Artefakt.
 
 "keine" ist auch die richtige Antwort, wenn die Nachricht das Erzeugen VERBIETET ("kein Dokument erstellen", "nichts speichern"). Ein Verbot ist keine Bestellung.
 
@@ -140,7 +141,6 @@ Im Zweifel: keine.`;
 interface ResolveArgs {
   userContent: string;
   conversationContext: string | null;
-  aiWorkerPool: AIWorkerPool;
 }
 
 /**
@@ -151,7 +151,6 @@ interface ResolveArgs {
 export async function resolveGenerationScope({
   userContent,
   conversationContext,
-  aiWorkerPool,
 }: ResolveArgs): Promise<GenerationVerdict | null> {
   const startTime = Date.now();
   const userMessage = conversationContext
@@ -160,20 +159,19 @@ export async function resolveGenerationScope({
 
   try {
     const response = await withTimeout(
-      aiWorkerPool.processRequest(
-        {
-          type: 'chat_intent_classification',
-          provider: LANE.provider,
-          systemPrompt: RESOLVE_PROMPT,
-          messages: [{ role: 'user', content: userMessage }],
-          options: { model: LANE.model, max_tokens: 16, temperature: 0 },
-        },
-        null
-      ),
-      RESOLVE_TIMEOUT_MS
+      aiText({
+        lane: 'chat_intent_classification',
+        pinned: 'standard',
+        system: RESOLVE_PROMPT,
+        prompt: userMessage,
+        maxOutputTokens: 16,
+        temperature: 0,
+      }),
+      RESOLVE_TIMEOUT_MS,
+      'Generation scope'
     );
 
-    const verdict = parseKind(response.content);
+    const verdict = parseKind(response);
     log.info(
       `[GenerationScope] "${userContent.slice(0, 40)}" → ${
         verdict === null ? 'unlesbar' : verdict === 'keine' ? 'keine' : verdict.intent
@@ -220,20 +218,4 @@ function parseKind(raw: string | undefined | null): GenerationVerdict | null {
   // von `max_tokens: 16`, das ist also keine Randform.
   consider(at('keine?'), 'keine');
   return best === null ? null : (best as { verdict: GenerationVerdict }).verdict;
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Generation scope timeout after ${ms}ms`)), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      }
-    );
-  });
 }

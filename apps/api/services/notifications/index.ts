@@ -9,13 +9,13 @@ export {
   deleteOldNotifications,
 } from './NotificationService.js';
 
-export { notifyGroupMembers, notifyGroupAdmins } from './groupNotifications.js';
+export { notifyGroupMembers, notifyGroupAdmins, notifyGroupUsers } from './groupNotifications.js';
 
-export {
-  subscribeToUserNotifications,
-  unsubscribeFromUserNotifications,
-  publishNotification,
-} from './notificationPubSub.js';
+// Kein `unsubscribeFromUserNotifications` mehr: abgemeldet wird über den
+// Rückgabewert von `subscribeToUserNotifications`, weil eine Person mehrere
+// Ströme gleichzeitig offen haben kann und die Nutzer-ID sie nicht auseinander
+// hält.
+export { subscribeToUserNotifications, publishNotification } from './notificationPubSub.js';
 
 export {
   shouldDeliver,

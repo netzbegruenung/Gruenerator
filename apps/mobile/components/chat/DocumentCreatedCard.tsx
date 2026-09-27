@@ -1,10 +1,10 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { File, Paths } from 'expo-file-system';
 import { useRouter } from 'expo-router';
-import * as Sharing from 'expo-sharing';
 import { useCallback, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking, Alert } from 'react-native';
 
+import { openFile } from '../../services/openFile';
 import { secureStorage } from '../../services/storage';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
@@ -18,8 +18,9 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/
 // Native counterpart of web's DocumentCreatedCard: a chat-created document
 // with title/subtype and an open button (in-app doc editor; external URLs
 // fall back to the system browser). PDFs are downloadable assets, not editor
-// documents — they download with the Bearer token and open the share sheet
-// (same pattern as ContentDisplay's DOCX export).
+// documents — they download with the Bearer token into the cache and are then
+// handed to a viewer app (see `services/openFile.ts`), which is what "öffnen"
+// means on web too.
 export function DocumentCreatedCard({
   document,
   theme,
@@ -31,9 +32,10 @@ export function DocumentCreatedCard({
   const isPdf = document.subtype === 'pdf';
   const [downloading, setDownloading] = useState(false);
 
-  const sharePdf = useCallback(async () => {
+  const openPdf = useCallback(async () => {
     if (downloading) return;
     setDownloading(true);
+    let file: File;
     try {
       const token = await secureStorage.getToken();
       // document.url is API-relative (/api/chat-service/…); API_BASE_URL already
@@ -48,27 +50,35 @@ export function DocumentCreatedCard({
       const fileName = document.documentId?.endsWith('.pdf')
         ? document.documentId
         : `${document.documentId || 'gruenerator'}.pdf`;
-      const file = new File(Paths.cache, fileName);
+      file = new File(Paths.cache, fileName);
       file.write(new Uint8Array(await response.arrayBuffer()));
-      await Sharing.shareAsync(file.uri, {
-        mimeType: 'application/pdf',
-        dialogTitle: document.title,
-      });
-      file.delete();
     } catch (error) {
       console.error('[DocumentCreatedCard] PDF download error:', error);
       Alert.alert(
         'Fehler',
         'Das PDF konnte nicht geladen werden (Downloads sind 90 Tage verfügbar).'
       );
+      return;
     } finally {
+      // Cleared before the viewer opens, not after: the handover resolves only
+      // once the user comes back, so a spinner held until then would sit on the
+      // card for as long as they read the document.
       setDownloading(false);
+    }
+
+    try {
+      // The file stays in the cache on purpose — the viewer reads it from there
+      // while we are in the background, and the OS reclaims the directory.
+      await openFile(file.uri, { mimeType: 'application/pdf', dialogTitle: document.title });
+    } catch (error) {
+      console.error('[DocumentCreatedCard] PDF open error:', error);
+      Alert.alert('Fehler', 'Das PDF konnte nicht geöffnet werden.');
     }
   }, [document.documentId, document.title, document.url, downloading]);
 
   const openDocument = useCallback(() => {
     if (isPdf) {
-      void sharePdf();
+      void openPdf();
       return;
     }
     if (document.documentId) {
@@ -82,7 +92,7 @@ export function DocumentCreatedCard({
     if (document.url.startsWith('http')) {
       void Linking.openURL(document.url);
     }
-  }, [document.documentId, document.url, isPdf, router, sharePdf]);
+  }, [document.documentId, document.url, isPdf, openPdf, router]);
 
   return (
     <View style={[styles.card, { borderColor: theme.cardBorder, backgroundColor: theme.card }]}>
@@ -106,8 +116,10 @@ export function DocumentCreatedCard({
         accessibilityRole="button"
         accessibilityState={{ disabled: downloading }}
       >
-        <Text style={styles.openLabel}>{isPdf ? (downloading ? 'Lädt…' : 'PDF') : 'Öffnen'}</Text>
-        <Ionicons name={isPdf ? 'share-outline' : 'arrow-forward'} size={14} color={colors.white} />
+        <Text style={styles.openLabel}>
+          {isPdf ? (downloading ? 'Lädt…' : 'PDF öffnen') : 'Öffnen'}
+        </Text>
+        <Ionicons name={isPdf ? 'open-outline' : 'arrow-forward'} size={14} color={colors.white} />
       </Pressable>
     </View>
   );

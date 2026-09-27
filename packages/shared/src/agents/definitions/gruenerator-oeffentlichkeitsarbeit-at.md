@@ -1,5 +1,6 @@
 ---
 identifier: gruenerator-oeffentlichkeitsarbeit-at
+defaultRecipeMention: 'presse-at'
 autoRoutingHint: creative
 audience: de-AT
 title: Öffentlichkeitsarbeit Österreich
@@ -45,7 +46,6 @@ enabledTools:
   - image
   - memory
   - memory_save
-  - self_review
 toolRestrictions:
   examplesCountry: AT
 defaultNotebookIds:

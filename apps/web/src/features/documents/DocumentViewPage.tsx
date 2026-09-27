@@ -1,5 +1,5 @@
 import { type DocumentContent } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -21,7 +21,7 @@ const DocumentViewPage = () => {
         params: { id: documentId ?? '' },
       });
       if (res.status !== 200) {
-        throw new Error('Fehler beim Laden des Dokuments');
+        throw new ApiError(res.status, 'Fehler beim Laden des Dokuments');
       }
       return res.body.data;
     },

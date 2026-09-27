@@ -4,10 +4,10 @@
  * Handles URL detection, attachment processing, web search, and document aggregation
  */
 
+import { aiText } from '../services/ai/generate.js';
 import { processAndBuildAttachments } from '../services/attachments/index.js';
 import { extractUrlsFromContent, filterNewUrls, getUrlDomain } from '../services/content/index.js';
 import { extractLocaleFromRequest } from '../services/localization/index.js';
-import { type SearxngAIWorkerPool } from '../services/search/index.js';
 
 import { getErrorMessage } from './errors/index.js';
 
@@ -237,7 +237,12 @@ class RequestEnricher {
     requestData: Record<string, unknown>,
     options: Partial<EnrichmentOptions>
   ): Promise<{ preAnswer: string; timeMs: number } | null> {
-    if (!options.enableNotebookEnrich || !options.aiWorkerPool) {
+    // Der Client stand hier als zweite Bedingung — nicht als Abhängigkeit,
+    // sondern als Anwesenheitsprüfung. Beide Aufrufer, die
+    // `enableNotebookEnrich` überhaupt setzen (`PromptProcessor`,
+    // `streamingProcessor`), reichen ihn bedingungslos mit; der Schalter ist
+    // die Fahne, nicht die Verdrahtung.
+    if (!options.enableNotebookEnrich) {
       return null;
     }
 
@@ -269,14 +274,15 @@ class RequestEnricher {
         `🎯 [NotebookEnrich] Generating preliminary draft for: "${theme.substring(0, 50)}..."`
       );
 
-      const result = await options.aiWorkerPool.processRequest({
-        type: 'notebook_enrich',
-        messages: [{ role: 'user', content: userPrompt }],
-        systemPrompt,
-        options: { max_tokens: 500, temperature: 0.4, top_p: 0.9 },
+      const content = await aiText({
+        lane: 'notebook_enrich',
+        prompt: userPrompt,
+        system: systemPrompt,
+        maxOutputTokens: 500,
+        temperature: 0.4,
+        topP: 0.9,
       });
 
-      const content = result.content || '';
       if (!content || content.length < 20) {
         console.log('🎯 [NotebookEnrich] Result too short or empty, skipping');
         return null;
@@ -402,7 +408,7 @@ class RequestEnricher {
     // Web search enrichment (if enabled)
     if (enableWebSearch && webSearchQuery) {
       enrichmentTasks.push(
-        this.performWebSearch(webSearchQuery, options.aiWorkerPool, options.req)
+        this.performWebSearch(webSearchQuery)
           .then((result) => ({
             type: 'websearch' as const,
             knowledge: result.knowledge,
@@ -713,11 +719,7 @@ class RequestEnricher {
   /**
    * Perform web search and generate summary
    */
-  async performWebSearch(
-    searchQuery: string,
-    aiWorkerPool: EnrichmentOptions['aiWorkerPool'],
-    req: unknown
-  ): Promise<WebSearchResult> {
+  async performWebSearch(searchQuery: string): Promise<WebSearchResult> {
     const searxngService = await getSearxngWebSearchService();
     if (!searxngService) {
       console.log('🎯 [RequestEnricher] Web search skipped: service not available');
@@ -739,18 +741,10 @@ class RequestEnricher {
 
       // Try to generate AI summary
       try {
-        if (aiWorkerPool) {
-          const summary = await searxngService.generateAISummary(
-            searchResults,
-            searchQuery,
-            aiWorkerPool as SearxngAIWorkerPool,
-            {},
-            req
-          );
+        const summary = await searxngService.generateAISummary(searchResults, searchQuery, {});
 
-          if (summary?.summary?.generated && summary.summary.text) {
-            knowledge.push(`HINTERGRUNDWISSEN (Websuche):\n${summary.summary.text.trim()}`);
-          }
+        if (summary?.summary?.generated && summary.summary.text) {
+          knowledge.push(`HINTERGRUNDWISSEN (Websuche):\n${summary.summary.text.trim()}`);
         }
       } catch (summaryError) {
         console.log('🎯 [RequestEnricher] AI summary failed:', getErrorMessage(summaryError));

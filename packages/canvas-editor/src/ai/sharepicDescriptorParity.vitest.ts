@@ -1,12 +1,35 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  AT_CANVAS_TYPE_OVERRIDES,
   buildSharepicSnapshot,
+  CANVAS_TEMPLATE_FIELDS,
+  CANVAS_TEMPLATE_TYPES,
+  CANVAS_TYPE_TO_GEN,
   getSharepicTemplateDescriptor,
+  getSharepicVariantLabel,
+  SHAREPIC_EDITABLE_TEMPLATES,
+  SHAREPIC_GEN_TO_CANVAS_TYPE,
   sharepicOpsToStatePatch,
+  validateSharepicOp,
   type CanvasAiOperation,
+  type SharepicTemplateDescriptor,
 } from '@gruenerator/contracts';
 
+import { BRAND_THEMES } from '../brand/theme';
+import {
+  PHOTO_BACKGROUND_COLORS_AT,
+  PHOTO_BACKGROUND_COLORS_DE,
+} from '../configs/backgroundPalettes';
+import { dreizeilenFullConfig } from '../configs/dreizeilen_full.config';
+import { dreizeilenOverlayAtFullConfig } from '../configs/dreizeilen_overlay_at_full.config';
+import { infoAtFullConfig } from '../configs/info_at_full.config';
+import { infoFullConfig } from '../configs/info_full.config';
+import { simpleFullConfig } from '../configs/simple_full.config';
+import { veranstaltungFullConfig } from '../configs/veranstaltung_full.config';
+import { zitatAtFullConfig } from '../configs/zitat_at_full.config';
+import { zitatFullConfig } from '../configs/zitat_full.config';
+import { zitatPureAtFullConfig } from '../configs/zitat_pure_at_full.config';
 import { zitatPureFullConfig } from '../configs/zitat_pure_full.config';
 import { COLOR_SCHEMES } from '../utils/dreizeilenLayout';
 
@@ -19,6 +42,105 @@ describe('sharepic template descriptor parity', () => {
     expect(descriptor.colorSchemes?.options).toEqual(
       COLOR_SCHEMES.map((s) => ({ id: s.id, label: s.label }))
     );
+  });
+
+  it('AT background palettes match BRAND_THEMES[de-AT]', () => {
+    const expected = BRAND_THEMES['de-AT'].backgroundColors.map((c) => ({
+      id: c.id,
+      label: c.label,
+      color: c.color,
+    }));
+    for (const type of ['zitat-pure-at', 'info-at']) {
+      const descriptor = getSharepicTemplateDescriptor(type)!;
+      expect(descriptor.backgroundColors?.options, type).toEqual(expected);
+      // The mint default has to be a colour the palette actually offers.
+      expect(
+        expected.map((c) => c.color),
+        type
+      ).toContain(descriptor.defaultState.backgroundColor);
+    }
+  });
+
+  /**
+   * The photo-backed templates draw a solid plane under the picture, and their
+   * palette is NOT the brand list above: their text colour is baked in as
+   * white, so only colours that carry white text may be offered. The editor
+   * source is configs/backgroundPalettes.ts; without this the descriptor could
+   * quietly offer Sand and the chat would set a background nobody can read on.
+   */
+  it('photo-template background palettes match configs/backgroundPalettes', () => {
+    const asOptions = (palette: readonly { id: string; label: string; color: string }[]) =>
+      palette.map((c) => ({ id: c.id, label: c.label, color: c.color }));
+
+    const cases: Array<[string, ReturnType<typeof asOptions>]> = [
+      ['zitat', asOptions(PHOTO_BACKGROUND_COLORS_DE)],
+      ['simple', asOptions(PHOTO_BACKGROUND_COLORS_DE)],
+      ['zitat-at', asOptions(PHOTO_BACKGROUND_COLORS_AT)],
+      ['dreizeilen-overlay-at', asOptions(PHOTO_BACKGROUND_COLORS_AT)],
+    ];
+
+    for (const [type, expected] of cases) {
+      const descriptor = getSharepicTemplateDescriptor(type)!;
+      expect(descriptor.backgroundColors?.options, type).toEqual(expected);
+      expect(
+        expected.map((c) => c.color),
+        type
+      ).toContain(descriptor.defaultState.backgroundColor);
+    }
+  });
+
+  /**
+   * An operation without the data it needs is worse than a missing operation:
+   * the model is told it may set a background colour, picks one, and
+   * `sharepicOpsToStatePatch` rejects every value because there is no palette
+   * to normalise against. The reverse — a palette nobody may write — is dead
+   * weight that still reaches the prompt. Both directions, every template.
+   */
+  it('pairs every background operation with the data it needs', () => {
+    for (const type of SHAREPIC_EDITABLE_TEMPLATES) {
+      const d = getSharepicTemplateDescriptor(type)!;
+      const canSetColor = d.supportedOperations.includes('set-background-color');
+      const canSetImage = d.supportedOperations.includes('set-background-image');
+
+      expect(canSetColor, `${type}: set-background-color without a palette`).toBe(
+        !!d.backgroundColors
+      );
+      expect(canSetImage, `${type}: set-background-image without a state key`).toBe(
+        !!d.backgroundImage
+      );
+    }
+  });
+
+  /**
+   * `set-background-image` only puts a picture there. Moving, zooming or fading
+   * it afterwards is `update-element` against the `hintergrundbild` descriptor,
+   * and `validateSharepicOp` resolves that by id: no element, and every
+   * follow-up is rejected with 'Unbekanntes Element "hintergrundbild"'. The
+   * user gets a photo they cannot then adjust, and only through the chat —
+   * the sidebar sliders work fine, so nothing looks broken.
+   *
+   * The pairing above does not see this: it asks whether the state key exists,
+   * not whether anything can address it. zitat-pure had exactly that shape
+   * while its three siblings did not.
+   */
+  it('lets the chat adjust a photo it is allowed to set', () => {
+    for (const type of SHAREPIC_EDITABLE_TEMPLATES) {
+      const d = getSharepicTemplateDescriptor(type)!;
+      if (!d.backgroundImage) continue;
+
+      const adjustable = d.elements.find(
+        (el) => el.presenceStateKey === d.backgroundImage!.stateKey
+      );
+      expect(
+        adjustable,
+        `${type}: can set a background photo but has no element gated on '${d.backgroundImage.stateKey}' to move or scale it`
+      ).toBeDefined();
+      expect(
+        adjustable?.positionStateKey,
+        `${type}: the photo element cannot be moved`
+      ).toBeTruthy();
+      expect(adjustable?.scale, `${type}: the photo element cannot be scaled`).toBeTruthy();
+    }
   });
 
   it('all chat-editable templates have descriptors', () => {
@@ -254,5 +376,184 @@ describe('buildSharepicSnapshot', () => {
       name: 'N',
     });
     expect(zitatSnapshot.textFields[0].label).toContain('automatisch');
+  });
+});
+
+// CANVAS_TEMPLATE_FIELDS (contracts) is the one field/label/mapping table the
+// studio mint, the API chat path and the chat UI all read. These guards keep it
+// honest against the canonical type enum and against the descriptors.
+describe('canvas template fields parity', () => {
+  it('covers every canonical canvas template type with a label', () => {
+    for (const type of CANVAS_TEMPLATE_TYPES) {
+      expect(CANVAS_TEMPLATE_FIELDS[type], type).toBeDefined();
+      expect(getSharepicVariantLabel(type), type).toBeTruthy();
+    }
+  });
+
+  it('gives a template and its AT variant the same label', () => {
+    for (const [base, atType] of Object.entries(AT_CANVAS_TYPE_OVERRIDES)) {
+      if (!atType) continue;
+      expect(getSharepicVariantLabel(atType), atType).toBe(getSharepicVariantLabel(base));
+    }
+  });
+
+  it('agrees with the descriptor labels for editable templates', () => {
+    for (const type of SHAREPIC_EDITABLE_TEMPLATES) {
+      const descriptor = getSharepicTemplateDescriptor(type)!;
+      expect(descriptor.label, type).toBe(CANVAS_TEMPLATE_FIELDS[type].label);
+    }
+  });
+
+  it('maps every canvas type in CANVAS_TYPE_TO_GEN back through the forward maps', () => {
+    for (const [canvasType, gen] of Object.entries(CANVAS_TYPE_TO_GEN)) {
+      // Either the gen type maps straight back to this canvas type, or this is
+      // the AT variant of the type it maps to.
+      const forward = SHAREPIC_GEN_TO_CANVAS_TYPE[gen];
+      const atOfForward = forward ? AT_CANVAS_TYPE_OVERRIDES[forward] : undefined;
+      const isPhotoQuoteAlias = canvasType === 'zitat' || canvasType === 'zitat-at';
+      expect(
+        canvasType === forward || canvasType === atOfForward || isPhotoQuoteAlias,
+        `${canvasType} -> ${gen}`
+      ).toBe(true);
+    }
+  });
+
+  it('every AT override target is itself a canonical type', () => {
+    for (const atType of Object.values(AT_CANVAS_TYPE_OVERRIDES)) {
+      if (atType) expect(CANVAS_TEMPLATE_TYPES).toContain(atType);
+    }
+  });
+
+  it('descriptor text fields are backed by the mint field list', () => {
+    // `slider` is the documented exception: its deck fields are per-slide and
+    // the mint map deliberately omits subtext2 (see canvasTemplateFields.ts).
+    for (const type of SHAREPIC_EDITABLE_TEMPLATES) {
+      if (type === 'slider') continue;
+      const descriptor = getSharepicTemplateDescriptor(type)!;
+      const known = CANVAS_TEMPLATE_FIELDS[type].fields as readonly string[];
+      for (const field of descriptor.textFields) {
+        expect(known, `${type}.${field.field}`).toContain(field.field);
+      }
+    }
+  });
+});
+
+/**
+ * Every state key a descriptor lets the chat write has to survive
+ * `createInitialState`. That function is not just the mint seed — card renders
+ * and remote-sync re-seeds run through it too, and both two-text factories
+ * apply a whitelist: a key that is neither part of the base state nor listed in
+ * `passthroughStateKeys` is dropped. Without this guard a descriptor can grant
+ * an operation that applies live and then silently disappears on the next
+ * render, which is exactly how the font-size keys behaved on the image-backed
+ * templates.
+ */
+describe('descriptor state keys survive createInitialState', () => {
+  const CONFIGS: Record<string, { createInitialState: (p: Record<string, unknown>) => unknown }> = {
+    dreizeilen: dreizeilenFullConfig,
+    zitat: zitatFullConfig,
+    'zitat-pure': zitatPureFullConfig,
+    info: infoFullConfig,
+    veranstaltung: veranstaltungFullConfig,
+    simple: simpleFullConfig,
+    'zitat-at': zitatAtFullConfig,
+    'zitat-pure-at': zitatPureAtFullConfig,
+    'dreizeilen-overlay-at': dreizeilenOverlayAtFullConfig,
+    'info-at': infoAtFullConfig,
+  };
+
+  /** Seed each writable key with a type-appropriate, truthy sentinel. */
+  function seedFor(descriptor: SharepicTemplateDescriptor): {
+    seed: Record<string, unknown>;
+    keys: string[];
+  } {
+    const seed: Record<string, unknown> = {};
+    for (const f of descriptor.textFields) {
+      seed[f.stateKey] = 'Sentinel';
+      if (f.fontSize) seed[f.fontSize.stateKey] = 42;
+    }
+    for (const el of descriptor.elements) {
+      if (el.positionStateKey) seed[el.positionStateKey] = { x: 1, y: 2 };
+      if (el.scale) seed[el.scale.stateKey] = 1.25;
+      if (el.opacity) seed[el.opacity.stateKey] = 0.75;
+    }
+    if (descriptor.backgroundColors) {
+      seed[descriptor.backgroundColors.stateKey] = descriptor.backgroundColors.options[0].color;
+    }
+    if (descriptor.colorSchemes) {
+      seed[descriptor.colorSchemes.stateKey] = descriptor.colorSchemes.options[0].id;
+    }
+    if (descriptor.backgroundImage) seed[descriptor.backgroundImage.stateKey] = '/some/photo.jpg';
+    if (descriptor.sunflowerVisibleStateKey) seed[descriptor.sunflowerVisibleStateKey] = true;
+    return { seed, keys: Object.keys(seed) };
+  }
+
+  for (const type of SHAREPIC_EDITABLE_TEMPLATES) {
+    // The slider is a deck: its fields live per-slide, not in the page state.
+    if (type === 'slider') continue;
+
+    it(`${type} keeps every descriptor-writable key`, () => {
+      const descriptor = getSharepicTemplateDescriptor(type)!;
+      const { seed, keys } = seedFor(descriptor);
+      const state = CONFIGS[type].createInitialState(seed) as Record<string, unknown>;
+
+      for (const key of keys) {
+        // Value equality, not just presence: the factories hard-nulled the
+        // font-size keys, and a `null` survives an "is it defined" check while
+        // still throwing the edit away.
+        expect(state[key], `${type}.${key} did not survive createInitialState`).toEqual(seed[key]);
+      }
+    });
+  }
+});
+
+describe('validateSharepicOp', () => {
+  const dreizeilenD = getSharepicTemplateDescriptor('dreizeilen')!;
+
+  it('clamps a font size into the descriptor bounds', () => {
+    const result = validateSharepicOp(
+      dreizeilenD,
+      { kind: 'set-font-size', field: 'line1', size: 999 } as CanvasAiOperation,
+      {}
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok && result.op.kind === 'set-font-size') expect(result.op.size).toBe(120);
+  });
+
+  it('rejects an unknown text field', () => {
+    const result = validateSharepicOp(
+      dreizeilenD,
+      { kind: 'set-text', field: 'line9', value: 'x' } as CanvasAiOperation,
+      {}
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toContain('Unbekanntes Textfeld');
+  });
+
+  it('rejects moving an element whose presence key is unset', () => {
+    const result = validateSharepicOp(
+      dreizeilenD,
+      {
+        kind: 'update-element',
+        elementId: 'hintergrundbild',
+        patch: { x: 10 },
+      } as CanvasAiOperation,
+      {}
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it('normalizes a background color to the palette casing', () => {
+    const zitat = getSharepicTemplateDescriptor('zitat-pure')!;
+    const canonical = zitat.backgroundColors!.options[0].color;
+    const result = validateSharepicOp(
+      zitat,
+      { kind: 'set-background-color', color: canonical.toUpperCase() } as CanvasAiOperation,
+      {}
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok && result.op.kind === 'set-background-color') {
+      expect(result.op.color).toBe(canonical);
+    }
   });
 });

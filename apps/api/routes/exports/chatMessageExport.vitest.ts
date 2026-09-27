@@ -188,12 +188,12 @@ describe('POST /api/exports/chat-message', () => {
       content: 'Text [1].',
       metadata: {
         searchResults: [{ source: 'web', title: 'Aus der Websuche', content: 'Snippet.' }],
-        citations: [{ id: 1, title: 'Aus dem Notizbuch', url: '', snippet: '' }],
+        citations: [{ id: 1, title: 'Aus dem Notebook', url: '', snippet: '' }],
       },
     });
 
     expect(docx.text).toContain('Aus der Websuche');
-    expect(docx.text).not.toContain('Aus dem Notizbuch');
+    expect(docx.text).not.toContain('Aus dem Notebook');
   }, 30_000);
 
   // Shipped mobile binaries post an ISO string here. A strict z.number() made

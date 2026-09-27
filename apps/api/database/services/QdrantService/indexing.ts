@@ -5,9 +5,13 @@
 
 import { type QdrantClient } from '@qdrant/js-client-rest';
 
+import { embeddingPayload } from '../../../services/document-services/embeddingProvenance.js';
+import { offsetPayload } from '../../../services/document-services/offsetPayload.js';
+import { structurePayload } from '../../../services/document-services/structurePayload.js';
 import { createLogger } from '../../../utils/logger.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 
+import { enrichPointsWithBm25 } from './operations/batchOperations.js';
 import { chunkToNumericId, stringToNumericId } from './utils.js';
 
 import type {
@@ -43,6 +47,13 @@ export interface WebContentChunk {
   chunk_text?: string;
   token_count?: number;
   tokens?: number;
+  /**
+   * Die Chunk-Metadaten aus `smartChunkDocument`, aus denen `structurePayload`
+   * `heading_path`/`heading`/`chunk_type`/`section_index` zieht. Absichtlich so
+   * breit typisiert wie `ChunkData.metadata`: die Aufrufer reichen ihre eigenen
+   * Metadaten-Formen durch.
+   */
+  metadata?: Record<string, unknown> | undefined;
 }
 
 export interface WebContentMetadata {
@@ -91,6 +102,9 @@ export async function indexDocumentChunks(
           document_id: documentId,
           chunk_index: chunkIdx,
           chunk_text: chunk.text || chunk.chunk_text,
+          ...structurePayload(chunk),
+          ...embeddingPayload(),
+          ...offsetPayload(chunk),
           token_count: chunk.token_count || chunk.tokens,
           user_id: userId,
           title: chunk.title || chunk.metadata?.title || null,
@@ -102,7 +116,7 @@ export async function indexDocumentChunks(
     });
 
     await client.upsert(collectionName, {
-      points: points,
+      points: await enrichPointsWithBm25(client, collectionName, points),
     });
 
     log.debug(`Indexed ${chunks.length} chunks for document ${documentId}`);
@@ -137,6 +151,9 @@ export async function indexGrundsatzChunks(
           document_id: documentId,
           chunk_index: index,
           chunk_text: chunk.text || chunk.chunk_text,
+          ...structurePayload(chunk),
+          ...embeddingPayload(),
+          ...offsetPayload(chunk),
           token_count: chunk.token_count || chunk.tokens,
           content_type: chunk.metadata?.content_type,
           page_number:
@@ -155,7 +172,7 @@ export async function indexGrundsatzChunks(
     });
 
     await client.upsert(collectionName, {
-      points: points,
+      points: await enrichPointsWithBm25(client, collectionName, points),
     });
 
     log.debug(`Indexed ${chunks.length} grundsatz chunks for document ${documentId}`);
@@ -190,6 +207,9 @@ export async function indexBundestagContent(
         source_url: url,
         chunk_index: index,
         chunk_text: chunk.text || chunk.chunk_text,
+        ...structurePayload(chunk),
+        ...embeddingPayload(),
+        ...offsetPayload(chunk),
         token_count: chunk.token_count || chunk.tokens,
         title: metadata.title || null,
         primary_category: metadata.primary_category || metadata.section || null,
@@ -202,7 +222,7 @@ export async function indexBundestagContent(
     }));
 
     await client.upsert(collectionName, {
-      points: points,
+      points: await enrichPointsWithBm25(client, collectionName, points),
     });
 
     log.debug(`Indexed ${chunks.length} chunks for bundestag URL: ${url}`);
@@ -237,6 +257,9 @@ export async function indexGrueneDeContent(
         source_url: url,
         chunk_index: index,
         chunk_text: chunk.text || chunk.chunk_text,
+        ...structurePayload(chunk),
+        ...embeddingPayload(),
+        ...offsetPayload(chunk),
         token_count: chunk.token_count || chunk.tokens,
         title: metadata.title || null,
         primary_category: metadata.primary_category || metadata.section || null,
@@ -249,7 +272,7 @@ export async function indexGrueneDeContent(
     }));
 
     await client.upsert(collectionName, {
-      points: points,
+      points: await enrichPointsWithBm25(client, collectionName, points),
     });
 
     log.debug(`Indexed ${chunks.length} chunks for gruene.de URL: ${url}`);
@@ -284,6 +307,9 @@ export async function indexGrueneAtContent(
         source_url: url,
         chunk_index: index,
         chunk_text: chunk.text || chunk.chunk_text,
+        ...structurePayload(chunk),
+        ...embeddingPayload(),
+        ...offsetPayload(chunk),
         token_count: chunk.token_count || chunk.tokens,
         title: metadata.title || null,
         primary_category: metadata.primary_category || metadata.section || null,
@@ -296,7 +322,7 @@ export async function indexGrueneAtContent(
     }));
 
     await client.upsert(collectionName, {
-      points: points,
+      points: await enrichPointsWithBm25(client, collectionName, points),
     });
 
     log.debug(`Indexed ${chunks.length} chunks for gruene.at URL: ${url}`);
@@ -342,7 +368,7 @@ export async function indexContentExample(
     };
 
     await client.upsert(collectionName, {
-      points: [point],
+      points: await enrichPointsWithBm25(client, collectionName, [point]),
     });
 
     log.debug(`Indexed content example ${exampleId}`);
@@ -402,7 +428,7 @@ export async function indexSocialMediaExample(
     };
 
     await client.upsert(collectionName, {
-      points: [point],
+      points: await enrichPointsWithBm25(client, collectionName, [point]),
     });
 
     const countryInfo = metadata.country ? ` (${metadata.country})` : '';
@@ -458,7 +484,9 @@ export async function indexUserTemplate(
       },
     };
 
-    await client.upsert(collectionName, { points: [point] });
+    await client.upsert(collectionName, {
+      points: await enrichPointsWithBm25(client, collectionName, [point]),
+    });
 
     log.debug(`Indexed user template ${templateId}`);
     return { success: true };

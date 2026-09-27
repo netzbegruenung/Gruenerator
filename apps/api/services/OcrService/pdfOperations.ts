@@ -3,7 +3,10 @@
  * Handles PDF text extraction, parseability checking, and page-by-page processing
  */
 
+import { joinPagesWithMarkers, type PageMarkerOptions } from './pageMarkers.js';
+import { pageHasTable } from './tableDetection.js';
 import { applyMarkdownFormatting } from './textFormatting.js';
+import { joinPdfTextItems, type PdfTextItem } from './textItemJoin.js';
 
 import type {
   PDFInfo,
@@ -44,6 +47,24 @@ export async function openPdfDocument(pdfPath: string, pdfjsLib: any): Promise<a
   }
 }
 
+const MAX_PDF_BYTES = 100 * 1024 * 1024;
+
+/**
+ * Open a base64-encoded PDF with PDF.js. Decodes fresh bytes on every call —
+ * pdfjs may take ownership of the buffer it is handed.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function openPdfFromBase64(base64Data: string, pdfjsLib: any): Promise<any> {
+  if (base64Data.length > Math.ceil((MAX_PDF_BYTES * 4) / 3)) {
+    throw new Error('PDF exceeds maximum allowed size');
+  }
+  const buf = Buffer.from(base64Data, 'base64');
+  const bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
+  const loadingTask = pdfjsLib.getDocument({ data: bytes, useSystemFonts: true });
+  return await loadingTask.promise;
+}
+
 /**
  * Get PDF information (page count)
  */
@@ -60,17 +81,18 @@ export async function getPDFInfo(
 }
 
 /**
- * Check if PDF text can be extracted directly (sample 3 pages)
+ * Check if PDF text can be extracted directly (sample 3 pages).
+ * `source` is whatever `openPdfDocumentFn` opens — a path or base64 data.
  */
 export async function canExtractTextDirectly(
-  pdfPath: string,
+  source: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  openPdfDocumentFn: (path: string) => Promise<any>
+  openPdfDocumentFn: (source: string) => Promise<any>
 ): Promise<ParseabilityCheck> {
   const startTime = Date.now();
 
   try {
-    const pdfDoc = await openPdfDocumentFn(pdfPath);
+    const pdfDoc = await openPdfDocumentFn(source);
     const totalPages = pdfDoc.numPages as number;
 
     // Sample 3 pages: first, middle, last
@@ -86,11 +108,8 @@ export async function canExtractTextDirectly(
         const page = await pdfDoc.getPage(pageNum);
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
         const textContent = await page.getTextContent();
-        const textItems = textContent.items as Array<{ str?: string }>;
-        const pageText = textItems
-          .map((item: { str?: string }) => item.str || '')
-          .join(' ')
-          .trim();
+        const textItems = textContent.items as PdfTextItem[];
+        const pageText = joinPdfTextItems(textItems);
 
         if (pageText.length > 10) {
           pagesWithText++;
@@ -151,7 +170,8 @@ export async function extractTextDirectlyFromPDF(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   openPdfDocumentFn: (path: string) => Promise<any>,
   applyMarkdownFormattingFn: (text: string) => string,
-  maxPages: number = 1000
+  maxPages: number = 1000,
+  options: PageMarkerOptions = {}
 ): Promise<ExtractionResult> {
   const startTime = Date.now();
 
@@ -164,6 +184,8 @@ export async function extractTextDirectlyFromPDF(
     // Process pages in batches of 10
     const batchSize = 10;
     const allPageTexts: string[] = [];
+    const numberedPages: Array<{ page: number; text: string }> = [];
+    const tablePages: number[] = [];
     let successfulPages = 0;
 
     for (let batchStart = 1; batchStart <= totalPages; batchStart += batchSize) {
@@ -171,15 +193,24 @@ export async function extractTextDirectlyFromPDF(
       const batchPromises: Promise<PageExtractionResult>[] = [];
 
       for (let pageNum = batchStart; pageNum <= batchEnd; pageNum++) {
-        batchPromises.push(extractPageTextDirectly(pdfDoc, pageNum, applyMarkdownFormattingFn));
+        batchPromises.push(
+          extractPageTextDirectly(
+            pdfDoc,
+            pageNum,
+            applyMarkdownFormattingFn,
+            options.pageMarkers === true
+          )
+        );
       }
 
       // Wait for batch to complete
       const batchResults = await Promise.allSettled(batchPromises);
 
-      for (const result of batchResults) {
+      for (const [offset, result] of batchResults.entries()) {
         if (result.status === 'fulfilled' && result.value.success) {
           allPageTexts.push(result.value.text);
+          numberedPages.push({ page: batchStart + offset, text: result.value.text });
+          if (result.value.hasTable) tablePages.push(batchStart + offset);
           successfulPages++;
         } else if (result.status === 'rejected') {
           console.warn(`[OcrService] Page extraction failed:`, result.reason);
@@ -191,7 +222,9 @@ export async function extractTextDirectlyFromPDF(
       );
     }
 
-    const fullText = allPageTexts.join('\n\n');
+    const fullText = options.pageMarkers
+      ? joinPagesWithMarkers(numberedPages)
+      : allPageTexts.join('\n\n');
     const processingTimeMs = Date.now() - startTime;
 
     console.log(
@@ -208,6 +241,7 @@ export async function extractTextDirectlyFromPDF(
         successfulPages,
         processingTimeMs,
       },
+      ...(options.pageMarkers && { tablePages }),
     };
   } catch (error) {
     console.error('[OcrService] PDF.js extraction failed:', (error as Error).message);
@@ -222,7 +256,8 @@ export async function extractPageTextDirectly(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pdfDoc: any,
   pageNum: number,
-  applyMarkdownFormattingFn: (text: string) => string
+  applyMarkdownFormattingFn: (text: string) => string,
+  detectTables = false
 ): Promise<PageExtractionResult> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
@@ -231,9 +266,8 @@ export async function extractPageTextDirectly(
     const textContent = await page.getTextContent();
 
     // Extract text items with proper spacing
-    const items = textContent.items as Array<{ str?: string }>;
-    const textItems: string[] = items.map((item: { str?: string }) => item.str || '');
-    const rawText = textItems.join(' ').trim();
+    const items = textContent.items as PdfTextItem[];
+    const rawText = joinPdfTextItems(items);
 
     // Apply markdown formatting
     const formattedText = applyMarkdownFormattingFn(rawText);
@@ -241,6 +275,7 @@ export async function extractPageTextDirectly(
     return {
       success: true,
       text: formattedText,
+      ...(detectTables && { hasTable: pageHasTable(items) }),
     };
   } catch (error) {
     return {
@@ -259,7 +294,8 @@ export async function extractTextFromBase64PDF(
   base64Data: string,
   filename: string = 'document.pdf',
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getPdfJsFn: () => Promise<any>
+  getPdfJsFn: () => Promise<any>,
+  options: PageMarkerOptions = {}
 ): Promise<ExtractionResult> {
   const startTime = Date.now();
 
@@ -267,22 +303,13 @@ export async function extractTextFromBase64PDF(
     console.log(`[OcrService] Extracting text from base64 PDF: ${filename}`);
 
     const pdfjsLib = await getPdfJsFn();
-
-    const MAX_PDF_BYTES = 100 * 1024 * 1024;
-    if (base64Data.length > Math.ceil((MAX_PDF_BYTES * 4) / 3)) {
-      throw new Error('PDF exceeds maximum allowed size');
-    }
-    const buf = Buffer.from(base64Data, 'base64');
-    const bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
-
-    // Load PDF from bytes
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
-    const loadingTask = pdfjsLib.getDocument({ data: bytes, useSystemFonts: true });
-    const pdfDoc = await loadingTask.promise;
+    const pdfDoc = await openPdfFromBase64(base64Data, pdfjsLib);
     const totalPages = pdfDoc.numPages;
 
     // Extract text from all pages
     const allPageTexts: string[] = [];
+    const numberedPages: Array<{ page: number; text: string }> = [];
+    const tablePages: number[] = [];
     let successfulPages = 0;
 
     for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
@@ -291,14 +318,14 @@ export async function extractTextFromBase64PDF(
         const page = await pdfDoc.getPage(pageNum);
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
         const textContent = await page.getTextContent();
-        const textItems = textContent.items as Array<{ str?: string }>;
-        const pageText = textItems
-          .map((item: { str?: string }) => item.str || '')
-          .join(' ')
-          .trim();
+        const textItems = textContent.items as PdfTextItem[];
+        const pageText = joinPdfTextItems(textItems);
 
         if (pageText) {
-          allPageTexts.push(applyMarkdownFormatting(pageText));
+          const formatted = applyMarkdownFormatting(pageText);
+          allPageTexts.push(formatted);
+          numberedPages.push({ page: pageNum, text: formatted });
+          if (options.pageMarkers && pageHasTable(textItems)) tablePages.push(pageNum);
           successfulPages++;
         }
       } catch (error) {
@@ -309,7 +336,9 @@ export async function extractTextFromBase64PDF(
       }
     }
 
-    const fullText = allPageTexts.join('\n\n');
+    const fullText = options.pageMarkers
+      ? joinPagesWithMarkers(numberedPages)
+      : allPageTexts.join('\n\n');
     const processingTimeMs = Date.now() - startTime;
 
     console.log(
@@ -326,6 +355,7 @@ export async function extractTextFromBase64PDF(
         successfulPages,
         processingTimeMs,
       },
+      ...(options.pageMarkers && { tablePages }),
     };
   } catch (error) {
     console.error('[OcrService] Base64 PDF extraction failed:', (error as Error).message);

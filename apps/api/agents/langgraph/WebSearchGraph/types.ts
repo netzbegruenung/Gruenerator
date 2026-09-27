@@ -3,8 +3,6 @@
  * Defines state interfaces for the LangGraph search workflow
  */
 
-import { type AIWorkerPool } from '../../../workers/types.js';
-
 import type {
   Citation,
   ValidationResult,
@@ -36,7 +34,7 @@ export interface SearchResult {
 export interface WebSearchBatch {
   query: string;
   results: SearchResult[];
-  provider: 'searxng' | 'mistral' | 'linkup';
+  provider: 'searxng' | 'linkup';
   success: boolean;
   error?: string | undefined;
 }
@@ -79,19 +77,6 @@ export interface CategorizedSources {
   academic?: SearchResult[] | undefined;
   other?: SearchResult[] | undefined;
   [key: string]: SearchResult[] | undefined;
-}
-
-/**
- * Deep research dossier
- */
-export interface ResearchDossier {
-  query: string;
-  executiveSummary: string;
-  detailedAnalysis: string;
-  methodology: string;
-  sources: SearchResult[];
-  grundsatzPosition?: string | undefined;
-  recommendations?: string | undefined;
 }
 
 /**
@@ -161,7 +146,6 @@ export interface WebSearchState {
   mode: 'normal' | 'deep';
   user_id: string;
   searchOptions: SearchOptions;
-  aiWorkerPool: AIWorkerPool;
   req: Request;
 
   // Intermediate state — Annotation<T | null> → T | null
@@ -184,58 +168,7 @@ export interface WebSearchState {
   // Output — Annotation<T | null> → T | null
   finalResults: SearchResult[] | null;
   summary: string | null;
-  dossier: ResearchDossier | null;
   metadata: SearchMetadata;
   success: boolean | null;
   error: string | null;
 }
-
-/**
- * Input parameters for runWebSearch
- */
-export interface WebSearchInput {
-  query: string;
-  mode?: 'normal' | 'deep' | undefined;
-  user_id?: string | undefined;
-  searchOptions?: SearchOptions | undefined;
-  aiWorkerPool: AIWorkerPool;
-  req: Request;
-}
-
-/**
- * Normal mode search output
- */
-export interface NormalSearchOutput {
-  status: 'success' | 'error';
-  query: string;
-  results: SearchResult[];
-  summary?: string | undefined;
-  citations: Citation[];
-  citationSources: Source[];
-  metadata: SearchMetadata;
-  message?: string | undefined;
-  error?: string | undefined;
-}
-
-/**
- * Deep research mode output
- */
-export interface DeepSearchOutput {
-  status: 'success' | 'error';
-  dossier: ResearchDossier | null;
-  researchQuestions: string[];
-  searchResults: WebSearchBatch[];
-  sources: SearchResult[];
-  categorizedSources: CategorizedSources;
-  grundsatzResults: GrundsatzResult | null;
-  citations: Citation[];
-  citationSources: Source[];
-  metadata: SearchMetadata;
-  message?: string | undefined;
-  error?: string | undefined;
-}
-
-/**
- * Union type for search output
- */
-export type WebSearchOutput = NormalSearchOutput | DeepSearchOutput;

@@ -3,6 +3,9 @@ import tseslint from 'typescript-eslint';
 import importPlugin from 'eslint-plugin-import-x';
 import globals from 'globals';
 
+const DATA_URL_REGEX_MESSAGE =
+  'Data-URLs nicht per Regex zerlegen: parseDataUrl / extractBase64 / stripDataUrlPrefix aus @gruenerator/shared/utils verwenden (im Backend zusaetzlich decodeDataUrl aus utils/dataUrl.ts).';
+
 export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
@@ -75,6 +78,22 @@ export default tseslint.config(
       ],
       'import-x/no-duplicates': 'error',
 
+      // Ein unbegrenzter Quantor hinter `base64,` laesst die Regex-Engine ueber
+      // den ganzen Payload laufen. Bei mehreren MB kippt das in V8 mit
+      // "Maximum call stack size exceeded" — groessenabhaengig, also nie in
+      // einem Test mit Mini-Fixture sichtbar. Ein `{n}`-begrenzter Sondierungs-
+      // Regex (z. B. outputSanity) bleibt erlaubt.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Literal[regex.pattern=/base64,\\(?\\.[+*]/]',
+          message: DATA_URL_REGEX_MESSAGE,
+        },
+        {
+          selector: 'Literal[regex.pattern=/base64,\\(\\[/]',
+          message: DATA_URL_REGEX_MESSAGE,
+        },
+      ],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'prefer-const': 'error',
       'no-var': 'error',

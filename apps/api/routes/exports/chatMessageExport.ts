@@ -16,11 +16,14 @@ import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validat
 import { parseFormattedContent } from './contentParser.js';
 import {
   buildNumberingConfig,
+  buildPageChrome,
   isLinkable,
+  loadEmbeddedFonts,
   renderBlocks,
   BODY_FONT,
   HEADING_FONT,
 } from './docxRenderer.js';
+import { resolveImages } from './imageResolver.js';
 
 import type { FormattedBlock } from './types.js';
 import type * as Docx from 'docx';
@@ -169,7 +172,11 @@ router.post(
 
       const blocks = parseFormattedContent(content);
 
-      const docx = await import('docx');
+      const [docx, images, fonts] = await Promise.all([
+        import('docx'),
+        resolveImages(blocks),
+        loadEmbeddedFonts(),
+      ]);
       const {
         Document,
         Paragraph,
@@ -207,7 +214,7 @@ router.post(
         })
       );
 
-      children.push(...renderBlocks(docx, blocks));
+      children.push(...renderBlocks(docx, blocks, { images }));
 
       const sources = collectSources(metadata);
       if (sources.length > 0) {
@@ -313,8 +320,15 @@ router.post(
       );
 
       const doc = new Document({
-        sections: [{ properties: {}, children }],
+        sections: [
+          {
+            properties: {},
+            ...buildPageChrome(docx, `${roleLabel} • ${formattedTime}`),
+            children,
+          },
+        ],
         numbering: buildNumberingConfig(docx),
+        fonts,
         title: `Chat-Nachricht - ${roleLabel}`,
         creator: 'Grünerator',
         description: 'Chat message exported from Grünerator',

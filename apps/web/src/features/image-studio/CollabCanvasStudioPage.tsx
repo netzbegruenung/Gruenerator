@@ -6,32 +6,36 @@ import {
 } from '@gruenerator/canvas-editor';
 import { PresenceAvatars, useCollaborators } from '@gruenerator/collab';
 import { type CanvasDocument } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { PiArrowLeft } from 'react-icons/pi';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
+import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import { useAuthStore } from '../../stores/authStore';
+import { isEmbedded } from '../../utils/platform';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
 import { CanvasChatDocContext } from './CanvasChatDocContext';
+import { SaveAsTemplateDialog } from './components/SaveAsTemplateDialog';
 import { ShareCanvasDialog } from './components/ShareCanvasDialog';
 import { updateCanvasThumbnail } from './services/canvasThumbnailService';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
 function CollabCanvasStudioContent() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const handleCancel = useHostAwareBack('/workplace');
   const user = useAuthStore((s) => s.user);
   const config = useCollaborationConfig();
   const [shareOpen, setShareOpen] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -40,7 +44,7 @@ function CollabCanvasStudioContent() {
     queryFn: async () => {
       const result = await getContractsClient().canvas.get({ params: { id: id! } });
       if (result.status !== 200) {
-        throw new Error(`Failed to load canvas (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to load canvas (HTTP ${result.status})`);
       }
       return result.body;
     },
@@ -74,7 +78,7 @@ function CollabCanvasStudioContent() {
           body: { title: newTitle },
         });
         if (result.status !== 200) {
-          throw new Error(`PATCH returned HTTP ${result.status}`);
+          throw new ApiError(result.status, `PATCH returned HTTP ${result.status}`);
         }
       } catch (err) {
         console.error('[canvas-rename] PATCH failed, reverting', err);
@@ -127,10 +131,6 @@ function CollabCanvasStudioContent() {
     [id, canEdit, queryClient]
   );
 
-  const handleCancel = useCallback(() => {
-    void navigate('/workplace/arbeiten');
-  }, [navigate]);
-
   const collaborators = useCollaborators(collab.provider);
 
   const chatDoc = useMemo(
@@ -143,7 +143,9 @@ function CollabCanvasStudioContent() {
 
   // No isSynced gate: runTour polls for visible anchors anyway, and the tour
   // should also appear when collab sync is slow.
-  useTourAutostart('canvas', !isLoading && !!canvas && canEdit, () => {
+  // Not embedded: the tour paints a full-viewport overlay with its own
+  // controls over a WebView the user cannot navigate away from.
+  useTourAutostart('canvas', !isLoading && !!canvas && canEdit && !isEmbedded(), () => {
     void import('../tours/canvasTour').then((m) => m.startCanvasTour());
   });
 
@@ -220,15 +222,17 @@ function CollabCanvasStudioContent() {
               chromeCenter={chromeCenter}
               chromeRight={chromeRight}
               onInvitePeople={() => setShareOpen(true)}
+              onSaveAsTemplate={() => setSaveTemplateOpen(true)}
             />
           </div>
-          <ShareCanvasDialog
+          <ShareCanvasDialog canvasId={canvas.id} open={shareOpen} onOpenChange={setShareOpen} />
+          <SaveAsTemplateDialog
             canvasId={canvas.id}
             canvasType={canvas.template_type}
             initialState={canvas.initial_state}
             defaultTitle={canvas.title}
-            open={shareOpen}
-            onOpenChange={setShareOpen}
+            open={saveTemplateOpen}
+            onOpenChange={setSaveTemplateOpen}
           />
         </div>
       </CanvasChatDocContext.Provider>

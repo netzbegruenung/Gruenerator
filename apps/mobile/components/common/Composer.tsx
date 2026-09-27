@@ -15,6 +15,7 @@ import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ioni
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
+  Text,
   TextInput,
   Pressable,
   StyleSheet,
@@ -35,7 +36,7 @@ import {
   pickedDocumentToAttachment,
   type PickedDocument,
 } from '../../services/documentPicker';
-import { colors, spacing } from '../../theme';
+import { borderRadius, chatType, colors, spacing } from '../../theme';
 import { ComposerAttachmentUI } from '../chat/AttachmentUI';
 import { ComposerActionSheet } from '../chat/ComposerActionSheet';
 import { DocumentBrowserSheet } from '../chat/DocumentBrowserSheet';
@@ -90,6 +91,10 @@ export interface ComposerAccessory {
   onPress: () => void;
   active?: boolean;
   accessibilityLabel?: string;
+  /** Renders a compact labelled chip next to Send instead of the left-aligned
+   *  icon button — for a picker whose current value should stay readable
+   *  (the notebook answer mode, like web's picker beside Send). */
+  label?: string;
 }
 
 export interface ComposerProps {
@@ -151,7 +156,13 @@ interface MentionState {
 
 /** The mention types that open a source picker instead of inserting text. */
 function asPickerSource(type: Mentionable['type']): MentionPickerSource | null {
-  return type === 'wolke' || type === 'connect' || type === 'canva' ? type : null;
+  // 'webpage' behaves like the other three (picker instead of inserted text),
+  // but is the only one needing no connected account. Before, it fell through
+  // to the text path: the picker offered @link and selecting it inserted a bare
+  // string that attached nothing.
+  return type === 'wolke' || type === 'connect' || type === 'canva' || type === 'webpage'
+    ? type
+    : null;
 }
 
 /**
@@ -164,7 +175,15 @@ function asPickerSource(type: Mentionable['type']): MentionPickerSource | null {
  */
 function rememberSkill(mentionable: Mentionable): void {
   if (mentionable.category === 'skill') {
-    useAgentStore.getState().setActiveSkillMention(mentionable.mention);
+    // A textform's `identifier` IS its row id, and a user recipe is resolved by
+    // that id — the mention alone cannot separate two recipes of the same name.
+    // Every other skill (system recipe, custom prompt) has no row, so: null.
+    useAgentStore
+      .getState()
+      .setActiveSkillMention(
+        mentionable.mention,
+        mentionable.type === 'textform' ? mentionable.identifier : null
+      );
   }
 }
 
@@ -346,11 +365,11 @@ function ComposerBody({
   const [docBrowserVisible, setDocBrowserVisible] = useState(false);
   const [pickerSource, setPickerSource] = useState<MentionPickerSource | null>(null);
 
-  // Three mention types are not text to insert but a source to browse. Web
+  // Four mention types are not text to insert but a source to pick from. Web
   // opens a separate floating popover per type; on a phone they are the same
-  // gesture and the same list, so one sheet serves all three. Without an
-  // `addAttachment` there is nothing to attach to, and the mention falls back
-  // to being plain text.
+  // gesture, so one sheet serves all four — three browse lists and, for a link,
+  // a URL field. Without an `addAttachment` there is nothing to attach to, and
+  // the mention falls back to being plain text.
   const handleMentionSelect = useCallback(
     (mentionable: Mentionable) => {
       const source = asPickerSource(mentionable.type);
@@ -465,7 +484,7 @@ function ComposerBody({
         }
         leading={leading}
         toolbarExtra={
-          props.accessory ? (
+          props.accessory && !props.accessory.label ? (
             <Pressable
               onPress={props.accessory.onPress}
               style={composerIconButtonStyle(variant)}
@@ -477,6 +496,26 @@ function ComposerBody({
                 size={iconSize}
                 color={props.accessory.active ? colors.primary[600] : theme.textSecondary}
               />
+            </Pressable>
+          ) : null
+        }
+        beforeAction={
+          props.accessory?.label ? (
+            <Pressable
+              onPress={props.accessory.onPress}
+              style={[styles.accessoryChip, { borderColor: theme.border }]}
+              hitSlop={ACCESSORY_CHIP_HIT_SLOP}
+              accessibilityRole="button"
+              accessibilityLabel={props.accessory.accessibilityLabel ?? props.accessory.label}
+            >
+              <Ionicons name={props.accessory.icon} size={14} color={theme.textSecondary} />
+              <Text
+                style={[styles.accessoryChipText, { color: theme.textSecondary }]}
+                numberOfLines={1}
+              >
+                {props.accessory.label}
+              </Text>
+              <Ionicons name="chevron-down" size={12} color={theme.textSecondary} />
             </Pressable>
           ) : null
         }
@@ -709,6 +748,10 @@ export function Composer(props: ComposerProps) {
   );
 }
 
+// 36 + 2×8 clears the 44pt target vertically; the side slop stays small so the
+// chip's touch area does not reach into Send beside it.
+const ACCESSORY_CHIP_HIT_SLOP = { top: 8, bottom: 8, left: 4, right: 4 };
+
 const styles = StyleSheet.create({
   attachmentsRow: {
     flexDirection: 'row',
@@ -717,6 +760,19 @@ const styles = StyleSheet.create({
   },
   edge: {
     paddingTop: spacing.xsmall,
+  },
+  accessoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    // minHeight, not height: a large font scale must grow the chip, not clip it.
+    minHeight: 36,
+    paddingHorizontal: spacing.xsmall,
+    borderRadius: borderRadius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  accessoryChipText: {
+    ...chatType.chatLabel,
   },
 });
 

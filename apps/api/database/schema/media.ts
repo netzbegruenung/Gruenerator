@@ -1,4 +1,4 @@
-import { type InferSelectModel } from 'drizzle-orm';
+import { type InferSelectModel, sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -32,21 +32,6 @@ export const userSharepics = pgTable(
 
 export type UserSharepic = InferSelectModel<typeof userSharepics>;
 
-export const userUploads = pgTable('user_uploads', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  user_id: uuid('user_id'),
-  file_name: text('file_name').notNull(),
-  file_url: text('file_url'),
-  file_path: text('file_path'),
-  file_size: bigint('file_size', { mode: 'number' }),
-  mime_type: text('mime_type'),
-  upload_status: text('upload_status').notNull().default('pending'),
-  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}),
-});
-
-export type UserUpload = InferSelectModel<typeof userUploads>;
-
 /**
  * Entry stored in the transfer_files JSONB array
  */
@@ -77,6 +62,8 @@ export const sharedMedia = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     user_id: uuid('user_id'),
     share_token: varchar('share_token', { length: 32 }).notNull().unique(),
+    // CHECK (video | image | transfer | audio) lives in schema.sql / the
+    // migrations; the contract's `storedMediaTypeSchema` mirrors that set.
     media_type: varchar('media_type', { length: 10 }).notNull(),
     title: text('title'),
     file_path: text('file_path'),
@@ -96,6 +83,11 @@ export const sharedMedia = pgTable(
     is_library_item: boolean('is_library_item').notNull().default(true),
     alt_text: text('alt_text'),
     upload_source: text('upload_source').notNull().default('upload'),
+    // Which product made this image ('ki' | 'sharepic' | 'upload' | 'unknown'), set
+    // server-side at insert time. Answers a different question than `upload_source`:
+    // that one says how the bytes arrived and drives library curation, this one says
+    // what the row *is* and keeps source images out of the creation feeds.
+    content_origin: text('content_origin').notNull().default('unknown'),
     original_filename: text('original_filename'),
     is_template: boolean('is_template').notNull().default(false),
     template_visibility: text('template_visibility').notNull().default('private'),
@@ -122,6 +114,12 @@ export const sharedMedia = pgTable(
       t.image_type,
       t.created_at
     ),
+    // Partial, for the orphan reaper (#2989) — it only ever asks for rows in a
+    // status no listing shows. Keep the predicate in step with
+    // ORPHANED_SHARE_STATUSES and the migration of the same name.
+    index('idx_shared_media_orphan_status')
+      .on(t.created_at)
+      .where(sql`status IN ('processing', 'failed')`),
   ]
 );
 

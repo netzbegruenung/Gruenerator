@@ -5,7 +5,7 @@
 
 import { type UPLOAD_SOURCES } from './constants.js';
 
-export type MediaType = 'image' | 'video';
+export type MediaType = 'image' | 'video' | 'audio';
 
 export type MediaStatus = 'processing' | 'ready' | 'failed';
 
@@ -21,6 +21,13 @@ export interface MediaItem {
   shareToken: string;
   mediaType: MediaType;
   title: string | null;
+  /**
+   * Full-resolution source URL, despite the name: `/api/share/<token>/preview`
+   * with no `w`, which the API answers with the original bytes. Use it where
+   * the real upload is wanted (placing an image on a canvas); for anything
+   * rendered in an `<img>`, build a sized URL from {@link shareToken} with
+   * `buildSharedMediaSrcSet` instead.
+   */
   thumbnailUrl: string | null;
   mediaUrl?: string;
   fileSize: number;
@@ -153,10 +160,28 @@ export interface OpenPickerOptions {
 /**
  * API Response types
  */
+/**
+ * How full the account's Mediathek is. Counts every library item the user owns
+ * — not the currently filtered page — so a type filter or a search doesn't make
+ * the account look emptier than it is.
+ */
+export interface MediaLibraryQuota {
+  /** Library items the user currently holds. */
+  count: number;
+  /** Cap from `MEDIA_LIBRARY_ITEM_LIMIT`. */
+  limit: number;
+  /** `count >= limit`: further uploads are refused. */
+  isFull: boolean;
+  /** Past `MEDIA_LIBRARY_WARN_RATIO` of the cap — warn before it bites. */
+  isNearlyFull: boolean;
+}
+
 export interface MediaListResponse {
   success: boolean;
   data: MediaItem[];
   pagination: MediaPagination;
+  /** Absent on responses from a backend older than the quota notice. */
+  quota?: MediaLibraryQuota;
   error?: string;
 }
 
@@ -168,8 +193,12 @@ export interface MediaItemResponse {
 
 export interface MediaUploadResponse {
   success: boolean;
-  data: MediaUploadResult;
+  /** Absent when the upload was refused (quota, validation). */
+  data?: MediaUploadResult;
   error?: string;
+  /** `'media_quota_exceeded'` when the library is full; the upload wrote nothing. */
+  code?: string;
+  quota?: MediaLibraryQuota;
 }
 
 export interface MediaUpdateResponse {

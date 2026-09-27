@@ -33,7 +33,10 @@ export const profiles = pgTable(
     presseabbinder: text('presseabbinder'),
     custom_antrag_gliederung: text('custom_antrag_gliederung'),
     auth_source: text('auth_source'),
-    locale: text('locale').notNull().default('de-DE'),
+    // Nullable: NULL heißt „Land unbekannt". Wer hier einen Default setzt,
+    // schreibt wieder Deutschland in Profile, über die nichts bekannt ist.
+    locale: text('locale'),
+    locale_source: text('locale_source').$type<'idp' | 'user'>(),
     groups_enabled: boolean('groups_enabled').notNull().default(false),
     groups: boolean('groups').notNull().default(false),
     custom_generators: boolean('custom_generators').notNull().default(false),
@@ -62,6 +65,7 @@ export const profiles = pgTable(
       .default([]),
     document_mode: text('document_mode').notNull().default('manual'),
     default_startpage: text('default_startpage').notNull().default('chat'),
+    tts_voice_id: text('tts_voice_id'),
     user_defaults: jsonb('user_defaults')
       .$type<Record<string, Record<string, unknown>>>()
       .notNull()
@@ -69,13 +73,21 @@ export const profiles = pgTable(
     docs: boolean('docs').notNull().default(false),
     boards: boolean('boards').notNull().default(false),
     bundestag_api_enabled: boolean('bundestag_api_enabled').notNull().default(false),
-    memory_enabled: boolean('memory_enabled').notNull().default(false),
+    memory_enabled: boolean('memory_enabled').notNull().default(true),
     feedback_button: text('feedback_button').notNull().default('text'),
     reduce_motion: boolean('reduce_motion').notNull().default(false),
     reduce_transparency: boolean('reduce_transparency').notNull().default(false),
     show_skip_link: boolean('show_skip_link').notNull().default(true),
+    // Derived server-side from `user_defaults.profile.roles[].bundesland`
+    // (see LandesverbandDerivationService) — not written directly by the
+    // client. No `.references()` here to avoid a circular import with
+    // landesverbaende.ts; the real FK constraint lives in the SQL migration.
+    landesverband_id: text('landesverband_id'),
+    /** Art. 9 Abs. 2 lit. a DSGVO — NULL heißt „nicht erteilt bzw. widerrufen". */
+    ai_consent_at: timestamp('ai_consent_at', { withTimezone: true }),
   },
   (table) => ({
     emailIdx: index('idx_profiles_email').on(table.email),
+    landesverbandIdx: index('idx_profiles_landesverband_id').on(table.landesverband_id),
   })
 );

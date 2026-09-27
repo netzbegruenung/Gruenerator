@@ -26,7 +26,14 @@ export function normalize(line: EvalCase | EvalScenario): EvalScenario {
     category: line.category,
     ...(line.modelId ? { modelId: line.modelId } : {}),
     ...(line.knownFailure ? { knownFailure: true } : {}),
-    turns: [{ prompt: line.prompt, expect: line.expect ?? {} }],
+    ...(line.systemMcpLane ? { systemMcpLane: true } : {}),
+    turns: [
+      {
+        prompt: line.prompt,
+        expect: line.expect ?? {},
+        ...(line.expectWhenLoopOff ? { expectWhenLoopOff: line.expectWhenLoopOff } : {}),
+      },
+    ],
   };
 }
 
@@ -79,6 +86,18 @@ export interface CorpusFilter {
   slow: boolean;
   mcp: boolean;
   notebook: boolean;
+  /** Szenarien, die die SYSTEM-MCP-Server brauchen (SYSTEM_MCP_*_URL). */
+  systemMcp: boolean;
+  /** Szenarien, die einen echten `@deepresearch`-Lauf starten. */
+  deepResearch: boolean;
+  /** Szenarien, die den BGSt-Beschlussbestand als Sammlung brauchen. */
+  bgstKorpus: boolean;
+  /** Szenarien, die dem Eval-Konto Erinnerungen anlegen (`memories`). */
+  memory: boolean;
+  /** Szenarien, die ein eigenes Notebook des Eval-Kontos brauchen. */
+  userNotebook: boolean;
+  /** Szenarien, die ein angehängtes mehrseitiges Dokument des Eval-Kontos brauchen. */
+  attachedDoc: boolean;
 }
 
 /** Glob evals/corpus/*.jsonl plus the legacy single-file corpus, then filter. */
@@ -108,7 +127,13 @@ export function loadCorpus(here: string, opts: CorpusFilter): EvalScenario[] {
   return scenarios.filter((s) => {
     if (s.slow && !opts.slow) return false;
     if (s.mcpLane && !opts.mcp) return false;
+    if (s.systemMcpLane && !opts.systemMcp) return false;
     if (s.notebookLane && !opts.notebook) return false;
+    if (s.deepResearchLane && !opts.deepResearch) return false;
+    if (s.bgstKorpusLane && !opts.bgstKorpus) return false;
+    if (s.userNotebookLane && !opts.userNotebook) return false;
+    if (s.attachedDocLane && !opts.attachedDoc) return false;
+    if (s.memories && !opts.memory) return false;
     if (!opts.filter) return true;
     return opts.filter
       .split(',')

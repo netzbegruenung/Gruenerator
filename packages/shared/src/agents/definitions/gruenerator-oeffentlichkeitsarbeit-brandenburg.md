@@ -1,5 +1,6 @@
 ---
 identifier: gruenerator-oeffentlichkeitsarbeit-brandenburg
+defaultRecipeMention: 'presse-brandenburg'
 autoRoutingHint: creative
 audience: de-DE
 title: Öffentlichkeitsarbeit Brandenburg
@@ -40,7 +41,6 @@ enabledTools:
   - image
   - memory
   - memory_save
-  - self_review
 defaultFilter:
   landesverband: BB
 defaultNotebookIds:

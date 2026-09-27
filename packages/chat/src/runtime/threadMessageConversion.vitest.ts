@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
 
+import { ATTACHMENT_META_PART_NAME } from '../lib/attachmentMeta';
+import { PASTED_TEXT_ATTACHMENT_NAME, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
+
 import {
+  convertNotebookLoadedMessages,
   convertToThreadMessageLike,
   PASSTHROUGH_METADATA_FIELDS,
   type LoadedMessage,
 } from './threadMessageConversion';
-import { PASTED_TEXT_ATTACHMENT_NAME, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
 
 // Regression guard for the live⇄reload contract: rich content that renders live
 // (via SSE, onto `custom.*`) must be reconstructable from persisted metadata so a
@@ -82,6 +85,85 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     });
   });
 
+  it('rehydrates uploaded files as metadata chips (size, page count, preview)', () => {
+    const [message] = convertToThreadMessageLike([
+      {
+        id: 'm-file',
+        role: 'user',
+        content: 'Was steht in dem PDF?',
+        attachments: [
+          {
+            id: 'a-pdf',
+            name: 'migration-0.14.pdf',
+            contentType: 'application/pdf',
+            preview: 'Kapitel 1: Breaking Changes …',
+            truncated: true,
+            size: 1258291,
+            pageCount: 14,
+          },
+          {
+            id: 'a-img',
+            name: 'composer-regression.png',
+            contentType: 'image/png',
+            preview: '',
+            truncated: false,
+            size: 421888,
+          },
+        ],
+      },
+    ]);
+
+    const attachments = (
+      message as {
+        attachments?: Array<{ type: string; content: Array<{ name?: string; data?: unknown }> }>;
+      }
+    ).attachments;
+    expect(attachments).toHaveLength(2);
+    expect(attachments?.[0]?.type).toBe('document');
+    expect(attachments?.[0]?.content[0]).toEqual({
+      type: 'data',
+      name: ATTACHMENT_META_PART_NAME,
+      data: {
+        size: 1258291,
+        pageCount: 14,
+        preview: 'Kapitel 1: Breaking Changes …',
+        truncated: true,
+      },
+    });
+    // Images come back as metadata-only chips too — bytes are not persisted,
+    // and an empty preview must not produce a preview dialog.
+    expect(attachments?.[1]?.type).toBe('image');
+    expect(attachments?.[1]?.content[0]).toEqual({
+      type: 'data',
+      name: ATTACHMENT_META_PART_NAME,
+      data: { size: 421888 },
+    });
+  });
+
+  it('tolerates legacy attachment rows without size/pageCount', () => {
+    const [message] = convertToThreadMessageLike([
+      {
+        id: 'm-legacy',
+        role: 'user',
+        content: 'Alt',
+        attachments: [
+          {
+            id: 'a-old',
+            name: 'alt.docx',
+            contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            preview: '',
+            truncated: false,
+          },
+        ],
+      },
+    ]);
+
+    const attachments = (message as { attachments?: Array<{ content: Array<{ data?: unknown }> }> })
+      .attachments;
+    expect(attachments).toHaveLength(1);
+    expect(attachments?.[0]?.content[0]?.data).toEqual({});
+  });
+
   it.each(PASSTHROUGH_METADATA_FIELDS)(
     'rehydrates the "%s" passthrough field onto custom',
     (field) => {
@@ -94,6 +176,27 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     for (const field of PASSTHROUGH_METADATA_FIELDS) {
       expect(PASSTHROUGH_SAMPLES[field]).toBeDefined();
     }
+  });
+
+  // Mobile reloads notebook threads through this converter, so the mode chip
+  // has to survive here too, not only in `convertNotebookLoadedMessages`.
+  it('rehydrates the notebook answer mode and its reason', () => {
+    const custom = customOf({ answerMode: 'praezision', answerModeReason: 'pregate' });
+    expect(custom.answerMode).toBe('praezision');
+    expect(custom.answerModeReason).toBe('pregate');
+  });
+
+  it('keeps the mode without a reason, and drops an unknown mode or reason', () => {
+    expect(customOf({ answerMode: 'chat', answerModeReason: 'bogus' })).toMatchObject({
+      answerMode: 'chat',
+    });
+    expect('answerModeReason' in customOf({ answerMode: 'chat', answerModeReason: 'bogus' })).toBe(
+      false
+    );
+    expect('answerMode' in customOf({ answerMode: 'turbo', answerModeReason: 'guard' })).toBe(
+      false
+    );
+    expect('answerMode' in customOf({ intent: 'direct' })).toBe(false);
   });
 
   it('drops an interrupted assistant row that has neither text nor tool cards', () => {
@@ -339,6 +442,22 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     const [msg] = convertToThreadMessageLike([{ id: 'm1', role: 'assistant', content: 'hi' }]);
     expect(msg?.metadata).toBeUndefined();
   });
+
+  it('carries the persisted timestamp as a Date (day separators need it on reload)', () => {
+    const [msg] = convertToThreadMessageLike([
+      { id: 'm1', role: 'assistant', content: 'hi', createdAt: '2026-08-01T09:30:00.000Z' },
+    ]);
+    expect(msg?.createdAt).toEqual(new Date('2026-08-01T09:30:00.000Z'));
+  });
+
+  it('omits createdAt when the persisted value is missing or unparsable', () => {
+    const [bare, broken] = convertToThreadMessageLike([
+      { id: 'm1', role: 'assistant', content: 'hi' },
+      { id: 'm2', role: 'assistant', content: 'ho', createdAt: 'not-a-date' },
+    ]);
+    expect(bare?.createdAt).toBeUndefined();
+    expect(broken?.createdAt).toBeUndefined();
+  });
 });
 
 // Stufe 2 (Interleaving on reload): when persisted tool calls carry a numeric
@@ -498,5 +617,290 @@ describe('convertToThreadMessageLike — interleaved reload', () => {
       (p): p is ContentPart & { narration?: string } => p.type === 'tool-call'
     );
     expect(card?.narration).toBe('Zuerst prüfe ich das Parteiprogramm.');
+  });
+});
+
+// The notebook surface persists its conversations but had no way to read them
+// back, so every older one opened as a blank start page. These guard the shape
+// the notebook renderer expects: mapped citations for the badges, the raw ones
+// for the fallback, the sources for the panel and the Word export, and the
+// question the answer replied to.
+describe('convertNotebookLoadedMessages', () => {
+  const rawCitation = {
+    index: '2',
+    document_title: 'Grundsatzprogramm',
+    source_url: 'https://example.test/gsp',
+    cited_text: 'Klimaneutral bis 2035.',
+    collection_name: 'Grundsatz',
+    document_id: 'doc_9',
+    chunk_index: 4,
+    similarity_score: 0.82,
+    collection_id: 'grundsatz-system',
+  };
+
+  const rows: LoadedMessage[] = [
+    { id: 'u1', role: 'user', content: 'Was steht zum Klima drin?' },
+    {
+      id: 'a1',
+      role: 'assistant',
+      content: 'Das Programm nennt Klimaneutralität [cite:2].',
+      // Cast because the declared `citations` type describes the chat path's
+      // already-mapped records, while the notebook path stores what its
+      // retrieval returned — raw and snake_case, exactly as written here.
+      metadata: {
+        citations: [rawCitation],
+        sources: [{ id: 'doc_9', title: 'Grundsatzprogramm' }],
+      } as unknown as LoadedMessage['metadata'],
+    },
+  ];
+
+  it('rewrites [cite:N] markers to the [N] form the badge layer matches', () => {
+    const [, answer] = convertNotebookLoadedMessages(rows);
+    expect(answer?.content).toEqual([
+      { type: 'text', text: 'Das Programm nennt Klimaneutralität [2].' },
+    ]);
+  });
+
+  it('maps the stored snake_case citations into the rendered shape', () => {
+    const [, answer] = convertNotebookLoadedMessages(rows);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.citations).toEqual([
+      {
+        id: 2,
+        title: 'Grundsatzprogramm',
+        url: 'https://example.test/gsp',
+        snippet: 'Klimaneutral bis 2035.',
+        citedText: 'Klimaneutral bis 2035.',
+        source: 'Grundsatz',
+        collectionName: 'Grundsatz',
+        documentId: 'doc_9',
+        chunkIndex: 4,
+        similarityScore: 0.82,
+        pageNumber: null,
+        collectionId: 'grundsatz-system',
+      },
+    ]);
+  });
+
+  /**
+   * Der Live-Pfad (`NotebookModelAdapter`) bildet `page_number` ab, der Verlauf
+   * lief lange daran vorbei — „S. 12" stand auf der Quellenkarte bis zum
+   * Reload und war danach weg.
+   */
+  it('carries the page number of a reloaded citation', () => {
+    const [, answer] = convertNotebookLoadedMessages([
+      rows[0]!,
+      {
+        ...rows[1]!,
+        metadata: {
+          citations: [{ ...rawCitation, page_number: 12 }],
+        } as unknown as LoadedMessage['metadata'],
+      },
+    ]);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect((custom.citations as { pageNumber: number | null }[])[0]!.pageNumber).toBe(12);
+  });
+
+  it('keeps the raw citations and the sources for the panel and the export', () => {
+    const [, answer] = convertNotebookLoadedMessages(rows);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.rawCitations).toEqual([rawCitation]);
+    expect(custom.sources).toEqual([{ id: 'doc_9', title: 'Grundsatzprogramm' }]);
+  });
+
+  it('recovers the question from the message the answer replied to', () => {
+    const [, answer] = convertNotebookLoadedMessages(rows);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.question).toBe('Was steht zum Klima drin?');
+  });
+
+  // An answer can outlive its question: the two are persisted separately, the
+  // answer is kept when the question's write fails, and no question row is
+  // written at all when the text is empty. Taking the row before blindly would
+  // then caption an answer with the previous answer's text.
+  it('skips a preceding answer when looking for the question', () => {
+    const [, , second] = convertNotebookLoadedMessages([
+      { id: 'u1', role: 'user', content: 'Erste Frage?' },
+      { id: 'a1', role: 'assistant', content: 'Erste Antwort.' },
+      { id: 'a2', role: 'assistant', content: 'Zweite Antwort, deren Frage fehlt.' },
+    ]);
+    const custom = second?.metadata?.custom as Record<string, unknown>;
+    expect(custom.question).toBe('Erste Frage?');
+  });
+
+  it('leaves the question empty when no user message precedes the answer at all', () => {
+    const [answer] = convertNotebookLoadedMessages([
+      { id: 'a1', role: 'assistant', content: 'Antwort ohne jede Frage.' },
+      { id: 'a2', role: 'assistant', content: 'Und noch eine.' },
+    ]);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.question).toBe('');
+  });
+
+  // Thumbs feedback targets the Langfuse trace of the turn, and the buttons
+  // only appear when `custom.streamMetadata.traceId` is there. The live path
+  // builds that in NotebookModelAdapter; reload has to rebuild the same shape
+  // or the thumbs vanish the moment the conversation is reopened.
+  it('rebuilds streamMetadata from the persisted traceId', () => {
+    const traceId = 'a'.repeat(32);
+    const [answer] = convertNotebookLoadedMessages([
+      { id: 'a1', role: 'assistant', content: 'Antwort.', metadata: { traceId } },
+    ]);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.streamMetadata).toEqual({ intent: 'direct', searchCount: 0, traceId });
+  });
+
+  it('leaves streamMetadata off an answer that has no traceId', () => {
+    const [, answer] = convertNotebookLoadedMessages(rows);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.streamMetadata).toBeUndefined();
+  });
+
+  it('reads an answer without citations as an empty list, not a crash', () => {
+    const [answer] = convertNotebookLoadedMessages([
+      { id: 'a1', role: 'assistant', content: 'Dazu finde ich nichts.' },
+    ]);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.citations).toEqual([]);
+    expect(custom.sources).toEqual([]);
+    expect(custom.question).toBe('');
+  });
+
+  describe('answer mode (precision turns)', () => {
+    const precisionRow: LoadedMessage = {
+      id: 'a1',
+      role: 'assistant',
+      content: 'Es sind drei Quellen [1].',
+      metadata: {
+        answerMode: 'praezision',
+        answerModeReason: 'guard',
+        toolCalls: [
+          {
+            toolCallId: 's1',
+            toolName: 'notebook_quellen',
+            args: { action: 'list' },
+            result: { count: 3 },
+          },
+          {
+            toolCallId: 's2',
+            toolName: 'notebook_quellen',
+            args: { action: 'read' },
+            result: { error: 'nicht gefunden' },
+            ok: false,
+          },
+        ],
+      },
+    };
+
+    it('brings the mode and its reason back for the chip', () => {
+      const [answer] = convertNotebookLoadedMessages([precisionRow]);
+      const custom = answer?.metadata?.custom as Record<string, unknown>;
+      expect(custom.answerMode).toBe('praezision');
+      expect(custom.answerModeReason).toBe('guard');
+    });
+
+    it('rebuilds the loop steps as cards before the text, failures included', () => {
+      const [answer] = convertNotebookLoadedMessages([precisionRow]);
+      expect(answer?.content).toEqual([
+        {
+          type: 'tool-call',
+          toolCallId: 's1',
+          toolName: 'notebook_quellen',
+          args: { query: '' },
+          result: { count: 3 },
+          parentId: 's1',
+        },
+        {
+          type: 'tool-call',
+          toolCallId: 's2',
+          toolName: 'notebook_quellen',
+          args: { query: '' },
+          result: { error: 'nicht gefunden', ok: false },
+          // Same run as the first card, so the group renders as one.
+          parentId: 's1',
+        },
+        { type: 'text', text: 'Es sind drei Quellen [1].' },
+      ]);
+    });
+
+    it('keeps the mode without a reason (older rows persist only the mode)', () => {
+      const [answer] = convertNotebookLoadedMessages([
+        { id: 'a1', role: 'assistant', content: 'Antwort.', metadata: { answerMode: 'chat' } },
+      ]);
+      const custom = answer?.metadata?.custom as Record<string, unknown>;
+      expect(custom.answerMode).toBe('chat');
+      expect('answerModeReason' in custom).toBe(false);
+    });
+
+    it('shows no mode for an answer without one, or with an unknown value', () => {
+      const [plain, unknown] = convertNotebookLoadedMessages([
+        { id: 'a1', role: 'assistant', content: 'Alt.' },
+        { id: 'a2', role: 'assistant', content: 'Neu.', metadata: { answerMode: 'turbo' } },
+      ]);
+      for (const m of [plain, unknown]) {
+        const custom = m?.metadata?.custom as Record<string, unknown>;
+        expect(custom.answerMode).toBeUndefined();
+        expect(custom.answerModeReason).toBeUndefined();
+      }
+    });
+  });
+});
+
+describe('convertToThreadMessageLike — offene Loop-Rückfrage (#3220)', () => {
+  const pendingClarification = {
+    askTurnId: 'ask-1',
+    toolCallId: 'call_ask',
+    question: 'Welche Anna meinst du?',
+    options: ['Anna Müller', 'Anna Meier'],
+    resolved: false,
+  };
+
+  it('rehydriert die beantwortbare ask_human-Karte samt requires-action', () => {
+    const [msg] = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'Ich habe zwei Kandidatinnen gefunden.',
+        metadata: { pendingClarification },
+      },
+    ]);
+    const parts = msg!.content as unknown as Array<Record<string, unknown>>;
+    const ask = parts.find((p) => p.type === 'tool-call' && p.toolName === 'ask_human');
+    expect(ask).toMatchObject({
+      toolCallId: 'call_ask',
+      args: { question: 'Welche Anna meinst du?', options: ['Anna Müller', 'Anna Meier'] },
+    });
+    expect(ask).not.toHaveProperty('result');
+    expect(msg!.status).toEqual({ type: 'requires-action', reason: 'tool-calls' });
+  });
+
+  it('rehydriert eine BEANTWORTETE Rückfrage als kollabierte Karte (String-Antwort)', () => {
+    const [msg] = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'Anna Müller stimmte dafür.',
+        metadata: {
+          pendingClarification: { ...pendingClarification, resolved: true, answer: 'Anna Müller' },
+          toolCalls: [
+            {
+              toolCallId: 'call_ask',
+              toolName: 'ask_human',
+              args: { question: 'Welche Anna meinst du?' },
+              result: { answer: 'Anna Müller' },
+            },
+          ],
+        },
+      },
+    ]);
+    const parts = msg!.content as unknown as Array<Record<string, unknown>>;
+    const asks = parts.filter((p) => p.type === 'tool-call' && p.toolName === 'ask_human');
+    // Nur die Karte aus toolCalls — keine zweite aus pendingClarification.
+    expect(asks).toHaveLength(1);
+    // Die Karte rendert String(result): die Antwort muss als String ankommen,
+    // sonst steht dort "[object Object]".
+    expect(asks[0]!.result).toBe('Anna Müller');
+    expect(asks[0]!.args).toMatchObject({ question: 'Welche Anna meinst du?' });
+    expect(msg!.status).toBeUndefined();
   });
 });

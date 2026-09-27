@@ -17,7 +17,7 @@ import {
   serializePresentationContext,
   yMapToSlide,
 } from '@gruenerator/presentations';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMemo, useRef, type ReactNode } from 'react';
 import { type Doc as YDoc } from 'yjs';
 
@@ -70,7 +70,7 @@ export function PresentationsChatProvider({
           params: { id: documentId },
         });
         if (result.status !== 200) {
-          throw new Error(`Chat thread lookup failed: ${result.status}`);
+          throw new ApiError(result.status, `Chat thread lookup failed: ${result.status}`);
         }
         return chatThreadResponseSchema.parse(result.body).threadId;
       },
@@ -96,7 +96,9 @@ export function PresentationsChatProvider({
         },
         customEnabledTools: {
           summary: true,
+          // edit_current_doc kept for one release so an older backend still mounts the edit tool (#3438); drop after 2026-10-17.
           edit_current_doc: edit,
+          edit_current_presentation: edit,
         },
       }),
       // Presentations aren't live yet, so no legacy trigger_doc_edit path to

@@ -1,4 +1,3 @@
-import type { AIWorkerPool } from './workers';
 import type { SharepicImageManager } from '../services/image/types';
 import type { UserProfile } from '@gruenerator/contracts';
 import type { Request, Response, NextFunction } from 'express';
@@ -44,7 +43,6 @@ declare global {
     }
 
     interface Locals {
-      aiWorkerPool?: AIWorkerPool | undefined;
       sharepicImageManager?: SharepicImageManager | undefined;
     }
   }

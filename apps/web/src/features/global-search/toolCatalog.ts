@@ -11,9 +11,8 @@
  * the registry-derived catalog.
  */
 import {
-  getInstance,
   isChannelVisibleIn,
-  policyCoversTool,
+  isToolOfferedIn,
   type InstanceChannel,
 } from '@gruenerator/shared/instances';
 
@@ -92,12 +91,41 @@ export const CATALOG: ToolCatalogEntry[] = [
     ],
   },
   {
+    id: 'tool-voice',
+    title: 'Grünerator Voice',
+    subtitle: 'Anrufbeantworter, Vorlesefassung & Audiodeskription',
+    path: '/voice',
+    icon: nav('voice'),
+    keywords: [
+      'voice',
+      'vertonen',
+      'sprachausgabe',
+      'stimme',
+      'audio',
+      'vorlesen',
+      'anrufbeantworter',
+      'mailbox',
+      'ansage',
+      'audiodeskription',
+      'vorlesefassung',
+      'tts',
+    ],
+  },
+  {
     id: 'tool-zeichenzaehler',
     title: 'Zeichenzähler',
     subtitle: 'Zeichen, Wörter & Social-Limits zählen',
     path: '/zeichenzaehler',
     icon: nav('zeichenzaehler'),
     keywords: ['zeichenzaehler', 'zeichen', 'woerter', 'counter', 'limit', 'laenge'],
+  },
+  {
+    id: 'tool-uebersetzer',
+    title: 'Übersetzer',
+    subtitle: 'Texte & Dokumente mit DeepL übersetzen',
+    path: '/uebersetzer',
+    icon: nav('uebersetzer'),
+    keywords: ['uebersetzer', 'uebersetzen', 'translate', 'deepl', 'sprache', 'englisch'],
   },
   {
     id: 'tool-vorlagen',
@@ -198,21 +226,12 @@ export const CATALOG: ToolCatalogEntry[] = [
       'zusammenarbeit',
     ],
   },
-  {
-    id: 'tool-transfer',
-    title: 'Transfer',
-    subtitle: 'Dateien sicher übertragen',
-    path: '/transfer',
-    icon: getIcon('actions', 'upload') ?? null,
-    keywords: ['transfer', 'datei', 'upload', 'senden', 'teilen'],
-    channel: 'internal',
-  },
 ] satisfies RegisteredEntry[];
 
 export function getToolCatalog(): ToolCatalogEntry[] {
-  const hidePolicy = getInstance(CURRENT_INSTANCE).hide;
   return CATALOG.filter(
     (entry) =>
-      isChannelVisibleIn(entry.channel, CURRENT_INSTANCE) && !policyCoversTool(hidePolicy, entry.id)
+      isChannelVisibleIn(entry.channel, CURRENT_INSTANCE) &&
+      isToolOfferedIn(entry.id, CURRENT_INSTANCE)
   );
 }

@@ -38,15 +38,16 @@ export function getFallbackModelForProvider(provider: ProviderName): ModelName {
 }
 
 /**
- * Sharepic-specific fallback chain: Mistral (Magistral) → LiteLLM → Regolo
+ * Sharepic-specific fallback chain: Mistral (Magistral) → Cortecs → Regolo.
+ * LiteLLM stand hier bis zum 29.08.2026 — siehe services/ai/litellmRetired.ts.
  */
-export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'litellm', 'regolo'];
+export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'cortecs', 'melious'];
 
 /**
  * The error thrown once every provider in a chain has failed.
  *
  * `cause` is the point: the last provider error is the one carrying the status
- * code, and the classifier at the `aiService` boundary walks the cause chain to
+ * code, and `NoAnswerError` walks the cause chain to
  * find it. Interpolating it into the message — as this used to — turned a
  * structured `APICallError` (429, 503, …) into prose, so a rate limit reached
  * the client as a generic `internal` error with no retry hint.
@@ -70,7 +71,7 @@ function aggregateFailure(
  * @param execForProvider - Async function that executes the request for a given provider
  * @param requestId - Request ID for logging
  * @param data - Request data to be passed to executor
- * @param chain - Provider chain to try in order (default: LiteLLM → Regolo → Mistral)
+ * @param chain - Provider chain to try in order (default: Cortecs → Regolo → Mistral)
  * @throws {Error} When no providers are configured or all providers fail
  * @returns The successful response from the first working provider
  */
@@ -78,7 +79,7 @@ export async function tryFallbackProviders(
   execForProvider: ProviderExecutor,
   requestId: string,
   data: FallbackProviderData,
-  chain: ProviderName[] = ['litellm', 'regolo', 'mistral']
+  chain: ProviderName[] = ['cortecs', 'melious', 'mistral']
 ): Promise<ExecutionResponse> {
   let lastError: Error | undefined;
   const attemptedProviders: ProviderName[] = [];

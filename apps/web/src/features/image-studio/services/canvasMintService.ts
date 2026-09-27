@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 
 import { renderSharepicToImage } from '../renderSharepicToImage';
 import { getCanvasTypeFields, isMintableCanvasType } from '../utils/canvasTypeFields';
@@ -57,8 +57,14 @@ async function buildInitialState(
   state: ImageStudioState,
   type: string
 ): Promise<Record<string, unknown>> {
+  // `state.colorScheme` is deliberately NOT seeded here. In the studio store it
+  // is a `{background}[]` palette for the legacy sharepic generator, never a
+  // canvas-editor scheme id — and the slider config is the one config that
+  // reads `props.colorScheme`, so seeding it handed that config a value it
+  // could only mis-resolve. None of the mintable types exposes a scheme picker
+  // in the wizard (`showColorControls: false`), so the config default is what
+  // the user saw in the preview anyway.
   const initial: Record<string, unknown> = {
-    colorScheme: state.colorScheme,
     fontSize: state.fontSize,
   };
 
@@ -110,7 +116,7 @@ export async function mintCanvasFromStudioStore(state: ImageStudioState): Promis
     },
   });
   if (result.status !== 201) {
-    throw new Error(`Failed to create canvas (HTTP ${result.status})`);
+    throw new ApiError(result.status, `Failed to create canvas (HTTP ${result.status})`);
   }
 
   // Fire-and-forget: renderSharepicToImage mounts its own offscreen root on

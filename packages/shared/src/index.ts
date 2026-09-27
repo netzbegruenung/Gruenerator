@@ -37,9 +37,6 @@ export * from './projects/index.js';
 // Avatar
 export * from './avatar/index.js';
 
-// Sharepic
-export * from './sharepic/index.js';
-
 // Image Studio
 export * from './image-studio/index.js';
 

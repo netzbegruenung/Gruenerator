@@ -9,14 +9,6 @@ export {
 // Confirm/reject flow for chat-proposed actions (shared POST; platform cards render around it)
 export { confirmChatAction, type ConfirmActionOutcome } from './lib/confirmAction';
 
-// Extra Actions Context
-export {
-  ExtraActionsProvider,
-  useExtraActions,
-  type ExtraAction,
-  type ExtraActionFactory,
-} from './context/ExtraActionsContext';
-
 // Chat Surface Context (per-surface agent/mode/model state)
 export {
   ChatSurfaceProvider,
@@ -75,6 +67,24 @@ export {
   type NotebookDepthIconKey,
 } from './lib/notebookDepth';
 
+// Notebook answer mode — shared registry for the notebook page's mode picker
+export {
+  NOTEBOOK_ANSWER_MODES,
+  DEFAULT_NOTEBOOK_ANSWER_MODE,
+  notebookAnswerModeDef,
+  answerModeLabel,
+  answerModeAutoHint,
+  NOTEBOOK_COMPOSER_MODES,
+  notebookComposerModeDef,
+  toNotebookAnswerMode,
+  detectMagicIntent,
+  composerModeRunsLiveSearch,
+  type MagicIntent,
+  type NotebookAnswerModeDef,
+  type NotebookComposerMode,
+  type NotebookComposerModeDef,
+} from './lib/notebookAnswerMode';
+
 // Context & API Client
 export {
   chatFetch,
@@ -99,7 +109,7 @@ export {
 // Runtime
 export { GrueneratorChatProvider, preloadChatRuntime } from './runtime/GrueneratorChatProvider';
 export { useChatRuntimeReady } from './context/ChatRuntimeReadyContext';
-export { convertToThreadMessageLike } from './runtime/threadMessageConversion';
+export { convertToThreadMessageLike, type LoadedMessage } from './runtime/threadMessageConversion';
 export { GrueneratorAttachmentAdapter } from './runtime/GrueneratorAttachmentAdapter';
 export {
   createGrueneratorModelAdapter,
@@ -108,14 +118,25 @@ export {
   type GrueneratorAdapterCallbacks,
 } from './runtime/GrueneratorModelAdapter';
 export {
+  applyToolStepResult,
+  buildToolStepCard,
+  toolStepResultMessage,
+  toolStepTitle,
+  type ToolStepResultData,
+  type ToolStepStartData,
+} from './runtime/GrueneratorModelAdapter/toolStepCards';
+export {
   createGrueneratorThreadListAdapter,
   getThreadType,
   getNotebookCollectionId,
   getThreadSlugSuffix,
   getThreadAgentId,
+  getThreadAccessType,
+  isThreadReadOnly,
   resolveThreadBySlugSuffix,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
+export { buildThreadPath } from './lib/threadPath';
 
 // External Thread Context
 export { ExternalThreadProvider, useExternalThread } from './context/ExternalThreadContext';
@@ -162,14 +183,26 @@ export {
   type SourceFilterConfig,
   type CategoryFilterConfig,
 } from './components/notebook/NotebookComposer';
-export { type CategoryFilterField } from './components/notebook/CategoryFilterDropdown';
+export { type CategoryFilterField } from './components/notebook/NotebookSettingsPopover';
 
 // Thread Components
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
+// Read-only transcript view (shared thread archive)
+export {
+  ReadonlyThreadProvider,
+  type ReadonlyThreadProviderProps,
+} from './components/shared/ReadonlyThreadProvider';
+export { ReadonlyThreadView } from './components/shared/ReadonlyThreadView';
 export { SharepicArtifactPanel } from './components/SharepicArtifactPanel';
 export { ReelArtifactPanel } from './components/ReelArtifactPanel';
 export { ArtifactPanel } from './components/ArtifactPanel';
-export { composerToolbarButtonClass } from './lib/utils';
+export { useDockedPanelActive } from './hooks/useDockedPanelActive';
+export { useReportPanelDockable } from './hooks/useReportPanelDockable';
+export {
+  composerActiveChipClass,
+  composerActiveChipIconClass,
+  composerToolbarButtonClass,
+} from './lib/utils';
 export { useChatDensity, type ChatDensity } from './components/thread/chatDensityContext';
 export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
 export { type ComposerPreset } from './components/thread/PlusMenu';
@@ -180,6 +213,7 @@ export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 export { PlusMenu } from './components/thread/PlusMenu';
 export { UserMessage } from './components/thread/UserMessage';
 export { AssistantMessage } from './components/thread/AssistantMessage';
+export { AnswerModeChip } from './components/message-parts/AnswerModeChip';
 export { WelcomeScreen } from './components/thread/WelcomeScreen';
 export {
   GrueneratorThreadListItem,
@@ -202,6 +236,7 @@ export { MessageActions } from './components/message-parts/MessageActions';
 export { MessageSourcesButton } from './components/message-parts/MessageSourcesButton';
 export { MessageTTSButton } from './components/message-parts/MessageTTSButton';
 export { useMessageTTS, type TTSState } from './hooks/useMessageTTS';
+export { stripForSpeech } from './lib/speechText';
 
 // Citation Context
 export {
@@ -220,7 +255,7 @@ export { MarkdownStreamingProvider, useMarkdownSmooth } from './context/Markdown
 export {
   CitationPanelProvider,
   useCitationPanel,
-  type CitationPanelTarget,
+  type CitationPanelSource,
 } from './context/CitationPanelContext';
 export { CitationSidePanel } from './components/message-parts/CitationSidePanel';
 
@@ -265,10 +300,13 @@ export {
   type SearchIntent,
   type GeneratedImage,
   type ChatProgress,
+  type MemoryContextInfo,
   type Citation,
   type SearchResult,
   type StreamMetadata,
   type ChatMessage,
+  type ChartData,
+  type ComputeData,
   type SharepicData,
   type SharepicVariant,
   type UseChatGraphStreamOptions,
@@ -311,7 +349,24 @@ export { useFileMentionData } from './hooks/useFileMentionData';
 // once high in the tree (e.g. alongside useMentionablesQuery) and read the
 // returned array directly wherever a live Rezepte catalog is rendered
 // (Agentura, SkillLibraryModal, PlusMenu).
-export { useHiddenSkillMentions } from './hooks/useMentionablesQuery';
+export {
+  useHiddenAgentIdentifiers,
+  useHiddenSkillMentions,
+  useUserShareLinksQuery,
+  useWolkeBrowseQuery,
+  useConnectProvidersQuery,
+  useConnectBrowseQuery,
+  useCanvaDesignsQuery,
+  type ChatShareLink,
+  type ChatWolkeFile,
+  type ChatConnectProvider,
+  type ChatConnectFile,
+  type ChatCanvaDesign,
+} from './hooks/useMentionablesQuery';
+
+// Landesverbands-Zuteilung aus den Profilrollen. Steuert, welche LV-Agenten,
+// -Rezepte und -Notebooks eine Person überhaupt angeboten bekommt.
+export { useUserLandesverbaende, type UserLandesverbaende } from './hooks/useUserLandesverbaende';
 
 // Typed-mention attachments (Wolke / Connect / web page) and the Canva draft
 // insertion. Shared so the recognition triple the backend keys on cannot drift
@@ -320,6 +375,7 @@ export {
   buildWolkeAttachment,
   buildConnectAttachment,
   buildWebpageAttachment,
+  normalizeWebpageUrl,
   canvaDesignsMarkdown,
   appendToDraft,
   type MentionAttachment,
@@ -368,10 +424,14 @@ export {
   setMentionInstance,
   setMentionLocale,
   getMentionLocale,
+  setMentionLandesverbaende,
   setHiddenSkillMentions,
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
+  setUserAgentMentionables,
+  getUserAgentMentionables,
+  userAgentToMentionable,
   setBoardMentionables,
   getBoardMentionables,
   boardToolMentionables,
@@ -380,13 +440,18 @@ export {
   toolMentionables,
   visibleToolMentionables,
   visibleNotebookMentionables,
+  getMcpServerMentionables,
   filterMentionablesByCategory,
   type Mentionable,
   type MentionableType,
   type MentionableCategory,
   type CustomAgentMentionable,
+  type UserAgentMentionable,
   type BoardMentionable,
   type DocMentionable,
+  type WolkeFileToken,
+  type ConnectFileToken,
+  type CanvaDesignToken,
 } from './lib/mentionables';
 export {
   slugifyMention,
@@ -396,10 +461,23 @@ export {
   syncMcpServers,
   syncSheets,
   syncTextforms,
+  syncUserAgents,
   syncUserNotebooks,
   type MentionableFetch,
 } from './lib/mentionableSync';
-export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
+export {
+  splitRecipesByOrigin,
+  RECIPE_ORIGIN_SUBLABELS,
+  RECIPE_ORIGIN_SECTION_TITLES,
+  type RecipeOrigin,
+} from './lib/mentionSections';
+export {
+  INTENT_TO_TOOL,
+  DEEP_TOOL_MAP,
+  // Benennt Konnektor-Werkzeuge (`m<key>__<tool>`) lesbar; die
+  // Freigabe-Karten beider Plattformen brauchen denselben Namen.
+  formatNamespacedToolLabel,
+} from './lib/toolMappings';
 
 // Which tool calls live in the shimmering status line instead of drawing a card.
 export {
@@ -408,6 +486,7 @@ export {
   selectReasoningText,
   selectSearchSources,
   selectSearchStatusLabel,
+  selectStepAfterText,
   type StatusPartLike,
 } from './lib/toolStatusLine';
 
@@ -436,7 +515,13 @@ export {
   parsePressemitteilungExamples,
   pressemitteilungLvLabel,
   formatGermanDate,
+  getToolResultCount,
+  toolResultSummary,
+  toolOutcome,
+  toolErrorMessage,
   type ToolIconKey,
+  type ToolAccent,
+  type ToolOutcome,
   type ToolMeta,
   type ResearchCitation,
   type ResearchConfidence,
@@ -448,6 +533,21 @@ export {
   type PressemitteilungExample,
   type ParsedPressemitteilungExamples,
 } from './lib/toolResults';
+
+// Audio among a compute payload's file assets. Shared because web and native
+// each render the card from their own file and must label it the same way.
+export { audioAssetsOf, type ComputeFileAsset } from './lib/computeAssets';
+
+// Werkzeug-Freigabe: die plattformneutrale Hälfte. Web rendert sie als Karte,
+// Native als Karte im eigenen Idiom — beide lesen dieselben Optionen und
+// dieselben Beschriftungen, damit die Entscheidung überall gleich heisst.
+export {
+  TOOL_APPROVAL_OPTIONS,
+  approvalDecidedLabel,
+  isApprovalDecided,
+  type ToolApprovalOptionId,
+  type ToolApprovalState,
+} from './lib/toolApproval';
 
 // Tool view-models & registry (platform-neutral; each platform maps kind → component)
 export {

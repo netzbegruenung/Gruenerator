@@ -7,8 +7,8 @@
  * `getCitations()` projects citations in the SAME order with the SAME ids.
  *
  * Critically it does NOT delegate numbering to `buildCitations` — that function
- * groups by document, re-sorts by relevance and caps at 8, none of which
- * preserve the incremental order the model cited against. Instead we project
+ * groups by document, re-sorts by relevance and caps at `MAX_SOURCES` (20),
+ * none of which preserve the incremental order the model cited against. Instead we project
  * each already-numbered result individually (reusing `buildCitations` per item
  * for the projection shape only) and stamp the registry index as the id. Empty-
  * content results are skipped at register time so a numbered snippet always maps
@@ -37,6 +37,14 @@ import type { Citation, SearchResult } from '../../../../agents/langgraph/ChatGr
  * (top_k 3 / 30 items) and let the chunk size do the limiting.
  *
  * Tools with longer prose can still raise it per registration (`snippetChars`).
+ *
+ * Nachtrag 24.08.2026: „1500 covers a whole chunk" stimmte hier, aber nicht am
+ * Eingang — die Suche hatte jeden Chunk vorher auf `CONTENT_MAX_EXCERPT_LENGTH`
+ * = 300 Zeichen geschnitten, also kam nie ein ganzer Chunk an, den diese Zahl
+ * hätte abdecken können. Gemessen: 21 118 Zeichen Dokument → 3000 (10 × 300)
+ * → 1500, macht 7 %. Der untere Deckel steht jetzt bei 1500 und wird von
+ * `searchExcerptBudget.vitest.ts` an der Chunk-Größe festgehalten. Wer diese
+ * Zahl hier ändert, prüft die andere mit — allein wirkt keine von beiden.
  */
 const SNIPPET_CHARS = 1500;
 
@@ -100,6 +108,25 @@ export interface SourceRegistry {
    */
   seedCarried(results: SearchResult[]): void;
   /**
+   * Der Vorab-Abruf der angehängten Dokumente (`seedAttachedDocuments`).
+   *
+   * Zitierbar und in der Numerierung wie jede andere Quelle dieses Turns — der
+   * Schreiber soll sie belegen können. Aber NICHT die Recherche des Planers:
+   * die Wächter budgetieren gegen `freshSize`, und beide Stellen, die das tun,
+   * urteilen über SEIN Verhalten. `emptyResultFallback` erzwingt die Websuche
+   * genau dann, wenn die interne Suche gelaufen und leer geblieben ist — mit
+   * den geseedeten Passagen im Zähler bliebe sie aus, obwohl der Planer nichts
+   * gefunden hat. Und `checkSearchBudget` deckelt bei `MAX_SOURCES` (20): zwölf
+   * geseedete Chunks nähmen 60 % davon weg, bevor der erste Aufruf läuft.
+   *
+   * Findet der Planer denselben Chunk später selbst, zählt er ab dann als seine
+   * Recherche — dieselbe Regel wie bei `prior`.
+   *
+   * `snippetChars` deckelt wie bei `register` — der Aufrufer reicht
+   * `ATTACHED_DOC_SNIPPET_CHARS` durch; ohne Angabe gilt das Standardmass.
+   */
+  seedAttached(results: SearchResult[], snippetChars?: number): string;
+  /**
    * A per-turn OUTCOME line: a write happened, a confirmation was requested, a
    * lookup came back empty. The split-mode synth sees no tool returns, so this
    * is its only channel for "what actually happened" — but it is NOT a source.
@@ -113,9 +140,11 @@ export interface SourceRegistry {
   note(title: string, content: string): void;
   /** Prior-turn sources currently seeded (drives the honesty note). */
   readonly carriedSize: number;
-  /** Sources gathered in THIS turn. The loop guards budget against this, not
-   *  `size` — counting carried sources as research would tell a follow-up it had
-   *  "already found enough internal documents" and block the web search. */
+  /** Was der PLANER diesen Turn selbst geholt hat. Die Wächter budgetieren
+   *  dagegen, nicht gegen `size` — weder mitgeführte Recherche (`prior`) noch
+   *  der Vorab-Abruf der Anhänge (`seeded`) sind seine Arbeit. Zählte man sie
+   *  mit, bekäme ein Folge-Turn gesagt, er habe „schon genug gefunden", und die
+   *  Websuche bliebe aus. */
   readonly freshSize: number;
   /** All accumulated results (capped) for persistence/UI — this turn's first, so
    *  a long carry can never push fresh research out of the capped slice. */
@@ -137,8 +166,40 @@ export interface SourceRegistry {
   readonly size: number;
 }
 
+/**
+ * Was zwei Treffer zu DERSELBEN Quelle macht.
+ *
+ * Für gruppierte Dokumenttreffer ist das die Dokument-ID, und nur sie. Der
+ * Inhaltsanfang darf hier nicht hinein: eine Suche liefert je Dokument EINEN
+ * Treffer aus den besten Chunks dieser Anfrage (`groupAndRankHybridResults`),
+ * und die wechseln von Turn zu Turn. Live am 24.08.2026 belegte eine einzige
+ * angehängte PDF darum zwei Quellenplätze — einmal mitgeführt, einmal frisch —
+ * und bekam zwei Zitatnummern für eine Datei.
+ *
+ * Der `chunkIndex` bleibt aus demselben Grund draussen, obwohl er danebensteht:
+ * er benennt den besten Chunk DIESER Anfrage, nicht das Dokument.
+ *
+ * Ohne Dokument-ID bleibt es beim Inhaltsanfang. Er steht dort nicht aus
+ * Bequemlichkeit, sondern weil Treffer ganz ohne `url` sonst alle auf `'::'`
+ * kollabieren würden.
+ */
 function resultKey(r: SearchResult): string {
-  return `${r.url ?? ''}::${r.title ?? ''}::${(r.content ?? '').slice(0, 80)}`;
+  // Ausnahme: eine Fundstelle mit Zeichenbereich (`notebook_quellen`) IST eine
+  // bestimmte Stelle, kein bester Chunk einer Anfrage — zwei Stellen aus einer
+  // Quelle sind zwei Belege. Nur wer `charStart` setzt, landet hier.
+  if (isPassage(r)) {
+    return `${sourceKey(r)}::${r.charStart ?? ''}::${r.chunkIndex ?? ''}`;
+  }
+  return sourceKey(r) ?? `${r.url ?? ''}::${r.title ?? ''}::${(r.content ?? '').slice(0, 80)}`;
+}
+
+/** Die Quelle hinter einem Treffer, ohne Fundstelle — `null` ohne Dokument-ID. */
+function sourceKey(r: SearchResult): string | null {
+  return r.documentId ? `doc::${r.collectionId ?? ''}::${r.documentId}` : null;
+}
+
+function isPassage(r: SearchResult): boolean {
+  return Boolean(r.documentId) && 'charStart' in r;
 }
 
 /**
@@ -193,6 +254,14 @@ function publishedDay(r: SearchResult): string {
 // correction — which is how an answer reported a mandate given up months
 // earlier. The ranking already reads `publishedDate` (recencyBoost); showing it
 // closes the gap between what ranks the sources and what writes the answer.
+/** `S. 2` oder `S. 2–3`, wenn die Fundstelle über einen Seitenwechsel reicht. */
+function pageLabel(r: SearchResult): string | null {
+  const from = r.pageNumber;
+  if (typeof from !== 'number' || from <= 0) return null;
+  const to = r.pageTo;
+  return typeof to === 'number' && to > from ? `S. ${from}–${to}` : `S. ${from}`;
+}
+
 function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS, prior = false): string {
   const title = (r.title || r.source || 'Quelle').trim();
   const body = applyContextCap(
@@ -203,7 +272,12 @@ function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS, prior 
   );
   const url = typeof r.url === 'string' && r.url.trim() ? ` <${r.url.trim()}>` : '';
   const day = publishedDay(r);
-  const date = day ? ` (${day})` : '';
+  // Die Seite gehört in die Zeile: der Schreiber im split-Modus sieht nur sie.
+  // Ohne sie las er `read seite=2` als Text ohne Seitenangabe und meldete
+  // „keine Seitenmarkierungen" (Testserver 24.09.2026).
+  const page = pageLabel(r);
+  const meta = [day, page].filter(Boolean).join(', ');
+  const date = meta ? ` (${meta})` : '';
   const mark = prior ? ' (frühere Recherche)' : '';
   return `[${index}]${mark} ${title}${url}${date}${body ? ` — ${body}` : ''}`;
 }
@@ -215,36 +289,76 @@ interface Entry {
   result: SearchResult;
   cap: number;
   prior: boolean;
+  /** Aus dem Vorab-Abruf der Anhänge, nicht aus einem Werkzeugaufruf des
+   *  Planers. Zitierbar wie jede Quelle, aber aus `freshSize` heraus. */
+  seeded: boolean;
 }
 
 export function createSourceRegistry(): SourceRegistry {
   const entries: Entry[] = [];
   const indexByKey = new Map<string, number>();
+  // Erster Eintrag je Quelle (`sourceKey`), gleich ob ganze Quelle oder Fundstelle.
+  const indexBySource = new Map<string, number>();
   // Per-turn outcome lines (see `note`). Never sources.
   const notes: string[] = [];
+
+  /**
+   * Eine ganze Quelle (`list`-Zeile, Gliederung) und eine Fundstelle derselben
+   * Quelle sind EINE Quelle: eine Nummer, nicht zwei. Live 23.09.2026 (#3626)
+   * bekam jedes Wahlprogramm-Kapitel zwei Nummern, weil `grep` es in einem
+   * Turn als Fundstelle und `list` im nächsten als Zeile registrierte. Zwei
+   * Fundstellen bleiben dagegen zwei Belege — deshalb übernimmt eine Fundstelle
+   * nur einen Eintrag, der selbst noch keine Fundstelle ist.
+   */
+  const sameSourceIndex = (r: SearchResult): number | undefined => {
+    const key = sourceKey(r);
+    const index = key ? indexBySource.get(key) : undefined;
+    if (index === undefined || !isPassage(r)) return index;
+    const entry = entries[index - 1];
+    return entry && !isPassage(entry.result) ? index : undefined;
+  };
 
   /** Returns the 1-based number of the entry, whether newly added or already
    *  present. A search that re-finds a carried source must still SHOW it to the
    *  model — under its established number, not as a second chip for one URL. */
-  const add = (r: SearchResult, cap: number, prior: boolean): number | null => {
+  const add = (r: SearchResult, cap: number, prior: boolean, seeded = false): number | null => {
     if (!r || typeof r !== 'object') return null;
     // Skip empty-content results: buildCitations drops them, so numbering
     // them here would desync the model's [N] from done.citations.
     if ((r.content ?? '').trim().length === 0) return null;
     const key = resultKey(r);
-    const existing = indexByKey.get(key);
+    const existing = indexByKey.get(key) ?? sameSourceIndex(r);
     if (existing !== undefined) {
       const entry = entries[existing - 1];
       // A tool with longer prose may re-find a source registered under the
       // default cap — widen rather than show it truncated.
       if (entry && cap > entry.cap) entry.cap = cap;
+      // Ein mitgeführter Dokumenttreffer trägt die besten Chunks der FRÜHEREN
+      // Anfrage. Wird dasselbe Dokument diesen Turn neu abgerufen, ist der neue
+      // Inhalt der zur aktuellen Frage passende — sonst behielte der Eintrag
+      // Passagen, die niemand mehr gesucht hat. Nur diese Richtung: frisch
+      // ersetzt mitgeführt, nie umgekehrt. Quer zur Fundstelle zählt der Beleg:
+      // eine Fundstelle ersetzt die ganze Quelle, nie umgekehrt.
+      if (entry && isPassage(r) !== isPassage(entry.result)) {
+        if (isPassage(r)) {
+          entry.result = r;
+          indexByKey.set(key, existing);
+        }
+      } else if (entry && entry.prior && !prior) {
+        entry.result = r;
+      }
       // Re-found by a search THIS turn: it is no longer only prior research,
       // so it drops the marker and starts counting toward `freshSize`.
       if (entry && !prior) entry.prior = false;
+      // Dasselbe für den Vorab-Abruf: hat der Planer denselben Chunk selbst
+      // gefunden, ist er ab jetzt seine Recherche und zählt für die Wächter.
+      if (entry && !seeded) entry.seeded = false;
       return existing;
     }
-    entries.push({ result: r, cap, prior });
+    entries.push({ result: r, cap, prior, seeded });
     indexByKey.set(key, entries.length);
+    const source = sourceKey(r);
+    if (source && !indexBySource.has(source)) indexBySource.set(source, entries.length);
     return entries.length;
   };
 
@@ -263,6 +377,18 @@ export function createSourceRegistry(): SourceRegistry {
     },
     seedCarried(results) {
       for (const r of results) add(r, SNIPPET_CHARS, true);
+    },
+    seedAttached(results, snippetChars) {
+      const cap = snippetChars ?? SNIPPET_CHARS;
+      const lines: string[] = [];
+      const emitted = new Set<number>();
+      for (const r of results) {
+        const index = add(r, cap, false, true);
+        if (index === null || emitted.has(index)) continue;
+        emitted.add(index);
+        lines.push(snippetLine(index, r, cap));
+      }
+      return lines.join('\n');
     },
     note(title, content) {
       const line = `${(title || 'Vorgang').trim()} — ${(content ?? '').replace(/\s+/g, ' ').trim()}`;
@@ -389,7 +515,7 @@ export function createSourceRegistry(): SourceRegistry {
       return entries.filter((e) => e.prior).length;
     },
     get freshSize() {
-      return entries.filter((e) => !e.prior).length;
+      return entries.filter((e) => !e.prior && !e.seeded).length;
     },
   };
 }

@@ -29,7 +29,7 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
   office: {
     note: 'Der Sammelpunkt für alles, woran man schreibt und plant: Dokumente, Boards, Tabellen und Präsentationen. Alle vier liegen im selben System, teilen sich Ordner und Freigaben und lassen sich gemeinsam bearbeiten.',
     platform: ['web', 'desktop', 'mobile'],
-    readMore: { label: 'Office', href: '/docs/office/intro' },
+    readMore: { label: 'Office', href: '/docs/features/office' },
   },
   canvas: {
     note: 'Alles Visuelle: KI-Bilder, Sharepics aus Vorlagen und untertitelte Reels. Nimm den Bereich, wenn am Ende ein Bild oder ein Video herauskommen soll — für Text und Zahlen ist Office richtig.',
@@ -48,22 +48,22 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
   docs: {
     note: 'Ein Textdokument für Anträge, Pressemitteilungen, Protokolle und Notizen. Mehrere Personen können gleichzeitig schreiben.',
     platform: ['web', 'desktop', 'mobile'],
-    readMore: { label: 'Dokumente', href: '/docs/office/dokumente' },
+    readMore: { label: 'Dokumente', href: '/docs/features/dokumente' },
   },
   boards: {
     note: 'Ein Kanban-Board für Aufgaben und Redaktionsplanung. Der Grünerator kann in Karten mitarbeiten und ganze Spalten automatisch befüllen.',
     platform: ['web', 'desktop', 'mobile'],
-    readMore: { label: 'Boards', href: '/docs/office/boards' },
+    readMore: { label: 'Boards', href: '/docs/features/boards' },
   },
   sheets: {
     note: 'Eine Kalkulationstabelle mit Formeln, Filtern und bedingter Formatierung. Bestehende Excel- und CSV-Dateien lassen sich importieren.',
     platform: ['web', 'desktop', 'mobile'],
-    readMore: { label: 'Tabellen', href: '/docs/office/tabellen' },
+    readMore: { label: 'Tabellen', href: '/docs/features/tabellen' },
   },
   presentations: {
     note: 'Eine Foliensammlung mit Präsentationsmodus. Aus einem Rechercheauftrag im Chat kann direkt ein fertiger Foliensatz entstehen.',
     platform: ['web', 'desktop', 'mobile'],
-    readMore: { label: 'Präsentationen', href: '/docs/office/praesentationen' },
+    readMore: { label: 'Präsentationen', href: '/docs/features/praesentationen' },
   },
 
   // ── Studio ────────────────────────────────────────────────────────────────
@@ -86,14 +86,17 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
 
   // ── Organisieren ──────────────────────────────────────────────────────────
   agents: {
-    note: 'Die Agentura: eigene Grüneratoren mit festem Auftrag und eigenen Quellen anlegen, dazu Rezepte für wiederkehrende Schreibaufgaben.',
+    note: 'Die Agentura: eigene Agents mit festem Auftrag und eigenen Quellen anlegen, dazu Rezepte für wiederkehrende Schreibaufgaben.',
     platform: ['web', 'desktop', 'mobile'],
-    readMore: { label: 'Agentura', href: '/docs/grueneratoren/agentura' },
+    readMore: { label: 'Agentura', href: '/docs/features/agentura' },
   },
   projekte: {
     note: 'Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband.',
     platform: ['web', 'desktop'],
-    readMore: { label: 'Projekte', href: '/docs/konto/projekte' },
+    readMore: {
+      label: 'Wie erstelle ich ein gemeinsames Projekt?',
+      href: '/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen',
+    },
   },
 
   // ── Weitere ───────────────────────────────────────────────────────────────
@@ -105,9 +108,17 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Zählt Zeichen und Wörter, mit den Grenzwerten der gängigen Social-Media-Plattformen.',
     platform: ['web', 'desktop', 'mobile'],
   },
+  uebersetzer: {
+    note: 'Übersetzt Texte und ganze Dokumente (DOCX, PPTX, PDF …) mit DeepL — das gepflegte Grünen-Glossar wird automatisch angewendet.',
+    platform: ['web', 'desktop'],
+  },
   transkription: {
     note: 'Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen.',
     platform: ['web', 'desktop', 'mobile'],
+  },
+  voice: {
+    note: 'Verwandelt Text in gesprochene Sprache — als Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek.',
+    platform: ['web', 'desktop'],
   },
   newsletter: {
     note: 'Der Grünerator-Newsletter mit neuen Funktionen und Beispielen. Führt auf ein externes Anmeldeformular.',
@@ -116,6 +127,9 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
   mcp: {
     note: 'Verbindet den Grünerator mit ChatGPT, Claude oder Le Chat, sodass du dort auf grüne Programme und Beschlüsse zugreifen kannst.',
     platform: ['web', 'desktop'],
-    readMore: { label: 'Konnektoren', href: '/docs/integrationen/konnektoren' },
+    readMore: {
+      label: 'Wie verbinde ich den Grünerator mit ChatGPT & Co.?',
+      href: '/docs/guides/fortgeschrittene/gruenerator-mit-ki-chat-verbinden',
+    },
   },
 };

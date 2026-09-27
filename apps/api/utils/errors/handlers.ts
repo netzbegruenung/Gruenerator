@@ -11,7 +11,7 @@ import {
   SearchError,
   EmbeddingError,
   DatabaseError,
-  AIWorkerError,
+  AiClientError,
   CacheError,
   TimeoutError,
   ResourceError,
@@ -91,7 +91,7 @@ export class ErrorHandler {
     }
 
     if (message.includes('AI') || message.includes('worker') || context.operation === 'ai_worker') {
-      return new AIWorkerError(message, 'AI_WORKER_ERROR', {
+      return new AiClientError(message, 'AI_WORKER_ERROR', {
         provider: context.provider,
         model: context.model,
       });

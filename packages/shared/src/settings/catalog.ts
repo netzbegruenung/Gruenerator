@@ -20,12 +20,23 @@
  * document title) does not belong here — those stay in their component.
  */
 
-/** Tabs of the web settings dialog. Mobile groups the same ids differently. */
+/**
+ * Tabs of the web settings dialog. Mobile groups the same ids differently.
+ *
+ * Ein Reiter-Schlüssel ist nicht frei umbenennbar: `/settings/:tab` löst über
+ * ihn auf. Wird einer zusammengelegt, bleibt der alte Name als Alias in
+ * `SETTINGS_TAB_MAP` (apps/web … settings/SettingsRedirect.tsx) stehen — hier
+ * verschwindet er.
+ *
+ * `barrierefreiheit` ist am 28.08.2026 in `datenschutz` aufgegangen; die
+ * Zeilen-ids `barrierefreiheit.*` sind davon unberührt (apps/mobile liest zwei
+ * davon über `getSettingsEntry`).
+ */
 export type SettingsTab =
   | 'onboarding'
   | 'allgemein'
   | 'hintergrund'
-  | 'barrierefreiheit'
+  | 'datenschutz'
   | 'friends'
   | 'personalisierung'
   | 'briefe'
@@ -35,6 +46,7 @@ export type SettingsTab =
   | 'wolke'
   | 'websites'
   | 'konnektoren'
+  | 'baeume'
   | 'nutzung'
   | 'support';
 
@@ -111,6 +123,14 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     description: 'Was das Start-Symbol in der Seitenleiste öffnet',
   },
   {
+    // Web-only for now: the choice is applied server-side, so the app speaks
+    // with it too — it just has no row to change it yet.
+    id: 'allgemein.stimme',
+    tab: 'allgemein',
+    title: 'Stimme',
+    description: 'Mit welcher Stimme dir der Grünerator Texte vorliest',
+  },
+  {
     id: 'allgemein.feedbackButton',
     tab: 'allgemein',
     title: 'Feedback-Button',
@@ -118,8 +138,28 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
       'Darstellung des schwebenden Feedback-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen',
   },
   {
+    // Web-only: beide Schalter schreiben in den localStorage bzw. das Profil des
+    // Browsers, in dem Umami überhaupt läuft. Die App lädt kein Umami.
+    id: 'datenschutz.reichweitenmessung',
+    tab: 'datenschutz',
+    title: 'Reichweitenmessung',
+    description:
+      'Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar',
+  },
+  {
+    // Auf beiden Plattformen, anders als die Reichweitenmessung darüber: die
+    // Einwilligung hängt am Profil und gilt geräteübergreifend, also muss sie
+    // auch dort widerrufbar sein, wo man gerade ist.
+    id: 'datenschutz.ki-einwilligung',
+    tab: 'datenschutz',
+    title: 'Einwilligung in die KI-Verarbeitung',
+    description:
+      'Ausdrückliche Einwilligung nach Art. 9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können',
+    platforms: BOTH,
+  },
+  {
     id: 'barrierefreiheit.animationen',
-    tab: 'barrierefreiheit',
+    tab: 'datenschutz',
     title: 'Animationen reduzieren',
     description:
       'Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems',
@@ -127,7 +167,7 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
   },
   {
     id: 'barrierefreiheit.transparenz',
-    tab: 'barrierefreiheit',
+    tab: 'datenschutz',
     title: 'Transparenz reduzieren',
     description:
       'Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems',
@@ -139,7 +179,7 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     // things. iOS has no blur to switch off (the tab bar is a real UITabBar),
     // so the row does not appear there either.
     id: 'barrierefreiheit.leistung',
-    tab: 'barrierefreiheit',
+    tab: 'datenschutz',
     title: 'Leistungsmodus',
     description:
       'Schaltet den Blur hinter der Tab-Leiste ab. Hilft auf älteren Geräten, gilt nur auf diesem',
@@ -175,6 +215,13 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     platforms: BOTH,
   },
   {
+    id: 'erinnerungen.gedaechtnis',
+    tab: 'erinnerungen',
+    title: 'Gedächtnis',
+    description:
+      'Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet.',
+  },
+  {
     id: 'personalisierung.rollen',
     tab: 'personalisierung',
     title: 'Rollen',
@@ -207,6 +254,15 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     tab: 'konnektoren',
     title: 'Konnektoren',
     description: 'Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind',
+  },
+  {
+    // Web-only: der Fortschrittsbalken und die Newsletter-Karte sind eine
+    // eigene Fläche, keine Zeile, wie bei der Nutzungsübersicht.
+    id: 'baeume.stand',
+    tab: 'baeume',
+    title: 'Bäume',
+    description:
+      'Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche',
   },
   {
     // Web-only: die Übersicht ist eine Tabelle über Zeiträume hinweg. Sie

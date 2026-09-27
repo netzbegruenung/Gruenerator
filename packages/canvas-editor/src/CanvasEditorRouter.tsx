@@ -49,6 +49,23 @@ export interface CanvasInitialPropsMap {
     currentImageSrc: string;
   } & BackgroundImageProps;
   profilbild: { transparentImage: string; backgroundColor: string };
+  // Österreich (de-AT) variants — field sets mirror CANVAS_TYPE_FIELDS in the studio
+  'zitat-at': { quote: string; name: string; imageSrc: string } & BackgroundImageProps;
+  'zitat-pure-at': { quote: string; name: string };
+  'dreizeilen-overlay-at': {
+    line1: string;
+    accent: string;
+    line3: string;
+    subline: string;
+    currentImageSrc: string;
+  } & BackgroundImageProps;
+  'info-at': { introline: string; text: string; accent: string };
+  // backgroundColor omitted when unset so the AT config's CI default applies
+  'freeform-at': {
+    backgroundMode: string;
+    backgroundColor?: string;
+    currentImageSrc: string;
+  } & BackgroundImageProps;
 }
 
 interface VeranstaltungInitialProps extends BackgroundImageProps {
@@ -111,7 +128,7 @@ export interface ControllableCanvasWrapperProps {
   externalMobileMode?: boolean;
   /**
    * When provided, the editor enters collaborative mode: pages (state,
-   * layers, config) are bound to the supplied Y.Doc. The local initialState
+   * config) are bound to the supplied Y.Doc. The local initialState
    * is used only as a seed when the Y.Doc is empty; subsequent changes flow
    * through the Y.Doc and onStateChange is suppressed.
    */
@@ -132,6 +149,8 @@ export interface ControllableCanvasWrapperProps {
    * this callback. Used by collab hosts to open their invite/permissions dialog.
    */
   onInvitePeople?: () => void;
+  /** Opens the host's "als Vorlage speichern" flow (see CanvasEditorProps). */
+  onSaveAsTemplate?: () => void;
   /** Collab mode: fresh stage render after local edits settle (see CanvasEditorProps). */
   onCollabSnapshot?: (base64: string) => void;
   /**
@@ -162,6 +181,7 @@ export function ControllableCanvasWrapper({
   chromeCenter,
   chromeRight,
   onInvitePeople,
+  onSaveAsTemplate,
   onCollabSnapshot,
   initialShareToken,
   onAutoSaveShareToken,
@@ -184,19 +204,8 @@ export function ControllableCanvasWrapper({
   // Load config dynamically when type changes (for config-driven canvases)
   // Now includes 'zitat' and 'dreizeilen' for unified multi-page support
   useEffect(() => {
-    const needsConfig = [
-      'zitat',
-      'zitat-pure',
-      'info',
-      'veranstaltung',
-      'simple',
-      'dreizeilen',
-      'slider',
-      'freeform',
-      'profilbild',
-    ].includes(type);
-
-    if (needsConfig && isValidCanvasType(type)) {
+    // Every valid canvas type is config-driven (incl. the de-AT variants).
+    if (isValidCanvasType(type)) {
       setConfigLoading(true);
       loadCanvasConfig(type)
         .then(setConfig)
@@ -348,6 +357,42 @@ export function ControllableCanvasWrapper({
             transparentImage: str(effectiveState.transparentImage) || imageSrc || '',
             backgroundColor: str(effectiveState.backgroundColor),
           } satisfies CanvasInitialPropsMap['profilbild'];
+        case 'zitat-at':
+          return {
+            quote: str(effectiveState.quote),
+            name: str(effectiveState.name),
+            imageSrc: bgSrc(),
+            ...bgImageProps(),
+          } satisfies CanvasInitialPropsMap['zitat-at'];
+        case 'zitat-pure-at':
+          return {
+            quote: str(effectiveState.quote),
+            name: str(effectiveState.name),
+          } satisfies CanvasInitialPropsMap['zitat-pure-at'];
+        case 'dreizeilen-overlay-at':
+          return {
+            line1: str(effectiveState.line1),
+            accent: str(effectiveState.accent),
+            line3: str(effectiveState.line3),
+            subline: str(effectiveState.subline),
+            currentImageSrc: bgSrc(),
+            ...bgImageProps(),
+          } satisfies CanvasInitialPropsMap['dreizeilen-overlay-at'];
+        case 'info-at':
+          return {
+            introline: str(effectiveState.introline),
+            text: str(effectiveState.text),
+            accent: str(effectiveState.accent),
+          } satisfies CanvasInitialPropsMap['info-at'];
+        case 'freeform-at': {
+          const backgroundColor = str(effectiveState.backgroundColor);
+          return {
+            backgroundMode: str(effectiveState.backgroundMode) || 'color',
+            ...(backgroundColor ? { backgroundColor } : {}),
+            currentImageSrc: bgSrc(),
+            ...bgImageProps(),
+          } satisfies CanvasInitialPropsMap['freeform-at'];
+        }
         default:
           return effectiveState;
       }
@@ -386,6 +431,16 @@ export function ControllableCanvasWrapper({
           // backgroundMode must persist alongside the image — the background
           // image element only renders when backgroundMode === 'image'.
           return createCallbacks(['backgroundMode', ...BG_IMAGE_KEYS]);
+        case 'zitat-at':
+          return createCallbacks(['quote', 'name', ...BG_IMAGE_KEYS]);
+        case 'zitat-pure-at':
+          return createCallbacks(['quote', 'name']);
+        case 'dreizeilen-overlay-at':
+          return createCallbacks(['line1', 'accent', 'line3', 'subline', ...BG_IMAGE_KEYS]);
+        case 'info-at':
+          return createCallbacks(['introline', 'text', 'accent']);
+        case 'freeform-at':
+          return createCallbacks(['backgroundMode', 'backgroundColor', ...BG_IMAGE_KEYS]);
         default:
           return {};
       }
@@ -402,6 +457,11 @@ export function ControllableCanvasWrapper({
       case 'dreizeilen':
       case 'freeform':
       case 'profilbild':
+      case 'zitat-at':
+      case 'zitat-pure-at':
+      case 'dreizeilen-overlay-at':
+      case 'info-at':
+      case 'freeform-at':
         if (!config) return <div>Lädt Konfiguration...</div>;
 
         return (
@@ -423,6 +483,7 @@ export function ControllableCanvasWrapper({
             chromeCenter={chromeCenter}
             chromeRight={chromeRight}
             onInvitePeople={onInvitePeople}
+            onSaveAsTemplate={onSaveAsTemplate}
             onCollabSnapshot={onCollabSnapshot}
             initialShareToken={initialShareToken}
             onAutoSaveShareToken={onAutoSaveShareToken}

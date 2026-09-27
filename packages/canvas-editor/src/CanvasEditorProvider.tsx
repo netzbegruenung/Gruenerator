@@ -1,7 +1,6 @@
 import { createContext, useContext } from 'react';
 
 import type { ApplyResult } from './ai/applyOperation';
-import type { UseGenerateCanvasSuggestions } from './common/canvasAiTypes';
 import type { StockImage, StockImageAttribution } from './common/imageSourceTypes';
 import type {
   CanvasAiCapabilities,
@@ -122,13 +121,6 @@ export interface CanvasEditorServices {
    * Balken) are filtered by this; defaults to 'de-DE' when omitted.
    */
   userLocale?: 'de-DE' | 'de-AT';
-
-  /**
-   * Optional AI-suggestions hook factory. When provided, templates that
-   * register the `AiSection` will render the prompt UI; otherwise the
-   * section shows a "not configured" hint and never calls a backend.
-   */
-  useGenerateCanvasSuggestions?: UseGenerateCanvasSuggestions;
 
   /**
    * Optional component rendered inside the Chat sidebar section. The host

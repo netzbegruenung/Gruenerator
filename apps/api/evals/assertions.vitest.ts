@@ -14,6 +14,7 @@ function trace(over: Partial<ChatTrace> = {}): ChatTrace {
     sources: 0,
     fullText: '',
     generatedText: [],
+    artifactIds: [],
     latencyMs: 1000,
     error: null,
     ...over,
@@ -28,6 +29,74 @@ describe('runAssertions — each failure class we hit live', () => {
     const rs = runAssertions(trace({ error: 'timeout' }), { grounded: true, cited: true });
     expect(rs).toHaveLength(1);
     expect(rs[0]).toMatchObject({ name: 'streamCompleted', pass: false });
+  });
+
+  /**
+   * `statesAsOf` — die Schwester von `grounded` aus #2949.
+   *
+   * Die beiden zusammen beschreiben den Fehler, den keiner von beiden allein
+   * sieht: dort war die Antwort unbelegt UND undatiert. Eine erzwungene Suche
+   * repariert nur die erste Hälfte — deshalb der Fall unten, in dem ein
+   * erfolgreicher Suchlauf `grounded` grün und `statesAsOf` rot meldet.
+   */
+  describe('statesAsOf', () => {
+    it.each([
+      ['die Stand-Formel', 'Stand: März 2026 gilt die Verordnung unverändert.'],
+      ['Monat + Jahr', 'Seit September 2025 gilt die geänderte Fassung.'],
+      ['ein ausgeschriebenes Datum', 'Die Novelle trat am 15. Oktober 2026 in Kraft.'],
+      ['ein numerisches Datum', 'Beschlossen am 28.06.2026, in Kraft seit dem Folgemonat.'],
+    ])('akzeptiert %s', (_n, fullText) => {
+      expect(names(runAssertions(trace({ fullText }), { statesAsOf: true }))['statesAsOf']).toBe(
+        true
+      );
+    });
+
+    // Die Jahreszahl der FRAGE ist nicht der Stand der ANTWORT. Ohne diese
+    // Ausnahme wäre die Zusicherung von ihrem eigenen Gegenstand erfüllbar.
+    it('nimmt eine blosse Jahreszahl nicht als Stand', () => {
+      const rs = runAssertions(
+        trace({ fullText: 'Das Verbrenner-Aus gilt ab 2035 für neue Pkw.' }),
+        { statesAsOf: true }
+      );
+      expect(names(rs)['statesAsOf']).toBe(false);
+    });
+
+    // „stand" ist auch das Präteritum von stehen. Ohne die Formel-Bindung
+    // erfüllte ein beliebiger Satz mit Jahreszahl die Zusicherung. Aus dem
+    // Review von #2952.
+    it('nimmt das Verb „stand" nicht als Stand', () => {
+      const rs = runAssertions(
+        trace({ fullText: 'Der Kanzler stand 1998 kurz vor dem Rücktritt.' }),
+        { statesAsOf: true }
+      );
+      expect(names(rs)['statesAsOf']).toBe(false);
+    });
+
+    it('nimmt das Wort Stand im Kompositum nicht als Stand', () => {
+      const rs = runAssertions(trace({ fullText: 'Der Verhandlungsstand ist offen.' }), {
+        statesAsOf: true,
+      });
+      expect(names(rs)['statesAsOf']).toBe(false);
+    });
+
+    // Der Fall, der das Issue trägt: gesucht wurde, datiert wurde nicht.
+    it('meldet rot, wo grounded grün meldet', () => {
+      const rs = runAssertions(
+        trace({
+          toolCalls: [{ toolName: 'web_search', ok: true, args: {} }],
+          sources: 4,
+          fullText: 'Die EU verhandelt derzeit über eine Revision; das Aus gilt ab 2035.',
+        }),
+        { grounded: true, statesAsOf: true }
+      );
+      expect(names(rs)['grounded']).toBe(true);
+      expect(names(rs)['statesAsOf']).toBe(false);
+    });
+
+    it('kehrt sich um, wenn statesAsOf: false verlangt ist', () => {
+      const rs = runAssertions(trace({ fullText: 'Stand: März 2026.' }), { statesAsOf: false });
+      expect(names(rs)['statesAsOf']).toBe(false);
+    });
   });
 
   it('internalOnly fails when web is used despite internal hits (the over-search bug)', () => {
@@ -83,6 +152,45 @@ describe('runAssertions — each failure class we hit live', () => {
     expect(names(rs)['cited']).toBe(true);
   });
 
+  it('cited zählt Quellen-Links [Titel](quelle:N) als Zitat, das Label nicht', () => {
+    const rs = runAssertions(
+      trace({
+        fullText: '- [Wahlprogramm 2024](quelle:1)\n- [Kohleausstieg](quelle:2)',
+        sources: 2,
+      }),
+      { cited: true }
+    );
+    expect(names(rs)['cited']).toBe(true);
+  });
+
+  it('cited erkennt die Notebook-Drahtform [cite:N] (live 19.08.2026)', () => {
+    // `nb-at-locale`: 2.204 Zeichen Antwort, ZEHN Zitate im completion-Payload,
+    // und die Prüfung meldete „no [N] citation markers". Das Notebook setzt
+    // seine Marker als `[cite:N]` — `validateAndInjectCitations` schreibt jedes
+    // gültige `[N]` in diese Form um, die Oberfläche rendert sie als Chip. Die
+    // Prüfung kannte nur die Chat-Form `[N]` und meldete Rot für eine richtig
+    // belegte Antwort.
+    const rs = runAssertions(
+      trace({
+        fullText:
+          'Die Grünen Österreich setzen auf den Ausbau der Windkraft [cite:1] und ' +
+          'den Ausstieg aus fossilem Gas [cite:2][cite:3].',
+        sources: 10,
+      }),
+      { cited: true }
+    );
+    expect(names(rs)['cited']).toBe(true);
+  });
+
+  it('cited zählt eine Überzahl auch in der [cite:N]-Form', () => {
+    // Die Zusicherung darf durch die zweite Form nichts verlieren: ein Zitat
+    // jenseits der vorhandenen Quellen bleibt ein Fehlschlag.
+    const rs = runAssertions(trace({ fullText: 'Behauptung [cite:9].', sources: 2 }), {
+      cited: true,
+    });
+    expect(names(rs)['cited']).toBe(false);
+  });
+
   it('cited does NOT false-positive on numbered headings / ordinals / ranges (live multitopic answer)', () => {
     const rs = runAssertions(
       trace({
@@ -93,6 +201,48 @@ describe('runAssertions — each failure class we hit live', () => {
       { cited: true }
     );
     expect(names(rs)['cited']).toBe(true);
+  });
+
+  it('cited does NOT read a German date as a bare citation number (live 19.08.2026)', () => {
+    // `followup-vague-mehr` t1: das `m 7.` in „Am 7. November" traf die Regex,
+    // und weil [7] an anderer Stelle eine echte Fußnote ist, galt der Tag als
+    // unmarkiertes Zitat — Rot für eine richtige Antwort.
+    const rs = runAssertions(
+      trace({
+        fullText:
+          'Mindereinnahmen auszugleichen [4, 5]. Am 7. November 2025 beschloss der Bundestag die Verlängerung [7].',
+        sources: 8,
+      }),
+      { cited: true }
+    );
+    expect(names(rs)['cited']).toBe(true);
+  });
+
+  it('cited does NOT read an ordinal before a comma as a bare citation number', () => {
+    const rs = runAssertions(
+      trace({ fullText: 'Die Partei liegt auf Platz 5, dahinter folgt der Rest [5].', sources: 6 }),
+      { cited: true }
+    );
+    expect(names(rs)['cited']).toBe(true);
+  });
+
+  it('cited still catches the real bare-citation shape after both exclusions', () => {
+    const rs = runAssertions(
+      trace({ fullText: 'Das steht so in Quelle 7. Weiter geht es mit [7].', sources: 8 }),
+      { cited: true }
+    );
+    expect(names(rs)['cited']).toBe(false);
+  });
+
+  it.each([
+    ['Punkt', 'Das steht so in Quelle 7. Weiter geht es mit [7].'],
+    ['Semikolon', 'Das steht so in Quelle 7; ferner gilt [7].'],
+    ['Doppelpunkt', 'Das steht so in Quelle 7: dort nachzulesen [7].'],
+  ])('cited catches a bare citation terminated by %s', (_label, fullText) => {
+    // Die Datums- und Ordnungszahl-Ausnahmen dürfen nur ihre eigene Form
+    // ausnehmen — nicht die Satzzeichen, an denen ein bares Zitat wirklich endet.
+    const rs = runAssertions(trace({ fullText, sources: 8 }), { cited: true });
+    expect(names(rs)['cited']).toBe(false);
   });
 
   it('cited fails when a citation number exceeds the source count', () => {
@@ -141,6 +291,14 @@ describe('runAssertions — each failure class we hit live', () => {
         })
       )['correctsFalsePremise']
     ).toBe(true);
+  });
+
+  it('warningsMustInclude reads the warning codes the turn emitted', () => {
+    const rs = runAssertions(trace({ warnings: ['deep_research_quota_spent'] }), {
+      warningsMustInclude: ['deep_research_quota_spent', 'search_degraded'],
+    });
+    expect(names(rs)['warning:deep_research_quota_spent']).toBe(true);
+    expect(names(rs)['warning:search_degraded']).toBe(false);
   });
 
   it('routing + latency assertions', () => {
@@ -251,5 +409,166 @@ describe('content-policy assertions — the safety lane asserted nothing before'
         )
       )['answerMustNotContain:GreenHackInternal']
     ).toBe(false);
+  });
+});
+
+describe('abstains — die Angabe steht nicht im Material', () => {
+  const say = (fullText: string, want: boolean) =>
+    names(runAssertions(trace({ fullText }), { abstains: want }))['abstains'];
+
+  it('nimmt die Schablonen der Testprompts an', () => {
+    expect(say('NICHT AUFFINDBAR', true)).toBe(true);
+    expect(say('NICHT ENTHALTEN', true)).toBe(true);
+  });
+
+  // Der eigentliche Zweck der Regex-Familie: eine richtige Auskunft in eigenen
+  // Worten darf nicht als Fehlschlag zählen, sonst misst das Prüfmittel den
+  // Wortlaut statt die Sache — dieselbe Falle wie bei topicsCovered.
+  it('nimmt dieselbe Auskunft in eigenen Worten an', () => {
+    expect(say('Dazu findet sich im vorliegenden Material keine Angabe.', true)).toBe(true);
+    expect(say('Der Beschluss enthält dazu keine Frist.', true)).toBe(true);
+    expect(say('Hierzu liegt mir keine Beschlussgrundlage vor.', true)).toBe(true);
+    expect(say('Keine Beschlussgrundlage im vorliegenden Material.', true)).toBe(true);
+  });
+
+  it('fällt, wenn stattdessen geantwortet wird', () => {
+    expect(say('Die Frist beträgt sechs Monate nach dem Vorfall.', true)).toBe(false);
+  });
+
+  // Die Gegenrichtung ist der Wächter gegen Über-Vorsicht: ein Modell, das auf
+  // jede Frage „steht nicht drin" antwortet, bestünde sonst jedes
+  // Abstinenz-Item und fällt hier durch.
+  it('fällt in der Gegenrichtung, wenn eine vorhandene Angabe verleugnet wird', () => {
+    expect(say('Dazu findet sich im Material keine Angabe.', false)).toBe(false);
+    expect(say('Die Frist beträgt sechs Monate.', false)).toBe(true);
+  });
+
+  it('liest auch Text, den der Turn außerhalb des Antwortstroms erzeugt hat', () => {
+    expect(
+      names(
+        runAssertions(
+          trace({ fullText: 'Hier ist dein Text.', generatedText: ['… NICHT ENTHALTEN …'] }),
+          { abstains: true }
+        )
+      )['abstains']
+    ).toBe(true);
+  });
+});
+
+/**
+ * Die Produktions-Fehlbilder vom 15.09.2026 — ein `media`-Aufruf, kein
+ * `sharepic_updated`, und der Text meldet den Edit als erledigt bzw. bittet um
+ * Geduld für Arbeit, die nie kommt. Der alte Zweig sah nur „0 Tool-Aufrufe"
+ * und nur Recherche-Vokabular, also beides nicht.
+ */
+describe('narrationMatchesAction — behauptete oder angekündigte Aktion ohne Ereignis', () => {
+  const mediaCall = { toolName: 'media', ok: true } as ChatTrace['toolCalls'][number];
+
+  it('fällt, wenn ein Edit behauptet wird, aber kein Aktions-Ereignis lief', () => {
+    const rs = runAssertions(
+      trace({
+        toolCalls: [mediaCall],
+        fullText:
+          'Ich habe die Bullet Points in Variante 3 eingefügt. Das Sharepic ist nun fertig und bereit für die Nutzung.',
+      }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(false);
+  });
+
+  it('fällt, wenn der Text um Geduld für Arbeit bittet, die nie kommt', () => {
+    const rs = runAssertions(
+      trace({
+        toolCalls: [mediaCall],
+        fullText:
+          'Das neue Sharepic wird in diesem Moment generiert und erscheint gleich als visuelle Karte.',
+      }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(false);
+  });
+
+  it('besteht, wenn das Ereignis den Satz deckt', () => {
+    const rs = runAssertions(
+      trace({
+        sharepicUpdated: true,
+        fullText: 'Ich habe die Bullet Points in Variante 3 eingefügt.',
+      } as Partial<ChatTrace>),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
+  });
+
+  it('überlässt eine Behauptung nach einem echten Aktions-Tool dem Judge', () => {
+    // create_presentation streamt kein Trace-Ereignis, das artifactIds füllt —
+    // der Satz ist wahr, mechanisch nicht beweisbar, also kein Fail.
+    const rs = runAssertions(
+      trace({
+        toolCalls: [
+          { toolName: 'create_presentation', ok: true } as ChatTrace['toolCalls'][number],
+        ],
+        fullText: 'Ich habe die Präsentation erstellt.',
+      }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
+  });
+
+  it('zählt eine confirm_action-Karte als Aktion', () => {
+    const rs = runAssertions(
+      trace({
+        confirmActions: ['modify_doc'],
+        fullText: 'Ich habe das Dokument angepasst — bestätige über die Karte.',
+      } as Partial<ChatTrace>),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
+  });
+
+  it('verlangt Verb und Artefakt-Nomen im SELBEN Satz', () => {
+    // Beide Hälften stehen im Text, gehören aber nicht zusammen: die Änderung
+    // betrifft die Reihenfolge, das Sharepic kommt aus einer Erzählung.
+    const rs = runAssertions(
+      trace({
+        toolCalls: [mediaCall],
+        fullText:
+          'Ich habe die Reihenfolge geändert. Das Museum hat heute ein neues Sharepic ausgestellt.',
+      }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
+  });
+
+  it('nimmt Prosa-Arbeit ohne Artefakt-Nomen nicht als Aktionsbehauptung', () => {
+    const rs = runAssertions(
+      trace({ fullText: 'Ich habe den Absatz angepasst: Die Verkehrswende beginnt vor Ort.' }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
+  });
+
+  it('lässt eine belegte Antwort über bevorstehende Ereignisse durch', () => {
+    const rs = runAssertions(
+      trace({
+        toolCalls: [{ toolName: 'gruenerator_search', ok: true } as ChatTrace['toolCalls'][number]],
+        sources: 2,
+        fullText:
+          'Laut [1] wird der Bericht gerade erstellt und erscheint gleich nach der Sitzung.',
+      }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
+  });
+
+  it('besteht bei der ehrlichen Absage', () => {
+    const rs = runAssertions(
+      trace({
+        toolCalls: [mediaCall],
+        fullText:
+          'Das Sharepic kann ich von hier aus nicht bearbeiten. Aktiviere auf der Karte „Im Chat bearbeiten" und schick mir die Änderung noch einmal.',
+      }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
   });
 });

@@ -13,11 +13,13 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 
 import { createChatApiClient } from '../context/ChatContext';
+import { setHiddenAgentIdentifiers } from '../lib/hiddenAgentsState';
 import {
   setHiddenSkillMentions,
   type Mentionable,
   type CustomAgentMentionable,
   type TextformMentionable,
+  type UserAgentMentionable,
 } from '../lib/mentionables';
 import {
   slugifyMention as slugify,
@@ -27,6 +29,7 @@ import {
   syncMcpServers,
   syncSheets,
   syncTextforms,
+  syncUserAgents,
   syncUserNotebooks,
   type BoardListItem,
   type DocListItem,
@@ -60,6 +63,20 @@ export function useCustomAgentsQuery() {
   return useQuery<CustomAgentMentionable[]>({
     queryKey: ['mention-custom-agents'],
     queryFn: () => syncCustomAgents(get),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+/**
+ * Grünerator-Agenten (`user_agents`): the user's own plus every agent shared
+ * into one of their groups, the latter carrying their group of origin.
+ */
+export function useUserAgentsQuery() {
+  const get = useMentionableFetch();
+  return useQuery<UserAgentMentionable[]>({
+    queryKey: ['mention-user-agents'],
+    queryFn: () => syncUserAgents(get),
     staleTime: STALE_TIME,
     retry: 1,
   });
@@ -416,6 +433,30 @@ export function useVorlagenSearchQuery(query: string, enabled = true) {
 // effect. Components that render a live catalog (Agentura, SkillLibraryModal,
 // PlusMenu) read the returned array directly instead.
 
+/**
+ * Dasselbe für Agenten. Eigener Endpunkt statt eines gemeinsamen, weil die
+ * beiden Listen verschiedene Schlüssel tragen (Rezept-`mention` gegen
+ * Agenten-`identifier`) und getrennt ungültig werden.
+ *
+ * Fällt der Abruf aus, bleibt die Liste leer und alles sichtbar — ein
+ * Netzwerkfehler darf den Katalog nicht leeren.
+ */
+export function useHiddenAgentIdentifiers(): readonly string[] {
+  const apiClient = useApiClient();
+  const { data } = useQuery<{ hiddenIdentifiers: string[] }>({
+    queryKey: ['admin-hidden-agents'],
+    queryFn: () => apiClient.get<{ hiddenIdentifiers: string[] }>('/api/agents/visibility'),
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+  const hiddenIdentifiers = data?.hiddenIdentifiers ?? [];
+  useEffect(() => {
+    setHiddenAgentIdentifiers(hiddenIdentifiers);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- array identity changes every fetch; join() is the stable dependency
+  }, [hiddenIdentifiers.join(',')]);
+  return hiddenIdentifiers;
+}
+
 export function useHiddenSkillMentions(): readonly string[] {
   const apiClient = useApiClient();
   const { data } = useQuery<{ hiddenMentions: string[] }>({
@@ -439,6 +480,7 @@ export function useHiddenSkillMentions(): readonly string[] {
  */
 export function useMentionablesQuery(): void {
   useCustomAgentsQuery();
+  useUserAgentsQuery();
   useTextformsQuery();
   useBoardsQuery();
   useDocsQuery();
@@ -446,6 +488,7 @@ export function useMentionablesQuery(): void {
   useUserNotebooksQuery();
   useMcpServersQuery();
   useHiddenSkillMentions();
+  useHiddenAgentIdentifiers();
 }
 
 /**

@@ -2,7 +2,7 @@
  * Domain intent tools for the agentic chat loop (Phase 2b).
  *
  * `summary`, `bundestag` and `abgeordnetenwatch` were single-pass intents whose
- * executors (`summarizeNode`, `searchNode`) already end a turn with a streamed
+ * executors (`summarizeNode`, die Abruf-Kerne) already end a turn with a streamed
  * text answer written over gathered data — the "loop-shaped" criteria. Each one
  * becomes a thin tool the ONE streamText loop can call (and compose with the
  * search family): the tool runs the SAME node the single-pass path ran and
@@ -19,7 +19,10 @@ import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import { imageNode } from '../../../agents/langgraph/ChatGraph/nodes/imageNode.js';
-import { searchNode } from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
+import {
+  retrieveAbgeordnetenwatch,
+  retrieveBundestag,
+} from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
 import { relatedDocsPages, searchDocs } from '../../../services/docs/docsIndex.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
@@ -27,6 +30,7 @@ import {
   withResearchedSources,
   type SourceRegistry,
 } from '../services/agenticLoop/sourceRegistry.js';
+import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
 import { buildCreateTurnContext, withConversationContext } from '../services/createTurn.js';
 import {
   pdfKindFromText,
@@ -35,6 +39,7 @@ import {
   runPdfGeneration,
   runSharepicGeneration,
 } from '../services/intentExecutionService.js';
+import { buildPdfEditBrief, loadLastPdfSpec } from '../services/pdfEditContext.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -75,13 +80,18 @@ NUTZE WENN der*die Nutzer*in um eine Zusammenfassung bittet ("fasse zusammen", "
 
 /**
  * `bundestag`: official DIP documentation (Drucksachen, Plenarprotokolle,
- * speeches, people, Vorgänge) via `searchNode`'s bundestag branch. Behaves like
+ * speeches, people, Vorgänge) via `retrieveBundestag`. Behaves like
  * the search family: registers the flat results into the source registry and
  * returns the lean `{ resultCount, sources }` — the numbered snippet block is
  * the model's grounding, the citations footer shows the documents. Speech
  * excerpts run up to ~600 chars upstream, so registration raises the snippet
- * cap to 700 to keep them intact. DE-only — `searchNode` returns a graceful
- * decline for de-AT.
+ * cap to 700 to keep them intact. DE-only — der Kern liefert für de-AT eine
+ * begründete Absage statt leerer Daten.
+ *
+ * Ruft `retrieveBundestag` und nicht mehr `searchNode`: die Vorrede des Knotens
+ * ist für einen Zustand aus dem Klassifikator gebaut und kehrt bei zwei
+ * Dokumentquellen VOR dem `switch` zurück — der Abruf wurde dort gekapert.
+ * Begründung am Kern.
  */
 export function makeBundestagTool(ctx: {
   state: ChatGraphState;
@@ -98,8 +108,7 @@ NICHT für das Abstimmungsverhalten oder die Nebentätigkeiten einer konkreten P
       query: z.string().min(1).describe('Suchbegriff: Person, Thema oder Drucksachennummer'),
     }),
     execute: async ({ query }) => {
-      const result = await searchNode({ ...state, intent: 'bundestag', searchQuery: query });
-      const results = (result.searchResults ?? []) as SearchResult[];
+      const results = await retrieveBundestag(query, state.userLocale);
       if (results.length === 0) {
         return { resultCount: 0, sources: '', error: 'Keine passenden Bundestags-Daten gefunden.' };
       }
@@ -111,8 +120,8 @@ NICHT für das Abstimmungsverhalten oder die Nebentätigkeiten einer konkreten P
 
 /**
  * `abgeordnetenwatch`: mandate and voting data (voting record, side jobs,
- * mandates) via `searchNode`'s abgeordnetenwatch branch. Same shape as
- * `bundestag`: register → lean `{ resultCount, sources }`. DE-only.
+ * mandates) via `retrieveAbgeordnetenwatch`. Same shape as `bundestag`:
+ * register → lean `{ resultCount, sources }`. DE-only.
  */
 export function makeAbgeordnetenwatchTool(ctx: {
   state: ChatGraphState;
@@ -127,12 +136,7 @@ NUTZE WENN nach dem Abstimmungsverhalten, den Nebentätigkeiten oder dem Mandat 
       query: z.string().min(1).describe('Name der*des Abgeordneten oder ein Thema'),
     }),
     execute: async ({ query }) => {
-      const result = await searchNode({
-        ...state,
-        intent: 'abgeordnetenwatch',
-        searchQuery: query,
-      });
-      const results = (result.searchResults ?? []) as SearchResult[];
+      const results = await retrieveAbgeordnetenwatch(query, state.userLocale);
       if (results.length === 0) {
         return { resultCount: 0, sources: '', error: 'Keine passenden Mandatsdaten gefunden.' };
       }
@@ -410,17 +414,19 @@ function briefInstruction(researchBanned: boolean, what: string): string {
     : `Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib ${what} — kein Platzhaltertext.`;
 }
 
-const DOC_LABELS: Record<
-  'presentation' | 'sheet' | 'document',
-  { label: string; artifact: string }
-> = {
-  presentation: {
-    label: 'Präsentation',
-    artifact: 'eine Präsentation (Foliendeck) zu einem Thema',
-  },
-  sheet: { label: 'Tabelle', artifact: 'eine Tabelle/Kalkulation zu einem Thema' },
-  document: { label: 'Dokument', artifact: 'ein Textdokument zu einem Thema' },
+/**
+ * Was der Fabrik an Wortwahl fehlt — der Produktname kommt aus der Registry
+ * (`artifactKind(kind).label`), die Umschreibung der Sache steht hier, weil sie
+ * nur diese Werkzeugbeschreibung braucht.
+ */
+const DOC_ARTIFACT_PHRASE: Record<CreateDocKind, string> = {
+  presentation: 'eine Präsentation (Foliendeck) zu einem Thema',
+  sheet: 'eine Tabelle/Kalkulation zu einem Thema',
+  document: 'ein Textdokument zu einem Thema',
 };
+
+/** Die drei Arten, die dieselbe Fabrik bedient (PDF und Board haben eigene). */
+type CreateDocKind = Extract<ArtifactKindId, 'presentation' | 'sheet' | 'document'>;
 
 /**
  * The full brief for an artifact generator: the thread, then the planner's
@@ -447,7 +453,7 @@ function briefWithContext(
 }
 
 export function makeCreateDocTool(ctx: {
-  kind: 'presentation' | 'sheet' | 'document';
+  kind: CreateDocKind;
   sse: SSEWriter;
   state: ChatGraphState;
   req: Request;
@@ -459,7 +465,8 @@ export function makeCreateDocTool(ctx: {
   researchBanned?: boolean;
 }): Tool {
   const { kind, sse, state, req, sourceRegistry } = ctx;
-  const { label, artifact } = DOC_LABELS[kind];
+  const label = artifactKind(kind).label;
+  const artifact = DOC_ARTIFACT_PHRASE[kind];
   return tool({
     description: `Erstellt ${artifact}.
 
@@ -488,7 +495,6 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
       const created = await runDocGeneration({
         kind,
         userContent: briefWithContext(prompt, state, sourceRegistry),
-        aiWorkerPool: state.aiWorkerPool,
         req,
         userId,
         // The loop's per-call timeout abandons but does not cancel — without
@@ -533,9 +539,9 @@ export function makeCreatePdfTool(ctx: {
     description: `Erstellt ein fertig gestaltetes PDF nach dem Barrierefreiheits-Standard PDF/UA-1 zum Herunterladen. Der*die Nutzer*in beschreibt frei, was drin stehen soll — Aufbau (Überschriften, Listen, Tabellen, Hinweiskästen, Datenblätter, Unterschriftszeilen) wählt das System passend zum Auftrag.
 
 DREI ARTEN:
-- "document": Merkblatt, Konzept, Übersicht, Protokoll, Handout — alles zum Lesen/Ausdrucken
-- "letter": offizieller Brief / Anschreiben mit Grünen-Briefkopf (DIN 5008)
-- "form": AUSFÜLLBARES Formular mit echten Feldern (Text, Datum, Auswahl, Ankreuzfelder) — für Anträge, Anmeldungen, Fragebögen
+- "dokument": Merkblatt, Konzept, Übersicht, Protokoll, Handout — alles zum Lesen/Ausdrucken
+- "brief": offizieller Brief / Anschreiben mit Grünen-Briefkopf (DIN 5008)
+- "formular": AUSFÜLLBARES Formular mit echten Feldern (Text, Datum, Auswahl, Ankreuzfelder) — für Anträge, Anmeldungen, Fragebögen
 
 NUTZE WENN ein fertiges PDF, ein Schreiben mit Briefkopf oder ein ausfüllbares Formular gewünscht ist. ${briefInstruction(ctx.researchBanned === true, 'in "prompt" einen konkreten, mit den recherchierten Fakten angereicherten Auftrag')}
 
@@ -567,8 +573,14 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
         .string()
         .optional()
         .describe('Empfänger-Adressblock (mehrzeilig) — nur bei einem Brief'),
+      aendert_letztes_pdf: z
+        .boolean()
+        .optional()
+        .describe(
+          'true, wenn ein bereits in diesem Gespräch erzeugtes PDF geändert werden soll. Das bisherige Dokument wird dann vollständig übernommen und nur der Auftrag aus "prompt" darauf angewandt — beschreibe in "prompt" dann NUR die Änderung, nicht das ganze Dokument.'
+        ),
     }),
-    execute: async ({ prompt, art, sender, recipient }, options) => {
+    execute: async ({ prompt, art, sender, recipient, aendert_letztes_pdf }, options) => {
       // Idempotent per turn (mirror of makeCreateDocTool).
       if (state.createdDocument) {
         return {
@@ -580,15 +592,31 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
       if (!userId) {
         return { error: 'PDF-Erstellung nicht möglich (keine Nutzer-Sitzung).' };
       }
-      const brief = briefWithContext(prompt, state, sourceRegistry);
+      // An edit re-renders the stored spec; the instruction alone would produce
+      // a new, much shorter document ("Ziel auf 100" → a one-line PDF).
+      const basePdfSpec =
+        aendert_letztes_pdf === true && state.threadId
+          ? await loadLastPdfSpec(state.threadId)
+          : null;
+
+      const brief = basePdfSpec
+        ? buildPdfEditBrief(basePdfSpec, prompt)
+        : briefWithContext(prompt, state, sourceRegistry);
       const userContent = recipient ? `${brief}\n\nEmpfänger des Schreibens:\n${recipient}` : brief;
       // Classify on the ASK, never on the enriched brief: a "Formular"/"Brief"
       // wording inside an appended source snippet would otherwise flip the layout.
+      // An edit keeps the base document's kind — "kürze das" says nothing about
+      // layout, and re-classifying on it would turn a Brief into a Merkblatt.
       const documentKind =
-        art === 'formular' ? 'form' : art === 'brief' ? 'letter' : pdfKindFromText(prompt);
+        art === 'formular'
+          ? 'form'
+          : art === 'brief'
+            ? 'letter'
+            : basePdfSpec
+              ? basePdfSpec.kind
+              : pdfKindFromText(prompt);
       const result = await runPdfGeneration({
         userContent,
-        aiWorkerPool: state.aiWorkerPool,
         req,
         userId,
         pdfOptions: {
@@ -612,14 +640,29 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
       // forceFinish trips and the router lifts it for message-level persistence.
       sse.send('document_created', result.document);
       state.createdDocument = result.document;
+      // Carries the spec into the persisted message so the NEXT edit has a base.
+      state.createdPdfSpec = result.spec;
+
+      // An edit that found no base silently became a new document built from the
+      // instruction alone — a one-line PDF where the user expected their old one
+      // back. The model has to be able to say so.
+      const baseMissing = aendert_letztes_pdf === true && !basePdfSpec;
+      const verb = basePdfSpec ? 'PDF neu erzeugt' : 'PDF erstellt';
       return {
         document: result.document,
         geprueft: result.summary,
         felder: result.verification.formFields,
         probleme: result.verification.problems,
-        note: result.verification.problems.length
-          ? 'PDF erstellt und als Download angezeigt. Die Selbstprüfung hat Probleme gefunden — nenne sie der*dem Nutzer*in offen. Rufe das Tool NICHT erneut auf.'
-          : 'PDF erstellt, selbst geprüft und als Download angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.',
+        ...(basePdfSpec && { basiertAufVorherigemPdf: true }),
+        note:
+          (baseMissing
+            ? 'ACHTUNG: Zu diesem Gespräch war kein früheres PDF mehr auffindbar — das hier ist eine NEUANLAGE aus deinem Auftrag, keine Überarbeitung. Sag das der*dem Nutzer*in klar. '
+            : basePdfSpec
+              ? 'Das bisherige PDF wurde als Grundlage übernommen und mit der Änderung neu erzeugt. '
+              : '') +
+          (result.verification.problems.length
+            ? `${verb} und als Download angezeigt. Die Selbstprüfung hat Probleme gefunden — nenne sie der*dem Nutzer*in offen. Rufe das Tool NICHT erneut auf.`
+            : `${verb}, selbst geprüft und als Download angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`),
       };
     },
   });
@@ -663,7 +706,6 @@ NUTZE WENN der*die Nutzer*in ein Board/Kanban zum Thema möchte. ${briefInstruct
       }
       const created = await runBoardGeneration({
         userContent: briefWithContext(prompt, state),
-        aiWorkerPool: state.aiWorkerPool,
         req,
         userId,
         // See makeCreateDocTool — abandoned ≠ cancelled.

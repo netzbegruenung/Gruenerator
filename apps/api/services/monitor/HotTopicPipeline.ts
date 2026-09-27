@@ -20,16 +20,16 @@ import {
 import { generateObject, generateText } from 'ai';
 import { z } from 'zod';
 
-import { executeResearch } from '../../routes/chat/agents/directSearch.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
-import { getModel, getPreferredMonitorProvider } from '../ai/providers.js';
+import { getMonitorModel } from '../ai/providers.js';
 
+import { executeResearch } from './research/researchOrchestrator.js';
 import { TOPIC_NAMES } from './types.js';
 
+import type { ResearchCitation, ResearchResult } from './research/researchOrchestrator.js';
 import type { KeywordEntry, MonitorLocale, MonitorSnapshot, TopicScore } from './types.js';
-import type { ResearchCitation, ResearchResult } from '../../routes/chat/agents/directSearch.js';
 
 const log = createLogger('HotTopic');
 
@@ -113,7 +113,7 @@ async function deriveTheme(anchor: HotTopicAnchor, keywords: KeywordEntry[]): Pr
 
   try {
     const result = await generateObject({
-      model: getModel(getPreferredMonitorProvider()),
+      model: getMonitorModel(),
       schema: ThemeSchema,
       system: `Du analysierst das dominierende Nachrichtenthema des Tages für das Kommunikationsteam von Bündnis 90/Die Grünen.
 
@@ -159,13 +159,19 @@ Hintergrund — die aktuellen Top-Schlagzeilen:
 ${anchor.headlinesText}
 Weitere Themen: ${theme.secondaryTopics.join(', ')}
 
+Jede Quelle muss eine Aussage zu "${theme.dominantTopic}" enthalten. Allgemeine Partei- oder Programmübersichten ohne Bezug zu diesem Thema sind unbrauchbar — Lexikonartikel über die Partei, Parteiportraits und Übersichtsseiten von Programmen zählen nicht als Beleg.
+
 Fasse die bestehenden Grünen-Positionen detailliert zusammen. Verwende Vergangenheitsform ("Die Grünen haben gefordert...", "Im Programm hieß es..."). Erwähne auch kurz die Nebenthemen, falls relevante Positionen vorhanden sind.`;
 
+  // This used to route straight into Linkup's own `deep` dossier — the most
+  // expensive call in the product, once per hot topic per day — because
+  // `executeResearch` short-circuited there whenever LINKUP_API_KEY was set.
+  // It now runs our own pipeline: `gruendlich` sub-searches (the same engine
+  // depth as an ordinary web search, one paid call each) plus the page reader,
+  // which is what makes the positions summary specific rather than generic.
   return executeResearch({
     question,
-    depth: 'thorough',
-    maxSources: 12,
-    useLLMSynthesis: true,
+    maxSources: 20,
   });
 }
 
@@ -181,7 +187,7 @@ async function composeBriefing(
   const country = locale === 'at' ? 'Österreich' : 'Deutschland';
   try {
     const result = await generateText({
-      model: getModel(getPreferredMonitorProvider()),
+      model: getMonitorModel(),
       system: `Du bist ein*e erfahrene*r Medienanalyst*in und schreibst eine kurze KI-Einordnung zum dominierenden Thema des Tages für das Kommunikationsteam von Bündnis 90/Die Grünen.
 
 Schreibe 2-3 kurze Absätze (jeweils 2-3 Sätze) über das Hot Topic. Der Ton ist professionell, analytisch und zugänglich.
@@ -212,6 +218,10 @@ Schreibe die KI-Einordnung zum Hot Topic "${theme.dominantTopic}".`,
       maxOutputTokens: 1500,
     });
 
+    // Leerer Text ist kein Fehler des SDK, aber einer für uns: ein Modell, das
+    // sein ganzes Ausgabebudget in einen Denkblock steckt, liefert `''` und
+    // käme sonst still als „Briefing" durch. Der catch unten hat die Heuristik.
+    if (!result.text.trim()) throw new Error('leere Antwort vom Modell');
     log.info(`composeBriefing: ${result.text.split(/\s+/).length} words`);
     return result.text;
   } catch (error) {
@@ -233,7 +243,7 @@ async function generateTweets(
 ): Promise<MonitorHotTopicAnalysis['tweets']> {
   try {
     const result = await generateObject({
-      model: getModel(getPreferredMonitorProvider()),
+      model: getMonitorModel(),
       schema: TweetsSchema,
       system: `Du schreibst Tweet-Vorschläge für den offiziellen Twitter/X-Account von Bündnis 90/Die Grünen.
 
@@ -269,16 +279,26 @@ ${positionsText ? `\nGRÜNE POSITIONEN (nutze diese für fundierte Tweets):\n${p
 
 // ─── Citation helpers ────────────────────────────────────────────────
 
-function mapCitations(citations: ResearchCitation[]): MonitorCitation[] {
+export function mapCitations(citations: ResearchCitation[]): MonitorCitation[] {
   return citations.map((c) => ({
     id: String(c.id),
     title: c.title,
     url: c.url,
     snippet: c.snippet || '',
+    ...(c.documentId && c.chunkIndex != null
+      ? { documentId: c.documentId, chunkIndex: c.chunkIndex }
+      : {}),
   }));
 }
 
-/** Convert valid [N] markers to [cite:N] for CitationTextRenderer. */
+/**
+ * Convert valid [N] markers to [cite:N] for CitationTextRenderer.
+ *
+ * The numbering arrives already deduplicated and renumbered from
+ * `dedupeResearchSources` (researchOrchestrator), which also rewrote the
+ * research answer's markers — so this stays a pure format conversion and must
+ * not renumber anything itself.
+ */
 function applyCiteMarkers(text: string, citations: ResearchCitation[]): string {
   const validIds = new Set(citations.map((c) => String(c.id)));
   return text.replace(/\[(\d+)\]/g, (match, n: string) =>

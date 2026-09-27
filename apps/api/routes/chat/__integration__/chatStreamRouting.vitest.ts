@@ -8,6 +8,11 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('../../../services/ai/execution/index.js', async () => {
+  const { executeProviderStub } = await import('./harness/providerStub.js');
+  return { executeProvider: executeProviderStub };
+});
+
 vi.mock('../../../database/services/PostgresService.js', async () => {
   const { postgresMock } = await import('./harness/mocks.js');
   return postgresMock();
@@ -176,5 +181,144 @@ describe('context window', () => {
     // The window has to actually reach pruning: a wide lane must keep strictly
     // more history than a narrow one for the same input.
     expect((wideMessages ?? []).length).toBeGreaterThan((narrowMessages ?? []).length);
+  });
+});
+
+describe('editor surfaces', () => {
+  /** Minimal live-board projection, the shape the boards sidebar serializes. */
+  const openBoard = {
+    id: 'b1e7c1a4-0000-4000-8000-000000000001',
+    title: 'Kampagne',
+    boardType: 'kanban' as const,
+    fields: [
+      { id: 'title', name: 'Titel', type: 'text' as const, typeOptions: {}, order: 0 },
+      { id: 'status', name: 'Status', type: 'singleSelect' as const, typeOptions: {}, order: 1 },
+    ],
+    rows: [],
+    views: [
+      {
+        id: 'v1',
+        name: 'Kanban',
+        layout: 'kanban' as const,
+        groupByFieldId: 'status',
+        filters: [],
+        sorts: [],
+        fieldSettings: [],
+      },
+    ],
+    groupByFieldId: 'status',
+    statusOptions: [{ id: 'todo', name: 'To-Do', color: 'blue' }],
+    assignableMembers: [],
+  };
+
+  /**
+   * The board sidebar's `currentBoard` has to reach the GRAPH STATE, not just
+   * the raw body. It was read off `args.body` for the legacy trigger path and
+   * never handed to `initializeChatState`, so `state.currentBoard` stayed null:
+   * this fast-path never fired, and the loop's `edit_document` tool aborted
+   * with "Es ist kein Board geöffnet" on every board edit.
+   *
+   * Asserted through the intent rather than the tool because only the
+   * classifier reads `state.currentBoard` this early — a state that carries the
+   * board cannot produce any other intent for this phrasing.
+   */
+  it('carries the open board into the classifier state', async () => {
+    const { trace } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Erstelle eine Aufgabe „Plakate bestellen" in To-Do')],
+      agentId: 'gruenerator-boards-editor',
+      enabledTools: { edit_current_board: true },
+      currentBoard: openBoard,
+    });
+
+    expect(trace.intent).toBe('edit_current_board');
+  });
+
+  /** Minimal live-canvas projection, the shape the studio sidebar sends. */
+  const openCanvas = {
+    id: 'canvas-1',
+    template: 'zitat',
+    snapshot: {
+      template: 'zitat',
+      textFields: [{ field: 'quote', label: 'Zitat', value: 'Mehr Tempo beim Ausbau.' }],
+      elementsSummary: [],
+    },
+    capabilities: { supportedOperations: ['set-text', 'set-color-scheme'] },
+    text: 'Zitat: „Mehr Tempo beim Ausbau."',
+  };
+
+  /**
+   * The studio sidebar's counterpart to the board case, and it has to be asked
+   * differently: canvas turns have NO classifier fast-path (they carry no
+   * `currentDocument` any more), so the observable fact is the routing plus the
+   * state the loop is handed. Both halves matter — `editToolSurface` without a
+   * `currentCanvas` in state is exactly the failure the board case documents
+   * ("Es ist kein Sharepic geöffnet" on every edit).
+   */
+  it('routes an open sharepic into the loop with the canvas edit tool and its state', async () => {
+    const { trace } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Mach das Zitat schlagkräftiger')],
+      agentId: 'gruenerator-sharepic-editor',
+      enabledTools: { edit_current_canvas: true },
+      currentCanvas: openCanvas,
+    });
+
+    expect(trace.agentic).toBe(true);
+    expect(respond.agenticCalls).toHaveLength(1);
+    const state = respond.agenticCalls[0]!.finalState;
+    expect(state.editToolSurface).toBe('canvas');
+    expect(state.currentCanvas).toEqual(openCanvas);
+  });
+
+  it('leaves the canvas surface without an edit tool when no sharepic is open', async () => {
+    const { trace } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Mach das Zitat schlagkräftiger')],
+      agentId: 'gruenerator-sharepic-editor',
+      enabledTools: { edit_current_canvas: true },
+    });
+
+    expect(trace.error).toBeNull();
+    for (const call of respond.agenticCalls) {
+      // Unset, not null: the router only ASSIGNS the field when a surface with
+      // a tool path resolved (routingStage), so "no edit tool" reads as absent.
+      expect(call.finalState.editToolSurface ?? null).toBeNull();
+    }
+  });
+
+  /**
+   * The docs sidebar, which since #3428 is a tool surface like the others: the
+   * classifier stage that emitted `trigger_doc_edit` is gone, so a doc edit
+   * that does not reach the loop with `edit_document` mounted does nothing at
+   * all. Both halves are asserted for the same reason as the canvas case —
+   * `editToolSurface` without a `currentDocument` in state is the failure the
+   * board case documents ("Es ist kein Dokument geöffnet" on every edit).
+   */
+  it('routes an open document into the loop with the doc edit tool and its state', async () => {
+    const { trace } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Kürze den ersten Absatz')],
+      agentId: 'gruenerator-docs-editor',
+      enabledTools: { edit_current_doc: true },
+      currentDocument: {
+        id: 'doc-1',
+        title: 'Antrag',
+        markdown: '# Antrag\n\nEin langer erster Absatz über den Ausbau.',
+        selectionText: null,
+      },
+    });
+
+    expect(trace.agentic).toBe(true);
+    expect(respond.agenticCalls).toHaveLength(1);
+    const state = respond.agenticCalls[0]!.finalState;
+    expect(state.editToolSurface).toBe('doc');
+    expect(state.currentDocument?.id).toBe('doc-1');
+  });
+
+  it('keeps the same phrasing off the board path when no board is open', async () => {
+    const { trace } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Erstelle eine Aufgabe „Plakate bestellen" in To-Do')],
+      agentId: 'gruenerator-boards-editor',
+      enabledTools: { edit_current_board: true },
+    });
+
+    expect(trace.intent).not.toBe('edit_current_board');
   });
 });

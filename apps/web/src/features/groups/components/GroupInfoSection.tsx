@@ -1,10 +1,9 @@
 import { type GroupContentType } from '@gruenerator/contracts';
-import { getAgentSlug } from '@gruenerator/shared/agents';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
+import { type GroupFeedItem } from '@gruenerator/shared/groups';
 import {
   Badge,
   Button,
-  CardGrid,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -16,15 +15,13 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  LoadingSection,
-  SectionHeader,
 } from '@gruenerator/ui';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
   HiDotsVertical,
   HiOutlineBell,
-  HiOutlineDocumentText,
   HiOutlineLink,
+  HiOutlineLogout,
   HiOutlineMail,
   HiOutlinePhotograph,
   HiOutlineTrash,
@@ -35,23 +32,24 @@ import {
   HiX,
 } from 'react-icons/hi';
 import { HiOutlineBellSlash } from 'react-icons/hi2';
-import { PiRobot, PiSquaresFour } from 'react-icons/pi';
+import { PiPlus } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import { resolveApiAssetUrl } from '../../../utils/platform';
-import { getNotebookById } from '../../notebook/config/notebooksConfig';
 import { type GroupAudience } from '../hooks/useGroupRequests';
 import {
   useCloneCanvasTemplate,
   useGroupMembers,
   useInviteToGroup,
+  useLeaveGroup,
   useSetGroupMute,
   getGroupInitials,
   type GroupLink,
 } from '../hooks/useGroups';
 
 import AddContentToGroupModal from './AddContentToGroupModal';
+import { GroupContentArea } from './feed/GroupContentArea';
 import GroupJoinRequestsSection from './GroupJoinRequestsSection';
 import GroupLinksSection from './GroupLinksSection';
 import GroupMembersList from './GroupMembersList';
@@ -81,31 +79,6 @@ export interface GroupData {
   [key: string]: unknown;
 }
 
-export interface SharedItem {
-  id: string | number;
-  identifier?: string;
-  title?: string;
-  name?: string;
-  slug?: string;
-  document_subtype?: string;
-  shared_at?: string;
-  shared_by_name?: string;
-  contentType?: string;
-  thumbnail_url?: string | null;
-}
-
-export interface SharedContent {
-  collabDocs: SharedItem[];
-  boards: SharedItem[];
-  canvases: SharedItem[];
-  documents: SharedItem[];
-  generators: SharedItem[];
-  notebooks: SharedItem[];
-  agents: SharedItem[];
-  texts: SharedItem[];
-  canvasTemplates: SharedItem[];
-}
-
 interface GroupInfoSectionProps {
   data: GroupData | undefined;
   groupId: string;
@@ -128,11 +101,12 @@ interface GroupInfoSectionProps {
   saveGroupDescription: () => void;
   confirmDeleteGroup: () => void;
   onlineUserIds?: Set<string>;
-  sharedContent: SharedContent;
+  feedItems: GroupFeedItem[];
   isLoadingSharedContent: boolean;
   onUnshareContent?: (contentId: string, contentType: string) => void;
   refetchSharedContent?: () => void;
   currentUserId?: string;
+  currentUserName?: string | null;
   onUploadAvatar?: (file: File) => void;
   onDeleteAvatar?: () => void;
   isUploadingAvatar?: boolean;
@@ -170,11 +144,12 @@ const GroupInfoSection = memo(
     saveGroupDescription,
     confirmDeleteGroup,
     onlineUserIds,
-    sharedContent,
+    feedItems,
     isLoadingSharedContent,
     onUnshareContent,
     refetchSharedContent,
     currentUserId,
+    currentUserName,
     onUploadAvatar,
     onDeleteAvatar,
     isUploadingAvatar,
@@ -190,6 +165,7 @@ const GroupInfoSection = memo(
     const { members, isLoadingMembers } = useGroupMembers(groupId, { isActive: true });
     const [membersDialogOpen, setMembersDialogOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
     const [showVisibilityDialog, setShowVisibilityDialog] = useState(false);
     const cloneTemplate = useCloneCanvasTemplate();
 
@@ -298,6 +274,25 @@ const GroupInfoSection = memo(
     // Personal Space: a solo workspace — hide team collaboration chrome
     // (invite link, visibility, join requests).
     const isPersonal = data?.groupInfo?.group_type === 'personal';
+    const groupLinks = data?.groupInfo?.links ?? [];
+
+    // Leaving is a member action, not an admin one: everybody except the
+    // creator can leave (the backend rejects the creator — they must delete).
+    const createdBy = data?.groupInfo?.created_by;
+    const canLeave =
+      !isPersonal && !!currentUserId && !!createdBy && String(createdBy) !== String(currentUserId);
+    const leaveGroup = useLeaveGroup();
+    const handleLeaveGroup = useCallback(() => {
+      setShowLeaveConfirm(false);
+      leaveGroup.mutate(groupId, {
+        onSuccess: () => {
+          onSuccessMessage?.('Gruppe verlassen.');
+          void navigate('/');
+        },
+        onError: (err: Error) =>
+          onErrorMessage?.(err.message || 'Gruppe konnte nicht verlassen werden.'),
+      });
+    }, [leaveGroup, groupId, navigate, onSuccessMessage, onErrorMessage]);
 
     const handleSaveBoth = useCallback(() => {
       saveGroupName();
@@ -341,6 +336,7 @@ const GroupInfoSection = memo(
         options: {
           permissions: { read: boolean; write: boolean; collaborative: boolean };
           targetGroupId: string;
+          note: string | null;
         }
       ) => {
         const res = await getContractsClient().groups.shareContent({
@@ -349,126 +345,19 @@ const GroupInfoSection = memo(
             contentType: contentType as GroupContentType,
             contentId: String(itemId),
             permissions: options.permissions,
+            note: options.note,
           },
         });
-        if (res.status !== 200) throw new Error('share failed');
+        if (res.status !== 200)
+          throw apiErrorFromResponse(res, 'Inhalt konnte nicht geteilt werden.');
       },
       []
     );
 
     return (
       <>
-        <div className="relative mb-xl">
-          <div className="absolute right-0 top-0 flex items-center gap-sm">
-            {!isPersonal && !isLoadingMembers && onlineCount > 0 && (
-              <span
-                className="hidden sm:inline-flex items-center -space-x-1.5"
-                aria-label={`${onlineCount} online`}
-              >
-                {onlineMembers.slice(0, 5).map((member) => (
-                  <RobotAvatar
-                    key={member.user_id}
-                    robotId={member.avatar_robot_id}
-                    sizePx={28}
-                    className="size-7 ring-2 ring-background"
-                    alt=""
-                  />
-                ))}
-                {onlineCount > 5 && (
-                  <span className="flex items-center justify-center size-7 rounded-full ring-2 ring-background bg-grey-200 dark:bg-grey-700 text-[0.6rem] font-semibold text-grey-600 dark:text-grey-300">
-                    +{onlineCount - 5}
-                  </span>
-                )}
-              </span>
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-xs" aria-label="Aktionen">
-                  <HiDotsVertical />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {!isPersonal && (
-                  <>
-                    <DropdownMenuItem onClick={() => setMembersDialogOpen(true)}>
-                      <HiOutlineUserGroup className="size-4 mr-xs" />
-                      Mitglieder ({memberCount})
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                <DropdownMenuItem onClick={handleToggleMute} disabled={setGroupMute.isPending}>
-                  {isMuted ? (
-                    <>
-                      <HiOutlineBell className="size-4 mr-xs" />
-                      Stummschaltung aufheben
-                    </>
-                  ) : (
-                    <>
-                      <HiOutlineBellSlash className="size-4 mr-xs" />
-                      Benachrichtigungen stummschalten
-                    </>
-                  )}
-                </DropdownMenuItem>
-                {data?.isAdmin && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={handleStartEditingBoth}
-                      disabled={isUpdatingGroupName}
-                    >
-                      <HiPencil className="size-4 mr-xs" />
-                      Bearbeiten
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => avatarInputRef.current?.click()}
-                      disabled={isUploadingAvatar}
-                    >
-                      <HiOutlinePhotograph className="size-4 mr-xs" />
-                      Bild ändern
-                    </DropdownMenuItem>
-                    {data?.groupInfo?.avatar_url && onDeleteAvatar && (
-                      <DropdownMenuItem onClick={onDeleteAvatar} disabled={isUploadingAvatar}>
-                        <HiOutlineTrash className="size-4 mr-xs" />
-                        Bild entfernen
-                      </DropdownMenuItem>
-                    )}
-                    {!isPersonal && (
-                      <DropdownMenuItem onClick={openInviteDialog}>
-                        <HiOutlineMail className="size-4 mr-xs" />
-                        Per E-Mail einladen
-                      </DropdownMenuItem>
-                    )}
-                    {!isPersonal && data?.joinToken && (
-                      <DropdownMenuItem onClick={copyJoinLink}>
-                        <HiOutlineLink className="size-4 mr-xs" />
-                        {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
-                      </DropdownMenuItem>
-                    )}
-                    {!isPersonal && (
-                      <DropdownMenuItem onClick={() => setShowVisibilityDialog(true)}>
-                        <HiOutlineGlobeAlt className="size-4 mr-xs" />
-                        {data?.groupInfo?.is_public
-                          ? 'Öffentlich (verwalten)'
-                          : 'Öffentlich machen'}
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => setShowDeleteConfirm(true)}
-                      disabled={isDeletingGroup || isUpdatingGroupName}
-                      className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
-                    >
-                      <HiOutlineTrash className="size-4 mr-xs" />
-                      {isPersonal ? 'Projekt löschen' : 'Gruppe löschen'}
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          <div className="flex items-start gap-md">
+        <div className="mb-lg flex flex-wrap items-center justify-between gap-md">
+          <div className="flex min-w-0 flex-1 items-center gap-md">
             <div className="relative group/avatar shrink-0">
               {data?.groupInfo?.avatar_url ? (
                 <img
@@ -476,10 +365,10 @@ const GroupInfoSection = memo(
                     `/api/auth/groups/${groupId}/avatar?t=${avatarTimestamp}`
                   )}
                   alt={data?.groupInfo?.name || 'Projekt'}
-                  className="size-16 rounded-full object-cover ring-2 ring-grey-200 dark:ring-grey-700"
+                  className="size-16 max-sm:size-12 rounded-full object-cover ring-2 ring-grey-200 dark:ring-grey-700"
                 />
               ) : (
-                <div className="size-16 rounded-full bg-primary-100 dark:bg-primary-900/30 ring-2 ring-grey-200 dark:ring-grey-700 flex items-center justify-center">
+                <div className="size-16 max-sm:size-12 rounded-full bg-primary-100 dark:bg-primary-900/30 ring-2 ring-grey-200 dark:ring-grey-700 flex items-center justify-center">
                   <span className="text-xl font-bold text-primary-600 dark:text-primary-400">
                     {getGroupInitials(data?.groupInfo?.name)}
                   </span>
@@ -566,14 +455,147 @@ const GroupInfoSection = memo(
                   </h1>
                   {data?.isAdmin && <Badge variant="default">Admin</Badge>}
                 </div>
-                <p className="text-sm text-foreground mt-xs m-0">
-                  {data?.groupInfo?.description ||
-                    (data?.isAdmin
-                      ? 'Verwalte Mitglieder und geteilte Inhalte.'
-                      : 'Du bist Mitglied dieser Gruppe.')}
+                <p className="text-[15px] text-muted-foreground mt-xs m-0">
+                  {isPersonal
+                    ? data?.groupInfo?.description || 'Dein persönliches Projekt.'
+                    : `Gruppe · ${memberCount} ${memberCount === 1 ? 'Mitglied' : 'Mitglieder'}`}
                 </p>
               </div>
             )}
+          </div>
+          <div className="flex shrink-0 items-center gap-sm">
+            {!isPersonal && !isLoadingMembers && onlineCount > 0 && (
+              <span
+                className="hidden sm:inline-flex items-center -space-x-1.5"
+                aria-label={`${onlineCount} online`}
+              >
+                {onlineMembers.slice(0, 5).map((member) => (
+                  <RobotAvatar
+                    key={member.user_id}
+                    robotId={member.avatar_robot_id}
+                    sizePx={28}
+                    className="size-7 ring-2 ring-background"
+                    alt=""
+                  />
+                ))}
+                {onlineCount > 5 && (
+                  <span className="flex items-center justify-center size-7 rounded-full ring-2 ring-background bg-grey-200 dark:bg-grey-700 text-[0.6rem] font-semibold text-grey-600 dark:text-grey-300">
+                    +{onlineCount - 5}
+                  </span>
+                )}
+              </span>
+            )}
+            <Button
+              variant="brand"
+              onClick={() => setShowAddContent(true)}
+              className="max-sm:size-9 max-sm:rounded-full max-sm:p-0"
+            >
+              <PiPlus aria-hidden />
+              <span className="max-sm:sr-only">Inhalte teilen</span>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full"
+                  aria-label={isPersonal ? 'Projektoptionen' : 'Gruppenoptionen'}
+                >
+                  <HiDotsVertical />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {!isPersonal && (
+                  <>
+                    <DropdownMenuItem onClick={() => setMembersDialogOpen(true)}>
+                      <HiOutlineUserGroup className="size-4 mr-xs" />
+                      Mitglieder ({memberCount})
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuItem onClick={handleToggleMute} disabled={setGroupMute.isPending}>
+                  {isMuted ? (
+                    <>
+                      <HiOutlineBell className="size-4 mr-xs" />
+                      Stummschaltung aufheben
+                    </>
+                  ) : (
+                    <>
+                      <HiOutlineBellSlash className="size-4 mr-xs" />
+                      Benachrichtigungen stummschalten
+                    </>
+                  )}
+                </DropdownMenuItem>
+                {data?.isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleStartEditingBoth}
+                      disabled={isUpdatingGroupName}
+                    >
+                      <HiPencil className="size-4 mr-xs" />
+                      Bearbeiten
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={isUploadingAvatar}
+                    >
+                      <HiOutlinePhotograph className="size-4 mr-xs" />
+                      Bild ändern
+                    </DropdownMenuItem>
+                    {data?.groupInfo?.avatar_url && onDeleteAvatar && (
+                      <DropdownMenuItem onClick={onDeleteAvatar} disabled={isUploadingAvatar}>
+                        <HiOutlineTrash className="size-4 mr-xs" />
+                        Bild entfernen
+                      </DropdownMenuItem>
+                    )}
+                    {!isPersonal && (
+                      <DropdownMenuItem onClick={openInviteDialog}>
+                        <HiOutlineMail className="size-4 mr-xs" />
+                        Per E-Mail einladen
+                      </DropdownMenuItem>
+                    )}
+                    {!isPersonal && data?.joinToken && (
+                      <DropdownMenuItem onClick={copyJoinLink}>
+                        <HiOutlineLink className="size-4 mr-xs" />
+                        {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
+                      </DropdownMenuItem>
+                    )}
+                    {!isPersonal && (
+                      <DropdownMenuItem onClick={() => setShowVisibilityDialog(true)}>
+                        <HiOutlineGlobeAlt className="size-4 mr-xs" />
+                        {data?.groupInfo?.is_public
+                          ? 'Öffentlich (verwalten)'
+                          : 'Öffentlich machen'}
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setShowDeleteConfirm(true)}
+                      disabled={isDeletingGroup || isUpdatingGroupName}
+                      className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                    >
+                      <HiOutlineTrash className="size-4 mr-xs" />
+                      {isPersonal ? 'Projekt löschen' : 'Gruppe löschen'}
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {canLeave && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setShowLeaveConfirm(true)}
+                      disabled={leaveGroup.isPending}
+                      className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                    >
+                      <HiOutlineLogout className="size-4 mr-xs" />
+                      Gruppe verlassen
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -586,113 +608,30 @@ const GroupInfoSection = memo(
           />
         )}
 
-        <SpaceChatsSection groupId={groupId} />
-
-        <div>
-          <SectionHeader
-            title="Geteilte Inhalte"
-            {...(data?.isAdmin && { onCreate: () => setShowAddContent(true) })}
-            createLabel="Inhalte hinzufügen"
-          />
-          {(() => {
-            const sections: {
-              label: string;
-              items: SharedItem[];
-              contentType: string;
-              icon: typeof HiOutlineDocumentText;
-              getIcon?: (item: SharedItem) => typeof HiOutlineDocumentText;
-              getLink?: (item: SharedItem) => string;
-              variant?: 'thumbnail';
-              cloneOnOpen?: boolean;
-            }[] = [
-              {
-                label: 'Docs',
-                items: sharedContent.collabDocs,
-                contentType: 'collaborative_documents',
-                icon: HiOutlineDocumentText,
-                getLink: (item) => `/office/${item.id}`,
-              },
-              {
-                label: 'Boards',
-                items: sharedContent.boards,
-                contentType: 'collaborative_documents',
-                icon: PiSquaresFour,
-                getLink: (item) => `/boards/${item.id}`,
-              },
-              {
-                label: 'Sharepics',
-                items: sharedContent.canvases,
-                contentType: 'collaborative_documents',
-                icon: HiOutlinePhotograph,
-                getLink: (item) => `/studio/canvas/${item.id}`,
-                variant: 'thumbnail',
-              },
-              {
-                label: 'Sharepic-Vorlagen',
-                items: sharedContent.canvasTemplates,
-                contentType: 'canvas_template',
-                icon: HiOutlinePhotograph,
-                variant: 'thumbnail',
-                cloneOnOpen: true,
-              },
-              {
-                label: 'Grüneratoren',
-                items: sharedContent.generators,
-                contentType: 'custom_generators',
-                icon: HiOutlineDocumentText,
-                getLink: (item) => `/gruenerator/${item.slug || item.id}`,
-              },
-              {
-                label: 'Notebooks',
-                items: sharedContent.notebooks,
-                contentType: 'notebook_collections',
-                icon: HiOutlineDocumentText,
-                getIcon: (item) => getNotebookById(String(item.id))?.icon ?? HiOutlineDocumentText,
-                getLink: (item) => `/notebook/${item.id}`,
-              },
-              {
-                label: 'Grüneratoren',
-                items: sharedContent.agents,
-                contentType: 'user_agents',
-                icon: PiRobot,
-                getLink: (item) =>
-                  `/agentura/agent/${getAgentSlug(item.identifier ?? String(item.id))}`,
-              },
-              {
-                label: 'Dokumente',
-                items: sharedContent.documents,
-                contentType: 'documents',
-                icon: HiOutlineDocumentText,
-                getLink: (item) => `/documents/${item.id}`,
-              },
-              {
-                label: 'Texte',
-                items: sharedContent.texts,
-                contentType: 'user_documents',
-                icon: HiOutlineDocumentText,
-              },
-            ];
-            const groupLinks = data?.groupInfo?.links || [];
-            const totalItems =
-              sections.reduce((sum, s) => sum + s.items.length, 0) + groupLinks.length;
-
-            if (isLoadingSharedContent) {
-              return <LoadingSection label="Geteilte Inhalte werden geladen..." />;
-            }
-
-            if (totalItems === 0) {
-              return (
-                <div className="flex items-center justify-center py-2xl text-center">
-                  <p className="text-sm text-grey-500">
-                    Noch keine geteilten Inhalte in dieser Gruppe.
-                  </p>
-                </div>
-              );
-            }
-
-            return (
-              <div className="flex flex-col gap-lg">
-                {onUpdateLink && onDeleteLink && groupLinks.length > 0 && (
+        <GroupContentArea
+          groupId={groupId}
+          items={feedItems}
+          isLoading={isLoadingSharedContent}
+          isAdmin={!!data?.isAdmin}
+          isPersonal={isPersonal}
+          currentUserId={currentUserId ?? null}
+          currentUserName={currentUserName ?? null}
+          members={members ?? []}
+          description={data?.groupInfo?.description ?? null}
+          linkCount={groupLinks.length}
+          onShowMembers={() => setMembersDialogOpen(true)}
+          onOpenShare={() => setShowAddContent(true)}
+          onRemove={
+            data?.isAdmin && onUnshareContent
+              ? (item) => onUnshareContent(item.id, item.contentType)
+              : null
+          }
+          onUseTemplate={handleCloneTemplate}
+          cloningId={cloneTemplate.isPending ? (cloneTemplate.variables ?? null) : null}
+          extraAllSections={
+            <>
+              {onUpdateLink && onDeleteLink && groupLinks.length > 0 && (
+                <div id="abschnitt-links" className="scroll-mt-lg">
                   <GroupLinksSection
                     links={groupLinks}
                     isAdmin={!!data?.isAdmin}
@@ -700,175 +639,25 @@ const GroupInfoSection = memo(
                     onDeleteLink={onDeleteLink}
                     isUpdatingLink={!!isUpdatingLink}
                   />
-                )}
-                {sections.map((section) => {
-                  if (section.items.length === 0) return null;
-                  const ContentIcon = section.icon;
-                  const isThumbnailVariant = section.variant === 'thumbnail';
-                  return (
-                    <div key={section.label}>
-                      <SectionHeader size="sm" title={section.label} />
-                      <CardGrid columns="3">
-                        {section.items.map((item) => {
-                          const title = item.title || item.name || 'Ohne Titel';
-                          const href = section.getLink?.(item);
-                          const ItemIcon = section.getIcon?.(item) ?? ContentIcon;
+                </div>
+              )}
+              <SpaceChatsSection groupId={groupId} />
+            </>
+          }
+        />
 
-                          if (isThumbnailVariant) {
-                            const thumbnailUrl = item.thumbnail_url ?? null;
-                            const isCloningThis =
-                              cloneTemplate.isPending &&
-                              cloneTemplate.variables === String(item.id);
-                            const isCloning = isCloningThis;
-                            const cardInner = (
-                              <>
-                                <div className="aspect-[4/3] bg-grey-100 dark:bg-grey-800 flex items-center justify-center overflow-hidden">
-                                  {thumbnailUrl ? (
-                                    <img
-                                      src={thumbnailUrl}
-                                      alt={title}
-                                      loading="lazy"
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <ContentIcon className="size-8 text-grey-400" />
-                                  )}
-                                </div>
-                                <div className="p-sm">
-                                  <p className="text-sm font-medium text-foreground truncate m-0">
-                                    {title}
-                                  </p>
-                                  {item.shared_by_name && (
-                                    <p className="text-xs text-grey-500 truncate mt-xxs m-0">
-                                      Geteilt von {item.shared_by_name}
-                                    </p>
-                                  )}
-                                  {section.cloneOnOpen && (
-                                    <p className="text-[10px] text-primary-600 mt-xxs m-0">
-                                      {isCloning
-                                        ? 'Vorlage wird geöffnet...'
-                                        : 'Klicken um Kopie zu erstellen'}
-                                    </p>
-                                  )}
-                                </div>
-                              </>
-                            );
-                            return (
-                              <div
-                                key={item.id}
-                                className="group relative flex flex-col rounded-md border border-grey-200 dark:border-grey-700 bg-background overflow-hidden transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600"
-                              >
-                                {section.cloneOnOpen ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCloneTemplate(String(item.id))}
-                                    disabled={cloneTemplate.isPending}
-                                    className="flex flex-col text-left bg-transparent border-none p-0 m-0 cursor-pointer text-foreground disabled:opacity-60 disabled:cursor-wait"
-                                  >
-                                    {cardInner}
-                                  </button>
-                                ) : href ? (
-                                  <a
-                                    href={href}
-                                    className="flex flex-col no-underline text-foreground"
-                                  >
-                                    {cardInner}
-                                  </a>
-                                ) : (
-                                  <div className="flex flex-col">{cardInner}</div>
-                                )}
-                                {data?.isAdmin && onUnshareContent && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      onUnshareContent(
-                                        String(item.id),
-                                        item.contentType ?? section.contentType
-                                      )
-                                    }
-                                    className="absolute top-1 right-1 p-1 text-grey-400 hover:text-red-500 bg-background/80 dark:bg-background/80 backdrop-blur-sm transition-colors border-none cursor-pointer rounded opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
-                                    aria-label="Aus Gruppe entfernen"
-                                  >
-                                    <HiOutlineTrash size={16} />
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          }
-
-                          const content = (
-                            <>
-                              <ItemIcon className="size-5 text-primary-600 dark:text-primary-400 shrink-0" />
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium text-foreground truncate m-0">
-                                  {title}
-                                </p>
-                                {item.shared_by_name && (
-                                  <p className="text-xs text-grey-500 truncate mt-xxs m-0">
-                                    Geteilt von {item.shared_by_name}
-                                  </p>
-                                )}
-                              </div>
-                            </>
-                          );
-                          return (
-                            <div
-                              key={item.id}
-                              className="group flex items-center gap-sm rounded-md border border-grey-200 dark:border-grey-700 bg-background p-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600"
-                            >
-                              {href ? (
-                                <a
-                                  href={href}
-                                  className="flex items-center gap-sm min-w-0 flex-1 no-underline"
-                                >
-                                  {content}
-                                </a>
-                              ) : (
-                                <div className="flex items-center gap-sm min-w-0 flex-1">
-                                  {content}
-                                </div>
-                              )}
-                              {data?.isAdmin && onUnshareContent && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    onUnshareContent(
-                                      String(item.id),
-                                      item.contentType ?? section.contentType
-                                    )
-                                  }
-                                  className="shrink-0 p-1 text-grey-400 hover:text-red-500 transition-colors bg-transparent border-none cursor-pointer rounded opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
-                                  aria-label="Aus Gruppe entfernen"
-                                >
-                                  <HiOutlineTrash size={16} />
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </CardGrid>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
-        </div>
-
-        {data?.isAdmin && (
-          <AddContentToGroupModal
-            isOpen={showAddContent}
-            onClose={() => setShowAddContent(false)}
-            groupId={groupId}
-            onShareContent={handleShareContent}
-            onSuccess={() => {
-              setShowAddContent(false);
-              refetchSharedContent?.();
-            }}
-            onAddLink={onAddLink}
-            isAddingLink={isAddingLink}
-          />
-        )}
+        <AddContentToGroupModal
+          isOpen={showAddContent}
+          onClose={() => setShowAddContent(false)}
+          groupId={groupId}
+          onShareContent={handleShareContent}
+          onSuccess={() => {
+            setShowAddContent(false);
+            refetchSharedContent?.();
+          }}
+          {...(data?.isAdmin && { onAddLink })}
+          isAddingLink={isAddingLink}
+        />
 
         {data?.isAdmin && (
           <GroupVisibilityDialog
@@ -973,6 +762,31 @@ const GroupInfoSection = memo(
                 disabled={isDeletingGroup}
               >
                 Endgültig löschen
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
+          <DialogContent className="sm:max-w-[24rem]">
+            <DialogHeader>
+              <DialogTitle>Gruppe verlassen</DialogTitle>
+              <DialogDescription>
+                Du verlierst den Zugriff auf alle Inhalte dieser Gruppe. Die Gruppe selbst und deine
+                eigenen Inhalte bleiben bestehen. Ein erneuter Beitritt ist nur über eine neue
+                Einladung möglich.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-xs">
+              <Button variant="outline" onClick={() => setShowLeaveConfirm(false)}>
+                Abbrechen
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleLeaveGroup}
+                disabled={leaveGroup.isPending}
+              >
+                Verlassen
               </Button>
             </DialogFooter>
           </DialogContent>

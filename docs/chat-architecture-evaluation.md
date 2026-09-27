@@ -6,6 +6,8 @@ Dieses Papier hält das Ergebnis von fünf Audit-Runden fest: Bewertung von Lang
 
 Jede Architekturaussage ist mit `datei:zeile` belegt und wurde gegen den oben genannten Commit geprüft. Wo eine Aussage nicht verifiziert werden konnte, steht das ausdrücklich dabei.
 
+> **Lies §11 zuerst.** Die §§1–10 sind eine Bestandsaufnahme vom **29.07.2026** und beschreiben den Zustand **vor** dem Sanierungsprogramm — sie stehen bewusst im Präsens und lesen sich deshalb wie eine Beschreibung von heute. Das sind sie nicht: Das Programm ist abgearbeitet, und was stattdessen gilt, hält [§11](#11-endstand-des-sanierungsprogramms) fest. Wer §2.1 („Zwei Wege, ein LLM aufzurufen", `AIWorkerPool`) für den aktuellen Stand hält, plant gegen eine Architektur, die es nicht mehr gibt — heute führt genau **ein** Weg zum Modell (`services/ai/generate.ts`). Der Hinweis steht hier oben, weil eine Aussage, die man erst 280 Zeilen später zurückgenommen findet, vorher schon jemand geglaubt hat.
+
 ---
 
 ## 1. Zusammenfassung
@@ -55,7 +57,7 @@ Der Chat hat die Recherche mit PR #2137 auf die Websuche-Stufen umgestellt; das 
 
 **Beleg dafür, dass der Graph nie lief:** `ChatStateAnnotation` in `ChatGraph.ts` ist gegenüber dem lebenden `ChatGraphState` (`ChatGraph/types.ts:518-868`) um ~25 Felder zurückgeblieben. Liefe der Graph, verlöre er sie bei jedem Übergang.
 
-> Wer „wir sind ein LangGraph-Projekt" annimmt, liegt für den Chat-Pfad falsch. Live ist LangGraph in fünf *anderen* Graphen (`FlyerToSiteGraph`, `AntragAgentGraph`, `SocialAgentGraph`, `ImageSelectionGraph`, `WebSearchGraph`).
+> Wer „wir sind ein LangGraph-Projekt" annimmt, liegt für den Chat-Pfad falsch. Live ist LangGraph in vier *anderen* Graphen (`FlyerToSiteGraph`, `AntragAgentGraph`, `ImageSelectionGraph`, `WebSearchGraph`). `SocialAgentGraph` stand hier als fünfter und war es bei der Niederschrift (29.07.2026) auch. Er verlor seinen einzigen Aufrufer am 10.08.2026, als `routes/texte/social.ts` den Agent-Mode-Zweig abgab (35181109d0), und ist jetzt entfernt.
 
 ### 2.4 Drei Unterfragen-Planer, zwei Zitat-Syntaxen
 
@@ -72,6 +74,23 @@ Zitate: `[N]` positional-append im `agenticLoop/sourceRegistry.ts` (stabil über
 `agenticLoop/flags.ts:13` liest `CHAT_AGENT_LOOP !== 'false'` — **Default an**, Opt-out. Zwei Modi in `loopEngine.ts` (647 Z.): `unified` (Mistral treibt Tools und schreibt) und `split` (fester schneller Planer sammelt Belege, das gewählte Modell schreibt einmal darüber). Budget in `agenticLoop/types.ts:107-114`: `maxSteps` 8, `wallClockMs` 120 s (weich), `hardCapMs` 300 s (hart), `perCallTimeoutMs` 20 s.
 
 Guards in `agenticLoop/loopGuards.ts`: `MAX_FAILURES_PER_TOOL` 2, `MAX_TOTAL_FAILURES` 5, `MAX_SEARCH_CALLS` 6, `MAX_SOURCES` 20, `NEAR_DUPLICATE_JACCARD` 0.6, `MIN_INTERNAL_SOURCES_TO_SKIP_WEB` 3. Alle sind **Closures pro Turn** — sie kennen keine Subagenten.
+
+### 2.7 Chunk-Rerank im Loop: gemessen, Default bleibt aus
+
+`agenticLoop/flags.ts` (`isLoopRerankEnabled()`) liest `LOOP_RERANK_ENABLED`, Default **aus**. Eingeschaltet setzt `toolCatalog.ts` `rerankSearchChunks: true` auf `createSearchTools`; die Option läuft über `searchCollectionOrBundle` (Einzelsammlung **und** AT-Bündel) nach `executeDirectSearch({ rerankChunks: true })` und von dort in `SearchOptions.rerankChunks` — derselbe Cross-Encoder-Pfad, den der Anhang-Fanout (`attachedDocuments.ts`) seit dem Validator-Fix in 03e297cca4 fährt, nicht seit #2816: die Option war seit #2816 gesetzt, aber `DocumentSearchService`s Validator liess `rerankChunks` in den geschachtelten Optionen stillschweigend fallen, bis 03e297cca4 das behob. Der Anhang-Pfad hängt seither hinter demselben `LOOP_RERANK_ENABLED`-Flag wie `gruenerator_search` — sonst hätte der Bugfix den Cross-Encoder für jeden Anhang unbemerkt scharfgeschaltet. Auf dem rerankten Zweig ist das an Qdrant gereichte Limit auf 5 geklemmt, damit `RERANK_LIMIT_CLAMP` den Kandidatenpool nicht über den Cross-Encoder-Deckel treibt. Fällt der Encoder aus, sendet `agenticLoop/rerankWarning.ts` einmal je Turn `rerank_degraded`; der Marker selbst (`rerankDegraded` am Werkzeugergebnis) wird vor dem Modell entfernt (`wrapTools.ts`, `INTERNAL_RESULT_FIELDS`) und beim Turn-übergreifenden Replay erneut gestrippt (`mcpReplay.ts`) — er ist eine Aussage über unsere Infrastruktur, keine, die das Modell lesen soll. Der Anhang-Fanout (`executeMultiDocFanout` in `searchNode.ts:~915-928`) liest von der Antwort nur `results`, nicht `metadata` — eine Degradation des Cross-Encoders kann dort also nicht gemeldet werden, anders als auf dem `gruenerator_search`-Pfad. `directSearchExecutors.ts`s unerreichbarer Fallback-Zweig, der `rerankChunks` mitführte, ist mit #3139 entfernt.
+
+**Gemessen** mit dem loop-förmigen Controller-Lauf (`EVAL_LOOP_RERANK=0|1`, `loopLimit` 10, n=52, Live-Index, 52 GreenPT-Aufrufe im An-Arm):
+
+| Arm | Hit@1 | Hit@3 | Hit@5 | MRR@10 | Median `searchTimeMs` |
+|---|---|---|---|---|---|
+| aus (loop-förmig, ohne Rerank) | 57,7 % | 80,8 % | 84,6 % | 0,698 | 586 ms |
+| an (`rerankChunks: true`) | 55,8 % | 80,8 % | 84,6 % | 0,677 | 1938 ms |
+
+Verschiebungen auf Rang 1: 9 Fälle verloren, 8 gewonnen; bei Top-3: 3 verloren, 3 gewonnen — kein Ausreißer, sondern Rauschen um einen leichten Verlust bei +1,35 s Median-Aufpreis pro Suche. **Entscheidung: `LOOP_RERANK_ENABLED` bleibt aus.** Die dokumentbezogene Eval zeigt keinen Gewinn, der den Aufpreis rechtfertigt — aber sie misst auch nicht das, was der Entwurf eigentlich als Nutzen benennt: welcher CHUNK eines Dokuments nach `truncateText(relevant_content, 800)` beim Modell ankommt. Eine chunk-genaue Messung ist die Anschlussarbeit, bevor der Default kippt.
+
+### 2.8 Notebook-Turns: Werkzeugaufträge gehen in die Schleife (23.09.2026)
+
+Ein gewähltes Notebook (`notebookIds`) hält den Turn weiterhin im Einzeldurchlauf (`hasSelectedNotebook` in `routing.ts`) — mit einer Ausnahme: will der Turn etwas MIT den Quellen tun (sortieren, zählen, eine Seite oder einen Abschnitt lesen, eine Stelle finden, wörtlich zitieren), setzt der Klassifikator im Notebook-Zweig `intent: 'agentic'` mit `mentionPinnedTool: 'notebook_quellen'` und ohne `gatherSources` (Tier-Eintrag `tier2_notebook_tool_ask`). Der Pin macht den Turn in `turnPlan` zu `mustLoop`, das hebt die Notebook-Sperre auf; `pinnedFirstTool` benennt `notebook_quellen` als ersten Aufruf, und das Werkzeug fällt ohne `notebookId` auf das gewählte Notebook zurück. Die Weiche ist `looksLikeNotebookToolAsk` (`routes/chat/services/notebookToolAsk.ts`): sie verlangt ein Verb oder einen ausdrücklichen Ort (Seite 3, Kapitel 2, wie viele Seiten, wörtlich), nie ein Nomen allein. Nicht gepinnt wird bei benannten Agenten (`isCompound` hebt auch `mustLoop` nicht auf) und wenn nur System-Notebooks gewählt sind (`notebook_quellen` lehnt sie ab). Gewöhnliche Notebook-Fragen bleiben unverändert auf `searchNode`. Die Messung dazu ist `evals/corpus/notebook-tools.jsonl` (Lane `userNotebookLane`, braucht `EVAL_USER_NOTEBOOK_ID` — ein eigenes Notebook des Eval-Kontos; der Runner kann keines anlegen).
 
 ---
 
@@ -216,7 +235,7 @@ Statischer Tool-Katalog + `toolsContext` + `activeTools` · **`AIWorkerPool` zur
 
 - **Deep Agents als zweite Lane, als Loop-Ersatz oder als volles Harness.** Siehe §3.
 - **Den SSE-Stack auf `createUIMessageStream` umbauen.** 34 Event-Typen, ein 1.367-Zeilen-Client-Parser, an assistant-ui gekoppelt, mit live gewachsener Interleaving-Logik. Das ist eine mehrwöchige Neuschreibung, kein Transport-Tausch. Vernünftige Variante: *neue* Event-Typen als `data-*`-Parts, kein Big Bang.
-- **`generateStructured.ts` abschaffen.** Gerechtfertigt, solange der `AIWorkerPool` steht.
+- **`generateStructured.ts` abschaffen.** ~~Gerechtfertigt, solange der `AIWorkerPool` steht.~~ **Entschieden am 16.08.2026 (Phase C/C2):** das Modul ist weg, seine Semantik nicht — sie lebt jetzt in `aiObject` (`services/ai/generate.ts`). Der Beleg aus dem C-Bericht bleibt gültig und war der Grund für genau diese Richtung: `validate` ist ein semantisches Gatter, dessen Meldung die Reparaturrunde treibt, und dafür hat weder `generateObject` (in ai@7.0.58 selbst deprecated) noch `Output.object()` noch `experimental_repairText` einen Slot. Zusammengelegt wurde also nicht die Semantik weg, sondern die zweite Form: `aiObject` und `generateStructured` implementierten dasselbe Muster nebeneinander, und der schwächere Zweitpfad (`parseText`) ließ in Produktion das Leerfolien-Gatter der Präsentation still ausfallen.
 - **`runPassWithFallback` und `providerFallback.ts` ersetzen.** Kein SDK-Äquivalent, verifiziert.
 - **`TokenCounter`/`CHARS_PER_TOKEN` ersetzen.** Das `ai`-Paket liefert keinen Tokenizer.
 - **`withRetry`/`CircuitBreaker` ersetzen.** Werden auch für Nicht-LLM-Aufrufe genutzt (DB-Schreibvorgänge, SearXNG).
@@ -265,6 +284,44 @@ Zusatzfalle: die Postgres-Tabellen `notebook_collections`/`notebook_collection_d
 - **Explore-Agenten auf Falsifikation ansetzen, nicht auf Bestätigung.** Erst die Runde mit ausdrücklichem Widerlegungsauftrag brachte das echte Bild — und zwei vorher unbekannte echte Fehler.
 - **Doku-Behauptungen gegen die Quelle prüfen.** In dieser Untersuchung wurde eine plausibel klingende, aber frei erfundene API (`compactWhen`/`hasMoreTokensThan` auf `ToolLoopAgent`) nur deshalb verworfen, weil ein Agent im Repository danach gegrept hat.
 - **Ein Test, der nicht rot werden kann, zählt nicht.** Verhaltensfix ⇒ eigener Commit mit eigenem Test; die darauf aufsetzende Dedup erst danach. (`git stash` ist im Projekt verboten — für die Rot-Probe einen temporären Revert-Commit nutzen.)
+
+---
+
+## 11. Endstand des Sanierungsprogramms
+
+**Der Phasenplan aus §8 ist abgearbeitet** (Phasen A–N, PRs #2677–#2717). Was oben als Bestandsaufnahme steht, beschreibt damit den Zustand VOR dem Programm; dieser Abschnitt hält fest, was heute gilt.
+
+**Ein Aufrufweg zum Modell.** `services/ai/generate.ts` (`aiText`/`aiObject`/`aiTools` → `executeProvider`), geroutet über `AI_LANES`. Der zweite Weg ist gelöscht, nicht deprecated: `aiService.ts`, `AiClient`, `utils/getAiClient.ts` und `app.locals.aiClient` gibt es nicht mehr. Die letzte stille Umroutung — eine Prompt-Config, die per `options.model` die Tabelle übergeht — ist mit ihr entfallen; `promptConfigRouting.vitest.ts` bewacht das über alle Configs. Wer die Tabelle umgehen muss, sagt das mit `AiCall.pinned` im Code.
+
+**Ein Turn-Entscheider.** `decideTurnPlan` (`routes/chat/services/agenticLoop/turnPlan.ts`) beantwortet „wie läuft dieser Turn, unter welchem Intent" in einer Funktion; `plan.intent` ist danach endgültig, niemand schreibt ihn nach. Vorher lag die Antwort auf drei Schichten, die sich gegenseitig korrigierten — und genau in den Nähten dazwischen sassen die letzten zwei Fehler des Programms (Pipeline-Zwang vs. System-Tool-Auffang; Loop-Schalter vs. `agentic_to_search`).
+
+**Registry-Rollout.** `@gruenerator/shared/chat-intents` trägt die Intents samt Dispositions-Achse. Die Regel dabei ist eine Unterscheidung, keine Umzugsquote: was eine Eigenschaft des Intents ist, wird abgeleitet (`AGENTIC_INTENTS`, `NAMED_RETRIEVAL_INTENTS`, `NO_RETRIEVAL_VERDICTS`); was die Politik eines Konsumenten ist, bleibt bei ihm — typisiert und mit der gemessenen Abweichung im Kopfkommentar (`NON_SEARCH_INTENTS`, `DEMOTABLE_HEURISTIC_INTENTS`). `INTENT_HANDLER_PATHS` ist die erschöpfende Karte „welcher Zweig führt welches Verdikt aus"; ein neuer Intent bricht dort den Build.
+
+**Die Monolithen.** `chatGraphContractRouter.ts` 2562 → 465 Z. (Stufen in `streamStages/`), `agenticRespondService.ts` 1845 → 591 Z., `intentExecutionService.ts` 1640 → 40 Z. (reine Fassade; Inhalt in `intentHandlers/`), `responseStage.ts` 559 → 240 Z. `classifierNode.ts` liegt weiter bei rund 1965 Z., aber ohne die 27k-Zeichen-LLM-Stufe: die Tiers entscheiden deterministisch, und die verbliebenen Modellaufrufe sind kleine, benannte Auflöser.
+
+**Die Lane ist die Achse, an der die Ausführung hängt (Phase N).** `TurnLane` war bis dahin Dekoration — fünf Ausführungspfade, kein Konsument; gelesen wurde der Boolean `runAgentic`, und `edit-loop`/`compound-edit` waren ein drittes Mal dieselbe Aussage, weil `TurnPlan` `editToolLoop`/`compoundEdit` ohnehin als Felder führt. Heute trägt die Lane das Vokabular des Zielbilds (`greeting` / `produktion` / `pipeline` / `loop` / `single-pass`), `runAgentic` ist aus ihr abgeleitet, und die Zuordnung kommt aus der Registry (`dispositionOf`) statt aus Literalen.
+
+**Die Erwähnungen sind von den Intents entkoppelt (K–N).** Eine `@`-Erwähnung zurrt heute ein WERKZEUG fest (`IntentMention.pinsTool`), ein REZEPT (`activatesSkill`) oder eine ARTEFAKTART (`ARTIFACT_CREATE_TOKENS`) — nicht mehr zwingend ein Verdikt. Das war der Grund, warum vorher kein Intent sterben konnte: eine Erwähnung hielt ihn am Leben, auch wenn er sonst nichts mehr steuerte.
+
+**Getötete Verdikte.** Sieben von 41 Intents sind `retired` — nichts erzeugt sie mehr, und keine Erwähnung emittiert sie: `bahn`, `reise`, `hotel`, `wetter`, `news` (als verwaltete Konnektoren aus der Intent-Achse ausgezogen — Quellenwahl ist Montage und braucht kein Verdikt), `umfragen` (Werkzeug-Pin) und `pressemitteilung_examples` (Werkzeug-Pin **und** Rezept). Die Enum-Werte bleiben: `searchIntentSchema` ist F0, ausgelieferte Binaries lesen ihn weiter.
+
+**Was der Klassifikator wirklich noch emittiert.** Über die 167 Turns des adversarialen Korpus fallen **13** verschiedene Verdikte, nicht 41 — und `agentic` allein trägt 107 davon (Tier-3.5-Demotion), `produktion` und `sharepic` je 18. Die Feinunterscheidung, die der Umbau angegriffen hat, leistet also messbar wenig Arbeit; der Zensus (`classifierCensus.baseline.txt`) misst das fortlaufend.
+
+**Die Parlaments-Abrufe haben nur noch eine Tür (N).** `bundestag`/`abgeordnetenwatch` liefen bis 08/2026 doppelt: das Loop-Werkzeug rief `searchNode` mit gesetztem Intent erneut auf und nahm dessen ganze Vorrede mit — was einen echten Fehler verdeckte (`@bundestag` auf einem Turn mit zwei Dokumentquellen fragte die DIP nie). Seit Phase M/N gibt es einen gemeinsamen Kern und **nur** das Loop-Werkzeug; ein Turn, den ein Notausschalter aus der Schleife hält, weicht über `degradeTo` aus der Registry aus, statt still nichts zu tun. `forcedLane: 'loop'` bedeutet seitdem genau eine Sache: kein Einzeldurchlauf. Ein Wächter erzwingt, dass jeder Intent dieser Achse ein Ausweichziel deklariert (`mcp` ist die begründete Ausnahme).
+
+**Was bewusst offen bleibt:** die kompilierten LangGraph-Graphen haben weiterhin null Aufrufer (§2), die Recherche-Maschinen sind nicht zu einer zusammengelegt (§8 Phase 4), und die Notebook-Befunde aus §9 sind unangetastet. Deep Agents bleibt abgelehnt (§3), das AI SDK v7 weiter der Hebel (§4).
+
+**Die Recherche-Konsolidierung ist das benannte Restproblem — und der Grund, warum die Lane-Entscheidung noch NACH der Intent-Feinwahl fällt.** Das Zielbild sieht vier Lanes vor; es gibt eine fünfte, `single-pass`, und sie trägt die Recherche-Familie (`search`/`web`/`research`/`compare`/`examples`) samt der gegatterten Sonderwege (`summary`/`compute`/`chat_history`/`scrape_url`). Solange deren Executoren sich je Intent unterscheiden, MUSS der Intent vor der Lane feststehen. Wer die sechs Recherche-Maschinen zu einem Loop-Suchpfad zusammenlegt, nimmt damit zugleich die letzte Lane und dreht die Reihenfolge um. Zwei Messungen aus Phase K/L, die dabei nicht neu erhoben werden müssen: `summary` wird NICHT zum Rezept (`respondNode` unterdrückt Rezept und gelernte Textform absichtlich — eine Zusammenfassung trägt die Form ihrer Quelle), und `compare` auch nicht (Hochstufung und Degradierung brauchen die Trefferzahl zur Laufzeit).
+
+### Governance: kein neuer Intent für eine neue Fähigkeit
+
+Das Programm hat die Intent-Achse von 41 auf 13 tatsächlich emittierte Verdikte gedrückt, indem es Fähigkeiten verschoben hat, statt sie zu löschen. Diese Richtung hält nur, wenn die Standardantwort auf „wir brauchen etwas Neues" nicht wieder ein Intent ist:
+
+**Eine neue Fähigkeit ist ein Werkzeug oder ein Rezept, plus ein Registry-Eintrag (plus, wenn sie adressierbar sein soll, eine Erwähnung).** Ein Werkzeug für etwas, das geholt oder getan wird; ein Rezept für etwas, das anders geschrieben wird; eine Erwähnung, damit die Person es benennen kann. Alle drei sind Daten, keine Verzweigung.
+
+**Ein neuer Intent nur mit einem Verhaltensanker, der sich nicht ableiten lässt** — ein eigenes deterministisches Gitter VOR der Werkzeugwahl, eine eigene SSE-Stufe, ein Kontingent oder ein HITL-Vertrag, eine Statuszeile, die sonst niemand schreibt. Der Anker gehört in den PR, benannt und begründet. Fehlt er, ist der Intent eine Statuszeile mit Extraschritten: er kostet einen Eintrag in jeder totalen Karte (`DISPOSITION_BY_INTENT`, `FORCED_LANE_BY_INTENT`, `INTENT_HANDLER_PATHS`), einen Zweig im Klassifikator und ein Verdikt, das der Loop danach ohnehin überstimmt.
+
+**Die Gegenprobe vor dem Merge:** Wäre die Fähigkeit auch erreichbar, wenn der Intent fehlte und stattdessen eine Erwähnung das Werkzeug festzurrte? Lautet die Antwort ja, gehört sie in den Loop.
 
 ---
 

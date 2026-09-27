@@ -1,13 +1,15 @@
 'use client';
 
 import { isUnauthorizedError } from '@gruenerator/shared/api';
+import { clampThreadTitle } from '@gruenerator/shared/utils';
 import { createAssistantStream } from 'assistant-stream';
 
 import { notifyWarning } from '../lib/notify';
 import { useAgentStore } from '../stores/chatStore';
 
 import type { ChatApiClient } from '../context/ChatContext';
-import type { RemoteThreadListAdapter } from '@assistant-ui/react';
+import type { RemoteThreadListAdapter, ThreadMessage } from '@assistant-ui/react';
+import type { GenerateTitleResponse } from '@gruenerator/contracts';
 
 interface ApiThread {
   id: string;
@@ -19,7 +21,8 @@ interface ApiThread {
   notebookCollectionId?: string | null;
   tags?: string[];
   slugSuffix?: string | null;
-  accessType?: 'owner' | 'shared' | 'group';
+  accessType?: 'owner' | 'shared' | 'group' | null;
+  readOnly?: boolean | null;
   createdAt: string;
   updatedAt: string;
   lastMessage?: {
@@ -68,6 +71,20 @@ export function getThreadAgentId(remoteId: string): string | null {
   return threadAgentCache.get(remoteId) ?? null;
 }
 
+// Share metadata for sidebar rendering (badges + read-only routing). Absent
+// entries default to owner/writable, so nothing changes before list() lands
+// or against an older server that doesn't send the fields.
+const threadAccessTypeCache = new Map<string, 'owner' | 'shared' | 'group'>();
+const threadReadOnlyCache = new Set<string>();
+
+export function getThreadAccessType(remoteId: string): 'owner' | 'shared' | 'group' {
+  return threadAccessTypeCache.get(remoteId) ?? 'owner';
+}
+
+export function isThreadReadOnly(remoteId: string): boolean {
+  return threadReadOnlyCache.has(remoteId);
+}
+
 // Whether the most recent list() call failed (network/5xx/401) rather than
 // genuinely resolving to "no such thread". assistant-ui's core swallows
 // getLoadThreadsPromise() rejections internally (logs + resolves with the
@@ -83,6 +100,23 @@ function cacheThreadSlug(remoteId: string, suffix: string | null | undefined): v
   if (!suffix) return;
   threadSlugCache.set(remoteId, suffix);
   slugToThreadCache.set(suffix, remoteId);
+}
+
+/**
+ * Drop every routing cache entry for a thread. Called from `delete()` so a
+ * deleted thread's slug cannot be re-resolved by the routing effect: that
+ * would start a switch to a slot the delete's optimistic update just hid.
+ */
+function forgetThreadCaches(remoteId: string): void {
+  const suffix = threadSlugCache.get(remoteId);
+  if (suffix && slugToThreadCache.get(suffix) === remoteId) slugToThreadCache.delete(suffix);
+  threadSlugCache.delete(remoteId);
+  threadTypeCache.delete(remoteId);
+  notebookCollectionCache.delete(remoteId);
+  threadAgentCache.delete(remoteId);
+  threadTagsCache.delete(remoteId);
+  threadAccessTypeCache.delete(remoteId);
+  threadReadOnlyCache.delete(remoteId);
 }
 
 const EMPTY_TAGS: readonly string[] = [];
@@ -128,6 +162,33 @@ function isExternal(remoteId: string) {
 
 // Threads whose title side effects (PATCH + generate-title POST) already ran.
 const titleGeneratedFor = new Set<string>();
+
+/**
+ * First-sentence title from the opening user message, or null when that message
+ * carries no text of its own.
+ *
+ * Null is a real answer, not a failure: pasted text travels as a file part
+ * (GrueneratorAttachmentAdapter), so a paste-and-send turn has no text part at
+ * all. Naming it "Neue Unterhaltung" here looked like a title and stopped the
+ * server from ever supplying a real one — the caller asks the backend instead.
+ */
+function deriveLocalTitle(messages: readonly ThreadMessage[]): string | null {
+  const firstUserMsg = messages.find((m) => m.role === 'user');
+  if (!firstUserMsg) return null;
+
+  // flatMap over the discriminated union rather than a hand-written type
+  // predicate: the `p.type === 'text'` branch narrows `p` on its own, so the
+  // part's shape stays owned by assistant-ui instead of being restated here.
+  const fullText = firstUserMsg.content
+    .flatMap((p) => (p.type === 'text' ? [p.text] : []))
+    .join(' ')
+    .trim();
+  if (!fullText) return null;
+
+  const sentenceEnd = fullText.search(/[.!?]/);
+  const title = sentenceEnd > 0 ? fullText.slice(0, sentenceEnd) : fullText;
+  return clampThreadTitle(title);
+}
 
 export function createGrueneratorThreadListAdapter(
   apiClient: ChatApiClient,
@@ -177,6 +238,7 @@ export function createGrueneratorThreadListAdapter(
         const external = callbacks?.getExternalThreads?.() ?? [];
 
         // Populate thread type + notebook collection caches for ThreadListItem rendering
+        let shareMetaChanged = false;
         for (const t of cachedThreads) {
           threadTypeCache.set(t.id, t.threadType || 'chat');
           if (t.notebookCollectionId) {
@@ -185,7 +247,21 @@ export function createGrueneratorThreadListAdapter(
           updateThreadTagsCache(t.id, t.tags ?? []);
           cacheThreadSlug(t.id, t.slugSuffix);
           threadAgentCache.set(t.id, t.agentId);
+          const accessType = t.accessType ?? 'owner';
+          if (threadAccessTypeCache.get(t.id) !== accessType) {
+            threadAccessTypeCache.set(t.id, accessType);
+            shareMetaChanged = true;
+          }
+          const readOnly = t.readOnly === true;
+          if (threadReadOnlyCache.has(t.id) !== readOnly) {
+            if (readOnly) threadReadOnlyCache.add(t.id);
+            else threadReadOnlyCache.delete(t.id);
+            shareMetaChanged = true;
+          }
         }
+        // Badge/routing readers subscribe via subscribeThreadTags (same
+        // listener set — one sidebar re-render channel, two caches).
+        if (shareMetaChanged) tagListeners.forEach((l) => l());
 
         const apiEntries = cachedThreads.map((t) => {
           const updatedAt = new Date(t.updatedAt).getTime();
@@ -257,7 +333,13 @@ export function createGrueneratorThreadListAdapter(
         threadTypeCache.set(result.id, threadMode);
         threadAgentCache.set(result.id, effectiveAgentId);
         cacheThreadSlug(result.id, result.slugSuffix);
-        useAgentStore.getState().setCurrentThread(result.id);
+        useAgentStore.getState().mintThreadFromDraft(result.id);
+        // Der Produktionspfad der Rollen-Promotion: das Backend sendet
+        // `thread_created` (und damit `onThreadCreated`) nur für Threads, die
+        // es selbst anlegt — für die hier geminteten nie. Ohne diesen Aufruf
+        // räumte die 404 der frischen Thread-Einstellungen die Standardrolle
+        // beim ersten Senden wieder ab (siehe `promoteDraftRoleToThread`).
+        useAgentStore.getState().promoteDraftRoleToThread(result.id, apiClient);
         return { remoteId: result.id, externalId: undefined };
       })().finally(() => {
         pendingInit = null;
@@ -288,6 +370,7 @@ export function createGrueneratorThreadListAdapter(
 
     async delete(remoteId: string) {
       if (isExternal(remoteId)) return;
+      forgetThreadCaches(remoteId);
       callbacks?.onDelete?.(remoteId);
       await apiClient.delete(`/api/chat-service/threads?threadId=${remoteId}`);
     },
@@ -337,47 +420,48 @@ export function createGrueneratorThreadListAdapter(
         });
       }
 
-      return createAssistantStream((controller) => {
-        const firstUserMsg = messages.find((m) => m.role === 'user');
-        if (!firstUserMsg) {
-          controller.appendText('Neue Unterhaltung');
-          return;
-        }
-
-        const textParts = firstUserMsg.content
-          .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
-          .map((p) => p.text);
-        const fullText = textParts.join(' ').trim();
-
-        if (!fullText) {
-          controller.appendText('Neue Unterhaltung');
-          return;
-        }
-
-        const sentenceEnd = fullText.search(/[.!?]/);
-        let title = sentenceEnd > 0 ? fullText.slice(0, sentenceEnd) : fullText;
-        if (title.length > 50) {
-          title = title.slice(0, 47) + '...';
-        }
-        controller.appendText(title);
+      return createAssistantStream(async (controller) => {
+        const localTitle = deriveLocalTitle(messages);
 
         // Both assistant-ui's built-in runEnd trigger (fires for lazily
         // initialized threads) and ThreadTitleEffect (kept for legacy
         // pre-created threads) may call this — run the side effects once.
-        if (titleGeneratedFor.has(remoteId)) return;
+        if (titleGeneratedFor.has(remoteId)) {
+          if (localTitle) controller.appendText(localTitle);
+          return;
+        }
         titleGeneratedFor.add(remoteId);
 
-        if (useAgentStore.getState().currentThreadId === remoteId) {
-          useAgentStore.getState().setCurrentThreadTitle(title);
+        // Shown immediately so the sidebar is not blank while the request runs —
+        // but deliberately NOT written to the database. Generated titles have
+        // exactly one writer, the server; a PATCH from here was
+        // indistinguishable from a manual rename and made the server's own
+        // conditional writes lose (the placeholder overwrote a real title, and
+        // the AI refinement was then locked out entirely). `rename()` still
+        // PATCHes — that one really is the user speaking.
+        if (localTitle) {
+          controller.appendText(localTitle);
+          if (useAgentStore.getState().currentThreadId === remoteId) {
+            useAgentStore.getState().setCurrentThreadTitle(localTitle);
+          }
         }
 
-        apiClient
-          .patch('/api/chat-service/threads', { threadId: remoteId, title })
-          .catch((err) => console.error('[TitleGen] PATCH fallback title FAILED:', err));
-
-        apiClient
-          .post(`/api/chat-service/threads/${remoteId}/generate-title`)
-          .catch((err) => console.error('[TitleGen] POST generate-title FAILED:', err));
+        // Runs even without a local title — that is the whole point. A first
+        // message consisting only of a pasted attachment carries no text part,
+        // and bailing out before this line left the thread unnamed forever.
+        try {
+          const res = await apiClient.post<GenerateTitleResponse>(
+            `/api/chat-service/threads/${remoteId}/generate-title`
+          );
+          if (!localTitle && res.title) {
+            controller.appendText(res.title);
+            if (useAgentStore.getState().currentThreadId === remoteId) {
+              useAgentStore.getState().setCurrentThreadTitle(res.title);
+            }
+          }
+        } catch (err) {
+          console.error('[TitleGen] POST generate-title FAILED:', err);
+        }
       });
     },
   };

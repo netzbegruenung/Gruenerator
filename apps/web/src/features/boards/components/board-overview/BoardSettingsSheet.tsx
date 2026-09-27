@@ -2,6 +2,7 @@ import { Button, Sheet, SheetContent, SheetHeader, SheetTitle, Switch } from '@g
 import { memo, useCallback, useState } from 'react';
 import { FiBell, FiDownload, FiPrinter, FiSettings } from 'react-icons/fi';
 
+import { downloadBlob } from '../../../../utils/downloadFile';
 import { useBoardSubscription } from '../../hooks/useBoardSubscription';
 import { FIELD_IDS, parseAssignees } from '../../types';
 
@@ -77,12 +78,7 @@ export const BoardSettingsSheet = memo(function BoardSettingsSheet({
     // Prepend a UTF-8 BOM (U+FEFF) so Excel reads the file as UTF-8.
     const bom = String.fromCharCode(0xfeff);
     const blob = new Blob([`${bom}${csv}`], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${slug(boardTitle) || 'board'}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    void downloadBlob(blob, `${slug(boardTitle) || 'board'}.csv`);
   }, [exportableFields, rows, boardTitle]);
 
   return (

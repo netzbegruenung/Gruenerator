@@ -24,9 +24,8 @@ import {
   type Document,
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
-import { useMediaQuery } from '@gruenerator/shared/hooks';
-import { Skeleton } from '@gruenerator/ui';
-import { WolkeSaveModal, uploadToWolke, useShareLinks } from '@gruenerator/wolke';
+import { useIsTouchDevice, useMediaQuery } from '@gruenerator/shared/hooks';
+import { Fab, Skeleton, useIsMobile, useScreenCornerReservation } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Suspense,
@@ -43,7 +42,6 @@ import {
   FiCheck,
   FiChevronDown,
   FiClock,
-  FiCloud,
   FiCornerUpLeft,
   FiCornerUpRight,
   FiDownload,
@@ -57,15 +55,17 @@ import {
   FiX,
 } from 'react-icons/fi';
 import { PiSun, PiMoon, PiDesktop } from 'react-icons/pi';
-import { useBeforeUnload, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useBeforeUnload, useParams, useSearchParams } from 'react-router-dom';
 
 import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
 import useDarkMode from '../../components/hooks/useDarkMode';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
+import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import { useExportStore, type PdfExportOptions } from '../../stores/core/exportStore';
-import { isDesktopApp } from '../../utils/platform';
+import { downloadBlob } from '../../utils/downloadFile';
+import { isDesktopApp, isEmbedded } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
 import { letterheadApi, LETTERHEADS_QUERY_KEY } from '../settings/letterheadApi';
 import { useTourAutostart } from '../tours/useTourAutostart';
@@ -76,7 +76,6 @@ import { GuestBadge, GUEST_ANIMALS } from './GuestBadge';
 import { getOrCreateGuestIdentity } from './guestIdentity';
 import { blockLines, detectRecipient, stripDetectedBlocks } from './letterDetection';
 import { PdfExportDialog, type PdfExportSubmit } from './PdfExportDialog';
-import { useDocsLiveWolkeSync } from './useDocsLiveWolkeSync';
 
 import type { LetterheadChoice } from './LetterheadChooser';
 import type { Block, BlockNoteEditor } from '@blocknote/core';
@@ -103,6 +102,22 @@ const SIDEBAR_TITLES: Record<SidebarPanel, string> = {
   suggestions: 'Änderungen',
 };
 
+// Die Seitenleiste (Chat/Kommentare/Versionen/Änderungen) ist `w-80` und reicht
+// bis zum rechten Viewport-Rand; unter `md` deckt sie ihn ganz. Als eigene
+// Komponente, weil `effectivePanel` erst hinter den Lade- und Fehler-Rückgaben
+// von `EditorContent` feststeht — ein Hook dort verletzte die Rules of Hooks.
+const SIDEBAR_CORNERS = ['top-right', 'bottom-right'] as const;
+
+function SidebarCornerReservation() {
+  const isMobile = useIsMobile();
+  useScreenCornerReservation({
+    corner: SIDEBAR_CORNERS,
+    horizontal: '20rem',
+    blocked: isMobile,
+  });
+  return null;
+}
+
 function EditorFAB({
   showDisconnected,
   sidebarOpen,
@@ -113,24 +128,24 @@ function EditorFAB({
   onToggleSidebar: () => void;
 }) {
   return (
-    <button
-      className={`fixed bottom-6 right-6 w-12 h-12 rounded-full flex items-center justify-center bg-white/85 dark:bg-grey-900/85 backdrop-blur-xl border border-black/8 dark:border-white/10 shadow-lg cursor-pointer z-[150] transition-all hover:bg-white/95 dark:hover:bg-grey-800/95 hover:shadow-xl active:scale-95 [&_svg]:w-[22px] [&_svg]:h-[22px] [&_svg]:text-grey-700 dark:[&_svg]:text-grey-300 ${sidebarOpen ? 'bg-secondary-100 dark:bg-secondary-600/25 border-secondary-400 dark:border-secondary-600 z-[250] [&_svg]:text-secondary-700 dark:[&_svg]:text-secondary-400' : ''}`}
+    <Fab
+      icon={<FiSidebar />}
+      active={sidebarOpen}
+      showDot={showDisconnected}
       onClick={onToggleSidebar}
       aria-label="Seitenleiste ein-/ausblenden"
-    >
-      <FiSidebar />
-      {showDisconnected && (
-        <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full border-[1.5px] border-white/90 dark:border-grey-900/90 bg-red-500" />
-      )}
-    </button>
+    />
   );
 }
 
 function EditorContent() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const handleBack = useHostAwareBack('/office');
   const [searchParams] = useSearchParams();
-  const isEmbedded = searchParams.get('embedded') === 'true';
+  // The chat panel's docked preview iframe (ArtifactPanel). Distinct from
+  // `isEmbedded()` in utils/platform, which is the mobile WebView host and
+  // uses `embedded=1` on the same query key.
+  const isInlineEmbed = searchParams.get('embedded') === 'true';
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const { user, isAuthResolved } = useAuth({ lazy: true });
@@ -217,7 +232,6 @@ function EditorContent() {
   );
 
   const [showShareModal, setShowShareModal] = useState(false);
-  const [showWolkeModal, setShowWolkeModal] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showExportSubmenu, setShowExportSubmenu] = useState(false);
   // The old export was local and instant; the server round-trip takes seconds,
@@ -236,9 +250,6 @@ function EditorContent() {
     if (activeSidebar === 'chat' && !hasOpenedChat) setHasOpenedChat(true);
   }, [activeSidebar, hasOpenedChat]);
   const [editor, setEditor] = useState<BlockNoteEditor | null>(null);
-
-  const { data: shareLinks } = useShareLinks('personal', null, { enabled: !isGuest });
-  const wolkeConnected = (shareLinks?.length ?? 0) > 0;
 
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const actionsButtonRef = useRef<HTMLButtonElement>(null);
@@ -267,7 +278,9 @@ function EditorContent() {
   // "nodeSize undefined" when the first server state restructures the doc.
   const editorReady = useSyncGate(provider, isSynced);
 
-  useTourAutostart('docs', editorReady && !!docData && !isGuest, () => {
+  // Not embedded: the tour paints a full-viewport overlay with its own controls
+  // over a WebView the user cannot navigate away from.
+  useTourAutostart('docs', editorReady && !!docData && !isGuest && !isEmbedded(), () => {
     void import('../tours/docsTour').then((m) => m.startDocsTour());
   });
 
@@ -291,6 +304,11 @@ function EditorContent() {
   );
   // Tailwind max-md boundary — below it the sidebar is a full-screen overlay.
   const isMobile = useMediaQuery('(max-width: 767px)');
+  // BlockNote pins `bn-scroll-container` to the visual viewport, so the keyboard
+  // shrinks the page instead of panning it, and the mobile toolbar stays on the
+  // keyboard. Touch only: on desktop it would pin the page to a pinch zoom. Not
+  // in the chat's embed iframe, whose viewport the keyboard doesn't resize.
+  const pinToVisualViewport = useIsTouchDevice() && !isInlineEmbed;
   // Mode and panel are independent: on desktop enabling still auto-opens the
   // sidebar for review, but on mobile the panel is a full-screen overlay that
   // would trap the user, so it only opens via "Änderungen prüfen".
@@ -388,12 +406,7 @@ function EditorContent() {
         await import('@blocknote/xl-docx-exporter');
       const exporter = new DOCXExporter(editor.schema, docxDefaultSchemaMappings);
       const blob = await exporter.toBlob(editor.document);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${docData.title || 'Dokument'}.docx`;
-      link.click();
-      window.URL.revokeObjectURL(url);
+      await downloadBlob(blob, `${docData.title || 'Dokument'}.docx`);
       setShowActionsMenu(false);
     } catch (error) {
       console.error('Export failed:', error);
@@ -504,51 +517,13 @@ function EditorContent() {
       const { ODTExporter, odtDefaultSchemaMappings } = await import('@blocknote/xl-odt-exporter');
       const exporter = new ODTExporter(editor.schema, odtDefaultSchemaMappings);
       const blob = await exporter.toODTDocument(editor.document);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${docData.title || 'Dokument'}.odt`;
-      link.click();
-      window.URL.revokeObjectURL(url);
+      await downloadBlob(blob, `${docData.title || 'Dokument'}.odt`);
       setShowActionsMenu(false);
     } catch (error) {
       console.error('ODT export failed:', error);
       void import('sonner').then(({ toast }) => toast.error('ODT-Export fehlgeschlagen'));
     }
   }, [docData, editor, exportBlockedBySuggestions]);
-
-  const handleSaveToWolke = useCallback(
-    async (shareLinkId: string, folderPath: string | undefined, liveSync: boolean) => {
-      if (!docData || !editor) throw new Error('Editor not ready');
-      const view = editor.prosemirrorView;
-      if (view && hasPendingSuggestions(view.state.doc)) {
-        throw new Error(
-          'Das Dokument enthält offene Änderungsvorschläge. Bitte zuerst alle annehmen oder ablehnen.'
-        );
-      }
-      const { DOCXExporter, docxDefaultSchemaMappings } =
-        await import('@blocknote/xl-docx-exporter');
-      const exporter = new DOCXExporter(editor.schema, docxDefaultSchemaMappings);
-      const blob = await exporter.toBlob(editor.document);
-      const arrayBuffer = await blob.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const base64Content = btoa(binary);
-      const filename = `${docData.title || 'Dokument'}.docx`;
-      await uploadToWolke(shareLinkId, base64Content, filename, {
-        ...(folderPath ? { folderPath } : {}),
-        documentId: docData.id,
-        enableLiveSync: liveSync,
-      });
-      await queryClient.invalidateQueries({ queryKey: ['document', id] });
-    },
-    [docData, editor, queryClient, id]
-  );
-
-  useDocsLiveWolkeSync({ editor, docData, canEdit });
 
   const togglePanel = useCallback((panel: SidebarPanel) => {
     setActiveSidebar((prev) => (prev === panel ? null : panel));
@@ -648,8 +623,10 @@ function EditorContent() {
         : activeSidebar;
 
   return (
-    <div className="h-full flex flex-col relative">
-      {isEmbedded ? (
+    <div
+      className={`h-full flex flex-col relative${pinToVisualViewport ? ' bn-scroll-container' : ''}`}
+    >
+      {isInlineEmbed ? (
         <EditorFAB
           showDisconnected={showDisconnected}
           sidebarOpen={activeSidebar !== null}
@@ -660,35 +637,11 @@ function EditorContent() {
           dataTour="docs-topbar"
           title={docData.title}
           connectionStatus={connectionStatus}
-          onBack={isGuest ? undefined : () => navigate('/office')}
+          onBack={isGuest ? undefined : handleBack}
           editable={isEditable}
           onTitleChange={handleTitleChange}
           rightActions={
             <>
-              {!isGuest && docData.wolke_live_sync && docData.wolke_share_link_id && (
-                <button
-                  type="button"
-                  onClick={() => setShowWolkeModal(true)}
-                  // Hidden below sm: its "Live" label only appears on hover, so
-                  // on touch it is a mute icon competing for scarce bar width.
-                  // "In Wolke speichern" in the actions menu covers the same ground.
-                  className="group relative hidden sm:flex items-center gap-1.5 py-1 px-2 text-[0.75rem] rounded-full text-secondary-700 dark:text-secondary-300 transition-all duration-200 ease-out hover:bg-secondary-100/80 dark:hover:bg-secondary-900/50 hover:scale-105 hover:shadow-[0_0_0_3px_rgba(34,197,94,0.15)] dark:hover:shadow-[0_0_0_3px_rgba(34,197,94,0.25)]"
-                  title={
-                    docData.wolke_file_path
-                      ? `Live mit Wolke synchronisiert: ${docData.wolke_file_path}`
-                      : 'Live mit Wolke synchronisiert'
-                  }
-                  aria-label="Wolke-Live-Sync aktiv"
-                >
-                  <span className="relative flex items-center justify-center">
-                    <span className="absolute inline-flex h-full w-full rounded-full bg-secondary-400/40 opacity-0 group-hover:opacity-100 group-hover:animate-ping" />
-                    <FiCloud className="relative h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-110" />
-                  </span>
-                  <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover:max-w-[3rem] group-hover:opacity-100">
-                    Live
-                  </span>
-                </button>
-              )}
               {isGuest && guestIdentity && (
                 <GuestBadge
                   guestName={guestIdentity.guestName}
@@ -871,24 +824,6 @@ function EditorContent() {
                             Änderungen prüfen
                           </button>
                         )}
-                        {wolkeConnected && (
-                          <button
-                            className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
-                            onClick={() => {
-                              setShowActionsMenu(false);
-                              setShowWolkeModal(true);
-                            }}
-                            title={docData.wolke_file_path ?? undefined}
-                          >
-                            <FiCloud />
-                            <span className="flex-1">In Wolke speichern</span>
-                            {docData.wolke_live_sync && (
-                              <span className="text-[0.6875rem] text-secondary-600 dark:text-secondary-400 font-medium">
-                                Live
-                              </span>
-                            )}
-                          </button>
-                        )}
                         <div className="my-1 h-px bg-black/5 dark:bg-white/10" />
                       </>
                     )}
@@ -970,7 +905,7 @@ function EditorContent() {
       <div className="flex-1 flex flex-row overflow-hidden max-md:flex-col">
         <div
           data-tour="docs-surface"
-          className={`flex-1 min-w-0 overflow-y-auto scrollbar-thin py-4 px-6 max-sm:px-0 max-sm:pt-0 max-sm:pb-[var(--mobile-keyboard-offset,0px)] ${
+          className={`flex-1 min-w-0 overflow-y-auto scrollbar-thin py-4 px-6 max-sm:px-0 max-sm:pt-0 ${
             isDesktopApp()
               ? // Desktop app only: match the editor backdrop to the top bar so
                 // there's no white-bar-over-gray seam. The `docs-editor-desktop`
@@ -1002,6 +937,8 @@ function EditorContent() {
             <DocAiReviewBar documentId={id!} editor={editor} />
           </div>
         </div>
+
+        {effectivePanel && <SidebarCornerReservation />}
 
         {hasOpenedChat && id && (
           // Mount the chat infra (runtime, Hocuspocus, thread query) outside
@@ -1115,15 +1052,6 @@ function EditorContent() {
             onClose={() => setShowShareModal(false)}
           />
         </Suspense>
-      )}
-
-      {!isGuest && (
-        <WolkeSaveModal
-          open={showWolkeModal}
-          onOpenChange={setShowWolkeModal}
-          onSave={handleSaveToWolke}
-          initialLiveSync={!!docData.wolke_live_sync}
-        />
       )}
 
       {showPdfDialog && editor && (

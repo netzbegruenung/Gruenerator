@@ -61,15 +61,13 @@ describe('mapKeycloakProfileToUser — happy path', () => {
         preferred_username: 'alice',
         picture: 'https://example.org/alice.png',
       },
-      'gruenes-netz',
-      'de-DE'
+      'gruenes-netz'
     );
 
     expect(result.email).toBe('alice@example.org');
     expect(result.name).toBe('Alice Example');
     expect(result.emailVerified).toBe(true);
     expect(result.image).toBe('https://example.org/alice.png');
-    expect(result.locale).toBe('de-DE');
     expect(result.authSource).toBe('gruenes-netz-login');
     expect(mockWarn).not.toHaveBeenCalled();
   });
@@ -83,8 +81,7 @@ describe('mapKeycloakProfileToUser — missing email', () => {
         name: 'Bob NoEmail',
         preferred_username: 'bob',
       },
-      'gruenes-netz',
-      'de-DE'
+      'gruenes-netz'
     );
 
     // Critical: NOT `result.email === undefined` — the key must be ABSENT.
@@ -100,8 +97,7 @@ describe('mapKeycloakProfileToUser — missing email', () => {
         email: '',
         name: 'Carol Empty',
       },
-      'netzbegruenung',
-      'de-DE'
+      'netzbegruenung'
     );
 
     expect(Object.hasOwn(result, 'email')).toBe(false);
@@ -115,8 +111,7 @@ describe('mapKeycloakProfileToUser — missing email', () => {
         email: 42,
         name: 'Dave WrongType',
       },
-      'gruenerator-user',
-      'de-DE'
+      'gruenerator-user'
     );
 
     expect(Object.hasOwn(result, 'email')).toBe(false);
@@ -130,8 +125,7 @@ describe('mapKeycloakProfileToUser — missing email', () => {
         name: 'Bob NoEmail',
         preferred_username: 'bob',
       },
-      'gruenes-netz',
-      'de-DE'
+      'gruenes-netz'
     );
 
     expect(mockWarn).toHaveBeenCalledOnce();
@@ -146,7 +140,7 @@ describe('mapKeycloakProfileToUser — missing email', () => {
   });
 
   it('coerces non-string sub and preferred_username to null in the warn metadata', () => {
-    mapKeycloakProfileToUser({ sub: 12345, preferred_username: false }, 'gruenes-netz', 'de-DE');
+    mapKeycloakProfileToUser({ sub: 12345, preferred_username: false }, 'gruenes-netz');
 
     expect(mockWarn).toHaveBeenCalledOnce();
     const [, meta] = mockWarn.mock.calls[0] ?? [];
@@ -159,8 +153,7 @@ describe('mapKeycloakProfileToUser — missing email', () => {
         sub: 'kc-uuid-only',
         preferred_username: 'edna',
       },
-      'gruenes-netz',
-      'de-DE'
+      'gruenes-netz'
     );
 
     expect(result.name).toBe('edna');
@@ -168,15 +161,27 @@ describe('mapKeycloakProfileToUser — missing email', () => {
   });
 });
 
-describe('mapKeycloakProfileToUser — locale + authSource composition', () => {
-  it('honors de-AT locale and stamps authSource from idpHint', () => {
+describe('mapKeycloakProfileToUser — authSource composition', () => {
+  it('stamps authSource from idpHint', () => {
     const result = mapKeycloakProfileToUser(
       { sub: 'kc-at-1', email: 'wien@example.at', name: 'Franz' },
-      'gruene-at-login',
-      'de-AT'
+      'gruene-at-login'
     );
 
-    expect(result.locale).toBe('de-AT');
     expect(result.authSource).toBe('gruene-at-login-login');
+  });
+
+  // Das Land gehört nicht mehr hierher: es wird ausschließlich in
+  // `config/localeSync.ts` geschrieben, und nur für IdPs, die eines nennen. Ein
+  // `locale` an dieser Stelle hieße, für jeden länderneutralen IdP eine
+  // Vermutung ins Profil zu schreiben — genau der Weg, auf dem österreichische
+  // Nutzer*innen still als deutsch angelegt wurden.
+  it('emits no locale at all — the country is not this function’s business', () => {
+    const result = mapKeycloakProfileToUser(
+      { sub: 'kc-at-1', email: 'wien@example.at', name: 'Franz' },
+      'gruene-at-login'
+    );
+
+    expect(Object.hasOwn(result, 'locale')).toBe(false);
   });
 });

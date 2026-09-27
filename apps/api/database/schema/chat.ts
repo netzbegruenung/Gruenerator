@@ -1,12 +1,15 @@
+import { type RoleRef } from '@gruenerator/contracts';
 import { type InferSelectModel } from 'drizzle-orm';
 import {
   bigint,
   boolean,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
@@ -31,6 +34,10 @@ export const chatThreads = pgTable(
     thread_type: varchar('thread_type', { length: 20 }).default('chat'),
     custom_system_prompt: text('custom_system_prompt'),
     custom_enabled_tools: jsonb('custom_enabled_tools').$type<Record<string, unknown>>(),
+    // Die im Thread gewählte Rolle. Katalogrollen haben keinen eigenen
+    // Prompttext (der ist parteiintern), also ist diese Referenz das Einzige,
+    // woran der Thread seinen Rollen-Modus nach einem Neuladen wiedererkennt.
+    role_ref: jsonb('role_ref').$type<RoleRef>(),
     notebook_collection_id: varchar('notebook_collection_id', { length: 255 }),
     notebook_collection_ids: jsonb('notebook_collection_ids').$type<string[]>(),
     doc_id: uuid('doc_id'),
@@ -38,6 +45,9 @@ export const chatThreads = pgTable(
     tags: jsonb('tags').$type<string[]>().notNull().default([]),
     // Stable 6-char key for Notion-style thread URLs (/chat/<titel>-<suffix>).
     slug_suffix: text('slug_suffix'),
+    // Link-Freigabe: 'authenticated' = lesbar für jede angemeldete Person mit
+    // dem /chat/geteilt/<slug>-Link. Nicht is_public (das gewährt Schreibzugriff).
+    share_mode: text('share_mode').notNull().default('private'),
     // Sticky MCP scope: last connected server the loop was scoped to, so an
     // unscoped follow-up re-scopes to it instead of fanning out. No FK (loose).
     last_mcp_server_id: uuid('last_mcp_server_id'),
@@ -79,6 +89,8 @@ export const chatThreadAttachments = pgTable(
     mime_type: text('mime_type').notNull(),
     size_bytes: bigint('size_bytes', { mode: 'number' }).notNull(),
     is_image: boolean('is_image').default(false),
+    // From OCR extraction (PDFs only) — display metadata for attachment chips.
+    page_count: integer('page_count'),
     extracted_text: text('extracted_text'),
     summary: text('summary'),
     // Raw file bytes (base64) for tabular attachments only — lets the in-browser
@@ -87,9 +99,17 @@ export const chatThreadAttachments = pgTable(
     // Qdrant document id when a large prose doc was chunked+embedded — follow-up
     // turns retrieve it via RAG instead of re-injecting its truncated full text.
     document_id: uuid('document_id'),
+    // md5 over the trimmed extracted text (name + size for binaries). Backed by
+    // a partial UNIQUE index on (thread_id, content_hash): re-sending the same
+    // file on a later turn must not create a second row — it would reach the
+    // model twice and pay for a second summary.
+    content_hash: text('content_hash'),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },
-  (t) => [index('idx_thread_attachments_message_id').on(t.message_id)]
+  (t) => [
+    index('idx_thread_attachments_message_id').on(t.message_id),
+    uniqueIndex('idx_thread_attachments_content').on(t.thread_id, t.content_hash),
+  ]
 );
 
 /**

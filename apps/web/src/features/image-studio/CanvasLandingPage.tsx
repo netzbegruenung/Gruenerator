@@ -14,12 +14,7 @@ import useImageStudioStore from '../../stores/imageStudioStore';
 import { DocsComposer, type ComposerTemplate } from '../docs/DocsComposer';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
 import { useTourAutostart } from '../tours/useTourAutostart';
-import {
-  OFFICE_SCROLL_ITEM,
-  OFFICE_SCROLL_ROW,
-  OfficeTile,
-  officeStripStyle,
-} from '../workplace/components/ToolsSection';
+import { OFFICE_PILL_ROW, OfficeTilePill } from '../workplace/components/ToolsSection';
 
 import StudioGallerySections from './components/StudioGallerySections';
 import { IMAGE_STUDIO_CATEGORIES, getTypesForCategory } from './utils/typeConfig';
@@ -143,14 +138,9 @@ const CanvasLandingContent = () => {
       </div>
 
       <section className="mb-xl mt-xl" data-tour="studio-tools">
-        <div
-          className={OFFICE_SCROLL_ROW}
-          style={officeStripStyle(visibleCanvasTools.length, { maxTilePx: 200 })}
-        >
+        <div className={OFFICE_PILL_ROW}>
           {visibleCanvasTools.map((tool) => (
-            <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
-              <OfficeTile tool={tool} themeKey="canvas" />
-            </div>
+            <OfficeTilePill key={tool.id} tool={tool} themeKey="canvas" />
           ))}
         </div>
       </section>

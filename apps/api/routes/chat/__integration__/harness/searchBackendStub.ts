@@ -99,3 +99,100 @@ export function fakeExecuteDirectPressemitteilungExamples(params: {
     ok ? { query: params.query, examples: [] } : { error: 'fehlgeschlagen', examples: [] }
   );
 }
+
+/**
+ * Der DIP-Abruf hinter dem `bundestag`-Werkzeug — dasselbe Prinzip wie oben:
+ * nur das BACKEND wird ersetzt. Werkzeugdefinition, Locale-Gitter am Katalog
+ * und der `searchNode`-Zweig bleiben echt, sonst prüfte ein Flip-Test eine
+ * erfundene Welt statt der Montage, um die es geht.
+ */
+export function fakeBundestagService(): { search: (query: string) => Promise<unknown> } {
+  return {
+    search(query: string): Promise<unknown> {
+      record('bundestagSearch', query);
+      return Promise.resolve({
+        kind: 'topic',
+        topic: {
+          hits: [
+            {
+              docType: 'Drucksache',
+              docId: 'bt-1',
+              entityType: 'Antrag',
+              title: `Antrag zu ${query}`,
+              abstract: `Beratungsstand im DIP zu ${query}.`,
+              dokumentnummer: '21/1234',
+              date: '2026-05-04',
+              wahlperiode: 21,
+              score: 0.9,
+            },
+          ],
+          speeches: [],
+          documents: [],
+          vorgaenge: [],
+        },
+        notes: [],
+        metadata: {
+          query,
+          extractedName: null,
+          matchedDokumentnummer: null,
+          fetchTimeMs: 1,
+        },
+      });
+    },
+  };
+}
+
+/**
+ * Der PolitPro-Abruf hinter dem `umfragen`-Werkzeug — dasselbe Prinzip wie beim
+ * DIP oben: nur das BACKEND wird ersetzt. Werkzeugdefinition, Quellen-Registry
+ * und die Montage im Katalog bleiben echt, sonst prüfte der Pin-Test eine
+ * erfundene Welt statt der Kette, um die es geht.
+ */
+export function fakeLookupUmfragen(
+  topic: string,
+  bundesland?: string,
+  _locale?: string
+): Promise<string | null> {
+  record('umfragenLookup', topic || (bundesland ?? ''));
+  return Promise.resolve(
+    `Sonntagsfrage${bundesland ? ` ${bundesland}` : ''}: Grüne 15 %, SPD 16 %, CDU/CSU 27 %.`
+  );
+}
+
+/**
+ * Der Dokument-Abruf hinter dem Vorab-Seed, `dokumente_lesen` und `summarize`.
+ *
+ * Ohne ihn hat der Integrationsnetz-Lauf gar keinen Dokumentpfad: Qdrant ist in
+ * der gepinnten Umgebung nicht erreichbar, der Seed fängt den Fehler (wie er
+ * soll) und der Turn sähe aus wie einer ganz ohne Anhang — die Kette, um die es
+ * geht, wäre unbeobachtet. Nur das BACKEND wird ersetzt; Fan-out,
+ * Quellen-Registry, Werkzeugmontage und der Werkzeug-Pin bleiben echt.
+ */
+export function fakeQdrantDocumentService(): {
+  search: (args: { query: string; filters?: { documentIds?: string[] } }) => Promise<unknown>;
+  getMultipleDocumentsFullText: (userId: string, ids: string[]) => Promise<unknown>;
+} {
+  return {
+    search: ({ query, filters }) => {
+      record('documentSearch', query);
+      return Promise.resolve({
+        results: (filters?.documentIds ?? ['doc-1']).map((id) => ({
+          document_id: id,
+          title: 'Beschlusspapier.pdf',
+          relevant_content: 'Der Radverkehr in Berlin wird bis 2030 ausgebaut.',
+          similarity_score: 0.82,
+        })),
+      });
+    },
+    getMultipleDocumentsFullText: (_userId, ids) => {
+      record('documentFullText', ids.join(','));
+      return Promise.resolve({
+        documents: ids.map((id) => ({
+          id,
+          fullText: 'Moderne Mobilität für Berlin. Der Radverkehr wird bis 2030 ausgebaut.',
+          chunkCount: 1,
+        })),
+      });
+    },
+  };
+}

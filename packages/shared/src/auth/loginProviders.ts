@@ -24,7 +24,10 @@ export const LOGIN_PROVIDERS: LoginProvider[] = [
     source: 'gruenes-netz-login',
     betterAuthProviderId: 'keycloak-gruenes-netz',
     title: 'Grünes Netz Login',
-    description: 'Mit deinem Grünes Netz Account anmelden',
+    // Das Land gehört sichtbar ins Label: die Anbieternamen allein sagen niemandem,
+    // welcher Knopf der österreichische ist, und die Wahl legt hinterher Ansprache,
+    // Notebook-Sammlungen und Parteinamen fest.
+    description: 'Für Deutschland — mit deinem Grünes-Netz-Account anmelden',
     className: 'gruenes-netz',
     logoPath: '/images/Sonnenblume_RGB_gelb.png',
     logoAlt: 'Grünes Netz',
@@ -35,7 +38,7 @@ export const LOGIN_PROVIDERS: LoginProvider[] = [
     source: 'gruene-oesterreich-login',
     betterAuthProviderId: 'keycloak-gruene-at',
     title: 'Die Grünen – Die Grüne Alternative',
-    description: 'Mit deinem Groupware Account (Zimbra) anmelden',
+    description: 'Für Österreich — mit deinem Groupware-Account (Zimbra) anmelden',
     className: 'gruene-oesterreich',
     logoPath: '/images/Grüne_at_Logo.svg.png',
     logoAlt: 'Die Grünen – Die Grüne Alternative',
@@ -63,6 +66,9 @@ export const LOGIN_PROVIDERS: LoginProvider[] = [
     className: 'gruenerator',
     logoPath: null,
     logoAlt: 'Grünerator',
+    // Like netzbegruenung: not offered anywhere in the web frontend, reachable
+    // only via the deep link /login?login=gruenerator (which makes it the
+    // primary provider and re-adds it to the expanded list).
     enabledByDefault: false,
   },
 ];
@@ -96,10 +102,58 @@ export function rememberProvider(id: LoginProviderId): void {
   }
 }
 
-/** Guess the member's country provider from the browser language (AT → Österreich, else Deutschland). */
-export function detectCountryProviderId(): CountryProviderId {
-  const lang = (typeof navigator !== 'undefined' ? navigator.language : 'de-DE') || 'de-DE';
-  return lang.toLowerCase().includes('at') ? 'gruene-oesterreich' : 'gruenes-netz';
+/**
+ * Ländererkennung vor dem Login — die Zeitzone trägt sie, nicht die Sprache.
+ *
+ * Vorher entschied `navigator.language.includes('at')`. Österreich spricht
+ * Deutsch, und österreichische Geräte melden ganz überwiegend `de-DE` oder
+ * schlicht `de`: die Sprache unterscheidet die beiden Länder praktisch nie, und
+ * jede Anmeldung landete auf dem deutschen IdP. `Europe/Vienna` dagegen steht
+ * auf einem in Österreich eingerichteten Gerät, ist ohne Nachfrage lesbar und
+ * hängt nicht daran, welche Sprache jemand eingestellt hat.
+ *
+ * Rückgabe `null` heißt „unsicher" und ist eine echte Antwort: die Login-Seite
+ * zeigt dann beide Länder gleichrangig, statt eines stillschweigend zu wählen.
+ * Zeitzonen außerhalb von DE/AT (Reise, VPN, Server-Rendering) sind genau der
+ * Fall, in dem Raten schadet.
+ */
+export function detectCountry(): 'de' | 'at' | null {
+  const timeZone = (() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    } catch {
+      return '';
+    }
+  })();
+
+  const languages =
+    typeof navigator !== 'undefined'
+      ? navigator.languages?.length
+        ? navigator.languages
+        : [navigator.language]
+      : [];
+  const speaksAt = languages.some((l) => l?.toLowerCase().startsWith('de-at'));
+
+  // Ein ausdrückliches de-AT ist selten, aber wenn es dasteht, ist es eindeutig —
+  // es schlägt deshalb auch eine abweichende Zeitzone (AT-Gerät auf Reisen).
+  if (timeZone === 'Europe/Vienna' || speaksAt) return 'at';
+  if (timeZone === 'Europe/Berlin' || timeZone === 'Europe/Busingen') return 'de';
+  return null;
+}
+
+const COUNTRY_PROVIDER: Record<'de' | 'at', CountryProviderId> = {
+  de: 'gruenes-netz',
+  at: 'gruene-oesterreich',
+};
+
+/**
+ * Der vorzuschlagende Länder-Anbieter, oder `null`, wenn das Land unklar ist.
+ * Aufrufer müssen `null` behandeln, indem sie fragen — nicht, indem sie einen
+ * Standard einsetzen.
+ */
+export function detectCountryProviderId(): CountryProviderId | null {
+  const country = detectCountry();
+  return country === null ? null : COUNTRY_PROVIDER[country];
 }
 
 /** @deprecated Use signInWithProvider() for Better Auth flow */
@@ -121,19 +175,24 @@ export function buildProviderAuthUrl(
 
 /**
  * Initiate Better Auth OAuth sign-in.
- * POSTs to /api/auth/v2/sign-in/oauth2, gets { url }, and redirects.
+ * POSTs to /api/auth/v2/sign-in/social, gets { url }, and redirects.
+ *
+ * Der Endpunkt hat sich mit better-auth 1.7 geaendert (`/sign-in/oauth2` ist
+ * weg, das Feld heisst `provider` statt `providerId`). Das ist unkritisch,
+ * weil dieser Pfad nur der Browser geht und Frontend und Backend zusammen
+ * ausgeliefert werden — Mobile und Desktop gehen ueber `/api/auth/login`.
  */
 export async function signInWithProvider(
   provider: LoginProvider,
   callbackURL: string,
   apiBaseUrl = '/api'
 ): Promise<void> {
-  const response = await fetch(`${apiBaseUrl}/auth/v2/sign-in/oauth2`, {
+  const response = await fetch(`${apiBaseUrl}/auth/v2/sign-in/social`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify({
-      providerId: provider.betterAuthProviderId,
+      provider: provider.betterAuthProviderId,
       callbackURL,
     }),
   });

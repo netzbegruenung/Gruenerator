@@ -12,12 +12,12 @@ const __dirname = dirname(__filename);
 // Import required utilities
 import { stripRoleBlock } from '@gruenerator/shared/roles';
 
+import { aiText } from '../../services/ai/generate.js';
 import {
   localizePromptObject,
   extractLocaleFromRequest,
 } from '../../services/localization/index.js';
 import { withErrorHandler, handleValidationError } from '../../utils/errors/index.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import {
   MARKDOWN_FORMATTING_INSTRUCTIONS,
   HTML_FORMATTING_INSTRUCTIONS,
@@ -35,7 +35,7 @@ import type { PromptConfig, AIOptions, TemplateContext } from './types/index.js'
 import type { PromptAssemblyState } from './types/promptAssembly.js';
 import type { GenerationStatsService } from '../../database/services/GenerationStatsService/index.js';
 import type { UserProfile } from '../../services/user/types.js';
-import type { AIWorkerResult } from '../../utils/request/types.js';
+import type { AiResult } from '../../utils/request/types.js';
 import type {
   Document as EnrichmentDocument,
   WebSearchSource,
@@ -47,13 +47,6 @@ import type { Request, Response } from 'express';
  */
 interface PromptProcessorRequest extends Request {
   user?: UserProfile | undefined;
-  app: Request['app'] & {
-    locals: {
-      aiWorkerPool: {
-        processRequest: (request: Record<string, unknown>, req: Request) => Promise<AIWorkerResult>;
-      };
-    };
-  };
 }
 
 /**
@@ -734,7 +727,6 @@ export async function processGraphRequest(
         searchQuery: searchQuery || null,
         examples: [], // TODO: Implement examples from config
         provider,
-        aiWorkerPool: getAIWorkerPool(ppReq),
         enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false,
       },
       ppReq
@@ -765,35 +757,35 @@ export async function processGraphRequest(
       console.log(`[promptProcessor] Instructions (customPrompt):`, enrichedState.instructions);
     }
 
-    const payload = {
-      systemPrompt: promptResult.system,
-      messages: promptResult.messages,
-      options: {
-        ...aiOptions,
-        ...(promptResult.tools?.length > 0 && { tools: promptResult.tools }),
-        ...(enrichedState.enrichmentMetadata?.enableDocQnA ? { useDocumentQnA: true } : {}),
-      },
-      metadata: {
-        webSearchSources: enrichedState.enrichmentMetadata?.webSearchSources || null,
-        platforms: requestData.platforms || null,
-      },
-    };
-
-    // Process AI request
-    const aiWorkerPool = (ppReq.app.locals as Record<string, unknown>).aiWorkerPool as {
-      processRequest: (request: Record<string, unknown>, req: Request) => Promise<AIWorkerResult>;
-    };
-    const result: AIWorkerResult = await aiWorkerPool.processRequest(
-      {
-        type: routeType,
-        ...payload,
-      },
-      ppReq
-    );
-
-    if (!result.success) {
-      console.error(`[promptProcessor] AI Worker error for ${routeType}:`, result.error);
-      // Log failed generation
+    // Hier stand die Brücke, über die eine Prompt-Config die Routing-Tabelle
+    // übergehen konnte: `options.model` gewann, so wie es im alten Selektor
+    // (`model = options.model || <Tabellenwert>`) gewonnen hatte. Sie ist weg,
+    // und mit ihr das Feld aus den Configs — welches Modell eine Lane bedient,
+    // steht ab jetzt ausschliesslich in `AI_LANES`. Wer wirklich an der Tabelle
+    // vorbei muss, sagt das mit `AiCall.pinned` im Code, wo es zu sehen ist.
+    // `promptConfigRouting.vitest.ts` bewacht die Grenze über ALLE Configs.
+    //
+    // Zwei Felder des alten Umschlags sind hier ersatzlos entfallen, weil sie
+    // nie ankamen: `promptResult.tools` ist immer leer (keine Prompt-Config
+    // trägt `tools`, und der Assembly-Graph reicht nur durch, was der Aufrufer
+    // mitgibt), und `useDocumentQnA` wurde von niemandem gelesen — es stand in
+    // `AIRequestOptions` und in keiner einzigen Abfrage.
+    let content: string;
+    try {
+      content = await aiText({
+        // `routeType` ist der einzige wirklich dynamische Lane-Name im Repo: er
+        // kommt aus der Prompt-Config-JSON. `resolveLane` verträgt das und sagt
+        // es einmal pro unbekanntem Namen laut.
+        lane: routeType,
+        system: promptResult.system,
+        messages: promptResult.messages,
+        ...(aiOptions.max_tokens != null && { maxOutputTokens: aiOptions.max_tokens }),
+        ...(aiOptions.temperature != null && { temperature: aiOptions.temperature }),
+        ...(typeof aiOptions.top_p === 'number' && { topP: aiOptions.top_p }),
+        ...(requestData.platforms != null && { platforms: requestData.platforms }),
+      });
+    } catch (aiError) {
+      console.error(`[promptProcessor] AI error for ${routeType}:`, aiError);
       void logGeneration({
         userId: ppReq.user?.id || null,
         generationType: routeType,
@@ -801,18 +793,43 @@ export async function processGraphRequest(
         tokensUsed: null,
         success: false,
       });
-      throw new Error(result.error as string);
+      throw aiError;
     }
 
-    // Log successful generation (fire-and-forget)
-    const resultUsage = result.usage as { total_tokens?: number | undefined } | undefined;
+    // `tokensUsed` war hier immer `null` und bleibt es: der Zähler stand unter
+    // `metadata.usage`, gelesen wurde `result.usage` — ein Feld, das
+    // `buildAdapterResult` nie gesetzt hat. Nicht stillschweigend repariert,
+    // weil das eine Verhaltensänderung an der Nutzungsstatistik wäre.
     void logGeneration({
       userId: ppReq.user?.id || null,
       generationType: routeType,
       platform: requestData.platforms?.[0] || null,
-      tokensUsed: resultUsage?.total_tokens || null,
+      tokensUsed: null,
       success: true,
     });
+
+    // Was der Formatter aus dem Umschlag las. `webSearchSources` reiste bisher
+    // als Anfrage-Metadatum mit und kam über `mergeMetadata` zurück; hier steht
+    // es direkt. Provider, Modell, requestId und Zeitstempel des Laufs sind
+    // damit nicht mehr Teil der HTTP-Antwort.
+    const result: AiResult = {
+      content,
+      success: true,
+      metadata: {
+        // Zwei gleichnamige, verschieden deklarierte `WebSearchSource`: die
+        // Anreicherung liefert `{title, url, domain}`, die Antwort erwartet
+        // `{title, url, snippet?, …}`. Der Umschlag reichte das ungeprüft
+        // durch; hier wird an genau dieser Naht abgebildet, statt zu casten.
+        ...(enrichedState.enrichmentMetadata?.webSearchSources != null && {
+          webSearchSources: enrichedState.enrichmentMetadata.webSearchSources.map((source) => ({
+            title: source.title,
+            url: source.url,
+            domain: source.domain,
+          })),
+        }),
+        ...(requestData.platforms != null && { platforms: requestData.platforms }),
+      },
+    };
 
     // Cache enriched context for future edit requests
     if (ppReq.user?.id) {

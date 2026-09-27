@@ -37,9 +37,41 @@ export interface LoopScenario {
    * different shape than the scenario claims.
    */
   streams: ScriptedResponse[];
+  /** Extra request-body fields — `forcedTools` for an @-mention, above all. */
+  body?: Record<string, unknown>;
   /** Make the first N search-backend calls fail, for the failure-cap branches. */
   backendFailures?: number;
   mustDecide?: Array<{ point: DecisionPointId; chose: string }>;
+  /**
+   * Der `toolChoice` des ERSTEN Planer-Schritts, als Name oder `'required'`.
+   *
+   * Die einzige Stelle, an der ein BENANNTER erster Aufruf beobachtbar wird: die
+   * Entscheidungskarte zeigt nur, welches Werkzeug lief, und das steht im Skript
+   * ohnehin. Ohne diese Zusicherung liesse sich der Werkzeug-Pin ausbauen, ohne
+   * dass ein Integrationstest es merkt.
+   */
+  firstToolChoice?: string;
+  /**
+   * Ein Textstück, das im Systemtext des ersten Planer-Schritts stehen MUSS.
+   *
+   * Gegenstück zu `firstToolChoice` für die zweite Hälfte einer umgehängten
+   * Erwähnung: der Pin sagt, WORAUS der Turn holt, das Rezept sagt, WIE er
+   * schreibt — und Letzteres ist sonst nirgends beobachtbar, weil die
+   * Entscheidungskarte den Systemtext nicht rendert. Der Rezepttext selbst ist
+   * parteiintern und in der Prüfung gedoppelt (`internalPromptsMock`).
+   */
+  systemIncludes?: string;
+  /**
+   * Ein Textstück, das im Systemtext des SCHREIBERS stehen MUSS (split: der
+   * letzte Aufruf des Turns).
+   *
+   * Eigenes Feld statt `systemIncludes`, weil Planer und Schreiber getrennte
+   * Kontexte haben und genau dazwischen der Ausfall vom 24.08.2026 sass: der
+   * `summarize`-Digest ging an den Planer, der Schreiber sah ihn nie — und
+   * bekam obendrein die Zeile „du hast NICHTS recherchiert" zu lesen. Ein
+   * Prädikat, das nur den ersten Schritt anschaut, kann das nicht sehen.
+   */
+  synthSystemIncludes?: string;
   /**
    * Exact number of times a branch was taken. The only honest assertion for
    * `search_concurrency`: which of several parallel calls loses the race is an
@@ -48,6 +80,17 @@ export interface LoopScenario {
    */
   decisionCounts?: Array<{ point: DecisionPointId; chose: string; count: number }>;
   notReached?: DecisionPointId[];
+  /**
+   * Env-Übersteuerungen für DIESES Szenario, auf die gepinnte Grundmenge
+   * gelegt (`pinChatEnv`).
+   *
+   * Existiert für genau eine Frage, die sonst unbeobachtbar bliebe: was ein
+   * Turn tut, dessen Werkzeug nur in der Schleife lebt, wenn die Schleife AUS
+   * ist. Der Zustand ist keine Hypothese — `CHAT_AGENT_LOOP=false` ist ein
+   * ausgelieferter Schalter, und der Einzeldurchlauf-Pfad ist die README-
+   * Pflichtprobe bei jeder searchNode-Berührung.
+   */
+  env?: Record<string, string>;
 }
 
 /** Trips ENGLISH_REFUSAL_RE in `refusalDetection.ts` (`i'm sorry` + `i can't help`). */
@@ -219,5 +262,163 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
       { text: GERMAN_ANSWER },
     ],
     decisionCounts: [{ point: 'loop.tool_guard', chose: 'search_concurrency', count: 1 }],
+  },
+  // ── @-Erwähnung auf der Loop-Lane ────────────────────────────────────────
+  // Das PAAR, das den Flip vom 16.08.2026 belegt. `@bundestag` lief bis dahin
+  // als Einzeldurchlauf, weil `forcedTool` im Entscheider ein Loop-Notausschalter
+  // war; jetzt trägt der Intent `forcedLane: 'loop'` und die Erwähnung kommt hier
+  // an. Das Gegenstück daneben zeigt, dass der Notausschalter für alle anderen
+  // Erwähnungen unverändert gilt — ohne es wäre nicht zu sehen, ob der Flip
+  // gezielt war oder das Gate ganz aufgegangen ist.
+  {
+    id: 'mention-bundestag-loop',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: `@bundestag` zurrt den Intent deterministisch fest (forcedIntentStage), und `forcedLane: loop` entscheidet die Lane. Der DIP-Abruf ist gestubbt wie jedes andere Suchbackend — was hier zaehlt, ist dass das Domain-Werkzeug ueberhaupt montiert ist und laeuft.',
+    prompt: 'Was liegt zum Heizungsgesetz vor?',
+    body: { forcedTools: ['bundestag'] },
+    streams: [
+      { calls: [{ tool: 'bundestag', args: { query: 'Heizungsgesetz' } }] },
+      { text: GERMAN_ANSWER },
+    ],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    firstToolChoice: 'bundestag',
+  },
+  // Der Degradierungsfall, den Phase N erst nötig gemacht hat: die dünne
+  // Einzeldurchlauf-Tür der Parlaments-Abrufe ist gefallen, der Kern hängt nur
+  // noch am Loop-Werkzeug. Mit ausgeschalteter Schleife MUSS der Turn also
+  // umgeleitet werden — vorher lief er in den `case`-Zweig, jetzt liefe er ohne
+  // Umleitung in `default: log.warn` und der Turn täte still nichts.
+  {
+    id: 'mention-bundestag-degradiert',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: `@bundestag` zurrt den Intent deterministisch fest, und mit `CHAT_AGENT_LOOP=false` haelt das Gate ihn draussen. Was hier zaehlt, ist die Umleitung auf `web` aus der Registry (`degradeTo`) — nicht welches Suchbackend danach antwortet, das ist gestubbt wie ueberall.',
+    prompt: 'Was liegt zum Heizungsgesetz vor?',
+    body: { forcedTools: ['bundestag'] },
+    env: { CHAT_AGENT_LOOP: 'false' },
+    streams: [],
+    mustDecide: [
+      { point: 'router.run_agentic', chose: 'single_pass' },
+      { point: 'router.intent_override', chose: 'loop_only_degraded' },
+    ],
+  },
+  {
+    id: 'mention-dokumente-loop',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: `@dokumente` zurrt Intent UND Werkzeug deterministisch fest, der erste Aufruf ist benannt statt geraten. Die Dokumentensuche ist gestubbt.',
+    prompt: 'Was liegt zum Heizungsgesetz vor?',
+    body: { forcedTools: ['search'] },
+    streams: [
+      { calls: [{ tool: 'gruenerator_search', args: { query: 'Heizungsgesetz' } }] },
+      { text: GERMAN_ANSWER },
+    ],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    firstToolChoice: 'gruenerator_search',
+  },
+  {
+    id: 'mention-recherche-loop',
+    category: 'mention-lane',
+    note: 'Zwilling mit der anderen Quelle: `@recherche` zurrt `web_search` fest. Die Websuche ist gestubbt.',
+    prompt: 'Was liegt zum Heizungsgesetz vor?',
+    body: { forcedTools: ['research'] },
+    streams: [
+      { calls: [{ tool: 'web_search', args: { query: 'Heizungsgesetz' } }] },
+      { text: GERMAN_ANSWER },
+    ],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    firstToolChoice: 'web_search',
+  },
+  // `@deepresearch` ist eine Variante von `research`, pinnt aber kein Werkzeug
+  // — so bleibt er im Einzeldurchlauf, wo seine Engines und sein Kontingent
+  // liegen.
+  {
+    id: 'mention-deepresearch-einzeln',
+    category: 'mention-lane',
+    note: 'Gemessen wird allein die LANE. Welche Tiefenrecherche-Engine danach greift, ist hier gleichgueltig und ohne Schluessel ohnehin keine.',
+    prompt: 'Was liegt zum Heizungsgesetz vor?',
+    body: { forcedTools: ['deepresearch'] },
+    streams: [],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'single_pass' }],
+  },
+  // Eine Frage an ein gewähltes Notebook bleibt auf dessen RAG-Pfad, auch mit
+  // Erwähnung: `forcedLoop` hebt die Notebook-Sperre nicht auf.
+  {
+    id: 'mention-dokumente-notebook-einzeln',
+    category: 'mention-lane',
+    note: 'Gemessen wird allein die LANE; die Sperre haengt an der Anwesenheit der Sammlung im Request. Die id muss eine echte Systemsammlung sein, sonst filtert `buildStreamContext` sie vor dem Entscheider weg.',
+    prompt: 'Was liegt zum Heizungsgesetz vor?',
+    body: { forcedTools: ['search'], notebookIds: ['gruenerator-notebook'] },
+    streams: [],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'single_pass' }],
+  },
+  {
+    id: 'mention-umfragen-loop',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: `@umfragen` traegt keinen Intent mehr (er ist stillgelegt), sondern zurrt ueber die Registry das WERKZEUG fest. Der Turn laeuft deshalb als `agentic` — und dass er ueberhaupt in die Schleife kommt, entscheidet allein der Pin. Der PolitPro-Abruf ist gestubbt wie jedes andere Suchbackend.',
+    prompt: 'Wie stehen die Gruenen aktuell in Umfragen?',
+    body: { forcedTools: ['umfragen'] },
+    streams: [{ calls: [{ tool: 'umfragen', args: { topic: '' } }] }, { text: GERMAN_ANSWER }],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    // Der benannte erste Aufruf, den `agentic` allein nicht mehr hergaebe: kein
+    // Werkzeug heisst `agentic`, und aus NAMED_RETRIEVAL_INTENTS ist es
+    // ausgenommen. Nur der Pin traegt das hier.
+    firstToolChoice: 'umfragen',
+    // Der Auffang, den der Pin verhindert: ohne ihn faellt `agentic` auf
+    // `search` — eine Dokumentensuche statt PolitPro.
+    notReached: ['router.intent_override'],
+  },
+  {
+    id: 'mention-pressemitteilungen-loop',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: dieselbe Bauform wie `@umfragen`, plus die zweite Haelfte von Phase L — die Erwaehnung zurrt nicht nur das WERKZEUG fest, sie laedt auch das REZEPT `presse` (`activatesSkill`). Der stillgelegte Intent trug die Textsorte nie; `respondNode` gab ihm die generische SEARCH_GUIDANCE. Der PM-Abruf ist gestubbt wie jedes andere Suchbackend.',
+    prompt: 'Schreib eine PM zum Heizungsgesetz.',
+    body: { forcedTools: ['pressemitteilung_examples'] },
+    streams: [
+      {
+        calls: [
+          { tool: 'gruenerator_pressemitteilung_examples', args: { query: 'Heizungsgesetz' } },
+        ],
+      },
+      { text: GERMAN_ANSWER },
+    ],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    // Wie bei `@umfragen`: `agentic` allein gaebe den benannten ersten Aufruf
+    // nicht her. Dass hier der PM- und nicht der Social-Beispiel-Abruf steht,
+    // ist der ganze Unterschied, den der Pin traegt.
+    firstToolChoice: 'gruenerator_pressemitteilung_examples',
+    // Die zweite Haelfte: das Rezept `presse` steht im Systemtext des Loops.
+    // `buildSystemMessage` ueberschreibt den Block mit dem Titel des Rezepts —
+    // ohne `activatesSkill` faende der Turn hier gar keins.
+    systemIncludes: '## AKTIVE PLATTFORM: Pressemitteilung',
+    notReached: ['router.intent_override'],
+  },
+  {
+    id: 'mention-doku-loop',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: `@doku` zurrt jetzt das Doku-Werkzeug fest. Der Intent `hilfe` BLEIBT (Tier 2.9 erzeugt ihn aus Prosa und haelt Anleitungsfragen von den Erzeugungs-Verdikten fern) — was die Erwaehnung dazugewinnt, ist der BENANNTE erste Aufruf: der Doku-Index ist ohnehin breit montiert, der Intent trug also nur die Schleife, und welches Werkzeug in ihr laufen soll, sagte niemand. Der Wortlaut faellt ABSICHTLICH durch `looksLikeDocsHelpQuestion` — so traegt allein die Erwaehnung den Turn, und die Seitenkarte im Systemtext beweist den Pin statt das Gitter.',
+    prompt: 'Ich komme mit den Notebooks nicht weiter.',
+    body: { forcedTools: ['hilfe'] },
+    streams: [
+      { calls: [{ tool: 'gruenerator_docs_search', args: { query: 'Notebook anlegen' } }] },
+      { text: GERMAN_ANSWER },
+    ],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    firstToolChoice: 'gruenerator_docs_search',
+    // Die Seitenkarte haengt seit diesem PR am PIN statt am Intent. Sie ist kein
+    // Rezepttext — nur ihre Aktivierungsbedingung hat gewechselt.
+    systemIncludes: '## GRÜNERATOR-DOKUMENTATION',
+  },
+  {
+    id: 'anhang-zusammenfassung-loop',
+    category: 'mention-lane',
+    note: 'Keine Modellannahme: der Turn haengt an zwei Gittern, die beide ohne das Modell entscheiden. Ein Dokument am Turn (`documentChatIds`) plus eine Zusammenfassungs-Bitte zwingen den ersten Aufruf auf `summarize` — das ist der achte Weg in `shouldForceFirstToolCall` und der zweite Grund in `pinnedFirstTool`. Gemessener Ausfall am 23.08.2026: dasselbe Prompt, ein vektorisiertes 21.785-Zeichen-PDF, und der Planer rief `media`/`find_content` und fasste ein fremdes Konto-Dokument zusammen. Das Skript gibt dem Planer NUR den `summarize`-Aufruf; griffe er daneben, bliebe ein Stream unverbraucht und der Lauf faellt.',
+    prompt: 'fasse das pdf zusammen',
+    body: { documentChatIds: ['doc-1'] },
+    streams: [{ calls: [{ tool: 'summarize', args: {} }] }, { text: GERMAN_ANSWER }],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    firstToolChoice: 'summarize',
+    // Die zweite Haelfte desselben Turns: `summarize` registriert keine Quellen,
+    // sein Digest erreicht den Schreiber also nur ueber diesen Block. Ohne ihn
+    // war die teure Map-Reduce ueber den Volltext umsonst.
+    synthSystemIncludes: 'ERGEBNISSE EIGENER WERKZEUGE IN DIESEM TURN',
   },
 ];

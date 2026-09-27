@@ -9,19 +9,24 @@
  * leaf (a dependency-free `node:async_hooks` store), so recording here keeps
  * this module's unit-testability intact.
  */
-import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
+import { EDITOR_EDIT_TOOL_KEYS, type EditorEditToolKey } from '@gruenerator/contracts';
+import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import {
   ARTIFACT_NOUN_BY_KIND,
   CREATION_VERB_RE,
-  creationOrderPattern,
-  dictatesInlineTableColumns,
   forbidsPersistentAction,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
-  type ForbiddableArtifact,
 } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
+import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
+import {
+  ARTIFACT_KINDS,
+  ARTIFACT_NAMING_INTENTS,
+  artifactKind,
+  type ArtifactKindId,
+} from '../artifactKindRegistry.js';
 
 /**
  * The classifier can still drop a factual question into a no-tool verdict —
@@ -36,18 +41,16 @@ import { recordDecision } from '../../../../utils/decisionJournal.js';
  * door: what the classifier cannot place now goes to `agentic` directly (prompt
  * rule 12), which is in AGENTIC_INTENTS. They still matter for the no-tool
  * verdicts the model DID commit to and got wrong.
+ *
+ * WHICH verdicts the rescues may touch is `isGroundableProse` — the `prose`
+ * disposition without `greeting`, derived in `@gruenerator/shared/chat-intents`.
+ * The exclusion is the whole statement and is argued there: since #2269 a
+ * greeting carries its own intent so that no phrasing and no self-contradiction
+ * of the classifier can pull it into the loop; deriving from `prose` alone would
+ * give that up. Until now the same two ids sat here as a literal
+ * (`NO_TOOL_VERDICTS`) alongside two more copies under two more names.
+ * `dispositionSets.vitest.ts` still pins the difference from the `prose` group.
  */
-// NICHT aus der `prose`-Disposition abgeleitet, obwohl es fast dieselbe Menge
-// ist — und die Differenz ist der Grund. Die Disposition beantwortet „braucht
-// dieser Intent ein Werkzeug?" (ein Gruss: nein). Diese Menge beantwortet
-// „welche Verdikte dürfen die drei Rettungen unten überhaupt anfassen?", und
-// `greeting` steht bewusst NICHT darin: seit #2269 trägt ein Gruss einen eigenen
-// Intent, damit ihn keine Formulierung und kein Selbstwiderspruch des
-// Klassifikators mehr in den Loop ziehen kann. Das ist eine strukturelle
-// Garantie und stärker als jede Wortprüfung — eine Ableitung würde sie
-// aufgeben. `dispositionSets.vitest.ts` hält den Unterschied fest, damit er
-// beim nächsten Mal nicht still verschwindet.
-const NO_TOOL_VERDICTS: ReadonlySet<string> = new Set(['produktion', 'direct']);
 
 // Question words. Includes the wo-compounds (worüber/woran/womit/…) that the
 // original list missed — live failure: "worüber hat X im Bundestag gesprochen"
@@ -75,8 +78,34 @@ const CHITCHAT_RE = /^(wer bist du|was (kannst|bist) du|wie geht|wie heißt du|h
 // personal-content noun ("meine Boards") slips both the question-word and
 // verb-first nets. Route them into the loop so the personal-data resource tools
 // (find_content/documents/boards_tasks/notebooks) are reachable.
+//
+// `notizb[üu]cher` stays next to `notebooks?`: the product word is Notebook
+// since 27.08.2026, but this net reads what people TYPE, and they kept typing
+// the old German one. Detectors over user input are not part of the rename.
+//
+// `wolke` came in with the cloud_files tool: „meine Wolke-Dateien“ carries
+// neither a question word nor a leading verb and must still reach the loop.
+// `erinnerung(en)` likewise with recurring_tasks: „meine Erinnerungen bitte“.
+// `agent(en)` with user_agents: „meine Agenten“, „meine Grünerator-Agenten“ —
+// the trailing `\b` keeps „meine Agentur“ out. `rezepte`/`textformen` with
+// the recipes tool: „meine Textformen“, „meine Rezepte“. `quellen?`/`notiz(en)`
+// with notebook_quellen: „sortier meine Quellen“; `notizb[üu]ch\w*` covers the
+// singular. The dative `meinem` only counts before a notebook noun, with at
+// most two words between („aus meinem geteilten Notebook“) — as a general
+// possessive it would pull „schreib eine Rede zu meinem Projekt“ into the loop.
 const PERSONAL_DATA_RE =
-  /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|inhalte?)\b/i;
+  /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notebooks?|notizb[üu]ch\w*|quellen?|notiz(?:en)?|sammlung\w*|reels?|sharepics?|gruppen?|projekte?|inhalte?|wolke|erinnerung(?:en)?|(?:gr[üu]nerator-)?agent(?:en|innen|in)?|rezepte?|textform(?:en)?)\b|\bmeinem\s+(?:[\wäöüß-]+\s+){0,2}(?:notebooks?|notizb[üu]ch\w*)\b/i;
+
+/**
+ * The whole turn (after stripping a leading greeting) is assistant-directed
+ * chit-chat — identity/help/test asks like "was kannst du?" or "hilfe". These
+ * run single-pass but end up with an ordinary non-neutral intent (`produktion`
+ * via the residual), so callers that key behavior on "this is a write turn"
+ * (e.g. the default-recipe autoload in respondNode) must exclude them.
+ */
+export function looksLikeChitchatTurn(raw: string): boolean {
+  return CHITCHAT_RE.test((raw ?? '').trim().replace(GREETING_PREFIX_RE, ''));
+}
 
 export function looksLikeToolableQuestion(raw: string): boolean {
   const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
@@ -109,8 +138,18 @@ export function looksLikeToolableQuestion(raw: string): boolean {
  */
 const BARE_URL_ONLY_RE = /^\s*https?:\/\/\S+(?:\s+https?:\/\/\S+)*\s*$/i;
 
-const CHITCHAT_ONLY_RE =
-  /^(danke\w*|dank\s+dir|thx|ok(ay)?|alles\s+klar|super|top|passt|perfekt|prima|cool|ja|nein|gut)\b[\s,.!?–—-]*$/i;
+// A run of pleasantry words, not just one: „super, danke!", „ok, danke dir",
+// „Perfekt, vielen Dank!" (#3715). The words after the thanks (dir, schön,
+// vielen …) are only harmless because every word must come from this list.
+// `(?!\p{L})` instead of `\b`, which is ASCII-only and never fires after „schön".
+// The separator is `+`, so each word can be split off only one way (CodeQL
+// js/redos, as with BARE_URL_ONLY_RE).
+const PLEASANTRY_WORD =
+  '(?:dank\\p{L}*|dir|euch|ihnen|daf[üu]r|sch[öo]n|sehr|vielen|herzlich\\p{L}*|thx|thanks|ok(?:ay)?|alles\\s+klar|super|top|passt|perfekt|prima|cool|ja|nein|gut)(?!\\p{L})';
+const CHITCHAT_ONLY_RE = new RegExp(
+  `^${PLEASANTRY_WORD}(?:[\\s,.!?–—-]+${PLEASANTRY_WORD})*[\\s,.!?–—-]*$`,
+  'iu'
+);
 
 /**
  * "Does this turn need the thread's research behind it?"
@@ -155,7 +194,39 @@ const CHITCHAT_ONLY_RE =
 export function rewritesSuppliedText(raw: string): boolean {
   const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
   if (t.length === 0) return false;
-  return REWRITE_TARGET_RE.test(t) || REGENERATE_RE.test(t) || CREATIVE_FORM_RE.test(t);
+  return hasRewriteTarget(t) || REGENERATE_RE.test(t) || CREATIVE_FORM_RE.test(t);
+}
+
+/**
+ * Eine Anschlussfrage, die den Gegenstand des VORIGEN Turns weiterträgt statt
+ * ein eigenes Thema zu eröffnen — „Und die FDP?", „Was ist mit Bayern?".
+ *
+ * Gemessen am Klassifikator (20.08.2026, Zwei-Turn-Sonde auf `classifierNode`):
+ * so ein Turn bekommt `direct@0.25`, wird nach `agentic` demotiert und trägt
+ * `loopDemotedFromRetrieval: false` — das Abruf-Verdikt steht im Turn DAVOR,
+ * nicht in diesem. Der Text allein kann das nicht wissen; deshalb ist diese
+ * Prüfung nur die eine Hälfte, die andere ist der Abrufkontext des Threads
+ * (`shouldForceFirstToolCall`, siebter Weg).
+ *
+ * Die Wortgrenze ist dieselbe wie die des Klassifikators für `isVagueFollowup`
+ * (≤ 8 Wörter): darüber nennt ein Turn sein Thema selbst und braucht diesen Weg
+ * nicht — sein eigenes Verdikt trägt ihn.
+ *
+ * Was hier ausdrücklich NICHT durchkommt, ist die Meta-Anweisung über die vorige
+ * ANTWORT: „fasse das kürzer" ist ebenso rückbezüglich, ebenso kurz und steht
+ * ebenso hinter einem Abruf-Turn — nur ist sie in dem Text gegründet, an dem sie
+ * arbeitet. `rewritesSuppliedText` ist genau dieses Urteil, und es fällt hier
+ * zum zweiten Mal (der Loop fragt es schon für die mitgeführten Quellen).
+ * Höflichkeiten ebenso: ein „Danke!" nach einer Bundestags-Frage darf keine
+ * Nachschlage auslösen.
+ */
+export function isReferentialFollowup(raw: string): boolean {
+  const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
+  if (t.length === 0) return false;
+  if (CHITCHAT_ONLY_RE.test(t) || CHITCHAT_RE.test(t)) return false;
+  if (rewritesSuppliedText(t)) return false;
+  if (CREATION_VERB_RE.test(t)) return false;
+  return t.split(/\s+/).filter(Boolean).length <= 8;
 }
 
 export function needsThreadGrounding(raw: string): boolean {
@@ -211,7 +282,18 @@ const REGENERATE_RE =
   /\b(nochmal|noch\s+einmal|erneut|nochmals)\b[^.?!]*\b(auf\s+(englisch|deutsch|franz[öo]sisch|spanisch|italienisch|t[üu]rkisch)|k[üu]rzer|l[äa]nger|anders|f[öo]rmlicher|freundlicher|einfacher|in\s+stichpunkten)\b/i;
 
 const REWRITE_TARGET_RE =
-  /\b(k[üu]rze|k[üu]rzer|straffe|verk[üu]rze|umformulier|umschreib|[üu]berarbeit|korrigier|lektorier|vereinfach|versch[äa]rfe|gendere|[üu]bersetze?)[a-zäöüß]*\b|\b(diese[nrsm]?|obige[nrsm]?|folgende[nrsm]?)\s+(text|entwurf|abschnitt|absatz|fassung|version)\b|\b(das|es)\s+(k[üu]rzer|l[äa]nger|freundlicher|f[öo]rmlicher|einfacher)\b/i;
+  /\b(k[üu]rze|k[üu]rzer|straffe|verk[üu]rze|umformulier|umschreib|korrigier|lektorier|vereinfach|versch[äa]rfe|gendere)[a-zäöüß]*\b|\b(diese[nrsm]?|obige[nrsm]?|folgende[nrsm]?)\s+(text|entwurf|abschnitt|absatz|fassung|version)\b|\b(das|es)\s+(k[üu]rzer|l[äa]nger|freundlicher|f[öo]rmlicher|einfacher)\b/i;
+
+// The umlaut-initial rewrite verbs, split out of REWRITE_TARGET_RE because they
+// were DEAD there: `\b` before `ü` is no word boundary without the `u` flag (the
+// note above documents the trap the group itself still carried). "Übersetze
+// diesen Text" therefore never counted as a rewrite, was never self-contained,
+// and demoted into the loop — the 2026-08 QA run's broken translations. Fix
+// idiom per classifierParsing/parseScope: lookbehind + `\p{L}` under `u`.
+const REWRITE_TARGET_UMLAUT_RE = /(?<!\p{L})[üu](?:berarbeit|bersetz)\p{L}*/iu;
+
+const hasRewriteTarget = (t: string): boolean =>
+  REWRITE_TARGET_RE.test(t) || REWRITE_TARGET_UMLAUT_RE.test(t);
 
 /**
  * A writing order whose SUBSTANCE the user did not supply.
@@ -232,7 +314,7 @@ export function looksLikeUnsourcedWritingOrder(
   const t = (raw ?? '').trim();
   if (t.length === 0) return false;
   if (CREATIVE_FORM_RE.test(t)) return false;
-  if (REWRITE_TARGET_RE.test(t)) return false;
+  if (hasRewriteTarget(t)) return false;
   // The verb can belong to a PROHIBITION instead of an order: "Halte das fest,
   // aber erstelle diesmal kein Dokument" is the exact sentence fastPathGuards
   // was written for. Reading its "erstelle" as a writing order sent the turn to
@@ -296,7 +378,7 @@ export function looksLikeSelfContainedTurn(
   // WITH prose around it is a different turn and still loops.
   if (BARE_URL_ONLY_RE.test(t)) return true;
   if (CREATIVE_FORM_RE.test(t)) return true;
-  if (REWRITE_TARGET_RE.test(t) || REGENERATE_RE.test(t)) return true;
+  if (hasRewriteTarget(t) || REGENERATE_RE.test(t)) return true;
   // A PROHIBITION is not a request, and it must not reach a planner. "Halte die
   // Ergebnisse fest, aber erstelle diesmal kein Dokument" is honoured by exactly
   // one thing — the router's persistent-action gate — and that gate only ever
@@ -319,12 +401,11 @@ export function looksLikeSelfContainedTurn(
 // renamed intent fails the build — it used to compile and silently never match.
 // The Set stays `ReadonlySet<string>` because `decideRunAgentic` takes a plain
 // `intent: string`; narrowing that is a separate change.
-export const COMPOUND_GENERATION_INTENTS: ReadonlySet<string> = new Set([
-  'sharepic',
-  'create_presentation',
-  'create_sheet',
-  'create_pdf',
-] as const satisfies readonly ChatIntentId[]);
+// Abgeleitet aus der Artefakt-Registry (die Einträge mit einem `intent`), statt
+// die vier Namen ein zweites Mal hinzuschreiben. Der `satisfies`-Schutz, den die
+// Literalliste hier trug, sitzt jetzt am Registry-Feld: es ist `ChatIntentId |
+// null` typisiert, ein Tippfehler kompiliert also dort nicht mehr.
+export const COMPOUND_GENERATION_INTENTS: ReadonlySet<ChatIntentId> = ARTIFACT_NAMING_INTENTS;
 
 /**
  * Compound research+generation detector (Phase 3n): a generation turn (sharepic,
@@ -358,7 +439,7 @@ export function looksLikeCompoundGeneration(raw: string): boolean {
 // the edit verbs and "als/ins <artifact-part>" targets. Used with a research
 // signal to detect a compound "recherchiere X UND bau es ins Dokument ein" turn.
 const EDIT_SIGNAL_RE =
-  /\b(einf[üu]g\w*|hinzuf[üu]g\w*|erg[äa]nz\w*|[üu]berarbeit\w*|aktualisier\w*|einarbeit\w*|einbau\w*|einpfleg\w*)\b|\bf[üu]g\w*\b[^.?!]*\b(hinzu|ein)\b|\b(als|ins?|in die|in der|in den)\s+(folie|abschnitt|dokument|tabelle|pr[äa]sentation|kapitel|spalte|zeile|karte|liste)\b/i;
+  /\b(einf[üu]g\w*|hinzuf[üu]g\w*|erg[äa]nz\w*|aktualisier\w*|einarbeit\w*|einbau\w*|einpfleg\w*)\b|(?<!\p{L})[üu]berarbeit\p{L}*|\bf[üu]g\w*\b[^.?!]*\b(hinzu|ein)\b|\b(als|ins?|in die|in der|in den)\s+(folie|abschnitt|dokument|tabelle|pr[äa]sentation|kapitel|spalte|zeile|karte|liste)\b/iu;
 
 // An EXPLICIT research verb (not the broad RESEARCH_SIGNAL_RE, whose content
 // nouns "aktuell/programm/position/daten" are everyday words in a pure edit like
@@ -409,41 +490,99 @@ export function looksLikeCompoundEdit(raw: string): boolean {
  * layers agree on "this sidebar edits the open artifact and must never spawn a
  * NEW one". Keyed on an edit_current_* tool being enabled.
  */
-export function isEditorSurface(enabledTools: Record<string, boolean> | undefined): boolean {
-  return (
-    enabledTools?.['edit_current_doc'] === true || enabledTools?.['edit_current_board'] === true
-  );
+export function isEditorSurface(enabledTools: Record<string, boolean> | null | undefined): boolean {
+  return isEditToolEnabled(enabledTools);
 }
 
-export type CompoundGenerationKind =
-  'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | 'pdf';
+/**
+ * Is the surface's AI-edit toggle ON for this turn?
+ *
+ * Reads THE list of edit_current_* keys ({@link EDITOR_EDIT_TOOL_KEYS} in
+ * `@gruenerator/contracts`, one key per surface since #3438 — they are wire
+ * values, so the registry sits next to the request schema). The reason this is
+ * a function: the list existed three times by hand — here, in `decideTurnPlan`
+ * (`editToolEnabled`) and in `buildArtifactNotes`, where it is read NEGATED. A key added to two of the
+ * three made the third silently claim the toggle was off: with `canvas` added
+ * to the first two only, every studio turn got the "KI-Bearbeitung ist
+ * ausgeschaltet — behaupte NIEMALS, etwas geändert zu haben" note, directly
+ * contradicting the edit the same prompt announced one note earlier.
+ *
+ * {@link isEditorSurface} is the same question asked for a different purpose
+ * ("is this an editor sidebar at all") and delegates here: a surface whose
+ * toggle is off still must not spawn a NEW artifact.
+ */
+export function isEditToolEnabled(
+  enabledTools: Record<string, boolean> | null | undefined
+): boolean {
+  return EDITOR_EDIT_TOOL_KEYS.some((key) => enabledTools?.[key] === true);
+}
 
-// `sharepic` is absent on purpose: hasExplicitSharepicWord already refuses a
-// negated ask, so it needs no second guard here.
-const FORBIDDABLE_BY_KIND: Partial<Record<CompoundGenerationKind, ForbiddableArtifact>> = {
-  presentation: 'presentation',
-  sheet: 'sheet',
-  board: 'board',
-  pdf: 'pdf',
-  document: 'document',
+/** Which surface each sidebar's edit key stands for. Total over the enum. */
+const SURFACE_BY_EDIT_TOOL_KEY: Readonly<Record<EditorEditToolKey, EditorSurfaceKind>> = {
+  edit_current_doc: 'doc',
+  edit_current_sheet: 'sheet',
+  edit_current_presentation: 'presentation',
+  edit_current_board: 'board',
+  edit_current_canvas: 'canvas',
 };
 
-// Per-artifact nouns, used to recover the generation KIND from the text when the
-// intent no longer names it (a demoted `agentic` turn, or a `direct` misroute).
-// Paired with a creation verb via creationOrderPattern — the SAME builder the
-// classifier fast paths use, so both word orders are recognised here too and the
-// two layers cannot drift apart on phrasing again.
-const PRESENTATION_CREATE_RE = creationOrderPattern('pr[äa]sentation|presentation|folien?|slides?');
-const SHEET_CREATE_RE = creationOrderPattern('tabelle|kalkulation|spreadsheet|sheet');
-const BOARD_CREATE_RE = creationOrderPattern('board|kanban|aufgabenboard|taskboard');
-const PDF_CREATE_RE = creationOrderPattern(
-  'pdf|briefkopf|antragsformular|anmeldeformular|fragebogen' +
-    '|(?:ausf(?:ü|ue)llbar)[a-zäöü]*\\s+(?:formular|vorlage)',
-  { extraVerbs: 'schreib', forward: 60 }
-);
-const DOCUMENT_CREATE_RE = creationOrderPattern('dokument|schriftst[üu]ck|textdokument|entwurf', {
-  extraVerbs: 'schreib|anleg',
-});
+/**
+ * The three surfaces that carry their open target in `currentDocument`. The
+ * turn plan's edit target and the classifier's doc fast path both key on
+ * "any of these", never on `edit_current_doc` alone (#3438).
+ */
+export const DOCUMENT_CONTEXT_EDIT_KEYS = [
+  'edit_current_doc',
+  'edit_current_sheet',
+  'edit_current_presentation',
+] as const satisfies readonly EditorEditToolKey[];
+
+export function hasDocumentContextEditTool(
+  enabledTools: Record<string, boolean> | null | undefined
+): boolean {
+  return DOCUMENT_CONTEXT_EDIT_KEYS.some((key) => enabledTools?.[key] === true);
+}
+
+/** The sidebar toggle is OFF when its key is explicitly false; an absent key
+ *  (main chat with a referenced document) does not block. */
+export function isDocumentContextEditAllowed(
+  enabledTools: Record<string, boolean> | null | undefined
+): boolean {
+  return !DOCUMENT_CONTEXT_EDIT_KEYS.some((key) => enabledTools?.[key] === false);
+}
+
+/**
+ * Which artifact a compound turn is about. The set, the per-kind nouns and the
+ * negation family all live in `artifactKindRegistry` now — see the note there on
+ * why the five hand-written tables became one, and why detection ORDER is a
+ * property of the registry array rather than of the ternary this used to be.
+ */
+export type CompoundGenerationKind = ArtifactKindId;
+
+/**
+ * The generation KIND recovered from the TEXT, in registry (specificity) order.
+ *
+ * `sharepic` is the one kind with no `createPattern`: its vocabulary is
+ * `SHAREPIC_WORD_RE`, and `hasExplicitSharepicWord` carries the negation and
+ * quote guards that a bare noun regex would lose. It sits first in the registry,
+ * which is where it was in the ternary.
+ *
+ * A kind whose pattern matches but whose `extraGuard` fails keeps LOOKING —
+ * `continue`, not `return null`. That is what the ternary did (a sheet ask that
+ * dictates its columns inline falls through to board/pdf/document), and it is
+ * the one place where the rewrite could quietly have changed an answer.
+ */
+function recoverKindFromText(text: string): ArtifactKindId | null {
+  for (const kind of ARTIFACT_KINDS) {
+    const named = kind.createPattern
+      ? kind.createPattern.test(text)
+      : hasExplicitSharepicWord(text) && CREATION_VERB_RE.test(text);
+    if (!named) continue;
+    if (kind.extraGuard && !kind.extraGuard(text)) continue;
+    return kind.id;
+  }
+  return null;
+}
 
 /**
  * The generation KIND a compound turn should mount a fat tool for. Prefers the
@@ -453,17 +592,39 @@ const DOCUMENT_CREATE_RE = creationOrderPattern('dokument|schriftst[üu]ck|textd
  * still creates a sheet even though the classifier only reached `direct@0.50`
  * (→ demoted to `agentic`), not `create_sheet`.
  */
-export function compoundGenerationKind(intent: string, raw: string): CompoundGenerationKind | null {
+/**
+ * Membership-Test, der ein unverengtes `string` annimmt — dieselbe Bauart und
+ * derselbe Grund wie `isGroundableProse`: der Intent kommt hier aus
+ * `AgenticDecisionInput`, das ihn bewusst als `string` führt (die Testfixtures
+ * konstruieren ihn im Objektliteral). Der Cast steht damit EINMAL neben der
+ * Menge statt an jeder Aufrufstelle; ein Nicht-Mitglied liefert `false`.
+ */
+function isCompoundGenerationIntent(intent: string): boolean {
+  return COMPOUND_GENERATION_INTENTS.has(intent as ChatIntentId);
+}
+
+export function compoundGenerationKind(
+  intent: string,
+  raw: string,
+  /**
+   * Die von einer `@…-erstellen`-Erwähnung festgezurrte Art. Schlägt beide
+   * Ableitungen — den Intent und das Substantiv —, weil sie eine WAHL ist und
+   * die beiden anderen nur Indizien sind. Was sie NICHT verschiebt, sind die
+   * Gitter darum: ob der Turn überhaupt ein Verbund ist, entscheidet weiterhin
+   * das Recherchesignal (benannter Intent) bzw. der Erstell-Auftrag und das
+   * Verbot (demotierter Turn).
+   */
+  pinnedKind: ArtifactKindId | null = null
+): CompoundGenerationKind | null {
   const t = (raw ?? '').trim();
   // A NAMED generation intent has a single-pass dispatcher of its own, so only a
   // turn that ALSO carries a research signal is lifted into the loop; without it
   // `null` means "the dispatcher builds it", which is correct and faster.
-  if (COMPOUND_GENERATION_INTENTS.has(intent)) {
+  if (isCompoundGenerationIntent(intent)) {
     if (!looksLikeCompoundGeneration(t)) return null;
-    if (intent === 'sharepic') return 'sharepic';
-    if (intent === 'create_presentation') return 'presentation';
-    if (intent === 'create_sheet') return 'sheet';
-    if (intent === 'create_pdf') return 'pdf';
+    if (pinnedKind) return pinnedKind;
+    const named = ARTIFACT_KINDS.find((k) => k.intent === intent);
+    if (named) return named.id;
   }
   if (intent === 'agentic' || intent === 'produktion' || intent === 'direct') {
     // No research gate on this branch, and the asymmetry is the whole point:
@@ -480,30 +641,22 @@ export function compoundGenerationKind(intent: string, raw: string): CompoundGen
     // does not just mount the tool — forceCompoundGeneration GUARANTEES the
     // artifact when the planner skips it.
     //
-    // Order = specificity: the concrete products first, the generic "Dokument"
-    // last (it's the fallback artifact when nothing more specific matches).
-    // pdf before document: "PDF-Dokument" names both nouns but means a PDF.
-    const kind =
-      hasExplicitSharepicWord(t) && CREATION_VERB_RE.test(t)
-        ? 'sharepic'
-        : PRESENTATION_CREATE_RE.test(t)
-          ? 'presentation'
-          : SHEET_CREATE_RE.test(t) && !dictatesInlineTableColumns(t)
-            ? 'sheet'
-            : BOARD_CREATE_RE.test(t)
-              ? 'board'
-              : PDF_CREATE_RE.test(t)
-                ? 'pdf'
-                : DOCUMENT_CREATE_RE.test(t)
-                  ? 'document'
-                  : null;
+    // Order = specificity, and it is the registry's array order — see
+    // `recoverKindFromText`.
+    const kind = pinnedKind ?? recoverKindFromText(t);
     if (kind == null) return null;
+    // Die Erwähnung liefert das SUBSTANTIV, das dem Text fehlt — aber nicht den
+    // Auftrag. `looksLikeCompoundGeneration` verlangt beides (Substantiv UND
+    // Recherchesignal); mit Pin ist die Substantiv-Hälfte schon beantwortet, die
+    // andere bleibt. Sonst garantierte ein `@pdf-erstellen` auf „Was steht im
+    // PDF?" ein PDF — `forceCompoundGeneration` baut die Art, die hier steht.
+    if (pinnedKind && !RESEARCH_SIGNAL_RE.test(t) && recoverKindFromText(t) == null) return null;
     // The router's negative-action gate keys on the classified INTENT, so a kind
     // recovered from the TEXT never passes under it — "erstelle diesmal kein
     // Dokument" on a demoted turn would mount the doc tool, and
     // forceCompoundGeneration would then guarantee the very artifact the user
     // forbade. Re-checked here because this is where the kind first exists.
-    const family = FORBIDDABLE_BY_KIND[kind];
+    const family = artifactKind(kind).forbiddableFamily;
     if (family && forbidsPersistentAction(t, ARTIFACT_NOUN_BY_KIND[family])) return null;
     return kind;
   }
@@ -517,6 +670,27 @@ export function compoundGenerationKind(intent: string, raw: string): CompoundGen
  */
 export type EditorSurfaceKind = 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas';
 
+/**
+ * The German noun each surface's artefact is called, with its gender — every
+ * message that names it declines accordingly ("kein Sharepic" vs. "keine
+ * Tabelle", "am Board" vs. "an der Tabelle").
+ *
+ * One table, because two places name the same thing: the edit tool's own
+ * messages (EDIT_SURFACE_SPECS) and the synth note that has to tell the model
+ * this turn cannot edit. A surface's noun is a property of the surface, so it
+ * lives with {@link EditorSurfaceKind} rather than in the tool that happens to
+ * have needed it first. Total over the union, because both readers are.
+ */
+export const EDITOR_SURFACE_NOUNS: Readonly<
+  Record<EditorSurfaceKind, { readonly noun: string; readonly gender: 'f' | 'n' }>
+> = {
+  doc: { noun: 'Dokument', gender: 'n' },
+  sheet: { noun: 'Tabelle', gender: 'f' },
+  presentation: { noun: 'Präsentation', gender: 'f' },
+  board: { noun: 'Board', gender: 'n' },
+  canvas: { noun: 'Sharepic', gender: 'n' },
+};
+
 const EDITOR_AGENT_KIND: ReadonlyArray<readonly [string, EditorSurfaceKind]> = [
   ['gruenerator-sheets-editor', 'sheet'],
   ['gruenerator-presentations-editor', 'presentation'],
@@ -528,35 +702,49 @@ const EDITOR_AGENT_KIND: ReadonlyArray<readonly [string, EditorSurfaceKind]> = [
 /**
  * Resolves which editor surface (if any) a turn belongs to. Prefers the dedicated
  * editor agent's identifier; falls back to the enabled edit_current_* tool so a
- * turn on a custom agent inside an editor sidebar still resolves. Returns null for
+ * turn on a custom agent inside an editor sidebar still resolves. That fallback is
+ * TOTAL over {@link EDITOR_EDIT_TOOL_KEYS} — one key per surface, so a sheets or
+ * presentations sidebar no longer has to borrow the doc key (#3438). It takes the
+ * FIRST enabled key, and the registry is ordered specific-before-`doc` precisely
+ * for that: during the compatibility window those two sidebars send their own key
+ * alongside `edit_current_doc`, and doc-first would undo the fix. Returns null for
  * every non-editor turn (the common case), so the caller can early-out cheaply.
  */
 export function resolveEditorSurfaceKind(
-  agentIdentifier: string | undefined,
-  enabledTools: Record<string, boolean> | undefined
+  agentIdentifier: string | null | undefined,
+  enabledTools: Record<string, boolean> | null | undefined
 ): EditorSurfaceKind | null {
   if (agentIdentifier) {
     for (const [id, kind] of EDITOR_AGENT_KIND) {
       if (agentIdentifier === id) return kind;
     }
   }
-  if (enabledTools?.['edit_current_board'] === true) return 'board';
-  if (enabledTools?.['edit_current_doc'] === true) return 'doc';
+  for (const key of EDITOR_EDIT_TOOL_KEYS) {
+    if (enabledTools?.[key] === true) return SURFACE_BY_EDIT_TOOL_KEY[key];
+  }
   return null;
 }
 
 /**
- * Editor surfaces with a tool-based edit path implemented — the loop plans ops
- * and streams `editor_operations` instead of the client round-trip. These are
- * NOT live yet, so there is no legacy behaviour to protect and no rollout flag:
- * the tool path is simply the default for them. The still-live surfaces
- * (`doc`, `board`, `canvas`) are absent here and keep the trigger_doc_edit path.
- * Add a surface once its editorTools branch AND client ops handler are wired.
+ * Editor surfaces whose edit runs through the loop's `edit_document` tool —
+ * i.e. all five since #3428. The MODEL decides and writes the instruction; what
+ * differs is only how the change reaches the artefact (see editorTools): four
+ * surfaces plan ops server-side and stream `editor_operations` (`board` since
+ * #1735, `canvas` since #3427), `doc` dispatches `trigger_doc_edit` and lets
+ * BlockNote compose the change client-side.
+ *
+ * The set is therefore no longer "which surfaces have a tool" — it is the total
+ * over {@link EditorSurfaceKind}. It stays a set rather than becoming `true`
+ * because it is also what `buildArtifactNotes` asks to decide whether a turn
+ * WITHOUT the tool has any edit path left at all; a sixth surface added without
+ * an edit path must be able to say so.
  */
 export const TOOL_EDIT_SURFACES: ReadonlySet<EditorSurfaceKind> = new Set([
+  'doc',
   'sheet',
   'presentation',
   'board',
+  'canvas',
 ]);
 
 export interface EditToolLoopInput {
@@ -564,9 +752,9 @@ export interface EditToolLoopInput {
   loopEnabled: boolean;
   /** Surface resolved via {@link resolveEditorSurfaceKind}. */
   surfaceKind: EditorSurfaceKind | null;
-  /** The AI-edit toggle is ON (edit_current_doc/board enabled). When OFF, the
-   *  tool must NOT mount — otherwise the model "edits" and claims success while
-   *  the client (which also gates on the toggle) refuses to apply. */
+  /** The AI-edit toggle is ON (any {@link EDITOR_EDIT_TOOL_KEYS} entry enabled).
+   *  When OFF, the tool must NOT mount — otherwise the model "edits" and claims
+   *  success while the client (which also gates on the toggle) refuses to apply. */
   editToolEnabled: boolean;
   /** A current document/board is actually open (rawCurrentDocument/Board id present). */
   hasEditTarget: boolean;
@@ -587,8 +775,10 @@ export interface EditToolLoopInput {
  * `edit_current_*` intent: it routinely mislabels edit asks as `direct`
  * ("trag es in die Tabelle ein") and drops short follow-ups ("ja ab a1") into a
  * single-pass `direct` turn, both of which must still be able to edit. The same
- * single-pass kill-switches as {@link decideRunAgentic} still apply. A surface
- * without a tool path (doc/board/canvas) returns false → legacy trigger path.
+ * single-pass kill-switches as {@link decideRunAgentic} still apply — and on a
+ * doc surface a turn they hold back now has NO edit path at all (the classifier
+ * stage that used to emit `trigger_doc_edit` is gone), which is why
+ * `buildArtifactNotes` makes the model say so.
  */
 export function decideEditToolLoop(p: EditToolLoopInput): boolean {
   if (!p.loopEnabled) return false;
@@ -615,8 +805,27 @@ export interface AgenticDecisionInput {
   lastUserText: string;
   /** An @tool mention pinned a deterministic single-pass tool. */
   forcedTool: boolean;
-  /** `mcp` turns are "forced" via @<server> but still belong in the loop. */
-  isMcpTurn: boolean;
+  /**
+   * Dieser Intent hat GAR KEINEN Einzeldurchlauf-Executor —
+   * `executeIntentPipeline` hat für ihn keinen Zweig (`mcp` plus
+   * `SYSTEM_TOOL_INTENTS`). Ein Turn, den ein Notausschalter draussen hielte,
+   * hätte niemanden, der ihn ausführt; deshalb öffnet dieses Flag das Gate
+   * bedingungslos und hebt auch die Notebook-Sperre auf.
+   */
+  mustLoop: boolean;
+  /**
+   * Der Intent trägt `forcedLane: 'loop'` — ein Zwang auf ihn gehört in die
+   * Schleife, nicht in den Einzeldurchlauf.
+   *
+   * Getrennt von {@link mustLoop}, weil das zwei verschiedene Tatsachen sind
+   * und sie ab dem ersten Flip auseinanderfallen: `bundestag` HAT einen
+   * Einzeldurchlauf-Executor (er bleibt der Weg für Prosa-Turns mit
+   * ausgeschalteter Schleife), aber eine @-Erwähnung ist dort schlechter
+   * bedient. Zusammengelegt bekäme so ein Intent still auch das
+   * bedingungslose Gate und die Notebook-Ausnahme — und eine gewählte
+   * Wissenssammlung bliebe ungelesen.
+   */
+  forcedLoop: boolean;
   /**
    * The vocabulary trigger named at least one first-party connector for this
    * turn (`managedSourceTrigger`).
@@ -637,12 +846,19 @@ export interface AgenticDecisionInput {
   /** Notebook gather pipeline — stays single-pass. */
   isCompound: boolean;
   /** The turn carries a selected notebook (`notebookIds`), whatever the agent.
-   *  Stays single-pass because `searchNode` is the ONLY place that retrieves
-   *  notebook content: `gruenerator_search` takes `collection` as a closed
-   *  `z.enum(ALL_COLLECTIONS)` (searchTools.ts) — eight fixed party corpora, no
-   *  parameter that could address a user or Landesverband notebook. In the loop
-   *  the classifier's `gatherSources: ['notebook-search']` is read by nobody and
-   *  the chosen notebook is silently answered around.
+   *  Stays single-pass — but no longer because the loop CANNOT reach a user
+   *  notebook. That was the original reason: `gruenerator_search` takes
+   *  `collection` as a closed `z.enum(ALL_COLLECTIONS)` (searchTools.ts), which
+   *  addresses SYSTEM collections by key and has no parameter for a USER
+   *  notebook. Since 09/2026 the `notebooks` tool has `search` (id + query, via
+   *  `runNotebookSearch`), so the capability now exists in the loop.
+   *  What has NOT been done is the measurement: `searchNode` owns the notebook
+   *  retrieval path with its own citation and rerank behaviour, and the
+   *  classifier's `gatherSources: ['notebook-search']` is still read by nobody
+   *  here, so a turn that entered the loop would be answered around the chosen
+   *  notebook unless the model happens to call `notebooks(search)` itself.
+   *  Flipping this flag is therefore a deliberate, measured change — not a
+   *  leftover. Do not remove it on the strength of the tool existing.
    *  `isCompound` covered only the NAMED-agent half of this; the universal agent
    *  reached the loop unguarded. Separate flag rather than a widened
    *  `isCompound`, because that name means "gather-then-apply pipeline" and
@@ -656,8 +872,10 @@ export interface AgenticDecisionInput {
   compoundGeneration: boolean;
   /** image_edit / vision turns stay single-pass. */
   hasImageAttachments: boolean;
-  /** A fill ask ("füll das aus") on a thread that has a PDF. Precomputed by the
-   *  caller (isSheetFillRequest) so this module stays import-free. */
+  /** A fill ask ("füll das aus") on a thread that has a REACHABLE form — a PDF
+   *  whose bytes were kept because `isFillablePdf` accepted it. Precomputed by
+   *  the caller (isSheetFillRequest + hasReachableForm) so this module stays
+   *  import-free. */
   isPdfFillRequest: boolean;
   /** The classifier answered `needsResearch: true` and then picked `direct`.
    *  Rescues the turn into the loop even when it isn't shaped like a question —
@@ -678,7 +896,7 @@ export interface AgenticDecisionInput {
  * loop — the model choice only decides unified-vs-split MODE inside the loop.
  */
 export function decideRunAgentic(p: AgenticDecisionInput): boolean {
-  const compoundGen = COMPOUND_GENERATION_INTENTS.has(p.intent) && p.compoundGeneration;
+  const compoundGen = isCompoundGenerationIntent(p.intent) && p.compoundGeneration;
   // "Füll mir das Formular aus" is an imperative with no question word, so
   // looksLikeToolableQuestion rejects it by design (content imperatives are
   // creative generation). With a PDF attached it is exactly a tool turn — and
@@ -700,37 +918,51 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   const selfContained = looksLikeSelfContainedTurn(p.lastUserText, {
     hasOwnMaterial: p.hasOwnMaterial === true,
   });
+  // "Merk dir, dass …" is an imperative without a question word, so every net
+  // above rejects it — and the only place that can honour it is the loop,
+  // where the `memory` tool is mounted. Single-pass would confirm a save it
+  // never made (the failure the explicit-memory rebuild exists for).
+  const memoryRequest = looksLikeMemoryRequest(p.lastUserText);
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
     // A named first-party connector puts the turn in the loop whatever the
-    // intent says. Deliberately NOT folded into the `NO_TOOL_VERDICTS` branch
+    // intent says. Deliberately NOT folded into the groundable-prose branch
     // below: the asks this covers ("Wetter Köln morgen", "§ 823 BGB") are
     // telegram-style and fail every one of `looksLikeToolableQuestion`'s four
     // shapes, and they can arrive under any verdict, not just a no-tool one.
     p.hasManagedSources === true ||
-    (NO_TOOL_VERDICTS.has(p.intent) &&
+    (isGroundableProse(p.intent) &&
       (looksLikeToolableQuestion(p.lastUserText) ||
         p.classifierContradictedResearch === true ||
         unsourcedWriting ||
         !selfContained)) ||
     p.isPdfFillRequest ||
-    compoundGen;
+    compoundGen ||
+    memoryRequest;
   const secondaryAllowed =
     p.secondaryIntent == null || (compoundGen && p.secondaryIntent === 'scrape_url');
   // `mcp` is the ONLY executor for its turns (the legacy mcpToolNode was removed),
   // so it always enters the loop — independent of CHAT_AGENT_LOOP and of inLoopSet.
   // The single-pass kill-switches below (compound / image / secondary) still apply.
-  const gateOpen = p.isMcpTurn || (p.loopEnabled && inLoopSet);
-  // The MCP exception is the same one `forcedTool` gets, and for the same
-  // reason: no turn in the `isMcpTurn` set has a single-pass executor —
-  // intentExecutionService has no branch for `mcp`, `umfragen` or `hilfe` — so
-  // keeping one out of the loop would leave it with nobody to run it. An
-  // unsearched notebook is the lesser loss against a turn that does nothing.
+  const gateOpen = p.mustLoop || (p.loopEnabled && inLoopSet);
+  // Zwei Ausnahmen aus zwei Gründen, die lange derselbe waren.
+  //
+  // `mustLoop`: kein Turn dieser Menge hat einen Einzeldurchlauf-Executor —
+  // intentExecutionService hat keinen Zweig für `mcp`, `umfragen` oder
+  // `hilfe`. Einen davon draussen zu halten liesse ihn ohne Ausführenden. Eine
+  // ungelesene Wissenssammlung ist der kleinere Verlust gegen einen Turn, der
+  // gar nichts tut — deshalb hebt dieses Flag auch die Notebook-Sperre auf.
+  //
+  // `forcedLoop`: die Person hat den Intent per Erwähnung gesetzt, und für
+  // diesen Intent heisst das „lauf im Loop" statt „hefte ein deterministisches
+  // Einzelwerkzeug an". Es hebt NUR den forcedTool-Notausschalter auf; das
+  // Gate und die Notebook-Sperre bleiben, weil ein Intent mit eigenem
+  // Executor beides nicht braucht.
   const runAgentic =
     gateOpen &&
-    (!p.forcedTool || p.isMcpTurn) &&
+    (!p.forcedTool || p.forcedLoop) &&
     !p.isCompound &&
-    (!p.hasSelectedNotebook || p.isMcpTurn) &&
+    (!p.hasSelectedNotebook || p.mustLoop) &&
     secondaryAllowed &&
     !p.hasImageAttachments;
   recordDecision('router.run_agentic', runAgentic ? 'loop' : 'single_pass', {
@@ -739,7 +971,8 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       loopEnabled: p.loopEnabled,
       inLoopSet,
       gateOpen,
-      isMcpTurn: p.isMcpTurn,
+      mustLoop: p.mustLoop,
+      forcedLoop: p.forcedLoop,
       hasManagedSources: p.hasManagedSources === true,
       isCompound: p.isCompound,
       hasSelectedNotebook: p.hasSelectedNotebook,
@@ -749,6 +982,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       isPdfFillRequest: p.isPdfFillRequest,
       unsourcedWriting,
       selfContained,
+      memoryRequest,
       hasOwnMaterial: p.hasOwnMaterial === true,
     },
   });

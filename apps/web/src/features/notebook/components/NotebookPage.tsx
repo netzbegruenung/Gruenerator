@@ -3,35 +3,35 @@ import {
   AssistantMessage,
   CitationPanelProvider,
   CitationSidePanel,
-  ExtraActionsProvider,
   NotebookChatProvider,
   NotebookComposer,
   UserMessage,
+  notebookComposerModeDef,
+  toNotebookAnswerMode,
   notebookDepthDef,
   notebookMentionables,
   useAgentStore,
   type CategoryFilterConfig,
   type CategoryFilterField,
-  type ChatMessageMetadata,
-  type ExtraAction,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
-import React, { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
-import { FaFileWord } from 'react-icons/fa';
+import { cn } from '@gruenerator/ui';
+import React, { useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
-import { CitationModal } from '../../../components/common/Citation';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
-import { useExportStore } from '../../../stores/core/exportStore';
+import { buildChatHandoffUrl, createRepeatGuard, readChatHandoff } from '../chatHandoff';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { getNotebookById } from '../config/notebooksConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
 import { useNotebookCollection } from '../hooks/useNotebookCollection';
+import { NOTEBOOK_COMPOSER_ACCENT } from '../notebookTheme';
 import useNotebookStore from '../stores/notebookStore';
 
 import { NotebookAccessError } from './NotebookAccessError';
+import NotebookIndexingNotice, { resolveIndexingState } from './NotebookIndexingNotice';
 import { NotebookStartpage } from './NotebookStartpage';
 import { PendingQuestionSender } from './PendingQuestionSender';
 
@@ -75,10 +75,6 @@ interface NotebookPageContentProps {
   threadId?: string | null;
   /** Additional content rendered below the startpage sections (e.g. a notebook gallery on the root page). */
   startpageFooter?: ReactNode;
-  /** Disable the Statistiken section (e.g. for small dynamic user notebooks). Defaults to true. */
-  showStats?: boolean;
-  /** Disable the built-in "Zuletzt hinzugefügt" section (caller renders its own). Defaults to true. */
-  showLastAdded?: boolean;
   /** Disable the example-question chip grid below the composer. Defaults to true. */
   showExamples?: boolean;
   /** Disable the manual research tab (dynamic user notebooks have no system collection scope). Defaults to true. */
@@ -91,7 +87,7 @@ interface NotebookPageContentProps {
   hideGlobalChat?: boolean;
   /**
    * When set, the manual research tab scopes to a single user-owned notebook
-   * (ownership-checked, no facet filter UI). Forwarded to `NotebookManualSearch`.
+   * (ownership-checked, no facet filter UI). Scopes the start page's live search.
    */
   manualSearchNotebookId?: string;
   /** Replace the plain question composer with the omni composer (ask/route/
@@ -100,40 +96,21 @@ interface NotebookPageContentProps {
   /** Disable the startpage's own page background when embedded in a surface
    *  that paints its own (workplace "Wissen" tab tint). Defaults to true. */
   pageGradient?: boolean;
+  /** A fixed Chat | Übersicht pill sits over the top row; keep the thread clear of it. */
+  withTabBar?: boolean;
 }
 
 interface NotebookPageProps {
   configId: string;
 }
 
-function useNotebookExtraActionsFactory(): (message: {
-  text: string;
-  metadata?: ChatMessageMetadata;
-}) => ExtraAction[] {
-  const generateNotebookDOCX = useExportStore((state) => state.generateNotebookDOCX);
-
-  return useCallback(
-    ({ text, metadata }) => {
-      if (!metadata?.rawCitations?.length && !metadata?.citations?.length) return [];
-
-      return [
-        {
-          id: 'notebook-docx',
-          label: 'Word mit Quellen',
-          icon: <FaFileWord className="h-4 w-4" />,
-          onClick: () => {
-            void generateNotebookDOCX(
-              text,
-              metadata.question || 'Notebook-Antwort',
-              metadata.rawCitations ?? [],
-              metadata.sources ?? []
-            );
-          },
-        },
-      ];
-    },
-    [generateNotebookDOCX]
-  );
+/** The multi-select filters of a collection; date ranges are left out. */
+function keywordFilters(raw: Record<string, unknown> | undefined): Record<string, string[]> {
+  const filters: Record<string, string[]> = {};
+  for (const [key, val] of Object.entries(raw ?? {})) {
+    if (Array.isArray(val)) filters[key] = val as string[];
+  }
+  return filters;
 }
 
 export const NotebookPageContent = ({
@@ -141,20 +118,21 @@ export const NotebookPageContent = ({
   documentIds,
   threadId: threadIdProp,
   startpageFooter,
-  showStats = true,
-  showLastAdded = true,
   showExamples = true,
   showManualSearch = true,
   hideGlobalChat = false,
   manualSearchNotebookId,
   omniComposer = false,
   pageGradient = true,
+  withTabBar = false,
 }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
   const isSingleSystem = !isMulti && config.collections[0]?.id.endsWith('-system');
   const systemCollectionId = isSingleSystem ? config.collections[0].id : null;
   const locale = useAuthStore((state) => state.locale);
-  const extraActionsFactory = useNotebookExtraActionsFactory();
+  // Die Reihe, die sich Unterhaltung und Quellenleser teilen — das Panel misst
+  // sie, um zwischen Spalte und Sheet zu entscheiden.
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const { getFiltersForCollection, fetchFilterValues, setActiveFilter, clearAllFilters } =
     useNotebookStore();
   const filterValuesCache = useNotebookStore((s) => s.filterValuesCache);
@@ -165,26 +143,33 @@ export const NotebookPageContent = ({
   const storedDepth = useAgentStore((s) => s.notebookDepth);
   const setMode = useAgentStore((s) => s.setNotebookDepth);
   const mode = notebookDepthDef(storedDepth).depth;
+  const storedAnswerMode = useAgentStore((s) => s.notebookAnswerMode);
+  const setAnswerMode = useAgentStore((s) => s.setNotebookAnswerMode);
+  const answerMode = notebookComposerModeDef(storedAnswerMode).mode;
   const [searchParams, setSearchParams] = useSearchParams();
-  const [threadId, setThreadId] = useState<string | null>(threadIdProp ?? null);
-  const handleThreadCreated = useCallback((newThreadId: string) => {
-    setThreadId(newThreadId);
-  }, []);
-
-  // Strip a stale ?thread= query param once on mount: the chat is no longer
-  // restored from the URL, so leaving the param around just confuses bookmarks.
-  useEffect(() => {
-    if (!searchParams.get('thread')) return;
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('thread');
-        return next;
-      },
-      { replace: true }
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // A question opened from another tab's start page, with the filters it was
+  // asked under — read once, the sender clears the params after sending.
+  const [handoff] = useState(() => readChatHandoff(searchParams));
+  // `?thread=` names the conversation to open — that is how a thread row in the
+  // sidebar links here, and how a reload finds its way back to what was on
+  // screen. Read once: later edits to the param are this component's own doing.
+  const [urlThreadId] = useState<string | null>(() => searchParams.get('thread'));
+  const [threadId, setThreadId] = useState<string | null>(threadIdProp ?? urlThreadId);
+  const handleThreadCreated = useCallback(
+    (newThreadId: string) => {
+      setThreadId(newThreadId);
+      // Put the fresh conversation in the URL so reloading stays inside it.
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('thread', newThreadId);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
 
   const location = useLocation();
   const navState = location.state as {
@@ -199,9 +184,11 @@ export const NotebookPageContent = ({
     return config.collections.filter((c) => !c.locale || c.locale === locale);
   }, [isMulti, config.collections, locale]);
 
-  const [selectedIds, setSelectedIds] = useState<string[]>(() =>
-    isMulti ? localeCollections.map((c) => c.id) : []
-  );
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => {
+    if (!isMulti) return [];
+    const all = localeCollections.map((c) => c.id);
+    return handoff?.sourceIds ? all.filter((id) => handoff.sourceIds!.includes(id)) : all;
+  });
 
   const selectedCollections = useMemo(() => {
     if (isMulti) {
@@ -241,11 +228,14 @@ export const NotebookPageContent = ({
     return Object.keys(f).length > 0 ? f : undefined;
   }, [isMulti, selectedCollections, getFiltersForCollection]);
 
+  // Two ways to restore a conversation, and they must not both fire: the server
+  // history behind `?thread=` is the complete one, the local cache only knows
+  // what this browser saw. When the URL names a thread, the runtime loads it.
   const { initialMessages, onComplete } = useNotebookChatBridge({
     collections: selectedCollections,
     persistMessages: config.persistMessages,
     freshConversation,
-    resumeFromCache,
+    resumeFromCache: resumeFromCache && !urlThreadId,
   });
 
   const providerCollections = useMemo(
@@ -282,6 +272,43 @@ export const NotebookPageContent = ({
     handleSelectNone,
   ]);
 
+  // Fresh tab, fresh store: the handed-over filters go in before the pending
+  // question is sent (the sender waits a beat after mount).
+  useEffect(() => {
+    if (!systemCollectionId || !handoff) return;
+    const current = useNotebookStore.getState().getFiltersForCollection(systemCollectionId);
+    for (const [field, values] of Object.entries(handoff.filters)) {
+      const active = current[field];
+      for (const value of values) {
+        if (!(Array.isArray(active) && active.includes(value))) {
+          setActiveFilter(systemCollectionId, field, value);
+        }
+      }
+    }
+  }, [systemCollectionId, handoff, setActiveFilter]);
+
+  const [isRepeatSubmit] = useState(() => createRepeatGuard());
+  const openChatTab = useCallback(
+    (question: string) => {
+      if (isRepeatSubmit(question)) return;
+      const url = buildChatHandoffUrl(location.pathname, {
+        question,
+        filters: systemCollectionId ? keywordFilters(activeFiltersStore[systemCollectionId]) : {},
+        sourceIds: isMulti && selectedIds.length < localeCollections.length ? selectedIds : null,
+      });
+      window.open(url, '_blank', 'noopener');
+    },
+    [
+      isRepeatSubmit,
+      location.pathname,
+      systemCollectionId,
+      activeFiltersStore,
+      isMulti,
+      selectedIds,
+      localeCollections.length,
+    ]
+  );
+
   // Fetch filter values for single system collections
   useEffect(() => {
     if (systemCollectionId) {
@@ -309,13 +336,7 @@ export const NotebookPageContent = ({
 
     if (fields.length === 0) return undefined;
 
-    const rawActive = activeFiltersStore[systemCollectionId] || {};
-    const activeFilters: Record<string, string[]> = {};
-    for (const [key, val] of Object.entries(rawActive)) {
-      if (Array.isArray(val)) {
-        activeFilters[key] = val;
-      }
-    }
+    const activeFilters = keywordFilters(activeFiltersStore[systemCollectionId]);
 
     return {
       fields,
@@ -338,11 +359,6 @@ export const NotebookPageContent = ({
     return entry?.mention ?? null;
   }, [config.id]);
 
-  // Canonical notebook id (matches LV agents' `defaultNotebookIds`). For dynamic
-  // user notebooks `config.id` is a UUID, so this matches no agent and the
-  // agents section self-hides.
-  const notebookId = `${config.id}-notebook`;
-
   const chatContent = (
     <NotebookChatProvider
       collections={providerCollections}
@@ -354,13 +370,20 @@ export const NotebookPageContent = ({
       onThreadCreated={handleThreadCreated}
       threadId={threadId}
       mode={mode}
+      answerMode={toNotebookAnswerMode(answerMode)}
+      magicSearch={answerMode === 'auto'}
       documentIds={documentIds}
     >
       <PendingQuestionSender />
       <CitationPanelProvider>
-        <ExtraActionsProvider factory={extraActionsFactory}>
-          <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
-            <AuiIf condition={(s) => s.thread.isEmpty}>
+        {/* Der Quellenleser ist eine Geschwisterspalte, kein Overlay: ein Zitat
+            nachzulesen heißt, es mit dem Satz zu vergleichen, der es benutzt. */}
+        <div ref={surfaceRef} className="flex h-full min-h-0 w-full">
+          <ThreadPrimitive.Root className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+            {/* `isLoading` guards the start page while a conversation named by
+              `?thread=` is still being fetched — without it the start page
+              flashes up first and reads as "this conversation is gone". */}
+            <AuiIf condition={(s) => s.thread.isEmpty && !s.thread.isLoading}>
               <div className="flex flex-1 flex-col overflow-y-auto">
                 <NotebookStartpage
                   title={config.startPageTitle}
@@ -370,24 +393,25 @@ export const NotebookPageContent = ({
                   composerCategoryFilters={categoryFilters}
                   mode={mode}
                   onModeChange={setMode}
+                  answerMode={answerMode}
+                  onAnswerModeChange={setAnswerMode}
                   recentCollectionIds={recentCollectionIds}
-                  showRecentSourceLabel={isMulti}
-                  showStats={showStats}
-                  showLastAdded={showLastAdded}
                   showManualSearch={showManualSearch}
                   hideGlobalChat={hideGlobalChat}
                   manualSearchNotebookId={manualSearchNotebookId}
                   notebookMention={notebookMention}
-                  notebookId={notebookId}
                   omniComposer={omniComposer}
                   pageGradient={pageGradient}
                   footer={startpageFooter}
+                  onOpenChat={openChatTab}
                 />
               </div>
             </AuiIf>
             <AuiIf condition={(s) => !s.thread.isEmpty}>
               <div className="flex min-h-0 h-full flex-col">
-                <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
+                <ThreadPrimitive.Viewport
+                  className={cn('flex flex-1 flex-col overflow-y-auto px-4', withTabBar && 'pt-12')}
+                >
                   <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
                     <ThreadPrimitive.Messages
                       components={{
@@ -397,28 +421,28 @@ export const NotebookPageContent = ({
                     />
                   </div>
                 </ThreadPrimitive.Viewport>
-                <NotebookComposer
-                  placeholder={config.placeholder}
-                  sourceFilters={sourceFilters}
-                  categoryFilters={categoryFilters}
-                  mode={mode}
-                  onModeChange={setMode}
-                />
+                <div className={NOTEBOOK_COMPOSER_ACCENT}>
+                  <NotebookComposer
+                    placeholder={config.placeholder}
+                    sourceFilters={sourceFilters}
+                    categoryFilters={categoryFilters}
+                    mode={mode}
+                    onModeChange={setMode}
+                    answerMode={answerMode}
+                    onAnswerModeChange={setAnswerMode}
+                    settingsClassName={NOTEBOOK_COMPOSER_ACCENT}
+                  />
+                </div>
               </div>
             </AuiIf>
           </ThreadPrimitive.Root>
-        </ExtraActionsProvider>
-        <CitationSidePanel />
+          <CitationSidePanel containerRef={surfaceRef} />
+        </div>
       </CitationPanelProvider>
     </NotebookChatProvider>
   );
 
-  return (
-    <ErrorBoundary>
-      <CitationModal />
-      {chatContent}
-    </ErrorBoundary>
-  );
+  return <ErrorBoundary>{chatContent}</ErrorBoundary>;
 };
 
 const NotebookPage = ({ configId }: NotebookPageProps): React.ReactElement => {
@@ -497,14 +521,22 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
     persistMessages: true,
   };
 
+  const indexingState = resolveIndexingState(collection);
+
   return (
-    <NotebookPageContent
-      config={config}
-      showStats={false}
-      showLastAdded={false}
-      showManualSearch
-      manualSearchNotebookId={collection.id}
-    />
+    <>
+      {/* The chat stays usable while indexing — it can already answer from the
+          sources that finished, and blocking it would punish exactly the
+          freshly created notebook this notice exists for. Saying nothing was
+          the old behaviour: every question came back "nichts gefunden", which
+          reads like a wrong answer instead of an unfinished import. */}
+      <NotebookIndexingNotice state={indexingState} counts={collection.indexing_counts} />
+      <NotebookPageContent
+        config={config}
+        showManualSearch
+        manualSearchNotebookId={collection.id}
+      />
+    </>
   );
 };
 

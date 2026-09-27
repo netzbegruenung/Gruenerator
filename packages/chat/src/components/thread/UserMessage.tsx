@@ -4,10 +4,12 @@ import { MessagePrimitive, useAui, useAuiState, useMessageQuote } from '@assista
 import { Pencil } from 'lucide-react';
 import { useState } from 'react';
 
+import { useReadonlyMode } from '../../context/ReadonlyModeContext';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { UserMessageAttachments } from '../assistant-ui/attachment';
 import { MessageBranchPicker } from '../message-parts/MessageBranchPicker';
+import { MessageDaySeparator, MessageTime } from '../message-parts/MessageTimestamp';
 import { UserMessageText } from '../message-parts/UserMessageText';
 
 import { useChatDensity } from './chatDensityContext';
@@ -92,6 +94,7 @@ export function UserMessage() {
   const runtime = useAui().message;
   const density = useChatDensity();
   const isCompact = density === 'compact';
+  const readOnly = useReadonlyMode();
   const [editing, setEditing] = useState(false);
   const custom = message.metadata?.custom as
     { senderId?: string; senderName?: string; roleName?: string } | undefined;
@@ -114,56 +117,62 @@ export function UserMessage() {
   })();
 
   return (
-    <MessagePrimitive.Root
-      className={
-        isCompact
-          ? 'group mx-auto flex w-full min-w-0 justify-end'
-          : 'group mx-auto flex w-full min-w-0 max-w-3xl justify-end'
-      }
-    >
-      <div className={isCompact ? 'max-w-[92%]' : 'max-w-[85%]'}>
-        {senderId && (
-          <p className="mb-1 text-right text-xs text-grey-400">
-            {custom?.senderName || 'Teammitglied'}
-          </p>
-        )}
-        {roleName && (
-          <p className="mb-1 text-right text-[11px] font-medium text-primary-600 dark:text-primary-400">
-            Als {roleName}
-          </p>
-        )}
-        {editing ? (
-          <UserMessageEditor initialText={currentText} onDone={() => setEditing(false)} />
-        ) : (
-          <>
-            <div
-              className={
-                isCompact
-                  ? 'rounded-2xl bg-user-bubble px-3 py-2 text-[13px]'
-                  : 'rounded-3xl bg-user-bubble px-4 py-3'
-              }
-            >
-              <UserMessageAttachments />
-              <QuoteBlock />
-              <div className="whitespace-pre-wrap break-words text-foreground">
-                <MessagePrimitive.Parts components={userPartComponents} />
-              </div>
-            </div>
-            <div className="mt-1 flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
-              <MessageBranchPicker />
-              <button
-                type="button"
-                onClick={beginEdit}
-                className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-                aria-label="Bearbeiten"
-                title="Bearbeiten"
+    <>
+      <MessageDaySeparator />
+      <MessagePrimitive.Root
+        className={
+          isCompact
+            ? 'group mx-auto flex w-full min-w-0 justify-end'
+            : 'group mx-auto flex w-full min-w-0 max-w-3xl justify-end'
+        }
+      >
+        <div className={isCompact ? 'max-w-[92%]' : 'max-w-[85%]'}>
+          {senderId && (
+            <p className="mb-1 text-right text-xs text-grey-400">
+              {custom?.senderName || 'Teammitglied'}
+            </p>
+          )}
+          {roleName && (
+            <p className="mb-1 text-right text-[11px] font-medium text-primary-600 dark:text-primary-400">
+              Als {roleName}
+            </p>
+          )}
+          {editing ? (
+            <UserMessageEditor initialText={currentText} onDone={() => setEditing(false)} />
+          ) : (
+            <>
+              <div
+                className={
+                  isCompact
+                    ? 'rounded-2xl bg-user-bubble px-3 py-2 text-[13px]'
+                    : 'rounded-3xl bg-user-bubble px-4 py-3'
+                }
               >
-                <Pencil className="h-4 w-4" />
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </MessagePrimitive.Root>
+                <UserMessageAttachments />
+                <QuoteBlock />
+                <div className="whitespace-pre-wrap break-words text-foreground">
+                  <MessagePrimitive.Parts components={userPartComponents} />
+                </div>
+              </div>
+              <div className="mt-1 flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
+                <MessageTime className="mr-1" />
+                <MessageBranchPicker />
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={beginEdit}
+                    className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+                    aria-label="Bearbeiten"
+                    title="Bearbeiten"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </MessagePrimitive.Root>
+    </>
   );
 }

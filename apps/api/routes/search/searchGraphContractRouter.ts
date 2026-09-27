@@ -44,7 +44,7 @@ import {
   streamAndAccumulate,
 } from '../chat/services/responseStreamingService.js';
 import { createSSEStream } from '../chat/services/sseHelpers.js';
-import { canAccessThread } from '../chat/services/threadAccessService.js';
+import { canWriteThread } from '../chat/services/threadAccessService.js';
 import {
   createThread,
   createMessage,
@@ -54,7 +54,6 @@ import {
 
 import type { ChatGraphState, UserLocale } from '../../agents/langgraph/ChatGraph/types.js';
 import type { SearchGraphState } from '../../agents/langgraph/SearchGraph/types.js';
-import type { AIWorkerPool } from '../../workers/types.js';
 import type { SearchGraphStreamBody } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 import type { Application } from 'express';
@@ -144,13 +143,14 @@ export const searchGraphContractRouter = s.router(searchGraphContract, {
       // ── Thread resolution (before any state is built, so a rejected id never
       // reaches the pipeline) ──
       // Reuse a client-supplied thread only if this user may actually write to
-      // it. `canAccessThread` enforces owner / explicit permission / public /
-      // group-shared — the same gate ChatGraph uses for its message writes — and
-      // rejects non-UUID ids, which chat_threads.id (uuid) would otherwise turn
-      // into a Postgres 22P02. Anything it rejects mints a fresh thread instead
-      // of erroring the stream.
+      // it. `canWriteThread` enforces owner / explicit permission / public /
+      // writable group share — the same gate ChatGraph uses for its message
+      // writes (read-only shares are excluded) — and rejects non-UUID ids,
+      // which chat_threads.id (uuid) would otherwise turn into a Postgres
+      // 22P02. Anything it rejects mints a fresh thread instead of erroring
+      // the stream.
       let activeThreadId = threadId ?? undefined;
-      if (activeThreadId && !(await canAccessThread(ThreadId(activeThreadId), UserId(userId)))) {
+      if (activeThreadId && !(await canWriteThread(ThreadId(activeThreadId), UserId(userId)))) {
         log.warn(
           `[SearchGraph] threadId "${activeThreadId}" not accessible for user ${userId} — minting a new thread`
         );
@@ -181,7 +181,6 @@ export const searchGraphContractRouter = s.router(searchGraphContract, {
         messages: normalizedMessages as ModelMessage[],
         threadId: activeThreadId,
         searchMode: searchMode ?? 'web',
-        aiWorkerPool: req.app.locals.aiWorkerPool as AIWorkerPool,
         userLocale,
       });
 
@@ -255,19 +254,20 @@ export const searchGraphContractRouter = s.router(searchGraphContract, {
         return { status: 200 as const, body: undefined };
       }
 
-      // ── Step 4: Quality Gate (with loop) ──
+      // ── Step 4: Quality Gate (one retry) ──
       state = mergeState(
         state,
         (await qualityGateNode(state as unknown as ChatGraphState)) as Partial<SearchGraphState>
       );
 
-      // Quality gate loop
+      // Single retry on a weak score — deliberately not a loop: the gate is not
+      // re-run on the refreshed results, so a second pass has nothing to judge.
       if (
         state.qualityScore > 0 &&
         state.qualityScore < 3 &&
         state.searchCount < state.maxSearches
       ) {
-        log.info(`[SearchGraph] Quality gate loop: score=${state.qualityScore}, retrying search`);
+        log.info(`[SearchGraph] Quality gate: score=${state.qualityScore}, retrying search once`);
         sse.sendRaw('search_start', { message: 'Verfeinere Suche...' });
 
         if (state.searchMode === 'deep') {

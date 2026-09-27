@@ -1,3 +1,4 @@
+import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import {
   CloudDownload,
   FileText,
@@ -12,8 +13,11 @@ import {
 } from 'lucide-react';
 
 import {
+  navigateAction,
   openLinkAction,
   setAvatarAction,
+  type NotificationAction,
+  type NotificationActionContext,
   type NotificationTypeConfig,
 } from '../notificationConfig';
 
@@ -31,14 +35,41 @@ export interface Notification {
   created_at: string;
 }
 
-export type NotificationGroup = 'documents' | 'board' | 'groups' | 'system';
+export type NotificationGroup = 'documents' | 'board' | 'automations' | 'groups' | 'system';
 
 export const NOTIFICATION_GROUPS: Record<NotificationGroup, { label: string; order: number }> = {
   documents: { label: 'Dokumente', order: 0 },
   board: { label: 'Board', order: 1 },
-  groups: { label: 'Gruppen', order: 2 },
-  system: { label: 'System', order: 3 },
+  // Selbstlaufende Läufe lagen unter „Board", laufen aber auch ganz ohne Board:
+  // wer Board-Lärm abstellte, verlor seine Hintergrund-Ergebnisse gleich mit.
+  automations: { label: 'Automatisierungen', order: 2 },
+  groups: { label: 'Gruppen', order: 3 },
+  system: { label: 'System', order: 4 },
 };
+
+/**
+ * Das Ziel eines fertigen Laufs hängt an der ZUSTELLUNG, nicht am Typ. Bisher
+ * stand „Dokument öffnen" auch über einem Chat-Ergebnis und über einer
+ * Zusammenfassung, die gar kein Ziel hat. Board-Läufe tragen keine `delivery`
+ * und bekommen das neutrale Label; fehlt die URL ganz (Zustellung
+ * „Zusammenfassung"), führt der Knopf zur Aufgabe, statt zu verschwinden.
+ */
+function agentResultAction(ctx: NotificationActionContext): NotificationAction | null {
+  const delivery = ctx.notification.metadata.delivery;
+  if (ctx.notification.action_url) {
+    const label =
+      delivery === 'thread'
+        ? 'Chat öffnen'
+        : delivery === 'document'
+          ? 'Dokument öffnen'
+          : 'Öffnen';
+    return openLinkAction(label)(ctx);
+  }
+  const taskId = ctx.notification.metadata.taskId;
+  return typeof taskId === 'string'
+    ? navigateAction(`/wiederkehrend?task=${taskId}`, 'Aufgabe öffnen')(ctx)
+    : null;
+}
 
 export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
   document_shared: {
@@ -80,13 +111,29 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     ],
     actions: (ctx) => [openLinkAction('Aufgabe öffnen')(ctx)],
   },
+  // Drei eigene Einträge statt eines Schlüssels mit `subtypes`: `actions` gilt
+  // pro Schlüssel, unter einem gemeinsamen Dach trügen Erfolg, Fehlschlag und
+  // Freigabe zwangsläufig dasselbe Label.
   agent_task_completed: {
-    label: 'Grünerator-Agent',
-    description: 'Wenn der Grünerator eine an ihn delegierte Aufgabe erledigt hat',
+    label: 'Lauf erledigt',
+    description: 'Wenn eine wiederkehrende Aufgabe oder ein Board-Zeitplan fertig ist',
     icon: Sparkles,
-    group: 'board',
-    subtypes: ['agent_task_completed', 'agent_task_failed', 'agent_task_awaiting_review'],
-    actions: (ctx) => [openLinkAction('Dokument öffnen')(ctx)],
+    group: 'automations',
+    actions: (ctx) => [agentResultAction(ctx)],
+  },
+  agent_task_failed: {
+    label: 'Lauf fehlgeschlagen',
+    description: 'Wenn ein geplanter Lauf nicht ausgeführt werden konnte',
+    icon: Sparkles,
+    group: 'automations',
+    actions: (ctx) => [openLinkAction('Aufgabe prüfen')(ctx)],
+  },
+  agent_task_awaiting_review: {
+    label: 'Lauf wartet auf Freigabe',
+    description: 'Wenn ein geplanter Lauf auf deine Freigabe wartet',
+    icon: Sparkles,
+    group: 'automations',
+    actions: (ctx) => [openLinkAction('Freigeben')(ctx)],
   },
 
   group_member_joined: {
@@ -103,6 +150,14 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     icon: Share2,
     group: 'groups',
     actions: (ctx) => [openLinkAction('Gruppe öffnen')(ctx)],
+  },
+  group_comment_added: {
+    label: 'Kommentare in Gruppen',
+    description:
+      'Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast',
+    icon: MessageSquare,
+    group: 'groups',
+    actions: (ctx) => [openLinkAction('Beitrag öffnen')(ctx)],
   },
   group_deleted: {
     label: 'Gruppe aufgelöst',
@@ -121,11 +176,11 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
   },
 
   notebook_liked: {
-    label: 'Notizbuch-Likes',
-    description: 'Wenn andere dein öffentliches Notizbuch mögen',
+    label: 'Notebook-Likes',
+    description: 'Wenn andere dein öffentliches Notebook mögen',
     icon: Heart,
     group: 'system',
-    actions: (ctx) => [openLinkAction('Notizbuch öffnen')(ctx)],
+    actions: (ctx) => [openLinkAction('Notebook öffnen')(ctx)],
   },
   template_liked: {
     label: 'Vorlagen-Likes',
@@ -144,16 +199,16 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
   },
   wolke_new_files: {
     label: 'Neue Wolke-Dateien',
-    description: 'Wenn in den Wolke-Ordnern deiner Notizbücher neue Dateien gefunden werden',
+    description: 'Wenn in den Wolke-Ordnern deiner Notebooks neue Dateien gefunden werden',
     icon: CloudDownload,
     group: 'system',
-    actions: (ctx) => [openLinkAction('Notizbuch öffnen')(ctx)],
+    actions: (ctx) => [openLinkAction('Notebook öffnen')(ctx)],
   },
   new_avatars: {
     label: 'Neue Avatare',
     description: 'Wenn neue Profil-Avatare verfügbar sind',
     icon: Sparkles,
-    image: '/images/profileimages/11.webp',
+    image: getRobotAvatarPath(11),
     group: 'system',
     actions: (ctx) => [setAvatarAction(11, 'Avatar aktivieren')(ctx)],
   },

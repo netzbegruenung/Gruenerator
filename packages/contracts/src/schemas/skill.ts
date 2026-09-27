@@ -41,6 +41,35 @@ export const skillFrontmatterSchema = z.object({
   promptTemplate: z.string().min(1).optional(),
   isSystemDefault: z.boolean().optional(),
   /**
+   * Für welche Ebene eines Landesverbands dieses Rezept schreibt — Partei
+   * (Landesverband) oder Fraktion. Steuert den Ausschnitt der PM-Beispielsuche.
+   *
+   * Der Korpus führt Fraktions-PMs unter demselben LV-Code mit `-F`-Suffix
+   * (`HE` neben `HE-F`), der Ausschnitt steht aber am AGENTEN und umfasst beide.
+   * Ohne diese Angabe holt sich ein Partei-Rezept in seinem ersten Arbeitsschritt
+   * überwiegend Fraktionsvorlagen — in Hessen stehen 166 Partei- gegen 2.073
+   * Fraktions-PMs, die Erdung liefe also gegen den Text, den das Rezept verlangt.
+   *
+   * Nur für Landesverbände mit beiden Ebenen im Korpus. Fehlt das Feld, bleibt
+   * der volle LV-Ausschnitt stehen — richtig für einstufige Verbände
+   * (Brandenburg, Saarland, Thüringen) und für alles außerhalb der Presse.
+   */
+  lvEbene: z.enum(['partei', 'fraktion']).optional(),
+  /**
+   * Die Instanzen, auf denen dieses Rezept ANGEBOTEN wird. Fehlt das Feld, gilt
+   * es überall — der Normalfall, den kein Rezept deklarieren muss.
+   *
+   * Gedacht für Rezepte, die nur einem Deployment gehören (Bundesgeschäfts-
+   * stelle). Die Gegenrichtung — eine Instanz wirft ein geteiltes Rezept weg —
+   * steht als `hide.skillMentions` an der Instanz; warum die beiden Hälften auf
+   * verschiedenen Seiten sitzen, steht im Kopf von `shared/src/instances`.
+   *
+   * `z.string()` statt eines `z.enum` über die Instanz-Ids, weil contracts nicht
+   * auf shared zeigen darf. Die Verengung macht `build-skills.ts` gegen die
+   * Instanz-Registry — dieselbe Arbeitsteilung wie bei `identifier`.
+   */
+  instances: z.array(z.string().min(1)).nonempty().optional(),
+  /**
    * Numeric ordering hint for the generated SKILLS array. Lower wins. Ties
    * break alphabetically by `mention`. When omitted, the skill sorts after
    * everything with an explicit order, then alphabetically within its

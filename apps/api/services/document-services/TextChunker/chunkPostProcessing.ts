@@ -5,11 +5,7 @@
 
 import { vectorConfig } from '../../../config/vectorConfig.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
-import {
-  detectContentType,
-  detectMarkdownStructure,
-  extractPageNumber,
-} from '../../content/index.js';
+import { detectContentType, detectMarkdownStructure } from '../../content/index.js';
 
 import {
   sentenceSegments,
@@ -38,17 +34,9 @@ export function sentenceRepack(
     baseMetadata?: Record<string, unknown>;
     targetChars?: number;
     overlapChars?: number;
-    originalRawText?: string;
-    pageRanges?: Array<{ start: number; end: number }>;
   } = {}
 ): Chunk[] {
-  const {
-    baseMetadata = {},
-    targetChars = 1600,
-    overlapChars = 400,
-    originalRawText: _originalRawText,
-    pageRanges: _pageRanges,
-  } = options;
+  const { baseMetadata = {}, targetChars = 1600, overlapChars = 400 } = options;
 
   if (!Array.isArray(chunks) || chunks.length === 0) return [];
 
@@ -73,19 +61,69 @@ export function sentenceRepack(
     let buf = '';
     let bufStart = startOffset;
 
+    const flush = (): void => {
+      if (!buf) return;
+      subChunks.push({ text: buf, start: bufStart, end: bufStart + buf.length });
+      bufStart += buf.length + 1;
+      buf = '';
+    };
+
     for (const word of words) {
+      // Ein einzelnes „Wort" über der Zielgröße hat keine Wortgrenze, an der
+      // man es teilen könnte — bei Tabellendaten ist eine ganze Zeile ohne
+      // Leerzeichen genau das. Ohne diesen Zweig läuft es unzerteilt durch und
+      // die Obergrenze unten wäre wirkungslos.
+      if (word.length > targetChars) {
+        flush();
+        for (let offset = 0; offset < word.length; offset += targetChars) {
+          const slice = word.slice(offset, offset + targetChars);
+          subChunks.push({ text: slice, start: bufStart, end: bufStart + slice.length });
+          bufStart += slice.length;
+        }
+        bufStart += 1;
+        continue;
+      }
+
       if (buf.length + 1 + word.length > targetChars && buf) {
-        subChunks.push({ text: buf, start: bufStart, end: bufStart + buf.length });
-        bufStart += buf.length + 1;
+        flush();
         buf = word;
       } else {
         buf = buf ? `${buf} ${word}` : word;
       }
     }
-    if (buf) {
-      subChunks.push({ text: buf, start: bufStart, end: bufStart + buf.length });
-    }
+    flush();
     return subChunks;
+  };
+
+  /**
+   * Die Zusicherung, die vorher fehlte: kein Chunk verlässt diese Funktion
+   * über `targetChars`.
+   *
+   * Die beiden Übergroß-Zweige unten sind Sonderfälle (einzelner langer Satz,
+   * Schlusschunk) und greifen jeweils nur unter einer Zusatzbedingung — ein
+   * langer Satz, der bei nicht-leerem Puffer eintrifft, kam an beiden vorbei.
+   * Eine Nachbedingung an genau einer Stelle ist billiger zu prüfen als drei
+   * Zweige, die sich einig sein müssen.
+   */
+  const enforceCeiling = (entries: PositionedChunk[]): PositionedChunk[] => {
+    const capped: PositionedChunk[] = [];
+    for (const entry of entries) {
+      if (entry.text.length <= targetChars) {
+        capped.push(entry);
+        continue;
+      }
+      // Die Seitenzahl je Teilstück neu auflösen statt die des Ausgangschunks
+      // durchzureichen: ein übergroßer Chunk kann eine `## Seite N`-Grenze
+      // überspannen, und dann gehört jedes Teilstück auf die Seite, auf der es
+      // beginnt. Die beiden Übergroß-Zweige unten machen es genauso.
+      for (const sub of splitOversizedText(entry.text, entry.start)) {
+        capped.push({
+          ...sub,
+          page_number: resolvePageNumberForOffset(markers, pageNum, sub.start),
+        });
+      }
+    }
+    return capped;
   };
 
   let currentSentences: SentenceSegment[] = [];
@@ -125,9 +163,18 @@ export function sentenceRepack(
         const pn = resolvePageNumberForOffset(markers, pageNum, chunkStart);
         results.push({ text: chunkText, start: chunkStart, end: chunkEnd, page_number: pn });
 
-        // Create overlap using complete sentences from the end
+        // Create overlap using complete sentences from the end.
+        //
+        // `numSentences === 0` heißt: schon der letzte Satz allein passt nicht
+        // mehr in das Überlappungsbudget, es gibt also keine Überlappung.
+        // `slice(-0)` ist in JS aber `slice(0)` und liefert den GANZEN Puffer —
+        // der Chunk wuchs dadurch mit jedem weiteren Satz an, statt neu
+        // anzufangen, solange ein langer Satz am Ende stand. So entstanden am
+        // 17.08.2026 aus einer CSV Chunks von 20.000–22.000 Zeichen, die die
+        // Einbettungs-Batches auf je einen Text schrumpfen ließen.
         const overlapResult = createSentenceOverlap(currentSentences, overlapChars);
-        const overlapSentences = currentSentences.slice(-overlapResult.numSentences);
+        const overlapSentences =
+          overlapResult.numSentences > 0 ? currentSentences.slice(-overlapResult.numSentences) : [];
         currentSentences = [...overlapSentences, sentence];
         currentLength = currentSentences.map((s) => s.s).join(' ').length;
       } else {
@@ -160,13 +207,13 @@ export function sentenceRepack(
   }
 
   // Map to chunk objects
-  return results.map((r, i) => ({
+  return enforceCeiling(results).map((r, i) => ({
     text: r.text,
     index: i,
     tokens: estimateTokens(r.text),
     metadata: {
       ...baseMetadata,
-      chunkingMethod: 'langchain-sentences',
+      chunkingMethod: 'sentences',
       page_number: r.page_number,
     },
   }));
@@ -181,7 +228,6 @@ export function enrichChunkWithMetadata(
 ): Chunk {
   const contentType = detectContentType(chunk.text);
   const md = detectMarkdownStructure(chunk.text);
-  const pageNumberDetected = extractPageNumber(chunk.text);
   const qualityCfg = vectorConfig.get('quality');
   const quality = qualityCfg.enabled
     ? chunkQualityService.calculateQualityScore(chunk.text, { contentType })
@@ -199,11 +245,11 @@ export function enrichChunkWithMetadata(
         tables: md.tables || 0,
         code_blocks: md.codeBlocks || 0,
       },
-      // Prefer pre-set page_number (e.g., from page-splitting) over detection
-      page_number:
-        chunk.metadata && chunk.metadata.page_number != null
-          ? chunk.metadata.page_number
-          : pageNumberDetected,
+      // Seitenzahlen kommen NUR aus `## Seite N`-Marken (Seitenzerlegung in
+      // smartChunkDocument). Früher riet hier ein Muster auf „Seite 12" am
+      // Zeilenanfang — in einem DOCX oder einer Webseite, die „Seite 3 des
+      // Antrags" erwähnt, erfand das eine Seite, und der Leser zitierte sie.
+      page_number: chunk.metadata?.page_number ?? null,
       quality_score: Number.isFinite(quality) ? quality : 0,
     },
   };

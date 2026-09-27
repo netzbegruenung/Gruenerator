@@ -1,3 +1,4 @@
+import { hasNativeHost } from '@gruenerator/shared';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +36,16 @@ export function PresentationExportMenu({
   title,
   isGuest,
 }: PresentationExportMenuProps) {
+  // The PDF path needs a second window, and inside the mobile app's WebView
+  // there is none: the host sets `setSupportMultipleWindows={false}`, so
+  // `window.open` returns null and the print view would instead be loaded over
+  // the editor in the one WebView we have — with no browser chrome and no way
+  // back. The PowerPoint export next to it works, because it goes through the
+  // download bridge.
+  const inNativeHost = hasNativeHost();
+  const showPdf = !inNativeHost;
+  const showPptx = !isGuest;
+
   const exportPdf = useCallback(() => {
     // No API call: the export tab re-renders the deck and reveal's print view
     // paginates it for the browser's own print dialog.
@@ -68,7 +79,7 @@ export function PresentationExportMenu({
         {},
         { responseType: 'blob' }
       );
-      downloadBlob(res.data as Blob, `${title?.trim() || 'Praesentation'}.pptx`);
+      await downloadBlob(res.data as Blob, `${title?.trim() || 'Praesentation'}.pptx`);
       toast.success('PowerPoint-Datei erstellt', { id: pending });
     } catch (err) {
       const status = (err as { response?: { status?: number } }).response?.status;
@@ -82,6 +93,11 @@ export function PresentationExportMenu({
       );
     }
   }, [documentId, title]);
+
+  // A guest in the WebView has neither entry. That combination does not occur
+  // today (the handoff mints a real session), but an empty menu is a worse
+  // answer than no menu.
+  if (!showPdf && !showPptx) return null;
 
   return (
     <DropdownMenu>
@@ -98,14 +114,16 @@ export function PresentationExportMenu({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuItem onClick={exportPdf} className="gap-sm">
-          <FiPrinter className="h-4 w-4 text-grey-500" aria-hidden="true" />
-          <span className="flex flex-col items-start">
-            Als PDF
-            <span className="text-xs text-grey-500">öffnet den Druckdialog</span>
-          </span>
-        </DropdownMenuItem>
-        {!isGuest && (
+        {showPdf && (
+          <DropdownMenuItem onClick={exportPdf} className="gap-sm">
+            <FiPrinter className="h-4 w-4 text-grey-500" aria-hidden="true" />
+            <span className="flex flex-col items-start">
+              Als PDF
+              <span className="text-xs text-grey-500">öffnet den Druckdialog</span>
+            </span>
+          </DropdownMenuItem>
+        )}
+        {showPptx && (
           <DropdownMenuItem onClick={() => void exportPptx()} className="gap-sm">
             <FiFileText className="h-4 w-4 text-grey-500" aria-hidden="true" />
             <span className="flex flex-col items-start">

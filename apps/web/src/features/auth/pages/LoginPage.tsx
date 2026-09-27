@@ -9,9 +9,10 @@ import {
   type LoginProvider,
   type LoginProviderId,
 } from '@gruenerator/shared/auth';
-import { type JSX, useState, useEffect, useCallback } from 'react';
+import { type JSX, useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
+import { TRANSPARENCY_NOTICE } from '../../../config/transparencyNotice';
 import { useInstantAuth } from '../../../hooks/useAuth';
 import { useAuthStore } from '../../../stores/authStore';
 import { getIntendedRedirect, isMobileAppContext } from '../../../utils/authRedirect';
@@ -90,10 +91,16 @@ const LoginPage = ({
   // login page, or right after sign-in), fall back to their preferred start
   // page instead of the hardcoded Workplace Chat tab.
   const startPage = useAuthStore((s) => s.user?.default_startpage);
-  const intendedRedirect =
-    mode === 'required'
-      ? location.pathname
-      : getIntendedRedirect(location, startPagePath(startPage));
+  // Memoized: getIntendedRedirect logs its decision, and running it on every
+  // render prints "[AuthRedirect] …" once per re-render — which reads like
+  // repeated redirects when debugging a logout.
+  const intendedRedirect = useMemo(
+    () =>
+      mode === 'required'
+        ? location.pathname
+        : getIntendedRedirect(location, startPagePath(startPage)),
+    [mode, location, startPage]
+  );
 
   const isMobileApp = isMobileAppContext(location);
 
@@ -111,12 +118,6 @@ const LoginPage = ({
       return false;
     }
   });
-
-  const sessionExpiredBanner = sessionExpired && !successMessage && (
-    <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-md mb-md rounded-sm text-foreground">
-      Deine Sitzung ist abgelaufen — bitte melde dich erneut an.
-    </div>
-  );
 
   const displayPageName =
     pageName || (mode === 'required' ? getPageName(location.pathname) : undefined);
@@ -173,10 +174,13 @@ const LoginPage = ({
       : undefined;
 
   // Same mechanism as the public start page (StartpageHero): a remembered or
-  // deep-linked provider wins, else the browser language guesses the country.
-  // Only one provider card is shown up front; "Anderer Anbieter" reveals the
-  // rest. Resolved once on mount — everything needed is available
-  // synchronously (CSR SPA).
+  // deep-linked provider wins, else the timezone decides the country. Only one
+  // provider card is shown up front; "Anderer Anbieter" reveals the rest.
+  // Resolved once on mount — everything needed is available synchronously
+  // (CSR SPA).
+  //
+  // `primaryProviderId` darf null sein, und das ist der Kern der Sache: ist das
+  // Land unklar, wird nicht geraten, sondern gefragt (siehe countryChoiceCta).
   const [{ primaryProviderId, providersInitiallyOpen }] = useState(() => {
     const params = new URLSearchParams(location.search);
     const loginParam = params.get('login');
@@ -192,24 +196,45 @@ const LoginPage = ({
 
   const getHeaderContent = () => {
     if (mode === 'required') {
+      // The expiry notice renders independently of customMessage: LoginRequired
+      // passes a customMessage in common flows, and the expired-session hint
+      // must not be silently swallowed by it.
+      const showExpiredNotice = sessionExpired && !successMessage;
       return (
         <div className="text-center mb-lg lg:text-left lg:mb-xl">
           <h1 className="gradient-title text-center text-[1.75rem] font-bold mb-sm lg:text-left lg:text-[2.2rem] lg:mb-md">
             {displayPageName}
           </h1>
-          <p className="text-foreground text-base leading-normal mb-sm opacity-90 lg:text-[1.1rem] lg:leading-relaxed">
-            {customMessage ||
-              (isMobileApp
-                ? `Melde dich an, um ${displayPageName || 'die App'} zu nutzen`
-                : displayPageName === 'Diese Seite'
-                  ? 'Melde dich an, um fortzufahren'
-                  : `Melde dich an, um ${displayPageName} zu nutzen`)}
-          </p>
+          {showExpiredNotice && (
+            <p className="text-foreground text-base leading-normal mb-sm opacity-90 lg:text-[1.1rem] lg:leading-relaxed">
+              {`Deine Sitzung ist abgelaufen — melde dich erneut an, um ${displayPageName === 'Diese Seite' ? 'fortzufahren' : `${displayPageName} zu nutzen`}`}
+            </p>
+          )}
+          {(customMessage || !showExpiredNotice) && (
+            <p className="text-foreground text-base leading-normal mb-sm opacity-90 lg:text-[1.1rem] lg:leading-relaxed">
+              {customMessage ||
+                (isMobileApp
+                  ? `Melde dich an, um ${displayPageName || 'die App'} zu nutzen`
+                  : displayPageName === 'Diese Seite'
+                    ? 'Melde dich an, um fortzufahren'
+                    : `Melde dich an, um ${displayPageName} zu nutzen`)}
+            </p>
+          )}
         </div>
       );
     }
 
-    return <h1 className="lp-headline">{isMobileApp ? 'Willkommen!' : 'Willkommen zurück!'}</h1>;
+    return (
+      <h1 className="lp-headline">
+        {sessionExpired && !successMessage
+          ? isMobileApp
+            ? 'Willkommen! Deine Sitzung ist abgelaufen'
+            : 'Willkommen zurück — deine Sitzung ist abgelaufen'
+          : isMobileApp
+            ? 'Willkommen!'
+            : 'Willkommen zurück!'}
+      </h1>
+    );
   };
 
   const authenticatingNotice = isAuthenticating && (
@@ -252,21 +277,62 @@ const LoginPage = ({
     }
   };
 
-  const primaryProvider = getProviderById(primaryProviderId);
+  const primaryProvider = primaryProviderId ? getProviderById(primaryProviderId) : undefined;
+
+  // Gleiche Regel wie auf der Startseite (StartpageHero): Anbieter ohne
+  // `enabledByDefault` stehen nicht in der Liste. Der Grünerator-Login ist für
+  // Mitarbeitende von Abgeordneten und Geschäftsstellen und wird nur über den
+  // Deeplink /login?login=gruenerator erreicht — der macht ihn zum
+  // `primaryProviderId` und damit hier wieder sichtbar, sonst wäre er nach der
+  // Wahl nicht mehr auffindbar.
+  const visibleProviders = LOGIN_PROVIDERS.filter(
+    (provider) => provider.enabledByDefault || provider.id === primaryProviderId
+  );
 
   const standaloneLoginCta = (
     <div className="lp-cta">
-      <div className="lp-cta-row">
-        <button
-          type="button"
-          className="lp-login"
-          onClick={() => startLogin(primaryProviderId)}
-          disabled={isAuthenticating}
-          aria-label={primaryProvider ? `Anmelden mit ${primaryProvider.title}` : 'Anmelden'}
-        >
-          <LockIcon /> Anmelden
-        </button>
-      </div>
+      {/* Ohne erkanntes Land keine Vorauswahl: beide Länder stehen gleichrangig
+          nebeneinander. Ein einzelner „Anmelden"-Knopf müsste sich für eines
+          entscheiden, und diese stille Entscheidung fiel bisher immer auf
+          Deutschland — auch für österreichische Mitglieder, deren Browser
+          erwartungsgemäß Deutsch meldet. */}
+      {primaryProviderId === null ? (
+        <>
+          <p className="lp-hint" id="lp-country-question">
+            In welchem Land bist du grün aktiv?
+          </p>
+          <div className="lp-cta-row" role="group" aria-labelledby="lp-country-question">
+            <button
+              type="button"
+              className="lp-login"
+              onClick={() => startLogin('gruenes-netz')}
+              disabled={isAuthenticating}
+            >
+              <LockIcon /> Deutschland
+            </button>
+            <button
+              type="button"
+              className="lp-login"
+              onClick={() => startLogin('gruene-oesterreich')}
+              disabled={isAuthenticating}
+            >
+              <LockIcon /> Österreich
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="lp-cta-row">
+          <button
+            type="button"
+            className="lp-login"
+            onClick={() => startLogin(primaryProviderId)}
+            disabled={isAuthenticating}
+            aria-label={primaryProvider ? `Anmelden mit ${primaryProvider.title}` : 'Anmelden'}
+          >
+            <LockIcon /> Anmelden
+          </button>
+        </div>
+      )}
 
       {isAuthenticating && (
         <p className="lp-hint">
@@ -282,6 +348,8 @@ const LoginPage = ({
         zu.
       </p>
 
+      <p className="lp-hint">{TRANSPARENCY_NOTICE}</p>
+
       <button
         type="button"
         className="lp-provider-toggle"
@@ -293,7 +361,7 @@ const LoginPage = ({
 
       {providersOpen && (
         <ul className="lp-provider-list">
-          {LOGIN_PROVIDERS.map((provider) => (
+          {visibleProviders.map((provider) => (
             <li key={provider.id}>
               <button
                 type="button"
@@ -358,8 +426,6 @@ const LoginPage = ({
             >
               {getHeaderContent()}
 
-              {sessionExpiredBanner}
-
               {successMessage && (
                 <div className="bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 p-md mb-md rounded-sm">
                   {successMessage}
@@ -376,6 +442,9 @@ const LoginPage = ({
                     Nutzungsbedingungen und der Datenschutzerklärung
                   </Link>{' '}
                   zu.
+                </p>
+                <p className="m-0 mt-sm text-muted-foreground text-[0.8rem] leading-normal">
+                  {TRANSPARENCY_NOTICE}
                 </p>
               </div>
             </div>
@@ -395,6 +464,9 @@ const LoginPage = ({
                 Nutzungsbedingungen und der Datenschutzerklärung
               </Link>{' '}
               zu.
+            </p>
+            <p className="m-0 mt-sm text-muted-foreground text-[0.8rem] leading-normal">
+              {TRANSPARENCY_NOTICE}
             </p>
           </div>
         </div>
@@ -426,8 +498,6 @@ const LoginPage = ({
         </div>
 
         {getHeaderContent()}
-
-        {sessionExpiredBanner}
 
         {successMessage && (
           <div className="bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 p-md mb-md rounded-sm max-w-[380px]">

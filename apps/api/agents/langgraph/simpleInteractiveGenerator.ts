@@ -13,18 +13,19 @@
  * 3. Call with generatorType: '{type}'
  */
 
+import { aiText, aiTools, type AiToolsCall } from '../../services/ai/generate.js';
 import {
   setExperimentalSession,
   getExperimentalSession,
   updateExperimentalSession,
 } from '../../services/chat/ChatMemoryService.js';
+import { localizePlaceholders } from '../../services/localization/index.js';
 import { enrichRequest } from '../../utils/requestEnrichment.js';
 
 import { assemblePromptGraphAsync } from './promptAssemblyGraph.js';
 import { loadPromptConfig, SimpleTemplateEngine } from './PromptProcessor.js';
 
 import type {
-  AIRequestData,
   Tool,
   GeneratedQuestion,
   QuestionGenerationArgs,
@@ -72,6 +73,20 @@ async function getSearxngService(): Promise<SearxngService | null> {
 }
 
 /**
+ * A prompt config's `tool_choice`, in the facade's closed union.
+ *
+ * The configs spell Mistral's `any`, which `resolveToolChoice` has always
+ * folded into `auto` — reproduced here rather than passed through, because the
+ * facade types the field. `null` means the config said nothing, and the
+ * adapters read that as `none`: the tool is offered but must not be called.
+ */
+function toolChoiceFromConfig(raw: unknown): AiToolsCall['toolChoice'] | null {
+  if (raw == null) return null;
+  if (raw === 'required' || raw === 'none' || raw === 'auto') return raw;
+  return 'auto';
+}
+
+/**
  * Generate clarifying questions using AI based on user input only
  */
 async function generateClarifyingQuestions(
@@ -91,28 +106,38 @@ async function generateClarifyingQuestions(
     };
   };
 
-  const userPrompt = SimpleTemplateEngine.render(config.generationPrompt, {
-    inhalt: state.inhalt,
-    requestType: state.requestType,
-    searchSummary: 'Keine Suchergebnisse verfügbar.',
-  });
+  // `{{partyName}}` steht in beiden Rückfragen-Configs, und `SimpleTemplateEngine`
+  // löst nur auf, was DIESER Aufrufer mitgibt — der Parteiname gehört nicht
+  // dazu, er hängt am Locale. Erst lokalisieren, dann rendern: umgekehrt hätte
+  // der Template-Engine den Platzhalter schon zu '' geleert, bevor der
+  // Localizer ihn sieht. Den Systemprompt rendert ohnehin niemand, dort las das
+  // Modell `{{partyName}}` bis hierher wörtlich.
+  const locale: Locale = state.locale === 'de-AT' ? 'de-AT' : 'de-DE';
+
+  const userPrompt = SimpleTemplateEngine.render(
+    localizePlaceholders(config.generationPrompt, locale),
+    {
+      inhalt: state.inhalt,
+      requestType: state.requestType,
+      searchSummary: 'Keine Suchergebnisse verfügbar.',
+    }
+  );
 
   const tools = [config.toolSchema];
 
   console.log(`[SimpleInteractiveGenerator] Generating questions for ${generatorType}...`);
 
-  const result = await state.aiWorkerPool.processRequest(
-    {
-      type: 'antrag_question_generation',
-      systemPrompt: config.systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-      options: {
-        ...config.options,
-        tools,
-      },
-    } as AIRequestData,
-    state.req
-  );
+  const toolChoice = toolChoiceFromConfig(config.options?.tool_choice);
+
+  const result = await aiTools({
+    lane: 'antrag_question_generation',
+    system: localizePlaceholders(config.systemPrompt, locale),
+    prompt: userPrompt,
+    tools: tools as Tool[],
+    ...(toolChoice != null && { toolChoice }),
+    ...(config.options?.max_tokens != null && { maxOutputTokens: config.options.max_tokens }),
+    ...(config.options?.temperature != null && { temperature: config.options.temperature }),
+  });
 
   if (result.tool_calls && result.tool_calls.length > 0) {
     const toolCall = result.tool_calls[0];
@@ -306,7 +331,6 @@ export async function initiateInteractiveGenerator({
   requestType,
   generatorType = 'antrag',
   locale = 'de-DE',
-  aiWorkerPool,
   req,
 }: InitiateGeneratorParams): Promise<InitiateGeneratorResult> {
   console.log(`[SimpleInteractiveGenerator] Initiating ${generatorType} session`);
@@ -328,7 +352,6 @@ export async function initiateInteractiveGenerator({
       requestType,
       generatorType,
       locale,
-      aiWorkerPool,
       req,
     });
 
@@ -346,7 +369,6 @@ export async function initiateInteractiveGenerator({
         locale,
         questions: [],
         answers: {},
-        aiWorkerPool,
         req,
       });
 
@@ -422,7 +444,6 @@ async function generateFinalResult({
   locale = 'de-DE',
   questions = [],
   answers = {},
-  aiWorkerPool,
   req,
 }: GenerateFinalResultParams): Promise<GenerationResult> {
   // Format Q&A pairs if present
@@ -510,38 +531,21 @@ async function generateFinalResult({
       : String(msg.content || ''),
   }));
 
-  const generationResult = await aiWorkerPool.processRequest(
-    {
-      type: requestType,
-      systemPrompt: assembledPrompt.system,
-      messages: simpleMessages,
-      options: {
-        max_tokens: config.options?.max_tokens || 4000,
-        temperature: config.options?.temperature || 0.3,
-        ...(assembledPrompt.tools?.length &&
-          assembledPrompt.tools.length > 0 && {
-            tools: assembledPrompt.tools,
-          }),
-      },
-    } as AIRequestData,
-    req
-  );
+  // `assembledPrompt.tools` ist hier immer leer: der `PromptContext` oben
+  // kennt kein `tools`-Feld, und der Assembly-Graph reicht nur durch, was der
+  // Aufrufer mitgibt. Der Zweig, der die Werkzeuge in den Umschlag legte, war
+  // deshalb nie erreichbar und ist mit ihm entfallen.
+  const content = await aiText({
+    lane: requestType,
+    system: assembledPrompt.system,
+    messages: simpleMessages,
+    maxOutputTokens: config.options?.max_tokens || 4000,
+    temperature: config.options?.temperature || 0.3,
+  });
 
-  if (!generationResult.success) {
-    throw new Error('Generation failed: ' + generationResult.error);
-  }
+  console.log(`[SimpleInteractiveGenerator] Generation completed: ${content.length} chars`);
 
-  console.log(
-    `[SimpleInteractiveGenerator] Generation completed: ${generationResult.content?.length || 0} chars`
-  );
-
-  const result: GenerationResult = {
-    content: generationResult.content || '',
-    ...(generationResult.metadata?.usage != null
-      ? { metadata: { usage: generationResult.metadata.usage } }
-      : {}),
-  };
-  return result;
+  return { content };
 }
 
 /**
@@ -551,7 +555,6 @@ export async function continueInteractiveGenerator({
   userId,
   sessionId,
   answers,
-  aiWorkerPool,
   req,
 }: ContinueGeneratorParams): Promise<ContinueGeneratorResult> {
   console.log(`[SimpleInteractiveGenerator] Continuing session: ${sessionId}`);
@@ -602,7 +605,6 @@ export async function continueInteractiveGenerator({
       locale: session.locale,
       questions: session.questions,
       answers,
-      aiWorkerPool,
       req,
     });
 

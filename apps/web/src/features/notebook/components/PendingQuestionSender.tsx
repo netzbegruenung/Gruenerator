@@ -2,11 +2,14 @@ import { useAui } from '@assistant-ui/react';
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { readChatHandoff, withoutChatHandoff } from '../chatHandoff';
+
 /**
  * Consumes a `question` handed over via router state (omni composer →
- * `navigate(path, { state: { question } })`) and submits it through the
- * notebook chat runtime once it is mounted. The state is cleared afterwards
- * so back-navigation or a reload doesn't re-send the question.
+ * `navigate(path, { state: { question } })`) or via `?frage=` (start page →
+ * new tab, see `chatHandoff`) and submits it through the notebook chat runtime
+ * once it is mounted. Both are cleared afterwards so back-navigation or a
+ * reload doesn't re-send the question.
  *
  * Must be mounted inside `NotebookChatProvider` (needs the composer runtime).
  * Delay mirrors `AutoMessageSender` — the runtime needs a beat after mount.
@@ -16,7 +19,9 @@ export function PendingQuestionSender() {
   const navigate = useNavigate();
   const composerRuntime = useAui().composer;
   const sentRef = useRef(false);
-  const question = (location.state as { question?: string } | null)?.question;
+  const question =
+    (location.state as { question?: string } | null)?.question ??
+    readChatHandoff(new URLSearchParams(location.search))?.question;
 
   useEffect(() => {
     if (!question || sentRef.current) return;
@@ -35,7 +40,12 @@ export function PendingQuestionSender() {
       } catch (err) {
         console.warn('[PendingQuestionSender] Failed to send question:', err);
       }
-      void navigate(location.pathname, { replace: true, state: null });
+      // Clear the router state and the handoff params, but keep the rest of the
+      // query string, which by now may carry the `?thread=` just started.
+      void navigate(
+        { pathname: location.pathname, search: withoutChatHandoff(window.location.search) },
+        { replace: true, state: null }
+      );
     }, 400);
 
     return () => clearTimeout(timer);

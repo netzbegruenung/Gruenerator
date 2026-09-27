@@ -7,12 +7,11 @@ import {
   StyleSheet,
   ScrollView,
   useColorScheme,
-  ActivityIndicator,
   Pressable,
   RefreshControl,
 } from 'react-native';
 
-import { ListGroup, ListRow } from '../../../components/common';
+import { ListGroup, ListRow, SkeletonRows } from '../../../components/common';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { GroupAvatar } from '../../../components/workplace/GroupAvatar';
 import { useUserGroups, type GroupSummary } from '../../../hooks/useGroups';
@@ -66,11 +65,13 @@ export default function ProjekteScreen() {
 
   let body: ReactNode;
   if (isPending) {
+    // The rows below, in outline: the same card, the same 44-dp avatar, the
+    // same two lines of text. Five of them, which fills a phone screen without
+    // claiming to know how many projects there are.
     body = (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
-        <Text style={[styles.centeredText, { color: theme.textSecondary }]}>Projekte laden…</Text>
-      </View>
+      <ListGroup>
+        <SkeletonRows count={5} leading={44} on="card" />
+      </ListGroup>
     );
   } else if (error) {
     body = (

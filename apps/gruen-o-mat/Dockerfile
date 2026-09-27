@@ -7,14 +7,18 @@
 # =============================================================================
 # Stage 1: Build the Vite frontend
 # =============================================================================
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable
 
 WORKDIR /app
 
 # Copy workspace configuration (layer caching)
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+# pnpm validates every `patchedDependencies` entry in pnpm-workspace.yaml
+# before it installs anything, so the patch files have to be in the image
+# even when the patched package is outside this filter's closure.
+COPY patches ./patches
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
 
 # Copy package.json files for workspace resolution
@@ -29,8 +33,15 @@ COPY packages/collab/package.json ./packages/collab/
 COPY apps/gruen-o-mat/package.json ./apps/gruen-o-mat/
 
 # Install only gruen-o-mat + transitive workspace deps
+# --node-linker overrides pnpm-workspace.yaml's nodeLinker: hoisted (kept because Metro/RN in
+# apps/mobile needs it). The hoisted linker materializes the ENTIRE lockfile
+# regardless of --filter — 4799 packages / 4.5 GB for every scope, which is what
+# made a cold image build take ~1 h. --shamefully-hoist keeps the flat
+# node_modules layout the workspace relies on, built only from the filtered
+# closure. See #2924.
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @gruenerator/gruen-o-mat...
+    pnpm install --frozen-lockfile --node-linker=isolated --shamefully-hoist \
+        --filter @gruenerator/gruen-o-mat...
 
 # Copy source (changes here don't bust the install cache)
 COPY packages/shared ./packages/shared

@@ -2,6 +2,13 @@
  * Loop feature flag in a zero-import module so the classifier (agents layer)
  * can read it without pulling in the respond service (which imports ChatGraph
  * nodes → import cycle).
+ *
+ * Der Zyklusbrecher bleibt nötig, und `routing.ts` ist NICHT sein natürlicher
+ * Ort: dessen Kopfkommentar verspricht Reinheit (keine Express-, keine
+ * Umgebungs-Abhängigkeit), damit die Entscheidungstabelle isoliert prüfbar
+ * bleibt. Ein `process.env`-Zugriff dort nähme genau das zurück. Beide Leser —
+ * Klassifikator und `routingStage` — importieren deshalb von hier; der
+ * Durchreich-Export über `agenticRespondService` ist entfallen.
  */
 export function isAgenticLoopEnabled(): boolean {
   // Default ON. The loop is the path where a factual turn actually calls a
@@ -21,4 +28,56 @@ export function isAgenticLoopEnabled(): boolean {
  */
 export function isMcpReplayEnabled(): boolean {
   return process.env.CHAT_MCP_REPLAY !== 'false';
+}
+
+/**
+ * `ask_human` als Loop-Tool (#3220): der Zug kann mitten in der Werkzeugphase
+ * eine Rückfrage stellen und pausieren. Default ON — der Suspend/Resume-Pfad
+ * ist derselbe wie bei der Werkzeug-Freigabe und die Karte existiert auf allen
+ * Clients. Opt out mit CHAT_LOOP_ASK_HUMAN=false (ohne Deploy wirksam).
+ */
+export function isLoopAskHumanEnabled(): boolean {
+  return process.env.CHAT_LOOP_ASK_HUMAN !== 'false';
+}
+
+/**
+ * Cross-Encoder für die Dokumentsuche des Loops (`gruenerator_search`).
+ *
+ * Default AUS — und damit bewusst die Umkehr der beiden Schalter darüber.
+ * Der Anhang-Pfad (`attachedDocuments.ts`) braucht dasselbe Flag aus einem
+ * anderen Grund: dort ist es NICHT der Dokument-Zähler, der den Cross-Encoder
+ * aussperrt — nach der Gruppierung steht ohnehin nur ein Dokument, eine
+ * zweite Stufe bräuchte es also nie. Der Cross-Encoder selbst lief dort schon
+ * vor der Gruppierung (`scoreChunksByCrossEncoder`, bis zu 30 Chunks je
+ * Dokument) — nur kam der `rerankChunks`-Aufruf seit #2816 nie an: der
+ * Validator liess ihn in den geschachtelten Optionen stillschweigend fallen,
+ * bis 03e297cca4 das behob. Dieser Schalter hält BEIDE Pfade an derselben
+ * Leine: er verändert die Rangfolge JEDER Dokumentsuche im Hauptpfad des
+ * Chats und legt eine mit der Planer-Lane und `GreenPTSearchService` geteilte
+ * Rate-Limit-Quote drauf; die Wirkung ist bis zum Doppelmesslauf der
+ * Retrieval-Eval unbelegt.
+ *
+ * Einschalten mit LOOP_RERANK_ENABLED=true (ohne Deploy wirksam). Nach einer
+ * grünen Messung wird der Default in einem eigenen, einzeiligen PR gedreht —
+ * dann ist das Flag der Rückwärtsgang und die Umschaltung steht als eigener
+ * Commit in der Historie, statt in einem Umbau mitzureisen.
+ */
+export function isLoopRerankEnabled(): boolean {
+  return process.env.LOOP_RERANK_ENABLED === 'true';
+}
+
+/**
+ * Ob `toolScope.ts` Werkzeuge wirklich zurückstellt oder nur protokolliert,
+ * was es zurückgestellt hätte.
+ *
+ * Default AUS, also Schattenbetrieb: das Tor trifft seine Entscheidung auf
+ * jedem Turn und schreibt sie in die Turn-Zeile (`scope=shadow`, `scopeMiss=`),
+ * das Modell sieht aber weiter den vollen Katalog. Scharf schalten erst, wenn
+ * die `scopeMiss`-Zeilen aus dem Betrieb zeigen, dass das Tor trägt — dann
+ * dreht ein eigener, einzeiliger PR den Default, und das Flag bleibt der
+ * Rückwärtsgang. Einschalten mit LOOP_TOOL_SCOPE_ENFORCE=true (ohne Deploy
+ * wirksam).
+ */
+export function isToolScopeEnforced(): boolean {
+  return process.env.LOOP_TOOL_SCOPE_ENFORCE === 'true';
 }

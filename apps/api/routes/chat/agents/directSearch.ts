@@ -5,13 +5,12 @@
  * Consumers continue importing from this file unchanged.
  *
  * Implementation is split across:
- * - searchFormatting.ts — utility functions (extractDomain, formatRelevance, truncateText, deduplicateByUrl)
+ * - searchFormatting.ts — utility functions (extractDomainLabel, formatRelevance, truncateText, deduplicateByUrl)
  * - directSearchExecutors.ts — document, examples, and web search executors
- * - researchOrchestrator.ts — Perplexity-style structured research pipeline
  */
 
 export {
-  extractDomain,
+  extractDomainLabel,
   formatRelevance,
   truncateText,
   deduplicateByUrl,
@@ -31,7 +30,3 @@ export type {
   PressemitteilungExample,
   DirectWebSearchResult,
 } from './directSearchExecutors.js';
-
-export { executeResearch } from './researchOrchestrator.js';
-
-export type { ResearchCitation, ResearchResult } from './researchOrchestrator.js';

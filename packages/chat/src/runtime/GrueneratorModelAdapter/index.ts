@@ -1,7 +1,9 @@
+import { isAiConsentRequiredBody, notebookResolvedAnswerModeSchema } from '@gruenerator/contracts';
 import { getSystemAgent } from '@gruenerator/shared/agents';
+import { notifyAiConsentRequired, unauthorizedInfoFromResponse } from '@gruenerator/shared/api';
 import { buildMentionToken } from '@gruenerator/shared/utils';
 
-import { parseAllMentions } from '../../lib/mentionParser';
+import { hasExplicitMcpScope, parseAllMentions } from '../../lib/mentionParser';
 import { notifyWarning } from '../../lib/notify';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
@@ -22,6 +24,7 @@ import {
 import {
   buildRequestBody,
   resolveRuntimeThreadId,
+  stripEditorEditTools,
   type ThreadBinding,
   type ExtractedAttachment,
   type FormattedMessage,
@@ -43,7 +46,7 @@ import type {
   ChatModelRunResult,
   CompleteAttachment,
 } from '@assistant-ui/react';
-import type { CurrentBoard } from '@gruenerator/contracts';
+import type { CurrentBoard, CurrentCanvas } from '@gruenerator/contracts';
 
 export type {
   GrueneratorMessageMetadata,
@@ -56,13 +59,6 @@ export type {
 // never be able to keep the browser executing forever.
 const MAX_CLIENT_TOOL_ROUNDS = 3;
 
-/**
- * A 401/403 on the stream or a resume means the session died mid-turn. This is
- * a raw `fetch` path with no axios interceptor, so route it through the app's
- * `onUnauthorized` (probe → redirect on a dead session) — otherwise the user is
- * left in a half-logged-in editor with only an in-thread "Sitzung abgelaufen"
- * message and no way back to login until a manual reload.
- */
 /**
  * Report a failure WITHOUT discarding what was already streamed.
  *
@@ -105,10 +101,56 @@ function withInterruptionNotice(lastResult: ChatModelRunResult | undefined): Cha
   );
 }
 
-function routeUnauthorized(response: Response): void {
-  if (response.status === 401 || response.status === 403) {
-    void useChatConfigStore.getState().onUnauthorized?.();
+/**
+ * Absage im Chat, wenn die Einwilligung fehlt. Der Dialog geht im selben
+ * Moment auf (der Auth-Store bekommt das Signal), die Zeile erklärt nur, warum.
+ *
+ * Zwei Formen, weil es zwei Wege in die Anzeige gibt: der Hauptstream gibt den
+ * fertigen Text aus, der Resume-Pfad wirft eine `ChatStreamError` und lässt
+ * `streamErrorMessage` die Auszeichnung setzen — wie bei jedem anderen
+ * Fehlercode auch.
+ */
+const AI_CONSENT_REQUIRED_MESSAGE =
+  'Für die KI-Funktionen fehlt Deine Einwilligung — bitte bestätige sie im Dialog, dann kannst Du direkt weitermachen.';
+const AI_CONSENT_REQUIRED_TEXT = `⚠️ **${AI_CONSENT_REQUIRED_MESSAGE}**`;
+
+/**
+ * A 401/403 on the stream or a resume means the session died mid-turn. This is
+ * a raw `fetch` path with no axios interceptor, so route it through the app's
+ * `onUnauthorized` (probe → redirect on a dead session) — otherwise the user is
+ * left in a half-logged-in editor with only an in-thread "Sitzung abgelaufen"
+ * message and no way back to login until a manual reload.
+ *
+ * Eine Ausnahme, und sie ist der Grund für den Rückgabewert: die 403 wegen
+ * fehlender Art.-9-Einwilligung ist **kein** Sitzungsproblem. `onUnauthorized`
+ * darauf angewandt hieße, die Nutzer*in abzumelden, obwohl ihre Sitzung gilt —
+ * nach dem Einwilligen stünde sie vor dem Login statt vor ihrer Frage.
+ * Stattdessen bekommt der Auth-Store das Signal, und das Gate erscheint von
+ * selbst. `true` = es war dieser Fall.
+ */
+async function routeUnauthorized(response: Response): Promise<boolean> {
+  if (response.status !== 401 && response.status !== 403) return false;
+  if (response.status === 403) {
+    // clone(): der Aufrufer liest den Rumpf danach teils selbst aus.
+    const body: unknown = await response
+      .clone()
+      .json()
+      // Eine 403 ohne JSON-Rumpf (Reverse-Proxy, HTML-Fehlerseite) ist hier
+      // keine verschluckte Störung, sondern die Antwort auf die gestellte
+      // Frage: „trägt diese Absage den Einwilligungs-Code?" heißt dann nein.
+      // Der Aufrufer zeigt sie danach als gewöhnlichen Fehler im Thread.
+      // swallow-ok: kein Rumpf = kein Einwilligungs-Code, Fehler bleibt sichtbar
+      .catch(() => null);
+    if (isAiConsentRequiredBody(body)) {
+      notifyAiConsentRequired();
+      return true;
+    }
   }
+  // Ohne den `code` aus dem Rumpf meldet der Abbau, den dies auslösen kann,
+  // `auth.401code: unknown` — dieselbe Lücke wie im Chat-apiClient.
+  const info = await unauthorizedInfoFromResponse(response);
+  void useChatConfigStore.getState().onUnauthorized?.(info);
+  return false;
 }
 
 /**
@@ -159,7 +201,10 @@ async function* runClientToolResumes(params: {
       signal: params.abortSignal,
     });
     if (!resumeResponse.ok) {
-      routeUnauthorized(resumeResponse);
+      // Fehlende Einwilligung bekommt denselben Text wie am Hauptstream: der
+      // Dialog geht ohnehin auf, und `HTTP error 403` erklärt nichts.
+      const consentRequired = await routeUnauthorized(resumeResponse);
+      if (consentRequired) throw new ChatStreamError(AI_CONSENT_REQUIRED_MESSAGE);
       const errorData = await resumeResponse.json().catch(() => ({}));
       throw new Error(
         (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
@@ -189,6 +234,10 @@ export function createGrueneratorModelAdapter(
   // Tracks which thread has a pending HITL interrupt — persists across run() calls
   let interruptedThreadId: string | null = null;
   let lastInterruptedResult: ChatModelRunResult | null = null;
+  // Der Zug, zu dem die offenen Freigaben gehören. Wird mit der Entscheidung
+  // zurückgeschickt, damit das Backend eine späte Antwort auf einen längst
+  // abgelösten Zug als solche erkennt statt sie auf den neuen anzuwenden.
+  let pendingApprovalTurnId: string | null = null;
 
   return {
     async *run(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void> {
@@ -228,6 +277,86 @@ export function createGrueneratorModelAdapter(
       // Resume detection via unstable_getMessage() — the canonical way to read addResult() answers.
       // assistant-ui writes the result onto the current assistant message, NOT into messages[].
       if (currentAssistant) {
+        // Werkzeug-Freigabe VOR ask_human: assistant-ui ruft `run()` erst
+        // wieder auf, wenn ALLE Freigaben entschieden sind, und schreibt bei
+        // einer Ablehnung selbst ein `result: { error }` an den Part — das darf
+        // nicht als „schon beantwortet" durchgehen.
+        const approvalParts = (currentAssistant.content ?? []).filter(
+          (p): p is Extract<typeof p, { type: 'tool-call' }> =>
+            p.type === 'tool-call' && 'approval' in p && p.approval != null
+        );
+        const undecided = approvalParts.some(
+          (p) => p.approval?.approved === undefined && p.approval?.resolution === undefined
+        );
+        const decided = approvalParts.filter((p) => p.approval?.approved !== undefined);
+        if (decided.length > 0 && !undecided) {
+          interruptedThreadId = null;
+          const approvalTurnId = pendingApprovalTurnId;
+          pendingApprovalTurnId = null;
+          const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
+          const resumeResponse = await configFetch(endpoints.chatResume, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              threadId: config.threadId,
+              // Nach einem Reload ist der Zug hier nicht bekannt — dann bleibt
+              // das Feld weg und das Backend prüft wie bisher nur die IDs.
+              ...(approvalTurnId != null && { approvalTurnId }),
+              toolApprovals: decided.map((p) => ({
+                toolCallId: p.toolCallId,
+                approved: p.approval?.approved === true,
+                ...(p.approval?.optionId != null && { optionId: p.approval.optionId }),
+                ...(p.approval?.reason != null && { reason: p.approval.reason }),
+              })),
+            }),
+            signal: abortSignal,
+          });
+
+          if (!resumeResponse.ok) {
+            const consentRequired = await routeUnauthorized(resumeResponse);
+            if (consentRequired) throw new ChatStreamError(AI_CONSENT_REQUIRED_MESSAGE);
+            const errorData = await resumeResponse.json().catch(() => ({}));
+            throw new Error(
+              (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
+            );
+          }
+
+          // Die schon gezeigten Karten werden mitgeführt, sonst verschwinden sie
+          // beim ersten Ergebnis der Fortsetzung aus der Blase. ALLE, nicht nur
+          // die Freigabe-Karten: vor dem Gate kann im selben Zug längst eine
+          // Suche gelaufen sein, und die soll nicht mit der Entscheidung
+          // verschwinden.
+          const priorToolCalls = (currentAssistant.content ?? [])
+            .filter((p): p is Extract<typeof p, { type: 'tool-call' }> => p.type === 'tool-call')
+            .map((p) => ({
+              type: 'tool-call' as const,
+              toolCallId: p.toolCallId,
+              toolName: p.toolName,
+              args: (p.args ?? {}) as Record<string, string | number | boolean | null>,
+              argsText: JSON.stringify(p.args ?? {}),
+              ...('approval' in p && p.approval != null && { approval: p.approval }),
+              ...('result' in p && p.result !== undefined ? { result: p.result } : {}),
+            }));
+          const resumeOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+          yield* parseSSEStream(
+            resumeResponse,
+            callbacks,
+            resumeOutcome,
+            config.agentId ? { agentId: config.agentId } : undefined,
+            { toolCalls: priorToolCalls }
+          );
+          if (resumeOutcome.interrupted) {
+            interruptedThreadId = config.threadId;
+          }
+          // Die Fortsetzung ist selbst wieder auf ein Gate gelaufen.
+          pendingApprovalTurnId = resumeOutcome.toolApprovalPending?.approvalTurnId ?? null;
+          return;
+        }
+        if (undecided) {
+          console.warn('[ModelAdapter] BLOCKED — Werkzeug-Freigabe steht noch aus');
+          throw new DOMException('Aborted', 'AbortError');
+        }
+
         const askHumanResult = currentAssistant.content?.find(
           (p) =>
             p.type === 'tool-call' &&
@@ -252,7 +381,8 @@ export function createGrueneratorModelAdapter(
           });
 
           if (!resumeResponse.ok) {
-            routeUnauthorized(resumeResponse);
+            const consentRequired = await routeUnauthorized(resumeResponse);
+            if (consentRequired) throw new ChatStreamError(AI_CONSENT_REQUIRED_MESSAGE);
             const errorData = await resumeResponse.json().catch(() => ({}));
             throw new Error(
               (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
@@ -278,6 +408,7 @@ export function createGrueneratorModelAdapter(
           if (resumeOutcome.interrupted) {
             interruptedThreadId = config.threadId;
             lastInterruptedResult = resumeOutcome.lastResult ?? null;
+            callbacks.onInterrupt?.();
           }
           return;
         }
@@ -354,7 +485,19 @@ export function createGrueneratorModelAdapter(
           parts.push({ type: 'text', text: '' });
         }
 
-        return { id: m.id, role: m.role, parts };
+        // Notebook threads only: the auto guard reads the previous answer's
+        // mode to keep a follow-up in it. Other surfaces send what they always did.
+        const answerMode =
+          config.threadMode === 'notebook' && m.role === 'assistant'
+            ? notebookResolvedAnswerModeSchema.safeParse(m.metadata?.custom?.answerMode)
+            : null;
+
+        return {
+          id: m.id,
+          role: m.role,
+          parts,
+          ...(answerMode?.success ? { answerMode: answerMode.data } : {}),
+        };
       });
 
       // Resolve effective mode: an agent with routeTo='search' forces 'search' mode
@@ -370,14 +513,10 @@ export function createGrueneratorModelAdapter(
             ? 'chat'
             : storedMode;
 
-      // Surface tools (edit_current_doc) belong to the surface, not the agent —
-      // but if the user picks a search-route agent, SearchGraph can't run them.
-      // Strip the edit hook; keep save_as_doc, which is harmless.
+      // A search-route agent can't run the surface's edit hooks — see stripEditorEditTools.
       const safeCustomEnabledTools =
         activeAgentForRouting?.routeTo === 'search' && config.customEnabledTools
-          ? Object.fromEntries(
-              Object.entries(config.customEnabledTools).filter(([k]) => k !== 'edit_current_doc')
-            )
+          ? stripEditorEditTools(config.customEnabledTools)
           : config.customEnabledTools;
 
       // Skip attachment extraction and mention parsing for non-chat modes
@@ -429,6 +568,7 @@ export function createGrueneratorModelAdapter(
       // Only applies in chat mode — search and notebook modes don't use mentions
       let effectiveAgentId = config.agentId;
       let effectiveAgentMention: string | undefined;
+      let typedSkillMention: string | null = null;
       let notebookIds: string[] = [];
       let forcedTools: string[] = [];
       let documentIds: string[] = [];
@@ -457,6 +597,11 @@ export function createGrueneratorModelAdapter(
               effectiveAgentId = parsed.agentId;
               effectiveAgentMention = parsed.agentMention;
             }
+            // A typed skill mention beats the store's ambient activeSkillMention
+            // (which may still carry an earlier turn's choice) — see
+            // buildRequestBody. Popover selects set the store AND produce the
+            // same mention here via the pill prefix, so the two paths agree.
+            typedSkillMention = parsed.skillMention;
             notebookIds = parsed.notebookIds;
             forcedTools = parsed.forcedTools;
             documentIds = parsed.documentIds;
@@ -479,7 +624,7 @@ export function createGrueneratorModelAdapter(
             // server this turn (typed @connector) — their explicit choice wins
             // and re-injecting would double the scope.
             const pinned = config.pinnedConnector;
-            if (pinned && !forcedTools.some((t) => t.startsWith('mcp:'))) {
+            if (pinned && !hasExplicitMcpScope(forcedTools, textPart.text)) {
               textPart.text =
                 `${textPart.text} ${buildMentionToken(pinned.label, 'mcp', pinned.id)}`.trim();
               forcedTools = [...forcedTools, `mcp:${pinned.id}`];
@@ -611,6 +756,7 @@ export function createGrueneratorModelAdapter(
       let injectedAttachmentContext: string | undefined;
       let injectedCurrentDocument: InjectedCurrentDocument | undefined;
       let injectedCurrentBoard: CurrentBoard | undefined;
+      let injectedCurrentCanvas: CurrentCanvas | undefined;
       if (config.threadId) {
         const provider = contextProviders.get(config.threadId);
         if (provider) {
@@ -627,9 +773,21 @@ export function createGrueneratorModelAdapter(
               };
             }
             // Live board context (boards-editor surface). Required for the
-            // classifier to route to edit_current_board and emit
-            // trigger_board_action — without it the assistant only chats.
+            // classifier to route to edit_current_board so the loop's
+            // edit_document tool has a board to plan ops against — without it
+            // the assistant only chats.
             if (ctx.currentBoard) injectedCurrentBoard = ctx.currentBoard;
+            // Live sharepic context (studio sidebar). Required for the loop's
+            // edit_document tool to have a canvas to plan ops against, and the
+            // only carrier of the sharepic text the model reads. `text` gets the
+            // same 80k cap as currentDocument.markdown — it replaced it.
+            if (ctx.currentCanvas) {
+              const cc = ctx.currentCanvas;
+              injectedCurrentCanvas = {
+                ...cc,
+                text: truncateAttachmentContext(cc.text, 80_000) ?? cc.text,
+              };
+            }
             const parts: string[] = [];
             if (ctx.selectionText) parts.push(`## Auswahl:\n${ctx.selectionText}`);
             if (ctx.attachmentContext) parts.push(ctx.attachmentContext);
@@ -682,6 +840,7 @@ export function createGrueneratorModelAdapter(
         formattedMessages,
         config,
         effectiveAgentId,
+        typedSkillMention,
         safeCustomEnabledTools,
         extractedAttachments,
         notebookIds,
@@ -700,6 +859,7 @@ export function createGrueneratorModelAdapter(
         hasDocumentChat,
         injectedCurrentDocument,
         injectedCurrentBoard,
+        injectedCurrentCanvas,
         injectedAttachmentContext,
         seededInitialAssistantMessage,
         currentSharepic: (() => {
@@ -734,8 +894,15 @@ export function createGrueneratorModelAdapter(
       }
 
       if (!response.ok) {
-        routeUnauthorized(response);
-        yield { content: [{ type: 'text' as const, text: streamErrorMessage(null, response) }] };
+        const consentRequired = await routeUnauthorized(response);
+        yield {
+          content: [
+            {
+              type: 'text' as const,
+              text: consentRequired ? AI_CONSENT_REQUIRED_TEXT : streamErrorMessage(null, response),
+            },
+          ],
+        };
         return;
       }
 
@@ -816,7 +983,12 @@ export function createGrueneratorModelAdapter(
       if (streamOutcome.interrupted) {
         interruptedThreadId = config.threadId;
         lastInterruptedResult = streamOutcome.lastResult ?? null;
+        // Still inside run(): the queue only advances a microtask after the
+        // runtime sees this generator finish, so a listener that empties it
+        // here is always ahead of the turn that would be stranded.
+        callbacks.onInterrupt?.();
       }
+      pendingApprovalTurnId = streamOutcome.toolApprovalPending?.approvalTurnId ?? null;
     },
   };
 }

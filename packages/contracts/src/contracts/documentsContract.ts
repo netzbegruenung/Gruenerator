@@ -4,7 +4,6 @@
  * Covers the validateBody routes from:
  *   - apps/api/routes/documents/qdrantController.ts    → GET /system-full-text
  *   - apps/api/routes/documents/retrievalController.ts → GET /stats
- *   - apps/api/routes/documents/wolkeController.ts     → GET /sync-status
  *
  * All routes require authentication — `requireAuth` is applied at the prefix
  * in routes.ts before this contract is mounted.
@@ -18,12 +17,12 @@ import {
   systemFullTextErrorSchema,
   documentStatsResponseSchema,
   documentStatsErrorSchema,
-  syncStatusResponseSchema,
-  syncStatusErrorSchema,
   documentsAuthErrorSchema,
   documentsValidationErrorSchema,
   documentStatusesRequestSchema,
   documentStatusesResponseSchema,
+  documentStatusResponseSchema,
+  documentStatusErrorSchema,
   documentContentResponseSchema,
   documentContentErrorSchema,
 } from '../schemas/documents.js';
@@ -67,21 +66,6 @@ export const documentsContract = c.router(
     },
 
     /**
-     * GET /api/documents/sync-status
-     * Get Wolke sync status for the authenticated user.
-     */
-    getSyncStatus: {
-      method: 'GET',
-      path: '/api/documents/sync-status',
-      responses: {
-        200: syncStatusResponseSchema,
-        401: documentsAuthErrorSchema,
-        500: syncStatusErrorSchema,
-      },
-      summary: 'Get Wolke sync status for the current user',
-    },
-
-    /**
      * GET /api/documents/:id/content
      * Metadata + full OCR text for a single owned document.
      */
@@ -99,12 +83,39 @@ export const documentsContract = c.router(
     },
 
     /**
+     * GET /api/documents/:id/status
+     * Processing state of one owned document — the poll the upload UI runs, on
+     * web and on shipped mobile binaries alike.
+     *
+     * Declared AFTER `getContent` on purpose is not required (ts-rest matches by
+     * literal path), but note the ordering constraint that does apply: the raw
+     * `manualController` also carries a `GET /:id/status`, and this contract is
+     * registered on the app before that router is mounted, so this one wins.
+     */
+    getStatus: {
+      method: 'GET',
+      path: '/api/documents/:id/status',
+      pathParams: z.object({ id: z.string() }),
+      responses: {
+        200: documentStatusResponseSchema,
+        401: documentsAuthErrorSchema,
+        404: documentStatusErrorSchema,
+        500: documentStatusErrorSchema,
+      },
+      summary: 'Get one document’s processing status',
+    },
+
+    /**
      * POST /api/documents/statuses
-     * Look up the current `status` of multiple documents in one call.
-     * Used by the notebook-creation dialog to poll progress while the
-     * backend processes uploads in the background. POST (not GET) because
-     * the IDs list can be long and Zod-validating a body is simpler than
-     * a comma-separated querystring.
+     * Look up the current `status` of multiple documents in one call. POST (not
+     * GET) because the IDs list can be long and Zod-validating a body is simpler
+     * than a comma-separated querystring.
+     *
+     * NO CONSUMER YET. The notebook-creation dialog this was built for still
+     * runs one `getStatus` interval per document; the comment here used to claim
+     * otherwise. Kept because the batch shape is the cheaper way to watch a
+     * whole upload session, but adopting it is a separate change to
+     * `documentsStore.pollDocumentStatus`.
      */
     getDocumentStatuses: {
       method: 'POST',

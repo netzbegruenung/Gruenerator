@@ -22,8 +22,8 @@ import {
 } from '../../services/attachments/index.js';
 import imagePickerService from '../../services/image/ImageSelectionService.js';
 import { parseResponse, type ParserConfig } from '../../utils/campaign/index.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
+import { aiText } from '../ai/generate.js';
 
 import type {
   ImageAttachment as AttachmentsImageAttachment,
@@ -31,7 +31,6 @@ import type {
 } from '../../services/attachments/types.js';
 import type { SharepicImageManager } from '../../services/image/types.js';
 import type { UserProfile } from '../../services/user/types.js';
-import type { AIWorkerPool } from '../../workers/types.js';
 import type { Request, Router } from 'express';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -80,7 +79,8 @@ interface CampaignConfig {
     systemRole?: string;
     requestTemplate?: string;
     singleItemTemplate?: string;
-    options?: Record<string, unknown>;
+    /** Nur Sampling. Über Provider/Modell entscheidet `AI_LANES`, nicht die Config. */
+    options?: { max_tokens?: number; temperature?: number; top_p?: number };
   };
   responseParser?: ParserConfig;
 }
@@ -220,14 +220,15 @@ const createImageAttachmentFromFile = async (filename: string): Promise<ImageAtt
   const imagePath = imagePickerService.getImagePath(filename);
 
   try {
+    // Bytes bleiben Bytes: die Vorlagen sind mehrere MB gross, ein Umweg ueber
+    // base64 haette den Buffer nur aufgeblaeht, um ihn im Canvas-Adapter sofort
+    // wieder zu dekodieren.
     const imageBuffer = await fs.readFile(imagePath);
-    const base64Data = imageBuffer.toString('base64');
     const mimeType = filename.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
-    const dataUrl = `data:${mimeType};base64,${base64Data}`;
 
     return {
       type: mimeType,
-      data: dataUrl,
+      bytes: imageBuffer,
       name: filename,
       size: imageBuffer.length,
       source: 'ai-selected',
@@ -240,19 +241,12 @@ const createImageAttachmentFromFile = async (filename: string): Promise<ImageAtt
 
 const selectAndPrepareImage = async (
   textContent: string,
-  sharepicType: string,
-  aiWorkerPool: AIWorkerPool,
-  req: ExpressRequest | null = null
+  sharepicType: string
 ): Promise<{ attachment: ImageAttachment; selection: ImageSelection }> => {
   log.debug(`[SharepicGeneration] Selecting image for ${sharepicType} sharepic`);
 
   try {
-    const selection = await imagePickerService.selectBestImage(
-      textContent,
-      aiWorkerPool,
-      { sharepicType },
-      req
-    );
+    const selection = await imagePickerService.selectBestImage(textContent, { sharepicType });
 
     log.debug(
       `[SharepicGeneration] Selected image: ${selection.selectedImage.filename} (confidence: ${selection.confidence})`
@@ -610,50 +604,6 @@ const generateZitatPureSharepic = async (
   };
 };
 
-const _generateDreizeilenSharepic = async (
-  expressReq: ExpressRequest,
-  requestBody: RequestBody
-): Promise<SharepicResult> => {
-  const textResponse = await callSharepicText(expressReq, 'dreizeilen', requestBody);
-
-  if (!textResponse?.success) {
-    throw new Error((textResponse?.error as string) || 'Dreizeilen Sharepic generation failed');
-  }
-
-  const mainSlogan = textResponse.mainSlogan as MainSlogan;
-  const alternatives = (textResponse.alternatives as unknown[]) || [];
-  log.debug('[SharepicGeneration] Dreizeilen mainSlogan received:', JSON.stringify(mainSlogan));
-
-  const { payload: canvasPayload } = await callCanvasRoute(
-    canvasRouterFor('dreizeilen', requestBody),
-    mainSlogan as Record<string, unknown>
-  );
-
-  if (!canvasPayload?.image) {
-    throw new Error('Dreizeilen canvas did not return an image');
-  }
-
-  return {
-    success: true,
-    agent: 'dreizeilen',
-    content: {
-      metadata: {
-        sharepicType: 'dreizeilen',
-      },
-      sharepic: {
-        image: canvasPayload.image,
-        type: 'dreizeilen',
-        text: `${mainSlogan.line1 || ''}\n${mainSlogan.line2 || ''}\n${mainSlogan.line3 || ''}`.trim(),
-        mainSlogan,
-        alternatives,
-      },
-      sharepicTitle: 'Sharepic Vorschau',
-      sharepicDownloadText: 'Sharepic herunterladen',
-      sharepicDownloadFilename: `sharepic-dreizeilen-${Date.now()}.png`,
-    },
-  };
-};
-
 const generateZitatWithImageSharepic = async (
   expressReq: ExpressRequest,
   requestBody: RequestBody
@@ -852,9 +802,7 @@ const generateDreizeilenWithAIImageSharepic = async (
       `${mainSlogan.line1 || ''} ${mainSlogan.line2 || ''} ${mainSlogan.line3 || ''}`.trim();
     const { attachment: aiImageAttachment, selection } = await selectAndPrepareImage(
       textForAnalysis,
-      'dreizeilen',
-      getAIWorkerPool(expressReq),
-      expressReq
+      'dreizeilen'
     );
 
     const mockFile = convertToBuffer(aiImageAttachment);
@@ -955,24 +903,20 @@ const generateCampaignSharepic = async (
       }
     });
 
-    const aiResult = await getAIWorkerPool(expressReq).processRequest(
-      {
-        type: `campaign_${campaignTypeId}`,
-        systemPrompt: promptConfig?.systemRole || '',
-        messages: [{ role: 'user', content: requestText }],
-        options: promptConfig?.options,
-      },
-      expressReq
-    );
+    const sampling = promptConfig?.options ?? {};
+    const aiResult = await aiText({
+      lane: `campaign_${campaignTypeId}`,
+      system: promptConfig?.systemRole || '',
+      prompt: requestText,
+      ...(sampling.max_tokens != null && { maxOutputTokens: sampling.max_tokens }),
+      ...(sampling.temperature != null && { temperature: sampling.temperature }),
+      ...(sampling.top_p != null && { topP: sampling.top_p }),
+    });
 
-    if (!aiResult?.content) {
-      throw new Error('AI response empty or invalid');
-    }
-
-    log.debug(`[Campaign] Raw AI response (${aiResult.content.length} chars)`);
+    log.debug(`[Campaign] Raw AI response (${aiResult.length} chars)`);
 
     try {
-      textData = parseResponse(aiResult.content, campaignConfig.responseParser) as TextData;
+      textData = parseResponse(aiResult, campaignConfig.responseParser) as TextData;
       log.debug(`[Campaign] Parsed text data:`, textData);
     } catch (parseError) {
       log.error(`[Campaign] Parser error:`, parseError);
@@ -1116,4 +1060,7 @@ const generateSharepicForChat = async (
 };
 
 export { generateSharepicForChat };
+// Exportiert, damit ein Test festhalten kann, dass die Vorlage als Bytes und
+// nicht als Data-URL weitergereicht wird.
+export { createImageAttachmentFromFile };
 export type { SharepicResult, RequestBody, ExpressRequest };

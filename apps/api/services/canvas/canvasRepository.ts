@@ -24,6 +24,7 @@ import {
 } from '../../routes/docs/documentAccess.js';
 import { type DocumentPermissions } from '../../routes/docs/types.js';
 import { likeContainsPattern } from '../../utils/sqlLike.js';
+import { buildCanvasThumbnailUrl } from '../media/thumbnailUrl.js';
 
 export const CANVAS_SUBTYPE = 'canvas';
 const DEFAULT_CANVAS_FORMAT = 'post-portrait';
@@ -80,6 +81,14 @@ const CANVAS_SELECT_COLUMNS = `${CANVAS_LIST_SELECT_COLUMNS}, cdoc.initial_state
  * group-shared. Parameter slots: $1 = document_subtype, $2/$3 = userId.
  * Shared with the workplace recent-activity feed so the two surfaces can't
  * drift on who sees which canvases.
+ *
+ * The `NOT EXISTS` tail hides the frozen "… (Vorlage)" snapshots that
+ * `fromCanvas` creates behind every Grünerator-Vorlage: they are owned by the
+ * creator but are an implementation detail of the template, not a document
+ * anyone edits. Matched via `content_data->>'canvasId'` (the snapshot) and
+ * NOT `metadata.source_canvas_id`, which points at the still-live original the
+ * user very much does want to see. Single reads (`getCanvas`, `cloneCanvas`)
+ * use their own queries, so using a template stays unaffected.
  */
 export const CANVAS_ACCESS_WHERE = `
   cd.document_subtype = $1
@@ -94,6 +103,12 @@ export const CANVAS_ACCESS_WHERE = `
         ON gm.group_id = gcs.group_id AND gm.user_id = $2 AND gm.is_active = TRUE
       WHERE gcs.content_type = 'collaborative_documents'
     )
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM user_templates ut
+    WHERE ut.type = 'template'
+      AND ut.template_type = 'gruenerator'
+      AND ut.content_data->>'canvasId' = cd.id::text
   )
 `;
 
@@ -141,7 +156,15 @@ function rowToCanvasListItem(row: Omit<CanvasJoinedRow, 'initial_state'>): Canva
     is_public: row.is_public ?? false,
     template_type: row.template_type,
     base_template_id: row.base_template_id,
-    thumbnail_url: row.thumbnail_url,
+    // Read/write asymmetry, deliberate: the COLUMN keeps storing what web
+    // writes (`/api/share/<token>/download`), but reads substitute a signed
+    // thumbs URL. The stored URL requires auth, so clients that render it in an
+    // <img>/<Image> — every mobile surface — got nothing. Keeping the field NAME
+    // means the already-shipped app starts working without a release.
+    //
+    // Full size rather than a tile, because the mobile canvas viewer downloads
+    // exactly this URL into the photo gallery.
+    thumbnail_url: buildCanvasThumbnailUrl(row.id, row.thumbnail_url, {}) ?? row.thumbnail_url,
     page_count: row.page_count,
     format: row.format,
     ...(row.share_mode ? { share_mode: row.share_mode as CanvasDocument['share_mode'] } : {}),
@@ -311,11 +334,13 @@ export interface UpdateCanvasInput {
   format?: string;
 }
 
-export async function updateCanvas(
-  id: string,
-  userId: string,
-  patch: UpdateCanvasInput
-): Promise<MutationResult> {
+/**
+ * Resolve whether `userId` may WRITE the canvas (owner or editor), independent
+ * of the update payload. Use this to gate mutating operations that don't go
+ * through updateCanvas (e.g. version restore), so read-only viewers of a shared
+ * or public canvas cannot mutate it.
+ */
+export async function checkCanvasWriteAccess(id: string, userId: string): Promise<MutationResult> {
   const row = await loadOwnerRow(id);
   if (!row) return { kind: 'not_found' };
 
@@ -325,6 +350,17 @@ export async function updateCanvas(
     row.created_by === userId ||
     (userPermission != null && ['owner', 'editor'].includes(userPermission.level));
   if (!canEdit) return { kind: 'forbidden' };
+
+  return { kind: 'ok' };
+}
+
+export async function updateCanvas(
+  id: string,
+  userId: string,
+  patch: UpdateCanvasInput
+): Promise<MutationResult> {
+  const access = await checkCanvasWriteAccess(id, userId);
+  if (access.kind !== 'ok') return access;
 
   const { title, thumbnail_url, page_count, format } = patch;
 
@@ -489,17 +525,23 @@ export async function resizeCanvas(
 }
 
 /**
- * Mark a canvas as a public, read-only gallery template: any authenticated user
- * may read it (so `cloneCanvas` succeeds for the gallery "use" action), but
+ * Mark a canvas as a read-only gallery template: any authenticated user may
+ * read it (so `cloneCanvas` succeeds for the gallery "use" action), but
  * `share_permission='viewer'` denies write access — the frozen snapshot can be
  * cloned but never edited by others (see `checkDocumentWriteAccess`).
+ *
+ * Only lifts a still-private snapshot. A Vorlage's owner can widen the same
+ * snapshot to `share_mode='public'` through the normal document share dialog;
+ * submitting it to the gallery afterwards must not silently narrow that link
+ * back down to "Anmeldung nötig".
  */
 export async function markCanvasAsGalleryTemplate(id: string): Promise<void> {
   await db.query(
     `UPDATE collaborative_documents
      SET share_mode = 'authenticated', share_permission = 'viewer',
          updated_at = CURRENT_TIMESTAMP
-     WHERE id = $1 AND document_subtype = $2`,
+     WHERE id = $1 AND document_subtype = $2
+       AND COALESCE(share_mode, 'private') = 'private'`,
     [id, CANVAS_SUBTYPE]
   );
 }

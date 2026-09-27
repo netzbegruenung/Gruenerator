@@ -7,6 +7,7 @@ import express, { type Request, type Response } from 'express';
 
 import { processGraphRequest } from '../../agents/langgraph/PromptProcessor.js';
 import authMiddleware from '../../middleware/authMiddleware.js';
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('protokoll');
@@ -19,6 +20,6 @@ const protokollHandler = async (req: Request, res: Response): Promise<void> => {
   await processGraphRequest('protokoll', req, res);
 };
 
-router.post('/', requireAuth, protokollHandler);
+router.post('/', requireAuth, requireAiConsent, protokollHandler);
 
 export default router;

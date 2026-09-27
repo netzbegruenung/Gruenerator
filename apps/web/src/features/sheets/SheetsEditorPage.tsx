@@ -5,6 +5,7 @@ import {
   useSyncGate,
   getAuthErrorMessage,
 } from '@gruenerator/collab';
+import { editorOperationsEventSchema, sheetOperationSchema } from '@gruenerator/contracts';
 import {
   DocsProvider,
   useDocsAdapter,
@@ -14,19 +15,27 @@ import {
   type Document,
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
-import { SheetsEditor, type FUniver, type IWorkbookData } from '@gruenerator/sheets';
+import {
+  applySheetOperations,
+  SheetsEditor,
+  type FUniver,
+  type IWorkbookData,
+} from '@gruenerator/sheets';
 import { Skeleton } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { FiMessageSquare, FiShare2 } from 'react-icons/fi';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
 import useDarkMode from '../../components/hooks/useDarkMode';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
+import { useHostAwareBack } from '../../hooks/useHostAwareBack';
+import { isEmbedded } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
+import { useDocAiEditEnabled } from '../docs/DocAiEditToggle';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from '../docs/GuestBadge';
 import { getOrCreateGuestIdentity } from '../docs/guestIdentity';
@@ -41,8 +50,17 @@ const ShareModal = lazyWithRetry(() =>
 
 function SheetsEditorContent() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const handleBack = useHostAwareBack('/office');
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  // Set by the chat panel's docked preview iframe (ArtifactPanel) — drops the
+  // topbar there, matching DocsEditorPage's `isInlineEmbed`.
+  //
+  // Not to be confused with `isEmbedded()` from utils/platform: same query key,
+  // different value (`embedded=1`) and a different host (the mobile app's
+  // WebView). Two flags, deliberately distinct — this one only hides the
+  // topbar, that one strips the whole app chrome.
+  const isInlineEmbed = searchParams.get('embedded') === 'true';
   const adapter = useDocsAdapter();
 
   // Template picked at creation (SPA nav-state from DocsPage). Seeds the fresh
@@ -137,7 +155,9 @@ function SheetsEditorContent() {
   const editorReady = useSyncGate(provider, isSynced);
   const connectionStatus = useDelayedConnectionStatus(isConnected, isLocalLoaded);
 
-  useTourAutostart('sheets', editorReady && !!univerAPI && !isGuest, () => {
+  // Not embedded: the tour paints a full-viewport overlay with its own controls
+  // over a WebView the user cannot navigate away from.
+  useTourAutostart('sheets', editorReady && !!univerAPI && !isGuest && !isEmbedded(), () => {
     void import('../tours/sheetsTour').then((m) => m.startSheetsTour());
   });
 
@@ -150,6 +170,54 @@ function SheetsEditorContent() {
   }, [authError]);
 
   const isEditable = canEdit && !authError;
+  const { enabled: aiEditEnabled } = useDocAiEditEnabled(id || '');
+
+  // Embedded (docked-in-chat) mode has no chat sidebar of its own — a chat-
+  // driven edit (edit_sheet) is planned server-side and relayed here from the
+  // OUTER chat page's SSE stream via postMessage (ArtifactPanel), since an
+  // iframe is a separate JS realm the outer page's own store can't reach.
+  // Applies through the exact same executor the in-editor AI assistant uses
+  // (applySheetOperations — Univer Facade, so it flows through the collab
+  // bridge and lands on the native undo stack). Gated on the same "KI darf
+  // bearbeiten" lock (useDocAiEditEnabled) the in-editor chat's own
+  // registerEditHandler respects — this path must not bypass it.
+  useEffect(() => {
+    if (!isInlineEmbed || !univerAPI || !isEditable || !id) return;
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { source: string | null; payload: unknown } | null;
+      if (data?.source !== 'gruenerator-artifact-panel') return;
+      const parsed = editorOperationsEventSchema.safeParse(data.payload);
+      if (!parsed.success) return;
+      const payload = parsed.data;
+      if (payload.targetId !== id || payload.surface !== 'sheet') return;
+      void (async () => {
+        const { toast } = await import('sonner');
+        if (!aiEditEnabled) {
+          toast.info('KI-Bearbeitung ist deaktiviert — es wurde nichts an der Tabelle geändert.');
+          return;
+        }
+        const workbook = univerAPI.getActiveWorkbook();
+        if (!workbook) return;
+        const ops = [];
+        for (const raw of payload.operations) {
+          const op = sheetOperationSchema.safeParse(raw);
+          if (op.success) ops.push(op.data);
+        }
+        if (ops.length === 0) return;
+        const { applied, skipped } = await applySheetOperations(workbook, ops, univerAPI);
+        if (applied > 0) {
+          toast.success(`${applied} Änderung${applied === 1 ? '' : 'en'} übernommen.`, {
+            id: 'sheet-edit-applied',
+            duration: 2000,
+          });
+        }
+        if (skipped.length > 0) toast.warning(skipped.join(' · '));
+      })();
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isInlineEmbed, univerAPI, isEditable, id, aiEditEnabled]);
 
   if (docIsLoading || !isAuthResolved) {
     return (
@@ -213,60 +281,62 @@ function SheetsEditorContent() {
 
   return (
     <div className="h-full flex flex-col relative">
-      <EditorTopBar
-        dataTour="sheets-topbar"
-        title={docData.title}
-        connectionStatus={connectionStatus}
-        onBack={isGuest ? undefined : () => navigate('/office')}
-        editable={isEditable}
-        onTitleChange={handleTitleChange}
-        rightActions={
-          <>
-            {isGuest && guestIdentity && (
-              <GuestBadge
-                guestName={guestIdentity.guestName}
-                guestColor={guestIdentity.guestColor}
-                guestIcon={GUEST_ANIMALS[guestIdentity.guestAnimalIndex].icon}
-                loginUrl={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
-              />
-            )}
-            {!isGuest && !canEdit && (
-              <div className="flex items-center py-1 px-2.5 text-[0.75rem] rounded-full bg-grey-100/60 dark:bg-grey-800/40 text-grey-600 dark:text-grey-400 border border-grey-200/50 dark:border-grey-700/50">
-                Lesezugriff
-              </div>
-            )}
-            <span className="max-sm:hidden">
-              <CollaboratorAvatars collaborators={collaborators} />
-            </span>
-            {!isGuest && (
-              <button
-                className={`glass-btn ${chatOpen ? 'active' : ''}`}
-                onClick={() => setChatOpen((v) => !v)}
-                aria-label="Chat"
-                title="Chat"
-                data-tour="sheets-chat-toggle"
-              >
-                <FiMessageSquare />
-              </button>
-            )}
-            {/* Undo/redo are the ribbon's first group now — a second pair here
+      {!isInlineEmbed && (
+        <EditorTopBar
+          dataTour="sheets-topbar"
+          title={docData.title}
+          connectionStatus={connectionStatus}
+          onBack={isGuest ? undefined : handleBack}
+          editable={isEditable}
+          onTitleChange={handleTitleChange}
+          rightActions={
+            <>
+              {isGuest && guestIdentity && (
+                <GuestBadge
+                  guestName={guestIdentity.guestName}
+                  guestColor={guestIdentity.guestColor}
+                  guestIcon={GUEST_ANIMALS[guestIdentity.guestAnimalIndex].icon}
+                  loginUrl={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
+                />
+              )}
+              {!isGuest && !canEdit && (
+                <div className="flex items-center py-1 px-2.5 text-[0.75rem] rounded-full bg-grey-100/60 dark:bg-grey-800/40 text-grey-600 dark:text-grey-400 border border-grey-200/50 dark:border-grey-700/50">
+                  Lesezugriff
+                </div>
+              )}
+              <span className="max-sm:hidden">
+                <CollaboratorAvatars collaborators={collaborators} />
+              </span>
+              {!isGuest && (
+                <button
+                  className={`glass-btn ${chatOpen ? 'active' : ''}`}
+                  onClick={() => setChatOpen((v) => !v)}
+                  aria-label="Chat"
+                  title="Chat"
+                  data-tour="sheets-chat-toggle"
+                >
+                  <FiMessageSquare />
+                </button>
+              )}
+              {/* Undo/redo are the ribbon's first group now — a second pair here
                 would just be a duplicate. */}
-            {isEditable && univerAPI && (
-              <SheetFormatMenu univerAPI={univerAPI} documentTitle={docData.title} />
-            )}
-            {!isGuest && (
-              <button
-                className="glass-btn"
-                onClick={() => setShowShareModal(true)}
-                aria-label="Teilen"
-                title="Teilen"
-              >
-                <FiShare2 />
-              </button>
-            )}
-          </>
-        }
-      />
+              {isEditable && univerAPI && (
+                <SheetFormatMenu univerAPI={univerAPI} documentTitle={docData.title} />
+              )}
+              {!isGuest && (
+                <button
+                  className="glass-btn"
+                  onClick={() => setShowShareModal(true)}
+                  aria-label="Teilen"
+                  title="Teilen"
+                >
+                  <FiShare2 />
+                </button>
+              )}
+            </>
+          }
+        />
+      )}
 
       <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
         <div className="flex-1 min-w-0 min-h-0 flex flex-col" data-tour="sheets-grid">

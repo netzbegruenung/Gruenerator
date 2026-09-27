@@ -34,6 +34,17 @@ describe('stripOutOfRangeCitations', () => {
     expect(r.text).toBe('Behauptung ohne Quelle.');
   });
 
+  it('keeps an in-range source link, numeric label included', () => {
+    const t = 'Siehe [2024](quelle:3) und [Wahlprogramm](quelle:1).';
+    expect(stripOutOfRangeCitations(t, 3)).toEqual({ text: t, changed: false });
+  });
+
+  it('reduces a source link to an unknown id to its title', () => {
+    const r = stripOutOfRangeCitations('- [Kohleausstieg](quelle:9)\n- [Tagebau](quelle:2)', 3);
+    expect(r.changed).toBe(true);
+    expect(r.text).toBe('- Kohleausstieg\n- [Tagebau](quelle:2)');
+  });
+
   it('does not touch non-citation brackets', () => {
     const t = 'Der Zeitraum [2020-2024] war entscheidend.';
     expect(stripOutOfRangeCitations(t, 3).changed).toBe(false);

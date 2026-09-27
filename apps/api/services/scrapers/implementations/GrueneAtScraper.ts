@@ -14,6 +14,7 @@
  */
 
 import * as cheerio from 'cheerio';
+import { type AnyNode } from 'domhandler';
 
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import {
@@ -25,12 +26,18 @@ import {
 import { BRAND } from '../../../utils/domainUtils.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
-import { smartChunkDocument } from '../../document-services/index.js';
+import {
+  smartChunkDocument,
+  buildEmbeddingTextsForChunks,
+  structurePayload,
+  embeddingPayload,
+  offsetPayload,
+} from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
 import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
 import { batchProcess } from '../utils/batchFetch.js';
-import { removeUnwantedElements } from '../utils/htmlCleaner.js';
+import { htmlToStructuredText, removeUnwantedElements } from '../utils/htmlCleaner.js';
 
 import type { QdrantService } from '../../../database/services/QdrantService/index.js';
 import type { ScraperResult } from '../types.js';
@@ -360,19 +367,25 @@ export class GrueneAtScraper extends BaseScraper {
       '#sb_instagram',
     ]);
 
+    // Blockgrenzen erhalten (#3163). `.text()` verkettet ALLE Treffer einer
+    // Auswahl, `.html()` liefert nur den ersten — deshalb die Verkettung über
+    // `map`, sonst fiele eine Seite mit mehreren `<article>` unter die
+    // 100-Zeichen-Schwelle unten und würde als `too_short` verworfen.
+    const structuredTextOf = (selection: cheerio.Cheerio<AnyNode>): string =>
+      htmlToStructuredText(
+        selection
+          .map((_, node) => $(node).html() ?? '')
+          .get()
+          .join('\n')
+      );
+
     // Extract main content
     const contentEl = $('.entry-content');
-    let text =
-      contentEl.length > 0
-        ? contentEl.text().replace(/\s+/g, ' ').trim()
-        : $('article').text().replace(/\s+/g, ' ').trim();
+    let text = contentEl.length > 0 ? structuredTextOf(contentEl) : structuredTextOf($('article'));
 
     // Fallback: main content area
     if (!text || text.length < 100) {
-      text = $('main, .main-content, .page-content, [role="main"]')
-        .text()
-        .replace(/\s+/g, ' ')
-        .trim();
+      text = structuredTextOf($('main, .main-content, .page-content, [role="main"]'));
     }
 
     return {
@@ -439,7 +452,9 @@ export class GrueneAtScraper extends BaseScraper {
     }
 
     const chunkTexts = chunks.map((c) => c.text);
-    const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
+    const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
+      buildEmbeddingTextsForChunks(chunks, content.title)
+    );
 
     const points = chunks.map((chunk, index) => ({
       id: generatePointId('gruene_at', url, index),
@@ -450,6 +465,9 @@ export class GrueneAtScraper extends BaseScraper {
         content_hash: contentHash,
         chunk_index: index,
         chunk_text: chunkTexts[index],
+        ...structurePayload(chunk),
+        ...embeddingPayload(),
+        ...offsetPayload(chunk),
         quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
         content_type: content.contentType,
         primary_category: content.primaryCategory,

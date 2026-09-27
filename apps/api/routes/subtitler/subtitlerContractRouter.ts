@@ -19,6 +19,7 @@ import fs from 'fs';
 import { subtitlerContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { aiText } from '../../services/ai/generate.js';
 import {
   extractLocaleFromRequest,
   localizePlaceholders,
@@ -46,7 +47,6 @@ import {
 } from '../../services/subtitler/tusService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -61,6 +61,39 @@ const fsPromises = fs.promises;
 function getUserId(req: Request): string | undefined {
   const user = req.user as UserProfile | undefined;
   return user?.id;
+}
+
+/**
+ * Drizzle hands back TIMESTAMPTZ columns as `Date`; the contract declares them
+ * as strings, because a string is what the client can ever receive. Express
+ * would serialise them implicitly on the way out — doing it here instead makes
+ * the handler's type equal the wire, so the contract stays provable rather than
+ * merely plausible.
+ */
+interface ProjectRowDates {
+  created_at?: Date | string | null;
+  updated_at?: Date | string | null;
+  last_edited_at?: Date | string | null;
+}
+
+function toIsoDate(value: Date | string | null | undefined): string | null {
+  if (value instanceof Date) return value.toISOString();
+  return typeof value === 'string' ? value : null;
+}
+
+function toIsoProjectDates<T extends ProjectRowDates>(
+  project: T
+): Omit<T, 'created_at' | 'updated_at' | 'last_edited_at'> & {
+  created_at: string | null;
+  updated_at: string | null;
+  last_edited_at: string | null;
+} {
+  return {
+    ...project,
+    created_at: toIsoDate(project.created_at),
+    updated_at: toIsoDate(project.updated_at),
+    last_edited_at: toIsoDate(project.last_edited_at),
+  };
 }
 
 let _projectService: SubtitlerProjectService | null = null;
@@ -126,8 +159,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
   // ── Processing: transcription ─────────────────────────────────────────────
 
   postProcess: async (args) => {
-    const aiWorkerPool: unknown = args.req.app.locals.aiWorkerPool;
-    const result = await startTranscriptionJob(args.body, aiWorkerPool);
+    const result = await startTranscriptionJob(args.body);
     if (result.ok) {
       return {
         status: 202 as const,
@@ -202,8 +234,20 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     try {
       let videoPath: string;
       if (projectId) {
+        // SECURITY: scope the project lookup to the authenticated owner. Using the
+        // unscoped getProjectById here let any user export another user's video by
+        // passing its project id (IDOR → cross-tenant read via the exportToken).
+        const userId = getUserId(args.req);
+        if (!userId) {
+          return { status: 404 as const, body: { error: 'Projekt nicht gefunden' } };
+        }
         const ps = await getProjectService();
-        const proj = await ps.getProjectById(projectId);
+        let proj: Awaited<ReturnType<typeof ps.getProject>> | null = null;
+        try {
+          proj = await ps.getProject(userId, projectId);
+        } catch {
+          return { status: 404 as const, body: { error: 'Projekt nicht gefunden' } };
+        }
         if (!proj?.video_path) {
           return { status: 404 as const, body: { error: 'Projekt nicht gefunden' } };
         }
@@ -324,7 +368,6 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
 
   generateSocial: async (args) => {
     try {
-      const aiWorkerPool = getAIWorkerPool(args.req);
       const locale = extractLocaleFromRequest(args.req);
       const systemPrompt = localizePlaceholders(
         'Du bist Social Media Manager für {{partyName}}. Erstelle einen Instagram Reel Beitragstext basierend auf den Untertiteln des Videos. Der Text soll die Kernbotschaft des Videos aufgreifen und in einen ansprechenden Social Media Post umwandeln.',
@@ -344,21 +387,17 @@ Erstelle einen Instagram Reel Beitragstext, der:
         locale
       );
 
-      const result = await aiWorkerPool.processRequest({
-        type: 'subtitler_social',
-        systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-        options: { temperature: 0.7 },
+      // `metadata` is no longer populated: the facade returns the text, and the
+      // only consumer (useSocialTextGenerator) reads `content`. The response
+      // field stays in the schema, where it is `nullish`.
+      const content = await aiText({
+        lane: 'subtitler_social',
+        system: systemPrompt,
+        prompt: userPrompt,
+        temperature: 0.7,
       });
 
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      return {
-        status: 200 as const,
-        body: { content: result.content ?? '', metadata: result.metadata },
-      };
+      return { status: 200 as const, body: { content } };
     } catch (error: unknown) {
       log.error('Social media text generation failed:', error);
       return {
@@ -672,7 +711,10 @@ Erstelle einen Instagram Reel Beitragstext, der:
       }
       const service = await getProjectService();
       const projects = await service.getUserProjects(userId);
-      return { status: 200 as const, body: { success: true, projects } };
+      return {
+        status: 200 as const,
+        body: { success: true, projects: projects.map(toIsoProjectDates) },
+      };
     } catch (error: unknown) {
       log.error('[subtitlerContract.listProjects] Error:', error);
       return {
@@ -691,7 +733,7 @@ Erstelle einen Instagram Reel Beitragstext, der:
       const { projectId } = args.params;
       const service = await getProjectService();
       const project = await service.getProject(userId, projectId);
-      return { status: 200 as const, body: { success: true, project } };
+      return { status: 200 as const, body: { success: true, project: toIsoProjectDates(project) } };
     } catch (error: unknown) {
       log.error('[subtitlerContract.getProject] Error:', error);
       const errMsg = error instanceof Error ? error.message : String(error);
@@ -722,7 +764,7 @@ Erstelle einen Instagram Reel Beitragstext, der:
       }
       const { project, isNew } = await saveOrUpdateProject(userId, args.body);
       const status = isNew ? (201 as const) : (200 as const);
-      return { status, body: { success: true, project, isNew } };
+      return { status, body: { success: true, project: toIsoProjectDates(project), isNew } };
     } catch (error: unknown) {
       log.error('[subtitlerContract.createProject] Error:', error);
       return {
@@ -746,7 +788,7 @@ Erstelle einen Instagram Reel Beitragstext, der:
       const { projectId } = args.params;
       const service = await getProjectService();
       const project = await service.updateProject(userId, projectId, args.body);
-      return { status: 200 as const, body: { success: true, project } };
+      return { status: 200 as const, body: { success: true, project: toIsoProjectDates(project) } };
     } catch (error: unknown) {
       log.error('[subtitlerContract.updateProject] Error:', error);
       const errMsg = error instanceof Error ? error.message : String(error);

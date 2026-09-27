@@ -3,7 +3,7 @@
  * Replaces hardcoded magic numbers and provides environment-based configuration
  */
 
-import { env } from './env.js';
+import { env, type ServerFusion } from './env.js';
 
 interface LengthAdjustments {
   singleWord: number;
@@ -32,6 +32,16 @@ interface HybridConfig {
   enableDynamicThresholds: boolean;
   enableConfidenceWeighting: boolean;
   enableQualityGate: boolean;
+  /** Master switch des server-seitigen Query-API-Pfads (#3118). */
+  serverSideEnabled: boolean;
+  /** Welche Fusion dieser Pfad benutzt. */
+  serverFusion: ServerFusion;
+  /** Limit der Sparse-Vorabholung als Vielfaches der dichten; 0 lässt sie weg. */
+  serverSparseFactor: number;
+  /** Gewicht der dichten Vorabholung bei `rrf_weighted`. */
+  serverRrfWeightDense: number;
+  /** Dichten Kosinus und BM25-Wert je Treffer über denselben `queryBatch` zurückholen (#3166). */
+  serverScoreJoin: boolean;
 }
 
 interface ScoringConfig {
@@ -137,14 +147,6 @@ interface MetadataConfig {
   };
 }
 
-interface ChunkingConfig {
-  adaptive: {
-    enabled: boolean;
-    defaultSize: number;
-    overlapSize: number;
-  };
-}
-
 interface RetrievalConfig {
   queryIntent: {
     enabled: boolean;
@@ -178,7 +180,6 @@ interface FullConfig {
   performance: PerformanceConfig;
   quality: QualityConfig;
   metadata: MetadataConfig;
-  chunking: ChunkingConfig;
   retrieval: RetrievalConfig;
   rerank: RerankConfig;
 }
@@ -218,6 +219,11 @@ class VectorConfig {
         enableDynamicThresholds: env.HYBRID_ENABLE_DYNAMIC_THRESHOLDS,
         enableConfidenceWeighting: env.HYBRID_ENABLE_CONFIDENCE_WEIGHTING,
         enableQualityGate: env.HYBRID_ENABLE_QUALITY_GATE,
+        serverSideEnabled: env.HYBRID_SERVER_SIDE_ENABLED,
+        serverFusion: env.HYBRID_SERVER_FUSION,
+        serverSparseFactor: env.HYBRID_SERVER_SPARSE_FACTOR,
+        serverRrfWeightDense: env.HYBRID_SERVER_RRF_WEIGHT_DENSE,
+        serverScoreJoin: env.HYBRID_SERVER_SCORE_JOIN,
       },
 
       scoring: {
@@ -315,14 +321,6 @@ class VectorConfig {
           list: { preferredSize: 300, minQuality: 0.4 },
           code: { preferredSize: 500, minQuality: 0.5 },
           table: { preferredSize: 600, minQuality: 0.4 },
-        },
-      },
-
-      chunking: {
-        adaptive: {
-          enabled: env.ADAPTIVE_CHUNKING_ENABLED,
-          defaultSize: env.CHUNK_DEFAULT_SIZE,
-          overlapSize: env.CHUNK_OVERLAP_SIZE,
         },
       },
 
@@ -427,8 +425,6 @@ class VectorConfig {
       'hybrid.confidenceBoost',
       'hybrid.confidencePenalty',
       'quality.retrieval.qualityBoostFactor',
-      'chunking.adaptive.defaultSize',
-      'chunking.adaptive.overlapSize',
     ];
 
     positiveValues.forEach((path) => {

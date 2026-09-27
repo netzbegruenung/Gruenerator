@@ -1,3 +1,4 @@
+import { useHiddenAgentIdentifiers } from '@gruenerator/chat';
 import { type Agent } from '@gruenerator/shared/agents';
 import { useMemo } from 'react';
 
@@ -18,8 +19,17 @@ const NO_AGENTS: Agent[] = [];
 export function useFeatureIndex(): FeatureHit[] {
   const locale = useAuthStore((state) => state.locale);
   const { data: userAgents = NO_AGENTS } = useUserAgents();
+  const hiddenAgentIdentifiers = useHiddenAgentIdentifiers();
+  const hiddenKey = hiddenAgentIdentifiers.join(',');
   return useMemo(
-    () => buildFeatureIndex({ isAustrian: locale === 'de-AT', locale, userAgents }),
-    [locale, userAgents]
+    () =>
+      buildFeatureIndex({
+        isAustrian: locale === 'de-AT',
+        locale,
+        userAgents,
+        hiddenAgentIdentifiers,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- die Array-Identität wechselt bei jedem Abruf; `hiddenKey` ist die stabile Abhängigkeit
+    [locale, userAgents, hiddenKey]
   );
 }

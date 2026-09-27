@@ -18,7 +18,8 @@ import { scheduleRecurrenceSchema } from './boardSchedules.js';
 export const recurringTaskDeliverySchema = z.enum(['document', 'summary', 'thread']);
 export type RecurringTaskDelivery = z.infer<typeof recurringTaskDeliverySchema>;
 
-export const recurringTaskRunStatusSchema = z.enum(['completed', 'empty', 'failed']);
+/** 'running' seit #3221: der Lauf wird beim Claim angelegt, nicht erst am Ende. */
+export const recurringTaskRunStatusSchema = z.enum(['running', 'completed', 'empty', 'failed']);
 export type RecurringTaskRunStatus = z.infer<typeof recurringTaskRunStatusSchema>;
 
 // ── Response item ──────────────────────────────────────────────────────────────
@@ -38,6 +39,8 @@ export const recurringTaskSchema = z.object({
   locale: z.string(),
   nextRunAt: z.string(),
   lastRunAt: z.string().nullable(),
+  /** Gesetzt, wenn die Aufgabe sich selbst abgeschaltet hat (#3221). */
+  pausedReason: z.enum(['auto_failures']).nullable(),
   createdAt: z.string(),
 });
 export type RecurringTask = z.infer<typeof recurringTaskSchema>;
@@ -63,6 +66,22 @@ export type UpdateRecurringTaskBody = z.infer<typeof updateRecurringTaskBodySche
 
 // ── Run history ────────────────────────────────────────────────────────────────
 
+/**
+ * Verdict of the per-run self-check (#3221). A MEASUREMENT, not a gate: the
+ * result is delivered no matter what it says, because nobody is at the run to
+ * act on a withheld one. Null on runs from before the check existed and on runs
+ * that were never checked (empty/failed).
+ */
+export const recurringRunVerdictSchema = z.object({
+  ok: z.boolean(),
+  /** Why the check complained. Only a hint present triggers the repair round. */
+  hint: z.string().optional(),
+  /** True → the delivered text is the revised draft; false → the repair round
+   *  itself failed and the first draft shipped. */
+  repaired: z.boolean().optional(),
+});
+export type RecurringRunVerdict = z.infer<typeof recurringRunVerdictSchema>;
+
 export const recurringTaskRunSchema = z.object({
   id: z.string(),
   taskId: z.string(),
@@ -70,6 +89,12 @@ export const recurringTaskRunSchema = z.object({
   resultsSummary: z.string().nullable(),
   resultUrl: z.string().nullable(),
   error: z.string().nullable(),
+  /** Wall-clock duration of the run. Null on rows written before it was kept. */
+  durationMs: z.number().nullable(),
+  verdict: recurringRunVerdictSchema.nullable(),
+  /** Gesetzt beim Claim; null bei Läufen von vor der Lease-Einführung. */
+  startedAt: z.string().nullable(),
+  finishedAt: z.string().nullable(),
   createdAt: z.string(),
 });
 export type RecurringTaskRun = z.infer<typeof recurringTaskRunSchema>;

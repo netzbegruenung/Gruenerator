@@ -38,7 +38,7 @@ import { getAgentIcon } from './sidebarAgentConfig';
 import { iconClass, menuLinkClass } from './sidebarStyles';
 
 import { cn } from '@/utils/cn';
-import { startPagePath } from '@/utils/startpage';
+import { isWorkplaceSurface, startPagePath } from '@/utils/startpage';
 import '../../../assets/styles/components/layout/sidebar.css';
 
 // The Sidebar renders on every route; keep cmdk and the feature index out of
@@ -87,7 +87,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   // forces the sidebar back to the solid 85% fallback whenever
   // prefers-reduced-transparency strips backdrop-filter, so contrast never
   // rides on this low value once the blur is gone.
-  const isWorkplaceRoute = location.pathname.startsWith('/workplace');
+  const isWorkplaceRoute = isWorkplaceSurface(location.pathname);
 
   const newMenuOpenRef = useRef(false);
   const accountMenuOpenRef = useRef(false);
@@ -465,7 +465,12 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           <SheetContent
             side="left"
             showCloseButton={false}
-            className="w-[85vw] max-w-[260px] p-0 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl flex flex-col gap-0 [&>div]:gap-0"
+            // Kein Glaseffekt wie auf Desktop: dort scheint ein dekorativer
+            // Verlauf durch, hier der komplette Seiteninhalt. Bei 95% bleibt
+            // nur eine Ahnung von Tiefe. Eigene Klasse statt .sidebar, weil
+            // deren a11y-Fallback auf 85% hier ein Rückschritt wäre —
+            // accessibility.css macht dieses Panel stattdessen ganz deckend.
+            className="sidebar-mobile-panel w-[85vw] max-w-[260px] p-0 bg-background/95 backdrop-blur-xl flex flex-col gap-0 [&>div]:gap-0"
           >
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             {sidebarInner}
@@ -532,11 +537,15 @@ const SidebarFavourites = memo(function SidebarFavourites({
   const configItems = getFavouriteItemsById(favouriteIds);
 
   const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
+  const favoriteTitles = useAgentFavoritesStore((s) => s.favoriteTitles);
   const toggleAgentFav = useAgentFavoritesStore((s) => s.toggle);
   const { data: userAgents = [] } = useUserAgents();
   const { data: agentUsage = {} } = useItemUsage('agent');
 
-  // Agent favourites live in the normal favourites list (system + user agents).
+  // Agent favourites live in the normal favourites list. System agents resolve
+  // from the static registry, the user's own from useUserAgents(); an agent
+  // someone else built and shared via a project is in neither, so it falls back
+  // to the title the store snapshotted when the star was set.
   // Within the user's manual favourites, float the most-recently/most-used to
   // the top; never-used keep their add order.
   const agentItems = useMemo(() => {
@@ -553,17 +562,18 @@ const SidebarFavourites = memo(function SidebarFavourites({
         continue;
       }
       const ua = userAgents.find((a) => a.identifier === identifier);
-      if (ua) {
+      const title = ua?.title ?? favoriteTitles[identifier];
+      if (title) {
         rows.push({
           identifier,
-          title: ua.title,
+          title,
           Icon: PiSparkle,
           path: `/agents/${getAgentSlug(identifier)}`,
         });
       }
     }
     return sortByUsage(rows, (r) => r.identifier, agentUsage);
-  }, [favoriteIdentifiers, userAgents, agentUsage]);
+  }, [favoriteIdentifiers, favoriteTitles, userAgents, agentUsage]);
 
   const expanded = isOpen || forceExpanded;
 

@@ -4,6 +4,8 @@ import {
   type WolkeFolderRef,
   type WordpressSiteRef,
 } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
+import { toast } from '@gruenerator/ui';
 import { useState, useEffect, useCallback, useMemo, useRef, type DragEvent } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
@@ -12,15 +14,28 @@ import { type ImportedLinkedDoc } from '../NotebookEditorDocsSection';
 import { type ImportedWolkeDocument } from '../NotebookEditorWolkeSection';
 import { type ImportedWordpressDocument } from '../NotebookEditorWordpressSection';
 
+import { REINDEX_TIMEOUT_MESSAGE, settleReindex, splitTimedOut } from './reindexWatch';
 import {
   MAX_DOCUMENTS,
   TOTAL_STEPS,
+  describeRejectedFiles,
   hasFileDrag,
+  partitionUploadableFiles,
   type DocumentWithSource,
   type NotebookCollection,
   type NotebookEditorFormData,
   type UploadedDocument,
 } from './shared';
+
+const REINDEX_POLL_MS = 4000;
+
+function reindexErrorMessage(result: { status: number; body: unknown }): string {
+  const body = result.body as { error?: unknown } | null;
+  if ((result.status === 403 || result.status === 404) && typeof body?.error === 'string') {
+    return body.error;
+  }
+  return 'Neu indexieren ist fehlgeschlagen.';
+}
 
 interface UseNotebookEditorStateArgs {
   onSave: (data: NotebookEditorSavePayload) => Promise<void>;
@@ -47,6 +62,9 @@ export function useNotebookEditorState({
   const [labels, setLabels] = useState<string[]>([]);
   const [newLabel, setNewLabel] = useState('');
   const [indexingDocIds, setIndexingDocIds] = useState<Set<string>>(() => new Set());
+  // Documents whose background processing failed, keyed by id with the reason.
+  // Without this the spinner just disappeared and the row looked indexed.
+  const [failedDocs, setFailedDocs] = useState<Map<string, string>>(() => new Map());
   const [addingLabel, setAddingLabel] = useState(false);
   const [wolkeFolders, setWolkeFolders] = useState<WolkeFolderRef[]>([]);
   const [wolkePanelOpen, setWolkePanelOpen] = useState(false);
@@ -81,12 +99,26 @@ export function useNotebookEditorState({
           editingCollection.documents.map((doc) => ({
             id: doc.id,
             title: doc.title || 'Dokument',
+            ...(doc.reindexable ? { reindexable: true } : {}),
             ...(doc.source_type === 'wolke'
               ? { source: 'wolke' as const }
               : doc.source_type === 'wordpress'
                 ? { source: 'wordpress' as const }
                 : {}),
           }))
+        );
+        // Rehydrate failures from the stored status: the marker has to survive
+        // closing the editor, otherwise a document that failed yesterday looks
+        // perfectly fine today and still answers nothing.
+        setFailedDocs(
+          new Map(
+            editingCollection.documents
+              .filter((doc) => doc.status === 'failed')
+              .map((doc) => [
+                doc.id,
+                doc.processing_error || 'Das Dokument konnte nicht gelesen werden.',
+              ])
+          )
         );
       }
       setStep(0);
@@ -98,6 +130,7 @@ export function useNotebookEditorState({
       setWordpressSites([]);
       setUploadedDocuments([]);
       setStagedFiles([]);
+      setFailedDocs(new Map());
       setStep(0);
       setWolkePanelOpen(false);
       setDocsPanelOpen(false);
@@ -120,6 +153,68 @@ export function useNotebookEditorState({
     if (wordpressSites.length > 0) setWordpressPanelOpen(true);
   }, [wordpressSites.length]);
 
+  /**
+   * Follow a batch of documents through background indexing: spinner while it
+   * runs, a named failure afterwards if the pipeline couldn't read the file.
+   * Every source (upload, Wolke, Docs, WordPress) funnels through here so a
+   * failure looks the same wherever the document came from.
+   */
+  const watchIndexing = useCallback(
+    (docIds: string[]) => {
+      if (docIds.length === 0) return;
+      setIndexingDocIds((prev) => {
+        const next = new Set(prev);
+        docIds.forEach((id) => next.add(id));
+        return next;
+      });
+      setFailedDocs((prev) => {
+        if (!docIds.some((id) => prev.has(id))) return prev;
+        const next = new Map(prev);
+        docIds.forEach((id) => next.delete(id));
+        return next;
+      });
+
+      docIds.forEach((id) => {
+        void pollDocumentStatus(id)
+          .then((result) => {
+            // A give-up is not a success. Letting the spinner simply vanish is
+            // what made an unread file look indexed, so say what is known:
+            // still running, outcome unknown.
+            if (result.timedOut) {
+              setFailedDocs((prev) => {
+                const next = new Map(prev);
+                next.set(
+                  id,
+                  'Die Verarbeitung dauert ungewöhnlich lange. Das Dokument ist noch nicht durchsuchbar.'
+                );
+                return next;
+              });
+              return;
+            }
+            if (result.status !== 'failed') return;
+            setFailedDocs((prev) => {
+              const next = new Map(prev);
+              next.set(id, result.error ?? 'Das Dokument konnte nicht gelesen werden.');
+              return next;
+            });
+          })
+          .catch(() => {
+            // Poll itself broke (network/auth) — that's not a document defect,
+            // so leave the row unmarked rather than blaming the file.
+          })
+          .finally(() => {
+            setIndexingDocIds((prev) => {
+              if (!prev.has(id)) return prev;
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            });
+          });
+      });
+    },
+    [pollDocumentStatus]
+  );
+
   // Stage files for upload (preview-then-commit pattern). Slot check accounts
   // for both already-uploaded docs and other files still in the staging tray.
   // Auto-suggests a notebook name from the first file when adding to an empty
@@ -129,9 +224,13 @@ export function useNotebookEditorState({
       if (files.length === 0) return;
       setUploadError(null);
 
+      // Format check first: telling someone their PDF didn't fit is useful,
+      // telling them their .zip didn't fit is misleading.
+      const { accepted: readable, rejected } = partitionUploadableFiles(files);
+
       const remainingSlots = MAX_DOCUMENTS - uploadedDocuments.length - stagedFiles.length;
-      const accepted = files.slice(0, Math.max(0, remainingSlots));
-      const skipped = files.length - accepted.length;
+      const accepted = readable.slice(0, Math.max(0, remainingSlots));
+      const skipped = readable.length - accepted.length;
 
       if (accepted.length > 0) {
         setStagedFiles((prev) => [...prev, ...accepted]);
@@ -148,11 +247,14 @@ export function useNotebookEditorState({
           setValue('name', suggestedName, { shouldValidate: true });
         }
       }
+      const messages: string[] = [];
+      if (rejected.length > 0) messages.push(describeRejectedFiles(rejected));
       if (skipped > 0) {
-        setUploadError(
+        messages.push(
           `${skipped} Datei${skipped === 1 ? '' : 'en'} übersprungen — ein Notebook fasst insgesamt ${MAX_DOCUMENTS} Dokumente über alle Quellen hinweg.`
         );
       }
+      if (messages.length > 0) setUploadError(messages.join(' '));
     },
     [uploadedDocuments.length, stagedFiles.length, editingCollection, getValues, setValue]
   );
@@ -187,21 +289,7 @@ export function useNotebookEditorState({
       }
       if (newDocs.length > 0) {
         setUploadedDocuments((prev) => [...prev, ...newDocs]);
-        setIndexingDocIds((prev) => {
-          const next = new Set(prev);
-          newDocs.forEach((d) => next.add(d.id));
-          return next;
-        });
-        newDocs.forEach((d) => {
-          void pollDocumentStatus(d.id).finally(() => {
-            setIndexingDocIds((prev) => {
-              if (!prev.has(d.id)) return prev;
-              const next = new Set(prev);
-              next.delete(d.id);
-              return next;
-            });
-          });
-        });
+        watchIndexing(newDocs.map((d) => d.id));
         setStagedFiles([]);
       }
     } catch (err) {
@@ -209,7 +297,7 @@ export function useNotebookEditorState({
     } finally {
       setIsUploading(false);
     }
-  }, [stagedFiles, isUploading, uploadFileOnly, pollDocumentStatus]);
+  }, [stagedFiles, isUploading, uploadFileOnly, watchIndexing]);
 
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -248,15 +336,163 @@ export function useNotebookEditorState({
     setIsDragOver(false);
   }, []);
 
-  const handleRemoveDocument = useCallback((id: string) => {
-    setUploadedDocuments((prev) => prev.filter((doc) => doc.id !== id));
+  const forgetFailed = useCallback((ids: string[]) => {
+    setFailedDocs((prev) => {
+      if (!ids.some((id) => prev.has(id))) return prev;
+      const next = new Map(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
   }, []);
 
-  const handleRemoveDocuments = useCallback((ids: string[]) => {
+  const handleRemoveDocument = useCallback(
+    (id: string) => {
+      setUploadedDocuments((prev) => prev.filter((doc) => doc.id !== id));
+      forgetFailed([id]);
+    },
+    [forgetFailed]
+  );
+
+  const handleRemoveDocuments = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      const drop = new Set(ids);
+      setUploadedDocuments((prev) => prev.filter((doc) => !drop.has(doc.id)));
+      forgetFailed(ids);
+    },
+    [forgetFailed]
+  );
+
+  const collectionId = editingCollection?.id ?? null;
+
+  // Re-indexing is watched through ONE notebook fetch per tick, not a status
+  // poller per document: the per-document endpoint only answers the owner, and
+  // "Alle neu indexieren" would otherwise start one poller per source.
+  const [reindexWatched, setReindexWatched] = useState<string[]>([]);
+  const reindexStartedAt = useRef(new Map<string, number>());
+
+  const watchReindex = useCallback((ids: string[]) => {
     if (ids.length === 0) return;
-    const drop = new Set(ids);
-    setUploadedDocuments((prev) => prev.filter((doc) => !drop.has(doc.id)));
+    const now = Date.now();
+    ids.forEach((id) => reindexStartedAt.current.set(id, now));
+    setReindexWatched((prev) => [...new Set([...prev, ...ids])]);
+    setIndexingDocIds((prev) => new Set([...prev, ...ids]));
+    setFailedDocs((prev) => {
+      if (!ids.some((id) => prev.has(id))) return prev;
+      const next = new Map(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
   }, []);
+
+  useEffect(() => {
+    if (!collectionId || reindexWatched.length === 0) return;
+    let cancelled = false;
+
+    // Stop watching `ids`: spinner off, and — when the outcome is unknown —
+    // the same "takes unusually long" marker the upload path shows.
+    const finish = (ids: string[], failures: Array<[string, string]>, next: string[]) => {
+      const gone = new Set(ids);
+      gone.forEach((id) => reindexStartedAt.current.delete(id));
+      setIndexingDocIds((prev) => new Set([...prev].filter((id) => !gone.has(id))));
+      if (failures.length > 0) setFailedDocs((prev) => new Map([...prev, ...failures]));
+      setReindexWatched(next);
+    };
+    const giveUp = (ids: string[]) =>
+      finish(
+        ids,
+        ids.map((id) => [id, REINDEX_TIMEOUT_MESSAGE]),
+        reindexWatched.filter((id) => !ids.includes(id))
+      );
+
+    const timer = setTimeout(() => {
+      void getContractsClient()
+        .notebookCollections.getCollection({ params: { slugOrId: collectionId } })
+        .then((result) => {
+          if (cancelled) return;
+          // No answer we can read: stop polling instead of leaving spinners
+          // spinning forever.
+          if (result.status !== 200) {
+            giveUp(reindexWatched);
+            return;
+          }
+          const settled = settleReindex(reindexWatched, result.body.collection.documents ?? []);
+          const { timedOut, running } = splitTimedOut(
+            settled.running,
+            reindexStartedAt.current,
+            Date.now()
+          );
+          const finished = reindexWatched.filter((id) => !running.includes(id));
+          settled.keptOld.forEach((reason) => toast.error(reason));
+          if (finished.length === 0) {
+            // Nothing changed — a new array re-arms the timer for the next tick.
+            setReindexWatched([...reindexWatched]);
+            return;
+          }
+          finish(
+            finished,
+            [
+              ...settled.failed,
+              ...timedOut.map((id): [string, string] => [id, REINDEX_TIMEOUT_MESSAGE]),
+            ],
+            running
+          );
+        })
+        .catch(() => {
+          if (cancelled) return;
+          // Network hiccup: try again next tick, but not forever.
+          const { timedOut } = splitTimedOut(reindexWatched, reindexStartedAt.current, Date.now());
+          if (timedOut.length > 0) giveUp(timedOut);
+          else setReindexWatched([...reindexWatched]);
+        });
+    }, REINDEX_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [collectionId, reindexWatched]);
+
+  const handleReindexDocument = useCallback(
+    async (id: string) => {
+      if (!collectionId) return;
+      try {
+        const result = await getContractsClient().notebookCollections.reindexDocument({
+          params: { id: collectionId, documentId: id },
+        });
+        if (result.status !== 200) {
+          toast.error(reindexErrorMessage(result));
+          return;
+        }
+        if (result.body.status === 'unavailable') {
+          toast.error(result.body.message);
+          return;
+        }
+        toast.success(result.body.message);
+        watchReindex([id]);
+      } catch {
+        toast.error('Neu indexieren ist fehlgeschlagen.');
+      }
+    },
+    [collectionId, watchReindex]
+  );
+
+  const handleReindexAll = useCallback(async () => {
+    if (!collectionId) return;
+    try {
+      const result = await getContractsClient().notebookCollections.reindexNotebook({
+        params: { id: collectionId },
+      });
+      if (result.status !== 200) {
+        toast.error(reindexErrorMessage(result));
+        return;
+      }
+      if (result.body.queued.length === 0) toast.error(result.body.message);
+      else toast.success(result.body.message);
+      watchReindex(result.body.queued);
+    } catch {
+      toast.error('Neu indexieren ist fehlgeschlagen.');
+    }
+  }, [collectionId, watchReindex]);
 
   const handleDocsImported = useCallback(
     (docs: ImportedLinkedDoc[]) => {
@@ -268,23 +504,9 @@ export function useNotebookEditorState({
           .map((d) => ({ id: d.id, title: d.title }));
         return [...prev, ...additions];
       });
-      setIndexingDocIds((prev) => {
-        const next = new Set(prev);
-        docs.forEach((d) => next.add(d.id));
-        return next;
-      });
-      docs.forEach((d) => {
-        void pollDocumentStatus(d.id).finally(() => {
-          setIndexingDocIds((prev) => {
-            if (!prev.has(d.id)) return prev;
-            const next = new Set(prev);
-            next.delete(d.id);
-            return next;
-          });
-        });
-      });
+      watchIndexing(docs.map((d) => d.id));
     },
-    [pollDocumentStatus]
+    [watchIndexing]
   );
 
   const handleWolkeDocsImported = useCallback(
@@ -297,23 +519,9 @@ export function useNotebookEditorState({
           .map((d) => ({ id: d.id, title: d.title, source: 'wolke' as const }));
         return [...prev, ...additions];
       });
-      setIndexingDocIds((prev) => {
-        const next = new Set(prev);
-        docs.forEach((d) => next.add(d.id));
-        return next;
-      });
-      docs.forEach((d) => {
-        void pollDocumentStatus(d.id).finally(() => {
-          setIndexingDocIds((prev) => {
-            if (!prev.has(d.id)) return prev;
-            const next = new Set(prev);
-            next.delete(d.id);
-            return next;
-          });
-        });
-      });
+      watchIndexing(docs.map((d) => d.id));
     },
-    [pollDocumentStatus]
+    [watchIndexing]
   );
 
   const handleWordpressDocsImported = useCallback(
@@ -326,23 +534,9 @@ export function useNotebookEditorState({
           .map((d) => ({ id: d.id, title: d.title, source: 'wordpress' as const }));
         return [...prev, ...additions];
       });
-      setIndexingDocIds((prev) => {
-        const next = new Set(prev);
-        docs.forEach((d) => next.add(d.id));
-        return next;
-      });
-      docs.forEach((d) => {
-        void pollDocumentStatus(d.id).finally(() => {
-          setIndexingDocIds((prev) => {
-            if (!prev.has(d.id)) return prev;
-            const next = new Set(prev);
-            next.delete(d.id);
-            return next;
-          });
-        });
-      });
+      watchIndexing(docs.map((d) => d.id));
     },
-    [pollDocumentStatus]
+    [watchIndexing]
   );
 
   const handleAddLabel = useCallback(() => {
@@ -441,6 +635,7 @@ export function useNotebookEditorState({
     reset();
     setUploadedDocuments([]);
     setStagedFiles([]);
+    setFailedDocs(new Map());
     setLabels([]);
     setNewLabel('');
     setWolkeFolders([]);
@@ -450,7 +645,24 @@ export function useNotebookEditorState({
     if (onCancel) onCancel();
   }, [reset, onCancel]);
 
-  const submitForm = useCallback(() => void handleSubmit(onSubmit)(), [handleSubmit, onSubmit]);
+  /**
+   * `void handleSubmit(onSubmit)()` used to drop a rejected save on the floor as
+   * an unhandled rejection: the button simply became clickable again and the
+   * user was left guessing whether the notebook had been saved. Awaiting it and
+   * surfacing the error is the whole difference between a failed save and a
+   * silent one.
+   */
+  const submitForm = useCallback(async () => {
+    try {
+      await handleSubmit(onSubmit)();
+    } catch (err) {
+      toast.error(
+        err instanceof Error && err.message
+          ? `Speichern fehlgeschlagen: ${err.message}`
+          : 'Speichern fehlgeschlagen. Bitte versuche es erneut.'
+      );
+    }
+  }, [handleSubmit, onSubmit]);
 
   return {
     step,
@@ -462,6 +674,7 @@ export function useNotebookEditorState({
     labels,
     newLabel,
     indexingDocIds,
+    failedDocs,
     addingLabel,
     wolkeFolders,
     wolkePanelOpen,
@@ -500,6 +713,8 @@ export function useNotebookEditorState({
     handleDragLeave,
     handleRemoveDocument,
     handleRemoveDocuments,
+    handleReindexDocument: collectionId ? handleReindexDocument : null,
+    handleReindexAll: collectionId ? handleReindexAll : null,
     handleUnstageFile,
     handleCommitStagedUpload,
     handleWolkeDocsImported,

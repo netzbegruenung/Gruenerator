@@ -57,4 +57,12 @@ describe('mentionTokens', () => {
     expect(sanitizeMentionTokens(text, 'label')).toBe(text);
     expect(parseMentionTokens(text)).toHaveLength(0);
   });
+
+  it('round-trips skill tokens — the id is the mention, not the agent id', () => {
+    const t = buildMentionToken('Pressemitteilung', 'skill', 'presse');
+    const parsed = parseMentionTokens(`${t} mehr artenschutz`);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]).toMatchObject({ type: 'skill', id: 'presse' });
+    expect(sanitizeMentionTokens(`${t} mehr artenschutz`, 'remove')).toBe('mehr artenschutz');
+  });
 });

@@ -1,3 +1,4 @@
+import { parseDataUrl } from '@gruenerator/shared/utils';
 import express, { type Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 
@@ -101,12 +102,10 @@ router.post(
       let base64Data = image;
       let resolvedMimeType = mimeType || 'image/jpeg';
 
-      if (base64Data.startsWith('data:')) {
-        const match = base64Data.match(/^data:(image\/[^;]+);base64,(.+)$/s);
-        if (match) {
-          resolvedMimeType = match[1];
-          base64Data = match[2];
-        }
+      const parsed = parseDataUrl(image);
+      if (parsed?.mediaType.startsWith('image/')) {
+        resolvedMimeType = parsed.mediaType;
+        base64Data = parsed.base64;
       }
 
       const result = await ocrService.extractTextFromBase64(

@@ -1,15 +1,10 @@
 /**
- * Wolke Controller - Wolke integration for document sync and import
+ * Wolke Controller - Wolke integration for document browse and import
  *
  * Handles:
- * - GET /sync-status - Get user's sync status
- * - POST /sync - Start folder sync
- * - POST /auto-sync - Set auto-sync for folder
  * - GET /browse/:shareLinkId - Browse files in Wolke share
  * - POST /import - Import selected files from Wolke
  */
-
-import path from 'path';
 
 import express, { type Router, type Response } from 'express';
 import { z } from 'zod';
@@ -17,12 +12,21 @@ import { z } from 'zod';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import NextcloudApiClient from '../../services/api-clients/nextcloudApiClient.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
+import { walkWolkeFolder } from '../../services/sync/folderWalk.js';
 import { getWolkeSyncService } from '../../services/sync/index.js';
+import {
+  isSupportedWolkeFile,
+  wolkeFileExtension,
+} from '../../services/sync/supportedFileTypes.js';
 import { createLogger } from '../../utils/logger.js';
+import { CloudPathError } from '../../utils/validation/cloudPaths.js';
 
 import { formatFileSize } from './helpers.js';
 
 import type { DocumentRequest, WolkeImportResult } from './types.js';
+// Two shapes share the name: the WebDAV listing entry (nullable size, knows
+// about directories) and the narrower one processFile takes.
+import type { NextcloudFile as NextcloudListEntry } from '../../services/api-clients/nextcloudApiClient.js';
 import type { NextcloudFile } from '../../services/sync/types.js';
 
 const log = createLogger('documents:wolke');
@@ -31,20 +35,6 @@ const router: Router = express.Router();
 // Initialize services
 const wolkeSyncService = getWolkeSyncService();
 const postgresDocumentService = getPostgresDocumentService();
-
-// Supported file types for Wolke import
-const SUPPORTED_FILE_TYPES = ['.pdf', '.txt', '.md', '.doc', '.docx'];
-
-const wolkeSyncSchema = z.object({
-  shareLinkId: z.string().min(1),
-  folderPath: z.string().optional(),
-});
-
-const wolkeAutoSyncSchema = z.object({
-  shareLinkId: z.string().min(1),
-  folderPath: z.string().optional(),
-  enabled: z.boolean(),
-});
 
 const wolkeFileInfoSchema = z.object({
   name: z.string(),
@@ -57,104 +47,6 @@ const wolkeImportSchema = z.object({
   shareLinkId: z.string().min(1),
   files: z.array(wolkeFileInfoSchema).min(1),
 });
-
-/**
- * GET /sync-status - Get user's sync status
- */
-router.get('/sync-status', async (req: DocumentRequest, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    const syncStatuses = await wolkeSyncService.getUserSyncStatus(userId);
-
-    res.json({
-      success: true,
-      syncStatuses,
-    });
-  } catch (error) {
-    log.error('[GET /sync-status] Error:', error);
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to get sync status',
-    });
-  }
-});
-
-/**
- * POST /sync - Start folder sync (background operation)
- */
-router.post(
-  '/sync',
-  validateBody(wolkeSyncSchema),
-  async (req: TypedRequest<z.infer<typeof wolkeSyncSchema>>, res: Response): Promise<void> => {
-    try {
-      const { shareLinkId, folderPath = '' } = req.body;
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      // Start sync in background (fire and forget)
-      wolkeSyncService
-        .syncFolder(userId, shareLinkId, folderPath)
-        .then((result) => {
-          log.debug(`[POST /sync] Sync completed:`, result);
-        })
-        .catch((error) => {
-          log.error(`[POST /sync] Sync failed:`, error);
-        });
-
-      res.json({
-        success: true,
-        message: 'Folder sync started',
-        shareLinkId,
-        folderPath,
-      });
-    } catch (error) {
-      log.error('[POST /sync] Error:', error);
-      res.status(500).json({
-        success: false,
-        message: (error as Error).message || 'Failed to start folder sync',
-      });
-    }
-  }
-);
-
-/**
- * POST /auto-sync - Set auto-sync for a folder
- */
-router.post(
-  '/auto-sync',
-  validateBody(wolkeAutoSyncSchema),
-  async (req: TypedRequest<z.infer<typeof wolkeAutoSyncSchema>>, res: Response): Promise<void> => {
-    try {
-      const { shareLinkId, folderPath = '', enabled } = req.body;
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const result = await wolkeSyncService.setAutoSync(userId, shareLinkId, folderPath, enabled);
-
-      res.json({
-        ...result,
-        success: true,
-      });
-    } catch (error) {
-      log.error('[POST /auto-sync] Error:', error);
-      res.status(500).json({
-        success: false,
-        message: (error as Error).message || 'Failed to set auto-sync',
-      });
-    }
-  }
-);
 
 /**
  * GET /browse/:shareLinkId - Browse files in a Wolke share without syncing
@@ -178,20 +70,46 @@ router.get(
         return;
       }
 
-      const folderPath = (req.query.path as string) || '';
+      // `?path=a&path=b` makes Express hand back an array. The cast that used to
+      // stand here claimed otherwise, and every string method downstream threw.
+      const folderPath = typeof req.query.path === 'string' ? req.query.path : '';
+      // Opt-in: one PROPFIND per subfolder, and every file found becomes a
+      // download + OCR + embedding run at import time.
+      const recursive = req.query.recursive === 'true';
       log.debug(`[GET /browse/:shareLinkId] Browsing files for share link ${shareLinkId}`, {
         folderPath,
+        recursive,
       });
 
       const shareLink = await wolkeSyncService.getShareLink(userId, shareLinkId);
 
-      // List all files and folders (unfiltered, unlike listFolderContents which is for sync)
+      // Unfiltered on purpose: the UI decides what to show, the sync path filters.
       const client = await NextcloudApiClient.create(shareLink.share_link);
-      const files = await client.listFolder(folderPath || undefined);
+      const listFolder = (path: string) => client.listFolder(path || undefined);
+
+      // Non-recursive keeps returning directory entries: the folder tree browser
+      // uses this same endpoint to navigate and would lose its subfolders.
+      // The recursive walk returns files only — its whole point is that the
+      // caller no longer has to navigate.
+      let files: NextcloudListEntry[];
+      let folderCount: number;
+      let depthLimited = false;
+      let truncated = false;
+
+      if (recursive) {
+        const walk = await walkWolkeFolder(listFolder, folderPath);
+        files = walk.files;
+        folderCount = walk.folderCount;
+        depthLimited = walk.depthLimited;
+        truncated = walk.truncated;
+      } else {
+        files = await listFolder(folderPath);
+        folderCount = files.filter((entry) => entry.isDirectory).length;
+      }
 
       // Filter and enrich files with additional metadata for UI
       const enrichedFiles = files.map((file) => {
-        const fileExtension = path.extname(file.name).toLowerCase();
+        const fileExtension = wolkeFileExtension(file.name);
         const lastModified = file.lastModified;
         const lastModifiedStr = lastModified
           ? (typeof lastModified === 'string'
@@ -203,7 +121,7 @@ router.get(
         return {
           ...file,
           fileExtension,
-          isSupported: SUPPORTED_FILE_TYPES.includes(fileExtension),
+          isSupported: !file.isDirectory && isSupportedWolkeFile(file.name),
           sizeFormatted: file.size ? formatFileSize(file.size) : 'Unknown',
           lastModifiedFormatted: lastModifiedStr,
         };
@@ -219,11 +137,20 @@ router.get(
         files: enrichedFiles,
         totalFiles: enrichedFiles.length,
         supportedFiles: enrichedFiles.filter((f) => f.isSupported).length,
+        // Lets the caller say "6 subfolders were not pulled" instead of leaving
+        // them invisible, and name the limits when a recursive walk hit one.
+        folderCount,
+        recursive,
+        depthLimited,
+        truncated,
       });
     } catch (error) {
       log.error('[GET /browse/:shareLinkId] Error:', error);
       const message = (error as Error).message || 'Failed to browse Wolke files';
-      const status = message === 'Share link not found' ? 404 : 500;
+      // Ein `?path=` mit `..` ist eine schlechte Anfrage, kein Serverfehler —
+      // und ausdrücklich kein still zurechtgebogener Ordner (#3043).
+      const status =
+        error instanceof CloudPathError ? 400 : message === 'Share link not found' ? 404 : 500;
       res.status(status).json({ success: false, message });
     }
   }
@@ -303,9 +230,12 @@ router.post(
         } catch (error) {
           failedCount++;
           log.error(`[POST /import] Failed to process file ${fileInfo.name}:`, error);
+          // `reason` is what the UI renders — the raw message is for the log and
+          // for support, not for a label the user has to interpret.
           results.push({
             filename: fileInfo.name,
             success: false,
+            reason: 'processing_failed',
             error: (error as Error).message,
           });
         }

@@ -11,6 +11,13 @@ import React, { memo, useCallback, useMemo } from 'react';
 import { Group, Rect, Circle, Text } from 'react-konva';
 import useImage from 'use-image';
 
+import { type GeometryReporter } from '../hooks/useGeometryReporter';
+import { canvasImageSourceUrl } from '../utils/canvasImageSource';
+// Die Aufloesung von x/y/width/height/opacity steht seit #3403 ausserhalb:
+// `templateElementToEntry` braucht dieselbe Rechnung, und zwei Fassungen
+// derselben Arithmetik driften auseinander.
+import { resolveColor, resolveImageElementBox, resolveValue } from '../utils/resolveElementValue';
+import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
 import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
 import { useIsElementSelected } from '../stores/CanvasStoreProvider';
 import {
@@ -19,7 +26,6 @@ import {
   assertAsBoolean,
   assertAsPosition,
   assertAsOpacity,
-  assertAsScale,
   getStateValue,
   getOptionalStateValue,
 } from '../utils/stateTypeAssertions';
@@ -38,34 +44,6 @@ import type {
 import type { SnapTarget, SnapLine } from '../utils/snapping';
 
 // ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-/** Resolve a position value (static or derived) */
-function resolveValue<T, TState extends Record<string, unknown> = Record<string, unknown>>(
-  value: T | ((state: TState, layout: LayoutResult) => T),
-  state: TState,
-  layout: LayoutResult
-): T {
-  if (typeof value === 'function') {
-    return (value as (state: TState, layout: LayoutResult) => T)(state, layout);
-  }
-  return value;
-}
-
-/** Resolve a color value (static or derived) */
-function resolveColor<TState extends Record<string, unknown> = Record<string, unknown>>(
-  value: string | ((state: TState, layout: LayoutResult) => string) | undefined,
-  state: TState,
-  layout: LayoutResult
-): string | undefined {
-  if (typeof value === 'function') {
-    return (value as (state: TState, layout: LayoutResult) => string)(state, layout);
-  }
-  return value;
-}
-
-// ============================================================================
 // MEMOIZED TEXT ELEMENT
 // ============================================================================
 
@@ -78,6 +56,7 @@ interface MemoizedTextProps<TState extends Record<string, unknown> = Record<stri
   onTextChange: (id: string, text: string) => void;
   onFontSizeChange: (id: string, size: number) => void;
   onPositionChange: (id: string, x: number, y: number, w: number, h: number) => void;
+  onGeometryChange?: GeometryReporter;
   onSnapChange: (snapH: boolean, snapV: boolean) => void;
   onSnapLinesChange: (lines: SnapLine[]) => void;
   stageWidth: number;
@@ -95,6 +74,7 @@ const MemoizedTextElement = memo(
     onTextChange,
     onFontSizeChange,
     onPositionChange,
+    onGeometryChange,
     onSnapChange,
     onSnapLinesChange,
     stageWidth,
@@ -156,6 +136,7 @@ const MemoizedTextElement = memo(
         padding={padding}
         draggable={config.draggable ?? false}
         editable={config.editable ?? false}
+        richText={config.richText ?? false}
         opacity={opacity}
         selected={selected}
         onSelect={handleSelect}
@@ -166,6 +147,7 @@ const MemoizedTextElement = memo(
         onSnapChange={onSnapChange}
         snapTargets={snapTargets}
         onPositionChange={onPositionChange}
+        onGeometryChange={onGeometryChange}
         onSnapLinesChange={onSnapLinesChange}
       />
     );
@@ -228,6 +210,8 @@ interface MemoizedImageProps<TState extends Record<string, unknown> = Record<str
   onSelect: (id: string) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
   onTransformEnd: (id: string, x: number, y: number, w: number, h: number) => void;
+  onPositionChange?: (id: string, x: number, y: number, w: number, h: number) => void;
+  onGeometryChange?: GeometryReporter;
   stageWidth: number;
   stageHeight: number;
   onSnapChange: (snapH: boolean, snapV: boolean) => void;
@@ -235,125 +219,103 @@ interface MemoizedImageProps<TState extends Record<string, unknown> = Record<str
   snapTargets: SnapTarget[];
 }
 
-const MemoizedImageElement = memo(
-  function MemoizedImageElement<TState extends Record<string, unknown> = Record<string, unknown>>({
-    config,
-    state,
-    layout,
-    selected,
-    onSelect,
-    onDragEnd,
-    onTransformEnd,
-    stageWidth,
-    stageHeight,
-    onSnapChange,
-    onSnapLinesChange,
-    snapTargets,
-  }: MemoizedImageProps<TState>) {
-    // Resolve image source
-    let imageSrc: string | undefined;
-    if (config.srcKey) {
-      imageSrc = getOptionalStateValue<string>(state, config.srcKey);
-    } else if (config.src) {
-      imageSrc = typeof config.src === 'function' ? config.src(state) : config.src;
-    }
-
-    const [image] = useImage(imageSrc || '', 'anonymous');
-
-    const offset = config.offsetKey ? assertAsPosition(state[config.offsetKey]) : { x: 0, y: 0 };
-    const scale = config.scaleKey ? assertAsScale(state[config.scaleKey]) : 1;
-    const isLocked = config.lockedKey ? assertAsBoolean(state[config.lockedKey]) : false;
-    const customOpacity = getOptionalStateValue<number>(state, config.opacityStateKey);
-    const opacity = assertAsOpacity(
-      customOpacity ?? (config.opacity ? resolveValue(config.opacity, state, layout) : 1)
-    );
-    const customFill = getOptionalStateValue<string>(state, config.fillStateKey);
-    const fill = customFill ?? resolveColor(config.fill, state, layout);
-
-    const x = resolveValue(config.x, state, layout) + offset.x;
-    const y = resolveValue(config.y, state, layout) + offset.y;
-    const width = resolveValue(config.width, state, layout) * scale;
-    const height = resolveValue(config.height, state, layout) * scale;
-
-    const handleSelect = useCallback(() => onSelect(config.id), [onSelect, config.id]);
-    const handleDragEnd = useCallback(
-      (newX: number, newY: number) => onDragEnd(config.id, newX, newY),
-      [onDragEnd, config.id]
-    );
-    const handleTransformEnd = useCallback(
-      (newX: number, newY: number, w: number, h: number) =>
-        onTransformEnd(config.id, newX, newY, w, h),
-      [onTransformEnd, config.id]
-    );
-
-    if (!image) return null;
-
-    return (
-      <CanvasImage
-        id={config.id}
-        image={image}
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        opacity={opacity}
-        color={typeof fill === 'string' ? fill : undefined}
-        coverFit={config.coverFit}
-        draggable={config.draggable && !isLocked}
-        selected={selected}
-        onSelect={handleSelect}
-        onDragEnd={handleDragEnd}
-        onTransformEnd={handleTransformEnd}
-        stageWidth={stageWidth}
-        stageHeight={stageHeight}
-        onSnapChange={onSnapChange}
-        snapTargets={snapTargets}
-        onSnapLinesChange={onSnapLinesChange}
-        listening={config.listening}
-        constrainToBounds={config.constrainToBounds ?? true}
-        transformConfig={
-          config.transformable
-            ? {
-                enabledAnchors: isLocked
-                  ? []
-                  : ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
-                rotateEnabled: false,
-                keepRatio: true,
-              }
-            : undefined
-        }
-      />
-    );
-  },
-  (prev, next) => {
-    if (prev.config.id !== next.config.id) return false;
-    if (prev.selected !== next.selected) return false;
-
-    const srcKey = prev.config.srcKey;
-    if (srcKey && prev.state[srcKey] !== next.state[srcKey]) return false;
-
-    const offsetKey = prev.config.offsetKey;
-    if (offsetKey) {
-      const prevOffset = assertAsPosition(prev.state[offsetKey]);
-      const nextOffset = assertAsPosition(next.state[offsetKey]);
-      if (prevOffset.x !== nextOffset.x || prevOffset.y !== nextOffset.y) return false;
-    }
-
-    const scaleKey = prev.config.scaleKey;
-    if (scaleKey && prev.state[scaleKey] !== next.state[scaleKey]) return false;
-
-    const lockedKey = prev.config.lockedKey;
-    if (lockedKey && prev.state[lockedKey] !== next.state[lockedKey]) return false;
-
-    const opacityKey = prev.config.opacityStateKey;
-    if (opacityKey && prev.state[opacityKey] !== next.state[opacityKey]) return false;
-
-    const fillKey = prev.config.fillStateKey;
-    if (fillKey && prev.state[fillKey] !== next.state[fillKey]) return false;
-
-    return true;
+const MemoizedImageElement = memo(function MemoizedImageElement<
+  TState extends Record<string, unknown> = Record<string, unknown>,
+>({
+  config,
+  state,
+  layout,
+  selected,
+  onSelect,
+  onDragEnd,
+  onTransformEnd,
+  onPositionChange,
+  onGeometryChange,
+  stageWidth,
+  stageHeight,
+  onSnapChange,
+  onSnapLinesChange,
+  snapTargets,
+}: MemoizedImageProps<TState>) {
+  // Resolve image source
+  let imageSrc: string | undefined;
+  if (config.srcKey) {
+    imageSrc = getOptionalStateValue<string>(state, config.srcKey);
+  } else if (config.src) {
+    imageSrc = typeof config.src === 'function' ? config.src(state) : config.src;
   }
-);
+
+  // `sizeStateKey` wurde bisher nur geschrieben (handleImageTransformEnd) und
+  // nie gelesen — Groessenaenderungen an Profilbild und Sonnenblume fielen
+  // beim naechsten Neuzeichnen zurueck.
+  const { x, y, width, height, opacity } = resolveImageElementBox(config, state, layout);
+
+  // Render the server's working-size WebP variant instead of the raw original:
+  // the original is kept on disk for the gallery, but loading multi-MB
+  // full-resolution bytes made background swaps feel endless. The variant is
+  // only export-quality while the element draws narrow enough; wider (zoomed
+  // or resized) elements load the stored original instead.
+  const [image] = useImage(canvasImageSourceUrl(imageSrc, width) ?? '', 'anonymous');
+
+  const isLocked = config.lockedKey ? assertAsBoolean(state[config.lockedKey]) : false;
+  const customFill = getOptionalStateValue<string>(state, config.fillStateKey);
+  const fill = customFill ?? resolveColor(config.fill, state, layout);
+
+  const handleSelect = useCallback(() => onSelect(config.id), [onSelect, config.id]);
+  const handleDragEnd = useCallback(
+    (newX: number, newY: number) => onDragEnd(config.id, newX, newY),
+    [onDragEnd, config.id]
+  );
+  const handleTransformEnd = useCallback(
+    (newX: number, newY: number, w: number, h: number) =>
+      onTransformEnd(config.id, newX, newY, w, h),
+    [onTransformEnd, config.id]
+  );
+
+  if (!image) return null;
+
+  return (
+    <CanvasImage
+      id={config.id}
+      image={image}
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+      opacity={opacity}
+      color={typeof fill === 'string' ? fill : undefined}
+      coverFit={config.coverFit}
+      draggable={config.draggable && !isLocked}
+      selected={selected}
+      onSelect={handleSelect}
+      onDragEnd={handleDragEnd}
+      onTransformEnd={handleTransformEnd}
+      stageWidth={stageWidth}
+      stageHeight={stageHeight}
+      onSnapChange={onSnapChange}
+      snapTargets={snapTargets}
+      onPositionChange={onPositionChange}
+      onGeometryChange={onGeometryChange}
+      onSnapLinesChange={onSnapLinesChange}
+      listening={config.listening}
+      constrainToBounds={config.constrainToBounds ?? true}
+      transformConfig={{
+        // A non-transformable (or locked) image shows no resize handles. Without
+        // this, CanvasImage falls back to DEFAULT_IMAGE_ANCHORS, so a selectable
+        // but non-transformable slot (e.g. the veranstaltung photo band,
+        // draggable: false) would still expose all four corner handles and let a
+        // user resize/move it via the Transformer — writing an unbounded
+        // offset/scale straight past the centerZoom/coverFit assumptions.
+        enabledAnchors:
+          config.transformable && !isLocked
+            ? ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+            : [],
+        rotateEnabled: false,
+        keepRatio: true,
+      }}
+    />
+  );
+}, imageRenderInputsAreEqual);
 
 // ============================================================================
 // MEMOIZED RECT ELEMENT
@@ -469,6 +431,8 @@ export interface GenericCanvasElementProps<
   onTextChange: (id: string, text: string) => void;
   onFontSizeChange: (id: string, size: number) => void;
   onPositionChange: (id: string, x: number, y: number, w: number, h: number) => void;
+  /** Meldet gerenderte Geometrie als Snap-Ziel (ohne den Zustand anzufassen). */
+  onGeometryChange?: GeometryReporter;
   onImageDragEnd: (id: string, x: number, y: number) => void;
   onImageTransformEnd: (id: string, x: number, y: number, w: number, h: number) => void;
   onSnapChange: (snapH: boolean, snapV: boolean) => void;
@@ -488,6 +452,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
   onTextChange,
   onFontSizeChange,
   onPositionChange,
+  onGeometryChange,
   onImageDragEnd,
   onImageTransformEnd,
   onSnapChange,
@@ -515,6 +480,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
           onTextChange={onTextChange}
           onFontSizeChange={onFontSizeChange}
           onPositionChange={onPositionChange}
+          onGeometryChange={onGeometryChange}
           onSnapChange={onSnapChange}
           onSnapLinesChange={onSnapLinesChange}
           stageWidth={stageWidth}
@@ -533,6 +499,8 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
           onSelect={onSelect}
           onDragEnd={onImageDragEnd}
           onTransformEnd={onImageTransformEnd}
+          onPositionChange={onPositionChange}
+          onGeometryChange={onGeometryChange}
           stageWidth={stageWidth}
           stageHeight={stageHeight}
           onSnapChange={onSnapChange}
@@ -592,6 +560,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
               onTextChange={onTextChange}
               onFontSizeChange={onFontSizeChange}
               onPositionChange={onPositionChange}
+              onGeometryChange={onGeometryChange}
               onImageDragEnd={onImageDragEnd}
               onImageTransformEnd={onImageTransformEnd}
               onSnapChange={onSnapChange}

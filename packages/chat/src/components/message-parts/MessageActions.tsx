@@ -1,6 +1,7 @@
 'use client';
 
 import { ActionBarPrimitive } from '@assistant-ui/react';
+import { sourceLinksToCitations } from '@gruenerator/shared/utils';
 import {
   DropdownMenuItem,
   ResponsiveMenu,
@@ -22,9 +23,9 @@ import {
 import { memo, useState } from 'react';
 import { HiOutlineDocumentText } from 'react-icons/hi';
 
-import { useExtraActions } from '../../context/ExtraActionsContext';
+import { useReadonlyMode } from '../../context/ReadonlyModeContext';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
-// import { MessageTTSButton } from './MessageTTSButton';
+import { downloadBlob } from '../../lib/downloadBlob';
 import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
 import {
   buildDocumentActions,
@@ -38,6 +39,8 @@ import { useChatDensity } from '../thread/chatDensityContext';
 
 import { MessageBranchPicker } from './MessageBranchPicker';
 import { MessageSourcesButton } from './MessageSourcesButton';
+import { MessageTime } from './MessageTimestamp';
+import { MessageTTSButton } from './MessageTTSButton';
 
 import type { Citation, ChatMessage } from '../../hooks/useChatGraphStream';
 import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
@@ -47,17 +50,6 @@ import type { ReactNode } from 'react';
 interface DocumentActionUi {
   icon: ReactNode;
   run: () => Promise<void>;
-}
-
-function downloadBlob(blob: Blob, filename: string): void {
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
 }
 
 interface MessageActionsProps {
@@ -73,15 +65,18 @@ interface MessageActionsProps {
 }
 
 export const MessageActions = memo(function MessageActions({
-  content,
+  content: rawContent,
   metadata,
   showFeedback = false,
   sources,
   sourcesOpen = false,
   onToggleSources,
 }: MessageActionsProps) {
-  const extraActions = useExtraActions();
+  // Every outlet below (copy, export, TTS) is plain text: a source link
+  // `[Titel](quelle:N)` leaves the chat as `Titel [N]`, the form they know.
+  const content = sourceLinksToCitations(rawContent);
   const isCompact = useChatDensity() === 'compact';
+  const readOnly = useReadonlyMode();
   const handleRegenerate = useRegenerateMessage();
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<DocumentActionId | null>(null);
@@ -110,7 +105,7 @@ export const MessageActions = memo(function MessageActions({
       });
 
       if (!response.ok) throw new Error(`Export failed (HTTP ${response.status})`);
-      downloadBlob(
+      await downloadBlob(
         await response.blob(),
         filenameFromDisposition(response.headers.get('Content-Disposition'), 'docx')
       );
@@ -135,7 +130,7 @@ export const MessageActions = memo(function MessageActions({
       });
 
       if (!response.ok) throw new Error(`Export failed (HTTP ${response.status})`);
-      downloadBlob(
+      await downloadBlob(
         await response.blob(),
         filenameFromDisposition(response.headers.get('Content-Disposition'), 'pdf')
       );
@@ -235,7 +230,7 @@ export const MessageActions = memo(function MessageActions({
       >
         {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
       </button>
-      {/* <MessageTTSButton content={content} /> */}
+      <MessageTTSButton content={content} />
       {/*
         One document button, four destinations. Download and "im Editor
         bearbeiten" used to be two glyphs side by side, which left no room for
@@ -287,28 +282,18 @@ export const MessageActions = memo(function MessageActions({
           </ResponsiveMenuSection>
         }
       />
-      <button
-        onClick={handleRegenerate}
-        className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-        aria-label="Neu generieren"
-        title="Neu generieren"
-      >
-        <RefreshCw className="h-4 w-4" />
-      </button>
-      <MessageBranchPicker />
-      {extraActions?.map((action) => (
+      {!readOnly && (
         <button
-          key={action.id}
-          onClick={action.onClick}
-          disabled={action.disabled || action.loading}
-          className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground disabled:opacity-50"
-          aria-label={action.label}
-          title={action.label}
+          onClick={handleRegenerate}
+          className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+          aria-label="Neu generieren"
+          title="Neu generieren"
         >
-          {action.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : action.icon}
+          <RefreshCw className="h-4 w-4" />
         </button>
-      ))}
-      {showFeedback && (
+      )}
+      <MessageBranchPicker />
+      {showFeedback && !readOnly && (
         <>
           <ActionBarPrimitive.FeedbackPositive
             className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground data-[submitted]:text-primary"
@@ -329,6 +314,7 @@ export const MessageActions = memo(function MessageActions({
       {sources && sources.length > 0 && onToggleSources && (
         <MessageSourcesButton citations={sources} open={sourcesOpen} onToggle={onToggleSources} />
       )}
+      <MessageTime className="ml-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100" />
     </div>
   );
 });

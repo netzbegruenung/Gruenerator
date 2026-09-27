@@ -8,10 +8,15 @@
  * test fails if a field ever stops being mapped.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import { buildChunkPayloadFields } from './searchOperations.js';
 import type { QdrantResultPayload } from './types.js';
+
+vi.mock('../../scrapers/utils/wolkeShareSecrets.js', () => ({
+  resolveWolkeDisplayUrl: (url: string) =>
+    url.replace('wolke://berlin-wps/', 'https://wolke.netzbegruenung.de/s/TESTTOKEN#/'),
+}));
 
 const FULL_PAYLOAD: QdrantResultPayload = {
   document_id: 'doc-1',
@@ -21,6 +26,10 @@ const FULL_PAYLOAD: QdrantResultPayload = {
   quality_score: 0.8,
   content_type: 'paragraph',
   page_number: 7,
+  chunk_type: 'table',
+  embedding_model: 'mistral-embed',
+  char_start: 120,
+  char_end: 1580,
   created_at: '2024-01-01T00:00:00Z',
   title: 'A Title',
   filename: 'file.pdf',
@@ -28,6 +37,8 @@ const FULL_PAYLOAD: QdrantResultPayload = {
   published_at: '2024-03-01T00:00:00Z',
   source_url: 'https://example.org/x',
   source_id: 'src-9',
+  content_type_label: 'Pressemitteilung',
+  source_name: 'Bündnis 90/Die Grünen Berlin',
 };
 
 // Every payload-derived field the downstream pipeline relies on. If a mapper
@@ -40,9 +51,15 @@ const REQUIRED_KEYS = [
   'quality_score',
   'content_type',
   'page_number',
+  'chunk_type',
+  'embedding_model',
+  'char_start',
+  'char_end',
   'created_at',
   'published_at',
   'source_id',
+  'content_type_label',
+  'source_name',
   'url',
   'documents',
 ] as const;
@@ -53,7 +70,13 @@ describe('buildChunkPayloadFields', () => {
     expect(out.quality_score).toBe(0.8);
     expect(out.page_number).toBe(7);
     expect(out.content_type).toBe('paragraph');
+    expect(out.chunk_type).toBe('table');
+    expect(out.embedding_model).toBe('mistral-embed');
+    expect(out.char_start).toBe(120);
+    expect(out.char_end).toBe(1580);
     expect(out.source_id).toBe('src-9');
+    expect(out.content_type_label).toBe('Pressemitteilung');
+    expect(out.source_name).toBe('Bündnis 90/Die Grünen Berlin');
     expect(out.published_at).toBe('2024-03-01T00:00:00Z');
     expect(out.url).toBe('https://example.org/x');
     expect(out.documents).toEqual({
@@ -88,7 +111,32 @@ describe('buildChunkPayloadFields', () => {
     expect(out.document_id).toBe('');
     expect(out.quality_score).toBeNull();
     expect(out.page_number).toBeNull();
+    expect(out.chunk_type).toBeNull();
+    // Ein Punkt aus der Zeit vor #3224 trägt das Feld nicht. `null` ist die
+    // Antwort „unbekannt, also alt" und darf nie zu '' verrutschen.
+    expect(out.embedding_model).toBeNull();
+    // Ein Chunk aus der Zeit vor #3223, oder einer, der im Rohtext nicht
+    // auffindbar war. Beide Felder fallen zusammen aus, nie einzeln.
+    expect(out.char_start).toBeNull();
+    expect(out.char_end).toBeNull();
     expect(out.published_at).toBeNull();
     expect(out.documents.title).toBe('Untitled');
+  });
+});
+
+describe('buildChunkPayloadFields with a Wolke payload', () => {
+  it('resolves the display url and keeps the stored key everywhere else', () => {
+    const out = buildChunkPayloadFields({
+      ...FULL_PAYLOAD,
+      document_id: undefined,
+      source_url: 'wolke://berlin-wps/WPS 2026/Grüne Antwort.pdf',
+    } as QdrantResultPayload);
+    expect(out.url).toBe('https://wolke.netzbegruenung.de/s/TESTTOKEN#/WPS 2026/Grüne Antwort.pdf');
+    expect(out.document_id).toBe('wolke://berlin-wps/WPS 2026/Grüne Antwort.pdf');
+    expect(out.documents.id).toBe('wolke://berlin-wps/WPS 2026/Grüne Antwort.pdf');
+    expect(out.chunk_text).toBe('hello');
+    expect(out.source_id).toBe('src-9');
+    expect(out.content_type_label).toBe('Pressemitteilung');
+    expect(out.source_name).toBe('Bündnis 90/Die Grünen Berlin');
   });
 });

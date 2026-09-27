@@ -8,9 +8,8 @@ import { useCallback, useRef, useState } from 'react';
 import * as tus from 'tus-js-client';
 
 import apiClient from '../../../components/utils/apiClient';
-import { getDesktopToken } from '../../../utils/desktopAuth';
-import { isDesktopApp } from '../../../utils/platform';
 import { platformFetch } from '../../../utils/platformFetch';
+import { getTusAuthOptions } from '../../../utils/tusAuth';
 
 // Re-exported so feature code keeps a local import path while the shape stays
 // owned by the contract schema.
@@ -126,19 +125,13 @@ async function parseSSEStream(response: Response, callbacks: SSECallbacks): Prom
   return sawDone;
 }
 
-/**
- * `/api/audio/upload` is behind requireAuth, so the TUS request has to carry a
- * credential like every other API call: the session cookie on web, and the
- * stored bearer token in the desktop shell, whose `tauri://localhost` origin
- * has no cookie to send. Mirrors what `platformFetch` does for plain fetches.
- */
+/** `/api/audio/upload` is behind requireAuth — see `getTusAuthOptions`. */
 async function tusUpload(
   file: File,
   onProgress: (percent: number) => void,
   signal: AbortSignal
 ): Promise<string> {
-  const isDesktop = isDesktopApp();
-  const token = isDesktop ? await getDesktopToken() : null;
+  const authOptions = await getTusAuthOptions();
 
   return new Promise((resolve, reject) => {
     const upload = new tus.Upload(file, {
@@ -146,15 +139,7 @@ async function tusUpload(
       retryDelays: [0, 3000, 5000, 10000, 20000],
       chunkSize: 5 * 1024 * 1024,
       metadata: { filename: file.name, filetype: file.type },
-      ...(token != null && { headers: { Authorization: `Bearer ${token}` } }),
-      // tus-js-client has no `withCredentials` option; the documented way to
-      // send cookies is to reach the underlying XHR. Bearer auth is
-      // cross-origin on desktop, so there are no cookies to send there.
-      onBeforeRequest: (req) => {
-        if (isDesktop) return;
-        const xhr = req.getUnderlyingObject() as XMLHttpRequest | undefined;
-        if (xhr) xhr.withCredentials = true;
-      },
+      ...authOptions,
       onError: (err) => reject(err),
       onProgress: (bytesUploaded, bytesTotal) => {
         onProgress(Math.round((bytesUploaded / bytesTotal) * 100));

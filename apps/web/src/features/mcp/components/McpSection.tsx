@@ -4,6 +4,7 @@
  * of hand-picked, remote-hosted servers plus a custom-server form. Auth is
  * `none`, `bearer` (token dialog) or `oauth` (PKCE/DCR popup).
  */
+import { connectorBrandIcon } from '@gruenerator/chat/connectors';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
 import {
   Dialog,
@@ -16,24 +17,7 @@ import {
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { FiServer, FiSearch, FiCheck, FiRefreshCw } from 'react-icons/fi';
-import {
-  SiNotion,
-  SiCoda,
-  SiHubspot,
-  SiBrevo,
-  SiStatista,
-  SiZapier,
-  SiGooglemaps,
-  SiTypeform,
-  SiZoom,
-  SiTodoist,
-  SiMiro,
-  SiIfttt,
-  SiBookingdotcom,
-  SiExpedia,
-  SiTrivago,
-} from 'react-icons/si';
+import { FiServer, FiSearch, FiCheck, FiRefreshCw, FiAlertCircle } from 'react-icons/fi';
 
 import {
   useMcpServers,
@@ -52,13 +36,12 @@ import {
   testMcpServer,
   McpOAuthStartError,
   type McpAuthType,
+  type McpServerTestResult,
   type McpOAuthErrorCode,
   type McpRegistryEntry,
   type McpServerSummary,
 } from '../lib/mcpApi';
 import { openOAuthPopup, waitForOAuthPopup } from '../lib/mcpOAuthPopup';
-
-import type { IconType } from 'react-icons';
 
 import { SettingsCardsSkeleton } from '@/features/settings/components/SettingsSkeleton';
 import { cn } from '@/utils/cn';
@@ -111,34 +94,12 @@ async function runOAuth(resolveServerId: () => Promise<string>): Promise<RunOAut
 
 // ── Presentation helpers ─────────────────────────────────────────────────────
 
-// Real vendor logos where Simple Icons ships one; keyword-matched so it works on
-// both a title ("Notion") and a connected server's host ("mcp.notion.com"). Any
-// service without a match keeps the coloured-monogram fallback below.
-const BRAND_ICONS: ReadonlyArray<readonly [RegExp, IconType]> = [
-  [/notion/i, SiNotion],
-  [/coda/i, SiCoda],
-  [/hubspot/i, SiHubspot],
-  [/brevo/i, SiBrevo],
-  [/statista/i, SiStatista],
-  [/zapier/i, SiZapier],
-  [/google\s*maps|mapstools|maps\.google/i, SiGooglemaps],
-  [/typeform/i, SiTypeform],
-  [/zoom/i, SiZoom],
-  [/todoist/i, SiTodoist],
-  [/miro/i, SiMiro],
-  [/ifttt/i, SiIfttt],
-  [/booking/i, SiBookingdotcom],
-  [/expedia/i, SiExpedia],
-  [/trivago/i, SiTrivago],
-];
-
-function brandIcon(label: string): IconType | null {
-  for (const [re, Icon] of BRAND_ICONS) if (re.test(label)) return Icon;
-  return null;
-}
-
+// Vendor logos come from the same registry the composer chip draws from — this
+// page and the chip once kept separate lists and drifted, so a service showed
+// its logo here and a generic plug there. A service with no match keeps the
+// coloured-monogram fallback below.
 const McpLogo = memo(({ title, size = 50 }: { title: string; size?: number }) => {
-  const Icon = brandIcon(title);
+  const Icon = connectorBrandIcon(title);
   return (
     <div
       className="flex-none flex items-center justify-center rounded-xl text-white font-bold select-none"
@@ -188,6 +149,34 @@ const ToolChips = memo(({ tools, max = 16 }: { tools: string[]; max?: number }) 
   );
 });
 ToolChips.displayName = 'ToolChips';
+
+/** Die Detailfelder der Testantwort, die das UI anzeigt. */
+type McpTestDetails = Pick<
+  McpServerTestResult,
+  'transport' | 'protocolVersion' | 'skippedTools' | 'truncatedTools' | 'hint'
+>;
+
+/**
+ * Was beim Support-Fall „0 Tools" fehlte: der Handgriff zur Meldung und die
+ * harten Fakten darunter (Transport, Protokollversion, verworfene Einträge).
+ * Der Hinweis steht bewusst über den Fakten — er ist das, was zu tun ist.
+ */
+const McpTestDiagnostics = memo(({ result }: { result: McpTestDetails }) => {
+  const facts: string[] = [];
+  if (result.transport)
+    facts.push(result.transport === 'sse' ? 'Transport: SSE' : 'Transport: HTTP');
+  if (result.protocolVersion) facts.push(`Protokoll: ${result.protocolVersion}`);
+  if (result.skippedTools) facts.push(`${result.skippedTools} unbrauchbare Einträge übersprungen`);
+  if (result.truncatedTools) facts.push(`${result.truncatedTools} weitere Werkzeuge abgeschnitten`);
+  if (!result.hint && facts.length === 0) return null;
+  return (
+    <>
+      {result.hint && <span className="text-xs text-grey-500">{result.hint}</span>}
+      {facts.length > 0 && <span className="text-[11px] text-grey-400">{facts.join(' · ')}</span>}
+    </>
+  );
+});
+McpTestDiagnostics.displayName = 'McpTestDiagnostics';
 
 // ── Add-form ─────────────────────────────────────────────────────────────────
 
@@ -340,11 +329,9 @@ const McpServerRow = memo(
     const update = useUpdateMcpServer();
     const test = useTestMcpServer();
     const queryClient = useQueryClient();
-    const [testResult, setTestResult] = useState<{
-      ok: boolean;
-      tools: string[];
-      error: string | null;
-    } | null>(null);
+    const [testResult, setTestResult] = useState<
+      ({ ok: boolean; tools: string[]; error: string | null } & McpTestDetails) | null
+    >(null);
 
     // A managed connector is operated by us: no OAuth to complete, nothing to
     // remove, and "Verbunden" would be misleading — nobody connected it.
@@ -377,7 +364,14 @@ const McpServerRow = memo(
           setTestResult({
             ok: r.ok,
             tools: r.toolNames,
+            // Bei null Werkzeugen trägt der Backend-Hinweis die Erklärung, auch
+            // wenn der Verbindungsaufbau selbst geklappt hat.
             error: r.ok ? null : (r.error ?? 'Verbindung fehlgeschlagen'),
+            transport: r.transport,
+            protocolVersion: r.protocolVersion,
+            skippedTools: r.skippedTools,
+            truncatedTools: r.truncatedTools,
+            hint: r.hint,
           }),
         onError: (err) =>
           setTestResult({
@@ -467,19 +461,32 @@ const McpServerRow = memo(
         {testResult &&
           (testResult.ok ? (
             <div className="flex flex-col gap-1.5">
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1.5 text-xs font-semibold',
-                  okTextClass
-                )}
-              >
-                <FiCheck className="w-3.5 h-3.5" />
-                {testResult.tools.length} Tools verfügbar
-              </span>
+              {/* Ein erreichbarer Server ohne Werkzeuge ist kein Erfolg — grün mit
+                  „0 Tools verfügbar" hat genau diesen Fall als in Ordnung gemeldet. */}
+              {testResult.tools.length === 0 ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                  <FiAlertCircle className="w-3.5 h-3.5" />
+                  Verbunden, aber der Server meldet keine Werkzeuge
+                </span>
+              ) : (
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1.5 text-xs font-semibold',
+                    okTextClass
+                  )}
+                >
+                  <FiCheck className="w-3.5 h-3.5" />
+                  {testResult.tools.length} Tools verfügbar
+                </span>
+              )}
               <ToolChips tools={testResult.tools} />
+              <McpTestDiagnostics result={testResult} />
             </div>
           ) : (
-            <span className="text-xs text-grey-500">✗ {testResult.error}</span>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-grey-500">✗ {testResult.error}</span>
+              <McpTestDiagnostics result={testResult} />
+            </div>
           ))}
       </div>
     );
@@ -591,12 +598,22 @@ const BearerConnectDialog = ({
 
         {tools ? (
           <div className="flex flex-col gap-sm">
-            <span
-              className={cn('inline-flex items-center gap-1.5 text-sm font-semibold', okTextClass)}
-            >
-              <FiCheck className="w-4 h-4" />
-              Verbunden — {tools.length} Tools verfügbar
-            </span>
+            {tools.length === 0 ? (
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-600 dark:text-amber-400">
+                <FiAlertCircle className="w-4 h-4" />
+                Verbunden, aber der Server meldet keine Werkzeuge — bitte den Token prüfen
+              </span>
+            ) : (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1.5 text-sm font-semibold',
+                  okTextClass
+                )}
+              >
+                <FiCheck className="w-4 h-4" />
+                Verbunden — {tools.length} Tools verfügbar
+              </span>
+            )}
             <ToolChips tools={tools} max={10} />
           </div>
         ) : (

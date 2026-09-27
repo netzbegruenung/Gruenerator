@@ -77,6 +77,42 @@ describe('getInternalSkillPrompt', () => {
   });
 });
 
+describe('{{base:…}} composition', () => {
+  it('substitutes a shared block from skills/_base', async () => {
+    mkdirSync(join(root, 'skills', '_base'));
+    writeFileSync(join(root, 'skills', '_base', 'pressemitteilung.md'), 'Rahmen um ein Zitat.\n');
+    writeFileSync(
+      join(root, 'skills', 'presse-hessen-fraktion.md'),
+      'Hessen, 900 Zeichen.\n\n{{base:pressemitteilung}}\n\nUnterzeile setzen.\n'
+    );
+    const { getInternalSkillPrompt } = await loadModule();
+
+    expect(getInternalSkillPrompt('presse-hessen-fraktion')).toBe(
+      'Hessen, 900 Zeichen.\n\nRahmen um ein Zitat.\n\nUnterzeile setzen.'
+    );
+  });
+
+  it('drops the marker when the base block is missing, rather than shipping it', async () => {
+    writeFileSync(
+      join(root, 'skills', 'presse-hessen-fraktion.md'),
+      'Hessen.\n\n{{base:fehlt}}\nRest.\n'
+    );
+    const { getInternalSkillPrompt } = await loadModule();
+
+    expect(getInternalSkillPrompt('presse-hessen-fraktion')).toBe('Hessen.\n\nRest.');
+  });
+
+  it('does not offer base blocks as recipes of their own', async () => {
+    mkdirSync(join(root, 'skills', '_base'));
+    writeFileSync(join(root, 'skills', '_base', 'pressemitteilung.md'), 'Rahmen um ein Zitat.');
+    writeFileSync(join(root, 'skills', 'presse.md'), 'Rezept.');
+    const { getInternalSkillPrompt, getInternalPromptCount } = await loadModule();
+
+    expect(getInternalPromptCount('skills')).toBe(1);
+    expect(getInternalSkillPrompt('pressemitteilung')).toBeNull();
+  });
+});
+
 describe('getInternalAgentPrompt', () => {
   it('returns the persona of an agent, keyed by identifier', async () => {
     writeFileSync(join(root, 'agents', 'gruenerator-antrag.md'), 'Du bist Antragsprofi.\n');

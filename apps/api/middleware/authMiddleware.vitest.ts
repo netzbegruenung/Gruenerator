@@ -32,11 +32,17 @@ const getSessionMock = vi.fn();
 
 vi.mock('../config/betterAuth.js', () => ({
   auth: { api: { getSession: getSessionMock } },
+  SESSION_COOKIE_PREFIX: 'ba',
 }));
 
 // The locale overlay would otherwise hit Redis/Postgres and hang the test.
+// `LOCALE_UNSET` muss mit: fehlt ein benannter Export in der Attrappe, wirft
+// schon der Import — und der Fehler landet im catch von `tryResolveUser`, wo er
+// wie „keine Session" aussieht statt wie ein kaputter Testdoppel.
+const getUserLocaleMock = vi.fn().mockResolvedValue(null);
 vi.mock('../services/localization/localeCache.js', () => ({
-  getUserLocale: vi.fn().mockResolvedValue(null),
+  getUserLocale: getUserLocaleMock,
+  LOCALE_UNSET: 'unset',
 }));
 
 // Default env — individual tests override via `envMock.*` assignment.
@@ -49,6 +55,31 @@ const envMock = {
 vi.mock('../config/env.js', () => ({
   get env() {
     return envMock;
+  },
+}));
+
+// `session_not_found` classification: the middleware asks Postgres whether the
+// presented token still has a live row, so the three causes Better Auth
+// collapses into one null answer stay distinguishable.
+const sessionRowsMock = vi.fn<() => Promise<{ expires_at: Date }[]>>();
+
+vi.mock('../database/services/DrizzleService.js', () => ({
+  getDrizzleInstance: () => ({
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: () => sessionRowsMock(),
+        }),
+      }),
+    }),
+  }),
+}));
+
+const captureAuthIssueMock = vi.fn<(opts: Record<string, unknown>) => void>();
+
+vi.mock('../utils/observability/captureAuthIssue.js', () => ({
+  captureAuthIssue: (opts: Record<string, unknown>): void => {
+    captureAuthIssueMock(opts);
   },
 }));
 
@@ -97,6 +128,9 @@ function mockRes() {
 
 beforeEach(() => {
   getSessionMock.mockReset();
+  sessionRowsMock.mockReset();
+  sessionRowsMock.mockResolvedValue([]);
+  captureAuthIssueMock.mockReset();
   envMock.NODE_ENV = 'development';
   envMock.ALLOW_DEV_AUTH_BYPASS = false;
   envMock.DEV_AUTH_BYPASS_TOKEN = null;
@@ -203,6 +237,11 @@ describe('requireAuth', () => {
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user?.id).toBe('00000000-0000-4000-a000-000000000001');
+    // Der Bypass-Nutzer hat keine Profilzeile, also auch keine Einwilligung,
+    // die er erteilen könnte. Ohne diesen festen Zeitstempel säße jeder lokale
+    // Lauf hinter dem Einwilligungs-Dialog bzw. hinter `requireAiConsent`.
+    expect(req.user?.ai_consent_at).not.toBeNull();
+    expect(req.user?.ai_consent_at).toBeTruthy();
   });
 
   it('rejects dev bypass with wrong token even in development', async () => {
@@ -288,6 +327,71 @@ describe('requireAuth', () => {
   });
 });
 
+// ── session_not_found classification ──────────────────────────────────────
+//
+// A token cookie that resolves to nothing has three causes wearing the same
+// 401. Only one of them is a defect: a row that is present AND unexpired.
+// Without this distinction the frontend's teardown telemetry shows the
+// identical symptom for an ordinary expiry and for a broken cookie signature
+// / corrupt Redis value — which is exactly how the latter stayed invisible.
+
+describe('session_not_found row classification', () => {
+  async function fireResolveNull(token: string) {
+    getSessionMock.mockResolvedValue(null);
+    const req = mockReq({
+      originalUrl: '/api/notifications',
+      headers: { cookie: `__Secure-ba.session_token=${token}.somesignature` },
+    });
+    const { res, state } = mockRes();
+    await requireAuth(req, res, vi.fn() as NextFunction);
+    return state;
+  }
+
+  it('reports a live, unexpired row as an auth issue', async () => {
+    sessionRowsMock.mockResolvedValue([{ expires_at: new Date(Date.now() + 86_400_000) }]);
+
+    const state = await fireResolveNull('livetok1');
+
+    expect(state.statusCode).toBe(401);
+    expect(state.body).toMatchObject({ code: 'session_not_found' });
+    await vi.waitFor(() => expect(captureAuthIssueMock).toHaveBeenCalledTimes(1));
+    expect(captureAuthIssueMock.mock.calls[0]?.[0]).toMatchObject({
+      stage: 'session-resolve',
+      extras: { rowState: 'live', tokenPrefix: 'livetok1' },
+    });
+  });
+
+  it('stays silent for an expired row — the ordinary session expiry', async () => {
+    sessionRowsMock.mockResolvedValue([{ expires_at: new Date(Date.now() - 1000) }]);
+
+    const state = await fireResolveNull('exprdtok');
+
+    expect(state.statusCode).toBe(401);
+    await vi.waitFor(() => expect(sessionRowsMock).toHaveBeenCalled());
+    expect(captureAuthIssueMock).not.toHaveBeenCalled();
+  });
+
+  it('stays silent for a missing row — signed out or revoked', async () => {
+    sessionRowsMock.mockResolvedValue([]);
+
+    await fireResolveNull('gonetok1');
+
+    await vi.waitFor(() => expect(sessionRowsMock).toHaveBeenCalled());
+    expect(captureAuthIssueMock).not.toHaveBeenCalled();
+  });
+
+  it('does not query the row per request — the lookup rides the log debounce', async () => {
+    sessionRowsMock.mockResolvedValue([]);
+
+    await fireResolveNull('debouncd');
+    await vi.waitFor(() => expect(sessionRowsMock).toHaveBeenCalledTimes(1));
+    await fireResolveNull('debouncd');
+    await fireResolveNull('debouncd');
+
+    expect(sessionRowsMock).toHaveBeenCalledTimes(1);
+  });
+});
+
 // ── optionalAuth ──────────────────────────────────────────────────────────
 
 describe('optionalAuth', () => {
@@ -328,6 +432,65 @@ describe('optionalAuth', () => {
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user?.id).toBe('user-2');
+  });
+
+  // Der Session-Schnappschuss von Better Auth lebt bis zu 300 s in einem Cookie
+  // und kann ein Land behaupten, das im Profil gar nicht (mehr) steht. Sagt der
+  // Cache UNSET, muss das Feld leer werden — sonst zöge das Web weiter die alte
+  // Vermutung heran und das Nachfrage-Gate erschiene nie.
+  it('clears a stale session locale when the profile has none', async () => {
+    getUserLocaleMock.mockResolvedValueOnce('unset');
+    getSessionMock.mockResolvedValue({
+      session: { id: 'sess-3', userId: 'user-3' },
+      user: {
+        id: 'user-3',
+        email: 'franz@example.at',
+        name: 'Franz',
+        emailVerified: true,
+        image: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        avatar_robot_id: 1,
+        beta_features: {},
+        user_defaults: {},
+        locale: 'de-DE',
+      },
+    });
+    const req = mockReq({ headers: { cookie: 'better-auth.session=xyz' } });
+    const { res } = mockRes();
+    const next = vi.fn() as NextFunction;
+
+    await optionalAuth(req, res, next);
+
+    expect(req.user?.id).toBe('user-3');
+    expect(req.user?.locale).toBeUndefined();
+  });
+
+  it('overlays the profile locale over a stale session snapshot', async () => {
+    getUserLocaleMock.mockResolvedValueOnce('de-AT');
+    getSessionMock.mockResolvedValue({
+      session: { id: 'sess-4', userId: 'user-4' },
+      user: {
+        id: 'user-4',
+        email: 'franz@example.at',
+        name: 'Franz',
+        emailVerified: true,
+        image: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        avatar_robot_id: 1,
+        beta_features: {},
+        user_defaults: {},
+        locale: 'de-DE',
+      },
+    });
+    const req = mockReq({ headers: { cookie: 'better-auth.session=xyz' } });
+    const { res } = mockRes();
+    const next = vi.fn() as NextFunction;
+
+    await optionalAuth(req, res, next);
+
+    expect(req.user?.locale).toBe('de-AT');
   });
 
   it('never 401s — calls next() even when session resolution fails', async () => {

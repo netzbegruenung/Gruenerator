@@ -243,8 +243,8 @@ class PromptVectorService {
       try {
         const queryEmbedding = await mistralEmbeddingService.generateEmbedding(query);
 
-        const searchResult = await this.qdrant!.client!.search(COLLECTION_NAME, {
-          vector: queryEmbedding,
+        const searchResult = await this.qdrant!.client!.query(COLLECTION_NAME, {
+          query: queryEmbedding,
           filter: {
             must: [{ key: 'user_id', match: { value: userId } }],
           },
@@ -253,7 +253,7 @@ class PromptVectorService {
           with_payload: true,
         });
 
-        const hits = searchResult as unknown as SearchHit[];
+        const hits = searchResult.points as unknown as SearchHit[];
         const results: PromptSearchResult[] = hits.map((hit) => ({
           prompt_id: hit.payload.prompt_id,
           user_id: hit.payload.user_id,
@@ -290,8 +290,8 @@ class PromptVectorService {
       try {
         const queryEmbedding = await mistralEmbeddingService.generateEmbedding(query);
 
-        const searchResult = await this.qdrant!.client!.search(COLLECTION_NAME, {
-          vector: queryEmbedding,
+        const searchResult = await this.qdrant!.client!.query(COLLECTION_NAME, {
+          query: queryEmbedding,
           filter: {
             must: [{ key: 'is_public', match: { value: true } }],
           },
@@ -300,7 +300,7 @@ class PromptVectorService {
           with_payload: true,
         });
 
-        const hits = searchResult as unknown as SearchHit[];
+        const hits = searchResult.points as unknown as SearchHit[];
         let results: PromptSearchResult[] = hits.map((hit) => ({
           prompt_id: hit.payload.prompt_id,
           user_id: hit.payload.user_id,

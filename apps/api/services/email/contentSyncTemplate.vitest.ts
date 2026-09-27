@@ -1,0 +1,176 @@
+/**
+ * Der Auslese-Block ist der einzige Ort im Bericht, an dem sichtbar wird, ob
+ * die Fingerprint-Gatter greifen. Festgehalten:
+ *   1. Die Zahlen stehen in HTML *und* Text — der Text-Teil wird gern vergessen
+ *      und ist die Fassung, die viele Clients zeigen.
+ *   2. Ohne Zähler (in-process-Läufe, ältere Teilberichte) fällt der Block
+ *      ersatzlos weg, statt Nullen zu behaupten.
+ */
+import { describe, it, expect } from 'vitest';
+
+import { renderContentSyncTemplate } from './templates.js';
+
+const BASE = {
+  timestamp: '2026-08-23T02:00:00.000Z',
+  totalDuration: 812,
+  sources: [
+    {
+      name: 'Landesverbaende',
+      status: 'success' as const,
+      stored: 2,
+      updated: 1,
+      skipped: 40,
+      errors: 0,
+      duration: 800,
+    },
+  ],
+  totals: {
+    sources: 1,
+    succeeded: 1,
+    failed: 0,
+    stored: 2,
+    updated: 1,
+    skipped: 40,
+    errors: 0,
+  },
+  dryRun: false,
+};
+
+const EXTRACTION = {
+  documents: 3,
+  pages: 97,
+  ocrDocuments: 1,
+  ocrPages: 52,
+  redundant: 1,
+  skipped: { not_modified: 12, same_bytes: 25, freshly_indexed: 8 },
+};
+
+describe('renderContentSyncTemplate — Auslese-Block', () => {
+  it('shows what was read and what the gates kept out, in HTML', () => {
+    const { html } = renderContentSyncTemplate({ ...BASE, extraction: EXTRACTION });
+
+    expect(html).toContain('Dokumente ausgelesen');
+    expect(html).toContain('3 (97 Seiten)');
+    expect(html).toContain('1 (52 Seiten)');
+    // Summe der drei Gatter, nicht eine einzelne Zahl.
+    expect(html).toContain('>45<');
+    expect(html).toContain('gleiche Bytes: 25');
+  });
+
+  it('repeats them in the plain-text part', () => {
+    const { text } = renderContentSyncTemplate({ ...BASE, extraction: EXTRACTION });
+
+    expect(text).toContain('Ausgelesen: 3 Dokumente / 97 Seiten (davon OCR: 1 / 52)');
+    expect(text).toContain('Umsonst ausgelesen (Text unverändert): 1');
+    expect(text).toContain('12 (304), 25 (gleiche Bytes), 8 (frisch)');
+  });
+
+  it('omits the block entirely when no counters were passed', () => {
+    const { html, text } = renderContentSyncTemplate(BASE);
+
+    expect(html).not.toContain('Dokumente ausgelesen');
+    expect(text).not.toContain('Ausgelesen:');
+    // Der Rest des Berichts bleibt vollständig.
+    expect(text).toContain('Neue Dokumente: +2');
+  });
+});
+
+/**
+ * Das Aufräumen gelöschter Wiki-Seiten hat zwei Ausgänge, und der stille ist
+ * der gefährliche: greift die Mengenschwelle, wird NICHTS gelöscht — und in
+ * stored/updated/skipped sieht dieser Lauf exakt aus wie einer, bei dem es
+ * nichts aufzuräumen gab. Der Grund muss deshalb im Bericht stehen, und zwar
+ * in beiden Fassungen (siehe Punkt 1 oben).
+ */
+const WITH_PRUNE = {
+  ...BASE,
+  sources: [{ ...BASE.sources[0], name: 'KommunalWiki', pruned: 2137 }],
+};
+
+const WITH_PRUNE_SKIPPED = {
+  ...BASE,
+  sources: [
+    {
+      ...BASE.sources[0],
+      name: 'KommunalWiki',
+      pruneSkippedReason:
+        'prune of 2137/8954 points (23.9 %) exceeds the threshold of 10.0 % — nothing deleted',
+    },
+  ],
+};
+
+describe('renderContentSyncTemplate — aufgeräumte Seiten', () => {
+  it('reports pruned points in HTML and in plain text', () => {
+    const { html, text } = renderContentSyncTemplate(WITH_PRUNE);
+
+    expect(html).toContain('2137 Punkte gel&ouml;schter Seiten');
+    expect(text).toContain('Aufgeräumt: 2137 Punkte gelöschter Seiten');
+  });
+
+  it('reports a blocked prune as a warning, with the reason, in both parts', () => {
+    const { html, text } = renderContentSyncTemplate(WITH_PRUNE_SKIPPED);
+
+    expect(html).toContain('Nicht aufger&auml;umt:');
+    expect(html).toContain('exceeds the threshold');
+    expect(text).toContain('WARNUNG nicht aufgeräumt:');
+    expect(text).toContain('exceeds the threshold');
+  });
+
+  it('stays silent when there was nothing to prune', () => {
+    const { html, text } = renderContentSyncTemplate(BASE);
+
+    expect(html).not.toContain('Aufger&auml;umt:');
+    expect(html).not.toContain('Nicht aufger&auml;umt:');
+    expect(text).not.toContain('Aufgeräumt:');
+    expect(text).not.toContain('nicht aufgeräumt:');
+  });
+});
+
+/**
+ * Tote Links sind kein Fehler und sollen auch nicht wie einer aussehen — aber
+ * wer die Seite betreibt, ist die einzige Person, die sie reparieren kann, und
+ * genau diese Person bekommt die per-LV-Mail. Sie lösen deshalb keine Mail aus
+ * (das entscheidet `hasChanges` im Router), stehen aber drin, wenn ohnehin eine
+ * rausgeht.
+ */
+const WITH_DEAD_LINKS = {
+  ...BASE,
+  sources: [
+    {
+      ...BASE.sources[0],
+      name: 'Landesverband BE',
+      deadLinks: 4,
+      deadLinkSamples: [
+        'https://gruene-fraktion.berlin/pressemitteilungen/a/: HTTP 403',
+        'https://gruene-fraktion.berlin/pressemitteilungen/b/: HTTP 403',
+      ],
+    },
+  ],
+};
+
+describe('renderContentSyncTemplate — tote Links', () => {
+  it('lists them in HTML, named as upstream links rather than as errors', () => {
+    const { html } = renderContentSyncTemplate(WITH_DEAD_LINKS);
+
+    expect(html).toContain('2 von 4 toten Links');
+    expect(html).toContain('https://gruene-fraktion.berlin/pressemitteilungen/a/: HTTP 403');
+    // Nicht im Fehler-Rot: die Zeile soll informieren, nicht alarmieren.
+    expect(html).not.toContain('color:#c00;font-size:12px;">2 von 4 toten Links');
+  });
+
+  it('repeats them in the plain-text part', () => {
+    const { text } = renderContentSyncTemplate(WITH_DEAD_LINKS);
+
+    expect(text).toContain('2 von 4 toten Links');
+    expect(text).toContain(
+      '      - https://gruene-fraktion.berlin/pressemitteilungen/b/: HTTP 403'
+    );
+  });
+
+  it('says nothing at all when there are none', () => {
+    const { html, text } = renderContentSyncTemplate(BASE);
+
+    expect(html).not.toContain('toten Links');
+    expect(text).not.toContain('Tote Links');
+  });
+});

@@ -10,8 +10,37 @@
  * nothing. `loadCorpus()` now safeParses every line and names the file, line
  * number and offending path.
  */
-import { notebookDepthSchema } from '@gruenerator/contracts';
+import {
+  memoryKindSchema,
+  notebookAnswerModeSchema,
+  notebookDepthSchema,
+} from '@gruenerator/contracts';
+import { DISPOSITION_BY_INTENT } from '@gruenerator/shared/chat-intents';
 import { z } from 'zod';
+
+/**
+ * Die Intent-Namen, die ein Turn heute überhaupt noch tragen kann.
+ *
+ * `routing` war ein `z.string()` — und genau deshalb prüfte das Korpus bis
+ * 19.08.2026 sieben Szenarien gegen `bahn`/`wetter`/`news`/`hotel`/`reise`/
+ * `umfragen`. Diese Intents sind seit dem Registry-Umbau `availability:
+ * 'retired'`: der Klassifikator kann sie nicht mehr erzeugen, der Turn läuft
+ * als `agentic` und ruft das richtige WERKZEUG. Die Erwartung war also nicht
+ * mehr zu erfüllen, und ein Prüfmittel, das für eine Umbenennung genauso rot
+ * meldet wie für einen echten Werkzeug-Fehlgriff, hat aufgehört zu
+ * unterscheiden.
+ *
+ * Als abgeleitete Menge und nicht als Literalliste, damit die nächste
+ * Stilllegung das Korpus beim Laden rot macht statt erst im Live-Lauf.
+ */
+export const LIVE_INTENT_IDS = Object.entries(DISPOSITION_BY_INTENT)
+  .filter(([, disposition]) => disposition !== 'retired')
+  .map(([id]) => id);
+
+const liveIntentSchema = z.string().refine((v) => LIVE_INTENT_IDS.includes(v), {
+  message:
+    'unknown or retired intent — the classifier can no longer produce it; assert the tool call instead',
+});
 
 /** One captured SSE frame (`event: <name>\ndata: <json>`). */
 export interface SseEvent {
@@ -98,6 +127,16 @@ export const evalNotebookModeSchema = notebookDepthSchema;
  * corpus line naming a rubric that doesn't exist would otherwise load fine and
  * simply never be judged. `judge/rubrics.ts` derives its `RubricName` from
  * this — it imports from here, so the list has to live on this side.
+ *
+ * `groundedness` und `unsourced_confidence` sind ein PAAR und schliessen sich
+ * gegenseitig aus (#2953): die erste fragt „stützt Quelle N die Aussage, die
+ * [N] trägt?" und ist ohne Quellen leer, die zweite fragt „behauptet der Text
+ * Belegtes, ohne einen Beleg zu haben?" und ist nur ohne Quellen sinnvoll. Eine
+ * Zeile, die `groundedness` verlangt, bekommt die zweite deshalb automatisch,
+ * wenn der Turn null Quellen hatte — siehe `rubricsForTurn` in
+ * `judge/rubrics.ts`. Ohne diese Kopplung fiele genau der gefährlichste
+ * Zustand durch: die Antwort kam vollständig aus dem Modellwissen, sah plausibel
+ * aus, und die angeforderte Rubrik hat sie nie angesehen.
  */
 export const rubricNameSchema = z.enum([
   'groundedness',
@@ -107,6 +146,7 @@ export const rubricNameSchema = z.enum([
   'parity',
   'instruction_hierarchy',
   'content_policy',
+  'unsourced_confidence',
 ]);
 export type RubricName = z.infer<typeof rubricNameSchema>;
 
@@ -115,10 +155,11 @@ export type RubricName = z.infer<typeof rubricNameSchema>;
  *  is one that never runs. */
 export const evalExpectSchema = z
   .object({
-    /** Exact `intent` value on the intent event. */
-    routing: z.string().optional(),
+    /** Exact `intent` value on the intent event. Muss ein LEBENDER Intent sein
+     *  — siehe LIVE_INTENT_IDS. */
+    routing: liveIntentSchema.optional(),
     /** Intents this turn must NOT resolve to (e.g. follow-up must not fall to direct). */
-    routingNot: z.array(z.string()).optional(),
+    routingNot: z.array(liveIntentSchema).optional(),
     /** intent event must carry `agentic: true`. */
     demoted: z.boolean().optional(),
     toolsMustInclude: z.array(z.string()).optional(),
@@ -130,6 +171,9 @@ export const evalExpectSchema = z
     toolNameMatches: z.string().optional(),
     toolsMustNotInclude: z.array(z.string()).optional(),
     maxToolCalls: z.number().optional(),
+    /** Mehrteilige Aufträge: ein Planer, der nach dem ersten Aufruf aufhört,
+     *  erfüllt `toolsMustInclude` trotzdem (#3627). */
+    minToolCalls: z.number().optional(),
     generatesSharepic: z.boolean().optional(),
     /**
      * Whether the turn may create/update a persistent artifact — a document, or a
@@ -177,6 +221,24 @@ export const evalExpectSchema = z
      */
     refuses: z.boolean().optional(),
     /**
+     * Die Angabe steht nicht im vorgelegten Material — die Antwort muss das
+     * sagen, statt eine plausible zu erzeugen.
+     *
+     * Nicht dasselbe wie {@link refuses}: dort ist das Erzeugen des Inhalts der
+     * Fehler, hier ist es das Erfinden einer Angabe, die es nicht gibt. Ein
+     * Beschlusskorpus, das ein Thema ausführlich behandelt, aber die gefragte
+     * Zahl nirgends nennt, erzeugt den höchsten Erfindungsdruck überhaupt — und
+     * eine erfundene Frist in einem Sprechzettel fällt niemandem auf, weil sie
+     * genau so aussieht wie eine echte.
+     *
+     * Prüft nur die eine Hälfte: dass die Auskunft „steht nicht drin" fällt. Die
+     * andere Hälfte — dass daneben nicht doch eine Zahl genannt wird — trägt
+     * `answerMustNotContain` mit den Distraktoren aus dem Goldset. Beide
+     * gehören in dieselbe Korpuszeile; einzeln ist jede von beiden zu
+     * schwach.
+     */
+    abstains: z.boolean().optional(),
+    /**
      * Substrings that must NOT appear in the answer (case-insensitive).
      *
      * The deterministic floor under the `instruction_hierarchy` judge: injection
@@ -193,8 +255,32 @@ export const evalExpectSchema = z
     retainsPriorSources: z.boolean().optional(),
     /** No scrape_url call errored (model-invented / dead URL). */
     noInventedUrls: z.boolean().optional(),
+    /**
+     * `warning` event codes the turn must emit (search_degraded,
+     * deep_research_quota_spent, unknown_model_id, …).
+     *
+     * The trace has carried `warnings` from the start and NOTHING asserted on
+     * them, so every product-visible degradation was invisible to the corpus.
+     * It is the only handle on a whole class of behaviour: the quota-exhausted
+     * `@deepresearch` turn does not refuse in prose — it warns and then answers
+     * with an ordinary research run, which from the answer text alone is
+     * indistinguishable from a deep run that simply went fast.
+     */
+    warningsMustInclude: z.array(z.string()).optional(),
     /** done surfaced ≥1 citation (grounded). */
     grounded: z.boolean().optional(),
+    /**
+     * Die Antwort nennt den STAND, auf den sie sich bezieht (Datum).
+     *
+     * Die Schwester von `grounded` und nicht ihr Ersatz: `grounded` prüft, ob
+     * etwas abgerufen wurde, `statesAsOf`, ob die Auskunft ihr Alter kenntlich
+     * macht. Beide zusammen erst decken die Fehlerform aus #2949 ab — dort war
+     * die Antwort plausibel, unbelegt UND undatiert, und keine einzelne der
+     * beiden Zusicherungen hätte den zweiten Teil gesehen. Eine erzwungene
+     * Suche, die einen Änderungsvorschlag als geltendes Recht referiert, ist
+     * `grounded` grün und hier rot.
+     */
+    statesAsOf: z.boolean().optional(),
     maxLatencyMs: z.number().optional(),
     /** Each keyword must appear in the answer (multi-topic coverage). */
     topicsCovered: z.array(z.string()).optional(),
@@ -219,6 +305,26 @@ export const evalTurnSchema = z
   .object({
     prompt: z.string(),
     expect: evalExpectSchema,
+    /**
+     * Was statt `expect` gilt, wenn der Lauf mit `CHAT_AGENT_LOOP=false` gegen
+     * ein Backend fährt (Operator setzt `EVAL_LOOP_OFF=1` — ein Szenario kann
+     * die Flagge nicht selbst tragen, sie wird backend-seitig zur Request-Zeit
+     * gelesen).
+     *
+     * Gebraucht wegen §5(b) des R2-Abnahme-Berichts: die drei
+     * `search-web`-Erwartungen sind LOOP-GEFORMT. Mit ausgeschalteter Schleife
+     * rissen sie AUSSCHLIESSLICH an `tool:web_search: missing; called: []` —
+     * Erdung und Zitate bestanden. Der Einzeldurchlauf sucht und belegt also
+     * sehr wohl, er tut es nur IM GRAPHEN statt als Werkzeugaufruf, und
+     * `toolsMustInclude` sieht nur Werkzeugaufrufe.
+     *
+     * Die Erwartung beschreibt damit korrekt den Loop-Zustand und taugt
+     * trotzdem nicht als Wächter für den Kill-Switch-Pfad. Statt sie zu
+     * schwächen (was den Loop-Wächter mit aufgäbe) trägt der Turn hier die
+     * WIRKUNGS-Zusicherung für den anderen Zustand: `grounded`/`cited` statt
+     * Werkzeugname.
+     */
+    expectWhenLoopOff: evalExpectSchema.optional(),
     /** Answer to send via /resume if this turn raises a clarification interrupt. */
     onInterrupt: z.object({ resume: z.string() }).strict().optional(),
     /** Prepend N synthetic filler user/assistant pairs to the wire history
@@ -246,6 +352,9 @@ export const evalScenarioSchema = z
     collectionIds: z.array(z.string()).optional(),
     /** Notebook retrieval mode. Omit = server default. */
     notebookMode: evalNotebookModeSchema.optional(),
+    /** Antwortmodus der Notebook-Seite, als `answerMode` gesendet (nur
+     *  `surface: 'notebook'`). Omit = kein Feld = Server-Default `chat`. */
+    notebookAnswerMode: notebookAnswerModeSchema.optional(),
     turns: z.array(evalTurnSchema),
     /** Documented open bug: runs + reported separately, never fails the baseline. */
     knownFailure: z.boolean().optional(),
@@ -254,10 +363,95 @@ export const evalScenarioSchema = z
     /** Needs connected MCP servers (evals/tools/setupMcpServers.ts) — skipped
      *  unless EVAL_MCP=1 so it doesn't pollute the default run's baseline. */
     mcpLane: z.boolean().optional(),
+    /**
+     * Braucht die SYSTEM-MCP-Server (bahn/wetter/news/hotel), die der Server
+     * über `SYSTEM_MCP_*_URL` mountet — nicht die vom Nutzer verbundenen.
+     * Übersprungen ohne EVAL_SYSTEM_MCP=1.
+     *
+     * Eigene Lane, weil das Fehlen dieser Server eine Aussage über die
+     * UMGEBUNG ist und keine über den Code: ohne sie weicht der Loop
+     * folgerichtig auf `web_search` aus und das Szenario meldet rot, ohne dass
+     * sich am Verhalten etwas geändert hätte. Im Lauf vom 18.08.2026 waren das
+     * vier von zwanzig Fehlschlägen — dauerhaftes Rauschen unter jeder
+     * Vorher/Nachher-Differenz.
+     */
+    systemMcpLane: z.boolean().optional(),
     /** Notebook surface. Skipped unless EVAL_NOTEBOOK=1 so these don't move the
      *  default run's baseline. No seeding tool needed — the scenarios query
      *  SYSTEM_COLLECTIONS, which every populated backend already has. */
     notebookLane: z.boolean().optional(),
+    /**
+     * Braucht einen echten `@deepresearch`-Lauf. Übersprungen ohne
+     * EVAL_DEEP_RESEARCH=1.
+     *
+     * Eigene Lane, weil ein Lauf Minuten dauert und Geld kostet — der
+     * Rechercheagent kauft gewöhnliche Suchen plus bis zu zwei `deep`-Suchen —
+     * und weil jeder Lauf einen Baum aus dem geteilten Tagesbudget kostet:
+     * jeder Default-Lauf würde davon zehren und den nächsten Lauf irgendwann
+     * mit einer Absage messen statt mit einem Lauf. Der Weg war bis hierher komplett
+     * unbeobachtet (R1 §5: null Szenarien), was ihn zur gefährlichsten Lücke
+     * machte — die Lane existiert, damit „unbeobachtet" zu „auf Abruf messbar"
+     * wird.
+     */
+    deepResearchLane: z.boolean().optional(),
+    /**
+     * Braucht den BGSt-Beschlussbestand als eingelesene Sammlung. Übersprungen
+     * ohne EVAL_BGST_KORPUS=1.
+     *
+     * Eigene Lane und nicht `notebookLane`, obwohl beide die Notebook-Fläche
+     * benutzen: `notebookLane` fragt SYSTEM_COLLECTIONS ab, die jedes befüllte
+     * Backend hat. Diese hier fragt eine Sammlung ab, die es heute auf keinem
+     * Zielsystem gibt — unter dem gemeinsamen Flag würde jeder EVAL_NOTEBOOK=1
+     * ab sofort ein Dutzend Fehlschläge melden, die nichts über den Code sagen.
+     *
+     * Sie steht trotzdem im Repo, weil sie die Hälfte des Prüfplans trägt, die
+     * der deterministische Teil grundsätzlich nicht messen kann: ob der
+     * Bestand GEFUNDEN wird. Der andere Teil legt den Beleg in den Prompt und
+     * misst damit alles NACH dem Retrieval.
+     */
+    bgstKorpusLane: z.boolean().optional(),
+    /**
+     * Die Notebook-Auswahl des Composers, als `notebookIds` im Chat-Body
+     * (nur `surface: 'chat'`). Anders als ein `@[…](notebook:…)`-Token im
+     * Prompt ist das die stille Auswahl, die jeden Turn scoped. Darf den
+     * Platzhalter `{{EVAL_USER_NOTEBOOK_ID}}` tragen (siehe `userNotebookLane`).
+     */
+    notebookIds: z.array(z.string()).optional(),
+    /**
+     * Braucht ein EIGENES Notebook des Eval-Kontos — für Fälle, die das
+     * Verhalten auf eigenen Quellen prüfen (System-Notebooks liest
+     * `notebook_quellen` seit #3536 nur lesend), und der Runner kann keines
+     * anlegen. Übersprungen ohne
+     * EVAL_USER_NOTEBOOK_ID; dessen Wert ersetzt `{{EVAL_USER_NOTEBOOK_ID}}` in
+     * Prompt und `notebookIds`.
+     */
+    userNotebookLane: z.boolean().optional(),
+    /**
+     * Angehängte Dokumente des Turns, als `documentChatIds` im Chat-Body — so,
+     * wie ein Folge-Turn nach einem Upload sie mitschickt. Darf den Platzhalter
+     * `{{EVAL_ATTACHED_DOC_ID}}` tragen (siehe `attachedDocLane`).
+     */
+    documentChatIds: z.array(z.string()).optional(),
+    /**
+     * Braucht ein mehrseitiges, im Chat hochgeladenes Dokument des Eval-Kontos
+     * (`documents`-Zeile vom Typ `documentchat`, die id aus `document_indexed`).
+     * Der Runner kann keines hochladen. Übersprungen ohne EVAL_ATTACHED_DOC_ID;
+     * dessen Wert ersetzt `{{EVAL_ATTACHED_DOC_ID}}` in `documentChatIds`.
+     */
+    attachedDocLane: z.boolean().optional(),
+    /**
+     * Das Gedächtnis des Eval-Kontos für dieses Szenario: vor dem ersten Turn
+     * über `/api/memory` angelegt, danach wieder gelöscht. Übersprungen ohne
+     * EVAL_MEMORY=1.
+     *
+     * Eigene Lane, weil das Gedächtnis am KONTO hängt, nicht am Thread: jedes
+     * parallel laufende Szenario desselben Kontos sähe diese Einträge mit. Der
+     * Runner fährt die Lane deshalb nur mit EVAL_CONCURRENCY=1 und nur gegen
+     * ein Konto, dessen Gedächtnis vorher leer ist.
+     */
+    memories: z
+      .array(z.object({ kind: memoryKindSchema, text: z.string().min(1) }).strict())
+      .optional(),
   })
   .strict()
   .refine((s) => s.surface !== 'notebook' || (s.collectionIds?.length ?? 0) > 0, {
@@ -277,7 +471,13 @@ export const evalCaseSchema = z
     /** Model lane to force (e.g. 'mistral' unified vs a split lane). Omit = auto. */
     modelId: z.string().optional(),
     expect: evalExpectSchema,
+    /** Siehe evalTurnSchema.expectWhenLoopOff — die drei search-web-Szenarien
+     *  liegen in der Altform. */
+    expectWhenLoopOff: evalExpectSchema.optional(),
     knownFailure: z.boolean().optional(),
+    /** Siehe evalScenarioSchema.systemMcpLane. Als einziges Lane-Flag auch auf
+     *  der Altform, weil die vier system-mcp-Szenarien dort liegen. */
+    systemMcpLane: z.boolean().optional(),
   })
   .strict();
 export type EvalCase = z.infer<typeof evalCaseSchema>;
