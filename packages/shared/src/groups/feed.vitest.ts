@@ -132,3 +132,79 @@ describe('personInitials / formatFeedDate', () => {
     expect(formatFeedDate(null)).toBe('');
   });
 });
+
+describe('toGroupFeedItems — Beiträge', () => {
+  const post = (over: Record<string, unknown> = {}) => ({
+    id: 'p1',
+    body: '',
+    author_id: 'u1',
+    created_at: '2026-09-26T10:00:00Z',
+    edited_at: null,
+    files: [],
+    shared_at: '2026-09-26T10:00:00Z',
+    shared_by_name: 'Jana',
+    share: share({ shareId: 'sp1' }),
+    ...over,
+  });
+
+  it('titles a post by its first line and splits images from other files', () => {
+    const [item] = toGroupFeedItems({
+      group_posts: [
+        post({
+          body: 'Infostand Samstag\nWer hilft mit?',
+          files: [
+            { id: 'f1', file_name: 'foto.jpg', mime_type: 'image/jpeg', size_bytes: 1 },
+            { id: 'f2', file_name: 'Plan.pdf', mime_type: 'application/pdf', size_bytes: 2 },
+          ],
+        }),
+      ],
+    });
+    expect(item).toMatchObject({
+      key: 'group_post:p1',
+      kind: 'post',
+      contentType: 'group_post',
+      title: 'Infostand Samstag',
+      sharedByName: 'Jana',
+      post: { body: 'Infostand Samstag\nWer hilft mit?', authorId: 'u1' },
+    });
+    expect(item?.post?.files.map((f) => f.isImage)).toEqual([true, false]);
+  });
+
+  it('falls back to the first file name for a post without text', () => {
+    const [item] = toGroupFeedItems({
+      group_posts: [
+        post({
+          files: [
+            { id: 'f1', file_name: 'Protokoll.pdf', mime_type: 'application/pdf', size_bytes: 1 },
+          ],
+        }),
+      ],
+    });
+    expect(item?.title).toBe('Protokoll.pdf');
+  });
+
+  it('finds a post by its text and by a file name', () => {
+    const items = toGroupFeedItems({
+      group_posts: [
+        post({
+          body: 'Wer hilft beim Infostand?',
+          files: [{ id: 'f1', file_name: 'Haushalt.xlsx', mime_type: 'x', size_bytes: 1 }],
+        }),
+      ],
+    });
+    expect(filterGroupFeed(items, 'infostand')).toHaveLength(1);
+    expect(filterGroupFeed(items, 'haushalt')).toHaveLength(1);
+    expect(filterGroupFeed(items, 'kreistag')).toHaveLength(0);
+  });
+
+  it('sorts posts among shares by date, pinned first', () => {
+    const items = toGroupFeedItems({ ...content, group_posts: [post()] });
+    // Zwei angeheftete Freigaben stehen oben, dann der neueste Eintrag.
+    expect(items.slice(0, 3).map((i) => i.key)).toEqual([
+      'canvas_template:t1',
+      expect.any(String),
+      'group_post:p1',
+    ]);
+    expect(items[1]?.share?.pinnedAt).toBeTruthy();
+  });
+});
