@@ -30,6 +30,13 @@ export function logTurnSummary(input: {
    */
   answerReplaced: AnswerReplacement | null;
   mcpMountMs: number;
+  /**
+   * Was `toolScope.ts` auf diesem Turn entschieden hat — null, wenn nichts zum
+   * Zurückstellen montiert war. `misses` sind die gerufenen Werkzeuge, die das
+   * Tor widerlegen; im Schattenbetrieb ist das die Zahl, an der sich ablesen
+   * lässt, ob das Tor scharf geschaltet werden darf.
+   */
+  toolScope: { enforced: boolean; deferred: number; misses: readonly string[] } | null;
   onInfo: (message: string) => void;
 }): void {
   // Per-turn tool-outcome breakdown so a silent connector failure is visible in
@@ -60,6 +67,13 @@ export function logTurnSummary(input: {
           })
           .join(', ')}]`
       : '';
+  const scope = input.toolScope;
+  const scopeInfo =
+    scope && scope.deferred > 0
+      ? ` scope=${scope.enforced ? 'enforce' : 'shadow'} deferred=${scope.deferred}${
+          scope.misses.length > 0 ? ` scopeMiss=[${scope.misses.join(', ')}]` : ''
+        }`
+      : '';
   input.onInfo(
     `[Agentic] model=${input.modelName} mode=${input.mode}${
       input.plannerName ? ` planner=${input.plannerName} synth=${input.synthName}` : ''
@@ -67,6 +81,6 @@ export function logTurnSummary(input: {
       input.carriedCount > 0 ? `(carried=${input.carriedCount})` : ''
     } chars=${input.answerChars}${
       input.answerReplaced ? ` replaced=${input.answerReplaced}` : ''
-    }${input.mcpMountMs > 0 ? ` mcpMountMs=${input.mcpMountMs}` : ''}${failedTools}${mcpContent}`
+    }${input.mcpMountMs > 0 ? ` mcpMountMs=${input.mcpMountMs}` : ''}${scopeInfo}${failedTools}${mcpContent}`
   );
 }

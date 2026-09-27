@@ -54,6 +54,7 @@ import {
   seedAttachedDocuments,
   wrapAssembledTools,
 } from './catalogAssembly.js';
+import { isToolScopeEnforced } from './flags.js';
 import {
   isMcpCapabilityQuestion,
   pinnedFirstTool,
@@ -82,6 +83,7 @@ import { createToolActivity } from './toolActivity.js';
 import { createToolApprovalGate, type ToolApprovalGate } from './toolApprovalGate.js';
 import { loadAllowlist } from './toolApprovalRepo.js';
 import { createToolCostLedger } from './toolCostLedger.js';
+import { type ToolScope } from './toolScope.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
 import { logTurnSummary } from './turnSummary.js';
 import { type PendingAskRequest, type PendingToolCall, type PersistedStep } from './types.js';
@@ -233,6 +235,8 @@ export async function streamAgenticResponse(
   // Time the (un-budgeted) MCP tool-mount so a slow connector shows up in the
   // end-of-turn line instead of looking like an unexplained multi-second hang.
   let mcpMountMs = 0;
+  // Am Turn-ENDE gelesen, gegen die dann gerufenen Werkzeuge.
+  let toolScope: ToolScope | null = null;
   // Außerhalb des try, weil die Zusammenfassung unten läuft — auch nach einem
   // Abbruch. `loopResult` selbst lebt nur im try.
   let answerReplaced: AnswerReplacement | null = null;
@@ -287,12 +291,14 @@ export async function streamAgenticResponse(
       ...(searchToolKeys?.length ? { searchToolKeys } : {}),
       ...(toolAllowlist ? { toolAllowlist } : {}),
       threadId: threadId ?? null,
+      toolHistory: toolHistory ?? null,
     });
     const { tools, recipeCatalog, recipeRegistry, toolLabels } = assembled;
     loadedRecipeRegistry = recipeRegistry;
     mcpCatalog = assembled.mcpCatalog;
     systemCatalog = assembled.systemCatalog;
     mcpMountMs = assembled.mcpMountMs;
+    toolScope = assembled.toolScope;
     const managedKeys = finalState.managedSourceKeys ?? [];
 
     // Bei einer Fortsetzung NICHT aus der Historie lesen: die Schritte des
@@ -644,6 +650,10 @@ export async function streamAgenticResponse(
       tools: wrapped,
       toolActivity,
       toolSystem,
+      // Der Katalog ist vollständig montiert; welcher Schritt was davon
+      // mitschickt, entscheidet der Umfang (toolScope.ts). Getter, weil ein
+      // Lader die Menge mitten im Lauf erweitern kann.
+      activeTools: () => assembled.toolScope.activeTools(),
       forceFirstToolCall,
       firstToolName,
       // Turns "the web is now allowed" into "the web runs". Only when the tool
@@ -906,6 +916,11 @@ export async function streamAgenticResponse(
     answerChars: emitter.text.length,
     answerReplaced,
     mcpMountMs,
+    toolScope: toolScope && {
+      enforced: isToolScopeEnforced(),
+      deferred: toolScope.deferredToolNames().length,
+      misses: toolScope.misses(steps.map((s) => s.toolName)),
+    },
     onInfo: (m) => log.info(m),
   });
   costLedger.log();
