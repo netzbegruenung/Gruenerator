@@ -50,24 +50,34 @@ describe('ComposerOptionPicker', () => {
     const onChange = renderPicker('b');
     await user.click(screen.getByRole('button', { name: 'Option wählen' }));
 
-    const items = await screen.findAllByRole('menuitem');
+    const items = await screen.findAllByRole('menuitemradio');
     expect(items).toHaveLength(OPTIONS.length);
     expect(within(items[0]).getByText('Empfohlen')).toBeVisible();
     expect(within(items[1]).getByText('Zweite Wahl')).toBeVisible();
 
-    await user.click(screen.getByRole('menuitem', { name: /Gamma/ }));
+    await user.click(screen.getByRole('menuitemradio', { name: /Gamma/ }));
     await waitFor(() => expect(onChange).toHaveBeenCalledWith('c'));
   });
 
-  it('highlights exactly the current option', async () => {
+  it('checks exactly the current option', async () => {
     const user = userEvent.setup();
     renderPicker('a');
     await user.click(screen.getByRole('button', { name: 'Option wählen' }));
 
-    const items = await screen.findAllByRole('menuitem');
-    const highlighted = items.filter((i) => i.className.includes('bg-primary-50'));
-    expect(highlighted).toHaveLength(1);
-    expect(highlighted[0]).toHaveTextContent('Alpha');
+    const items = await screen.findAllByRole('menuitemradio');
+    const checked = items.filter((i) => i.getAttribute('aria-checked') === 'true');
+    expect(checked).toHaveLength(1);
+    expect(checked[0]).toHaveTextContent('Alpha');
+  });
+
+  it('shows every description in full — it is the only place an option explains itself', async () => {
+    const user = userEvent.setup();
+    renderPicker('a');
+    await user.click(screen.getByRole('button', { name: 'Option wählen' }));
+
+    for (const item of await screen.findAllByRole('menuitemradio')) {
+      expect(item.querySelector('[class*="line-clamp"]')).toBeNull();
+    }
   });
 
   it('takes a custom trigger label', () => {
@@ -112,13 +122,13 @@ describe('ModelPicker (wrapper over ComposerOptionPicker)', () => {
     render(<ModelPicker />);
     await user.click(screen.getByRole('button', { name: /Modell wählen/ }));
 
-    const items = await screen.findAllByRole('menuitem');
+    const items = await screen.findAllByRole('menuitemradio');
     expect(items.length).toBeGreaterThan(1);
     expect(items[0]).toHaveTextContent('Automatisch');
     expect(within(items[0]).getByText('Empfohlen')).toBeVisible();
 
     const second = items[1];
-    const secondName = second.querySelector('span')?.textContent ?? '';
+    const secondName = second.querySelector('.font-medium')?.textContent ?? '';
     await user.click(second);
     await waitFor(() => expect(useAgentStore.getState().selectedModel).not.toBe(AUTO_MODEL_ID));
     expect(screen.getByRole('button', { name: 'Modell wählen' })).toHaveTextContent(secondName);
