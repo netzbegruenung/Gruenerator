@@ -2,8 +2,8 @@
 
 import {
   Badge,
-  cn,
-  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   ResponsiveMenu,
   ResponsiveMenuSection,
   ResponsiveMenuItem,
@@ -37,11 +37,12 @@ interface ComposerOptionPickerProps<T extends string> {
   triggerLabel?: ReactNode;
 }
 
-const activeClass = 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400';
-
 function RecommendedBadge({ label }: { label: string }) {
   return (
-    <Badge variant="secondary" className="px-1.5 py-0 text-[10px] leading-4 font-medium">
+    <Badge
+      variant="outline"
+      className="px-1.5 py-0 text-[10px] font-medium leading-4 text-foreground-muted"
+    >
       {label}
     </Badge>
   );
@@ -69,40 +70,33 @@ export function ComposerOptionPicker<T extends string>({
     setMenuOpen(false);
   };
 
+  // Radio items, like the depth menu beside it in the notebook composer: the
+  // selection is a neutral dot, not a brand tint, so the menu sits on any
+  // surface colour. Descriptions wrap instead of being cut off — they are the
+  // only place a mode says what it does.
   const desktopContent = (
-    <>
+    <DropdownMenuRadioGroup value={value} onValueChange={(v) => onChange(v as T)}>
       {options.map((option) => (
-        <DropdownMenuItem
+        <DropdownMenuRadioItem
           key={option.id}
-          onSelect={() => onChange(option.id)}
-          className={cn(
-            'flex flex-col items-start gap-0.5 py-1.5',
-            value === option.id && activeClass
-          )}
+          value={option.id}
+          // Pin the dot to the name line, not the top edge of a two-line item.
+          className="items-start py-2 [&>span:first-child]:top-[0.7rem]"
         >
-          {option.recommendedLabel ? (
-            <>
-              <span className="flex items-center gap-1.5">
-                <span className="text-sm font-medium leading-tight">{option.name}</span>
-                <RecommendedBadge label={option.recommendedLabel} />
-              </span>
-              <span className="text-muted-foreground text-xs leading-tight">
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span className="flex items-center gap-1.5">
+              <span className="text-sm font-medium leading-tight">{option.name}</span>
+              {option.recommendedLabel && <RecommendedBadge label={option.recommendedLabel} />}
+            </span>
+            {option.description && (
+              <span className="text-xs leading-snug text-foreground-muted">
                 {option.description}
               </span>
-            </>
-          ) : (
-            <>
-              <span className="text-sm font-medium leading-tight">{option.name}</span>
-              {option.description && (
-                <span className="text-muted-foreground line-clamp-1 text-xs leading-tight">
-                  {option.description}
-                </span>
-              )}
-            </>
-          )}
-        </DropdownMenuItem>
+            )}
+          </span>
+        </DropdownMenuRadioItem>
       ))}
-    </>
+    </DropdownMenuRadioGroup>
   );
 
   const mobileContent = (
@@ -142,7 +136,7 @@ export function ComposerOptionPicker<T extends string>({
       onOpenChange={setMenuOpen}
       sheetTitle={sheetTitle}
       dropdownAlign="end"
-      dropdownClassName="min-w-[12rem] max-w-[90vw]"
+      dropdownClassName="w-72 max-w-[90vw]"
       trigger={
         <button
           type="button"
