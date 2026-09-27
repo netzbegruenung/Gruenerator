@@ -138,8 +138,18 @@ export function looksLikeToolableQuestion(raw: string): boolean {
  */
 const BARE_URL_ONLY_RE = /^\s*https?:\/\/\S+(?:\s+https?:\/\/\S+)*\s*$/i;
 
-const CHITCHAT_ONLY_RE =
-  /^(danke\w*|dank\s+dir|thx|ok(ay)?|alles\s+klar|super|top|passt|perfekt|prima|cool|ja|nein|gut)\b[\s,.!?–—-]*$/i;
+// A run of pleasantry words, not just one: „super, danke!", „ok, danke dir",
+// „Perfekt, vielen Dank!" (#3715). The words after the thanks (dir, schön,
+// vielen …) are only harmless because every word must come from this list.
+// `(?!\p{L})` instead of `\b`, which is ASCII-only and never fires after „schön".
+// The separator is `+`, so each word can be split off only one way (CodeQL
+// js/redos, as with BARE_URL_ONLY_RE).
+const PLEASANTRY_WORD =
+  '(?:dank\\p{L}*|dir|euch|ihnen|daf[üu]r|sch[öo]n|sehr|vielen|herzlich\\p{L}*|thx|thanks|ok(?:ay)?|alles\\s+klar|super|top|passt|perfekt|prima|cool|ja|nein|gut)(?!\\p{L})';
+const CHITCHAT_ONLY_RE = new RegExp(
+  `^${PLEASANTRY_WORD}(?:[\\s,.!?–—-]+${PLEASANTRY_WORD})*[\\s,.!?–—-]*$`,
+  'iu'
+);
 
 /**
  * "Does this turn need the thread's research behind it?"
