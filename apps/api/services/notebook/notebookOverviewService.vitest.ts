@@ -9,7 +9,6 @@ vi.mock('../../utils/redis/jsonCache.js', () => ({
   getCachedJson: vi.fn(),
   setCachedJson: vi.fn(),
 }));
-vi.mock('./notebookKeywordSnapshotService.js', () => ({ getLatestKeywordSnapshot: vi.fn() }));
 
 const { aggregateOverview, toHeadDoc, trendOf } = await import('./notebookOverviewService.js');
 
@@ -139,6 +138,48 @@ describe('aggregateOverview', () => {
     const trend = Object.fromEntries(result.topics.map((t) => [t.topic, t.trend]));
 
     expect(trend).toEqual({ mobilitaet: 'up', klima: 'down' });
+  });
+
+  it('counts keywords per document and reports how many documents carry them', () => {
+    const result = aggregateOverview(
+      [
+        doc({ published_at: daysAgo(5), keywords: ['radweg', 'radweg', 'schule'] }),
+        doc({ published_at: daysAgo(40), keywords: ['radweg'] }),
+        doc({ published_at: daysAgo(60) }),
+      ],
+      NOW,
+      null
+    );
+
+    expect(result.terms?.documents).toBe(2);
+    expect(result.terms?.words).toEqual([
+      { word: 'radweg', count: 2 },
+      { word: 'schule', count: 1 },
+    ]);
+  });
+
+  it('has no terms before the enrichment tagged any document', () => {
+    expect(aggregateOverview([doc({ published_at: daysAgo(5) })], NOW, null).terms).toBeNull();
+  });
+
+  it('lists a keyword as rising only with a clear and non-trivial recent jump', () => {
+    const recent = Array.from({ length: 20 }, (_, i) =>
+      doc({
+        published_at: daysAgo(10 + i),
+        keywords: ['landtag', ...(i < 8 ? ['wasserstoff'] : []), ...(i < 3 ? ['deich'] : [])],
+      })
+    );
+    const prior = Array.from({ length: 40 }, (_, i) =>
+      doc({
+        published_at: daysAgo(120 + i),
+        keywords: ['landtag', ...(i < 2 ? ['wasserstoff'] : [])],
+      })
+    );
+
+    const { terms } = aggregateOverview([...recent, ...prior], NOW, null);
+
+    // `deich` is significant by the z-test but seen in three documents only.
+    expect(terms?.rising).toEqual([{ word: 'wasserstoff', count: 10, recentCount: 8 }]);
   });
 });
 

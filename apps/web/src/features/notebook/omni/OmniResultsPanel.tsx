@@ -50,6 +50,7 @@ export function OmniResultsPanel({ parsed }: { parsed: ParsedResearchIntent }) {
       </div>
 
       <ResearchResultsList
+        query={parsed.semanticQuery}
         results={results}
         metadata={metadata}
         isPending={isLoading}
