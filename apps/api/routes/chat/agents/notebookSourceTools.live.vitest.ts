@@ -126,6 +126,38 @@ describe.runIf(LIVE)('notebook_quellen live — Berlin', () => {
     TIMEOUT
   );
 
+  // Beta 28.09.2026: „pressemitteilung" traf das gespeicherte `presse` nicht, total 0,
+  // die Antwort nannte 15 statt der Zahl aus dem Werkzeug.
+  it(
+    '„wie viele Pressemitteilungen seit …" — the guessed label counts the stored category',
+    async () => {
+      const run = makeTool();
+      const filter = { dateFrom: '2026-01-01' };
+      const guessed = await run({
+        action: 'list',
+        notebookId: NOTEBOOK,
+        filter: { ...filter, category: 'pressemitteilung' },
+        limit: 1,
+      });
+      const stored = await run({
+        action: 'list',
+        notebookId: NOTEBOOK,
+        filter: { ...filter, category: 'presse' },
+        limit: 1,
+      });
+      expect(guessed.categoryResolved).toBe('pressemitteilung → presse');
+      expect(stored.total).toBeGreaterThan(0);
+      expect(guessed.total).toBe(stored.total);
+      const unknown = await run({
+        action: 'list',
+        notebookId: NOTEBOOK,
+        filter: { category: 'Haushaltsrede' },
+      });
+      expect(unknown.error).toMatch(/presse \(\d+\)/);
+    },
+    TIMEOUT
+  );
+
   it(
     'Q2 „Quellen mit Wahlprogramm im Titel" — nested, flat and as query',
     async () => {

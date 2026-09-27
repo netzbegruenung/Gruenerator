@@ -43,6 +43,7 @@ import {
   loadSystemTermMatches,
   outlineSystemSource,
   readSystemSourceText,
+  resolveSystemCategory,
   NOT_A_URL,
   searchSystemDocuments,
   SOURCE_NOT_FOUND,
@@ -282,6 +283,32 @@ export async function runSystemAction(
   args: SystemActionArgs,
   ctx: SystemActionCtx
 ): Promise<Record<string, unknown>> {
+  const asked = args.filter?.category ?? args.filter?.sourceType;
+  if (!asked) return await withSourceSuggestions(args, ctx);
+  const { used, values } = await resolveSystemCategory(
+    { collection: ctx.collection, category: asked },
+    ctx.deps
+  );
+  if (!used) {
+    const known = Object.entries(values).map(([v, n]) => `${v} (${n})`);
+    return {
+      error: `filter.category „${asked}" gibt es in ${ctx.collection.name} nicht. ${
+        known.length > 0
+          ? `Nimm einen dieser Werte (Quellen je Wert): ${known.join(', ')}.`
+          : 'Die Quellen tragen keine Kategorie — lass filter.category weg.'
+      }`,
+    };
+  }
+  const resolved = { ...args, filter: { ...args.filter, category: used, sourceType: undefined } };
+  const result = await withSourceSuggestions(resolved, ctx);
+  const same = used.toLocaleLowerCase('de') === asked.trim().toLocaleLowerCase('de');
+  return same ? result : { ...result, categoryResolved: `${asked} → ${used}` };
+}
+
+async function withSourceSuggestions(
+  args: SystemActionArgs,
+  ctx: SystemActionCtx
+): Promise<Record<string, unknown>> {
   const result = await dispatch(args, ctx);
   const error = result.error;
   if (args.sourceId && (error === SOURCE_NOT_FOUND || error === NOT_A_URL)) {
@@ -422,7 +449,14 @@ async function read(
   args: SystemActionArgs,
   ctx: SystemActionCtx
 ): Promise<Record<string, unknown>> {
-  if (!args.sourceId) return { error: 'read braucht sourceId (aus list, Feld ref).' };
+  if (!args.sourceId) {
+    // Live: „und die davor?" nach „die vorletzte" rief read ohne sourceId, und
+    // die Antwort behauptete danach, es gebe keine weitere Quelle.
+    return {
+      error:
+        'read braucht sourceId (aus list, Feld ref). Für „die nächste/vorletzte/davor" rufe list mit sortBy date (und filter.category, offset) auf und lies dann deren ref — die Quelle fehlt nicht, nur die ID.',
+    };
+  }
   const picked = [args.abschnitt, args.seite, args.section, args.chunks].filter(
     (v) => v !== undefined
   ).length;
