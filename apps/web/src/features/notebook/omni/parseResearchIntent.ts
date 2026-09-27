@@ -125,7 +125,8 @@ const NUMBER_WORDS: Record<string, number> = {
   zehn: 10,
 };
 
-const RECENCY_WORDS = String.raw`(?<!\p{L})(?:neuest\p{L}*|neust\p{L}*|aktuell\p{L}*|jüngst\p{L}*|juengst\p{L}*|zuletzt)(?!\p{L})`;
+// „Aktuelle Stunde“ is a parliamentary debate format, not recency.
+const RECENCY_WORDS = String.raw`(?<!\p{L})(?:neuest\p{L}*|neust\p{L}*|aktuell\p{L}*(?!\p{L})(?!\s+stunde)|jüngst\p{L}*|juengst\p{L}*|zuletzt)(?!\p{L})`;
 const RECENCY_RE = new RegExp(RECENCY_WORDS, 'iu');
 const RECENCY_WORD_RE = new RegExp(RECENCY_WORDS, 'giu');
 const FILLER_WORD_RE = /(?<!\p{L})(?:dokumente|texte|beiträge|artikel|alles|alle)(?!\p{L})/giu;

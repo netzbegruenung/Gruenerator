@@ -119,6 +119,12 @@ describe('parseResearchIntent — scope + recency + empties', () => {
     expect(parseResearchIntent('neueste beschlüsse zu verkehr', ctx).sortBy).toBe('date_desc');
   });
 
+  it('keeps „Aktuelle Stunde“ as a debate format, not recency', () => {
+    const parsed = parseResearchIntent('Aktuelle Stunde Mietpreise', ctx);
+    expect(parsed.sortBy).toBeUndefined();
+    expect(parsed.residualQuery).toContain('Aktuelle Stunde');
+  });
+
   it('returns no structure for a plain keyword', () => {
     const parsed = parseResearchIntent('hitzeschutz', ctx);
     expect(parsed.hasStructure).toBe(false);
