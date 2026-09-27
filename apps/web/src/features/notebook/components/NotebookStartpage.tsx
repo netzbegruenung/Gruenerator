@@ -62,6 +62,9 @@ interface NotebookStartpageProps {
    *  Defaults to true. */
   pageGradient?: boolean;
   footer?: ReactNode;
+  /** Opens a chat question in its own browser tab, so this page keeps the
+   *  query and its hits. Without it the question is asked here. */
+  onOpenChat?: (question: string) => void;
 }
 
 // Signature 2a gradient — pink radial (light) / deep-green radial (dark). Applied
@@ -90,6 +93,7 @@ export function NotebookStartpage({
   omniComposer = false,
   pageGradient = true,
   footer,
+  onOpenChat,
 }: NotebookStartpageProps) {
   const hasCollections = recentCollectionIds.length > 0;
   const manualSearchAvailable = showManualSearch && hasCollections;
@@ -101,11 +105,11 @@ export function NotebookStartpage({
     manualSearchAvailable && answerMode !== undefined && composerModeRunsLiveSearch(answerMode);
   const hasHits = liveSearch && composerText.trim().length >= LIVE_SEARCH_MIN_LENGTH;
   // The composer moves up once the first answer is on screen, not with the
-  // first keystroke, and stays up until the field is empty again — editing the
-  // query never makes it bounce.
+  // first keystroke, and stays up even when the field is cleared — the page
+  // never jumps back and forth. Only leaving the live-search modes centres it.
   const [raised, setRaised] = useState(false);
   const hasText = composerText.trim().length > 0;
-  if (raised && (!hasText || !liveSearch)) setRaised(false);
+  if (raised && !liveSearch) setRaised(false);
 
   const magicIntent: MagicIntent | null =
     !omniComposer && answerMode === 'auto' && manualSearchAvailable && hasText
@@ -154,12 +158,23 @@ export function NotebookStartpage({
       <div
         className={cn(
           'flex flex-col items-center px-6 transition-[padding] duration-500 ease-out motion-reduce:transition-none md:px-20',
-          // The composer sits in the upper third; once hits come in it moves
-          // up to give them the page.
-          raised ? 'pt-10' : 'pt-[16vh] max-md:pt-[8vh]'
+          // Heading and composer sit centred on the empty page; once hits
+          // come in the composer moves up to give them the page.
+          raised ? 'pt-10' : 'pt-[max(2.5rem,calc(50dvh-10rem))] max-md:pt-[8vh]'
         )}
       >
-        <h1 className={cn(HEADING, 'mb-8')}>{title}</h1>
+        {/* The heading folds away with the first hits; it stays in the DOM so
+            screen readers keep the page's title. */}
+        <div
+          className={cn(
+            'grid w-full transition-[grid-template-rows,opacity] duration-500 ease-out motion-reduce:transition-none',
+            raised ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr]'
+          )}
+        >
+          <div className="overflow-hidden">
+            <h1 className={cn(HEADING, 'mb-8')}>{title}</h1>
+          </div>
+        </div>
         <div className={cn('w-full max-w-2xl', NOTEBOOK_COMPOSER_ACCENT)}>
           <NotebookComposer
             placeholder={placeholder}
@@ -170,6 +185,8 @@ export function NotebookStartpage({
             answerMode={answerMode}
             onAnswerModeChange={onAnswerModeChange}
             magicIntent={magicIntent}
+            settingsClassName={NOTEBOOK_COMPOSER_ACCENT}
+            {...(onOpenChat ? { onChatSubmit: onOpenChat } : {})}
             {...(manualSearchAvailable ? { onManualSubmit: setSubmitted } : {})}
           />
         </div>
