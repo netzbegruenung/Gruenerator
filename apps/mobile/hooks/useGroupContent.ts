@@ -1,265 +1,73 @@
-import { SYSTEM_AGENTS } from '@gruenerator/shared/agents';
-import { getGlobalApiClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
+import { groupContentKey, toGroupFeedItems, type GroupFeedItem } from '@gruenerator/shared/groups';
+import { getNotebookDefinition } from '@gruenerator/shared/notebooks';
 import { useQuery } from '@tanstack/react-query';
 
-export type GroupContentKind =
-  'doc' | 'board' | 'generator' | 'notebook' | 'agent' | 'text' | 'template' | 'document';
+import type { useRouter } from 'expo-router';
 
-interface CollabDocRow {
-  id: string;
-  title: string | null;
-  document_subtype: string | null;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
-  shared_at?: string;
-  shared_by_name?: string;
-}
-
-interface GeneratorRow {
-  id: string;
-  name: string;
-  title: string | null;
-  description: string | null;
-  slug?: string;
-  updated_at: string;
-  shared_at?: string;
-  shared_by_name?: string;
-}
-
-interface NotebookRow {
-  id: string;
-  name: string;
-  description: string | null;
-  updated_at: string;
-  shared_at?: string;
-  shared_by_name?: string;
-}
-
-interface TextRow {
-  id: string;
-  title: string | null;
-  document_type: string | null;
-  word_count?: number;
-  updated_at: string;
-  shared_at?: string;
-  shared_by_name?: string;
-}
-
-interface TemplateRow {
-  id: string;
-  title: string;
-  description: string | null;
-  external_url?: string;
-  thumbnail_url?: string | null;
-  updated_at: string;
-  shared_at?: string;
-  shared_by_name?: string;
-}
-
-interface DocumentRow {
-  id: string;
-  title: string | null;
-  filename: string;
-  file_size: number;
-  status: string;
-  updated_at: string;
-  shared_at?: string;
-  shared_by_name?: string;
-}
-
-// User agents arrive as their full Agent shape (+ UUID `id`); we navigate by
-// `identifier`. System agents arrive as { id: identifier } and get their title
-// from the static registry.
-interface UserAgentRow {
-  id: string;
-  identifier: string;
-  title: string | null;
-  description?: string | null;
-  shared_at?: string;
-  shared_by_name?: string;
-}
-
-interface SystemAgentRow {
-  id: string;
-  shared_at?: string;
-  shared_by_name?: string;
-}
-
-interface ContentApiResponse {
-  success: boolean;
-  content: {
-    collaborative_documents?: CollabDocRow[];
-    generators?: GeneratorRow[];
-    notebooks?: NotebookRow[];
-    user_agents?: UserAgentRow[];
-    system_agents?: SystemAgentRow[];
-    texts?: TextRow[];
-    templates?: TemplateRow[];
-    documents?: DocumentRow[];
-  };
-}
-
-export interface GroupContentItem {
-  id: string;
-  kind: GroupContentKind;
-  title: string;
-  subtitle?: string;
-  updatedAt: string;
-  sharedAt?: string;
-  sharedByName?: string;
-  slug?: string;
-}
-
-export interface GroupedContent {
-  docs: GroupContentItem[];
-  boards: GroupContentItem[];
-  generators: GroupContentItem[];
-  notebooks: GroupContentItem[];
-  agents: GroupContentItem[];
-  texts: GroupContentItem[];
-  templates: GroupContentItem[];
-  documents: GroupContentItem[];
-  totalCount: number;
-}
-
-function emptyGroupedContent(): GroupedContent {
-  return {
-    docs: [],
-    boards: [],
-    generators: [],
-    notebooks: [],
-    agents: [],
-    texts: [],
-    templates: [],
-    documents: [],
-    totalCount: 0,
-  };
-}
-
-export function useGroupContent(groupId: string | null | undefined) {
+/** Alles, was mit dem Projekt geteilt ist — flach und angeheftet zuerst, wie im Web. */
+export function useGroupFeed(groupId: string | null | undefined) {
   return useQuery({
-    queryKey: ['groupContent', groupId],
-    queryFn: async (): Promise<GroupedContent> => {
-      const res = await getGlobalApiClient().get<ContentApiResponse>(
-        `/auth/groups/${groupId}/content`
-      );
-      const raw = res.data.content ?? {};
-      const grouped = emptyGroupedContent();
-
-      (raw.collaborative_documents ?? []).forEach((row) => {
-        const isBoard = row.document_subtype === 'boards';
-        const item: GroupContentItem = {
-          id: row.id,
-          kind: isBoard ? 'board' : 'doc',
-          title: row.title?.trim() || (isBoard ? 'Unbenanntes Board' : 'Unbenanntes Dokument'),
-          updatedAt: row.updated_at,
-          ...(row.shared_at ? { sharedAt: row.shared_at } : {}),
-          ...(row.shared_by_name ? { sharedByName: row.shared_by_name } : {}),
-        };
-        if (isBoard) grouped.boards.push(item);
-        else grouped.docs.push(item);
+    queryKey: groupContentKey(groupId ?? ''),
+    queryFn: async (): Promise<GroupFeedItem[]> => {
+      const res = await getContractsClient().groups.listGroupContent({
+        params: { groupId: groupId ?? '' },
       });
-
-      (raw.generators ?? []).forEach((row) => {
-        grouped.generators.push({
-          id: row.id,
-          kind: 'generator',
-          title: row.title?.trim() || row.name || 'Grünerator',
-          ...(row.description ? { subtitle: row.description } : {}),
-          updatedAt: row.updated_at,
-          ...(row.shared_at ? { sharedAt: row.shared_at } : {}),
-          ...(row.shared_by_name ? { sharedByName: row.shared_by_name } : {}),
-          ...(row.slug ? { slug: row.slug } : {}),
-        });
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Inhalte konnten nicht geladen werden.');
+      return toGroupFeedItems(res.body.content, {
+        systemNotebookTitle: (id) => getNotebookDefinition(id)?.title ?? null,
       });
-
-      (raw.notebooks ?? []).forEach((row) => {
-        grouped.notebooks.push({
-          id: row.id,
-          kind: 'notebook',
-          title: row.name || 'Notebook',
-          ...(row.description ? { subtitle: row.description } : {}),
-          updatedAt: row.updated_at,
-          ...(row.shared_at ? { sharedAt: row.shared_at } : {}),
-          ...(row.shared_by_name ? { sharedByName: row.shared_by_name } : {}),
-        });
-      });
-
-      (raw.user_agents ?? []).forEach((row) => {
-        grouped.agents.push({
-          id: row.identifier,
-          kind: 'agent',
-          title: row.title?.trim() || 'Agent*in',
-          ...(row.description ? { subtitle: row.description } : {}),
-          updatedAt: row.shared_at ?? '',
-          ...(row.shared_at ? { sharedAt: row.shared_at } : {}),
-          ...(row.shared_by_name ? { sharedByName: row.shared_by_name } : {}),
-        });
-      });
-
-      (raw.system_agents ?? []).forEach((row) => {
-        const sys = SYSTEM_AGENTS.find((a) => a.identifier === row.id);
-        grouped.agents.push({
-          id: row.id,
-          kind: 'agent',
-          title: sys?.title ?? row.id,
-          ...(sys?.description ? { subtitle: sys.description } : {}),
-          updatedAt: row.shared_at ?? '',
-          ...(row.shared_at ? { sharedAt: row.shared_at } : {}),
-          ...(row.shared_by_name ? { sharedByName: row.shared_by_name } : {}),
-        });
-      });
-
-      (raw.texts ?? []).forEach((row) => {
-        grouped.texts.push({
-          id: row.id,
-          kind: 'text',
-          title: row.title?.trim() || 'Unbenannter Text',
-          ...(row.word_count ? { subtitle: `${row.word_count} Wörter` } : {}),
-          updatedAt: row.updated_at,
-          ...(row.shared_at ? { sharedAt: row.shared_at } : {}),
-          ...(row.shared_by_name ? { sharedByName: row.shared_by_name } : {}),
-        });
-      });
-
-      (raw.templates ?? []).forEach((row) => {
-        grouped.templates.push({
-          id: row.id,
-          kind: 'template',
-          title: row.title || 'Vorlage',
-          ...(row.description ? { subtitle: row.description } : {}),
-          updatedAt: row.updated_at,
-          ...(row.shared_at ? { sharedAt: row.shared_at } : {}),
-          ...(row.shared_by_name ? { sharedByName: row.shared_by_name } : {}),
-        });
-      });
-
-      (raw.documents ?? []).forEach((row) => {
-        grouped.documents.push({
-          id: row.id,
-          kind: 'document',
-          title: row.title?.trim() || row.filename || 'Datei',
-          subtitle: row.filename,
-          updatedAt: row.updated_at,
-          ...(row.shared_at ? { sharedAt: row.shared_at } : {}),
-          ...(row.shared_by_name ? { sharedByName: row.shared_by_name } : {}),
-        });
-      });
-
-      grouped.totalCount =
-        grouped.docs.length +
-        grouped.boards.length +
-        grouped.generators.length +
-        grouped.notebooks.length +
-        grouped.agents.length +
-        grouped.texts.length +
-        grouped.templates.length +
-        grouped.documents.length;
-
-      return grouped;
     },
     enabled: !!groupId,
     staleTime: 30_000,
   });
+}
+
+type Router = ReturnType<typeof useRouter>;
+
+const web = (router: Router, path: string, title: string) =>
+  router.push({ pathname: '/(fullscreen)/web-viewer', params: { path, title } });
+
+export function openGroupFeedItem(router: Router, item: GroupFeedItem, groupId: string): void {
+  switch (item.kind) {
+    case 'doc':
+      router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: item.id } });
+      return;
+    case 'board':
+      web(router, `/boards/${item.id}`, item.title);
+      return;
+    case 'sharepic':
+      web(router, `/studio/canvas/${item.id}`, item.title);
+      return;
+    case 'sharepic-template':
+      // „Verwenden" klont die Vorlage — das kann nur die Web-Fläche des Projekts.
+      web(router, `/projekte/${groupId}`, item.title);
+      return;
+    case 'generator':
+      web(router, `/gruenerator/${item.slug ?? item.id}`, item.title);
+      return;
+    case 'notebook':
+      // `/notebooks/`, not the singular `/notebook/`: the latter is a legacy
+      // route that redirects client-side, and the WebView pins its policy to
+      // the path it was opened with — the redirect would be blocked.
+      web(router, `/notebooks/${item.id}`, item.title);
+      return;
+    case 'agent':
+      // Native chat with the shared agent; the slug is the agent identifier.
+      router.push({
+        pathname: '/(focused)/chat-conversation',
+        params: { threadId: 'new', agentId: item.slug ?? item.id },
+      });
+      return;
+    case 'text':
+      web(router, `/texte/${item.id}`, item.title);
+      return;
+    case 'template':
+      web(router, `/datenbank/vorlagen?selected=${item.id}`, item.title);
+      return;
+    case 'document':
+      web(router, `/documents/${item.id}`, item.title);
+      return;
+  }
 }
