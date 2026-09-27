@@ -60,6 +60,10 @@ vi.mock('../../../services/skills/internalPrompts.js', async (orig) => {
   const { internalPromptsMock } = await import('./harness/mocks.js');
   return internalPromptsMock((await orig()) as Record<string, unknown>);
 });
+vi.mock('../../../services/trees/index.js', async (orig) => {
+  const { treeBudgetMock } = await import('./harness/mocks.js');
+  return treeBudgetMock((await orig()) as Record<string, unknown>);
+});
 vi.mock('../services/pipelineStateStore.js', async () => {
   const { pipelineStateStoreMock } = await import('./harness/mocks.js');
   return pipelineStateStoreMock();
