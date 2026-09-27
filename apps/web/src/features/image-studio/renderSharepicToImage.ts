@@ -47,6 +47,7 @@ const FULL_PIXEL_RATIO = 2;
 
 interface CanvasHandle {
   toDataURL: (options?: { pixelRatio?: number }) => string | undefined;
+  imagesSettled?: () => boolean;
 }
 
 function cleanup(root: Root | null, container: HTMLDivElement | null) {
@@ -97,8 +98,10 @@ function runRender(
       // old code paid for it on every 100ms tick of every concurrent render.
       await ensureFontsReady();
 
-      // Poll for canvas readiness instead of blind timeout
-      const maxWaitMs = 5000;
+      // Poll for canvas readiness instead of blind timeout. The ceiling is
+      // generous because a stock background is a multi-MB JPEG, and a capture
+      // taken before it arrives is the template without its photo.
+      const maxWaitMs = 10000;
       const pollIntervalMs = 100;
       const startTime = Date.now();
 
@@ -115,16 +118,18 @@ function runRender(
 
         if (!canvasRef || Date.now() - startTime < 500) return;
 
-        if (Date.now() - startTime > maxWaitMs) {
-          finish(null);
-          return;
-        }
+        // Past the deadline, capture whatever has loaded: a preview without
+        // its photo still beats no preview.
+        const deadline = Date.now() - startTime > maxWaitMs;
+        if (!deadline && canvasRef.imagesSettled?.() === false) return;
 
         try {
           const dataUrl = canvasRef.toDataURL({ pixelRatio });
           if (dataUrl && dataUrl.length > 100) finish(dataUrl);
+          else if (deadline) finish(null);
         } catch {
           // Canvas not ready yet, keep polling
+          if (deadline) finish(null);
         }
       }, pollIntervalMs);
 
