@@ -10,7 +10,7 @@ import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
-import { PiArrowLeft } from 'react-icons/pi';
+import { PiArrowLeft, PiCheck } from 'react-icons/pi';
 import { useParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
@@ -150,7 +150,7 @@ function CollabCanvasStudioContent() {
   });
 
   const chromeCenter = canvas ? (
-    <div className="flex items-center gap-sm min-w-0">
+    <div className="flex items-center gap-sm min-w-0 max-canvas-mobile:flex-col max-canvas-mobile:items-start max-canvas-mobile:gap-0">
       <EditableTitle
         as="span"
         title={canvas.title}
@@ -163,12 +163,23 @@ function CollabCanvasStudioContent() {
       />
       {!isLive && (
         <span
-          className="size-2 rounded-full bg-amber-300 shrink-0"
+          className="size-2 rounded-full bg-amber-300 shrink-0 max-canvas-mobile:hidden"
           title={offlineReason}
           aria-label={offlineReason}
           role="status"
         />
       )}
+      {/* Mobil ist Platz für eine Zeile unter dem Titel statt eines Punkts. */}
+      <span className="canvas-mobile:hidden flex items-center gap-1 text-xs text-white/80">
+        {isLive ? (
+          <>
+            <PiCheck size={12} aria-hidden="true" />
+            Gespeichert
+          </>
+        ) : (
+          offlineReason
+        )}
+      </span>
     </div>
   ) : null;
 
