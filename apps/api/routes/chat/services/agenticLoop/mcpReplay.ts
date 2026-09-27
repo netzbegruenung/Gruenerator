@@ -73,10 +73,13 @@ function stripReplayCitationMarkers(s: string): string {
  * `refs` is the digest of the row array next to it — one line per row with
  * title, ref and date. Replayed together, the rows (~7.5k chars for 20 Berlin
  * sources) would push the digest past the budget, so the rows stay behind.
+ * So does `hint`: it steers the planner of the turn that made the call. Its
+ * 248 chars pushed a 20-row Berlin list to 4.222 and cut the last refs (Q8 in
+ * the live suite, 28.09.2026).
  */
 function withoutDigestedRows(result: Record<string, unknown>): Record<string, unknown> {
   if (typeof result.refs !== 'string') return result;
-  const { results: _results, ranking: _ranking, ...rest } = result;
+  const { results: _results, ranking: _ranking, hint: _hint, ...rest } = result;
   return rest;
 }
 
