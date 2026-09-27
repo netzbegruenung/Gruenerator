@@ -174,7 +174,12 @@ export class ToolHandler {
     }
 
     if (!Array.isArray(tools) || tools.length === 0) {
-      console.warn(`[ToolHandler] Invalid tools provided for ${requestId} (type: ${type}):`, tools);
+      console.warn(
+        '[ToolHandler] Invalid tools provided for %s (type: %s):',
+        requestId,
+        type,
+        tools
+      );
       return null;
     }
 
@@ -217,7 +222,7 @@ export class ToolHandler {
     // Add tool_choice if specified
     if (options.tool_choice) {
       payload.tool_choice = options.tool_choice as ToolChoice;
-      console.log(`[ToolHandler] Tool choice added for ${requestId}:`, options.tool_choice);
+      console.log('[ToolHandler] Tool choice added for %s:', requestId, options.tool_choice);
     }
 
     return payload;
@@ -238,7 +243,7 @@ export class ToolHandler {
     tools: Tool[] = [],
     toolCalls: ToolCall[] = []
   ): void {
-    console.log(`[ToolHandler] Tool usage summary for ${requestId}:`, {
+    console.log('[ToolHandler] Tool usage summary for %s:', requestId, {
       type,
       provider,
       toolsProvided: tools.length,
