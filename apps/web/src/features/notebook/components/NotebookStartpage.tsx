@@ -98,6 +98,12 @@ export function NotebookStartpage({
   const liveSearch =
     manualSearchAvailable && answerMode !== undefined && composerModeRunsLiveSearch(answerMode);
   const hasHits = liveSearch && composerText.trim().length >= LIVE_SEARCH_MIN_LENGTH;
+  // The composer moves up once the first answer is on screen, not with the
+  // first keystroke, and stays up until the field is empty again — editing the
+  // query never makes it bounce.
+  const [raised, setRaised] = useState(false);
+  const hasText = composerText.trim().length > 0;
+  if (raised && (!hasText || !liveSearch)) setRaised(false);
 
   // --- Overview surface (/notebooks index + workplace "Wissen"): omni composer
   //     only. ---
@@ -121,17 +127,17 @@ export function NotebookStartpage({
   //     else about the notebook lives on its Übersicht tab. ---
   return (
     <PageContainer
-      maxWidth="lg"
+      maxWidth="xl"
       noPadTop
       gradient={false}
       bgClassName={pageGradient ? NOTEBOOK_MAGENTA_BG : undefined}
     >
       <div
         className={cn(
-          'flex flex-col items-center px-6 transition-[padding] duration-300 md:px-20',
+          'flex flex-col items-center px-6 transition-[padding] duration-500 ease-out motion-reduce:transition-none md:px-20',
           // The composer sits in the upper third; once hits come in it moves
           // up to give them the page.
-          hasHits ? 'pt-10' : 'pt-[16vh] max-md:pt-[8vh]'
+          raised ? 'pt-10' : 'pt-[16vh] max-md:pt-[8vh]'
         )}
       >
         <h1 className={cn(HEADING, 'mb-8')}>{title}</h1>
@@ -149,8 +155,14 @@ export function NotebookStartpage({
         </div>
       </div>
 
+      {/* Hits take the page's width (four to five columns on a wide screen). */}
       {liveSearch && (
-        <div className="mx-auto w-full max-w-3xl px-6 pb-10 pt-10 md:px-0">
+        <div
+          className={cn(
+            'mx-auto w-full pb-10 pt-10',
+            hasHits ? 'max-w-none' : 'max-w-3xl px-6 md:px-0'
+          )}
+        >
           <NotebookLiveSearch
             text={composerText}
             submitted={submitted}
@@ -162,6 +174,7 @@ export function NotebookStartpage({
                 ? 'Keine Treffer. Versuche andere Begriffe oder entferne Filter.'
                 : 'Keine Treffer in den Quellen. Mit Enter fragst du die KI.'
             }
+            onAnswered={() => setRaised(true)}
           />
         </div>
       )}
