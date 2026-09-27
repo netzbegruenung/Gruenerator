@@ -18,10 +18,10 @@ import {
   upsertThreadRecallPoint,
 } from '../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTitle, threadNeedsTitle } from '../../services/chat/threadTitleService.js';
+import { assertCanShareToGroup } from '../../services/groups/groupMembership.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
-import { getPostgresAndCheckMembership } from '../auth/groups/index.js';
 
 import {
   deleteThreadAttachmentVectors,
@@ -237,10 +237,10 @@ export const threadsContractRouter = s.router(threadsContract, {
       const previousStatus = existingThreads[0].status as string;
 
       // Filing into a Space: only into a group the user belongs to (personal or
-      // team). null clears the home space.
+      // team) and may share into — not the system group. null clears the home space.
       if (groupId != null) {
         try {
-          await getPostgresAndCheckMembership(groupId, userId);
+          await assertCanShareToGroup(groupId, userId);
         } catch {
           return { status: 403 as const, body: { error: 'Kein Zugriff auf dieses Projekt.' } };
         }

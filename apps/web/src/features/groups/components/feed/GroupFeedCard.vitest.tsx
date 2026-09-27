@@ -31,6 +31,7 @@ const item: GroupFeedItem = {
     pinnedByName: 'Moritz',
     commentCount: 1,
   },
+  post: null,
 };
 
 const baseProps: GroupFeedCardProps = {
@@ -124,5 +125,81 @@ describe('GroupFeedCard', () => {
   it('hides comments where the group does not allow them', () => {
     renderWithProviders(<GroupFeedCard {...baseProps} canComment={false} />);
     expect(screen.queryByRole('button', { name: /Kommentare/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('GroupFeedCard — Beitrag', () => {
+  const POST = '22222222-2222-4222-8222-222222222222';
+  const postItem: GroupFeedItem = {
+    ...item,
+    key: `group_post:${POST}`,
+    id: POST,
+    contentType: 'group_post',
+    kind: 'post',
+    title: 'Wer hilft am Samstag?',
+    share: { ...item.share!, pinnedAt: null, pinnedByName: null, note: null },
+    post: {
+      body: 'Wer hilft am Samstag?',
+      authorId: 'me',
+      editedAt: null,
+      files: [
+        { id: 'f1', name: 'Stand.jpg', mimeType: 'image/jpeg', sizeBytes: 2048, isImage: true },
+        {
+          id: 'f2',
+          name: 'Plan.pdf',
+          mimeType: 'application/pdf',
+          sizeBytes: 421_000,
+          isImage: false,
+        },
+      ],
+    },
+  };
+
+  it('shows text, images and downloadable files without an open button', async () => {
+    const { container } = renderWithProviders(<GroupFeedCard {...baseProps} item={postItem} />);
+    expect(screen.getByText('Wer hilft am Samstag?')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Stand.jpg' })).toHaveAttribute(
+      'src',
+      `/api/auth/groups/${GROUP}/posts/${POST}/files/f1`
+    );
+    expect(screen.getByRole('link', { name: 'Plan.pdf herunterladen' })).toHaveAttribute(
+      'href',
+      `/api/auth/groups/${GROUP}/posts/${POST}/files/f2`
+    );
+    expect(screen.getByText('411 KB')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Öffnen' })).not.toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('lets the author edit the text', async () => {
+    let patched: unknown = null;
+    server.use(
+      http.patch(`http://localhost/api/auth/groups/${GROUP}/posts/${POST}`, async ({ request }) => {
+        patched = await request.json();
+        return HttpResponse.json({ success: true });
+      })
+    );
+    const { user } = renderWithProviders(<GroupFeedCard {...baseProps} item={postItem} />);
+    await user.click(screen.getByRole('button', { name: 'Aktionen für diesen Beitrag' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Bearbeiten' }));
+    const box = screen.getByRole('textbox', { name: 'Beitrag bearbeiten' });
+    await user.clear(box);
+    await user.type(box, 'Samstag 10 Uhr');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(patched).toEqual({ body: 'Samstag 10 Uhr' }));
+  });
+
+  it('offers other members no actions, but admins may delete', async () => {
+    const other = { ...postItem, post: { ...postItem.post!, authorId: 'someone' } };
+    const { unmount } = renderWithProviders(<GroupFeedCard {...baseProps} item={other} />);
+    expect(
+      screen.queryByRole('button', { name: 'Aktionen für diesen Beitrag' })
+    ).not.toBeInTheDocument();
+    unmount();
+
+    const { user } = renderWithProviders(<GroupFeedCard {...baseProps} item={other} isAdmin />);
+    await user.click(screen.getByRole('button', { name: 'Aktionen für diesen Beitrag' }));
+    expect(screen.queryByRole('menuitem', { name: 'Bearbeiten' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: 'Beitrag löschen' })).toBeInTheDocument();
   });
 });

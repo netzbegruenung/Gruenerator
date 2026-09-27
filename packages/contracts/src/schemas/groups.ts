@@ -155,6 +155,9 @@ export const groupSummarySchema = z.object({
   isAdmin: z.boolean(),
   // 'personal' = solo Space (lean UI, hidden from discovery); else team Space.
   group_type: z.enum(['standard', 'personal']).nullish(),
+  // The one system group every user belongs to: no member info, only instance
+  // admins share. member_count is 0 there.
+  is_system: z.boolean().nullish(),
   member_count: z.number().nullish(),
   content_count: z.number().nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
@@ -176,6 +179,7 @@ export const groupDetailSchema = z.object({
   audience: groupAudienceSchema.nullish(),
   // 'personal' = solo Space (lean UI, hidden from discovery); else team Space.
   group_type: z.enum(['standard', 'personal']).nullish(),
+  is_system: z.boolean().nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
   slug_suffix: z.string().nullish(),
 });
@@ -434,6 +438,52 @@ export const groupShareCommentResponseSchema = z.object({
   comment: groupShareCommentSchema,
 });
 
+// ── Feed: eigene Beiträge (Text + Dateien) ─────────────────────────────────
+
+export const GROUP_POST_MAX = 5000;
+export const GROUP_POST_FILE_LIMIT = 10;
+export const GROUP_POST_FILE_MAX_BYTES = 25 * 1024 * 1024;
+
+export const groupPostFileSchema = z.object({
+  id: z.string(),
+  file_name: z.string(),
+  mime_type: z.string(),
+  size_bytes: z.number().int(),
+});
+export type GroupPostFile = z.infer<typeof groupPostFileSchema>;
+
+/**
+ * Ein Beitrag im Bucket `group_posts`. Die Datei-URL baut der Client:
+ * `/api/auth/groups/:groupId/posts/:postId/files/:fileId` (Upload und
+ * Download sind Multipart bzw. binär und leben neben dem Contract).
+ */
+export const groupPostItemSchema = z
+  .object({
+    id: z.string(),
+    body: z.string(),
+    author_id: z.string().nullable(),
+    created_at: z.string(),
+    edited_at: z.string().nullable(),
+    files: z.array(groupPostFileSchema),
+    shared_by_name: z.string().nullish(),
+    share: groupShareMetaSchema.nullish(),
+  })
+  .passthrough();
+export type GroupPostItem = z.infer<typeof groupPostItemSchema>;
+
+export const updateGroupPostBodySchema = z.object({
+  body: z.string().trim().max(GROUP_POST_MAX),
+});
+export type UpdateGroupPostBody = z.infer<typeof updateGroupPostBodySchema>;
+
+/** Antwort von `POST /api/auth/groups/:groupId/posts` (Multipart, kein Contract). */
+export const groupPostCreatedResponseSchema = z.object({
+  success: z.literal(true),
+  postId: z.string(),
+  shareId: z.string(),
+});
+export type GroupPostCreatedResponse = z.infer<typeof groupPostCreatedResponseSchema>;
+
 /**
  * `GET /content` returns a fixed envelope keyed by display bucket, but each
  * bucket holds heterogeneous, dynamically-hydrated items (different source
@@ -473,6 +523,8 @@ export const groupContentResponseSchema = z.object({
     system_agents: groupContentBucketSchema,
     user_agents: groupContentBucketSchema,
     canvas_templates: groupContentBucketSchema,
+    /** Optional: ältere Server liefern den Bucket nicht. */
+    group_posts: z.array(groupPostItemSchema).optional(),
   }),
 });
 export type GroupContentResponse = z.infer<typeof groupContentResponseSchema>;

@@ -15,6 +15,10 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import {
+  assertCanShareToGroup,
+  listShareTargetGroups,
+} from '../../services/groups/groupMembership.js';
 import { applyNotebookVisibility } from '../../services/notebook/notebookVisibility.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -35,22 +39,10 @@ function getUserId(req: Request): string {
   return user.id;
 }
 
-interface UserGroupRow {
-  id: string;
-  name: string;
-  role: string;
-  [key: string]: unknown;
-}
-
 interface GroupShareJoinRow {
   group_id: string;
   group_name: string;
   shared_at: string | Date;
-  [key: string]: unknown;
-}
-
-interface MembershipRow {
-  user_id: string;
   [key: string]: unknown;
 }
 
@@ -78,19 +70,7 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
   listMyGroups: async (args) => {
     try {
       const userId = getUserId(args.req);
-      const postgres = getPostgresInstance();
-      const groups = (await postgres.query(
-        `SELECT g.id, g.name, gm.role
-           FROM groups g
-           INNER JOIN group_memberships gm ON gm.group_id = g.id
-           WHERE gm.user_id = $1
-           ORDER BY g.name ASC`,
-        [userId]
-      )) as UserGroupRow[];
-      return {
-        status: 200 as const,
-        body: groups.map((g) => ({ id: g.id, name: g.name, role: g.role })),
-      };
+      return { status: 200 as const, body: await listShareTargetGroups(userId) };
     } catch (error) {
       log.error('[notebookSharingContract.listMyGroups] Error:', error);
       return { status: 500 as const, body: { error: 'Failed to fetch user groups' } };
@@ -275,14 +255,12 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
       }
 
       const postgres = getPostgresInstance();
-      const membership = (await postgres.query(
-        'SELECT user_id FROM group_memberships WHERE group_id = $1 AND user_id = $2',
-        [group_id, userId]
-      )) as MembershipRow[];
-      if (membership.length === 0) {
+      try {
+        await assertCanShareToGroup(group_id, userId);
+      } catch {
         return {
           status: 403 as const,
-          body: { error: 'Du musst Mitglied der Gruppe sein, um zu teilen' },
+          body: { error: 'Du darfst mit dieser Gruppe nicht teilen' },
         };
       }
 

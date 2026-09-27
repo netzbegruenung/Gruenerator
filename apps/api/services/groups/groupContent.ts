@@ -23,7 +23,7 @@ import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.
 import { notifyGroupMembers } from '../notifications/index.js';
 import { listUserAgentsByIds } from '../userAgents/userAgentsRepository.js';
 
-import { getPostgresAndCheckMembership } from './groupMembership.js';
+import { assertCanShareToGroup } from './groupMembership.js';
 import { normalizeSharePermissions } from './groupSharePermissions.js';
 
 import type { PostgresService } from '../../database/services/PostgresService.js';
@@ -90,7 +90,7 @@ function defaultDeps(): ShareContentDeps {
   return {
     postgres: getPostgresInstance(),
     checkMembership: async (groupId, userId) => {
-      await getPostgresAndCheckMembership(groupId, userId, false);
+      await assertCanShareToGroup(groupId, userId);
     },
     getNotebookCollection: (id) => helper.getNotebookCollection(id),
     updateNotebookCollection: (id, patch) => helper.updateNotebookCollection(id, patch),
@@ -262,6 +262,7 @@ export interface GroupContentBuckets {
   system_agents: Record<string, unknown>[];
   user_agents: Record<string, unknown>[];
   canvas_templates: Record<string, unknown>[];
+  group_posts: Record<string, unknown>[];
 }
 
 /** Injizierbar, damit der Test ohne Postgres, Qdrant und Drizzle läuft. */
@@ -319,6 +320,7 @@ export async function hydrateGroupContent(
     system_agents: [],
     user_agents: [],
     canvas_template: [],
+    group_post: [],
   };
   sharedContent.forEach((share) => {
     if (contentByType[share.content_type]) contentByType[share.content_type].push(share);
@@ -504,6 +506,34 @@ export async function hydrateGroupContent(
     );
   }
 
+  if (contentByType.group_post.length > 0) {
+    const ids = contentByType.group_post.map((s) => s.content_id);
+    fetchPromises.push(
+      postgres
+        .query(
+          `SELECT p.id, p.body, p.author_id, p.created_at, p.edited_at,
+                  COALESCE(
+                    json_agg(json_build_object(
+                      'id', f.id, 'file_name', f.file_name,
+                      'mime_type', f.mime_type, 'size_bytes', f.size_bytes
+                    ) ORDER BY f.position) FILTER (WHERE f.id IS NOT NULL),
+                    '[]'
+                  ) AS files
+             FROM group_posts p
+             LEFT JOIN group_post_files f ON f.post_id = p.id
+            WHERE p.id = ANY($1::uuid[]) AND p.group_id = $2
+            GROUP BY p.id`,
+          [ids, groupId],
+          { table: 'group_posts' }
+        )
+        .then((data) => ({
+          type: 'group_post',
+          result: { data: data || [] },
+          shares: contentByType.group_post,
+        }))
+    );
+  }
+
   const contentResults = (await Promise.all(fetchPromises)).filter(Boolean) as ContentResult[];
 
   const groupContent: GroupContentBuckets = {
@@ -517,6 +547,7 @@ export async function hydrateGroupContent(
     system_agents: [],
     user_agents: [],
     canvas_templates: [],
+    group_posts: [],
   };
 
   const keyMap: Record<string, keyof GroupContentBuckets> = {
@@ -530,6 +561,7 @@ export async function hydrateGroupContent(
     system_agents: 'system_agents',
     user_agents: 'user_agents',
     canvas_template: 'canvas_templates',
+    group_post: 'group_posts',
   };
 
   contentResults.forEach(({ type, result, shares }) => {

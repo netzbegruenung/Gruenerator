@@ -19,6 +19,7 @@ import { FeedPreview } from './GroupFeedCard';
 
 /** Kachelmaß je Art: Sharepics hochkant, Texte quer, der Rest klein. */
 const TILE: Partial<Record<GroupFeedKind, [number, number]>> = {
+  post: [200, 150],
   'sharepic-template': [150, 188],
   sharepic: [150, 188],
   doc: [200, 150],

@@ -227,5 +227,6 @@ describe('AuthService — group membership requires is_active (finding #5)', () 
     expect(res.authenticated).toBe(true);
     const membershipQuery = captured.find((c) => /FROM group_memberships/i.test(c.sql));
     expect(membershipQuery?.sql).toMatch(/is_active = TRUE/i);
+    expect(membershipQuery?.sql).toMatch(/NOT g\.is_system/);
   });
 });

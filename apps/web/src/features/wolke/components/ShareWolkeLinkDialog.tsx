@@ -1,4 +1,4 @@
-import { useUserGroups } from '@gruenerator/shared/groups';
+import { canShareIntoGroup, useUserGroups } from '@gruenerator/shared/groups';
 import {
   Badge,
   Button,
@@ -47,7 +47,7 @@ const ShareWolkeLinkDialog = ({
   );
 
   const availableGroups = useMemo(
-    () => userGroups.filter((g) => !sharedGroupIds.has(g.id)),
+    () => userGroups.filter((g) => canShareIntoGroup(g) && !sharedGroupIds.has(g.id)),
     [userGroups, sharedGroupIds]
   );
 

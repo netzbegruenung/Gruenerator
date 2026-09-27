@@ -8,6 +8,7 @@ import express, { type Router } from 'express';
 import groupAvatarRouter from './groupAvatar.js';
 import groupContentRouter from './groupContent.js';
 import groupCoreRouter, { getPostgresAndCheckMembership } from './groupCore.js';
+import groupPostsRouter from './groupPosts.js';
 
 const router: Router = express.Router();
 
@@ -15,6 +16,7 @@ const router: Router = express.Router();
 router.use(groupCoreRouter);
 router.use(groupContentRouter);
 router.use(groupAvatarRouter);
+router.use(groupPostsRouter);
 
 export default router;
 

@@ -3,6 +3,10 @@ import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import {
+  assertCanShareToGroup,
+  listShareTargetGroups,
+} from '../../services/groups/groupMembership.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { fromParam, type ThreadId, type GroupId } from '../../utils/types/branded.js';
 
@@ -61,12 +65,10 @@ router.post(
         return res.status(403).json({ error: 'Only thread owner can share' });
       }
 
-      const membership = await db.query(
-        'SELECT 1 FROM group_memberships WHERE group_id = $1 AND user_id = $2',
-        [group_id, userId]
-      );
-      if ((membership as unknown[]).length === 0) {
-        return res.status(403).json({ error: 'You must be a member of the group' });
+      try {
+        await assertCanShareToGroup(group_id, userId);
+      } catch {
+        return res.status(403).json({ error: 'You may not share with this group' });
       }
 
       const existing = await db.query(
@@ -129,16 +131,7 @@ router.get('/user-groups', async (req: Request, res: Response) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const groups = await db.query(
-      `SELECT g.id, g.name, gm.role
-       FROM groups g
-       INNER JOIN group_memberships gm ON gm.group_id = g.id
-       WHERE gm.user_id = $1
-       ORDER BY g.name ASC`,
-      [userId]
-    );
-
-    return res.json(groups);
+    return res.json(await listShareTargetGroups(userId));
   } catch (error: unknown) {
     return res.status(500).json({
       error: 'Failed to fetch groups',

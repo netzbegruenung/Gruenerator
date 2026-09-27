@@ -3,6 +3,7 @@ import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import coverEigene from '@gruenerator/shared/assets/notebook-covers/eigene.webp';
 import coverLaenderverbaende from '@gruenerator/shared/assets/notebook-covers/landesverbaende.webp';
 import coverNeu from '@gruenerator/shared/assets/notebook-covers/notebook-neu.webp';
+import { canShareIntoGroup } from '@gruenerator/shared/groups';
 import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import {
   DropdownMenu,
@@ -210,7 +211,8 @@ const EigeneNotebooks = memo(
     const [shareError, setShareError] = useState<string | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
-    const { userGroups = [] } = useGroups({ isActive: qaCollections.length > 0 });
+    const { userGroups: allGroups = [] } = useGroups({ isActive: qaCollections.length > 0 });
+    const userGroups = allGroups.filter(canShareIntoGroup);
 
     const handleDelete = async (id: string, name: string) => {
       if (window.confirm(`Notebook "${name}" wirklich löschen?`)) {

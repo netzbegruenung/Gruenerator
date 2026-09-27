@@ -48,6 +48,7 @@ export const discoveryRoutes = {
           WHERE g.is_public = TRUE
             AND g.is_active = TRUE
             AND COALESCE(g.group_type, 'standard') <> 'personal'
+            AND NOT g.is_system
             AND g.audience IN ($2, 'all')
             AND NOT EXISTS (
               SELECT 1 FROM group_memberships m2

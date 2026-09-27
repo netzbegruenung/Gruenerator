@@ -5,6 +5,7 @@
  * Plattform (`kind` + `id` + `slug`).
  */
 import {
+  groupPostItemSchema,
   groupShareMetaSchema,
   type GroupContentResponse,
   type GroupContentType,
@@ -15,6 +16,7 @@ import { SYSTEM_AGENTS } from '../agents/index.js';
 
 /** Reihenfolge = Reihenfolge der Abschnitte in „Alle". */
 export const GROUP_FEED_KINDS = [
+  { id: 'post', label: 'Beitrag', plural: 'Beiträge' },
   { id: 'sharepic-template', label: 'Sharepic-Vorlage', plural: 'Sharepic-Vorlagen' },
   { id: 'sharepic', label: 'Sharepic', plural: 'Sharepics' },
   { id: 'doc', label: 'Doc', plural: 'Docs' },
@@ -33,11 +35,34 @@ export function groupFeedKindMeta(kind: GroupFeedKind) {
   return GROUP_FEED_KINDS.find((k) => k.id === kind) ?? GROUP_FEED_KINDS[0];
 }
 
+/**
+ * Wie der Eintrag in `group_content_shares` steht. `group_post` ist kein
+ * `GroupContentType`: ein Beitrag wird nicht geteilt, sondern geschrieben, und
+ * über `deleteGroupPost` gelöscht — nie über die Content-Routen.
+ */
+export type GroupFeedContentType = GroupContentType | 'group_post';
+
+export interface GroupPostFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  isImage: boolean;
+}
+
+/** Nur bei `kind === 'post'`: Text und Dateien eines eigenen Beitrags. */
+export interface GroupPostContent {
+  body: string;
+  authorId: string | null;
+  editedAt: string | null;
+  files: GroupPostFile[];
+}
+
 export interface GroupFeedItem {
   /** Stabil je Freigabe: `${contentType}:${id}`. */
   key: string;
   id: string;
-  contentType: GroupContentType;
+  contentType: GroupFeedContentType;
   kind: GroupFeedKind;
   title: string;
   excerpt: string | null;
@@ -47,13 +72,28 @@ export interface GroupFeedItem {
   sharedByName: string | null;
   sharedAt: string | null;
   share: GroupShareMeta | null;
+  post: GroupPostContent | null;
+}
+
+/** API-Pfad einer Beitragsdatei; nur für Mitglieder lesbar (Cookie bzw. Bearer). */
+export function groupPostFilePath(groupId: string, postId: string, fileId: string): string {
+  return `/api/auth/groups/${groupId}/posts/${postId}/files/${fileId}`;
+}
+
+const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+
+/** Titel für „Alle" und Suche: erste Zeile des Texts, sonst der erste Dateiname. */
+function postTitle(body: string, files: GroupPostFile[]): string {
+  const line = body.trim().split('\n')[0]?.trim() ?? '';
+  if (line) return line.length > 80 ? `${line.slice(0, 79)}…` : line;
+  return files[0]?.name ?? 'Beitrag';
 }
 
 type Row = Record<string, unknown>;
 
 const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null);
 
-function base(row: Row, contentType: GroupContentType, kind: GroupFeedKind, title: string) {
+function base(row: Row, contentType: GroupFeedContentType, kind: GroupFeedKind, title: string) {
   const id = String(row.id);
   const parsed = groupShareMetaSchema.safeParse(row.share);
   return {
@@ -68,6 +108,7 @@ function base(row: Row, contentType: GroupContentType, kind: GroupFeedKind, titl
     sharedByName: str(row.shared_by_name),
     sharedAt: str(row.shared_at),
     share: parsed.success ? parsed.data : null,
+    post: null,
   } satisfies GroupFeedItem;
 }
 
@@ -90,6 +131,22 @@ export function toGroupFeedItems(
   const rows = (bucket: keyof GroupContentResponse['content']) => (content[bucket] ?? []) as Row[];
   const items: GroupFeedItem[] = [];
 
+  for (const r of rows('group_posts')) {
+    const parsed = groupPostItemSchema.safeParse(r);
+    if (!parsed.success) continue;
+    const p = parsed.data;
+    const files = p.files.map((f) => ({
+      id: f.id,
+      name: f.file_name,
+      mimeType: f.mime_type,
+      sizeBytes: f.size_bytes,
+      isImage: IMAGE_TYPES.has(f.mime_type),
+    }));
+    items.push({
+      ...base(r, 'group_post', 'post', postTitle(p.body, files)),
+      post: { body: p.body, authorId: p.author_id, editedAt: p.edited_at, files },
+    });
+  }
   for (const r of rows('collaborative_documents')) {
     const kind = collabKind(r.document_subtype);
     items.push(base(r, 'collaborative_documents', kind, str(r.title) ?? 'Ohne Titel'));
@@ -172,13 +229,31 @@ export function groupFeedByKind(items: GroupFeedItem[]) {
   })).filter((section) => section.items.length > 0);
 }
 
-/** Suche über Titel, Notiz und Kurzbeschreibung. */
+/** Suche über Titel, Notiz, Kurzbeschreibung sowie Text und Dateinamen eines Beitrags. */
 export function filterGroupFeed(items: GroupFeedItem[], query: string): GroupFeedItem[] {
   const q = query.trim().toLocaleLowerCase('de');
   if (!q) return items;
   return items.filter((i) =>
-    [i.title, i.share?.note, i.excerpt].some((t) => t?.toLocaleLowerCase('de').includes(q))
+    [
+      i.title,
+      i.share?.note,
+      i.excerpt,
+      i.post?.body,
+      ...(i.post?.files.map((f) => f.name) ?? []),
+    ].some((t) => t?.toLocaleLowerCase('de').includes(q))
   );
+}
+
+/** „412 KB" bzw. „1,4 MB". */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} MB`;
+}
+
+/** Kurzes Endungs-Badge: „PDF", „DOCX"; „DATEI" ohne Endung. */
+export function fileExtensionLabel(name: string): string {
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? name.slice(dot + 1, dot + 5).toUpperCase() : 'DATEI';
 }
 
 /** „Samstag, 27. September" bzw. „27. Sept." — leer, wenn kein gültiges Datum. */

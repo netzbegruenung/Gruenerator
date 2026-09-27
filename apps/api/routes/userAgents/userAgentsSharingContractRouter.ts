@@ -15,6 +15,7 @@ import { userAgentsSharingContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { assertCanShareToGroup } from '../../services/groups/groupMembership.js';
 import {
   getAgentSharing,
   listPublicUserAgents,
@@ -37,11 +38,6 @@ interface GroupShareJoinRow {
 
 interface IdRow {
   id: string;
-  [key: string]: unknown;
-}
-
-interface MembershipRow {
-  user_id: string;
   [key: string]: unknown;
 }
 
@@ -205,14 +201,12 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
       }
 
       const postgres = getPostgresInstance();
-      const membership = (await postgres.query(
-        'SELECT user_id FROM group_memberships WHERE group_id = $1 AND user_id = $2',
-        [group_id, userId]
-      )) as MembershipRow[];
-      if (membership.length === 0) {
+      try {
+        await assertCanShareToGroup(group_id, userId);
+      } catch {
         return {
           status: 403 as const,
-          body: { error: 'Du musst Mitglied der Gruppe sein, um zu teilen' },
+          body: { error: 'Du darfst mit dieser Gruppe nicht teilen' },
         };
       }
 

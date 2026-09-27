@@ -140,13 +140,16 @@ CREATE TABLE IF NOT EXISTS groups (
     wolke_share_links JSONB DEFAULT '[]',
     avatar_url TEXT,
     links JSONB DEFAULT '[]',
-    slug_suffix TEXT
+    slug_suffix TEXT,
+    is_system BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- Stable 6-char tail for Notion-style group URLs (`/gruppen/<name>-<suffix>`).
 -- Assigned at creation, immutable on rename; partial unique so legacy rows
 -- can sit NULL until the boot-time backfill fills them.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_groups_slug_suffix ON groups(slug_suffix) WHERE slug_suffix IS NOT NULL;
+-- At most one system group (all users are members, only instance admins share).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_groups_single_system ON groups ((is_system)) WHERE is_system;
 
 CREATE TABLE IF NOT EXISTS group_memberships (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -179,6 +182,26 @@ CREATE TABLE IF NOT EXISTS group_share_comments (
     user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     body TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS group_posts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    author_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    body TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    edited_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS group_post_files (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    post_id UUID NOT NULL REFERENCES group_posts(id) ON DELETE CASCADE,
+    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    stored_filename TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    position SMALLINT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS group_instructions (
@@ -770,6 +793,8 @@ CREATE INDEX IF NOT EXISTS idx_group_content_shares_group_content ON group_conte
 CREATE INDEX IF NOT EXISTS idx_group_content_shares_shared_by ON group_content_shares(shared_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_group_content_shares_pinned ON group_content_shares(group_id, pinned_at) WHERE pinned_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_group_share_comments_share ON group_share_comments(share_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_group_posts_group ON group_posts(group_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_group_post_files_post ON group_post_files(post_id, position);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_id ON group_instructions(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_is_active ON group_instructions(is_active);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_active ON group_instructions(group_id, is_active);

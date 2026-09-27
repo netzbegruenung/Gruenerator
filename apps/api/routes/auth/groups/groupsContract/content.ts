@@ -17,6 +17,7 @@ import {
   updateGroupShare,
   type FeedOutcome,
 } from '../../../../services/groups/groupFeed.js';
+import { deleteGroupPost, updateGroupPost } from '../../../../services/groups/groupPosts.js';
 import { getPostgresAndCheckMembership } from '../groupCore.js';
 
 import { s, getUserId, groupErrorResponse } from './shared.js';
@@ -147,7 +148,7 @@ export const contentRoutes = {
     const { contentType, permissions } = args.body;
     try {
       const userId = getUserId(args.req);
-      const { postgres, membership } = await getPostgresAndCheckMembership(groupId, userId, false);
+      const { postgres, isAdmin } = await getPostgresAndCheckMembership(groupId, userId, false);
 
       const shareRecord = await postgres.queryOne<{ shared_by_user_id: string }>(
         'SELECT shared_by_user_id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
@@ -161,7 +162,6 @@ export const contentRoutes = {
         };
       }
 
-      const isAdmin = membership.role === 'admin';
       const isSharer = shareRecord.shared_by_user_id === userId;
       if (!isAdmin && !isSharer) {
         return {
@@ -197,9 +197,9 @@ export const contentRoutes = {
     const { contentType } = args.body;
     try {
       const userId = getUserId(args.req);
-      const { postgres, membership } = await getPostgresAndCheckMembership(groupId, userId, false);
+      const { postgres, isAdmin } = await getPostgresAndCheckMembership(groupId, userId, false);
 
-      if (membership.role !== 'admin') {
+      if (!isAdmin) {
         return {
           status: 403 as const,
           body: {
@@ -320,6 +320,33 @@ export const contentRoutes = {
       return { status: 200 as const, body: { success: true as const } };
     } catch (error) {
       return groupErrorResponse('updateGroupShare', 'Fehler beim Ändern des Beitrags.', error);
+    }
+  }),
+
+  updateGroupPost: s.route(groupsContract.updateGroupPost, async (args) => {
+    const { groupId, postId } = args.params;
+    try {
+      const outcome = await updateGroupPost({
+        groupId,
+        postId,
+        userId: getUserId(args.req),
+        body: args.body.body,
+      });
+      if ('message' in outcome) return feedError(outcome);
+      return { status: 200 as const, body: { success: true as const } };
+    } catch (error) {
+      return groupErrorResponse('updateGroupPost', 'Fehler beim Ändern des Beitrags.', error);
+    }
+  }),
+
+  deleteGroupPost: s.route(groupsContract.deleteGroupPost, async (args) => {
+    const { groupId, postId } = args.params;
+    try {
+      const outcome = await deleteGroupPost({ groupId, postId, userId: getUserId(args.req) });
+      if ('message' in outcome) return feedError(outcome);
+      return { status: 200 as const, body: { success: true as const } };
+    } catch (error) {
+      return groupErrorResponse('deleteGroupPost', 'Fehler beim Löschen des Beitrags.', error);
     }
   }),
 
