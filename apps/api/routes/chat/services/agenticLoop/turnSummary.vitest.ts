@@ -27,6 +27,7 @@ function line(overrides: Partial<Parameters<typeof logTurnSummary>[0]> = {}): st
     answerChars: 2992,
     answerReplaced: null,
     mcpMountMs: 0,
+    toolScope: null,
     onInfo: (m) => (out = m),
     ...overrides,
   });
@@ -49,5 +50,24 @@ describe('logTurnSummary — der Antwort-Ersatz', () => {
   it('schweigt, wenn die erste Antwort stehen geblieben ist', () => {
     expect(line()).not.toContain('replaced=');
     expect(line()).toContain('chars=2992');
+  });
+});
+
+describe('logTurnSummary — der Werkzeug-Umfang', () => {
+  it('nennt Schattenbetrieb, Zahl und Fehlschluss', () => {
+    const out = line({ toolScope: { enforced: false, deferred: 9, misses: ['documents'] } });
+    expect(out).toContain('scope=shadow deferred=9 scopeMiss=[documents]');
+  });
+
+  it('nennt den scharfen Betrieb ohne Fehlschluss knapp', () => {
+    const out = line({ toolScope: { enforced: true, deferred: 9, misses: [] } });
+    expect(out).toContain('scope=enforce deferred=9');
+    expect(out).not.toContain('scopeMiss');
+  });
+
+  it('schweigt, wenn nichts zurückgestellt war', () => {
+    expect(line({ toolScope: { enforced: false, deferred: 0, misses: [] } })).not.toContain(
+      'scope='
+    );
   });
 });

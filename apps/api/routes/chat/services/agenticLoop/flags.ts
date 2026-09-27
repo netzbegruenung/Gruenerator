@@ -65,3 +65,19 @@ export function isLoopAskHumanEnabled(): boolean {
 export function isLoopRerankEnabled(): boolean {
   return process.env.LOOP_RERANK_ENABLED === 'true';
 }
+
+/**
+ * Ob `toolScope.ts` Werkzeuge wirklich zurückstellt oder nur protokolliert,
+ * was es zurückgestellt hätte.
+ *
+ * Default AUS, also Schattenbetrieb: das Tor trifft seine Entscheidung auf
+ * jedem Turn und schreibt sie in die Turn-Zeile (`scope=shadow`, `scopeMiss=`),
+ * das Modell sieht aber weiter den vollen Katalog. Scharf schalten erst, wenn
+ * die `scopeMiss`-Zeilen aus dem Betrieb zeigen, dass das Tor trägt — dann
+ * dreht ein eigener, einzeiliger PR den Default, und das Flag bleibt der
+ * Rückwärtsgang. Einschalten mit LOOP_TOOL_SCOPE_ENFORCE=true (ohne Deploy
+ * wirksam).
+ */
+export function isToolScopeEnforced(): boolean {
+  return process.env.LOOP_TOOL_SCOPE_ENFORCE === 'true';
+}

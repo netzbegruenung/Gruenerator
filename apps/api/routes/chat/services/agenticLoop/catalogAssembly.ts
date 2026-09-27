@@ -13,6 +13,7 @@
  * Die Lader werden injiziert (`CatalogDeps`), damit die Montage ohne DB, ohne
  * Netz und ohne echte MCP-Server prüfbar ist.
  */
+import { lastUserText } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { makeAskHumanTool } from '../../agents/askHumanTool.js';
 import { preferredLvRecipeMention } from '../../agents/lvRecipePreference.js';
 import { loadManagedMcpCatalog as loadManagedMcpCatalogReal } from '../../agents/managedMcpCatalog.js';
@@ -39,12 +40,13 @@ import {
   retrievableAttachedSources,
   retrieveAttachedDocuments,
 } from './attachedDocuments.js';
-import { isLoopAskHumanEnabled, isMcpReplayEnabled } from './flags.js';
+import { isLoopAskHumanEnabled, isMcpReplayEnabled, isToolScopeEnforced } from './flags.js';
 import { createToolLoopGuards } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
 import { createRecipeRegistry, type RecipeRegistry } from './recipeRegistry.js';
 import { type SourceRegistry } from './sourceRegistry.js';
 import { type ToolApprovalGate } from './toolApprovalGate.js';
+import { createToolScope, type ToolScope } from './toolScope.js';
 import {
   NEAR_DUPLICATE_EXEMPT_TOOLS,
   TOOL_TIMEOUT_OVERRIDES_MS,
@@ -152,6 +154,11 @@ export interface AssembledCatalog {
   /** How long the (un-budgeted) MCP mount took, so a slow connector shows up in
    *  the end-of-turn line instead of looking like an unexplained hang. */
   mcpMountMs: number;
+  /**
+   * Welche der montierten Werkzeuge je Schritt MITGESCHICKT werden. Der Katalog
+   * oben bleibt vollständig — siehe toolScope.ts, warum das zwei Dinge sind.
+   */
+  toolScope: ToolScope;
 }
 
 export async function assembleToolCatalog(
@@ -171,11 +178,23 @@ export async function assembleToolCatalog(
      *  auch unter MCP, `rezept_laden` und `ask_human`. */
     toolAllowlist?: readonly string[];
     threadId: string | null;
+    /** Frühere Werkzeugschritte des Threads: eine Gruppe, die dort schon
+     *  gebraucht wurde, bleibt offen (siehe `createToolScope`). */
+    toolHistory?: ThreadToolHistory | null;
   },
   deps: CatalogDeps = defaultDeps
 ): Promise<AssembledCatalog> {
-  const { state, sourceRegistry, sse, req, disableMcp, searchToolKeys, toolAllowlist, threadId } =
-    params;
+  const {
+    state,
+    sourceRegistry,
+    sse,
+    req,
+    disableMcp,
+    searchToolKeys,
+    toolAllowlist,
+    threadId,
+    toolHistory,
+  } = params;
   const allowed = (name: string): boolean => !toolAllowlist || toolAllowlist.includes(name);
   const agentConfig = state.agentConfig;
 
@@ -335,6 +354,20 @@ export async function assembleToolCatalog(
     for (const name of Object.keys(tools)) if (!allowed(name)) delete tools[name];
   }
 
+  // NACH allem Montieren und nach der Allowlist: der Umfang schneidet gegen die
+  // Namen, die dieser Turn wirklich hat. Die Lader werden anschliessend als
+  // ganz normale Werkzeuge montiert — wie `rezept_laden`, damit sie Karten,
+  // Wächter und Zeitgrenzen aus `wrapToolsForLoop` genauso bekommen. Im
+  // Schattenbetrieb gibt es keine Lader.
+  const toolScope = createToolScope({
+    toolNames: Object.keys(tools),
+    userText: state.lastUserTextNoMentions ?? lastUserText(state),
+    pinnedTool: state.mentionPinnedTool ?? null,
+    priorToolNames: priorToolNames(toolHistory),
+    enforce: isToolScopeEnforced(),
+  });
+  Object.assign(tools, toolScope.loaderTools());
+
   // Tool-card labels for BOTH catalogs (user connectors + system sources).
   const toolLabels = new Map([...(mcpCatalog?.labels ?? []), ...(systemCatalog?.labels ?? [])]);
 
@@ -346,7 +379,18 @@ export async function assembleToolCatalog(
     recipeRegistry,
     toolLabels,
     mcpMountMs,
+    toolScope,
   };
+}
+
+/** Wie `priorTurnRetrieved`: die vorhandene Projektion lesen, nie werfen. */
+function priorToolNames(toolHistory: ThreadToolHistory | null | undefined): string[] {
+  if (!toolHistory) return [];
+  try {
+    return toolHistory.toolSteps().map((s) => s.toolName);
+  } catch {
+    return [];
+  }
 }
 
 /** The per-turn tool guards. Here rather than at the call site because the

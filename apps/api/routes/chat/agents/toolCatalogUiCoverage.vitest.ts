@@ -64,6 +64,13 @@ function loopToolNames(): ReadonlySet<string> {
   );
   for (const m of (catalog?.[1] ?? '').matchAll(/'([^']+)'/g)) names.add(m[1] as string);
 
+  // `tools[group.loaderTool] = ...` — the loaders of the deferrable groups.
+  for (const m of repoFile('apps/api/routes/chat/services/agenticLoop/toolScope.ts').matchAll(
+    /loaderTool:\s*'([^']+)'/g
+  )) {
+    names.add(m[1] as string);
+  }
+
   return names;
 }
 
@@ -88,6 +95,7 @@ describe('loop catalog ↔ UI registry coverage', () => {
     expect(names, 'artifactKindRegistry loopToolName site').toContain('create_pdf');
     expect(names, 'ATTACHED_DOCS_TOOL site').toContain('dokumente_lesen');
     expect(names, 'CATALOG_TOOLS site').toContain('web_search');
+    expect(names, 'toolScope loaderTool site').toContain('meine_inhalte_laden');
   });
 
   it('actually extracts the UI registry', () => {
