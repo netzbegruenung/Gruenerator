@@ -1,6 +1,8 @@
 import { vi } from 'vitest';
 
 import { type UserMemoryRow } from '../../../../database/schema/index.js';
+import { type RedisIncrByClient } from '../../../../services/counters/types.js';
+import { TreeBudget } from '../../../../services/trees/treeBudget.js';
 
 /**
  * Module-shaped factories for the `vi.mock` blocks. The `vi.mock` CALLS stay
@@ -28,6 +30,32 @@ export function postgresMock(): Record<string, unknown> {
       },
     }),
   };
+}
+
+/**
+ * Das Bäume-Kontingent — der echte `TreeBudget`, aber mit unbegrenzter
+ * Zuteilung, sodass er Redis nie anfasst. Ohne Doppelgänger hängt das Ergebnis
+ * an der Maschine: ohne `REDIS_URL` wählt der Client `localhost:6379`, und
+ * nur wo dort zufällig etwas lauscht, bucht `@deepresearch` durch. In der CI
+ * scheitert die Buchung fail-closed, und die Karte zeichnet eine Warnung
+ * `deep_research_quota_spent` auf, die bloß den fehlenden Redis wiedergibt.
+ */
+export function treeBudgetMock(original: Record<string, unknown>): Record<string, unknown> {
+  const redis: RedisIncrByClient = {
+    get: unexpectedRedis,
+    incr: unexpectedRedis,
+    incrBy: unexpectedRedis,
+    expire: unexpectedRedis,
+    del: unexpectedRedis,
+  };
+  const budget = new TreeBudget(redis, {
+    allowanceFor: () => Promise.resolve({ unlimited: true }),
+  });
+  return { ...original, getTreeBudget: () => budget };
+}
+
+function unexpectedRedis(): never {
+  throw new Error('unexpected Redis call from the tree budget');
 }
 
 /**
