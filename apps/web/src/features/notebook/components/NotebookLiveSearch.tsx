@@ -164,6 +164,8 @@ export function NotebookLiveSearch({
   return (
     <div className="duration-500 animate-in fade-in slide-in-from-bottom-2 motion-reduce:animate-none">
       <ResearchResultsList
+        query={query}
+        readable={!notebookId}
         results={live.results}
         metadata={live.metadata}
         isPending={live.isPending || debouncing}
