@@ -216,7 +216,7 @@ Zustand (global state). TanStack Query v5 (server state/fetching) with axios.
 
 **„Notizbuch" ist verboten — mit genau zwei Ausnahmen.** Das Wort ist am 27.08.2026 aus Code, UI und Doku entfernt worden; es lebt nur noch da weiter, wo es NICHT für uns steht:
 
-- **Detektoren über Nutzereingaben.** `GRUENERATOR_FEATURE_NOUN` (`classifierSignals.ts`) und `PERSONAL_DATA_RE` (`agenticLoop/routing.ts`) lesen, was Leute TIPPEN, und die tippen das alte Wort weiter. Dort steht `notizb[üu]ch\w*` **neben** `notebooks?`, nicht statt dessen — dasselbe gilt für den `notiz`-Präfix in `filterMentionables`, über den `@notizbuch` weiterhin die Notebook-Kategorie öffnet. Wer die alten Zweige „aufräumt", senkt still den Recall.
+- **Detektoren über Nutzereingaben.** `GRUENERATOR_FEATURE_NOUN` (`classifierSignals.ts`), `PERSONAL_DATA_RE` (`agenticLoop/routing.ts`) und `MEINE_INHALTE_RE` (`agenticLoop/toolScope.ts`) lesen, was Leute TIPPEN, und die tippen das alte Wort weiter. Dort steht `notizb[üu]ch\w*` **neben** `notebooks?`, nicht statt dessen — dasselbe gilt für den `notiz`-Präfix in `filterMentionables`, über den `@notizbuch` weiterhin die Notebook-Kategorie öffnet. Wer die alten Zweige „aufräumt", senkt still den Recall.
 - **Der eingefrorene MCP-Prompt `notizbuch-antwort`** (`mcp-server/serverFactory.ts`), Alias auf `notebook-antwort` mit eigenem Argumentnamen `notizbuch`. MCP-Prompt-Namen sind F0: ausgelieferte Clients fragen den alten Namen weiter. Abzuräumen ab 27.08.2027; `serverFactory.vitest.ts` bewacht ihn bis dahin.
 
 Ein Grep, der beide Ausnahmen mitzählt, meldet nichts Reparierbares. Alles andere ist Drift und gehört umbenannt — inklusive der Komposita, die dabei einen Bindestrich brauchen (**„Notebook-Fläche"**, nicht „Notebookfläche").
