@@ -551,8 +551,6 @@ export async function executeDocumentSearchParallel(
   const uniqueCollections = [...new Set(collectionsToSearch)];
   const queries = subQueries?.length ? subQueries : [query];
 
-  // Strip landesverband/region from filters for collection-scoped searches
-  // (the collection's defaultFilter already handles this)
   const searchFilters = filters || undefined;
 
   const collectedErrors: SearchErrorEntry[] = [];
