@@ -5,7 +5,16 @@ import {
   type JoinRequestStatus,
 } from '@gruenerator/contracts';
 import { type InferSelectModel } from 'drizzle-orm';
-import { boolean, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  integer,
+  jsonb,
+  pgTable,
+  smallint,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 export const groups = pgTable('groups', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -81,8 +90,31 @@ export const group_share_comments = pgTable('group_share_comments', {
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Laufzeit-DDL in schema.sql bzw. zz_20260928_group_posts.sql.
+export const group_posts = pgTable('group_posts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  group_id: uuid('group_id').notNull(),
+  author_id: uuid('author_id'),
+  body: text('body').notNull().default(''),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  edited_at: timestamp('edited_at', { withTimezone: true }),
+});
+
+export const group_post_files = pgTable('group_post_files', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  post_id: uuid('post_id').notNull(),
+  group_id: uuid('group_id').notNull(),
+  stored_filename: text('stored_filename').notNull(),
+  file_name: text('file_name').notNull(),
+  mime_type: text('mime_type').notNull(),
+  size_bytes: integer('size_bytes').notNull(),
+  position: smallint('position').notNull().default(0),
+});
+
 export type GroupRow = InferSelectModel<typeof groups>;
 export type GroupMembershipRow = InferSelectModel<typeof group_memberships>;
 export type GroupJoinRequestRow = InferSelectModel<typeof group_join_requests>;
 export type GroupContentShareRow = InferSelectModel<typeof group_content_shares>;
 export type GroupShareCommentRow = InferSelectModel<typeof group_share_comments>;
+export type GroupPostRow = InferSelectModel<typeof group_posts>;
+export type GroupPostFileRow = InferSelectModel<typeof group_post_files>;

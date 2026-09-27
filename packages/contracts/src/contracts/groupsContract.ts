@@ -31,6 +31,7 @@ import {
   groupSuccessResponseSchema,
   groupVisibilityResponseSchema,
   groupVorlagenResponseSchema,
+  updateGroupPostBodySchema,
   updateGroupShareBodySchema,
   inviteToGroupBodySchema,
   inviteToGroupResponseSchema,
@@ -566,5 +567,38 @@ export const groupsContract = c.router({
       500: groupErrorResponseSchema,
     },
     summary: 'Delete a comment (author or admin)',
+  },
+
+  // ── Feed: eigene Beiträge (Anlegen + Dateien: Express, Multipart) ─────────
+
+  updateGroupPost: {
+    method: 'PATCH',
+    path: '/api/auth/groups/:groupId/posts/:postId',
+    pathParams: z.object({ groupId: z.string(), postId: z.string().uuid() }),
+    body: updateGroupPostBodySchema,
+    responses: {
+      200: groupOkResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Edit the text of a feed post (author only)',
+  },
+
+  deleteGroupPost: {
+    method: 'DELETE',
+    path: '/api/auth/groups/:groupId/posts/:postId',
+    pathParams: z.object({ groupId: z.string(), postId: z.string().uuid() }),
+    responses: {
+      200: groupOkResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Delete a feed post with its files, pin and comments (author or admin)',
   },
 });

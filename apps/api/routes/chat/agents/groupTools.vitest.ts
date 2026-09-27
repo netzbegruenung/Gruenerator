@@ -51,6 +51,7 @@ function emptyBuckets(over: Partial<GroupContentBuckets> = {}): GroupContentBuck
     system_agents: [],
     user_agents: [],
     canvas_templates: [],
+    group_posts: [],
     ...over,
   };
 }
