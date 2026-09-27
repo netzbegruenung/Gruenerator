@@ -181,7 +181,8 @@ describe('NotebookModelAdapter — answer mode', () => {
   async function runTurn(
     frames: Frame[],
     config: Record<string, unknown> = {},
-    prior: unknown[] = []
+    prior: unknown[] = [],
+    text = 'Liste alle Quellen'
   ): Promise<{ results: ChatModelRunResult[]; body: Record<string, unknown> }> {
     let body: Record<string, unknown> = {};
     useChatConfigStore.setState({
@@ -196,10 +197,7 @@ describe('NotebookModelAdapter — answer mode', () => {
       {}
     );
     const stream = adapter.run({
-      messages: [
-        ...prior,
-        { role: 'user', content: [{ type: 'text', text: 'Liste alle Quellen' }] },
-      ],
+      messages: [...prior, { role: 'user', content: [{ type: 'text', text }] }],
     } as unknown as Parameters<typeof adapter.run>[0]) as AsyncGenerator<ChatModelRunResult, void>;
     const results: ChatModelRunResult[] = [];
     for await (const r of stream) results.push(r);
@@ -229,6 +227,32 @@ describe('NotebookModelAdapter — answer mode', () => {
     const history = body.messages as Array<Record<string, unknown>>;
     expect(history[1]).toMatchObject({ role: 'assistant', answerMode: 'praezision' });
     expect('answerMode' in history[0]!).toBe(false);
+  });
+
+  describe('Magic Search', () => {
+    const MAGIC = { answerMode: 'auto', magicSearch: true };
+    const PRIOR = [
+      { role: 'user', content: [{ type: 'text', text: 'Hitzeschutz' }] },
+      { role: 'assistant', content: [{ type: 'text', text: 'Drei Treffer.' }] },
+    ];
+    const modeOf = async (config: Record<string, unknown>, text: string, prior: unknown[] = []) =>
+      (await runTurn([COMPLETION], config, prior, text)).body.answerMode;
+
+    it('sends a first-turn question as chat', async () => {
+      expect(await modeOf(MAGIC, 'Was fordern die Grünen zum Hitzeschutz?')).toBe('chat');
+    });
+
+    it('keeps a first-turn keyword query on auto', async () => {
+      expect(await modeOf(MAGIC, 'Hitzeschutz')).toBe('auto');
+    });
+
+    it('keeps later turns on auto, even for a question', async () => {
+      expect(await modeOf(MAGIC, 'Was fordern die Grünen?', PRIOR)).toBe('auto');
+    });
+
+    it('does nothing without magicSearch', async () => {
+      expect(await modeOf({ answerMode: 'auto' }, 'Was fordern die Grünen?')).toBe('auto');
+    });
   });
 
   describe('wire history by depth and answer mode', () => {
