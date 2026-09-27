@@ -89,7 +89,7 @@ interface NotebookPageContentProps {
   hideGlobalChat?: boolean;
   /**
    * When set, the manual research tab scopes to a single user-owned notebook
-   * (ownership-checked, no facet filter UI). Forwarded to `NotebookManualSearch`.
+   * (ownership-checked, no facet filter UI). Scopes the start page's live search.
    */
   manualSearchNotebookId?: string;
   /** Replace the plain question composer with the omni composer (ask/route/
