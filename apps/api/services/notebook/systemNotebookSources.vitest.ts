@@ -54,6 +54,7 @@ function lvPoints(): FakePoint[] {
         title: 'Radverkehr',
         published_at: '2025-03-01',
         primary_category: 'Beschluss',
+        content_type: 'antrag',
       },
       { pages: [1, 2] }
     ),
@@ -166,6 +167,23 @@ describe('listSystemSources', () => {
     );
     expect(out.items.map((r) => r.id)).toEqual([HH_B]);
     expect(out.categories).toEqual({ Beschluss: 1, Pressemitteilung: 1 });
+  });
+
+  // #3716: content_type stand hinter primary_category — filter.category traf ihn, aber
+  // list nannte ihn nie, das Modell musste raten.
+  it('names the content_type values primary_category hides, and filters by them', async () => {
+    const { deps } = makeSystemDeps(lvPoints());
+    const c = resolved('hamburg');
+    const out = await listSystemSources({ collection: c }, deps);
+    expect(out.documentTypes).toEqual({ antrag: 1 });
+    const byType = await listSystemSources({ collection: c, filter: { category: 'Antrag' } }, deps);
+    expect(byType.items.map((r) => r.id)).toEqual([HH_A]);
+  });
+
+  it('leaves documentTypes out when no source carries a content_type', async () => {
+    const { deps } = makeSystemDeps(lvPoints());
+    const out = await listSystemSources({ collection: resolved('berlin') }, deps);
+    expect(out.documentTypes).toBeNull();
   });
 
   it(`never scrolls more than ${SYSTEM_LIST_SCROLL_MAX} points and flags exhaustive:false`, async () => {

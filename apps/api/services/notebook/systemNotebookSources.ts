@@ -286,14 +286,22 @@ function countUndatedExcluded(
 export const hasSystemFilter = (f: SystemSourceFilter | undefined): boolean =>
   Boolean(f && (f.category || f.titleContains || f.dateFrom || f.dateTo));
 
-/** Wie viele Quellen je Kategorie — damit das Modell `filter.category` nicht raten muss. */
-function countCategories(rows: readonly NotebookSourceRow[]): Record<string, number> {
+/** Wie viele Quellen je Wert — damit das Modell `filter.category` nicht raten muss. */
+function countBy(
+  rows: readonly NotebookSourceRow[],
+  key: 'sourceType' | 'documentType'
+): Record<string, number> {
   const out: Record<string, number> = {};
   for (const r of rows) {
-    if (r.sourceType) out[r.sourceType] = (out[r.sourceType] ?? 0) + 1;
+    const v = r[key];
+    if (v) out[v] = (out[v] ?? 0) + 1;
   }
   return out;
 }
+
+const sameCounts = (a: Record<string, number>, b: Record<string, number>): boolean =>
+  Object.keys(a).length === Object.keys(b).length &&
+  Object.entries(a).every(([k, n]) => b[k] === n);
 
 export async function listSystemSources(
   input: {
@@ -310,6 +318,12 @@ export async function listSystemSources(
   items: NotebookSourceRow[];
   exhaustive: boolean;
   categories: Record<string, number>;
+  /**
+   * `content_type` je Wert, wo `primary_category` ihn in `categories`
+   * verdeckt (#3716) — `filter.category` trifft beide Felder. `null`, wenn es
+   * nichts zeigt, was `categories` nicht schon zeigt.
+   */
+  documentTypes: Record<string, number> | null;
   /** Quellen ohne Datum, die `filter.dateFrom/dateTo` ausgeschlossen hat. */
   undatedExcluded: number;
 }> {
@@ -324,11 +338,17 @@ export async function listSystemSources(
     LIST_MAX_LIMIT,
     Math.max(1, Math.floor(input.limit ?? LIST_DEFAULT_LIMIT))
   );
+  const categories = countBy(rows, 'sourceType');
+  const documentTypes = countBy(rows, 'documentType');
   return {
     total: filtered.length,
     items: filtered.slice(offset, offset + limit),
     exhaustive,
-    categories: countCategories(rows),
+    categories,
+    documentTypes:
+      Object.keys(documentTypes).length === 0 || sameCounts(documentTypes, categories)
+        ? null
+        : documentTypes,
     undatedExcluded: countUndatedExcluded(rows, input.filter),
   };
 }
