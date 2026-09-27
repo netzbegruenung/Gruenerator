@@ -786,6 +786,15 @@ export const getNotebookConfigByCollectionId = (
   );
 };
 
+/**
+ * The system notebook behind a `/notebooks/:idOrSlug` segment. A thread row links
+ * by collection, and for most notebooks that is the slug plus `-system`; where the
+ * two differ (`oesterreich-gruene-system` lives at `/notebooks/oesterreich`) the
+ * second lookup catches it.
+ */
+export const getSystemNotebookConfig = (idOrSlug: string): NotebookConfig | undefined =>
+  getNotebookConfigBySlug(idOrSlug) ?? getNotebookConfigByCollectionId(`${idOrSlug}-system`);
+
 export const getNotebookPath = (config: { slug: string | null }): string => {
   return config.slug === null ? '/notebooks' : `/notebooks/${config.slug}`;
 };
