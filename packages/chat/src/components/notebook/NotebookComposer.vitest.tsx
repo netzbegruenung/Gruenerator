@@ -78,41 +78,48 @@ describe('NotebookComposer — depth control', () => {
     renderComposer('fast');
     await user.click(screen.getByRole('button'));
 
-    const items = await screen.findAllByRole('menuitemradio');
+    const depth = await screen.findByRole('region', { name: 'Suchtiefe' });
+    const items = within(depth).getAllByRole('button');
     expect(items).toHaveLength(NOTEBOOK_DEPTHS.length);
     for (const tier of NOTEBOOK_DEPTHS) {
-      expect(screen.getByRole('menuitemradio', { name: new RegExp(tier.label) })).toBeVisible();
+      expect(within(depth).getByRole('button', { name: tier.label })).toBeVisible();
     }
   });
 
-  it('marks exactly the active tier as checked', async () => {
+  it('marks exactly the active tier as pressed', async () => {
     const user = userEvent.setup();
     renderComposer('deep');
     await user.click(screen.getByRole('button'));
 
-    const checked = (await screen.findAllByRole('menuitemradio')).filter(
-      (i) => i.getAttribute('aria-checked') === 'true'
-    );
-    expect(checked).toHaveLength(1);
-    expect(checked[0]).toHaveTextContent('Mittel');
+    const depth = await screen.findByRole('region', { name: 'Suchtiefe' });
+    const pressed = within(depth)
+      .getAllByRole('button')
+      .filter((i) => i.getAttribute('aria-pressed') === 'true');
+    expect(pressed).toHaveLength(1);
+    expect(pressed[0]).toHaveTextContent('Mittel');
   });
 
   it('reports the picked tier by its wire id, not its label', async () => {
     const user = userEvent.setup();
     const onModeChange = renderComposer('fast');
     await user.click(screen.getByRole('button'));
-    await user.click(await screen.findByRole('menuitemradio', { name: /Ultra/ }));
+    await user.click(await screen.findByRole('button', { name: 'Ultra' }));
 
     await waitFor(() => expect(onModeChange).toHaveBeenCalledWith('ultra'));
   });
 
   it('says what each tier costs, so "Ultra" is not just a word', async () => {
     const user = userEvent.setup();
-    renderComposer('fast');
+    renderComposer('ultra');
     await user.click(screen.getByRole('button'));
 
+    const ultra = NOTEBOOK_DEPTHS.find((t) => t.depth === 'ultra')!;
+    expect(await screen.findByText(ultra.description)).toBeVisible();
     for (const tier of NOTEBOOK_DEPTHS) {
-      expect(await screen.findByText(tier.description)).toBeVisible();
+      expect(screen.getByRole('button', { name: tier.label })).toHaveAttribute(
+        'title',
+        tier.description
+      );
     }
   });
 
@@ -129,6 +136,82 @@ describe('NotebookComposer — depth control', () => {
     // mode; a tier pill there would claim a setting that does not exist.
     render(<NotebookComposer />);
     expect(screen.queryByText('Klein')).not.toBeInTheDocument();
+  });
+});
+
+describe('NotebookComposer — filters', () => {
+  const TYPES = {
+    field: 'content_type',
+    label: 'Typ',
+    values: [
+      { value: 'pm', count: 1047 },
+      { value: 'wps', count: 501 },
+    ],
+    valueLabels: { pm: 'Pressemitteilungen', wps: 'Wahlprüfsteine' },
+  };
+  const THEMES = {
+    field: 'themes',
+    label: 'Thema',
+    values: [{ value: 'klima', count: 80 }],
+    valueLabels: { klima: 'Klima & Energie' },
+  };
+
+  function renderFilters(activeFilters: Record<string, string[]> = {}) {
+    const onToggle = vi.fn();
+    const onClearAll = vi.fn();
+    render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        categoryFilters={{ fields: [TYPES, THEMES], activeFilters, onToggle, onClearAll }}
+      />
+    );
+    return { onToggle, onClearAll };
+  }
+
+  it('shows every field as chips and toggles a value', async () => {
+    const user = userEvent.setup();
+    const { onToggle } = renderFilters();
+    await user.click(screen.getByRole('button', { name: /Einstellungen/ }));
+
+    const themes = await screen.findByRole('region', { name: 'Thema' });
+    await user.click(within(themes).getByRole('button', { name: /Klima & Energie/ }));
+    expect(onToggle).toHaveBeenCalledWith('themes', 'klima');
+  });
+
+  it('counts the documents in scope from the single-valued type facet', async () => {
+    const user = userEvent.setup();
+    renderFilters({ content_type: ['pm'] });
+    await user.click(screen.getByRole('button', { name: /Einstellungen/ }));
+    expect(await screen.findByRole('button', { name: 'In 1.047 Quellen suchen' })).toBeVisible();
+  });
+
+  it('gives no number where multi-valued facets would overcount', async () => {
+    const user = userEvent.setup();
+    renderFilters({ themes: ['klima'] });
+    await user.click(screen.getByRole('button', { name: /Einstellungen/ }));
+    expect(await screen.findByRole('button', { name: 'Fertig' })).toBeVisible();
+  });
+
+  it('clears one field with its „Alle“ link and everything with Zurücksetzen', async () => {
+    const user = userEvent.setup();
+    const { onToggle, onClearAll } = renderFilters({ themes: ['klima'] });
+    await user.click(screen.getByRole('button', { name: /Einstellungen/ }));
+
+    const themes = await screen.findByRole('region', { name: 'Thema' });
+    await user.click(within(themes).getByRole('button', { name: 'Alle' }));
+    expect(onToggle).toHaveBeenCalledWith('themes', 'klima');
+
+    await user.click(screen.getByRole('button', { name: 'Zurücksetzen' }));
+    expect(onClearAll).toHaveBeenCalled();
+  });
+
+  it('has no axe violations while open', async () => {
+    const user = userEvent.setup();
+    renderFilters({ content_type: ['pm'] });
+    await user.click(screen.getByRole('button', { name: /Einstellungen/ }));
+    await screen.findByRole('region', { name: 'Thema' });
+    expect(await axe(document.body)).toHaveNoViolations();
   });
 });
 

@@ -383,6 +383,7 @@ export const NotebookPageContent = ({
                     onModeChange={setMode}
                     answerMode={answerMode}
                     onAnswerModeChange={setAnswerMode}
+                    settingsClassName={NOTEBOOK_COMPOSER_ACCENT}
                   />
                 </div>
               </div>
