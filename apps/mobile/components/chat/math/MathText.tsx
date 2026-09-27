@@ -21,6 +21,8 @@ interface MathTextProps {
   markdownStyles: ReturnType<typeof getMarkdownStyles>;
   rules: RenderRules | null;
   theme: Theme;
+  /** Markdown's link hook: return `false` to keep a link from opening. */
+  onLinkPress?: (url: string) => boolean;
 }
 
 /** One KaTeX WebView per math segment; memo + stable keys keep already-closed
@@ -56,7 +58,7 @@ const MathBlock = memo(function MathBlock(props: {
  * markdown emphasis are not applied there. Math paragraphs are prose-light,
  * and citations keep working in every plain-markdown segment.
  */
-export function MathText({ text, markdownStyles, rules, theme }: MathTextProps) {
+export function MathText({ text, markdownStyles, rules, theme, onLinkPress }: MathTextProps) {
   const segments = useMemo(() => {
     if (!MATH_DETECT_RE.test(text)) return null;
     return splitMathSegments(normalizeUnicodeMath(normalizeMathDelimiters(text)));
@@ -64,7 +66,7 @@ export function MathText({ text, markdownStyles, rules, theme }: MathTextProps) 
 
   if (!segments) {
     return (
-      <Markdown style={markdownStyles} rules={rules ?? undefined}>
+      <Markdown style={markdownStyles} rules={rules ?? undefined} onLinkPress={onLinkPress}>
         {text}
       </Markdown>
     );
@@ -74,7 +76,12 @@ export function MathText({ text, markdownStyles, rules, theme }: MathTextProps) 
     <>
       {segments.map((segment, index) =>
         segment.kind === 'markdown' ? (
-          <Markdown key={`markdown:${index}`} style={markdownStyles} rules={rules ?? undefined}>
+          <Markdown
+            key={`markdown:${index}`}
+            style={markdownStyles}
+            rules={rules ?? undefined}
+            onLinkPress={onLinkPress}
+          >
             {segment.content}
           </Markdown>
         ) : (
