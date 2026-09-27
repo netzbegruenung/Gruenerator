@@ -1,6 +1,7 @@
 /**
  * Gruppen-Feed: eine Zeile in `group_content_shares` ist ein Beitrag. Hier
- * leben Anheften, Notiz ändern und der flache Kommentar-Thread je Beitrag.
+ * leben Anheften, Notiz ändern und die Kommentare je Beitrag — Kommentare
+ * oberster Ebene mit ihren Antworten (eine Ebene tief).
  *
  * Rechte:
  * - Anheften/Lösen: Admins (Rolle `admin` oder Ersteller*in; in der
@@ -8,7 +9,8 @@
  *   `GROUP_PIN_LIMIT` Anheftungen verdrängen die älteste.
  * - Notiz ändern: wer geteilt hat, oder Admins.
  * - Kommentieren: alle Mitglieder, nicht in Projekten (`group_type='personal'`).
- * - Kommentar löschen: wer ihn geschrieben hat, oder Admins.
+ * - Kommentar löschen: wer ihn geschrieben hat, oder Admins. Antworten darauf
+ *   bleiben stehen (`parent_id ON DELETE SET NULL`).
  *
  * Nichtmitglieder bekommen einen Wurf mit der Meldung von
  * `getPostgresAndCheckMembership`; der Handler macht daraus ein 403.
@@ -150,6 +152,7 @@ export async function updateGroupShare(
 interface CommentRow {
   id: string;
   share_id: string;
+  parent_id: string | null;
   user_id: string | null;
   body: string;
   created_at: string | Date;
@@ -160,6 +163,7 @@ function toComment(r: CommentRow): GroupShareComment {
   return {
     id: r.id,
     shareId: r.share_id,
+    parentId: r.parent_id,
     userId: r.user_id,
     authorName: r.author_name || 'Ehemaliges Mitglied',
     body: r.body,
@@ -177,7 +181,7 @@ export async function listShareComments(
   if (!(await getShare(postgres, groupId, shareId))) return SHARE_NOT_FOUND;
 
   const rows = (await postgres.query(
-    `SELECT c.id, c.share_id, c.user_id, c.body, c.created_at,
+    `SELECT c.id, c.share_id, c.parent_id, c.user_id, c.body, c.created_at,
             COALESCE(p.display_name, p.first_name) AS author_name
        FROM group_share_comments c
        LEFT JOIN profiles p ON p.id = c.user_id
@@ -190,7 +194,15 @@ export async function listShareComments(
 }
 
 export async function createShareComment(
-  input: { groupId: string; shareId: string; userId: string; body: string; authorName: string },
+  input: {
+    groupId: string;
+    shareId: string;
+    userId: string;
+    body: string;
+    authorName: string;
+    /** Antwort auf diesen Kommentar; eine Antwort auf eine Antwort hängt am selben Kommentar oben. */
+    parentId?: string | null;
+  },
   deps: GroupFeedDeps = defaultDeps()
 ): Promise<FeedOutcome<GroupShareComment>> {
   const { groupId, shareId, userId, authorName } = input;
@@ -204,18 +216,33 @@ export async function createShareComment(
   if (!share) return SHARE_NOT_FOUND;
   if (!body) return { status: 400, message: 'Kommentar ist leer.' };
 
+  let parentId: string | null = null;
+  if (input.parentId) {
+    const parent = (await postgres.queryOne(
+      'SELECT id, parent_id FROM group_share_comments WHERE id = $1 AND share_id = $2 AND group_id = $3',
+      [input.parentId, shareId, groupId],
+      { table: 'group_share_comments' }
+    )) as { id: string; parent_id: string | null } | null;
+    if (!parent) return { status: 404, message: 'Kommentar nicht gefunden.' };
+    parentId = parent.parent_id ?? parent.id;
+  }
+
   const row = (await postgres.queryOne(
-    `INSERT INTO group_share_comments (share_id, group_id, user_id, body)
-     VALUES ($1, $2, $3, $4)
-     RETURNING id, share_id, user_id, body, created_at`,
-    [shareId, groupId, userId, body],
+    `INSERT INTO group_share_comments (share_id, group_id, user_id, body, parent_id)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, share_id, parent_id, user_id, body, created_at`,
+    [shareId, groupId, userId, body, parentId],
     { table: 'group_share_comments' }
   )) as Omit<CommentRow, 'author_name'> | null;
   if (!row) throw new Error('Kommentar konnte nicht gespeichert werden.');
 
+  // Eine Antwort erreicht nur die Leute in ihrem Thread, ein neuer Kommentar alle im Beitrag.
   const earlier = (await postgres.query(
-    'SELECT DISTINCT user_id FROM group_share_comments WHERE share_id = $1 AND user_id IS NOT NULL',
-    [shareId],
+    parentId
+      ? `SELECT DISTINCT user_id FROM group_share_comments
+          WHERE (id = $2 OR parent_id = $2) AND share_id = $1 AND user_id IS NOT NULL`
+      : 'SELECT DISTINCT user_id FROM group_share_comments WHERE share_id = $1 AND user_id IS NOT NULL',
+    parentId ? [shareId, parentId] : [shareId],
     { table: 'group_share_comments' }
   )) as Array<{ user_id: string }>;
   const recipients = [
@@ -227,7 +254,7 @@ export async function createShareComment(
     excludeUserId: userId,
     userIds: recipients,
     type: 'group_comment_added',
-    title: 'Neuer Kommentar',
+    title: parentId ? 'Neue Antwort' : 'Neuer Kommentar',
     body: `${authorName}: ${body.length > 140 ? `${body.slice(0, 140)}…` : body}`,
     actionUrl: `/projekte/${groupId}?beitrag=${shareId}`,
     metadata: { shareId },

@@ -181,7 +181,8 @@ CREATE TABLE IF NOT EXISTS group_share_comments (
     group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     body TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    parent_id UUID REFERENCES group_share_comments(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS group_posts (
@@ -793,6 +794,7 @@ CREATE INDEX IF NOT EXISTS idx_group_content_shares_group_content ON group_conte
 CREATE INDEX IF NOT EXISTS idx_group_content_shares_shared_by ON group_content_shares(shared_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_group_content_shares_pinned ON group_content_shares(group_id, pinned_at) WHERE pinned_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_group_share_comments_share ON group_share_comments(share_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_group_share_comments_parent ON group_share_comments(parent_id) WHERE parent_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_group_posts_group ON group_posts(group_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_group_post_files_post ON group_post_files(post_id, position);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_id ON group_instructions(group_id);

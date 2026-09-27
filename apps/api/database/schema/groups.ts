@@ -91,6 +91,8 @@ export const group_share_comments = pgTable('group_share_comments', {
   user_id: uuid('user_id'),
   body: text('body').notNull(),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  /** Kommentar oberster Ebene, an dem diese Antwort hängt (zz_20260928_group_comment_threads.sql). */
+  parent_id: uuid('parent_id'),
 });
 
 // Laufzeit-DDL in schema.sql bzw. zz_20260928_group_posts.sql.

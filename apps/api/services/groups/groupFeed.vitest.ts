@@ -20,6 +20,8 @@ interface Fake {
   instanceAdmin?: boolean;
   share?: { id: string; shared_by_user_id: string | null } | null;
   comment?: { user_id: string | null } | null;
+  /** Kommentar, auf den geantwortet wird; null = gibt es nicht. */
+  parent?: { id: string; parent_id: string | null } | null;
   earlierCommenters?: string[];
 }
 
@@ -42,10 +44,14 @@ function fakeDeps(f: Fake = {}) {
       return {
         id: 'c-new',
         share_id: params[0],
+        parent_id: params[4],
         user_id: params[2],
         body: params[3],
         created_at: new Date('2026-09-27T10:00:00Z'),
       };
+    }
+    if (sql.startsWith('SELECT id, parent_id FROM group_share_comments')) {
+      return f.parent === undefined ? { id: 'c1', parent_id: null } : f.parent;
     }
     if (sql.includes('FROM group_share_comments')) {
       return f.comment === undefined ? { user_id: 'author' } : f.comment;
@@ -60,6 +66,7 @@ function fakeDeps(f: Fake = {}) {
       {
         id: 'c1',
         share_id: 's1',
+        parent_id: null,
         user_id: 'u2',
         body: 'Hallo',
         created_at: new Date('2026-09-26T08:00:00Z'),
@@ -68,6 +75,7 @@ function fakeDeps(f: Fake = {}) {
       {
         id: 'c2',
         share_id: 's1',
+        parent_id: 'c1',
         user_id: null,
         body: 'Alt',
         created_at: '2026-09-26T09:00:00Z',
@@ -81,7 +89,7 @@ function fakeDeps(f: Fake = {}) {
     notify,
     isInstanceAdmin: vi.fn(async () => f.instanceAdmin ?? false),
   } satisfies GroupFeedDeps;
-  return { deps, exec, notify };
+  return { deps, exec, notify, query };
 }
 
 const ids = { groupId: 'g1', shareId: 's1', userId: 'u1' };
@@ -164,6 +172,7 @@ describe('comments', () => {
     if (!('data' in out)) throw new Error('expected data');
     expect(out.data.map((c) => c.authorName)).toEqual(['Aileen', 'Ehemaliges Mitglied']);
     expect(out.data[0].createdAt).toBe('2026-09-26T08:00:00.000Z');
+    expect(out.data.map((c) => c.parentId)).toEqual([null, 'c1']);
   });
 
   it('creates a comment and notifies sharer + earlier commenters', async () => {
@@ -183,6 +192,43 @@ describe('comments', () => {
         actionUrl: '/projekte/g1?beitrag=s1',
       })
     );
+  });
+
+  it('stores a reply under its comment and notifies only that thread', async () => {
+    const { deps, notify, query } = fakeDeps({ earlierCommenters: ['u2'] });
+    const out = await createShareComment(
+      { ...ids, body: '@Aileen stimmt', authorName: 'Moritz', parentId: 'c1' },
+      deps
+    );
+    expect(out.status).toBe(201);
+    if (!('data' in out)) throw new Error('expected data');
+    expect(out.data).toMatchObject({ parentId: 'c1', body: '@Aileen stimmt' });
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('parent_id = $2'), ['s1', 'c1'], {
+      table: 'group_share_comments',
+    });
+    expect(notify).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Neue Antwort', userIds: ['sharer', 'u2'] })
+    );
+  });
+
+  it('files a reply to a reply under the same top-level comment', async () => {
+    const { deps } = fakeDeps({ parent: { id: 'c2', parent_id: 'c1' } });
+    const out = await createShareComment(
+      { ...ids, body: 'ja', authorName: 'M', parentId: 'c2' },
+      deps
+    );
+    if (!('data' in out)) throw new Error('expected data');
+    expect(out.data.parentId).toBe('c1');
+  });
+
+  it('returns 404 when replying to a comment that is not on this share', async () => {
+    const { deps, notify } = fakeDeps({ parent: null });
+    const out = await createShareComment(
+      { ...ids, body: 'x', authorName: 'M', parentId: 'elsewhere' },
+      deps
+    );
+    expect(out.status).toBe(404);
+    expect(notify).not.toHaveBeenCalled();
   });
 
   it('refuses comments in personal projects', async () => {
