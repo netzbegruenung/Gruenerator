@@ -37,6 +37,7 @@ import {
   matchSourceByName,
   loadPassagePageEnds,
   outlineSource,
+  documentLink,
   readSourceText,
   renderOutline,
   resolveSourceInNotebook,
@@ -69,6 +70,7 @@ import {
   runScanReadAction,
   SCAN_FAILURE_BY_ACTION,
   SCAN_READ_ACTIONS,
+  withDocumentLinks,
 } from './notebookSourceReadActions.js';
 import { runSystemAction } from './notebookSourceSystemActions.js';
 import {
@@ -756,7 +758,9 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       deps
     );
     const url = notebookUrl(collection);
-    const results = items.map((r) => makeRow(r.title, url, 'Notebook-Quelle', rowDetail(r), r.id));
+    const results = items.map((r) =>
+      makeRow(r.title, documentLink(r.sourceUrl) ?? url, 'Notebook-Quelle', rowDetail(r), r.id)
+    );
     if (results.length === 0) {
       groundNote(sourceRegistry, `Notebook „${collection.name}"`, 'Keine passenden Quellen.');
     } else {
@@ -791,15 +795,18 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       return { error: 'Für diese Quelle liegt (noch) keine Gliederung vor — lies sie mit read.' };
     }
     sourceRegistry.register(
-      [
-        {
-          source: 'notebook',
-          title: `Gliederung: ${source.title}`,
-          content: renderOutline(source.title, entries),
-          documentId: sourceId,
-          collectionId: collection.id,
-        },
-      ],
+      await withDocumentLinks(
+        [
+          {
+            source: 'notebook',
+            title: `Gliederung: ${source.title}`,
+            content: renderOutline(source.title, entries),
+            documentId: sourceId,
+            collectionId: collection.id,
+          },
+        ],
+        deps.db
+      ),
       { snippetChars: OUTLINE_CHARS }
     );
     return { source: { id: sourceId, title: source.title }, outline: entries };
@@ -848,7 +855,9 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       charEnd: s.to,
       citedText: s.slice,
     };
-    const sources = sourceRegistry.register([result], { snippetChars: SLICE_REGISTER_CHARS });
+    const sources = sourceRegistry.register(await withDocumentLinks([result], deps.db), {
+      snippetChars: SLICE_REGISTER_CHARS,
+    });
     return {
       source: { id: sourceId, title: source.title },
       from: s.from,
@@ -930,20 +939,23 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       return { ...base, resultCount: 0, passages: [] };
     }
     const sources = sourceRegistry.register(
-      passages.map((p): SearchResult => ({
-        source: 'notebook',
-        title: p.title,
-        content: p.text,
-        documentId: p.sourceId,
-        collectionId: collection.id,
-        chunkIndex: p.chunkIndex,
-        pageNumber: p.pageNumber,
-        pageTo: p.pageTo,
-        charStart: p.charStart,
-        charEnd: p.charEnd,
-        relevance: p.score,
-        citedText: p.text,
-      }))
+      await withDocumentLinks(
+        passages.map((p): SearchResult => ({
+          source: 'notebook',
+          title: p.title,
+          content: p.text,
+          documentId: p.sourceId,
+          collectionId: collection.id,
+          chunkIndex: p.chunkIndex,
+          pageNumber: p.pageNumber,
+          pageTo: p.pageTo,
+          charStart: p.charStart,
+          charEnd: p.charEnd,
+          relevance: p.score,
+          citedText: p.text,
+        })),
+        deps.db
+      )
     );
     return {
       ...base,

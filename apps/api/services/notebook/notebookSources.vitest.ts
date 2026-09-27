@@ -6,6 +6,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  documentLink,
+  fetchDocumentLinks,
   fetchDocumentMetadata,
   findPassages,
   listNotebookSources,
@@ -157,6 +159,29 @@ describe('fetchDocumentMetadata', () => {
     const { deps, db } = makeDeps();
     await listNotebookSources({ collectionId: 'n1' }, deps);
     expect(String(db.query.mock.calls[0]?.[0])).toContain('length(markdown_content) AS chars');
+  });
+});
+
+describe('documentLink / fetchDocumentLinks (#3728)', () => {
+  it('keeps web addresses and drops what is no link', () => {
+    expect(documentLink('https://example.org/antrag')).toBe('https://example.org/antrag');
+    expect(documentLink(null)).toBeNull();
+    expect(documentLink('')).toBeNull();
+    expect(documentLink('wolke://no-such-share/antrag.pdf')).toBeNull();
+    expect(documentLink('javascript:alert(1)')).toBeNull();
+  });
+
+  it('looks all ids up in one query and leaves sources without an address out', async () => {
+    const query = vi.fn(async () => [
+      { id: 'd1', source_url: 'https://example.org/a' },
+      { id: 'd2', source_url: null },
+    ]);
+    const links = await fetchDocumentLinks({ query } as never, ['d1', 'd2', 'd1']);
+    expect(links).toEqual(new Map([['d1', 'https://example.org/a']]));
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]).toEqual([expect.any(String), [['d1', 'd2']]]);
+    expect(await fetchDocumentLinks({ query } as never, [])).toEqual(new Map());
+    expect(query).toHaveBeenCalledTimes(1);
   });
 });
 

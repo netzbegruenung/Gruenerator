@@ -13,6 +13,7 @@
  * als Gesamtzahl beim Modell ankommen.
  */
 import {
+  fetchDocumentLinks,
   listNotebookSources,
   sortDateOf,
   type NotebookSourceRow,
@@ -97,6 +98,25 @@ export const rankRefs = (ranking: readonly RankRow[]): string =>
     }))
   );
 
+/**
+ * Hängt jeder Quelle ihre eigene Adresse an (#3728). Vor `register`, nicht
+ * danach: die Zeile, die das Modell sieht, entsteht dort.
+ */
+export async function withDocumentLinks(
+  results: SearchResult[],
+  db: NotebookSourcesDeps['db']
+): Promise<SearchResult[]> {
+  const links = await fetchDocumentLinks(
+    db,
+    results.flatMap((r) => (r.documentId ? [r.documentId] : []))
+  );
+  if (links.size === 0) return results;
+  return results.map((r) => {
+    const url = r.documentId ? links.get(r.documentId) : undefined;
+    return url && !r.url ? { ...r, url } : r;
+  });
+}
+
 export function isScanReadAction(action: string): action is ScanReadAction {
   return (SCAN_READ_ACTIONS as readonly string[]).includes(action);
 }
@@ -173,19 +193,22 @@ async function grep(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
     );
   } else {
     sourceRegistry.register(
-      shown.map((s): SearchResult => {
-        const first = s.contexts[0];
-        return {
-          source: 'notebook',
-          title: s.title,
-          content: `${s.count}× „${phrase}"\n${s.contexts.map((c) => c.text).join('\n…\n')}`,
-          documentId: s.sourceId,
-          collectionId: collection.id,
-          ...(first
-            ? { charStart: first.charStart, pageNumber: first.pageNumber, citedText: first.text }
-            : {}),
-        };
-      })
+      await withDocumentLinks(
+        shown.map((s): SearchResult => {
+          const first = s.contexts[0];
+          return {
+            source: 'notebook',
+            title: s.title,
+            content: `${s.count}× „${phrase}"\n${s.contexts.map((c) => c.text).join('\n…\n')}`,
+            documentId: s.sourceId,
+            collectionId: collection.id,
+            ...(first
+              ? { charStart: first.charStart, pageNumber: first.pageNumber, citedText: first.text }
+              : {}),
+          };
+        }),
+        deps.db
+      )
     );
   }
   return {
@@ -259,15 +282,18 @@ async function stats(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<s
 
   const heading = result.source?.title ?? collection.name;
   sourceRegistry.register(
-    [
-      {
-        source: 'notebook',
-        title: `Statistik: ${heading}`,
-        content: renderStats(heading, result),
-        collectionId: collection.id,
-        ...(result.source ? { documentId: result.source.id } : {}),
-      },
-    ],
+    await withDocumentLinks(
+      [
+        {
+          source: 'notebook',
+          title: `Statistik: ${heading}`,
+          content: renderStats(heading, result),
+          collectionId: collection.id,
+          ...(result.source ? { documentId: result.source.id } : {}),
+        },
+      ],
+      deps.db
+    ),
     { snippetChars: STATS_CHARS }
   );
   const note = [
@@ -367,12 +393,16 @@ async function rank(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
   if (ranking.length === 0) {
     groundNote(ctx.sourceRegistry, `Notebook „${collection.name}"`, 'Keine Quellen zum Ordnen.');
   } else {
+    const links = await fetchDocumentLinks(
+      ctx.deps.db,
+      ranking.map((r) => r.sourceId)
+    );
     groundSourceRows(
       ctx.sourceRegistry,
       ranking.map((r) =>
         makeRow(
           r.title,
-          url,
+          links.get(r.sourceId) ?? url,
           'Notebook-Quelle',
           `${r.rank}. ${r.value ?? '—'} ${r.unit}`,
           r.sourceId
@@ -466,7 +496,10 @@ async function cite(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
       return { claim, candidates: [] };
     }
     const sources = sourceRegistry.register(
-      out.candidates.map((c) => candidateSource(c, collection.id))
+      await withDocumentLinks(
+        out.candidates.map((c) => candidateSource(c, collection.id)),
+        deps.db
+      )
     );
     return { claim, candidates: out.candidates, sources };
   }
@@ -475,25 +508,33 @@ async function cite(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
   const out = await citeQuote({ ...base, quote }, deps);
   if ('error' in out) return out;
   if (out.found) {
-    const sources = sourceRegistry.register([
-      {
-        source: 'notebook',
-        title: out.title,
-        content: out.context,
-        documentId: out.sourceId,
-        collectionId: collection.id,
-        ...(out.chunkIndex !== null ? { chunkIndex: out.chunkIndex } : {}),
-        pageNumber: out.pageNumber,
-        charStart: out.charStart,
-        charEnd: out.charEnd,
-        citedText: out.matched,
-      },
-    ]);
+    const sources = sourceRegistry.register(
+      await withDocumentLinks(
+        [
+          {
+            source: 'notebook',
+            title: out.title,
+            content: out.context,
+            documentId: out.sourceId,
+            collectionId: collection.id,
+            ...(out.chunkIndex !== null ? { chunkIndex: out.chunkIndex } : {}),
+            pageNumber: out.pageNumber,
+            charStart: out.charStart,
+            charEnd: out.charEnd,
+            citedText: out.matched,
+          },
+        ],
+        deps.db
+      )
+    );
     return { ...out, sources };
   }
   if (out.candidates.length > 0) {
     const sources = sourceRegistry.register(
-      out.candidates.map((c) => candidateSource(c, collection.id))
+      await withDocumentLinks(
+        out.candidates.map((c) => candidateSource(c, collection.id)),
+        deps.db
+      )
     );
     return {
       ...out,
