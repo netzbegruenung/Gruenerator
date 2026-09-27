@@ -1,7 +1,12 @@
-import { groupFeedByKind, type GroupFeedItem, type GroupMember } from '@gruenerator/shared/groups';
+import {
+  groupFeedByKind,
+  personInitials,
+  type GroupFeedItem,
+  type GroupMember,
+} from '@gruenerator/shared/groups';
 import { PiLink } from 'react-icons/pi';
 
-import { FEED_KIND_ICONS, personInitials } from '../../config/groupFeedPresentation';
+import { FEED_KIND_ICONS } from '../../config/groupFeedPresentation';
 
 interface GroupSidebarProps {
   description: string | null;

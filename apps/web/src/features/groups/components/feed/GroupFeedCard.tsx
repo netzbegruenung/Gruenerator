@@ -1,7 +1,9 @@
 import {
   errMessage,
+  formatFeedDate,
   groupFeedKindMeta,
   isPinned,
+  personInitials,
   useUpdateGroupShare,
   type GroupFeedItem,
 } from '@gruenerator/shared/groups';
@@ -23,12 +25,7 @@ import {
 } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
-import {
-  FEED_KIND_ICONS,
-  feedItemHref,
-  formatFeedDate,
-  personInitials,
-} from '../../config/groupFeedPresentation';
+import { FEED_KIND_ICONS, feedItemHref } from '../../config/groupFeedPresentation';
 
 import { GroupCommentThread } from './GroupCommentThread';
 

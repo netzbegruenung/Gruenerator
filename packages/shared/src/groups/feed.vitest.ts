@@ -115,3 +115,20 @@ describe('toGroupFeedItems', () => {
     expect(filterGroupFeed(items, '  ')).toHaveLength(items.length);
   });
 });
+
+describe('personInitials / formatFeedDate', () => {
+  it('builds initials from first and last name part', async () => {
+    const { personInitials } = await import('./feed.js');
+    expect(personInitials('Moritz Wächter')).toBe('MW');
+    expect(personInitials('Aileen de la Lorenz')).toBe('AL');
+    expect(personInitials('  ')).toBe('?');
+    expect(personInitials(null)).toBe('?');
+  });
+
+  it('formats dates in German and tolerates garbage', async () => {
+    const { formatFeedDate } = await import('./feed.js');
+    expect(formatFeedDate('2026-09-27T10:00:00Z')).toBe('Sonntag, 27. September');
+    expect(formatFeedDate('nope')).toBe('');
+    expect(formatFeedDate(null)).toBe('');
+  });
+});
