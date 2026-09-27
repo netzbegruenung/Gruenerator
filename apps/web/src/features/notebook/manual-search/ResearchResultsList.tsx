@@ -1,6 +1,8 @@
 import { Button } from '@gruenerator/ui';
 import { type ReactNode, useId } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
+import { type ReaderTarget, ResearchDocumentReader } from './ResearchDocumentReader';
 import { ResearchHitCard, type ResearchView } from './ResearchHitCard';
 import { type ResearchResult } from './useResearch';
 
@@ -23,6 +25,30 @@ interface ResearchResultsListProps {
   view?: ResearchView;
   /** Offered in the empty state when the options narrowed the search. */
   onResetOptions?: () => void;
+  /** The search behind these hits — the reader marks its terms. */
+  query: string;
+  /** Hits come from system collections, which the reader can open. A user
+   *  notebook's hits carry the notebook's own id as `collection_id` instead. */
+  readable?: boolean;
+}
+
+type ReaderState = { researchReader?: ReaderTarget; question?: unknown } | null;
+
+/**
+ * The open reader lives in the history entry, so the browser's back (or a
+ * swipe on a phone) closes it instead of leaving the notebook. Other state on
+ * the entry is kept — the chat bridge reads `freshConversation` from it — except
+ * a pending `question`, which would otherwise be sent a second time.
+ */
+function useResearchReader() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const state = location.state as ReaderState;
+  const open = (target: ReaderTarget) => {
+    const { question: _pending, ...rest } = state ?? {};
+    void navigate(location, { state: { ...rest, researchReader: target } });
+  };
+  return { target: state?.researchReader ?? null, open, close: () => void navigate(-1) };
 }
 
 /** The research hit list — one rendering for the notebook start page and the
@@ -37,7 +63,17 @@ export function ResearchResultsList({
   toolbar,
   view = 'grid',
   onResetOptions,
+  query,
+  readable = true,
 }: ResearchResultsListProps) {
+  const reader = useResearchReader();
+  // User-notebook documents keep opening their source.
+  const openHit = (r: ResearchResult) => {
+    const collectionId = r.collection_id;
+    const sourceUrl = r.source_url;
+    if (!readable || !collectionId || !sourceUrl) return undefined;
+    return () => reader.open({ collectionId, sourceUrl, query, title: r.title });
+  };
   const settled = !isPending && !isError;
   const headingId = useId();
   const count = metadata?.totalResults ?? results.length;
@@ -76,6 +112,7 @@ export function ResearchResultsList({
                 key={`${r.document_id}-${r.collection_id ?? i}`}
                 result={r}
                 view="list"
+                onOpen={openHit(r)}
               />
             ))}
           </div>
@@ -91,6 +128,7 @@ export function ResearchResultsList({
                 key={`${r.document_id}-${r.collection_id ?? i}`}
                 result={r}
                 view="grid"
+                onOpen={openHit(r)}
               />
             ))}
           </div>
@@ -105,6 +143,14 @@ export function ResearchResultsList({
             </Button>
           )}
         </div>
+      )}
+
+      {reader.target && (
+        <ResearchDocumentReader
+          key={reader.target.sourceUrl}
+          target={reader.target}
+          onClose={reader.close}
+        />
       )}
     </section>
   );
