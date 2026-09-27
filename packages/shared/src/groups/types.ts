@@ -58,6 +58,8 @@ export interface GroupSummary {
   isAdmin?: boolean;
   /** 'personal' = solo Space (lean UI); else team Space. */
   group_type?: 'standard' | 'personal' | null;
+  /** The one group every user belongs to: no member info, only instance admins share. */
+  is_system?: boolean | null;
   created_at?: string;
   created_by?: string;
   join_token?: string;
@@ -114,6 +116,12 @@ export const getGroupInitials = (name: string | null | undefined): string => {
   const words = name.split(' ');
   return (words[0][0] + (words[1]?.[0] ?? '')).toUpperCase();
 };
+
+/** Whether the user may share into (or file chats into) this group — mirrors the server gate. */
+export const canShareIntoGroup = (group: {
+  is_system?: boolean | null;
+  isAdmin?: boolean | null;
+}): boolean => !group.is_system || !!group.isAdmin;
 
 export const buildGroupInviteUrl = (joinToken: string): string =>
   `${PRODUCTION_WEB_ORIGIN}/join-group/${joinToken}`;

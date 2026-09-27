@@ -30,7 +30,8 @@ interface GroupContentAreaProps {
   description: string | null;
   linkCount: number;
   onShowMembers: () => void;
-  onOpenShare: () => void;
+  /** null: the viewer may not share here (system group, non-admin). */
+  onOpenShare: (() => void) | null;
   onRemove: ((item: GroupFeedItem) => void) | null;
   onUseTemplate: (id: string) => void;
   cloningId: string | null;
@@ -107,9 +108,11 @@ export function GroupContentArea({
       <p className="m-0 text-[15px] text-muted-foreground">
         {isPersonal ? 'In diesem Projekt liegt noch nichts.' : 'Noch nichts geteilt.'}
       </p>
-      <Button variant="brand-outline" onClick={onOpenShare}>
-        <PiPlus aria-hidden /> Ersten Inhalt teilen
-      </Button>
+      {onOpenShare && (
+        <Button variant="brand-outline" onClick={onOpenShare}>
+          <PiPlus aria-hidden /> Ersten Inhalt teilen
+        </Button>
+      )}
     </div>
   );
 

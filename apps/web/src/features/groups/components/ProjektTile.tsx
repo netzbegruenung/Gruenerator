@@ -15,6 +15,7 @@ const TILE_BASE =
 
 function projektMeta(projekt: GroupSummary): string {
   if (projekt.group_type === 'personal') return 'Nur für dich';
+  if (projekt.is_system) return 'Für alle';
   if (projekt.member_count != null) {
     return `${projekt.member_count} Mitglied${projekt.member_count === 1 ? '' : 'er'}`;
   }
