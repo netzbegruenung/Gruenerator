@@ -125,9 +125,9 @@ const NUMBER_WORDS: Record<string, number> = {
   zehn: 10,
 };
 
-const RECENCY_RE = /\b(neuest\w*|neust\w*|aktuell\w*|jüngst\w*|juengst\w*|zuletzt)\b/i;
-const RECENCY_WORD_RE =
-  /(?<!\p{L})(?:neuest\p{L}*|neust\p{L}*|aktuell\p{L}*|jüngst\p{L}*|juengst\p{L}*|zuletzt)(?!\p{L})/giu;
+const RECENCY_WORDS = String.raw`(?<!\p{L})(?:neuest\p{L}*|neust\p{L}*|aktuell\p{L}*|jüngst\p{L}*|juengst\p{L}*|zuletzt)(?!\p{L})`;
+const RECENCY_RE = new RegExp(RECENCY_WORDS, 'iu');
+const RECENCY_WORD_RE = new RegExp(RECENCY_WORDS, 'giu');
 const FILLER_WORD_RE = /(?<!\p{L})(?:dokumente|texte|beiträge|artikel|alles|alle)(?!\p{L})/giu;
 
 const pad = (n: number): string => String(n).padStart(2, '0');
@@ -168,6 +168,15 @@ const parseCount = (raw: string): number | undefined => {
   return /^\d+$/.test(lower) ? Number(lower) : NUMBER_WORDS[lower];
 };
 
+/** Same day `n` calendar months back, clamped to the target month's last day (31 Mar → 28/29 Feb). */
+function monthsAgo(now: Date, n: number): string {
+  const target = new Date(now.getFullYear(), now.getMonth() - n, 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  return isoDay(
+    new Date(target.getFullYear(), target.getMonth(), Math.min(now.getDate(), lastDay))
+  );
+}
+
 /** A toolbar preset's label when the range is exactly that preset, so the control can show it. */
 function presetLabel(now: Date, from?: string, to?: string): string | undefined {
   return datePresets(now).find((p) => p.range.date_from === from && p.range.date_to === to)?.label;
@@ -191,10 +200,7 @@ function detectRelativeDate(text: string, now: Date): DateMatch | null {
       fallback = n === 1 ? 'Letzte Woche' : `Letzte ${n} Wochen`;
     } else {
       // Twelve months is the toolbar's "Letzte 12 Monate" preset (365 days).
-      from =
-        n === 12
-          ? daysAgo(now, 365)
-          : isoDay(new Date(now.getFullYear(), now.getMonth() - n, now.getDate()));
+      from = n === 12 ? daysAgo(now, 365) : monthsAgo(now, n);
       fallback = n === 1 ? 'Letzter Monat' : `Letzte ${n} Monate`;
     }
     return { date_from: from, label: presetLabel(now, from) ?? fallback, span: spanOf(counted) };
@@ -203,9 +209,7 @@ function detectRelativeDate(text: string, now: Date): DateMatch | null {
   const single = text.match(/\b(?:(?:in\s+der|im)\s+)?letzte[nr]?\s+(woche|monat)(?!\p{L})/iu);
   if (single) {
     const isWeek = single[1].toLowerCase() === 'woche';
-    const from = isWeek
-      ? daysAgo(now, 7)
-      : isoDay(new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()));
+    const from = isWeek ? daysAgo(now, 7) : monthsAgo(now, 1);
     return {
       date_from: from,
       label: isWeek ? 'Letzte Woche' : 'Letzter Monat',
@@ -226,18 +230,6 @@ function detectRelativeDate(text: string, now: Date): DateMatch | null {
       date_to: endOfYear(y),
       label: String(y),
       span: spanOf(yearMatch),
-    };
-  }
-
-  // aus 2023 / in 2023 / im Jahr 2023 — keyword-anchored, never a bare year.
-  const inYear = text.match(/\b(?:aus(?:\s+dem\s+jahr)?|in|im\s+jahr)\s+((?:19|20)\d{2})\b/i);
-  if (inYear) {
-    const y = Number(inYear[1]);
-    return {
-      date_from: startOfYear(y),
-      date_to: endOfYear(y),
-      label: String(y),
-      span: spanOf(inYear),
     };
   }
 
@@ -293,6 +285,18 @@ function detectDate(text: string, now: Date = new Date()): DateMatch {
       date_to: m ? endOfMonth(y, m) : endOfYear(y),
       label: `bis ${until[2] ? `${until[2]} ` : ''}${y}`,
       span: spanOf(until),
+    };
+  }
+
+  // aus 2023 / in 2023 / im Jahr 2023 — keyword-anchored, never a bare year.
+  const inYear = text.match(/\b(?:aus(?:\s+dem\s+jahr)?|in|im\s+jahr)\s+((?:19|20)\d{2})\b/i);
+  if (inYear) {
+    const y = Number(inYear[1]);
+    return {
+      date_from: startOfYear(y),
+      date_to: endOfYear(y),
+      label: String(y),
+      span: spanOf(inYear),
     };
   }
 

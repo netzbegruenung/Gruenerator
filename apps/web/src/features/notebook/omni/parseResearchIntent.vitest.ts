@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { datePresets } from '../manual-search/datePresets';
+import { datePresets, daysAgo } from '../manual-search/datePresets';
 import { type FilterFieldConfig } from '../manual-search/useResearchFilters';
 
 import { buildSystemTargets } from './omniIntent';
@@ -151,6 +151,8 @@ describe('parseResearchIntent — relative dates (clock pinned to 2026-09-27)', 
     ['anträge letztes Jahr', { date_from: '2025-01-01', date_to: '2025-12-31' }, '2025'],
     ['im letzten Jahr', { date_from: '2025-01-01', date_to: '2025-12-31' }, '2025'],
     ['vergangenes Jahr', { date_from: '2025-01-01', date_to: '2025-12-31' }, '2025'],
+    ['voriges Jahr', { date_from: '2025-01-01', date_to: '2025-12-31' }, '2025'],
+    ['beschlüsse in 2023', { date_from: '2023-01-01', date_to: '2023-12-31' }, '2023'],
     ['anträge aus 2023', { date_from: '2023-01-01', date_to: '2023-12-31' }, '2023'],
     ['im Jahr 2021 beschlossen', { date_from: '2021-01-01', date_to: '2021-12-31' }, '2021'],
   ])('%s', (q, range, label) => {
@@ -168,6 +170,24 @@ describe('parseResearchIntent — relative dates (clock pinned to 2026-09-27)', 
     expect(parse('letztes Jahr').filters['published_at']).toEqual(byLabel('2025'));
   });
 
+  it('canonical example: "Hitzeschutz, Dokumente seit 30 Tagen"', () => {
+    const parsed = parse('Hitzeschutz, Dokumente seit 30 Tagen');
+    expect(parsed.residualQuery).toBe('Hitzeschutz');
+    expect(parsed.matched.dateLabel).toBe('Letzte 30 Tage');
+    expect(parsed.filters['published_at']).toEqual({ date_from: daysAgo(new Date(), 30) });
+    expect(parsed.filters['published_at']).toEqual({ date_from: '2026-08-28' });
+  });
+
+  it('does not read an uncounted "seit paar Tagen" as a date', () => {
+    expect(parse('seit paar Tagen').filters['published_at']).toBeUndefined();
+  });
+
+  it('seit YYYY keeps its meaning when an "in YYYY" follows', () => {
+    expect(parse('beschlüsse seit 2021 in 2000 kommunen').filters['published_at']).toEqual({
+      date_from: '2021-01-01',
+    });
+  });
+
   it('keeps the existing letzte-N-Jahre pattern on the pinned clock', () => {
     expect(parse('in den letzten 2 Jahren').filters['published_at']).toEqual({
       date_from: '2024-01-01',
@@ -175,7 +195,38 @@ describe('parseResearchIntent — relative dates (clock pinned to 2026-09-27)', 
   });
 });
 
+describe('parseResearchIntent — month-end clamp (clock pinned to 2026-03-31)', () => {
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 2, 31, 12, 0, 0));
+  });
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
+  it('letzten Monat clamps 31 March to 28 February', () => {
+    expect(parseResearchIntent('letzten Monat', ctx).filters['published_at']).toEqual({
+      date_from: '2026-02-28',
+    });
+  });
+
+  it('counted months clamp to the target month end', () => {
+    expect(parseResearchIntent('seit einem Monat', ctx).filters['published_at']).toEqual({
+      date_from: '2026-02-28',
+    });
+    expect(parseResearchIntent('letzte 3 Monate', ctx).filters['published_at']).toEqual({
+      date_from: '2025-12-31',
+    });
+  });
+});
+
 describe('parseResearchIntent — persons', () => {
+  it('sets filters.persons for a persons-only query', () => {
+    const parsed = parseResearchIntent('Robert Habeck', ctx);
+    expect(parsed.filters).toEqual({ persons: ['Robert Habeck'] });
+    expect(parsed.residualQuery).toBe('Robert Habeck');
+  });
+
   it('matches multi-word names from the facet vocabulary', () => {
     const parsed = parseResearchIntent('was sagt robert habeck zu klima', ctx);
     expect(parsed.filters['persons']).toEqual(['Robert Habeck']);

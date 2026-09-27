@@ -25,7 +25,7 @@ export function OmniResultsPanel({ parsed }: { parsed: ParsedResearchIntent }) {
 
   useEffect(() => {
     const filters: ActiveFilters = {};
-    for (const field of ['published_at', 'themes', 'content_type'] as const) {
+    for (const field of ['published_at', 'themes', 'persons', 'content_type'] as const) {
       if (!dropped.has(field) && parsed.filters[field]) filters[field] = parsed.filters[field];
     }
     const collectionIds = dropped.has('region') ? undefined : parsed.collectionIds;
