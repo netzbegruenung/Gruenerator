@@ -45,9 +45,11 @@ export {
 export {
   GROUP_FEED_KINDS,
   filterGroupFeed,
+  formatFeedDate,
   groupFeedByKind,
   groupFeedKindMeta,
   isPinned,
+  personInitials,
   sortGroupFeed,
   toGroupFeedItems,
   type GroupFeedItem,

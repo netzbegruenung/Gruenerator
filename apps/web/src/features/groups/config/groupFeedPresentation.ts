@@ -49,23 +49,3 @@ export function feedItemHref(item: GroupFeedItem): string | null {
       return null;
   }
 }
-
-export function formatFeedDate(iso: string | null, style: 'long' | 'short' = 'long'): string {
-  if (!iso) return '';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString(
-    'de-DE',
-    style === 'long'
-      ? { weekday: 'long', day: 'numeric', month: 'long' }
-      : { day: 'numeric', month: 'short' }
-  );
-}
-
-export function personInitials(name: string | null | undefined): string {
-  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  return (
-    (parts[0]?.[0] ?? '') + (parts.length > 1 ? (parts.at(-1)?.[0] ?? '') : '')
-  ).toUpperCase();
-}

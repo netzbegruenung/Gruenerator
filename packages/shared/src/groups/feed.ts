@@ -180,3 +180,25 @@ export function filterGroupFeed(items: GroupFeedItem[], query: string): GroupFee
     [i.title, i.share?.note, i.excerpt].some((t) => t?.toLocaleLowerCase('de').includes(q))
   );
 }
+
+/** „Samstag, 27. September" bzw. „27. Sept." — leer, wenn kein gültiges Datum. */
+export function formatFeedDate(iso: string | null, style: 'long' | 'short' = 'long'): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString(
+    'de-DE',
+    style === 'long'
+      ? { weekday: 'long', day: 'numeric', month: 'long' }
+      : { day: 'numeric', month: 'short' }
+  );
+}
+
+/** Initialen für Avatare ohne Bild: erster und letzter Namensteil. */
+export function personInitials(name: string | null | undefined): string {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  const first = parts[0]?.[0] ?? '';
+  const last = parts.length > 1 ? (parts.at(-1)?.[0] ?? '') : '';
+  return (first + last).toUpperCase();
+}

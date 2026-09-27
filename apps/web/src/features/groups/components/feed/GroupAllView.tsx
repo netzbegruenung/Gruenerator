@@ -1,4 +1,5 @@
 import {
+  formatFeedDate,
   groupFeedByKind,
   groupFeedKindMeta,
   isPinned,
@@ -10,7 +11,7 @@ import { type ReactNode } from 'react';
 import { PiPushPin, PiPushPinFill, PiX } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
-import { FEED_KIND_ICONS, feedItemHref, formatFeedDate } from '../../config/groupFeedPresentation';
+import { FEED_KIND_ICONS, feedItemHref } from '../../config/groupFeedPresentation';
 
 import { FeedPreview } from './GroupFeedCard';
 

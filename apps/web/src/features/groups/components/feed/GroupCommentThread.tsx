@@ -1,5 +1,7 @@
 import {
   errMessage,
+  formatFeedDate,
+  personInitials,
   useAddGroupShareComment,
   useDeleteGroupShareComment,
   useGroupShareComments,
@@ -7,8 +9,6 @@ import {
 import { Button, cn } from '@gruenerator/ui';
 import { useRef, useState } from 'react';
 import { PiPaperPlaneRight, PiTrash } from 'react-icons/pi';
-
-import { formatFeedDate, personInitials } from '../../config/groupFeedPresentation';
 
 interface GroupCommentThreadProps {
   id: string;
