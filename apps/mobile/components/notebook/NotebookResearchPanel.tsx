@@ -146,6 +146,9 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   const [mode, setMode] = useState<SearchMode>('hybrid');
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
   const [selected, setSelected] = useState<ResearchResult | null>(null);
+  // What the hits were searched for — `query` is the live input and may have
+  // moved on by the time a hit is opened.
+  const [searchedQuery, setSearchedQuery] = useState('');
   const [filtersSheetVisible, setFiltersSheetVisible] = useState(false);
   const [answerModeSheetVisible, setAnswerModeSheetVisible] = useState(false);
   // Chat is the default input (a composer that hands off to the chat screen, like
@@ -235,6 +238,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
       const trimmed = query.trim();
       if (trimmed.length < 2) return;
       Keyboard.dismiss();
+      setSearchedQuery(trimmed);
       search({
         query: trimmed,
         mode: overrides?.mode ?? mode,
@@ -243,6 +247,26 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
       });
     },
     [query, mode, sortBy, keywordFilters, search]
+  );
+
+  // A system-collection hit reads in the app; a user-notebook document keeps
+  // the detail sheet with its source.
+  const openHit = useCallback(
+    (result: ResearchResult) => {
+      if (kind !== 'system' || !result.collection_id || !result.source_url) {
+        setSelected(result);
+        return;
+      }
+      router.push(
+        routeWithParams('/(focused)/notebook-reader', {
+          collectionId: result.collection_id,
+          sourceUrl: result.source_url,
+          query: searchedQuery,
+          title: result.title,
+        })
+      );
+    },
+    [kind, router, searchedQuery]
   );
 
   const resetFilters = () => {
@@ -373,7 +397,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                     key={result.document_id}
                     result={result}
                     theme={theme}
-                    onPress={setSelected}
+                    onPress={openHit}
                   />
                 ))}
 
