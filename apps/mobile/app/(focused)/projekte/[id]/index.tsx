@@ -17,7 +17,7 @@ import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold
 import { GroupCommentsSheet } from '../../../../components/projekte/GroupCommentsSheet';
 import { GroupFeedCard } from '../../../../components/projekte/GroupFeedCard';
 import { GroupKindRows } from '../../../../components/projekte/GroupKindRows';
-import { openGroupFeedItem, useGroupFeed } from '../../../../hooks/useGroupContent';
+import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails } from '../../../../hooks/useGroups';
 import { useTheme } from '../../../../hooks/useTheme';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
@@ -37,6 +37,7 @@ export default function ProjektDetailScreen() {
 
   const detailsQuery = useGroupDetails(id);
   const feedQuery = useGroupFeed(id);
+  const token = useBearerToken();
   const group = detailsQuery.data?.group;
   const isPersonal = group?.group_type === 'personal';
 
@@ -189,6 +190,8 @@ export default function ProjektDetailScreen() {
               <GroupFeedCard
                 key={item.key}
                 item={item}
+                groupId={id ?? ''}
+                token={token}
                 canComment={!isPersonal}
                 onOpen={open}
                 onShowComments={setCommentsFor}
