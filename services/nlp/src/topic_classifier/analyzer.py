@@ -113,6 +113,45 @@ _NAME_PARTICLES = frozenset(
 )
 
 
+# Words that open a photo credit. A PER entity right after one ("Foto: Vincent
+# Villwock/Grüne Fraktion Berlin", "Bild von …", "© …") names who took the
+# picture, not who the text is about — on the Berlin notebook a Fraktion
+# photographer was the most "mentioned person" (401 documents, #3695). Caught
+# by position rather than by name, because a blocklist only ever knows the
+# photographers someone has already noticed.
+_CREDIT_MARKERS = frozenset(
+    {
+        "foto", "fotos", "bild", "bilder", "bildquelle", "bildnachweis",
+        "bildrechte", "fotograf", "fotografin", "photo", "credit", "credits", "©",
+    }
+)
+# Tokens allowed between the marker and the name: "Foto: X", "Bild von X".
+_CREDIT_JOINERS = frozenset({":", "von", "by"})
+
+# Version of the person-extraction rules, reported on /health. The API stamps it
+# on every enriched document and re-tags whatever carries a different one, so a
+# change here reaches the existing payloads once this service is deployed —
+# independent of whether the API was deployed before or after it. Bump it with
+# every change to what `extract_persons_batch` returns.
+PERSONS_VERSION = 1
+
+
+def _is_photo_credit(ent) -> bool:
+    """Whether a PER span is the name in a photo credit.
+
+    Checks the span's own first token too: the NER sometimes pulls the marker
+    into the entity ("Foto Vincent Villwock"), and `_name_from_entity` would
+    then cut it off and leave a clean-looking name.
+    """
+    if ent[0].text.casefold() in _CREDIT_MARKERS:
+        return True
+    doc = ent.doc
+    i = ent.start - 1
+    while i >= 0 and doc[i].text.casefold() in _CREDIT_JOINERS:
+        i -= 1
+    return i >= 0 and doc[i].text.casefold() in _CREDIT_MARKERS
+
+
 def _name_from_entity(ent) -> str:
     """Reduce a PER span to the name itself.
 
@@ -443,8 +482,9 @@ class TopicClassifier:
         ("Werner Graf Landesvorsitzende Wahlprüfsteine"), hyphenation artefacts
         from PDFs ("Dieter Grü- newald"), genitives as separate people ("Putins"
         next to "Putin") and bare surnames next to the full name ("Merz" next to
-        "Friedrich Merz"). Four passes clean that up, in this order:
+        "Friedrich Merz"). Five passes clean that up, in this order:
 
+        0. `_is_photo_credit` drops the name in a "Foto: …" credit.
         1. `_name_from_entity` cuts titles and role words off the span.
         2. `_normalize_surface` repairs hyphenation and strips punctuation.
         3. `PERSON_BLOCKLIST` drops non-people (image credits, staff).
@@ -467,7 +507,7 @@ class TopicClassifier:
         for doc in self.nlp.pipe(text_contents, batch_size=25, n_process=1):
             seen_in_doc: set[str] = set()
             for ent in doc.ents:
-                if ent.label_ != "PER":
+                if ent.label_ != "PER" or _is_photo_credit(ent):
                     continue
                 name = _normalize_surface(_name_from_entity(ent))
                 # Names are capitalized; drop length-1 fragments and lowercase noise.

@@ -263,6 +263,19 @@ export async function textStatsBatched(
   return results;
 }
 
+/**
+ * Version of the service's person-extraction rules (`persons_version` on
+ * /health). `null` when the running service predates the field. Throws when the
+ * service is unreachable, so an outage is never mistaken for an old service.
+ */
+export async function getPersonsVersion(): Promise<number | null> {
+  const response = await axios.get<{ persons_version?: unknown }>(`${NLP_SERVICE_URL}/health`, {
+    timeout: 5000,
+  });
+  const version = response.data?.persons_version;
+  return typeof version === 'number' ? version : null;
+}
+
 export async function checkHealth(): Promise<boolean> {
   try {
     const response = await axios.get<{ status: string }>(`${NLP_SERVICE_URL}/health`, {

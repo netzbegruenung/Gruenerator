@@ -16,6 +16,7 @@ import {
   getSystemCollectionConfig,
   getCollectionFilterableFields,
   getCollectionDefaultFilter,
+  getFacetCountFilter,
 } from '../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -198,7 +199,7 @@ export async function computeMergedFilters(requestedIds: string[]): Promise<Merg
             systemConfig.qdrantCollection,
             field.field,
             50,
-            baseFilter
+            getFacetCountFilter(collectionId)
           );
           return {
             field: field.field,
