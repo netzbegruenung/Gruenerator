@@ -18,7 +18,7 @@ import type { Citation } from '../../hooks/useChatGraphStream';
  *  Sammlung, um den Originaltext zu holen. Die Felder sind auf dem Draht
  *  optional (nur Notebook-/Dokument-Zitationen setzen sie, siehe
  *  `chatCitationBase`), deshalb echt verengen statt behaupten. */
-function toPanelSource(c: Citation): CitationPanelSource | null {
+export function toPanelSource(c: Citation): CitationPanelSource | null {
   if (typeof c.documentId !== 'string') return null;
   if (typeof c.collectionId !== 'string') return null;
   if (typeof c.chunkIndex !== 'number') return null;

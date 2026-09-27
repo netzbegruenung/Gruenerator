@@ -12,6 +12,7 @@ import { useMarkdownSmooth } from '../../context/MarkdownStreamingContext';
 import { maybeLoadKatexCss } from '../../lib/katexCss';
 import { normalizeMathDelimiters, normalizeUnicodeMath } from '../../lib/normalizeMathDelimiters';
 import { remarkCitationMarkers } from '../../lib/remarkCitationMarkers';
+import { remarkSourceLinks } from '../../lib/remarkSourceLinks';
 import { shikiCodePlugin } from '../../lib/shikiHighlight';
 import { streamdownComponents } from '../../lib/streamdownComponents';
 
@@ -20,9 +21,10 @@ import { streamdownComponents } from '../../lib/streamdownComponents';
 // fine-grained shiki core, not @streamdown/code (which bundles every grammar).
 const plugins = { code: shikiCodePlugin, math: createMathPlugin({ singleDollarTextMath: true }) };
 
-// `citation` is our own element (remarkCitationMarkers builds it on the tree);
-// the sanitize/harden layer passes it through only because it is declared here.
-const ALLOWED_TAGS: Record<string, string[]> = { citation: ['n'] };
+// `citation` and `sourcelink` are our own elements (remarkCitationMarkers and
+// remarkSourceLinks build them on the tree); the sanitize/harden layer passes
+// them through only because they are declared here.
+const ALLOWED_TAGS: Record<string, string[]> = { citation: ['n'], sourcelink: ['n'] };
 
 // A `remarkPlugins` prop REPLACES Streamdown's default list (gfm, codeMeta)
 // rather than extending it — tables and fence metadata would silently vanish
@@ -31,6 +33,7 @@ const ALLOWED_TAGS: Record<string, string[]> = { citation: ['n'] };
 const remarkPlugins: NonNullable<StreamdownTextPrimitiveProps['remarkPlugins']> = [
   ...Object.values(defaultRemarkPlugins),
   remarkCitationMarkers,
+  remarkSourceLinks,
 ];
 
 // Code controls (copy/download) are read by StreamdownCodeBlock exactly as
