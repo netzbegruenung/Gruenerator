@@ -12,7 +12,7 @@
  * Parser-Schalter, und ein Test, der ihn umgeht, sichert nichts zu.
  */
 import { type ChatModelRunResult } from '@assistant-ui/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
 const notifyWarning = vi.fn<(...args: unknown[]) => void>();
 vi.mock('../lib/notify', () => ({
@@ -96,6 +96,14 @@ beforeEach(() => {
  */
 describe('NotebookModelAdapter — Zitatmarker im Strom', () => {
   it('reicht [cite:N] im Live-Text roh durch, sodass jeder Yield den vorigen verlängert', async () => {
+    // Die Pause zwischen den Chunks läuft ab dem Enqueue, der Drossel-Takt ab
+    // dem Yield — auf einem ausgelasteten Runner liegt dazwischen genug, dass
+    // der zweite Delta unter 50 ms fällt und nie live erscheint. Eine Uhr, die
+    // pro Ablesen eine Sekunde springt, lässt jeden Delta durch die Drossel.
+    let clock = 0;
+    const now = vi.spyOn(performance, 'now').mockImplementation(() => (clock += 1000));
+    onTestFinished(() => now.mockRestore());
+
     const results = await collectStream(
       [
         [{ event: 'text_delta', data: { text: 'Fakt [cite:1' } }],

@@ -11,6 +11,7 @@
  */
 import {
   getCollectionDefaultFilter,
+  getFacetCountFilter,
   getCollectionFilterableFields,
   getSystemCollectionConfig,
 } from '../../config/systemCollectionsConfig.js';
@@ -162,7 +163,7 @@ export async function loadLandesverbandFilters(
           systemConfig.qdrantCollection,
           field.field,
           50,
-          baseFilter
+          getFacetCountFilter(collectionId)
         );
         filters[field.field] = { label: field.label, type: field.type, values };
       }

@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from .analyzer import TopicClassifier
+from .analyzer import PERSONS_VERSION, TopicClassifier
 from .lexicons import TOPIC_CATEGORY_INFO, TopicCategory
 from .text_stats import compute_text_stats
 
@@ -61,6 +61,7 @@ def health():
         "status": "ok" if classifier and classifier.is_ready else "loading",
         "model": "de_core_news_lg",
         "topics": len(TopicCategory),
+        "persons_version": PERSONS_VERSION,
     }
 
 

@@ -2,13 +2,11 @@ import { extractSlugSuffix } from '@gruenerator/shared/utils';
 import { useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
-import {
-  getNotebookConfigByCollectionId,
-  getNotebookConfigBySlug,
-} from '../config/notebookPagesConfig';
+import { getSystemNotebookConfig } from '../config/notebookPagesConfig';
 import { useNotebookResolver } from '../hooks/useNotebookResolver';
 
 import { DynamicNotebookPage, NotebookPageContent } from './NotebookPage';
+import { NotebookTabs } from './NotebookTabs';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -17,12 +15,7 @@ function NotebookResolverPage() {
 
   // System-notebook lookup runs synchronously off a hardcoded config — covers
   // `/notebooks/bayern`, `/notebooks/grundsatz`, etc. with zero latency.
-  // A thread row links by collection, and for most notebooks that is the slug
-  // plus `-system`; where the two differ (`oesterreich-gruene-system` lives at
-  // `/notebooks/oesterreich`) the second lookup catches it.
-  const slugConfig = idOrSlug
-    ? (getNotebookConfigBySlug(idOrSlug) ?? getNotebookConfigByCollectionId(`${idOrSlug}-system`))
-    : null;
+  const slugConfig = idOrSlug ? (getSystemNotebookConfig(idOrSlug) ?? null) : null;
   const isUuid = !!idOrSlug && UUID_RE.test(idOrSlug);
   const hasSlugSuffix = !!idOrSlug && extractSlugSuffix(idOrSlug) !== null;
 
@@ -43,7 +36,12 @@ function NotebookResolverPage() {
   }
 
   if (slugConfig) {
-    return <NotebookPageContent config={slugConfig} />;
+    return (
+      <>
+        <NotebookTabs config={slugConfig} active="chat" />
+        <NotebookPageContent config={slugConfig} withTabBar />
+      </>
+    );
   }
 
   if (isUuid) {

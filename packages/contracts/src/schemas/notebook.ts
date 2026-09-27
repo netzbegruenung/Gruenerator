@@ -8,6 +8,8 @@
  */
 import { z } from 'zod';
 
+import { topicCategorySchema } from './monitor.js';
+
 // ── Request bodies ──────────────────────────────────────────────────────────
 
 export const askQuestionBodySchema = z.object({
@@ -278,3 +280,65 @@ export const notebookStatsResponseSchema = z.object({
 });
 
 export type NotebookStatsResponse = z.infer<typeof notebookStatsResponseSchema>;
+
+// ── Overview (Übersicht page of a system notebook) ──────────────────────────
+//
+// Unlike the stats endpoint, every count here is exact over all head chunks
+// (one point per document) — topics and persons come from the per-document
+// NLP enrichment, not from the monthly 80-document sample. Only `terms` is
+// still sampled; it carries its sample size so the UI can say so.
+
+export const notebookTopicTrendSchema = z.enum(['up', 'down', 'flat']);
+export type NotebookTopicTrend = z.infer<typeof notebookTopicTrendSchema>;
+
+export const notebookOverviewDocumentSchema = notebookRecentDocumentCardSchema.extend({
+  contentTypeLabel: z.string().nullable(),
+  themes: z.array(topicCategorySchema),
+});
+export type NotebookOverviewDocument = z.infer<typeof notebookOverviewDocumentSchema>;
+
+export const notebookOverviewResponseSchema = z.object({
+  collectionId: z.string(),
+  computedAt: z.string(),
+  totals: z.object({
+    documents: z.number(),
+    /** Documents without a usable `published_at` — excluded from every time-based figure. */
+    undated: z.number(),
+    last30Days: z.number(),
+    previous30Days: z.number(),
+    firstPublished: z.string().nullable(),
+    lastPublished: z.string().nullable(),
+  }),
+  /** Oldest first, one bucket per calendar month, always the full window. */
+  monthly: z.array(
+    z.object({
+      month: z.string(),
+      count: z.number(),
+      topTopic: topicCategorySchema.nullable(),
+    })
+  ),
+  topics: z.array(
+    z.object({
+      topic: topicCategorySchema,
+      count: z.number(),
+      share: z.number(),
+      /** `null` when the recent window holds too few documents to call a trend. */
+      trend: notebookTopicTrendSchema.nullable(),
+      /** Share of this topic across all Landesverbände; `null` outside LV notebooks. */
+      baselineShare: z.number().nullable(),
+    })
+  ),
+  persons: z.array(z.object({ person: z.string(), count: z.number(), recentCount: z.number() })),
+  contentTypes: z.array(z.object({ value: z.string(), label: z.string(), count: z.number() })),
+  sources: z.array(z.object({ value: z.string(), label: z.string(), count: z.number() })),
+  recent: z.array(notebookOverviewDocumentSchema),
+  terms: z
+    .object({
+      words: z.array(z.object({ word: z.string(), count: z.number() })),
+      sampleSize: z.number(),
+      month: z.string(),
+    })
+    .nullable(),
+});
+
+export type NotebookOverviewResponse = z.infer<typeof notebookOverviewResponseSchema>;
