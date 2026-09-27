@@ -23,11 +23,9 @@ import {
   getSystemCollectionConfig,
 } from '../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
-import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 
-import { getLatestKeywordSnapshot } from './notebookKeywordSnapshotService.js';
 import { dedupeByUrlOrTitle, toCard } from './notebookRecentService.js';
 
 const log = createLogger('notebookOverview');
@@ -46,12 +44,16 @@ const TREND_Z = 1.96;
 const TOP_PERSONS = 12;
 const RECENT_DOCS = 6;
 const TOP_TERMS = 40;
+const TOP_RISING_TERMS = 8;
+/** The z-test alone flags a word seen three times recently and never before. */
+const RISING_MIN_RECENT = 5;
 const LV_COLLECTION = 'landesverbaende_documents';
 
 const HEAD_FIELDS = [
   'published_at',
   'primary_topic',
   'persons',
+  'keywords',
   'content_type',
   'content_type_label',
   'primary_category',
@@ -64,6 +66,8 @@ export interface HeadDoc {
   publishedAt: string | null;
   primaryTopic: TopicCategory | null;
   persons: string[];
+  /** NLP enrichment from version 4 on; empty on documents not yet re-tagged. */
+  keywords: string[];
   contentType: string | null;
   contentTypeLabel: string | null;
   sourceId: string | null;
@@ -72,7 +76,7 @@ export interface HeadDoc {
 
 export type OverviewAggregate = Omit<
   NotebookOverviewResponse,
-  'collectionId' | 'computedAt' | 'recent' | 'terms'
+  'collectionId' | 'computedAt' | 'recent'
 > & {
   /** Newest dated documents first; the caller loads their full payload. */
   recentIds: Array<string | number>;
@@ -82,16 +86,18 @@ function str(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }
 
+function strings(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+}
+
 export function toHeadDoc(id: string | number, payload: Record<string, unknown>): HeadDoc {
   const topic = topicCategorySchema.safeParse(payload.primary_topic);
-  const persons = Array.isArray(payload.persons)
-    ? payload.persons.filter((p): p is string => typeof p === 'string')
-    : [];
   return {
     id,
     publishedAt: str(payload.published_at),
     primaryTopic: topic.success ? topic.data : null,
-    persons,
+    persons: strings(payload.persons),
+    keywords: strings(payload.keywords),
     // LV and gruene.de carry `content_type`; Bundestag only `primary_category`.
     contentType: str(payload.content_type) ?? str(payload.primary_category),
     contentTypeLabel: str(payload.content_type_label),
@@ -191,6 +197,9 @@ export function aggregateOverview(
   const topicPrior = new Map<TopicCategory, number>();
   const personCounts = new Map<string, number>();
   const personRecent = new Map<string, number>();
+  const termCounts = new Map<string, number>();
+  const termRecent = new Map<string, number>();
+  const termPrior = new Map<string, number>();
   const typeCounts = new Map<string, number>();
   const typeLabels = new Map<string, string>();
   const sourceCounts = new Map<string, number>();
@@ -201,6 +210,9 @@ export function aggregateOverview(
   let classified = 0;
   let recentClassified = 0;
   let priorClassified = 0;
+  let tagged = 0;
+  let recentTagged = 0;
+  let priorTagged = 0;
   let last30Days = 0;
   let previous30Days = 0;
   let first: { t: number; raw: string } | null = null;
@@ -248,6 +260,17 @@ export function aggregateOverview(
       if (isRecent) increment(personRecent, person);
     }
 
+    if (doc.keywords.length > 0) {
+      tagged++;
+      if (isRecent) recentTagged++;
+      else if (isPrior) priorTagged++;
+      for (const term of new Set(doc.keywords)) {
+        increment(termCounts, term);
+        if (isRecent) increment(termRecent, term);
+        else if (isPrior) increment(termPrior, term);
+      }
+    }
+
     if (doc.contentType) {
       increment(typeCounts, doc.contentType);
       if (doc.contentTypeLabel) typeLabels.set(doc.contentType, doc.contentTypeLabel);
@@ -292,6 +315,30 @@ export function aggregateOverview(
       .map(([person, count]) => ({ person, count, recentCount: personRecent.get(person) ?? 0 }))
       .sort(byCountDesc)
       .slice(0, TOP_PERSONS),
+    terms:
+      tagged === 0
+        ? null
+        : {
+            documents: tagged,
+            words: [...termCounts.entries()]
+              .map(([word, count]) => ({ word, count }))
+              .sort(byCountDesc)
+              .slice(0, TOP_TERMS),
+            // Over every word, not just the top list: a new term is rarely frequent yet.
+            rising: [...termRecent.entries()]
+              .filter(
+                ([word, recent]) =>
+                  recent >= RISING_MIN_RECENT &&
+                  trendOf(recent, recentTagged, termPrior.get(word) ?? 0, priorTagged) === 'up'
+              )
+              .map(([word, recentCount]) => ({
+                word,
+                count: termCounts.get(word) ?? 0,
+                recentCount,
+              }))
+              .sort((a, b) => b.recentCount - a.recentCount)
+              .slice(0, TOP_RISING_TERMS),
+          },
     contentTypes: [...typeCounts.entries()]
       .map(([value, count]) => ({
         value,
@@ -387,23 +434,6 @@ async function loadRecent(
   return dedupeByUrlOrTitle(docs).slice(0, RECENT_DOCS);
 }
 
-async function loadTerms(collectionId: string): Promise<NotebookOverviewResponse['terms']> {
-  try {
-    const snapshot = await getLatestKeywordSnapshot(collectionId);
-    if (!snapshot || snapshot.keywords.length === 0) return null;
-    return {
-      words: snapshot.keywords
-        .slice(0, TOP_TERMS)
-        .map((k) => ({ word: k.keyword, count: k.count })),
-      sampleSize: snapshot.sampleSize,
-      month: snapshot.month,
-    };
-  } catch (error) {
-    log.warn(`keyword snapshot unavailable for ${collectionId}: ${toError(error).message}`);
-    return null;
-  }
-}
-
 async function computeOverview(collectionId: string): Promise<NotebookOverviewResponse | null> {
   const config = getSystemCollectionConfig(collectionId);
   if (!config) return null;
@@ -416,10 +446,9 @@ async function computeOverview(collectionId: string): Promise<NotebookOverviewRe
   const collection = config.qdrantCollection;
   const isLv = collection === LV_COLLECTION;
   const t0 = Date.now();
-  const [docs, baseline, terms] = await Promise.all([
+  const [docs, baseline] = await Promise.all([
     scrollHeadDocs(client, collection, headFilter(collectionId)),
     isLv ? loadLvBaseline(client) : Promise.resolve(null),
-    loadTerms(collectionId),
   ]);
 
   const now = new Date();
@@ -432,7 +461,6 @@ async function computeOverview(collectionId: string): Promise<NotebookOverviewRe
     computedAt: now.toISOString(),
     ...aggregate,
     recent,
-    terms,
   };
 }
 
