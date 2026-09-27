@@ -10,6 +10,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { canOpenInApp } from '../../hooks/useGroupContent';
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT, colors, typography } from '../../theme';
 
@@ -55,7 +56,8 @@ export function GroupKindRows({ items, showPinned, onOpen }: GroupKindRowsProps)
               <Pressable
                 key={item.key}
                 onPress={() => onOpen(item)}
-                accessibilityRole="button"
+                disabled={!canOpenInApp(item)}
+                accessibilityRole={canOpenInApp(item) ? 'button' : 'image'}
                 accessibilityLabel={`${item.title}, ${groupFeedKindMeta(item.kind).label}`}
                 style={[styles.pinChip, { backgroundColor: theme.card }]}
               >
@@ -109,7 +111,8 @@ export function GroupKindRows({ items, showPinned, onOpen }: GroupKindRowsProps)
                 <Pressable
                   key={item.key}
                   onPress={() => onOpen(item)}
-                  accessibilityRole="button"
+                  disabled={!canOpenInApp(item)}
+                  accessibilityRole={canOpenInApp(item) ? 'button' : 'image'}
                   accessibilityLabel={item.title}
                   style={{ width: w, gap: 6 }}
                 >

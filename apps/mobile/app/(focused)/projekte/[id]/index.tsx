@@ -47,10 +47,7 @@ export default function ProjektDetailScreen() {
   const activeView: ViewMode = isPersonal ? 'all' : view;
   const items = feedQuery.data ?? [];
   const visible = filterGroupFeed(items, query);
-  const open = useCallback(
-    (item: GroupFeedItem) => openGroupFeedItem(router, item, id ?? ''),
-    [router, id]
-  );
+  const open = useCallback((item: GroupFeedItem) => openGroupFeedItem(router, item), [router]);
 
   const scaffold = (children: ReactNode): ReactNode => (
     <ScreenScaffold
