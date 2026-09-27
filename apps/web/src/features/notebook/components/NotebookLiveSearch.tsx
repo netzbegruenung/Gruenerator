@@ -50,7 +50,7 @@ function useResearchView() {
 const LIST_FACETS = ['themes', 'persons'];
 
 /** Filter dimensions the query parser can recognise (see describeParsedFilters). */
-const PARSED_KEYS = ['published_at', 'themes'] as const;
+const PARSED_KEYS = ['published_at', 'themes', 'persons'] as const;
 
 interface NotebookLiveSearchProps {
   /** The composer's current text. */
