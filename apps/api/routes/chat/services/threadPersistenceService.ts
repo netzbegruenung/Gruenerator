@@ -663,10 +663,14 @@ export async function getRecentToolSteps(threadId: string, limit = 6): Promise<P
 }
 
 function toToolSteps(rows: ThreadToolRow[], limit: number): PersistedStep[] {
+  // Newest first throughout, then one reverse: rows come newest first, but a
+  // row's calls are stored in call order, so they are walked backwards here.
+  // Walking them forwards reversed the order inside a turn and made the
+  // turn's FIRST call look like its newest.
   const steps: PersistedStep[] = [];
   for (const row of rows.slice(0, ROW_WINDOW.toolSteps)) {
     const calls = (Array.isArray(row.toolCalls) ? row.toolCalls : []) as PersistedStep[];
-    for (const c of calls) {
+    for (const c of [...calls].reverse()) {
       if (c && typeof c === 'object' && typeof (c as PersistedStep).toolName === 'string') {
         steps.push(c);
       }
