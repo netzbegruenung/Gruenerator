@@ -183,7 +183,7 @@ export {
   type SourceFilterConfig,
   type CategoryFilterConfig,
 } from './components/notebook/NotebookComposer';
-export { type CategoryFilterField } from './components/notebook/CategoryFilterDropdown';
+export { type CategoryFilterField } from './components/notebook/NotebookSettingsPopover';
 
 // Thread Components
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
