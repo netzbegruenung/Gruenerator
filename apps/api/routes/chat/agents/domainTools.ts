@@ -539,9 +539,9 @@ export function makeCreatePdfTool(ctx: {
     description: `Erstellt ein fertig gestaltetes PDF nach dem Barrierefreiheits-Standard PDF/UA-1 zum Herunterladen. Der*die Nutzer*in beschreibt frei, was drin stehen soll — Aufbau (Überschriften, Listen, Tabellen, Hinweiskästen, Datenblätter, Unterschriftszeilen) wählt das System passend zum Auftrag.
 
 DREI ARTEN:
-- "document": Merkblatt, Konzept, Übersicht, Protokoll, Handout — alles zum Lesen/Ausdrucken
-- "letter": offizieller Brief / Anschreiben mit Grünen-Briefkopf (DIN 5008)
-- "form": AUSFÜLLBARES Formular mit echten Feldern (Text, Datum, Auswahl, Ankreuzfelder) — für Anträge, Anmeldungen, Fragebögen
+- "dokument": Merkblatt, Konzept, Übersicht, Protokoll, Handout — alles zum Lesen/Ausdrucken
+- "brief": offizieller Brief / Anschreiben mit Grünen-Briefkopf (DIN 5008)
+- "formular": AUSFÜLLBARES Formular mit echten Feldern (Text, Datum, Auswahl, Ankreuzfelder) — für Anträge, Anmeldungen, Fragebögen
 
 NUTZE WENN ein fertiges PDF, ein Schreiben mit Briefkopf oder ein ausfüllbares Formular gewünscht ist. ${briefInstruction(ctx.researchBanned === true, 'in "prompt" einen konkreten, mit den recherchierten Fakten angereicherten Auftrag')}
 
