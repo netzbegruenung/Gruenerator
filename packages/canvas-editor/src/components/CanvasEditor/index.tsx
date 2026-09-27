@@ -17,7 +17,7 @@
  * - PageWrapper            — memoized per-page renderer (./PageWrapper)
  * - usePageRefs            — imperative canvas/DOM ref arrays
  * - useLoadedConfigs       — async config cache
- * - useMobileWebViewport   — < 900px viewport tracking
+ * - useMobileSheetFit      — mobile: fit the active page above the open sheet
  * - usePageScrollSync      — IntersectionObserver + auto-scroll on add
  * - usePageUndoRedoShortcuts — Cmd/Ctrl+Z page-array history
  * - useToolbarHandlers     — bundled toolbar actions for the active page
@@ -33,7 +33,7 @@ import { useZoomGestures } from '../../hooks/useZoomGestures';
 import { CanvasEditorLayout } from '../../layouts';
 import { MobileSubsectionBridgeContext } from '../../sidebar/MobileSubsectionBridgeContext';
 import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
-import { SidebarTabBar, SidebarPanel, WebSubsectionBar } from '../../sidebar';
+import { SidebarTabBar, SidebarPanel } from '../../sidebar';
 import { AutoSaveStoreProvider, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 import { useCanvasSidebarStore } from '../../stores/canvasSidebarStore';
 
@@ -44,14 +44,16 @@ import { PageThumbnailStrip } from '../PageThumbnailStrip';
 import { Toolbar } from '../Toolbar';
 import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
 import { ContextToolbar } from '../TopBar/ContextToolbar';
-import { MobileContextBar } from '../TopBar/MobileContextBar';
+import { MobileSelectionControls } from '../TopBar/MobileSelectionControls';
 import { AddPageButton, TemplatePickerFlyout } from '../TemplatePickerFlyout';
 
 import { PAGE_ELEMENT_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { PageWrapper } from './PageWrapper';
-import { useMobileWebViewport } from './hooks/useMobileWebViewport';
+import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
+import { useMobileSheetFit } from './hooks/useMobileSheetFit';
+import { getMobileSelectionArea } from './mobileSelectionArea';
 import { usePageRefs } from './hooks/usePageRefs';
 import { useLoadedConfigs } from './hooks/useLoadedConfigs';
 import { usePageScrollSync } from './hooks/usePageScrollSync';
@@ -130,13 +132,11 @@ function CanvasEditorInner({
   const isMobileBridge = Boolean(mobileBridge);
   const isExternalSidebar = externalSidebar && !isMobileBridge;
 
-  // Track mobile web viewport (< 900px, not native bridge)
-  const isMobileWeb = useMobileWebViewport(isMobileBridge);
+  // Mobile web viewport (< 900px, not native bridge)
+  const isCanvasMobile = useIsCanvasMobile();
+  const isMobileWeb = isCanvasMobile && !isMobileBridge;
 
-  // Mobile web subsection state (for WebSubsectionBar)
-  const [mobileWebSubsections, setMobileWebSubsections] = useState<
-    Array<{ id: string; label: string }>
-  >([]);
+  // External mobile mode: active subsection mirrored into canvasSidebarStore
   const [mobileWebActiveSubsection, setMobileWebActiveSubsection] = useState<string | null>(null);
   const {
     pages,
@@ -335,9 +335,13 @@ function CanvasEditorInner({
     [setActiveTab]
   );
 
+  // Mobile: closing the sheet also ends the selection — the sheet is where a
+  // selection's settings live, and an open selection would reopen it.
   const handlePanelClose = useCallback(() => {
+    prevTabRef.current = null;
     setActiveTab(null);
-  }, [setActiveTab]);
+    if (isMobileWeb) canvasRefsRef.current.forEach((ref) => ref.current?.deselect());
+  }, [setActiveTab, isMobileWeb, canvasRefsRef]);
 
   // Page selection handler - functional setState (Rule 5.5)
   const handlePageSelect = useCallback(
@@ -605,10 +609,20 @@ function CanvasEditorInner({
     return [];
   }, [activeConfig, activeState]);
 
-  // Auto-switch tabs based on config (e.g., switch to 'settings' when a balken is selected)
+  // Auto-switch tabs based on config (e.g., switch to 'settings' when a balken is selected).
+  // On mobile every selection opens its area — the sheet shows the selection's
+  // settings, there is no separate context bar.
+  const selectionType = toolbarState?.activeFloatingModule?.type ?? null;
+  const mobileSelectionArea = isMobileWeb
+    ? getMobileSelectionArea(
+        activeSelectedElement ? selectionType : null,
+        visibleTabs.map((tab) => tab.id)
+      )
+    : null;
   useEffect(() => {
-    if (!activeConfig?.getAutoSwitchTab) return;
-    const targetTab = activeConfig.getAutoSwitchTab(activeSelectedElement ?? null);
+    const configTarget = activeConfig?.getAutoSwitchTab?.(activeSelectedElement ?? null) ?? null;
+    if (!activeConfig?.getAutoSwitchTab && !isMobileWeb) return;
+    const targetTab = configTarget ?? mobileSelectionArea;
     if (targetTab) {
       setActiveTab((current) => {
         if (current !== targetTab) {
@@ -626,7 +640,24 @@ function CanvasEditorInner({
         return current;
       });
     }
-  }, [activeSelectedElement, activeConfig, setActiveTab]);
+  }, [activeSelectedElement, activeConfig, setActiveTab, isMobileWeb, mobileSelectionArea]);
+
+  // Mobile: a selection without an area of its own still gets a sheet, titled
+  // "Auswahl", so its controls stay reachable.
+  const hasMobileSelection =
+    isMobileWeb &&
+    toolbarState !== null &&
+    (toolbarState.selectedElement != null || toolbarState.activeFloatingModule != null);
+  const isPanelOpen = activeTab !== null || hasMobileSelection;
+  const isMobileSheetOpen = isMobileWeb && !isExternalSidebar && isPanelOpen;
+  const panelTitle =
+    (activeTab && activeConfig?.tabs.find((tab) => tab.id === activeTab)?.label) || 'Auswahl';
+  useMobileSheetFit({
+    enabled: isMobileSheetOpen,
+    zoom,
+    pagesContainerRef,
+    activePageRef: pageDomRefsRef.current[currentPageIndex],
+  });
 
   // Mobile bridge: report tab changes to native
   useEffect(() => {
@@ -646,20 +677,7 @@ function CanvasEditorInner({
     mobileBridge.callbacks.onActiveTabChange(activeTab);
   }, [mobileBridge, activeTab]);
 
-  // Reset mobile-web subsection state DURING render when the tab changes — before the
-  // new section's SubsectionTabBar mounts and reports. A post-commit effect would run
-  // after the child's report/auto-select (child effects fire before parent effects) and
-  // clobber them, leaving the panel empty.
-  const webSubsectionResetTabRef = useRef(activeTab);
-  if (isMobileWeb && !isExternalSidebar && webSubsectionResetTabRef.current !== activeTab) {
-    webSubsectionResetTabRef.current = activeTab;
-    setMobileWebSubsections([]);
-    setMobileWebActiveSubsection(null);
-  }
-
   // Clear stale subsections when active tab changes (new section will report its own).
-  // The mobile-web path is handled above during render; native + external stay here
-  // because they invoke external callbacks/store updates that can't run during render.
   const prevActiveTabRef = useRef(activeTab);
   useEffect(() => {
     if (prevActiveTabRef.current !== activeTab) {
@@ -668,7 +686,6 @@ function CanvasEditorInner({
         mobileBridge.callbacks.onSubsectionsChange([]);
       }
       if (isExternalSidebar && externalMobileMode) {
-        setMobileWebSubsections([]);
         setMobileWebActiveSubsection(null);
         useCanvasSidebarStore.getState().update({
           mobileSubsections: [],
@@ -726,7 +743,8 @@ function CanvasEditorInner({
   }, [isExternalSidebar, externalMobileMode]);
 
   // Build subsection bridge context value for MobileSubsectionBridgeContext
-  // Active for both native bridge AND mobile web (< 900px)
+  // Active for the native bridge and the external mobile sidebar; mobile web
+  // renders its subsections as chips inside the sheet (SubsectionTabBar).
   const subsectionBridgeValue = useMemo<MobileSubsectionBridgeValue>(() => {
     if (isMobileBridge) {
       return {
@@ -741,21 +759,12 @@ function CanvasEditorInner({
         active: true,
         activeSubsection: mobileWebActiveSubsection,
         onSubsectionsChange: (subs: Array<{ id: string; label: string }>) => {
-          setMobileWebSubsections(subs);
           useCanvasSidebarStore.getState().update({ mobileSubsections: subs });
         },
         onActiveSubsectionChange: (id: string | null) => {
           setMobileWebActiveSubsection(id);
           useCanvasSidebarStore.getState().update({ activeMobileSubsection: id });
         },
-      };
-    }
-    if (isMobileWeb && !isExternalSidebar) {
-      return {
-        active: true,
-        activeSubsection: mobileWebActiveSubsection,
-        onSubsectionsChange: setMobileWebSubsections,
-        onActiveSubsectionChange: setMobileWebActiveSubsection,
       };
     }
     return {
@@ -766,7 +775,6 @@ function CanvasEditorInner({
     };
   }, [
     isMobileBridge,
-    isMobileWeb,
     isExternalSidebar,
     externalMobileMode,
     mobileBridge?.activeSubsection,
@@ -974,36 +982,6 @@ function CanvasEditorInner({
       </Suspense>
     );
 
-  // Height of the web subsection bar (matches WebSubsectionBar h-[40px])
-  const subsectionBarOffset = isMobileWeb && mobileWebSubsections.length > 0 ? 40 : 0;
-
-  // Internal/mobile mode: render SidebarPanel directly. External mode: panel is rendered by web Sidebar.
-  const panel = isExternalSidebar ? null : (
-    <MobileSubsectionBridgeContext.Provider value={subsectionBridgeValue}>
-      <Suspense fallback={sidebarLoadingFallback}>
-        <SidebarPanel
-          isOpen={activeTab !== null}
-          onClose={handlePanelClose}
-          bottomOffset={subsectionBarOffset}
-        >
-          {renderActiveSection()}
-        </SidebarPanel>
-      </Suspense>
-    </MobileSubsectionBridgeContext.Provider>
-  );
-
-  // Mobile web subsection bar (rendered above the tab bar)
-  const webSubsectionBar =
-    isMobileWeb && !isExternalSidebar && mobileWebSubsections.length > 0 ? (
-      <Suspense fallback={null}>
-        <WebSubsectionBar
-          subsections={mobileWebSubsections}
-          activeSubsection={mobileWebActiveSubsection}
-          onSubsectionClick={setMobileWebActiveSubsection}
-        />
-      </Suspense>
-    ) : null;
-
   // Render the toolbar whenever there is something to put in it — either the
   // canvas has reported edit state (toolbarState) or the host has supplied
   // chrome slots (title, sync indicator, presence). This keeps host chrome
@@ -1024,7 +1002,8 @@ function CanvasEditorInner({
   ) : null;
 
   // Selection-driven formatting controls live outside the menu bar: a floating
-  // card over the canvas (desktop) and a fixed row above the tab bar (mobile).
+  // card over the canvas (desktop) and an "Auswahl" block at the top of the
+  // area sheet (mobile).
   // Render only when the canvas has reported an actual element selection (not
   // merely because delete-page is available on a multi-page doc — page ops live
   // in the page toolbar / thumbnail strip). The delete-page action still rides
@@ -1054,10 +1033,22 @@ function CanvasEditorInner({
     contextControlsProps && hasContextControls && !isMobileWeb ? (
       <ContextToolbar {...contextControlsProps} />
     ) : null;
-  const mobileContextBarElement =
+  const mobileSelectionElement =
     contextControlsProps && hasContextControls && isMobileWeb ? (
-      <MobileContextBar {...contextControlsProps} />
+      <MobileSelectionControls {...contextControlsProps} />
     ) : null;
+
+  // Internal/mobile mode: render SidebarPanel directly. External mode: panel is rendered by web Sidebar.
+  const panel = isExternalSidebar ? null : (
+    <MobileSubsectionBridgeContext.Provider value={subsectionBridgeValue}>
+      <Suspense fallback={sidebarLoadingFallback}>
+        <SidebarPanel isOpen={isPanelOpen} title={panelTitle} onClose={handlePanelClose}>
+          {mobileSelectionElement}
+          {renderActiveSection()}
+        </SidebarPanel>
+      </Suspense>
+    </MobileSubsectionBridgeContext.Provider>
+  );
 
   // Die untere Leiste trägt zwei Dinge, und nur eines davon hängt an der
   // Seitenzahl: der Miniaturen-Streifen ist erst im Deck sinnvoll, die
@@ -1145,9 +1136,9 @@ function CanvasEditorInner({
           bottomBar={bottomBar}
           hideMobileChrome={isMobileBridge}
           externalSidebar={isExternalSidebar}
-          subsectionBar={webSubsectionBar}
+          mobileSheetOpen={isMobileSheetOpen}
+          onCanvasBackdropPointerDown={isMobileSheetOpen ? handlePanelClose : undefined}
         >
-          {mobileContextBarElement}
           <div
             ref={pagesContainerRef}
             onPointerDown={handleWorkAreaPointerDown}

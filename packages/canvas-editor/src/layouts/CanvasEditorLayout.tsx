@@ -28,7 +28,10 @@ export interface CanvasEditorLayoutProps {
   actions: ReactNode;
   sidebar?: ReactNode;
   tabBar?: ReactNode;
-  subsectionBar?: ReactNode;
+  /** Mobile: a sheet is open — the canvas area stops scrolling and shrinks to fit. */
+  mobileSheetOpen?: boolean;
+  /** Mobile: pointer-down on the empty area around the canvas (closes the sheet). */
+  onCanvasBackdropPointerDown?: () => void;
   templateCreator?: string | null;
   /** Toolbar rendered at layout level, above the canvas content */
   toolbar?: ReactNode;
@@ -47,7 +50,8 @@ export function CanvasEditorLayout({
   actions,
   sidebar,
   tabBar,
-  subsectionBar,
+  mobileSheetOpen = false,
+  onCanvasBackdropPointerDown,
   templateCreator,
   toolbar,
   contextBar,
@@ -69,7 +73,6 @@ export function CanvasEditorLayout({
     <div
       className={cn(
         'canvas-editor-layout flex flex-col h-dvh min-h-[500px] bg-[var(--editor-bg)]',
-        hasSidebar && 'max-canvas-mobile:pb-16',
         hideMobileChrome && 'pb-0 max-canvas-mobile:pb-0'
       )}
     >
@@ -87,9 +90,22 @@ export function CanvasEditorLayout({
           {sidebar}
         </div>
       )}
-      {subsectionBar}
-
       <div
+        data-sheet-open={mobileSheetOpen || undefined}
+        onPointerDown={
+          onCanvasBackdropPointerDown
+            ? (e) => {
+                const target = e.target as HTMLElement;
+                if (
+                  target === e.currentTarget ||
+                  target.classList.contains('canvas-editor-layout__canvas') ||
+                  target.classList.contains('heterogeneous-multipage__pages-container')
+                ) {
+                  onCanvasBackdropPointerDown();
+                }
+              }
+            : undefined
+        }
         className={cn(
           'canvas-editor-layout__main relative flex flex-col justify-start items-center flex-1 min-h-0 overflow-hidden bg-[var(--editor-canvas-bg)] transition-[margin-left] duration-200 max-canvas-mobile:flex-1 max-canvas-mobile:p-0',
           hasSidebar &&

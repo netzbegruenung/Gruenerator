@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { PiX } from 'react-icons/pi';
 
+import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
 import { useMobileSheet } from '../hooks/useMobileSheet';
 
 import type { SidebarPanelProps } from './types';
@@ -7,9 +9,9 @@ import type { SidebarPanelProps } from './types';
 import { cn } from '../utils/cn';
 
 interface ExtendedSidebarPanelProps extends SidebarPanelProps {
+  /** Sheet title on mobile — the label of the active area. */
+  title?: string;
   onClose?: () => void;
-  /** Extra bottom offset in px when subsection bar is visible (mobile only) */
-  bottomOffset?: number;
 }
 
 /**
@@ -21,23 +23,8 @@ interface ExtendedSidebarPanelProps extends SidebarPanelProps {
  */
 const SIDEBAR_PANEL_DESKTOP_WIDTH_PX = 348;
 
-export function SidebarPanel({
-  isOpen,
-  children,
-  onClose,
-  bottomOffset = 0,
-}: ExtendedSidebarPanelProps) {
-  const [isDesktop, setIsDesktop] = useState(
-    typeof window !== 'undefined' && window.innerWidth >= 900
-  );
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 900);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+export function SidebarPanel({ isOpen, title, children, onClose }: ExtendedSidebarPanelProps) {
+  const isDesktop = !useIsCanvasMobile();
 
   // Reports the panel's desktop-rail width so CanvasEditorLayout can indent the
   // stage clear of it (Befund 8: the panel otherwise sits on top of the stage).
@@ -63,76 +50,80 @@ export function SidebarPanel({
     velocityThreshold: 0.5,
   });
 
-  const handleBackdropClick = () => {
-    if (!isDesktop && onClose) {
-      onClose();
-    }
-  };
-
   if (!isOpen) return null;
 
-  const mobileStyle: React.CSSProperties = {};
-  if (!isDesktop && isDragging) {
-    mobileStyle.transform = `translateY(${translateY}px)`;
-    mobileStyle.transition = 'none';
-  }
-  if (!isDesktop && bottomOffset > 0) {
-    mobileStyle.bottom = `calc(var(--mobile-tab-bar-height, 60px) + ${bottomOffset}px)`;
+  if (!isDesktop) {
+    // Mobiles Sheet: liegt im Fluss zwischen Canvas und Leiste (order-1), der
+    // Canvas darüber schrumpft und bleibt sichtbar. Jedes Sheet hat denselben
+    // Aufbau: Griff, Titel mit Schließen, dann der Inhalt des Bereichs.
+    return (
+      <section
+        aria-label={title}
+        className="sidebar-panel order-1 flex-none flex flex-col h-[clamp(300px,48dvh,420px)] bg-[var(--editor-surface)] rounded-t-[20px] shadow-[0_-4px_24px_rgba(0,0,0,0.12)] overflow-hidden"
+        style={
+          isDragging ? { transform: `translateY(${translateY}px)`, transition: 'none' } : undefined
+        }
+      >
+        <div
+          ref={handleRef}
+          className="sidebar-panel__drag-handle flex-none h-5 -mb-1 flex items-center justify-center cursor-grab active:cursor-grabbing"
+        >
+          <div className="w-9 h-1 rounded-sm bg-[var(--editor-border-strong)]" />
+        </div>
+        <div className="flex-none h-8 px-5 flex items-center justify-between gap-3">
+          <h2 className="m-0 text-[17px] font-bold text-[var(--editor-text)] truncate">{title}</h2>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={`${title ?? 'Bereich'} schließen`}
+              className="flex-none size-8 rounded-full border-none bg-[var(--editor-tile)] text-[var(--editor-text-secondary)] flex items-center justify-center cursor-pointer"
+            >
+              <PiX size={16} />
+            </button>
+          )}
+        </div>
+        <div className="sidebar-panel__content flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pt-4 pb-5 flex flex-col gap-4">
+          {children}
+        </div>
+      </section>
+    );
   }
 
   return (
-    <>
-      {!isDesktop && <div className="hidden" onClick={handleBackdropClick} />}
-
-      <div
-        className={cn(
-          'sidebar-panel fixed bg-[var(--editor-surface)] flex flex-col',
-          'transition-[transform,opacity] duration-200 ease-out z-[101]',
-          /* Desktop: left side panel next to tab bar, below the green menu bar */
-          'canvas-mobile:top-[var(--editor-topbar-height)] canvas-mobile:bottom-0 canvas-mobile:right-auto canvas-mobile:w-[348px] canvas-mobile:max-w-[348px] canvas-mobile:min-w-0 canvas-mobile:pt-0 canvas-mobile:overflow-visible canvas-mobile:border-r canvas-mobile:border-[var(--editor-border)]',
-          'canvas-mobile:left-[calc(var(--canvas-host-inset-left,0px)_+_var(--image-studio-tab-bar-width,76px))]',
-          /* Mobile: bottom sheet — sits above the 60px tab bar */
-          'max-canvas-mobile:overflow-hidden max-canvas-mobile:top-auto max-canvas-mobile:right-0 max-canvas-mobile:bottom-[var(--mobile-tab-bar-height,60px)] max-canvas-mobile:left-0 max-canvas-mobile:w-full max-canvas-mobile:max-w-full max-canvas-mobile:min-w-0 max-canvas-mobile:max-h-[calc(75vh-var(--mobile-tab-bar-height,60px))] max-canvas-mobile:pt-0 max-canvas-mobile:rounded-t-2xl max-canvas-mobile:shadow-[0_-4px_24px_rgba(0,0,0,0.12)] max-canvas-mobile:z-[99]',
-          'max-canvas-mobile:translate-y-0'
-        )}
-        style={Object.keys(mobileStyle).length > 0 ? mobileStyle : undefined}
-      >
-        {!isDesktop && (
-          <div
-            ref={handleRef}
-            className="sidebar-panel__drag-handle flex justify-center items-center py-sm mb-xs cursor-grab active:cursor-grabbing"
-          >
-            <div className="sidebar-panel__drag-indicator w-10 h-1 bg-grey-400 dark:bg-grey-600 rounded-sm transition-[background-color,width] duration-200 active:w-[50px] active:bg-primary-600" />
-          </div>
-        )}
-
-        <div className="sidebar-panel__content flex-1 min-h-0 overflow-y-auto scrollbar-thin p-3 flex flex-col gap-3 max-canvas-mobile:max-h-[calc(75vh-var(--mobile-tab-bar-height,60px)-60px)] max-canvas-mobile:p-0 max-canvas-mobile:pb-md">
-          {children}
-        </div>
-
-        {isDesktop && onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Panel einklappen"
-            title="Panel einklappen"
-            className="absolute top-1/2 -right-[13px] -translate-y-1/2 flex items-center justify-center w-[26px] h-[52px] rounded-r-lg border border-l-0 border-[var(--editor-border-soft)] bg-[var(--editor-surface)] text-[var(--editor-text-muted)] shadow-[2px_0_6px_rgba(0,0,0,0.05)] cursor-pointer transition-colors duration-150 hover:text-[var(--editor-active-fg)]"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M9.5 3 5 8l4.5 5" />
-            </svg>
-          </button>
-        )}
+    <div
+      className={cn(
+        'sidebar-panel fixed bg-[var(--editor-surface)] flex flex-col z-[101]',
+        'top-[var(--editor-topbar-height)] bottom-0 right-auto w-[348px] max-w-[348px] min-w-0 overflow-visible border-r border-[var(--editor-border)]',
+        'left-[calc(var(--canvas-host-inset-left,0px)_+_var(--image-studio-tab-bar-width,76px))]'
+      )}
+    >
+      <div className="sidebar-panel__content flex-1 min-h-0 overflow-y-auto scrollbar-thin p-3 flex flex-col gap-3">
+        {children}
       </div>
-    </>
+
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Panel einklappen"
+          title="Panel einklappen"
+          className="absolute top-1/2 -right-[13px] -translate-y-1/2 flex items-center justify-center w-[26px] h-[52px] rounded-r-lg border border-l-0 border-[var(--editor-border-soft)] bg-[var(--editor-surface)] text-[var(--editor-text-muted)] shadow-[2px_0_6px_rgba(0,0,0,0.05)] cursor-pointer transition-colors duration-150 hover:text-[var(--editor-active-fg)]"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M9.5 3 5 8l4.5 5" />
+          </svg>
+        </button>
+      )}
+    </div>
   );
 }

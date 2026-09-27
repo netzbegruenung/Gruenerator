@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 
 import { useCanvasStoreSelector } from '../stores/CanvasStoreProvider';
 
+import { AutoSaveIndicator } from './TopBar/AutoSaveIndicator';
 import { TopBar } from './TopBar/TopBar';
 import { ShareDropdown, type ShareDropdownProps } from './TopBar/ShareDropdown';
 import { FloatingAiSuggestionBanner } from './TopBar/modules/FloatingAiSuggestionBanner';
@@ -12,7 +13,7 @@ import { FloatingHistoryControls } from './TopBar/modules/FloatingHistoryControl
  *
  * Holds only the file-level chrome: host slots (title, presence), undo/redo,
  * and the Share button. The selection-driven formatting controls live in the
- * floating ContextToolbar (desktop) / MobileContextBar (mobile) — see
+ * floating ContextToolbar (desktop) / the mobile sheet's MobileSelectionControls — see
  * ContextControls.tsx.
  */
 
@@ -56,7 +57,7 @@ export const Toolbar = memo(
       ) : null;
 
     const centerSlot = chromeCenter ? (
-      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 flex items-center max-w-[50%] min-w-0 pointer-events-none [&>*]:pointer-events-auto">
+      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 flex items-center max-w-[50%] min-w-0 pointer-events-none [&>*]:pointer-events-auto max-canvas-mobile:static max-canvas-mobile:translate-x-0 max-canvas-mobile:flex-1 max-canvas-mobile:max-w-none">
         {chromeCenter}
       </div>
     ) : null;
@@ -79,6 +80,10 @@ export const Toolbar = memo(
       <TopBar visible={true}>
         {chromeLeft}
         {centerSlot}
+        {/* Desktop shows the save state in the tab rail; mobile has no rail. */}
+        <div className="canvas-mobile:hidden">
+          <AutoSaveIndicator onDark />
+        </div>
         <FloatingHistoryControls
           onUndo={handlers.undo}
           onRedo={handlers.redo}

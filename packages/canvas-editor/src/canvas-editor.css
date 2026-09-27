@@ -94,20 +94,36 @@
   }
 }
 
-/* Hide drag handle when subsection bar is active */
-body:has(#subsection-bar-portal:not(:empty)) .sidebar-panel__drag-handle {
-  display: none;
-}
-
-/* Hide shadow of main tab bar when subsection bar is present */
-body:has(#subsection-bar-portal:not(:empty)) .sidebar-tab-bar {
-  box-shadow: none;
-}
-
-/* ── Mobile sidebar section padding (overrides global sidebar.css) ── */
+/* ── Mobile sidebar section padding (overrides global sidebar.css) — the
+      sheet owns the 20px gutter ── */
 @media (max-width: 899px) {
   .sidebar-section {
-    padding: 0 var(--spacing-medium) 0 var(--spacing-small);
+    padding: 0;
+  }
+}
+
+/* ── Mobile: the editor is one screen, not a scrolling page. Canvas, sheet and
+      bar share the column; the canvas area scrolls on its own and shrinks when
+      a sheet opens (see useMobileSheetFit). ── */
+@media (max-width: 899px) {
+  .canvas-editor-layout:has(.heterogeneous-multipage__pages-container) {
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  .canvas-editor-layout__main:has(.heterogeneous-multipage__pages-container) {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .canvas-editor-layout__main[data-sheet-open] {
+    overflow: hidden;
+  }
+
+  .heterogeneous-multipage__pages-container {
+    transform: translateY(var(--canvas-sheet-shift, 0px))
+      scale(calc(var(--canvas-zoom, 1) * var(--canvas-sheet-scale, 1)));
+    transition: transform 0.22s ease;
   }
 }
 
