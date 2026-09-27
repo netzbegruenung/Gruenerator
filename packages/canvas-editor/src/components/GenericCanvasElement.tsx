@@ -13,6 +13,7 @@ import useImage from 'use-image';
 
 import { type GeometryReporter } from '../hooks/useGeometryReporter';
 import { canvasImageSourceUrl } from '../utils/canvasImageSource';
+import { useTrackPendingImage } from '../utils/pendingImages';
 // Die Aufloesung von x/y/width/height/opacity steht seit #3403 ausserhalb:
 // `templateElementToEntry` braucht dieselbe Rechnung, und zwei Fassungen
 // derselben Arithmetik driften auseinander.
@@ -255,7 +256,9 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   // full-resolution bytes made background swaps feel endless. The variant is
   // only export-quality while the element draws narrow enough; wider (zoomed
   // or resized) elements load the stored original instead.
-  const [image] = useImage(canvasImageSourceUrl(imageSrc, width) ?? '', 'anonymous');
+  const sourceUrl = canvasImageSourceUrl(imageSrc, width) ?? '';
+  const [image, status] = useImage(sourceUrl, 'anonymous');
+  useTrackPendingImage(config.id, sourceUrl, status);
 
   const isLocked = config.lockedKey ? assertAsBoolean(state[config.lockedKey]) : false;
   const customFill = getOptionalStateValue<string>(state, config.fillStateKey);
