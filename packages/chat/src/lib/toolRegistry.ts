@@ -85,6 +85,9 @@ export const UI_TOOL_NAMES = z.enum([
   'read_artifact',
   'memory',
   'vertonen',
+  // Loader of toolScope.ts: opens the personal-content group for the rest of
+  // the turn. Reports through the status line only (isSearchProgressTool).
+  'meine_inhalte_laden',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -933,7 +936,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   umfragen: entry('umfragen', 'text-note', parseTextNoteVM),
   product_knowledge: entry('product_knowledge', 'text-note', parseTextNoteVM),
   summarize: entry('summarize', 'text-note', parseTextNoteVM),
-  // The three below report through the status line and draw no card at all
+  // The four below report through the status line and draw no card at all
   // (SEARCH_PROGRESS_TOOLS); the entries exist so a reload still resolves a
   // label, and so the drift guard stays total.
   abgeordnetenwatch: entry('abgeordnetenwatch', 'citations', (_a, r) => ({
@@ -947,6 +950,11 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   expand_attachment: entry('expand_attachment', 'citations', (_a, r) => ({
     kind: 'citations',
     citations: parseSearchCitations(r),
+  })),
+  // Never the result's `hinweis` — it is addressed to the model, not the reader.
+  meine_inhalte_laden: entry('meine_inhalte_laden', 'text-note', () => ({
+    kind: 'text-note',
+    text: 'Eigene Inhalte freigeschaltet',
   })),
 };
 

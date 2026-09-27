@@ -310,6 +310,15 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'search',
     accent: 'personal',
   },
+  // toolScope.ts: a switch, not a search — it only makes the personal-content
+  // tools available for the next step. Status line only, no card.
+  meine_inhalte_laden: {
+    label: 'Meine Inhalte',
+    activeLabel: 'Öffne meine Inhalte',
+    iconKey: 'user',
+    accent: 'personal',
+    summarize: () => 'Eigene Inhalte freigeschaltet',
+  },
   find_content: {
     label: 'Meine Inhalte',
     activeLabel: 'Durchsuche meine Inhalte',
