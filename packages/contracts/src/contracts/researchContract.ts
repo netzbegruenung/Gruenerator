@@ -2,7 +2,7 @@
  * ts-rest contract for /api/research/* — manual research over system
  * collections (Grundsatzprogramme, Landesverbände, Bundestagsfraktion, …).
  *
- * Covers the 4 endpoints in apps/api/routes/research/researchContractRouter.ts.
+ * Covers the 5 endpoints in apps/api/routes/research/researchContractRouter.ts.
  * All routes are auth-gated via `requireAuth` prefix middleware on
  * `/api/research` (see routes.ts) — not per-handler.
  */
@@ -10,6 +10,8 @@ import { initContract } from '@ts-rest/core';
 
 import {
   researchCollectionsResponseSchema,
+  researchDocumentQuerySchema,
+  researchDocumentResponseSchema,
   researchErrorResponseSchema,
   researchFiltersQuerySchema,
   researchFiltersResponseSchema,
@@ -82,6 +84,24 @@ export const researchContract = c.router(
         500: researchErrorResponseSchema,
       },
       summary: 'Find similar documents within a collection',
+    },
+
+    /**
+     * GET /api/research/document?collectionId=&sourceUrl=&query=
+     * One document's full text, split for the notebook reader, with the
+     * sentences carrying the query's terms marked as passages.
+     */
+    document: {
+      method: 'GET',
+      path: '/api/research/document',
+      query: researchDocumentQuerySchema,
+      responses: {
+        200: researchDocumentResponseSchema,
+        400: researchErrorResponseSchema,
+        404: researchErrorResponseSchema,
+        500: researchErrorResponseSchema,
+      },
+      summary: 'Get a system-collection document for the reader',
     },
   },
   { pathPrefix: '' }
