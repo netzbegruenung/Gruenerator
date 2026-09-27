@@ -18,7 +18,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { GrueneratorComposer } from './GrueneratorComposer';
 
-function mount(onSearchSubmit?: (text: string) => void) {
+function mount(onSearchSubmit?: (text: string) => void, onChatSubmit?: (text: string) => void) {
   const run = vi.fn<ChatModelAdapter['run']>(async function* () {
     yield { content: [{ type: 'text' as const, text: 'Antwort' }] };
   });
@@ -37,6 +37,7 @@ function mount(onSearchSubmit?: (text: string) => void) {
           showToolToggles={false}
           showModelPicker={false}
           {...(onSearchSubmit ? { onSearchSubmit } : {})}
+          {...(onChatSubmit ? { onChatSubmit } : {})}
         />
       </AssistantRuntimeProvider>
     );
@@ -85,5 +86,19 @@ describe('GrueneratorComposer — search submit', () => {
 
     await waitFor(() => expect(run).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole('button', { name: 'Suchen' })).not.toBeInTheDocument();
+  });
+
+  it('hands a chat elsewhere behind the send arrow, without a run here', async () => {
+    const user = userEvent.setup();
+    const onChatSubmit = vi.fn();
+    const { runtime, run } = mount(undefined, onChatSubmit);
+
+    await user.type(screen.getByRole('textbox'), 'Was fordern die Grünen?{Enter}');
+    expect(onChatSubmit).toHaveBeenCalledWith('Was fordern die Grünen?');
+
+    await user.click(screen.getByRole('button', { name: 'Nachricht senden' }));
+    expect(onChatSubmit).toHaveBeenCalledTimes(2);
+    expect(run).not.toHaveBeenCalled();
+    expect(runtime.thread.getState().messages).toHaveLength(0);
   });
 });
