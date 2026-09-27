@@ -32,6 +32,8 @@ vi.mock('../../../../utils/logger.js', () => ({
   }),
 }));
 
+import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
+
 import { streamAgenticResponse, type AgenticRespondDeps } from './agenticRespondService.js';
 import { assembleToolCatalog, wrapAssembledTools, type CatalogDeps } from './catalogAssembly.js';
 import { createToolActivity, type ToolActivity } from './toolActivity.js';
@@ -162,6 +164,43 @@ describe('streamAgenticResponse — Modus-Wahl', () => {
       fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
     );
     expect(seen!.mode).toBe('split');
+  });
+});
+
+describe('streamAgenticResponse — Mistral prompt cache', () => {
+  const emptyHistory = {
+    artifacts: () => [],
+    toolSteps: () => [],
+    lastTurnToolSteps: () => [],
+    sources: () => [],
+    lastGeneratedImageUrl: () => null,
+  };
+
+  it('reicht dem Loop den gehashten promptCacheKey des Threads', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      {
+        ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'),
+        threadId: 'thread-1',
+        toolHistory: emptyHistory,
+        sse,
+      },
+      fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
+    );
+    expect(seen!.providerOptions).toEqual({
+      mistral: { promptCacheKey: promptCacheKeyForThread('thread-1') },
+    });
+  });
+
+  it('ohne Thread keine providerOptions', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
+      fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
+    );
+    expect(seen!.providerOptions).toBeUndefined();
   });
 });
 

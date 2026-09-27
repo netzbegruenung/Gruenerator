@@ -9,6 +9,7 @@
 
 import { buildSystemMessage } from '../../../agents/langgraph/ChatGraph/index.js';
 import { knownArtifactRefs } from '../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+import { promptCacheKeyForThread } from '../../../services/ai/promptCacheKey.js';
 import { looksLikeMemoryRequest } from '../../../services/memory/memoryRequest.js';
 import {
   BOTH_LANES_FAILED,
@@ -272,6 +273,7 @@ export async function runSinglePassAnswer({
               logPrefix: '[ChatGraph]',
               turnSignal,
               ...(respondTelemetry && { telemetry: respondTelemetry }),
+              promptCacheKey: promptCacheKeyForThread(actualThreadId ?? null),
             }),
         });
         // streamWithFallback swallows a dead primary AND a dead sibling
