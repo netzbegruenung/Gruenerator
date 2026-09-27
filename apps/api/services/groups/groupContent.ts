@@ -17,6 +17,9 @@
  * — beide Aufrufer tun das davor (der Handler über
  * `getPostgresAndCheckMembership`, das Werkzeug über `getGroupForMember`).
  */
+import { getSystemAgent } from '@gruenerator/shared/agents';
+import { getNotebookDefinition } from '@gruenerator/shared/notebooks';
+
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
@@ -126,6 +129,10 @@ export async function shareContentToGroup(
       return { status: 404, success: false, message: 'Wolke-Verbindung nicht gefunden.' };
     }
   }
+
+  // System content has no owner row — the registry is its existence check.
+  if (contentType === 'system_notebooks' && !getNotebookDefinition(contentId)) return NOT_FOUND;
+  if (contentType === 'system_agents' && !getSystemAgent(contentId)) return NOT_FOUND;
 
   if (contentType === 'notebook_collections') {
     const collection = await deps.getNotebookCollection(contentId);
