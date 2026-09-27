@@ -1,5 +1,6 @@
-import { SYSTEM_AGENTS } from '@gruenerator/shared/agents';
+import { type GroupContentResponse } from '@gruenerator/contracts';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
+import { toGroupFeedItems } from '@gruenerator/shared/groups';
 import { motion } from 'motion/react';
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +17,7 @@ import {
   useGroupSharing,
 } from '../hooks/useGroups';
 
-import GroupInfoSection, { type GroupData, type SharedItem } from './GroupInfoSection';
+import GroupInfoSection, { type GroupData } from './GroupInfoSection';
 
 interface GroupDetailSectionProps {
   groupId: string;
@@ -95,70 +96,15 @@ const GroupDetailSection = memo(
     const { groupContent, isLoadingGroupContent, unshareContent, refetchGroupContent } =
       useGroupSharing(groupId, { isActive: true });
 
-    const sharedContent = useMemo(() => {
-      interface CollabDoc extends SharedItem {
-        document_subtype?: string;
-      }
-      interface SystemNotebook {
-        id: string;
-        [key: string]: unknown;
-      }
-      const allCollabDocs = (groupContent?.collaborative_documents ?? []) as CollabDoc[];
-
-      const collabDocs: CollabDoc[] = [];
-      const boards: CollabDoc[] = [];
-      const canvases: CollabDoc[] = [];
-      for (const doc of allCollabDocs) {
-        switch (doc.document_subtype) {
-          case 'boards':
-            boards.push(doc);
-            break;
-          case 'canvas':
-            canvases.push(doc);
-            break;
-          case 'blank':
-          case undefined:
-          case null:
-          case '':
-            collabDocs.push(doc);
-            break;
-          default:
-            console.warn(
-              '[GroupDetailSection] Unknown document_subtype, bucketing as Doc:',
-              doc.document_subtype,
-              doc.id
-            );
-            collabDocs.push(doc);
-        }
-      }
-
-      return {
-        collabDocs,
-        boards,
-        canvases,
-        documents: (groupContent?.documents ?? []) as SharedItem[],
-        generators: (groupContent?.generators ?? []) as SharedItem[],
-        notebooks: [
-          ...((groupContent?.notebooks ?? []) as SystemNotebook[]),
-          ...((groupContent?.system_notebooks ?? []) as SystemNotebook[]).map((nb) => {
-            const config = getNotebookById(nb.id);
-            return { ...nb, name: config?.title ?? nb.id };
-          }),
-        ] as SharedItem[],
-        // User agents carry their full Agent shape (incl. identifier/title);
-        // system agents arrive as { id: identifier } and get their title from
-        // the static registry, mirroring the system_notebooks hydration above.
-        agents: [
-          ...((groupContent?.user_agents ?? []) as SharedItem[]),
-          ...((groupContent?.system_agents ?? []) as SystemNotebook[]).map((sa) => {
-            const sys = SYSTEM_AGENTS.find((a) => a.identifier === sa.id);
-            return { ...sa, identifier: sa.id, title: sys?.title ?? sa.id };
-          }),
-        ] as SharedItem[],
-        texts: (groupContent?.texts ?? []) as SharedItem[],
-        canvasTemplates: (groupContent?.canvas_templates ?? []) as SharedItem[],
-      };
-    }, [groupContent]);
+    // Web keeps the raw bucket envelope in the query (`useGroupSharing`); the
+    // feed and „Alle" read the flattened, pin-aware list derived from it.
+    const feedItems = useMemo(
+      () =>
+        toGroupFeedItems(groupContent as Partial<GroupContentResponse['content']>, {
+          systemNotebookTitle: (id) => getNotebookById(id)?.title ?? null,
+        }),
+      [groupContent]
+    );
 
     useEffect(() => {
       if (!data) return;
@@ -323,6 +269,7 @@ const GroupDetailSection = memo(
           data={data}
           groupId={groupId}
           currentUserId={user?.id}
+          currentUserName={user?.display_name ?? null}
           isEditingName={isEditingName}
           editedGroupName={editedGroupName}
           setEditedGroupName={setEditedGroupName}
@@ -342,7 +289,7 @@ const GroupDetailSection = memo(
           saveGroupDescription={saveGroupDescription}
           confirmDeleteGroup={confirmDeleteGroup}
           onlineUserIds={onlineUserIds}
-          sharedContent={sharedContent}
+          feedItems={feedItems}
           isLoadingSharedContent={isLoadingGroupContent}
           onUnshareContent={(contentId, contentType) => {
             if (window.confirm('Inhalt aus der Gruppe entfernen?')) {
