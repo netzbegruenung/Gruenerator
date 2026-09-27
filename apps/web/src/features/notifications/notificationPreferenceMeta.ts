@@ -164,6 +164,13 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     icon: Share2,
     group: 'groups',
   },
+  group_comment_added: {
+    label: 'Kommentare in Gruppen',
+    description:
+      'Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast',
+    icon: MessageSquare,
+    group: 'groups',
+  },
   group_deleted: {
     label: 'Gruppe aufgelöst',
     description: 'Wenn eine deiner Gruppen aufgelöst wird',

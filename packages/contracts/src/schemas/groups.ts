@@ -346,9 +346,18 @@ export const groupContentTypeSchema = z.enum([
 ]);
 export type GroupContentType = z.infer<typeof groupContentTypeSchema>;
 
+export const GROUP_SHARE_NOTE_MAX = 500;
+export const GROUP_COMMENT_MAX = 2000;
+/** Mehr Anheftungen verdrängen die älteste. */
+export const GROUP_PIN_LIMIT = 3;
+
+const shareNoteSchema = z.string().trim().max(GROUP_SHARE_NOTE_MAX);
+
 export const shareContentBodySchema = z.object({
   contentType: groupContentTypeSchema,
   contentId: z.string().min(1, 'Content-ID ist erforderlich.'),
+  /** Optionale Notiz, die im Gruppen-Feed über dem Beitrag steht. */
+  note: shareNoteSchema.nullish(),
   permissions: z
     .object({
       read: z.boolean().nullish(),
@@ -377,6 +386,55 @@ export const deleteContentBodySchema = z.object({
 export type DeleteContentBody = z.infer<typeof deleteContentBodySchema>;
 
 /**
+ * Feed-Metadaten einer Freigabe. Hängt als `share` an jedem Eintrag von
+ * `GET /content` — additiv, alte Clients ignorieren das Feld.
+ */
+export const groupShareMetaSchema = z.object({
+  shareId: z.string(),
+  note: z.string().nullable(),
+  pinnedAt: z.string().nullable(),
+  pinnedByName: z.string().nullable(),
+  commentCount: z.number().int(),
+});
+export type GroupShareMeta = z.infer<typeof groupShareMetaSchema>;
+
+/** Fehlt ein Feld (oder ist null), bleibt es unverändert; `note: ''` löscht die Notiz. */
+export const updateGroupShareBodySchema = z
+  .object({
+    pinned: z.boolean().nullish(),
+    note: shareNoteSchema.nullish(),
+  })
+  .refine((b) => b.pinned != null || b.note != null, {
+    message: 'pinned oder note ist erforderlich.',
+  });
+export type UpdateGroupShareBody = z.infer<typeof updateGroupShareBodySchema>;
+
+export const groupShareCommentSchema = z.object({
+  id: z.string(),
+  shareId: z.string(),
+  userId: z.string().nullable(),
+  authorName: z.string(),
+  body: z.string(),
+  createdAt: z.string(),
+});
+export type GroupShareComment = z.infer<typeof groupShareCommentSchema>;
+
+export const createGroupShareCommentBodySchema = z.object({
+  body: z.string().trim().min(1, 'Kommentar ist leer.').max(GROUP_COMMENT_MAX),
+});
+export type CreateGroupShareCommentBody = z.infer<typeof createGroupShareCommentBodySchema>;
+
+export const groupShareCommentsResponseSchema = z.object({
+  success: z.literal(true),
+  comments: z.array(groupShareCommentSchema),
+});
+
+export const groupShareCommentResponseSchema = z.object({
+  success: z.literal(true),
+  comment: groupShareCommentSchema,
+});
+
+/**
  * `GET /content` returns a fixed envelope keyed by display bucket, but each
  * bucket holds heterogeneous, dynamically-hydrated items (different source
  * tables per content type). The frontend already narrows these per-bucket via
@@ -398,6 +456,7 @@ export const groupCollabDocItemSchema = z
     shared_at: z.string().nullish(),
     shared_by_name: z.string().nullish(),
     thumbnail_url: z.string().nullish(),
+    share: groupShareMetaSchema.nullish(),
   })
   .passthrough();
 
