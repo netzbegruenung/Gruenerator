@@ -28,6 +28,7 @@ import { collectionsForLocale } from '../../../../routes/chat/agents/searchTools
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
   isDocumentContextEditAllowed,
+  isReferentialFollowup,
   looksLikeSelfContainedTurn,
   looksLikeToolableQuestion,
   looksLikeUnsourcedWritingOrder,
@@ -190,6 +191,32 @@ function matchMcpServerByName(userContent: string, servers: McpClassifierServer[
     return new RegExp(`(?<![\\p{L}])${escapeRegExp(name)}(?![\\p{L}])`, 'iu').test(userContent);
   });
   return hits.length === 1 ? hits[0]!.id : null;
+}
+
+// „ja dann mach das", „mach weiter" — eine Bestätigung ohne eigenen
+// Gegenstand. `isReferentialFollowup` schließt sie aus, weil „mach" ein
+// Erstellverb ist; ohne Objekt erstellt sie aber nichts.
+const BARE_CONFIRMATION =
+  /^\s*(?:(?:ja|ok(?:ay)?|gut|genau)[\s,!.]*)?(?:dann\s+)?(?:bitte\s+)?mach(?:e|'?s)?(?:\s+(?:das|es|weiter|mal))?(?:\s+bitte)?[\s!.]*$/iu;
+
+// `isReferentialFollowup` erkennt nur die EIN-Wort-Höflichkeit; „super,
+// danke!" käme durch.
+const THANKS = /(?<!\p{L})(?:danke\p{L}*|dank|thx)(?!\p{L})/iu;
+
+/**
+ * Setzt dieser Turn nur die Werkzeugarbeit des vorigen fort? Kurz und
+ * rückbezüglich (`isReferentialFollowup`: keine Höflichkeit, kein
+ * Umschreiben, kein Erstellverb, ≤ 8 Wörter), kein Dank, und weder Artefakt
+ * (`GENERATION_SIGNAL`) noch Schreibauftrag.
+ */
+function continuesNotebookTurn(text: string): boolean {
+  if (BARE_CONFIRMATION.test(text)) return true;
+  return (
+    isReferentialFollowup(text) &&
+    !THANKS.test(text) &&
+    !GENERATION_SIGNAL.test(text) &&
+    !looksLikeUnsourcedWritingOrder(text, { hasOwnMaterial: false })
+  );
 }
 
 export async function classifierNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
@@ -982,6 +1009,42 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         searchQuery: userContent.slice(0, 500),
         detectedFilters: null,
         reasoning: 'Werkzeugauftrag im Thread eines Notebooks → Werkzeug notebook_quellen',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // Der Turn davor hat mit `notebook_quellen` gearbeitet, und dieser knüpft
+    // nur daran an („nun die vorletzte", „die dritte davon", „ja dann mach
+    // das"). Ohne Pin fiel so ein Turn als vage Anschlussfrage auf
+    // `produktion` ohne Werkzeug (Beta 27.09.2026: „kein Werkzeug in diesem
+    // Turn"). Nicht für Erstellaufträge („mach daraus einen Post", „schreib
+    // eine PM dazu"), Höflichkeiten, Schreibaufträge an ein System-Notebook
+    // und nicht, wenn der Turn eigenes Material mitbringt.
+    const lastTurnNotebookId = state.lastTurnNotebookId;
+    if (
+      lastTurnNotebookId &&
+      state.agentConfig.identifier === 'gruenerator-universal' &&
+      !hasAttachmentContext &&
+      !hasImageAttachments &&
+      !hasBoards &&
+      !hasDocMentions &&
+      !hasCurrentDocument &&
+      continuesNotebookTurn(askText) &&
+      (isUserNotebookId(lastTurnNotebookId) || !looksLikeNotebookWriteAsk(askText))
+    ) {
+      log.info(
+        '[Classifier] Follow-up on a notebook tool turn → loop with notebook_quellen pinned'
+      );
+      recordDecision('classifier.tier', 'tier2_notebook_turn_followup', {});
+      return {
+        intent: 'agentic',
+        mentionPinnedTool: 'notebook_quellen',
+        searchSources: [],
+        searchQuery: userContent.slice(0, 500),
+        detectedFilters: null,
+        reasoning: 'Anschluss an einen Notebook-Werkzeugturn → Werkzeug notebook_quellen',
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,
