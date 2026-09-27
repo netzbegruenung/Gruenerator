@@ -959,6 +959,39 @@ describe('Follow-up on a notebook tool turn pins notebook_quellen', () => {
     expect(result.mentionPinnedTool).toBe('notebook_quellen');
   });
 
+  // Voriger Turn las das Notebook, der Thread hält zudem ein Sharepic: eine
+  // Sharepic-Bearbeitung bleibt bei Tier 2.7, ein Anschluss an die Liste nicht.
+  describe('with a sharepic in the thread', () => {
+    const afterSharepic = { kind: 'sharepic' as const, ref: 'canvas-1', label: 'Sharepic' };
+
+    it.each(['Und jetzt noch die Uhrzeit 15 Uhr ergänzen', 'Anderer Hintergrund bitte'])(
+      'sharepic edit keeps tier2.7: %s',
+      async (userMessage) => {
+        const state = buildState({
+          userMessage,
+          lastTurnNotebookId: 'mecklenburg-vorpommern',
+          lastToolContext: afterSharepic,
+        });
+        const result = await classifierNode(state);
+        expect(result.intent).toBe('sharepic');
+        expect(result.mentionPinnedTool).toBeUndefined();
+      }
+    );
+
+    it.each(['und die nächste?', 'noch mal'])(
+      'a follow-up to the notebook turn still pins: %s',
+      async (userMessage) => {
+        const state = buildState({
+          userMessage,
+          lastTurnNotebookId: 'mecklenburg-vorpommern',
+          lastToolContext: afterSharepic,
+        });
+        const result = await classifierNode(state);
+        expect(result.mentionPinnedTool).toBe('notebook_quellen');
+      }
+    );
+  });
+
   it('after a turn without notebook_quellen (thread used one earlier) → no pin', async () => {
     const state = buildState({
       userMessage: 'nun die vorletzte',

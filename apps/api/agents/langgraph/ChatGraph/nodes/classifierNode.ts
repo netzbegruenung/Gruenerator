@@ -209,6 +209,27 @@ const THANKS = /(?<!\p{L})(?:danke\p{L}*|dank|thx)(?!\p{L})/iu;
  * Umschreiben, kein Erstellverb, ≤ 8 Wörter), kein Dank, und weder Artefakt
  * (`GENERATION_SIGNAL`) noch Schreibauftrag.
  */
+/**
+ * Liest sich der Turn als Bearbeitung eines Artefakts, das der Thread hält?
+ * Dieselben Muster wie Tier 2.7, das tiefer unten entscheidet. Der Anschluss
+ * an einen Notebook-Turn steht dann zurück, sonst nähme er Tier 2.7 einen
+ * Folgeauftrag weg („Und jetzt noch die Uhrzeit ergänzen" nach Notebook-Turn
+ * UND Sharepic). Nach 2.7 verschieben geht nicht: `last_tool_context` bleibt
+ * über Notebook-Turns stehen, und 2.7s MCP-Zweig nähme dann „nun die
+ * vorletzte" für einen alten Konnektor.
+ */
+function editsThreadArtifact(state: ChatGraphState, text: string): boolean {
+  const kinds = new Set(
+    [state.lastToolContext, ...(state.threadArtifacts ?? [])].map((a) => a?.kind)
+  );
+  return (
+    ((kinds.has('document') || kinds.has('sheet')) && DOC_MODIFY_PATTERN.test(text)) ||
+    (kinds.has('image') &&
+      (hasImageEditVerb(text) || isImageRegenRequest(text) || isImageEditInstruction(text))) ||
+    (kinds.has('sharepic') && isSharepicEditInstruction(text))
+  );
+}
+
 function continuesNotebookTurn(text: string): boolean {
   if (BARE_CONFIRMATION.test(text)) return true;
   return (
@@ -1032,6 +1053,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       !hasDocMentions &&
       !hasCurrentDocument &&
       continuesNotebookTurn(askText) &&
+      !editsThreadArtifact(state, userContent) &&
       (isUserNotebookId(lastTurnNotebookId) || !looksLikeNotebookWriteAsk(askText))
     ) {
       log.info(
