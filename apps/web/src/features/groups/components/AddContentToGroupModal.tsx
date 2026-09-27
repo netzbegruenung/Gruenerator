@@ -1,3 +1,4 @@
+import { GROUP_SHARE_NOTE_MAX } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import {
   Badge,
@@ -107,6 +108,8 @@ interface AddContentToGroupModalProps {
   initialContentType?: 'templates' | 'content' | string;
   onAddLink?: (link: Omit<GroupLink, 'id'>) => void;
   isAddingLink?: boolean;
+  /** Vorbelegung der Notiz, z. B. der Text aus dem Feed-Composer. */
+  initialNote?: string;
 }
 
 const CONTENT_CATEGORIES: ContentCategory[] = [
@@ -150,6 +153,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
   onError,
   onAddLink,
   isAddingLink,
+  initialNote,
 }) => {
   const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
   const [selectedItems, setSelectedItems] = useState<SelectedItemsState>({});
@@ -173,7 +177,9 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
   const [wasOpen, setWasOpen] = useState(isOpen);
   if (wasOpen !== isOpen) {
     setWasOpen(isOpen);
-    if (!isOpen) {
+    if (isOpen) {
+      setNote((initialNote ?? '').slice(0, GROUP_SHARE_NOTE_MAX));
+    } else {
       setSelectedItems({});
       setActiveCategory(null);
       setContentPage(1);
@@ -657,7 +663,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
               onChange={(e) => setNote(e.target.value)}
               placeholder="Notiz für die Gruppe (optional) – wofür ist das gedacht?"
               aria-label="Notiz für die Gruppe"
-              maxLength={500}
+              maxLength={GROUP_SHARE_NOTE_MAX}
               rows={2}
               className="w-full resize-none"
             />

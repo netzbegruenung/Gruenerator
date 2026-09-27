@@ -31,12 +31,12 @@ function defaultDeps(): GroupFeedDeps {
 export type FeedOutcome<T = null> =
   { status: 200 | 201; data: T } | { status: 400 | 403 | 404; message: string };
 
-interface Viewer {
+export interface Viewer {
   isAdmin: boolean;
   isPersonal: boolean;
 }
 
-async function getViewer(
+export async function getViewer(
   postgres: GroupFeedDeps['postgres'],
   groupId: string,
   userId: string

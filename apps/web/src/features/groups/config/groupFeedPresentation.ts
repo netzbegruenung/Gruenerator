@@ -2,6 +2,7 @@ import { getAgentSlug } from '@gruenerator/shared/agents';
 import { type GroupFeedItem, type GroupFeedKind } from '@gruenerator/shared/groups';
 import {
   PiBookOpen,
+  PiChatText,
   PiFile,
   PiFileText,
   PiImage,
@@ -14,6 +15,7 @@ import {
 import type { IconType } from 'react-icons';
 
 export const FEED_KIND_ICONS: Record<GroupFeedKind, IconType> = {
+  post: PiChatText,
   'sharepic-template': PiImage,
   sharepic: PiImage,
   doc: PiFileText,
@@ -26,7 +28,10 @@ export const FEED_KIND_ICONS: Record<GroupFeedKind, IconType> = {
   document: PiFile,
 };
 
-/** Wohin „Öffnen" führt; `null` = kein Ziel (Sharepic-Vorlagen werden geklont). */
+/**
+ * Wohin „Öffnen" führt; `null` = kein Ziel (Sharepic-Vorlagen werden geklont,
+ * Beiträge stehen ganz im Feed).
+ */
 export function feedItemHref(item: GroupFeedItem): string | null {
   switch (item.kind) {
     case 'sharepic':
@@ -43,6 +48,7 @@ export function feedItemHref(item: GroupFeedItem): string | null {
       return `/agentura/agent/${getAgentSlug(item.slug ?? item.id)}`;
     case 'document':
       return `/documents/${item.id}`;
+    case 'post':
     case 'sharepic-template':
     case 'text':
     case 'template':

@@ -179,7 +179,7 @@ export function GroupAllView({
                 className="relative flex flex-col overflow-hidden rounded-2xl bg-card shadow-sm transition-shadow hover:shadow-md"
               >
                 <div className="relative flex h-[200px] items-center justify-center overflow-hidden bg-background-alt">
-                  <FeedPreview item={item} size="tile" />
+                  <FeedPreview item={item} size="tile" groupId={groupId} />
                   {isAdmin && (
                     <span className="absolute right-2.5 top-2.5">
                       <PinToggle groupId={groupId} item={item} variant="chip" />

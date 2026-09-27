@@ -20,6 +20,10 @@ import {
   updateGroupInfo,
 } from '../../../../services/groups/groupMutations.js';
 import {
+  deleteGroupPostFile,
+  listGroupPostFilenames,
+} from '../../../../services/groups/groupPosts.js';
+import {
   createNotification,
   notifyGroupMembers,
 } from '../../../../services/notifications/index.js';
@@ -238,6 +242,9 @@ export const coreRoutes = {
         actionUrl: '/gruppen',
       });
 
+      // Die Zeilen fallen per Cascade mit der Gruppe, die Dateien nicht.
+      const postFiles = await listGroupPostFilenames(postgres, groupId);
+
       let memberCount = 0;
       await postgres.transaction(async (client) => {
         await postgres.transactionExec(
@@ -276,6 +283,8 @@ export const coreRoutes = {
         `[groupsContract.deleteGroup] deleted group=${groupId} name=${JSON.stringify(groupData.name)} ` +
           `type=${groupData.group_type ?? 'unknown'} members=${memberCount} by=${userId}`
       );
+
+      void Promise.all(postFiles.map(deleteGroupPostFile));
 
       if (groupData.avatar_url) {
         const avatarPath = path.join(AVATAR_UPLOAD_DIR, path.basename(groupData.avatar_url));
