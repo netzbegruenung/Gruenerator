@@ -14,7 +14,7 @@ import { HiOutlineChartBar, HiOutlineClock, HiOutlineSparkles } from 'react-icon
 import PageContainer from '../../../components/common/PageContainer';
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 import { LIVE_SEARCH_MIN_LENGTH } from '../manual-search/useLiveResearch';
-import { NOTEBOOK_MAGENTA_BG } from '../notebookTheme';
+import { NOTEBOOK_COMPOSER_ACCENT, NOTEBOOK_MAGENTA_BG } from '../notebookTheme';
 import { NotebookOmniComposer } from '../omni/NotebookOmniComposer';
 
 import { LastAddedSection } from './LastAddedSection';
@@ -219,7 +219,7 @@ export function NotebookStartpage({
         )}
       >
         <h1 className={cn(HEADING, 'mb-8')}>{title}</h1>
-        <div className="w-full max-w-2xl">
+        <div className={cn('w-full max-w-2xl', NOTEBOOK_COMPOSER_ACCENT)}>
           <NotebookComposer
             placeholder={placeholder}
             sourceFilters={composerSourceFilters}
