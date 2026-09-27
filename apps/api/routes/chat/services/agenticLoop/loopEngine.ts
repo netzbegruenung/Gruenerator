@@ -39,6 +39,7 @@ import {
   DEGENERATION_NOTICE,
   cutLostContent,
 } from './degeneration.js';
+import { toolsForProvider } from './providerTools.js';
 import { DEFAULT_LOOP_BUDGET, TOOL_TIMEOUT_OVERRIDES_MS } from './types.js';
 
 import type { LanguageModel, ModelMessage, ToolSet } from 'ai';
@@ -693,7 +694,7 @@ async function streamWithTools(
     model,
     system: p.toolSystem,
     messages: p.messages,
-    tools: p.tools,
+    tools: toolsForProvider(p.tools),
     stopWhen: isStepCount(p.maxSteps),
     temperature: p.temperature,
     ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
@@ -773,7 +774,7 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
       model: p.plannerModel,
       system: gatherSystem,
       messages: p.messages,
-      tools: p.tools,
+      tools: toolsForProvider(p.tools),
       stopWhen: isStepCount(p.maxSteps),
       temperature: p.temperature,
       ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
