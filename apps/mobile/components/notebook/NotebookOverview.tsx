@@ -53,7 +53,10 @@ export function NotebookOverview({
       {expanded && (
         <>
           <LastAddedSection collectionIds={collectionIds} theme={theme} />
-          <StatisticsSection collectionIds={collectionIds} theme={theme} />
+          <StatisticsSection
+            collectionId={collectionIds.length === 1 ? collectionIds[0] : null}
+            theme={theme}
+          />
         </>
       )}
     </View>
