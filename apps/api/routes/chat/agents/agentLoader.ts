@@ -61,7 +61,9 @@ function withInternalRole(agent: Agent): AgentConfig {
   const internal = getInternalAgentPrompt(agent.identifier);
   if (internal) return { ...agent, systemRole: internal } as AgentConfig;
 
-  if (!missingRoleLogged.has(agent.identifier)) {
+  // Suche-Agenten laufen über den SearchGraph, der ihre Persona nie liest —
+  // der Ersatz ist dort kein Rollout-Loch.
+  if (agent.routeTo !== 'search' && !missingRoleLogged.has(agent.identifier)) {
     missingRoleLogged.add(agent.identifier);
     log.error(
       `No internal systemRole for "${agent.identifier}" — falling back to a generic ` +
