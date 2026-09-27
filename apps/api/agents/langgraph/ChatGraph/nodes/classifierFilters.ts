@@ -1,7 +1,13 @@
 /**
  * Classifier Filters
  *
- * Extracts metadata filters (Landesverband, content_type) from the query text.
+ * Extracts metadata filters (content_type) from the query text.
+ *
+ * Ein Landesverband im Text wird bewusst NICHT zum Filter (#3712). Er landete
+ * als `region` in der Suche — ein Feld, das kein Punkt in keiner Sammlung
+ * trägt, jede Suche kam leer zurück. `landesverband` wäre nicht besser: die
+ * LV-Sammlungen (`@thüringen` usw.) filtern über ihren `defaultFilter` schon
+ * selbst, und alle anderen Sammlungen haben das Feld nicht.
  *
  * Bis zur Löschung der LLM-Stufe stand hier eine zweite Hälfte: `ClassifierLLMResponse`
  * (das Antwortschema des 27k-Prompts) und `extractFilters`, das dessen `filters`-Objekt
@@ -10,23 +16,6 @@
  */
 
 import type { SubcategoryFilters } from '../../../../config/systemCollectionsConfig.js';
-
-/**
- * Landesverband name-to-code mapping.
- * Maps German state names and common abbreviations to the codes used in Qdrant metadata.
- * Thüringen maps to both TH and TH-F (includes Fraktion documents).
- */
-export const LANDESVERBAND_ALIASES: Record<string, string | string[]> = {
-  hamburg: 'HH',
-  hh: 'HH',
-  'schleswig-holstein': 'SH',
-  sh: 'SH',
-  thüringen: ['TH', 'TH-F'],
-  thueringen: ['TH', 'TH-F'],
-  th: ['TH', 'TH-F'],
-  bayern: 'BY',
-  by: 'BY',
-};
 
 /**
  * Heuristic filter detection for high-confidence paths that skip LLM.
@@ -46,14 +35,6 @@ export function heuristicExtractFilters(query: string): SubcategoryFilters | nul
     filters.content_type = 'wahlprogramm';
   } else if (/\b(positionspapier|positionspapiere)\b/i.test(q)) {
     filters.content_type = 'position';
-  }
-
-  for (const [name, code] of Object.entries(LANDESVERBAND_ALIASES)) {
-    if (name.length <= 2) continue; // Skip abbreviations, only match full names
-    if (q.includes(name)) {
-      filters.region = code;
-      break;
-    }
   }
 
   return Object.keys(filters).length > 0 ? filters : null;

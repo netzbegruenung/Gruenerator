@@ -89,7 +89,7 @@ const LIST_CAPPED = `Die Sammlung ist größer, als list durchsieht — total z�
  * X als leer, weil die gezeigte Seite keine davon enthielt (#3627).
  */
 const LIST_PARTIAL_CATEGORIES =
-  'Gezeigt ist nur ein Teil der Quellen. Fragt der Auftrag nach den Quellen einer Kategorie, rufe list erneut mit filter.category (Wert aus categories) auf — aus dieser Seite lässt sich nicht schließen, dass eine Kategorie leer ist.';
+  'Gezeigt ist nur ein Teil der Quellen. Fragt der Auftrag nach den Quellen einer Kategorie, rufe list erneut mit filter.category (Wert aus categories oder documentTypes) auf — aus dieser Seite lässt sich nicht schließen, dass eine Kategorie leer ist.';
 
 export interface SystemActionArgs extends ScanActionArgs {
   action: string;
@@ -338,17 +338,18 @@ async function list(
 ): Promise<Record<string, unknown>> {
   const { collection, deps, sourceRegistry } = ctx;
   const filter = systemFilter(args);
-  const { total, items, exhaustive, categories, undatedExcluded } = await listSystemSources(
-    {
-      collection,
-      sortBy: args.sortBy,
-      order: args.order,
-      filter,
-      offset: args.offset,
-      limit: args.limit,
-    },
-    deps
-  );
+  const { total, items, exhaustive, categories, documentTypes, undatedExcluded } =
+    await listSystemSources(
+      {
+        collection,
+        sortBy: args.sortBy,
+        order: args.order,
+        filter,
+        offset: args.offset,
+        limit: args.limit,
+      },
+      deps
+    );
   const results = items.map((r) =>
     makeRow(
       r.title,
@@ -374,6 +375,7 @@ async function list(
       sortBy: args.sortBy ?? 'date',
       ...echoFilter(filter),
       categories,
+      ...(documentTypes ? { documentTypes } : {}),
       ...(exhaustive ? {} : { note: LIST_CAPPED }),
       ...(!filter?.category && total > (args.offset ?? 0) + items.length
         ? { hint: LIST_PARTIAL_CATEGORIES }
