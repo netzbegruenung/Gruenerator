@@ -12,7 +12,7 @@ import { useAuiState } from '@assistant-ui/store';
 import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
 import { cn, useIsMobile, useMeasuredCornerReservation } from '@gruenerator/ui';
-import { ArrowUp, Mic, Plug, Square, X } from 'lucide-react';
+import { ArrowUp, Mic, Plug, Search, Square, X } from 'lucide-react';
 import { memo, useEffect, useRef, useState, useCallback, type ClipboardEvent } from 'react';
 import { RiVoiceAiFill } from 'react-icons/ri';
 
@@ -115,6 +115,12 @@ interface GrueneratorComposerProps {
   /** Turns substantial plain-text clipboard pastes into a compact reference card.
    * Explicit opt-in keeps search and notebook surfaces on their existing request paths. */
   enablePastedTextAttachments?: boolean;
+  /**
+   * Turns the composer into a search field: Enter and the submit button hand
+   * the text here instead of sending it to the model, and the button shows a
+   * magnifier (notebook „Manuell“).
+   */
+  onSearchSubmit?: (text: string) => void;
 }
 
 const ROUND_BTN_BASE =
@@ -196,6 +202,23 @@ function SendButton({
   );
 }
 
+/** A real submit button, unlike `ComposerPrimitive.Send`, whose click calls
+ *  `send()` directly — the form's submit handler is where a search is caught. */
+function SearchSubmitButton() {
+  const isCompact = useChatDensity() === 'compact';
+  const isEmpty = useAuiState((s) => s.composer.text.trim() === '');
+  return (
+    <button
+      type="submit"
+      disabled={isEmpty}
+      aria-label="Suchen"
+      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white enabled:hover:bg-primary-600 enabled:active:scale-95 disabled:opacity-30`}
+    >
+      <Search className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} strokeWidth={2.25} />
+    </button>
+  );
+}
+
 function CancelButton() {
   const isCompact = useChatDensity() === 'compact';
   return (
@@ -268,12 +291,14 @@ function ComposerButtons({
   hasPillMentions,
   onFlushPillMentions,
   onSendWithPillMentions,
+  searchSubmit,
 }: {
   isRunning?: boolean;
   requireProfileHydration?: boolean;
   hasPillMentions?: boolean;
   onFlushPillMentions?: () => void;
   onSendWithPillMentions?: () => void;
+  searchSubmit?: boolean;
 }) {
   const isDictating = useAuiState((s) => s.composer.dictation != null);
   const hasDictation = useAuiState((s) => s.thread.capabilities.dictation);
@@ -307,6 +332,7 @@ function ComposerButtons({
     );
   }
   if (hasDictation && isEmpty && !hasPillMentions) return <DictateButton />;
+  if (searchSubmit) return <SearchSubmitButton />;
   return (
     <SendButton
       requireProfileHydration={requireProfileHydration}
@@ -355,6 +381,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   slots,
   requireProfileHydration = false,
   enablePastedTextAttachments = false,
+  onSearchSubmit,
 }: GrueneratorComposerProps) {
   const composerAreaRef = useRef<HTMLDivElement>(null);
   const composerRuntime = useAui().composer;
@@ -956,7 +983,14 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         // so an Enter-submitted draft carries the pills when send() reads it.
         // Guarded on canSend: when the submit will be a no-op (attachment still
         // uploading), the pills must not be dumped into the text either.
-        onSubmit={() => {
+        onSubmit={(e) => {
+          if (onSearchSubmit) {
+            // preventDefault skips the Root's own send (composeEventHandlers).
+            e.preventDefault();
+            const text = composerRuntime.getState().text.trim();
+            if (text) onSearchSubmit(text);
+            return;
+          }
           if (composerRuntime.getState().canSend) flushPillMentions();
         }}
         className={cn(
@@ -1120,6 +1154,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
               hasPillMentions={pillMentions.length > 0}
               onFlushPillMentions={flushPillMentions}
               onSendWithPillMentions={sendWithPillMentions}
+              searchSubmit={!!onSearchSubmit}
             />
           </div>
         ) : (
@@ -1152,6 +1187,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
                   hasPillMentions={pillMentions.length > 0}
                   onFlushPillMentions={flushPillMentions}
                   onSendWithPillMentions={sendWithPillMentions}
+                  searchSubmit={!!onSearchSubmit}
                 />
               </div>
             </div>
