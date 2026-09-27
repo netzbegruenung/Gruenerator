@@ -32,6 +32,7 @@ export type AppRoute =
   // Focused routes
   | '/(focused)/chat-conversation'
   | '/(focused)/notebook-detail'
+  | '/(focused)/notebook-reader'
   | '/(focused)/agents'
   | '/(focused)/projekte'
   | '/(focused)/bild-editor'
@@ -60,6 +61,15 @@ export interface ModalRouteParams {
     notebookId: string;
     title?: string;
     kind: 'system' | 'user';
+  };
+  '/(focused)/notebook-reader': {
+    /** The hit's `*-system` collection. */
+    collectionId: string;
+    sourceUrl: string;
+    /** The search the hit came from — its terms mark the passages. */
+    query: string;
+    /** Shown while the document loads. */
+    title: string;
   };
   '/(fullscreen)/subtitle-editor': {
     projectId: string;
