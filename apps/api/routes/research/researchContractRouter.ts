@@ -15,6 +15,7 @@ import {
   SYSTEM_COLLECTIONS,
   getSearchableSystemCollectionIds,
   isAgentOnlyCollectionId,
+  isReaderCollectionId,
   getSearchParams,
   getSystemCollectionConfig,
   applyDefaultFilter,
@@ -351,7 +352,7 @@ export const researchContractRouter = s.router(researchContract, {
   document: async (args) => {
     const { collectionId, query } = args.query;
     const systemConfig = getSystemCollectionConfig(collectionId);
-    if (!systemConfig || isAgentOnlyCollectionId(collectionId)) {
+    if (!systemConfig || !isReaderCollectionId(collectionId)) {
       return { status: 400 as const, body: { error: 'Invalid collectionId.' } };
     }
 

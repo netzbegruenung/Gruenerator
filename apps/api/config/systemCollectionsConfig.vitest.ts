@@ -9,6 +9,7 @@ import {
   getSearchableSystemCollectionIds,
   getDefaultMultiCollectionIds,
   getCanonicalByKey,
+  readerCollectionIdFor,
 } from './systemCollectionsConfig.js';
 
 describe('canonical registry invariants', () => {
@@ -120,5 +121,19 @@ describe('Landesverband notebook filters', () => {
       .map((s) => s.shortName)
       .filter((code) => !covered.has(code));
     expect(uncovered).toEqual([]);
+  });
+});
+
+describe('readerCollectionIdFor', () => {
+  it('maps a chat key and accepts a system id', () => {
+    expect(readerCollectionIdFor('brandenburg')).toBe('brandenburg-system');
+    expect(readerCollectionIdFor('brandenburg-system')).toBe('brandenburg-system');
+  });
+
+  it('refuses agent-only collections, user notebooks and missing ids', () => {
+    expect(readerCollectionIdFor('ricarda-lang-tweets')).toBeNull();
+    expect(readerCollectionIdFor('ricarda-lang-tweets-system')).toBeNull();
+    expect(readerCollectionIdFor('0f8b6c1e-2d4a-4b8e-9c3f-5a6d7e8f9a0b')).toBeNull();
+    expect(readerCollectionIdFor(undefined)).toBeNull();
   });
 });

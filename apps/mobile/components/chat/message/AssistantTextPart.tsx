@@ -1,4 +1,5 @@
-import { useContext, useMemo } from 'react';
+import { parseSourceLinkHref } from '@gruenerator/shared/utils';
+import { useCallback, useContext, useMemo } from 'react';
 
 import { useTheme } from '../../../hooks/useTheme';
 import { makeCodeMarkdownRules } from '../code/codeMarkdownRules';
@@ -26,5 +27,26 @@ export function AssistantTextPart(props: { text: string }) {
     }),
     [theme, citationCtx]
   );
-  return <MathText text={props.text} markdownStyles={markdownStyles} rules={rules} theme={theme} />;
+  // A source link `[Titel](quelle:N)` opens its citation's document; its
+  // scheme must never reach Linking. While streaming, before the citations
+  // arrive, the tap does nothing. Every other link opens as before.
+  const onLinkPress = useCallback(
+    (url: string) => {
+      const id = parseSourceLinkHref(url);
+      if (id === null) return true;
+      const citation = citationCtx?.citationMap.get(id);
+      if (citation) citationCtx?.onSourceLinkPress(citation);
+      return false;
+    },
+    [citationCtx]
+  );
+  return (
+    <MathText
+      text={props.text}
+      markdownStyles={markdownStyles}
+      rules={rules}
+      theme={theme}
+      onLinkPress={onLinkPress}
+    />
+  );
 }

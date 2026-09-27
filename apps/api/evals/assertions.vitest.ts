@@ -152,6 +152,17 @@ describe('runAssertions — each failure class we hit live', () => {
     expect(names(rs)['cited']).toBe(true);
   });
 
+  it('cited zählt Quellen-Links [Titel](quelle:N) als Zitat, das Label nicht', () => {
+    const rs = runAssertions(
+      trace({
+        fullText: '- [Wahlprogramm 2024](quelle:1)\n- [Kohleausstieg](quelle:2)',
+        sources: 2,
+      }),
+      { cited: true }
+    );
+    expect(names(rs)['cited']).toBe(true);
+  });
+
   it('cited erkennt die Notebook-Drahtform [cite:N] (live 19.08.2026)', () => {
     // `nb-at-locale`: 2.204 Zeichen Antwort, ZEHN Zitate im completion-Payload,
     // und die Prüfung meldete „no [N] citation markers". Das Notebook setzt

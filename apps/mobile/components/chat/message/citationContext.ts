@@ -13,4 +13,6 @@ import type { Citation } from '@gruenerator/chat';
 export const MessageCitationsContext = createContext<{
   citationMap: Map<number, Citation>;
   onCitationPress: (citation: Citation) => void;
+  /** Tap on a source link `[Titel](quelle:N)` — opens the document itself. */
+  onSourceLinkPress: (citation: Citation) => void;
 } | null>(null);
