@@ -32,7 +32,6 @@ const composer: {
   magicIntent?: MagicIntent | null;
   onManualSubmit?: (text: string) => void;
 } = { text: '' };
-const onMagicIntentChange = vi.fn<(intent: MagicIntent | null) => void>();
 
 vi.mock('@assistant-ui/react', () => ({
   useAuiState: (select: (s: { composer: { text: string } }) => unknown) =>
@@ -64,7 +63,6 @@ beforeEach(() => {
   composer.text = '';
   composer.magicIntent = undefined;
   composer.onManualSubmit = undefined;
-  onMagicIntentChange.mockClear();
   server.use(
     http.get(FILTERS, () =>
       HttpResponse.json({
@@ -120,7 +118,6 @@ function page(answerMode: NotebookComposerMode, composerCategoryFilters?: Catego
       recentCollectionIds={['berlin-system']}
       showStats={false}
       showLastAdded={false}
-      onMagicIntentChange={onMagicIntentChange}
       {...(composerCategoryFilters ? { composerCategoryFilters } : {})}
     />
   );
@@ -163,39 +160,28 @@ describe('NotebookStartpage — one composer', () => {
     expect(screen.queryByText('Mietendeckel jetzt')).not.toBeInTheDocument();
   });
 
-  it('reads keywords as a search: magnifier, and Enter searches instead of sending', async () => {
+  it('reads keywords as a search: magnifier, and Enter searches at once', async () => {
     const { rerender } = renderPage('auto', '');
     composer.text = 'Hitzeschutz';
     rerender(page('auto'));
     expect(composer.magicIntent).toBe('suche');
-    await waitFor(() => expect(onMagicIntentChange).toHaveBeenLastCalledWith('suche'));
 
     // Enter searches at once — well inside the 300 ms the typing debounce waits.
     act(() => composer.onManualSubmit!('Hitzeschutz'));
     await waitFor(() => expect(searches).toEqual(['Hitzeschutz']), { timeout: 200 });
-    expect(onMagicIntentChange).not.toHaveBeenCalledWith('chat');
   });
 
-  it('reads a question as a chat and reports it upwards', async () => {
+  it('reads a question as a chat', () => {
     renderPage('auto', 'Was fordern die Grünen zum Hitzeschutz?');
     expect(composer.magicIntent).toBe('chat');
-    await waitFor(() => expect(onMagicIntentChange).toHaveBeenLastCalledWith('chat'));
   });
 
-  it('reports no intent for an empty composer, outside Magic Search, and once unmounted', async () => {
+  it('has no intent for an empty composer or outside Magic Search', () => {
     const { unmount } = renderPage('auto', '');
     expect(composer.magicIntent).toBeNull();
-    await waitFor(() => expect(onMagicIntentChange).toHaveBeenLastCalledWith(null));
-
     unmount();
-    onMagicIntentChange.mockClear();
-    const second = renderPage('manuell', 'Was fordern die Grünen?');
+    renderPage('manuell', 'Was fordern die Grünen?');
     expect(composer.magicIntent).toBeNull();
-    onMagicIntentChange.mockClear();
-    second.rerender(page('auto'));
-    await waitFor(() => expect(onMagicIntentChange).toHaveBeenLastCalledWith('chat'));
-    second.unmount();
-    expect(onMagicIntentChange).toHaveBeenLastCalledWith(null);
   });
 
   it.each([

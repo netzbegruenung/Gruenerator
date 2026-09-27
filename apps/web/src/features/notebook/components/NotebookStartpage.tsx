@@ -10,7 +10,7 @@ import {
 } from '@gruenerator/chat';
 import { type NotebookDepth } from '@gruenerator/contracts';
 import { cn } from '@gruenerator/ui';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { HiOutlineChartBar, HiOutlineClock, HiOutlineSparkles } from 'react-icons/hi2';
 
 import PageContainer from '../../../components/common/PageContainer';
@@ -71,8 +71,6 @@ interface NotebookStartpageProps {
    *  Defaults to true. */
   pageGradient?: boolean;
   footer?: ReactNode;
-  /** Magic Search's reading of the typed text; `null` once the page goes away. */
-  onMagicIntentChange?: (intent: MagicIntent | null) => void;
 }
 
 type BrowseTab = 'zuletzt' | 'agenten' | 'stats';
@@ -124,7 +122,6 @@ export function NotebookStartpage({
   omniComposer = false,
   pageGradient = true,
   footer,
-  onMagicIntentChange,
 }: NotebookStartpageProps) {
   const [browseTab, setBrowseTab] = useState<BrowseTab>('zuletzt');
 
@@ -164,12 +161,6 @@ export function NotebookStartpage({
     !omniComposer && answerMode === 'auto' && manualSearchAvailable && hasText
       ? detectMagicIntent(composerText)
       : null;
-  // Reported after each change, so the page has it before the next Enter; the
-  // cleanup clears it when the thread starts and replaces this page.
-  useEffect(() => {
-    onMagicIntentChange?.(magicIntent);
-    return () => onMagicIntentChange?.(null);
-  }, [magicIntent, onMagicIntentChange]);
 
   // --- Overview surface (/notebooks index + workplace "Wissen"): omni composer
   //     only. No segmented tabs, no browse sub-tabs. ---
