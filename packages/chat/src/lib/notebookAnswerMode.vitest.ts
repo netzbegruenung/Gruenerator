@@ -112,6 +112,14 @@ describe('detectMagicIntent', () => {
     'Wohnungsbau Wasserstoff',
     'Istanbul Konvention',
     'Kanzleramt Wortprotokoll',
+    'Erklärung zum Klimanotstand',
+    'Vergleichsmiete Berlin',
+    'Schreiben Ministerium',
+    'Nennung',
+    'Sollwert',
+    'Liste Kitas',
+    'Vergleichsstudie',
+    'Kitas Liste',
     '',
   ])('searches for „%s“', (text) => {
     expect(detectMagicIntent(text)).toBe('suche');
@@ -129,6 +137,11 @@ describe('detectMagicIntent', () => {
     'Hitzeschutz Kitas erklären',
     'Anträge zu Radwegen bitte',
     'Vergleiche die Programme',
+    'Erkläre die Position zu Windkraft',
+    'fasse den Antrag zusammen',
+    'liste alle Anträge zu Mieten',
+    'vergleiche Berlin und Hamburg',
+    'Sollte die Stadt Radwege bauen',
   ])('chats for „%s“', (text) => {
     expect(detectMagicIntent(text)).toBe('chat');
   });

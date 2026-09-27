@@ -91,9 +91,15 @@ export type MagicIntent = 'suche' | 'chat';
 
 // Word bounds by hand: `\b` knows no umlauts, so „können“ would never match.
 const QUESTION_OPENER =
-  /^(?:was|wer|wem|wen|wie|wo|woher|wohin|wann|warum|wieso|weshalb|welche\p{L}*|gibt\s+es|ist|sind|hat|haben|kann|können|soll\p{L}*)(?![\p{L}\d])/iu;
+  /^(?:was|wer|wem|wen|wie|wo|woher|wohin|wann|warum|wieso|weshalb|welche\p{L}*|gibt\s+es|ist|sind|hat|haben|kann|können|soll(?:st|te|test|ten|en|t)?)(?![\p{L}\d])/iu;
+// Verb forms only, so nouns typed as keywords („Erklärung“, „Vergleichsmiete“,
+// „Liste Kitas“, „Schreiben Ministerium“) stay a search. Anywhere in the text a
+// verb counts only lowercase; capitalised it counts only as the opening
+// imperative („Erkläre …“), where a noun would not end in -e.
 const INSTRUCTION_VERB =
-  /(?<![\p{L}\d])(?:erklär\p{L}*|fasse|vergleich\p{L}*|schreib\p{L}*|liste|nenn\p{L}*|zeig\p{L}*|analysier\p{L}*|bitte)(?![\p{L}\d])/iu;
+  /(?<![\p{L}\d])(?:erklär(?:e|en|t)?|fasse|vergleich(?:e|en)?|schreib(?:e|en|t)?|liste|nenn(?:e|en|t)?|zeig(?:e|en|t)?|analysier(?:e|en|t)?|bitte)(?![\p{L}\d])/u;
+const OPENING_IMPERATIVE =
+  /^(?:Erkläre|Fasse|Vergleiche|Schreibe|Nenne|Zeige|Analysiere|Bitte)(?![\p{L}\d])/u;
 
 /** Keywords and filter phrases („Hitzeschutz, Dokumente seit 30 Tagen“) are a
  *  search; a question or an instruction is a chat. Unlike the server's
@@ -102,7 +108,7 @@ export function detectMagicIntent(text: string): MagicIntent {
   const trimmed = text.replace(/^[\s\p{P}]+/u, '');
   if (trimmed.includes('?')) return 'chat';
   if (QUESTION_OPENER.test(trimmed)) return 'chat';
-  if (INSTRUCTION_VERB.test(trimmed)) return 'chat';
+  if (OPENING_IMPERATIVE.test(trimmed) || INSTRUCTION_VERB.test(trimmed)) return 'chat';
   return 'suche';
 }
 
