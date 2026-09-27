@@ -102,12 +102,12 @@ describe('preferredLvRecipeMention — Agenten-Pfad (LV-PR-Agent)', () => {
   });
 
   it('fällt auf einem LV-Agenten ohne eigene Rezepte NICHT auf fremde Rollen zurück', () => {
-    // Sachsen hat keine eigenen Rezepte; eine Hessen-Rolle darf dem
-    // Sachsen-Agenten trotzdem keine hessischen Schreibvorgaben unterschieben.
+    // Schleswig-Holstein hat keine eigenen Rezepte; eine Hessen-Rolle darf dem
+    // SH-Agenten trotzdem keine hessischen Schreibvorgaben unterschieben.
     expect(
       preferredLvRecipeMention({
         mention: 'presse',
-        agentIdentifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen',
+        agentIdentifier: 'gruenerator-oeffentlichkeitsarbeit-schleswig-holstein',
         roles: [lgs('Hessen')],
         userLocale: 'de-DE',
       })
