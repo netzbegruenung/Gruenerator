@@ -879,8 +879,6 @@ function NotebooksIndexPage() {
     <NotebookPageContent
       config={config}
       startpageFooter={<NotebooksIndexFooter />}
-      showLastAdded={false}
-      showStats={false}
       showExamples={false}
       hideGlobalChat
       pageGradient={false}

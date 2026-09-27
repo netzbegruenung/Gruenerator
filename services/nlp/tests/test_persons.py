@@ -32,7 +32,8 @@ class TestBlocklist:
         assert extract(classifier_over, docs) == []
 
     def test_drops_a_blocked_staff_member(self, classifier_over, make_doc):
-        docs = [per_doc(make_doc, ["Bild", "von", "Vincent", "Willock"], [(2, 4)])]
+        # No credit marker in front, so only the blocklist can catch it.
+        docs = [per_doc(make_doc, ["Mit", "Vincent", "Villwock"], [(1, 3)])]
         assert extract(classifier_over, docs) == []
 
     def test_keeps_politicians_in_the_same_document(self, classifier_over, make_doc):
@@ -54,8 +55,8 @@ class TestBlocklist:
     ):
         # The reason multi-token entries match the whole name: a bare surname
         # line would block every politician who happens to share it.
-        docs = [per_doc(make_doc, ["Ines", "Willock", "kandidiert"], [(0, 2)])]
-        assert [p["person"] for p in extract(classifier_over, docs)] == ["Ines Willock"]
+        docs = [per_doc(make_doc, ["Ines", "Villwock", "kandidiert"], [(0, 2)])]
+        assert [p["person"] for p in extract(classifier_over, docs)] == ["Ines Villwock"]
 
     def test_a_single_token_entry_also_blocks_the_names_it_is_glued_into(
         self, classifier_over, make_doc
@@ -64,6 +65,48 @@ class TestBlocklist:
         # only the bare "Unsplash" let "Unsplash Gemeinsame" through (36 docs).
         docs = [per_doc(make_doc, ["Foto", "Unsplash", "Gemeinsame"], [(1, 3)])]
         assert extract(classifier_over, docs) == []
+
+
+class TestPhotoCredits:
+    """The name in a "Foto: …" credit is the photographer, not a subject.
+
+    Measured 2026-09-27 on the Berlin notebook: a Fraktion photographer was the
+    most frequent "person" (401 head chunks), from lines like
+    `Foto: Vincent Villwock/Grüne Fraktion Berlin` (#3695).
+    """
+
+    @pytest.mark.parametrize(
+        "prefix",
+        [["Foto", ":"], ["Fotos", ":"], ["Bild", "von"], ["©"], ["Bildnachweis", ":"]],
+    )
+    def test_drops_the_name_after_a_credit_marker(self, classifier_over, make_doc, prefix):
+        words = [*prefix, "Jana", "Beispiel", "/", "Grüne", "Fraktion"]
+        start = len(prefix)
+        docs = [per_doc(make_doc, words, [(start, start + 2)])]
+        assert extract(classifier_over, docs) == []
+
+    def test_drops_a_credit_whose_marker_the_ner_pulled_into_the_span(
+        self, classifier_over, make_doc
+    ):
+        docs = [per_doc(make_doc, ["Foto", "Jana", "Beispiel"], [(0, 3)])]
+        assert extract(classifier_over, docs) == []
+
+    def test_keeps_the_subject_named_elsewhere_in_the_credited_document(
+        self, classifier_over, make_doc
+    ):
+        docs = [
+            per_doc(
+                make_doc,
+                ["Foto", ":", "Jana", "Beispiel", "Bettina", "Jarasch", "sprach"],
+                [(2, 4), (4, 6)],
+            )
+        ]
+        assert extract(classifier_over, docs) == [{"person": "Bettina Jarasch", "count": 1}]
+
+    def test_von_alone_is_not_a_credit(self, classifier_over, make_doc):
+        # "Rede von X" must survive: the joiner only counts after a marker.
+        docs = [per_doc(make_doc, ["Rede", "von", "Werner", "Graf"], [(2, 4)])]
+        assert extract(classifier_over, docs) == [{"person": "Werner Graf", "count": 1}]
 
 
 class TestDocumentFrequency:

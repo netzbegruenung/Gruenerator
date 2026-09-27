@@ -8,8 +8,7 @@ import {
 } from '@gruenerator/chat';
 import { type NotebookDepth } from '@gruenerator/contracts';
 import { cn } from '@gruenerator/ui';
-import { useMemo, useState, type ReactNode } from 'react';
-import { HiOutlineChartBar, HiOutlineClock, HiOutlineSparkles } from 'react-icons/hi2';
+import { useState, type ReactNode } from 'react';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
@@ -17,10 +16,7 @@ import { LIVE_SEARCH_MIN_LENGTH } from '../manual-search/useLiveResearch';
 import { NOTEBOOK_COMPOSER_ACCENT, NOTEBOOK_MAGENTA_BG } from '../notebookTheme';
 import { NotebookOmniComposer } from '../omni/NotebookOmniComposer';
 
-import { LastAddedSection } from './LastAddedSection';
-import { NotebookAgentsSection, useNotebookHasAgents } from './NotebookAgentsSection';
 import { NotebookLiveSearch } from './NotebookLiveSearch';
-import { StatisticsSection } from './StatisticsSection';
 
 interface ExampleQuestion {
   icon: string;
@@ -41,10 +37,8 @@ interface NotebookStartpageProps {
   onModeChange: (mode: NotebookDepth) => void;
   answerMode?: NotebookComposerMode;
   onAnswerModeChange?: (mode: NotebookComposerMode) => void;
+  /** Scope of the live search under the composer. */
   recentCollectionIds: string[];
-  showRecentSourceLabel?: boolean;
-  showStats?: boolean;
-  showLastAdded?: boolean;
   showManualSearch?: boolean;
   /** Accepted for caller compatibility; the notebook "Chat" tab was removed. */
   hideGlobalChat?: boolean;
@@ -55,9 +49,6 @@ interface NotebookStartpageProps {
   manualSearchNotebookId?: string;
   /** Accepted for caller compatibility; the notebook "Chat" tab was removed. */
   notebookMention?: string | null;
-  /** Canonical notebook id (e.g. 'brandenburg-notebook') used to surface the
-   *  notebook's LV agents. The agents section self-hides when none match. */
-  notebookId?: string;
   /**
    * Overview mode: render only the intelligent omni composer (ask/route/open in
    * one input) — no live search, no browse sub-tabs. Used by the /notebooks
@@ -71,8 +62,6 @@ interface NotebookStartpageProps {
   footer?: ReactNode;
 }
 
-type BrowseTab = 'zuletzt' | 'agenten' | 'stats';
-
 // Signature 2a gradient — pink radial (light) / deep-green radial (dark). Applied
 // as the full-page background so the hero fills the surface like the other
 // workplace pages instead of sitting in a bounded card. Defined in the leaf
@@ -84,23 +73,6 @@ const HEADING = cn(
   'text-[#3A343B] dark:text-[#E4EDE8] max-md:text-3xl'
 );
 
-const subBase = cn(
-  'inline-flex items-center gap-2 rounded-full px-[17px] py-[9px] text-[13.5px] font-semibold',
-  'border transition-all cursor-pointer select-none'
-);
-const subActive =
-  'bg-white dark:bg-[#2A1B23] border-[#9E93A0] dark:border-[#5A4B57] text-[#4A444C] dark:text-[#C9C2CB]';
-const subInactive = cn(
-  'bg-white/90 dark:bg-white/5 border-[rgba(90,75,87,0.25)]',
-  'text-[#4A444C] dark:text-[#C9C2CB] hover:border-[#9E93A0]'
-);
-
-const BROWSE_TABS: { id: BrowseTab; label: string; Icon: typeof HiOutlineClock }[] = [
-  { id: 'zuletzt', label: 'Zuletzt', Icon: HiOutlineClock },
-  { id: 'agenten', label: 'Agents', Icon: HiOutlineSparkles },
-  { id: 'stats', label: 'Statistiken', Icon: HiOutlineChartBar },
-];
-
 export function NotebookStartpage({
   title,
   placeholder,
@@ -111,36 +83,14 @@ export function NotebookStartpage({
   answerMode,
   onAnswerModeChange,
   recentCollectionIds,
-  showRecentSourceLabel,
-  showStats = true,
-  showLastAdded = true,
   showManualSearch = true,
   manualSearchNotebookId,
-  notebookId,
   omniComposer = false,
   pageGradient = true,
   footer,
 }: NotebookStartpageProps) {
-  const [browseTab, setBrowseTab] = useState<BrowseTab>('zuletzt');
-
   const hasCollections = recentCollectionIds.length > 0;
   const manualSearchAvailable = showManualSearch && hasCollections;
-  const hasAgents = useNotebookHasAgents(notebookId);
-  const lastAddedAvailable = showLastAdded && hasCollections;
-  const statsAvailable = showStats && hasCollections;
-
-  // Which browse sub-tabs exist below the composer.
-  const availableBrowseTabs = useMemo(
-    () =>
-      BROWSE_TABS.filter((t) =>
-        t.id === 'zuletzt' ? lastAddedAvailable : t.id === 'agenten' ? hasAgents : statsAvailable
-      ),
-    [lastAddedAvailable, hasAgents, statsAvailable]
-  );
-
-  const activeBrowseTab = availableBrowseTabs.some((t) => t.id === browseTab)
-    ? browseTab
-    : (availableBrowseTabs[0]?.id ?? 'zuletzt');
 
   // Only the start page searches live, and only in the modes that ask for it.
   const composerText = useAuiState((s) => s.composer.text);
@@ -156,7 +106,7 @@ export function NotebookStartpage({
   if (raised && (!hasText || !liveSearch)) setRaised(false);
 
   // --- Overview surface (/notebooks index + workplace "Wissen"): omni composer
-  //     only. No segmented tabs, no browse sub-tabs. ---
+  //     only. ---
   if (omniComposer) {
     return (
       <PageContainer
@@ -173,42 +123,8 @@ export function NotebookStartpage({
     );
   }
 
-  // --- Individual notebook page: one composer; hits (or the browse sub-tabs)
-  //     below it. ---
-  const browseSlot =
-    availableBrowseTabs.length > 0 ? (
-      <div className="flex flex-col gap-lg">
-        <div className="flex flex-wrap justify-center gap-2.5">
-          {availableBrowseTabs.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setBrowseTab(id)}
-              aria-pressed={activeBrowseTab === id}
-              className={cn(subBase, activeBrowseTab === id ? subActive : subInactive)}
-            >
-              <Icon className="size-[15px] text-[#4A444C] dark:text-[#C9C2CB]" />
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {activeBrowseTab === 'zuletzt' && lastAddedAvailable && (
-          <LastAddedSection
-            embedded
-            collectionIds={recentCollectionIds}
-            showSourceLabel={showRecentSourceLabel}
-          />
-        )}
-        {activeBrowseTab === 'agenten' && notebookId && (
-          <NotebookAgentsSection embedded notebookId={notebookId} />
-        )}
-        {activeBrowseTab === 'stats' && statsAvailable && (
-          <StatisticsSection embedded collectionIds={recentCollectionIds} />
-        )}
-      </div>
-    ) : undefined;
-
+  // --- Individual notebook page: one composer, live hits below it. Everything
+  //     else about the notebook lives on its Übersicht tab. ---
   return (
     <PageContainer
       maxWidth="xl"
@@ -219,8 +135,8 @@ export function NotebookStartpage({
       <div
         className={cn(
           'flex flex-col items-center px-6 transition-[padding] duration-500 ease-out motion-reduce:transition-none md:px-20',
-          // The composer sits in the upper third with the browse tabs right
-          // under it; once hits come in it moves up to give them the page.
+          // The composer sits in the upper third; once hits come in it moves
+          // up to give them the page.
           raised ? 'pt-10' : 'pt-[16vh] max-md:pt-[8vh]'
         )}
       >
@@ -239,15 +155,14 @@ export function NotebookStartpage({
         </div>
       </div>
 
-      {/* Hits take the page's width (four to five columns on a wide screen);
-          the browse tabs stay at reading width. */}
-      <div
-        className={cn(
-          'mx-auto w-full pb-10 pt-10',
-          hasHits ? 'max-w-none' : 'max-w-3xl px-6 md:px-0'
-        )}
-      >
-        {liveSearch ? (
+      {/* Hits take the page's width (four to five columns on a wide screen). */}
+      {liveSearch && (
+        <div
+          className={cn(
+            'mx-auto w-full pb-10 pt-10',
+            hasHits ? 'max-w-none' : 'max-w-3xl px-6 md:px-0'
+          )}
+        >
           <NotebookLiveSearch
             text={composerText}
             submitted={submitted}
@@ -259,13 +174,10 @@ export function NotebookStartpage({
                 ? 'Keine Treffer. Versuche andere Begriffe oder entferne Filter.'
                 : 'Keine Treffer in den Quellen. Mit Enter fragst du die KI.'
             }
-            idle={browseSlot}
             onAnswered={() => setRaised(true)}
           />
-        ) : (
-          browseSlot
-        )}
-      </div>
+        </div>
+      )}
 
       {footer}
     </PageContainer>
