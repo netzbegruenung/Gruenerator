@@ -58,6 +58,22 @@ function parseFilters(raw: string | null): Record<string, string[]> {
   }
 }
 
+/**
+ * A held Enter re-submits on every key repeat (assistant-ui does not check
+ * `event.repeat`) and a double click submits twice — each would open another
+ * tab. The same question within the window counts once; the window slides
+ * with every attempt, so a held key stays swallowed. The composer keeps its
+ * text on purpose (the start page keeps its hits), so clearing it is no fix.
+ */
+export function createRepeatGuard(windowMs = 1000) {
+  let last: { question: string; at: number } | null = null;
+  return (question: string, now = Date.now()): boolean => {
+    const repeat = last !== null && last.question === question && now - last.at < windowMs;
+    last = { question, at: now };
+    return repeat;
+  };
+}
+
 /** The current query string without the handoff params — `?thread=` stays. */
 export function withoutChatHandoff(search: string): string {
   const params = new URLSearchParams(search);

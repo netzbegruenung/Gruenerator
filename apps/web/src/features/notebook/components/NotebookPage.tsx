@@ -22,7 +22,7 @@ import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
-import { buildChatHandoffUrl, readChatHandoff } from '../chatHandoff';
+import { buildChatHandoffUrl, createRepeatGuard, readChatHandoff } from '../chatHandoff';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { getNotebookById } from '../config/notebooksConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
@@ -287,8 +287,10 @@ export const NotebookPageContent = ({
     }
   }, [systemCollectionId, handoff, setActiveFilter]);
 
+  const [isRepeatSubmit] = useState(() => createRepeatGuard());
   const openChatTab = useCallback(
     (question: string) => {
+      if (isRepeatSubmit(question)) return;
       const url = buildChatHandoffUrl(location.pathname, {
         question,
         filters: systemCollectionId ? keywordFilters(activeFiltersStore[systemCollectionId]) : {},
@@ -297,6 +299,7 @@ export const NotebookPageContent = ({
       window.open(url, '_blank', 'noopener');
     },
     [
+      isRepeatSubmit,
       location.pathname,
       systemCollectionId,
       activeFiltersStore,
