@@ -93,19 +93,11 @@ export const OFFICE_SCROLL_ITEM =
 // Desktop (lg) tile sizing for a strip of `tileCount` tiles: ≤6 fill the row (all
 // fully visible, no scroll); ≥7 keep the 5.5-up scroll tease. Set on the scroll
 // row; `OFFICE_SCROLL_ITEM` reads it via `--tile-basis`. Gap at lg is 1rem.
-//
-// `maxTilePx` caps each tile so a short strip (e.g. the 4-tile /studio or 5-tile
-// /office landing) stays tile-sized and centered instead of stretching edge-to-edge.
-// The top-level Arbeiten area cards omit it and fill the row.
-export function officeStripStyle(
-  tileCount: number,
-  opts?: { maxTilePx?: number }
-): React.CSSProperties {
-  const base =
+export function officeStripStyle(tileCount: number): React.CSSProperties {
+  const lgBasis =
     tileCount <= 6
       ? `calc((100% - ${tileCount - 1}rem) / ${tileCount})`
       : 'calc((100% - 5rem) * 0.1818)';
-  const lgBasis = opts?.maxTilePx != null ? `min(${base}, ${opts.maxTilePx}px)` : base;
   return { '--tile-basis': lgBasis } as React.CSSProperties;
 }
 
@@ -439,10 +431,13 @@ export const OfficeSection = React.memo(() => {
     [favouriteIds]
   );
   const openMenu = TOOL_MENUS.find((menu) => menu.id === openMenuId);
+  // Both rows share the top row's sizing so the Weitere tiles match the area
+  // tiles above them — sized by their own (larger) count they came out wider.
+  const stripStyle = officeStripStyle(tiles.length + TOOL_MENUS.length);
 
   return (
     <>
-      <div className={OFFICE_SCROLL_ROW} style={officeStripStyle(tiles.length + TOOL_MENUS.length)}>
+      <div className={OFFICE_SCROLL_ROW} style={stripStyle}>
         {tiles.map((tool) => (
           <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
             <OfficeTile tool={tool} />
@@ -459,10 +454,7 @@ export const OfficeSection = React.memo(() => {
         ))}
       </div>
       {openMenu && (
-        <div
-          className={`${OFFICE_SCROLL_ROW} mt-3 sm:mt-4`}
-          style={officeStripStyle(openMenu.items.length, { maxTilePx: 200 })}
-        >
+        <div className={`${OFFICE_SCROLL_ROW} mt-3 sm:mt-4`} style={stripStyle}>
           {openMenu.items.map((item) => (
             <div key={item.id} className={OFFICE_SCROLL_ITEM}>
               <OfficeMenuItemTile item={item} />
