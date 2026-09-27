@@ -198,7 +198,7 @@ describe('toGroupFeedItems — Beiträge', () => {
   });
 
   it('sorts posts among shares by date, pinned first', () => {
-    const items = toGroupFeedItems({ ...content, group_posts: [post()] });
+    const items = toGroupFeedItems({ ...content, group_posts: [post()] } as never);
     // Zwei angeheftete Freigaben stehen oben, dann der neueste Eintrag.
     expect(items.slice(0, 3).map((i) => i.key)).toEqual([
       'canvas_template:t1',
