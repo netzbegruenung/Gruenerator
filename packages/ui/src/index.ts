@@ -3,7 +3,18 @@ export { RetroGrid } from './components/retro-grid';
 export { ImageComparisonSlider } from './components/ui/image-comparison-slider-horizontal';
 export { cn } from './lib/cn';
 export { useIsMobile } from './hooks/use-mobile';
-export { useIsNarrowerThan } from './hooks/use-container-width';
+export { useIsNarrowerThan, useContainerWidth } from './hooks/use-container-width';
+export {
+  useScreenCornerReservation,
+  useMeasuredCornerReservation,
+  useCornerClearance,
+  cornerInsetStyle,
+  SCREEN_CORNERS,
+  type ScreenCorner,
+  type CornerClearance,
+  type CornerReservation,
+  type MeasuredCornerReservation,
+} from './hooks/use-screen-corner';
 export {
   ResponsiveMenu,
   ResponsiveMenuSection,
@@ -73,6 +84,7 @@ export {
   ComboboxContent,
   ComboboxList,
   ComboboxItem,
+  ComboboxCollection,
   ComboboxGroup,
   ComboboxLabel,
   ComboboxEmpty,
@@ -217,7 +229,6 @@ export {
   type StepProps,
 } from './components/multi-step-form';
 export { SelectCard, type SelectCardProps } from './components/select-card';
-export { SmartInput, type SmartInputOption, type SmartInputProps } from './components/smart-input';
 export { LiteTooltip, type LiteTooltipProps } from './components/lite-tooltip';
 export { Toaster } from './components/sonner';
 export { toast } from 'sonner';

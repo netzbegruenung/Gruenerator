@@ -1,6 +1,13 @@
 import * as React from 'react';
 
+import { useScreenCornerReservation, type CornerReservation } from '../hooks/use-screen-corner';
 import { cn } from '../lib/cn';
+
+// Deckt sich mit dem Default-Anker unten: 1.5rem Abstand + 3rem Höhe.
+const DEFAULT_RESERVATION: CornerReservation = {
+  corner: 'bottom-right',
+  vertical: 'calc(4.5rem + env(safe-area-inset-bottom))',
+};
 
 export interface FabProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   /** Icon element rendered inside the button (sized to ~22px via CSS). */
@@ -9,6 +16,12 @@ export interface FabProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
   active?: boolean;
   /** Renders a small status dot in the top-right corner (e.g. disconnected). */
   showDot?: boolean;
+  /**
+   * Kanten-Anmeldung, damit frei schwebende Nachbarn (Feedback-Button) ausweichen
+   * statt den FAB zu verdecken. `null`, wenn `className` den Anker verschiebt und
+   * die Voreinstellung damit falsch wäre.
+   */
+  reserve?: CornerReservation | null;
 }
 
 /**
@@ -18,9 +31,18 @@ export interface FabProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
  * override via `className` if a surface needs a different anchor.
  */
 export const Fab = React.forwardRef<HTMLButtonElement, FabProps>(function Fab(
-  { icon, active = false, showDot = false, className, ...props },
+  { icon, active = false, showDot = false, reserve, className, ...props },
   ref
 ) {
+  const reservation = reserve === undefined ? DEFAULT_RESERVATION : reserve;
+  useScreenCornerReservation({
+    corner: reservation?.corner ?? 'bottom-right',
+    vertical: reservation?.vertical,
+    horizontal: reservation?.horizontal,
+    blocked: reservation?.blocked,
+    active: reservation != null && (reservation.active ?? true),
+  });
+
   return (
     <button
       ref={ref}

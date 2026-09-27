@@ -49,72 +49,28 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 import { jsonrepair } from 'jsonrepair';
 import { z } from 'zod';
 
+import {
+  AREA_HINTS,
+  foldersForChangedFiles,
+  README_FOLDER,
+  SCOPE_FOLDERS,
+  TOURS_FOLDER,
+} from './docsFreshnessAreas.js';
+import { neutralizeGithubMentions } from './utils/githubMentions.js';
 import { parallelLimit } from './utils/parallelLimit.js';
 
 // ── Paths ───────────────────────────────────────────────────────────────────
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '../..');
 const DOCS_ROOT = path.join(REPO_ROOT, 'documentation', 'docs');
-// In-app product tours audited as pseudo-docs under the virtual folder
-// "touren/": the step titles/descriptions are UI claims exactly like doc
-// prose, they just live in TS modules instead of markdown.
+// TOURS_FOLDER / README_FOLDER (the virtual folders these two pseudo-doc
+// sources are audited under) live in docsFreshnessAreas.ts — they are keys of
+// AREA_HINTS.
 const TOURS_ROOT = path.join(REPO_ROOT, 'apps', 'web', 'src', 'features', 'tours');
-const TOURS_FOLDER = 'touren';
-// The repo-root README is audited as a pseudo-doc under the virtual folder
-// "readme/": its feature list, workspace tables, command list and provider
-// claims drift against the code exactly like doc prose does.
-const README_FOLDER = 'readme';
 const README_DOC = `${README_FOLDER}/README.md`;
 const README_PATH = path.join(REPO_ROOT, 'README.md');
 
-// ── Scope ───────────────────────────────────────────────────────────────────
-// Feature/tutorial docs only — folders that describe the app UI. Content archives
-// (archiv, intern) and concept docs (grundlagen) are intentionally excluded: they
-// have nothing to verify against code.
-const SCOPE_FOLDERS = [
-  'ueber-den-gruenerator',
-  'chat',
-  'office',
-  'wissen',
-  'grueneratoren',
-  'konto',
-  'integrationen',
-  'experimente',
-] as const;
-
-// Optional hints (doc folder → likely source dirs) to focus the agent's search and
-// cut token use. Non-essential; the agent can grep without them.
-const AREA_HINTS: Record<string, string> = {
-  // "Was kann ich fragen?" is verified against the chat's own registries, so the
-  // backend classifier/router dirs count as source for this folder too.
-  chat: 'packages/chat, apps/web/src/features/chat, apps/web/src/features/models, apps/api/routes/chat, apps/api/agents/langgraph/ChatGraph, packages/contracts/src/schemas',
-  grueneratoren: 'apps/web/src/features/agents, apps/web/src/features/agentura, packages/chat',
-  wissen: 'apps/web/src/features/notebook',
-  experimente: 'apps/web/src/features/monitor',
-  konto:
-    'apps/web/src/features/wolke, apps/web/src/features/user-defaults, apps/web/src/features/groups, apps/web/src/features/settings',
-  integrationen: 'apps/web/src/features/connections, apps/api/routes/mcp-server',
-  // The Office articles describe four editors that share one document model, so
-  // the hint spans the feature dirs, their packages and the contracts the
-  // generated manifest reads. Without this entry no Office code change would
-  // ever trigger a docs check — AREA_HINTS is also the reverse map used by
-  // docs-freshness-pr.yml.
-  office:
-    'apps/web/src/features/docs, apps/web/src/features/sheets, apps/web/src/features/presentations, apps/web/src/features/boards, packages/sheets, packages/presentations, packages/docs, packages/chat/src/editor-surface, packages/contracts/src/schemas',
-  // Every surface a tour steps through, plus the tour modules themselves —
-  // so a PR touching a toured surface re-audits the tour texts (the anchor
-  // EXISTENCE check is deterministic: scripts/check-tour-anchors.mjs).
-  [TOURS_FOLDER]:
-    'apps/web/src/features/tours, apps/web/src/features/workplace, apps/web/src/components/layout/Sidebar, apps/web/src/features/docs, apps/web/src/features/sheets, apps/web/src/features/presentations, apps/web/src/features/image-studio, packages/canvas-editor, packages/presentations',
-  // Renamed twice (Gruppen → Spaces → Projekte); the code still says "groups"
-  // throughout, so the hint points at the old names on purpose.
-  // README claims are structural (workspace layout, commands, AI providers,
-  // env vars), so the reverse map triggers on structural files — a bare
-  // "package.json" prefix only matches the root manifest since changed paths
-  // are repo-relative.
-  [README_FOLDER]:
-    'pnpm-workspace.yaml, package.json, turbo.json, .env.example, apps/api/workers/providers, apps/api/services/ai',
-};
+// SCOPE_FOLDERS and AREA_HINTS: see docsFreshnessAreas.ts.
 
 const DEFAULT_MODEL = process.env.DOCS_CHECK_MODEL || 'claude-sonnet-5';
 
@@ -175,7 +131,17 @@ const FindingSchema = z.object({
   claim: z.string(),
   docQuote: z.string(),
   codeEvidence: z.string(),
-  severity: z.enum(['high', 'medium']),
+  /**
+   * `low` is ACCEPTED but never reported — see `extractVerdict`.
+   *
+   * The prompt asks for high-confidence discrepancies only, and the enum used to
+   * encode that by allowing just the two levels. The effect was the opposite of
+   * the intent: on 11.08.2026 a model returned two `low` findings, the whole
+   * verdict failed to parse, the retry repeated it, and the article
+   * (chat/ki-chat.mdx) ended up with NO result at all — neither ✅ nor ⚠️. A
+   * severity we reject costs us the high and medium findings sitting next to it.
+   */
+  severity: z.enum(['high', 'medium', 'low']),
   suggestedFix: z.string(),
 });
 type Finding = z.infer<typeof FindingSchema>;
@@ -258,24 +224,6 @@ function docSourcePath(docPath: string): string {
   return `documentation/docs/${docPath}`;
 }
 
-// Reverse of AREA_HINTS: given the source files a PR changed, which doc folders
-// could be affected. Coarse (folder-level) on purpose — each folder holds only a
-// few docs, and the AI audit filters false positives downstream. Folders without
-// an AREA_HINTS entry (intro/signal docs) are never triggered by a source change.
-function foldersForChangedFiles(changedFiles: string[]): string[] {
-  const affected = new Set<string>();
-  for (const [folder, dirsCsv] of Object.entries(AREA_HINTS)) {
-    const prefixes = dirsCsv
-      .split(',')
-      .map((d) => d.trim())
-      .filter(Boolean);
-    if (changedFiles.some((f) => prefixes.some((p) => f.startsWith(p)))) {
-      affected.add(folder);
-    }
-  }
-  return [...affected];
-}
-
 function docsForChangedFiles(changedFilesPath: string): string[] {
   const changed = readFileSync(changedFilesPath, 'utf-8')
     .split('\n')
@@ -289,11 +237,12 @@ const SYSTEM_PROMPT = `You are a documentation freshness auditor for the Grüner
 
 Key facts about the codebase:
 - The web app has NO i18n layer. Every user-facing German string is hardcoded directly in JSX: button text, \`title="..."\` attributes, \`<DialogTitle>...</DialogTitle>\`, menu/tab labels.
-- UI source lives mainly in \`apps/web/src/features/<feature>/\`. Shared chat UI and the slash-command / model / tool configs live in \`packages/chat/\`. Shared components live in \`packages/shared/src/\`.
-- Slash-commands (e.g. \`/antrag\`, \`/presse\`) and \`@\`-mentions (e.g. \`@grundsatz\`, \`@websearch\`) are defined in config files — search \`packages/chat\` for them.
+- UI source lives mainly in \`apps/web/src/features/<feature>/\`. Shared chat UI and the mention / model / tool configs live in \`packages/chat/\`. Shared components live in \`packages/shared/src/\`.
+- \`@\` is the ONLY mention trigger a user can TYPE — recipes, sources (\`@grundsatz\`) and tools (\`@recherche\`) all live in one list behind it (\`packages/chat/src/lib/mentionDetection.ts\`, \`mentionables.ts\`). Recipes used to have their own \`/\` trigger; a doc that still tells users to type \`/\` is a DISCREPANCY.
+- \`/\` is nevertheless NOT gone, so do not treat every \`/\` you find as dead code: for recipes it survives as the written token (\`computeMentionInsertion\`, live on mobile — it lands in the visible draft the moment a recipe is picked; on web only at send time via \`buildMentionPrefix\`) and \`mentionParser.ts\` still reads it so old messages keep resolving. Judge a trigger claim by the key the user PRESSES, not by the character that ends up in the text.
 
 Method:
-1. Read the article and extract every CONCRETE, VERIFIABLE UI claim: exact button/menu/tab labels, slash-command names, @-mention shortcuts, modal/dialog titles, icon names, and described positions ("oben links", "in der Seitenleiste").
+1. Read the article and extract every CONCRETE, VERIFIABLE UI claim: exact button/menu/tab labels, @-mention shortcuts (including the trigger character the doc tells the user to type), modal/dialog titles, icon names, and described positions ("oben links", "in der Seitenleiste").
 2. For each claim, use Grep / Glob / Read to locate the corresponding code and confirm the exact string / command still exists.
 3. Classify each claim: confirmed (still accurate) or DISCREPANCY (the doc says X but the code clearly shows Y, or X no longer exists anywhere).
 
@@ -307,6 +256,7 @@ JSON output rules — the verdict is parsed by a strict JSON parser, not read by
 - Do NOT use markdown code spans (backticks) or nested triple-backtick fences inside any JSON string value (\`claim\`, \`docQuote\`, \`codeEvidence\`, \`suggestedFix\`). Write identifiers, commands and code snippets as plain text instead, e.g. codeEvidence: apps/foo.tsx:12 shows label 'Speichern', not codeEvidence: \`apps/foo.tsx:12\` shows \`Speichern\`.
 - Every double quote inside a string value MUST be escaped (\\").
 - Do not include literal newlines inside a string value — write the sentence on one line.
+- \`severity\` must be exactly "high" or "medium". A discrepancy you would rate lower than that is one you should not report at all (see the rule above): leave it out.
 
 When finished, output your verdict as a SINGLE fenced \`\`\`json code block and nothing after it, matching exactly this shape:
 {
@@ -352,7 +302,7 @@ function buildUserPrompt(docPath: string, content: string): string {
       '- Workspace tables (apps / packages / services) and their counts — compare against the actual `apps/`, `packages/` and `services/` directories.',
       '- Development commands — compare against the `scripts` in the root `package.json`.',
       '- Framework/version claims and badges (React, Vite, Expo, Node, Express, Tailwind) — compare against the relevant `package.json` dependencies.',
-      '- AI provider claims — compare against `apps/api/workers/providers/` and `apps/api/services/ai/`. Providers documented as removed elsewhere must not be advertised.',
+      '- AI provider claims — compare against `apps/api/services/ai/execution/` and `apps/api/services/ai/`. Providers documented as removed elsewhere must not be advertised.',
       '- Environment variable names in the Configuration section — compare against `.env.example`.',
       '- Feature claims that name concrete surfaces or packages — confirm the named feature dir/package exists.',
       '',
@@ -381,7 +331,7 @@ function buildUserPrompt(docPath: string, content: string): string {
     .join('\n');
 }
 
-function extractVerdict(text: string): Verdict {
+function extractVerdict(text: string, docPath: string): Verdict {
   const blocks = [...text.matchAll(/```json\s*([\s\S]*?)```/g)];
   let raw: string;
   if (blocks.length > 0) {
@@ -395,7 +345,20 @@ function extractVerdict(text: string): Verdict {
     raw = text.slice(first, last + 1);
   }
   const parsed = JSON.parse(jsonrepair(raw)) as unknown;
-  return VerdictSchema.parse(parsed);
+  const verdict = VerdictSchema.parse(parsed);
+
+  // Drop `low` rather than reject it: the noise policy stays ("report only
+  // high-confidence discrepancies"), but a stray severity no longer discards the
+  // findings around it. A verdict left with nothing reportable counts as ok —
+  // that is what "not worth reporting" means, and without the reset a low-only
+  // verdict would render as "stale" with an empty finding list.
+  const reportable = verdict.findings.filter((f) => f.severity !== 'low');
+  const dropped = verdict.findings.length - reportable.length;
+  if (dropped > 0) {
+    // docPath in the line: two docs are audited concurrently by default.
+    console.log(`      ℹ️  ${docPath}: ${dropped} low-severity finding(s) dropped (report policy)`);
+  }
+  return { upToDate: reportable.length === 0 ? true : verdict.upToDate, findings: reportable };
 }
 
 const STRICT_JSON_RETRY_NOTE =
@@ -457,7 +420,7 @@ async function runOneAudit(
     throw new Error(`agent ended: ${endedBadly}`);
   }
   try {
-    return extractVerdict(finalText);
+    return extractVerdict(finalText, docPath);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     throw new JsonVerdictError(message);
@@ -582,11 +545,11 @@ function buildIssueBody(result: DocResult, today: string): string {
   );
   lines.push('');
   for (const [i, f] of result.findings.entries()) {
-    lines.push(`### ${i + 1}. ${f.claim} _(${f.severity})_`);
+    lines.push(`### ${i + 1}. ${neutralizeGithubMentions(f.claim)} _(${f.severity})_`);
     lines.push('');
-    lines.push(`- **Doc says:** ${f.docQuote}`);
-    lines.push(`- **Code shows:** ${f.codeEvidence}`);
-    lines.push(`- **Suggested fix:** ${f.suggestedFix}`);
+    lines.push(`- **Doc says:** ${neutralizeGithubMentions(f.docQuote)}`);
+    lines.push(`- **Code shows:** ${neutralizeGithubMentions(f.codeEvidence)}`);
+    lines.push(`- **Suggested fix:** ${neutralizeGithubMentions(f.suggestedFix)}`);
     lines.push('');
   }
   lines.push('---');
@@ -692,10 +655,10 @@ function buildPrCommentBody(results: DocResult[], today: string): string {
     );
     lines.push('');
     for (const [i, f] of r.findings.entries()) {
-      lines.push(`**${i + 1}. ${f.claim}** _(${f.severity})_`);
-      lines.push(`- **Doku sagt:** ${f.docQuote}`);
-      lines.push(`- **Code zeigt:** ${f.codeEvidence}`);
-      lines.push(`- **Vorschlag:** ${f.suggestedFix}`);
+      lines.push(`**${i + 1}. ${neutralizeGithubMentions(f.claim)}** _(${f.severity})_`);
+      lines.push(`- **Doku sagt:** ${neutralizeGithubMentions(f.docQuote)}`);
+      lines.push(`- **Code zeigt:** ${neutralizeGithubMentions(f.codeEvidence)}`);
+      lines.push(`- **Vorschlag:** ${neutralizeGithubMentions(f.suggestedFix)}`);
       lines.push('');
     }
     lines.push('</details>');
@@ -710,7 +673,9 @@ function buildPrCommentBody(results: DocResult[], today: string): string {
     );
     lines.push('');
     for (const r of errored) {
-      lines.push(`- \`${docSourcePath(r.docPath)}\`: ${r.error ?? 'unbekannter Fehler'}`);
+      lines.push(
+        `- \`${docSourcePath(r.docPath)}\`: ${neutralizeGithubMentions(r.error ?? 'unbekannter Fehler')}`
+      );
     }
     lines.push('');
   }

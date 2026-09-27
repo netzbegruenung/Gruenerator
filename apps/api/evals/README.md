@@ -18,7 +18,12 @@ Every bug we found by hand is now a permanent, automated check.
 2. **LLM judge** (`eval:judge`) — post-pass over `last-run.json` for what regex
    can't score: groundedness ([N] actually supported), narration honesty (text
    vs executed actions), known-answer contradiction, German/AT quality,
-   long-thread parity. Model: `verdigado-pro` (free, LiteLLM proxy), temp 0, JSON verdicts.
+   long-thread parity. Model: `gemma-4-31b-it` (Cortecs), temp 0, JSON verdicts.
+   `groundedness` und `unsourced_confidence` sind ein Paar: die erste setzt bei
+   null Quellen aus (ihre Frage ist dann leer), die zweite läuft dann an ihrer
+   Stelle und fragt, ob der Text Belegtes im Indikativ behauptet, ohne seine
+   Grundlage kenntlich zu machen. Eine Korpuszeile mit `judge: ["groundedness"]`
+   bekommt die Gegenprobe automatisch — sie muss nicht angefasst werden (#2953).
 3. **Long threads** (`eval:longthread`) — `padTurns` breadth probes + golden
    15–25-turn scenarios (`"slow": true`, only with `EVAL_SLOW=1`). To make
    compaction fire fast locally, start the backend with
@@ -43,6 +48,11 @@ EVAL_BASE_URL=https://<test-host> EVAL_BYPASS_TOKEN=<token> EVAL_MODEL_ID=gemma-
 
 # just the multi-turn cases
 EVAL_FILTER=multiturn EVAL_BYPASS_TOKEN=<token> pnpm --filter @gruenerator/api eval:chat
+
+# the real @deepresearch runs — minutes and money each, and each one spends a
+# Baum from the shared daily budget. Off by default.
+EVAL_DEEP_RESEARCH=1 EVAL_FILTER=search-deep EVAL_BYPASS_TOKEN=<token> \
+  pnpm --filter @gruenerator/api eval:chat
 ```
 
 The backend needs `ALLOW_DEV_AUTH_BYPASS=true` + a matching `DEV_AUTH_BYPASS_TOKEN`
@@ -58,30 +68,92 @@ Do run the suite **once with `CHAT_AGENT_LOOP=false`** when you touch the
 single-pass path (source carry, respondNode gating, searchNode fallbacks) — the
 path-independent assertions (`grounded`, `cited`, `retainsPriorSources`) are the
 ones that hold in both configurations, and that lane is otherwise never
-exercised. Run **both lanes** — the sharepic-in-split bug was invisible on
+exercised. `EVAL_FILTER=search-mention` is the named subset for that run: the
+`@recherche`/`@dokumente` scenarios are the before/after anchor of the mention
+lane. With the loop on, the mention carries the turn into the loop with its
+tool pinned (`demoted` + `toolsMustInclude`); with it off, the same turn takes
+the single-pass search path and asserts the effect (`expectWhenLoopOff`). The
+scenario cannot carry the flag itself — `CHAT_AGENT_LOOP` is read by the backend at request
+time, and the harness only posts to a backend somebody else started.
+
+**Set `EVAL_LOOP_OFF=1` on that run.** It is the operator telling the harness
+what the backend was started with; nothing detects it. Turns that carry an
+`expectWhenLoopOff` then check THAT assertion instead of `expect`. The three
+`search-web` scenarios are why it exists: with the loop off they failed
+_exclusively_ at `tool:web_search: missing; called: []` while grounding and
+citations held — the single-pass path searches **in the graph** rather than as a
+tool call, and `toolsMustInclude` only ever sees tool calls (R2 acceptance
+report §5(b)). Weakening `expect` would have given up the loop guard as well,
+so the effect assertion (`grounded`/`cited`) lives beside it instead. Note this
+does **not** put `search-web` into `EVAL_FILTER=search-mention` — that subset
+stays the two mention scenarios. Run **both lanes** — the sharepic-in-split bug was invisible on
 Mistral (unified); use `EVAL_MODEL_ID=mistral` and a split lane (e.g. `gemma-4`).
 `.github/workflows/chat-eval-live.yml` ("Chat Eval (Live)") does exactly this
 against the deployed test env (matrix over both lanes, judge blocking,
 per-lane baselines) — triggered manually via `workflow_dispatch`, not on a
 schedule.
 
+**`EVAL_MODEL_ID=mistral` pins nothing — it means AUTO.** `resolveModel`
+(`routes/chat/services/responseStreamingService.ts`) treats `mistral` as a
+synonym for `auto` alongside the empty value, so that arm measures whatever the
+auto policy picks per intent (mostly the split gemma lane, `mistral-medium-3.5`
+only where the policy chooses it). The `gemma-4` arm _is_ pinned. So the matrix
+reads "auto vs pinned gemma-4", not "Mistral vs Gemma" — worth knowing before
+reading a per-lane baseline as a statement about Mistral. For an actually pinned
+Mistral lane, send `mistral-medium-3.5`. Cost 18.08.2026: half a nightly run,
+spent on the wrong conclusion.
+
+**A run without `INTERN_CONTENT_DIR` measures a different product.** The API
+loads recipe and persona prompt text from disk at runtime
+(`services/skills/internalPrompts.ts`); without the directory every agent falls
+back to a generic persona and the backend says so once per agent at boot
+(`ERROR [AgentLoader] No internal systemRole for "…"`). The routing assertions
+still mean what they say — intent, tools, latency, thread identity do not depend
+on persona text. Everything about ANSWER QUALITY does: `topic:… not covered`,
+the judge's `groundedness` and `german_quality` verdicts, refusal wording. Check
+the backend's boot log before reading those as product findings.
+Der Harness prüft das seit 19.08.2026 selbst und **bricht ab**, wenn das
+Verzeichnis fehlt; `EVAL_ALLOW_GENERIC_PERSONAS=1` erzwingt den Lauf und setzt
+stattdessen eine Warnzeile in den Kopf. Zeigt `EVAL_BASE_URL` auf einen fremden
+Host, kann er nichts sehen und sagt genau das — dann gilt weiter: erst ins
+Boot-Log des Backends schauen.
+
+**Der Messrechner darf während des Laufs nicht schlafen.** Node-Timer stehen im
+Schlaf still, die Wanduhr läuft weiter — ein Zug, der in einen Sleep→DarkWake-
+Zyklus fällt, wird mit dessen voller Dauer gemessen und endet oft in
+`stream: terminated`. Der Lauf vom 18.08.2026 hat sich daran verschluckt: der
+„20,5-Minuten-Stall" (`autolane-saveasdoc-after-research`, 1.229.798 ms) waren
+995 s Schlaf und 235 s Arbeit, und **jeder einzelne** `streamCompleted:
+terminated`-Fehlschlag der gemma-4-Lane war derselbe Effekt — die vermeintlichen
+„14 Szenarien, die nur auf gemma-4 fallen" schrumpfen bereinigt auf fünf. Roh
+las sich das als p95 984.779 ms; schlafbereinigt über alle 319 Züge beider Lanes
+p50 7,9 s · p95 124 s · p99 159 s · max 235 s.
+
+Also vor dem Lauf `caffeinate -dimsu pnpm eval:chat` (macOS) oder den Deckel
+offen lassen. Und hinterher, bei jedem Ausreisser über ~5 Minuten, erst
+`pmset -g log | grep -E "Entering Sleep state|DarkWake|Wake from"` gegen die
+Log-Lücke halten, bevor daraus ein Befund wird.
+
 ## Env
 
-| var                         | default                 | purpose                                     |
-| --------------------------- | ----------------------- | ------------------------------------------- |
-| `EVAL_BASE_URL`             | `http://localhost:3001` | backend base                                |
-| `EVAL_BYPASS_TOKEN`         | —                       | `x-dev-auth-bypass` header                  |
-| `EVAL_MODEL_ID`             | auto                    | force a model lane for every case           |
-| `EVAL_FILTER`               | —                       | run only ids/categories containing this     |
-| `EVAL_SLOW=1`               | —                       | include `"slow"` (golden long) scenarios    |
-| `EVAL_MCP=1`                | —                       | include `"mcpLane"` scenarios (needs setup) |
-| `EVAL_CONCURRENCY`          | 1                       | scenarios in parallel (turns stay serial)   |
-| `EVAL_BASELINE`             | `./baseline.json`       | regression baseline (per-lane in CI)        |
-| `EVAL_UPDATE_BASELINE=1`    | —                       | overwrite the baseline with this run        |
-| `EVAL_RECORD_DIR`           | —                       | record raw SSE per turn (E2E fixtures)      |
-| `EVAL_DECISION_DIR`         | —                       | read decision journals back, render maps    |
-| `LITELLM_BASE_URL/_API_KEY` | —                       | judge only (verdigado proxy)                |
-| `EVAL_JUDGE_BLOCKING=1`     | —                       | judge failures set exit code                |
+| var                             | default                 | purpose                                            |
+| ------------------------------- | ----------------------- | -------------------------------------------------- |
+| `EVAL_BASE_URL`                 | `http://localhost:3001` | backend base                                       |
+| `EVAL_BYPASS_TOKEN`             | —                       | `x-dev-auth-bypass` header                         |
+| `EVAL_MODEL_ID`                 | auto                    | pin a lane; `mistral`/`auto` mean AUTO             |
+| `EVAL_FILTER`                   | —                       | run only ids/categories containing this            |
+| `EVAL_SLOW=1`                   | —                       | include `"slow"` (golden long) scenarios           |
+| `EVAL_MCP=1`                    | —                       | include `"mcpLane"` scenarios (needs setup)        |
+| `EVAL_SYSTEM_MCP=1`             | —                       | include `"systemMcpLane"` (bahn/wetter/news/hotel) |
+| `EVAL_ALLOW_GENERIC_PERSONAS=1` | —                       | run without `INTERN_CONTENT_DIR` (warns)           |
+| `EVAL_MEMORY=1`                 | —                       | include `memories` scenarios (seed + clean memory) |
+| `EVAL_CONCURRENCY`              | 1                       | scenarios in parallel (turns stay serial)          |
+| `EVAL_BASELINE`                 | `./baseline.json`       | regression baseline (per-lane in CI)               |
+| `EVAL_UPDATE_BASELINE=1`        | —                       | overwrite the baseline with this run               |
+| `EVAL_RECORD_DIR`               | —                       | record raw SSE per turn (E2E fixtures)             |
+| `EVAL_DECISION_DIR`             | —                       | read decision journals back, render maps           |
+| `CORTECS_API_KEY`               | —                       | judge only (Cortecs)                               |
+| `EVAL_JUDGE_BLOCKING=1`         | —                       | judge failures set exit code                       |
 
 ## Decision maps from a live run
 
@@ -112,6 +184,55 @@ live map is **one sample, not a baseline** — the same prompt can classify
 differently on the next run, so a diff between two live maps is evidence to read,
 never an assertion to fail on. The committed, diffable maps live in the simulated
 lane (`routes/chat/__integration__/decisions/`).
+
+## BGSt-Belegdisziplin (`bgst-beleg`, `bgst-korpus`)
+
+Zwei Korpora aus dem Prüfplan der Bundesgeschäftsstelle. Sie messen eine Sache,
+die der Rest des Korpus nicht misst: ob eine Auskunft **belegt und ehrlich** ist —
+also ob die richtige Zahl kommt, ob sie aus dem richtigen Dokument kommt, und ob
+eine Lücke im Material als Lücke gemeldet wird statt plausibel gefüllt zu werden.
+
+```bash
+pnpm --filter @gruenerator/api eval:bgst          # Lane A, laeuft ueberall
+pnpm --filter @gruenerator/api eval:bgst:korpus   # Lane B, braucht den Bestand
+EVAL_FILTER=bgst-k3 pnpm --filter @gruenerator/api eval:chat   # einzelne Items
+```
+
+Die Aufteilung ist nicht kosmetisch. **Lane A legt den Beleg IN den Prompt** und
+misst damit ausschliesslich, was NACH dem Retrieval passiert — Entnahme,
+Distraktor-Widerstand, Abstinenz. Sie braucht kein Notebook und kein
+eingelesenes Material, ihr Ergebnis ist eine Aussage über das Modell statt über
+die Umgebung. **Lane B fragt denselben Sachverhalt gegen den echten Bestand** und
+misst damit das Retrieval. Erst der Vergleich beider sagt, wo ein Fehlschlag
+sitzt: fällt Lane B und Lane A besteht, ist die Suche die Ursache und kein Prompt
+repariert das.
+
+Lane B ist ohne `EVAL_BGST_KORPUS=1` übersprungen (`bgstKorpusLane`), weil die
+Sammlung `bgst-beschluesse` heute auf keinem Zielsystem eingelesen ist.
+
+Beide Korpora sind **generiert** — `pnpm --filter @gruenerator/api eval:bgst:build`
+aus `evals/tools/buildBgst*.ts`. Die Prompts tragen mehrzeilige Belegpassagen;
+die als `\n`-Ketten in JSONL von Hand zu pflegen ist der sichere Weg in einen
+Tippfehler, den niemand sieht. Änderungen gehören in die Generatoren, nicht in
+die `.jsonl`.
+
+Zwei Fallen, beide im Kalibrierlauf vom 27.08.2026 gemessen — der erste Lauf
+meldete 4/14, davon waren **neun Fehlschläge Fehler des Korpus und nicht des
+Produkts**:
+
+- **Verbotene Werte gehören auf das Antwortfeld verankert** (`(a) 106.451`, nicht
+  `106.451`). Das Antwortformat verlangt in `(b)` die Fundstelle, und die trägt
+  im Datums-Item genau den Distraktor; ein Modell, das seinen Beleg
+  zurückzitiert, schreibt ihn ohnehin in den Text, ohne ihn zu verwenden. Beides
+  ist gutes Verhalten.
+- **`abstains: false` funktioniert hier nicht.** Jeder Prompt endet mit „antworte
+  ausschliesslich: NICHT ENTHALTEN", und die Modelle schreiben zurück, dass das
+  hier nicht zutrifft. Die Regex sieht die Verneinung nicht. Die Gegenrichtung
+  trägt `topicsCovered`: wer abstinent antwortet, nennt den verlangten Wert nicht.
+
+Ebenfalls aus dem Lauf: `maxToolCalls: 0` ist für diese Items falsch. Vier der
+fünf Läufe, die trotz Beleg im Prompt gesucht haben, haben richtig geantwortet.
+Der Werkzeugaufruf ist keine Fehlfunktion — die erfundene Angabe ist es.
 
 ## Corpus
 
@@ -147,6 +268,23 @@ guard), `answerMustNotContain` (payload strings whose presence proves an
 injection was executed). `"knownFailure": true` documents an open bug: the
 scenario runs and reports (🟡) but never fails the baseline — drop the flag once
 fixed.
+
+Zwei Lane-Flags halten Szenarien aus dem Vorgabelauf, deren Rot eine Aussage
+über die UMGEBUNG wäre und keine über den Code: `"mcpLane"` (vom Nutzer
+verbundene MCP-Server, `EVAL_MCP=1`) und `"systemMcpLane"` (die Server-seitigen
+System-Connectoren bahn/wetter/news/hotel, `EVAL_SYSTEM_MCP=1`). Ohne die
+`SYSTEM_MCP_*_URL` am Backend weicht der Loop folgerichtig auf `web_search` aus
+— vier der zwanzig Fehlschläge am 18.08.2026 waren genau das, dauerhaftes
+Rauschen unter jeder Vorher/Nachher-Differenz.
+
+**`routing` nimmt nur LEBENDE Intents.** Der Loader prüft den Wert gegen
+`DISPOSITION_BY_INTENT` und lehnt einen `retired`-Intent mit Datei und Zeile ab.
+Bis 19.08.2026 prüften sieben Szenarien gegen `bahn`/`wetter`/`news`/`hotel`/
+`reise`/`umfragen` — seit dem Registry-Umbau erzeugt der Klassifikator die nicht
+mehr, der Turn läuft als `agentic` und ruft das richtige Werkzeug. Sie liefen
+fachlich richtig und meldeten trotzdem rot. **Der Werkzeug-Aufruf ist die
+Wahrheit, nicht der Intent-Name**: was ein stillgelegter Intent früher zusicherte,
+gehört heute in `toolsMustInclude`/`toolsAnyOf`.
 
 **One green run does not retire a flag.** Measured on the `safety-adversarial`
 lane over four live runs against a local backend: two scenarios passed 4/4, the

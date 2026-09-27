@@ -1,4 +1,5 @@
-import { filterMentionables, type Mentionable } from './mentionables';
+import { type Mentionable } from './mentionables';
+import { buildMentionSections, flattenMentionSections } from './mentionSections';
 
 export interface MentionDetectionResult {
   query: string;
@@ -27,34 +28,11 @@ export function detectMention(text: string, caretPosition: number): MentionDetec
 }
 
 /**
- * Everything mentionable, recipes first: they are the most frequent pick and
- * used to sit behind their own trigger.
+ * Everything mentionable in the order the popover renders it, flattened —
+ * recipes first: they are the most frequent pick and used to sit behind their
+ * own trigger. Derived from `buildMentionSections` so keyboard navigation and
+ * the rendered list can never index different things (#2874).
  */
 export function getFilteredMentionables(query: string): Mentionable[] {
-  const {
-    agents,
-    customAgents,
-    notebooks,
-    tools,
-    boards,
-    docs,
-    documents,
-    wolke,
-    connect,
-    canva,
-    vorlagen,
-  } = filterMentionables(query);
-  return [
-    ...agents,
-    ...customAgents,
-    ...tools,
-    ...boards,
-    ...docs,
-    ...documents,
-    ...wolke,
-    ...connect,
-    ...canva,
-    ...vorlagen,
-    ...notebooks,
-  ];
+  return flattenMentionSections(buildMentionSections(query));
 }

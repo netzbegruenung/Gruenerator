@@ -1,3 +1,5 @@
+import { EDITOR_EDIT_TOOL_KEYS } from '@gruenerator/contracts';
+
 import { DEFAULT_NOTEBOOK_DEPTH } from '../../lib/notebookDepth';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useLastComputeStore } from '../../stores/lastComputeStore';
@@ -6,7 +8,11 @@ import { getAvailableClientTools } from '../clientTools';
 import type { GrueneratorAdapterConfig } from './types';
 import type { parseAllMentions } from '../../lib/mentionParser';
 import type { ThreadMode } from '../../stores/chatStore';
-import type { CurrentBoard } from '@gruenerator/contracts';
+import type {
+  CurrentBoard,
+  CurrentCanvas,
+  NotebookResolvedAnswerMode,
+} from '@gruenerator/contracts';
 
 export type FormattedMessagePart =
   | { type: 'text'; text: string }
@@ -17,6 +23,9 @@ export interface FormattedMessage {
   id: string;
   role: string;
   parts: FormattedMessagePart[];
+  /** Notebook answers only: the mode the answer ran in, so the server's auto
+   *  guard can carry it into a follow-up question. */
+  answerMode?: NotebookResolvedAnswerMode;
 }
 
 export interface ExtractedAttachment {
@@ -39,6 +48,9 @@ export interface BuildRequestBodyParams {
   formattedMessages: FormattedMessage[];
   config: GrueneratorAdapterConfig;
   effectiveAgentId: string | null;
+  /** Skill/Rezept mention typed in the message text (`/presse`, `@presse`) —
+   *  wins over the store's ambient `config.activeSkillMention`. */
+  typedSkillMention: string | null;
   safeCustomEnabledTools: Record<string, boolean> | null | undefined;
   extractedAttachments: ExtractedAttachment[];
   notebookIds: string[];
@@ -50,7 +62,7 @@ export interface BuildRequestBodyParams {
   docMentionIds: string[];
   wolkeFiles: ReturnType<typeof parseAllMentions>['wolkeFiles'];
   connectFiles: ReturnType<typeof parseAllMentions>['connectFiles'];
-  /** URLs attached via the @web mention (crawled through the scrape_url path). */
+  /** URLs attached via the @link mention (crawled through the scrape_url path). */
   webpageUrls: string[];
   /** Regenerate the last assistant turn (backend replaces instead of appends). */
   regenerate: boolean;
@@ -61,6 +73,8 @@ export interface BuildRequestBodyParams {
   injectedCurrentDocument: InjectedCurrentDocument | undefined;
   /** Live board state (boards-editor surface), serialized from Yjs each request. */
   injectedCurrentBoard: CurrentBoard | undefined;
+  /** Live sharepic state (studio sidebar), read from the canvas bridge each request. */
+  injectedCurrentCanvas: CurrentCanvas | undefined;
   injectedAttachmentContext: string | undefined;
   seededInitialAssistantMessage: string | undefined;
   /** Variant marked "active for chat editing" on a sharepic card, if any. */
@@ -88,9 +102,42 @@ const lastUserText = (formattedMessages: FormattedMessage[]): string =>
   '';
 
 /**
+ * Flatten to the `{ role, content }` wire shape (`ModelMessage`) that the
+ * notebook endpoint takes. Non-text parts are dropped — notebook RAG asks a
+ * question of a collection and has no attachment path.
+ */
+const toContentMessages = (
+  formattedMessages: FormattedMessage[]
+): Array<{ role: string; content: string; answerMode?: NotebookResolvedAnswerMode }> =>
+  formattedMessages.map((m) => ({
+    role: m.role,
+    content: m.parts
+      .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+      .map((p) => p.text)
+      .join(''),
+    ...(m.answerMode ? { answerMode: m.answerMode } : {}),
+  }));
+
+const EDITOR_EDIT_TOOL_KEY_SET: ReadonlySet<string> = new Set(EDITOR_EDIT_TOOL_KEYS);
+
+/**
+ * Surface edit hooks (one per editor sidebar) belong to the surface, not the
+ * agent. SearchGraph cannot run them, so a search-route agent picked inside a
+ * sidebar must not carry any of them (#3435). Everything else (`summary`,
+ * `save_as_doc`) is harmless and stays.
+ */
+export function stripEditorEditTools(tools: Record<string, boolean>): Record<string, boolean> {
+  return Object.fromEntries(
+    Object.entries(tools).filter(([k]) => !EDITOR_EDIT_TOOL_KEY_SET.has(k))
+  );
+}
+
+/**
  * Assemble the mode-aware request body for the chat backend. Each mode
  * (search / notebook / eigener / chat) ships a different field set; the shared
- * chat/eigener payload differs only in agentId + customSystemPrompt/roleName.
+ * chat/eigener payload differs only in `agentId` plus dem Rollen-Dreiklang
+ * `customSystemPrompt`/`roleName`/`roleRef`, der ausschliesslich im
+ * `eigener`-Zweig steht.
  */
 /**
  * assistant-ui reports its INTERNAL thread ids through `unstable_threadId`:
@@ -137,6 +184,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     formattedMessages,
     config,
     effectiveAgentId,
+    typedSkillMention,
     safeCustomEnabledTools,
     extractedAttachments,
     notebookIds,
@@ -155,6 +203,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     hasDocumentChat,
     injectedCurrentDocument,
     injectedCurrentBoard,
+    injectedCurrentCanvas,
     injectedAttachmentContext,
     seededInitialAssistantMessage,
     currentSharepic,
@@ -182,7 +231,14 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     const collectionIds = config.selectedNotebookCollectionIds;
     const notebookFilters = config.notebookFilters;
     return {
-      messages: formattedMessages,
+      // `content` as a plain string, NOT the `parts` shape the chat endpoint
+      // takes: /notebook/stream reads `ModelMessage[]` and rejects anything
+      // whose last user message has no string `content`
+      // ("Die Anfrage enthielt keine Nutzernachricht.", notebookStreamCore.ts).
+      // Sending `parts` here made every notebook answer on mobile come back
+      // empty — web never hit it because its notebook surfaces run through
+      // NotebookModelAdapter, which always sent a string.
+      messages: toContentMessages(formattedMessages),
       ...(collectionIds && collectionIds.length > 0
         ? { collectionIds }
         : { collectionId: config.selectedNotebookId || 'gruenerator-notebook' }),
@@ -192,6 +248,9 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
         ? { filters: notebookFilters }
         : {}),
       mode: config.notebookMode || DEFAULT_NOTEBOOK_DEPTH,
+      // Omitted when unset: the server reads a missing field as `chat`, the
+      // behaviour every request had before answer modes existed.
+      ...(config.notebookAnswerMode ? { answerMode: config.notebookAnswerMode } : {}),
       threadId: config.threadId,
     };
   }
@@ -220,6 +279,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
     currentDocument: injectedCurrentDocument,
     currentBoard: injectedCurrentBoard,
+    currentCanvas: injectedCurrentCanvas,
     currentSharepic: currentSharepic ?? undefined,
     currentSocialPost: currentSocialPost ?? undefined,
     currentReel: currentReel ?? undefined,
@@ -245,16 +305,37 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     })(),
     platform: useChatConfigStore.getState().platform,
     defaultNotebookId: config.selectedNotebookId || undefined,
-    customSystemPrompt: config.customSystemPrompt || undefined,
     initialAssistantMessage: seededInitialAssistantMessage,
-    activeSkillMention: config.activeSkillMention || undefined,
+    // Typed mention first: the store's value is ambient (set on popover select,
+    // may still carry an earlier turn's choice) — what the user wrote in THIS
+    // message is the explicit order. The backend prefers the durable
+    // `skill:`-token anyway; this field is the compat carrier.
+    activeSkillMention: typedSkillMention ?? (config.activeSkillMention || undefined),
+    // Only carried alongside the ambient (popover-selected) mention: a typed
+    // `/mention` in the message text resolves its own skill server-side and
+    // has no id at this layer. Set only when the active text form is a user
+    // recipe (own, group-shared or public) rather than a system skill.
+    activeRecipeId: typedSkillMention ? undefined : config.activeRecipeId || undefined,
   };
 
   if (effectiveMode === 'eigener') {
-    // Eigener Chat mode: like chat but with custom prompt, no stale agentId
+    // Eigener Chat mode: like chat but with custom prompt, no stale agentId.
+    //
+    // `customSystemPrompt` steht hier und NICHT im gemeinsamen Rumpf, obwohl es
+    // ein Feld wie jedes andere ist: nur so heißt „Modus chat" auch auf der
+    // Leitung „keine Persona". Im Rumpf reiste der Prompttext einer frei
+    // getippten Rolle nach dem Wechsel zurück auf „Chat" weiter mit —
+    // `roleRef` blieb dabei zurück, weil es schon immer hier stand. Diese
+    // Kombination (Prompt ohne Referenz) lässt serverseitig
+    // `roleBausteinActive` auf false und legte damit die Rezept-Automatik
+    // still (#2929 zusammen mit #2928). Ein Feld, das nur in einem Modus gilt,
+    // gehört in dessen Zweig — dann kann der Zustand daneben gar nicht mehr
+    // auseinanderlaufen, und bestehende Threads mit gespeichertem Rest heilen
+    // ohne Migration.
     return {
       ...sharedChatBody,
       agentId: null,
+      customSystemPrompt: config.customSystemPrompt || undefined,
       roleName: config.customRoleName || undefined,
       roleRef: config.customRoleRef || undefined,
     };

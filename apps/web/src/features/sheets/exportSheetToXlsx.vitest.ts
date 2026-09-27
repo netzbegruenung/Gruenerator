@@ -65,6 +65,16 @@ describe('buildXlsxWorkbook', () => {
     expect(rows[0]).toMatchObject({ Name: 'Ada', Betrag: 42 });
   });
 
+  it('writes a real zip container, not a stub', () => {
+    // The export swapped writeFileXLSX (which clicks its own anchor inside
+    // SheetJS) for write + Blob. A .xlsx IS a zip, so the local file header
+    // magic is the cheapest proof the bytes are still a workbook.
+    const book = buildXlsxWorkbook(XLSX, snapshot);
+    const bytes = new Uint8Array(XLSX.write(book, { type: 'array', bookType: 'xlsx' }));
+    expect(bytes[0]).toBe(0x50); // P
+    expect(bytes[1]).toBe(0x4b); // K
+  });
+
   it('never yields a zero-sheet book', () => {
     const empty = { id: 'x', sheetOrder: [], sheets: {} } as unknown as IWorkbookData;
     const book = buildXlsxWorkbook(XLSX, empty);

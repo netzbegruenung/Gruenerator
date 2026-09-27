@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +37,7 @@ import {
   getSortValueFactory,
   normalizeRemoteResults,
   formatDate,
+  stripPageMarkerLines,
 } from '../utils/documentOverviewUtils';
 
 import BulkDeleteConfirmModal from './BulkDeleteConfirmModal';
@@ -516,7 +517,7 @@ const DocumentOverview = ({
     try {
       const res = await getContractsClient().documents.getContent({ params: { id: item.id } });
       if (res.status !== 200) {
-        throw new Error('Dokument-Inhalt konnte nicht geladen werden');
+        throw new ApiError(res.status, 'Dokument-Inhalt konnte nicht geladen werden');
       }
       const enhancedItem: DocumentItem = {
         ...item,
@@ -540,13 +541,13 @@ const DocumentOverview = ({
 
   const getDocumentContent = async (item: DocumentItem): Promise<string> => {
     const existing = item.markdown_content || item.full_content || item.ocr_text;
-    if (existing) return existing;
+    if (existing) return stripPageMarkerLines(existing);
 
     const res = await getContractsClient().documents.getContent({ params: { id: item.id } });
     if (res.status !== 200) {
-      throw new Error('Dokument-Inhalt konnte nicht geladen werden');
+      throw new ApiError(res.status, 'Dokument-Inhalt konnte nicht geladen werden');
     }
-    return res.body.data.ocr_text ?? '';
+    return stripPageMarkerLines(res.body.data.ocr_text ?? '');
   };
 
   const handleExportDOCX = async (item: DocumentItem) => {

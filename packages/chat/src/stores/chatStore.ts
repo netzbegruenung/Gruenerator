@@ -1,4 +1,9 @@
-import { type NotebookDepth, type SearchMode } from '@gruenerator/contracts';
+import {
+  notebookAnswerModeSchema,
+  type NotebookDepth,
+  type RoleRef,
+  type SearchMode,
+} from '@gruenerator/contracts';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import {
   TEXT_MODELS,
@@ -10,16 +15,19 @@ import {
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { DEFAULT_NOTEBOOK_ANSWER_MODE, type NotebookComposerMode } from '../lib/notebookAnswerMode';
 import { DEFAULT_NOTEBOOK_DEPTH } from '../lib/notebookDepth';
 import { notifyError, notifyWarning } from '../lib/notify';
 import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/resolveAutoModel';
 
 import { useArtifactLiveStore } from './artifactLiveStore';
 import { useComputeExportStore } from './computeExportStore';
+import { draftRoleState } from './draftRole';
 import { useLastComputeStore } from './lastComputeStore';
 import { usePythonFileStore } from './pythonFileStore';
 import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
+import { useUserProfileStore } from './userProfileStore';
 
 import type { ChatApiClient } from '../context/ChatContext';
 
@@ -88,16 +96,21 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     model: 'mistral',
   },
   {
+    // F0: die Kennung steckt in gespeicherten Zuständen und wird tolerant
+    // weitergelesen. Was dahinter antwortet, ist seit dem 29.08.2026 nicht mehr
+    // GPT-OSS auf Verdigado, sondern Cortecs — siehe
+    // apps/api/services/ai/litellmRetired.ts.
     id: 'litellm',
-    name: 'GPT-OSS',
-    description: 'Selbst gehostet',
-    model: 'verdigado-pro',
+    name: 'Klein',
+    description: 'Schnell, für kurze Aufgaben',
+    model: 'gruenerator-small',
   },
 ];
 
 interface ThreadSettings {
   customSystemPrompt: string | null;
   customEnabledTools: Record<string, boolean> | null;
+  roleRef: RoleRef | null;
 }
 
 interface AgentState {
@@ -124,6 +137,10 @@ interface AgentState {
    * source/category filters it is persisted and survives a reload.
    */
   notebookDepth: NotebookDepth;
+  /** Notebook composer mode (Magic Search/Chat/Präzision/Manuell) — a preference
+   *  like the depth. Holds the client-only `manuell` too, so it is not the wire
+   *  `answerMode`; `toNotebookAnswerMode` derives that. */
+  notebookAnswerMode: NotebookComposerMode;
   customSystemPrompt: string | null;
   customRoleName: string | null;
   /**
@@ -132,26 +149,43 @@ interface AgentState {
    * und schickt nur Ebene und Bezeichnung. `customSystemPrompt` bleibt für frei
    * eingetippte Rollen, deren Prompt weiterhin per KI entsteht.
    */
-  customRoleRef: { ebene: string; rolle: string } | null;
+  customRoleRef: RoleRef | null;
+  /**
+   * Wer die Rolle zuletzt gesetzt hat. `load` heißt: sie kommt aus den
+   * Thread-Einstellungen und steht dort bereits — ein Zurückschreiben wäre eine
+   * überflüssige Anfrage und im Fehlerfall ein irreführender Hinweis.
+   * `default` heißt: sie kommt aus der Konto-Voreinstellung und gehört diesem
+   * Thread nicht (siehe `ActiveRoleSyncEffect`) — `loadThreadSettings` räumt
+   * sie weg, sobald ein Thread ohne eigene Rolle geöffnet wird.
+   */
+  roleRefSource: 'user' | 'load' | 'default';
   customEnabledTools: Record<string, boolean> | null;
   /** Mention key of the active /skill (e.g. 'instagram'). Composer sets this
    *  when a skill mention is inserted; cleared on agent change / new thread.
    *  Sent to backend so it appends only the relevant skill's prompt fragment. */
   activeSkillMention: string | null;
+  /** Row id of `activeSkillMention` when it names a user recipe (own, group-
+   *  shared or public text form) rather than a system skill — sent alongside
+   *  it so the backend can resolve by id instead of by mention. `null` for a
+   *  system skill, and everywhere `activeSkillMention` resets to `null`. */
+  activeRecipeId: string | null;
   /** Pinned MCP connector (session-scoped, not persisted). Set from the
    *  composer's "Konnektoren" menu; cleared on new thread / new chat. */
   pinnedConnector: PinnedConnector | null;
-  /** Transient (not persisted): set by restoreSelectedAgent so the
-   *  AgentSwitchListener skips its new-thread reset for agent changes that
-   *  come from a thread deep link rather than a user-initiated switch. */
-  suppressAgentSwitchReset: boolean;
-  setActiveSkillMention: (mention: string | null) => void;
+  setActiveSkillMention: (mention: string | null, recipeId?: string | null) => void;
   setPinnedConnector: (connector: PinnedConnector | null) => void;
   setSelectedAgent: (agentId: string | null) => void;
-  restoreSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: SelectedModel) => void;
   setCurrentThread: (threadId: string | null) => void;
+  /** The draft the user is typing in just became a real thread (lazy
+   *  `initialize()` / `onThreadCreated` of its FIRST send). Same transition
+   *  bookkeeping as `setCurrentThread`, but skill mention and pinned connector
+   *  survive — this is a continuation of the same conversation, not a switch.
+   *  Only the actual mint sites may call this; navigation writers (sidebar/URL
+   *  sync) stay on `setCurrentThread`, whose unconditional clear is what keeps
+   *  an abandoned draft's pin out of unrelated pre-existing threads. */
+  mintThreadFromDraft: (threadId: string) => void;
   setCurrentThreadTitle: (title: string | null) => void;
   toggleTool: (tool: ToolKey) => void;
   setAllTools: (enabled: boolean) => void;
@@ -163,24 +197,35 @@ interface AgentState {
   setThreadMode: (mode: ThreadMode) => void;
   setSearchMode: (mode: SearchMode) => void;
   setNotebookDepth: (depth: NotebookDepth) => void;
+  setNotebookAnswerMode: (mode: NotebookComposerMode) => void;
   setCompactionState: (state: CompactionState) => void;
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   incrementMessageCount: () => void;
   setCustomSystemPrompt: (prompt: string | null) => void;
   setCustomRoleName: (name: string | null) => void;
-  setCustomRoleRef: (ref: { ebene: string; rolle: string } | null) => void;
+  setCustomRoleRef: (ref: RoleRef | null) => void;
   setCustomEnabledTools: (tools: Record<string, boolean> | null) => void;
   /** Clear per-thread chat context (skill mention, custom prompt/role/tools,
    *  thread mode) while keeping the selected agent. Used when switching agents
    *  so the new agent starts from a clean thread. */
   resetThreadContext: () => void;
-  /** Full blank-slate reset for a NEW chat: `resetThreadContext()` plus
-   *  deselecting the agent. The single source of truth for "new chat" used by
-   *  every new-chat surface (workplace composer, /chat overview, ChatPage). */
+  /** Reset for a NEW chat: `resetThreadContext()` plus deselecting the agent —
+   *  and then applying the account's default role (`draftRoleState`), because a
+   *  fresh draft starts with "my role", not blank. The single source of truth
+   *  for "new chat" used by every new-chat surface (workplace composer, /chat
+   *  overview, ChatPage). */
   resetChatContext: () => void;
   loadThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   saveThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<boolean>;
+  /** Der Entwurf wurde gerade zu diesem Thread — seine Rolle gehört ab jetzt
+   *  dem Thread, nicht mehr der Konto-Voreinstellung. Muss an JEDER Mint-Stelle
+   *  laufen (lazy `initialize()` im ThreadListAdapter ist der Produktionspfad,
+   *  `onThreadCreated` der Legacy-Pfad für Backend-geminte Threads): ohne die
+   *  Promotion fragt `ThreadDataSyncEffect` die Settings des frischen Threads
+   *  ab, bekommt 404 und räumt eine noch als `default` markierte Rolle wieder
+   *  weg — die Standardrolle verschwand beim ersten Senden. */
+  promoteDraftRoleToThread: (threadId: string, apiClient: ChatApiClient) => void;
 }
 
 const DEFAULT_ENABLED_TOOLS: Record<ToolKey, boolean> = {
@@ -218,36 +263,38 @@ export const useAgentStore = create<AgentState>()(
       threadMode: 'chat' as ThreadMode,
       searchMode: 'web' as SearchMode,
       notebookDepth: DEFAULT_NOTEBOOK_DEPTH,
+      notebookAnswerMode: DEFAULT_NOTEBOOK_ANSWER_MODE,
       customSystemPrompt: null,
       customRoleName: null,
       customRoleRef: null,
+      roleRefSource: 'load',
       customEnabledTools: null,
       activeSkillMention: null,
+      activeRecipeId: null,
       pinnedConnector: null,
-      suppressAgentSwitchReset: false,
 
-      setActiveSkillMention: (mention) => set({ activeSkillMention: mention }),
+      setActiveSkillMention: (mention, recipeId = null) =>
+        set({ activeSkillMention: mention, activeRecipeId: recipeId }),
 
       setPinnedConnector: (connector) => set({ pinnedConnector: connector }),
 
       setSelectedAgent: (agentId) =>
-        set({ selectedAgentId: agentId, activeSkillMention: null, pinnedConnector: null }),
-
-      restoreSelectedAgent: (agentId) =>
         set({
           selectedAgentId: agentId,
           activeSkillMention: null,
+          activeRecipeId: null,
           pinnedConnector: null,
-          suppressAgentSwitchReset: true,
         }),
 
       resetThreadContext: () =>
         set({
           activeSkillMention: null,
+          activeRecipeId: null,
           pinnedConnector: null,
           customSystemPrompt: null,
           customRoleName: null,
           customRoleRef: null,
+          roleRefSource: 'load',
           customEnabledTools: null,
           threadMode: 'chat',
         }),
@@ -256,12 +303,21 @@ export const useAgentStore = create<AgentState>()(
         set({
           selectedAgentId: null,
           activeSkillMention: null,
+          activeRecipeId: null,
           pinnedConnector: null,
-          customSystemPrompt: null,
-          customRoleName: null,
-          customRoleRef: null,
           customEnabledTools: null,
-          threadMode: 'chat',
+          // Die Standardrolle synchron mit anwenden, statt zu nullen und auf
+          // den ActiveRoleSyncEffect zu warten: läuft dieser Reset im selben
+          // Effekt-Durchlauf NACH dem Effekt, sieht der nächste Render lauter
+          // unveränderte Werte und der Effekt feuert nie wieder — die Rolle
+          // wäre nach jedem Reload weg (Herleitung in `draftRoleState`).
+          ...(draftRoleState() ?? {
+            customSystemPrompt: null,
+            customRoleName: null,
+            customRoleRef: null,
+            roleRefSource: 'load',
+            threadMode: 'chat',
+          }),
         }),
 
       setSelectedProvider: (provider) => set({ selectedProvider: provider }),
@@ -278,37 +334,9 @@ export const useAgentStore = create<AgentState>()(
         }
       },
 
-      setCurrentThread: (threadId) => {
-        if (useAgentStore.getState().currentThreadId === threadId) return;
-        set({
-          currentThreadId: threadId,
-          currentThreadTitle: null,
-          compactionState: { ...DEFAULT_COMPACTION_STATE },
-          messageCount: 0,
-          needsCompaction: false,
-          activeSkillMention: null,
-          pinnedConnector: null,
-        });
-        // The Sharepic-Modus (docked artifact panel) is thread-scoped: a
-        // variant from the old thread must not stay pinned — nor be sent as
-        // the currentSharepic edit target — in the new one.
-        useSharepicLiveStore.getState().setActiveVariant(null);
-        // Same for Reel-Modus: a stale activeReel would inject the old
-        // thread's transcript into the new one, hijack bare edit verbs into
-        // subtitle edits of the old reel, and bind the wrong reel to the new
-        // thread on the first successful edit.
-        useReelLiveStore.getState().setActiveReel(null);
-        // Same for a docked HTML/SVG artifact: activeArtifact is module-global,
-        // so without this reset the old thread's artifact stays pinned in the new one.
-        useArtifactLiveStore.getState().setActiveArtifact(null);
-        // Tabular files attached for the in-browser interpreter are session-
-        // scoped too — an old thread's Excel/CSV must not leak into the new one.
-        usePythonFileStore.getState().clear();
-        // Same for the last spreadsheet computation forwarded to the model.
-        useLastComputeStore.getState().clear();
-        // And for the interpreter's output files (download-chip byte stash).
-        useComputeExportStore.getState().clear();
-      },
+      setCurrentThread: (threadId) => switchThread(threadId, { keepMentions: false }),
+
+      mintThreadFromDraft: (threadId) => switchThread(threadId, { keepMentions: true }),
 
       setCurrentThreadTitle: (title) => set({ currentThreadTitle: title }),
 
@@ -355,6 +383,8 @@ export const useAgentStore = create<AgentState>()(
 
       setNotebookDepth: (depth) => set({ notebookDepth: depth }),
 
+      setNotebookAnswerMode: (mode) => set({ notebookAnswerMode: mode }),
+
       setCompactionState: (state) => set({ compactionState: state }),
 
       loadCompactionState: async (threadId: string, apiClient: ChatApiClient) => {
@@ -366,6 +396,10 @@ export const useAgentStore = create<AgentState>()(
           const response = await apiClient.get<CompactionResponse>(
             `/api/chat-service/summarize?threadId=${threadId}`
           );
+          // The user can switch threads while this is in flight; landing a
+          // foreign thread's counters here also mis-drives the title trigger,
+          // which reads messageCount. Same guard loadThreadSettings uses.
+          if (useAgentStore.getState().currentThreadId !== threadId) return;
           set({
             compactionState: response.compactionState,
             messageCount: response.messageCount,
@@ -374,6 +408,7 @@ export const useAgentStore = create<AgentState>()(
           });
         } catch (error) {
           console.error('Failed to load compaction state:', error);
+          if (useAgentStore.getState().currentThreadId !== threadId) return;
           set({
             compactionLoading: false,
             compactionState: { ...DEFAULT_COMPACTION_STATE },
@@ -411,7 +446,7 @@ export const useAgentStore = create<AgentState>()(
 
       setCustomRoleName: (name) => set({ customRoleName: name }),
 
-      setCustomRoleRef: (ref) => set({ customRoleRef: ref }),
+      setCustomRoleRef: (ref) => set({ customRoleRef: ref, roleRefSource: 'user' }),
 
       setCustomEnabledTools: (tools) => set({ customEnabledTools: tools }),
 
@@ -421,9 +456,32 @@ export const useAgentStore = create<AgentState>()(
             `/api/chat-service/threads/${threadId}/settings`
           );
           if (useAgentStore.getState().currentThreadId !== threadId) return;
+          const roleRef = response.roleRef ?? null;
           set({
             customSystemPrompt: response.customSystemPrompt ?? null,
             customEnabledTools: response.customEnabledTools ?? null,
+            customRoleRef: roleRef,
+            roleRefSource: 'load' as const,
+            // Die Bezeichnung steht nicht im Thread, sondern in den Rollen der
+            // Person — der Thread merkt sich nur die Referenz. Ist die Rolle
+            // inzwischen gelöscht, bleibt die gespeicherte Bezeichnung als
+            // Anzeige stehen; der Server fängt den fehlenden Treffer ab.
+            ...(roleRef
+              ? {
+                  threadMode: 'eigener' as const,
+                  customRoleName:
+                    useUserProfileStore
+                      .getState()
+                      .roles.find((r) => r.ebene === roleRef.ebene && r.rolle === roleRef.rolle)
+                      ?.rolle ?? roleRef.rolle,
+                }
+              : // Frei eingetippte Rolle: sie hat keine Referenz, nur ihren
+                // erzeugten Prompttext. Ohne diesen Zweig kam der Text zwar
+                // zurück, der Modus aber nicht — der Chip war weg und die
+                // Anfrage ging als normaler Chat mitsamt `agentId` raus.
+                response.customSystemPrompt
+                ? { threadMode: 'eigener' as const }
+                : {}),
           });
         } catch (error) {
           // 404 is the normal "thread has no settings row yet" case and falls
@@ -440,12 +498,26 @@ export const useAgentStore = create<AgentState>()(
           }
         }
         const state = useAgentStore.getState();
+        // Eine Katalogrolle hat keinen `customSystemPrompt` — ohne die
+        // `customRoleRef`-Bedingung hätte dieser Reset jeden Rollen-Chat beim
+        // Neuladen in den normalen Chat zurückgeworfen.
+        //
+        // `default` ist der zweite Fall: die Rolle stammt aus der
+        // Konto-Voreinstellung, nicht aus diesem Thread. Sie muss auch dann
+        // weichen, wenn sie gesetzt ist — sonst erbt ein alter Chat ohne
+        // Einstellungszeile (404) eine Rolle, die er nie hatte.
         if (
           state.currentThreadId === threadId &&
           state.threadMode === 'eigener' &&
-          !state.customSystemPrompt
+          (state.roleRefSource === 'default' || (!state.customSystemPrompt && !state.customRoleRef))
         ) {
-          set({ threadMode: 'chat', customRoleName: null, customRoleRef: null });
+          set({
+            threadMode: 'chat',
+            customRoleName: null,
+            customRoleRef: null,
+            customSystemPrompt: null,
+            roleRefSource: 'load',
+          });
         }
       },
 
@@ -457,6 +529,7 @@ export const useAgentStore = create<AgentState>()(
             {
               customSystemPrompt: state.customSystemPrompt,
               customEnabledTools: state.customEnabledTools,
+              roleRef: state.customRoleRef,
             }
           );
           return true;
@@ -470,6 +543,19 @@ export const useAgentStore = create<AgentState>()(
           );
           return false;
         }
+      },
+
+      promoteDraftRoleToThread: (threadId: string, apiClient: ChatApiClient) => {
+        const state = useAgentStore.getState();
+        if (state.threadMode !== 'eigener' || (!state.customSystemPrompt && !state.customRoleRef)) {
+          return;
+        }
+        // Sofort `load`, nicht erst wenn das PATCH zurückkommt: der
+        // ThreadDataSyncEffect fragt die Einstellungen des frisch angelegten
+        // Threads parallel ab, und eine 404 auf dem Weg dorthin hätte eine noch
+        // als `default` markierte Rolle wieder weggeräumt.
+        set({ roleRefSource: 'load' });
+        void useAgentStore.getState().saveThreadSettings(threadId, apiClient);
       },
     }),
     {
@@ -487,7 +573,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 15,
+      version: 18,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -593,6 +679,34 @@ export const useAgentStore = create<AgentState>()(
           // mount, so there is nothing to carry over — only a floor to set.
           state.notebookDepth = DEFAULT_NOTEBOOK_DEPTH;
         }
+        if (version < 16) {
+          // v15 hat allen 'fast' eingeschrieben, ohne dass es je eine Wahl war.
+          // Der Startwert ist jetzt 'deep' — 'deep'/'ultra' bleiben stehen.
+          //
+          // Bewusst in Kauf genommen: ein seit v15 aktiv gewähltes 'fast' ist im
+          // Storage nicht vom damaligen Zwangswert zu unterscheiden und wird hier
+          // mit angehoben. Ein Unterscheidungs-Flag würde erst ab heute
+          // mitschreiben und den Altbestand ebenso wenig auflösen, während der
+          // Verzicht auf die Migration jede bestehende Installation dauerhaft auf
+          // der schmalsten Stufe ließe — dort ist die Tiefe seit diesem PR die
+          // einzige Qualitätswahl. Der Verlust ist eine Auswahl im Composer.
+          if (state.notebookDepth === 'fast') {
+            state.notebookDepth = DEFAULT_NOTEBOOK_DEPTH;
+          }
+        }
+        if (version < 17) {
+          // currentThreadId is no longer persisted: the thread URL is the
+          // restore mechanism. A leftover id was read by getConfig().threadId
+          // during the boot window before the runtime settled, so a first
+          // message could be filed into whatever thread was open last session.
+          delete state.currentThreadId;
+        }
+        if (version < 18) {
+          // New preference. Anything stored under the name that is not a wire
+          // value (there was none before v18) falls back to the default.
+          const parsed = notebookAnswerModeSchema.safeParse(state.notebookAnswerMode);
+          state.notebookAnswerMode = parsed.success ? parsed.data : DEFAULT_NOTEBOOK_ANSWER_MODE;
+        }
         return state;
       },
       partialize: (state) => ({
@@ -601,10 +715,14 @@ export const useAgentStore = create<AgentState>()(
         // for the active agent; persisting it leaked the last agent into new chats.
         // selectedModel/selectedProvider are session-only too: the picker always
         // starts on 'Automatisch'.
-        currentThreadId: state.currentThreadId,
+        // currentThreadId is NOT persisted either: the thread URL restores the
+        // open conversation, and MainThreadSyncEffect nulled the stored value on
+        // boot anyway — keeping it only left a stale id readable in the window
+        // before the runtime settled.
         selectedNotebookId: state.selectedNotebookId,
         searchMode: state.searchMode,
         notebookDepth: state.notebookDepth,
+        notebookAnswerMode: state.notebookAnswerMode,
         // Survive a reload that happens between text generation and the first
         // user message (no thread exists yet, so server-side persistence
         // hasn't kicked in). Cleared once the backend confirms thread_created.
@@ -613,3 +731,48 @@ export const useAgentStore = create<AgentState>()(
     }
   )
 );
+
+/**
+ * Shared transition bookkeeping behind `setCurrentThread` and
+ * `mintThreadFromDraft`. `keepMentions` is the ONLY divergence: a mint (the
+ * draft's first send just created this thread) is a continuation of the same
+ * conversation, so skill mention and pinned connector survive it — a connector
+ * pinned on the Startseite otherwise died the moment the first answer streamed,
+ * and every follow-up lost its MCP scope. Every other transition — including
+ * draft → pre-existing thread via sidebar/URL, which looks identical from the
+ * store's point of view (null → id) — must clear, or an abandoned draft's pin
+ * would leak into an unrelated thread. That is why the distinction lives at the
+ * call sites, not in a null-check here.
+ */
+function switchThread(threadId: string | null, opts: { keepMentions: boolean }): void {
+  if (useAgentStore.getState().currentThreadId === threadId) return;
+  useAgentStore.setState({
+    currentThreadId: threadId,
+    currentThreadTitle: null,
+    compactionState: { ...DEFAULT_COMPACTION_STATE },
+    messageCount: 0,
+    needsCompaction: false,
+    ...(opts.keepMentions
+      ? {}
+      : { activeSkillMention: null, activeRecipeId: null, pinnedConnector: null }),
+  });
+  // The Sharepic-Modus (docked artifact panel) is thread-scoped: a
+  // variant from the old thread must not stay pinned — nor be sent as
+  // the currentSharepic edit target — in the new one.
+  useSharepicLiveStore.getState().setActiveVariant(null);
+  // Same for Reel-Modus: a stale activeReel would inject the old
+  // thread's transcript into the new one, hijack bare edit verbs into
+  // subtitle edits of the old reel, and bind the wrong reel to the new
+  // thread on the first successful edit.
+  useReelLiveStore.getState().setActiveReel(null);
+  // Same for a docked HTML/SVG artifact: activeArtifact is module-global,
+  // so without this reset the old thread's artifact stays pinned in the new one.
+  useArtifactLiveStore.getState().setActiveArtifact(null);
+  // Tabular files attached for the in-browser interpreter are session-
+  // scoped too — an old thread's Excel/CSV must not leak into the new one.
+  usePythonFileStore.getState().clear();
+  // Same for the last spreadsheet computation forwarded to the model.
+  useLastComputeStore.getState().clear();
+  // And for the interpreter's output files (download-chip byte stash).
+  useComputeExportStore.getState().clear();
+}

@@ -8,6 +8,8 @@
  */
 import { z } from 'zod';
 
+import { topicCategorySchema } from './monitor.js';
+
 // ── Request bodies ──────────────────────────────────────────────────────────
 
 export const askQuestionBodySchema = z.object({
@@ -71,8 +73,8 @@ export type NotebookPersonInfo = z.infer<typeof notebookPersonInfoSchema>;
  * apps/api/services/notebook/types.ts — most fields are `.nullish()` because the
  * person-query path emits a different field subset than the document path).
  *
- * `date` is the source's real publication date (or upload date for user docs);
- * `null` when the source carries no usable date. Set in
+ * `date` is the source's real publication date; `null` when the source carries
+ * no usable date. The upload time of a user document is never a `date`. Set in
  * `buildReferencesMap` (SearchResultProcessor) from the Qdrant `published_at`
  * payload — NOT the response timestamp.
  */
@@ -140,11 +142,15 @@ export const notebookQAMetadataSchema = z.object({
   collection_id: z.string().optional(),
   collection_name: z.string().optional(),
   sources_count: z.number().optional(),
-  corpus_state: z.enum(['indexing', 'failed', 'ready']).optional(),
+  // 'stale' = Postgres führt die Dokumente als fertig, Qdrant hat keine Punkte
+  // dazu. Additiv ergänzt; ältere Clients kennen den Wert nicht, behandeln ihn
+  // aber wie jeden anderen unbekannten Zustand (niemand verzweigt darauf).
+  corpus_state: z.enum(['indexing', 'stale', 'failed', 'ready']).optional(),
   corpus_state_detail: z
     .object({
       indexing_count: z.number(),
       failed_count: z.number(),
+      stale_count: z.number(),
       ready_count: z.number(),
       total_count: z.number(),
     })
@@ -197,6 +203,19 @@ export const notebookResearchResultSchema = z.object({
   relevant_content: z.string(),
   similarity_score: z.number(),
   chunk_count: z.number(),
+  /**
+   * Abschnitte, in denen der Suchbegriff wörtlich vorkommt — 0 bei einem rein
+   * semantischen Treffer.
+   *
+   * Eine Untergrenze: gezählt wird über die abgerufenen Chunks, und das
+   * Recall-Fenster schneidet vorher ab. Gemessen am 26.08.2026 über 38
+   * Trefferdokumente deckte sich die Zahl in 65,8 % der Fälle mit der echten
+   * Zahl im Dokument, lag in 34,2 % darunter und **nie** darüber. Deshalb
+   * beschriftet die Karte sie mit „mind." und nicht als Gesamtzahl.
+   *
+   * Additiv nachgereicht (F0): ältere Clients ignorieren das Feld.
+   */
+  term_chunk_count: z.number().nullish(),
   top_chunks: z.array(
     z.object({
       preview: z.string(),
@@ -207,6 +226,12 @@ export const notebookResearchResultSchema = z.object({
   collection_id: z.string().nullish(),
   collection_name: z.string().nullish(),
   published_at: z.string().nullable().nullish(),
+  /** Document kind as a display label („Beschluss“, „Pressemitteilung“ …) —
+   *  Landesverband collections only. Additive (F0). */
+  content_type_label: z.string().nullish(),
+  /** Where the document comes from („Grüne Fraktion Berlin“ …) —
+   *  Landesverband collections only. Additive (F0). */
+  source_name: z.string().nullish(),
 });
 
 export const notebookResearchSearchResponseSchema = z.object({
@@ -255,3 +280,75 @@ export const notebookStatsResponseSchema = z.object({
 });
 
 export type NotebookStatsResponse = z.infer<typeof notebookStatsResponseSchema>;
+
+// ── Overview (Übersicht page of a system notebook) ──────────────────────────
+//
+// Unlike the stats endpoint, every count here is exact over all head chunks
+// (one point per document) — topics and persons come from the per-document
+// NLP enrichment, not from the monthly 80-document sample.
+
+export const notebookTopicTrendSchema = z.enum(['up', 'down', 'flat']);
+export type NotebookTopicTrend = z.infer<typeof notebookTopicTrendSchema>;
+
+export const notebookOverviewDocumentSchema = notebookRecentDocumentCardSchema.extend({
+  contentTypeLabel: z.string().nullable(),
+  themes: z.array(topicCategorySchema),
+});
+export type NotebookOverviewDocument = z.infer<typeof notebookOverviewDocumentSchema>;
+
+export const notebookOverviewResponseSchema = z.object({
+  collectionId: z.string(),
+  computedAt: z.string(),
+  totals: z.object({
+    documents: z.number(),
+    /** Documents without a usable `published_at` — excluded from every time-based figure. */
+    undated: z.number(),
+    last30Days: z.number(),
+    previous30Days: z.number(),
+    firstPublished: z.string().nullable(),
+    lastPublished: z.string().nullable(),
+  }),
+  /** Oldest first, one bucket per calendar month, always the full window. */
+  monthly: z.array(
+    z.object({
+      month: z.string(),
+      count: z.number(),
+      topTopic: topicCategorySchema.nullable(),
+    })
+  ),
+  topics: z.array(
+    z.object({
+      topic: topicCategorySchema,
+      count: z.number(),
+      share: z.number(),
+      /** `null` when the recent window holds too few documents to call a trend. */
+      trend: notebookTopicTrendSchema.nullable(),
+      /** Share of this topic across all Landesverbände; `null` outside LV notebooks. */
+      baselineShare: z.number().nullable(),
+    })
+  ),
+  persons: z.array(z.object({ person: z.string(), count: z.number(), recentCount: z.number() })),
+  contentTypes: z.array(z.object({ value: z.string(), label: z.string(), count: z.number() })),
+  sources: z.array(z.object({ value: z.string(), label: z.string(), count: z.number() })),
+  recent: z.array(notebookOverviewDocumentSchema),
+  /** Per-document keywords; `null` until the enrichment has tagged any document. */
+  terms: z
+    .object({
+      /** Documents carrying keywords — below `totals.documents` while a re-tag runs. */
+      documents: z.number(),
+      /** Most frequent first; `count` = documents containing the word. */
+      words: z.array(z.object({ word: z.string(), count: z.number() })),
+      /** Words whose share of the last 90 days rose significantly, strongest first. */
+      rising: z.array(z.object({ word: z.string(), count: z.number(), recentCount: z.number() })),
+      /**
+       * Words typical of this Landesverband against all others, strongest first;
+       * `count` = documents, `lift` = how many times the expected share. `null` outside LV notebooks.
+       */
+      signature: z
+        .array(z.object({ word: z.string(), count: z.number(), lift: z.number() }))
+        .nullable(),
+    })
+    .nullable(),
+});
+
+export type NotebookOverviewResponse = z.infer<typeof notebookOverviewResponseSchema>;

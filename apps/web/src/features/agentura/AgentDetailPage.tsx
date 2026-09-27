@@ -16,6 +16,7 @@ import {
 } from 'react-icons/pi';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import { CURRENT_INSTANCE } from '../../config/instance';
 import { useUserAgents } from '../agents/api';
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
 
@@ -58,7 +59,10 @@ function AgentDetailPage() {
 
   const related = useMemo(() => {
     if (!agent) return [];
-    const pool: Agent[] = [...getVisibleSystemAgentsForLocale(userLocale), ...userAgents];
+    const pool: Agent[] = [
+      ...getVisibleSystemAgentsForLocale(userLocale, CURRENT_INSTANCE),
+      ...userAgents,
+    ];
     return relatedAgents(agent, pool);
   }, [agent, userAgents, userLocale]);
 
@@ -163,7 +167,7 @@ function AgentDetailPage() {
           type="button"
           className={ICON_BTN}
           aria-label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-          onClick={() => toggleAgentFavorite(agent.identifier)}
+          onClick={() => toggleAgentFavorite(agent.identifier, agent.title)}
         >
           {isFavorite ? (
             <PiStarFill className="h-[18px] w-[18px] text-secondary-600" />
@@ -283,7 +287,7 @@ function AgentDetailPage() {
                 navigate(`/agentura/agent/${encodeURIComponent(getAgentSlug(a.identifier))}`)
               }
               isFavorite={agentFavorites.includes(other.identifier)}
-              onToggleFavorite={(a) => toggleAgentFavorite(a.identifier)}
+              onToggleFavorite={(a) => toggleAgentFavorite(a.identifier, a.title)}
             />
           ))}
         </CardGrid>

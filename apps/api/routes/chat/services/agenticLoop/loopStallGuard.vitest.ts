@@ -157,13 +157,173 @@ describe('synth stall guard', () => {
     expect(onReasoning).toHaveBeenCalledWith('denke nach');
     expect(seen).not.toContain('fallback');
   });
+});
 
-  it('announces the synth phase so the caller can show progress in the silence', async () => {
-    const { deps } = depsFor({ synth: () => streamOf([{ type: 'text-delta', text: 'OK' }]) });
-    const onSynthStart = vi.fn();
+/**
+ * Der Planer schweigt — und der Zug soll das ÜBERLEBEN und es MELDEN.
+ *
+ * Am 28.08.2026 nahm die Planer-Lane (GreenPT) die Anfrage an und schickte
+ * nichts: 45 s Leerlauf in einem Zug von 47,9 s, danach eine korrekte Antwort
+ * aus den mitgeführten Quellen. Das Degradieren funktionierte also; was fehlte,
+ * war das Gedächtnis. Ohne Vermerk blieb dieselbe Lane erste Wahl, und der
+ * nächste Zug hätte die Frist erneut abgesessen.
+ */
+describe('gather stall — degradieren UND vermerken', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
 
-    await runAgenticLoop(params({ onSynthStart }), deps);
+  /** Der Planer stellt sich tot, der Synth antwortet normal. */
+  const stalledPlanner = (): { deps: LoopDeps; seen: string[] } =>
+    depsFor({
+      planner: stallingStream,
+      synth: () => streamOf([{ type: 'text-delta', text: 'ANTWORT_AUS_QUELLEN' }]),
+    });
 
-    expect(onSynthStart).toHaveBeenCalledOnce();
+  it('meldet die Werkzeugphase EINMAL, damit der Aufrufer die Lane vermerken kann', async () => {
+    const { deps } = stalledPlanner();
+    const onToolPhaseStall = vi.fn();
+
+    const running = runAgenticLoop(params({ onToolPhaseStall }), deps);
+    await vi.advanceTimersByTimeAsync(60_000);
+    await running;
+
+    expect(onToolPhaseStall).toHaveBeenCalledOnce();
+  });
+
+  it('antwortet trotzdem — der Stillstand kostet den Zug nicht', async () => {
+    const { deps } = stalledPlanner();
+
+    const running = runAgenticLoop(params({ onToolPhaseStall: vi.fn() }), deps);
+    await vi.advanceTimersByTimeAsync(60_000);
+    const out = await running;
+
+    expect(out.text).toBe('ANTWORT_AUS_QUELLEN');
+  });
+
+  it('meldet NICHT, wenn der Planer normal liefert', async () => {
+    const { deps } = depsFor({
+      planner: () => streamOf([{ type: 'text-delta', text: 'ich suche' }]),
+      synth: () => streamOf([{ type: 'text-delta', text: 'ANTWORT' }]),
+    });
+    const onToolPhaseStall = vi.fn();
+
+    await runAgenticLoop(params({ onToolPhaseStall }), deps);
+
+    expect(onToolPhaseStall).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Der UNIFIED-Pfad hatte die Uhr nie bekommen. Der gather-Stream ist seit dem
+ * 20.08.2026 bewacht, der synth seit Längerem — der eine Stream, der Werkzeuge
+ * hält UND die Antwort schreibt, lief weiter nur gegen die absolute Decke
+ * (`hardCapMs`, 300 s).
+ *
+ * Gemessen in #2948: je drei von vierzehn trivialen Zügen endeten auf
+ * 300.0–300.5 s, jedes Mal bei anderen Items, zwei ohne einen einzigen
+ * Werkzeugaufruf — und alle mit inhaltlich richtiger Antwort, weil der Text im
+ * unified-Modus längst auf der Leitung war, bevor der Stream hängen blieb.
+ */
+describe('tool phase stall guard (unified)', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const unified = (over: Partial<LoopEngineParams> = {}): LoopEngineParams =>
+    params({ mode: 'unified', ...over });
+
+  /** Ohne `toolActivity` gilt der Deckel aus den gemounteten Werkzeugen: ohne
+   *  Werkzeuge sind das 20 s Aufruf-Timeout + 15 s Vorlauf = 35 s. */
+  const CEILING_MS = 35_000;
+
+  it('gibt eine FERTIGE Antwort zurück, wenn nur der Stream nicht zugeht', async () => {
+    const { deps } = depsFor({
+      synth: () =>
+        ({
+          stream: (async function* () {
+            yield { type: 'text-delta', text: 'Paragraf 263 StGB' };
+            yield { type: 'finish', finishReason: 'stop' };
+            await new Promise(() => {});
+          })(),
+        }) as unknown as ReturnType<LoopDeps['streamText']>,
+    });
+    const onText = vi.fn();
+
+    const running = runAgenticLoop(unified({ onText }), deps);
+    await vi.advanceTimersByTimeAsync(CEILING_MS + 1_000);
+    const out = await running;
+
+    // Kein Wurf: `finish` sagt, die Generierung war fertig. Sonst hängt der
+    // Aufrufer die Abbruch-Fussnote an eine vollständige Antwort.
+    expect(out.text).toBe('Paragraf 263 StGB');
+    expect(onText.mock.calls.flat().join('')).toBe('Paragraf 263 StGB');
+  });
+
+  it('meldet einen Abbruch, wenn die Stille MITTEN in der Antwort steht', async () => {
+    const { deps } = depsFor({
+      synth: () =>
+        ({
+          stream: (async function* () {
+            yield { type: 'text-delta', text: 'Halber Satz' };
+            await new Promise(() => {});
+          })(),
+        }) as unknown as ReturnType<LoopDeps['streamText']>,
+    });
+
+    const running = runAgenticLoop(unified({}), deps).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(CEILING_MS + 1_000);
+    const err = await running;
+
+    // Ohne `finish` ist der Text ein Stumpf — als TimeoutError melden, damit
+    // die Abbruch-Fussnote des Aufrufers greift.
+    expect((err as Error).name).toBe('TimeoutError');
+  });
+
+  it('meldet NICHT an das Gesundheitsregister — das ist die Nutzer-Lane', async () => {
+    // Absicht, keine Lücke: der unified-Stream fährt das GEWÄHLTE Modell, dessen
+    // Gesundheit `responseStreamingService` bereits bucht. Und ein Stillstand
+    // hier kann einer vollständigen Antwort folgen (Test oben) — ein Zäh-Vermerk
+    // gegen eine Lane, die gerade sauber geantwortet hat, wäre schlicht falsch.
+    // Der Vermerk gilt nur der festen Planer-Lane des Split.
+    const { deps } = depsFor({
+      synth: () =>
+        ({
+          stream: (async function* () {
+            yield { type: 'text-delta', text: 'Halber Satz' };
+            await new Promise(() => {});
+          })(),
+        }) as unknown as ReturnType<LoopDeps['streamText']>,
+    });
+    const onToolPhaseStall = vi.fn();
+
+    const running = runAgenticLoop(unified({ onToolPhaseStall }), deps).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(CEILING_MS + 1_000);
+    await running;
+
+    expect(onToolPhaseStall).not.toHaveBeenCalled();
+  });
+
+  it('wertet einen LAUFENDEN Werkzeugaufruf als Lebenszeichen', async () => {
+    // Ein Erzeugungswerkzeug darf 90 s blockieren (TOOL_TIMEOUT_OVERRIDES_MS) —
+    // weit über dem engen Fenster, das der Zähler erlaubt.
+    let inFlight = 0;
+    const { deps } = depsFor({
+      synth: () =>
+        ({
+          stream: (async function* () {
+            yield { type: 'text-delta', text: 'Ich erstelle das PDF. ' };
+            inFlight += 1;
+            await sleep(90_000);
+            inFlight -= 1;
+            yield { type: 'text-delta', text: 'Fertig.' };
+            yield { type: 'finish', finishReason: 'stop' };
+          })(),
+        }) as unknown as ReturnType<LoopDeps['streamText']>,
+    });
+
+    const running = runAgenticLoop(unified({ toolActivity: { inFlight: () => inFlight } }), deps);
+    await vi.advanceTimersByTimeAsync(91_000);
+    const out = await running;
+
+    expect(out.text).toBe('Ich erstelle das PDF. Fertig.');
   });
 });

@@ -9,6 +9,7 @@
  * once, then lives here too.
  */
 
+import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import { File, Directory, Paths } from 'expo-file-system';
 
 const CACHE_SUBDIR = 'pushed-content';
@@ -30,7 +31,7 @@ export function getCachedShareFile(shareToken: string, ext: 'png' | 'mp4' = 'png
  */
 export function writeImageToShareCache(shareToken: string, imageData: string): void {
   try {
-    const base64 = imageData.replace(/^data:image\/\w+;base64,/, '');
+    const base64 = stripDataUrlPrefix(imageData);
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {

@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { datePresets, daysAgo } from '../manual-search/datePresets';
 import { type FilterFieldConfig } from '../manual-search/useResearchFilters';
 
 import { buildSystemTargets } from './omniIntent';
@@ -22,6 +23,15 @@ const filterFields: Record<string, FilterFieldConfig> = {
       { value: 'soziales', count: 12 },
     ],
     valueLabels: { klima: 'Klima', verkehr: 'Verkehr', soziales: 'Soziales' },
+  },
+  persons: {
+    label: 'Personen',
+    type: 'keyword',
+    values: [
+      { value: 'Robert Habeck', count: 9 },
+      { value: 'Annalena Baerbock', count: 7 },
+      { value: 'Habeck', count: 3 },
+    ],
   },
 };
 
@@ -109,10 +119,174 @@ describe('parseResearchIntent — scope + recency + empties', () => {
     expect(parseResearchIntent('neueste beschlüsse zu verkehr', ctx).sortBy).toBe('date_desc');
   });
 
+  it('keeps „Aktuelle Stunde“ as a debate format, not recency', () => {
+    const parsed = parseResearchIntent('Aktuelle Stunde Mietpreise', ctx);
+    expect(parsed.sortBy).toBeUndefined();
+    expect(parsed.residualQuery).toContain('Aktuelle Stunde');
+  });
+
   it('returns no structure for a plain keyword', () => {
     const parsed = parseResearchIntent('hitzeschutz', ctx);
     expect(parsed.hasStructure).toBe(false);
     expect(parsed.collectionIds).toBeUndefined();
     expect(Object.keys(parsed.filters)).toEqual([]);
+  });
+});
+
+describe('parseResearchIntent — relative dates (clock pinned to 2026-09-27)', () => {
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 27, 12, 0, 0));
+  });
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
+  const parse = (q: string) => parseResearchIntent(q, ctx);
+
+  it.each([
+    ['anträge seit 30 Tagen', { date_from: '2026-08-28' }, 'Letzte 30 Tage'],
+    ['beschlüsse der letzten 30 Tage', { date_from: '2026-08-28' }, 'Letzte 30 Tage'],
+    ['in den letzten zwei Wochen', { date_from: '2026-09-13' }, 'Letzte 2 Wochen'],
+    ['seit drei Monaten', { date_from: '2026-06-27' }, 'Letzte 3 Monate'],
+    ['letzte 12 Monate zu klima', { date_from: '2025-09-27' }, 'Letzte 12 Monate'],
+    ['was kam letzte Woche', { date_from: '2026-09-20' }, 'Letzte Woche'],
+    ['beschlüsse im letzten Monat', { date_from: '2026-08-27' }, 'Letzter Monat'],
+    ['was hat sich dieses Jahr getan', { date_from: '2026-01-01', date_to: '2026-12-31' }, '2026'],
+    ['in diesem Jahr', { date_from: '2026-01-01', date_to: '2026-12-31' }, '2026'],
+    ['anträge letztes Jahr', { date_from: '2025-01-01', date_to: '2025-12-31' }, '2025'],
+    ['im letzten Jahr', { date_from: '2025-01-01', date_to: '2025-12-31' }, '2025'],
+    ['vergangenes Jahr', { date_from: '2025-01-01', date_to: '2025-12-31' }, '2025'],
+    ['voriges Jahr', { date_from: '2025-01-01', date_to: '2025-12-31' }, '2025'],
+    ['beschlüsse in 2023', { date_from: '2023-01-01', date_to: '2023-12-31' }, '2023'],
+    ['anträge aus 2023', { date_from: '2023-01-01', date_to: '2023-12-31' }, '2023'],
+    ['im Jahr 2021 beschlossen', { date_from: '2021-01-01', date_to: '2021-12-31' }, '2021'],
+  ])('%s', (q, range, label) => {
+    const parsed = parse(q);
+    expect(parsed.filters['published_at']).toEqual(range);
+    expect(parsed.matched.dateLabel).toBe(label);
+  });
+
+  it('labels and ranges equal the toolbar presets they coincide with', () => {
+    const presets = datePresets(new Date());
+    const byLabel = (l: string) => presets.find((p) => p.label === l)?.range;
+    expect(parse('seit 30 Tagen').filters['published_at']).toEqual(byLabel('Letzte 30 Tage'));
+    expect(parse('letzte 12 Monate').filters['published_at']).toEqual(byLabel('Letzte 12 Monate'));
+    expect(parse('dieses Jahr').filters['published_at']).toEqual(byLabel('2026'));
+    expect(parse('letztes Jahr').filters['published_at']).toEqual(byLabel('2025'));
+  });
+
+  it('canonical example: "Hitzeschutz, Dokumente seit 30 Tagen"', () => {
+    const parsed = parse('Hitzeschutz, Dokumente seit 30 Tagen');
+    expect(parsed.residualQuery).toBe('Hitzeschutz');
+    expect(parsed.matched.dateLabel).toBe('Letzte 30 Tage');
+    expect(parsed.filters['published_at']).toEqual({ date_from: daysAgo(new Date(), 30) });
+    expect(parsed.filters['published_at']).toEqual({ date_from: '2026-08-28' });
+  });
+
+  it('does not read an uncounted "seit paar Tagen" as a date', () => {
+    expect(parse('seit paar Tagen').filters['published_at']).toBeUndefined();
+  });
+
+  it('seit YYYY keeps its meaning when an "in YYYY" follows', () => {
+    expect(parse('beschlüsse seit 2021 in 2000 kommunen').filters['published_at']).toEqual({
+      date_from: '2021-01-01',
+    });
+  });
+
+  it('keeps the existing letzte-N-Jahre pattern on the pinned clock', () => {
+    expect(parse('in den letzten 2 Jahren').filters['published_at']).toEqual({
+      date_from: '2024-01-01',
+    });
+  });
+});
+
+describe('parseResearchIntent — month-end clamp (clock pinned to 2026-03-31)', () => {
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 2, 31, 12, 0, 0));
+  });
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
+  it('letzten Monat clamps 31 March to 28 February', () => {
+    expect(parseResearchIntent('letzten Monat', ctx).filters['published_at']).toEqual({
+      date_from: '2026-02-28',
+    });
+  });
+
+  it('counted months clamp to the target month end', () => {
+    expect(parseResearchIntent('seit einem Monat', ctx).filters['published_at']).toEqual({
+      date_from: '2026-02-28',
+    });
+    expect(parseResearchIntent('letzte 3 Monate', ctx).filters['published_at']).toEqual({
+      date_from: '2025-12-31',
+    });
+  });
+});
+
+describe('parseResearchIntent — persons', () => {
+  it('sets filters.persons for a persons-only query', () => {
+    const parsed = parseResearchIntent('Robert Habeck', ctx);
+    expect(parsed.filters).toEqual({ persons: ['Robert Habeck'] });
+    expect(parsed.residualQuery).toBe('Robert Habeck');
+  });
+
+  it('matches multi-word names from the facet vocabulary', () => {
+    const parsed = parseResearchIntent('was sagt robert habeck zu klima', ctx);
+    expect(parsed.filters['persons']).toEqual(['Robert Habeck']);
+    expect(parsed.matched.persons).toEqual(['Robert Habeck']);
+    expect(parsed.hasStructure).toBe(true);
+  });
+
+  it('ignores single-word facet values', () => {
+    expect(parseResearchIntent('was sagt habeck', ctx).filters['persons']).toBeUndefined();
+  });
+
+  it('does not match a name only as part of a longer word', () => {
+    expect(parseResearchIntent('annalena baerbocks rede', ctx).filters['persons']).toBeUndefined();
+  });
+
+  it('adds a persons chip after the themes chip', () => {
+    const parsed = parseResearchIntent('annalena baerbock seit 2023 zu klima', ctx);
+    expect(describeParsedFilters(parsed)).toEqual([
+      { key: 'published_at', label: 'seit 2023' },
+      { key: 'themes', label: 'Klima' },
+      { key: 'persons', label: 'Annalena Baerbock' },
+    ]);
+  });
+});
+
+describe('parseResearchIntent — residualQuery', () => {
+  const residual = (q: string) => parseResearchIntent(q, ctx).residualQuery;
+
+  it('drops the date phrase and filler words, keeps themes and persons', () => {
+    expect(residual('Alle Beiträge zu Klima seit 2023')).toBe('zu Klima');
+    expect(residual('Robert Habeck, Dokumente aus 2023?')).toBe('Robert Habeck');
+  });
+
+  it('drops recency words (they became a sort)', () => {
+    expect(residual('neueste Beschlüsse zu Verkehr')).toBe('Beschlüsse zu Verkehr');
+  });
+
+  it('keeps the original casing and inner words', () => {
+    expect(residual('Was hat Berlin zwischen 2021 und 2023 zum Klima beschlossen')).toBe(
+      'Was hat Berlin zum Klima beschlossen'
+    );
+  });
+
+  it('only drops filler words that stand alone', () => {
+    expect(residual('Artikelserie zu Textilien')).toBe('Artikelserie zu Textilien');
+  });
+
+  it('falls back to the full query when nothing is left', () => {
+    expect(residual('  alle Dokumente seit 2023 ')).toBe('alle Dokumente seit 2023');
+  });
+
+  it('keeps semanticQuery as the full trimmed query', () => {
+    expect(parseResearchIntent(' alle Beiträge seit 2023 ', ctx).semanticQuery).toBe(
+      'alle Beiträge seit 2023'
+    );
   });
 });

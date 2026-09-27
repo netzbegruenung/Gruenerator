@@ -31,21 +31,48 @@
  * are layered on separately by `wrapToolsForLoop`.
  */
 import { isIntentAllowedForLocale } from '@gruenerator/shared/chat-intents';
-import { tool, type ToolSet } from 'ai';
+import { tool, type Tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import { looksLikeRecurringOrder } from '../../../agents/langgraph/ChatGraph/nodes/classifierSignals.js';
 import { forbidsNewResearch } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import {
   buildProductKnowledgeBlock,
   isProductMetaQuestion,
 } from '../../../services/chat/productKnowledge.js';
 import { crawlAndDistill } from '../../../services/search/index.js';
+import { getDeepLService } from '../../../services/translation/DeepLService.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
+import {
+  ATTACHED_DOC_SNIPPET_CHARS,
+  ATTACHED_DOCS_TOOL,
+  retrievableAttachedSources,
+  retrieveAttachedDocuments,
+  SLICE_DEFAULT_CHARS,
+  SLICE_REGISTER_CHARS,
+} from '../services/agenticLoop/attachedDocuments.js';
+import {
+  readAttachedSlice,
+  runAttachedDocumentMode,
+} from '../services/agenticLoop/attachedDocumentTools.js';
+import { isLoopRerankEnabled } from '../services/agenticLoop/flags.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
+import {
+  mentionsRecipes,
+  mentionsRecurringTasks,
+  mentionsUserAgents,
+} from '../services/agenturaContext.js';
+import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
+import {
+  attachedCloudShareLinks,
+  mentionsCloudStorage,
+} from '../services/cloudConnectionContext.js';
+import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
+import { makeCloudFilesTool } from './cloudFileTools.js';
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
@@ -59,6 +86,10 @@ import {
   makeUmfragenTool,
 } from './domainTools.js';
 import { makeEditArtifactTool } from './editorTools.js';
+import { makeGroupsTool } from './groupTools.js';
+import { makeMemoryTool } from './memoryTools.js';
+import { makeNotebookSourcesTool } from './notebookSourceTools.js';
+import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
   makeBoardsTasksTool,
@@ -66,17 +97,20 @@ import {
   makeReadArtifactTool,
   makeFindContentTool,
   makeSearchThreadsTool,
-  makeGroupsTool,
   makeMediaTool,
-  makeNotebooksTool,
   type PersonalToolCtx,
 } from './personalDataTools.js';
+import { makeRecurringTasksTool } from './recurringTaskTools.js';
 import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';
-import { createSearchTools } from './searchTools.js';
+import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
+import { makeRecipesTool } from './textFormTools.js';
+import { makeTranslateTool } from './translationTools.js';
+import { makeUserAgentsTool } from './userAgentTools.js';
+import { makeVertonenTool } from './voiceTools.js';
 
 import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { AIWorkerPool } from '../../../workers/types.js';
+import type { RecipeRegistry } from '../services/agenticLoop/recipeRegistry.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 import type { Request } from 'express';
@@ -117,6 +151,30 @@ const CATALOG_TOOLS = new Set([
 const SOURCE_HARVEST_TOOLS = new Set(['gruenerator_search', 'web_search']);
 
 /**
+ * Which record keys gate each search-family tool on the LOOP path — the tool
+ * stays away if ANY of them is switched off. The single pass has honoured these
+ * keys all along (`searchBranch.ts`, under the intent name), while this catalog
+ * mounted the corpora for every turn — so an agent without "Grünerator-Wissen"
+ * lost it on single-pass turns and kept it on loop turns, which is the same
+ * tool answering to two different rules (#3307).
+ *
+ * Two keys reach the press examples because two different things write them:
+ * `examples` is the agent picker's entry, `pressemitteilung_examples` is the
+ * composer toggle and the classifier intent of the same name (`ToolKey` in
+ * packages/chat/src/stores/chatStore.ts). Asking only the first would let a
+ * composer opt-out close the corpus on single-pass turns and not on loop turns.
+ *
+ * `web_search` is deliberately absent: its door is the agent's own array, one
+ * capability behind two key names, and it closes above via
+ * `agentAllowsWebSearch`.
+ */
+const CATALOG_TOOL_PICKER_KEYS: Readonly<Record<string, readonly string[]>> = {
+  gruenerator_search: ['search'],
+  gruenerator_examples_search: ['examples'],
+  gruenerator_pressemitteilung_examples: ['examples', 'pressemitteilung_examples'],
+};
+
+/**
  * Snippet budget for `scrape_url`. A deliberate page read deserves far more
  * than a search hit's snippet — see the call site.
  *
@@ -129,6 +187,21 @@ const CRAWL_SNIPPET_CHARS = 8_000;
 
 /** Char budget handed to the distiller for a deliberately named page. */
 const CRAWL_DISTILL_TARGET_CHARS = 8_000;
+
+/**
+ * Chunk limit for `expand_attachment`'s vectorized-doc path — well above the
+ * fan-out's per-source share (searchNode.ts, FANOUT_MIN_CHUNKS_PER_SOURCE),
+ * since this is a deliberate "give me more of this one file" call, not an
+ * even split across many sources competing for the same budget.
+ */
+const EXPAND_ATTACHMENT_CHUNK_LIMIT = 20;
+
+/**
+ * Registration cap for a full inline attachment text handed back via
+ * `expand_attachment`. Same reasoning as `CRAWL_SNIPPET_CHARS`: a deliberate
+ * reread of a named file deserves more room than an ordinary search snippet.
+ */
+const EXPAND_ATTACHMENT_SNIPPET_CHARS = 12_000;
 
 /**
  * Crawl budget for `tiefenrecherche` — the ONE tier that reads pages.
@@ -206,8 +279,7 @@ function takeSearchImages(result: unknown, loop: LoopContext | undefined): strin
  */
 async function crawlDeepHits(
   mapped: SearchResult[],
-  result: unknown,
-  aiWorkerPool: AIWorkerPool | null
+  result: unknown
 ): Promise<{ results: SearchResult[]; crawledCount: number }> {
   const meta = (result ?? {}) as { tier?: unknown; query?: unknown };
   if (meta.tier !== 'tiefenrecherche') return { results: mapped, crawledCount: 0 };
@@ -242,7 +314,7 @@ async function crawlDeepHits(
       // the whole reason to read them rather than trust the snippet.
       mode: 'query-focused',
       targetChars: DEEP_CRAWL_TARGET_CHARS,
-      ...(aiWorkerPool ? { aiWorkerPool } : {}),
+      condense: true,
     });
     const byUrl = new Map(crawled.filter((r) => r.crawled && r.content).map((r) => [r.url, r]));
     if (byUrl.size === 0) return { results: mapped, crawledCount: 0 };
@@ -281,13 +353,33 @@ export function buildChatToolCatalog(params: {
   agentConfig: AgentConfig;
   sourceRegistry: SourceRegistry;
   /**
+   * Die Rezepte, die der Loop in diesem Turn selbst lädt. Nur die PM-Suche
+   * liest sie, und nur deren Landesverbands-Ebene: das Rezept entscheidet, ob
+   * Partei- oder Fraktionsvorlagen die Erdung stellen. Fehlt sie (Tests, der
+   * Board-Agent), bleibt der volle Ausschnitt des Agenten stehen.
+   */
+  recipeRegistry?: Pick<RecipeRegistry, 'mentions'>;
+  /**
    * Live-loop context. Present only on the agentic path; enables the domain
    * tools (summary/bundestag/abgeordnetenwatch) which run existing ChatGraph
    * nodes. Absent in unit tests → search family only.
    */
   loop?: { sse: SSEWriter; state: ChatGraphState; req?: Request; threadId?: string | null };
+  /**
+   * Beschränkt die Suchfamilie auf die Picker-Auswahl eines gebundenen Agenten
+   * (`enabledToolKeys` in `createSearchTools`) — der headless Pfad (#3221)
+   * erbt damit die `restrictToAgentTools`-Semantik des alten Recurring-Kerns.
+   * Fehlt ⇒ Verhalten unverändert.
+   */
+  searchToolKeys?: readonly string[];
+  /**
+   * Nur diese Werkzeuge montieren — Endfilter über den fertigen Katalog (der
+   * Präzisionsmodus der Notebook-Seite fährt nur `notebook_quellen`). Fehlt ⇒
+   * Verhalten unverändert.
+   */
+  toolAllowlist?: readonly string[];
 }): ChatToolCatalog {
-  const { agentConfig, sourceRegistry, loop } = params;
+  const { agentConfig, sourceRegistry, recipeRegistry, loop } = params;
 
   // "Ohne neue Recherche" is enforced by ABSENCE, not by asking nicely: the
   // search family is simply not built for this turn. Everything else — the
@@ -303,7 +395,10 @@ export function buildChatToolCatalog(params: {
   // No `direct_response` — the loop simply answers without a tool call when no
   // tool is needed (toolChoice stays 'auto').
   const base = createSearchTools(agentConfig, {
-    ...(loop?.state.userLocale != null && { userLocale: loop.state.userLocale }),
+    // Unconditional, not a conditional spread: WHICH collections this turn may
+    // search now hangs on the locale, so "no loop state" has to resolve to an
+    // explicit `null` (→ the German default) rather than to an absent property.
+    userLocale: loop?.state.userLocale ?? null,
     // Whether the model may actually spend the deep engine when it asks for
     // `tiefe: 'tiefenrecherche'`. Comes from the user's own words, not from the
     // model's judgement — see resolveSearchTier.
@@ -320,11 +415,38 @@ export function buildChatToolCatalog(params: {
     ...(loop != null && {
       userText: loop.state.lastUserTextNoMentions ?? lastUserText(loop.state),
     }),
+    // Welche Rezepte diesen Turn gelten — die ausdrücklich gewählte Kennung
+    // plus alles, was der Loop selbst nachlädt. Als Thunk, weil das zweite
+    // erst nach dem Bau dieses Katalogs passiert.
+    activeRecipeMentions: () => [
+      loop?.state.activeSkillMention,
+      ...(recipeRegistry?.mentions ?? []),
+    ],
+    // Chunk-Rerank vor der Gruppierung. Nur im Loop — der Einzelpfad rerankt
+    // danach in `rerankNode`, der Board-Agent gar nicht — und nur mit
+    // gesetztem Schalter: Default AUS bis zum Doppelmesslauf (#3120).
+    ...(loop != null && isLoopRerankEnabled() && { rerankSearchChunks: true }),
+    ...(params.searchToolKeys?.length ? { enabledToolKeys: params.searchToolKeys } : {}),
   });
+
+  // Agents bound to their own corpus (the Landesverband agents and their
+  // notebooks) declare no web capability. Their system prompt says so, but a
+  // prompt is not a gate: the catalog mounted `web_search` for every agent, so
+  // the model could — and did — search the open web anyway. Only the web door
+  // closes here; `gruenerator_search` and the example corpora stay mounted.
+  const webAllowed = agentAllowsWebSearch(agentConfig);
+  if (!webAllowed) {
+    delete base.web_search;
+    log.info(
+      `[toolCatalog] agent ${agentConfig.identifier} has no web capability — web_search/scrape_url not mounted`
+    );
+  }
 
   const tools: ToolSet = {};
   for (const [name, def] of Object.entries(base)) {
     if (!CATALOG_TOOLS.has(name) || researchBanned) continue;
+    const pickerKeys = CATALOG_TOOL_PICKER_KEYS[name];
+    if (pickerKeys?.some((key) => loop?.state.enabledTools?.[key] === false)) continue;
 
     if (!SOURCE_HARVEST_TOOLS.has(name)) {
       // Examples tools: surfaced to the model + UI as-is (they render via the
@@ -380,8 +502,12 @@ export function buildChatToolCatalog(params: {
         // then reported a 2023 snippet's "ist Bundesminister" as the current
         // state of affairs. The date is grounding, not just ranking input.
         ...(typeof r.publishedDate === 'string' ? { publishedDate: r.publishedDate } : {}),
+        // Which collection a document hit came from — the citation derives the
+        // document reader's target from it, so a title the model links as
+        // `[Titel](quelle:N)` opens the document instead of leaving the app.
+        ...(typeof r.collectionId === 'string' ? { collectionId: r.collectionId } : {}),
       }));
-      const enriched = await crawlDeepHits(mapped, result, loop?.state.aiWorkerPool ?? null);
+      const enriched = await crawlDeepHits(mapped, result);
       const sources = sourceRegistry.register(
         enriched.results,
         // One cap for the whole batch, sized for the crawled pages. Harmless for
@@ -407,7 +533,9 @@ export function buildChatToolCatalog(params: {
   // It belongs to the search family for the ban: reading a page the model picked
   // is new research by any honest reading, and leaving this one door open is
   // exactly how a blocked search reappears as a crawl.
-  if (!researchBanned) {
+  // Same gate as `web_search` above: for an agent without web capability a
+  // crawl is the other door to the same open web.
+  if (!researchBanned && webAllowed) {
     tools.scrape_url = tool({
       description: `Ruft den vollständigen Textinhalt einer oder mehrerer Webseiten ab.
 
@@ -443,7 +571,7 @@ NUTZE WENN:
           timeout: 8000,
           mode: 'faithful',
           targetChars: CRAWL_DISTILL_TARGET_CHARS,
-          ...(loop?.state.aiWorkerPool ? { aiWorkerPool: loop.state.aiWorkerPool } : {}),
+          condense: true,
         });
         const results: SearchResult[] = crawled
           .filter((r) => r.crawled && (r.content || r.fullContent))
@@ -469,6 +597,101 @@ NUTZE WENN:
     });
   }
 
+  // expand_attachment: recovers from the fair-split budget in
+  // limitAttachmentContext (respondNode.ts) and the fan-out's per-source chunk
+  // cap (executeMultiDocFanout, searchNode.ts) by pulling more content for ONE
+  // named attachment on demand — see docs/chat-context-memory-paths.md,
+  // "Mehrdokument-Fan-out" (M4).
+  //
+  // Scope note: only resolves attachments carried over from a PRIOR turn
+  // (`state.threadAttachments`, which has a stable id + optional documentId
+  // per file). A file uploaded THIS turn has no such stable, name-addressable
+  // record once contextEnrichmentService.ts has routed and discarded its
+  // local `processedMeta` — closing that gap needs a state-schema addition,
+  // out of scope here.
+  if (loop && !researchBanned) {
+    tools.expand_attachment = tool({
+      description: `Lädt mehr Inhalt aus einer Datei nach, die in einem früheren Turn dieses Gesprächs hochgeladen wurde, wenn der bisher gezeigte Auszug für die Aufgabe (z. B. einen Vergleich mehrerer Dateien) nicht ausreicht.
+
+NUTZE WENN:
+- Eine Auslassungs-Meldung oder ein "(Ausschnitt, weitere Inhalte über Suche verfügbar)"-Hinweis eine Datei nennt, die du für die Antwort brauchst
+- Ein Dateivergleich mit dem bisher gezeigten Auszug erkennbar unvollständig wäre
+
+Übergib den exakten Dateinamen. Funktioniert nur für Anhänge aus früheren Turns dieses Gesprächs — für Dateien aus DIESER Nachricht gibt es ${ATTACHED_DOCS_TOOL}.`,
+      inputSchema: z.object({
+        attachmentName: z
+          .string()
+          .describe('Exakter Dateiname des Anhangs aus einem früheren Turn'),
+      }),
+      execute: async ({ attachmentName }) => {
+        const attachment = (loop.state.threadAttachments ?? []).find(
+          (a) => a.name.toLowerCase() === attachmentName.toLowerCase()
+        );
+        if (!attachment) {
+          return {
+            error:
+              `Keine Datei namens "${attachmentName}" aus einem früheren Turn gefunden. ` +
+              `Für Dateien, die in DIESER Nachricht hochgeladen wurden, gibt es ${ATTACHED_DOCS_TOOL}.`,
+          };
+        }
+
+        // Vectorized (large) doc: pull a much bigger sample than the fan-out's
+        // per-source share via a fresh, uncapped-relative-to-fanout query.
+        if (attachment.documentId) {
+          const attachmentDocumentId = attachment.documentId;
+          const documentSearchService = (
+            await import('../../../services/document-services/DocumentSearchService/index.js')
+          ).getQdrantDocumentService();
+          const query = loop.state.lastUserTextNoMentions ?? lastUserText(loop.state);
+          const response = await documentSearchService.search({
+            query,
+            userId: agentConfig.userId,
+            options: { limit: EXPAND_ATTACHMENT_CHUNK_LIMIT, mode: 'hybrid', threshold: 0.15 },
+            filters: { documentIds: [attachmentDocumentId] },
+          });
+          const results: SearchResult[] = (response.results || []).map((r) => ({
+            source: `attachment:${attachment.id}`,
+            title: r.title || attachment.name,
+            content: r.relevant_content || '',
+            ...(r.source_url ? { url: r.source_url } : {}),
+            relevance: r.similarity_score ?? 0.5,
+            // Derselbe Schlüssel wie im Fan-out (`searchNode.ts:889`). Ohne ihn
+            // fällt dieses Werkzeug auf den Inhalts-Schlüssel zurück und legt
+            // für die schon mitgeführte Datei einen ZWEITEN Quellenplatz an —
+            // also genau die Verdopplung, gegen die der Schlüssel gebaut ist,
+            // nur über den Nachlade-Pfad.
+            documentId: r.document_id || attachmentDocumentId,
+          }));
+          if (results.length === 0) {
+            return { error: `Konnte keine weiteren Inhalte aus "${attachmentName}" laden.` };
+          }
+          const sources = sourceRegistry.register(results);
+          if (!sources) return { error: `Konnte "${attachmentName}" nicht nachladen.` };
+          return { resultCount: results.length, sources };
+        }
+
+        // Inline (small) doc: the full text already lives on threadAttachments,
+        // untruncated — truncation only happens in the rendered prompt, not here.
+        if (attachment.extractedText) {
+          const results: SearchResult[] = [
+            {
+              source: `attachment:${attachment.id}`,
+              title: attachment.name,
+              content: attachment.extractedText,
+            },
+          ];
+          const sources = sourceRegistry.register(results, {
+            snippetChars: EXPAND_ATTACHMENT_SNIPPET_CHARS,
+          });
+          if (!sources) return { error: `Konnte "${attachmentName}" nicht nachladen.` };
+          return { resultCount: 1, sources };
+        }
+
+        return { error: `"${attachmentName}" enthält keinen nachladbaren Text.` };
+      },
+    });
+  }
+
   // Domain tools (loop path only). Mounted BROADLY, not gated on the exact
   // classified intent: the loop's whole point is that the MODEL picks the tool,
   // and the classifier routinely sends Bundestag/politician questions to plain
@@ -479,6 +702,126 @@ NUTZE WENN:
   if (loop) {
     const { sse, state } = loop;
     tools.summarize = makeSummaryTool({ sse, state });
+
+    // dokumente_lesen: gezielte Frage an die Dokumente, die an DIESEN Turn
+    // hängen. Gegated an den Dokumenten selbst, nicht an einer Konfiguration
+    // daneben — LobeHub montiert sein Gegenstück nur, wenn der Agent zufällig
+    // eine Wissensdatenbank konfiguriert hat, und dann kann das Modell eine
+    // gerade hochgeladene Datei nicht mehr befragen. Genau die Bauform, die uns
+    // den Ausfall vom 23.08.2026 eingebracht hat.
+    //
+    // Der Vorab-Seed (seedAttachedDocuments) hat die Passagen zur häufigsten
+    // Frage schon geholt; dieses Werkzeug ist das Nachfassen, wenn er
+    // danebengriff.
+    const attachedSources = retrievableAttachedSources(state);
+    if (attachedSources.length > 0) {
+      const mehrere = attachedSources.length > 1;
+      tools[ATTACHED_DOCS_TOOL] = tool({
+        description: `Durchsucht die Dokumente, die in diesem Gespräch angehängt sind${mehrere ? ` (${attachedSources.map((s) => s.label).join(', ')})` : ` („${attachedSources[0]!.label}")`}, oder liest sie abschnittsweise im Volltext.
+
+NUTZE WENN eine Frage sich auf eine angehängte Datei bezieht und die bereits gezeigten Passagen nicht ausreichen.
+
+- Für eine gezielte Frage: \`query\` mit einem präzisen Suchbegriff.
+- Wenn die Frage keinen brauchbaren Suchbegriff hergibt (z. B. „was steht am Anfang", „lies weiter"): \`abschnitt\` mit \`von\` als Zeichenposition — die Antwort sagt dir, wo du weiterlesen kannst.
+- Auch wenn die Frage Vollständigkeit verlangt („alle …", „wie viele …", jede Zeile einer Tabelle, eine ganze Liste): \`abschnitt\`, nicht \`query\` — die Passagensuche ordnet nach Relevanz und liefert nur die besten Treffer, nie alle.
+- „Seite N": \`seite\`.
+- „wie oft / alle Stellen mit Wort X": \`wortsuche\` statt \`abschnitt\` — zählt vollständig, mit Seite je Fundstelle.
+- „steht das so drin / stimmt das Zitat": \`zitat\` mit dem Wortlaut.${mehrere ? '\n- `dateiname` grenzt auf eine der Dateien ein.' : ''}
+
+Genau ein Modus je Aufruf.
+
+NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summarize\`, das den vollständigen Text verarbeitet statt einzelner Passagen.`,
+        inputSchema: z.object({
+          query: z.string().optional().describe('Präziser Suchbegriff für die Passagensuche'),
+          dateiname: z
+            .string()
+            .optional()
+            .describe('Exakter Name einer der angehängten Dateien, um darauf einzugrenzen'),
+          abschnitt: z
+            .object({
+              von: z.number().describe('Zeichenposition, ab der gelesen wird (0 = Anfang)'),
+              zeichen: z
+                .number()
+                .optional()
+                .describe(`Wie viele Zeichen (Standard ${SLICE_DEFAULT_CHARS})`),
+            })
+            .optional()
+            .describe('Volltext abschnittsweise lesen statt suchen'),
+          seite: z.number().int().min(1).optional().describe('Seitenzahl lesen'),
+          wortsuche: z
+            .object({
+              phrase: z.string().describe('Wort oder Wortfolge'),
+              grossKlein: z.boolean().optional().describe('Groß/klein beachten'),
+            })
+            .optional()
+            .describe('Alle Vorkommen zählen'),
+          zitat: z.string().optional().describe('Wortlaut, der im Dokument stehen soll'),
+        }),
+        execute: async ({ query, dateiname, abschnitt, seite, wortsuche, zitat }) => {
+          const modes = [query, abschnitt, seite, wortsuche, zitat].filter((m) => m != null);
+          if (modes.length > 1) {
+            return {
+              error:
+                'Genau ein Modus je Aufruf: query, abschnitt, seite, wortsuche oder zitat — für mehrere Fragen mehrere Aufrufe.',
+            };
+          }
+          const scoped = dateiname
+            ? attachedSources.filter((s) => s.label.toLowerCase() === dateiname.toLowerCase())
+            : attachedSources;
+          if (scoped.length === 0) {
+            return {
+              error:
+                `Keine angehängte Datei namens "${dateiname}". Verfügbar: ` +
+                attachedSources.map((s) => s.label).join(', '),
+            };
+          }
+
+          if (seite != null || wortsuche != null || zitat != null) {
+            return runAttachedDocumentMode(
+              { seite, wortsuche, zitat },
+              { userId: state.agentConfig.userId ?? null, sources: scoped, sourceRegistry }
+            );
+          }
+
+          // Weder Suchbegriff noch Abschnitt: bei genau einer Datei ist der
+          // Anfang die ehrlichere Antwort als eine Ähnlichkeitssuche nach der
+          // Frage selbst — die trifft bei „worum geht es hier" nur Zufälliges.
+          const readSlice = abschnitt != null || (!query && scoped.length === 1);
+          const results = readSlice
+            ? await readAttachedSlice({
+                userId: state.agentConfig.userId ?? null,
+                sources: scoped,
+                from: abschnitt?.von ?? 0,
+                chars: abschnitt?.zeichen,
+              })
+            : await retrieveAttachedDocuments(state, query ?? '', { sources: scoped });
+
+          if (results.length === 0) {
+            return {
+              error: readSlice
+                ? 'Kein Text an dieser Stelle — das Dokument ist wohl kürzer.'
+                : `Keine passende Passage gefunden. Mit abschnitt.von=0 lässt sich der Text von vorn lesen.`,
+            };
+          }
+          // Eine ausdrückliche Nachlese verdient mehr Platz als ein Suchtreffer
+          // — dieselbe Begründung wie an expand_attachment. Der Deckel kommt aus
+          // `attachedDocuments`, wo auch die Scheibengrenze davon abgeleitet
+          // ist: die beiden Zahlen dürfen nicht auseinanderlaufen, sonst
+          // verliert die Scheibe ihr Ende.
+          //
+          // Auch die Passagensuche liegt über dem Standardmass, und zwar auf
+          // demselben Wert wie der Vorab-Abruf: beide fragen dieselben Anhänge
+          // mit derselben Bauform ab, und ein Deckel, der sich zwischen Seed und
+          // Werkzeug unterscheidet, macht dasselbe Ergebnis je nach Aufrufer
+          // unterschiedlich lang.
+          const sources = readSlice
+            ? sourceRegistry.register(results, { snippetChars: SLICE_REGISTER_CHARS })
+            : sourceRegistry.register(results, { snippetChars: ATTACHED_DOC_SNIPPET_CHARS });
+          if (!sources) return { error: 'Konnte die angehängten Dokumente nicht lesen.' };
+          return { resultCount: results.length, sources };
+        },
+      });
+    }
     // Broad mounting stops at the border. The classifier already degrades
     // `bundestag`/`abgeordnetenwatch` to `web` for de-AT users — but that only
     // rewrote `state.intent`, while this catalog handed the model the tools
@@ -491,9 +834,13 @@ NUTZE WENN:
     if (isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
       tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
     }
-    // `umfragen` is NOT gated: PolitPro covers the Austrian parliaments, and the
-    // tool resolves them from `state.userLocale`.
-    tools.umfragen = makeUmfragenTool({ sourceRegistry, state });
+    // `umfragen` is not LOCALE-gated: PolitPro covers the Austrian parliaments,
+    // and the tool resolves them from `state.userLocale`. It is gated on the
+    // picker key behind it ("Umfragen"), which reached nothing at all before
+    // #3307 — the checkbox existed and the tool mounted anyway.
+    if (state.enabledTools?.['meinungsbild'] !== false) {
+      tools.umfragen = makeUmfragenTool({ sourceRegistry, state });
+    }
     // Documentation search (`hilfe`). Mounted broadly like the other domain
     // tools — the classifier routinely labels an operating question `direct` or
     // `search`, and gating on intent would hide the tool exactly then. In-process
@@ -501,6 +848,17 @@ NUTZE WENN:
     if (state.enabledTools?.['hilfe'] !== false) {
       tools.gruenerator_docs_search = makeDocsSearchTool({ sourceRegistry });
     }
+    // Ob `cloud_files` diesen Turn montiert wird — VOR dem product_knowledge-
+    // Block berechnet, weil es dort einen zweiten Verbraucher hat: der Wolke-
+    // Verweis im Tool-Ergebnis darf nie auf ein Werkzeug zeigen, das dieser
+    // Turn gar nicht trägt. Die Tore selbst sind am Mount weiter unten erklärt.
+    const wolkeInText = mentionsCloudStorage(state.lastUserTextNoMentions ?? lastUserText(state));
+    const cloudFilesMounted =
+      state.enabledTools?.['cloud_files'] !== false &&
+      ((state.cloudConnectionCount ?? 0) > 0 ||
+        (state.wolkeFiles?.length ?? 0) > 0 ||
+        attachedCloudShareLinks(state.attachedWebpageUrls).length > 0 ||
+        wolkeInText);
     // Product self-knowledge: what Grünerator itself offers (Grüneratoren,
     // Werkzeuge, MCP-Server, Wissenssammlungen). Same builder respondNode
     // injects when the meta regex matches — the loop inherits that system
@@ -514,7 +872,7 @@ NUTZE WENN:
       tools.product_knowledge = tool({
         description: `Beantwortet Fragen über den Grünerator selbst: verfügbare Grüneratoren (Assistenten), Werkzeuge, MCP-Server/Anbindungen und durchsuchbare Wissenssammlungen.
 
-NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "welche MCP-Server kennst du", "wie erstelle ich ein Sharepic"). NICHT für politische Inhalte oder Recherche.`,
+NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "welche MCP-Server kennst du", "wie erstelle ich ein Sharepic"). NICHT für politische Inhalte oder Recherche — und NICHT für die persönlichen Wolke-/Nextcloud-Verbindungen oder -Dateien der Person: welche Wolke-Links verbunden sind, beantwortet 'cloud_files' (list_connections).`,
         inputSchema: z.object({
           topic: z
             .string()
@@ -527,20 +885,35 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
             userId: state.agentConfig?.userId ?? null,
             question: `${topic} ${lastUserText(state)}`.trim(),
           });
-          return { knowledge };
+          // Zweites Netz zum Beschreibungs-Steering: greift der Planer trotzdem
+          // zuerst hierher (Live-Ausfall 29.08.2026, „welche wolke links sind
+          // verbunden“), trägt das Ergebnis den Verweis, und der nächste
+          // Schritt kann sich fangen. Nur wenn der Turn die Wolke selbst
+          // nennt: ein Konto MIT Verbindung montiert cloud_files auf JEDEM
+          // Turn, und eine fachfremde Produktantwort darf keinen
+          // Wolke-Fußnotensatz bekommen (Review-Befund auf #3062).
+          return {
+            knowledge:
+              cloudFilesMounted && wolkeInText
+                ? `${knowledge}\n\nHinweis: Welche Wolke-/Nextcloud-Freigaben die Person verbunden hat, steht hier nicht — das beantwortet das Werkzeug cloud_files (action "list_connections").`
+                : knowledge,
+          };
         },
       });
     }
-    // Editor sidebars (docs/sheets/presentations/boards) EDIT the open document
-    // — they must never spawn a NEW artifact (image OR create fat tool). Gated
-    // server-side (the frontend not setting the tools:false is not enough).
+    // Editor sidebars (docs/sheets/presentations/boards/sharepic studio) EDIT
+    // the open artifact — they must never spawn a NEW one (image OR create fat
+    // tool). Gated server-side (the frontend not setting the tools:false is not
+    // enough).
     const editorSurface = isEditorSurface(state.enabledTools);
 
-    // Tool-based editor edit: the loop edits the OPEN artifact in place via
-    // `edit_document` instead of the client round-trip to the bespoke
-    // /api/{sheets,…}/:id/ai endpoint. Mounted only when the router resolved a
-    // surface with a tool path (state.editToolSurface set); otherwise the legacy
-    // trigger_doc_edit path stays in force. appliedOpsLog is per-turn.
+    // Tool-based editor edit: the MODEL decides and writes the instruction,
+    // instead of the client round-trip to the bespoke /api/{sheets,…}/:id/ai
+    // endpoint (plan-and-send surfaces) or the classifier's `edit_current_doc`
+    // verdict (the doc dispatch). Mounted only when the router resolved a
+    // surface for this turn (state.editToolSurface set); a turn the
+    // kill-switches held back has NO edit path and says so (artifactNotes).
+    // appliedOpsLog is per-turn.
     if (state.editToolSurface) {
       const editTool = makeEditArtifactTool({ sse, state, sourceRegistry, appliedOpsLog: [] });
       if (editTool) tools.edit_document = editTool;
@@ -557,13 +930,19 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       threadId: loop.threadId ?? null,
       sourceRegistry,
     };
-    if (state.enabledTools?.['find_content'] !== false) {
+    // "Eigene Inhalte" (`user_content`) is the picker key that covers the
+    // user's own texts and documents; the per-tool keys are the finer grain the
+    // loop's other callers switch on. Both are asked, because only the picker
+    // key is something an agent could actually uncheck — and it gated nothing
+    // until #3307, so an agent told not to read the user's content read it.
+    const userContentAllowed = state.enabledTools?.['user_content'] !== false;
+    if (userContentAllowed && state.enabledTools?.['find_content'] !== false) {
       tools.find_content = makeFindContentTool(personalCtx);
     }
     if (state.enabledTools?.['search_threads'] !== false) {
       tools.search_threads = makeSearchThreadsTool(personalCtx);
     }
-    if (state.enabledTools?.['documents'] !== false) {
+    if (userContentAllowed && state.enabledTools?.['documents'] !== false) {
       tools.documents = makeDocumentsTool(personalCtx);
       // Gated together with `documents` on purpose: they are the pointer and
       // the content of the same thing. A catalog that can LIST artifacts but
@@ -583,18 +962,120 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     if (state.enabledTools?.['notebooks'] !== false) {
       tools.notebooks = makeNotebooksTool(personalCtx);
     }
+    if (userContentAllowed && state.enabledTools?.['notebook_quellen'] !== false) {
+      tools.notebook_quellen = makeNotebookSourcesTool(personalCtx);
+    }
+    // DeepL translation. Mounted broadly like the domain tools — the model
+    // decides — but only when a key is configured: a tool that always answers
+    // "nicht eingerichtet" would cost a schema on every turn for nothing.
+    if (getDeepLService() && state.enabledTools?.['text_uebersetzen'] !== false) {
+      tools.text_uebersetzen = makeTranslateTool({ state });
+    }
+    // The person's explicit memory. Only with the profile switch on: with it
+    // off the prompt carries no GEDÄCHTNIS block either, and a tool that can
+    // save into a store nobody reads would be a lie in the other direction.
+    if (state.memoryEnabled && state.enabledTools?.['memory'] !== false) {
+      tools.memory = makeMemoryTool(personalCtx);
+    }
+    // Wiederkehrende Aufgaben (Agentura). Nicht breit montiert — das Schema
+    // trägt den ganzen Takt-Block und kostet auf jedem Turn. Drei Tore:
+    //
+    // 1. Der Pin. Tier 3.4 des Klassifikators erkennt den Dauerauftrag
+    //    („erinnere mich jeden Montag …") und setzt `mentionPinnedTool`; der
+    //    Pin zwingt den Turn in die Schleife und benennt den ersten Aufruf —
+    //    aber `pinnedFirstTool` prüft die Montage, ein Pin auf ein fehlendes
+    //    Werkzeug wäre still wirkungslos.
+    // 2. Derselbe Detektor noch einmal, für den Fall, dass der Turn auf einem
+    //    anderen Weg in die Schleife kam (Erwähnung, Verbund).
+    // 3. Das Vokabular fürs Verwalten: „pausier die Erinnerung", „welche
+    //    Aufgaben laufen bei mir".
+    const agenturaText = state.lastUserTextNoMentions ?? lastUserText(state);
+    if (
+      state.enabledTools?.['recurring_tasks'] !== false &&
+      (state.mentionPinnedTool === 'recurring_tasks' ||
+        looksLikeRecurringOrder(agenturaText) ||
+        mentionsRecurringTasks(agenturaText))
+    ) {
+      tools.recurring_tasks = makeRecurringTasksTool(personalCtx);
+    }
+    // Eigene Grünerator-Agenten (Agentura). Zwei Tore: das Vokabular („bau mir
+    // einen Agenten", „meine Agenten", Persona, Systemrolle) — oder der Thread
+    // läuft selbst mit einem User-Agent (`agentConfig.isUserAgent`, gesetzt in
+    // `agentLoader.getAgentForUser`): dort soll „ändere deine Rolle" ohne
+    // Stichwort treffen. Ein Registry-Agent montiert es nicht, er ist hier
+    // ohnehin unantastbar.
+    if (
+      state.enabledTools?.['user_agents'] !== false &&
+      (state.agentConfig?.isUserAgent === true || mentionsUserAgents(agenturaText))
+    ) {
+      tools.user_agents = makeUserAgentsTool(personalCtx);
+    }
+    // Rezepte und eigene Textformen („Texte anlernen"). Nur das Vokabular:
+    // ein aktives Rezept heißt „anwenden", das macht `rezept_laden` (immer
+    // montiert, sobald der Katalog nicht leer ist); verwalten will, wer es
+    // sagt — „welche Rezepte gibt es", „lern meinen Stil", „lösch die Textform".
+    if (state.enabledTools?.['recipes'] !== false && mentionsRecipes(agenturaText)) {
+      tools.recipes = makeRecipesTool(personalCtx);
+    }
 
-    // PDF form tools, mounted only when a PDF is actually in play: this turn's
-    // attachments, or one from an earlier turn (threadAttachments carries no
-    // bytes, but tells us a PDF exists — the tool resolves the bytes and reports
-    // honestly if the stored form turned out not to be fillable).
-    const hasPdfInThread =
-      (state.pdfFormAttachments?.length ?? 0) > 0 ||
-      (state.threadAttachments ?? []).some((a) => a.mimeType === 'application/pdf');
-    if (hasPdfInThread && state.enabledTools?.['pdf_form'] !== false) {
+    // Die verbundene Wolke. Zwei Tore, in dieser Reihenfolge:
+    //
+    // 1. Der Verbindungszähler (`buildStreamContext`, 60-s-Cache). Wer eine
+    //    Wolke hat, bekommt das Werkzeug IMMER — „Welche Ordner gibt es?" nennt
+    //    die Wolke nicht, und eine erfundene Fehlanzeige („du hast keine
+    //    Dateien") ist die teuerste Ausfallform, weil sie wie eine geprüfte
+    //    Antwort aussieht.
+    // 2. Das Vokabular, nur für Konten OHNE Verbindung — sonst könnte niemand
+    //    per Chat eine anlegen. Ein Konto ohne Wolke zahlt für dieses Werkzeug
+    //    also nur, wenn es selbst davon anfängt.
+    //
+    // Ein Wolke-Anhang in diesem Turn zählt wie das Vokabular: die Person hat
+    // die Datei über den Picker gewählt, der Text sagt darüber nichts. Aus
+    // demselben Grund zählt ein über `@link` angehängter Freigabe-Link —
+    // dessen URL steht ebenfalls nur in den Anhangsdaten.
+    if (cloudFilesMounted) {
+      tools.cloud_files = makeCloudFilesTool(personalCtx);
+    }
+
+    // PDF form tools. `hasReachableForm` carries the `isFillablePdf` verdict
+    // for BOTH halves — from the DB for earlier turns, via `pdfFormCandidates`
+    // (attachmentProcessing, #2835) for this one. The scope note lives at the
+    // predicate, not here, so the two cannot drift.
+    //
+    // `hasFileData` is the load-bearing half. It used to be `mimeType` alone,
+    // with the reasoning that threadAttachments carries no bytes and the tool
+    // could report honestly if the stored form turned out not to be fillable.
+    // That was true while nobody knew better at mount time — but the upload path
+    // decides the very same question and records the answer: a PDF that
+    // `isFillablePdf` rejects never gets `file_data`
+    // (attachmentProcessingService), and `getThreadPdfFiles` filters on exactly
+    // that column. Mounting an EARLIER turn's PDF on mimeType therefore offered
+    // two tools that COULD NOT succeed — not even the honest report, since
+    // `resolvePdf` never got bytes to probe. The failure was not free: forced to
+    // open with a tool call (shouldForceFirstToolCall) the planner reached for
+    // `read_pdf_form` on a Datenschutzerklärung and spent a step on "Es ist kein
+    // PDF-Formular angehängt" — while a PDF plainly was (live 24.08.2026,
+    // thread 4517d0d9).
+    //
+    // Not narrowed to `pdfFormAttachments`: that would take the form away one
+    // turn after it was uploaded, which is the regression this comment used to
+    // guard against. The predicate itself lives in `hasReachableForm` — the
+    // routing stage asks the same question and used to answer it differently.
+    if (hasReachableForm(state) && state.enabledTools?.['pdf_form'] !== false) {
       const pdfCtx = { state, sse, threadId: loop.threadId ?? null };
       tools.read_pdf_form = makeReadPdfFormTool(pdfCtx);
       tools.fill_pdf_form = makeFillPdfFormTool(pdfCtx);
+    }
+    // Text → audio file (Grünerator Voice engine). Never in an editor sidebar:
+    // the file is a NEW artifact, and those surfaces only edit the open one.
+    // The voice comes from the person's settings, the same precedence the
+    // read-aloud button and /api/voice/speech/generate use.
+    if (!editorSurface && state.enabledTools?.['vertonen'] !== false) {
+      tools.vertonen = makeVertonenTool({
+        state,
+        sse,
+        voiceId: loop.req?.user?.tts_voice_id ?? null,
+      });
     }
     // Image is expensive + rate-limited and the classifier routes it reliably,
     // so it stays intent-scoped (and gated). image_edit stays single-pass.
@@ -619,58 +1100,85 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     // follow-up edits); presentation/sheet/document persist via createdDocument;
     // board renders from the `done` event.
     if (state.compoundGeneration === true && loop.req && !editorSurface) {
+      // Einmal festgehalten statt sechsmal gecastet: die Verengung aus der
+      // Bedingung oben gilt in den Closures unten nicht mehr.
+      const req = loop.req;
       const kind = state.compoundGenerationKind;
-      const enabled = (key: string): boolean => state.enabledTools?.[key] !== false;
       // The generation tools stay mounted under a research ban — only their
       // opening line flips from "Recherchiere ZUERST" to "arbeite mit dem, was
       // im Gespräch steht". Telling the model to search with no search tool
       // mounted is how a turn stalls or invents one.
-      if (kind === 'sharepic' && enabled('sharepic')) {
-        tools.sharepic = makeCreateSharepicTool({
-          sse,
-          state,
-          req: loop.req,
-          threadId: loop.threadId ?? null,
-          researchBanned,
-        });
-      } else if (kind === 'presentation' && enabled('create_presentation')) {
-        tools.create_presentation = makeCreateDocTool({
-          kind: 'presentation',
-          sse,
-          state,
-          req: loop.req,
-          sourceRegistry,
-          researchBanned,
-        });
-      } else if (kind === 'sheet' && enabled('create_sheet')) {
-        tools.create_sheet = makeCreateDocTool({
-          kind: 'sheet',
-          sse,
-          state,
-          req: loop.req,
-          sourceRegistry,
-          researchBanned,
-        });
-      } else if (kind === 'document' && enabled('create_document')) {
-        tools.create_document = makeCreateDocTool({
-          kind: 'document',
-          sse,
-          state,
-          req: loop.req,
-          sourceRegistry,
-          researchBanned,
-        });
-      } else if (kind === 'board' && enabled('create_board')) {
-        tools.create_board = makeCreateBoardTool({ state, req: loop.req, researchBanned });
-      } else if (kind === 'pdf' && enabled('create_pdf')) {
-        tools.create_pdf = makeCreatePdfTool({
-          sse,
-          state,
-          req: loop.req,
-          sourceRegistry,
-          researchBanned,
-        });
+      //
+      // One factory per kind, keyed by the registry's union instead of a chain
+      // of `else if`. The factories genuinely differ — the PDF tool carries the
+      // letterhead/sender/edit inputs, the board tool has no card path — so what
+      // is unified is the LOOKUP, not the construction. The `Record<
+      // ArtifactKindId, …>` is what buys the check: a new kind in the registry
+      // stops compiling here until it has a factory, where the chain would just
+      // have fallen through and mounted nothing at all. A turn like that still
+      // promised the artifact — `forceCompoundGeneration` then looks for a tool
+      // that was never there.
+      const mount: Readonly<Record<ArtifactKindId, () => Tool>> = {
+        sharepic: () =>
+          makeCreateSharepicTool({
+            sse,
+            state,
+            req,
+            threadId: loop.threadId ?? null,
+            researchBanned,
+          }),
+        presentation: () =>
+          makeCreateDocTool({
+            kind: 'presentation',
+            sse,
+            state,
+            req,
+            sourceRegistry,
+            researchBanned,
+          }),
+        sheet: () =>
+          makeCreateDocTool({
+            kind: 'sheet',
+            sse,
+            state,
+            req,
+            sourceRegistry,
+            researchBanned,
+          }),
+        document: () =>
+          makeCreateDocTool({
+            kind: 'document',
+            sse,
+            state,
+            req,
+            sourceRegistry,
+            researchBanned,
+          }),
+        board: () => makeCreateBoardTool({ state, req, researchBanned }),
+        pdf: () =>
+          makeCreatePdfTool({
+            sse,
+            state,
+            req,
+            sourceRegistry,
+            researchBanned,
+          }),
+      };
+      // The catalog key IS the registry's `loopToolName` — the same string
+      // `forceCompoundGeneration` looks the tool up by, so the two cannot drift.
+      if (kind != null) {
+        const { loopToolName } = artifactKind(kind);
+        if (state.enabledTools?.[loopToolName] !== false) {
+          tools[loopToolName] = mount[kind]();
+        }
       }
+    }
+  }
+
+  if (params.toolAllowlist) {
+    const allowed = new Set(params.toolAllowlist);
+    for (const name of Object.keys(tools)) {
+      if (!allowed.has(name)) delete tools[name];
     }
   }
 

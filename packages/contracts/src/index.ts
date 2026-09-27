@@ -19,14 +19,15 @@ export { initClient, type ClientInferRequest, type ClientInferResponses } from '
 // ── Contracts ───────────────────────────────────────────────────────────────
 export {
   threadsContract,
+  chatThreadSharingContract,
   exportsContract,
   recentValuesContract,
   recentActivityContract,
   contentContract,
   itemUsageContract,
   userUsageContract,
+  treesContract,
   transparencyContract,
-  searchContract,
   globalSearchContract,
   researchContract,
   chatGraphContract,
@@ -56,39 +57,51 @@ export {
   documentsContract,
   subtitlerContract,
   voiceContract,
+  speechContract,
   imagePickerContract,
   videoContract,
   sharepicContract,
-  transferContract,
+  sharepicTextContract,
   unsplashContract,
   notificationsContract,
+  memoryContract,
   emailContract,
   feedbackContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
+  chatToolApprovalsContract,
   imageEditContract,
   adminVorlagenContract,
   userTemplatesContract,
+  sharedTemplateContract,
   templateInteractionsContract,
   userAgentsContract,
   userAgentsSharingContract,
   userTextFormsContract,
   skillPromptContract,
+  agentVisibilityContract,
+  chunkInspectorContract,
   skillVisibilityContract,
+  instanceAdminOverviewContract,
+  translationContract,
+  lvAdminAssignmentContract,
+  landesverbandAdminContract,
   recurringTasksContract,
-  canvasAiContract,
   canvasContract,
   groupsContract,
   contentSyncContract,
   monitorContract,
   sitesContract,
+  texteContract,
   reisekostenContract,
   promptsContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
+export * from './schemas/roleRef.js';
 export * from './schemas/threads.js';
+export * from './schemas/chatThreadSharing.js';
 export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
@@ -96,13 +109,14 @@ export * from './schemas/recentActivity.js';
 export * from './schemas/content.js';
 export * from './schemas/itemUsage.js';
 export * from './schemas/userUsage.js';
+export * from './schemas/trees.js';
 export * from './schemas/transparency.js';
-export * from './schemas/search.js';
 export * from './schemas/globalSearch.js';
 export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/searchGraph.js';
 export * from './schemas/chatStreamEvents.js';
+export * from './schemas/chunkInspector.js';
 export * from './schemas/jobErrors.js';
 export * from './schemas/socialPost.js';
 export * from './schemas/bundestag.js';
@@ -121,6 +135,7 @@ export * from './schemas/shares.js';
 export * from './schemas/userProfile.js';
 export * from './schemas/notebook.js';
 export * from './schemas/notebookDepth.js';
+export * from './schemas/notebookAnswerMode.js';
 export * from './schemas/notebookCollections.js';
 export * from './schemas/wolkePending.js';
 export * from './schemas/notebookWordpress.js';
@@ -132,20 +147,25 @@ export * from './schemas/documents.js';
 export * from './schemas/subtitler.js';
 export * from './schemas/voice.js';
 export * from './schemas/voiceLimits.js';
+export * from './schemas/speech.js';
 export * from './schemas/imagePicker.js';
 export * from './schemas/video.js';
 export * from './schemas/sharepic.js';
-export * from './schemas/transfer.js';
+export * from './schemas/sharepicText.js';
 export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';
+export * from './schemas/memory.js';
 export * from './schemas/email.js';
 export * from './schemas/feedback.js';
+export * from './schemas/translation.js';
 export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';
 export * from './schemas/mcpServers.js';
+export * from './schemas/chatToolApprovals.js';
 export * from './schemas/imageEdit.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
+export * from './schemas/sharedTemplate.js';
 export * from './schemas/templateInteractions.js';
 export * from './schemas/userAgents.js';
 export * from './schemas/userAgentsSharing.js';
@@ -154,6 +174,7 @@ export * from './schemas/canvasAi.js';
 export * from './schemas/reelEdit.js';
 export * from './schemas/canvas.js';
 export * from './schemas/canvasTemplateDescriptors.js';
+export * from './schemas/canvasTemplateFields.js';
 export * from './schemas/sliderDeck.js';
 export * from './schemas/skill.js';
 export * from './schemas/agent.js';
@@ -161,6 +182,7 @@ export * from './schemas/groups.js';
 export * from './schemas/contentSync.js';
 export * from './schemas/monitor.js';
 export * from './schemas/sites.js';
+export * from './schemas/texte.js';
 export * from './schemas/richtext.js';
 export * from './schemas/reisekosten.js';
 
@@ -175,3 +197,15 @@ export * from './presentationBrand.js';
 
 export * from './schemas/scanner.js';
 export * from './schemas/prompts.js';
+export * from './schemas/landesverbaende.js';
+export * from './schemas/lvAdminAssignment.js';
+export * from './schemas/instanceAdminOverview.js';
+export * from './schemas/landesverbandAdmin.js';
+
+// Canvas-Textlayout: Umbruch, Aufzählungsmarker, hängender Einzug und
+// Inline-Auszeichnung (Markdown-lite). DOM-frei, damit Client-Vorschau,
+// Server-Export und der tiptap-Editor dieselbe Logik fahren.
+export * from './text/listLayout.js';
+export * from './text/inlineMarks.js';
+export * from './text/canvasRichText.js';
+export * from './text/truncation.js';

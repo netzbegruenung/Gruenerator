@@ -5,6 +5,7 @@
  * for ZIP generation. Handles progress tracking and error states.
  */
 
+import { downloadBlob } from '@gruenerator/shared';
 import { useState, useCallback, type RefObject } from 'react';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
@@ -111,13 +112,9 @@ export function useMultiPageExport({
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const filename = `gruenerator-${canvasType}-${timestamp}.zip`;
 
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
+      // Inside the existing try: a payload the WebView bridge refuses lands in
+      // setError below, which the share section already renders.
+      await downloadBlob(blob, filename);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unbekannter Fehler beim ZIP-Export';
       setError(message);

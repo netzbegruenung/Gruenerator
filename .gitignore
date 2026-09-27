@@ -15,8 +15,8 @@ coverage
 __manual_tests__
 
 # Production build outputs
-build/
-dist/
+build
+dist
 
 # Firebase / Google Services (contains API keys)
 google-services.json
@@ -112,6 +112,13 @@ GEMINI.md
 
 # Python virtual environments
 **/.venv/
+**/.venv-*/
+
+# Python build/test artifacts (services/nlp)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
 
 # Scripts directory (root only)
 /scripts/
@@ -120,7 +127,7 @@ GEMINI.md
 SECURITY-ALERTS.md
 
 # Documentation (local development, root-level only)
-/docs/
+/docs/*
 !packages/docs/
 !documentation/docs/
 

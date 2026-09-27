@@ -4,6 +4,7 @@
  */
 
 import { getPlatformShareUrl, type SharePlatform } from '@gruenerator/shared';
+import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import * as Clipboard from 'expo-clipboard';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -28,6 +29,8 @@ export async function shareFile(
   options?: {
     mimeType?: string;
     dialogTitle?: string;
+    /** The file's UTI. iOS routes the document by this one, not by `mimeType`. */
+    uti?: string;
   }
 ): Promise<void> {
   const isAvailable = await Sharing.isAvailableAsync();
@@ -38,7 +41,7 @@ export async function shareFile(
   await Sharing.shareAsync(fileUri, {
     mimeType: options?.mimeType || 'video/mp4',
     dialogTitle: options?.dialogTitle || 'Teilen',
-    UTI: Platform.OS === 'ios' ? 'public.movie' : undefined,
+    UTI: Platform.OS === 'ios' ? (options?.uti ?? 'public.movie') : undefined,
   });
 }
 
@@ -54,7 +57,7 @@ export async function shareFile(
  * images and the sharepic result view.)
  */
 export async function shareBase64Image(base64: string, dialogTitle = 'Bild teilen'): Promise<void> {
-  const data = base64.replace(/^data:image\/\w+;base64,/, '');
+  const data = stripDataUrlPrefix(base64);
   const file = new File(Paths.cache, `share_${Date.now()}.png`);
   const binaryString = atob(data);
   const bytes = new Uint8Array(binaryString.length);
@@ -80,6 +83,16 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   txt: 'text/plain',
   md: 'text/markdown',
   png: 'image/png',
+  // The exports an embedded editor produces: canvas ZIPs, presentation decks,
+  // document exports. Without an entry each fell back to
+  // application/octet-stream, which iOS cannot route to any app.
+  zip: 'application/zip',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  odt: 'application/vnd.oasis.opendocument.text',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
 };
 
 export function mimeFromFileName(name: string): string {
@@ -95,19 +108,24 @@ export function mimeFromFileName(name: string): string {
 export async function shareBytesAsFile(
   bytes: Uint8Array,
   fileName: string,
-  dialogTitle = 'Datei teilen'
+  dialogTitle = 'Datei teilen',
+  /**
+   * Overrides the extension-derived type. The WebView bridge carries the real
+   * MIME from the page, which beats guessing from a name the page also chose.
+   */
+  mimeType?: string
 ): Promise<void> {
   const file = new File(Paths.cache, fileName);
   file.write(bytes);
   try {
-    await shareFile(file.uri, { mimeType: mimeFromFileName(fileName), dialogTitle });
+    await shareFile(file.uri, { mimeType: mimeType ?? mimeFromFileName(fileName), dialogTitle });
   } finally {
     file.delete();
   }
 }
 
 export function base64ToBytes(base64: string): Uint8Array {
-  const binary = atob(base64.replace(/^data:[^;]+;base64,/, ''));
+  const binary = atob(stripDataUrlPrefix(base64));
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;

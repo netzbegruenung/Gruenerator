@@ -15,11 +15,9 @@ import { vi } from 'vitest';
  * machine-dependent, which is the worst failure mode a test can have.
  */
 const PINNED: Record<string, string> = {
-  // Loop gates — decideRunAgentic / decideEditToolLoop / replay injection
+  // Loop gates — decideRunAgentic / replay injection
   CHAT_AGENT_LOOP: 'true',
   CHAT_MCP_REPLAY: 'false',
-  CHAT_TOOL_LOOP: 'false',
-  CHAT_RECALL_LOOP: 'false',
 
   // System MCP sources: any URL set here mounts a system intent and changes
   // isMcpTurn. Empty string = not configured.

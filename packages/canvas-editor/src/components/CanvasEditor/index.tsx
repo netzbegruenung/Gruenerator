@@ -23,6 +23,7 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
+import { downloadDataUrl } from '@gruenerator/shared';
 import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense } from 'react';
 
 import { Skeleton } from '@gruenerator/ui';
@@ -41,10 +42,12 @@ import { getCategoryForTemplate } from '../../utils/templateRegistry';
 
 import { PageThumbnailStrip } from '../PageThumbnailStrip';
 import { Toolbar } from '../Toolbar';
+import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
 import { ContextToolbar } from '../TopBar/ContextToolbar';
 import { MobileContextBar } from '../TopBar/MobileContextBar';
 import { AddPageButton, TemplatePickerFlyout } from '../TemplatePickerFlyout';
 
+import { PAGE_ELEMENT_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { PageWrapper } from './PageWrapper';
@@ -115,6 +118,7 @@ function CanvasEditorInner({
   chromeCenter,
   chromeRight,
   onInvitePeople,
+  onSaveAsTemplate,
   onCollabSnapshot,
   onAutoSaveShareToken,
 }: CanvasEditorProps) {
@@ -182,7 +186,8 @@ function CanvasEditorInner({
     if (!wrapped) {
       wrapped = createPageSyncedCallbacks(
         () => callbacksRef.current,
-        (partial) => updatePageStateRef.current(pageId, partial)
+        (partial) => updatePageStateRef.current(pageId, partial),
+        PAGE_ELEMENT_STATE_KEYS
       );
       cache.set(pageId, wrapped);
     }
@@ -226,7 +231,7 @@ function CanvasEditorInner({
   // Pinch and ctrl/cmd+wheel drive the same zoom as the CanvasMetaBar buttons
   useZoomGestures(pagesContainerRef, setZoom);
 
-  // Every page binds its layers/config to its page Y.Map — in collab mode
+  // Every page binds its config to its page Y.Map — in collab mode
   // that syncs to peers, in local mode it makes duplicate/move/undo carry
   // the full page content (the Y.Doc is the single source of truth).
   // Bindings are identity-cached per page: a fresh object per render would
@@ -419,7 +424,8 @@ function CanvasEditorInner({
         prev.canUndo === report.canUndo &&
         prev.canRedo === report.canRedo &&
         prev.canMoveUp === report.canMoveUp &&
-        prev.canMoveDown === report.canMoveDown
+        prev.canMoveDown === report.canMoveDown &&
+        prev.canDuplicate === report.canDuplicate
       ) {
         return prev;
       }
@@ -448,6 +454,24 @@ function CanvasEditorInner({
     if (!ref?.current) return null;
     return await ref.current.captureCanvasForAi();
   }, [currentPageIndex, canvasRefsRef]);
+
+  // Every page, not just the active one: a selection left behind on page 2
+  // keeps its context bar alive after the user scrolls away.
+  const handleDeselectAll = useCallback(() => {
+    canvasRefsRef.current.forEach((ref) => ref.current?.deselect());
+  }, [canvasRefsRef]);
+
+  // The grey work area around the artboard is the natural "click out" target,
+  // and until now nothing happened there: the Konva stage is sized exactly to
+  // the artboard, and templates cover it with a full-bleed, listening
+  // background image, so the stage's own deselect (useCanvasInteractions) never
+  // fires. The guard keeps clicks that bubble up from a page from deselecting.
+  const handleWorkAreaPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.target === e.currentTarget) handleDeselectAll();
+    },
+    [handleDeselectAll]
+  );
 
   // The ONLY gallery autosave in this editor, for any page count — a
   // single-page doc is a one-page deck. Per-page useCanvasAutoSave is
@@ -521,7 +545,7 @@ function CanvasEditorInner({
   }, [collabYdoc]);
 
   const handleDownload = useCallback(
-    async (format: 'png' | 'jpeg' | 'webp' = 'png', pixelRatio = 2, transparent = false) => {
+    async (format: 'png' | 'jpeg' | 'webp' = 'png', pixelRatio = 1, transparent = false) => {
       const ref = canvasRefsRef.current[currentPageIndex];
       if (!ref?.current) return;
       // Fonts load via font-display:swap; capture before they settle bakes in
@@ -534,12 +558,7 @@ function CanvasEditorInner({
       });
       if (dataUrl) {
         const ext = format === 'jpeg' ? 'jpg' : format;
-        const link = document.createElement('a');
-        link.href = dataUrl;
-        link.download = `gruenerator-seite-${currentPageIndex + 1}.${ext}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        downloadDataUrl(dataUrl, `gruenerator-seite-${currentPageIndex + 1}.${ext}`);
         onDownload?.(dataUrl);
       }
     },
@@ -792,18 +811,15 @@ function CanvasEditorInner({
       onDownload: async () => {
         const ref = canvasRefsRef.current[currentPageIndex];
         if (ref?.current) {
-          const dataUrl = await ref.current.captureCanvas();
+          await ensureFontsReady();
+          const dataUrl = ref.current.toDataURL({ pixelRatio: 1 });
           if (dataUrl) {
-            const link = document.createElement('a');
-            link.href = dataUrl;
-            link.download = `gruenerator-slider-seite-${currentPageIndex + 1}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            downloadDataUrl(dataUrl, `gruenerator-slider-seite-${currentPageIndex + 1}.png`);
           }
         }
       },
       onNavigateToGallery: () => {},
+      onSaveAsTemplate,
       pageCount,
       onDownloadAllZip: downloadAllAsZip,
       onShareAllPages: shareAllPages,
@@ -822,6 +838,7 @@ function CanvasEditorInner({
       multiExportError,
       handleCaptureCanvas,
       handleCaptureCanvasForAi,
+      onSaveAsTemplate,
     ]
   );
 
@@ -918,6 +935,7 @@ function CanvasEditorInner({
       isMultiExporting,
       exportProgress,
       onInvitePeople,
+      onSaveAsTemplate,
     }),
     [
       handleCaptureCanvas,
@@ -933,6 +951,7 @@ function CanvasEditorInner({
       isMultiExporting,
       exportProgress,
       onInvitePeople,
+      onSaveAsTemplate,
     ]
   );
 
@@ -1018,11 +1037,13 @@ function CanvasEditorInner({
           activeFloatingModule: toolbarState.activeFloatingModule ?? null,
           canMoveUp: toolbarState.canMoveUp ?? false,
           canMoveDown: toolbarState.canMoveDown ?? false,
+          canDuplicate: toolbarState.canDuplicate ?? false,
           handlers: {
             ...toolbarHandlers,
             onEditImage: () => setActiveTab('image-adjust'),
           },
           onDelete: toolbarOnDelete,
+          onDeselect: handleDeselectAll,
         }
       : null;
   const hasContextControls =
@@ -1038,7 +1059,14 @@ function CanvasEditorInner({
       <MobileContextBar {...contextControlsProps} />
     ) : null;
 
-  const showPageNavigator = !isMobileBridge && pages.length > 1;
+  // Die untere Leiste trägt zwei Dinge, und nur eines davon hängt an der
+  // Seitenzahl: der Miniaturen-Streifen ist erst im Deck sinnvoll, die
+  // Meta-Leiste daneben (Zoom-Regler, Vollbild, Seitenanzeige) gilt immer.
+  // Bis hierher hing beides an derselben Bedingung — bei einer einzelnen Seite
+  // fiel damit auch der Zoom weg und war nur noch per Pinch bzw. Strg/Cmd+Rad
+  // erreichbar.
+  const showBottomBar = !isMobileBridge;
+  const showPageStrip = showBottomBar && pages.length > 1;
   const currentTemplateId = pages[currentPageIndex]?.configId;
   const sliderVariantHandler = pages[0]?.configId === 'slider' ? handleAddSliderVariant : undefined;
   // Restrict the template picker to the same category as the current template
@@ -1046,24 +1074,49 @@ function CanvasEditorInner({
   // can't insert a presentation slide.
   const categoryFilter = currentTemplateId ? getCategoryForTemplate(currentTemplateId) : undefined;
 
-  const bottomBar = showPageNavigator ? (
-    <div className="canvas-bottom-bar flex items-stretch bg-[var(--editor-surface)] border-t border-[var(--editor-border)]">
-      <div className="flex-1 min-w-0">
-        <PageThumbnailStrip
-          pages={pages}
-          currentPageIndex={currentPageIndex}
-          thumbnails={pageThumbnails}
-          loadedConfigs={loadedConfigs}
-          currentTemplateId={currentTemplateId}
-          canAddMore={canAddMore}
-          onSelect={handleThumbnailSelect}
-          onAddPage={handleAddPage}
-          onDuplicateCurrent={duplicateCurrentPage}
-          onAddSliderVariant={sliderVariantHandler}
-          templateFilter={categoryFilter}
-        />
-      </div>
-      <div className="shrink-0 flex items-center border-l border-[var(--editor-border)]">
+  // Die Leiste selbst ist durchsichtig und rahmenlos — sie liegt über der
+  // Fläche, statt eine eigene Kante zu bilden, und fängt außerhalb ihrer
+  // Kapseln keine Klicks ab. Lesbar bleiben die Bedienteile durch je eine
+  // eigene, leicht durchscheinende Kapsel.
+  const bottomBarGroup =
+    'flex items-center rounded-xl border border-[var(--editor-border)] bg-[var(--editor-surface)]/80 shadow-sm backdrop-blur-sm pointer-events-auto';
+  const bottomBar = showBottomBar ? (
+    <div className="canvas-bottom-bar pointer-events-none flex items-center gap-2 px-2 pb-2">
+      {showPageStrip ? (
+        <div className="min-w-0 flex-1">
+          <div className={cn('w-fit max-w-full', bottomBarGroup)}>
+            <PageThumbnailStrip
+              pages={pages}
+              currentPageIndex={currentPageIndex}
+              thumbnails={pageThumbnails}
+              loadedConfigs={loadedConfigs}
+              currentTemplateId={currentTemplateId}
+              canAddMore={canAddMore}
+              onSelect={handleThumbnailSelect}
+              onAddPage={handleAddPage}
+              onDuplicateCurrent={duplicateCurrentPage}
+              onAddSliderVariant={sliderVariantHandler}
+              templateFilter={categoryFilter}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="min-w-0 flex-1">
+          {canAddMore && (
+            <div className={cn('w-fit px-1.5 py-1', bottomBarGroup)}>
+              <AddPageButton
+                onSelectTemplate={handleAddPage}
+                onDuplicateCurrent={duplicateCurrentPage}
+                currentTemplateId={currentTemplateId}
+                onAddSliderVariant={sliderVariantHandler}
+                templateFilter={categoryFilter}
+                compact
+              />
+            </div>
+          )}
+        </div>
+      )}
+      <div className={cn('shrink-0', bottomBarGroup)}>
         <CanvasMetaBar
           pageCount={pageCount}
           currentPageIndex={currentPageIndex}
@@ -1076,89 +1129,108 @@ function CanvasEditorInner({
 
   return (
     <UserUploadsProvider>
-      <CanvasEditorLayout
-        sidebar={panel}
-        tabBar={tabBar}
-        actions={null}
-        toolbar={toolbarElement}
-        contextBar={contextBarElement}
-        bottomBar={bottomBar}
-        hideMobileChrome={isMobileBridge}
-        externalSidebar={isExternalSidebar}
-        subsectionBar={webSubsectionBar}
-      >
-        {mobileContextBarElement}
-        <div
-          ref={pagesContainerRef}
-          className={cn(
-            'heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs',
-            showPageNavigator && 'has-page-navigator'
-          )}
+      {/* Die Text-Bearbeitung sitzt an der Wurzel des Editors, nicht je Seite:
+          nur so liegt sie über der Kontextleiste, die ihre Formatierungsknöpfe
+          zeigt. Der Provider in `CanvasStage` merkt, dass er einen über sich
+          hat, und reicht durch. Ob die Leiste die Knöpfe wirklich übernimmt,
+          meldet sie selbst an — im Brücken-Modus rendern wir sie nicht, und
+          dann zeigt das Overlay wieder seine eigene Karte. */}
+      <CanvasTextEditorProvider>
+        <CanvasEditorLayout
+          sidebar={panel}
+          tabBar={tabBar}
+          actions={null}
+          toolbar={toolbarElement}
+          contextBar={contextBarElement}
+          bottomBar={bottomBar}
+          hideMobileChrome={isMobileBridge}
+          externalSidebar={isExternalSidebar}
+          subsectionBar={webSubsectionBar}
         >
-          {pages.map((page, index) => {
-            const config = loadedConfigs.get(page.configId);
-            if (!config) return null;
+          {mobileContextBarElement}
+          <div
+            ref={pagesContainerRef}
+            onPointerDown={handleWorkAreaPointerDown}
+            className={cn(
+              'heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs',
+              showBottomBar && 'has-bottom-bar'
+            )}
+          >
+            {pages.map((page, index) => {
+              const config = loadedConfigs.get(page.configId);
+              if (!config) return null;
 
-            const isActive = index === currentPageIndex;
-            const canDelete = pageCount > 1;
+              const isActive = index === currentPageIndex;
+              const canDelete = pageCount > 1;
 
-            return (
-              <PageWrapper
-                key={page.id}
-                page={page}
-                index={index}
-                pageCount={pageCount}
-                config={config}
-                isActive={isActive}
-                canDelete={canDelete}
-                canvasRef={canvasRefsRef.current[index]}
-                pageRef={pageDomRefsRef.current[index]}
-                onSelect={handlePageSelect}
-                onDelete={removePage}
-                onMovePage={movePage}
-                onDuplicatePage={duplicatePage}
-                onChangeTemplate={handleOpenTemplateChange}
-                onExport={handleExport}
-                onCancel={onCancel}
-                callbacks={getCallbacksForPage(page.id)}
-                multiPageExport={index === 0 ? multiPageExportProps : undefined}
-                onStateChange={handlePageStateChange}
-                onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
-                onAutoSaveShareToken={onAutoSaveShareToken}
-                autoSave={false}
-                mobileBridge={isActive ? mobileBridge : undefined}
-                pageBinding={pageBindingAt(index, page.id, isActive)}
-              />
-            );
-          })}
+              return (
+                <PageWrapper
+                  key={page.id}
+                  page={page}
+                  index={index}
+                  pageCount={pageCount}
+                  config={config}
+                  isActive={isActive}
+                  canDelete={canDelete}
+                  canvasRef={canvasRefsRef.current[index]}
+                  pageRef={pageDomRefsRef.current[index]}
+                  onSelect={handlePageSelect}
+                  onDelete={removePage}
+                  onMovePage={movePage}
+                  onDuplicatePage={duplicatePage}
+                  onChangeTemplate={handleOpenTemplateChange}
+                  onExport={handleExport}
+                  onCancel={onCancel}
+                  callbacks={getCallbacksForPage(page.id)}
+                  multiPageExport={index === 0 ? multiPageExportProps : undefined}
+                  onStateChange={handlePageStateChange}
+                  onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
+                  onAutoSaveShareToken={onAutoSaveShareToken}
+                  autoSave={false}
+                  mobileBridge={isActive ? mobileBridge : undefined}
+                  pageBinding={pageBindingAt(index, page.id, isActive)}
+                />
+              );
+            })}
 
-          {templateChangePage && (
-            <TemplatePickerFlyout
-              isOpen
-              mode="replace"
-              anchorRef={pageDomRefsRef.current[templateChangePage.index]}
-              onSelectTemplate={handleSelectTemplateChange}
-              onClose={handleCloseTemplateChange}
-              currentTemplateId={templateChangePage.configId}
-              templateFilter={categoryFilter}
-            />
-          )}
-
-          {/* Tail AddPageButton — only when no strip is shown (single page or mobile bridge) */}
-          {canAddMore && !showPageNavigator && (
-            <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs">
-              <AddPageButton
-                onSelectTemplate={handleAddPage}
-                onDuplicateCurrent={duplicateCurrentPage}
-                currentTemplateId={currentTemplateId}
-                disabled={!canAddMore}
-                onAddSliderVariant={sliderVariantHandler}
+            {templateChangePage && (
+              <TemplatePickerFlyout
+                isOpen
+                mode="replace"
+                anchorRef={pageDomRefsRef.current[templateChangePage.index]}
+                onSelectTemplate={handleSelectTemplateChange}
+                onClose={handleCloseTemplateChange}
+                currentTemplateId={templateChangePage.configId}
                 templateFilter={categoryFilter}
               />
-            </div>
-          )}
-        </div>
-      </CanvasEditorLayout>
+            )}
+
+            {/* Seite hinzufügen unter der Fläche — für die Fälle, in denen die
+                untere Leiste den Knopf nicht trägt: im Brücken-Modus (dort gibt
+                es gar keine Leiste) und unterhalb von 900 px, wo
+                `CanvasEditorLayout` sie per `max-canvas-mobile:hidden`
+                ausblendet. Die Breakpoint-Bedingung steht hier gespiegelt, weil
+                nur CSS sie kennt. */}
+            {canAddMore && !showPageStrip && (
+              <div
+                className={cn(
+                  'w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs',
+                  showBottomBar && 'canvas-mobile:hidden'
+                )}
+              >
+                <AddPageButton
+                  onSelectTemplate={handleAddPage}
+                  onDuplicateCurrent={duplicateCurrentPage}
+                  currentTemplateId={currentTemplateId}
+                  disabled={!canAddMore}
+                  onAddSliderVariant={sliderVariantHandler}
+                  templateFilter={categoryFilter}
+                />
+              </div>
+            )}
+          </div>
+        </CanvasEditorLayout>
+      </CanvasTextEditorProvider>
     </UserUploadsProvider>
   );
 }

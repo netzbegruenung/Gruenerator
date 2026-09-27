@@ -60,12 +60,8 @@ const measureInfo = (
     (header ? INFO_CONFIG.header.bottomSpacing : 0);
 
   const bodyLines = body
-    ? wrapTextAccurate(
-        body,
-        INFO_CONFIG.body.maxWidth,
-        bodyFontSize,
-        INFO_CONFIG.body.remainingFont
-      ).length
+    ? wrapTextAccurate(body, INFO_CONFIG.body.maxWidth, bodyFontSize, INFO_CONFIG.body.fontFamily)
+        .length
     : 0;
   const bodyBottom = arrowY + bodyLines * bodyFontSize * INFO_CONFIG.body.lineHeightRatio;
 
@@ -141,6 +137,10 @@ const sunflowerElement: ImageElementConfig<InfoState> = {
   height: INFO_CONFIG.sunflower.size,
   src: INFO_CONFIG.sunflower.src,
   draggable: true,
+  opacityStateKey: 'sunflowerOpacity',
+  // Offset statt absoluter Position: die Basis ist eine Konstante, kein
+  // Layoutwert — dieselbe Wahl wie bei der Sonnenblume der Zitat-Vorlage.
+  offsetKey: 'sunflowerOffset',
 };
 
 const headerTextElement = createPrimaryText<InfoState>({
@@ -170,7 +170,15 @@ const arrowElement: ImageElementConfig<InfoState> = {
   height: INFO_CONFIG.arrow.size,
   src: INFO_CONFIG.arrow.src,
   draggable: true,
+  // Der Pfeil hat keinen Groessenregler in der Seitenleiste — die Ecken des
+  // Transformers sind sein einziger Weg, `arrowSize` zu schreiben.
+  transformable: true,
   opacityStateKey: 'arrowOpacity',
+  // Solange niemand den Pfeil anfasst, folgt er ueber `fromLayout` der Hoehe
+  // der Ueberschrift. Ein Zug schreibt eine absolute Position, die von da an
+  // gewinnt — vorher lebte er nur im Konva-Knoten und war nach dem Neuladen weg.
+  positionStateKey: 'arrowPosition',
+  sizeStateKey: 'arrowSize',
 };
 
 const bodyTextElement = createSecondaryText<InfoState>({
@@ -178,7 +186,8 @@ const bodyTextElement = createSecondaryText<InfoState>({
   textKey: 'body',
   order: 4,
   width: INFO_CONFIG.body.maxWidth,
-  fontFamily: INFO_CONFIG.body.remainingFont,
+  fontFamily: INFO_CONFIG.body.fontFamily,
+  richText: true,
   lineHeight: INFO_CONFIG.body.lineHeightRatio,
   defaultColor: '#ffffff',
   fillFallback: metaFontColor,
@@ -201,7 +210,13 @@ const baseInfoConfig = createColorTwoTextCanvas({
   defaultBackgroundColor: '#005538',
   textColorMap: TEXT_COLORS,
   calculateLayout,
-  passthroughStateKeys: ['arrowOpacity'],
+  passthroughStateKeys: [
+    'arrowOpacity',
+    'arrowPosition',
+    'arrowSize',
+    'sunflowerOpacity',
+    'sunflowerOffset',
+  ],
   elements: [sunflowerElement, headerTextElement, arrowElement, bodyTextElement],
   features: { icons: true, shapes: true, illustrations: true },
   getCanvasText: (state) => {

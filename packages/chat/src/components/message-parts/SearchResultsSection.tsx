@@ -208,7 +208,7 @@ const DocumentGroupedView = memo(function DocumentGroupedView({
 
           <div className="space-y-2 pl-1">
             {group.citations.map((citation) => (
-              <CitationCard key={citation.id} {...citation} compact />
+              <CitationCard key={citation.id} {...citation} />
             ))}
           </div>
         </div>

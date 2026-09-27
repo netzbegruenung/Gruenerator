@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS canvas_documents (
 CREATE INDEX IF NOT EXISTS idx_canvas_documents_template_type
     ON canvas_documents(template_type);
 
+-- CREATE TRIGGER kennt kein IF NOT EXISTS — vgl. add_board_comments.sql.
+DROP TRIGGER IF EXISTS update_canvas_documents_updated_at ON canvas_documents;
 CREATE TRIGGER update_canvas_documents_updated_at
     BEFORE UPDATE ON canvas_documents
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

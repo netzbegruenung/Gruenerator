@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 
-export type AgentProvider = 'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'greenpt';
+export type AgentProvider =
+  'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'melious' | 'greenpt' | 'cortecs';
 
 export type SkillIcon = ComponentType<{ className?: string }>;
 
@@ -152,6 +153,9 @@ export interface Agent {
   /** Fire the example search on every content-creation turn. See the frontmatter schema. */
   alwaysSearchesExamples?: boolean;
   /**
+   * @deprecated 2026-09-18 — see defaultRecipeMention. Kept readable so agents
+   * created before the switch keep rendering; not written by new saves.
+   *
    * System skill `mention` strings (e.g. `'presse'`, `'antrag'`) surfaced as
    * clickable quick-starts on this agent's chat landing. Each resolves via
    * `resolveSkillMention` to the skill's `promptTemplate`, which is inserted
@@ -160,8 +164,17 @@ export interface Agent {
    */
   skillMentions?: readonly string[];
   /**
-   * Frontend icon registry key. Maps to a `react-icons` component in
-   * `apps/web/src/components/layout/Sidebar/sidebarAgentConfig.ts::ICON_REGISTRY`.
+   * Platform-neutral icon concept, kebab-case. For system agents the closed set
+   * is `AGENT_ICON_KEYS` (./agentIcons.js); the codegen validates every *.md
+   * against it (`build-agents.ts::detectUnknownIconKeys`), and the three
+   * platform registries map it to their icon system:
+   * `packages/chat/src/lib/agentIcons.ts`,
+   * `apps/web/…/Sidebar/sidebarAgentConfig.ts` (both react-icons/pi) and
+   * `apps/mobile/components/chat/sidebarIcons.ts` (Ionicons).
+   *
+   * Stays `string` here because user-created agents share this type and carry a
+   * Phosphor component name instead (`PiSparkle`, see `SUGGESTED_AGENT_ICONS`).
+   *
    * Per-LV `gruenerator-oeffentlichkeitsarbeit-*` agents inherit the megaphone
    * via prefix special-case, so they need no `iconKey` of their own.
    */
@@ -201,6 +214,21 @@ export interface Agent {
    * chat relies on the `[N]` cards instead. Read by the ChatGraph respond node.
    */
   inlineSourceLinks?: boolean;
+  /**
+   * Recipe (`Skill.mention`) the single-pass respond path loads when the user
+   * picked none — the agent's core text form (e.g. `presse-berlin` for the
+   * Berlin PR agent). Keeps the agent's systemRole down to identity while the
+   * craft rules live in exactly one place, the recipe body. The agentic loop
+   * ignores this and lets the model pick via `rezept_laden`. An explicit
+   * composer mention always wins.
+   */
+  defaultRecipeMention?: string;
+  /**
+   * Row id of the default recipe (a user recipe, own/shared/public) — the
+   * stable handle across renames. Wins over `defaultRecipeMention` when both
+   * are set. See `EffectiveRecipeChoice`/`resolveEffectiveRecipeMention`.
+   */
+  defaultRecipeId?: string;
 }
 
 export type AgentCategory = 'gruppen';
@@ -219,6 +247,13 @@ export const SKILL_CATEGORY_LABELS: Record<SkillCategory, string> = {
   sonstiges: 'Sonstiges',
 };
 
+/**
+ * Die Ebene eines Landesverbands, für die ein Rezept geschrieben ist. Partei
+ * meint den Landesverband, Fraktion die Landtagsfraktion — im Korpus getrennt
+ * durch das `-F`-Suffix am LV-Code (`HE` ↔ `HE-F`).
+ */
+export type LvEbene = 'partei' | 'fraktion';
+
 export interface Skill {
   identifier: string;
   title: string;
@@ -233,6 +268,18 @@ export interface Skill {
   isSystemDefault?: boolean;
   /** Locale visibility, same semantics as `AgentAudience` on agents. Undefined ≈ `'all'`. */
   audience?: AgentAudience;
+  /**
+   * Für welche Ebene eines Landesverbands dieses Rezept schreibt. Schneidet die
+   * PM-Beispielsuche zu — ohne die Angabe erdet sich ein Partei-Rezept
+   * überwiegend in Fraktions-PMs. Siehe `skillFrontmatterSchema`.
+   */
+  lvEbene?: LvEbene;
+  /**
+   * Die Instanzen, auf denen dieses Rezept angeboten wird. Fehlt = überall.
+   * Ausgewertet von `agents/skillInstances.ts`; `build-skills.ts` prüft die
+   * Werte gegen die Instanz-Registry. Siehe `skillFrontmatterSchema`.
+   */
+  instances?: readonly string[];
   // NOTE: there is deliberately no `skillSystemPrompt` here. A skill's prompt
   // body is party-internal and lives outside this repo; the API loads it at
   // runtime (apps/api/services/skills/internalPrompts.ts) and serves it to

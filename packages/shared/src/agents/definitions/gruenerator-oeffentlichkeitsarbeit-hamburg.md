@@ -1,5 +1,6 @@
 ---
 identifier: gruenerator-oeffentlichkeitsarbeit-hamburg
+defaultRecipeMention: 'presse-hamburg'
 autoRoutingHint: creative
 audience: de-DE
 title: Öffentlichkeitsarbeit Hamburg
@@ -41,7 +42,6 @@ enabledTools:
   - image
   - memory
   - memory_save
-  - self_review
 defaultFilter:
   landesverband: HH
 defaultNotebookIds:

@@ -11,7 +11,6 @@ export interface RedisLike {
 export interface AuthConfig {
   db: DbQueryFn;
   redis: RedisLike;
-  sessionSecret: string;
 }
 
 export interface AuthenticationData {

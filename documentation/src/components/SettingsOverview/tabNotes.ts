@@ -53,11 +53,14 @@ export const TAB_NOTES: TabNote[] = [
     ],
   },
   {
-    tab: 'barrierefreiheit',
+    tab: 'datenschutz',
     intro:
-      'Einstellungen, die die Oberfläche zugänglicher machen. Sie folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern; Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist.',
+      'Ein Bereich mit zwei Gruppen. Oben die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Unten die Einstellungen, die die Oberfläche zugänglicher machen: Sie folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern.',
     extras: [
-      '**Animationen reduzieren** und **Transparenz reduzieren** schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware.',
+      '**Reichweitenmessung** steuert die anonyme Statistik mit Umami, die wir auf eigenen Servern in der EU betreiben. Ohne deine Zustimmung wird das Skript gar nicht erst geladen; der Schalter gilt für den Browser, in dem du ihn umlegst.',
+      '**Einwilligung in die KI-Verarbeitung** ist die ausdrückliche Einwilligung nach Art. 9 DSGVO: Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben. Nimmst du sie zurück, fragen wir beim nächsten Aufruf der KI-Funktionen erneut.',
+      '**Animationen reduzieren** und **Transparenz reduzieren** schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware. Sie gelten auf allen Geräten, an denen du angemeldet bist, und greifen sofort.',
+      'Der Link **/settings/barrierefreiheit** führt weiterhin hierher — bis zum 28.08.2026 war das ein eigener Bereich.',
     ],
   },
   {
@@ -90,10 +93,9 @@ export const TAB_NOTES: TabNote[] = [
   {
     tab: 'texte-anlernen',
     intro:
-      'Hier bringst du dem Grünerator deinen Schreibstil bei: Du hinterlegst eigene Texte, er leitet daraus Ton, Satzbau und Länge ab und schreibt künftig ähnlich.',
+      'Rezepte lernst du jetzt in der Agentura an. Dieser Bereich verweist nur noch dorthin — Tab und Link bleiben, damit alte Verknüpfungen weiter funktionieren.',
     extras: [
-      'Für die häufigsten Textarten gibt es Vorlagen (siehe unten); zusätzlich kannst du eigene Textarten anlegen.',
-      'Pro Textart siehst du, ob und wann zuletzt angelernt wurde.',
+      'Im Marktplatz der Agentura legst du eigene Rezepte an oder bearbeitest bestehende — inklusive Beispieltexte, Stilanalyse und Teilen mit deinen Gruppen.',
     ],
   },
   {
@@ -128,6 +130,17 @@ export const TAB_NOTES: TabNote[] = [
     tab: 'konnektoren',
     intro:
       'Externe Dienste, die der Chat mitbenutzen darf. Ist einer verbunden, kannst du ihn im Gespräch ansprechen — wie das im Detail geht, steht unter Konnektoren.',
+  },
+  {
+    tab: 'baeume',
+    intro:
+      'Dein tägliches Guthaben für alles, was spürbar Rechenleistung braucht: KI-Bilder, Grünerator Voice, den Übersetzer und die Tiefenrecherche. Ein Baum ist die gemeinsame Einheit dahinter — jedes dieser Werkzeuge zeigt an, wie viele dir noch bleiben.',
+    extras: [
+      'Jedes Konto hat 10 Bäume am Tag; sie werden um Mitternacht (UTC) zurückgesetzt, angezeigt in deiner Ortszeit.',
+      'Wer den Grünerator-Newsletter abonniert hat, bekommt 5 Bäume mehr — 15 statt 10. Das zählt nur, wenn die abonnierte Adresse dieselbe ist wie die deines Grünerator-Kontos.',
+      'Ein Baum entspricht einem KI-Bild mit dem Standardmodell (0,5 beim kleinen, 2 beim großen), 3 Minuten Sprachausgabe, 20.000 Zeichen Übersetzung (2,5 für ein ganzes Dokument) oder einer Tiefenrecherche.',
+      'Auf manchen Instanzen (etwa bgst) ist das Kontingent unbegrenzt.',
+    ],
   },
   {
     tab: 'nutzung',

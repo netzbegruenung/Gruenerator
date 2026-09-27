@@ -25,16 +25,13 @@
  *     task type, so it inherits the worker pool's provider fallback.
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
+import { withTimeout } from '../../../../utils/withTimeout.js';
 
 import { renderArtifactChoices } from './artifactInventory.js';
 
-import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { ThreadToolContext } from '../types.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:EditTarget');
 
@@ -59,7 +56,6 @@ interface ResolveArgs {
   userContent: string;
   /** Newest first, as `listThreadArtifacts` returns them. */
   artifacts: ThreadToolContext[];
-  aiWorkerPool: AIWorkerPool;
 }
 
 /**
@@ -70,7 +66,6 @@ interface ResolveArgs {
 export async function resolveEditTarget({
   userContent,
   artifacts,
-  aiWorkerPool,
 }: ResolveArgs): Promise<number | null> {
   if (artifacts.length < 2) return null;
   const startTime = Date.now();
@@ -79,25 +74,19 @@ export async function resolveEditTarget({
 
   try {
     const response = await withTimeout(
-      aiWorkerPool.processRequest(
-        {
-          type: 'chat_intent_classification',
-          provider: LANE.provider,
-          systemPrompt: RESOLVE_PROMPT,
-          messages: [
-            {
-              role: 'user',
-              content: `Artefakte (1 = zuletzt erzeugt):\n${list}\n\nFolgeauftrag: "${userContent}"`,
-            },
-          ],
-          options: { model: LANE.model, max_tokens: 8, temperature: 0 },
-        },
-        null
-      ),
-      RESOLVE_TIMEOUT_MS
+      aiText({
+        lane: 'chat_intent_classification',
+        pinned: 'standard',
+        system: RESOLVE_PROMPT,
+        prompt: `Artefakte (1 = zuletzt erzeugt):\n${list}\n\nFolgeauftrag: "${userContent}"`,
+        maxOutputTokens: 8,
+        temperature: 0,
+      }),
+      RESOLVE_TIMEOUT_MS,
+      'Edit target'
     );
 
-    const index = parseIndex(response.content, artifacts.length);
+    const index = parseIndex(response, artifacts.length);
     const elapsedMs = Date.now() - startTime;
     // Resolve the artifact before logging it. Reading `artifacts[index].kind`
     // straight out of the log template made the range check unfalsifiable: with
@@ -133,20 +122,4 @@ function parseIndex(raw: string | undefined | null, count: number): number | nul
   const n = Number.parseInt(match[0], 10);
   if (!Number.isFinite(n) || n < 1 || n > count) return null;
   return n - 1;
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Edit target timeout after ${ms}ms`)), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      }
-    );
-  });
 }

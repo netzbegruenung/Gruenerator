@@ -8,32 +8,75 @@
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
+import { NOTEBOOK_GATE } from '../../../config/notebookCollectionMap.js';
+import {
+  getCanonicalByKey,
+  getMcpExposedCollections,
+} from '../../../config/systemCollectionsConfig.js';
 import { normalizeDomainList } from '../../../services/search/domainFilters.js';
-import { resolveSearchTier, SEARCH_TIERS } from '../../../services/search/searchDepth.js';
+import { createDeepTierBudget, SEARCH_TIERS } from '../../../services/search/searchDepth.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { agentAllowsTool } from './agentToolWhitelist.js';
 import {
+  deduplicateByUrl,
   executeDirectSearch,
   executeDirectExamplesSearch,
   executeDirectPressemitteilungExamples,
   executeDirectWebSearch,
 } from './directSearch.js';
-import { resolveExamplesLvScope } from './lvScope.js';
+import { lvEbeneForMentions, narrowLvScopeToEbene, resolveExamplesLvScope } from './lvScope.js';
 
+import type { DirectSearchResult } from './directSearch.js';
 import type { AgentConfig } from './types.js';
 
 const log = createLogger('searchTools');
 
-export const ALL_COLLECTIONS = [
-  'deutschland',
-  'oesterreich',
-  'bundestagsfraktion',
-  'kommunalwiki',
-  'examples',
-  'gruene-de',
-  'gruene-at',
-  'boell-stiftung',
-] as const;
+/**
+ * Every system collection the loop may search — derived from the canonical
+ * config, not hand-maintained.
+ *
+ * It used to be eight literals, and the eight were the whole problem: every
+ * Landesverband was missing, so an agent BOUND to one ("Öffentlichkeitsarbeit
+ * Hessen", `defaultNotebookIds: ['hessen-notebook']` → collection `hessen`)
+ * could not reach its own corpus from inside the loop. `searchNode` resolves
+ * that binding via `defaultNotebookCollectionIds`; the loop never sees it, and
+ * `collection` here is a closed enum with no key to name. Measured live: a
+ * "Pressemitteilung im Stil Grüne Hessen" searched `gruene-de` instead — the
+ * gruene.de website scrape — and the Hessen documents were only ever consulted
+ * as press-release STYLE examples via `gruenerator_pressemitteilung_examples`.
+ *
+ * The MCP server hit the identical wall and fixed it the same way (see
+ * SEARCH_COLLECTIONS in routes/mcp-server/serverFactory.ts: using this list
+ * there "silently hid twelve mcpExposed collections, every Landesverband among
+ * them"). This is the other half of that finding.
+ *
+ * `mcpExposed` is the right filter, not `agentOnly`: it already excludes the
+ * dormant corpora (`satzungen`, whose scraper is gone) and the deliberately
+ * hidden Landesverband (`sachsen`), which a bare "not agent-only" test would
+ * have let back in. `dropHiddenCollections` then applies the INSTANCE policy —
+ * Qdrant is shared across instances, so a notebook this instance does not offer
+ * must not become an ambient source just because the model can name its key
+ * (`isNotebookOfferedUnder` is documented as exactly this gate).
+ *
+ * That gate REMOVES one collection the eight literals used to allow:
+ * `boell-stiftung`, whose notebook is `channel: 'internal'` while production
+ * serves only `stable`. So on production the loop could cite Böll sources for a
+ * notebook the instance does not serve — the literal list had no way to know.
+ * Losing it there is the policy being applied, not a regression; on an instance
+ * that serves `internal` the collection is present as before.
+ *
+ * `examples` is excluded outright: the social-media templates are not a
+ * research corpus and have their own tools (`gruenerator_examples_search`,
+ * `gruenerator_pressemitteilung_examples`) with their own country and
+ * Landesverband scoping. The MCP catalog drops it from its search enum for the
+ * same reason.
+ */
+export const ALL_COLLECTIONS: readonly string[] = NOTEBOOK_GATE.dropHiddenCollections(
+  getMcpExposedCollections()
+    .map((c) => c.key)
+    .filter((key) => key !== 'examples')
+);
 
 /** Austria is a first-class audience, not a toggle on a German default. */
 const LOCALE_DEFAULT_COLLECTION: Record<string, string> = {
@@ -41,19 +84,99 @@ const LOCALE_DEFAULT_COLLECTION: Record<string, string> = {
   'de-DE': 'deutschland',
 };
 
+const LOCALE_COUNTRY: Record<string, 'DE' | 'AT'> = {
+  'de-AT': 'AT',
+  'de-DE': 'DE',
+};
+
+/**
+ * Collection keys that stand for MORE than one corpus.
+ *
+ * Austria is one audience with two scrapes behind it — `oesterreich`
+ * (`oesterreich_gruene_documents`: the programmes) and `gruene-at`
+ * (`gruene_at_documents`: the website). The single-pass path has always
+ * searched both together (`getSupplementaryCollectionsForLocale` in searchNode
+ * returns `['gruene-at']` next to the `oesterreich` locale default), and an AT
+ * user has exactly ONE notebook. Making the model choose between the two would
+ * be a distinction it has no basis to make — and choosing wrong costs the whole
+ * corpus. So AT is a single key here, and the fan-out happens on execution.
+ *
+ * Members other than the head are hidden from the enum: `gruene-at` is reached
+ * only through `oesterreich`.
+ */
+const COLLECTION_BUNDLES: Record<string, readonly string[]> = {
+  oesterreich: ['oesterreich', 'gruene-at'],
+};
+
+const BUNDLED_MEMBERS: ReadonlySet<string> = new Set(
+  Object.entries(COLLECTION_BUNDLES).flatMap(([head, members]) => members.filter((m) => m !== head))
+);
+
+/**
+ * The collections a turn may search, narrowed to the user's country.
+ *
+ * Austria is a first-class audience, not a toggle: an AT user has no business
+ * being offered twelve German Landesverbände, and a DE user none of the
+ * Austrian corpora. This is the rule the single-pass path has always applied
+ * (`getSupplementaryCollectionsForLocale`); the loop simply never had it,
+ * because its list was eight hard-coded keys with both countries mixed in.
+ *
+ * A collection with NO declared `country` shows in both locales. That is the
+ * deliberate direction to be wrong in: an over-offered collection costs one
+ * irrelevant search, while a silently dropped one is unnameable and therefore
+ * invisible — which is the exact failure this whole change is undoing.
+ */
+export function collectionsForLocale(locale: string | null | undefined): readonly string[] {
+  const country = LOCALE_COUNTRY[locale ?? 'de-DE'] ?? 'DE';
+  return ALL_COLLECTIONS.filter((key) => {
+    if (BUNDLED_MEMBERS.has(key)) return false;
+    const declared = getCanonicalByKey(key)?.country;
+    return declared === undefined || declared === country;
+  });
+}
+
+/**
+ * One `key: what is in it` line per collection, for the `collection` enum's
+ * description. The texts are the canonical ones from SYSTEM_COLLECTIONS — the
+ * same strings the notebook UI and the MCP catalog show — so there is exactly
+ * one place to fix a wrong one.
+ *
+ * A key with no canonical entry cannot occur through ALL_COLLECTIONS (it is
+ * derived from that very config), only through a hand-written per-agent
+ * `allowedCollections`. Such a key degrades to its bare name rather than
+ * disappearing: it is still a valid enum value, and hiding it from the
+ * description would make it unreachable in practice.
+ */
+function describeCollections(keys: readonly string[]): string {
+  return keys
+    .map((key) => {
+      const description = getCanonicalByKey(key)?.description;
+      return description ? `- ${key}: ${description}` : `- ${key}`;
+    })
+    .join('\n');
+}
+
 export interface CreateSearchToolsOptions {
   /**
-   * Whose collections to search when the model names none. Without it every
-   * turn defaulted to `deutschland` — an AT user asking about Austria searched
-   * the German corpus and got 0 hits (observed live). An explicit
-   * `toolRestrictions.defaultCollection` still wins: that is a deliberate
-   * per-agent decision, this is only the fallback.
+   * Whose collections these tools may search, and which one they default to.
+   * An explicit `toolRestrictions.defaultCollection` still wins: that is a
+   * deliberate per-agent decision, this is only the fallback.
+   *
+   * REQUIRED, though it accepts `null` — a caller with genuinely no locale has
+   * to write `userLocale: null` and mean it. Optional, it was forgotten exactly
+   * once and the omission was invisible: the board agent never passed one, and
+   * while the collection list mixed both countries that only cost an AT board
+   * task the right DEFAULT. The moment the list became locale-filtered, the
+   * same omission would have removed the Austrian corpora from it altogether.
+   * "Forgotten" and "deliberately absent" must not look the same.
    */
-  userLocale?: string | null;
+  userLocale: string | null;
   /**
    * When set, restrict the returned search tools to the agent's user-selected
    * capabilities (USER_SELECTABLE_TOOLS keys: `search` → gruenerator_search,
    * `examples` → examples/pressemitteilung, `web`/`research` → web_search).
+   * Raw tool names count as their picker key (`gruenerator_search` → `search`),
+   * because the editor agents declare those — see `agentAllowsTool`.
    * Undefined leaves the full set (chat + board defaults unchanged).
    */
   enabledToolKeys?: readonly string[];
@@ -86,6 +209,29 @@ export interface CreateSearchToolsOptions {
    * check is skipped.
    */
   userText?: string | null;
+  /**
+   * Die Rezepte, die in diesem Turn gelten — als Thunk, nicht als Wert: der
+   * Werkzeugsatz wird einmal zu Turn-Beginn gebaut, das Rezept wählt der Loop
+   * aber erst mitten im Turn über `rezept_laden`. Ein Wert wäre zum
+   * Bauzeitpunkt immer leer.
+   *
+   * Gelesen wird nur die Landesverbands-Ebene daraus, und nur von der
+   * PM-Beispielsuche. Ohne den Thunk bliebe der Ebenen-Zuschnitt auf den
+   * einstufigen Pfad beschränkt.
+   */
+  activeRecipeMentions?: () => readonly (string | null | undefined)[];
+  /**
+   * Sollen die Dokumentsuchen dieses Turns ihre Chunks VOR der Gruppierung vom
+   * Cross-Encoder bewerten lassen? Gesetzt ausschliesslich vom Werkzeugkatalog
+   * des agentischen Loops und nur bei LOOP_RERANK_ENABLED=true. Der zweite
+   * Aufrufer dieser Fabrik — der Board-Agent
+   * (`services/boards/agentFlow/generate.ts:167`) — setzt es nicht und bleibt
+   * unberührt.
+   *
+   * Der Name weicht bewusst vom durchgereichten `rerankChunks` ab: hier ist es
+   * eine Aussage über den TURN, eine Ebene tiefer über den AUFRUF.
+   */
+  rerankSearchChunks?: boolean;
 }
 
 /**
@@ -167,6 +313,60 @@ function institutionNamed(host: string, haystack: string): boolean {
 }
 
 /**
+ * Run one search, fanning a bundle key out over its members.
+ *
+ * For an ordinary key this is `executeDirectSearch` verbatim. For a bundle
+ * (`oesterreich`) the members are searched in parallel and merged by score, so
+ * the model sees one collection and one ranked list — the fact that Austria's
+ * material sits in two Qdrant collections is ours to know, not the planner's.
+ *
+ * The merge deliberately re-ranks across members rather than interleaving: the
+ * scores come from the same embedding model and the same hybrid weights, so
+ * they are comparable, and a fixed interleave would hand half the budget to
+ * whichever corpus happens to be thinner on the topic.
+ */
+async function searchCollectionOrBundle(params: {
+  query: string;
+  collection: string;
+  limit: number;
+  rerankChunks?: boolean;
+}): Promise<DirectSearchResult> {
+  const { query, collection, limit, rerankChunks } = params;
+  // Einmal gebaut, in BEIDE Zweige gespreizt: ein Bündel, das den Reranker
+  // verliert, sieht im Ergebnis genauso aus wie eines, das ihn hat.
+  const rerank = rerankChunks === true ? { rerankChunks: true as const } : {};
+  const members = COLLECTION_BUNDLES[collection];
+  if (!members) return executeDirectSearch({ query, collection, limit, ...rerank });
+
+  // Each member is asked for the full limit; the merge below is what narrows.
+  const parts = await Promise.all(
+    members.map((member) => executeDirectSearch({ query, collection: member, limit, ...rerank }))
+  );
+  const merged = deduplicateByUrl(
+    parts.flatMap((p) => p.results),
+    (r) => r.url
+  )
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .slice(0, limit)
+    .map((r, i) => ({ ...r, rank: i + 1 }));
+
+  return {
+    collection,
+    query,
+    searchMode: parts[0]?.searchMode ?? 'hybrid',
+    resultsCount: merged.length,
+    results: merged,
+    // Umgekehrter Quantor zur Zeile darunter, mit Absicht: ein Bündel ist
+    // degradiert, sobald EIN Mitglied es war (dann ist die halbe Liste
+    // kosinus-sortiert) — es ist aber erst gescheitert, wenn ALLE scheiterten.
+    ...(parts.some((p) => p.rerankDegraded) ? { rerankDegraded: true } : {}),
+    // A bundle fails only when EVERY member failed; one dead corpus next to a
+    // live one is a partial result, not an error.
+    ...(parts.every((p) => p.error) ? { error: true } : {}),
+  };
+}
+
+/**
  * Creates search tools dynamically based on agent configuration.
  * This enables per-agent restrictions on collections (e.g., Austrian agent
  * can only search Austrian collections).
@@ -174,15 +374,50 @@ function institutionNamed(host: string, haystack: string): boolean {
  * Note: Returns ToolSet; type safety is maintained through runtime validation in
  * execute functions (Zod version conflicts in the monorepo prevent tighter types).
  */
+/**
+ * May this agent reach the open web at all?
+ *
+ * Two vocabularies share the `enabledTools` array and both have to be honoured:
+ * the USER_SELECTABLE_TOOLS keys (`web`, plus the persisted legacy `research`)
+ * that the agent picker writes, and the raw TOOL NAMES (`web_search`) that the
+ * editor agents declare in their frontmatter. Reading only the first set would
+ * silently cut the editor agents off the web.
+ *
+ * An agent that declares no `enabledTools` at all keeps everything — absence is
+ * "not configured", not "nothing allowed"; user-created agents and the universal
+ * agent rely on that.
+ *
+ * Unlike {@link SearchToolOptions.enabledToolKeys} (which gates the whole search
+ * family for recurring/board runs) this answers the single web question, so the
+ * chat catalog can drop `web_search`/`scrape_url` while keeping
+ * `gruenerator_search` and the example corpora mounted.
+ */
+export function agentAllowsWebSearch(agentConfig: Pick<AgentConfig, 'enabledTools'>): boolean {
+  // One reading of the array for every gate — see agentToolWhitelist.ts.
+  return agentAllowsTool(agentConfig, 'web');
+}
+
 export function createSearchTools(
   agentConfig: AgentConfig,
-  options: CreateSearchToolsOptions = {}
+  options: CreateSearchToolsOptions
 ): ToolSet {
   const restrictions = agentConfig.toolRestrictions;
 
+  // One allowance per factory call, and the factory runs once per turn
+  // (`buildChatToolCatalog`). Holding it here rather than inside `execute` is
+  // what makes it a per-TURN budget: a per-call counter would reset on every
+  // search and grant the deep engine unboundedly.
+  const deepBudget = createDeepTierBudget();
+
+  // An explicit per-agent list is a deliberate decision and is taken verbatim;
+  // otherwise the turn gets what its LOCALE can use. Not `ALL_COLLECTIONS`,
+  // which mixes both countries: offering an AT user twelve German
+  // Landesverbände is noise, and offering a DE user the Austrian corpora is the
+  // mirror image of the AT-as-a-toggle bug `LOCALE_DEFAULT_COLLECTION` exists
+  // to prevent.
   const allowedCollections: readonly string[] = restrictions?.allowedCollections?.length
     ? restrictions.allowedCollections
-    : ALL_COLLECTIONS;
+    : collectionsForLocale(options.userLocale);
 
   const localeDefault = options.userLocale
     ? LOCALE_DEFAULT_COLLECTION[options.userLocale]
@@ -197,7 +432,9 @@ export function createSearchTools(
   // AT user grounds in Austrian examples. Without this an AT user on a generic
   // agent got German social/press posts as style templates on the loop path
   // while the single-pass path got it right — `gruene_at_documents` exists.
-  // Callers that pass no locale (e.g. the board agent) keep `undefined`.
+  // A caller that passes no locale keeps `undefined`. Both real callers now do
+  // pass one — the board agent was the exception until the collection list
+  // became locale-filtered and its omission stopped being survivable.
   const examplesCountry =
     restrictions?.examplesCountry ?? (options.userLocale === 'de-AT' ? 'AT' : undefined);
   // Landesverband scope for example searches — derived from the agent so an LV
@@ -205,6 +442,17 @@ export function createSearchTools(
   // press tool pulls PMs from all LVs and mimics the wrong one (e.g. a
   // Brandenburg agent producing a Hessen press release).
   const examplesLvScope = resolveExamplesLvScope(agentConfig);
+  /**
+   * Derselbe Ausschnitt, zugeschnitten auf die Ebene des aktiven Rezepts —
+   * erst beim Aufruf ausgewertet, weil das Rezept mitten im Turn dazukommen
+   * kann. Nur die PM-Suche nutzt ihn: Social-Beispiele liegen in einer
+   * Sammlung ohne `landesverband`-Feld.
+   */
+  const pressLvScope = (): string | readonly string[] | undefined =>
+    narrowLvScopeToEbene(
+      examplesLvScope,
+      lvEbeneForMentions(options.activeRecipeMentions?.() ?? [])
+    );
 
   log.debug(
     `[Tools] Creating tools for ${agentConfig.identifier}: collections=${allowedCollections.join(',')}, default=${defaultCollection}, personSearch=disabled, examplesCountry=${examplesCountry || 'all'}`
@@ -213,13 +461,17 @@ export function createSearchTools(
   const tools: ToolSet = {};
 
   tools.gruenerator_search = tool({
-    description: `Durchsuche grüne Parteiprogramme, Positionen und Beschlüsse.
+    description: `Durchsuche grüne Parteiprogramme, Positionen und Beschlüsse — bundesweit sowie je Landesverband.
 
 NUTZE WENN:
 - Fragen zu grünen Positionen ("Was sagen die Grünen zu...")
 - Politische Standpunkte oder Beschlüsse benötigt
 - Zitate aus Parteiprogrammen gewünscht
 - Grüne Politik/Programmatik gefragt
+- Inhalte eines bestimmten Landesverbands gebraucht werden (eigene Sammlung je LV)
+- Es um Kommunalpolitik geht — Gemeinderat, Stadtrat, Kreistag, kommunaler Haushalt, Gemeindeordnung: dafür ist \`kommunalwiki\` die einschlägige Sammlung
+
+Geht es um einen konkreten Landesverband, durchsuche dessen Sammlung UND die bundesweite Programmatik (\`deutschland\`).
 
 NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
     inputSchema: z.object({
@@ -228,7 +480,13 @@ NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
         .enum(allowedCollections as [string, ...string[]])
         .optional()
         .default(defaultCollection)
-        .describe(`Sammlung: ${allowedCollections.join(', ')}`),
+        // The bare key list this used to be ("Sammlung: deutschland, …,
+        // gruene-de, …") carried no semantics, and the keys mislead on their
+        // own: `gruene-de` reads like "die Grünen (DE)" but is the gruene.de
+        // WEBSITE scrape, while the programmes live under `deutschland`. A
+        // planner asked for "Grüne Hessen" duly picked `gruene-de` and cited
+        // five web pages. The descriptions already exist in SYSTEM_COLLECTIONS.
+        .describe(`Sammlung — wähle nach Inhalt:\n${describeCollections(allowedCollections)}`),
       limit: z.number().optional().default(5).describe('Maximale Anzahl Ergebnisse'),
     }),
     execute: async ({ query, collection, limit }) => {
@@ -242,8 +500,12 @@ NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
             query,
           };
         }
-        const results = await executeDirectSearch({ query, collection, limit });
-        return results;
+        return await searchCollectionOrBundle({
+          query,
+          collection,
+          limit,
+          ...(options.rerankSearchChunks === true && { rerankChunks: true }),
+        });
       } catch (error) {
         log.error('Direct search error:', error);
         return { error: 'Suche fehlgeschlagen', results: [], collection, query };
@@ -294,9 +556,10 @@ NICHT FÜR: Social-Media-Posts (nutze gruenerator_examples_search), allgemeine R
     }),
     execute: async ({ query }) => {
       try {
+        const lvScope = pressLvScope();
         const results = await executeDirectPressemitteilungExamples({
           query,
-          ...(examplesLvScope !== undefined && { lvScope: examplesLvScope }),
+          ...(lvScope !== undefined && { lvScope }),
           ...(examplesCountry && { country: examplesCountry }),
         });
         return results;
@@ -323,7 +586,7 @@ NUTZE WENN:
 
 WÄHLE DIE STUFE NACH AUFWAND, NICHT NACH WORTLAUT:
 - gruendlich: DER NORMALFALL, lass tiefe einfach weg. 10 Quellen.
-- tiefenrecherche: nur wenn der Benutzer ausdrücklich eine gründliche Recherche verlangt hat. Dauert 15–30 Sekunden.
+- tiefenrecherche: 20 Quellen, die Top-Treffer werden im Volltext gelesen. Dauert 15–30 Sekunden. Nimm sie, wenn der Benutzer ausdrücklich gründlich recherchiert haben will ODER wenn die Frage sie sachlich braucht (viele Teilaspekte, strittige Faktenlage, eine gründliche Suche kam eben dünn zurück). Du hast dafür EINEN Aufruf pro Antwort, den der Benutzer nicht verlangt haben muss — gib ihn der Frage, die ihn am nötigsten hat, nicht der ersten.
 
 EINE SUCHE ZUR ZEIT: Starte eine Suche, lies das Ergebnis, und suche erst dann weiter, wenn wirklich etwas fehlt. Höchstens zwei Suchen gleichzeitig. War ein Ergebnis schwach, formuliere die Anfrage EINMAL anders (notfalls englisch) — schicke keine Varianten auf Vorrat los.
 
@@ -358,7 +621,7 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
         .optional()
         .default('gruendlich')
         .describe(
-          'Rechercheaufwand: gruendlich (Normalfall, 10 Quellen) oder tiefenrecherche (nur auf ausdrücklichen Wunsch, langsam)'
+          'Rechercheaufwand: gruendlich (Normalfall, 10 Quellen) oder tiefenrecherche (20 Quellen + Volltext, langsam, einmal pro Antwort ohne ausdrücklichen Wunsch)'
         ),
       zeitraum: z
         .enum(['anytime', 'day', 'week', 'month', 'year'])
@@ -388,17 +651,26 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
     }),
     execute: async ({ query, searchType, tiefe, zeitraum, seiten, seitenAusschliessen }) => {
       try {
-        // The model's tier is a request in both directions; `resolveSearchTier`
-        // clamps it up to the normal case and down to what the user actually
-        // consented to. Without this the deep engine is one hallucinated
-        // argument away, and a five-snippet answer one skipped instruction away.
-        const tier = resolveSearchTier({
-          intent: 'web',
-          requestedTier: tiefe,
-          explicitDeep: options.explicitDeepRequest ?? false,
-        });
+        // The model's tier is a request in both directions: clamped UP to the
+        // normal case (a five-snippet answer must not be one skipped instruction
+        // away) and, upward, metered rather than forbidden.
+        //
+        // The deep engine used to be reachable only through
+        // `isExplicitDeepRequest`, a regex over the user's phrasing. That guard
+        // cannot see what a search returned, so a model staring at ten thin hits
+        // had no way to escalate and no way to say so. `deepBudget` gives it one
+        // deep call per turn on its own judgement — the budget lives on the
+        // factory, which runs once per turn, so it is a per-turn allowance and
+        // not a per-call permission.
+        const explicitDeep = options.explicitDeepRequest ?? false;
+        const before = deepBudget.remaining;
+        const tier = deepBudget.resolve({ intent: 'web', requestedTier: tiefe, explicitDeep });
         if (tier !== tiefe) {
           log.info(`[Tools] web_search tier clamped: ${tiefe} → ${tier}`);
+        } else if (deepBudget.remaining < before) {
+          log.info(
+            `[Tools] web_search: modellinitiierte Tiefenrecherche gewährt (Rest ${deepBudget.remaining})`
+          );
         }
         // Hostnames are normalised here rather than trusted: the model reliably
         // writes "https://zeit.de/" or "www.zeit.de" when the user did, and the
@@ -441,11 +713,8 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
 
   // The separate `research` tool is gone: it was a second door into a different
   // engine (Linkup depth=deep + sourcedAnswer, i.e. LINKUP wrote the answer)
-  // reachable by the word "recherchiere" alone, and it exposed a `depth` choice
-  // that `executeResearch` discarded before Linkup ever saw it. Recherche is now
-  // the upper two tiers of `web_search`, so the answer — and every [N] in it —
-  // stays ours. `executeResearch` itself lives on for the Monitor's daily
-  // briefing (HotTopicPipeline), which genuinely wants a ready-made report.
+  // reachable by the word "recherchiere" alone. Recherche is now the upper two
+  // tiers of `web_search`, so the answer — and every [N] in it — stays ours.
 
   // `direct_response` used to be mounted here behind an `includeDirectResponse`
   // flag: a router escape hatch from the days of `toolChoice: 'required'`, where
@@ -456,17 +725,22 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
 
   // Optional per-agent gating: recurring agents honor their picker selection.
   // Undefined → keep everything (board/chat behavior unchanged).
+  //
+  // Read through `agentAllowsTool` rather than against a raw key set, so this
+  // list speaks the same two vocabularies as every other gate: the picker keys
+  // AND the raw tool names the editor agents declare in frontmatter. The board
+  // flow passes its agent's `enabledTools` straight in (agentFlow/generate.ts),
+  // so an editor agent declaring `gruenerator_search` used to lose the very
+  // corpus it had asked for (#3307). `web`/`research` stay one capability —
+  // that group now lives in the helper instead of in this `||`.
   if (options.enabledToolKeys) {
-    const keys = new Set(options.enabledToolKeys);
-    if (!keys.has('search')) delete tools.gruenerator_search;
-    if (!keys.has('examples')) {
+    const declared = { enabledTools: [...options.enabledToolKeys] };
+    if (!agentAllowsTool(declared, 'search')) delete tools.gruenerator_search;
+    if (!agentAllowsTool(declared, 'examples')) {
       delete tools.gruenerator_examples_search;
       delete tools.gruenerator_pressemitteilung_examples;
     }
-    // `research` is still accepted as a key: it is persisted in agent configs
-    // (F0), and an agent that was given "Recherche" must keep its web access
-    // now that recherche IS the web tool at a deeper tier.
-    if (!keys.has('web') && !keys.has('research')) {
+    if (!agentAllowsTool(declared, 'web')) {
       delete tools.web_search;
     }
   }

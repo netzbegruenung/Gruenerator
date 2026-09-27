@@ -1,5 +1,9 @@
 import { type ChatBackground } from '@gruenerator/contracts';
-import { getAllRobotIds, getRobotAvatarUrl } from '@gruenerator/shared/avatar';
+import {
+  GRUENERATOR_FRIENDS,
+  getRobotAvatarUrl,
+  type StarterElement,
+} from '@gruenerator/shared/avatar';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { AT_EBENEN, DE_EBENEN, type UserRole } from '@gruenerator/shared/roles';
 import { chatBackgroundsFor, getSettingsEntry } from '@gruenerator/shared/settings';
@@ -51,8 +55,20 @@ import { AppUpdateRow } from './AppUpdateRow';
  */
 
 // Robot avatar 10 ("Wolki") is unlocked via a Wolke connection, which isn't
-// available on mobile — so the picker offers 1–9.
-const PICKABLE_ROBOT_IDS = getAllRobotIds().filter((id) => id !== 10);
+// available on mobile — so the picker offers the rest.
+const PICKABLE_FRIENDS = GRUENERATOR_FRIENDS.filter((friend) => friend.unlock !== 'wolke');
+
+/**
+ * Die Ringfarben der drei Starter, wie im Web (`FriendsTab`): sie hängen an der
+ * Figur und ihrem Element, nicht an der Auswahl — die Auswahl macht den Ring nur
+ * kräftiger. Deshalb stehen hier Element-Farben und keine Theme-Token; das
+ * Grünerator-Grün würde Feuer, Natur und Wasser gerade wieder einebnen.
+ */
+const STARTER_RING: Record<StarterElement, string> = {
+  feuer: '#EF4444',
+  natur: '#10B981',
+  wasser: '#0EA5E9',
+};
 
 type Locale = 'de-DE' | 'de-AT';
 
@@ -63,6 +79,7 @@ const DETAIL_TITLES: Record<SettingsDetail, string> = {
   chatBackground: getSettingsEntry('hintergrund.startseite').title,
   locale: getSettingsEntry('allgemein.sprache').title,
   accessibility: 'Barrierefreiheit',
+  privacy: 'Datenschutz',
 };
 
 const THEME_OPTIONS: readonly { value: ThemeMode; label: string; icon: IoniconsIconName }[] = [
@@ -122,6 +139,7 @@ export function SettingsSheet() {
   const updateLocale = useAuthStore((s) => s.updateLocale);
   const updateAvatar = useAuthStore((s) => s.updateAvatar);
   const updateProfile = useAuthStore((s) => s.updateProfile);
+  const setAiConsent = useAuthStore((s) => s.setAiConsent);
 
   const [roles, setRoles] = useState<UserRole[] | null>(null);
 
@@ -292,13 +310,53 @@ export function SettingsSheet() {
       );
     }
 
+    if (detail === 'privacy') {
+      const consentAt = typeof user.ai_consent_at === 'string' ? user.ai_consent_at : null;
+      return (
+        <>
+          {note(
+            'Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben — besondere Kategorien im Sinne des Art. 9 DSGVO. Die Einwilligung gilt für alle deine Geräte.'
+          )}
+          <ListGroup>
+            <ListRow
+              icon="shield-checkmark-outline"
+              title={getSettingsEntry('datenschutz.ki-einwilligung').title}
+              value={
+                consentAt
+                  ? `Erteilt am ${new Date(consentAt).toLocaleDateString('de-DE')}`
+                  : 'Nicht erteilt'
+              }
+              valueLines={2}
+              accessory={
+                <Switch
+                  value={consentAt != null}
+                  onValueChange={(value) => {
+                    void setAiConsent(value).catch(() => {
+                      Alert.alert('Fehler', 'Einwilligung konnte nicht gespeichert werden.');
+                    });
+                  }}
+                  trackColor={{ true: colors.primary[600], false: colors.grey[300] }}
+                />
+              }
+              last
+            />
+          </ListGroup>
+          {note(
+            'Nimmst du die Einwilligung zurück, fragen wir sofort wieder — ohne sie lassen sich die KI-Funktionen nicht nutzen.'
+          )}
+        </>
+      );
+    }
+
     if (detail === 'friend') {
       return (
         <>
           {note(getSettingsEntry('friends.avatar').description ?? '')}
           <View style={styles.grid}>
-            {PICKABLE_ROBOT_IDS.map((id) => {
+            {PICKABLE_FRIENDS.map((friend) => {
+              const id = friend.id;
               const selected = String(id) === user.avatar_robot_id;
+              const ring = friend.starter ? STARTER_RING[friend.starter] : colors.primary[600];
               return (
                 <Pressable
                   key={id}
@@ -311,23 +369,41 @@ export function SettingsSheet() {
                     setDetail(null);
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={`Friend ${id}`}
+                  accessibilityLabel={`${friend.name} auswählen`}
+                  accessibilityHint={friend.tagline}
                   accessibilityState={{ selected }}
-                  style={[
-                    styles.option,
-                    {
-                      backgroundColor: theme.surface,
-                      borderColor: selected ? colors.primary[600] : 'transparent',
-                    },
-                  ]}
+                  style={styles.option}
                 >
-                  <Image
-                    source={{ uri: getRobotAvatarUrl(id) }}
-                    style={styles.optionImage}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                    recyclingKey={String(id)}
-                  />
+                  <View
+                    style={[
+                      styles.optionPlate,
+                      {
+                        backgroundColor: theme.surface,
+                        borderColor: ring,
+                        // Ausgewählt heißt kräftiger, nicht andersfarbig: die
+                        // Zuordnung Figur→Element muss den Tap überleben.
+                        borderWidth: selected ? 3 : 1,
+                        opacity: selected ? 1 : 0.75,
+                      },
+                    ]}
+                  >
+                    <Image
+                      source={{ uri: getRobotAvatarUrl(id) }}
+                      style={styles.optionImage}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      recyclingKey={String(id)}
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.optionName,
+                      { color: selected ? theme.text : theme.textSecondary },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {friend.name}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -448,6 +524,16 @@ export function SettingsSheet() {
                 />
               )}
               <ListRow
+                icon="shield-checkmark-outline"
+                title="Datenschutz"
+                value={
+                  user.ai_consent_at != null
+                    ? 'KI-Einwilligung erteilt'
+                    : 'KI-Einwilligung ausstehend'
+                }
+                onPress={() => setDetail('privacy')}
+              />
+              <ListRow
                 icon="school-outline"
                 title="Einführung erneut ansehen"
                 onPress={() => leave(() => router.push(route('/(auth)/onboarding')))}
@@ -525,16 +611,25 @@ const styles = StyleSheet.create({
   },
   option: {
     width: '30%',
+    alignItems: 'center',
+    gap: spacing.xsmall,
+  },
+  optionPlate: {
+    width: '100%',
     aspectRatio: 1,
     borderRadius: borderRadius.large,
     borderCurve: 'continuous',
-    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   optionImage: {
     width: '78%',
     height: '78%',
+  },
+  optionName: {
+    fontSize: 12,
+    fontFamily: BODY_FONT,
+    fontWeight: '500',
   },
   logout: {
     minHeight: 44,

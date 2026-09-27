@@ -33,7 +33,7 @@ export async function processTextContent(
     throw new Error('Title is required');
   }
 
-  const { chunks, embeddings } = await chunkAndEmbedText(content.trim());
+  const { chunks, embeddings } = await chunkAndEmbedText(content.trim(), { title });
 
   const documentMetadata = await postgresDocumentService.saveDocumentMetadata(userId, {
     title: title.trim(),

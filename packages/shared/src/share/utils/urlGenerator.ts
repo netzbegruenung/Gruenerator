@@ -2,6 +2,7 @@
  * Share URL generation utilities
  */
 
+import { PRODUCTION_WEB_ORIGIN } from '../../instances/index.js';
 import { PLATFORM_CONFIGS } from '../constants.js';
 
 import type { SharePlatform } from '../types.js';
@@ -9,7 +10,7 @@ import type { SharePlatform } from '../types.js';
 /**
  * Generate a share URL for a given share token
  * @param shareToken - The share token from backend
- * @param baseUrl - Optional base URL (defaults to env or hardcoded)
+ * @param baseUrl - Optional base URL (defaults to the platform origin)
  * @returns Full share URL
  */
 export function getShareUrl(shareToken: string, baseUrl?: string): string {
@@ -31,8 +32,10 @@ export function getSubtitlerShareUrl(shareToken: string, baseUrl?: string): stri
 }
 
 /**
- * Get the base URL for share links
- * Platform-aware: uses window.location.origin on web, falls back to production URL
+ * Get the base URL for share links.
+ * Platform-aware: uses `window.location.origin` on web; everywhere else
+ * (native, node) a shared link is for someone outside the current runtime,
+ * so it falls back to {@link PRODUCTION_WEB_ORIGIN}.
  */
 export function getBaseUrl(): string {
   // Check for browser environment
@@ -52,23 +55,14 @@ export function getBaseUrl(): string {
           /* fall through */
         }
       }
-      return 'https://gruenerator.eu';
+      return PRODUCTION_WEB_ORIGIN;
     }
     if (win.window?.location?.origin) {
       return win.window.location.origin;
     }
   }
 
-  // Check for process.env (React Native/Node)
-  if (typeof process !== 'undefined' && process.env) {
-    const envUrl = process.env.EXPO_PUBLIC_BASE_URL || process.env.REACT_APP_BASE_URL;
-    if (envUrl) {
-      return envUrl;
-    }
-  }
-
-  // Default to production URL
-  return 'https://gruenerator.eu';
+  return PRODUCTION_WEB_ORIGIN;
 }
 
 /**

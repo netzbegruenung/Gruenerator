@@ -14,6 +14,7 @@ import {
 import { useNotifications, type AppNotification } from '../../hooks/useNotifications';
 import { colors, spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { actionUrlToRoute } from '../../utils/actionUrl';
+import { SkeletonRows } from '../common/Skeleton';
 
 const TYPE_ICONS: Record<string, IoniconsIconName> = {
   document_shared: 'document-text-outline',
@@ -23,6 +24,7 @@ const TYPE_ICONS: Record<string, IoniconsIconName> = {
   group_member_joined: 'person-add-outline',
   group_role_changed: 'swap-horizontal-outline',
   group_content_shared: 'share-outline',
+  group_comment_added: 'chatbubble-outline',
   group_deleted: 'trash-outline',
   pushed_content: 'phone-portrait-outline',
 };
@@ -157,9 +159,10 @@ export function NotificationList({ onNavigate }: Props) {
       </View>
 
       {isLoading && notifications.length === 0 ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="small" color={colors.primary[600]} />
-        </View>
+        // The rows below: a 32-dp icon circle, a line of text and a timestamp.
+        // The footer spinner on `onEndReached` stays a spinner — that one is
+        // paging, not a surface arriving.
+        <SkeletonRows count={5} leading={32} />
       ) : (
         <FlatList
           data={notifications}
@@ -211,10 +214,6 @@ const styles = StyleSheet.create({
     fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
-  },
-  centered: {
-    paddingVertical: spacing.large,
-    alignItems: 'center',
   },
   emptyText: {
     fontFamily: BODY_FONT,

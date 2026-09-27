@@ -133,8 +133,14 @@ function ResponsiveMenuToggle({
   className,
 }: ResponsiveMenuToggleProps) {
   return (
+    // `role="switch"` + `aria-checked`, not a bare button: the on/off state is
+    // drawn with two divs, so without them a screen reader announces the label
+    // and nothing else — the one fact the row exists to convey. It also gives
+    // the row a queryable role in tests.
     <button
       type="button"
+      role="switch"
+      aria-checked={checked}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
         'flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors',

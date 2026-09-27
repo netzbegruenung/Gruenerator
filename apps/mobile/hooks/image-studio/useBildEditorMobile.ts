@@ -1,4 +1,8 @@
-import { DEFAULT_STYLE_VARIANT, useKiImageGeneration } from '@gruenerator/shared/image-studio';
+import {
+  DEFAULT_IMAGE_FORMAT,
+  DEFAULT_STYLE_VARIANT,
+  useKiImageGeneration,
+} from '@gruenerator/shared/image-studio';
 import { useShareStore } from '@gruenerator/shared/share';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueryClient } from '@tanstack/react-query';
@@ -50,6 +54,7 @@ const GREEN_DEFAULT_INSTRUCTION =
 const DEFAULT_SETTINGS: BevSettings = {
   variant: DEFAULT_STYLE_VARIANT,
   kiLabel: 'full',
+  format: DEFAULT_IMAGE_FORMAT,
   aspect: '1:1',
 };
 
@@ -217,10 +222,15 @@ export function useBildEditorMobile() {
 
   const runCreate = useCallback(
     async (text: string) => {
-      const dataUrl = await generatePureCreate({ description: text, variant: settings.variant });
+      const dataUrl = await generatePureCreate({
+        description: text,
+        variant: settings.variant,
+        format: settings.format,
+        kiLabel: settings.kiLabel,
+      });
       await commitProducedImage(dataUrl, text, 'create', null);
     },
-    [generatePureCreate, settings.variant, commitProducedImage]
+    [generatePureCreate, settings.variant, settings.format, settings.kiLabel, commitProducedImage]
   );
 
   const runEdit = useCallback(

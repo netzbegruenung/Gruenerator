@@ -61,7 +61,12 @@ CREATE TABLE IF NOT EXISTS profiles (
     presseabbinder TEXT,
     custom_antrag_gliederung TEXT,
     auth_source TEXT,
-    locale TEXT DEFAULT 'de-DE' CHECK (locale IN ('de-DE', 'de-AT')),
+    -- Kein DEFAULT: NULL heißt „Land unbekannt", und die Oberfläche fragt dann
+    -- nach, statt Deutschland zu unterstellen. Woher der Wert stammt, steht in
+    -- locale_source — 'user' schützt eine selbst getroffene Wahl davor, beim
+    -- nächsten Login vom IdP überschrieben zu werden.
+    locale TEXT CHECK (locale IN ('de-DE', 'de-AT')),
+    locale_source TEXT CHECK (locale_source IN ('idp', 'user')),
     groups_enabled BOOLEAN DEFAULT FALSE,
     groups BOOLEAN DEFAULT FALSE,
     custom_generators BOOLEAN DEFAULT FALSE,
@@ -89,11 +94,12 @@ CREATE TABLE IF NOT EXISTS profiles (
     canva_connection JSONB DEFAULT NULL,
     document_mode TEXT DEFAULT 'manual',
     default_startpage TEXT NOT NULL DEFAULT 'chat' CHECK (default_startpage IN ('chat', 'arbeiten')),
+    tts_voice_id TEXT,
     user_defaults JSONB DEFAULT '{}',
     docs BOOLEAN DEFAULT FALSE,
     boards BOOLEAN DEFAULT FALSE,
     bundestag_api_enabled BOOLEAN DEFAULT FALSE,
-    memory_enabled BOOLEAN DEFAULT FALSE,
+    memory_enabled BOOLEAN DEFAULT TRUE,
     feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off')),
     reduce_motion BOOLEAN NOT NULL DEFAULT FALSE,
     reduce_transparency BOOLEAN NOT NULL DEFAULT FALSE,
@@ -106,32 +112,13 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS prompts BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS docs BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS boards BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bundestag_api_enabled BOOLEAN DEFAULT FALSE;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT TRUE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off'));
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_motion BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_transparency BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_skip_link BOOLEAN NOT NULL DEFAULT TRUE;
-
-
--- ════════════════════════════════════════════════════════════════════════════
--- SECTION 2B: MOBILE PUSH DEVICES
--- Expo push tokens registered by mobile apps, keyed independently from
--- Better Auth session identity so that logout or session rotation does
--- not un-register a device.
--- ════════════════════════════════════════════════════════════════════════════
-
-CREATE TABLE IF NOT EXISTS app_push_devices (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    expo_push_token TEXT NOT NULL,
-    device_name TEXT,
-    device_type TEXT NOT NULL DEFAULT 'unknown',
-    last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT app_push_devices_user_token_unique UNIQUE (user_id, expo_push_token)
-);
-
-CREATE INDEX IF NOT EXISTS idx_app_push_devices_user ON app_push_devices (user_id);
+-- Art. 9 Abs. 2 lit. a DSGVO: NULL = nicht erteilt bzw. widerrufen.
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS ai_consent_at TIMESTAMPTZ;
 
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -179,7 +166,19 @@ CREATE TABLE IF NOT EXISTS group_content_shares (
     content_type TEXT NOT NULL,
     content_id TEXT NOT NULL,
     permissions JSONB DEFAULT '{}',
-    shared_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    shared_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    note TEXT,
+    pinned_at TIMESTAMPTZ,
+    pinned_by UUID REFERENCES profiles(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS group_share_comments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    share_id UUID NOT NULL REFERENCES group_content_shares(id) ON DELETE CASCADE,
+    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    body TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS group_instructions (
@@ -224,7 +223,9 @@ CREATE TABLE IF NOT EXISTS documents (
     wolke_etag TEXT,
     vector_count INTEGER DEFAULT 0,
     last_synced_at TIMESTAMPTZ,
-    group_wolke_share_id TEXT
+    group_wolke_share_id TEXT,
+    processing_started_at TIMESTAMPTZ,
+    processing_attempts INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS document_daily_versions (
@@ -386,19 +387,6 @@ CREATE TABLE IF NOT EXISTS notebook_collection_documents (
     UNIQUE(collection_id, document_id)
 );
 
-CREATE TABLE IF NOT EXISTS notebook_usage_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    collection_id UUID REFERENCES notebook_collections(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-    question TEXT NOT NULL,
-    answer_length INTEGER,
-    response_time_ms INTEGER,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    ip_address INET,
-    user_agent TEXT
-);
-
-
 -- ════════════════════════════════════════════════════════════════════════════
 -- SECTION 7: GENERATORS & PROMPTS
 -- Custom generators, custom prompts, and saved items
@@ -511,7 +499,7 @@ CREATE TABLE IF NOT EXISTS template_likes (
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- SECTION 9: MEDIA & SHARING
--- Unified media sharing, sharepics, and user uploads
+-- Unified media sharing and sharepics
 -- ════════════════════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS user_sharepics (
@@ -524,18 +512,9 @@ CREATE TABLE IF NOT EXISTS user_sharepics (
     metadata JSONB DEFAULT '{}'
 );
 
-CREATE TABLE IF NOT EXISTS user_uploads (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-    file_name TEXT NOT NULL,
-    file_url TEXT,
-    file_path TEXT,
-    file_size BIGINT,
-    mime_type TEXT,
-    upload_status TEXT DEFAULT 'pending',
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    metadata JSONB DEFAULT '{}'
-);
+-- (user_uploads lived here. Dropped in
+-- migrations/zz_20260828_drop_dead_user_uploads.sql — it never had a writer;
+-- uploads go to shared_media. See #2982.)
 
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -620,7 +599,7 @@ CREATE TABLE IF NOT EXISTS shared_media (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     share_token VARCHAR(32) UNIQUE NOT NULL,
-    media_type VARCHAR(10) NOT NULL CHECK (media_type IN ('video', 'image', 'transfer')),
+    media_type VARCHAR(10) NOT NULL CHECK (media_type IN ('video', 'image', 'transfer', 'audio')),
     title TEXT,
     file_path TEXT,
     file_name TEXT,
@@ -655,7 +634,12 @@ ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_visibility TEXT DEFAU
     CHECK (template_visibility IN ('private', 'unlisted', 'public'));
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_use_count INTEGER DEFAULT 0;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_creator_name TEXT;
-ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS original_template_id UUID REFERENCES shared_media(id);
+-- Retired: the shared_media template flow was removed in favour of
+-- user_templates + a frozen snapshot canvas. Columns kept (F0) so the rows that
+-- recorded a publish are not destroyed. ON DELETE SET NULL, not the original
+-- NO ACTION: without it, deleting a share another row points at 500s.
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS original_template_id UUID
+    REFERENCES shared_media(id) ON DELETE SET NULL;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS wolke_share_link_id TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS wolke_file_path TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
@@ -784,6 +768,8 @@ CREATE INDEX IF NOT EXISTS idx_group_memberships_user_id ON group_memberships(us
 CREATE INDEX IF NOT EXISTS idx_group_memberships_group_id ON group_memberships(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_content_shares_group_content ON group_content_shares(group_id, content_type, content_id);
 CREATE INDEX IF NOT EXISTS idx_group_content_shares_shared_by ON group_content_shares(shared_by_user_id);
+CREATE INDEX IF NOT EXISTS idx_group_content_shares_pinned ON group_content_shares(group_id, pinned_at) WHERE pinned_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_group_share_comments_share ON group_share_comments(share_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_id ON group_instructions(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_is_active ON group_instructions(is_active);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_active ON group_instructions(group_id, is_active);
@@ -862,9 +848,6 @@ CREATE INDEX IF NOT EXISTS idx_template_likes_popularity ON template_likes(templ
 -- Media indexes
 CREATE INDEX IF NOT EXISTS idx_user_sharepics_user_id ON user_sharepics(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sharepics_created_at ON user_sharepics(created_at);
-CREATE INDEX IF NOT EXISTS idx_user_uploads_user_id ON user_uploads(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_uploads_status ON user_uploads(upload_status);
-CREATE INDEX IF NOT EXISTS idx_user_uploads_created_at ON user_uploads(created_at);
 CREATE INDEX IF NOT EXISTS idx_shared_media_token ON shared_media(share_token);
 CREATE INDEX IF NOT EXISTS idx_shared_media_user ON shared_media(user_id);
 CREATE INDEX IF NOT EXISTS idx_shared_media_user_type ON shared_media(user_id, media_type);
@@ -876,6 +859,9 @@ CREATE INDEX IF NOT EXISTS idx_shared_media_templates
 CREATE INDEX IF NOT EXISTS idx_shared_media_public_templates
     ON shared_media(is_template, template_visibility, image_type, created_at DESC)
     WHERE is_template = TRUE AND template_visibility = 'public';
+-- Feeds the orphan reaper in uploadsCleanupService (#2989): partial, so it only
+-- ever holds the rows stuck in a non-user-visible status.
+CREATE INDEX IF NOT EXISTS idx_shared_media_orphan_status ON shared_media(created_at) WHERE status IN ('processing', 'failed');
 CREATE INDEX IF NOT EXISTS idx_shared_media_downloads_media ON shared_media_downloads(shared_media_id);
 
 -- Feature tables indexes
@@ -1059,6 +1045,7 @@ ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS thread_type VARCHAR(20) DEFAUL
 -- Custom chat: per-thread system prompt override and tool configuration
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS custom_system_prompt TEXT DEFAULT NULL;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS custom_enabled_tools JSONB DEFAULT NULL;
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS role_ref JSONB DEFAULT NULL;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_id VARCHAR(255);
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_ids JSONB;
 CREATE INDEX IF NOT EXISTS idx_chat_threads_type ON chat_threads(user_id, thread_type, updated_at DESC);
@@ -1078,20 +1065,6 @@ BEGIN
     END IF;
 END $$;
 CREATE INDEX IF NOT EXISTS idx_chat_threads_group_id ON chat_threads(group_id) WHERE group_id IS NOT NULL;
-
--- Add foreign key for compacted_up_to_message_id (deferred to avoid circular dependency during creation)
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.table_constraints
-        WHERE constraint_name = 'fk_chat_threads_compacted_message'
-    ) THEN
-        ALTER TABLE chat_threads
-            ADD CONSTRAINT fk_chat_threads_compacted_message
-            FOREIGN KEY (compacted_up_to_message_id) REFERENCES chat_messages(id)
-            ON DELETE SET NULL;
-    END IF;
-END $$;
 
 -- Chat messages within threads
 CREATE TABLE IF NOT EXISTS chat_messages (
@@ -1119,6 +1092,24 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created ON chat_messages(thr
 -- Feedback endpoint: resolve a Langfuse trace id back to the turn that produced it.
 CREATE INDEX IF NOT EXISTS idx_chat_messages_trace_id ON chat_messages ((tool_results ->> 'traceId')) WHERE tool_results ->> 'traceId' IS NOT NULL;
 
+-- Foreign key for chat_threads.compacted_up_to_message_id.
+-- MUST stay after CREATE TABLE chat_messages: the referenced table has to
+-- exist when the constraint is added. Standing earlier in the file, this
+-- block aborted with `relation "chat_messages" does not exist` and — because
+-- schema.sql is loaded as one statement — took the whole schema load with it.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_chat_threads_compacted_message'
+    ) THEN
+        ALTER TABLE chat_threads
+            ADD CONSTRAINT fk_chat_threads_compacted_message
+            FOREIGN KEY (compacted_up_to_message_id) REFERENCES chat_messages(id)
+            ON DELETE SET NULL;
+    END IF;
+END $$;
+
 -- Chat thread attachments for persistent document context across messages
 CREATE TABLE IF NOT EXISTS chat_thread_attachments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1131,12 +1122,14 @@ CREATE TABLE IF NOT EXISTS chat_thread_attachments (
     mime_type TEXT NOT NULL,
     size_bytes BIGINT NOT NULL,
     is_image BOOLEAN DEFAULT FALSE,
+    page_count INTEGER,           -- From OCR extraction (PDFs only) — display metadata for attachment chips
 
     -- Extracted content
     extracted_text TEXT,          -- Full OCR text (for re-processing)
     summary TEXT,                 -- LLM summary (~200-400 tokens)
     file_data TEXT,               -- Raw bytes (base64), tabular files only — rehydrates the pandas interpreter after reload
     document_id UUID,             -- Qdrant doc id when a large prose doc was embedded — follow-up turns retrieve via RAG
+    content_hash TEXT,            -- md5 of the trimmed extracted text (name+size for binaries) — one row per file per thread
 
     -- Timestamps
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -1147,6 +1140,11 @@ CREATE INDEX IF NOT EXISTS idx_thread_attachments_thread ON chat_thread_attachme
 CREATE INDEX IF NOT EXISTS idx_thread_attachments_created ON chat_thread_attachments(thread_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_thread_attachments_user ON chat_thread_attachments(user_id);
 CREATE INDEX IF NOT EXISTS idx_thread_attachments_message_id ON chat_thread_attachments(message_id);
+-- Re-sending the same file on a later turn must not create a second row: it
+-- would reach the model twice and pay for a second LLM summary.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_thread_attachments_content
+  ON chat_thread_attachments(thread_id, content_hash)
+  WHERE thread_id IS NOT NULL AND content_hash IS NOT NULL;
 
 -- Chat triggers
 CREATE TRIGGER update_chat_threads_updated_at
@@ -1155,28 +1153,23 @@ CREATE TRIGGER update_chat_threads_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 
--- ════════════════════════════════════════════════════════════════════════════
--- SECTION: MEM0 MEMORY HISTORY (GDPR Compliance & Audit)
--- Tracks all memory operations for user data rights and debugging
--- ════════════════════════════════════════════════════════════════════════════
 
-CREATE TABLE IF NOT EXISTS mem0_memory_history (
+-- ============================================================================
+-- Section: User memory (explicit — what the person asked the assistant to keep)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS user_memories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-    memory_id TEXT NOT NULL,
-    operation TEXT NOT NULL CHECK (operation IN ('add', 'update', 'delete', 'delete_all')),
-    memory_text TEXT,
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('anweisung', 'fakt')),
+    text TEXT NOT NULL CHECK (char_length(text) BETWEEN 1 AND 400),
+    source TEXT NOT NULL CHECK (source IN ('chat', 'manual')),
     thread_id UUID REFERENCES chat_threads(id) ON DELETE SET NULL,
-    message_id UUID REFERENCES chat_messages(id) ON DELETE SET NULL
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Indexes for mem0 memory history
-CREATE INDEX IF NOT EXISTS idx_mem0_history_user ON mem0_memory_history(user_id);
-CREATE INDEX IF NOT EXISTS idx_mem0_history_memory ON mem0_memory_history(memory_id);
-CREATE INDEX IF NOT EXISTS idx_mem0_history_created ON mem0_memory_history(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_mem0_history_operation ON mem0_memory_history(operation);
+CREATE INDEX IF NOT EXISTS idx_user_memories_user ON user_memories(user_id, updated_at DESC);
 
 
 -- ============================================================================
@@ -1216,7 +1209,8 @@ CREATE TABLE IF NOT EXISTS monitor_snapshots (
     topic_scores JSONB NOT NULL,
     articles JSONB NOT NULL DEFAULT '[]', -- legacy blob; superseded by monitor_articles
     keywords JSONB DEFAULT '[]',
-    social_trends JSONB DEFAULT '[]'
+    social_trends JSONB DEFAULT '[]', -- German list only; kept for rows predating social_trends_by_locale
+    social_trends_by_locale JSONB DEFAULT '{}' -- {"de": [...], "at": [...]}
 );
 
 CREATE INDEX IF NOT EXISTS idx_monitor_snapshots_created ON monitor_snapshots(created_at DESC);

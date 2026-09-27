@@ -18,6 +18,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { auth } from '../../config/betterAuth.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
 import { setUserLocale } from '../../services/localization/localeCache.js';
+import { assignInstanceRole } from '../../services/roles/instanceRoleAssignment.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { forwardBetterAuthCookies } from '../../utils/betterAuthBridge.js';
 import { refreshSessionUserSnapshot } from '../../utils/betterAuthSessionUser.js';
@@ -117,26 +118,39 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         display_name,
         username,
         avatar_robot_id,
-        email,
         custom_prompt,
         default_startpage,
         feedback_button,
         reduce_motion,
         reduce_transparency,
         show_skip_link,
+        tts_voice_id,
+        memory_enabled,
+        ai_consent,
       } = args.body;
 
       const updateData: Record<string, string | number | boolean | null | undefined> = {};
       if (display_name !== undefined) updateData.display_name = display_name || null;
       if (username !== undefined) updateData.username = username || null;
       if (avatar_robot_id !== undefined) updateData.avatar_robot_id = avatar_robot_id;
-      if (email !== undefined) updateData.email = email || null;
+      // SECURITY: `email` is deliberately NOT self-settable here. Admin elevation
+      // is derived from the profile email (isAdminByEmail → ADMIN_EMAILS), and this
+      // path bypasses Better Auth's verified email-change flow, so honouring a
+      // client-supplied email would let any user promote themselves to admin by
+      // setting a known admin address. The IdP (Keycloak) is authoritative for email.
       if (custom_prompt !== undefined) updateData.custom_prompt = custom_prompt || null;
       if (default_startpage !== undefined) updateData.default_startpage = default_startpage;
       if (feedback_button !== undefined) updateData.feedback_button = feedback_button;
       if (reduce_motion !== undefined) updateData.reduce_motion = reduce_motion;
       if (reduce_transparency !== undefined) updateData.reduce_transparency = reduce_transparency;
       if (show_skip_link !== undefined) updateData.show_skip_link = show_skip_link;
+      if (tts_voice_id !== undefined) updateData.tts_voice_id = tts_voice_id;
+      if (memory_enabled !== undefined) updateData.memory_enabled = memory_enabled;
+      // Der Zeitstempel kommt vom Server, nicht vom Client: er ist der Nachweis
+      // der Einwilligung (Art. 7 Abs. 1 DSGVO). Widerruf löscht ihn, damit der
+      // Dialog beim nächsten Aufruf wieder erscheint.
+      if (ai_consent !== undefined)
+        updateData.ai_consent_at = ai_consent ? new Date().toISOString() : null;
 
       log.debug(
         `[Profile Contract PUT /profile] Updating profile for user ${user.id}:`,
@@ -394,7 +408,10 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       const profileService = getProfileService();
       const { locale } = args.body;
 
-      await profileService.updateProfile(user.id, { locale });
+      // `locale_source: 'user'` macht die Wahl unantastbar: `syncLocaleFromProvider`
+      // überspringt sie ab jetzt bei jedem Login. Ohne diese Markierung setzte ein
+      // Login über einen deutschen IdP die Korrektur still wieder zurück.
+      await profileService.updateProfile(user.id, { locale, locale_source: 'user' });
 
       // Write through the DB-backed locale cache the auth middleware reads from,
       // so the change is visible on the very next request across all workers.
@@ -447,6 +464,11 @@ export const userProfileContractRouter = s.router(userProfileContract, {
           avatar_robot_id: 1,
         });
       }
+
+      // Eine Instanz mit genau einem Rollen-Angebot vergibt es selbst, statt
+      // eine Frage mit einer möglichen Antwort zu stellen. Auf allen anderen
+      // ein reiner `null`-Check ohne DB-Zugriff.
+      profile = await assignInstanceRole(profile);
 
       const userDefaults = profileService.getUserDefaults(profile);
 

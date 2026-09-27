@@ -1,6 +1,15 @@
 import { type BoardFlowConfig } from '@gruenerator/contracts';
 import { type InferSelectModel } from 'drizzle-orm';
-import { boolean, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 /**
  * Type source for the asynchronous board-agent task queue. Runtime DDL lives in
@@ -38,6 +47,14 @@ export const agent_tasks = pgTable('agent_tasks', {
   // a comment @-mention or a card assignment. A TEXT slug, never a UUID. Null = the
   // default universal agent. See migrations/add_agent_task_agent_id.sql.
   agent_id: text('agent_id'),
+  // Verdikt der Ergebnis-Prüfung (#3221), wie recurring_task_runs.verdict. Null
+  // bei alten Läufen und wenn nicht geprüft wurde. See
+  // migrations/zz_20260923_agent_tasks_verdict.sql.
+  verdict: jsonb('verdict').$type<{ ok: boolean; hint?: string; repaired?: boolean } | null>(),
+  // The run that broke a task into cards and queued this one for one of them
+  // (#3549). Null for every task a person or schedule started. See
+  // migrations/zz_20260923_agent_task_graph.sql.
+  parent_task_id: uuid('parent_task_id'),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   started_at: timestamp('started_at', { withTimezone: true }),
@@ -45,3 +62,13 @@ export const agent_tasks = pgTable('agent_tasks', {
 });
 
 export type AgentTask = InferSelectModel<typeof agent_tasks>;
+
+// task_id is not claimed before depends_on_task_id is completed or awaiting_review.
+export const agent_task_dependencies = pgTable(
+  'agent_task_dependencies',
+  {
+    task_id: uuid('task_id').notNull(),
+    depends_on_task_id: uuid('depends_on_task_id').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.task_id, t.depends_on_task_id] })]
+);

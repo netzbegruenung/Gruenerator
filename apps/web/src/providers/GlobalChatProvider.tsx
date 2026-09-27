@@ -4,16 +4,19 @@ import {
   preloadChatRuntime,
   type SharepicVariant,
 } from '@gruenerator/chat';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { type RoleRef } from '@gruenerator/contracts';
+import { ApiError, getContractsClient, type UnauthorizedInfo } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import apiClient, { handleUnauthorized } from '../components/utils/apiClient';
+import { CHUNK_PAGE_SIZE } from '../features/admin/hooks/useChunkInspector';
 import {
   ChatPdfLetterheadExportHost,
   requestPdfLetterheadExport,
 } from '../features/chat/ChatPdfLetterheadExport';
+import { ChatSourceReaderHost, requestChatSourceReader } from '../features/chat/ChatSourceReader';
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
 import { updateCanvasThumbnail } from '../features/image-studio/services/canvasThumbnailService';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
@@ -21,6 +24,7 @@ import { useNotebookChatStore } from '../features/notebook/stores/notebookChatSt
 import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { uploadVideoToTus } from '../features/subtitler/utils/videoUtils';
+import { useSetUserDefault } from '../features/user-defaults/userDefaultsQueries';
 import { sessionDebug } from '../lib/sessionDebug';
 import { runPython } from '../services/pythonInterpreter';
 import { useAuthStore } from '../stores/authStore';
@@ -64,10 +68,20 @@ interface GlobalChatProviderProps {
 export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const userId = useAuthStore((s) => s.user?.id);
   const userName = useAuthStore((s) => s.user?.display_name);
+  const isInstanceAdmin = useAuthStore((s) => s.user?.is_admin === true);
   const navigate = useNavigate();
   const location = useLocation();
   const qaCollectionsLength = useNotebookStore((s) => s.qaCollections.length);
   const { enabledModelIds } = useModelPreferences({ enabled: !!userId });
+
+  // Rollenwahl im Composer → Konto-Voreinstellung. Über einen Ref, weil
+  // `chatConfig` nur bei einem Wechsel von `isInstanceAdmin` neu gebaut wird
+  // und die Mutation an den QueryClient dieses Renders gebunden ist.
+  const setUserDefault = useSetUserDefault<'profile', 'activeRole'>();
+  const setUserDefaultRef = useRef(setUserDefault);
+  useEffect(() => {
+    setUserDefaultRef.current = setUserDefault;
+  }, [setUserDefault]);
 
   // Notebook collections power @notebook mention metadata; fetch lazily when
   // an authenticated user actually needs them. React Query caches the result.
@@ -131,10 +145,14 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
     [navigate]
   );
 
-  // Clicking the global thread-list portal opens the chat surface.
-  const openChat = useCallback(() => {
-    if (!location.pathname.startsWith('/chat')) void navigate('/chat');
-  }, [location.pathname, navigate]);
+  // Router access for the chat package — the thread list opens a thread by
+  // navigating to its URL, which works the same on /chat and off it.
+  const handleChatNavigate = useCallback(
+    (path: string, opts?: { replace?: boolean }) => {
+      void navigate(path, { replace: opts?.replace ?? false });
+    },
+    [navigate]
+  );
 
   // Warm the chat-runtime chunk as soon as the user is authenticated so per-route
   // chat surfaces (and the thread-list portal) render against a loaded runtime.
@@ -148,14 +166,39 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       // (absolute API origin + bearer); on web it's the same relative+cookie
       // behaviour as the store default.
       fetch: chatFetch,
-      onUnauthorized: async () => {
-        sessionDebug('http.401', { stack: 'chat' });
+      onUnauthorized: async (info?: UnauthorizedInfo) => {
+        sessionDebug('http.401', {
+          stack: 'chat',
+          endpoint: info?.url,
+          status: info?.status,
+          code: info?.code,
+          requestId: info?.requestId,
+        });
         // Route through the shared authority: probe → 'retry' replays the
         // request once (transient cookie rotation), 'logout' fires the single
         // atomic teardown, 'stay' leaves the user put (infra blip / logging out).
-        return (await handleUnauthorized('chat')) === 'retry';
+        return (await handleUnauthorized('chat', info?.code)) === 'retry';
       },
       wolkeConnectUrl: '/settings/wolke',
+      onOpenSourceDocument: requestChatSourceReader,
+      // Nur für Instanz-Admins: die Rolle lebt in apps/web, die Route auch.
+      // packages/chat bekommt fertig entschieden, ob es etwas anzuzeigen gibt.
+      chunkInspectorHref: isInstanceAdmin
+        ? ({
+            documentId,
+            collectionId,
+            chunkIndex,
+          }: {
+            documentId: string;
+            collectionId: string;
+            chunkIndex: number;
+          }) => {
+            // Ohne offset öffnet die Seite immer bei 0 — der Anker `#chunk-N`
+            // trifft dann nur, wenn der Chunk zufällig auf der ersten Seite liegt.
+            const offset = Math.floor(chunkIndex / CHUNK_PAGE_SIZE) * CHUNK_PAGE_SIZE;
+            return `/admin/chunks/${encodeURIComponent(documentId)}?collection=${encodeURIComponent(collectionId)}&offset=${offset}#chunk-${chunkIndex}`;
+          }
+        : undefined,
       renderSharepic: renderSharepicToImage,
       runPython,
       onEditSharepic: (variant: SharepicVariant, opts?: { threadId: string | null }) => {
@@ -193,7 +236,8 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
                 variantId: variant.id,
               },
             });
-            if (res.status !== 201) throw new Error(`mint failed (HTTP ${res.status})`);
+            if (res.status !== 201)
+              throw new ApiError(res.status, `mint failed (HTTP ${res.status})`);
             const { canvasId } = res.body;
             const studioUrl = `/studio/canvas/${canvasId}`;
             // No store stamp needed: the mint is idempotent on the (thread,
@@ -317,6 +361,16 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         window.open(`/reel/studio?project=${projectId}`, '_blank', 'noopener,noreferrer');
       },
       onExportPdfLetterhead: requestPdfLetterheadExport,
+      persistActiveRole: (role: RoleRef | null) => {
+        // Best effort: die Rolle gilt in dieser Sitzung ohnehin schon. Die
+        // Mutation rollt den Cache bei Fehlschlag selbst zurück; ein Hinweis
+        // im Chat wäre für eine nebenbei gemerkte Voreinstellung zu laut.
+        setUserDefaultRef.current.mutate({
+          generator: 'profile',
+          key: 'activeRole',
+          value: role,
+        });
+      },
       onEditInDocs: async (content: string, title?: string, existingDocId?: string) => {
         if (existingDocId) {
           window.open(`/office/${existingDocId}`, '_blank', 'noopener,noreferrer');
@@ -337,7 +391,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         }
       },
     }),
-    []
+    [isInstanceAdmin]
   );
 
   return (
@@ -350,11 +404,12 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       activePath={location.pathname}
       enabledModelIds={enabledModelIds}
       threadListPortalSlotId={PORTAL_SLOT_ID}
-      onRequestOpenChat={openChat}
+      onNavigate={handleChatNavigate}
     >
       <TooltipProvider>
         {children}
         <ChatPdfLetterheadExportHost />
+        <ChatSourceReaderHost />
       </TooltipProvider>
     </GrueneratorChatProvider>
   );

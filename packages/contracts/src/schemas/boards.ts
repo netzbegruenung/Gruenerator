@@ -246,10 +246,10 @@ export type AssignableMember = z.infer<typeof assignableMemberSchema>;
 // ── Board AI assistant ────────────────────────────────────────────────────────
 // Powers the in-board chat assistant (FAB on the boards page). The frontend
 // serializes the LIVE Yjs board state into `currentBoardSchema` and sends it as
-// chat-request context; when the user asks for a change, the chat backend emits
-// the `trigger_board_action` SSE event and the frontend calls POST
-// /api/boards/:id/ai to turn the request into a list of board operations, which
-// a client-side executor applies to the live board.
+// chat-request context; the agentic loop's `edit_document` tool plans board
+// operations server-side (boardAiService) and streams them as an
+// `editor_operations` SSE event, which a client-side executor applies to the
+// live board.
 
 /**
  * Compact projection of the live board sent to the chat/AI backend as context.
@@ -275,11 +275,13 @@ export const currentBoardSchema = z.object({
 export type CurrentBoard = z.infer<typeof currentBoardSchema>;
 
 /**
- * Payload of the `trigger_board_action` SSE event. The chat backend (ChatGraph,
- * intent=edit_current_board) forwards a board-edit instruction to the boards
- * assistant surface, which calls POST /api/boards/:id/ai and applies the result.
- * Mirrors triggerDocEditSchema. `.optional()` (not `.nullish()`): SSE payload
- * field simply omitted when empty, not a request body.
+ * @deprecated 2026-09-17 — no emitter since this PR (fix/dead-board-trigger-fallback).
+ * Board editing is tool-based (#1735): the loop's `edit_document` tool plans
+ * ops server-side and streams `editor_operations` directly. This was the
+ * payload of the `trigger_board_action` SSE event, which the ChatGraph
+ * controller last emitted to have the boards assistant surface call
+ * POST /api/boards/:id/ai. Kept (not deleted) because SSE payload shapes are
+ * F0-frozen wire types; nothing constructs this shape anymore.
  */
 export const triggerBoardActionSchema = z.object({
   targetBoardId: z.string(),

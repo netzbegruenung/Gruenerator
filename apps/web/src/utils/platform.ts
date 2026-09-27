@@ -15,6 +15,27 @@ export const isWebApp = (): boolean => {
   return !isNativeApp();
 };
 
+/**
+ * True when the page runs inside a host that supplies its own chrome — today
+ * the mobile app's in-app WebView, which opens us with `?embedded=1`.
+ *
+ * Read ONCE at module import, deliberately. The flag has to survive
+ * client-side navigation, and React Router drops the query string as soon as
+ * the app navigates; re-reading `location.search` later would silently turn
+ * the chrome back on mid-session. A module constant is also available to code
+ * that runs before React mounts.
+ *
+ * Everything this switches off is a way to navigate *out* of the embedded
+ * page: app chrome, global overlays, and the hard redirect to /login. The
+ * matching server-side allowlist of embeddable paths lives in
+ * `apps/api/plugins/webViewHandoffRedirect.ts`.
+ */
+const EMBEDDED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('embedded') === '1';
+
+export const isEmbedded = (): boolean => EMBEDDED;
+
 export type AppContext = 'web' | 'desktop';
 
 export const getAppContext = (): AppContext => {
@@ -56,27 +77,13 @@ export const getVisitorDevice = (): VisitorDevice => {
   return null;
 };
 
-const SHARE_DOWNLOAD_RE = /^\/api\/share\/([^/?#]+)\/download$/;
-
 /**
- * Canvas documents store their thumbnail as `/api/share/<token>/download` —
- * the raw full-resolution render (a multi-MB PNG at pixelRatio 2). For
- * card-sized `<img>`s, rewrite to the resized-variant route (webp, served
- * from the server's thumbs disk cache). Other URLs pass through unchanged.
+ * Re-exported from `@gruenerator/shared/media-library`, where it lives so the
+ * canvas editor's sidebar grids can use the same rewrite instead of carrying a
+ * second copy. Kept exported here because the web app's call sites import it
+ * from this module.
  */
-export function shareThumbnailPreviewUrl(url: string, width?: 200 | 400 | 800): string;
-export function shareThumbnailPreviewUrl(
-  url: string | undefined,
-  width?: 200 | 400 | 800
-): string | undefined;
-export function shareThumbnailPreviewUrl(
-  url: string | undefined,
-  width: 200 | 400 | 800 = 400
-): string | undefined {
-  if (!url) return url;
-  const match = SHARE_DOWNLOAD_RE.exec(url);
-  return match ? `/api/share/${match[1]}/preview?w=${width}&fmt=webp` : url;
-}
+export { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
 
 /**
  * Resolve a (possibly root-relative) API/media URL to one usable by plain

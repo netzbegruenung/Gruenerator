@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { COLLECTION_MAP } from './collectionMap.js';
+import { LANDESVERBAENDE_CONFIG } from './landesverbaendeConfig.js';
 import {
   SYSTEM_COLLECTIONS,
   getSystemCollectionConfig,
@@ -8,6 +9,7 @@ import {
   getSearchableSystemCollectionIds,
   getDefaultMultiCollectionIds,
   getCanonicalByKey,
+  readerCollectionIdFor,
 } from './systemCollectionsConfig.js';
 
 describe('canonical registry invariants', () => {
@@ -48,6 +50,14 @@ describe('NLP facet injection', () => {
     const names = fieldNames('grundsatz-system');
     expect(names).toContain('themes');
     expect(names).toContain('persons');
+  });
+
+  it('marks persons research-only and themes not', () => {
+    // The split the notebook chat relies on — see
+    // routes/notebook/chatFiltersExcludePersons.vitest.ts for the effect.
+    const fields = getSystemCollectionConfig('grundsatz-system')?.filterableFields ?? [];
+    expect(fields.find((f) => f.field === 'persons')?.researchOnly).toBe(true);
+    expect(fields.find((f) => f.field === 'themes')?.researchOnly).toBeUndefined();
   });
 
   it('excludes examples-system and ricarda from the NLP injection', () => {
@@ -95,5 +105,35 @@ describe('derived COLLECTION_MAP', () => {
       qdrantCollection: 'ricarda_lang_tweets',
       systemId: 'ricarda-lang-tweets-system',
     });
+  });
+});
+
+describe('Landesverband notebook filters', () => {
+  it('cover every landesverband code a scraper source writes', () => {
+    const covered = new Set<string>();
+    for (const c of Object.values(SYSTEM_COLLECTIONS)) {
+      if (c.qdrantCollection !== 'landesverbaende_documents') continue;
+      if (c.defaultFilter?.field !== 'landesverband') continue;
+      const v = c.defaultFilter.value;
+      for (const code of Array.isArray(v) ? v : [v]) covered.add(code);
+    }
+    const uncovered = LANDESVERBAENDE_CONFIG.sources
+      .map((s) => s.shortName)
+      .filter((code) => !covered.has(code));
+    expect(uncovered).toEqual([]);
+  });
+});
+
+describe('readerCollectionIdFor', () => {
+  it('maps a chat key and accepts a system id', () => {
+    expect(readerCollectionIdFor('brandenburg')).toBe('brandenburg-system');
+    expect(readerCollectionIdFor('brandenburg-system')).toBe('brandenburg-system');
+  });
+
+  it('refuses agent-only collections, user notebooks and missing ids', () => {
+    expect(readerCollectionIdFor('ricarda-lang-tweets')).toBeNull();
+    expect(readerCollectionIdFor('ricarda-lang-tweets-system')).toBeNull();
+    expect(readerCollectionIdFor('0f8b6c1e-2d4a-4b8e-9c3f-5a6d7e8f9a0b')).toBeNull();
+    expect(readerCollectionIdFor(undefined)).toBeNull();
   });
 });

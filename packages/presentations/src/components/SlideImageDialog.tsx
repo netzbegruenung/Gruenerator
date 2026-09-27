@@ -1,4 +1,9 @@
-import { useMediaLibrary, useMediaUpload, type MediaItem } from '@gruenerator/shared/media-library';
+import {
+  buildSharedMediaSrcSet,
+  useMediaLibrary,
+  useMediaUpload,
+  type MediaItem,
+} from '@gruenerator/shared/media-library';
 import { useEffect, useRef, useState } from 'react';
 import { FiUploadCloud, FiX } from 'react-icons/fi';
 
@@ -24,6 +29,32 @@ function toAbsolute(url: string): string {
 
 function itemSrc(item: MediaItem): string {
   return item.mediaUrl || `/api/share/${item.shareToken}/preview`;
+}
+
+/** Tiles are ~120px wide; the grid is capped at 3 columns on narrow screens. */
+const TILE_SIZES = '120px';
+
+/**
+ * Thumbnail for one library tile.
+ *
+ * Deliberately not `item.thumbnailUrl`: that field is `/api/share/<token>/preview`
+ * *without* a `w` parameter, and the API reads a missing width as "the original
+ * bytes, unresized" — so it pulls the full upload (MBs, for a KI image) into a
+ * 120px box, once per tile. `buildSharedMediaSrcSet` asks for the pre-generated
+ * 200/400/800 AVIF/WebP variants instead. What gets *inserted* into the slide
+ * stays the full-resolution `itemSrc`.
+ */
+function TileImage({ item, alt }: { item: MediaItem; alt: string }) {
+  const { sources, src } = buildSharedMediaSrcSet(item.shareToken);
+  const className = 'aspect-[4/3] w-full bg-[#EFF3F0] object-cover dark:bg-grey-800';
+  return (
+    <picture>
+      {sources.map((source) => (
+        <source key={source.type} srcSet={source.srcSet} type={source.type} sizes={TILE_SIZES} />
+      ))}
+      <img src={src} alt={alt} loading="lazy" sizes={TILE_SIZES} className={className} />
+    </picture>
+  );
 }
 
 /**
@@ -161,11 +192,9 @@ export function SlideImageDialog({ onInsert, onClose }: SlideImageDialogProps) {
                         src === url ? 'border-primary-500' : 'border-transparent'
                       }`}
                     >
-                      <img
-                        src={item.thumbnailUrl ?? url}
+                      <TileImage
+                        item={item}
                         alt={item.altText ?? item.title ?? item.originalFilename ?? 'Bild'}
-                        loading="lazy"
-                        className="aspect-[4/3] w-full bg-[#EFF3F0] object-cover dark:bg-grey-800"
                       />
                     </button>
                   </li>

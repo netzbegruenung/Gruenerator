@@ -21,6 +21,8 @@
  *     with evidence in hand instead of guessed alongside it.
  */
 
+import { jaccard } from '../../../../utils/setSimilarity.js';
+
 /** Which guard refused a call. Backend logs and tests only — never user-facing. */
 export type GuardName =
   | 'duplicate'
@@ -232,13 +234,6 @@ function inputTokens(value: unknown, acc: Set<string> = new Set()): Set<string> 
     for (const v of Object.values(value as Record<string, unknown>)) inputTokens(v, acc);
   }
   return acc;
-}
-
-function jaccard(a: Set<string>, b: Set<string>): number {
-  if (a.size === 0 || b.size === 0) return 0;
-  let inter = 0;
-  for (const t of a) if (b.has(t)) inter += 1;
-  return inter / (a.size + b.size - inter);
 }
 
 /** True when the smaller token set (≥2 tokens) is fully contained in the larger

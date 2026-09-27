@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { Button, UploadZone } from '@gruenerator/ui';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { PiVideoCamera } from 'react-icons/pi';
@@ -13,6 +13,7 @@ import { getToolGradient } from '../../../config/toolTheme';
 import { useAuthStore } from '../../../stores/authStore';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
+import { getTusAuthOptions } from '../../../utils/tusAuth';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
 import { parseSubtitleBlocks, formatSubtitleBlocks } from '../utils/subtitleSegmentUtils';
 import { getVideoMetadata, TUS_UPLOAD_ENDPOINT, type VideoMetadata } from '../utils/videoUtils';
@@ -154,7 +155,8 @@ const SubtitlerPage = (): React.ReactElement => {
     getContractsClient()
       .subtitler.getProject({ params: { projectId } })
       .then((res) => {
-        if (res.status !== 200) throw new Error('Projekt konnte nicht geladen werden.');
+        if (res.status !== 200)
+          throw new ApiError(res.status, 'Projekt konnte nicht geladen werden.');
         // Contract SubtitlerProject is nullability-wide and lacks `upload_id`;
         // LoadedProject is the tight local shape the editor reads off.
         const project = res.body.project as unknown as LoadedProject;
@@ -293,12 +295,14 @@ const SubtitlerPage = (): React.ReactElement => {
         setError(null);
 
         const metadata = await getVideoMetadata(file);
+        const authOptions = await getTusAuthOptions();
 
         const upload = new tus.Upload(file, {
           endpoint: TUS_UPLOAD_ENDPOINT,
           retryDelays: [0, 3000, 5000, 10000, 20000],
           chunkSize: 5 * 1024 * 1024,
           metadata: { filename: file.name, filetype: file.type },
+          ...authOptions,
           onError: (err) => {
             setError('Upload fehlgeschlagen. Bitte versuche es erneut.');
             setIsUploading(false);

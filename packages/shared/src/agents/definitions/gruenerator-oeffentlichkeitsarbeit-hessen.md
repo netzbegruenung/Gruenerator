@@ -1,5 +1,6 @@
 ---
 identifier: gruenerator-oeffentlichkeitsarbeit-hessen
+defaultRecipeMention: 'presse-hessen-partei'
 autoRoutingHint: creative
 audience: de-DE
 title: Öffentlichkeitsarbeit Hessen
@@ -41,7 +42,6 @@ enabledTools:
   - image
   - memory
   - memory_save
-  - self_review
 defaultFilter:
   landesverband:
     - HE

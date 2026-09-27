@@ -68,8 +68,26 @@ export function cleanTextForEmbedding(text: string, preserveStructure = false): 
   );
   out = out.replace(dehyphenatePattern, '$1$2');
 
-  // Join split words caused by OCR spacing inside a word: "No  vember" -> "November"
-  out = out.replace(/([a-zäöüß])\s{2,}([a-zäöüß])/g, '$1$2');
+  // Join split words caused by OCR spacing inside a word: "No  vember" -> "November".
+  // Restricted to intra-line whitespace (`[^\S\n]` = whitespace minus `\n`) —
+  // `\s{2,}` also matched a paragraph break like `\n\n` (e.g. between two
+  // block elements, #3573), which re-glued words across block boundaries that
+  // the extractor had deliberately separated ("wir fordern" + "die stadt" ->
+  // "forderndie"). The OCR letter-spacing case this rule targets never spans
+  // a line break, so excluding `\n` from the run doesn't affect it.
+  // Only on lines with a single wide gap: justified text-layer PDFs space
+  // every word of a line ("denn   Klimaschutz   muss   endlich", #3570), and
+  // joining there glued real words. An OCR split is an isolated gap.
+  // A justified line gets single spaces instead — the structured collapse
+  // below only catches runs of 3+.
+  out = out
+    .split('\n')
+    .map((line) =>
+      (line.trim().match(/[^\S\n]{2,}/g) ?? []).length > 1
+        ? line.replace(/(\S)[^\S\n]{2,}(?=\S)/g, '$1 ')
+        : line.replace(/([a-zäöüß])[^\S\n]{2,}([a-zäöüß])/g, '$1$2')
+    )
+    .join('\n');
 
   if (!preserveStructure) {
     // Collapse multiple spaces to single

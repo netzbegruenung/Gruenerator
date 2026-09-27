@@ -31,13 +31,21 @@ import { requireAuth } from './middleware/authMiddleware.js';
 import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { setupRoutes } from './routes.js';
-import { createAIService, type AIService } from './services/ai/aiService.js';
+import {
+  startModelLatencyCleanup,
+  startModelLatencyRollup,
+} from './services/ai/modelLatencyStore.js';
 import { startBoardAgentWorker } from './services/boards/boardAgentWorker.js';
 import { startBoardScheduleWorker } from './services/boards/boardScheduleWorker.js';
 import { startCardDueReminderWorker } from './services/boards/cardDueReminderWorker.js';
+import { startNotebookLinkCleanup } from './services/cleanup/notebookLinkCleanupService.js';
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
+import { startDocumentIngestWorker } from './services/document-services/DocumentProcessingService/documentIngestWorker.js';
+import { startDocumentMetaWorker } from './services/documentMeta/documentMetaWorker.js';
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
 import { startRecurringTaskWorker } from './services/recurringTasks/recurringTaskWorker.js';
+import { startDeepResearchCleanup } from './services/research/deepAgent/resumableRuns.js';
+import { startContentSyncDispatcher } from './services/scrapers/contentSyncDispatcher.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
 import { shutdownLangfuseTelemetry } from './services/telemetry/langfuseTelemetry.js';
@@ -54,8 +62,6 @@ const __dirname = path.dirname(__filename);
 
 const log = createLogger('Server');
 const _numCPUs = os.cpus().length;
-
-let aiService: AIService | null = null;
 
 const isDev = env.NODE_ENV !== 'production';
 const workerCount = env.WORKER_COUNT;
@@ -85,7 +91,10 @@ if (skipCluster) {
   // Start cleanup schedulers
   startExportCleanup();
   startUploadsCleanup();
+  startNotebookLinkCleanup();
   startNotificationCleanup();
+  startDeepResearchCleanup();
+  startModelLatencyCleanup();
 
   await startWorker();
 } else if (cluster.isPrimary) {
@@ -165,7 +174,10 @@ if (skipCluster) {
   // Start cleanup schedulers (runs in master process only)
   startExportCleanup();
   startUploadsCleanup();
+  startNotebookLinkCleanup();
   startNotificationCleanup();
+  startDeepResearchCleanup();
+  startModelLatencyCleanup();
 
   const { shutdown: _shutdown, registerSignalHandlers } = createMasterShutdownHandler({
     workerTimeout: 10000,
@@ -237,25 +249,6 @@ async function startWorker(): Promise<void> {
     next();
   });
 
-  // Initialize AI service (direct AI SDK calls, no worker threads)
-  log.debug('Initializing AI service');
-  aiService = createAIService(redisClient);
-  app.locals.aiWorkerPool = aiService;
-
-  // Initialize AI Search Agent
-  try {
-    const aiSearchAgentModule = (await import('./services/aiSearchAgent.js')) as {
-      setAIWorkerPool?: (pool: unknown) => void;
-    };
-    if (typeof aiSearchAgentModule.setAIWorkerPool === 'function') {
-      aiSearchAgentModule.setAIWorkerPool(aiService);
-      log.debug('AI Search Agent initialized');
-    }
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    log.warn(`AI Search Agent init failed: ${err.message}`);
-  }
-
   // Initialize Temporary Image Storage
   try {
     const { default: TemporaryImageStorage } =
@@ -290,6 +283,10 @@ async function startWorker(): Promise<void> {
     log.warn(`ProfileService init failed: ${err.message}`);
   }
 
+  // Misst mit, wie schnell jedes Modell antwortet, und wärmt die Basislinie aus
+  // den letzten 24 h vor. Braucht die Postgres-Init oben.
+  startModelLatencyRollup();
+
   // Async board agent: drains the agent_tasks queue (@gruenerator delegations).
   // Safe to run in every cluster worker — claiming uses FOR UPDATE SKIP LOCKED.
   startBoardAgentWorker();
@@ -305,22 +302,23 @@ async function startWorker(): Promise<void> {
   // agent + delivers inline. Same cluster-safe claim pattern.
   startRecurringTaskWorker();
 
-  // TUS Upload Handler — registered before compression middleware.
-  // TUS uploads are binary streams that don't benefit from compression
-  // and authenticate via upload ID.
-  const tusUploadPath = '/api/subtitler/upload';
-  app.all(tusUploadPath, (req: Request, res: Response) => {
-    void tusServer.handle(req, res);
-  });
-  app.all(tusUploadPath + '/*splat', (req: Request, res: Response) => {
-    void tusServer.handle(req, res);
-  });
+  // Turns uploaded documents into vectors. Same cluster-safe claim; also
+  // reclaims rows whose processing died with a previous process, which used to
+  // strand them on 'processing' forever.
+  startDocumentIngestWorker();
+  startDocumentMetaWorker();
 
-  // Plain binary upload for non-TUS clients (mobile uses expo-file-system's
-  // native uploader). Registered here — before compression and the body
-  // parsers — so `req` stays the raw byte stream and writes straight to disk.
-  // IP-rate-limited: the handler writes the request body straight to disk, so cap
-  // upload attempts per window as defense against abuse.
+  // Dispatches the Content Sync workflow on its schedule — GitHub throttles the
+  // cron itself (#2972). Cluster-safe: each slot is claimed once in Redis.
+  startContentSyncDispatcher();
+
+  // Upload endpoints — registered before compression and the body parsers, so
+  // `req` stays the raw byte stream and writes straight to disk. All of them
+  // are IP-rate-limited and behind requireAuth: an open endpoint that writes up
+  // to 500 MB per upload to disk is a standing invitation. requireAuth reads
+  // req.headers only (cookie or bearer), so it works on the raw stream; the
+  // CORS middleware registered further up already answers OPTIONS preflights
+  // itself, so TUS's non-POST verbs are not blocked by it.
   const uploadBinaryLimiter =
     process.env.DISABLE_RATE_LIMITS === 'true'
       ? (_req: Request, _res: Response, next: NextFunction) => next()
@@ -331,24 +329,48 @@ async function startWorker(): Promise<void> {
           legacyHeaders: false,
           message: { error: 'Zu viele Uploads. Bitte versuche es später erneut.' },
         });
-  app.post('/api/subtitler/upload-binary', uploadBinaryLimiter, (req: Request, res: Response) => {
-    void handleBinaryUpload(req, res);
-  });
+  // TUS counts uploads, not requests: a 500 MB file is ~100 PATCH chunks of
+  // 5 MB, which would exhaust the per-upload budget on its own. Only the POST
+  // that creates an upload is limited.
+  const tusCreationLimiter = (req: Request, res: Response, next: NextFunction) => {
+    if (req.method === 'POST') return uploadBinaryLimiter(req, res, next);
+    next();
+  };
 
-  // Audio uploads for the Transkription feature. Unlike the subtitler TUS path
-  // above, this one is behind requireAuth: its only client is a logged-in page,
-  // and an open endpoint that writes up to 500 MB per upload straight to disk is
-  // a standing invitation. requireAuth reads req.headers only (cookie or bearer),
-  // so it works here even though the body parsers run later; the CORS middleware
-  // registered further up already answers OPTIONS preflights itself, so TUS's
-  // non-POST verbs are not blocked by it.
+  // TUS uploads for the subtitler (web, desktop, and pre-05/2026 mobile
+  // binaries, which already sent a bearer token).
+  const tusUploadPath = '/api/subtitler/upload';
+  app.all(tusUploadPath, tusCreationLimiter, requireAuth, (req: Request, res: Response) => {
+    void tusServer.handle(req, res);
+  });
+  app.all(
+    tusUploadPath + '/*splat',
+    tusCreationLimiter,
+    requireAuth,
+    (req: Request, res: Response) => {
+      void tusServer.handle(req, res);
+    }
+  );
+
+  // Plain binary upload for non-TUS clients (mobile uses expo-file-system's
+  // native uploader).
+  app.post(
+    '/api/subtitler/upload-binary',
+    uploadBinaryLimiter,
+    requireAuth,
+    (req: Request, res: Response) => {
+      void handleBinaryUpload(req, res);
+    }
+  );
+
+  // Audio uploads for the Transkription feature.
   const audioUploadPath = '/api/audio/upload';
-  app.all(audioUploadPath, uploadBinaryLimiter, requireAuth, (req: Request, res: Response) => {
+  app.all(audioUploadPath, tusCreationLimiter, requireAuth, (req: Request, res: Response) => {
     void tusServer.handle(req, res);
   });
   app.all(
     audioUploadPath + '/*splat',
-    uploadBinaryLimiter,
+    tusCreationLimiter,
     requireAuth,
     (req: Request, res: Response) => {
       void tusServer.handle(req, res);
@@ -450,20 +472,20 @@ async function startWorker(): Promise<void> {
         });
   const { betterAuthHandler } = await import('./routes/auth/betterAuthHandler.js');
 
-  // MCP OAuth: the `mcp` plugin skips the consent page unless the query is
-  // EXACTLY `prompt=consent` — a malicious DCR client could send `prompt=none`
-  // to mint a token silently. Rewrite every other value (append would loop on
-  // duplicated/empty prompt params). Must run before the catch-all handler.
-  app.get('/api/auth/v2/mcp/authorize', (req, res, next) => {
-    if (req.query.prompt === 'consent') {
-      next();
-      return;
-    }
-    const url = new URL(req.originalUrl, 'http://placeholder');
-    url.searchParams.delete('prompt');
-    url.searchParams.append('prompt', 'consent');
-    res.redirect(302, `${url.pathname}${url.search}`);
-  });
+  // Hier stand bis better-auth 1.7 ein Shim auf `/api/auth/v2/mcp/authorize`,
+  // der jede Anfrage auf `prompt=consent` umschrieb: 1.6 sprang ohne diesen
+  // Parameter an der Zustimmungsseite vorbei, ein bösartig registrierter
+  // DCR-Client konnte mit `prompt=none` still ein Token ziehen.
+  //
+  // 1.7 macht das selbst und besser. `/oauth2/authorize` sucht die passende
+  // Zeile in `oauthConsent` und schickt zur Zustimmungsseite, sobald sie fehlt
+  // oder die angefragten Scopes, Claims oder Ressourcen nicht abdeckt;
+  // `prompt=none` wird dann mit `consent_required` beantwortet statt mit einem
+  // Token. Der Shim erzwang die Seite dagegen bei JEDEM Durchlauf, auch beim
+  // wiederholten Verbinden eines längst zugestimmten Clients.
+  //
+  // Er darf nicht zurückkommen: der Pfad heisst ab 1.7 `/oauth2/authorize`,
+  // ein Shim auf dem alten Pfad liefe wirkungslos mit und sähe wie Schutz aus.
 
   app.all('/api/auth/v2/*splat', betterAuthIpLimiter, (req, res, next) => {
     if (!req.headers['x-forwarded-for'] && !req.headers['x-real-ip']) {
@@ -475,8 +497,14 @@ async function startWorker(): Promise<void> {
   // OAuth discovery at the ORIGIN ROOT (RFC 8414/9728) — Better Auth serves
   // these only under its basePath, but clients resolve them at the root.
   {
-    const { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } =
-      await import('better-auth/plugins');
+    // 1.7 hat `oAuthDiscoveryMetadata`/`oAuthProtectedResourceMetadata` aus
+    // `better-auth/plugins` entfernt. Für den Autorisierungsserver gibt es
+    // einen formgleichen Ersatz; die Ressourcen-Metadaten liefert jetzt der
+    // Ressourcen-Client als Objekt, das wir selbst in eine Antwort verpacken.
+    const { metadataResponse, oauthProviderAuthServerMetadata } =
+      await import('@better-auth/oauth-provider');
+    const { oauthProviderResourceClient } =
+      await import('@better-auth/oauth-provider/resource-client');
     const { fromNodeHeaders } = await import('better-auth/node');
     const { auth } = await import('./config/betterAuth.js');
     const serveWellKnown =
@@ -496,13 +524,25 @@ async function startWorker(): Promise<void> {
           next(err);
         }
       };
+    // Der Helfer verlangt ein `auth` mit `api.getOAuthServerConfig`. Das
+    // Plugin registriert diesen Endpunkt (Pfad
+    // `/.well-known/oauth-authorization-server`), aber die Endpunkt-Typen des
+    // Plugins erreichen `auth.api` nicht — siehe die Unterdrückung in
+    // `config/betterAuth.ts`, die dieselbe Wurzel hat. Deshalb hier eine
+    // Behauptung über genau das eine Feld statt über das ganze Objekt.
+    const authWithServerConfig = auth as unknown as Parameters<
+      typeof oauthProviderAuthServerMetadata
+    >[0];
     app.get(
       ['/.well-known/oauth-authorization-server', '/.well-known/oauth-authorization-server/*splat'],
-      serveWellKnown(oAuthDiscoveryMetadata(auth))
+      serveWellKnown(oauthProviderAuthServerMetadata(authWithServerConfig))
     );
+    const resourceActions = oauthProviderResourceClient(auth).getActions();
     app.get(
       ['/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/*splat'],
-      serveWellKnown(oAuthProtectedResourceMetadata(auth))
+      serveWellKnown(async () =>
+        metadataResponse(await resourceActions.getProtectedResourceMetadata())
+      )
     );
   }
 
@@ -731,12 +771,18 @@ async function startWorker(): Promise<void> {
       errorMessage = 'Zugriffsfehler beim Lesen einer Datei.';
     }
 
+    // Der Rohtext verlässt den Server nur unter NODE_ENV === 'development'
+    // (`isDev`, oben) — dieselbe Bedingung, die unten schon den Stack trägt.
+    // `no-raw-error-to-client` sieht die Verzweigung nicht und hat hier bis
+    // hierher acht Mal ein eslint-disable verlangt, das lint-staged jedes Mal
+    // wieder wegoptimiert hat (die Regel prüft nur den DIREKTEN Property-Wert).
+    // Eine Variable überlebt den Hook, ein Kommentar nicht.
+    const responseMessage = isDev ? err.message : errorMessage;
+
     res.status(statusCode).json({
       success: false,
       error: 'Ein Serverfehler ist aufgetreten',
-
-      // eslint-disable-next-line gruenerator/no-raw-error-to-client -- dev-only branch; prod gets `errorMessage`
-      message: isDev ? err.message : errorMessage,
+      message: responseMessage,
       stack: isDev ? err.stack : undefined,
       errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       timestamp: new Date().toISOString(),
@@ -764,9 +810,7 @@ async function startWorker(): Promise<void> {
 
   // Worker shutdown handler
   const shutdownHandler = createWorkerShutdownHandler({
-    resources: [aiService, redisClient, { shutdown: () => shutdownLangfuseTelemetry() }].filter(
-      Boolean
-    ),
+    resources: [redisClient, { shutdown: () => shutdownLangfuseTelemetry() }].filter(Boolean),
     server,
     logger: log,
   });

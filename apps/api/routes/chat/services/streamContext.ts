@@ -29,29 +29,43 @@ import {
   resolveUserNotebookDocumentIds,
 } from '../../../config/notebookCollectionMap.js';
 import {
-  getMem0Instance,
-  normalizeCategory,
-  formatMemoriesByCategory,
-} from '../../../services/mem0/index.js';
-import { getCachedPersona } from '../../../services/mem0/personaService.js';
+  loadTurnMemories,
+  numberMemories,
+  renderMemoryLines,
+  type RenderedMemory,
+} from '../../../services/memory/index.js';
 import { findRole, resolveCustomSystemPrompt } from '../../../services/roles/roleSystemPrompt.js';
+import { loadUserRoles } from '../../../services/roles/userRoles.js';
 import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js';
-import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../../utils/logger.js';
 import { captureSseError } from '../../../utils/observability/captureSseError.js';
 import { ThreadId, UserId } from '../../../utils/types/branded.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
+import { notebookIdFromSteps } from '../agents/notebookSourceTools.js';
+import { getPipelineAgent } from '../agents/pipelines/index.js';
 import { getContextWindow } from '../agents/providers.js';
 
 import { getThreadAttachments } from './attachmentPersistenceService.js';
-import { isTabularAttachment, processAttachments } from './attachmentProcessingService.js';
+import {
+  extractPromotablePasteText,
+  isTabularAttachment,
+  processAttachments,
+} from './attachmentProcessingService.js';
+import { countCloudConnections } from './cloudConnectionContext.js';
 import { enrichContext } from './contextEnrichmentService.js';
-import { extractTextContent, filterEmptyAssistantMessages } from './messageHelpers.js';
+import { backfillEmptyUserMessages } from './historyBackfill.js';
+import {
+  extractTextContent,
+  filterEmptyAssistantMessages,
+  sanitizeUIFileParts,
+} from './messageHelpers.js';
+import { notebookIdsForTurn } from './notebookScopeFromText.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
-import { canAccessThread } from './threadAccessService.js';
+import { canWriteThread } from './threadAccessService.js';
 import {
   getUser,
+  getUserMessageTexts,
   createThread,
   createMessage,
   createPendingAssistantMessage,
@@ -73,21 +87,78 @@ import type { Request } from 'express';
 
 const log = createLogger('chatGraphContractRouter');
 
-// Upper bound for best-effort external context calls (Mem0, Nextcloud) that
+// Upper bound for best-effort external context calls (memory, Nextcloud) that
 // run before the LLM stream starts — they add to time-to-first-token, so a
 // hanging service must not stall the chat. On timeout the turn proceeds
 // without that context.
 const EXTERNAL_CONTEXT_TIMEOUT_MS = 3_000;
 
+/**
+ * Long material pasted straight into the message body — not uploaded as a file —
+ * is persisted as a synthetic attachment so later turns get it back through
+ * `FRÜHERE DOKUMENTE IN DIESEM GESPRÄCH`.
+ *
+ * Measured on thread `5b184c40` (13.08.2026, 00:53–00:56): a translate → glossary
+ * → mapping-table → proofread chain over one article. The first user message held
+ * 10.327 chars and `chat_thread_attachments` had no row for that thread at all, so
+ * nothing could be re-injected. Steps 2–4 then built the mapping table out of the
+ * translation instead of the source, invented source quotes, and the model even
+ * web-searched for the article it had been handed one turn earlier.
+ *
+ * The web composer already converts pastes ≥600 chars into a real attachment, but
+ * only on its own paste path. Text that arrives as plain message content (mobile,
+ * API clients, a paste the composer did not intercept) bypassed persistence.
+ *
+ * Threshold: the base system prompt runs ~3.000 chars, the same yardstick
+ * `materialDominatesTurn` uses. Below it a message is an instruction; above it,
+ * it is material the user will keep referring to.
+ */
+export const INLINE_MATERIAL_MIN_CHARS = 3_000;
+/** Same name the composer gives an intercepted paste — one concept, one label. */
+export const INLINE_MATERIAL_ATTACHMENT_NAME = 'Eingefügter Text.txt';
+
+/**
+ * The synthetic attachment for this turn's inline material, or null when there
+ * is nothing to carry forward. Skipped when the turn already brought a document
+ * (that one IS the material) and on regenerate (the user message is unchanged —
+ * a second row would duplicate it).
+ *
+ * `promoted` lifts the length floor, and only that one. A promoted paste is not
+ * "some short message": the composer created it because the paste passed its own
+ * bar (≥600 chars, or ≥200 across three lines), and it arrived with an empty
+ * textarea, so it is the turn's material by construction. Without this, the
+ * paste is dropped from `effectiveAttachments` on promotion and never persisted:
+ * `resolveOriginalText` picks it correctly for THIS turn, and the next turn —
+ * "bitte korrigieren", no material of its own — carries the previous article
+ * back in, because that is the newest row the thread has. Measured 14.08.2026: a
+ * 1.339-char source text, one turn of correct behaviour, then the same wrong
+ * original as before.
+ */
+export function inlineMaterialAttachment(
+  text: string,
+  opts: { regenerate: boolean; hasDocumentAttachment: boolean; promoted?: boolean }
+): ProcessAttachmentsResult['processedMeta'][number] | null {
+  if (opts.regenerate || opts.hasDocumentAttachment) return null;
+  if (!opts.promoted && text.length < INLINE_MATERIAL_MIN_CHARS) return null;
+  if (text.trim().length === 0) return null;
+  return {
+    name: INLINE_MATERIAL_ATTACHMENT_NAME,
+    mimeType: 'text/plain',
+    sizeBytes: Buffer.byteLength(text, 'utf8'),
+    isImage: false,
+    extractedText: text,
+  };
+}
+
 // chat_threads.id is a uuid column. A client may send a local-only sentinel id
 // (e.g. "__LOCALID_..." from the lazy-thread-creation runtime, or the sheet /
 // deck editor sidebars) for a thread it has not persisted yet — that is not a
-// UUID and must never reach canAccessThread's `WHERE id = $1`, or Postgres
+// UUID and must never reach the access service's `WHERE id = $1`, or Postgres
 // throws 22P02 and the whole turn 500s. Treat any non-UUID id as "no thread
 // yet" and mint a fresh one.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type StreamBody = ServerInferRequest<typeof chatGraphContract.stream>['body'];
+export type StreamBody = ServerInferRequest<typeof chatGraphContract.stream>['body'];
 type SSEStream = ReturnType<typeof createSSEStream>;
 type ProcessAttachmentsResult = Awaited<ReturnType<typeof processAttachments>>;
 
@@ -98,7 +169,6 @@ type ProcessAttachmentsResult = Awaited<ReturnType<typeof processAttachments>>;
 export interface StreamContext {
   requestId: string;
   userId: string;
-  aiWorkerPool: ReturnType<typeof getAIWorkerPool>;
   notebookIds: string[];
   validMessages: ChatGraphInput['messages'];
   lastUserMessage: ChatGraphInput['messages'][number] | undefined;
@@ -118,6 +188,11 @@ export interface StreamContext {
   /** Last user message text WITH tokens (pre-sanitization) — for regex
    *  heuristics that need the remove-form. */
   lastUserTextRaw: string;
+  /** True when this turn's user message IS a paste — the composer's synthetic
+   *  paste attachment sent with an empty textarea, promoted above. Read by
+   *  `resolveOriginalText`, which otherwise has only length to tell a short
+   *  pasted source text from a typed instruction. */
+  promptIsPastedText: boolean;
   /** Placeholder assistant row minted before streaming so an aborted/crashed
    *  turn still persists (WP-B). Null when no thread/user message, or when the
    *  placeholder insert failed (the turn then runs as before). */
@@ -157,11 +232,14 @@ export async function buildStreamContext({
     wolkeFiles: rawWolkeFiles,
     connectFiles: rawConnectFiles,
     currentDocument: rawCurrentDocument,
+    currentBoard: rawCurrentBoard,
+    currentCanvas: rawCurrentCanvas,
     customSystemPrompt: rawCustomSystemPrompt,
     roleRef: rawRoleRef,
     roleName: rawRoleName,
     initialAssistantMessage: rawInitialAssistantMessage,
     activeSkillMention: rawActiveSkillMention,
+    activeRecipeId: rawActiveRecipeId,
     enabledTools,
     modelId,
     attachments,
@@ -196,29 +274,27 @@ export async function buildStreamContext({
   }
 
   const userId = user.id;
-  const aiWorkerPool = getAIWorkerPool(req);
-
-  if (!aiWorkerPool) {
-    sse.send('error', {
-      error: PROGRESS_MESSAGES.aiUnavailable,
-      code: 'provider_unavailable',
-      retryable: true,
-    });
-    sse.end();
-    return { done: true };
-  }
-
   if ((clientMessages as unknown[]).length === 0) {
     sse.send('error', { error: PROGRESS_MESSAGES.messagesRequired, code: 'invalid_request' });
     sse.end();
     return { done: true };
   }
 
+  // Ohne Auswahl scoped ein im Text genanntes Notebook („im Berlin-Notebook")
+  // den Turn wie eine Erwähnung — ab hier derselbe Weg, samt Besitzprüfung.
+  const turnNotebookIds = await notebookIdsForTurn({
+    explicitIds: mergedNotebookIds,
+    hasDefaultNotebook: !!rawDefaultNotebookId,
+    userId,
+    text: sanitizeMentionTokens(lastUserTextFromClient(clientMessages), 'remove'),
+    locale: user.locale ?? null,
+  });
+
   // @notebook mentions are the turn naming a notebook out loud — the one case a
   // merely *hidden* notebook still resolves, so a link or thread shared from
   // another instance keeps working. Only `block` and `enabled: false` say no here.
-  const systemNotebookIds = mergedNotebookIds.filter(isNotebookResolvable);
-  const userNotebookUuids = mergedNotebookIds.filter(isUserNotebookId);
+  const systemNotebookIds = turnNotebookIds.filter(isNotebookResolvable);
+  const userNotebookUuids = turnNotebookIds.filter(isUserNotebookId);
   const { documentIds: notebookDocumentIds, resolvedUserNotebookIds } =
     userNotebookUuids.length > 0
       ? await resolveUserNotebookDocumentIds(userId, userNotebookUuids)
@@ -273,6 +349,11 @@ export async function buildStreamContext({
     }
   }
 
+  // Tor für `cloud_files`: der Katalog wird synchron gebaut und kann diese Frage
+  // nicht selbst stellen. Gecacht (60 s) und fehlertolerant — ein Ausfall macht
+  // aus dem Zähler eine 0, und das Vokabular-Tor trägt den Turn weiter.
+  const cloudConnectionCount = await countCloudConnections(userId);
+
   // @connect file refs need no per-ref ownership pre-check: the Nango
   // connection (resolved per-file at retrieval time via
   // ConnectionService.getConnection(userId, provider)) IS the ownership
@@ -310,9 +391,17 @@ export async function buildStreamContext({
 
   // === Convert messages ===
   let modelMessages: ChatGraphInput['messages'];
+  const { messages: convertibleMessages, droppedFileParts } = sanitizeUIFileParts(
+    clientMessages as UIMessage[]
+  );
+  if (droppedFileParts > 0) {
+    log.info(
+      `[ChatGraph] Dropped ${droppedFileParts} url-less file part(s) before conversion — content rides in attachments`
+    );
+  }
   try {
     modelMessages = (await convertToModelMessages(
-      clientMessages as UIMessage[]
+      convertibleMessages as UIMessage[]
     )) as ModelMessage[] as ChatGraphInput['messages'];
   } catch (convertError) {
     log.error('[ChatGraph] Error converting messages:', convertError);
@@ -335,6 +424,30 @@ export async function buildStreamContext({
   );
 
   let lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
+
+  // === Promote a bare paste to the prompt ===
+  // The composer converts a large paste into a synthetic text attachment; sent
+  // with an empty textarea, the paste IS the prompt. Left as an attachment it
+  // lands in the untrusted-material channel, whose hierarchy rule forbids
+  // executing instructions found there — the model then correctly answers "du
+  // hast mir keine Aufgabe gestellt" (QA 08/2026). Text pasted into the
+  // composer is the user's own input, so with no other prompt text it becomes
+  // the user message itself (classifier, title, persistence and prompts all see
+  // it); alongside typed text it stays reference material as before.
+  let effectiveAttachments = attachments as ProcessedAttachment[] | undefined;
+  let promptIsPastedText = false;
+  if (lastUserMessage) {
+    const promotion = extractPromotablePasteText(
+      effectiveAttachments,
+      extractTextContent(lastUserMessage.content)
+    );
+    if (promotion) {
+      lastUserMessage.content = promotion.pasteText;
+      effectiveAttachments = promotion.remaining;
+      promptIsPastedText = true;
+      log.info('[StreamContext] Pasted text promoted to user prompt (composer text was empty)');
+    }
+  }
 
   // === Create thread if needed ===
   // Normalize null → undefined: contract schema uses .nullish() to accept
@@ -369,10 +482,36 @@ export async function buildStreamContext({
     sse.send('thread_created', { threadId: actualThreadId });
   }
 
+  // Earlier user messages can arrive with no text at all (see historyBackfill);
+  // the persisted rows still have it. Runs before this turn's own message is
+  // written, so the persisted list is exactly the prior history. Only pay for the
+  // query when a message is actually empty.
+  if (
+    actualThreadId &&
+    !isNewThread &&
+    validMessages.some(
+      (m, i) =>
+        m.role === 'user' &&
+        i < validMessages.length - 1 &&
+        extractTextContent(m.content).length === 0
+    )
+  ) {
+    try {
+      const filled = backfillEmptyUserMessages(
+        validMessages as ModelMessage[],
+        await getUserMessageTexts(actualThreadId)
+      );
+      log.info(`[StreamContext] Restored ${filled} empty user message(s) from the thread`);
+    } catch (err) {
+      // A turn without its own history is degraded, not broken.
+      log.warn('[StreamContext] Could not restore empty user messages (continuing):', err);
+    }
+  }
+
   if (actualThreadId && lastUserMessage) {
     if (!isNewThread) {
-      if (!(await canAccessThread(ThreadId(actualThreadId), UserId(userId)))) {
-        // The client-supplied threadId is gone or not accessible — most often a
+      if (!(await canWriteThread(ThreadId(actualThreadId), UserId(userId)))) {
+        // The client-supplied threadId is gone or not writable — most often a
         // freshly-created empty thread reaped by the sidebar's auto-cleanup race
         // mid-send, or a stale client id. Recover gracefully by minting a new
         // thread for this user instead of hard-erroring. Safe: a foreign/deleted
@@ -423,7 +562,17 @@ export async function buildStreamContext({
     // Never truncates a brand-new thread (nothing to replace there).
     if (!isNewThread) {
       if (rawReplaceFromMessageId) {
-        const removed = await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId);
+        // Same 22P02 trap the thread id is guarded against above, one field
+        // over and unguarded until 13.08.2026: the client sent "Xa4ZTed" — a
+        // slug suffix, not a row id — Postgres threw on `WHERE id = $2`, and
+        // the exception took the whole turn with it ("Es ist ein interner
+        // Fehler aufgetreten"), before a single token was written.
+        //
+        // A non-UUID id is exactly the case the fallback below already handles:
+        // it names no persisted row. Route it there instead of to SQL.
+        const removed = UUID_RE.test(rawReplaceFromMessageId)
+          ? await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId)
+          : 0;
         // In-session messages carry an AUI id that isn't a persisted row → the
         // delete matches nothing; fall back to dropping the trailing reply.
         if (removed === 0) await deleteTrailingAssistant(actualThreadId);
@@ -481,7 +630,8 @@ export async function buildStreamContext({
     attachmentContext: derivedAttachmentContext,
     imageAttachments,
     processedMeta,
-  } = await processAttachments(attachments as ProcessedAttachment[] | undefined, requestId);
+    pdfFormCandidates,
+  } = await processAttachments(effectiveAttachments, requestId);
 
   // Merge any client-injected context (e.g. docs editor markdown + selection)
   // with what processAttachments derived from uploaded files.
@@ -492,8 +642,28 @@ export async function buildStreamContext({
       ? `${clientAttachmentContext}\n\n---\n\n${derivedAttachmentContext}`
       : clientAttachmentContext || derivedAttachmentContext;
 
-  const docAttachments =
-    (attachments as ProcessedAttachment[] | undefined)?.filter((a) => !a.isImage) ?? [];
+  const inlineMaterial = inlineMaterialAttachment(
+    lastUserMessage ? extractTextContent(lastUserMessage.content) : '',
+    {
+      regenerate: !!rawRegenerate,
+      hasDocumentAttachment: processedMeta.some((m) => !m.isImage),
+      // Nur für Pipeline-Agenten. Ein gewöhnlicher Chat liest die Nachricht im
+      // Verlauf ohnehin wieder; er braucht die Zeile nicht — bekäme aber mit ihr
+      // für jeden 200-Zeichen-Paste eine Anhang-Zeile, einen Zusammenfassungs-
+      // Aufruf im Hintergrund (ab 100 Zeichen) und den eigenen Text ab dann als
+      // „FRÜHERE DOKUMENTE" zurück. Die Kette dagegen misst gegen den
+      // Ausgangstext und braucht ihn auch im Folge-Turn, der nichts mitbringt.
+      promoted: promptIsPastedText && !!getPipelineAgent(agentId),
+    }
+  );
+  if (inlineMaterial) {
+    processedMeta.push(inlineMaterial);
+    log.info(
+      `[StreamContext] Carrying ${inlineMaterial.extractedText?.length ?? 0}c of inline material forward as a document`
+    );
+  }
+
+  const docAttachments = effectiveAttachments?.filter((a) => !a.isImage) ?? [];
 
   const previousAttachments = actualThreadId ? await getThreadAttachments(actualThreadId, 5) : [];
 
@@ -504,12 +674,13 @@ export async function buildStreamContext({
     docAttachments.some((a) => isTabularAttachment(a.name, a.type)) ||
     previousAttachments.some((a) => isTabularAttachment(a.name, a.mimeType));
 
-  // Raw bytes of this turn's PDFs, for the PDF form tools. Kept unfiltered here
-  // (the AcroForm probe happens in the tool, which reports "no fillable fields"
-  // to the model) — attachmentProcessing already decided what gets PERSISTED.
-  const pdfFormAttachments = docAttachments
-    .filter((a) => a.type === 'application/pdf')
-    .map((a) => ({ name: a.name, data: a.data }));
+  // Raw bytes of this turn's FILLABLE PDFs, for the PDF form tools — built by
+  // attachmentProcessing at the site of its AcroForm probe (#2835), so a
+  // non-form PDF never mounts read_pdf_form/fill_pdf_form on its upload turn.
+  // Deliberately NOT derived from `docAttachments` here: any pairing against a
+  // second list (by name or position) is attackable via name collisions or the
+  // client-sent `isImage` flag.
+  const pdfFormAttachments = pdfFormCandidates;
 
   // Large prose attachments from earlier turns were embedded into Qdrant — route
   // their document ids through the existing document-chat retrieval fan-out so
@@ -522,52 +693,30 @@ export async function buildStreamContext({
     ...new Set([...(rawDocumentChatIds ?? []), ...embeddedAttachmentDocIds]),
   ];
 
-  // === Memory retrieval (mem0) ===
-  // Honor the user's memory toggle (profiles.memory_enabled): when off, skip both
-  // retrieval here and the write-back in postResponseService.
-  const memoryEnabled = user.memory_enabled ?? false;
+  // === Memory retrieval (explicit user memory) ===
+  // Honor the profile switch (profiles.memory_enabled): off means no block in
+  // the prompt and no `memory` tool in the catalog (toolCatalog.ts).
+  const memoryEnabled = user.memory_enabled ?? true;
   let memoryContext: string | null = null;
+  let memories: RenderedMemory[] = [];
   let memoryRetrieveTimeMs = 0;
-  let memoriesUsed: Array<{ content: string; category: string | null }> = [];
 
-  const mem0 = getMem0Instance();
-  if (mem0 && lastUserMessage && memoryEnabled) {
+  if (lastUserMessage && memoryEnabled) {
     try {
       const memoryStartTime = Date.now();
-
-      const persona = await withTimeout(
-        getCachedPersona(userId),
+      const turn = await withTimeout(
+        loadTurnMemories(userId, sanitizeMentionTokens(lastUserTextRaw, 'remove')),
         EXTERNAL_CONTEXT_TIMEOUT_MS,
-        'mem0 persona lookup'
+        'memory lookup'
       );
-      if (persona) {
-        memoryContext = persona;
-        memoriesUsed = [{ content: '[Persona]', category: null }];
-        log.info(`[${requestId}] Using cached persona for memory context`);
-      } else {
-        const userQuery = sanitizeMentionTokens(lastUserTextRaw, 'remove');
-        const memories = await withTimeout(
-          mem0.searchMemories(userQuery, userId, 5),
-          EXTERNAL_CONTEXT_TIMEOUT_MS,
-          'mem0 memory search'
-        );
-        if (memories.length > 0) {
-          memoriesUsed = memories.map((m) => ({
-            content: m.memory,
-            category: normalizeCategory(m.metadata?.memoryType) ?? null,
-          }));
-
-          memoryContext = formatMemoriesByCategory(
-            memories.map((m) => ({
-              memory: m.memory,
-              category: normalizeCategory(m.metadata?.memoryType),
-            }))
-          );
-          log.info(`[${requestId}] Retrieved ${memories.length} memories for context`);
-        }
-      }
-
+      memories = numberMemories(turn);
+      memoryContext = memories.length > 0 ? renderMemoryLines(memories) : null;
       memoryRetrieveTimeMs = Date.now() - memoryStartTime;
+      if (memories.length > 0) {
+        log.info(
+          `[${requestId}] Memory: ${turn.anweisungen.length} Anweisungen, ${turn.fakten.length} Fakten im Prompt`
+        );
+      }
     } catch (memError) {
       log.warn(`[${requestId}] Memory retrieval failed (continuing without):`, memError);
     }
@@ -586,22 +735,36 @@ export async function buildStreamContext({
   // Weg für frei eingetippte Rollen und für Bestandsdaten, die den Text noch
   // mitschicken.
   let customSystemPrompt = rawCustomSystemPrompt ?? undefined;
+  // Katalogrolle mit Baustein (statt frei getippter Persona): das Rezept-
+  // Selbstladen im Loop bleibt dann AN — siehe resolveCustomSystemPrompt.
+  let roleBausteinActive = false;
+  // Die ganze Rollenliste, nicht nur die referenzierte: der Rezept-Katalog
+  // leitet daraus die Landesverbands-Zuteilung ab, und die gilt in jedem Turn —
+  // auch in einem ohne gewählte Rolle.
+  //
+  // Ein fehlendes Feld wird zur leeren Liste, nicht zu `null`: anders als das
+  // Frontend, das vor der Hydratation ehrlich nichts weiß, hat der Server den
+  // Nutzerdatensatz in der Hand. „Kein Eintrag" ist hier eine Antwort — keine
+  // Rolle, also keine LV-Rezepte.
+  //
+  // Gelesen wird aus der Profiltabelle, NICHT aus `user`: das Sitzungsobjekt
+  // führt `user_defaults` gar nicht — siehe `services/roles/userRoles.ts`.
+  const userRoles: UserRole[] = await loadUserRoles(userId);
   if (rawRoleRef) {
-    const storedRoles = user.user_defaults?.profile?.roles;
-    const role = Array.isArray(storedRoles)
-      ? findRole(storedRoles as UserRole[], rawRoleRef)
-      : null;
+    const role = findRole(userRoles, rawRoleRef);
     if (!role) {
       log.warn(
         `[${requestId}] roleRef ${rawRoleRef.ebene}/${rawRoleRef.rolle} findet keine ` +
           'gespeicherte Rolle — der Turn läuft mit dem Basis-Agenten.'
       );
     } else {
-      customSystemPrompt = resolveCustomSystemPrompt(
+      const resolved = resolveCustomSystemPrompt(
         role,
         user.locale ?? 'de-DE',
         rawCustomSystemPrompt
       );
+      customSystemPrompt = resolved.prompt;
+      roleBausteinActive = resolved.fromBaustein;
     }
   }
 
@@ -622,8 +785,8 @@ export async function buildStreamContext({
       research: true,
       image: true,
       image_edit: true,
+      memory: true,
     },
-    aiWorkerPool,
     attachmentContext: attachmentContext ?? undefined,
     imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
     threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
@@ -645,6 +808,7 @@ export async function buildStreamContext({
     boardIds: mergedBoardIds.length ? mergedBoardIds : undefined,
     sheetIds: mergedSheetIds.length ? mergedSheetIds : undefined,
     wolkeFiles,
+    cloudConnectionCount,
     connectFiles,
     attachedWebpageUrls: rawWebpageUrls?.length ? rawWebpageUrls : undefined,
     // When the docs editor sends a currentDocument, also surface its id as a
@@ -664,10 +828,32 @@ export async function buildStreamContext({
           selectionText: rawCurrentDocument.selectionText ?? null,
         }
       : undefined,
+    // Live board of the boards-editor sidebar. Without it the graph state has
+    // no board, so the classifier's edit_current_board fast-path never fires and
+    // the loop's `edit_document` tool aborts with "Es ist kein Board geöffnet" —
+    // the router only ever read `currentBoard` off the raw body.
+    currentBoard: rawCurrentBoard ?? undefined,
+    // Live canvas of the sharepic studio sidebar. Same reason as currentBoard:
+    // without it the graph state has no canvas, so the loop's `edit_document`
+    // tool aborts with "Es ist kein Sharepic geöffnet" and the model never sees
+    // the sharepic text (it rides `currentCanvas.text`, not currentDocument).
+    currentCanvas: rawCurrentCanvas ?? undefined,
     userLocale: user.locale ?? 'de-DE',
     clientPlatform: rawPlatform ?? 'web',
     customSystemPrompt,
-    activeSkillMention: rawActiveSkillMention ?? undefined,
+    roleBausteinActive,
+    userRoles,
+    // Token first, body second — same precedence as every other mention field:
+    // the durable `skill:`-token names what THIS message ordered, the body
+    // field is the store's ambient choice (and the only carrier old clients
+    // have, so it stays honored).
+    activeSkillMention: mentionTokenFields.skillMention ?? rawActiveSkillMention ?? undefined,
+    // Die Zeilen-id der gewählten Textform. Kein Token-Gegenstück: Mention-Tokens
+    // nennen die Mention, die id kommt nur aus dem Body — und schlägt sie im
+    // Nachschlag, weil eine Umbenennung die Zeile sonst still austauschte.
+    // Genau deshalb weicht sie einem Token: siehe `activeRecipeIdForTurn`.
+    activeRecipeId:
+      activeRecipeIdForTurn(mentionTokenFields.skillMention, rawActiveRecipeId) ?? undefined,
     userInstructions,
     contextWindowTokens,
   });
@@ -694,21 +880,26 @@ export async function buildStreamContext({
     ]);
     initialState.lastToolContext = toolContext;
     initialState.threadArtifacts = history?.artifacts() ?? [];
+    initialState.threadNotebookId = notebookIdFromSteps(history?.toolSteps() ?? []);
+    initialState.lastTurnNotebookId = notebookIdFromSteps(history?.lastTurnToolSteps() ?? []);
     // Weitergereicht statt verworfen: der agentische Loop las bis hierher
     // dieselben Zeilen ein zweites und drittes Mal (Tool-Replay und
     // Quellen-Rehydrierung). Bleibt es null, weil der Lesevorgang scheiterte,
     // liest der Loop selbst — der Ausfall bleibt so eng wie zuvor.
     threadToolHistory = history;
   }
+  initialState.memoryEnabled = memoryEnabled;
   if (memoryContext) {
     initialState.memoryContext = memoryContext;
+    initialState.memories = memories;
     initialState.memoryRetrieveTimeMs = memoryRetrieveTimeMs;
 
-    const isPersona = memoriesUsed.length === 1 && memoriesUsed[0].content === '[Persona]';
+    // Event shape is frozen (shipped mobile binaries read it); `isPersona`
+    // stays as a constant false, `category` now carries the memory kind.
     sse.send('memory_context', {
-      memoryCount: isPersona ? 1 : memoriesUsed.length,
-      memories: isPersona ? [] : memoriesUsed,
-      isPersona,
+      memoryCount: memories.length,
+      memories: memories.map((m) => ({ content: m.text, category: m.kind })),
+      isPersona: false,
     });
   }
 
@@ -732,7 +923,6 @@ export async function buildStreamContext({
     ctx: {
       requestId,
       userId,
-      aiWorkerPool,
       notebookIds,
       validMessages,
       lastUserMessage,
@@ -748,6 +938,7 @@ export async function buildStreamContext({
       contextWindowTokens,
       mentionTokenFields,
       lastUserTextRaw,
+      promptIsPastedText,
       pendingAssistantMessageId,
       threadToolHistory,
       userMessageId,
@@ -763,6 +954,26 @@ export interface MentionTokenFields {
   boardIds: string[];
   sheetIds: string[];
   docMentionIds: string[];
+  /** Rezept/Textform aus einem `skill:`-Token — letzter gewinnt. */
+  skillMention: string | null;
+}
+
+/**
+ * Welche Rezept-ZEILE der Turn pinnt.
+ *
+ * Die id kommt ausschliesslich aus dem Body und ist damit die AMBIENTE Wahl des
+ * Stores; ein `skill:`-Token steht dagegen IN der Nachricht und sagt, was
+ * genau diese Nachricht bestellt hat. Beides nebeneinander stehen zu lassen
+ * ginge schief, weil die id die Mention im Nachschlag schlägt: beim
+ * Erneut-Senden einer bearbeiteten, bereits getokenten Nachricht gewänne so das
+ * ambiente Rezept gegen das getippte. Trägt die Nachricht ein Token, fällt die
+ * id also weg — das Token nennt die Mention, und die entscheidet.
+ */
+export function activeRecipeIdForTurn(
+  tokenSkillMention: string | null,
+  bodyRecipeId: string | null | undefined
+): string | null {
+  return tokenSkillMention ? null : (bodyRecipeId ?? null);
 }
 
 function unionIds(a: string[] | null | undefined, b: string[]): string[] {
@@ -794,6 +1005,9 @@ function lastUserTextFromClient(clientMessages: unknown): string {
  * derive the routing fields from durable tokens in the last user message.
  * `agent` tokens are skipped — the effective agent still travels via the body
  * (store-selected agent must win, and agent resolution is validated elsewhere).
+ * `skill` tokens carry the chosen Rezept's MENTION; deriving it here is what
+ * keeps the recipe alive on edit-resubmit, where the client parser skips
+ * already-tokenized text and the body field has nothing to fall back on.
  */
 function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
   const fields: MentionTokenFields = {
@@ -802,6 +1016,7 @@ function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
     boardIds: [],
     sheetIds: [],
     docMentionIds: [],
+    skillMention: null,
   };
   for (const token of parseMentionTokens(lastUserTextFromClient(clientMessages))) {
     switch (token.type) {
@@ -825,6 +1040,9 @@ function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
         break;
       case 'agent':
         // Deliberately not derived — the body agentId stays authoritative.
+        break;
+      case 'skill':
+        fields.skillMention = token.id;
         break;
       default: {
         const unhandled: never = token.type;

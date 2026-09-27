@@ -9,51 +9,7 @@ import type {
   Locale,
   RequestObject,
 } from './promptAssembly.js';
-import type { AIWorkerPool } from '../../../workers/types.js';
 import type { Request } from 'express';
-
-export type { AIWorkerPool };
-
-/**
- * Request to AI worker pool
- */
-export interface AIWorkerRequest {
-  /** Type of AI request */
-  type: string;
-  /** System prompt for the AI */
-  systemPrompt: string;
-  /** Conversation messages */
-  messages: Array<{ role: string; content: string }>;
-  /** Additional options for the AI request */
-  options?: {
-    max_tokens?: number | undefined;
-    temperature?: number | undefined;
-    tools?: ToolSchema[] | undefined;
-    [key: string]: unknown;
-  };
-}
-
-/**
- * Response from AI worker pool
- */
-export interface AIWorkerResponse {
-  /** Whether the request was successful */
-  success: boolean;
-  /** Content returned from the AI */
-  content?: string | undefined;
-  /** Error message if failed */
-  error?: string | undefined;
-  /** Tool calls made by the AI */
-  tool_calls?: ToolCall[] | undefined;
-  /** Usage statistics */
-  metadata?: {
-    usage?: {
-      input_tokens?: number | undefined;
-      output_tokens?: number | undefined;
-      total_tokens?: number | undefined;
-    };
-  };
-}
 
 /**
  * Tool schema for AI function calling
@@ -146,7 +102,6 @@ export interface QuestionGenerationState {
   requestType: string;
   generatorType: string;
   locale: string;
-  aiWorkerPool: AIWorkerPool;
   req: Request;
 }
 
@@ -253,17 +208,6 @@ export type AssembledPromptResult = PromptAssemblyResult;
  */
 export interface GenerationResult {
   content: string;
-  metadata?:
-    | {
-        usage?:
-          | {
-              input_tokens?: number | undefined;
-              output_tokens?: number | undefined;
-              total_tokens?: number | undefined;
-            }
-          | undefined;
-      }
-    | undefined;
 }
 
 /**
@@ -300,7 +244,6 @@ export interface InitiateGeneratorParams {
   requestType: string;
   generatorType?: string | undefined;
   locale?: Locale | undefined;
-  aiWorkerPool: AIWorkerPool;
   req: Request;
 }
 
@@ -330,7 +273,6 @@ export interface ContinueGeneratorParams {
   userId: string;
   sessionId: string;
   answers: QuestionAnswers;
-  aiWorkerPool: AIWorkerPool;
   req: Request;
 }
 
@@ -362,7 +304,6 @@ export interface GenerateFinalResultParams {
   locale?: Locale | undefined;
   questions?: GeneratedQuestion[] | undefined;
   answers?: QuestionAnswers | undefined;
-  aiWorkerPool: AIWorkerPool;
   req: Request;
 }
 

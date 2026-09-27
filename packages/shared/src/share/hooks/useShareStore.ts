@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 
 import { shareApi } from '../api/shareApi.js';
+import { SHARE_LIMITS } from '../constants.js';
 
 import type {
   Share,
@@ -16,7 +17,6 @@ import type {
   UpdateImageShareParams,
   ShareMediaType,
   ShareStatus,
-  SaveAsTemplateResponse,
 } from '../types.js';
 
 const initialState: ShareStoreState = {
@@ -27,7 +27,7 @@ const initialState: ShareStoreState = {
   error: null,
   errorCode: null,
   count: 0,
-  limit: 50,
+  limit: SHARE_LIMITS.MAX_ITEMS_PER_USER,
 };
 
 /**
@@ -196,10 +196,13 @@ export const useShareStore = create<ShareStoreState & ShareStoreActions>((set, g
 
       if (response.success) {
         set({
+          // `count`/`limit` describe the fetched page, not the account (#2986):
+          // the server counts the rows it just sent and reports the ceiling that
+          // bounded them. Mediathek usage comes from `GET /api/media` instead.
           isLoading: false,
           shares: response.shares,
-          count: response.count || response.shares.length,
-          limit: response.limit || 50,
+          count: response.count ?? response.shares.length,
+          limit: response.limit ?? SHARE_LIMITS.MAX_ITEMS_PER_USER,
         });
         return response.shares;
       } else {
@@ -246,26 +249,6 @@ export const useShareStore = create<ShareStoreState & ShareStoreActions>((set, g
     } catch (error) {
       const errorMessage = extractErrorMessage(error, 'Failed to delete share');
       set({ error: errorMessage });
-      throw new Error(errorMessage);
-    }
-  },
-
-  /**
-   * Save a share as a template
-   */
-  saveAsTemplate: async (
-    shareToken: string,
-    title: string,
-    visibility: 'private' | 'unlisted' | 'public'
-  ): Promise<SaveAsTemplateResponse> => {
-    set({ isLoading: true, error: null, errorCode: null });
-    try {
-      const result = await shareApi.saveAsTemplate(shareToken, title, visibility);
-      set({ isLoading: false });
-      return result;
-    } catch (error) {
-      const errorMessage = extractErrorMessage(error, 'Failed to save as template');
-      set({ isLoading: false, error: errorMessage });
       throw new Error(errorMessage);
     }
   },

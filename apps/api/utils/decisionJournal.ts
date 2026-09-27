@@ -58,17 +58,37 @@ export const DECISION_POINTS = {
       'modify_board_to_agentic',
       'agentic_to_search',
       'system_tool_to_web',
+      'einfache_sprache_to_produktion',
+      // Der Intent lebt nur noch in der Schleife, und die blieb zu. Ziel steht
+      // als `degradeTo` in der Intent-Registry, nicht hier.
+      'loop_only_degraded',
     ],
   },
 
-  /** "…aber erstelle kein Dokument." — the negative-action gate. */
+  /** Deterministic recipe pick on the single-pass path (no @mention typed). */
+  'router.implicit_recipe': {
+    branches: ['presse', 'instagram', 'facebook', 'linkedin', 'twitter', 'reel', 'wahlpruefstein'],
+  },
+
+  /** "…aber erstelle kein Dokument." — the negative-action gate.
+   *  `dropped_secondary` stood here for the secondary-intent half of the gate.
+   *  It was removed with its call site: `secondaryIntent` can only be null,
+   *  `examples` or `scrape_url` since the 27k classifier tier went away, and
+   *  none of those is a key in `forbiddenBy`. No snapshot ever recorded it. */
   'router.persistent_action_gate': {
-    branches: ['allowed', 'dropped_secondary', 'demoted_primary_to_produktion'],
+    branches: ['allowed', 'demoted_primary_to_produktion'],
   },
 
   /** Which classifier tier produced the verdict. */
   'classifier.tier': {
     branches: [
+      // Gewähltes Notebook + Werkzeugauftrag → Schleife mit `notebook_quellen`.
+      'tier2_notebook_tool_ask',
+      'tier2_thread_notebook_tool_ask',
+      // Kurze Anschlussfrage direkt nach einem `notebook_quellen`-Turn.
+      'tier2_notebook_turn_followup',
+      // Rezept/Grünerator-Agent anlegen → Schleife, vor den Textsorten-Pfaden.
+      'tier2_agentura_create',
       'tier2.7_mcp_followup',
       'tier2.7_sharepic_followup',
       'tier2.9_docs_help',
@@ -139,7 +159,31 @@ export const DECISION_POINTS = {
   /** The loop silently replacing its own answer. The wire shows only the
    *  replacement, so a wrongly swapped answer looks exactly like a correct one. */
   'loop.synth_verdict': {
-    branches: ['accepted', 'refusal_swapped', 'tool_plan_retried', 'retry_failed_empty'],
+    branches: [
+      'accepted',
+      'refusal_swapped',
+      'tool_plan_retried',
+      'retry_failed_empty',
+      'invalid_retried',
+      'invalid_replaced',
+      'invalid_retry_failed',
+    ],
+  },
+
+  /** Antwortmodus der Notebook-Seite. Das Wire-Event `answer_mode` zeigt nur
+   *  Modus und Grund; ob ein `explicit` Chat oder Präzision war und welches
+   *  Wächter-Verdikt fiel, steht nur hier. */
+  'notebook.answer_mode': {
+    branches: [
+      'explicit_chat',
+      'explicit_praezision',
+      'pregate',
+      'guard_chat',
+      'guard_praezision',
+      'guard_fallback',
+      'ineligible',
+      'default',
+    ],
   },
 } as const satisfies Record<string, { readonly branches: readonly string[] }>;
 

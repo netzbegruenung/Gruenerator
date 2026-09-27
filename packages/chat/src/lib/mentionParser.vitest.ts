@@ -2,6 +2,7 @@
  * Tests for mentionParser — unresolvedMentions tracking
  */
 
+import { parseMentionTokens } from '@gruenerator/shared/utils';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -10,9 +11,11 @@ import {
   resolveMentionable,
   setBoardMentionables,
   setDocMentionables,
+  setUserAgentMentionables,
   toolMentionables,
 } from './mentionables';
-import { parseAllMentions } from './mentionParser';
+import { buildMentionPrefix } from './mentionInsertion';
+import { hasExplicitMcpScope, parseAllMentions } from './mentionParser';
 
 beforeAll(() => {
   // Set up some known mentionables
@@ -20,6 +23,16 @@ beforeAll(() => {
     { id: 'board-abc', title: 'Kampagnenplan Berlin', slug: 'kampagnenplan-berlin' },
   ]);
   setDocMentionables([{ id: 'doc-xyz', title: 'Pressespiegel', slug: 'pressespiegel' }]);
+  setUserAgentMentionables([
+    {
+      identifier: 'kv-klima-gruenerator',
+      title: 'KV Klima-Grünerator',
+      description: 'Klimapolitik im Kreisverband',
+      avatar: '🌱',
+      backgroundColor: '#316049',
+      sharedFromGroup: 'KV Köln',
+    },
+  ]);
 });
 
 describe('mentionParser: unresolvedMentions', () => {
@@ -126,5 +139,132 @@ describe('mentionParser: @bundestag routes to the DIP tool, not the notebook', (
     const result = parseAllMentions('@bundestagsfraktion was steht dort?');
     expect(result.notebookIds).toContain('bundestagsfraktion-notebook');
     expect(result.forcedTools).not.toContain('bundestag');
+  });
+});
+
+describe('mentionParser: skill mentions carry the recipe, not just the agent', () => {
+  // Regression (live 20.08.2026): a fluently typed `/presse mehr artenschutz…`
+  // routed the agent, stripped the text — and the recipe half never reached the
+  // server, because only the popover select set `activeSkillMention`. The turn
+  // came back as a research briefing instead of a Pressemitteilung.
+  it('/presse sets skillMention alongside the agent routing', () => {
+    const result = parseAllMentions('/presse mehr artenschutz in berlin');
+    expect(result.agentId).toBe('gruenerator-oeffentlichkeitsarbeit');
+    expect(result.agentMention).toBe('presse');
+    expect(result.skillMention).toBe('presse');
+    expect(result.cleanText).toBe('mehr artenschutz in berlin');
+  });
+
+  it('@presse behaves identically — skills live in the @-namespace', () => {
+    const result = parseAllMentions('@presse mehr artenschutz in berlin');
+    expect(result.agentId).toBe('gruenerator-oeffentlichkeitsarbeit');
+    expect(result.skillMention).toBe('presse');
+  });
+
+  it('persists the choice as a durable skill token (mention as id)', () => {
+    for (const text of ['/presse mehr artenschutz', '@presse mehr artenschutz']) {
+      const result = parseAllMentions(text);
+      expect(result.tokenText).toBe('@[Pressemitteilung](skill:presse) mehr artenschutz');
+    }
+  });
+
+  it('last skill mention wins', () => {
+    const result = parseAllMentions('/presse @instagram was ist besser?');
+    expect(result.skillMention).toBe('instagram');
+  });
+
+  it('no skill in the text → skillMention stays null', () => {
+    expect(parseAllMentions('@bundestag was lief zuletzt?').skillMention).toBeNull();
+    expect(parseAllMentions('einfach nur text').skillMention).toBeNull();
+  });
+
+  it('a / that resolves to a non-skill stays inert — no token, no routing', () => {
+    const result = parseAllMentions('/kampagnenplan-berlin was steht hier?');
+    expect(result.boardIds).toHaveLength(0);
+    expect(result.skillMention).toBeNull();
+    expect(result.tokenText).toBe('was steht hier?');
+  });
+});
+
+/**
+ * Ein Grünerator ersetzt die handelnde Agentin — er ist kein Rezept. Stünde
+ * sein Bezeichner in `skillMention`, suchte das Backend eine Textform dieses
+ * Namens und kündigte sie in der Antwort an; und das Token müsste `skill:`
+ * heissen, das beim Nachreichen einer bearbeiteten Nachricht erneut als Rezept
+ * gelesen wird (#2909).
+ */
+describe('mentionParser: Grünerator-Agenten routen den Agenten, kein Rezept', () => {
+  it('@grünerator setzt agentId, aber keine skillMention', () => {
+    const result = parseAllMentions('@kv-klima-gruenerator was steht im wahlprogramm?');
+    expect(result.agentId).toBe('kv-klima-gruenerator');
+    expect(result.agentMention).toBe('kv-klima-gruenerator');
+    expect(result.skillMention).toBeNull();
+    expect(result.cleanText).toBe('was steht im wahlprogramm?');
+  });
+
+  it('persistiert ihn als agent-Token, nicht als skill-Token', () => {
+    const result = parseAllMentions('@kv-klima-gruenerator leg los');
+    expect(result.tokenText).toBe('@[KV Klima-Grünerator](agent:kv-klima-gruenerator) leg los');
+  });
+
+  it('lässt ein zuvor gewähltes Rezept unangetastet', () => {
+    const result = parseAllMentions('@presse @kv-klima-gruenerator zum artenschutz');
+    expect(result.agentId).toBe('kv-klima-gruenerator');
+    expect(result.skillMention).toBe('presse');
+  });
+});
+
+describe('durable tokens: idempotency and the pill prefix', () => {
+  it('leaves an already-durable token untouched', () => {
+    const text = '@[Tally](mcp:fb75887f-bf1c-4369) bau mir ein formular';
+    const result = parseAllMentions(text);
+    expect(result.tokenText).toBe(text);
+    expect(result.unresolvedMentions).toHaveLength(0);
+  });
+
+  it('keeps a multi-word label intact — the second word is no new mention', () => {
+    const text = '@[Google Drive](mcp:srv-7) suche die folien';
+    expect(parseAllMentions(text).tokenText).toBe(text);
+    expect(parseAllMentions(text).unresolvedMentions).toHaveLength(0);
+  });
+
+  it('the pill prefix equals what the plain form would have been rewritten to', () => {
+    // The composer flushes pills as tokens now instead of `@kampagnenplan-berlin`.
+    // Both must reach the wire as the same text, or persistence changes shape.
+    const board = resolveMentionable('kampagnenplan-berlin');
+    expect(board).toBeDefined();
+    expect(buildMentionPrefix([board!])).toBe(
+      parseAllMentions('@kampagnenplan-berlin').tokenText.trim()
+    );
+  });
+
+  it('a flushed pill carries its routing in the token, not the body field', () => {
+    // The client parser leaves durable tokens alone, so `boardIds` stays empty
+    // — the id travels in the text and the server unions it back in
+    // (deriveMentionTokenFields). Same contract as an edit-resubmit.
+    const board = resolveMentionable('kampagnenplan-berlin');
+    const result = parseAllMentions(`${buildMentionPrefix([board!])} was steht hier?`);
+    expect(result.boardIds).toHaveLength(0);
+    expect(result.unresolvedMentions).toHaveLength(0);
+    expect(parseMentionTokens(result.tokenText)).toEqual([
+      expect.objectContaining({ type: 'board', id: 'board-abc' }),
+    ]);
+  });
+});
+
+describe('hasExplicitMcpScope', () => {
+  it('is false for a turn the user did not scope', () => {
+    expect(hasExplicitMcpScope([], 'was gibt es neues?')).toBe(false);
+    expect(hasExplicitMcpScope(['websearch'], 'was gibt es neues?')).toBe(false);
+  });
+
+  it('sees a hand-typed mention via forcedTools', () => {
+    expect(hasExplicitMcpScope(['mcp:srv-7'], 'formular bitte')).toBe(true);
+  });
+
+  it('sees a flushed pill / edit-resubmit via the token alone', () => {
+    // forcedTools is empty here: the parser skips durable tokens, so only the
+    // text carries the scope. Missing this double-scoped the pinned connector.
+    expect(hasExplicitMcpScope([], '@[Tally](mcp:srv-7) formular bitte')).toBe(true);
   });
 });

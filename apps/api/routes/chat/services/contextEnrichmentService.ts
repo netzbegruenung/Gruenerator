@@ -6,6 +6,7 @@
  * and large document vectorization.
  */
 
+import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { truncateDocument } from '../../../agents/langgraph/ChatGraph/nodes/respondNode.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -192,32 +193,60 @@ export async function enrichContext(opts: {
       if (docResults.length > 0) {
         // Per-doc budget scales with context window: 8K for 128K models, 2K for 16K models
         const perDocBudget = Math.max(2000, Math.min(8000, Math.floor(contextWindowTokens * 0.25)));
+        // Ein @doc-Mention läuft an der Suche vorbei — was vom Dokument beim
+        // Modell ankommt, entscheidet allein dieser Schnitt. Ohne Frage bleibt
+        // es beim Kopf-und-Schluss.
+        const mentionQuery = lastUserText(initialState);
+        const { getDocumentHtml } = await import('../../../services/docs/docContentService.js');
         const docParts = (
-          docResults as Array<{ id: string; title: string; content: string | null }>
-        )
-          .filter((d) => d.content)
-          .map((d) => {
-            let plainText = d.content || '';
-            let prevText: string;
-            do {
-              prevText = plainText;
-              plainText = plainText.replace(/<[^>]+>/g, '');
-            } while (plainText !== prevText);
-            plainText = plainText
-              .replace(/&[a-zA-Z]+;/g, ' ')
-              .replace(/&#x?[0-9a-fA-F]+;/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim();
-            const truncated = truncateDocument(plainText, perDocBudget);
-            if (truncated.length < plainText.length) {
-              log.info(
-                `[ChatGraph] Doc context truncated: "${d.title}" (${plainText.length} → ${truncated.length} chars, budget: ${perDocBudget})`
-              );
-            } else {
-              log.info(`[ChatGraph] Doc context loaded: "${d.title}" (${plainText.length} chars)`);
-            }
-            return `### ${d.title}\n\n${truncated}`;
-          });
+          await Promise.all(
+            (docResults as Array<{ id: string; title: string; content: string | null }>).map(
+              async (d) => {
+                // The SQL above is the access gate; the CONTENT comes from Yjs.
+                // `content` is a 2000-char preview the Hocuspocus store hook
+                // derives — reading it as the document silently truncated every
+                // doc the editor had ever touched, and a modify_doc turn then
+                // rewrote the whole document from that stump. It stays as the
+                // fallback for the one case it is complete: a document created
+                // server-side and never opened.
+                const fromYjs = await getDocumentHtml(d.id).catch((err: unknown) => {
+                  log.warn(`[ChatGraph] Yjs read for doc ${d.id} failed: ${String(err)}`);
+                  return null;
+                });
+                const raw = fromYjs?.html?.trim() ? fromYjs.html : (d.content ?? '');
+                if (!raw.trim()) return null;
+
+                let plainText = raw;
+                let prevText: string;
+                do {
+                  prevText = plainText;
+                  plainText = plainText.replace(/<[^>]+>/g, '');
+                } while (plainText !== prevText);
+                plainText = plainText
+                  .replace(/&[a-zA-Z]+;/g, ' ')
+                  .replace(/&#x?[0-9a-fA-F]+;/g, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim();
+                if (!plainText) return null;
+
+                const truncated = truncateDocument(plainText, perDocBudget, mentionQuery);
+                const origin = fromYjs?.html?.trim()
+                  ? `yjs${fromYjs.live ? '/live' : ''}`
+                  : 'preview';
+                if (truncated.length < plainText.length) {
+                  log.info(
+                    `[ChatGraph] Doc context truncated: "${d.title}" (${plainText.length} → ${truncated.length} chars, budget: ${perDocBudget}, ${origin})`
+                  );
+                } else {
+                  log.info(
+                    `[ChatGraph] Doc context loaded: "${d.title}" (${plainText.length} chars, ${origin})`
+                  );
+                }
+                return `### ${d.title}\n\n${truncated}`;
+              }
+            )
+          )
+        ).filter((part): part is string => part !== null);
 
         if (docParts.length > 0) {
           initialState.documentMentionContext = docParts.join('\n\n---\n\n');
@@ -242,8 +271,37 @@ export async function enrichContext(opts: {
     }
   }
 
-  // Index large document attachments via vector pipeline
-  const SMALL_DOC_VECTORIZATION_THRESHOLD = 4000;
+  // Index large document attachments via vector pipeline.
+  //
+  // The threshold is a LOAD-BEARING routing decision, not a tuning knob: below
+  // it the extracted text stays inline in `attachmentContext` (reaches every
+  // executor via buildSystemMessage), above it the text is vectorized and
+  // attachmentContext is NULLED — from that point only an executor that
+  // actually consumes `documentChatIds` can see the content. searchNode does
+  // (document-chat search); the AGENTIC LOOP does not reference documentChatIds
+  // at all. Live 12.08.2026: a 5.8k-char pasted text was vectorized, the
+  // classifier forced search intent, the loop executed the turn with steps=0 /
+  // sources=0, and the model truthfully answered "Du hast mir noch keinen Text
+  // geschickt".
+  //
+  // 12k chars ≈ 3k tokens — comfortably inside the 20k-char attachment budget
+  // FLOOR (ATTACHMENT_LIMITS.TOTAL_BUDGET_CHARS; window-derived above it), so
+  // typical pastes and small uploads take the inline path that works in every
+  // executor.
+  //
+  // Die Loop-Lücke ist seit dem 24.08.2026 zu: `seedAttachedDocuments` ruft die
+  // Anhänge vor dem ersten Zug des Planers ab, `dokumente_lesen` lässt ihn
+  // nachfassen (beides über `agenticLoop/attachedDocuments.ts`). Oberhalb der
+  // Schwelle ist der Text damit kein verlorener Text mehr, sondern ein
+  // abgerufener — die Zahl entscheidet über Kosten, nicht über Verfügbarkeit.
+  //
+  // Was BLEIBT: sie ist geraten und niemand erfährt davon. Die Nachbarn machen
+  // es anders — LobeHub injiziert Chat-Anhänge immer vollständig (gar keine
+  // Schwelle), Open WebUI stellt der Person einen Schalter je Datei daneben
+  // („Using Entire Document" vs. „Using Focused Retrieval"). Ein solcher
+  // Schalter wäre die ehrlichere Antwort als diese Konstante; er braucht UI im
+  // Composer, ein Feld im Contract und eine eigene Budget-Grenze.
+  const SMALL_DOC_VECTORIZATION_THRESHOLD = 12_000;
 
   const largeDocAttachments = docAttachments.filter((att) => {
     const meta = processedMeta.find((m) => m.name === att.name && !m.isImage);
@@ -266,6 +324,7 @@ export async function enrichContext(opts: {
       for (const att of largeDocAttachments) {
         try {
           const buffer = Buffer.from(att.data, 'base64');
+          const attMeta = processedMeta.find((m) => m.name === att.name && !m.isImage);
           const result = await processFileUpload(
             pgService,
             qdrantService,
@@ -277,10 +336,30 @@ export async function enrichContext(opts: {
               size: buffer.length,
             },
             att.name,
-            'documentchat'
+            'documentchat',
+            // Der Text von oben, nicht noch einmal extrahiert. Sonst laufen zwei
+            // Ketten über dieselbe Datei und die Zitate stehen auf einer anderen
+            // Fassung als der, die das Modell als Anhang liest.
+            attMeta?.extractedText,
+            attMeta?.pageCount ?? null
           );
 
           initialState.documentChatIds.push(result.id);
+          // Der Dateiname überlebt `processedMeta` nicht — die Karte auf dem
+          // Zustand ist der einzige Weg, auf dem er den Turn übersteht. Ohne sie
+          // heisst der gerade hochgeladene Anhang in Quellen und Werkzeugen
+          // „Dokument 1" (buildDocumentSources, fallbackLabel).
+          initialState.documentChatLabels = {
+            ...(initialState.documentChatLabels ?? {}),
+            [result.id]: att.name,
+          };
+          // Hand the id to the persistence step that runs AFTER the answer.
+          // Without it, `saveThreadAttachmentsFromMeta` embeds the very same
+          // bytes a second time under a second id — measured 13.08.2026: one
+          // 57.215-char .docx produced two "Stored 59 vectors" lines per turn,
+          // eight document ids over four turns, and `documentChatIds` grew by
+          // two per turn because `getThreadAttachments` handed every copy back.
+          if (attMeta) attMeta.documentId = result.id;
           sse.send('document_indexed', {
             documentId: result.id,
             title: result.title,
@@ -302,7 +381,8 @@ export async function enrichContext(opts: {
   }
 
   // Clear raw attachment text for vectorized docs only.
-  // Small docs (<4K chars) keep their inline attachmentContext.
+  // Docs below SMALL_DOC_VECTORIZATION_THRESHOLD keep their inline
+  // attachmentContext — see the threshold's own comment for why that matters.
   // Gated on docAttachments.length: documentChatIds can arrive without any
   // file attachments (pre-supplied references), in which case attachmentContext
   // is the live inline content and must be preserved.
@@ -319,7 +399,10 @@ export async function enrichContext(opts: {
       );
       const smallDocTexts = processedMeta
         .filter((m) => !m.isImage && m.extractedText && smallDocNames.has(m.name))
-        .map((m) => `### ${m.name}\n\n${m.extractedText}`);
+        // Label distinguishes this inline full-text path from the vectorized
+        // (RAG-chunked) sibling files in the same turn — see
+        // SMALL_DOC_VECTORIZATION_THRESHOLD above.
+        .map((m) => `### ${m.name} (Volltext-Auszug)\n\n${m.extractedText}`);
       initialState.attachmentContext =
         smallDocTexts.length > 0 ? smallDocTexts.join('\n\n---\n\n') : null;
     }

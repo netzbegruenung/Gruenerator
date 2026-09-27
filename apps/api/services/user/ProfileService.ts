@@ -6,6 +6,7 @@ import { profiles } from '../../database/schema/core.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { type DeleteResult, getPostgresInstance } from '../../database/services/PostgresService.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
+import { deriveLandesverbandFromRoles } from '../landesverband/LandesverbandDerivationService.js';
 
 import { toUserProfile } from './profileMapper.js';
 
@@ -101,7 +102,10 @@ class ProfileService {
         chat_color: profileData.chat_color,
         beta_features: profileData.beta_features ?? {},
         user_defaults: profileData.user_defaults ?? {},
-        locale: profileData.locale ?? 'de-DE',
+        // Kein 'de-DE'-Ersatz: ein Profil ohne bekanntes Land bleibt leer, und
+        // die Oberfläche fragt einmalig nach. Geschrieben wird es sonst nur von
+        // `config/localeSync.ts` (IdP) und `PUT /auth/locale` (eigene Wahl).
+        ...(profileData.locale != null && { locale: profileData.locale }),
         last_login: profileData.last_login ? new Date(profileData.last_login) : null,
         groups_enabled: profileData.groups_enabled ?? false,
         custom_generators: profileData.custom_generators ?? false,
@@ -169,7 +173,10 @@ class ProfileService {
         'reduce_transparency',
         'show_skip_link',
         'deutschlandmodus',
-        'is_admin',
+        // SECURITY: `is_admin` intentionally excluded — the admin flag must never be
+        // writable through the general profile-update path. Keeping it out of the
+        // writable column list makes self-promotion impossible even if a future
+        // caller forwards an unfiltered request body into updateProfile.
         'content_management',
         'sites',
         'website',
@@ -185,6 +192,7 @@ class ProfileService {
 
       const knownTextColumns = [
         'locale',
+        'locale_source',
         'chat_background',
         'custom_prompt',
         'presseabbinder',
@@ -193,12 +201,22 @@ class ProfileService {
         'document_mode',
         'default_startpage',
         'feedback_button',
+        'tts_voice_id',
       ] as const;
 
       for (const col of knownTextColumns) {
         if (updateData[col] !== undefined) {
           (setValues as Record<string, unknown>)[col] = updateData[col];
         }
+      }
+
+      // Einzige Zeitstempel-Spalte, die über diesen Weg geschrieben wird
+      // (Art.-9-Einwilligung). Sie braucht ein eigenes Feld, weil Drizzle hier
+      // ein `Date` erwartet, die Aufrufer aber ISO-Strings durchreichen — als
+      // String landete sie stumm in keiner der beiden Listen oben.
+      if (updateData.ai_consent_at !== undefined) {
+        const raw = updateData.ai_consent_at;
+        setValues.ai_consent_at = raw ? new Date(raw as string) : null;
       }
 
       const rows = await db
@@ -236,7 +254,7 @@ class ProfileService {
         chat_color: data.chat_color,
         beta_features: data.beta_features ?? {},
         user_defaults: data.user_defaults ?? {},
-        locale: data.locale ?? 'de-DE',
+        ...(data.locale != null && { locale: data.locale }),
         last_login: data.last_login ? new Date(data.last_login) : null,
         groups_enabled: data.groups_enabled ?? false,
         custom_generators: data.custom_generators ?? false,
@@ -262,7 +280,10 @@ class ProfileService {
             chat_color: sql`EXCLUDED.chat_color`,
             beta_features: sql`EXCLUDED.beta_features`,
             user_defaults: sql`EXCLUDED.user_defaults`,
-            locale: sql`EXCLUDED.locale`,
+            // COALESCE, nicht EXCLUDED: seit `locale` leer sein darf, würde ein
+            // Upsert ohne Land ein bereits bekanntes überschreiben — ein Login
+            // über einen länderneutralen IdP löschte sonst die Wahl der Person.
+            locale: sql`COALESCE(EXCLUDED.locale, ${profiles.locale})`,
             last_login: sql`EXCLUDED.last_login`,
             groups_enabled: sql`EXCLUDED.groups_enabled`,
             custom_generators: sql`EXCLUDED.custom_generators`,
@@ -443,7 +464,11 @@ class ProfileService {
       }
       defaults[generator][key] = value;
 
-      return await this.updateProfile(userId, { user_defaults: defaults });
+      const updated = await this.updateProfile(userId, { user_defaults: defaults });
+      if (generator === 'profile' && key === 'roles') {
+        await deriveLandesverbandFromRoles(userId, value as { bundesland?: string }[]);
+      }
+      return updated;
     } catch (error: unknown) {
       console.error('[ProfileService] Error updating user default:', error);
       throw error;
@@ -477,7 +502,14 @@ class ProfileService {
       const defaults = currentProfile.user_defaults || {};
       defaults[generator] = value;
 
-      return await this.updateProfile(userId, { user_defaults: defaults });
+      const updated = await this.updateProfile(userId, { user_defaults: defaults });
+      if (generator === 'profile' && Array.isArray((value as Record<string, unknown>).roles)) {
+        await deriveLandesverbandFromRoles(
+          userId,
+          (value as Record<string, unknown>).roles as { bundesland?: string }[]
+        );
+      }
+      return updated;
     } catch (error: unknown) {
       console.error('[ProfileService] Error setting user defaults generator:', error);
       throw error;

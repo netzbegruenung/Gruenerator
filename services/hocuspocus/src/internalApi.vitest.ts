@@ -1,13 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import * as Y from 'yjs';
 
+import { detectPreviewKind } from './contentPreviews.js';
 import {
   BOARD_FIELD_IDS,
   appendRowsToBoardDoc,
   applyDeckChangesToDoc,
   applyPatchToDoc,
+  docBlockCount,
   isNewBoardRow,
+  parsesToBlocks,
+  readDocHtml,
   readMergedState,
+  replaceDocHtml,
   type PageDef,
 } from './internalApi.js';
 
@@ -204,6 +209,7 @@ describe('isNewBoardRow', () => {
       isNewBoardRow({ title: 'A', status: 's1', description: 'd', dueDate: '2026-01-01' })
     ).toBe(true);
     expect(isNewBoardRow({ title: 'A', dueDate: null })).toBe(true);
+    expect(isNewBoardRow({ id: 'row-1', title: 'A' })).toBe(true);
   });
 
   it('rejects a missing/invalid title or wrong field types', () => {
@@ -211,11 +217,21 @@ describe('isNewBoardRow', () => {
     expect(isNewBoardRow({ title: 42 })).toBe(false);
     expect(isNewBoardRow({ title: 'A', status: 5 })).toBe(false);
     expect(isNewBoardRow({ title: 'A', dueDate: 5 })).toBe(false);
+    expect(isNewBoardRow({ id: 7, title: 'A' })).toBe(false);
+    expect(isNewBoardRow({ id: '', title: 'A' })).toBe(false);
     expect(isNewBoardRow(null)).toBe(false);
   });
 });
 
 describe('appendRowsToBoardDoc', () => {
+  it('keeps a caller-chosen id and generates the rest', () => {
+    const doc = new Y.Doc();
+    appendRowsToBoardDoc(doc, [{ id: 'row-fixed', title: 'A' }, { title: 'B' }], 'user-1');
+    const ids = (doc.getArray('rows').toJSON() as Array<{ id: string }>).map((r) => r.id);
+    expect(ids[0]).toBe('row-fixed');
+    expect(ids[1]).toMatch(/^row-\d+-1-/);
+  });
+
   it('appends rows with the well-known cell layout', () => {
     const doc = new Y.Doc();
     appendRowsToBoardDoc(
@@ -255,5 +271,49 @@ describe('appendRowsToBoardDoc', () => {
     appendRowsToBoardDoc(doc, [{ title: 'B' }], 'u');
     const rows = doc.getArray('rows').toJSON() as Array<{ cells: Record<string, unknown> }>;
     expect(rows.map((r) => r.cells[BOARD_FIELD_IDS.TITLE])).toEqual(['A', 'B']);
+  });
+});
+
+/**
+ * The prose-document write path. `content` is a derived 2000-char preview, so
+ * the only place a chat edit can land and be seen is the Yjs fragment — these
+ * pin the two properties that make that swap safe.
+ */
+describe('internal doc API prose helpers', () => {
+  const seed = (html: string): Y.Doc => {
+    const doc = new Y.Doc();
+    replaceDocHtml(doc, html);
+    return doc;
+  };
+
+  it('round-trips prose through the fragment', () => {
+    const doc = seed('<h1>Antrag</h1><p>Erster Absatz</p>');
+    expect(readDocHtml(doc)).toContain('Antrag');
+    expect(readDocHtml(doc)).toContain('Erster Absatz');
+    expect(docBlockCount(doc)).toBeGreaterThan(0);
+  });
+
+  it('replaces rather than appends — the old version must not survive', () => {
+    const doc = seed('<p>Alte Fassung</p>');
+    replaceDocHtml(doc, '<p>Neue Fassung</p>');
+
+    const html = readDocHtml(doc);
+    expect(html).toContain('Neue Fassung');
+    expect(html).not.toContain('Alte Fassung');
+  });
+
+  it('recognises html that parses to nothing BEFORE anything is deleted', () => {
+    // The guard the endpoint checks on a scratch doc: replaceDocHtml deletes
+    // first, so an unparseable new version would otherwise empty the document
+    // and the chat would report a successful edit on a blank page.
+    expect(parsesToBlocks('plain text without any block tags')).toBe(false);
+    expect(parsesToBlocks('<p>Ein Absatz</p>')).toBe(true);
+  });
+
+  it('leaves a sheet/board doc detectable so the endpoint can refuse it', () => {
+    const sheet = new Y.Doc();
+    sheet.getMap('sheetMeta').set('snapshot', '{}');
+    expect(detectPreviewKind(sheet)).toBe('sheets');
+    expect(detectPreviewKind(seed('<p>Prosa</p>'))).toBe('blocknote');
   });
 });

@@ -1,6 +1,6 @@
 import prompts from '../../../prompts/sharepic/index.js';
+import { aiText } from '../../../services/ai/generate.js';
 import { CONTENT_INTEGRITY_BULLETS } from '../../../services/contentPolicy.js';
-import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 import { replaceTemplate } from '../../../utils/sharepic/template.js';
 import {
@@ -57,15 +57,35 @@ interface TypeConfig {
   mainKey: string;
   maxLengths?: Record<string, number>;
   coverMaxLengths?: Record<string, number>;
+  /**
+   * Felder, in denen eine Aufzählung und Auszeichnung (`**fett**`, `_kursiv_`)
+   * stehen dürfen — nur hier bleiben Zeilenumbrüche und Marker erhalten
+   * (`sanitizeField`). Überschriften, Dreizeiler, Zitate und Datums-/Ortsfelder
+   * sind bewusst NICHT dabei: dort wäre ein Umbruch immer ein Fehler des
+   * Modells, kein Gestaltungsmittel. Muss zu den `richText`-Feldern der
+   * Editor-Vorlagen passen — `multilineFields.vitest.ts` prüft das.
+   */
+  multilineFields?: string[];
+  /**
+   * Felder, in denen zusätzlich Auszeichnung (`**fett**`, `_kursiv_`) stehen
+   * darf — Teilmenge von {@link multilineFields}. Enger, weil nur Felder in
+   * PT Sans echte Fett- und Kursivschnitte haben; in GrueneTypeNeue (Titel,
+   * Veranstaltungsbeschreibung, Simple-Unterzeile) würde beides synthetisiert
+   * und Vorschau und Export liefen auseinander. Muss zu `richText` am
+   * Descriptor passen — `multilineFields.vitest.ts` prüft das.
+   */
+  markupFields?: string[];
 }
 
-const TYPE_CONFIGS: Record<string, TypeConfig> = {
+export const TYPE_CONFIGS: Record<string, TypeConfig> = {
   info: {
     fields: ['header', 'subheader', 'body', 'suchbegriff'],
     mainKey: 'mainInfo',
     // body headroom above the prompt's 150-250 target so a slightly-long final
     // sentence is kept whole (sentence-safe trim), not chopped. Renderer auto-fits.
     maxLengths: { header: 65, subheader: 125, body: 300 },
+    multilineFields: ['body'],
+    markupFields: ['body'],
   },
   // Österreich: eigenes Sujet mit eigenen Feldern. Der Resolver unten wählt
   // diesen Eintrag über dieselbe `<type>_at`-Konvention wie den Prompt.
@@ -94,6 +114,7 @@ const TYPE_CONFIGS: Record<string, TypeConfig> = {
     fields: ['titel', 'tag', 'datum', 'zeit', 'ort', 'adresse', 'beschreibung', 'suchbegriff'],
     mainKey: 'mainEvent',
     maxLengths: { titel: 35, ort: 45, adresse: 45, beschreibung: 150 },
+    multilineFields: ['beschreibung'],
   },
   zitat: {
     fields: ['zitat'],
@@ -111,6 +132,7 @@ const TYPE_CONFIGS: Record<string, TypeConfig> = {
     fields: ['headline', 'subtext', 'suchbegriff'],
     mainKey: 'mainSimple',
     maxLengths: { headline: 50, subtext: 150 },
+    multilineFields: ['subtext'],
   },
   slider: {
     fields: ['label', 'headline', 'subtext', 'subtext2', 'suchbegriff'],
@@ -118,6 +140,8 @@ const TYPE_CONFIGS: Record<string, TypeConfig> = {
     mainKey: 'mainSlider',
     maxLengths: { label: 25, headline: 130, subtext: 200, subtext2: 200 },
     coverMaxLengths: { label: 25, headline: 70, subtext: 100, subtext2: 0 },
+    multilineFields: ['subtext', 'subtext2'],
+    markupFields: ['subtext', 'subtext2'],
   },
 };
 
@@ -199,6 +223,33 @@ export interface UnifiedTextBody {
   _campaignPrompt?: unknown;
 }
 
+/**
+ * Die eine Formulierung dafür, wie Auszeichnung in einem Sharepic-Text
+ * aussieht. Drei Türen sprechen sie: die Textgenerierung hier, die
+ * Chat-Bearbeitung (`sharepicEditLlm`) und die Studio-Vorschläge
+ * (`buildCanvasSuggestPrompt`). Was der Editor rendert, steht in
+ * `@gruenerator/contracts` (`inlineMarks.ts`) — die Regel hier muss dieselbe
+ * Form beschreiben, sonst tippt das Modell etwas, das niemand zeichnet.
+ */
+export const SHAREPIC_MARKUP_RULES = [
+  'Auszeichnung nur in längeren Textfeldern (Text, Beschreibung, Unterzeile) und sparsam: **fett** für ein bis zwei Schlüsselbegriffe — im Info-Text den ersten Satz —, _kursiv_ für Titel und Zitate, <u>unterstrichen</u> nur auf ausdrücklichen Wunsch.',
+  'Nie in Überschriften, Dreizeilern, Zitaten, Datums- oder Ortsfeldern. Kein anderes Markdown: kein "#", keine Links, keine Tabellen.',
+];
+
+/**
+ * Formatregeln für alle Sharepic-Typen. Zentral wie {@link SHAREPIC_SAFETY_RULES},
+ * weil sonst zehn Prompt-JSONs dieselbe Regel führen müssten. Ohne sie liefert
+ * das Modell Aufzählungen als Markdown (`- Punkt`) oder als Fließtext — beides
+ * kam bisher ohnehin nie durch, weil `sanitizeField` jeden Umbruch schluckte.
+ */
+export const SHAREPIC_FORMAT_RULES = `
+
+FORMAT:
+- Aufzählungen nur, wo sie dem Inhalt entsprechen — Fließtext bleibt Fließtext.
+- Eine Aufzählung schreibst du als eine Zeile je Punkt, jede beginnt mit "• " (nicht "-", "*" oder "1.").
+- Keine Leerzeilen zwischen den Punkten.
+- ${SHAREPIC_MARKUP_RULES.join('\n- ')}`;
+
 export type UnifiedTextResult =
   | {
       success: true;
@@ -211,11 +262,9 @@ export type UnifiedTextResult =
 
 /**
  * Core of the unified sharepic text generation, extracted from the Express
- * handler so the chat pipeline can call it without an HTTP round-trip. `req`
- * is only used for worker-pool access (`getAIWorkerPool`).
+ * handler so the chat pipeline can call it without an HTTP round-trip.
  */
 export async function generateUnifiedTexts(
-  req: SharepicRequest,
   type: string,
   body: UnifiedTextBody
 ): Promise<UnifiedTextResult> {
@@ -251,15 +300,22 @@ export async function generateUnifiedTexts(
   // rules here covers every type from one place. `replaceTemplate` ran only on
   // the user content, so `{{partyName}}` reached the model as a literal
   // placeholder — resolve it here too.
+  // `SHAREPIC_FORMAT_RULES` hing bis hierher NIRGENDS: die Konstante war
+  // definiert und exportiert, aber kein Prompt trug sie — das Modell bekam die
+  // Aufzählungsregel nie zu sehen.
   const systemPrompt = `${replaceTemplate(promptConfig.systemRole ?? '', {
     partyName: body.partyName || 'Bündnis 90/Die Grünen',
-  })}${SHAREPIC_SAFETY_RULES}`;
+  })}${SHAREPIC_SAFETY_RULES}${SHAREPIC_FORMAT_RULES}`;
   const template =
     count === 1
       ? promptConfig.singleItemTemplate || promptConfig.requestTemplate || ''
       : promptConfig.alternativesTemplate || promptConfig.requestTemplate || '';
-  const options =
-    count === 1 ? promptConfig.options : promptConfig.alternativesOptions || promptConfig.options;
+  // `Record<string, unknown>` aus der JSON-Config, hier einmal in die Felder
+  // gelesen, die die Fassade kennt. Ein `model` ist NICHT dabei: welches Modell
+  // eine Sharepic-Zeile bedient, steht in `AI_LANES` und nirgends sonst.
+  const options = (
+    count === 1 ? promptConfig.options : promptConfig.alternativesOptions || promptConfig.options
+  ) as { temperature?: number; max_tokens?: number; top_p?: number } | undefined;
 
   const requestContent = replaceTemplate(template, {
     thema: thema || '',
@@ -280,23 +336,14 @@ export async function generateUnifiedTexts(
     attempts++;
 
     try {
-      const result = await getAIWorkerPool(req).processRequest(
-        {
-          type: `sharepic_${type}`,
-          systemPrompt,
-          messages: [{ role: 'user', content: requestContent }],
-          options,
-        },
-        req
-      );
-
-      if (!result.success) {
-        lastError = result.error || 'AI request failed';
-        log.warn(`[${type}] Attempt ${attempts} AI error:`, lastError);
-        continue;
-      }
-
-      const content = result.content || '';
+      const content = await aiText({
+        lane: `sharepic_${type}`,
+        system: systemPrompt,
+        prompt: requestContent,
+        ...(options?.temperature != null && { temperature: options.temperature }),
+        ...(options?.max_tokens != null && { maxOutputTokens: options.max_tokens }),
+        ...(options?.top_p != null && { topP: options.top_p }),
+      });
       log.debug(`[${type}] Raw AI response (${content.length} chars):\n${content}`);
 
       // The model declined under SHAREPIC_SAFETY_RULES. Fail immediately —
@@ -338,7 +385,10 @@ export async function generateUnifiedTexts(
             isCover && config.coverMaxLengths ? config.coverMaxLengths : config.maxLengths;
           const processedData: Record<string, string> = {};
           for (const [key, value] of Object.entries(parseResult.data)) {
-            let processed = sanitizeField(value);
+            let processed = sanitizeField(value, {
+              keepListBreaks: config.multilineFields?.includes(key) ?? false,
+              keepMarks: config.markupFields?.includes(key) ?? false,
+            });
             if (limits?.[key]) {
               // Prose body fields must not be chopped mid-sentence.
               processed =
@@ -371,7 +421,10 @@ export async function generateUnifiedTexts(
 
         const processedData: Record<string, string> = {};
         for (const [key, value] of Object.entries(parseResult.data)) {
-          let processed = sanitizeField(value);
+          let processed = sanitizeField(value, {
+            keepListBreaks: config.multilineFields?.includes(key) ?? false,
+            keepMarks: config.markupFields?.includes(key) ?? false,
+          });
           if (config.maxLengths?.[key]) {
             // Prose body fields must not be chopped mid-sentence.
             processed =
@@ -408,19 +461,25 @@ export async function generateUnifiedTexts(
   };
 }
 
-/** Thin Express wrapper around `generateUnifiedTexts` — response JSON unchanged. */
-export async function handleUnifiedRequest(
-  req: SharepicRequest,
-  res: Response,
-  type: string
-): Promise<void> {
-  const result = await generateUnifiedTexts(req, type, req.body);
-
-  if (!result.success) {
-    res.status(result.status).json({ success: false, error: result.error });
-    return;
-  }
-
+/**
+ * Die EINZIGE Stelle, die die Drahtform der Sharepic-Textantwort kennt.
+ *
+ * Drei Transporte teilen sie sich: der ts-rest-Contract-Router, der
+ * Express-Wrapper unten (der noch `text/default` und die deprecated
+ * `*_claude`-Aliasse bedient) und die In-Process-Aufrufer. Solange alle drei
+ * hierdurch serialisieren, können Contract-Antwort und Alias-Antwort nicht
+ * auseinanderlaufen — genau das prüft `wireBody.vitest.ts` gegen die
+ * Zod-Schemata aus `@gruenerator/contracts`.
+ *
+ * Der Top-Level-Key wechselt pro Typ (`mainSlogan`/`mainInfo`/…). Das ist
+ * eingefrorene Drahtform (F0): ausgelieferte Mobile-Binaries lesen diese
+ * Namen. Bei `zitat`/`zitat_pure` ist `main` ein String, kein Objekt.
+ */
+export function toSharepicTextWireBody(
+  result: Extract<UnifiedTextResult, { success: true }>,
+  type: string,
+  name: string
+): Record<string, unknown> {
   const response: Record<string, unknown> = {
     success: true,
     [result.mainKey]: result.main,
@@ -430,8 +489,24 @@ export async function handleUnifiedRequest(
 
   if (type === 'zitat' || type === 'zitat_pure') {
     response.quote = result.main;
-    response.name = req.body.name || '';
+    response.name = name;
   }
 
-  res.json(response);
+  return response;
+}
+
+/** Thin Express wrapper around `generateUnifiedTexts` — response JSON unchanged. */
+export async function handleUnifiedRequest(
+  req: SharepicRequest,
+  res: Response,
+  type: string
+): Promise<void> {
+  const result = await generateUnifiedTexts(type, req.body);
+
+  if (!result.success) {
+    res.status(result.status).json({ success: false, error: result.error });
+    return;
+  }
+
+  res.json(toSharepicTextWireBody(result, type, req.body.name || ''));
 }

@@ -46,15 +46,17 @@ export const notebookAccessSourceSchema = z.enum(['owned', 'shared', 'authentica
 export type NotebookAccessSource = z.infer<typeof notebookAccessSourceSchema>;
 
 /**
- * Experimental: Wolke folder attached to a notebook.
+ * Wolke folder attached to a notebook.
  *
  * Persisted inside `settings.wolke_folders` (JSONB on `notebook_collections`).
  * On HTTP body the field name is snake_case (`wolke_folders`) to match the rest
  * of the collection contract; the inner object keeps camelCase because the
  * payload is opaque to Postgres.
  *
- * Sync is manual today (button on the editor card). The persisted pointer is
- * the foundation a future auto-sync follow-up needs.
+ * Sync runs both ways: manually (button on the editor card) and hourly via
+ * `WolkeWatchService` + the pending-files panel, which the persisted pointer
+ * was built for. (This comment used to call that follow-up "future"; it
+ * shipped.)
  */
 export const wolkeFolderRefSchema = z.object({
   shareLinkId: z.string(),
@@ -62,6 +64,14 @@ export const wolkeFolderRefSchema = z.object({
   folderPath: z.string(),
   folderName: z.string(),
   lastSyncedAt: z.string().nullable().optional(),
+  /**
+   * Pull files out of subfolders too, down to WOLKE_MAX_WALK_DEPTH levels.
+   * Optional and defaulting to off: recursion costs a download, an OCR call and
+   * an embedding run per file, and folders like a 173 MB backup directory are
+   * exactly what nobody wants indexed by accident. Absent means false, so
+   * folders attached before this existed keep behaving as they did.
+   */
+  includeSubfolders: z.boolean().optional(),
 });
 export type WolkeFolderRef = z.infer<typeof wolkeFolderRefSchema>;
 
@@ -199,11 +209,79 @@ export const documentRecordSchema = z.object({
   source_type: z.string().nullish(),
   wolke_share_link_id: z.string().nullish(),
   status: z.string().nullish(),
+  /**
+   * Why a `status='failed'` document failed, lifted out of documents.metadata.
+   * Carried on the collection itself so reopening a notebook shows the same
+   * "Nicht durchsuchbar" marker the upload session showed — without it the
+   * failure was only ever visible until the editor was closed.
+   */
+  processing_error: z.string().nullish(),
+  /**
+   * Ob „Neu indexieren" das Original noch erreicht — nur Wolke-Dateien. Ein
+   * Upload ist `false` (seine Datei ist nach der Verarbeitung gelöscht), URL-
+   * und WordPress-Quellen auch (ein Neu-Crawl brächte keine Seitenzahlen).
+   */
+  reindexable: z.boolean().nullish(),
 });
 
 export const wolkeShareLinkSchema = z.object({
   id: z.string(),
 });
+
+/**
+ * Readiness of a notebook's corpus, derived from its documents — never stored.
+ * A persisted field would have to be written through the notebook's
+ * read-modify-write path and would drift exactly the way `document_count` does.
+ *
+ * `partial` and `failed` are kept apart because the remedy differs: `partial`
+ * still answers questions from the documents that made it, `failed` cannot.
+ */
+export const notebookIndexingStateSchema = z.enum([
+  'empty',
+  'indexing',
+  'partial',
+  'failed',
+  'ready',
+]);
+
+export type NotebookIndexingState = z.infer<typeof notebookIndexingStateSchema>;
+
+/**
+ * Derive a notebook's readiness from its document rows.
+ *
+ * Shared by the API (which knows `vector_count` and so can catch documents that
+ * report `completed` without ever having produced a vector) and the clients,
+ * which fall back to this when talking to a backend that predates
+ * `indexing_state`. Passing no `vector_count` simply trusts the status.
+ */
+export function deriveIndexingState(
+  documents: ReadonlyArray<{ status?: string | null; vector_count?: number | null }>
+): NotebookIndexingState {
+  if (documents.length === 0) return 'empty';
+
+  let pending = 0;
+  let ready = 0;
+  let failed = 0;
+
+  for (const doc of documents) {
+    const status = doc.status ?? 'completed';
+    if (status === 'uploaded' || status === 'processing' || status === 'pending') {
+      pending++;
+    } else if (status === 'failed') {
+      failed++;
+    } else if (status === 'completed' && doc.vector_count === 0) {
+      // Indexing reported success but left nothing searchable — for the reader
+      // this is indistinguishable from a failure, so name it one.
+      failed++;
+    } else {
+      ready++;
+    }
+  }
+
+  if (pending > 0) return 'indexing';
+  if (failed === 0) return 'ready';
+  return ready > 0 ? 'partial' : 'failed';
+}
 
 /**
  * TransformedCollection — the shape returned by GET /. Uses z.unknown() for
@@ -249,7 +327,25 @@ export const transformedCollectionSchema = z.object({
   access_source: notebookAccessSourceSchema.nullish(),
   slug_suffix: z.string().nullish(),
   creator_name: z.string().nullish(),
+  /**
+   * Derived server-side from the documents above (see deriveIndexingState).
+   * Nullish so responses from a backend predating this field still parse —
+   * clients fall back to deriving it themselves.
+   */
+  indexing_state: notebookIndexingStateSchema.nullish(),
+  indexing_counts: z
+    .object({
+      ready: z.number(),
+      indexing: z.number(),
+      failed: z.number(),
+      total: z.number(),
+    })
+    .nullish(),
 });
+
+/** The collection shape every client reads. Derive from this — never re-declare it. */
+export type TransformedCollection = z.infer<typeof transformedCollectionSchema>;
+export type NotebookDocumentRecord = z.infer<typeof documentRecordSchema>;
 
 // ── Response schemas ────────────────────────────────────────────────────────
 
@@ -298,6 +394,15 @@ export const createCollectionResponseSchema = z.object({
   message: z.string(),
 });
 
+/**
+ * What POST / returns — deliberately narrower than a listed collection (no
+ * `documents`, no `updated_at`). Exported so callers can type against the real
+ * shape instead of casting it up to the full record.
+ */
+export type CreatedNotebookCollection = z.infer<
+  typeof createCollectionResponseSchema
+>['collection'];
+
 export const updateCollectionResponseSchema = z.object({
   success: z.boolean(),
   message: z.string(),
@@ -320,6 +425,32 @@ export const searchResultItemSchema = z.object({
   excerpt: z.string(),
   score: z.number(),
 });
+
+/**
+ * `queued`: der Worker holt das Original und indexiert neu. `unavailable`: es
+ * gibt kein erreichbares Original mehr — nie still aus dem gespeicherten Text.
+ */
+export const reindexDocumentStatusSchema = z.enum(['queued', 'unavailable']);
+export type ReindexDocumentStatus = z.infer<typeof reindexDocumentStatusSchema>;
+
+export const reindexDocumentResponseSchema = z.object({
+  success: z.literal(true),
+  status: reindexDocumentStatusSchema,
+  message: z.string(),
+});
+export type ReindexDocumentResponse = z.infer<typeof reindexDocumentResponseSchema>;
+
+export const reindexNotebookResponseSchema = z.object({
+  success: z.literal(true),
+  /** Eingereiht oder schon in Arbeit — diese IDs kann der Client beobachten. */
+  queued: z.array(z.string()),
+  /** Quellen ohne erreichbares Original, übersprungen. */
+  unavailable: z.number(),
+  /** Quellen, deren Eigentümer*in der KI-Verarbeitung nicht zugestimmt hat. */
+  consent_missing: z.number(),
+  message: z.string(),
+});
+export type ReindexNotebookResponse = z.infer<typeof reindexNotebookResponseSchema>;
 
 export const simpleSuccessMessageSchema = z.object({
   success: z.boolean(),

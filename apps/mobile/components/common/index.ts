@@ -4,6 +4,18 @@ export { TextInput } from './TextInput';
 export { ImagePicker } from './ImagePicker';
 export { ProfileAvatar } from './ProfileAvatar';
 export { PulseLoader } from './PulseLoader';
+export {
+  SkeletonGroup,
+  SkeletonBar,
+  SkeletonCircle,
+  SkeletonLines,
+  SkeletonRows,
+  SkeletonTiles,
+  useSkeletonPulse,
+  useSkeletonColor,
+  type SkeletonSurface,
+  skeletonStyles,
+} from './Skeleton';
 export { MicButton } from './MicButton';
 export { Composer, useComposerEdge, type ComposerAccessory } from './Composer';
 export { ComposerShell, type ComposerVariant } from './ComposerShell';

@@ -147,12 +147,13 @@ export class EnrichedPersonSearchService {
       }
 
       // Hybrid search in bundestag_content
-      const searchResults: QdrantSearchResult[] = ((await qdrantClient.search('bundestag_content', {
-        vector: embedding,
+      const vectorHits = await qdrantClient.query('bundestag_content', {
+        query: embedding,
         limit: limit * 2,
         with_payload: true,
         score_threshold: 0.3,
-      })) ?? []) as QdrantSearchResult[];
+      });
+      const searchResults: QdrantSearchResult[] = (vectorHits.points ?? []) as QdrantSearchResult[];
 
       // Also do text search for exact name matches
       const textResults: QdrantScrollResult = ((await qdrantClient.scroll('bundestag_content', {

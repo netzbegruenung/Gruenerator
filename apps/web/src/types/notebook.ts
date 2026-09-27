@@ -4,11 +4,10 @@
 
 import {
   type LinkedDocRef,
+  type TransformedCollection,
   type WolkeFolderRef,
   type WordpressSiteRef,
 } from '@gruenerator/contracts';
-
-import type { Document } from './documents';
 
 /**
  * Wolke share link representation in notebook context
@@ -32,43 +31,16 @@ export type NotebookEditPolicy = 'owner_only' | 'group_admins' | 'all_members';
 export type NotebookAccessSource = 'owned' | 'shared' | 'authenticated';
 
 /**
- * Base notebook collection type representing a Q&A collection
+ * A notebook collection as the API returns it.
+ *
+ * Aliased to the contract schema rather than re-declared: the hand-written twin
+ * that used to live here had drifted — it required `view_count` and
+ * `public_url_token`, which the backend never sends, and offered a
+ * `selection_mode: 'mixed'` that exists nowhere else. Every call site had to be
+ * bridged with `as unknown as`, which is precisely how the two shapes managed
+ * to disagree unnoticed.
  */
-export interface NotebookCollection {
-  id: string;
-  user_id: string;
-  creator_name?: string | null;
-  name: string;
-  description?: string;
-  custom_prompt?: string;
-  is_public: boolean;
-  public_ownership?: NotebookPublicOwnership | null;
-  public_url_token?: string | null;
-  view_count: number;
-  last_accessed?: string;
-  auto_sync?: boolean;
-  remove_missing_on_sync?: boolean;
-  created_at: string;
-  updated_at: string;
-  document_count?: number;
-  documents?: Document[];
-  wolke_share_links?: WolkeShareLink[];
-  selection_mode?: 'documents' | 'wolke' | 'mixed';
-  labels?: string[];
-  wolke_folders?: WolkeFolderRef[];
-  linked_docs?: LinkedDocRef[];
-  wordpress_sites?: WordpressSiteRef[];
-  likes_count?: number;
-  share_mode?: NotebookShareMode | null;
-  edit_policy?: NotebookEditPolicy | null;
-  access_source?: NotebookAccessSource | null;
-  /**
-   * Stable 6-char tail used to build pretty URLs (`/notebooks/<name>-Ab3xK9`).
-   * Null only for legacy rows before the boot-time backfill has run; once
-   * present, never changes — renames rewrite the name prefix only.
-   */
-  slug_suffix?: string | null;
-}
+export type NotebookCollection = TransformedCollection;
 
 /**
  * Props for the NotebookList component
@@ -81,7 +53,6 @@ export interface NotebookListProps {
   onShareToGroup?: (id: string, name: string) => void;
   onView: (id: string) => void;
   loading?: boolean;
-  processingCollectionIds?: Set<string>;
   compact?: boolean;
 }
 
@@ -90,15 +61,23 @@ export interface NotebookListProps {
  */
 export interface NotebookCollectionInput {
   name: string;
-  description?: string;
-  custom_prompt?: string;
-  selectionMode?: 'documents' | 'wolke' | 'mixed';
+  // Nullable like the contract body they are sent as: these fields are routinely
+  // filled straight from a loaded collection (inline rename, hero edit), where a
+  // cleared description legitimately reads `null`.
+  description?: string | null;
+  custom_prompt?: string | null;
+  /**
+   * Tolerated as a plain string because it is usually copied off a collection,
+   * where the wire type is an open string. `profileApiService` narrows it to the
+   * two values the API accepts before sending.
+   */
+  selectionMode?: string | null;
   documents?: (string | number)[];
   wolkeShareLinks?: string[];
-  labels?: string[];
-  auto_sync?: boolean;
-  remove_missing_on_sync?: boolean;
-  is_public?: boolean;
+  labels?: string[] | null;
+  auto_sync?: boolean | null;
+  remove_missing_on_sync?: boolean | null;
+  is_public?: boolean | null;
   public_ownership?: NotebookPublicOwnership | null;
   wolkeFolders?: WolkeFolderRef[];
   linkedDocs?: LinkedDocRef[];

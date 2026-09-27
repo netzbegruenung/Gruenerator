@@ -19,6 +19,7 @@ import {
   simpleHash as hashString,
 } from '../../utils/validation/index.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
+import { rerankPipeline } from '../search/rerankPipeline.js';
 import { normalizeQuery, containsNormalized } from '../text/index.js';
 
 import {
@@ -57,6 +58,36 @@ import type {
   BaseSearchServiceOptions,
   MMROptions,
 } from './types.js';
+
+/**
+ * Abzug für Dokumente, deren Titel den gesuchten Begriff nicht trägt. Klein
+ * genug, dass er nur Gleichstände entscheidet — Dokumentscores laufen in einen
+ * Deckel bei 1.0, und dahinter steht sonst die Einfügereihenfolge.
+ */
+const NO_TITLE_MATCH_TIE_BREAK = 0.02;
+
+/**
+ * Unter dieser Poolgrösse lohnt der Cross-Encoder nicht — `rerankPipeline`
+ * überspringt bei ≤2 ohnehin, und bei drei Chunks entscheidet der Deckel je
+ * Dokument (10) sowieso nichts weg.
+ */
+const CHUNK_RERANK_MIN_POOL = 3;
+
+/**
+ * Wie viele Chunks der Cross-Encoder je Suche zu sehen bekommt.
+ *
+ * Drei Mal `CONTENT_MAX_CHUNKS_PER_DOC` (10), damit die Bewertung die
+ * Vorauswahl wirklich umsortieren kann statt sie nur zu bestätigen. Nach oben
+ * begrenzt, weil eine Anfrage sonst mit der Dokumentlänge wächst: ein
+ * 100-seitiges PDF liegt bei ~200 Chunks, und `RERANK_TIMEOUT_MS` sind 8 s für
+ * den ganzen Aufruf.
+ *
+ * Der Standard-`RERANK_INPUT_LIMIT` (16) passt hier nicht: er ist für
+ * DOKUMENT-Kandidaten gedacht. Live am 24.08.2026 hatte ein einzelnes
+ * 8-Seiten-PDF exakt 16 Chunks — die Decke wäre schon bei einer Datei bindend
+ * gewesen.
+ */
+const CHUNK_RERANK_POOL_MAX = 30;
 
 // Re-export SearchError for backward compatibility
 export { SearchError };
@@ -236,6 +267,7 @@ export class BaseSearchService {
           useRRF: options.useRRF ?? false,
           rrfK: options.rrfK ?? 60,
           recallLimit: options.recallLimit,
+          sparseQueryVector: options.sparseQueryVector,
         },
       });
 
@@ -245,9 +277,16 @@ export class BaseSearchService {
       }
 
       // Group and rank results with hybrid scoring
+      let rerankDegraded = false;
       const results = await this.groupAndRankHybridResults(chunks, options.limit ?? 10, query, {
         applyMMR: true,
         mmrLambda: 0.7,
+        ...(options.rerankChunks === true && {
+          rerankChunks: true,
+          onRerankDegraded: () => {
+            rerankDegraded = true;
+          },
+        }),
       });
 
       // Build response
@@ -277,6 +316,13 @@ export class BaseSearchService {
       }
 
       console.log(`[${this.serviceName}] Found ${results.length} hybrid results for: "${query}"`);
+      // NACH dem Cachen und auf einer Kopie: der Marker gilt für DIESEN Aufruf,
+      // nicht für die Antwort. `this.cache.set` legt oben dasselbe Objekt ab —
+      // ein späterer Cache-Treffer hat gar nicht rerankt und dürfte die Warnung
+      // kein zweites Mal auslösen.
+      if (rerankDegraded) {
+        return { ...response, metadata: { ...response.metadata, rerankDegraded: true } };
+      }
       return response;
     } catch (error) {
       const errorResponse: SearchResponse = this.errorHandler.handle(error as Error, {
@@ -291,9 +337,19 @@ export class BaseSearchService {
 
   /**
    * Generate query embedding with smart expansion support
+   *
+   * `options.queryVector` short-circuits this: a caller that already holds a
+   * query embedding gets it used verbatim. The only caller doing that is the
+   * embedding bake-off (`evals/retrieval/`), which measures a different
+   * embedder against this exact pipeline — see the field's doc comment in
+   * BaseSearchService/types.ts for why the seam sits here and not at the
+   * call sites.
+   *
    * @protected
    */
-  async generateQueryEmbedding(query: string, _options: SearchOptions = {}): Promise<number[]> {
+  async generateQueryEmbedding(query: string, options: SearchOptions = {}): Promise<number[]> {
+    const provided = options.queryVector;
+    if (Array.isArray(provided) && provided.length > 0) return provided;
     return await mistralEmbeddingService.generateQueryEmbedding(query);
   }
 
@@ -356,6 +412,8 @@ export class BaseSearchService {
           published_at: this.extractPublishedAt(chunk),
           source_url: chunk.url || undefined,
           source_id: chunk.source_id ?? null,
+          content_type_label: chunk.content_type_label ?? null,
+          source_name: chunk.source_name ?? null,
           chunks: [],
           maxSimilarity: 0,
           avgSimilarity: 0,
@@ -369,6 +427,8 @@ export class BaseSearchService {
       if (!docData.source_id && chunk.source_id) {
         docData.source_id = chunk.source_id;
       }
+      docData.content_type_label ??= chunk.content_type_label ?? null;
+      docData.source_name ??= chunk.source_name ?? null;
       if (!docData.published_at) {
         const pub = this.extractPublishedAt(chunk);
         if (pub) docData.published_at = pub;
@@ -456,6 +516,8 @@ export class BaseSearchService {
         published_at: doc.published_at ?? null,
         source_url: doc.source_url,
         source_id: doc.source_id ?? null,
+        content_type_label: doc.content_type_label ?? null,
+        source_name: doc.source_name ?? null,
         relevant_content: relevantContent,
         similarity_score: enhancedScore.finalScore - noTermMatchPenalty,
         max_similarity: enhancedScore.maxSimilarity,
@@ -468,14 +530,19 @@ export class BaseSearchService {
           chunk_index: tc.chunk_index,
           content_type: tc.content_type ?? null,
           page_number: tc.page_number ?? null,
+          chunk_type: tc.chunk_type ?? null,
           quality_score: typeof tc.quality_score === 'number' ? tc.quality_score : null,
           has_term: !!tc.has_term,
+          char_start: tc.char_start ?? null,
+          char_end: tc.char_end ?? null,
           preview:
             normQuery && tc.has_term
               ? extractMatchedExcerpt(tc.text, query, contentConfig.maxExcerptLength)
               : this.extractRelevantExcerpt(tc.text),
+          text: tc.text,
         })),
         chunk_count: doc.chunks.length,
+        term_chunk_count: doc.chunks.filter((c) => c.has_term).length,
         relevance_info: this.buildRelevanceInfo(doc, enhancedScore),
       };
     });
@@ -675,6 +742,9 @@ export class BaseSearchService {
       text: rawChunk.chunk_text,
       content_type: rawChunk.content_type ?? rawChunk.metadata?.content_type,
       page_number: rawChunk.page_number ?? rawChunk.metadata?.page_number,
+      chunk_type: rawChunk.chunk_type ?? rawChunk.metadata?.chunk_type,
+      char_start: rawChunk.char_start ?? null,
+      char_end: rawChunk.char_end ?? null,
       similarity: rawChunk.similarity || 0,
       token_count: rawChunk.token_count,
     };
@@ -715,6 +785,86 @@ export class BaseSearchService {
    * Group and rank hybrid search results
    * @protected
    */
+
+  /**
+   * Cross-Encoder auf die CHUNKS — vor der Gruppierung.
+   *
+   * Danach gibt es nichts mehr zu reranken: die Gruppierung verschmilzt alle
+   * Chunks eines Dokuments zu EINEM Treffer, und `rerankPipeline` überspringt
+   * bei zwei oder weniger Items. Ein Turn mit einem angehängten PDF hat genau
+   * ein Item — deshalb hat der Loop-Pfad nie einen Cross-Encoder gesehen,
+   * obwohl `rerankPipeline` seit Langem im Haus ist.
+   *
+   * Was hier bewertet wird, entscheidet, welche Chunks `slice(0, maxN)`
+   * überleben und in welcher Reihenfolge sie im Treffer stehen — und weil der
+   * Registry-Deckel den Schwanz abschneidet, ist die Reihenfolge die Auswahl.
+   * Live am 24.08.2026: 16 Chunks, die Frage nach den Löschfristen, und die
+   * Tabelle mit den acht Zeilen landete nicht vorn.
+   *
+   * Bewusst NICHT auf dem gruppierten Treffer: `rerankNode` schneidet
+   * Kandidaten auf `RERANK_EXCERPT_CHARS` (1200), ein 15 000 Zeichen langer
+   * Dokument-Treffer würde also wieder nach seinem Kopf beurteilt. Genau das
+   * hat `firstRelevantOffset` in #2289 widerlegt (3219/9966/8673).
+   *
+   * Rückfall ist überall das heutige Verhalten: `null` heisst „nach Kosinus
+   * sortieren wie bisher". `rerankPipeline` wirft nicht — bei Regolo-Ausfall
+   * kommt die Eingabereihenfolge zurück, und die Kosinus-Reihenfolge ist genau
+   * das.
+   */
+  protected async scoreChunksByCrossEncoder(
+    chunks: TransformedChunk[],
+    query: string
+  ): Promise<{ scores: Map<number, number> | null; failed: boolean }> {
+    if (!query.trim() || chunks.length <= CHUNK_RERANK_MIN_POOL) {
+      // Nicht bestellt bzw. zu wenig Material — kein Ausfall.
+      return { scores: null, failed: false };
+    }
+
+    // Grösser als der Pool ist keine Option: was nicht bewertet wird, müsste im
+    // selben Sortierschritt gegen bewertete Chunks antreten, und die zwei
+    // Skalen sind nicht vergleichbar. Über der Decke bleibt es deshalb bei der
+    // Vorauswahl nach Kosinus — dieselbe, die heute schon bei 10 zuschlägt,
+    // nur drei Mal so weit.
+    const pool = chunks
+      .map((chunk, index) => ({
+        index,
+        data: this.extractChunkData(chunk),
+        // Der Dokumenttitel, nicht der des Chunks — den gibt es nicht. Bei
+        // einem einzelnen Anhang ist er für alle gleich und trägt nichts bei;
+        // bei mehreren gibt er dem Encoder, aus welcher Datei die Stelle kommt.
+        title: this.extractDocumentTitle(chunk),
+      }))
+      .sort((a, b) => (b.data.similarity || 0) - (a.data.similarity || 0))
+      .slice(0, CHUNK_RERANK_POOL_MAX);
+
+    const { rankedIndices, scores, failed } = await rerankPipeline({
+      query,
+      items: pool.map((entry) => ({
+        title: entry.title ?? '',
+        // Ungekürzt: ein Chunk ist ~1400 Zeichen, der Encoder sieht ihn ganz.
+        content: entry.data.text ?? '',
+        relevance: entry.data.similarity ?? undefined,
+      })),
+      // Bewerten, nicht auswählen: die Auswahl trifft danach `maxChunksPerDocument`
+      // je Dokument. Ein `outputLimit` hier würde quer über alle Dokumente
+      // schneiden und bei mehreren Anhängen eines ganz verschwinden lassen.
+      inputLimit: pool.length,
+      outputLimit: pool.length,
+      minRelevance: 0,
+      applyDiversity: false,
+    });
+
+    // Eine leere Rangfolge ist so gut wie ein Fehlschlag: bewertet wurde nichts.
+    if (failed || rankedIndices.length === 0) return { scores: null, failed: true };
+
+    const byChunkIndex = new Map<number, number>();
+    for (const [poolIndex, entry] of pool.entries()) {
+      const score = scores.get(poolIndex);
+      if (score != null) byChunkIndex.set(entry.index, score);
+    }
+    return { scores: byChunkIndex.size > 0 ? byChunkIndex : null, failed: false };
+  }
+
   async groupAndRankHybridResults(
     chunks: TransformedChunk[],
     limit: number,
@@ -725,8 +875,19 @@ export class BaseSearchService {
     const normQuery = normalizeQuery(query);
     const isShortQuery = (query || '').trim().split(/\s+/).filter(Boolean).length <= 2;
 
+    // Opt-in, weil `groupAndRankHybridResults` von Anhängen, Notebooks,
+    // Grundsatz- und LV-Sammlungen gemeinsam benutzt wird. Notebook und
+    // Recherche reranken danach ohnehin auf Dokumentebene; der Anhang-Pfad ist
+    // der einzige, bei dem das nichts bringt, weil dort nur EIN Dokument steht.
+    const rerankOutcome = options.rerankChunks
+      ? await this.scoreChunksByCrossEncoder(chunks, query)
+      : null;
+    const rerankScores = rerankOutcome?.scores ?? null;
+    // Nach oben gemeldet, nicht behandelt: `null` sortiert weiter wie bisher.
+    if (rerankOutcome?.failed) options.onRerankDegraded?.();
+
     // Group chunks by document with hybrid metadata
-    for (const chunk of chunks) {
+    for (const [poolIndex, chunk] of chunks.entries()) {
       const docId = this.extractDocumentId(chunk);
 
       if (!documentMap.has(docId)) {
@@ -738,6 +899,8 @@ export class BaseSearchService {
           published_at: this.extractPublishedAt(chunk),
           source_url: chunk.url || undefined,
           source_id: chunk.source_id ?? null,
+          content_type_label: chunk.content_type_label ?? null,
+          source_name: chunk.source_name ?? null,
           chunks: [],
           maxSimilarity: 0,
           avgSimilarity: 0,
@@ -747,6 +910,7 @@ export class BaseSearchService {
             searchMethods: new Set<string>(),
             vectorScores: [],
             textScores: [],
+            denseJoinScores: [],
           },
         });
       }
@@ -758,17 +922,22 @@ export class BaseSearchService {
       if (!docData.source_id && chunk.source_id) {
         docData.source_id = chunk.source_id;
       }
+      docData.content_type_label ??= chunk.content_type_label ?? null;
+      docData.source_name ??= chunk.source_name ?? null;
       const chunkData = this.extractChunkData(chunk);
 
       // Lexical-aware adjustments
       const hasTerm = normQuery ? containsNormalized(chunkData.text, normQuery) : false;
       const isTOC = looksLikeTOC(chunkData.text);
       const inHeader = chunkData.content_type === 'heading';
+      // Der Cross-Encoder ersetzt die Basis, nicht die Zuschläge: er urteilt
+      // besser über Relevanz, weiss aber nichts über Inhaltsverzeichnisse. Die
+      // Begriffs-Boni bleiben als Gleichstand-Entscheider stehen — sie sind
+      // gegen die Blindheit des Bi-Encoders für exakte Treffer gebaut und
+      // damit teilweise redundant, aber 0,12 kippt keine echte Rangfolge.
+      const base = rerankScores?.get(poolIndex) ?? chunkData.similarity ?? 0;
       const adjusted =
-        (chunkData.similarity || 0) +
-        (hasTerm ? 0.12 : 0) +
-        (hasTerm && inHeader ? 0.06 : 0) -
-        (isTOC ? 0.08 : 0);
+        base + (hasTerm ? 0.12 : 0) + (hasTerm && inHeader ? 0.06 : 0) - (isTOC ? 0.08 : 0);
 
       chunkData.similarity_adjusted = adjusted;
       chunkData.has_term = hasTerm;
@@ -779,6 +948,10 @@ export class BaseSearchService {
         (chunk as TransformedChunk & { originalVectorScore?: number }).originalVectorScore ?? null;
       chunkData.originalTextScore =
         (chunk as TransformedChunk & { originalTextScore?: number }).originalTextScore ?? null;
+      // #3166 Fix-Runde 1: NUR aus dem server-seitigen Score-Join, siehe
+      // `ChunkData.denseSimilarityScore`. Nicht mit `originalVectorScore`
+      // verwechseln — das trägt auf JEDEM Pfad einen echten Kosinus.
+      chunkData.denseSimilarityScore = chunk.denseSimilarityScore ?? null;
 
       docData.chunks.push(chunkData);
 
@@ -797,6 +970,9 @@ export class BaseSearchService {
           docData.hybridMetadata.hasTextMatch = true;
           docData.hybridMetadata.textScores.push(chunkData.originalTextScore);
         }
+        if (chunkData.denseSimilarityScore != null) {
+          docData.hybridMetadata.denseJoinScores.push(chunkData.denseSimilarityScore);
+        }
       }
     }
 
@@ -811,6 +987,19 @@ export class BaseSearchService {
         noTermMatchPenalty = doc.maxSimilarity >= 0.7 ? 0.05 : 0.12;
       }
 
+      // Document scores saturate: the aggregation caps at 1.0 and several
+      // documents reach it, after which their order is whatever the map
+      // happened to yield. Measured on "Nationalpark", four documents shared
+      // 1.000 and the one actually titled "Nationalpark Berchtesgaden" landed
+      // fourth. A title carrying the search term is the natural tie-breaker,
+      // so everything else gives up a sliver. Small enough that it only ever
+      // decides a near-tie, and only for short queries — in a sentence-long
+      // question the words in a title say much less.
+      const titleTieBreak =
+        normQuery && isShortQuery && !containsNormalized(doc.title || '', normQuery)
+          ? NO_TITLE_MATCH_TIE_BREAK
+          : 0;
+
       doc.chunks.sort(
         (a, b) => (b.similarity_adjusted ?? b.similarity) - (a.similarity_adjusted ?? a.similarity)
       );
@@ -823,6 +1012,7 @@ export class BaseSearchService {
           searchMethods: new Set<string>(),
           vectorScores: [],
           textScores: [],
+          denseJoinScores: [],
         }
       );
 
@@ -864,8 +1054,22 @@ export class BaseSearchService {
         published_at: doc.published_at ?? null,
         source_url: doc.source_url,
         source_id: doc.source_id ?? null,
+        content_type_label: doc.content_type_label ?? null,
+        source_name: doc.source_name ?? null,
         relevant_content: relevantContent,
-        similarity_score: Math.max(0, enhancedScore.finalScore - noTermMatchPenalty),
+        similarity_score: Math.max(
+          0,
+          enhancedScore.finalScore - noTermMatchPenalty - titleTieBreak
+        ),
+        // #3166 Fix-Runde 1: `denseJoinScores`, nicht `vectorScores` — die
+        // beiden Arrays sehen ähnlich aus, aber `vectorScores` füllt sich auf
+        // JEDEM Pfad (Alt-Fusion trägt einen echten Kosinus pro Chunk), nur
+        // `denseJoinScores` bleibt auf dem Alt-Pfad leer. Siehe
+        // `HybridMetadata.denseJoinScores` und `DocumentResult.dense_similarity_score`.
+        dense_similarity_score:
+          doc.hybridMetadata && doc.hybridMetadata.denseJoinScores.length > 0
+            ? Math.max(...doc.hybridMetadata.denseJoinScores)
+            : null,
         max_similarity: enhancedScore.maxSimilarity,
         avg_similarity: enhancedScore.avgSimilarity,
         position_score: enhancedScore.positionScore,
@@ -877,14 +1081,21 @@ export class BaseSearchService {
           chunk_index: tc.chunk_index,
           content_type: tc.content_type ?? null,
           page_number: tc.page_number ?? null,
+          chunk_type: tc.chunk_type ?? null,
           quality_score: typeof tc.quality_score === 'number' ? tc.quality_score : null,
           has_term: !!tc.has_term,
+          char_start: tc.char_start ?? null,
+          char_end: tc.char_end ?? null,
           preview:
             normQuery && tc.has_term
               ? extractMatchedExcerpt(tc.text, query, contentConfig.maxExcerptLength)
               : this.extractRelevantExcerpt(tc.text),
+          text: tc.text,
         })),
         chunk_count: doc.chunks.length,
+        // Über alle Chunks im Pool, nicht über `topChunks` — die schneiden bei
+        // `maxChunksPerDocument` ab und würden bei 10 stehen bleiben.
+        term_chunk_count: doc.chunks.filter((c) => c.has_term).length,
         search_methods: searchMethods,
         hybrid_metadata: {
           hasVectorMatch: doc.hybridMetadata?.hasVectorMatch || false,
@@ -1016,6 +1227,10 @@ export class BaseSearchService {
       limit: params.options?.limit,
       threshold: params.options?.threshold,
       searchType: (params as { searchType?: string }).searchType,
+      // Ohne dies teilten ein reranktes und ein unrerranktes Ergebnis denselben
+      // Eintrag: `limit`/`threshold`/`filters` sind für beide identisch, nur
+      // die Rangfolge unterscheidet sich.
+      rerankChunks: params.options?.rerankChunks === true,
     };
 
     return `${this.serviceName}:${this.simpleHash(JSON.stringify(keyData))}`;
@@ -1085,6 +1300,7 @@ export class BaseSearchService {
         text: chunk.chunk_text,
         content_type: chunk.content_type ?? chunk.metadata?.content_type,
         page_number: chunk.page_number ?? chunk.metadata?.page_number,
+        chunk_type: chunk.chunk_type ?? chunk.metadata?.chunk_type,
         similarity:
           (chunk as RawChunk & { similarity_adjusted?: number }).similarity_adjusted ??
           chunk.similarity ??
@@ -1125,10 +1341,14 @@ export class BaseSearchService {
           chunk_index: tc.chunk_index,
           content_type: tc.content_type ?? null,
           page_number: tc.page_number ?? null,
+          chunk_type: tc.chunk_type ?? null,
           quality_score: typeof tc.quality_score === 'number' ? tc.quality_score : null,
           preview: BaseSearchService.extractExcerpt(tc.text, 300),
+          text: tc.text,
         })),
         chunk_count: doc.chunks.length,
+        // Dieser Pfad bewertet nicht lexikalisch, es gibt also kein `has_term`.
+        term_chunk_count: 0,
         relevance_info: `Found ${doc.chunks.length} relevant sections in "${doc.title}"`,
       };
     });

@@ -1,37 +1,32 @@
+import { checkCloudShareLink, parseCloudShareLink } from '@gruenerator/shared/utils';
+
 import { type ParsedShareLink, type ShareLink, type ShareLinkValidationResult } from '../types';
 
+/**
+ * Die Zerlegung liegt in `@gruenerator/shared/utils` — dieselbe, die das Backend
+ * benutzt. Hier bleibt nur der deutsche Wortlaut, weil er im Einrichtungs-
+ * Assistenten steht.
+ */
 export function validateShareLink(url: string): ShareLinkValidationResult {
-  if (!url || typeof url !== 'string') {
-    return { isValid: false, error: 'Share link ist erforderlich' };
+  const check = checkCloudShareLink(url);
+  if (check.ok) {
+    return {
+      isValid: true,
+      shareToken: check.parsed.shareToken,
+      baseUrl: check.parsed.baseUrl,
+      error: null,
+    };
   }
-
-  const parsed = parseShareLink(url);
-  if (!parsed) {
-    return { isValid: false, error: 'Ungültiges Nextcloud Share-Link Format' };
-  }
-
-  return {
-    isValid: true,
-    shareToken: parsed.shareToken,
-    baseUrl: parsed.baseUrl,
-    error: null,
+  const errors: Record<typeof check.problem, string> = {
+    empty: 'Share link ist erforderlich',
+    not_a_url: 'Ungültiges Nextcloud Share-Link Format',
+    no_share_token: 'Ungültiges Nextcloud Share-Link Format',
   };
+  return { isValid: false, error: errors[check.problem] };
 }
 
 export function parseShareLink(url: string): ParsedShareLink | null {
-  try {
-    const urlObj = new URL(url);
-    const pathMatch = urlObj.pathname.match(/\/s\/([A-Za-z0-9]+)/);
-    if (!pathMatch?.[1]) return null;
-
-    return {
-      baseUrl: `${urlObj.protocol}//${urlObj.host}`,
-      shareToken: pathMatch[1],
-      fullPath: urlObj.pathname + urlObj.search,
-    };
-  } catch {
-    return null;
-  }
+  return parseCloudShareLink(url);
 }
 
 export function generateDisplayName(

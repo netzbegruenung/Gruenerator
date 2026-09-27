@@ -1,6 +1,10 @@
+import { isAiConsentRequiredBody } from '@gruenerator/contracts';
+import { postToNativeHost } from '@gruenerator/shared';
 import {
   createApiClient,
   getApiLocale,
+  notifyAiConsentRequired,
+  rejectAbortedResponse,
   setApiLocale,
   setGlobalApiClient,
 } from '@gruenerator/shared/api';
@@ -18,7 +22,7 @@ import { captureAuthIssue } from '../../lib/observability/captureAuthIssue';
 import { sessionDebug } from '../../lib/sessionDebug';
 import { buildLoginUrl, isPublicPage } from '../../utils/authRedirect';
 import { getDesktopToken } from '../../utils/desktopAuth';
-import { isDesktopApp } from '../../utils/platform';
+import { isDesktopApp, isEmbedded } from '../../utils/platform';
 
 // Module-level flag to suppress 401 redirects during logout.
 // Set by authStore.logout() to prevent redirect loops.
@@ -74,9 +78,16 @@ const PROBE_CACHE_TTL_MS = 5_000;
 
 type ProbeVerdict = 'alive' | 'dead' | 'indeterminate';
 
+// How the probe arrived at its verdict. Only the dead-verdict values are
+// interesting downstream: they separate "the auth backend rejected the
+// credential outright" from "it answered 200 with an empty session twice",
+// which are different failure modes wearing the same teardown.
+type ProbeDetail = 'probe-401' | 'confirmed-no-user' | 'alive' | 'infra';
+
 interface ProbeState {
   timestamp: number;
   verdict: ProbeVerdict;
+  detail: ProbeDetail;
 }
 
 let probeInFlight: Promise<ProbeVerdict> | null = null;
@@ -153,13 +164,18 @@ function sleep(ms: number): Promise<void> {
  * Caches the verdict for 5s to collapse 401 cascades across routes.
  */
 export async function probeSessionVerdict(): Promise<ProbeVerdict> {
-  // Return cached result if recent.
+  // Return cached result if recent. `age >= 0` is not pedantry: a backward
+  // wall-clock jump (sleep/resume + NTP) makes `age` negative, which passes a
+  // bare `< TTL` check forever — pinning whatever verdict was cached before
+  // the jump for the rest of the page's life. Cached 'dead' would then keep
+  // tearing the session down after a successful re-login.
   const now = Date.now();
-  if (lastProbe && now - lastProbe.timestamp < PROBE_CACHE_TTL_MS) {
+  const cachedAgeMs = lastProbe ? now - lastProbe.timestamp : Number.NaN;
+  if (lastProbe && cachedAgeMs >= 0 && cachedAgeMs < PROBE_CACHE_TTL_MS) {
     sessionDebug('probe.start', {
       cached: true,
       cachedVerdict: lastProbe.verdict,
-      cachedAgeMs: now - lastProbe.timestamp,
+      cachedAgeMs,
     });
     return lastProbe.verdict;
   }
@@ -175,6 +191,7 @@ export async function probeSessionVerdict(): Promise<ProbeVerdict> {
   probeInFlight = (async (): Promise<ProbeVerdict> => {
     const startedAt = Date.now();
     let verdict: ProbeVerdict;
+    let detail: ProbeDetail;
     let first: SessionProbeResult | undefined;
     let confirmed: SessionProbeResult | undefined;
     try {
@@ -182,14 +199,17 @@ export async function probeSessionVerdict(): Promise<ProbeVerdict> {
 
       if (first.outcome === 'alive') {
         verdict = 'alive';
+        detail = 'alive';
       } else if (first.outcome === 'unauthorized') {
         // A definitive 401/403 from the probe itself proves the session is
         // dead — no ambiguity to confirm.
         verdict = 'dead';
+        detail = 'probe-401';
       } else if (first.outcome === 'error') {
         // Timeout, network error, or 5xx (e.g. auth_unavailable while Redis
         // is down) is an infra signal, not a session signal.
         verdict = 'indeterminate';
+        detail = 'infra';
       } else {
         // '200 with no user' — the ambiguous case. Re-confirm once after a
         // short delay before treating it as definitive death.
@@ -197,21 +217,25 @@ export async function probeSessionVerdict(): Promise<ProbeVerdict> {
         confirmed = await fetchSessionProbe();
         if (confirmed.outcome === 'alive') {
           verdict = 'alive';
+          detail = 'alive';
         } else if (confirmed.outcome === 'no-user' || confirmed.outcome === 'unauthorized') {
           verdict = 'dead';
+          detail = 'confirmed-no-user';
         } else {
           // Second attempt errored — never confirmed. Don't log out on an
           // unconfirmed, possibly-transient signal.
           verdict = 'indeterminate';
+          detail = 'infra';
         }
       }
     } finally {
       probeInFlight = null;
     }
 
-    lastProbe = { timestamp: Date.now(), verdict };
+    lastProbe = { timestamp: Date.now(), verdict, detail };
     sessionDebug('probe.verdict', {
       verdict,
+      detail,
       httpStatus: first?.httpStatus,
       hasUserInBody: first?.hasUserInBody ?? false,
       confirmOutcome: confirmed?.outcome,
@@ -339,27 +363,83 @@ function markBackendDeadSession(): void {
   }
 }
 
-function performLoginRedirect(source: string): void {
+/**
+ * Does `ts` count as a redirect that happened inside the breaker window?
+ *
+ * The `ts <= now` half is the load-bearing one. `now - ts < WINDOW` alone is
+ * ALSO true for every timestamp in the FUTURE, and the counter lives in
+ * sessionStorage — which survives reloads, browser-restart tab restore and
+ * tab duplication. So a single backward jump of the wall clock (a laptop
+ * resuming from sleep and taking an NTP correction, a DST change, a manual
+ * clock fix) freezes every entry written before the jump permanently inside
+ * the window: nothing ages them out, and neither of the two clearers fires
+ * on a dead session (`notifyAuthConfirmed` needs a successful auth, and the
+ * breaker's own reset needs a trip).
+ *
+ * The result is a counter that is pre-armed at 2. The next ordinary session
+ * expiry — one redirect, no loop — reports itself as a 3-redirect loop: the
+ * user is nuked to a bare /login instead of getting the `redirectTo` back,
+ * and GlitchTip records a `redirect-loop` that never looped
+ * (GRUENERATOR-DA). `useAuth` already rejects `> Date.now()` on every other
+ * persisted auth timestamp for exactly this reason; this counter was the one
+ * that did not.
+ */
+function isWithinBreakerWindow(ts: number, now: number): boolean {
+  return Number.isFinite(ts) && ts <= now && now - ts < CIRCUIT_BREAKER_WINDOW_MS;
+}
+
+function performLoginRedirect(source: string, code?: string): void {
   const now = Date.now();
-  const recent = readRedirectTimestamps()
-    .filter((ts) => now - ts < CIRCUIT_BREAKER_WINDOW_MS)
-    .concat(now);
+  const stored = readRedirectTimestamps();
+  const recent = stored.filter((ts) => isWithinBreakerWindow(ts, now)).concat(now);
   writeRedirectTimestamps(recent);
+  // How many stored entries were thrown away, and how far off they were. A
+  // negative age is the clock-skew signature above; a large positive one is an
+  // ordinary expired entry. Without this, a poisoned counter and a real loop
+  // arrive as the same event.
+  const discardedAges = stored
+    .filter((ts) => !isWithinBreakerWindow(ts, now))
+    .map((ts) => now - ts);
 
   const breakerTripped = recent.length >= CIRCUIT_BREAKER_THRESHOLD;
+  const probeDetail = lastProbe?.detail ?? 'unknown';
   sessionDebug('teardown.redirect', {
     source,
+    code,
+    probeDetail,
     redirectCount: recent.length,
     breakerTripped,
+    discardedAges,
   });
   // A session teardown is NEVER benign — this fires on every dead-session
   // redirect, not just circuit-breaker trips, closing the telemetry blind
   // spot where ordinary half-logged-in deaths went unreported. The attached
   // sessionDebug ring buffer carries the full lead-up.
+  //
+  // But "never benign" is not "always an incident": a session that expired
+  // under a background poller is the steady state, and reporting it at
+  // `error` alongside a redirect loop buried both in one undifferentiated
+  // issue. So the level tracks how anomalous the teardown actually is — a
+  // single, non-repeating redirect is a warning — while the tags and the
+  // split fingerprint keep every cause separately queryable. The genuinely
+  // pathological case (a live, unexpired session row that will not resolve)
+  // is detected where it is knowable: the backend's authMiddleware.
+  const isRoutineExpiry = !breakerTripped && recent.length === 1;
   captureAuthIssue({
     stage: 'session-teardown',
     cause: new Error(`session teardown via ${source}`),
-    extras: { source, redirectCount: recent.length, breakerTripped },
+    level: isRoutineExpiry ? 'warning' : 'error',
+    tags: {
+      'auth.source': source,
+      'auth.probe': probeDetail,
+      // `session_not_found` = the backend had a token and could not resolve it
+      // — the one worth chasing in the API log. `no_session_cookie` = no
+      // credential was sent at all, which IS the ordinary expiry route (the
+      // cookie lapsed client-side), so it reaches a teardown routinely.
+      'auth.401code': code ?? 'unknown',
+    },
+    fingerprintExtra: [source, probeDetail, code ?? 'unknown'],
+    extras: { source, code, probeDetail, redirectCount: recent.length, breakerTripped },
   });
 
   // Tell the login page WHY the user landed there. sessionStorage so it
@@ -390,13 +470,27 @@ function performLoginRedirect(source: string): void {
     sessionDebug('breaker.tripped', {
       redirectCount: recent.length,
       windowMs: CIRCUIT_BREAKER_WINDOW_MS,
+      redirectAges: recent.map((ts) => now - ts),
     });
     captureAuthIssue({
       stage: 'redirect-loop',
       cause: new Error(
         `Auth-redirect circuit breaker tripped: ${recent.length} redirects in ${CIRCUIT_BREAKER_WINDOW_MS}ms`
       ),
-      extras: { redirectCount: recent.length, windowMs: CIRCUIT_BREAKER_WINDOW_MS },
+      tags: { 'auth.source': source, 'auth.probe': probeDetail },
+      extras: {
+        redirectCount: recent.length,
+        windowMs: CIRCUIT_BREAKER_WINDOW_MS,
+        // Ages of the redirects that DID count, oldest first. A genuine loop
+        // shows three spread-out ages across page loads; a single redirect
+        // carrying poisoned neighbours shows two near-identical old ones and
+        // a 0.
+        redirectAges: recent.map((ts) => now - ts),
+        discardedAges,
+        source,
+        code,
+        probeDetail,
+      },
     });
     wipeAllAuthCaches();
     clearRedirectTimestamps();
@@ -431,15 +525,25 @@ export type UnauthorizedOutcome = 'retry' | 'logout' | 'stay';
  *                indeterminate (infra blip). Never log out on this — the caller
  *                should surface the error without redirecting.
  */
-export async function handleUnauthorized(source: string): Promise<UnauthorizedOutcome> {
+export async function handleUnauthorized(
+  source: string,
+  code?: string
+): Promise<UnauthorizedOutcome> {
   if (_isLoggingOut) return 'stay';
   const verdict = await probeSessionVerdict();
   if (verdict === 'alive') return 'retry';
   if (verdict === 'dead') {
     if (isPublicPage() || window.location.pathname === '/login') return 'stay';
+    if (isEmbedded()) {
+      // A login screen inside a pinned WebView is a dead end: the host shows
+      // exactly one page and blocks navigation, so the user could neither sign
+      // in nor get back. Hand it to the native host, which owns the session.
+      postToNativeHost({ type: 'SESSION_LOST' });
+      return 'logout';
+    }
     if (!redirectInFlight) {
       redirectInFlight = true;
-      performLoginRedirect(source);
+      performLoginRedirect(source, code);
     }
     return 'logout';
   }
@@ -461,6 +565,54 @@ const useCredentials: boolean = !isDesktopApp();
 //                via the latch), so the rejected promise just unblocks awaiters.
 //   - 'stay'   → return false WITHOUT redirect (logging out, public page, or an
 //                infra-blip indeterminate verdict), so an outage never logs out.
+/**
+ * A small JSON call must not inherit a timeout sized for the slowest upload.
+ *
+ * This never bounds a slow *server response*: nginx caps `location /api/` at
+ * `proxy_read_timeout 300s`, so the backend's own 504 always arrives first.
+ * What it bounds is a socket that stalls without ever erroring — laptop sleep,
+ * dropped Wi-Fi — which is how a `GET /auth/notebook-collections` sat pending
+ * for 15 minutes before failing (GlitchTip 613). TanStack Query retries twice
+ * behind this, so the old 900_000 could wedge a single read for ~45 minutes.
+ */
+const DEFAULT_TIMEOUT_MS = 60_000;
+
+/**
+ * Bulk transfers are bounded by payload size, not by server think time: nginx
+ * accepts bodies up to `client_max_body_size 500M`, and a blob response keeps
+ * streaming past the per-read timeout. Both can legitimately outlast
+ * DEFAULT_TIMEOUT_MS on a slow line.
+ *
+ * Applied by request *shape* (FormData body, blob response type) rather than by
+ * a list of endpoints, so a new upload or download route is covered the day it
+ * is written instead of the day someone remembers to add it to a table.
+ */
+const BULK_TRANSFER_TIMEOUT_MS = 900_000;
+
+/**
+ * For endpoints that do real work server-side: model calls, crawls, imports.
+ * Deliberately just *above* nginx's 300s cut, so the server's own 504 wins the
+ * race and the user gets "Der Server reagiert nicht" instead of a client-side
+ * abort carrying no status. Anything slower than this was already unreachable
+ * through nginx, so this is not a restriction — it is the real ceiling, named.
+ */
+export const SERVER_TASK_TIMEOUT_MS = 310_000;
+
+/**
+ * Widen the timeout for bulk transfers — but only when the caller left the
+ * default in place. An explicit per-request `timeout` is an opinion and wins;
+ * axios merges the instance default into `config` before interceptors run, so
+ * "still equal to the default" is the one honest signal that nobody chose.
+ */
+function widenTimeoutForBulkTransfer(config: InternalAxiosRequestConfig): void {
+  if (config.timeout !== DEFAULT_TIMEOUT_MS) return;
+  const isUpload = typeof FormData !== 'undefined' && config.data instanceof FormData;
+  const isDownload = config.responseType === 'blob';
+  if (isUpload || isDownload) {
+    config.timeout = BULK_TRANSFER_TIMEOUT_MS;
+  }
+}
+
 const sharedApiClient = createApiClient({
   baseURL,
   authMode: isDesktopApp() ? 'bearer' : 'cookie',
@@ -474,14 +626,18 @@ const sharedApiClient = createApiClient({
       requestId: info?.requestId,
       code: info?.code,
     });
-    const outcome = await handleUnauthorized('shared-401');
+    const outcome = await handleUnauthorized('shared-401', info?.code);
     if (outcome === 'retry') {
       sessionDebug('retry.after-probe', { stack: 'shared', endpoint: info?.url });
       return true;
     }
     return false;
   },
-  timeout: 900000,
+  timeout: DEFAULT_TIMEOUT_MS,
+});
+sharedApiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  widenTimeoutForBulkTransfer(config);
+  return config;
 });
 setGlobalApiClient(sharedApiClient);
 
@@ -506,7 +662,7 @@ setApiLocale(detectBrowserLocale());
 
 const apiClient = axios.create({
   baseURL: baseURL,
-  timeout: 900000,
+  timeout: DEFAULT_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -517,6 +673,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig): Promise<InternalAxiosRequestConfig> => {
     config.headers['X-User-Locale'] = getApiLocale();
+    widenTimeoutForBulkTransfer(config);
     // Desktop app uses JWT token from localStorage
     if (isDesktopApp()) {
       const token = await getDesktopToken();
@@ -549,10 +706,18 @@ apiClient.interceptors.request.use(
 //
 // Routes tagged `skipAuthRedirect: true` bypass the whole path.
 apiClient.interceptors.response.use(
-  (response: AxiosResponse) => response,
+  (response: AxiosResponse) => rejectAbortedResponse(response),
   async (error: AxiosError) => {
     const config = error.config;
     if (config?.skipAuthRedirect) {
+      return Promise.reject(error);
+    }
+
+    // Einwilligung fehlt: die Sitzung ist in Ordnung, nur der Zeitstempel im
+    // Store ist veraltet. Melden — AiConsentGate zeigt sich daraufhin selbst.
+    // Steht vor dem 401-Zweig, damit kein Abmelde-Pfad danebengreift.
+    if (error.response?.status === 403 && isAiConsentRequiredBody(error.response.data)) {
+      notifyAiConsentRequired();
       return Promise.reject(error);
     }
 
@@ -566,7 +731,7 @@ apiClient.interceptors.response.use(
         code: errorBody?.code,
         requestId: errorBody?.requestId ?? error.response.headers?.['x-request-id'],
       });
-      const outcome = await handleUnauthorized('legacy-axios-401');
+      const outcome = await handleUnauthorized('legacy-axios-401', errorBody?.code);
       if (outcome === 'retry' && config && !config._retried401) {
         config._retried401 = true;
         sessionDebug('retry.after-probe', { stack: 'legacy-axios', endpoint: config.url });
@@ -650,7 +815,9 @@ export const processText = async (
     const { onRetry, ...cleanFormData } = formData;
 
     const response = await retryWithExponentialBackoff(
-      () => apiClient.post<unknown>(endpoint, cleanFormData),
+      // The generator endpoints wait on a model, not on a transfer — they need
+      // more than the default a small JSON call gets.
+      () => apiClient.post<unknown>(endpoint, cleanFormData, { timeout: SERVER_TASK_TIMEOUT_MS }),
       0,
       onRetry
     );

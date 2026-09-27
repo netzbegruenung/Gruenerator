@@ -175,9 +175,15 @@ export const subtitlerProjectSchema = z.object({
   height_preference: z.string().nullish(),
   mode_preference: z.string().nullish(),
   style_settings: z.record(z.string(), z.unknown()).nullish(),
-  created_at: z.union([z.string(), z.date()]).nullish(),
-  updated_at: z.union([z.string(), z.date()]).nullish(),
-  last_edited_at: z.union([z.string(), z.date()]).nullish(),
+  // Strings, not `z.union([z.string(), z.date()])`. A `Date` cannot survive
+  // JSON, so the Date half never described anything that actually arrived — it
+  // only widened the type, and that is precisely the tolerance that let a
+  // mangled timestamp through on the shares path. The API serialises these
+  // explicitly (`toIsoProjectDates` in subtitlerContractRouter) instead of
+  // leaning on Express's implicit `JSON.stringify`.
+  created_at: z.string().nullish(),
+  updated_at: z.string().nullish(),
+  last_edited_at: z.string().nullish(),
   export_count: z.number().nullish(),
 });
 

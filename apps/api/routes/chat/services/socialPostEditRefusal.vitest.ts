@@ -14,12 +14,23 @@ vi.mock('../../../services/search/searchRetryStrategy.js', () => ({
   withRetry: (fn: () => Promise<unknown>) => fn(),
 }));
 
+// Nur die Formvorgabe wird gedoppelt: welcher Text sie liefert, ist die Frage
+// von `socialCraftGuidance.vitest.ts`, hier geht es um die Ablehnung.
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/socialMediaComposerNode.js', () => ({
   rubricForPlatform: () => '## RUBRIK',
+  craftGuidanceForPlatform: () => '## RUBRIK',
+}));
+
+// Der Sitz der Attrappe ist die Maschine, nicht der Client: der Editier-Pfad
+// geht über `aiText`, und das ruft `executeProvider` direkt.
+const executeProvider = vi.fn();
+vi.mock('../../../services/ai/execution/index.js', () => ({
+  executeProvider: (...args: unknown[]) => executeProvider(...args),
 }));
 
 const { handleSocialPostTextEdit, SOCIAL_EDIT_REFUSAL_TEXT } =
   await import('./socialPostEditService.js');
+const { CONTENT_INTEGRITY_POST_EDIT_RULES } = await import('../../../services/contentPolicy.js');
 
 const ORIGINAL_TEXT = 'Klimaschutz heißt bezahlbar wohnen. #Klimaschutz';
 
@@ -73,14 +84,12 @@ function makeSse() {
 }
 
 function runEdit(modelOutput: string, sse: ReturnType<typeof makeSse>['sse']) {
+  executeProvider.mockResolvedValue({ content: modelOutput, success: true, stop_reason: 'stop' });
   return handleSocialPostTextEdit({
     sse: sse as never,
     threadId: 't1',
     userId: 'u1',
     instruction: 'mach den Text empörter',
-    aiWorkerPool: {
-      processRequest: () => Promise.resolve({ success: true, content: modelOutput }),
-    } as never,
     startTime: 0,
   });
 }
@@ -97,6 +106,7 @@ describe('handleSocialPostTextEdit — model declines', () => {
   // mock itself, which it then calls as a teardown hook.
   beforeEach(() => {
     query.mockReset();
+    executeProvider.mockReset();
   });
 
   it('does NOT write a version when the model refuses', async () => {
@@ -129,6 +139,30 @@ describe('handleSocialPostTextEdit — model declines', () => {
     await runEdit('Dabei kann ich dir leider nicht helfen.', sse);
 
     expect(updates).toEqual([]);
+  });
+
+  it('reads the ABLEHNUNG marker the prompt asks for', async () => {
+    // A decline in a verb the prose detector does not know — the marker is
+    // what keeps it out of the version history.
+    const { updates } = wirePostgres();
+    const { sse, events } = makeSse();
+
+    await runEdit('ABLEHNUNG: Das wäre ein erfundenes Zitat über eine reale Person.', sse);
+
+    expect(updates).toEqual([]);
+    const delta = events.find((e) => e.type === 'text_delta')?.payload as { text: string };
+    expect(delta.text).toBe(SOCIAL_EDIT_REFUSAL_TEXT);
+  });
+
+  it('puts the content rules into the edit prompt', async () => {
+    wirePostgres();
+    const { sse } = makeSse();
+
+    await runEdit('Wohnen muss bezahlbar bleiben! #Klimaschutz', sse);
+
+    expect(JSON.stringify(executeProvider.mock.calls[0])).toContain(
+      JSON.stringify(CONTENT_INTEGRITY_POST_EDIT_RULES).slice(1, -1)
+    );
   });
 
   it('still applies a legitimate edit', async () => {

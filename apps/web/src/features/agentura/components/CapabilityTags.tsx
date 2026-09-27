@@ -1,6 +1,7 @@
 import { type Agent } from '@gruenerator/shared/agents';
 import { PiBookOpenText, PiMapPin, PiWrench } from 'react-icons/pi';
 
+import { hasKnowledge, toolCount } from '../lib/capabilities';
 import { isLandesverbandIdentifier, landesverbandLabel } from '../lib/lookups';
 
 interface CapabilityTagsProps {
@@ -15,19 +16,16 @@ interface Chip {
   label: string;
 }
 
-function toolCount(agent: Agent): number {
-  return (agent.enabledTools?.length ?? 0) + (agent.plugins?.length ?? 0);
-}
-
-function hasKnowledge(agent: Agent): boolean {
-  return Boolean(
-    (agent.defaultNotebookIds?.length ?? 0) > 0 ||
-    agent.toolRestrictions?.defaultCollection ||
-    (agent.toolRestrictions?.allowedCollections?.length ?? 0) > 0
-  );
-}
-
-/** Subtle "what can this agent do" chips — the Agentura analogue of a product's spec line. */
+/**
+ * Subtle "what can this agent do" chips — the Agentura analogue of a product's spec line.
+ *
+ * Zur Farbpaarung, die hier und an den übrigen neutralen Chips des Ordners
+ * steht: `text-foreground-muted` ist dunkel `#999999` und trägt auf dem
+ * Seitengrund (6,11:1), aber auf einer `grey-800`-Fläche (`#3a3a3a`) nur
+ * 3,99:1 — unter AA. Deshalb hebt `dark:text-grey-300` (`#bdbdbd`, 6,05:1) den
+ * Text nur dort an, wo er auf der Chip-Fläche sitzt. Nicht am Token drehen: das
+ * ist auf dem Seitengrund richtig, allein die Kombination kippt.
+ */
 export function CapabilityTags({ agent, showTags = false }: CapabilityTagsProps) {
   const chips: Chip[] = [];
 
@@ -49,7 +47,7 @@ export function CapabilityTags({ agent, showTags = false }: CapabilityTagsProps)
         return (
           <span
             key={chip.key}
-            className="inline-flex items-center gap-1 rounded-full bg-secondary-600/10 px-2 py-0.5 text-xs text-secondary-700 dark:text-secondary-300"
+            className="inline-flex items-center gap-1 rounded-full bg-grey-100 px-2 py-0.5 text-xs text-foreground-muted dark:bg-grey-800 dark:text-grey-300"
           >
             <Icon className="h-3 w-3" />
             {chip.label}
@@ -59,7 +57,7 @@ export function CapabilityTags({ agent, showTags = false }: CapabilityTagsProps)
       {tags.map((tag) => (
         <span
           key={tag}
-          className="inline-flex items-center rounded-full bg-grey-100 px-2 py-0.5 text-xs text-foreground-muted dark:bg-grey-800"
+          className="inline-flex items-center rounded-full bg-grey-100 px-2 py-0.5 text-xs text-foreground-muted dark:bg-grey-800 dark:text-grey-300"
         >
           {tag}
         </span>

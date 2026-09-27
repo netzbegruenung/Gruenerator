@@ -16,15 +16,26 @@
  */
 
 import {
+  type CustomPrompt,
+  type MentionableTextForm,
+  type MentionableUserAgent,
+  type TextForm,
+} from '@gruenerator/contracts';
+import { hasSystemRecipe } from '@gruenerator/shared/agents';
+import { isUnauthorizedError } from '@gruenerator/shared/api';
+
+import {
   setBoardMentionables,
   setCustomAgents,
   setDocMentionables,
   setMcpServerMentionables,
   setSheetMentionables,
   setTextforms,
+  setUserAgentMentionables,
   setUserNotebookMentionables,
   type CustomAgentMentionable,
   type TextformMentionable,
+  type UserAgentMentionable,
 } from './mentionables';
 
 /** Performs an authenticated GET and resolves the parsed body. */
@@ -46,11 +57,35 @@ export interface UserNotebookListItem {
   name: string;
 }
 
-export interface TextFormListItem {
-  kind: 'preset' | 'custom';
-  mention: string;
-  title: string;
-}
+/**
+ * The slice of `/api/text-forms` — the old-server fallback `syncTextforms`
+ * falls back to — this module reads, derived from the contract schema instead
+ * of retyped. Hand-narrowing it is how `sharedFromGroup` went missing: the
+ * field the picker splits recipes on was simply absent from the transport
+ * type, so nothing ever flagged that the mapping below dropped it (#2876).
+ *
+ * Die Rezept-Felder stehen als OPTIONAL darin, und das ist der Punkt: dieser
+ * Zweig läuft nur gegen einen ALTEN Server, dessen Zeilen `id`, `description`,
+ * `iconKey`, `ownerName` und `isPublic` gar nicht kennen. Der Contract-Typ
+ * behauptet sie, geliefert werden sie nicht — als `undefined` landeten sie in
+ * Feldern, die `| null` tragen, und das Mention-Menü zeigte Rezepte ohne
+ * Schlüssel. Bis 2026-12-18, dann fällt der Zweig weg.
+ */
+export type TextFormListItem = Pick<TextForm, 'kind' | 'mention' | 'title'> &
+  Partial<
+    Pick<TextForm, 'id' | 'description' | 'iconKey' | 'sharedFromGroup' | 'ownerName' | 'isPublic'>
+  >;
+
+/**
+ * The slice of `/api/auth/custom_prompts` and `/api/auth/saved_prompts` this
+ * module reads, derived from `customPromptSchema` for the same reason as
+ * `TextFormListItem`: the owner fields exist only on the saved-prompt rows, and
+ * a hand-written transport type is exactly what hid them before (#2876).
+ */
+export type CustomPromptListItem = Pick<
+  CustomPrompt,
+  'id' | 'name' | 'slug' | 'description' | 'owner_first_name' | 'owner_last_name'
+>;
 
 export interface McpServerListItem {
   id: string;
@@ -75,18 +110,46 @@ export function slugifyMention(value: string): string {
     .replace(/^-|-$/g, '');
 }
 
-/** The user's own plus saved custom agents, deduplicated by id (own wins). */
+/** `first_name last_name` from the saved-prompt join, `null` if it found none. */
+function ownerName(p: CustomPromptListItem): string | null {
+  const name = [p.owner_first_name, p.owner_last_name].filter(Boolean).join(' ').trim();
+  return name || null;
+}
+
+/**
+ * The user's own plus saved custom agents, deduplicated by id (own wins).
+ *
+ * Which endpoint an entry came from IS its origin: `/saved_prompts` lists
+ * prompts the user bookmarked from someone else's public prompt, so those get
+ * `savedFromOwner` and the picker stops filing them under "eigene". Own-wins
+ * dedup keeps a user's own public prompt out of that bucket even when they
+ * saved it themselves — it arrives from both endpoints and the first wins.
+ *
+ * A group origin is a different question and has no answer here: `custom_prompts`
+ * know a public directory and a bookmark, not group shares (#2909).
+ */
 export async function syncCustomAgents(get: MentionableFetch): Promise<CustomAgentMentionable[]> {
   const [ownPrompts, savedPrompts] = await Promise.all([
-    get<{ prompts?: CustomAgentMentionable[] }>('/auth/custom_prompts'),
-    get<{ prompts?: CustomAgentMentionable[] }>('/auth/saved_prompts'),
+    get<{ prompts?: CustomPromptListItem[] }>('/api/auth/custom_prompts'),
+    get<{ prompts?: CustomPromptListItem[] }>('/api/auth/saved_prompts'),
   ]);
   const seenIds = new Set<string>();
   const merged: CustomAgentMentionable[] = [];
-  for (const p of [...(ownPrompts?.prompts ?? []), ...(savedPrompts?.prompts ?? [])]) {
-    if (!seenIds.has(p.id)) {
+  const sources: Array<{ prompts: CustomPromptListItem[]; saved: boolean }> = [
+    { prompts: ownPrompts?.prompts ?? [], saved: false },
+    { prompts: savedPrompts?.prompts ?? [], saved: true },
+  ];
+  for (const source of sources) {
+    for (const p of source.prompts) {
+      if (seenIds.has(p.id)) continue;
       seenIds.add(p.id);
-      merged.push(p);
+      merged.push({
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        ...(p.description ? { description: p.description } : {}),
+        ...(source.saved ? { savedFromOwner: ownerName(p) } : {}),
+      });
     }
   }
   setCustomAgents(merged);
@@ -94,19 +157,124 @@ export async function syncCustomAgents(get: MentionableFetch): Promise<CustomAge
 }
 
 /**
+ * Grünerator-Agenten aus `user_agents` → mentionbare Einträge im Rezept-Menü.
+ *
+ * The third source of that section, beside the bundled recipes and the custom
+ * prompts — and the only one that can carry a GROUP origin. `custom_prompts`
+ * know a public directory and a bookmark, not group shares (#2909); agents are
+ * shared through `group_content_shares`, and the endpoint returns the user's
+ * own plus everything shared into a group they belong to.
+ *
+ * Discovery only. The backend already resolved these identifiers before this
+ * existed (`getAgentForUser`: own row → group share), so a mention that reaches
+ * the server was always going to work — it just could not be found in the
+ * picker. Anonymous users / no agents resolve to an empty list.
+ */
+export async function syncUserAgents(get: MentionableFetch): Promise<UserAgentMentionable[]> {
+  // Only a 401 resolves to an empty list, as in `syncUserNotebooks`: web does
+  // not gate this query on auth, so anonymous users must stay quiet — but a
+  // blanket catch would swallow a wrong path or a 500 forever AND make the
+  // query's `retry` dead code, since a rejected promise is what triggers it.
+  const res = await get<{ agents?: MentionableUserAgent[] }>('/api/user-agents/mentionable').catch(
+    (err: unknown) => {
+      if (isUnauthorizedError(err)) return { agents: [] };
+      throw err;
+    }
+  );
+  const list: UserAgentMentionable[] = Array.isArray(res?.agents)
+    ? res.agents.map((a) => ({
+        identifier: a.identifier,
+        title: a.title,
+        description: a.description,
+        avatar: a.avatar,
+        backgroundColor: a.backgroundColor,
+        ...(a.iconKey ? { iconKey: a.iconKey } : {}),
+        sharedFromGroup: a.sharedFromGroup,
+      }))
+    : [];
+  setUserAgentMentionables(list);
+  return list;
+}
+
+/** Shared field set of `MentionableTextForm` and `TextFormListItem` — the two
+ *  shapes `syncTextforms` maps from (new endpoint, old-server fallback). */
+type TextformSource = Pick<
+  MentionableTextForm,
+  | 'id'
+  | 'mention'
+  | 'title'
+  | 'description'
+  | 'iconKey'
+  | 'sharedFromGroup'
+  | 'ownerName'
+  | 'isPublic'
+>;
+
+function toTextformMentionable(f: TextformSource): TextformMentionable {
+  return {
+    id: f.id,
+    mention: f.mention,
+    title: f.title,
+    description: f.description,
+    iconKey: f.iconKey,
+    sharedFromGroup: f.sharedFromGroup,
+    ownerName: f.ownerName,
+    isPublic: f.isPublic,
+  };
+}
+
+/** Eine Zeile vom alten Endpunkt: die Mention trägt als id ein, was sie ohnehin
+ * ist (der Nachschlag geht über sie), der Rest fällt auf leer zurück. */
+function toLegacyTextformMentionable(f: TextFormListItem): TextformMentionable {
+  return toTextformMentionable({
+    id: f.id ?? f.mention,
+    mention: f.mention,
+    title: f.title,
+    description: f.description ?? null,
+    iconKey: f.iconKey ?? null,
+    sharedFromGroup: f.sharedFromGroup ?? null,
+    ownerName: f.ownerName ?? null,
+    isPublic: f.isPublic ?? false,
+  });
+}
+
+/**
  * User's custom text forms ("Texte anlernen") → per-form `/mention` skills.
  * Presets ride the existing system-skill mentions, so only custom forms surface
  * here. Anonymous users / no forms resolve to an empty list.
+ *
+ * `/api/text-forms/mentionable` already applies the kind filter (drops presets
+ * that ride a system recipe) and the own > group > public precedence
+ * server-side, so this only maps fields.
+ *
+ * Old-server fallback: a new web bundle can briefly meet an API that hasn't
+ * deployed the new endpoint yet during a rollout (mobile binaries in the wild
+ * talk to new servers, but a fresh web bundle can hit an old one for a few
+ * minutes). On failure, fall back once to `/api/text-forms` and re-apply the
+ * client-side kind filter this endpoint used to need. Remove this branch after
+ * 2026-12-18, once every deployed server has the new endpoint.
+ *
+ * Ausnahme ist das Preset, dessen Systemrezept es nicht gibt: `antrag` steht in
+ * `textFormTypeSchema`, aber in keiner `SKILLS`-Zeile. Es reitet also auf nichts,
+ * und ohne eigenen Eintrag war der angelernte Antrags-Stil im Chat gar nicht
+ * auswählbar — auf keinem Pfad (#2937). `hasSystemRecipe` entscheidet das
+ * strukturell, damit Backend-Katalog und Mention-Menü dieselbe Regel fahren.
  */
 export async function syncTextforms(get: MentionableFetch): Promise<TextformMentionable[]> {
-  const res = await get<{ forms?: TextFormListItem[] }>('/api/text-forms').catch(() => ({
-    forms: [],
-  }));
-  const list = Array.isArray(res?.forms)
-    ? res.forms
-        .filter((f) => f.kind === 'custom')
-        .map((f) => ({ mention: f.mention, title: f.title }))
-    : [];
+  let list: TextformMentionable[];
+  try {
+    const res = await get<{ forms?: MentionableTextForm[] }>('/api/text-forms/mentionable');
+    list = Array.isArray(res?.forms) ? res.forms.map(toTextformMentionable) : [];
+  } catch {
+    const res = await get<{ forms?: TextFormListItem[] }>('/api/text-forms').catch(() => ({
+      forms: [],
+    }));
+    list = Array.isArray(res?.forms)
+      ? res.forms
+          .filter((f) => f.kind === 'custom' || !hasSystemRecipe(f.mention))
+          .map(toLegacyTextformMentionable)
+      : [];
+  }
   setTextforms(list);
   return list;
 }
@@ -142,9 +310,15 @@ export async function syncDocs(get: MentionableFetch): Promise<DocListItem[]> {
 }
 
 export async function syncUserNotebooks(get: MentionableFetch): Promise<UserNotebookListItem[]> {
+  // Only a 401 resolves to an empty list — web doesn't gate this query on auth,
+  // so anonymous users must stay quiet. A blanket catch here hid a wrong path
+  // (`/auth/...` without the `/api` prefix every sibling carries) indefinitely.
   const res = await get<{ collections?: UserNotebookListItem[] }>(
-    '/auth/notebook-collections'
-  ).catch(() => ({ collections: [] }));
+    '/api/auth/notebook-collections'
+  ).catch((err: unknown) => {
+    if (isUnauthorizedError(err)) return { collections: [] };
+    throw err;
+  });
   const list = Array.isArray(res?.collections) ? res.collections : [];
   setUserNotebookMentionables(
     list.map((n) => ({ id: n.id, title: n.name, slug: slugifyMention(n.name) }))

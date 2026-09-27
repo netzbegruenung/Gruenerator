@@ -32,6 +32,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
     customEnabledTools,
     pinnedConnector,
     activeSkillMention,
+    activeRecipeId,
   } = useAgentStore(
     useShallow((s) => ({
       selectedAgentId: s.selectedAgentId,
@@ -46,6 +47,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       customEnabledTools: s.customEnabledTools,
       pinnedConnector: s.pinnedConnector,
       activeSkillMention: s.activeSkillMention,
+      activeRecipeId: s.activeRecipeId,
     }))
   );
   // Notebook filter selection (facets, sources) — only honoured while it belongs
@@ -59,6 +61,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
     }))
   );
   const notebookDepth = usePreferencesStore((s) => s.notebookDepth);
+  const notebookAnswerMode = usePreferencesStore((s) => s.notebookAnswerMode);
   const notebookScope =
     selectedNotebookId && notebookFilterState.notebookId === selectedNotebookId
       ? notebookFilterState
@@ -73,9 +76,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
     (): GrueneratorAdapterConfig => ({
       agentId: selectedAgentId,
       modelId: selectedModel,
-      // Web search is removed from the mobile app; the shared store may still
-      // carry web: true from web/legacy state, so force it off here.
-      enabledTools: { ...enabledTools, web: false },
+      enabledTools,
       threadId: useAgentStore.getState().currentThreadId,
       selectedNotebookId,
       // Notebook mode scopes RAG by collection id. System notebooks resolve to
@@ -89,6 +90,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
         : undefined,
       notebookFilters: notebookScope?.keywordFilters,
       notebookMode: notebookDepth,
+      notebookAnswerMode,
       threadMode,
       searchMode,
       customSystemPrompt,
@@ -102,6 +104,10 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       // Likewise for recipes: the `/mention` is stripped from the text, so this
       // is what carries the recipe's prompt fragment and scoping to the server.
       activeSkillMention,
+      // A user recipe is resolved by row id, not by name: two people may own a
+      // recipe called the same thing, and the mention alone cannot tell them
+      // apart. Null for system recipes, which have no row.
+      activeRecipeId,
     }),
     [
       selectedAgentId,
@@ -110,6 +116,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       selectedNotebookId,
       notebookScope,
       notebookDepth,
+      notebookAnswerMode,
       threadMode,
       searchMode,
       customSystemPrompt,
@@ -118,11 +125,12 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       customEnabledTools,
       pinnedConnector,
       activeSkillMention,
+      activeRecipeId,
     ]
   );
 
   const onThreadCreated = useCallback((newThreadId: string) => {
-    useAgentStore.getState().setCurrentThread(newThreadId);
+    useAgentStore.getState().mintThreadFromDraft(newThreadId);
   }, []);
 
   const fetchFn = useChatConfigStore((s) => s.fetch);

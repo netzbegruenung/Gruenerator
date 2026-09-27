@@ -9,6 +9,7 @@
  */
 
 import { vectorConfig } from '../../../config/vectorConfig.js';
+import { resolveWolkeDisplayUrl } from '../../scrapers/utils/wolkeShareSecrets.js';
 
 import type {
   DocumentSearchOptions,
@@ -47,9 +48,15 @@ export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined
   quality_score: number | null;
   content_type: string | null;
   page_number: number | null;
+  chunk_type: string | null;
+  embedding_model: string | null;
+  char_start: number | null;
+  char_end: number | null;
   created_at: string | undefined;
   published_at: string | null;
   source_id: string | null;
+  content_type_label: string | null;
+  source_name: string | null;
   url: string | undefined;
   documents: { id: string; title: string; filename: string; created_at: string | undefined };
 } {
@@ -65,10 +72,23 @@ export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined
     quality_score: (p.quality_score as number) ?? null,
     content_type: (p.content_type as string) ?? null,
     page_number: (p.page_number as number) ?? null,
+    chunk_type: (p.chunk_type as string) ?? null,
+    // `null` heißt hier „vor #3224 geschrieben", nicht „kaputt" — siehe
+    // `embeddingProvenance.ts`.
+    embedding_model: (p.embedding_model as string) ?? null,
+    // `null` heißt „nicht auffindbar" oder „vor #3223 geschrieben" — siehe
+    // `offsetPayload.ts`. Ein halbes Paar kommt hier nie an.
+    char_start: (p.char_start as number) ?? null,
+    char_end: (p.char_end as number) ?? null,
     created_at: p.created_at as string | undefined,
     published_at: (p.published_at as string) ?? (metadata?.published_at as string) ?? null,
     source_id: (p.source_id as string) ?? null,
-    url: (p.source_url as string) || (p.url as string) || undefined,
+    // Display labels the Landesverband scraper writes (e.g. „Pressemitteilung“,
+    // „Grüne Fraktion Berlin“); other collections leave them out.
+    content_type_label: (p.content_type_label as string) ?? null,
+    source_name: (p.source_name as string) ?? null,
+    // Anzeige-Link; ein `wolke://`-Schlüssel wird erst hier zum Freigabe-Link.
+    url: resolveWolkeDisplayUrl((p.source_url as string) || (p.url as string) || '') || undefined,
     documents: {
       id: documentId,
       title: (p.title as string) || (metadata?.title as string) || 'Untitled',
@@ -384,6 +404,18 @@ export async function findHybridChunks(
     `[SearchOperations] Qdrant hybridSearch returned ${hybridResult.results.length} hits`
   );
 
+  // #3166 Fix-Runde 1: `dense_similarity_score` darf NUR aus dem
+  // server-seitigen Score-Join kommen, nie aus der Alt-Fusion — beide liefern
+  // `originalVectorScore` als echten Kosinus, aber nur auf dem Server-Pfad ist
+  // der Kosinus mit `similarity_score` (dort ein reiner Fusionswert)
+  // unvergleichbar genug, um einen eigenen Schnittwert zu rechtfertigen. Der
+  // Alt-Pfad rechnet Begriffstreffer-/Diversitäts-/Hybrid-Boni auf denselben
+  // Kosinus drauf, bevor er `similarity_score` wird — ein Schnitt gegen den
+  // unboosteten Wert würde dort die Kontrollgruppe verschieben. `fusionMethod`
+  // ist der Diskriminator: `${fusion}-server` NUR aus `hybridSearchServerSide`
+  // (hybridSearch.ts), `'RRF' | 'weighted'` aus der Alt-Fusion.
+  const viaServerScoreJoin = hybridResult.metadata?.fusionMethod?.endsWith('-server') ?? false;
+
   return hybridResult.results.map((result) => ({
     id: result.id,
     similarity: result.score,
@@ -391,6 +423,7 @@ export async function findHybridChunks(
     searchMethod: result.searchMethod || 'hybrid',
     originalVectorScore: result.originalVectorScore ?? null,
     originalTextScore: result.originalTextScore ?? null,
+    denseSimilarityScore: viaServerScoreJoin ? (result.originalVectorScore ?? null) : null,
   }));
 }
 

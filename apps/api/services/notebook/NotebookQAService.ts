@@ -34,12 +34,14 @@ import {
   applyDefaultFilter,
   type SubcategoryFilters,
 } from '../../config/systemCollectionsConfig.js';
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { checkNotebookAccess } from '../../routes/notebook/notebookAccess.js';
 import { createLogger } from '../../utils/logger.js';
+import { aiText } from '../ai/generate.js';
 import { getEnrichedPersonSearchService } from '../bundestag/index.js';
 import { DocumentSearchService } from '../document-services/index.js';
 import { queryIntentService } from '../QueryIntentService/QueryIntentService.js';
+import { type QdrantFilter } from '../QueryIntentService/types.js';
+import { buildContextSummary, sourceDatePart } from '../search/contextSummary.js';
 import {
   expandResultsToChunks,
   deduplicateResults,
@@ -47,10 +49,17 @@ import {
   validateAndInjectCitations,
   renumberCitationsInOrder,
   filterAndSortResults,
+  selectAcrossQueryGroups,
+  sourceTextForPrompt,
+  splitCompositeQuestion,
+  toClientSource,
   groupSourcesByCollection,
   formatDe,
 } from '../search/index.js';
 
+import { inspectCorpusState } from './corpusState.js';
+
+import type { CorpusStateInspection } from './corpusState.js';
 import type {
   QAMultiCollectionParams,
   QASingleCollectionParams,
@@ -65,7 +74,6 @@ import type {
   SearchContext,
   GetSearchContextParams,
 } from './types.js';
-import type { AIWorkerPool } from '../../workers/types.js';
 import type {
   EnrichedPersonSearchResult,
   ContentMention,
@@ -82,18 +90,60 @@ import type {
 const log = createLogger('NotebookQAService');
 const documentSearchService = new DocumentSearchService();
 
-interface CorpusDocSummary {
-  id: string;
-  title: string | null;
+/**
+ * Engt eine Suche auf EIN Programm der Sammlung `grundsatz_documents` ein.
+ *
+ * `primary_category` und nicht `title`, und das ist die Reparatur eines
+ * gemessenen Totalausfalls: der Titelfilter setzte einen EXAKTEN Match mit
+ * einem PRÄFIX des gespeicherten Titels ('Grundsatzprogramm 2020' gegen
+ * 'Grundsatzprogramm 2020 – Veränderung schafft Halt'). Am 19.08.2026 live
+ * gegen Qdrant nachgezählt: alle drei Muster trafen 0 von 968 Punkten, jede
+ * programm-namentliche Notebook-Frage bekam eine Geisterantwort — während
+ * dieselbe Sammlung der Chat-Oberfläche ungefiltert 90 Treffer lieferte.
+ *
+ * `primary_category` ist in `systemCollectionsConfig` als filterbar deklariert,
+ * in Qdrant indiziert und partitioniert die Sammlung vollständig
+ * (231/402/335 = 968). Der Titel ist Prosa und ändert sich mit dem Untertitel;
+ * die Kategorie ist der stabile Schlüssel.
+ */
+function withProgramFilter(
+  filter: QdrantFilter | undefined,
+  primaryCategory: string | null | undefined
+): QdrantFilter | undefined {
+  if (!primaryCategory) return filter;
+  const clause = { key: 'primary_category', match: { value: primaryCategory } };
+  return {
+    ...(filter ?? {}),
+    must: [...(filter?.must ?? []), clause],
+  } as QdrantFilter;
 }
 
-interface CorpusStateInspection {
-  state: 'indexing' | 'failed' | 'ready';
-  indexing: CorpusDocSummary[];
-  failed: CorpusDocSummary[];
-  ready: CorpusDocSummary[];
-  total: number;
+/**
+ * Das Evidenz-Signal (#3140): der höchste dichte Ähnlichkeitswert der
+ * Kandidatenliste. `dense_similarity` ist der gemessene Kosinus des
+ * server-seitigen Hybrid-Pfads; wo er fehlt (nicht migrierte Sammlung, oder
+ * ein Dokument, dessen Chunks nur aus der BM25-Lane stammen), ist `similarity`
+ * der Rückfall — ohne ihn misst das Signal je Sammlung etwas anderes.
+ *
+ * Exportiert, damit die Kalibrierung (`evals/retrieval/evidenceSignalCheck.ts`)
+ * genau DIESE Rechnung fährt statt einer Zweitkopie, die beim ersten
+ * Feldwechsel still auseinanderdriftet.
+ */
+export function evidenceTopOf(results: ExpandedChunkResult[]): number | null {
+  let top: number | null = null;
+  for (const r of results) {
+    const value = r.dense_similarity ?? r.similarity;
+    if (top === null || value > top) top = value;
+  }
+  return top;
 }
+
+/**
+ * Per-source budget for the fast-mode prompt. Smaller than
+ * PROMPT_SOURCE_MAX_CHARS because fast mode packs 15 sources and answers
+ * briefly — but still the matched passage, not the chunk's opening.
+ */
+const FAST_DRAFT_SOURCE_MAX_CHARS = 900;
 
 export class NotebookQAService {
   /**
@@ -105,7 +155,6 @@ export class NotebookQAService {
     question,
     collectionIds,
     requestFilters,
-    aiWorkerPool,
     fastMode,
   }: QAMultiCollectionParams): Promise<QAResponse> {
     const startTime = Date.now();
@@ -121,8 +170,8 @@ export class NotebookQAService {
       collections: detectedScope.collections,
       subcategoryFilters: detectedScope.subcategoryFilters,
       ...(detectedScope.detectedPhrase && { detectedPhrase: detectedScope.detectedPhrase }),
-      ...(detectedScope.documentTitleFilter && {
-        documentTitleFilter: detectedScope.documentTitleFilter,
+      ...(detectedScope.documentCategoryFilter && {
+        documentCategoryFilter: detectedScope.documentCategoryFilter,
       }),
     };
     const effectiveCollectionIds = documentScope.detectedPhrase
@@ -188,11 +237,7 @@ export class NotebookQAService {
 
     // Fast mode: skip citation processing entirely
     if (fastMode) {
-      const fastAnswer = await this._generateFastDraft(
-        trimmedQuestion,
-        sortedResults,
-        aiWorkerPool
-      );
+      const fastAnswer = await this._generateFastDraft(trimmedQuestion, sortedResults);
       return {
         success: true,
         answer: fastAnswer,
@@ -214,7 +259,7 @@ export class NotebookQAService {
 
     // Build references and generate draft
     const referencesMap = buildReferencesMap(sortedResults);
-    const draft = await this._generateDraft(trimmedQuestion, referencesMap, aiWorkerPool, true);
+    const draft = await this._generateDraft(trimmedQuestion, referencesMap, true);
 
     // Process citations
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(draft, referencesMap);
@@ -240,7 +285,7 @@ export class NotebookQAService {
       answer: cleanDraft,
       citations,
       sources,
-      allSources: sortedResults.slice(citations.length, citations.length + 10),
+      allSources: sortedResults.slice(citations.length, citations.length + 10).map(toClientSource),
       sourcesByCollection,
       metadata: this._buildMetadata(
         startTime,
@@ -264,7 +309,6 @@ export class NotebookQAService {
     question,
     userId,
     requestFilters,
-    aiWorkerPool,
     getCollectionFn,
     getDocumentIdsFn,
     fastMode,
@@ -278,11 +322,7 @@ export class NotebookQAService {
 
     // Try enriched person search for bundestagsfraktion collection (skip in fast mode)
     if (collectionId === 'bundestagsfraktion-system' && !fastMode) {
-      const personResult = await this._tryEnrichedPersonSearch(
-        trimmedQuestion,
-        aiWorkerPool,
-        startTime
-      );
+      const personResult = await this._tryEnrichedPersonSearch(trimmedQuestion, startTime);
       if (personResult) {
         const extractedName =
           'extractedName' in personResult.metadata
@@ -340,8 +380,8 @@ export class NotebookQAService {
       ...(detectedScopeSingle.detectedPhrase && {
         detectedPhrase: detectedScopeSingle.detectedPhrase,
       }),
-      ...(detectedScopeSingle.documentTitleFilter && {
-        documentTitleFilter: detectedScopeSingle.documentTitleFilter,
+      ...(detectedScopeSingle.documentCategoryFilter && {
+        documentCategoryFilter: detectedScopeSingle.documentCategoryFilter,
       }),
     };
     const effectiveFilters: RequestFilters = {
@@ -367,11 +407,12 @@ export class NotebookQAService {
       searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
       userId: isSystem ? null : userId,
       documentIds: isSystem ? undefined : documentIds,
-      titleFilter:
+      additionalFilter: withProgramFilter(
+        additionalFilter,
         isSystem && collectionId === 'grundsatz-system'
-          ? documentScope.documentTitleFilter
-          : undefined,
-      additionalFilter,
+          ? documentScope.documentCategoryFilter
+          : undefined
+      ),
       searchParams,
     });
 
@@ -393,7 +434,7 @@ export class NotebookQAService {
 
     if (sorted.length === 0) {
       const corpus =
-        !isSystem && documentIds ? await this._inspectCorpusState(documentIds, userId) : null;
+        !isSystem && documentIds ? await inspectCorpusState(documentIds, userId) : null;
       const answer = this._buildEmptyResultMessage(collection.name, corpus);
       return {
         success: true,
@@ -416,7 +457,7 @@ export class NotebookQAService {
 
     // Fast mode: skip citation processing entirely
     if (fastMode) {
-      const fastAnswer = await this._generateFastDraft(trimmedQuestion, sorted, aiWorkerPool);
+      const fastAnswer = await this._generateFastDraft(trimmedQuestion, sorted);
       return {
         success: true,
         answer: fastAnswer,
@@ -437,7 +478,7 @@ export class NotebookQAService {
 
     // Generate response
     const referencesMap = buildReferencesMap(sorted, { allowCreatedAt: !isSystem });
-    const draft = await this._generateDraft(trimmedQuestion, referencesMap, aiWorkerPool, isSystem);
+    const draft = await this._generateDraft(trimmedQuestion, referencesMap, isSystem);
 
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(draft, referencesMap);
     const { cleanDraft, citations, sources } = validateAndInjectCitations(
@@ -447,7 +488,8 @@ export class NotebookQAService {
 
     const allSources = sorted
       .filter((_, i) => !citations.some((c) => c.index === String(i + 1)))
-      .slice(0, 10);
+      .slice(0, 10)
+      .map(toClientSource);
 
     return {
       success: true,
@@ -501,10 +543,37 @@ export class NotebookQAService {
     );
 
     const profile = getNotebookDepthProfile(depth ?? 'deep');
-    const effectiveQueries = (queries?.length ? queries : [trimmedQuestion]).slice(
+
+    // Two different things get searched here, and they are grouped differently
+    // because they mean different things.
+    //
+    // Paraphrases are rewordings of ONE question — a thoroughness dial, capped
+    // by the depth tier. They share a group: ranking them against each other by
+    // score is exactly right, and giving each its own fair share would let a
+    // weak hit from a worse rewording take a slot from a stronger hit of the
+    // best one.
+    //
+    // Sub-questions are different questions and get a group each. They are not
+    // a thoroughness dial and so do not sit under the tier's variant cap: a
+    // message asking eight things has to be searched as eight things in every
+    // tier, or the parts that no single averaged embedding lands near come back
+    // unanswered.
+    const paraphrases = (queries?.length ? queries : [trimmedQuestion]).slice(
       0,
       profile.queryVariants
     );
+    const subQuestions = splitCompositeQuestion(trimmedQuestion).filter(
+      (q) => !paraphrases.includes(q)
+    );
+    // The full message leads the first group, so the holistic search is never
+    // given up even when the message decomposes cleanly.
+    const queryGroups = [paraphrases, ...subQuestions.map((q) => [q])];
+
+    if (subQuestions.length > 0) {
+      log.info(
+        `[NotebookQA] composite question split into ${subQuestions.length} sub-questions (${paraphrases.length + subQuestions.length} searches total)`
+      );
+    }
 
     const isMulti = !!collectionIds && collectionIds.length > 0;
 
@@ -514,7 +583,7 @@ export class NotebookQAService {
         collectionIds!,
         requestFilters,
         profile,
-        effectiveQueries
+        queryGroups
       );
     } else if (collectionId) {
       return this._getSingleCollectionSearchContext(
@@ -523,7 +592,7 @@ export class NotebookQAService {
         userId,
         requestFilters,
         profile,
-        effectiveQueries,
+        queryGroups,
         getCollectionFn,
         getDocumentIdsFn
       );
@@ -540,7 +609,8 @@ export class NotebookQAService {
     collectionIds: string[],
     requestFilters: RequestFilters | undefined,
     profile: NotebookDepthProfile,
-    queries: string[]
+    /** One group per retrieval angle; group 0 holds the paraphrases. */
+    queryGroups: string[][]
   ): Promise<SearchContext | null> {
     // Detect document scope and subcategory filters from natural language
     const detectedScope = queryIntentService.detectDocumentScope(question);
@@ -548,8 +618,8 @@ export class NotebookQAService {
       collections: detectedScope.collections,
       subcategoryFilters: detectedScope.subcategoryFilters,
       ...(detectedScope.detectedPhrase && { detectedPhrase: detectedScope.detectedPhrase }),
-      ...(detectedScope.documentTitleFilter && {
-        documentTitleFilter: detectedScope.documentTitleFilter,
+      ...(detectedScope.documentCategoryFilter && {
+        documentCategoryFilter: detectedScope.documentCategoryFilter,
       }),
     };
 
@@ -563,24 +633,29 @@ export class NotebookQAService {
       ...requestFilters,
     };
 
-    // Search every collection × every query formulation in parallel
-    const searchPromises = effectiveCollectionIds.flatMap((cId) => {
-      const filtersForCollection = this._extractCollectionFilters(
-        cId,
-        effectiveFilters,
-        effectiveCollectionIds
-      );
-      return queries.map((q) =>
-        this._searchCollection(cId, q, documentScope, filtersForCollection, profile)
-      );
-    });
+    // Search every collection × every query formulation in parallel, keeping
+    // the hits grouped per query so selectAcrossQueryGroups can give each one
+    // its share of the budget.
+    const resultsByGroup = await Promise.all(
+      queryGroups.map(async (group) => {
+        const perQuery = await Promise.all(
+          group.flatMap((q) =>
+            effectiveCollectionIds.map((cId) =>
+              this._searchCollection(
+                cId,
+                q,
+                documentScope,
+                this._extractCollectionFilters(cId, effectiveFilters, effectiveCollectionIds),
+                profile
+              )
+            )
+          )
+        );
+        return deduplicateResults(perQuery.flat(), true);
+      })
+    );
 
-    const searchResultsArrays = await Promise.all(searchPromises);
-    const allResults = searchResultsArrays.flat();
-
-    // Deduplicate and filter
-    const dedupedResults = deduplicateResults(allResults, true);
-    const sortedResults = filterAndSortResults(dedupedResults, {
+    const sortedResults = selectAcrossQueryGroups(resultsByGroup, {
       threshold: profile.threshold,
       limit: profile.sortLimit.multi,
     });
@@ -596,6 +671,7 @@ export class NotebookQAService {
     return {
       referencesMap,
       sortedResults,
+      evidenceTop: evidenceTopOf(sortedResults),
       systemPrompt,
       contextSummary,
       isMulti: true,
@@ -614,7 +690,8 @@ export class NotebookQAService {
     userId: string | undefined,
     requestFilters: RequestFilters | undefined,
     profile: NotebookDepthProfile,
-    queries: string[],
+    /** One group per retrieval angle; group 0 holds the paraphrases. */
+    queryGroups: string[][],
     getCollectionFn?: (id: string) => Promise<{ name: string; user_id: string | null } | null>,
     getDocumentIdsFn?: (id: string) => Promise<string[]>
   ): Promise<SearchContext | null> {
@@ -663,8 +740,8 @@ export class NotebookQAService {
       ...(detectedScopeSingle.detectedPhrase && {
         detectedPhrase: detectedScopeSingle.detectedPhrase,
       }),
-      ...(detectedScopeSingle.documentTitleFilter && {
-        documentTitleFilter: detectedScopeSingle.documentTitleFilter,
+      ...(detectedScopeSingle.documentCategoryFilter && {
+        documentCategoryFilter: detectedScopeSingle.documentCategoryFilter,
       }),
     };
     const effectiveFilters: RequestFilters = {
@@ -685,33 +762,42 @@ export class NotebookQAService {
       );
     }
 
-    const searchResults = (
-      await Promise.all(
-        queries.map((q) =>
-          this._performSearch({
-            query: q,
-            searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
-            userId: isSystem ? null : (userId ?? null),
-            documentIds: isSystem ? undefined : documentIds,
-            titleFilter:
-              isSystem && collectionId === 'grundsatz-system'
-                ? documentScope.documentTitleFilter
-                : undefined,
-            additionalFilter,
-            searchParams,
-          })
-        )
-      )
-    ).flat();
-
     const singleCollectionName = systemConfig?.name || collection?.name || collectionId;
-    const expanded = expandResultsToChunks(searchResults, collectionId, singleCollectionName);
 
-    // Post-filter: validate results match requested source_id filter (defense-in-depth)
-    const postFiltered = this._applySourceIdPostFilter(expanded, effectiveFilters);
+    // Grouped per query, not flattened — see selectAcrossQueryGroups.
+    const resultsByGroup = await Promise.all(
+      queryGroups.map(async (group) => {
+        const perQuery = await Promise.all(
+          group.map(async (q) => {
+            const searchResults = await this._performSearch({
+              query: q,
+              searchCollection: isSystem ? systemConfig.qdrantCollection : 'documents',
+              userId: isSystem ? null : (userId ?? null),
+              documentIds: isSystem ? undefined : documentIds,
+              additionalFilter: withProgramFilter(
+                additionalFilter,
+                isSystem && collectionId === 'grundsatz-system'
+                  ? documentScope.documentCategoryFilter
+                  : undefined
+              ),
+              searchParams,
+            });
 
-    const deduped = deduplicateResults(postFiltered, false);
-    const sortedResults = filterAndSortResults(deduped, {
+            const expanded = expandResultsToChunks(
+              searchResults,
+              collectionId,
+              singleCollectionName
+            );
+            // Post-filter: validate results match requested source_id filter
+            // (defense-in-depth)
+            return this._applySourceIdPostFilter(expanded, effectiveFilters);
+          })
+        );
+        return deduplicateResults(perQuery.flat(), false);
+      })
+    );
+
+    const sortedResults = selectAcrossQueryGroups(resultsByGroup, {
       threshold: profile.threshold,
       limit: profile.sortLimit.single,
       allowCreatedAt: !isSystem,
@@ -728,6 +814,7 @@ export class NotebookQAService {
     return {
       referencesMap,
       sortedResults,
+      evidenceTop: evidenceTopOf(sortedResults),
       systemPrompt,
       contextSummary,
       collectionName: collection?.name ?? collectionId,
@@ -745,23 +832,7 @@ export class NotebookQAService {
     referencesMap: ReferencesMap,
     isSystemCollection: boolean
   ): { systemPrompt: string; contextSummary: string } {
-    const today = new Date().toLocaleDateString('de-DE', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-    const sourceLines = Object.keys(referencesMap)
-      .map((id) => {
-        const ref = referencesMap[id];
-        const snippet = ref.snippets[0]?.[0] || '';
-        const short = snippet.slice(0, 400).replace(/\s+/g, ' ').trim();
-        const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
-        const dateLabel = formatDe(ref.date);
-        const datePart = dateLabel ? `(Datum: ${dateLabel}) ` : '';
-        return `${id}. ${collectionTag}${datePart}${ref.title} — "${short}"`;
-      })
-      .join('\n');
-    const contextSummary = `Heutiges Datum: ${today}\n\n${sourceLines}`;
+    const contextSummary = buildContextSummary(referencesMap);
 
     const { system: systemPrompt } = isSystemCollection
       ? buildDraftPromptGrundsatz('Grüne Dokumente')
@@ -787,10 +858,11 @@ export class NotebookQAService {
     }
 
     const searchParams = applyDepthProfile(getSearchParams(collectionId), profile);
-    const titleFilter =
-      collectionId === 'grundsatz-system' ? documentScope.documentTitleFilter : undefined;
     const subcategoryFilter = buildSubcategoryFilter(filters as SubcategoryFilters);
-    const additionalFilter = applyDefaultFilter(collectionId, subcategoryFilter);
+    const additionalFilter = withProgramFilter(
+      applyDefaultFilter(collectionId, subcategoryFilter),
+      collectionId === 'grundsatz-system' ? documentScope.documentCategoryFilter : undefined
+    );
 
     try {
       const resp = await documentSearchService.search({
@@ -805,7 +877,6 @@ export class NotebookQAService {
           searchCollection: config.qdrantCollection,
           recallLimit: searchParams.recallLimit,
           qualityMin: searchParams.qualityMin,
-          titleFilter,
           additionalFilter,
         },
       });
@@ -896,7 +967,6 @@ export class NotebookQAService {
     searchCollection,
     userId,
     documentIds,
-    titleFilter,
     additionalFilter,
     searchParams,
   }: InternalSearchOptions): Promise<SearchResultInput[]> {
@@ -913,7 +983,6 @@ export class NotebookQAService {
         searchCollection,
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
-        titleFilter,
         additionalFilter,
       },
     });
@@ -927,19 +996,15 @@ export class NotebookQAService {
   private async _generateDraft(
     question: string,
     referencesMap: ReferencesMap,
-    aiWorkerPool: AIWorkerPool,
     isSystemCollection: boolean
   ): Promise<string> {
     const refKeys = Object.keys(referencesMap);
     const refsSummary = refKeys
       .map((id) => {
         const ref = referencesMap[id];
-        const snippet = ref.snippets[0]?.[0] || '';
-        const short = snippet.slice(0, 400).replace(/\s+/g, ' ').trim();
+        const text = sourceTextForPrompt(ref);
         const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
-        const dateLabel = formatDe(ref.date);
-        const datePart = dateLabel ? `(Datum: ${dateLabel}) ` : '';
-        return `${id}. ${collectionTag}${datePart}${ref.title} — "${short}"`;
+        return `${id}. ${collectionTag}${sourceDatePart(ref)}${ref.title} — "${text}"`;
       })
       .join('\n');
 
@@ -955,19 +1020,13 @@ export class NotebookQAService {
     });
     const userPrompt = `Heutiges Datum: ${today}\n\nFrage: ${question}\n\nGültige Quellen-IDs: ${validIds}\nVerwende AUSSCHLIESSLICH diese IDs für Quellenangaben.\n\nVerfügbare Quellen:\n${refsSummary}`;
 
-    const aiResult = await aiWorkerPool.processRequest({
-      type: 'qa_draft',
-      messages: [{ role: 'user', content: userPrompt }],
-      systemPrompt,
-      options: { temperature: 0.2, top_p: 0.8 },
+    return aiText({
+      lane: 'qa_draft',
+      prompt: userPrompt,
+      system: systemPrompt,
+      temperature: 0.2,
+      topP: 0.8,
     });
-
-    return (
-      aiResult.content ||
-      (Array.isArray(aiResult.raw_content_blocks)
-        ? aiResult.raw_content_blocks.map((b) => b.text || '').join('')
-        : '')
-    );
   }
 
   /**
@@ -976,17 +1035,23 @@ export class NotebookQAService {
    */
   private async _generateFastDraft(
     question: string,
-    results: ExpandedChunkResult[],
-    aiWorkerPool: AIWorkerPool
+    results: ExpandedChunkResult[]
   ): Promise<string> {
     const context = results
       .slice(0, 15)
       .map((r) => {
-        const snippet = r.snippet.slice(0, 300).replace(/\s+/g, ' ').trim();
+        // Same reason as sourceTextForPrompt: `snippet` is the chunk's opening
+        // 300 characters on a semantic hit, so answering from it reproduces
+        // exactly the "not in the sources" failure this path is supposed to
+        // avoid. Fast mode gets a smaller budget, not a worse excerpt.
+        const text = (r.chunk_text || r.snippet)
+          .slice(0, FAST_DRAFT_SOURCE_MAX_CHARS)
+          .replace(/\s+/g, ' ')
+          .trim();
         const collectionTag = r.collection_name ? `[${r.collection_name}] ` : '';
         const dateLabel = formatDe(r.published_at ?? r.date ?? null);
         const datePart = dateLabel ? `(Datum: ${dateLabel}) ` : '';
-        return `${collectionTag}${datePart}${r.title}: "${snippet}"`;
+        return `${collectionTag}${datePart}${r.title}: "${text}"`;
       })
       .join('\n\n');
 
@@ -998,19 +1063,13 @@ export class NotebookQAService {
     const { system: systemPrompt } = buildFastModePrompt();
     const userPrompt = `Heutiges Datum: ${today}\n\nFrage: ${question}\n\nKontext:\n${context}`;
 
-    const aiResult = await aiWorkerPool.processRequest({
-      type: 'qa_draft_fast',
-      messages: [{ role: 'user', content: userPrompt }],
-      systemPrompt,
-      options: { temperature: 0.3, top_p: 0.9 },
+    return aiText({
+      lane: 'qa_draft_fast',
+      prompt: userPrompt,
+      system: systemPrompt,
+      temperature: 0.3,
+      topP: 0.9,
     });
-
-    return (
-      aiResult.content ||
-      (Array.isArray(aiResult.raw_content_blocks)
-        ? aiResult.raw_content_blocks.map((b) => b.text || '').join('')
-        : '')
-    );
   }
 
   /**
@@ -1029,7 +1088,11 @@ export class NotebookQAService {
       response_time_ms: Date.now() - startTime,
       collections_queried: collectionIds,
       document_scope_detected: documentScope.detectedPhrase || null,
-      document_title_filter: documentScope.documentTitleFilter || null,
+      // Der Drahtname bleibt `document_title_filter` — er steht im
+      // Notebook-Contract und ist damit extern eingefroren. Der Wert ist seit
+      // der Reparatur die `primary_category` des gemeinten Programms; die
+      // Diagnose („auf welches Dokument wurde eingegrenzt") ist dieselbe.
+      document_title_filter: documentScope.documentCategoryFilter || null,
       subcategory_filters_applied: Object.keys(filters).length > 0 ? filters : null,
       total_results: totalResults,
       citations_count: citationsCount,
@@ -1063,65 +1126,12 @@ export class NotebookQAService {
         corpus_state_detail: {
           indexing_count: corpus.indexing.length,
           failed_count: corpus.failed.length,
+          stale_count: corpus.stale.length,
           ready_count: corpus.ready.length,
           total_count: corpus.total,
         },
       }),
     };
-  }
-
-  /**
-   * Inspect the Postgres state of the requested documents so we can tell the
-   * user *why* a search came back empty (still indexing / failed / genuine miss).
-   */
-  private async _inspectCorpusState(
-    documentIds: readonly string[],
-    userId: string
-  ): Promise<CorpusStateInspection> {
-    if (documentIds.length === 0) {
-      return { state: 'ready', indexing: [], failed: [], ready: [], total: 0 };
-    }
-
-    try {
-      const postgres = getPostgresInstance();
-      const rows = (await postgres.query(
-        `SELECT id, title, status, vector_count
-         FROM documents
-         WHERE id = ANY($1) AND user_id = $2`,
-        [documentIds, userId]
-      )) as Array<{
-        id: string;
-        title: string | null;
-        status: string;
-        vector_count: number | null;
-      }>;
-
-      const indexing: CorpusDocSummary[] = [];
-      const failed: CorpusDocSummary[] = [];
-      const ready: CorpusDocSummary[] = [];
-
-      for (const row of rows) {
-        const summary: CorpusDocSummary = { id: row.id, title: row.title };
-        if (row.status === 'uploaded' || row.status === 'processing' || row.status === 'pending') {
-          indexing.push(summary);
-        } else if (row.status === 'failed') {
-          failed.push(summary);
-        } else if (row.status === 'completed' && (row.vector_count ?? 0) > 0) {
-          ready.push(summary);
-        } else {
-          // status='completed' but vector_count=0 — treat as failed for UX purposes
-          failed.push(summary);
-        }
-      }
-
-      const state: CorpusStateInspection['state'] =
-        indexing.length > 0 ? 'indexing' : failed.length > 0 ? 'failed' : 'ready';
-
-      return { state, indexing, failed, ready, total: rows.length };
-    } catch (error) {
-      log.warn(`[QA Single] _inspectCorpusState failed: ${(error as Error).message}`);
-      return { state: 'ready', indexing: [], failed: [], ready: [], total: 0 };
-    }
   }
 
   private _buildEmptyResultMessage(
@@ -1134,6 +1144,15 @@ export class NotebookQAService {
         `Die Dokumente in der Sammlung "${collectionName}" werden gerade indexiert ` +
         `(${corpus.ready.length}/${total} bereit). ` +
         `Bitte probier es in ein bis zwei Minuten erneut.`
+      );
+    }
+    if (corpus && corpus.stale.length > 0) {
+      const total = corpus.total || corpus.stale.length;
+      return (
+        `Für ${corpus.stale.length} von ${total} Dokumenten in "${collectionName}" fehlt der ` +
+        `Suchindex — die Dokumente sind noch da, aber nicht durchsuchbar. Das ist ein Fehler auf ` +
+        `unserer Seite und liegt nicht an deiner Frage. Lade die betroffenen Dateien erneut hoch ` +
+        `oder melde dich, damit wir den Index neu aufbauen.`
       );
     }
     if (corpus && corpus.failed.length > 0) {
@@ -1156,7 +1175,6 @@ export class NotebookQAService {
    */
   private async _tryEnrichedPersonSearch(
     question: string,
-    aiWorkerPool: AIWorkerPool,
     startTime: number
   ): Promise<QAResponse | null> {
     try {
@@ -1177,7 +1195,7 @@ export class NotebookQAService {
 
       // Generate AI summary using the enriched data
       const contextSummary = enrichedService.generateActivitySummary(result);
-      const answer = await this._generatePersonAnswer(question, contextSummary || '', aiWorkerPool);
+      const answer = await this._generatePersonAnswer(question, contextSummary || '');
 
       // Build citations from the enriched sources
       const citations = this._buildPersonCitations(contentMentions, drucksachen, aktivitaeten);
@@ -1221,28 +1239,18 @@ export class NotebookQAService {
   /**
    * Generate AI answer for person query using enriched context
    */
-  private async _generatePersonAnswer(
-    question: string,
-    contextSummary: string,
-    aiWorkerPool: AIWorkerPool
-  ): Promise<string> {
+  private async _generatePersonAnswer(question: string, contextSummary: string): Promise<string> {
     const systemPrompt = `Du bist ein Experte für die Grüne Bundestagsfraktion. Beantworte Fragen über Abgeordnete basierend auf den bereitgestellten Informationen. Antworte auf Deutsch, präzise und sachlich. Wenn du Informationen aus den Quellen verwendest, zitiere sie mit [1], [2] etc.`;
 
     const userPrompt = `Frage: ${question}\n\nKontext über die Person:\n${contextSummary}`;
 
-    const aiResult = await aiWorkerPool.processRequest({
-      type: 'qa_draft',
-      messages: [{ role: 'user', content: userPrompt }],
-      systemPrompt,
-      options: { temperature: 0.3, top_p: 0.9 },
+    return aiText({
+      lane: 'qa_draft',
+      prompt: userPrompt,
+      system: systemPrompt,
+      temperature: 0.3,
+      topP: 0.9,
     });
-
-    return (
-      aiResult.content ||
-      (Array.isArray(aiResult.raw_content_blocks)
-        ? aiResult.raw_content_blocks.map((b) => b.text || '').join('')
-        : '')
-    );
   }
 
   /**

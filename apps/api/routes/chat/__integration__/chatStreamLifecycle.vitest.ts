@@ -9,6 +9,11 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('../../../services/ai/execution/index.js', async () => {
+  const { executeProviderStub } = await import('./harness/providerStub.js');
+  return { executeProvider: executeProviderStub };
+});
+
 vi.mock('../../../database/services/PostgresService.js', async () => {
   const { postgresMock } = await import('./harness/mocks.js');
   return postgresMock();
@@ -64,7 +69,7 @@ const { runTurn, assertEventOrder } = await import('./harness/trace.js');
 const { envGuardValues } = await import('./harness/env.js');
 const { threadAccess, persistControl } = await import('./harness/mocks.js');
 const { threads } = await import('./harness/fakeThreadStore.js');
-const { createAiWorkerPoolStub } = await import('./harness/aiWorkerPoolStub.js');
+const { createProviderStub } = await import('./harness/providerStub.js');
 
 const suite = useChatApp();
 
@@ -101,6 +106,25 @@ describe('stream lifecycle', () => {
 
     expect(second.trace.threadId ?? threadId).toBe(threadId);
     expect(threads.size).toBe(1);
+  });
+
+  it('überlebt ein replaceFromMessageId, das keine uuid ist', async () => {
+    // 13.08.2026: der Client schickte „Xa4ZTed" — einen Slug-Suffix, keine
+    // Zeilen-id. `deleteMessagesFrom` reichte ihn ungeprüft an SQL weiter,
+    // Postgres warf 22P02, und die Ausnahme nahm den ganzen Turn mit: „Es ist
+    // ein interner Fehler aufgetreten", bevor ein einziges Token geschrieben
+    // war. Der threadId eine Zeile höher war seit Langem geprüft.
+    const first = await runTurn(suite.baseUrl(), greeting());
+    const threadId = first.trace.threadId;
+
+    const second = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Nochmal, anders formuliert', 'm2')],
+      threadId,
+      replaceFromMessageId: 'Xa4ZTed',
+    });
+
+    expect(second.trace.error).toBeNull();
+    expect(second.events.filter((e) => e.event === 'done')).toHaveLength(1);
   });
 
   it('mints a fresh thread when the id is not accessible', async () => {
@@ -154,7 +178,8 @@ describe('stream error codes', () => {
     // HTTP 401 belongs to requireAuth, which this harness does not mount. What
     // the ROUTER does is emit a coded error on an otherwise normal stream —
     // that is what the frontend parses.
-    const app = await startChatApp({ user: null, aiWorkerPool: createAiWorkerPoolStub() });
+    createProviderStub();
+    const app = await startChatApp({ user: null });
     try {
       const res = await postStream(app.baseUrl, greeting());
       const body = await res.text();
@@ -166,19 +191,11 @@ describe('stream error codes', () => {
     }
   });
 
-  it('reports provider_unavailable when no worker pool is bound', async () => {
-    const app = await startChatApp({ aiWorkerPool: null });
-    try {
-      const res = await postStream(app.baseUrl, greeting());
-      const body = await res.text();
-
-      expect(res.status).toBe(200);
-      expect(body).toContain('"code":"provider_unavailable"');
-      expect(body).toContain('"retryable":true');
-    } finally {
-      await app.close();
-    }
-  });
+  // Der `provider_unavailable`-Fall des Stream-Einstiegs ist ersatzlos entfallen.
+  // Er prüfte, dass ein nicht gebundener `app.locals.aiClient` einen kodierten
+  // SSE-Fehler erzeugt; diese Bindung gibt es nicht mehr, und damit auch kein
+  // "kein Client vorhanden" mehr. Provider-Ausfälle heissen jetzt `NoAnswerError`
+  // und entstehen dort, wo wirklich gerufen wird — nicht im Vorfeld.
 
   it('rejects a schema-invalid body at the contract layer', async () => {
     const res = await postStream(suite.baseUrl(), { messages: [] });

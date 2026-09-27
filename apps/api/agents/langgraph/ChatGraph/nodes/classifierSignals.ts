@@ -12,14 +12,41 @@
  * the prompt's own enum line. What is left never talks to a model.
  */
 
-import { intentsWithDisposition } from '@gruenerator/shared/chat-intents';
+import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 
 import type { SearchIntent, SearchSource } from '../types.js';
 
 /**
- * Intents that don't trigger search/retrieval — used to skip query optimization.
+ * Verdicte des HEURISTIK-TISCHES, für die keine Suchanfrage optimiert wird.
+ *
+ * Beides an dem Wort „Heuristik-Tisch": die Menge wird ausschliesslich gegen
+ * `heuristic.intent` geprüft (zweimal in `classifierNode`, Tier 3), nie gegen
+ * das Ergebnis des Turns. Sie beschreibt damit eine POLITIK dieses einen
+ * Tisches, keine Eigenschaft der Intents — und wird deshalb nicht aus der
+ * Dispositions-Achse abgeleitet.
+ *
+ * Gemessen gegen sie deckt sie sich auch nicht: `anchor` nur zur Hälfte,
+ * `gated` zur Hälfte, dazu `umfragen` — seit der Stilllegung aus `retired`, vor
+ * Phase L aus `loop`. Sechs Mitglieder
+ * (`image_edit`, `create_recurring_task`, `modify_doc`, `modify_board`, `mcp`,
+ * `umfragen`) kann `heuristicClassify` gar nicht liefern — sie sind wirkungslos,
+ * aber harmlos.
+ *
+ * `social_post` und `summary` fehlten und zahlten deshalb den
+ * Mehr-Themen-Abschlag wie eine Suche. Gemessen wirkt er nur bei `summary`, und
+ * dort ganz: das Verdikt sitzt mit 0,85 exakt auf der Schwelle, ein zweites
+ * Glied kostet 0,30, und der Turn fällt an der Tier-3-Rückgabe vorbei. „Fass
+ * unser Gespräch hier im Chat zusammen und nenne die wichtigsten offenen
+ * Punkte" wurde so von Tier 3.8 zu `produktion` umgedeutet — die
+ * Zusammenfassung aus dem Gedächtnis statt aus dem Zusammenfassungs-Zweig.
+ * `social_post` liegt mit 0,80 ohnehin unter der Schwelle und ändert keinen
+ * Ausgang; es steht mit drin, weil die Menge sonst eine Aussage über den Tisch
+ * macht, die für die Hälfte seiner Erzeugungs-Verdikte nicht gilt.
+ *
+ * `ReadonlySet<ChatIntentId>` statt `Set<string>`: die Literale waren ohne
+ * Typschutz, ein Tippfehler wäre schlicht nie Mitglied geworden.
  */
-export const NON_SEARCH_INTENTS = new Set([
+export const NON_SEARCH_INTENTS: ReadonlySet<ChatIntentId> = new Set([
   'produktion',
   // Deprecated as a verdict, still reachable via the heuristic hint — and that
   // means "no retrieval", same as before.
@@ -30,6 +57,8 @@ export const NON_SEARCH_INTENTS = new Set([
   'image_edit',
   'chart',
   'artifact',
+  'social_post',
+  'summary',
   'compute',
   'save_as_doc',
   'create_sheet',
@@ -45,7 +74,40 @@ export const NON_SEARCH_INTENTS = new Set([
   // is no Qdrant query to optimize. They are managed connectors now and never
   // appear as an intent, so there is nothing left for this list to exclude.
   'umfragen',
-]);
+] as const satisfies readonly ChatIntentId[]);
+
+/**
+ * Heuristic verdicts eligible for loop demotion (Tier 3.5): the retrieval
+ * family only — every member is in AGENTIC_INTENTS and none is platform-gated.
+ * Generation intents (sharepic, social_post, image, ...) and interrupt/confirm
+ * intents must keep the rest of the ladder so their gates, HITL and fixed UX
+ * contracts stay intact.
+ *
+ * Eine echte Teilmenge der `loop`-Disposition, aber NICHT sie: `research` und
+ * `agentic` sind ausgenommen, und jede Ausnahme sagt etwas anderes. Demotion
+ * ersetzt das Verdikt durch `agentic` — wo das Verdikt selbst noch etwas
+ * steuert, ist der Tausch also ein Verlust:
+ *  - `research` behält seinen eigenen Namen bis ins Residual und damit den
+ *    Werkzeug-Zwang aus `NAMED_RETRIEVAL_INTENTS`; früh zu `agentic` zu
+ *    wechseln gäbe genau den auf.
+ *  - `agentic` ist das Ziel der Demotion.
+ * `umfragen` war bis Phase L die dritte Ausnahme („sein Verdikt montiert das
+ * Werkzeug"). Der Intent ist stillgelegt (`retired`), das Werkzeug hängt jetzt
+ * am Erwähnungs-Pin — die Ausnahme ist damit gegenstandslos, nicht gestrichen.
+ * `pressemitteilung_examples` stand umgekehrt MIT in der Menge und ist mit
+ * derselben Stilllegung herausgefallen: eine `retired`-Disposition kann keine
+ * Teilmenge von `loop` sein.
+ * `dispositionSets.vitest.ts` nagelt diese Differenz fest — wer sie ändert,
+ * ändert eine Aussage.
+ */
+export const DEMOTABLE_HEURISTIC_INTENTS: ReadonlySet<ChatIntentId> = new Set([
+  'search',
+  'web',
+  'examples',
+  'compare',
+  'abgeordnetenwatch',
+  'bundestag',
+] as const satisfies readonly ChatIntentId[]);
 
 /**
  * Document subtypes the chat may assign.
@@ -128,6 +190,33 @@ export function detectDocumentSubtype(text: string): DocSubtype | null {
  */
 export const NO_RETRIEVAL_VERDICTS: ReadonlySet<string> = intentsWithDisposition('prose');
 
+/** Ab dieser Länge ist der Block unter der Anweisung Material, kein Nachsatz. */
+const PASTED_BODY_MIN_CHARS = 120;
+
+/**
+ * Die Nachricht trägt ihren Gegenstand selbst: eine Anweisung, ein Umbruch,
+ * darunter der eingefügte Text („Fasse diese Bürgeranfrage zusammen:\n\n…").
+ *
+ * Gebraucht, weil die zwei bestehenden Antworten auf „liegt Material vor?" den
+ * Fall beide nicht sehen. `turnCarriesOwnMaterial` misst die GESAMTLÄNGE gegen
+ * `NOUN_TRIGGER_MAX_LENGTH` (500) — die drei Einfüge-Fälle des Korpus liegen mit
+ * 309–489 Zeichen darunter. Und die Materialprüfung des `summary`-Rückstufers
+ * zählt nur Anhänge und Dokumentzeilen, die eine eingefügte Bürgeranfrage nicht
+ * hat. Ohne diese Regel wird genau ihr Text zur WEB-SUCHANFRAGE — im
+ * Sicherheits-Korpus samt der eingebetteten Injektions-Nutzlast.
+ *
+ * Bewusst formunabhängig (nur Umbruch + Länge): das Erkennungszeichen ist der
+ * abgesetzte Block, nicht das Anführungszeichen oder der Doppelpunkt. Ein
+ * zweiter Absatz mit eigener Bitte („… zusammen.\n\nMir ist wichtig, dass …")
+ * wird dabei mitgenommen — das ist die Richtung, in die der Rückstufer
+ * ausdrücklich irren soll: ein falsches Behalten ist das alte Verhalten, eine
+ * falsche Rückstufung zerlegt ein funktionierendes Feature.
+ */
+export function carriesPastedBody(text: string): boolean {
+  const at = (text ?? '').indexOf('\n');
+  return at >= 0 && text.slice(at).trim().length >= PASTED_BODY_MIN_CHARS;
+}
+
 /**
  * Phrases that reference the user's earlier work — a past conversation with the
  * assistant OR one of the user's own office documents (docs/presentations/
@@ -191,13 +280,15 @@ export const CHAT_HISTORY_DIRECT =
  * Deliberately an AND of two independent signals — a cadence AND a delivery
  * verb. Either alone is far too common to route on: "jeden Tag" appears in
  * ordinary prose about anything, and "erinnere mich" without a cadence is a
- * one-off. Requiring both is what makes this affordable as a direct route to
- * `create_recurring_task`, an intent the heuristic table never had at all (it
- * was LLM-only, so every recurring order paid for the 27k prompt).
+ * one-off. Requiring both is what makes this affordable as a direct route —
+ * since 09/2026 into the loop with the `recurring_tasks` tool pinned (before
+ * that onto the `create_recurring_task` intent, which was LLM-only, so every
+ * recurring order paid for the 27k prompt).
  *
- * The dispatcher still extracts the actual schedule with its own LLM call, so
- * this pattern only has to answer "is a recurrence being asked for", not "what
- * recurrence" — which is why it can stay a regex.
+ * The loop planner fills the actual schedule from the tool schema, so this
+ * pattern only has to answer "is a recurrence being asked for", not "what
+ * recurrence" — which is why it can stay a regex. The same predicate also
+ * mounts the tool (`toolCatalog.ts`).
  */
 // `\p{L}*` hinter den Adverbien, nicht bloss das nackte Wort: „eine WÖCHENTLICHE
 // Aufgabe" ist die natürliche Formulierung, und die flektierte Form scheiterte am
@@ -212,9 +303,10 @@ const RECURRENCE_CADENCE =
  * Die erste Fassung prüfte nur auf ein Zustellwort irgendwo im Satz, und das
  * war zu wenig: „Was steht täglich im Newsletter-Update?" und „Ich lese jeden
  * Tag den Bericht" erfüllten Takt + Zustellung und legten eine tägliche Aufgabe
- * an, statt die Frage zu beantworten. `create_recurring_task` ist nicht in
- * `AGENTIC_INTENTS`, der Dispatcher legt also OHNE Rückfrage an — ein Fehlalarm
- * hier schreibt in die Datenbank.
+ * an, statt die Frage zu beantworten — damals schrieb der Intent OHNE
+ * Rückfrage in die Datenbank. Seit 09/2026 legt das Werkzeug nur noch über eine
+ * Karte an; ein Fehlalarm kostet jetzt einen Umweg über die Schleife und eine
+ * überflüssige Karte, keine Zeile mehr.
  *
  * Deshalb steht das Verb jetzt zusammen mit seinem Objekt: „erinnere MICH",
  * „schick MIR", „melde DICH". Ein blosses „Update" oder „Bericht" genügt nicht.
@@ -309,6 +401,10 @@ export const HELP_ANCHOR =
  * Grünerator-specific feature nouns. Required alongside a how-question so
  * generic instructional asks ("wie kann ich die Energiewende erklären") stay
  * out of the docs intent — that is a content question, not a product question.
+ *
+ * `notizb[üu]ch\w*` sits next to `notebooks?` on purpose: the product word is
+ * Notebook since 27.08.2026, but this net reads what people TYPE. Detectors
+ * over user input keep the old spelling.
  */
 export const GRUENERATOR_FEATURE_NOUN =
   /\b(gr[üu]nerator\w*|agentura|gr[üu]n[- ]?o[- ]?mat|sharepics?|reels?|untertitel|notebooks?|notizb[üu]ch\w*|wolke|nextcloud|konnektor\w*|mcp[- ]?server\w*|wissenssammlung\w*|monitor|sonntagsfrage|sharepic[- ]studio|composer|grüneratoren)\b/i;
@@ -326,6 +422,102 @@ export function looksLikeDocsHelpQuestion(text: string): boolean {
   const hasFeature = GRUENERATOR_FEATURE_NOUN.test(t);
   if (HELP_ANCHOR.test(t) && (hasFeature || INSTRUCTIONAL_QUESTION.test(t))) return true;
   return INSTRUCTIONAL_QUESTION.test(t) && hasFeature;
+}
+
+/**
+ * Eine GELTUNGSFRAGE: Gilt eine Norm, Frist oder Regelung JETZT noch?
+ *
+ * Die Klasse ist nicht „Rechtsfrage", und der Unterschied ist der ganze Punkt.
+ * „Was steht in § 184k StGB?" ist eine Rechtsfrage und braucht keine Suche — der
+ * Normtext ist stabil. „Gilt das Verbrenner-Aus ab 2035 noch?" fragt nach einem
+ * JETZT-Zustand, und dessen richtige Antwort veraltet in Wochen. Der Code kennt
+ * die Klasse längst und zählt sie in `synthPrompt.ts` selbst auf („Amt, Mandat,
+ * Mitgliedschaft, Preis, Stand eines Verfahrens"); es fehlte nur der Detektor.
+ *
+ * Zweifaktorig wie `search.party_position`: die FRAGEFORM allein trifft zu viel
+ * („Gilt das auch für mein Dokument?"), der GEGENSTAND allein trifft jede
+ * Gesetzesnennung. Erst beides zusammen beschreibt den Fall.
+ *
+ * Das Fenster zwischen „gilt" und „noch" ist mit 160 Zeichen weit, aber durch
+ * `[^.?!]` auf EINEN Satz begrenzt. 60 waren zu wenig: „Gilt das
+ * Klimaschutzgesetz, das im Sommer nach monatelangen Verhandlungen verabschiedet
+ * wurde, eigentlich noch?" reisst die Klammer mit über 100 Zeichen auf, ohne den
+ * Satz zu verlassen — und ein Relativsatz zwischen Norm und Frage ist im
+ * Rechtsregister der Normalfall, nicht die Ausnahme. Die Weite ist billig, weil
+ * der Gegenstand (Faktor B) ohnehin danebenstehen muss.
+ *
+ * Warum ein Erstellungsauftrag ausgeschlossen ist: die Regel, die dieses
+ * Prädikat im Heuristik-Tisch bedient, steht VOR den Erstellungsregeln und würde
+ * sie sonst verdecken — „Schreibe eine PM zum Gesetz, das 2026 in Kraft tritt"
+ * ist ein Schreibauftrag, keine Frage nach dem Stand.
+ */
+const VALIDITY_FORM_RE =
+  /\b(gilt|gelten|gälte|galt|gültig|gueltig)\b[^.?!]{0,160}?\bnoch\b|\bnoch\b[^.?!]{0,160}?\b(gilt|gelten|gültig|gueltig|in\s+kraft)\b|\b(außer|ausser)\s+kraft\b|\bin\s+kraft\b|\brechts(stand|lage|akt)\w*\b|\bgesetzeslage\b|\bverfahrensstadium\b|\b(schon|bereits)\s+(beschlossen|verabschiedet|in\s+kraft)\b|\bbeschlossen\s+oder\b|\b(gekippt|aufgehoben|abgeschafft|zurückgenommen|zurueckgenommen)\b|\bstand\s+(des|der)\s+(verfahrens?|gesetzgebung|beratung|verhandlung\w*)\b/i;
+
+/**
+ * Der Gegenstand, dessen Geltung gefragt sein kann — eine Norm, eine Frist, ein
+ * Verfahren, oder schlicht eine Jahreszahl. Ohne ihn ist „gilt … noch" eine
+ * Rückfrage zum Gespräch und keine Recherche.
+ *
+ * Der Stamm muss an einer KOMPOSITUM-NAHT sitzen — am Wortanfang oder am
+ * Wortende, nicht irgendwo in der Mitte.
+ *
+ * Beide Hälften sind gemessen. Nur eine führende Wortgrenze (`\bgesetz`) fand
+ * „das Gesetz" und verfehlte „Lieferkettengesetz", „Klimaschutzgesetz",
+ * „Heizungsgesetz" — also gerade die Normen, nach denen wirklich gefragt wird;
+ * dieselbe Begründung steht an `parliamentaryKeywords` weiter unten. Gar keine
+ * Grenze traf dafür mitten hinein: `gesetz` in „vorausge**setz**t", `frist` in
+ * „be**frist**et", `verbot` in „un**verbot**ene". Die Naht-Regel nimmt das
+ * Kompositum und lässt die Wortmitte liegen.
+ *
+ * Der Zusatz `(?!t\b)` an `gesetz` fängt den einen Rest, den die Naht nicht
+ * fängt: das blosse Partizip „gesetzt" beginnt mit einer echten Wortgrenze.
+ *
+ * Bewusst NICHT gelöst: „sich verfahren" und die literarische „Novelle" tragen
+ * denselben Stamm wie Verwaltungsverfahren und Gesetzesnovelle. Lexikalisch ist
+ * das nicht trennbar; der Preis eines Treffers ist ein überflüssiger Abruf, und
+ * Faktor A muss zusätzlich passen.
+ */
+const NORM_STEMS =
+  'gesetz(?!t\\b)|verordnung|richtlinie|beschluss|beschlüsse|regelung|vorschrift|verbot|frist|verfahren|novelle|reform|statut|satzung|paragra(?:f|ph)|abkommen|moratorium';
+const NORM_SUBJECT_RE = new RegExp(`\\b(?:${NORM_STEMS})|(?:${NORM_STEMS})\\b`, 'i');
+
+/** Eine Jahreszahl trägt den Gegenstand allein — „gilt das ab 2035 noch". */
+const YEAR_OR_ARTICLE_RE = /§|\bartikel\s*\d+|\b(19|20)\d\d\b/i;
+
+/**
+ * Ein Schreibauftrag ist keine Frage nach dem Stand — aber nur ein ECHTER.
+ *
+ * Unverankert war dieser Wächter der gefährlichste Teil des Detektors, weil er
+ * ihn abschaltet, bevor irgendetwas anderes geprüft wird: `verfass\w*` trifft
+ * „Verfassung", „Verfassungsänderung", „verfasst"; `formulier\w*` trifft
+ * „Formulierung"; `erstell\w*` trifft „Erstellung". „Ist die Verordnung, die
+ * 2019 verfasst wurde, noch gültig?" fiel damit still durch — dieselbe
+ * Fehlerform wie #2949, nur durch die Reparatur selbst erzeugt.
+ *
+ * Ein Auftrag steht am Anfang der Nachricht, höchstens hinter einer Höflichkeit.
+ * Genau das prüft der Anker.
+ */
+const CREATIVE_ORDER_RE =
+  /^(?:bitte\s+|kannst\s+du\s+(?:bitte\s+)?|könntest\s+du\s+(?:bitte\s+)?|kannst\s+du\s+mir\s+(?:bitte\s+)?)?(?:schreib|erstell|formulier|verfass|entwirf|entwerfe)\w*/i;
+
+/** Fragen ohne Fragezeichen — der Satz beginnt mit dem Frageverb. */
+const QUESTION_OPENER_RE =
+  /^(gilt|gelten|ist|sind|hat|haben|wurde|wurden|was|wie|welche[rsnm]?|wann|steht|stimmt)\b/i;
+
+/**
+ * Gate für die Geltungsfrage. Hohe Präzision, bewusst niedrige Trefferquote:
+ * was durchfällt, verhält sich exakt wie heute. Was greift, kostet einen
+ * erzwungenen Abruf — und der ist bei einer falsch-positiven Frage nur langsam,
+ * während eine falsch-negative eine plausibel aussehende, veraltete Auskunft
+ * durchlässt, der niemand ansieht, wann sie stimmte.
+ */
+export function looksLikeGeltungsfrage(raw: string): boolean {
+  const t = (raw ?? '').trim();
+  if (!t) return false;
+  if (CREATIVE_ORDER_RE.test(t)) return false;
+  if (!t.includes('?') && !QUESTION_OPENER_RE.test(t)) return false;
+  return VALIDITY_FORM_RE.test(t) && (NORM_SUBJECT_RE.test(t) || YEAR_OR_ARTICLE_RE.test(t));
 }
 
 /**
@@ -417,6 +609,47 @@ export function detectComplexity(query: string): 'simple' | 'moderate' | 'comple
 }
 
 /**
+ * Ein Akteur mit Vor- und Nachnamen, in einem Rahmen, der ihn als Akteur ausweist.
+ *
+ * Die dritte Tür zum DIP-Zweig neben `partyKeywords` und
+ * `bundestagFactionKeywords` — und die, ohne die die Menge asymmetrisch war:
+ * „Recherchiere, wie die SPD beim Heizungsgesetz abgestimmt hat" bekam
+ * `documents+bundestag`, dieselbe Frage nach Renate Künast bekam nichts.
+ * Gemessen am `research`-Verdikt, dem Pfad, auf dem `searchSources` wirklich
+ * gelesen wird (der Loop wählt seine Werkzeuge selbst und liest das Feld nie).
+ *
+ * Gegen den ROHEN Text, nicht gegen die kleingeschriebene Kopie: Grossschreibung
+ * IST hier das Signal. `PERSON_PATTERNS` in `PersonDetectionService` löst
+ * dieselbe Aufgabe, taugt hier aber nicht — es ist async (MP-Cache +
+ * DIP-Abfrage), und sein `/i` macht `[A-ZÄÖÜ]` zu keiner Grossschreibungsprüfung
+ * mehr.
+ *
+ * Zwei Wächter, beide gemessen und nicht geschätzt:
+ *
+ *  - **Der Rahmen ist Pflicht.** Zwei grossgeschriebene Wörter allein treffen im
+ *    Deutschen jedes Nomenpaar. Ein Vorwort oder eine Anrede davor macht daraus
+ *    einen Akteur — zusammen mit der Parlaments-Bedingung an der Aufrufstelle.
+ *  - **Der Name darf keine Institution sein.** „Gesetzentwurf mit Kleiner
+ *    Anfrage" passiert den Rahmen (`mit` + zwei grosse Wörter) und ist keine
+ *    Person. Geprüft werden BEIDE Namensteile, weil der Fehlgriff mal vorne
+ *    („Deutschen Bundestag") und mal hinten sitzt („Kleiner Anfrage").
+ *
+ * Mindestens zwei Namensteile, damit „von Bayern" keine*n Abgeordnete*n ergibt.
+ */
+const PERSON_FRAME =
+  /(?:\b[Ww]ie(?:\s+(?:hat|haben))?|\b[Vv]on|\b[Dd]urch|\b[Mm]it|\b[Aa]bgeordnete[rn]?|\bMdB|\b(?:Dr|Prof)\.)\s+([A-ZÄÖÜ][a-zäöüß]+(?:-[A-ZÄÖÜ][a-zäöüß]+)?)\s+([A-ZÄÖÜ][a-zäöüß]+(?:-[A-ZÄÖÜ][a-zäöüß]+)?)/;
+
+/** Wörter, die im Rahmen stehen können, ohne je ein Personenname zu sein. */
+const NOT_A_NAME =
+  /^(bundestag\w*|bundesrat\w*|drucksache\w*|plenar\w*|plenum|gesetzentw(urf|ürf)\w*|anfrage\w*|antr(a|ä)g\w*|fraktion\w*|ausschuss\w*|partei\w*|regierung\w*|ministerium\w*|union|linke\w*|gr(ü|u)ne\w*|deutsch\w*|kleine\w*|gro(ß|ss)e\w*)$/i;
+
+function namesAPerson(query: string): boolean {
+  const m = PERSON_FRAME.exec(query);
+  if (!m) return false;
+  return !NOT_A_NAME.test(m[1] ?? '') && !NOT_A_NAME.test(m[2] ?? '');
+}
+
+/**
  * Detect whether a query needs multiple search sources (documents + web).
  * Returns an array of search sources to query in parallel.
  * Empty array means single-source mode (backward compatible, uses intent-based routing).
@@ -452,7 +685,23 @@ export function detectSearchSources(query: string, intent: SearchIntent): Search
   // the nominative and quietly missed every declined form.
   const parliamentaryKeywords =
     /\b(drucksache\w*|drs\.?|plenar\w*|plenum|gesetzentw(urf|ürf)\w*|gesetzgebungsverfahren\w*|bundestagsdebatte\w*|debattiert|kleine anfrage\w*|große anfrage\w*|abgestimmt|beratungsstand\w*|antrag im bundestag|im bundestag (debattiert|beschlossen|eingebracht|beraten))\b/i;
-  if (hasPartyKeywords && parliamentaryKeywords.test(q)) {
+  // Fremdfraktionen öffnen denselben Zweig. Bewusst NICHT in `partyKeywords`:
+  // der Satz oben schaltet vier weitere Zweige, und in jedem von ihnen stünde
+  // `documents` — unsere eigenen Sammlungen — als Fundstelle für eine Frage über
+  // eine andere Partei. „Wie hat die SPD abgestimmt" braucht das Parlamentsprotokoll,
+  // nicht unser Wahlprogramm.
+  //
+  // Der Zuschnitt folgt der Quelle, die er aufsperrt: aufgenommen ist, was im
+  // Bundestag Fraktion war oder ist — die DIP reicht über die laufende
+  // Wahlperiode zurück, deshalb stehen FDP und BSW mit drin. Österreichische
+  // Parteien gehören nicht hierher: zur DIP gibt es für sie kein Gegenstück,
+  // ein Treffer würde eine AT-Frage an den deutschen Bundestag schicken.
+  const bundestagFactionKeywords =
+    /\b(spd|cdu|csu|afd|fdp|bsw|unionsfraktion|linksfraktion|linkspartei)\b|\b(die|der|den)\s+(linken?|union)\b/i;
+  if (
+    (hasPartyKeywords || bundestagFactionKeywords.test(q) || namesAPerson(query)) &&
+    parliamentaryKeywords.test(q)
+  ) {
     return ['documents', 'bundestag'];
   }
 

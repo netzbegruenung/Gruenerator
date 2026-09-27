@@ -1,33 +1,53 @@
 import {
   triggerDocEditSchema,
-  triggerBoardActionSchema,
   editorOperationsEventSchema,
   isCanvasTemplateType,
   chatStreamEventSchemas,
+  notebookAnswerModeReasonSchema,
+  notebookResolvedAnswerModeSchema,
   type ChatErrorEventPayload,
+  type NotebookAnswerModeReason,
+  type NotebookResolvedAnswerMode,
   type SocialPostPayload,
   type BahnPayload,
   type SharepicUpdatedEvent,
+  looksCutOff,
 } from '@gruenerator/contracts';
+import { subtypeToArtifactKind } from '@gruenerator/shared/docs';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
+import { PRAEZISION_PROGRESS_MESSAGE } from '../../lib/notebookAnswerMode';
 import { notifyError, notifyWarning } from '../../lib/notify';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { parseSSELine } from '../../lib/sseParser';
+import { TOOL_APPROVAL_OPTIONS } from '../../lib/toolApproval';
 import {
   ARTIFACT_STAGE_INTENTS,
   ARTIFACT_TOOL_NAMES,
   INTENT_TO_TOOL,
   DEEP_TOOL_MAP,
-  formatNamespacedToolLabel,
 } from '../../lib/toolMappings';
-import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
+import {
+  canAutoOpenArtifactPanel,
+  useArtifactLiveStore,
+  type CodeArtifact,
+  type ResearchLogStep,
+} from '../../stores/artifactLiveStore';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
 import { ChatStreamError } from '../streamErrorMessage';
+
+import {
+  applyToolStepResult,
+  buildToolStepCard,
+  toolStepResultMessage,
+  toolStepTitle,
+  type ToolStepResultData,
+  type ToolStepStartData,
+} from './toolStepCards';
 
 import type {
   GrueneratorAdapterCallbacks,
@@ -76,13 +96,6 @@ const NO_RETRIEVAL_STAGE_INTENTS: ReadonlySet<string> = new Set([
   'compute',
 ]);
 
-/** Display titles for agentic sharepic-loop steps (tool_step_start events). */
-const TOOL_STEP_TITLES: Record<string, string> = {
-  read_sharepic_state: 'Lese aktuellen Zustand…',
-  apply_sharepic_ops: 'Wende Änderung an…',
-  restore_version: 'Stelle Version wieder her…',
-};
-
 export async function* parseSSEStream(
   response: Response,
   callbacks: GrueneratorAdapterCallbacks,
@@ -109,7 +122,15 @@ export async function* parseSSEStream(
   type TextSegment = { type: 'text'; text: string };
   const orderedContent: Array<TextSegment | ToolCallPart> = [];
   let currentTextSegment: TextSegment | null = null;
+  // One blob for the whole turn (the dropdown reads it as one text). A blank
+  // line is inserted at every step boundary, otherwise the agentic loop's later
+  // thinking is glued onto the previous step's last sentence mid-word.
   let accumulatedReasoning = '';
+  function breakReasoningBlock(): void {
+    if (accumulatedReasoning.length > 0 && !accumulatedReasoning.endsWith('\n\n')) {
+      accumulatedReasoning += '\n\n';
+    }
+  }
   // Themed progress labels — picked once per turn, stable for the whole stream.
   const stageLabels = pickStageLabels();
   let currentProgress: ChatProgress = {
@@ -120,7 +141,14 @@ export async function* parseSSEStream(
     { stage: 'classifying', label: stageLabels.classifying, status: 'in-progress' },
   ];
 
-  function transitionStep(newStage: ProgressStage, labelOverride?: string) {
+  /**
+   * @param key Identität des Schritts, wenn die Stufe sie nicht trägt. Ein
+   *   Pipeline-Nachschritt läuft unter derselben Stufe wie ein echtes
+   *   Such-Werkzeug; ohne eigenen Schlüssel überschriebe sein Titel rückwirkend
+   *   dessen Label, und die Herkunft des Suchschritts wäre aus der fertigen
+   *   Liste nicht mehr ablesbar.
+   */
+  function transitionStep(newStage: ProgressStage, labelOverride?: string, key?: string) {
     // Mark current in-progress step as completed
     for (const step of progressSteps) {
       if (step.status === 'in-progress') {
@@ -131,13 +159,16 @@ export async function* parseSSEStream(
     // Add new step if it has a label and isn't 'complete'/'error'/'idle'
     const label = labelOverride || stageLabels[newStage];
     if (label && newStage !== 'complete' && newStage !== 'error' && newStage !== 'idle') {
-      // Don't duplicate if the same stage already exists
-      if (!progressSteps.some((s) => s.stage === newStage)) {
-        progressSteps.push({ stage: newStage, label, status: 'in-progress' });
+      const same = (s: ProgressStep): boolean => (s.key ?? s.stage) === (key ?? newStage);
+      const existing = progressSteps.find(same);
+      if (!existing) {
+        progressSteps.push({ stage: newStage, label, status: 'in-progress', ...(key && { key }) });
       } else {
-        // Re-activate existing step
-        const existing = progressSteps.find((s) => s.stage === newStage);
-        if (existing) existing.status = 'in-progress';
+        existing.status = 'in-progress';
+        // Ein wiederbelebter Schritt trägt sonst das Label seines ersten Laufs.
+        // Nennt der Aufrufer eines, ist genau das die Information: die beiden
+        // Nachschritte unterscheiden sich NUR im Titel.
+        if (labelOverride) existing.label = labelOverride;
       }
     }
     if (newStage === 'complete') {
@@ -164,15 +195,22 @@ export async function* parseSSEStream(
   let receivedSharepicData: SharepicData | null = null;
   let receivedSocialPostData: SocialPostPayload | null = null;
   let receivedChartData: ChartData | null = null;
-  let receivedArtifactData: ActiveArtifact | null = null;
+  let receivedArtifactData: CodeArtifact | null = null;
   let receivedComputeData: ComputeData | null = null;
   let receivedBahnData: BahnPayload | null = null;
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
+  // Notebook turns end on `completion`, never on `done`, so their trace id
+  // arrives outside the metadata envelope the chat paths use.
+  let receivedTraceId: string | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
   let receivedCreatedDocument: DocumentCreatedData | null = null;
   let receivedReelProcessing: ReelProcessingData | null = null;
   let receivedReelPicker: ReelPickerData | null = null;
+  let evidenceWeakAccum: string | null = null;
+  // Notebook answers only (`answer_mode`): which mode this turn runs in.
+  let receivedAnswerMode: NotebookResolvedAnswerMode | null = null;
+  let receivedAnswerModeReason: NotebookAnswerModeReason | null = null;
   let activeToolCall: ToolCallPart | null = null;
   const allToolCalls: ToolCallPart[] = [...(carryOver?.toolCalls ?? [])];
   // Agentic tool-loop steps, keyed by stepId. The loop can run several tools in
@@ -298,12 +336,24 @@ export async function* parseSSEStream(
     if (receivedComputeData) custom.computeData = receivedComputeData;
     if (receivedBahnData) custom.bahnData = receivedBahnData;
     if (receivedMetadata) custom.streamMetadata = receivedMetadata;
+    else if (receivedTraceId)
+      custom.streamMetadata = {
+        intent: 'direct',
+        searchCount: 0,
+        totalTimeMs: 0,
+        traceId: receivedTraceId,
+      };
     if (receivedFollowUpSuggestions.length > 0)
       custom.followUpSuggestions = receivedFollowUpSuggestions;
     if (receivedConfirmAction) custom.confirmAction = receivedConfirmAction;
     if (receivedCreatedDocument) custom.createdDocument = receivedCreatedDocument;
     if (receivedReelProcessing) custom.reelProcessing = receivedReelProcessing;
     if (receivedReelPicker) custom.reelPicker = receivedReelPicker;
+    if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
+    if (receivedAnswerMode) {
+      custom.answerMode = receivedAnswerMode;
+      if (receivedAnswerModeReason) custom.answerModeReason = receivedAnswerModeReason;
+    }
     if (agentInfo?.agentId) {
       custom.agentId = agentInfo.agentId;
       if (agentInfo.agentMention) custom.agentMention = agentInfo.agentMention;
@@ -637,10 +687,49 @@ export async function* parseSSEStream(
             artifact?: { type: 'html' | 'svg'; title: string; content: string };
           };
           if (artifact) {
-            const active: ActiveArtifact = { id: `artifact-${Date.now()}`, ...artifact };
+            const active: CodeArtifact = { id: `artifact-${Date.now()}`, ...artifact };
             receivedArtifactData = active;
-            // Open the docked panel immediately.
-            useArtifactLiveStore.getState().setActiveArtifact(active);
+            // Open the docked panel immediately — nur dort, wo sie andocken
+            // kann. Auf schmalen Geräten bleibt es bei der Karte im Faden.
+            if (canAutoOpenArtifactPanel()) {
+              useArtifactLiveStore.getState().setActiveArtifact(active);
+            }
+          }
+          yield buildResult();
+          break;
+        }
+
+        // A deep research run has started: open the panel so the user can watch
+        // it work. The run takes minutes, so this is the only feedback there is
+        // until the document appears at the end.
+        case 'research_log_start': {
+          const { id, title } = data as { id?: string; title?: string };
+          if (id) {
+            useArtifactLiveStore.getState().setActiveArtifact({
+              id,
+              type: 'research_log',
+              title: title ?? 'Recherche',
+              plan: [],
+              steps: [],
+              status: 'running',
+            });
+          }
+          yield buildResult();
+          break;
+        }
+
+        case 'research_log_update': {
+          const patch = data as {
+            id?: string;
+            plan?: ResearchLogStep[];
+            steps?: ResearchLogStep[];
+            status?: 'running' | 'done' | 'failed';
+            documentUrl?: string;
+            documentId?: string;
+          };
+          if (patch.id) {
+            const { id, ...rest } = patch;
+            useArtifactLiveStore.getState().upsertResearchLog(id, rest);
           }
           yield buildResult();
           break;
@@ -810,48 +899,20 @@ export async function* parseSSEStream(
         // step renders as a tool-call part, mirroring the thinking_step
         // archive-and-replace mechanics (including the duplicate-stepId guard).
         case 'tool_step_start': {
-          const {
-            stepId,
-            toolName,
-            args,
-            title: serverTitle,
-            serverName,
-            narration: serverNarration,
-          } = data as {
-            stepId: string;
-            toolName: string;
-            args?: Record<string, unknown>;
-            title?: string;
-            serverName?: string;
-            narration?: string;
-          };
+          breakReasoningBlock();
+          const stepData = data as ToolStepStartData;
+          const { stepId, toolName } = stepData;
           // Associate narration with this card: prefer the server-stamped value
           // (also survives reload); else drain the client buffer (old server).
           const cardNarration =
-            serverNarration ??
+            stepData.narration ??
             (pendingNarration.length > 0 ? pendingNarration.join(' ') : undefined);
           pendingNarration = [];
-          // Prefer a server-provided title; else the legacy mcpToolNode
-          // `mcp_tool` server/tool label; else the sharepic-specific map; else a
-          // generic label derived from the (possibly MCP-namespaced) name.
-          const title =
-            serverTitle ??
-            (toolName === 'mcp_tool'
-              ? `${(args?.server as string) ?? 'MCP'}${args?.tool ? ` · ${args.tool as string}` : ''}`
-              : (TOOL_STEP_TITLES[toolName] ??
-                `${formatNamespacedToolLabel(toolName, serverName)}…`));
+          const title = toolStepTitle(stepData);
           const alreadyKnown =
             toolStepsById.has(stepId) || allToolCalls.some((tc) => tc.toolCallId === stepId);
           if (!alreadyKnown) {
-            const toolArgs = { query: title, ...(args ?? {}) };
-            const toolCall: ToolCallPart = {
-              type: 'tool-call',
-              toolCallId: stepId,
-              toolName,
-              args: toolArgs as Record<string, string | number | boolean | null>,
-              argsText: JSON.stringify(toolArgs),
-              ...(cardNarration ? { narration: cardNarration } : {}),
-            };
+            const toolCall = buildToolStepCard(stepData, title, cardNarration);
             // Push immediately so a parallel sibling's start doesn't orphan this
             // card; the result updates it in place. orderPushCard breaks the
             // current text run so a preceding text_delta stays a separate segment.
@@ -873,45 +934,13 @@ export async function* parseSSEStream(
         }
 
         case 'tool_step_result': {
-          const { stepId, ok, summary, result } = data as {
-            stepId: string;
-            toolName: string;
-            ok: boolean;
-            summary?: string;
-            result?: Record<string, unknown>;
-          };
+          const resultData = data as ToolStepResultData;
+          const { stepId } = resultData;
           const pending = toolStepsById.get(stepId);
           if (pending) {
-            // Stamp the rich per-tool result (results/examples/researchMeta) so
-            // the tool-ui card renders mid-stream from the real tool output,
-            // not just an ok/summary status. ok/summary are folded in for the
-            // generic status chip. Replace by identity so memoized consumers
-            // re-render.
-            // A system MCP tool may ship an MCP-Apps widget: lift its `ui://`
-            // pointer onto `mcp.app` so assistant-ui's mcpApp renderer mounts
-            // the sandboxed widget iframe in place of the normal tool card.
-            const uiResource = (result as { uiResource?: { uri?: unknown; mimeType?: unknown } })
-              ?.uiResource;
-            const widgetUri =
-              uiResource && typeof uiResource.uri === 'string' && uiResource.uri.startsWith('ui://')
-                ? uiResource.uri
-                : null;
-            const updated: ToolCallPart = {
-              ...pending,
-              result: { ...(result ?? {}), ok, ...(summary ? { summary } : {}) },
-              ...(widgetUri
-                ? {
-                    mcp: {
-                      app: {
-                        resourceUri: widgetUri,
-                        ...(typeof uiResource?.mimeType === 'string'
-                          ? { mimeType: uiResource.mimeType }
-                          : {}),
-                      },
-                    },
-                  }
-                : {}),
-            };
+            // Stamp the rich per-tool result so the tool-ui card renders
+            // mid-stream from the real tool output (see applyToolStepResult).
+            const updated = applyToolStepResult(pending, resultData);
             toolStepsById.set(stepId, updated);
             const idx = allToolCalls.indexOf(pending);
             if (idx >= 0) allToolCalls[idx] = updated;
@@ -920,15 +949,32 @@ export async function* parseSSEStream(
             // its pre-result state on screen.
             orderReplaceCard(updated);
           }
-          currentProgress = {
-            stage: 'generating',
-            message: summary ?? (ok ? 'Änderung angewendet' : 'Schritt fehlgeschlagen'),
-          };
+          // The STEP has to move with the stage, not just the message: the step
+          // list is what the tracker labels itself from, so a finished tool that
+          // only flipped `currentProgress` left "Suche läuft" standing over the
+          // rest of the turn.
+          //
+          // …but only once NOTHING is still running. A model step may call two
+          // tools at once (loopGuards allows two concurrent searches), and the
+          // first result back would otherwise complete the step while its
+          // sibling is still working — the tracker would claim the retrieval was
+          // done and go on to "Formuliere Antwort".
+          const stepStillOpen = [...toolStepsById.values()].some((s) => s.result == null);
+          const message = toolStepResultMessage(resultData);
+          if (stepStillOpen) {
+            currentProgress = { ...currentProgress, message };
+          } else {
+            transitionStep('generating');
+            currentProgress = { stage: 'generating', message };
+          }
           yield buildResult();
           break;
         }
 
         case 'response_start': {
+          // Split mode's synth phase starts here — its thinking is a new block,
+          // not a continuation of the planner's.
+          breakReasoningBlock();
           const { message } = data as { message: string };
           transitionStep('generating');
           currentProgress = { ...currentProgress, stage: 'generating', message };
@@ -954,12 +1000,16 @@ export async function* parseSSEStream(
           const mappedToolName = DEEP_TOOL_MAP[toolName] || toolName;
 
           if (status === 'in_progress') {
-            // The backend heartbeat (responseStreamingService.startResponseHeartbeat)
-            // re-emits the SAME stepId every 3s. If it matches the current
-            // activeToolCall, or is already in allToolCalls, skip the
+            // A re-sent stepId must not become a SECOND card: if it matches the
+            // current activeToolCall, or is already in allToolCalls, skip the
             // archive-and-replace below — otherwise we'd render two tool-call
             // parts with the same toolCallId and trip assistant-ui's
             // `tapResources` with "Duplicate key toolCallId-…".
+            //
+            // Note this only dedupes; it does not make a repeat HARMLESS. Every
+            // `thinking_step` opens a card that stays on screen until a matching
+            // `completed` closes it, so this event is for real tools only —
+            // internal stages narrate through `progress_step` (see below).
             const isDuplicateStepId =
               (activeToolCall !== null && activeToolCall.toolCallId === stepId) ||
               allToolCalls.some((tc) => tc.toolCallId === stepId);
@@ -1004,13 +1054,24 @@ export async function* parseSSEStream(
           // `intent` event + `thinking_step`. Conflating the two is what
           // caused the search→rerank race that orphaned the rich
           // examples/search/web tool-cards (see PR history).
-          const { title, status } = data as {
+          const { stepId, title, status } = data as {
             stepId: string;
             toolName: string;
             title: string;
             status: 'in_progress' | 'completed';
           };
           if (status === 'in_progress') {
+            // Until 14.08.2026 `title` only ever reached `currentProgress.message`,
+            // which the ProgressTracker does not read — `selectStatusLabel` takes
+            // the step label ahead of `message`, and there is always a step list.
+            // So a pipeline agent's after-steps ran for minutes under step 1's
+            // label ("Feile …"), indistinguishable from a hang. The step now
+            // enters the list, under the same stage as before but under its OWN
+            // key, so it never overwrites a real search step's label. Guarded so
+            // the 3s heartbeat re-send does not churn the list.
+            if (currentProgress.stage !== 'searching' || currentProgress.message !== title) {
+              transitionStep('searching', title, `progress:${stepId}`);
+            }
             currentProgress = { ...currentProgress, stage: 'searching', message: title };
           } else if (status === 'completed') {
             currentProgress = { ...currentProgress, message: title };
@@ -1076,21 +1137,33 @@ export async function* parseSSEStream(
 
         case 'warning': {
           // Non-fatal degradation carrying a ready-made German message.
-          // Note: where the turn still has a model, the answer itself explains
-          // the degradation — this toast is the fallback for the paths where
-          // no answer can carry it (persistence, notebook streams).
+          // Note: `evidence_weak` is a statement about THIS answer, not a
+          // disruption — it goes under the text (custom.evidenceWeak), not in
+          // a toast that sits above the page and belongs to no message.
           const { code, message } = data as { code: string; message: string };
           console.warn(`[GrueneratorModelAdapter] warning (${code}): ${message}`);
+          if (code === 'evidence_weak') {
+            if (message) evidenceWeakAccum = message;
+            break;
+          }
           if (message) notifyWarning(message);
           break;
         }
 
         case 'interrupt': {
           const payload = data as {
-            interruptType?: 'clarification' | 'client_tool';
+            interruptType?: 'clarification' | 'client_tool' | 'tool_approval';
             toolName?: string;
             args?: Record<string, unknown>;
             threadId?: string;
+            approvalTurnId?: string;
+            calls?: Array<{
+              toolCallId: string;
+              toolName: string;
+              args?: Record<string, unknown>;
+              title?: string;
+              serverName?: string;
+            }>;
           };
           if (payload.interruptType === 'client_tool' && payload.toolName) {
             clientToolPending = true;
@@ -1099,6 +1172,37 @@ export async function* parseSSEStream(
               args: payload.args ?? {},
               ...(payload.threadId != null && { threadId: payload.threadId }),
             };
+          } else if (payload.interruptType === 'tool_approval' && payload.calls?.length) {
+            // Jeder zurückgehaltene Aufruf wird eine Karte mit Freigabe-Gate.
+            // Das Gate selbst hält den Zug an (assistant-ui: eine unentschiedene
+            // Freigabe blockiert die Fortsetzung), `interruptPending` sorgt für
+            // den `requires-action`-Status, den die Laufzeit dafür verlangt.
+            for (const call of payload.calls) {
+              const args = { ...(call.args ?? {}) };
+              const part: ToolCallPart = {
+                type: 'tool-call',
+                toolCallId: call.toolCallId,
+                toolName: call.toolName,
+                args: args as Record<string, string | number | boolean | null>,
+                argsText: JSON.stringify(args),
+                approval: {
+                  id: call.toolCallId,
+                  options: TOOL_APPROVAL_OPTIONS,
+                },
+                // Ohne die beiden nennt die Karte nur den Katalognamen — und
+                // genau die Auskunft, welcher Dienst da angesprochen wird, ist
+                // der Grund für die Rückfrage.
+                ...(call.title != null && { title: call.title }),
+                ...(call.serverName != null && { serverName: call.serverName }),
+              };
+              toolStepsById.set(call.toolCallId, part);
+              allToolCalls.push(part);
+              orderPushCard(part);
+            }
+            if (payload.approvalTurnId != null) {
+              outcome.toolApprovalPending = { approvalTurnId: payload.approvalTurnId };
+            }
+            interruptPending = true;
           } else {
             interruptPending = true;
           }
@@ -1136,7 +1240,29 @@ export async function* parseSSEStream(
         }
 
         case 'document_created': {
-          receivedCreatedDocument = data as DocumentCreatedData;
+          const created = data as DocumentCreatedData;
+          receivedCreatedDocument = created;
+          // Mirror the 'artifact' case: dock the panel immediately instead of
+          // waiting for a click on DocumentCreatedCard's button. PDFs are
+          // excluded — their url is an authenticated asset endpoint (needs
+          // configFetch + blob), not something a plain iframe src can load.
+          // Only where an ArtifactPanel is actually mounted (/chat thread view):
+          // elsewhere the write is invisible AND would close a docked
+          // sharepic/reel via the one-panel rule with nothing replacing it.
+          if (
+            useArtifactLiveStore.getState().panelMounted &&
+            canAutoOpenArtifactPanel() &&
+            subtypeToArtifactKind(created.subtype) !== 'pdf'
+          ) {
+            useArtifactLiveStore.getState().setActiveArtifact({
+              id: `document-${created.documentId}`,
+              type: 'document',
+              documentId: created.documentId,
+              subtype: created.subtype,
+              title: created.title,
+              url: created.url,
+            });
+          }
           yield buildResult();
           break;
         }
@@ -1148,11 +1274,11 @@ export async function* parseSSEStream(
         }
 
         case 'trigger_doc_edit': {
-          // Live document edit (docs editor surface). The chat backend has
-          // classified intent=edit_current_doc and forwards the user's prompt
-          // here so the docs frontend can dispatch into BlockNote's AIExtension.
-          // Handlers are keyed by documentId — there's exactly one docs surface
-          // per document, registered when DocsAssistantChat mounts.
+          // Live document edit (docs editor surface). The loop's `edit_document`
+          // tool decided the edit and wrote the instruction; the docs frontend
+          // dispatches it into BlockNote's AIExtension, which applies it as
+          // suggestions. Handlers are keyed by documentId — there's exactly one
+          // docs surface per document, registered when DocsAssistantChat mounts.
           const parsed = triggerDocEditSchema.safeParse(data);
           if (!parsed.success) {
             console.warn('[ChatAdapter] trigger_doc_edit payload failed validation', parsed.error);
@@ -1180,48 +1306,6 @@ export async function* parseSSEStream(
             );
             notifyWarning(
               'Dokument nicht verbunden',
-              'Öffne die Datei, damit Änderungen angewendet werden können.'
-            );
-          }
-          break;
-        }
-
-        case 'trigger_board_action': {
-          // Live board edit (boards editor surface). The chat backend has
-          // classified intent=edit_current_board and forwards the user's prompt
-          // here so the boards frontend can plan + apply operations on the live
-          // Yjs board. Handlers are keyed by boardId — one boards surface per
-          // board, registered when BoardAssistantProvider mounts.
-          const parsed = triggerBoardActionSchema.safeParse(data);
-          if (!parsed.success) {
-            console.warn(
-              '[ChatAdapter] trigger_board_action payload failed validation',
-              parsed.error
-            );
-            notifyError('Board konnte nicht bearbeitet werden', 'Die Anweisung war ungültig.');
-            break;
-          }
-          const payload = parsed.data;
-          const handler = useChatConfigStore
-            .getState()
-            .boardActionHandlers.get(payload.targetBoardId);
-          if (handler) {
-            try {
-              await handler(payload);
-            } catch (err) {
-              console.warn('[ChatAdapter] boardActionHandler threw', err);
-              notifyError(
-                'Board konnte nicht bearbeitet werden',
-                'Die Änderung konnte nicht angewendet werden.'
-              );
-            }
-          } else {
-            console.warn(
-              '[ChatAdapter] trigger_board_action received but no handler registered for board',
-              payload.targetBoardId
-            );
-            notifyWarning(
-              'Board nicht verbunden',
               'Öffne die Datei, damit Änderungen angewendet werden können.'
             );
           }
@@ -1311,6 +1395,23 @@ export async function* parseSSEStream(
         }
 
         // ── Notebook mode events ──
+        case 'answer_mode': {
+          // Read from the raw frame: the wire gate coerces an unknown mode to
+          // `chat`, and a guessed chip is worse than none. Same rule as web.
+          const raw = rawData as { resolved?: unknown; reason?: unknown };
+          const resolved = notebookResolvedAnswerModeSchema.safeParse(raw.resolved);
+          if (!resolved.success) break;
+          receivedAnswerMode = resolved.data;
+          const reason = notebookAnswerModeReasonSchema.safeParse(raw.reason);
+          receivedAnswerModeReason = reason.success ? reason.data : null;
+          if (receivedAnswerMode === 'praezision') {
+            transitionStep('searching', PRAEZISION_PROGRESS_MESSAGE);
+            currentProgress = { stage: 'searching', message: PRAEZISION_PROGRESS_MESSAGE };
+          }
+          yield buildResult();
+          break;
+        }
+
         case 'completion': {
           sawTerminalEvent = true;
           // `completion` carries EITHER shape (see the union in the wire
@@ -1334,7 +1435,11 @@ export async function* parseSSEStream(
           const completionData = data as {
             text?: string;
             citations?: Array<NotebookWireCitation | Citation>;
+            metadata?: { traceId?: string };
           };
+          if (typeof completionData.metadata?.traceId === 'string') {
+            receivedTraceId = completionData.metadata.traceId;
+          }
           const isNotebookCitation = (
             c: NotebookWireCitation | Citation
           ): c is NotebookWireCitation => typeof (c as NotebookWireCitation).index === 'string';
@@ -1387,23 +1492,15 @@ export async function* parseSSEStream(
     }
   }
 
-  // Client half of the truncation cross-check. The server runs the identical
-  // test on the text it generated (`looksCutOff`, apps/api/.../outputSanity.ts)
-  // and logs its own char count as `chars=N`. Comparing the two numbers is what
-  // localises a "the answer just stops" report without a repro:
+  // Client half of the truncation cross-check: the server runs the same
+  // `looksCutOff` on the text it generated and logs its count as `chars=N`.
   //   same count   → the model stopped early (check finishReason in the backend)
   //   fewer here   → the tail was lost between server and screen
-  // Only warns on the suspicious shape, so a normal turn stays quiet.
   const assembled = orderedContent
     .filter((el): el is TextSegment => el.type === 'text')
     .map((el) => el.text)
     .join('');
-  // Mirrors TRUNCATION_MIN_WORDS on the server: under five words, "ends on a
-  // letter" is the shape of a demanded one-liner ("KEINE DATEN") as often as of
-  // a severed sentence, and warning on both is how the real cut got read as
-  // noise.
-  const tail = assembled.trimEnd();
-  if (tail.split(/\s+/).filter(Boolean).length >= 5 && /[\p{L}\p{N}]$/u.test(tail)) {
+  if (looksCutOff(assembled)) {
     console.warn(
       `[GrueneratorModelAdapter] answer ends mid-sentence after ${assembled.length} chars ` +
         `(compare the backend's "chars=" line) — tail: ${JSON.stringify(assembled.slice(-60))}`

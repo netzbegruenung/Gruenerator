@@ -1,5 +1,5 @@
-import { DEFAULT_NOTEBOOK_DEPTH } from '@gruenerator/chat';
-import { notebookDepthSchema } from '@gruenerator/contracts';
+import { DEFAULT_NOTEBOOK_ANSWER_MODE, DEFAULT_NOTEBOOK_DEPTH } from '@gruenerator/chat';
+import { notebookAnswerModeSchema, notebookDepthSchema } from '@gruenerator/contracts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Appearance } from 'react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -23,6 +23,7 @@ beforeEach(() => {
     themeMode: 'system',
     performanceMode: false,
     notebookDepth: DEFAULT_NOTEBOOK_DEPTH,
+    notebookAnswerMode: DEFAULT_NOTEBOOK_ANSWER_MODE,
   });
 });
 
@@ -173,5 +174,49 @@ describe('notebookDepth', () => {
 
     await expect(usePreferencesStore.getState().setNotebookDepth('ultra')).resolves.toBeUndefined();
     expect(usePreferencesStore.getState().notebookDepth).toBe('ultra');
+  });
+});
+
+describe('notebookAnswerMode', () => {
+  it.each(notebookAnswerModeSchema.options)('round-trips %s', async (mode) => {
+    await usePreferencesStore.getState().setNotebookAnswerMode(mode);
+    expect(await AsyncStorage.getItem('notebookAnswerMode')).toBe(mode);
+
+    usePreferencesStore.setState({ notebookAnswerMode: DEFAULT_NOTEBOOK_ANSWER_MODE });
+    await usePreferencesStore.getState().loadPreferences();
+
+    expect(usePreferencesStore.getState().notebookAnswerMode).toBe(mode);
+  });
+
+  it('starts on auto when nothing was ever chosen', async () => {
+    await usePreferencesStore.getState().loadPreferences();
+    expect(usePreferencesStore.getState().notebookAnswerMode).toBe('auto');
+  });
+
+  it('falls back to the default for a mode this build no longer knows', async () => {
+    await AsyncStorage.setItem('notebookAnswerMode', 'turbo');
+
+    await usePreferencesStore.getState().loadPreferences();
+
+    expect(usePreferencesStore.getState().notebookAnswerMode).toBe(DEFAULT_NOTEBOOK_ANSWER_MODE);
+  });
+
+  it('keeps the depth when only the answer mode is set', async () => {
+    await AsyncStorage.setItem('notebookDepth', 'ultra');
+    await AsyncStorage.setItem('notebookAnswerMode', 'praezision');
+
+    await usePreferencesStore.getState().loadPreferences();
+
+    expect(usePreferencesStore.getState().notebookDepth).toBe('ultra');
+    expect(usePreferencesStore.getState().notebookAnswerMode).toBe('praezision');
+  });
+
+  it('still applies the choice when persisting fails', async () => {
+    vi.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('disk full'));
+
+    await expect(
+      usePreferencesStore.getState().setNotebookAnswerMode('chat')
+    ).resolves.toBeUndefined();
+    expect(usePreferencesStore.getState().notebookAnswerMode).toBe('chat');
   });
 });

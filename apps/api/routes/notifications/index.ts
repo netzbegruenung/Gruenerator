@@ -7,8 +7,6 @@ import {
   markAllAsRead,
   dismissNotification,
   dismissAllNotifications,
-  subscribeToUserNotifications,
-  unsubscribeFromUserNotifications,
 } from '../../services/notifications/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -17,47 +15,6 @@ import type { Response } from 'express';
 
 const log = createLogger('NotificationsRoute');
 const router = Router();
-
-/**
- * GET /api/notifications/stream — SSE endpoint for real-time notifications
- */
-router.get('/stream', (req: AuthRequest, res: Response) => {
-  const userId = req.user?.id;
-  if (!userId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.flushHeaders();
-
-  const flushRes = () => (res as { flush?: () => void }).flush?.();
-
-  res.write(`event: connected\ndata: ${JSON.stringify({ userId })}\n\n`);
-  flushRes();
-
-  subscribeToUserNotifications(userId, (notification) => {
-    res.write(`event: notification\ndata: ${JSON.stringify(notification)}\n\n`);
-    flushRes();
-  }).catch((err: unknown) => {
-    log.warn('Failed to subscribe to notifications SSE', {
-      userId,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  });
-
-  const keepAlive = setInterval(() => {
-    res.write(':keepalive\n\n');
-    flushRes();
-  }, 30000);
-
-  req.on('close', () => {
-    clearInterval(keepAlive);
-    unsubscribeFromUserNotifications(userId).catch(() => {});
-  });
-});
 
 /**
  * GET /api/notifications — paginated notification list

@@ -36,20 +36,29 @@ const OUT_FILE = path.join(REPO_ROOT, 'apps', 'api', 'services', 'docs', 'docsIn
  */
 const EXCLUDED_TOP_FOLDERS = new Set(['intern', 'experimente']);
 
+/**
+ * Individual pages temporarily out of the docs (docs.exclude in
+ * documentation/docusaurus.config.ts) — same reason as EXCLUDED_TOP_FOLDERS.
+ */
+const EXCLUDED_FILES = new Set([
+  'basics/finetuning',
+  'basics/welches-ki-tool-wofuer',
+  'integrationen/chrome-erweiterung',
+]);
+
 /** Human labels per top-level folder — becomes the page-map grouping. */
 const CATEGORY_LABELS = {
-  'ueber-den-gruenerator': 'Über den Grünerator',
+  basics: 'Basics',
+  guides: 'Guides',
   chat: 'Chat',
-  office: 'Office',
-  wissen: 'Wissen',
-  grueneratoren: 'Grüneratoren',
-  konto: 'Konto & Projekte',
-  integrationen: 'Integrationen',
-  grundlagen: 'Grundlagen',
-  archiv: 'Archiv',
+  features: 'Features',
+  sonstiges: 'Sonstiges',
 };
 
 const LEAD_MAX_CHARS = 200;
+// Also the guard that keeps expanded ChatTables sections (COMPONENT_EXPANSIONS)
+// from inflating the corpus statistics — raising it to fit fuller rows flipped
+// a borderline BM25 ranking; the expansions are compact instead.
 const SECTION_MAX_CHARS = 1200;
 
 function walk(dir, relBase = '') {
@@ -61,6 +70,7 @@ function walk(dir, relBase = '') {
       if (!relBase && EXCLUDED_TOP_FOLDERS.has(name)) continue;
       out.push(...walk(abs, rel));
     } else if (name.endsWith('.md') || name.endsWith('.mdx')) {
+      if (EXCLUDED_FILES.has(rel.replace(/\.mdx?$/, ''))) continue;
       out.push(rel);
     }
   }
@@ -116,6 +126,77 @@ function slugifyHeading(text) {
 
 /** An MDX ESM statement (`import UiLabel from '@site/...'`) — never prose. */
 const MDX_ESM_RE = /^\s*(import|export)\s/;
+
+/**
+ * A generated manifest under `documentation/src/generated/`, read once. Loaded
+ * lazily so the index generator keeps working (minus the expansions) if a
+ * file is ever absent.
+ */
+const manifestCache = new Map();
+function loadManifest(name) {
+  if (!manifestCache.has(name)) {
+    const file = path.join(REPO_ROOT, 'documentation/src/generated', name);
+    manifestCache.set(name, existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null);
+  }
+  return manifestCache.get(name);
+}
+
+/**
+ * `stripInline` drops every JSX tag, so a table rendered by a React component
+ * would vanish from the BM25 corpus — the chat's `gruenerator_docs_search`
+ * could then no longer answer "welche Rezepte gibt es?" from the very page
+ * that lists them. For components whose content IS a generated manifest, we
+ * can do better: expand them to flat prose before stripping. One entry per
+ * component, naming the manifest it renders; an unknown component still
+ * strips to nothing, as before.
+ *
+ * Deliberately compact — command/mention + title, no descriptions. The full
+ * rows tripled some section lengths, which shifted the BM25 corpus statistics
+ * enough to flip borderline rankings on unrelated pages (docsIndex.vitest.ts
+ * caught one). The identifiers and titles are the terms people search for; the
+ * descriptions live on the page, not in the index.
+ *
+ * `ModelHosts` sits inside a sentence ("laufen derzeit bei <ModelHosts />"),
+ * so stripping it would leave the chat a sentence with a hole where the
+ * answer to "bei welchen Anbietern?" belongs.
+ */
+const COMPONENT_EXPANSIONS = {
+  RecipeTables: {
+    manifest: 'chat-capabilities.json',
+    expand: (m) => m.skills.map((s) => `${s.command} ${s.title}`).join('\n'),
+  },
+  SourceTable: {
+    manifest: 'chat-capabilities.json',
+    expand: (m) => m.notebookSources.map((s) => `${s.mention} ${s.title}`).join('\n'),
+  },
+  ToolMentionTable: {
+    manifest: 'chat-capabilities.json',
+    expand: (m) =>
+      Object.values(m.mentionables)
+        .filter((t) => t.mention)
+        .map((t) => `${t.mention} ${t.title}`)
+        .join('\n'),
+  },
+  SharepicVariantTable: {
+    manifest: 'chat-capabilities.json',
+    expand: (m) => m.sharepicVariants.map((v) => `${v.type}: ${v.keywords.join(', ')}`).join('\n'),
+  },
+  ModelHosts: {
+    manifest: 'models.json',
+    inline: true,
+    expand: (m) => m.hosts.join(', '),
+  },
+};
+
+function expandGeneratedComponents(body) {
+  return body.replace(/<(\w+)\s*\/>/g, (match, name) => {
+    const entry = COMPONENT_EXPANSIONS[name];
+    const manifest = entry && loadManifest(entry.manifest);
+    if (!manifest) return match;
+    const text = entry.expand(manifest);
+    return entry.inline ? text : `\n${text}\n`;
+  });
+}
 
 /**
  * Strip markdown/MDX syntax down to readable prose (for leads, snippets, BM25).
@@ -187,6 +268,13 @@ function firstParagraph(body) {
   return candidates.length > 0 ? truncateLead(candidates[0]) : '';
 }
 
+/** Cap at the last word boundary before the limit — never mid-word. */
+function truncateSection(text) {
+  if (text.length <= SECTION_MAX_CHARS) return text;
+  const cut = text.lastIndexOf(' ', SECTION_MAX_CHARS - 1);
+  return `${text.slice(0, cut > 0 ? cut : SECTION_MAX_CHARS - 1).trimEnd()}…`;
+}
+
 function truncateLead(text) {
   return text.length > LEAD_MAX_CHARS ? `${text.slice(0, LEAD_MAX_CHARS - 1).trimEnd()}…` : text;
 }
@@ -215,11 +303,16 @@ function build() {
 
   for (const rel of walk(DOCS_DIR)) {
     const raw = readFileSync(path.join(DOCS_DIR, rel), 'utf8');
-    const { data, body } = parseFrontmatter(raw);
+    const { data, body: rawBody } = parseFrontmatter(raw);
+    const body = expandGeneratedComponents(rawBody);
     const h1 = /^#\s+(.+?)\s*$/m.exec(body);
     const title = data.title || (h1 ? stripHeading(h1[1]) : path.basename(rel, path.extname(rel)));
     const topFolder = rel.includes('/') ? rel.slice(0, rel.indexOf('/')) : '';
-    const category = CATEGORY_LABELS[topFolder] ?? 'Allgemein';
+    // The archive is nested below Sonstiges in the navigation, but remains a
+    // separate search category so dated announcements keep their lower prior.
+    const category = rel.startsWith('sonstiges/archiv/')
+      ? 'Archiv'
+      : (CATEGORY_LABELS[topFolder] ?? 'Allgemein');
     const url = toUrl(rel);
 
     pages.push({ url, title, category, lead: firstParagraph(body) });
@@ -233,7 +326,7 @@ function build() {
         heading: section.heading,
         anchor: section.anchor,
         category,
-        text: text.length > SECTION_MAX_CHARS ? text.slice(0, SECTION_MAX_CHARS) : text,
+        text: truncateSection(text),
       });
     }
   }

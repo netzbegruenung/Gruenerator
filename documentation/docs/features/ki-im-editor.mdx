@@ -1,0 +1,46 @@
+---
+sidebar_position: 7
+description: 'Die Chat-Seitenleiste kennt das geöffnete Dokument und ändert es: wie aus einem Auftrag in normaler Sprache eine Änderung wird.'
+---
+
+import { OfficeFact } from '@site/src/components/OfficeOps';
+
+# Der Grünerator im Editor
+
+Jedes Office-Dokument hat eine Chat-Seitenleiste. Sie sieht aus wie der normale Chat und kann auch dasselbe — recherchieren, nachschlagen, Texte schreiben. Der Unterschied: Sie **kennt das geöffnete Dokument** und kann es verändern.
+
+## Wie eine Änderung abläuft
+
+Du schreibst einen Auftrag in normaler Sprache. Der Grünerator übersetzt ihn in konkrete Änderungen und wendet sie an. Für dich sieht das aus wie ein einziger Schritt, aber es lohnt zu wissen, was dabei passiert:
+
+1. **Er sieht sich das Dokument an.** Was gerade darin steht, ist die Grundlage — deshalb funktionieren Bezüge wie „die Spalte mit den Kosten" oder „die Folie mit dem Zitat".
+2. **Er recherchiert, falls nötig.** „Trag die aktuellen Umfragewerte ein" heißt: erst nachsehen, dann eintragen.
+3. **Er ändert das Dokument** — direkt, ohne dass du etwas bestätigen musst.
+
+:::note[Alles landet im normalen Rückgängig-Verlauf]
+Änderungen des Grünerators sind keine Sonderform. <kbd>Strg</kbd>+<kbd>Z</kbd> (bzw. <kbd>Cmd</kbd>+<kbd>Z</kbd>) nimmt sie zurück wie eine eigene Eingabe. In Präsentationen wird ein Auftrag, der mehrere Änderungen umfasst, als **ein** Schritt zurückgenommen; in Tabellen gilt das derzeit noch für jede Änderung einzeln, dort brauchst du also mehrere <kbd>Strg</kbd>+<kbd>Z</kbd>.
+:::
+
+Arbeitet ihr zu mehreren am selben Dokument, sehen die anderen die Änderungen live — wie bei deinen eigenen.
+
+## Gute Aufträge
+
+**Sag das Ziel, nicht den Weg.** „Sortier nach Datum, neueste zuerst" ist besser als eine Beschreibung, welche Zellen zu vertauschen sind.
+
+**Beziehe dich auf Sichtbares.** „Die dritte Spalte", „die Folie mit den Zahlen", „die Zeilen mit überschrittener Frist" — der Grünerator sieht dasselbe wie du.
+
+**Bau in Schritten.** Große Umbauten gelingen zuverlässiger als Folge kleiner Aufträge. Pro Auftrag sind in Tabellen bis zu <OfficeFact name="sheetMaxOperations" /> Änderungen möglich, in Präsentationen bis zu <OfficeFact name="presentationMaxOperations" /> — wer mehr in einen Satz packt, bekommt eher ein halbes Ergebnis.
+
+**Nachfassen ist normal.** „Nicht so kräftig", „nur die ersten zehn Zeilen", „doch lieber absteigend" — der Zusammenhang bleibt erhalten.
+
+## Was nicht geht
+
+**Nicht jede Fähigkeit steht in jeder Dokumentart bereit.** Was in Tabellen und Präsentationen möglich ist, steht als Liste in den jeweiligen Kapiteln — [Tabellen](./tabellen.mdx#was-der-grünerator-in-der-tabelle-ändern-kann) und [Präsentationen](./praesentationen.mdx#was-der-grünerator-an-der-präsentation-ändern-kann). Beide Listen kommen direkt aus dem Programmcode und zeigen auch, was vorübergehend abgeschaltet ist.
+
+**Er gestaltet nicht frei.** Der Grünerator setzt Inhalte und Formatierungen, entwirft aber kein Layout von Grund auf.
+
+**Er arbeitet immer nur am geöffneten Dokument.** „Übertrag das ins andere Board" funktioniert nicht — dafür wechselst du dorthin und gibst den Auftrag erneut.
+
+:::caution[Ergebnisse gegenlesen]
+Gerade bei Zahlen gilt: Der Grünerator kann eine Formel richtig setzen und trotzdem die falsche Spalte gemeint haben. Ein kurzer Blick auf das Ergebnis lohnt sich, bevor die Tabelle in eine Entscheidung einfließt.
+:::

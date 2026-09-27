@@ -7,6 +7,7 @@ import {
 import { Router, type Request, type RequestHandler, type Response } from 'express';
 import multer from 'multer';
 
+import { embedAiContentCredentials } from '../../../services/media/aiContentCredentials.js';
 import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
 import {
   optimizeCanvasBuffer,
@@ -79,6 +80,23 @@ async function addKiLabel(imageBuffer: Buffer, variant: KiLabelVariant = 'full')
   return optimizeCanvasBuffer(rawBuffer);
 }
 
+/**
+ * Der einzige Ausgang für KI-Bilder.
+ *
+ * Das sichtbare Wasserzeichen hängt an `variant`, die maschinenlesbare
+ * Kennzeichnung nicht: sie wird auch bei `'none'` geschrieben (Art. 50 Abs. 2
+ * KI-VO). Deshalb rufen die Bildrouten diese Funktion auf und nicht mehr
+ * `addKiLabel` hinter einem eigenen `=== 'none'`-Ternär — sonst verliert jeder
+ * neue Ausgabepfad die Kennzeichnung wieder still.
+ */
+async function applyKiLabel(
+  imageBuffer: Buffer,
+  variant: KiLabelVariant | 'none' = 'full'
+): Promise<Buffer> {
+  const labeled = variant === 'none' ? imageBuffer : await addKiLabel(imageBuffer, variant);
+  return embedAiContentCredentials(labeled);
+}
+
 router.post('/', upload.single('image'), (async (
   req: MulterRequest,
   res: Response
@@ -89,7 +107,7 @@ router.post('/', upload.single('image'), (async (
       return;
     }
 
-    const outputBuffer = await addKiLabel(req.file.buffer);
+    const outputBuffer = await applyKiLabel(req.file.buffer);
     const base64Image = bufferToBase64(outputBuffer);
 
     res.json({ image: base64Image });
@@ -100,4 +118,4 @@ router.post('/', upload.single('image'), (async (
 }) as RequestHandler);
 
 export default router;
-export { addKiLabel };
+export { applyKiLabel };

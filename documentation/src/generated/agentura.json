@@ -1,37 +1,27 @@
 {
   "categories": [
     {
-      "key": "empfohlen",
-      "label": "Empfohlen",
-      "description": "Beliebte Grüneratoren zum Einstieg — eine Auswahl über alle Regale hinweg."
-    },
-    {
       "key": "meine",
       "label": "Meine Grüneratoren",
-      "description": "Deine selbst erstellten Grüneratoren und wiederkehrenden Aufgaben."
+      "description": "Deine selbst erstellten Agents, Rezepte, wiederkehrenden Aufgaben und was in deinen Gruppen geteilt wurde."
     },
     {
-      "key": "gruppen",
-      "label": "Geteilt mit Gruppen",
-      "description": "Grüneratoren, die in deinen Gruppen geteilt wurden."
+      "key": "landesverband",
+      "label": "Dein Landesverband",
+      "description": "Die Agents und Rezepte deines Landesverbands, über deine Rolle zugeteilt."
     },
     {
       "key": "community",
-      "label": "Von der Basis",
-      "description": "Öffentlich geteilte Grüneratoren von der Basis."
+      "label": "Öffentlich",
+      "description": "Öffentlich geteilte Agents und Rezepte von der Basis."
     },
     {
       "key": "gruenerator",
       "label": "Offizielle Grüneratoren",
-      "description": "Fertige Grüneratoren, Presse- & Social-Rezepte und Landesverbände von Grünerator."
-    },
-    {
-      "key": "favoriten",
-      "label": "Favoriten",
-      "description": "Deine gemerkten Grüneratoren und Rezepte."
+      "description": "Fertige Agents sowie Presse- & Social-Rezepte von Grünerator."
     }
   ],
-  "defaultCategory": "empfohlen",
+  "defaultCategory": "meine",
   "sortLabels": {
     "empfohlen": "Empfohlen",
     "az": "A–Z"

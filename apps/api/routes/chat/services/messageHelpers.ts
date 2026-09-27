@@ -51,29 +51,7 @@ export function getPruningBudget(contextWindowTokens?: number): number {
 }
 
 /** Rough chars-per-token for German prose plus JSON scaffolding. */
-const CHARS_PER_TOKEN = 3.5;
-
-/**
- * Size estimate for a whole request, used for LANE ROUTING (not for pruning).
- *
- * Deliberately serialises the entire message — unlike {@link extractTextContent}
- * and the TokenCounter, which read only `type: 'text'` parts and therefore score
- * replayed tool results, images and reasoning traces as zero. For "is this
- * request too big for the small lane?" an over-estimate is the safe direction:
- * it routes to the bigger window, which is never wrong, only occasionally
- * generous.
- */
-export function estimateRequestTokens(systemMessage: string, messages: readonly unknown[]): number {
-  let chars = systemMessage.length;
-  for (const m of messages) {
-    try {
-      chars += JSON.stringify(m)?.length ?? 0;
-    } catch {
-      // Unserialisable message (circular ref) — skip rather than fail routing.
-    }
-  }
-  return Math.ceil(chars / CHARS_PER_TOKEN);
-}
+export const CHARS_PER_TOKEN = 3.5;
 
 /**
  * Share of the model's window that retrieved material (search results,
@@ -103,6 +81,19 @@ export function getRetrievalBudget(
   if (!contextWindowTokens) return floorChars;
   const budgetChars = Math.floor(contextWindowTokens * RETRIEVAL_WINDOW_SHARE * CHARS_PER_TOKEN);
   return Math.max(floorChars, budgetChars);
+}
+
+/**
+ * Split a fixed budget evenly across N items, with a floor so no item is
+ * starved to zero when N grows. Deliberately no ceiling on the total: with
+ * many items the sum can exceed `total` — the same soft-floor tradeoff
+ * {@link getRetrievalBudget} makes, accepted so that every item (chunk slot,
+ * attachment, source) keeps a guaranteed minimum share instead of the first
+ * ones consuming the whole budget and starving the rest.
+ */
+export function fairShare(total: number, floorPerItem: number, itemCount: number): number {
+  if (itemCount <= 0) return floorPerItem;
+  return Math.max(floorPerItem, Math.floor(total / itemCount));
 }
 
 /**
@@ -186,6 +177,46 @@ export function filterEmptyAssistantMessages(messages: ModelMessage[]): ModelMes
     }
     return true;
   });
+}
+
+/**
+ * Drop UI file parts that carry no resolvable `url` BEFORE convertToModelMessages().
+ *
+ * The SDK maps every `type:'file'`/`'reasoning-file'` part through `new URL(part.url)`,
+ * so a part shaped `{type:'file', name, mimeType, data}` (what the composer merges in
+ * for attachments) throws `TypeError: Invalid URL` and kills the whole turn — most
+ * visibly when pasting long text, which the composer turns into a text attachment.
+ *
+ * Nothing is lost: file parts are dropped again after conversion by
+ * sanitizeContentPartsForModel(), and the file content reaches the model through
+ * processAttachments() → attachmentContext.
+ */
+export function sanitizeUIFileParts<T extends { parts?: unknown }>(
+  messages: readonly T[]
+): {
+  messages: T[];
+  droppedFileParts: number;
+} {
+  let droppedFileParts = 0;
+
+  const sanitized = messages.map((message) => {
+    if (!Array.isArray(message.parts)) return message;
+
+    const parts = message.parts as Array<Record<string, unknown> | null>;
+    const kept = parts.filter((part) => {
+      if (!part || typeof part !== 'object') return true;
+      if (part.type !== 'file' && part.type !== 'reasoning-file') return true;
+      if (part.providerReference != null) return true;
+      if (typeof part.url === 'string' && part.url.length > 0) return true;
+      droppedFileParts++;
+      return false;
+    });
+
+    if (kept.length === parts.length) return message;
+    return { ...message, parts: kept } as T;
+  });
+
+  return { messages: sanitized, droppedFileParts };
 }
 
 /**

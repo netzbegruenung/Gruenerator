@@ -2,6 +2,7 @@ import { type JSX, Suspense } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { routes } from '../../config/routes';
+import { isEmbedded } from '../../utils/platform';
 import PageLayout from '../common/Layout/PageLayout';
 import AppProviders from '../common/Providers/AppProviders';
 import { type PreloadableComponent, useRouteCache } from '../hooks/useRouteCache';
@@ -57,7 +58,14 @@ const RouteComponent = ({
       withSharepic={route.withSharepic}
       withForm={route.withForm}
     >
-      <PageLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode} layoutMode={layoutMode}>
+      <PageLayout
+        darkMode={darkMode}
+        toggleDarkMode={toggleDarkMode}
+        // In an embedded host the route's own layout mode is irrelevant — the
+        // host supplies the chrome. `noChrome` is the only mode that renders
+        // nothing but the page; `immersive` still mounts the sidebar.
+        layoutMode={isEmbedded() ? 'noChrome' : layoutMode}
+      >
         <Suspense fallback={<div />}>
           <ComponentToRender key={path} darkMode={darkMode} />
         </Suspense>

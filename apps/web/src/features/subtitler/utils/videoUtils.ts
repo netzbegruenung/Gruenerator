@@ -1,4 +1,5 @@
 import apiClient from '../../../components/utils/apiClient';
+import { getTusAuthOptions } from '../../../utils/tusAuth';
 
 export interface VideoMetadata {
   duration?: number;
@@ -69,7 +70,7 @@ export function uploadVideoToTus(
   let tusHandle: { abort: (shouldTerminate?: boolean) => Promise<void> } | null = null;
 
   const promise = new Promise<{ uploadId: string }>((resolve, reject) => {
-    void import('tus-js-client').then((tus) => {
+    void Promise.all([import('tus-js-client'), getTusAuthOptions()]).then(([tus, authOptions]) => {
       if (aborted) {
         reject(new Error('Upload abgebrochen.'));
         return;
@@ -79,6 +80,7 @@ export function uploadVideoToTus(
         retryDelays: [0, 3000, 5000, 10000, 20000],
         chunkSize: 5 * 1024 * 1024,
         metadata: { filename: file.name, filetype: file.type },
+        ...authOptions,
         onError: () => {
           reject(
             new Error(

@@ -1,17 +1,31 @@
--- Fix FK constraints that block profile deletion (missing ON DELETE action)
--- These 3 constraints default to RESTRICT, causing account deletion to fail
+-- NO-OP — abgelöst durch fix_profile_fk_constraints_v2.sql
+--
+-- Diese Migration setzte drei Fremdschlüssel auf ON DELETE SET NULL und liess
+-- dafür `ALTER TABLE ... DROP CONSTRAINT <fester_name>` ohne IF EXISTS laufen.
+-- Der Nachfolger v2 hält den Befund fest:
+--
+--   Concrete failure observed 2026-04-12 on the test deploy:
+--     ❌ Migration fix_profile_deletion_fk_constraints.sql failed:
+--         constraint "yjs_document_snapshots_created_by_fkey" of relation
+--         "yjs_document_snapshots" does not exist
+--   The constraint exists, just under a different name. The v1 migration
+--   has been failing on every startup since then […]
+--
+-- Eine gescheiterte Migration wird nicht in schema_migrations vermerkt, also
+-- lief sie bei jedem Boot erneut in denselben Fehler.
+--
+-- Warum No-op statt `DROP CONSTRAINT IF EXISTS`: Auf genau der Umgebung, die den
+-- Fehler zeigt, heisst der Constraint anders. `IF EXISTS` würde das DROP still
+-- überspringen, das anschliessende ADD aber trotzdem ausführen — Ergebnis wäre
+-- ein zweiter, doppelter Fremdschlüssel auf derselben Spalte. v2 sucht den
+-- Constraint über information_schema statt über den Namen, droppt ihn unter dem
+-- Namen, den er tatsächlich trägt, und legt ihn korrekt neu an. v2 sortiert
+-- lexikographisch nach v1 (`fix_profile_de…` < `fix_profile_fk…`) und deckt
+-- dieselben drei Spalten ab — es bleibt hier nichts zu tun.
+--
+-- Die Datei bleibt bestehen, damit sie auf Instanzen, die sie bereits
+-- angewendet haben, nicht als verwaistes schema_migrations-Row auftaucht.
+--
+-- Die Transaktion verwaltet der Migrations-Läufer — kein BEGIN/COMMIT.
 
--- chat_messages.user_id: SET NULL to preserve messages in shared threads
-ALTER TABLE chat_messages DROP CONSTRAINT chat_messages_user_id_fkey;
-ALTER TABLE chat_messages ADD CONSTRAINT chat_messages_user_id_fkey
-    FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE SET NULL;
-
--- wolke_sync_status.synced_by_user_id: SET NULL to preserve sync audit trail
-ALTER TABLE wolke_sync_status DROP CONSTRAINT wolke_sync_status_synced_by_user_id_fkey;
-ALTER TABLE wolke_sync_status ADD CONSTRAINT wolke_sync_status_synced_by_user_id_fkey
-    FOREIGN KEY (synced_by_user_id) REFERENCES profiles(id) ON DELETE SET NULL;
-
--- yjs_document_snapshots.created_by: SET NULL to preserve doc snapshots
-ALTER TABLE yjs_document_snapshots DROP CONSTRAINT yjs_document_snapshots_created_by_fkey;
-ALTER TABLE yjs_document_snapshots ADD CONSTRAINT yjs_document_snapshots_created_by_fkey
-    FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL;
+SELECT 1;

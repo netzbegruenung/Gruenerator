@@ -11,7 +11,7 @@
  * locks that: listCollections fetches only getUserNotebookCollections(userId)
  * and NEVER reaches for the cross-user helpers
  * (getNotebookCollectionsByShareMode / getNotebookCollectionsByIds). Shared
- * notebooks stay reachable by direct link / the public "Von der Basis" listing.
+ * notebooks stay reachable by direct link / the public „Öffentlich" listing.
  *
  * Run: `pnpm --filter @gruenerator/api test`
  */
@@ -23,6 +23,9 @@ const mockHelper = vi.hoisted(() => ({
   getUserNotebookCollections: vi.fn(),
   getNotebookCollectionsByShareMode: vi.fn(),
   getNotebookCollectionsByIds: vi.fn(),
+  // The enricher looks the document links up itself when a collection arrives
+  // without them; the real getUserNotebookCollections always attaches them.
+  getCollectionDocuments: vi.fn(async () => []),
 }));
 vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
   // Constructable stub: returning an object from a constructor makes `new`

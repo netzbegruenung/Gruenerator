@@ -31,6 +31,14 @@ type PublicOwnership = 'owner' | 'public_data';
 const NOTEBOOK_SEARCH_PAGE_SIZE = 200;
 const NOTEBOOK_SEARCH_MAX_PAGES = 10;
 
+/**
+ * Paging for the bulk notebook↔document join. 20 × 1000 links is far above
+ * anything the public listing holds today; the cap only exists so a runaway
+ * scroll cannot spin forever, and hitting it is logged as an error.
+ */
+const COLLECTION_LINK_PAGE_SIZE = 1000;
+const COLLECTION_LINK_MAX_PAGES = 20;
+
 export type NotebookShareMode = 'private' | 'groups' | 'authenticated';
 export type NotebookEditPolicy = 'owner_only' | 'group_admins' | 'all_members';
 export type NotebookAudience = 'de-DE' | 'de-AT';
@@ -144,13 +152,6 @@ interface PublicAccessData {
   last_accessed_at: string | null;
 }
 
-interface UsageLogMetadata {
-  ip_address?: string | null;
-  user_agent?: string | null;
-  apiKeyId?: string | null;
-  landesverband?: string | null;
-}
-
 interface BulkDeleteResult {
   deleted: string[];
   failed: Array<{ id: string; error: string }>;
@@ -231,7 +232,7 @@ class NotebookQdrantHelper {
    */
   async storeNotebookCollection(
     collectionData: NotebookCollectionData
-  ): Promise<{ success: boolean; collection_id: string }> {
+  ): Promise<{ success: boolean; collection_id: string; slug_suffix: string }> {
     await this.ensureInitialized();
 
     try {
@@ -279,7 +280,11 @@ class NotebookQdrantHelper {
       await this.qdrantOps!.batchUpsert(this.qdrant.collections.notebook_collections, [point]);
 
       logger.info(`Stored Notebook collection: ${collectionId}`);
-      return { success: true, collection_id: collectionId };
+      // The suffix is minted here, so it has to travel back out: the create
+      // handler builds its response from the caller's data, which never had it,
+      // and the frontend fell back to the raw UUID for every freshly created
+      // notebook — the pretty URL was unreachable until the next page load.
+      return { success: true, collection_id: collectionId, slug_suffix: slugSuffix };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Error storing Notebook collection: ${message}`);
@@ -666,6 +671,44 @@ class NotebookQdrantHelper {
   }
 
   /**
+   * Die Notebooks einer Person OHNE die Dokument-Zuordnung.
+   *
+   * `getUserNotebookCollections` holt zu jedem Notebook zusätzlich dessen
+   * Dokumente — also einen Scroll je Notebook. Für einen Chat-Werkzeugaufruf,
+   * der nur `settings.wolke_folders` braucht, wäre das ein N+1 mitten im
+   * Antwortpfad. Deshalb derselbe Zuschnitt wie bei
+   * `getNotebookCollectionsByAutoSync` (das das Fan-out aus demselben Grund
+   * überspringt), nur nach `user_id` gefiltert; `document_count` bleibt der
+   * gespeicherte Payload-Wert.
+   */
+  async getUserNotebookCollectionsLight(
+    userId: string,
+    options: GetCollectionsOptions = {}
+  ): Promise<NotebookCollection[]> {
+    await this.ensureInitialized();
+
+    try {
+      const { limit = 200, offset = 0 } = options;
+
+      const filter: QdrantFilter = {
+        must: [{ key: 'user_id', match: { value: userId } }],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collections,
+        filter,
+        { limit, offset, withPayload: true }
+      );
+
+      return results.map((result: ScrollPoint) => this.formatCollectionFromPayload(result.payload));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error getting user Notebook collections (light): ${message}`);
+      throw new Error(`Failed to get user Notebook collections: ${message}`);
+    }
+  }
+
+  /**
    * Update Notebook collection
    */
   async updateNotebookCollection(
@@ -828,6 +871,83 @@ class NotebookQdrantHelper {
   }
 
   /**
+   * Drop a deleted document out of every notebook that referenced it.
+   *
+   * The mirror image of `deleteNotebookCollection`, which clears the join by
+   * `collection_id`; this clears it by `document_id` and belongs on the
+   * document-deletion path. Without it the join points outlive the document:
+   * `getCollectionDocuments` keeps handing back ids with no Postgres row behind
+   * them, those ids reach QA queries as a filter that can never match, and
+   * `findReferencedDocumentIds` reports a long-deleted document as still in use
+   * — which is what stops the WordPress importer from cleaning up after itself.
+   *
+   * Postgres does have a `notebook_collection_documents` table with the right
+   * `ON DELETE CASCADE`, but no query reads or writes it: membership lives only
+   * in Qdrant, so that cascade never fires.
+   *
+   * Best-effort by design. The caller has already deleted the Postgres row by
+   * the time it gets here, and failing the request afterwards would report a
+   * deletion that did happen as an error.
+   */
+  async removeDocumentsFromAllCollections(documentIds: string[]): Promise<void> {
+    if (documentIds.length === 0) return;
+    await this.ensureInitialized();
+
+    try {
+      const filter: QdrantFilter = {
+        must: [{ key: 'document_id', match: { any: documentIds } }],
+      };
+
+      await this.qdrantOps!.batchDelete(
+        this.qdrant.collections.notebook_collection_documents,
+        filter
+      );
+
+      logger.info(`Removed ${documentIds.length} deleted document(s) from all notebooks`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error removing deleted documents from notebooks: ${message}`);
+    }
+  }
+
+  /**
+   * One page of the notebook↔document join, for the orphan sweep.
+   *
+   * `scrollDocuments` drops Qdrant's `next_page_offset`, so paging is done by
+   * handing back the last point id and asking the caller to pass it as the next
+   * `after`. Qdrant treats that offset as inclusive, so the row it names comes
+   * back a second time and has to go.
+   *
+   * It is dropped by id, not by position. `slice(1)` looked equivalent and is
+   * not: it assumes the offset row is still there to be repeated. A sweep that
+   * deletes as it pages has just removed it, Qdrant then starts at the *next*
+   * id, and the cut takes a real, never-examined row instead.
+   *
+   * Measured twice on production on 2026-08-27: 584 links, page one deleted
+   * 500, page two reported 83 of the remaining 84, and exactly one link
+   * survived each sweep. For a deleting run that is the harmless direction; for
+   * the dry run it silently under-reports one link per page boundary.
+   */
+  async listDocumentLinksPage(
+    pageSize: number,
+    after: string | number | null = null
+  ): Promise<{ documentIds: string[]; last: string | number | null }> {
+    await this.ensureInitialized();
+
+    const points: ScrollPoint[] = await this.qdrantOps!.scrollDocuments(
+      this.qdrant.collections.notebook_collection_documents,
+      {},
+      { limit: after === null ? pageSize : pageSize + 1, withPayload: true, offset: after }
+    );
+
+    const page = after === null ? points : points.filter((p) => p.id !== after);
+    return {
+      documentIds: page.map((p) => String(p.payload.document_id)),
+      last: page.length > 0 ? (page[page.length - 1]?.id ?? null) : null,
+    };
+  }
+
+  /**
    * Get documents associated with a Notebook collection
    */
   /**
@@ -864,7 +984,93 @@ class NotebookQdrantHelper {
     }
   }
 
-  async getCollectionDocuments(collectionId: string): Promise<CollectionDocument[]> {
+  /**
+   * The same join for MANY notebooks in one filtered scroll.
+   *
+   * The public „Öffentlich" listing enriches up to 200 notebooks per
+   * request; asking per notebook turns one page load into 200 Qdrant round
+   * trips. `any` on `collection_id` collapses that into a paged scroll whose
+   * cost tracks the number of LINKS, not the number of notebooks.
+   *
+   * Collections without a single link are absent from the map — callers must
+   * treat a missing key as "no documents", not as "not looked up".
+   */
+  async getCollectionDocumentsForCollections(
+    collectionIds: readonly string[]
+  ): Promise<Map<string, CollectionDocument[]>> {
+    const byCollection = new Map<string, CollectionDocument[]>();
+    if (collectionIds.length === 0) return byCollection;
+    await this.ensureInitialized();
+
+    try {
+      const filter: QdrantFilter = {
+        must: [{ key: 'collection_id', match: { any: [...collectionIds] } }],
+      };
+
+      // Paged rather than one huge limit: a silent truncation here would show
+      // up as a notebook that lost half its sources, which is exactly the
+      // failure this whole change is about. `offset` is inclusive, hence the
+      // dropped first row on every page but the first (same idiom as
+      // listDocumentLinksPage).
+      let after: string | number | null = null;
+      let pages = 0;
+      for (; pages < COLLECTION_LINK_MAX_PAGES; pages++) {
+        const points: ScrollPoint[] = await this.qdrantOps!.scrollDocuments(
+          this.qdrant.collections.notebook_collection_documents,
+          filter,
+          {
+            limit: after === null ? COLLECTION_LINK_PAGE_SIZE : COLLECTION_LINK_PAGE_SIZE + 1,
+            withPayload: true,
+            offset: after,
+          }
+        );
+
+        // Annotated: `after` is narrowed from `page`'s last id, so leaving this
+        // to inference makes the two circular (TS7022).
+        const page: ScrollPoint[] = after === null ? points : points.slice(1);
+        for (const point of page) {
+          const collectionId = String(point.payload.collection_id);
+          const entry = byCollection.get(collectionId);
+          const doc: CollectionDocument = {
+            document_id: point.payload.document_id as string,
+            added_at: point.payload.added_at as string,
+            added_by: point.payload.added_by as string | null,
+          };
+          if (entry) entry.push(doc);
+          else byCollection.set(collectionId, [doc]);
+        }
+
+        if (page.length < COLLECTION_LINK_PAGE_SIZE) return byCollection;
+        after = page[page.length - 1]?.id ?? null;
+        if (after === null) return byCollection;
+      }
+
+      logger.error(
+        `Verknüpfungs-Scroll für ${collectionIds.length} Notebooks nach ${pages} Seiten ` +
+          `(${COLLECTION_LINK_PAGE_SIZE * pages} Verknüpfungen) abgebrochen — ` +
+          `weitere Quellen fehlen in dieser Antwort.`
+      );
+      return byCollection;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error getting collection documents in bulk: ${message}`);
+      return byCollection;
+    }
+  }
+
+  /**
+   * The documents linked to one notebook.
+   *
+   * Swallowing the error and answering `[]` suits callers that only iterate the
+   * result, but it lies to anyone who reads the emptiness as a fact about the
+   * notebook: a Qdrant hiccup came out as a confident "dieses Notebook hat
+   * noch keine Quellen". `rethrow` lets those callers tell "looked, found none"
+   * apart from "could not look".
+   */
+  async getCollectionDocuments(
+    collectionId: string,
+    options: { rethrow?: boolean } = {}
+  ): Promise<CollectionDocument[]> {
     await this.ensureInitialized();
 
     try {
@@ -886,7 +1092,41 @@ class NotebookQdrantHelper {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Error getting collection documents: ${message}`);
+      if (options.rethrow) throw error;
       return [];
+    }
+  }
+
+  /**
+   * Whether `documentId` is linked to `collectionId` — a single-membership
+   * check for callers that must confirm attachment before acting on a
+   * document as if it were part of a given notebook (e.g. before scoping a
+   * search to it). Errors are rethrown rather than answered as "not linked":
+   * silently treating a Qdrant hiccup as a definite miss would look identical
+   * to a real absence to the caller.
+   */
+  async isDocumentInCollection(collectionId: string, documentId: string): Promise<boolean> {
+    await this.ensureInitialized();
+
+    try {
+      const filter: QdrantFilter = {
+        must: [
+          { key: 'collection_id', match: { value: collectionId } },
+          { key: 'document_id', match: { value: documentId } },
+        ],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collection_documents,
+        filter,
+        { limit: 1, withPayload: false }
+      );
+
+      return results.length > 0;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error checking document-collection membership: ${message}`);
+      throw error;
     }
   }
 
@@ -931,53 +1171,6 @@ class NotebookQdrantHelper {
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Error getting public access: ${message}`);
       throw new Error(`Failed to get public access: ${message}`);
-    }
-  }
-
-  /**
-   * Log Notebook usage
-   */
-  async logNotebookUsage(
-    collectionId: string,
-    userId: string | null,
-    question: string,
-    answerLength: number,
-    responseTime: number,
-    metadata: UsageLogMetadata = {}
-  ): Promise<{ success: boolean; error?: string }> {
-    await this.ensureInitialized();
-
-    try {
-      // Generate embedding for the question for analytics
-      await mistralEmbeddingService.init();
-      const questionEmbedding = await mistralEmbeddingService.generateEmbedding(question);
-
-      const point: QdrantPoint = {
-        id: this.generateNumericId(uuidv4()),
-        vector: questionEmbedding,
-        payload: {
-          collection_id: collectionId,
-          user_id: userId,
-          question: question,
-          answer_length: answerLength,
-          response_time_ms: responseTime,
-          created_at: new Date().toISOString(),
-          ip_address: metadata.ip_address || null,
-          user_agent: metadata.user_agent || null,
-          api_key_id: metadata.apiKeyId || null,
-          landesverband: metadata.landesverband || null,
-        },
-      };
-
-      await this.qdrantOps!.batchUpsert(this.qdrant.collections.notebook_usage_logs, [point]);
-
-      logger.info(`Logged Notebook usage for collection: ${collectionId}`);
-      return { success: true };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error(`Error logging Notebook usage: ${message}`);
-      // Don't throw error for logging failures
-      return { success: false, error: message };
     }
   }
 
@@ -1088,7 +1281,7 @@ class NotebookQdrantHelper {
 
   /**
    * List all notebook collections marked is_public=true across all users.
-   * Powers the "Von der Basis" community section on /notebooks. `is_public`
+   * Powers the „Öffentlich" community section on /notebooks. `is_public`
    * is a discovery flag orthogonal to `share_mode`; access is still governed
    * by `checkNotebookAccess`, which requires share_mode='authenticated' (or
    * group membership) for non-owner reads.
@@ -1215,7 +1408,6 @@ export type {
   NotebookCollection,
   CollectionDocument,
   PublicAccessData,
-  UsageLogMetadata,
   BulkDeleteResult,
   GetCollectionsOptions,
 };

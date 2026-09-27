@@ -12,6 +12,9 @@ import { fileURLToPath } from 'url';
 import { loadImage, type SKRSContext2D as Ctx, type Image } from '@napi-rs/canvas';
 
 import { registerFonts } from '../../../../services/sharepic/canvas/fileManagement.js';
+import { wrapTextLines as wrapText } from '../../../../services/sharepic/textLayout.js';
+
+export { wrapText };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -85,8 +88,8 @@ const QUOTE_GELB_PATH = path.resolve(__dirname, '../../../../public/quote-gelb.s
  * Zitat-sujet geometry — mirrors ZITAT_AT_CONFIG in canvas-editor.
  * Anders als in Deutschland: mittig gesetzt, gelbes Anführungszeichen, Logo
  * rechts oben, und der Block hängt nicht am Blattboden, sondern wird als
- * Gruppe um `groupCenterRatio` zentriert. Kein Verlauf über dem Foto — die
- * österreichische CI kennt keinen.
+ * Gruppe um `groupCenterRatio` zentriert. Nur ein leichter grauer Verlauf
+ * über dem Foto — die österreichische CI kennt keinen grünen oder schwarzen.
  */
 export const ZITAT = {
   margin: 130,
@@ -101,6 +104,7 @@ export const ZITAT = {
   nameFontSizeRatio: 0.6,
   nameGapRatio: 0.75,
   logo: { width: 150, margin: 70 },
+  gradient: { color: '229, 231, 233', bottomOpacity: 0.35 },
 } as const;
 
 /**
@@ -385,24 +389,6 @@ export function drawHeadlineStack(ctx: Ctx, zones: HeadlineZone[], align: 'left'
     y += l.size * AT_BRAND.lineHeightFactor;
     prevKind = l.kind;
   }
-}
-
-/** Word-wrap `text` to `maxWidth` using the currently-set ctx font. */
-export function wrapText(ctx: Ctx, text: string, maxWidth: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let current = '';
-  for (const w of words) {
-    const test = current ? `${current} ${w}` : w;
-    if (ctx.measureText(test).width > maxWidth && current) {
-      lines.push(current);
-      current = w;
-    } else {
-      current = test;
-    }
-  }
-  if (current) lines.push(current);
-  return lines;
 }
 
 /** Draw a centred (or given-align) multi-line block; returns the next y. */

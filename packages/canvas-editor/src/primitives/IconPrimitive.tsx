@@ -1,9 +1,17 @@
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import type Konva from 'konva';
 
+import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
+import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { generateIconDataUrl } from '../utils/canvasIcons';
+import { calculateCenteredSnapPosition } from '../utils/snapping';
+
+import type { SnapLine, SnapTarget } from '../utils/snapping';
+
+const BASE_SIZE = 200;
+const TARGET_SIZE = 120;
 
 export interface IconPrimitiveProps {
   id: string;
@@ -18,6 +26,12 @@ export interface IconPrimitiveProps {
   onTransformEnd: (x: number, y: number, scale: number, rotation: number) => void;
   color?: string;
   opacity?: number;
+  stageWidth?: number;
+  stageHeight?: number;
+  getSnapTargets?: (id: string) => SnapTarget[];
+  onSnapChange?: (snapH: boolean, snapV: boolean) => void;
+  onSnapLinesChange?: (lines: SnapLine[]) => void;
+  onGeometryChange?: GeometryReporter;
 }
 
 function IconPrimitiveInner({
@@ -33,6 +47,12 @@ function IconPrimitiveInner({
   onTransformEnd,
   color = '#000000',
   opacity = 1,
+  stageWidth,
+  stageHeight,
+  getSnapTargets,
+  onSnapChange,
+  onSnapLinesChange,
+  onGeometryChange,
 }: IconPrimitiveProps) {
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -63,10 +83,53 @@ function IconPrimitiveInner({
     }
   }, [selected]);
 
+  const snap = useSnapScheduler({
+    onSnapChange: onSnapChange ?? (() => {}),
+    onSnapLinesChange: onSnapLinesChange ?? (() => {}),
+  });
+
+  // Die Gruppe ist mittig verankert (das Bild traegt offsetX/offsetY), deshalb
+  // rechnet der Snap zwischen Mittelpunkt und linker oberer Ecke hin und zurueck.
+  const renderedSize = TARGET_SIZE * scale;
+
+  const reportGeometry = useGeometryReporter(id, onGeometryChange);
+  useEffect(() => {
+    reportGeometry(x - renderedSize / 2, y - renderedSize / 2, renderedSize, renderedSize);
+  }, [reportGeometry, x, y, renderedSize]);
+
+  const handleDragMove = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      if (!stageWidth || !stageHeight) return;
+      const node = e.target as Konva.Group;
+      const size = TARGET_SIZE * scale;
+
+      const result = calculateCenteredSnapPosition(
+        node.x(),
+        node.y(),
+        size,
+        size,
+        getSnapTargets?.(id) ?? [],
+        stageWidth,
+        stageHeight,
+        snap.hysteresis
+      );
+
+      node.position({ x: result.x, y: result.y });
+      snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
+    },
+    [id, scale, getSnapTargets, stageWidth, stageHeight, snap]
+  );
+
+  const handleDragEnd = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      snap.onDragEnd();
+      onDragEnd(e.target.x(), e.target.y());
+    },
+    [onDragEnd, snap]
+  );
+
   if (!image) return null;
 
-  const BASE_SIZE = 200;
-  const TARGET_SIZE = 120;
   const baseScale = TARGET_SIZE / BASE_SIZE;
 
   return (
@@ -82,9 +145,9 @@ function IconPrimitiveInner({
         draggable
         onClick={onSelect}
         onTap={onSelect}
-        onDragEnd={(e) => {
-          onDragEnd(e.target.x(), e.target.y());
-        }}
+        onDragStart={snap.onDragStart}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
         onTransformEnd={() => {
           const node = groupRef.current;
           if (!node) return;
@@ -145,6 +208,9 @@ export const IconPrimitive = memo(IconPrimitiveInner, (prevProps, nextProps) => 
   if (prevProps.selected !== nextProps.selected) return false;
   if (prevProps.color !== nextProps.color) return false;
   if (prevProps.opacity !== nextProps.opacity) return false;
+  // Die Buehnenmasse gehen in die Snap-Rechnung ein (Formatwechsel).
+  if (prevProps.stageWidth !== nextProps.stageWidth) return false;
+  if (prevProps.stageHeight !== nextProps.stageHeight) return false;
 
   return true;
 });

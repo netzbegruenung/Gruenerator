@@ -14,6 +14,16 @@ export {
 // Confirm/reject flow for chat-proposed actions (shared POST; platform cards render around it)
 export { confirmChatAction, type ConfirmActionOutcome } from './lib/confirmAction';
 
+// Sharepic variants. The app cannot draw one — it borrows the web renderer
+// through a hidden WebView (`services/sharepicRender.ts`) — but the data and
+// the live edit state are plain stores, so both platforms read the same ones.
+export { type SharepicData, type SharepicVariant } from './hooks/useChatGraphStream';
+export {
+  useSharepicLiveStore,
+  type SharepicLiveEntry,
+  type ActiveSharepic,
+} from './stores/sharepicLiveStore';
+
 // Context & API Client
 export {
   chatFetch,
@@ -30,6 +40,9 @@ export {
   type ChatConfig,
   type ResolvedEndpoints,
   type ChatRequestContext,
+  type ChatRequestContextProvider,
+  type DocumentEditTriggerPayload,
+  type DocumentEditTriggerHandler,
 } from './stores/chatConfigStore';
 
 // Runtime Adapters (platform-agnostic — no web deps)
@@ -41,9 +54,22 @@ export {
   type GrueneratorAdapterCallbacks,
 } from './runtime/GrueneratorModelAdapter';
 export {
+  applyToolStepResult,
+  buildToolStepCard,
+  toolStepResultMessage,
+  toolStepTitle,
+  type ToolStepResultData,
+  type ToolStepStartData,
+} from './runtime/GrueneratorModelAdapter/toolStepCards';
+export {
   createGrueneratorThreadListAdapter,
   getThreadType,
   getNotebookCollectionId,
+  getThreadSlugSuffix,
+  getThreadAgentId,
+  getThreadAccessType,
+  isThreadReadOnly,
+  resolveThreadBySlugSuffix,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
 
@@ -56,6 +82,7 @@ export {
   type NotebookAdapterConfig,
   type NotebookMessageMetadata,
   type NotebookAdapterCallbacks,
+  type SharepicContextConfig,
 } from './runtime/NotebookModelAdapter';
 
 // Types (from useChatGraphStream)
@@ -83,6 +110,9 @@ export { splitMathSegments, type MathSegment } from './lib/mathSegments';
 
 // Compute results (run_python stdout → ComputeData entries; shared with web)
 export { parseComputeResult } from './lib/computeResult';
+// Audio among a compute payload's file assets. Native needs it for the same
+// reason web does: its ComputeCard must not call a recording a calculation.
+export { audioAssetsOf, type ComputeFileAsset } from './lib/computeAssets';
 
 // Stores
 export {
@@ -132,6 +162,24 @@ export {
   type NotebookDepthIconKey,
 } from './lib/notebookDepth';
 
+// Notebook answer mode — shared registry for the notebook page's mode picker
+export {
+  NOTEBOOK_ANSWER_MODES,
+  DEFAULT_NOTEBOOK_ANSWER_MODE,
+  notebookAnswerModeDef,
+  answerModeLabel,
+  answerModeAutoHint,
+  NOTEBOOK_COMPOSER_MODES,
+  notebookComposerModeDef,
+  toNotebookAnswerMode,
+  detectMagicIntent,
+  composerModeRunsLiveSearch,
+  type MagicIntent,
+  type NotebookAnswerModeDef,
+  type NotebookComposerMode,
+  type NotebookComposerModeDef,
+} from './lib/notebookAnswerMode';
+
 export { useDocumentChatStore } from './stores/documentChatStore';
 export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 
@@ -153,7 +201,13 @@ export { computeMentionInsertion, type MentionInsertionResult } from './lib/ment
 export { useFileMentionData } from './hooks/useFileMentionData';
 
 // Admin-curated Rezepte visibility — see index.ts for the full comment.
-export { useHiddenSkillMentions } from './hooks/useMentionablesQuery';
+export { useHiddenAgentIdentifiers, useHiddenSkillMentions } from './hooks/useMentionablesQuery';
+
+// Die Landesverbands-Zuteilung aus den Profilrollen. RN-sicher: liest nur den
+// zustand-Store, kein Netz, kein DOM. Mobil erst nutzbar, seit die App den
+// Profil-Store überhaupt hydratisiert (#2931) — vorher lieferte der Hook
+// unverändert `null` und alle Filter ließen alles durch.
+export { useUserLandesverbaende, type UserLandesverbaende } from './hooks/useUserLandesverbaende';
 
 // Group-level thread sharing. RN-safe: react-query plus `notify`, which imports
 // sonner dynamically and falls back to the console line in hosts that do not
@@ -187,27 +241,46 @@ export {
   buildWolkeAttachment,
   buildConnectAttachment,
   buildWebpageAttachment,
+  normalizeWebpageUrl,
   canvaDesignsMarkdown,
   appendToDraft,
   type MentionAttachment,
 } from './lib/mentionAttachments';
 export { joinWolkePath, wolkeParentPath, isWolkeRoot } from './lib/wolkePath';
 
-// useMessageTTS excluded — imports @gruenerator/voice (web-only)
+// useMessageTTS excluded — imports @gruenerator/voice (web-only). The text
+// preparation is pure and shared, so both platforms read the same words.
+export { stripForSpeech } from './lib/speechText';
+
+// Day-separator labels. Pure calendar logic (no React, no DOM) so mobile draws
+// the same rule web does — "Heute"/"Gestern"/date, and only where the calendar
+// day actually changes — instead of re-deriving it and drifting.
+export {
+  buildDaySeparatorLabels,
+  dayLabel,
+  type DatedEntry,
+} from './components/message-parts/messageTimestampLabels';
 
 // Citation Utils
 export { mapRawCitationsToChat, resolveCitations } from './lib/citationUtils';
 
-// Full-text loader for citation detail views. RN-safe (only react +
+// Citation context for detail views. RN-safe (only react +
 // useChatConfigStore.fetch, which mobile configures via configureMobileChat) —
-// the same hook web uses, so the source fetch stays shared, not duplicated.
-export { useFetchFullText, type FetchFullTextFn } from './context/CitationContext';
+// the same module web uses, so the source fetch stays shared, not duplicated.
+export {
+  CitationProvider,
+  useCitations,
+  useCitationContext,
+  useFetchFullText,
+  type CitationContextValue,
+  type FetchFullTextFn,
+} from './context/CitationContext';
 
 // SSE Parsing
 export { parseSSELine, type SSECurrentEvent, type SSEParseResult } from './lib/sseParser';
 
 // Narration view-logic + label pacing (shared web + mobile)
-export { selectNarration, type PartLike } from './lib/narrationView';
+export { selectNarration, selectApprovalLabels, type PartLike } from './lib/narrationView';
 export { usePacedLabel } from './hooks/usePacedLabel';
 
 // The streaming status line's two decisions — which element, which sentence.
@@ -233,6 +306,7 @@ export {
   selectReasoningText,
   selectSearchSources,
   selectSearchStatusLabel,
+  selectStepAfterText,
   type StatusPartLike,
 } from './lib/toolStatusLine';
 
@@ -264,7 +338,13 @@ export {
   parsePressemitteilungExamples,
   pressemitteilungLvLabel,
   formatGermanDate,
+  getToolResultCount,
+  toolResultSummary,
+  toolOutcome,
+  toolErrorMessage,
   type ToolIconKey,
+  type ToolAccent,
+  type ToolOutcome,
   type ToolMeta,
   type ResearchCitation,
   type ResearchConfidence,
@@ -276,6 +356,17 @@ export {
   type PressemitteilungExample,
   type ParsedPressemitteilungExamples,
 } from './lib/toolResults';
+
+// Werkzeug-Freigabe: die plattformneutrale Hälfte. Web rendert sie als Karte,
+// Native als Karte im eigenen Idiom — beide lesen dieselben Optionen und
+// dieselben Beschriftungen, damit die Entscheidung überall gleich heisst.
+export {
+  TOOL_APPROVAL_OPTIONS,
+  approvalDecidedLabel,
+  isApprovalDecided,
+  type ToolApprovalOptionId,
+  type ToolApprovalState,
+} from './lib/toolApproval';
 
 // Tool view-models & registry (platform-neutral; each platform maps kind → component)
 export {
@@ -303,8 +394,11 @@ export {
   type ToolRegistryEntry,
 } from './lib/toolRegistry';
 
-// SerializableCitation type (Zod-derived, JSON-safe — RN-safe as a type)
-export { type SerializableCitation } from './components/tool-ui/citation/schema';
+// Zod-derived, JSON-safe citation shape and its parser — RN-safe, no DOM.
+export {
+  safeParseSerializableCitation,
+  type SerializableCitation,
+} from './components/tool-ui/citation/schema';
 
 // Grünerator loading-icon geometry (shared shapes; each platform animates them)
 export * as grueneratorHomeIconGeometry from './components/icons/grueneratorHomeIconGeometry';
@@ -341,10 +435,14 @@ export {
   setMentionInstance,
   setMentionLocale,
   getMentionLocale,
+  setMentionLandesverbaende,
   setHiddenSkillMentions,
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
+  setUserAgentMentionables,
+  getUserAgentMentionables,
+  userAgentToMentionable,
   setBoardMentionables,
   getBoardMentionables,
   boardToolMentionables,
@@ -359,6 +457,7 @@ export {
   type MentionableType,
   type MentionableCategory,
   type CustomAgentMentionable,
+  type UserAgentMentionable,
   type BoardMentionable,
   type DocMentionable,
 } from './lib/mentionables';
@@ -370,10 +469,23 @@ export {
   syncMcpServers,
   syncSheets,
   syncTextforms,
+  syncUserAgents,
   syncUserNotebooks,
   type MentionableFetch,
 } from './lib/mentionableSync';
-export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
+export {
+  splitRecipesByOrigin,
+  RECIPE_ORIGIN_SUBLABELS,
+  RECIPE_ORIGIN_SECTION_TITLES,
+  type RecipeOrigin,
+} from './lib/mentionSections';
+export {
+  INTENT_TO_TOOL,
+  DEEP_TOOL_MAP,
+  // Benennt Konnektor-Werkzeuge (`m<key>__<tool>`) lesbar; die
+  // Freigabe-Karten beider Plattformen brauchen denselben Namen.
+  formatNamespacedToolLabel,
+} from './lib/toolMappings';
 
 // Thread History Adapter (shared between drawer + provider on mobile)
 export {

@@ -1,6 +1,6 @@
 /**
  * Server-side reader for the prose body of a BlockNote collaborative document
- * (docs subtypes). Decodes the latest Yjs snapshot to plain text. Access is
+ * (docs subtypes). Reads the authoritative Yjs state as plain text. Access is
  * enforced with the same owned/shared/group predicate as the docs list, so a
  * user can only read their own (or shared) documents.
  *
@@ -9,13 +9,8 @@
  * covers the prose docs that have no structured loader.
  */
 
-import { gunzipSync } from 'zlib';
-
-import { blockNoteXmlToHtml } from '@gruenerator/hocuspocus';
-import * as Y from 'yjs';
-
-import { type YjsDocumentSnapshotRow } from '../../database/schema/yjs.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { getDocumentHtml } from '../../services/docs/docContentService.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { docsAccessWhere } from './constants.js';
@@ -64,19 +59,13 @@ export async function loadDocumentProse(docId: string, userId: string): Promise<
   if (access.length === 0) return null;
 
   try {
-    const rows = (await db.query(
-      `SELECT snapshot_data
-       FROM yjs_document_snapshots
-       WHERE document_id = $1
-       ORDER BY version DESC
-       LIMIT 1`,
-      [docId]
-    )) as Array<Pick<YjsDocumentSnapshotRow, 'snapshot_data'>>;
-    if (rows.length === 0) return null;
-
-    const ydoc = new Y.Doc();
-    Y.applyUpdate(ydoc, gunzipSync(rows[0].snapshot_data));
-    const text = stripTags(blockNoteXmlToHtml(ydoc.getXmlFragment('document-store').toString()));
+    // Snapshots alone are two kinds of stale: they are written at most every 5
+    // minutes (so the newest edits live in `yjs_document_updates`), and a
+    // document created server-side and never opened has none at all — it only
+    // has `collaborative_documents_init`. `getDocumentHtml` walks the same
+    // three tiers the editor does, live doc first.
+    const { html } = await getDocumentHtml(docId);
+    const text = stripTags(html);
     return text.length > 0 ? text : null;
   } catch (err) {
     log.warn(`[DocProse] Failed to decode document ${docId}: ${err}`);

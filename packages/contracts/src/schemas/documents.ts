@@ -53,24 +53,6 @@ export const documentStatsErrorSchema = z.object({
   message: z.unknown(),
 });
 
-// ── wolkeController schemas ──────────────────────────────────────────────────
-
-/**
- * GET /api/documents/sync-status
- * Returns Wolke sync statuses from WolkeSyncService.getUserSyncStatus().
- * The `syncStatuses` shape is a service-internal array — z.unknown() used
- * because pinning the full Nextcloud sync-status type is out of scope here.
- */
-export const syncStatusResponseSchema = z.object({
-  success: z.boolean(),
-  syncStatuses: z.unknown(),
-});
-
-export const syncStatusErrorSchema = z.object({
-  success: z.boolean(),
-  message: z.unknown(),
-});
-
 // ── document statuses (used during notebook creation progress polling) ─────
 
 /**
@@ -79,7 +61,9 @@ export const syncStatusErrorSchema = z.object({
  *   - 'uploaded'   manualController sets this after the file is on disk
  *   - 'processing' processUploadedDocument flips this while extracting + embedding
  *   - 'completed'  final success state
- *   - 'failed'     final error state (actual error stays in server logs; no error_message column)
+ *   - 'failed'     final error state; the reason is written to
+ *                  documents.metadata.processing_error and surfaced by the
+ *                  status routes (there is no error_message column)
  */
 export const documentStatusValueSchema = z.enum([
   'pending',
@@ -119,11 +103,72 @@ export const documentStatusesResponseSchema = z.object({
   ),
 });
 
+/**
+ * GET /api/documents/:id/status — the per-document poll the upload UI runs.
+ *
+ * This schema PINS the shape already on the wire; it does not tidy it. Shipped
+ * mobile binaries poll this exact path, and the web upload store reads
+ * `data.vectorCount` and `data.error` — so the camelCase keys, the field name
+ * `error` (the column behind it is `metadata.processing_error`) and the `data`
+ * envelope are frozen. Widening is fine here, renaming is not.
+ *
+ * `vectorCount` is load-bearing rather than informational: `status='completed'`
+ * with zero vectors means indexing reported success and left nothing
+ * searchable, which a caller must not read as done.
+ */
+export const documentStatusResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    id: z.string(),
+    status: documentStatusValueSchema,
+    title: z.string(),
+    vectorCount: z.number(),
+    processingStage: documentProcessingStageSchema.nullable(),
+    processingProgress: documentProcessingProgressSchema.nullable(),
+    error: z.string().nullable(),
+  }),
+});
+
+/** 404 / 413 / 415 / 500 on the status and upload routes share this envelope. */
+export const documentStatusErrorSchema = z.object({
+  success: z.literal(false),
+  message: z.string(),
+});
+
+/**
+ * POST /api/documents/upload-only.
+ *
+ * Multipart, so it stays a raw multer handler NEXT TO the contract rather than
+ * inside it — `@ts-rest/express` has no multipart support, and the repo already
+ * settled this the same way for transfers, voice, scanner and group avatars.
+ * These two schemas are what that handler validates its text field and its
+ * answer against, and what the clients derive their types from instead of
+ * transcribing them a third time.
+ */
+export const uploadOnlyBodySchema = z.object({
+  /** Absent means "use the file name" — the upload UI does not always send one. */
+  title: z.string().nullish(),
+});
+
+export const uploadOnlyResponseSchema = z.object({
+  success: z.literal(true),
+  message: z.string(),
+  data: z.object({
+    id: z.string(),
+    title: z.string(),
+    filename: z.string(),
+    status: documentStatusValueSchema,
+  }),
+});
+
 export type DocumentStatusValue = z.infer<typeof documentStatusValueSchema>;
 export type DocumentProcessingStage = z.infer<typeof documentProcessingStageSchema>;
 export type DocumentProcessingProgress = z.infer<typeof documentProcessingProgressSchema>;
 export type DocumentStatusesRequest = z.infer<typeof documentStatusesRequestSchema>;
 export type DocumentStatusesResponse = z.infer<typeof documentStatusesResponseSchema>;
+export type DocumentStatusResponse = z.infer<typeof documentStatusResponseSchema>;
+export type UploadOnlyBody = z.infer<typeof uploadOnlyBodySchema>;
+export type UploadOnlyResponse = z.infer<typeof uploadOnlyResponseSchema>;
 
 // ── document content (GET /:id/content) ─────────────────────────────────────
 
@@ -159,6 +204,85 @@ export const documentContentErrorSchema = z.object({
 
 export type DocumentContent = z.infer<typeof documentContentSchema>;
 export type DocumentContentResponse = z.infer<typeof documentContentResponseSchema>;
+
+// ── Upload formats ───────────────────────────────────────────────────────────
+
+/**
+ * The formats the extraction pipeline can actually read. Single source of truth
+ * for the file dialog's `accept` list, the client-side drop check and the
+ * server-side guard on POST /documents/upload-only — those three drifted apart
+ * before: the UI advertised DOC/ODT/RTF, which `extractTextFromFile` has never
+ * supported, and the resulting failure was invisible.
+ *
+ * `kind` mirrors the branch taken in
+ * apps/api/services/document-services/DocumentProcessingService/textExtraction.ts:
+ *   - 'ocr'  → handed to Mistral OCR
+ *   - 'text' → decoded as utf-8
+ *
+ * Adding an entry here is a promise the pipeline has to keep; extend
+ * textExtraction.ts in the same change.
+ */
+export const DOCUMENT_UPLOAD_FORMATS = [
+  { extension: '.pdf', label: 'PDF', mimeTypes: ['application/pdf'], kind: 'ocr' },
+  {
+    extension: '.docx',
+    label: 'DOCX',
+    mimeTypes: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+    kind: 'ocr',
+  },
+  {
+    extension: '.pptx',
+    label: 'PPTX',
+    mimeTypes: ['application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+    kind: 'ocr',
+  },
+  { extension: '.txt', label: 'TXT', mimeTypes: ['text/plain'], kind: 'text' },
+  { extension: '.md', label: 'MD', mimeTypes: ['text/markdown', 'text/x-markdown'], kind: 'text' },
+  { extension: '.csv', label: 'CSV', mimeTypes: ['text/csv'], kind: 'text' },
+  { extension: '.png', label: 'PNG', mimeTypes: ['image/png'], kind: 'ocr' },
+  { extension: '.jpg', label: 'JPG', mimeTypes: ['image/jpeg', 'image/jpg'], kind: 'ocr' },
+  { extension: '.jpeg', label: 'JPEG', mimeTypes: ['image/jpeg', 'image/jpg'], kind: 'ocr' },
+  { extension: '.avif', label: 'AVIF', mimeTypes: ['image/avif'], kind: 'ocr' },
+] as const;
+
+export type DocumentUploadFormat = (typeof DOCUMENT_UPLOAD_FORMATS)[number];
+export type DocumentUploadExtension = DocumentUploadFormat['extension'];
+
+/** For the file dialog's `accept` attribute and the "PDF, DOCX, …" hint. */
+export const DOCUMENT_UPLOAD_EXTENSIONS: readonly DocumentUploadExtension[] =
+  DOCUMENT_UPLOAD_FORMATS.map((f) => f.extension);
+
+/** Matches the multer `limits.fileSize` on every document upload route. */
+export const DOCUMENT_MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
+/**
+ * Resolve a file to its extraction format. The extension decides, not the
+ * mimetype: browsers hand us an empty string or `application/octet-stream` for
+ * `.md` on most platforms, and a mimetype-only check therefore rejected files
+ * the pipeline can read perfectly well. The mimetype is only consulted as a
+ * fallback when the name carries no usable extension (Wolke/Docs imports).
+ */
+export function resolveDocumentUploadFormat(
+  filename: string | null | undefined,
+  mimetype?: string | null
+): DocumentUploadFormat | null {
+  const name = (filename ?? '').toLowerCase();
+  const byExtension = DOCUMENT_UPLOAD_FORMATS.find((f) => name.endsWith(f.extension));
+  if (byExtension) return byExtension;
+
+  const mime = (mimetype ?? '').toLowerCase().split(';')[0]?.trim() ?? '';
+  if (!mime) return null;
+  return (
+    DOCUMENT_UPLOAD_FORMATS.find((f) => (f.mimeTypes as readonly string[]).includes(mime)) ?? null
+  );
+}
+
+/** Human-readable list for error messages and UI hints ("PDF, DOCX, …"). */
+export const DOCUMENT_UPLOAD_FORMAT_HINT = DOCUMENT_UPLOAD_FORMATS.filter(
+  (f) => f.extension !== '.jpeg'
+)
+  .map((f) => f.label)
+  .join(', ');
 
 // ── Shared error schema ──────────────────────────────────────────────────────
 

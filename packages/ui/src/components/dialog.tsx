@@ -29,9 +29,9 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        // z-[1010] (not Tailwind default z-50) because the app's sidebars use
-        // z-[1001] / z-[1005] and Tailwind's modal-default z-50 would render
-        // BELOW them. Modals must always win over sidebars in this codebase.
+        // Overlay-Ebenen: Sidebars 1001/1005 < Modal 1010 < Popup 1020 <
+        // Tooltip 1030. shadcns Default z-50 läge unter den Sidebars.
+        // Erzwungen von scripts/check-overlay-layers.mjs.
         'fixed inset-0 z-[1010] bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0',
         className
       )}
@@ -76,7 +76,7 @@ function DialogContent({
             className="absolute top-3 right-3 flex size-9 items-center justify-center rounded-md opacity-70 ring-offset-background-pure transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-hover-alt pointer-coarse:top-2 pointer-coarse:right-2 pointer-coarse:size-11 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">Schließen</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>

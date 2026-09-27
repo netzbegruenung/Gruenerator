@@ -13,7 +13,7 @@ export type AutoModelId = typeof AUTO_MODEL_ID;
 export const AUTO_MODEL_OPTION = {
   id: AUTO_MODEL_ID,
   name: 'Automatisch',
-  description: 'Wählt je Aufgabe das passende Modell',
+  description: 'Wählt je Aufgabe das Modell',
   /**
    * Steht im aufgeklappten Wähler neben dem Namen. Hier und nicht je Plattform
    * als Literal, weil es sonst zwei Stellen wären, die auseinanderlaufen —
@@ -30,7 +30,7 @@ export interface AutoResolverContext {
 }
 
 export function resolveAutoModel(ctx: AutoResolverContext): TextModelId {
-  // Ultra ist die Notizbuch-Vorgabe; außerhalb bleibt es bei den bisherigen
+  // Ultra ist die Notebook-Vorgabe; außerhalb bleibt es bei den bisherigen
   // Zuordnungen (Mittel allgemein/kreativ, Ultra für anweisungslastige Agenten
   // wie den Agenten-Ersteller).
   if (ctx.threadMode === 'notebook') return 'gruenerator-ultra';

@@ -30,7 +30,7 @@
     />
     <meta name="author" content="Moritz Wächter" />
     <link rel="apple-touch-icon" href="/logo192.png" />
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />
     <title>Grünerator - Grüne KI</title>
 
     <!-- Open Graph / Facebook -->
@@ -258,10 +258,16 @@
          localStorage key the React version used. Runs synchronously before
          first paint, so dismissed visitors never see a flash. -->
     <div id="terms-banner" class="terms-banner">
+      <!-- „Durch die Nutzung stimmst du zu" stand hier früher — das ist keine
+           Einwilligung nach § 25 Abs. 1 TDDDG. Technisch notwendige Cookies
+           brauchen sie nicht, die Reichweitenmessung schon, und die gibt es nur
+           über „Alle akzeptieren". -->
       <p>
-        Diese Website verwendet Cookies. Durch die Nutzung stimmst du den
-        <a href="/nutzungsbedingungen">Nutzungsbedingungen</a> zu.
-        <a href="/datenschutz#webanalyse">Mehr erfahren</a>
+        Technisch notwendige Cookies setzen wir immer. Die anonyme Reichweitenmessung nur, wenn du
+        zustimmst.
+        <a href="/datenschutz#webanalyse">Mehr erfahren</a> ·
+        <a href="/nutzungsbedingungen">Nutzungsbedingungen</a> ·
+        <a href="/ki-transparenz">KI-Transparenz</a>
       </p>
       <div class="terms-banner__actions">
         <button type="button" id="terms-banner-necessary">Nur Notwendige</button>
@@ -283,7 +289,11 @@
           dismissed = localStorage.getItem('termsAccepted') === 'true';
         } catch (e) {}
         var noChrome = /-no-header-footer/.test(location.pathname);
-        if (dismissed || noChrome) {
+        // Embedded in the mobile app's WebView. The banner's three links are
+        // the easiest way out of a WebView meant to show exactly one page.
+        // Removing it grants nothing: analytics stays off until accepted.
+        var embedded = /(^|[?&])embedded=1(&|$)/.test(location.search);
+        if (dismissed || noChrome || embedded) {
           banner.remove();
           return;
         }

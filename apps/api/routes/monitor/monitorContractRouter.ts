@@ -39,6 +39,7 @@ import {
   getEuGreensHistory,
   getPolitProHistory,
   getPolitProPolls,
+  getPollsOverview,
   POLITPRO_PARLIAMENTS,
 } from '../../services/monitor/PolitProService.js';
 import { getStateElections } from '../../services/monitor/StateElectionsService.js';
@@ -177,6 +178,17 @@ export const monitorContractRouter = s.router(monitorContract, {
   pollParliaments: async ({ res }) => {
     cache(res, 'private, max-age=86400');
     return { status: 200 as const, body: [...POLITPRO_PARLIAMENTS] };
+  },
+
+  pollsOverview: async ({ query, res }) => {
+    try {
+      const data = await getPollsOverview(query.country ?? 'DE');
+      cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
+      return { status: 200 as const, body: data };
+    } catch (error) {
+      log.error(`GET /polls/overview failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to fetch poll overview' } };
+    }
   },
 
   euGreensHistory: async ({ res }) => {

@@ -15,7 +15,15 @@ import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validat
 
 import { createSourcesSection } from './citationParser.js';
 import { parseFormattedContent } from './contentParser.js';
-import { buildNumberingConfig, renderBlocks, BODY_FONT, HEADING_FONT } from './docxRenderer.js';
+import {
+  buildNumberingConfig,
+  buildPageChrome,
+  loadEmbeddedFonts,
+  renderBlocks,
+  BODY_FONT,
+  HEADING_FONT,
+} from './docxRenderer.js';
+import { resolveImages } from './imageResolver.js';
 
 import type { Citation, ExportResponse } from './types.js';
 import type * as Docx from 'docx';
@@ -59,7 +67,11 @@ export async function generateDocxBuffer(
   const blocks = parseFormattedContent(content);
   const hasCitations = citations && Array.isArray(citations) && citations.length > 0;
 
-  const docx = await import('docx');
+  const [docx, images, fonts] = await Promise.all([
+    import('docx'),
+    resolveImages(blocks),
+    loadEmbeddedFonts(),
+  ]);
   const { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer } = docx;
 
   const children: Docx.FileChild[] = [];
@@ -74,7 +86,7 @@ export async function generateDocxBuffer(
     })
   );
 
-  children.push(...renderBlocks(docx, blocks, { withCitations: Boolean(hasCitations) }));
+  children.push(...renderBlocks(docx, blocks, { withCitations: Boolean(hasCitations), images }));
 
   if (hasCitations && citations) {
     children.push(...(createSourcesSection(docx, citations) as Docx.FileChild[]));
@@ -105,8 +117,9 @@ export async function generateDocxBuffer(
   );
 
   const doc = new Document({
-    sections: [{ properties: {}, children }],
+    sections: [{ properties: {}, ...buildPageChrome(docx, docTitle), children }],
     numbering: buildNumberingConfig(docx),
+    fonts,
     title: docTitle,
     creator: 'Grünerator',
     description: 'Generated document from Grünerator',

@@ -89,18 +89,31 @@ export function useNotebookFullSync() {
           updatedFolders.push({ ...folder, lastSyncedAt: result.updatedLastSyncedAt });
           const added = result.newlyImported.length;
           const totalNow = result.currentDocumentIds.length;
-          const summary =
+          const base =
             added > 0 ? `${added} neu · ${totalNow} insgesamt` : `${totalNow} unverändert`;
-          setRow(key, { status: 'done', summary });
+          const summary =
+            result.failures.length > 0
+              ? `${base} · ${result.failures.length} fehlgeschlagen`
+              : base;
+          setRow(key, {
+            status: 'done',
+            summary,
+            ...(result.notice ? { errorMessage: result.notice } : {}),
+          });
         } else {
           updatedFolders.push(folder);
           setRow(key, { status: 'error', errorMessage: result.message });
         }
       }
 
-      // Only conclude "vanished" when ALL folders synced successfully — otherwise we can't be sure.
+      // Only conclude "vanished" when ALL folders synced successfully AND no
+      // single file failed. A file that fails to re-import (unreadable PDF,
+      // OCR hiccup) is still sitting in the folder — treating its absence from
+      // currentDocumentIds as "deleted in the Wolke" would drop the document
+      // from the notebook on every full sync.
       const allWolkeFoldersOk =
-        wolkeResults.length === 0 || wolkeResults.every((r) => r.kind === 'success');
+        wolkeResults.length === 0 ||
+        wolkeResults.every((r) => r.kind === 'success' && r.failures.length === 0);
       const allWolkeNow = new Set<string>();
       for (const r of wolkeResults) {
         if (r.kind === 'success') r.currentDocumentIds.forEach((id) => allWolkeNow.add(id));
@@ -154,15 +167,9 @@ export function useNotebookFullSync() {
           baseDocumentIds = fresh.body.collection.documents.map((d) => String(d.id));
           base = {
             name: fresh.body.collection.name,
-            ...(fresh.body.collection.description != null
-              ? { description: fresh.body.collection.description }
-              : {}),
-            ...(fresh.body.collection.custom_prompt != null
-              ? { custom_prompt: fresh.body.collection.custom_prompt }
-              : {}),
-            selection_mode:
-              (fresh.body.collection.selection_mode as NotebookCollection['selection_mode']) ??
-              collection.selection_mode,
+            description: fresh.body.collection.description,
+            custom_prompt: fresh.body.collection.custom_prompt,
+            selection_mode: fresh.body.collection.selection_mode || collection.selection_mode,
             labels: fresh.body.collection.labels ?? collection.labels,
             is_public: fresh.body.collection.is_public ?? collection.is_public,
             public_ownership: fresh.body.collection.public_ownership ?? null,
@@ -182,9 +189,9 @@ export function useNotebookFullSync() {
 
       await updateQACollection(collection.id, {
         name: base.name,
-        ...(base.description != null ? { description: base.description } : {}),
-        ...(base.custom_prompt != null ? { custom_prompt: base.custom_prompt } : {}),
-        selectionMode: base.selection_mode ?? 'documents',
+        description: base.description,
+        custom_prompt: base.custom_prompt,
+        selectionMode: base.selection_mode || 'documents',
         documents: [...finalIds],
         labels: base.labels ?? [],
         is_public: base.is_public,
@@ -203,6 +210,7 @@ export function useNotebookFullSync() {
         removed: removedWolkeIds.length + removedManualIds.length,
         errors:
           wolkeResults.filter((r) => r.kind === 'error').length +
+          wolkeResults.reduce((acc, r) => acc + (r.kind === 'success' ? r.failures.length : 0), 0) +
           docsResults.filter((r) => r.kind === 'error').length,
       });
     },

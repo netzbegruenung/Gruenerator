@@ -160,6 +160,41 @@ describe('userProfileSchema — SQL NULL coercion', () => {
   });
 });
 
+describe('userProfileSchema — ai_consent_at (Date vs. ISO-String)', () => {
+  // Produktionsvorfall: `ai_consent_at` ist in Better Auth ein
+  // `type: 'date'`-Feld auf einer TIMESTAMPTZ-Spalte, `session.user` trägt
+  // also ein `Date`. Das Schema forderte `z.string()` → jede Anfrage einer
+  // Person MIT Einwilligung endete in ZodError → `kind: 'unavailable'` → 503
+  // auf allen Routen. Derselbe Parse läuft im Web-Client
+  // (`sessionUserToProfile`), dort erschien der Fehler als `authq.result
+  // { kind: 'transient-error', errorName: 'ZodError' }`.
+
+  it('normalisiert ein Date aus der Better-Auth-Session zum ISO-String', () => {
+    const consentedAt = new Date('2026-01-01T00:00:00.000Z');
+    const parsed = userProfileSchema.parse(
+      buildParseInput({ ...baseBetterAuthFields, ai_consent_at: consentedAt })
+    );
+    expect(parsed.ai_consent_at).toBe('2026-01-01T00:00:00.000Z');
+  });
+
+  it('reicht einen ISO-String aus profileMapper unverändert durch', () => {
+    const parsed = userProfileSchema.parse(
+      buildParseInput({ ...baseBetterAuthFields, ai_consent_at: '2026-01-01T00:00:00.000Z' })
+    );
+    expect(parsed.ai_consent_at).toBe('2026-01-01T00:00:00.000Z');
+  });
+
+  it('lässt fehlende Einwilligung als null/undefined stehen', () => {
+    const fromNull = userProfileSchema.parse(
+      buildParseInput({ ...baseBetterAuthFields, ai_consent_at: null })
+    );
+    expect(fromNull.ai_consent_at).toBeUndefined();
+
+    const absent = userProfileSchema.parse(buildParseInput(baseBetterAuthFields));
+    expect(absent.ai_consent_at).toBeUndefined();
+  });
+});
+
 describe('userProfileSchema — missing email (prod login-loop regression)', () => {
   // Production incident: Keycloak OIDC profiles that lack the `email`
   // claim produce a Better Auth session user with `email: undefined`,

@@ -1,0 +1,147 @@
+name: Content Sync Watchdog
+
+# Makes a *missing* content sync visible.
+#
+# A cron that never fires produces no run, so the workflow history of Content
+# Sync looks uniformly green whether it ran 18 times or twice. It has been both:
+# on 2026-08-26 three of 17 hourly slots were lost and the rest drifted up to
+# +88 min; on 2026-08-27 the daily full sync fired 10 h 16 min late and 14 of 15
+# hourly slots never fired at all (#2972). Nothing turned red, no digest was
+# missing in a way anyone could see, and the whole non-LV corpus was a day stale
+# unannounced.
+#
+# This workflow does not make the scheduler reliable — nothing here can. It
+# turns the silence into a red run, which `ci-failure-issue.yml` then turns into
+# one tracking issue. Since #3200 Content Sync also *reacts* to the same
+# measurement: its setup job catches up a full run that GitHub never fired. The
+# walk behind both lives in .github/actions/last-full-sync, so "what counts as a
+# full run" is defined once — a second copy is how a rename demotes the nightly
+# run in one place while the other still believes in it.
+#
+# Content Sync is now dispatched by the Grünerator API (workflow_dispatch, see
+# apps/api/services/scrapers/contentSyncDispatcher.ts) because the crons stayed
+# throttled. The measurement does not care how a run was started: the action
+# lists runs of every event and recognises a full run by its `Sync gruene-de`
+# job, which a dispatched full run has as well. So this keeps watching whichever
+# of the two is actually starting the runs.
+#
+# It is itself a cron and can itself be dropped. That is tolerable in a way the
+# sync is not: every tick evaluates the whole trailing window, so a lost tick is
+# fully covered by the next one. A lost sync slot is simply gone.
+
+on:
+  schedule:
+    # Hours written out, not '*/6'. A step in the hour field counts from the
+    # field's minimum, so '47 */6 * * *' fires at 00:47/06:47/12:47/18:47 — not
+    # the times intended here. That is not cosmetic: the first check after the
+    # 02:17 full run would land at 06:47, still inside the 30 h staleness limit,
+    # so a missing nightly would only surface at 12:47. At 08:47 it surfaces on
+    # the morning it happened. Minute 47 keeps this off the busy top of the hour.
+    - cron: '47 2,8,14,20 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: content-sync-watchdog
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check that Content Sync is still firing
+    runs-on: ubuntu-latest
+    steps:
+      # Only so the local composite action below can be loaded.
+      - uses: actions/checkout@v7
+
+      - name: Measure how much of the schedule actually ran
+        id: measure
+        uses: ./.github/actions/last-full-sync
+        with:
+          repo: ${{ github.repository }}
+          token: ${{ github.token }}
+
+      - name: Judge the measurement
+        env:
+          # 17 hourly slots (04-20 UTC) + 1 daily = 18 expected in 24 h. The
+          # floor is deliberately well below that: individual drops are normal
+          # and not worth an issue, a collapse is. On 2026-08-27 the count was 2.
+          MIN_RUNS_24H: 12
+          # The daily 02:17 run is the only one that walks every archive fully
+          # and the only one that syncs the nine non-LV sources at all, so its
+          # absence is the expensive one.
+          #
+          # 28 is picked against the check times above, not rounded to a nice
+          # number. With last night's run missing, the 02:47 check sees 24 h and
+          # stays quiet — being late is normal and it may still land — while the
+          # 08:47 check sees 30 h and fires. Note the age is integer hours,
+          # truncated: at 08:47 the true gap is 30 h 30 min but the comparison
+          # gets 30, so a limit of 30 would let exactly that check pass and
+          # delay the alarm to 14:47.
+          #
+          # Content Sync's own catch-up threshold (22 h) is deliberately lower:
+          # it acts on the same measurement one tick earlier, so by the time
+          # this fires, the catch-up has already had its chance and the alarm
+          # means both doors failed.
+          MAX_HOURS_SINCE_FULL: 28
+          FOUND: ${{ steps.measure.outputs.found }}
+          HOURS_SINCE_FULL: ${{ steps.measure.outputs.hours_since }}
+          FULL_RUN_URL: ${{ steps.measure.outputs.run_url }}
+          RUNS_24H: ${{ steps.measure.outputs.runs_24h }}
+          UNREADABLE: ${{ steps.measure.outputs.unreadable }}
+          INSPECTED: ${{ steps.measure.outputs.inspected }}
+        run: |
+          set -euo pipefail
+
+          {
+            echo "## Content Sync Watchdog"
+            echo ""
+            echo "| Check | Value | Threshold |"
+            echo "|-------|------:|----------:|"
+            echo "| Successful runs, last 24 h | $RUNS_24H | ≥ $MIN_RUNS_24H |"
+            if [ "$FOUND" = "true" ]; then
+              echo "| Hours since last full run | $HOURS_SINCE_FULL | ≤ $MAX_HOURS_SINCE_FULL |"
+            else
+              echo "| Hours since last full run | none in $INSPECTED runs | ≤ $MAX_HOURS_SINCE_FULL |"
+            fi
+            if [ "$UNREADABLE" -gt 0 ]; then
+              echo "| Runs the API would not show | $UNREADABLE | 0 |"
+            fi
+            echo ""
+            if [ -n "$FULL_RUN_URL" ]; then echo "Last full run: $FULL_RUN_URL"; fi
+            if [ "$UNREADABLE" -gt 0 ]; then
+              echo ""
+              echo "⚠️ $UNREADABLE newer run(s) could not be read, so the age above is an upper"
+              echo "bound and the staleness check is skipped this tick. The next one re-evaluates"
+              echo "the whole window, so nothing is lost by waiting."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          FAILED=0
+
+          # Independent of the jobs API, so it keeps working when the walk does
+          # not — and a real collapse shows up here first anyway: fewer runs is
+          # what a dropped schedule *is*.
+          if [ "$RUNS_24H" -lt "$MIN_RUNS_24H" ]; then
+            echo "::error::Only $RUNS_24H successful Content Sync runs in the last 24 h (expected 18, floor $MIN_RUNS_24H). Neither the API dispatcher nor the GitHub schedule is starting the runs — check the API logs for ContentSyncDispatcher and see #2972."
+            FAILED=1
+          fi
+
+          # Only claim staleness from a walk that actually read every run newer
+          # than the one it settled on. Otherwise the number is an upper bound
+          # (see the action's `unreadable` output) and firing on it means
+          # reporting a fresh sync as missing — which costs a tracking issue
+          # and, repeated, the credibility this workflow exists to have.
+          if [ "$UNREADABLE" -gt 0 ]; then
+            echo "::warning::Staleness check skipped: $UNREADABLE run(s) newer than the last confirmed full run could not be read from the GitHub API, so their age is unknown. Re-checked on the next tick."
+          elif [ "$FOUND" != "true" ]; then
+            echo "::error::No full Content Sync run found in the last $INSPECTED successful runs. The nine non-LV sources have not synced — see #2972."
+            FAILED=1
+          elif [ "$HOURS_SINCE_FULL" -gt "$MAX_HOURS_SINCE_FULL" ]; then
+            echo "::error::Last full Content Sync run was ${HOURS_SINCE_FULL}h ago (limit ${MAX_HOURS_SINCE_FULL}h): $FULL_RUN_URL. The nine non-LV sources are stale — see #2972."
+            FAILED=1
+          fi
+
+          exit "$FAILED"

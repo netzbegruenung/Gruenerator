@@ -8,27 +8,13 @@ import { SourceGlyph } from './SourceGlyph';
 
 import type { CitationProps } from './projectSchema';
 
-interface CitationComponentProps extends CitationProps {
-  variant?: 'default' | 'inline' | 'stacked';
-  compact?: boolean;
-}
-
-export const Citation = memo(function Citation({
-  variant = 'default',
-  compact,
-  ...citation
-}: CitationComponentProps) {
-  if (variant === 'inline') return <InlineCitation {...citation} />;
-  if (variant === 'stacked') return <StackedCitation {...citation} />;
-  return <CardCitation citation={citation} compact={compact} />;
-});
-
-const CardCitation = memo(function CardCitation({
-  citation,
-}: {
-  citation: CitationProps;
-  compact?: boolean;
-}) {
+/**
+ * The numbered source card in the "Quellen" list under a message
+ * (SearchResultsSection). Chat-citation shaped: `[N]` prefix, cited text,
+ * collection chip. The former `inline`/`stacked` variants had no callers and
+ * are gone — inline rendering is CitationBadge, chips are CitationList.
+ */
+export const Citation = memo(function Citation(citation: CitationProps) {
   const displayText = citation.citedText || citation.snippet || '';
   const style = getCollectionStyle(citation.source);
 
@@ -81,56 +67,6 @@ const CardCitation = memo(function CardCitation({
           </div>
         </div>
       </div>
-    </div>
-  );
-});
-
-const InlineCitation = memo(function InlineCitation(citation: CitationProps) {
-  const label = citation.domain || citation.title;
-  const baseClass =
-    'inline-flex items-center gap-1 rounded-full bg-card border border-border/50 px-2 py-0.5 text-xs text-foreground-muted';
-  const interactiveClass = ' hover:border-border hover:text-foreground transition-colors';
-  const icon = citation.domain ? <SourceGlyph domain={citation.domain} size={12} /> : null;
-  const text = <span className="truncate max-w-[120px]">{label}</span>;
-
-  // URL-less sources (e.g. private Wolke files) render as a non-clickable
-  // badge with the same visual footprint so layout matches and the user
-  // still sees which source is being cited.
-  if (!citation.url) {
-    return (
-      <span className={baseClass}>
-        {icon}
-        {text}
-      </span>
-    );
-  }
-
-  return (
-    <a
-      href={citation.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={baseClass + interactiveClass}
-    >
-      {icon}
-      {text}
-    </a>
-  );
-});
-
-const StackedCitation = memo(function StackedCitation(citation: CitationProps) {
-  const style = getCollectionStyle(citation.source);
-
-  return (
-    <div
-      className="inline-flex items-center gap-1 rounded-full border border-border/50 px-1.5 py-0.5"
-      style={{ borderColor: style.color }}
-      title={citation.title}
-    >
-      {citation.domain && <SourceGlyph domain={citation.domain} size={14} rounded="rounded-full" />}
-      <span className="text-[10px] text-foreground-muted truncate max-w-[80px]">
-        {citation.domain || citation.source}
-      </span>
     </div>
   );
 });

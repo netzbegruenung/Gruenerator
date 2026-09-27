@@ -21,10 +21,6 @@ vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
   },
 }));
 
-vi.mock('../../utils/getAIWorkerPool.js', () => ({
-  getAIWorkerPool: () => ({ processRequest: vi.fn() }),
-}));
-
 vi.mock('../../services/user/ProfileService.js', () => ({
   getProfileService: () => ({ getProfileById: vi.fn() }),
 }));
@@ -54,7 +50,7 @@ type Handler = (args: Record<string, unknown>) => Promise<{
  * Capture the handlers at registration. Spying on the prototype avoids reaching
  * into the SDK's private registry, whose shape is not ours to depend on.
  */
-function notebooksTool(): { handler: Handler } {
+function notebooksTool(userLocale: 'de-DE' | 'de-AT' = 'de-DE'): { handler: Handler } {
   const tools = new Map<string, Handler>();
   const spy = vi.spyOn(McpServer.prototype, 'registerTool').mockImplementation(function (
     this: unknown,
@@ -69,6 +65,7 @@ function notebooksTool(): { handler: Handler } {
     buildAuthenticatedMcpServer({
       userId: 'user-1',
       scopes: new Set(['content:read']),
+      userLocale,
       req: { app: { locals: {} } } as never,
     });
   } finally {
@@ -81,7 +78,7 @@ function notebooksTool(): { handler: Handler } {
   return { handler };
 }
 
-const COLLECTION = { id: 'nb-1', name: 'Mein Notizbuch', user_id: 'user-1' };
+const COLLECTION = { id: 'nb-1', name: 'Mein Notebook', user_id: 'user-1' };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -129,7 +126,7 @@ describe('notebooks.search over MCP', () => {
     expect(text).toContain('Die Quellen nennen Radwege.[1]');
     expect(text).toContain('[1] Verkehrskonzept — https://example.org/a');
     expect(text).toContain('[2] Beschluss —');
-    expect(text).toContain('Mein Notizbuch');
+    expect(text).toContain('Mein Notebook');
     expect(res.isError).toBeUndefined();
   });
 
@@ -149,7 +146,7 @@ describe('notebooks.search over MCP', () => {
     askSingleCollection.mockRejectedValue(new Error('Collection not found or access denied'));
 
     const res = await notebooksTool().handler({ action: 'search', id: 'nb-1', query: 'Klima' });
-    expect(res.content[0].text).toBe('Notizbuch nicht gefunden oder kein Zugriff.');
+    expect(res.content[0].text).toBe('Notebook nicht gefunden oder kein Zugriff.');
     expect(res.isError).toBe(true);
   });
 
@@ -157,7 +154,7 @@ describe('notebooks.search over MCP', () => {
     askSingleCollection.mockRejectedValue(new Error('No documents found in this collection'));
 
     const res = await notebooksTool().handler({ action: 'search', id: 'nb-1', query: 'Klima' });
-    expect(res.content[0].text).toBe('Dieses Notizbuch enthält noch keine Dokumente.');
+    expect(res.content[0].text).toBe('Dieses Notebook enthält noch keine Dokumente.');
   });
 
   it('leaves the access decision to the service rather than an owner-only check', async () => {
@@ -176,7 +173,7 @@ describe('notebooks.search over MCP', () => {
     getNotebookCollection.mockResolvedValue(null);
 
     const res = await notebooksTool().handler({ action: 'search', id: 'nope', query: 'Klima' });
-    expect(res.content[0].text).toBe('Notizbuch nicht gefunden oder kein Zugriff.');
+    expect(res.content[0].text).toBe('Notebook nicht gefunden oder kein Zugriff.');
     expect(askSingleCollection).not.toHaveBeenCalled();
   });
 
@@ -184,5 +181,19 @@ describe('notebooks.search over MCP', () => {
     const res = await notebooksTool().handler({ action: 'search', id: 'nb-1', query: '  ' });
     expect(res.content[0].text).toContain('braucht id');
     expect(askSingleCollection).not.toHaveBeenCalled();
+  });
+});
+
+describe('notebooks.list scope=system over MCP', () => {
+  // The chat factory gates system notebooks on state.userLocale; the MCP ctx
+  // must carry it or every connector gets the de-DE set.
+  it('offers an AT account the Austrian corpus', async () => {
+    const res = await notebooksTool('de-AT').handler({ action: 'list', scope: 'system' });
+    expect(res.content[0].text).toContain('oesterreich');
+  });
+
+  it('keeps it from a DE account', async () => {
+    const res = await notebooksTool('de-DE').handler({ action: 'list', scope: 'system' });
+    expect(res.content[0].text).not.toContain('oesterreich');
   });
 });

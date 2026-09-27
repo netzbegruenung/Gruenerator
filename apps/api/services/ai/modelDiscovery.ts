@@ -1,15 +1,18 @@
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { cortecsBaseUrl } from './cortecsEndpoint.js';
 import {
   type ProviderName,
   LITELLM_DEFAULT_BASE_URL,
   MISTRAL_API_URL,
   REGOLO_BASE_URL,
+  MELIOUS_BASE_URL,
   GREENPT_BASE_URL,
   isProviderConfigured,
 } from './providers.js';
 import { scalewayBaseUrl } from './scalewayEndpoint.js';
+import { isExcludedTextModel } from './textModelPolicy.js';
 
 const log = createLogger('modelDiscovery');
 
@@ -29,7 +32,7 @@ interface OpenAIModelsResponse {
   data: Array<{ id: string; object?: string; owned_by?: string }>;
 }
 
-// Mistral Medium 3.5, Gemma 4 and the gpt-oss/qwen families are all reasoning
+// Mistral Medium 3.5, Gemma 4 and gpt-oss are all reasoning
 // models with configurable thinking. `reasoning: true` here flags that; how (or
 // whether) that reasoning is surfaced to the UI depends on the streaming path
 // (SDK fullStream for Mistral; Regolo raw streamer for Regolo's reasoning_content).
@@ -41,6 +44,30 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: false },
   'mistral-small-2503': { name: 'Mistral Small (Vision)', reasoning: false, vision: true },
   'gemma4-31b': { name: 'Gemma 4 31B', reasoning: true, vision: true },
+  // DASSELBE Modell über Cortecs (infercom) — der Primär aller
+  // Gemma-Lanes seit 25.08.2026, siehe services/ai/gemmaHosts.ts. Zwei Flags,
+  // die absichtlich vom Zwilling darüber abweichen:
+  //
+  //   `reasoning: false` — es denkt auf diesem Host OHNE Flag nicht (gemessen
+  //   21.08. und 25.08.2026: 0 Zeichen Denken im Baseline). Dieses Feld
+  //   beschreibt genau das und nicht mehr; angeschaltet wird über
+  //   `chat_template_kwargs.enable_thinking` im Denk-Strom, den
+  //   `isReasoningStreamModel` gesondert führt.
+  //
+  //   `vision: false` — GEMESSEN, nicht vorsichtshalber: ein echter Bild-Turn
+  //   gegen infercom antwortet am 25.08.2026 mit HTTP 500 (`unexpected_error`),
+  //   obwohl der Katalog `input_modalities: ['text','image']` und den Tag
+  //   `Image` führt. Der Katalog beschreibt die Gewichte, nicht den Endpunkt.
+  //   Folge: die Bild-Weiche in responseStreamingService.ts sieht den
+  //   vision-fähigen Sibling (Regolo) und tauscht innerhalb der Lane dorthin —
+  //   ein geprüfter Pfad, und sie protokolliert es.
+  'gemma-4-31b-it': { name: 'Gemma 4 31B', reasoning: false, vision: false },
+  // Dasselbe Modell über Melious. Beide Flags aus demselben Grund wie eine
+  // Zeile höher: `reasoning: false`, weil der SDK-Pfad das Denken abschaltet
+  // (meliousThinkingFetch.ts); `vision: false` GEMESSEN — ein echter Bild-Turn
+  // antwortete am 23.09.2026 mit HTTP 400, obwohl die Hub-Seite Bildeingabe
+  // führt. Bild-Züge gehen damit an VISION_MODEL.
+  'gemma-4-31b:balanced': { name: 'Gemma 4 31B', reasoning: false, vision: false },
   // Scaleway's Gemma 4, MoE with 4B active parameters — the `heavy` stage.
   // `reasoning: true` is the honest flag (it thinks by DEFAULT), which is
   // exactly why its client forces `reasoning_effort: 'none'`; see
@@ -68,8 +95,6 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   'verdigado-pro': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
   'gpt-oss:120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
   'openai/gpt-oss-120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
-  'qwen3.5-122b': { name: 'Qwen 3.5 122B', reasoning: true, vision: true },
-  'qwen3.6-27b': { name: 'Qwen 3.6 27B', reasoning: true, vision: false },
   'mistral-small-4-119b': { name: 'Mistral Small 4 119B', reasoning: true, vision: true },
   'Llama-3.3-70B-Instruct': { name: 'Llama 3.3 70B', reasoning: false, vision: false },
   'mistral-small3.2': { name: 'Mistral Small 3.2', reasoning: false, vision: false },
@@ -102,15 +127,18 @@ const EXCLUDE_IDS = new Set(['gemma']);
 
 const CATEGORY_NAMES: Record<ProviderName, string> = {
   mistral: 'Mistral',
-  litellm: 'LiteLLM',
+  litellm: 'Cortecs (ehem. LiteLLM)',
   regolo: 'Regolo',
+  melious: 'Melious',
   greenpt: 'GreenPT',
   scaleway: 'Scaleway',
+  cortecs: 'Cortecs',
 };
 
 const CAT_ORDER: Record<string, number> = {
   Mistral: 0,
   Regolo: 1,
+  Melious: 1,
   LiteLLM: 2,
   GreenPT: 3,
   Scaleway: 4,
@@ -121,7 +149,15 @@ let cacheTimestamp = 0;
 let fetchInProgress: Promise<PlaygroundModel[]> | null = null;
 
 function isExcludedModel(modelId: string): boolean {
-  return EXCLUDE_IDS.has(modelId) || EXCLUDE_PATTERNS.some((p) => p.test(modelId));
+  // `isExcludedTextModel` prüfte bisher nur das Routing. Diese Liste speist den
+  // Modellwähler des Playgrounds und entsteht live aus `/v1/models` — Regolo
+  // bietet die chinesisch trainierten Modelle weiter an, wählbar war also, was
+  // nirgends geroutet werden darf. Dieselbe Funktion, keine zweite Liste.
+  return (
+    EXCLUDE_IDS.has(modelId) ||
+    isExcludedTextModel(modelId) ||
+    EXCLUDE_PATTERNS.some((p) => p.test(modelId))
+  );
 }
 
 function deriveDisplayName(modelId: string): string {
@@ -216,9 +252,17 @@ const PROVIDER_ENDPOINTS: Record<
     url: () => `${REGOLO_BASE_URL}/models`,
     getApiKey: () => env.REGOLO_API_KEY ?? null,
   },
+  melious: {
+    url: () => `${MELIOUS_BASE_URL}/models`,
+    getApiKey: () => env.MELIOUS_API_KEY ?? null,
+  },
   scaleway: {
     url: () => `${scalewayBaseUrl()}/models`,
     getApiKey: () => env.SCALEWAY_API_KEY ?? null,
+  },
+  cortecs: {
+    url: () => `${cortecsBaseUrl()}/models`,
+    getApiKey: () => env.CORTECS_API_KEY ?? null,
   },
 };
 
@@ -227,25 +271,25 @@ function fetchModelsForProvider(provider: ProviderName): Promise<PlaygroundModel
   return fetchProviderModels(provider, endpoint.url(), endpoint.getApiKey());
 }
 
+/** Notliste, wenn ALLE Anbieter-APIs schweigen. Sie führt genau die Anbieter,
+ *  die `discoverModels` unten befragt — ein `verdigado-pro` stand hier bis zum
+ *  29.08.2026 und hätte nach der Stilllegung ein Modell angeboten, das der
+ *  Aufruf danach still umbiegt. */
 const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-medium-2604', 'mistral-small-latest']
   .map((id) => enrichModel(id, 'mistral'))
-  .concat(
-    [
-      'qwen3.5-122b',
-      'mistral-small-4-119b',
-      'Llama-3.3-70B-Instruct',
-      'gpt-oss-120b',
-      'mistral-small3.2',
-    ].map((id) => enrichModel(id, 'regolo')),
-    [enrichModel('verdigado-pro', 'litellm')]
-  );
+  .concat(['gemma-4-31b:balanced'].map((id) => enrichModel(id, 'melious')));
 
 async function discoverModels(): Promise<PlaygroundModel[]> {
-  // `greenpt` and `scaleway` are deliberately absent, not forgotten: this list
-  // feeds the Playground's model picker, and both are backend-only lanes
-  // (scaleway serves the `heavy` intermediate stage). They keep their
-  // PROVIDER_ENDPOINTS entry so adding them here is a one-word change.
-  const providers: ProviderName[] = ['mistral', 'litellm', 'regolo'];
+  // `greenpt`, `scaleway` und `cortecs` sind bewusst abwesend, nicht vergessen:
+  // diese Liste speist die Modellauswahl im Playground, und alle drei sind
+  // reine Backend-Lanes (cortecs bedient seit 21.08.2026 die `heavy`-Stufe,
+  // vorher scaleway). Ihr PROVIDER_ENDPOINTS-Eintrag bleibt, damit das
+  // Aufnehmen ein Ein-Wort-Eingriff ist.
+  // `litellm` ist am 29.08.2026 aus dieser Liste geflogen: sein Katalog führte
+  // für uns nur zwei Denkmodelle, und beide sind stillgelegt
+  // (./litellmRetired.ts). Ein Modell im Playground anzubieten, das der
+  // Aufruf danach umbiegt, wäre eine Lüge in der Auswahl.
+  const providers: ProviderName[] = ['mistral', 'melious'];
   const results = await Promise.allSettled(
     providers.filter((p) => isProviderConfigured(p)).map((p) => fetchModelsForProvider(p))
   );

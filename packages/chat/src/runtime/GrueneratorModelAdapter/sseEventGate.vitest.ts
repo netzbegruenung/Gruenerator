@@ -3,9 +3,10 @@ import {
   searchIntentSchema,
   sharepicVariantSchema,
 } from '@gruenerator/contracts';
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
+import { useArtifactLiveStore, type ResearchLogArtifact } from '../../stores/artifactLiveStore';
 
 import { parseSSEStream } from './parseSSEStream';
 
@@ -238,5 +239,116 @@ describe('parseSSEStream gather_narration handling', () => {
       progress: { message: string };
     };
     expect(custom.progress.message).toBe('Suche läuft…');
+  });
+});
+
+/**
+ * The research log is the one artifact the backend keeps writing to after it
+ * opens: one `research_log_start`, then dozens of `research_log_update`s over
+ * several minutes. The parser is what turns those into store state, and a
+ * dropped or misrouted update leaves the panel frozen on a run that is very
+ * much alive — the exact failure the panel exists to prevent.
+ */
+describe('parseSSEStream research_log handling', () => {
+  function sseResponse(events: Array<{ event: string; data: unknown }>): Response {
+    const body = events
+      .map(({ event, data }) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+      .join('');
+    return new Response(body);
+  }
+
+  const callbacks: GrueneratorAdapterCallbacks = {};
+
+  async function drain(response: Response): Promise<void> {
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    for await (const _ of parseSSEStream(response, callbacks, outcome)) {
+      // The research log lands in the store, not in the yielded result.
+    }
+  }
+
+  function activeLog(): ResearchLogArtifact {
+    const active = useArtifactLiveStore.getState().activeArtifact;
+    if (!active || active.type !== 'research_log') throw new Error('no research log active');
+    return active;
+  }
+
+  beforeEach(() => {
+    useArtifactLiveStore.setState({ activeArtifact: null });
+  });
+
+  it('opens the panel on start, before any progress exists', async () => {
+    await drain(
+      sseResponse([
+        { event: 'research_log_start', data: { id: 'research-1', title: 'Recherche: Wien' } },
+      ])
+    );
+
+    const log = activeLog();
+    expect(log.id).toBe('research-1');
+    expect(log.title).toBe('Recherche: Wien');
+    expect(log.status).toBe('running');
+    expect(log.plan).toEqual([]);
+  });
+
+  it('merges plan and steps from later updates into the open log', async () => {
+    await drain(
+      sseResponse([
+        { event: 'research_log_start', data: { id: 'research-1', title: 'Recherche: Wien' } },
+        {
+          event: 'research_log_update',
+          data: { id: 'research-1', plan: [{ id: 'p0', label: 'Zahlen', status: 'running' }] },
+        },
+        {
+          event: 'research_log_update',
+          data: { id: 'research-1', steps: [{ id: 's0', label: 'Suche', status: 'running' }] },
+        },
+        {
+          event: 'research_log_update',
+          data: { id: 'research-1', steps: [{ id: 's0', label: 'Suche', status: 'done' }] },
+        },
+      ])
+    );
+
+    const log = activeLog();
+    expect(log.plan.map((p) => p.label)).toEqual(['Zahlen']);
+    // One step, updated in place — not the same step twice.
+    expect(log.steps).toHaveLength(1);
+    expect(log.steps[0]?.status).toBe('done');
+  });
+
+  it('carries the document link through on the closing update', async () => {
+    await drain(
+      sseResponse([
+        { event: 'research_log_start', data: { id: 'research-1', title: 'Recherche' } },
+        {
+          event: 'research_log_update',
+          data: { id: 'research-1', status: 'done', documentUrl: '/office/abc', documentId: 'abc' },
+        },
+      ])
+    );
+
+    const log = activeLog();
+    expect(log.status).toBe('done');
+    expect(log.documentUrl).toBe('/office/abc');
+  });
+
+  it('ignores an update for a different run, so a stale log is never overwritten', async () => {
+    await drain(
+      sseResponse([
+        { event: 'research_log_start', data: { id: 'research-1', title: 'Recherche' } },
+        {
+          event: 'research_log_update',
+          data: { id: 'research-2', status: 'failed' },
+        },
+      ])
+    );
+
+    expect(activeLog().status).toBe('running');
+  });
+
+  it('drops a start event without an id instead of opening an unaddressable panel', async () => {
+    await drain(sseResponse([{ event: 'research_log_start', data: { title: 'Recherche' } }]));
+
+    expect(useArtifactLiveStore.getState().activeArtifact).toBeNull();
   });
 });

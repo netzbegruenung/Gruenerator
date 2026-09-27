@@ -2,7 +2,6 @@
  * Type definitions for Notebook QA Service
  */
 
-import type { AIWorkerPool } from '../../workers/types.js';
 import type { QdrantFilter } from '../QueryIntentService/types.js';
 import type {
   ExpandedChunkResult,
@@ -54,11 +53,12 @@ export interface SingleCollectionMetadata {
   fast_mode?: boolean | undefined;
   // Set on empty-result responses for user collections so callers (and the
   // chat respondNode) can distinguish "still indexing" / "failed" / "ready".
-  corpus_state?: 'indexing' | 'failed' | 'ready' | undefined;
+  corpus_state?: 'indexing' | 'stale' | 'failed' | 'ready' | undefined;
   corpus_state_detail?:
     | {
         indexing_count: number;
         failed_count: number;
+        stale_count: number;
         ready_count: number;
         total_count: number;
       }
@@ -109,7 +109,6 @@ export interface QAMultiCollectionParams {
   question: string;
   collectionIds?: string[] | undefined;
   requestFilters?: RequestFilters | undefined;
-  aiWorkerPool: AIWorkerPool;
   fastMode?: boolean | undefined;
 }
 
@@ -121,7 +120,6 @@ export interface QASingleCollectionParams {
   question: string;
   userId: string;
   requestFilters?: RequestFilters | undefined;
-  aiWorkerPool: AIWorkerPool;
   getCollectionFn?: (
     collectionId: string
   ) => Promise<{ name: string; user_id: string | null } | null>;
@@ -150,7 +148,6 @@ export interface InternalSearchOptions {
   searchCollection: string;
   userId: string | null;
   documentIds?: string[] | undefined;
-  titleFilter?: string | undefined;
   additionalFilter?: QdrantFilter | undefined;
   searchParams: SearchParams;
 }
@@ -162,7 +159,8 @@ export interface DocumentScope {
   detectedPhrase?: string | undefined;
   collections: string[];
   subcategoryFilters: Record<string, string | string[] | undefined>;
-  documentTitleFilter?: string | undefined;
+  /** `primary_category` des gemeinten Programms — siehe `withProgramFilter`. */
+  documentCategoryFilter?: string | undefined;
 }
 
 /**
@@ -172,6 +170,17 @@ export interface DocumentScope {
 export interface SearchContext {
   referencesMap: ReferencesMap;
   sortedResults: ExpandedChunkResult[];
+  /**
+   * Der dichte Spitzenwert der Kandidatenliste, gebildet BEVOR ein Rerank sie
+   * anfasst: `max(dense_similarity ?? similarity)`. Nach dem Rerank ist die
+   * Zahl nicht mehr rekonstruierbar — `rerankNotebookResults` schreibt den
+   * Cross-Encoder-Wert auf `similarity` zurück. `null` nur bei leerer Liste.
+   *
+   * Absichtlich PFLICHT: beide Rückgabestellen von `getSearchContext` sollen
+   * vom Compiler erwischt werden, nicht eine von beiden still `undefined`
+   * liefern.
+   */
+  evidenceTop: number | null;
   systemPrompt: string;
   contextSummary: string;
   collectionName?: string | undefined;

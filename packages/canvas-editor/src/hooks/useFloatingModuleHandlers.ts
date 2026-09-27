@@ -75,13 +75,6 @@ export function useFloatingModuleHandlers<
         if (actions.updateIllustration) {
           actions.updateIllustration(activeFloatingModule.data.id, { color });
         }
-      } else if (activeFloatingModule.type === 'asset') {
-        // AssetInstance has no color field, so this is currently a no-op; cast keeps the call site honest.
-        if (actions.updateAsset) {
-          actions.updateAsset(activeFloatingModule.data.id, { color } as unknown as Parameters<
-            typeof actions.updateAsset
-          >[1]);
-        }
       } else if (activeFloatingModule.type === 'text') {
         const id = activeFloatingModule.data.id;
 

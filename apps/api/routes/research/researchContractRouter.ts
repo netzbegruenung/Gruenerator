@@ -15,6 +15,7 @@ import {
   SYSTEM_COLLECTIONS,
   getSearchableSystemCollectionIds,
   isAgentOnlyCollectionId,
+  isReaderCollectionId,
   getSearchParams,
   getSystemCollectionConfig,
   applyDefaultFilter,
@@ -23,7 +24,12 @@ import {
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { scrollDocuments } from '../../database/services/QdrantService/operations/batchOperations.js';
 import { getQdrantDocumentService } from '../../services/document-services/index.js';
-import { rerankPipeline } from '../../services/search/rerankPipeline.js';
+import { buildReaderDocument } from '../../services/research/documentReader.js';
+import {
+  resolveWolkeDisplayUrl,
+  toStoredWolkeUrl,
+} from '../../services/scrapers/utils/wolkeShareSecrets.js';
+import { rankManualSearchResults } from '../../services/search/manualSearchRanking.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -40,6 +46,9 @@ import type { DocumentResult, TopChunk } from '../../services/BaseSearchService/
 import type { Application } from 'express';
 
 const log = createLogger('researchContractRouter');
+
+/** Documents below this aggregated score never reach the result list. */
+const SYSTEM_COLLECTION_MIN_SCORE = 0.35;
 
 interface TaggedDocumentResult extends DocumentResult {
   collection_id: string;
@@ -173,62 +182,12 @@ export const researchContractRouter = s.router(researchContract, {
 
       const allResults = (await Promise.all(searchPromises)).flat();
 
-      // Deduplicate by source_url (or document_id), keeping highest similarity_score
-      const dedupMap = new Map<string, TaggedDocumentResult>();
-      for (const result of allResults) {
-        const key = result.source_url || result.document_id;
-        const existing = dedupMap.get(key);
-        if (!existing || result.similarity_score > existing.similarity_score) {
-          dedupMap.set(key, result);
-        }
-      }
-
-      let deduped = Array.from(dedupMap.values()).filter((r) => r.similarity_score >= 0.35);
-
-      // Cross-encoder rerank for relevance mode. Bi-encoder embeddings can't tell
-      // "Artenschutz" from "Datenschutz" (both project to "Schutz" topics);
-      // a cross-encoder reads query+document together and scores the actual match.
-      if (effectiveSort === 'relevance' && deduped.length > 3) {
-        const rerankInputLimit = 30;
-        const candidates = deduped.slice(0, rerankInputLimit);
-        const items = candidates.map((r) => ({
-          title: r.title ?? '',
-          content: (r.relevant_content ?? '').slice(0, 500),
-          relevance: r.similarity_score,
-        }));
-        const { rankedIndices, scores } = await rerankPipeline({
-          query: trimmedQuery,
-          items,
-          inputLimit: rerankInputLimit,
-          outputLimit: effectiveLimit,
-          minRelevance: 0.05,
-          minKeep: Math.min(5, candidates.length),
-          applyDiversity: true,
-        });
-        deduped = rankedIndices.flatMap((i) => {
-          const c = candidates[i];
-          if (!c) return [];
-          return [{ ...c, similarity_score: scores.get(i) ?? c.similarity_score }];
-        });
-      } else if (effectiveSort === 'date_desc') {
-        deduped.sort((a, b) => {
-          const dateA = a.published_at || '';
-          const dateB = b.published_at || '';
-          if (dateB !== dateA) return dateB.localeCompare(dateA);
-          return b.similarity_score - a.similarity_score;
-        });
-      } else if (effectiveSort === 'date_asc') {
-        deduped.sort((a, b) => {
-          const dateA = a.published_at || '';
-          const dateB = b.published_at || '';
-          if (dateA !== dateB) return dateA.localeCompare(dateB);
-          return b.similarity_score - a.similarity_score;
-        });
-      } else {
-        deduped.sort((a, b) => b.similarity_score - a.similarity_score);
-      }
-
-      deduped = deduped.slice(0, effectiveLimit);
+      const deduped = rankManualSearchResults({
+        results: allResults,
+        sortBy: effectiveSort,
+        limit: effectiveLimit,
+        minScore: SYSTEM_COLLECTION_MIN_SCORE,
+      });
 
       // Extract best snippets with query-term highlighting. Map explicitly to
       // the contract result shape (normalise optional → null).
@@ -239,6 +198,7 @@ export const researchContractRouter = s.router(researchContract, {
         relevant_content: highlightSnippet(r.relevant_content, trimmedQuery),
         similarity_score: r.similarity_score,
         chunk_count: r.chunk_count,
+        term_chunk_count: r.term_chunk_count,
         top_chunks: r.top_chunks.map((chunk: TopChunk) => ({
           preview: truncateSnippet(chunk.preview, CHUNK_PREVIEW_MAX_CHARS),
           chunk_index: chunk.chunk_index,
@@ -247,6 +207,8 @@ export const researchContractRouter = s.router(researchContract, {
         collection_id: r.collection_id,
         collection_name: r.collection_name,
         published_at: r.published_at ?? null,
+        content_type_label: r.content_type_label ?? null,
+        source_name: r.source_name ?? null,
       }));
 
       const collectionsFound = [...new Set(deduped.map((r) => r.collection_id))];
@@ -272,7 +234,9 @@ export const researchContractRouter = s.router(researchContract, {
 
   similar: async (args) => {
     const startTime = Date.now();
-    const { sourceUrl, collectionId, limit } = args.body;
+    const { collectionId, limit } = args.body;
+    // Clients carry the resolved Wolke link; the payload stores `wolke://…`.
+    const sourceUrl = toStoredWolkeUrl(args.body.sourceUrl);
 
     const systemConfig = getSystemCollectionConfig(collectionId);
     if (!systemConfig) {
@@ -314,8 +278,8 @@ export const researchContractRouter = s.router(researchContract, {
       // Use point IDs as positive examples for recommend
       const positiveIds = sourcePoints.map((p) => p.id);
 
-      const recommendResult = await qdrant.client.recommend(qdrantCollection, {
-        positive: positiveIds,
+      const recommendResult = await qdrant.client.query(qdrantCollection, {
+        query: { recommend: { positive: positiveIds } },
         limit: effectiveLimit * 3, // Over-fetch to account for dedup
         filter: {
           must_not: [{ key: 'source_url', match: { value: sourceUrl } }],
@@ -329,7 +293,7 @@ export const researchContractRouter = s.router(researchContract, {
         { score: number; payload: Record<string, unknown>; id: string | number }
       >();
 
-      for (const point of recommendResult) {
+      for (const point of recommendResult.points) {
         const payload = (point.payload as Record<string, unknown>) || {};
         const url = (payload.source_url as string) || String(point.id);
         const score = point.score ?? 0;
@@ -349,7 +313,9 @@ export const researchContractRouter = s.router(researchContract, {
         return {
           document_id: String(payload.document_id || item.id),
           title: String(payload.title || 'Unbekanntes Dokument'),
-          source_url: (payload.source_url as string) || null,
+          source_url: payload.source_url
+            ? resolveWolkeDisplayUrl(payload.source_url as string)
+            : null,
           relevant_content: truncateSnippet(
             String(payload.relevant_content || payload.content || payload.text || '')
           ),
@@ -380,6 +346,51 @@ export const researchContractRouter = s.router(researchContract, {
         `Research similar failed: ${error instanceof Error ? error.message : String(error)}`
       );
       return { status: 500 as const, body: { error: 'Similar search failed. Please try again.' } };
+    }
+  },
+
+  document: async (args) => {
+    const { collectionId, query } = args.query;
+    const systemConfig = getSystemCollectionConfig(collectionId);
+    if (!systemConfig || !isReaderCollectionId(collectionId)) {
+      return { status: 400 as const, body: { error: 'Invalid collectionId.' } };
+    }
+
+    try {
+      // The default filter keeps a shared collection (all Landesverbände live
+      // in one) from serving another notebook's document under this id.
+      const result = await getQdrantDocumentService().getSystemDocumentFullTextByUrl(
+        systemConfig.qdrantCollection,
+        args.query.sourceUrl,
+        applyDefaultFilter(collectionId)
+      );
+      if (!result.success) {
+        if (result.error === 'Document not found') {
+          return { status: 404 as const, body: { error: 'Document not found.' } };
+        }
+        throw new Error(result.error ?? 'Full-text lookup failed');
+      }
+
+      const payload = result.payload ?? {};
+      const text = (key: string) => (typeof payload[key] === 'string' ? payload[key] : null);
+      const storedUrl = text('source_url');
+
+      return {
+        status: 200 as const,
+        body: {
+          title: result.title ?? 'Unbekanntes Dokument',
+          sourceUrl: storedUrl ? resolveWolkeDisplayUrl(storedUrl) : args.query.sourceUrl,
+          sourceName: text('source_name'),
+          contentTypeLabel: text('content_type_label'),
+          publishedAt: text('published_at'),
+          ...buildReaderDocument(result.fullText, query ?? ''),
+        },
+      };
+    } catch (error: unknown) {
+      log.error(
+        `Research document failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return { status: 500 as const, body: { error: 'Failed to load the document.' } };
     }
   },
 });

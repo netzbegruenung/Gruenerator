@@ -15,8 +15,22 @@ import { z } from 'zod';
 
 // ── Closed sets ──────────────────────────────────────────────────────────────
 
+/**
+ * ADDITIV am 29.08.2026 um `cortecs` erweitert, `litellm` bleibt stehen: der
+ * Name steht in gespeicherten Agenten-Konfigurationen und in ausgelieferten
+ * Mobile-Bundles (F0, siehe CLAUDE.md). Er wird weiter gelesen und in
+ * `getModel` auf Cortecs umgebogen — apps/api/services/ai/litellmRetired.ts.
+ */
 /** Matches `AgentProvider` in @gruenerator/shared/agents. */
-export const agentProviderSchema = z.enum(['mistral', 'anthropic', 'litellm', 'regolo', 'greenpt']);
+export const agentProviderSchema = z.enum([
+  'mistral',
+  'anthropic',
+  'litellm',
+  'regolo',
+  'melious',
+  'greenpt',
+  'cortecs',
+]);
 
 // ── Shared shapes ──────────────────────────────────────────────────────────────
 
@@ -71,12 +85,42 @@ export const userAgentSchema = z.object({
   defaultNotebookIds: z.array(z.string()).readonly().optional(),
   plugins: z.array(z.string()).readonly().optional(),
   enabledTools: z.array(z.string()).readonly().optional(),
+  /** @deprecated 2026-09-18 — replaced by defaultRecipeMention/defaultRecipeId
+   * (a single default recipe binding, not a list). Kept readable so agents
+   * created before the switch keep rendering; not written by new saves. */
   skillMentions: z.array(z.string()).readonly().optional(),
   fewShotExamples: z.array(agentFewShotExampleSchema).readonly().optional(),
   inlineSourceLinks: z.boolean().optional(),
+  /** Mention of the recipe this agent defaults to. `defaultRecipeId` wins when
+   * both are set; older clients/rows only ever carry the mention. Optional, not
+   * nullable: `rowToAgent` conditionally spreads this field in and never emits
+   * it as `null` — same convention as every other optional field above. */
+  defaultRecipeMention: z.string().optional(),
+  /** Row id of the default recipe — the stable handle across renames. */
+  defaultRecipeId: z.string().uuid().optional(),
 });
 
 export type UserAgent = z.infer<typeof userAgentSchema>;
+
+/**
+ * The lean projection the @-mention picker needs — NOT the full agent.
+ *
+ * Deliberately without `systemRole`: this list carries agents shared into the
+ * caller's groups, and a picker entry needs a label, an icon and the identifier
+ * it routes to, not a teammate's prompt. `sharedFromGroup` is the group an
+ * agent reached the caller through, `null` for their own.
+ */
+export const mentionableUserAgentSchema = z.object({
+  identifier: z.string(),
+  title: z.string(),
+  description: z.string(),
+  avatar: z.string(),
+  iconKey: z.string().optional(),
+  backgroundColor: z.string(),
+  sharedFromGroup: z.string().nullable(),
+});
+
+export type MentionableUserAgent = z.infer<typeof mentionableUserAgentSchema>;
 
 // ── Request bodies ───────────────────────────────────────────────────────────
 
@@ -100,9 +144,10 @@ export const createUserAgentBodySchema = z.object({
   defaultNotebookIds: z.array(z.string()).nullish(),
   plugins: z.array(z.string()).nullish(),
   enabledTools: z.array(z.string()).nullish(),
-  skillMentions: z.array(z.string()).nullish(),
   fewShotExamples: z.array(agentFewShotExampleSchema).nullish(),
   inlineSourceLinks: z.boolean().nullish(),
+  defaultRecipeMention: z.string().nullish(),
+  defaultRecipeId: z.string().uuid().nullish(),
 });
 
 export type CreateUserAgentBody = z.infer<typeof createUserAgentBodySchema>;
@@ -119,6 +164,11 @@ export type UpdateUserAgentBody = z.infer<typeof updateUserAgentBodySchema>;
 export const userAgentsListResponseSchema = z.object({
   success: z.boolean(),
   agents: z.array(userAgentSchema),
+});
+
+export const mentionableUserAgentsListResponseSchema = z.object({
+  success: z.boolean(),
+  agents: z.array(mentionableUserAgentSchema),
 });
 
 export const userAgentItemResponseSchema = z.object({
@@ -140,22 +190,15 @@ export const userAgentErrorResponseSchema = z.object({
   agent: userAgentSchema.optional(),
 });
 
-// ── Conversational draft (creator) ────────────────────────────────────────────
+// ── Draft (creator) ───────────────────────────────────────────────────────────
 
 /**
- * POST /api/user-agents/draft — synthesize a spec from either a creator
- * conversation (`threadId`, server loads the ownership-checked messages) or a
- * one-shot freeform brief (`description`, the guided-assistant entry point).
- * Exactly one of the two is required.
+ * POST /api/user-agents/draft — synthesize a spec from a one-shot freeform
+ * brief (the guided-assistant entry point).
  */
-export const draftAgentBodySchema = z
-  .object({
-    threadId: z.string().min(1).optional(),
-    description: z.string().min(1).max(2000).optional(),
-  })
-  .refine((d) => Boolean(d.threadId) || Boolean(d.description), {
-    message: 'threadId oder description erforderlich',
-  });
+export const draftAgentBodySchema = z.object({
+  description: z.string().min(1).max(2000),
+});
 
 /**
  * The agent spec the creator synthesizes from the conversation. A subset of the
@@ -170,10 +213,14 @@ export const draftedAgentSpecSchema = z.object({
   iconKey: z.string(),
   backgroundColor: z.string(),
   enabledTools: z.array(z.string()),
+  /** @deprecated — remove after 2026-12-18. The deployed web bundle still
+   * reads this field; new drafts should populate `defaultRecipeMention`
+   * instead. */
   skillMentions: z.array(z.string()),
   locale: z.string(),
   openingMessage: z.string(),
   openingQuestions: z.array(z.string()),
+  defaultRecipeMention: z.string().nullable(),
 });
 
 export type DraftedAgentSpec = z.infer<typeof draftedAgentSpecSchema>;

@@ -10,6 +10,9 @@ import {
   index,
 } from 'drizzle-orm/pg-core';
 
+// Orphaned: no code reads or writes this table since the folder-sync endpoints
+// were removed (#3032). The table stays in the DB (F0 — existing rows), the
+// definition stays so schema files mirror the runtime DDL in schema.sql.
 export const wolkeSyncStatus = pgTable(
   'wolke_sync_status',
   {
@@ -76,21 +79,4 @@ export const routeUsageStats = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('idx_route_usage_stats_pattern_method').on(t.routePattern, t.method)]
-);
-
-export const appPushDevices = pgTable(
-  'app_push_devices',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').notNull(),
-    expoPushToken: text('expo_push_token').notNull(),
-    deviceName: text('device_name'),
-    deviceType: text('device_type').notNull().default('unknown'),
-    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    unique('app_push_devices_user_token_unique').on(t.userId, t.expoPushToken),
-    index('idx_app_push_devices_user').on(t.userId),
-  ]
 );

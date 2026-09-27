@@ -54,7 +54,9 @@ const FEDERAL_ACCOUNTS: AccountConfig[] = [
  * narrows to a single LV for targeted re-scrapes — federal accounts are
  * excluded when the filter is active because they have no LV ownership.
  */
-function getScrapeTargets(opts: { landesverband?: string } = {}): AccountConfig[] {
+function getScrapeTargets(
+  opts: { landesverband?: string; federalOnly?: boolean } = {}
+): AccountConfig[] {
   const lvTargets: AccountConfig[] = LV_SOCIAL_ACCOUNTS.map((acc) => ({
     handle: acc.handle,
     platform: acc.platform,
@@ -64,6 +66,12 @@ function getScrapeTargets(opts: { landesverband?: string } = {}): AccountConfig[
   const all = [...FEDERAL_ACCOUNTS, ...lvTargets];
   if (opts.landesverband !== undefined) {
     return all.filter((t) => t.landesverband === opts.landesverband);
+  }
+  // Gegenstück zum LV-Filter: die Bundes-Accounts allein. Ohne diesen Zweig
+  // war der AT-Account `diegruenen` nur über einen Komplettlauf erreichbar —
+  // also nur, indem man jeden LV gleich mitbezahlt.
+  if (opts.federalOnly === true) {
+    return all.filter((t) => t.landesverband === undefined);
   }
   return all;
 }
@@ -160,6 +168,8 @@ export async function scrapeAndIndexSocialMedia(
     forceUpdate?: boolean;
     /** Restrict scrape to a single Landesverband short code (e.g. 'BE'). */
     landesverband?: string;
+    /** Restrict scrape to the federal accounts (DE + AT Bundesverband). */
+    federalOnly?: boolean;
     /** Override max posts fetched per account (default 50). */
     maxPostsPerAccount?: number;
     /**
@@ -194,6 +204,7 @@ export async function scrapeAndIndexSocialMedia(
 
   const allTargets = getScrapeTargets({
     ...(options.landesverband !== undefined && { landesverband: options.landesverband }),
+    ...(options.federalOnly === true && { federalOnly: true }),
   });
   const targets =
     options.platforms !== undefined && options.platforms.length > 0
@@ -201,6 +212,7 @@ export async function scrapeAndIndexSocialMedia(
       : allTargets;
   const scopeLabel = [
     options.landesverband ? `landesverband=${options.landesverband}` : null,
+    options.federalOnly === true ? 'federal' : null,
     options.platforms ? `platforms=${options.platforms.join(',')}` : null,
   ]
     .filter(Boolean)

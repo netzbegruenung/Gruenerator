@@ -8,10 +8,13 @@
  * plus pure functions to build the LLM snapshot and translate validated
  * `CanvasAiOperation`s into a flat state patch.
  *
- * Parity guards live in `packages/canvas-editor/src/ai/descriptorParity.vitest.ts`
+ * Parity guards live in `packages/canvas-editor/src/ai/sharepicDescriptorParity.vitest.ts`
  * (color schemes / background colors / state keys against the real configs).
  */
 import { z } from 'zod';
+
+import { normalizeInlineMarks, stripInlineMarks } from '../text/inlineMarks.js';
+import { normalizeListMarkers } from '../text/listLayout.js';
 
 import {
   type CanvasAiCapabilities,
@@ -43,7 +46,6 @@ export const CANVAS_TEMPLATE_TYPES = [
   // Österreich (de-AT) variants — kein Info-Sujet, das gibt es nur für de-DE
   'zitat-at',
   'zitat-pure-at',
-  'dreizeilen-at',
   'dreizeilen-overlay-at',
   'info-at',
   'freeform-at',
@@ -60,7 +62,28 @@ const CANVAS_TEMPLATE_TYPE_SET: ReadonlySet<string> = new Set(CANVAS_TEMPLATE_TY
 export const isCanvasTemplateType = (value: unknown): value is CanvasTemplateType =>
   typeof value === 'string' && CANVAS_TEMPLATE_TYPE_SET.has(value);
 
-export const SHAREPIC_EDITABLE_TEMPLATES = ['dreizeilen', 'zitat-pure', 'info', 'slider'] as const;
+/**
+ * Templates the chat edit path can drive directly. Everything else falls back
+ * to `buildRefinementRequest` (regenerate the text, hand back a new variant).
+ *
+ * Deliberately absent: `freeform` / `freeform-at`, whose content is a
+ * free-positioned collection of instances rather than named fields — the
+ * `set-text`/`update-element` vocabulary has nothing to address there — and
+ * `profilbild`, which carries no text at all and is an image-processing flow.
+ */
+export const SHAREPIC_EDITABLE_TEMPLATES = [
+  'dreizeilen',
+  'zitat',
+  'zitat-pure',
+  'info',
+  'veranstaltung',
+  'simple',
+  'slider',
+  'zitat-at',
+  'zitat-pure-at',
+  'dreizeilen-overlay-at',
+  'info-at',
+] as const;
 export type SharepicEditableTemplate = (typeof SHAREPIC_EDITABLE_TEMPLATES)[number];
 
 // Compile-time guard: every chat-editable template must be a canonical canvas
@@ -78,6 +101,13 @@ export interface SharepicTextFieldDescriptor {
   stateKey: string;
   /** State key + clamp bounds for `set-font-size` on this field. */
   fontSize?: { stateKey: string; min: number; max: number };
+  /**
+   * The field carries Markdown-lite (`**bold**`, `_italic_`, `<u>…</u>`, list
+   * markers) and is rendered with mixed runs. Mirrors `richText` on the
+   * canvas-editor text element and `multilineFields` in the API's
+   * `TYPE_CONFIGS`; parity tests on both sides keep the three in step.
+   */
+  richText?: boolean;
 }
 
 export interface SharepicElementDescriptor {
@@ -235,7 +265,13 @@ const ZITAT_PURE_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'zitat-pure',
   label: 'Zitat',
   canvas: { width: 1080, height: 1350 },
-  supportedOperations: ['set-text', 'set-font-size', 'set-background-color', 'update-element'],
+  supportedOperations: [
+    'set-text',
+    'set-font-size',
+    'set-background-color',
+    'set-background-image',
+    'update-element',
+  ],
   textFields: [
     {
       field: 'quote',
@@ -279,8 +315,12 @@ const ZITAT_PURE_DESCRIPTOR: SharepicTemplateDescriptor = {
       bounds: { minX: -400, maxX: 400, minY: -400, maxY: 400 },
       opacity: { stateKey: 'quoteMarkOpacity', min: 0, max: 1 },
     },
+    backgroundPhotoElement(),
   ],
   layoutResets: [{ onFields: ['quote'], clearStateKey: 'namePosition' }],
+  // The photo the colour templates gained: it covers the solid plane whole, and
+  // the editor forces white text plus a contrast scrim while one is set.
+  backgroundImage: { stateKey: 'currentImageSrc' },
   defaultState: { backgroundColor: '#6CCD87' },
 };
 
@@ -288,7 +328,13 @@ const INFO_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'info',
   label: 'Info',
   canvas: { width: 1080, height: 1350 },
-  supportedOperations: ['set-text', 'set-font-size', 'set-background-color', 'update-element'],
+  supportedOperations: [
+    'set-text',
+    'set-font-size',
+    'set-background-color',
+    'set-background-image',
+    'update-element',
+  ],
   textFields: [
     {
       field: 'header',
@@ -301,6 +347,7 @@ const INFO_DESCRIPTOR: SharepicTemplateDescriptor = {
       label: 'Text',
       stateKey: 'body',
       fontSize: { stateKey: 'customSecondaryFontSize', min: 20, max: 80 },
+      richText: true,
     },
   ],
   backgroundColors: {
@@ -319,13 +366,19 @@ const INFO_DESCRIPTOR: SharepicTemplateDescriptor = {
       kind: 'asset',
       opacity: { stateKey: 'arrowOpacity', min: 0, max: 1 },
     },
+    backgroundPhotoElement(),
   ],
+  // The photo the colour templates gained: it covers the solid plane whole, and
+  // the editor forces white text plus a contrast scrim while one is set.
+  backgroundImage: { stateKey: 'currentImageSrc' },
   defaultState: { backgroundColor: '#005538' },
 };
 
 const SLIDER_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'slider',
-  label: 'Slider-Karussell',
+  // Matches CANVAS_TEMPLATE_FIELDS.slider.label — the descriptor label is shown
+  // to the edit LLM and in the UI, so the two must agree.
+  label: 'Slider',
   canvas: { width: 1080, height: 1350 },
   deck: {
     maxSlides: 10,
@@ -352,7 +405,13 @@ const SLIDER_DESCRIPTOR: SharepicTemplateDescriptor = {
       },
     },
   },
-  supportedOperations: ['set-text', 'set-font-size', 'set-color-scheme'],
+  supportedOperations: [
+    'set-text',
+    'set-font-size',
+    'set-color-scheme',
+    'set-background-image',
+    'update-element',
+  ],
   textFields: [
     {
       field: 'label',
@@ -371,12 +430,14 @@ const SLIDER_DESCRIPTOR: SharepicTemplateDescriptor = {
       label: 'Untertext',
       stateKey: 'subtext',
       fontSize: { stateKey: 'customSubtextFontSize', min: 20, max: 90 },
+      richText: true,
     },
     {
       field: 'subtext2',
       label: 'Zusatztext (nur Content-Slides)',
       stateKey: 'subtext2',
       fontSize: { stateKey: 'customSubtext2FontSize', min: 20, max: 90 },
+      richText: true,
     },
   ],
   colorSchemes: {
@@ -386,15 +447,329 @@ const SLIDER_DESCRIPTOR: SharepicTemplateDescriptor = {
       { id: 'tanne-sand', label: 'Tanne & Sand (dunkler Hintergrund)' },
     ],
   },
-  elements: [],
+  // A photo covers the plane whole and forces white text + a contrast scrim,
+  // same rule as every sibling photo template. The chat can set a query and
+  // then adjust the picture afterwards via the `hintergrundbild` element.
+  backgroundImage: { stateKey: 'currentImageSrc' },
+  elements: [backgroundPhotoElement()],
   defaultState: { colorScheme: 'sand-tanne' },
+};
+
+/**
+ * Solid-background palette of the Austrian brand theme — mirrors
+ * `BRAND_THEMES['de-AT'].backgroundColors`; the parity guard pins the two
+ * together. Built per call so descriptors never share a mutable options array.
+ */
+function atBackgroundColors(): NonNullable<SharepicTemplateDescriptor['backgroundColors']> {
+  return {
+    stateKey: 'backgroundColor',
+    options: [
+      { id: 'dunkelgruen', label: 'Dunkelgrün', color: '#257639' },
+      { id: 'hellgruen', label: 'Hellgrün', color: '#56af31' },
+    ],
+  };
+}
+
+/**
+ * Background palettes for the PHOTO-backed templates, which draw a solid plane
+ * under the picture. Deliberately different from `atBackgroundColors()` above:
+ * a photo template bakes its text colour in as white, so only colours that
+ * carry white text may appear here. Mirrors
+ * `packages/canvas-editor/src/configs/backgroundPalettes.ts`, and
+ * `sharepicDescriptorParity.vitest.ts` holds the two together.
+ */
+function photoBackgroundColorsDe(): NonNullable<SharepicTemplateDescriptor['backgroundColors']> {
+  return {
+    stateKey: 'backgroundColor',
+    options: [
+      { id: 'tanne', label: 'Tanne', color: '#005538' },
+      { id: 'klee', label: 'Klee', color: '#008939' },
+      { id: 'schwarz', label: 'Schwarz', color: '#000000' },
+    ],
+  };
+}
+
+function photoBackgroundColorsAt(): NonNullable<SharepicTemplateDescriptor['backgroundColors']> {
+  return {
+    stateKey: 'backgroundColor',
+    options: [
+      { id: 'dunkelgruen', label: 'Dunkelgrün', color: '#257639' },
+      { id: 'schwarz', label: 'Schwarz', color: '#000000' },
+    ],
+  };
+}
+
+/**
+ * Background photo pan/zoom/opacity for the `createImageTwoTextCanvas`
+ * templates. They all share the factory's state keys and the 1080×1350 frame,
+ * so the bounds are identical — only veranstaltung, which brings its own state,
+ * has no opacity key.
+ */
+function backgroundPhotoElement(options?: { opacity: false }): SharepicElementDescriptor {
+  return {
+    id: 'hintergrundbild',
+    label: 'Hintergrundbild (Ausschnitt)',
+    kind: 'asset',
+    positionStateKey: 'imageOffset',
+    bounds: { minX: -540, maxX: 540, minY: -675, maxY: 675 },
+    scale: { stateKey: 'imageScale', min: 0.5, max: 3 },
+    ...(options?.opacity === false
+      ? {}
+      : { opacity: { stateKey: 'backgroundImageOpacity', min: 0.2, max: 1 } }),
+    presenceStateKey: 'currentImageSrc',
+  };
+}
+
+/** Decorative quotation mark shared by the three quote templates. */
+function quoteMarkElement(): SharepicElementDescriptor {
+  return {
+    id: 'anfuehrungszeichen',
+    label: 'Anführungszeichen',
+    kind: 'asset',
+    positionStateKey: 'quoteMarkOffset',
+    bounds: { minX: -400, maxX: 400, minY: -400, maxY: 400 },
+    opacity: { stateKey: 'quoteMarkOpacity', min: 0, max: 1 },
+  };
+}
+
+/** Quote + name, on the same state keys across zitat / zitat-at / zitat-pure*. */
+function quoteTextFields(): SharepicTextFieldDescriptor[] {
+  return [
+    {
+      field: 'quote',
+      label: 'Zitat',
+      stateKey: 'quote',
+      fontSize: { stateKey: 'customPrimaryFontSize', min: 30, max: 120 },
+    },
+    {
+      field: 'name',
+      label: 'Name',
+      stateKey: 'name',
+      fontSize: { stateKey: 'customSecondaryFontSize', min: 20, max: 80 },
+    },
+  ];
+}
+
+/**
+ * `set-background-image` is deliberately absent from both zitat descriptors:
+ * the photo IS the quoted person, so resolving a stock query against it would
+ * swap them out for a landscape. Cropping and zooming stay available.
+ */
+const ZITAT_DESCRIPTOR: SharepicTemplateDescriptor = {
+  id: 'zitat',
+  label: 'Zitat',
+  canvas: { width: 1080, height: 1350 },
+  // `set-background-image` stays absent on purpose: on this sujet the photo IS
+  // the quoted person, and no search query the model invents is the right one.
+  // The COLOUR under it is a different matter — that is a design choice with a
+  // closed palette, so the chat can make it.
+  supportedOperations: ['set-text', 'set-font-size', 'set-background-color', 'update-element'],
+  textFields: quoteTextFields(),
+  backgroundColors: photoBackgroundColorsDe(),
+  elements: [quoteMarkElement(), backgroundPhotoElement()],
+  defaultState: { backgroundColor: '#005538' },
+};
+
+const ZITAT_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
+  id: 'zitat-at',
+  label: 'Zitat',
+  canvas: { width: 1080, height: 1350 },
+  supportedOperations: ['set-text', 'set-font-size', 'set-background-color', 'update-element'],
+  textFields: quoteTextFields(),
+  backgroundColors: photoBackgroundColorsAt(),
+  elements: [quoteMarkElement(), backgroundPhotoElement()],
+  defaultState: { backgroundColor: '#257639' },
+};
+
+const ZITAT_PURE_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
+  id: 'zitat-pure-at',
+  label: 'Zitat',
+  canvas: { width: 1080, height: 1350 },
+  supportedOperations: [
+    'set-text',
+    'set-font-size',
+    'set-background-color',
+    'set-background-image',
+    'update-element',
+  ],
+  textFields: quoteTextFields(),
+  backgroundColors: atBackgroundColors(),
+  elements: [
+    {
+      // Same absolute-coordinate override as the German zitat-pure; the AT
+      // sujet's left margin is 115 rather than 75 (ZITAT_PURE_AT_CONFIG).
+      id: 'name',
+      label: 'Name (Position)',
+      kind: 'asset',
+      positionStateKey: 'namePosition',
+      bounds: { minX: 115, maxX: 500, minY: 120, maxY: 1250 },
+    },
+    quoteMarkElement(),
+    backgroundPhotoElement(),
+  ],
+  layoutResets: [{ onFields: ['quote'], clearStateKey: 'namePosition' }],
+  // The photo the colour templates gained: it covers the solid plane whole, and
+  // the editor forces white text plus a contrast scrim while one is set.
+  backgroundImage: { stateKey: 'currentImageSrc' },
+  defaultState: { backgroundColor: '#257639' },
+};
+
+const INFO_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
+  id: 'info-at',
+  label: 'Info',
+  canvas: { width: 1080, height: 1350 },
+  supportedOperations: [
+    'set-text',
+    'set-font-size',
+    'set-background-color',
+    'set-background-image',
+    'update-element',
+  ],
+  textFields: [
+    {
+      field: 'introline',
+      label: 'Introline',
+      stateKey: 'introline',
+      fontSize: { stateKey: 'customSecondaryFontSize', min: 20, max: 80 },
+    },
+    {
+      field: 'text',
+      label: 'Infotext',
+      stateKey: 'text',
+      fontSize: { stateKey: 'customPrimaryFontSize', min: 30, max: 120 },
+    },
+    {
+      // No fontSize: the config's calculateLayout feeds the accent zone's size
+      // straight from calculateInfoAtLayout and reads no override key, so
+      // offering set-font-size here would write state nothing renders.
+      field: 'accent',
+      label: 'Schlusszeile (gelb)',
+      stateKey: 'accent',
+    },
+  ],
+  backgroundColors: atBackgroundColors(),
+  elements: [backgroundPhotoElement()],
+  // The photo the colour templates gained: it covers the solid plane whole, and
+  // the editor forces white text plus a contrast scrim while one is set.
+  backgroundImage: { stateKey: 'currentImageSrc' },
+  defaultState: { backgroundColor: '#257639' },
+};
+
+const DREIZEILEN_OVERLAY_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
+  id: 'dreizeilen-overlay-at',
+  label: 'Dreizeiler',
+  canvas: { width: 1080, height: 1350 },
+  // `set-background-color` addresses `backgroundColor` — the canvas plane BEHIND
+  // the photo, visible while no picture is chosen. It does NOT address
+  // `boxColor`, the green square the headline sits on: that key is writable and
+  // rides along via passthroughStateKeys, but the sujet is specified for
+  // Dunkelgrün only, and the Hellgrün of the AT palette would be off-brand
+  // there. Hence the photo palette here, not `atBackgroundColors()`.
+  supportedOperations: [
+    'set-text',
+    'set-font-size',
+    'update-element',
+    'set-background-image',
+    'set-background-color',
+  ],
+  textFields: [
+    // Only the subline carries an effective font-size override. calculateLayout
+    // takes line1 / accent / line3 straight from calculateOverlayAtLayout and
+    // consults no custom key, so a size op on those three would be stored and
+    // then ignored by every render.
+    { field: 'line1', label: 'Zeile 1', stateKey: 'line1' },
+    { field: 'accent', label: 'Zeile 2 (gelbe Betonung)', stateKey: 'accent' },
+    { field: 'line3', label: 'Zeile 3', stateKey: 'line3' },
+    {
+      field: 'subline',
+      label: 'Subline',
+      stateKey: 'subline',
+      fontSize: { stateKey: 'customSecondaryFontSize', min: 20, max: 80 },
+    },
+  ],
+  backgroundImage: { stateKey: 'currentImageSrc' },
+  backgroundColors: photoBackgroundColorsAt(),
+  elements: [backgroundPhotoElement()],
+  defaultState: { backgroundColor: '#257639' },
+};
+
+const SIMPLE_DESCRIPTOR: SharepicTemplateDescriptor = {
+  id: 'simple',
+  label: 'Sharepic',
+  canvas: { width: 1080, height: 1350 },
+  supportedOperations: [
+    'set-text',
+    'set-font-size',
+    'update-element',
+    'set-background-image',
+    'set-background-color',
+  ],
+  textFields: [
+    {
+      field: 'headline',
+      label: 'Überschrift',
+      stateKey: 'headline',
+      fontSize: { stateKey: 'customPrimaryFontSize', min: 30, max: 120 },
+    },
+    {
+      field: 'subtext',
+      label: 'Unterzeile',
+      stateKey: 'subtext',
+      fontSize: { stateKey: 'customSecondaryFontSize', min: 20, max: 80 },
+    },
+  ],
+  backgroundImage: { stateKey: 'currentImageSrc' },
+  backgroundColors: photoBackgroundColorsDe(),
+  elements: [backgroundPhotoElement()],
+  defaultState: { backgroundColor: '#005538' },
+};
+
+/**
+ * Text fields only. Three groups of state stay out of the op catalog:
+ *
+ * - `weekday` / `date` / `time` are baked into `circleBadgeInstances[0]` at
+ *   mint, so a flat patch of those keys would be a silent no-op on the badge.
+ * - `locationName` / `address` live in the state and are drawn by the
+ *   server-side napi renderer, but the canvas-editor config declares no element
+ *   for them — an edit would be invisible in the studio.
+ *
+ * Both belong in the studio, not in a chat turn.
+ */
+const VERANSTALTUNG_DESCRIPTOR: SharepicTemplateDescriptor = {
+  id: 'veranstaltung',
+  label: 'Veranstaltung',
+  canvas: { width: 1080, height: 1350 },
+  supportedOperations: ['set-text', 'set-font-size', 'update-element'],
+  textFields: [
+    {
+      field: 'eventTitle',
+      label: 'Titel der Veranstaltung',
+      stateKey: 'eventTitle',
+      fontSize: { stateKey: 'customEventTitleFontSize', min: 30, max: 120 },
+    },
+    {
+      field: 'beschreibung',
+      label: 'Beschreibung',
+      stateKey: 'beschreibung',
+      fontSize: { stateKey: 'customBeschreibungFontSize', min: 20, max: 80 },
+    },
+  ],
+  elements: [backgroundPhotoElement({ opacity: false })],
+  defaultState: {},
 };
 
 const DESCRIPTORS: Record<SharepicEditableTemplate, SharepicTemplateDescriptor> = {
   dreizeilen: DREIZEILEN_DESCRIPTOR,
+  zitat: ZITAT_DESCRIPTOR,
   'zitat-pure': ZITAT_PURE_DESCRIPTOR,
   info: INFO_DESCRIPTOR,
+  veranstaltung: VERANSTALTUNG_DESCRIPTOR,
+  simple: SIMPLE_DESCRIPTOR,
   slider: SLIDER_DESCRIPTOR,
+  'zitat-at': ZITAT_AT_DESCRIPTOR,
+  'zitat-pure-at': ZITAT_PURE_AT_DESCRIPTOR,
+  'dreizeilen-overlay-at': DREIZEILEN_OVERLAY_AT_DESCRIPTOR,
+  'info-at': INFO_AT_DESCRIPTOR,
 };
 
 export function getSharepicTemplateDescriptor(
@@ -497,6 +872,163 @@ export interface SharepicOpsResult {
 }
 
 /**
+ * Where a validated operation writes. Resolved by the validator (which already
+ * had to look the field/element up to check it) so the translator never repeats
+ * the lookup or asserts that it succeeded.
+ */
+export type SharepicOpTarget =
+  /** A single flat state key: text, font size, color scheme, background, sunflower. */
+  | { write: 'state-key'; stateKey: string }
+  /** Only the sub-keys this operation actually touched and the validator cleared. */
+  | {
+      write: 'element';
+      position?: { stateKey: string; bounds: NonNullable<SharepicElementDescriptor['bounds']> };
+      scaleStateKey?: string;
+      opacityStateKey?: string;
+    }
+  /** `set-background-image` — the caller resolves the query to a URL itself. */
+  | { write: 'image-query' };
+
+export type SharepicOpValidation =
+  { ok: true; op: CanvasAiOperation; target: SharepicOpTarget } | { ok: false; reason: string };
+
+/**
+ * Check one operation against a descriptor and clamp its numeric values.
+ *
+ * CHAT PATH ONLY. The studio's AI section (`applyOperation`) must NOT be routed
+ * through this: a descriptor describes the fixed, chat-editable surface, while
+ * the studio also offers `add-asset` / `add-illustration` / `remove-element`,
+ * addresses user-added stickers by dynamic element id, and resolves `set-text`
+ * against `state.additionalTexts`. None of that is in a descriptor, so every
+ * such operation would be rejected as unknown. The studio is governed by its
+ * config's own `TemplateAiCapabilities` instead.
+ *
+ * Returns the operation with clamped values so callers apply the clamped form
+ * rather than re-deriving it. Never throws: an invalid op is a rejection with a
+ * German, user-facing reason.
+ */
+export function validateSharepicOp(
+  descriptor: SharepicTemplateDescriptor,
+  op: CanvasAiOperation,
+  state: Record<string, unknown>
+): SharepicOpValidation {
+  if (!descriptor.supportedOperations.includes(op.kind)) {
+    return {
+      ok: false,
+      reason: `Operation "${op.kind}" wird von ${descriptor.id} nicht unterstützt`,
+    };
+  }
+
+  if (op.kind === 'set-text') {
+    const field = descriptor.textFields.find((f) => f.field === op.field);
+    if (!field) return { ok: false, reason: `Unbekanntes Textfeld "${op.field}"` };
+    // Die eine Stelle, an der Modelltext in den Zustand fällt.
+    //
+    // Nur ein Rich-Text-Feld bekommt Marker in die Form gebracht, die der
+    // Editor zeichnet (`- x` → `• x`, `__x__` → `**x**`). Für alle anderen
+    // wäre das falsch: ein Namensfeld mit „– Anna Müller" ist kein
+    // Aufzählungspunkt, und ein `**` in einer Überschrift zeichnet niemand —
+    // dort fliegt die Auszeichnung raus, statt literal stehen zu bleiben.
+    const value = field.richText
+      ? normalizeInlineMarks(normalizeListMarkers(op.value))
+      : stripInlineMarks(op.value);
+    return {
+      ok: true,
+      op: { ...op, value },
+      target: { write: 'state-key', stateKey: field.stateKey },
+    };
+  }
+
+  if (op.kind === 'set-font-size') {
+    const field = descriptor.textFields.find((f) => f.field === op.field);
+    if (!field?.fontSize) return { ok: false, reason: `Keine Schriftgröße für Feld "${op.field}"` };
+    return {
+      ok: true,
+      op: { ...op, size: clamp(op.size, field.fontSize.min, field.fontSize.max) },
+      target: { write: 'state-key', stateKey: field.fontSize.stateKey },
+    };
+  }
+
+  if (op.kind === 'set-color-scheme') {
+    const schemes = descriptor.colorSchemes;
+    if (!schemes || !schemes.options.some((o) => o.id === op.schemeId)) {
+      return { ok: false, reason: `Unbekanntes Farbschema "${op.schemeId}"` };
+    }
+    return { ok: true, op, target: { write: 'state-key', stateKey: schemes.stateKey } };
+  }
+
+  if (op.kind === 'set-background-color') {
+    const colors = descriptor.backgroundColors;
+    const match = colors?.options.find((o) => o.color.toLowerCase() === op.color.toLowerCase());
+    if (!colors || !match) {
+      const allowed = colors?.options.map((o) => `${o.label} ${o.color}`).join(', ') ?? '';
+      return { ok: false, reason: `Nur diese Hintergrundfarben sind erlaubt: ${allowed}` };
+    }
+    // Normalize to the palette's canonical casing — the LLM writes both.
+    return {
+      ok: true,
+      op: { ...op, color: match.color },
+      target: { write: 'state-key', stateKey: colors.stateKey },
+    };
+  }
+
+  if (op.kind === 'toggle-sunflower') {
+    if (!descriptor.sunflowerVisibleStateKey) {
+      return { ok: false, reason: 'Keine Sonnenblume in dieser Vorlage' };
+    }
+    return {
+      ok: true,
+      op,
+      target: { write: 'state-key', stateKey: descriptor.sunflowerVisibleStateKey },
+    };
+  }
+
+  if (op.kind === 'update-element') {
+    const el = descriptor.elements.find((e) => e.id === op.elementId);
+    if (!el) return { ok: false, reason: `Unbekanntes Element "${op.elementId}"` };
+    if (el.presenceStateKey && !state[el.presenceStateKey]) {
+      return { ok: false, reason: `"${el.label}" ist nicht gesetzt — es gibt nichts zu verändern` };
+    }
+    const patch: typeof op.patch = { ...op.patch };
+    const target: Extract<SharepicOpTarget, { write: 'element' }> = { write: 'element' };
+    if (op.patch.x != null || op.patch.y != null) {
+      if (!el.positionStateKey || !el.bounds) {
+        return { ok: false, reason: `Element "${op.elementId}" ist nicht verschiebbar` };
+      }
+      if (op.patch.x != null) patch.x = clamp(op.patch.x, el.bounds.minX, el.bounds.maxX);
+      if (op.patch.y != null) patch.y = clamp(op.patch.y, el.bounds.minY, el.bounds.maxY);
+      target.position = { stateKey: el.positionStateKey, bounds: el.bounds };
+    }
+    if (op.patch.scale != null) {
+      if (!el.scale) return { ok: false, reason: `Element "${op.elementId}" ist nicht skalierbar` };
+      patch.scale = clamp(op.patch.scale, el.scale.min, el.scale.max);
+      target.scaleStateKey = el.scale.stateKey;
+    }
+    if (op.patch.opacity != null) {
+      if (!el.opacity) {
+        return { ok: false, reason: `Element "${op.elementId}" unterstützt keine Transparenz` };
+      }
+      patch.opacity = clamp(op.patch.opacity, el.opacity.min, el.opacity.max);
+      target.opacityStateKey = el.opacity.stateKey;
+    }
+    if (!target.position && !target.scaleStateKey && !target.opacityStateKey) {
+      // color/rotation (or an empty patch) — nothing this surface supports.
+      return { ok: false, reason: 'Für Elemente werden nur x/y, scale und opacity unterstützt' };
+    }
+    return { ok: true, op: { ...op, patch }, target };
+  }
+
+  if (op.kind === 'set-background-image') {
+    if (!descriptor.backgroundImage) {
+      return { ok: false, reason: 'Diese Vorlage hat kein Hintergrundbild' };
+    }
+    return { ok: true, op, target: { write: 'image-query' } };
+  }
+
+  return { ok: false, reason: `Operation "${op.kind}" wird im Chat nicht unterstützt` };
+}
+
+/**
  * Translate validated operations into a flat state patch. Unknown fields and
  * unsupported kinds are rejected (never thrown); numeric values are clamped
  * to the descriptor bounds.
@@ -511,119 +1043,41 @@ export function sharepicOpsToStatePatch(
   const rejected: Array<{ op: CanvasAiOperation; reason: string }> = [];
   const imageQueries: string[] = [];
 
-  for (const op of ops) {
-    if (!descriptor.supportedOperations.includes(op.kind)) {
-      rejected.push({
-        op,
-        reason: `Operation "${op.kind}" wird von ${descriptor.id} nicht unterstützt`,
-      });
+  for (const raw of ops) {
+    const validated = validateSharepicOp(descriptor, raw, state);
+    if (!validated.ok) {
+      rejected.push({ op: raw, reason: validated.reason });
       continue;
     }
+    // Values below are already clamped / normalized and the write targets
+    // resolved by the validator; this loop only performs the writes.
+    const op = validated.op;
+    const target = validated.target;
 
-    if (op.kind === 'set-text') {
-      const field = descriptor.textFields.find((f) => f.field === op.field);
-      if (!field) {
-        rejected.push({ op, reason: `Unbekanntes Textfeld "${op.field}"` });
-        continue;
+    if (target.write === 'state-key') {
+      if (op.kind === 'set-text') patch[target.stateKey] = op.value;
+      else if (op.kind === 'set-font-size') patch[target.stateKey] = op.size;
+      else if (op.kind === 'set-color-scheme') patch[target.stateKey] = op.schemeId;
+      else if (op.kind === 'set-background-color') patch[target.stateKey] = op.color;
+      else if (op.kind === 'toggle-sunflower') patch[target.stateKey] = op.visible;
+    } else if (target.write === 'element' && op.kind === 'update-element') {
+      if (target.position) {
+        // The state writer takes a whole {x, y}, so the untouched axis is filled
+        // from current state — and clamped too, since a stale stored value can
+        // sit outside today's bounds.
+        const { stateKey, bounds } = target.position;
+        const prev = (state[stateKey] as { x?: number; y?: number } | null) ?? null;
+        patch[stateKey] = {
+          x: clamp(op.patch.x ?? prev?.x ?? 0, bounds.minX, bounds.maxX),
+          y: clamp(op.patch.y ?? prev?.y ?? 0, bounds.minY, bounds.maxY),
+        };
       }
-      patch[field.stateKey] = op.value;
-      applied.push(op);
-    } else if (op.kind === 'set-font-size') {
-      const field = descriptor.textFields.find((f) => f.field === op.field);
-      if (!field?.fontSize) {
-        rejected.push({ op, reason: `Keine Schriftgröße für Feld "${op.field}"` });
-        continue;
-      }
-      patch[field.fontSize.stateKey] = clamp(op.size, field.fontSize.min, field.fontSize.max);
-      applied.push(op);
-    } else if (op.kind === 'set-color-scheme') {
-      const schemes = descriptor.colorSchemes;
-      if (!schemes || !schemes.options.some((o) => o.id === op.schemeId)) {
-        rejected.push({ op, reason: `Unbekanntes Farbschema "${op.schemeId}"` });
-        continue;
-      }
-      patch[schemes.stateKey] = op.schemeId;
-      applied.push(op);
-    } else if (op.kind === 'set-background-color') {
-      const colors = descriptor.backgroundColors;
-      const match = colors?.options.find((o) => o.color.toLowerCase() === op.color.toLowerCase());
-      if (!colors || !match) {
-        const allowed = colors?.options.map((o) => `${o.label} ${o.color}`).join(', ') ?? '';
-        rejected.push({ op, reason: `Nur diese Hintergrundfarben sind erlaubt: ${allowed}` });
-        continue;
-      }
-      patch[colors.stateKey] = match.color;
-      applied.push(op);
-    } else if (op.kind === 'toggle-sunflower') {
-      if (!descriptor.sunflowerVisibleStateKey) {
-        rejected.push({ op, reason: 'Keine Sonnenblume in dieser Vorlage' });
-        continue;
-      }
-      patch[descriptor.sunflowerVisibleStateKey] = op.visible;
-      applied.push(op);
-    } else if (op.kind === 'update-element') {
-      const el = descriptor.elements.find((e) => e.id === op.elementId);
-      if (!el) {
-        rejected.push({ op, reason: `Unbekanntes Element "${op.elementId}"` });
-        continue;
-      }
-      if (el.presenceStateKey && !state[el.presenceStateKey]) {
-        rejected.push({
-          op,
-          reason: `"${el.label}" ist nicht gesetzt — es gibt nichts zu verändern`,
-        });
-        continue;
-      }
-      let landed = false;
-      if (op.patch.x != null || op.patch.y != null) {
-        if (!el.positionStateKey || !el.bounds) {
-          rejected.push({ op, reason: `Element "${op.elementId}" ist nicht verschiebbar` });
-          continue;
-        }
-        const prev = (state[el.positionStateKey] as { x?: number; y?: number } | null) ?? null;
-        const x = clamp(op.patch.x ?? prev?.x ?? 0, el.bounds.minX, el.bounds.maxX);
-        const y = clamp(op.patch.y ?? prev?.y ?? 0, el.bounds.minY, el.bounds.maxY);
-        patch[el.positionStateKey] = { x, y };
-        landed = true;
-      }
-      if (op.patch.scale != null) {
-        if (!el.scale) {
-          rejected.push({ op, reason: `Element "${op.elementId}" ist nicht skalierbar` });
-          continue;
-        }
-        patch[el.scale.stateKey] = clamp(op.patch.scale, el.scale.min, el.scale.max);
-        landed = true;
-      }
-      if (op.patch.opacity != null) {
-        if (!el.opacity) {
-          rejected.push({
-            op,
-            reason: `Element "${op.elementId}" unterstützt keine Transparenz`,
-          });
-          continue;
-        }
-        patch[el.opacity.stateKey] = clamp(op.patch.opacity, el.opacity.min, el.opacity.max);
-        landed = true;
-      }
-      if (!landed) {
-        // color/rotation (or an empty patch) — nothing this surface supports.
-        rejected.push({
-          op,
-          reason: 'Für Elemente werden nur x/y, scale und opacity unterstützt',
-        });
-        continue;
-      }
-      applied.push(op);
-    } else if (op.kind === 'set-background-image') {
-      if (!descriptor.backgroundImage) {
-        rejected.push({ op, reason: 'Diese Vorlage hat kein Hintergrundbild' });
-        continue;
-      }
+      if (target.scaleStateKey) patch[target.scaleStateKey] = op.patch.scale;
+      if (target.opacityStateKey) patch[target.opacityStateKey] = op.patch.opacity;
+    } else if (target.write === 'image-query' && op.kind === 'set-background-image') {
       imageQueries.push(op.query);
-      applied.push(op);
-    } else {
-      rejected.push({ op, reason: `Operation "${op.kind}" wird im Chat nicht unterstützt` });
     }
+    applied.push(op);
   }
 
   // Layout reflow: when a layout-driving field changed, clear stale manual

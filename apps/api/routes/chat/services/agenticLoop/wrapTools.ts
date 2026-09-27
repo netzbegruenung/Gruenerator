@@ -24,11 +24,200 @@ import { createLogger } from '../../../../utils/logger.js';
 import { truncateResultForModel } from './truncate.js';
 import { readMcpResult, type PersistedStep } from './types.js';
 
+import type { AskHumanGate } from './askHumanGate.js';
 import type { ToolLoopGuards } from './loopGuards.js';
+import type { ToolActivity } from './toolActivity.js';
+import type { ToolApprovalGate } from './toolApprovalGate.js';
 import type { SSEWriter } from '../sseHelpers.js';
 import type { ToolSet } from 'ai';
 
 const log = createLogger('agenticTools');
+
+/**
+ * Ein lokaler Beobachtungspunkt um die Werkzeugausführung — die Naht, an der
+ * Eval-Attrappen, Kostenrechnung und (später) eine `enabledTools`-Policy
+ * ansetzen, ohne den Wrapper selbst weiter aufzublähen.
+ *
+ * Bewusst NUR lokale Handler: LobeHubs Vorbild kennt zusätzlich eine
+ * Webhook-Zustellung, die Serialisierbarkeit erzwingt (dort der Grund für zwei
+ * getrennte `beforeToolCall`-Ereignistypen, weil eine `mock`-Funktion keine
+ * Serialisierung überlebt). Diese Anforderung holen wir uns nicht ins Haus.
+ *
+ * Ein von einem Guard geblockter Aufruf feuert KEINEN Hook: er hat nicht
+ * stattgefunden — dieselbe Begründung, aus der er auch keine Karte und keinen
+ * persistierten Schritt bekommt (siehe `wrappedExecute`). Ein Kosten-Hook, der
+ * geblockte Aufrufe mitzählt, liefert falsche Zahlen.
+ */
+export interface ToolHooks {
+  /** Läuft NACH der Guard-Kette und VOR `tool_step_start`. Ruft ein Handler
+   *  `mock(result)`, wird `execute` übersprungen und das übergebene Ergebnis
+   *  wie ein echtes behandelt (Karte, Persistenz und Rückgabe an das Modell
+   *  laufen unverändert weiter). Nur der erste `mock`-Aufruf zählt. */
+  beforeToolCall?: (event: {
+    toolName: string;
+    args: Record<string, unknown>;
+    stepId: string;
+    mock: (result: unknown) => void;
+  }) => void | Promise<void>;
+  /** Läuft für JEDEN ausgeführten Aufruf — auch für einen fehlgeschlagenen
+   *  (`ok: false`) und für einen attrappierten (`mocked: true`). */
+  afterToolCall?: (event: {
+    toolName: string;
+    args: Record<string, unknown>;
+    stepId: string;
+    result: unknown;
+    ok: boolean;
+    mocked: boolean;
+    durationMs: number;
+  }) => void;
+  /** Nur wenn das Werkzeug GEWORFEN hat oder abgeschrieben wurde — nicht bei
+   *  einem regulär zurückgegebenen `{ error }` (das ist `afterToolCall` mit
+   *  `ok: false`). `timedOut` ist ein eigenes Feld, weil ein Timeout hier den
+   *  Abbruch des WARTENS meint: das Werkzeug läuft weiter (siehe `withTimeout`). */
+  onToolCallError?: (event: {
+    toolName: string;
+    args: Record<string, unknown>;
+    stepId: string;
+    error: string;
+    timedOut: boolean;
+  }) => void;
+}
+
+/** Enge eigene Grenze für `beforeToolCall`: der einzige Hook, auf den gewartet
+ *  wird (er kann attrappieren), also der einzige, der den Loop aufhalten
+ *  könnte. Läuft er darüber, wird das Werkzeug ganz normal ausgeführt.
+ *  Ein über `composeToolHooks` zusammengesetzter Hook läuft seine Mitglieder
+ *  NACHEINANDER innerhalb dieses einen Budgets — es ist geteilt, nicht je
+ *  Mitglied neu vergeben. */
+const BEFORE_HOOK_TIMEOUT_MS = 500;
+
+/**
+ * Felder, die ein Werkzeugergebnis nur für die Hooks trägt.
+ *
+ * Sie gehen an Karte, persistierten Schritt und `afterToolCall` — aber NICHT an
+ * das Modell: `rerankDegraded` ist eine Aussage über unsere Infrastruktur, nicht
+ * über die Fundstellen, und ein Planer, der sie liest, fängt an, sie in der
+ * Antwort zu erklären. Der persistierte Schritt bleibt bewusst ROH (Karte,
+ * Fehlersuche) — gestrippt wird an zwei Stellen, die je einen eigenen Weg zum
+ * Modell haben: hier für die Antwort des laufenden Aufrufs, und in
+ * `mcpReplay.ts`s `shortValue` für den späteren Turn-Replay desselben
+ * persistierten Schritts (`buildToolObservationReplay`).
+ */
+const INTERNAL_RESULT_FIELDS: readonly string[] = ['rerankDegraded'];
+
+export function stripInternalFields<T>(output: T): T {
+  if (!output || typeof output !== 'object' || Array.isArray(output)) return output;
+  const record = output as Record<string, unknown>;
+  if (!INTERNAL_RESULT_FIELDS.some((field) => field in record)) return output;
+  const copy = { ...record } as T;
+  for (const field of INTERNAL_RESULT_FIELDS) delete (copy as Record<string, unknown>)[field];
+  return copy;
+}
+
+/**
+ * `refs` wiederholt die Zeilen eines `notebook_quellen`-list/rank-Ergebnisses
+ * (`results`/`ranking`) als eine Zeile je Quelle, Titel gekappt, höchstens
+ * 50 Zeilen. Passen die Zeilen unter `maxChars`, sieht das Modell nur sie und
+ * `refs` bleibt dem Replay späterer Turns (`mcpReplay.ts`). Passen sie nicht,
+ * machte `truncateResultForModel` daraus eine abgeschnittene Vorschau und die
+ * hinteren Quellen kämen nie an (#3590) — dann bekommt das Modell `refs` statt
+ * der Zeilen, ungekürzt, weil der Erzeuger es schon begrenzt hat.
+ */
+// `refs` ist für `notebook_quellen` reserviert: ein anderes Werkzeug mit `refs` verlöre es
+// hier still aus dem laufenden Turn.
+const REFS_FIELD = 'refs';
+const ROWS_REPEATED_BY_REFS: readonly string[] = ['results', 'ranking'];
+const REFS_EXEMPT: ReadonlySet<string> = new Set(['sources', REFS_FIELD]);
+
+function resultForModel(output: unknown, maxChars: number): unknown {
+  if (!output || typeof output !== 'object' || Array.isArray(output)) {
+    return truncateResultForModel(output, maxChars);
+  }
+  const { [REFS_FIELD]: refs, ...rows } = output as Record<string, unknown>;
+  if (typeof refs !== 'string') return truncateResultForModel(output, maxChars);
+  const lean = truncateResultForModel(rows, maxChars) as Record<string, unknown>;
+  if (lean._truncated !== true) return lean;
+  const compact: Record<string, unknown> = { ...rows, [REFS_FIELD]: refs };
+  for (const field of ROWS_REPEATED_BY_REFS) delete compact[field];
+  return truncateResultForModel(compact, maxChars, REFS_EXEMPT);
+}
+
+/**
+ * Beobachtende Hooks sind Fire-and-Forget: eine Ausnahme darf den Turn nicht
+ * kippen. Die Rückgabe ist `void` typisiert, das hindert einen Handler aber
+ * nicht daran, `async` zu sein — eine abgelehnte Zusage käme dann als
+ * unbeobachtete Rejection zurück, deshalb wird auch darauf geprüft.
+ */
+function fireAndForget(hookName: string, run: () => unknown): void {
+  try {
+    const returned = run();
+    if (returned && typeof (returned as { then?: unknown }).then === 'function') {
+      void (returned as Promise<unknown>).catch((err: unknown) => {
+        log.warn(`[ToolHook] ${hookName} abgelehnt: ${err instanceof Error ? err.message : err}`);
+      });
+    }
+  } catch (err) {
+    log.warn(`[ToolHook] ${hookName} geworfen: ${err instanceof Error ? err.message : err}`);
+  }
+}
+
+/**
+ * Fasst mehrere `ToolHooks` zu einem zusammen, damit ein Aufrufer, der zwei
+ * unabhängige Beobachter braucht (z. B. Kostenrechnung + Rerank-Warnung),
+ * nicht von Hand einen Umschlag schreibt, der einen fehlschlagenden Beobachter
+ * den zweiten mitreißen lassen könnte.
+ *
+ * Jedes vorhandene Hook-Mitglied läuft für ALLE übergebenen `ToolHooks` in
+ * Reihenfolge, jeder Aufruf einzeln abgesichert — ein werfender oder
+ * abgelehnter Beobachter beendet nicht die Kette, sondern wird geloggt und
+ * übersprungen. `afterToolCall`/`onToolCallError` laufen über `fireAndForget`
+ * wie am einzelnen Aufrufpunkt in `wrappedExecute`; `beforeToolCall` wird dort
+ * hingegen ECHT awaitet (Attrappen-Semantik), deshalb hier sequenziell mit
+ * eigenem try/catch statt Fire-and-Forget.
+ */
+export function composeToolHooks(...hooks: ReadonlyArray<ToolHooks | undefined>): ToolHooks {
+  const present = hooks.filter((h): h is ToolHooks => h != null);
+  const composed: ToolHooks = {};
+
+  const befores = present
+    .map((h) => h.beforeToolCall)
+    .filter((fn): fn is NonNullable<ToolHooks['beforeToolCall']> => fn != null);
+  if (befores.length > 0) {
+    composed.beforeToolCall = async (event) => {
+      for (const fn of befores) {
+        try {
+          await fn(event);
+        } catch (err) {
+          log.warn(
+            `[ToolHook] composed beforeToolCall geworfen: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          );
+        }
+      }
+    };
+  }
+
+  const afters = present
+    .map((h) => h.afterToolCall)
+    .filter((fn): fn is NonNullable<ToolHooks['afterToolCall']> => fn != null);
+  if (afters.length > 0) {
+    composed.afterToolCall = (event) => {
+      for (const fn of afters) fireAndForget('afterToolCall', () => fn(event));
+    };
+  }
+
+  const onErrors = present
+    .map((h) => h.onToolCallError)
+    .filter((fn): fn is NonNullable<ToolHooks['onToolCallError']> => fn != null);
+  if (onErrors.length > 0) {
+    composed.onToolCallError = (event) => {
+      for (const fn of onErrors) fireAndForget('onToolCallError', () => fn(event));
+    };
+  }
+
+  return composed;
+}
 
 export interface WrapToolsContext {
   sse: SSEWriter;
@@ -37,9 +226,17 @@ export interface WrapToolsContext {
   recordStep: (step: PersistedStep) => void;
   /** Per tool-call execution timeout (ms). */
   perCallTimeoutMs: number;
+  /** Zähler der laufenden Aufrufe. Der Motor hängt seine Stillstands-Uhr daran:
+   *  ein laufendes Werkzeug blockiert den Stream legitim und darf nicht als
+   *  hängende Lane gelten. Ohne diesen Haken bleibt die Uhr einfach stumm. */
+  toolActivity?: ToolActivity;
   /** Per-tool overrides for tools whose honest runtime exceeds the generic
    *  budget — see TOOL_TIMEOUT_OVERRIDES_MS. */
   perCallTimeoutOverridesMs?: Record<string, number>;
+  /** Internal structured tools exempt from the near-duplicate heuristic
+   *  (same reasoning as the `serverNameFor`-based MCP skip) — see
+   *  NEAR_DUPLICATE_EXEMPT_TOOLS. */
+  nearDuplicateExemptTools?: ReadonlySet<string>;
   /** Optional display title for the tool card (else the tool name is shown). */
   titleFor?: (toolName: string) => string | undefined;
   /** Optional MCP/connector server label for the tool card. */
@@ -57,6 +254,14 @@ export interface WrapToolsContext {
   takeNarration?: () => string | null;
   /** Safety-net cap on the serialized model-facing result. Default 6000. */
   maxResultChars?: number;
+  /** Optional. Nicht gesetzt ⇒ Verhalten unverändert (es wird nichts
+   *  zusätzlich awaitet). */
+  hooks?: ToolHooks;
+  /** Freigabe-Gate. Nicht gesetzt ⇒ jeder Aufruf läuft wie bisher durch. */
+  approvalGate?: Pick<ToolApprovalGate, 'hold'>;
+  /** Rückfrage-Gate für `ask_human`. Nicht gesetzt ⇒ der Aufruf wird wie ein
+   *  gewöhnliches Tool ausgeführt (und liefert nur den defensiven Stub). */
+  askGate?: Pick<AskHumanGate, 'hold'>;
 }
 
 function isErrorResult(value: unknown): boolean {
@@ -76,6 +281,79 @@ function summarize(result: unknown): string | undefined {
   if (Array.isArray(r.results)) return `${r.results.length} Ergebnisse`;
   if (typeof r.resultCount === 'number') return `${r.resultCount} Ergebnisse`;
   if (Array.isArray(r.examples)) return `${r.examples.length} Beispiele`;
+  // `cloud_files`: ohne diese beiden Zeilen meldete jede Wolke-Auflistung nur
+  // „ok" — die Logzeile verschwieg also genau das, was man wissen muss, wenn
+  // eine Antwort danach behauptet, es liege nichts vor.
+  if (typeof r.connectionCount === 'number') {
+    return `${r.connectionCount} Verbindung${r.connectionCount === 1 ? '' : 'en'}`;
+  }
+  if (typeof r.entryCount === 'number') return `${r.entryCount} Einträge`;
+  // `text_uebersetzen`: Zielsprache und die bezahlten Zeichen sind das, was
+  // man in der Logzeile wissen will.
+  if (typeof r.uebersetzung === 'string' && typeof r.zielsprache === 'string') {
+    return `Übersetzung nach ${r.zielsprache}${typeof r.zeichen === 'number' ? ` (${r.zeichen} Zeichen)` : ''}`;
+  }
+  // `notebooks`: search liefert Antwort + Zitate, get ein Detailobjekt, die
+  // Karten-Aktionen eine Bestätigungsanfrage — alle drei sagten sonst nur „ok".
+  if (typeof r.answer === 'string' && typeof r.resultCount === 'number') {
+    return `Antwort mit ${r.resultCount} Zitat${r.resultCount === 1 ? '' : 'en'}`;
+  }
+  if (r.needsConfirmation === true) return 'Bestätigung angefordert';
+  if (r.notebook && typeof r.notebook === 'object') {
+    const nb = r.notebook as { name?: unknown; documentCount?: unknown };
+    if (typeof nb.name === 'string') {
+      return typeof nb.documentCount === 'number'
+        ? `Notebook „${nb.name}" (${nb.documentCount} Dokumente)`
+        : `Notebook „${nb.name}"`;
+    }
+  }
+  // `groups`: get liefert ein Detailobjekt — sonst hieße es nur „ok".
+  if (r.group && typeof r.group === 'object') {
+    const g = r.group as { name?: unknown; contentCount?: unknown };
+    if (typeof g.name === 'string') {
+      return typeof g.contentCount === 'number'
+        ? `Projekt „${g.name}" (${g.contentCount} Inhalte)`
+        : `Projekt „${g.name}"`;
+    }
+  }
+  // `recurring_tasks`: get liefert ein Detailobjekt — sonst hieße es nur „ok".
+  if (r.task && typeof r.task === 'object') {
+    const t = r.task as { title?: unknown; recurrenceLabel?: unknown };
+    if (typeof t.title === 'string') {
+      return typeof t.recurrenceLabel === 'string'
+        ? `Aufgabe „${t.title}" (${t.recurrenceLabel})`
+        : `Aufgabe „${t.title}"`;
+    }
+  }
+  // `user_agents`: get liefert ein Detailobjekt — sonst hieße es nur „ok".
+  if (r.agent && typeof r.agent === 'object') {
+    const a = r.agent as { title?: unknown; sharedFromGroup?: unknown };
+    if (typeof a.title === 'string') {
+      return typeof a.sharedFromGroup === 'string'
+        ? `Grünerator-Agent „${a.title}" (aus „${a.sharedFromGroup}")`
+        : `Grünerator-Agent „${a.title}"`;
+    }
+  }
+  // `recipes`: get liefert ein Detailobjekt, create/update/add_examples eines mit
+  // Beispielzahl — sonst hieße es nur „ok".
+  if (r.recipe && typeof r.recipe === 'object') {
+    const t = r.recipe as { title?: unknown; source?: unknown; exampleCount?: unknown };
+    if (typeof t.title === 'string') {
+      if (t.source === 'system') return `Rezept „${t.title}"`;
+      return typeof t.exampleCount === 'number'
+        ? `Textform „${t.title}" (${t.exampleCount} Beispiele)`
+        : `Textform „${t.title}"`;
+    }
+  }
+  // rezept_laden: the card names the recipe; the prompt body stays server-side.
+  if (typeof r.titel === 'string' && r.geladen === true) return `Rezept: ${r.titel}`;
+  if (r.geladen === false) return 'Rezept nicht verfügbar';
+  // memory: the card is the only place the person sees what was kept.
+  if (typeof r.text === 'string') {
+    if (r.gespeichert === true) return `${r.hinweis ? 'Bereits gemerkt' : 'Gemerkt'}: ${r.text}`;
+    if (r.aktualisiert === true) return `Aktualisiert: ${r.text}`;
+    if (r.vergessen === true) return `Vergessen: ${r.text}`;
+  }
   return undefined;
 }
 
@@ -212,10 +490,13 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         ctx.guards.checkFailureCap(toolName) ??
         ctx.guards.checkTotalFailureBudget() ??
         ctx.guards.checkSearchBudget(toolName) ??
-        // Connector tools (server != null) skip the search-tuned near-dup
+        // Connector tools (server != null) and internal structured tools
+        // (NEAR_DUPLICATE_EXEMPT_TOOLS) skip the search-tuned near-dup
         // heuristic: structured args collide falsely and corrective retries
         // after a validation error would be wrongly blocked as "too similar".
-        ctx.guards.checkDuplicate(toolName, input, { skipNearDuplicate: !!server });
+        ctx.guards.checkDuplicate(toolName, input, {
+          skipNearDuplicate: !!server || (ctx.nearDuplicateExemptTools?.has(toolName) ?? false),
+        });
       if (block) {
         // No `sendStart`/`sendResult`/`recordStep`, for ANY guard: the tool did
         // not run, so a card claiming it did — captioned with steering text
@@ -230,7 +511,28 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
           because: block.kind,
           inputs: { toolName },
         });
-        return { error: block.modelMessage };
+        // `guard` markiert die Absage als Weisung: die Wiederholungs-Nudge in
+        // `loopEngine` darf ihr nicht mit „versuch es erneut" widersprechen.
+        return { error: block.modelMessage, guard: block.guard };
+      }
+
+      // Freigabe-Gate an derselben Stelle und mit derselben Begründung wie ein
+      // Guard-Block: der Aufruf hat nicht stattgefunden, also keine Karte, kein
+      // Schritt, kein `noteCall`, und die Narration bleibt für den Aufruf
+      // stehen, der wirklich läuft. Der Rückgabewert erreicht das Modell in der
+      // Regel nicht mehr (das Gate bricht den Zug ab); er ist die harmlose
+      // Antwort für ein Geschwister, das den Abbruch noch überholt.
+      if (ctx.approvalGate?.hold({ toolName, stepId, args })) {
+        return { error: 'Warte auf die Freigabe durch die Nutzer*in.' };
+      }
+
+      // `ask_human` an derselben Stelle: die Frage hat noch nicht stattgefunden
+      // — keine Karte, kein Schritt, kein `noteCall` (die Karte kommt erst im
+      // Suspend, mit der Wire-Form der Pre-Loop-Klärung). Der Rückgabewert ist
+      // die harmlose Antwort für ein Geschwister, das den Abbruch überholt.
+      if (toolName === 'ask_human' && ctx.askGate) {
+        ctx.askGate.hold({ stepId, args });
+        return { error: 'Warte auf die Antwort der Nutzer*in.' };
       }
 
       // Captured at tool START (before execution) — the semantics of textOffset.
@@ -240,7 +542,57 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       // first sendStart gets it — the rest drain empty. Split mode only.
       const narration = ctx.takeNarration?.() ?? null;
 
+      // MUSS vor dem Hook-Await gebucht sein: `checkSearchConcurrency` verlässt
+      // sich darauf, dass Guard-Kette und `noteCall` EIN synchroner Block sind
+      // (siehe Kommentar dort) — parallele Geschwister-Aufrufe eines Model-Steps
+      // sehen sich sonst gegenseitig nicht und das Concurrency-Limit greift
+      // nicht mehr, sobald ein `beforeToolCall`-Handler konfiguriert ist. Aus
+      // demselben Fenster: die Narration wird hier gedrained, damit sie
+      // deterministisch beim ersten Aufruf des Steps landet.
       ctx.guards.noteCall(toolName);
+
+      // Eigener Halter statt einer `let`-Variablen: gesetzt wird in einer
+      // Closure, und die Flussanalyse verengt eine solche Variable danach auf
+      // ihren Anfangswert.
+      const mock: { hit: boolean; result: unknown } = { hit: false, result: null };
+      // Nach der Guard-Kette, vor der Karte — ein geblockter Aufruf hat nicht
+      // stattgefunden und feuert deshalb keinen Hook. Nur wenn ein Handler
+      // gesetzt ist, wird überhaupt gewartet: sonst bliebe das Verhalten nicht
+      // identisch zum Stand ohne Hooks.
+      const beforeHook = ctx.hooks?.beforeToolCall;
+      if (beforeHook) {
+        try {
+          await withTimeout(
+            Promise.resolve(
+              beforeHook({
+                toolName,
+                args,
+                stepId,
+                mock: (result: unknown) => {
+                  // Nur der erste Aufruf zählt; ein späterer (etwa aus einer
+                  // Zusage, die nach der Zeitgrenze noch landet) käme ohnehin zu
+                  // spät, weil hier bereits weitergelaufen wird.
+                  if (mock.hit) return;
+                  mock.hit = true;
+                  mock.result = result;
+                },
+              })
+            ),
+            BEFORE_HOOK_TIMEOUT_MS
+          );
+        } catch (err) {
+          // Fail-open: ein werfender oder hängender Handler kostet den Turn
+          // nichts, das Werkzeug läuft ganz normal. Eine bereits eingetragene
+          // Attrappe bleibt gültig — der Handler hat sie entschieden, bevor er
+          // umgefallen ist.
+          log.warn(
+            `[ToolHook] beforeToolCall (${toolName}) fehlgeschlagen: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          );
+        }
+      }
+
       sendStart(stepId, args, narration);
 
       let output: unknown;
@@ -253,16 +605,39 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       // success it could not know about. This signal is how a tool can tell; the
       // generation tools check it immediately before they commit anything.
       const abandoned = new AbortController();
-      try {
-        const timeoutMs = ctx.perCallTimeoutOverridesMs?.[toolName] ?? ctx.perCallTimeoutMs;
-        output = await withTimeout(
-          Promise.resolve(original(input, { ...options, abortSignal: abandoned.signal })),
-          timeoutMs,
-          () => abandoned.abort()
-        );
-      } catch (err) {
-        output = { error: err instanceof Error ? err.message : String(err) };
+      // Nur für den Hook: ein GEWORFENES bzw. abgeschriebenes Werkzeug, nicht
+      // ein regulär zurückgegebenes `{ error }`.
+      let thrown: { error: string; timedOut: boolean } | null = null;
+      const startedAt = Date.now();
+      // Am Verzweigungspunkt eingefroren: eine Attrappe, die nach dem
+      // 500-ms-Timeout doch noch aus der hängenden Zusage eintrifft, kippt
+      // `mock.hit` DANACH auf true — der Aufruf lief dann aber echt, und
+      // `afterToolCall` darf ihn nicht rückwirkend als attrappiert melden.
+      const usedMock = mock.hit;
+      if (usedMock) {
+        output = mock.result;
+      } else {
+        // Umschliesst NUR die Ausfuehrung, und im `finally`, damit auch der
+        // Zeitueberschreitungs-Pfad herunterzaehlt: bliebe der Zaehler stehen,
+        // waere die Stillstands-Uhr der Werkzeugphase fuer den Rest des Zuges
+        // taub.
+        ctx.toolActivity?.begin();
+        try {
+          const timeoutMs = ctx.perCallTimeoutOverridesMs?.[toolName] ?? ctx.perCallTimeoutMs;
+          output = await withTimeout(
+            Promise.resolve(original(input, { ...options, abortSignal: abandoned.signal })),
+            timeoutMs,
+            () => abandoned.abort()
+          );
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          thrown = { error: message, timedOut: err instanceof ToolTimeoutError };
+          output = { error: message };
+        } finally {
+          ctx.toolActivity?.end();
+        }
       }
+      const durationMs = Date.now() - startedAt;
 
       ctx.guards.noteCompletion(toolName);
       const ok = !isErrorResult(output);
@@ -280,17 +655,11 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         const detail = server ? describeMcpContent(output) : outcomeDetail;
         log.info(`[Tool] ${toolName}${serverTag} ok — ${detail}`);
       } else {
+        // Die Karte ist der einzige Weg zur Person: `sendResult(ok=false)` unten,
+        // dazu `ok: false` im Schritt, damit der Fehlschlag den Reload ueberlebt.
+        // Ein zusaetzliches `mcp_tool_error` fuer Konnektor-Aufrufe stand hier bis
+        // 01.09.2026 und hat nie ein Client gelesen (#3095).
         log.warn(`[Tool] ${toolName}${serverTag} FEHLER — ${outcomeDetail}`);
-        // MCP/connector failures also get a first-class, user-facing error
-        // event (the generic tool card only carries ok:false); internal tools
-        // keep their own error channels.
-        if (server) {
-          ctx.sse.send('mcp_tool_error', {
-            toolName,
-            serverName: server,
-            error: outcomeDetail,
-          });
-        }
       }
 
       ctx.recordStep({
@@ -298,15 +667,39 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         toolName,
         args,
         result: asRecord(output),
+        // Only the failure is written; absence means ok (see PersistedStep.ok).
+        ...(ok ? {} : { ok: false as const }),
         ...serverMeta,
         ...(textOffset != null && { textOffset }),
         ...(narration ? { narration } : {}),
       });
       sendResult(stepId, ok, output);
 
+      const errorHook = ctx.hooks?.onToolCallError;
+      if (errorHook && thrown) {
+        const failure = thrown;
+        fireAndForget('onToolCallError', () =>
+          errorHook({ toolName, args, stepId, error: failure.error, timedOut: failure.timedOut })
+        );
+      }
+      const afterHook = ctx.hooks?.afterToolCall;
+      if (afterHook) {
+        fireAndForget('afterToolCall', () =>
+          afterHook({
+            toolName,
+            args,
+            stepId,
+            result: output,
+            ok,
+            mocked: usedMock,
+            durationMs,
+          })
+        );
+      }
+
       // Model-facing payload only — the full result already went to the card /
-      // persisted step above.
-      return truncateResultForModel(output, maxResultChars);
+      // persisted step above, and the hooks above have seen the internal fields.
+      return resultForModel(stripInternalFields(output), maxResultChars);
     };
 
     wrapped[toolName] = { ...toolDef, execute: wrappedExecute } as ToolSet[string];

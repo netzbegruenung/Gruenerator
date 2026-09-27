@@ -20,6 +20,27 @@ const boolFlag = (defaultValue: boolean) =>
 /** Coerce a string to a number with a required default. */
 const numStr = (defaultValue: number) => z.coerce.number().default(defaultValue);
 
+/**
+ * Fusionsarme des server-seitigen Hybrid-Pfads (`HYBRID_SERVER_FUSION`, #3118).
+ * `as const`-Registry statt Inline-Liste: `z.enum` und die exportierte
+ * Literal-Union kommen aus EINER Quelle, und beide `HybridConfig`-Interfaces
+ * (`config/vectorConfig.ts`, `QdrantService/operations/types.ts`) leiten davon
+ * ab, statt die fünf Namen ein drittes und viertes Mal zu tippen.
+ *
+ * `sparse_only` ist ein Diagnosearm, kein Auslieferungskandidat: sein `score`
+ * ist ein BM25-Wert und keine Kosinus-Ähnlichkeit, und die Pipeline dahinter
+ * rechnet in Kosinus weiter.
+ */
+export const HYBRID_SERVER_FUSIONS = [
+  'rrf',
+  'rrf_weighted',
+  'dbsf',
+  'dense_rescore',
+  'sparse_only',
+] as const;
+
+export type ServerFusion = (typeof HYBRID_SERVER_FUSIONS)[number];
+
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
@@ -40,12 +61,48 @@ const envSchema = z.object({
    * invalidating every session.
    */
   SEARCH_IMAGE_PROXY_SECRET: z.string().optional(),
+  /**
+   * Signing key for thumbnail URLs (`/api/thumbs/...`). Optional: falls back to
+   * SESSION_SECRET so existing deployments boot, and with neither set no
+   * thumbnail URLs are minted at all (surfaces show their placeholder).
+   *
+   * Set this separately and rotate THIS one — rotating SESSION_SECRET to
+   * invalidate a leaked thumbnail URL would log out every user on the platform.
+   * During a rotation move the old value to `_PREVIOUS` for one deploy so URLs
+   * already sitting in cached list responses keep resolving.
+   */
+  MEDIA_URL_SIGNING_SECRET: z.string().optional(),
+  MEDIA_URL_SIGNING_SECRET_PREVIOUS: z.string().optional(),
+  /**
+   * Where generated thumbnail variants are cached. Defaults to
+   * `apps/api/uploads/thumb-cache`. Point it elsewhere to size or wipe the
+   * derived-image cache independently of the uploads it is derived from — every
+   * file under it is reproducible, so it can be deleted at any time.
+   */
+  THUMBNAIL_CACHE_DIR: z.string().optional(),
   ADMIN_TOKEN: z.string().optional(),
   // Comma-separated emails elevated to is_admin = true at session-parse time.
   // Runtime override — no DB write. Empty/unset → no overrides.
   ADMIN_EMAILS: z.string().optional(),
   ALLOW_DEV_AUTH_BYPASS: boolFlag(false),
   DEV_AUTH_BYPASS_TOKEN: z.string().optional(),
+  /**
+   * Schaltet `requireAiConsent` von „beobachten" auf „abweisen" (403).
+   *
+   * Steht bewusst auf `false`, bis das Mobile-Release mit dem Einwilligungs-
+   * Dialog im Store und hinreichend verbreitet ist: eine bereits installierte
+   * Binary kennt das Gate nicht, fragt also nie — und bekäme ab dem Deploy auf
+   * jede KI-Funktion eine Absage. Bis dahin protokolliert die Middleware nur,
+   * wie viele Aufrufe die Durchsetzung treffen würde.
+   */
+  ENFORCE_AI_CONSENT: boolFlag(false),
+  /**
+   * Lässt den Kopfdaten-Worker (services/documentMeta) auch Dokumente lesen,
+   * die vor dem Feature da waren oder mit einer älteren Version verarbeitet
+   * wurden. Aus, bis ein Trockenlauf (scripts/document-meta-backfill.ts
+   * --dry-run) geprüft ist — neue Uploads laufen immer.
+   */
+  DOCUMENT_META_BACKFILL: boolFlag(false),
   /**
    * Directory the chat decision journal is written to, one JSON file per turn
    * (utils/decisionLog.ts). Lets the live eval lane render the same decision
@@ -110,6 +167,13 @@ const envSchema = z.object({
 
   // ── Better Auth ────────────────────────────────────────────────────────
   BETTER_AUTH_URL: z.string().optional(),
+  // Explicit override for the session-cookie scope in production. Normally
+  // unset: the scope is derived from BETTER_AUTH_URL, so an instance with its
+  // own database narrows its cookie automatically. Set this only where the
+  // cookie must span more or less than the deployment's own host. NOT related
+  // to PRIMARY_DOMAIN — that is the brand domain, identical on every instance.
+  // See `betterAuth.ts` → deriveCookieDomain.
+  COOKIE_DOMAIN: z.string().optional(),
 
   // ── MCP server (authenticated, OAuth) ──────────────────────────────────
   MCP_SERVER_ENABLED: boolFlag(false),
@@ -140,17 +204,48 @@ const envSchema = z.object({
   LITELLM_BASE_URL: z.string().optional(),
   REGOLO_API_KEY: z.string().optional(),
   REGOLO_DEFAULT_MODEL: z.string().optional(),
+  // Melious — OpenAI-compatible European inference router,
+  // https://api.melious.ai/v1. The default model includes the documented
+  // `:balanced` is the default routing flavor for chat.
+  MELIOUS_API_KEY: z.string().optional(),
+  MELIOUS_DEFAULT_MODEL: z.string().optional(),
   // GreenPT — OpenAI-compatible, https://api.greenpt.ai/v1
   GREENPT_API_KEY: z.string().optional(),
   GREENPT_DEFAULT_MODEL: z.string().optional(),
   // Scaleway Generative APIs (Paris) — OpenAI-compatible. NOT a selectable
-  // lane: it is the upstream that serves Mistral Medium 3.5, with the Mistral
-  // API itself as the fallback. See services/ai/providerInstances.ts.
+  // lane: it serves the models Mistral does not publish (Gemma 4).
   // The base URL embeds the Scaleway project id, so it is configuration, not a
   // constant — a second project (staging, another org) needs no code change.
   SCALEWAY_API_KEY: z.string().optional(),
   SCALEWAY_BASE_URL: z.string().optional(),
+  /**
+   * Ob Mistral Medium 3.5 über Scaleway laufen darf. Standard AUS: der
+   * Scaleway-Upstream lieferte im Betrieb fehlerhafte Antworten, deshalb geht
+   * das Hauptmodell wieder direkt an die Mistral-API. Die Scaleway-Maschinerie
+   * (Routing-Tabelle, Fallback-Fetch, Denk-Lane) bleibt vollständig erhalten;
+   * `SCALEWAY_MISTRAL_ROUTING=true` schaltet sie ohne Code-Änderung zurück.
+   * Betrifft NUR den `mistral`-Lane-Umweg — Gemma 4 auf `provider: 'scaleway'`
+   * ist unabhängig davon. Siehe services/ai/providerInstances.ts.
+   */
+  SCALEWAY_MISTRAL_ROUTING: boolFlag(false),
+  // Cortecs Sky Inference — OpenAI-kompatibler Router, seit 21.08.2026 der Host
+  // der Gemma-Lane (`provider: 'cortecs'`). Vermittelt an Unteranbieter und
+  // nennt den gewählten im Header `x-cortecs-provider`; `gemma-4-26b-a4b-it`
+  // ging dort gemessen an Scaleway. VORAUSBEZAHLT: ein leeres Guthaben lässt
+  // JEDE Anfrage mit HTTP 401 scheitern, deshalb ist Auto-Top-up im Cortecs-
+  // Konto Betriebsvoraussetzung und nicht Komfort.
+  CORTECS_API_KEY: z.string().optional(),
+  CORTECS_BASE_URL: z.string().optional(),
   BFL_API_KEY: z.string().optional(),
+
+  // ── DeepL (Übersetzer + Chat-Werkzeug `text_uebersetzen`) ────────────────
+  // Ohne Key bleibt das Feature aus: die Seite zeigt einen Hinweis, das
+  // Chat-Werkzeug wird nicht gemountet. Free-Keys enden auf `:fx` und werden
+  // automatisch gegen api-free.deepl.com geschickt.
+  DEEPL_API_KEY: z.string().optional(),
+  // Name des EINEN Konto-Glossars, das der Admin-Tab pflegt und das jede
+  // Übersetzung automatisch mitnimmt, sobald das Sprachpaar abgedeckt ist.
+  DEEPL_GLOSSARY_NAME: z.string().default('Grünerator'),
 
   // ── Web Search Providers ───────────────────────────────────────────────
   // Linkup (https://docs.linkup.so) — when set, replaces SearXNG for @web
@@ -163,6 +258,20 @@ const envSchema = z.object({
   // alone would swap the chat's search engine without anyone deciding to.
   // The throttle it has to contain is documented in GreenPTSearchService.ts.
   GREENPT_SEARCH_ENABLED: boolFlag(false),
+
+  // Reranking on GreenPT (`green-rerank`) instead of Regolo. ON by default,
+  // unlike the search flag above: this one is a host swap for identical weights
+  // (both serve Qwen3-Reranker-4B), so there is no quality trade to opt into —
+  // only the `impact` measurement to gain. The flag exists as a rollback lever
+  // that needs no code change, and as the two arms of the retrieval eval.
+  GREENPT_RERANK_ENABLED: boolFlag(true),
+
+  // No DEEP_AGENT_* switches. Which lane the subagent runs on and whether the
+  // lead delegates in parallel are RESEARCH decisions with measurements behind
+  // them, not deployment settings — they live in
+  // `services/research/deepAgent/models.ts`, where the numbers that justify them
+  // are. A knob here would let a deployment silently pick a lane nobody
+  // measured, and the failure (a thin report) looks like the agent being weak.
 
   // ── Image / Flux ───────────────────────────────────────────────────────
   FLUX_BACKEND: z.string().optional(),
@@ -182,7 +291,15 @@ const envSchema = z.object({
     .enum(['auto', 'voxtral', 'greenpt', 'regolo'])
     .default('auto')
     .transform((provider) => (provider === 'regolo' ? ('auto' as const) : provider)),
-  VOXTRAL_DEFAULT_VOICE_ID: z.string().optional(),
+  // KugelAudio (Berlin) serves the whole text-to-speech path since 09/2026;
+  // Mistral Speech is gone. KUGELAUDIO_BASE_URL is an escape hatch only — the
+  // vendor default host api.kugelaudio.com is geo-routed and may leave the EU,
+  // so the service pins the EU host itself and this var is the only way past it.
+  KUGELAUDIO_API_KEY: z.string().optional(),
+  KUGELAUDIO_BASE_URL: z.string().optional(),
+  // An integer, not a UUID: KugelAudio numbers its voices where Mistral named
+  // them. Coerced because env values arrive as strings.
+  KUGELAUDIO_DEFAULT_VOICE_ID: z.coerce.number().int().optional(),
   VISION_DEFAULT_MODEL: z.string().optional(),
 
   // ── Monitoring / External services ────────────────────────────────────
@@ -228,6 +345,7 @@ const envSchema = z.object({
   BREVO_SMTP_PORT: numStr(587),
   BREVO_SMTP_USER: z.string().trim().optional(),
   BREVO_SMTP_PASS: z.string().trim().optional(),
+  BREVO_API_KEY: z.string().trim().optional(),
   EMAIL_FROM: z.string().trim().optional(),
 
   // ── Credential encryption ──────────────────────────────────────────────
@@ -235,9 +353,9 @@ const envSchema = z.object({
 
   // ── OCR ────────────────────────────────────────────────────────────────
   OCR_PROVIDER: z.string().optional(),
-  DOCLING_URL: z.string().optional(),
-  // Outer client deadline for the async Docling conversion flow (submit → poll → result).
-  // 50 MB / 1000 pages is the validation ceiling; 10 min covers worst-case scan-heavy PDFs.
+  // Client deadline for one Docling conversion request against GreenPT's
+  // Documents API. 50 MB / 1000 pages is the validation ceiling; 10 min covers
+  // worst-case scan-heavy PDFs.
   DOCLING_MAX_WAIT_MS: numStr(600_000),
   REMBG_URL: z.string().optional(),
 
@@ -254,6 +372,9 @@ const envSchema = z.object({
   SYNC_SUMMARY_PATH: z.string().optional(),
   // API base the content-sync CI run POSTs its article events to.
   CONTENT_SYNC_API_URL: z.string().trim().optional(),
+  // GitHub PAT (actions: write) the API uses to dispatch the Content Sync
+  // workflow on its own clock. Production only; unset = nothing is dispatched.
+  CONTENT_SYNC_DISPATCH_TOKEN: z.string().trim().optional(),
 
   // ── GitHub CI (content sync) ───────────────────────────────────────────
   GITHUB_REPOSITORY: z.string().optional(),
@@ -271,7 +392,6 @@ const envSchema = z.object({
   ENABLE_DEBUG: boolFlag(false),
   ENABLE_VERBOSE: boolFlag(false),
   ENABLE_TELEMETRY: boolFlag(true),
-  MEM0_TELEMETRY: z.string().optional(),
 
   // ── Rate limiting ──────────────────────────────────────────────────────
   DISABLE_RATE_LIMITS: boolFlag(false),
@@ -322,6 +442,81 @@ const envSchema = z.object({
   HYBRID_ENABLE_CONFIDENCE_WEIGHTING: boolFlag(true),
   HYBRID_ENABLE_QUALITY_GATE: boolFlag(true),
 
+  /**
+   * Hauptschalter des server-seitigen Query-API-Pfads. `false` schickt JEDE
+   * Sammlung zurück auf die client-seitige Alt-Fusion, ohne Qdrant anzufassen:
+   * der Rückwärtsgang, der keine Migration braucht, und der Referenzarm jeder
+   * Messung aus #3118.
+   *
+   * Bleibt an, obwohl der ausgelieferte Arm `rrf` die Alt-Fusion auf dem
+   * qa-Pfad nicht erreicht (kommunalwiki roh 50 % / 0,642 gegen 60 % / 0,720):
+   * auf der manuellen Suche findet erst der Sparse-Vektor die Einwort-Anfragen
+   * (`rrf` 2 von 3 auf Rang 1, `dbsf` 3 von 3, Alt-Fusion vor der Migration
+   * 0 von 3). Abschalten hieße, kommunalwikis BM25 ganz aufzugeben. Die
+   * Alt-Fusion wurde auf dem manuellen und dem Notebook-Pfad nicht gemessen.
+   */
+  HYBRID_SERVER_SIDE_ENABLED: boolFlag(true),
+
+  /**
+   * Welche Fusion der Server-Pfad benutzt. Siehe HYBRID_SERVER_FUSIONS.
+   * Default bleibt `rrf`, obwohl die Messreihe in #3118 (2026-09-02) `dbsf`
+   * auf dem qa-Pfad vorn sieht (10 kommunalwiki-Fälle roh: Hit@1 80 % /
+   * MRR@10 0,813 gegen `rrf` 50 % / 0,642): auf dem Notebook-Pfad, der die
+   * 0,35-Schwelle in `NotebookQAService` läuft, kehrt sich das um (`dbsf`
+   * 30 % / 0,361 gegen `rrf` 50 % / 0,567), weil die Schwelle für Kosinus-
+   * werte geschrieben ist.
+   *
+   * Die Schwelle kennt den Wertebereich inzwischen (#3166: `filterAndSortResults`
+   * schneidet auf `dense_similarity ?? similarity`) — `dbsf` blieb trotzdem
+   * draussen, weil es mit Join auf dem Notebook-Pfad weiterhin zwei Fälle
+   * gegen den ausgelieferten Zustand verliert (Hit@1 50 % → 30 %) und dabei
+   * sogar hinter seine eigene #3169-Referenz zurückfällt (MRR@10
+   * 0,361 → 0,350). Die Zahlen stehen in
+   * `evals/retrieval/hybrid-dense-join-2026-09-02.md`.
+   *
+   * Die ganze Messreihe lief mit `HYBRID_ENABLE_QUALITY_GATE=false`; `dbsf`
+   * mit eingeschaltetem Gatter ist nie gemessen (siehe hybridSearch.ts, das
+   * Gatter ist nur für `rrf` als unschädlich belegt). Die qa-Arme liefen mit
+   * Tiefe `fast`, die Notebook-Arme mit `deep` (der Produktionsstufe des Chats);
+   * ohne Verlauf schreibt `deep` nicht um, die Zahlen sind also vergleichbar,
+   * aber nicht dieselbe Stufe. Ein Gatter-Arm ist inzwischen gemessen
+   * (`tune-join-rrf-gate.json`, 02.09.2026): identisch zum Nicht-Gatter-Lauf
+   * (53,8 % / 0,665 GESAMT, `kommunalwiki-system` unverändert 60 % / 0,692) —
+   * das Gatter läuft auf `rrf` und entfernt dort nichts.
+   */
+  HYBRID_SERVER_FUSION: z.enum(HYBRID_SERVER_FUSIONS).default('rrf'),
+
+  /**
+   * Limit der Sparse-Vorabholung als Vielfaches der dichten. 0 lässt die
+   * Sparse-Vorabholung ganz weg — zusammen mit `dense_rescore` ist das der
+   * dicht-nur-Kontrollarm über den Query-API-Pfad.
+   */
+  HYBRID_SERVER_SPARSE_FACTOR: z.coerce.number().min(0).default(1.0),
+
+  /** Gewicht der dichten Vorabholung bei `rrf_weighted`; sparse bekommt 1 − dies. */
+  HYBRID_SERVER_RRF_WEIGHT_DENSE: z.coerce.number().min(0).max(1).default(0.7),
+
+  /**
+   * Holt je Treffer den dichten Kosinus und den BM25-Wert über einen zweiten
+   * und dritten Eintrag desselben `queryBatch` zurück (#3166). `false` ist
+   * exakt der Zustand vor diesem PR — der Rückwärtsgang ohne Deploy und der
+   * Referenzarm der Messung.
+   *
+   * Die Batch geht nur auf den fusionierenden Armen raus (`rrf`,
+   * `rrf_weighted`, `dbsf`): bei `dense_rescore` IST der äussere `score`
+   * schon der Kosinus, bei `sparse_only` der BM25-Wert — dort kostet ein
+   * Join einen Rundlauf für nichts und wird nicht gebaut. `false` blendet
+   * trotzdem auf ALLEN fünf Armen aus: `joinOn` gated auch
+   * `denseFromScore`/`textFromScore` (`hybridSearch.ts:334–335`), also leert
+   * es auch `originalVectorScore` auf `dense_rescore` und `originalTextScore`
+   * auf `sparse_only`.
+   *
+   * Der Default steht auf `true`, WEIL die Messung ihn setzt (Regel R1 in der
+   * Spec). Bleibt der Join hinter dem ausgelieferten Zustand zurück, geht er
+   * als `false` in den Merge und der Code bleibt inert stehen.
+   */
+  HYBRID_SERVER_SCORE_JOIN: boolFlag(true),
+
   // ── Scoring ────────────────────────────────────────────────────────────
   SCORING_MAX_SIMILARITY_WEIGHT: z.coerce.number().default(0.6),
   SCORING_AVG_SIMILARITY_WEIGHT: z.coerce.number().default(0.4),
@@ -330,7 +525,35 @@ const envSchema = z.object({
   SCORING_MAX_FINAL_SCORE: z.coerce.number().default(1.0),
 
   // ── Content excerpts ───────────────────────────────────────────────────
-  CONTENT_MAX_EXCERPT_LENGTH: numStr(300),
+  /**
+   * Wie viel von JEDEM getroffenen Chunk in `relevant_content` landet
+   * (`extractRelevantExcerpt` / `extractMatchedExcerpt` in `BaseSearchService`).
+   *
+   * Gemessen am aktiven Pfad: indexiert wird mit `maxTokens: 400`
+   * (`TextChunker`), ein Chunk ist damit rund 1400 Zeichen — live an einem
+   * 8-Seiten-PDF 21 118 Zeichen auf 16 Chunks, also 1320 im Schnitt. 300 gab dem
+   * Modell also ein Fünftel der Einheit zurück, die wir eingebettet, gesucht und
+   * bewertet haben.
+   *
+   * Das ist derselbe Fehler, den `SNIPPET_CHARS` in `sourceRegistry.ts` eine
+   * Ebene höher schon hinter sich hat: dort stand 320 unter der Chunk-Größe,
+   * "numerische und tabellarische Antworten landeten knapp hinter dem Schnitt",
+   * und das Modell meldete "dazu steht nichts in den Quellen". Live am
+   * 24.08.2026 wieder, eine Ebene tiefer: die Frage nach den Löschfristen traf
+   * die Tabelle mit acht Zeilen, und das 300-Zeichen-Fenster schnitt sie nach
+   * der zweiten ab.
+   *
+   * 1800 deckt einen ganzen Chunk — für kürzere Chunks ist die Kappung damit
+   * wirkungslos, sie schneidet nur noch, was wirklich zu lang ist. Die Zahl war
+   * bis zum 02.09.2026 1500 und deckte damit nicht einmal den Fließtext-Pfad
+   * (1600 Zeichen); der Wächter in `config/searchExcerptBudget.vitest.ts` maß
+   * gegen eine Token-Schätzung (400 × 3,3 = 1320) und meldete das grün. Er hält
+   * jetzt gegen die tatsächlichen Chunk-Grenzen aus `chunkBudget.ts`. Die
+   * Anzeige-Pfade haben eigene, engere Deckel und wachsen NICHT mit
+   * (`highlightSnippet` 400, Notebook-Sammlungen 200, Recherche 500,
+   * `line-clamp-3` in der Dokumentübersicht).
+   */
+  CONTENT_MAX_EXCERPT_LENGTH: numStr(1800),
   CONTENT_EXCERPT_SENTENCE_BOUNDARY: z.coerce.number().default(0.7),
   CONTENT_MAX_CHUNKS_PER_DOC: numStr(10),
 
@@ -388,11 +611,6 @@ const envSchema = z.object({
   METADATA_DETECT_MARKDOWN: boolFlag(true),
   METADATA_EXTRACT_PAGES: boolFlag(true),
 
-  // ── Adaptive chunking ──────────────────────────────────────────────────
-  ADAPTIVE_CHUNKING_ENABLED: boolFlag(false),
-  CHUNK_DEFAULT_SIZE: numStr(400),
-  CHUNK_OVERLAP_SIZE: numStr(100),
-
   // ── Retrieval / Query intent ───────────────────────────────────────────
   QUERY_INTENT_ENABLED: boolFlag(true),
   USE_GERMAN_PATTERNS: boolFlag(true),
@@ -406,6 +624,48 @@ const envSchema = z.object({
   RERANK_MERGE_OVERFETCH: numStr(16),
   RERANK_WEB_SCORE_CEILING: z.coerce.number().default(0.8),
   RERANK_DIP_SCORE_CEILING: z.coerce.number().default(0.8),
+
+  // ── Notebook: Evidenz-Hinweis (#3140) ──────────────────────────────────
+  /**
+   * Dichter Spitzenwert VOR dem Rerank, unter dem der Notebook-Stream
+   * `evidence_weak` meldet — `max(dense_similarity ?? similarity)` über
+   * `SearchContext.sortedResults`, gebildet in `NotebookQAService`.
+   *
+   * Kalibriert in zwei Runden der Tiefe `deep`. Runde 1, 15 Fälle (PR #3156,
+   * `evals/retrieval/evidence-signals-2026-09-02.md`): on-topic ab 0,9619,
+   * off-topic bis 0,8955 — Default 0,89. Runde 2 am 02.09.2026, 30 Fälle
+   * (`evidence-signals-2026-09-02-v2.md`): on-topic ab 0,9581
+   * (`chat-nb-berlin-baumfaellmoratorium`), off-topic bis 0,9130
+   * (`offtopic-sternbilder-winter`), Abstand 0,0451. 0,89 lag damit unter
+   * dem höchsten off-topic-Wert; der Default ist der Mittelpunkt 0,9356
+   * (Abnahmeregel A1). Gesenkt wird nie ohne Neumessung.
+   *
+   * Beide Runden liefen ausschliesslich gegen die Tiefe `deep` — das
+   * `evidence_weak`-Ereignis geht deshalb nur bei `depth !== 'fast'` hinaus
+   * (`fast` durchsucht weniger Kandidaten und wurde nie vermessen).
+   *
+   * Die Zahl hängt am Einbettungsmodell: kalibriert gegen `mistral-embed`
+   * (1024 Dimensionen). Ein Modellwechsel verschiebt die absolute
+   * Kosinus-Lage und macht 0,9356 bedeutungslos, ohne dass ein Test rot wird.
+   *
+   * Das Signal `dense_similarity ?? similarity` ist auf dem Legacy-Pfad ein
+   * geboosteter Wert und auf dem server-seitigen Join (BM25-Sammlungen,
+   * heute keine davon eine Notebook-Sammlung) ein roher Kosinus, ca. 0,33
+   * auseinander — der Default 0,9356 ist ausschliesslich gegen den
+   * Legacy-Pfad kalibriert.
+   */
+  NOTEBOOK_EVIDENCE_WEAK_THRESHOLD: z.coerce.number().min(0).max(1).default(0.9356),
+
+  /**
+   * Dunkel ausgeliefert: `evidenceTop` wird bei jeder beantworteten Anfrage
+   * berechnet und protokolliert, das `warning`-Ereignis geht nur mit `true`
+   * hinaus (und nie auf `fast`). `true` erst nach der
+   * 30-Fall-Runde und nur, wenn deren Abnahmeregel A1 hält.
+   *
+   * Falle: `boolFlag` nimmt ausschliesslich die Zeichenkette "true" — `=1`
+   * ist `false`, lautlos.
+   */
+  NOTEBOOK_EVIDENCE_WEAK_ENABLED: boolFlag(false),
 });
 
 // ---------------------------------------------------------------------------

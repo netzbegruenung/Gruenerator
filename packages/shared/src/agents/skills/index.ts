@@ -21,15 +21,89 @@
  * Ordering is governed by the `order` frontmatter field; ties break
  * alphabetically by `mention`.
  */
+import { type LvEbene } from '../types.js';
+
 import { SKILLS } from './index.generated.js';
+import { type SystemSkill } from './types.js';
 
 export { SKILLS };
-export type { SystemSkill } from './types.js';
+export type { SystemSkill };
+
+/**
+ * Recipes that were split or renamed after shipping — the F1 escape hatch, with
+ * an expiry.
+ *
+ * Each of these was a single recipe that opened with a Partei/Fraktion switch
+ * the model had to resolve per turn. They are now two recipes each. Released
+ * mobile binaries, persisted sidebar favourites and old threads still send the
+ * retired mention, so it keeps resolving.
+ *
+ * They all resolve to the Partei — not because that level ranks first (there is
+ * no default, the user picks), but because it is the level the recipe is
+ * actually offered to: `landesverbandForRoles` unlocks Landesverband material
+ * for the Landesgeschäftsstelle alone, and the same choice governs each PR
+ * agent's `defaultRecipeMention`. A retired mention has to land somewhere, and
+ * landing anywhere else would contradict both.
+ *
+ * Entfernen frühestens 2027-08.
+ */
+const LEGACY_SKILL_MENTIONS: Readonly<Record<string, string>> = {
+  'presse-hessen': 'presse-hessen-partei',
+  'presse-mv': 'presse-mv-partei',
+  'presse-bayern': 'presse-bayern-partei',
+  'presse-sachsen-anhalt': 'presse-sachsen-anhalt-partei',
+  'presse-berlin': 'presse-berlin-partei',
+};
+
+/** The live mention for a possibly retired one. Unknown mentions pass through. */
+export function canonicalSkillMention(mention: string): string {
+  return LEGACY_SKILL_MENTIONS[mention.toLowerCase()] ?? mention;
+}
 
 const mentionMap = new Map<string, string>(
   SKILLS.map((skill) => [skill.mention.toLowerCase(), skill.identifier])
 );
 
 export function resolveSkillMention(alias: string): string | null {
-  return mentionMap.get(alias.toLowerCase()) ?? null;
+  return mentionMap.get(canonicalSkillMention(alias).toLowerCase()) ?? null;
+}
+
+/**
+ * Gibt es zu dieser Mention ein MITGELIEFERTES Rezept?
+ *
+ * Der Unterschied entscheidet, ob eine angelernte Textform den Rumpf eines
+ * vorhandenen Rezepts ersetzt oder für sich allein steht — und damit, ob sie im
+ * Mention-Menü und im Rezeptkatalog des Modells auftauchen muss.
+ *
+ * Nötig, weil `textFormTypeSchema` VIER Presets kennt, `SKILLS` aber nur drei
+ * davon als Rezept führt: `instagram`, `facebook` und `presse` gibt es, `antrag`
+ * nicht (und nie gegeben). Beide Listen filterten trotzdem hart auf
+ * `kind === 'custom'`, mit derselben Begründung — Presets reiten auf der Mention
+ * ihres Systemrezepts. Für `antrag` stimmt der Satz nicht: die Oberfläche nahm
+ * Beispiele entgegen, analysierte, speicherte — und die Zeile wurde auf keinem
+ * Pfad je nachgeschlagen (#2937).
+ *
+ * Strukturell formuliert statt auf `'antrag'` verdrahtet: kommt ein Preset dazu,
+ * dessen Rezept noch fehlt, trägt dieselbe Regel.
+ */
+export function hasSystemRecipe(mention: string): boolean {
+  return resolveSkillMention(mention) !== null;
+}
+
+const ebeneMap = new Map<string, LvEbene>(
+  (SKILLS as readonly SystemSkill[]).flatMap((skill) =>
+    skill.lvEbene ? [[skill.mention.toLowerCase(), skill.lvEbene] as const] : []
+  )
+);
+
+/**
+ * Die Landesverbands-Ebene eines Rezepts, oder `null` für alles ohne
+ * Ebenentrennung (generische Rezepte, einstufige Landesverbände, unbekannte
+ * Kennungen). Zurückgezogene Kennungen laufen über {@link canonicalSkillMention},
+ * damit ein alter Thread dieselbe Ebene trifft wie sein Nachfolger.
+ *
+ * Die API schneidet damit die PM-Beispielsuche zu (`narrowLvScopeToEbene`).
+ */
+export function lvEbeneForSkillMention(mention: string): LvEbene | null {
+  return ebeneMap.get(canonicalSkillMention(mention).toLowerCase()) ?? null;
 }

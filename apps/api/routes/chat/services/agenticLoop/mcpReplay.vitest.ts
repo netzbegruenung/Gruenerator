@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildToolObservationReplay } from './mcpReplay.js';
+import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
 
 import type { PersistedStep } from './types.js';
+import type { ModelMessage } from 'ai';
 
 function mcpStep(over: Partial<PersistedStep> = {}): PersistedStep {
   return {
@@ -101,6 +102,20 @@ describe('buildToolObservationReplay', () => {
     // the surrounding text survives, only the markers are gone
     expect(out).toContain('Wahlprogramm');
   });
+  it('never leaks rerankDegraded into a replayed tool-result, but keeps the rest', () => {
+    // The persisted step is intentionally raw (card + debugging) — the strip
+    // must happen here, at replay serialization, not before recordStep.
+    const degraded = mcpStep({
+      toolName: 'gruenerator_search',
+      serverName: undefined,
+      result: { results: [{ title: 'Klimaschutz' }], rerankDegraded: true },
+    });
+    const msgs = buildToolObservationReplay([degraded], catalog);
+    const out = (msgs[1].content as Array<{ output: { value: string } }>)[0].output.value;
+    expect(out).not.toContain('rerankDegraded');
+    expect(out).toContain('Klimaschutz');
+  });
+
   it('gives a knowledge result the same replay budget as a source block', () => {
     // `product_knowledge` registers no sources, so it fell into the 500-char
     // action preview: live on 03.08.2026 its replay was cut from 3.876 to 500
@@ -114,5 +129,67 @@ describe('buildToolObservationReplay', () => {
     const msgs = buildToolObservationReplay([step], catalog);
     const out = (msgs[1].content as Array<{ output: { value: string } }>)[0].output.value;
     expect(out.length).toBeGreaterThan(3000);
+  });
+
+  it('gives a result with compact refs the reference budget, a bare row list only the preview', () => {
+    const rows = Array.from({ length: 20 }, (_, i) => ({
+      title: `Quelle ${i}`,
+      url: `https://gruene.berlin/${i}`,
+      ref: `https://gruene.berlin/${i}`,
+    }));
+    const withRefs = mcpStep({
+      toolName: 'gruenerator_search',
+      serverName: undefined,
+      result: { refs: rows.map((r) => `${r.title} — ${r.ref}`).join('\n'), results: rows },
+    });
+    const bare = mcpStep({
+      toolCallId: 'c2',
+      toolName: 'gruenerator_search',
+      serverName: undefined,
+      result: { results: rows },
+    });
+    const msgs = buildToolObservationReplay([withRefs, bare], catalog);
+    const [refsOut, bareOut] = (msgs[1].content as Array<{ output: { value: string } }>).map(
+      (c) => c.output.value
+    );
+    for (const r of rows) expect(refsOut).toContain(r.ref);
+    // Die Zeilen selbst bleiben zurück — refs ist ihre kurze Form.
+    expect(refsOut).not.toContain('"results"');
+    expect(bareOut!.length).toBeLessThanOrEqual(501);
+  });
+});
+
+describe('spliceToolReplay', () => {
+  const history: ModelMessage[] = [
+    { role: 'user', content: 'was steht im wahlprogramm?' },
+    { role: 'assistant', content: 'Dazu habe ich gesucht.' },
+    { role: 'user', content: 'und morgen?' },
+  ];
+  const replay = buildToolObservationReplay([mcpStep()], catalog);
+
+  it('never lets a user message follow a tool message', () => {
+    // mistral-common (GreenPT, Mistral API) rejects that transition with 400.
+    const out = spliceToolReplay(history, replay);
+    const roles = out.map((m) => m.role);
+    for (let i = 1; i < roles.length; i++) {
+      expect(`${roles[i - 1]}→${roles[i]}`).not.toBe('tool→user');
+    }
+    expect(roles).toEqual(['user', 'assistant', 'assistant', 'tool', 'assistant', 'user']);
+  });
+
+  it('keeps the current user message last and the replay pair adjacent', () => {
+    const out = spliceToolReplay(history, replay);
+    expect(out[out.length - 1]).toBe(history[history.length - 1]);
+    expect(out.indexOf(replay[1])).toBe(out.indexOf(replay[0]) + 1);
+  });
+
+  it('adds no bridge when the last message is not a user message', () => {
+    const ending: ModelMessage[] = [{ role: 'assistant', content: 'weiter' }];
+    expect(spliceToolReplay(ending, replay)).toEqual([...replay, ending[0]]);
+  });
+
+  it('passes the history through untouched when there is no replay', () => {
+    expect(spliceToolReplay(history, [])).toEqual(history);
+    expect(spliceToolReplay([], replay)).toEqual([]);
   });
 });

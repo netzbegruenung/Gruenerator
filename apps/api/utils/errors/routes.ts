@@ -8,7 +8,7 @@ import { sendErrorResponse } from '../request/index.js';
 import {
   type VectorBackendError,
   ValidationError,
-  AIWorkerError,
+  AiClientError,
   DatabaseError,
   SearchError,
   EmbeddingError,
@@ -19,7 +19,7 @@ import {
 } from './classes.js';
 import { ERROR_TYPES } from './constants.js';
 
-import type { ErrorClassification, RequestWithCorrelation, AIWorkerErrorResult } from './types.js';
+import type { ErrorClassification, RequestWithCorrelation, AiClientErrorResult } from './types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { Request, Response, NextFunction } from 'express';
 
@@ -38,7 +38,7 @@ export function classifyError(error: Error | VectorBackendError): ErrorClassific
     if (error instanceof ValidationError) {
       return { type: 'VALIDATION_ERROR', statusCode: 400 };
     }
-    if (error instanceof AIWorkerError) {
+    if (error instanceof AiClientError) {
       return { type: 'AI_WORKER_ERROR', statusCode: 503 };
     }
     if (error instanceof DatabaseError) {
@@ -185,12 +185,12 @@ export function handleAttachmentError(res: Response, routePath: string, message:
 /**
  * Handle AI Worker errors specifically
  */
-export function handleAIWorkerError(
+export function handleAiClientError(
   res: Response,
   routePath: string,
-  aiResult: AIWorkerErrorResult
+  aiResult: AiClientErrorResult
 ): void {
-  const error = new AIWorkerError(`AI Worker failed: ${aiResult.error || 'Unknown AI error'}`);
+  const error = new AiClientError(`AI Worker failed: ${aiResult.error || 'Unknown AI error'}`);
   handleRouteError(error, routePath, res);
 }
 

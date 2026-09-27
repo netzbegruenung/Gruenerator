@@ -113,6 +113,30 @@
       "title": "Weitere Werkzeuge",
       "tools": [
         {
+          "id": "uebersetzer",
+          "title": "Übersetzer",
+          "description": "Texte & Dokumente übersetzen",
+          "path": "/uebersetzer"
+        },
+        {
+          "id": "mcp",
+          "title": "Apps & MCP",
+          "description": "ChatGPT & Co verbinden",
+          "path": "/apps"
+        },
+        {
+          "id": "voice",
+          "title": "Voice",
+          "description": "Text vertonen",
+          "path": "/voice"
+        },
+        {
+          "id": "transkription",
+          "title": "Transkription",
+          "description": "Audio zu Text",
+          "path": "/transkription"
+        },
+        {
           "id": "scanner",
           "title": "Scanner",
           "description": "Fotos & Scans zu Text",
@@ -125,21 +149,9 @@
           "path": "/zeichenzaehler"
         },
         {
-          "id": "transkription",
-          "title": "Transkription",
-          "description": "Audio zu Text",
-          "path": "/transkription"
-        },
-        {
           "id": "newsletter",
           "title": "Newsletter",
           "description": "Updates abonnieren"
-        },
-        {
-          "id": "mcp",
-          "title": "MCP",
-          "description": "ChatGPT & Co verbinden",
-          "path": "/apps"
         }
       ]
     }
@@ -200,6 +212,16 @@
       "path": "/transkription",
       "subtitle": "Audio mit KI verschriftlichen"
     },
+    "tool-uebersetzer": {
+      "title": "Übersetzer",
+      "path": "/uebersetzer",
+      "subtitle": "Texte & Dokumente mit DeepL übersetzen"
+    },
+    "tool-voice": {
+      "title": "Grünerator Voice",
+      "path": "/voice",
+      "subtitle": "Anrufbeantworter, Vorlesefassung & Audiodeskription"
+    },
     "tool-vorlagen": {
       "title": "Vorlagen",
       "path": "/vorlagen",
@@ -225,6 +247,7 @@
     "/startseite",
     "/subtitler/share/:shareToken",
     "/support",
-    "/testsommer"
+    "/testsommer",
+    "/vorlagen/v/:id"
   ]
 }

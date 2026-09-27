@@ -82,7 +82,7 @@ export function resolveNotebookChatEntries(
         entries.push({
           collectionKey,
           title: userCol.name,
-          path: `/notebook/${collectionKey}`,
+          path: `/notebooks/${collectionKey}`,
           timestamp: chat.timestamp,
           messageCount: chat.messages.length,
         });

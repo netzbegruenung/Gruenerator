@@ -4,14 +4,17 @@ import { createStore, useStore } from 'zustand';
 
 import { useChatSurfaceContext, type ChatSurfaceState } from '../context/ChatSurfaceContext';
 import { useAgentStore, type SearchMode, type ThreadMode } from '../stores/chatStore';
+import { useUserProfileStore } from '../stores/userProfileStore';
 
-import type { SelectedModel } from './resolveAutoModel';
+import { AUTO_MODEL_ID, type SelectedModel } from './resolveAutoModel';
+
+import type { RoleRef } from '@gruenerator/contracts';
 
 const FALLBACK = createStore<ChatSurfaceState>(() => ({
   selectedAgentId: null,
   threadMode: 'chat',
   searchMode: 'web',
-  selectedModel: null,
+  selectedModel: AUTO_MODEL_ID,
   selectedNotebookId: 'gruenerator-notebook',
   customSystemPrompt: null,
   customRoleName: null,
@@ -49,9 +52,9 @@ export function useScopedSearchMode(): SearchMode {
   return useScopedField((s) => s.searchMode, global);
 }
 
-export function useScopedSelectedModel(): SelectedModel | null {
+export function useScopedSelectedModel(): SelectedModel {
   const global = useAgentStore((s) => s.selectedModel);
-  return useScopedField<SelectedModel | null>((s) => s.selectedModel, global);
+  return useScopedField<SelectedModel>((s) => s.selectedModel, global);
 }
 
 export function useScopedSelectedNotebookId(): string {
@@ -69,7 +72,7 @@ export function useScopedCustomRoleName(): string | null {
   return useScopedField((s) => s.customRoleName, global);
 }
 
-export function useScopedCustomRoleRef(): { ebene: string; rolle: string } | null {
+export function useScopedCustomRoleRef(): RoleRef | null {
   const global = useAgentStore((s) => s.customRoleRef);
   return useScopedField((s) => s.customRoleRef, global);
 }
@@ -125,13 +128,35 @@ export function useScopedSetCustomRoleName(): (name: string | null) => void {
   return (name) => ctx.store.getState().setCustomRoleName(name);
 }
 
-export function useScopedSetCustomRoleRef(): (
-  ref: { ebene: string; rolle: string } | null
-) => void {
+export function useScopedSetCustomRoleRef(): (ref: RoleRef | null) => void {
   const ctx = useChatSurfaceContext();
   const globalSet = useAgentStore((s) => s.setCustomRoleRef);
   if (!ctx) return globalSet;
   return (ref) => ctx.store.getState().setCustomRoleRef(ref);
+}
+
+/** Stabil, damit die Identität des Rückgabewerts nicht bei jedem Render wechselt. */
+const NOOP_SET_ACTIVE_ROLE = (_role: RoleRef | null): void => {};
+
+/**
+ * Die Konto-Voreinstellung für neue Chats. Anders als die Nachbarn hier gibt es
+ * keine oberflächen-eigene Entsprechung — eine eingebettete Fläche (Docs,
+ * Boards, Sheets, Präsentationen) hält ihren Rollenzustand bewusst bei sich,
+ * und ihre Wahl darf nicht zum Standard für jeden `/chat`-Entwurf werden. In
+ * einer solchen Fläche schreibt diese Funktion deshalb nichts.
+ *
+ * Erreichbar ist der Fall heute nicht: alle vier Konsumenten setzen
+ * `showToolToggles={false}`, und `includeModes` verbirgt damit das gesamte
+ * Rollen-Untermenü. Das ist aber ein Schutz durch ein fremdes UI-Flag, keine
+ * Bereichsprüfung — schaltet eine künftige Fläche die Werkzeug-Schalter ein,
+ * weil sie die braucht, bekäme sie das Leck gratis dazu. Genau die Sorte Leck,
+ * die der Rest dieser Änderung in der anderen Richtung schließt.
+ */
+export function useScopedSetActiveRole(): (role: RoleRef | null) => void {
+  const ctx = useChatSurfaceContext();
+  const globalSet = useUserProfileStore((s) => s.setActiveRole);
+  if (ctx) return NOOP_SET_ACTIVE_ROLE;
+  return globalSet;
 }
 
 // ─── snapshot reader (for callbacks, e.g. adapter getConfig) ────────────────

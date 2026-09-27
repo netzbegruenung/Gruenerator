@@ -99,14 +99,9 @@ const BEFORE: Row[] = [
     title: 'Bild bearbeiten',
     audience: 'all',
   },
-  // ── Added deliberately: seven intents that had no @-trigger at all. ───────
-  {
-    identifier: 'social_post',
-    mention: 'social',
-    title: 'Social Post',
-    audience: 'all',
-    aliases: ['socialpost'],
-  },
+  // ── Added deliberately: the intents that had no @-trigger at all. ────────
+  // `@social` stand hier, bis `social_post` 08/2026 stillgelegt wurde: ein
+  // Social-Post ist eine Textsorte, und die wählt man mit `/instagram` &Co.
   {
     identifier: 'chart',
     mention: 'diagramm',
@@ -140,6 +135,18 @@ const BEFORE: Row[] = [
   // from `setMcpServerMentionables` (fed by /api/mcp/servers) rather than from
   // the intent registry — and it has to leave this table, or the slug stays
   // taken and `takenByOther('wetter')` renames the connector to `@wetter-2`.
+  //
+  // Erwähnung eines STILLGELEGTEN Intents: `create_recurring_task` lebt als
+  // Loop-Werkzeug `recurring_tasks` weiter, und die Erwähnung pinnt es (wie
+  // `@umfragen`). Ohne sie war die Fähigkeit nur erreichbar, wenn der
+  // Klassifikator den Dauerauftrag im Satz erkannte.
+  {
+    identifier: 'create_recurring_task',
+    mention: 'wiederkehrend',
+    title: 'Wiederkehrende Aufgabe',
+    audience: 'all',
+    aliases: ['dauerauftrag', 'zeitplan'],
+  },
 ];
 
 describe('toolMentionables derived from the intent registry', () => {
@@ -192,6 +199,35 @@ describe('toolMentionables derived from the intent registry', () => {
     expect(resolveMentionable('websearch')?.identifier).toBe('research');
     expect(resolveMentionable('anleitung')?.identifier).toBe('hilfe');
     expect(resolveMentionable('formular')?.identifier).toBe('pdf-erstellen');
+  });
+
+  // Der Filter über `availability: 'retired'` liesse `@umfragen` sonst
+  // verschwinden — sein Intent ist stillgelegt, die Fähigkeit nicht. Beide
+  // Hälften zählen: die Erwähnung bleibt im Picker, UND sie schickt weiterhin
+  // denselben Token auf den Draht (F0 — er steckt in alten Threads).
+  it('bietet eine stillgelegte Erwähnung weiter an, wenn sie ein Werkzeug pinnt', () => {
+    const umfragen = toolMentionables.find((m) => m.mention === 'umfragen');
+    expect(umfragen?.identifier).toBe('umfragen');
+    expect(resolveMentionable('umfragen')?.identifier).toBe('umfragen');
+  });
+
+  // Zweiter Grund, dieselbe Regel: `@pressemitteilungen` pinnt ein Werkzeug UND
+  // lädt ein Rezept. Der Draht-Token bleibt `pressemitteilung_examples`, so
+  // steht er in jedem persistierten `@[Pressemitteilungen](tool:…)` (F0) — der
+  // Alias `pm` löst auf denselben Eintrag auf.
+  it('bietet eine stillgelegte Erwähnung weiter an, wenn sie ein Rezept lädt', () => {
+    const pm = toolMentionables.find((m) => m.mention === 'pressemitteilungen');
+    expect(pm?.identifier).toBe('pressemitteilung_examples');
+    expect(resolveMentionable('pressemitteilungen')?.identifier).toBe('pressemitteilung_examples');
+    expect(resolveMentionable('pm')?.identifier).toBe('pressemitteilung_examples');
+  });
+
+  // Die Gegenprobe: die fünf verwalteten Connectoren sind ohne Werkzeug-Pin
+  // stillgelegt und tauchen deshalb NICHT auf.
+  it('lässt stillgelegte Erwähnungen ohne Pin draussen', () => {
+    const slugs = toolMentionables.map((m) => m.mention);
+    expect(slugs).not.toContain('bahn');
+    expect(slugs).not.toContain('news');
   });
 
   it('resolves the forced-tool identifier the router branches on', () => {
@@ -313,5 +349,26 @@ describe('mentionable slug uniqueness across sources', () => {
       }
     }
     expect(shadowed).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Der Link-Anhang hieß bis 08/2026 `@web`. Der Name las sich als „durchsuche das
+// Web" — genau das, was er NICHT tut. Beide Namen müssen den Eintrag finden:
+// der neue, weil er der beworbene ist, der alte, weil er ausgeliefert wurde.
+// ---------------------------------------------------------------------------
+describe('link attachment mentionable', () => {
+  it('is findable as @link AND still as @web', () => {
+    setMentionLocale('de-DE');
+    const idOf = (q: string) => filterMentionables(q).tools.map((m) => m.identifier);
+    expect(idOf('link')).toContain('webpage-trigger');
+    expect(idOf('web')).toContain('webpage-trigger');
+  });
+
+  it('is offered unfiltered, and carries the new name', () => {
+    setMentionLocale('de-DE');
+    const entry = filterMentionables('').tools.find((m) => m.identifier === 'webpage-trigger');
+    expect(entry?.mention).toBe('link');
+    expect(entry?.title).toBe('Link');
   });
 });

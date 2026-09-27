@@ -3,18 +3,27 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { createStore, useStore, type StoreApi } from 'zustand';
 
-import type { SelectedModel } from '../lib/resolveAutoModel';
+import { AUTO_MODEL_ID, type SelectedModel } from '../lib/resolveAutoModel';
+
 import type { SearchMode, ThreadMode } from '../stores/chatStore';
+import type { RoleRef } from '@gruenerator/contracts';
 
 export interface ChatSurfaceState {
   selectedAgentId: string | null;
   threadMode: ThreadMode;
   searchMode: SearchMode;
-  selectedModel: SelectedModel | null;
+  /**
+   * Nie `null`: ein Wert, den der Modellwähler nicht kennt, fiel dort auf den
+   * ERSTEN Katalogeintrag zurück („Klein") und wurde per Effekt auch noch in den
+   * Store geschrieben — jede Editor-Seitenleiste startete damit bei jedem Reload
+   * auf Klein statt auf Automatisch. `AUTO_MODEL_ID` ist die Vorgabe überall,
+   * genau wie im Hauptchat (dort über den nicht persistierten Store-Startwert).
+   */
+  selectedModel: SelectedModel;
   selectedNotebookId: string;
   customSystemPrompt: string | null;
   customRoleName: string | null;
-  customRoleRef: { ebene: string; rolle: string } | null;
+  customRoleRef: RoleRef | null;
 
   setSelectedAgent: (agentId: string | null) => void;
   setThreadMode: (mode: ThreadMode) => void;
@@ -23,7 +32,7 @@ export interface ChatSurfaceState {
   setSelectedNotebook: (id: string) => void;
   setCustomSystemPrompt: (prompt: string | null) => void;
   setCustomRoleName: (name: string | null) => void;
-  setCustomRoleRef: (ref: { ebene: string; rolle: string } | null) => void;
+  setCustomRoleRef: (ref: RoleRef | null) => void;
 }
 
 export type ChatSurfaceStore = StoreApi<ChatSurfaceState>;
@@ -68,7 +77,7 @@ export function createChatSurfaceStore(defaults?: ChatSurfaceDefaults): ChatSurf
     selectedAgentId: defaults?.selectedAgentId ?? null,
     threadMode: defaults?.threadMode ?? 'chat',
     searchMode: defaults?.searchMode ?? 'web',
-    selectedModel: defaults?.selectedModel ?? null,
+    selectedModel: defaults?.selectedModel ?? AUTO_MODEL_ID,
     selectedNotebookId: defaults?.selectedNotebookId ?? 'gruenerator-notebook',
     customSystemPrompt: defaults?.customSystemPrompt ?? null,
     customRoleName: defaults?.customRoleName ?? null,
@@ -128,7 +137,7 @@ const FALLBACK_STORE: ChatSurfaceStore = createStore<ChatSurfaceState>(() => ({
   selectedAgentId: null,
   threadMode: 'chat',
   searchMode: 'web',
-  selectedModel: null,
+  selectedModel: AUTO_MODEL_ID,
   selectedNotebookId: 'gruenerator-notebook',
   customSystemPrompt: null,
   customRoleName: null,

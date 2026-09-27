@@ -14,13 +14,11 @@ export { freeformTypeConfig, freeformFieldConfig } from './freeform';
 import {
   zitatAtTypeConfig,
   zitatPureAtTypeConfig,
-  dreizeilenAtTypeConfig,
   dreizeilenOverlayAtTypeConfig,
   infoAtTypeConfig,
   freeformAtTypeConfig,
   zitatAtFieldConfig,
   zitatPureAtFieldConfig,
-  dreizeilenAtFieldConfig,
   dreizeilenOverlayAtFieldConfig,
   infoAtFieldConfig,
   freeformAtFieldConfig,
@@ -50,7 +48,6 @@ export const templateTypeConfigs: Record<string, TypeConfig> = {
   // Österreich (de-AT)
   [zitatAtTypeConfig.id]: zitatAtTypeConfig,
   [zitatPureAtTypeConfig.id]: zitatPureAtTypeConfig,
-  [dreizeilenAtTypeConfig.id]: dreizeilenAtTypeConfig,
   [dreizeilenOverlayAtTypeConfig.id]: dreizeilenOverlayAtTypeConfig,
   [infoAtTypeConfig.id]: infoAtTypeConfig,
   [freeformAtTypeConfig.id]: freeformAtTypeConfig,
@@ -69,7 +66,6 @@ export const templateFieldConfigs: Record<string, TemplateFieldConfig> = {
   // Österreich (de-AT)
   [zitatAtTypeConfig.id]: zitatAtFieldConfig,
   [zitatPureAtTypeConfig.id]: zitatPureAtFieldConfig,
-  [dreizeilenAtTypeConfig.id]: dreizeilenAtFieldConfig,
   [dreizeilenOverlayAtTypeConfig.id]: dreizeilenOverlayAtFieldConfig,
   [infoAtTypeConfig.id]: infoAtFieldConfig,
   [freeformAtTypeConfig.id]: freeformAtFieldConfig,

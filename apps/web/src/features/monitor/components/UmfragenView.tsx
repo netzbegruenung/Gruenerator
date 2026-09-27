@@ -2,7 +2,7 @@ import { cn, LoadingSection } from '@gruenerator/ui';
 import { useState } from 'react';
 
 import { BUNDESLAENDER } from '../bundeslaender';
-import { usePolls, useEuGreens } from '../hooks/useMonitor';
+import { usePolls, usePollsOverview, useEuGreens } from '../hooks/useMonitor';
 import { PARTY_COLORS } from '../partyColors';
 
 import { DeutschlandMap, EuropaMap, type ChoroplethValues } from './GreensChoropleth';
@@ -245,25 +245,31 @@ function SonntagsfrageBars({ parliament, subtitle }: { parliament: string; subti
   );
 }
 
-/** Per-Bundesland Grüne value keyed by geo name — one usePolls per state (constant list). */
+/**
+ * Per-Bundesland Grüne value keyed by geo name — ONE request for all 16.
+ *
+ * This used to call `usePolls(b.id)` inside a loop over BUNDESLAENDER. Each of
+ * those hits three PolitPro endpoints, so mounting the map fired 48 upstream
+ * requests within a second against a 30 req/min budget; the resulting 429s were
+ * cached as real answers for 12 h (live on 20.08.2026: Bayern showed 4 parties
+ * instead of 8). The backend now fetches the same data paced, in one call.
+ */
 function useLaenderGrueneValues(): ChoroplethValues {
+  const { data } = usePollsOverview('DE');
   const values: ChoroplethValues = {};
+  const byParliament = new Map((data?.entries ?? []).map((e) => [e.parliament, e]));
   for (const b of BUNDESLAENDER) {
-    // BUNDESLAENDER is a static module constant → hook count is stable.
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { data } = usePolls(b.id);
-    const gk = data ? grueneKey(data.average) : null;
-    const lastDate = data && data.polls.length > 1 ? data.polls[0]?.date : undefined;
+    const entry = byParliament.get(b.id);
     values[b.name] = {
-      v: gk && data ? data.average[gk] : null,
-      date: lastDate ? formatPollDate(lastDate) : undefined,
+      v: entry?.gruene ?? null,
+      date: entry?.latestPollDate ? formatPollDate(entry.latestPollDate) : undefined,
     };
   }
   return values;
 }
 
-// Split into per-view components so the 16 Bundesland poll hooks only run while
-// the German map is actually mounted (AT shows Europe only → no wasted fetches).
+// Split into per-view components so the Bundesland overview is only fetched
+// while the German map is actually mounted (AT shows Europe only).
 function DeutschlandMapPanel() {
   return <DeutschlandMap values={useLaenderGrueneValues()} />;
 }

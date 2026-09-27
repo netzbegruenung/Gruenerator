@@ -9,8 +9,13 @@
  *   GET /:shareToken            — public share info (rate-limited)
  *   GET /:shareToken/thumbnail  — thumbnail file
  *   GET /:shareToken/original   — original image (owner only)
- *   GET /:shareToken/preview    — smart preview (image/video, range, ?w= resize)
+ *   GET /:shareToken/stream     — video playback (byte ranges)
+ *   GET /:shareToken/preview    — image variants (?w=&fmt=); video for old clients
  *   GET /:shareToken/download   — transfer (public, password) or image/video (auth)
+ *
+ * New consumers should use the signed `/api/thumbs/media/...` URLs the list
+ * endpoints hand out instead of composing preview URLs here: those carry a
+ * version segment and can therefore be cached for a year without going stale.
  *
  * Auth-guarded read/management routes live in shareReadContractRouter.ts and
  * the write routes in shareContractRouter.ts.
@@ -21,20 +26,37 @@ import fs from 'fs';
 import path from 'path';
 
 import express, { type Request, type Response, type Router } from 'express';
-import sharp from 'sharp';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { getThumbnailVariant } from '../../services/media/thumbnailCache.js';
+import { THUMBNAIL_WIDTHS, versionFromShareRow } from '../../services/media/thumbnailUrl.js';
 import { transferService } from '../../services/transferService.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { getSharedMediaService } from './shareServices.js';
+import { getSharedMediaService, type SharedMediaService } from './shareServices.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { SharedMediaRow } from '../../types/media.js';
 
 const fsPromises = fs.promises;
 const log = createLogger('share');
+
+/**
+ * Freshness for the versionless legacy media URLs (`/preview`, `/thumbnail`).
+ *
+ * These used to send `public, max-age=31536000, immutable`. That is only honest
+ * for a URL that changes when its content does, and these do not: the gallery
+ * edit flow (`updateImageShare`) overwrites the bytes under the SAME share
+ * token, so every client that had already fetched the image kept showing the
+ * pre-edit picture for a year. The server was carefully clearing its own
+ * `thumbs/` cache while telling clients never to revalidate.
+ *
+ * Five minutes of freshness plus an ETag makes the unchanged case a cheap 304
+ * and the edited case correct. The year-long cache now lives on the versioned
+ * `/api/thumbs/...` URLs, where it is earned.
+ */
+const PREVIEW_CACHE_CONTROL = 'public, max-age=300, stale-while-revalidate=86400';
 
 interface ShareTokenParams {
   shareToken: string;
@@ -92,6 +114,10 @@ router.get(
         });
       }
 
+      if (shareLinkExpired(share, req)) {
+        return res.status(410).json({ success: false, error: expiredLinkMessage(share) });
+      }
+
       await service.recordView(shareToken);
 
       const shareObj: NonNullable<ShareInfoResponse['share']> = {
@@ -103,6 +129,9 @@ router.get(
         status: share.status || 'ready',
         createdAt: share.created_at,
         ...(share.sharer_name != null ? { sharerName: share.sharer_name } : {}),
+        // Every type now carries a deadline, so the owner can see when their
+        // link goes dead instead of finding out from a recipient.
+        expiresAt: share.expires_at ?? null,
       };
       const response: ShareInfoResponse = {
         success: true,
@@ -110,19 +139,10 @@ router.get(
       };
 
       if (share.media_type === 'transfer') {
-        // Check expiry for transfers
-        if (share.expires_at && new Date(share.expires_at) < new Date()) {
-          return res.status(410).json({
-            success: false,
-            error: 'Dieser Transfer-Link ist abgelaufen.',
-          });
-        }
-
         response.share!.fileName = share.file_name;
         response.share!.fileSize = share.file_size;
         response.share!.mimeType = share.mime_type;
         response.share!.isPasswordProtected = !!share.password_hash;
-        response.share!.expiresAt = share.expires_at ?? null;
         response.share!.transferMessage = share.transfer_message ?? null;
 
         const files = share.transfer_files;
@@ -135,8 +155,10 @@ router.get(
             })
           );
         }
-      } else if (share.media_type === 'video') {
+      } else if (share.media_type === 'video' || share.media_type === 'audio') {
         response.share!.duration = share.duration;
+        // The public page picks the download extension from this (mp3 vs WAV).
+        if (share.media_type === 'audio') response.share!.mimeType = share.mime_type;
       } else {
         const metadata = (
           typeof share.image_metadata === 'string'
@@ -172,12 +194,29 @@ router.get('/:shareToken/thumbnail', async (req: Request<ShareTokenParams>, res:
     }
 
     const thumbnailPath = service.getThumbnailFilePath(share.thumbnail_path);
+    if (!thumbnailPath) {
+      return res.status(404).json({ error: 'Thumbnail nicht gefunden' });
+    }
+
+    // Same reasoning as /preview: no version in the URL, and an edit rewrites
+    // thumbnail.jpg in place, so `immutable` for a year was a promise this
+    // route cannot keep.
+    const etag = `"${versionFromShareRow(share)}"`;
+    res.setHeader('Cache-Control', PREVIEW_CACHE_CONTROL);
+    if (req.headers['if-none-match'] === etag) {
+      res.setHeader('ETag', etag);
+      return res.status(304).end();
+    }
 
     try {
       await fsPromises.access(thumbnailPath);
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-      return res.sendFile(thumbnailPath);
+      res.setHeader('ETag', etag);
+      // etag:false — otherwise sendFile overwrites the content version above
+      // with an mtime/size validator, and the 304 branch could never match.
+      return res.sendFile(thumbnailPath, { etag: false });
     } catch {
+      res.removeHeader('ETag');
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(404).json({ error: 'Thumbnail-Datei nicht gefunden' });
     }
   } catch (error) {
@@ -214,6 +253,9 @@ router.get(
         shareToken,
         metadata.originalImageFilename as string
       );
+      if (!originalPath) {
+        return res.status(404).json({ error: 'Originalbild nicht vorhanden' });
+      }
 
       try {
         const stat = await fsPromises.stat(originalPath);
@@ -247,123 +289,259 @@ router.get(
   }
 );
 
+/**
+ * Has this share's link passed its `expires_at`, for whoever is asking?
+ *
+ * Never for the owner. `/share/<token>` is also where someone checks their own
+ * share, and the row stays in their Mediathek regardless — expiry closes the
+ * *link*, so it applies to people who could only have arrived through one.
+ * `optionalAuth` is mounted on `/api/share` (routes.ts), so `req.user` is
+ * populated here when a session exists.
+ *
+ * Only the two routes that *are* that link ask this: the share page and its
+ * download. The image paths (`/preview`, `/thumbnail`, `/stream`) deliberately
+ * do not — they render the Mediathek, the galleries, the canvas editor and the
+ * candidate sites, so a deadline there would blank the product rather than
+ * close a share. See `SHARE_LINK_MAX_AGE_DAYS` for the full rationale; do not
+ * "fix" the inconsistency by adding a check to those three.
+ */
+function shareLinkExpired(share: SharedMediaRow, req: Request): boolean {
+  if (!share.expires_at) return false;
+  if (new Date(share.expires_at) >= new Date()) return false;
+  const viewerId = (req as AuthenticatedRequest).user?.id;
+  return viewerId !== share.user_id;
+}
+
+/** Wording for a dead link; transfers keep their own, older sentence. */
+function expiredLinkMessage(share: SharedMediaRow): string {
+  return share.media_type === 'transfer'
+    ? 'Dieser Transfer-Link ist abgelaufen.'
+    : 'Dieser Link ist abgelaufen.';
+}
+
+/**
+ * Resolve a share to a readable media file, or answer the request and return
+ * null. Shared by /preview and /stream so the two cannot drift on which
+ * statuses are visible.
+ *
+ * A share row that does not exist answers 410, not 404, because the two cases
+ * are not the same to a caller and used to be indistinguishable. A row that is
+ * gone is gone for good; a row whose bytes have not landed yet is the normal
+ * race right after upload (the share is listed in "Zuletzt" before the file is
+ * written) and is worth retrying. Both used to be 404, so `PreviewImage` — which
+ * only sees an <img> error event and no status — had to retry either way, and
+ * every deleted image cost four requests before it gave up. 410 lets the client
+ * stop after the first one without giving up on the race.
+ */
+async function resolveShareMedia(
+  shareToken: string,
+  res: Response
+): Promise<{ share: SharedMediaRow; mediaPath: string; fileSize: number } | null> {
+  const service = await getSharedMediaService();
+  const share = await service.getShareByToken(shareToken);
+
+  if (!share) {
+    res.status(410).json({ error: 'Medium nicht gefunden' });
+    return null;
+  }
+  if (share.status === 'processing') {
+    res.status(202).json({ status: 'processing', message: 'Medium wird noch verarbeitet' });
+    return null;
+  }
+  if (share.status === 'failed') {
+    res.status(500).json({ error: 'Verarbeitung fehlgeschlagen' });
+    return null;
+  }
+
+  const mediaPath = share.file_path ? service.getMediaFilePath(share.file_path) : null;
+  if (!mediaPath) {
+    res.status(404).json({ error: 'Datei nicht verfügbar' });
+    return null;
+  }
+
+  const stat = await fsPromises.stat(mediaPath).catch(() => null);
+  if (!stat) {
+    res.status(404).json({ error: 'Datei nicht gefunden' });
+    return null;
+  }
+
+  return { share, mediaPath, fileSize: stat.size };
+}
+
+/** Byte-range streaming for video and audio — what `<video>`/`<audio>` need to seek. */
+function streamMedia(
+  req: Request,
+  res: Response,
+  mediaPath: string,
+  fileSize: number,
+  contentType: string
+): void {
+  const range = req.headers.range;
+
+  if (range) {
+    // `bytes=a-b`, `bytes=a-` and the suffix form `bytes=-n` (RFC 7233), which
+    // some players send for the trailer. Anything else, or a start past the
+    // file, is a 416 — before this the NaN reached `createReadStream` after
+    // the 206 header was already out.
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    const suffix = match && match[1] === '' ? Number(match[2]) : null;
+    const start = match
+      ? suffix !== null
+        ? Math.max(0, fileSize - suffix)
+        : Number(match[1])
+      : NaN;
+    const end =
+      match && match[2] !== '' && suffix === null
+        ? Math.min(Number(match[2]), fileSize - 1)
+        : fileSize - 1;
+
+    if (
+      !match ||
+      !Number.isFinite(start) ||
+      (suffix !== null && !suffix) ||
+      start >= fileSize ||
+      start > end
+    ) {
+      res.writeHead(416, { 'Content-Range': `bytes */${fileSize}` });
+      res.end();
+      return;
+    }
+
+    res.writeHead(206, {
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': end - start + 1,
+      'Content-Type': contentType,
+    });
+    fs.createReadStream(mediaPath, { start, end }).pipe(res);
+    return;
+  }
+
+  res.writeHead(200, { 'Content-Length': fileSize, 'Content-Type': contentType });
+  fs.createReadStream(mediaPath).pipe(res);
+}
+
+/**
+ * Video keeps the `video/mp4` it always advertised — a QuickTime upload
+ * streamed as `video/quicktime` would stop playing in Firefox, which trusts
+ * the header where Chrome sniffs. Audio rows carry their real mime type.
+ */
+function streamContentType(share: SharedMediaRow): string {
+  return share.media_type === 'video' ? 'video/mp4' : share.mime_type || 'audio/mpeg';
+}
+
+/**
+ * Extension for the download filename. Audio rows always carry a mime type
+ * and use the service's one map; the image/video branches keep their old
+ * answers (an unknown image mime stays "png", not "bin").
+ */
+function downloadExtension(share: SharedMediaRow, service: SharedMediaService): string {
+  if (share.media_type === 'video') return 'mp4';
+  if (share.media_type === 'audio') return service.getExtensionFromMime(share.mime_type);
+  return share.mime_type === 'image/jpeg' ? 'jpg' : 'png';
+}
+
+/**
+ * GET /:shareToken/stream — video playback with byte ranges.
+ *
+ * Split out of /preview, which served video and still images through the same
+ * URL. That made "the preview route" mean two unrelated things and put a
+ * multi-megabyte mp4 one wrong content-type check away from every consumer that
+ * thinks it is asking for a picture.
+ */
+router.get('/:shareToken/stream', async (req: Request<ShareTokenParams>, res: Response) => {
+  try {
+    const resolved = await resolveShareMedia(req.params.shareToken, res);
+    if (!resolved) return;
+    if (resolved.share.media_type !== 'video' && resolved.share.media_type !== 'audio') {
+      res.status(404).json({ error: 'Kein Video oder Audio' });
+      return;
+    }
+    streamMedia(req, res, resolved.mediaPath, resolved.fileSize, streamContentType(resolved.share));
+  } catch (error) {
+    log.error('Failed to stream media:', error);
+    res.status(500).json({ error: 'Fehler beim Laden des Videos' });
+  }
+});
+
+/**
+ * GET /:shareToken/preview — image variants via `?w=&fmt=`.
+ *
+ * The rendering itself now goes through the same code as `/api/thumbs`
+ * (`services/media/thumbnailCache`), so the sharp settings, the pre-generated
+ * lookup and the write-after-send ordering exist once instead of twice.
+ *
+ * Video still works here for clients that have not moved to /stream — the
+ * shipped 1.3.0 binary among them. Deprecated: remove the video branch once a
+ * release has gone out with /stream (earliest 2026-11).
+ *
+ * Cache policy differs from `/api/thumbs` on purpose. This URL carries no
+ * version segment, and `updateImageShare` overwrites the bytes under the same
+ * share token, so `immutable, max-age=1y` — what this route used to send — left
+ * every client that had already fetched the image showing the pre-edit picture
+ * for a year. A short freshness window plus an ETag makes the common case a
+ * 304 and the edited case correct.
+ */
 router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: Response) => {
   try {
-    const { shareToken } = req.params;
-    const service = await getSharedMediaService();
-    const share = await service.getShareByToken(shareToken);
+    const resolved = await resolveShareMedia(req.params.shareToken, res);
+    if (!resolved) return;
+    const { share, mediaPath, fileSize } = resolved;
 
-    if (!share) {
-      return res.status(404).json({ error: 'Medium nicht gefunden' });
+    if (share.media_type === 'video' || share.media_type === 'audio') {
+      streamMedia(req, res, mediaPath, fileSize, streamContentType(share));
+      return;
     }
 
-    if (share.status === 'processing') {
-      return res.status(202).json({
-        status: 'processing',
-        message: 'Medium wird noch verarbeitet',
-      });
+    const version = versionFromShareRow(share);
+    const rawWidth = parseInt(req.query.w as string, 10);
+    const fmt = req.query.fmt === 'avif' ? 'avif' : 'webp';
+    // Unlike /api/thumbs this clamps rather than rejects: the widths in the wild
+    // come from already-shipped clients, so a 400 here would be a broken image
+    // on a page nobody can redeploy.
+    const width =
+      Number.isInteger(rawWidth) && rawWidth > 0
+        ? THUMBNAIL_WIDTHS.reduce((best, w) =>
+            Math.abs(w - rawWidth) < Math.abs(best - rawWidth) ? w : best
+          )
+        : null;
+
+    const etag = `"${version}-w${width ?? 'orig'}-${width ? fmt : 'src'}"`;
+    res.setHeader('Cache-Control', PREVIEW_CACHE_CONTROL);
+    res.setHeader('ETag', etag);
+    if (req.headers['if-none-match'] === etag) {
+      res.status(304).end();
+      return;
     }
 
-    if (share.status === 'failed') {
-      return res.status(500).json({ error: 'Verarbeitung fehlgeschlagen' });
-    }
-
-    if (!share.file_path) {
-      return res.status(404).json({ error: 'Datei nicht verfügbar' });
-    }
-
-    const mediaPath = service.getMediaFilePath(share.file_path);
-
-    try {
-      const stat = await fsPromises.stat(mediaPath);
-      const fileSize = stat.size;
-
-      if (share.media_type === 'video') {
-        const range = req.headers.range;
-
-        if (range) {
-          const parts = range.replace(/bytes=/, '').split('-');
-          const start = parseInt(parts[0], 10);
-          const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-          const chunkSize = end - start + 1;
-
-          res.writeHead(206, {
-            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-            'Accept-Ranges': 'bytes',
-            'Content-Length': chunkSize,
-            'Content-Type': 'video/mp4',
-          });
-
-          const stream = fs.createReadStream(mediaPath, { start, end });
-          return stream.pipe(res);
-        } else {
-          res.writeHead(200, {
-            'Content-Length': fileSize,
-            'Content-Type': 'video/mp4',
-          });
-          return fs.createReadStream(mediaPath).pipe(res);
-        }
-      } else {
-        // Responsive thumbnails via ?w=<width>&fmt=<webp|avif>. These files are
-        // normally pre-generated at upload (sharedMediaService.generateMediaVariants);
-        // when a variant is missing we generate + cache it on demand. Explicit
-        // `fmt` (rather than Accept negotiation) keeps every URL independently
-        // cacheable. Filenames must match the generator: `<base>_w<width>.<fmt>`.
-        const requestedWidth = parseInt(req.query.w as string, 10);
-        const fmt = req.query.fmt === 'avif' ? 'avif' : 'webp';
-        if (requestedWidth && requestedWidth > 0 && requestedWidth < 2000) {
-          try {
-            const thumbDir = path.join(path.dirname(mediaPath), 'thumbs');
-            const thumbFilename = `${path.basename(mediaPath, path.extname(mediaPath))}_w${requestedWidth}.${fmt}`;
-            const thumbPath = path.join(thumbDir, thumbFilename);
-            const contentType = fmt === 'avif' ? 'image/avif' : 'image/webp';
-
-            // Serve the pre-generated/cached variant if present.
-            try {
-              const thumbStat = await fsPromises.stat(thumbPath);
-              res.setHeader('Content-Type', contentType);
-              res.setHeader('Content-Length', thumbStat.size);
-              res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-              return fs.createReadStream(thumbPath).pipe(res);
-            } catch {
-              // Not generated yet — fall through to on-demand generation.
-            }
-
-            await fsPromises.mkdir(thumbDir, { recursive: true });
-            const resized = sharp(mediaPath, { failOn: 'none' }).resize({
-              width: requestedWidth,
-              withoutEnlargement: true,
-            });
-            const thumbBuffer = await (
-              fmt === 'avif' ? resized.avif({ quality: 60 }) : resized.webp({ quality: 78 })
-            ).toBuffer();
-
-            // Cache to disk asynchronously (don't await)
-            fsPromises.writeFile(thumbPath, thumbBuffer).catch((err) => {
-              log.error('Failed to cache thumbnail:', err);
-            });
-
-            res.setHeader('Content-Type', contentType);
-            res.setHeader('Content-Length', thumbBuffer.length);
-            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-            return res.send(thumbBuffer);
-          } catch (resizeErr) {
-            log.error('Thumbnail generation failed, serving original:', resizeErr);
-            // Fall through to serve original
-          }
-        }
-
-        res.setHeader('Content-Type', share.mime_type || 'image/png');
-        res.setHeader('Content-Length', fileSize);
-        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-        return fs.createReadStream(mediaPath).pipe(res);
+    const variant = await getThumbnailVariant(
+      { kind: 'media', id: share.share_token, v: version, width, fmt },
+      {
+        sourcePath: mediaPath,
+        contentType: share.mime_type || 'image/png',
+        pregenerated: {
+          dir: path.join(path.dirname(mediaPath), 'thumbs'),
+          base: path.basename(mediaPath, path.extname(mediaPath)),
+        },
       }
-    } catch {
-      return res.status(404).json({ error: 'Datei nicht gefunden' });
+    );
+    if (!variant) {
+      res.removeHeader('ETag');
+      res.setHeader('Cache-Control', 'no-store');
+      res.status(404).json({ error: 'Datei nicht gefunden' });
+      return;
     }
+
+    res.setHeader('Content-Type', variant.contentType);
+    res.setHeader('Content-Length', variant.size);
+    if (variant.buffer) {
+      res.send(variant.buffer);
+      return;
+    }
+    fs.createReadStream(variant.filePath as string).pipe(res);
   } catch (error) {
     log.error('Failed to serve preview:', error);
-    return res.status(500).json({ error: 'Fehler beim Laden der Vorschau' });
+    res.status(500).json({ error: 'Fehler beim Laden der Vorschau' });
   }
 });
 
@@ -388,12 +566,12 @@ router.get(
         return;
       }
 
-      if (share.media_type === 'transfer') {
-        if (share.expires_at && new Date(share.expires_at) < new Date()) {
-          res.status(410).json({ success: false, error: 'Dieser Transfer-Link ist abgelaufen.' });
-          return;
-        }
+      if (shareLinkExpired(share, req)) {
+        res.status(410).json({ success: false, error: expiredLinkMessage(share) });
+        return;
+      }
 
+      if (share.media_type === 'transfer') {
         // scrypt format: "salt:hash"
         const password = req.headers['x-transfer-password'] as string;
         if (share.password_hash) {
@@ -499,6 +677,10 @@ router.get(
       await service.recordDownload(shareToken as string, userEmail, ipAddress);
 
       const mediaPath = service.getMediaFilePath(share.file_path);
+      if (!mediaPath) {
+        res.status(404).json({ success: false, error: 'Datei nicht gefunden' });
+        return;
+      }
 
       try {
         const stat = await fsPromises.stat(mediaPath);
@@ -508,9 +690,7 @@ router.get(
           .replace(/[^a-zA-Z0-9_-]/g, '_')
           .substring(0, 50);
 
-        const extension =
-          share.media_type === 'video' ? 'mp4' : share.mime_type === 'image/jpeg' ? 'jpg' : 'png';
-        const filename = `${sanitizedTitle}_gruenerator.${extension}`;
+        const filename = `${sanitizedTitle}_gruenerator.${downloadExtension(share, service)}`;
 
         res.setHeader(
           'Content-Type',

@@ -5,10 +5,14 @@ import {
   ReelArtifactPanel,
   SharepicArtifactPanel,
   setMentionInstance,
+  setMentionLandesverbaende,
   setMentionLocale,
   useAgentStore,
   useChatRuntimeReady,
+  useDockedPanelActive,
+  useReportPanelDockable,
   useUserAgentsRegistry,
+  useUserLandesverbaende,
 } from '@gruenerator/chat';
 import {
   getLandesverbandHubBySlug,
@@ -17,9 +21,18 @@ import {
   resolveSkillMention,
 } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
-import { useIsNarrowerThan } from '@gruenerator/ui';
-import { useCallback, useEffect, useRef } from 'react';
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useContainerWidth, useIsNarrowerThan } from '@gruenerator/ui';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
@@ -27,6 +40,7 @@ import { CURRENT_INSTANCE } from '@/config/instance';
 import { useUserAgents } from '@/features/agents/api';
 import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
+import { useRecipeDeepLink } from '@/features/chat/useRecipeDeepLink';
 import { useGroupDetails } from '@/features/groups/hooks/useGroups';
 import { resolveChatBackground } from '@/features/workplace/chatBackgrounds';
 import { useFirstName } from '@/hooks/useFirstName';
@@ -67,8 +81,8 @@ const COMPOSER_VARIANT = isDesktopApp() ? 'card' : 'pill';
 
 /**
  * Ab welcher Breite ein Artefakt als angedockte Schiene neben dem Faden steht,
- * statt ihn als Vollbild zu überdecken: die 24rem der Schiene plus 48rem, die
- * dem Faden bleiben müssen.
+ * statt sich als Schiene über ihn zu legen: die 24rem der Schiene plus 48rem,
+ * die dem Faden bleiben müssen.
  *
  * Gemessen wird die Chat-Spalte, nicht das Fenster. Dieselbe Oberfläche steckt
  * als schmales Panel in den Editoren — dort ist ein 1440px breites Fenster kein
@@ -76,25 +90,114 @@ const COMPOSER_VARIANT = isDesktopApp() ? 'card' : 'pill';
  */
 const ARTIFACT_DOCK_MIN_WIDTH = 72 * 16;
 
+// Default/minimum docked width — the panel only grows from here via the
+// resize handle, it never gets narrower than the original fixed width.
+const ARTIFACT_PANEL_DEFAULT_WIDTH = 24 * 16;
+// Per-keypress growth for the ArrowLeft/ArrowRight keyboard resize (WAI-ARIA
+// "window splitter" pattern — the handle must be operable without a pointer).
+const ARTIFACT_PANEL_RESIZE_KEY_STEP = 32;
+
 const ARTIFACT_PANEL_DOCKED =
-  'flex w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt';
-const ARTIFACT_PANEL_OVERLAY = 'fixed inset-0 z-[1010] flex flex-col bg-background-alt';
+  'flex w-[var(--gr-artifact-panel-width,24rem)] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt';
+// Zu schmal zum Andocken heißt nicht Vollbild: die Schiene legt sich rechts
+// über den Faden, der Chat bleibt daneben sichtbar und antippbar.
+const ARTIFACT_PANEL_OVERLAY =
+  'fixed inset-y-0 right-0 z-[1010] flex w-[min(24rem,85vw)] flex-col overflow-hidden border-l border-border bg-background-alt shadow-2xl';
 
 function ChatPage() {
   const [searchParams] = useSearchParams();
   // `slug` comes from /agents/:slug, `threadSlug` from /chat/:threadSlug.
   const { slug, threadSlug } = useParams<{ slug?: string; threadSlug?: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   // False while the lazy assistant-ui runtime chunk is still loading (or in the
   // Suspense fallback on a cold direct load of /chat). Gating the runtime-using
   // content below on it keeps useAui() from running outside the provider —
   // the "requires an AuiProvider" prod crash.
   const runtimeReady = useChatRuntimeReady();
   const shellRef = useRef<HTMLDivElement>(null);
-  const artifactPanelClass = useIsNarrowerThan(shellRef, ARTIFACT_DOCK_MIN_WIDTH)
-    ? ARTIFACT_PANEL_OVERLAY
-    : ARTIFACT_PANEL_DOCKED;
+  const shellNarrow = useIsNarrowerThan(shellRef, ARTIFACT_DOCK_MIN_WIDTH);
+  const shellWidth = useContainerWidth(shellRef);
+  const artifactPanelClass = shellNarrow ? ARTIFACT_PANEL_OVERLAY : ARTIFACT_PANEL_DOCKED;
+  const dockedPanelActive = useDockedPanelActive();
+
+  // Dieselbe Messung entscheidet auch, ob ein eingehendes Artefakt die Schiene
+  // von selbst aufziehen darf — der SSE-Parser kann sie nicht selbst anstellen.
+  useReportPanelDockable(!shellNarrow);
+
+  // User-resizable docked panel width, grown by dragging the handle left.
+  // Never below the original fixed width, never past half the chat column —
+  // the thread needs to stay usable, not just "not fully covered".
+  const [panelWidthPx, setPanelWidthPx] = useState(ARTIFACT_PANEL_DEFAULT_WIDTH);
+  const maxPanelWidthPx = Math.max(ARTIFACT_PANEL_DEFAULT_WIDTH, Math.floor(shellWidth / 2));
+  const clampedPanelWidthPx = Math.min(panelWidthPx, maxPanelWidthPx);
+
+  // Drag state lives in a ref, not closed-over locals: with pointer capture,
+  // move/end fire as React prop callbacks on the handle itself (see below),
+  // so they need to read the values `start` captured without re-subscribing
+  // per render.
+  const panelResizeRef = useRef<{ startX: number; startWidth: number; maxWidth: number } | null>(
+    null
+  );
+
+  const handlePanelResizeStart = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      // The docked panel is mostly an <iframe>; plain window-level listeners
+      // stop receiving events the moment the pointer crosses into it (a
+      // shrink-drag moves back toward the panel almost immediately) because
+      // the iframe has its own document. Capturing the pointer on the handle
+      // retargets all of its events here regardless of what's underneath.
+      e.currentTarget.setPointerCapture(e.pointerId);
+      panelResizeRef.current = {
+        startX: e.clientX,
+        startWidth: clampedPanelWidthPx,
+        maxWidth: Math.max(
+          ARTIFACT_PANEL_DEFAULT_WIDTH,
+          Math.floor((shellRef.current?.clientWidth ?? 0) / 2)
+        ),
+      };
+    },
+    [clampedPanelWidthPx]
+  );
+
+  const handlePanelResizeMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = panelResizeRef.current;
+    if (!drag) return;
+    // The handle sits at the panel's left edge — dragging it further left
+    // (smaller clientX) grows the panel.
+    const next = drag.startWidth + (drag.startX - e.clientX);
+    setPanelWidthPx(Math.min(drag.maxWidth, Math.max(ARTIFACT_PANEL_DEFAULT_WIDTH, next)));
+  }, []);
+
+  const handlePanelResizeEnd = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    panelResizeRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  }, []);
+
+  // WAI-ARIA "window splitter" pattern: a separator that resizes layout must
+  // be operable from the keyboard, not pointer-only.
+  const handlePanelResizeKeyDown = useCallback((e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const dragMaxWidth = Math.max(
+      ARTIFACT_PANEL_DEFAULT_WIDTH,
+      Math.floor((shellRef.current?.clientWidth ?? 0) / 2)
+    );
+    setPanelWidthPx((current) => {
+      const next =
+        e.key === 'ArrowLeft'
+          ? current + ARTIFACT_PANEL_RESIZE_KEY_STEP
+          : current - ARTIFACT_PANEL_RESIZE_KEY_STEP;
+      return Math.min(dragMaxWidth, Math.max(ARTIFACT_PANEL_DEFAULT_WIDTH, next));
+    });
+  }, []);
+
+  const shellStyle = useMemo(
+    () => ({ '--gr-artifact-panel-width': `${clampedPanelWidthPx}px` }) as CSSProperties,
+    [clampedPanelWidthPx]
+  );
   const chatViewMode = useAgentStore((s) => s.chatViewMode);
   const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);
   const firstName = useFirstName();
@@ -117,6 +220,16 @@ function ChatPage() {
   useEffect(() => {
     setMentionLocale(userLocale);
   }, [userLocale]);
+  // Dasselbe für die Landesverbands-Zuteilung: der Picker bietet LV-Rezepte und
+  // -Notebooks nur denen an, die laut Profilrolle in der Landesgeschäftsstelle
+  // dieses Landesverbands arbeiten. Ohne diese Rolle sind sie nicht im Menü;
+  // solange die Rollen nicht geladen sind (`lvIds === null`) wird nicht
+  // gefiltert. Auflösung bleibt davon unberührt — ein `@bayern` in einem alten
+  // Thread muss für alle weiter auflösen.
+  const { lvIds } = useUserLandesverbaende();
+  useEffect(() => {
+    setMentionLandesverbaende(lvIds);
+  }, [lvIds]);
   // The agent we've already auto-applied a default notebook for. Prevents the
   // effect from re-applying (and clobbering a manual notebook pick) when the
   // `userAgents` query reference changes on an unrelated cache invalidation.
@@ -124,20 +237,38 @@ function ChatPage() {
   // A Landesverband hub slug (`gruene-berlin`) opens a landing offering both LV
   // agents instead of resolving straight to one. Checked first so the slug
   // never falls through to agent resolution (which would bind a bogus agent).
-  const hub = slug ? getLandesverbandHubBySlug(slug) : null;
+  // Mit Instanz: ohne sie fällt der Standardwert auf `production` zurück, und
+  // eine Instanz, die einen Landesverband wirklich sperrt, bekäme seine Landing
+  // samt drei funktionsfähiger Agenten trotzdem.
+  const hub = slug ? getLandesverbandHubBySlug(slug, CURRENT_INSTANCE) : null;
   // Agentura skill links land on `/chat?skill=<mention>` (e.g. presse-bayern).
   // Resolve the mention to its agent identifier so the agent activates and its
   // own welcome screen (welcomeQuestion + opening-question examples) renders
   // instead of the generic overview greeting. Lowest priority in the chain so
   // an explicit ?agent= or path slug still wins.
   const skillParam = hub ? null : searchParams.get('skill');
-  const resolvedFromSkill = skillParam ? resolveSkillMention(skillParam) : null;
+  // Rezept-Deeplink aus der Agentura: `/chat?rezept=<mention>&rezeptId=<id>`.
+  // `?skill=` allein aktiviert das Rezept NICHT — es löst nur den Agenten auf,
+  // der Rumpf des Rezepts blieb dabei ungenutzt. `?rezept=` aktiviert die
+  // Erwähnung selbst (unten); trifft sie zusätzlich ein Systemrezept, läuft
+  // dieselbe Agentenauflösung weiter mit.
+  const rezeptParam = hub ? null : searchParams.get('rezept');
+  const rezeptIdParam = hub ? null : searchParams.get('rezeptId');
+  const resolvedFromSkill = skillParam
+    ? resolveSkillMention(skillParam)
+    : rezeptParam
+      ? resolveSkillMention(rezeptParam)
+      : null;
   // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
   // still wins when explicitly set so old deep links keep their behavior.
   const agentParam = hub
     ? null
     : (searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null) ?? resolvedFromSkill);
-  const modeParam = searchParams.get('mode');
+  const rawModeParam = searchParams.get('mode');
+  const modeParam =
+    rawModeParam === 'search' || rawModeParam === 'notebook' || rawModeParam === 'eigener'
+      ? rawModeParam
+      : null;
 
   // When the URL carries an agent/mode param or a thread deep link, jump
   // straight into the thread — otherwise users land on the new-chat hero
@@ -146,11 +277,7 @@ function ChatPage() {
   // context and switches to a new thread on mount) from racing the thread
   // resolution.
   const effectiveViewMode =
-    agentParam ||
-    threadSlug ||
-    (modeParam && (modeParam === 'search' || modeParam === 'notebook' || modeParam === 'eigener'))
-      ? 'thread'
-      : chatViewMode;
+    agentParam || threadSlug || modeParam || rezeptParam ? 'thread' : chatViewMode;
 
   useDocumentTitle(hub ? hub.name : effectiveViewMode === 'thread' ? currentThreadTitle : null);
 
@@ -201,15 +328,19 @@ function ChatPage() {
         store.resetChatContext();
       }
     }
-    if (
-      modeParam &&
-      (modeParam === 'search' || modeParam === 'notebook' || modeParam === 'eigener') &&
-      store.threadMode !== modeParam
-    ) {
+    if (modeParam && store.threadMode !== modeParam) {
       store.setThreadMode(modeParam);
       store.setChatViewMode('thread');
     }
   }, [agentParam, modeParam, threadSlug, userLocale, userAgents]);
+
+  // `?rezept=<mention>` aktiviert das Rezept für den nächsten Turn — dieselbe
+  // Wirkung, die eine `@`-Erwähnung im Composer hat. `rezeptId` trägt die
+  // Zeilen-ID eigener/geteilter/öffentlicher Rezepte mit, damit das Backend
+  // über die ID auflöst statt über die Erwähnung; für ein Systemrezept bleibt
+  // sie leer. Der Hook steht NACH der Agentenauflösung und hält das Rezept
+  // nach, solange der Parameter lebt — warum das nötig ist, steht dort.
+  useRecipeDeepLink(rezeptParam, rezeptIdParam);
 
   // "Neuer Chat in diesem Projekt" arrives as /chat?projekt=<groupId>. File the
   // freshly created thread into that Projekt, reusing the same thread-groupId
@@ -253,18 +384,25 @@ function ChatPage() {
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
-  const isAgentsPath = location.pathname.startsWith('/agents/');
   const handleNavigateToThread = useCallback(
-    (slugPath: string, opts: { replace: boolean }) => {
-      // Canonicalizing /agents/:slug → /chat/<slug> replaces so Back leaves
-      // the agent page instead of bouncing between the two URLs.
-      void navigate(`/chat/${slugPath}`, { replace: opts.replace || isAgentsPath });
+    (slugPath: string) => {
+      // Always a replace: this only ever canonicalizes the URL for a thread the
+      // runtime is already on (a draft that just minted, a generated title).
+      // Clicking a thread is the only thing that pushes, so Back walks the
+      // threads the user actually visited and can never replay an oscillation.
+      void navigate(`/chat/${slugPath}`, { replace: true });
     },
-    [navigate, isAgentsPath]
+    [navigate]
   );
   const handleThreadGone = useCallback(() => {
     // Land on the new-chat hero, not on whatever thread is still current.
     useAgentStore.getState().setChatViewMode('overview');
+    void navigate('/chat', { replace: true });
+  }, [navigate]);
+  const handleLeaveThread = useCallback(() => {
+    // The runtime moved to a fresh draft on its own (agent switch). The thread
+    // still exists, so this is not "gone" — just follow it out of the thread
+    // URL and leave the view mode alone: the draft is where the user types next.
     void navigate('/chat', { replace: true });
   }, [navigate]);
 
@@ -277,16 +415,34 @@ function ChatPage() {
   }
 
   return (
-    <div ref={shellRef} className="flex min-h-0 h-full bg-background">
+    <div ref={shellRef} className="flex min-h-0 h-full bg-background" style={shellStyle}>
       {!hub && (
         <ChatThreadRouting
           threadSlug={threadSlug ?? null}
           onNavigateToThread={handleNavigateToThread}
           onThreadGone={handleThreadGone}
+          onLeaveThread={handleLeaveThread}
           onOpenNotebookThread={handleNavigate}
         />
       )}
-      <div className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
+      {/* `min-w-0`: ohne das ist die Mindestbreite dieses Flex-Items die
+          min-content-Breite des GANZEN Threads. Eine nicht umbrechende Zeile in
+          einer Tool-Karte (`truncate` = white-space: nowrap) zieht damit den
+          kompletten Chat auf ihre Textbreite auf — gemessen 528 px bei 390 px
+          Viewport. Weiter innen wirkt der Riegel nicht: `min-w-0` bzw.
+          `overflow-hidden` am Thread-Root oder am Viewport ändern nichts, nur
+          das äußerste Flex-Item zählt. Die übrigen Chat-Wirte (ChatLayout,
+          Docs-/Sheets-/Presentations-/Board-Panel) sind über ihr
+          `overflow-hidden` bereits abgesichert. */}
+      {/* Das untere Padding trägt die Höhe der Bildschirmtastatur, die der
+          Composer als --mobile-keyboard-offset veröffentlicht
+          (useMobileKeyboardOffset). Diese eine Spalte um sie zu kürzen bedient
+          beide Zweige darunter — im Thread hebt es den unten verankerten
+          Composer über die Tastatur, in der Übersicht rückt es den zentrierten
+          Hero in den noch sichtbaren Bereich. Die Variable darf genau hier
+          einmal verrechnet werden; ein zweites Padding weiter innen zöge den
+          Composer um die doppelte Tastaturhöhe hoch. */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col pt-4 pb-[var(--mobile-keyboard-offset,0px)] md:pt-0">
         {hub ? (
           <LandesverbandHub hub={hub} onNavigate={handleNavigate} userLocale={userLocale} />
         ) : effectiveViewMode === 'overview' ? (
@@ -298,7 +454,11 @@ function ChatPage() {
             className={cn(
               'workplace-chat-sunrise workplace-chat-accent',
               chatBackground.className,
-              'flex min-h-0 flex-1 flex-col justify-center overflow-y-auto pb-[6vh]'
+              // `justify-center-safe` wie auf dem Workplace-Chat-Tab: sobald die
+              // Tastatur die Spalte kürzt, überläuft der zentrierte Inhalt — bei
+              // reinem `justify-center` nach oben aus dem Scrollbereich heraus
+              // und damit unerreichbar.
+              'flex min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[6vh]'
             )}
           >
             <ChatHero projectName={projektName} />
@@ -308,6 +468,7 @@ function ChatPage() {
             onNavigate={handleNavigate}
             firstName={firstName}
             requireProfileHydration
+            enableSearch
             // `neutral` promises "kein Verlauf — nur der Seitenhintergrund", so
             // it gets no band either. Every other preset does: the band is the
             // same one regardless of which was picked, because it is the
@@ -319,6 +480,27 @@ function ChatPage() {
           />
         )}
       </div>
+      {!hub && effectiveViewMode === 'thread' && !shellNarrow && dockedPanelActive && (
+        // Drag handle for the docked panel's width — grows it left, capped at
+        // half the chat column (see ARTIFACT_PANEL_DEFAULT_WIDTH/maxPanelWidthPx
+        // above). Hidden in overlay mode (too narrow to dock, nothing to split)
+        // and while no panel is showing (nothing to resize).
+        <div
+          role="slider"
+          aria-orientation="vertical"
+          aria-label="Panelbreite anpassen"
+          aria-valuenow={clampedPanelWidthPx}
+          aria-valuemin={ARTIFACT_PANEL_DEFAULT_WIDTH}
+          aria-valuemax={maxPanelWidthPx}
+          tabIndex={0}
+          className="w-1 shrink-0 cursor-col-resize touch-none bg-transparent transition-colors hover:bg-primary/20 active:bg-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+          onPointerDown={handlePanelResizeStart}
+          onPointerMove={handlePanelResizeMove}
+          onPointerUp={handlePanelResizeEnd}
+          onPointerCancel={handlePanelResizeEnd}
+          onKeyDown={handlePanelResizeKeyDown}
+        />
+      )}
       {!hub && effectiveViewMode === 'thread' && (
         // Sharepic-Modus: pins the active sharepic as a docked artifact while
         // the user iterates via chat. Too narrow to dock, it covers the thread

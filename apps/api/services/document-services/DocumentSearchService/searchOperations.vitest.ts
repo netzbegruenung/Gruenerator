@@ -173,6 +173,62 @@ describe('searchOperations — document scoping vs. user scoping invariant', () 
     });
   });
 
+  // #3166 Fix-Runde 1, t3-fix1-review finding 3: the discriminator
+  // (`fusionMethod?.endsWith('-server')`) had zero coverage — the mock above
+  // never returns `metadata`, so only the `?? false` fallback arm ever ran.
+  describe('findHybridChunks — der -server-Diskriminator', () => {
+    function makeHybridResultOps(
+      fusionMethod: string,
+      originalVectorScore: number | null
+    ): QdrantOperations {
+      return {
+        hybridSearch: vi.fn().mockResolvedValue({
+          results: [
+            {
+              id: 'p1',
+              score: 0.9,
+              payload: { document_id: 'doc-1', chunk_text: 'text' },
+              searchMethod: 'hybrid',
+              originalVectorScore,
+              originalTextScore: null,
+            },
+          ],
+          metadata: { fusionMethod },
+        }),
+      } as unknown as QdrantOperations;
+    }
+
+    it('trägt den Kosinus in denseSimilarityScore, wenn fusionMethod auf -server endet', async () => {
+      const ops = makeHybridResultOps('rrf-server', 0.42);
+      const [chunk] = await findHybridChunks(ops, true, {
+        embedding: [0.1, 0.2, 0.3],
+        query: 'q',
+        userId: 'viewer-id',
+        filters: { searchCollection: 'documents' },
+        limit: 10,
+        threshold: 0.35,
+        hybridOptions: {},
+      });
+
+      expect(chunk?.denseSimilarityScore).toBe(0.42);
+    });
+
+    it('bleibt null, wenn fusionMethod von der Alt-Fusion kommt (RRF)', async () => {
+      const ops = makeHybridResultOps('RRF', 0.42);
+      const [chunk] = await findHybridChunks(ops, true, {
+        embedding: [0.1, 0.2, 0.3],
+        query: 'q',
+        userId: 'viewer-id',
+        filters: { searchCollection: 'documents' },
+        limit: 10,
+        threshold: 0.35,
+        hybridOptions: {},
+      });
+
+      expect(chunk?.denseSimilarityScore).toBeNull();
+    });
+  });
+
   describe('performTextSearch (keyword search)', () => {
     it('omits user_id filter when documentIds is supplied', async () => {
       const { ops, captured } = makeMockQdrantOps();

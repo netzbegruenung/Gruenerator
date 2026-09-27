@@ -15,6 +15,7 @@ import express, { type Router, type Response } from 'express';
 import { z } from 'zod';
 
 import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
+import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
@@ -31,6 +32,7 @@ const router: Router = express.Router();
 // Initialize services
 const postgresDocumentService = getPostgresDocumentService();
 const documentSearchService = new DocumentSearchService();
+const notebookHelper = new NotebookQdrantHelper();
 
 /**
  * GET /user - Get user documents with enrichment
@@ -289,57 +291,84 @@ router.get(
 );
 
 /**
+ * Kern von GET /chunks und GET /:id/chunks: Chunks eines Dokuments für die
+ * chunkweise Anzeige. Nutzerdokumente und Systemsammlungen (via ?collectionId=).
+ */
+async function respondWithDocumentChunks(
+  req: DocumentRequest,
+  res: Response,
+  rawId: string
+): Promise<void> {
+  try {
+    const id = fromParam<DocumentId>(rawId);
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const collectionId = req.query.collectionId as string | undefined;
+    const systemConfig = collectionId ? getSystemCollectionConfig(collectionId) : null;
+
+    let documentTitle = 'Dokument';
+
+    if (!systemConfig) {
+      const document = await postgresDocumentService.getDocumentById(id, userId);
+      if (!document) {
+        res.status(404).json({ success: false, message: 'Document not found or access denied' });
+        return;
+      }
+      documentTitle = document.title;
+    }
+
+    const result = await documentSearchService.getDocumentChunks(
+      userId,
+      id,
+      systemConfig ? { qdrantCollection: systemConfig.qdrantCollection } : undefined
+    );
+    if (!result.success) {
+      res.status(404).json({ success: false, message: result.error || 'No chunks found' });
+      return;
+    }
+    res.json({
+      success: true,
+      document_id: id,
+      document_title: documentTitle,
+      chunk_count: result.chunkCount,
+      chunks: result.chunks,
+    });
+  } catch (error) {
+    log.error('[GET chunks] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: (error as Error).message || 'Failed to get document chunks',
+    });
+  }
+}
+
+/**
+ * GET /chunks?documentId=… — derselbe Abruf mit der Dokument-ID im
+ * Query-String. URL-förmige IDs gescrapter Systemsammlungen überleben den
+ * Pfad nicht: der Reverse-Proxy dekodiert %2F und merged Slashes, bevor
+ * Express routet (beta, 03.09.2026); Query-Strings passieren unverändert.
+ */
+router.get('/chunks', async (req: DocumentRequest, res: Response): Promise<void> => {
+  const documentId = req.query.documentId;
+  if (typeof documentId !== 'string' || documentId.length === 0) {
+    res.status(400).json({ success: false, message: 'documentId query parameter is required' });
+    return;
+  }
+  await respondWithDocumentChunks(req, res, documentId);
+});
+
+/**
  * GET /:id/chunks - Get individual document chunks for chunk-level navigation.
  * Supports user documents and system collection documents via ?collectionId= param.
  */
 router.get(
   '/:id/chunks',
   async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
-    try {
-      const id = fromParam<DocumentId>(req.params.id);
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const collectionId = req.query.collectionId as string | undefined;
-      const systemConfig = collectionId ? getSystemCollectionConfig(collectionId) : null;
-
-      let documentTitle = 'Dokument';
-
-      if (!systemConfig) {
-        const document = await postgresDocumentService.getDocumentById(id, userId);
-        if (!document) {
-          res.status(404).json({ success: false, message: 'Document not found or access denied' });
-          return;
-        }
-        documentTitle = document.title;
-      }
-
-      const result = await documentSearchService.getDocumentChunks(
-        userId,
-        id,
-        systemConfig ? { qdrantCollection: systemConfig.qdrantCollection } : undefined
-      );
-      if (!result.success) {
-        res.status(404).json({ success: false, message: result.error || 'No chunks found' });
-        return;
-      }
-      res.json({
-        success: true,
-        document_id: id,
-        document_title: documentTitle,
-        chunk_count: result.chunkCount,
-        chunks: result.chunks,
-      });
-    } catch (error) {
-      log.error('[GET /:id/chunks] Error:', error);
-      res.status(500).json({
-        success: false,
-        message: (error as Error).message || 'Failed to get document chunks',
-      });
-    }
+    await respondWithDocumentChunks(req, res, req.params.id);
   }
 );
 
@@ -368,6 +397,12 @@ router.delete(
         log.warn('[DELETE /:id] Vector deletion warning:', vectorError);
         // Continue even if vector deletion fails - document metadata is already deleted
       }
+
+      // Notebook membership lives in Qdrant, not in the Postgres table of the
+      // same name, so no foreign key takes this out for us. Left behind, the
+      // join point keeps naming a document that no longer exists: notebooks go
+      // on listing it, and QA filters on an id that can never match.
+      await notebookHelper.removeDocumentsFromAllCollections([id]);
 
       res.json({
         success: true,
@@ -445,6 +480,10 @@ router.delete(
       const vectorDeleteSuccesses = vectorDeleteResults.filter(
         (result) => result.status === 'fulfilled' && result.value.success
       ).length;
+
+      // Same reason as the single delete above: nothing else clears the notebook
+      // join points, and a stale one outlives the document it names.
+      await notebookHelper.removeDocumentsFromAllCollections(deleteResult.deletedIds);
 
       log.debug(
         `[DELETE /bulk] Bulk delete completed: ${deleteResult.deletedCount} documents deleted, ${vectorDeleteSuccesses} vector collections deleted`

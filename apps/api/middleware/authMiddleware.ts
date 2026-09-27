@@ -7,11 +7,14 @@ import { randomUUID } from 'node:crypto';
 
 import { userProfileSchema, type UserProfile } from '@gruenerator/contracts';
 import { fromNodeHeaders } from 'better-auth/node';
+import { eq } from 'drizzle-orm';
 import { type Request, type Response, type NextFunction } from 'express';
 
-import { auth, type BetterAuthUser } from '../config/betterAuth.js';
+import { auth, SESSION_COOKIE_PREFIX, type BetterAuthUser } from '../config/betterAuth.js';
 import { env } from '../config/env.js';
-import { getUserLocale } from '../services/localization/localeCache.js';
+import { ba_sessions } from '../database/schema/auth.js';
+import { getDrizzleInstance } from '../database/services/DrizzleService.js';
+import { getUserLocale, LOCALE_UNSET } from '../services/localization/localeCache.js';
 import { isAdminByEmail } from '../utils/adminEmails.js';
 import { BRAND } from '../utils/domainUtils.js';
 import { createLogger } from '../utils/logger.js';
@@ -34,6 +37,10 @@ const DEV_BYPASS_USER: Express.User = {
   reduce_motion: false,
   reduce_transparency: false,
   show_skip_link: true,
+  // Wie im clientseitigen Bypass ein fester Zeitstempel: der Dev-Bypass-Nutzer
+  // hat keine Profilzeile, ein Widerruf oder eine Einwilligung ginge also ins
+  // Leere — mit `null` säße jeder lokale Lauf hinter dem Dialog fest.
+  ai_consent_at: '2026-01-01T00:00:00.000Z',
   groups_enabled: false,
   custom_generators: false,
   database_access: false,
@@ -111,7 +118,7 @@ export function toBetterAuthUser(user: BetterAuthUser): UserProfile {
  *                           returned nothing → expired / revoked / row gone.
  *                           The smoking-gun case (warn-level).
  */
-type ResolveResult =
+export type ResolveResult =
   | { kind: 'user'; user: Express.User }
   | {
       kind: 'none';
@@ -126,14 +133,21 @@ type ResolveResult =
  * production adds (the secure name contains the base name as a substring).
  * Returns the 8-char token prefix — the SAME 8 chars the `session-created`
  * hook logs — so a single `grep token=<8>` reconstructs a session's lifecycle.
+ *
+ * Matches on this instance's SESSION_COOKIE_PREFIX, not on a literal `ba`:
+ * a browser holding sessions for prod AND beta sends the parent-domain cookie
+ * to beta too, and reporting THAT token while Better Auth reads its own makes
+ * the diagnostics blame a "live" session that was never consulted.
  */
 function classifySessionCookies(cookieHeader: string | undefined): {
+  token?: string | undefined;
   hasSessionToken: boolean;
   tokenPrefix?: string | undefined;
   sessionDataPresent: boolean;
 } {
   if (!cookieHeader) return { hasSessionToken: false, sessionDataPresent: false };
   const pairs = cookieHeader.split(';').map((c) => c.trim());
+  let token: string | undefined;
   let tokenPrefix: string | undefined;
   let hasSessionToken = false;
   let sessionDataPresent = false;
@@ -142,18 +156,59 @@ function classifySessionCookies(cookieHeader: string | undefined): {
     if (eq === -1) continue;
     const name = pair.slice(0, eq);
     const value = pair.slice(eq + 1);
-    if (name.includes('ba.session_token')) {
+    if (name.includes(`${SESSION_COOKIE_PREFIX}.session_token`)) {
       hasSessionToken = true;
       try {
-        tokenPrefix = decodeURIComponent(value).split('.')[0]?.slice(0, 8);
+        // Cookie value is `<token>.<signature>`; the DB column stores the
+        // bare token.
+        token = decodeURIComponent(value).split('.')[0];
+        tokenPrefix = token?.slice(0, 8);
       } catch {
-        // Malformed cookie value — leave prefix undefined.
+        // Malformed cookie value — leave token/prefix undefined.
       }
-    } else if (name.includes('ba.session_data')) {
+    } else if (name.includes(`${SESSION_COOKIE_PREFIX}.session_data`)) {
       sessionDataPresent = true;
     }
   }
-  return { hasSessionToken, tokenPrefix, sessionDataPresent };
+  return { token, hasSessionToken, tokenPrefix, sessionDataPresent };
+}
+
+/**
+ * `getSession()` returning null while a token cookie is present has three very
+ * different causes that the Better Auth API collapses into one nullish answer:
+ *
+ *   - `absent`  — the row is gone: signed out, revoked, or purged by the
+ *                 expired-on-read cleanup. Ordinary, expected.
+ *   - `expired` — the row is still there but `expires_at` has passed. Also
+ *                 ordinary (30d `expiresIn`, 24h rolling `updateAge`).
+ *   - `live`    — the row exists AND is unexpired, yet resolution failed
+ *                 anyway. That is never ordinary: it means the cookie
+ *                 signature did not verify (`BETTER_AUTH_SECRET` drift or a
+ *                 secret mismatch across replicas) or the `ba:<token>` value
+ *                 in Redis is corrupt — Better Auth's `findSession` returns
+ *                 null on a JSON parse failure WITHOUT falling back to
+ *                 Postgres. Both log a healthy user out mid-session.
+ *
+ * Without this the frontend's teardown telemetry only ever shows the symptom
+ * ("probe says no user"), which is identical in all three cases.
+ */
+type SessionRowState = 'absent' | 'expired' | 'live' | 'unknown';
+
+async function classifySessionRow(token: string): Promise<SessionRowState> {
+  try {
+    const db = getDrizzleInstance();
+    const rows = await db
+      .select({ expires_at: ba_sessions.expires_at })
+      .from(ba_sessions)
+      .where(eq(ba_sessions.token, token))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return 'absent';
+    return row.expires_at.getTime() <= Date.now() ? 'expired' : 'live';
+  } catch (err) {
+    log.debug('[Session] row-classify failed: %s', (err as Error).message);
+    return 'unknown';
+  }
 }
 
 // Debounce the `[Session] resolve-null-with-token` warn line PER TOKEN PREFIX
@@ -163,24 +218,56 @@ function classifySessionCookies(cookieHeader: string | undefined): {
 const RESOLVE_NULL_DEBOUNCE_MS = 30_000;
 const lastResolveNullLogAt = new Map<string, number>();
 
-function maybeLogResolveNull(tokenPrefix: string, path: string, sessionDataPresent: boolean): void {
+function maybeLogResolveNull(
+  tokenPrefix: string,
+  token: string | undefined,
+  path: string,
+  sessionDataPresent: boolean
+): void {
   const now = Date.now();
   const last = lastResolveNullLogAt.get(tokenPrefix) ?? 0;
   if (now - last < RESOLVE_NULL_DEBOUNCE_MS) return;
   lastResolveNullLogAt.set(tokenPrefix, now);
-  // The smoking gun: a session token was presented but resolved to null →
-  // expired / revoked / row-gone. `session_data_cookie=present` alongside this
-  // flags the cookie-cache-divergence window.
-  log.warn(
-    '[Session] resolve-null-with-token token=%s path=%s session_data_cookie=%s',
-    tokenPrefix,
-    path,
-    sessionDataPresent ? 'present' : 'absent'
-  );
   const cutoff = now - RESOLVE_NULL_DEBOUNCE_MS * 2;
   for (const [k, t] of lastResolveNullLogAt) {
     if (t < cutoff) lastResolveNullLogAt.delete(k);
   }
+
+  // The row lookup rides the same debounce as the log line, so one browser
+  // firing ten parallel queries at a dead session costs one indexed SELECT
+  // per 30s — not one per request.
+  //
+  // Diagnostics must never take the process down: this is fire-and-forget in a
+  // hot auth path, and `apps/api` installs no global `unhandledRejection`
+  // handler, so an unexpected throw from the logger or the Sentry SDK would
+  // kill the whole cluster worker instead of just losing one log line.
+  void (async () => {
+    try {
+      const rowState = token != null ? await classifySessionRow(token) : 'unknown';
+      // The smoking gun: a session token was presented but resolved to null.
+      // `db=` says which of the three causes it was (see SessionRowState);
+      // `session_data_cookie=present` flags the cookie-cache-divergence window.
+      log.warn(
+        '[Session] resolve-null-with-token token=%s path=%s session_data_cookie=%s db=%s',
+        tokenPrefix,
+        path,
+        sessionDataPresent ? 'present' : 'absent',
+        rowState
+      );
+      if (rowState === 'live') {
+        // A live, unexpired row that will not resolve is a real defect, not a
+        // logged-out user — surface it instead of letting it hide inside the
+        // frontend's session-teardown noise.
+        captureAuthIssue({
+          stage: 'session-resolve',
+          cause: new Error('session row is live but getSession() returned null'),
+          extras: { tokenPrefix, path, sessionDataPresent, rowState },
+        });
+      }
+    } catch {
+      // Nothing to report to — reporting is what just failed.
+    }
+  })();
 }
 
 /**
@@ -223,15 +310,20 @@ async function tryResolveUser(req: Request): Promise<ResolveResult> {
       // lag the DB. Overlay with the DB-backed, short-TTL cached value so every
       // downstream reader gets the current locale. Best-effort: keep the session
       // value if the lookup fails.
+      // LOCALE_UNSET heißt: das Profil trägt kein Land. Dann muss auch das Feld
+      // leer bleiben — ein Session-Schnappschuss aus der Zeit vor dem Reset
+      // würde sonst weiter 'de-DE' behaupten, und das Nachfrage-Gate im Web
+      // sähe nie einen Grund zu erscheinen.
       const freshLocale = await getUserLocale(user.id);
-      if (freshLocale) user.locale = freshLocale;
+      if (freshLocale === LOCALE_UNSET) delete user.locale;
+      else if (freshLocale) user.locale = freshLocale;
       return { kind: 'user', user };
     }
     const path = req.originalUrl.split('?')[0] ?? req.originalUrl;
     if (hasCredential) {
       // Credential presented but no session resolved → expired / revoked.
       if (cookies.tokenPrefix) {
-        maybeLogResolveNull(cookies.tokenPrefix, path, cookies.sessionDataPresent);
+        maybeLogResolveNull(cookies.tokenPrefix, cookies.token, path, cookies.sessionDataPresent);
       } else {
         // Bearer-only (mobile/desktop): no cookie token prefix to key on.
         log.warn('[Session] resolve-null-with-token token=bearer path=%s', path);
@@ -442,5 +534,10 @@ function getUserId(req: Request): UserIdBrand {
   return UserId(req.user.id);
 }
 
-export { requireAuth, requireAdmin, optionalAuth, getUserId };
+// `tryResolveUser` is exported for ONE caller: the notification SSE channel,
+// which must tell 'no session' from 'auth backend down' itself because it
+// answers in-band instead of with a status code (see routes/notifications/
+// stream.ts). Everything else goes through requireAuth/optionalAuth — a
+// third resolver in a route handler is how auth policy drifts apart.
+export { requireAuth, requireAdmin, optionalAuth, getUserId, tryResolveUser };
 export default { requireAuth, requireAdmin, optionalAuth, getUserId };

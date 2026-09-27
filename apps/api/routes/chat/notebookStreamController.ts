@@ -5,16 +5,30 @@
  * Delegates to the shared notebookStreamCore for SSE streaming logic.
  */
 
-import { notebookDepthSchema } from '@gruenerator/contracts';
+import {
+  notebookAnswerModeSchema,
+  notebookDepthSchema,
+  notebookResolvedAnswerModeSchema,
+} from '@gruenerator/contracts';
 import { z } from 'zod';
 
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { memoryService } from '../../services/memory/index.js';
 import { withRetry } from '../../services/search/searchRetryStrategy.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { ThreadId, UserId } from '../../utils/types/branded.js';
+import { withTimeout } from '../../utils/withTimeout.js';
 
 import { handleNotebookStream } from './notebookStreamCore.js';
+import {
+  notebookGuardHistory,
+  resolveNotebookAnswerMode,
+} from './services/notebookAnswerModeResolver.js';
+import { runNotebookPraezisionTurn } from './services/notebookPraezisionTurn.js';
 import { createSSEStream, sendChatWarning } from './services/sseHelpers.js';
+import { canWriteThread } from './services/threadAccessService.js';
 import {
   getUser,
   createThread,
@@ -22,17 +36,38 @@ import {
   touchThread,
 } from './services/threadPersistenceService.js';
 
+import type { UserLocale } from '../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
+
+/**
+ * One conversation message on the wire. `content` tolerates both the flat
+ * string every live client sends and an AI-SDK style parts array (defensive —
+ * shipped mobile binaries speak this endpoint). `citations` carries the raw
+ * notebook citations of an earlier assistant answer so the ultra tier can
+ * merge previously cited sources into the new turn (see
+ * notebookHistoryService); loose records, validated structurally there.
+ */
+const notebookStreamMessageSchema = z
+  .object({
+    role: z.string(),
+    content: z.union([z.string(), z.array(z.record(z.unknown()))]),
+    citations: z.array(z.record(z.unknown())).nullish(),
+    /** Modus einer früheren Antwort — Kontext für den Auto-Wächter. Tolerant:
+     *  ein unbekannter Wert macht den Request nicht ungültig. */
+    answerMode: notebookResolvedAnswerModeSchema.nullish().catch(null),
+  })
+  .passthrough();
 
 /** Zod schema for the POST body for notebook streaming */
 const notebookStreamRequestSchema = z.object({
-  messages: z.array(z.unknown()).optional(),
+  messages: z.array(notebookStreamMessageSchema).optional(),
   collectionId: z.string().optional(),
   collectionIds: z.array(z.string()).optional(),
   filters: z.record(z.unknown()).optional(),
-  provider: z.string().optional(),
   model: z.string().optional(),
   mode: notebookDepthSchema.optional(),
+  /** Antwortmodus; fehlt ⇒ `chat` (alte Clients, Eval, Grün-O-Mat). */
+  answerMode: notebookAnswerModeSchema.optional(),
   documentIds: z.array(z.string()).optional(),
   threadId: z.string().nullable().optional(),
 });
@@ -41,6 +76,24 @@ type NotebookStreamRequestBody = z.infer<typeof notebookStreamRequestSchema>;
 const router = createAuthenticatedRouter();
 const log = createLogger('notebookStream');
 
+const MEMORY_TIMEOUT_MS = 3_000;
+
+/**
+ * Standing instructions hold on every surface, so the notebook gets them too;
+ * the profile switch and the chat's failure mode (answer without) carry over
+ * from `streamContext`.
+ */
+async function loadStandingInstructions(userId: string, memoryEnabled: boolean): Promise<string[]> {
+  if (!memoryEnabled) return [];
+  try {
+    const rows = await withTimeout(memoryService.list(userId), MEMORY_TIMEOUT_MS, 'memory lookup');
+    return rows.filter((r) => r.kind === 'anweisung').map((r) => r.text);
+  } catch (err) {
+    log.warn('Memory lookup failed (continuing without):', err);
+    return [];
+  }
+}
+
 /**
  * POST /api/chat-service/notebook/stream
  * Stream answers to notebook questions with sources/citations.
@@ -48,6 +101,7 @@ const log = createLogger('notebookStream');
  */
 router.post(
   '/',
+  requireAiConsent,
   validateBody(notebookStreamRequestSchema),
   async (req: TypedRequest<NotebookStreamRequestBody>, res) => {
     const user = getUser(req);
@@ -63,9 +117,9 @@ router.post(
       collectionId,
       collectionIds,
       filters,
-      provider,
       model,
       mode,
+      answerMode,
       documentIds,
       threadId: existingThreadId,
     } = req.body;
@@ -76,7 +130,16 @@ router.post(
       : null;
     const userText = typeof lastUserMessage?.content === 'string' ? lastUserMessage.content : '';
 
-    let threadId: string | null = existingThreadId ?? null;
+    // Die id kommt vom Client: ein fremder oder gelöschter Thread wird nie
+    // weiterbenutzt (der Präzisionsmodus liest über sie Werkzeugschritte und
+    // Quellen) — wie in `streamContext` gibt es dann einen frischen.
+    let threadId: string | null =
+      existingThreadId && (await canWriteThread(ThreadId(existingThreadId), UserId(user.id)))
+        ? existingThreadId
+        : null;
+    if (existingThreadId && !threadId) {
+      log.warn(`[notebookStream] thread ${existingThreadId} not writable — starting a new one`);
+    }
     const sse = createSSEStream(res);
 
     // Create thread on first message
@@ -130,25 +193,68 @@ router.post(
           })
         : null;
 
-    const result = await handleNotebookStream({
-      req,
-      res,
-      messages: messages ?? [],
-      ...(collectionId != null && { collectionId }),
-      ...(collectionIds != null && { collectionIds }),
-      ...(filters != null && { filters }),
-      ...(provider != null && { provider }),
-      ...(model != null && { model }),
-      ...(mode != null && { mode }),
-      ...(documentIds != null && { documentIds }),
-      userId: user.id,
-      allowUserCollections: true,
-      sse,
-      // Keep the stream open past the answer so the persistence step below can
-      // still report a failure — sendChatWarning no-ops once the stream ended,
-      // which made that warning unreachable on this path.
-      closeStream: false,
+    const standingInstructions = await loadStandingInstructions(
+      user.id,
+      user.memory_enabled ?? true
+    );
+
+    const userLocale: UserLocale = user.locale === 'de-AT' ? 'de-AT' : 'de-DE';
+    const pageCollectionIds = collectionIds?.length
+      ? collectionIds
+      : collectionId
+        ? [collectionId]
+        : [];
+    const answerModeStart = Date.now();
+    const { decision, warning } = await resolveNotebookAnswerMode({
+      requested: answerMode ?? null,
+      collectionIds: pageCollectionIds,
+      userLocale,
+      question: userText,
+      history: notebookGuardHistory(rawMessages ?? []),
     });
+    log.info(
+      `[NotebookAnswerMode] requested=${decision.requested ?? '-'} resolved=${decision.resolved} reason=${decision.reason} ms=${Date.now() - answerModeStart}`
+    );
+    if (warning) sendChatWarning(sse, warning);
+    sse.send('answer_mode', decision);
+
+    const result =
+      decision.resolved === 'praezision'
+        ? await runNotebookPraezisionTurn({
+            req,
+            res,
+            sse,
+            messages: messages ?? [],
+            collectionIds: pageCollectionIds,
+            userId: user.id,
+            userLocale,
+            threadId,
+            ...(standingInstructions.length > 0 && { standingInstructions }),
+            answerModeReason: decision.reason,
+          })
+        : await handleNotebookStream({
+            req,
+            res,
+            messages: messages ?? [],
+            ...(collectionId != null && { collectionId }),
+            ...(collectionIds != null && { collectionIds }),
+            ...(filters != null && { filters }),
+            ...(model != null && { model }),
+            ...(mode != null && { mode }),
+            ...(documentIds != null && { documentIds }),
+            userId: user.id,
+            allowUserCollections: true,
+            ...(standingInstructions.length > 0 && { standingInstructions }),
+            sse,
+            // Keep the stream open past the answer so the persistence step below can
+            // still report a failure — sendChatWarning no-ops once the stream ended,
+            // which made that warning unreachable on this path.
+            closeStream: false,
+            completionMetadata: {
+              answerMode: decision.resolved,
+              answerModeReason: decision.reason,
+            },
+          });
 
     // Persist assistant message and update thread timestamp in parallel
     if (threadId && result) {
@@ -166,6 +272,12 @@ router.post(
                   type: 'notebook',
                   citations: result.citations,
                   sources: result.sources,
+                  ...(result.traceId && { traceId: result.traceId }),
+                  answerMode: decision.resolved,
+                  answerModeReason: decision.reason,
+                  ...('steps' in result &&
+                    Array.isArray(result.steps) &&
+                    result.steps.length > 0 && { toolCalls: result.steps }),
                 },
                 user.id
               ),

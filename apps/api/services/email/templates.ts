@@ -484,6 +484,30 @@ export interface ContentSyncSourceResult {
   updated: number;
   skipped: number;
   errors: number;
+  /**
+   * Stichprobe der Meldungen hinter `errors`, serverseitig gedeckelt. `errors`
+   * bleibt die verbindliche Zahl — sind es mehr als hier stehen, sagt die
+   * Zeile das ausdrücklich, damit die Liste nicht als vollständig gelesen wird.
+   */
+  errorSamples?: string[];
+  /**
+   * Links, die die Quelle selbst noch auflistet, aber nicht mehr ausliefert
+   * (403/404/410). Sie stehen bewusst neben den Fehlern und lösen **keine**
+   * Mail aus: nichts auf unserer Seite bringt sie je auf 0, eine nächtliche
+   * Mail über dieselben vier toten Links wäre genau das Rauschen, gegen das
+   * die Trennung antritt. Wer die Seite betreibt, kann sie aber als Einziger
+   * reparieren — also stehen sie drin, wenn ohnehin eine Mail rausgeht.
+   */
+  deadLinks?: number;
+  deadLinkSamples?: string[];
+  /**
+   * KommunalWiki: Punkte gelöschter Wiki-Seiten, die der Lauf entfernt hat,
+   * und — wenn nicht aufgeräumt wurde — warum nicht. Ohne den Grund ist ein
+   * abgewürgtes Aufräumen von einem Lauf ohne Aufräumbedarf nicht zu
+   * unterscheiden: beide melden schlicht nichts.
+   */
+  pruned?: number;
+  pruneSkippedReason?: string;
   duration: number;
   error?: string;
 }
@@ -501,6 +525,20 @@ export interface ContentSyncTemplateParams {
     skipped: number;
     errors: number;
   };
+  /**
+   * Was das Auslesen gekostet hat. Optional: der in-process-Sync-Router baut
+   * dieselben Params ohne Zähler.
+   */
+  extraction?:
+    | {
+        documents: number;
+        pages: number;
+        ocrDocuments: number;
+        ocrPages: number;
+        redundant: number;
+        skipped: { not_modified: number; same_bytes: number; freshly_indexed: number };
+      }
+    | undefined;
   runUrl?: string | undefined;
   dryRun: boolean;
 }
@@ -509,7 +547,7 @@ export function renderContentSyncTemplate(params: ContentSyncTemplateParams): {
   html: string;
   text: string;
 } {
-  const { sources, totals, totalDuration, runUrl, dryRun } = params;
+  const { sources, totals, totalDuration, runUrl, dryRun, extraction } = params;
 
   const hasFailures = totals.failed > 0 || totals.errors > 0;
   const statusIcon = hasFailures ? '⚠️' : '✅';
@@ -535,9 +573,74 @@ export function renderContentSyncTemplate(params: ContentSyncTemplateParams): {
         <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">${s.skipped}</td>
         <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;${s.errors > 0 ? 'color:#c00;font-weight:700;' : ''}">${s.errors}</td>
         <td style="padding:8px 12px;border:1px solid #e5e5e5;text-align:right;">${s.duration}s</td>
-      </tr>${s.error ? `<tr style="background-color:#fff5f5;"><td colspan="6" style="padding:4px 12px;border:1px solid #e5e5e5;color:#c00;font-size:13px;">Fehler: ${escapeHtml(s.error)}</td></tr>` : ''}`;
+      </tr>${s.error ? `<tr style="background-color:#fff5f5;"><td colspan="6" style="padding:4px 12px;border:1px solid #e5e5e5;color:#c00;font-size:13px;">Fehler: ${escapeHtml(s.error)}</td></tr>` : ''}${
+        s.errorSamples?.length
+          ? `<tr style="background-color:#fff5f5;"><td colspan="6" style="padding:4px 12px;border:1px solid #e5e5e5;color:#c00;font-size:12px;">${
+              s.errorSamples.length < s.errors
+                ? `${s.errorSamples.length} von ${s.errors} Fehlern:`
+                : 'Fehler:'
+            }<ul style="margin:4px 0 0 0;padding-left:18px;">${s.errorSamples
+              .map((m) => `<li style="margin:2px 0;">${escapeHtml(m)}</li>`)
+              .join('')}</ul></td></tr>`
+          : ''
+      }${
+        s.deadLinkSamples?.length
+          ? `<tr><td colspan="6" style="padding:4px 12px;border:1px solid #e5e5e5;color:#666666;font-size:12px;">${
+              s.deadLinkSamples.length < (s.deadLinks ?? 0)
+                ? `${s.deadLinkSamples.length} von ${s.deadLinks} toten Links (von der Quelle verlinkt, aber nicht mehr abrufbar):`
+                : 'Tote Links (von der Quelle verlinkt, aber nicht mehr abrufbar):'
+            }<ul style="margin:4px 0 0 0;padding-left:18px;">${s.deadLinkSamples
+              .map((m) => `<li style="margin:2px 0;">${escapeHtml(m)}</li>`)
+              .join('')}</ul></td></tr>`
+          : ''
+      }${
+        s.pruneSkippedReason
+          ? `<tr style="background-color:#fffbe6;"><td colspan="6" style="padding:4px 12px;border:1px solid #e5e5e5;color:#8a6d00;font-size:12px;">Nicht aufger&auml;umt: ${escapeHtml(s.pruneSkippedReason)}</td></tr>`
+          : s.pruned
+            ? `<tr><td colspan="6" style="padding:4px 12px;border:1px solid #e5e5e5;color:#666666;font-size:12px;">Aufger&auml;umt: ${s.pruned} Punkte gel&ouml;schter Seiten</td></tr>`
+            : ''
+      }`;
     })
     .join('\n');
+
+  // Dokumente auslesen (PDF.js, bei Scans Mistral-OCR pro Seite) ist der teure
+  // Teil des Syncs, und in stored/updated/skipped ist er unsichtbar: ein vor der
+  // Extraktion übersprungenes Dokument und ein danach übersprungenes zählen dort
+  // gleich, kosten aber sehr verschieden. Deshalb der eigene Block — „Umsonst"
+  // ist die Zahl, an der man sieht, ob die Fingerprint-Gatter greifen.
+  const extractionBlock = extraction
+    ? `
+    <h2 style="margin:0 0 12px 0;font-size:16px;color:#333333;">Ausgelesen</h2>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:24px;font-size:14px;">
+      <tr>
+        <td style="padding:6px 0;color:#555555;">Dokumente ausgelesen</td>
+        <td style="padding:6px 0;color:#333333;font-weight:600;text-align:right;">${extraction.documents} (${extraction.pages} Seiten)</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;color:#555555;">davon per OCR (kostenpflichtig)</td>
+        <td style="padding:6px 0;color:#333333;text-align:right;">${extraction.ocrDocuments} (${extraction.ocrPages} Seiten)</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;color:#555555;">Umsonst ausgelesen (Text unver&auml;ndert)</td>
+        <td style="padding:6px 0;color:${extraction.redundant > 0 ? '#c60' : '#333333'};font-weight:${extraction.redundant > 0 ? '700' : '400'};text-align:right;">${extraction.redundant}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;color:#555555;">Nicht ausgelesen (Gatter)</td>
+        <td style="padding:6px 0;color:${PRIMARY_COLOR};font-weight:700;text-align:right;">${
+          extraction.skipped.not_modified +
+          extraction.skipped.same_bytes +
+          extraction.skipped.freshly_indexed
+        }</td>
+      </tr>
+      <tr>
+        <td style="padding:2px 0 6px 0;color:#888888;font-size:12px;" colspan="2">
+          304 unver&auml;ndert: ${extraction.skipped.not_modified} &middot;
+          gleiche Bytes: ${extraction.skipped.same_bytes} &middot;
+          frisch indexiert: ${extraction.skipped.freshly_indexed}
+        </td>
+      </tr>
+    </table>`
+    : '';
 
   const content = `
     <h1 style="margin:0 0 8px 0;font-size:20px;color:#333333;">${statusIcon} ${title}</h1>
@@ -565,6 +668,8 @@ export function renderContentSyncTemplate(params: ContentSyncTemplateParams): {
         <td style="padding:6px 0;color:${totals.errors > 0 ? '#c00' : '#333333'};font-weight:${totals.errors > 0 ? '700' : '400'};text-align:right;">${totals.errors}</td>
       </tr>
     </table>
+
+    ${extractionBlock}
 
     <h2 style="margin:0 0 12px 0;font-size:16px;color:#333333;">Details pro Quelle</h2>
     <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px;">
@@ -606,9 +711,42 @@ export function renderContentSyncTemplate(params: ContentSyncTemplateParams): {
     .map((s) => {
       const icon = s.status === 'success' ? '✓' : '✗';
       const line = `  ${icon} ${s.name}: +${s.stored} neu, ${s.updated} aktualisiert, ${s.skipped} übersprungen, ${s.errors} Fehler (${s.duration}s)`;
-      return s.error ? `${line}\n    Fehler: ${s.error}` : line;
+      const parts = [line];
+      if (s.error) parts.push(`    Fehler: ${s.error}`);
+      if (s.errorSamples?.length) {
+        parts.push(
+          s.errorSamples.length < s.errors
+            ? `    ${s.errorSamples.length} von ${s.errors} Fehlern:`
+            : '    Fehler:',
+          ...s.errorSamples.map((m) => `      - ${m}`)
+        );
+      }
+      if (s.deadLinkSamples?.length) {
+        parts.push(
+          s.deadLinkSamples.length < (s.deadLinks ?? 0)
+            ? `    ${s.deadLinkSamples.length} von ${s.deadLinks} toten Links (von der Quelle verlinkt, aber nicht mehr abrufbar):`
+            : '    Tote Links (von der Quelle verlinkt, aber nicht mehr abrufbar):',
+          ...s.deadLinkSamples.map((m) => `      - ${m}`)
+        );
+      }
+      // Auch hier, nicht nur im HTML: die Text-Fassung ist die, die viele
+      // Clients zeigen — und ein abgewürgtes Aufräumen ist sonst unsichtbar.
+      if (s.pruneSkippedReason) {
+        parts.push(`    WARNUNG nicht aufgeräumt: ${s.pruneSkippedReason}`);
+      } else if (s.pruned) {
+        parts.push(`    Aufgeräumt: ${s.pruned} Punkte gelöschter Seiten`);
+      }
+      return parts.join('\n');
     })
     .join('\n');
+
+  const extractionText = extraction
+    ? `
+Ausgelesen: ${extraction.documents} Dokumente / ${extraction.pages} Seiten (davon OCR: ${extraction.ocrDocuments} / ${extraction.ocrPages})
+Umsonst ausgelesen (Text unverändert): ${extraction.redundant}
+Nicht ausgelesen: ${extraction.skipped.not_modified} (304), ${extraction.skipped.same_bytes} (gleiche Bytes), ${extraction.skipped.freshly_indexed} (frisch)
+`
+    : '';
 
   const text = `${statusIcon} ${title}
 ${dateStr} · Dauer: ${totalDuration}s
@@ -618,7 +756,7 @@ Neue Dokumente: +${totals.stored}
 Aktualisiert: ${totals.updated}
 Übersprungen: ${totals.skipped}
 Fehler: ${totals.errors}
-
+${extractionText}
 Details:
 ${sourceLines}
 ${runUrl ? `\nWorkflow-Log: ${runUrl}` : ''}
@@ -630,6 +768,7 @@ ${PRIMARY_URL}`;
 }
 
 import { type NewArticle } from '../scrapers/implementations/LandesverbandScraper/types.js';
+import { resolveWolkeDisplayUrl } from '../scrapers/utils/wolkeShareSecrets.js';
 
 export interface LvSyncNotificationTemplateParams {
   lvName: string;
@@ -641,7 +780,9 @@ export function renderLvSyncNotificationTemplate(params: LvSyncNotificationTempl
   html: string;
   text: string;
 } {
-  const { lvName, newArticles, syncDate } = params;
+  const { lvName, syncDate } = params;
+  // Wolke-Dateien sind als `wolke://…` gespeichert; die Mail braucht den Freigabe-Link.
+  const newArticles = params.newArticles.map((a) => ({ ...a, url: resolveWolkeDisplayUrl(a.url) }));
 
   const dateStr = new Date(syncDate).toLocaleDateString('de-DE', {
     day: '2-digit',

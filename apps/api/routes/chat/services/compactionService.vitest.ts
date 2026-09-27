@@ -5,6 +5,7 @@ import {
   getCompactionThreshold,
   getCompactionTokenThreshold,
   needsCompaction,
+  prepareMessagesWithCompaction,
   KEEP_RECENT,
   COMPACTION_THRESHOLD,
   COMPACTION_TOKEN_THRESHOLD,
@@ -157,5 +158,74 @@ describe('env-overridable thresholds (long-thread eval harness)', () => {
       delete process.env.CHAT_COMPACTION_THRESHOLD;
       vi.resetModules();
     }
+  });
+});
+
+// ─── Der fertige Prompt ────────────────────────────────────────────────────
+// Die Auswahlregel steht in compactionCarry.vitest.ts. Hier zählt nur, dass
+// das Ergebnis den Systemprompt WIRKLICH erreicht — eine Rettung, die nur in
+// ihrer eigenen Funktion stattfindet, ist keine.
+
+describe('prepareMessagesWithCompaction — was im Systemprompt ankommt', () => {
+  const state = {
+    summary: 'Der Assistent hat eine Pressemitteilung zu Solarenergie verfasst.',
+    compactedUpToMessageId: 'm1',
+    compactionUpdatedAt: new Date(0),
+  };
+  const pm = 'PRESSEMITTEILUNG '.repeat(200);
+
+  /** keepRecent ist 20 auf grossen Fenstern — 24 Nachrichten schneiden also 4 ab. */
+  const thread = (dropped: Array<{ role: string; content: string }>) => [
+    ...dropped,
+    ...Array.from({ length: 20 }, (_, i) => ({
+      role: i % 2 === 0 ? 'user' : 'assistant',
+      content: `kurze Nachricht ${i}`,
+    })),
+  ];
+
+  it('trägt den weggeschnittenen Langtext wörtlich in den Systemprompt', () => {
+    const result = prepareMessagesWithCompaction(
+      thread([
+        { role: 'user', content: 'Schreib eine PM' },
+        { role: 'assistant', content: pm },
+        { role: 'user', content: 'Danke' },
+        { role: 'assistant', content: 'Gern.' },
+      ]),
+      state,
+      'BASIS-PROMPT',
+      128_000
+    );
+
+    expect(result.messages).toHaveLength(20);
+    expect(result.systemMessage).toContain('BASIS-PROMPT');
+    expect(result.systemMessage).toContain('GESPRÄCHSZUSAMMENFASSUNG');
+    expect(result.systemMessage).toContain('PRESSEMITTEILUNG');
+    // Der Block gehört VOR die Zeile, die das Nachrichtenfenster ankündigt.
+    expect(result.systemMessage.indexOf('WÖRTLICH')).toBeLessThan(
+      result.systemMessage.indexOf('Die folgenden Nachrichten')
+    );
+  });
+
+  it('lässt den Systemprompt unverändert, wenn es nichts zu retten gibt', () => {
+    const withCarry = prepareMessagesWithCompaction(
+      thread([{ role: 'assistant', content: 'kurz' }]),
+      state,
+      'BASIS-PROMPT',
+      128_000
+    );
+    expect(withCarry.systemMessage).not.toContain('WÖRTLICH');
+    expect(withCarry.systemMessage).toContain(`${state.summary}\n\n---`);
+  });
+
+  it('rührt ohne Zusammenfassung nichts an', () => {
+    const messages = thread([{ role: 'assistant', content: pm }]);
+    const result = prepareMessagesWithCompaction(
+      messages,
+      { ...state, summary: null },
+      'BASIS-PROMPT',
+      128_000
+    );
+    expect(result.systemMessage).toBe('BASIS-PROMPT');
+    expect(result.messages).toBe(messages);
   });
 });

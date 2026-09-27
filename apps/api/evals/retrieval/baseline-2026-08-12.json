@@ -1,0 +1,526 @@
+{
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "grundsatz-oekologie",
+      "collection": "grundsatz-system",
+      "query": "Was sagt das Grundsatzprogramm zum Verhältnis von Ökologie und Ökonomie?",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "grundsatz-wuerde",
+      "collection": "grundsatz-system",
+      "query": "Warum heißt das Grundsatzprogramm „zu achten und zu schützen\"?",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "grundsatz-btw25-klima",
+      "collection": "grundsatz-system",
+      "query": "Klimaschutz-Forderungen im Wahlprogramm zur Bundestagswahl 2025",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "grundsatz-btw25-wirtschaft",
+      "collection": "grundsatz-system",
+      "query": "Was plant die Partei laut Bundestagswahlprogramm für die Wirtschaft und Investitionen?",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "grundsatz-europa",
+      "collection": "grundsatz-system",
+      "query": "Positionen aus dem Europawahlprogramm 2024",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "grundsatz-grundsicherung",
+      "collection": "grundsatz-system",
+      "query": "Kindergrundsicherung und soziale Garantien in den Programmen",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "grundsatz-frieden",
+      "collection": "grundsatz-system",
+      "query": "Haltung zu Friedenspolitik und Auslandseinsätzen der Bundeswehr",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "grundsatz-klimaneutral",
+      "collection": "grundsatz-system",
+      "query": "Bis wann soll Deutschland klimaneutral werden?",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "grundsatz-verkehrswende",
+      "collection": "grundsatz-system",
+      "query": "Forderungen zur Verkehrswende und zum Ausbau der Bahn",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "grundsatz-mindestlohn",
+      "collection": "grundsatz-system",
+      "query": "Position zum Mindestlohn",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "grundsatz-buergerversicherung",
+      "collection": "grundsatz-system",
+      "query": "Was ist die Bürgerversicherung und wer soll einzahlen?",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "grundsatz-wahlrecht16",
+      "collection": "grundsatz-system",
+      "query": "Absenkung des Wahlalters auf 16 Jahre",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "gruene-de-waermepumpe",
+      "collection": "gruene-de-system",
+      "query": "Förderung beim Heizungstausch und Wärmepumpen",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "gruene-de-vielfalt",
+      "collection": "gruene-de-system",
+      "query": "Einsatz gegen Rechtsextremismus und für eine vielfältige Gesellschaft",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "gruene-de-frauentag",
+      "collection": "gruene-de-system",
+      "query": "Gleichberechtigung und feministische Politik",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "gruene-de-energie",
+      "collection": "gruene-de-system",
+      "query": "Ausbau der erneuerbaren Energien in Deutschland",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "gruene-de-artenschutz",
+      "collection": "gruene-de-system",
+      "query": "Artenvielfalt und Naturschutz",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "gruene-de-vorsitz",
+      "collection": "gruene-de-system",
+      "query": "Wer ist im Bundesvorstand der Partei?",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "gruene-de-mitglied",
+      "collection": "gruene-de-system",
+      "query": "Wie kann ich Mitglied werden?",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "gruene-de-europa",
+      "collection": "gruene-de-system",
+      "query": "Europapolitik und die Rolle der EU",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "kommunalwiki-buergerbegehren",
+      "collection": "kommunalwiki-system",
+      "query": "Wie funktioniert ein Bürgerbegehren in der Kommune?",
+      "rank": 1,
+      "topTitles": [
+        "Bürgerbegehren und Bürgerentscheide in Deutschland – Ein Überblick",
+        "BVV-Planspiel Berlin",
+        "Bürgerkommune und bürgerschaftliches Engagement",
+        "Bürgerbeteiligung",
+        "Direkte Demokratie in der Diskussion"
+      ]
+    },
+    {
+      "id": "kommunalwiki-bebauungsplan",
+      "collection": "kommunalwiki-system",
+      "query": "Aufstellung eines Bebauungsplans — Verfahren und Beteiligung",
+      "rank": null,
+      "topTitles": [
+        "Bürgerbeteiligung",
+        "Feministische Planung",
+        "Sozialgerechte Bodennutzung",
+        "Leitfaden für eine neue Planungskultur",
+        "Planungszelle"
+      ]
+    },
+    {
+      "id": "kommunalwiki-radverkehr",
+      "collection": "kommunalwiki-system",
+      "query": "Radverkehrsförderung in der Kommunalpolitik",
+      "rank": 1,
+      "topTitles": [
+        "Radverkehr",
+        "Werkstatt:Weblinks",
+        "Mobilitätspolitik der Ampelregierung",
+        "BVV-Planspiel Berlin",
+        "Klimaschutz als kommunale Pflichtaufgabe?"
+      ]
+    },
+    {
+      "id": "kommunalwiki-haushalt",
+      "collection": "kommunalwiki-system",
+      "query": "Wie liest man einen kommunalen Haushaltsplan?",
+      "rank": 1,
+      "topTitles": [
+        "Haushaltsbegriffe und Haushaltsrecht",
+        "Kameralistik",
+        "Öffentliche Auslegung des Haushaltsplans",
+        "Haushalt",
+        "Doppik"
+      ]
+    },
+    {
+      "id": "kommunalwiki-waermeplanung",
+      "collection": "kommunalwiki-system",
+      "query": "Kommunale Wärmeplanung umsetzen",
+      "rank": 2,
+      "topTitles": [
+        "Energiearmut",
+        "Handlungsleitfaden Kommunale Wärmeplanung",
+        "Klimaschutz als kommunale Pflichtaufgabe?",
+        "Werkstatt:Weblinks",
+        "Kommunale Maßnahmen gegen Hitze"
+      ]
+    },
+    {
+      "id": "kommunalwiki-fraktion",
+      "collection": "kommunalwiki-system",
+      "query": "Rechte und Arbeit einer Fraktion im Gemeinderat",
+      "rank": 2,
+      "topTitles": [
+        "FAQ Kommunalpolitik Bayern",
+        "Kommunale Demokratie in Corona-Zeiten",
+        "Zusammenarbeit im Team",
+        "Umgang mit Rechtspopulismus in der Kommune",
+        "GmbH als Rechtsform für kommunale Unternehmen"
+      ]
+    },
+    {
+      "id": "kommunalwiki-vergabe",
+      "collection": "kommunalwiki-system",
+      "query": "Öffentliche Vergabe und Ausschreibungen in Kommunen",
+      "rank": 1,
+      "topTitles": [
+        "Vergaberecht",
+        "Kommunen in der Corona-Krise",
+        "Kommunale Selbstverwaltung sieht anders aus",
+        "Sozialverträglichkeit als Kriterium in der kommunalen Beschaffung",
+        "Öffentlich-öffentliche Zusammenarbeit"
+      ]
+    },
+    {
+      "id": "kommunalwiki-jugend",
+      "collection": "kommunalwiki-system",
+      "query": "Jugendbeteiligung in der Kommune",
+      "rank": 4,
+      "topTitles": [
+        "Service Learning an Schulen für kommunale Bedarfe nutzen",
+        "Bildungspolitik als kommunale Aufgabe",
+        "Werkstatt:Weblinks",
+        "Kommunale Praxis-, Koordinations- und Servicestelle Jugendhilfe-Schule Marburg",
+        "Von Projekten zu Strukturen – Übergangsmanagement im Kreis Gütersloh"
+      ]
+    },
+    {
+      "id": "kommunalwiki-laerm",
+      "collection": "kommunalwiki-system",
+      "query": "Lärmaktionsplanung und Lärmschutz vor Ort",
+      "rank": 1,
+      "topTitles": [
+        "Mehr Ruhe. Verkehrslärm wirksam reduzieren",
+        "Werkstatt:Weblinks",
+        "Planungszelle",
+        "Bevölkerungsschutz",
+        "Umgebungslärmrichtlinie"
+      ]
+    },
+    {
+      "id": "kommunalwiki-baum",
+      "collection": "kommunalwiki-system",
+      "query": "Baumschutzsatzung und Stadtgrün",
+      "rank": null,
+      "topTitles": [
+        "Urbanes Grün",
+        "Umweltschutz durch kommunales Satzungsrecht",
+        "Schottergarten",
+        "Grüne Infrastruktur",
+        "Klimaschutz als kommunale Pflichtaufgabe?"
+      ]
+    },
+    {
+      "id": "at-grundsatz",
+      "collection": "oesterreich-gruene-system",
+      "query": "Grundwerte im Grundsatzprogramm der österreichischen Grünen",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "at-nrw-klima",
+      "collection": "oesterreich-gruene-system",
+      "query": "Klimaschutz im Wahlprogramm zur Nationalratswahl",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "at-bodenverbrauch",
+      "collection": "oesterreich-gruene-system",
+      "query": "Bodenverbrauch und Bodenversiegelung in Österreich stoppen",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "at-kinderbetreuung",
+      "collection": "oesterreich-gruene-system",
+      "query": "Rechtsanspruch auf Kinderbetreuung in Österreich",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "at-klimaticket",
+      "collection": "oesterreich-gruene-system",
+      "query": "Klimaticket und öffentlicher Verkehr",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "at-korruption",
+      "collection": "oesterreich-gruene-system",
+      "query": "Maßnahmen gegen Korruption und für saubere Politik",
+      "rank": null,
+      "topTitles": []
+    },
+    {
+      "id": "bayern-flaechenfrass",
+      "collection": "bayern-system",
+      "query": "Flächenverbrauch und Flächenfraß in Bayern begrenzen",
+      "rank": 3,
+      "topTitles": [
+        "„Söder-Regierung sind selbst die eigenen Ziele egal“",
+        "Dein Ort wird schöner mit dir. Dafür stehen wir GRÜNE bei der Kommunalwahl 2026 in Bayern.",
+        "Statement zur Flächenstatistik",
+        "Grüne Bilanz zur 18. Legislaturperiode",
+        "Grüne CO2-Spar-Tipps für die Staatsregierung"
+      ]
+    },
+    {
+      "id": "bayern-artenvielfalt",
+      "collection": "bayern-system",
+      "query": "Volksbegehren Artenvielfalt — Rettet die Bienen",
+      "rank": 1,
+      "topTitles": [
+        "Erfolge des Volksbegehrens sind gefährdet",
+        "Bayern verliert Vorreiterrolle im Naturschutz",
+        "Anhörung zu 5 Jahren Volksbegehren „Rettet die Bienen“ und Artenschutzgesetz",
+        "Gute Indikatoren, aber beunruhigende Fakten",
+        "Grüne Bilanz zur 18. Legislaturperiode"
+      ]
+    },
+    {
+      "id": "bayern-wahlprogramm",
+      "collection": "bayern-system",
+      "query": "Kernforderungen im Landtagswahlprogramm Bayern",
+      "rank": null,
+      "topTitles": [
+        "Hand in Hand – Mit Energiewende und Klimaschutz Bayerns ländliche Räume stärken",
+        "Schluss mit dem Düngechaos – sauberes Wasser duldet keinen Aufschub!",
+        "Drei Grüne Gesetzentwürfe im Plenum",
+        "Energiesicherheit: Der Einstieg in den Ausstieg aus der Abhängigkeit",
+        "14 in 100 – das 100-Tage-Programm der Bayerischen Grünen"
+      ]
+    },
+    {
+      "id": "berlin-mieten",
+      "collection": "berlin-system",
+      "query": "Mietenpolitik und bezahlbares Wohnen in Berlin",
+      "rank": 1,
+      "topTitles": [
+        "Sozialgipfel 2024: Bezahlbarer Wohnraum ist eine zentrale Frage unserer Zeit",
+        "Beschluss \"Grüne Wohnungspolitik für ganz Berlin – Gemeinwohl statt Mietenspekulation\"",
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung: Beschluss auf der Landesdelegiertenkonferenz:\nDie...",
+        "Eigentum verpflichtet – Vermieter*innen klare Regeln setzen: Ein „Bezahlbare-Mieten-Gesetz“ für Berlin",
+        "Es braucht einen Paradigmenwechsel in der Wohnungspolitik – für ein faires und gemeinwohlorientiertes Miet- und Baurecht!: Beschluss auf dem Landesausschuss:\nJede*r braucht ein..."
+      ]
+    },
+    {
+      "id": "berlin-verkehr",
+      "collection": "berlin-system",
+      "query": "Ausbau von Radwegen und ÖPNV in Berlin",
+      "rank": 1,
+      "topTitles": [
+        "Grüne fordern im Verkehrshaushalt mehr Verkehrssicherheit und eine Angebotsoffensive im ÖPNV",
+        "Nahverkehrstangente Ost (NVT) retten: Die Regio-S-Bahn bringt den Osten Berlins und das Umland voran!: Beschluss auf der...",
+        "Beschluss \"Moderne Mobilität für Berlin\"",
+        "Unser Wahlprogramm - Kapitel 3: &nbsp;\nBerlin gestaltet Zukunft\nBerlin steht für...",
+        "Folgenschwerer Radwegestopp"
+      ]
+    },
+    {
+      "id": "berlin-wahlprogramm",
+      "collection": "berlin-system",
+      "query": "Wahlprogramm zur Wahl des Abgeordnetenhauses",
+      "rank": 2,
+      "topTitles": [
+        "Berlin ist für Dich da – Aufbruch 2026: Beschluss auf der Landesdelegiertenkonferenz: \nBerlin...",
+        "”Politik ändern, Berlin bleiben.” – Wahlprogramm für 2026 beschlossen: Auf der Landesdelegiertenkonferenz am 14. und 15. Februar...",
+        "Unser Wahlprogramm - Kapitel 4: Berlin lebt Vielfalt\nBerlin ist eine Stadt, in der...",
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung: Beschluss auf der Landesdelegiertenkonferenz:\nDie...",
+        "Beschluss \"Moderne Verwaltung und zukunftorientierte Personalentwicklung\""
+      ]
+    },
+    {
+      "id": "boell-demokratie",
+      "collection": "boell-stiftung-system",
+      "query": "Studien zur Stärkung der Demokratie",
+      "rank": 1,
+      "topTitles": [
+        "Warum eine wehrhafte Demokratie ein feministisches Fördersystem braucht | Heinrich-Böll-Stiftung",
+        "Demokratische Vielfalt wagen: Die Bundesländer als Pioniere für Reformen | Heinrich-Böll-Stiftung",
+        "Von Boomern, Millenials und Generation Z – Die Frage nach demokratischen Mehrheiten in intergenerationeller Perspektive | Heinrich-Böll-Stiftung",
+        "Raus aus der Defensive! | Heinrich-Böll-Stiftung",
+        "Stuttgarter Lehren | Heinrich-Böll-Stiftung"
+      ]
+    },
+    {
+      "id": "boell-atlas",
+      "collection": "boell-stiftung-system",
+      "query": "Fakten aus einem Atlas der Böll-Stiftung, zum Beispiel zu Fleisch oder Mobilität",
+      "rank": 2,
+      "topTitles": [
+        "Auf dem Spiel steht der Verlust dieser Welt | Heinrich-Böll-Stiftung",
+        "Konzernatlas 2026 | Heinrich-Böll-Stiftung",
+        "Brazilian Amazon Atlas | Heinrich-Böll-Stiftung",
+        "Wirtschaftsatlas 2024: Grafiken und Lizenzbestimmungen | Heinrich-Böll-Stiftung",
+        "Einmischung erwünscht! | Heinrich-Böll-Stiftung"
+      ]
+    },
+    {
+      "id": "boell-feminismus",
+      "collection": "boell-stiftung-system",
+      "query": "Geschlechtergerechtigkeit und feministische Außenpolitik",
+      "rank": 1,
+      "topTitles": [
+        "Feminismus braucht Finanzierung! Es ist Zeit für eine feministische Finanzierungsstrategie | Heinrich-Böll-Stiftung",
+        "Warum eine wehrhafte Demokratie ein feministisches Fördersystem braucht | Heinrich-Böll-Stiftung",
+        "Frauen, Frieden und Sicherheit darf in der arabischen Welt kein hohles Versprechen sein | Heinrich-Böll-Stiftung",
+        "Von Präsenz zu Macht: Geschlechtergerechtigkeit nach Women Deliver 2026 neu denken | Heinrich-Böll-Stiftung",
+        "\"Die Kämpfe sind miteinander verflochten\" | Heinrich-Böll-Stiftung"
+      ]
+    },
+    {
+      "id": "boell-klimagerechtigkeit",
+      "collection": "boell-stiftung-system",
+      "query": "Internationale Klimagerechtigkeit und Klimafinanzierung",
+      "rank": 1,
+      "topTitles": [
+        "Schulden, Klima und Geopolitik: Was G20 und COP30 wirklich bewegt haben | Heinrich-Böll-Stiftung",
+        "Artikel 6: Bürokratie, Technologie und die Zukunft der globalen Kohlenstoffmärkte | Heinrich-Böll-Stiftung",
+        "Der Ausstieg aus den fossilen Energien – vor Senegal im Meer versenkt? | Heinrich-Böll-Stiftung",
+        "Die \"Carbon Bubble\": Finanzwirtschaft am Kipppunkt? | Heinrich-Böll-Stiftung",
+        "Konferenz von Santa Marta plant Ausstieg aus fossilen Brennstoffen | Heinrich-Böll-Stiftung"
+      ]
+    },
+    {
+      "id": "gruenblog-netzpolitik",
+      "collection": "gruenblog-system",
+      "query": "Digitalisierung und Netzpolitik im Grünblog",
+      "rank": null,
+      "topTitles": [
+        "„Der Markt wird es nicht richten“ - grünblog - Onlinemagazin der Grünen",
+        "Europa muss erwachsen werden - grünblog - Onlinemagazin der Grünen",
+        "„Let’s flood the zone with hope“ - grünblog - Onlinemagazin der Grünen",
+        "Aufdecken, was nicht vergessen werden darf - grünblog - Onlinemagazin der Grünen",
+        "Familientreffen in Lissabon - grünblog - Onlinemagazin der Grünen"
+      ]
+    },
+    {
+      "id": "gruenblog-partei",
+      "collection": "gruenblog-system",
+      "query": "Debatte über die strategische Ausrichtung der Partei",
+      "rank": null,
+      "topTitles": [
+        "„Demokratischer, vielfältiger, schneller“ - grünblog - Onlinemagazin der Grünen",
+        "Im Osten viel Neues - grünblog - Onlinemagazin der Grünen",
+        "Heiße Eisen und heilige Kühe - grünblog - Onlinemagazin der Grünen",
+        "Agil in die Zukunft - grünblog - Onlinemagazin der Grünen",
+        "Sommer des sozialen Kahlschlags? - grünblog - Onlinemagazin der Grünen"
+      ]
+    },
+    {
+      "id": "gruene-at-klima",
+      "collection": "gruene-at-system",
+      "query": "Klimapolitik der Grünen in Österreich",
+      "rank": 4,
+      "topTitles": [
+        "Außenpolitik",
+        "Partei - Die Grünen",
+        "Programm - Die Grünen",
+        "Klimaschutz",
+        "Wahlprogramm Nationalratswahl 2024 - Die Grünen"
+      ]
+    },
+    {
+      "id": "gruene-at-team",
+      "collection": "gruene-at-system",
+      "query": "Wer sitzt für die Grünen im Nationalrat?",
+      "rank": 5,
+      "topTitles": [
+        "Struktur der Partei - Die Grünen",
+        "Partei - Die Grünen",
+        "Die Grünen im Parlament - Die Grünen",
+        "Ralph Schallmeiner - Die Grünen",
+        "Wahlprogramm Nationalratswahl 2024 - Die Grünen"
+      ]
+    },
+    {
+      "id": "gruene-at-energiewende",
+      "collection": "gruene-at-system",
+      "query": "Energiewende und Ausstieg aus Öl und Gas in Österreich",
+      "rank": 2,
+      "topTitles": [
+        "Klimaschutz",
+        "Energie",
+        "Teuerungsausgleich - Die Grünen",
+        "Klima- und Transformationsoffensive – Der Plan für eine nachhaltige Industrie - Die Grünen",
+        "Partei - Die Grünen"
+      ]
+    },
+    {
+      "id": "gruene-at-frauen",
+      "collection": "gruene-at-system",
+      "query": "Frauenpolitik und Gewaltschutz in Österreich",
+      "rank": 1,
+      "topTitles": [
+        "Frauen und Gleichstellung",
+        "Das Umbau-Budget 2023 - Die Grünen",
+        "Außenpolitik",
+        "Die Kindheit unserer Kinder schützen - Die Grünen",
+        "Grund- und Menschenrechte"
+      ]
+    }
+  ]
+}

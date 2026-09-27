@@ -134,9 +134,16 @@ export function CardAutomationSection({
               key={r.id}
               className="flex items-center justify-between gap-2 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 px-2.5 py-1.5"
             >
-              <span className="text-xs text-foreground">
-                Lauf vom {new Date(r.createdAt).toLocaleString('de-DE')}
-              </span>
+              <div className="min-w-0">
+                <div className="text-xs text-foreground">
+                  Lauf vom {new Date(r.createdAt).toLocaleString('de-DE')}
+                </div>
+                {r.reviewHint && (
+                  <div className="text-[11px] text-grey-600 dark:text-grey-300">
+                    Automatische Prüfung: {r.reviewHint}
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-1.5">
                 <Button type="button" size="sm" onClick={() => acceptRun.mutate(r.id)}>
                   <FiCheck size={12} className="mr-1" />
@@ -162,13 +169,22 @@ export function CardAutomationSection({
           <div className="text-xs font-semibold text-grey-500 dark:text-grey-300">Letzte Läufe</div>
           <ul className="space-y-0.5">
             {recentRuns.map((r) => (
-              <li key={r.id} className="flex items-center justify-between text-[11px]">
-                <span className="text-grey-500">
-                  {new Date(r.createdAt).toLocaleString('de-DE')}
-                </span>
-                <span className={STATUS_META[r.status].className}>
-                  {STATUS_META[r.status].label}
-                </span>
+              <li key={r.id} className="text-[11px]">
+                <div className="flex items-center justify-between">
+                  <span className="text-grey-500">
+                    {new Date(r.createdAt).toLocaleString('de-DE')}
+                  </span>
+                  <span className={STATUS_META[r.status].className}>
+                    {STATUS_META[r.status].label}
+                  </span>
+                </div>
+                {/* Der Grund wird ausgeliefert und stand nirgends: ein
+                    gescheiterter Lauf sagte nur „Fehlgeschlagen". */}
+                {r.status === 'failed' && r.error != null && (
+                  <p className="mt-0.5 line-clamp-2 text-grey-500" title={r.error}>
+                    {r.error}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

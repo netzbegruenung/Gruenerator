@@ -61,11 +61,22 @@ export const getInitials = (displayName?: string, email?: string): string => {
   return 'U';
 };
 
+/**
+ * Hochzählen, sobald sich der *Inhalt* einer profileimage-Datei ändert, ohne
+ * dass ihr Name sich ändert. Nginx liefert `/images/**` mit
+ * `cache-control: public, immutable, max-age=31536000` aus — ein neu
+ * gezeichnetes `1.webp` bliebe sonst ein Jahr lang als altes Bild im Browser
+ * jeder Person, die es vorher schon einmal gesehen hat. Genau das ist mit
+ * Feuri (32590f7c5) und Junas Badge (b11374637) passiert: die Bytes auf
+ * gruenerator.eu waren korrekt, die Caches gaben sie nur nicht mehr her.
+ */
+export const AVATAR_ASSET_VERSION = 2;
+
 export const getRobotAvatarPath = (robotId: number): string => {
   const id = validateRobotId(robotId);
   // WebP (256px) — the source SVGs were 1–4 MB each (embedded full-res PNGs);
   // re-encoded to ~10 KB WebP. Supported by all current browsers and expo-image.
-  return `/images/profileimages/${id}.webp`;
+  return `/images/profileimages/${id}.webp?v=${AVATAR_ASSET_VERSION}`;
 };
 
 export const getRobotAvatarUrl = (robotId: number, baseUrl?: string): string => {

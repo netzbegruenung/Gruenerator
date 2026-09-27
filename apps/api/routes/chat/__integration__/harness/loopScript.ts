@@ -65,6 +65,17 @@ export interface StreamTextRecord {
   modelId: string;
   system: string;
   toolNames: string[];
+  /**
+   * Was der erste Schritt vom Planer VERLANGT hat — das Ergebnis des ECHTEN
+   * `prepareStep` (`buildPrepareStep`) für `stepNumber: 0`, hier gerufen, weil
+   * die SDK-Schrittschleife nicht nachgebaut wird.
+   *
+   * Aufgezeichnet, weil der Unterschied zwischen `'required'` (irgendein
+   * Aufruf) und `{type:'tool'}` (dieser hier) sonst nirgends beobachtbar ist:
+   * die Entscheidungskarte zeigt nur, WELCHES Werkzeug lief, und im Skript
+   * stünde das ohnehin.
+   */
+  toolChoice: unknown;
 }
 
 export interface LoopScript {
@@ -89,7 +100,7 @@ export const loopScript: LoopScript = {
    * A queued response nobody consumed means the turn took a different shape
    * than the scenario claims — split vs. unified, or a synth retry that never
    * happened. Without this the scenario pins a path it never took, which is the
-   * exact failure the aiWorkerPool stub already guards against one layer up.
+   * exact failure the provider stub already guards against one layer up.
    */
   assertScriptsConsumed(): void {
     if (queue.length > 0) {
@@ -131,6 +142,7 @@ export function fakeLoopStreamText(options: {
   model: LanguageModel;
   system?: string;
   tools?: ToolSet;
+  prepareStep?: (arg: { stepNumber: number }) => { toolChoice?: unknown } | undefined;
 }): { stream: AsyncIterable<ScriptedPart> } {
   const callIndex = loopScript.calls.length;
   const tools = options.tools ?? {};
@@ -138,6 +150,7 @@ export function fakeLoopStreamText(options: {
     modelId: modelIdOf(options.model),
     system: options.system ?? '',
     toolNames: Object.keys(tools),
+    toolChoice: options.prepareStep?.({ stepNumber: 0 })?.toolChoice ?? null,
   });
 
   const response = queue.shift();

@@ -1,0 +1,77 @@
+# The nlp image is the one Dockerfile nothing builds before a merge.
+#
+# ci.yml's `NLP Service (Python)` job runs pytest on an actions/setup-python
+# interpreter and never reads the Dockerfile; build-images.yml builds this
+# image only on push to master, i.e. after the fact. A base-image bump was
+# therefore unverifiable until it was already merged — #3195 (python 3.12 ->
+# 3.14) was green on all 14 checks while breaking the image outright (#3304).
+#
+# Its own workflow rather than a job in ci.yml: this needs a `paths:` filter so
+# it stays off the ~400 PRs that do not touch services/nlp, and ci.yml's
+# `pull_request:` trigger is deliberately unfiltered (see the comment there).
+name: NLP Image
+
+on:
+  pull_request:
+    paths:
+      - 'services/nlp/**'
+      - '.github/workflows/nlp-image.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build nlp image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # Reuses the buildcache build-images.yml writes on master, so the ~610 MB
+      # spaCy model layer is normally a hit rather than a fresh download. That
+      # cache ref is anonymously readable (checked with `docker manifest
+      # inspect`), so `cache-from` below still works on fork PRs, where this
+      # login step is skipped — the login only lifts the registry rate limit.
+      # A cold cache just builds from scratch; `cache-from` failing is not
+      # fatal.
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          context: ./services/nlp
+          file: services/nlp/Dockerfile
+          push: false
+          load: true
+          tags: gruenerator-nlp:pr
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/gruenerator-nlp:buildcache
+
+      # A green build is NOT the check. The defect in #3304 was a `COPY` whose
+      # source path did not exist in the builder stage, and a Dockerfile can
+      # succeed at that while copying nothing — the image then only fails when
+      # something tries to import. So run the image: resolve the package, the
+      # production model and the console script the CMD depends on.
+      - name: Verify the image can actually import what it ships
+        run: |
+          docker run --rm gruenerator-nlp:pr python -c "
+          import spacy, topic_classifier
+          spacy.load('de_core_news_lg')
+          print('spacy + topic_classifier + de_core_news_lg OK')
+          "
+          docker run --rm gruenerator-nlp:pr uvicorn --version

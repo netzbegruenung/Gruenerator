@@ -8,15 +8,19 @@
 
 /**
  * One executed tool step, persisted on the assistant message as `toolCalls` and
- * rehydrated by the frontend thread-reload conversion. Shape matches what the
- * sharepic loop already persists (see sharepicAgenticService) so the existing
- * tool-ui renderers and `threadMessageConversion` keep working unchanged.
+ * rehydrated by the frontend thread-reload conversion. Shape is what the
+ * tool-ui renderers and `threadMessageConversion` already expect.
  */
 export interface PersistedStep {
   toolCallId: string;
   toolName: string;
   args: Record<string, unknown>;
   result: Record<string, unknown>;
+  /** Set ONLY on failure. The live card learns the outcome from the
+   *  `tool_step_result` event's `ok` flag, which was never persisted — so a
+   *  failed connector call came back GREEN after a thread reload. Absent means
+   *  "succeeded", which keeps every pre-existing thread reading correctly. */
+  ok?: false;
   /** MCP connector server title (e.g. "Notion"). Present only for MCP tool
    *  steps; lets a later turn identify + replay which server was used, since
    *  the `m<serverKey>__` tool name alone isn't human-readable. */
@@ -31,6 +35,57 @@ export interface PersistedStep {
    *  (split-gather mode only). Rendered as muted text above the card and
    *  persisted with the turn; never replayed into model context. */
   narration?: string;
+}
+
+/** Herkunft eines Konnektor-Werkzeugs, soweit die Freigabe sie unterscheidet. */
+export interface ToolOrigin {
+  /** `mcp` = von der Nutzer*in verbunden, `managed` = von uns betrieben. */
+  kind: 'mcp' | 'managed';
+  /** `mcp_servers.id` bzw. der Systemschlüssel des betriebenen Servers. */
+  serverId: string;
+  /** Der Werkzeugname am Server — nicht der Katalogschlüssel `m<key>__<tool>`. */
+  remoteToolName: string;
+  /**
+   * `annotations.readOnlyHint`, so wie der Server ihn geschickt hat — eine
+   * BEHAUPTUNG, keine Tatsache. Wird hier ungefiltert durchgereicht; ob sie
+   * zählt, entscheidet allein `approvalPolicy.ts` (und dort nur für
+   * `kind: 'managed'`). Fehlt = der Server hat nichts gesagt, nicht `false`.
+   */
+  readOnlyHint?: boolean;
+}
+
+/** Anzeigename eines Konnektor-Werkzeugs plus seine Herkunft. */
+export interface ToolLabel {
+  serverName: string;
+  toolName: string;
+  origin?: ToolOrigin;
+}
+
+/**
+ * Ein Werkzeugaufruf, der auf die Freigabe der Nutzer*in wartet. Trägt alles,
+ * was die Karte zeigt und was die Fortsetzung braucht — beim Entscheiden ist
+ * der Zug beendet, es steht also nichts mehr im Speicher.
+ */
+export interface PendingToolCall {
+  toolCallId: string;
+  /** Katalogschlüssel, bei MCP also der Namensraum-Name `m<key>__<tool>`. */
+  toolName: string;
+  args: Record<string, unknown>;
+  /** Schlüssel der dauerhaften Freigabe — siehe `approvalPolicy.ts`. */
+  scopeKey: string;
+  title?: string;
+  serverName?: string;
+}
+
+/**
+ * Eine Rückfrage aus dem laufenden Loop (`ask_human`-Tool), die auf die Antwort
+ * der Nutzer*in wartet. Wie `PendingToolCall` trägt sie alles, was Karte und
+ * Fortsetzung brauchen — beim Antworten ist der Zug beendet.
+ */
+export interface PendingAskRequest {
+  toolCallId: string;
+  question: string;
+  options?: string[];
 }
 
 /**
@@ -138,9 +193,48 @@ export const DEFAULT_LOOP_BUDGET: LoopBudget = {
  */
 export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   research: 30_000,
+  // Ein ganzes Notebook durchsuchen und dazu Postgres + Qdrant für jede Quelle —
+  // bei großen Notebooks mehr als die Standardfrist. grep/stats lesen bis zu
+  // 4 Mio. Zeichen, stats mit Lemmata wartet dazu bis 30 s auf den NLP-Dienst.
+  notebook_quellen: 45_000,
+  // A long text is several provider requests plus an ffmpeg encode, and the
+  // provider runs them one at a time (#3208). Idempotent per turn, so this
+  // cannot stack either.
+  vertonen: 120_000,
   create_pdf: 90_000,
   create_presentation: 90_000,
   create_document: 90_000,
   create_sheet: 90_000,
   create_board: 90_000,
 };
+
+/**
+ * Tools whose args are structured (IDs, enums, board/task fields) rather than
+ * a free-text search query. The near-duplicate Jaccard/subset heuristic in
+ * `loopGuards.ts` is tuned for re-phrased search queries — for these tools
+ * legitimate follow-up calls (another card, a different board field) share
+ * most tokens with a prior call and get wrongly rejected as "too similar".
+ * MCP/connector tools already skip this heuristic via `serverNameFor`
+ * (`wrapTools.ts`); these are its internal-tool equivalent.
+ */
+export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
+  'create_board',
+  // Zwei Absätze desselben Flyers teilen sich fast jedes Token — jeder Aufruf
+  // ist trotzdem eine eigene, bezahlte Übersetzung.
+  'text_uebersetzen',
+  'boards_tasks',
+  'documents',
+  'read_artifact',
+  'notebooks',
+  // list → outline → read auf dieselbe sourceId: nur action und Navigation unterscheiden sie.
+  'notebook_quellen',
+  'memory',
+  // get → content auf dasselbe Projekt teilen sich bis auf die action jedes Token.
+  'groups',
+  // get → pause → run_now auf dieselbe taskId: nur die action unterscheidet sie.
+  'recurring_tasks',
+  // get → update → share_to_group auf denselben identifier: nur die action unterscheidet sie.
+  'user_agents',
+  // get → update → add_examples → delete auf dieselbe mention: nur die action unterscheidet sie.
+  'recipes',
+]);

@@ -1,0 +1,82 @@
+# Namens-Endmarken für die Personen-Erkennung (NLP-Service)
+#
+# Wörter, die die NER in eine PER-Spanne hineinzieht, die aber nie zu einem
+# Namen gehören: Funktionen, Organisationsteile und Adressbestandteile aus
+# PDF-Briefköpfen. Der Name endet VOR dem ersten Treffer; steht der Treffer
+# ganz vorne, fällt der Kandidat weg.
+# (siehe analyzer.py -> PERSON_STOP_TOKENS / _name_from_entity)
+#
+# Warum als Liste und nicht über die Wortart: "Landesvorsitzende" taggt
+# de_core_news_lg im selben Dokument einmal als ADJ und einmal als PROPN —
+# gemessen an einem Berliner Wahlprüfstein-PDF. Die POS-Regel in
+# `_name_from_entity` fängt den ersten Fall, diese Liste den zweiten. Ohne sie
+# stand "Werner Graf Landesvorsitzende Wahlprüfsteine" als eigene "Person" mit
+# 673 Dokumenten im Facet.
+#
+# Format:
+#   - ein Wort pro Zeile, Schreibweise egal (gematcht wird case-insensitiv)
+#   - gematcht wird ein GANZES Token, nicht ein Wortteil
+#   - Leerzeilen und Zeilen mit '#' am Anfang werden ignoriert
+#
+# Vorsicht bei Wörtern, die auch Nachnamen sind ("Graf", "Meister", "Ritter",
+# "Weber"): die stehen hier bewusst nicht.
+
+# --- Funktionen und Ämter ---
+landesvorsitzende
+landesvorsitzender
+bundesvorsitzende
+bundesvorsitzender
+kreisvorsitzende
+kreisvorsitzender
+fraktionsvorsitzende
+fraktionsvorsitzender
+vorsitzende
+vorsitzender
+geschäftsführer
+geschäftsführerin
+sprecher
+sprecherin
+schatzmeister
+schatzmeisterin
+beisitzer
+beisitzerin
+abgeordnete
+abgeordneter
+
+# --- Organisationsteile ---
+geschäftsstelle
+landesgeschäftsstelle
+bundesgeschäftsstelle
+landesverband
+kreisverband
+bezirksverband
+landesvorstand
+bundesvorstand
+landtagsfraktion
+bundestagsfraktion
+fraktion
+mandatsprüfungskommission
+kommission
+ausschuss
+arbeitsgemeinschaft
+redaktion
+
+# --- Dokumentgattungen aus Briefköpfen ---
+wahlprüfsteine
+wahlprüfstein
+wahlprüfsteinsammlung
+inhaltsverzeichnis
+antragstext
+beschlusspapier
+tagesordnung
+
+# --- Adressbestandteile ---
+straße
+strasse
+str
+platz
+allee
+chaussee
+postfach
+telefon
+telefax

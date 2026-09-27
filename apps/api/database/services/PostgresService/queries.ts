@@ -6,6 +6,22 @@ import type { ExecResult } from './types.js';
 import type { PoolClient } from 'pg';
 
 /**
+ * Safe error projection for logs. A pg `DatabaseError` carries the offending
+ * bound value in enumerable own properties (`detail`, `where`, `internalQuery`,
+ * …) — e.g. a unique-violation `detail` reads `Key (share_token)=(abc123)
+ * already exists.` — and `console.error(error)` prints those via util.inspect.
+ * So we never log the raw error object: only its `code` and `message` (which do
+ * not contain bound values) plus the parameterized SQL.
+ */
+export function toLoggableDbError(error: unknown): { code?: string; message: string } {
+  const e = error as { code?: string; message?: string };
+  return {
+    ...(e?.code != null ? { code: e.code } : {}),
+    message: e?.message ?? String(error),
+  };
+}
+
+/**
  * Build INSERT query
  */
 export function buildInsertQuery(
@@ -140,7 +156,10 @@ export async function transactionQuery(
     const result = await client.query(sql, params);
     return result.rows as Record<string, unknown>[];
   } catch (error) {
-    console.error('[PostgresService] Transaction query error:', error, { sql, params });
+    console.error('[PostgresService] Transaction query error:', {
+      ...toLoggableDbError(error),
+      sql,
+    });
     throw new Error(`Transaction SQL query failed: ${(error as Error).message}`);
   }
 }
@@ -169,7 +188,10 @@ export async function transactionExec(
     const result = await client.query<{ id?: string }>(sql, params);
     return { changes: result.rowCount || 0, lastID: result.rows[0]?.id };
   } catch (error) {
-    console.error('[PostgresService] Transaction exec error:', error, { sql, params });
+    console.error('[PostgresService] Transaction exec error:', {
+      ...toLoggableDbError(error),
+      sql,
+    });
     throw new Error(`Transaction SQL execution failed: ${(error as Error).message}`);
   }
 }

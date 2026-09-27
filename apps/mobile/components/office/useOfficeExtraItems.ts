@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
 import { officeApi } from '../../services/office/officeApi';
+import { resolveWebUrl } from '../../services/webOrigin';
 
 import { type OfficeItem } from './officeItem';
 
@@ -39,7 +40,9 @@ export function toOfficeItems(boards: BoardLike[], canvases: CanvasLike[]): Offi
       title: c.title,
       updatedAt: c.updated_at,
       kind: 'canvas',
-      thumbnailUrl: c.thumbnail_url ?? undefined,
+      // Origin-relative from the API; <Image> on native has no base to resolve
+      // it against, so an unresolved path renders as an empty card.
+      thumbnailUrl: resolveWebUrl(c.thumbnail_url),
     })),
   ];
 }

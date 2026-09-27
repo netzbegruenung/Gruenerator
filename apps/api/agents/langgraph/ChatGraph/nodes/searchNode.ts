@@ -9,6 +9,7 @@ import { dipSearchUrl, btpProtokollPdfUrl as btpPdfUrl } from '@gruenerator/cont
 import { isIntentAllowedForLocale, intentDeclineNote } from '@gruenerator/shared/chat-intents';
 
 import { NOTEBOOK_GATE } from '../../../../config/notebookCollectionMap.js';
+import { getChatNotebookProfile } from '../../../../config/notebookDepthProfiles.js';
 import { vectorConfig } from '../../../../config/vectorConfig.js';
 import {
   executeDirectSearch,
@@ -16,8 +17,15 @@ import {
   executeDirectExamplesSearch,
   executeDirectWebSearch,
 } from '../../../../routes/chat/agents/directSearch.js';
-import { resolveExamplesLvScope } from '../../../../routes/chat/agents/lvScope.js';
+import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
+import {
+  lvEbeneForMentions,
+  narrowLvScopeToEbene,
+  resolveExamplesLvScope,
+} from '../../../../routes/chat/agents/lvScope.js';
 import { relevanceLabelToScore } from '../../../../routes/chat/agents/searchFormatting.js';
+import { agentAllowsWebSearch } from '../../../../routes/chat/agents/searchTools.js';
+import { fairShare } from '../../../../routes/chat/services/messageHelpers.js';
 import { resolveReferentialQuery } from '../../../../routes/chat/services/referentialTopic.js';
 import { getEnrichedPoliticianService } from '../../../../services/abgeordnetenwatch/index.js';
 import { type AwEnrichedResult } from '../../../../services/abgeordnetenwatch/types.js';
@@ -33,7 +41,6 @@ import {
 } from '../../../../services/examples/exampleSearchService.js';
 import {
   crawlAndDistill,
-  selectAndCrawlTopUrls,
   type CrawlableResult,
 } from '../../../../services/search/CrawlingService.js';
 import { LOW_VALUE_DOMAINS } from '../../../../services/search/domainFilters.js';
@@ -100,6 +107,24 @@ const FANIN_CANDIDATE_LIMIT = 24;
  * from the headline.
  */
 const SCRAPE_URL_TARGET_CHARS = 12_000;
+
+/**
+ * Char budget per page for a web result we crawled ourselves.
+ *
+ * Kleiner als `SCRAPE_URL_TARGET_CHARS`, weil diese Seiten niemand benannt hat
+ * — sie stammen aus der Trefferliste, und mehrere davon teilen sich einen Turn.
+ * Entspricht `CRAWL_DISTILL_TARGET_CHARS` im Werkzeugkatalog, der denselben
+ * Fall bedient.
+ *
+ * **Dass hier überhaupt ein Budget steht, ist der Punkt.** Die beiden
+ * Crawl-Stellen unten riefen `selectAndCrawlTopUrls` und schrieben das rohe
+ * `fullContent` nach `content` — als einzige im Baum. `UrlCrawler` deckelt den
+ * extrahierten Text nicht, also erreichte von hier aus ein unbegrenzter
+ * Kandidat den Cross-Encoder, und genau dagegen stand dessen eigenes Fenster
+ * (#2998). Das Fenster ist weg; die Schranke sitzt jetzt hier, wo die Seite
+ * hereinkommt, und gilt damit für alles dahinter statt nur für den Reranker.
+ */
+const WEB_CRAWL_TARGET_CHARS = 8_000;
 
 // ── Abgeordnetenwatch → SearchResult mapping ──────────────────────────────────
 const AW_VOTE_LABELS: Record<string, string> = {
@@ -372,6 +397,81 @@ function buildBundestagResults(enriched: BtEnrichedResult, standalone = true): S
 }
 
 /**
+ * Der Kern der beiden Parlaments-Abrufe: Dienst fragen, Ergebnis aufbereiten.
+ *
+ * EINE Tür führt hierher — das Loop-Werkzeug über `domainTools`. Bis 08/2026
+ * waren es zwei, und die zweite ging DURCH die erste: `makeBundestagTool` rief
+ * `searchNode` mit gesetztem Intent erneut auf und nahm damit dessen ganze
+ * Vorrede mit. Zwei Zweige darin kehren VOR dem `switch` zurück — die
+ * Mehrdokument-Auffächerung und die Mehrquellen-Suche —, und die erste hat den
+ * Abruf gekapert: ein `@bundestag` auf einem Turn mit zwei Dokumentquellen
+ * fragte die DIP nie, sondern lieferte Dokumenttreffer unter dem Namen des
+ * Bundestags-Werkzeugs zurück (gemessen: `dipCalled=0`).
+ *
+ * Die Vorrede ist für einen Zustand aus dem Klassifikator gebaut, nicht für
+ * eine vom Planer geschriebene Suchanfrage. Deshalb rief das Werkzeug erst den
+ * Kern statt des Knotens — und in Phase N fiel die Einzeldurchlauf-Tür ganz.
+ * Ein Turn, den ein Notausschalter aus der Schleife hält, weicht seitdem über
+ * die Registry aus (`degradeTo`, siehe `fallbackIntentFor`) und landet nicht
+ * mehr in einem `case`-Zweig, den nur noch der Ausnahmefall erreichte.
+ *
+ * Was mit der alten Tür wegfiel, ist die referenzielle Auflösung der Anfrage —
+ * sie verlangt ein Recherche-VERB ohne eigenes Subjekt ("recherchier das mal"),
+ * was ein Suchbegriff aus dem Werkzeug-Parameter per Konstruktion nicht ist.
+ */
+export async function retrieveBundestag(
+  query: string,
+  locale: string | null | undefined
+): Promise<SearchResult[]> {
+  const startTime = Date.now();
+  // DE-only source: for AT users return a graceful decline instead of empty
+  // data. Der Loop gattert schon an der Montage (`toolCatalog`), der
+  // Klassifikator degradiert AT auf `web` — das hier ist die letzte Zusicherung,
+  // und seit dem Fall der Einzeldurchlauf-Tür der einzige Punkt, den keine
+  // Aufrufform umgeht.
+  if (!isIntentAllowedForLocale('bundestag', locale)) {
+    return [
+      {
+        source: 'bundestag',
+        title: 'Nur für Deutschland verfügbar',
+        content: intentDeclineNote('bundestag') ?? '',
+        relevance: 1,
+      },
+    ];
+  }
+  const enriched = await getBundestagEnrichedService().search(query);
+  const results = buildBundestagResults(enriched);
+  log.info(
+    `[Search] Bundestag (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
+  );
+  return results;
+}
+
+/** Schwester von `retrieveBundestag` — gleicher Schnitt, gleiche Begründung. */
+export async function retrieveAbgeordnetenwatch(
+  query: string,
+  locale: string | null | undefined
+): Promise<SearchResult[]> {
+  const startTime = Date.now();
+  if (!isIntentAllowedForLocale('abgeordnetenwatch', locale)) {
+    return [
+      {
+        source: 'abgeordnetenwatch',
+        title: 'Nur für Deutschland verfügbar',
+        content: intentDeclineNote('abgeordnetenwatch') ?? '',
+        relevance: 1,
+      },
+    ];
+  }
+  const enriched = await getEnrichedPoliticianService().search(query);
+  const results = buildAbgeordnetenwatchResults(enriched);
+  log.info(
+    `[Search] Abgeordnetenwatch (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
+  );
+  return results;
+}
+
+/**
  * Last stop before Qdrant for the collection lists nobody asked for.
  *
  * Qdrant is shared across instances — there is one `QDRANT_URL` — so hiding a
@@ -451,8 +551,6 @@ export async function executeDocumentSearchParallel(
   const uniqueCollections = [...new Set(collectionsToSearch)];
   const queries = subQueries?.length ? subQueries : [query];
 
-  // Strip landesverband/region from filters for collection-scoped searches
-  // (the collection's defaultFilter already handles this)
   const searchFilters = filters || undefined;
 
   const collectedErrors: SearchErrorEntry[] = [];
@@ -638,14 +736,25 @@ export async function executeWebSearch(
 
   if (options.crawlTopUrls && allWebResults.length > 0) {
     try {
-      const crawled = await selectAndCrawlTopUrls(
+      // `query-focused`, nicht `faithful`: die Anfrage auf diesem Pfad ist eine
+      // Suchanfrage, keine Schreibanweisung wie bei `scrape_url` — hier gibt es
+      // also etwas, wonach ausgewählt werden kann.
+      const crawled = await crawlAndDistill(
         allWebResults.filter((r) => r.url) as CrawlableResult[],
         query,
-        { maxUrls: options.crawlTopUrls, timeout: options.crawlTimeoutMs ?? 3000 }
+        {
+          maxUrls: options.crawlTopUrls,
+          timeout: options.crawlTimeoutMs ?? 3000,
+          mode: 'query-focused',
+          targetChars: WEB_CRAWL_TARGET_CHARS,
+        }
       );
+      // `crawlAndDistill` setzt `content` selbst — das ist der Unterschied zum
+      // rohen Crawler und der Grund, warum es die Funktion gibt. `fullContent`
+      // bleibt daneben stehen, wer es liest, merkt nichts.
       allWebResults = crawled.map((r) => ({
         ...r,
-        content: r.fullContent || r.content || '',
+        content: r.content || r.fullContent || '',
         source: (r.source as string) || 'web',
         title: r.title || '',
       }));
@@ -749,12 +858,28 @@ export interface MultiDocFanoutResult {
   errors: SearchErrorEntry[];
 }
 
+/** Total chunk slots shared across all fanned-out sources in one query. */
+const FANOUT_CHUNK_BUDGET = 12;
+/** Floor so a query spanning many sources still gets a usable sample per source. */
+const FANOUT_MIN_CHUNKS_PER_SOURCE = 3;
+
 export async function executeMultiDocFanout(
   query: string,
   sources: DocumentSource[],
-  agentConfig: AgentConfig
+  agentConfig: AgentConfig,
+  /**
+   * `rerankChunks`: Chunks vor der Gruppierung durch den Cross-Encoder. Opt-in
+   * und nicht der Standard, weil der Einzelpfad danach ohnehin `rerankNode`
+   * fährt — dort wäre es eine zweite Stufe für dasselbe Geld. Gesetzt wird es
+   * vom Loop-Anhang-Pfad, dem einzigen ohne solche zweite Stufe.
+   */
+  opts?: { rerankChunks?: boolean }
 ): Promise<MultiDocFanoutResult> {
-  const perSourceLimit = Math.max(3, Math.floor(12 / sources.length));
+  const perSourceLimit = fairShare(
+    FANOUT_CHUNK_BUDGET,
+    FANOUT_MIN_CHUNKS_PER_SOURCE,
+    sources.length
+  );
   const errors: SearchErrorEntry[] = [];
   const collections = new Set<string>();
 
@@ -778,6 +903,7 @@ export async function executeMultiDocFanout(
             limit: perSourceLimit,
             mode: 'hybrid',
             threshold: 0.15,
+            ...(opts?.rerankChunks === true && { rerankChunks: true }),
           },
           filters: {
             documentIds: [src.id],
@@ -790,6 +916,11 @@ export async function executeMultiDocFanout(
           content: r.relevant_content || '',
           url: r.source_url || undefined,
           relevance: r.similarity_score ?? 0.5,
+          // Der stabile Schlüssel, unter dem die Quellenregistrierung denselben
+          // Anhang über Turns hinweg wiedererkennt. Fehlte er, unterschied sie
+          // mitgeführten und frischen Treffer nur am Inhaltsanfang — und der
+          // wechselt mit jeder Anfrage.
+          documentId: r.document_id || src.id,
           documentSourceId: src.id,
         }));
         return [src.id, results];
@@ -974,7 +1105,21 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     // confidently said there is nothing on the topic.
     const singleSourceErrors: SearchErrorEntry[] = [];
 
-    const searchSources = state.searchSources || [];
+    // Agents bound to their own corpus (the Landesverband agents) declare no
+    // web capability. The classifier picks `searchSources` from keyword
+    // heuristics alone and never consults the agent, so without this the
+    // single-pass path searched the open web for an agent whose own prompt
+    // says it has no web access. The loop's equivalent gate lives in
+    // `toolCatalog` (agentAllowsWebSearch).
+    const webAllowed = agentAllowsWebSearch(agentConfig);
+    const searchSources = (state.searchSources || []).filter(
+      (source) => webAllowed || source !== 'web'
+    );
+    if (!webAllowed && (state.searchSources || []).includes('web')) {
+      log.info(
+        `[Search] agent ${agentConfig.identifier} has no web capability — dropping the web source`
+      );
+    }
     const documentSources = state.documentSources || [];
     const retrievableDocSources = documentSources.filter(
       (s) =>
@@ -1167,16 +1312,18 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       const webResults = results.filter((r) => r.source === 'web' && r.url);
       if (webResults.length > 0) {
         try {
-          const crawled = await selectAndCrawlTopUrls(webResults as CrawlableResult[], query, {
+          const crawled = await crawlAndDistill(webResults as CrawlableResult[], query, {
             maxUrls: 2,
             timeout: 3000,
+            mode: 'query-focused',
+            targetChars: WEB_CRAWL_TARGET_CHARS,
           });
           const crawledMap = new Map(
             crawled.filter((r) => r.crawled && r.url).map((r) => [r.url, r])
           );
           results = results.map((r) => {
             const c = r.url ? crawledMap.get(r.url) : undefined;
-            return c ? { ...r, content: c.fullContent || r.content } : r;
+            return c ? { ...r, content: c.content || c.fullContent || r.content } : r;
           });
           const crawledCount = crawled.filter((r) => r.crawled).length;
           if (crawledCount > 0) {
@@ -1210,7 +1357,16 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     // Single-source mode: existing switch logic (backward compatible).
     // 'compare' degrades to plain search when only one (or zero) doc source
     // is present — the multi-doc fan-out above is its real path.
-    const effectiveIntent = intent === 'compare' ? 'search' : intent;
+    // A web/research INTENT from an agent without web capability degrades to
+    // the internal search rather than going out — otherwise the turn would
+    // reach `executeWebSearch` past the source filter above. Degrading (not
+    // skipping) keeps it answerable from the agent's own corpus.
+    const webCapableIntent = intent === 'research' || intent === 'web';
+    const effectiveIntent =
+      intent === 'compare' ? 'search' : !webAllowed && webCapableIntent ? 'search' : intent;
+    if (!webAllowed && webCapableIntent) {
+      log.info(`[Search] intent=${intent} degraded to search — agent has no web capability`);
+    }
     switch (effectiveIntent) {
       case 'search': {
         // Document chat: search within multi-selected user documents
@@ -1356,7 +1512,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         let expandedQueries: string[] = [];
         if (!isNotebookScoped) {
           try {
-            const expanded = await expandQuery(query, state.aiWorkerPool);
+            const expanded = await expandQuery(query);
             if (expanded.alternatives.length > 0) {
               expandedQueries = expanded.alternatives;
               log.info(`[Search] Document query expanded: +${expandedQueries.length} variants`);
@@ -1367,10 +1523,18 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         }
 
         // Search all sub-queries (if decomposed) + expanded variants across all collections
-        // Notebook-scoped searches get deeper recall (10 vs 3 per collection)
+        //
+        // Notebook-gebundene Turns fahren das Profil der Notebook-Stufe
+        // „Mittel" (`CHAT_NOTEBOOK_DEPTH`) statt einer eigenen Zahl. Vorher
+        // standen hier 10 — das war die HARTE Obergrenze des Turns, nicht die
+        // Decke einer Auswahl: der Reranker bekam 10 Kandidaten und reichte 10
+        // durch, während `MAX_SOURCES` (20) und der Prompt-Boden (8000 Zeichen)
+        // das Doppelte getragen hätten. Dieselbe Sammlung über die
+        // Notebook-Fläche holt auf ihrer Voreinstellung 40.
         const baseQueries = state.subQueries?.length ? state.subQueries : [query];
         const subQueries = [...baseQueries, ...expandedQueries];
-        const perCollectionLimit = isNotebookScoped ? 10 : 3;
+        const notebookProfile = isNotebookScoped ? getChatNotebookProfile() : null;
+        const perCollectionLimit = notebookProfile ? notebookProfile.searchLimit : 3;
 
         const searchPromises = uniqueCollections.flatMap((collection) =>
           subQueries.map((sq) => {
@@ -1428,9 +1592,18 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         }
 
         // Sort by relevance and take top results
-        // Notebook-scoped searches keep more candidates for reranking
+        //
+        // Notebook-gebundene Turns nehmen die Kappe der Stufe: `single` bei
+        // einer Sammlung, `multi` bei mehreren — dieselbe Unterscheidung, die
+        // `notebookStreamCore` trifft. Die Zahl muss mindestens so groß sein
+        // wie das Reranker-Fenster (`rerankInput`), sonst wird hier verworfen,
+        // was der Cross-Encoder gleich bewerten soll.
         allResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-        const resultsCap = isNotebookScoped ? 20 : 8;
+        const resultsCap = notebookProfile
+          ? uniqueCollections.length > 1
+            ? notebookProfile.sortLimit.multi
+            : notebookProfile.sortLimit.single
+          : 8;
         results = allResults.slice(0, resultsCap);
         citations = buildCitations(results);
 
@@ -1446,7 +1619,10 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // NOT for a notebook-scoped turn: "search MY documents" is an explicit
         // scope, and silently widening it to the open web would answer a
         // different question than the one asked. There, empty means empty.
-        if (results.length === 0 && !isNotebookScoped && query.length > 0) {
+        // `webAllowed` for the same reason as the scope check: an agent without
+        // web capability must not reach the web through the back door of an
+        // empty internal result set either.
+        if (results.length === 0 && !isNotebookScoped && webAllowed && query.length > 0) {
           log.info('[Search] internal collections returned nothing — falling back to the web');
           const webFallback = await executeWebSearch(query, { tier: webTier, ...webScope });
           if (webFallback.results.length > 0) {
@@ -1497,64 +1673,12 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       //   break;
       // }
 
-      case 'abgeordnetenwatch': {
-        // German MP transparency data (votes, Nebentätigkeiten, roll-calls) via
-        // the Abgeordnetenwatch API. DE-only source: for AT users (reachable
-        // here only via a forced @abgeordnetenwatch mention, since the classifier
-        // downgrades AT) return a graceful decline instead of empty data.
-        if (!isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
-          results = [
-            {
-              source: 'abgeordnetenwatch',
-              title: 'Nur für Deutschland verfügbar',
-              content: intentDeclineNote('abgeordnetenwatch') ?? '',
-              relevance: 1,
-            },
-          ];
-          citations = buildCitations(results);
-          break;
-        }
-        const enriched = await getEnrichedPoliticianService().search(searchQuery || '');
-        results = buildAbgeordnetenwatchResults(enriched);
-        log.info(
-          `[Search] Abgeordnetenwatch (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
-        );
-        citations = buildCitations(results);
-        break;
-      }
-
-      case 'bundestag': {
-        // Official Bundestag documents (Drucksachen, Plenarreden, Gesetzgebung)
-        // via the Bundestag MCP / DIP. DE-only source: for AT users (reachable
-        // here only via a forced @bundestag mention, since the classifier
-        // downgrades AT) return a graceful decline instead of empty data.
-        if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
-          results = [
-            {
-              source: 'bundestag',
-              title: 'Nur für Deutschland verfügbar',
-              content: intentDeclineNote('bundestag') ?? '',
-              relevance: 1,
-            },
-          ];
-          citations = buildCitations(results);
-          break;
-        }
-        const enriched = await getBundestagEnrichedService().search(searchQuery || '');
-        results = buildBundestagResults(enriched);
-        log.info(
-          `[Search] Bundestag (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
-        );
-        citations = buildCitations(results);
-        break;
-      }
-
       // `research` is no longer a separate engine — it is this path at a deeper
-      // tier. It used to call executeResearch, which handed the whole question
-      // to Linkup `depth=deep, outputType=sourcedAnswer`: LINKUP wrote the
-      // answer, we rendered it in a card, and the model only framed it in two
-      // sentences. Retrieval and answer-writing are separated again, so every
-      // [N] in a research answer is now backed by our own source registry.
+      // tier. It used to hand the whole question to Linkup `depth=deep,
+      // outputType=sourcedAnswer`: LINKUP wrote the answer, we rendered it in a
+      // card, and the model only framed it in two sentences. Retrieval and
+      // answer-writing are separated again, so every [N] in a research answer is
+      // now backed by our own source registry.
       case 'research':
       case 'web': {
         // The brief is a fallback only: it orients the synthesis LLM, but a
@@ -1606,7 +1730,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             timeout: 8000,
             mode: 'faithful',
             targetChars: SCRAPE_URL_TARGET_CHARS,
-            aiWorkerPool: state.aiWorkerPool,
+            condense: true,
           });
           results = crawled
             .filter((r) => r.crawled && (r.content || r.fullContent))
@@ -1626,20 +1750,16 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         break;
       }
 
-      case 'pressemitteilung_examples':
-      case 'social_post': // combined post grounds its text half on social examples
       case 'examples': {
-        // Build kinds from intent + secondaryIntent. The dual SearchIntent
-        // surface stays so postResponseService picks the right tool name (and
-        // therefore the right UI card); the *data fetch* is unified.
-        const kinds: ExampleKind[] = [];
-        if (intent === 'pressemitteilung_examples') kinds.push('press');
-        if (
-          intent === 'examples' ||
-          intent === 'social_post' ||
-          state.secondaryIntent === 'examples'
-        )
-          kinds.push('social');
+        // Nur noch `social`. Die zweite Sorte, `press`, war der ganze
+        // Executor-Anteil des stillgelegten `pressemitteilung_examples` — sie
+        // hing exklusiv an diesem Verdikt. Das PM-Werkzeug im Loop
+        // (`gruenerator_pressemitteilung_examples`) holt dieselben Daten über
+        // `executeDirectPressemitteilungExamples`, und `@pressemitteilungen`
+        // zurrt es fest. Mit dem Verdikt fiel auch der einzige Erzeuger von
+        // `secondaryIntent === 'examples'` weg (der Zweig für Inhalte-Agenten
+        // im Klassifikator), deshalb steht hier keine Fächerung mehr.
+        const kinds: ExampleKind[] = ['social'];
 
         const country =
           agentConfig.toolRestrictions?.examplesCountry ||
@@ -1649,15 +1769,35 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // then fall back to the LV implied by the active notebook/collection scope.
         // The fallback keeps a generic/custom agent bound to an LV notebook from
         // pulling cross-LV examples (the document path already scopes this way).
-        const lvScope = resolveExamplesLvScope(agentConfig, {
-          notebookCollectionIds: state.notebookCollectionIds,
-          defaultNotebookCollectionIds: state.defaultNotebookCollectionIds,
-        });
+        // …und dann auf die Ebene, für die das Rezept dieses Turns geschrieben
+        // ist. Ohne den Zuschnitt umfasst der Ausschnitt beide Ebenen des
+        // Landesverbands, in denen die Fraktion die Partei um ein Vielfaches
+        // überwiegt — ein Partei-Rezept bekäme also überwiegend
+        // Fraktionsvorlagen. `defaultRecipeMention` ist hier der zulässige
+        // Rückfall: dieser Zweig läuft nur für einen Schreib-Intent, also genau
+        // den Fall, in dem `respondNode` gleich dasselbe Rezept einsetzt —
+        // deshalb derselbe LV-bewusste Rückfall wie dort
+        // (`roleAwareDefaultRecipeMention`), sonst misst die Ebene ein anderes
+        // Rezept als das, mit dem gleich geschrieben wird.
+        const lvEbene = lvEbeneForMentions([
+          state.activeSkillMention,
+          roleAwareDefaultRecipeMention(agentConfig, {
+            userRoles: state.userRoles,
+            userLocale: state.userLocale,
+          }),
+        ]);
+        const lvScope = narrowLvScopeToEbene(
+          resolveExamplesLvScope(agentConfig, {
+            notebookCollectionIds: state.notebookCollectionIds,
+            defaultNotebookCollectionIds: state.defaultNotebookCollectionIds,
+          }),
+          lvEbene
+        );
         // [agent-trace] Confirm the LV scope the examples search will actually use,
         // tied to the resolved agent — undefined here means cross-LV leak.
         log.info(
           `[Search][agent-trace] agent="${agentConfig.identifier}" intent=${intent} ` +
-            `lvScope=${JSON.stringify(lvScope ?? null)} ` +
+            `lvScope=${JSON.stringify(lvScope ?? null)} lvEbene=${lvEbene ?? 'keine'} ` +
             `(agentDefaultFilter=${JSON.stringify(agentConfig.defaultFilter?.landesverband ?? null)}, ` +
             `notebookCollections=${JSON.stringify(state.notebookCollectionIds ?? [])}, ` +
             `defaultNotebookCollections=${JSON.stringify(state.defaultNotebookCollectionIds ?? [])})`
@@ -1665,19 +1805,28 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         // Composer paths want full bodies: PM bodies are reconstructed from
         // chunks inside searchExamples, social bodies skip the 500-char cut.
-        // Pass platform hint when set so social fetches filter to Insta/FB.
         // lvScope (per-LV PR agents) constrains press to one LV substrate;
         // social currently logs but does not filter (Apify follow-up).
+        //
+        // Hier stand ein Plattform-Filter (`state.platform` → nur Instagram und
+        // Facebook, die einzigen beiden in `social_media_examples`). Sein
+        // einziger Schreiber war das Verdikt `social_post`, das diesen Zweig per
+        // fallthrough mitbenutzte; mit der Stilllegung 08/2026 wurde das Feld
+        // nirgends mehr gesetzt und die Bedingung konnte nicht mehr wahr werden.
+        //
+        // **Wer ihn zurückholt, muss `examplesCollection` mitdenken.** Der
+        // einzige lebende Erzeuger dieses Zweigs mit erzwungener Beispielsuche
+        // ist `gruenerator-ricarda-lang` (`alwaysSearchesExamples: true`), und
+        // der pinnt `ricarda_lang_tweets` — eine reine Twitter-Sammlung. Ein aus
+        // dem Prompt gelesenes „Instagram-Post" würde dort auf Instagram filtern
+        // und NULL Vorlagen liefern, ausgerechnet auf dem Agenten, dessen ganzer
+        // Zweck „such immer Beispiele" ist. Der Filter braucht also erst eine
+        // Bedingung gegen die gepinnte Sammlung, dann einen Schreiber.
         const unified = await searchExamples({
           query: searchQuery || '',
           kinds,
           ...(country && { country }),
           ...(lvScope !== undefined && { lvScope }),
-          // Qdrant's social_media_examples has only these two platforms —
-          // twitter/linkedin prompts get unfiltered examples instead.
-          ...((state.platform === 'instagram' || state.platform === 'facebook') && {
-            platform: state.platform,
-          }),
           ...(agentConfig.toolRestrictions?.examplesCollection != null && {
             examplesCollection: agentConfig.toolRestrictions.examplesCollection,
           }),
@@ -1694,7 +1843,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           relevance: e.relevance,
           ...(e.url && { url: e.url }),
         }));
-        // Press items have URLs → citations; social posts don't.
+        // Press items have URLs → citations; social posts don't. Seit dieser
+        // Pfad nur noch `social` anfordert, ist der Zweig leer — die Abfrage
+        // bleibt stehen, weil sie die Eigenschaft der DATEN beschreibt und
+        // nicht die der angeforderten Sorte, und `searchExamples` dieselbe
+        // Antwortform auch dem PM-Werkzeug im Loop liefert.
         citations = (unified.byKind.press ?? []).length > 0 ? buildCitations(results) : [];
 
         // Stash the rich kind-segmented shape on state so postResponseService
@@ -1744,7 +1897,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       case 'greeting':
         break;
       // Artefact + editor intents: the content comes from the generation
-      // services, not from retrieval here.
+      // services, not from retrieval here. `create_recurring_task` ist
+      // stillgelegt (09/2026) und erreicht diesen switch nicht mehr — bleibt
+      // nur, weil der Enum-Wert bleibt.
       case 'save_as_doc':
       case 'modify_doc':
       case 'modify_board':
@@ -1752,16 +1907,16 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       case 'edit_current_doc':
       case 'edit_current_board':
       case 'create_sheet':
+      case 'edit_sheet':
       case 'create_presentation':
       case 'create_pdf':
       case 'create_recurring_task':
         break;
       // Connector / native-tool intents: the MCP client does the retrieval.
-      // `bahn`/`reise`/`hotel`/`wetter`/`news` stood here too. They are managed
-      // connectors now and are never produced as an intent, so they cannot
-      // reach this switch — the `default` warning below is free to fire on them
-      // again if something ever does produce one.
-      case 'umfragen':
+      // `bahn`/`reise`/`hotel`/`wetter`/`news` stood here too, und seit Phase L
+      // auch `umfragen`. Sie sind stillgelegt bzw. verwaltete Connectoren und
+      // werden nie mehr als Intent erzeugt, können diesen switch also nicht
+      // erreichen — die `default`-Warnung unten darf für sie wieder feuern.
       case 'hilfe':
       case 'mcp':
       case 'chat_history':

@@ -11,12 +11,32 @@ import { z } from 'zod';
 // ── Closed sets ──────────────────────────────────────────────────────────────
 
 /**
- * Template lifecycle status. A genuinely closed, server-controlled set —
- * request bodies never set it (it's derived from is_private on create and
- * mutated by the admin review flow), so enum-validating it carries no risk of
- * rejecting a legitimate caller.
+ * Template lifecycle status. A closed set: `published` and `rejected` stay
+ * server-controlled (only the admin review flow sets them), while clients may
+ * move a template between `draft` (privat) and `pending_review` (eingereicht)
+ * via {@link templateStatusRequestSchema}.
  */
 export const templateStatusSchema = z.enum(['draft', 'pending_review', 'published', 'rejected']);
+
+/**
+ * The status transitions a client may request on update. Withdrawing to
+ * `draft` makes a template private again; `pending_review` submits it to the
+ * admin gallery review. The server resolves the actual transition (see
+ * `resolveStatusTransition`) — an already-published template is not demoted
+ * back into the queue.
+ */
+export const templateStatusRequestSchema = z.enum(['draft', 'pending_review']);
+
+export type TemplateStatus = z.infer<typeof templateStatusSchema>;
+export type TemplateStatusRequest = z.infer<typeof templateStatusRequestSchema>;
+
+/**
+ * What "saving as a template" should do with the new row: keep it to yourself
+ * (`private` → is_private + draft) or submit it to the public gallery
+ * (`submit` → pending_review). Defaults to `submit` server-side so existing
+ * callers keep the publish behaviour they were written against.
+ */
+export const templateSaveVisibilitySchema = z.enum(['private', 'submit']);
 
 // NOTE: `template_type` is intentionally a free string, NOT an enum. It is an
 // open, server-extensible category (canva | sharepic | file | template | board
@@ -101,11 +121,11 @@ export const fromUrlBodySchema = z.object({
 });
 
 /**
- * POST /user-templates/from-canvas — publish one of the caller's canvas
- * sharepics as a public Grünerator-Vorlage. The server snapshots the canvas
- * (freezing it, shared read-only) and inserts a `pending_review` bridge row.
- * The thumbnail is rendered client-side (canvas rendering is browser-only) and
- * passed in.
+ * POST /user-templates/from-canvas — save one of the caller's canvas sharepics
+ * as a Grünerator-Vorlage. The server snapshots the canvas (freezing it, shared
+ * read-only) and inserts a bridge row — private (`draft`) or submitted for
+ * gallery review (`pending_review`), per `visibility`. The thumbnail is
+ * rendered client-side (canvas rendering is browser-only) and passed in.
  */
 export const fromCanvasBodySchema = z.object({
   canvasId: z.string().min(1),
@@ -113,6 +133,7 @@ export const fromCanvasBodySchema = z.object({
   description: z.string().optional(),
   tags: z.array(z.string()).optional(),
   preview_image_url: z.string().min(1),
+  visibility: templateSaveVisibilitySchema.optional(),
 });
 
 export const createTemplateBodySchema = z.object({
@@ -129,7 +150,16 @@ export const createTemplateBodySchema = z.object({
   is_private: z.boolean().optional(),
 });
 
-export const updateTemplateBodySchema = createTemplateBodySchema;
+/**
+ * Update also carries the lifecycle: "Zur Galerie einreichen" sends
+ * `{ is_private: false, status: 'pending_review' }`, "Privat machen" sends
+ * `{ is_private: true, status: 'draft' }`. Without the status field the
+ * visibility toggle would flip `is_private` while leaving a `draft` row behind
+ * — public to nobody and invisible to the review queue.
+ */
+export const updateTemplateBodySchema = createTemplateBodySchema.extend({
+  status: templateStatusRequestSchema.optional(),
+});
 
 export const metadataUpdateBodySchema = z.object({
   title: z.string().optional(),

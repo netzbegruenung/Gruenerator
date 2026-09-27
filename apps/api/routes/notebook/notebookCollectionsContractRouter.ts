@@ -24,6 +24,11 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import {
+  reindexDocument,
+  reindexNotebookSources,
+} from '../../services/document-services/DocumentProcessingService/reindex.js';
+import { isReindexable } from '../../services/document-services/DocumentProcessingService/reindexOrigin.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
 import {
   getLikeCountsForEntities,
@@ -31,6 +36,9 @@ import {
   likeEntity,
   unlikeEntity,
 } from '../../services/entityLikes/EntityLikesService.js';
+import { summarizeDocumentRows } from '../../services/notebook/corpusState.js';
+import { fetchDocumentMetadata } from '../../services/notebook/notebookSources.js';
+import { listPublicNotebooksForViewer } from '../../services/notebook/publicNotebookListing.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
 import { getUsageMap } from '../../services/usage/ItemUsageService.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
@@ -51,6 +59,27 @@ import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
 
 const log = createLogger('notebookCollectionsContractRouter');
+
+const AI_CONSENT_MISSING = 'Für die KI-Verarbeitung fehlt die Einwilligung nach Art. 9 DSGVO.';
+
+function describeNotebookReindex(result: {
+  queued: string[];
+  unavailable: number;
+  consentMissing: number;
+}): string {
+  const parts = [
+    result.queued.length === 1
+      ? '1 Quelle wird neu indexiert.'
+      : `${result.queued.length} Quellen werden neu indexiert.`,
+  ];
+  if (result.unavailable > 0) {
+    parts.push(`${result.unavailable} ohne Original übersprungen — diese bitte neu hochladen.`);
+  }
+  if (result.consentMissing > 0) {
+    parts.push(`${result.consentMissing} übersprungen, weil die Einwilligung fehlt.`);
+  }
+  return parts.join(' ');
+}
 const notebookHelper = new NotebookQdrantHelper();
 
 /**
@@ -151,6 +180,44 @@ type NotebookCollectionFromQdrantRaw = {
 };
 
 /**
+ * The notebook↔document links, whether or not the caller loaded them.
+ *
+ * Only the list getters (`getUserNotebookCollections`, `getNotebookCollectionsByIds`)
+ * attach `notebook_collection_documents`; `getNotebookCollection` and
+ * `getPublicNotebookCollections` hand back the bare payload, where the field is
+ * simply absent. Treating that absence as "no documents" made every
+ * single-notebook response report `document_count: 0` and an `empty` readiness
+ * — a fully indexed notebook greeted its owner with "hat noch keine Quellen".
+ *
+ * `undefined` means "not loaded" and is looked up one notebook at a time; an
+ * empty array means the caller already looked and found none, and is taken at
+ * face value. Callers enriching MANY collections must therefore pre-resolve in
+ * bulk (`getCollectionDocumentsForCollections`) rather than leave the field
+ * unset — otherwise this fallback fires once per notebook. listCollections
+ * gets the field for free from `getUserNotebookCollections`;
+ * listPublicCollections pre-loads it; only the single-notebook getCollection
+ * actually lands in the lookup below.
+ *
+ * `null` is the third answer: the lookup itself failed. The helper's own
+ * fallback is an empty array, which downstream reads as a notebook that HAS no
+ * sources — the same false "hat noch keine Quellen" the fix above removed, just
+ * triggered by a Qdrant outage instead of a missing field. Callers must not
+ * fold it back into `[]`.
+ */
+async function resolveCollectionDocumentLinks(collection: {
+  id: string;
+  notebook_collection_documents?: Array<{ document_id: string }>;
+}): Promise<Array<{ document_id: string }> | null> {
+  if (collection.notebook_collection_documents) return collection.notebook_collection_documents;
+  try {
+    return await notebookHelper.getCollectionDocuments(collection.id, { rethrow: true });
+  } catch {
+    // Already logged by the helper.
+    return null;
+  }
+}
+
+/**
  * Enrich a raw Qdrant notebook collection with the derived fields the API
  * contract response expects (documents, wolke_share_links, labels parsed
  * out of settings, etc.). Caller picks `accessSource` based on how the
@@ -163,16 +230,42 @@ async function enrichNotebookCollection(
   accessSource: 'owned' | 'shared' | 'authenticated'
 ) {
   const postgres = getPostgresInstance();
-  const documentIds = (collection.notebook_collection_documents || []).map(
-    (qcd) => qcd.document_id
-  );
+  const links = await resolveCollectionDocumentLinks(collection);
+  const documentIds = (links ?? []).map((qcd) => qcd.document_id);
 
   let documents: DocumentRecord[] = [];
+  let vectorCounts = new Map<string, number | null>();
   if (documentIds.length > 0) {
-    documents = await postgres.query<DocumentRecord>(
-      'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1)',
-      [documentIds]
-    );
+    // `status` and the failure reason ride along so the editor can mark
+    // unreadable documents on open. `metadata` is read here but never returned:
+    // it also holds the on-disk filePath, which has no business leaving the
+    // server.
+    const rows = await fetchDocumentMetadata(postgres, documentIds);
+    // `vector_count` never reaches the client — it only feeds the readiness
+    // derivation below, where a `completed` document without vectors has to
+    // count as failed rather than ready.
+    vectorCounts = new Map(rows.map((row) => [row.id, row.vector_count ?? null]));
+    // The shared query reads more columns than this response carries (the
+    // chat's source list needs them). Pick the response fields explicitly, in
+    // their old order, so the wire shape stays exactly what it was.
+    documents = rows.map((row) => {
+      const meta = (
+        typeof row.metadata === 'string'
+          ? (JSON.parse(row.metadata) as Record<string, unknown>)
+          : ((row.metadata ?? {}) as Record<string, unknown>)
+      ) as { processing_error?: unknown };
+      return {
+        id: row.id,
+        title: row.title,
+        page_count: row.page_count,
+        created_at: row.created_at,
+        source_type: row.source_type,
+        wolke_share_link_id: row.wolke_share_link_id,
+        status: row.status,
+        processing_error: typeof meta.processing_error === 'string' ? meta.processing_error : null,
+        reindexable: isReindexable(row),
+      } as DocumentRecord & { processing_error: string | null; reindexable: boolean };
+    });
   }
 
   let wolke_share_links: WolkeShareLink[] = [];
@@ -196,10 +289,31 @@ async function enrichNotebookCollection(
     ? (settings.wordpress_sites as WordpressSiteRef[])
     : [];
 
+  // Readiness is derived, never stored: a persisted field would have to travel
+  // through updateNotebookCollection's read-modify-write and would drift the
+  // way document_count did. The rows are already loaded, so this costs nothing.
+  //
+  // A failed link lookup (`links === null`) yields null rather than a readiness
+  // computed over zero rows: the contract marks the field nullish precisely so
+  // "unknown" is sayable, and the client stays quiet instead of telling people
+  // their sources are gone.
+  const readiness = links
+    ? summarizeDocumentRows(
+        documents.map((doc) => ({
+          id: doc.id,
+          title: doc.title ?? null,
+          status: doc.status ?? 'completed',
+          vector_count: vectorCounts.get(doc.id) ?? null,
+        }))
+      )
+    : null;
+
   return {
     ...collection,
     documents,
     document_count: documents.length,
+    indexing_state: readiness?.state ?? null,
+    indexing_counts: readiness?.counts ?? null,
     selection_mode: collection.selection_mode || 'documents',
     wolke_share_links,
     has_wolke_sources: wolke_share_links.length > 0,
@@ -283,7 +397,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       // with the user — whether via a group (share_mode='groups') or as
       // link-readable authenticated notebooks (share_mode='authenticated') — are
       // intentionally NOT listed here. They stay reachable by direct link and,
-      // when is_public, via the public "Von der Basis" listing
+      // when is_public, via the public „Öffentlich" listing
       // (listPublicCollections). Merging shared buckets into this list let
       // another user's authenticated-shared notebook surface in everyone's
       // "Eigene" list — a privacy leak. Access on direct URL is still governed
@@ -339,16 +453,26 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       };
 
       const postgres = getPostgresInstance();
-      // Audience-filter the public listing so a DE-targeted notebook never
-      // surfaces in an AT viewer's "Von der Basis" (and vice versa) — same
-      // exact-match rule the authenticated-share listing uses above.
+      // Selection (is_public + audience) is shared with the `notebooks` chat
+      // tool's scope='basis' — see services/notebook/publicNotebookListing.ts.
+      // Only the enrichment below is specific to this contract response.
       const viewerLocale = getUserLocale(args.req);
-      const collections = (
-        (await notebookHelper.getPublicNotebookCollections()) as NotebookCollectionFromQdrantRaw[]
-      ).filter((c) => c.audience === viewerLocale);
+      const collections = (await listPublicNotebooksForViewer(
+        viewerLocale
+      )) as NotebookCollectionFromQdrantRaw[];
 
       const likeCounts = await getLikeCountsForEntities(
         'notebook',
+        collections.map((c) => c.id)
+      );
+
+      // `getPublicNotebookCollections` returns the bare payload, so none of
+      // these carry their document links. Resolving them per entry would put
+      // one Qdrant scroll per listed notebook (up to 200) on every page load;
+      // one bulk scroll costs a round trip regardless of the page size.
+      // Notebooks with no links are absent from the map — `?? []` is the
+      // "looked up, found none" answer resolveCollectionDocumentLinks expects.
+      const linksByCollection = await notebookHelper.getCollectionDocumentsForCollections(
         collections.map((c) => c.id)
       );
 
@@ -368,9 +492,17 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
 
       const transformedData = await Promise.all(
         collections.map(async (collection) => {
-          const documentIds = (collection.notebook_collection_documents || []).map(
-            (qcd) => qcd.document_id
-          );
+          // The bulk pre-load always supplies an array here, so the lookup
+          // branch — and with it the null answer — is unreachable on this path.
+          const documentIds = (
+            (await resolveCollectionDocumentLinks({
+              ...collection,
+              notebook_collection_documents:
+                collection.notebook_collection_documents ??
+                linksByCollection.get(collection.id) ??
+                [],
+            })) ?? []
+          ).map((qcd) => qcd.document_id);
 
           let documents: DocumentRecord[] = [];
           if (documentIds.length > 0) {
@@ -475,7 +607,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       // 'private' in storeNotebookCollection). A notebook can only be public
       // once it is share_mode='authenticated', which is set afterwards via the
       // share modal (PUT /share). Creating straight to is_public=true would
-      // mint an orphan — listed in "Von der Basis" but access-denied for
+      // mint an orphan — listed in „Öffentlich" but access-denied for
       // non-owners — the same invariant setShareMode enforces when stepping
       // share_mode down. So reject is_public at create time.
       if (is_public === true) {
@@ -587,6 +719,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
           collection: {
             id: collectionId,
             ...collectionData,
+            // Minted inside storeNotebookCollection — without passing it back the
+            // client has no slug and falls back to the raw UUID URL.
+            slug_suffix: result.slug_suffix,
             document_count: allDocumentIds.length,
             documents_from_wolke: selection_mode === 'wolke' ? wolkeDocuments.length : 0,
             wolke_share_links: selection_mode === 'wolke' ? wolke_share_link_ids : [],
@@ -1037,6 +1172,64 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
     }
   },
 
+  reindexDocument: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const collectionId = fromParam<NotebookId>(args.params.id);
+      const documentId = fromParam<DocumentId>(args.params.documentId);
+
+      const result = await reindexDocument(documentId, userId, { notebookId: collectionId });
+      switch (result.status) {
+        case 'not_found':
+          return { status: 404 as const, body: { error: 'Quelle nicht gefunden' } };
+        case 'forbidden':
+          return { status: 403 as const, body: { error: 'Keine Berechtigung' } };
+        case 'consent_missing':
+          return { status: 403 as const, body: { error: AI_CONSENT_MISSING } };
+        case 'queued':
+        case 'unavailable':
+          return {
+            status: 200 as const,
+            body: { success: true as const, status: result.status, message: result.message },
+          };
+      }
+    } catch (error) {
+      log.error('[notebookCollectionsContract.reindexDocument] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
+  reindexNotebook: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const collectionId = fromParam<NotebookId>(args.params.id);
+
+      const result = await reindexNotebookSources(collectionId, userId);
+      switch (result.status) {
+        case 'not_found':
+          return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+        case 'forbidden':
+          return { status: 403 as const, body: { error: 'Keine Berechtigung' } };
+        case 'consent_missing':
+          return { status: 403 as const, body: { error: AI_CONSENT_MISSING } };
+        case 'ok':
+          return {
+            status: 200 as const,
+            body: {
+              success: true as const,
+              queued: result.queued,
+              unavailable: result.unavailable,
+              consent_missing: result.consentMissing,
+              message: describeNotebookReindex(result),
+            },
+          };
+      }
+    } catch (error) {
+      log.error('[notebookCollectionsContract.reindexNotebook] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
   listMyLikedCollections: async (args) => {
     try {
       const userId = getUserId(args.req);
@@ -1069,7 +1262,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         createNotification({
           userId: collection.user_id,
           type: 'notebook_liked',
-          title: `${likerName} mag dein Notizbuch`,
+          title: `${likerName} mag dein Notebook`,
           body: collection.name ?? null,
           metadata: {
             notebookId: collectionId,

@@ -4,7 +4,11 @@ import { getPostgresInstance } from '../../database/services/PostgresService/Pos
 import { getParam } from '../../utils/params.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
-import { checkDocumentAccess, autoGrantSharePermission } from './documentAccess.js';
+import {
+  checkDocumentAccess,
+  autoGrantSharePermission,
+  redactDocumentForReader,
+} from './documentAccess.js';
 import { type CollaborativeDocument } from './types.js';
 
 const router = Router();
@@ -49,7 +53,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
       }
 
       autoGrantSharePermission(document, userId);
-      return res.json(document);
+      return res.json(redactDocumentForReader(document, userId));
     }
 
     if (document.share_mode === 'private' && !document.is_public) {
@@ -60,7 +64,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
       return res.json({ id: document.id, share_mode: 'authenticated', title: document.title });
     }
 
-    return res.json(document);
+    return res.json(redactDocumentForReader(document, null));
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('[Docs] Error resolving document:', error);

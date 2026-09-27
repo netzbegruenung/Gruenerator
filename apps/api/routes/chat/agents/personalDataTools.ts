@@ -20,11 +20,16 @@
  *     write-access check; deletes use a two-step confirm (the model must re-call
  *     with confirm=true only after the person agrees).
  *
+ * The `notebooks` tool moved to `notebookTools.ts` and `groups` to
+ * `groupTools.ts` (09/2026) when they grew past list/rename/delete; both reuse
+ * the exported helpers below (`ground*`, `makeRow`, `refuseForbiddenAction`).
+ *
  * userId comes off the shared `state.agentConfig?.userId` (set in streamContext).
  * SSE cards, timeout, truncation and step recording are layered on by
  * wrapToolsForLoop — these factories only implement data access + confirm emit.
  */
-import { buildNotebookSlug, buildGroupSlug, buildChatThreadSlug } from '@gruenerator/shared/utils';
+import { isKiImage } from '@gruenerator/shared/media-library/contentOrigin';
+import { buildChatThreadSlug } from '@gruenerator/shared/utils';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
@@ -34,7 +39,6 @@ import {
   forbidsPersistentAction,
   type ForbiddableArtifact,
 } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
-import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { updateCard } from '../../../services/boards/boardCardWriteService.js';
 import {
@@ -43,12 +47,9 @@ import {
   resolveCardDisplay,
   type BoardState,
 } from '../../../services/boards/BoardService.js';
-import { getGroupByToken } from '../../../services/groups/groupMutations.js';
-import { findGroups, listUserGroups } from '../../../services/groups/groupQueries.js';
-import {
-  getSharedMediaService,
-  USER_VISIBLE_SHARE_STATUSES,
-} from '../../../services/sharedMediaService.js';
+import { findGroups } from '../../../services/groups/groupQueries.js';
+import { USER_VISIBLE_SHARE_STATUSES } from '../../../services/sharedMediaFilters.js';
+import { getSharedMediaService } from '../../../services/sharedMediaService.js';
 import { getSubtitlerProjectService } from '../../../services/subtitler/ProjectService.js';
 import { getReelTranscript, reelUrl, searchReels } from '../../../services/subtitler/reelSearch.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
@@ -67,6 +68,7 @@ import { extractTextContent } from '../services/messageHelpers.js';
 import {
   recallPastChats,
   getThreadRecallContext,
+  listRecentThreads,
   resolveSpaceThreadIds,
 } from '../services/pastChatRecallService.js';
 
@@ -101,7 +103,7 @@ export interface PersonalToolCtx {
  * Returns an error the model can read, rather than a silent no-op: a swallowed
  * refusal would leave it announcing a confirmation that was never emitted.
  */
-function refuseForbiddenAction(
+export function refuseForbiddenAction(
   state: ChatGraphState,
   family?: ForbiddableArtifact
 ): { error: string } | null {
@@ -122,7 +124,7 @@ function refuseForbiddenAction(
  * so a tool that merely returns `{ results }` is invisible to it (observed live:
  * "keine Aufgabenlisten liegen mir vor" while the tool had returned taskCount=1).
  */
-function ground(
+export function ground(
   reg: SourceRegistry,
   items: Array<{ title: string; content: string; url?: string }>
 ): void {
@@ -138,15 +140,37 @@ function ground(
 }
 
 /** Grounding lines from clickable result rows (list/search actions). */
-function groundRows(reg: SourceRegistry, rows: ResultRow[]): void {
+export function groundRows(reg: SourceRegistry, rows: ResultRow[]): void {
   ground(
     reg,
-    rows.map((r) => ({
+    rows.map((r) => ({ title: r.title, content: rowContent(r), ...(r.url ? { url: r.url } : {}) }))
+  );
+}
+
+/**
+ * Wie `groundRows`, aber jede Zeile als ganze Notebook-Quelle (`documentId` =
+ * `ref`). Nur so teilt sie die Zitatnummer mit Fundstellen derselben Quelle aus
+ * find/grep/cite, statt eine zweite zu bekommen (#3626).
+ */
+export function groundSourceRows(
+  reg: SourceRegistry,
+  rows: ResultRow[],
+  collectionId: string
+): void {
+  reg.register(
+    rows.map((r): SearchResult => ({
+      source: 'notebook',
       title: r.title,
-      content: [r.type, r.title, r.snippet].filter(Boolean).join(' — '),
-      ...(r.url ? { url: r.url } : {}),
+      content: rowContent(r),
+      url: r.url,
+      documentId: r.ref ?? r.url,
+      collectionId,
     }))
   );
+}
+
+function rowContent(r: ResultRow): string {
+  return [r.type, r.title, r.snippet].filter(Boolean).join(' — ');
 }
 
 /**
@@ -158,12 +182,12 @@ function groundRows(reg: SourceRegistry, rows: ResultRow[]): void {
  * later "mach ein PDF draus" was then briefed with a Kanban confirmation as the
  * only research in scope and built the whole document out of it.
  */
-function groundNote(reg: SourceRegistry, title: string, content: string): void {
+export function groundNote(reg: SourceRegistry, title: string, content: string): void {
   reg.note(title, content);
 }
 
 /** A clickable result row — the frontend registry lifts `{ title, url }` into a citation list. */
-interface ResultRow {
+export interface ResultRow {
   title: string;
   url: string;
   snippet?: string;
@@ -173,7 +197,7 @@ interface ResultRow {
 }
 
 /** Build a row, omitting empty optionals (exactOptionalPropertyTypes: no `undefined`). */
-function makeRow(
+export function makeRow(
   title: string,
   url: string,
   type: string,
@@ -189,29 +213,36 @@ function makeRow(
   };
 }
 
-const NO_SESSION = 'Keine Nutzer-Sitzung — diese Aktion braucht eine angemeldete Person.';
+export const NO_SESSION = 'Keine Nutzer-Sitzung — diese Aktion braucht eine angemeldete Person.';
 
-function requireUserId(state: ChatGraphState): string | null {
+export function requireUserId(state: ChatGraphState): string | null {
   return state.agentConfig?.userId ?? null;
-}
-
-/** Lazy notebook helper — instantiated once, only when a notebook action runs. */
-let notebookHelperSingleton: NotebookQdrantHelper | null = null;
-function notebookHelper(): NotebookQdrantHelper {
-  notebookHelperSingleton ??= new NotebookQdrantHelper();
-  return notebookHelperSingleton;
 }
 
 // ---------------------------------------------------------------------------
 // find_content — cross-domain read over the user's own stuff
 // ---------------------------------------------------------------------------
 
+/**
+ * Notebooks are deliberately NOT part of this tool, and the description says so
+ * out loud. Both paths below are Postgres-backed: `searchOfficeContent` reads
+ * `collaborative_documents` (office subtypes only) and `aggregateRecentActivity`
+ * aggregates docs/boards/images/reels/canvases. A notebook lives in Qdrant and
+ * is reached through `notebooks` (list/get/search) in `notebookTools.ts`.
+ *
+ * The description named Notebooks until #3345 — a leftover from before the
+ * notebook actions moved out of this file — so "such in meinen Notebooks nach X"
+ * landed here and got a confidently empty answer. Do not put the word back
+ * without wiring a notebook source in: the obvious candidate
+ * `searchUserNotebookCollections` matches only name and description, so it finds
+ * notebooks BY title, it does not search their content.
+ */
 export function makeFindContentTool(ctx: PersonalToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen, Notizbücher sowie Reels/untertitelte Videos) oder listet die zuletzt bearbeiteten. Reels werden dabei auch nach ihrem gesprochenen Untertitel-Inhalt durchsucht.
+    description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen sowie Reels/untertitelte Videos) oder listet die zuletzt bearbeiteten. Reels werden dabei auch nach ihrem gesprochenen Untertitel-Inhalt durchsucht.
 
-NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'. Für das VOLLE Transkript eines Reels (z. B. um eine Caption zu schreiben) nutze 'media' mit action="transcript".`,
+NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'. Für das VOLLE Transkript eines Reels (z. B. um eine Caption zu schreiben) nutze 'media' mit action="transcript". NOTEBOOKS erreicht dieses Werkzeug NICHT — zum Auflisten, Ansehen und inhaltlichen Befragen eines Notebooks nutze 'notebooks'.`,
     inputSchema: z.object({
       action: z.enum(['search', 'recent']),
       query: z.string().optional().describe('Suchbegriff (nur bei action="search")'),
@@ -277,12 +308,16 @@ export function makeSearchThreadsTool(ctx: PersonalToolCtx): Tool {
     description: `Durchsucht die FRÜHEREN CHATS der angemeldeten Person (nicht Dokumente — dafür 'find_content'). Findet, was in vergangenen Unterhaltungen besprochen wurde, per Stichwort + Bedeutung.
 
 NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens gesprochen", "such in diesem Projekt", "was hatten wir zu X besprochen").
+- Ohne query: listet die zuletzt aktiven Chats (für "worüber haben wir zuletzt gechattet").
 - scope="space": nur die Chats des aktuellen Space durchsuchen (Standard, wenn der Chat in einem Space liegt).
 - scope="all": alle eigenen Chats durchsuchen.
 - action="read": den vollständigen Verlauf EINES Threads lesen (threadId aus einem Suchergebnis).`,
     inputSchema: z.object({
       action: z.enum(['search', 'read']).default('search'),
-      query: z.string().optional().describe('Suchbegriff (bei action="search")'),
+      query: z
+        .string()
+        .optional()
+        .describe('Suchbegriff (bei action="search"); weglassen für die zuletzt aktiven Chats'),
       scope: z.enum(['space', 'all']).default('space'),
       threadId: z.string().optional().describe('Thread-ID zum Lesen (bei action="read")'),
       limit: z.number().int().min(1).max(10).default(5),
@@ -308,7 +343,6 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
       }
 
       const q = (query ?? '').trim();
-      if (!q) return { error: 'Für die Suche wird ein Suchbegriff benötigt.' };
 
       // Space scope: restrict to the sibling threads of the current Space.
       let threadIds: string[] | undefined;
@@ -323,11 +357,17 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
         // No space (or a failed lookup) → unscoped (all-chats) recall.
       }
 
-      const hits = await recallPastChats(userId, q, {
+      const scopeOpts = {
         limit,
         ...(threadId != null && { excludeThreadId: threadId }),
         ...(threadIds != null && { threadIds }),
-      });
+      };
+      // No search term → the most recent chats. "Worüber haben wir zuletzt
+      // gechattet" has no keyword; erroring here sent the loop into a retry
+      // that the near-duplicate guard then blocked.
+      const hits = q
+        ? await recallPastChats(userId, q, scopeOpts)
+        : await listRecentThreads(userId, scopeOpts);
       const results = hits.map((h) =>
         makeRow(
           h.threadTitle || 'Früherer Chat',
@@ -414,6 +454,9 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
 
       if (action === 'delete') {
         if (!match) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
+        // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
+        // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
+        if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
         if (!confirm) {
           const ask = `Soll das Dokument „${match.title}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
           groundNote(sourceRegistry, 'Bestätigung nötig', ask);
@@ -594,6 +637,23 @@ Die "id" bekommst du aus 'find_content' oder 'documents' (action="list"). Geht e
       try {
         content = await readArtifactContent({ id: targetId, kind, userId });
       } catch (error) {
+        // A doc/board/sheet id lands in `WHERE cd.id = $2::uuid`. When the model
+        // invents one, Postgres answers 22P02 and the raw SQL message went back
+        // as the tool's result — "invalid input syntax for type uuid" tells the
+        // model nothing it can act on, about a value it did not know was wrong.
+        // Twice in one turn on 13.08.2026, both times an eight-character id the
+        // model had read off OUR OWN source list (fixed at the source in
+        // buildDocumentSources; this is the boundary that has to hold whatever
+        // the model invents next).
+        //
+        // Not a pre-check: legitimate refs are not all bare UUIDs — a generated
+        // PDF is addressed as `<uuid>.pdf`. Only the database gets to say that
+        // an id is unusable, and only that answer is translated here.
+        if (/invalid input syntax for type uuid/i.test(toUserFacingMessage(error, ''))) {
+          return {
+            error: `„${targetId}" ist keine gültige id. Nimm die vollständige id aus einem Treffer von 'find_content' oder 'documents' (action="list") — oder lass "id" ganz weg, wenn du das ${noun} aus DIESEM Gespräch meinst.`,
+          };
+        }
         return { error: toUserFacingMessage(error, `${noun} konnte nicht gelesen werden.`) };
       }
       if (!content?.trim()) {
@@ -802,118 +862,17 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
 }
 
 // ---------------------------------------------------------------------------
-// groups — list / find (read)
-// ---------------------------------------------------------------------------
-
-export function makeGroupsTool(ctx: PersonalToolCtx): Tool {
-  const { state, sse, threadId, sourceRegistry } = ctx;
-  return tool({
-    description: `Zugriff auf die Gruppen der Person.
-
-NUTZE FÜR: eigene Gruppen auflisten (list), eine Gruppe per Name finden (find), eine neue Gruppe anlegen (create, braucht name), einer Gruppe per Einladungslink/-token beitreten (join, braucht joinToken). Erstellen und Beitreten werden der Person zur Bestätigung angezeigt. Zum Teilen von Inhalten mit einer Gruppe nutze 'documents' action="share_to_group".`,
-    inputSchema: z.object({
-      action: z.enum(['list', 'find', 'create', 'join']),
-      query: z.string().optional().describe('Gruppenname (nur bei action="find")'),
-      name: z.string().optional().describe('Name der neuen Gruppe (nur bei action="create")'),
-      description: z
-        .string()
-        .optional()
-        .describe('Optionale Beschreibung der neuen Gruppe (nur bei action="create")'),
-      joinToken: z
-        .string()
-        .optional()
-        .describe('Einladungs-Token/-Link der Gruppe (nur bei action="join")'),
-      limit: z.number().int().min(1).max(30).default(15),
-    }),
-    execute: async ({ action, query, name, description, joinToken, limit }) => {
-      const userId = requireUserId(state);
-      if (!userId) return { error: NO_SESSION };
-      const groupUrl = (g: { name: string; slug_suffix: string | null; id: string }) =>
-        `/gruppen/${g.slug_suffix ? buildGroupSlug(g.name, g.slug_suffix) : g.id}`;
-
-      if (action === 'create') {
-        // No artifact noun to bind to — only an action-level prohibition
-        // ("nichts speichern", "keine Aktion") can rule a group out.
-        const forbidden = refuseForbiddenAction(state);
-        if (forbidden) return forbidden;
-        const groupName = name?.trim();
-        if (!groupName) return { error: 'create braucht einen name.' };
-        if (!threadId) return { error: 'Erstellen ist in diesem Kontext nicht möglich.' };
-        const pending: PendingAction = {
-          actionId: newActionId(),
-          threadId,
-          userId,
-          title: 'Gruppe erstellen',
-          preview: `„${groupName}" anlegen`,
-          createdAt: Date.now(),
-          type: 'create_group',
-          payload: { name: groupName, description: description?.trim() || null },
-        };
-        await emitToolConfirmAction(sse, pending, [{ key: 'Gruppe', value: groupName }]);
-        const note = `Bestätigung zum Erstellen der Gruppe „${groupName}" angefordert.`;
-        groundNote(sourceRegistry, 'Gruppe erstellen', note);
-        return { ok: true, note };
-      }
-
-      if (action === 'join') {
-        const token = joinToken?.trim();
-        if (!token) return { error: 'join braucht einen joinToken.' };
-        if (!threadId) return { error: 'Beitreten ist in diesem Kontext nicht möglich.' };
-        const group = await getGroupByToken(token);
-        if (!group) return { error: 'Ungültiger oder abgelaufener Einladungslink.' };
-        const pending: PendingAction = {
-          actionId: newActionId(),
-          threadId,
-          userId,
-          title: 'Gruppe beitreten',
-          preview: `„${group.name}" beitreten`,
-          createdAt: Date.now(),
-          type: 'join_group',
-          payload: { joinToken: token, groupName: group.name },
-        };
-        await emitToolConfirmAction(sse, pending, [{ key: 'Gruppe', value: group.name }]);
-        const note = `Bestätigung zum Beitritt zur Gruppe „${group.name}" angefordert.`;
-        groundNote(sourceRegistry, 'Gruppe beitreten', note);
-        return { ok: true, note };
-      }
-
-      if (action === 'find') {
-        const q = (query ?? '').trim();
-        if (!q) return { error: 'find braucht einen Suchbegriff.' };
-        const groups = await findGroups(userId, q, limit);
-        const results = groups.map((g) =>
-          makeRow(g.name, groupUrl(g), 'Gruppe', `${g.member_count} Mitglieder`)
-        );
-        groundRows(sourceRegistry, results);
-        return { resultCount: results.length, results };
-      }
-
-      const groups = await listUserGroups(userId, limit);
-      const results = groups.map((g) =>
-        makeRow(
-          g.name,
-          groupUrl(g),
-          'Gruppe',
-          `${g.role || 'Mitglied'} · ${g.member_count} Mitglieder`
-        )
-      );
-      groundRows(sourceRegistry, results);
-      return { resultCount: results.length, results };
-    },
-  });
-}
-
-// ---------------------------------------------------------------------------
 // media — reels + sharepics: list / get / delete
 // ---------------------------------------------------------------------------
 
 export function makeMediaTool(ctx: PersonalToolCtx): Tool {
-  const { state, sourceRegistry } = ctx;
+  const { state, threadId, sourceRegistry } = ctx;
   return tool({
-    description: `Zugriff auf die EIGENEN Medien der Person: Reels (untertitelte Videos) und Sharepics (Social-Grafiken).
+    description: `Zugriff auf die EIGENEN Medien der Person: Reels (untertitelte Videos), Sharepics (Social-Grafiken aus den Vorlagen) und KI-Bilder (aus dem Bild-Editor).
+NUR LESEN: Dieses Tool erstellt und bearbeitet NICHTS. Soll ein Sharepic geändert werden und du hast kein Bearbeitungs-Tool, sag das — such nicht ersatzweise die Bibliothek ab.
 
 NUTZE FÜR:
-- auflisten (list, optional type="reel"|"sharepic")
+- auflisten (list, optional type="reel"|"sharepic"|"ki"). Sharepics und KI-Bilder sind zwei verschiedene Produkte — "meine Sharepics" meint type="sharepic", "meine KI-Bilder" type="ki".
 - Reels nach INHALT suchen (search mit query) — durchsucht Titel UND das gesprochene Untertitel-Transkript, z. B. "das Reel über Windkraft"
 - das volle Transkript eines Reels holen (transcript mit ref="reel:<id>") — nötig, bevor du eine Caption, einen Social-Post oder eine Zusammenfassung zum Video schreibst
 - löschen (delete mit ref aus der Liste + confirm=true nach Zustimmung)
@@ -921,12 +880,12 @@ NUTZE FÜR:
 TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst search, dann transcript für den besten Treffer, dann die Caption aus dem Transkript formulieren.`,
     inputSchema: z.object({
       action: z.enum(['list', 'search', 'transcript', 'delete']),
-      type: z.enum(['all', 'reel', 'sharepic']).default('all'),
+      type: z.enum(['all', 'reel', 'sharepic', 'ki']).default('all'),
       query: z.string().optional().describe('Suchbegriff (nur bei action="search")'),
       ref: z
         .string()
         .optional()
-        .describe('Handle aus der Liste ("reel:<id>" oder "sharepic:<token>")'),
+        .describe('Handle aus der Liste ("reel:<id>" oder "sharepic:<token>", auch für KI-Bilder)'),
       confirm: z.boolean().default(false),
       limit: z.number().int().min(1).max(30).default(15),
     }),
@@ -1000,23 +959,40 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
             );
           }
         }
-        if (type === 'all' || type === 'sharepic') {
+        if (type === 'all' || type === 'sharepic' || type === 'ki') {
+          // A filtered ask has to look past `limit`: someone's 15 most recent
+          // images can be Sharepics throughout while the KI-Bilder they asked
+          // for sit just below the cut. 100 is the service's own ceiling.
           const shares = await getSharedMediaService().getUserShares(
             userId,
             'image',
             USER_VISIBLE_SHARE_STATUSES,
-            limit
+            type === 'all' ? limit : 100
           );
+          let taken = 0;
           for (const s of shares) {
+            if (taken >= limit) break;
+            // Sharepics and KI-Bilder are separate products with separate
+            // sections in every gallery, so the same split has to reach the
+            // model. `isKiImage` is the classification those galleries use:
+            // `content_origin` first, falling back to the legacy `image_type`
+            // for rows written before that column existed.
+            const ki = isKiImage({ contentOrigin: s.content_origin, imageType: s.image_type });
+            if (type === 'sharepic' && ki) continue;
+            if (type === 'ki' && !ki) continue;
+            const label = ki ? 'KI-Bild' : 'Sharepic';
             results.push(
               makeRow(
-                s.title || 'Sharepic',
+                s.title || label,
                 `/share/${s.share_token}`,
-                'Sharepic',
+                label,
                 null,
+                // One handle namespace for both: the share token is what the
+                // delete path resolves, and a KI image is not a different row.
                 `sharepic:${s.share_token}`
               )
             );
+            taken++;
           }
         }
         groundRows(sourceRegistry, results);
@@ -1025,6 +1001,9 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
 
       // delete
       if (!ref) return { error: 'delete braucht ref (aus der Liste).' };
+      // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
+      // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
+      if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
       if (!confirm) {
         return {
           needsConfirmation: true,
@@ -1039,75 +1018,11 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
       }
       if (kind === 'sharepic') {
         const ok = await getSharedMediaService().deleteShare(userId, handle);
-        if (!ok) return { error: 'Sharepic nicht gefunden oder kein Zugriff.' };
-        groundNote(sourceRegistry, 'Gelöscht', 'Sharepic wurde gelöscht.');
-        return { ok: true, note: 'Sharepic wurde gelöscht.' };
+        if (!ok) return { error: 'Bild nicht gefunden oder kein Zugriff.' };
+        groundNote(sourceRegistry, 'Gelöscht', 'Bild wurde gelöscht.');
+        return { ok: true, note: 'Bild wurde gelöscht.' };
       }
       return { error: 'Unbekannter Medien-Verweis.' };
-    },
-  });
-}
-
-// ---------------------------------------------------------------------------
-// notebooks — list + rename/delete
-// ---------------------------------------------------------------------------
-
-export function makeNotebooksTool(ctx: PersonalToolCtx): Tool {
-  const { state, sourceRegistry } = ctx;
-  return tool({
-    description: `Zugriff auf die EIGENEN Notizbücher (Sammlungen von Quellen/Dokumenten).
-
-NUTZE FÜR: Notizbücher auflisten (list), umbenennen (rename), löschen (delete mit confirm=true nach Zustimmung).`,
-    inputSchema: z.object({
-      action: z.enum(['list', 'rename', 'delete']),
-      id: z.string().optional().describe('Notizbuch-ID (rename/delete)'),
-      name: z.string().optional().describe('Neuer Name (nur bei action="rename")'),
-      confirm: z.boolean().default(false),
-      limit: z.number().int().min(1).max(30).default(15),
-    }),
-    execute: async ({ action, id, name, confirm, limit }) => {
-      const userId = requireUserId(state);
-      if (!userId) return { error: NO_SESSION };
-      const helper = notebookHelper();
-
-      if (action === 'list') {
-        const collections = await helper.getUserNotebookCollections(userId, { limit });
-        const results = collections.map((c) =>
-          makeRow(
-            c.name,
-            `/notebooks/${c.slug_suffix ? buildNotebookSlug(c.name, c.slug_suffix) : c.id}`,
-            'Notizbuch',
-            c.description || `${c.document_count} Dokument(e)`
-          )
-        );
-        groundRows(sourceRegistry, results);
-        return { resultCount: results.length, results };
-      }
-
-      if (!id) return { error: `${action} braucht eine Notizbuch-ID.` };
-      const collection = await helper.getNotebookCollection(id);
-      if (!collection || collection.user_id !== userId) {
-        return { error: 'Notizbuch nicht gefunden oder kein Zugriff.' };
-      }
-
-      if (action === 'rename') {
-        if (!name?.trim()) return { error: 'rename braucht name.' };
-        await helper.updateNotebookCollection(id, { name: name.trim() });
-        const note = `Notizbuch in „${name.trim()}" umbenannt.`;
-        groundNote(sourceRegistry, 'Umbenannt', note);
-        return { ok: true, note };
-      }
-
-      // delete
-      if (!confirm) {
-        const ask = `Soll das Notizbuch „${collection.name}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
-        groundNote(sourceRegistry, 'Bestätigung nötig', ask);
-        return { needsConfirmation: true, note: ask };
-      }
-      await helper.deleteNotebookCollection(id);
-      const note = `Notizbuch „${collection.name}" wurde gelöscht.`;
-      groundNote(sourceRegistry, 'Gelöscht', note);
-      return { ok: true, note };
     },
   });
 }

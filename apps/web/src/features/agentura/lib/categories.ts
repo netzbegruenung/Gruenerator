@@ -3,13 +3,13 @@ import {
   PiFileText,
   PiGlobe,
   PiMagnifyingGlass,
+  PiMapPin,
   PiMegaphone,
   PiShareNetwork,
   PiSparkle,
   PiStar,
   PiStarFill,
   PiStorefront,
-  PiUsersThree,
 } from 'react-icons/pi';
 
 import type { AgenturaCategoryKey, SkillCategory } from '@gruenerator/shared/agents';
@@ -25,8 +25,11 @@ import type { IconType } from 'react-icons';
  * into the Metro bundle.
  */
 export {
-  AGENTURA_CATEGORIES,
+  AGENTURA_TYPE_LABELS,
+  AGENTURA_TYPE_VALUES,
   DEFAULT_CATEGORY,
+  DEFAULT_TYPE,
+  agenturaCategoriesForPlatform,
   SKILL_CATEGORY_LABELS,
   SKILL_CATEGORY_ORDER,
   SORT_LABELS,
@@ -34,6 +37,7 @@ export {
   type AgenturaCategory,
   type AgenturaCategoryKey,
   type AgenturaSort,
+  type AgenturaType,
 } from '@gruenerator/shared/agents';
 
 /** Aisle sign icon per skill category. */
@@ -48,9 +52,12 @@ export const SKILL_CATEGORY_ICONS: Record<SkillCategory, IconType> = {
 /** Shelf sign icon per category. A `Record`, not a lookup with a fallback: a new
  *  shelf in the shared registry then fails to compile here until it has an icon. */
 export const AGENTURA_CATEGORY_ICONS: Record<AgenturaCategoryKey, IconType> = {
+  // `empfohlen` ist mobil-only (siehe Registry) und im Web nur ein Abschnitt.
+  // Der Eintrag bleibt trotzdem: der Record ist auf die Schlüssel-Union
+  // getippt, nicht auf die Plattform.
   empfohlen: PiStar,
   meine: PiSparkle,
-  gruppen: PiUsersThree,
+  landesverband: PiMapPin,
   community: PiGlobe,
   gruenerator: PiStorefront,
   favoriten: PiStarFill,

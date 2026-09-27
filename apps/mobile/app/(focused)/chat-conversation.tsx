@@ -7,12 +7,16 @@ import {
 } from '@gruenerator/shared/agents';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View, useColorScheme } from 'react-native';
 
 import { AssistantThread, type ThreadWelcome } from '../../components/chat';
 import { MeshSurface } from '../../components/common/MeshSurface';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
+import {
+  NotebookAnswerModeSheet,
+  useAnswerModeAccessory,
+} from '../../components/notebook/NotebookAnswerModeSheet';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
 import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
@@ -155,6 +159,13 @@ export default function ChatConversationScreen() {
 
   const isNewChat = threadId === 'new';
 
+  // Notebook threads get the answer-mode chip beside Send; other chats do not.
+  const threadMode = useAgentStore((s) => s.threadMode);
+  const [answerModeSheetVisible, setAnswerModeSheetVisible] = useState(false);
+  const openAnswerModeSheet = useCallback(() => setAnswerModeSheetVisible(true), []);
+  const answerModeAccessory = useAnswerModeAccessory(openAnswerModeSheet);
+  const isNotebookThread = threadMode === 'notebook';
+
   return (
     // The same chrome as every tab — drawer button, centred title, profile menu —
     // instead of a header of the chat's own. Vanilla, not the tab's sunrise: the
@@ -184,10 +195,22 @@ export default function ChatConversationScreen() {
       headerRight={null}
     >
       <MobileChatProvider threadId={isNewChat ? null : threadId}>
-        <AssistantThread theme={theme} welcome={welcome} transparent />
+        <AssistantThread
+          theme={theme}
+          welcome={welcome}
+          transparent
+          {...(isNotebookThread && { composerAccessory: answerModeAccessory })}
+        />
         {isNewChat && <InitialTurnSender message={initialMessage ?? ''} />}
         {isNewChat && initialComposerText && <ComposerPrefiller text={initialComposerText} />}
       </MobileChatProvider>
+      {isNotebookThread && (
+        <NotebookAnswerModeSheet
+          visible={answerModeSheetVisible}
+          onClose={() => setAnswerModeSheetVisible(false)}
+          theme={theme}
+        />
+      )}
     </ScreenScaffold>
   );
 }

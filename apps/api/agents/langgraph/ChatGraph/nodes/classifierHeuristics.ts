@@ -13,7 +13,7 @@
  * exportiert.
  */
 
-import { findBestMatch } from '@gruenerator/shared/utils';
+import { findBestMatch, isCloudShareUrl } from '@gruenerator/shared/utils';
 
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -25,7 +25,11 @@ import {
   type AnalyzedMessage,
   type ClassifierRule,
 } from './analyzedMessage.js';
-import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierSignals.js';
+import {
+  CLASSIFIER_CONTEXT_MESSAGES,
+  CLASSIFIER_CONTEXT_MAX_CHARS,
+  looksLikeGeltungsfrage,
+} from './classifierSignals.js';
 import {
   creationOrderPattern,
   dictatesInlineTableColumns,
@@ -40,18 +44,26 @@ import type { ModelMessage } from 'ai';
 
 // Generation intents reachable via the fuzzy keyword fallback (only `image`,
 // via 'grafik'/'illustration'); negated/meta artifact words must not match them.
-const GENERATION_FUZZY_INTENTS = new Set<SearchIntent>(['image']);
+// Politik dieses Rückfalls, keine Eigenschaft der Intents: welche
+// Generierungs-Intents eine unscharfe Stichwortübereinstimmung überhaupt
+// auslösen darf.
+const GENERATION_FUZZY_INTENTS: ReadonlySet<SearchIntent> = new Set([
+  'image',
+] as const satisfies readonly SearchIntent[]);
 
 const log = createLogger('ChatGraph:Classifier');
 
-// ── Combined social post (EXPERIMENTAL) ─────────────────────────────────────
+// ── Social-Post-Vokabular ───────────────────────────────────────────────────
 // Shared by the heuristic fast-path and the classifier's dedicated branches so
 // escape hatches and platform detection can't drift between tiers.
 
 /**
- * A combined ask names BOTH a sharepic and a post noun ("Post mit Sharepic").
- * Such a turn belongs to `social_post`, which now carries the sharepic half
- * itself — the sharepic-only fast path must stand down for it.
+ * Der Auftrag nennt ein POST-Nomen und nicht nur ein Sharepic ("Post mit
+ * Sharepic"). Er gehört damit dem Schreibzweig, nicht der Sharepic-Route.
+ *
+ * Bis 08/2026 hiess die Begründung „`social_post` trägt die Sharepic-Hälfte
+ * selbst" — das Verdikt ist stillgelegt, die Vorfahrt bleibt: der Text ist
+ * bestellt, die Grafik ist ein eigener Auftrag.
  */
 export const POST_NOUN_PATTERN = /\b(post(ing)?|beitrag|tweet|caption)\b/i;
 
@@ -148,6 +160,12 @@ const SOCIAL_TRIGGER_NOUN_PATTERN = /\b(social\s*media|post|tweet|instagram)\b/i
 /**
  * Keywords for fuzzy matching in heuristic fallback.
  * Maps intents to their trigger keywords.
+ *
+ * Der `Exclude<…>`-Schlüsseltyp ist der Wächter, nicht Zierrat: ein neuer
+ * Intent steht nicht in der Ausschlussliste, wird damit zum PFLICHTfeld dieses
+ * Records und bricht den Build (verifiziert: TS2741). Wer keine Stichwörter
+ * geben will, muss den Intent hier ausdrücklich ausschliessen und begründen —
+ * genau das tun die Zeilen unten. Stillschweigend stichwortlos geht nicht.
  */
 export const INTENT_KEYWORDS: Record<
   Exclude<
@@ -161,16 +179,20 @@ export const INTENT_KEYWORDS: Record<
     | 'sharepic'
     | 'save_as_doc'
     | 'create_sheet'
+    // edit_sheet is decided deterministically by Tier 2.7 (lastToolContext +
+    // modification keywords), never keyword-scored here.
+    | 'edit_sheet'
     | 'create_presentation'
     | 'create_pdf'
-    // create_recurring_task is LLM-classified (needs a schedule); no keyword heuristic.
+    // create_recurring_task is retired (09/2026): Tier 3.4 answers a recurring
+    // order with `agentic` + pin on the `recurring_tasks` tool. Kept in the
+    // union only because the enum value stays.
     | 'create_recurring_task'
     | 'modify_doc'
     | 'edit_current_doc'
     | 'modify_board'
     | 'edit_current_board'
     | 'share_doc'
-    | 'pressemitteilung_examples'
     // scrape_url is detected by URL presence in the message (extractUrls), not keywords.
     | 'scrape_url'
     // artifact is detected by a dedicated pattern (noun + create imperative), not keywords.
@@ -179,7 +201,8 @@ export const INTENT_KEYWORDS: Record<
     | 'compute'
     // agentic is a router disposition (loop demotion), never keyword-matched.
     | 'agentic'
-    // social_post is detected by the dedicated creation-verb + social-noun rule, not keywords.
+    // Stillgelegt (08/2026): ein Social-Post ist eine Textsorte, kein Verdikt.
+    // Die Regel, die einmal hierher zeigte, liefert heute `produktion`.
     | 'social_post'
     // chat_history is detected by the dedicated past-conversation regex, not keywords.
     | 'chat_history'
@@ -199,6 +222,11 @@ export const INTENT_KEYWORDS: Record<
     | 'wetter'
     | 'news'
     | 'umfragen'
+    // Ebenfalls stillgelegt, aber nie keyword-klassifiziert gewesen: die
+    // PM-Beispiele hingen immer an einer Erwähnung bzw. am Zweig für
+    // Inhalte-Agenten. `@pressemitteilungen` zurrt heute Werkzeug und Rezept
+    // fest (`pinsTool`/`activatesSkill`), das Verdikt gibt es nicht mehr.
+    | 'pressemitteilung_examples'
     // hilfe is detected by the dedicated instructional-question gate
     // (looksLikeDocsHelpQuestion, classifier Tier 2.9). Bare keywords like
     // "hilfe"/"anleitung" would hijack content queries ("hilf mir bei ...").
@@ -215,6 +243,17 @@ export const INTENT_KEYWORDS: Record<
   search: ['wahlprogramm', 'beschluss', 'grundsatzprogramm'],
   examples: ['beispiel', 'vorlage', 'tweet', 'instagram', 'social'],
   abgeordnetenwatch: [
+    // Die Verbform steht neben den Substantiven, weil die natürliche Frageform
+    // sie benutzt: "Wie hat die SPD zum Heizungsgesetz abgestimmt?" traf keines
+    // der Substantive, fiel auf `direct@0.50` und wurde deshalb OHNE
+    // `loopDemotedFromRetrieval` demotiert — der Planer rief kein Werkzeug und
+    // antwortete mit dem Ehrlichkeitshinweis (Nightly-Eval 18.08.2026,
+    // `followup-bundestag-scope` t0). Der Fuzzy-Abgleich deckt darüber auch
+    // "gestimmt" ab. "Wie stimmte die FDP…" bleibt bewusst ungedeckt: mit
+    // 'stimmte' in der Liste kippten vier harmlose Sätze mit ("Stimmt die
+    // Aussage, dass…", "stimme den Text auf die Zielgruppe ab", "die Stimmung
+    // stimmte nicht") in einen erzwungenen Abruf. Gemessen, nicht geschätzt.
+    'abgestimmt',
     'abstimmungsverhalten',
     'nebentätigkeit',
     'nebentätigkeiten',
@@ -456,7 +495,29 @@ export function wantsImageResults(text: string): boolean {
 // the LLM's job. Only add stems for verbs frequent enough to justify
 // bypassing the LLM call.
 export const DOC_MODIFY_PATTERN =
-  /(?:^|\W)(aender|änder|bearbeit|ergaenz|ergänz|aktualisier|ueberarbeit|überarbeit|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+(?:hinzu|ein)|einf(?:ü|ue)g|vereinfach|umschreib|schreib\s+\S.{0,40}?\s+(?:um|neu)|kuerz|kürz|erweiter|verläng|verlaenger|ersetz|umformulier|formulier\s+\S.{0,40}?\s+(?:um|neu)|verbesser|korrigier|anpass|pass\s+\S.{0,40}?\s+an|entfern|loesch|lösch|streich|(?:ü|ue)bersetz|mach\s+\S.{0,40}?\s+(?:k(?:ü|ue)rzer|l(?:ä|ae)nger|pr(?:ä|ae)ziser|kompakter|pr(?:ä|ae)gnanter|knackiger|schlagkr(?:ä|ae)ftiger|verst(?:ä|ae)ndlicher|freundlicher|formeller|pers(?:ö|oe)nlicher))/i;
+  /(?:^|\W)(aender|änder|bearbeit|ergaenz|ergänz|aktualisier|ueberarbeit|überarbeit|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+(?:hinzu|ein)|einf(?:ü|ue)g|vereinfach|umschreib|schreib\s+\S.{0,40}?\s+(?:um|neu)|kuerz|kürz|erweiter|verläng|verlaenger|ersetz|umformulier|formulier\s+\S.{0,40}?\s+(?:um|neu)|verbesser|korrigier|anpass|pass\s+\S.{0,40}?\s+an|entfern|loesch|lösch|streich|(?:ü|ue)bersetz|mach\s+\S.{0,40}?\s+(?:k(?:ü|ue)rzer|l(?:ä|ae)nger|pr(?:ä|ae)ziser|kompakter|pr(?:ä|ae)gnanter|knackiger|schlagkr(?:ä|ae)ftiger|verst(?:ä|ae)ndlicher|freundlicher|formeller|pers(?:ö|oe)nlicher|fett|kursiv|unterstrichen|durchgestrichen|gr(?:ö|oe)(?:ss|ß)er|kleiner|farbig|bunt(?:er)?)|(?:fett|kursiv|unterstrichen|durchgestrichen|gr(?:ö|oe)(?:ss|ß)er|kleiner|farbig|bunt(?:er)?)\s+mach)/i;
+
+/**
+ * Board mutation verbs — the boards counterpart of {@link DOC_MODIFY_PATTERN}.
+ *
+ * Imperative edit verbs only. Uses `-e`/`-en` imperative/infinitive endings
+ * (NOT bare stems) so participles/nouns in QUESTIONS don't misfire — e.g.
+ * "was wurde geändert/gelöscht/markiert?", "welche Labels gibt es?",
+ * "wie ist es sortiert?" must NOT route to an edit. Noun keywords (label,
+ * status, …) only count when preceded by an edit verb (füge … hinzu /
+ * erstelle / setze … / weise … zu).
+ * Leading `(?<![\p{L}])` (not `\b`) so umlaut-initial verbs (ändere,
+ * überarbeite) match after a space — `\b` fails there since ä/ü aren't ASCII
+ * word chars. `u` flag enables \p{L}.
+ *
+ * Two readers, and they must agree: the classifier's `edit_current_board`
+ * fast-path, and the loop's edit guarantee (`loopGuarantees.createAfterGather`),
+ * which forces `edit_document` when the planner skipped it. A copy in the second
+ * place would drift, and the failure is silent — the turn ends with the generic
+ * "keine passende Antwort" instead of the edit the user asked for.
+ */
+export const BOARD_MODIFY_PATTERN =
+  /(?<![\p{L}])(f(?:ü|ue)ge?\s+\S.{0,40}?\s+hinzu|neue[rs]?\s+(karte|aufgabe|spalte|feld|ansicht)|erstelle\s+\S.{0,40}?\s*(aufgabe|karte|spalte|ansicht|feld)|erstelle\s+(aufgabe|karte|spalte|ansicht|feld)|aktualisiere|(?:ä|ae)ndere|erg(?:ä|ae)nze|(?:ü|ue)berarbeite|vereinfache|(?:um)?strukturiere?|l(?:ö|oe)sche?|entferne|verschiebe|sortiere?|kommentiere|markiere|weise\s+\S.{0,40}?\s+zu\b|setze?\s+\S.{0,40}?\s+(?:f(?:ä|ae)llig|frist|status|zust(?:ä|ae)ndig|als|auf|zu\b)|setze?\s+(f(?:ä|ae)llig|frist|status|zust(?:ä|ae)ndig))/iu;
 
 /**
  * Find intent using fuzzy (Levenshtein-based) matching.
@@ -482,9 +543,27 @@ export function fuzzyMatchIntent(word: string, threshold = 0.75): SearchIntent |
 export function extractSearchTopic(query: string): string {
   // Strip leading task verbs + article/filler words + content type nouns + prepositions
   // Note: preposition alternatives are ordered longest-first to prevent partial matches
+  //
+  // Two gaps closed on 20.08.2026, both visible in one live query — the refiner
+  // had failed, and the fallback handed the embedding search
+  // "schreibe darauf basierend einen antrag für mehr hitzeschtutz für alfter",
+  // typo and all, because nothing in the pattern matched:
+  //   1. `darauf basierend` / `auf dieser basis` are fillers of the same kind as
+  //      "bitte" — they point back at material already in the prompt and say
+  //      nothing about the topic;
+  //   2. the noun list is the user's OWN word, so it has to carry the party's
+  //      actual Textsorten. `antrag`, `beschluss` and `resolution` were missing.
+  //      Longest-first, so `antragstext` is not eaten by `antrag`.
+  //
+  // The noun group ends on `(?![a-zäöüß])` because the alternatives are prefixes
+  // of real words: without it `beschluss` matches inside "Beschlussempfehlung"
+  // and the topic starts at "empfehlung". Longest-first only orders the listed
+  // words against each other; it says nothing about words that are NOT listed.
+  // Failing the whole pattern is the better outcome — the untouched query is the
+  // documented fallback, a truncated noun is a silently wrong search.
   const stripped = query
     .replace(
-      /^(schreib|erstell|formulier|verfass|generier|mach|bereite|entwirf|erstelle|schreibe|formuliere|verfasse)[etn]*\s*(mir\s+)?(bitte\s+)?(eine?[nrms]?\s+)?(kurze[nrms]?\s+|lange[nrms]?\s+|ausführliche[nrms]?\s+)?(pressemitteilung|pressemeldung|pm|artikel|beitrag|blogpost|rede|ansprache|statement|argumentation|argumente|faktencheck|analyse|bericht|report|text|entwurf|zusammenfassung|post|tweet)\s*(über das thema|zu dem thema|zum thema|bezüglich|betreffend|über|zum|zur|zu)?\s*/i,
+      /^(schreib|erstell|formulier|verfass|generier|mach|bereite|entwirf|erstelle|schreibe|formuliere|verfasse)[etn]*\s*(mir\s+)?(bitte\s+)?(darauf\s+basierend\s+|auf\s+dieser\s+basis\s+|auf\s+basis\s+(davon|dessen)\s+|daraus\s+)?(mir\s+)?(bitte\s+)?(eine?[nrms]?\s+)?(kurze[nrms]?\s+|lange[nrms]?\s+|ausführliche[nrms]?\s+)?(pressemitteilung|pressemeldung|pm|antragsentwurf|antragstext|antrag|beschlussvorlage|beschluss|resolution|artikel|beitrag|blogpost|rede|ansprache|statement|argumentation|argumente|faktencheck|analyse|bericht|report|text|entwurf|zusammenfassung|post|tweet)(?![a-zäöüß])\s*(über das thema|zu dem thema|zum thema|bezüglich|betreffend|über|für|zum|zur|zu)?\s*/i,
       ''
     )
     .trim();
@@ -550,6 +629,20 @@ export function extractUrls(text: string): string[] {
     if (cleaned) seen.add(cleaned);
   }
   return [...seen];
+}
+
+/**
+ * URLs, die zum Crawlen taugen.
+ *
+ * Ein Nextcloud-Freigabe-Link (`…/s/<token>`) taugt NICHT: dahinter liegt eine
+ * Single-Page-App, ein GET auf die Adresse liefert deren Hülle und keinen
+ * Ordnerinhalt — der Inhalt kommt nur über WebDAV. Bis hierher landete genau
+ * der Satz „füge diesen Wolke-Link hinzu: https://…/s/…" auf `scrape_url` und
+ * bekam Markup statt Dateien. Das Werkzeug `cloud_files` ist dafür zuständig;
+ * es liest den Link aus dem Nachrichtentext, der unverändert im Kontext steht.
+ */
+export function crawlableUrls(text: string): string[] {
+  return extractUrls(text).filter((url) => !isCloudShareUrl(url));
 }
 
 /** Domains to include/exclude when the caller wires them into Linkup's
@@ -1074,6 +1167,17 @@ const SHARE_DOC_TRIGGER_PATTERN =
 const SUMMARY_KEYWORDS_PATTERN =
   /\b(fass[e]?\s+(?:\S[^.!?\n]{0,60}?\s+)?zusammen\b|zusammenfass|zusammenfassung|kurzfassung|überblick\s+erstell)/i;
 
+/**
+ * „Fasse das zusammen" — dieselbe Vokabel, die den `summary`-Auflöser auslöst.
+ *
+ * Exportiert, damit der Loop den Zusammenfassungs-Turn erkennen kann, ohne die
+ * Regex ein zweites Mal zu schreiben: eine Kopie wäre genau die Bauform, an der
+ * die Klassifikator-Taxonomie schon einmal auseinandergelaufen ist.
+ */
+export function isSummaryAsk(text: string): boolean {
+  return SUMMARY_KEYWORDS_PATTERN.test(text);
+}
+
 const CHART_TYPE_NOUN_PATTERN =
   /\b(diagramm|balkendiagramm|kreisdiagramm|liniendiagramm|tortendiagramm|chart|graph)\b/i;
 const CHART_CREATE_IMPERATIVE_PATTERN =
@@ -1127,12 +1231,35 @@ const FACT_BASED_CONTENT_PATTERN =
 const TOPIC_MARKER_PATTERN = /(?:^|\s)(über|zu|zum|zur|bezüglich|betreffend|thema)(?:\s|$)/i;
 
 /**
+ * „abstimmen" hat im Parteialltag zwei Bedeutungen, und nur eine davon ist ein
+ * Votum: die Fraktion stimmt über ein Gesetz ab — die Pressestelle stimmt einen
+ * Text mit der Fraktion ab. Ohne diese Unterscheidung erzwingt „Haben wir das
+ * Layout schon abgestimmt?" einen Parlaments-Abruf.
+ *
+ * Das Votum fragt nach dem WIE: „Wie hat die SPD … abgestimmt?". Die Absprache
+ * fragt danach, OB etwas erledigt ist („Wurde … abgestimmt?", „Ist … mit der
+ * Fraktion abgestimmt?") — und redet von uns. Deshalb beide Bedingungen:
+ * Frageform `wie hat/haben`, und keine erste Person im Satz.
+ *
+ * Nicht gedeckt bleibt „Wie stimmte die FDP…" — siehe die Stichwortliste oben.
+ */
+const VOTE_VERB_PATTERN = /\b(abgestimmt|gestimmt)\b/i;
+const VOTE_QUESTION_PATTERN = /\bwie\s+(hat|haben)\b[^?]*\b(abgestimmt|gestimmt)\b/i;
+const FIRST_PERSON_PATTERN = /\b(wir|uns|unser\w*)\b/i;
+
+function isVoteQuestion(text: string): boolean {
+  return VOTE_QUESTION_PATTERN.test(text) && !FIRST_PERSON_PATTERN.test(text);
+}
+
+/**
  * Der Tippfehler-Fänger: ein Wort, das einem Intent-Stichwort ähnlich genug
  * sieht. Absichtlich die LETZTE Regel und weit unter der Schwelle — sie rät.
  *
  * Ein verneintes oder gefragtes Artefakt-Wort („keine Grafik", „was ist eine
  * Grafik?") darf nicht auf seinen Generierungs-Intent fuzzy-matchen; deshalb
- * läuft für diese Intents der Wächter über die Stichwortliste selbst.
+ * läuft für diese Intents der Wächter über die Stichwortliste selbst. Für die
+ * Abstimmungs-Verben steht daneben der Bedeutungs-Wächter oben — dieselbe Form
+ * von Fehlgriff, nur aus Wortsinn statt aus Verneinung.
  */
 function fuzzyHit(m: AnalyzedMessage): SearchIntent | null {
   for (const word of m.lower.split(/\s+/).filter((w) => w.length >= 4)) {
@@ -1144,6 +1271,13 @@ function fuzzyHit(m: AnalyzedMessage): SearchIntent | null {
         const nounRe = new RegExp(`\\b(?:${kw.map(escapeRegExp).join('|')})`, 'i');
         if (negatedOrMeta(m.stripped, nounRe)) continue;
       }
+    }
+    if (
+      fuzzyIntent === 'abgeordnetenwatch' &&
+      VOTE_VERB_PATTERN.test(word) &&
+      !isVoteQuestion(m.stripped)
+    ) {
+      continue;
     }
     return fuzzyIntent;
   }
@@ -1200,10 +1334,10 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
     }),
   },
   // Sharepic — eine gebrandete Vorlage mit Text, KEIN freies KI-Bild. Vor der
-  // Bildregel, die es sonst schluckt. "Post MIT Sharepic" ist ein kombinierter
-  // Auftrag und gehört der social_post-Regel, die die Sharepic-Hälfte selbst
-  // trägt. Eigener Wächter: `hasExplicitSharepicWord` prüft Zitat, Negation und
-  // Meta-Frage bereits selbst (und satzweise, nicht über die ganze Nachricht).
+  // Bildregel, die es sonst schluckt. "Post MIT Sharepic" nennt ein Post-Nomen
+  // und gehört deshalb der Schreibregel darunter. Eigener Wächter:
+  // `hasExplicitSharepicWord` prüft Zitat, Negation und Meta-Frage bereits
+  // selbst (und satzweise, nicht über die ganze Nachricht).
   {
     id: 'sharepic',
     longPaste: 'skip',
@@ -1443,6 +1577,35 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
       confidence: 0.8,
     }),
   },
+  // Geltungsfragen: „gilt X noch", „ist X in Kraft", „wurde X gekippt".
+  //
+  // Steht hinter `web.current_events`, weil beide dieselbe Sorte Turn bedienen —
+  // eine Auskunft, deren richtige Antwort altert. `CURRENT_EVENTS_PATTERN` sieht
+  // sie nur, wenn das Wort „aktuell" fällt; eine Geltungsfrage kommt ohne aus.
+  //
+  // `web` und nicht `agentic`: das Verdikt steht in `DEMOTABLE_HEURISTIC_INTENTS`,
+  // Tier 3.5 setzt daraufhin `loopDemotedFromRetrieval`, und erst DAS lässt
+  // `shouldForceFirstToolCall` (Weg 4) einen Abruf abverlangen. Ohne den Umweg
+  // bliebe das Verdikt `direct`, der Turn liefe als gewöhnlicher agentischer
+  // Turn, und der Planer dürfte weiterhin gar nichts rufen — genau der Zustand
+  // aus #2949: zwei Läufe, `tools=[]`, sechs Sekunden, Antwort aus dem
+  // Modellwissen.
+  //
+  // Liest `stripped`: eine zitierte Passage ist fremde Rede. „Er schrieb: ‚Gilt
+  // das Gesetz noch?'" fragt nicht nach dem Stand, sondern handelt von einem
+  // fremden Satz.
+  {
+    id: 'web.geltungsfrage',
+    longPaste: 'allow',
+    guard: 'none',
+    match: (m) => looksLikeGeltungsfrage(m.stripped),
+    result: (m) => ({
+      intent: 'web',
+      searchQuery: m.raw,
+      reasoning: 'Legal/procedural validity question — the answer is a NOW-state',
+      confidence: 0.8,
+    }),
+  },
   // "Wer ist …" — Personenfragen an die Websuche.
   {
     id: 'web.person',
@@ -1460,6 +1623,13 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
   // Verb und Nomen müssen nah beieinander stehen — "schreibe eine
   // Produktvorstellung … [Paste erwähnt Instagram]" ist kein Post-Auftrag.
   // Browse-Verben gehören der examples-Regel darunter.
+  //
+  // Das Verdikt hiess bis 08/2026 `social_post` und ist mit ihm auf
+  // `produktion` gewechselt: die Textsorte trägt das Rezept, nicht der Intent.
+  // Die REGEL bleibt trotzdem stehen, und zwar wegen der Regel direkt darunter:
+  // `examples` zählt `schreib`/`erstell`/`mach` zu ihren Aktionsverben, würde
+  // einen Schreibauftrag also als Stöberei nehmen. Der Vorrang hier ist das,
+  // was die beiden auseinanderhält.
   {
     id: 'social_post',
     longPaste: 'skip',
@@ -1469,7 +1639,7 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
       nounNearCreateVerb(m.stripped, SOCIAL_TRIGGER_NOUN_PATTERN) &&
       !EXAMPLE_NOUN_PATTERN.test(m.stripped),
     result: (m) => ({
-      intent: 'social_post',
+      intent: 'produktion',
       searchQuery: m.raw,
       reasoning: 'Social media post creation',
       confidence: 0.8,

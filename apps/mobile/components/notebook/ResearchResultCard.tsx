@@ -1,3 +1,4 @@
+import { formatResearchHitCount } from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { memo } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
@@ -70,10 +71,10 @@ export const ResearchResultCard = memo(function ResearchResultCard({
             <Text style={[styles.badgeText, { color: theme.textSecondary }]}>{date}</Text>
           </View>
         )}
-        {result.chunk_count != null && result.chunk_count > 1 && (
+        {((result.term_chunk_count ?? 0) > 0 || (result.chunk_count ?? 0) > 1) && (
           <View style={[styles.badge, { backgroundColor: theme.surface }]}>
             <Text style={[styles.badgeText, { color: theme.textSecondary }]}>
-              {result.chunk_count} Abschnitte
+              {formatResearchHitCount(result.term_chunk_count, result.chunk_count)}
             </Text>
           </View>
         )}

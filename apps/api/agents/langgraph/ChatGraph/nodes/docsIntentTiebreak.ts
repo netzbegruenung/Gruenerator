@@ -26,13 +26,9 @@
  *     resilience surface.
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
-
-import type { AIWorkerPool } from '../../../../workers/types.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('standard');
+import { withTimeout } from '../../../../utils/withTimeout.js';
 
 const log = createLogger('ChatGraph:DocsTiebreak');
 
@@ -63,7 +59,6 @@ export type DocsTiebreakDecision = 'edit' | 'question' | null;
 interface TiebreakArgs {
   userContent: string;
   conversationContext: string | null;
-  aiWorkerPool: AIWorkerPool;
 }
 
 /**
@@ -74,7 +69,6 @@ interface TiebreakArgs {
 export async function classifyDocsIntentTiebreak({
   userContent,
   conversationContext,
-  aiWorkerPool,
 }: TiebreakArgs): Promise<DocsTiebreakDecision> {
   const startTime = Date.now();
   const userMessage = conversationContext
@@ -83,24 +77,19 @@ export async function classifyDocsIntentTiebreak({
 
   try {
     const response = await withTimeout(
-      aiWorkerPool.processRequest(
-        {
-          type: 'chat_intent_classification',
-          provider: LANE.provider,
-          systemPrompt: TIEBREAK_PROMPT,
-          messages: [{ role: 'user', content: userMessage }],
-          options: {
-            model: LANE.model,
-            max_tokens: 16,
-            temperature: 0,
-          },
-        },
-        null
-      ),
-      TIEBREAK_TIMEOUT_MS
+      aiText({
+        lane: 'chat_intent_classification',
+        pinned: 'standard',
+        system: TIEBREAK_PROMPT,
+        prompt: userMessage,
+        maxOutputTokens: 16,
+        temperature: 0,
+      }),
+      TIEBREAK_TIMEOUT_MS,
+      'Tiebreak'
     );
 
-    const decision = normalizeDecision(response.content);
+    const decision = normalizeDecision(response);
     const elapsedMs = Date.now() - startTime;
     log.info(
       `[DocsTiebreak] ${decision ?? 'unrecognized'} in ${elapsedMs}ms — "${userContent.slice(0, 60)}"`
@@ -129,20 +118,4 @@ function normalizeDecision(raw: string | undefined | null): DocsTiebreakDecision
   if (editIdx === -1) return 'question';
   if (questionIdx === -1) return 'edit';
   return editIdx < questionIdx ? 'edit' : 'question';
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Tiebreak timeout after ${ms}ms`)), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      }
-    );
-  });
 }

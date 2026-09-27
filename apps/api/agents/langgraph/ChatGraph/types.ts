@@ -10,15 +10,22 @@
  * keeping the graph decoupled from transport concerns.
  */
 
-import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
-import type { AgentConfig } from '../../../routes/chat/agents/types.js';
-import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
-import type { AIWorkerPool } from '../../../workers/types.js';
 import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
+import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
+import type {
+  NotebookEditPolicy,
+  NotebookShareMode,
+} from '../../../database/services/NotebookQdrantHelper.js';
+import type { AgentConfig } from '../../../routes/chat/agents/types.js';
+import type { ArtifactKindId } from '../../../routes/chat/services/artifactKindRegistry.js';
+import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
+import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
+import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';
 import type {
   WolkeFileRef,
   ConnectFileRef,
   CurrentBoard,
+  CurrentCanvas,
   ConfirmActionType,
   ChartPayload,
   ArtifactPayload,
@@ -27,10 +34,15 @@ import type {
   SearchIntent,
   ClientPlatform,
   SharepicVariant,
+  PublicOwnership,
+  GroupAudience,
+  CreateRecurringTaskBody,
 } from '@gruenerator/contracts';
+import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
+import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
 import type { ModelMessage } from 'ai';
 
-export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
+export type { WolkeFileRef, ConnectFileRef, CurrentBoard, CurrentCanvas, SocialPostPayload };
 
 /**
  * Retrieval backends the classifier can request for one turn. When several are
@@ -276,6 +288,14 @@ export interface SearchResult {
   chunkIndex?: number | undefined;
   similarityScore?: number | undefined;
   collectionId?: string | undefined;
+  /** Fundstelle im Dokument (`notebook_quellen`): Seite und Zeichenbereich im Originaltext. */
+  pageNumber?: number | null;
+  /** Letzte Seite, wenn die Fundstelle über einen Seitenwechsel reicht. */
+  pageTo?: number | null;
+  charStart?: number | null;
+  charEnd?: number | null;
+  /** Der belegte Wortlaut, wenn er nicht der Anfang von `content` ist. */
+  citedText?: string;
   [key: string]: unknown;
 }
 
@@ -318,6 +338,9 @@ export interface Citation {
   chunkIndex?: number | undefined;
   similarityScore?: number | undefined;
   collectionId?: string | undefined;
+  /** See `readerCollectionId` in chatCitationBase. */
+  readerCollectionId?: string | undefined;
+  pageNumber?: number | null;
   // Set when this citation came from a fan-out per-document retrieval
   // (multi-document chat). Lets the UI group source cards by referenced doc.
   documentSourceId?: string | undefined;
@@ -434,6 +457,10 @@ export interface ThreadAttachment {
    *  retrieve it via RAG instead of re-injecting truncated full text. */
   documentId: string | null;
   summary: string | null;
+  /** Ob die Originalbytes des Anhangs gespeichert sind (`file_data`). Für PDFs
+   *  ist das gleichbedeutend mit „beim Upload als ausfüllbares Formular
+   *  erkannt" — siehe die DB-seitige ThreadAttachment. */
+  hasFileData: boolean;
   createdAt: Date;
 }
 
@@ -468,7 +495,6 @@ export interface ChatGraphInput {
    */
   userId?: string | undefined;
   enabledTools: Record<string, boolean>;
-  aiWorkerPool: AIWorkerPool;
   attachmentContext?: string | undefined;
   imageAttachments?: ImageAttachment[] | undefined;
   threadAttachments?: ThreadAttachment[] | undefined;
@@ -478,6 +504,13 @@ export interface ChatGraphInput {
    * pandas interpreter (`df`) instead of doing arithmetic in its head.
    */
   hasTabularAttachment?: boolean | undefined;
+  /**
+   * Anzahl der aktiven eigenen Wolke-Verbindungen. Das primäre Tor für
+   * `cloud_files` im Werkzeugkatalog — er wird synchron gebaut und kann die
+   * Frage nicht selbst stellen. Gesetzt in `buildStreamContext` aus einem
+   * 60-Sekunden-Cache; `undefined` heißt „nicht ermittelt", nicht „keine".
+   */
+  cloudConnectionCount?: number | undefined;
   /** THIS turn's fillable-PDF attachments (name + base64), for the PDF form
    *  tools. Needed separately from `threadAttachments`, which carries no bytes
    *  and is only written after the turn completes — on the very first turn
@@ -519,22 +552,33 @@ export interface ChatGraphInput {
   documentIds?: string[] | undefined;
   textIds?: string[] | undefined;
   documentChatIds?: string[] | undefined;
+  documentChatLabels?: Record<string, string> | undefined;
   boardIds?: string[] | undefined;
   sheetIds?: string[] | undefined;
   docMentionIds?: string[] | undefined;
   wolkeFiles?: WolkeFileRef[] | undefined;
   connectFiles?: ConnectFileRef[] | undefined;
   /**
-   * URLs explicitly attached in the composer via the @web mention. Merged with
+   * URLs explicitly attached in the composer via the @link mention. Merged with
    * the classifier's auto-detected URLs and crawled through the scrape_url path.
    */
   attachedWebpageUrls?: string[] | undefined;
   currentDocument?: CurrentDocument | undefined;
   currentBoard?: CurrentBoard | undefined;
+  currentCanvas?: CurrentCanvas | undefined;
   userLocale?: UserLocale | undefined;
   clientPlatform?: ClientPlatform | undefined;
   customSystemPrompt?: string | undefined;
+  roleBausteinActive?: boolean | undefined;
+  /**
+   * Die Profilrollen der Person. Der Rezept-Katalog leitet daraus ab, welche
+   * Landesverbands-Rezepte das Modell überhaupt kennen darf — dieselbe
+   * Zuteilung, die Agentura und das Mention-Menü anwenden.
+   */
+  userRoles?: readonly RoleLandesverbandInput[] | undefined;
   activeSkillMention?: string | undefined;
+  /** Zeilen-id der gewählten Textform. Schlägt die Mention beim Nachschlag. */
+  activeRecipeId?: string | undefined;
   userInstructions?: string | undefined;
   contextWindowTokens?: number | undefined;
 }
@@ -592,7 +636,6 @@ export interface ChatGraphState {
   threadId: string | null;
   agentConfig: AgentConfig;
   enabledTools: Record<string, boolean>;
-  aiWorkerPool: AIWorkerPool;
   userLocale: UserLocale;
   /** Client shell ('web'/'app') — distinct from `platform`, the social-post target. */
   clientPlatform: ClientPlatform;
@@ -607,6 +650,24 @@ export interface ChatGraphState {
    * `listThreadArtifacts`; empty when the thread produced none.
    */
   threadArtifacts?: ThreadToolContext[];
+  /**
+   * The notebook of the thread's last successful `notebook_quellen` call
+   * (`notebookIdFromSteps`). A follow-up tool ask that no longer names the
+   * notebook pins the tool on it; the tool resolves the same id itself.
+   */
+  threadNotebookId?: string | null;
+  /**
+   * The notebook of a successful `notebook_quellen` call in the assistant turn
+   * RIGHT BEFORE this one — null when that turn ran none. A short referential
+   * follow-up („nun die vorletzte") continues that turn's tool work.
+   */
+  lastTurnNotebookId?: string | null;
+  /**
+   * Präzisionsmodus der Notebook-Seite: `notebook_quellen` darf nur diese
+   * Notebooks öffnen (verglichen nach `resolveSystemCollection`), und mit
+   * `readOnly` keine Schreibaktion ausführen. Fehlt ⇒ keine Einschränkung.
+   */
+  notebookScopeLock?: { ids: string[]; readOnly: boolean } | null;
   /** Last user text with mention tokens fully REMOVED — for regex heuristics
    *  that would false-positive on labels ("Bild generieren"). The messages on
    *  state carry the label form ("@Label") instead. */
@@ -635,6 +696,8 @@ export interface ChatGraphState {
   imageAttachments: ImageAttachment[];
   threadAttachments: ThreadAttachment[];
   hasTabularAttachment: boolean;
+  /** See the input-side field: the tool-catalog gate for `cloud_files`. */
+  cloudConnectionCount: number;
   /** See the input-side field: this turn's fillable PDFs, name + base64. */
   pdfFormAttachments: Array<{ name: string; data: string }>;
   clientCanRunPython: boolean;
@@ -659,6 +722,14 @@ export interface ChatGraphState {
 
   // Document chat scoping (from @dokumentchat multi-select)
   documentChatIds: string[];
+  // Dateiname je vektorisiertem Dokument dieses Turns (documentId → Name).
+  //
+  // Ein Anhang, der in DIESEM Turn hochgeladen wurde, steht noch in keiner
+  // `threadAttachments`-Zeile — die entsteht erst nach der Antwort. Ohne diese
+  // Karte fällt `buildDocumentSources` auf „Dokument 1" zurück, und der Name,
+  // den der*die Nutzer*in gerade hochgeladen hat, taucht weder in den Quellen
+  // noch in `dokumente_lesen` auf.
+  documentChatLabels?: Record<string, string> | undefined;
 
   // Board context (from @board mentions)
   boardIds: string[];
@@ -668,9 +739,27 @@ export interface ChatGraphState {
   sheetIds: string[];
   sheetContext: string | null;
 
+  // Target sheet for a Tier-2.7 follow-up edit (lastToolContext pickup) — set
+  // only by classifierNode's edit_sheet branch, distinct from sheetIds' @mention
+  // scoping. See ChatGraphState.docMentionIds for the document equivalent.
+  sheetEditId: string | null;
+
   // Collaborative document context (from @doc mentions)
   docMentionIds: string[];
   documentMentionContext: string | null;
+
+  // Der Text, den der Einfache-Sprache-Agent in DIESEM Turn übertragen soll —
+  // vom Router aus `resolveOriginalText` gesetzt, sonst null.
+  //
+  // Er existiert, damit Übertragung und Prüfung nachweislich denselben
+  // Ausgangstext meinen. Ohne ihn liefen beide auseinander: der Antwortschritt
+  // sieht den ganzen Thread (`formatThreadAttachmentsContext` spielt den
+  // Volltext JEDES früheren Anhangs wieder ein), die Prüfkette nur den
+  // aktuellen Turn. Am 13.08.2026 übertrug Schritt 1 deshalb den Artikel aus
+  // dem vorigen Turn, während Schritt 3 gegen das frisch eingefügte Material
+  // prüfte — der Bericht meldete folgerichtig „Halluzination, ABLEHNUNG" für
+  // eine Fassung, die nur am falschen Original gemessen worden war.
+  pipelineSourceText: string | null;
 
   // Wolke (Nextcloud) file refs selected via @wolke mentionable.
   // Downloaded + parsed inline at searchNode time; never persisted.
@@ -680,7 +769,7 @@ export interface ChatGraphState {
   // Downloaded + parsed inline at searchNode time; never persisted.
   connectFiles: ConnectFileRef[];
 
-  // URLs attached via the @web mentionable. The classifier unions these into
+  // URLs attached via the @link mentionable. The classifier unions these into
   // `detectedUrls` so the existing scrape_url path crawls them.
   attachedWebpageUrls: string[];
 
@@ -692,18 +781,55 @@ export interface ChatGraphState {
   // context for board Q&A; presence + edit keywords route to edit_current_board.
   currentBoard: CurrentBoard | null;
 
+  // Live canvas state when chat is embedded in the sharepic studio sidebar.
+  // Primary context for sharepic Q&A (`text` is injected as AKTUELLES DOKUMENT)
+  // and the target of the loop's `edit_document` tool on the canvas surface
+  // (`snapshot`/`capabilities` feed runCanvasSuggest).
+  currentCanvas: CurrentCanvas | null;
+
   // Custom system prompt (replaces entire agent system prompt when set)
   customSystemPrompt: string | null;
+
+  // customSystemPrompt is a CATALOGUE role's baustein (server-side persona),
+  // not a user-typed prompt. Keeps the loop's recipe self-loading mounted:
+  // suppressing recipes protects user personas, not our own role bausteine.
+  roleBausteinActive: boolean;
+
+  // Profilrollen der Person. Quelle der Landesverbands-Zuteilung im
+  // Rezept-Katalog: leer heißt „keine Landesgeschäftsstellen-Rolle" und damit
+  // keine LV-Rezepte — dieselbe Regel wie in Agentura und im Mention-Menü.
+  userRoles: readonly RoleLandesverbandInput[];
 
   // Mention key of the active skill (e.g. 'instagram'). When set, respondNode
   // appends the skill's `skillSystemPrompt` as an additive section.
   activeSkillMention: string | null;
 
+  // Zeilen-id der gewählten angelernten Textform. Sie ist der stabile
+  // Schlüssel: eine Umbenennung der Mention tauscht das Rezept damit nicht
+  // still aus. Gesetzt schlägt sie die Mention im Nachschlag
+  // (`resolveRecipeBody`) und zählt wie diese als ausdrückliche Wahl.
+  activeRecipeId: string | null;
+
+  // Nachvollziehbarkeit: die Rezepte, die diesen Turn tatsächlich geformt
+  // haben. Gesetzt von `buildSystemMessage` (Prompt-Tür: explizite/implizite
+  // Mention oder Agent-Default) bzw. vom Loop aus der Rezept-Registry
+  // (`rezept_laden`). Wandert in die `done`-Metadaten und die persistierte
+  // Nachricht, damit die Oberfläche dezent ausweisen kann, welche
+  // Schreibvorgabe galt.
+  // `id` ist die Zeile, die den Turn getragen hat — vorhanden nur für eine
+  // angelernte Textform, weggelassen (nicht `null`) für einen Systemrumpf und
+  // für die Registry-Einträge des Loops, die keine id führen.
+  usedRecipes?: { mention: string; title: string; source: 'system' | 'user'; id?: string }[];
+
   // User profile instructions (from profiles.custom_prompt, additive to all modes)
   userInstructions: string | null;
 
-  // Memory context (from mem0 cross-thread memory)
+  // The person's explicit memory for this turn (services/memory). `memoryContext`
+  // is the rendered, numbered text the prompt shows; `memories` is the same
+  // list as data, so the `memory` tool can resolve "Nr. 3" to a row id.
   memoryContext: string | null;
+  memories: RenderedMemory[] | null;
+  memoryEnabled: boolean;
   memoryRetrieveTimeMs: number;
 
   // Chat history context (from past conversation search, injected by controller)
@@ -756,6 +882,18 @@ export interface ChatGraphState {
   creationTopic: string | null;
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
+
+  /**
+   * Output contract detected on the last user message (`detectTaskShape` in
+   * routes/chat/agents/taskShape.ts): `code` for machine-readable output
+   * (JSON/YAML/code/fences, incl. the sticky edit-follow-up after a code
+   * answer), `strict_format` for explicitly checkable format orders ("genau
+   * drei Sätze", "ohne Einleitung"). Set by the contract router after
+   * classification; consumed by `resolveAutoSelection` as a lane override on
+   * the neutral intents. Orthogonal to `intent` and `complexity` on purpose —
+   * it describes the answer's FORM, not the task.
+   */
+  taskShape?: 'code' | 'strict_format' | null;
 
   /**
    * The user asked for a thorough/deep research in so many words — the ONLY route
@@ -833,13 +971,6 @@ export interface ChatGraphState {
    * treated as usable material rather than as research context.
    */
   webImageResults?: WebImageResult[];
-
-  // Platform hint for the `examples` / `social_post` intents. Set by the
-  // classifier when the user prompt names a platform; null otherwise. Consumed
-  // by searchNode to filter social examples (instagram/facebook only — the
-  // Qdrant collection has no other platforms) and by socialMediaComposerNode
-  // to pick the platform-specific rubric.
-  platform: SocialTextPlatform | null;
 
   // Clarification (HITL interrupt)
   needsClarification: boolean;
@@ -923,16 +1054,18 @@ export interface ChatGraphState {
   // Which generation fat tool to mount — derived from intent OR (for a demoted
   // `agentic` turn) the text noun, so "mach mir eine Tabelle draus" still mounts
   // create_sheet even though the intent is `agentic`, not `create_sheet`.
-  compoundGenerationKind?:
-    'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | 'pdf' | null;
-  // Compound "research + edit the OPEN doc/board" (editor sidebars): runs the
-  // research loop, then emits trigger_doc_edit/trigger_board_action with the
-  // gathered sources as reference material. Synth writes only a short confirm.
+  // Die Art selbst ist die Registry-Union, nicht ein zweites handgeschriebenes
+  // Literal: dieses Feld war der siebte Schreiber derselben Menge, und ein hier
+  // fehlender Wert hätte im Katalog stumm kein Werkzeug montiert.
+  compoundGenerationKind?: ArtifactKindId | null;
+  // Compound "research + edit the OPEN artefact" (editor sidebars): runs the
+  // research loop, then feeds the gathered sources to the `edit_document` tool
+  // as reference material. Synth writes only a short confirm.
   compoundEdit?: boolean;
   // Tool-based editor edit: the resolved editor surface whose `edit_document`
-  // tool the loop mounts. Set only for surfaces with a tool path
-  // (routing.TOOL_EDIT_SURFACES); null/undefined keeps the legacy
-  // trigger_doc_edit path for the still-live surfaces.
+  // tool the loop mounts. Null/undefined means the turn has NO edit path at all
+  // (a kill-switch in `decideEditToolLoop` held it back) — `buildArtifactNotes`
+  // makes the model say so rather than answer as if it had edited.
   editToolSurface?: 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas' | null;
   // Human summary of edits the edit_document tool made THIS turn (set by
   // editorTools). Feeds the synth prompt so the model confirms the change in
@@ -942,6 +1075,10 @@ export interface ChatGraphState {
   // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
   // router into the persisted assistant message's `createdDocument` metadata.
   createdDocument?: CreatedDocument | null;
+  // The spec the `create_pdf` tool rendered from this turn. A PDF ships as
+  // finished bytes, so this is the only thing a later edit can build on —
+  // lifted by postResponseService into the message's `pdfSpec` metadata.
+  createdPdfSpec?: unknown;
   // Board fat tool result (compound turns) — boards have no `document_created`
   // card path, so this is lifted into the loop's `done` event (boardId +
   // boardGeneratedStructure) the way the single-pass board handler does.
@@ -955,6 +1092,40 @@ export interface ChatGraphState {
   // set by a `@notion`/`@brevo` mention (router) or a conservative classifier
   // hint. Null = run over all enabled servers.
   mcpServerScope?: string | null | undefined;
+
+  // Das WERKZEUG, das eine @-Erwähnung dieses Turns festgezurrt hat. Gesetzt von
+  // `forcedIntentStage` neben `mcpServerScope` und aus demselben Grund: der Loop
+  // muss wissen, was die Person GEWÄHLT hat, und `state.intent` allein sagt das
+  // nicht — ein Klassifikator-Verdikt sieht dort genauso aus.
+  //
+  // Zwei Leser, beide im Loop: der erste Werkzeugaufruf wird beim NAMEN genannt
+  // statt nur „irgendeiner" verlangt (`pinnedFirstTool`), und der Pin selbst
+  // zwingt den Turn in die Schleife (`turnPlan`) — dort und nur dort gibt es
+  // Werkzeuge. Ein Werkzeugname und keine `ChatIntentId`, damit eine Erwähnung
+  // eine Fähigkeit festzurren kann, deren Intent stillgelegt ist (`@umfragen`).
+  // Null/abwesend = niemand hat gewählt.
+  mentionPinnedTool?: string | null | undefined;
+
+  // Die ARTEFAKTART, die eine `@…-erstellen`-Erwähnung dieses Turns festgezurrt
+  // hat. Zweite Hälfte desselben Gedankens wie `mentionPinnedTool`, für die eine
+  // Erwähnungsfamilie, die kein Werkzeug benennt, sondern eine Art.
+  //
+  // Warum sie nötig ist: keines der fünf Token setzt `forcedTool`, weil ein
+  // Verbund-Turn („recherchiere X und mach eine Tabelle daraus") gerade NICHT
+  // die direkte Erstellroute nehmen soll. Ohne diesen Pin leitet `turnPlan` die
+  // Art dann neu aus dem Substantiv im Text ab — `@sheet-erstellen` ergab eine
+  // Tabelle also nur, solange das Wort „Tabelle" auch dastand.
+  mentionPinnedArtifactKind?: ArtifactCreateKind | null | undefined;
+
+  // Ein Auftrag, ein Rezept oder einen Grünerator-Agenten ANZULEGEN — gesetzt
+  // vom Klassifikator (`tier2_agentura_create`) neben `intent: 'agentic'`.
+  // Gegenstück zu `mentionPinnedTool` ohne dessen zweite Hälfte: der Turn MUSS
+  // in die Schleife (nur dort sind `recipes`/`user_agents` montiert, `agentic`
+  // hat keinen Einzeldurchlauf), auch mit gewähltem Notebook — aber der erste
+  // Aufruf wird NICHT erzwungen. Ein Pin erzwänge ihn, und dann legte ein
+  // Fehlalarm ohne Rückfrage ein Rezept an, bzw. das Rezept entstünde, bevor
+  // das gewählte Notebook gelesen ist.
+  agenturaCreateOrder?: boolean | undefined;
 
   // The first-party MANAGED connectors this turn mounts (`bahn`, `wetter`,
   // `gesetze`, …). Set by the vocabulary trigger in the router, or by an
@@ -989,12 +1160,6 @@ export interface ChatGraphState {
    *  if the "corrected" code then fails, the turn falls back to this instead
    *  of ending with no computation at all. */
   pandasComputeFallback?: ComputeData | undefined;
-
-  // Combined social post (EXPERIMENTAL): text half of the `social_post`
-  // intent. Set by generateSocialPostText in the execution stage; persisted
-  // into the `social_post` tool-call result. The sharepic half travels via
-  // the existing sharepic variant machinery.
-  socialPostResult: SocialPostPayload | null;
 
   // Chart generation
   chartData: ChartData | null;
@@ -1156,6 +1321,112 @@ export interface JoinGroupPayload {
 }
 
 /**
+ * Eine Wolke-Verbindung anlegen. Der Link IST das Zugangsmittel, deshalb liegt
+ * er bis zur Zustimmung nur im Redis-Pending-Eintrag und nie in einer
+ * Modellantwort.
+ */
+export interface AddCloudConnectionPayload {
+  shareLink: string;
+  label: string | null;
+  host: string;
+  /** Einträge in der Wurzel zum Zeitpunkt der Prüfung — die Karte zeigt sie. */
+  entryCount: number | null;
+}
+
+/**
+ * Einen Wolke-Ordner an ein Notebook hängen und die erste Charge importieren.
+ * `collectionId === null` heißt: das Notebook wird beim Bestätigen erst
+ * angelegt (`create` mit `wolkeFolder`). `audience` kommt aus der Sitzung des
+ * Werkzeugs, weil `executeAction` keinen Request mit Profil-Locale hat.
+ */
+export interface AttachWolkeFolderPayload {
+  collectionId: string | null;
+  notebookName: string;
+  description: string | null;
+  audience: UserLocale;
+  shareLinkId: string;
+  shareLabel: string;
+  folderPath: string;
+  folderName: string;
+  includeSubfolders: boolean;
+  /** Stand der Vorschau — die Karte zeigt sie, der Import zählt selbst neu. */
+  fileCount: number;
+  alreadyImported: number;
+}
+
+/** Der Patch geht unverändert an `applyNotebookVisibility`. */
+export interface SetNotebookVisibilityPayload {
+  collectionId: string;
+  notebookName: string;
+  share_mode?: NotebookShareMode;
+  edit_policy?: NotebookEditPolicy;
+  is_public?: boolean;
+  public_ownership?: PublicOwnership | null;
+}
+
+export interface ShareNotebookPayload {
+  collectionId: string;
+  notebookName: string;
+  groupId: string;
+  groupName: string;
+}
+
+/**
+ * Ein Projekt öffentlich listen oder wieder privat stellen — geht unverändert
+ * an `setGroupVisibility`. Öffentlich heißt: in „Projekte entdecken" sichtbar
+ * und Beitrittsanfragen möglich, deshalb eine Karte.
+ */
+export interface SetGroupVisibilityPayload {
+  groupId: string;
+  groupName: string;
+  is_public: boolean;
+  audience: GroupAudience;
+}
+
+/**
+ * Eine wiederkehrende Aufgabe einrichten — der Body geht unverändert an
+ * `createRecurringTask`. Eine Karte, weil die Aufgabe danach selbstständig
+ * handelt und je Lauf kostet; `agentTitle` ist nur für die Vorschau und die
+ * Bestätigungsmeldung (der Identifier allein sagt der Person nichts).
+ */
+export type CreateRecurringTaskPayload = CreateRecurringTaskBody & { agentTitle: string | null };
+
+/**
+ * Einen eigenen Grünerator-Agent anlegen — `input` geht unverändert an
+ * `createUserAgent`. Eine Karte, weil die Rolle ein LLM-Entwurf ist, den die
+ * Person vor dem Speichern sehen soll, und der Agent danach in jedem Chat mit
+ * dieser Rolle handelt.
+ */
+export interface CreateUserAgentPayload {
+  input: UserAgentInput;
+}
+
+/**
+ * Einen eigenen Grünerator-Agent mit einem Projekt teilen. `agentId` ist die
+ * UUID (der Schlüssel in `group_content_shares`), `identifier` und
+ * `agentTitle` sind für Meldung und Link.
+ */
+export interface ShareUserAgentPayload {
+  identifier: string;
+  agentTitle: string;
+  agentId: string;
+  groupId: string;
+  groupName: string;
+}
+
+/**
+ * Ein eigenes Rezept mit einem Projekt teilen. `mention` ist der Schlüssel,
+ * über den `shareTextFormWithGroup` die Zeile der Eigentümer*in findet;
+ * `title` ist für Meldung und Karte.
+ */
+export interface ShareTextFormPayload {
+  mention: string;
+  title: string;
+  groupId: string;
+  groupName: string;
+}
+
+/**
  * Pending action stored in Redis while awaiting user confirmation.
  * Discriminated union ensures type-safe payload access per action type.
  */
@@ -1173,6 +1444,15 @@ export type PendingAction = {
   | { type: 'share_doc'; payload: ShareDocPayload }
   | { type: 'create_group'; payload: CreateGroupPayload }
   | { type: 'join_group'; payload: JoinGroupPayload }
+  | { type: 'add_cloud_connection'; payload: AddCloudConnectionPayload }
+  | { type: 'attach_wolke_folder'; payload: AttachWolkeFolderPayload }
+  | { type: 'set_notebook_visibility'; payload: SetNotebookVisibilityPayload }
+  | { type: 'share_notebook'; payload: ShareNotebookPayload }
+  | { type: 'set_group_visibility'; payload: SetGroupVisibilityPayload }
+  | { type: 'create_recurring_task'; payload: CreateRecurringTaskPayload }
+  | { type: 'create_user_agent'; payload: CreateUserAgentPayload }
+  | { type: 'share_user_agent'; payload: ShareUserAgentPayload }
+  | { type: 'share_text_form'; payload: ShareTextFormPayload }
 );
 
 /**
@@ -1188,4 +1468,11 @@ export interface ChatSearchResult {
   messageRole: 'user' | 'assistant';
   matchedAt: string;
   threadUpdatedAt: string;
+  /**
+   * Archive state of the matched thread. Required, not optional: every producer
+   * has to say it out loud, because a consumer that shows archived hits (the
+   * sidebar search) must be able to mark them, and one that does not must not
+   * silently inherit a default that says "regular" for a thread nobody checked.
+   */
+  threadStatus: 'regular' | 'archived';
 }

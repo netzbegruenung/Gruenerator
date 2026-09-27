@@ -18,6 +18,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { searchCanvases } from '../../services/canvas/canvasRepository.js';
+import { buildThumbnailUrl, versionFromShareRow } from '../../services/media/thumbnailUrl.js';
 import { getSharedMediaService } from '../../services/sharedMediaService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -44,13 +45,25 @@ const CATEGORY_LIMIT = 5;
 const notebookHelper = new NotebookQdrantHelper();
 
 async function findChats(userId: string, q: string, limit: number): Promise<GlobalSearchItem[]> {
-  const hits = await searchChatHistory(userId, q, { limit, ownedOnly: true });
+  // `ownedOnly` is load-bearing, not a default worth inheriting: without it
+  // every is_public thread in the system matches a personal search.
+  // `includeArchived` belongs to the palette alone: the sidebar lists an
+  // "Archiviert" section to browse, so a search that cannot find what sits in
+  // it makes archiving look like deleting. The rows carry `archived` and say
+  // so. Deliberately NOT inherited by recall — feeding archived chats into
+  // model context is a separate call.
+  const hits = await searchChatHistory(userId, q, {
+    limit,
+    ownedOnly: true,
+    includeArchived: true,
+  });
 
   return hits.map((hit) => ({
     id: hit.threadId,
     type: 'chat' as const,
     title: hit.threadTitle ?? 'Unbenannter Chat',
     subtitle: hit.snippet || null,
+    archived: hit.threadStatus === 'archived',
     // Threads predating the slug backfill fall back to the raw UUID, which
     // `/chat/:threadSlug` still resolves.
     url: `/chat/${
@@ -89,6 +102,31 @@ async function findCanvases(userId: string, q: string, limit: number): Promise<G
   }));
 }
 
+/**
+ * The palette renders this in a 36px chip, so it asks for the smallest signed
+ * variant rather than `/api/share/<token>/preview`, which — with no `w` — the
+ * route answers with the original bytes, unresized
+ * (`services/media/thumbnailCache.ts`). That meant up to five multi-megabyte
+ * uploads per debounced keystroke. The signed `/api/thumbs` shape is what the
+ * other list endpoints already mint (`recentActivityController`); it also
+ * resolves a video share to its poster frame instead of streaming the mp4.
+ *
+ * Null when signing is unconfigured — the row then shows its placeholder chip,
+ * which is the intended fallback (an unsigned URL would 403).
+ */
+function mediaThumbnailUrl(item: {
+  share_token: string;
+  thumbnail_path?: string | null;
+  created_at?: Date | string | null;
+  image_metadata?: unknown;
+}): string | null {
+  if (!item.thumbnail_path) return null;
+  return buildThumbnailUrl(
+    { kind: 'media', id: item.share_token, v: versionFromShareRow(item) },
+    { w: 200, fmt: 'webp' }
+  );
+}
+
 async function findMedia(userId: string, q: string, limit: number): Promise<GlobalSearchItem[]> {
   const { items } = await getSharedMediaService().getMediaLibrary(userId, { search: q, limit });
   return items.map((item) => ({
@@ -97,7 +135,7 @@ async function findMedia(userId: string, q: string, limit: number): Promise<Glob
     title: item.title ?? item.original_filename ?? 'Unbenanntes Medium',
     subtitle: item.alt_text ?? item.media_type ?? null,
     url: `/share/${item.share_token}`,
-    thumbnailUrl: item.thumbnail_path ? `/api/share/${item.share_token}/preview` : null,
+    thumbnailUrl: mediaThumbnailUrl(item),
     updatedAt: toIsoOrNull(item.created_at),
   }));
 }

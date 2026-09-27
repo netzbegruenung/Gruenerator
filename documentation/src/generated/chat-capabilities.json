@@ -15,6 +15,7 @@
     "direct",
     "edit_current_board",
     "edit_current_doc",
+    "edit_sheet",
     "examples",
     "greeting",
     "hilfe",
@@ -31,16 +32,12 @@
     "search",
     "share_doc",
     "sharepic",
-    "social_post",
     "summary",
     "umfragen",
     "web"
   ],
   "experimentalIntents": [
-    "create_recurring_task",
-    "mcp",
-    "social_post",
-    "umfragen"
+    "mcp"
   ],
   "mentionables": {
     "abgeordnetenwatch": {
@@ -85,14 +82,19 @@
       "description": "Dateien aus verbundenen Diensten einfügen",
       "mention": "@connect"
     },
+    "create_recurring_task": {
+      "title": "Wiederkehrende Aufgabe",
+      "description": "Einen Grünerator regelmäßig von selbst laufen lassen",
+      "mention": "@wiederkehrend"
+    },
     "deepresearch": {
       "title": "Tiefenrecherche",
-      "description": "Ausführliches Dossier mit Quellen — 1× pro Tag",
+      "description": "Gründliche Recherche mit Quellen — als Bericht, wenige pro Tag",
       "mention": "@deepresearch"
     },
     "docs-picker-trigger": {
       "title": "Dokument einfügen",
-      "description": "Dokumente, Dateien & Notizbuch-Inhalte als Kontext hinzufügen",
+      "description": "Dokumente, Dateien & Notebook-Inhalte als Kontext hinzufügen",
       "mention": "@docs"
     },
     "dokument-erstellen": {
@@ -160,11 +162,6 @@
       "description": "Erstellt eine Tabelle (Spreadsheet) aus dem Chatverlauf",
       "mention": "@tabelle-erstellen"
     },
-    "social_post": {
-      "title": "Social Post",
-      "description": "Post-Text mit passendem Sharepic in einem Zug",
-      "mention": "@social"
-    },
     "summary": {
       "title": "Zusammenfassung",
       "description": "Dokument(e) zusammenfassen",
@@ -181,9 +178,9 @@
       "mention": "@vorlagen"
     },
     "webpage-trigger": {
-      "title": "Webseite",
+      "title": "Link",
       "description": "Inhalt einer Webseite per URL anhängen",
-      "mention": "@web"
+      "mention": "@link"
     },
     "wolke-trigger": {
       "title": "Wolke",
@@ -192,6 +189,10 @@
     }
   },
   "userTools": {
+    "cloud_files": {
+      "label": "Wolke",
+      "description": "Durchsucht die verbundenen Wolke-Ordner, listet Dateien auf und liest sie — ausschließlich lesend."
+    },
     "examples": {
       "label": "Social-Media-Beispiele",
       "description": "Findet passende Beispiel-Posts aus dem Grünerator-Fundus."
@@ -224,9 +225,17 @@
       "label": "Frühere Chats",
       "description": "Durchsucht frühere Unterhaltungen — im aktuellen Projekt oder über alle Chats hinweg."
     },
+    "text_uebersetzen": {
+      "label": "Übersetzung",
+      "description": "Übersetzt Texte mit DeepL, inklusive Grünen-Glossar."
+    },
     "user_content": {
       "label": "Eigene Inhalte",
       "description": "Durchsucht die eigenen gespeicherten Texte und Dokumente."
+    },
+    "vertonen": {
+      "label": "Vertonen",
+      "description": "Macht aus einem Text eine Audiodatei zum Herunterladen – Ansage, Vorlesefassung oder Audiodeskription. Die Datei landet in der Mediathek."
     },
     "vision": {
       "label": "Bildanalyse",
@@ -264,5 +273,450 @@
       "env": "SYSTEM_MCP_WEATHER_URL"
     }
   },
-  "systemIntentSources": {}
+  "systemIntentSources": {},
+  "skills": [
+    {
+      "command": "@presse",
+      "title": "Pressemitteilung",
+      "description": "Pressemitteilungen verfassen",
+      "avatar": "📰",
+      "category": "presse"
+    },
+    {
+      "command": "@instagram",
+      "title": "Instagram",
+      "description": "Instagram-Posts & Captions",
+      "avatar": "📸",
+      "category": "social"
+    },
+    {
+      "command": "@facebook",
+      "title": "Facebook",
+      "description": "Facebook-Posts & Beiträge",
+      "avatar": "👍",
+      "category": "social"
+    },
+    {
+      "command": "@twitter",
+      "title": "Twitter / X",
+      "description": "Tweets & Threads",
+      "avatar": "🐦",
+      "category": "social"
+    },
+    {
+      "command": "@linkedin",
+      "title": "LinkedIn",
+      "description": "LinkedIn-Posts & Artikel",
+      "avatar": "💼",
+      "category": "social"
+    },
+    {
+      "command": "@reel",
+      "title": "Reel / TikTok",
+      "description": "Reel- & TikTok-Skripte",
+      "avatar": "🎬",
+      "category": "social"
+    },
+    {
+      "command": "@aktion",
+      "title": "Aktionsideen",
+      "description": "Kreative Aktionsideen entwickeln",
+      "avatar": "💡",
+      "category": "sonstiges"
+    },
+    {
+      "command": "@wahlpruefstein",
+      "title": "Wahlprüfsteine",
+      "description": "Fragenkataloge von Verbänden beantworten",
+      "avatar": "📋",
+      "category": "dokumente"
+    },
+    {
+      "command": "@buergermail",
+      "title": "Bürger*innen-Mail",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage",
+      "avatar": "✉️",
+      "category": "dokumente"
+    },
+    {
+      "command": "@presse-berlin-fraktion",
+      "title": "PM Berlin (Fraktion)",
+      "description": "Pressemitteilung der Grünen Fraktion Berlin — Abgeordnetenhaus, Ausschüsse, Senatskritik",
+      "avatar": "🐻",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-berlin-partei",
+      "title": "PM Berlin (Partei)",
+      "description": "Pressemitteilung der Berliner GRÜNEN — AGH-Wahl 2026, Parteitage, Volksinitiativen, Bundespolitik",
+      "avatar": "🐻",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@insta-berlin",
+      "title": "Insta Berlin",
+      "description": "Instagram-Post im Stil Grüne Berlin",
+      "avatar": "🐻",
+      "category": "social",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-mv-fraktion",
+      "title": "PM MV (Fraktion)",
+      "description": "Pressemitteilung der GRÜNEN Landtagsfraktion Mecklenburg-Vorpommern — Anfragen, Anträge, Ausschüsse, Landesregierung",
+      "avatar": "🌊",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-mv-partei",
+      "title": "PM MV (Partei)",
+      "description": "Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern — Wahlkampf, Spitzenkandidatur, Parteitage, Bundespolitik",
+      "avatar": "🌊",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@insta-mv",
+      "title": "Insta MV",
+      "description": "Instagram-Post im Stil Grüne Mecklenburg-Vorpommern",
+      "avatar": "🌊",
+      "category": "social",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-thueringen",
+      "title": "PM Thüringen",
+      "description": "Pressemitteilung im Stil Bündnisgrüne Thüringen",
+      "avatar": "🌲",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@insta-thueringen",
+      "title": "Insta Thüringen",
+      "description": "Instagram-Post im Stil Bündnisgrüne Thüringen",
+      "avatar": "🌲",
+      "category": "social",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-brandenburg",
+      "title": "PM Brandenburg",
+      "description": "Pressemitteilung im Stil Brandenburger Bündnisgrüne",
+      "avatar": "🌻",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@insta-brandenburg",
+      "title": "Insta Brandenburg",
+      "description": "Instagram-Post im Stil Brandenburger Bündnisgrüne",
+      "avatar": "🌻",
+      "category": "social",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-bayern-fraktion",
+      "title": "PM Bayern (Fraktion)",
+      "description": "Pressemitteilung der Landtags-Grünen Bayern — Anfragen, Forderungslisten, Staatsregierung",
+      "avatar": "🦁",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-bayern-partei",
+      "title": "PM Bayern (Partei)",
+      "description": "Pressemitteilung der bayerischen GRÜNEN — Doppelspitze, Parteitag, Kommunalwahl, Bundesebene",
+      "avatar": "🦁",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-hessen-fraktion",
+      "title": "PM Hessen (Fraktion)",
+      "description": "Pressemitteilung der GRÜNEN Landtagsfraktion Hessen — Plenum, Ausschuss, Kleine Anfragen, Landesregierung",
+      "avatar": "🌳",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-hessen-partei",
+      "title": "PM Hessen (Partei)",
+      "description": "Pressemitteilung des Landesverbands Hessen — Wahlen, Parteitage, Personalien, Bundespolitik",
+      "avatar": "🌳",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-at",
+      "title": "Aussendung (AT)",
+      "description": "Aussendung im Stil der Grünen Österreich",
+      "avatar": "📢",
+      "category": "presse",
+      "audience": "de-AT"
+    },
+    {
+      "command": "@presse-saarland",
+      "title": "PM Saarland",
+      "description": "Pressemitteilung im Stil der Saar-Grünen",
+      "avatar": "⚒️",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-sachsen-anhalt-fraktion",
+      "title": "PM Sachsen-Anhalt (Fraktion)",
+      "description": "Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt — Landtag, Kleine Anfragen, Landesregierung",
+      "avatar": "🌾",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-sachsen-anhalt-partei",
+      "title": "PM Sachsen-Anhalt (Partei)",
+      "description": "Pressemitteilung von BÜNDNIS 90/DIE GRÜNEN Sachsen-Anhalt — Landtagswahl 2026, Parteitage, Bundespolitik",
+      "avatar": "🌾",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@insta-saarland",
+      "title": "Insta Saarland",
+      "description": "Instagram-Post im Stil der Saar-Grünen",
+      "avatar": "⚒️",
+      "category": "social",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@insta-bayern",
+      "title": "Insta Bayern",
+      "description": "Instagram-Post im Stil Grüne Bayern",
+      "avatar": "🦁",
+      "category": "social",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@insta-hessen",
+      "title": "Insta Hessen",
+      "description": "Instagram-Post im Stil Grüne Hessen",
+      "avatar": "🌳",
+      "category": "social",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@insta-sachsen-anhalt",
+      "title": "Insta Sachsen-Anhalt",
+      "description": "Instagram-Post im Stil Grüne Sachsen-Anhalt",
+      "avatar": "🌾",
+      "category": "social",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@insta-at",
+      "title": "Insta Österreich",
+      "description": "Instagram-Post im Stil der Grünen Österreich",
+      "avatar": "🇦🇹",
+      "category": "social",
+      "audience": "de-AT"
+    }
+  ],
+  "skillCategoryLabels": {
+    "presse": "Presse & Kommunikation",
+    "social": "Social Media",
+    "dokumente": "Dokumente & Texte",
+    "recherche": "Recherche & Analyse",
+    "sonstiges": "Sonstiges"
+  },
+  "notebookSources": [
+    {
+      "id": "gruenerator-notebook",
+      "mention": "@alle",
+      "title": "Alle Quellen",
+      "description": "Durchsucht mehrere Quellen parallel",
+      "avatar": "🔍",
+      "category": "bundesebene"
+    },
+    {
+      "id": "gruene-notebook",
+      "mention": "@grundsatz",
+      "title": "Grundsatzprogramm",
+      "description": "Grundsatzprogramme von Bündnis 90/Die Grünen",
+      "avatar": "📗",
+      "category": "bundesebene",
+      "audience": "de-DE"
+    },
+    {
+      "id": "bundestagsfraktion-notebook",
+      "mention": "@bundestagsfraktion",
+      "title": "Bundestagsfraktion",
+      "description": "Inhalte von gruene-bundestag.de",
+      "avatar": "🏛️",
+      "category": "bundesebene",
+      "audience": "de-DE"
+    },
+    {
+      "id": "oesterreich-notebook",
+      "mention": "@at",
+      "title": "Grüne Österreich",
+      "description": "Programme von Die Grünen Österreich",
+      "avatar": "🇦🇹",
+      "category": "oesterreich",
+      "audience": "de-AT"
+    },
+    {
+      "id": "thueringen-notebook",
+      "mention": "@thüringen",
+      "title": "Grüne Thüringen",
+      "description": "Beschlüsse und Wahlprogramme Thüringen",
+      "avatar": "🏔️",
+      "category": "landesebene",
+      "audience": "de-DE"
+    },
+    {
+      "id": "kommunalwiki-notebook",
+      "mention": "@kommunalwiki",
+      "title": "KommunalWiki",
+      "description": "Fachwissen zur Kommunalpolitik",
+      "avatar": "📚",
+      "category": "weitere",
+      "audience": "de-DE"
+    },
+    {
+      "id": "berlin-notebook",
+      "mention": "@berlin",
+      "title": "Grüne Berlin",
+      "description": "Wahlprogramm 2026, Pressemitteilungen, Beschlüsse und Wahlprüfsteine Berlin",
+      "avatar": "🐻",
+      "category": "landesebene",
+      "audience": "de-DE"
+    },
+    {
+      "id": "gruenblog-notebook",
+      "mention": "@gruenblog",
+      "title": "Grünblog",
+      "description": "Onlinemagazin der Grünen",
+      "avatar": "📰",
+      "category": "weitere",
+      "audience": "de-DE"
+    },
+    {
+      "id": "abgeordnetenwatch-notebook",
+      "mention": "@transparenz",
+      "title": "Abgeordnetenwatch",
+      "description": "Abstimmungen & Nebentätigkeiten von Abgeordneten",
+      "avatar": "🗳️",
+      "category": "weitere",
+      "audience": "de-DE"
+    },
+    {
+      "id": "mecklenburg-vorpommern-notebook",
+      "mention": "@mv",
+      "title": "Grüne Mecklenburg-Vorpommern",
+      "description": "Presse und Parteitagsbeschlüsse MV",
+      "avatar": "🦅",
+      "category": "landesebene",
+      "audience": "de-DE"
+    },
+    {
+      "id": "brandenburg-notebook",
+      "mention": "@brandenburg",
+      "title": "Grüne Brandenburg",
+      "description": "Presse, Beschlüsse und Landtagswahlprogramm 2024 Brandenburg",
+      "avatar": "🦅",
+      "category": "landesebene",
+      "audience": "de-DE"
+    },
+    {
+      "id": "bayern-notebook",
+      "mention": "@bayern",
+      "title": "Grüne Bayern",
+      "description": "Pressemitteilungen, Beschlüsse und Regierungsprogramm Bayern",
+      "avatar": "🦁",
+      "category": "landesebene",
+      "audience": "de-DE"
+    },
+    {
+      "id": "sachsen-anhalt-notebook",
+      "mention": "@sachsen-anhalt",
+      "title": "Grüne Sachsen-Anhalt",
+      "description": "Presse, Beschlüsse und Landtagswahlprogramm 2026 Sachsen-Anhalt",
+      "avatar": "🌾",
+      "category": "landesebene",
+      "audience": "de-DE"
+    },
+    {
+      "id": "hessen-notebook",
+      "mention": "@hessen",
+      "title": "Grüne Hessen",
+      "description": "Presse und Beschlüsse Hessen",
+      "avatar": "🦁",
+      "category": "landesebene",
+      "audience": "de-DE"
+    },
+    {
+      "id": "saarland-notebook",
+      "mention": "@saar",
+      "title": "Grüne Saarland",
+      "description": "Presse, Artikel und Parteitagsbeschlüsse Saarland",
+      "avatar": "🏭",
+      "category": "landesebene",
+      "audience": "de-DE"
+    }
+  ],
+  "sharepicVariants": [
+    {
+      "type": "dreizeilen",
+      "keywords": [
+        "dreizeiler",
+        "dreizeilen",
+        "drei zeilen",
+        "3 zeilen",
+        "slogan",
+        "dreibalken",
+        "drei balken",
+        "balken"
+      ],
+      "standard": true
+    },
+    {
+      "type": "zitat",
+      "keywords": [
+        "zitat…",
+        "quote(s)",
+        "spruch…",
+        "spruchbild",
+        "zitatbild",
+        "aussage",
+        "statement"
+      ],
+      "standard": true
+    },
+    {
+      "type": "info",
+      "keywords": [
+        "info…",
+        "fakten",
+        "faktencheck",
+        "information…",
+        "erklär…",
+        "erklaer…"
+      ],
+      "standard": true
+    },
+    {
+      "type": "slider",
+      "keywords": [
+        "slider(s)",
+        "karussell(s)",
+        "carousel(s)",
+        "slide(s)",
+        "folien",
+        "insta slide(s)"
+      ],
+      "standard": false
+    }
+  ]
 }

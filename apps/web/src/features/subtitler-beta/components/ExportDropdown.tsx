@@ -31,11 +31,11 @@ export function ExportDropdown({
   const safeName = projectTitle.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]/g, '_').slice(0, 50) || 'untertitel';
 
   const handleDownloadSRT = useCallback(() => {
-    downloadFile(chunksToSRT(chunks), `${safeName}.srt`, 'text/plain');
+    void downloadFile(chunksToSRT(chunks), `${safeName}.srt`, 'text/plain');
   }, [chunks, safeName]);
 
   const handleDownloadVTT = useCallback(() => {
-    downloadFile(chunksToVTT(chunks), `${safeName}.vtt`, 'text/vtt');
+    void downloadFile(chunksToVTT(chunks), `${safeName}.vtt`, 'text/vtt');
   }, [chunks, safeName]);
 
   return (

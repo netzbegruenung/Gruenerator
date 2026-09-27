@@ -28,8 +28,19 @@ import {
 import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { reportBackgroundError } from '../../../../utils/reportBackgroundError.js';
+import { createControlTokenFilter, stripToolControlTokens } from '../outputSanity.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
-import { createIdleDeadline } from '../streamIdleDeadline.js';
+import { createIdleDeadline, type IdleDeadline } from '../streamIdleDeadline.js';
+
+import {
+  createDegenerationGuard,
+  DEGENERATE_FINISH_REASON,
+  DEGENERATION_NOTICE,
+  cutLostContent,
+} from './degeneration.js';
+import { toolsForProvider } from './providerTools.js';
+import { DEFAULT_LOOP_BUDGET, TOOL_TIMEOUT_OVERRIDES_MS } from './types.js';
 
 import type { LanguageModel, ModelMessage, ToolSet } from 'ai';
 
@@ -40,11 +51,11 @@ const log = createLogger('AgenticLoopEngine');
  * Matches the single-pass reasoning lane's window, since it guards the same
  * thing: a lane that accepted the request and then produced nothing.
  *
- * Only the synth phase is guarded. In the tool phases a legitimate tool call
- * blocks the iterator for as long as it runs (a deep research call was measured
- * at 16.5s), so silence there does not mean "hung" and would need its own,
- * larger budget — separate work. Synthesis runs WITHOUT tools, so any silence
- * is the model thinking or stalling, and reasoning deltas keep it alive.
+ * Das engste der drei Fenster, und es darf das sein: Synthese läuft OHNE
+ * Werkzeuge, jede Stille ist also Denken oder Sterben, und Reasoning-Deltas
+ * halten sie am Leben. Die Werkzeugphasen haben ihr eigenes, weiteres Fenster
+ * (TOOL_PHASE_IDLE_DEADLINE_MS / mountedToolCeilingMs) — dort blockiert ein
+ * laufender Aufruf den Iterator legitim.
  */
 const SYNTH_IDLE_DEADLINE_MS = 20_000;
 
@@ -61,6 +72,106 @@ export class SynthStallError extends Error {
 export function isSynthStall(err: unknown): err is SynthStallError {
   return err instanceof SynthStallError;
 }
+
+/**
+ * Headroom on top of the longest tool a turn could legitimately be waiting on:
+ * the model still has to receive the tool result and decide the next step.
+ */
+const TOOL_PHASE_IDLE_SLACK_MS = 15_000;
+
+/**
+ * Fenster der Werkzeugphase, wenn NIEMAND mitzählt, welche Aufrufe laufen.
+ *
+ * Die Phase war lange unbewacht, weil ein laufendes Werkzeug den Iterator
+ * blockiert: Stille ist dort kein Beleg für einen Hänger, und flache 20 s
+ * hätten legitime Arbeit erschlagen. Das stimmt — die Antwort darauf ist aber
+ * nicht „keine Uhr", sondern ein Budget aus dem, was uns überhaupt blockieren
+ * kann: das längste Aufruf-Timeout unter den DIESEN ZUG gemounteten Werkzeugen
+ * (`create_pdf` 90 s, `web_search` 20 s). Ein Zug ohne Erzeugungswerkzeuge
+ * bekommt so ein enges Fenster, einer mit ihnen ein weites.
+ *
+ * Ohne jede Uhr war die wirksame Frist GreenPTs eigenes 120-s-Fetch-Timeout:
+ * am 20.08.2026 sass ein Zug nach seinem letzten Werkzeug exakt 120 s stumm da
+ * und endete nach 139,7 s.
+ */
+function mountedToolCeilingMs(tools: ToolSet): number {
+  const longestTool = Object.keys(tools).reduce(
+    (max, name) =>
+      Math.max(max, TOOL_TIMEOUT_OVERRIDES_MS[name] ?? DEFAULT_LOOP_BUDGET.perCallTimeoutMs),
+    DEFAULT_LOOP_BUDGET.perCallTimeoutMs
+  );
+  return longestTool + TOOL_PHASE_IDLE_SLACK_MS;
+}
+
+/**
+ * Fenster, wenn `toolActivity` mitzählt.
+ *
+ * Der Deckel oben beschränkt die Stille auf das, was blockieren KÖNNTE; der
+ * Zähler weiss, was blockiert. Da die Erzeugungswerkzeuge auf fast jedem Zug
+ * gemountet sind, hiesse „könnte" in der Praxis 105 s — auch für eine Frage,
+ * die nie ein Werkzeug anfasst. Läuft ein Aufruf, gilt das über `isBusy` als
+ * Lebenszeichen, und übrig bleibt nur die Stille, die keiner erklärt: die Zeit
+ * bis zum ersten Token einer neuen Provider-Anfrage. 45 s liegt weit darüber
+ * (der Median eines ganzen Zuges lag im gemessenen Lauf bei 19 s).
+ */
+const TOOL_PHASE_IDLE_DEADLINE_MS = 45_000;
+
+/** Die Werkzeugphase — planner (split) oder das eine Modell (unified) — hat die
+ *  Anfrage angenommen und dann geschwiegen. */
+export class ToolPhaseStallError extends Error {
+  constructor(idleMs: number) {
+    super(`Tool phase stream idle for ${idleMs}ms`);
+    this.name = 'TimeoutError';
+  }
+}
+
+/** Die Uhr der Werkzeugphase, für beide Modi identisch gestellt. */
+function createToolPhaseIdle(p: LoopEngineParams): { idle: IdleDeadline; idleMs: number } {
+  const idleMs = p.toolActivity ? TOOL_PHASE_IDLE_DEADLINE_MS : mountedToolCeilingMs(p.tools);
+  return {
+    idle: createIdleDeadline(
+      idleMs,
+      () => new ToolPhaseStallError(idleMs),
+      () => (p.toolActivity?.inFlight() ?? 0) > 0
+    ),
+    idleMs,
+  };
+}
+
+/**
+ * Which lane stalled — the whole point of reporting it. `LanguageModel` is
+ * either the id itself or a provider instance carrying one.
+ *
+ * Der HOST gehört dazu, nicht nur der Modellname. Am 28.08.2026 meldete der
+ * Stall `mistral-small-3.2-24b-instruct-2506` — ein Name, den die Mistral-API
+ * genauso trägt, während die Planer-Lane in Wahrheit auf GreenPT läuft
+ * (`LOOP_PLANNER_PRIMARY`). Wer den Befund liest, sucht dann am falschen Host,
+ * und in Glitchtip fallen zwei verschiedene Anbieter unter denselben Namen.
+ * Die Instanz weiss es: `provider` steht in der Anbieter-Spezifikation
+ * ausdrücklich „for logging purposes".
+ */
+function modelLabel(model: LanguageModel): string {
+  if (typeof model === 'string') return model;
+  const id = model.modelId ?? 'unknown';
+  return model.provider ? `${model.provider}/${id}` : id;
+}
+
+/**
+ * Replace the AI SDK's default `onError`, which is a bare `console.error(error)`
+ * — no level, no timestamp, no service, no request id. That is where the naked
+ * `DOMException [TimeoutError]` stack in the 20.08.2026 log came from, printed
+ * one line above our own WARN for the same failure.
+ *
+ * Logging only: every stream here is drained by hand and still surfaces its
+ * errors through the `error` part, so control flow is unchanged.
+ */
+const logStreamError =
+  (phase: string) =>
+  ({ error }: { error: unknown }): void => {
+    log.warn(
+      `[Engine] ${phase} stream error: ${error instanceof Error ? error.message : String(error)}`
+    );
+  };
 
 export type LoopMode = 'unified' | 'split';
 
@@ -105,7 +216,7 @@ const GATHER_SUFFIX = [
   '- PRÜFE ZUERST das Material im Gespräch: eingefügter Text, Anhänge, ein geöffnetes Dokument, Quellen aus früheren Turns. Steht die Antwort dort, antworte DARAUS und suche NICHT. Suche nur nach Fakten, die dieses Material gar nicht enthalten KANN (tagesaktuelle Zahlen, externe Ereignisse). Nach einem Namen, den es nur in diesem Gespräch gibt — ein internes Projekt, ein zitierter Entwurf, eine erfundene Fallstudie — suchst du NIE.',
   '- scrape_url NUR für URLs, die tatsächlich in Suchergebnissen erscheinen — rate keine Adressen.',
   '- Wenn der*die Nutzer*in ausdrücklich eine ERSTELLUNG wünscht (z.B. ein Sharepic, Bild, eine Präsentation, Tabelle, ein Dokument oder ein Board), MUSST du das passende Erstellungs-Tool (z.B. sharepic / generate_image / create_presentation / create_sheet / create_document / create_board) in dieser Phase aufrufen — recherchiere zuerst die Fakten, dann rufe das Tool mit dem belegten, konkreten Auftrag auf. Verweigere die Erstellung NICHT.',
-  '- Schreibe in dieser Phase KEINE finale Antwort und KEINE Zusammenfassung. Du darfst vor einem Tool-Aufruf in EINEM kurzen Satz ankündigen, was du als Nächstes tust (z.B. "Ich suche jetzt im Wahlprogramm nach Windkraft."). Sobald die Belege reichen und angeforderte Inhalte erstellt sind, beende die Tool-Aufrufe ohne weiteren Text.',
+  '- Schreibe in dieser Phase KEINE finale Antwort und KEINE Zusammenfassung. Du darfst vor einem Tool-Aufruf in EINEM kurzen Satz ankündigen, was du als Nächstes tust (z.B. "Ich suche jetzt im Wahlprogramm nach Windkraft.") — aber NUR im selben Schritt wie der Aufruf selbst; eine Ankündigung ohne Tool-Aufruf ist keine Antwort. Verlangt der Turn erkennbar MEHRERE Erstellungen (z.B. Board UND Dokument UND PDF), nenne in der ERSTEN Ankündigung gleich das ganze Vorhaben (z.B. "Ich erstelle zuerst ein Board, dann ein Dokument und ein PDF."), nicht nur den nächsten einzelnen Schritt. Sobald die Belege reichen und angeforderte Inhalte erstellt sind, beende die Tool-Aufrufe ohne weiteren Text.',
 ].join('\n');
 
 /** Best-effort recovery of a malformed JSON tool-argument string. */
@@ -126,6 +237,60 @@ function tryLenientJsonParse(raw: string): unknown {
     }
     return null;
   }
+}
+
+/** Was `prepareStep` von einem gelaufenen Schritt liest — ein Ausschnitt von
+ *  `StepResult`, damit die Tests ohne das SDK auskommen. */
+export interface PreparedStepView {
+  content: ReadonlyArray<{ type: string; toolName?: string; output?: unknown; error?: unknown }>;
+}
+
+const errorText = (value: unknown): string =>
+  value instanceof Error
+    ? value.message
+    : typeof value === 'string'
+      ? value
+      : JSON.stringify(value);
+
+/**
+ * Hat JEDER Werkzeugaufruf dieses Schritts gescheitert, die Nudge für den
+ * nächsten — sonst null. Gescheitert heißt: ein `tool-error` (geworfen) oder
+ * ein Ergebnis `{ error }` (so meldet `wrapToolsForLoop` jeden Fehlschlag).
+ *
+ * Live 23.09.2026: `notebook_quellen` scheiterte mit „Kein Notebook ausgewählt
+ * — gib notebookId an (aus notebooks action="list", Feld ref)", der Planer
+ * hörte nach diesem einen Schritt auf, und die Antwort behauptete, eine solche
+ * Funktion gebe es nicht. Die Meldung sagte, wie es weitergeht; gelesen hat sie
+ * niemand. Kein erzwungener Aufruf (`toolChoice`): ist der Fehler nicht zu
+ * beheben (Dienst down), soll das Modell ehrlich antworten dürfen.
+ */
+export function failedStepRetryNudge(step: PreparedStepView | null): string | null {
+  if (!step) return null;
+  const outcomes = step.content.flatMap((part) => {
+    if (part.type === 'tool-error') {
+      return [{ toolName: part.toolName, error: part.error, guarded: false }];
+    }
+    if (part.type !== 'tool-result') return [];
+    const output =
+      part.output && typeof part.output === 'object'
+        ? (part.output as { error?: unknown; guard?: unknown })
+        : null;
+    return [
+      { toolName: part.toolName, error: output?.error ?? null, guarded: output?.guard != null },
+    ];
+  });
+  // Eine Wächter-Absage (`wrapToolsForLoop`, Feld `guard`) ist eine Weisung
+  // („hör auf", „andere Suche") — keine Nudge, die ihr widerspricht.
+  if (outcomes.length === 0 || outcomes.some((o) => o.error == null || o.guarded)) return null;
+  const lines = outcomes
+    .map((o) => `- ${o.toolName ?? 'Werkzeug'}: ${errorText(o.error).slice(0, 300)}`)
+    .join('\n');
+  return (
+    `\n\nDER LETZTE WERKZEUGAUFRUF IST FEHLGESCHLAGEN:\n${lines}\n` +
+    'Lies die Fehlermeldung. Sagt sie, was fehlt oder falsch war (z. B. eine Angabe, die ein anderes Werkzeug liefert), dann korrigiere den Aufruf und versuche es JETZT genau einmal erneut. ' +
+    'Behaupte NIE, dir fehle dafür eine Funktion oder ein Werkzeug — das Werkzeug gibt es, nur dieser Aufruf ist fehlgeschlagen. ' +
+    'Lässt sich der Fehler nicht beheben, sag ehrlich, dass der Aufruf fehlgeschlagen ist und warum.'
+  );
 }
 
 /** prepareStep shared by both modes: on the last step (or when forceFinish
@@ -151,23 +316,70 @@ export function buildPrepareStep(
    * in both branches, and in the plain `{}` one — hence the `system` override
    * appearing where previously nothing was returned.
    */
-  extraSystem: () => string = () => ''
-): ({ stepNumber }: { stepNumber: number }) => {
+  extraSystem: () => string = () => '',
+  /** Names the tool the FIRST step must call, when an @-mention pinned one
+   *  (see {@link pinnedFirstTool}). Only consulted while `forceFirstToolCall`
+   *  holds — the research ban vetoes both, and it vetoes first. */
+  firstToolName: string | null = null,
+  /**
+   * Welche Werkzeuge dieser Schritt MITSCHICKT, oder `undefined` für alle
+   * montierten (siehe toolScope.ts). Ein GETTER, aus demselben Grund wie
+   * `extraSystem`: die Menge wächst mitten im Lauf, wenn das Modell einen Lader
+   * ruft. Ein einmal eingefangenes Array wäre der Stand von Schritt 0.
+   */
+  activeTools: () => readonly string[] | undefined = () => undefined
+): ({ stepNumber, steps }: { stepNumber: number; steps?: ReadonlyArray<PreparedStepView> }) => {
   toolChoice?: 'none' | 'required' | { type: 'tool'; toolName: string };
   system?: string;
+  activeTools?: readonly string[];
 } {
-  return ({ stepNumber }) => {
-    const extra = extraSystem();
+  // Eine Nudge pro Zug: scheitert auch der zweite Versuch, bleibt es dabei.
+  let retryNudged = false;
+  return ({ stepNumber, steps }) => {
+    const active = activeTools();
+    // Auf JEDEM Zweig, nicht nur dem letzten: `toolChoice: 'none'` unterdrückt
+    // den Aufruf, nicht die Definitionen — der Katalog wird auch auf dem
+    // Schlussschritt mitgeschickt und bezahlt.
+    const scope = active ? { activeTools: active } : {};
+    /**
+     * Ein BENANNTES Werkzeug muss mitgehen, auch wenn der Umfang es
+     * zurückgestellt hat — sonst verlangt derselbe Schritt einen Aufruf und
+     * schickt die Definition dazu nicht mit. Die Absicherung sitzt hier und
+     * nicht nur bei `createToolScope`, weil jeder künftige Zwang durch diesen
+     * Trichter läuft: `forcedTool`, `firstToolName`, was danach kommt.
+     */
+    const withTool = (name: string): typeof scope =>
+      active && !active.includes(name) ? { activeTools: [...active, name] } : scope;
     if (stepNumber >= maxSteps - 1 || forceFinish()) {
-      return { toolChoice: 'none' as const, system: `${baseSystem}${extra}${finishSuffix}` };
+      return {
+        toolChoice: 'none' as const,
+        system: `${baseSystem}${extraSystem()}${finishSuffix}`,
+        ...scope,
+      };
     }
+    let nudge = '';
+    if (stepNumber > 0 && !retryNudged) {
+      nudge = failedStepRetryNudge(steps?.at(-1) ?? null) ?? '';
+      if (nudge) retryNudged = true;
+    }
+    const extra = `${extraSystem()}${nudge}`;
     // Explicit-scope MCP FOLLOW-UP: the small planner otherwise answers from
     // prose without ever calling the connector (observed: intent=mcp steps=0,
     // "Tally gibt nur die interne ID zurück" fabricated). Require a tool call on
     // the first step so it actually hits the server. Gated off for the first
     // scope turn (clarification allowed) and meta questions by the caller.
     if (forceFirstToolCall && stepNumber === 0) {
-      return { toolChoice: 'required' as const, ...(extra && { system: `${baseSystem}${extra}` }) };
+      // Eine @-Erwähnung hat ein Werkzeug benannt: `required` liesse das Modell
+      // stattdessen die generische Suche rufen — den Erwähnungstext sieht es
+      // gar nicht mehr.
+      const choice = firstToolName
+        ? ({ type: 'tool' as const, toolName: firstToolName } as const)
+        : ('required' as const);
+      return {
+        toolChoice: choice,
+        ...(extra && { system: `${baseSystem}${extra}` }),
+        ...(firstToolName ? withTool(firstToolName) : scope),
+      };
     }
     if (stepNumber > 0) {
       const toolName = forcedTool();
@@ -177,9 +389,10 @@ export function buildPrepareStep(
         return {
           toolChoice: { type: 'tool' as const, toolName },
           ...(extra && { system: `${baseSystem}${extra}` }),
+          ...withTool(toolName),
         };
     }
-    return extra ? { system: `${baseSystem}${extra}` } : {};
+    return extra ? { system: `${baseSystem}${extra}`, ...scope } : { ...scope };
   };
 }
 
@@ -270,6 +483,13 @@ export interface LoopEngineParams {
   synthFallbackModel?: LanguageModel;
   /** Already wrapped by wrapToolsForLoop. */
   tools: ToolSet;
+  /**
+   * Zähler der gerade LAUFENDEN Werkzeugaufrufe, gefüllt von demselben
+   * Umschlag. Fehlt er, fällt die Stillstands-Uhr auf den weiteren Deckel aus
+   * den gemounteten Werkzeugen zurück (`mountedToolCeilingMs`) — sonst hielte
+   * sie einen legitimen 90-Sekunden-Aufruf für einen Hänger.
+   */
+  toolActivity?: { inFlight: () => number };
   /** System for the tool phase: base + tool-usage block (+ mcp note). */
   toolSystem: string;
   /** Builds the synthesizer system from the gathered numbered sources block. */
@@ -295,6 +515,19 @@ export interface LoopEngineParams {
    *  provider/context window is the backstop) — explicit caps truncated
    *  think-lane answers mid-sentence because reasoning tokens count too. */
   maxOutputTokens?: number;
+  /**
+   * Per-request provider options for the phases that run on the SELECTED model
+   * — unified and synth. Today this carries Mistral's `reasoningEffort` and
+   * `promptCacheKey`.
+   *
+   * It has to be threaded through rather than baked into the model instance
+   * because `@ai-sdk/mistral` takes the effort per request, not per client. And
+   * it must not reach the GATHER phase: that runs on the fixed planner lane
+   * (Mistral Small on Regolo), an OpenAI-compat client that would drop a
+   * `mistral` block in silence — and the planner has no prose to think about
+   * anyway.
+   */
+  providerOptions?: Record<string, Record<string, string>>;
   abortSignal: AbortSignal;
   /**
    * Split mode: the signal the WRITE phase runs under. Defaults to
@@ -313,19 +546,39 @@ export interface LoopEngineParams {
   forceFinish: () => boolean;
   /** Force a tool call on the first step (explicit-scope MCP follow-ups). */
   forceFirstToolCall?: boolean;
+  /**
+   * Welche der montierten Werkzeuge mitgeschickt werden — `undefined` heisst
+   * alle, also das Verhalten vor `toolScope.ts`. Getter: eine zurückgestellte
+   * Gruppe kann sich mitten im Lauf öffnen.
+   */
+  activeTools?: () => readonly string[] | undefined;
+  /** Names the tool that first step must call, when an @-mention pinned one. */
+  firstToolName?: string | null;
   /** Names a specific tool the next step must call — used to turn the "web is
    *  now allowed" permission after an empty internal search into an actual
    *  fallback. Evaluated per step; null leaves the choice to the model. */
   forcedToolForStep?: () => string | null;
   onText: (delta: string) => void;
   onReasoning: (delta: string) => void;
-  /** Split mode: fires when the synth phase begins — i.e. tools are done and
-   *  the silent wait for the answer starts. The caller uses it to show progress
-   *  during a window that otherwise emits nothing at all. */
-  onSynthStart?: () => void;
   /** Fires when the synth stalled and the sibling lane takes over, so the
    *  client can surface the switch the same way the single-pass path does. */
   onSynthFallback?: () => void;
+  /**
+   * SPLIT ONLY: fires when the planner accepted the request and then sent
+   * nothing until the tool-phase deadline. Separate from `onSynthFallback`
+   * because there is nothing to fall back to here — the caller uses it to
+   * remember the lane, not to switch mid-turn.
+   *
+   * The unified path deliberately does NOT fire it, and that is a scoping
+   * decision rather than a gap to fill in later. Two reasons: its stream is the
+   * USER's selected lane, whose health `responseStreamingService` already
+   * records, so firing here would double-count one lane while the split's fixed
+   * planner is recorded nowhere else; and a unified stall can follow a COMPLETE
+   * answer (a `finish` part arrived, only the stream stayed open — see the
+   * branch at the bottom of `streamWithTools`), where a slow verdict against a
+   * lane that just answered in full would simply be wrong.
+   */
+  onToolPhaseStall?: () => void;
   /** Split-gather only: the planner's inter-tool prose, delivered ONE sentence
    *  at a time (via createSentenceChunker) so the client can show "Ich suche
    *  jetzt …" narration. Never fires in unified mode. */
@@ -336,14 +589,76 @@ export interface LoopEngineParams {
    *  this hook force-creates the artifact from the gathered sources when the
    *  planner didn't, before the synth announces it. */
   afterGather?: () => Promise<void>;
+  /**
+   * Split mode only: output-integrity check on the ACCEPTED answer (after the
+   * refusal/tool-plan verdicts). Returns a system suffix describing what to fix
+   * (e.g. {@link SYNTH_INVALID_JSON_RETRY_SUFFIX}) — the synth then reruns ONCE,
+   * silently, and the retry replaces the answer only if it validates. Returns
+   * null for a valid answer. An abnormal finishReason (`length`,
+   * `content-filter`, …) triggers the same retry without this hook.
+   */
+  validateAnswer?: (text: string) => string | null;
+  /**
+   * Wahr, sobald ein Werkzeugaufruf auf eine Freigabe wartet. Wird NACH der
+   * Werkzeugphase und VOR `afterGather`/Synthese geprüft: `gather()` fängt jeden
+   * Fehler und würde sonst trotzdem eine Antwort schreiben — und die
+   * Artefakt-Garantien würden Artefakte erzeugen, während die Person noch
+   * entscheidet.
+   */
+  suspended?: () => boolean;
+}
+
+/** Der Zug endet, weil eine Freigabe aussteht — kein Fehler, sondern eine Pause. */
+export class TurnSuspendedError extends Error {
+  constructor() {
+    super('Zug wartet auf eine Werkzeug-Freigabe');
+    this.name = 'TurnSuspendedError';
+  }
+}
+
+/**
+ * Why the returned answer is not the first synth pass — carried OUT of the loop
+ * purely so the turn summary can name it.
+ *
+ * Without it the strongest change this loop makes to what a human reads (a
+ * whole answer swapped for another) is indistinguishable from a plain turn in
+ * the operational logs: `recordDecision` writes to the development-only journal
+ * (`utils/decisionLog.ts` bails out when no directory is configured), so on test
+ * and production those entries do not exist at all.
+ */
+export type AnswerReplacement =
+  /** Split: the invalid pass never reached the client, the retry took its place. */
+  | 'validation_retry'
+  /** Split: the invalid pass was already on the wire when the retry replaced it. */
+  | 'validation_retry_streamed'
+  /** Split: the retry did not recover, the trimmed prefix replaces the streamed spam. */
+  | 'degeneration_trim'
+  /** Unified: the trimmed prefix replaces the streamed spam. */
+  | 'unified_degeneration'
+  /** Either mode: a foreign-language refusal swapped for the canned German one. */
+  | 'refusal_swap';
+
+/** How `runAgenticLoop`'s answer relates to what was already streamed. */
+export interface LoopResult {
+  text: string;
+  /**
+   * True when a validation retry produced `text` AFTER part of the first
+   * (invalid) pass had already reached the client. The caller must replace the
+   * streamed answer (`completion` event) — the deltas on the wire are the
+   * invalid pass, not this text.
+   */
+  replacedStreamed?: boolean;
+  /** Set whenever `text` is not what the first pass wrote. Log-only. */
+  replacement?: AnswerReplacement;
 }
 
 export async function runAgenticLoop(
   p: LoopEngineParams,
   deps: LoopDeps = defaultDeps
-): Promise<{ text: string }> {
+): Promise<LoopResult> {
   if (p.mode === 'unified') {
     const result = await streamWithTools(p, p.synthModel, deps);
+    if (p.suspended?.()) throw new TurnSuspendedError();
     // Unified mode has no separate synth phase, so the artifact/edit guarantees
     // run AFTER the stream (idempotent — the hooks no-op when the model already
     // created/edited). Without this, a Mistral turn that only searched left the
@@ -352,6 +667,7 @@ export async function runAgenticLoop(
     return result;
   }
   await gather(p, deps);
+  if (p.suspended?.()) throw new TurnSuspendedError();
   if (p.afterGather) await p.afterGather();
   return synthesize(p, deps);
 }
@@ -361,16 +677,20 @@ async function streamWithTools(
   p: LoopEngineParams,
   model: LanguageModel,
   deps: LoopDeps
-): Promise<{ text: string }> {
+): Promise<LoopResult> {
+  const { idle, idleMs } = createToolPhaseIdle(p);
   const result = deps.streamText({
     model,
     system: p.toolSystem,
     messages: p.messages,
-    tools: p.tools,
+    tools: toolsForProvider(p.tools),
     stopWhen: isStepCount(p.maxSteps),
     temperature: p.temperature,
     ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
-    abortSignal: p.abortSignal,
+    ...(p.providerOptions != null && { providerOptions: p.providerOptions }),
+    // Kombiniert, damit eine verstummte Lane wirklich abgebaut wird statt nur
+    // verlassen — dieselbe Form wie in gather und synth.
+    abortSignal: AbortSignal.any([p.abortSignal, idle.signal]),
     prepareStep: buildPrepareStep(
       p.toolSystem,
       FORCE_FINISH_SYSTEM_SUFFIX,
@@ -378,12 +698,56 @@ async function streamWithTools(
       p.forceFinish,
       p.forceFirstToolCall ?? false,
       p.forcedToolForStep,
-      p.getRecipeBlock
+      p.getRecipeBlock,
+      p.firstToolName ?? null,
+      p.activeTools
     ),
     experimental_repairToolCall: repairToolCall,
     ...phaseTelemetry('unified'),
+    onError: logStreamError('unified'),
   });
-  return drain(result, p.onText, p.onReasoning);
+  // Der unified-Pfad hatte gar keine Steuertoken-Säuberung: er schreibt MIT
+  // gemounteten Werkzeugen, also genau dort, wo das Chat-Template das Token
+  // erzeugt. Dass der Ausfall bisher nur im split-Modus auffiel, heißt nur, dass
+  // Mistral seltener geprüft wurde — nicht, dass der Pfad sauber ist.
+  const unifiedFilter = createControlTokenFilter();
+  const emitFiltered = (delta: string) => {
+    const clean = unifiedFilter.push(delta);
+    if (clean.length > 0) p.onText(clean);
+  };
+  const { text, finishReason, stalled } = await drain(
+    result,
+    emitFiltered,
+    p.onReasoning,
+    idle,
+    'stop'
+  );
+  const tail = unifiedFilter.flush();
+  if (tail.length > 0) p.onText(tail);
+  if (stalled) {
+    log.warn(
+      `[Engine] unified stream silent for ${idleMs}ms after ${text.length} chars (finishReason=${finishReason ?? 'none'}) — tearing it down`
+    );
+    reportBackgroundError(new ToolPhaseStallError(idleMs), {
+      job: 'agentic-unified-stall',
+      model: modelLabel(model),
+      idleMs,
+    });
+    // Ein `finish`-Part heisst: die Generierung war fertig, nur der Stream ging
+    // nicht zu. Dann ist die Antwort vollständig und darf NICHT die
+    // Abbruch-Fussnote des Aufrufers bekommen — genau diese Lüge produzierte
+    // #2948, wo alle sechs Deckel-Züge inhaltlich richtig geantwortet hatten.
+    // Ohne `finish` steht der Text mitten im Satz: als Abbruch melden.
+    if (finishReason == null) throw new ToolPhaseStallError(idleMs);
+  }
+  if (finishReason === DEGENERATE_FINISH_REASON) {
+    // Unified streams live, so the spam is already on the wire — drain has
+    // trimmed the returned text back to the healthy prefix, and the caller's
+    // `completion` replace (the same channel the split validation retry uses)
+    // swaps what the client shows and what gets persisted.
+    return { text, replacedStreamed: true, replacement: 'unified_degeneration' };
+  }
+  return { text };
 }
 
 /** Split phase 1: the planner runs the tool loop and fills the source registry.
@@ -392,17 +756,20 @@ async function streamWithTools(
  *  The stream is consumed in EVERY case (even without onNarration): the AI SDK's
  *  tool loop only advances as the stream is drained. */
 async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
+  const { idle, idleMs } = createToolPhaseIdle(p);
   try {
     const gatherSystem = `${p.toolSystem}${GATHER_SUFFIX}`;
     const result: Drainable = deps.streamText({
       model: p.plannerModel,
       system: gatherSystem,
       messages: p.messages,
-      tools: p.tools,
+      tools: toolsForProvider(p.tools),
       stopWhen: isStepCount(p.maxSteps),
       temperature: p.temperature,
       ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
-      abortSignal: p.abortSignal,
+      // Combined so a stalled planner call is torn down, not merely abandoned —
+      // same shape as the synth phase below.
+      abortSignal: AbortSignal.any([p.abortSignal, idle.signal]),
       prepareStep: buildPrepareStep(
         gatherSystem,
         FORCE_FINISH_GATHER_SUFFIX,
@@ -410,22 +777,36 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         p.forceFinish,
         p.forceFirstToolCall ?? false,
         p.forcedToolForStep,
-        p.getRecipeBlock
+        p.getRecipeBlock,
+        p.firstToolName ?? null,
+        p.activeTools
       ),
       experimental_repairToolCall: repairToolCall,
       ...phaseTelemetry('gather'),
+      onError: logStreamError('gather'),
     });
     const chunker = p.onNarration ? createSentenceChunker(p.onNarration) : null;
     const iterator = result.stream[Symbol.asyncIterator]();
     try {
       while (true) {
-        const next = await iterator.next();
+        // Racing the deadline is what makes the stall observable: awaiting
+        // `next()` alone parks here until the PROVIDER gives up.
+        const next = await Promise.race([iterator.next(), idle.deadline]);
         if (next.done) break;
+        // Any part counts as liveness — a tool-call/tool-result pair means the
+        // loop is working, not hanging.
+        idle.touch();
         const part = next.value;
         if (part.type === 'error') throw part.error;
-        // reasoning-delta discarded; text-delta becomes narration (or is drained
-        // silently when no onNarration is wired).
-        if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
+        // text-delta becomes narration (or is drained silently when no
+        // onNarration is wired). The planner's reasoning goes to the SAME
+        // channel as the synth's: the split lanes ARE the thinking models, and
+        // dropping it here left every non-Mistral turn with no thinking at all
+        // for the whole tool phase — the client's "Gedanken" panel only ever
+        // filled up once the answer was already being written.
+        if (part.type === 'reasoning-delta' && part.text != null && part.text.length > 0) {
+          p.onReasoning(part.text);
+        } else if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
           chunker?.push(part.text);
         }
       }
@@ -437,6 +818,24 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
     // synthesis over whatever was collected rather than failing the whole turn.
     // A genuinely aborted request re-throws in the synthesis stream below.
     log.warn(`[Engine] gather phase error: ${err instanceof Error ? err.message : String(err)}`);
+    // …but degrading silently is how a systematic planner outage stays
+    // invisible. A stall is a health signal about the lane, not a property of
+    // this one turn, so it goes to Glitchtip with the model that produced it.
+    if (err instanceof ToolPhaseStallError) {
+      reportBackgroundError(err, {
+        job: 'agentic-gather-stall',
+        model: modelLabel(p.plannerModel),
+        idleMs,
+      });
+      // …und in das Register, das sich Lanes merkt. Ohne diese Zeile blieb der
+      // Befund eine Einzelmeldung: `modelHealth` sah den Stillstand nie, also
+      // galt die Lane weiter als gesund und der nächste Zug wartete dieselben
+      // 45 s noch einmal ab. Genau der Preis, den das Register nicht zweimal
+      // zahlen will (siehe seinen Kopfkommentar).
+      p.onToolPhaseStall?.();
+    }
+  } finally {
+    idle.clear();
   }
 }
 
@@ -470,6 +869,18 @@ const PLAN_ANNOUNCEMENT_RE =
  */
 export const SYNTH_REFUSAL_TEXT =
   'Diese Anfrage setze ich nicht um — sie widerspricht den inhaltlichen Regeln des Grünerators, etwa erfundene Zitate, erfundene Quellen oder ausgrenzende Aussagen. Für ein anderes Anliegen bin ich gern da.';
+
+/**
+ * Retry nudges for an INVALID accepted answer (see `validateAnswer`). The
+ * validation retry runs silently — nothing of it reaches the client unless it
+ * comes back valid — so these can be blunt about what went wrong.
+ */
+export const SYNTH_CUTOFF_RETRY_SUFFIX =
+  '\n\nWICHTIG: Dein letzter Versuch brach mitten im Satz ab. Schreibe die Antwort JETZT vollständig zu Ende — gleiche Sprache, gleiches Format, aber mit einem echten Schluss.';
+export const SYNTH_INVALID_JSON_RETRY_SUFFIX =
+  '\n\nWICHTIG: Dein letzter Versuch enthielt syntaktisch UNGÜLTIGES JSON. Gib das angeforderte JSON jetzt vollständig und valide aus (mit JSON.parse parsebar), ohne Kommentare und ohne abgebrochene Strukturen.';
+export const SYNTH_DEGENERATE_RETRY_SUFFIX =
+  '\n\nWICHTIG: Dein letzter Versuch verlor sich in endlosen Wiederholungen ("Ende", "Fertig", wiederholte Zeichenfolgen) statt aufzuhören. Schreibe die Antwort JETZT genau EINMAL, beende sie mit einem normalen Schlusssatz und gib danach NICHTS mehr aus — keine Abschlussmarker, keine Wiederholungen.';
 
 /**
  * The retry nudge. Says nothing about LENGTH on purpose: an output format the
@@ -542,47 +953,70 @@ export function looksLikeToolPlanLeak(text: string, toolNames: readonly string[]
 function createGatedEmitter(
   onText: (delta: string) => void,
   holdChars: number
-): { push: (d: string) => void; flush: () => void; discard: () => void } {
+): { push: (d: string) => void; flush: () => void; discard: () => void; isOpen: () => boolean } {
   let buffer = '';
   let open = false;
+  // Der Steuertoken-Filter läuft über den GANZEN Strom, nicht nur über das
+  // Haltefenster. Die frühere Fassung säuberte allein den Puffer, weil sie
+  // annahm, das Token stehe immer vor der ersten Prosa — am 13.08.2026 kam es in
+  // einem Turn mit Werkzeugschritt erneut durch, nachdem das Gitter offen war.
+  const filter = createControlTokenFilter();
+  const emit = (text: string) => {
+    if (text.length > 0) onText(text);
+  };
   return {
     push(delta) {
       if (open) {
-        onText(delta);
+        emit(filter.push(delta));
         return;
       }
       buffer += delta;
       if (buffer.length > holdChars) {
-        onText(buffer);
+        emit(filter.push(buffer));
         buffer = '';
         open = true;
       }
     },
     flush() {
-      if (buffer.length > 0) onText(buffer);
+      if (buffer.length > 0) emit(filter.push(buffer));
+      emit(filter.flush());
       buffer = '';
       open = true;
     },
     discard() {
       buffer = '';
     },
+    // Whether anything has reached the client — decides if a validation retry
+    // can swap the answer silently or must go through a `completion` replace.
+    isOpen: () => open,
   };
 }
 
 /** Split phase 2: the selected model writes the answer over the gathered
  *  sources — no tools. One retry when the first pass leaks its tool plan. */
-async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: string }> {
+async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResult> {
   // Synthesis runs WITHOUT tools, so it must not see the tool-call/tool-result
   // replay the gather phase needs — see `synthMessages`.
   const messages = p.synthMessages ?? p.messages;
   const baseSystem = p.buildSynthSystem(p.getSourcesBlock());
   const toolNames = Object.keys(p.tools);
 
+  interface SynthPass {
+    text: string;
+    finishReason: string | null;
+    flush: () => void;
+    discard: () => void;
+    isOpen: () => boolean;
+  }
+
   const runPass = async (
     system: string,
-    model: LanguageModel
-  ): Promise<{ text: string; flush: () => void; discard: () => void }> => {
-    const gate = createGatedEmitter(p.onText, SHORT_ANSWER_MAX_CHARS);
+    model: LanguageModel,
+    /** Validation retry: collect the text without emitting anything — the
+     *  caller decides afterwards whether it replaces the first pass. */
+    silent = false
+  ): Promise<SynthPass> => {
+    const gate = createGatedEmitter(silent ? () => {} : p.onText, SHORT_ANSWER_MAX_CHARS);
     const idle = createIdleDeadline(
       SYNTH_IDLE_DEADLINE_MS,
       () => new SynthStallError(SYNTH_IDLE_DEADLINE_MS)
@@ -593,14 +1027,25 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
       messages,
       temperature: p.temperature,
       ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
+      ...(p.providerOptions != null && { providerOptions: p.providerOptions }),
       // Combined so a stalled provider call is torn down, not just abandoned.
       // `writeAbortSignal` deliberately, NOT the turn budget — see its doc.
       abortSignal: AbortSignal.any([p.writeAbortSignal ?? p.abortSignal, idle.signal]),
       ...phaseTelemetry('synth'),
+      onError: logStreamError('synth'),
     });
     try {
-      const { text } = await drain(result, gate.push, p.onReasoning, idle);
-      return { text, flush: gate.flush, discard: gate.discard };
+      const { text, finishReason } = await drain(result, gate.push, p.onReasoning, idle);
+      // Stripped again on the accumulated text: `drain` collects it from the
+      // SDK independently of the gate, and this copy is what gets persisted and
+      // what every validator downstream reads.
+      return {
+        text: stripToolControlTokens(text),
+        finishReason,
+        flush: gate.flush,
+        discard: gate.discard,
+        isOpen: gate.isOpen,
+      };
     } catch (err) {
       // Nothing buffered may leak on the error path — the caller's catch writes
       // its own user-facing message.
@@ -615,22 +1060,102 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
    * restart rather than resume because the gated emitter has held everything
    * back: the client has seen nothing from the dead pass.
    */
-  const runPassWithFallback = async (
-    system: string
-  ): Promise<{ text: string; flush: () => void; discard: () => void }> => {
+  const runPassWithFallback = async (system: string, silent = false): Promise<SynthPass> => {
     try {
-      return await runPass(system, p.synthModel);
+      return await runPass(system, p.synthModel, silent);
     } catch (err) {
       if (!isSynthStall(err) || !p.synthFallbackModel) throw err;
       log.warn(
         `[Engine] synth lane silent for ${SYNTH_IDLE_DEADLINE_MS}ms — retrying once on the fallback lane`
       );
       p.onSynthFallback?.();
-      return runPass(system, p.synthFallbackModel);
+      return runPass(system, p.synthFallbackModel, silent);
     }
   };
 
-  p.onSynthStart?.();
+  /** Why the answer is unusable as-is — a retry suffix, or null for valid. An
+   *  abnormal finishReason means the upstream cut the stream; the caller's
+   *  validators see the text alone and cannot know that. */
+  const invalidReason = (pass: { text: string; finishReason: string | null }): string | null => {
+    if (pass.finishReason === DEGENERATE_FINISH_REASON) {
+      return SYNTH_DEGENERATE_RETRY_SUFFIX;
+    }
+    if (
+      pass.finishReason != null &&
+      pass.finishReason !== 'stop' &&
+      pass.finishReason !== 'tool-calls'
+    ) {
+      return SYNTH_CUTOFF_RETRY_SUFFIX;
+    }
+    return p.validateAnswer?.(pass.text) ?? null;
+  };
+
+  /**
+   * One silent re-run for an answer that is syntactically broken (cut off
+   * mid-sentence, invalid JSON). The retry replaces the first pass only when it
+   * is demonstrably better: non-empty, itself valid, no tool-plan leak, no
+   * refusal (a long streamed answer must never be swapped for a canned decline).
+   */
+  const retryInvalidAnswer = async (
+    first: SynthPass,
+    reason: string
+  ): Promise<LoopResult | null> => {
+    log.warn(
+      `[Engine] synth answer failed validation (${first.text.length} chars) — one silent retry`
+    );
+    recordDecision('loop.synth_verdict', 'invalid_retried', {
+      inputs: { textLength: first.text.length, alreadyStreamed: first.isOpen() },
+    });
+    let retry: SynthPass;
+    try {
+      retry = await runPassWithFallback(`${baseSystem}${reason}`, true);
+    } catch (err) {
+      log.warn(
+        `[Engine] validation retry failed (${err instanceof Error ? err.message : String(err)}) — keeping the first answer`
+      );
+      return null;
+    }
+    const usable =
+      retry.text.trim().length > 0 &&
+      !looksLikeToolPlanLeak(retry.text, toolNames) &&
+      !looksLikeSynthRefusal(retry.text) &&
+      invalidReason(retry) == null;
+    if (!usable) {
+      log.warn('[Engine] validation retry did not validate either — keeping the first answer');
+      recordDecision('loop.synth_verdict', 'invalid_retry_failed', {
+        inputs: { retryTextLength: retry.text.length },
+      });
+      return null;
+    }
+    const streamed = first.isOpen();
+    recordDecision('loop.synth_verdict', 'invalid_replaced', {
+      inputs: { retryTextLength: retry.text.length, alreadyStreamed: streamed },
+    });
+    // The one path here that changes the answer a human reads the MOST — a whole
+    // answer swapped for another — was the only silent one: every neighbour logs
+    // (both retry failures, the decline, the tool-plan leak) while the SUCCESS
+    // wrote nothing outside the development-only decision journal. From the
+    // operational log a swapped turn then looked exactly like an ordinary one;
+    // ruling it out took a stopwatch (a second synth pass costs ~10s), which
+    // stops working as soon as a retry is fast or a first pass is slow.
+    log.warn(
+      `[Engine] validation retry replaced the answer (${first.text.length} → ${retry.text.length} chars, ` +
+        `${streamed ? 'already streamed — client sees a completion replace' : 'not yet streamed — swapped silently'})`
+    );
+    if (!streamed) {
+      // The invalid pass never reached the client — swap it silently.
+      first.discard();
+      p.onText(retry.text);
+      return { text: retry.text, replacement: 'validation_retry' };
+    }
+    // The invalid pass is already on the wire; the caller must replace it.
+    return {
+      text: retry.text,
+      replacedStreamed: true,
+      replacement: 'validation_retry_streamed',
+    };
+  };
+
   const first = await runPassWithFallback(baseSystem);
   // A decline is checked BEFORE degeneracy: an English refusal trips the
   // no-German-marker rule, so without this it would be retried (a second model
@@ -651,13 +1176,32 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
       inputs: { refusalLanguage: lang },
     });
     p.onText(SYNTH_REFUSAL_TEXT);
-    return { text: SYNTH_REFUSAL_TEXT };
+    return { text: SYNTH_REFUSAL_TEXT, replacement: 'refusal_swap' };
   }
   if (!looksLikeToolPlanLeak(first.text, toolNames)) {
+    // A degenerate pass earns the retry even when the trim left NOTHING — spam
+    // from the first token is the most complete failure, exactly where a fresh
+    // pass helps most. Plain-empty answers stay the caller's fallback case.
+    const reason =
+      first.text.trim().length > 0 || first.finishReason === DEGENERATE_FINISH_REASON
+        ? invalidReason(first)
+        : null;
+    if (reason != null && !(p.writeAbortSignal ?? p.abortSignal).aborted) {
+      const replaced = await retryInvalidAnswer(first, reason);
+      if (replaced) return replaced;
+    }
     recordDecision('loop.synth_verdict', 'accepted', {
       inputs: { textLength: first.text.length },
     });
+    // Captured BEFORE flush() — flush opens the gate unconditionally, so
+    // afterwards isOpen() no longer says whether the CLIENT saw anything.
+    const spamReachedWire = first.isOpen();
     first.flush();
+    if (first.finishReason === DEGENERATE_FINISH_REASON && spamReachedWire) {
+      // The retry didn't recover, so the trimmed text stands — but the wire
+      // still carries the degenerate tail drain cut off. Replace it.
+      return { text: first.text, replacedStreamed: true, replacement: 'degeneration_trim' };
+    }
     return { text: first.text };
   }
 
@@ -684,8 +1228,10 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
   return { text: retry.text };
 }
 
+type StreamPart = { type: string; text?: string; error?: unknown; finishReason?: string };
+
 interface Drainable {
-  stream: AsyncIterable<{ type: string; text?: string; error?: unknown; finishReason?: string }>;
+  stream: AsyncIterable<StreamPart>;
 }
 
 async function drain(
@@ -694,18 +1240,41 @@ async function drain(
   onReasoning: (d: string) => void,
   /** Optional stall guard. Every chunk — text OR reasoning — counts as liveness,
    *  so a thinking model is never mistaken for a hung one. */
-  idle?: { deadline: Promise<never>; clear: () => void; touch: () => void }
-): Promise<{ text: string }> {
+  idle?: { deadline: Promise<never>; clear: () => void; touch: () => void },
+  /**
+   * Was ein Stillstand bedeutet. `throw` (Standard) für die Synth-Phase, die
+   * darauf ihre Geschwister-Lane startet. `stop` für die Werkzeugphase: dort
+   * ist das bereits Geschriebene weiter brauchbar, also endet nur das Auslesen
+   * und der Aufrufer entscheidet — deshalb kommt `stalled` mit zurück statt
+   * eines Fehlers, der den Text mitnähme.
+   */
+  onStall: 'throw' | 'stop' = 'throw'
+): Promise<{ text: string; finishReason: string | null; stalled: boolean }> {
   let text = '';
   let finishReason: string | null = null;
+  let stalled = false;
+  const degeneration = createDegenerationGuard();
   const iterator = result.stream[Symbol.asyncIterator]();
   try {
     while (true) {
       // Racing the deadline is what makes a stall observable: awaiting `next()`
       // alone parks here until the turn's wall clock fires two minutes later.
-      const next = idle
-        ? await Promise.race([iterator.next(), idle.deadline])
-        : await iterator.next();
+      let next: IteratorResult<StreamPart>;
+      if (idle) {
+        try {
+          next = await Promise.race([iterator.next(), idle.deadline]);
+        } catch (err) {
+          // Nur der eigene Stillstands-Fehler wird hier abgefangen; ein echter
+          // Stream-Fehler aus `next()` muss durchgereicht werden.
+          if (onStall === 'throw' || !(err instanceof ToolPhaseStallError)) throw err;
+          stalled = true;
+          // swallow-ok: Abbau eines bereits verlassenen, verstummten Streams
+          void Promise.resolve(iterator.return?.()).catch(() => {});
+          break;
+        }
+      } else {
+        next = await iterator.next();
+      }
       if (next.done) break;
       idle?.touch();
       const part = next.value;
@@ -715,6 +1284,38 @@ async function drain(
       } else if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
         text += part.text;
         onText(part.text);
+        // A model that cannot stop ("Ende. Fertig. 😊" loops, digit/smiley runs)
+        // has no limit on our side to run into — the answer paths deliberately
+        // set no maxOutputTokens, so without this it streams until the PROVIDER's
+        // cap fires (live 12.08.2026: 32.826 chars over 263s). Cut it here, keep
+        // the healthy prefix, and let the caller's finishReason handling take
+        // over (split: silent retry; unified: completion replace).
+        if (degeneration.check(text)) {
+          // The guard's own cut: when the long-range detector fired it knows
+          // the exact offset where the repetition began. No backscan can
+          // reconstruct that once the spam changed shape mid-run — live
+          // 12.08.2026 it removed 1.800 of 45.711 chars for exactly that reason.
+          const cut = degeneration.cutAt(text);
+          log.warn(
+            `[Engine] repetitive degeneration detected after ${text.length} chars — aborting the stream, keeping ${cut}`
+          );
+          finishReason = DEGENERATE_FINISH_REASON;
+          // The kept prefix says it was cut. Both answer paths replace what the
+          // client shows with this string (unified always, split when the
+          // silent retry fails), so the note travels with the trim instead of
+          // the trim passing for a finished answer. A successful split retry
+          // discards this text wholesale — and with it the note, correctly.
+          const kept = text.slice(0, cut).trimEnd();
+          // ...but only when there is something to warn about. Removing a run
+          // of dashes leaves a COMPLETE answer, and "may be incomplete" under
+          // it would be a false alarm about a correct result.
+          const lost = cutLostContent(kept, text.slice(cut));
+          text = kept.length > 0 ? (lost ? `${kept}\n\n${DEGENERATION_NOTICE}` : kept) : '';
+          // Best-effort teardown so the upstream stops billing us for spam.
+          // swallow-ok: cleanup of an already-abandoned degenerate stream
+          void Promise.resolve(iterator.return?.()).catch(() => {});
+          break;
+        }
       } else if (part.type === 'finish') {
         finishReason = part.finishReason ?? null;
       }
@@ -727,10 +1328,16 @@ async function drain(
   // provider's own), `content-filter`, `error` or `other`. Previously only
   // `length` was checked, so an abnormally terminated stream was persisted and
   // shipped as a finished answer with nothing in the logs to say otherwise.
-  if (finishReason != null && finishReason !== 'stop' && finishReason !== 'tool-calls') {
+  // Degeneration has its own log line above.
+  if (
+    finishReason != null &&
+    finishReason !== 'stop' &&
+    finishReason !== 'tool-calls' &&
+    finishReason !== DEGENERATE_FINISH_REASON
+  ) {
     log.warn(
       `[Engine] stream ended with finishReason=${finishReason} after ${text.length} chars — the answer is likely truncated`
     );
   }
-  return { text };
+  return { text, finishReason, stalled };
 }

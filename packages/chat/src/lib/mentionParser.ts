@@ -1,4 +1,8 @@
-import { buildMentionToken, type MentionTokenType } from '@gruenerator/shared/utils';
+import {
+  buildMentionToken,
+  parseMentionTokens,
+  type MentionTokenType,
+} from '@gruenerator/shared/utils';
 
 import { getDefaultAgent } from './agents';
 import { resolveDocumentSlug } from './documentMentionables';
@@ -6,6 +10,7 @@ import {
   decodeWolkeToken,
   decodeConnectToken,
   resolveMentionable,
+  type MentionableType,
   type WolkeFileToken,
   type ConnectFileToken,
 } from './mentionables';
@@ -18,6 +23,13 @@ export interface MentionResult {
 export interface ParsedMentions {
   agentId: string;
   agentMention?: string;
+  /**
+   * Skill/Rezept (or custom text form) named in the text — the same value the
+   * composer's popover select writes into the store. Carried so a hand-typed
+   * `/presse`/`@presse` activates the recipe exactly like a clicked one; the
+   * adapter sends it as `activeSkillMention`. Last mention wins.
+   */
+  skillMention: string | null;
   notebookIds: string[];
   forcedTools: string[];
   documentIds: string[];
@@ -50,9 +62,10 @@ function addUnique(seen: Set<string>, list: string[], id: string): void {
  * Parse all @-mentions and /mentions in a message text.
  *
  * Routing rules:
- * - /alias → resolve as agent (skill) → sets agentId
+ * - /alias → resolve as skill → sets agentId + skillMention (legacy trigger;
+ *   the picker inserts '@' since the recipes moved into the @-namespace)
  * - @alias → resolve as tool/notebook/document (function)
- * - @alias that resolves to an agent → still accepted (backward compat for saved threads)
+ * - @alias that resolves to a skill/agent → sets agentId + skillMention
  * - @datei:slug → resolve as document reference
  *
  * Agents: uses the last agent found (or default).
@@ -62,6 +75,7 @@ function addUnique(seen: Set<string>, list: string[], id: string): void {
 export function parseAllMentions(text: string): ParsedMentions {
   let agentId: string | null = null;
   let agentMention: string | undefined;
+  let skillMention: string | null = null;
   let hasDocumentChat = false;
   const notebookIds: string[] = [];
   const forcedTools: string[] = [];
@@ -201,18 +215,34 @@ export function parseAllMentions(text: string): ParsedMentions {
     }
 
     if (trigger === '/') {
-      // /alias → always treat as agent (skill)
+      // /alias → legacy skill trigger (the picker prefixes '@' now). Routes the
+      // owning agent AND records the recipe — the two halves of one mention.
+      // Before `skillMention` existed only the agent half survived a hand-typed
+      // `/presse`; the recipe silently vanished (live 20.08.2026).
       if (mentionable.type === 'agent') {
         agentId = mentionable.identifier;
         agentMention = mentionable.mention;
+        skillMention = mentionable.mention;
+      } else if (mentionable.type === 'textform') {
+        skillMention = mentionable.mention;
       }
-      // If /alias resolves to a non-agent, ignore it (/ is only for skills)
+      // If /alias resolves to any other type, ignore it (/ is only for skills)
     } else {
       // @alias → route by type
-      if (mentionable.type === 'agent') {
-        // Backward compat: @agent still works for saved threads
+      if (mentionable.type === 'useragent') {
+        // A Grünerator replaces the acting agent and carries no recipe —
+        // setting skillMention here would make the backend announce a text
+        // form by that identifier (#2909).
         agentId = mentionable.identifier;
         agentMention = mentionable.mention;
+      } else if (mentionable.type === 'agent') {
+        // Every agent-type mentionable is a skill or custom agent — the popover
+        // select sets activeSkillMention for both, so the typed form does too.
+        agentId = mentionable.identifier;
+        agentMention = mentionable.mention;
+        skillMention = mentionable.mention;
+      } else if (mentionable.type === 'textform') {
+        skillMention = mentionable.mention;
       } else if (mentionable.type === 'tool') {
         addUnique(seenTools, forcedTools, mentionable.identifier);
       } else if (mentionable.type === 'notebook') {
@@ -241,10 +271,19 @@ export function parseAllMentions(text: string): ParsedMentions {
       }
     }
 
-    // Record the span. Routed @-mentions become durable tokens; /skill spans
-    // stay stripped (the skill's prompt fragment rides activeSkillMention).
+    // Record the span. Routed mentions become durable tokens — a `/presse`
+    // span persists as `@[Pressemitteilung](skill:presse)` so the chip survives
+    // reload and the backend re-derives the recipe on edit-resubmit (where this
+    // parser skips already-tokenized text above). Non-skill types stay '@'-only:
+    // '/' never routed them, so it must not start emitting their tokens either.
     const triggerIndex = match.index + match[0].indexOf(trigger);
-    const token = trigger === '@' ? mentionTokenFor(mentionable) : undefined;
+    const token =
+      trigger === '@' ||
+      mentionable.type === 'agent' ||
+      mentionable.type === 'useragent' ||
+      mentionable.type === 'textform'
+        ? mentionTokenFor(mentionable)
+        : undefined;
     mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1, token]); // +1 for trigger char
   }
 
@@ -263,6 +302,7 @@ export function parseAllMentions(text: string): ParsedMentions {
   return {
     agentId: agentId ?? getDefaultAgent(),
     agentMention,
+    skillMention,
     notebookIds,
     forcedTools,
     documentIds,
@@ -280,16 +320,25 @@ export function parseAllMentions(text: string): ParsedMentions {
   };
 }
 
+/** Matches the token grammar's id charset (mentionTokens.ts). A mention that
+ *  falls outside (custom text form with umlauts) would emit a token that never
+ *  parses back — strip it instead, the recipe still rides the body field. */
+const TOKEN_ID_SAFE = /^[A-Za-z0-9:_.-]{1,128}$/;
+
 /**
- * Durable token for a routed @-mention (see @gruenerator/shared mentionTokens).
+ * Durable token for a routed mention (see @gruenerator/shared mentionTokens).
  * mcp servers hide inside tool identifiers as `mcp:<serverId>`; the create-*
- * pseudo-mentions (board-erstellen, …) act as tools. Returns undefined for
- * types that have no durable form (payload mentions handled earlier).
+ * pseudo-mentions (board-erstellen, …) act as tools. Skills and text forms
+ * persist as `skill:<mention>` — the mention, not the shared agent identifier,
+ * names the chosen Rezept, and the backend derives `activeSkillMention` from
+ * it. Returns undefined for types that have no durable form (payload mentions
+ * handled earlier).
  */
-function mentionTokenFor(m: {
-  type: string;
+export function mentionTokenFor(m: {
+  type: MentionableType;
   identifier: string;
   title: string;
+  mention: string;
 }): string | undefined {
   const build = (type: MentionTokenType, id: string) => buildMentionToken(m.title, type, id);
   switch (m.type) {
@@ -314,10 +363,33 @@ function mentionTokenFor(m: {
         ? build('tool', m.identifier)
         : build('doc', m.identifier);
     case 'agent':
-      return build('agent', m.identifier);
+    case 'textform':
+      return TOKEN_ID_SAFE.test(m.mention) ? build('skill', m.mention) : undefined;
+    // `agent:` and not `skill:` — the backend deliberately ignores agent tokens
+    // (the body's agentId stays authoritative) whereas a `skill:` token would be
+    // re-derived as a recipe mention on edit-resubmit.
+    case 'useragent':
+      return TOKEN_ID_SAFE.test(m.identifier) ? build('agent', m.identifier) : undefined;
     default:
       return undefined;
   }
+}
+
+/**
+ * Did the user scope this turn to an MCP server themselves? The sticky pinned
+ * connector must stand back when they did, or the turn carries two scopes.
+ *
+ * Both carriers count. `forcedTools` catches a hand-typed `@tally` (the parser
+ * resolves it against the registry); the token scan catches a message whose
+ * mention is already durable — a pill flushed by `buildMentionPrefix`, or an
+ * edit-resubmit of a persisted message. Checking only `forcedTools`, as this
+ * did, missed both of those.
+ */
+export function hasExplicitMcpScope(forcedTools: readonly string[], text: string): boolean {
+  return (
+    forcedTools.some((t) => t.startsWith('mcp:')) ||
+    parseMentionTokens(text).some((t) => t.type === 'mcp')
+  );
 }
 
 export type MentionPreviewKind =
@@ -462,7 +534,10 @@ export function extractMentionPreviews(text: string): MentionPreview[] {
     }
 
     const kind: MentionPreviewKind =
-      mentionable.type === 'agent'
+      // Text forms render like skills — they carry the same recipe semantics.
+      mentionable.type === 'agent' ||
+      mentionable.type === 'useragent' ||
+      mentionable.type === 'textform'
         ? 'agent'
         : mentionable.type === 'tool'
           ? 'tool'

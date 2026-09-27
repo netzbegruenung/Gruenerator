@@ -5,13 +5,17 @@
 import { searchGraphStreamBodySchema } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_NOTEBOOK_DEPTH } from '../../lib/notebookDepth';
+
 import {
   buildRequestBody,
   isAuiInternalThreadId,
   resolveRuntimeThreadId,
+  stripEditorEditTools,
   type BuildRequestBodyParams,
 } from './buildRequestBody';
 import { truncateAttachmentContext } from './truncation';
+
 import type { ToolKey } from '../../stores/chatStore';
 
 describe('isAuiInternalThreadId', () => {
@@ -98,6 +102,7 @@ describe('buildRequestBody', () => {
     formattedMessages: [{ id: 'm1', role: 'user', parts: [{ type: 'text', text: 'hallo' }] }],
     config: baseConfig,
     effectiveAgentId: 'agent-x',
+    typedSkillMention: null,
     safeCustomEnabledTools: null,
     extractedAttachments: [],
     notebookIds: [],
@@ -113,6 +118,7 @@ describe('buildRequestBody', () => {
     hasDocumentChat: false,
     injectedCurrentDocument: undefined,
     injectedCurrentBoard: undefined,
+    injectedCurrentCanvas: undefined,
     injectedAttachmentContext: undefined,
     seededInitialAssistantMessage: undefined,
     currentSharepic: null,
@@ -123,6 +129,24 @@ describe('buildRequestBody', () => {
     regenerate: false,
     replaceFromMessageId: undefined,
     ...overrides,
+  });
+
+  it('typed skill mention beats the store, store fills in otherwise', () => {
+    const typed = buildRequestBody(
+      baseParams({
+        typedSkillMention: 'presse',
+        config: { ...baseConfig, activeSkillMention: 'instagram' },
+      })
+    );
+    expect(typed.activeSkillMention).toBe('presse');
+
+    const ambient = buildRequestBody(
+      baseParams({ config: { ...baseConfig, activeSkillMention: 'instagram' } })
+    );
+    expect(ambient.activeSkillMention).toBe('instagram');
+
+    const neither = buildRequestBody(baseParams({}));
+    expect(neither.activeSkillMention).toBeUndefined();
   });
 
   it('search mode → query + searchMode, no enabledTools', () => {
@@ -164,7 +188,7 @@ describe('buildRequestBody', () => {
     const body = buildRequestBody(baseParams({ effectiveMode: 'notebook' }));
     expect(body.messages).toBeDefined();
     expect(body.collectionId).toBe('nb-1');
-    expect(body.mode).toBe('fast');
+    expect(body.mode).toBe(DEFAULT_NOTEBOOK_DEPTH);
     expect('notebookId' in body).toBe(false);
     expect('query' in body).toBe(false);
   });
@@ -204,5 +228,21 @@ describe('buildRequestBody', () => {
   it('non-empty notebookIds are forwarded', () => {
     const body = buildRequestBody(baseParams({ effectiveMode: 'chat', notebookIds: ['nb-a'] }));
     expect(body.notebookIds).toEqual(['nb-a']);
+  });
+});
+
+describe('stripEditorEditTools', () => {
+  it('drops every surface edit key and keeps the rest', () => {
+    expect(
+      stripEditorEditTools({
+        edit_current_doc: true,
+        edit_current_sheet: true,
+        edit_current_presentation: false,
+        edit_current_board: true,
+        edit_current_canvas: true,
+        summary: true,
+        save_as_doc: false,
+      })
+    ).toEqual({ summary: true, save_as_doc: false });
   });
 });

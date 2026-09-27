@@ -1,16 +1,14 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildSocialMediaSystemPrompt } from '../agents/langgraph/ChatGraph/nodes/socialMediaComposerNode.js';
 import { SHAREPIC_SAFETY_RULES } from '../routes/sharepic/sharepic_text/unifiedHandler.js';
 
 import {
   CONTENT_INTEGRITY_ANSWER_RULE,
   CONTENT_INTEGRITY_BULLETS,
   CONTENT_INTEGRITY_EDIT_RULES,
-  CONTENT_INTEGRITY_RULES,
+  CONTENT_INTEGRITY_POST_EDIT_RULES,
+  CONTENT_REFUSAL_MARKER_RE,
 } from './contentPolicy.js';
-
-import type { ChatGraphState } from '../agents/langgraph/ChatGraph/types.js';
 
 /**
  * The rules existed — on exactly one path. These pin the reach, because that
@@ -20,16 +18,22 @@ import type { ChatGraphState } from '../agents/langgraph/ChatGraph/types.js';
  */
 describe('content policy reaches every generator of publishable text', () => {
   it('names all three protected classes, not just fabrication', () => {
-    for (const block of [CONTENT_INTEGRITY_RULES, CONTENT_INTEGRITY_EDIT_RULES]) {
+    for (const block of [CONTENT_INTEGRITY_POST_EDIT_RULES, CONTENT_INTEGRITY_EDIT_RULES]) {
       expect(block).toContain('Erfinde NIEMALS Zitate');
       expect(block).toContain('real existierenden Person');
       expect(block).toContain('herabsetzen');
     }
   });
 
-  it('closes the "draft it with a caveat" escape in the prose variant', () => {
-    expect(CONTENT_INTEGRITY_RULES).toContain('KEINEN Entwurf');
-    expect(CONTENT_INTEGRITY_RULES).toContain('mit Vorbehalt');
+  it('the post editor declines on a marker it can read back', () => {
+    // The editor answers in prose; a decline worded freely is only caught by
+    // the verb allowlist in `looksLikeRefusal`. The marker the prompt asks for
+    // has to be the one the service reads.
+    expect(CONTENT_INTEGRITY_POST_EDIT_RULES).toContain('KEINE neue Fassung');
+    expect(CONTENT_INTEGRITY_POST_EDIT_RULES).toContain('mit Vorbehalt');
+    const promised = /`(ABLEHNUNG: [^`]+)`/.exec(CONTENT_INTEGRITY_POST_EDIT_RULES)?.[1];
+    expect(promised).toBeDefined();
+    expect(CONTENT_REFUSAL_MARKER_RE.test(promised as string)).toBe(true);
   });
 
   it('the sharepic rules still carry the ABLEHNUNG channel and the layout carve-out', () => {
@@ -40,14 +44,13 @@ describe('content policy reaches every generator of publishable text', () => {
     expect(SHAREPIC_SAFETY_RULES).toContain('LAYOUT (niemals ein Ablehnungsgrund)');
   });
 
-  it('the social-post composer states them (it used to mention only quotes)', () => {
-    const prompt = buildSocialMediaSystemPrompt({
-      agentConfig: { systemRole: 'Du bist ein Testagent.' },
-      messages: [],
-    } as unknown as ChatGraphState);
-    expect(prompt).toContain('herabsetzen');
-    expect(prompt).toContain('real existierenden Person');
-  });
+  // Hier stand ein Fall über `buildSocialMediaSystemPrompt` — den Systemtext des
+  // Verdikts `social_post`, dessen einzige Inhaltsregel einmal „Erfinde keine
+  // Fakten oder Zitate" war (der Defekt, den diese Datei festhält). Verdikt und
+  // Prompt sind 08/2026 gefallen: einen Social-Post schreibt jetzt derselbe
+  // Antwortpfad wie jeden anderen Text, und den deckt der letzte Fall unten ab
+  // (`CONTENT_INTEGRITY_ANSWER_RULE`). Ein Generator weniger, nicht eine Regel
+  // weniger.
 
   it('the tool-forced edit variant binds the operations instead of offering prose', () => {
     // The editor MUST return operations — "decline in a sentence" is not an

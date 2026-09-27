@@ -48,7 +48,13 @@ export type Attachment = FileAttachment | CrawledUrlAttachment;
  */
 export interface ImageAttachment {
   type: 'image/jpeg' | 'image/jpg' | 'image/png' | 'image/webp' | 'image/gif';
-  data: string; // Base64 or data URL
+  /**
+   * Base64 oder Data-URL. Entfaellt, wenn `bytes` gesetzt ist — wer die Bytes
+   * schon hat, schickt sie nicht durch base64 und wieder zurueck.
+   */
+  data?: string | undefined;
+  /** Rohbytes; haben Vorrang vor `data`. */
+  bytes?: Buffer | undefined;
   name?: string | undefined;
   size?: number | undefined;
   source?: string | undefined;

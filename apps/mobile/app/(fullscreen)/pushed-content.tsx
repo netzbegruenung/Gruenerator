@@ -1,7 +1,11 @@
 /**
  * PushedContentScreen
- * Displays content received via push-to-phone notification.
- * Allows saving to gallery or sharing via native share sheet.
+ * Read-only viewer for a shared image or video, opened from the recent-activity
+ * list (`useRecentActivity`). Allows saving to gallery or sharing via the native
+ * share sheet.
+ *
+ * The route name is a leftover from push-to-phone, which used to be one way in;
+ * the screen itself never depended on notifications.
  */
 
 import { Ionicons } from '@react-native-vector-icons/ionicons';
@@ -11,9 +15,18 @@ import * as MediaLibrary from 'expo-media-library';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, useColorScheme } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+  useColorScheme,
+  Alert,
+} from 'react-native';
 
 import { Button } from '../../components/common/Button';
+import { alertSavedToGallery } from '../../services/gallery';
 import { shareFile } from '../../services/share';
 import { getCachedShareFile } from '../../services/sharedMediaCache';
 import { secureStorage } from '../../services/storage';
@@ -26,6 +39,7 @@ import {
   darkTheme,
   BODY_FONT,
 } from '../../theme';
+import { getErrorMessage } from '../../utils/errors';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
@@ -121,11 +135,34 @@ export default function PushedContentScreen() {
 
   const handleSaveToGallery = useCallback(async () => {
     if (!localUri) return;
-    const { status } = await MediaLibrary.requestPermissionsAsync(true);
-    if (status !== 'granted') return;
-    await MediaLibrary.Asset.create(localUri);
-    setSavedToGallery(true);
-  }, [localUri]);
+
+    // Die Berechtigungsfrage steht mit im try: sie kann selbst werfen, und ein
+    // Fehlschlag davor wäre sonst eine unbehandelte Rejection statt einer
+    // Meldung.
+    try {
+      // Write-only: saving only, never reading the library.
+      const { status } = await MediaLibrary.requestPermissionsAsync(true);
+      if (status !== 'granted') {
+        Alert.alert(
+          'Galerie-Berechtigung',
+          `Bitte erlaube den Zugriff auf die Galerie, um ${isVideo ? 'das Video' : 'das Bild'} zu speichern.`
+        );
+        return;
+      }
+
+      const asset = await MediaLibrary.Asset.create(localUri);
+      setSavedToGallery(true);
+      alertSavedToGallery(
+        asset.id,
+        `${isVideo ? 'Das Video' : 'Das Bild'} wurde in der Galerie gespeichert.`
+      );
+    } catch (error: unknown) {
+      // A throw here used to leave the button looking untouched — no badge, no
+      // message, nothing to tell the user the save never happened.
+      console.error('[PushedContent] Save to gallery failed:', getErrorMessage(error));
+      Alert.alert('Fehler', 'Der Inhalt konnte nicht gespeichert werden.');
+    }
+  }, [localUri, isVideo]);
 
   const handleShare = useCallback(async () => {
     if (!localUri) return;

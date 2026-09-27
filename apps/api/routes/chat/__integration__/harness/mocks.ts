@@ -1,5 +1,9 @@
 import { vi } from 'vitest';
 
+import { type UserMemoryRow } from '../../../../database/schema/index.js';
+import { type RedisIncrByClient } from '../../../../services/counters/types.js';
+import { TreeBudget } from '../../../../services/trees/treeBudget.js';
+
 /**
  * Module-shaped factories for the `vi.mock` blocks. The `vi.mock` CALLS stay
  * literal in each test file — whether a `vi.mock` registered from an imported
@@ -28,13 +32,60 @@ export function postgresMock(): Record<string, unknown> {
   };
 }
 
+/**
+ * Das Bäume-Kontingent — der echte `TreeBudget`, aber mit unbegrenzter
+ * Zuteilung, sodass er Redis nie anfasst. Ohne Doppelgänger hängt das Ergebnis
+ * an der Maschine: ohne `REDIS_URL` wählt der Client `localhost:6379`, und
+ * nur wo dort zufällig etwas lauscht, bucht `@deepresearch` durch. In der CI
+ * scheitert die Buchung fail-closed, und die Karte zeichnet eine Warnung
+ * `deep_research_quota_spent` auf, die bloß den fehlenden Redis wiedergibt.
+ */
+export function treeBudgetMock(original: Record<string, unknown>): Record<string, unknown> {
+  const redis: RedisIncrByClient = {
+    get: unexpectedRedis,
+    incr: unexpectedRedis,
+    incrBy: unexpectedRedis,
+    expire: unexpectedRedis,
+    del: unexpectedRedis,
+  };
+  const budget = new TreeBudget(redis, {
+    allowanceFor: () => Promise.resolve({ unlimited: true }),
+  });
+  return { ...original, getTreeBudget: () => budget };
+}
+
+function unexpectedRedis(): never {
+  throw new Error('unexpected Redis call from the tree budget');
+}
+
+/**
+ * Die gelernte Textform („Texte anlernen") — DB-gestützt und erst erreichbar,
+ * seit eine Erwähnung ein Rezept setzen kann (`@pressemitteilungen`, Phase L).
+ * `null` ist der Normalfall: die Person hat für diese Textform nichts angelernt,
+ * und `buildSystemMessage` nimmt dann den Standard-Rezepttext.
+ *
+ * Ohne diesen Doppelgänger schlägt der Postgres-Backstop oben zu, und zwar erst
+ * in `respondNode` — der Turn bricht dann mit einem generischen SSE-Fehler ab,
+ * lange nachdem die Entscheidung gefallen ist, um die es im Szenario geht.
+ */
+export function textFormMock(original: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...original,
+    getTextFormForInjection: () => Promise.resolve(null),
+  };
+}
+
 export interface ThreadAccessControl {
   allow: boolean;
 }
 export const threadAccess: ThreadAccessControl = { allow: true };
 
 export function threadAccessMock(): Record<string, unknown> {
-  return { canAccessThread: () => Promise.resolve(threadAccess.allow) };
+  return {
+    canAccessThread: () => Promise.resolve(threadAccess.allow),
+    canWriteThread: () => Promise.resolve(threadAccess.allow),
+    getThreadAccessLevel: () => Promise.resolve(threadAccess.allow ? 'owner' : 'none'),
+  };
 }
 
 /**
@@ -68,7 +119,6 @@ export function attachmentPersistenceMock(
     deleteThreadAttachments: vi.fn(() => Promise.resolve()),
     generateAttachmentSummary: vi.fn(() => Promise.resolve('')),
     generateImageSummary: vi.fn(() => Promise.resolve('')),
-    formatThreadAttachmentsContext: () => '',
   };
 }
 
@@ -153,10 +203,100 @@ export function sharepicEditMock(original: Record<string, unknown>): Record<stri
   };
 }
 
+/**
+ * Die gespeicherten Rollen der Person und der parteiinterne Rollen-Baustein —
+ * die zwei Quellen, aus denen ein Rollen-Turn seinen Systemprompt zieht, und
+ * die einzigen zwei, die in diesem Harness nicht real sein können (Postgres,
+ * Dateisystem).
+ *
+ * Dass die Rollen HIER stehen und nicht im Testnutzer, ist die eigentliche
+ * Zusicherung: liest der Code sie wieder aus der Sitzung (`req.user`), findet
+ * er nichts — genau der Fehler, der den Rollen-Chat stumm auf den Basis-Agenten
+ * fallen ließ.
+ */
+export interface RoleControl {
+  roles: Array<Record<string, unknown>>;
+  bausteine: Record<string, string>;
+}
+export const roleControl: RoleControl = { roles: [], bausteine: {} };
+
+export function userRolesMock(): Record<string, unknown> {
+  return { loadUserRoles: () => Promise.resolve(roleControl.roles) };
+}
+
+/**
+ * Der REZEPT-Text, den das öffentliche Repo bewusst nicht hat: `internalPrompts`
+ * liest ihn zur Laufzeit aus `INTERN_CONTENT_DIR`, und in einer Prüfung ist das
+ * Verzeichnis nie da. Ohne Doppelgänger wäre „das Rezept wirkt" gar nicht
+ * beobachtbar — `buildSystemMessage` lässt den Block bei `null` schlicht weg,
+ * und ein Szenario sähe keinen Unterschied zwischen „geladen" und „vergessen".
+ *
+ * Der Inhalt ist Markierung, kein Prompt: geprüft wird, DASS ein Rezept den
+ * Systemtext erreicht, nicht was darin steht.
+ */
+export const INTERNAL_SKILL_PROMPT_MARKER = 'REZEPTTEXT-AUS-DEM-INTERNEN-REPO';
+
+export function internalPromptsMock(original: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...original,
+    getInternalRolePrompt: (key: string) => roleControl.bausteine[key] ?? null,
+    getInternalSkillPrompt: (mention: string) => `${INTERNAL_SKILL_PROMPT_MARKER} (${mention})`,
+  };
+}
+
 export function resetMockControls(): void {
   threadAccess.allow = true;
   sharepicControl.threadHasSharepic = false;
   persistControl.ok = true;
   persistControl.calls.length = 0;
   pipelineStates.clear();
+  roleControl.roles = [];
+  roleControl.bausteine = {};
+  memoryControl.rows = [];
+  memoryControl.search = [];
+  memoryControl.listError = null;
+  memoryControl.searchCalls.length = 0;
+}
+
+/**
+ * Das Gedächtnis der Person — die zwei Speicher hinter `memoryService` und
+ * `loadTurnMemories`. Ohne diesen Doppelgänger scheitert `list` am fehlenden
+ * Pool, der `catch` in `streamContext` schluckt das, und JEDER Turn läuft ohne
+ * Gedächtnis, ohne dass ein Test es merkt.
+ *
+ * `search` ist, was die Faktensuche liefert (IDs, beste zuerst) — oder der
+ * Fehler, den sie wirft.
+ */
+export interface MemoryControl {
+  rows: UserMemoryRow[];
+  search: string[] | Error;
+  listError: Error | null;
+  searchCalls: Array<{ query: string; limit: number }>;
+}
+export const memoryControl: MemoryControl = {
+  rows: [],
+  search: [],
+  listError: null,
+  searchCalls: [],
+};
+
+export function memoryStoreMock(original: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...original,
+    drizzleMemoryDb: {
+      ...(original.drizzleMemoryDb as Record<string, unknown>),
+      list: () =>
+        memoryControl.listError
+          ? Promise.reject(memoryControl.listError)
+          : Promise.resolve([...memoryControl.rows]),
+    },
+    qdrantMemoryVectors: {
+      ...(original.qdrantMemoryVectors as Record<string, unknown>),
+      search: (_userId: string, query: string, limit: number) => {
+        memoryControl.searchCalls.push({ query, limit });
+        const result = memoryControl.search;
+        return result instanceof Error ? Promise.reject(result) : Promise.resolve(result);
+      },
+    },
+  };
 }

@@ -5,11 +5,22 @@ import {
   INSTANCES,
   getInstance,
   getPinnedLocale,
+  hasUnlimitedTrees,
   isChannelVisibleIn,
   isInstanceId,
+  isToolOfferedIn,
+  isToolOfferedUnder,
   policyCoversNotebook,
+  policyCoversSkill,
   resolveInstance,
+  type InstanceDefinition,
 } from './index.js';
+import { AT_EBENEN, AT_ROLLEN, DE_EBENEN, DE_ROLLEN } from '../roles/rolesConfig.js';
+
+// `INSTANCES` is `as const`, so iterating it yields a union in which the
+// optional fields are absent on the entries that don't declare them. Widen to
+// the declared interface — the same move `recipeCatalog` makes for `SKILLS`.
+const ALL = INSTANCES;
 
 describe('instance registry', () => {
   it('has unique ids and no host claimed twice', () => {
@@ -116,11 +127,16 @@ describe('policyCoversNotebook', () => {
 });
 
 describe('getPinnedLocale', () => {
-  // No instance pins a locale yet; the mechanism exists for a future AT
-  // instance and must stay inert until then.
-  it('returns null while no instance locks a locale', () => {
-    for (const instance of INSTANCES) {
-      expect(getPinnedLocale(instance.id)).toBeNull();
+  // bgst serves the German Bundesgeschäftsstelle and hides the Austrian
+  // content outright, so leaving the locale switchable there would offer a
+  // setting with nothing behind it.
+  it('pins de-DE on bgst', () => {
+    expect(getPinnedLocale('bgst')).toBe('de-DE');
+  });
+
+  it('leaves the locale to the user everywhere else', () => {
+    for (const id of ['production', 'beta', 'local'] as const) {
+      expect(getPinnedLocale(id)).toBeNull();
     }
   });
 
@@ -134,17 +150,20 @@ describe('current instances', () => {
     expect(INSTANCES.map((i) => i.id)).toEqual(['production', 'beta', 'bgst', 'local']);
   });
 
-  // Filling `hide.notebookCategories`/`notebookIds`/`block` is blocked on the
-  // backend enforcing the same policy (docs/instanz-filterung-plan.md, AP4) —
-  // a hidden notebook would otherwise vanish from the gallery while the chat
-  // kept citing it. `hide.toolIds` has no such backend counterpart (tools are
-  // a frontend-only registry, nothing for the chat to cite), so bgst curates
-  // its tool tiles already.
-  it('carries no notebook content policy yet, so every instance shows the full notebook inventory', () => {
+  // The Bundesverband notebook sits in `hide`, not `block`: it used to be
+  // offered on these instances, so shared links and persisted mention tokens
+  // must keep resolving forever (F0 URL-Sonderrecht, CLAUDE.md) — it just
+  // stops being offered in galleries, pickers and implicit chat search.
+  it('production, beta and local hide the Bundesverband notebook — offered on bgst only', () => {
+    for (const id of ['production', 'beta', 'local'] as const) {
+      expect(getInstance(id).hide?.notebookIds).toEqual(['gruene-notebook']);
+      expect(getInstance(id).hide?.notebookCategories).toBeUndefined();
+    }
+    expect(getInstance('bgst').hide?.notebookIds).toBeUndefined();
+  });
+
+  it('blocks nothing anywhere — every direct notebook link keeps resolving', () => {
     for (const instance of INSTANCES) {
-      const hide = getInstance(instance.id).hide;
-      expect(hide?.notebookCategories).toBeUndefined();
-      expect(hide?.notebookIds).toBeUndefined();
       expect(getInstance(instance.id).block ?? {}).toEqual({});
     }
   });
@@ -163,5 +182,126 @@ describe('current instances', () => {
     for (const id of ['production', 'beta', 'local'] as const) {
       expect(getInstance(id).hide?.toolIds).toBeUndefined();
     }
+  });
+
+  // By category, not by id: the Bundesgeschäftsstelle works federally, and a
+  // thirteenth Landesverband must inherit the rule without anyone remembering
+  // to add it here.
+  it('bgst hides the Landesverband and Austrian notebook categories', () => {
+    expect(getInstance('bgst').hide?.notebookCategories).toEqual(['landesebene', 'oesterreich']);
+    for (const id of ['production', 'beta', 'local'] as const) {
+      expect(getInstance(id).hide?.notebookCategories).toBeUndefined();
+    }
+  });
+
+  it('bgst drops the Reel recipe, matching its hidden Reel tools', () => {
+    expect(getInstance('bgst').hide?.skillMentions).toEqual(['reel']);
+    for (const id of ['production', 'beta', 'local'] as const) {
+      expect(getInstance(id).hide?.skillMentions).toBeUndefined();
+      expect(getInstance(id).hide?.skillCategories).toBeUndefined();
+    }
+  });
+
+  it('bgst pins de-DE and offers the Bundesgeschäftsstelle role only', () => {
+    const bgst = getInstance('bgst');
+    expect(getPinnedLocale('bgst')).toBe('de-DE');
+    expect(bgst.offeredRoles).toEqual({
+      ebenen: ['bund'],
+      rollen: ['Mitarbeiter*in Bundesgeschäftsstelle'],
+      allowCustom: false,
+    });
+  });
+
+  it('meters the Bäume budget everywhere but bgst', () => {
+    expect(getInstance('bgst').treeAllowance).toBe('unlimited');
+    expect(hasUnlimitedTrees('bgst')).toBe(true);
+    for (const id of ['production', 'beta', 'local'] as const) {
+      expect(getInstance(id).treeAllowance).toBeUndefined();
+      expect(hasUnlimitedTrees(id)).toBe(false);
+    }
+  });
+
+  it('leaves the role offer open everywhere else', () => {
+    for (const id of ['production', 'beta', 'local'] as const) {
+      expect(getInstance(id).offeredRoles).toBeUndefined();
+    }
+  });
+
+  // The registry cannot import rolesConfig (it would close the cycle
+  // instances→roles→notebooks→instances), so the consistency `defaultRole`
+  // gets from the wizard at runtime is asserted here instead.
+  it('every offered Ebene and role exists in the role registry', () => {
+    const knownEbenen = new Set([...DE_EBENEN, ...AT_EBENEN].map((e) => e.id));
+    const knownRollen = new Set([...Object.values(DE_ROLLEN), ...Object.values(AT_ROLLEN)].flat());
+    for (const instance of ALL as readonly InstanceDefinition[]) {
+      for (const ebeneId of instance.offeredRoles?.ebenen ?? []) {
+        expect(knownEbenen, `Ebene "${ebeneId}" of ${instance.id}`).toContain(ebeneId);
+      }
+      for (const rolle of instance.offeredRoles?.rollen ?? []) {
+        expect(knownRollen, `Rolle "${rolle}" of ${instance.id}`).toContain(rolle);
+      }
+      const defaultRole = instance.defaultRole;
+      if (defaultRole) {
+        expect(knownEbenen).toContain(defaultRole.ebeneId);
+        expect(knownRollen).toContain(defaultRole.rolle);
+      }
+    }
+  });
+
+  // A role the instance suggests but does not offer would leave the wizard
+  // pre-selecting a card that is not on screen.
+  it('every defaultRole is itself offered', () => {
+    for (const instance of ALL as readonly InstanceDefinition[]) {
+      const { defaultRole, offeredRoles } = instance;
+      if (!defaultRole || !offeredRoles) continue;
+      if (offeredRoles.ebenen) expect(offeredRoles.ebenen).toContain(defaultRole.ebeneId);
+      if (offeredRoles.rollen) expect(offeredRoles.rollen).toContain(defaultRole.rolle);
+    }
+  });
+});
+
+describe('policyCoversSkill', () => {
+  it('covers nothing without a policy', () => {
+    expect(policyCoversSkill(undefined, { mention: 'presse' })).toBe(false);
+    expect(policyCoversSkill({}, { mention: 'presse', skillCategory: 'presse' })).toBe(false);
+  });
+
+  it('covers a named mention', () => {
+    const policy = { skillMentions: ['reel'] };
+    expect(policyCoversSkill(policy, { mention: 'reel' })).toBe(true);
+    expect(policyCoversSkill(policy, { mention: 'presse' })).toBe(false);
+  });
+
+  it('covers a whole category, so a new recipe of it inherits the rule', () => {
+    const policy = { skillCategories: ['social'] };
+    expect(policyCoversSkill(policy, { mention: 'instagram', skillCategory: 'social' })).toBe(true);
+    expect(policyCoversSkill(policy, { mention: 'brandneu', skillCategory: 'social' })).toBe(true);
+    expect(policyCoversSkill(policy, { mention: 'presse', skillCategory: 'presse' })).toBe(false);
+  });
+
+  it('leaves a recipe without a category alone when only categories are named', () => {
+    expect(policyCoversSkill({ skillCategories: ['social'] }, { mention: 'ohne' })).toBe(false);
+  });
+});
+
+describe('isToolOfferedIn', () => {
+  it('offers a tool no policy names', () => {
+    expect(isToolOfferedIn('sharepic', 'bgst')).toBe(true);
+    expect(isToolOfferedIn('vorlagen', 'production')).toBe(true);
+  });
+
+  it('drops a tool the instance hides', () => {
+    // bgst lists the Vorlagen tool under all three ids it goes by.
+    expect(isToolOfferedIn('vorlagen', 'bgst')).toBe(false);
+    expect(isToolOfferedIn('canvas-vorlagen', 'bgst')).toBe(false);
+    expect(isToolOfferedIn('tool-vorlagen', 'bgst')).toBe(false);
+  });
+
+  // The three call sites that used to unpack `hide` by hand each forgot this
+  // tier — a blocked tool would have stayed on offer.
+  it('drops a blocked tool too, not just a hidden one', () => {
+    const view = { channels: ['stable'], block: { toolIds: ['gesperrt'] } } as const;
+    expect(isToolOfferedUnder('gesperrt', view)).toBe(false);
+    expect(isToolOfferedUnder('erlaubt', view)).toBe(true);
   });
 });

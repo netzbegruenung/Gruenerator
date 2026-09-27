@@ -8,7 +8,11 @@
  * markdown block that later gets injected into the chat system prompt.
  */
 
-import { type TextFormType } from '@gruenerator/contracts';
+import {
+  MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
+  TEXT_FORM_TYPE_LABELS,
+  type TextFormType,
+} from '@gruenerator/contracts';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 
@@ -18,13 +22,6 @@ import { getModel } from '../ai/providers.js';
 const log = createLogger('TextFormAnalysisService');
 
 const ANALYSIS_MODEL = 'mistral-large-latest';
-
-const TEXT_TYPE_LABELS: Record<TextFormType, string> = {
-  instagram: 'Instagram-Posts',
-  facebook: 'Facebook-Posts',
-  presse: 'Pressemitteilungen',
-  antrag: 'Anträge',
-};
 
 // Structured extraction. Free strings/arrays — the deterministic renderer below
 // turns them into the injected block, so the model never has to format markdown.
@@ -53,8 +50,25 @@ Regeln:
 - signaturePhrases: nur Formulierungen, die WÖRTLICH (oder fast wörtlich) in den Beispielen vorkommen.
 - Schreibe auf Deutsch, knapp und präzise. Keine Meta-Kommentare.`;
 
+/**
+ * Rendert die Beispiele und hält dabei das Zeichenbudget ein. Zod deckelt die
+ * Summe schon am Contract; der Deckel hier ist die zweite Grenze für Rezepte,
+ * die vor der Anhebung des Limits gespeichert wurden oder über einen anderen
+ * Aufrufer hereinkommen — ein gesprengtes Kontextfenster ist ein 500er, kein
+ * Validierungsfehler.
+ */
 function buildExamplesText(examples: ReadonlyArray<{ content: string }>): string {
-  return examples.map((e, i) => `--- Beispiel ${i + 1} ---\n${e.content.trim()}`).join('\n\n');
+  const blocks: string[] = [];
+  let used = 0;
+  for (const [i, example] of examples.entries()) {
+    const content = example.content.trim();
+    if (content.length === 0) continue;
+    const remaining = MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS - used;
+    if (remaining <= 0) break;
+    used += content.length;
+    blocks.push(`--- Beispiel ${i + 1} ---\n${content.slice(0, remaining)}`);
+  }
+  return blocks.join('\n\n');
 }
 
 function renderStyleBlock(label: string, s: StyleExtract): string {
@@ -91,25 +105,48 @@ export async function analyzeTextForm(
   examples: ReadonlyArray<{ content: string }>
 ): Promise<{ styleBlock: string; model: string }> {
   const model = getModel('mistral', ANALYSIS_MODEL);
+  const examplesText = buildExamplesText(examples);
 
   const result = await generateObject({
     model,
     schema: StyleSchema,
     system: SYSTEM_PROMPT,
-    prompt: `## ${label} — Beispiele\n\n${buildExamplesText(examples)}\n\nAnalysiere die Gemeinsamkeiten des Schreibstils.`,
+    prompt: `## ${label} — Beispiele\n\n${examplesText}\n\nAnalysiere die Gemeinsamkeiten des Schreibstils.`,
     maxOutputTokens: 2000,
     temperature: 0.25,
-    abortSignal: AbortSignal.timeout(45000),
+    // Bis zu ~40k Token Eingabe: der alte 45-s-Deckel reichte für fünf kurze
+    // Beispiele, nicht für zwanzig lange.
+    abortSignal: AbortSignal.timeout(150_000),
   });
 
   const styleBlock = renderStyleBlock(label, result.object);
   log.info(
-    `[analyzeTextForm] "${label}" — ${examples.length} examples → ${styleBlock.length} chars`
+    `[analyzeTextForm] "${label}" — ${examples.length} examples / ${examplesText.length} chars → ${styleBlock.length} chars`
   );
   return { styleBlock, model: ANALYSIS_MODEL };
 }
 
 /** Human-readable label for a preset text type (for prompts & headings). */
 export function textTypeLabel(textType: TextFormType): string {
-  return TEXT_TYPE_LABELS[textType];
+  return TEXT_FORM_TYPE_LABELS[textType];
+}
+
+/**
+ * The label a style is analyzed and rendered under. The title wins: it is what
+ * the person named the recipe, and since the contract requires it there is
+ * always one. `textType` only fills in for a caller that has none.
+ *
+ * It used to be the other way round, which quietly discarded the more precise
+ * name — a Landesverband's "Pressemitteilungen Hessen" carries `textType:
+ * 'presse'` and was analyzed and rendered as plain "Pressemitteilungen". The
+ * preset case loses nothing: a preset's title IS its canonical label
+ * (`TEXT_FORM_TYPE_LABELS`, seeded by `classifyRecipeMention`).
+ *
+ * Single source for a decision `analyze`, `create` and `add_examples` each
+ * re-implemented.
+ */
+export function textFormLabel(textType: TextFormType | null | undefined, title: string): string {
+  const named = title.trim();
+  if (named.length > 0) return named;
+  return textType ? textTypeLabel(textType) : named;
 }

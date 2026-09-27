@@ -1,15 +1,21 @@
 'use client';
 
-import { isAdminVisibleSkill } from '@gruenerator/shared/agents';
+import {
+  isAdminVisibleSkill,
+  isLvItemVisibleForRoles,
+  isSkillOfferedIn,
+} from '@gruenerator/shared/agents';
 import { X, Star, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { PiSparkle } from 'react-icons/pi';
 
 import { useHiddenSkillMentions } from '../../hooks/useMentionablesQuery';
+import { useUserLandesverbaende } from '../../hooks/useUserLandesverbaende';
 import { agentsList, SKILL_CATEGORY_LABELS, type SkillCategory } from '../../lib/agents';
 import {
   agentToMentionable,
   getCustomAgentMentionables,
+  getMentionInstance,
   type Mentionable,
 } from '../../lib/mentionables';
 import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
@@ -27,13 +33,23 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
   const { favorites, toggleFavorite } = useSkillFavoritesStore();
   const customAgents = getCustomAgentMentionables();
   const hiddenSkillMentions = useHiddenSkillMentions();
+  const { lvIds } = useUserLandesverbaende();
 
+  // Landesverbands-Rezepte gehören in die Bibliothek der Person, die in der
+  // Landesgeschäftsstelle dieses Landesverbands arbeitet — nicht in die aller.
+  // Ohne diese Rolle sind sie nicht in der Bibliothek; vor der Hydratation ist
+  // `lvIds` `null` und der Filter lässt alles durch.
   const allSkills = useMemo(
     () =>
       agentsList
         .map(agentToMentionable)
-        .filter((s) => isAdminVisibleSkill(s.mention, hiddenSkillMentions)),
-    [hiddenSkillMentions]
+        .filter(
+          (s) =>
+            isAdminVisibleSkill(s.mention, hiddenSkillMentions) &&
+            isSkillOfferedIn(s, getMentionInstance()) &&
+            isLvItemVisibleForRoles(s.identifier, lvIds)
+        ),
+    [hiddenSkillMentions, lvIds]
   );
 
   const filtered = useMemo(() => {

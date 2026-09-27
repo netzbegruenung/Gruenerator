@@ -16,10 +16,11 @@ import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { toJobError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
-import { getUserLocale } from '../localization/localeCache.js';
+import { getUserLocale, LOCALE_UNSET } from '../localization/localeCache.js';
 
 import { buildFFmpegOutputOptions, buildVideoFilters } from './ffmpegExportUtils.js';
 import { ffmpeg } from './ffmpegWrapper.js';
+import { calculateFontSizing } from './subtitleSizingService.js';
 import { probeVideoMetadata } from './videoMetadata.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -80,44 +81,6 @@ function parseSubtitleSegments(subtitles: string): SubtitleSegment[] {
     .sort((a, b) => a.startTime - b.startTime);
 }
 
-function calculateFontSize(metadata: VideoMetadata): number {
-  const isVertical = metadata.width < metadata.height;
-  const referenceDimension = isVertical ? metadata.width : metadata.height;
-  const totalPixels = metadata.width * metadata.height;
-
-  let minFontSize: number, maxFontSize: number, basePercentage: number;
-
-  if (referenceDimension >= 2160) {
-    minFontSize = 80;
-    maxFontSize = 180;
-    basePercentage = isVertical ? 0.07 : 0.065;
-  } else if (referenceDimension >= 1440) {
-    minFontSize = 60;
-    maxFontSize = 140;
-    basePercentage = isVertical ? 0.065 : 0.06;
-  } else if (referenceDimension >= 1080) {
-    minFontSize = 40;
-    maxFontSize = 90;
-    basePercentage = isVertical ? 0.054 : 0.0495;
-  } else if (referenceDimension >= 720) {
-    minFontSize = 35;
-    maxFontSize = 70;
-    basePercentage = isVertical ? 0.055 : 0.05;
-  } else {
-    minFontSize = 32;
-    maxFontSize = 65;
-    basePercentage = isVertical ? 0.065 : 0.06;
-  }
-
-  const pixelFactor = Math.log10(totalPixels / 2073600) * 0.15 + 1;
-  const adjustedPercentage = basePercentage * Math.min(pixelFactor, 1.4);
-
-  return Math.max(
-    minFontSize,
-    Math.min(maxFontSize, Math.floor(referenceDimension * adjustedPercentage))
-  );
-}
-
 async function processProjectExport(
   project: Project,
   projService: ProjectService,
@@ -147,14 +110,18 @@ async function processProjectExport(
     await fs.mkdir(EXPORTS_DIR, { recursive: true });
     const outputPath = path.join(EXPORTS_DIR, `subtitled_${project.id}_${Date.now()}.mp4`);
 
-    const finalFontSize = calculateFontSize(metadata);
+    const { finalFontSize } = calculateFontSizing(metadata, segments);
 
     const stylePreference = project.style_preference || 'standard';
     const heightPreference = project.height_preference || 'standard';
     // Re-exports used to hardcode de-DE, so an Austrian project re-rendered for
     // a share link came back with German styling and fonts — even though the
     // original export had been correct.
-    const locale = (ownerUserId ? await getUserLocale(ownerUserId) : null) ?? 'de-DE';
+    // Blatt-Konsument: hier rendert ein Hintergrund-Job Schrift und Marke, es ist
+    // niemand da, den man fragen könnte. Ohne bekanntes Land bleibt es beim
+    // neutralen deutschen Satz — 'unset' darf dabei nicht als Locale durchlaufen.
+    const lookup = ownerUserId ? await getUserLocale(ownerUserId) : null;
+    const locale = lookup != null && lookup !== LOCALE_UNSET ? lookup : 'de-DE';
 
     await redisClient.set(
       `export:${exportToken}`,

@@ -49,6 +49,33 @@ describe('createSourceRegistry', () => {
     expect(block).toBe('[1] A <https://example.org/a> (2025-09-01) — alpha');
   });
 
+  // Im split-Modus sieht der Schreiber nur diese Zeile: ohne Seite las er
+  // `read seite=2` als Text ohne Seitenangabe (Testserver 24.09.2026).
+  it('puts the page or page span in the snippet line, next to the date', () => {
+    const reg = createSourceRegistry();
+    const block = reg.register([
+      result({ title: 'Niederschrift', content: 'TOP 3', pageNumber: 2 }),
+      result({
+        title: 'Beschluss',
+        content: 'Radweg',
+        pageNumber: 4,
+        publishedDate: '2026-02-24T00:00:00.000Z',
+      }),
+      result({ title: 'Notiz', content: 'ohne', pageNumber: null }),
+      result({ title: 'Satzung', content: 'Paragraf', pageNumber: 2, pageTo: 3 }),
+      result({ title: 'Antrag', content: 'eine Seite', pageNumber: 5, pageTo: 5 }),
+    ]);
+    expect(block).toBe(
+      [
+        '[1] Niederschrift (S. 2) — TOP 3',
+        '[2] Beschluss (2026-02-24, S. 4) — Radweg',
+        '[3] Notiz — ohne',
+        '[4] Satzung (S. 2–3) — Paragraf',
+        '[5] Antrag (S. 5) — eine Seite',
+      ].join('\n')
+    );
+  });
+
   it('omits the date segment when the source carries none or an unparseable one', () => {
     const reg = createSourceRegistry();
     // An unusable value must read as "no date", never as data: a source line
@@ -291,6 +318,24 @@ describe('createSourceRegistry', () => {
       expect(reg.renderReference()).toMatch(/\[1\] ONLY/);
     });
   });
+
+  /**
+   * Ein angehängtes Dokument steht meist allein und IST die Frage — es hat
+   * mehr Platz verdient als ein Suchtreffer unter zwanzig. Der Deckel kommt
+   * deshalb vom Aufrufer; ohne Angabe bleibt es beim Standardmass.
+   */
+  it('nimmt für den Anhang-Seed den Deckel des Aufrufers', () => {
+    const reg = createSourceRegistry();
+    const long = 'x'.repeat(5_000);
+    const block = reg.seedAttached([result({ title: 'Anhang', content: long })], 6_000);
+    expect(block).toContain(long);
+  });
+
+  it('bleibt ohne Angabe beim Standardmass', () => {
+    const reg = createSourceRegistry();
+    const block = reg.seedAttached([result({ title: 'Anhang', content: 'x'.repeat(5_000) })]);
+    expect(block.length).toBeLessThan(2_000);
+  });
 });
 
 /**
@@ -461,6 +506,173 @@ describe('sourceRegistry.note', () => {
       // 20x4000 leaves nothing for the snippets, so protecting the pages would
       // mean starving the rest below the floor. Everyone shortens together.
       expect(longestBody(reg.renderAll())).toBe(Math.floor(38_000 / 30));
+    });
+  });
+
+  /**
+   * Wann zwei Treffer DASSELBE sind.
+   *
+   * Gemessen am 24.08.2026: eine einzige angehängte PDF belegte zwei
+   * Quellenplätze und bekam zwei Zitatnummern — einmal mitgeführt aus dem
+   * Vorturn (1500 Zeichen), einmal frisch abgerufen (6000). Der Schlüssel nahm
+   * den Inhaltsanfang mit, und der ist bei einem gruppierten Dokumenttreffer
+   * der beste Chunk DIESER Anfrage: er wechselt mit jedem Turn.
+   *
+   * Die Selbstheilung war schon da (`cap` weiten, `prior` löschen) — sie kam nur
+   * nie zum Zug, weil die beiden Einträge sich nie trafen.
+   */
+  describe('Dokumenttreffer über Turns hinweg (documentId als Schlüssel)', () => {
+    const doc = (over: Partial<SearchResult>): SearchResult =>
+      result({ documentId: 'doc-1', title: 'Datenschutzerklärung', ...over });
+
+    it('führt denselben Anhang aus zwei Turns zu einer Quelle zusammen', () => {
+      const reg = createSourceRegistry();
+      reg.seedCarried([doc({ content: 'Löschfristen: 30 Tage …' })]);
+      const block = reg.seedAttached([doc({ content: 'Ganz anderer Chunk als im Vorturn' })], 6000);
+
+      expect(reg.size).toBe(1);
+      expect(block).toMatch(/^\[1\] /);
+      expect(reg.getCitations().map((c) => c.id)).toEqual([1]);
+      expect(reg.renderAll().match(/^\[\d\] /gm)).toHaveLength(1);
+    });
+
+    it('weitet dabei den Deckel des mitgeführten Eintrags auf', () => {
+      // Der eigentliche Schaden der Dublette: 1500 Zeichen Budget gingen an eine
+      // zweite Fassung derselben Datei. Ohne Zusammenführung greift die
+      // Aufweitung in `add` nie.
+      const reg = createSourceRegistry();
+      reg.seedCarried([doc({ content: 'x'.repeat(9000) })]);
+      reg.seedAttached([doc({ content: 'y'.repeat(9000) })], 6000);
+      const line =
+        reg
+          .renderAll()
+          .split('\n')
+          .find((l) => l.startsWith('[1]')) ?? '';
+      expect(line.split(' — ')[1] ?? '').toHaveLength(6000);
+    });
+
+    it('nimmt beim Wiederfund den frischen Inhalt, nicht den des Vorturns', () => {
+      // Der mitgeführte Treffer trägt die besten Chunks der FRÜHEREN Frage.
+      // Bliebe er stehen, läse der Schreiber Passagen, die zur aktuellen Frage
+      // niemand gesucht hat — Nummer und Chip stimmten, der Inhalt nicht.
+      const reg = createSourceRegistry();
+      reg.seedCarried([doc({ content: 'ALT: Passagen zur Frage von gestern' })]);
+      reg.register([doc({ content: 'NEU: Passagen zur Frage von heute' })]);
+      const block = reg.renderAll();
+      expect(block).toContain('NEU: Passagen zur Frage von heute');
+      expect(block).not.toContain('ALT:');
+      // …und der Eintrag zählt ab jetzt als Recherche dieses Turns.
+      expect(reg.freshSize).toBe(1);
+      expect(reg.carriedSize).toBe(0);
+    });
+
+    it('ersetzt nicht in der Gegenrichtung — frisch schlägt mitgeführt, nie umgekehrt', () => {
+      const reg = createSourceRegistry();
+      reg.register([doc({ content: 'FRISCH aus diesem Turn' })]);
+      reg.seedCarried([doc({ content: 'ALT aus dem Vorturn' })]);
+      expect(reg.renderAll()).toContain('FRISCH aus diesem Turn');
+      expect(reg.renderAll()).not.toContain('ALT aus dem Vorturn');
+    });
+
+    it('hält Fundstellen mit Zeichenbereich im selben Dokument auseinander', () => {
+      // `notebook_quellen` registriert Passagen und gelesene Scheiben mit ihrer
+      // Fundstelle. Zwei Stellen aus einer Quelle sind zwei Belege — unter
+      // dem Dokumentschlüssel fiele die zweite still weg.
+      const reg = createSourceRegistry();
+      reg.register([
+        doc({ content: 'Stelle A', charStart: 0, charEnd: 8, chunkIndex: 0 }),
+        doc({ content: 'Stelle B', charStart: 900, charEnd: 908, chunkIndex: 3 }),
+        doc({ content: 'Stelle A doppelt', charStart: 0, charEnd: 8, chunkIndex: 0 }),
+      ]);
+      expect(reg.size).toBe(2);
+      expect(reg.renderAll()).toContain('Stelle B');
+    });
+
+    /**
+     * #3626, live 23.09.2026: `grep` registrierte ein Wahlprogramm-Kapitel als
+     * Fundstelle, `list` im nächsten Turn als ganze Quelle — die Antwort zitierte
+     * es mit zwei Nummern nebeneinander („Kapitel 1 3 16").
+     */
+    it('gibt einer ganzen Quelle die Nummer ihrer mitgeführten Fundstelle', () => {
+      const reg = createSourceRegistry();
+      reg.seedCarried([doc({ content: '12× „Klimaschutz"', charStart: 40, chunkIndex: 1 })]);
+      const block = reg.register([doc({ content: 'System-Quelle — Kapitel 1 — wahlprogramm' })]);
+
+      expect(reg.size).toBe(1);
+      expect(block).toMatch(/^\[1\] /);
+      // Der Beleg bleibt, die Listenzeile trägt nur Metadaten.
+      expect(reg.renderAll()).toContain('12× „Klimaschutz"');
+      expect(reg.carriedSize).toBe(0);
+    });
+
+    it('lässt eine Fundstelle die Nummer einer zuvor gelisteten Quelle übernehmen', () => {
+      const reg = createSourceRegistry();
+      reg.seedCarried([doc({ content: 'System-Quelle — Kapitel 1' })]);
+      reg.register([doc({ content: 'Stelle A', charStart: 0, chunkIndex: 0 })]);
+      reg.register([doc({ content: 'Stelle B', charStart: 900, chunkIndex: 3 })]);
+      reg.register([doc({ content: 'System-Quelle — Kapitel 1 erneut gelistet' })]);
+
+      expect(reg.size).toBe(2);
+      const block = reg.renderAll();
+      expect(block).toMatch(/\[1\][^\n]*Stelle A/);
+      expect(block).toMatch(/\[2\][^\n]*Stelle B/);
+      expect(block).not.toContain('gelistet');
+    });
+
+    it('hält zwei verschiedene Dokumente auseinander', () => {
+      const reg = createSourceRegistry();
+      reg.register([
+        doc({ documentId: 'doc-1', content: 'eins' }),
+        doc({ documentId: 'doc-2', content: 'zwei' }),
+      ]);
+      expect(reg.size).toBe(2);
+    });
+
+    /**
+     * Der Inhaltsanfang steht nicht aus Bequemlichkeit im alten Schlüssel: ohne
+     * ihn kollabieren Treffer ganz ohne `url` auf `'::'` — also alle auf einen.
+     * Er darf deshalb nur dort entfallen, wo eine Dokument-ID die Sache
+     * eindeutig benennt.
+     */
+    it('lässt Treffer ohne Dokument-ID beim alten Schlüssel', () => {
+      const reg = createSourceRegistry();
+      reg.register([
+        result({ title: 'Ohne ID', content: 'erster Treffer' }),
+        result({ title: 'Ohne ID', content: 'zweiter Treffer' }),
+      ]);
+      expect(reg.size).toBe(2);
+    });
+
+    /**
+     * Volltext-Scheiben (`readAttachedSlice`) tragen bewusst KEINE
+     * Dokument-ID. Bekämen sie eine, wären zwei Scheiben desselben Dokuments
+     * ein Eintrag — und das Modell verlöre beim Weiterlesen alles, was es
+     * vorher gelesen hat.
+     */
+    it('hält zwei Scheiben desselben Dokuments getrennt', () => {
+      const reg = createSourceRegistry();
+      reg.register([
+        result({ title: 'Doku', content: '[Zeichen 0–10000 …]\n\nAnfang', documentSourceId: 'd1' }),
+        result({
+          title: 'Doku',
+          content: '[Zeichen 10000–20000 …]\n\nFortsetzung',
+          documentSourceId: 'd1',
+        }),
+      ]);
+      expect(reg.size).toBe(2);
+    });
+
+    /**
+     * Dieselbe Dokument-ID in zwei Sammlungen ist nicht dieselbe Quelle — die
+     * Sammlung gehört deshalb in den Schlüssel.
+     */
+    it('trennt gleiche Dokument-IDs aus verschiedenen Sammlungen', () => {
+      const reg = createSourceRegistry();
+      reg.register([
+        doc({ collectionId: 'a', content: 'aus A' }),
+        doc({ collectionId: 'b', content: 'aus B' }),
+      ]);
+      expect(reg.size).toBe(2);
     });
   });
 });

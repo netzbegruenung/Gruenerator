@@ -7,7 +7,11 @@ type AppRouter = ReturnType<typeof useRouter>;
  * Unified item model for the Office tab, which merges three list sources:
  * `/docs` (docs + sheets + presentations, distinguished by document_subtype),
  * `/api/boards`, and `/api/canvas`. Each item routes to the right full-screen
- * viewer; only `doc` opens the existing editor, the rest are read-only viewers.
+ * screen: `doc` opens the native editor, and `sheet` / `presentation` / `board` /
+ * `canvas` the embedded web editor — those four route through `web-viewer`,
+ * which is why their screens are one-line redirects. (`presentation` was a
+ * native read-only viewer until it moved to the web editor too, see
+ * `slide-viewer.tsx`.)
  */
 export type OfficeKind = 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas';
 
@@ -72,14 +76,4 @@ export function pushOfficeItem(router: AppRouter, item: OfficeItem): void {
     default:
       router.push({ pathname: '/(fullscreen)/doc-editor', params });
   }
-}
-
-const WEB_BASE = 'https://gruenerator.eu';
-
-/** Full web-editor URL for "Im Browser öffnen" — mirrors apps/web routes.ts. */
-export function officeWebUrl(kind: OfficeKind, id: string): string {
-  if (kind === 'board') return `${WEB_BASE}/boards/${id}`;
-  if (kind === 'canvas') return `${WEB_BASE}/studio/canvas/${id}`;
-  // docs, sheets, presentations all dispatch through /office/:id (CollabDocRoute).
-  return `${WEB_BASE}/office/${id}`;
 }

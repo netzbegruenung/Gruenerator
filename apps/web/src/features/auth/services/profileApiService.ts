@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import {
   getRobotAvatarPath,
   validateRobotId,
@@ -28,7 +28,6 @@ export interface BundleOptions {
   includeCustomGenerators?: boolean;
   includeUserTexts?: boolean;
   includeUserTemplates?: boolean;
-  includeMemories?: boolean;
 }
 
 // === INSTRUCTION & KNOWLEDGE TYPES ===
@@ -76,6 +75,7 @@ export interface AnweisungenSaveResponse {
 
 // === Q&A COLLECTION TYPES ===
 import type { NotebookCollection, NotebookCollectionInput } from '../../../types/notebook';
+import type { CreatedNotebookCollection } from '@gruenerator/contracts';
 
 // === CUSTOM GENERATOR TYPES ===
 export interface CustomGeneratorData {
@@ -152,31 +152,6 @@ export interface DocumentResponse {
   [key: string]: unknown;
 }
 
-// === MEMORY TYPES ===
-export type MemoryCategory = 'identity' | 'activity' | 'context' | 'experience' | 'preference';
-export type MemoryConfidence = 'high' | 'medium' | 'low';
-export type MemorySource = 'manual' | 'extracted' | 'explicit';
-
-export interface Memory {
-  id: string | number;
-  content: string;
-  topic?: string;
-  category: MemoryCategory | null;
-  confidence: MemoryConfidence;
-  source: MemorySource;
-  created_at?: string;
-  updated_at?: string;
-  score?: number;
-  [key: string]: unknown;
-}
-
-export interface MemoryResponse {
-  success: boolean;
-  message?: string;
-  memories?: Memory[];
-  [key: string]: unknown;
-}
-
 // === PROFILE BUNDLE ===
 export interface ProfileBundle {
   profile: Profile;
@@ -185,7 +160,6 @@ export interface ProfileBundle {
   customGenerators: CustomGenerator[] | null;
   userTexts: SavedText[] | null;
   userTemplates: UserTemplate[] | null;
-  memories: Memory[] | null;
 }
 
 export interface ProfileUpdateData {
@@ -193,6 +167,7 @@ export interface ProfileUpdateData {
   username?: string | null;
   email?: string | null;
   custom_prompt?: string | null;
+  memory_enabled?: boolean;
 }
 
 // === AVATAR DISPLAY TYPES ===
@@ -231,7 +206,6 @@ interface BundleResponse {
   custom_generators?: CustomGenerator[] | null;
   user_texts?: SavedText[] | null;
   user_templates?: UserTemplate[] | null;
-  memories?: Memory[] | null;
 }
 
 interface AnweisungenResponse {
@@ -257,12 +231,6 @@ interface AvailableDocumentsResponse {
   data?: Document[];
 }
 
-interface MemoriesResponse {
-  success: boolean;
-  message?: string;
-  memories?: Memory[];
-}
-
 export const profileApiService = {
   // === PROFILE DATA ===
   async getProfile(): Promise<Profile> {
@@ -274,7 +242,7 @@ export const profileApiService = {
     const res = await getContractsClient().userProfile.getProfile();
 
     if (res.status !== 200) {
-      throw new Error('Profil nicht gefunden');
+      throw new ApiError(res.status, 'Profil nicht gefunden');
     }
 
     const profile = res.body.user;
@@ -303,7 +271,6 @@ export const profileApiService = {
       includeCustomGenerators = true,
       includeUserTexts = false,
       includeUserTemplates = false,
-      includeMemories = false,
     } = options;
 
     const params = new URLSearchParams({
@@ -312,7 +279,6 @@ export const profileApiService = {
       custom_generators: String(includeCustomGenerators),
       user_texts: String(includeUserTexts),
       user_templates: String(includeUserTemplates),
-      memories: String(includeMemories),
     });
 
     const response = await apiClient.get<BundleResponse>(`/auth/profile/bundle?${params}`);
@@ -329,7 +295,6 @@ export const profileApiService = {
       customGenerators: data.custom_generators ?? null,
       userTexts: data.user_texts ?? null,
       userTemplates: data.user_templates ?? null,
-      memories: data.memories ?? null,
     };
   },
 
@@ -342,8 +307,10 @@ export const profileApiService = {
       username?: string;
       email?: string;
       custom_prompt?: string;
+      memory_enabled?: boolean;
     } = {};
     if (profileData.display_name !== undefined) body.display_name = profileData.display_name;
+    if (profileData.memory_enabled !== undefined) body.memory_enabled = profileData.memory_enabled;
     if (profileData.username !== undefined) body.username = profileData.username ?? '';
     if (profileData.email !== undefined) body.email = profileData.email ?? '';
     if (profileData.custom_prompt !== undefined)
@@ -351,7 +318,7 @@ export const profileApiService = {
 
     const res = await getContractsClient().userProfile.updateProfile({ body });
     if (res.status !== 200) {
-      throw new Error(`Profil-Update fehlgeschlagen (HTTP ${res.status})`);
+      throw new ApiError(res.status, `Profil-Update fehlgeschlagen (HTTP ${res.status})`);
     }
 
     return res.body.profile;
@@ -364,7 +331,7 @@ export const profileApiService = {
       });
 
       if (res.status !== 200) {
-        throw new Error(`Avatar-Update fehlgeschlagen (HTTP ${res.status})`);
+        throw new ApiError(res.status, `Avatar-Update fehlgeschlagen (HTTP ${res.status})`);
       }
 
       return res.body.profile;
@@ -417,16 +384,25 @@ export const profileApiService = {
   async getNotebookCollections(): Promise<NotebookCollection[]> {
     const response = await getContractsClient().notebookCollections.listCollections();
 
-    if (response.status !== 200 || !response.body.success) {
+    if (response.status !== 200) {
+      throw new ApiError(response.status, 'Failed to fetch Q&A collections');
+    }
+    if (!response.body.success) {
       throw new Error('Failed to fetch Q&A collections');
     }
 
-    // Contract collection schema vs the app's richer NotebookCollection domain
-    // type describe the same rows but aren't mutually assignable; boundary cast.
-    return response.body.collections as unknown as NotebookCollection[];
+    return response.body.collections;
   },
 
-  async createQACollection(collectionData: NotebookCollectionInput): Promise<NotebookCollection> {
+  /**
+   * Returns what the create endpoint actually sends — a narrower record than a
+   * listed collection (no `documents`, no `updated_at`). This used to claim the
+   * full type via a cast, which is how a caller could read fields off a response
+   * that never carried them.
+   */
+  async createQACollection(
+    collectionData: NotebookCollectionInput
+  ): Promise<CreatedNotebookCollection> {
     const selectionMode: 'documents' | 'wolke' =
       collectionData.selectionMode === 'wolke' ? 'wolke' : 'documents';
     const body = {
@@ -466,7 +442,7 @@ export const profileApiService = {
       throw err;
     }
 
-    return response.body.collection as unknown as NotebookCollection;
+    return response.body.collection;
   },
 
   async updateQACollection(
@@ -546,7 +522,7 @@ export const profileApiService = {
     });
 
     if (response.status !== 200) {
-      throw new Error('Failed to delete Q&A collection');
+      throw new ApiError(response.status, 'Failed to delete Q&A collection');
     }
 
     return { success: response.body.success, message: response.body.message };
@@ -606,7 +582,10 @@ export const profileApiService = {
   async getUserTemplates(): Promise<UserTemplate[]> {
     const response = await getContractsClient().userTemplates.list();
 
-    if (response.status !== 200 || !response.body.success) {
+    if (response.status !== 200) {
+      throw new ApiError(response.status, 'Failed to fetch templates');
+    }
+    if (!response.body.success) {
       throw new Error('Failed to fetch templates');
     }
 
@@ -625,7 +604,7 @@ export const profileApiService = {
     });
 
     if (response.status !== 200) {
-      throw new Error('Failed to update template title');
+      throw new ApiError(response.status, 'Failed to update template title');
     }
 
     return { success: response.body.success, message: response.body.message };
@@ -637,23 +616,30 @@ export const profileApiService = {
     });
 
     if (response.status !== 200) {
-      throw new Error('Failed to delete template');
+      throw new ApiError(response.status, 'Failed to delete template');
     }
 
     return { success: response.body.success, message: response.body.message };
   },
 
+  /**
+   * Visibility and lifecycle move together: the gallery only shows rows that
+   * are both public AND `published`, so flipping `is_private` alone left
+   * "veröffentlichte" templates stranded as drafts — invisible to everyone,
+   * including the review queue. The server resolves the actual transition
+   * (an already-published template is not pushed back into review).
+   */
   async updateTemplateVisibility(
     templateId: string | number,
     isPrivate: boolean
   ): Promise<UserTemplateResponse> {
     const response = await getContractsClient().userTemplates.update({
       params: { id: String(templateId) },
-      body: { is_private: isPrivate },
+      body: { is_private: isPrivate, status: isPrivate ? 'draft' : 'pending_review' },
     });
 
     if (response.status !== 200) {
-      throw new Error('Failed to update template visibility');
+      throw new ApiError(response.status, 'Failed to update template visibility');
     }
 
     return { success: response.body.success, message: response.body.message };
@@ -669,7 +655,7 @@ export const profileApiService = {
     });
 
     if (response.status !== 200) {
-      throw new Error('Failed to update template');
+      throw new ApiError(response.status, 'Failed to update template');
     }
 
     return { success: response.body.success, message: response.body.message };
@@ -689,88 +675,6 @@ export const profileApiService = {
       (doc: Document) => doc.status === 'completed'
     );
     return completedDocuments;
-  },
-
-  // === MEMORY (MEM0RY) ===
-  async getMemories(userId: string): Promise<Memory[]> {
-    const response = await apiClient.get<MemoriesResponse>(`/mem0/user/${userId}`);
-    const result = response.data;
-
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to fetch memories');
-    }
-
-    return result.memories ?? [];
-  },
-
-  async addMemory(text: string, topic: string = ''): Promise<MemoryResponse> {
-    const response = await apiClient.post<MemoryResponse>('/mem0/add-text', { text, topic });
-    const result = response.data;
-
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to add memory');
-    }
-
-    return result;
-  },
-
-  async deleteMemory(memoryId: string | number): Promise<MemoryResponse> {
-    const response = await apiClient.delete<MemoryResponse>(`/mem0/${memoryId}`);
-    const result = response.data;
-
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to delete memory');
-    }
-
-    return result;
-  },
-
-  async deleteAllMemories(userId: string): Promise<MemoryResponse> {
-    const response = await apiClient.delete<MemoryResponse>(`/mem0/user/${userId}/all`);
-    const result = response.data;
-
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to delete all memories');
-    }
-
-    return result;
-  },
-
-  async updateMemory(memoryId: string | number, content: string): Promise<MemoryResponse> {
-    const response = await apiClient.put<MemoryResponse>(`/mem0/${memoryId}`, { content });
-    const result = response.data;
-
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to update memory');
-    }
-
-    return result;
-  },
-
-  async searchMemories(
-    query: string,
-    category?: MemoryCategory,
-    limit?: number
-  ): Promise<Memory[]> {
-    const response = await apiClient.post<MemoriesResponse>('/mem0/search', {
-      query,
-      category,
-      limit,
-    });
-    const result = response.data;
-
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to search memories');
-    }
-
-    return result.memories ?? [];
-  },
-
-  async exportMemories(userId: string): Promise<Blob> {
-    const response = await apiClient.get<Blob>(`/mem0/user/${userId}/export`, {
-      responseType: 'blob',
-    });
-    return response.data;
   },
 
   // === PROFILE MUTATIONS (moved from profileUtils.js) ===

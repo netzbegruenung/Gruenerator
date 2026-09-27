@@ -1,4 +1,5 @@
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
+import { aiText } from '../../services/ai/generate.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -48,7 +49,7 @@ Der*die Nutzer*in beschreibt Ebene, Rolle und Aufgabe. Du machst daraus einen ku
 
 Antworte NUR mit dem Auftrag, ohne Erklärungen oder Kommentare.`;
 
-router.post('/', async (req, res) => {
+router.post('/', requireAiConsent, async (req, res) => {
   try {
     const user = getUser(req);
     if (!user?.id) {
@@ -65,25 +66,14 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Description must be under 2000 characters' });
     }
 
-    const aiWorkerPool = getAIWorkerPool(req);
-
     log.info(`[PromptGenerator] Generating system prompt for user ${user.id}`);
 
-    const result = await aiWorkerPool.processRequest({
-      type: 'prompt_generation',
-      systemPrompt: META_PROMPT,
-      messages: [{ role: 'user', content: description.trim() }],
-      options: {
-        temperature: 0.7,
-      },
+    const systemPrompt = await aiText({
+      lane: 'prompt_generation',
+      system: META_PROMPT,
+      prompt: description.trim(),
+      temperature: 0.7,
     });
-
-    if (!result.success) {
-      log.error('[PromptGenerator] AI generation failed:', result.error);
-      return res.status(500).json({ error: 'Failed to generate system prompt' });
-    }
-
-    const systemPrompt = (result.content || '').trim();
 
     if (!systemPrompt) {
       return res.status(500).json({ error: 'Empty response from AI' });

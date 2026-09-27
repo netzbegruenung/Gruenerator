@@ -26,7 +26,6 @@ import {
   FiActivity,
   FiCopy,
 } from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
 
 import { ShareBoardDialog } from './ShareBoardDialog';
 
@@ -68,7 +67,6 @@ export const BoardDropdown = memo(function BoardDropdown({
   const [shareOpen, setShareOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState(title);
-  const navigate = useNavigate();
 
   const openRename = () => {
     setRenameValue(title);
@@ -202,9 +200,14 @@ export const BoardDropdown = memo(function BoardDropdown({
                 variant="outline"
                 className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950"
                 onClick={() => {
+                  // Where to go after deleting is the page's decision, not the
+                  // menu's: `BoardPage` navigates once the mutation actually
+                  // succeeds, and does it host-aware. This second navigation
+                  // fired immediately and unconditionally — inside the app's
+                  // WebView it landed on a chrome-less `/workplace` the user
+                  // could not leave.
                   onDelete();
                   setDeleteConfirmOpen(false);
-                  void navigate('/workplace');
                 }}
               >
                 Löschen

@@ -117,23 +117,26 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     icon: LayoutDashboard,
     group: 'board',
   },
+  // Eigene Gruppe statt „Board": wer Board-Lärm abstellte, verlor sonst die
+  // Ergebnisse seiner selbstlaufenden Aufgaben gleich mit — die laufen aber
+  // auch ganz ohne Board.
   agent_task_completed: {
-    label: 'Agent-Aufgabe fertig',
-    description: 'Wenn der Grünerator eine an ihn delegierte Aufgabe erledigt hat',
+    label: 'Lauf erledigt',
+    description: 'Wenn eine wiederkehrende Aufgabe oder ein Board-Zeitplan fertig ist',
     icon: Sparkles,
-    group: 'board',
+    group: 'automations',
   },
   agent_task_failed: {
-    label: 'Agent-Aufgabe fehlgeschlagen',
-    description: 'Wenn der Grünerator eine delegierte Aufgabe nicht erledigen konnte',
+    label: 'Lauf fehlgeschlagen',
+    description: 'Wenn ein geplanter Lauf nicht ausgeführt werden konnte',
     icon: Sparkles,
-    group: 'board',
+    group: 'automations',
   },
   agent_task_awaiting_review: {
-    label: 'Agent-Aufgabe zur Prüfung',
+    label: 'Lauf wartet auf Freigabe',
     description: 'Wenn ein geplanter Lauf auf deine Freigabe wartet',
     icon: Sparkles,
-    group: 'board',
+    group: 'automations',
   },
 
   // Gruppen
@@ -159,6 +162,13 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     label: 'Geteilte Inhalte',
     description: 'Wenn Inhalte in einer deiner Gruppen geteilt werden',
     icon: Share2,
+    group: 'groups',
+  },
+  group_comment_added: {
+    label: 'Kommentare in Gruppen',
+    description:
+      'Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast',
+    icon: MessageSquare,
     group: 'groups',
   },
   group_deleted: {
@@ -194,8 +204,8 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     group: 'system',
   },
   notebook_liked: {
-    label: 'Notizbuch-Likes',
-    description: 'Wenn jemand dein öffentliches Notizbuch mag',
+    label: 'Notebook-Likes',
+    description: 'Wenn jemand dein öffentliches Notebook mag',
     icon: Heart,
     group: 'system',
   },
@@ -219,7 +229,7 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
   },
   wolke_new_files: {
     label: 'Neue Wolke-Dateien',
-    description: 'Neue Dateien in den Wolke-Ordnern deiner Notizbücher',
+    description: 'Neue Dateien in den Wolke-Ordnern deiner Notebooks',
     icon: CloudDownload,
     group: 'system',
   },

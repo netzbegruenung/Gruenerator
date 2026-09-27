@@ -10,18 +10,22 @@
 import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
+import { recordSlowVerdict } from '../../../services/ai/modelHealth.js';
+import { clampToModelOutputLimit } from '../../../services/ai/modelOutputLimits.js';
 import {
   isReasoningStreamModel,
   ReasoningStreamUnavailableError,
   streamWithReasoning,
   type ThinkingEffort,
 } from '../../../services/ai/regoloReasoningStream.js';
+import { classifyProviderError } from '../../../services/providers/providerErrors.js';
 import { createLogger } from '../../../utils/logger.js';
 import {
+  mayWriteAnswer,
   resolveAutoSelection,
-  VERDIGADO_INPUT_LIMIT,
   type Complexity,
   type ReasoningSetting,
+  type TaskShape,
 } from '../agents/autoPolicy.js';
 import {
   getModel,
@@ -32,13 +36,10 @@ import {
 } from '../agents/providers.js';
 
 import { sanitizeContentPartsForModel, stripEmptyAssistantMessages } from './messageHelpers.js';
-import {
-  PROGRESS_MESSAGES,
-  startResponseHeartbeat,
-  type FallbackReason,
-  type SSEWriter,
-} from './sseHelpers.js';
+import { PROGRESS_MESSAGES, type FallbackReason, type SSEWriter } from './sseHelpers.js';
 import { createIdleDeadline, type IdleDeadline } from './streamIdleDeadline.js';
+import { resolveAbortOutcome } from './turnAbortOutcome.js';
+import { TURN_CEILING_MS } from './turnDeadline.js';
 
 const log = createLogger('ResponseStreaming');
 
@@ -54,18 +55,64 @@ const FIRST_TOKEN_DEADLINE_MS = 20_000;
 // deadline is CLEARED once text starts, leaving Phase 2 (the drain loop)
 // uncapped — a slow/trickling generation ran 338 s live. This ceiling composes
 // into the streamText abortSignal and is NEVER cleared, so it bounds the whole
-// turn (both phases + any fallback attempt). The agentic loop has its own
-// wall-clock budget and does not use these functions.
+// attempt (both phases). The agentic loop has its own wall-clock budget and
+// does not use these functions.
 const SINGLE_PASS_WALL_CLOCK_MS = (() => {
   const n = Number.parseInt(process.env.CHAT_SINGLE_PASS_WALL_CLOCK_MS ?? '', 10);
   return Number.isInteger(n) && n > 0 ? n : 180_000;
 })();
-/** LiteLLM overflow lane can queue behind its single Verdigado slot. */
-const LITELLM_FIRST_TOKEN_DEADLINE_MS = 30_000;
+
 /**
- * Reasoning models (Regolo vLLM, Verdigado/LiteLLM Gemma) hold back answer text
- * until thinking completes, so the wait for the first TEXT token is legitimately
- * longer than on a plain lane.
+ * Dieselbe Uhr für eine DENKENDE Lane — sie muss Denken UND Schreiben tragen.
+ *
+ * Gemessen 13.08.2026 gegen regolo/gemma4-31b mit der echten Aufgabe des
+ * Agenten „Einfache Sprache" (5.979 Zeichen Fachtext, `max_tokens: 12000`):
+ * 31 s bis zum ersten Antworttext, 61 s bis fertig, 8.267 Zeichen Denken,
+ * 9.514 Zeichen Antwort, keine Zahl verloren. Derselbe Zug ohne Denken war
+ * nach 6,5 s fertig — mit 1.927 Zeichen, also einer Zusammenfassung statt einer
+ * Übertragung, und drei fehlenden Zahlen. Das Denken trägt hier, es ist kein
+ * Luxus; die Uhr muss also Platz dafür lassen statt es abzuschneiden.
+ *
+ * 280 s bleibt unter dem `proxy_read_timeout 300s` von nginx für `/api/`
+ * (nginx.conf) — jenseits davon schneidet ohnehin der Proxy.
+ */
+const THINKING_WALL_CLOCK_MS = (() => {
+  const n = Number.parseInt(process.env.CHAT_THINKING_WALL_CLOCK_MS ?? '', 10);
+  return Number.isInteger(n) && n > 0 ? n : 280_000;
+})();
+
+/**
+ * Wie lange eine DENKENDE Lane insgesamt brauchen darf, bis das erste
+ * Antwort-Token da ist.
+ *
+ * Die Leerlauf-Frist oben kann das nicht: jedes Denk-Delta stellt sie neu
+ * scharf (`touch()`), also bindet sie ein Modell, das ununterbrochen denkt,
+ * überhaupt nicht. Am 13.08.2026 dachte Mistral Medium 3.5 über eine
+ * Übertragung von 5.838 Zeichen drei Minuten lang — inhaltlich brauchbar, aber
+ * stark wiederholend —, schrieb kein Antwort-Token und starb an der Turn-Uhr:
+ * kein Text, keine gespeicherte Antwort, drei Minuten Wartezeit für nichts.
+ *
+ * Läuft das Budget ab, ist NICHTS beim Nutzer angekommen ausser Denk-Deltas —
+ * derselbe sichere Zustand, in dem `streamForResolution` schon heute den
+ * Reasoning-Pfad wiederholt. Der Zug wird deshalb einmal ohne Denken neu
+ * gefahren, statt den Turn zu verlieren.
+ *
+ * 120 s ist bewusst grosszügig, und die Zahl ist gemessen statt geschätzt:
+ * gemma4-31b denkt über 5.979 Zeichen Fachtext 31 s (siehe
+ * THINKING_WALL_CLOCK_MS). Ein Budget knapp darüber würde genau die langen
+ * Dokumente abwürgen, für die das Denken gebraucht wird — und der Ersatzlauf
+ * ohne Denken ist bei dieser Aufgabe messbar SCHLECHTER (Zusammenfassung statt
+ * Übertragung, drei Zahlen verloren). Das Budget fängt die Entgleisung, nicht
+ * das gründliche Denken.
+ */
+const REASONING_PHASE_BUDGET_MS = (() => {
+  const n = Number.parseInt(process.env.CHAT_REASONING_PHASE_BUDGET_MS ?? '', 10);
+  return Number.isInteger(n) && n > 0 ? n : 120_000;
+})();
+/**
+ * Reasoning models (Regolo vLLM) hold back answer text until thinking
+ * completes, so the wait for the first TEXT token is legitimately longer than
+ * on a plain lane.
  *
  * This is an IDLE window, not a total budget: reasoning deltas rearm it (see
  * createFirstTokenDeadline), so a genuine 60s thinking phase runs to completion
@@ -73,6 +120,11 @@ const LITELLM_FIRST_TOKEN_DEADLINE_MS = 30_000;
  * what "hung" actually means. Before that fix the same 20s was a hard ceiling
  * on thinking, and a research turn died on verdigado-think at exactly 20s, then
  * on its regolo/gemma4-31b sibling at exactly 20s again.
+ *
+ * Dass die Zahl der oben gleicht, ist ein MESSERGEBNIS und keine Definition:
+ * beide Fristen messen Schweigen, und 20 s hat sich für beide Arten von
+ * Schweigen bewährt. Sie stehen deshalb getrennt — wer eine bewegt, soll nicht
+ * ungefragt die andere mitbewegen.
  */
 const REASONING_FIRST_TOKEN_DEADLINE_MS = 20_000;
 
@@ -81,6 +133,32 @@ const REASONING_FIRST_TOKEN_DEADLINE_MS = 20_000;
  * behaviour. When the auto policy turned reasoning OFF for a lane that would
  * normally think, there is no thinking phase to wait through — it should be
  * held to the ordinary deadline, not the generous reasoning one.
+ *
+ * ── Warum hier KEIN Zweig pro Anbieter mehr steht ──
+ *
+ * Bis zum 01.09.2026 stand hier `if (provider === 'litellm') return 30_000`,
+ * begründet mit „LiteLLM overflow lane can queue behind its single Verdigado
+ * slot". Der Zweig war zuletzt UNERREICHBAR: `resolution.provider` kommt
+ * unverändert aus `AVAILABLE_MODELS` (`resolveModelTuple`), und seit dem
+ * Umzug der Gemma-Lane auf Cortecs am 21.08.2026 deklariert keine Lane mehr
+ * `provider: 'litellm'` — der Lane-NAME `gemma-litellm` blieb als F0 stehen,
+ * der Host darunter ist Cortecs. `retireLiteLLM` biegt einen gespeicherten
+ * litellm-Zeiger zwar um, aber erst später in `getModel` und ohne
+ * `resolution.provider` anzufassen. Die Frist dieser Lane fiel damit still von
+ * 30 s auf 20 s, ohne Fehler und ohne Warnung.
+ *
+ * Wiederhergestellt wird sie NICHT, und das ist gemessen statt vermutet
+ * (01.09.2026, live gegen api.cortecs.ai, `gemma-4-31b-it`, gestreamt):
+ *
+ *   ohne Vorgabe, 46 Läufe          TTFT  298–1517 ms
+ *   1/2/4/8 gleichzeitig, 15 Läufe  TTFT  max 1517 ms, kein Fehlschlag
+ *   Prefill: 234 tok → 435 ms, 13 508 → 1894 ms, 53 828 → 7651 ms (~7100 tok/s)
+ *
+ * Die Warteschlange, für die die Ausnahme geschrieben wurde, gibt es auf
+ * diesem Host nicht — ein einzelner Slot war die Eigenheit des Verdigado-
+ * Proxys. 20 s bleibt trotzdem nicht knapp bemessen: derselbe Messtag zeigte
+ * einen Zug über infercom, der für 234 Eingabe-Tokens 13,2 s bis zum ersten
+ * Token brauchte. Die Frist fängt den Stillstand, nicht den langsamen Zug.
  */
 export function getFirstTokenDeadlineMs(
   provider: string,
@@ -90,7 +168,6 @@ export function getFirstTokenDeadlineMs(
   if (thinking && isReasoningStreamModel(provider, modelName)) {
     return REASONING_FIRST_TOKEN_DEADLINE_MS;
   }
-  if (provider === 'litellm') return LITELLM_FIRST_TOKEN_DEADLINE_MS;
   return FIRST_TOKEN_DEADLINE_MS;
 }
 
@@ -100,12 +177,8 @@ interface ModelResolution {
   modelName: string;
   /** User-facing model ID (key in AVAILABLE_MODELS), if set by the user. */
   modelId?: string;
-  /** Single-step first-token-timeout fallback target. For overflow lanes,
-   *  this is the unchosen sibling (Verdigado↔Regolo). */
+  /** Single-step first-token-timeout fallback target. */
   sibling?: { provider: string; model: string };
-  /** Set when this resolution acquired the Verdigado overflow slot. MUST be
-   *  invoked after the stream completes (success, failure, abort). */
-  releaseSlot?: () => Promise<void>;
   /** Set when the user requested a modelId the registry doesn't know and the
    *  agent default was used instead — callers surface this to the client so
    *  the selection isn't ignored silently. */
@@ -141,6 +214,51 @@ export function mistralReasoningOption(setting: ReasoningSetting): 'high' | null
 }
 
 /**
+ * Ob dieser Zug auf DIESER Lane wirklich denkt.
+ *
+ * Die EINE Lesart von `reasoningEffort`, weil es vorher zwei gab und sie sich
+ * widersprachen. `low` — was die Auto-Policy jeder einfachen Notebook-Frage
+ * gibt (autoPolicy, surface `notebook`, complexity `simple`) — hieß:
+ *
+ *   - für den Streamer „an": `reasoningEffort !== 'off'`, also lief der
+ *     Roh-Fetch, der `reasoning_effort: 'high'` fest verdrahtet. Aus „ein
+ *     bisschen denken" wurde volles Denken.
+ *   - für den Modell-Pin „aus": `mistralReasoningOption('low') === null`, also
+ *     kein `needsReasoning`, also Scaleway statt Mistral-API — und auf dem
+ *     SDK-Pfad auch keine `providerOptions.mistral`, also gar kein Denken.
+ *
+ * Beides zusammen ergab den Fehler, den der 400er verdeckte: der Roh-Pfad
+ * scheiterte, und der „Ersatz über die Mistral-API" lief in Wahrheit auf
+ * denselben Scaleway-Host zurück (`resolution.model` war mit
+ * `needsReasoning: false` gebaut worden) — diesmal ohne jedes Reasoning.
+ *
+ * Aufgelöst wird zugunsten der bereits dokumentierten Entscheidung in
+ * {@link mistralReasoningOption}: Mistrals Dial ist BINÄR, und alles unter
+ * `medium` ist auf einem Modell ohne Low-Stufe ehrlich gelesen ein „nicht
+ * denken". Das ist keine neue Produktentscheidung, sondern die bestehende,
+ * konsequent angewandt — der Roh-Pfad, der `low` zu `high` hochstufte, war der
+ * Ausreißer.
+ *
+ * Weil Pin und Streamer jetzt dieselbe Antwort bekommen, gilt wieder, was der
+ * Fallback im Catch-Block unten voraussetzt: läuft der Reasoning-Pfad, dann ist
+ * `resolution.model` die Mistral-API — es gibt also wirklich ein zweites Zuhause.
+ *
+ * Lanes ohne binären Dial (Regolo/vLLM, LiteLLM/Ollama) behalten ihre Lesart:
+ * dort ist alles außer `off` ein Denken.
+ */
+export function thinksOnThisLane(
+  provider: string,
+  modelName: string,
+  setting: ReasoningSetting
+): boolean {
+  if (setting === 'off') return false;
+  if (provider === 'mistral') {
+    return isReasoningCapable(modelName) && mistralReasoningOption(setting) !== null;
+  }
+  return true;
+}
+
+/**
  * Resolve which AI model to use.
  *
  * Order: explicit user selection → auto policy (intent + complexity) → agent
@@ -159,19 +277,21 @@ export async function resolveModel(
     hasImages?: boolean;
     intent?: string;
     complexity?: Complexity;
+    /** Output contract on the turn (detectTaskShape) — lane override for the
+     *  neutral intents, see resolveAutoSelection. */
+    taskShape?: TaskShape | null;
+    /** Characters of material the turn carries (`turnMaterialChars`) — routes
+     *  document work to the precise lane and lifts reasoning, see
+     *  resolveAutoSelection. */
+    materialChars?: number | null;
     agentId?: string | null;
     /** For surfaces without a classifier (notebook) — see resolveAutoSelection. */
     surface?: 'notebook';
-    /** Rough size of this request (see estimateRequestTokens). Above
-     *  VERDIGADO_INPUT_LIMIT an overflow lane runs on its hosted side so the
-     *  request isn't pruned down to the small lane's budget. */
-    estimatedInputTokens?: number;
   }
 ): Promise<ModelResolution> {
   let modelProvider = agentConfig.provider;
   let modelName = agentConfig.model;
   let sibling: { provider: string; model: string } | undefined;
-  let releaseSlot: (() => Promise<void>) | undefined;
   let resolvedId: string | undefined;
   let unknownModelId: string | undefined;
   let reasoningEffort: ReasoningSetting = EXPLICIT_SELECTION_REASONING;
@@ -180,24 +300,14 @@ export async function resolveModel(
 
   const isAuto = !modelId || modelId === 'mistral' || modelId === 'auto';
 
-  const oversized = (options?.estimatedInputTokens ?? 0) > VERDIGADO_INPUT_LIMIT;
-  const preferOverflow = oversized ? { preferOverflow: true } : {};
-  if (oversized) {
-    log.info(
-      `[ChatGraph] input ~${Math.round((options?.estimatedInputTokens ?? 0) / 1000)}k tokens > ` +
-        `${VERDIGADO_INPUT_LIMIT / 1000}k — overflow lanes run hosted (full window, no pruning)`
-    );
-  }
-
   if (!isAuto) {
-    const tuple = await resolveModelTuple(modelId, requestId, preferOverflow);
+    const tuple = await resolveModelTuple(modelId, requestId);
     if (tuple) {
       modelProvider = tuple.provider;
       modelName = tuple.model;
       resolvedId = modelId;
       contextWindow = tuple.contextWindow;
       if (tuple.sibling) sibling = tuple.sibling;
-      if (tuple.releaseSlot) releaseSlot = tuple.releaseSlot;
       log.info(`[ChatGraph] Using user-selected model: ${modelId} → ${modelProvider}/${modelName}`);
     } else {
       log.warn(`[ChatGraph] Unknown model ID "${modelId}", using agent default`);
@@ -209,11 +319,13 @@ export async function resolveModel(
     const selection = resolveAutoSelection({
       ...(options?.intent != null && { intent: options.intent }),
       ...(options?.complexity != null && { complexity: options.complexity }),
+      ...(options?.taskShape != null && { taskShape: options.taskShape }),
+      ...(options?.materialChars != null && { materialChars: options.materialChars }),
       ...(options?.agentId != null && { agentId: options.agentId }),
       ...(options?.surface != null && { surface: options.surface }),
     });
     reasoningEffort = selection.reasoning;
-    const tuple = await resolveModelTuple(selection.modelId, requestId, preferOverflow);
+    const tuple = await resolveModelTuple(selection.modelId, requestId);
     if (tuple) {
       modelProvider = tuple.provider;
       modelName = tuple.model;
@@ -221,11 +333,11 @@ export async function resolveModel(
       contextWindow = tuple.contextWindow;
       fromAutoPolicy = true;
       if (tuple.sibling) sibling = tuple.sibling;
-      if (tuple.releaseSlot) releaseSlot = tuple.releaseSlot;
       log.info(
         `[ChatGraph] auto → ${selection.modelId} (${modelProvider}/${modelName}) ` +
           `intent=${options?.intent ?? 'none'} complexity=${options?.complexity ?? 'simple'} ` +
-          `reasoning=${selection.reasoning}`
+          `reasoning=${selection.reasoning}${options?.taskShape ? ` taskShape=${options.taskShape}` : ''}` +
+          `${options?.materialChars ? ` material=${options.materialChars}c` : ''}`
       );
     } else {
       // The policy names a lane that is not in AVAILABLE_MODELS — a code bug,
@@ -249,20 +361,14 @@ export async function resolveModel(
   }
 
   // Vision override: only fire when the chosen primary AND its sibling both
-  // lack vision support. Overflow lanes where both candidates are vision-
-  // capable (e.g. Gemma 4: Verdigado/gemma + Regolo/gemma4-31b) skip the
-  // override entirely so alternation isn't collapsed to a single provider.
+  // lack vision support. A lane whose sibling can see swaps within the lane
+  // instead, so the override does not collapse it onto a single provider.
   if (options?.hasImages && !isVisionCapable(modelName) && options.intent !== 'image_edit') {
     const siblingVisionOk = sibling ? isVisionCapable(sibling.model) : false;
     if (!siblingVisionOk) {
       log.info(
         `[ChatGraph] Images present but "${modelName}" lacks vision — switching to ${VISION_MODEL.provider}/${VISION_MODEL.model}`
       );
-      // Releasing here: we're overriding away from a slot we just acquired.
-      if (releaseSlot) {
-        await releaseSlot();
-        releaseSlot = undefined;
-      }
       modelProvider = VISION_MODEL.provider;
       modelName = VISION_MODEL.model;
       sibling = undefined;
@@ -271,11 +377,7 @@ export async function resolveModel(
       log.info(
         `[ChatGraph] Images present and "${modelName}" lacks vision but sibling "${sibling.model}" supports it — swapping within lane`
       );
-      // Swap to the vision-capable sibling. Release the old slot if any.
-      if (releaseSlot) {
-        await releaseSlot();
-        releaseSlot = undefined;
-      }
+      // Swap to the vision-capable sibling.
       const newPrimary = sibling;
       sibling = { provider: modelProvider, model: modelName };
       modelProvider = newPrimary.provider;
@@ -289,11 +391,20 @@ export async function resolveModel(
     // `providerOptions.mistral` block set further down (see the streamOnce
     // call site), so the effort would be dropped without a trace — no error,
     // no reasoning, nothing in the logs. See routeMistralModel.
+    //
+    // DIESELBE Frage, die streamForResolution stellt, und deshalb derselbe
+    // Ausdruck: driften die beiden auseinander, wählt der Streamer einen
+    // Reasoning-Pfad, für den der Pin den Host gar nicht umgestellt hat.
+    // Genau so war es — siehe thinksOnThisLane.
     model: getModel(modelProvider, modelName, {
-      needsReasoning:
-        modelProvider === 'mistral' &&
-        isReasoningCapable(modelName) &&
-        mistralReasoningOption(reasoningEffort) !== null,
+      needsReasoning: thinksOnThisLane(modelProvider, modelName, reasoningEffort),
+      // Diese Lane schreibt die Antwort. Wird sie als zäh vermerkt, sucht
+      // `modelSiblings` ein Ersatzpaar — und fand dabei bis 19.08.2026
+      // `litellm/verdigado-pro` (= gpt-oss am Proxy), dessen Planer-Text im
+      // Abnahmelauf als Nutzer-Antwort auftauchte („We will call
+      // gruenerator_search …"). Das Veto gilt nur für den AUSWEICH; die
+      // primäre Wahl trifft weiterhin die Policy.
+      acceptTarget: mayWriteAnswer,
     }),
     provider: modelProvider,
     modelName,
@@ -302,7 +413,6 @@ export async function resolveModel(
   };
   if (resolvedId) result.modelId = resolvedId;
   if (sibling) result.sibling = sibling;
-  if (releaseSlot) result.releaseSlot = releaseSlot;
   if (unknownModelId) result.unknownModelId = unknownModelId;
   if (contextWindow != null) result.contextWindow = contextWindow;
   return result;
@@ -366,13 +476,166 @@ class EmptyCompletionError extends Error {
 }
 
 /**
+ * Das Denk-Budget der Phase 1 ist abgelaufen: das Modell denkt, aber es
+ * ANTWORTET nicht.
+ *
+ * Ausdrücklich KEIN {@link StreamFailure}: ein Sibling hilft hier nicht (das
+ * Modell ist erreichbar und lebt), und die Meldung an den Nutzer wäre die
+ * falsche Antwort auf ein Problem, das noch behebbar ist.
+ * `streamForResolution` fängt sie und fährt denselben Zug ohne Denken.
+ */
+class ReasoningBudgetExceededError extends Error {
+  constructor(readonly budgetMs: number) {
+    super(`Kein Antworttext nach ${budgetMs}ms Denken`);
+    this.name = 'ReasoningBudgetExceededError';
+  }
+}
+
+/**
+ * Der Upstream hat vor dem ersten Antworttext mit einem Fehler geantwortet —
+ * 429, 5xx, abgerissene Verbindung.
+ *
+ * Bis hierher flog so ein Fehler ROH an `streamWithFallback` vorbei: er ist
+ * kein {@link StreamFailure}, also griff weder der Sibling-Versuch noch die
+ * Salvage, und der Zug erreichte den Client als `code:'internal'` — obwohl der
+ * zweite Host die Antwort hätte schreiben können. Das war am 19.08.2026 der
+ * Weg, auf dem ein Bürgeranfragen-Zug mit „Antwort konnte nicht generiert
+ * werden" endete.
+ *
+ * Nur RETRYABLE Fehler werden hierher übersetzt (siehe
+ * {@link classifyProviderError}): ein 4xx trägt denselben Payload zum Sibling
+ * und bekäme dieselbe Absage, und ein Abbruch ist gar kein Upstream-Fehler.
+ */
+class UpstreamProviderError extends Error {
+  readonly kind: FallbackReason = 'upstream_error';
+  readonly statusCode: number | null;
+  constructor(cause: unknown) {
+    const info = classifyProviderError(cause);
+    super(
+      `Upstream failed before the first token (${info.code}${
+        info.statusCode != null ? ` ${info.statusCode}` : ''
+      })`,
+      { cause }
+    );
+    this.name = 'UpstreamProviderError';
+    this.statusCode = info.statusCode ?? null;
+  }
+}
+
+/**
  * Sentinel error thrown when the primary model fails to produce output AND
  * no text_delta has been emitted yet. Caller catches this to trigger fallback.
  */
-export type StreamFailure = FirstTokenTimeoutError | EmptyCompletionError;
+export type StreamFailure = FirstTokenTimeoutError | EmptyCompletionError | UpstreamProviderError;
+
+/** Nur für den Test der Abbruch-Einstufung: die Einstufung selbst ist die
+ *  Aussage (`turn_ceiling` ist ein Timeout, kein Nutzer-Abbruch), und sie ist
+ *  von aussen sonst nur über einen kompletten Stream-Lauf zu erreichen. */
+export type { AbortCause };
 
 export function isStreamFailure(err: unknown): err is StreamFailure {
-  return err instanceof FirstTokenTimeoutError || err instanceof EmptyCompletionError;
+  return (
+    err instanceof FirstTokenTimeoutError ||
+    err instanceof EmptyCompletionError ||
+    err instanceof UpstreamProviderError
+  );
+}
+
+/**
+ * Was Phase 1 aus einem UPSTREAM-Fehler macht (nicht aus einem Abbruch — den
+ * beantwortet {@link phase1AbortError}).
+ *
+ * Der Abbruch-Vorrang ist der springende Punkt: `classifyProviderError` stuft
+ * `AbortError`/`TimeoutError` als retryable ein, also würde ein Nutzer-Abbruch
+ * oder eine gerissene Uhr ohne diese Abfrage einen Sibling-Lauf starten — für
+ * eine Anfrage, die niemand mehr will bzw. deren Frist schon abgelaufen ist.
+ * Deshalb: erst fragen, ob überhaupt abgebrochen wurde, dann klassifizieren.
+ */
+function phase1UpstreamError(err: unknown, cause: AbortCause): unknown {
+  if (isStreamFailure(err) || err instanceof ReasoningBudgetExceededError) return err;
+  if (cause !== null || isAbortError(err)) return err;
+  return classifyProviderError(err).retryable ? new UpstreamProviderError(err) : err;
+}
+
+/**
+ * Wer den Stream abgebrochen hat — die einzige Frage, die nach einem Abbruch
+ * noch offen ist, und bis 13.08.2026 stellte sie niemand.
+ *
+ * Das AI SDK (7.0.58) stuft eine `DOMException` mit `name: 'TimeoutError'` als
+ * ABBRUCH ein, nicht als Fehler: `streamText` schiebt einen `abort`-Part in den
+ * Stream und schliesst ihn danach regulär (`ai/dist/index.js`, `pull()`). Beide
+ * Drain-Schleifen hier kannten diesen Part nicht, also sah ein Uhr-Abbruch
+ * genauso aus wie ein sauberes Ende — in Phase 1 als `EmptyCompletionError`
+ * (falsch etikettiert, aber wenigstens ein Fallback), in Phase 2 als FERTIGE
+ * Antwort, die anschliessend als vollständiger Zug gespeichert wurde.
+ */
+type AbortCause = 'caller' | 'turn_ceiling' | 'reasoning_budget' | 'wall_clock' | null;
+
+export function abortCause(sources: {
+  caller?: AbortSignal | undefined;
+  turnCeiling?: AbortSignal | undefined;
+  reasoningBudget?: AbortSignal | undefined;
+  wall: AbortSignal;
+}): AbortCause {
+  // Reihenfolge = Vorrang: ein vom Nutzer abgebrochener Zug ist kein Timeout,
+  // auch wenn eine Frist im selben Tick mitgefeuert hat.
+  if (sources.caller?.aborted) return 'caller';
+  // Die Turn-Decke steht ÜBER dem Denk-Budget, obwohl sie später eingeführt
+  // wurde: das Denk-Budget ist behebbar (derselbe Zug fährt ohne Denken nach),
+  // die Decke ist es nicht. Wer nach der Decke ohne Denken nachfährt, fährt
+  // gegen ein bereits abgebrochenes Signal.
+  if (sources.turnCeiling?.aborted) return 'turn_ceiling';
+  if (sources.reasoningBudget?.aborted) return 'reasoning_budget';
+  if (sources.wall.aborted) return 'wall_clock';
+  return null;
+}
+
+/** Dieselbe Einstufung, die das AI SDK vornimmt (`isAbortError` in
+ *  @ai-sdk/provider-utils): `TimeoutError` ist ein Abbruch, kein Fehler. */
+function isAbortError(err: unknown): boolean {
+  return (
+    (err instanceof Error || err instanceof DOMException) &&
+    (err.name === 'AbortError' || err.name === 'TimeoutError')
+  );
+}
+
+/**
+ * Was Phase 1 aus einem Abbruch macht — noch ist kein Antworttext beim Nutzer.
+ *
+ * Der Nutzer-Abbruch bleibt ein Abbruch (ein Fallback auf den Sibling wäre eine
+ * Anfrage, die niemand mehr will), das Denk-Budget ist behebbar
+ * (`streamForResolution` fährt ohne Denken nach), und die Turn-Uhr ohne ein
+ * einziges Token ist genau das, was `FirstTokenTimeoutError` beschreibt — also
+ * Fallback und klare Meldung statt `code:'internal'`.
+ */
+export function phase1AbortError(
+  cause: AbortCause,
+  budgets: {
+    reasoningBudgetMs?: number | undefined;
+    wallClockMs: number;
+    turnCeilingMs?: number | undefined;
+  },
+  fallback: () => Error
+): Error {
+  if (cause === 'caller') return new DOMException('Aborted by caller', 'AbortError');
+  // Die Turn-Decke ist ein Timeout, KEIN Nutzer-Abbruch — der Unterschied ist
+  // der ganze Punkt. `'caller'` wirft absichtlich eine nackte `AbortError`, die
+  // kein {@link StreamFailure} ist: sie fliegt an `streamWithFallback` vorbei
+  // bis in den Router-Catch und erreicht den Client als `code:'internal'`. Für
+  // einen abgebrochenen Nutzer ist das richtig (niemand will die Antwort noch),
+  // für eine gerissene Decke wäre es genau die stumme Meldung, gegen die die
+  // Decke gebaut wurde. Als `FirstTokenTimeoutError` läuft sie stattdessen
+  // durch den geordneten Weg: Sibling-Versuch (der am selben, bereits
+  // abgebrochenen Signal sofort zurückkommt), Salvage, und am Ende ein sauberes
+  // `first_token_timeout` mit `retryable: true` statt `internal`.
+  if (cause === 'turn_ceiling') {
+    return new FirstTokenTimeoutError(budgets.turnCeilingMs ?? budgets.wallClockMs);
+  }
+  if (cause === 'reasoning_budget') {
+    return new ReasoningBudgetExceededError(budgets.reasoningBudgetMs ?? 0);
+  }
+  if (cause === 'wall_clock') return new FirstTokenTimeoutError(budgets.wallClockMs);
+  return fallback();
 }
 
 /**
@@ -405,11 +668,16 @@ async function streamAndAccumulateOrThrow(params: {
   temperature: number;
   sse: SSEWriter;
   signal?: AbortSignal;
+  /** Die Turn-Decke (turnDeadline.ts). Getrennt von `signal`, weil `abortCause`
+   *  einen Nutzer-Abbruch anders einstuft als ein Timeout. */
+  turnSignal?: AbortSignal;
   logPrefix?: string;
   providerOptions?: Parameters<typeof streamText>[0]['providerOptions'];
   telemetry?: Parameters<typeof streamText>[0]['experimental_telemetry'];
   firstTokenDeadlineMs?: number;
   wallClockMs?: number;
+  /** Nur für denkende Lanes gesetzt — siehe REASONING_PHASE_BUDGET_MS. */
+  reasoningBudgetMs?: number;
 }): Promise<string | null> {
   const {
     model,
@@ -418,11 +686,13 @@ async function streamAndAccumulateOrThrow(params: {
     temperature,
     sse,
     signal,
+    turnSignal,
     logPrefix = '[ChatGraph]',
     providerOptions,
     telemetry,
     firstTokenDeadlineMs = FIRST_TOKEN_DEADLINE_MS,
     wallClockMs = SINGLE_PASS_WALL_CLOCK_MS,
+    reasoningBudgetMs,
   } = params;
 
   const {
@@ -434,7 +704,29 @@ async function streamAndAccumulateOrThrow(params: {
   // Turn wall-clock: bounds BOTH phases (the first-token deadline is cleared
   // after phase 1, leaving the drain uncapped). Cleared on normal completion.
   const wall = createAbortTimer(wallClockMs);
-  const composed = AbortSignal.any([...(signal ? [signal] : []), deadlineSignal, wall.signal]);
+  // Denk-Budget: bindet NUR Phase 1 und wird mit dem ersten Antworttext
+  // entschärft — anders als die Leerlauf-Frist, die jedes Denk-Delta neu stellt.
+  const reasoningBudget = reasoningBudgetMs != null ? createAbortTimer(reasoningBudgetMs) : null;
+  const composed = AbortSignal.any([
+    ...(signal ? [signal] : []),
+    ...(turnSignal ? [turnSignal] : []),
+    deadlineSignal,
+    wall.signal,
+    ...(reasoningBudget ? [reasoningBudget.signal] : []),
+  ]);
+  const causeOf = (): AbortCause =>
+    abortCause({
+      caller: signal,
+      turnCeiling: turnSignal,
+      reasoningBudget: reasoningBudget?.signal,
+      wall: wall.signal,
+    });
+  const abortErrorForPhase1 = (): Error =>
+    phase1AbortError(
+      causeOf(),
+      { reasoningBudgetMs, wallClockMs, turnCeilingMs: TURN_CEILING_MS },
+      () => new EmptyCompletionError()
+    );
 
   const { system, messages: messagesWithoutSystem } = extractSystemFromMessages(
     messages as ModelMessage[]
@@ -461,7 +753,6 @@ async function streamAndAccumulateOrThrow(params: {
   const iterator = result.stream[Symbol.asyncIterator]();
   let fullText = '';
   let textStarted = false;
-  const stopHeartbeat = startResponseHeartbeat(sse);
 
   // Phase 1 — race the shared deadline until the first visible text delta.
   // Some providers emit empty/structural parts (start, text-start, …) and a
@@ -470,18 +761,21 @@ async function streamAndAccumulateOrThrow(params: {
   try {
     while (!textStarted) {
       const next = await Promise.race([iterator.next(), deadline]);
-      if (next.done) throw new EmptyCompletionError();
+      // `done` heisst hier zweierlei: der Upstream war leer — oder eine unserer
+      // Fristen hat abgebrochen und das SDK hat den Stream danach regulär
+      // geschlossen. Ohne diese Frage sah der zweite Fall aus wie der erste.
+      if (next.done) throw abortErrorForPhase1();
       const part = next.value;
       if (part.type === 'error') throw part.error;
+      if (part.type === 'abort') throw abortErrorForPhase1();
       if (part.type === 'reasoning-delta' && part.text.length > 0) {
-        // Alive, but not answering yet: rearm the idle window and let the real
-        // reasoning deltas replace the heartbeat as the UI's proof of progress.
+        // Alive, but not answering yet: rearm the idle window — the reasoning
+        // deltas are the UI's proof of progress.
         touch();
-        stopHeartbeat();
         sse.send('reasoning_delta', { text: part.text });
       } else if (part.type === 'text-delta' && part.text.length > 0) {
         clear();
-        stopHeartbeat();
+        reasoningBudget?.clear();
         fullText += part.text;
         sse.send('text_delta', { text: part.text });
         textStarted = true;
@@ -490,18 +784,28 @@ async function streamAndAccumulateOrThrow(params: {
   } catch (err) {
     clear();
     wall.clear();
-    stopHeartbeat();
-    throw err;
+    reasoningBudget?.clear();
+    // Ein Upstream-Fehler VOR dem ersten Token ist der eine Fall, in dem der
+    // Sibling noch etwas ausrichten kann — beim Nutzer steht noch nichts.
+    throw phase1UpstreamError(err, causeOf());
   }
 
   // Phase 2 — visible text is on the wire; just drain. Errors here can't
   // trigger a clean fallback, so they end the stream gracefully.
+  let aborted = false;
   try {
     while (true) {
       const next = await iterator.next();
-      if (next.done) break;
+      if (next.done) {
+        aborted = causeOf() !== null;
+        break;
+      }
       const part = next.value;
       if (part.type === 'error') throw part.error;
+      if (part.type === 'abort') {
+        aborted = true;
+        break;
+      }
       if (part.type === 'reasoning-delta' && part.text.length > 0) {
         sse.send('reasoning_delta', { text: part.text });
       } else if (part.type === 'text-delta' && part.text.length > 0) {
@@ -526,7 +830,24 @@ async function streamAndAccumulateOrThrow(params: {
   }
 
   wall.clear();
-  return fullText;
+  return aborted ? markTruncated(fullText, sse, logPrefix) : fullText;
+}
+
+/**
+ * Die halbe Antwort bleibt stehen — sie ist echte Arbeit —, darf aber nicht als
+ * fertige durchgehen. Die Notiz geht als `text_delta` raus UND in den
+ * Rückgabewert, also auch in die Persistenz: nach einem Reload steht dieselbe
+ * Warnung da, die der Nutzer live gesehen hat. Dasselbe Vorgehen wie im
+ * agentischen Loop, jetzt aus derselben Quelle (turnAbortOutcome).
+ */
+function markTruncated(text: string, sse: SSEWriter, logPrefix: string): string {
+  const outcome = resolveAbortOutcome({ text, aborted: true });
+  if (!outcome) return text;
+  log.warn(
+    `${logPrefix} Stream abgebrochen nach ${text.length} Zeichen — als unvollständig markiert`
+  );
+  sse.send('text_delta', { text: outcome.delta });
+  return outcome.mode === 'append' ? text + outcome.delta : outcome.delta;
 }
 
 /**
@@ -541,9 +862,13 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   temperature: number;
   sse: SSEWriter;
   signal?: AbortSignal;
+  /** Die Turn-Decke (turnDeadline.ts). Getrennt von `signal`, weil `abortCause`
+   *  einen Nutzer-Abbruch anders einstuft als ein Timeout. */
+  turnSignal?: AbortSignal;
   logPrefix?: string;
   firstTokenDeadlineMs?: number;
   wallClockMs?: number;
+  reasoningBudgetMs?: number;
   effort?: ThinkingEffort;
 }): Promise<string | null> {
   const {
@@ -554,10 +879,12 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     temperature,
     sse,
     signal,
+    turnSignal,
     effort,
     logPrefix = '[ChatGraph]',
     firstTokenDeadlineMs = FIRST_TOKEN_DEADLINE_MS,
     wallClockMs = SINGLE_PASS_WALL_CLOCK_MS,
+    reasoningBudgetMs = REASONING_PHASE_BUDGET_MS,
   } = params;
 
   const {
@@ -569,7 +896,22 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   // Turn wall-clock: bounds BOTH phases (the first-token deadline is cleared
   // after phase 1, leaving the drain uncapped). Cleared on normal completion.
   const wall = createAbortTimer(wallClockMs);
-  const composed = AbortSignal.any([...(signal ? [signal] : []), deadlineSignal, wall.signal]);
+  // Dieser Pfad läuft NUR für denkende Lanes — das Denk-Budget gilt hier immer.
+  const reasoningBudget = createAbortTimer(reasoningBudgetMs);
+  const composed = AbortSignal.any([
+    ...(signal ? [signal] : []),
+    ...(turnSignal ? [turnSignal] : []),
+    deadlineSignal,
+    wall.signal,
+    reasoningBudget.signal,
+  ]);
+  const causeOf = (): AbortCause =>
+    abortCause({
+      caller: signal,
+      turnCeiling: turnSignal,
+      reasoningBudget: reasoningBudget.signal,
+      wall: wall.signal,
+    });
 
   const streamParams: Parameters<typeof streamWithReasoning>[0] = {
     provider,
@@ -583,7 +925,6 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
 
   const iterator = streamWithReasoning(streamParams)[Symbol.asyncIterator]();
   let fullText = '';
-  const stopHeartbeat = startResponseHeartbeat(sse);
 
   // Phase 1 — race against the deadline until the first TEXT chunk. Reasoning
   // chunks pass through as reasoning_delta but don't satisfy the deadline:
@@ -595,7 +936,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
       const chunk = next.value;
       if (chunk.type === 'text') {
         clear();
-        stopHeartbeat();
+        reasoningBudget.clear();
         fullText += chunk.delta;
         sse.send('text_delta', { text: chunk.delta });
         break;
@@ -607,8 +948,13 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   } catch (err) {
     clear();
     wall.clear();
-    stopHeartbeat();
-    throw err;
+    reasoningBudget.clear();
+    // Der Roh-Fetch wirft den Abbruch (anders als das SDK, das einen `abort`-
+    // Part schickt) — die Frage „wer war es" ist dieselbe. Ohne sie flog eine
+    // nackte DOMException bis in den Router und wurde dort zu `code:'internal'`.
+    throw isAbortError(err)
+      ? phase1AbortError(causeOf(), { reasoningBudgetMs, wallClockMs }, () => err as Error)
+      : err;
   }
 
   // Phase 2 — first text chunk is in. Drain without deadline.
@@ -625,6 +971,11 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     }
   } catch (streamError: unknown) {
     wall.clear();
+    if (isAbortError(streamError)) {
+      // Halb geschriebene Antwort: sie bleibt stehen, aber markiert — der
+      // Zweig darunter hätte sie samt gestromtem Text verworfen (return null).
+      return markTruncated(fullText, sse, logPrefix);
+    }
     const errorMessage = streamError instanceof Error ? streamError.message : 'Unknown error';
     log.error(`${logPrefix} Reasoning stream error after first token:`, errorMessage);
     sse.send('error', {
@@ -680,8 +1031,7 @@ export const streamAndAccumulateWithReasoning = wrapWithCompatCatch(
  * Stream from a primary model with single-step fallback to its sibling on
  * first-token failure. The sibling is set by resolveModel() — for overflow
  * lanes it's the unchosen Verdigado/Regolo partner; for single configs
- * without a sibling, no fallback fires (Qwen "Chinese-only-when-selected"
- * firewall: never auto-route INTO Qwen, never silently auto-route OUT).
+ * without a sibling, no fallback fires.
  *
  * Single-step by design: the fallback's buildStream is invoked directly, not
  * via a recursive streamWithFallback. Do not refactor to recurse.
@@ -705,6 +1055,28 @@ export async function streamWithFallback(params: {
   const { primary, buildStream, sse, logPrefix = '[ChatGraph]', salvage } = params;
   const primaryLabel = primary.modelId ?? primary.modelName;
 
+  /**
+   * Was in die Fehlerzeile gehört: der Lane-Name UND der Host darunter.
+   *
+   * Der Lane-Name allein — und nur er stand hier bis zum 01.09.2026 —
+   * benennt bei den F0-Altlasten den falschen Anbieter: `gemma-litellm` wird
+   * seit dem 21.08.2026 von Cortecs bedient, die Zeile
+   * `gemma-litellm failed (first_token_timeout)` schickt jede Nachforschung
+   * also zuerst zu einem Proxy, der damit nichts zu tun hat.
+   *
+   * Was hier bewusst NICHT steht, ist der Unterauftragnehmer von Cortecs. Er
+   * ist auf diesem Pfad nicht bekannt und auch nicht beschaffbar: Cortecs
+   * hält die Antwort-Header zurück, bis der Upstream sein erstes Token
+   * liefert (gemessen 01.09.2026, Vorlauf 0–1 ms bei 200, 16 000 und 64 000
+   * Eingabe-Tokens, also auch über 6 s Prefill hinweg). Reisst die Frist, gab
+   * es keine Header — `x-cortecs-provider` wird nicht verworfen, er kommt nie
+   * an. Wer einen Stillstand einem der beiden Upstreams zuordnen will, kommt
+   * um ein `allowed_providers`-Pinning nicht herum; siehe
+   * services/ai/cortecsRequestPolicy.ts.
+   */
+  const hostLabel = `${primary.provider}/${primary.modelName}`;
+  const failedLabel = primaryLabel === hostLabel ? primaryLabel : `${primaryLabel} (${hostLabel})`;
+
   /** Emit the salvaged answer on the normal text channel so the caller's
    *  persistence, citation clamp and reload path all treat it as a real turn. */
   const salvageOrFail = (kind: StreamFailure['kind']): string | null => {
@@ -720,14 +1092,21 @@ export async function streamWithFallback(params: {
   } catch (err) {
     if (!isStreamFailure(err)) throw err;
 
+    // Das Verdikt, das die Messung nicht liefern kann: es kamen gar keine
+    // Tokens. Der nächste Turn wartet dann nicht noch einmal die volle Frist
+    // auf dasselbe Paar.
+    recordSlowVerdict(primary.provider, primary.modelName, err.kind);
+
     const sibling = primary.sibling;
     if (!sibling) {
-      log.warn(`${logPrefix} ${primaryLabel} failed (${err.kind}) — no sibling configured`);
+      log.warn(
+        `${logPrefix} ${failedLabel} failed (${err.kind}: ${err.message}) — no sibling configured`
+      );
       return salvageOrFail(err.kind);
     }
 
     log.warn(
-      `${logPrefix} ${primaryLabel} failed (${err.kind}) → falling back to ${sibling.provider}/${sibling.model}`
+      `${logPrefix} ${failedLabel} failed (${err.kind}: ${err.message}) → falling back to ${sibling.provider}/${sibling.model}`
     );
 
     // Client receives only IDs. Display names are resolved client-side.
@@ -739,7 +1118,7 @@ export async function streamWithFallback(params: {
     });
 
     const fallbackResolution: ModelResolution = {
-      model: getModel(sibling.provider, sibling.model),
+      model: getModel(sibling.provider, sibling.model, { acceptTarget: mayWriteAnswer }),
       provider: sibling.provider,
       modelName: sibling.model,
       // The turn's task hasn't changed, only the host — keep the policy's
@@ -769,7 +1148,7 @@ export async function streamWithFallback(params: {
  * Reasoning has three different shapes upstream, all driven by the single
  * `resolution.reasoningEffort` value:
  *   - Mistral: a per-request `reasoningEffort` provider option.
- *   - Regolo (vLLM): the `enable_thinking` chat-template flag.
+ *   - Regolo (vLLM): `reasoning_effort` (`none` schaltet ab).
  *   - LiteLLM/Ollama: thinking is ON by default; `off` means taking the SDK
  *     path instead, which sets `think: false` via litellmFetchWithThinkingDisabled.
  */
@@ -781,18 +1160,53 @@ export async function streamForResolution(params: {
   temperature: number;
   sse: SSEWriter;
   signal?: AbortSignal;
+  /** Die Turn-Decke (turnDeadline.ts). Getrennt von `signal`, weil `abortCause`
+   *  einen Nutzer-Abbruch anders einstuft als ein Timeout. */
+  turnSignal?: AbortSignal;
   logPrefix?: string;
   telemetry?: Parameters<typeof streamText>[0]['experimental_telemetry'];
+  /** Mistral `prompt_cache_key` (see promptCacheKeyForThread). Only the
+   *  `@ai-sdk/mistral` SDK path sends it. */
+  promptCacheKey?: string | null;
 }): Promise<string | null> {
-  const { resolution, messages, maxTokens, temperature, sse, signal, logPrefix, telemetry } =
-    params;
+  const {
+    resolution,
+    messages,
+    maxTokens,
+    temperature,
+    sse,
+    signal,
+    turnSignal,
+    logPrefix,
+    telemetry,
+    promptCacheKey,
+  } = params;
 
-  const thinking = resolution.reasoningEffort !== 'off';
+  const thinking = thinksOnThisLane(
+    resolution.provider,
+    resolution.modelName,
+    resolution.reasoningEffort
+  );
   const firstTokenDeadlineMs = getFirstTokenDeadlineMs(
     resolution.provider,
     resolution.modelName,
     thinking
   );
+
+  // Die Ausgabedecke des AUFGELÖSTEN Modells — hier und nicht beim Aufrufer,
+  // weil erst an dieser Stelle feststeht, welches Modell die Anfrage bekommt:
+  // die Lane kann per Auto-Policy, per Verdigado-Slot oder per Sibling-Fallback
+  // gewechselt haben. Ein Aufrufer, der seine Zahl selbst prüft, prüft sie
+  // gegen ein Modell, das den Zug am Ende gar nicht schreibt.
+  const cappedMaxTokens = clampToModelOutputLimit(
+    maxTokens,
+    resolution.modelName,
+    logPrefix ?? '[ChatGraph]'
+  );
+
+  /** Gesetzt, wenn der Denk-Versuch am Budget scheiterte: der SDK-Pfad unten
+   *  ist dann der Ersatz OHNE Denken, nicht der zweite Anlauf mit. */
+  let thinkingRetriedWithoutBudget = false;
 
   // `off` deliberately skips the reasoning streamer entirely: for the lanes
   // that stream thinking by default (verdigado-pro/-think, the Regolo family)
@@ -806,12 +1220,16 @@ export async function streamForResolution(params: {
       provider: resolution.provider,
       modelName: resolution.modelName,
       messages,
-      ...(maxTokens != null && { maxTokens }),
+      ...(cappedMaxTokens != null && { maxTokens: cappedMaxTokens }),
       temperature,
       sse,
       firstTokenDeadlineMs,
+      // Denken UND Schreiben müssen in diese Uhr passen — siehe die Messung an
+      // THINKING_WALL_CLOCK_MS.
+      wallClockMs: THINKING_WALL_CLOCK_MS,
     };
     if (signal) args.signal = signal;
+    if (turnSignal) args.turnSignal = turnSignal;
     if (logPrefix) args.logPrefix = logPrefix;
     // `thinking` is true here, so the setting is one of low/medium/high.
     args.effort = resolution.reasoningEffort as ThinkingEffort;
@@ -824,36 +1242,106 @@ export async function streamForResolution(params: {
       // path below re-runs the turn against Mistral with reasoning intact.
       // Every other lane has nowhere to fall back to, so its error propagates.
       //
+      // Diese Voraussetzung TRÄGT jetzt, weil Pin und Streamer dieselbe Frage
+      // stellen (thinksOnThisLane). Vorher taten sie es nicht: bei `low` kam
+      // der Streamer hierher, während der Pin den Host auf Scaleway gelassen
+      // hatte — der „Ersatz über die Mistral-API" lief also auf denselben Host
+      // zurück, den der erste Versuch gerade abgelehnt hatte, und ohne jedes
+      // Reasoning. Wer die beiden Ausdrücke wieder trennt, holt das zurück.
+      //
       // Safe only because ReasoningStreamUnavailableError means the upstream
       // never answered — nothing has reached the user's screen yet. A
       // mid-stream failure throws a plain Error and is deliberately not caught
       // here; retrying would replay tokens the user has already seen.
-      if (resolution.provider !== 'mistral' || !(err instanceof ReasoningStreamUnavailableError)) {
-        throw err;
+      // Das Denk-Budget ist die zweite Art, auf der ein Denk-Versuch enden
+      // darf, ohne dass der Zug verloren ist — und sie gilt auf JEDER Lane:
+      // unten steht der SDK-Pfad, und der denkt nicht (Regolo pinnt dort
+      // `reasoning_effort:'none'`, Mistral bekommt keine providerOptions).
+      // Dieselbe Sicherheitsbedingung wie darunter: es ist noch kein
+      // Antworttext beim Nutzer, nur Denk-Deltas.
+      if (err instanceof ReasoningBudgetExceededError) {
+        log.warn(
+          `${logPrefix ?? '[ChatGraph]'} ${resolution.provider}/${resolution.modelName} hat ${err.budgetMs}ms gedacht ohne zu antworten — zweiter Versuch ohne Denken`
+        );
+      } else if (
+        resolution.provider !== 'mistral' ||
+        !(err instanceof ReasoningStreamUnavailableError)
+      ) {
+        // Kein zweiter Versuch auf DIESER Lane — aber der Sibling ist noch
+        // offen: `ReasoningStreamUnavailableError` heisst laut eigener Doku,
+        // dass der Upstream nie geantwortet hat, und Phase 2 wirft hier gar
+        // nicht (sie gibt `null` zurück), also ist garantiert noch kein
+        // Antworttext beim Nutzer. Ohne diese Übersetzung flog ein 503 der
+        // Regolo-Denk-Lane roh am Fallback vorbei bis in den Router-Catch.
+        // `null` als Abbruch-Grund: ein echter Abbruch hat den Phase-1-Catch
+        // des Streamers oben schon in einen Abbruch-Fehler übersetzt.
+        throw phase1UpstreamError(err, null);
+      } else {
+        // Den Grund des Upstreams MITSCHREIBEN, nicht deuten: die frühere
+        // Fassung meldete pauschal „reasoning unavailable", und ein 400 wegen
+        // ungültigem Payload (`max_completion_tokens is limited to 16384`) las
+        // sich dann wie ein Reasoning-Problem — während der zweite Versuch in
+        // exakt denselben Fehler lief, weil an der Anfrage lag, was der Text
+        // dem Host zuschrieb.
+        //
+        // `err.message` trägt den Status bereits (siehe den Konstruktor von
+        // ReasoningStreamUnavailableError), deshalb hier NICHT zusätzlich
+        // `err.status` — sonst steht die Zahl zweimal in derselben Zeile.
+        log.warn(
+          `${logPrefix ?? '[ChatGraph]'} Scaleway-Reasoning fehlgeschlagen (${err.message}) — zweiter Versuch über die Mistral-API`
+        );
       }
-      log.warn(
-        `${logPrefix ?? '[ChatGraph]'} Scaleway reasoning unavailable (${err.status}) — falling back to the Mistral API`
-      );
+      // Der zweite Versuch denkt nur im Scaleway-Fall noch einmal: beim
+      // Budget-Abbruch ist das Weglassen der Zweck.
+      thinkingRetriedWithoutBudget = err instanceof ReasoningBudgetExceededError;
     }
   }
 
   const args: Parameters<typeof streamAndAccumulateOrThrow>[0] = {
     model: resolution.model,
     messages,
-    ...(maxTokens != null && { maxTokens }),
+    ...(cappedMaxTokens != null && { maxTokens: cappedMaxTokens }),
     temperature,
     sse,
     firstTokenDeadlineMs,
   };
   if (signal) args.signal = signal;
+  if (turnSignal) args.turnSignal = turnSignal;
   if (logPrefix) args.logPrefix = logPrefix;
   if (telemetry) args.telemetry = telemetry;
   // Mistral reasoning models (e.g. Medium 3.5) only think when `reasoningEffort`
   // is set per request; @ai-sdk/mistral then surfaces the reasoning via
   // fullStream so streamAndAccumulateOrThrow can emit it as reasoning_delta.
-  if (thinking && resolution.provider === 'mistral' && isReasoningCapable(resolution.modelName)) {
+  const thinkHere = thinking && !thinkingRetriedWithoutBudget;
+  const cacheOption =
+    resolution.provider === 'mistral' && promptCacheKey ? { promptCacheKey } : null;
+  if (cacheOption) args.providerOptions = { mistral: cacheOption };
+  if (thinkHere && resolution.provider === 'mistral' && isReasoningCapable(resolution.modelName)) {
     const mistralEffort = mistralReasoningOption(resolution.reasoningEffort);
-    if (mistralEffort) args.providerOptions = { mistral: { reasoningEffort: mistralEffort } };
+    if (mistralEffort) {
+      args.providerOptions = { mistral: { reasoningEffort: mistralEffort, ...cacheOption } };
+      // Nur wo wirklich gedacht wird: auf einer stummen Lane bindet die
+      // Leerlauf-Frist bereits, ein zweites Budget wäre eine zweite Uhr auf
+      // dieselbe Frage.
+      args.reasoningBudgetMs = REASONING_PHASE_BUDGET_MS;
+      args.wallClockMs = THINKING_WALL_CLOCK_MS;
+    }
   }
-  return streamAndAccumulateOrThrow(args);
+  try {
+    return await streamAndAccumulateOrThrow(args);
+  } catch (err) {
+    if (!(err instanceof ReasoningBudgetExceededError)) throw err;
+    // Zweiter Anlauf ohne Denken — derselbe sichere Zustand wie oben: nichts
+    // ausser Denk-Deltas ist beim Nutzer angekommen.
+    log.warn(
+      `${logPrefix ?? '[ChatGraph]'} ${resolution.provider}/${resolution.modelName} hat ${err.budgetMs}ms gedacht ohne zu antworten — zweiter Versuch ohne Denken`
+    );
+    if (cacheOption) args.providerOptions = { mistral: cacheOption };
+    else delete args.providerOptions;
+    delete args.reasoningBudgetMs;
+    // Ohne Denken gilt wieder die gewöhnliche Uhr: der zweite Lauf schreibt
+    // nur noch.
+    args.wallClockMs = SINGLE_PASS_WALL_CLOCK_MS;
+    return await streamAndAccumulateOrThrow(args);
+  }
 }

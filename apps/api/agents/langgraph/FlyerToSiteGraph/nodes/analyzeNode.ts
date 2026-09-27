@@ -1,3 +1,4 @@
+import { aiText } from '../../../../services/ai/generate.js';
 import {
   extractLocaleFromRequest,
   localizePlaceholders,
@@ -5,7 +6,6 @@ import {
 import { createLogger } from '../../../../utils/logger.js';
 
 import type { RequestWithLocale } from '../../../../services/localization/index.js';
-import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { FlyerAnalysis, FlyerToSiteState } from '../types.js';
 
 const log = createLogger('FlyerToSite:analyze');
@@ -56,35 +56,18 @@ export async function analyzeNode(state: FlyerToSiteState): Promise<Partial<Flye
 
     const userPrompt = `Analysiere diesen Flyer-Text:\n\n${state.extractedText}`;
 
-    const aiWorkerPool = state.req.app.locals.aiWorkerPool as AIWorkerPool;
-    const result = await aiWorkerPool.processRequest(
-      {
-        type: 'flyer-analysis',
-        systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-        options: { max_tokens: 3000, temperature: 0.3 },
-      },
-      state.req
-    );
+    // Der eigene „leere Antwort"-Zweig ist entfallen: `aiText` wirft, wo der
+    // Umschlag `{success:false}` lieferte, und der catch unten baut denselben
+    // Rohtext-Ersatz. Unterschied ist nur die Protokollstufe (error statt warn).
+    const answer = await aiText({
+      lane: 'flyer-analysis',
+      system: systemPrompt,
+      prompt: userPrompt,
+      maxOutputTokens: 3000,
+      temperature: 0.3,
+    });
 
-    if (!result.success || !result.content) {
-      log.warn('AI analysis failed, using raw text as fallback', { error: result.error });
-      return {
-        flyerAnalysis: {
-          name: 'Unbekannt',
-          politicalRole: '',
-          region: '',
-          themes: [],
-          slogans: [],
-          contactInfo: {},
-          keyMessages: [],
-          rawDescription: state.extractedText.slice(0, 2000),
-        },
-        analyzeTimeMs: Date.now() - startTime,
-      };
-    }
-
-    let jsonContent = result.content
+    let jsonContent = answer
       .replace(/```json\s*/gi, '')
       .replace(/```\s*/g, '')
       .trim();

@@ -62,7 +62,7 @@ export const agentFrontmatterSchema = z.object({
   tags: z.array(z.string()),
   model: z.string().min(1),
   defaultModel: z.string().min(1).optional(),
-  provider: z.enum(['mistral', 'anthropic', 'litellm', 'regolo', 'greenpt']),
+  provider: z.enum(['mistral', 'anthropic', 'litellm', 'regolo', 'melious', 'greenpt', 'cortecs']),
   params: agentParamsSchema,
   openingMessage: z.string(),
   welcomeQuestion: z.string().optional(),
@@ -93,6 +93,11 @@ export const agentFrontmatterSchema = z.object({
   audience: agentAudienceSchema.optional(),
   localized: z.record(z.enum(['de-DE', 'de-AT']), agentLocalizationSchema).optional(),
   inlineSourceLinks: z.boolean().optional(),
+  /**
+   * Recipe mention the single-pass respond path auto-loads when the user picked
+   * none — the agent's core text form. See `Agent.defaultRecipeMention`.
+   */
+  defaultRecipeMention: z.string().min(1).optional(),
   /**
    * Numeric ordering hint for the generated registry. Lower wins. Preserves the
    * curated concatenation order (core → öffentlichkeitsarbeit → persona) that

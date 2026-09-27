@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 /** Whether the current user watches the whole board (A9), plus a toggle. */
@@ -12,7 +12,8 @@ export function useBoardSubscription(boardId: string | undefined) {
       if (!boardId) return { subscribed: false, count: 0 };
       const client = getContractsClient();
       const result = await client.boardSubscriptions.getBoardSubscription({ params: { boardId } });
-      if (result.status !== 200) throw new Error('Failed to load board subscription');
+      if (result.status !== 200)
+        throw new ApiError(result.status, 'Failed to load board subscription');
       return result.body;
     },
     enabled: !!boardId,
@@ -26,7 +27,8 @@ export function useBoardSubscription(boardId: string | undefined) {
       const result = subscribe
         ? await client.boardSubscriptions.subscribeBoard({ params: { boardId }, body: {} })
         : await client.boardSubscriptions.unsubscribeBoard({ params: { boardId }, body: {} });
-      if (result.status !== 200) throw new Error('Board subscription toggle failed');
+      if (result.status !== 200)
+        throw new ApiError(result.status, 'Board subscription toggle failed');
       return result.body;
     },
     onSuccess: (body) => {

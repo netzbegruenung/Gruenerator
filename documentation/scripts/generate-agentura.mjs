@@ -43,6 +43,23 @@ const SRC = {
 
 const OUT_FILE = 'documentation/src/generated/agentura.json';
 
+/**
+ * Die Plattformen eines Regals. Fehlt `platforms`, gilt die Vorgabe der
+ * Registry: web-only. Deshalb ein Array-Literal in der Quelle und keine
+ * Konstante — was hier nicht als String-Literal steht, kann der AST nicht lesen.
+ */
+function platformsOf(node) {
+  const prop = node.properties.find(
+    (p) => ts.isPropertyAssignment(p) && p.name.getText() === 'platforms'
+  );
+  if (!prop) return ['web'];
+  const value = unwrap(prop.initializer);
+  if (!value || !ts.isArrayLiteralExpression(value)) {
+    fail(SRC.categories, 'platforms', 'an array literal of string literals (no shared constant)');
+  }
+  return value.elements.map((el) => literalText(el)).filter(Boolean);
+}
+
 /** `AGENTURA_CATEGORIES` → the shelves in sidebar order, with their blurbs. */
 function extractCategories() {
   const sf = parse(SRC.categories);
@@ -58,6 +75,9 @@ function extractCategories() {
     const key = stringProp(node, 'key');
     const label = stringProp(node, 'label');
     if (!key || !label) continue;
+    // Der Artikel beschreibt den Markt im Web. Ein Regal, das nur die App hat
+    // („Empfohlen"), gehört nicht in eine Aufzählung von Pillen-Buttons.
+    if (!platformsOf(node).includes('web')) continue;
     const entry = { key, label };
     const description = stringProp(node, 'description');
     if (description) entry.description = description;

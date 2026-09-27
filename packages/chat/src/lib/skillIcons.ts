@@ -1,7 +1,9 @@
 import {
   PiAnchor,
+  PiBooks,
   PiBuildings,
   PiChatCircle,
+  PiEnvelopeSimple,
   PiFacebookLogo,
   PiFileText,
   PiFlowerLight,
@@ -12,6 +14,7 @@ import {
   PiMicrophoneStage,
   PiMountains,
   PiNewspaper,
+  PiScales,
   PiSparkle,
   PiTiktokLogo,
   PiTranslate,
@@ -24,8 +27,10 @@ import type { SkillIcon } from '@gruenerator/shared/agents';
 
 export const SKILL_ICONS: Record<string, SkillIcon> = {
   PiAnchor,
+  PiBooks,
   PiBuildings,
   PiChatCircle,
+  PiEnvelopeSimple,
   PiFacebookLogo,
   PiFileText,
   PiFlowerLight,
@@ -36,6 +41,7 @@ export const SKILL_ICONS: Record<string, SkillIcon> = {
   PiMicrophoneStage,
   PiMountains,
   PiNewspaper,
+  PiScales,
   PiTiktokLogo,
   PiTranslate,
   PiTree,

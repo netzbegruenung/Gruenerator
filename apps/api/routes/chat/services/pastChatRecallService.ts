@@ -14,9 +14,10 @@
  *    subtitle content, reusing `searchReels`.
  * `rerankRecall` then cross-ranks all three sources.
  *
- * This is deliberately separate from mem0 fact memory: mem0 stores distilled
- * facts about the user; this returns raw conversation excerpts and document
- * references with titles and dates the model can reference naturally.
+ * This is deliberately separate from the explicit memory (services/memory),
+ * which stores what the user asked to be remembered; this returns raw
+ * conversation excerpts and document references with titles and dates the
+ * model can reference naturally.
  */
 
 import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
@@ -283,7 +284,7 @@ export async function recallPastChats(
   if (threadIds && threadIds.length === 0) return [];
 
   // Best-effort like the semantic half below: `searchChatHistory` throws now
-  // (so the /chat/search ENDPOINT can answer 500 instead of "no hits"), but
+  // (so the thread-search ENDPOINT can answer 500 instead of "no hits"), but
   // inside a chat turn a transient DB error must degrade recall, not abort the
   // whole answer. The empty result then reads as "nothing recalled", which the
   // router surfaces via recall_degraded.
@@ -317,6 +318,51 @@ export async function recallPastChats(
     semanticOnlyIds.length > 0 ? await hydrateThreadsAsResults(userId, semanticOnlyIds) : [];
 
   return [...keywordHits, ...semanticHits].slice(0, limit);
+}
+
+/**
+ * The user's most recently active threads, no query needed — backs the
+ * search_threads no-query path ("worüber haben wir zuletzt gechattet"). Same
+ * result shape as recallPastChats; recency replaces relevance as the ranking.
+ */
+export async function listRecentThreads(
+  userId: string,
+  options: { limit?: number; excludeThreadId?: string; threadIds?: string[] } = {}
+): Promise<ChatSearchResult[]> {
+  const { limit = 5, excludeThreadId, threadIds } = options;
+
+  // An empty space scope means "no threads to list" — mirror recallPastChats.
+  if (threadIds && threadIds.length === 0) return [];
+
+  const db = getPostgresInstance();
+  try {
+    const params: unknown[] = [userId];
+    const where = [`user_id = $1`, `COALESCE(status, 'regular') = 'regular'`];
+    if (excludeThreadId) {
+      params.push(excludeThreadId);
+      where.push(`id <> $${params.length}::uuid`);
+    }
+    if (threadIds) {
+      params.push(threadIds);
+      where.push(`id = ANY($${params.length}::uuid[])`);
+    }
+    params.push(limit);
+    const rows = (await db.query(
+      `SELECT id FROM chat_threads
+       WHERE ${where.join(' AND ')}
+       ORDER BY updated_at DESC
+       LIMIT $${params.length}`,
+      params
+    )) as Array<{ id: string }>;
+    if (rows.length === 0) return [];
+    return await hydrateThreadsAsResults(
+      userId,
+      rows.map((r) => r.id)
+    );
+  } catch (err) {
+    log.warn(`[Recall] listRecentThreads failed: ${err}`);
+    return [];
+  }
 }
 
 /**
@@ -540,6 +586,9 @@ async function hydrateThreadsAsResults(
         messageRole: 'assistant' as const,
         matchedAt: toIsoString(r.thread_updated_at),
         threadUpdatedAt: toIsoString(r.thread_updated_at),
+        // Not a guess: the query above filters archived threads out, so every
+        // row that reaches here is regular.
+        threadStatus: 'regular' as const,
       }));
   } catch (err) {
     log.warn(`[Recall] Hydration of semantic hits failed: ${err}`);

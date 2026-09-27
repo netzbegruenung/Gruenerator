@@ -140,15 +140,14 @@ describe('page operations', () => {
     expect(readPages(doc).map((p) => p.id)).toEqual(['p1', 'p1b', 'p3', 'p4']);
   });
 
-  it('duplicate clones state, layers and config right after the source', () => {
+  it('duplicate clones state and config right after the source', () => {
     const doc = new Y.Doc();
     seedPagesIfEmpty(doc, [
       {
         id: 'p1',
         configId: 'dreizeilen',
         state: { line1: 'Grün' },
-        layers: [{ id: 'layer-1', type: 'icon', x: 10 }],
-        config: { snapping: true },
+        config: { snapping: true, width: 1080 },
       },
       { id: 'p2', configId: 'dreizeilen', state: {} },
     ]);
@@ -159,16 +158,14 @@ describe('page operations', () => {
 
     const copy = pages[1].yMap;
     expect(pages[1].state).toEqual({ line1: 'Grün' });
-    const layers = copy.get(YDOC_KEYS.layers) as Y.Array<Y.Map<unknown>>;
-    expect(layers.length).toBe(1);
-    expect(layers.get(0).get('id')).toBe('layer-1');
     const config = copy.get(YDOC_KEYS.config) as Y.Map<unknown>;
     expect(config.get('snapping')).toBe(true);
+    expect(config.get('width')).toBe(1080);
 
-    // Deep clone: mutating the copy's layer leaves the original untouched.
-    layers.get(0).set('x', 99);
-    const origLayers = pages[0].yMap.get(YDOC_KEYS.layers) as Y.Array<Y.Map<unknown>>;
-    expect(origLayers.get(0).get('x')).toBe(10);
+    // Deep clone: mutating the copy's config leaves the original untouched.
+    config.set('width', 99);
+    const origConfig = pages[0].yMap.get(YDOC_KEYS.config) as Y.Map<unknown>;
+    expect(origConfig.get('width')).toBe(1080);
   });
 
   it('move preserves the Y.Map identity and concurrent remote edits survive', () => {
@@ -232,16 +229,9 @@ describe('page operations', () => {
     expect(fired).toBe(1);
   });
 
-  it('setPageConfig replaces configId and state but keeps id, pos and layers', () => {
+  it('setPageConfig replaces configId and state but keeps id and pos', () => {
     const doc = new Y.Doc();
-    seedPagesIfEmpty(doc, [
-      {
-        id: 'p1',
-        configId: 'zitat',
-        state: { quote: 'Hallo' },
-        layers: [{ id: 'layer-1', type: 'shape' }],
-      },
-    ]);
+    seedPagesIfEmpty(doc, [{ id: 'p1', configId: 'zitat', state: { quote: 'Hallo' } }]);
     const before = readPages(doc)[0];
     setPageConfigById(doc, 'p1', 'info', { header: 'Neu' });
 
@@ -250,37 +240,33 @@ describe('page operations', () => {
     expect(after.state).toEqual({ header: 'Neu' });
     expect(after.pos).toBe(before.pos);
     expect(after.yMap).toBe(before.yMap);
-    const layers = after.yMap.get(YDOC_KEYS.layers) as Y.Array<Y.Map<unknown>>;
-    expect(layers.length).toBe(1);
   });
 
-  it('serializeDeck returns pages in order with layers and config', () => {
+  it('serializeDeck returns pages in order with config', () => {
     const doc = new Y.Doc();
     seedPagesIfEmpty(doc, [
-      { id: 'p1', configId: 'slider', state: { headline: 'A' }, layers: [{ id: 'l1' }] },
+      { id: 'p1', configId: 'slider', state: { headline: 'A' }, config: { width: 1080 } },
       { id: 'p2', configId: 'slider', state: { headline: 'B' } },
     ]);
     movePageById(doc, 'p2', 'up');
 
     const deck = serializeDeck(doc);
     expect(deck.map((p) => p.id)).toEqual(['p2', 'p1']);
-    expect(deck[1].layers).toEqual([{ id: 'l1' }]);
-    expect(deck[0].layers).toEqual([]);
+    expect(deck[1].config).toEqual({ width: 1080 });
+    expect(deck[0].config).toEqual({});
   });
 });
 
 describe('legacy migration', () => {
-  it('lifts a legacy pages Y.Array into pagesById preserving order and layers', () => {
+  it('lifts a legacy pages Y.Array into pagesById preserving order and config', () => {
     const doc = new Y.Doc();
     const legacy = doc.getArray<Y.Map<unknown>>(YDOC_KEYS.pages);
     doc.transact(() => {
-      const p1 = buildPage({ id: 'a', configId: 'slider', state: { headline: '1' } }, 'ignored');
+      const p1 = buildPage(
+        { id: 'a', configId: 'slider', state: { headline: '1' }, config: { width: 1080 } },
+        'ignored'
+      );
       p1.delete(YDOC_KEYS.pos);
-      const layers = new Y.Array<Y.Map<unknown>>();
-      const layer = new Y.Map<unknown>();
-      layer.set('id', 'l1');
-      layers.push([layer]);
-      p1.set(YDOC_KEYS.layers, layers);
       const p2 = buildPage({ id: 'b', configId: 'slider', state: { headline: '2' } }, 'ignored');
       p2.delete(YDOC_KEYS.pos);
       legacy.push([p1, p2]);
@@ -291,29 +277,28 @@ describe('legacy migration', () => {
     expect(legacy.length).toBe(0);
     const pages = readPages(doc);
     expect(pages.map((p) => p.id)).toEqual(['a', 'b']);
-    const layers = pages[0].yMap.get(YDOC_KEYS.layers) as Y.Array<Y.Map<unknown>>;
-    expect(layers.get(0).get('id')).toBe('l1');
+    const config = pages[0].yMap.get(YDOC_KEYS.config) as Y.Map<unknown>;
+    expect(config.get('width')).toBe(1080);
 
     // Idempotent.
     doc.transact(() => migrateLegacyDoc(doc));
     expect(readPages(doc)).toHaveLength(2);
   });
 
-  it('promotes legacy_root layers/config into a single page', () => {
+  it('promotes legacy_root config into a single page', () => {
     const doc = new Y.Doc();
     doc.transact(() => {
       doc.getMap<unknown>(YDOC_KEYS.legacyRoot).set('marker', true);
-      const layer = new Y.Map<unknown>();
-      layer.set('id', 'legacy-layer');
-      doc.getArray<Y.Map<unknown>>(YDOC_KEYS.layers).push([layer]);
+      doc.getMap<unknown>(YDOC_KEYS.config).set('width', 1080);
     });
 
     doc.transact(() => migrateLegacyDoc(doc));
     const pages = readPages(doc);
     expect(pages).toHaveLength(1);
-    const layers = pages[0].yMap.get(YDOC_KEYS.layers) as Y.Array<Y.Map<unknown>>;
-    expect(layers.length).toBe(1);
-    expect(layers.get(0).get('id')).toBe('legacy-layer');
+    const config = pages[0].yMap.get(YDOC_KEYS.config) as Y.Map<unknown>;
+    expect(config.get('width')).toBe(1080);
+    // Der alte Top-Level-Typ ist danach leer.
+    expect(doc.getMap<unknown>(YDOC_KEYS.config).size).toBe(0);
   });
 
   it('folds legacy formState into a single page once', () => {

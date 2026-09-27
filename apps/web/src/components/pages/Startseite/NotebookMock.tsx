@@ -48,7 +48,7 @@ const CitationBubble = memo(function CitationBubble({ id }: { id: number }) {
             side="top"
             sideOffset={4}
             align="center"
-            className="z-50 w-56 rounded-lg border border-grey-200 dark:border-grey-700 bg-background p-2.5 shadow-lg animate-in fade-in-0 zoom-in-95"
+            className="z-[1020] w-56 rounded-lg border border-grey-200 dark:border-grey-700 bg-background p-2.5 shadow-lg animate-in fade-in-0 zoom-in-95"
           >
             <p className="text-[11px] font-medium text-foreground leading-snug truncate">
               {citation.title}

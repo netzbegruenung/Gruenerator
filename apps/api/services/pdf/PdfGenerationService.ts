@@ -104,6 +104,16 @@ export interface CreatePdfResult {
   verification: PdfVerification;
   /** One-line result of the self-check, ready to show or hand to the model. */
   summary: string;
+  /**
+   * The spec the stored bytes were actually rendered from — the repaired one
+   * when the repair was kept, the first otherwise.
+   *
+   * A PDF is delivered as bytes under an asset file name; nothing about it is
+   * editable afterwards. Keeping the spec is what makes a later "ändere das
+   * PDF" a re-render of a known document instead of a fresh guess from the
+   * chat transcript. Persisted per turn by PDF_SPEC.persistMetadata.
+   */
+  spec: PdfDocumentSpec;
 }
 
 /**
@@ -117,7 +127,7 @@ export interface CreatePdfResult {
  * The error carries the issue PATHS, not just the message: the old log read
  * "structure rejected: Required", which named no field and left a production
  * failure undiagnosable. The paths also drive the repair turn in
- * generateStructured.
+ * aiObject (services/ai/generate.ts).
  */
 export function validatePdfStructure(
   input: unknown
@@ -135,7 +145,7 @@ export function validatePdfStructure(
 // fenced / braced) and then validated it, returning a bare `null` on failure.
 // That null is why a rejection on the text transport reached the repair turn as
 // "Kein Tool-Aufruf in der Antwort" instead of the offending field. The
-// extraction now lives in generateStructured (jsonCandidatesFromText), which
+// extraction now lives in services/ai/structuredParsing.ts (jsonCandidatesFromText), which
 // feeds `validatePdfStructure` above — one gate for both transports.
 
 /**
@@ -233,7 +243,7 @@ export async function createPdfDocument(
   spec: PdfDocumentSpec,
   opts: CreatePdfOptions
 ): Promise<CreatePdfResult> {
-  const effective = asEffectiveSpec(spec);
+  let effective = asEffectiveSpec(spec);
   let attempt = await renderAndVerify(effective, opts);
 
   // Bounded repair: at most ONE extra round, and only for findings a rewrite
@@ -245,7 +255,8 @@ export async function createPdfDocument(
     try {
       const repairedSpec = await opts.regenerate(repairable);
       if (repairedSpec) {
-        const second = await renderAndVerify(asEffectiveSpec(repairedSpec), opts);
+        const repairedEffective = asEffectiveSpec(repairedSpec);
+        const second = await renderAndVerify(repairedEffective, opts);
         const before = repairable.length;
         const after = repairableProblems(second.verification, second.rendered).length;
         // Keep the repair only if it actually helped. A regeneration that trades
@@ -253,6 +264,7 @@ export async function createPdfDocument(
         if (after < before) {
           log.info(`PDF repair improved the document: ${before} → ${after} fixable problem(s)`);
           attempt = second;
+          effective = repairedEffective;
         } else {
           log.info(`PDF repair did not improve the document (${before} → ${after}); keeping first`);
         }
@@ -275,5 +287,6 @@ export async function createPdfDocument(
     document: { documentId: fileName, title: effective.title, subtype: 'pdf', url },
     verification,
     summary: summarizeVerification(verification),
+    spec: effective,
   };
 }

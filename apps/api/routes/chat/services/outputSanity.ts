@@ -247,45 +247,136 @@ export function deniesSearchAbilityDespiteSearching(
 }
 
 /**
- * Whether an answer looks CUT OFF rather than finished: a completed German
- * answer ends on punctuation, so a trailing letter or digit is the signature of
- * a stream that stopped mid-sentence.
- *
- * The point of this check is WHERE it runs. The identical test also runs in the
- * chat client (`parseSSEStream`, search for "looksCutOff") over the text the
- * browser actually assembled, so the two logs together localise a truncation
- * report without a repro:
- *
- *   server suspicious + client suspicious → generation stopped early
- *                                            (pair it with finishReason)
- *   server clean      + client suspicious → the tail was lost after the server
- *                                            handed it over (transport/render)
- *
- * The live case that motivated this was the second kind — 513 chars generated,
- * 414 on screen — and it cost an entire investigation to establish, because
- * neither side said anything at all.
+ * The answer asks the person to WAIT for the assistant's own work — which never
+ * comes, nothing runs after a turn ends (live 15.09.2026: "wird in diesem
+ * Moment generiert … Moment bitte"). Bound to first-person / generation
+ * idioms; "erscheint in Kürze", "bitte warten", "wird gerade bearbeitet" are
+ * ordinary content ("Laut [1] erscheint der Bericht in Kürze") and stay out.
  */
-/**
- * Fewer words than this and an unpunctuated ending says nothing: that is the
- * shape of a LABEL, not of a severed sentence.
- *
- * Empirical, not invented. A QA session asked for three literal wordings and
- * got a warning for each — "KEINE DATEN", "Korrigiert", "Klarwasser
- * gespeichert" (1–2 words), all three perfect answers — beside ONE real
- * truncation. Meanwhile the shortest cut this check exists to catch runs six
- * words ("Im Vergleich zu anderen rechtspopulistischen Pa"). Five sits in that
- * gap. It is a threshold, not a law: a cut after four words slips through, and
- * that is the price of a warning that means something when it appears.
- *
- * Mirrored in `parseSSEStream` — change both, or the cross-check between the
- * two logs stops comparing like with like.
- */
-export const TRUNCATION_MIN_WORDS = 5;
+const PENDING_WORK_RE =
+  /(?<!\p{L})(?:moment\s+bitte|einen\s+(?:kurzen\s+)?augenblick|ich\s+melde\s+mich\s+gleich|wird\s+(?:gerade|jetzt|soeben|in\s+diesem\s+moment)\s+(?:erstellt|generiert|erzeugt|gerendert)|erscheint\s+gleich|sobald\s+(?:der\s+vorgang|die\s+erstellung|die\s+generierung)\s+abgeschlossen)(?!\p{L})/iu;
 
-export function looksCutOff(text: string): boolean {
-  const trimmed = text.trimEnd();
-  if (trimmed.split(/\s+/).filter(Boolean).length < TRUNCATION_MIN_WORDS) return false;
-  return /[\p{L}\p{N}]$/u.test(trimmed);
+export function announcesPendingWork(text: string): boolean {
+  return PENDING_WORK_RE.test(text);
+}
+
+/**
+ * The chat-template control tokens with which the open-weight models wrap a
+ * tool call. They are protocol, never content: the SDK parses real ones out of
+ * the stream long before the text reaches here, so an occurrence in the answer
+ * text is always an imitation the model typed as prose.
+ *
+ * Live 13.08.2026, four turns in a row: the split writer runs WITHOUT tools but
+ * WITH the gather phase's tool transcript in its context, and opened three of
+ * four answers with a bare `<tool_call>` before writing perfectly good German.
+ * The existing guards all missed it — `looksLikeToolPlanLeak` only fires when
+ * the WHOLE answer is short and plan-shaped, and here the answer was 1.866
+ * correct characters behind one stray token.
+ *
+ * Deleted, not retried: everything after it was fine, and re-rolling a good
+ * answer over one token would cost the user a second wait for no gain.
+ */
+const CONTROL_TOKEN_RE =
+  /<\/?(?:tool_call|tool_calls|tool_response|tool_result|function_call|\|?(?:tool_calls|im_start|im_end)\|?)>/gi;
+
+/**
+ * Strip those tokens — outside fenced code only.
+ *
+ * The fence exception is the whole reason this is not a bare `.replace()`: "wie
+ * sieht ein tool_call im Chat-Template aus?" is a legitimate question about this
+ * product, and its answer shows the token inside a fence. Odd-indexed segments
+ * of a ```-split ARE the fenced bodies, so they pass through untouched.
+ */
+export function stripToolControlTokens(text: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text ?? '';
+  CONTROL_TOKEN_RE.lastIndex = 0;
+  if (!CONTROL_TOKEN_RE.test(text)) return text;
+  return text
+    .split('```')
+    .map((segment, i) => (i % 2 === 0 ? segment.replace(CONTROL_TOKEN_RE, '') : segment))
+    .join('```');
+}
+
+/** Das längste Token oben (`<tool_response>`, `<function_call>`) misst 15 Zeichen. */
+const MAX_CONTROL_TOKEN_CHARS = 15;
+
+/**
+ * Dieselbe Säuberung, aber über einen Strom aus Teilstücken.
+ *
+ * `stripToolControlTokens` bekam den ganzen Text und war deshalb nur dort
+ * anwendbar, wo einer vorliegt: auf dem gesammelten Ergebnis und im 200-Zeichen-
+ * Haltefenster des Antwort-Gitters. Der Kommentar dort behauptete, das Token
+ * komme „immer als Erstes, vor jeder Prosa" — eine Annahme, keine Messung.
+ * Gemessen am 13.08.2026: Turn 1 lief mit einem Werkzeugschritt, und das Token
+ * erschien erneut, obwohl der Filter ausgeliefert war. Sobald das Gitter offen
+ * ist, geht jedes Delta ungeprüft durch.
+ *
+ * Zwei Dinge kann ein Stück-für-Stück-Filter nicht naiv: ein Token kann über die
+ * Grenze zweier Deltas zerfallen (`<tool` + `_call>`), und die Ausnahme für
+ * Code-Zäune braucht Gedächtnis über Stücke hinweg. Deshalb hält dieser Filter
+ * die letzten {@link MAX_CONTROL_TOKEN_CHARS} Zeichen zurück, bis mehr kommt
+ * (die Verzögerung ist eine Bildschirmbreite), und trägt die Zaun-Tiefe mit.
+ */
+export function createControlTokenFilter(): {
+  push: (chunk: string) => string;
+  flush: () => string;
+} {
+  let carry = '';
+  let insideFence = false;
+
+  const scrub = (text: string): string => {
+    let out = '';
+    let rest = text;
+    for (;;) {
+      const at = rest.indexOf('```');
+      if (at === -1) {
+        out += insideFence ? rest : rest.replace(CONTROL_TOKEN_RE, '');
+        return out;
+      }
+      const head = rest.slice(0, at);
+      out += insideFence ? head : head.replace(CONTROL_TOKEN_RE, '');
+      out += '```';
+      insideFence = !insideFence;
+      rest = rest.slice(at + 3);
+    }
+  };
+
+  return {
+    push(chunk) {
+      if (typeof chunk !== 'string' || chunk.length === 0) return '';
+      const combined = carry + chunk;
+
+      // Zurückgehalten wird, was ANGEFANGEN aussieht — nicht eine feste Länge.
+      // Eine feste Länge zerschnitt ein bereits vollständiges Token beim
+      // nächsten Stück wieder (`<tool_call>` landete im Rest, die Hälfte davon
+      // ging beim übernächsten Push raus). Ein Test hat das gefangen.
+      let cut = combined.length;
+
+      // Ein `<` ohne schließendes `>` in Reichweite: kann der Anfang sein.
+      const lt = combined.lastIndexOf('<');
+      if (
+        lt !== -1 &&
+        combined.indexOf('>', lt) === -1 &&
+        combined.length - lt < MAX_CONTROL_TOKEN_CHARS
+      ) {
+        cut = lt;
+      }
+
+      // Ein bis zwei Backticks am Ende: könnte ein angefangener Zaun sein, und
+      // die Zaun-Ausnahme entscheidet, ob überhaupt gesäubert wird.
+      let ticks = 0;
+      while (ticks < 3 && combined[combined.length - 1 - ticks] === '`') ticks++;
+      if (ticks > 0 && ticks < 3) cut = Math.min(cut, combined.length - ticks);
+
+      carry = combined.slice(cut);
+      return scrub(combined.slice(0, cut));
+    },
+    flush() {
+      const out = scrub(carry);
+      carry = '';
+      return out;
+    },
+  };
 }
 
 /**
@@ -309,4 +400,41 @@ const TOOL_ANNOUNCEMENT_RE =
 export function looksLikeToolCallLeak(text: string): boolean {
   if (typeof text !== 'string' || text.trim().length === 0) return false;
   return JSON_ARGS_RE.test(text) || TOOL_ANNOUNCEMENT_RE.test(text);
+}
+
+/**
+ * Whether an answer that PRESENTS itself as JSON is actually parseable.
+ *
+ * QA finding (2026-08): a JSON-extraction turn shipped `[{…"stunden": ,{…` —
+ * visibly broken, and worthless for the copy-paste use the user asked for.
+ * Checked are only the shapes that unambiguously claim to be JSON: fenced
+ * ```json blocks (an unterminated fence counts — that IS the truncation case),
+ * unlabelled fences whose body starts with `{`/`[`, and an answer whose whole
+ * trimmed text starts with `{`/`[`. Prose that merely contains JSON-ish
+ * fragments is out of scope on purpose — no reliable delimiter, and a false
+ * positive here costs a needless model call.
+ */
+export function containsBrokenJsonPayload(text: string): boolean {
+  const t = (text ?? '').trim();
+  if (t.length === 0) return false;
+  const candidates: string[] = [];
+  const fenceRe = /```(\w*)[ \t]*\r?\n?([\s\S]*?)(?:```|$)/g;
+  let sawFence = false;
+  for (let m = fenceRe.exec(t); m != null; m = fenceRe.exec(t)) {
+    sawFence = true;
+    const lang = (m[1] ?? '').toLowerCase();
+    const body = (m[2] ?? '').trim();
+    if (lang === 'json' || (lang === '' && /^[[{]/.test(body))) candidates.push(body);
+    if (fenceRe.lastIndex === t.length) break;
+  }
+  if (!sawFence && /^[[{]/.test(t)) candidates.push(t);
+  return candidates.some((c) => {
+    if (c.length === 0) return true;
+    try {
+      JSON.parse(c);
+      return false;
+    } catch {
+      return true;
+    }
+  });
 }

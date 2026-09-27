@@ -12,7 +12,6 @@ import { measureTextWidthWithFont } from '../../utils/textUtils';
 const AT_IDS = [
   'zitat-at',
   'zitat-pure-at',
-  'dreizeilen-at',
   'dreizeilen-overlay-at',
   'info-at',
   'freeform-at',
@@ -139,10 +138,7 @@ describe('Österreich (de-AT) canvas configs', () => {
     expect(breite).toBeLessThanOrEqual(INFO_AT_CONFIG.maxWidth);
   });
 
-  it('Fläche traegt kein Logo — die CI setzt sie als reine Typografie', async () => {
-    const flaeche = await loadCanvasConfig('dreizeilen-at');
-    expect(flaeche.elements.find((e) => e.id === 'logo')).toBeUndefined();
-    // Die Overlay-Variante dagegen schon, mittig in der Farbflaeche.
+  it('Dreizeilen-Overlay traegt ein Logo mittig in der Farbflaeche', async () => {
     const overlay = await loadCanvasConfig('dreizeilen-overlay-at');
     expect(overlay.elements.find((e) => e.id === 'logo')).toBeDefined();
     expect(overlay.elements.find((e) => e.id === 'overlay-box')?.type).toBe('rect');
@@ -165,11 +161,16 @@ describe('Österreich (de-AT) canvas configs', () => {
       expect((zitat.elements.find((e) => e.id === id) as { align?: string }).align).toBe('center');
     }
 
-    // Ueber dem Foto liegt nichts — die AT-CI kennt keinen Verlauf, schon gar
-    // keinen gruenen. Das deutsche Zitat setzt dagegen weiterhin einen.
-    expect(zitat.elements.find((e) => e.id === 'gradient-overlay')).toBeUndefined();
+    // Nur ein leichter grauer Schleier — die AT-CI kennt keinen gruenen oder
+    // schwarzen Verlauf. Das deutsche Zitat setzt einen schwarzen Verlauf.
+    const gradient = zitat.elements.find((e) => e.id === 'gradient-overlay') as
+      { fill?: string } | undefined;
+    expect(gradient).toBeDefined();
+    expect(gradient?.fill).toContain('229, 231, 233');
     const de = await loadCanvasConfig('zitat');
-    expect(de.elements.find((e) => e.id === 'gradient-overlay')).toBeDefined();
+    const deGradient = de.elements.find((e) => e.id === 'gradient-overlay') as
+      { fill?: string } | undefined;
+    expect(deGradient?.fill).toContain('0, 0, 0');
   });
 
   it('zentriert den Zitatblock als Gruppe statt ihn am Blattboden zu verankern', () => {
@@ -249,12 +250,6 @@ describe('Österreich (de-AT) canvas configs', () => {
       ?.describeForAi(overlay.createInitialState({}))
       .textFields.map((f) => f.field);
     expect(fields).toEqual(['line1', 'accent', 'line3', 'subline']);
-
-    const flaeche = await loadCanvasConfig('dreizeilen-at');
-    const flaecheFields = flaeche.ai
-      ?.describeForAi(flaeche.createInitialState({}))
-      .textFields.map((f) => f.field);
-    expect(flaecheFields).toEqual(['line1', 'accent', 'line3']);
   });
 
   it('schrumpft das Overlay, bis jede Headline-Zeile auf eine Zeile passt', () => {

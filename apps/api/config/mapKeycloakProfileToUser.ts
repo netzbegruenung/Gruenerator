@@ -25,12 +25,13 @@ const log = createLogger('BetterAuth');
  *
  * See packages/contracts/src/schemas/userProfile.ts:57-65 for the matching
  * Zod relaxation that unblocked the prod login loop (commit 7f955e55).
+ *
+ * Das Land steht bewusst NICHT in dieser Abbildung: es wird an genau einer
+ * Stelle geschrieben (`config/localeSync.ts`, aus dem `account`-Hook), und nur
+ * dann, wenn der IdP eines nennt. Hier ein `locale` zu setzen hieße, für jeden
+ * länderneutralen IdP eine Vermutung zu persistieren.
  */
-export function mapKeycloakProfileToUser(
-  profile: Record<string, unknown>,
-  idpHint: string,
-  locale: 'de-DE' | 'de-AT'
-) {
+export function mapKeycloakProfileToUser(profile: Record<string, unknown>, idpHint: string) {
   const rawEmail = profile.email;
   const email = typeof rawEmail === 'string' && rawEmail.length > 0 ? rawEmail : null;
 
@@ -50,8 +51,14 @@ export function mapKeycloakProfileToUser(
     // When Keycloak sends no email, the key is absent and Better Auth stores NULL.
     ...(email !== null && { email }),
     emailVerified: (profile.email_verified as boolean) ?? false,
-    image: (profile.picture as string) || null,
-    locale,
+    // Gleiche Bedingung wie bei `email`: better-auth 1.7 typisiert
+    // `OAuthMappedUser.image` als `string`, und unter
+    // `exactOptionalPropertyTypes` ist `null` dort keine Belegung. Der Schlüssel
+    // entfällt, wenn Keycloak kein Bild schickt — was am Anlegepunkt dasselbe
+    // Ergebnis hat (Spalte bleibt NULL), und `mapProfileToUser` läuft nur dort.
+    ...(typeof profile.picture === 'string' && profile.picture.length > 0
+      ? { image: profile.picture }
+      : {}),
     authSource: `${idpHint}-login`,
   };
 }

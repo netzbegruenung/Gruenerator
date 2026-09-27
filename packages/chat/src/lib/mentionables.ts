@@ -1,5 +1,13 @@
-import { isAdminVisibleSkill } from '@gruenerator/shared/agents';
-import { allIntentMentions, forcedToolFor } from '@gruenerator/shared/chat-intents';
+import {
+  isAdminVisibleSkill,
+  isLvItemVisibleForRoles,
+  isSkillOfferedIn,
+} from '@gruenerator/shared/agents';
+import {
+  allIntentMentions,
+  ARTIFACT_CREATE_TOKENS,
+  forcedToolFor,
+} from '@gruenerator/shared/chat-intents';
 import {
   PiFlask,
   PiMagnifyingGlass,
@@ -15,7 +23,7 @@ import {
   PiFileText,
   PiSparkle,
   PiCloud,
-  PiGlobe,
+  PiLink,
   PiNotePencil,
   PiPlugsConnected,
   PiChartBar,
@@ -24,11 +32,10 @@ import {
   PiNewspaper,
   PiClockCounterClockwise,
   PiCloudSun,
-  PiShareNetwork,
   PiChartLine,
   PiCalculator,
+  PiRepeat,
 } from '@gruenerator/shared/icons';
-import { DEFAULT_INSTANCE_ID, type InstanceId } from '@gruenerator/shared/instances';
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import {
   NOTEBOOK_REGISTRY,
@@ -39,9 +46,11 @@ import {
 import { mcpBrandColor, slugifyName } from '@gruenerator/shared/utils';
 
 import { agentsList, type AgentListItem, type SkillCategory } from './agents';
+import { getMentionInstance } from './instanceState';
 
 export type MentionableType =
   | 'agent'
+  | 'useragent'
   | 'textform'
   | 'notebook'
   | 'tool'
@@ -76,11 +85,26 @@ export interface Mentionable {
   /** Locale visibility (skills/agents): de-DE / de-AT / all. Undefined ≈ all. */
   audience?: 'de-DE' | 'de-AT' | 'all';
   /**
+   * Instances offering this recipe. Undefined ≈ all of them — evaluated by
+   * `isSkillOfferedIn`, see `shared/src/agents/skillInstances.ts`.
+   */
+  instances?: readonly string[];
+  /**
    * Name of the group a recipe was shared from. Set only on recipes that
    * reached the user through a group share — the UI lists those separately so
    * shared and own recipes never blur into each other.
    */
   sharedFromGroup?: string;
+  /**
+   * Set on a recipe the user saved from someone else's public prompt: the
+   * owner's display name, or `null` when the profile join found none. The KEY's
+   * presence is the marker, not its value — `undefined` means "the user's own".
+   *
+   * A second origin beside `sharedFromGroup` rather than a reuse of it: a saved
+   * prompt comes from a person, not from a group, and claiming a group would be
+   * as wrong as the "eigene" it used to claim (#2876).
+   */
+  savedFromOwner?: string | null;
   /**
    * Extra mention strings that resolve to this same mentionable but are NOT
    * shown as separate picker entries. Used for back-compat after merging tools
@@ -88,13 +112,36 @@ export interface Mentionable {
    * @websearch mentions in existing threads still work).
    */
   aliases?: string[];
+  /**
+   * The originating intent's registry category (`'generation'`, `'retrieval'`,
+   * …), carried over on `type: 'tool'` entries only.
+   *
+   * Exists so the plus menu can ask the registry which entries are "make me
+   * something" rather than keeping a second hand-written slug list beside
+   * `TOOL_MENTION_ORDER` — two lists that would drift the first time an intent
+   * is added. Not a display field; `MentionableCategory` above is the unrelated
+   * skill/function split and keeps its name.
+   */
+  intentCategory?: string;
 }
 
+/**
+ * A user-authored or saved custom prompt. No `sharedFromGroup`: `custom_prompts`
+ * / `saved_prompts` know a public directory and a bookmark, not group shares —
+ * the wire (`customPromptSchema`) carries no group name at all. Group shares for
+ * agents live in the separate `user_agents` table and arrive through
+ * `UserAgentMentionable` below, which is where that origin comes from (#2909).
+ *
+ * What the wire DOES carry is the owner of a saved prompt, so `savedFromOwner`
+ * marks the ones that are not the user's own. Set by `syncCustomAgents` from
+ * which endpoint an entry came, `undefined` for the user's own.
+ */
 export interface CustomAgentMentionable {
   id: string;
   name: string;
   slug: string;
   description?: string;
+  savedFromOwner?: string | null;
 }
 
 // Per-LV icon overrides for the Öffentlichkeitsarbeit-<lv> agents and their
@@ -137,21 +184,29 @@ export function agentToMentionable(agent: AgentListItem): Mentionable {
     isSystemDefault: agent.isSystemDefault,
     ...(agent.iconKey ? { iconKey: agent.iconKey } : {}),
     ...(agent.audience ? { audience: agent.audience } : {}),
+    ...(agent.instances ? { instances: agent.instances } : {}),
     ...(icon ? { icon } : {}),
   };
 }
 
 export function customAgentToMentionable(agent: CustomAgentMentionable): Mentionable {
+  const saved = agent.savedFromOwner !== undefined;
+  const fallbackDescription = saved
+    ? agent.savedFromOwner
+      ? `Rezept von ${agent.savedFromOwner}`
+      : 'Gespeichertes Rezept'
+    : '';
   return {
     type: 'agent',
     category: 'skill',
     trigger: '@',
     identifier: agent.id,
     title: agent.name,
-    description: agent.description || '',
+    description: agent.description || fallbackDescription,
     avatar: '🤖',
     backgroundColor: '#316049',
     mention: agent.slug,
+    ...(saved ? { savedFromOwner: agent.savedFromOwner ?? null } : {}),
   };
 }
 
@@ -182,16 +237,11 @@ export function getMentionLocale(): string {
   return mentionLocale;
 }
 
-// Which instance the host app runs as — decides which notebooks the picker
-// offers. Injected exactly like the locale above, because this package is built
-// into the web bundle and the React Native binary alike and neither shares a way
-// to read it. Defaults to the conservative production selection, so a host that
-// never calls the setter behaves as it did before instances existed.
-let mentionInstance: InstanceId = DEFAULT_INSTANCE_ID;
-
-export function setMentionInstance(instanceId: InstanceId): void {
-  mentionInstance = instanceId;
-}
+// Which instance the host app runs as — decides which notebooks and recipes the
+// picker offers. Lives in `instanceState.ts` (see the note there on why it is
+// not in this file) and is re-exported here, where every caller already looks
+// for it.
+export { getMentionInstance, setMentionInstance } from './instanceState';
 
 // Rezept `mention`s an admin hid from discovery on this deployment
 // (admin_hidden_skills). Set by `useHiddenSkillMentions` — same pattern as
@@ -203,12 +253,37 @@ export function setHiddenSkillMentions(mentions: readonly string[]): void {
   hiddenSkillMentions = mentions;
 }
 
-/** Agent/skill mentionables visible for the current locale, minus admin-hidden Rezepte. */
+// Die Landesverbände der angemeldeten Person, abgeleitet aus ihren Profilrollen
+// (`useUserLandesverbaende`). Gesetzt vom Host wie `mentionLocale` darüber, weil
+// dieses Paket sowohl im Web-Bundle als auch in der Mobile-Binary steckt und
+// keins von beiden einen gemeinsamen Weg zum Profil hat.
+//
+// `null` heißt „noch nicht bekannt" und damit: nicht filtern. `[]` heißt
+// „geprüft, keine Landesgeschäftsstellen-Rolle" und blendet die LV-Rezepte aus.
+// Deshalb ist der Vorgabewert `null` und nicht `[]` — ein Host, der den Setter
+// nie ruft (Mobile), verhält sich wie bisher, statt allen alles wegzunehmen.
+let mentionLandesverbaende: readonly string[] | null = null;
+
+export function setMentionLandesverbaende(lvIds: readonly string[] | null): void {
+  mentionLandesverbaende = lvIds;
+}
+
+/**
+ * Agent/skill mentionables visible for the current locale, minus admin-hidden
+ * Rezepte and minus what this instance does not offer.
+ *
+ * Two different questions, both answered here: `isAdminVisibleSkill` is the
+ * per-deployment override an admin toggles at runtime, `isSkillOfferedIn` is
+ * what the instance carries by construction. Discovery only — `resolveMentionable`
+ * stays unfiltered so an existing @mention keeps resolving.
+ */
 export function getAgentMentionables(): Mentionable[] {
   return agentMentionables.filter(
     (m) =>
       (m.audience === undefined || m.audience === 'all' || m.audience === mentionLocale) &&
-      isAdminVisibleSkill(m.mention, hiddenSkillMentions)
+      isAdminVisibleSkill(m.mention, hiddenSkillMentions) &&
+      isSkillOfferedIn(m, getMentionInstance()) &&
+      isLvItemVisibleForRoles(m.identifier, mentionLandesverbaende)
   );
 }
 
@@ -246,12 +321,20 @@ export function visibleToolMentionables(): Mentionable[] {
  * a notebook this instance does not offer must not be listed — while a token for
  * it in an existing thread keeps resolving, which is what makes `hidden`
  * different from `blocked`.
+ *
+ * The „Mitarbeiter*in Landesgeschäftsstelle" role deliberately does NOT filter
+ * here. It decides who writes in the name of a Landesverband — agents and
+ * recipes, i.e. `isLvItemVisibleForRoles` above. A notebook is reading material:
+ * both galleries (`NotebooksIndexPage`, mobile `(recherche)/index.tsx`) list all
+ * eleven Landesverbände and check only `audience` and `enabled`. While the
+ * picker filtered by role on top of that, the same person could open Bayern and
+ * chat in it, but typing `@bayern` offered nothing.
  */
 export function visibleNotebookMentionables(): Mentionable[] {
   const locale = mentionLocale === 'de-AT' ? 'de-AT' : 'de-DE';
   const allowed = new Set<string>(getNotebooksForAudience(locale).map((n) => n.id));
   return notebookMentionables.filter(
-    (m) => allowed.has(m.identifier) && isNotebookOfferedIn(m.identifier, mentionInstance)
+    (m) => allowed.has(m.identifier) && isNotebookOfferedIn(m.identifier, getMentionInstance())
   );
 }
 
@@ -271,21 +354,48 @@ export function getCustomAgentMentionables(): Mentionable[] {
 // `/`-submit parser doesn't swap the agent — the style rides `activeSkillMention`
 // (set by the composer on select) exactly like a system skill.
 export interface TextformMentionable {
+  /** Row id — the request body's `activeRecipeId` carrier once this recipe
+   *  becomes the active skill mention (a user recipe, unlike a system skill). */
+  id: string;
   mention: string;
   title: string;
+  description: string | null;
+  iconKey: string | null;
+  /**
+   * Name of the group this recipe was shared from, `null` for the user's own.
+   * The picker splits the recipe section on it, so dropping it here makes a
+   * colleague's recipe look like one of your own (#2876).
+   */
+  sharedFromGroup: string | null;
+  /**
+   * Display name of the recipe's owner. The server sets this only for a
+   * foreign recipe (group share or public directory pick) — always `null` for
+   * the user's own, `isPublic` or not.
+   */
+  ownerName: string | null;
+  /** Listed in the public Agentura directory. */
+  isPublic: boolean;
 }
 
 export function textformToMentionable(t: TextformMentionable): Mentionable {
+  const description = t.sharedFromGroup
+    ? `Rezept aus ${t.sharedFromGroup}`
+    : t.isPublic && t.ownerName
+      ? `Rezept von ${t.ownerName}`
+      : (t.description ?? 'Eigene Textform');
   return {
     type: 'textform',
     category: 'skill',
     trigger: '@',
-    identifier: t.mention,
+    identifier: t.id,
     title: t.title,
-    description: 'Eigene Textform',
+    description,
     avatar: '✍️',
     backgroundColor: '#316049',
     mention: t.mention,
+    ...(t.iconKey ? { iconKey: t.iconKey } : {}),
+    ...(t.sharedFromGroup ? { sharedFromGroup: t.sharedFromGroup } : {}),
+    ...(t.isPublic && t.ownerName ? { savedFromOwner: t.ownerName } : {}),
   };
 }
 
@@ -298,6 +408,69 @@ export function setTextforms(forms: TextformMentionable[]): void {
 
 export function getTextformMentionables(): Mentionable[] {
   return textformMentionables;
+}
+
+/**
+ * A Grünerator-Agent from the `user_agents` table — the caller's own, or one
+ * shared into a group they belong to.
+ *
+ * Its own type rather than a reuse of `CustomAgentMentionable`, because the two
+ * route differently: a custom prompt is a RECIPE (it rides `activeSkillMention`
+ * as a per-turn prompt fragment), while a Grünerator REPLACES the acting agent.
+ * Writing its identifier into `activeSkillMention` would make the backend look
+ * up a recipe by that name and announce a text form nobody chose.
+ *
+ * `mention` IS the identifier: `user_agents.identifier` is already a slug and
+ * is the key `getAgentForUser` resolves against, so deriving a second string
+ * here would just be a second spelling that can drift.
+ */
+export interface UserAgentMentionable {
+  identifier: string;
+  title: string;
+  description: string;
+  avatar: string;
+  iconKey?: string;
+  backgroundColor: string;
+  /**
+   * Name of the group this agent was shared from, `null` for the user's own.
+   * The picker splits the recipe section on it — a teammate's Grünerator listed
+   * as one of your own is what #2876/#2909 were about.
+   */
+  sharedFromGroup?: string | null;
+}
+
+export function userAgentToMentionable(a: UserAgentMentionable): Mentionable {
+  return {
+    type: 'useragent',
+    // 'function', not 'skill': the composer activates a per-turn recipe for
+    // every 'skill' it inserts, and a Grünerator is not one (see above). The
+    // empty promptTemplate keeps the insertion identical to a skill's.
+    category: 'function',
+    trigger: '@',
+    identifier: a.identifier,
+    title: a.title,
+    description: a.sharedFromGroup ? `Grünerator aus ${a.sharedFromGroup}` : a.description,
+    avatar: a.avatar,
+    backgroundColor: a.backgroundColor,
+    mention: a.identifier,
+    promptTemplate: '',
+    // `iconKey` only, no resolved component: this module is shared with the
+    // mobile bundle, and the Phosphor resolver pulls a web-only icon pack into
+    // its graph. The web popover resolves the key where it renders.
+    ...(a.iconKey ? { iconKey: a.iconKey } : {}),
+    ...(a.sharedFromGroup ? { sharedFromGroup: a.sharedFromGroup } : {}),
+  };
+}
+
+let userAgentMentionables: Mentionable[] = [];
+
+export function setUserAgentMentionables(agents: UserAgentMentionable[]): void {
+  userAgentMentionables = agents.map(userAgentToMentionable);
+  rebuildMentionableMap();
+}
+
+export function getUserAgentMentionables(): Mentionable[] {
+  return userAgentMentionables;
 }
 
 // Derived from the shared notebook registry so the @-mention picker always matches the
@@ -350,9 +523,9 @@ const TOOL_MENTION_ICONS: Record<string, React.ComponentType<{ className?: strin
   pressemitteilungen: PiNewspaper,
   verlauf: PiClockCounterClockwise,
   wetter: PiCloudSun,
-  social: PiShareNetwork,
   diagramm: PiChartLine,
   rechnen: PiCalculator,
+  wiederkehrend: PiRepeat,
 };
 
 /**
@@ -376,12 +549,12 @@ const TOOL_MENTION_ORDER: readonly string[] = [
   'stadtbegruenen',
   'bildbearbeiten',
   'sharepic',
-  'social',
   'diagramm',
   'rechnen',
   'beispiele',
   'pressemitteilungen',
   'verlauf',
+  'wiederkehrend',
 ];
 
 /**
@@ -404,10 +577,19 @@ function buildToolMentionables(): Mentionable[] {
   };
   return (
     allIntentMentions()
-      // A retired intent has no route left — offering it would put a token on the
-      // wire the router no longer resolves. Belt and braces: retired entries drop
-      // their `mention` too, so `allIntentMentions()` already skips them.
-      .filter(({ intent }) => intent.availability !== 'retired')
+      // A retired intent has no route left — offering it would put a token on
+      // the wire the router no longer resolves. Unless the mention pins
+      // something ELSE than the verdict: a loop tool (`pinsTool`) or a recipe
+      // (`activatesSkill`). Dann löst der Token weiterhin auf, er erreicht nur
+      // kein Verdikt mehr. `@umfragen` ist der eine Fall,
+      // `@pressemitteilungen` der andere — beide Male starb der Intent, nicht
+      // die Fähigkeit.
+      .filter(
+        ({ intent, mention }) =>
+          intent.availability !== 'retired' ||
+          mention.pinsTool != null ||
+          mention.activatesSkill != null
+      )
       .filter(({ intent }) => intent.availability !== 'web-only' || typeof document !== 'undefined')
       .map(({ intent, mention }) => {
         const icon = TOOL_MENTION_ICONS[mention.slug];
@@ -422,6 +604,7 @@ function buildToolMentionables(): Mentionable[] {
           backgroundColor: mention.backgroundColor,
           mention: mention.slug,
           audience: intent.audience,
+          intentCategory: intent.category,
           ...(mention.aliases ? { aliases: [...mention.aliases] } : {}),
           ...(mention.promptTemplate ? { promptTemplate: mention.promptTemplate } : {}),
           ...(icon ? { icon } : {}),
@@ -439,12 +622,20 @@ export interface BoardMentionable {
   slug: string;
 }
 
+/**
+ * Die vier `@…-erstellen`-Einträge sind statisch (sie kommen NICHT über
+ * `allIntentMentions()`), tragen aber F0-Token: der `identifier` ist der String,
+ * den der Parser in `forcedTools` legt und die Erstell-Route auflöst. Er kommt
+ * deshalb aus `ARTIFACT_CREATE_TOKENS` — siehe dort, warum die Menge nur einen
+ * Schreiber haben darf. `mention` (der getippte Slug) ist davon unabhängig und
+ * darf abweichen: `@tabelle-erstellen` löst `sheet-erstellen` aus.
+ */
 export const boardToolMentionables: Mentionable[] = [
   {
     type: 'board',
     category: 'function',
     trigger: '@',
-    identifier: 'board-erstellen',
+    identifier: ARTIFACT_CREATE_TOKENS.board,
     title: 'Board erstellen',
     description: 'Erstellt ein Board aus dem Chatverlauf',
     avatar: '✨',
@@ -487,7 +678,7 @@ export const sheetToolMentionables: Mentionable[] = [
     type: 'sheet',
     category: 'function',
     trigger: '@',
-    identifier: 'sheet-erstellen',
+    identifier: ARTIFACT_CREATE_TOKENS.sheet,
     title: 'Tabelle erstellen',
     description: 'Erstellt eine Tabelle (Spreadsheet) aus dem Chatverlauf',
     avatar: '✨',
@@ -520,7 +711,7 @@ export const presentationToolMentionables: Mentionable[] = [
     type: 'presentation',
     category: 'function',
     trigger: '@',
-    identifier: 'praesentation-erstellen',
+    identifier: ARTIFACT_CREATE_TOKENS.presentation,
     title: 'Präsentation erstellen',
     description: 'Erstellt eine Präsentation (Foliensatz) aus dem Chatverlauf',
     avatar: '🎬',
@@ -535,7 +726,7 @@ export const docToolMentionables: Mentionable[] = [
     type: 'doc',
     category: 'function',
     trigger: '@',
-    identifier: 'dokument-erstellen',
+    identifier: ARTIFACT_CREATE_TOKENS.document,
     title: 'Dokument erstellen',
     description: 'Erstellt ein Dokument aus dem Chatverlauf',
     avatar: '📝',
@@ -554,7 +745,7 @@ export const docToolMentionables: Mentionable[] = [
     trigger: '@',
     identifier: 'docs-picker-trigger',
     title: 'Dokument einfügen',
-    description: 'Dokumente, Dateien & Notizbuch-Inhalte als Kontext hinzufügen',
+    description: 'Dokumente, Dateien & Notebook-Inhalte als Kontext hinzufügen',
     avatar: '📄',
     icon: PiFileText,
     backgroundColor: '#0891B2',
@@ -606,7 +797,7 @@ export function setUserNotebookMentionables(notebooks: UserNotebookMentionable[]
     trigger: '@' as const,
     identifier: n.id,
     title: n.title,
-    description: `Mein Notizbuch: ${n.title}`,
+    description: `Mein Notebook: ${n.title}`,
     avatar: '📓',
     icon: PiNotePencil,
     backgroundColor: '#316049',
@@ -700,21 +891,34 @@ export const wolkeMentionables: Mentionable[] = [
   },
 ];
 
-// @web opens a sub-popover for pasting a URL. The page is attached as a chip
+// @link opens a sub-popover for pasting a URL. The page is attached as a chip
 // (contentType application/x-gruenerator-webpage) whose data carries the URL;
 // the backend crawls it through the existing scrape_url pipeline.
+//
+// Attaching is the EXPLICIT path; it is not the only one. A URL typed straight
+// into the message is auto-detected by the classifier (`extractUrls`) and lands
+// on the same scrape_url pipeline, so @link is a convenience, never a
+// precondition. The trigger reads `link` rather than `web` because `@web` was
+// read as "search the web" — the one thing this attachment does not do.
+// `type`/`identifier` stay `webpage*`: they key the attachment contentType and
+// the popover branch, and are not user-facing.
 export const webpageMentionables: Mentionable[] = [
   {
     type: 'webpage',
     category: 'function',
     trigger: '@',
     identifier: 'webpage-trigger',
-    title: 'Webseite',
+    title: 'Link',
     description: 'Inhalt einer Webseite per URL anhängen',
-    avatar: '🌐',
-    icon: PiGlobe,
+    avatar: '🔗',
+    icon: PiLink,
     backgroundColor: '#0EA5E9',
-    mention: 'web',
+    mention: 'link',
+    // `@web` keeps working — muscle memory, and the old name shipped. Declared
+    // rather than left to chance: `matchFn` also searches `identifier`, so
+    // "web" matched via `webpage-trigger` by accident, and the day that
+    // identifier is renamed the alias would vanish without a test noticing.
+    aliases: ['web', 'webseite', 'url'],
   },
 ];
 
@@ -896,6 +1100,7 @@ export interface VorlageToken {
 export function getAllMentionables(): Mentionable[] {
   return [
     ...getAgentMentionables(),
+    ...userAgentMentionables,
     ...customAgentMentionables,
     ...textformMentionables,
     ...dynamicUserNotebookMentionables,
@@ -924,6 +1129,7 @@ function rebuildMentionableMap(): void {
   mentionableMap.clear();
   const orderedSources = [
     agentMentionables,
+    userAgentMentionables,
     customAgentMentionables,
     textformMentionables,
     dynamicUserNotebookMentionables,
@@ -995,7 +1201,7 @@ export function filterMentionables(query: string): {
   if (!query) {
     return {
       agents: getAgentMentionables(),
-      customAgents: [...customAgentMentionables, ...textformMentionables],
+      customAgents: [...userAgentMentionables, ...customAgentMentionables, ...textformMentionables],
       notebooks: visibleNotebookMentionables(),
       userNotebooks: dynamicUserNotebookMentionables,
       tools: [
@@ -1023,14 +1229,18 @@ export function filterMentionables(query: string): {
   const isNotebookCategoryQuery =
     'notebook'.startsWith(q) ||
     q.startsWith('notebook') ||
-    'notizbuch'.startsWith(q) ||
-    q.startsWith('notizbuch') ||
+    // `notiz` keeps the pre-27.08.2026 German word reachable: typing
+    // @notizbuch still opens the notebook category.
     'notiz'.startsWith(q) ||
     q.startsWith('notiz');
 
   return {
     agents: getAgentMentionables().filter(matchFn),
-    customAgents: [...customAgentMentionables, ...textformMentionables].filter(matchFn),
+    customAgents: [
+      ...userAgentMentionables,
+      ...customAgentMentionables,
+      ...textformMentionables,
+    ].filter(matchFn),
     notebooks: isNotebookCategoryQuery
       ? visibleNotebookMentionables()
       : visibleNotebookMentionables().filter(matchFn),

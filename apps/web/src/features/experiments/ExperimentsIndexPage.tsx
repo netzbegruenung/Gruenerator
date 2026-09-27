@@ -20,21 +20,14 @@ interface Experiment {
 
 // Experimental features, surfaced under /experiments so the URL itself signals
 // their status. Add new experiments to this list — the gallery renders them in
-// order. Monitor is the first (formerly the dev-only /monitor*).
+// order.
 const EXPERIMENTS: Experiment[] = [
-  {
-    id: 'monitor',
-    title: 'Monitor',
-    meta: 'Meistdiskutierte Themen, Umfragen & Berichterstattung',
-    // Registry icons are react-icons components at runtime; the registry's
-    // IconType is the wider ComponentType, so cast to the card's react-icons type.
-    icon: getIcon('navigation', 'monitor') as IconType,
-    path: '/experiments/monitor/themen',
-  },
   {
     id: 'reisekosten',
     title: 'Fahrtkosten-Grünerator',
     meta: 'Reisekostenformular mit KI-Belegprüfung',
+    // Registry icons are react-icons components at runtime; the registry's
+    // IconType is the wider ComponentType, so cast to the card's react-icons type.
     icon: getIcon('navigation', 'reisekosten') as IconType,
     path: '/experiments/reisekosten',
   },

@@ -1,3 +1,5 @@
+import { GROUPS_QUERY_KEY } from '@gruenerator/shared/groups';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   FileText,
   Pencil,
@@ -5,6 +7,11 @@ import {
   Share2,
   Users,
   UserPlus,
+  Cloud,
+  FolderInput,
+  Eye,
+  Repeat,
+  Bot,
   Check,
   X,
   ArrowRight,
@@ -25,9 +32,42 @@ const ICON_MAP: Record<ConfirmActionType, typeof FileText> = {
   share_doc: Share2,
   create_group: Users,
   join_group: UserPlus,
+  add_cloud_connection: Cloud,
+  attach_wolke_folder: FolderInput,
+  set_notebook_visibility: Eye,
+  share_notebook: Share2,
+  set_group_visibility: Eye,
+  create_recurring_task: Repeat,
+  create_user_agent: Bot,
+  share_user_agent: Share2,
+  share_text_form: Share2,
 };
 
-const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set(['create_group', 'join_group']);
+const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
+  'create_group',
+  'join_group',
+  // Die Karte verlinkt danach das Projekt, nicht das Notebook.
+  'share_notebook',
+  'set_group_visibility',
+  'share_user_agent',
+  'share_text_form',
+]);
+const NOTEBOOK_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
+  'attach_wolke_folder',
+  'set_notebook_visibility',
+]);
+
+/**
+ * Aktionen, die die eigene Mitgliedschaftsliste ändern — nur sie machen die
+ * zwischengespeicherte Projektliste falsch. Etwas IN eine Gruppe zu teilen
+ * (`share_notebook`, `share_user_agent`, …) ändert sie nicht, darum ist das
+ * hier eine andere Menge als `GROUP_ACTION_TYPES` oben, das die Beschriftung
+ * des Links steuert.
+ */
+const GROUP_LIST_CHANGING_TYPES: ReadonlySet<ConfirmActionType> = new Set([
+  'create_group',
+  'join_group',
+]);
 
 export const ConfirmActionCard = memo(function ConfirmActionCard({
   action,
@@ -37,6 +77,7 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
   const [status, setStatus] = useState<CardStatus>('idle');
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const Icon = ICON_MAP[action.type] || FileText;
 
@@ -47,6 +88,12 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
       setErrorMessage(outcome.message);
       setStatus('error');
       return;
+    }
+    // `confirmChatAction` POSTet an React Query vorbei, und `useUserGroups`
+    // hält seine Antwort zwei Minuten für frisch. Ohne das hier zeigten
+    // /projekte und die Sidebar das eben angelegte Projekt so lange nicht.
+    if (outcome.status === 'confirmed' && GROUP_LIST_CHANGING_TYPES.has(action.type)) {
+      void queryClient.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
     }
     if (outcome.status === 'confirmed' && outcome.url) {
       // /document/<id> is the API's canonical path; the web office route is /office/<id>.
@@ -74,9 +121,15 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
               >
                 {action.type === 'modify_board'
                   ? 'Board öffnen'
-                  : GROUP_ACTION_TYPES.has(action.type)
-                    ? 'Gruppe öffnen'
-                    : 'Dokument öffnen'}
+                  : action.type === 'create_recurring_task'
+                    ? 'Aufgaben öffnen'
+                    : action.type === 'create_user_agent'
+                      ? 'Grünerator-Agent öffnen'
+                      : GROUP_ACTION_TYPES.has(action.type)
+                        ? 'Gruppe öffnen'
+                        : NOTEBOOK_ACTION_TYPES.has(action.type)
+                          ? 'Notebook öffnen'
+                          : 'Dokument öffnen'}
                 <ArrowRight className="h-3 w-3" />
               </a>
             </>

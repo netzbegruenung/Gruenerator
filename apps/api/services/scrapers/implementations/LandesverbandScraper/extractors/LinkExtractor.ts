@@ -16,6 +16,36 @@ import type { PdfLink } from '../types.js';
 import type { CheerioAPI } from 'cheerio';
 import type { AnyNode } from 'domhandler';
 
+const FALLBACK_TITLE = 'Dokument';
+
+const DATED_HEADING =
+  /\d{1,2}\.\s*(?:\d{1,2}\.\s*\d{2,4}|(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4})/i;
+
+const GENERIC_LINK_TEXT = /^(dokument|herunterladen|download|pdf|hier)?[.:!…]*$/i;
+
+/** Linktexte, die nichts über das Dokument sagen, zählen als leer (#3577). */
+export function isGenericLinkText(text: string): boolean {
+  return GENERIC_LINK_TEXT.test(text.trim());
+}
+
+/**
+ * Derives a title from a PDF URL's filename. staticUrls skips the listing
+ * page entirely, so there's no `<a>` text to read a title from (#3579).
+ */
+export function titleFromPdfUrl(url: string): string {
+  const filename = url.split('/').pop() ?? '';
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(filename);
+  } catch {
+    decoded = filename;
+  }
+  return decoded
+    .replace(/\.[^./]+$/, '')
+    .replace(/[-_]+/g, ' ')
+    .trim();
+}
+
 /**
  * Link extraction with pagination support
  * Dependencies injected via constructor for easy testing
@@ -250,27 +280,62 @@ export class LinkExtractor {
    * Deduplicates by URL (pages may list the same PDF in multiple sections)
    */
   async extractPdfLinks(source: LandesverbandSource, contentPath: ContentPath): Promise<PdfLink[]> {
+    if (contentPath.staticUrls?.length) {
+      const seenStaticUrls = new Set<string>();
+      return contentPath.staticUrls
+        .map((entry) => {
+          const rawUrl = typeof entry === 'string' ? entry : entry.url;
+          const normalized = this.normalizeUrl(rawUrl, source.baseUrl);
+          if (!normalized) return null;
+          const title = typeof entry === 'string' ? titleFromPdfUrl(normalized) : entry.title;
+          // The optional `date` (ISO YYYY-MM-DD) rides in as `context`, so DateExtractor's
+          // strong ISO pattern picks it up before ever falling back to the WordPress
+          // upload-year folder in the URL (#3579 fix round 1).
+          const context = typeof entry === 'string' ? '' : (entry.date ?? '');
+          return { url: normalized, title, context };
+        })
+        .filter((link): link is PdfLink => link !== null)
+        .filter((link) => {
+          if (seenStaticUrls.has(link.url)) return false;
+          seenStaticUrls.add(link.url);
+          return true;
+        });
+    }
+
     const pageUrl = source.baseUrl + contentPath.path;
     const response = await this.fetchUrl(pageUrl);
     const html = await response.text();
     const $ = cheerio.load(html);
 
     const pdfLinks: PdfLink[] = [];
-    const seen = new Set<string>();
+    const seen = new Map<string, PdfLink>();
+    const elementorHeadings = $('.elementor-widget').length
+      ? this.#datedHeadingBeforeEachLink($, contentPath.listSelector)
+      : null;
 
     $(contentPath.listSelector).each((_, el) => {
       const href = $(el).attr('href');
       if (href && (href.includes('.pdf') || href.includes('/download/'))) {
         const normalizedUrl = this.normalizeUrl(href, source.baseUrl);
         if (normalizedUrl) {
-          if (seen.has(normalizedUrl)) return;
-          seen.add(normalizedUrl);
+          const title = [$(el).text().trim(), $(el).attr('title')?.trim() ?? ''].find(
+            (candidate) => !isGenericLinkText(candidate)
+          );
 
-          pdfLinks.push({
+          // Oft steht vor dem Titel-Anker ein Icon-Anker auf dieselbe URL.
+          const known = seen.get(normalizedUrl);
+          if (known) {
+            if (title && known.title === FALLBACK_TITLE) known.title = title;
+            return;
+          }
+
+          const link: PdfLink = {
             url: normalizedUrl,
-            title: $(el).text().trim() || $(el).attr('title') || 'Dokument',
-            context: this.extractContextWithHeadings($, el),
-          });
+            title: title ?? FALLBACK_TITLE,
+            context: this.extractContextWithHeadings($, el, elementorHeadings),
+          };
+          seen.set(normalizedUrl, link);
+          pdfLinks.push(link);
         }
       }
     });
@@ -281,30 +346,76 @@ export class LinkExtractor {
   /**
    * Extract context text including nearest preceding heading
    * PDF archive pages often have dates in <h3>/<h4> headings above groups of links.
-   * Walks up to the nearest container, then looks for preceding headings.
+   * Order: a heading sibling of the link's <p>/<li> (BB: h3 + p inside one
+   * div), then headings before the surrounding containers, and on Elementor
+   * pages the heading right before the link in document order, if it is
+   * dated (MV: heading and download list are sibling widgets). A file-name
+   * anchor next to the link
+   * goes first so the length cap never drops it (BE-F dlm-downloads).
    */
-  private extractContextWithHeadings($: CheerioAPI, el: AnyNode): string {
+  private extractContextWithHeadings(
+    $: CheerioAPI,
+    el: AnyNode,
+    elementorHeadings: Map<AnyNode, string> | null
+  ): string {
     const parentText = $(el).parent().text().trim().substring(0, 200);
+    const fileName = this.#fileNameAnchorText($, el);
+    // On Elementor pages an undated heading is a deliberate stop (''), not a miss.
+    const headingText = elementorHeadings
+      ? (elementorHeadings.get(el) ?? '')
+      : this.#nearestHeading($, el);
+
+    const prefix = [fileName, headingText].filter(Boolean).join(' | ');
+    if (!prefix) return parentText;
+    return `${prefix} | ${parentText}`.substring(0, 300);
+  }
+
+  #nearestHeading($: CheerioAPI, el: AnyNode): string {
+    const sibling = $(el).closest('p, li').prevAll('h3, h4, h2').first();
+    if (sibling.length) return sibling.text().trim();
 
     // Walk up to the nearest structural container
     const container = $(el).closest('div, section, article, li');
-    if (!container.length) return parentText;
+    if (!container.length) return '';
 
     // Look for preceding h3/h4 headings (sibling to the container or its ancestors)
-    let headingText = '';
     let current = container;
     for (let depth = 0; depth < 4; depth++) {
       const heading = current.prevAll('h3, h4, h2').first();
-      if (heading.length) {
-        headingText = heading.text().trim();
-        break;
-      }
+      if (heading.length) return heading.text().trim();
       const parent = current.parent();
       if (!parent.length || parent.is('body, html')) break;
       current = parent;
     }
+    return '';
+  }
 
-    if (!headingText) return parentText;
-    return `${headingText} | ${parentText}`.substring(0, 300);
+  /**
+   * One pass in document order: each link gets the heading right before it,
+   * but only if that heading is dated. An undated section heading in between
+   * ends the section, so its links never inherit an older section's date.
+   */
+  #datedHeadingBeforeEachLink($: CheerioAPI, listSelector: string): Map<AnyNode, string> {
+    const byLink = new Map<AnyNode, string>();
+    let current = '';
+    $(`h2, h3, h4, ${listSelector}`).each((_, node) => {
+      if ($(node).is('h2, h3, h4')) {
+        const text = $(node).text().replace(/\s+/g, ' ').trim();
+        current = DATED_HEADING.test(text) ? text : '';
+      } else {
+        byLink.set(node, current);
+      }
+    });
+    return byLink;
+  }
+
+  #fileNameAnchorText($: CheerioAPI, el: AnyNode): string {
+    const href = $(el).attr('href');
+    const fileAnchor = $(el)
+      .closest('li')
+      .find('a')
+      .filter((_, a) => $(a).attr('href') === href && /\.pdf$/i.test($(a).text().trim()))
+      .first();
+    return fileAnchor.text().trim();
   }
 }

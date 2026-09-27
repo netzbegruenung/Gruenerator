@@ -1,6 +1,5 @@
-import { type CanvasListItem } from '@gruenerator/contracts';
+import { type CanvasListItem, type ShareListItem } from '@gruenerator/contracts';
 import { type Project } from '@gruenerator/shared';
-import { type Share } from '@gruenerator/shared/share';
 import { describe, expect, it } from 'vitest';
 
 import { toKiImageItems, toReelItems, toSharepicItems } from './studioMediaMapping';
@@ -13,11 +12,22 @@ import { toKiImageItems, toReelItems, toSharepicItems } from './studioMediaMappi
  * Studio content was made entirely with Vorlagen.
  */
 
-const share = (over: Partial<Share> & Pick<Share, 'shareToken'>): Share => ({
+// Defaults mirror what `/api/share/recent` actually selects — including the
+// columns the old `Share` interface left out (`id`, `thumbnailPath`, `fileSize`).
+const share = (
+  over: Partial<ShareListItem> & Pick<ShareListItem, 'shareToken'>
+): ShareListItem => ({
+  id: `row-${over.shareToken}`,
   mediaType: 'image',
   title: 'Ein Bild',
   status: 'ready',
   createdAt: '2026-07-01T10:00:00.000Z',
+  thumbnailPath: null,
+  fileSize: null,
+  duration: null,
+  imageType: null,
+  imageMetadata: {},
+  downloadCount: 0,
   ...over,
 });
 
@@ -164,20 +174,50 @@ describe('toKiImageItems', () => {
     expect(item?.href).toBe('/share/tok-123');
   });
 
-  it('falls back to the on-demand preview when no thumbnail exists yet', () => {
-    // A share created seconds ago has no thumbnail until the variants pass
-    // finishes; without this the freshest image is the one that renders blank.
+  it('falls back to the on-demand preview when the API mints no tile URL', () => {
+    // Two rows look like this and both must still render: one served by an API
+    // older than `thumbnailUrl`, and one the server declined to mint for (no
+    // signing key). The versioned URL is the fast path, not the only one.
     const [item] = toKiImageItems([share({ shareToken: 'tok', imageType: 'imagine' })]);
 
     expect(item?.thumbnailUrl).toBe('/api/share/tok/preview?w=400&fmt=webp');
   });
 
-  it('prefers the real thumbnail once there is one', () => {
+  // The whole point of the field. `/preview` carries no version segment, so the
+  // route caps it at five minutes of freshness and every cold start refetched
+  // all eighteen tiles; the signed URL changes when the content does and is
+  // served `immutable` for a year. Composing the legacy path when the server
+  // already handed us the good one is the regression this pins.
+  it('prefers the signed tile URL the endpoint mints', () => {
     const [item] = toKiImageItems([
-      share({ shareToken: 'tok', imageType: 'imagine', thumbnailUrl: '/api/share/tok/thumbnail' }),
+      share({
+        shareToken: 'tok',
+        imageType: 'imagine',
+        thumbnailPath: 'uploads/tok.webp',
+        thumbnailUrl: '/api/thumbs/media/tok/abc?sig=s&w=400&fmt=webp',
+      }),
     ]);
 
-    expect(item?.thumbnailUrl).toBe('/api/share/tok/thumbnail');
+    expect(item?.thumbnailUrl).toBe('/api/thumbs/media/tok/abc?sig=s&w=400&fmt=webp');
+  });
+
+  it('carries the blurhash through so a loading tile is not a blank plate', () => {
+    const [item] = toKiImageItems([
+      share({ shareToken: 'tok', imageType: 'imagine', imageMetadata: { blurhash: 'LKO2' } }),
+    ]);
+
+    expect(item?.blurhash).toBe('LKO2');
+  });
+
+  it('omits the blurhash rather than passing a non-string through', () => {
+    // `imageMetadata` is `Record<string, unknown>` — a row written before the
+    // variants pass existed can hold anything here, and expo-image throws on a
+    // malformed placeholder rather than ignoring it.
+    const [item] = toKiImageItems([
+      share({ shareToken: 'tok', imageType: 'imagine', imageMetadata: { blurhash: 42 } }),
+    ]);
+
+    expect(item?.blurhash).toBeUndefined();
   });
 
   it('names an untitled share instead of rendering an empty label', () => {
@@ -211,5 +251,47 @@ describe('toReelItems', () => {
 
     expect(withThumb?.thumbnailUrl).toBe('/api/subtitler/projects/p1/thumbnail');
     expect(without && 'thumbnailUrl' in without).toBe(false);
+  });
+});
+
+/**
+ * The tab went to a red screen for any account holding a row whose timestamp was
+ * not a string: the API's `toCamelCase` rebuilt every `Date` as `{}`, and `{}` has
+ * no `localeCompare`, so `Array.sort` threw "undefined is not a function" out of
+ * the render. The source is fixed in `apps/api/utils/case.ts`; sorting is still
+ * not worth a blank tab, so one unusable date must not cost the other rows.
+ */
+describe('ein unbrauchbarer Zeitstempel kippt die Sortierung nicht', () => {
+  it('haelt einen Share mit Objekt-Datum aus', () => {
+    const shares = [
+      share({ shareToken: 'alt', contentOrigin: 'ki', createdAt: '2026-07-01T10:00:00.000Z' }),
+      share({ shareToken: 'kaputt', contentOrigin: 'ki', createdAt: {} as unknown as string }),
+      share({ shareToken: 'neu', contentOrigin: 'ki', createdAt: '2026-08-01T10:00:00.000Z' }),
+    ];
+
+    const items = toKiImageItems(shares);
+
+    expect(items).toHaveLength(3);
+    expect(items.map((i) => i.id)).toEqual(['neu', 'alt', 'kaputt']);
+  });
+
+  it('haelt einen Canvas mit Objekt-Datum aus', () => {
+    const canvases = [
+      canvas({ id: 'gut', updated_at: '2026-07-02T10:00:00.000Z' }),
+      canvas({ id: 'kaputt', updated_at: {} as unknown as string }),
+    ];
+
+    expect(() => toSharepicItems([], canvases)).not.toThrow();
+    expect(toSharepicItems([], canvases).map((i) => i.id)).toEqual(['gut', 'kaputt']);
+  });
+
+  it('haelt ein Reel ganz ohne Zeitstempel aus', () => {
+    const projects = [
+      project({ id: 'gut', last_edited_at: '2026-07-03T10:00:00.000Z' }),
+      project({ id: 'kaputt', last_edited_at: '', created_at: '' }),
+    ];
+
+    expect(() => toReelItems(projects)).not.toThrow();
+    expect(toReelItems(projects).map((i) => i.id)).toEqual(['gut', 'kaputt']);
   });
 });

@@ -1,13 +1,22 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
+  COMPOSER_BOTTOM_INSET_RAISED,
   CONTENT_MAX_WIDTH,
+  FLOATING_TAB_BAR_HEIGHT,
   GRID_MAX_WIDTH,
   SCREEN_EDGE,
   SCREEN_EDGE_WIDE,
   TABLET_MIN_WIDTH,
+  collapsingSection,
+  dockingSpacer,
   gridColumns,
 } from './layout';
+import { typeScale } from './scale';
+import { spacing } from './spacing';
 
 /**
  * Window widths this app is actually laid out in. The Split View entries matter
@@ -93,5 +102,106 @@ describe('the width caps', () => {
     expect(usable(WINDOWS.ipadLandscape, GRID_MAX_WIDTH)).toBe(
       usable(WINDOWS.ipadPortrait, GRID_MAX_WIDTH)
     );
+  });
+});
+
+/** Keyboard progress as the UI thread hands it over: 0 → 1 in frames. */
+const FRAMES = Array.from({ length: 11 }, (_, i) => i / 10);
+
+describe('dockingSpacer', () => {
+  // The Start tab's Android numbers, formed the way the screen forms them —
+  // what `useTabBarClearance(spacing.medium)` returns there (gesture-bar inset
+  // plus the capsule tab bar plus the gap), against the seam the chat composer
+  // keeps. The seam runs through `typeScale`, so a screen that dropped it would
+  // part company with the thread here.
+  const resting = 15 + FLOATING_TAB_BAR_HEIGHT + spacing.medium;
+  const raised = typeScale(COMPOSER_BOTTOM_INSET_RAISED);
+  const KEYBOARD = 300;
+
+  it('leaves the resting layout untouched while the keyboard is away', () => {
+    expect(dockingSpacer(0, 0, resting, raised)).toEqual({ flexGrow: 1, height: resting });
+  });
+
+  it('docks on the keyboard with the same seam as the chat composer', () => {
+    expect(dockingSpacer(1, KEYBOARD, resting, raised)).toEqual({ flexGrow: 0, height: raised });
+  });
+
+  it('drops the tab-bar clearance — the bar is hidden under the keyboard', () => {
+    expect(dockingSpacer(1, KEYBOARD, resting, raised).height).toBeLessThan(
+      FLOATING_TAB_BAR_HEIGHT
+    );
+  });
+
+  it('keeps the full clearance when the keyboard barely covers anything', () => {
+    // A hardware or floating keyboard shows a ~55dp strip and still reports
+    // progress 1. Pacing the height off progress would seat the block on the
+    // seam and leave it behind the tab bar; what the block keeps under itself
+    // plus what the keyboard occupies must never fall below the resting value.
+    const strip = 55;
+    const { height } = dockingSpacer(1, strip, resting, raised);
+    expect(strip + height).toBe(resting);
+    expect(height).toBeGreaterThan(FLOATING_TAB_BAR_HEIGHT - strip);
+  });
+
+  it('survives a progress above 1, which Android does not clamp', () => {
+    // `persistentKeyboardHeight` is deliberately stale across a switch to a
+    // taller emoji panel, so progress overshoots. A negative flexGrow would be
+    // undefined flex distribution.
+    const { flexGrow, height } = dockingSpacer(1.4, KEYBOARD + 120, resting, raised);
+    expect(flexGrow).toBe(0);
+    expect(height).toBe(raised);
+  });
+
+  it('moves monotonically, so the composer never swings back mid-animation', () => {
+    const frames = FRAMES.map((p) => dockingSpacer(p, p * KEYBOARD, resting, raised));
+    for (let i = 1; i < frames.length; i++) {
+      expect(frames[i].height).toBeLessThanOrEqual(frames[i - 1].height);
+      expect(frames[i].flexGrow).toBeLessThanOrEqual(frames[i - 1].flexGrow);
+    }
+  });
+});
+
+describe('collapsingSection', () => {
+  it('sets no height before the section has been measured', () => {
+    // A height of 0 from a measurement that never happened would hide the
+    // section for good — it could never lay out and report its real height.
+    expect(collapsingSection(0, 0)).toEqual({ opacity: 1 });
+    expect(collapsingSection(1, 0)).not.toHaveProperty('height');
+  });
+
+  it('is fully open with the keyboard down and gone with it up', () => {
+    expect(collapsingSection(0, 180)).toEqual({ opacity: 1, height: 180 });
+    expect(collapsingSection(1, 180)).toEqual({ opacity: 0, height: 0 });
+  });
+
+  it('survives a progress above 1, which Android does not clamp', () => {
+    // The screen feeds this the same unclamped shared value as `dockingSpacer`,
+    // so it overshoots in the same case — a taller emoji panel. Unclamped this
+    // returned a negative opacity and a negative height.
+    expect(collapsingSection(1.4, 180)).toEqual({ opacity: 0, height: 0 });
+    expect(collapsingSection(1.4, 0)).toEqual({ opacity: 0 });
+  });
+});
+
+/**
+ * Every composer that docks onto the keyboard has to dock onto the *same* seam.
+ * The numbers above pin `dockingSpacer`'s arithmetic; they cannot see a screen
+ * that computes its own seam and never calls it — which is exactly how
+ * `BottomComposerBar` drifted to `spacing.xsmall` and sat 3.5dp tighter than the
+ * thread and the start screen on the same handset.
+ *
+ * Source-level on purpose: a render test pinned to 11.5dp passes just as happily
+ * against a re-inlined literal, and the literal is the thing that drifts.
+ */
+describe('composer seam', () => {
+  const DOCKING_COMPOSERS = [
+    '../components/chat/AssistantThread.tsx',
+    '../components/common/BottomComposerBar.tsx',
+    '../app/(tabs)/start.tsx',
+  ];
+
+  it.each(DOCKING_COMPOSERS)('%s docks on COMPOSER_BOTTOM_INSET_RAISED', (file) => {
+    const source = readFileSync(resolve(__dirname, file), 'utf8');
+    expect(source).toContain('COMPOSER_BOTTOM_INSET_RAISED');
   });
 });

@@ -9,3 +9,4 @@ export * from './textUtils';
 export * from './canvasValueResolver';
 export * from './canvasClipboard';
 export * from './canvasLayerManager';
+export * from './ensureFontsReady';

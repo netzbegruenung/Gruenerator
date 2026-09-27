@@ -34,7 +34,7 @@ export interface AgentConfig {
   tags: string[];
   model: string;
   defaultModel?: string | undefined;
-  provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'greenpt';
+  provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'melious' | 'greenpt' | 'cortecs';
   params: {
     max_tokens: number;
     temperature: number;
@@ -60,6 +60,14 @@ export interface AgentConfig {
   fewShotExamples?: FewShotExample[] | undefined;
   /** Runtime-only: set by controller, not by agent YAML files */
   userId?: string | undefined;
+  /**
+   * Runtime-only, gesetzt in `agentLoader.getAgentForUser`: der Agent kommt
+   * aus `user_agents` (eigener oder in ein Projekt geteilter), nicht aus der
+   * Registry. Das Werkzeug `user_agents` montiert darauf — ein Thread mit
+   * einem eigenen Agenten soll „ändere deine Rolle" ohne Stichwort verstehen.
+   * Kein anderes Feld unterscheidet die beiden: `userId` trägt jede Config.
+   */
+  isUserAgent?: boolean | undefined;
   /** Backend dispatch target. 'search' routes turns to /api/search-graph/stream. */
   routeTo?: 'chat' | 'search' | undefined;
   /** Server-side default filter merged into tool calls (e.g. LV scoping). */
@@ -70,6 +78,17 @@ export interface AgentConfig {
    * emails). Read by the ChatGraph respond node. Default off.
    */
   inlineSourceLinks?: boolean | undefined;
+  /**
+   * Recipe mention the single-pass respond path auto-loads when the user picked
+   * none — the agent's core text form. See `Agent.defaultRecipeMention`.
+   */
+  defaultRecipeMention?: string | undefined;
+  /**
+   * Row id of that recipe, when the agent pins one. The stable key: renaming a
+   * mention no longer swaps the agent's text form silently. Beats
+   * `defaultRecipeMention` when both are set. See `Agent.defaultRecipeId`.
+   */
+  defaultRecipeId?: string | undefined;
 }
 
 export interface Thread {

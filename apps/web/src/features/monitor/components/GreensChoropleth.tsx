@@ -65,6 +65,13 @@ const EU_NAMES = new Set([
   'Kosovo',
 ]);
 
+// Label anchors (lon/lat) for regions whose polygon centroid lands somewhere
+// unusable — Brandenburg's centroid falls exactly on the Berlin enclave, so its
+// number would render on top of Berlin.
+const LABEL_ANCHORS: Record<string, [number, number]> = {
+  Brandenburg: [13.75, 52.05],
+};
+
 const fmt = (v: number | null | undefined): string =>
   v == null ? 'keine Daten' : `${String(v).replace('.', ',')}%`;
 
@@ -122,7 +129,8 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapC
     return geo.features.map((f, i) => {
       const name = String(f.properties?.name ?? '');
       const d: Partial<ChoroplethValue> = values[name] ?? {};
-      const centroid = path.centroid(f);
+      const anchor = LABEL_ANCHORS[name];
+      const centroid = anchor ? (proj(anchor) ?? path.centroid(f)) : path.centroid(f);
       const marked = d.marked ?? false;
       return {
         i,
@@ -260,7 +268,9 @@ export function DeutschlandMap({ values = {}, width = 380, height = 470 }: Green
       width={width}
       height={height}
       values={values}
-      labelMin={900}
+      // 600 keeps the city-states (Bremen 95, Hamburg 254, Berlin 275) tooltip-only
+      // but lets Saarland (706) carry its number.
+      labelMin={600}
       domain={[3, 18]}
     />
   );

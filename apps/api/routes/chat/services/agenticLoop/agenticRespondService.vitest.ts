@@ -1,0 +1,593 @@
+/**
+ * Der Orchestrierungskern des agentischen Pfads.
+ *
+ * Bis zur Zerlegung gab es dafür keinen einzigen Test: `streamAgenticResponse`
+ * war nur über `__integration__/loopRun` mitgeprüft, das den echten Service auf
+ * einem ersetzten `streamText` laufen lässt und deshalb den ganzen Turn misst,
+ * nicht die Entscheidungen darin.
+ *
+ * Hier wird genau das geprüft, was der Orchestrator SELBST entscheidet — mit
+ * gefakten Kollaborateuren (Muster: `loopEngine.vitest.ts` injiziert Fakes
+ * statt eines MockLanguageModel):
+ *  - welcher Modus läuft (unified/split, inkl. material-dominiert → split),
+ *  - dass das Verdikt des Schreibers eine stille Wiederholung anordnen kann und
+ *    die ersetzte Antwort über `completion` nachgereicht wird,
+ *  - dass ein ausgefallener MCP-Katalog den Turn NICHT abbricht,
+ *  - dass die Erstellungs-Werkzeuge ihre eigene Zeitgrenze bekommen.
+ */
+import { describe, it, expect, vi } from 'vitest';
+
+// Die Zusammenfassungszeile IST hier der Prüfgegenstand (siehe den letzten
+// Block): sie geht über den Logger, also muss er greifbar sein.
+// `vi.hoisted`, weil `vi.mock` über die Konstante gehoben wird.
+const { infoLines } = vi.hoisted(() => ({ infoLines: [] as string[] }));
+vi.mock('../../../../utils/logger.js', () => ({
+  createLogger: () => ({
+    info: (m: string): void => {
+      infoLines.push(m);
+    },
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  }),
+}));
+
+import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
+
+import { streamAgenticResponse, type AgenticRespondDeps } from './agenticRespondService.js';
+import { assembleToolCatalog, wrapAssembledTools, type CatalogDeps } from './catalogAssembly.js';
+import { createToolActivity, type ToolActivity } from './toolActivity.js';
+import { createAnswerValidator } from './synthVerdicts.js';
+import {
+  SYNTH_CUTOFF_RETRY_SUFFIX,
+  SYNTH_INVALID_JSON_RETRY_SUFFIX,
+  TurnSuspendedError,
+  type AnswerReplacement,
+  type LoopEngineParams,
+} from './loopEngine.js';
+import { TOOL_TIMEOUT_OVERRIDES_MS, type PersistedStep } from './types.js';
+import { createSourceRegistry } from './sourceRegistry.js';
+import { createToolLoopGuards } from './loopGuards.js';
+import { createToolScope } from './toolScope.js';
+
+import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
+import type { SSEWriter } from '../sseHelpers.js';
+import type { ModelMessage, ToolSet } from 'ai';
+
+type SentEvent = { event: string; payload: Record<string, unknown> };
+
+function fakeSse(): { sse: SSEWriter; sent: SentEvent[] } {
+  const sent: SentEvent[] = [];
+  const sse = {
+    send: (event: string, payload: Record<string, unknown>) => {
+      sent.push({ event, payload });
+    },
+  } as unknown as SSEWriter;
+  return { sse, sent };
+}
+
+const EMPTY_CATALOG = {
+  tools: {} as ToolSet,
+  mcpCatalog: null,
+  systemCatalog: null,
+  recipeCatalog: [],
+  recipeRegistry: { render: () => '', register: () => {}, size: 0, summaries: () => [] },
+  toolLabels: new Map<string, { serverName: string; toolName: string }>(),
+  mcpMountMs: 0,
+  // Der ECHTE Umfang, nicht eine Attrappe: er ist der Wert, den der Turn zum
+  // Loop durchreicht (`activeTools`) und am Ende ins Protokoll schreibt. Mit
+  // leerem Katalog stellt er ohnehin nichts zurück.
+  toolScope: createToolScope({ toolNames: [], userText: '', enforce: true }),
+};
+
+function fakeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
+  return {
+    intent: 'agentic',
+    agentConfig: {
+      identifier: 'gruenerator-universal',
+      provider: 'mistral',
+      model: 'mistral-medium-2604',
+      params: { temperature: 0.3 },
+    },
+    ...overrides,
+  } as unknown as ChatGraphState;
+}
+
+/**
+ * Deps that answer every collaborator with the cheapest thing that still lets
+ * the turn run to completion. `onLoop` sees the params the orchestrator built —
+ * which is what these tests are actually about.
+ */
+function fakeDeps(opts: {
+  provider?: string;
+  modelName?: string;
+  onLoop?: (p: LoopEngineParams) => void;
+  loopResult?: { text: string; replacedStreamed?: boolean; replacement?: AnswerReplacement };
+  assemble?: AgenticRespondDeps['assembleToolCatalog'];
+}): AgenticRespondDeps {
+  return {
+    resolveModel: (async () => ({
+      model: {} as never,
+      provider: opts.provider ?? 'mistral',
+      modelName: opts.modelName ?? 'mistral-medium-2604',
+      reasoningEffort: 'off',
+      fromAutoPolicy: false,
+    })) as unknown as AgenticRespondDeps['resolveModel'],
+    assembleToolCatalog:
+      opts.assemble ??
+      ((async () => EMPTY_CATALOG) as unknown as AgenticRespondDeps['assembleToolCatalog']),
+    runAgenticLoop: (async (p: LoopEngineParams) => {
+      opts.onLoop?.(p);
+      const text = opts.loopResult?.text ?? 'Fertige Antwort.';
+      // Mirror what the real engine does for the caller's `text`: unified and
+      // split both stream the answer through onText.
+      if (!opts.loopResult?.replacedStreamed) p.onText(text);
+      return opts.loopResult ?? { text };
+    }) as unknown as AgenticRespondDeps['runAgenticLoop'],
+  };
+}
+
+const baseParams = (state: ChatGraphState, systemMessage: string, userText: string) => ({
+  finalState: state,
+  systemMessage,
+  messages: [{ role: 'user' as const, content: userText }] satisfies ModelMessage[],
+  requestId: 'req-1',
+  threadId: null,
+});
+
+describe('streamAgenticResponse — Modus-Wahl', () => {
+  it('läuft unified, wenn der Anbieter der schnelle Werkzeug-Rufer ist', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
+      fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
+    );
+    expect(seen!.mode).toBe('unified');
+  });
+
+  it('läuft split auf jedem anderen Anbieter', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
+      fakeDeps({ provider: 'greenpt', modelName: 'gemma4-31b', onLoop: (p) => (seen = p) })
+    );
+    expect(seen!.mode).toBe('split');
+  });
+
+  it('kippt auch auf mistral nach split, sobald der Turn seinen Stoff selbst mitbringt', async () => {
+    // Der gemessene Ausfall: unified + voller Katalog im Schreibkontext + viel
+    // eigener Stoff. Split ist die einzige Anordnung, in der er nie auftrat.
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      {
+        ...baseParams(fakeState(), 'kurzer Systemprompt', 'M'.repeat(12_000)),
+        sse,
+      },
+      fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
+    );
+    expect(seen!.mode).toBe('split');
+  });
+});
+
+describe('streamAgenticResponse — Mistral prompt cache', () => {
+  const emptyHistory = {
+    artifacts: () => [],
+    toolSteps: () => [],
+    lastTurnToolSteps: () => [],
+    sources: () => [],
+    lastGeneratedImageUrl: () => null,
+  };
+
+  it('reicht dem Loop den gehashten promptCacheKey des Threads', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      {
+        ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'),
+        threadId: 'thread-1',
+        toolHistory: emptyHistory,
+        sse,
+      },
+      fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
+    );
+    expect(seen!.providerOptions).toEqual({
+      mistral: { promptCacheKey: promptCacheKeyForThread('thread-1') },
+    });
+  });
+
+  it('ohne Thread keine providerOptions', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Kurze Frage?'), sse },
+      fakeDeps({ provider: 'mistral', onLoop: (p) => (seen = p) })
+    );
+    expect(seen!.providerOptions).toBeUndefined();
+  });
+});
+
+describe('streamAgenticResponse — Verdikt und Wiederholung', () => {
+  it('reicht dem Loop ein validateAnswer, das beide Ausfallformen benennt', async () => {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      fakeDeps({ provider: 'greenpt', onLoop: (p) => (seen = p) })
+    );
+    const validate = seen!.validateAnswer!;
+    expect(validate('{"titel": "abgeschnitten')).toBe(SYNTH_INVALID_JSON_RETRY_SUFFIX);
+    expect(validate('Der Satz hört mitten im')).toBe(SYNTH_CUTOFF_RETRY_SUFFIX);
+    expect(validate('Ein vollständiger Satz.')).toBeNull();
+  });
+
+  it('ersetzt die bereits gestreamte Antwort, wenn die Wiederholung gegriffen hat', async () => {
+    // `replacedStreamed` heißt: auf der Leitung liegt der VERWORFENE Durchlauf.
+    // Der Turn muss die korrigierte Fassung über `completion` nachreichen und
+    // die Text-Offsets fallen lassen — sie zeigen in den verworfenen Strom.
+    const { sse, sent } = fakeSse();
+    const outcome = await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      fakeDeps({
+        provider: 'greenpt',
+        loopResult: { text: 'Die korrigierte Antwort.', replacedStreamed: true },
+      })
+    );
+    const completion = sent.filter((e) => e.event === 'completion');
+    expect(completion).toHaveLength(1);
+    expect(completion[0]!.payload['text']).toBe('Die korrigierte Antwort.');
+    expect(outcome.fullText).toBe('Die korrigierte Antwort.');
+  });
+
+  it('setzt eine leer gebliebene Antwort auf den Rückfall-Satz statt sie leer zu speichern', async () => {
+    const { sse, sent } = fakeSse();
+    const outcome = await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      fakeDeps({ provider: 'greenpt', loopResult: { text: '   ' } })
+    );
+    expect(outcome.fullText).toContain('keine passende Antwort');
+    expect(sent.some((e) => e.event === 'response_start')).toBe(true);
+  });
+});
+
+describe('streamAgenticResponse — degraded-Marker (#3221)', () => {
+  // Ein headless Aufrufer entscheidet am Marker, nicht am Text — ohne ihn
+  // würde der Ersatztext des Nie-Werfen-Vertrags als Ergebnis abgelegt.
+  it('markiert den „keine Antwort"-Rückfall als no_answer', async () => {
+    const { sse } = fakeSse();
+    const outcome = await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      fakeDeps({ provider: 'greenpt', loopResult: { text: '   ' } })
+    );
+    expect(outcome.degraded).toBe('no_answer');
+  });
+
+  it('eine stumme, aber erfolgreiche Bearbeitung ist KEIN no_answer', async () => {
+    const { sse } = fakeSse();
+    const outcome = await streamAgenticResponse(
+      {
+        ...baseParams(
+          fakeState({ editorEditsSummary: '3 Folien angepasst' } as never),
+          'x'.repeat(4000),
+          'Frage?'
+        ),
+        sse,
+      },
+      fakeDeps({ provider: 'greenpt', loopResult: { text: '   ' } })
+    );
+    expect(outcome.degraded).toBeUndefined();
+    expect(outcome.fullText).toContain('Erledigt');
+  });
+
+  // Die Dokument-Fläche VERSENDET ihre Bearbeitung (#3428): BlockNote macht
+  // daraus Vorschlagsmarken, die erst eine Person annimmt. „Erledigt" wäre die
+  // eine Behauptung, die der Server nicht decken kann.
+  it('meldet eine versendete Dokument-Bearbeitung als Vorschlag, nicht als erledigt', async () => {
+    const { sse } = fakeSse();
+    const outcome = await streamAgenticResponse(
+      {
+        ...baseParams(
+          fakeState({
+            editToolSurface: 'doc',
+            editorEditsSummary: 'Bearbeitung am Dokument angestoßen (Kürze den ersten Absatz)',
+          } as never),
+          'x'.repeat(4000),
+          'Frage?'
+        ),
+        sse,
+      },
+      fakeDeps({ provider: 'greenpt', loopResult: { text: '   ' } })
+    );
+    expect(outcome.degraded).toBeUndefined();
+    expect(outcome.fullText).not.toContain('Erledigt');
+    expect(outcome.fullText).toContain('als Vorschlag im Dokument');
+  });
+
+  it('markiert einen geworfenen Loop als failed, einen Abbruch als aborted', async () => {
+    for (const [errName, expected] of [
+      ['Error', 'failed'],
+      ['AbortError', 'aborted'],
+    ] as const) {
+      const { sse } = fakeSse();
+      const deps = fakeDeps({ provider: 'greenpt' });
+      deps.runAgenticLoop = (async () => {
+        const err = new Error('kaputt');
+        err.name = errName;
+        throw err;
+      }) as unknown as AgenticRespondDeps['runAgenticLoop'];
+      const outcome = await streamAgenticResponse(
+        { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+        deps
+      );
+      expect(outcome.degraded).toBe(expected);
+    }
+  });
+
+  it('fehlt bei einer echten Antwort', async () => {
+    const { sse } = fakeSse();
+    const outcome = await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      fakeDeps({ provider: 'greenpt' })
+    );
+    expect(outcome.degraded).toBeUndefined();
+  });
+
+  it('ein Fehler NACH fertig gestreamter Antwort ist kein failed — die Antwort steht', async () => {
+    // resolveAbortOutcome bleibt hier bewusst still (null): die Antwort war
+    // komplett, erst ein Nachschritt warf. Ein headless Aufrufer würde sie
+    // mit degraded='failed' wegwerfen und einen Fehlschlag melden.
+    const { sse } = fakeSse();
+    const deps = fakeDeps({ provider: 'greenpt' });
+    deps.runAgenticLoop = (async (p: LoopEngineParams) => {
+      p.onText('Die vollständige Antwort steht.');
+      throw new Error('Artefakt-Hook danach geworfen');
+    }) as unknown as AgenticRespondDeps['runAgenticLoop'];
+    const outcome = await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      deps
+    );
+    expect(outcome.degraded).toBeUndefined();
+    expect(outcome.fullText).toBe('Die vollständige Antwort steht.');
+  });
+});
+
+describe('streamAgenticResponse — Rückfrage (ask_human)', () => {
+  const askCatalog = {
+    ...EMPTY_CATALOG,
+    tools: {
+      ask_human: { execute: async () => ({ error: 'ask_human wird nie direkt ausgeführt.' }) },
+    } as unknown as ToolSet,
+  };
+
+  it('pausiert den Zug und gibt die Frage als pendingAsk zurück — ohne Rückfall-Text', async () => {
+    const { sse } = fakeSse();
+    const deps = fakeDeps({ assemble: (async () => askCatalog) as never });
+    deps.runAgenticLoop = (async (p: LoopEngineParams) => {
+      p.onText('Bisheriger Teil. ');
+      const ask = p.tools['ask_human'] as {
+        execute: (i: unknown, o: { toolCallId: string }) => Promise<unknown>;
+      };
+      await ask.execute(
+        { question: 'Welche Anna meinst du?', options: ['Anna Müller', 'Anna Meier'] },
+        { toolCallId: 'ask_1' }
+      );
+      if (p.suspended?.()) throw new TurnSuspendedError();
+      return { text: 'nie erreicht' };
+    }) as unknown as AgenticRespondDeps['runAgenticLoop'];
+
+    const outcome = await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      deps
+    );
+
+    expect(outcome.pendingAsk).toEqual({
+      toolCallId: 'ask_1',
+      question: 'Welche Anna meinst du?',
+      options: ['Anna Müller', 'Anna Meier'],
+    });
+    expect(outcome.pendingApproval).toBeUndefined();
+    // Die Teilantwort bleibt, wie sie ist: kein Entschuldigungstext, kein
+    // „keine Antwort"-Rückfall, keine Zitat-Klammer.
+    expect(outcome.fullText).toBe('Bisheriger Teil. ');
+  });
+
+  it('ohne gehaltene Frage bleibt der Ausgang unverändert (kein pendingAsk)', async () => {
+    const { sse } = fakeSse();
+    const outcome = await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      fakeDeps({ assemble: (async () => askCatalog) as never })
+    );
+    expect(outcome.pendingAsk).toBeUndefined();
+    expect(outcome.fullText).toBe('Fertige Antwort.');
+  });
+});
+
+describe('streamAgenticResponse — der Ersatz in der Zusammenfassungszeile', () => {
+  it('trägt das Verdikt des Loops bis in die eine Zeile, die den Zug beschreibt', async () => {
+    // Die Falle: `logTurnSummary` kennt nur `answerChars`, und die ist beim
+    // Ersatz dieselbe Sorte Zahl wie sonst. Ohne das durchgereichte Verdikt
+    // schriebe man eine Zeile, die den Tausch gar nicht sehen KANN.
+    infoLines.length = 0;
+    const { sse } = fakeSse();
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      fakeDeps({
+        provider: 'greenpt',
+        loopResult: { text: 'Die korrigierte Antwort.', replacement: 'validation_retry' },
+      })
+    );
+    const summary = infoLines.find((m) => m.startsWith('[Agentic] model='));
+    expect(summary).toContain('replaced=validation_retry');
+  });
+
+  it('schweigt über einen Ersatz, den es nicht gab', async () => {
+    infoLines.length = 0;
+    const { sse } = fakeSse();
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      fakeDeps({ provider: 'greenpt' })
+    );
+    const summary = infoLines.find((m) => m.startsWith('[Agentic] model='));
+    expect(summary).toBeDefined();
+    expect(summary).not.toContain('replaced=');
+  });
+});
+
+describe('createAnswerValidator', () => {
+  it('prüft die JSON-Form vor der Abschneide-Form', () => {
+    // Ein abgeschnittener JSON-Block ist BEIDES. Der JSON-Hinweis ist der
+    // konkretere Auftrag an den Schreiber, also muss er gewinnen.
+    expect(createAnswerValidator()('{"a": 1, "b"')).toBe(SYNTH_INVALID_JSON_RETRY_SUFFIX);
+  });
+});
+
+describe('assembleToolCatalog — ausgefallener MCP-Katalog', () => {
+  /** Was `loadMcpCatalog` bei einem Fehler wirklich zurückgibt: leer, mit
+   *  gesetztem `scopedServerMissing`. Es wirft nicht — der Turn darf davon
+   *  nicht abhängen. */
+  const brokenCatalog = {
+    tools: {},
+    labels: new Map(),
+    close: async () => {},
+    scopedServerMissing: true,
+    scopedServerUnreachable: false,
+    driftedServers: [],
+    catalogSummary: '',
+    promptHints: [],
+  };
+
+  const catalogDeps = (over: Partial<CatalogDeps> = {}): CatalogDeps =>
+    ({
+      buildChatToolCatalog: () => ({ tools: { web_search: {} }, toolNames: ['web_search'] }),
+      loadMcpCatalog: async () => brokenCatalog,
+      loadManagedMcpCatalog: async () => brokenCatalog,
+      buildRecipeCatalog: async () => [],
+      ...over,
+    }) as unknown as CatalogDeps;
+
+  it('montiert die internen Werkzeuge weiter, wenn der Dienst nichts liefert', async () => {
+    const { sse } = fakeSse();
+    const assembled = await assembleToolCatalog(
+      {
+        state: fakeState({ intent: 'mcp', agentConfig: { userId: 'u1' } } as never),
+        sourceRegistry: createSourceRegistry(),
+        sse,
+        threadId: null,
+      },
+      catalogDeps()
+    );
+    expect(Object.keys(assembled.tools)).toContain('web_search');
+    expect(assembled.mcpCatalog?.scopedServerMissing).toBe(true);
+    // Kein Werkzeug des Dienstes — der Turn läuft ohne MCP weiter, statt
+    // abzubrechen.
+    expect(assembled.toolLabels.size).toBe(0);
+  });
+
+  it('lässt einen Turn ohne MCP-Absicht den Katalog gar nicht erst laden', async () => {
+    const { sse } = fakeSse();
+    const loadMcpCatalog = vi.fn(async () => brokenCatalog);
+    await assembleToolCatalog(
+      {
+        state: fakeState({ intent: 'agentic', agentConfig: { userId: 'u1' } } as never),
+        sourceRegistry: createSourceRegistry(),
+        sse,
+        threadId: null,
+      },
+      catalogDeps({ loadMcpCatalog: loadMcpCatalog as never })
+    );
+    expect(loadMcpCatalog).not.toHaveBeenCalled();
+  });
+});
+
+describe('wrapAssembledTools — Zeitgrenze der Erstellungs-Werkzeuge', () => {
+  const wrapOne = (toolName: string, execute: () => Promise<unknown>) => {
+    const { sse } = fakeSse();
+    const steps: PersistedStep[] = [];
+    // Echter Zähler statt Attrappe: an ihm hängt die Stillstands-Uhr der
+    // Werkzeugphase, und genau dieser Aufruf läuft über die generische Grenze
+    // hinaus — der Fall, in dem ein stehengebliebener Zähler die Uhr taub
+    // machen würde.
+    const toolActivity = createToolActivity();
+    const tools = wrapAssembledTools({ [toolName]: { execute } } as unknown as ToolSet, {
+      sse,
+      guards: createToolLoopGuards({
+        searchToolNames: new Set(),
+        getSourceCount: () => 0,
+      }),
+      recordStep: (s) => steps.push(s),
+      perCallTimeoutMs: 20_000,
+      toolActivity,
+      toolLabels: new Map(),
+      getTextOffset: () => null,
+      takeNarration: () => null,
+    });
+    return Object.assign(tools, { __activity: toolActivity });
+  };
+
+  it('gibt create_* die eigene, höhere Grenze statt der generischen', async () => {
+    vi.useFakeTimers();
+    try {
+      let settle: (v: unknown) => void = () => {};
+      const wrapped = wrapOne('create_pdf', () => new Promise((resolve) => (settle = resolve)));
+      const call = (
+        wrapped['create_pdf'] as { execute: (i: unknown, o: unknown) => Promise<unknown> }
+      ).execute({}, { toolCallId: 'c1' });
+      // Über der generischen 20s-Grenze — ein create_pdf darf hier NICHT
+      // abgebrochen sein, sonst scheitert jede Erstellung an einer Grenze, die
+      // sie nie einhalten konnte. Eine abgelaufene Grenze wird von wrapTools
+      // zu `{ error: … }`, also ist das Fehlen dieses Feldes die Aussage.
+      await vi.advanceTimersByTimeAsync(25_000);
+      // Läuft noch — und der Zähler sagt das auch, sonst wertet die
+      // Stillstands-Uhr diese 25 s als Schweigen der Lane.
+      const activity = (wrapped as unknown as { __activity: ToolActivity }).__activity;
+      expect(activity.inFlight()).toBe(1);
+      settle({ seiten: 3 });
+      const result = (await call) as Record<string, unknown>;
+      expect(result['error']).toBeUndefined();
+      expect(result['seiten']).toBe(3);
+      expect(activity.inFlight()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hält die Grenzen als Aussage über die Erstellungs-Werkzeuge zusammen', () => {
+    for (const name of [
+      'create_pdf',
+      'create_presentation',
+      'create_document',
+      'create_sheet',
+      'create_board',
+    ]) {
+      expect(TOOL_TIMEOUT_OVERRIDES_MS[name], `${name} ohne eigene Grenze`).toBeGreaterThan(20_000);
+    }
+  });
+});
+
+describe('streamAgenticResponse — toolAllowlist', () => {
+  it('reicht die Liste an die Katalog-Montage durch', async () => {
+    const { sse } = fakeSse();
+    const assemble = vi.fn(async () => EMPTY_CATALOG);
+    await streamAgenticResponse(
+      {
+        ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'),
+        sse,
+        toolAllowlist: ['notebook_quellen'],
+      },
+      fakeDeps({ assemble: assemble as unknown as AgenticRespondDeps['assembleToolCatalog'] })
+    );
+    expect(assemble.mock.calls[0]![0]).toMatchObject({ toolAllowlist: ['notebook_quellen'] });
+  });
+
+  it('lässt das Feld weg, wenn keine Liste kommt', async () => {
+    const { sse } = fakeSse();
+    const assemble = vi.fn(async () => EMPTY_CATALOG);
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      fakeDeps({ assemble: assemble as unknown as AgenticRespondDeps['assembleToolCatalog'] })
+    );
+    expect(assemble.mock.calls[0]![0]).not.toHaveProperty('toolAllowlist');
+  });
+});

@@ -10,6 +10,10 @@
  * Die Lane prüft ROUTEN, nicht Komponenten. Komponenten-Regressionen gehören
  * weiter in die `.vitest.tsx`-Tests neben der Komponente.
  *
+ * Routen UND Überlagerungen werden in BEIDEN Farbmodi geprüft (siehe
+ * `THEMES`). Das ist die einzige Stelle im Haus, an der der Dunkelmodus
+ * überhaupt messbar ist — die Begründung steht dort.
+ *
  * Einzige Voraussetzung (sonst skippt die Suite):
  *   VITE_E2E_AUTH_BYPASS=true   im Env des Dev-Servers
  *
@@ -58,7 +62,8 @@ const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
  *
  * **Jede Route hier muss die Seite sein, die sie behauptet.** Von den bisher
  * zwanzig Einträgen waren SIEBEN Weiterleitungen — die Lane maß in Wahrheit
- * dreizehn verschiedene Seiten, `/workplace` davon viermal:
+ * dreizehn verschiedene Seiten, den Chat-Einstieg (damals `/workplace`, heute
+ * `/start`) davon viermal:
  *
  * | stand hier | landete auf | weil |
  * | --- | --- | --- |
@@ -75,12 +80,15 @@ const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
  * `gotoAuthenticated()`.
  */
 const ROUTES = [
-  // `/` und `/startseite` fehlen hier: beide leiten Angemeldete auf
-  // `/workplace`. Die öffentliche Startseite ist nur ohne Sitzung messbar und
-  // braucht deshalb einen eigenen, ausgeloggten Kontext — bis dahin deckt
-  // `/login` den öffentlichen Teil ab.
+  // `/` und `/startseite` fehlen hier: beide leiten Angemeldete auf ihre
+  // Startfläche (`/start` oder `/workplace`). Die öffentliche Startseite ist
+  // nur ohne Sitzung messbar und braucht deshalb einen eigenen, ausgeloggten
+  // Kontext — bis dahin deckt `/login` den öffentlichen Teil ab.
   '/login',
-  '/workplace',
+  // Chat-Einstieg; bis 08/2026 lag diese Seite auf `/workplace`. Die
+  // Arbeiten-Fläche (heute `/workplace`) war nie Teil der Lane und bleibt es
+  // vorerst — sie gehört in den Arbeitsvorrat, nicht in diesen Umbau.
+  '/start',
   '/chat',
   // Das Kanban liegt auf `/boards/:id` — `/boards` ist eine Weiterleitung.
   // Erreichbar nur mit festem Datenstand, siehe apiFixtures.
@@ -94,7 +102,34 @@ const ROUTES = [
   '/transkription',
   '/suche',
   '/projekte',
+  // Der Übersetzer war nie in dieser Liste, und genau deshalb konnte #3507
+  // entstehen und unbemerkt bleiben: seine Ergebnisfläche stand dunkel auf
+  // 1,04:1, und die einzige Stelle im Haus, die den Dunkelmodus überhaupt
+  // misst, sah die Route nicht an.
+  '/uebersetzer',
 ];
+
+/**
+ * Beide Farbmodi. Der Grund, warum das hier steht und nicht in den
+ * Komponententests: Dunkelmodus ist im Wesentlichen eine Aussage über
+ * *berechnete Farben*, und die sind nur im echten Browser messbar — in jsdom
+ * ist `color-contrast` abgeschaltet (siehe `src/test-utils.tsx`), ein
+ * Dunkelmodus-Lauf dort würde also exakt dieselben Regeln prüfen wie der helle
+ * und nur die Laufzeit verdoppeln. Auch die Struktur-Lane
+ * (`a11y-structure.spec.ts`) bleibt bewusst einfarbig: ein ARIA-Baum kennt
+ * keine Farbe.
+ *
+ * Der Modus wird auf zwei Wegen gestellt, weil die App ihn auf zwei Wegen
+ * lesen kann (`index.html`, Vorbemalungs-Skript): die Playwright-Emulation
+ * `colorScheme` beantwortet `prefers-color-scheme` für die Vorgabe `system`,
+ * der gesetzte `themePreference`-Schlüssel deckt die ausdrückliche Wahl ab.
+ * Beide auf denselben Wert — widersprächen sie sich, wüsste man hinterher
+ * nicht, welcher Pfad gemessen wurde.
+ */
+const THEMES = ['light', 'dark'] as const;
+type Theme = (typeof THEMES)[number];
+
+const modusName = (theme: Theme): string => (theme === 'dark' ? 'dunkel' : 'hell');
 
 /**
  * Bekannte Altlast. Jeder Eintrag ist ein Befund aus dem Baseline-Lauf, der
@@ -127,7 +162,30 @@ const KNOWN_VIOLATIONS: Record<string, string[]> = {
   [`/boards/${FIXTURE_BOARD_ID}`]: ['button-name', 'color-contrast'],
 };
 
-async function gotoAuthenticated(page: Page, route: string): Promise<void> {
+/**
+ * Zusätzliche Altlast, die NUR im Dunkelmodus auftritt. Getrennt von der Liste
+ * oben, weil die Trennung die eigentliche Information ist: ein Eintrag hier
+ * heißt „dieselbe Stelle ist hell in Ordnung und dunkel nicht" — also ein
+ * Token, das nur eine der beiden Rollen bedient, und kein allgemeiner Mangel.
+ *
+ * Leer = der Dunkelmodus trägt so weit wie der helle. Der Baseline-Lauf vom
+ * 13.08.2026 fand über alle Routen keinen einzigen Dunkelmodus-Verstoß.
+ */
+const KNOWN_VIOLATIONS_DARK: Record<string, string[]> = {};
+
+function bekannteAusnahmen(theme: Theme, route: string): string[] {
+  const basis = KNOWN_VIOLATIONS[route] ?? [];
+  if (theme !== 'dark') return basis;
+  return [...new Set([...basis, ...(KNOWN_VIOLATIONS_DARK[route] ?? [])])];
+}
+
+async function gotoAuthenticated(page: Page, theme: Theme, route: string): Promise<void> {
+  await page.addInitScript((gewuenscht) => {
+    localStorage.setItem(
+      'themePreference',
+      JSON.stringify({ value: gewuenscht, timestamp: Date.now() })
+    );
+  }, theme);
   await installApiFixtures(page);
   await page.goto(route, { waitUntil: 'domcontentloaded' });
   // Auf Ruhe warten statt auf `networkidle`: die App hält SSE-Verbindungen
@@ -140,9 +198,81 @@ async function gotoAuthenticated(page: Page, route: string): Promise<void> {
   // Lauf ANDERE Routen durch, und einzeln ist keine davon reproduzierbar.
   // `load` wartet auf die verlinkten Stylesheets, `document.fonts.ready` auf
   // die Schriften — beides verschiebt Layout und Farben.
+  //
+  // `load` allein genügt hier aber NICHT, und das ist der Kern: der
+  // Vite-Dev-Server liefert CSS als JS-Modul aus und hängt es erst beim
+  // Auswerten als `<style>` ein. `load` ist da längst gefeuert.
   await page.waitForLoadState('load');
-  await page.evaluate(() => document.fonts.ready);
+  // Einmal nachfassen: `/apps` und `/suche` navigieren nach dem ersten Rendern
+  // noch clientseitig, und wer dabei in `page.evaluate` steht, stirbt mit
+  // „Execution context was destroyed". Das ist ein Wackler des Prüfmittels und
+  // kein Befund — er trifft hell wie dunkel und in jedem Lauf andere Routen.
+  // Bisher fiel er nicht auf, weil CI zweimal wiederholt; sichtbar wurde er
+  // erst, als die Lane mit beiden Farbmodi doppelt so viele Seiten lud.
+  for (const versuch of [1, 2]) {
+    try {
+      await page.evaluate(() => document.fonts.ready);
+      break;
+    } catch (fehler) {
+      if (versuch === 2) throw fehler;
+      await page.waitForLoadState('load');
+    }
+  }
+  // Das Bereitschaftssignal statt einer Uhr: `--background-color` steht in
+  // `assets/styles/common/variables.css`. Ist es berechenbar, liegt unsere
+  // Farbebene an. Eine feste Frist kann das nicht leisten — sie ist auf einem
+  // ausgelasteten CI-Runner mal lang genug und mal nicht, und der Unterschied
+  // sieht aus wie ein Kontrastbefund.
+  await page.waitForFunction(
+    () =>
+      getComputedStyle(document.documentElement).getPropertyValue('--background-color').trim() !==
+      '',
+    undefined,
+    { timeout: 15_000 }
+  );
+
+  // Und dann auf die SEITE warten, nicht nur auf ihre Farben. Im CI-Lauf vom
+  // 13.08.2026 hieß die gemeldete Stelle `:root` — das ist keine Oberfläche,
+  // das ist der Ladezustand: `AuthSplash` liegt als `fixed inset-0` über allem,
+  // solange `/auth/status` nicht geantwortet hat, und axe misst dann brav den
+  // Platzhalter.
+  //
+  // Als **positive** Bedingung formuliert, und das ist der Punkt: ein erster
+  // Versuch wartete mit `waitFor({ state: 'detached' })` auf das Verschwinden
+  // des Splashs — und der Zustand ist erfüllt, solange das Element noch gar
+  // nicht da ist. Auf einem langsamen Runner lief die Prüfung damit VOR dem
+  // Ladezustand durch und maß ihn anschließend mit. Der Lauf wurde dadurch
+  // schlechter, nicht besser (11 Wiederholungen statt 2).
+  //
+  // `AuthSplash` rendert kein `<main>` — die Bedingung unten kann er also
+  // nicht erfüllen, egal wie die Zeiten fallen. `PageLayout` setzt genau ein
+  // `<main id="main-content">` auf jeder Route.
+  await page.waitForFunction(
+    () => {
+      if (document.querySelector('[aria-label="Wird geladen"]')) return false;
+      const inhalt = document.querySelector('main');
+      return !!inhalt?.querySelector('h1, h2, button, a, input');
+    },
+    undefined,
+    { timeout: 20_000 }
+  );
   await page.waitForTimeout(1500);
+
+  // Der Riegel für den Farbmodus, und er gehört zur selben Fehlerklasse wie die
+  // vier darunter: greift die Umschaltung nicht, misst der dunkle Lauf zweimal
+  // dieselbe helle Seite — doppelte Laufzeit, verdoppelte Zusage, kein
+  // zusätzliches Wissen. Und weil hell heute grün ist, wäre er grün.
+  //
+  // Mit Gegenprobe: setzt man BEIDE Hebel oben auf `light` und lässt den
+  // dunklen Durchlauf trotzdem laufen, fallen alle 13 Prüfungen hier durch.
+  // Nur einen zu neutralisieren genügt nicht — der gesetzte
+  // `themePreference`-Schlüssel überstimmt `prefers-color-scheme`, weil eine
+  // ausdrückliche Wahl die Systemvorgabe schlägt. Genau deshalb stehen beide.
+  const gemessen = await page.evaluate(() => document.documentElement.dataset.theme);
+  expect(
+    gemessen,
+    `${route} steht auf data-theme="${gemessen}", geprüft werden sollte "${theme}".`
+  ).toBe(theme);
 
   // Drei Riegel gegen dieselbe Fehlerklasse: eine Messung, die etwas anderes
   // prüft als die genannte Route, meldet ein Ergebnis, das erfreulich aussieht
@@ -210,6 +340,179 @@ Oberfläche.`
   ).toEqual([]);
 }
 
+/**
+ * Flächen, die erst nach einem Klick im DOM stehen.
+ *
+ * Der Grund für diesen Block: die Routen-Prüfungen oben messen den Zustand
+ * direkt nach dem Laden. Menüs, Dialoge und Blätter sind zu diesem Zeitpunkt
+ * **gar nicht da** — Radix rendert sie in ein Portal, und zwar erst beim
+ * Öffnen. `/chat` steht seit jeher in `ROUTES` und meldete trotzdem nie etwas
+ * über das Plusmenü, weil die Lane nie eines geöffnet hat. Ein grüner Haken
+ * über eine Fläche, die nicht im DOM war, ist dieselbe Fehlerklasse wie die
+ * übersprungenen Prüfungen weiter oben: er sieht aus wie eine Zusage.
+ *
+ * Dasselbe gilt für ein Tab-Panel, das nicht obenauf liegt: Radix hängt es ab.
+ * `/uebersetzer` stand hier und meldete nie etwas über den Dokument-Tab — dort
+ * saß eine Ablegefläche, die axe als `nested-interactive` ablehnt, und die
+ * Lane ist nie hingegangen. Deshalb trägt jeder Eintrag seinen eigenen
+ * `oeffnen`-Schritt statt eines festen Klicks aufs Plusmenü.
+ *
+ * Gemessen wird nur die Überlagerung (`include`), nicht die ganze Seite —
+ * sonst meldet jeder Eintrag hier die Routen-Befunde ein zweites Mal und der
+ * Fehlertext zeigt nicht mehr auf die Fläche, um die es geht.
+ *
+ * Beide Breiten sind nötig, weil `ResponsiveMenu` an `(width < 48rem)` in zwei
+ * verschiedene Bäume verzweigt: Desktop bekommt Radix' `menuitemcheckbox`
+ * geschenkt, das Blatt zeichnet seinen An/Aus-Zustand mit zwei divs und trägt
+ * `role="switch"` + `aria-checked` von Hand (`ResponsiveMenuToggle`). Genau
+ * die handgeschriebene Zusage braucht eine Messung.
+ */
+const OVERLAYS = [
+  {
+    name: 'Plusmenü (Desktop-Dropdown)',
+    route: '/chat',
+    viewport: { width: 1280, height: 720 },
+    // Radix' DropdownMenuContent
+    scope: '[role="menu"]',
+    oeffnen: (page: Page) => page.getByRole('button', { name: 'Aktionen und Modus' }).click(),
+    // `scrollable-region-focusable` trifft hier zu und ist trotzdem kein
+    // Hindernis. Der Befund stimmt im DOM: `DropdownMenuContent` trägt
+    // `overflow-y-auto` und eine gedeckelte Höhe, und seit dem Umbau ist die
+    // Liste bei 720 px Fensterhöhe länger als der Deckel. Die Regel verlangt
+    // dann `tabindex="0"` am Rollbereich — sie kennt nur Tab.
+    //
+    // Ein Menü wird aber nicht mit Tab durchlaufen, sondern mit den Pfeiltasten
+    // (roving tabindex, WAI-ARIA Menu Pattern): der Rollbereich ist genau ein
+    // Tabstopp, und der Browser rollt den fokussierten Eintrag ins Bild. Ein
+    // zusätzlicher Tabstopp am Container wäre eine Verschlechterung.
+    //
+    // Deshalb steht die Regel hier ab — aber NICHT auf Zuruf: der Test unten
+    // fährt mit der Tastatur ans Listenende und belegt, was die Regel bezweifelt.
+    // Fällt das weg, ist die Ausnahme unbelegt und muss neu verhandelt werden.
+    disableRules: ['scrollable-region-focusable'],
+  },
+  {
+    name: 'Plusmenü (mobiles Blatt)',
+    route: '/chat',
+    viewport: { width: 390, height: 844 },
+    // Das Blatt ist ein Radix-Dialog, siehe ResponsiveMenu.
+    scope: '[role="dialog"]',
+    oeffnen: (page: Page) => page.getByRole('button', { name: 'Aktionen und Modus' }).click(),
+    disableRules: [],
+  },
+  {
+    // Der Tab, auf dem die Ablegefläche sitzt. Gemessen wird nur das sichtbare
+    // Panel: die abgehängten tragen `hidden` und gehören nicht zur Aussage.
+    name: 'Übersetzer: Dokument-Tab',
+    route: '/uebersetzer',
+    viewport: { width: 1280, height: 720 },
+    scope: '[role="tabpanel"]:not([hidden])',
+    oeffnen: (page: Page) => page.getByRole('tab', { name: 'Dokument' }).click(),
+    disableRules: [],
+  },
+  {
+    name: 'Übersetzer: Bild-Tab',
+    route: '/uebersetzer',
+    viewport: { width: 1280, height: 720 },
+    scope: '[role="tabpanel"]:not([hidden])',
+    oeffnen: (page: Page) => page.getByRole('tab', { name: 'Bild' }).click(),
+    disableRules: [],
+  },
+];
+
+test.describe('Barrierefreiheit: Überlagerungen', () => {
+  test.beforeAll(() => {
+    test.skip(!BYPASS_AKTIV, 'VITE_E2E_AUTH_BYPASS ist nicht gesetzt.');
+  });
+
+  // Auch die Überlagerungen laufen in beiden Farbmodi. Sie sind der Ort, an dem
+  // ein einseitiges Farbtoken am ehesten durchrutscht: ein Menü liegt über der
+  // Seite, hat eigene Flächen- und Randfarben und wird von keiner
+  // Routen-Prüfung erfasst.
+  for (const theme of THEMES) {
+    test.describe(modusName(theme), () => {
+      test.use({ colorScheme: theme });
+
+      for (const overlay of OVERLAYS) {
+        test(`${overlay.name} hat keine WCAG-2.2-AA-Verstöße`, async ({ page }) => {
+          // Vor dem Laden: `useIsMobile` liest die Breite schon im ersten Frame
+          // (`useSyncExternalStore`), ein späterer Wechsel würde die falsche
+          // Verzweigung messen.
+          await page.setViewportSize(overlay.viewport);
+          await gotoAuthenticated(page, theme, overlay.route);
+
+          await overlay.oeffnen(page);
+
+          const inhalt = page.locator(overlay.scope);
+          await expect(
+            inhalt,
+            `${overlay.name}: die Überlagerung ist nach dem Klick nicht erschienen —
+ohne sie prüft axe eine leere Auswahl und meldet null Verstöße.`
+          ).toBeVisible();
+          // Radix blendet mit einer Opazitäts-Animation ein. Währenddessen misst
+          // `color-contrast` Zwischenwerte und meldet Funde, die nach dem Einblenden
+          // nicht mehr existieren.
+          await page.waitForTimeout(500);
+
+          const builder = new AxeBuilder({ page }).withTags(WCAG_TAGS).include(overlay.scope);
+          if (overlay.disableRules.length) builder.disableRules(overlay.disableRules);
+
+          const { violations } = await builder.analyze();
+
+          expect(
+            violations.map((v) => ({
+              rule: v.id,
+              impact: v.impact,
+              hilfe: v.helpUrl,
+              stellen: v.nodes.map((n) => n.target.join(' ')).slice(0, 5),
+              // Axes eigene Begründung, und die ist der Unterschied zwischen
+              // „irgendwo stimmt ein Kontrast nicht" und einem Befund, mit dem
+              // man arbeiten kann: sie nennt die gemessenen Farben und das
+              // Verhältnis. Ohne sie stand im CI-Log nur ein Klassenname, und
+              // die Ursache (eine Überlagerung, die sich in die Messung
+              // schob) war von einem echten Mangel nicht zu unterscheiden.
+              messwerte: v.nodes[0]?.failureSummary?.replace(/\s+/g, ' ').slice(0, 300),
+            }))
+          ).toEqual([]);
+        });
+      }
+    });
+  }
+
+  // Einfarbig, und mit Absicht: hier geht es um Tastaturführung, nicht um
+  // Farben. Ein zweiter Durchlauf im Dunkelmodus prüfte exakt dieselbe Sache.
+  test('das Ende des Dropdowns ist mit der Tastatur erreichbar', async ({ page }) => {
+    // Der Beleg für die abgeschaltete Regel oben. Geprüft wird nicht, ob ein
+    // `tabindex` irgendwo steht, sondern die Sache selbst: kommt man ans untere
+    // Ende der Liste, obwohl sie über den Deckel hinausragt?
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await gotoAuthenticated(page, 'light', '/chat');
+
+    await page.getByRole('button', { name: 'Aktionen und Modus' }).click();
+    const menu = page.locator('[role="menu"]');
+    await expect(menu).toBeVisible();
+
+    // Radix fokussiert beim Öffnen per Zeiger den Container, nicht einen
+    // Eintrag. Pfeil-hoch springt von dort ans ENDE der Liste — also genau in
+    // den Bereich, den die Regel für unerreichbar hält.
+    await page.keyboard.press('ArrowUp');
+
+    const eintraege = menu.locator('[role^="menuitem"]');
+    const letzter = eintraege.last();
+    await expect(
+      letzter,
+      `Pfeil-hoch hat den letzten Eintrag des Plusmenüs nicht fokussiert. Damit
+ist die Ausnahme für scrollable-region-focusable nicht mehr belegt: entweder
+ist die Tastaturführung kaputt, oder das Menü endet nicht mehr auf einem
+Eintrag (ein Fußtext als letztes Kind reicht dafür schon).`
+    ).toBeFocused();
+
+    // Und der Eintrag muss auch sichtbar sein, nicht nur fokussiert — sonst
+    // hätte der Rollbereich den Fokus zwar, zeigte ihn aber nicht.
+    await expect(letzter).toBeInViewport();
+  });
+});
+
 test.describe('Barrierefreiheit (WCAG 2.2 AA)', () => {
   test.beforeAll(() => {
     test.skip(
@@ -218,26 +521,39 @@ test.describe('Barrierefreiheit (WCAG 2.2 AA)', () => {
     );
   });
 
-  for (const route of ROUTES) {
-    test(`${route} hat keine WCAG-2.2-AA-Verstöße`, async ({ page }) => {
-      await gotoAuthenticated(page, route);
+  for (const theme of THEMES) {
+    test.describe(modusName(theme), () => {
+      test.use({ colorScheme: theme });
 
-      const builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
-      const known = KNOWN_VIOLATIONS[route];
-      if (known?.length) builder.disableRules(known);
+      for (const route of ROUTES) {
+        test(`${route} hat keine WCAG-2.2-AA-Verstöße`, async ({ page }) => {
+          await gotoAuthenticated(page, theme, route);
 
-      const { violations } = await builder.analyze();
+          const builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
+          const known = bekannteAusnahmen(theme, route);
+          if (known.length) builder.disableRules(known);
 
-      // Bei Verstößen die betroffenen Selektoren mit ausgeben — eine reine
-      // Regel-ID schickt die nächste Person auf die Suche.
-      expect(
-        violations.map((v) => ({
-          rule: v.id,
-          impact: v.impact,
-          hilfe: v.helpUrl,
-          stellen: v.nodes.map((n) => n.target.join(' ')).slice(0, 5),
-        }))
-      ).toEqual([]);
+          const { violations } = await builder.analyze();
+
+          // Bei Verstößen die betroffenen Selektoren mit ausgeben — eine reine
+          // Regel-ID schickt die nächste Person auf die Suche.
+          expect(
+            violations.map((v) => ({
+              rule: v.id,
+              impact: v.impact,
+              hilfe: v.helpUrl,
+              stellen: v.nodes.map((n) => n.target.join(' ')).slice(0, 5),
+              // Axes eigene Begründung, und die ist der Unterschied zwischen
+              // „irgendwo stimmt ein Kontrast nicht" und einem Befund, mit dem
+              // man arbeiten kann: sie nennt die gemessenen Farben und das
+              // Verhältnis. Ohne sie stand im CI-Log nur ein Klassenname, und
+              // die Ursache (eine Überlagerung, die sich in die Messung
+              // schob) war von einem echten Mangel nicht zu unterscheiden.
+              messwerte: v.nodes[0]?.failureSummary?.replace(/\s+/g, ' ').slice(0, 300),
+            }))
+          ).toEqual([]);
+        });
+      }
     });
   }
 });

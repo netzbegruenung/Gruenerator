@@ -20,6 +20,11 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('../../../services/ai/execution/index.js', async () => {
+  const { executeProviderStub } = await import('./harness/providerStub.js');
+  return { executeProvider: executeProviderStub };
+});
+
 vi.mock('../../../database/services/PostgresService.js', async () => {
   const { postgresMock } = await import('./harness/mocks.js');
   return postgresMock();
@@ -46,6 +51,18 @@ vi.mock('../services/pastChatRecallService.js', async (orig) => {
 vi.mock('../services/postResponseService.js', async (orig) => {
   const { postResponseMock } = await import('./harness/mocks.js');
   return postResponseMock((await orig()) as Record<string, unknown>);
+});
+vi.mock('../../../services/user/textFormRepository.js', async (orig) => {
+  const { textFormMock } = await import('./harness/mocks.js');
+  return textFormMock((await orig()) as Record<string, unknown>);
+});
+vi.mock('../../../services/skills/internalPrompts.js', async (orig) => {
+  const { internalPromptsMock } = await import('./harness/mocks.js');
+  return internalPromptsMock((await orig()) as Record<string, unknown>);
+});
+vi.mock('../../../services/trees/index.js', async (orig) => {
+  const { treeBudgetMock } = await import('./harness/mocks.js');
+  return treeBudgetMock((await orig()) as Record<string, unknown>);
 });
 vi.mock('../services/pipelineStateStore.js', async () => {
   const { pipelineStateStoreMock } = await import('./harness/mocks.js');
@@ -78,6 +95,38 @@ vi.mock('../agents/directSearch.js', async (orig) => {
 // reads them from there — so this reaches the loop without threading anything
 // through the router. Partial spread: `tool`, `isStepCount`,
 // `convertToModelMessages` and the rest must stay real.
+// Der Bundestag-/Abgeordnetenwatch-Abruf, aus demselben Grund wie
+// `directSearch` oben: nur das BACKEND wird ersetzt. Die Werkzeugdefinition, das
+// Locale-Gitter am Katalog und der `searchNode`-Zweig bleiben echt — sonst
+// prueft der Flip-Test eine erfundene Welt statt der Montage, um die es geht.
+vi.mock('../../../services/bundestag/BundestagEnrichedService.js', async (orig) => {
+  const { fakeBundestagService } = await import('./harness/searchBackendStub.js');
+  return {
+    ...((await orig()) as Record<string, unknown>),
+    getBundestagEnrichedService: fakeBundestagService,
+  };
+});
+// PolitPro hinter dem `umfragen`-Werkzeug, aus demselben Grund. Es ist der
+// Werkzeug-Pin, den `mention-umfragen-loop` prueft: der Intent dahinter ist
+// stillgelegt, die Montage im Katalog bleibt echt.
+vi.mock('../../../services/monitor/UmfragenService.js', async (orig) => {
+  const { fakeLookupUmfragen } = await import('./harness/searchBackendStub.js');
+  return {
+    ...((await orig()) as Record<string, unknown>),
+    lookupUmfragen: fakeLookupUmfragen,
+  };
+});
+
+// Der Dokument-Abruf hinter Seed, `dokumente_lesen` und `summarize` — dieselbe
+// Begründung wie beim DIP und bei PolitPro: nur das Backend, nicht die Kette.
+vi.mock('../../../services/document-services/DocumentSearchService/index.js', async (orig) => {
+  const { fakeQdrantDocumentService } = await import('./harness/searchBackendStub.js');
+  return {
+    ...((await orig()) as Record<string, unknown>),
+    getQdrantDocumentService: fakeQdrantDocumentService,
+  };
+});
+
 vi.mock('ai', async (orig) => {
   const { fakeLoopStreamText, fakeLoopGenerateText } = await import('./harness/loopScript.js');
   return {
@@ -99,7 +148,7 @@ vi.mock('../services/responseStreamingService.js', async (orig) => {
 
 const { startChatApp, userTurn } = await import('./harness/testApp.js');
 const { runTurn, installNetworkGuard } = await import('./harness/trace.js');
-const { createAiWorkerPoolStub } = await import('./harness/aiWorkerPoolStub.js');
+const { createProviderStub } = await import('./harness/providerStub.js');
 const { createJournalCapture } = await import('./harness/journalCapture.js');
 const { pinChatEnv } = await import('./harness/env.js');
 const { resetThreadStore } = await import('./harness/fakeThreadStore.js');
@@ -113,16 +162,26 @@ const { LOOP_SCENARIOS } = await import('./loopScenarios.js');
 const MAPS_DIR = path.join(import.meta.dirname, 'decisions');
 const UPDATE = process.env.SIM_UPDATE === '1';
 
-const pool = createAiWorkerPoolStub();
+const pool = createProviderStub();
 const capture = createJournalCapture();
 let app: Awaited<ReturnType<typeof startChatApp>>;
 let restoreNetwork: () => void;
 
 beforeAll(async () => {
   restoreNetwork = installNetworkGuard();
-  app = await startChatApp({ aiWorkerPool: pool, decisionJournal: capture.middleware });
+  app = await startChatApp({ decisionJournal: capture.middleware });
   if (UPDATE && !existsSync(MAPS_DIR)) mkdirSync(MAPS_DIR, { recursive: true });
-});
+
+  // Ein Wegwerf-Turn traegt die Einmalkosten des ersten Requests (Lazy-Imports,
+  // Mock-Fabriken, JIT): lokal ~55 ms gegen 3–10 ms fuer jeden weiteren Turn,
+  // egal welches Szenario zuerst laeuft. Im ersten Testfall riss genau das unter
+  // der Last der vollen Suite die 5 s (#3226). `beforeEach` setzt danach alles
+  // zurueck; der Hook haengt an `hookTimeout` (Vorgabe 10 s), daher die eigene Grenze.
+  const [warmup] = LOOP_SCENARIOS;
+  pinChatEnv();
+  loopScript.script(...warmup.streams);
+  await runTurn(app.baseUrl, { messages: [userTurn(warmup.prompt)] });
+}, 60_000);
 
 afterAll(async () => {
   await app.close();
@@ -147,6 +206,9 @@ describe('loop decision maps', () => {
       `${scenario.id} needs a model-assumption note`
     ).toBeGreaterThan(0);
 
+    // Nach `beforeEach`, damit die Szenario-Werte die Grundmenge übersteuern.
+    if (scenario.env) pinChatEnv(scenario.env);
+
     searchBackend.failNext = scenario.backendFailures ?? 0;
     loopScript.script(...scenario.streams);
 
@@ -154,7 +216,10 @@ describe('loop decision maps', () => {
     // scenario reaches `done` — the loop returns empty and the caller's honest
     // no-answer fallback writes the text — so every scenario here keeps the
     // harness's most important rail (`trace.error === null`) armed.
-    const { trace } = await runTurn(app.baseUrl, { messages: [userTurn(scenario.prompt)] });
+    const { trace } = await runTurn(app.baseUrl, {
+      messages: [userTurn(scenario.prompt)],
+      ...scenario.body,
+    });
 
     // A queued stream nobody consumed means the turn took a different shape than
     // the scenario claims — unified instead of split, or a retry that never
@@ -199,6 +264,32 @@ describe('loop decision maps', () => {
             .map((e) => e.chose)
             .join(', ') || '(not reached)')
       ).toBe(expected.count);
+    }
+
+    if (scenario.firstToolChoice) {
+      const choice = loopScript.calls[0]?.toolChoice;
+      const named =
+        choice && typeof choice === 'object' && 'toolName' in choice
+          ? (choice as { toolName: string }).toolName
+          : choice;
+      expect(
+        named,
+        `${scenario.id}: der erste Planer-Schritt sollte ${scenario.firstToolChoice} verlangen`
+      ).toBe(scenario.firstToolChoice);
+    }
+
+    if (scenario.systemIncludes) {
+      expect(
+        loopScript.calls[0]?.system ?? '',
+        `${scenario.id}: der Systemtext des ersten Planer-Schritts sollte "${scenario.systemIncludes}" enthalten`
+      ).toContain(scenario.systemIncludes);
+    }
+
+    if (scenario.synthSystemIncludes) {
+      expect(
+        loopScript.calls[loopScript.calls.length - 1]?.system ?? '',
+        `${scenario.id}: der Systemtext des Schreibers sollte "${scenario.synthSystemIncludes}" enthalten`
+      ).toContain(scenario.synthSystemIncludes);
     }
 
     for (const point of scenario.notReached ?? []) {

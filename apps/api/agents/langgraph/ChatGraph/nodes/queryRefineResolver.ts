@@ -34,13 +34,9 @@
  *     at the call site rather than hidden here.
  */
 
+import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { intermediateLane } from '../llmConfig.js';
-
-import type { AIWorkerPool } from '../../../../workers/types.js';
-
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('standard');
+import { withTimeout } from '../../../../utils/withTimeout.js';
 
 const log = createLogger('ChatGraph:QueryRefine');
 
@@ -61,7 +57,9 @@ Der/die Nutzer*in hat Dokumente ausgewählt und dazu eine Nachricht geschrieben.
 - Lass Aufgabenanweisungen weg ("fasse zusammen", "schreib mir daraus", "erkläre mir").
 - Behalte Eigennamen, Zahlen und Fachbegriffe unverändert. Korrigiere sie NICHT.
 - Nennt die Nachricht mehrere klar verschiedene Themen, gib sie einzeln als Unterfragen an.
-- Ist die Nachricht so allgemein, dass es kein Thema gibt ("fass das zusammen"), gib den Kern der Nachricht als Anfrage zurück.
+- Nennt die Nachricht selbst ein Thema, gilt dieses — auch wenn daneben ein Rückverweis-Wort steht. "Zeig mir die Kontaktdaten" heisst Kontaktdaten, gleich worum es vorher ging.
+- Nennt sie KEIN eigenes Thema und zeigt mit "das", "dies", "davon", "dazu" oder "darin" auf den GESPRÄCHSVERLAUF zurück, setze dessen Thema als Anfrage ein — nicht das Dokument als Ganzes. Nach einem Turn über Löschfristen heisst "kannst du das wörtlich zitieren?" also: Löschfristen.
+- Ist die Nachricht so allgemein, dass es kein Thema gibt ("fass das zusammen"), und gibt auch der Verlauf keines her, gib den Kern der Nachricht als Anfrage zurück.
 
 Antworte NUR mit JSON:
 {"query": "…", "subQueries": ["…", "…"] | null}`;
@@ -75,7 +73,6 @@ interface RefineArgs {
   userContent: string;
   conversationContext: string | null;
   topicalContext: string | null;
-  aiWorkerPool: AIWorkerPool;
 }
 
 /**
@@ -87,7 +84,6 @@ export async function refineSearchQuery({
   userContent,
   conversationContext,
   topicalContext,
-  aiWorkerPool,
 }: RefineArgs): Promise<RefinedQuery | null> {
   const startTime = Date.now();
   const userMessage =
@@ -97,28 +93,31 @@ export async function refineSearchQuery({
 
   try {
     const response = await withTimeout(
-      aiWorkerPool.processRequest(
-        {
-          type: 'chat_intent_classification',
-          provider: LANE.provider,
-          systemPrompt: REFINE_PROMPT,
-          messages: [{ role: 'user', content: userMessage }],
-          options: {
-            model: LANE.model,
-            max_tokens: 200,
-            temperature: 0.1,
-            response_format: { type: 'json_object' },
-          },
-        },
-        null
-      ),
-      REFINE_TIMEOUT_MS
+      aiText({
+        lane: 'chat_intent_classification',
+        pinned: 'standard',
+        system: REFINE_PROMPT,
+        prompt: userMessage,
+        maxOutputTokens: 200,
+        temperature: 0.1,
+        json: true,
+      }),
+      REFINE_TIMEOUT_MS,
+      'Query refine'
     );
 
-    const refined = parseRefined(response.content);
+    const refined = parseRefined(response);
     const elapsedMs = Date.now() - startTime;
     if (refined == null) {
-      log.warn(`[QueryRefine] Unusable output in ${elapsedMs}ms — falling back to heuristic`);
+      // Four different things produce `null` here (no braces, unparseable JSON,
+      // empty query, query over MAX_QUERY_LENGTH) and the old line named none of
+      // them. On 20.08.2026 the fallback then shipped the user's raw instruction
+      // as an embedding query, and nothing in the log said which case it was.
+      log.warn(
+        `[QueryRefine] Unusable output in ${elapsedMs}ms — falling back to heuristic. Rohantwort: ${JSON.stringify(
+          (response ?? '').slice(0, 200)
+        )}`
+      );
       return null;
     }
     log.info(
@@ -168,20 +167,4 @@ function parseRefined(raw: string | undefined | null): RefinedQuery | null {
 
   // One "sub"-query is the query again, not a decomposition.
   return { query, subQueries: subQueries.length > 1 ? subQueries : null };
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Query refine timeout after ${ms}ms`)), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      }
-    );
-  });
 }

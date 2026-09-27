@@ -1,0 +1,124 @@
+{
+  "pipeline": "notebook",
+  "depth": "deep",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "notebook-berlin-hitzeschutz",
+      "collection": "berlin-system",
+      "query": "Was gilt in Berlin zum Hitzeschutz, etwa an Schulen oder für Hitzeempfindliche?",
+      "rank": 8,
+      "topTitles": [
+        "Hitzehilfe für Obdachlose in Berlin: Beschluss auf der Landesdelegiertenkonferenz:\nBerlin...",
+        "Hitzehilfe für Obdachlose in Berlin: Beschluss auf der Landesdelegiertenkonferenz:\nBerlin...",
+        "Hitzehilfe für Obdachlose in Berlin: Beschluss auf der Landesdelegiertenkonferenz:\nBerlin...",
+        "Hitzehilfe für Obdachlose in Berlin: Beschluss auf der Landesdelegiertenkonferenz:\nBerlin...",
+        "Hitzehilfe für Obdachlose in Berlin: Beschluss auf der Landesdelegiertenkonferenz:\nBerlin..."
+      ]
+    },
+    {
+      "id": "notebook-berlin-milieuschutz",
+      "collection": "berlin-system",
+      "query": "Wie will Berlin mit Milieuschutzgebieten die Mietenentwicklung bremsen?",
+      "rank": 1,
+      "topTitles": [
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung: Beschluss auf der Landesdelegiertenkonferenz:\nDie...",
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung: Beschluss auf der Landesdelegiertenkonferenz:\nDie...",
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung: Beschluss auf der Landesdelegiertenkonferenz:\nDie...",
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung: Beschluss auf der Landesdelegiertenkonferenz:\nDie...",
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung: Beschluss auf der Landesdelegiertenkonferenz:\nDie..."
+      ]
+    },
+    {
+      "id": "notebook-bayern-moorschutz",
+      "collection": "bayern-system",
+      "query": "Welche Ziele und Maßnahmen verfolgt der Moorschutz in Bayern?",
+      "rank": 1,
+      "topTitles": [
+        "Landtags-Grüne wollen Moorschutz und Moorwirtschaft in Bayern massiv voranbringen",
+        "Landtags-Grüne wollen Moorschutz und Moorwirtschaft in Bayern massiv voranbringen",
+        "Landtags-Grüne wollen Moorschutz und Moorwirtschaft in Bayern massiv voranbringen",
+        "Landtags-Grüne wollen Moorschutz und Moorwirtschaft in Bayern massiv voranbringen",
+        "Landtags-Grüne wollen Moorschutz und Moorwirtschaft in Bayern massiv voranbringen"
+      ]
+    },
+    {
+      "id": "notebook-at-klimaticket",
+      "collection": "oesterreich-gruene-system",
+      "query": "Wie ist das Klimaticket in Österreich finanziert, und was kostet es?",
+      "rank": 1,
+      "topTitles": [
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)"
+      ]
+    },
+    {
+      "id": "notebook-user-ausschreibungen",
+      "collection": "user",
+      "query": "Welche Direktvergabe an ein Architekturbüro hat das Rechnungsprüfungsamt beanstandet, und wie hoch war der Betrag?",
+      "rank": 1,
+      "topTitles": [
+        "2026_105_Anlage_4_Oe_Schlussbericht_des_Rechnungspruefungsamtes_ueber_die_Pruefung_des_Jahresa_5.pdf",
+        "2026_105_Anlage_4_Oe_Schlussbericht_des_Rechnungspruefungsamtes_ueber_die_Pruefung_des_Jahresa_5.pdf",
+        "2026_105_Anlage_4_Oe_Schlussbericht_des_Rechnungspruefungsamtes_ueber_die_Pruefung_des_Jahresa_5.pdf",
+        "2026_105_Anlage_4_Oe_Schlussbericht_des_Rechnungspruefungsamtes_ueber_die_Pruefung_des_Jahresa_5.pdf",
+        "2026_105_Anlage_4_Oe_Schlussbericht_des_Rechnungspruefungsamtes_ueber_die_Pruefung_des_Jahresa_5.pdf"
+      ]
+    },
+    {
+      "id": "notebook-user-haushaltsplan",
+      "collection": "user",
+      "query": "Wie hoch sind die Einzahlungen aus laufender Verwaltungstätigkeit laut Finanzplan?",
+      "rank": 1,
+      "topTitles": [
+        "3152_3711_1.PDF",
+        "3152_3711_1.PDF",
+        "3152_3711_1.PDF",
+        "3152_3711_1.PDF",
+        "3152_3711_1.PDF"
+      ]
+    },
+    {
+      "id": "notebook-history-moorschutz",
+      "collection": "multi",
+      "query": "Und in Bayern?",
+      "rank": 1,
+      "topTitles": [
+        "Landtags-Grüne wollen Moorschutz und Moorwirtschaft in Bayern massiv voranbringen",
+        "Landtags-Grüne wollen Moorschutz und Moorwirtschaft in Bayern massiv voranbringen",
+        "Landtags-Grüne wollen Moorschutz und Moorwirtschaft in Bayern massiv voranbringen",
+        "Landtags-Grüne wollen Moorschutz und Moorwirtschaft in Bayern massiv voranbringen",
+        "Landtags-Grüne wollen Moorschutz und Moorwirtschaft in Bayern massiv voranbringen"
+      ]
+    },
+    {
+      "id": "notebook-history-flaechenfrass",
+      "collection": "multi",
+      "query": "Und in Bayern?",
+      "rank": 1,
+      "topTitles": [
+        "Statement zur Flächenstatistik",
+        "Statement zur Flächenstatistik",
+        "Wasserknappheit: Was sich beim Bauen jetzt ändern muss",
+        "Wasserknappheit: Was sich beim Bauen jetzt ändern muss",
+        "Wasserknappheit: Was sich beim Bauen jetzt ändern muss"
+      ]
+    },
+    {
+      "id": "notebook-history-artenvielfalt",
+      "collection": "multi",
+      "query": "Und in Bayern?",
+      "rank": 1,
+      "topTitles": [
+        "„Die Arten sterben leise – weil die Artenkenntnis langsam ausstirbt“",
+        "„Die Arten sterben leise – weil die Artenkenntnis langsam ausstirbt“",
+        "„Die Arten sterben leise – weil die Artenkenntnis langsam ausstirbt“",
+        "„Die Arten sterben leise – weil die Artenkenntnis langsam ausstirbt“",
+        "„Die Arten sterben leise – weil die Artenkenntnis langsam ausstirbt“"
+      ]
+    }
+  ]
+}

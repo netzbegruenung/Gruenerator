@@ -18,13 +18,16 @@
 
 import {
   threadsContract,
+  chatThreadSharingContract,
   exportsContract,
+  speechContract,
   recentValuesContract,
   recentActivityContract,
   contentContract,
   itemUsageContract,
   userUsageContract,
-  searchContract,
+  treesContract,
+  transparencyContract,
   globalSearchContract,
   researchContract,
   boardsContract,
@@ -45,21 +48,30 @@ import {
   userWebsitesContract,
   letterheadsContract,
   notebookSharingContract,
-  transferContract,
   notificationsContract,
+  memoryContract,
   emailContract,
   feedbackContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
+  chatToolApprovalsContract,
   imageEditContract,
+  sharepicTextContract,
   adminVorlagenContract,
   userTemplatesContract,
+  sharedTemplateContract,
   templateInteractionsContract,
   userAgentsContract,
   userAgentsSharingContract,
   skillPromptContract,
+  agentVisibilityContract,
+  chunkInspectorContract,
   skillVisibilityContract,
+  instanceAdminOverviewContract,
+  translationContract,
+  lvAdminAssignmentContract,
+  landesverbandAdminContract,
   userTextFormsContract,
   recurringTasksContract,
   docsContract,
@@ -67,16 +79,16 @@ import {
   groupsContract,
   userProfileContract,
   canvasContract,
-  canvasAiContract,
   monitorContract,
   sitesContract,
+  texteContract,
   subtitlerContract,
   reisekostenContract,
   imagePickerContract,
   sharesReadContract,
   promptsContract,
 } from '@gruenerator/contracts';
-import { initClient } from '@ts-rest/core';
+import { initClient, isZodType, type AppRoute } from '@ts-rest/core';
 import { isAxiosError } from 'axios';
 
 import { getGlobalApiClient } from './client.js';
@@ -109,8 +121,12 @@ const BINARY_RESPONSE_PATHS = new Set<string>(['/api/exports/docx', '/api/export
  * production. Dev happened to work because `baseURL` was `''`
  * there (no VITE_API_BASE_URL set), which masked the issue through
  * 4 sessions of contract migration.
+ *
+ * Exported because the same reconciliation is needed anywhere a path written
+ * for a base-less client is handed to an axios client whose `baseURL` already
+ * ends in `/api` — mobile's mentionable sync is the second such bridge.
  */
-function stripApiPrefix(path: string): string {
+export function stripApiPrefix(path: string): string {
   return path.startsWith('/api/') ? path.slice(4) : path;
 }
 
@@ -124,11 +140,15 @@ async function axiosFetcher({
   method,
   headers,
   body,
+  route,
+  validateResponse,
 }: {
   path: string;
   method: string;
   headers: Record<string, string>;
   body: unknown;
+  route: AppRoute;
+  validateResponse?: boolean | undefined;
 }): Promise<{ status: number; body: unknown; headers: Headers }> {
   const axios = getGlobalApiClient();
   const isBinary = BINARY_RESPONSE_PATHS.has(path);
@@ -169,6 +189,26 @@ async function axiosFetcher({
     if (value !== undefined) nativeHeaders.set(key, String(value));
   }
 
+  // ts-rest only applies `validateResponse` inside its own `tsRestFetchApi`.
+  // Handing it a custom `api` — which is the whole point of this bridge — skips
+  // that step, so setting the flag on a client did exactly nothing until this
+  // block existed. Verified by `contractsClientValidation.vitest.ts`, whose
+  // regression case passed happily while the flag was set but inert.
+  // `route.validateResponseOnClient` is ts-rest's deprecated per-route opt-in.
+  // Nothing in this repo sets it, but honouring it here costs one `??` and
+  // avoids re-creating exactly the trap above: a flag that type-checks, reads
+  // as enabled, and is silently ignored by this bridge.
+  if (validateResponse ?? route.validateResponseOnClient) {
+    const responseSchema = route.responses[response.status];
+    if (isZodType(responseSchema)) {
+      return {
+        status: response.status,
+        body: responseSchema.parse(response.data),
+        headers: nativeHeaders,
+      };
+    }
+  }
+
   return {
     status: response.status,
     body: response.data,
@@ -183,16 +223,46 @@ const CLIENT_OPTS = {
   api: axiosFetcher,
 } as const;
 
+/**
+ * Same client, but the 200 body is parsed against the contract's Zod schema
+ * before it is handed back — a mismatch throws a `ZodError` naming the field.
+ *
+ * The reason is the mobile Studio tab: it once died with `undefined is not a
+ * function` deep inside a render because `/share/recent` shipped `createdAt: {}`
+ * and nothing between the response and the sort had any opinion about the shape.
+ * Validation is that missing opinion.
+ *
+ * The *effect* is wider than that reason, and deliberately so. These are
+ * process-wide singletons, so switching them on validates every caller of the
+ * three contracts — `canvas` also serves the collab canvas editor, chat sharepic
+ * minting and the template gallery; `subtitler` serves the whole web subtitler
+ * pipeline; `sharesRead` also serves share renaming. Those
+ * response builders serialize their dates through the same `toIso` pattern, so
+ * none of them throws today, but none was audited or covered by a test here
+ * either. A drift in one of them now fails loudly instead of silently — which is
+ * the point, but it will surface in the web app, not only in the Studio tab.
+ *
+ * Not switched on globally: every other contract would start throwing on
+ * mismatches nobody has audited yet. Widening this is a deliberate, separate
+ * step — see the contract-adoption backlog.
+ */
+const VALIDATED_CLIENT_OPTS = {
+  ...CLIENT_OPTS,
+  validateResponse: true,
+} as const;
+
 // Infer types directly from initClient — avoids importing InitClientReturn
 // which may not be exported in all @ts-rest/core minor versions.
 const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
 const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
+const _speechClient = () => initClient(speechContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OPTS);
 const _contentClient = () => initClient(contentContract, CLIENT_OPTS);
 const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
 const _userUsageClient = () => initClient(userUsageContract, CLIENT_OPTS);
-const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
+const _treesClient = () => initClient(treesContract, CLIENT_OPTS);
+const _transparencyClient = () => initClient(transparencyContract, CLIENT_OPTS);
 const _globalSearchClient = () => initClient(globalSearchContract, CLIENT_OPTS);
 const _researchClient = () => initClient(researchContract, CLIENT_OPTS);
 const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
@@ -213,46 +283,61 @@ const _notebookWordpressClient = () => initClient(notebookWordpressContract, CLI
 const _userWebsitesClient = () => initClient(userWebsitesContract, CLIENT_OPTS);
 const _letterheadsClient = () => initClient(letterheadsContract, CLIENT_OPTS);
 const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
-const _transferClient = () => initClient(transferContract, CLIENT_OPTS);
+const _chatThreadSharingClient = () => initClient(chatThreadSharingContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
+const _memoryClient = () => initClient(memoryContract, CLIENT_OPTS);
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
 const _feedbackClient = () => initClient(feedbackContract, CLIENT_OPTS);
 const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
 const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
 const _mcpServersClient = () => initClient(mcpServersContract, CLIENT_OPTS);
+const _chatToolApprovalsClient = () => initClient(chatToolApprovalsContract, CLIENT_OPTS);
 const _imageEditClient = () => initClient(imageEditContract, CLIENT_OPTS);
+const _sharepicTextClient = () => initClient(sharepicTextContract, CLIENT_OPTS);
 const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
 const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS);
+const _sharedTemplateClient = () => initClient(sharedTemplateContract, CLIENT_OPTS);
 const _templateInteractionsClient = () => initClient(templateInteractionsContract, CLIENT_OPTS);
 const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
 const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
 const _skillPromptClient = () => initClient(skillPromptContract, CLIENT_OPTS);
+const _agentVisibilityClient = () => initClient(agentVisibilityContract, CLIENT_OPTS);
+const _chunkInspectorClient = () => initClient(chunkInspectorContract, CLIENT_OPTS);
 const _skillVisibilityClient = () => initClient(skillVisibilityContract, CLIENT_OPTS);
+const _instanceAdminOverviewClient = () => initClient(instanceAdminOverviewContract, CLIENT_OPTS);
+const _translationClient = () => initClient(translationContract, CLIENT_OPTS);
+const _lvAdminAssignmentClient = () => initClient(lvAdminAssignmentContract, CLIENT_OPTS);
+const _landesverbandAdminClient = () => initClient(landesverbandAdminContract, CLIENT_OPTS);
 const _userTextFormsClient = () => initClient(userTextFormsContract, CLIENT_OPTS);
 const _recurringTasksClient = () => initClient(recurringTasksContract, CLIENT_OPTS);
 const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
 const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
 const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
 const _userProfileClient = () => initClient(userProfileContract, CLIENT_OPTS);
-const _canvasClient = () => initClient(canvasContract, CLIENT_OPTS);
-const _canvasAiClient = () => initClient(canvasAiContract, CLIENT_OPTS);
+// Validiert (nicht nur für den Studio-Tab) — siehe VALIDATED_CLIENT_OPTS.
+const _canvasClient = () => initClient(canvasContract, VALIDATED_CLIENT_OPTS);
 const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
 const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
-const _subtitlerClient = () => initClient(subtitlerContract, CLIENT_OPTS);
+const _texteClient = () => initClient(texteContract, CLIENT_OPTS);
+// Validiert (nicht nur für den Studio-Tab) — siehe VALIDATED_CLIENT_OPTS.
+const _subtitlerClient = () => initClient(subtitlerContract, VALIDATED_CLIENT_OPTS);
 const _reisekostenClient = () => initClient(reisekostenContract, CLIENT_OPTS);
 const _imagePickerClient = () => initClient(imagePickerContract, CLIENT_OPTS);
-const _sharesReadClient = () => initClient(sharesReadContract, CLIENT_OPTS);
+// Validiert (nicht nur für den Studio-Tab) — siehe VALIDATED_CLIENT_OPTS.
+const _sharesReadClient = () => initClient(sharesReadContract, VALIDATED_CLIENT_OPTS);
 const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
   exports: ReturnType<typeof _exportsClient>;
+  speech: ReturnType<typeof _speechClient>;
   recentValues: ReturnType<typeof _recentValuesClient>;
   recentActivity: ReturnType<typeof _recentActivityClient>;
   content: ReturnType<typeof _contentClient>;
   itemUsage: ReturnType<typeof _itemUsageClient>;
   userUsage: ReturnType<typeof _userUsageClient>;
-  search: ReturnType<typeof _searchClient>;
+  trees: ReturnType<typeof _treesClient>;
+  transparency: ReturnType<typeof _transparencyClient>;
   globalSearch: ReturnType<typeof _globalSearchClient>;
   research: ReturnType<typeof _researchClient>;
   boards: ReturnType<typeof _boardsClient>;
@@ -273,21 +358,31 @@ export interface ContractsClient {
   userWebsites: ReturnType<typeof _userWebsitesClient>;
   letterheads: ReturnType<typeof _letterheadsClient>;
   notebookSharing: ReturnType<typeof _notebookSharingClient>;
-  transfer: ReturnType<typeof _transferClient>;
+  chatThreadSharing: ReturnType<typeof _chatThreadSharingClient>;
   notifications: ReturnType<typeof _notificationsClient>;
+  memory: ReturnType<typeof _memoryClient>;
   email: ReturnType<typeof _emailClient>;
   feedback: ReturnType<typeof _feedbackClient>;
+  translation: ReturnType<typeof _translationClient>;
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
   mcpServers: ReturnType<typeof _mcpServersClient>;
+  chatToolApprovals: ReturnType<typeof _chatToolApprovalsClient>;
   imageEdit: ReturnType<typeof _imageEditClient>;
+  sharepicText: ReturnType<typeof _sharepicTextClient>;
   adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
   userTemplates: ReturnType<typeof _userTemplatesClient>;
+  sharedTemplate: ReturnType<typeof _sharedTemplateClient>;
   templateInteractions: ReturnType<typeof _templateInteractionsClient>;
   userAgents: ReturnType<typeof _userAgentsClient>;
   userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
   skillPrompt: ReturnType<typeof _skillPromptClient>;
+  agentVisibility: ReturnType<typeof _agentVisibilityClient>;
+  chunkInspector: ReturnType<typeof _chunkInspectorClient>;
   skillVisibility: ReturnType<typeof _skillVisibilityClient>;
+  instanceAdminOverview: ReturnType<typeof _instanceAdminOverviewClient>;
+  lvAdminAssignment: ReturnType<typeof _lvAdminAssignmentClient>;
+  landesverbandAdmin: ReturnType<typeof _landesverbandAdminClient>;
   userTextForms: ReturnType<typeof _userTextFormsClient>;
   recurringTasks: ReturnType<typeof _recurringTasksClient>;
   docs: ReturnType<typeof _docsClient>;
@@ -295,9 +390,9 @@ export interface ContractsClient {
   groups: ReturnType<typeof _groupsClient>;
   userProfile: ReturnType<typeof _userProfileClient>;
   canvas: ReturnType<typeof _canvasClient>;
-  canvasAi: ReturnType<typeof _canvasAiClient>;
   monitor: ReturnType<typeof _monitorClient>;
   sites: ReturnType<typeof _sitesClient>;
+  texte: ReturnType<typeof _texteClient>;
   subtitler: ReturnType<typeof _subtitlerClient>;
   reisekosten: ReturnType<typeof _reisekostenClient>;
   imagePicker: ReturnType<typeof _imagePickerClient>;
@@ -329,7 +424,8 @@ export function getContractsClient(): ContractsClient {
     content: _contentClient(),
     itemUsage: _itemUsageClient(),
     userUsage: _userUsageClient(),
-    search: _searchClient(),
+    trees: _treesClient(),
+    transparency: _transparencyClient(),
     globalSearch: _globalSearchClient(),
     research: _researchClient(),
     boards: _boardsClient(),
@@ -350,21 +446,31 @@ export function getContractsClient(): ContractsClient {
     userWebsites: _userWebsitesClient(),
     letterheads: _letterheadsClient(),
     notebookSharing: _notebookSharingClient(),
-    transfer: _transferClient(),
+    chatThreadSharing: _chatThreadSharingClient(),
     notifications: _notificationsClient(),
+    memory: _memoryClient(),
     email: _emailClient(),
     feedback: _feedbackClient(),
+    translation: _translationClient(),
     modelPreferences: _modelPreferencesClient(),
     imageModelPreference: _imageModelPreferenceClient(),
     mcpServers: _mcpServersClient(),
+    chatToolApprovals: _chatToolApprovalsClient(),
     imageEdit: _imageEditClient(),
+    sharepicText: _sharepicTextClient(),
     adminVorlagen: _adminVorlagenClient(),
     userTemplates: _userTemplatesClient(),
+    sharedTemplate: _sharedTemplateClient(),
     templateInteractions: _templateInteractionsClient(),
     userAgents: _userAgentsClient(),
     userAgentsSharing: _userAgentsSharingClient(),
     skillPrompt: _skillPromptClient(),
+    agentVisibility: _agentVisibilityClient(),
+    chunkInspector: _chunkInspectorClient(),
     skillVisibility: _skillVisibilityClient(),
+    instanceAdminOverview: _instanceAdminOverviewClient(),
+    lvAdminAssignment: _lvAdminAssignmentClient(),
+    landesverbandAdmin: _landesverbandAdminClient(),
     userTextForms: _userTextFormsClient(),
     recurringTasks: _recurringTasksClient(),
     docs: _docsClient(),
@@ -372,14 +478,15 @@ export function getContractsClient(): ContractsClient {
     groups: _groupsClient(),
     userProfile: _userProfileClient(),
     canvas: _canvasClient(),
-    canvasAi: _canvasAiClient(),
     monitor: _monitorClient(),
     sites: _sitesClient(),
+    texte: _texteClient(),
     subtitler: _subtitlerClient(),
     reisekosten: _reisekostenClient(),
     imagePicker: _imagePickerClient(),
     sharesRead: _sharesReadClient(),
     prompts: _promptsClient(),
+    speech: _speechClient(),
   };
 
   return _client;

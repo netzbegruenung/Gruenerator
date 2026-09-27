@@ -1,6 +1,14 @@
+import { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { describe, it, expect } from 'vitest';
 
-import { ApiError, isApiErrorWithStatus, isUnauthorizedError, UnauthorizedError } from './errors';
+import { createApiClient } from './client';
+import {
+  ApiError,
+  apiErrorFromResponse,
+  isApiErrorWithStatus,
+  isUnauthorizedError,
+  UnauthorizedError,
+} from './errors';
 
 /**
  * Callers branch on the status to tell "this is gone" (404 — drop the local
@@ -42,6 +50,47 @@ describe('isApiErrorWithStatus', () => {
   });
 });
 
+/**
+ * ts-rest resolves a non-2xx as data, so the idiomatic
+ * `throw new Error(errMessage(res.body))` dropped the status. An expected 403
+ * was then retried three times and reported to Sentry as an unclassified
+ * crash (GlitchTip #590).
+ */
+describe('apiErrorFromResponse', () => {
+  it('keeps the status of the non-2xx response', () => {
+    const err = apiErrorFromResponse({
+      status: 403,
+      body: { message: 'Du bist nicht Mitglied dieser Gruppe.' },
+    });
+
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(403);
+    expect(err.message).toBe('Du bist nicht Mitglied dieser Gruppe.');
+  });
+
+  it("prefers the backend's own message over the caller's fallback", () => {
+    const err = apiErrorFromResponse(
+      { status: 500, body: { message: 'Datenbank nicht erreichbar.' } },
+      'Fehler beim Laden der Gruppen.'
+    );
+
+    expect(err.message).toBe('Datenbank nicht erreichbar.');
+  });
+
+  it('falls back when the body carries no usable message', () => {
+    expect(
+      apiErrorFromResponse({ status: 502, body: null }, 'Fehler beim Laden der Gruppen.').message
+    ).toBe('Fehler beim Laden der Gruppen.');
+    expect(apiErrorFromResponse({ status: 502, body: 'gateway' }).message).toBe(
+      'Aktion fehlgeschlagen.'
+    );
+  });
+
+  it('is recognised by the duck-typed check the 403 UI branches on', () => {
+    expect(isApiErrorWithStatus(apiErrorFromResponse({ status: 403, body: {} }), 403)).toBe(true);
+  });
+});
+
 describe('isUnauthorizedError alongside ApiError', () => {
   it('still recognises the dedicated 401 class', () => {
     expect(isUnauthorizedError(new UnauthorizedError())).toBe(true);
@@ -53,5 +102,62 @@ describe('isUnauthorizedError alongside ApiError', () => {
 
   it('does not claim an unrelated failure', () => {
     expect(isUnauthorizedError(new ApiError(500, 'Boom'))).toBe(false);
+  });
+});
+
+/**
+ * `isUnauthorizedError` was written for the raw-fetch stacks, which throw the
+ * `UnauthorizedError` above. Mobile's mentionable sync now runs it against a
+ * real `AxiosError` instead, and that only matches because axios copies the
+ * response status onto the error (`this.status = response.status` in the
+ * AxiosError constructor, reached via `settle()`). That is an axios internal,
+ * not a documented contract — so pin it here rather than assume it survives the
+ * next bump. A version that stops setting `.status` turns every mobile 401 into
+ * a thrown query instead of a quiet empty list.
+ */
+describe('isUnauthorizedError against a real AxiosError', () => {
+  /**
+   * Answers every request the way a real adapter does on an HTTP error: reject
+   * with `new AxiosError(..., response)`, which is what `settle()` constructs.
+   * The client's own response interceptor runs on top, so this covers the whole
+   * path a mobile 401 actually takes.
+   */
+  function clientFailingWith(status: number) {
+    const client = createApiClient({ baseURL: 'http://localhost/api', authMode: 'bearer' });
+    client.defaults.adapter = (config: InternalAxiosRequestConfig) =>
+      Promise.reject(
+        new AxiosError(
+          `Request failed with status code ${status}`,
+          status >= 400 && status < 500 ? AxiosError.ERR_BAD_REQUEST : AxiosError.ERR_BAD_RESPONSE,
+          config,
+          {},
+          { status, statusText: '', data: null, headers: {}, config }
+        )
+      );
+    return client;
+  }
+
+  async function failureFrom(status: number): Promise<unknown> {
+    return clientFailingWith(status)
+      .get('/auth/notebook-collections')
+      .then(
+        () => null,
+        (err: unknown) => err
+      );
+  }
+
+  it('recognises a 401 carried by an AxiosError', async () => {
+    const caught = await failureFrom(401);
+
+    expect((caught as { name?: string }).name).toBe('AxiosError');
+    expect((caught as { status?: number }).status).toBe(401);
+    expect(isUnauthorizedError(caught)).toBe(true);
+  });
+
+  it('does not claim a 404 — a wrong path must stay visible', async () => {
+    const caught = await failureFrom(404);
+
+    expect((caught as { status?: number }).status).toBe(404);
+    expect(isUnauthorizedError(caught)).toBe(false);
   });
 });

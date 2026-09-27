@@ -63,6 +63,20 @@
   background-color: color-mix(in oklab, var(--color-background) 85%, transparent) !important;
 }
 
+/* Das mobile Sidebar-Panel liegt über dem gesamten Seiteninhalt, nicht über
+   einem dekorativen Verlauf — sein Rest-Glaseffekt (95%) hat keine Funktion
+   außer Tiefe. Bei reduzierter Transparenz also ganz zumachen; der /85er
+   Fallback der Desktop-Leiste wäre hier durchsichtiger als der Ausgangswert. */
+@media (prefers-reduced-transparency: reduce) {
+  .sidebar-mobile-panel {
+    background-color: var(--color-background) !important;
+  }
+}
+
+:root[data-reduce-transparency='true'] .sidebar-mobile-panel {
+  background-color: var(--color-background) !important;
+}
+
 /* Windows High Contrast / forced-colors: the browser replaces our palette but
    keeps background-images, so the decorative gradient washes would float over
    forced backgrounds. Strip them; text and controls follow the system colours. */

@@ -21,7 +21,7 @@ import { useHydrateUserProfile } from './hooks/useHydrateUserProfile';
 import { GlobalChatProvider } from './providers/GlobalChatProvider';
 import { type User, useAuthStore } from './stores/authStore';
 import { cleanupDesktopAuth, type DesktopUser, initDesktopAuth } from './utils/desktopAuth';
-import { isDesktopApp } from './utils/platform';
+import { isDesktopApp, isEmbedded } from './utils/platform';
 import './App.css';
 
 function UserProfileHydrationBridge() {
@@ -40,12 +40,17 @@ import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@ta
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster, toast, TooltipProvider } from '@gruenerator/ui';
 
+import { shouldRetryQuery } from './components/utils/queryRetry';
 import { toastApiError } from './components/utils/toastError';
 // PopupNutzungsbedingungen moved to inline HTML in index.html — see the
 // `terms-banner` block there. It was the LCP element on / for fresh
 // visitors and waited for the React boot to paint; inline removes that
 // dependency entirely. The same `termsAccepted` localStorage key gates both.
 const PopupWartung = lazy(() => import('./components/Popups/popup_wartung'));
+// Art.-9-Einwilligung vor der ersten KI-Nutzung. Lazy, weil abgemeldete
+// Besucher*innen ihn nie sehen und er nach der Zustimmung nie wieder rendert.
+const AiConsentGate = lazy(() => import('./features/auth/components/AiConsentGate'));
+const LocaleGate = lazy(() => import('./features/auth/components/LocaleGate'));
 // const CustomGrueneratorenPopup = lazy(() => import('./components/Popups/popup_custom_grueneratoren'));
 // const PopupAustriaLaunch = lazy(() => import('./components/Popups/popup_austria_launch'));
 
@@ -76,15 +81,7 @@ const queryClient = new QueryClient({
       gcTime: 15 * 60 * 1000, // Keep data in cache for 15 minutes (was cacheTime)
       refetchOnWindowFocus: false, // Verhindert unnötige Neuladungen
       refetchOnReconnect: 'always', // Nur bei Reconnect neu laden
-      retry: (failureCount, error: unknown) => {
-        // Smart retry logic. Status lives at `.status` on AxiosErrors and
-        // ApiErrors, but at `.response.status` on older transformed shapes —
-        // read both so 401/403/404 are reliably excluded from retries.
-        const err = error as { status?: number; response?: { status?: number } } | undefined;
-        const status = err?.status ?? err?.response?.status;
-        if (status === 404 || status === 401 || status === 403) return false;
-        return failureCount < 2; // Max 2 retries
-      },
+      retry: shouldRetryQuery,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
     },
   },
@@ -185,7 +182,7 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <UserProfileHydrationBridge />
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position="top-right" theme={darkMode ? 'dark' : 'light'} />
         <TooltipProvider>
           <Router>
             <AuthBootstrap />
@@ -200,7 +197,23 @@ function App() {
                 unaffected. */}
             <GlobalChatProvider>
               <GlobalBridges />
-              <SettingsDialogHost />
+              {/* Both open over the whole page. Inside an embedded WebView the
+                  user cannot reach the rest of the app to resolve them, so
+                  they would strand the host on a dialog it never asked for. */}
+              {!isEmbedded() && <SettingsDialogHost />}
+              {!isEmbedded() && (
+                <SuspenseWrapper>
+                  <AiConsentGate />
+                </SuspenseWrapper>
+              )}
+              {/* Steht bewusst nach dem Einwilligungs-Gate und prüft selbst, dass
+                  die Einwilligung schon vorliegt — zwei modale Dialoge zugleich
+                  wären beide nicht bedienbar. */}
+              {!isEmbedded() && (
+                <SuspenseWrapper>
+                  <LocaleGate />
+                </SuspenseWrapper>
+              )}
               <SuspenseWrapper>
                 {/* <PopupAustriaLaunch /> */}
                 <div id="aria-live-region" aria-live="polite" className="sr-only" />
@@ -213,7 +226,7 @@ function App() {
                 Single auth model: auth-required is the default. A route opts
                 out by setting `public: true` in routes.ts. The marketing
                 startpage at `/` additionally redirects authenticated users
-                to `/workplace` via <HomeRedirect>.
+                to `/start` bzw. `/workplace` via <HomeRedirect>.
               */}
                   {routes.map(({ path, layoutMode, public: isPublic }) => {
                     const routeElement = (

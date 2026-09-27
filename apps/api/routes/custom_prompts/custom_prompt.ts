@@ -9,6 +9,7 @@ import { processGraphRequest } from '../../agents/langgraph/PromptProcessor.js';
 import { processGraphRequestStreaming } from '../../agents/langgraph/streamingProcessor.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { getPromptVectorService } from '../../services/prompts/index.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -133,13 +134,18 @@ router.get(
 /**
  * POST / - Execute custom prompt via promptProcessor
  */
-router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  log.debug('[custom_prompt] Request received via promptProcessor');
-  if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
-    return processGraphRequestStreaming('custom_prompt', req as Request, res);
+router.post(
+  '/',
+  requireAuth,
+  requireAiConsent,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    log.debug('[custom_prompt] Request received via promptProcessor');
+    if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
+      return processGraphRequestStreaming('custom_prompt', req as Request, res);
+    }
+    await processGraphRequest('custom_prompt', req, res);
   }
-  await processGraphRequest('custom_prompt', req, res);
-});
+);
 
 /**
  * POST /search - Public semantic search for prompts (no auth required for basic search)

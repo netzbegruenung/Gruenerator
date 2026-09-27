@@ -1,4 +1,5 @@
 import { type Slide } from '@gruenerator/contracts';
+import { hasNativeHost } from '@gruenerator/shared/platform';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FiGrid, FiMaximize, FiMessageSquare, FiX } from 'react-icons/fi';
@@ -275,6 +276,22 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
     };
   }, [printPdf]);
 
+  // Two of the four buttons cannot work inside the mobile app's WebView, and a
+  // button that does nothing is worse than one that is not there.
+  //
+  // Fullscreen: WKWebView honours the Fullscreen API for `<video>` only, so
+  // `requestFullscreen()` on the deck is a no-op. The present mode is already a
+  // full-viewport overlay in there anyway — there is nothing to gain.
+  //
+  // Speaker view: reveal's notes plugin opens a second window. The host sets
+  // `setSupportMultipleWindows={false}`, so `window.open` returns null and the
+  // plugin quietly gives up.
+  //
+  // `hasNativeHost()` rather than the embedded flag: the question is whether a
+  // native WebView is around us, which is a capability. `/mobile-editor`, the
+  // second host, is not opened with `?embedded=1`.
+  const inNativeHost = hasNativeHost();
+
   const toggleOverview = useCallback(() => revealRef.current?.toggleOverview(), []);
   const toggleFullscreen = useCallback(() => {
     const el = deckRef.current;
@@ -342,15 +359,17 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
           chromeVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
       >
-        <button
-          type="button"
-          onClick={openSpeakerView}
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/30"
-          aria-label="Referentenansicht"
-          title="Referentenansicht (S)"
-        >
-          <FiMessageSquare />
-        </button>
+        {!inNativeHost && (
+          <button
+            type="button"
+            onClick={openSpeakerView}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/30"
+            aria-label="Referentenansicht"
+            title="Referentenansicht (S)"
+          >
+            <FiMessageSquare />
+          </button>
+        )}
         <button
           type="button"
           onClick={toggleOverview}
@@ -360,15 +379,17 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
         >
           <FiGrid />
         </button>
-        <button
-          type="button"
-          onClick={toggleFullscreen}
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/30"
-          aria-label="Vollbild"
-          title="Vollbild (F)"
-        >
-          <FiMaximize />
-        </button>
+        {!inNativeHost && (
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/30"
+            aria-label="Vollbild"
+            title="Vollbild (F)"
+          >
+            <FiMaximize />
+          </button>
+        )}
         <button
           type="button"
           onClick={onClose}

@@ -1,3 +1,4 @@
+import { aiText } from '../../../../services/ai/generate.js';
 import {
   extractLocaleFromRequest,
   localizePlaceholders,
@@ -6,7 +7,6 @@ import { createLogger } from '../../../../utils/logger.js';
 
 import type { Locale, RequestWithLocale } from '../../../../services/localization/index.js';
 import type { WebsiteContent } from '../../../../types/routes.js';
-import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { FlyerToSiteState } from '../types.js';
 
 const log = createLogger('FlyerToSite:generate');
@@ -114,22 +114,18 @@ ${analysis.rawDescription}${themesInfo}${slogansInfo}`;
       name: analysis.name,
     });
 
-    const aiWorkerPool = state.req.app.locals.aiWorkerPool as AIWorkerPool;
-    const result = await aiWorkerPool.processRequest(
-      {
-        type: 'website',
-        systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-        options: { temperature: 0.7 },
-      },
-      state.req
-    );
+    const content = await aiText({
+      lane: 'website',
+      system: systemPrompt,
+      prompt: userPrompt,
+      temperature: 0.7,
+    });
 
-    if (!result.success || !result.content) {
-      throw new Error(result.error || 'AI generation failed');
+    if (!content) {
+      throw new Error('AI generation failed');
     }
 
-    let jsonContent = result.content
+    let jsonContent = content
       .replace(/```json\s*/gi, '')
       .replace(/```\s*/g, '')
       .trim();

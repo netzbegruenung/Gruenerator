@@ -277,6 +277,15 @@ interface DocEditorDOMProps {
   wsClose?: () => Promise<void>;
   pendingAction: { type: string; [key: string]: unknown } | null;
   actionCounter: number;
+  /**
+   * Load the bundle, build nothing: no collaboration, no editor, no document.
+   * `DomWarmup` uses it to pay this DOM component's one-time cost —
+   * WebView boot plus parsing the BlockNote/ProseMirror/Yjs bundle — shortly
+   * after app start rather than when the user opens their first document.
+   */
+  warmup?: boolean;
+  /** Fires once the DOM bundle is up. The warmup host retires on it. */
+  onWarm?: () => Promise<void>;
   dom?: DOMProps;
 }
 
@@ -814,6 +823,14 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
   onAiReviewPendingChangeRef.current = props.onAiReviewPendingChange;
   const onAiAcceptFailedRef = useRef(props.onAiAcceptFailed);
   onAiAcceptFailedRef.current = props.onAiAcceptFailed;
+  const onWarmRef = useRef(props.onWarm);
+  onWarmRef.current = props.onWarm;
+
+  // Reaching this point means the bundle is parsed and React is running inside
+  // the WebView — which is the whole point of a warmup mount.
+  useEffect(() => {
+    void onWarmRef.current?.();
+  }, []);
 
   const hasWsBridge = !!(props.wsOpen && props.wsSend && props.wsReceive && props.wsClose);
 
@@ -1023,6 +1040,13 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
     },
     [onSuggestionsChange]
   );
+
+  // Warmup mount: stop before DocsProvider/EditorContent so nothing connects to
+  // Hocuspocus and no document is fetched. The expensive part (module graph +
+  // CSS) has already been evaluated by the time this renders.
+  if (props.warmup) {
+    return <div />;
+  }
 
   return (
     <DocsProvider adapter={adapter}>

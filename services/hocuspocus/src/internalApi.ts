@@ -1,6 +1,9 @@
+import { DOCUMENT_FRAGMENT_NAME, injectHtmlIntoFragment } from '@gruenerator/shared/yjs';
 import express from 'express';
 import * as Y from 'yjs';
 
+import { blockNoteXmlToHtml } from './blockNoteXmlToHtml.js';
+import { detectPreviewKind } from './contentPreviews.js';
 import { createLogger } from './logger.js';
 
 import type { PostgresPersistence } from './persistence.js';
@@ -41,6 +44,8 @@ export const BOARD_FIELD_IDS = {
 const MAX_ROWS_PER_CALL = 50;
 
 interface NewBoardRow {
+  /** Caller-chosen card id, so it can queue work for the card it just created. */
+  id?: string;
   title: string;
   status?: string;
   description?: string;
@@ -51,6 +56,7 @@ export const isNewBoardRow = (v: unknown): v is NewBoardRow => {
   if (!v || typeof v !== 'object') return false;
   const r = v as Record<string, unknown>;
   return (
+    (r.id === undefined || (typeof r.id === 'string' && r.id.length > 0)) &&
     typeof r.title === 'string' &&
     (r.status === undefined || typeof r.status === 'string') &&
     (r.description === undefined || typeof r.description === 'string') &&
@@ -70,7 +76,10 @@ export function appendRowsToBoardDoc(doc: Y.Doc, rows: NewBoardRow[], userId: st
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const newRow = new Y.Map<unknown>();
-      newRow.set('id', `row-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`);
+      newRow.set(
+        'id',
+        row.id ?? `row-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`
+      );
       newRow.set('createdBy', userId);
       newRow.set('createdAt', now);
 
@@ -94,12 +103,51 @@ interface InternalApiDeps {
   persistence: PostgresPersistence;
 }
 
+// ---------------------------------------------------------------------------
+// Prose documents (BlockNote). Same shape as the canvas endpoints above: Yjs is
+// the authority, `collaborative_documents.content` is a derived 2000-char
+// preview written by updateContentPreview — never a write target.
+// ---------------------------------------------------------------------------
+
+/** The document's prose as BlockNote HTML. Empty string for an empty doc. */
+export function readDocHtml(doc: Y.Doc): string {
+  return blockNoteXmlToHtml(doc.getXmlFragment(DOCUMENT_FRAGMENT_NAME).toString());
+}
+
+export const docBlockCount = (doc: Y.Doc): number =>
+  doc.getXmlFragment(DOCUMENT_FRAGMENT_NAME).length;
+
+/**
+ * Does `html` yield at least one block? Checked on a scratch doc, because the
+ * replace below deletes before it inserts: a parse that produces nothing would
+ * otherwise leave the real document empty and the deletion is not recoverable
+ * from the CRDT's point of view — it is a legitimate edit.
+ */
+export function parsesToBlocks(html: string): boolean {
+  const scratch = new Y.Doc();
+  const fragment = scratch.getXmlFragment(DOCUMENT_FRAGMENT_NAME);
+  injectHtmlIntoFragment(fragment, html);
+  return fragment.length > 0;
+}
+
+/**
+ * Replace the whole prose body. Full replacement is what the chat edit path
+ * produces today; block-addressed ops (which would survive a collaborator's
+ * concurrent edit) are the intended successor, not a variant of this.
+ */
+export function replaceDocHtml(doc: Y.Doc, html: string): void {
+  const fragment = doc.getXmlFragment(DOCUMENT_FRAGMENT_NAME);
+  doc.transact(() => {
+    if (fragment.length > 0) fragment.delete(0, fragment.length);
+    injectHtmlIntoFragment(fragment, html);
+  }, TRANSACT_ORIGIN);
+}
+
 export interface PageDef {
   id: string;
   configId: string;
   state: Record<string, unknown>;
-  /** Optional free-element layers/config (deck seeds from serialized decks). */
-  layers?: Array<Record<string, unknown>>;
+  /** Optional config (deck seeds from serialized decks). */
   config?: Record<string, unknown>;
 }
 
@@ -137,7 +185,7 @@ function posBetween(a: string | null, b: string | null): string {
 }
 
 // Mirrors buildPage in packages/canvas-editor/src/collab/pagesDoc.ts:
-// layers & config maps are otherwise created on demand at first mount.
+// the config map is otherwise created on demand at first mount.
 function buildPageYMap(def: PageDef, pos: string): Y.Map<unknown> {
   const page = new Y.Map<unknown>();
   page.set(KEY_ID, def.id);
@@ -146,17 +194,6 @@ function buildPageYMap(def: PageDef, pos: string): Y.Map<unknown> {
   const state = new Y.Map<unknown>();
   for (const [k, v] of Object.entries(def.state)) state.set(k, v);
   page.set(KEY_STATE, state);
-  if (def.layers && def.layers.length > 0) {
-    const layers = new Y.Array<Y.Map<unknown>>();
-    layers.push(
-      def.layers.map((layer) => {
-        const m = new Y.Map<unknown>();
-        for (const [k, v] of Object.entries(layer)) m.set(k, v);
-        return m;
-      })
-    );
-    page.set('layers', layers);
-  }
   if (def.config && Object.keys(def.config).length > 0) {
     const config = new Y.Map<unknown>();
     for (const [k, v] of Object.entries(def.config)) config.set(k, v);
@@ -336,7 +373,6 @@ const isPageDef = (v: unknown): v is PageDef => {
     typeof p.state === 'object' &&
     p.state !== null &&
     !Array.isArray(p.state) &&
-    (p.layers === undefined || Array.isArray(p.layers)) &&
     (p.config === undefined || (typeof p.config === 'object' && p.config !== null))
   );
 };
@@ -517,6 +553,79 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     }
   });
 
+  router.get('/doc/:documentId/html', async (req, res) => {
+    const { documentId } = req.params;
+    try {
+      const liveDoc = deps.server.hocuspocus.documents.get(documentId);
+      if (liveDoc) {
+        res.json({ html: readDocHtml(liveDoc), hasYState: docBlockCount(liveDoc) > 0, live: true });
+        return;
+      }
+      // Same three tiers the editor hydrates from (snapshot → updates →
+      // init_data), so a document that was never opened reads back too.
+      const stored = await deps.persistence.loadDocument(documentId);
+      if (!stored) {
+        res.json({ html: '', hasYState: false, live: false });
+        return;
+      }
+      const doc = new Y.Doc();
+      Y.applyUpdate(doc, stored);
+      res.json({ html: readDocHtml(doc), hasYState: docBlockCount(doc) > 0, live: false });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error(`GET doc html failed for ${documentId}: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  router.post('/doc/:documentId/html', async (req, res) => {
+    const { documentId } = req.params;
+    const html = (req.body as { html?: unknown } | undefined)?.html;
+    if (typeof html !== 'string' || !html.trim()) {
+      res.status(400).json({ error: 'html (non-empty string) is required' });
+      return;
+    }
+    if (!parsesToBlocks(html)) {
+      res.status(400).json({ error: 'html parsed to no blocks' });
+      return;
+    }
+
+    try {
+      const connection = await deps.server.hocuspocus.openDirectConnection(documentId);
+      try {
+        let wrongKind: string | null = null;
+        let resultHtml = '';
+        let blocks = 0;
+        await connection.transact((doc) => {
+          // Sheets, presentations and boards share this table and this service
+          // but hold no BlockNote fragment — writing prose into one would add a
+          // second root type the editor never reads and the preview pipeline
+          // would then misclassify.
+          const kind = detectPreviewKind(doc);
+          if (kind !== 'blocknote') {
+            wrongKind = kind;
+            return;
+          }
+          replaceDocHtml(doc, html);
+          resultHtml = readDocHtml(doc);
+          blocks = docBlockCount(doc);
+        });
+        if (wrongKind !== null) {
+          res.status(409).json({ error: `document is a ${wrongKind}, not a prose document` });
+          return;
+        }
+        log.info(`Replaced prose of ${documentId} (${blocks} block(s))`);
+        res.json({ ok: true, html: resultHtml, blocks });
+      } finally {
+        await connection.disconnect();
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error(`POST doc html failed for ${documentId}: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
+  });
+
   // Live-comment signal for boards. Board comments live in Postgres (not Yjs),
   // so we bump a tiny per-card counter in the board doc's `commentSignals` map;
   // connected clients observe it and refetch that card's comments. A dedicated
@@ -556,7 +665,7 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     const userId = typeof body.userId === 'string' ? body.userId : '';
     if (!Array.isArray(body.rows) || body.rows.length === 0 || !body.rows.every(isNewBoardRow)) {
       res.status(400).json({
-        error: 'rows must be a non-empty array of {title, status?, description?, dueDate?}',
+        error: 'rows must be a non-empty array of {id?, title, status?, description?, dueDate?}',
       });
       return;
     }
@@ -585,6 +694,6 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
 
   app.use('/internal', router);
   log.info(
-    'Internal API registered at /internal/canvas/*, /internal/board/*/comment-bump and /internal/board/*/rows'
+    'Internal API registered at /internal/canvas/*, /internal/doc/*/html, /internal/board/*/comment-bump and /internal/board/*/rows'
   );
 }

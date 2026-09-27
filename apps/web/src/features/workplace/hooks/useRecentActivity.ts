@@ -1,5 +1,5 @@
 import { type RecentActivityItem } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
 // Row shape comes straight from the ts-rest contract — no hand-written mirror.
@@ -21,7 +21,7 @@ const fetchRecentActivity = async (): Promise<RecentItem[]> => {
     query: { limit: '30' },
   });
   if (res.status !== 200) {
-    throw new Error('Aktivitäten konnten nicht geladen werden.');
+    throw new ApiError(res.status, 'Aktivitäten konnten nicht geladen werden.');
   }
   return res.body.items;
 };

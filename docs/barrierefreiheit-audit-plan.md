@@ -108,7 +108,7 @@ Fünf Wellen. Jede ist einzeln mergebar und liefert einen Wert, auch wenn die n�
 Ohne Ausgangswert ist jeder spätere Fortschritt eine Behauptung.
 
 1. `@axe-core/playwright` **nur lokal** installieren, Wegwerf-Spec über ~15 Kernrouten laufen lassen:
-   `/` · `/chat` · `/login` · `/einstellungen` · `/dokumente` · `/notizbuecher` · `/gruen-o-mat` · `/sharepic` · `/boards` · `/agentura` · `/wissen` · `/office` · `/reisekosten` · `/bilder` · `/transkription`
+   `/` · `/chat` · `/login` · `/einstellungen` · `/dokumente` · `/notebooks` · `/gruen-o-mat` · `/sharepic` · `/boards` · `/agentura` · `/wissen` · `/office` · `/reisekosten` · `/bilder` · `/transkription`
 2. Ergebnis nach `docs/a11y-baseline-2026-08.json` + eine Tabelle (Route × Regel × impact).
 3. Dasselbe für Dark Mode **und** `forced-colors: active` — Kontrastfehler verstecken sich fast immer in genau einem der drei Modi.
 4. **Akzeptanz:** Eine Zahl steht fest („X Verstöße, davon Y critical/serious, über Z Routen"). Diese Zahl ist der Nenner für alles Weitere.
@@ -223,7 +223,7 @@ Getrennte Welle, weil die Prüfmittel andere sind und niemand darauf warten muss
 
 ### Welle 5 — Erklärung, Doku, Dauerbetrieb (≈ 2 Tage)
 
-1. **Öffentliche Doku-Seite „Barrierefreiheit"** → `documentation/docs/ueber-den-gruenerator/barrierefreiheit.md`, verlinkt in [sections.ts](documentation/src/nav/sections.ts) unter `topPages` von *Über den Grünerator*. Gliederung:
+1. **Öffentliche Doku-Seite „Barrierefreiheit"** → `documentation/docs/basics/barrierefreiheit.md`, verlinkt in [sections.ts](documentation/src/nav/sections.ts) unter `topPages` von *Basics*. Gliederung:
    - Was wir zusagen (Zielstandard WCAG 2.2 AA / EN 301 549) und **was aktuell noch nicht erfüllt ist** — eine ehrliche Liste ist normkonform, eine geschönte nicht.
    - Welche Einstellungen es gibt (Animationen, Transparenz, Sprung-Link, Schriftgröße) und wo sie liegen.
    - Tastaturbedienung: die tatsächlichen Kürzel.

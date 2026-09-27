@@ -122,8 +122,8 @@ interface PageGeometry {
 
 /**
  * Read one page's text items WITH their positions, plus the placements of small
- * square images. `pdfOperations` deliberately drops the transform matrix (it
- * only ever needed the string); anchor detection is all about that matrix.
+ * square images. `pdfOperations` consumes the transform matrix only to decide
+ * spacing while joining items; anchor detection is all about that matrix.
  */
 async function readPage(
   pdfjs: PdfjsModule,

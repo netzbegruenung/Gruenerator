@@ -26,7 +26,6 @@ type CanvasConfigType =
   // Österreich (de-AT) variants
   | 'zitat-at'
   | 'zitat-pure-at'
-  | 'dreizeilen-at'
   | 'dreizeilen-overlay-at'
   | 'info-at'
   | 'freeform-at';
@@ -76,9 +75,6 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
     case 'zitat-at':
       return (await import('./zitat_at_full.config')).zitatAtFullConfig;
 
-    case 'dreizeilen-at':
-      return (await import('./dreizeilen_at_full.config')).dreizeilenAtFullConfig;
-
     case 'dreizeilen-overlay-at':
       return (await import('./dreizeilen_overlay_at_full.config')).dreizeilenOverlayAtFullConfig;
 
@@ -109,7 +105,6 @@ export function isValidCanvasType(type: string): type is CanvasConfigType {
     'profilbild',
     'zitat-at',
     'zitat-pure-at',
-    'dreizeilen-at',
     'dreizeilen-overlay-at',
     'info-at',
     'freeform-at',

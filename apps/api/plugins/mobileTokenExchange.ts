@@ -28,8 +28,14 @@ interface KeycloakPayload {
 const KC_ISSUER = `${env.KEYCLOAK_BASE_URL}/realms/${env.KEYCLOAK_REALM}`;
 const JWKS = createRemoteJWKSet(new URL(`${KC_ISSUER}/protocol/openid-connect/certs`));
 
+// Spiegelt `PROVIDER_LOCALE` in `config/localeSync.ts`, hier auf die
+// `authSource`-Namen bezogen. `gruenerator-login` fehlt bewusst: er trägt kein
+// Ländersignal und wird derzeit nicht verwendet — für ihn bleibt das Profil
+// leer, statt Deutschland zu unterstellen.
 const LOCALE_MAP: Record<string, 'de-DE' | 'de-AT'> = {
   'gruene-oesterreich-login': 'de-AT',
+  'gruenes-netz-login': 'de-DE',
+  'netzbegruenung-login': 'de-DE',
 };
 
 export const mobileTokenExchange = () => {
@@ -84,7 +90,7 @@ export const mobileTokenExchange = () => {
             throw new Error('Token missing email claim');
           }
 
-          const locale = LOCALE_MAP[authSource || ''] || 'de-DE';
+          const locale = LOCALE_MAP[authSource || ''] ?? null;
           const name = payload.name || payload.preferred_username || email.split('@')[0];
 
           const existing = await ctx.context.internalAdapter.findUserByEmail(email);
@@ -104,14 +110,28 @@ export const mobileTokenExchange = () => {
               authSource ?? 'unknown',
               payload.sub ?? 'none'
             );
-            const created = await ctx.context.internalAdapter.createUser({
-              email,
-              name,
-              emailVerified: payload.email_verified ?? false,
-              locale,
-              auth_source: authSource || 'mobile',
-              keycloak_id: payload.sub || null,
-            });
+            const created = await ctx.context.internalAdapter.createUser(
+              {
+                email,
+                name,
+                emailVerified: payload.email_verified ?? false,
+                // Weglassen statt raten: nennt der Anmeldeweg kein Land, bleibt das
+                // Feld leer und die Oberfläche fragt nach.
+                ...(locale !== null && { locale }),
+                auth_source: authSource || 'mobile',
+                keycloak_id: payload.sub || null,
+              },
+              // Ab 1.7 verlangt `createUser` die Herkunft der Anlage: sie geht
+              // in `user.validateUserInfo` und dessen Kontext. Wir kommen hier
+              // aus einem gegen die Keycloak-JWKS geprüften ID-Token, also
+              // `oauth` — mit dem `authSource` als Provider und den geprüften
+              // Claims als rohem Profil. `providerId` ist dort nur eine Beschriftung
+              // (nicht leer), kein Abgleich mit den registrierten Providern.
+              {
+                method: 'oauth',
+                oauth: { providerId: authSource || 'mobile', profile: { ...payload } },
+              }
+            );
             userData = (created as unknown as { user: typeof userData }).user;
           }
 

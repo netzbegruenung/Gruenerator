@@ -3,8 +3,18 @@ name: CI
 on:
   push:
     branches: [master, main]
+  # BEWUSST OHNE `branches:`-Filter. Der Filter greift auf den BASIS-Branch, ein
+  # gestapelter PR (Basis = ein anderer Feature-Branch) fiel damit komplett aus
+  # dieser Lane heraus — bei einem Stapel also alles ausser dem untersten PR.
+  # Gemessen an #3097 (Basis ein Feature-Branch) gegen #3098 (derselbe Commit,
+  # Basis master): 7 gegen 19 Checks. #3094 wurde so in einen Feature-Branch
+  # gemergt, ohne je getypecheckt oder reviewt worden zu sein (#3100).
+  #
+  # Der Preis dafuer ist gering: von ~400 PRs waren 14 gestapelt, und keiner
+  # zielte je auf einen langlebigen Branch — `test-branch` wird per push
+  # synchronisiert (sync-test-branch.yml), nicht per PR. `push:` bleibt auf
+  # master beschraenkt.
   pull_request:
-    branches: [master, main]
   # Required for the merge queue: GitHub builds each queued PR on a temporary
   # `gh-readonly-queue/*` branch and fires `merge_group`. Without this trigger
   # the required checks never report on the queue and it hangs forever.
@@ -58,6 +68,20 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      # Dependabot only alerts on what GitHub's advisory graph maps onto the
+      # lockfile. `pnpm audit` reads the same lockfile against the registry's
+      # advisory database and found brace-expansion 1.x (high) that Dependabot
+      # never flagged (#3185). Production dependencies only, fails on high or
+      # critical, needs no install. Advisories without a usable patch are
+      # listed in package.json `pnpm.auditConfig.ignoreGhsas`; each one has a
+      # dismissed Dependabot alert carrying the reason and a re-check date
+      # (docs/CLAUDE-deps.md › B2/B3).
+      - name: pnpm audit (production deps, high or worse)
+        run: pnpm audit --prod --audit-level high
+
       - name: Singleton dependency versions
         run: node scripts/check-singleton-versions.mjs
 
@@ -82,6 +106,20 @@ jobs:
       # times out, the step never shows). Keep selectors and JSX anchors 1:1.
       - name: Tour anchors in sync
         run: node scripts/check-tour-anchors.mjs
+
+      # A portalled popup on shadcn's default z-50 lands below the sidebars
+      # (z-[1001]/z-[1005]) and below any open dialog (z-[1010]). It stays
+      # visible but unclickable, which reads as a dead control, not a z-index
+      # bug. Pin every portalled surface to the modal/popup/tooltip scale.
+      - name: Overlay z-index layers
+        run: node scripts/check-overlay-layers.mjs
+
+      # `(?<=…)`/`(?<!…)` need Safari 16.4; apps/web builds for safari15. WebKit
+      # below that throws `Invalid regular expression: invalid group specifier
+      # name` at the pattern and unmounts the React subtree around it. Neither
+      # tsc, ESLint, esbuild nor vitest (V8) sees it — GlitchTip issue 561.
+      - name: No regex lookbehind in browser code
+        run: node scripts/check-browser-lookbehind.mjs
 
       # A swallowed error in the chat stack is invisible: the turn looks
       # successful and the artefact/answer is silently missing. Ratchet against
@@ -117,12 +155,19 @@ jobs:
       - name: No orphaned test files
         run: node scripts/check-orphan-tests.mjs
 
-      # A package copied by a Dockerfile but missing from that image's
-      # paths-filter means a change to it builds nothing: the workflow runs
-      # (`packages/**` is in the trigger), every job is skipped, and the merged
-      # change never ships. Nothing turns red — so this does.
+      # A file copied by a Dockerfile but missing from that image's
+      # paths-filter means a change to it builds nothing: the workflow runs,
+      # every job is skipped, and the merged change never ships. Nothing turns
+      # red — so this does. Also checks the push/pull_request triggers against
+      # the filters, the second layer that can drift the same way (#3389).
       - name: Image build filters cover their Dockerfiles
         run: node scripts/check-image-build-filters.mjs
+
+      # The routing table is generated; the privacy notice's list of
+      # sub-processors is hand-kept. Cortecs wrote most answers for a month
+      # without being named there (#3517).
+      - name: Privacy notice names every model host
+        run: node scripts/check-privacy-subprocessors.mjs
 
   typecheck:
     name: Typecheck
@@ -152,6 +197,17 @@ jobs:
       # node_modules und haengt deshalb an diesem Job statt an `guards`.
       - name: Overrides erfuellen die deklarierten Bereiche
         run: node scripts/check-override-ranges.mjs
+
+      # Alle anderen Dependency-Checks vergleichen Deklarationen miteinander;
+      # keiner sieht den installierten Baum. `node-linker=hoisted` legt EINEN
+      # flachen Baum an, den sich die Worktrees teilen — ein Install aus einem
+      # fremden Branch schreibt dessen Versionen hinein, und `pnpm install`
+      # meldet danach "Already up to date" (Workspace-State-Cache), auch mit
+      # --force. Sichtbar wird der Bruch erst beim Laden eines Moduls
+      # (17.09.2026: @assistant-ui/core 0.3.18 statt 0.3.16 -> vier
+      # jsdom-Suiten an einem fehlenden assistant-cloud-Export).
+      - name: node_modules deckt sich mit dem Lockfile
+        run: node scripts/check-installed-lockfile-drift.mjs
 
       - name: TypeScript type check
         run: pnpm typecheck
@@ -217,6 +273,10 @@ jobs:
           # deliberately non-blocking in docs-capabilities.yml) — it is the
           # staleness check, which existed in package.json but had no caller.
           pnpm --filter @gruenerator/documentation capabilities:check
+          # Lives in packages/shared, so a PR that never touches
+          # documentation/ can add a tool and leave the guide's table a
+          # row short — exactly the cross-branch drift this block is for.
+          pnpm --filter @gruenerator/documentation agent-tools:check
 
   # No `needs:` on test/build. Gating them behind the quality job bought
   # nothing — Actions minutes are free on a public repo, wall-clock is the
@@ -226,6 +286,28 @@ jobs:
   test:
     name: Tests
     runs-on: ubuntu-latest
+    # An empty database for `migrations.db.vitest.ts`: builds the schema from
+    # zero the way a fresh instance does on first boot (#2895). A grown
+    # database never shows a migration that only works on top of another.
+    # Trust auth on a throwaway container: no password literals, which secret
+    # scanners (GitGuardian) would flag. Port 55432, not 5432: other suites
+    # fall back to localhost:5432/gruenerator when no DB is configured
+    # (authRegressions, deepAgentTurn) and would otherwise run against, and
+    # pre-fill, the database this test needs empty.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      MIGRATIONS_TEST_DATABASE_URL: postgresql://gruenerator@localhost:55432/gruenerator
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -242,8 +324,66 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The app role owns its database but is no superuser. schema.sql creates
+      # its own extensions, which only works while they stay trusted ones.
+      - name: Create the app role and its empty database
+        run: >-
+          psql postgresql://postgres@localhost:55432/postgres
+          -c "CREATE ROLE gruenerator LOGIN"
+          -c "CREATE DATABASE gruenerator OWNER gruenerator"
+
       - name: Run tests
         run: pnpm test
+
+  # The NLP service is Python and sits outside the pnpm workspace, so `pnpm
+  # test` never sees it. Its scoring, filtering and blocklist logic feeds the
+  # `themes`/`persons` payloads in Qdrant and the keyword snapshots in Postgres,
+  # where a regression surfaces as quietly wrong facets rather than as an error.
+  #
+  # No pnpm, no node_modules. `de_core_news_sm` (~15 MB) instead of the
+  # production `de_core_news_lg` (~610 MB): the model tier checks pipeline
+  # wiring, not model quality, and every other test builds its spaCy Docs by
+  # hand and needs no model at all.
+  nlp:
+    name: NLP Service (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/nlp
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # The interpreter is named ONCE, in the Dockerfile's FROM lines, and read
+      # from there. A literal `python-version` here is a second source of truth
+      # that cannot go red: it kept testing 3.12 no matter what the image
+      # shipped, so a base-image bump was verified against the wrong
+      # interpreter (#3304).
+      - name: Read Python version from the Dockerfile
+        id: python-version
+        run: |
+          version=$(grep -m1 -oE '^FROM python:[0-9]+\.[0-9]+' Dockerfile | cut -d: -f2)
+          test -n "$version" || { echo "::error::no 'FROM python:<x.y>' line in services/nlp/Dockerfile"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ steps.python-version.outputs.version }}
+          cache: 'pip'
+          cache-dependency-path: services/nlp/requirements-dev.txt
+
+      # requirements-dev.txt is the pinned closure INCLUDING the [dev] extra
+      # (pytest, httpx); requirements.txt is the runtime-only closure the image
+      # installs. Both come from `uv pip compile pyproject.toml [--extra dev]`.
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt ".[dev]"
+
+      - name: Install spaCy model
+        run: python -m spacy download de_core_news_sm
+
+      - name: Run tests
+        run: pytest
 
   build:
     name: Build ${{ matrix.app }}

@@ -1,8 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import { parseSSEStream } from './parseSSEStream';
 
-import type { GrueneratorAdapterCallbacks, ToolCallPart } from './types';
+import type { GrueneratorAdapterCallbacks, StreamOutcome, ToolCallPart } from './types';
+
+const notifyWarning = vi.fn<(...args: unknown[]) => void>();
+vi.mock('../../lib/notify', () => ({
+  notifyWarning: (...args: unknown[]) => {
+    notifyWarning(...args);
+  },
+  notifyError: vi.fn(),
+}));
 
 /**
  * Stufe 2 (Interleaving): text_delta and tool_step_* cards must render in true
@@ -258,5 +266,404 @@ describe('parseSSEStream search_images', () => {
   it('ignores an empty batch', async () => {
     const custom = await lastMetadata([{ event: 'search_images', data: { images: [] } }]);
     expect(custom.searchImages).toBeUndefined();
+  });
+});
+
+describe('parseSSEStream reasoning across steps', () => {
+  const reasoningOf = (content: ContentPart[]): string =>
+    content.find((p): p is { type: 'reasoning'; text: string } => p.type === 'reasoning')?.text ??
+    '';
+
+  it('separates each step’s thinking with a blank line', async () => {
+    const content = await lastContent([
+      { event: 'reasoning_delta', data: { text: 'Erst den Text lesen.' } },
+      { event: 'tool_step_start', data: { stepId: 's1', toolName: 'self_review' } },
+      { event: 'tool_step_result', data: { stepId: 's1', toolName: 'self_review', ok: true } },
+      { event: 'reasoning_delta', data: { text: 'Jetzt die Sätze kürzen.' } },
+    ]);
+    expect(reasoningOf(content)).toBe('Erst den Text lesen.\n\nJetzt die Sätze kürzen.');
+  });
+
+  it('keeps one step’s deltas glued together', async () => {
+    const content = await lastContent([
+      { event: 'reasoning_delta', data: { text: 'Der Satz ' } },
+      { event: 'reasoning_delta', data: { text: 'ist zu lang.' } },
+    ]);
+    expect(reasoningOf(content)).toBe('Der Satz ist zu lang.');
+  });
+
+  it('opens a new block for the synth phase', async () => {
+    const content = await lastContent([
+      { event: 'reasoning_delta', data: { text: 'Planung.' } },
+      { event: 'response_start', data: { message: 'Formuliere Antwort' } },
+      { event: 'reasoning_delta', data: { text: 'Formulierung.' } },
+    ]);
+    expect(reasoningOf(content)).toBe('Planung.\n\nFormulierung.');
+  });
+
+  it('inserts no leading break when nothing has been thought yet', async () => {
+    const content = await lastContent([
+      { event: 'tool_step_start', data: { stepId: 's1', toolName: 'self_review' } },
+      { event: 'reasoning_delta', data: { text: 'Erster Gedanke.' } },
+    ]);
+    expect(reasoningOf(content)).toBe('Erster Gedanke.');
+  });
+});
+
+describe('parseSSEStream progress steps', () => {
+  it('completes the retrieval step when its result lands', async () => {
+    // The tracker labels itself from the STEP list, so a tool that only moved
+    // `currentProgress` left "Suche läuft" shimmering over the whole answer.
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last: { metadata?: { custom?: Record<string, unknown> } } | undefined;
+    const events = [
+      { event: 'text_delta', data: { text: 'Ich prüfe das.' } },
+      { event: 'tool_step_start', data: { stepId: 's1', toolName: 'gruenerator_search' } },
+      {
+        event: 'tool_step_result',
+        data: { stepId: 's1', toolName: 'gruenerator_search', ok: true },
+      },
+    ];
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as typeof last;
+    }
+    const progress = last?.metadata?.custom?.progress as {
+      stage: string;
+      steps: Array<{ stage: string; status: string }>;
+    };
+    expect(progress.stage).toBe('generating');
+    expect(progress.steps.find((s) => s.stage === 'searching')?.status).toBe('completed');
+    expect(progress.steps.find((s) => s.stage === 'generating')?.status).toBe('in-progress');
+  });
+
+  it('holds the step open while a parallel sibling is still running', async () => {
+    // One model step may call two tools at once. The first result back must not
+    // declare the retrieval finished while the second is still in flight.
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last: { metadata?: { custom?: Record<string, unknown> } } | undefined;
+    const events = [
+      { event: 'tool_step_start', data: { stepId: 's1', toolName: 'gruenerator_search' } },
+      { event: 'tool_step_start', data: { stepId: 's2', toolName: 'web_search' } },
+      {
+        event: 'tool_step_result',
+        data: { stepId: 's1', toolName: 'gruenerator_search', ok: true },
+      },
+    ];
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as typeof last;
+    }
+    const progress = last?.metadata?.custom?.progress as {
+      stage: string;
+      steps: Array<{ stage: string; status: string }>;
+    };
+    expect(progress.stage).toBe('searching');
+    expect(progress.steps.find((s) => s.stage === 'searching')?.status).toBe('in-progress');
+    expect(progress.steps.some((s) => s.stage === 'generating')).toBe(false);
+  });
+
+  it('puts a pipeline after-step into the step list under its own title', async () => {
+    // Die Nachschritte des Einfache-Sprache-Agenten laufen NACH dem Text und
+    // minutenlang. Ihr Titel stand bis 14.08.2026 nur in `progress.message`,
+    // den der Tracker nicht liest — auf dem Bildschirm blieb das Label von
+    // Schritt 1 stehen. Beide Schritte teilen sich eine Stufe und
+    // unterscheiden sich NUR im Titel; deshalb prüft der Test den zweiten.
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last: { metadata?: { custom?: Record<string, unknown> } } | undefined;
+    const step = (id: string, title: string, status: string) => ({
+      event: 'progress_step',
+      data: { stepId: id, toolName: 'gruenerator-einfache-sprache', title, status },
+    });
+    const events = [
+      { event: 'text_delta', data: { text: 'Die Fassung.' } },
+      step('es-rueck', 'Rückübersetzung wird erstellt', 'in_progress'),
+      step('es-rueck', 'Rückübersetzung wird erstellt', 'in_progress'), // Heartbeat
+      step('es-rueck', 'Rückübersetzung wird erstellt', 'completed'),
+      step('es-pruefung', 'Prüfung läuft', 'in_progress'),
+    ];
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as typeof last;
+    }
+    const progress = last?.metadata?.custom?.progress as {
+      steps: Array<{ stage: string; label: string; status: string }>;
+    };
+    const active = progress.steps.filter((s) => s.status === 'in-progress');
+    expect(active.map((s) => s.label)).toEqual(['Prüfung läuft']);
+  });
+
+  it('überschreibt das Label eines echten Suchschritts nicht', async () => {
+    // Nachschritt und Such-Werkzeug teilen sich die Stufe `searching`. Ohne
+    // eigene Identität übernähme der Titel des Nachschritts rückwirkend das
+    // Label der Suche, und deren Herkunft wäre aus der fertigen Liste nicht
+    // mehr ablesbar.
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last: { metadata?: { custom?: Record<string, unknown> } } | undefined;
+    const events = [
+      { event: 'tool_step_start', data: { stepId: 's1', toolName: 'gruenerator_search' } },
+      {
+        event: 'tool_step_result',
+        data: { stepId: 's1', toolName: 'gruenerator_search', ok: true, result: { count: 3 } },
+      },
+      { event: 'text_delta', data: { text: 'Die Fassung.' } },
+      {
+        event: 'progress_step',
+        data: {
+          stepId: 'es-pruefung',
+          toolName: 'pipe',
+          title: 'Prüfung läuft',
+          status: 'in_progress',
+        },
+      },
+    ];
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as typeof last;
+    }
+    const progress = last?.metadata?.custom?.progress as {
+      steps: Array<{ stage: string; label: string; status: string }>;
+    };
+    // Zwei Einträge auf derselben Stufe: die Suche behält ihr eigenes Label
+    // (hier „3 Ergebnisse" aus dem Werkzeug-Ergebnis), der Nachschritt bekommt
+    // einen eigenen. Vor dem Schlüssel war es EIN Eintrag, und der trug am Ende
+    // den Titel des Nachschritts.
+    const suchend = progress.steps.filter((s) => s.stage === 'searching');
+    expect(suchend).toHaveLength(2);
+    expect(suchend[0]?.label).not.toBe('Prüfung läuft');
+    expect(suchend[0]?.status).toBe('completed');
+    expect(suchend[1]?.label).toBe('Prüfung läuft');
+    expect(progress.steps.filter((s) => s.status === 'in-progress').map((s) => s.label)).toEqual([
+      'Prüfung läuft',
+    ]);
+  });
+});
+
+describe('parseSSEStream tool approval', () => {
+  it('baut aus dem Interrupt eine entscheidbare Karte MIT Dienst-Angabe', async () => {
+    const outcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+    let last: { content: ContentPart[] } | undefined;
+    const events = [
+      {
+        event: 'interrupt',
+        data: {
+          interruptType: 'tool_approval',
+          approvalTurnId: 'turn-1',
+          calls: [
+            {
+              toolCallId: 'c1',
+              toolName: 'ma1b2c3d__send_message',
+              args: { channel: '#allgemein', text: 'Hallo' },
+              title: 'Slack · send_message',
+              serverName: 'Slack',
+            },
+          ],
+        },
+      },
+    ];
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as unknown as typeof last;
+    }
+    const card = (last?.content ?? []).filter(isCard)[0];
+    expect(card?.approval?.id).toBe('c1');
+    expect(card?.approval?.options?.length).toBeGreaterThan(0);
+    // Der Grund für die Rückfrage: die Karte muss den Dienst nennen können.
+    // Ohne diese beiden Felder zeigt sie nur `ma1b2c3d__send_message`.
+    expect(card?.title).toBe('Slack · send_message');
+    expect(card?.serverName).toBe('Slack');
+    // Die vollen Übergabewerte, nicht nur `query` — wer freigibt, muss sehen,
+    // was übergeben wird.
+    expect(card?.args).toEqual({ channel: '#allgemein', text: 'Hallo' });
+    expect(outcome.toolApprovalPending?.approvalTurnId).toBe('turn-1');
+  });
+});
+
+/**
+ * The notebook stream (`/notebook/stream`, reachable from /chat with a notebook
+ * selected) ends on `completion`, never on `done` — so the trace id it carries
+ * there is the only one this parser ever sees on that path. Without it the
+ * thumbs feedback buttons stay hidden on notebook answers in the chat surface.
+ */
+describe('parseSSEStream notebook completion metadata', () => {
+  const traceId = 'a'.repeat(32);
+
+  async function lastMetadata(events: Array<{ event: string; data: unknown }>) {
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last: { metadata?: { custom?: Record<string, unknown> } } | undefined;
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as typeof last;
+    }
+    return last?.metadata?.custom ?? {};
+  }
+
+  it('carries the completion trace id onto custom.streamMetadata', async () => {
+    const custom = await lastMetadata([
+      { event: 'text_delta', data: { text: 'Antwort' } },
+      { event: 'completion', data: { text: 'Antwort', metadata: { traceId } } },
+    ]);
+    expect((custom.streamMetadata as { traceId?: string } | undefined)?.traceId).toBe(traceId);
+  });
+
+  it('leaves streamMetadata off a completion without a trace id', async () => {
+    const custom = await lastMetadata([{ event: 'completion', data: { text: 'Antwort' } }]);
+    expect(custom.streamMetadata).toBeUndefined();
+  });
+});
+
+/**
+ * `/chat?mode=notebook` and any reopened notebook thread route through this
+ * parser (endpoints.notebookStream), not NotebookModelAdapter — so the
+ * evidence_weak carve-out from that adapter's `warning` handling must hold
+ * here too, or this path still toasts what Task 4 made quiet elsewhere.
+ */
+describe('parseSSEStream warning — evidence_weak', () => {
+  const EVIDENCE_MESSAGE =
+    'Zu dieser Frage habe ich im Notebook wenig Passendes gefunden — bitte die angegebenen Quellen prüfen.';
+
+  async function lastCustom(events: Array<{ event: string; data: unknown }>) {
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last: { metadata?: { custom?: Record<string, unknown> } } | undefined;
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as typeof last;
+    }
+    return last?.metadata?.custom ?? {};
+  }
+
+  it('carries evidence_weak on custom.evidenceWeak instead of toasting it', async () => {
+    notifyWarning.mockClear();
+    const custom = await lastCustom([
+      { event: 'warning', data: { code: 'evidence_weak', message: EVIDENCE_MESSAGE } },
+      { event: 'text_delta', data: { text: 'Dazu steht hier wenig.' } },
+    ]);
+
+    expect(custom.evidenceWeak).toBe(EVIDENCE_MESSAGE);
+    expect(notifyWarning).not.toHaveBeenCalled();
+  });
+
+  it('still toasts every other warning code', async () => {
+    notifyWarning.mockClear();
+    const custom = await lastCustom([
+      {
+        event: 'warning',
+        data: { code: 'search_degraded', message: 'Einige Quellen waren nicht erreichbar.' },
+      },
+      { event: 'text_delta', data: { text: 'Antwort.' } },
+    ]);
+
+    expect(notifyWarning).toHaveBeenCalledWith('Einige Quellen waren nicht erreichbar.');
+    expect(custom.evidenceWeak).toBeUndefined();
+  });
+});
+
+/**
+ * Mobile notebook threads run through this parser, not NotebookModelAdapter:
+ * the `answer_mode` event is what puts the mode chip on the answer, and a
+ * precision turn's cards must survive the notebook-shaped `completion` that
+ * replaces the streamed text.
+ */
+describe('parseSSEStream notebook answer mode', () => {
+  async function lastResult(events: Array<{ event: string; data: unknown }>) {
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last:
+      { content: ContentPart[]; metadata?: { custom?: Record<string, unknown> } } | undefined;
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as typeof last;
+    }
+    return { content: last?.content ?? [], custom: last?.metadata?.custom ?? {} };
+  }
+
+  it('puts the resolved mode and reason on custom', async () => {
+    const { custom } = await lastResult([
+      {
+        event: 'answer_mode',
+        data: { requested: 'auto', resolved: 'praezision', reason: 'guard' },
+      },
+      { event: 'completion', data: { answer: 'A', text: 'A' } },
+    ]);
+    expect(custom.answerMode).toBe('praezision');
+    expect(custom.answerModeReason).toBe('guard');
+  });
+
+  it('keeps the mode when the reason is unknown, and shows none for an unknown mode', async () => {
+    const known = await lastResult([
+      { event: 'answer_mode', data: { requested: null, resolved: 'chat', reason: 'neu' } },
+      { event: 'completion', data: { text: 'A' } },
+    ]);
+    expect(known.custom.answerMode).toBe('chat');
+    expect(known.custom.answerModeReason).toBeUndefined();
+
+    const unknown = await lastResult([
+      { event: 'answer_mode', data: { requested: 'auto', resolved: 'turbo', reason: 'guard' } },
+      { event: 'completion', data: { text: 'A' } },
+    ]);
+    expect(unknown.custom.answerMode).toBeUndefined();
+  });
+
+  it('leaves custom untouched on a turn without the event', async () => {
+    const { custom } = await lastResult([
+      { event: 'text_delta', data: { text: 'Hallo' } },
+      { event: 'done', data: { citations: [] } },
+    ]);
+    expect(custom).not.toHaveProperty('answerMode');
+    expect(custom).not.toHaveProperty('answerModeReason');
+  });
+
+  it('shows the precision status line as soon as the mode is known', async () => {
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    const events = [
+      {
+        event: 'answer_mode',
+        data: { requested: 'praezision', resolved: 'praezision', reason: 'explicit' },
+      },
+    ];
+    let progress: { stage?: string; message?: string } | undefined;
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      progress ??= (result.metadata?.custom as { progress?: typeof progress } | undefined)
+        ?.progress;
+    }
+    expect(progress?.stage).toBe('searching');
+    expect(progress?.message).toMatch(/Präzisionsmodus/);
+  });
+
+  it('a precision completion replaces the streamed text and keeps the loop cards', async () => {
+    const { content, custom } = await lastResult([
+      {
+        event: 'answer_mode',
+        data: { requested: 'auto', resolved: 'praezision', reason: 'pregate' },
+      },
+      {
+        event: 'tool_step_start',
+        data: { stepId: 's1', toolName: 'notebook_quellen', args: { action: 'list' } },
+      },
+      {
+        event: 'tool_step_result',
+        data: { stepId: 's1', toolName: 'notebook_quellen', ok: true, result: { count: 3 } },
+      },
+      { event: 'text_delta', data: { text: 'Entwurf ' } },
+      {
+        event: 'completion',
+        data: {
+          answer: 'Es sind drei Quellen [1].',
+          text: 'Es sind drei Quellen [1].',
+          citations: [
+            {
+              index: '1',
+              cited_text: 'Zitat',
+              document_title: 'Programm',
+              document_id: 'd1',
+              collection_id: 'c1',
+            },
+          ],
+          sources: [],
+          allSources: [],
+          metadata: { answerMode: 'praezision', answerModeReason: 'pregate' },
+        },
+      },
+    ]);
+
+    expect(content.map((p) => p.type)).toEqual(['tool-call', 'text']);
+    expect(content.find(isCard)?.toolName).toBe('notebook_quellen');
+    expect(content.filter(isText).map((p) => p.text)).toEqual(['Es sind drei Quellen [1].']);
+    expect(custom.answerMode).toBe('praezision');
+    expect((custom.citations as Array<{ id: number; title: string }>)[0]).toMatchObject({
+      id: 1,
+      title: 'Programm',
+    });
   });
 });

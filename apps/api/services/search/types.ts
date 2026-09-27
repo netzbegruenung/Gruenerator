@@ -106,14 +106,19 @@ export interface SearchResultInput {
   filename?: string | undefined;
   top_chunks?: Array<{
     preview?: string | undefined;
+    /** Untruncated chunk — see TopChunk.text on why the preview is not enough. */
+    text?: string | undefined;
     chunk_index: number;
     page_number?: number | null | undefined;
+    chunk_type?: string | null | undefined;
   }>;
   source_url?: string | undefined;
   url?: string | undefined;
   document_id?: string | undefined;
   source_id?: string | null | undefined;
   similarity_score?: number | undefined;
+  /** Höchster dichter Kosinus des Dokuments, `null` wo keiner gemessen wurde (#3166). */
+  dense_similarity_score?: number | null | undefined;
   relevant_content?: string | undefined;
   chunk_text?: string | undefined;
   // `| null` so a DocumentResult (whose chunk_index can be null) is structurally
@@ -131,11 +136,34 @@ export interface ExpandedChunkResult {
   source_url: string | null;
   source_id?: string | null | undefined;
   title: string;
+  /** Short excerpt for the UI's citation list. */
   snippet: string;
+  /**
+   * Der ganze Chunk, wenn die Suchschicht ihn mitgeliefert hat. `snippet` ist
+   * die Vorschau der Suche: bis zu `CONTENT_MAX_EXCERPT_LENGTH` Zeichen
+   * (Standard 1500), bei einem Termtreffer um den Treffer zentriert
+   * (`extractMatchedExcerpt`), sonst `extractRelevantExcerpt`. Für Antwort-
+   * Prompt und Reranker gilt trotzdem dieses Feld — es ist der ungekürzte
+   * Chunk. Das `cited_text` einer Notebook-Antwort ist wiederum der
+   * anfragebezogene Ausschnitt daraus (siehe `validateAndInjectCitations`).
+   */
+  chunk_text?: string | undefined;
   filename: string | null;
   similarity: number;
+  /**
+   * Der dichte Kosinus hinter `similarity`, aus dem server-seitigen
+   * Score-Join (#3166 Task 2) — NICHT einfach "wo die Suchschicht einen
+   * gemessen hat": der Alt-Pfad misst pro Chunk ebenfalls einen Kosinus,
+   * dieses Feld bleibt dort aber (Fix-Runde 1) bewusst leer, weil `similarity`
+   * dort bereits Begriffstreffer-/Diversitäts-/Hybrid-Boni auf den Kosinus
+   * addiert, die dieses Feld nicht kennt. Fehlt also auf dem Alt-Pfad UND bei
+   * Dokumenten, deren Chunks nur aus der BM25-Lane kamen — Leser brauchen
+   * deshalb IMMER den Rückfall `dense_similarity ?? similarity`.
+   */
+  dense_similarity?: number | null | undefined;
   chunk_index: number;
   page_number: number | null;
+  chunk_type?: string | null | undefined;
   collection_id?: string | undefined;
   collection_name?: string | undefined;
   // Resolved real date of the source (published_at, else upload created_at),
@@ -147,10 +175,16 @@ export interface ExpandedChunkResult {
 
 export interface ReferenceData {
   title: string;
+  /** Display excerpts for the UI's citation list. */
   snippets: string[][];
+  /** The retrieved chunk in full — what the answer prompt must read. */
+  chunk_text?: string | undefined;
   description: string | null;
-  // Real source date (published_at, else upload date) or null when none.
+  // Real source date (published_at / metadata date) or null when none. Never
+  // the upload time — that is `uploaded_at`, labelled as such in the prompt.
   date: string | null;
+  /** Upload time of a user document without a real date (user collections only). */
+  uploaded_at?: string;
   source: string;
   document_id: string;
   source_url: string | null;
@@ -158,6 +192,7 @@ export interface ReferenceData {
   similarity_score: number;
   chunk_index: number;
   page_number: number | null;
+  chunk_type?: string | null | undefined;
   collection_id?: string | undefined;
   collection_name?: string | undefined;
 }
@@ -208,11 +243,6 @@ export interface FilterOptions {
   // collections only). Omit both to keep pure-similarity ordering.
   now?: Date | undefined;
   allowCreatedAt?: boolean | undefined;
-}
-
-export interface DedupeOptions {
-  limitPerDoc?: number | undefined;
-  maxTotal?: number | undefined;
 }
 
 export interface CollectionConfig {

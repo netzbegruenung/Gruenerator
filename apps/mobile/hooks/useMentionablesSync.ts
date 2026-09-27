@@ -1,4 +1,5 @@
 import {
+  setMentionLandesverbaende,
   setMentionLocale,
   syncBoards,
   syncCustomAgents,
@@ -6,10 +7,12 @@ import {
   syncMcpServers,
   syncSheets,
   syncTextforms,
+  syncUserAgents,
   syncUserNotebooks,
+  useUserLandesverbaende,
   type MentionableFetch,
 } from '@gruenerator/chat';
-import { getGlobalApiClient } from '@gruenerator/shared/api';
+import { getGlobalApiClient, stripApiPrefix } from '@gruenerator/shared/api';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
@@ -31,12 +34,19 @@ import { useEffect, useMemo } from 'react';
 
 const STALE_TIME = 60_000;
 
-/** The sync layer's `get` contract, backed by mobile's shared axios client. */
+/**
+ * The sync layer's `get` contract, backed by mobile's shared axios client.
+ *
+ * The shared sync layer spells full `/api/...` paths — web's chat ApiClient has
+ * no base URL, so it must. Mobile's axios client already carries `/api` in its
+ * `baseURL` (`EXPO_PUBLIC_API_URL`), so the same path would concatenate to
+ * `/api/api/boards`. Stripping here keeps one spelling in the shared module.
+ */
 function useMentionableFetch(): MentionableFetch {
   return useMemo(
     () =>
       async <T>(path: string): Promise<T> => {
-        const res = await getGlobalApiClient().get<T>(path);
+        const res = await getGlobalApiClient().get<T>(stripApiPrefix(path));
         return res.data;
       },
     []
@@ -63,6 +73,18 @@ export function useMentionablesSync(): void {
     if (locale) setMentionLocale(locale);
   }, [locale]);
 
+  // Dasselbe für die Landesverbands-Zuteilung, wie in webs ChatPage: LV-Rezepte
+  // und -Notebooks stehen nur denen im Menü, die laut Profilrolle in der
+  // Landesgeschäftsstelle dieses Verbands arbeiten. Mobil setzte das nie jemand,
+  // also blieb der Modul-Default `null` („nicht bekannt") stehen und die
+  // `@`-Liste bot die Rezepte aller elf Landesverbände an (#2931). Die Auflösung
+  // bleibt unberührt — ein `@bayern` in einem alten Thread muss für alle weiter
+  // auflösen.
+  const { lvIds } = useUserLandesverbaende();
+  useEffect(() => {
+    setMentionLandesverbaende(lvIds);
+  }, [lvIds]);
+
   const common = { staleTime: STALE_TIME, retry: 1, enabled: isAuthenticated } as const;
 
   useQuery({
@@ -70,6 +92,7 @@ export function useMentionablesSync(): void {
     queryFn: () => syncCustomAgents(get),
     ...common,
   });
+  useQuery({ queryKey: ['mention-user-agents'], queryFn: () => syncUserAgents(get), ...common });
   useQuery({ queryKey: ['mention-textforms'], queryFn: () => syncTextforms(get), ...common });
   useQuery({ queryKey: ['mention-boards'], queryFn: () => syncBoards(get), ...common });
   useQuery({ queryKey: ['mention-docs'], queryFn: () => syncDocs(get), ...common });

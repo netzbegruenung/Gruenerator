@@ -35,6 +35,12 @@ interface UseMediaUploadReturn {
   isUploading: boolean;
   progress: number;
   error: string | null;
+  /**
+   * Machine-readable reason for {@link error}, when the server sent one —
+   * `'media_quota_exceeded'` for a full library. Lets a surface that already
+   * explains the state (the Mediathek's quota banner) avoid repeating it.
+   */
+  errorCode: string | null;
   result: MediaUploadResult | null;
 }
 
@@ -47,6 +53,7 @@ export function useMediaUpload(options: UseMediaUploadOptions = {}): UseMediaUpl
   const queryClient = useQueryClient();
   const [progress, setProgress] = useState(0);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
 
   const validateFile = useCallback((file: File | Blob): { valid: boolean; error?: string } => {
     if (file.size > MAX_FILE_SIZE) {
@@ -68,6 +75,7 @@ export function useMediaUpload(options: UseMediaUploadOptions = {}): UseMediaUpl
     onMutate: () => {
       setProgress(0);
       setValidationError(null);
+      setErrorCode(null);
     },
     mutationFn: async ({ file, options: uploadOptions }) => {
       const response = await mediaApi.uploadMedia(file, {
@@ -77,6 +85,7 @@ export function useMediaUpload(options: UseMediaUploadOptions = {}): UseMediaUpl
         onProgress: setProgress,
       });
       if (!response.success || !response.data) {
+        setErrorCode(response.code ?? null);
         throw new Error(response.error ?? 'Upload failed');
       }
       return response.data;
@@ -101,6 +110,7 @@ export function useMediaUpload(options: UseMediaUploadOptions = {}): UseMediaUpl
       if (!validation.valid) {
         const errorMessage = validation.error ?? 'Invalid file';
         setValidationError(errorMessage);
+        setErrorCode(null);
         options.onError?.(errorMessage);
         return null;
       }
@@ -117,6 +127,7 @@ export function useMediaUpload(options: UseMediaUploadOptions = {}): UseMediaUpl
     mutation.reset();
     setProgress(0);
     setValidationError(null);
+    setErrorCode(null);
   }, [mutation]);
 
   return {
@@ -126,6 +137,7 @@ export function useMediaUpload(options: UseMediaUploadOptions = {}): UseMediaUpl
     isUploading: mutation.isPending,
     progress,
     error: validationError ?? mutation.error?.message ?? null,
+    errorCode,
     result: mutation.data ?? null,
   };
 }

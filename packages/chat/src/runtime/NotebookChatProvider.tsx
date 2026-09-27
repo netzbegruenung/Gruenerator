@@ -6,20 +6,22 @@ import {
   useLocalRuntime,
   type ThreadMessageLike,
 } from '@assistant-ui/react';
-import { type NotebookDepth } from '@gruenerator/contracts';
+import { type NotebookAnswerMode, type NotebookDepth } from '@gruenerator/contracts';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
-import { type ReactNode, useMemo, useCallback, useRef } from 'react';
+import { type ReactNode, useMemo, useCallback, useRef, useState } from 'react';
 
-import { MarkdownStreamingProvider } from '../context/MarkdownStreamingContext';
+import { createNotebookHistoryAdapter } from '../adapters/notebookHistoryAdapter';
 import { handleDictationError } from '../lib/dictationErrorHandler';
 
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
+import { MESSAGE_QUEUE_ENABLED } from './messageQueueFlag';
 import {
   createNotebookModelAdapter,
   type NotebookAdapterConfig,
   type NotebookMessageMetadata,
   type SharepicContextConfig,
 } from './NotebookModelAdapter';
+import { useFeedbackAdapter } from './useFeedbackAdapter';
 
 interface NotebookCollection {
   id: string;
@@ -49,6 +51,10 @@ export interface NotebookChatProviderProps {
   onComplete?: (metadata: NotebookMessageMetadata) => void;
   onThreadCreated?: (threadId: string) => void;
   mode?: NotebookDepth;
+  /** Answer mode sent with each request; omitted ⇒ the server answers in chat mode. */
+  answerMode?: NotebookAnswerMode;
+  /** Magic Search: a first question with `auto` goes out as `chat`. */
+  magicSearch?: boolean;
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
@@ -79,6 +85,8 @@ function NotebookChatProviderInner({
   onComplete,
   onThreadCreated,
   mode,
+  answerMode,
+  magicSearch,
   endpoint,
   documentIds,
   threadId: initialThreadId,
@@ -106,6 +114,10 @@ function NotebookChatProviderInner({
   extraParamsRef.current = extraParams;
   const modeRef = useRef(mode);
   modeRef.current = mode;
+  const answerModeRef = useRef(answerMode);
+  answerModeRef.current = answerMode;
+  const magicSearchRef = useRef(magicSearch);
+  magicSearchRef.current = magicSearch;
   const endpointRef = useRef(endpoint);
   endpointRef.current = endpoint;
   const documentIdsRef = useRef(documentIds);
@@ -141,6 +153,8 @@ function NotebookChatProviderInner({
       extraParams: extraParamsRef.current,
       getExtraParams: stableGetExtraParams,
       mode: modeRef.current,
+      ...(answerModeRef.current ? { answerMode: answerModeRef.current } : {}),
+      ...(magicSearchRef.current ? { magicSearch: true } : {}),
       endpoint: endpointRef.current,
       documentIds: documentIdsRef.current,
       threadId: threadIdRef.current,
@@ -183,17 +197,29 @@ function NotebookChatProviderInner({
     []
   );
   const attachmentAdapter = useMemo(() => new GrueneratorAttachmentAdapter(), []);
+  // AssistantMessage shows the thumbs whenever the turn carries a traceId, and
+  // assistant-ui throws "Feedback adapter not configured" without this.
+  const feedbackAdapter = useFeedbackAdapter();
+
+  // Only the mount value matters: the runtime loads history exactly once, when
+  // it is created. A thread minted later in this session already has its
+  // messages in the runtime, so there is nothing to load for it.
+  const [historyAdapter] = useState(() =>
+    initialThreadId ? createNotebookHistoryAdapter(initialThreadId) : null
+  );
 
   const runtime = useLocalRuntime(adapter, {
     initialMessages,
-    adapters: { dictation: dictationAdapter, attachments: attachmentAdapter },
+    unstable_enableMessageQueue: MESSAGE_QUEUE_ENABLED,
+    adapters: {
+      dictation: dictationAdapter,
+      attachments: attachmentAdapter,
+      feedback: feedbackAdapter,
+      ...(historyAdapter ? { history: historyAdapter } : {}),
+    },
   });
 
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <MarkdownStreamingProvider smooth={false}>{children}</MarkdownStreamingProvider>
-    </AssistantRuntimeProvider>
-  );
+  return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
 }
 
 export function NotebookChatProvider(props: NotebookChatProviderProps) {

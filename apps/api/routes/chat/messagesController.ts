@@ -3,7 +3,15 @@
  * CRUD operations for chat messages
  */
 
+import {
+  notebookAnswerModeReasonSchema,
+  notebookResolvedAnswerModeSchema,
+  type NotebookAnswerModeReason,
+  type NotebookResolvedAnswerMode,
+} from '@gruenerator/contracts';
+
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { removePageMarkerLines } from '../../services/OcrService/pageMarkers.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
@@ -69,7 +77,9 @@ router.get('/', async (req, res) => {
                       'name', cta.name,
                       'contentType', cta.mime_type,
                       'preview', LEFT(COALESCE(cta.extracted_text, ''), 2000),
-                      'truncated', CHAR_LENGTH(COALESCE(cta.extracted_text, '')) > 2000
+                      'truncated', CHAR_LENGTH(COALESCE(cta.extracted_text, '')) > 2000,
+                      'size', cta.size_bytes,
+                      'pageCount', cta.page_count
                     ) ORDER BY cta.created_at ASC
                   )
                   FROM chat_thread_attachments cta
@@ -153,8 +163,11 @@ router.get('/', async (req, res) => {
                 id: record.id,
                 name: record.name,
                 contentType: record.contentType,
-                preview: record.preview,
+                // PDF-Anhänge tragen `## Seite N` für das Modell, nicht für Menschen.
+                preview: removePageMarkerLines(record.preview),
                 truncated: record.truncated,
+                ...(typeof record.size === 'number' && { size: record.size }),
+                ...(typeof record.pageCount === 'number' && { pageCount: record.pageCount }),
               },
             ];
           })
@@ -177,6 +190,8 @@ router.get('/', async (req, res) => {
             createdDocument?: Record<string, unknown>;
             computeData?: Record<string, unknown>;
             agentId?: string;
+            answerMode?: NotebookResolvedAnswerMode;
+            answerModeReason?: NotebookAnswerModeReason;
           }
         | undefined;
       let resultsMap = new Map<string, unknown>();
@@ -198,11 +213,18 @@ router.get('/', async (req, res) => {
         } else {
           // It's search metadata or user message metadata (e.g. roleName)
           const meta = parsedToolResults as Record<string, unknown>;
+          const answerMode = notebookResolvedAnswerModeSchema.safeParse(meta.answerMode);
+          const answerModeReason = notebookAnswerModeReasonSchema.safeParse(meta.answerModeReason);
           metadata = {
             ...(typeof meta.intent === 'string' && { intent: meta.intent }),
             ...(typeof meta.searchCount === 'number' && { searchCount: meta.searchCount }),
             ...(typeof meta.traceId === 'string' && { traceId: meta.traceId }),
             ...(Array.isArray(meta.citations) && { citations: meta.citations }),
+            // Notebook answers persist their source list beside the citations
+            // (`notebookStreamController`). It carries the collection/document
+            // entries the answer drew on — the sources panel and the Word export
+            // read it, so a reloaded conversation needs it back.
+            ...(Array.isArray(meta.sources) && { sources: meta.sources }),
             ...(Array.isArray(meta.searchResults) && { searchResults: meta.searchResults }),
             ...(typeof meta.roleName === 'string' && { roleName: meta.roleName }),
             ...(meta.generatedImage && typeof meta.generatedImage === 'object'
@@ -215,6 +237,11 @@ router.get('/', async (req, res) => {
               ? { computeData: meta.computeData as Record<string, unknown> }
               : {}),
             ...(typeof meta.agentId === 'string' && { agentId: meta.agentId }),
+            // Notebook-Seite: in welchem Antwortmodus die Antwort lief — trägt
+            // den Modus-Chip über den Reload.
+            ...(answerMode.success && { answerMode: answerMode.data }),
+            // Warum der Modus lief — „automatisch gewählt" überlebt so den Reload.
+            ...(answerModeReason.success && { answerModeReason: answerModeReason.data }),
             // Web-search image hits. Re-signed on every load rather than read
             // back verbatim: the persisted rows carry no `proxyUrl` (a signed
             // handle expires after 24h, the row does not), so the fresh handle
@@ -224,6 +251,16 @@ router.get('/', async (req, res) => {
             // back to plain links.
             ...(Array.isArray(meta.searchImages)
               ? { searchImages: rehydrateSearchImages(meta.searchImages) }
+              : {}),
+            // Offene Werkzeug-Freigaben: ohne sie ist die Karte nach einem
+            // Reload weg und der pausierte Zug nicht mehr entscheidbar.
+            ...(meta.pendingApproval && typeof meta.pendingApproval === 'object'
+              ? { pendingApproval: meta.pendingApproval as Record<string, unknown> }
+              : {}),
+            // Offene Loop-Rückfragen (#3220): dieselbe Begründung — ohne das
+            // Feld ist die Frage nach einem Reload weg und nicht beantwortbar.
+            ...(meta.pendingClarification && typeof meta.pendingClarification === 'object'
+              ? { pendingClarification: meta.pendingClarification as Record<string, unknown> }
               : {}),
           };
           if (Array.isArray(meta.toolCalls)) {

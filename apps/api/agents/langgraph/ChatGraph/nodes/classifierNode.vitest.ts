@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   extractUrls,
+  crawlableUrls,
   isTabularComputeQuestion,
   isSheetFillRequest,
   detectSocialPlatform,
@@ -66,6 +67,35 @@ describe('extractSearchTopic', () => {
 });
 
 // ─── extractUrls (scrape_url detection) ───────────────────────────────────
+
+describe('crawlableUrls', () => {
+  // Ein Nextcloud-Freigabe-Link ist keine Webseite: ein GET darauf liefert die
+  // SPA-Hülle, nicht den Ordner. Er gehört zu `cloud_files`, nicht zu scrape_url.
+  it('keeps a pasted Wolke share link out of the crawl list', () => {
+    expect(
+      crawlableUrls('füge diesen hinzu: https://wolke.netzbegruenung.de/s/AbCdEfGhIj')
+    ).toEqual([]);
+  });
+
+  it('does the same for any other Nextcloud instance', () => {
+    expect(crawlableUrls('https://teamtools.example.org/s/Xy12Ab')).toEqual([]);
+  });
+
+  it('still crawls ordinary pages, including ones on the same host', () => {
+    expect(crawlableUrls('Lies https://gruene.de/programm')).toEqual([
+      'https://gruene.de/programm',
+    ]);
+    expect(crawlableUrls('https://wolke.netzbegruenung.de/apps/files/')).toEqual([
+      'https://wolke.netzbegruenung.de/apps/files/',
+    ]);
+  });
+
+  it('drops only the share link when both appear in one message', () => {
+    expect(
+      crawlableUrls('https://gruene.de/x und https://wolke.netzbegruenung.de/s/Tok123')
+    ).toEqual(['https://gruene.de/x']);
+  });
+});
 
 describe('extractUrls', () => {
   it('returns [] when no URL present', () => {
@@ -198,6 +228,107 @@ describe('detectSearchSources', () => {
     expect(
       detectSearchSources('Position der Bundestagsfraktion zum Klimaschutz', 'search')
     ).toEqual([]);
+  });
+
+  it('pairs DIP for a foreign faction, not just our own', () => {
+    // `partyKeywords` kennt nur uns, deshalb blieb „Wie hat die SPD abgestimmt"
+    // im Einquellen-Modus und erreichte die DIP nie — obwohl das
+    // Abstimmungsverhalten AUSSCHLIESSLICH dort steht.
+    for (const q of [
+      'Wie hat die SPD zum Heizungsgesetz abgestimmt?',
+      'Wie hat die CDU zur Frauenquote abgestimmt?',
+      'Was steht in der Drucksache der AfD zur Kindergrundsicherung?',
+      'Wie war der Stand des Gesetzentwurfs der FDP?',
+      'Wie hat die Linke zum Heizungsgesetz abgestimmt?',
+      'Wie hat die Union zum Heizungsgesetz abgestimmt?',
+    ]) {
+      expect(detectSearchSources(q, 'search')).toEqual(['documents', 'bundestag']);
+    }
+  });
+
+  it('lets a foreign faction open ONLY the DIP branch', () => {
+    // Die Fremdfraktionen stehen bewusst nicht in `partyKeywords`: sonst
+    // schaltete jede SPD-Frage auch die drei anderen Zweige frei und suchte
+    // unsere eigenen Sammlungen nach der Haltung einer anderen Partei ab.
+    //
+    // Die Anfragen hier meiden `partyKeywords` bewusst — der Satz führt neben
+    // `grüne` auch INHALTSwörter (`position`, `programm`, `beschluss`,
+    // `antrag`, `fraktion`), die schon heute unabhängig vom genannten Akteur
+    // greifen. „Die aktuelle POSITION der SPD" ist deshalb auch ohne diesen
+    // Zweig `documents+web`, und würde die Abgrenzung nicht messen.
+    for (const q of [
+      'Was ist die aktuelle Haltung der SPD zum Klimaschutz?',
+      'Zeig mir ein Beispiel für einen Instagram-Post der CDU.',
+      'Was sagt die FDP zum Kohleausstieg?',
+    ]) {
+      expect(detectSearchSources(q, 'search')).toEqual([]);
+    }
+  });
+
+  it('does NOT send Austrian parties to the German DIP', () => {
+    // Zur DIP gibt es für sie kein Gegenstück — ein Treffer wäre eine
+    // AT-Frage, die im deutschen Bundestag nachgeschlagen wird.
+    for (const q of [
+      'Wie hat die ÖVP zum Heizungsgesetz abgestimmt?',
+      'Wie hat die FPÖ abgestimmt und was steht in der Drucksache?',
+      'Wie war der Stand des Gesetzentwurfs der NEOS?',
+    ]) {
+      expect(detectSearchSources(q, 'search')).toEqual([]);
+    }
+  });
+
+  it('pairs DIP for a NAMED PERSON, like it does for a faction', () => {
+    // Die Menge war asymmetrisch: „wie die SPD abgestimmt hat" bekam die DIP,
+    // dieselbe Frage nach einer Abgeordneten bekam nichts — obwohl das
+    // Abstimmungsverhalten einer PERSON der Fall ist, für den es die Quelle
+    // überhaupt gibt.
+    for (const q of [
+      'Recherchiere, wie Renate Künast beim Heizungsgesetz abgestimmt hat',
+      'Recherchiere die Drucksachen von Ricarda Lang zum Klimaschutz',
+      'Untersuche das Abstimmungsverhalten von Katrin Göring-Eckardt beim Gesetzentwurf',
+      'Recherchiere die Plenardebatte mit Lisa Badum',
+      'Recherchiere Anträge der Abgeordneten Lisa Badum im Bundestag debattiert',
+    ]) {
+      expect(detectSearchSources(q, 'research'), q).toEqual(['documents', 'bundestag']);
+    }
+  });
+
+  it('does NOT read a capitalised NOUN PAIR as a person', () => {
+    // Deutsch schreibt Nomen gross, also trifft „zwei grosse Wörter" allein
+    // jedes Nomenpaar. Der Fehlgriff sitzt mal hinten („mit Kleiner ANFRAGE"),
+    // mal vorne („im DEUTSCHEN Bundestag") — deshalb prüft der Wächter beide
+    // Namensteile, nicht nur einen.
+    for (const q of [
+      'Recherchiere den Gesetzentwurf mit Kleiner Anfrage dazu',
+      'Recherchiere die Drucksache im Deutschen Bundestag zum Klimaschutz',
+      'Recherchiere die Plenardebatte von gestern zum Gesetzentwurf',
+      // Ein einzelner Namensteil ist kein Mensch — sonst wäre jedes Bundesland
+      // hinter einem Vorwort ein*e Abgeordnete*r.
+      'Recherchiere die Drucksache von Bayern zum Gesetzentwurf',
+    ]) {
+      expect(detectSearchSources(q, 'research'), q).toEqual([]);
+    }
+  });
+
+  it('needs the parliamentary wording too — a name alone is not enough', () => {
+    // Die Personen-Tür ist die dritte NEBEN der Parlaments-Bedingung, nicht an
+    // ihrer Stelle. Sonst schickte jede Frage nach einer Person die DIP los.
+    for (const q of [
+      'Recherchiere, was Renate Künast zum Klimaschutz sagt',
+      'Recherchiere die Reise von Ricarda Lang nach Brüssel',
+    ]) {
+      expect(detectSearchSources(q, 'research'), q).toEqual([]);
+    }
+  });
+
+  it('does NOT pair DIP for a non-party actor', () => {
+    for (const q of [
+      'Wie hat Siemens zum Heizungsgesetz abgestimmt?',
+      'Wie hat der DFB abgestimmt?',
+      'Worüber wurde auf der letzten BDK abgestimmt?',
+    ]) {
+      expect(detectSearchSources(q, 'search')).toEqual([]);
+    }
   });
 
   it('prefers DIP over web when both a process and temporal wording appear', () => {
@@ -582,26 +713,18 @@ describe('heuristicExtractFilters', () => {
     expect(result?.content_type).toBe('beschluss');
   });
 
-  it('detects Hamburg landesverband from full name', () => {
-    const result = heuristicExtractFilters('Grüne Hamburg Beschlüsse zur Verkehrswende');
-    expect(result?.region).toBe('HH');
-    expect(result?.content_type).toBe('beschluss');
-  });
-
-  it('does NOT match short abbreviations (prevents false positives)', () => {
-    const result = heuristicExtractFilters('HH Position zum Klimaschutz');
-    // Should not match 'hh' abbreviation — only full names
-    expect(result?.region).toBeUndefined();
+  // #3712: `region` trägt kein Punkt in keiner Sammlung — der Filter leerte
+  // jede Suche, auch `@thüringen`, deren Sammlung den LV schon selbst filtert.
+  it('keeps a Landesverband name out of the filters', () => {
+    expect(heuristicExtractFilters('Wie viele Beschlüsse gibt es in Thüringen?')).toEqual({
+      content_type: 'beschluss',
+    });
+    expect(heuristicExtractFilters('Grüne in hamburg und ihre Position')).toBeNull();
   });
 
   it('detects Wahlprogramm content type', () => {
     const result = heuristicExtractFilters('Was steht im Wahlprogramm?');
     expect(result?.content_type).toBe('wahlprogramm');
-  });
-
-  it('detects thüringen from full name', () => {
-    const result = heuristicExtractFilters('Grüne in thüringen und ihre Position');
-    expect(result?.region).toEqual(['TH', 'TH-F']);
   });
 
   it('detects Antrag content type', () => {
@@ -731,13 +854,18 @@ describe('heuristicClassify: doc/board action intents', () => {
   });
 });
 
-describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', () => {
-  it('routes creation requests to social_post', () => {
+describe('heuristicClassify: Social-Post-Auftrag ist ein Schreibauftrag', () => {
+  // Das Verdikt hiess bis 08/2026 `social_post` und war ein Artefakt-Verdikt
+  // mit eigener Karte. Es ist stillgelegt: ein Social-Post ist eine Textsorte,
+  // die das Rezept schreibt, und `produktion` ist der Pfad dorthin. Was die
+  // Regel WEITERHIN leistet, prüfen die Fälle darunter — sie hält den
+  // Schreibauftrag von der Beispiel-Stöberei und von der Sharepic-Route fern.
+  it('routes creation requests to produktion', () => {
     // 0.8 sits below HEURISTIC_CONFIDENCE_THRESHOLD by design: the primary
     // route is the classifier's dedicated Tier-2.5 branch; this heuristic is
     // the same-confidence successor of the old examples creation rule.
     const result = heuristicClassify('Erstelle einen Instagram-Post zu Tempo 30');
-    expect(result.intent).toBe('social_post');
+    expect(result.intent).toBe('produktion');
     expect(result.confidence).toBeGreaterThanOrEqual(0.8);
   });
 
@@ -751,18 +879,17 @@ describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', (
     expect(result.intent).toBe('examples');
   });
 
-  // The "nur Text" / "ohne Text" escape hatches are gone with the combined
-  // post: text-only IS what social_post produces now, so there is nothing left
-  // to escape from, and "ohne Text" no longer buys a sharepic — only the word
-  // does.
-  it('"nur den Text" needs no escape hatch any more — social_post IS the text', () => {
+  // Die alten Notausgänge „nur Text" / „ohne Text" sind gegenstandslos: ein
+  // Post-Auftrag IST jetzt ein Textauftrag, und ein Sharepic gibt es nur auf
+  // das Wort.
+  it('"nur den Text" braucht keinen Notausgang — der Post IST der Text', () => {
     const result = heuristicClassify('Schreib mir nur den Text für einen Insta-Post zu Tempo 30');
-    expect(result.intent).toBe('social_post');
+    expect(result.intent).toBe('produktion');
   });
 
   it('"ohne Text" no longer conjures a sharepic', () => {
     const result = heuristicClassify('Erstelle einen Instagram-Post ohne Text zu Tempo 30');
-    expect(result.intent).toBe('social_post');
+    expect(result.intent).toBe('produktion');
   });
 
   it('explicit sharepic wording keeps the shipped sharepic flow (0.93 rule wins)', () => {
@@ -774,14 +901,14 @@ describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', (
   // A sharepic is only produced when the user said so. These four cases are the
   // rule itself; if one of them flips, the rule is broken.
   it('a plain post ask does NOT become a sharepic', () => {
-    expect(heuristicClassify('Schreib einen Instagram-Post zu Tempo 30').intent).toBe(
-      'social_post'
-    );
+    expect(heuristicClassify('Schreib einen Instagram-Post zu Tempo 30').intent).toBe('produktion');
   });
 
-  it('naming a sharepic in a post ask keeps social_post (which carries the half)', () => {
+  it('ein Post-Nomen behält den Schreibauftrag, auch wenn ein Sharepic mitgenannt ist', () => {
+    // Die Grafik ist damit NICHT bestellt — sie ist ein eigener Auftrag
+    // ("Sharepic zu …"). Der Text hat Vorfahrt, weil er benannt ist.
     expect(heuristicClassify('Schreib einen Instagram-Post mit Sharepic zu Tempo 30').intent).toBe(
-      'social_post'
+      'produktion'
     );
   });
 
@@ -798,11 +925,11 @@ describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', (
     expect(heuristicClassify('Mach mir einen Dreizeiler zum Radverkehr').intent).toBe('sharepic');
   });
 
-  it('"Post MIT Sharepic" is the explicit combined ask — stays social_post', () => {
+  it('"Post MIT Sharepic" bleibt der Textauftrag, nicht die Sharepic-Route', () => {
     const result = heuristicClassify('Erstelle einen Insta-Post mit Sharepic zu Tempo 30');
-    expect(result.intent).toBe('social_post');
+    expect(result.intent).toBe('produktion');
     expect(heuristicClassify('Schreib einen Post inkl. Sharepic zur Verkehrswende').intent).toBe(
-      'social_post'
+      'produktion'
     );
   });
 });
@@ -955,7 +1082,7 @@ describe('heuristicClassify: greeting rule needs a word boundary', () => {
       'Hier der Text für morgen, mach daraus bitte einen Instagram-Post'
     );
     expect(hier.reasoning).not.toBe('Greeting detected');
-    expect(hier.intent).toBe('social_post');
+    expect(hier.intent).toBe('produktion');
     const hilfe = heuristicClassify(
       'Hilfe, wie erstelle ich ein Sharepic für unseren Ortsverband?'
     );
@@ -996,7 +1123,7 @@ describe('heuristicClassify: unit conversion needs a target unit', () => {
     const result = heuristicClassify(
       'Erstelle einen Post zu Tempo 30 in der Innenstadt als Beitrag für unsere Kampagne'
     );
-    expect(result.intent).toBe('social_post');
+    expect(result.intent).toBe('produktion');
   });
 
   it('"35 °C in Berlin" is not a conversion', () => {
