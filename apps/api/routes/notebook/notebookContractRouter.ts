@@ -21,6 +21,7 @@ import {
   getSystemCollectionConfig,
   getCollectionFilterableFields,
   getCollectionDefaultFilter,
+  getFacetCountFilter,
   getDefaultMultiCollectionIds,
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
@@ -169,7 +170,7 @@ export const notebookContractRouter = s.router(notebookContract, {
               systemConfig.qdrantCollection,
               field.field,
               50,
-              baseFilter
+              getFacetCountFilter(collectionId)
             );
             filters[field.field] = {
               label: field.label,
