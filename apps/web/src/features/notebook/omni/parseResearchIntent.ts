@@ -125,11 +125,12 @@ const NUMBER_WORDS: Record<string, number> = {
   zehn: 10,
 };
 
-// „Aktuelle Stunde“ is a parliamentary debate format, not recency.
-const RECENCY_WORDS = String.raw`(?<!\p{L})(?:neuest\p{L}*|neust\p{L}*|aktuell\p{L}*(?!\p{L})(?!\s+stunde)|jüngst\p{L}*|juengst\p{L}*|zuletzt)(?!\p{L})`;
+// „Aktuelle Stunde“ is a parliamentary debate format, not recency. The leading
+// group stands in for a lookbehind (Safari 15 has none); replacements put it back.
+const RECENCY_WORDS = String.raw`(^|[^\p{L}])(?:neuest\p{L}*|neust\p{L}*|aktuell\p{L}*(?!\p{L})(?!\s+stunde)|jüngst\p{L}*|juengst\p{L}*|zuletzt)(?!\p{L})`;
 const RECENCY_RE = new RegExp(RECENCY_WORDS, 'iu');
 const RECENCY_WORD_RE = new RegExp(RECENCY_WORDS, 'giu');
-const FILLER_WORD_RE = /(?<!\p{L})(?:dokumente|texte|beiträge|artikel|alles|alle)(?!\p{L})/giu;
+const FILLER_WORD_RE = /(^|[^\p{L}])(?:dokumente|texte|beiträge|artikel|alles|alle)(?!\p{L})/giu;
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 const startOfYear = (y: number): string => `${y}-01-01`;
@@ -322,8 +323,8 @@ function buildResidualQuery(trimmed: string, dateSpan?: [number, number]): strin
     ? `${trimmed.slice(0, dateSpan[0])} ${trimmed.slice(dateSpan[1])}`
     : trimmed;
   const residual = withoutDate
-    .replace(RECENCY_WORD_RE, ' ')
-    .replace(FILLER_WORD_RE, ' ')
+    .replace(RECENCY_WORD_RE, '$1 ')
+    .replace(FILLER_WORD_RE, '$1 ')
     .replace(/\s+([,;:.!?])/g, '$1')
     .replace(/([,;:])(?:\s*[,;:])+/g, '$1')
     .replace(/\s+/g, ' ')

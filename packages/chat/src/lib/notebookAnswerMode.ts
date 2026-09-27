@@ -97,7 +97,7 @@ const QUESTION_OPENER =
 // verb counts only lowercase; capitalised it counts only as the opening
 // imperative („Erkläre …“), where a noun would not end in -e.
 const INSTRUCTION_VERB =
-  /(?<![\p{L}\d])(?:erklär(?:e|en|t)?|fasse|vergleich(?:e|en)?|schreib(?:e|en|t)?|liste|nenn(?:e|en|t)?|zeig(?:e|en|t)?|analysier(?:e|en|t)?|bitte)(?![\p{L}\d])/u;
+  /(?:^|[^\p{L}\d])(?:erklär(?:e|en|t)?|fasse|vergleich(?:e|en)?|schreib(?:e|en|t)?|liste|nenn(?:e|en|t)?|zeig(?:e|en|t)?|analysier(?:e|en|t)?|bitte)(?![\p{L}\d])/u;
 const OPENING_IMPERATIVE =
   /^(?:Erkläre|Fasse|Vergleiche|Schreibe|Nenne|Zeige|Analysiere|Bitte)(?![\p{L}\d])/u;
 
