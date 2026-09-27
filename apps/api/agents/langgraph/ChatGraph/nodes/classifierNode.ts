@@ -28,6 +28,7 @@ import { collectionsForLocale } from '../../../../routes/chat/agents/searchTools
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
   isDocumentContextEditAllowed,
+  isReferentialFollowup,
   looksLikeSelfContainedTurn,
   looksLikeToolableQuestion,
   looksLikeUnsourcedWritingOrder,
@@ -98,6 +99,7 @@ import { resolveEditTarget } from './editTargetResolver.js';
 import {
   ARTIFACT_NOUN_BY_KIND,
   asksForChatDeliverable,
+  CREATION_VERB_RE,
   forbidsPersistentAction,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
@@ -190,6 +192,89 @@ function matchMcpServerByName(userContent: string, servers: McpClassifierServer[
     return new RegExp(`(?<![\\p{L}])${escapeRegExp(name)}(?![\\p{L}])`, 'iu').test(userContent);
   });
   return hits.length === 1 ? hits[0]!.id : null;
+}
+
+// „ja dann mach das", „mach weiter" — eine Bestätigung ohne eigenen
+// Gegenstand. `isReferentialFollowup` schließt sie aus, weil „mach" ein
+// Erstellverb ist; ohne Objekt erstellt sie aber nichts.
+const BARE_CONFIRMATION =
+  /^\s*(?:(?:ja|ok(?:ay)?|gut|genau)[\s,!.]*)?(?:dann\s+)?(?:bitte\s+)?mach(?:e|'?s)?(?:\s+(?:das|es|weiter|mal))?(?:\s+bitte)?[\s!.]*$/iu;
+
+// `isReferentialFollowup` erkennt nur die EIN-Wort-Höflichkeit; „super,
+// danke!" käme durch.
+const THANKS = /(?<!\p{L})(?:danke\p{L}*|dank|thx)(?!\p{L})/iu;
+
+// Die Schreibverben aus `WRITING_ORDER_RE` (agenticLoop/routing.ts) ohne
+// dessen Textsorten-Nomen: „Soll ich die vorletzte Pressemitteilung
+// vorlesen?" ist ein Nachschlage-Angebot, kein Schreibauftrag.
+const WRITING_VERB = /(?<!\p{L})(?:schreib|formulier|verfass|entwirf|entwerfe)\p{L}*/iu;
+
+/**
+ * Liest sich der Turn als Bearbeitung eines Artefakts, das der Thread hält?
+ * Dieselben Muster wie Tier 2.7, das tiefer unten entscheidet. Der Anschluss
+ * an einen Notebook-Turn steht dann zurück, sonst nähme er Tier 2.7 einen
+ * Folgeauftrag weg („Und jetzt noch die Uhrzeit ergänzen" nach Notebook-Turn
+ * UND Sharepic). Nach 2.7 verschieben geht nicht: `last_tool_context` bleibt
+ * über Notebook-Turns stehen, und 2.7s MCP-Zweig nähme dann „nun die
+ * vorletzte" für einen alten Konnektor.
+ */
+function editsThreadArtifact(state: ChatGraphState, text: string): boolean {
+  const kinds = new Set(
+    [state.lastToolContext, ...(state.threadArtifacts ?? [])].map((a) => a?.kind)
+  );
+  return (
+    ((kinds.has('document') || kinds.has('sheet')) && DOC_MODIFY_PATTERN.test(text)) ||
+    (kinds.has('image') &&
+      (hasImageEditVerb(text) || isImageRegenRequest(text) || isImageEditInstruction(text))) ||
+    (kinds.has('sharepic') && isSharepicEditInstruction(text))
+  );
+}
+
+/**
+ * Das Angebot, das eine nackte Bestätigung annimmt: die letzte Frage der
+ * vorigen Antwort, sonst ihr letzter Satz. Die Frage zuerst, weil ein Füllsatz
+ * dahinter („Sag mir einfach Bescheid!") das Angebot sonst verdeckt. `null`
+ * ohne vorige Antwort im Verlauf.
+ */
+function previousAssistantOffer(messages: ChatGraphState['messages']): string | null {
+  const lastUser = messages.map((m) => m.role).lastIndexOf('user');
+  const previous = messages
+    .slice(0, lastUser === -1 ? messages.length : lastUser)
+    .filter((m) => m.role === 'assistant')
+    .pop();
+  if (!previous) return null;
+  const sentences = extractMessageText(previous.content)
+    .split(/(?<=[.?!])\s+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  return [...sentences].reverse().find((x) => x.endsWith('?')) ?? sentences.at(-1) ?? null;
+}
+
+/**
+ * Setzt dieser Turn nur die Werkzeugarbeit des vorigen fort? Kurz und
+ * rückbezüglich (`isReferentialFollowup`: keine Höflichkeit, kein
+ * Umschreiben, kein Erstellverb, ≤ 8 Wörter), kein Dank, und weder Artefakt
+ * (`GENERATION_SIGNAL`) noch Schreibauftrag.
+ *
+ * Eine nackte Bestätigung („ja mach das") sagt selbst nichts — sie nimmt das
+ * Angebot am Ende der vorigen Antwort an. Pin nur, wenn das kein Erstell- oder
+ * Schreibangebot war („Soll ich daraus einen Social-Media-Post machen?" bleibt
+ * beim heutigen Weg; „…, müsste ich diese neu nachschlagen." pinnt).
+ */
+function continuesNotebookTurn(text: string, messages: ChatGraphState['messages']): boolean {
+  if (BARE_CONFIRMATION.test(text)) {
+    const offer = previousAssistantOffer(messages);
+    return !(
+      offer &&
+      (CREATION_VERB_RE.test(offer) || GENERATION_SIGNAL.test(offer) || WRITING_VERB.test(offer))
+    );
+  }
+  return (
+    isReferentialFollowup(text) &&
+    !THANKS.test(text) &&
+    !GENERATION_SIGNAL.test(text) &&
+    !looksLikeUnsourcedWritingOrder(text, { hasOwnMaterial: false })
+  );
 }
 
 export async function classifierNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
@@ -982,6 +1067,43 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         searchQuery: userContent.slice(0, 500),
         detectedFilters: null,
         reasoning: 'Werkzeugauftrag im Thread eines Notebooks → Werkzeug notebook_quellen',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // Der Turn davor hat mit `notebook_quellen` gearbeitet, und dieser knüpft
+    // nur daran an („nun die vorletzte", „die dritte davon", „ja dann mach
+    // das"). Ohne Pin fiel so ein Turn als vage Anschlussfrage auf
+    // `produktion` ohne Werkzeug (Beta 27.09.2026: „kein Werkzeug in diesem
+    // Turn"). Nicht für Erstellaufträge („mach daraus einen Post", „schreib
+    // eine PM dazu"), Höflichkeiten, Schreibaufträge an ein System-Notebook
+    // und nicht, wenn der Turn eigenes Material mitbringt.
+    const lastTurnNotebookId = state.lastTurnNotebookId;
+    if (
+      lastTurnNotebookId &&
+      state.agentConfig.identifier === 'gruenerator-universal' &&
+      !hasAttachmentContext &&
+      !hasImageAttachments &&
+      !hasBoards &&
+      !hasDocMentions &&
+      !hasCurrentDocument &&
+      continuesNotebookTurn(askText, messages) &&
+      !editsThreadArtifact(state, userContent) &&
+      (isUserNotebookId(lastTurnNotebookId) || !looksLikeNotebookWriteAsk(askText))
+    ) {
+      log.info(
+        '[Classifier] Follow-up on a notebook tool turn → loop with notebook_quellen pinned'
+      );
+      recordDecision('classifier.tier', 'tier2_notebook_turn_followup', {});
+      return {
+        intent: 'agentic',
+        mentionPinnedTool: 'notebook_quellen',
+        searchSources: [],
+        searchQuery: userContent.slice(0, 500),
+        detectedFilters: null,
+        reasoning: 'Anschluss an einen Notebook-Werkzeugturn → Werkzeug notebook_quellen',
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,

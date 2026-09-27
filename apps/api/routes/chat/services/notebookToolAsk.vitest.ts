@@ -96,6 +96,18 @@ describe('looksLikeNotebookToolAsk — trifft (Ort oder Menge)', () => {
     'Auf welcher Seite stehen die Stellen zum Radverkehr?',
     'Auf welcher Seite des Grundsatzprogramms steht das?',
     'Auf welcher Seite heißt es, dass die Kita-Gebühren fallen?',
+    // Beta 27.09.2026, LV-Notebooks: Dokumentarten zählen, Treffer über
+    // Dokumente zählen, den Bestand auflisten.
+    'Wie viele Beschlüsse gibt es seit Januar 2026?',
+    'Wie viele Pressemitteilungen gab es 2025?',
+    'Wieviele neue Anträge liegen im Notebook?',
+    'In wie vielen Dokumenten kommt „Wasserstoff“ vor?',
+    'In wie vielen Pressemitteilungen geht es um Braunkohle?',
+    'In wie vielen aktuellen Pressemitteilungen steht Braunkohle?',
+    'Welche Quellen gibt es zum Thema Braunkohle? Nur die Titel.',
+    'Welche Dokumente liegen zum Radverkehr vor?',
+    'Was für Quellen findest du zur Wärmewende?',
+    'Gib mir nur die Titel',
   ])('%s', (text) => {
     expect(looksLikeNotebookToolAsk(text)).toBe(true);
   });
@@ -181,6 +193,19 @@ describe('looksLikeNotebookToolAsk — trifft NICHT', () => {
     'Nenne mir drei Gründe für die Verkehrswende',
     'Zeig mir, wie die Verkehrswende funktionieren soll',
     'Zeig mir die wichtigsten Unterschiede zwischen den Programmen',
+    // Beta 27.09.2026: „wie viele" und „welche Quellen" nur mit einem
+    // Notebook-Gegenstand — Menschen, Euro und die Quellen einer Studie oder
+    // der Antwort bleiben Inhaltsfragen.
+    'Wie viele Menschen profitieren vom Beschluss?',
+    'Wie viele Windräder fordert der Antrag?',
+    'In wie vielen Städten gilt der Mietendeckel?',
+    // Review #3714: ein Plural-Nomen im Adjektiv-Platz.
+    'Wie viele Kommunen Beschlüsse zum Klimanotstand gefasst haben, weiß ich nicht.',
+    'In wie vielen Ländern Anträgen zugestimmt wurde, ist unklar.',
+    'Welche Quellen nutzt die Studie?',
+    'Welche Quellen hast du benutzt?',
+    'Welche Quellen sind vertrauenswürdig?',
+    'Ist nur der Titel geändert worden?',
     '',
   ])('%s', (text) => {
     expect(looksLikeNotebookToolAsk(text)).toBe(false);
@@ -212,6 +237,10 @@ describe('looksLikeNotebookToolAsk — gegen den Eval-Korpus', () => {
   // Planer-Prompt (`buildToolUsageBlock`, #3630) — pinnte das Tor sie, wäre
   // der Hinweis ein Scope.
   const REACHED_BY_PLANNER_HINT = new Set(['nbtool-berlin-thread-followup-content']);
+  // „nun die vorletzte" erreicht das Werkzeug über den Anschluss an den
+  // vorigen Notebook-Turn (`lastTurnNotebookId` im Klassifikator), nicht über
+  // dieses Tor.
+  const REACHED_BY_FOLLOWUP_PIN = new Set(['nbtool-lv-mv-followup']);
   // Notebook-Seite: dort entscheidet das Tor nur im Auto-Modus und nur als
   // Vorfilter. Was erst der LLM-Wächter erreicht, oder was vor dem Tor schon
   // entschieden ist (nicht lesbare Sammlung), prüft der Korpus, nicht das Tor.
@@ -223,6 +252,7 @@ describe('looksLikeNotebookToolAsk — gegen den Eval-Korpus', () => {
   ]);
   const turns = loadCorpus(fileURLToPath(new URL('../../../evals', import.meta.url)), all)
     .filter((s) => !REACHED_BY_PLANNER_HINT.has(s.id))
+    .filter((s) => !REACHED_BY_FOLLOWUP_PIN.has(s.id))
     .filter((s) => !REACHED_BY_ANSWER_MODE_GUARD.has(s.id))
     // Ohne `auto` fragt die Notebook-Seite das Tor gar nicht (explizit oder Default).
     .filter((s) => s.surface !== 'notebook' || s.notebookAnswerMode === 'auto')

@@ -19,6 +19,7 @@ import {
   makeNotebookSourcesTool,
   normalizeArgs,
   notebookForPrompt,
+  notebookIdFromSteps,
   type NotebookSourceToolDeps,
 } from './notebookSourceTools.js';
 
@@ -444,6 +445,24 @@ describe('live findings 23.09.2026', () => {
     const out = await run({ action: 'list' });
     expect(out.collection).toBe('hamburg');
     expect(out.notebookFrom).toMatch(/Hamburg|hamburg/);
+  });
+
+  // Beta 27.09.2026: der gepinnte erste Aufruf kommt oft OHNE notebookId (das
+  // Werkzeug nimmt das gewählte Notebook). Aus den Argumenten allein erinnerte
+  // der Thread dann ein älteres Notebook — hier Berlin statt Hamburg.
+  it('remembers the notebook a call resolved without notebookId, not an older one', async () => {
+    const { run } = makeCtx({ notebookIds: ['hamburg-notebook'] });
+    const args = { action: 'list' };
+    const out = await run(args);
+    expect(out.collection).toBe('hamburg');
+    const persisted: PersistedStep = {
+      toolCallId: 'c2',
+      toolName: 'notebook_quellen',
+      args,
+      result: out,
+    };
+    expect(notebookIdFromSteps([step({ notebookId: 'berlin' }), persisted])).toBe('hamburg');
+    expect(notebookIdFromSteps([persisted])).toBe('hamburg');
   });
 
   it('never falls back for write actions', async () => {

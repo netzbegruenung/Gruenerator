@@ -456,6 +456,7 @@ describe('priorTurnRetrieved', () => {
         args: {},
         result: {},
       })),
+    lastTurnToolSteps: () => [],
     sources: () => [],
     lastGeneratedImageUrl: () => null,
   });
@@ -490,6 +491,7 @@ describe('priorTurnRetrieved', () => {
         toolSteps: () => {
           throw new Error('boom');
         },
+        lastTurnToolSteps: () => [],
         sources: () => [],
         lastGeneratedImageUrl: () => null,
       })

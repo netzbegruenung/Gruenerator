@@ -919,3 +919,174 @@ describe('Notebook branch — tool ask pins notebook_quellen', () => {
     expect(result.mentionPinnedTool).toBeUndefined();
   });
 });
+
+// Beta 27.09.2026, ein Thread über mehrere Landesverbands-Notebooks.
+describe('LV notebook tool asks (beta 27.09.2026)', () => {
+  it.each([
+    ['thueringen-notebook', 'Wie viele Beschlüsse gibt es seit Januar 2026?'],
+    ['hessen-notebook', 'In wie vielen Dokumenten kommt „Wasserstoff“ vor?'],
+    ['brandenburg-notebook', 'Welche Quellen gibt es zum Thema Braunkohle? Nur die Titel.'],
+  ])('%s + %s → agentic with the pin', async (notebookId, text) => {
+    const state = buildState({
+      userMessage: text,
+      lastUserTextNoMentions: text,
+      notebookIds: [notebookId],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+});
+
+describe('Follow-up on a notebook tool turn pins notebook_quellen', () => {
+  const USER_NOTEBOOK = '3f1c2b7a-9d4e-4c5b-8a6f-1e2d3c4b5a69';
+
+  it.each([
+    'nun die vorletzte',
+    'und die nächste?',
+    'ja dann mach das',
+    'noch mal genauer',
+    'die dritte davon',
+    'das stimmt nicht',
+  ])('after a notebook turn: %s → pin', async (userMessage) => {
+    const state = buildState({
+      userMessage,
+      lastTurnNotebookId: 'mecklenburg-vorpommern',
+      threadNotebookId: 'mecklenburg-vorpommern',
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  // Voriger Turn las das Notebook, der Thread hält zudem ein Sharepic: eine
+  // Sharepic-Bearbeitung bleibt bei Tier 2.7, ein Anschluss an die Liste nicht.
+  describe('with a sharepic in the thread', () => {
+    const afterSharepic = { kind: 'sharepic' as const, ref: 'canvas-1', label: 'Sharepic' };
+
+    it.each(['Und jetzt noch die Uhrzeit 15 Uhr ergänzen', 'Anderer Hintergrund bitte'])(
+      'sharepic edit keeps tier2.7: %s',
+      async (userMessage) => {
+        const state = buildState({
+          userMessage,
+          lastTurnNotebookId: 'mecklenburg-vorpommern',
+          lastToolContext: afterSharepic,
+        });
+        const result = await classifierNode(state);
+        expect(result.intent).toBe('sharepic');
+        expect(result.mentionPinnedTool).toBeUndefined();
+      }
+    );
+
+    it.each(['und die nächste?', 'noch mal'])(
+      'a follow-up to the notebook turn still pins: %s',
+      async (userMessage) => {
+        const state = buildState({
+          userMessage,
+          lastTurnNotebookId: 'mecklenburg-vorpommern',
+          lastToolContext: afterSharepic,
+        });
+        const result = await classifierNode(state);
+        expect(result.mentionPinnedTool).toBe('notebook_quellen');
+      }
+    );
+  });
+
+  // Review #3714: eine nackte Bestätigung nimmt das Angebot der vorigen
+  // Antwort an — nur ein Nachschlage-Angebot pinnt.
+  describe('bare confirmation reads the previous offer', () => {
+    const withOffer = (offer: string, confirmation: string) =>
+      buildState({
+        userMessage: confirmation,
+        lastTurnNotebookId: 'mecklenburg-vorpommern',
+        messages: [
+          { role: 'user' as const, content: 'Liste die neuesten Pressemitteilungen auf' },
+          { role: 'assistant' as const, content: offer },
+          { role: 'user' as const, content: confirmation },
+        ],
+      });
+
+    it.each([
+      [
+        'Ich habe 5 Pressemitteilungen gefunden. Soll ich daraus einen Social-Media-Post machen?',
+        'ja mach',
+      ],
+      ['Hier sind die Titel. Soll ich dazu eine Pressemitteilung schreiben?', "ja, mach's bitte"],
+      ['Hier sind die Titel. Soll ich ein Sharepic dazu erstellen?', 'ja dann mach das'],
+      [
+        'Ich habe 5 Pressemitteilungen gefunden. Soll ich daraus einen Post machen? Sag mir einfach Bescheid!',
+        'ja mach',
+      ],
+    ])('after a creation offer: %s → %s stays unpinned', async (offer, confirmation) => {
+      const result = await classifierNode(withOffer(offer, confirmation));
+      expect(result.mentionPinnedTool).toBeUndefined();
+    });
+
+    it.each([
+      [
+        'Das ist die neueste Pressemitteilung. Sollte es weitere Texte geben, müsste ich diese neu nachschlagen.',
+        'ja dann mach das',
+      ],
+      ['Hier ist der Text. Soll ich die vorletzte Pressemitteilung auch vorlesen?', 'ja mach'],
+      ['Das sind fünf Treffer. Soll ich weitere suchen?', 'ja, mach weiter'],
+    ])('after a lookup offer: %s → %s pins', async (offer, confirmation) => {
+      const result = await classifierNode(withOffer(offer, confirmation));
+      expect(result.mentionPinnedTool).toBe('notebook_quellen');
+    });
+  });
+
+  it('after a turn without notebook_quellen (thread used one earlier) → no pin', async () => {
+    const state = buildState({
+      userMessage: 'nun die vorletzte',
+      lastTurnNotebookId: null,
+      threadNotebookId: 'mecklenburg-vorpommern',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it.each([
+    'mach daraus einen Instagram-Post',
+    'schreib eine PM dazu',
+    'erstelle ein Sharepic dazu',
+    'danke',
+    'super, danke!',
+    'kürze das auf drei Sätze',
+  ])('creation, thanks and rewrites keep their route: %s', async (userMessage) => {
+    const state = buildState({
+      userMessage,
+      lastTurnNotebookId: 'mecklenburg-vorpommern',
+      threadNotebookId: 'mecklenburg-vorpommern',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('write follow-up on a system notebook → no pin (read-only)', async () => {
+    const state = buildState({
+      userMessage: 'entferne die dritte davon',
+      lastTurnNotebookId: 'berlin',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('write follow-up on a user notebook → pin', async () => {
+    const state = buildState({
+      userMessage: 'entferne die dritte davon',
+      lastTurnNotebookId: USER_NOTEBOOK,
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  it('a long new question after a notebook turn is not a follow-up', async () => {
+    const state = buildState({
+      userMessage:
+        'Wie hat sich die Förderung von Wärmepumpen in Deutschland seit 2020 entwickelt und was plant die Regierung?',
+      lastTurnNotebookId: 'mecklenburg-vorpommern',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+});
