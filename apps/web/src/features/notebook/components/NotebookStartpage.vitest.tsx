@@ -1,20 +1,24 @@
 /**
  * The notebook start page after the KI / Manuelle-Recherche tabs were merged:
  * one composer, and the manual research running under it while the person
- * types — in „Automatisch“ and „Manuell“, never in the pure model modes.
+ * types — in „Magic Search“ and „Manuell“, never in the pure model modes.
  *
  * The composer is assistant-ui's and is covered in packages/chat; here it is a
  * stand-in that exposes what the page hands it. The search underneath is real
  * and talks to MSW.
  */
-import { type CategoryFilterConfig, type NotebookComposerMode } from '@gruenerator/chat';
+import {
+  type CategoryFilterConfig,
+  type MagicIntent,
+  type NotebookComposerMode,
+} from '@gruenerator/chat';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../../test/msw-server';
-import { axe, renderWithProviders, screen, waitFor, within } from '../../../test-utils';
+import { act, axe, renderWithProviders, screen, waitFor, within } from '../../../test-utils';
 import { daysAgo } from '../manual-search/datePresets';
 
 import { NotebookStartpage } from './NotebookStartpage';
@@ -23,7 +27,12 @@ const SEARCH = 'http://localhost/api/research/search';
 const FILTERS = 'http://localhost/api/research/filters';
 const COLLECTIONS = 'http://localhost/api/research/collections';
 
-const composer: { text: string; onManualSubmit?: (text: string) => void } = { text: '' };
+const composer: {
+  text: string;
+  magicIntent?: MagicIntent | null;
+  onManualSubmit?: (text: string) => void;
+} = { text: '' };
+const onMagicIntentChange = vi.fn<(intent: MagicIntent | null) => void>();
 
 vi.mock('@assistant-ui/react', () => ({
   useAuiState: (select: (s: { composer: { text: string } }) => unknown) =>
@@ -32,7 +41,11 @@ vi.mock('@assistant-ui/react', () => ({
 
 vi.mock('@gruenerator/chat', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  NotebookComposer: (props: { onManualSubmit?: (text: string) => void }) => {
+  NotebookComposer: (props: {
+    magicIntent?: MagicIntent | null;
+    onManualSubmit?: (text: string) => void;
+  }) => {
+    composer.magicIntent = props.magicIntent;
     composer.onManualSubmit = props.onManualSubmit;
     return <div data-testid="composer" />;
   },
@@ -49,7 +62,9 @@ beforeEach(() => {
   bodies = [];
   localStorage.clear();
   composer.text = '';
+  composer.magicIntent = undefined;
   composer.onManualSubmit = undefined;
+  onMagicIntentChange.mockClear();
   server.use(
     http.get(FILTERS, () =>
       HttpResponse.json({
@@ -105,6 +120,7 @@ function page(answerMode: NotebookComposerMode, composerCategoryFilters?: Catego
       recentCollectionIds={['berlin-system']}
       showStats={false}
       showLastAdded={false}
+      onMagicIntentChange={onMagicIntentChange}
       {...(composerCategoryFilters ? { composerCategoryFilters } : {})}
     />
   );
@@ -127,7 +143,7 @@ describe('NotebookStartpage — one composer', () => {
     expect(screen.getByTestId('composer')).toBeInTheDocument();
   });
 
-  it('lists hits under the composer while typing in Automatisch', async () => {
+  it('lists hits under the composer while typing in Magic Search', async () => {
     renderPage('auto', 'Mieten');
     expect(await screen.findByText('Mietendeckel jetzt')).toBeVisible();
     expect(screen.getByText('1 Ergebnisse')).toBeVisible();
@@ -145,6 +161,57 @@ describe('NotebookStartpage — one composer', () => {
     await new Promise((r) => setTimeout(r, 400));
     expect(searches).toEqual([]);
     expect(screen.queryByText('Mietendeckel jetzt')).not.toBeInTheDocument();
+  });
+
+  it('reads keywords as a search: magnifier, and Enter searches instead of sending', async () => {
+    const { rerender } = renderPage('auto', '');
+    composer.text = 'Hitzeschutz';
+    rerender(page('auto'));
+    expect(composer.magicIntent).toBe('suche');
+    await waitFor(() => expect(onMagicIntentChange).toHaveBeenLastCalledWith('suche'));
+
+    // Enter searches at once — well inside the 300 ms the typing debounce waits.
+    act(() => composer.onManualSubmit!('Hitzeschutz'));
+    await waitFor(() => expect(searches).toEqual(['Hitzeschutz']), { timeout: 200 });
+    expect(onMagicIntentChange).not.toHaveBeenCalledWith('chat');
+  });
+
+  it('reads a question as a chat and reports it upwards', async () => {
+    renderPage('auto', 'Was fordern die Grünen zum Hitzeschutz?');
+    expect(composer.magicIntent).toBe('chat');
+    await waitFor(() => expect(onMagicIntentChange).toHaveBeenLastCalledWith('chat'));
+  });
+
+  it('reports no intent for an empty composer, outside Magic Search, and once unmounted', async () => {
+    const { unmount } = renderPage('auto', '');
+    expect(composer.magicIntent).toBeNull();
+    await waitFor(() => expect(onMagicIntentChange).toHaveBeenLastCalledWith(null));
+
+    unmount();
+    onMagicIntentChange.mockClear();
+    const second = renderPage('manuell', 'Was fordern die Grünen?');
+    expect(composer.magicIntent).toBeNull();
+    onMagicIntentChange.mockClear();
+    second.rerender(page('auto'));
+    await waitFor(() => expect(onMagicIntentChange).toHaveBeenLastCalledWith('chat'));
+    second.unmount();
+    expect(onMagicIntentChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it.each([
+    ['Hitzeschutz', 'Keine Treffer. Versuche andere Begriffe oder entferne Filter.'],
+    ['Was gilt beim Hitzeschutz?', 'Keine Treffer in den Quellen. Mit Enter fragst du die KI.'],
+  ])('fits the empty hint to what %s reads as', async (text, hint) => {
+    server.use(
+      http.post(SEARCH, () =>
+        HttpResponse.json({
+          results: [],
+          metadata: { totalResults: 0, collections: ['berlin-system'], timeMs: 3 },
+        })
+      )
+    );
+    renderPage('auto', text);
+    expect(await screen.findByText(hint)).toBeVisible();
   });
 
   it('waits until the query is long enough', async () => {
