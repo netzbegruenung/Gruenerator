@@ -14,6 +14,7 @@
  */
 import { applyContextCap } from '../../utils/contextCap.js';
 import { buildPageRangesFromRaw } from '../document-services/TextChunker/pageMarkerProcessing.js';
+import { resolveWolkeDisplayUrl } from '../scrapers/utils/wolkeShareSecrets.js';
 
 import { type rerankNotebookResults } from './rerankNotebookResults.js';
 
@@ -111,6 +112,36 @@ export async function fetchDocumentMetadata(
        FROM documents WHERE id = ANY($1)`,
     [ids]
   );
+}
+
+/**
+ * Die eigene Adresse einer Quelle — nur wo sie eine hat: URL-Import oder
+ * Wolke-Datei. Hochgeladene Dateien haben keine. Ein `wolke://`-Schlüssel, der
+ * sich nicht (mehr) auflösen lässt, ist kein Link und fällt weg (#3728).
+ */
+export function documentLink(sourceUrl: string | null | undefined): string | null {
+  if (!sourceUrl) return null;
+  const url = resolveWolkeDisplayUrl(sourceUrl);
+  return /^https?:\/\//i.test(url) ? url : null;
+}
+
+/** `documentLink` je Quelle, in einer Abfrage. Quellen ohne Adresse fehlen in der Map. */
+export async function fetchDocumentLinks(
+  db: Pick<PostgresService, 'query'>,
+  ids: readonly string[]
+): Promise<Map<string, string>> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map();
+  const rows = await db.query<{ id: string; source_url: string | null }>(
+    `SELECT id, source_url FROM documents WHERE id = ANY($1) AND source_url IS NOT NULL`,
+    [unique]
+  );
+  const links = new Map<string, string>();
+  for (const row of rows) {
+    const url = documentLink(row.source_url);
+    if (url) links.set(String(row.id), url);
+  }
+  return links;
 }
 
 export type SourceSortBy =
