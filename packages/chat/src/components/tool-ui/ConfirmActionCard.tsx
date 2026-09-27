@@ -40,6 +40,7 @@ const ICON_MAP: Record<ConfirmActionType, typeof FileText> = {
   create_recurring_task: Repeat,
   create_user_agent: Bot,
   share_user_agent: Share2,
+  share_text_form: Share2,
 };
 
 const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
@@ -49,6 +50,7 @@ const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
   'share_notebook',
   'set_group_visibility',
   'share_user_agent',
+  'share_text_form',
 ]);
 const NOTEBOOK_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
   'attach_wolke_folder',
