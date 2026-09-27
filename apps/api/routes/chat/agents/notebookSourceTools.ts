@@ -170,14 +170,16 @@ function resolveDeps(partial: Partial<NotebookSourceToolDeps> | undefined): Note
  * Die notebookId des letzten erfolgreichen `notebook_quellen`-Aufrufs unter
  * `steps` (älteste zuerst). EINE Regel für zwei Stellen: das Werkzeug fällt
  * darauf zurück, und der Klassifikator pinnt das Werkzeug nur, wenn es hier
- * etwas gibt (`threadNotebookId`).
+ * etwas gibt (`threadNotebookId`). Erst die Argumente, dann das Ergebnis: ein
+ * Aufruf ohne notebookId nahm das gewählte Notebook, und nur das Ergebnis
+ * nennt es.
  */
 export function notebookIdFromSteps(steps: readonly PersistedStep[]): string | null {
   for (let i = steps.length - 1; i >= 0; i--) {
     const step = steps[i]!;
-    const id = step.args.notebookId;
-    if (step.toolName === TOOL_NAME && step.ok !== false && typeof id === 'string' && id) {
-      return id;
+    if (step.toolName !== TOOL_NAME || step.ok === false) continue;
+    for (const id of [step.args.notebookId, step.result?.notebookId]) {
+      if (typeof id === 'string' && id) return id;
     }
   }
   return null;
@@ -605,13 +607,18 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
         if (!targetInScope(target)) return { error: OUT_OF_SCOPE };
         const read = await runRead(target, args, userId);
         if ('error' in read) return read;
-        const result =
-          from === 'thread'
+        // Die aufgelöste id steht im Ergebnis, weil der gepinnte erste Aufruf
+        // sie oft nicht in den Argumenten trägt — `notebookIdFromSteps` liest
+        // sie hier nach.
+        const result = {
+          ...read,
+          notebookId: target.kind === 'system' ? target.collection.key : target.collection.id,
+          ...(from === 'thread'
             ? {
-                ...read,
                 notebookFrom: `Ohne notebookId: das zuletzt in diesem Chat genutzte Notebook „${target.collection.name}".`,
               }
-            : read;
+            : {}),
+        };
         noteSummary(sourceRegistry, args.action, target.collection.name, result);
         return result;
       } catch (err) {
