@@ -7,14 +7,12 @@ import {
   Button,
 } from '@gruenerator/ui';
 import { QRCodeSVG } from 'qrcode.react';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { FaAndroid, FaApple } from 'react-icons/fa';
 import { HiCheck, HiClipboardCopy, HiExternalLink } from 'react-icons/hi';
 
 import { getDocsUrl } from '../../utils/docsUrl';
 import { getVisitorDevice, type VisitorDevice } from '../../utils/platform';
-
-import { cn } from '@/utils/cn';
 
 /**
  * Aus dem eigenen Host abgeleitet, damit Beta die Beta-Adresse anzeigt statt
@@ -106,6 +104,7 @@ const Hero = ({ device }: { device: VisitorDevice }) => {
         </div>
         <h2 className="flex flex-wrap items-center gap-2.5 text-xl font-bold text-foreground-heading sm:text-3xl">
           {device ? `Grünerator für ${DEVICE_NAMES[device]}` : 'Grünerator aufs Handy holen'}
+          <Badge variant="outline">Beta</Badge>
         </h2>
         <p className="mt-2 max-w-md text-sm text-grey-600 dark:text-grey-400 sm:text-base">
           {device
@@ -174,6 +173,8 @@ const Hero = ({ device }: { device: VisitorDevice }) => {
   );
 };
 
+// Doppelte die Hero-Karte oben — vorerst ausgeblendet.
+/*
 const AppCard = ({
   title,
   sub,
@@ -277,6 +278,7 @@ const AppCardsGrid = ({ device }: { device: VisitorDevice }) => (
     </AppCard>
   </div>
 );
+*/
 
 const McpSection = () => {
   const [copied, setCopied] = useState(false);
@@ -362,6 +364,7 @@ const AppsPage = () => {
 
       <Hero device={device} />
 
+      {/* Doppelte die Hero-Karte — vorerst ausgeblendet, siehe AppCardsGrid oben.
       <div className="mb-1.5 flex flex-wrap items-center gap-2.5">
         <h2 className="text-lg font-bold text-foreground-heading sm:text-xl">
           Apps für dein Smartphone
@@ -374,6 +377,7 @@ const AppsPage = () => {
       </p>
 
       <AppCardsGrid device={device} />
+      */}
 
       <McpSection />
     </div>
