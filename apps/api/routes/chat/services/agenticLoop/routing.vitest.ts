@@ -1181,9 +1181,28 @@ describe('isReferentialFollowup', () => {
     expect(isReferentialFollowup(text)).toBe(false);
   });
 
-  it.each(['Danke!', 'Okay', 'Passt', 'Wer bist du?'])('Höflichkeit: %s', (text) => {
+  it.each([
+    'Danke!',
+    'Okay',
+    'Passt',
+    'Wer bist du?',
+    'super, danke!',
+    'ok, danke dir',
+    'Perfekt, vielen Dank!',
+    'Alles klar, dankeschön',
+    'ja, danke schön',
+  ])('Höflichkeit: %s', (text) => {
     expect(isReferentialFollowup(text)).toBe(false);
   });
+
+  // #3715: Mehrere Höflichkeitswörter sind noch Höflichkeit — ein Wort mit
+  // Inhalt daneben macht den Turn wieder zur Anschlussfrage.
+  it.each(['super, und die FDP?', 'Danke, und Bayern?', 'ok und was sagt die SPD dazu?'])(
+    'Höflichkeit mit Anschlussfrage: %s',
+    (text) => {
+      expect(isReferentialFollowup(text)).toBe(true);
+    }
+  );
 
   it('ein Erzeugungsauftrag ist keine Anschlussfrage', () => {
     expect(isReferentialFollowup('Mach ein Sharepic dazu')).toBe(false);
