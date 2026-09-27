@@ -35,8 +35,8 @@ interface ComposerOptionPickerProps<T extends string> {
   ariaLabel: string;
   /** Overrides the default trigger text (the current option's name). */
   triggerLabel?: ReactNode;
-  /** Appended to the current option's name on the trigger only, e.g. what
-   *  that option decided for the current input. */
+  /** Appended to the current option's name on the trigger only, from `sm`
+   *  up, e.g. what that option decided for the current input. */
   valueSuffix?: string;
 }
 
@@ -127,17 +127,15 @@ export function ComposerOptionPicker<T extends string>({
     </ResponsiveMenuSection>
   );
 
-  const suffix = valueSuffix ? ` · ${valueSuffix}` : '';
+  // The suffix stays off the narrow label: there every character comes out of
+  // the input beside it.
   const defaultTriggerLabel = current ? (
     <span>
       <span className="max-sm:hidden">
         {current.name}
-        {suffix}
+        {valueSuffix ? ` · ${valueSuffix}` : ''}
       </span>
-      <span className="sm:hidden">
-        {current.shortName || current.name}
-        {suffix}
-      </span>
+      <span className="sm:hidden">{current.shortName || current.name}</span>
     </span>
   ) : null;
 
