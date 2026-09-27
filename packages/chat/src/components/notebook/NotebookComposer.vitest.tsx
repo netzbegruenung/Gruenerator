@@ -193,6 +193,24 @@ describe('NotebookComposer — filters', () => {
     expect(await screen.findByRole('button', { name: 'Fertig' })).toBeVisible();
   });
 
+  it('counts selected sources, and gives no number where a source is only labelled', async () => {
+    const user = userEvent.setup();
+    const sources = (second: string | number) => ({
+      collections: [
+        { id: 'a', name: 'Programme', documentCount: 12 },
+        { id: 'b', name: 'Wiki', documentCount: second },
+      ],
+      selectedIds: ['a', 'b'],
+      onToggle: vi.fn(),
+    });
+    const { rerender } = render(<NotebookComposer sourceFilters={sources(30)} />);
+    await user.click(screen.getByRole('button', { name: /Einstellungen/ }));
+    expect(await screen.findByRole('button', { name: 'In 42 Quellen suchen' })).toBeVisible();
+
+    rerender(<NotebookComposer sourceFilters={sources('Wiki')} />);
+    expect(await screen.findByRole('button', { name: 'Fertig' })).toBeVisible();
+  });
+
   it('clears one field with its „Alle“ link and everything with Zurücksetzen', async () => {
     const user = userEvent.setup();
     const { onToggle, onClearAll } = renderFilters({ themes: ['klima'] });
