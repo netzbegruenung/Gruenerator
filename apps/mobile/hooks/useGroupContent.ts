@@ -1,7 +1,19 @@
 import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
-import { groupContentKey, toGroupFeedItems, type GroupFeedItem } from '@gruenerator/shared/groups';
+import {
+  groupContentKey,
+  groupPostFilePath,
+  toGroupFeedItems,
+  type GroupFeedItem,
+  type GroupPostFile,
+} from '@gruenerator/shared/groups';
 import { getNotebookDefinition } from '@gruenerator/shared/notebooks';
 import { useQuery } from '@tanstack/react-query';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import { useEffect, useState } from 'react';
+
+import { resolveChatUrl } from '../services/chatApiUrl';
+import { secureStorage } from '../services/storage';
 
 import type { useRouter } from 'expo-router';
 
@@ -24,6 +36,36 @@ export function useGroupFeed(groupId: string | null | undefined) {
   });
 }
 
+/** Beitragsdateien sind nur für Mitglieder lesbar: Bilder und Downloads brauchen den Bearer. */
+export function useBearerToken(): string | null {
+  const [token, setToken] = useState<string | null>(null);
+  useEffect(() => {
+    void secureStorage.getToken().then(setToken);
+  }, []);
+  return token;
+}
+
+export function groupPostFileUrl(groupId: string, postId: string, fileId: string): string {
+  return resolveChatUrl(groupPostFilePath(groupId, postId, fileId));
+}
+
+/** Datei eines Beitrags laden und an den System-Teilen-Dialog geben (Öffnen, Sichern, Senden). */
+export async function shareGroupPostFile(
+  groupId: string,
+  postId: string,
+  file: GroupPostFile
+): Promise<void> {
+  const token = await secureStorage.getToken();
+  if (!token) throw new Error('Nicht angemeldet.');
+  const target = new File(Paths.cache, `${file.id}-${file.name.replace(/[/\\]/g, '_')}`);
+  const downloaded = await File.downloadFileAsync(
+    groupPostFileUrl(groupId, postId, file.id),
+    target,
+    { headers: { Authorization: `Bearer ${token}` }, idempotent: true }
+  );
+  await Sharing.shareAsync(downloaded.uri, { mimeType: file.mimeType, dialogTitle: file.name });
+}
+
 type Router = ReturnType<typeof useRouter>;
 
 // Every web-viewer call stays a literal `router.push`: the handoff allowlist
@@ -32,9 +74,10 @@ type Router = ReturnType<typeof useRouter>;
 /**
  * Sharepic-Vorlagen haben in der App kein Ziel: „Verwenden" klont sie, und
  * die App ist hier nur zum Lesen. `/projekte/` steht bewusst nicht in der
- * Handoff-Allowlist.
+ * Handoff-Allowlist. Beiträge stehen ganz auf der Karte.
  */
-export const canOpenInApp = (item: GroupFeedItem): boolean => item.kind !== 'sharepic-template';
+export const canOpenInApp = (item: GroupFeedItem): boolean =>
+  item.kind !== 'sharepic-template' && item.kind !== 'post';
 
 export function openGroupFeedItem(router: Router, item: GroupFeedItem): void {
   switch (item.kind) {
@@ -54,6 +97,7 @@ export function openGroupFeedItem(router: Router, item: GroupFeedItem): void {
       });
       return;
     case 'sharepic-template':
+    case 'post':
       return;
     case 'generator':
       router.push({
