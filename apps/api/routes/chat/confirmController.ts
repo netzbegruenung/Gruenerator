@@ -87,7 +87,9 @@ class ConfirmActionRefusal extends Error {
  * Execute a confirmed action based on its type.
  * Returns a user-facing result message.
  */
-async function executeAction(action: PendingAction): Promise<{ message: string; url?: string }> {
+export async function executeAction(
+  action: PendingAction
+): Promise<{ message: string; url?: string }> {
   switch (action.type) {
     case 'save_as_doc': {
       const { createDocumentWithContent } =
@@ -401,29 +403,37 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
         await import('../../services/user/textFormRepository.js');
       const { sharingFailure } = await import('../userTextForms/textFormRouterHelpers.js');
       const { mention, title, groupId, groupName } = action.payload;
+      // Die Agentura zeigt die Projektliste nur bei `share_mode = 'groups'` —
+      // ein privat gebliebenes Rezept wäre geteilt, ohne dass die Eigentümer*in
+      // die Freigabe dort sähe oder zurücknehmen könnte. Darum ZUERST der Modus,
+      // dann die Freigabe: scheitert die Freigabe, bleibt höchstens `groups`
+      // ohne Projekt stehen (wirkt wie privat) und wird zurückgedreht; die
+      // umgekehrte Reihenfolge hinterliesse eine unsichtbare Freigabe.
+      // `authenticated` bleibt stehen: das ist schon weiter als ein Projekt.
+      const current = await getTextFormSharing(action.userId, mention);
+      const promoted = current?.share_mode === 'private';
+      if (promoted) {
+        const failure = sharingFailure(
+          await updateTextFormSharing(action.userId, mention, { share_mode: 'groups' })
+        );
+        if (failure) throw new ConfirmActionRefusal(failure.message);
+      }
       // Derselbe Pfad wie `userTextFormsContract.share`: Besitz- und
       // Teilbarkeitsprüfung (`isShareableTextForm`) im Repository, Mitgliedschaft
       // im SQL. Ein Nicht-Mitglied fügt still nichts ein — darum die Probe auf
       // die zurückgegebene Liste.
       const shares = await shareTextFormWithGroup(action.userId, mention, groupId);
-      if (shares === null) {
-        throw new ConfirmActionRefusal(
-          'Rezept nicht gefunden, oder es ist ein angepasstes System-Rezept — die lassen sich nicht teilen.'
-        );
-      }
-      if (!shares.some((s) => s.groupId === groupId)) {
-        throw new ConfirmActionRefusal(`Du bist nicht Mitglied im Projekt „${groupName}".`);
-      }
-      // Die Agentura zeigt die Projektliste nur bei `share_mode = 'groups'` —
-      // ein privat gebliebenes Rezept wäre geteilt, ohne dass die Eigentümer*in
-      // die Freigabe dort sähe oder zurücknehmen könnte. `authenticated` bleibt
-      // stehen: das ist schon weiter als ein Projekt.
-      const current = await getTextFormSharing(action.userId, mention);
-      if (current?.share_mode === 'private') {
-        const failure = sharingFailure(
-          await updateTextFormSharing(action.userId, mention, { share_mode: 'groups' })
-        );
-        if (failure) throw new ConfirmActionRefusal(failure.message);
+      const refusal =
+        shares === null
+          ? 'Rezept nicht gefunden, oder es ist ein angepasstes System-Rezept — die lassen sich nicht teilen.'
+          : shares.some((s) => s.groupId === groupId)
+            ? null
+            : `Du bist nicht Mitglied im Projekt „${groupName}".`;
+      if (refusal) {
+        if (promoted) {
+          await updateTextFormSharing(action.userId, mention, { share_mode: 'private' });
+        }
+        throw new ConfirmActionRefusal(refusal);
       }
       return {
         message: `Rezept **„${title}"** (@${mention}) wurde mit **„${groupName}"** geteilt.`,
