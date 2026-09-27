@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
-import { OfficeActionTile } from './ToolsSection';
+import { OfficeActionTile, OfficeSection } from './ToolsSection';
 
 import type { IconType } from '../../../config/icons';
 
@@ -48,5 +49,26 @@ describe('OfficeActionTile', () => {
   it('falls back to a neutral tile class for an unknown styleKey', () => {
     renderTile({ styleKey: 'not-a-real-tool' });
     expect(screen.getByRole('button').className).toContain('bg-grey-50');
+  });
+});
+
+describe('OfficeSection', () => {
+  it('sizes the Weitere tiles exactly like the area tiles above them', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <MemoryRouter>
+        <OfficeSection />
+      </MemoryRouter>
+    );
+    await user.click(screen.getByRole('button', { name: /Weitere/ }));
+
+    const rows = [...container.querySelectorAll<HTMLElement>('[style*="--tile-basis"]')];
+    expect(rows).toHaveLength(2);
+    const [areaRow, menuRow] = rows;
+    // The rows differ in length — sized by their own count they'd differ in width.
+    expect(menuRow.children.length).not.toBe(areaRow.children.length);
+    expect(menuRow.style.getPropertyValue('--tile-basis')).toBe(
+      areaRow.style.getPropertyValue('--tile-basis')
+    );
   });
 });
