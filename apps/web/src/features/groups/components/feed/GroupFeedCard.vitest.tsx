@@ -131,6 +131,50 @@ describe('GroupFeedCard', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it('names the person answered when replying to a reply', async () => {
+    const posted: unknown[] = [];
+    server.use(
+      http.get(COMMENTS_URL, () =>
+        HttpResponse.json({
+          success: true,
+          comments: [
+            {
+              id: 'c1',
+              shareId: SHARE,
+              parentId: null,
+              userId: 'u2',
+              authorName: 'Tom Krüger',
+              body: 'Oben',
+              createdAt: '2026-09-26T09:00:00Z',
+            },
+            {
+              id: 'c2',
+              shareId: SHARE,
+              parentId: 'c1',
+              userId: 'u3',
+              authorName: 'Anna Lorenz',
+              body: 'Darunter',
+              createdAt: '2026-09-26T10:00:00Z',
+            },
+          ],
+        })
+      ),
+      http.post(COMMENTS_URL, async ({ request }) => {
+        posted.push(await request.json());
+        return HttpResponse.json({ success: false }, { status: 500 });
+      })
+    );
+    const { user } = renderWithProviders(<GroupFeedCard {...baseProps} />);
+    await user.click(screen.getByRole('button', { name: 'Kommentare (1)' }));
+    const replies = await screen.findByRole('list', { name: 'Antworten auf Tom Krüger' });
+    await user.click(within(replies).getByRole('button', { name: 'Antworten' }));
+
+    const box = screen.getByRole('textbox', { name: 'Antwort an Anna Lorenz' });
+    expect(box).toHaveValue('@Anna ');
+    await user.type(box, 'ok{Enter}');
+    await waitFor(() => expect(posted).toEqual([{ body: '@Anna ok', parentId: 'c1' }]));
+  });
+
   it('closes an open reply with Escape', async () => {
     server.use(
       http.get(COMMENTS_URL, () =>
