@@ -25,7 +25,7 @@ beforeEach(() => {
 describe('NotebookAnswerModeSheet', () => {
   it('lists the three modes, auto as the recommended one', () => {
     render(<NotebookAnswerModeSheet visible onClose={() => {}} theme={lightTheme} />);
-    expect(screen.getByText('Automatisch')).toBeTruthy();
+    expect(screen.getByText('Magic Search')).toBeTruthy();
     expect(screen.getByText('Chat')).toBeTruthy();
     expect(screen.getByText('Präzision')).toBeTruthy();
     expect(screen.getByText('Empfohlen')).toBeTruthy();

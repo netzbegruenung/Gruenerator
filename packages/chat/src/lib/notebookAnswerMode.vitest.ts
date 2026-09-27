@@ -11,6 +11,7 @@ import {
   answerModeLabel,
   composerModeRunsLiveSearch,
   DEFAULT_NOTEBOOK_ANSWER_MODE,
+  detectMagicIntent,
   NOTEBOOK_ANSWER_MODES,
   NOTEBOOK_COMPOSER_MODES,
   notebookAnswerModeDef,
@@ -24,7 +25,11 @@ describe('NOTEBOOK_ANSWER_MODES', () => {
   });
 
   it('labels every mode and says what it does', () => {
-    expect(NOTEBOOK_ANSWER_MODES.map((m) => m.label)).toEqual(['Automatisch', 'Chat', 'Präzision']);
+    expect(NOTEBOOK_ANSWER_MODES.map((m) => m.label)).toEqual([
+      'Magic Search',
+      'Chat',
+      'Präzision',
+    ]);
     for (const m of NOTEBOOK_ANSWER_MODES) expect(m.description).not.toBe('');
   });
 
@@ -93,5 +98,64 @@ describe('NOTEBOOK_COMPOSER_MODES', () => {
   it('reads a stored value tolerantly', () => {
     expect(notebookComposerModeDef('manuell').label).toBe('Manuell');
     expect(notebookComposerModeDef('turbo').mode).toBe(DEFAULT_NOTEBOOK_ANSWER_MODE);
+  });
+});
+
+describe('detectMagicIntent', () => {
+  it.each([
+    'Hitzeschutz',
+    'Hitzeschutz Kitas',
+    'Hitzeschutz, Dokumente seit 30 Tagen',
+    'seit 30 Tagen Hitzeschutz',
+    'bis 2030 Kohleausstieg',
+    'in Bayern Windkraft',
+    'Wohnungsbau Wasserstoff',
+    'Istanbul Konvention',
+    'Kanzleramt Wortprotokoll',
+    'Erklärung zum Klimanotstand',
+    'Vergleichsmiete Berlin',
+    'Schreiben Ministerium',
+    'Nennung',
+    'Sollwert',
+    'Liste Kitas',
+    'Vergleichsstudie',
+    'Kitas Liste',
+    '',
+  ])('searches for „%s“', (text) => {
+    expect(detectMagicIntent(text)).toBe('suche');
+  });
+
+  it.each([
+    'was tun die Grünen Berlin für Hitzeschutz?',
+    'Wie steht die Partei zur Wärmepumpe',
+    'fasse den Antrag zum Hitzeschutz zusammen',
+    'Hitzeschutz?',
+    'Welche Kommunen haben einen Hitzeaktionsplan',
+    'Gibt es Beschlüsse zum Tempolimit',
+    'Können Kitas Förderung beantragen',
+    '„Warum Hitzeschutz',
+    'Hitzeschutz Kitas erklären',
+    'Anträge zu Radwegen bitte',
+    'Vergleiche die Programme',
+    'Erkläre die Position zu Windkraft',
+    'fasse den Antrag zusammen',
+    'liste alle Anträge zu Mieten',
+    'vergleiche Berlin und Hamburg',
+    'Sollte die Stadt Radwege bauen',
+  ])('chats for „%s“', (text) => {
+    expect(detectMagicIntent(text)).toBe('chat');
+  });
+});
+
+describe('toNotebookAnswerMode with a Magic Search intent', () => {
+  it('asks for chat when Magic Search recognised a chat', () => {
+    expect(toNotebookAnswerMode('auto', 'chat')).toBe('chat');
+  });
+
+  it('leaves everything else as without an intent', () => {
+    expect(toNotebookAnswerMode('auto', 'suche')).toBe('auto');
+    expect(toNotebookAnswerMode('auto', null)).toBe('auto');
+    expect(toNotebookAnswerMode('praezision', 'chat')).toBe('praezision');
+    expect(toNotebookAnswerMode('manuell', 'chat')).toBe(DEFAULT_NOTEBOOK_ANSWER_MODE);
   });
 });

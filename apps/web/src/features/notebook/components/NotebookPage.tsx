@@ -325,6 +325,7 @@ export const NotebookPageContent = ({
       threadId={threadId}
       mode={mode}
       answerMode={toNotebookAnswerMode(answerMode)}
+      magicSearch={answerMode === 'auto'}
       documentIds={documentIds}
     >
       <PendingQuestionSender />

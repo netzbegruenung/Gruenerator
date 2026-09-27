@@ -2013,8 +2013,10 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   const isNeutralTurn = intent === 'summary';
   const userQuestion = lastUserText(state);
   const productIdentity = isNeutralTurn ? '' : buildCompactProductIdentity(state.userLocale);
+  // Der Block macht I/O (versteckte Agenten, verbundene MCP-Server) — im
+  // Rollen-Chat wird er nie gerendert, also dort gar nicht erst gebaut.
   let productKnowledge = '';
-  if (!isNeutralTurn && isProductMetaQuestion(userQuestion)) {
+  if (!state.customSystemPrompt && !isNeutralTurn && isProductMetaQuestion(userQuestion)) {
     productKnowledge = await buildProductKnowledgeBlock({
       locale: state.userLocale,
       userId: state.agentConfig?.userId ?? null,

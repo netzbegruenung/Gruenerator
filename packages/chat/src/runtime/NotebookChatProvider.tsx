@@ -53,6 +53,8 @@ export interface NotebookChatProviderProps {
   mode?: NotebookDepth;
   /** Answer mode sent with each request; omitted ⇒ the server answers in chat mode. */
   answerMode?: NotebookAnswerMode;
+  /** Magic Search: a first question with `auto` goes out as `chat`. */
+  magicSearch?: boolean;
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
@@ -84,6 +86,7 @@ function NotebookChatProviderInner({
   onThreadCreated,
   mode,
   answerMode,
+  magicSearch,
   endpoint,
   documentIds,
   threadId: initialThreadId,
@@ -113,6 +116,8 @@ function NotebookChatProviderInner({
   modeRef.current = mode;
   const answerModeRef = useRef(answerMode);
   answerModeRef.current = answerMode;
+  const magicSearchRef = useRef(magicSearch);
+  magicSearchRef.current = magicSearch;
   const endpointRef = useRef(endpoint);
   endpointRef.current = endpoint;
   const documentIdsRef = useRef(documentIds);
@@ -149,6 +154,7 @@ function NotebookChatProviderInner({
       getExtraParams: stableGetExtraParams,
       mode: modeRef.current,
       ...(answerModeRef.current ? { answerMode: answerModeRef.current } : {}),
+      ...(magicSearchRef.current ? { magicSearch: true } : {}),
       endpoint: endpointRef.current,
       documentIds: documentIdsRef.current,
       threadId: threadIdRef.current,

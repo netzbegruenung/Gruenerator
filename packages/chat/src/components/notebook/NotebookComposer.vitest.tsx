@@ -15,6 +15,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { NOTEBOOK_ANSWER_MODES, NOTEBOOK_COMPOSER_MODES } from '../../lib/notebookAnswerMode';
 import { NOTEBOOK_DEPTHS } from '../../lib/notebookDepth';
+import { axe } from '../../test-utils';
 
 import { NotebookComposer } from './NotebookComposer';
 
@@ -25,6 +26,7 @@ const composerProps: {
   showModelPicker?: boolean;
   onSearchSubmit?: (text: string) => void;
   disclaimer?: string;
+  disclaimerCompact?: string;
 }[] = [];
 vi.mock('../thread/GrueneratorComposer', () => ({
   GrueneratorComposer: (props: {
@@ -32,11 +34,13 @@ vi.mock('../thread/GrueneratorComposer', () => ({
     showModelPicker?: boolean;
     onSearchSubmit?: (text: string) => void;
     disclaimer?: string;
+    disclaimerCompact?: string;
   }) => {
     composerProps.push({
       showModelPicker: props.showModelPicker,
       onSearchSubmit: props.onSearchSubmit,
       disclaimer: props.disclaimer,
+      disclaimerCompact: props.disclaimerCompact,
     });
     return (
       <div>
@@ -145,9 +149,9 @@ describe('NotebookComposer — answer mode picker', () => {
       />
     );
     const trigger = within(screen.getByTestId('send-adornment')).getByRole('button', {
-      name: /Antwortmodus wählen – Automatisch/,
+      name: /Antwortmodus wählen – Magic Search/,
     });
-    expect(trigger).toHaveTextContent('Automatisch');
+    expect(trigger).toHaveTextContent('Magic Search');
   });
 
   it('offers every registry mode with the recommended badge and reports the wire id', async () => {
@@ -251,7 +255,111 @@ describe('NotebookComposer — Manuell', () => {
     // as the default, and the picker must say so.
     composerProps.length = 0;
     render(<NotebookComposer answerMode="manuell" onAnswerModeChange={vi.fn()} />);
-    expect(screen.getByRole('button', { name: /Antwortmodus wählen – Automatisch/ })).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: /Antwortmodus wählen – Magic Search/ })
+    ).toBeVisible();
     expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
+  });
+});
+
+describe('NotebookComposer — Magic Search', () => {
+  function renderMagic(magicIntent: 'suche' | 'chat' | null, onManualSubmit = vi.fn()) {
+    composerProps.length = 0;
+    const view = render(
+      <NotebookComposer
+        answerMode="auto"
+        onAnswerModeChange={vi.fn()}
+        onManualSubmit={onManualSubmit}
+        magicIntent={magicIntent}
+      />
+    );
+    return { ...view, onManualSubmit };
+  }
+
+  it('searches instead of sending when it recognised a search', () => {
+    // `onSearchSubmit` is what turns send into the magnifier and hands Enter
+    // to the search instead of the thread.
+    const { onManualSubmit } = renderMagic('suche');
+    expect(composerProps.at(-1)?.onSearchSubmit).toBe(onManualSubmit);
+    expect(composerProps.at(-1)?.disclaimer).toMatch(/ohne KI/);
+  });
+
+  it('sends when it recognised a chat', () => {
+    renderMagic('chat');
+    expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
+    expect(composerProps.at(-1)?.disclaimer).toMatch(/KI-generierte/);
+    expect(composerProps.at(-1)?.disclaimerCompact).toBeUndefined();
+  });
+
+  it('says on narrow screens too that a search runs without AI', () => {
+    renderMagic('suche');
+    expect(composerProps.at(-1)?.disclaimerCompact).toMatch(/ohne KI/);
+    composerProps.length = 0;
+    render(
+      <NotebookComposer
+        answerMode="manuell"
+        onAnswerModeChange={vi.fn()}
+        onManualSubmit={vi.fn()}
+      />
+    );
+    expect(composerProps.at(-1)?.disclaimerCompact).toMatch(/ohne KI/);
+  });
+
+  it.each([
+    ['suche', 'Suche'],
+    ['chat', 'Chat'],
+  ] as const)('says on the picker what it recognised (%s)', (intent, label) => {
+    renderMagic(intent);
+    const trigger = within(screen.getByTestId('send-adornment')).getByRole('button', {
+      name: `Antwortmodus wählen – Magic Search · ${label}`,
+    });
+    expect(trigger).toHaveTextContent(`Magic Search · ${label}`);
+    // Narrow screens keep the short name alone — the send button shows the
+    // intent there, and the suffix squeezed the input.
+    expect(trigger.querySelector('.sm\\:hidden')).toHaveTextContent(/^Magic$/);
+  });
+
+  it('keeps the suffix off the option list', async () => {
+    const user = userEvent.setup();
+    renderMagic('suche');
+    await user.click(screen.getByRole('button', { name: /Antwortmodus wählen/ }));
+    const item = await screen.findByRole('menuitemradio', { name: /Magic Search/ });
+    expect(item).not.toHaveTextContent('· Suche');
+  });
+
+  it('behaves as before without an intent', () => {
+    renderMagic(null);
+    expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
+    expect(
+      screen.getByRole('button', { name: 'Antwortmodus wählen – Magic Search' })
+    ).toBeVisible();
+  });
+
+  it('ignores the intent outside Magic Search and where the surface cannot search', () => {
+    composerProps.length = 0;
+    render(<NotebookComposer answerMode="auto" onAnswerModeChange={vi.fn()} magicIntent="suche" />);
+    expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
+    expect(
+      screen.getByRole('button', { name: 'Antwortmodus wählen – Magic Search' })
+    ).toBeVisible();
+  });
+
+  it('ignores the intent in the other modes', () => {
+    composerProps.length = 0;
+    render(
+      <NotebookComposer
+        answerMode="praezision"
+        onAnswerModeChange={vi.fn()}
+        onManualSubmit={vi.fn()}
+        magicIntent="suche"
+      />
+    );
+    expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
+    expect(screen.getByRole('button', { name: 'Antwortmodus wählen – Präzision' })).toBeVisible();
+  });
+
+  it('has no axe violations with the suffix', async () => {
+    const { container } = renderMagic('suche');
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
