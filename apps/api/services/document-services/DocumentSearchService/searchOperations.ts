@@ -55,6 +55,8 @@ export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined
   created_at: string | undefined;
   published_at: string | null;
   source_id: string | null;
+  content_type_label: string | null;
+  source_name: string | null;
   url: string | undefined;
   documents: { id: string; title: string; filename: string; created_at: string | undefined };
 } {
@@ -81,6 +83,10 @@ export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined
     created_at: p.created_at as string | undefined,
     published_at: (p.published_at as string) ?? (metadata?.published_at as string) ?? null,
     source_id: (p.source_id as string) ?? null,
+    // Display labels the Landesverband scraper writes (e.g. „Pressemitteilung“,
+    // „Grüne Fraktion Berlin“); other collections leave them out.
+    content_type_label: (p.content_type_label as string) ?? null,
+    source_name: (p.source_name as string) ?? null,
     // Anzeige-Link; ein `wolke://`-Schlüssel wird erst hier zum Freigabe-Link.
     url: resolveWolkeDisplayUrl((p.source_url as string) || (p.url as string) || '') || undefined,
     documents: {
