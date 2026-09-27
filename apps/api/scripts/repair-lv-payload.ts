@@ -522,16 +522,20 @@ const withoutTrailingSlash = (url: string): string => url.replace(/\/+$/, '');
 /**
  * Nur die angefragte Seite taugt als Titelquelle. Ohne diese Prüfung läse der
  * Extraktor die 404-Seite („Uuups ...") als Titel — oder, wenn eine gelöschte
- * Seite auf die Liste weiterleitet, deren Titel.
+ * Seite auf die Liste weiterleitet, deren Titel. Und nur HTML: Download-URLs
+ * ohne `.pdf` (z. B. `gruene-fraktion.berlin/download/…`) liefern ein PDF, das
+ * der Extraktor sonst als Bytesalat liest.
  */
 export function assertSamePage(
   requested: string,
-  res: Pick<Response, 'ok' | 'status' | 'redirected' | 'url'>
+  res: Pick<Response, 'ok' | 'status' | 'redirected' | 'url' | 'headers'>
 ): void {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   if (res.redirected || withoutTrailingSlash(res.url) !== withoutTrailingSlash(requested)) {
     throw new Error(`Weiterleitung auf ${res.url}`);
   }
+  const type = res.headers.get('content-type') ?? '';
+  if (!/html/i.test(type)) throw new Error(`kein HTML (${type || 'ohne Content-Type'})`);
 }
 
 async function fetchOk(url: string): Promise<Response> {

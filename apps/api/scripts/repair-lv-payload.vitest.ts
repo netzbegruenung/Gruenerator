@@ -492,12 +492,19 @@ describe('planGone', () => {
 describe('assertSamePage', () => {
   const URL_ = 'https://gruene.berlin/pressemitteilungen/x_3856';
   const res = (
-    over: Partial<{ ok: boolean; status: number; redirected: boolean; url: string }>
+    over: Partial<{
+      ok: boolean;
+      status: number;
+      redirected: boolean;
+      url: string;
+      headers: Headers;
+    }>
   ) => ({
     ok: true,
     status: 200,
     redirected: false,
     url: URL_,
+    headers: new Headers({ 'content-type': 'text/html; charset=UTF-8' }),
     ...over,
   });
 
@@ -517,6 +524,12 @@ describe('assertSamePage', () => {
         res({ redirected: true, url: 'https://gruene.berlin/pressemitteilungen' })
       )
     ).toThrow(/Weiterleitung/);
+  });
+
+  it('verwirft eine Download-URL, die ein PDF liefert', () => {
+    expect(() =>
+      assertSamePage(URL_, res({ headers: new Headers({ 'content-type': 'application/pdf' }) }))
+    ).toThrow(/kein HTML/);
   });
 
   it('verwirft eine abweichende Ziel-URL auch ohne redirected-Flag', () => {
