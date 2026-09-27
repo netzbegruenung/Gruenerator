@@ -109,7 +109,8 @@ const NotebookCard = memo(({ notebook }: { notebook: NotebookConfigEntry }) => {
       coverImage={notebook.coverImage}
       accent="pink"
       onActivate={() => navigate(notebook.path, { state: { freshConversation: true } })}
-      action={<FavouriteStar id={notebook.id} size={16} />}
+      action={<FavouriteStar id={notebook.id} size={16} tone="notebook" />}
+      actionPillOnHover
     />
   );
 });
