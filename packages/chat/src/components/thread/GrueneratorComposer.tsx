@@ -121,6 +121,11 @@ interface GrueneratorComposerProps {
    * magnifier (notebook „Manuell“).
    */
   onSearchSubmit?: (text: string) => void;
+  /**
+   * Like `onSearchSubmit`, but the button stays the send arrow: the text is
+   * handed here instead of into this thread (notebook start page → new tab).
+   */
+  onChatSubmit?: (text: string) => void;
 }
 
 const ROUND_BTN_BASE =
@@ -203,18 +208,23 @@ function SendButton({
 }
 
 /** A real submit button, unlike `ComposerPrimitive.Send`, whose click calls
- *  `send()` directly — the form's submit handler is where a search is caught. */
-function SearchSubmitButton() {
+ *  `send()` directly — the form's submit handler is where the text is caught. */
+function TextSubmitButton({ kind }: { kind: 'search' | 'send' }) {
   const isCompact = useChatDensity() === 'compact';
   const isEmpty = useAuiState((s) => s.composer.text.trim() === '');
+  const iconClass = isCompact ? 'h-4 w-4' : 'h-5 w-5';
   return (
     <button
       type="submit"
       disabled={isEmpty}
-      aria-label="Suchen"
+      aria-label={kind === 'search' ? 'Suchen' : 'Nachricht senden'}
       className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white enabled:hover:bg-primary-600 enabled:active:scale-95 disabled:opacity-30`}
     >
-      <Search className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} strokeWidth={2.25} />
+      {kind === 'search' ? (
+        <Search className={iconClass} strokeWidth={2.25} />
+      ) : (
+        <ArrowUp className={iconClass} />
+      )}
     </button>
   );
 }
@@ -291,14 +301,14 @@ function ComposerButtons({
   hasPillMentions,
   onFlushPillMentions,
   onSendWithPillMentions,
-  searchSubmit,
+  textSubmit,
 }: {
   isRunning?: boolean;
   requireProfileHydration?: boolean;
   hasPillMentions?: boolean;
   onFlushPillMentions?: () => void;
   onSendWithPillMentions?: () => void;
-  searchSubmit?: boolean;
+  textSubmit?: 'search' | 'send' | null;
 }) {
   const isDictating = useAuiState((s) => s.composer.dictation != null);
   const hasDictation = useAuiState((s) => s.thread.capabilities.dictation);
@@ -332,7 +342,7 @@ function ComposerButtons({
     );
   }
   if (hasDictation && isEmpty && !hasPillMentions) return <DictateButton />;
-  if (searchSubmit) return <SearchSubmitButton />;
+  if (textSubmit) return <TextSubmitButton kind={textSubmit} />;
   return (
     <SendButton
       requireProfileHydration={requireProfileHydration}
@@ -382,7 +392,10 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   requireProfileHydration = false,
   enablePastedTextAttachments = false,
   onSearchSubmit,
+  onChatSubmit,
 }: GrueneratorComposerProps) {
+  const onTextSubmit = onSearchSubmit ?? onChatSubmit;
+  const textSubmit = onSearchSubmit ? 'search' : onChatSubmit ? 'send' : null;
   const composerAreaRef = useRef<HTMLDivElement>(null);
   const composerRuntime = useAui().composer;
   const isCompact = useChatDensity() === 'compact';
@@ -798,9 +811,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         // drafts keep the normal path — the Root onSubmit flush covers them.
         // A running turn only blocks this when the thread cannot queue; with a
         // queue the send is what puts the draft in line. A search field never
-        // sends — its Enter belongs to the Root onSubmit (onSearchSubmit).
+        // sends — its Enter belongs to the Root onSubmit (onTextSubmit).
         if (
-          !onSearchSubmit &&
+          !onTextSubmit &&
           e.key === 'Enter' &&
           !e.shiftKey &&
           !e.nativeEvent.isComposing &&
@@ -887,7 +900,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       mention.selectedIndex,
       handleSelect,
       dismissPopover,
-      onSearchSubmit,
+      onTextSubmit,
       composerRuntime,
       isRunning,
       canQueue,
@@ -987,11 +1000,11 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         // Guarded on canSend: when the submit will be a no-op (attachment still
         // uploading), the pills must not be dumped into the text either.
         onSubmit={(e) => {
-          if (onSearchSubmit) {
+          if (onTextSubmit) {
             // preventDefault skips the Root's own send (composeEventHandlers).
             e.preventDefault();
             const text = composerRuntime.getState().text.trim();
-            if (text) onSearchSubmit(text);
+            if (text) onTextSubmit(text);
             return;
           }
           if (composerRuntime.getState().canSend) flushPillMentions();
@@ -1157,7 +1170,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
               hasPillMentions={pillMentions.length > 0}
               onFlushPillMentions={flushPillMentions}
               onSendWithPillMentions={sendWithPillMentions}
-              searchSubmit={!!onSearchSubmit}
+              textSubmit={textSubmit}
             />
           </div>
         ) : (
@@ -1190,7 +1203,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
                   hasPillMentions={pillMentions.length > 0}
                   onFlushPillMentions={flushPillMentions}
                   onSendWithPillMentions={sendWithPillMentions}
-                  searchSubmit={!!onSearchSubmit}
+                  textSubmit={textSubmit}
                 />
               </div>
             </div>
