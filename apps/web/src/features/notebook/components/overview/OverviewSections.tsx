@@ -484,23 +484,71 @@ export function RecentDocuments({ overview }: { overview: NotebookOverview }) {
 
 // ── Begriffe ────────────────────────────────────────────────────────────────
 
-export function TermCloud({ terms }: { terms: NonNullable<NotebookOverview['terms']> }) {
+/** Lemmas arrive lower-cased; German nouns read wrong that way. */
+const nounCase = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
+
+export function TermCloud({
+  terms,
+  documents,
+}: {
+  terms: NonNullable<NotebookOverview['terms']>;
+  documents: number;
+}) {
+  const coverage =
+    terms.documents < documents
+      ? `${nf.format(terms.documents)} von ${nf.format(documents)} Dokumenten`
+      : `${nf.format(terms.documents)} Dokumenten`;
   return (
     <OverviewCard
       title="Begriffe"
-      subtitle={`Häufige Begriffe aus einer Stichprobe von ${nf.format(terms.sampleSize)} Dokumenten · Stand ${monthLabel(terms.month, 'long')}`}
+      subtitle={`Häufigste Schlagwörter aus ${coverage}`}
+      footer={
+        terms.rising.length > 0 ? (
+          <>„Im Aufwind“ vergleicht die letzten 90 Tage mit den zwölf Monaten davor.</>
+        ) : undefined
+      }
     >
       <div className={NOTEBOOK_TEXT_STRONG}>
         <WordCloud
           items={terms.words.map((w) => ({
             key: w.word,
-            label: w.word,
+            label: nounCase(w.word),
             value: w.count,
-            tooltip: `${nf.format(w.count)}×`,
+            tooltip: `in ${nf.format(w.count)} Dokumenten`,
           }))}
           maxFontSize={1.9}
         />
       </div>
+      {terms.rising.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h3
+            className={cn(
+              'flex items-center gap-1 text-xs font-semibold uppercase tracking-wide',
+              NOTEBOOK_TEXT_MUTED
+            )}
+          >
+            <FiArrowUpRight aria-hidden />
+            Im Aufwind
+          </h3>
+          <ul className="flex flex-wrap gap-2">
+            {terms.rising.map((w) => (
+              <li
+                key={w.word}
+                className={cn(
+                  'rounded-full border border-[rgba(82,144,122,0.18)] px-3 py-1 text-sm dark:border-[#2C4A3B]',
+                  NOTEBOOK_TEXT_STRONG
+                )}
+              >
+                {nounCase(w.word)}{' '}
+                <span className={cn('tabular-nums', NOTEBOOK_TEXT_MUTED)}>
+                  {nf.format(w.recentCount)}
+                  <span className="sr-only"> Dokumente in den letzten 90 Tagen</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </OverviewCard>
   );
 }

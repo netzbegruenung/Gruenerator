@@ -61,7 +61,14 @@ function overview(patch: Partial<NotebookOverviewResponse> = {}): NotebookOvervi
         themes: ['mobilitaet'],
       },
     ],
-    terms: null,
+    terms: {
+      documents: 1200,
+      words: [
+        { word: 'radweg', count: 140 },
+        { word: 'landtag', count: 90 },
+      ],
+      rising: [{ word: 'wasserstoff', count: 60, recentCount: 24 }],
+    },
     ...patch,
   };
 }
@@ -116,6 +123,21 @@ describe('NotebookOverviewPage', () => {
     expect(screen.getByRole('heading', { name: 'Grüneratoren' })).toBeVisible();
   });
 
+  it('shows keywords with their coverage while a re-tag is still running', async () => {
+    server.use(
+      http.get(ENDPOINT('mecklenburg-vorpommern-system'), () => HttpResponse.json(overview()))
+    );
+    renderAt('/notebooks/mecklenburg-vorpommern/uebersicht');
+
+    const card = within(
+      (await screen.findByRole('heading', { name: 'Begriffe' })).closest('section')!
+    );
+    expect(card.getByText('Häufigste Schlagwörter aus 1.200 von 1.548 Dokumenten')).toBeVisible();
+    expect(card.getByText('Radweg')).toBeVisible();
+    expect(card.getByRole('heading', { name: 'Im Aufwind' })).toBeVisible();
+    expect(card.getByText('Wasserstoff')).toBeVisible();
+  });
+
   it('opens the chat filtered to a clicked topic', async () => {
     server.use(
       http.get(ENDPOINT('mecklenburg-vorpommern-system'), () => HttpResponse.json(overview()))
@@ -134,7 +156,13 @@ describe('NotebookOverviewPage', () => {
     server.use(
       http.get(ENDPOINT('kommunalwiki-system'), () =>
         HttpResponse.json(
-          overview({ collectionId: 'kommunalwiki-system', persons: [], recent: [], topics: [] })
+          overview({
+            collectionId: 'kommunalwiki-system',
+            persons: [],
+            recent: [],
+            topics: [],
+            terms: null,
+          })
         )
       )
     );
@@ -143,6 +171,7 @@ describe('NotebookOverviewPage', () => {
     expect(await screen.findByRole('heading', { name: 'Aktivität' })).toBeVisible();
     expect(screen.queryByRole('heading', { name: 'Köpfe' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Themenprofil' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Begriffe' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Grüneratoren' })).not.toBeInTheDocument();
   });
 

@@ -285,8 +285,7 @@ export type NotebookStatsResponse = z.infer<typeof notebookStatsResponseSchema>;
 //
 // Unlike the stats endpoint, every count here is exact over all head chunks
 // (one point per document) — topics and persons come from the per-document
-// NLP enrichment, not from the monthly 80-document sample. Only `terms` is
-// still sampled; it carries its sample size so the UI can say so.
+// NLP enrichment, not from the monthly 80-document sample.
 
 export const notebookTopicTrendSchema = z.enum(['up', 'down', 'flat']);
 export type NotebookTopicTrend = z.infer<typeof notebookTopicTrendSchema>;
@@ -332,11 +331,15 @@ export const notebookOverviewResponseSchema = z.object({
   contentTypes: z.array(z.object({ value: z.string(), label: z.string(), count: z.number() })),
   sources: z.array(z.object({ value: z.string(), label: z.string(), count: z.number() })),
   recent: z.array(notebookOverviewDocumentSchema),
+  /** Per-document keywords; `null` until the enrichment has tagged any document. */
   terms: z
     .object({
+      /** Documents carrying keywords — below `totals.documents` while a re-tag runs. */
+      documents: z.number(),
+      /** Most frequent first; `count` = documents containing the word. */
       words: z.array(z.object({ word: z.string(), count: z.number() })),
-      sampleSize: z.number(),
-      month: z.string(),
+      /** Words whose share of the last 90 days rose significantly, strongest first. */
+      rising: z.array(z.object({ word: z.string(), count: z.number(), recentCount: z.number() })),
     })
     .nullable(),
 });
