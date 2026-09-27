@@ -24,6 +24,19 @@ export function sourceLinkRegex(): RegExp {
   return new RegExp(SOURCE_LINK_SOURCE, 'g');
 }
 
+/**
+ * Source links AND `[N]` / `[N, M]` markers in one pass, for code that renumbers
+ * or strips citations and must treat both forms alike. The link alternative
+ * comes first: at the same position it must win, or a label like `[2024]` would
+ * be read as a marker. The marker form mirrors what the chat renderer matches:
+ * one it shows but this misses would count as uncited and keep a stale number.
+ * Fresh per use (`g`).
+ * Groups: 1 = link label, 2 = link id, 3 = marker ids (`3` or `3, 7`).
+ */
+export function citationReferenceRegex(): RegExp {
+  return new RegExp(`${SOURCE_LINK_SOURCE}|\\[(\\d+(?:\\s*,\\s*\\d+)*)\\]`, 'g');
+}
+
 /** The citation id a link target points at, or `null` for any other href. */
 export function parseSourceLinkHref(href: string | null | undefined): number | null {
   if (!href) return null;
