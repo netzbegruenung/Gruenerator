@@ -79,8 +79,6 @@ type BrowseTab = 'zuletzt' | 'agenten' | 'stats';
 // `notebookTheme` module; re-exported here for existing importers.
 export { NOTEBOOK_MAGENTA_BG };
 
-const HERO_FILL = 'relative flex min-h-[calc(100dvh-11rem)] flex-col';
-
 const HEADING = cn(
   'text-center text-[38px] font-extrabold leading-[1.1] tracking-[-0.02em]',
   'text-[#3A343B] dark:text-[#E4EDE8] max-md:text-3xl'
@@ -214,8 +212,10 @@ export function NotebookStartpage({
     >
       <div
         className={cn(
-          'flex flex-col items-center px-6 pt-10 transition-[min-height] duration-300 md:px-20',
-          hasHits ? 'min-h-0' : cn(HERO_FILL, 'justify-center')
+          'flex flex-col items-center px-6 transition-[padding] duration-300 md:px-20',
+          // The composer sits in the upper third with the browse tabs right
+          // under it; once hits come in it moves up to give them the page.
+          hasHits ? 'pt-10' : 'pt-[16vh] max-md:pt-[8vh]'
         )}
       >
         <h1 className={cn(HEADING, 'mb-8')}>{title}</h1>
@@ -233,7 +233,7 @@ export function NotebookStartpage({
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-3xl px-6 pb-10 pt-8 md:px-0">
+      <div className="mx-auto w-full max-w-3xl px-6 pb-10 pt-10 md:px-0">
         {liveSearch ? (
           <NotebookLiveSearch
             text={composerText}
