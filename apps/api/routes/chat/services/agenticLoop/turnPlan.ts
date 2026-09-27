@@ -84,6 +84,8 @@ export type TurnLane =
    * Der Rest-Einzeldurchlauf (`executeIntentPipeline`) — heute vor allem die
    * Recherche-Familie (`search`/`web`/`research`/`compare`/`examples`) und die
    * gegatterten Sonderwege (`summary`/`compute`/`chat_history`/`scrape_url`).
+   * `@recherche`/`@dokumente` gehen per Werkzeug-Pin in die Schleife; hier
+   * landen sie nur, wenn ein Notausschalter greift.
    *
    * Diese Lane ist das benannte Restproblem, nicht ein Ziel: sie verschwindet
    * mit der Recherche-Konsolidierung (6 Maschinen → ein Loop-Suchpfad), dem
