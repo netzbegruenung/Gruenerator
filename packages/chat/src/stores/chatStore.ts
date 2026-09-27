@@ -137,7 +137,7 @@ interface AgentState {
    * source/category filters it is persisted and survives a reload.
    */
   notebookDepth: NotebookDepth;
-  /** Notebook composer mode (Automatisch/Chat/Präzision/Manuell) — a preference
+  /** Notebook composer mode (Magic Search/Chat/Präzision/Manuell) — a preference
    *  like the depth. Holds the client-only `manuell` too, so it is not the wire
    *  `answerMode`; `toNotebookAnswerMode` derives that. */
   notebookAnswerMode: NotebookComposerMode;

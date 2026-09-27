@@ -167,7 +167,7 @@ export interface NotebookAdapterConfig {
    */
   getExtraParams?: () => Record<string, unknown> | undefined;
   mode?: NotebookDepth;
-  /** Answer mode (Automatisch/Chat/Präzision). Omitted ⇒ the server answers in chat mode. */
+  /** Answer mode (Magic Search/Chat/Präzision). Omitted ⇒ the server answers in chat mode. */
   answerMode?: NotebookAnswerMode;
   /** Magic Search: with `auto`, a first question is read here at send time and
    *  goes out as `chat`; later turns stay `auto`. */
