@@ -302,11 +302,51 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
     ],
   },
   {
-    id: 'mention-dokumente-einzeln',
+    id: 'mention-dokumente-loop',
     category: 'mention-lane',
-    note: 'Gegenstueck: `@dokumente` (Intent `search`) traegt `forcedLane: single-pass`, der Notausschalter greift also weiter. Beweist, dass der Flip die beiden Quellen meint und nicht das Gate allgemein geoeffnet hat.',
+    note: 'Keine Modellannahme: `@dokumente` zurrt Intent UND Werkzeug deterministisch fest, der erste Aufruf ist benannt statt geraten. Die Dokumentensuche ist gestubbt.',
     prompt: 'Was liegt zum Heizungsgesetz vor?',
     body: { forcedTools: ['search'] },
+    streams: [
+      { calls: [{ tool: 'gruenerator_search', args: { query: 'Heizungsgesetz' } }] },
+      { text: GERMAN_ANSWER },
+    ],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    firstToolChoice: 'gruenerator_search',
+  },
+  {
+    id: 'mention-recherche-loop',
+    category: 'mention-lane',
+    note: 'Zwilling mit der anderen Quelle: `@recherche` zurrt `web_search` fest. Die Websuche ist gestubbt.',
+    prompt: 'Was liegt zum Heizungsgesetz vor?',
+    body: { forcedTools: ['research'] },
+    streams: [
+      { calls: [{ tool: 'web_search', args: { query: 'Heizungsgesetz' } }] },
+      { text: GERMAN_ANSWER },
+    ],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    firstToolChoice: 'web_search',
+  },
+  // `@deepresearch` ist eine Variante von `research`, pinnt aber kein Werkzeug
+  // — so bleibt er im Einzeldurchlauf, wo seine Engines und sein Kontingent
+  // liegen.
+  {
+    id: 'mention-deepresearch-einzeln',
+    category: 'mention-lane',
+    note: 'Gemessen wird allein die LANE. Welche Tiefenrecherche-Engine danach greift, ist hier gleichgueltig und ohne Schluessel ohnehin keine.',
+    prompt: 'Was liegt zum Heizungsgesetz vor?',
+    body: { forcedTools: ['deepresearch'] },
+    streams: [],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'single_pass' }],
+  },
+  // Eine Frage an ein gewähltes Notebook bleibt auf dessen RAG-Pfad, auch mit
+  // Erwähnung: `forcedLoop` hebt die Notebook-Sperre nicht auf.
+  {
+    id: 'mention-dokumente-notebook-einzeln',
+    category: 'mention-lane',
+    note: 'Gemessen wird allein die LANE; die Sperre haengt an der Anwesenheit der Sammlung im Request. Die id muss eine echte Systemsammlung sein, sonst filtert `buildStreamContext` sie vor dem Entscheider weg.',
+    prompt: 'Was liegt zum Heizungsgesetz vor?',
+    body: { forcedTools: ['search'], notebookIds: ['gruenerator-notebook'] },
     streams: [],
     mustDecide: [{ point: 'router.run_agentic', chose: 'single_pass' }],
   },

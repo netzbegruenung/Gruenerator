@@ -114,12 +114,26 @@ describe('@umfragen — Erwähnung ohne Intent', () => {
     expect(state.searchQuery).toBe('Wie ist die Lage?');
   });
 
-  // `@umfragen @recherche`: die Such-Familie überschreibt den Intent, also ist
-  // der Werkzeug-Pin überholt. Vorher tat das die Prüfung `pinned !== intent`
-  // in `pinnedFirstTool`; jetzt löscht der Überschreibende ausdrücklich.
-  it('eine spätere Suchklassen-Erwähnung löscht den Pin', async () => {
+  // `@umfragen @recherche`: die Such-Familie überschreibt den Intent und
+  // ersetzt den Werkzeug-Pin durch ihren eigenen.
+  it('eine spätere Suchklassen-Erwähnung ersetzt den Pin durch ihr Werkzeug', async () => {
     const { state } = await run(['umfragen', 'research']);
     expect(state.intent).toBe('research');
+    expect(state.mentionPinnedTool).toBe('web_search');
+  });
+
+  it('@dokumente entsprechend durch die Dokumentensuche', async () => {
+    const { state } = await run(['umfragen', 'search']);
+    expect(state.intent).toBe('search');
+    expect(state.mentionPinnedTool).toBe('gruenerator_search');
+  });
+
+  // Der Pin zöge den Turn in die Schleife, der Dossier-Weg lebt aber nur im
+  // Einzeldurchlauf — neben `@deepresearch` pinnt die Suchfamilie nichts.
+  it('@deepresearch @recherche pinnt kein Werkzeug', async () => {
+    const { state } = await run(['deepresearch', 'research']);
+    expect(state.intent).toBe('research');
+    expect(state.deepResearchRequested).toBe(true);
     expect(state.mentionPinnedTool).toBe(null);
   });
 
@@ -155,13 +169,13 @@ describe('@pressemitteilungen — Erwähnung ohne Intent, mit Rezept', () => {
   });
 
   // Und sie LÖSCHT es auch nicht, anders als der Werkzeug-Pin: `@pm @recherche`
-  // nimmt den Pin zurück (die Such-Familie überschreibt den Intent), die
+  // ersetzt den Pin (die Such-Familie überschreibt den Intent), die
   // Textsorte bleibt stehen — die Person will immer noch eine PM, nur mit
   // Recherche darunter.
   it('eine spätere Erwähnung ohne Rezept löscht das Rezept nicht', async () => {
     const { state } = await run(['pressemitteilung_examples', 'research']);
     expect(state.intent).toBe('research');
-    expect(state.mentionPinnedTool).toBe(null);
+    expect(state.mentionPinnedTool).toBe('web_search');
     expect(state.activeSkillMention).toBe('presse');
   });
 });

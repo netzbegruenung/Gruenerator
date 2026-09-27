@@ -361,10 +361,15 @@ export async function runForcedIntentStage({
       } else {
         classifiedState.intent = forced;
       }
-      // Wie beim @deepresearch-Zweig: die Such-/Bild-/Sharepic-Familie
-      // überschreibt den Intent, also ist ein Werkzeug-Pin von oben überholt.
-      // `@umfragen @recherche` heisst Recherche, nicht PolitPro.
-      classifiedState.mentionPinnedTool = null;
+      // Die Such-/Bild-/Sharepic-Familie überschreibt den Intent, also ist ein
+      // Werkzeug-Pin von oben überholt: `@umfragen @recherche` heisst
+      // Recherche, nicht PolitPro. Die Suchfamilie bringt dabei ihren eigenen
+      // Pin mit (die Registry liefert ihn), alle anderen löschen. Neben
+      // `@deepresearch` pinnt sie nichts: der Pin zöge den Turn in die Schleife,
+      // und der Dossier-Weg lebt nur im Einzeldurchlauf.
+      classifiedState.mentionPinnedTool = classifiedState.deepResearchRequested
+        ? null
+        : pinnedToolForMention(forced);
       forcedTool = true;
       log.info(
         `[ChatGraph] Intent forced via @tool mention: forced="${forced}", resolved="${classifiedState.intent}"`

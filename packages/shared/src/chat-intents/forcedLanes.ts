@@ -91,6 +91,14 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
 
   // ── single-pass ───────────────────────────────────────────────────────────
   // Erwähnbar und heute per Einzeldurchlauf bedient.
+  //
+  // Ausser `research`/`search`: `@recherche`/`@dokumente` zurren ihr Werkzeug
+  // fest (`IntentMention.pinsTool`), und der Pin zwingt den Turn in die
+  // Schleife — wie bei `@umfragen`, nicht über diese Zeile. Sie bleibt
+  // `single-pass`, weil sie für das gilt, was OHNE Pin ankommt: `@deepresearch`
+  // (Variante von `research`, seine Engines leben nur im Einzeldurchlauf) und
+  // der Alt-Token `web`. Und weil beide einen Einzeldurchlauf HABEN, bleiben
+  // sie Ziel des Auffangs statt selbst weiterzufallen.
   research: 'single-pass',
   search: 'single-pass',
   examples: 'single-pass',
