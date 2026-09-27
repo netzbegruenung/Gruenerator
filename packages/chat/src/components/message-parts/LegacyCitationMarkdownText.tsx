@@ -2,7 +2,7 @@
 
 import { useAuiState, useMessagePartText } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
-import { sourceLinksToCitations } from '@gruenerator/shared/utils';
+import { sourceLinkRegex, sourceLinksToCitations } from '@gruenerator/shared/utils';
 import { memo, useMemo } from 'react';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
@@ -55,7 +55,8 @@ const preprocess = (text: string) => {
  *      `metadata.custom.searchResults` is set from the first frame — the whole
  *      answer renders non-smooth, no mid-stream snap.
  *   2. Citation paths without the preview event (`done`-event citations) fall
- *      back to the marker regex, flipping smooth off at the first `[N]`.
+ *      back to the marker regex, flipping smooth off at the first `[N]` — or
+ *      the first source link, which `preprocess` rewrites the same way.
  *
  * Cited answers stream fine without the animation: the SSE adapter already
  * yields at most every 50ms, which is the perceived streaming.
@@ -78,7 +79,8 @@ function LegacyCitationMarkdownTextImpl() {
     useMarkdownSmooth() &&
     !hasSearchSources &&
     citations.length === 0 &&
-    !CITATION_MARKER_RE.test(rawText);
+    !CITATION_MARKER_RE.test(rawText) &&
+    !sourceLinkRegex().test(rawText);
   const citationMap = useMemo(() => new Map(citations.map((c) => [c.id, c])), [citations]);
   const components = useMemo(() => makeCitationComponents(citationMap), [citationMap]);
 
