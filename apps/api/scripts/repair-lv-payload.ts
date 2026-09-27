@@ -38,6 +38,15 @@
  *       Datum nie — ein Tag, der nur die Uhrzeit verliert, zählt trotzdem als
  *       Abweichung und damit als Patch (die Zeichenketten sind schlicht
  *       verschieden), nicht als `unchanged`.
+ *   - `--fulltext` (nur mit `--source`): holt jede HTML-Seite der Quelle neu
+ *     (derselbe Abruf wie `--titles --refetch`) und ersetzt `full_text` auf
+ *     Chunk 0 durch den heutigen Extraktor-Text MIT Absätzen. Der Bestand
+ *     stammt größtenteils von vor `blockText` (#3573) und ist eine einzige
+ *     Zeile; neu geprüfte Seiten heilen über den Content-Hash, alte werden
+ *     nie wieder abgerufen. Geschrieben wird nur, wenn der neue Text bis auf
+ *     Leerraum derselbe ist — ein inhaltlich geänderter Text gehört in einen
+ *     echten Scrape mit neuer Einbettung und bleibt `unresolved`. Chunks,
+ *     Vektoren und `content_hash` bleiben unberührt.
  *   - `--gone` (nur mit `--source`, allein): holt jede HTML-Seite der Quelle
  *     (1 Anfrage/s) und LÖSCHT mit `--write` alle Punkte einer URL, die
  *     `goneState.classifyFetch` als weg (404/410, Weiterleitung auf Startseite,
@@ -57,6 +66,7 @@
  *   npx tsx scripts/repair-lv-payload.ts --overwrite-dates mid-june --all
  *   npx tsx scripts/repair-lv-payload.ts --overwrite-dates visible-date --source berlin-lv-presse
  *   npx tsx scripts/repair-lv-payload.ts --gone --source sachsen-anhalt-lv
+ *   npx tsx scripts/repair-lv-payload.ts --fulltext --source berlin-lv-beschluesse
  *   … jeweils mit --write, um wirklich zu schreiben; --limit N begrenzt die Punkte je Quelle.
  *
  * Bei mehreren `--source`: Quellen laufen mit `--parallel N` (Standard 4)
@@ -96,6 +106,7 @@ interface CliArgs {
   titles: boolean;
   overwriteDates: string | null;
   gone: boolean;
+  fulltext: boolean;
   refetch: boolean;
   write: boolean;
   limit: number | null;
@@ -115,10 +126,12 @@ interface Extracted {
 interface Patch {
   title?: string;
   published_at?: string;
+  /** Chunk 0 only — the other chunks never carry it. */
+  full_text?: string;
 }
 
 const USAGE =
-  'Usage: repair-lv-payload.ts (--titles [--refetch] | --overwrite-dates <regel>) … (--source <id> [--source <id> …] | --all) [--limit N] [--parallel N] [--write]\n' +
+  'Usage: repair-lv-payload.ts (--titles [--refetch] | --overwrite-dates <regel> | --fulltext) … (--source <id> [--source <id> …] | --all) [--limit N] [--parallel N] [--write]\n' +
   '       repair-lv-payload.ts --gone --source <id> [--source <id> …] [--limit N] [--parallel N] [--write]';
 const DEFAULT_COLLECTION = 'landesverbaende_documents';
 const UA = 'Gruenerator-Bot/1.0 (+https://gruenerator.eu)';
@@ -141,6 +154,7 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
     titles: false,
     overwriteDates: null,
     gone: false,
+    fulltext: false,
     refetch: false,
     write: false,
     limit: null,
@@ -163,6 +177,7 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
       }
       args.overwriteDates = rule;
     } else if (arg === '--gone') args.gone = true;
+    else if (arg === '--fulltext') args.fulltext = true;
     else if (arg === '--refetch') args.refetch = true;
     else if (arg === '--write') args.write = true;
     else if (arg === '--limit') {
@@ -175,19 +190,22 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
       args.parallel = n;
     } else return { error: `Unbekanntes Argument: ${arg}. ${USAGE}` };
   }
-  if (args.gone && (args.titles || args.overwriteDates)) {
+  if (args.gone && (args.titles || args.overwriteDates || args.fulltext)) {
     return { error: '--gone steht allein: gelöschte Punkte bekommen keinen Patch.' };
   }
   if (args.gone && args.all) {
     return { error: '--gone nur mit --source: --all holt jede Seite aller Quellen.' };
   }
-  if (!args.titles && !args.overwriteDates && !args.gone) return { error: USAGE };
+  if (!args.titles && !args.overwriteDates && !args.gone && !args.fulltext) return { error: USAGE };
   if (args.all === args.sources.length > 0) return { error: USAGE };
   if (args.refetch && !args.titles) {
     return { error: '--refetch nur mit --titles: nur die Titelregel liest die Seite neu.' };
   }
   if (args.all && args.refetch) {
     return { error: '--refetch nur mit --source: --all --refetch holt jede Seite neu.' };
+  }
+  if (args.fulltext && args.all) {
+    return { error: '--fulltext nur mit --source: --all holt jede Seite neu ab.' };
   }
   if (args.overwriteDates === 'visible-date' && args.all) {
     return {
@@ -302,6 +320,25 @@ export function planDateRepair(
   return DATE_RULES[rule](point, extracted);
 }
 
+const withoutWhitespace = (text: string): string => text.replace(/\s+/g, '');
+
+/**
+ * `full_text` from the page as it is extracted today — with paragraphs — but
+ * only when it says the same as the stored text: equal once all whitespace is
+ * gone. That is exactly the difference `blockText` makes (paragraph breaks,
+ * and a space where blocks used to be glued together).
+ */
+export function planFullTextRepair(
+  storedFullText: string | null,
+  extractedText: string | null
+): { full_text: string } | 'unchanged' | 'unresolved' {
+  if (!extractedText?.trim() || !storedFullText) return 'unresolved';
+  if (extractedText === storedFullText) return 'unchanged';
+  return withoutWhitespace(extractedText) === withoutWhitespace(storedFullText)
+    ? { full_text: extractedText }
+    : 'unresolved';
+}
+
 export function isEmptyPlaceholder(text: string): boolean {
   return text.includes(XBLOG_PLACEHOLDER);
 }
@@ -310,6 +347,7 @@ interface RepairContext {
   titles: boolean;
   refetch: boolean;
   overwriteDates: string | null;
+  fulltext?: boolean;
 }
 
 interface RepairResult {
@@ -329,13 +367,16 @@ interface RepairResult {
  * Abruf testbar.
  */
 export async function planPointRepair(
-  point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'>,
+  point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'> & {
+    full_text?: string | null;
+  },
   ctx: RepairContext,
   refetchable: boolean,
   fetchExtracted: () => Promise<Extracted & { text: string }>
 ): Promise<RepairResult> {
-  const needsRefetch = (ctx.titles && ctx.refetch) || ctx.overwriteDates === 'visible-date';
-  let extracted: Extracted | null = null;
+  const needsRefetch =
+    (ctx.titles && ctx.refetch) || ctx.overwriteDates === 'visible-date' || Boolean(ctx.fulltext);
+  let extracted: (Extracted & { text: string }) | null = null;
   let fetchAttempted = false;
   let fetchError: string | null = null;
 
@@ -360,6 +401,14 @@ export async function planPointRepair(
     const verdict = planDateRepair(point, ctx.overwriteDates, extracted);
     if (verdict === 'unresolved') unresolved = true;
     else if (verdict !== 'unchanged') patch.published_at = verdict.published_at;
+  }
+
+  // PDFs and Wolke files are never fetched here; their OCR text already has
+  // paragraphs, so they are not a case for this rule at all.
+  if (ctx.fulltext && fetchAttempted) {
+    const verdict = planFullTextRepair(point.full_text ?? null, extracted?.text ?? null);
+    if (verdict === 'unresolved') unresolved = true;
+    else if (verdict !== 'unchanged') patch.full_text = verdict.full_text;
   }
 
   return { patch, unresolved, fetchAttempted, fetchError };
@@ -424,12 +473,15 @@ interface StoredPoint {
   source_id: string;
   title: string;
   published_at: string | null;
+  /** Only loaded for --fulltext — it is the heaviest field on the point. */
+  full_text: string | null;
 }
 
 async function scrollChunkZero(
   client: QdrantClient,
   collection: string,
-  sourceId: string | null
+  sourceId: string | null,
+  withFullText = false
 ): Promise<StoredPoint[]> {
   const must: Array<Record<string, unknown>> = [{ key: 'chunk_index', match: { value: 0 } }];
   if (sourceId) must.push({ key: 'source_id', match: { value: sourceId } });
@@ -439,7 +491,13 @@ async function scrollChunkZero(
     const res = await client.scroll(collection, {
       filter: { must },
       limit: 500,
-      with_payload: ['source_url', 'source_id', 'title', 'published_at'],
+      with_payload: [
+        'source_url',
+        'source_id',
+        'title',
+        'published_at',
+        ...(withFullText ? ['full_text'] : []),
+      ],
       with_vector: false,
       ...(offset !== undefined && offset !== null ? { offset } : {}),
     });
@@ -451,6 +509,7 @@ async function scrollChunkZero(
         source_id: payload.source_id,
         title: typeof payload.title === 'string' ? payload.title : '',
         published_at: typeof payload.published_at === 'string' ? payload.published_at : null,
+        full_text: typeof payload.full_text === 'string' ? payload.full_text : null,
       });
     }
     offset = res.next_page_offset as typeof offset;
@@ -544,7 +603,7 @@ async function main(): Promise<void> {
   }): Promise<void> {
     const lines: string[] = [];
     try {
-      const all = await scrollChunkZero(client, scope.collection, scope.sourceId);
+      const all = await scrollChunkZero(client, scope.collection, scope.sourceId, args.fulltext);
       const points = args.limit ? all.slice(0, args.limit) : all;
 
       if (args.gone && scope.sourceId) {
@@ -614,7 +673,7 @@ async function main(): Promise<void> {
       }
 
       const counts = { scanned: points.length, wouldPatch: 0, unchanged: 0, unresolved: 0 };
-      const extra = { title: 0, date: 0, fetchFailed: 0, written: 0 };
+      const extra = { title: 0, date: 0, fullText: 0, fetchFailed: 0, written: 0 };
       const samples: string[] = [];
 
       for (const point of points) {
@@ -623,7 +682,12 @@ async function main(): Promise<void> {
 
         const result = await planPointRepair(
           point,
-          { titles: args.titles, refetch: args.refetch, overwriteDates: args.overwriteDates },
+          {
+            titles: args.titles,
+            refetch: args.refetch,
+            overwriteDates: args.overwriteDates,
+            fulltext: args.fulltext,
+          },
           refetchable,
           () => ContentExtractor.extractPageContent(point.source_url, source!, fetchOk)
         );
@@ -642,26 +706,42 @@ async function main(): Promise<void> {
         const { patch, unresolved } = result;
         if (patch.title !== undefined) extra.title++;
         if (patch.published_at !== undefined) extra.date++;
+        if (patch.full_text !== undefined) extra.fullText++;
         const bucket = classifyPoint(patch, unresolved);
         counts[bucket]++;
         if (bucket !== 'wouldPatch') continue;
         if (samples.length < 5) {
           const old = { title: point.title, published_at: point.published_at };
+          // A full text is too long to print; its shape is what changed.
+          const shown = {
+            ...patch,
+            ...(patch.full_text !== undefined && {
+              full_text: `${patch.full_text.split('\n\n').length} Absätze statt ${point.full_text?.split('\n\n').length ?? 0}`,
+            }),
+          };
           samples.push(
-            `  ${point.source_url}\n    ${JSON.stringify(old)}\n  → ${JSON.stringify(patch)}`
+            `  ${point.source_url}\n    ${JSON.stringify(old)}\n  → ${JSON.stringify(shown)}`
           );
         }
 
         if (args.write) {
-          await client.setPayload(scope.collection, {
-            payload: patch as Record<string, unknown>,
-            filter: {
-              must: [
-                { key: 'source_id', match: { value: point.source_id } },
-                { key: 'source_url', match: { value: point.source_url } },
-              ],
-            },
-          });
+          const { full_text: fullText, ...everyChunk } = patch;
+          const urlFilter = [
+            { key: 'source_id', match: { value: point.source_id } },
+            { key: 'source_url', match: { value: point.source_url } },
+          ];
+          if (Object.keys(everyChunk).length > 0) {
+            await client.setPayload(scope.collection, {
+              payload: everyChunk as Record<string, unknown>,
+              filter: { must: urlFilter },
+            });
+          }
+          if (fullText !== undefined) {
+            await client.setPayload(scope.collection, {
+              payload: { full_text: fullText },
+              filter: { must: [...urlFilter, { key: 'chunk_index', match: { value: 0 } }] },
+            });
+          }
           extra.written++;
         }
       }
@@ -672,7 +752,7 @@ async function main(): Promise<void> {
         `  geprüft ${counts.scanned} = would-patch ${counts.wouldPatch} + unchanged ${counts.unchanged} + unresolved ${counts.unresolved} (unresolved nur ohne jeden Patch)`
       );
       lines.push(
-        `  davon Titel ${extra.title} · Datum ${extra.date} · Abruf fehlgeschlagen ${extra.fetchFailed} · geschrieben ${extra.written}`
+        `  davon Titel ${extra.title} · Datum ${extra.date} · Volltext ${extra.fullText} · Abruf fehlgeschlagen ${extra.fetchFailed} · geschrieben ${extra.written}`
       );
       console.log(lines.join('\n'));
     } catch (error) {

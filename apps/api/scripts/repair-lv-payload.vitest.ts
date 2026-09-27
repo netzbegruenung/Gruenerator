@@ -7,6 +7,7 @@ import {
   isEmptyPlaceholder,
   isRefetchable,
   parseCliArgs,
+  planFullTextRepair,
   planDateRepair,
   planGone,
   planPointRepair,
@@ -25,6 +26,7 @@ describe('parseCliArgs', () => {
         titles: true,
         overwriteDates: null,
         gone: false,
+        fulltext: false,
         refetch: false,
         write: false,
         limit: null,
@@ -53,6 +55,7 @@ describe('parseCliArgs', () => {
         titles: true,
         overwriteDates: null,
         gone: false,
+        fulltext: false,
         refetch: true,
         write: true,
         limit: 5,
@@ -87,6 +90,7 @@ describe('parseCliArgs', () => {
         titles: false,
         overwriteDates: 'mid-june',
         gone: false,
+        fulltext: false,
         refetch: false,
         write: false,
         limit: null,
@@ -585,5 +589,59 @@ describe('runGroups', () => {
     const a = { sourceId: 'a', collection: 'c' };
     const { failed } = await runGroups([[a]], async () => {}, 2);
     expect(failed).toEqual([]);
+  });
+});
+
+describe('--fulltext', () => {
+  const flat = '10.12.25 – Beschluss:Berlin wird älter. Der Pflegedienst hilft.';
+  const structured = '10.12.25 – Beschluss:\n\nBerlin wird älter.\n\nDer Pflegedienst hilft.';
+
+  it('only runs per source, never over everything', () => {
+    expect(parseCliArgs(['--fulltext', '--source', 'x'])).toHaveProperty('args.fulltext', true);
+    expect(parseCliArgs(['--fulltext', '--all'])).toHaveProperty('error');
+    expect(parseCliArgs(['--fulltext', '--gone', '--source', 'x'])).toHaveProperty('error');
+  });
+
+  it('takes the paragraphs when only whitespace differs', () => {
+    expect(planFullTextRepair(flat, structured)).toEqual({ full_text: structured });
+  });
+
+  it('leaves a text that already reads the same', () => {
+    expect(planFullTextRepair(structured, structured)).toBe('unchanged');
+  });
+
+  it('never writes a text whose words changed — that needs a real scrape', () => {
+    expect(planFullTextRepair(flat, `${structured}\n\nNeuer Absatz.`)).toBe('unresolved');
+  });
+
+  it('is unresolved without a fetched page or a stored text', () => {
+    expect(planFullTextRepair(flat, null)).toBe('unresolved');
+    expect(planFullTextRepair(null, structured)).toBe('unresolved');
+  });
+
+  it('leaves files it does not fetch out of the count', async () => {
+    const result = await planPointRepair(
+      { source_url: 'wolke://x/a.pdf', title: 'T', published_at: null, full_text: flat },
+      { titles: false, refetch: false, overwriteDates: null, fulltext: true },
+      false,
+      async () => ({ title: 'T', publishedAt: null, text: structured })
+    );
+    expect(result).toMatchObject({ fetchAttempted: false, unresolved: false, patch: {} });
+  });
+
+  it('fetches the page and patches full_text through planPointRepair', async () => {
+    const point = {
+      source_url: 'https://x.de/a',
+      title: 'T',
+      published_at: '2025-12-10',
+      full_text: flat,
+    };
+    const result = await planPointRepair(
+      point,
+      { titles: false, refetch: false, overwriteDates: null, fulltext: true },
+      true,
+      async () => ({ title: 'T', publishedAt: '2025-12-10', text: structured })
+    );
+    expect(result).toMatchObject({ fetchAttempted: true, patch: { full_text: structured } });
   });
 });
