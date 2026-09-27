@@ -25,6 +25,7 @@ import type { NotebookDepth } from '@gruenerator/contracts';
 const composerProps: {
   showModelPicker?: boolean;
   onSearchSubmit?: (text: string) => void;
+  onChatSubmit?: (text: string) => void;
   disclaimer?: string;
   disclaimerCompact?: string;
 }[] = [];
@@ -33,12 +34,14 @@ vi.mock('../thread/GrueneratorComposer', () => ({
     slots?: { leading?: React.ReactNode; sendAdornment?: React.ReactNode };
     showModelPicker?: boolean;
     onSearchSubmit?: (text: string) => void;
+    onChatSubmit?: (text: string) => void;
     disclaimer?: string;
     disclaimerCompact?: string;
   }) => {
     composerProps.push({
       showModelPicker: props.showModelPicker,
       onSearchSubmit: props.onSearchSubmit,
+      onChatSubmit: props.onChatSubmit,
       disclaimer: props.disclaimer,
       disclaimerCompact: props.disclaimerCompact,
     });
@@ -365,6 +368,33 @@ describe('NotebookComposer — Magic Search', () => {
     const { onManualSubmit } = renderMagic('suche');
     expect(composerProps.at(-1)?.onSearchSubmit).toBe(onManualSubmit);
     expect(composerProps.at(-1)?.disclaimer).toMatch(/ohne KI/);
+  });
+
+  it('hands a recognised chat to the surface, but never a search', () => {
+    const onChatSubmit = vi.fn();
+    composerProps.length = 0;
+    render(
+      <NotebookComposer
+        answerMode="auto"
+        onAnswerModeChange={vi.fn()}
+        onManualSubmit={vi.fn()}
+        magicIntent="chat"
+        onChatSubmit={onChatSubmit}
+      />
+    );
+    expect(composerProps.at(-1)?.onChatSubmit).toBe(onChatSubmit);
+
+    composerProps.length = 0;
+    render(
+      <NotebookComposer
+        answerMode="auto"
+        onAnswerModeChange={vi.fn()}
+        onManualSubmit={vi.fn()}
+        magicIntent="suche"
+        onChatSubmit={onChatSubmit}
+      />
+    );
+    expect(composerProps.at(-1)?.onChatSubmit).toBeUndefined();
   });
 
   it('sends when it recognised a chat', () => {
