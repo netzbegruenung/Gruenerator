@@ -502,6 +502,10 @@ export function buildChatToolCatalog(params: {
         // then reported a 2023 snippet's "ist Bundesminister" as the current
         // state of affairs. The date is grounding, not just ranking input.
         ...(typeof r.publishedDate === 'string' ? { publishedDate: r.publishedDate } : {}),
+        // Which collection a document hit came from — the citation derives the
+        // document reader's target from it, so a title the model links as
+        // `[Titel](quelle:N)` opens the document instead of leaving the app.
+        ...(typeof r.collectionId === 'string' ? { collectionId: r.collectionId } : {}),
       }));
       const enriched = await crawlDeepHits(mapped, result);
       const sources = sourceRegistry.register(

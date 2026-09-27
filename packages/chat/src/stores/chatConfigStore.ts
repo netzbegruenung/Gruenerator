@@ -8,7 +8,7 @@ import type {
   EditorOperationsEvent,
   RoleRef,
 } from '@gruenerator/contracts';
-import type { UnauthorizedInfo } from '@gruenerator/shared/api';
+import type { ResearchDocumentParams, UnauthorizedInfo } from '@gruenerator/shared/api';
 
 /** A raw file handed to the in-browser Python interpreter (Pyodide worker). */
 export interface PythonFile {
@@ -164,6 +164,13 @@ export interface ChatConfig {
     chunkIndex: number;
   }) => string | null;
   /**
+   * Öffnet ein System-Dokument im Reader der Host-App — Ziel eines
+   * Quellen-Links `[Titel](quelle:N)`. packages/chat kennt weder die Route noch
+   * den Reader. Weggelassen fällt der Link auf das Quellen-Panel bzw. die
+   * Original-URL zurück.
+   */
+  onOpenSourceDocument?: (target: ResearchDocumentParams & { title: string }) => void;
+  /**
    * Uploads a composer-attached video to the subtitler TUS endpoint and
    * resolves with its uploadId. Required for video attachments — without it
    * the attachment adapter rejects video files. The abort handle terminates
@@ -317,6 +324,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   wolkeConnectUrl?: string;
   /** Href des Chunk-Inspektors zu einer Zitation; null/unset blendet ihn aus. */
   chunkInspectorHref?: ChatConfig['chunkInspectorHref'];
+  onOpenSourceDocument?: ChatConfig['onOpenSourceDocument'];
   /** threadId → context-getter, populated by host surfaces (e.g. docs editor). */
   contextProviders: Map<string, ChatRequestContextProvider>;
   /** Register a context provider for a thread. Returns the unregister function. */
@@ -419,6 +427,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   onExportPdfLetterhead: undefined,
   wolkeConnectUrl: undefined,
   chunkInspectorHref: undefined,
+  onOpenSourceDocument: undefined,
   contextProviders: new Map(),
   documentEditHandlers: new Map(),
   editorOpsHandlers: new Map(),
@@ -450,6 +459,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       platform: config?.platform,
       wolkeConnectUrl: config?.wolkeConnectUrl,
       chunkInspectorHref: config?.chunkInspectorHref,
+      onOpenSourceDocument: config?.onOpenSourceDocument,
     });
   },
 

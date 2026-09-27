@@ -320,6 +320,20 @@ describe('list', () => {
     expect(out.refs).toBe('Antrag Radweg — d1 (2026-09-01)\nProtokoll — d2 (2026-09-01)');
   });
 
+  it('links each row to its own address and falls back to the notebook (#3728)', async () => {
+    const { run, registered } = makeCtx({
+      rows: [
+        docRow({ source_url: 'https://example.org/radweg' }),
+        docRow({ id: 'd2', title: 'Protokoll' }),
+      ],
+      links: ['d1', 'd2'],
+    });
+    await run({ action: 'list', sortBy: 'name' });
+    const rows = registered[0]!.results;
+    expect(rows[0]).toMatchObject({ documentId: 'd1', url: 'https://example.org/radweg' });
+    expect(rows[1]).toMatchObject({ documentId: 'd2', url: '/notebooks/kreisverband-Ab3xK9' });
+  });
+
   it('nennt Dokumentdatum, Art und Gremium vor der Upload-Zeit und filtert nach Gremium', async () => {
     const { run } = makeCtx({
       rows: [
@@ -553,6 +567,25 @@ describe('find', () => {
       relevance: 0.8,
       citedText: 'Der Radweg kommt 2027.',
     });
+  });
+
+  it('carries the address of the source it found the passage in (#3728)', async () => {
+    const { run, registered } = makeCtx({
+      searchResults,
+      links: ['d1'],
+      rows: [docRow({ source_url: 'https://example.org/radweg' })],
+    });
+    await run({ action: 'find', query: 'Radweg' });
+    expect(registered[0]!.results[0]).toMatchObject({
+      documentId: 'd1',
+      url: 'https://example.org/radweg',
+    });
+  });
+
+  it('registers an uploaded file without an address', async () => {
+    const { run, registered } = makeCtx({ searchResults, links: ['d1'] });
+    await run({ action: 'find', query: 'Radweg' });
+    expect(registered[0]!.results[0]).not.toHaveProperty('url');
   });
 
   // Die Passage (24–46) beginnt auf Seite 2 und reicht über die Marke von Seite 3.

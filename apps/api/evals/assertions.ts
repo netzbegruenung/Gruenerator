@@ -4,6 +4,8 @@
  * Subjective quality (groundedness, honesty nuance) is left to the optional LLM
  * judge; these are the mechanical checks the SSE trace can prove on its own.
  */
+import { sourceLinkRegex } from '@gruenerator/shared/utils';
+
 import { announcesPendingWork } from '../routes/chat/services/outputSanity.js';
 import { refusalLanguage } from '../routes/chat/services/refusalDetection.js';
 
@@ -148,7 +150,13 @@ export function producedContent(trace: ChatTrace): string {
  */
 function bracketedCiteNumbers(text: string): number[] {
   const nums: number[] = [];
-  for (const m of text.matchAll(/\[(?:cite:)?(\d+(?:\s*,\s*\d+)*)\]/g)) {
+  // A source link `[Titel](quelle:N)` cites N — and its label must not be read
+  // as a marker (`[2024](quelle:3)` is no citation of source 2024).
+  const markersOnly = text.replace(sourceLinkRegex(), (_link, _label, id: string) => {
+    nums.push(Number(id));
+    return '';
+  });
+  for (const m of markersOnly.matchAll(/\[(?:cite:)?(\d+(?:\s*,\s*\d+)*)\]/g)) {
     for (const n of m[1].split(/\s*,\s*/)) nums.push(Number(n));
   }
   return nums;

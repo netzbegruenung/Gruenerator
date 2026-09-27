@@ -597,6 +597,10 @@ const chatCitationBase = z.object({
   /** Seite im Ursprungsdokument, wenn der Chunk eine trägt (PDF-Ingest). */
   pageNumber: z.number().nullable().optional(),
   collectionId: z.string().optional(),
+  /** System-Collection-ID, unter der `GET /api/research/document` das Dokument
+   *  per `url` öffnet (z. B. `brandenburg-system`). Nur gesetzt, wenn der
+   *  Reader es lesen kann — `collectionId` trägt den Chat-Key (`brandenburg`). */
+  readerCollectionId: z.string().optional(),
   /** Set on fan-out per-document retrieval, so the UI can group source cards
    *  by the document they answer for. */
   documentSourceId: z.string().optional(),

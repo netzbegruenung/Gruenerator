@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 
 import { CitationMarker } from '../components/message-parts/CitationMarker';
 import { toText } from '../components/message-parts/codeBlockExecution';
+import { SourceLink } from '../components/message-parts/SourceLink';
 import { StreamdownCodeBlock } from '../components/message-parts/StreamdownCodeBlock';
 
 import { normalizeLang } from './shikiHighlight';
@@ -104,4 +105,7 @@ export const streamdownComponents = {
     <td className="border border-border px-3 py-2">{children}</td>
   ),
   citation: ({ n }: { n?: string | number }) => <CitationMarker n={n} />,
+  sourcelink: ({ n, children }: { n?: string | number; children?: ReactNode }) => (
+    <SourceLink n={n}>{children}</SourceLink>
+  ),
 } as const;
