@@ -25,7 +25,8 @@ interface PendingFile {
 interface GroupComposerProps {
   groupId: string;
   groupName: string;
-  memberCount: number;
+  /** null: the system group — everyone sees it, the count stays hidden. */
+  memberCount: number | null;
   currentUserName: string | null;
   /** „Aus meinen Inhalten": Teilen-Dialog, der bisherige Text wird zur Notiz. */
   onOpenShare: (note: string) => void;
@@ -210,8 +211,12 @@ export function GroupComposer({
               <strong className="truncate text-[15px]">{currentUserName ?? 'Du'}</strong>
               <span className="truncate text-[13px] text-muted-foreground">
                 an {groupName} ·{' '}
-                {memberCount === 1 ? 'nur du siehst' : `alle ${memberCount} Mitglieder sehen`} den
-                Beitrag
+                {memberCount === null
+                  ? 'alle im Grünerator sehen'
+                  : memberCount === 1
+                    ? 'nur du siehst'
+                    : `alle ${memberCount} Mitglieder sehen`}{' '}
+                den Beitrag
               </span>
             </div>
           </div>

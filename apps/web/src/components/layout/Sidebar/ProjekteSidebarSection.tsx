@@ -1,4 +1,4 @@
-import { buildGroupPath } from '@gruenerator/shared/groups';
+import { buildGroupPath, canShareIntoGroup } from '@gruenerator/shared/groups';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -122,15 +122,17 @@ export const ProjekteSidebarSection = memo(function ProjekteSidebarSection({
                     <PiUsersThree className="size-4 shrink-0 text-grey-500" />
                     <span className="min-w-0 flex-1 truncate">{g.name}</span>
                   </button>
-                  <button
-                    type="button"
-                    aria-label={`Neuer Chat in ${g.name}`}
-                    title="Neuer Chat in diesem Projekt"
-                    onClick={() => newChatInProjekt(g.id)}
-                    className="shrink-0 rounded-md p-1 text-grey-400 opacity-0 transition-opacity hover:bg-hover-alt hover:text-foreground focus-visible:opacity-100 group-hover/projekt:opacity-100"
-                  >
-                    <PiChatCircle className="size-4" />
-                  </button>
+                  {canShareIntoGroup(g) && (
+                    <button
+                      type="button"
+                      aria-label={`Neuer Chat in ${g.name}`}
+                      title="Neuer Chat in diesem Projekt"
+                      onClick={() => newChatInProjekt(g.id)}
+                      className="shrink-0 rounded-md p-1 text-grey-400 opacity-0 transition-opacity hover:bg-hover-alt hover:text-foreground focus-visible:opacity-100 group-hover/projekt:opacity-100"
+                    >
+                      <PiChatCircle className="size-4" />
+                    </button>
+                  )}
                 </div>
               );
             })

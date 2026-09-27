@@ -263,13 +263,19 @@ export class AuthService {
   ): Promise<AuthenticationResult> {
     log.debug(`[Auth-Presence] Checking group presence: ${groupId} for user: ${userId}`);
 
+    // The system group holds every user and exposes no member info, so it has
+    // no presence room: awareness would show who else is online.
     const membership = await this.db(
-      'SELECT 1 FROM group_memberships WHERE group_id = $1 AND user_id = $2::uuid AND is_active = TRUE LIMIT 1',
+      `SELECT 1 FROM group_memberships gm JOIN groups g ON g.id = gm.group_id
+       WHERE gm.group_id = $1 AND gm.user_id = $2::uuid AND gm.is_active = TRUE
+         AND NOT g.is_system LIMIT 1`,
       [groupId, userId]
     );
 
     if ((membership as unknown[]).length === 0) {
-      log.warn(`[Auth-Presence] FAILED: User ${userId} is not a member of group ${groupId}`);
+      log.warn(
+        `[Auth-Presence] FAILED: User ${userId} is not a member of group ${groupId} (or it is the system group)`
+      );
       return { authenticated: false, reason: 'Not a member of this group' };
     }
 

@@ -52,6 +52,8 @@ export interface GroupPostDeps {
   >;
   notify: typeof notifyGroupMembers;
   deleteFile: (storedFilename: string) => Promise<void>;
+  /** Only consulted in the system group, where instance admins are the only admins. */
+  isInstanceAdmin?: (userId: string) => Promise<boolean>;
 }
 
 function defaultDeps(): GroupPostDeps {
@@ -86,9 +88,12 @@ export async function createGroupPost(
   const { postgres } = deps;
 
   const outcome = await (async (): Promise<FeedOutcome<{ postId: string; shareId: string }>> => {
-    const viewer = await getViewer(postgres, groupId, userId);
+    const viewer = await getViewer(postgres, groupId, userId, deps.isInstanceAdmin);
     if (viewer.isPersonal) {
       return { status: 400, message: 'In Projekten gibt es keine Beiträge.' };
+    }
+    if (!viewer.canShare) {
+      return { status: 403, message: 'In diesem Projekt können nur Admins Beiträge schreiben.' };
     }
     if (!body && files.length === 0) {
       return { status: 400, message: 'Schreib etwas oder hänge eine Datei an.' };
@@ -190,7 +195,7 @@ export async function updateGroupPost(
   const { groupId, postId, userId } = input;
   const body = input.body.trim();
   const { postgres } = deps;
-  await getViewer(postgres, groupId, userId);
+  await getViewer(postgres, groupId, userId, deps.isInstanceAdmin);
   const post = await getPost(postgres, groupId, postId);
   if (!post) return POST_NOT_FOUND;
   if (post.author_id !== userId) {
@@ -219,7 +224,7 @@ export async function deleteGroupPost(
 ): Promise<FeedOutcome> {
   const { groupId, postId, userId } = input;
   const { postgres } = deps;
-  const viewer = await getViewer(postgres, groupId, userId);
+  const viewer = await getViewer(postgres, groupId, userId, deps.isInstanceAdmin);
   const post = await getPost(postgres, groupId, postId);
   if (!post) return POST_NOT_FOUND;
   if (!viewer.isAdmin && post.author_id !== userId) {

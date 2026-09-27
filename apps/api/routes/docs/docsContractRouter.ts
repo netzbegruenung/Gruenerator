@@ -36,6 +36,10 @@ import {
   createDocumentWithContent,
 } from '../../services/docs/DocGenerationService.js';
 import { getDocPreview } from '../../services/docs/docPreview.js';
+import {
+  assertCanShareToGroup,
+  listShareTargetGroups,
+} from '../../services/groups/groupMembership.js';
 import { shareToPermissionLevel } from '../../services/groups/groupSharePermissions.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -192,15 +196,7 @@ export const docsContractRouter = s.router(docsContract, {
   listMyGroups: async (args) => {
     try {
       const userId = getUserId(args.req);
-      const groups = (await db.query(
-        `SELECT g.id, g.name, gm.role
-         FROM groups g
-         INNER JOIN group_memberships gm ON gm.group_id = g.id
-         WHERE gm.user_id = $1
-         ORDER BY g.name ASC`,
-        [userId]
-      )) as { id: string; name: string; role: string }[];
-      return { status: 200 as const, body: groups };
+      return { status: 200 as const, body: await listShareTargetGroups(userId) };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log.error('[docsContract.listMyGroups] Error:', error);
@@ -486,15 +482,12 @@ export const docsContractRouter = s.router(docsContract, {
         };
       }
 
-      const membership = (await db.query(
-        'SELECT user_id FROM group_memberships WHERE group_id = $1 AND user_id = $2',
-        [group_id, userId]
-      )) as { user_id: string }[];
-
-      if (membership.length === 0) {
+      try {
+        await assertCanShareToGroup(group_id, userId);
+      } catch {
         return {
           status: 403 as const,
-          body: { error: 'You must be a member of the group to share with it' },
+          body: { error: 'You are not allowed to share with this group' },
         };
       }
 

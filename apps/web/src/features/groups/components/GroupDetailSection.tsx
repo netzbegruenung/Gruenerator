@@ -28,11 +28,6 @@ interface GroupDetailSectionProps {
 const GroupDetailSection = memo(
   ({ groupId, onSuccessMessage, onErrorMessage }: GroupDetailSectionProps) => {
     const user = useAuthStore((s) => s.user);
-    const { onlineMembers } = useGroupPresence(
-      groupId,
-      user ? { id: user.id, name: user.display_name || user.email || 'User' } : null
-    );
-    const onlineUserIds = useMemo(() => new Set(onlineMembers.map((m) => m.id)), [onlineMembers]);
 
     const [isEditingName, setIsEditingName] = useState(false);
     const [editedGroupName, setEditedGroupName] = useState('');
@@ -56,6 +51,14 @@ const GroupDetailSection = memo(
       refetch: refetchGroupData,
     } = useGroupDetails(groupId);
 
+    // The system group holds every user and has no presence room (the server
+    // refuses it too): who is online would be member info.
+    const { onlineMembers } = useGroupPresence(
+      details && !details.group.is_system ? groupId : null,
+      user ? { id: user.id, name: user.display_name || user.email || 'User' } : null
+    );
+    const onlineUserIds = useMemo(() => new Set(onlineMembers.map((m) => m.id)), [onlineMembers]);
+
     const data = useMemo<GroupData | undefined>(
       () =>
         details
@@ -73,6 +76,7 @@ const GroupDetailSection = memo(
                 is_public: details.group.is_public ?? undefined,
                 audience: details.group.audience ?? undefined,
                 group_type: details.group.group_type ?? undefined,
+                is_system: details.group.is_system ?? false,
               },
               isAdmin: details.membership.isAdmin,
               membership: details.membership,

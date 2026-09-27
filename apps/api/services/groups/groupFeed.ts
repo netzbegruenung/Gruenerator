@@ -3,7 +3,8 @@
  * leben Anheften, Notiz ändern und der flache Kommentar-Thread je Beitrag.
  *
  * Rechte:
- * - Anheften/Lösen: Admins (Rolle `admin` oder Ersteller*in). Mehr als
+ * - Anheften/Lösen: Admins (Rolle `admin` oder Ersteller*in; in der
+ *   System-Gruppe nur Instanz-Admins). Mehr als
  *   `GROUP_PIN_LIMIT` Anheftungen verdrängen die älteste.
  * - Notiz ändern: wer geteilt hat, oder Admins.
  * - Kommentieren: alle Mitglieder, nicht in Projekten (`group_type='personal'`).
@@ -15,6 +16,7 @@
 import { GROUP_PIN_LIMIT, type GroupShareComment } from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { isInstanceAdmin } from '../../utils/adminAuthz.js';
 import { notifyGroupUsers } from '../notifications/index.js';
 
 import type { PostgresService } from '../../database/services/PostgresService.js';
@@ -22,10 +24,11 @@ import type { PostgresService } from '../../database/services/PostgresService.js
 export interface GroupFeedDeps {
   postgres: Pick<PostgresService, 'query' | 'queryOne' | 'exec'>;
   notify: typeof notifyGroupUsers;
+  isInstanceAdmin: (userId: string) => Promise<boolean>;
 }
 
 function defaultDeps(): GroupFeedDeps {
-  return { postgres: getPostgresInstance(), notify: notifyGroupUsers };
+  return { postgres: getPostgresInstance(), notify: notifyGroupUsers, isInstanceAdmin };
 }
 
 export type FeedOutcome<T = null> =
@@ -34,24 +37,37 @@ export type FeedOutcome<T = null> =
 export interface Viewer {
   isAdmin: boolean;
   isPersonal: boolean;
+  /** May put new content into the group (post, share). */
+  canShare: boolean;
 }
 
 export async function getViewer(
   postgres: GroupFeedDeps['postgres'],
   groupId: string,
-  userId: string
+  userId: string,
+  checkInstanceAdmin: (userId: string) => Promise<boolean> = isInstanceAdmin
 ): Promise<Viewer> {
   const row = (await postgres.queryOne(
-    `SELECT gm.role, g.group_type, g.created_by
+    `SELECT gm.role, g.group_type, g.created_by, g.is_system
        FROM group_memberships gm
        JOIN groups g ON g.id = gm.group_id
       WHERE gm.group_id = $1 AND gm.user_id = $2`,
     [groupId, userId],
     { table: 'group_memberships' }
-  )) as { role: string; group_type: string | null; created_by: string | null } | null;
+  )) as {
+    role: string;
+    group_type: string | null;
+    created_by: string | null;
+    is_system: boolean | null;
+  } | null;
   if (!row) throw new Error('Du bist nicht Mitglied dieser Gruppe.');
+  const isAdmin = row.is_system
+    ? await checkInstanceAdmin(userId)
+    : row.role === 'admin' || row.created_by === userId;
   return {
-    isAdmin: row.role === 'admin' || row.created_by === userId,
+    isAdmin,
+    // Same rule as `assertCanShareToGroup`: in the system group only admins post.
+    canShare: !row.is_system || isAdmin,
     isPersonal: row.group_type === 'personal',
   };
 }
@@ -87,7 +103,7 @@ export async function updateGroupShare(
 ): Promise<FeedOutcome> {
   const { groupId, shareId, userId, pinned, note } = input;
   const { postgres } = deps;
-  const viewer = await getViewer(postgres, groupId, userId);
+  const viewer = await getViewer(postgres, groupId, userId, deps.isInstanceAdmin);
   const share = await getShare(postgres, groupId, shareId);
   if (!share) return SHARE_NOT_FOUND;
 
@@ -157,7 +173,7 @@ export async function listShareComments(
 ): Promise<FeedOutcome<GroupShareComment[]>> {
   const { groupId, shareId, userId } = input;
   const { postgres } = deps;
-  await getViewer(postgres, groupId, userId);
+  await getViewer(postgres, groupId, userId, deps.isInstanceAdmin);
   if (!(await getShare(postgres, groupId, shareId))) return SHARE_NOT_FOUND;
 
   const rows = (await postgres.query(
@@ -180,7 +196,7 @@ export async function createShareComment(
   const { groupId, shareId, userId, authorName } = input;
   const body = input.body.trim();
   const { postgres } = deps;
-  const viewer = await getViewer(postgres, groupId, userId);
+  const viewer = await getViewer(postgres, groupId, userId, deps.isInstanceAdmin);
   if (viewer.isPersonal) {
     return { status: 400, message: 'In Projekten gibt es keine Kommentare.' };
   }
@@ -226,7 +242,7 @@ export async function deleteShareComment(
 ): Promise<FeedOutcome> {
   const { groupId, shareId, commentId, userId } = input;
   const { postgres } = deps;
-  const viewer = await getViewer(postgres, groupId, userId);
+  const viewer = await getViewer(postgres, groupId, userId, deps.isInstanceAdmin);
   const comment = (await postgres.queryOne(
     'SELECT user_id FROM group_share_comments WHERE id = $1 AND share_id = $2 AND group_id = $3',
     [commentId, shareId, groupId],
