@@ -319,6 +319,7 @@ export async function readThreadToolHistory(threadId: string): Promise<ThreadToo
   return {
     artifacts: (limit = 4) => artifacts.slice(0, limit),
     toolSteps: () => [],
+    lastTurnToolSteps: () => [],
     sources: () => [],
     lastGeneratedImageUrl: () => null,
   };
