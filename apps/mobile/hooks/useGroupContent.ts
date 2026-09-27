@@ -26,32 +26,49 @@ export function useGroupFeed(groupId: string | null | undefined) {
 
 type Router = ReturnType<typeof useRouter>;
 
-const web = (router: Router, path: string, title: string) =>
-  router.push({ pathname: '/(fullscreen)/web-viewer', params: { path, title } });
+// Every web-viewer call stays a literal `router.push`: the handoff allowlist
+// guard (apps/api/plugins/webViewHandoffRedirect.vitest.ts) finds its callers
+// by scanning for `pathname: '/(fullscreen)/web-viewer'` plus a literal `path`.
+/**
+ * Sharepic-Vorlagen haben in der App kein Ziel: „Verwenden" klont sie, und
+ * die App ist hier nur zum Lesen. `/projekte/` steht bewusst nicht in der
+ * Handoff-Allowlist.
+ */
+export const canOpenInApp = (item: GroupFeedItem): boolean => item.kind !== 'sharepic-template';
 
-export function openGroupFeedItem(router: Router, item: GroupFeedItem, groupId: string): void {
+export function openGroupFeedItem(router: Router, item: GroupFeedItem): void {
   switch (item.kind) {
     case 'doc':
       router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: item.id } });
       return;
     case 'board':
-      web(router, `/boards/${item.id}`, item.title);
+      router.push({
+        pathname: '/(fullscreen)/web-viewer',
+        params: { path: `/boards/${item.id}`, title: item.title },
+      });
       return;
     case 'sharepic':
-      web(router, `/studio/canvas/${item.id}`, item.title);
+      router.push({
+        pathname: '/(fullscreen)/web-viewer',
+        params: { path: `/studio/canvas/${item.id}`, title: item.title },
+      });
       return;
     case 'sharepic-template':
-      // „Verwenden" klont die Vorlage — das kann nur die Web-Fläche des Projekts.
-      web(router, `/projekte/${groupId}`, item.title);
       return;
     case 'generator':
-      web(router, `/gruenerator/${item.slug ?? item.id}`, item.title);
+      router.push({
+        pathname: '/(fullscreen)/web-viewer',
+        params: { path: `/gruenerator/${item.slug ?? item.id}`, title: item.title },
+      });
       return;
     case 'notebook':
       // `/notebooks/`, not the singular `/notebook/`: the latter is a legacy
       // route that redirects client-side, and the WebView pins its policy to
       // the path it was opened with — the redirect would be blocked.
-      web(router, `/notebooks/${item.id}`, item.title);
+      router.push({
+        pathname: '/(fullscreen)/web-viewer',
+        params: { path: `/notebooks/${item.id}`, title: item.title },
+      });
       return;
     case 'agent':
       // Native chat with the shared agent; the slug is the agent identifier.
@@ -61,13 +78,22 @@ export function openGroupFeedItem(router: Router, item: GroupFeedItem, groupId: 
       });
       return;
     case 'text':
-      web(router, `/texte/${item.id}`, item.title);
+      router.push({
+        pathname: '/(fullscreen)/web-viewer',
+        params: { path: `/texte/${item.id}`, title: item.title },
+      });
       return;
     case 'template':
-      web(router, `/datenbank/vorlagen?selected=${item.id}`, item.title);
+      router.push({
+        pathname: '/(fullscreen)/web-viewer',
+        params: { path: `/datenbank/vorlagen?selected=${item.id}`, title: item.title },
+      });
       return;
     case 'document':
-      web(router, `/documents/${item.id}`, item.title);
+      router.push({
+        pathname: '/(fullscreen)/web-viewer',
+        params: { path: `/documents/${item.id}`, title: item.title },
+      });
       return;
   }
 }

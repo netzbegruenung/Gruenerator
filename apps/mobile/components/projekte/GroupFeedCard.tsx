@@ -10,6 +10,7 @@ import { Image } from 'expo-image';
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
+import { canOpenInApp } from '../../hooks/useGroupContent';
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../theme';
 
@@ -72,7 +73,7 @@ export const GroupFeedCard = memo(function GroupFeedCard({
   const pinned = isPinned(item);
   const share = item.share;
   const kind = groupFeedKindMeta(item.kind);
-  const cta = item.kind === 'sharepic-template' ? 'Verwenden' : 'Öffnen';
+  const openable = canOpenInApp(item);
 
   return (
     <View
@@ -118,8 +119,9 @@ export const GroupFeedCard = memo(function GroupFeedCard({
 
       <Pressable
         onPress={() => onOpen(item)}
-        accessibilityRole="button"
-        accessibilityLabel={`${item.title} öffnen`}
+        disabled={!openable}
+        accessibilityRole={openable ? 'button' : 'image'}
+        accessibilityLabel={openable ? `${item.title} öffnen` : item.title}
         style={styles.previewWrap}
       >
         <FeedPreview item={item} height={240} />
@@ -146,17 +148,19 @@ export const GroupFeedCard = memo(function GroupFeedCard({
           </Pressable>
         ) : null}
         <View style={styles.flex} />
-        <Pressable
-          onPress={() => onOpen(item)}
-          accessibilityRole="button"
-          accessibilityLabel={`${item.title}: ${cta}`}
-          style={({ pressed }) => [
-            styles.cta,
-            { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
-          ]}
-        >
-          <Text style={styles.ctaText}>{cta}</Text>
-        </Pressable>
+        {openable ? (
+          <Pressable
+            onPress={() => onOpen(item)}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.title}: Öffnen`}
+            style={({ pressed }) => [
+              styles.cta,
+              { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
+            ]}
+          >
+            <Text style={styles.ctaText}>Öffnen</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
