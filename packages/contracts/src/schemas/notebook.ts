@@ -340,6 +340,13 @@ export const notebookOverviewResponseSchema = z.object({
       words: z.array(z.object({ word: z.string(), count: z.number() })),
       /** Words whose share of the last 90 days rose significantly, strongest first. */
       rising: z.array(z.object({ word: z.string(), count: z.number(), recentCount: z.number() })),
+      /**
+       * Words typical of this Landesverband against all others, strongest first;
+       * `count` = documents, `lift` = how many times the expected share. `null` outside LV notebooks.
+       */
+      signature: z
+        .array(z.object({ word: z.string(), count: z.number(), lift: z.number() }))
+        .nullable(),
     })
     .nullable(),
 });

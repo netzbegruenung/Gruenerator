@@ -47,6 +47,11 @@ const TOP_TERMS = 40;
 const TOP_RISING_TERMS = 8;
 /** The z-test alone flags a word seen three times recently and never before. */
 const RISING_MIN_RECENT = 5;
+const TOP_SIGNATURE_TERMS = 8;
+const SIGNATURE_MIN_DOCS = 5;
+const SIGNATURE_MIN_LIFT = 2;
+/** Thousands of words are tested per notebook — 1.96 would let dozens through by chance. */
+const SIGNATURE_Z = 3;
 const LV_COLLECTION = 'landesverbaende_documents';
 
 const HEAD_FIELDS = [
@@ -59,6 +64,7 @@ const HEAD_FIELDS = [
   'primary_category',
   'source_id',
   'source_name',
+  'source_type',
 ];
 
 export interface HeadDoc {
@@ -72,6 +78,8 @@ export interface HeadDoc {
   contentTypeLabel: string | null;
   sourceId: string | null;
   sourceName: string | null;
+  /** `landesverband` or `fraktion` in the LV collection. */
+  sourceType: string | null;
 }
 
 export type OverviewAggregate = Omit<
@@ -103,6 +111,7 @@ export function toHeadDoc(id: string | number, payload: Record<string, unknown>)
     contentTypeLabel: str(payload.content_type_label),
     sourceId: str(payload.source_id),
     sourceName: str(payload.source_name),
+    sourceType: str(payload.source_type),
   };
 }
 
@@ -180,10 +189,127 @@ export function trendOf(
   return 'flat';
 }
 
+type Stratum = { docs: number; terms: Map<string, number> };
+
+/** Tagged documents and keyword document counts per `source_type`. */
+function termStrata(docs: HeadDoc[]): Map<string, Stratum> {
+  const strata = new Map<string, Stratum>();
+  for (const doc of docs) {
+    if (doc.keywords.length === 0) continue;
+    const key = doc.sourceType ?? 'unknown';
+    const stratum = strata.get(key) ?? { docs: 0, terms: new Map<string, number>() };
+    stratum.docs++;
+    for (const term of new Set(doc.keywords)) increment(stratum.terms, term);
+    strata.set(key, stratum);
+  }
+  return strata;
+}
+
+export interface SignatureInput {
+  /** Every head chunk of the LV collection, this notebook's included. */
+  lvDocs: HeadDoc[];
+  /** The notebook's own region name; words starting with it are trivially typical. */
+  region: ReadonlySet<string>;
+}
+
+/** Scraped markup (`href="https://…`) is not a word. */
+const WORD = /^\p{L}[\p{L}*-]*$/u;
+/** The party's own label in regional form: "landtags-grün", "saargrüne". */
+const SELF_LABEL = /grün(e|en|er)?$/;
+
+/** Tokens of the full names the NER found in this document. */
+function nameTokens(doc: HeadDoc): Set<string> {
+  const tokens = new Set<string>();
+  for (const person of doc.persons.filter(isFullName)) {
+    for (const part of person.toLowerCase().split(/\s+/)) {
+      tokens.add(part);
+      for (const piece of part.split('-')) tokens.add(piece);
+    }
+  }
+  return tokens;
+}
+
+/**
+ * The keyword lemmatiser splits names into nouns ("bohm", "ann-sophie"), and
+ * nothing is more typical of one Landesverband than its own politicians — they
+ * filled every list in the measurement. A word counts as a name fragment when
+ * most of its documents name a person containing it; a collection-wide name
+ * list would also drop "fischer" or "wolf" wherever they are the plain noun.
+ */
+function nameFragments(docs: HeadDoc[]): Set<string> {
+  const total = new Map<string, number>();
+  const asName = new Map<string, number>();
+  for (const doc of docs) {
+    const names = nameTokens(doc);
+    for (const word of new Set(doc.keywords)) {
+      increment(total, word);
+      if (names.has(word)) increment(asName, word);
+    }
+  }
+  return new Set(
+    [...asName].filter(([word, n]) => n * 2 >= (total.get(word) ?? 0)).map(([word]) => word)
+  );
+}
+
+function isSignatureCandidate(
+  word: string,
+  region: ReadonlySet<string>,
+  names: ReadonlySet<string>
+): boolean {
+  if (!WORD.test(word) || SELF_LABEL.test(word) || names.has(word)) return false;
+  for (const name of region) if (word.startsWith(name)) return false;
+  return true;
+}
+
+/**
+ * Words that set this Landesverband apart from all the others. Reference is
+ * every other LV document (this notebook's own are subtracted), standardised by
+ * `source_type`: Fraktion texts outnumber party texts ~3:1 and some notebooks
+ * have no Fraktion at all, so a raw comparison would call "Landtag" typical.
+ * Per stratum the expected document count is the reference share (smoothed so
+ * an unseen word is not infinitely typical); observed vs. expected gives a
+ * binomial z-score.
+ */
+export function signatureTerms(
+  docs: HeadDoc[],
+  input: SignatureInput
+): Array<{ word: string; count: number; lift: number }> {
+  const target = termStrata(docs);
+  const all = termStrata(input.lvDocs);
+  const observed = new Map<string, number>();
+  for (const stratum of target.values()) {
+    for (const [term, n] of stratum.terms) observed.set(term, (observed.get(term) ?? 0) + n);
+  }
+
+  const names = nameFragments(docs);
+  const hits: Array<{ word: string; count: number; lift: number; z: number }> = [];
+  for (const [word, count] of observed) {
+    if (count < SIGNATURE_MIN_DOCS || !isSignatureCandidate(word, input.region, names)) continue;
+    let expected = 0;
+    let variance = 0;
+    for (const [key, stratum] of target) {
+      const reference = all.get(key);
+      const refDocs = (reference?.docs ?? 0) - stratum.docs;
+      const refHits = (reference?.terms.get(word) ?? 0) - (stratum.terms.get(word) ?? 0);
+      const p = (refHits + 0.5) / (refDocs + 1);
+      expected += stratum.docs * p;
+      variance += stratum.docs * p * (1 - p);
+    }
+    const lift = count / expected;
+    const z = (count - expected) / Math.sqrt(variance);
+    if (lift >= SIGNATURE_MIN_LIFT && z >= SIGNATURE_Z) hits.push({ word, count, lift, z });
+  }
+  return hits
+    .sort((a, b) => b.z - a.z)
+    .slice(0, TOP_SIGNATURE_TERMS)
+    .map(({ word, count, lift }) => ({ word, count, lift: Math.round(lift * 10) / 10 }));
+}
+
 export function aggregateOverview(
   docs: HeadDoc[],
   now: Date,
-  baselineShares: Map<TopicCategory, number> | null
+  baselineShares: Map<TopicCategory, number> | null,
+  signature: SignatureInput | null = null
 ): OverviewAggregate {
   const nowMs = now.getTime();
   const recentStart = nowMs - RECENT_WINDOW_DAYS * DAY_MS;
@@ -338,6 +464,7 @@ export function aggregateOverview(
               }))
               .sort((a, b) => b.recentCount - a.recentCount)
               .slice(0, TOP_RISING_TERMS),
+            signature: signature ? signatureTerms(docs, signature) : null,
           },
     contentTypes: [...typeCounts.entries()]
       .map(([value, count]) => ({
@@ -405,6 +532,15 @@ async function loadLvBaseline(client: QdrantClient): Promise<Map<TopicCategory, 
   return new Map([...counts].map(([topic, n]) => [topic, total > 0 ? n / total : 0]));
 }
 
+/** "Grüne Mecklenburg-Vorpommern" → mecklenburg-vorpommern, mecklenburg, vorpommern. */
+export function regionTerms(notebookName: string): Set<string> {
+  const region = notebookName
+    .replace(/^Grüne\s+/i, '')
+    .trim()
+    .toLowerCase();
+  return new Set([region, ...region.split('-')].filter((term) => term.length > 0));
+}
+
 async function loadRecent(
   client: QdrantClient,
   collection: string,
@@ -446,13 +582,15 @@ async function computeOverview(collectionId: string): Promise<NotebookOverviewRe
   const collection = config.qdrantCollection;
   const isLv = collection === LV_COLLECTION;
   const t0 = Date.now();
-  const [docs, baseline] = await Promise.all([
+  const [docs, baseline, lvDocs] = await Promise.all([
     scrollHeadDocs(client, collection, headFilter(collectionId)),
     isLv ? loadLvBaseline(client) : Promise.resolve(null),
+    isLv ? scrollHeadDocs(client, LV_COLLECTION, headFilter(null)) : Promise.resolve(null),
   ]);
 
   const now = new Date();
-  const { recentIds, ...aggregate } = aggregateOverview(docs, now, baseline);
+  const signature = lvDocs ? { lvDocs, region: regionTerms(config.name) } : null;
+  const { recentIds, ...aggregate } = aggregateOverview(docs, now, baseline, signature);
   const recent = await loadRecent(client, collection, collectionId, config.name, recentIds);
   log.info(`[${collectionId}] overview over ${docs.length} documents in ${Date.now() - t0}ms`);
 
