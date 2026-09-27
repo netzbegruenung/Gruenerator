@@ -96,6 +96,14 @@ export {
 } from './mentionTokens.js';
 export type { MentionToken, MentionTokenType } from './mentionTokens.js';
 
+// Source links ([Titel](quelle:N)) — citation-backed document links, FE/BE spec
+export {
+  SOURCE_LINK_SCHEME,
+  sourceLinkRegex,
+  parseSourceLinkHref,
+  sourceLinksToCitations,
+} from './sourceLinks.js';
+
 // German-aware sentence boundaries — read-aloud pipelining (voice) and
 // server-side chunking of long texts for Grünerator Voice (api)
 export { splitSentences } from './sentenceSplitter.js';
