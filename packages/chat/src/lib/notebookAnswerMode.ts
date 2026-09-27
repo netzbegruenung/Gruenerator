@@ -29,9 +29,9 @@ export const DEFAULT_NOTEBOOK_ANSWER_MODE: NotebookAnswerMode = 'auto';
 export const NOTEBOOK_ANSWER_MODES: NotebookAnswerModeDef[] = [
   {
     mode: 'auto',
-    label: 'Automatisch',
-    shortLabel: 'Auto',
-    description: 'Wählt je Frage',
+    label: 'Magic Search',
+    shortLabel: 'Magic',
+    description: 'Passt sich deiner Eingabe an',
     recommended: true,
   },
   {
@@ -85,9 +85,41 @@ export function notebookComposerModeDef(mode?: string | null): NotebookComposerM
   return NOTEBOOK_COMPOSER_MODES.find((m) => m.mode === mode) ?? notebookAnswerModeDef(null);
 }
 
+/** What Magic Search makes of the typed text on the start page: list the
+ *  matching sources, or start the chat. */
+export type MagicIntent = 'suche' | 'chat';
+
+// Word bounds by hand: `\b` knows no umlauts, so „können“ would never match.
+const QUESTION_OPENER =
+  /^(?:was|wer|wem|wen|wie|wo|woher|wohin|wann|warum|wieso|weshalb|welche\p{L}*|gibt\s+es|ist|sind|hat|haben|kann|können|soll(?:st|te|test|ten|en|t)?)(?![\p{L}\d])/iu;
+// Verb forms only, so nouns typed as keywords („Erklärung“, „Vergleichsmiete“,
+// „Liste Kitas“, „Schreiben Ministerium“) stay a search. Anywhere in the text a
+// verb counts only lowercase; capitalised it counts only as the opening
+// imperative („Erkläre …“), where a noun would not end in -e.
+const INSTRUCTION_VERB =
+  /(?:^|[^\p{L}\d])(?:erklär(?:e|en|t)?|fasse|vergleich(?:e|en)?|schreib(?:e|en|t)?|liste|nenn(?:e|en|t)?|zeig(?:e|en|t)?|analysier(?:e|en|t)?|bitte)(?![\p{L}\d])/u;
+const OPENING_IMPERATIVE =
+  /^(?:Erkläre|Fasse|Vergleiche|Schreibe|Nenne|Zeige|Analysiere|Bitte)(?![\p{L}\d])/u;
+
+/** Keywords and filter phrases („Hitzeschutz, Dokumente seit 30 Tagen“) are a
+ *  search; a question or an instruction is a chat. Unlike the server's
+ *  `searchDepth` openers, „seit“/„bis“/„in“ start a filter here, not a question. */
+export function detectMagicIntent(text: string): MagicIntent {
+  const trimmed = text.replace(/^[\s\p{P}]+/u, '');
+  if (trimmed.includes('?')) return 'chat';
+  if (QUESTION_OPENER.test(trimmed)) return 'chat';
+  if (OPENING_IMPERATIVE.test(trimmed) || INSTRUCTION_VERB.test(trimmed)) return 'chat';
+  return 'suche';
+}
+
 /** What a composer mode asks the server for. `manuell` never sends; where it
- *  is not offered (a running conversation) it behaves like the default. */
-export function toNotebookAnswerMode(mode: NotebookComposerMode): NotebookAnswerMode {
+ *  is not offered (a running conversation) it behaves like the default. Magic
+ *  Search that recognised a chat asks for `chat`. */
+export function toNotebookAnswerMode(
+  mode: NotebookComposerMode,
+  intent?: MagicIntent | null
+): NotebookAnswerMode {
+  if (mode === 'auto' && intent === 'chat') return 'chat';
   return mode === 'manuell' ? DEFAULT_NOTEBOOK_ANSWER_MODE : mode;
 }
 

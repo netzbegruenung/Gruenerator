@@ -1,8 +1,10 @@
 import { useAuiState } from '@assistant-ui/react';
 import {
   composerModeRunsLiveSearch,
+  detectMagicIntent,
   NotebookComposer,
   type CategoryFilterConfig,
+  type MagicIntent,
   type NotebookComposerMode,
   type SourceFilterConfig,
 } from '@gruenerator/chat';
@@ -105,6 +107,11 @@ export function NotebookStartpage({
   const hasText = composerText.trim().length > 0;
   if (raised && (!hasText || !liveSearch)) setRaised(false);
 
+  const magicIntent: MagicIntent | null =
+    !omniComposer && answerMode === 'auto' && manualSearchAvailable && hasText
+      ? detectMagicIntent(composerText)
+      : null;
+
   // --- Overview surface (/notebooks index + workplace "Wissen"): omni composer
   //     only. ---
   if (omniComposer) {
@@ -162,6 +169,7 @@ export function NotebookStartpage({
             onModeChange={onModeChange}
             answerMode={answerMode}
             onAnswerModeChange={onAnswerModeChange}
+            magicIntent={magicIntent}
             {...(manualSearchAvailable ? { onManualSubmit: setSubmitted } : {})}
           />
         </div>
@@ -182,7 +190,7 @@ export function NotebookStartpage({
             {...(manualSearchNotebookId ? { notebookId: manualSearchNotebookId } : {})}
             {...(composerCategoryFilters ? { sharedFilters: composerCategoryFilters } : {})}
             emptyHint={
-              answerMode === 'manuell'
+              answerMode === 'manuell' || magicIntent === 'suche'
                 ? 'Keine Treffer. Versuche andere Begriffe oder entferne Filter.'
                 : 'Keine Treffer in den Quellen. Mit Enter fragst du die KI.'
             }

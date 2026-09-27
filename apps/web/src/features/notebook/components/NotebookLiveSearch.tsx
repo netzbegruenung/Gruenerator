@@ -2,13 +2,13 @@ import { type CategoryFilterConfig } from '@gruenerator/chat';
 import { useEffect, useMemo, useState } from 'react';
 
 import useDebounce from '../../../components/hooks/useDebounce';
-import { ParsedFilterChips } from '../manual-search/ParsedFilterChips';
 import { type ResearchView } from '../manual-search/ResearchHitCard';
 import { ResearchResultsList } from '../manual-search/ResearchResultsList';
 import {
   ResearchResultsToolbar,
   researchOptionsAdjusted,
   resetResearchOptions,
+  type ResearchOptions,
 } from '../manual-search/ResearchResultsToolbar';
 import { LIVE_SEARCH_MIN_LENGTH, useLiveResearch } from '../manual-search/useLiveResearch';
 import {
@@ -16,8 +16,9 @@ import {
   mergeParsedFilters,
   useResearchFilters,
   type ActiveFilters,
+  type SortOption,
 } from '../manual-search/useResearchFilters';
-import { describeParsedFilters, parseResearchIntent } from '../omni/parseResearchIntent';
+import { parseResearchIntent } from '../omni/parseResearchIntent';
 
 const DEBOUNCE_MS = 300;
 
@@ -50,7 +51,18 @@ function useResearchView() {
 const LIST_FACETS = ['themes', 'persons'];
 
 /** Filter dimensions the query parser can recognise (see describeParsedFilters). */
-const PARSED_KEYS = ['published_at', 'themes'] as const;
+const PARSED_KEYS = ['published_at', 'themes', 'persons'] as const;
+type ParsedKey = (typeof PARSED_KEYS)[number];
+
+/** Toolbar choices on a dimension the query set; `null` means back to the default. */
+interface QueryOverrides {
+  query: string;
+  filters: Partial<Record<ParsedKey, ActiveFilters[string] | null>>;
+  sortBy?: SortOption;
+}
+
+const isParsedKey = (field: string): field is ParsedKey =>
+  (PARSED_KEYS as readonly string[]).includes(field);
 
 interface NotebookLiveSearchProps {
   /** The composer's current text. */
@@ -103,41 +115,90 @@ export function NotebookLiveSearch({
     [hasFacets, query, filters.filterFields]
   );
 
-  // A dropped chip belongs to the query it was dropped from; typing on brings
-  // the recognised filters back.
-  const [dropped, setDropped] = useState<{ query: string; keys: string[] }>({
-    query: '',
-    keys: [],
-  });
-  const droppedKeys = useMemo(
-    () => (dropped.query === query ? dropped.keys : []),
-    [dropped, query]
-  );
-  const chips = parsed
-    ? describeParsedFilters(parsed).filter((c) => !droppedKeys.includes(c.key))
-    : [];
+  // Per dimension (time span, themes, persons, order): a toolbar choice made for
+  // this query > what the query recognised > the toolbar's own, persisted state.
+  // A choice on a recognised dimension holds for this query only — typing on
+  // brings recognition back. Recognised facets add to persisted selections.
+  const [overridden, setOverridden] = useState<QueryOverrides>({ query: '', filters: {} });
+  const overrides: QueryOverrides =
+    overridden.query === query ? overridden : { query, filters: {} };
 
-  const apiFilters = useMemo(() => {
-    if (!hasFacets) return undefined;
-    const fromQuery: ActiveFilters = {};
-    for (const key of PARSED_KEYS) {
-      const value = parsed?.filters[key];
-      if (value && !droppedKeys.includes(key)) fromQuery[key] = value;
+  const recognised: string[] = [];
+  const effectiveFilters: ActiveFilters = { ...filters.activeFilters };
+  for (const key of PARSED_KEYS) {
+    const value = parsed?.filters[key];
+    if (!value) continue;
+    const own = overrides.filters[key];
+    if (own === null) {
+      delete effectiveFilters[key];
+    } else if (own) {
+      effectiveFilters[key] = own;
+    } else {
+      effectiveFilters[key] = mergeParsedFilters(effectiveFilters, { [key]: value })[key];
+      recognised.push(key);
     }
-    return activeFiltersToApi(
-      mergeParsedFilters(
-        mergeParsedFilters(sharedFilters?.activeFilters ?? {}, filters.activeFilters),
-        fromQuery
-      )
-    );
-  }, [hasFacets, parsed, droppedKeys, sharedFilters, filters.activeFilters]);
+  }
+  let sortBy = filters.sortBy;
+  if (parsed?.sortBy) {
+    sortBy = overrides.sortBy ?? parsed.sortBy;
+    if (!overrides.sortBy) recognised.push('sortBy');
+  }
 
-  // An explicit order wins; otherwise the query may ask for one („neueste …“).
-  const sortBy = filters.sortBy !== 'relevance' ? filters.sortBy : (parsed?.sortBy ?? 'relevance');
+  const override = (patch: Omit<Partial<QueryOverrides>, 'query'>) =>
+    setOverridden((prev) => {
+      const base = prev.query === query ? prev : { query, filters: {} };
+      return { ...base, ...patch, filters: { ...base.filters, ...patch.filters } };
+    });
+
+  const options: ResearchOptions = {
+    filterFields: filters.filterFields,
+    activeFilters: effectiveFilters,
+    searchMode: filters.searchMode,
+    setSearchMode: filters.setSearchMode,
+    sortBy,
+    setSortBy: (next) => {
+      if (!parsed?.sortBy) return filters.setSortBy(next);
+      override({ sortBy: next });
+      // Relevanz is the default, so it also drops a persisted order (reset).
+      if (next === 'relevance') filters.setSortBy(next);
+    },
+    toggleFilter: (field, value) => {
+      if (!isParsedKey(field) || !parsed?.filters[field]) return filters.toggleFilter(field, value);
+      const current = effectiveFilters[field];
+      const values = Array.isArray(current) ? current : [];
+      const next = values.includes(value) ? values.filter((v) => v !== value) : [...values, value];
+      override({ filters: { [field]: next.length > 0 ? next : null } });
+    },
+    setDateFilter: (field, dateFrom, dateTo) => {
+      if (!isParsedKey(field) || !parsed?.filters[field]) {
+        return filters.setDateFilter(field, dateFrom, dateTo);
+      }
+      override({
+        filters: {
+          [field]: dateFrom || dateTo ? { date_from: dateFrom, date_to: dateTo } : null,
+        },
+      });
+    },
+    clearAllFilters: () => {
+      filters.clearAllFilters();
+      const cleared: QueryOverrides['filters'] = {};
+      for (const key of PARSED_KEYS) if (parsed?.filters[key]) cleared[key] = null;
+      override({ filters: cleared });
+    },
+  };
+
+  const apiFilters = hasFacets
+    ? activeFiltersToApi(mergeParsedFilters(sharedFilters?.activeFilters ?? {}, effectiveFilters))
+    : undefined;
+
+  // The recognised date phrase and filler words are filters now, not search
+  // words — unless too little is left to search for.
+  const residual = parsed?.residualQuery ?? query;
+  const searchQuery = residual.length >= LIVE_SEARCH_MIN_LENGTH ? residual : query;
 
   const live = useLiveResearch({
     enabled: true,
-    query,
+    query: searchQuery,
     ...(notebookId ? { notebookId } : {}),
     collectionIds: collectionIds.length > 0 ? collectionIds : undefined,
     filters: apiFilters,
@@ -157,6 +218,12 @@ export function NotebookLiveSearch({
   if (!answered && live.results.length === 0) return null;
 
   const sharedKeys = new Set(sharedFilters?.fields.map((f) => f.field) ?? []);
+  // A facet the settings menu carries still shows here while the query sets it,
+  // so what filters the hits stays visible and editable.
+  const facetFields = LIST_FACETS.filter(
+    (f) =>
+      !sharedKeys.has(f) || recognised.includes(f) || (isParsedKey(f) && f in overrides.filters)
+  );
 
   return (
     <div className="duration-500 animate-in fade-in slide-in-from-bottom-2 motion-reduce:animate-none">
@@ -169,21 +236,18 @@ export function NotebookLiveSearch({
         isError={live.isError}
         emptyHint={emptyHint}
         view={view}
-        {...(researchOptionsAdjusted(filters)
-          ? { onResetOptions: () => resetResearchOptions(filters) }
+        {...(researchOptionsAdjusted(options)
+          ? { onResetOptions: () => resetResearchOptions(options) }
           : {})}
         toolbar={
           <ResearchResultsToolbar
-            filters={filters}
-            facetFields={hasFacets ? LIST_FACETS.filter((f) => !sharedKeys.has(f)) : []}
+            filters={options}
+            facetFields={hasFacets ? facetFields : []}
             view={view}
             onViewChange={setView}
-          >
-            <ParsedFilterChips
-              chips={chips}
-              onDrop={(key) => setDropped({ query, keys: [...droppedKeys, key] })}
-            />
-          </ResearchResultsToolbar>
+            recognised={recognised}
+            {...(parsed?.matched.dateLabel ? { dateLabel: parsed.matched.dateLabel } : {})}
+          />
         }
       />
     </div>

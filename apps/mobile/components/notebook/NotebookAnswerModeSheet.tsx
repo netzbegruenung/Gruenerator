@@ -36,7 +36,7 @@ export function useAnswerModeAccessory(onPress: () => void): ComposerAccessory {
   }, [mode, onPress]);
 }
 
-/** Option sheet for the notebook answer mode (Automatisch / Chat / Präzision). */
+/** Option sheet for the notebook answer mode (Magic Search / Chat / Präzision). */
 export const NotebookAnswerModeSheet = memo(function NotebookAnswerModeSheet({
   visible,
   onClose,
