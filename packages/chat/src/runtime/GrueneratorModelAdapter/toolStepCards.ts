@@ -8,6 +8,7 @@ const TOOL_STEP_TITLES: Record<string, string> = {
   apply_sharepic_ops: 'Wende Änderung an…',
   restore_version: 'Stelle Version wieder her…',
   rezept_laden: 'Lade Schreibvorgaben…',
+  meine_inhalte_laden: 'Öffne meine Inhalte…',
 };
 
 /** `tool_step_start` payload of the agentic loop. */
