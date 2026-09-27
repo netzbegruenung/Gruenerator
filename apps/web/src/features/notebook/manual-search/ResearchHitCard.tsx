@@ -1,12 +1,18 @@
 import { formatResearchHitCount } from '@gruenerator/shared/utils';
+import { Badge } from '@gruenerator/ui';
 import { type JSX } from 'react';
 import rehypeRaw from 'rehype-raw';
 
 import { Markdown } from '../../../components/common/Markdown/Markdown';
+import { NOTEBOOK_SNIPPET_MARKS } from '../notebookTheme';
 
 import { type ResearchResult } from './useResearch';
 
 import type { Components } from 'react-markdown';
+
+import { cn } from '@/utils/cn';
+
+export type ResearchView = 'grid' | 'list';
 
 export function formatPublishedDate(iso: string): string {
   try {
@@ -40,48 +46,87 @@ const SNIPPET_MARKDOWN_COMPONENTS: Partial<Components> = {
 
 const SNIPPET_REHYPE_PLUGINS = [rehypeRaw];
 
-/** Map a research hit to `IndexCard` props — shared by the manual-search tab and
- *  the omni composer's inline results so both surfaces render identically. */
-export function resultToCardProps(result: ResearchResult) {
-  const similarityPercent = Math.round(result.similarity_score * 100);
-  const tags = result.collection_name ? [result.collection_name] : [];
-  const chunkLabel = formatResearchHitCount(result.term_chunk_count, result.chunk_count);
+const CARD =
+  'relative flex flex-col rounded-xl border border-grey-200 bg-background transition-[box-shadow,border-color] hover:border-[#F2A9CE] hover:shadow-md focus-within:border-[#F2A9CE] dark:border-grey-700 dark:hover:border-[#7A3A5A]';
+const TITLE = 'm-0 font-[Raleway,sans-serif] font-bold leading-snug text-foreground-heading';
+const SNIPPET = cn(
+  'm-0 text-sm leading-relaxed text-grey-600 dark:text-grey-300',
+  NOTEBOOK_SNIPPET_MARKS
+);
+const META = 'text-[0.8125rem] text-grey-600 dark:text-grey-400';
 
-  const metaParts = [`${chunkLabel} · ${similarityPercent}% Relevanz`];
-  if (result.published_at) metaParts.push(formatPublishedDate(result.published_at));
+/**
+ * One research hit. The title's link stretches over the whole card
+ * (`after:inset-0`), so the card opens the source without being a button
+ * around a link — keyboard users meet each hit once.
+ */
+export function ResearchHitCard({ result, view }: { result: ResearchResult; view: ResearchView }) {
+  // A Landesverband document carries its kind and origin; other collections
+  // fall back to the collection they came from.
+  const kind = result.content_type_label ?? result.collection_name ?? null;
+  const origin = result.source_name ?? (result.content_type_label ? result.collection_name : null);
+  const date = result.published_at ? formatPublishedDate(result.published_at) : null;
+  const hits = formatResearchHitCount(result.term_chunk_count, result.chunk_count);
 
-  return {
-    // The whole card opens the source through the link's stretched hit area
-    // (`after:inset-0`), not through a card-level button: a button holding the
-    // link was a nested interactive control, and keyboard users met every hit
-    // twice.
-    className: result.source_url ? 'relative hover:border-grey-300 dark:hover:border-grey-600' : '',
-    title: result.title,
-    description: (
-      <Markdown
-        inline
-        rehypePlugins={SNIPPET_REHYPE_PLUGINS}
-        components={SNIPPET_MARKDOWN_COMPONENTS}
-      >
-        {result.relevant_content ?? ''}
-      </Markdown>
-    ),
-    tags,
-    meta: (
-      <div className="flex w-full items-center justify-between">
-        <span className="text-xs text-grey-500">{metaParts.join(' · ')}</span>
-        {result.source_url && (
-          <a
-            href={result.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Quelle öffnen: ${result.title}`}
-            className="text-xs text-primary-500 after:absolute after:inset-0 after:rounded-md after:content-[''] hover:underline"
-          >
-            Quelle öffnen
-          </a>
-        )}
+  const title = result.source_url ? (
+    <a
+      href={result.source_url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-inherit no-underline after:absolute after:inset-0 after:rounded-xl after:content-[''] hover:underline focus-visible:outline-none"
+    >
+      {result.title}
+    </a>
+  ) : (
+    result.title
+  );
+
+  const snippet = (
+    <Markdown
+      inline
+      rehypePlugins={SNIPPET_REHYPE_PLUGINS}
+      components={SNIPPET_MARKDOWN_COMPONENTS}
+    >
+      {result.relevant_content ?? ''}
+    </Markdown>
+  );
+
+  const kindBadge = kind ? (
+    <Badge variant="outline" className="font-medium">
+      {kind}
+    </Badge>
+  ) : null;
+
+  if (view === 'list') {
+    return (
+      <article className={cn(CARD, 'gap-1.5 px-4 py-3.5 sm:px-5 sm:py-4')}>
+        <div className={cn(META, 'flex flex-wrap items-center gap-x-2 gap-y-1')}>
+          {kindBadge}
+          <span>{[origin, date].filter(Boolean).join(' · ')}</span>
+        </div>
+        <h3 className={cn(TITLE, 'text-base [text-wrap:pretty] sm:text-lg')}>{title}</h3>
+        <p className={cn(SNIPPET, 'line-clamp-2')}>{snippet}</p>
+      </article>
+    );
+  }
+
+  return (
+    <article className={cn(CARD, 'h-full gap-3 p-4 sm:p-5')}>
+      <div className="flex items-center justify-between gap-2">
+        {kindBadge ?? <span />}
+        {date && <span className={META}>{date}</span>}
       </div>
-    ),
-  };
+      <h3 className={cn(TITLE, 'line-clamp-3 text-[1.0625rem]')}>{title}</h3>
+      <p className={cn(SNIPPET, 'line-clamp-4 flex-1')}>{snippet}</p>
+      <div
+        className={cn(
+          META,
+          'flex items-center justify-between gap-3 border-t border-grey-200 pt-3 dark:border-grey-700'
+        )}
+      >
+        <span className="min-w-0 truncate">{origin ?? ''}</span>
+        <span className="shrink-0">{hits}</span>
+      </div>
+    </article>
+  );
 }

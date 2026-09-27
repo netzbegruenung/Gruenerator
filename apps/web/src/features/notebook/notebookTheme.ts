@@ -15,3 +15,10 @@ export const NOTEBOOK_MAGENTA_BG = cn(
 // Workplace and chat surfaces already use — see `.workplace-chat-accent`.
 export const NOTEBOOK_COMPOSER_ACCENT =
   'workplace-chat-accent [--wp-accent:#D6006E] [--wp-accent-hover:#B4005C]';
+
+// Notebook magenta for text and marks on the page itself (not the composer):
+// changed search controls and the query-term underline in hit snippets.
+// #B4005C on white is 6.9:1, #F2A9CE on the dark surface 9.4:1.
+export const NOTEBOOK_ACCENT_TEXT = 'text-[#B4005C] dark:text-[#F2A9CE]';
+export const NOTEBOOK_SNIPPET_MARKS =
+  '[&_mark]:bg-transparent [&_mark]:font-semibold [&_mark]:text-foreground [&_mark]:shadow-[inset_0_-0.4em_0_#F5CFE2] dark:[&_mark]:shadow-[inset_0_-0.4em_0_#5A2740]';
