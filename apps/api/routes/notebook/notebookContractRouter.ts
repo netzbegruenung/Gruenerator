@@ -27,6 +27,7 @@ import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelp
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { getQdrantDocumentService } from '../../services/document-services/index.js';
 import { notebookQAService } from '../../services/notebook/index.js';
+import { getNotebookOverview } from '../../services/notebook/notebookOverviewService.js';
 import {
   byPublishedAtDesc,
   dedupeByUrlOrTitle,
@@ -460,6 +461,19 @@ export const notebookContractRouter = s.router(notebookContract, {
     } catch (error) {
       log.error(`[notebookContract.getStats] stats failed for ${collectionIds.join(',')}:`, error);
       return { status: 500 as const, body: { error: 'stats_failed' } };
+    }
+  },
+
+  getCollectionOverview: async (args) => {
+    const collectionId = args.params.id;
+    const refresh = args.query.refresh === '1' || args.query.refresh === 'true';
+    try {
+      const overview = await getNotebookOverview(collectionId, { refresh });
+      if (!overview) return { status: 404 as const, body: { error: 'unknown_collection' } };
+      return { status: 200 as const, body: overview };
+    } catch (error) {
+      log.error(`[notebookContract.getCollectionOverview] failed for ${collectionId}:`, error);
+      return { status: 500 as const, body: { error: 'overview_failed' } };
     }
   },
 
