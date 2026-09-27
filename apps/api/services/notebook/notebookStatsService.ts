@@ -6,7 +6,7 @@ import { getQdrantInstance } from '../../database/services/QdrantService/index.j
 import { createLogger } from '../../utils/logger.js';
 import redisClient from '../../utils/redis/client.js';
 
-import { getLatestKeywordSnapshot } from './notebookKeywordSnapshotService.js';
+import { getNotebookOverview } from './notebookOverviewService.js';
 
 import type { ScrollPoint } from '../../database/services/QdrantService/operations/types.js';
 
@@ -170,14 +170,14 @@ function buildMonthlyActivity(points: ScrollPoint[]): MonthBucket[] {
   return Array.from(buckets.entries()).map(([month, count]) => ({ month, count }));
 }
 
-interface SnapshotData {
+interface OverviewFacets {
   topWords: Array<{ word: string; count: number }>;
   topicDistribution: TopicCount[];
   topicSampleSize: number;
   topPersons: Array<{ person: string; count: number }>;
 }
 
-const EMPTY_SNAPSHOT: SnapshotData = {
+const EMPTY_FACETS: OverviewFacets = {
   topWords: [],
   topicDistribution: [],
   topicSampleSize: 0,
@@ -185,35 +185,27 @@ const EMPTY_SNAPSHOT: SnapshotData = {
 };
 
 /**
- * Read the most recent precomputed monthly snapshot for this collection.
- * Snapshots are computed by `refreshAllKeywordSnapshots()` on the 1st of each
- * month via a GitHub Actions cron — never inline on a stats request.
- *
- * Both the keyword cloud and topic ranking come from the same row, so we read
- * once and split the data here.
+ * Terms, topics and persons come from the overview, which counts them exactly
+ * over every document — the same figures the web Übersicht shows. The stats
+ * endpoint only stays for shipped mobile binaries; new clients read the overview.
  */
-async function readSnapshotData(collectionId: string): Promise<SnapshotData> {
+async function readOverviewFacets(collectionId: string): Promise<OverviewFacets> {
   try {
-    const snapshot = await getLatestKeywordSnapshot(collectionId);
-    if (!snapshot) return EMPTY_SNAPSHOT;
-
-    const topWords = snapshot.keywords.map((k) => ({ word: k.keyword, count: k.count }));
-    const topicDistribution: TopicCount[] = Object.entries(snapshot.topicCounts)
-      .filter(([, count]) => typeof count === 'number' && count > 0)
-      .map(([topic, count]) => ({ topic, count: count as number }))
-      .sort((a, b) => b.count - a.count);
-
+    const overview = await getNotebookOverview(collectionId);
+    if (!overview) return EMPTY_FACETS;
     return {
-      topWords,
-      topicDistribution,
-      topicSampleSize: snapshot.sampleSize,
-      topPersons: snapshot.persons.map((p) => ({ person: p.person, count: p.count })),
+      topWords: (overview.terms?.words ?? []).slice(0, TOP_WORDS_LIMIT),
+      topicDistribution: overview.topics.map(({ topic, count }) => ({ topic, count })),
+      topicSampleSize: overview.totals.documents,
+      topPersons: overview.persons
+        .slice(0, TOP_PERSONS_LIMIT)
+        .map(({ person, count }) => ({ person, count })),
     };
   } catch (error) {
     log.warn(
-      `readSnapshotData failed for ${collectionId}: ${error instanceof Error ? error.message : String(error)}`
+      `readOverviewFacets failed for ${collectionId}: ${error instanceof Error ? error.message : String(error)}`
     );
-    return EMPTY_SNAPSHOT;
+    return EMPTY_FACETS;
   }
 }
 
@@ -249,7 +241,7 @@ async function fetchStatsForCollection(collectionId: string): Promise<NotebookSt
     `[${collectionId}] qdrantCollection=${config.qdrantCollection} filter=${JSON.stringify(filterRecord)}`
   );
 
-  const [totalDocuments, categoryDistribution, sourceDistribution, monthlyPoints, snapshotData] =
+  const [totalDocuments, categoryDistribution, sourceDistribution, monthlyPoints, facets] =
     await Promise.all([
       qdrant.client
         .count(config.qdrantCollection, {
@@ -278,7 +270,7 @@ async function fetchStatsForCollection(collectionId: string): Promise<NotebookSt
           return [] as ScrollPoint[];
         }
       ),
-      readSnapshotData(collectionId),
+      readOverviewFacets(collectionId),
     ]);
 
   const monthlyActivity = buildMonthlyActivity(monthlyPoints);
@@ -289,7 +281,7 @@ async function fetchStatsForCollection(collectionId: string): Promise<NotebookSt
     `[${collectionId}] total=${totalDocuments} categories=${categoryDistribution.length} ` +
       `sources=${sourceDistribution.length} dateRange=${dateRange.min ?? '–'}..${dateRange.max ?? '–'} ` +
       `monthlyPoints=${monthlyPoints.length} monthlyTotal=${monthlyTotal} ` +
-      `topWords=${snapshotData.topWords.length} topics=${snapshotData.topicDistribution.length}`
+      `topWords=${facets.topWords.length} topics=${facets.topicDistribution.length}`
   );
 
   if (monthlyPoints.length > 0 && monthlyTotal === 0) {
@@ -306,10 +298,10 @@ async function fetchStatsForCollection(collectionId: string): Promise<NotebookSt
     sourceDistribution,
     dateRange,
     monthlyActivity,
-    topWords: snapshotData.topWords,
-    topicDistribution: snapshotData.topicDistribution,
-    topicSampleSize: snapshotData.topicSampleSize,
-    topPersons: snapshotData.topPersons,
+    topWords: facets.topWords,
+    topicDistribution: facets.topicDistribution,
+    topicSampleSize: facets.topicSampleSize,
+    topPersons: facets.topPersons,
   };
 }
 

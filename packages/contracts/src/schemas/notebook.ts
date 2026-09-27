@@ -264,6 +264,8 @@ export const notebookRecentResponseSchema = z.object({
 });
 
 // ── Statistics ───────────────────────────────────────────────────────────────
+//
+// Kept for shipped mobile binaries; new clients read the overview below.
 
 const notebookStatsFacetBucketSchema = z.object({ value: z.string(), count: z.number() });
 
@@ -283,9 +285,9 @@ export type NotebookStatsResponse = z.infer<typeof notebookStatsResponseSchema>;
 
 // ── Overview (Übersicht page of a system notebook) ──────────────────────────
 //
-// Unlike the stats endpoint, every count here is exact over all head chunks
-// (one point per document) — topics and persons come from the per-document
-// NLP enrichment, not from the monthly 80-document sample.
+// Every count here is exact over all head chunks (one point per document) —
+// topics, persons and terms come from the per-document NLP enrichment. The
+// stats endpoint derives its terms, topics and persons from this overview.
 
 export const notebookTopicTrendSchema = z.enum(['up', 'down', 'flat']);
 export type NotebookTopicTrend = z.infer<typeof notebookTopicTrendSchema>;

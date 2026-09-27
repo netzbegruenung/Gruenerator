@@ -1,7 +1,10 @@
 import { View, Text, StyleSheet } from 'react-native';
 
 import { TOPIC_COLORS, TOPIC_LABELS, isTopicCategory } from '../../config/topicConfig';
-import { useNotebookStats, type TopicCount } from '../../hooks/notebook/useNotebookStats';
+import {
+  useNotebookOverview,
+  type NotebookOverview,
+} from '../../hooks/notebook/useNotebookOverview';
 import { spacing, borderRadius, BODY_FONT } from '../../theme';
 import { SkeletonBar, SkeletonGroup } from '../common/Skeleton';
 
@@ -54,7 +57,7 @@ function StatCard({ label, value, theme }: { label: string; value: string; theme
   );
 }
 
-function TopicDistribution({ data, theme }: { data: TopicCount[]; theme: Theme }) {
+function TopicDistribution({ data, theme }: { data: NotebookOverview['topics']; theme: Theme }) {
   const known = data.filter((d) => isTopicCategory(d.topic));
   const total = known.reduce((sum, d) => sum + d.count, 0);
   if (known.length === 0 || total === 0) return null;
@@ -107,36 +110,39 @@ function TagList({ label, items, theme }: { label: string; items: string[]; them
 }
 
 /**
- * Per-notebook statistics — mobile port of web's `StatisticsSection`. Self-hides for
- * empty/loading-to-empty notebooks (and user notebooks, which pass `collectionIds: []`).
+ * Per-notebook statistics from the web Übersicht's overview endpoint, so both
+ * surfaces count the same way. Self-hides for empty/loading-to-empty notebooks and
+ * without a `collectionId` (user notebooks and multi-collection notebooks, which
+ * have no overview on the web either).
  */
 export function StatisticsSection({
-  collectionIds,
+  collectionId,
   theme,
   title = 'Statistiken',
 }: {
-  collectionIds: string[];
+  collectionId: string | null;
   theme: Theme;
   title?: string;
 }) {
-  const { data: stats, isLoading } = useNotebookStats({ collectionIds });
+  const { data: stats, isLoading } = useNotebookOverview(collectionId);
 
-  if (collectionIds.length === 0) return null;
+  if (collectionId === null) return null;
 
-  const totalDocs = stats?.totalDocuments ?? 0;
+  const totalDocs = stats?.totals.documents ?? 0;
   if (!isLoading && totalDocs === 0) return null;
 
-  const classifiedCount = stats ? stats.topicDistribution.reduce((sum, t) => sum + t.count, 0) : 0;
-  const terms = (stats?.topWords ?? []).slice(0, TOP_TERMS).map((w) => w.word);
-  const persons = (stats?.topPersons ?? []).slice(0, TOP_PERSONS).map((p) => p.person);
+  const classifiedCount = stats ? stats.topics.reduce((sum, t) => sum + t.count, 0) : 0;
+  const terms = (stats?.terms?.words ?? []).slice(0, TOP_TERMS).map((w) => w.word);
+  const persons = (stats?.persons ?? []).slice(0, TOP_PERSONS).map((p) => p.person);
 
   return (
     <View style={styles.section}>
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
 
       {isLoading || !stats ? (
-        // Two of the three stat cards are always there (the third depends on the
-        // sample size, so the skeleton does not claim it), then the topic bar.
+        // Two of the three stat cards are always there (the third depends on
+        // whether any document is classified, so the skeleton does not claim it),
+        // then the topic bar.
         <View style={styles.body}>
           <View style={styles.statRow}>
             {[0, 1].map((i) => (
@@ -159,24 +165,25 @@ export function StatisticsSection({
       ) : (
         <View style={styles.body}>
           <View style={styles.statRow}>
+            <StatCard label="Dokumente" value={totalDocs.toLocaleString('de-DE')} theme={theme} />
             <StatCard
-              label="Dokumente"
-              value={stats.totalDocuments.toLocaleString('de-DE')}
+              label="Zeitraum"
+              value={formatDateRange({
+                min: stats.totals.firstPublished,
+                max: stats.totals.lastPublished,
+              })}
               theme={theme}
             />
-            <StatCard label="Zeitraum" value={formatDateRange(stats.dateRange)} theme={theme} />
-            {stats.topicSampleSize > 0 && (
+            {classifiedCount > 0 && (
               <StatCard
                 label="Klassifiziert"
-                value={`${classifiedCount}/${stats.topicSampleSize}`}
+                value={`${classifiedCount}/${totalDocs}`}
                 theme={theme}
               />
             )}
           </View>
 
-          {stats.topicDistribution.length > 0 && (
-            <TopicDistribution data={stats.topicDistribution} theme={theme} />
-          )}
+          {stats.topics.length > 0 && <TopicDistribution data={stats.topics} theme={theme} />}
 
           {(terms.length > 0 || persons.length > 0) && (
             <View style={[styles.footer, { borderTopColor: theme.cardBorder }]}>
