@@ -1839,25 +1839,36 @@ export interface SystemMessageOptions {
 }
 
 /**
- * Build the complete system message with agent role and search context.
+ * Composer paths (press, social-media): a sibling composer node has already
+ * produced an intent-specific system prompt and stored it on state.responseText.
+ * Use it verbatim — bypassing the generic search-context / anchor / citation
+ * machinery that doesn't apply to a fresh content-creation turn.
+ * Defensive: routing in ChatGraph already forks composer intents away from
+ * respondNode, so this branch only fires if routing changes upstream.
  */
-export async function buildSystemMessage(
-  state: ChatGraphState,
-  opts: SystemMessageOptions = {}
-): Promise<string> {
-  // Composer paths (press, social-media): a sibling composer node has already
-  // produced an intent-specific system prompt and stored it on state.responseText.
-  // Use it verbatim — bypassing the generic search-context / anchor / citation
-  // machinery that doesn't apply to a fresh content-creation turn.
-  // Defensive: routing in ChatGraph already forks composer intents away from
-  // respondNode, so this branch only fires if routing changes upstream.
+function composerBypass(state: ChatGraphState): string | null {
   if (
     (state.intent === 'pressemitteilung_examples' || state.intent === 'examples') &&
     state.responseText
   ) {
     return state.responseText;
   }
+  return null;
+}
 
+type PromptBranch = 'default' | 'custom';
+
+/**
+ * Alle Ableitungen für den Systemprompt, getrennt vom Zusammenbau.
+ *
+ * Hier läuft alles, was nicht rein ist oder woran eine spätere Regel hängt:
+ * der Rezept-Nachschlag (Platte/Datenbank) samt `state.usedRecipes`, das
+ * Produktwissen, `formatSearchContext`, und `hasUntrusted`, das die fertigen
+ * Material-Blöcke liest. Reihenfolge und Anzahl dieser Aufrufe sind dieselben
+ * wie vor der Blockliste — die Blöcke lesen nur noch fertige Werte, sonst
+ * liefen Formatter doppelt und ihre Kürzungswarnungen stünden zweimal im Log.
+ */
+async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessageOptions) {
   const {
     agentConfig,
     intent,
@@ -2151,6 +2162,47 @@ export async function buildSystemMessage(
     ];
   }
 
+  const shared = {
+    state,
+    opts,
+    sourceCount,
+    activeTextFormTitle,
+    hasSources,
+    citationInstruction,
+    skillFragment,
+    today,
+    geltungsstand,
+    localeContext,
+    platformContext,
+    productIdentity,
+    productKnowledge,
+    docsPageMap,
+    userInstructionsFormatted,
+    intentGuidance,
+    memoryContextFormatted,
+    chatHistoryFormatted,
+    boardContextFormatted,
+    sheetContextFormatted,
+    docMentionContextFormatted,
+    threadAttachmentsContext,
+    currentDocumentContext,
+    attachmentContext,
+    imageContext,
+    artifactInventory,
+    summaryContextFormatted,
+    computedResultFormatted,
+    tabularComputeGuidance,
+    searchContext,
+    perSourceContext,
+    pipelineSourceText,
+    // What broke in this turn, in the model's own words. A warning event is
+    // telemetry only — without this block the model happily presents a degraded
+    // turn as a complete one (answering an arithmetic question from memory after
+    // the compute step failed, for instance).
+    degradationBlock: renderDegradationNotes(state.degradationNotes),
+    injectionWarning: state.injectionSuspected ? INJECTION_WARNING_NOTE : '',
+  };
+
   // Custom system prompt: replaces the entire agent prompt when set.
   //
   // Auch dieser Zweig muss lokalisieren. Der Meta-Prompt in
@@ -2167,10 +2219,16 @@ export async function buildSystemMessage(
     // `skillFragment` ist hier gefüllt, sobald eine Mention wirkt — ausdrücklich
     // gewählt oder über einen Katalog-Baustein (siehe `effectiveRecipeMention.ts`):
     // das Rezept bestimmt die FORM, die Rolle die Stimme.
-    return `${customSystemPrompt}${skillFragment}
-Heutiges Datum: ${today}${geltungsstand}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}
-
-${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSuspected ? INJECTION_WARNING_NOTE : ''}`;
+    return {
+      branch: 'custom' as PromptBranch,
+      ctx: {
+        ...shared,
+        customSystemPrompt,
+        systemRole: '',
+        // Im Rollen-Chat steht die Hierarchie-Regel unbedingt.
+        hierarchyRule: INSTRUCTION_HIERARCHY_RULE,
+      },
+    };
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -2180,12 +2238,6 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
     'korrekt wieder — unabhängig vom politischen Kontext.';
   const rawSystemRole = isNeutralTurn ? NEUTRAL_SUMMARY_ROLE : agentConfig.systemRole;
   const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
-
-  // What broke in this turn, in the model's own words. A warning event is
-  // telemetry only — without this block the model happily presents a degraded
-  // turn as a complete one (answering an arithmetic question from memory after
-  // the compute step failed, for instance).
-  const degradationBlock = renderDegradationNotes(state.degradationNotes);
 
   // The hierarchy rule is only meaningful when untrusted material is actually
   // present; the warning only when that material looks like it carries an
@@ -2208,19 +2260,153 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
     !!state.userInstructions ||
     !!memoryContext;
   const hierarchyRule = hasUntrusted ? INSTRUCTION_HIERARCHY_RULE : '';
-  const injectionWarning = state.injectionSuspected ? INJECTION_WARNING_NOTE : '';
 
-  return `${systemRole}${skillFragment}${degradationBlock}
-Heutiges Datum: ${today}${geltungsstand}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${pipelineSourceText}
+  return {
+    branch: 'default' as PromptBranch,
+    ctx: { ...shared, customSystemPrompt: '', systemRole, hierarchyRule },
+  };
+}
+
+type PromptBlockContext = Awaited<ReturnType<typeof buildPromptBlockContext>>['ctx'];
+
+/**
+ * Ein benannter Block des Systemprompts. Die `id` ist F1 (CLAUDE.md): einmal
+ * vergeben, wird sie nicht umbenannt — Tests und Diagnose hängen daran.
+ */
+interface PromptBlock {
+  readonly id: string;
+  /** Welche Zusammenbauten diesen Block auswählen. */
+  readonly branches: readonly PromptBranch[];
+  readonly render: (ctx: PromptBlockContext) => string;
+}
+
+const BOTH: readonly PromptBranch[] = ['default', 'custom'];
+const DEFAULT_ONLY: readonly PromptBranch[] = ['default'];
+const CUSTOM_ONLY: readonly PromptBranch[] = ['custom'];
+
+/**
+ * Die Reihenfolge des Systemprompts — als Daten.
+ *
+ * Der Rollen-Chat (`customSystemPrompt`) ist eine AUSWAHL aus dieser einen
+ * Liste, kein zweites Template: ein Zweig kann Blöcke auslassen, aber nicht
+ * umordnen. Führende Zeilenumbrüche gehören zum Block, der Zusammenbau ist ein
+ * `join('')`. Wer einen Block ergänzt, trägt ihn hier ein — mit seinem Zweig —
+ * und bekommt ihn damit auch in `activePromptBlocks` und im Golden-Test zu
+ * sehen (`respondNodePrompt.vitest.ts`).
+ */
+const PROMPT_BLOCKS = [
+  { id: 'custom-system-prompt', branches: CUSTOM_ONLY, render: (ctx) => ctx.customSystemPrompt },
+  { id: 'system-role', branches: DEFAULT_ONLY, render: (ctx) => ctx.systemRole },
+  { id: 'skill-fragment', branches: BOTH, render: (ctx) => ctx.skillFragment },
+  { id: 'degradation-notes', branches: DEFAULT_ONLY, render: (ctx) => ctx.degradationBlock },
+  { id: 'datum', branches: BOTH, render: (ctx) => `\nHeutiges Datum: ${ctx.today}` },
+  { id: 'geltungsstand', branches: BOTH, render: (ctx) => ctx.geltungsstand },
+  { id: 'locale-context', branches: BOTH, render: (ctx) => ctx.localeContext },
+  { id: 'platform-context', branches: BOTH, render: (ctx) => ctx.platformContext },
+  { id: 'product-identity', branches: DEFAULT_ONLY, render: (ctx) => ctx.productIdentity },
+  { id: 'product-knowledge', branches: DEFAULT_ONLY, render: (ctx) => ctx.productKnowledge },
+  { id: 'docs-page-map', branches: DEFAULT_ONLY, render: (ctx) => ctx.docsPageMap },
+  { id: 'user-instructions', branches: BOTH, render: (ctx) => ctx.userInstructionsFormatted },
+  { id: 'intent-guidance', branches: DEFAULT_ONLY, render: (ctx) => ctx.intentGuidance },
+  { id: 'memory-context', branches: BOTH, render: (ctx) => ctx.memoryContextFormatted },
+  { id: 'chat-history', branches: BOTH, render: (ctx) => ctx.chatHistoryFormatted },
+  { id: 'board-context', branches: BOTH, render: (ctx) => ctx.boardContextFormatted },
+  { id: 'sheet-context', branches: BOTH, render: (ctx) => ctx.sheetContextFormatted },
+  {
+    id: 'document-mention-context',
+    branches: BOTH,
+    render: (ctx) => ctx.docMentionContextFormatted,
+  },
+  { id: 'thread-attachments', branches: BOTH, render: (ctx) => ctx.threadAttachmentsContext },
+  { id: 'current-document', branches: BOTH, render: (ctx) => ctx.currentDocumentContext },
+  { id: 'attachments', branches: BOTH, render: (ctx) => ctx.attachmentContext },
+  { id: 'image-context', branches: BOTH, render: (ctx) => ctx.imageContext },
+  { id: 'artifact-inventory', branches: BOTH, render: (ctx) => ctx.artifactInventory },
+  { id: 'summary-context', branches: BOTH, render: (ctx) => ctx.summaryContextFormatted },
+  { id: 'computed-result', branches: BOTH, render: (ctx) => ctx.computedResultFormatted },
+  {
+    id: 'tabular-compute-guidance',
+    branches: BOTH,
+    render: (ctx) => ctx.tabularComputeGuidance,
+  },
+  { id: 'search-context', branches: BOTH, render: (ctx) => ctx.searchContext },
+  { id: 'per-source-context', branches: BOTH, render: (ctx) => ctx.perSourceContext },
+  { id: 'pipeline-source-text', branches: DEFAULT_ONLY, render: (ctx) => ctx.pipelineSourceText },
+  {
+    id: 'custom-citation-instruction',
+    branches: CUSTOM_ONLY,
+    render: (ctx) => (ctx.hasSources ? `\n${ctx.citationInstruction}` : ''),
+  },
+  {
+    id: 'custom-integrity-rule',
+    branches: CUSTOM_ONLY,
+    render: () => `\n\n${CONTENT_INTEGRITY_ANSWER_RULE}`,
+  },
+  {
+    id: 'answer-rules',
+    branches: DEFAULT_ONLY,
+    // Die Formatregel protokolliert ihre Entscheidung (`recordDecision`) — sie
+    // darf also nur laufen, wenn der Block auch gewählt ist.
+    render: (ctx) => `
 
 ## ANTWORT-REGELN
 1. ${SCOPE_RULE}
-2. ${buildAnswerFormatRule(state, sourceCount, opts.retrievalExpected ?? false, activeTextFormTitle)}
+2. ${buildAnswerFormatRule(ctx.state, ctx.sourceCount, ctx.opts.retrievalExpected ?? false, ctx.activeTextFormTitle)}
 3. Antworte auf Deutsch. Sind Quellen fremdsprachig, formuliere SPRACHLICH eigenständig statt wörtlich zu übersetzen — INHALTLICH bleibst du exakt bei der Quelle und ergänzt nichts, was dort nicht steht. Kannst du eine Aussage nicht nachvollziehbar auf Deutsch wiedergeben, lass sie weg statt zu raten
 4. Erfinde keine Fakten oder Quellennamen
 5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt
 6. Kompakte Formatierung: Maximal eine Leerzeile zwischen Absätzen. Keine doppelten Leerzeilen, keine horizontalen Trennlinien (---)
-7. ${CONTENT_INTEGRITY_ANSWER_RULE}${citationInstruction}${hierarchyRule}${injectionWarning}`;
+7. ${CONTENT_INTEGRITY_ANSWER_RULE}`,
+  },
+  { id: 'citation-instruction', branches: DEFAULT_ONLY, render: (ctx) => ctx.citationInstruction },
+  { id: 'instruction-hierarchy', branches: BOTH, render: (ctx) => ctx.hierarchyRule },
+  { id: 'injection-warning', branches: BOTH, render: (ctx) => ctx.injectionWarning },
+] as const satisfies readonly PromptBlock[];
+
+type PromptBlockId = (typeof PROMPT_BLOCKS)[number]['id'];
+
+export const PROMPT_BLOCK_ORDER: readonly PromptBlockId[] = PROMPT_BLOCKS.map((b) => b.id);
+
+function renderPromptBlocks(
+  branch: PromptBranch,
+  ctx: PromptBlockContext
+): { id: PromptBlockId; text: string }[] {
+  return PROMPT_BLOCKS.filter((b) => b.branches.includes(branch)).map((b) => ({
+    id: b.id,
+    text: b.render(ctx),
+  }));
+}
+
+/**
+ * Build the complete system message with agent role and search context.
+ */
+export async function buildSystemMessage(
+  state: ChatGraphState,
+  opts: SystemMessageOptions = {}
+): Promise<string> {
+  const bypass = composerBypass(state);
+  if (bypass !== null) return bypass;
+
+  const { branch, ctx } = await buildPromptBlockContext(state, opts);
+  return renderPromptBlocks(branch, ctx)
+    .map((b) => b.text)
+    .join('');
+}
+
+/**
+ * Welche Blöcke bei diesem Zustand Text beitragen, in Prompt-Reihenfolge.
+ * Derselbe Weg wie {@link buildSystemMessage} — inklusive seiner Nebenwirkungen.
+ */
+export async function activePromptBlocks(
+  state: ChatGraphState,
+  opts: SystemMessageOptions = {}
+): Promise<PromptBlockId[]> {
+  if (composerBypass(state) !== null) return [];
+
+  const { branch, ctx } = await buildPromptBlockContext(state, opts);
+  return renderPromptBlocks(branch, ctx)
+    .filter((b) => b.text !== '')
+    .map((b) => b.id);
 }
 
 /**
