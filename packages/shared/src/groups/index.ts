@@ -66,3 +66,5 @@ export {
   type GroupPostFile,
   type ToGroupFeedItemsOptions,
 } from './feed.js';
+
+export { replyMention, threadComments, type GroupCommentThread } from './comments.js';

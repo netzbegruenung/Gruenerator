@@ -1,7 +1,9 @@
+import { type GroupShareComment } from '@gruenerator/contracts';
 import {
   errMessage,
   formatFeedDate,
   personInitials,
+  threadComments,
   useGroupShareComments,
   type GroupFeedItem,
 } from '@gruenerator/shared/groups';
@@ -21,12 +23,35 @@ interface GroupCommentsSheetProps {
   onClose: () => void;
 }
 
-/** Kommentare eines Beitrags — in der App nur zum Lesen, geschrieben wird im Web. */
+/** Kommentare eines Beitrags als Threads — in der App nur zum Lesen, geschrieben wird im Web. */
 export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsSheetProps) {
   const theme = useTheme();
   const shareId = item?.share?.shareId ?? '';
   const comments = useGroupShareComments(groupId, shareId, { enabled: !!item });
   const list = comments.data ?? [];
+
+  const renderComment = (c: GroupShareComment, isReply: boolean) => (
+    <View key={c.id} style={styles.comment}>
+      <View
+        style={[
+          styles.avatar,
+          isReply && styles.avatarReply,
+          { backgroundColor: colors.secondary[100] },
+        ]}
+      >
+        <Text style={styles.avatarText}>{personInitials(c.authorName)}</Text>
+      </View>
+      <View style={styles.flex}>
+        <View style={[styles.bubble, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.author, { color: theme.text }]}>{c.authorName}</Text>
+          <Text style={[styles.body, { color: theme.text }]}>{c.body}</Text>
+        </View>
+        <Text style={[styles.when, { color: theme.textSecondary }]}>
+          {formatFeedDate(c.createdAt, 'short')}
+        </Text>
+      </View>
+    </View>
+  );
 
   return (
     <BottomSheet visible={!!item} onClose={onClose} maxHeight="75%">
@@ -58,20 +83,14 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
                 Noch keine Kommentare.
               </Text>
             ) : (
-              list.map((c) => (
-                <View key={c.id} style={styles.comment}>
-                  <View style={[styles.avatar, { backgroundColor: colors.secondary[100] }]}>
-                    <Text style={styles.avatarText}>{personInitials(c.authorName)}</Text>
-                  </View>
-                  <View style={styles.flex}>
-                    <View style={[styles.bubble, { backgroundColor: theme.surface }]}>
-                      <Text style={[styles.author, { color: theme.text }]}>{c.authorName}</Text>
-                      <Text style={[styles.body, { color: theme.text }]}>{c.body}</Text>
+              threadComments(list).map((t) => (
+                <View key={t.comment.id} style={styles.thread}>
+                  {renderComment(t.comment, false)}
+                  {t.replies.length > 0 && (
+                    <View style={[styles.replies, { borderLeftColor: theme.border }]}>
+                      {t.replies.map((r) => renderComment(r, true))}
                     </View>
-                    <Text style={[styles.when, { color: theme.textSecondary }]}>
-                      {formatFeedDate(c.createdAt, 'short')}
-                    </Text>
-                  </View>
+                  )}
                 </View>
               ))
             )}
@@ -109,6 +128,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   list: { padding: 16, gap: 14 },
   info: { fontFamily: BODY_FONT, fontSize: 14 },
+  thread: { gap: 10 },
+  replies: { marginLeft: 16, paddingLeft: 14, borderLeftWidth: 2, gap: 10 },
   comment: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   avatar: {
     width: 32,
@@ -117,6 +138,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarReply: { width: 28, height: 28, borderRadius: 14 },
   avatarText: {
     fontFamily: BODY_FONT,
     fontSize: 12,
