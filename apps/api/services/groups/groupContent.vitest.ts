@@ -158,6 +158,26 @@ describe('shareContentToGroup', () => {
     ).rejects.toThrow('nicht Mitglied');
   });
 
+  it.each([
+    ['system_notebooks', 'kommunalwiki-notebook'],
+    ['system_agents', 'gruenerator-antrag'],
+  ] as const)('shares a registered %s id without an ownership lookup', async (contentType, id) => {
+    const { deps, exec } = fakeDeps();
+    const out = await shareContentToGroup({ ...base, contentType, contentId: id }, deps);
+    expect(out.status).toBe(200);
+    expect(exec).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['system_notebooks', 'kommunalwiki'],
+    ['system_agents', 'gruenerator-gibt-es-nicht'],
+  ] as const)('refuses a %s id that is in no registry (#3738)', async (contentType, id) => {
+    const { deps, exec } = fakeDeps();
+    const out = await shareContentToGroup({ ...base, contentType, contentId: id }, deps);
+    expect(out.status).toBe(404);
+    expect(exec).not.toHaveBeenCalled();
+  });
+
   it('notifies the other members with the label of the content type', async () => {
     const { deps } = fakeDeps({ owner: { created_by: 'u1' } });
     await shareContentToGroup(
