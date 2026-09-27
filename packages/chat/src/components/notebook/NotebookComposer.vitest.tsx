@@ -163,11 +163,11 @@ describe('NotebookComposer — answer mode picker', () => {
     );
     await user.click(screen.getByRole('button', { name: /Antwortmodus wählen/ }));
 
-    const items = await screen.findAllByRole('menuitem');
+    const items = await screen.findAllByRole('menuitemradio');
     expect(items).toHaveLength(NOTEBOOK_ANSWER_MODES.length);
     expect(within(items[0]).getByText('Empfohlen')).toBeVisible();
 
-    await user.click(screen.getByRole('menuitem', { name: /Präzision/ }));
+    await user.click(screen.getByRole('menuitemradio', { name: /Präzision/ }));
     await waitFor(() => expect(onAnswerModeChange).toHaveBeenCalledWith('praezision'));
   });
 
@@ -210,16 +210,18 @@ describe('NotebookComposer — Manuell', () => {
       <NotebookComposer answerMode="auto" onAnswerModeChange={vi.fn()} onManualSubmit={vi.fn()} />
     );
     await user.click(screen.getByRole('button', { name: /Antwortmodus wählen/ }));
-    expect(await screen.findAllByRole('menuitem')).toHaveLength(NOTEBOOK_COMPOSER_MODES.length);
-    expect(screen.getByRole('menuitem', { name: /Manuell/ })).toBeVisible();
+    expect(await screen.findAllByRole('menuitemradio')).toHaveLength(
+      NOTEBOOK_COMPOSER_MODES.length
+    );
+    expect(screen.getByRole('menuitemradio', { name: /Manuell/ })).toBeVisible();
   });
 
   it('is not offered in a running conversation', async () => {
     const user = userEvent.setup();
     render(<NotebookComposer answerMode="auto" onAnswerModeChange={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: /Antwortmodus wählen/ }));
-    expect(await screen.findAllByRole('menuitem')).toHaveLength(NOTEBOOK_ANSWER_MODES.length);
-    expect(screen.queryByRole('menuitem', { name: /Manuell/ })).not.toBeInTheDocument();
+    expect(await screen.findAllByRole('menuitemradio')).toHaveLength(NOTEBOOK_ANSWER_MODES.length);
+    expect(screen.queryByRole('menuitemradio', { name: /Manuell/ })).not.toBeInTheDocument();
   });
 
   it('turns the composer into a search while selected', () => {

@@ -9,7 +9,7 @@ interface LastAddedSectionProps {
   title?: string;
   limit?: number;
   showSourceLabel?: boolean;
-  /** Embedded in the Manuelle-Recherche sub-tab: drop the standalone heading. */
+  /** Embedded in the start page's browse sub-tabs: drop the standalone heading. */
   embedded?: boolean;
 }
 
