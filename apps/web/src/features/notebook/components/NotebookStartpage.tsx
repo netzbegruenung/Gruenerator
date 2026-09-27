@@ -75,7 +75,7 @@ export { NOTEBOOK_MAGENTA_BG };
 
 const HEADING = cn(
   'text-center text-[38px] font-extrabold leading-[1.1] tracking-[-0.02em]',
-  'text-[#3A343B] dark:text-[#E4EDE8] max-md:text-3xl'
+  'text-[#3A343B] dark:text-[#F3E8EE] max-md:text-3xl'
 );
 
 export function NotebookStartpage({
