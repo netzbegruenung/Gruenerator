@@ -366,13 +366,17 @@ describe('NotebookStartpage — one composer', () => {
 
   it('moves the composer up with the first answer, not the first keystroke', async () => {
     renderPage('auto', 'Mieten');
-    const hero = screen.getByRole('heading', { level: 1 }).parentElement!;
+    const heading = screen.getByRole('heading', { level: 1 });
+    const hero = heading.closest('.transition-\\[padding\\]')!;
+    const fold = heading.parentElement!.parentElement!;
     expect(hero).not.toHaveClass('pt-10');
+    expect(fold).not.toHaveClass('opacity-0');
     await screen.findByText('Mietendeckel jetzt');
     expect(hero).toHaveClass('pt-10');
+    expect(fold).toHaveClass('opacity-0');
   });
 
-  it('fades the gradient out while the composer is up and back once it is centred', async () => {
+  it('fades the gradient out with the first answer and keeps it out once the field is cleared', async () => {
     const { container, rerender } = renderPage('auto', 'Mieten');
     const gradient = container.querySelector('.\\-z-10')!;
     expect(gradient).not.toHaveClass('opacity-0');
@@ -391,6 +395,6 @@ describe('NotebookStartpage — one composer', () => {
         recentCollectionIds={['berlin-system']}
       />
     );
-    expect(gradient).not.toHaveClass('opacity-0');
+    expect(gradient).toHaveClass('opacity-0');
   });
 });
