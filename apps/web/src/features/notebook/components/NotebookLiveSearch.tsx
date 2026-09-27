@@ -118,9 +118,10 @@ export function NotebookLiveSearch({
     [hasFacets, query, filters.filterFields]
   );
 
-  // What the query recognised is the toolbar's value; changing a recognised
-  // dimension there holds for this query only — typing on brings recognition
-  // back. Dimensions the query leaves alone stay with the toolbar's own state.
+  // Per dimension (time span, themes, persons, order): a toolbar choice made for
+  // this query > what the query recognised > the toolbar's own, persisted state.
+  // A choice on a recognised dimension holds for this query only — typing on
+  // brings recognition back. Recognised facets add to persisted selections.
   const [overridden, setOverridden] = useState<QueryOverrides>({ query: '', filters: {} });
   const overrides: QueryOverrides =
     overridden.query === query ? overridden : { query, filters: {} };
@@ -140,14 +141,10 @@ export function NotebookLiveSearch({
       recognised.push(key);
     }
   }
-  // An explicit order wins; otherwise the query may ask for one („neueste …“).
   let sortBy = filters.sortBy;
   if (parsed?.sortBy) {
-    if (overrides.sortBy) sortBy = overrides.sortBy;
-    else if (sortBy === 'relevance') {
-      sortBy = parsed.sortBy;
-      recognised.push('sortBy');
-    }
+    sortBy = overrides.sortBy ?? parsed.sortBy;
+    if (!overrides.sortBy) recognised.push('sortBy');
   }
 
   const override = (patch: Omit<Partial<QueryOverrides>, 'query'>) =>
@@ -163,10 +160,10 @@ export function NotebookLiveSearch({
     setSearchMode: filters.setSearchMode,
     sortBy,
     setSortBy: (next) => {
-      if (recognised.includes('sortBy') || overrides.sortBy) return override({ sortBy: next });
-      filters.setSortBy(next);
-      // Back to relevance means relevance, not the order the query asked for.
-      if (parsed?.sortBy && next === 'relevance') override({ sortBy: next });
+      if (!parsed?.sortBy) return filters.setSortBy(next);
+      override({ sortBy: next });
+      // Relevanz is the default, so it also drops a persisted order (reset).
+      if (next === 'relevance') filters.setSortBy(next);
     },
     toggleFilter: (field, value) => {
       if (!isParsedKey(field) || !parsed?.filters[field]) return filters.toggleFilter(field, value);
@@ -224,6 +221,12 @@ export function NotebookLiveSearch({
   if (!answered && live.results.length === 0) return null;
 
   const sharedKeys = new Set(sharedFilters?.fields.map((f) => f.field) ?? []);
+  // A facet the settings menu carries still shows here while the query sets it,
+  // so what filters the hits stays visible and editable.
+  const facetFields = LIST_FACETS.filter(
+    (f) =>
+      !sharedKeys.has(f) || recognised.includes(f) || (isParsedKey(f) && f in overrides.filters)
+  );
 
   return (
     <div className="duration-500 animate-in fade-in slide-in-from-bottom-2 motion-reduce:animate-none">
@@ -240,7 +243,7 @@ export function NotebookLiveSearch({
         toolbar={
           <ResearchResultsToolbar
             filters={options}
-            facetFields={hasFacets ? LIST_FACETS.filter((f) => !sharedKeys.has(f)) : []}
+            facetFields={hasFacets ? facetFields : []}
             view={view}
             onViewChange={setView}
             recognised={recognised}

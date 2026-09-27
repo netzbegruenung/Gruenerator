@@ -7,7 +7,7 @@
  * stand-in that exposes what the page hands it. The search underneath is real
  * and talks to MSW.
  */
-import { type NotebookComposerMode } from '@gruenerator/chat';
+import { type CategoryFilterConfig, type NotebookComposerMode } from '@gruenerator/chat';
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
@@ -93,9 +93,8 @@ beforeEach(() => {
 });
 afterEach(() => server.resetHandlers());
 
-function renderPage(answerMode: NotebookComposerMode, text: string) {
-  composer.text = text;
-  return renderWithProviders(
+function page(answerMode: NotebookComposerMode, composerCategoryFilters?: CategoryFilterConfig) {
+  return (
     <NotebookStartpage
       title="Was möchtest du über die Grünen Berlin wissen?"
       placeholder="Stell deine Frage…"
@@ -106,8 +105,18 @@ function renderPage(answerMode: NotebookComposerMode, text: string) {
       recentCollectionIds={['berlin-system']}
       showStats={false}
       showLastAdded={false}
+      {...(composerCategoryFilters ? { composerCategoryFilters } : {})}
     />
   );
+}
+
+function renderPage(
+  answerMode: NotebookComposerMode,
+  text: string,
+  composerCategoryFilters?: CategoryFilterConfig
+) {
+  composer.text = text;
+  return renderWithProviders(page(answerMode, composerCategoryFilters));
 }
 
 describe('NotebookStartpage — one composer', () => {
@@ -235,6 +244,73 @@ describe('NotebookStartpage — one composer', () => {
     await waitFor(() => expect(bodies.at(-1)).toMatchObject({ filters: null }));
     expect(screen.getByRole('button', { name: 'Personen: Alle Personen' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Zurücksetzen' })).not.toBeInTheDocument();
+  });
+
+  it('brings a recognised time span back once the text changes after an override', async () => {
+    const user = userEvent.setup();
+    const { rerender } = renderPage('auto', 'Hitzeschutz seit 30 Tagen');
+    await user.click(await screen.findByRole('button', { name: 'Zeitraum: Letzte 30 Tage' }));
+    await user.click(await screen.findByRole('menuitemradio', { name: 'Jederzeit' }));
+    await waitFor(() => expect(bodies.at(-1)).toMatchObject({ filters: null }));
+
+    composer.text = 'Hitzeschutz Kitas seit 30 Tagen';
+    rerender(page('auto'));
+    expect(await screen.findByRole('button', { name: 'Zeitraum: Letzte 30 Tage' })).toHaveAttribute(
+      'title',
+      'Aus der Eingabe erkannt'
+    );
+    await waitFor(() =>
+      expect(bodies.at(-1)).toMatchObject({
+        query: 'Hitzeschutz Kitas',
+        filters: { date_from: daysAgo(new Date(), 30) },
+      })
+    );
+  });
+
+  it('shows a recognised span that is no preset under its own label', async () => {
+    renderPage('auto', 'Mieten seit 2023');
+    expect(await screen.findByRole('button', { name: 'Zeitraum: seit 2023' })).toHaveAttribute(
+      'title',
+      'Aus der Eingabe erkannt'
+    );
+    await waitFor(() =>
+      expect(bodies.at(-1)).toMatchObject({ query: 'Mieten', filters: { date_from: '2023-01-01' } })
+    );
+  });
+
+  it('takes the order from the text and resets it to relevance', async () => {
+    const user = userEvent.setup();
+    renderPage('auto', 'neueste Mieten');
+    expect(await screen.findByRole('button', { name: 'Sortierung: Neueste' })).toHaveAttribute(
+      'title',
+      'Aus der Eingabe erkannt'
+    );
+    await waitFor(() => expect(bodies.at(-1)?.sortBy).toBe('date_desc'));
+
+    await user.click(screen.getByRole('button', { name: 'Zurücksetzen' }));
+    expect(await screen.findByRole('button', { name: 'Sortierung: Relevanz' })).toBeVisible();
+    await waitFor(() => expect(bodies.at(-1)?.sortBy).toBe('relevance'));
+  });
+
+  it('shows a recognised person here even when the settings menu carries persons', async () => {
+    const user = userEvent.setup();
+    renderPage('auto', 'Nina Stahr Mieten', {
+      fields: [
+        {
+          field: 'persons',
+          label: 'Personen',
+          values: [{ value: 'Werner Graf' }, { value: 'Nina Stahr' }],
+        },
+      ],
+      activeFilters: {},
+      onToggle: vi.fn(),
+    });
+    await user.click(await screen.findByRole('button', { name: 'Personen: Nina Stahr' }));
+    await waitFor(() => expect(bodies.at(-1)?.filters).toEqual({ persons: ['Nina Stahr'] }));
+
+    await user.click(await screen.findByRole('option', { name: /Nina Stahr/ }));
+    await waitFor(() => expect(bodies.at(-1)?.filters).toBeNull());
+    expect(screen.getByRole('button', { name: 'Personen: Alle Personen' })).toBeVisible();
   });
 
   it('moves the composer up with the first answer, not the first keystroke', async () => {
