@@ -13,8 +13,20 @@ import {
 } from '../../lib/notebookDepth';
 import { composerToolbarButtonClass } from '../../lib/utils';
 
-import { type CategoryFilterField } from './CategoryFilterDropdown';
-import { type SourceFilterCollection } from './SourceFilterDropdown';
+export interface SourceFilterCollection {
+  id: string;
+  name: string;
+  description?: string;
+  /** A number, or a label where a page config does not count ('Wiki'). */
+  documentCount?: string | number;
+}
+
+export interface CategoryFilterField {
+  field: string;
+  label: string;
+  values: Array<{ value: string; count?: number }>;
+  valueLabels?: Record<string, string>;
+}
 
 export interface SourceFilterConfig {
   collections: SourceFilterCollection[];
@@ -109,8 +121,20 @@ function SectionLink({ onClick, children }: { onClick: () => void; children: Rea
   );
 }
 
+/** Only real numbers: a label like '3 Programme' goes in the chip's tooltip. */
 function Count({ value }: { value?: number | string }) {
-  return value != null ? <span className="text-xs font-semibold">{value}</span> : null;
+  return typeof value === 'number' ? (
+    <span className="text-xs font-semibold">
+      {/* Keeps „Fraktion, 542“ apart in the accessible name. */}
+      <span className="sr-only">, </span>
+      {value}
+    </span>
+  ) : null;
+}
+
+function sourceTitle(collection: SourceFilterCollection): string | null {
+  const label = typeof collection.documentCount === 'string' ? collection.documentCount : null;
+  return [label, collection.description].filter(Boolean).join(' · ') || null;
 }
 
 /** How many documents the current selection searches — only where the counts
@@ -184,6 +208,9 @@ export function NotebookSettingsPopover({
     if (sourceActiveCount > 0) sourceFilters?.onSelectAll?.();
   };
 
+  // Nothing to set (e.g. gruen-o-mat): no settings button leading to an empty panel.
+  if (!(mode && onModeChange) && !hasFilters) return null;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -252,12 +279,13 @@ export function NotebookSettingsPopover({
             >
               {sourceFilters.collections.map((collection) => {
                 const selected = sourceFilters.selectedIds.includes(collection.id);
+                const title = sourceTitle(collection);
                 return (
                   <Chip
                     key={collection.id}
                     selected={selected}
                     onClick={() => sourceFilters.onToggle(collection.id)}
-                    {...(collection.description ? { title: collection.description } : {})}
+                    {...(title ? { title } : {})}
                   >
                     {selected && <Check className="h-4 w-4 shrink-0" aria-hidden />}
                     {collection.name}

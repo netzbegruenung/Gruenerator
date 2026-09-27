@@ -305,9 +305,47 @@ describe('NotebookComposer — settings trigger', () => {
     ).toBeVisible();
   });
 
-  it('stays the settings button where the surface has no tier', () => {
-    render(<NotebookComposer />);
+  it('stays the settings button where the surface has filters but no tier', () => {
+    render(
+      <NotebookComposer
+        sourceFilters={{
+          collections: [{ id: 'a', name: 'A' }],
+          selectedIds: ['a'],
+          onToggle: vi.fn(),
+        }}
+      />
+    );
     expect(screen.getByRole('button', { name: 'Einstellungen' })).toBeVisible();
+  });
+
+  it('leaves the settings out where the surface has nothing to set', () => {
+    render(<NotebookComposer />);
+    expect(screen.queryByRole('button', { name: /Einstellungen/ })).not.toBeInTheDocument();
+  });
+
+  it('shows only real counts on source chips and moves labels to the tooltip', async () => {
+    const user = userEvent.setup();
+    render(
+      <NotebookComposer
+        sourceFilters={{
+          collections: [
+            {
+              id: 'a',
+              name: 'Grundsatzprogramme',
+              documentCount: '3 Programme',
+              description: 'Programme',
+            },
+            { id: 'b', name: 'Fraktion', documentCount: 542 },
+          ],
+          selectedIds: ['a', 'b'],
+          onToggle: vi.fn(),
+        }}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: 'Einstellungen' }));
+    const programme = await screen.findByRole('button', { name: 'Grundsatzprogramme' });
+    expect(programme).toHaveAttribute('title', '3 Programme · Programme');
+    expect(screen.getByRole('button', { name: /^Fraktion,\s?542$/ })).toBeVisible();
   });
 });
 
