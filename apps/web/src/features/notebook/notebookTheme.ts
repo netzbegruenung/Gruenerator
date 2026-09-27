@@ -33,3 +33,8 @@ export const NOTEBOOK_MARK = 'bg-[#D6006E] dark:bg-[#E0418A]';
 export const NOTEBOOK_ACCENT_TEXT = 'text-[#B4005C] dark:text-[#F2A9CE]';
 export const NOTEBOOK_SNIPPET_MARKS =
   '[&_mark]:bg-transparent [&_mark]:font-semibold [&_mark]:text-foreground [&_mark]:shadow-[inset_0_-0.4em_0_#F5CFE2] dark:[&_mark]:shadow-[inset_0_-0.4em_0_#5A2740]';
+
+// Relevant passages in the document reader: a tint behind the sentence, the
+// active one deeper. Text stays `foreground` on both (light ≥ 12:1, dark ≥ 9:1).
+export const NOTEBOOK_PASSAGE = 'bg-[#FCEAF3] dark:bg-[#3A1828]';
+export const NOTEBOOK_PASSAGE_ACTIVE = 'bg-[#F5CFE2] dark:bg-[#5A2740]';

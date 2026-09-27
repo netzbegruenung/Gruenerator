@@ -1,6 +1,6 @@
 import { formatResearchHitCount } from '@gruenerator/shared/utils';
 import { Badge } from '@gruenerator/ui';
-import { type JSX } from 'react';
+import { type JSX, type MouseEvent } from 'react';
 import rehypeRaw from 'rehype-raw';
 
 import { Markdown } from '../../../components/common/Markdown/Markdown';
@@ -55,12 +55,27 @@ const SNIPPET = cn(
 );
 const META = 'text-[0.8125rem] text-grey-600 dark:text-grey-400';
 
+/** A plain primary click — modified clicks keep the link's own behaviour
+ *  (new tab, new window), so the source stays one gesture away. */
+function isPlainClick(e: MouseEvent<HTMLAnchorElement>) {
+  return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+}
+
 /**
  * One research hit. The title's link stretches over the whole card
  * (`after:inset-0`), so the card opens the source without being a button
- * around a link — keyboard users meet each hit once.
+ * around a link — keyboard users meet each hit once. With `onOpen`, a plain
+ * click opens the hit in the reader instead of the source.
  */
-export function ResearchHitCard({ result, view }: { result: ResearchResult; view: ResearchView }) {
+export function ResearchHitCard({
+  result,
+  view,
+  onOpen,
+}: {
+  result: ResearchResult;
+  view: ResearchView;
+  onOpen?: (() => void) | undefined;
+}) {
   // A Landesverband document carries its kind and origin; other collections
   // fall back to the collection they came from.
   const kind = result.content_type_label ?? result.collection_name ?? null;
@@ -73,6 +88,15 @@ export function ResearchHitCard({ result, view }: { result: ResearchResult; view
       href={result.source_url}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={
+        onOpen
+          ? (e) => {
+              if (!isPlainClick(e)) return;
+              e.preventDefault();
+              onOpen();
+            }
+          : undefined
+      }
       className="text-inherit no-underline after:absolute after:inset-0 after:rounded-xl after:content-[''] hover:underline focus-visible:outline-none"
     >
       {result.title}
