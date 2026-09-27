@@ -138,7 +138,7 @@ class TestShippedLists:
 
     def test_known_entries_are_present(self):
         assert "unsplash" in PERSON_BLOCKLIST
-        assert "vincent willock" in PERSON_BLOCKLIST
+        assert "vincent villwock" in PERSON_BLOCKLIST
 
     def test_entries_are_stored_normalized(self):
         # Guards against a future entry that can never match: anything with
