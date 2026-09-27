@@ -9,7 +9,13 @@ import {
   cn,
 } from '@gruenerator/ui';
 import { useId, type ReactNode } from 'react';
-import { FiArrowDownRight, FiArrowRight, FiArrowUpRight, FiExternalLink } from 'react-icons/fi';
+import {
+  FiArrowDownRight,
+  FiArrowRight,
+  FiArrowUpRight,
+  FiExternalLink,
+  FiMapPin,
+} from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 
 import { formatRelativeDate } from '../../../../utils/dateFormatter';
@@ -487,6 +493,47 @@ export function RecentDocuments({ overview }: { overview: NotebookOverview }) {
 /** Lemmas arrive lower-cased; German nouns read wrong that way. */
 const nounCase = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
 
+function TermChips({
+  icon,
+  heading,
+  items,
+}: {
+  icon: ReactNode;
+  heading: string;
+  items: Array<{ word: string; value: string; srDetail: string }>;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <h3
+        className={cn(
+          'flex items-center gap-1 text-xs font-semibold uppercase tracking-wide',
+          NOTEBOOK_TEXT_MUTED
+        )}
+      >
+        {icon}
+        {heading}
+      </h3>
+      <ul className="flex flex-wrap gap-2">
+        {items.map((item) => (
+          <li
+            key={item.word}
+            className={cn(
+              'rounded-full border border-[rgba(82,144,122,0.18)] px-3 py-1 text-sm dark:border-[#2C4A3B]',
+              NOTEBOOK_TEXT_STRONG
+            )}
+          >
+            {nounCase(item.word)}{' '}
+            <span className={cn('tabular-nums', NOTEBOOK_TEXT_MUTED)}>
+              {item.value}
+              <span className="sr-only"> {item.srDetail}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function TermCloud({
   terms,
   documents,
@@ -498,15 +545,18 @@ export function TermCloud({
     terms.documents < documents
       ? `${nf.format(terms.documents)} von ${nf.format(documents)} Dokumenten`
       : `${nf.format(terms.documents)} Dokumenten`;
+  const signature = terms.signature ?? [];
+  const notes = [
+    signature.length > 0 &&
+      '„Typisch hier“ vergleicht mit allen anderen Landesverbänden, getrennt nach Partei- und Fraktionstexten.',
+    terms.rising.length > 0 &&
+      '„Im Aufwind“ vergleicht die letzten 90 Tage mit den zwölf Monaten davor.',
+  ].filter(Boolean);
   return (
     <OverviewCard
       title="Begriffe"
       subtitle={`Häufigste Schlagwörter aus ${coverage}`}
-      footer={
-        terms.rising.length > 0 ? (
-          <>„Im Aufwind“ vergleicht die letzten 90 Tage mit den zwölf Monaten davor.</>
-        ) : undefined
-      }
+      footer={notes.length > 0 ? <>{notes.join(' ')}</> : undefined}
     >
       <div className={NOTEBOOK_TEXT_STRONG}>
         <WordCloud
@@ -519,35 +569,27 @@ export function TermCloud({
           maxFontSize={1.9}
         />
       </div>
+      {signature.length > 0 && (
+        <TermChips
+          icon={<FiMapPin aria-hidden />}
+          heading="Typisch hier"
+          items={signature.map((w) => ({
+            word: w.word,
+            value: `${nf.format(w.lift)}×`,
+            srDetail: `so häufig wie in anderen Landesverbänden, in ${nf.format(w.count)} Dokumenten`,
+          }))}
+        />
+      )}
       {terms.rising.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <h3
-            className={cn(
-              'flex items-center gap-1 text-xs font-semibold uppercase tracking-wide',
-              NOTEBOOK_TEXT_MUTED
-            )}
-          >
-            <FiArrowUpRight aria-hidden />
-            Im Aufwind
-          </h3>
-          <ul className="flex flex-wrap gap-2">
-            {terms.rising.map((w) => (
-              <li
-                key={w.word}
-                className={cn(
-                  'rounded-full border border-[rgba(82,144,122,0.18)] px-3 py-1 text-sm dark:border-[#2C4A3B]',
-                  NOTEBOOK_TEXT_STRONG
-                )}
-              >
-                {nounCase(w.word)}{' '}
-                <span className={cn('tabular-nums', NOTEBOOK_TEXT_MUTED)}>
-                  {nf.format(w.recentCount)}
-                  <span className="sr-only"> Dokumente in den letzten 90 Tagen</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <TermChips
+          icon={<FiArrowUpRight aria-hidden />}
+          heading="Im Aufwind"
+          items={terms.rising.map((w) => ({
+            word: w.word,
+            value: nf.format(w.recentCount),
+            srDetail: 'Dokumente in den letzten 90 Tagen',
+          }))}
+        />
       )}
     </OverviewCard>
   );
