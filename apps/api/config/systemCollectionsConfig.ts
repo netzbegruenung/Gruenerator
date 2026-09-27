@@ -839,6 +839,21 @@ export function applyDefaultFilter(
   };
 }
 
+/**
+ * Filter for facet value counts in a system collection: default filter plus
+ * `chunk_index = 0`, so each document counts once instead of once per chunk.
+ * Enrichment writes themes/persons onto every chunk of a document, so the head
+ * chunk carries the full values. System collections only — user uploads do not
+ * guarantee a head chunk per document.
+ */
+export function getFacetCountFilter(collectionId: string): Record<string, unknown> {
+  return {
+    ...applyDefaultFilter(collectionId, {
+      must: [{ key: 'chunk_index', match: { value: 0 } }],
+    }),
+  };
+}
+
 // =============================================================================
 // Default Export
 // =============================================================================

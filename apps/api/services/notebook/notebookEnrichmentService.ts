@@ -16,7 +16,7 @@
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { TOPIC_CATEGORIES, type TopicCategory } from '../monitor/types.js';
-import { classifyArticlesBatched, extractPersons } from '../nlp/nlpClient.js';
+import { classifyArticlesBatched, extractPersons, getPersonsVersion } from '../nlp/nlpClient.js';
 
 const log = createLogger('notebookEnrichment');
 
@@ -30,6 +30,13 @@ const log = createLogger('notebookEnrichment');
  * documents still carried "Unsplash" as a person weeks later.
  *
  * 4 (09/2026): per-document `keywords` for the notebook overview.
+ *
+ * Changes to the person rules no longer need a bump here: the NLP service
+ * reports its own `persons_version`, which is stamped as `nlp_persons_version`
+ * and compared in `alreadyEnriched`. The API-side bump could only ever say "re-tag
+ * now" — with the old service still running, the v3 re-tag stamped 08/2026
+ * documents with pre-v3 names (bare `Böttcher` next to `Bernd Böttcher`), and
+ * they were never looked at again (#3695).
  */
 const NLP_VERSION = 4;
 /** Per-mille noun-frequency floor for including a topic in `themes`. */
@@ -141,8 +148,17 @@ async function ensureNlpIndexes(
   }
 }
 
-function alreadyEnriched(payload: Record<string, unknown>): boolean {
+/**
+ * `personsVersion` is what the running NLP service reports; `null` (a service
+ * without the field) matches a payload that has none, so an old service is not
+ * re-tagging the same documents every night.
+ */
+export function alreadyEnriched(
+  payload: Record<string, unknown>,
+  personsVersion: number | null
+): boolean {
   if (!payload.nlp_enriched_at || payload.nlp_version !== NLP_VERSION) return false;
+  if ((payload.nlp_persons_version ?? null) !== personsVersion) return false;
   // Re-enrich if the document content changed since the last enrichment.
   const contentHash = typeof payload.content_hash === 'string' ? payload.content_hash : null;
   const stamped = typeof payload.nlp_content_hash === 'string' ? payload.nlp_content_hash : null;
@@ -228,6 +244,16 @@ export async function enrichCollection(
 
   await ensureNlpIndexes(client, collection);
 
+  let personsVersion: number | null;
+  try {
+    personsVersion = await getPersonsVersion();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    log.warn(`[${collection}] NLP service unreachable: ${message}`);
+    stats.error = `NLP service unreachable: ${message}`;
+    return stats;
+  }
+
   let offset: string | number | null = null;
   for (;;) {
     const scrollParams: Record<string, unknown> = {
@@ -242,6 +268,7 @@ export async function enrichCollection(
         'content_hash',
         'nlp_enriched_at',
         'nlp_version',
+        'nlp_persons_version',
         'nlp_content_hash',
       ],
       with_vector: false,
@@ -257,7 +284,7 @@ export async function enrichCollection(
     for (const point of points) {
       stats.scanned++;
       const payload = (point.payload as Record<string, unknown>) ?? {};
-      if (mode === 'missing' && alreadyEnriched(payload)) {
+      if (mode === 'missing' && alreadyEnriched(payload, personsVersion)) {
         stats.skipped++;
         continue;
       }
@@ -327,6 +354,7 @@ export async function enrichCollection(
             keywords,
             nlp_enriched_at: new Date().toISOString(),
             nlp_version: NLP_VERSION,
+            nlp_persons_version: personsVersion,
             nlp_content_hash: doc.contentHash,
           },
           filter: { must: [{ key: doc.idField, match: { value: doc.idValue } }] },
