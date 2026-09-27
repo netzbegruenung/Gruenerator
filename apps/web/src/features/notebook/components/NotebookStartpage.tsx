@@ -1,9 +1,10 @@
 import {
   NotebookComposer,
   type CategoryFilterConfig,
+  type NotebookComposerMode,
   type SourceFilterConfig,
 } from '@gruenerator/chat';
-import { type NotebookAnswerMode, type NotebookDepth } from '@gruenerator/contracts';
+import { type NotebookDepth } from '@gruenerator/contracts';
 import { cn } from '@gruenerator/ui';
 import { useMemo, useState, type ReactNode } from 'react';
 import { HiOutlineChartBar, HiOutlineClock, HiOutlineSparkles } from 'react-icons/hi2';
@@ -11,7 +12,7 @@ import { HiOutlineChartBar, HiOutlineClock, HiOutlineSparkles } from 'react-icon
 import PageContainer from '../../../components/common/PageContainer';
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 import { useNotebookStats } from '../hooks/useNotebookStats';
-import { NOTEBOOK_MAGENTA_BG } from '../notebookTheme';
+import { NOTEBOOK_COMPOSER_ACCENT, NOTEBOOK_MAGENTA_BG } from '../notebookTheme';
 import { NotebookOmniComposer } from '../omni/NotebookOmniComposer';
 
 import { LastAddedSection } from './LastAddedSection';
@@ -36,8 +37,8 @@ interface NotebookStartpageProps {
   composerCategoryFilters?: CategoryFilterConfig;
   mode: NotebookDepth;
   onModeChange: (mode: NotebookDepth) => void;
-  answerMode?: NotebookAnswerMode;
-  onAnswerModeChange?: (mode: NotebookAnswerMode) => void;
+  answerMode?: NotebookComposerMode;
+  onAnswerModeChange?: (mode: NotebookComposerMode) => void;
   recentCollectionIds: string[];
   showRecentSourceLabel?: boolean;
   showStats?: boolean;
@@ -270,7 +271,7 @@ export function NotebookStartpage({
         {activeView === 'ki' && (
           <div className="flex flex-1 flex-col items-center justify-center px-6 py-10 md:px-20">
             <h1 className={cn(HEADING, 'mb-8')}>{title}</h1>
-            <div className="w-full max-w-2xl">
+            <div className={cn('w-full max-w-2xl', NOTEBOOK_COMPOSER_ACCENT)}>
               <NotebookComposer
                 placeholder={placeholder}
                 sourceFilters={composerSourceFilters}

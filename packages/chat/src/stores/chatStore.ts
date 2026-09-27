@@ -1,6 +1,5 @@
 import {
   notebookAnswerModeSchema,
-  type NotebookAnswerMode,
   type NotebookDepth,
   type RoleRef,
   type SearchMode,
@@ -16,7 +15,7 @@ import {
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { DEFAULT_NOTEBOOK_ANSWER_MODE } from '../lib/notebookAnswerMode';
+import { DEFAULT_NOTEBOOK_ANSWER_MODE, type NotebookComposerMode } from '../lib/notebookAnswerMode';
 import { DEFAULT_NOTEBOOK_DEPTH } from '../lib/notebookDepth';
 import { notifyError, notifyWarning } from '../lib/notify';
 import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/resolveAutoModel';
@@ -138,8 +137,10 @@ interface AgentState {
    * source/category filters it is persisted and survives a reload.
    */
   notebookDepth: NotebookDepth;
-  /** Notebook answer mode (Automatisch/Chat/Präzision) — a preference like the depth. */
-  notebookAnswerMode: NotebookAnswerMode;
+  /** Notebook composer mode (Automatisch/Chat/Präzision/Manuell) — a preference
+   *  like the depth. Holds the client-only `manuell` too, so it is not the wire
+   *  `answerMode`; `toNotebookAnswerMode` derives that. */
+  notebookAnswerMode: NotebookComposerMode;
   customSystemPrompt: string | null;
   customRoleName: string | null;
   /**
@@ -196,7 +197,7 @@ interface AgentState {
   setThreadMode: (mode: ThreadMode) => void;
   setSearchMode: (mode: SearchMode) => void;
   setNotebookDepth: (depth: NotebookDepth) => void;
-  setNotebookAnswerMode: (mode: NotebookAnswerMode) => void;
+  setNotebookAnswerMode: (mode: NotebookComposerMode) => void;
   setCompactionState: (state: CompactionState) => void;
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
