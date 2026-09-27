@@ -1,4 +1,4 @@
-import { type GroupShareComment } from '@gruenerator/contracts';
+import { type GroupPostCreatedResponse, type GroupShareComment } from '@gruenerator/contracts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { apiErrorFromResponse, getContractsClient, getGlobalApiClient } from '../api/index.js';
@@ -319,6 +319,75 @@ export const useDeleteGroupAvatar = (groupId: string) => {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
       void qc.invalidateQueries({ queryKey: groupDetailsKey(groupId) });
+    },
+  });
+};
+
+// ── Feed: eigene Beiträge ───────────────────────────────────────────────────
+
+/**
+ * Beitrag mit Text und Dateien schreiben. Multipart, daher der rohe Client
+ * wie beim Avatar. Web übergibt `File`s; eine fertige `FormData` (Felder
+ * `body` und `files`) geht unverändert durch.
+ */
+export const useCreateGroupPost = (groupId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      body: string;
+      files: File[];
+      onProgress?: (fraction: number) => void;
+    }): Promise<GroupPostCreatedResponse> => {
+      const formData = new FormData();
+      formData.append('body', input.body);
+      for (const file of input.files) formData.append('files', file, file.name);
+      const res = await getGlobalApiClient().post<GroupPostCreatedResponse>(
+        `/auth/groups/${groupId}/posts`,
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (e: { loaded: number; total?: number }) => {
+            if (e.total) input.onProgress?.(e.loaded / e.total);
+          },
+        }
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: groupContentKey(groupId) });
+    },
+  });
+};
+
+export const useUpdateGroupPost = (groupId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { postId: string; body: string }) => {
+      const res = await getContractsClient().groups.updateGroupPost({
+        params: { groupId, postId: input.postId },
+        body: { body: input.body },
+      });
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Beitrag konnte nicht geändert werden.');
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: groupContentKey(groupId) });
+    },
+  });
+};
+
+export const useDeleteGroupPost = (groupId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (postId: string) => {
+      const res = await getContractsClient().groups.deleteGroupPost({
+        params: { groupId, postId },
+      });
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Beitrag konnte nicht gelöscht werden.');
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: groupContentKey(groupId) });
     },
   });
 };
