@@ -205,6 +205,8 @@ export const researchContractRouter = s.router(researchContract, {
         collection_id: r.collection_id,
         collection_name: r.collection_name,
         published_at: r.published_at ?? null,
+        content_type_label: r.content_type_label ?? null,
+        source_name: r.source_name ?? null,
       }));
 
       const collectionsFound = [...new Set(deduped.map((r) => r.collection_id))];

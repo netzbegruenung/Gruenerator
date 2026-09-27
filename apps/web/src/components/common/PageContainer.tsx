@@ -6,6 +6,7 @@ const MAX_WIDTH = {
   sm: 'max-w-[800px]',
   md: 'max-w-[900px]',
   lg: 'max-w-[1200px]',
+  xl: 'max-w-[1600px]',
 } as const;
 
 interface PageContainerProps {

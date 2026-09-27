@@ -47,6 +47,7 @@ const DEPTH_ICONS: Record<NotebookDepthIconKey, typeof Zap> = {
 const toOption = (m: NotebookComposerModeDef): ComposerOption<NotebookComposerMode> => ({
   id: m.mode,
   name: m.label,
+  ...(m.shortLabel ? { shortName: m.shortLabel } : {}),
   description: m.description,
   ...(m.recommended ? { recommendedLabel: 'Empfohlen' } : {}),
 });

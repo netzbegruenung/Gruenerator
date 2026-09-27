@@ -26,3 +26,10 @@ export const NOTEBOOK_TEXT_STRONG = 'text-[#22382E] dark:text-[#E4EDE8]';
 export const NOTEBOOK_TEXT_MUTED = 'text-[#5C6B63] dark:text-[#A9BDB2]';
 /** Data marks — validated for 3:1 against the card surfaces in both modes. */
 export const NOTEBOOK_MARK = 'bg-[#D6006E] dark:bg-[#E0418A]';
+
+// Notebook magenta for text and marks on the page itself (not the composer):
+// changed search controls and the query-term underline in hit snippets.
+// #B4005C on white is 6.9:1, #F2A9CE on the dark surface 9.4:1.
+export const NOTEBOOK_ACCENT_TEXT = 'text-[#B4005C] dark:text-[#F2A9CE]';
+export const NOTEBOOK_SNIPPET_MARKS =
+  '[&_mark]:bg-transparent [&_mark]:font-semibold [&_mark]:text-foreground [&_mark]:shadow-[inset_0_-0.4em_0_#F5CFE2] dark:[&_mark]:shadow-[inset_0_-0.4em_0_#5A2740]';

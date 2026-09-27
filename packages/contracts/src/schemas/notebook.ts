@@ -226,6 +226,12 @@ export const notebookResearchResultSchema = z.object({
   collection_id: z.string().nullish(),
   collection_name: z.string().nullish(),
   published_at: z.string().nullable().nullish(),
+  /** Document kind as a display label („Beschluss“, „Pressemitteilung“ …) —
+   *  Landesverband collections only. Additive (F0). */
+  content_type_label: z.string().nullish(),
+  /** Where the document comes from („Grüne Fraktion Berlin“ …) —
+   *  Landesverband collections only. Additive (F0). */
+  source_name: z.string().nullish(),
 });
 
 export const notebookResearchSearchResponseSchema = z.object({
