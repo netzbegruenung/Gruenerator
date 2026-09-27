@@ -99,6 +99,7 @@ import { resolveEditTarget } from './editTargetResolver.js';
 import {
   ARTIFACT_NOUN_BY_KIND,
   asksForChatDeliverable,
+  CREATION_VERB_RE,
   forbidsPersistentAction,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
@@ -203,12 +204,11 @@ const BARE_CONFIRMATION =
 // danke!" käme durch.
 const THANKS = /(?<!\p{L})(?:danke\p{L}*|dank|thx)(?!\p{L})/iu;
 
-/**
- * Setzt dieser Turn nur die Werkzeugarbeit des vorigen fort? Kurz und
- * rückbezüglich (`isReferentialFollowup`: keine Höflichkeit, kein
- * Umschreiben, kein Erstellverb, ≤ 8 Wörter), kein Dank, und weder Artefakt
- * (`GENERATION_SIGNAL`) noch Schreibauftrag.
- */
+// Die Schreibverben aus `WRITING_ORDER_RE` (agenticLoop/routing.ts) ohne
+// dessen Textsorten-Nomen: „Soll ich die vorletzte Pressemitteilung
+// vorlesen?" ist ein Nachschlage-Angebot, kein Schreibauftrag.
+const WRITING_VERB = /(?<!\p{L})(?:schreib|formulier|verfass|entwirf|entwerfe)\p{L}*/iu;
+
 /**
  * Liest sich der Turn als Bearbeitung eines Artefakts, das der Thread hält?
  * Dieselben Muster wie Tier 2.7, das tiefer unten entscheidet. Der Anschluss
@@ -230,8 +230,43 @@ function editsThreadArtifact(state: ChatGraphState, text: string): boolean {
   );
 }
 
-function continuesNotebookTurn(text: string): boolean {
-  if (BARE_CONFIRMATION.test(text)) return true;
+/**
+ * Der letzte Satz der vorigen Antwort — dort steht das Angebot, das eine
+ * nackte Bestätigung annimmt. `null` ohne vorige Antwort im Verlauf.
+ */
+function previousAssistantOffer(messages: ChatGraphState['messages']): string | null {
+  const lastUser = messages.map((m) => m.role).lastIndexOf('user');
+  const previous = messages
+    .slice(0, lastUser === -1 ? messages.length : lastUser)
+    .filter((m) => m.role === 'assistant')
+    .pop();
+  if (!previous) return null;
+  const sentences = extractMessageText(previous.content)
+    .split(/(?<=[.?!])\s+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  return sentences.at(-1) ?? null;
+}
+
+/**
+ * Setzt dieser Turn nur die Werkzeugarbeit des vorigen fort? Kurz und
+ * rückbezüglich (`isReferentialFollowup`: keine Höflichkeit, kein
+ * Umschreiben, kein Erstellverb, ≤ 8 Wörter), kein Dank, und weder Artefakt
+ * (`GENERATION_SIGNAL`) noch Schreibauftrag.
+ *
+ * Eine nackte Bestätigung („ja mach das") sagt selbst nichts — sie nimmt das
+ * Angebot am Ende der vorigen Antwort an. Pin nur, wenn das kein Erstell- oder
+ * Schreibangebot war („Soll ich daraus einen Social-Media-Post machen?" bleibt
+ * beim heutigen Weg; „…, müsste ich diese neu nachschlagen." pinnt).
+ */
+function continuesNotebookTurn(text: string, messages: ChatGraphState['messages']): boolean {
+  if (BARE_CONFIRMATION.test(text)) {
+    const offer = previousAssistantOffer(messages);
+    return !(
+      offer &&
+      (CREATION_VERB_RE.test(offer) || GENERATION_SIGNAL.test(offer) || WRITING_VERB.test(offer))
+    );
+  }
   return (
     isReferentialFollowup(text) &&
     !THANKS.test(text) &&
@@ -1052,7 +1087,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       !hasBoards &&
       !hasDocMentions &&
       !hasCurrentDocument &&
-      continuesNotebookTurn(askText) &&
+      continuesNotebookTurn(askText, messages) &&
       !editsThreadArtifact(state, userContent) &&
       (isUserNotebookId(lastTurnNotebookId) || !looksLikeNotebookWriteAsk(askText))
     ) {
