@@ -1,0 +1,122 @@
+name: Report Test Failures
+
+# Opens ONE issue per failing test when the CI workflow fails — on master, on
+# pushes and on PRs. Each test is keyed by its id (`file > suite > case`), which
+# `.github/scripts/failed-tests.sh` reads from the failed jobs' logs.
+#
+# Never doubled:
+# - open issue with the same title (label `test-failure`) → nothing happens;
+# - closed issue with the same title → reopened with a comment, not recreated;
+# - an open hand-written issue that names the test → nothing happens;
+# - two runs racing past the check → the later issue is closed as a duplicate
+#   right after creation.
+#
+# Scheduled workflows are covered per workflow by `ci-failure-issue.yml`.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+jobs:
+  report:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+      - name: Open or reopen one issue per failed test
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          LABEL: test-failure
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          EVENT: ${{ github.event.workflow_run.event }}
+          PRS: ${{ join(github.event.workflow_run.pull_requests.*.number, ' #') }}
+        run: |
+          set -euo pipefail
+
+          gh label create "$LABEL" --repo "$REPO" --color D93F0B \
+            --description "Automated report of a failing test" --force >/dev/null 2>&1 || true
+
+          : > failures.tsv
+          for JOB in $(gh run view "$RUN_ID" --repo "$REPO" --json jobs \
+              --jq '.jobs[] | select(.conclusion == "failure") | .databaseId'); do
+            gh api "repos/$REPO/actions/jobs/$JOB/logs" > "job-$JOB.log" 2>/dev/null || continue
+            .github/scripts/failed-tests.sh < "job-$JOB.log" | while IFS= read -r TEST; do
+              printf '%s\t%s\n' "$JOB" "$TEST" >> failures.tsv
+            done
+          done
+
+          if [ ! -s failures.tsv ]; then
+            echo "CI failed, but no failing test was found in the logs — nothing to report."
+            exit 0
+          fi
+
+          PR_LINE=""
+          if [ -n "$PRS" ]; then PR_LINE="- **PR:** #$PRS"; fi
+
+          while IFS=$'\t' read -r -u 3 JOB TEST; do
+            TITLE="Test failure: $TEST"
+            TITLE="${TITLE:0:250}"
+            export TITLE
+
+            MATCH=$(gh issue list --repo "$REPO" --state all --label "$LABEL" --limit 1000 \
+              --json number,title,state \
+              --jq 'map(select(.title == env.TITLE)) | sort_by(.state != "OPEN", .number) | .[0] | select(.) | "\(.number) \(.state)"')
+
+            if [ -n "$MATCH" ]; then
+              read -r NUM STATE <<< "$MATCH"
+              if [ "$STATE" = "OPEN" ]; then
+                echo "#$NUM already tracks: $TEST"
+              else
+                gh issue reopen "$NUM" --repo "$REPO" \
+                  --comment "Failing again in $RUN_URL (branch \`$BRANCH\`, \`${SHA:0:9}\`)."
+                echo "Reopened #$NUM: $TEST"
+              fi
+              continue
+            fi
+
+            # A hand-written issue about the same test counts too (e.g. one filed
+            # before this workflow existed). Search by the test's own name.
+            CASE="${TEST##* > }"
+            HAND=$(gh issue list --repo "$REPO" --state open --search "\"$CASE\" in:title,body" \
+              --limit 1 --json number --jq '.[0].number // empty')
+            if [ -n "$HAND" ]; then
+              echo "#$HAND already mentions: $TEST"
+              continue
+            fi
+
+            {
+              printf 'The test `%s` failed in CI.\n\n' "$TEST"
+              printf -- '- **Run:** %s\n' "$RUN_URL"
+              printf -- '- **Branch:** `%s` (`%s`, %s)\n' "$BRANCH" "${SHA:0:9}" "$EVENT"
+              if [ -n "$PR_LINE" ]; then printf '%s\n' "$PR_LINE"; fi
+              printf '\n<details><summary>Failure output</summary>\n\n```text\n'
+              sed -E 's/\x1b\[[0-9;]*m//g; s/^[0-9TZ:.-]+ //' "job-$JOB.log" \
+                | awk -v t="$TEST" 'hit && n < 40 { print; n++ } !hit && index($0, "FAIL") && index($0, t) { hit = 1; print }'
+              printf '\n```\n\n</details>\n\n'
+              printf '%s\n' "_Opened automatically, once per test. While this is open, further failures of the same test are ignored; once closed, the next failure reopens it._"
+            } > body.md
+
+            gh issue create --repo "$REPO" --title "$TITLE" --label "$LABEL" --body-file body.md
+
+            # Two CI runs finishing together can both pass the check above.
+            # Keep the oldest issue and close the rest as duplicates.
+            DUPES=$(gh issue list --repo "$REPO" --state open --label "$LABEL" --limit 1000 \
+              --json number,title --jq 'map(select(.title == env.TITLE)) | sort_by(.number) | .[1:] | .[].number')
+            KEEP=$(gh issue list --repo "$REPO" --state open --label "$LABEL" --limit 1000 \
+              --json number,title --jq 'map(select(.title == env.TITLE)) | sort_by(.number) | .[0].number')
+            for DUP in $DUPES; do
+              gh issue close "$DUP" --repo "$REPO" --reason "not planned" --comment "Duplicate of #$KEEP."
+            done
+          done 3< failures.tsv
