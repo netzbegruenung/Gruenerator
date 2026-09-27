@@ -17,6 +17,7 @@ import {
   updateGroupShare,
   type FeedOutcome,
 } from '../../../../services/groups/groupFeed.js';
+import { deleteGroupPost, updateGroupPost } from '../../../../services/groups/groupPosts.js';
 import { getPostgresAndCheckMembership } from '../groupCore.js';
 
 import { s, getUserId, groupErrorResponse } from './shared.js';
@@ -320,6 +321,33 @@ export const contentRoutes = {
       return { status: 200 as const, body: { success: true as const } };
     } catch (error) {
       return groupErrorResponse('updateGroupShare', 'Fehler beim Ändern des Beitrags.', error);
+    }
+  }),
+
+  updateGroupPost: s.route(groupsContract.updateGroupPost, async (args) => {
+    const { groupId, postId } = args.params;
+    try {
+      const outcome = await updateGroupPost({
+        groupId,
+        postId,
+        userId: getUserId(args.req),
+        body: args.body.body,
+      });
+      if ('message' in outcome) return feedError(outcome);
+      return { status: 200 as const, body: { success: true as const } };
+    } catch (error) {
+      return groupErrorResponse('updateGroupPost', 'Fehler beim Ändern des Beitrags.', error);
+    }
+  }),
+
+  deleteGroupPost: s.route(groupsContract.deleteGroupPost, async (args) => {
+    const { groupId, postId } = args.params;
+    try {
+      const outcome = await deleteGroupPost({ groupId, postId, userId: getUserId(args.req) });
+      if ('message' in outcome) return feedError(outcome);
+      return { status: 200 as const, body: { success: true as const } };
+    } catch (error) {
+      return groupErrorResponse('deleteGroupPost', 'Fehler beim Löschen des Beitrags.', error);
     }
   }),
 
