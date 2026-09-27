@@ -17,7 +17,6 @@ on:
       - Weekly Desktop Release
       - Docs Freshness Check
       - Monitor Refresh
-      - Monthly Notebook Keyword Snapshots
       - Nightly Notebook NLP Enrichment
       - Daily Offboarding
       - Social Media Sync
