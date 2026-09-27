@@ -38,7 +38,7 @@ const log = createLogger('notebookEnrichment');
  * documents with pre-v3 names (bare `Böttcher` next to `Bernd Böttcher`), and
  * they were never looked at again (#3695).
  */
-const NLP_VERSION = 4;
+export const NLP_VERSION = 4;
 /** Per-mille noun-frequency floor for including a topic in `themes`. */
 const THEME_MIN_SCORE = 30;
 /** Cap themes per doc to bound facet noise on long programmatic docs. */
