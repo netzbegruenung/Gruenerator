@@ -2,6 +2,7 @@
 
 import { useAuiState, useMessagePartText } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
+import { sourceLinkRegex, sourceLinksToCitations } from '@gruenerator/shared/utils';
 import { memo, useMemo } from 'react';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
@@ -26,9 +27,13 @@ const rehypePlugins: [typeof rehypeKatex, { throwOnError: boolean }][] = [
 // Normalize \( \) / \[ \] math delimiters, then map raw Unicode operators to
 // LaTeX commands inside math spans, BEFORE escaping citation markers
 // (escapeCitationMarkers emits `\[1\]`, which must not be seen as math).
+// Source links `[Titel](quelle:N)` fall back to `Titel [N]` here: this opt-in
+// renderer shows the badge, only the Streamdown path links the title.
 const preprocess = (text: string) => {
   maybeLoadKatexCss(text); // lazy-load the KaTeX stylesheet on first math
-  return escapeCitationMarkers(normalizeUnicodeMath(normalizeMathDelimiters(text)));
+  return escapeCitationMarkers(
+    normalizeUnicodeMath(normalizeMathDelimiters(sourceLinksToCitations(text)))
+  );
 };
 
 /**
@@ -50,7 +55,8 @@ const preprocess = (text: string) => {
  *      `metadata.custom.searchResults` is set from the first frame — the whole
  *      answer renders non-smooth, no mid-stream snap.
  *   2. Citation paths without the preview event (`done`-event citations) fall
- *      back to the marker regex, flipping smooth off at the first `[N]`.
+ *      back to the marker regex, flipping smooth off at the first `[N]` — or
+ *      the first source link, which `preprocess` rewrites the same way.
  *
  * Cited answers stream fine without the animation: the SSE adapter already
  * yields at most every 50ms, which is the perceived streaming.
@@ -73,7 +79,8 @@ function LegacyCitationMarkdownTextImpl() {
     useMarkdownSmooth() &&
     !hasSearchSources &&
     citations.length === 0 &&
-    !CITATION_MARKER_RE.test(rawText);
+    !CITATION_MARKER_RE.test(rawText) &&
+    !sourceLinkRegex().test(rawText);
   const citationMap = useMemo(() => new Map(citations.map((c) => [c.id, c])), [citations]);
   const components = useMemo(() => makeCitationComponents(citationMap), [citationMap]);
 

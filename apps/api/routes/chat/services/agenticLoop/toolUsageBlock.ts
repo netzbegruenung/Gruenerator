@@ -8,6 +8,7 @@
  */
 
 import { NO_PHANTOM_ACTION_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+import { SOURCE_LINK_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/sourceLinkRule.js';
 
 import { RECENCY_RULE } from './recencyRule.js';
 
@@ -100,6 +101,7 @@ export function buildToolUsageBlock(
       '- Fehlt dir eine Angabe, sag das knapp und benenne, was fehlt — erfinde sie NICHT und schlage auch keine Recherche vor.',
       `- Du hast maximal ${maxSteps} Schritte.`,
       '- Belege Fakten mit [N]-Markern, die den nummerierten Quellen entsprechen.',
+      `- ${SOURCE_LINK_RULE}`,
       // Nichts wird nachgeschlagen, es zählt also ausschliesslich, wie ALTE
       // Quellen gelesen werden — der Turn mit dem grössten Risiko, einen
       // vergangenen Stand als heutigen auszugeben.
@@ -164,6 +166,7 @@ export function buildToolUsageBlock(
     ...(hasSearchTools
       ? [
           '- Belege Fakten mit [N]-Markern, die den nummerierten Quellen im Feld "sources" der Tool-Ergebnisse entsprechen.',
+          `- ${SOURCE_LINK_RULE}`,
         ]
       : []),
     ...(unified && (hasSearchTools || hasCarriedSources) ? [`- ${RECENCY_RULE}`] : []),

@@ -62,6 +62,7 @@ import { lastUserText } from './classifierHeuristics.js';
 import { looksLikeDocsHelpQuestion, looksLikeGeltungsfrage } from './classifierSignals.js';
 import { resolveEffectiveRecipeMention } from './effectiveRecipeMention.js';
 import { stripQuotedSpans } from './fastPathGuards.js';
+import { SOURCE_LINK_RULE } from './sourceLinkRule.js';
 
 import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
 
@@ -1981,7 +1982,8 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
 6. Zitiere 1-2 Quellen pro Kernaussage — nicht jeder Satz braucht eine Referenz.
 7. Setze die Referenz direkt nach der Aussage, z.B.: "Die Grünen fordern ein Tempolimit [1]." Stützen mehrere Quellen dieselbe Aussage, fasse sie in EINER Klammer zusammen: [1, 3].
 8. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.
-9. ${SOURCE_HEDGING_RULE}`;
+9. ${SOURCE_HEDGING_RULE}
+10. ${SOURCE_LINK_RULE}`;
   }
 
   const today = formatGermanDate();

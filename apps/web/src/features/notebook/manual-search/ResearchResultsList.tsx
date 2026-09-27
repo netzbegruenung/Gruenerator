@@ -1,10 +1,10 @@
 import { Button } from '@gruenerator/ui';
 import { type ReactNode, useId } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 
-import { type ReaderTarget, ResearchDocumentReader } from './ResearchDocumentReader';
+import { ResearchDocumentReader } from './ResearchDocumentReader';
 import { ResearchHitCard, type ResearchView } from './ResearchHitCard';
 import { type ResearchResult } from './useResearch';
+import { useResearchReader } from './useResearchReader';
 
 import type { ResearchSearchResponse } from '@gruenerator/contracts';
 
@@ -30,25 +30,6 @@ interface ResearchResultsListProps {
   /** Hits come from system collections, which the reader can open. A user
    *  notebook's hits carry the notebook's own id as `collection_id` instead. */
   readable?: boolean;
-}
-
-type ReaderState = { researchReader?: ReaderTarget; question?: unknown } | null;
-
-/**
- * The open reader lives in the history entry, so the browser's back (or a
- * swipe on a phone) closes it instead of leaving the notebook. Other state on
- * the entry is kept — the chat bridge reads `freshConversation` from it — except
- * a pending `question`, which would otherwise be sent a second time.
- */
-function useResearchReader() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const state = location.state as ReaderState;
-  const open = (target: ReaderTarget) => {
-    const { question: _pending, ...rest } = state ?? {};
-    void navigate(location, { state: { ...rest, researchReader: target } });
-  };
-  return { target: state?.researchReader ?? null, open, close: () => void navigate(-1) };
 }
 
 /** The research hit list — one rendering for the notebook start page and the

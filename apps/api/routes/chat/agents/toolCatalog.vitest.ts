@@ -128,6 +128,36 @@ describe('toolCatalog source harvesting (excerpt/snippet → content)', () => {
     expect(out.sources).toContain('Klimaneutralität'); // the excerpt actually reached the model
   });
 
+  // The reader target comes from the hit's collection. Dropped here, a title
+  // the model links as `[Titel](quelle:N)` had nothing in-app to open.
+  it('keeps the collection a document hit came from, so its citation can open the reader', async () => {
+    searchExec.mockResolvedValue({
+      collection: 'brandenburg',
+      query: 'Braunkohle',
+      resultsCount: 1,
+      results: [
+        {
+          rank: 1,
+          relevance: 'high',
+          source: 'LEAG-Geheimplan zur Kohle',
+          url: 'https://gruene-brandenburg.de/leag',
+          excerpt: 'Die Bündnisgrünen fordern Aufklärung.',
+          collectionId: 'brandenburg',
+        },
+      ],
+    });
+    const sourceRegistry = createSourceRegistry();
+    const { tools } = buildChatToolCatalog({ agentConfig, sourceRegistry });
+    await execOf(tools.gruenerator_search)(
+      { query: 'Braunkohle', collection: 'grundsatz', limit: 5 },
+      { toolCallId: 'c1' }
+    );
+
+    const [citation] = sourceRegistry.getCitations();
+    expect(citation?.collectionId).toBe('brandenburg');
+    expect(citation?.readerCollectionId).toBe('brandenburg-system');
+  });
+
   it('registers web results whose text lives in `snippet`', async () => {
     webExec.mockResolvedValue({
       query: 'Tempolimit',

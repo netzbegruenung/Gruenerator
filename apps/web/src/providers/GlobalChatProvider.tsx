@@ -16,6 +16,7 @@ import {
   ChatPdfLetterheadExportHost,
   requestPdfLetterheadExport,
 } from '../features/chat/ChatPdfLetterheadExport';
+import { ChatSourceReaderHost, requestChatSourceReader } from '../features/chat/ChatSourceReader';
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
 import { updateCanvasThumbnail } from '../features/image-studio/services/canvasThumbnailService';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
@@ -179,6 +180,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         return (await handleUnauthorized('chat', info?.code)) === 'retry';
       },
       wolkeConnectUrl: '/settings/wolke',
+      onOpenSourceDocument: requestChatSourceReader,
       // Nur für Instanz-Admins: die Rolle lebt in apps/web, die Route auch.
       // packages/chat bekommt fertig entschieden, ob es etwas anzuzeigen gibt.
       chunkInspectorHref: isInstanceAdmin
@@ -407,6 +409,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       <TooltipProvider>
         {children}
         <ChatPdfLetterheadExportHost />
+        <ChatSourceReaderHost />
       </TooltipProvider>
     </GrueneratorChatProvider>
   );

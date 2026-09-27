@@ -7,6 +7,8 @@
  * - Source grouping by collection
  */
 
+import { SOURCE_LINK_SCHEME, sourceLinkRegex } from '@gruenerator/shared/utils';
+
 import { vectorConfig } from '../../config/vectorConfig.js';
 import { PROMPT_SOURCE_MAX_CHARS } from '../document-services/TextChunker/chunkBudget.js';
 
@@ -365,8 +367,24 @@ export function validateAndInjectCitations(
  */
 const CITATION_MARKER_PATTERN = /\[(\d+(?:\s*,\s*\d+)*)\]/g;
 
+/**
+ * Markers AND source links (`[Titel](quelle:N)`), in one pass so both count
+ * toward the same order of appearance. The link alternative comes first: at
+ * the same position it must win, or a label like `[2024]` would be read as a
+ * marker and its link left pointing at a stale number.
+ * Groups: 1 = link label, 2 = link id, 3 = marker ids.
+ */
+const CITATION_REFERENCE_PATTERN = new RegExp(
+  `${sourceLinkRegex().source}|${CITATION_MARKER_PATTERN.source}`,
+  'g'
+);
+
 function splitMarkerIds(inner: string): string[] {
   return inner.split(',').map((id) => id.trim());
+}
+
+function referenceIds(linkId: string | undefined, markerIds: string | undefined): string[] {
+  return linkId !== undefined ? [linkId] : splitMarkerIds(markerIds ?? '');
 }
 
 /**
@@ -384,9 +402,9 @@ export function renumberCitationsInOrder<T>(
   const seenOrder: string[] = [];
   let match;
 
-  const scan = new RegExp(CITATION_MARKER_PATTERN);
+  const scan = new RegExp(CITATION_REFERENCE_PATTERN);
   while ((match = scan.exec(draft)) !== null) {
-    for (const id of splitMarkerIds(match[1])) {
+    for (const id of referenceIds(match[2], match[3])) {
       if (!seenOrder.includes(id) && originalReferencesMap[id]) {
         seenOrder.push(id);
       }
@@ -403,12 +421,15 @@ export function renumberCitationsInOrder<T>(
   // unknown stay verbatim — an out-of-range id the model invented is a separate
   // problem from renumbering, and silently deleting text here would hide it.
   const renumberedDraft = draft.replace(
-    new RegExp(CITATION_MARKER_PATTERN),
-    (full, inner: string) => {
-      const mapped = splitMarkerIds(inner)
+    new RegExp(CITATION_REFERENCE_PATTERN),
+    (full, label: string | undefined, linkId: string | undefined, inner: string | undefined) => {
+      const mapped = referenceIds(linkId, inner)
         .map((id) => oldToNew[id])
         .filter((id): id is string => !!id);
-      return mapped.length > 0 ? `[${mapped.join(', ')}]` : full;
+      if (mapped.length === 0) return full;
+      return label !== undefined
+        ? `[${label}](${SOURCE_LINK_SCHEME}:${mapped[0]})`
+        : `[${mapped.join(', ')}]`;
     }
   );
 

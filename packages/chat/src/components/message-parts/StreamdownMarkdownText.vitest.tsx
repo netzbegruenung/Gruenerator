@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MarkdownStreamingProvider } from '../../context/MarkdownStreamingContext';
 import { normalizeMathDelimiters, normalizeUnicodeMath } from '../../lib/normalizeMathDelimiters';
 import { remarkCitationMarkers } from '../../lib/remarkCitationMarkers';
+import { remarkSourceLinks } from '../../lib/remarkSourceLinks';
 
 import { StreamdownMarkdownText } from './StreamdownMarkdownText';
 
@@ -66,7 +67,7 @@ describe('StreamdownMarkdownText — citations stay out of preprocess', () => {
     const preprocess = captured.props.preprocess;
     expect(preprocess).toBeTypeOf('function');
     const before = 'Der Beschluss nennt drei Ziele [1';
-    const after = 'Der Beschluss nennt drei Ziele [1] und [2, 7] mehr.';
+    const after = 'Der Beschluss nennt drei Ziele [1] und [2, 7] mehr, siehe [Titel](quelle:3).';
     expect(preprocess!(before)).toBe(before);
     expect(preprocess!(after)).toBe(after);
     // The invariant useSmooth checks, on the text it actually receives.
@@ -85,6 +86,7 @@ describe('StreamdownMarkdownText — citations stay out of preprocess', () => {
     render(<StreamdownMarkdownText />);
     const plugins = captured.props.remarkPlugins ?? [];
     expect(plugins).toContain(remarkCitationMarkers);
+    expect(plugins).toContain(remarkSourceLinks);
     // A custom list REPLACES the defaults inside Streamdown; without gfm, tables die.
     for (const plugin of Object.values(defaultRemarkPlugins)) expect(plugins).toContain(plugin);
   });

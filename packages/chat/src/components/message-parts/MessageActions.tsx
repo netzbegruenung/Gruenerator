@@ -1,6 +1,7 @@
 'use client';
 
 import { ActionBarPrimitive } from '@assistant-ui/react';
+import { sourceLinksToCitations } from '@gruenerator/shared/utils';
 import {
   DropdownMenuItem,
   ResponsiveMenu,
@@ -64,13 +65,16 @@ interface MessageActionsProps {
 }
 
 export const MessageActions = memo(function MessageActions({
-  content,
+  content: rawContent,
   metadata,
   showFeedback = false,
   sources,
   sourcesOpen = false,
   onToggleSources,
 }: MessageActionsProps) {
+  // Every outlet below (copy, export, TTS) is plain text: a source link
+  // `[Titel](quelle:N)` leaves the chat as `Titel [N]`, the form they know.
+  const content = sourceLinksToCitations(rawContent);
   const isCompact = useChatDensity() === 'compact';
   const readOnly = useReadonlyMode();
   const handleRegenerate = useRegenerateMessage();

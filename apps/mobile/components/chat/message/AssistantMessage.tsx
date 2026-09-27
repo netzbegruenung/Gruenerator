@@ -12,11 +12,13 @@ import {
   type Citation,
   type StatusPartLike,
 } from '@gruenerator/chat';
+import { useRouter } from 'expo-router';
 import { Fragment, memo, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
 import { chatType, spacing } from '../../../theme';
+import { routeWithParams } from '../../../types/routes';
 import { ArtifactCard } from '../ArtifactCard';
 import { BahnCard } from '../BahnCard';
 import { ChatChartCard } from '../ChatChartCard';
@@ -109,6 +111,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const progress = metadata.progress;
 
   const fetchFullText = useFetchFullText();
+  const router = useRouter();
   const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
 
   // One lookup the streamed text part reads to turn inline [N] markers into chips
@@ -118,8 +121,25 @@ export const AssistantMessage = memo(function AssistantMessage() {
     return {
       citationMap: new Map<number, Citation>(citations.map((c) => [c.id, c])),
       onCitationPress: setSelectedCitation,
+      // A system document opens in the notebook reader; anything else in the
+      // detail sheet, which offers the passage and the original URL.
+      onSourceLinkPress: (citation: Citation) => {
+        const { readerCollectionId, url, title } = citation;
+        if (!readerCollectionId || !url) {
+          setSelectedCitation(citation);
+          return;
+        }
+        router.push(
+          routeWithParams('/(focused)/notebook-reader', {
+            collectionId: readerCollectionId,
+            sourceUrl: url,
+            query: '',
+            title,
+          })
+        );
+      },
     };
-  }, [citations]);
+  }, [citations, router]);
 
   const messageText = useMemo(() => {
     return message.content
