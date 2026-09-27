@@ -401,6 +401,50 @@ describe('Pin und Streamer stellen dieselbe Frage', () => {
       mistral: { reasoningEffort: 'high' },
     });
   });
+
+  it('sendet den promptCacheKey auf der Mistral-Lane, allein und neben dem Denken', async () => {
+    mockStreamText.mockImplementation(() => streamOf([{ type: 'text-delta', text: 'ok' }]));
+    await streamForResolution({
+      resolution: makeResolution({ reasoningEffort: 'off' }) as never,
+      messages: MESSAGES,
+      temperature: 0.2,
+      sse: makeSse() as never,
+      promptCacheKey: 'k1',
+    });
+    expect(mockStreamText.mock.calls[0][0].providerOptions).toEqual({
+      mistral: { promptCacheKey: 'k1' },
+    });
+
+    mockStreamWithReasoning.mockImplementation(() => {
+      throw new ReasoningStreamUnavailableError('scaleway', 503, 'upstream weg');
+    });
+    await streamForResolution({
+      resolution: makeResolution({ reasoningEffort: 'high' }) as never,
+      messages: MESSAGES,
+      temperature: 0.2,
+      sse: makeSse() as never,
+      promptCacheKey: 'k1',
+    });
+    expect(mockStreamText.mock.calls[1][0].providerOptions).toEqual({
+      mistral: { reasoningEffort: 'high', promptCacheKey: 'k1' },
+    });
+  });
+
+  it('sendet keinen promptCacheKey an andere Anbieter', async () => {
+    mockStreamText.mockReturnValue(streamOf([{ type: 'text-delta', text: 'ok' }]));
+    await streamForResolution({
+      resolution: makeResolution({
+        provider: 'regolo',
+        modelName: 'gpt-oss-120b',
+        reasoningEffort: 'off',
+      }) as never,
+      messages: MESSAGES,
+      temperature: 0.2,
+      sse: makeSse() as never,
+      promptCacheKey: 'k1',
+    });
+    expect(mockStreamText.mock.calls[0][0].providerOptions).toBeUndefined();
+  });
 });
 
 // ─── Ausgabedecke ───────────────────────────────────────────────────────────

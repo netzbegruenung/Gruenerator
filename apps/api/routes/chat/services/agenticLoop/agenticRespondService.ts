@@ -18,6 +18,7 @@ import { knownArtifactRefs } from '../../../../agents/langgraph/ChatGraph/nodes/
 import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
+import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
@@ -601,6 +602,16 @@ export async function streamAgenticResponse(
     // Stillstand und die Turn-Zusammenfassung — siehe `resolveLoopPlannerLane`.
     plannerLane = mode === 'split' ? resolveLoopPlannerLane() : null;
 
+    const reasoningEffort = mistralReasoningOption(resolution.reasoningEffort);
+    const promptCacheKey = promptCacheKeyForThread(threadId ?? null);
+    const mistralOptions =
+      reasoningEffort != null || promptCacheKey != null
+        ? {
+            ...(reasoningEffort != null && { reasoningEffort }),
+            ...(promptCacheKey != null && { promptCacheKey }),
+          }
+        : null;
+
     const loopResult = await deps.runAgenticLoop({
       mode,
       plannerModel: plannerLane ? plannerLane.languageModel : resolution.model,
@@ -689,13 +700,10 @@ export async function streamAgenticResponse(
       // pin a thinking turn to the Mistral API (`needsReasoning`), but no phase
       // ever sent the option that actually switches thinking on. The lane moved,
       // the reasoning did not.
-      ...(mistralReasoningOption(resolution.reasoningEffort) != null && {
-        providerOptions: {
-          mistral: {
-            reasoningEffort: mistralReasoningOption(resolution.reasoningEffort) as string,
-          },
-        },
-      }),
+      //
+      // `promptCacheKey` keeps the thread's turns on one Mistral prompt cache
+      // (cached input is billed at 10 %). Ignored by every non-Mistral client.
+      ...(mistralOptions != null && { providerOptions: { mistral: mistralOptions } }),
       abortSignal,
       writeAbortSignal,
       afterGather,
