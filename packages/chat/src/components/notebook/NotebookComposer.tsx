@@ -351,6 +351,7 @@ export function NotebookComposer({
           ? 'Treffer kommen direkt aus den Quellen, ohne KI.'
           : 'KI-generierte Antworten können ungenau sein — bitte vor der Veröffentlichung prüfen.'
       }
+      {...(searches ? { disclaimerCompact: 'Treffer direkt aus den Quellen, ohne KI.' } : {})}
       showMentions={false}
       showPlusMenu={false}
       showToolToggles={false}

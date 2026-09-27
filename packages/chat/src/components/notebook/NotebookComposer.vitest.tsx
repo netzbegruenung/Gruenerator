@@ -26,6 +26,7 @@ const composerProps: {
   showModelPicker?: boolean;
   onSearchSubmit?: (text: string) => void;
   disclaimer?: string;
+  disclaimerCompact?: string;
 }[] = [];
 vi.mock('../thread/GrueneratorComposer', () => ({
   GrueneratorComposer: (props: {
@@ -33,11 +34,13 @@ vi.mock('../thread/GrueneratorComposer', () => ({
     showModelPicker?: boolean;
     onSearchSubmit?: (text: string) => void;
     disclaimer?: string;
+    disclaimerCompact?: string;
   }) => {
     composerProps.push({
       showModelPicker: props.showModelPicker,
       onSearchSubmit: props.onSearchSubmit,
       disclaimer: props.disclaimer,
+      disclaimerCompact: props.disclaimerCompact,
     });
     return (
       <div>
@@ -285,6 +288,21 @@ describe('NotebookComposer — Magic Search', () => {
     renderMagic('chat');
     expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
     expect(composerProps.at(-1)?.disclaimer).toMatch(/KI-generierte/);
+    expect(composerProps.at(-1)?.disclaimerCompact).toBeUndefined();
+  });
+
+  it('says on narrow screens too that a search runs without AI', () => {
+    renderMagic('suche');
+    expect(composerProps.at(-1)?.disclaimerCompact).toMatch(/ohne KI/);
+    composerProps.length = 0;
+    render(
+      <NotebookComposer
+        answerMode="manuell"
+        onAnswerModeChange={vi.fn()}
+        onManualSubmit={vi.fn()}
+      />
+    );
+    expect(composerProps.at(-1)?.disclaimerCompact).toMatch(/ohne KI/);
   });
 
   it.each([
@@ -296,7 +314,9 @@ describe('NotebookComposer — Magic Search', () => {
       name: `Antwortmodus wählen – Magic Search · ${label}`,
     });
     expect(trigger).toHaveTextContent(`Magic Search · ${label}`);
-    expect(trigger).toHaveTextContent(`Magic · ${label}`);
+    // Narrow screens keep the short name alone — the send button shows the
+    // intent there, and the suffix squeezed the input.
+    expect(trigger.querySelector('.sm\\:hidden')).toHaveTextContent(/^Magic$/);
   });
 
   it('keeps the suffix off the option list', async () => {
