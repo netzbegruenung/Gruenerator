@@ -6,14 +6,14 @@
  * have been reachable by nobody. Second, the active tier is readable without
  * opening the menu: before this it was invisible everywhere in the UI, so
  * nothing on screen distinguished an answer built from one search from one built
- * from three. The tier now shows as its own icon rather than as a word, so the
- * accessible name is the only place its identity is spelled out.
+ * from three. The trigger is always the settings glyph, so the accessible
+ * name (and tooltip) is where the tier is spelled out.
  */
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { NOTEBOOK_ANSWER_MODES } from '../../lib/notebookAnswerMode';
+import { NOTEBOOK_ANSWER_MODES, NOTEBOOK_COMPOSER_MODES } from '../../lib/notebookAnswerMode';
 import { NOTEBOOK_DEPTHS } from '../../lib/notebookDepth';
 
 import { NotebookComposer } from './NotebookComposer';
@@ -21,13 +21,23 @@ import { NotebookComposer } from './NotebookComposer';
 import type { NotebookDepth } from '@gruenerator/contracts';
 
 // The composer itself is assistant-ui's; only the leading slot is under test.
-const composerProps: { showModelPicker?: boolean }[] = [];
+const composerProps: {
+  showModelPicker?: boolean;
+  onSearchSubmit?: (text: string) => void;
+  disclaimer?: string;
+}[] = [];
 vi.mock('../thread/GrueneratorComposer', () => ({
   GrueneratorComposer: (props: {
     slots?: { leading?: React.ReactNode; sendAdornment?: React.ReactNode };
     showModelPicker?: boolean;
+    onSearchSubmit?: (text: string) => void;
+    disclaimer?: string;
   }) => {
-    composerProps.push({ showModelPicker: props.showModelPicker });
+    composerProps.push({
+      showModelPicker: props.showModelPicker,
+      onSearchSubmit: props.onSearchSubmit,
+      disclaimer: props.disclaimer,
+    });
     return (
       <div>
         <div data-testid="leading">{props.slots?.leading}</div>
@@ -176,5 +186,70 @@ describe('NotebookComposer — answer mode picker', () => {
     expect(
       within(screen.getByTestId('send-adornment')).queryByRole('button', { name: /Suchtiefe/ })
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('NotebookComposer — settings trigger', () => {
+  it('is labelled as the settings, whatever the tier', () => {
+    renderComposer('deep');
+    expect(
+      screen.getByRole('button', { name: /^Einstellungen — Suchtiefe: Mittel$/ })
+    ).toBeVisible();
+  });
+
+  it('stays the settings button where the surface has no tier', () => {
+    render(<NotebookComposer />);
+    expect(screen.getByRole('button', { name: 'Einstellungen' })).toBeVisible();
+  });
+});
+
+describe('NotebookComposer — Manuell', () => {
+  it('is offered only where the surface can search', async () => {
+    const user = userEvent.setup();
+    render(
+      <NotebookComposer answerMode="auto" onAnswerModeChange={vi.fn()} onManualSubmit={vi.fn()} />
+    );
+    await user.click(screen.getByRole('button', { name: /Antwortmodus wählen/ }));
+    expect(await screen.findAllByRole('menuitem')).toHaveLength(NOTEBOOK_COMPOSER_MODES.length);
+    expect(screen.getByRole('menuitem', { name: /Manuell/ })).toBeVisible();
+  });
+
+  it('is not offered in a running conversation', async () => {
+    const user = userEvent.setup();
+    render(<NotebookComposer answerMode="auto" onAnswerModeChange={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: /Antwortmodus wählen/ }));
+    expect(await screen.findAllByRole('menuitem')).toHaveLength(NOTEBOOK_ANSWER_MODES.length);
+    expect(screen.queryByRole('menuitem', { name: /Manuell/ })).not.toBeInTheDocument();
+  });
+
+  it('turns the composer into a search while selected', () => {
+    composerProps.length = 0;
+    const onManualSubmit = vi.fn();
+    render(
+      <NotebookComposer
+        answerMode="manuell"
+        onAnswerModeChange={vi.fn()}
+        onManualSubmit={onManualSubmit}
+      />
+    );
+    expect(composerProps.at(-1)?.onSearchSubmit).toBe(onManualSubmit);
+    expect(composerProps.at(-1)?.disclaimer).toMatch(/ohne KI/);
+  });
+
+  it('leaves the model path alone in the other modes', () => {
+    composerProps.length = 0;
+    render(
+      <NotebookComposer answerMode="auto" onAnswerModeChange={vi.fn()} onManualSubmit={vi.fn()} />
+    );
+    expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
+  });
+
+  it('shows a stored Manuell as the default where it is not offered', () => {
+    // The preference is shared with the start page; in a conversation it sends
+    // as the default, and the picker must say so.
+    composerProps.length = 0;
+    render(<NotebookComposer answerMode="manuell" onAnswerModeChange={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /Antwortmodus wählen – Automatisch/ })).toBeVisible();
+    expect(composerProps.at(-1)?.onSearchSubmit).toBeUndefined();
   });
 });

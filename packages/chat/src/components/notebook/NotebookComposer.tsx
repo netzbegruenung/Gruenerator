@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuiState } from '@assistant-ui/store';
-import { type NotebookAnswerMode, type NotebookDepth } from '@gruenerator/contracts';
+import { type NotebookDepth } from '@gruenerator/contracts';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -18,7 +18,13 @@ import {
 import { BookOpen, Telescope, Zap } from 'lucide-react';
 import { LuSettings2 } from 'react-icons/lu';
 
-import { NOTEBOOK_ANSWER_MODES, notebookAnswerModeDef } from '../../lib/notebookAnswerMode';
+import {
+  NOTEBOOK_ANSWER_MODES,
+  NOTEBOOK_COMPOSER_MODES,
+  notebookComposerModeDef,
+  type NotebookComposerMode,
+  type NotebookComposerModeDef,
+} from '../../lib/notebookAnswerMode';
 import {
   NOTEBOOK_DEPTHS,
   notebookDepthDef,
@@ -38,14 +44,14 @@ const DEPTH_ICONS: Record<NotebookDepthIconKey, typeof Zap> = {
   ultra: Telescope,
 };
 
-const ANSWER_MODE_OPTIONS: ComposerOption<NotebookAnswerMode>[] = NOTEBOOK_ANSWER_MODES.map(
-  (m) => ({
-    id: m.mode,
-    name: m.label,
-    description: m.description,
-    ...(m.recommended ? { recommendedLabel: 'Empfohlen' } : {}),
-  })
-);
+const toOption = (m: NotebookComposerModeDef): ComposerOption<NotebookComposerMode> => ({
+  id: m.mode,
+  name: m.label,
+  description: m.description,
+  ...(m.recommended ? { recommendedLabel: 'Empfohlen' } : {}),
+});
+const ANSWER_MODE_OPTIONS = NOTEBOOK_ANSWER_MODES.map(toOption);
+const COMPOSER_MODE_OPTIONS = NOTEBOOK_COMPOSER_MODES.map(toOption);
 
 export interface SourceFilterConfig {
   collections: SourceFilterCollection[];
@@ -69,8 +75,11 @@ interface NotebookComposerProps {
   mode?: NotebookDepth;
   onModeChange?: (mode: NotebookDepth) => void;
   /** Answer mode picker beside the send button — only where the surface offers it. */
-  answerMode?: NotebookAnswerMode;
-  onAnswerModeChange?: (mode: NotebookAnswerMode) => void;
+  answerMode?: NotebookComposerMode;
+  onAnswerModeChange?: (mode: NotebookComposerMode) => void;
+  /** Offers „Manuell“ in the picker; while it is selected the composer searches
+   *  instead of asking the model and hands the text here. */
+  onManualSubmit?: (text: string) => void;
 }
 
 function CategoryFilterItems({
@@ -128,7 +137,6 @@ function NotebookSettingsDropdown({
     : 0;
   const hasActiveBadge = categoryActiveCount > 0 || sourceActiveCount > 0;
   const activeDepth = notebookDepthDef(mode);
-  const ActiveDepthIcon = DEPTH_ICONS[activeDepth.icon];
 
   return (
     <DropdownMenu>
@@ -136,15 +144,13 @@ function NotebookSettingsDropdown({
         <button
           type="button"
           className={composerToolbarButtonClass()}
-          aria-label={
-            mode ? `Suchtiefe & Filter — Suchtiefe: ${activeDepth.label}` : 'Filter & Quellen'
-          }
+          aria-label={mode ? `Einstellungen — Suchtiefe: ${activeDepth.label}` : 'Einstellungen'}
+          title={mode ? `Einstellungen · Suchtiefe: ${activeDepth.label}` : 'Einstellungen'}
         >
-          {/* The tier used to be invisible until you opened the menu, so nothing
-              on screen said whether an answer came from one search or three.
-              Its own icon carries that now — the tier name sat next to the
-              settings glyph and made the pill wider than the composer needs. */}
-          {mode ? <ActiveDepthIcon className="h-4 w-4" /> : <LuSettings2 className="h-4 w-4" />}
+          {/* Always the settings glyph: the tier's own icon (a book for „Mittel“)
+              did not read as „this opens the options“. The tier stays in the
+              label and tooltip. */}
+          <LuSettings2 className="h-4 w-4" />
           {hasActiveBadge && (
             <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">
               {categoryActiveCount + sourceActiveCount}
@@ -313,16 +319,26 @@ export function NotebookComposer({
   onModeChange,
   answerMode,
   onAnswerModeChange,
+  onManualSubmit,
 }: NotebookComposerProps) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
-  const activeAnswerMode = answerMode ? notebookAnswerModeDef(answerMode) : null;
+  // Without a manual handler `manuell` is not on offer, and a stored one falls
+  // back to the default — the picker then shows what will actually be sent.
+  const activeAnswerMode = answerMode
+    ? notebookComposerModeDef(answerMode === 'manuell' && !onManualSubmit ? null : answerMode)
+    : null;
+  const isManual = activeAnswerMode?.mode === 'manuell';
 
   return (
     <GrueneratorComposer
       isRunning={isRunning}
       variant="pill"
       placeholder={placeholder}
-      disclaimer="KI-generierte Antworten können ungenau sein — bitte vor der Veröffentlichung prüfen."
+      disclaimer={
+        isManual
+          ? 'Treffer kommen direkt aus den Quellen, ohne KI.'
+          : 'KI-generierte Antworten können ungenau sein — bitte vor der Veröffentlichung prüfen.'
+      }
       showMentions={false}
       showPlusMenu={false}
       showToolToggles={false}
@@ -330,6 +346,7 @@ export function NotebookComposer({
       // nebeneinander und meinten Verschiedenes. Im Notebook löst 'Automatisch'
       // ohnehin immer auf Ultra auf — die Suchtiefe ist hier die Qualitätswahl.
       showModelPicker={false}
+      {...(isManual && onManualSubmit ? { onSearchSubmit: onManualSubmit } : {})}
       slots={{
         leading: (
           <NotebookSettingsDropdown
@@ -343,7 +360,7 @@ export function NotebookComposer({
           ? {
               sendAdornment: (
                 <ComposerOptionPicker
-                  options={ANSWER_MODE_OPTIONS}
+                  options={onManualSubmit ? COMPOSER_MODE_OPTIONS : ANSWER_MODE_OPTIONS}
                   value={activeAnswerMode.mode}
                   onChange={onAnswerModeChange}
                   sheetTitle="Antwortmodus wählen"
