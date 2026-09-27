@@ -153,6 +153,8 @@ export interface TransformedChunk {
   created_at?: string | undefined;
   published_at?: string | null | undefined;
   source_id?: string | null | undefined;
+  content_type_label?: string | null | undefined;
+  source_name?: string | null | undefined;
   url?: string | undefined;
   documents: {
     id: string;
@@ -215,6 +217,8 @@ export interface DocumentData {
   published_at?: string | null | undefined;
   source_url?: string | undefined;
   source_id?: string | null | undefined;
+  content_type_label?: string | null | undefined;
+  source_name?: string | null | undefined;
   chunks: ChunkData[];
   maxSimilarity: number;
   avgSimilarity: number;
@@ -259,6 +263,8 @@ export interface DocumentResult {
   published_at?: string | null | undefined;
   source_url?: string | undefined;
   source_id?: string | null | undefined;
+  content_type_label?: string | null | undefined;
+  source_name?: string | null | undefined;
   relevant_content: string;
   similarity_score: number;
   /**

@@ -8,6 +8,8 @@ export interface NotebookAnswerModeDef {
   mode: NotebookAnswerMode;
   /** User-facing label. Web and mobile never relabel independently. */
   label: string;
+  /** Narrow-screen label, where the full one squeezes the composer's input. */
+  shortLabel?: string;
   description: string;
   /** Shown as the recommended choice in the picker. */
   recommended?: boolean;
@@ -28,6 +30,7 @@ export const NOTEBOOK_ANSWER_MODES: NotebookAnswerModeDef[] = [
   {
     mode: 'auto',
     label: 'Automatisch',
+    shortLabel: 'Auto',
     description: 'Wählt je Frage',
     recommended: true,
   },

@@ -1,13 +1,12 @@
-import { CardGrid } from '@gruenerator/ui';
+import { Button } from '@gruenerator/ui';
 import { type ReactNode, useId } from 'react';
-import { FiSearch } from 'react-icons/fi';
 
-import IndexCard from '../../../components/common/IndexCard';
-
-import { resultToCardProps } from './researchResultCard';
+import { ResearchHitCard, type ResearchView } from './ResearchHitCard';
 import { type ResearchResult } from './useResearch';
 
 import type { ResearchSearchResponse } from '@gruenerator/contracts';
+
+import { cn } from '@/utils/cn';
 
 interface ResearchResultsListProps {
   results: ResearchResult[];
@@ -17,12 +16,13 @@ interface ResearchResultsListProps {
   isError: boolean;
   /** Shown when the search came back empty — what the person can change. */
   emptyHint: string;
-  /** Appended to the result count, e.g. „ · sortiert nach Neueste zuerst“. */
-  metaSuffix?: string;
   /** Tighter grid for the omni dropdown. */
   compact?: boolean;
   /** Controls beside the result count (search options, chips). */
   toolbar?: ReactNode;
+  view?: ResearchView;
+  /** Offered in the empty state when the options narrowed the search. */
+  onResetOptions?: () => void;
 }
 
 /** The research hit list — one rendering for the notebook start page and the
@@ -33,27 +33,31 @@ export function ResearchResultsList({
   isPending,
   isError,
   emptyHint,
-  metaSuffix = '',
   compact = false,
   toolbar,
+  view = 'grid',
+  onResetOptions,
 }: ResearchResultsListProps) {
   const settled = !isPending && !isError;
   const headingId = useId();
+  const count = metadata?.totalResults ?? results.length;
 
   return (
-    <section className="flex flex-col gap-3" aria-labelledby={headingId}>
+    <section className="flex flex-col gap-4" aria-labelledby={headingId}>
       {/* The cards title their hits as h3; this keeps the outline unbroken. */}
       <h2 id={headingId} className="sr-only">
         Treffer
       </h2>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
         {/* Announces the count as it changes while the person types. */}
-        <p className="text-xs text-muted-brand" aria-live="polite">
-          {isPending
-            ? 'Suche läuft …'
-            : metadata
-              ? `${metadata.totalResults} Ergebnisse in ${metadata.timeMs} ms${metaSuffix}`
-              : ''}
+        <p
+          className={cn(
+            'm-0 mr-1 font-semibold text-foreground',
+            compact ? 'text-xs' : 'text-[0.9375rem]'
+          )}
+          aria-live="polite"
+        >
+          {isPending ? 'Suche läuft …' : metadata ? `${count} Ergebnisse` : ''}
         </p>
         {toolbar}
       </div>
@@ -64,22 +68,42 @@ export function ResearchResultsList({
         </p>
       )}
 
-      {results.length > 0 && (
-        <CardGrid
-          columns="auto"
-          gap={compact ? 'md' : '2xl'}
-          className={compact ? undefined : 'max-md:gap-4'}
-        >
-          {results.map((r, i) => (
-            <IndexCard key={`${r.document_id}-${r.collection_id ?? i}`} {...resultToCardProps(r)} />
-          ))}
-        </CardGrid>
-      )}
+      {results.length > 0 &&
+        (view === 'list' ? (
+          <div className="flex flex-col gap-2.5">
+            {results.map((r, i) => (
+              <ResearchHitCard
+                key={`${r.document_id}-${r.collection_id ?? i}`}
+                result={r}
+                view="list"
+              />
+            ))}
+          </div>
+        ) : (
+          <div
+            className={cn(
+              'grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))]',
+              compact ? 'gap-3' : 'gap-5'
+            )}
+          >
+            {results.map((r, i) => (
+              <ResearchHitCard
+                key={`${r.document_id}-${r.collection_id ?? i}`}
+                result={r}
+                view="grid"
+              />
+            ))}
+          </div>
+        ))}
 
       {settled && results.length === 0 && (
-        <div className="flex flex-col items-center gap-2 py-8 text-center">
-          <FiSearch className="size-8 text-grey-300 dark:text-grey-600" aria-hidden />
-          <p className="text-sm text-muted-brand">{emptyHint}</p>
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-grey-300 px-6 py-14 text-center dark:border-grey-600">
+          <p className="m-0 text-base text-grey-600 dark:text-grey-300">{emptyHint}</p>
+          {onResetOptions && (
+            <Button variant="brand-outline" size="brand-sm" onClick={onResetOptions}>
+              Filter zurücksetzen
+            </Button>
+          )}
         </div>
       )}
     </section>
