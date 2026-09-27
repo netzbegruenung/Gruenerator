@@ -10,7 +10,8 @@ vi.mock('../../utils/redis/jsonCache.js', () => ({
   setCachedJson: vi.fn(),
 }));
 
-const { aggregateOverview, toHeadDoc, trendOf } = await import('./notebookOverviewService.js');
+const { aggregateOverview, regionTerms, signatureTerms, toHeadDoc, trendOf } =
+  await import('./notebookOverviewService.js');
 
 const NOW = new Date('2026-09-27T12:00:00Z');
 
@@ -180,6 +181,126 @@ describe('aggregateOverview', () => {
 
     // `deich` is significant by the z-test but seen in three documents only.
     expect(terms?.rising).toEqual([{ word: 'wasserstoff', count: 10, recentCount: 8 }]);
+  });
+});
+
+describe('signatureTerms', () => {
+  const tagged = (count: number, sourceType: string, keywords: (i: number) => string[]) =>
+    Array.from({ length: count }, (_, i) =>
+      doc({ source_type: sourceType, keywords: keywords(i) })
+    );
+  const none = new Set<string>();
+
+  it('lists a word the notebook uses far more often than the other LVs', () => {
+    const target = tagged(40, 'landesverband', (i) => [
+      'partei',
+      ...(i < 12 ? ['braunkohle'] : []),
+    ]);
+    const others = tagged(400, 'landesverband', (i) => [
+      'partei',
+      ...(i < 4 ? ['braunkohle'] : []),
+    ]);
+
+    const [hit, ...rest] = signatureTerms(target, { lvDocs: [...target, ...others], region: none });
+
+    expect(rest).toEqual([]);
+    // Expected 40 × (4 + 0.5) / 401 ≈ 0.45 documents, observed 12.
+    expect(hit).toEqual({ word: 'braunkohle', count: 12, lift: 26.7 });
+  });
+
+  it('does not call a word typical that only the Fraktion share makes look frequent', () => {
+    // "landtag" is common in every Fraktion and rare in party texts. The target is
+    // all Fraktion, the reference mostly party texts — raw shares would differ 5×.
+    const target = tagged(50, 'fraktion', (i) => (i < 25 ? ['landtag'] : ['antrag']));
+    const others = [
+      ...tagged(100, 'fraktion', (i) => (i < 50 ? ['landtag'] : ['antrag'])),
+      ...tagged(400, 'landesverband', (i) => (i < 20 ? ['landtag'] : ['partei'])),
+    ];
+
+    expect(signatureTerms(target, { lvDocs: [...target, ...others], region: none })).toEqual([]);
+  });
+
+  it('needs five documents, however extreme the ratio', () => {
+    const target = tagged(40, 'landesverband', (i) => ['partei', ...(i < 4 ? ['deich'] : [])]);
+    const others = tagged(400, 'landesverband', () => ['partei']);
+
+    expect(signatureTerms(target, { lvDocs: [...target, ...others], region: none })).toEqual([]);
+  });
+
+  it('leaves the notebook own documents out of the reference', () => {
+    // Without subtracting them the reference would contain the 12 target hits and
+    // the expected share would roughly quadruple.
+    const target = tagged(40, 'landesverband', (i) => ['partei', ...(i < 12 ? ['ostsee'] : [])]);
+    const others = tagged(400, 'landesverband', (i) => ['partei', ...(i < 4 ? ['ostsee'] : [])]);
+
+    const [hit] = signatureTerms(target, { lvDocs: [...target, ...others], region: none });
+
+    expect(hit?.lift).toBe(26.7);
+  });
+
+  it('skips the region name with its derived forms and the party own label', () => {
+    const target = tagged(40, 'landesverband', () => [
+      'berlin',
+      'berliner*innen',
+      'landtags-grün',
+      'saargrüne',
+      'partei',
+    ]);
+    const others = tagged(400, 'landesverband', () => ['partei']);
+
+    expect(
+      signatureTerms(target, {
+        lvDocs: [...target, ...others],
+        region: regionTerms('Grüne Berlin'),
+      })
+    ).toEqual([]);
+  });
+
+  it('skips scraped markup', () => {
+    const target = tagged(40, 'landesverband', () => ['href="https://gruene-mv.de', 'partei']);
+    const others = tagged(400, 'landesverband', () => ['partei']);
+
+    expect(signatureTerms(target, { lvDocs: [...target, ...others], region: none })).toEqual([]);
+  });
+
+  it('drops a name fragment but keeps the same word where it is a plain noun', () => {
+    // "bohm" is lemmatised out of "Ann-Sophie Bohm"; "fischer" is the trade here,
+    // only one of its documents names a Fischer.
+    const target = Array.from({ length: 40 }, (_, i) =>
+      doc({
+        source_type: 'landesverband',
+        keywords: [
+          'partei',
+          ...(i < 10 ? ['bohm'] : []),
+          ...(i >= 20 && i < 30 ? ['fischer'] : []),
+        ],
+        persons: [...(i < 10 ? ['Ann-Sophie Bohm'] : []), ...(i === 20 ? ['Joschka Fischer'] : [])],
+      })
+    );
+    const others = tagged(400, 'landesverband', () => ['partei']);
+
+    const words = signatureTerms(target, { lvDocs: [...target, ...others], region: none }).map(
+      (t) => t.word
+    );
+
+    expect(words).toEqual(['fischer']);
+  });
+
+  it('is null outside LV notebooks and set inside them', () => {
+    const docs = [doc({ published_at: daysAgo(5), keywords: ['radweg'] })];
+
+    expect(aggregateOverview(docs, NOW, null).terms?.signature).toBeNull();
+    expect(
+      aggregateOverview(docs, NOW, null, { lvDocs: docs, region: none }).terms?.signature
+    ).toEqual([]);
+  });
+});
+
+describe('regionTerms', () => {
+  it('splits hyphenated state names and drops the party prefix', () => {
+    expect(regionTerms('Grüne Mecklenburg-Vorpommern')).toEqual(
+      new Set(['mecklenburg-vorpommern', 'mecklenburg', 'vorpommern'])
+    );
   });
 });
 
