@@ -29,6 +29,8 @@ const log = createLogger('notebookEnrichment');
  * from now on — the person blocklist landed in 08/2026 without one, and 124
  * documents still carried "Unsplash" as a person weeks later.
  *
+ * 4 (09/2026): per-document `keywords` for the notebook overview.
+ *
  * Changes to the person rules no longer need a bump here: the NLP service
  * reports its own `persons_version`, which is stamped as `nlp_persons_version`
  * and compared in `alreadyEnriched`. The API-side bump could only ever say "re-tag
@@ -36,12 +38,14 @@ const log = createLogger('notebookEnrichment');
  * documents with pre-v3 names (bare `Böttcher` next to `Bernd Böttcher`), and
  * they were never looked at again (#3695).
  */
-const NLP_VERSION = 3;
+export const NLP_VERSION = 4;
 /** Per-mille noun-frequency floor for including a topic in `themes`. */
 const THEME_MIN_SCORE = 30;
 /** Cap themes per doc to bound facet noise on long programmatic docs. */
 const THEME_TOP_K = 5;
 const PERSON_TOP_N = 20;
+/** A noun seen once in 1500 chars says little about the document. */
+const KEYWORD_MIN_COUNT = 2;
 const TEXT_CHARS_PER_DOC = 1500;
 const SCROLL_BATCH = 100;
 const NLP_BATCH_SIZE = 15;
@@ -327,11 +331,14 @@ export async function enrichCollection(
         );
         const themes = deriveThemes(classification.topics, classification.primaryTopic);
         const persons = personEntries.map((p) => p.person);
+        const keywords = classification.topNouns
+          .filter((n) => n.count >= KEYWORD_MIN_COUNT)
+          .map((n) => n.noun);
 
         if (dryRun) {
           if (sampleLogged < 5) {
             log.info(
-              `[${collection}] would enrich ${doc.idValue} → themes=[${themes.join(', ')}] primary=${classification.primaryTopic ?? '–'} persons=[${persons.slice(0, 5).join(', ')}]`
+              `[${collection}] would enrich ${doc.idValue} → themes=[${themes.join(', ')}] primary=${classification.primaryTopic ?? '–'} persons=[${persons.slice(0, 5).join(', ')}] keywords=[${keywords.join(', ')}]`
             );
             sampleLogged++;
           }
@@ -344,6 +351,7 @@ export async function enrichCollection(
             themes,
             primary_topic: classification.primaryTopic ?? null,
             persons,
+            keywords,
             nlp_enriched_at: new Date().toISOString(),
             nlp_version: NLP_VERSION,
             nlp_persons_version: personsVersion,

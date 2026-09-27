@@ -35,7 +35,13 @@
  *   npx tsx apps/api/update-all-content.ts --source kommunalwiki --prune-max-share 0.3
  *
  * Run: npx tsx apps/api/update-all-content.ts
+ *
+ * Locally, `.env` is read from the current working directory.
  */
+
+// Must stay the first import: config/env.js snapshots process.env when it is
+// evaluated, and ESM evaluates imports in source order.
+import 'dotenv/config';
 
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
