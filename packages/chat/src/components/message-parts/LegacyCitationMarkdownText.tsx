@@ -2,6 +2,7 @@
 
 import { useAuiState, useMessagePartText } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
+import { sourceLinksToCitations } from '@gruenerator/shared/utils';
 import { memo, useMemo } from 'react';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
@@ -26,9 +27,13 @@ const rehypePlugins: [typeof rehypeKatex, { throwOnError: boolean }][] = [
 // Normalize \( \) / \[ \] math delimiters, then map raw Unicode operators to
 // LaTeX commands inside math spans, BEFORE escaping citation markers
 // (escapeCitationMarkers emits `\[1\]`, which must not be seen as math).
+// Source links `[Titel](quelle:N)` fall back to `Titel [N]` here: this opt-in
+// renderer shows the badge, only the Streamdown path links the title.
 const preprocess = (text: string) => {
   maybeLoadKatexCss(text); // lazy-load the KaTeX stylesheet on first math
-  return escapeCitationMarkers(normalizeUnicodeMath(normalizeMathDelimiters(text)));
+  return escapeCitationMarkers(
+    normalizeUnicodeMath(normalizeMathDelimiters(sourceLinksToCitations(text)))
+  );
 };
 
 /**
