@@ -1,22 +1,25 @@
+import { useAuiState } from '@assistant-ui/react';
 import {
+  composerModeRunsLiveSearch,
   NotebookComposer,
   type CategoryFilterConfig,
+  type NotebookComposerMode,
   type SourceFilterConfig,
 } from '@gruenerator/chat';
-import { type NotebookAnswerMode, type NotebookDepth } from '@gruenerator/contracts';
+import { type NotebookDepth } from '@gruenerator/contracts';
 import { cn } from '@gruenerator/ui';
 import { useMemo, useState, type ReactNode } from 'react';
 import { HiOutlineChartBar, HiOutlineClock, HiOutlineSparkles } from 'react-icons/hi2';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
-import { useNotebookStats } from '../hooks/useNotebookStats';
+import { LIVE_SEARCH_MIN_LENGTH } from '../manual-search/useLiveResearch';
 import { NOTEBOOK_MAGENTA_BG } from '../notebookTheme';
 import { NotebookOmniComposer } from '../omni/NotebookOmniComposer';
 
 import { LastAddedSection } from './LastAddedSection';
 import { NotebookAgentsSection, useNotebookHasAgents } from './NotebookAgentsSection';
-import { NotebookManualSearch } from './NotebookManualSearch';
+import { NotebookLiveSearch } from './NotebookLiveSearch';
 import { StatisticsSection } from './StatisticsSection';
 
 interface ExampleQuestion {
@@ -36,8 +39,8 @@ interface NotebookStartpageProps {
   composerCategoryFilters?: CategoryFilterConfig;
   mode: NotebookDepth;
   onModeChange: (mode: NotebookDepth) => void;
-  answerMode?: NotebookAnswerMode;
-  onAnswerModeChange?: (mode: NotebookAnswerMode) => void;
+  answerMode?: NotebookComposerMode;
+  onAnswerModeChange?: (mode: NotebookComposerMode) => void;
   recentCollectionIds: string[];
   showRecentSourceLabel?: boolean;
   showStats?: boolean;
@@ -46,8 +49,8 @@ interface NotebookStartpageProps {
   /** Accepted for caller compatibility; the notebook "Chat" tab was removed. */
   hideGlobalChat?: boolean;
   /**
-   * When set, the manual-research tab scopes search to a single user-owned notebook
-   * (ownership-checked, no facet filters). Forwarded to `NotebookManualSearch`.
+   * When set, the live search is scoped to a single user-owned notebook
+   * (ownership-checked, no facet filters).
    */
   manualSearchNotebookId?: string;
   /** Accepted for caller compatibility; the notebook "Chat" tab was removed. */
@@ -57,9 +60,8 @@ interface NotebookStartpageProps {
   notebookId?: string;
   /**
    * Overview mode: render only the intelligent omni composer (ask/route/open in
-   * one input) — no KI/Manuelle-Recherche tabs, no browse sub-tabs. Used by the
-   * /notebooks index + workplace "Wissen" surface. Individual notebook pages keep
-   * the 2a KI / Manuelle Recherche experience.
+   * one input) — no live search, no browse sub-tabs. Used by the /notebooks
+   * index + workplace "Wissen" surface.
    */
   omniComposer?: boolean;
   /** Paint the signature magenta gradient as the page background. Disabled when
@@ -69,7 +71,6 @@ interface NotebookStartpageProps {
   footer?: ReactNode;
 }
 
-type ViewMode = 'ki' | 'recherche';
 type BrowseTab = 'zuletzt' | 'agenten' | 'stats';
 
 // Signature 2a gradient — pink radial (light) / deep-green radial (dark). Applied
@@ -79,18 +80,6 @@ type BrowseTab = 'zuletzt' | 'agenten' | 'stats';
 export { NOTEBOOK_MAGENTA_BG };
 
 const HERO_FILL = 'relative flex min-h-[calc(100dvh-11rem)] flex-col';
-
-const SEG_CONTAINER = cn(
-  'inline-flex gap-0.5 rounded-full p-1',
-  'bg-white/75 dark:bg-[#241820]/55',
-  'shadow-[0_2px_10px_rgba(40,16,25,0.06)]'
-);
-const segBase = 'rounded-full px-5 py-1.5 text-[13.5px] transition-all cursor-pointer select-none';
-const segActive = cn(
-  'bg-white dark:bg-[#2A1B23] font-bold text-[#3A343B] dark:text-[#E4EDE8]',
-  'shadow-[0_1px_4px_rgba(40,16,25,0.08)]'
-);
-const segInactive = 'font-normal text-[#6B646E] dark:text-[#9E97A0]';
 
 const HEADING = cn(
   'text-center text-[38px] font-extrabold leading-[1.1] tracking-[-0.02em]',
@@ -114,27 +103,6 @@ const BROWSE_TABS: { id: BrowseTab; label: string; Icon: typeof HiOutlineClock }
   { id: 'stats', label: 'Statistiken', Icon: HiOutlineChartBar },
 ];
 
-function SegTab({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(segBase, active ? segActive : segInactive)}
-    >
-      {children}
-    </button>
-  );
-}
-
 export function NotebookStartpage({
   title,
   placeholder,
@@ -155,7 +123,6 @@ export function NotebookStartpage({
   pageGradient = true,
   footer,
 }: NotebookStartpageProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('ki');
   const [browseTab, setBrowseTab] = useState<BrowseTab>('zuletzt');
 
   const hasCollections = recentCollectionIds.length > 0;
@@ -164,7 +131,7 @@ export function NotebookStartpage({
   const lastAddedAvailable = showLastAdded && hasCollections;
   const statsAvailable = showStats && hasCollections;
 
-  // Which browse sub-tabs exist under Manuelle Recherche.
+  // Which browse sub-tabs exist below the composer.
   const availableBrowseTabs = useMemo(
     () =>
       BROWSE_TABS.filter((t) =>
@@ -173,24 +140,16 @@ export function NotebookStartpage({
     [lastAddedAvailable, hasAgents, statsAvailable]
   );
 
-  // Force-fall-through to 'ki' if Manuelle Recherche isn't available.
-  const activeView: ViewMode =
-    viewMode === 'recherche' && manualSearchAvailable ? 'recherche' : 'ki';
-
   const activeBrowseTab = availableBrowseTabs.some((t) => t.id === browseTab)
     ? browseTab
     : (availableBrowseTabs[0]?.id ?? 'zuletzt');
 
-  // Total document count for the Manuelle-Recherche heading. Shares the
-  // react-query cache with StatisticsSection, so no duplicate fetch.
-  const { data: stats } = useNotebookStats({
-    collectionIds: recentCollectionIds,
-    enabled: !omniComposer && manualSearchAvailable && activeView === 'recherche',
-  });
-  const docCount = stats?.totalDocuments;
-  const rechercheHeading = docCount
-    ? `Recherchiere in ${docCount.toLocaleString('de-DE')} Dokumenten`
-    : 'Recherchiere in den Dokumenten';
+  // Only the start page searches live, and only in the modes that ask for it.
+  const composerText = useAuiState((s) => s.composer.text);
+  const [submitted, setSubmitted] = useState<string | null>(null);
+  const liveSearch =
+    manualSearchAvailable && answerMode !== undefined && composerModeRunsLiveSearch(answerMode);
+  const hasHits = liveSearch && composerText.trim().length >= LIVE_SEARCH_MIN_LENGTH;
 
   // --- Overview surface (/notebooks index + workplace "Wissen"): omni composer
   //     only. No segmented tabs, no browse sub-tabs. ---
@@ -210,7 +169,8 @@ export function NotebookStartpage({
     );
   }
 
-  // --- Individual notebook page: 2a KI / Manuelle Recherche, full-bleed. ---
+  // --- Individual notebook page: one composer; hits (or the browse sub-tabs)
+  //     below it. ---
   const browseSlot =
     availableBrowseTabs.length > 0 ? (
       <div className="flex flex-col gap-lg">
@@ -252,49 +212,44 @@ export function NotebookStartpage({
       gradient={false}
       bgClassName={pageGradient ? NOTEBOOK_MAGENTA_BG : undefined}
     >
-      <div className={HERO_FILL}>
-        {/* Segmented tab control — only when Manuelle Recherche exists. */}
-        {manualSearchAvailable && (
-          <div className="flex justify-center pt-6">
-            <div className={SEG_CONTAINER}>
-              <SegTab active={activeView === 'ki'} onClick={() => setViewMode('ki')}>
-                KI
-              </SegTab>
-              <SegTab active={activeView === 'recherche'} onClick={() => setViewMode('recherche')}>
-                Manuelle Recherche
-              </SegTab>
-            </div>
-          </div>
+      <div
+        className={cn(
+          'flex flex-col items-center px-6 pt-10 transition-[min-height] duration-300 md:px-20',
+          hasHits ? 'min-h-0' : cn(HERO_FILL, 'justify-center')
         )}
+      >
+        <h1 className={cn(HEADING, 'mb-8')}>{title}</h1>
+        <div className="w-full max-w-2xl">
+          <NotebookComposer
+            placeholder={placeholder}
+            sourceFilters={composerSourceFilters}
+            categoryFilters={composerCategoryFilters}
+            mode={mode}
+            onModeChange={onModeChange}
+            answerMode={answerMode}
+            onAnswerModeChange={onAnswerModeChange}
+            {...(manualSearchAvailable ? { onManualSubmit: setSubmitted } : {})}
+          />
+        </div>
+      </div>
 
-        {activeView === 'ki' && (
-          <div className="flex flex-1 flex-col items-center justify-center px-6 py-10 md:px-20">
-            <h1 className={cn(HEADING, 'mb-8')}>{title}</h1>
-            <div className="w-full max-w-2xl">
-              <NotebookComposer
-                placeholder={placeholder}
-                sourceFilters={composerSourceFilters}
-                categoryFilters={composerCategoryFilters}
-                mode={mode}
-                onModeChange={onModeChange}
-                answerMode={answerMode}
-                onAnswerModeChange={onAnswerModeChange}
-              />
-            </div>
-          </div>
-        )}
-
-        {activeView === 'recherche' && (
-          <div className="flex flex-1 flex-col px-6 py-10 md:px-16">
-            <h1 className={cn(HEADING, 'mb-8')}>{rechercheHeading}</h1>
-            <div className="mx-auto w-full max-w-3xl">
-              <NotebookManualSearch
-                collectionIds={recentCollectionIds}
-                notebookId={manualSearchNotebookId}
-                browseSlot={browseSlot}
-              />
-            </div>
-          </div>
+      <div className="mx-auto w-full max-w-3xl px-6 pb-10 pt-8 md:px-0">
+        {liveSearch ? (
+          <NotebookLiveSearch
+            text={composerText}
+            submitted={submitted}
+            collectionIds={recentCollectionIds}
+            {...(manualSearchNotebookId ? { notebookId: manualSearchNotebookId } : {})}
+            {...(composerCategoryFilters ? { sharedFilters: composerCategoryFilters } : {})}
+            emptyHint={
+              answerMode === 'manuell'
+                ? 'Keine Treffer. Versuche andere Begriffe oder entferne Filter.'
+                : 'Keine Treffer in den Quellen. Mit Enter fragst du die KI.'
+            }
+            idle={browseSlot}
+          />
+        ) : (
+          browseSlot
         )}
       </div>
 
