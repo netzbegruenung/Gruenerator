@@ -378,7 +378,9 @@ export function NotebookComposer({
                   onChange={onAnswerModeChange}
                   sheetTitle="Antwortmodus wählen"
                   sectionTitle="Antwortmodus"
-                  {...(magicSuffix ? { valueSuffix: magicSuffix } : {})}
+                  // The short name only — what Magic Search recognised shows
+                  // on the send button, the label would squeeze the input.
+                  triggerLabel={activeAnswerMode.shortLabel ?? activeAnswerMode.label}
                   ariaLabel={`Antwortmodus wählen – ${activeAnswerMode.label}${magicSuffix ? ` · ${magicSuffix}` : ''}`}
                 />
               ),
