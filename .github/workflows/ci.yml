@@ -337,7 +337,7 @@ jobs:
 
   # The NLP service is Python and sits outside the pnpm workspace, so `pnpm
   # test` never sees it. Its scoring, filtering and blocklist logic feeds the
-  # `themes`/`persons` payloads in Qdrant and the keyword snapshots in Postgres,
+  # `themes`/`persons`/`keywords` payloads in Qdrant,
   # where a regression surfaces as quietly wrong facets rather than as an error.
   #
   # No pnpm, no node_modules. `de_core_news_sm` (~15 MB) instead of the
