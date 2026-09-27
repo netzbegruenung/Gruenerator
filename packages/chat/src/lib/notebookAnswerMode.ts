@@ -56,6 +56,43 @@ export function notebookAnswerModeDef(mode?: NotebookAnswerMode | null): Noteboo
   );
 }
 
+/**
+ * The web notebook start page offers one more choice than the server knows:
+ * `manuell` lists matching sources and never asks the model. It is a client
+ * mode, not a wire value — it never reaches `answerMode`, and mobile keeps
+ * `NOTEBOOK_ANSWER_MODES`.
+ */
+export type NotebookComposerMode = NotebookAnswerMode | 'manuell';
+
+export interface NotebookComposerModeDef extends Omit<NotebookAnswerModeDef, 'mode'> {
+  mode: NotebookComposerMode;
+}
+
+export const NOTEBOOK_COMPOSER_MODES: NotebookComposerModeDef[] = [
+  ...NOTEBOOK_ANSWER_MODES,
+  {
+    mode: 'manuell',
+    label: 'Manuell',
+    description: 'Durchsucht die Quellen, ohne KI',
+  },
+];
+
+/** Tolerant like `notebookAnswerModeDef`: the choice is persisted. */
+export function notebookComposerModeDef(mode?: string | null): NotebookComposerModeDef {
+  return NOTEBOOK_COMPOSER_MODES.find((m) => m.mode === mode) ?? notebookAnswerModeDef(null);
+}
+
+/** What a composer mode asks the server for. `manuell` never sends; where it
+ *  is not offered (a running conversation) it behaves like the default. */
+export function toNotebookAnswerMode(mode: NotebookComposerMode): NotebookAnswerMode {
+  return mode === 'manuell' ? DEFAULT_NOTEBOOK_ANSWER_MODE : mode;
+}
+
+/** Modes that search the sources while the person types. */
+export function composerModeRunsLiveSearch(mode: NotebookComposerMode): boolean {
+  return mode === 'auto' || mode === 'manuell';
+}
+
 const RESOLVED_LABELS: Record<NotebookResolvedAnswerMode, string> = {
   chat: 'Chatmodus',
   praezision: 'Präzisionsmodus',

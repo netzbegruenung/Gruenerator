@@ -169,7 +169,13 @@ export {
   notebookAnswerModeDef,
   answerModeLabel,
   answerModeAutoHint,
+  NOTEBOOK_COMPOSER_MODES,
+  notebookComposerModeDef,
+  toNotebookAnswerMode,
+  composerModeRunsLiveSearch,
   type NotebookAnswerModeDef,
+  type NotebookComposerMode,
+  type NotebookComposerModeDef,
 } from './lib/notebookAnswerMode';
 
 export { useDocumentChatStore } from './stores/documentChatStore';
