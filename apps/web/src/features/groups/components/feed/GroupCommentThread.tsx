@@ -22,9 +22,10 @@ interface GroupCommentThreadProps {
   isAdmin: boolean;
 }
 
-/** Offene Antwort: an welchem Kommentar oben sie hängt, und der Entwurf. */
+/** Offene Antwort: an welchem Kommentar oben sie hängt, wem sie antwortet, und der Entwurf. */
 interface ReplyDraft {
   threadId: string;
+  toName: string;
   text: string;
 }
 
@@ -62,7 +63,11 @@ export function GroupCommentThread({
 
   const startReply = (threadId: string, to: GroupShareComment) => {
     addReply.reset();
-    setReply({ threadId, text: to.userId === currentUserId ? '' : replyMention(to.authorName) });
+    setReply({
+      threadId,
+      toName: to.authorName,
+      text: to.userId === currentUserId ? '' : replyMention(to.authorName),
+    });
   };
 
   const list = comments.data ?? [];
@@ -158,13 +163,13 @@ export function GroupCommentThread({
                         small
                         autoFocus
                         value={reply.text}
-                        onChange={(text) => setReply({ threadId: t.comment.id, text })}
+                        onChange={(text) => setReply({ ...reply, text })}
                         onSubmit={sendReply}
                         onCancel={() => setReply(null)}
                         pending={addReply.isPending}
                         userName={currentUserName}
-                        placeholder={`${t.comment.authorName.split(' ')[0]} antworten …`}
-                        label={`Antwort an ${t.comment.authorName}`}
+                        placeholder={`${reply.toName.split(' ')[0]} antworten …`}
+                        label={`Antwort an ${reply.toName}`}
                         error={addReply.isError ? errMessage(addReply.error) : null}
                       />
                     )}
