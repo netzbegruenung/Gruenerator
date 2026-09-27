@@ -32,6 +32,10 @@ const SNIPPET_MARKDOWN_COMPONENTS: Partial<Components> = {
   h5: ({ children }): JSX.Element => <span className="font-semibold">{children}</span>,
   h6: ({ children }): JSX.Element => <span className="font-semibold">{children}</span>,
   hr: (): JSX.Element => <span className="mx-1 text-grey-400"> · </span>,
+  // The card holds the snippet in a <p>; a block list there is invalid DOM.
+  ol: ({ children }): JSX.Element => <span>{children}</span>,
+  ul: ({ children }): JSX.Element => <span>{children}</span>,
+  li: ({ children }): JSX.Element => <span className="before:content-['·_']"> {children}</span>,
 };
 
 const SNIPPET_REHYPE_PLUGINS = [rehypeRaw];
@@ -47,6 +51,11 @@ export function resultToCardProps(result: ResearchResult) {
   if (result.published_at) metaParts.push(formatPublishedDate(result.published_at));
 
   return {
+    // The whole card opens the source through the link's stretched hit area
+    // (`after:inset-0`), not through a card-level button: a button holding the
+    // link was a nested interactive control, and keyboard users met every hit
+    // twice.
+    className: result.source_url ? 'relative hover:border-grey-300 dark:hover:border-grey-600' : '',
     title: result.title,
     description: (
       <Markdown
@@ -66,16 +75,13 @@ export function resultToCardProps(result: ResearchResult) {
             href={result.source_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-primary-500 hover:underline"
-            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            aria-label={`Quelle öffnen: ${result.title}`}
+            className="text-xs text-primary-500 after:absolute after:inset-0 after:rounded-md after:content-[''] hover:underline"
           >
             Quelle öffnen
           </a>
         )}
       </div>
     ),
-    onClick: result.source_url
-      ? () => window.open(result.source_url!, '_blank', 'noopener,noreferrer')
-      : undefined,
   };
 }
