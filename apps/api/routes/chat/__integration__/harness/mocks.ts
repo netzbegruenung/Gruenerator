@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 
 import { type UserMemoryRow } from '../../../../database/schema/index.js';
+import { type TreeReservation } from '../../../../services/trees/treeBudget.js';
 
 /**
  * Module-shaped factories for the `vi.mock` blocks. The `vi.mock` CALLS stay
@@ -153,6 +154,31 @@ export function pipelineStateStoreMock(): Record<string, unknown> {
         return Promise.resolve();
       },
     },
+  };
+}
+
+/**
+ * The @deepresearch booking lives in Redis and fails closed when Redis is not
+ * ready — true in CI, false on a dev machine with Redis running. Unmocked, the
+ * same scenario recorded `deep_research_quota_spent` in one place and not the
+ * other; the decision map has to describe routing, not the host.
+ */
+export function deepResearchQuotaMock(original: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...original,
+    reserveDeepResearch: (): Promise<TreeReservation> =>
+      Promise.resolve({
+        ok: true,
+        status: {
+          usedUnits: 0,
+          limitUnits: null,
+          remainingUnits: null,
+          resetsAt: new Date(0),
+          newsletterBonus: false,
+          day: '1970-01-01',
+        },
+      }),
+    releaseDeepResearch: () => Promise.resolve(),
   };
 }
 

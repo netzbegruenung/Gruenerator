@@ -64,6 +64,10 @@ vi.mock('../services/pipelineStateStore.js', async () => {
   const { pipelineStateStoreMock } = await import('./harness/mocks.js');
   return pipelineStateStoreMock();
 });
+vi.mock('../services/deepResearchQuota.js', async (orig) => {
+  const { deepResearchQuotaMock } = await import('./harness/mocks.js');
+  return deepResearchQuotaMock((await orig()) as Record<string, unknown>);
+});
 vi.mock('../services/sharepicEditService.js', async (orig) => {
   const { sharepicEditMock } = await import('./harness/mocks.js');
   return sharepicEditMock((await orig()) as Record<string, unknown>);
