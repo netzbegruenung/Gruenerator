@@ -1,6 +1,6 @@
 /**
  * Every path that writes into `group_content_shares` must go through
- * `assertCanShareToGroup` — otherwise any member could post into the system
+ * `assertCanShareToGroup` (or the feed viewer's `canShare`) — otherwise any member could post into the system
  * group, which every user belongs to. The share inserts are spread over many
  * routers, so a new one slipping past the gate is the likely regression.
  */
@@ -31,7 +31,8 @@ describe('group share write guard', () => {
   it('gates every share INSERT through assertCanShareToGroup', () => {
     const ungated = shareWriters().filter(
       (f) =>
-        !EXEMPT.has(f) && !readFileSync(join(API_ROOT, f), 'utf8').includes('assertCanShareToGroup')
+        !EXEMPT.has(f) &&
+        !/assertCanShareToGroup|\.canShare\b/.test(readFileSync(join(API_ROOT, f), 'utf8'))
     );
     expect(ungated).toEqual([]);
   });
