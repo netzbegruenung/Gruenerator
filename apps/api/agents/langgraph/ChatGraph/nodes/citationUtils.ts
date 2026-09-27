@@ -6,6 +6,7 @@
  * (searchNode imports heavyweight services that break under Vitest).
  */
 
+import { readerCollectionIdFor } from '../../../../config/systemCollectionsConfig.js';
 import { renumberCitationsInOrder } from '../../../../services/search/SearchResultProcessor.js';
 
 import { buildCitableSources, type CitableSource } from './citableSources.js';
@@ -128,6 +129,9 @@ export function resolveCollectionName(source: string): string | undefined {
  */
 export function projectCitation(source: CitableSource): Citation {
   const r = source.representative;
+  // The reader looks documents up by URL, so a citation without one has
+  // nothing to open there even in a readable collection.
+  const readerCollectionId = source.url ? readerCollectionIdFor(r.collectionId) : null;
   return {
     id: source.id,
     title: source.title || r.title,
@@ -145,6 +149,7 @@ export function projectCitation(source: CitableSource): Citation {
     chunkIndex: r.chunkIndex,
     similarityScore: r.similarityScore,
     collectionId: r.collectionId,
+    ...(readerCollectionId ? { readerCollectionId } : {}),
     ...(r.pageNumber != null ? { pageNumber: r.pageNumber } : {}),
     documentSourceId: typeof r.documentSourceId === 'string' ? r.documentSourceId : undefined,
   };
