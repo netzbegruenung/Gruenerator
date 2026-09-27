@@ -100,6 +100,7 @@ export type { MentionToken, MentionTokenType } from './mentionTokens.js';
 export {
   SOURCE_LINK_SCHEME,
   sourceLinkRegex,
+  citationReferenceRegex,
   parseSourceLinkHref,
   sourceLinksToCitations,
 } from './sourceLinks.js';

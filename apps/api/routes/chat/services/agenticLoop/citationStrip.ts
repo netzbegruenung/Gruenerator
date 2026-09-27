@@ -7,18 +7,7 @@
  * streamed deltas with it).
  */
 
-import { sourceLinkRegex } from '@gruenerator/shared/utils';
-
-/**
- * Source links `[Titel](quelle:N)` first, then bracketed citation groups
- * ([3] or [3, 7]). The link must win at its position: a label like `[2024]`
- * would otherwise be stripped as an out-of-range marker.
- * Groups: 1 = link label, 2 = link id, 3 = marker ids.
- */
-const CITE_REFERENCE_RE = new RegExp(
-  `${sourceLinkRegex().source}|\\[(\\d+(?:\\s*,\\s*\\d+)*)\\]`,
-  'g'
-);
+import { citationReferenceRegex } from '@gruenerator/shared/utils';
 
 /**
  * Drop or trim `[N]` markers whose numbers fall outside `1..maxId`. A group with
@@ -37,7 +26,7 @@ export function stripOutOfRangeCitations(
   const inRange = (n: number) => Number.isInteger(n) && n >= 1 && n <= max;
 
   const replaced = text.replace(
-    new RegExp(CITE_REFERENCE_RE),
+    citationReferenceRegex(),
     (whole, label: string | undefined, linkId: string | undefined, inner: string | undefined) => {
       if (label !== undefined) {
         if (inRange(Number(linkId))) return whole;
