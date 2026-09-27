@@ -374,6 +374,7 @@ export const contentRoutes = {
         shareId,
         userId: getUserId(args.req),
         body: args.body.body,
+        parentId: args.body.parentId ?? null,
         authorName: user?.display_name || user?.first_name || 'Jemand',
       });
       if ('message' in outcome) return feedError(outcome);
