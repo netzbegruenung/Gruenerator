@@ -48,6 +48,9 @@ interface NotebookComposerProps {
   /** What Magic Search („auto“) recognised in the typed text — only on the
    *  start page. „suche“ searches like „Manuell“, „chat“ sends. */
   magicIntent?: MagicIntent | null;
+  /** Hands a chat question elsewhere instead of into this thread (the start
+   *  page opens it in a new tab). Searches are not affected. */
+  onChatSubmit?: (text: string) => void;
   /** Classes for the settings panel, which is portalled out of the surface's
    *  accent scope. */
   settingsClassName?: string;
@@ -63,6 +66,7 @@ export function NotebookComposer({
   onAnswerModeChange,
   onManualSubmit,
   magicIntent,
+  onChatSubmit,
   settingsClassName,
 }: NotebookComposerProps) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
@@ -97,6 +101,7 @@ export function NotebookComposer({
       // ohnehin immer auf Ultra auf — die Suchtiefe ist hier die Qualitätswahl.
       showModelPicker={false}
       {...(searches && onManualSubmit ? { onSearchSubmit: onManualSubmit } : {})}
+      {...(!searches && onChatSubmit ? { onChatSubmit } : {})}
       slots={{
         leading: (
           <NotebookSettingsPopover

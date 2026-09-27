@@ -62,6 +62,9 @@ interface NotebookStartpageProps {
    *  Defaults to true. */
   pageGradient?: boolean;
   footer?: ReactNode;
+  /** Opens a chat question in its own browser tab, so this page keeps the
+   *  query and its hits. Without it the question is asked here. */
+  onOpenChat?: (question: string) => void;
 }
 
 // Signature 2a gradient — pink radial (light) / deep-green radial (dark). Applied
@@ -90,6 +93,7 @@ export function NotebookStartpage({
   omniComposer = false,
   pageGradient = true,
   footer,
+  onOpenChat,
 }: NotebookStartpageProps) {
   const hasCollections = recentCollectionIds.length > 0;
   const manualSearchAvailable = showManualSearch && hasCollections;
@@ -182,6 +186,7 @@ export function NotebookStartpage({
             onAnswerModeChange={onAnswerModeChange}
             magicIntent={magicIntent}
             settingsClassName={NOTEBOOK_COMPOSER_ACCENT}
+            {...(onOpenChat ? { onChatSubmit: onOpenChat } : {})}
             {...(manualSearchAvailable ? { onManualSubmit: setSubmitted } : {})}
           />
         </div>

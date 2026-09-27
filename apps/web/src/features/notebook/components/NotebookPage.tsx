@@ -22,6 +22,7 @@ import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
+import { buildChatHandoffUrl, readChatHandoff } from '../chatHandoff';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { getNotebookById } from '../config/notebooksConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
@@ -103,6 +104,15 @@ interface NotebookPageProps {
   configId: string;
 }
 
+/** The multi-select filters of a collection; date ranges are left out. */
+function keywordFilters(raw: Record<string, unknown> | undefined): Record<string, string[]> {
+  const filters: Record<string, string[]> = {};
+  for (const [key, val] of Object.entries(raw ?? {})) {
+    if (Array.isArray(val)) filters[key] = val as string[];
+  }
+  return filters;
+}
+
 export const NotebookPageContent = ({
   config,
   documentIds,
@@ -137,6 +147,9 @@ export const NotebookPageContent = ({
   const setAnswerMode = useAgentStore((s) => s.setNotebookAnswerMode);
   const answerMode = notebookComposerModeDef(storedAnswerMode).mode;
   const [searchParams, setSearchParams] = useSearchParams();
+  // A question opened from another tab's start page, with the filters it was
+  // asked under — read once, the sender clears the params after sending.
+  const [handoff] = useState(() => readChatHandoff(searchParams));
   // `?thread=` names the conversation to open — that is how a thread row in the
   // sidebar links here, and how a reload finds its way back to what was on
   // screen. Read once: later edits to the param are this component's own doing.
@@ -171,9 +184,11 @@ export const NotebookPageContent = ({
     return config.collections.filter((c) => !c.locale || c.locale === locale);
   }, [isMulti, config.collections, locale]);
 
-  const [selectedIds, setSelectedIds] = useState<string[]>(() =>
-    isMulti ? localeCollections.map((c) => c.id) : []
-  );
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => {
+    if (!isMulti) return [];
+    const all = localeCollections.map((c) => c.id);
+    return handoff?.sourceIds ? all.filter((id) => handoff.sourceIds!.includes(id)) : all;
+  });
 
   const selectedCollections = useMemo(() => {
     if (isMulti) {
@@ -257,6 +272,40 @@ export const NotebookPageContent = ({
     handleSelectNone,
   ]);
 
+  // Fresh tab, fresh store: the handed-over filters go in before the pending
+  // question is sent (the sender waits a beat after mount).
+  useEffect(() => {
+    if (!systemCollectionId || !handoff) return;
+    const current = useNotebookStore.getState().getFiltersForCollection(systemCollectionId);
+    for (const [field, values] of Object.entries(handoff.filters)) {
+      const active = current[field];
+      for (const value of values) {
+        if (!(Array.isArray(active) && active.includes(value))) {
+          setActiveFilter(systemCollectionId, field, value);
+        }
+      }
+    }
+  }, [systemCollectionId, handoff, setActiveFilter]);
+
+  const openChatTab = useCallback(
+    (question: string) => {
+      const url = buildChatHandoffUrl(location.pathname, {
+        question,
+        filters: systemCollectionId ? keywordFilters(activeFiltersStore[systemCollectionId]) : {},
+        sourceIds: isMulti && selectedIds.length < localeCollections.length ? selectedIds : null,
+      });
+      window.open(url, '_blank', 'noopener');
+    },
+    [
+      location.pathname,
+      systemCollectionId,
+      activeFiltersStore,
+      isMulti,
+      selectedIds,
+      localeCollections.length,
+    ]
+  );
+
   // Fetch filter values for single system collections
   useEffect(() => {
     if (systemCollectionId) {
@@ -284,13 +333,7 @@ export const NotebookPageContent = ({
 
     if (fields.length === 0) return undefined;
 
-    const rawActive = activeFiltersStore[systemCollectionId] || {};
-    const activeFilters: Record<string, string[]> = {};
-    for (const [key, val] of Object.entries(rawActive)) {
-      if (Array.isArray(val)) {
-        activeFilters[key] = val;
-      }
-    }
+    const activeFilters = keywordFilters(activeFiltersStore[systemCollectionId]);
 
     return {
       fields,
@@ -357,6 +400,7 @@ export const NotebookPageContent = ({
                   omniComposer={omniComposer}
                   pageGradient={pageGradient}
                   footer={startpageFooter}
+                  onOpenChat={openChatTab}
                 />
               </div>
             </AuiIf>
