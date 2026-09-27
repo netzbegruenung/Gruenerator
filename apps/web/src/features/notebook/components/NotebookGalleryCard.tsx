@@ -39,6 +39,11 @@ export interface NotebookGalleryCardProps {
    * propagation around it, so the node won't navigate the card.
    */
   action?: ReactNode;
+  /**
+   * Cover tiles only: show the pill behind `action` on hover/focus instead of
+   * always. For actions that carry no always-readable information (the star).
+   */
+  actionPillOnHover?: boolean;
   /** Pink icon + border accent for the "Wissen" notebook surface. Defaults to neutral. */
   accent?: 'pink';
   /**
@@ -67,6 +72,7 @@ const NotebookGalleryCard = memo(
     coverNode,
     menu,
     action,
+    actionPillOnHover,
     accent,
     indexingState,
     className,
@@ -128,10 +134,15 @@ const NotebookGalleryCard = memo(
               {action && (
                 // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- fängt nur den Klick/Tastendruck ab, damit er nicht die Karte aktiviert
                 <div
-                  // Same pill as the menu below, but never hidden: the action's
-                  // own colours (grey icon, red when liked) are built for a light
-                  // card, and sit unreadable directly on the pink cover.
-                  className="rounded-full bg-white/85 backdrop-blur-sm dark:bg-black/50"
+                  // Same pill as the menu below, but by default never hidden: the
+                  // action's own colours (grey icon, red when liked) are built for
+                  // a light card, and sit unreadable directly on the pink cover.
+                  className={cn(
+                    'rounded-full transition-colors duration-200',
+                    actionPillOnHover
+                      ? 'group-hover:bg-white/85 group-hover:backdrop-blur-sm group-focus-within:bg-white/85 group-focus-within:backdrop-blur-sm dark:group-hover:bg-black/50 dark:group-focus-within:bg-black/50'
+                      : 'bg-white/85 backdrop-blur-sm dark:bg-black/50'
+                  )}
                   onClick={(e) => e.stopPropagation()}
                   onKeyDown={(e) => e.stopPropagation()}
                 >
