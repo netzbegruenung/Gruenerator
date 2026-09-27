@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseSourceLinkHref, sourceLinkRegex, sourceLinksToCitations } from './sourceLinks';
+import {
+  citationReferenceRegex,
+  parseSourceLinkHref,
+  sourceLinkRegex,
+  sourceLinksToCitations,
+} from './sourceLinks';
 
 describe('sourceLinks', () => {
   it('parses the citation id from a link target', () => {
@@ -34,5 +39,16 @@ describe('sourceLinks', () => {
     expect(sourceLinksToCitations('Siehe [Wahlprogramm 2024](quelle:4).')).toBe(
       'Siehe Wahlprogramm 2024 [4].'
     );
+  });
+
+  it('matches links and markers in one pass, the link winning at its position', () => {
+    const found = [
+      ...'[2024](quelle:2) steht in [1, 3] und [4].'.matchAll(citationReferenceRegex()),
+    ].map((m) => [m[1], m[2], m[3]]);
+    expect(found).toEqual([
+      ['2024', '2', undefined],
+      [undefined, undefined, '1, 3'],
+      [undefined, undefined, '4'],
+    ]);
   });
 });
