@@ -3,6 +3,7 @@ import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import type { GroupFeedKind } from '@gruenerator/shared/groups';
 
 export const FEED_KIND_ICONS: Record<GroupFeedKind, IoniconsIconName> = {
+  post: 'chatbox-ellipses-outline',
   'sharepic-template': 'image-outline',
   sharepic: 'image-outline',
   doc: 'document-text-outline',
