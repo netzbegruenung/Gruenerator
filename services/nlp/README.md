@@ -3,8 +3,7 @@
 FastAPI-Dienst mit spaCy (`de_core_news_lg`), der für den Monitor und für
 Notebook-Dokumente Themen (`themes`, `primary_topic`), Schlagwörter, Emotionen
 und Personen (`persons`) bestimmt. Konsumiert wird er über HTTP von
-`apps/api/services/nlp/nlpClient.ts`; die Ergebnisse landen in Qdrant-Payloads
-und in `notebook_keyword_snapshots`.
+`apps/api/services/nlp/nlpClient.ts`; die Ergebnisse landen in Qdrant-Payloads.
 
 Endpunkte: `/analyze/topics`, `/analyze/keywords`, `/analyze/persons` und
 `/analyze/text-stats` — Token-, Wort- und Satzzahl je Text plus die häufigsten
