@@ -89,15 +89,18 @@ const PAGE_ASKS = [
  * Was man in einem Notebook zählt: Einheiten des Texts und die Dokumentarten
  * der Landesverbands-Notebooks (Beta 27.09.2026: „Wie viele Beschlüsse gibt es
  * seit Januar 2026?" lief in die Suche und fand null). Nominativ/Akkusativ für
- * „wie viele …", Dativ für „in wie vielen …". Ein Adjektiv davor ist erlaubt
- * („wie viele neue Anträge"), ein anderes Nomen nicht — „Wie viele Menschen
- * profitieren vom Beschluss?" ist eine Inhaltsfrage.
+ * „wie viele …", Dativ für „in wie vielen …". Davor darf eines der
+ * Adjektive aus `COUNT_ADJECTIVE` stehen („wie viele neue Anträge") — eine
+ * geschlossene Liste, weil ein offenes `-e/-en`-Wort auch Plural-Nomen nimmt:
+ * „Wie viele Kommunen Beschlüsse gefasst haben" ist eine Inhaltsfrage, ebenso
+ * „Wie viele Menschen profitieren vom Beschluss?".
  */
 const COUNTED_NOUN =
   '(?:w(?:ö|oe)rter|seiten|quellen|dokumente|treffer|texte|artikel|beschl(?:ü|ue)sse|antr(?:ä|ae)ge|pressemitteilungen|positionspapiere|protokolle)';
 const COUNTED_NOUN_DATIVE =
   '(?:dokumenten|quellen|texten|artikeln|beschl(?:ü|ue)ssen|antr(?:ä|ae)gen|pressemitteilungen|positionspapieren|protokollen)';
-const COUNT_ADJECTIVE = '(?:[a-zäöüß]+(?:e|en)\\s+)?';
+const COUNT_ADJECTIVE =
+  '(?:(?:neue|aktuelle|weitere|verschiedene|unterschiedliche|eigene|einzelne|gr(?:ü|ue)ne)n?\\s+)?';
 
 const REQUEST_INFINITIVES = `(?:sortieren|z(?:ä|ae)hlen|ordnen|auflisten|vorlesen|(?:ö|oe)ffnen|zitieren|${WRITE_INFINITIVES})`;
 

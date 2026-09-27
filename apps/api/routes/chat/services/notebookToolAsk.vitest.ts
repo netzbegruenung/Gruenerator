@@ -103,6 +103,7 @@ describe('looksLikeNotebookToolAsk — trifft (Ort oder Menge)', () => {
     'Wieviele neue Anträge liegen im Notebook?',
     'In wie vielen Dokumenten kommt „Wasserstoff“ vor?',
     'In wie vielen Pressemitteilungen geht es um Braunkohle?',
+    'In wie vielen aktuellen Pressemitteilungen steht Braunkohle?',
     'Welche Quellen gibt es zum Thema Braunkohle? Nur die Titel.',
     'Welche Dokumente liegen zum Radverkehr vor?',
     'Was für Quellen findest du zur Wärmewende?',
@@ -198,6 +199,9 @@ describe('looksLikeNotebookToolAsk — trifft NICHT', () => {
     'Wie viele Menschen profitieren vom Beschluss?',
     'Wie viele Windräder fordert der Antrag?',
     'In wie vielen Städten gilt der Mietendeckel?',
+    // Review #3714: ein Plural-Nomen im Adjektiv-Platz.
+    'Wie viele Kommunen Beschlüsse zum Klimanotstand gefasst haben, weiß ich nicht.',
+    'In wie vielen Ländern Anträgen zugestimmt wurde, ist unklar.',
     'Welche Quellen nutzt die Studie?',
     'Welche Quellen hast du benutzt?',
     'Welche Quellen sind vertrauenswürdig?',
