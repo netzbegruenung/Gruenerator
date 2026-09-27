@@ -13,7 +13,6 @@ import {
   useAgentStore,
   type CategoryFilterConfig,
   type CategoryFilterField,
-  type MagicIntent,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
 import React, { useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
@@ -139,8 +138,6 @@ export const NotebookPageContent = ({
   const storedAnswerMode = useAgentStore((s) => s.notebookAnswerMode);
   const setAnswerMode = useAgentStore((s) => s.setNotebookAnswerMode);
   const answerMode = notebookComposerModeDef(storedAnswerMode).mode;
-  // Only the start page reads the text; a running conversation stays `auto`.
-  const [magicIntent, setMagicIntent] = useState<MagicIntent | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   // `?thread=` names the conversation to open — that is how a thread row in the
   // sidebar links here, and how a reload finds its way back to what was on
@@ -334,7 +331,8 @@ export const NotebookPageContent = ({
       onThreadCreated={handleThreadCreated}
       threadId={threadId}
       mode={mode}
-      answerMode={toNotebookAnswerMode(answerMode, magicIntent)}
+      answerMode={toNotebookAnswerMode(answerMode)}
+      magicSearch={answerMode === 'auto'}
       documentIds={documentIds}
     >
       <PendingQuestionSender />
@@ -370,7 +368,6 @@ export const NotebookPageContent = ({
                   omniComposer={omniComposer}
                   pageGradient={pageGradient}
                   footer={startpageFooter}
-                  onMagicIntentChange={setMagicIntent}
                 />
               </div>
             </AuiIf>
