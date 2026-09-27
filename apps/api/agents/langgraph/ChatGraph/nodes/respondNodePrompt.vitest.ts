@@ -58,7 +58,8 @@ vi.mock('../../../../services/chat/productKnowledge.js', async (importOriginal) 
   buildProductKnowledgeBlock: async () => '\n\n<<PRODUKTWISSEN>>',
 }));
 
-const { buildSystemMessage } = await import('./respondNode.js');
+const { buildSystemMessage, activePromptBlocks, PROMPT_BLOCK_ORDER } =
+  await import('./respondNode.js');
 
 beforeAll(() => {
   vi.useFakeTimers();
@@ -605,4 +606,153 @@ describe('buildSystemMessage — Golden', () => {
       expect(sideEffects).toMatchSnapshot('nebenwirkungen');
     });
   }
+});
+
+describe('Blockliste — Auswahl und Reihenfolge', () => {
+  async function active(testCase: Case) {
+    testCase.setup?.();
+    return activePromptBlocks(structuredClone(testCase.state), testCase.opts ?? {});
+  }
+
+  it('vergibt jede id genau einmal', () => {
+    expect(new Set(PROMPT_BLOCK_ORDER).size).toBe(PROMPT_BLOCK_ORDER.length);
+  });
+
+  // Ein Block, den kein Golden-Fall füllt, ist durch den Golden-Test nicht
+  // gedeckt: ein leerer Block rendert `''` — auch im falschen Zweig oder an der
+  // falschen Stelle. Wer einen Block ergänzt, braucht deshalb einen Fall dazu.
+  it('füllt jeden Block in mindestens einem Golden-Fall jedes seiner Zweige', async () => {
+    const seen = { default: new Set<string>(), custom: new Set<string>() };
+    for (const testCase of GOLDEN_CASES) {
+      const branch = testCase.state.customSystemPrompt ? 'custom' : 'default';
+      for (const id of await active(testCase)) seen[branch].add(id);
+    }
+    const customOnly = [
+      'custom-system-prompt',
+      'custom-citation-instruction',
+      'custom-integrity-rule',
+    ];
+    const defaultOnly = [
+      'system-role',
+      'degradation-notes',
+      'product-identity',
+      'product-knowledge',
+      'docs-page-map',
+      'intent-guidance',
+      'pipeline-source-text',
+      'answer-rules',
+      'citation-instruction',
+    ];
+    const missing = PROMPT_BLOCK_ORDER.flatMap((id) => [
+      ...(customOnly.includes(id) || seen.default.has(id) ? [] : [`default:${id}`]),
+      ...(defaultOnly.includes(id) || seen.custom.has(id) ? [] : [`custom:${id}`]),
+    ]);
+    expect(missing).toEqual([]);
+  });
+
+  // Die Reihenfolge steht in PROMPT_BLOCKS und nirgends sonst. Kein Zustand
+  // darf sie umordnen — er darf nur auslassen.
+  it('ist für jeden Zustand eine Teilfolge der Registry-Reihenfolge', async () => {
+    for (const testCase of GOLDEN_CASES) {
+      const positions = (await active(testCase)).map((id) => PROMPT_BLOCK_ORDER.indexOf(id));
+      expect(positions, testCase.name).toEqual([...positions].sort((a, b) => a - b));
+    }
+  });
+
+  it('liefert für den leeren Zustand genau diese Blöcke', async () => {
+    expect(await activePromptBlocks(makeState())).toEqual([
+      'system-role',
+      'datum',
+      'product-identity',
+      'user-instructions',
+      'intent-guidance',
+      'answer-rules',
+    ]);
+  });
+
+  it('baut beim Composer-Bypass gar nichts zusammen', async () => {
+    const state = makeState({
+      intent: 'pressemitteilung_examples',
+      responseText: 'WÖRTLICH',
+    } as never);
+    expect(await activePromptBlocks(state)).toEqual([]);
+    expect(await buildSystemMessage(state)).toBe('WÖRTLICH');
+  });
+
+  it('lässt im Rollen-Chat die default-eigenen Blöcke aus, auch wenn ihr Material da ist', async () => {
+    const ids = await activePromptBlocks(
+      makeState({
+        ...fullMaterial,
+        ...pinnedTransfer,
+        customSystemPrompt: CUSTOM_ROLE,
+        messages: [{ role: 'user', content: 'Was kannst du?' }],
+        mentionPinnedTool: 'gruenerator_docs_search',
+      } as never)
+    );
+    expect(ids[0]).toBe('custom-system-prompt');
+    for (const id of [
+      'system-role',
+      'degradation-notes',
+      'product-identity',
+      'product-knowledge',
+      'docs-page-map',
+      'intent-guidance',
+      'pipeline-source-text',
+      'answer-rules',
+      'citation-instruction',
+    ]) {
+      expect(ids, id).not.toContain(id);
+    }
+  });
+
+  // Ein Übertragungs-Turn hat genau ein Original — die übrigen Material-Blöcke
+  // schweigen, statt danebenzustehen (13.08.2026).
+  it('lässt beim Pipeline-Turn die konkurrierenden Material-Blöcke aus', async () => {
+    const ids = await activePromptBlocks(makeState(pinnedTransfer as never));
+    expect(ids).toContain('pipeline-source-text');
+    for (const id of [
+      'attachments',
+      'current-document',
+      'document-mention-context',
+      'thread-attachments',
+    ]) {
+      expect(ids, id).not.toContain(id);
+    }
+  });
+
+  it('hängt die Hierarchie-Regel nur bei fremdem Material an — im Rollen-Chat immer', async () => {
+    expect(await activePromptBlocks(makeState())).not.toContain('instruction-hierarchy');
+    expect(
+      await activePromptBlocks(makeState({ attachmentContext: '### A.pdf\n\nInhalt.' }))
+    ).toContain('instruction-hierarchy');
+    expect(await activePromptBlocks(makeState({ memoryContext: 'Duzen.' }))).toContain(
+      'instruction-hierarchy'
+    );
+    expect(await activePromptBlocks(makeState({ customSystemPrompt: CUSTOM_ROLE }))).toContain(
+      'instruction-hierarchy'
+    );
+  });
+
+  // Das Agenten-Standardrezept füllt nur den Einzelpfad; im Loop wählt das
+  // Modell selbst über `rezept_laden`, und eine Persona gibt die Form schon vor.
+  it('backt das Agenten-Standardrezept weder in den Loop noch in den Rollen-Chat', async () => {
+    const state = makeState(withAgentDefaultRecipe as never);
+    expect(await activePromptBlocks(state)).toContain('skill-fragment');
+    expect(await activePromptBlocks(state, { retrievalExpected: true })).not.toContain(
+      'skill-fragment'
+    );
+    expect(
+      await activePromptBlocks(
+        makeState({ ...withAgentDefaultRecipe, customSystemPrompt: CUSTOM_ROLE } as never)
+      )
+    ).not.toContain('skill-fragment');
+  });
+
+  it('trägt ein ausdrücklich gewähltes Rezept auch in den Rollen-Chat', async () => {
+    expect(
+      await activePromptBlocks(
+        makeState({ customSystemPrompt: CUSTOM_ROLE, activeSkillMention: 'instagram' })
+      )
+    ).toContain('skill-fragment');
+  });
 });
