@@ -1,5 +1,5 @@
 import { type CategoryFilterConfig } from '@gruenerator/chat';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import useDebounce from '../../../components/hooks/useDebounce';
 import ActiveFilterChips from '../manual-search/ActiveFilterChips';
@@ -35,8 +35,6 @@ interface NotebookLiveSearchProps {
   /** The composer settings' facet filters — what the chat is filtered by. */
   sharedFilters?: CategoryFilterConfig;
   emptyHint: string;
-  /** Shown until the text is long enough to search (the browse sub-tabs). */
-  idle?: ReactNode;
 }
 
 /**
@@ -50,7 +48,6 @@ export function NotebookLiveSearch({
   notebookId,
   sharedFilters,
   emptyHint,
-  idle,
 }: NotebookLiveSearchProps) {
   const trimmed = text.trim();
   const debounced = useDebounce(trimmed, DEBOUNCE_MS);
@@ -116,7 +113,7 @@ export function NotebookLiveSearch({
     sortBy,
   });
 
-  if (!typing) return <>{idle}</>;
+  if (!typing) return null;
 
   const sharedKeys = new Set(sharedFilters?.fields.map((f) => f.field) ?? []);
   const debouncing = query !== trimmed && live.results.length === 0;
