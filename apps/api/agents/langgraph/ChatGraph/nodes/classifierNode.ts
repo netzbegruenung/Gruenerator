@@ -231,8 +231,10 @@ function editsThreadArtifact(state: ChatGraphState, text: string): boolean {
 }
 
 /**
- * Der letzte Satz der vorigen Antwort — dort steht das Angebot, das eine
- * nackte Bestätigung annimmt. `null` ohne vorige Antwort im Verlauf.
+ * Das Angebot, das eine nackte Bestätigung annimmt: die letzte Frage der
+ * vorigen Antwort, sonst ihr letzter Satz. Die Frage zuerst, weil ein Füllsatz
+ * dahinter („Sag mir einfach Bescheid!") das Angebot sonst verdeckt. `null`
+ * ohne vorige Antwort im Verlauf.
  */
 function previousAssistantOffer(messages: ChatGraphState['messages']): string | null {
   const lastUser = messages.map((m) => m.role).lastIndexOf('user');
@@ -245,7 +247,7 @@ function previousAssistantOffer(messages: ChatGraphState['messages']): string | 
     .split(/(?<=[.?!])\s+/)
     .map((x) => x.trim())
     .filter(Boolean);
-  return sentences.at(-1) ?? null;
+  return [...sentences].reverse().find((x) => x.endsWith('?')) ?? sentences.at(-1) ?? null;
 }
 
 /**
