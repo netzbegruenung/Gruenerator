@@ -258,7 +258,7 @@ export function TopicProfile({
         <p className={cn('flex items-center gap-2 text-xs', NOTEBOOK_TEXT_MUTED)}>
           <span
             aria-hidden
-            className="inline-block h-3 w-[2px] rounded bg-[#22382E] dark:bg-[#E4EDE8]"
+            className="inline-block h-3 w-[2px] rounded bg-[#22382E] dark:bg-[#F3E8EE]"
           />
           Durchschnitt aller Landesverbände
         </p>
@@ -316,7 +316,7 @@ export function TopicProfile({
                   {t.baselineShare !== null && (
                     <span
                       aria-hidden
-                      className="absolute -top-[3px] h-4 w-[2px] -translate-x-1/2 rounded bg-[#22382E] dark:bg-[#E4EDE8]"
+                      className="absolute -top-[3px] h-4 w-[2px] -translate-x-1/2 rounded bg-[#22382E] dark:bg-[#F3E8EE]"
                       style={{ left: `${(t.baselineShare / scale) * 100}%` }}
                     />
                   )}
@@ -518,7 +518,7 @@ function TermChips({
           <li
             key={item.word}
             className={cn(
-              'rounded-full border border-[rgba(82,144,122,0.18)] px-3 py-1 text-sm dark:border-[#2C4A3B]',
+              'rounded-full border border-[rgba(82,144,122,0.18)] px-3 py-1 text-sm dark:border-[#4A2A3B]',
               NOTEBOOK_TEXT_STRONG
             )}
           >
@@ -617,7 +617,7 @@ export function NotebookGrueneratoren({
               to={`/agents/${getAgentSlug(agent.identifier)}`}
               className={cn(
                 'group flex h-full items-center gap-3 rounded-lg border border-[rgba(82,144,122,0.18)] px-4 py-3 no-underline',
-                'transition-colors hover:border-[#D6006E]/50 hover:bg-[#FBEDF4] dark:border-[#2C4A3B] dark:hover:bg-white/5'
+                'transition-colors hover:border-[#D6006E]/50 hover:bg-[#FBEDF4] dark:border-[#4A2A3B] dark:hover:bg-white/5'
               )}
             >
               <span className="flex min-w-0 flex-1 flex-col">
