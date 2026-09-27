@@ -279,12 +279,19 @@ function joinNote(...parts: Array<string | null>): { note?: string } {
 
 const NO_SOURCE_IN_FILTER = 'Keine Quelle passt zu filter — lockere ihn oder prüfe ihn mit list.';
 
+/** list und rank filtern immer; find, grep, stats, cite nur ohne sourceId; read, outline nie. */
+const usesFilter = (args: SystemActionArgs): boolean =>
+  args.action === 'list' ||
+  args.action === 'rank' ||
+  (!args.sourceId && ['find', 'grep', 'stats', 'cite'].includes(args.action));
+
 export async function runSystemAction(
   args: SystemActionArgs,
   ctx: SystemActionCtx
 ): Promise<Record<string, unknown>> {
   const asked = args.filter?.category ?? args.filter?.sourceType;
-  if (!asked) return await withSourceSuggestions(args, ctx);
+  // Ein übergangener Filter darf einen Aufruf nicht scheitern lassen.
+  if (!asked || !usesFilter(args)) return await withSourceSuggestions(args, ctx);
   const { used, values } = await resolveSystemCategory(
     { collection: ctx.collection, category: asked },
     ctx.deps
