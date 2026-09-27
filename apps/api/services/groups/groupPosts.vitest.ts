@@ -17,6 +17,8 @@ import {
 interface Fake {
   role?: 'admin' | 'member' | null;
   groupType?: 'standard' | 'personal';
+  isSystem?: boolean;
+  instanceAdmin?: boolean;
   post?: { id: string; author_id: string | null } | null;
   fileCount?: number;
   failInsert?: boolean;
@@ -31,6 +33,7 @@ function fakeDeps(f: Fake = {}) {
         role: f.role ?? 'member',
         group_type: f.groupType ?? 'standard',
         created_by: 'creator',
+        is_system: f.isSystem ?? false,
       };
     }
     if (sql.includes('FROM group_posts')) {
@@ -64,6 +67,7 @@ function fakeDeps(f: Fake = {}) {
     postgres: postgres as unknown as GroupPostDeps['postgres'],
     notify: notify as unknown as GroupPostDeps['notify'],
     deleteFile,
+    isInstanceAdmin: vi.fn(async () => f.instanceAdmin ?? false),
   };
   return { deps, exec, txQueryOne, txExec, notify, deleteFile };
 }
@@ -118,6 +122,20 @@ describe('createGroupPost', () => {
     expect(out.status).toBe(400);
     expect(txQueryOne).not.toHaveBeenCalled();
     expect(deleteFile).toHaveBeenCalledTimes(input.files.length);
+  });
+
+  it('lets only instance admins post in the system group, and removes the files', async () => {
+    const member = fakeDeps({ role: 'admin', isSystem: true });
+    const out = await createGroupPost(
+      { ...base, body: 'Hallo', files: [file('a.png')] },
+      member.deps
+    );
+    expect(out.status).toBe(403);
+    expect(member.deleteFile).toHaveBeenCalledWith('stored-a.png');
+    const admin = fakeDeps({ isSystem: true, instanceAdmin: true });
+    expect((await createGroupPost({ ...base, body: 'Hallo', files: [] }, admin.deps)).status).toBe(
+      201
+    );
   });
 
   it('removes the files when the user is not a member', async () => {

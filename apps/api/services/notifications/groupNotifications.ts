@@ -7,6 +7,15 @@ import type { NotificationType } from './types.js';
 
 const log = createLogger('GroupNotifications');
 
+interface GroupRow {
+  name: string;
+  is_system: boolean | null;
+}
+
+// The system group holds every user: deliver in slices so one share doesn't
+// queue thousands of inserts on the pool at once.
+const DELIVER_CHUNK = 200;
+
 interface NotifyGroupParams {
   groupId: string;
   excludeUserId: string;
@@ -28,16 +37,16 @@ export async function notifyGroupMembers(params: NotifyGroupParams): Promise<voi
         'SELECT user_id FROM group_memberships WHERE group_id = $1 AND user_id != $2 AND is_active = TRUE',
         [groupId, excludeUserId]
       ) as Promise<Array<{ user_id: string }>>,
-      db.queryOne('SELECT name FROM groups WHERE id = $1', [groupId], {
+      db.queryOne('SELECT name, is_system FROM groups WHERE id = $1', [groupId], {
         table: 'groups',
-      }) as Promise<{ name: string } | null>,
+      }) as Promise<GroupRow | null>,
     ]);
 
     if (!members || members.length === 0) return;
 
     await deliver(
       members.map((m) => m.user_id),
-      group?.name || 'Gruppe',
+      group,
       params
     );
   } catch (err) {
@@ -69,13 +78,17 @@ export async function notifyGroupAdmins(params: NotifyGroupParams): Promise<void
 
     if (!admins || admins.length === 0) return;
 
-    const group = (await db.queryOne('SELECT name FROM groups WHERE id = $1', [groupId], {
-      table: 'groups',
-    })) as { name: string } | null;
+    const group = (await db.queryOne(
+      'SELECT name, is_system FROM groups WHERE id = $1',
+      [groupId],
+      {
+        table: 'groups',
+      }
+    )) as GroupRow | null;
 
     await deliver(
       admins.map((a) => a.user_id),
-      group?.name || 'Gruppe',
+      group,
       params
     );
   } catch (err) {
@@ -101,15 +114,15 @@ export async function notifyGroupUsers(
         'SELECT user_id FROM group_memberships WHERE group_id = $1 AND user_id = ANY($2::uuid[]) AND is_active = TRUE',
         [groupId, candidates]
       ) as Promise<Array<{ user_id: string }>>,
-      db.queryOne('SELECT name FROM groups WHERE id = $1', [groupId], {
+      db.queryOne('SELECT name, is_system FROM groups WHERE id = $1', [groupId], {
         table: 'groups',
-      }) as Promise<{ name: string } | null>,
+      }) as Promise<GroupRow | null>,
     ]);
     if (!members || members.length === 0) return;
 
     await deliver(
       members.map((m) => m.user_id),
-      group?.name || 'Gruppe',
+      group,
       params
     );
   } catch (err) {
@@ -119,27 +132,33 @@ export async function notifyGroupUsers(
 
 async function deliver(
   userIds: string[],
-  groupName: string,
+  group: GroupRow | null,
   params: NotifyGroupParams
 ): Promise<void> {
   const { groupId, type, title, body, actionUrl, metadata } = params;
-  await Promise.all(
-    userIds.map((userId) =>
-      createNotification({
-        userId,
-        type,
-        title,
-        body,
-        actionUrl,
-        metadata: { groupId, groupName, ...metadata },
-        groupKey: `group:${groupId}`,
-      }).catch((err: unknown) => {
-        log.warn('Failed to notify group user', {
+  const groupName = group?.name || 'Gruppe';
+  // In the system group notifications stay in-app — no mass email to every user.
+  const channelOverride = group?.is_system ? { email: false } : undefined;
+  for (let i = 0; i < userIds.length; i += DELIVER_CHUNK) {
+    await Promise.all(
+      userIds.slice(i, i + DELIVER_CHUNK).map((userId) =>
+        createNotification({
           userId,
-          groupId,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      })
-    )
-  );
+          type,
+          title,
+          body,
+          actionUrl,
+          metadata: { groupId, groupName, ...metadata },
+          groupKey: `group:${groupId}`,
+          channelOverride,
+        }).catch((err: unknown) => {
+          log.warn('Failed to notify group user', {
+            userId,
+            groupId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        })
+      )
+    );
+  }
 }

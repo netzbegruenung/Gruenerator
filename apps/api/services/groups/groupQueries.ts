@@ -4,6 +4,7 @@
  * token) live in the sibling `groupMutations.ts`.
  */
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { isInstanceAdmin } from '../../utils/adminAuthz.js';
 import { likeContainsPattern } from '../../utils/sqlLike.js';
 
 import type { GroupAudience } from '@gruenerator/contracts';
@@ -22,7 +23,8 @@ const db = getPostgresInstance();
 export async function listUserGroups(userId: string, limit = 30): Promise<UserGroupRow[]> {
   return (await db.query(
     `SELECT g.id, g.name, g.slug_suffix, gm.role,
-            (SELECT COUNT(*)::int FROM group_memberships m WHERE m.group_id = g.id AND m.is_active = TRUE) AS member_count
+            -- The system group holds every user and exposes no member info.
+            CASE WHEN g.is_system THEN 0 ELSE (SELECT COUNT(*)::int FROM group_memberships m WHERE m.group_id = g.id AND m.is_active = TRUE) END AS member_count
      FROM group_memberships gm
      INNER JOIN groups g ON g.id = gm.group_id
      WHERE gm.user_id = $1 AND gm.is_active = TRUE AND g.is_active = TRUE
@@ -45,7 +47,8 @@ export async function findGroups(
   return (await db.query(
     `SELECT g.id, g.name, g.slug_suffix,
             COALESCE(gm.role, '') AS role,
-            (SELECT COUNT(*)::int FROM group_memberships m WHERE m.group_id = g.id AND m.is_active = TRUE) AS member_count
+            -- The system group holds every user and exposes no member info.
+            CASE WHEN g.is_system THEN 0 ELSE (SELECT COUNT(*)::int FROM group_memberships m WHERE m.group_id = g.id AND m.is_active = TRUE) END AS member_count
      FROM groups g
      LEFT JOIN group_memberships gm ON gm.group_id = g.id AND gm.user_id = $1 AND gm.is_active = TRUE
      WHERE g.is_active = TRUE
@@ -67,7 +70,7 @@ export interface GroupDetailRow {
   audience: GroupAudience;
   group_type: 'standard' | 'personal';
   role: string;
-  /** Admin-Rolle ODER Gründer*in — dieselbe Regel wie `getDetails` im Router. */
+  /** Admin-Rolle ODER Gründer*in (System-Gruppe: Instanz-Admin) — dieselbe Regel wie `getDetails`. */
   isAdmin: boolean;
   member_count: number;
 }
@@ -84,8 +87,9 @@ export async function getGroupForMember(
 ): Promise<GroupDetailRow | null> {
   const row = (await db.queryOne(
     `SELECT g.id, g.name, g.description, g.slug_suffix, g.is_public, g.audience,
-            g.group_type, g.created_by, gm.role,
-            (SELECT COUNT(*)::int FROM group_memberships m WHERE m.group_id = g.id AND m.is_active = TRUE) AS member_count
+            g.group_type, g.created_by, g.is_system, gm.role,
+            -- The system group holds every user and exposes no member info.
+            CASE WHEN g.is_system THEN 0 ELSE (SELECT COUNT(*)::int FROM group_memberships m WHERE m.group_id = g.id AND m.is_active = TRUE) END AS member_count
      FROM group_memberships gm
      INNER JOIN groups g ON g.id = gm.group_id
      WHERE gm.group_id = $1 AND gm.user_id = $2 AND gm.is_active = TRUE AND g.is_active = TRUE`,
@@ -94,6 +98,7 @@ export async function getGroupForMember(
   )) as
     | (Omit<GroupDetailRow, 'isAdmin' | 'is_public' | 'audience' | 'group_type'> & {
         created_by: string | null;
+        is_system: boolean | null;
         is_public: boolean | null;
         audience: GroupAudience | null;
         group_type: 'standard' | 'personal' | null;
@@ -109,7 +114,9 @@ export async function getGroupForMember(
     audience: row.audience ?? 'all',
     group_type: row.group_type ?? 'standard',
     role: row.role,
-    isAdmin: row.role === 'admin' || row.created_by === userId,
+    isAdmin: row.is_system
+      ? await isInstanceAdmin(userId)
+      : row.role === 'admin' || row.created_by === userId,
     member_count: Number(row.member_count),
   };
 }

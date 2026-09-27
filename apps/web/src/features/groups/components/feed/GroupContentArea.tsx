@@ -26,14 +26,18 @@ interface GroupContentAreaProps {
   isLoading: boolean;
   isAdmin: boolean;
   isPersonal: boolean;
+  isSystem: boolean;
   currentUserId: string | null;
   currentUserName: string | null;
   members: GroupMember[];
   description: string | null;
   linkCount: number;
   onShowMembers: () => void;
-  /** Teilen-Dialog; `note` kommt aus dem Composer („Aus meinen Inhalten"). */
-  onOpenShare: (note?: string) => void;
+  /**
+   * Teilen-Dialog; `note` kommt aus dem Composer („Aus meinen Inhalten").
+   * null: the viewer may not share here (system group, non-admin).
+   */
+  onOpenShare: ((note?: string) => void) | null;
   onRemove: ((item: GroupFeedItem) => void) | null;
   onUseTemplate: (id: string) => void;
   cloningId: string | null;
@@ -53,6 +57,7 @@ export function GroupContentArea({
   isLoading,
   isAdmin,
   isPersonal,
+  isSystem,
   currentUserId,
   currentUserName,
   members,
@@ -111,9 +116,11 @@ export function GroupContentArea({
       <p className="m-0 text-[15px] text-muted-foreground">
         {isPersonal ? 'In diesem Projekt liegt noch nichts.' : 'Noch nichts geteilt.'}
       </p>
-      <Button variant="brand-outline" onClick={() => onOpenShare()}>
-        <PiPlus aria-hidden /> Ersten Inhalt teilen
-      </Button>
+      {onOpenShare && (
+        <Button variant="brand-outline" onClick={() => onOpenShare()}>
+          <PiPlus aria-hidden /> Ersten Inhalt teilen
+        </Button>
+      )}
     </div>
   );
 
@@ -170,11 +177,11 @@ export function GroupContentArea({
             <TabsContent value="feed" className="mt-0">
               <div className="flex flex-col gap-lg min-[900px]:flex-row min-[900px]:items-start min-[900px]:gap-xl">
                 <div className="flex min-w-0 flex-1 flex-col gap-lg">
-                  {!hasQuery && (
+                  {!hasQuery && onOpenShare && (
                     <GroupComposer
                       groupId={groupId}
                       groupName={groupName}
-                      memberCount={members.length}
+                      memberCount={isSystem ? null : members.length}
                       currentUserName={currentUserName}
                       onOpenShare={onOpenShare}
                     />

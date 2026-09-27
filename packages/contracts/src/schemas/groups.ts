@@ -155,6 +155,9 @@ export const groupSummarySchema = z.object({
   isAdmin: z.boolean(),
   // 'personal' = solo Space (lean UI, hidden from discovery); else team Space.
   group_type: z.enum(['standard', 'personal']).nullish(),
+  // The one system group every user belongs to: no member info, only instance
+  // admins share. member_count is 0 there.
+  is_system: z.boolean().nullish(),
   member_count: z.number().nullish(),
   content_count: z.number().nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
@@ -176,6 +179,7 @@ export const groupDetailSchema = z.object({
   audience: groupAudienceSchema.nullish(),
   // 'personal' = solo Space (lean UI, hidden from discovery); else team Space.
   group_type: z.enum(['standard', 'personal']).nullish(),
+  is_system: z.boolean().nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
   slug_suffix: z.string().nullish(),
 });

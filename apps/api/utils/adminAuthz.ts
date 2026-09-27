@@ -20,18 +20,38 @@ import { createLogger } from './logger.js';
 
 const log = createLogger('adminAuthz');
 
+/**
+ * Silent instance-admin check. Also matches the profile's own email against
+ * `ADMIN_EMAILS`, so callers without a session email (services that only
+ * know the user id) still recognise env admins.
+ */
+export async function isInstanceAdmin(userId: string, email?: string | null): Promise<boolean> {
+  return (await lookupInstanceAdmin(userId, email)).allowed;
+}
+
+async function lookupInstanceAdmin(
+  userId: string,
+  email?: string | null
+): Promise<{
+  allowed: boolean;
+  profile: { is_admin: boolean | null; email: string | null } | null;
+}> {
+  if (isAdminByEmail(email)) return { allowed: true, profile: null };
+  const postgres = getPostgresInstance();
+  const profile = (await postgres.queryOne(
+    'SELECT is_admin, email FROM profiles WHERE id = $1',
+    [userId],
+    { table: 'profiles' }
+  )) as { is_admin: boolean | null; email: string | null } | null;
+  const allowed = Boolean(profile?.is_admin) || isAdminByEmail(profile?.email);
+  return { allowed, profile };
+}
+
 export async function requireInstanceAdmin(
   userId: string,
   email?: string | null
 ): Promise<boolean> {
-  if (isAdminByEmail(email)) return true;
-  const postgres = getPostgresInstance();
-  const profile = await postgres.queryOne(
-    'SELECT is_admin, email FROM profiles WHERE id = $1',
-    [userId],
-    { table: 'profiles' }
-  );
-  const allowed = Boolean(profile?.is_admin);
+  const { allowed, profile } = await lookupInstanceAdmin(userId, email);
   if (!allowed) {
     log.warn(
       '[adminAuthz] instance admin check denied: session user_id=%s session_email=%s profile_found=%s profile_email=%s profile_is_admin=%s',

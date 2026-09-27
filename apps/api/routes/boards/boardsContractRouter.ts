@@ -216,8 +216,11 @@ export const boardsContractRouter = s.router(boardsContract, {
              INNER JOIN group_memberships gm
                ON gm.group_id = gcs.group_id
               AND gm.is_active = TRUE
+             INNER JOIN groups g ON g.id = gcs.group_id
              WHERE gcs.content_type = 'collaborative_documents'
                AND gcs.content_id = $1::text
+               -- The system group holds every user; never expose them as assignees.
+               AND NOT g.is_system
            )
            SELECT DISTINCT ON (a.user_id)
              a.user_id,

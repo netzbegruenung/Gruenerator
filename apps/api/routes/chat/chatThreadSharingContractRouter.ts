@@ -17,6 +17,10 @@ import { extractSlugSuffix } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import {
+  assertCanShareToGroup,
+  listShareTargetGroups,
+} from '../../services/groups/groupMembership.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
@@ -133,23 +137,7 @@ export const chatThreadSharingContractRouter = s.router(chatThreadSharingContrac
   listUserGroups: async (args) => {
     try {
       const userId = getUserId(args.req);
-      const db = getPostgresInstance();
-      const groups = await db.query(
-        `SELECT g.id, g.name, gm.role
-         FROM groups g
-         INNER JOIN group_memberships gm ON gm.group_id = g.id
-         WHERE gm.user_id = $1 AND gm.is_active = TRUE
-         ORDER BY g.name ASC`,
-        [userId]
-      );
-      return {
-        status: 200 as const,
-        body: groups.map((g) => ({
-          id: String(g.id),
-          name: String(g.name),
-          role: String(g.role ?? 'member'),
-        })),
-      };
+      return { status: 200 as const, body: await listShareTargetGroups(userId) };
     } catch (error) {
       log.error('Error fetching user groups:', error);
       return { status: 500 as const, body: { error: 'Failed to fetch groups' } };
@@ -205,12 +193,10 @@ export const chatThreadSharingContractRouter = s.router(chatThreadSharingContrac
         return { status: 403 as const, body: { error: 'Only thread owner can share' } };
 
       const db = getPostgresInstance();
-      const membership = await db.query(
-        `SELECT 1 FROM group_memberships WHERE group_id = $1 AND user_id = $2 AND is_active = TRUE`,
-        [groupId, userId]
-      );
-      if (membership.length === 0) {
-        return { status: 403 as const, body: { error: 'You must be a member of the group' } };
+      try {
+        await assertCanShareToGroup(groupId, userId);
+      } catch {
+        return { status: 403 as const, body: { error: 'You may not share with this group' } };
       }
 
       // Upsert without a unique constraint (group_content_shares has none on

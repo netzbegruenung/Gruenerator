@@ -140,13 +140,16 @@ CREATE TABLE IF NOT EXISTS groups (
     wolke_share_links JSONB DEFAULT '[]',
     avatar_url TEXT,
     links JSONB DEFAULT '[]',
-    slug_suffix TEXT
+    slug_suffix TEXT,
+    is_system BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- Stable 6-char tail for Notion-style group URLs (`/gruppen/<name>-<suffix>`).
 -- Assigned at creation, immutable on rename; partial unique so legacy rows
 -- can sit NULL until the boot-time backfill fills them.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_groups_slug_suffix ON groups(slug_suffix) WHERE slug_suffix IS NOT NULL;
+-- At most one system group (all users are members, only instance admins share).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_groups_single_system ON groups ((is_system)) WHERE is_system;
 
 CREATE TABLE IF NOT EXISTS group_memberships (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

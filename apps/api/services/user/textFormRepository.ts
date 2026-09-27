@@ -34,6 +34,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { userTextForms, type UserTextFormRow } from '../../database/schema/textForms.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { assertCanShareToGroup } from '../groups/groupMembership.js';
 
 import {
   isListableTextForm,
@@ -521,6 +522,12 @@ export async function shareTextFormWithGroup(
 ): Promise<TextFormGroupShare[] | null> {
   const form = await findOwnRow(userId, mention);
   if (!form || !isShareableTextForm(form.kind as TextFormKind, mention)) return null;
+
+  const allowed = await assertCanShareToGroup(groupId, userId).then(
+    () => true,
+    () => false
+  );
+  if (!allowed) return (await loadSharesFor([form.id])).get(form.id) ?? [];
 
   const pg = getPostgresInstance();
   // Membership is checked in SQL: the insert only happens for a group the user

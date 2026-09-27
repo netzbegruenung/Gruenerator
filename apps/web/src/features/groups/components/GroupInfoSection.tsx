@@ -66,6 +66,7 @@ export interface GroupInfo {
   is_public?: boolean;
   audience?: GroupAudience;
   group_type?: 'standard' | 'personal';
+  is_system?: boolean;
 }
 
 export interface GroupData {
@@ -275,13 +276,18 @@ const GroupInfoSection = memo(
     // Personal Space: a solo workspace — hide team collaboration chrome
     // (invite link, visibility, join requests).
     const isPersonal = data?.groupInfo?.group_type === 'personal';
+    // System group: every user is a member, no member info, only instance
+    // admins (`isAdmin` there) share. Hides all team chrome, like personal.
+    const isSystem = data?.groupInfo?.is_system === true;
+    const isTeam = !isPersonal && !isSystem;
+    const canShare = !isSystem || !!data?.isAdmin;
     const groupLinks = data?.groupInfo?.links ?? [];
 
     // Leaving is a member action, not an admin one: everybody except the
     // creator can leave (the backend rejects the creator — they must delete).
     const createdBy = data?.groupInfo?.created_by;
     const canLeave =
-      !isPersonal && !!currentUserId && !!createdBy && String(createdBy) !== String(currentUserId);
+      isTeam && !!currentUserId && !!createdBy && String(createdBy) !== String(currentUserId);
     const leaveGroup = useLeaveGroup();
     const handleLeaveGroup = useCallback(() => {
       setShowLeaveConfirm(false);
@@ -459,13 +465,15 @@ const GroupInfoSection = memo(
                 <p className="text-[15px] text-muted-foreground mt-xs m-0">
                   {isPersonal
                     ? data?.groupInfo?.description || 'Dein persönliches Projekt.'
-                    : `Gruppe · ${memberCount} ${memberCount === 1 ? 'Mitglied' : 'Mitglieder'}`}
+                    : isSystem
+                      ? 'Für alle im Grünerator'
+                      : `Gruppe · ${memberCount} ${memberCount === 1 ? 'Mitglied' : 'Mitglieder'}`}
                 </p>
               </div>
             )}
           </div>
           <div className="flex shrink-0 items-center gap-sm">
-            {!isPersonal && !isLoadingMembers && onlineCount > 0 && (
+            {isTeam && !isLoadingMembers && onlineCount > 0 && (
               <span
                 className="hidden sm:inline-flex items-center -space-x-1.5"
                 aria-label={`${onlineCount} online`}
@@ -486,17 +494,19 @@ const GroupInfoSection = memo(
                 )}
               </span>
             )}
-            <Button
-              variant="brand"
-              onClick={() => {
-                setShareInitialNote('');
-                setShowAddContent(true);
-              }}
-              className="max-sm:size-9 max-sm:rounded-full max-sm:p-0"
-            >
-              <PiPlus aria-hidden />
-              <span className="max-sm:sr-only">Inhalte teilen</span>
-            </Button>
+            {canShare && (
+              <Button
+                variant="brand"
+                onClick={() => {
+                  setShareInitialNote('');
+                  setShowAddContent(true);
+                }}
+                className="max-sm:size-9 max-sm:rounded-full max-sm:p-0"
+              >
+                <PiPlus aria-hidden />
+                <span className="max-sm:sr-only">Inhalte teilen</span>
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -509,7 +519,7 @@ const GroupInfoSection = memo(
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {!isPersonal && (
+                {isTeam && (
                   <>
                     <DropdownMenuItem onClick={() => setMembersDialogOpen(true)}>
                       <HiOutlineUserGroup className="size-4 mr-xs" />
@@ -554,19 +564,19 @@ const GroupInfoSection = memo(
                         Bild entfernen
                       </DropdownMenuItem>
                     )}
-                    {!isPersonal && (
+                    {isTeam && (
                       <DropdownMenuItem onClick={openInviteDialog}>
                         <HiOutlineMail className="size-4 mr-xs" />
                         Per E-Mail einladen
                       </DropdownMenuItem>
                     )}
-                    {!isPersonal && data?.joinToken && (
+                    {isTeam && data?.joinToken && (
                       <DropdownMenuItem onClick={copyJoinLink}>
                         <HiOutlineLink className="size-4 mr-xs" />
                         {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
                       </DropdownMenuItem>
                     )}
-                    {!isPersonal && (
+                    {isTeam && (
                       <DropdownMenuItem onClick={() => setShowVisibilityDialog(true)}>
                         <HiOutlineGlobeAlt className="size-4 mr-xs" />
                         {data?.groupInfo?.is_public
@@ -574,15 +584,19 @@ const GroupInfoSection = memo(
                           : 'Öffentlich machen'}
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => setShowDeleteConfirm(true)}
-                      disabled={isDeletingGroup || isUpdatingGroupName}
-                      className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
-                    >
-                      <HiOutlineTrash className="size-4 mr-xs" />
-                      {isPersonal ? 'Projekt löschen' : 'Gruppe löschen'}
-                    </DropdownMenuItem>
+                    {!isSystem && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => setShowDeleteConfirm(true)}
+                          disabled={isDeletingGroup || isUpdatingGroupName}
+                          className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                        >
+                          <HiOutlineTrash className="size-4 mr-xs" />
+                          {isPersonal ? 'Projekt löschen' : 'Gruppe löschen'}
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </>
                 )}
                 {canLeave && (
@@ -603,7 +617,7 @@ const GroupInfoSection = memo(
           </div>
         </div>
 
-        {!isPersonal && data?.isAdmin && (
+        {isTeam && data?.isAdmin && (
           <GroupJoinRequestsSection
             groupId={groupId}
             isAdmin={!!data?.isAdmin}
@@ -619,16 +633,21 @@ const GroupInfoSection = memo(
           isLoading={isLoadingSharedContent}
           isAdmin={!!data?.isAdmin}
           isPersonal={isPersonal}
+          isSystem={isSystem}
           currentUserId={currentUserId ?? null}
           currentUserName={currentUserName ?? null}
           members={members ?? []}
           description={data?.groupInfo?.description ?? null}
           linkCount={groupLinks.length}
           onShowMembers={() => setMembersDialogOpen(true)}
-          onOpenShare={(note) => {
-            setShareInitialNote(note ?? '');
-            setShowAddContent(true);
-          }}
+          onOpenShare={
+            canShare
+              ? (note) => {
+                  setShareInitialNote(note ?? '');
+                  setShowAddContent(true);
+                }
+              : null
+          }
           onRemove={
             data?.isAdmin && onUnshareContent
               ? (item) => onUnshareContent(item.id, item.contentType)
@@ -668,7 +687,7 @@ const GroupInfoSection = memo(
           isAddingLink={isAddingLink}
         />
 
-        {data?.isAdmin && (
+        {isTeam && data?.isAdmin && (
           <GroupVisibilityDialog
             groupId={groupId}
             isOpen={showVisibilityDialog}
