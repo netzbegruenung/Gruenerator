@@ -85,6 +85,20 @@ const PAGE_ASKS = [
   'seitenzahl(?:en)?\\s+(?:von|f(?:ü|ue)r|zu|zum|zur|dazu)',
 ];
 
+/**
+ * Was man in einem Notebook zählt: Einheiten des Texts und die Dokumentarten
+ * der Landesverbands-Notebooks (Beta 27.09.2026: „Wie viele Beschlüsse gibt es
+ * seit Januar 2026?" lief in die Suche und fand null). Nominativ/Akkusativ für
+ * „wie viele …", Dativ für „in wie vielen …". Ein Adjektiv davor ist erlaubt
+ * („wie viele neue Anträge"), ein anderes Nomen nicht — „Wie viele Menschen
+ * profitieren vom Beschluss?" ist eine Inhaltsfrage.
+ */
+const COUNTED_NOUN =
+  '(?:w(?:ö|oe)rter|seiten|quellen|dokumente|treffer|texte|artikel|beschl(?:ü|ue)sse|antr(?:ä|ae)ge|pressemitteilungen|positionspapiere|protokolle)';
+const COUNTED_NOUN_DATIVE =
+  '(?:dokumenten|quellen|texten|artikeln|beschl(?:ü|ue)ssen|antr(?:ä|ae)gen|pressemitteilungen|positionspapieren|protokollen)';
+const COUNT_ADJECTIVE = '(?:[a-zäöüß]+(?:e|en)\\s+)?';
+
 const REQUEST_INFINITIVES = `(?:sortieren|z(?:ä|ae)hlen|ordnen|auflisten|vorlesen|(?:ö|oe)ffnen|zitieren|${WRITE_INFINITIVES})`;
 
 /** Bittrahmen mit Infinitiv — nicht über ein Komma hinweg. */
@@ -132,7 +146,14 @@ const NOTEBOOK_TOOL_ASK = new RegExp(
       // als Präposition („steht vor Gericht") und nicht vor einem Nebensatz
       // („kommt es vor, dass …" ist eine Inhaltsfrage).
       'wie\\s+oft\\s+(?:wird|kommt|taucht|steht)\\s+[^.?!]{0,80}?(?<![\\wäöüß])(?:erw(?:ä|ae)hnt|genannt|verwendet|(?:vor|auf)(?=\\s*(?:[.?!;]|,(?!\\s*(?:dass|wenn|ob)(?![\\wäöüß]))|$)))',
-      'wie\\s+viele\\s+(?:w(?:ö|oe)rter|seiten|quellen|dokumente|treffer)',
+      `wie\\s*viele\\s+${COUNT_ADJECTIVE}${COUNTED_NOUN}`,
+      `in\\s+wie\\s*vielen\\s+${COUNT_ADJECTIVE}${COUNTED_NOUN_DATIVE}`,
+      // Bestandsfragen: „Welche Quellen gibt es zum Thema Braunkohle? Nur die
+      // Titel." — eine Liste, kein Rerank. „Welche Quellen nutzt die Studie?"
+      // und „welche Quellen hast du benutzt?" fragen nach Inhalt bzw. nach der
+      // Antwort und bleiben draußen.
+      '(?:welche|was\\s+f(?:ü|ue)r)\\s+(?:quellen|dokumente|texte)\\s+(?:gibt\\s+es|liegen|findest\\s+du)',
+      'nur\\s+(?:die\\s+)?titel',
       'seite\\s+\\d+',
       ...PAGE_ASKS,
       'abschnitt\\s+\\d+',
