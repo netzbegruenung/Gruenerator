@@ -22,8 +22,8 @@ const router: Router = Router();
  *   - { collection } → enrich just that Qdrant collection
  *   - { mode: 'all' } → re-tag every doc (full backfill), ignoring markers. This
  *     is uncapped and can outlast the proxy — prefer the backfill script.
- *   - { maxDocs } → work budget for this request (0 = uncapped). Whatever the
- *     budget leaves over comes back as `pending`, so a caller facing a large
+ *   - { maxDocs } → work budget for this request (0 = uncapped); a ~3 min clock
+ *     applies on top. Whatever the budget leaves over comes back as `pending`, so a caller facing a large
  *     backlog POSTs again until that reaches 0 instead of running into the
  *     reverse proxy's ~5 min cut-off.
  */
