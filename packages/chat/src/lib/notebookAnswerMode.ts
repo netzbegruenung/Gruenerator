@@ -31,7 +31,7 @@ export const NOTEBOOK_ANSWER_MODES: NotebookAnswerModeDef[] = [
     mode: 'auto',
     label: 'Magic Search',
     shortLabel: 'Magic',
-    description: 'Erkennt Suche oder Frage',
+    description: 'Passt sich deiner Eingabe an',
     recommended: true,
   },
   {
