@@ -1,8 +1,8 @@
 name: Report CI Failures
 
 # Watches the unattended/scheduled workflows (nobody is looking at a 2 AM cron)
-# and opens ONE tracking issue when one fails. PR/push CI is deliberately excluded —
-# the author already sees those, so auto-issuing them would be spam.
+# and opens ONE tracking issue when one fails. The CI workflow (PR/push) is not
+# watched here — `test-failure-issues.yml` reports it per failing test instead.
 #
 # Dedup: at most one OPEN issue per workflow (label `ci-failure` + exact title match).
 # While that issue is open, further failures of the same workflow are ignored — so an
