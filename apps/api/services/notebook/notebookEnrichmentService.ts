@@ -59,6 +59,15 @@ const NLP_BATCH_SIZE = 15;
  * unbounded: it costs ~10 s for the whole corpus and keeps `pending` honest.
  */
 const DEFAULT_MAX_DOCS = 4000;
+/**
+ * Wall-clock budget per request. The proxy cuts on time, not on documents, so
+ * the document cap alone does not hold: after the NLP_VERSION 4 bump and the
+ * persons-version handshake made the whole corpus due at once, 4000 documents
+ * took longer than 5 min and both attempts of the manual run on 2026-09-27
+ * ended in a 504. The check sits before each NLP batch, so a run can overshoot
+ * by one batch plus the scroll of the remaining collections — hence the margin.
+ */
+const DEFAULT_TIME_BUDGET_MS = 3 * 60_000;
 
 /** Qdrant collections to enrich: distinct system collections, minus dormant satzungen. */
 export const ENRICHMENT_COLLECTIONS = [
@@ -98,8 +107,8 @@ export interface EnrichmentOptions {
   mode?: EnrichmentMode;
   dryRun?: boolean;
   /**
-   * Documents to enrich at most; `0` lifts the cap. Defaults to
-   * DEFAULT_MAX_DOCS, and is ignored entirely when `mode` is `'all'`.
+   * Documents to enrich at most; `0` lifts the cap and the time budget.
+   * Defaults to DEFAULT_MAX_DOCS, and is ignored entirely when `mode` is `'all'`.
    */
   maxDocs?: number | null;
 }
@@ -107,6 +116,8 @@ export interface EnrichmentOptions {
 /** Shared across collections so one run's budget is a total, not a per-collection one. */
 interface WorkBudget {
   remaining: number;
+  /** Epoch ms after which no further NLP batch starts. */
+  deadline: number;
 }
 
 /**
@@ -118,8 +129,13 @@ interface WorkBudget {
  */
 function createBudget(options: EnrichmentOptions): WorkBudget {
   const { maxDocs } = options;
-  if (options.mode === 'all' || maxDocs === 0) return { remaining: Number.POSITIVE_INFINITY };
-  return { remaining: maxDocs && maxDocs > 0 ? maxDocs : DEFAULT_MAX_DOCS };
+  if (options.mode === 'all' || maxDocs === 0) {
+    return { remaining: Number.POSITIVE_INFINITY, deadline: Number.POSITIVE_INFINITY };
+  }
+  return {
+    remaining: maxDocs && maxDocs > 0 ? maxDocs : DEFAULT_MAX_DOCS,
+    deadline: Date.now() + DEFAULT_TIME_BUDGET_MS,
+  };
 }
 
 interface HeadDoc {
@@ -299,13 +315,18 @@ export async function enrichCollection(
     // Spend the run's budget on the head of this page; the tail is reported as
     // pending and picked up by the next request. Deducting up front (rather
     // than per successful write) can only make a run do less work, never more.
-    const affordable = Math.min(pending.length, budget.remaining);
+    const affordable =
+      Date.now() >= budget.deadline ? 0 : Math.min(pending.length, budget.remaining);
     stats.pending += pending.length - affordable;
     budget.remaining -= affordable;
     const due = pending.slice(0, affordable);
 
     // Classify in batches; persons are per-document (NER attribution).
     for (let i = 0; i < due.length; i += NLP_BATCH_SIZE) {
+      if (Date.now() >= budget.deadline) {
+        stats.pending += due.length - i;
+        break;
+      }
       const batch = due.slice(i, i + NLP_BATCH_SIZE);
       const classifications = await classifyArticlesBatched<TopicCategory>(
         batch.map((d) => ({ id: d.idValue, title: d.title, text: d.text })),
