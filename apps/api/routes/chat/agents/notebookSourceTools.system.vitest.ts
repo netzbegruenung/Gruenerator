@@ -325,6 +325,27 @@ describe('list', () => {
     });
     expect(bare.error).toMatch(/keine Kategorie/);
   });
+
+  it('ignores a stray category where sourceId makes the filter moot', async () => {
+    const { run } = makeCtx({ more: categorized() });
+    const filter = { category: 'Wahlprogramm' };
+    const read = await run({
+      action: 'read',
+      notebookId: 'hamburg',
+      sourceId: HH_A,
+      seite: 2,
+      filter,
+    });
+    expect(read.error).toBeUndefined();
+    const grep = await run({
+      action: 'grep',
+      notebookId: 'hamburg',
+      sourceId: HH_A,
+      phrase: 'Wärmepumpe',
+      filter,
+    });
+    expect(grep.error).toBeUndefined();
+  });
 });
 
 describe('outline and read', () => {
