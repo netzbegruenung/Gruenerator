@@ -31,6 +31,13 @@ export const researchSimilarBodySchema = z.object({
   limit: z.number().nullish(),
 });
 
+export const researchDocumentQuerySchema = z.object({
+  collectionId: z.string(),
+  sourceUrl: z.string(),
+  /** The search the document was opened from; its terms mark the passages. */
+  query: z.string().nullish(),
+});
+
 export const researchFiltersQuerySchema = z.object({
   /** Comma-separated system collection IDs; omitted = all collections. */
   collectionIds: z.string().nullish(),
@@ -67,8 +74,50 @@ export const researchFiltersResponseSchema = z.object({
   filters: z.record(notebookFilterFieldSchema),
 });
 
+/** A run of text, split at the query terms. */
+export const researchDocumentPartSchema = z.object({
+  text: z.string(),
+  term: z.boolean(),
+});
+
+/** Text inside a block; `passage` numbers it when it is a relevant passage. */
+export const researchDocumentSegmentSchema = z.object({
+  passage: z.number().nullable(),
+  parts: z.array(researchDocumentPartSchema),
+});
+
+export const researchDocumentBlockSchema = z.object({
+  kind: z.enum(['heading', 'paragraph']),
+  segments: z.array(researchDocumentSegmentSchema),
+});
+
+export const researchDocumentPassageSchema = z.object({
+  index: z.number(),
+  /** The heading above the passage, when the text has headings. */
+  heading: z.string().nullable(),
+  /** Short teaser for the passage list. */
+  text: z.string(),
+});
+
+/** A system-collection document, ready for the notebook reader. */
+export const researchDocumentResponseSchema = z.object({
+  title: z.string(),
+  sourceUrl: z.string(),
+  sourceName: z.string().nullable(),
+  contentTypeLabel: z.string().nullable(),
+  publishedAt: z.string().nullable(),
+  blocks: z.array(researchDocumentBlockSchema),
+  passages: z.array(researchDocumentPassageSchema),
+});
+
 export type ResearchSearchBody = z.infer<typeof researchSearchBodySchema>;
 export type ResearchSimilarBody = z.infer<typeof researchSimilarBodySchema>;
 export type ResearchResult = z.infer<typeof researchResultSchema>;
 export type ResearchSearchResponse = z.infer<typeof researchSearchResponseSchema>;
+export type ResearchDocumentQuery = z.infer<typeof researchDocumentQuerySchema>;
+export type ResearchDocumentPart = z.infer<typeof researchDocumentPartSchema>;
+export type ResearchDocumentSegment = z.infer<typeof researchDocumentSegmentSchema>;
+export type ResearchDocumentBlock = z.infer<typeof researchDocumentBlockSchema>;
+export type ResearchDocumentPassage = z.infer<typeof researchDocumentPassageSchema>;
+export type ResearchDocumentResponse = z.infer<typeof researchDocumentResponseSchema>;
 export type ResearchCollectionInfo = z.infer<typeof researchCollectionInfoSchema>;

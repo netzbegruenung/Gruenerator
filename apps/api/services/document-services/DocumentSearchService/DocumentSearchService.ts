@@ -642,7 +642,7 @@ export class DocumentSearchService extends BaseSearchService {
     qdrantCollection: string,
     url: string,
     defaultFilter?: QdrantServiceFilter
-  ): Promise<DocumentFullTextResult & { title?: string }> {
+  ): Promise<DocumentFullTextResult & { title?: string; payload?: Record<string, unknown> }> {
     // Clients carry the resolved Wolke link; the payload stores `wolke://…`.
     const sourceUrl = toStoredWolkeUrl(url);
     await this.ensureInitialized();
@@ -674,6 +674,7 @@ export class DocumentSearchService extends BaseSearchService {
             success: true,
             fullText,
             chunkCount: 1,
+            payload,
             ...(typeof payload.title === 'string' && { title: payload.title }),
           };
         }
@@ -710,6 +711,7 @@ export class DocumentSearchService extends BaseSearchService {
         success: true,
         fullText: sorted.join('\n\n'),
         chunkCount: sorted.length,
+        payload: allChunks[0].payload,
         ...(title && { title }),
       };
     } catch (error) {

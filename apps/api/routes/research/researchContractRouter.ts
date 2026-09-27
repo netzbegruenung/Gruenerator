@@ -23,6 +23,7 @@ import {
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { scrollDocuments } from '../../database/services/QdrantService/operations/batchOperations.js';
 import { getQdrantDocumentService } from '../../services/document-services/index.js';
+import { buildReaderDocument } from '../../services/research/documentReader.js';
 import {
   resolveWolkeDisplayUrl,
   toStoredWolkeUrl,
@@ -344,6 +345,51 @@ export const researchContractRouter = s.router(researchContract, {
         `Research similar failed: ${error instanceof Error ? error.message : String(error)}`
       );
       return { status: 500 as const, body: { error: 'Similar search failed. Please try again.' } };
+    }
+  },
+
+  document: async (args) => {
+    const { collectionId, query } = args.query;
+    const systemConfig = getSystemCollectionConfig(collectionId);
+    if (!systemConfig || isAgentOnlyCollectionId(collectionId)) {
+      return { status: 400 as const, body: { error: 'Invalid collectionId.' } };
+    }
+
+    try {
+      // The default filter keeps a shared collection (all Landesverbände live
+      // in one) from serving another notebook's document under this id.
+      const result = await getQdrantDocumentService().getSystemDocumentFullTextByUrl(
+        systemConfig.qdrantCollection,
+        args.query.sourceUrl,
+        applyDefaultFilter(collectionId)
+      );
+      if (!result.success) {
+        if (result.error === 'Document not found') {
+          return { status: 404 as const, body: { error: 'Document not found.' } };
+        }
+        throw new Error(result.error ?? 'Full-text lookup failed');
+      }
+
+      const payload = result.payload ?? {};
+      const text = (key: string) => (typeof payload[key] === 'string' ? payload[key] : null);
+      const storedUrl = text('source_url');
+
+      return {
+        status: 200 as const,
+        body: {
+          title: result.title ?? 'Unbekanntes Dokument',
+          sourceUrl: storedUrl ? resolveWolkeDisplayUrl(storedUrl) : args.query.sourceUrl,
+          sourceName: text('source_name'),
+          contentTypeLabel: text('content_type_label'),
+          publishedAt: text('published_at'),
+          ...buildReaderDocument(result.fullText, query ?? ''),
+        },
+      };
+    } catch (error: unknown) {
+      log.error(
+        `Research document failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return { status: 500 as const, body: { error: 'Failed to load the document.' } };
     }
   },
 });
