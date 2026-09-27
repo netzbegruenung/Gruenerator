@@ -76,6 +76,23 @@ describe('notebook.getFilters — the chat surface', () => {
     expect(queried).not.toContain('persons');
   });
 
+  it('counts documents, not chunks (#3694)', async () => {
+    mockQdrant.getFieldValueCounts.mockClear();
+
+    await callGetFilters('hamburg-system');
+
+    const filters = mockQdrant.getFieldValueCounts.mock.calls.map((c) => c[3]);
+    expect(filters.length).toBeGreaterThan(0);
+    for (const filter of filters) {
+      expect(filter).toEqual({
+        must: [
+          { key: 'chunk_index', match: { value: 0 } },
+          { key: 'landesverband', match: { value: 'HH' } },
+        ],
+      });
+    }
+  });
+
   it('leaves the registry itself untouched, so manual research still sees it', async () => {
     // `research.filters` reads the same registry unfiltered — if the facet were
     // dropped there, this would be a removal instead of a split.
