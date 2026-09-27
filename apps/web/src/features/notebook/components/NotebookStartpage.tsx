@@ -214,8 +214,20 @@ export function NotebookStartpage({
       maxWidth="xl"
       noPadTop
       gradient={false}
-      bgClassName={pageGradient ? NOTEBOOK_MAGENTA_BG : undefined}
+      bgClassName={pageGradient ? 'relative isolate bg-white dark:bg-[#14090E]' : undefined}
     >
+      {/* The gradient is its own layer so it can fade: gone while the composer
+          is up (hits read better on a flat page), back once it is centred. */}
+      {pageGradient && (
+        <div
+          aria-hidden
+          className={cn(
+            'pointer-events-none absolute inset-0 -z-10 transition-opacity duration-500 ease-out motion-reduce:transition-none',
+            NOTEBOOK_MAGENTA_BG,
+            raised && 'opacity-0'
+          )}
+        />
+      )}
       <div
         className={cn(
           'flex flex-col items-center px-6 transition-[padding] duration-500 ease-out motion-reduce:transition-none md:px-20',
