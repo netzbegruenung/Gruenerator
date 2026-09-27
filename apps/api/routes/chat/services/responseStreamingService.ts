@@ -1165,6 +1165,9 @@ export async function streamForResolution(params: {
   turnSignal?: AbortSignal;
   logPrefix?: string;
   telemetry?: Parameters<typeof streamText>[0]['experimental_telemetry'];
+  /** Mistral `prompt_cache_key` (see promptCacheKeyForThread). Only the
+   *  `@ai-sdk/mistral` SDK path sends it. */
+  promptCacheKey?: string | null;
 }): Promise<string | null> {
   const {
     resolution,
@@ -1176,6 +1179,7 @@ export async function streamForResolution(params: {
     turnSignal,
     logPrefix,
     telemetry,
+    promptCacheKey,
   } = params;
 
   const thinking = thinksOnThisLane(
@@ -1309,10 +1313,13 @@ export async function streamForResolution(params: {
   // is set per request; @ai-sdk/mistral then surfaces the reasoning via
   // fullStream so streamAndAccumulateOrThrow can emit it as reasoning_delta.
   const thinkHere = thinking && !thinkingRetriedWithoutBudget;
+  const cacheOption =
+    resolution.provider === 'mistral' && promptCacheKey ? { promptCacheKey } : null;
+  if (cacheOption) args.providerOptions = { mistral: cacheOption };
   if (thinkHere && resolution.provider === 'mistral' && isReasoningCapable(resolution.modelName)) {
     const mistralEffort = mistralReasoningOption(resolution.reasoningEffort);
     if (mistralEffort) {
-      args.providerOptions = { mistral: { reasoningEffort: mistralEffort } };
+      args.providerOptions = { mistral: { reasoningEffort: mistralEffort, ...cacheOption } };
       // Nur wo wirklich gedacht wird: auf einer stummen Lane bindet die
       // Leerlauf-Frist bereits, ein zweites Budget wäre eine zweite Uhr auf
       // dieselbe Frage.
@@ -1329,7 +1336,8 @@ export async function streamForResolution(params: {
     log.warn(
       `${logPrefix ?? '[ChatGraph]'} ${resolution.provider}/${resolution.modelName} hat ${err.budgetMs}ms gedacht ohne zu antworten — zweiter Versuch ohne Denken`
     );
-    delete args.providerOptions;
+    if (cacheOption) args.providerOptions = { mistral: cacheOption };
+    else delete args.providerOptions;
     delete args.reasoningBudgetMs;
     // Ohne Denken gilt wieder die gewöhnliche Uhr: der zweite Lauf schreibt
     // nur noch.
