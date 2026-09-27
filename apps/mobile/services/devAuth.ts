@@ -44,7 +44,8 @@ export function isEmulator(): boolean {
  * the app seeds {@link DEV_BYPASS_USER} into the auth store so it renders past the
  * gate in `app/_layout.tsx` without going through Keycloak, and API auth-clearing on
  * 401 is suppressed so data-fetch failures don't bounce back to login. No backend is
- * required — data sections simply render empty. Mirrors the web E2E bypass
+ * required — data sections simply render empty, and the user arrives already
+ * consented so `AiConsentGate` does not stop it. Mirrors the web E2E bypass
  * (`apps/web/src/hooks/useAuth.ts`) and shares the backend's synthetic-user UUID.
  *
  * Three gates, each of which alone is enough to keep it off:
@@ -70,4 +71,10 @@ export const DEV_BYPASS_USER: User = {
   display_name: 'Development User',
   avatar_robot_id: '1',
   locale: 'de-DE',
+  // Fixed timestamp, as on the API and web bypass users: the synthetic user has no
+  // profile row, so granting consent through the backend can only fail and the
+  // modal AiConsentGate would block every bypass session. There is no real
+  // consent record here to falsify — the gates above keep this user off real
+  // hardware and out of release bundles.
+  ai_consent_at: '2026-01-01T00:00:00.000Z',
 };

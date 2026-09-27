@@ -9,9 +9,13 @@ import { describe, expect, it } from 'vitest';
 import {
   answerModeAutoHint,
   answerModeLabel,
+  composerModeRunsLiveSearch,
   DEFAULT_NOTEBOOK_ANSWER_MODE,
   NOTEBOOK_ANSWER_MODES,
+  NOTEBOOK_COMPOSER_MODES,
   notebookAnswerModeDef,
+  notebookComposerModeDef,
+  toNotebookAnswerMode,
 } from './notebookAnswerMode';
 
 describe('NOTEBOOK_ANSWER_MODES', () => {
@@ -62,5 +66,32 @@ describe('answerModeAutoHint', () => {
     for (const r of ['explicit', 'ineligible', 'default', null] as const) {
       expect(answerModeAutoHint(r)).toBeNull();
     }
+  });
+});
+
+describe('NOTEBOOK_COMPOSER_MODES', () => {
+  it('is the wire modes plus the client-only Manuell', () => {
+    expect(NOTEBOOK_COMPOSER_MODES.map((m) => m.mode)).toEqual([
+      ...notebookAnswerModeSchema.options,
+      'manuell',
+    ]);
+  });
+
+  it('never puts Manuell on the wire', () => {
+    expect(notebookAnswerModeSchema.safeParse(toNotebookAnswerMode('manuell')).success).toBe(true);
+    for (const mode of notebookAnswerModeSchema.options) {
+      expect(toNotebookAnswerMode(mode)).toBe(mode);
+    }
+  });
+
+  it('searches live only in Automatisch and Manuell', () => {
+    expect(
+      NOTEBOOK_COMPOSER_MODES.filter((m) => composerModeRunsLiveSearch(m.mode)).map((m) => m.mode)
+    ).toEqual(['auto', 'manuell']);
+  });
+
+  it('reads a stored value tolerantly', () => {
+    expect(notebookComposerModeDef('manuell').label).toBe('Manuell');
+    expect(notebookComposerModeDef('turbo').mode).toBe(DEFAULT_NOTEBOOK_ANSWER_MODE);
   });
 });

@@ -6,7 +6,8 @@ import {
   NotebookChatProvider,
   NotebookComposer,
   UserMessage,
-  notebookAnswerModeDef,
+  notebookComposerModeDef,
+  toNotebookAnswerMode,
   notebookDepthDef,
   notebookMentionables,
   useAgentStore,
@@ -24,6 +25,7 @@ import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { getNotebookById } from '../config/notebooksConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
 import { useNotebookCollection } from '../hooks/useNotebookCollection';
+import { NOTEBOOK_COMPOSER_ACCENT } from '../notebookTheme';
 import useNotebookStore from '../stores/notebookStore';
 
 import { NotebookAccessError } from './NotebookAccessError';
@@ -135,7 +137,7 @@ export const NotebookPageContent = ({
   const mode = notebookDepthDef(storedDepth).depth;
   const storedAnswerMode = useAgentStore((s) => s.notebookAnswerMode);
   const setAnswerMode = useAgentStore((s) => s.setNotebookAnswerMode);
-  const answerMode = notebookAnswerModeDef(storedAnswerMode).mode;
+  const answerMode = notebookComposerModeDef(storedAnswerMode).mode;
   const [searchParams, setSearchParams] = useSearchParams();
   // `?thread=` names the conversation to open — that is how a thread row in the
   // sidebar links here, and how a reload finds its way back to what was on
@@ -329,7 +331,7 @@ export const NotebookPageContent = ({
       onThreadCreated={handleThreadCreated}
       threadId={threadId}
       mode={mode}
-      answerMode={answerMode}
+      answerMode={toNotebookAnswerMode(answerMode)}
       documentIds={documentIds}
     >
       <PendingQuestionSender />
@@ -380,15 +382,17 @@ export const NotebookPageContent = ({
                     />
                   </div>
                 </ThreadPrimitive.Viewport>
-                <NotebookComposer
-                  placeholder={config.placeholder}
-                  sourceFilters={sourceFilters}
-                  categoryFilters={categoryFilters}
-                  mode={mode}
-                  onModeChange={setMode}
-                  answerMode={answerMode}
-                  onAnswerModeChange={setAnswerMode}
-                />
+                <div className={NOTEBOOK_COMPOSER_ACCENT}>
+                  <NotebookComposer
+                    placeholder={config.placeholder}
+                    sourceFilters={sourceFilters}
+                    categoryFilters={categoryFilters}
+                    mode={mode}
+                    onModeChange={setMode}
+                    answerMode={answerMode}
+                    onAnswerModeChange={setAnswerMode}
+                  />
+                </div>
               </div>
             </AuiIf>
           </ThreadPrimitive.Root>
