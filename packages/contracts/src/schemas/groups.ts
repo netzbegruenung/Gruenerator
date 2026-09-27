@@ -416,6 +416,8 @@ export type UpdateGroupShareBody = z.infer<typeof updateGroupShareBodySchema>;
 export const groupShareCommentSchema = z.object({
   id: z.string(),
   shareId: z.string(),
+  /** Kommentar oberster Ebene, auf den geantwortet wird; null = selbst oben. */
+  parentId: z.string().nullable(),
   userId: z.string().nullable(),
   authorName: z.string(),
   body: z.string(),
@@ -425,6 +427,8 @@ export type GroupShareComment = z.infer<typeof groupShareCommentSchema>;
 
 export const createGroupShareCommentBodySchema = z.object({
   body: z.string().trim().min(1, 'Kommentar ist leer.').max(GROUP_COMMENT_MAX),
+  /** Antwort auf diesen Kommentar. Fehlt es, steht der Kommentar oben. */
+  parentId: z.string().uuid().nullish(),
 });
 export type CreateGroupShareCommentBody = z.infer<typeof createGroupShareCommentBodySchema>;
 
