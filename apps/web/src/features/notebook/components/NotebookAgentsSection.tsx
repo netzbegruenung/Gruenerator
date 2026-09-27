@@ -9,7 +9,7 @@ interface NotebookAgentsSectionProps {
   /** Canonical notebook id, e.g. `brandenburg-notebook`. */
   notebookId: string;
   title?: string;
-  /** Embedded in the Manuelle-Recherche sub-tab: drop the standalone heading. */
+  /** Embedded in the start page's browse sub-tabs: drop the standalone heading. */
   embedded?: boolean;
 }
 

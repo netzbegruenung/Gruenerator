@@ -6,7 +6,8 @@ import {
   NotebookChatProvider,
   NotebookComposer,
   UserMessage,
-  notebookAnswerModeDef,
+  notebookComposerModeDef,
+  toNotebookAnswerMode,
   notebookDepthDef,
   notebookMentionables,
   useAgentStore,
@@ -87,7 +88,7 @@ interface NotebookPageContentProps {
   hideGlobalChat?: boolean;
   /**
    * When set, the manual research tab scopes to a single user-owned notebook
-   * (ownership-checked, no facet filter UI). Forwarded to `NotebookManualSearch`.
+   * (ownership-checked, no facet filter UI). Scopes the start page's live search.
    */
   manualSearchNotebookId?: string;
   /** Replace the plain question composer with the omni composer (ask/route/
@@ -135,7 +136,7 @@ export const NotebookPageContent = ({
   const mode = notebookDepthDef(storedDepth).depth;
   const storedAnswerMode = useAgentStore((s) => s.notebookAnswerMode);
   const setAnswerMode = useAgentStore((s) => s.setNotebookAnswerMode);
-  const answerMode = notebookAnswerModeDef(storedAnswerMode).mode;
+  const answerMode = notebookComposerModeDef(storedAnswerMode).mode;
   const [searchParams, setSearchParams] = useSearchParams();
   // `?thread=` names the conversation to open — that is how a thread row in the
   // sidebar links here, and how a reload finds its way back to what was on
@@ -329,7 +330,7 @@ export const NotebookPageContent = ({
       onThreadCreated={handleThreadCreated}
       threadId={threadId}
       mode={mode}
-      answerMode={answerMode}
+      answerMode={toNotebookAnswerMode(answerMode)}
       documentIds={documentIds}
     >
       <PendingQuestionSender />

@@ -12,6 +12,39 @@ export type ResearchResult = ContractResearchResult;
 
 type ResearchMetadata = ResearchSearchResponse['metadata'];
 
+/**
+ * One research request. With `notebookId` the per-notebook route is the scope
+ * (ownership-checked; `collectionIds`/`filters` are ignored there), otherwise
+ * the system-collection route.
+ */
+export async function fetchResearch(
+  params: SearchParams,
+  notebookId?: string
+): Promise<ResearchSearchResponse> {
+  const { query, collectionIds, filters, mode, sortBy } = params;
+  const client = getContractsClient();
+  const trimmed = query.trim();
+  const result = notebookId
+    ? await client.notebook.researchSearch({
+        params: { id: notebookId },
+        body: { query: trimmed, limit: null, mode: mode ?? null, sortBy: sortBy ?? null },
+      })
+    : await client.research.search({
+        body: {
+          query: trimmed,
+          collectionIds: collectionIds ?? null,
+          limit: null,
+          filters: filters ?? null,
+          mode: mode ?? null,
+          sortBy: sortBy ?? null,
+        },
+      });
+  if (result.status !== 200) {
+    throw new ApiError(result.status, `Suche fehlgeschlagen (HTTP ${result.status})`);
+  }
+  return result.body;
+}
+
 export interface SearchParams {
   query: string;
   collectionIds?: string[];
@@ -49,48 +82,15 @@ export function useResearch(opts: UseResearchOptions = {}): UseResearchReturn {
 
   const search = useCallback(
     async (params: SearchParams) => {
-      const { query, collectionIds, filters, mode, sortBy } = params;
-      if (!query || query.trim().length < 2) return;
+      if (!params.query || params.query.trim().length < 2) return;
 
       setIsLoading(true);
       setError(null);
 
       try {
-        const client = getContractsClient();
-        const trimmed = query.trim();
-
-        if (notebookId) {
-          const result = await client.notebook.researchSearch({
-            params: { id: notebookId },
-            body: {
-              query: trimmed,
-              limit: null,
-              mode: mode ?? null,
-              sortBy: sortBy ?? null,
-            },
-          });
-          if (result.status !== 200) {
-            throw new ApiError(result.status, `Suche fehlgeschlagen (HTTP ${result.status})`);
-          }
-          setResults(result.body.results);
-          setMetadata(result.body.metadata);
-        } else {
-          const result = await client.research.search({
-            body: {
-              query: trimmed,
-              collectionIds: collectionIds ?? null,
-              limit: null,
-              filters: filters ?? null,
-              mode: mode ?? null,
-              sortBy: sortBy ?? null,
-            },
-          });
-          if (result.status !== 200) {
-            throw new ApiError(result.status, `Suche fehlgeschlagen (HTTP ${result.status})`);
-          }
-          setResults(result.body.results);
-          setMetadata(result.body.metadata);
-        }
+        const body = await fetchResearch(params, notebookId);
+        setResults(body.results);
+        setMetadata(body.metadata);
       } catch {
         setError('Suche fehlgeschlagen. Bitte erneut versuchen.');
         setResults([]);
