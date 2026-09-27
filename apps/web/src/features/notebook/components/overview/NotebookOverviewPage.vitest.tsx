@@ -68,6 +68,7 @@ function overview(patch: Partial<NotebookOverviewResponse> = {}): NotebookOvervi
         { word: 'landtag', count: 90 },
       ],
       rising: [{ word: 'wasserstoff', count: 60, recentCount: 24 }],
+      signature: [{ word: 'ostsee', count: 48, lift: 6.2 }],
     },
     ...patch,
   };
@@ -136,6 +137,9 @@ describe('NotebookOverviewPage', () => {
     expect(card.getByText('Radweg')).toBeVisible();
     expect(card.getByRole('heading', { name: 'Im Aufwind' })).toBeVisible();
     expect(card.getByText('Wasserstoff')).toBeVisible();
+    expect(card.getByRole('heading', { name: 'Typisch hier' })).toBeVisible();
+    expect(card.getByText('Ostsee')).toBeVisible();
+    expect(card.getByText('6,2×')).toBeVisible();
   });
 
   it('opens the chat filtered to a clicked topic', async () => {
