@@ -992,6 +992,45 @@ describe('Follow-up on a notebook tool turn pins notebook_quellen', () => {
     );
   });
 
+  // Review #3714: eine nackte Bestätigung nimmt das Angebot der vorigen
+  // Antwort an — nur ein Nachschlage-Angebot pinnt.
+  describe('bare confirmation reads the previous offer', () => {
+    const withOffer = (offer: string, confirmation: string) =>
+      buildState({
+        userMessage: confirmation,
+        lastTurnNotebookId: 'mecklenburg-vorpommern',
+        messages: [
+          { role: 'user' as const, content: 'Liste die neuesten Pressemitteilungen auf' },
+          { role: 'assistant' as const, content: offer },
+          { role: 'user' as const, content: confirmation },
+        ],
+      });
+
+    it.each([
+      [
+        'Ich habe 5 Pressemitteilungen gefunden. Soll ich daraus einen Social-Media-Post machen?',
+        'ja mach',
+      ],
+      ['Hier sind die Titel. Soll ich dazu eine Pressemitteilung schreiben?', "ja, mach's bitte"],
+      ['Hier sind die Titel. Soll ich ein Sharepic dazu erstellen?', 'ja dann mach das'],
+    ])('after a creation offer: %s → %s stays unpinned', async (offer, confirmation) => {
+      const result = await classifierNode(withOffer(offer, confirmation));
+      expect(result.mentionPinnedTool).toBeUndefined();
+    });
+
+    it.each([
+      [
+        'Das ist die neueste Pressemitteilung. Sollte es weitere Texte geben, müsste ich diese neu nachschlagen.',
+        'ja dann mach das',
+      ],
+      ['Hier ist der Text. Soll ich die vorletzte Pressemitteilung auch vorlesen?', 'ja mach'],
+      ['Das sind fünf Treffer. Soll ich weitere suchen?', 'ja, mach weiter'],
+    ])('after a lookup offer: %s → %s pins', async (offer, confirmation) => {
+      const result = await classifierNode(withOffer(offer, confirmation));
+      expect(result.mentionPinnedTool).toBe('notebook_quellen');
+    });
+  });
+
   it('after a turn without notebook_quellen (thread used one earlier) → no pin', async () => {
     const state = buildState({
       userMessage: 'nun die vorletzte',
