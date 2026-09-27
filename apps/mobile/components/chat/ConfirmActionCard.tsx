@@ -33,6 +33,7 @@ const ICON_MAP: Record<ConfirmActionData['type'], IoniconsIconName> = {
   create_recurring_task: 'repeat-outline',
   create_user_agent: 'sparkles-outline',
   share_user_agent: 'share-social-outline',
+  share_text_form: 'share-social-outline',
 };
 
 const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionData['type']> = new Set([
@@ -41,6 +42,7 @@ const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionData['type']> = new Set([
   'share_notebook',
   'set_group_visibility',
   'share_user_agent',
+  'share_text_form',
 ]);
 
 /**
