@@ -713,26 +713,18 @@ describe('heuristicExtractFilters', () => {
     expect(result?.content_type).toBe('beschluss');
   });
 
-  it('detects Hamburg landesverband from full name', () => {
-    const result = heuristicExtractFilters('Grüne Hamburg Beschlüsse zur Verkehrswende');
-    expect(result?.region).toBe('HH');
-    expect(result?.content_type).toBe('beschluss');
-  });
-
-  it('does NOT match short abbreviations (prevents false positives)', () => {
-    const result = heuristicExtractFilters('HH Position zum Klimaschutz');
-    // Should not match 'hh' abbreviation — only full names
-    expect(result?.region).toBeUndefined();
+  // #3712: `region` trägt kein Punkt in keiner Sammlung — der Filter leerte
+  // jede Suche, auch `@thüringen`, deren Sammlung den LV schon selbst filtert.
+  it('keeps a Landesverband name out of the filters', () => {
+    expect(heuristicExtractFilters('Wie viele Beschlüsse gibt es in Thüringen?')).toEqual({
+      content_type: 'beschluss',
+    });
+    expect(heuristicExtractFilters('Grüne in hamburg und ihre Position')).toBeNull();
   });
 
   it('detects Wahlprogramm content type', () => {
     const result = heuristicExtractFilters('Was steht im Wahlprogramm?');
     expect(result?.content_type).toBe('wahlprogramm');
-  });
-
-  it('detects thüringen from full name', () => {
-    const result = heuristicExtractFilters('Grüne in thüringen und ihre Position');
-    expect(result?.region).toEqual(['TH', 'TH-F']);
   });
 
   it('detects Antrag content type', () => {

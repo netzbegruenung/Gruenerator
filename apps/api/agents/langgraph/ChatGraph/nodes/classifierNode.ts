@@ -2167,6 +2167,6 @@ export {
 
 export type { HeuristicResult } from './classifierHeuristics.js';
 
-export { heuristicExtractFilters, LANDESVERBAND_ALIASES } from './classifierFilters.js';
+export { heuristicExtractFilters } from './classifierFilters.js';
 
 export { detectComplexity, detectSearchSources } from './classifierSignals.js';
