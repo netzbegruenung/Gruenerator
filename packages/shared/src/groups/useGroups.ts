@@ -1,11 +1,14 @@
+import { type GroupShareComment } from '@gruenerator/contracts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { apiErrorFromResponse, getContractsClient, getGlobalApiClient } from '../api/index.js';
 
 import {
   GROUPS_QUERY_KEY,
+  groupContentKey,
   groupDetailsKey,
   groupMembersKey,
+  groupShareCommentsKey,
   type GroupDetail,
   type GroupLink,
   type GroupMember,
@@ -316,6 +319,86 @@ export const useDeleteGroupAvatar = (groupId: string) => {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
       void qc.invalidateQueries({ queryKey: groupDetailsKey(groupId) });
+    },
+  });
+};
+
+// ── Feed: Anheften, Notiz, Kommentare ────────────────────────────────────────
+
+export const useUpdateGroupShare = (groupId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { shareId: string; pinned?: boolean; note?: string }) => {
+      const res = await getContractsClient().groups.updateGroupShare({
+        params: { groupId, shareId: input.shareId },
+        body: { pinned: input.pinned ?? null, note: input.note ?? null },
+      });
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Beitrag konnte nicht geändert werden.');
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: groupContentKey(groupId) });
+    },
+  });
+};
+
+export const useGroupShareComments = (
+  groupId: string,
+  shareId: string,
+  options: { enabled?: boolean } = {}
+) =>
+  useQuery({
+    queryKey: groupShareCommentsKey(groupId, shareId),
+    queryFn: async (): Promise<GroupShareComment[]> => {
+      const res = await getContractsClient().groups.listGroupShareComments({
+        params: { groupId, shareId },
+      });
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Kommentare konnten nicht geladen werden.');
+      return res.body.comments;
+    },
+    enabled: (options.enabled ?? true) && !!groupId && !!shareId,
+    staleTime: 30 * 1000,
+  });
+
+export const useAddGroupShareComment = (groupId: string, shareId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: string) => {
+      const res = await getContractsClient().groups.createGroupShareComment({
+        params: { groupId, shareId },
+        body: { body },
+      });
+      if (res.status !== 201)
+        throw apiErrorFromResponse(res, 'Kommentar konnte nicht gesendet werden.');
+      return res.body.comment;
+    },
+    onSuccess: (comment) => {
+      qc.setQueryData<GroupShareComment[]>(groupShareCommentsKey(groupId, shareId), (prev) => [
+        ...(prev ?? []),
+        comment,
+      ]);
+      void qc.invalidateQueries({ queryKey: groupContentKey(groupId) });
+    },
+  });
+};
+
+export const useDeleteGroupShareComment = (groupId: string, shareId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (commentId: string) => {
+      const res = await getContractsClient().groups.deleteGroupShareComment({
+        params: { groupId, shareId, commentId },
+      });
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Kommentar konnte nicht gelöscht werden.');
+      return commentId;
+    },
+    onSuccess: (commentId) => {
+      qc.setQueryData<GroupShareComment[]>(groupShareCommentsKey(groupId, shareId), (prev) =>
+        (prev ?? []).filter((c) => c.id !== commentId)
+      );
+      void qc.invalidateQueries({ queryKey: groupContentKey(groupId) });
     },
   });
 };

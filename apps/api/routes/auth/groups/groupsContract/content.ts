@@ -10,16 +10,28 @@ import {
   hydrateGroupContent,
   shareContentToGroup,
 } from '../../../../services/groups/groupContent.js';
+import {
+  createShareComment,
+  deleteShareComment,
+  listShareComments,
+  updateGroupShare,
+  type FeedOutcome,
+} from '../../../../services/groups/groupFeed.js';
 import { getPostgresAndCheckMembership } from '../groupCore.js';
 
 import { s, getUserId, groupErrorResponse } from './shared.js';
 
 import type { UserProfile } from '../../../../services/user/types.js';
 
+/** Fehlerzweig eines Feed-Ergebnisses in die Contract-Antwort übersetzen. */
+function feedError(outcome: Extract<FeedOutcome<unknown>, { message: string }>) {
+  return { status: outcome.status, body: { success: false as const, message: outcome.message } };
+}
+
 export const contentRoutes = {
   shareContent: s.route(groupsContract.shareContent, async (args) => {
     const { groupId } = args.params;
-    const { contentType, contentId, permissions } = args.body;
+    const { contentType, contentId, permissions, note } = args.body;
     try {
       const userId = getUserId(args.req);
       const outcome = await shareContentToGroup({
@@ -28,6 +40,7 @@ export const contentRoutes = {
         contentId,
         groupId,
         permissions,
+        note: note ?? null,
         sharerName: (args.req.user as UserProfile | undefined)?.display_name || 'Jemand',
       });
       switch (outcome.status) {
@@ -290,6 +303,80 @@ export const contentRoutes = {
       };
     } catch (error) {
       return groupErrorResponse('listGroupVorlagen', 'Fehler beim Laden der Vorlagen.', error);
+    }
+  }),
+
+  updateGroupShare: s.route(groupsContract.updateGroupShare, async (args) => {
+    const { groupId, shareId } = args.params;
+    try {
+      const outcome = await updateGroupShare({
+        groupId,
+        shareId,
+        userId: getUserId(args.req),
+        pinned: args.body.pinned ?? null,
+        note: args.body.note ?? null,
+      });
+      if ('message' in outcome) return feedError(outcome);
+      return { status: 200 as const, body: { success: true as const } };
+    } catch (error) {
+      return groupErrorResponse('updateGroupShare', 'Fehler beim Ändern des Beitrags.', error);
+    }
+  }),
+
+  listGroupShareComments: s.route(groupsContract.listGroupShareComments, async (args) => {
+    const { groupId, shareId } = args.params;
+    try {
+      const outcome = await listShareComments({ groupId, shareId, userId: getUserId(args.req) });
+      if ('message' in outcome) return feedError(outcome);
+      return { status: 200 as const, body: { success: true as const, comments: outcome.data } };
+    } catch (error) {
+      return groupErrorResponse(
+        'listGroupShareComments',
+        'Fehler beim Laden der Kommentare.',
+        error
+      );
+    }
+  }),
+
+  createGroupShareComment: s.route(groupsContract.createGroupShareComment, async (args) => {
+    const { groupId, shareId } = args.params;
+    try {
+      const user = args.req.user as UserProfile | undefined;
+      const outcome = await createShareComment({
+        groupId,
+        shareId,
+        userId: getUserId(args.req),
+        body: args.body.body,
+        authorName: user?.display_name || user?.first_name || 'Jemand',
+      });
+      if ('message' in outcome) return feedError(outcome);
+      return { status: 201 as const, body: { success: true as const, comment: outcome.data } };
+    } catch (error) {
+      return groupErrorResponse(
+        'createGroupShareComment',
+        'Fehler beim Speichern des Kommentars.',
+        error
+      );
+    }
+  }),
+
+  deleteGroupShareComment: s.route(groupsContract.deleteGroupShareComment, async (args) => {
+    const { groupId, shareId, commentId } = args.params;
+    try {
+      const outcome = await deleteShareComment({
+        groupId,
+        shareId,
+        commentId,
+        userId: getUserId(args.req),
+      });
+      if ('message' in outcome) return feedError(outcome);
+      return { status: 200 as const, body: { success: true as const } };
+    } catch (error) {
+      return groupErrorResponse(
+        'deleteGroupShareComment',
+        'Fehler beim Löschen des Kommentars.',
+        error
+      );
     }
   }),
 };

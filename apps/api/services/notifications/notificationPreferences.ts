@@ -42,6 +42,7 @@ const TYPE_IMPORTANCE: Record<NotificationType, 1 | 2 | 3> = {
   group_member_left: 3,
   group_role_changed: 3,
   group_content_shared: 3,
+  group_comment_added: 2,
   group_deleted: 1,
   group_join_requested: 3,
   group_join_approved: 1,

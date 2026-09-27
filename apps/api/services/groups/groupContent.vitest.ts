@@ -191,6 +191,11 @@ describe('hydrateGroupContent', () => {
       shared_by_user_id: 'u2',
       first_name: 'Anna',
       display_name: null,
+      share_id: 'share-d1',
+      note: 'Bitte gegenlesen',
+      pinned_at: new Date('2026-09-02T12:00:00Z'),
+      pinned_by_name: 'Moritz',
+      comment_count: '2',
     },
     {
       content_type: 'notebook_collections',
@@ -249,6 +254,13 @@ describe('hydrateGroupContent', () => {
         shared_at: '2026-09-01T10:00:00Z',
         group_permissions: { read: true, write: false },
         shared_by_name: 'Anna',
+        share: {
+          shareId: 'share-d1',
+          note: 'Bitte gegenlesen',
+          pinnedAt: '2026-09-02T12:00:00.000Z',
+          pinnedByName: 'Moritz',
+          commentCount: 2,
+        },
       }),
     ]);
     expect(out.notebooks).toEqual([

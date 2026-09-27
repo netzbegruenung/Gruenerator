@@ -151,6 +151,14 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     group: 'groups',
     actions: (ctx) => [openLinkAction('Gruppe öffnen')(ctx)],
   },
+  group_comment_added: {
+    label: 'Kommentare in Gruppen',
+    description:
+      'Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast',
+    icon: MessageSquare,
+    group: 'groups',
+    actions: (ctx) => [openLinkAction('Beitrag öffnen')(ctx)],
+  },
   group_deleted: {
     label: 'Gruppe aufgelöst',
     description: 'Wenn eine Gruppe aufgelöst wird',
