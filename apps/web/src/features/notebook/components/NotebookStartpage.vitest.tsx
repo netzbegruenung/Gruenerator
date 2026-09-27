@@ -15,6 +15,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import { server } from '../../../test/msw-server';
 import { axe, renderWithProviders, screen, waitFor, within } from '../../../test-utils';
+import { daysAgo } from '../manual-search/datePresets';
 
 import { NotebookStartpage } from './NotebookStartpage';
 
@@ -189,6 +190,50 @@ describe('NotebookStartpage — one composer', () => {
     await waitFor(() =>
       expect(bodies.at(-1)).toMatchObject({ sortBy: 'relevance', filters: null })
     );
+    expect(screen.queryByRole('button', { name: 'Zurücksetzen' })).not.toBeInTheDocument();
+  });
+
+  it('shows a time span typed in the text as the toolbar value, and lets it go', async () => {
+    const user = userEvent.setup();
+    renderPage('auto', 'Hitzeschutz, Dokumente seit 30 Tagen');
+    await screen.findByText('Mietendeckel jetzt');
+
+    await waitFor(() =>
+      expect(bodies.at(-1)).toMatchObject({
+        query: 'Hitzeschutz',
+        filters: { date_from: daysAgo(new Date(), 30) },
+      })
+    );
+    const span = screen.getByRole('button', { name: 'Zeitraum: Letzte 30 Tage' });
+    expect(span).toHaveAttribute('title', 'Aus der Eingabe erkannt');
+
+    await user.click(span);
+    await user.click(await screen.findByRole('menuitemradio', { name: 'Jederzeit' }));
+    await waitFor(() =>
+      expect(bodies.at(-1)).toMatchObject({ query: 'Hitzeschutz', filters: null })
+    );
+    expect(screen.getByRole('button', { name: 'Zeitraum: Jederzeit' })).not.toHaveAttribute(
+      'title'
+    );
+  });
+
+  it('selects a person named in the text in the persons facet', async () => {
+    renderPage('auto', 'Nina Stahr Mieten');
+    expect(await screen.findByRole('button', { name: 'Personen: Nina Stahr' })).toHaveAttribute(
+      'title',
+      'Aus der Eingabe erkannt'
+    );
+    await waitFor(() => expect(bodies.at(-1)?.filters).toEqual({ persons: ['Nina Stahr'] }));
+  });
+
+  it('resets recognised values for this query too', async () => {
+    const user = userEvent.setup();
+    renderPage('auto', 'Nina Stahr Mieten');
+    await screen.findByRole('button', { name: 'Personen: Nina Stahr' });
+
+    await user.click(screen.getByRole('button', { name: 'Zurücksetzen' }));
+    await waitFor(() => expect(bodies.at(-1)).toMatchObject({ filters: null }));
+    expect(screen.getByRole('button', { name: 'Personen: Alle Personen' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Zurücksetzen' })).not.toBeInTheDocument();
   });
 
