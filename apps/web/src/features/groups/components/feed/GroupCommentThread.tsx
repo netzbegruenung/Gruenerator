@@ -1,14 +1,17 @@
+import { GROUP_COMMENT_MAX, type GroupShareComment } from '@gruenerator/contracts';
 import {
   errMessage,
   formatFeedDate,
   personInitials,
+  replyMention,
+  threadComments,
   useAddGroupShareComment,
   useDeleteGroupShareComment,
   useGroupShareComments,
 } from '@gruenerator/shared/groups';
 import { Button, cn } from '@gruenerator/ui';
-import { useRef, useState } from 'react';
-import { PiPaperPlaneRight, PiTrash } from 'react-icons/pi';
+import { useEffect, useRef, useState } from 'react';
+import { PiPaperPlaneRight, PiTrash, PiX } from 'react-icons/pi';
 
 interface GroupCommentThreadProps {
   id: string;
@@ -19,6 +22,17 @@ interface GroupCommentThreadProps {
   isAdmin: boolean;
 }
 
+/** Offene Antwort: an welchem Kommentar oben sie hängt, und der Entwurf. */
+interface ReplyDraft {
+  threadId: string;
+  text: string;
+}
+
+/**
+ * Kommentare eines Beitrags als Threads: Kommentare oben, Antworten eine
+ * Ebene eingerückt darunter. „Antworten“ öffnet das Feld unter dem Thread,
+ * vorbelegt mit „@Vorname“ der Person, der geantwortet wird.
+ */
 export function GroupCommentThread({
   id,
   groupId,
@@ -29,17 +43,84 @@ export function GroupCommentThread({
 }: GroupCommentThreadProps) {
   const comments = useGroupShareComments(groupId, shareId);
   const addComment = useAddGroupShareComment(groupId, shareId);
+  const addReply = useAddGroupShareComment(groupId, shareId);
   const deleteComment = useDeleteGroupShareComment(groupId, shareId);
   const [draft, setDraft] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [reply, setReply] = useState<ReplyDraft | null>(null);
 
   const send = () => {
     const body = draft.trim();
     if (!body || addComment.isPending) return;
-    addComment.mutate(body, { onSuccess: () => setDraft('') });
+    addComment.mutate({ body }, { onSuccess: () => setDraft('') });
+  };
+
+  const sendReply = () => {
+    const body = reply?.text.trim();
+    if (!reply || !body || addReply.isPending) return;
+    addReply.mutate({ body, parentId: reply.threadId }, { onSuccess: () => setReply(null) });
+  };
+
+  const startReply = (threadId: string, to: GroupShareComment) => {
+    addReply.reset();
+    setReply({ threadId, text: to.userId === currentUserId ? '' : replyMention(to.authorName) });
   };
 
   const list = comments.data ?? [];
+  const threads = threadComments(list);
+
+  const renderComment = (c: GroupShareComment, threadId: string, isReply: boolean) => {
+    const mine = !!currentUserId && c.userId === currentUserId;
+    return (
+      <div
+        className={cn(
+          'grid items-start gap-2.5',
+          isReply ? 'grid-cols-[1.75rem_minmax(0,1fr)]' : 'grid-cols-[2rem_minmax(0,1fr)]'
+        )}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            'flex items-center justify-center rounded-full font-bold',
+            isReply ? 'size-7 text-[11px]' : 'size-8 text-xs',
+            mine
+              ? 'bg-primary-600 text-white'
+              : 'bg-secondary-100 text-secondary-800 dark:bg-secondary-800 dark:text-secondary-100'
+          )}
+        >
+          {personInitials(c.authorName)}
+        </span>
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex max-w-full flex-col gap-0.5 self-start rounded-[4px_16px_16px_16px] bg-card px-3.5 py-2.5">
+            <strong className="text-[13px]">{c.authorName}</strong>
+            <span className="whitespace-pre-wrap break-words text-[15px] leading-snug">
+              {c.body}
+            </span>
+          </div>
+          <div className="flex items-center gap-sm pl-3.5 text-xs text-muted-foreground">
+            <time dateTime={c.createdAt}>{formatFeedDate(c.createdAt, 'short')}</time>
+            <button
+              type="button"
+              className="cursor-pointer border-none bg-transparent p-0 font-bold text-muted-foreground hover:text-foreground"
+              onClick={() => startReply(threadId, c)}
+            >
+              Antworten
+            </button>
+            {(mine || isAdmin) && (
+              <button
+                type="button"
+                aria-label="Kommentar löschen"
+                className="flex cursor-pointer items-center border-none bg-transparent p-0 text-muted-foreground hover:text-red-600"
+                disabled={deleteComment.isPending}
+                onClick={() => deleteComment.mutate(c.id)}
+              >
+                <PiTrash className="size-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div id={id} className="flex flex-col gap-sm bg-background-alt px-md pb-md pt-sm">
@@ -53,99 +134,154 @@ export function GroupCommentThread({
         </p>
       )}
 
-      {list.length > 0 && (
+      {threads.length > 0 && (
         <ul className="m-0 flex list-none flex-col gap-sm p-0">
-          {list.map((c) => {
-            const mine = !!currentUserId && c.userId === currentUserId;
+          {threads.map((t) => {
+            const replying = reply?.threadId === t.comment.id;
             return (
-              <li key={c.id} className="grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-2.5">
-                <span
-                  aria-hidden
-                  className={cn(
-                    'flex size-8 items-center justify-center rounded-full text-xs font-bold',
-                    mine
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-secondary-100 text-secondary-800 dark:bg-secondary-800 dark:text-secondary-100'
-                  )}
-                >
-                  {personInitials(c.authorName)}
-                </span>
-                <div className="flex min-w-0 flex-col gap-1">
-                  <div className="flex max-w-full flex-col gap-0.5 self-start rounded-[4px_16px_16px_16px] bg-card px-3.5 py-2.5">
-                    <strong className="text-[13px]">{c.authorName}</strong>
-                    <span className="whitespace-pre-wrap break-words text-[15px] leading-snug">
-                      {c.body}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-sm pl-3.5 text-xs text-muted-foreground">
-                    <time dateTime={c.createdAt}>{formatFeedDate(c.createdAt, 'short')}</time>
-                    <button
-                      type="button"
-                      className="cursor-pointer border-none bg-transparent p-0 font-bold text-muted-foreground hover:text-foreground"
-                      onClick={() => {
-                        setDraft(`@${c.authorName.split(' ')[0]} `);
-                        inputRef.current?.focus();
-                      }}
-                    >
-                      Antworten
-                    </button>
-                    {(mine || isAdmin) && (
-                      <button
-                        type="button"
-                        aria-label="Kommentar löschen"
-                        className="flex cursor-pointer items-center border-none bg-transparent p-0 text-muted-foreground hover:text-red-600"
-                        disabled={deleteComment.isPending}
-                        onClick={() => deleteComment.mutate(c.id)}
+              <li key={t.comment.id} className="flex flex-col gap-sm">
+                {renderComment(t.comment, t.comment.id, false)}
+                {(t.replies.length > 0 || replying) && (
+                  <div className="ml-4 flex flex-col gap-sm border-l-2 border-grey-200 pl-[18px] dark:border-grey-700">
+                    {t.replies.length > 0 && (
+                      <ul
+                        className="m-0 flex list-none flex-col gap-sm p-0"
+                        aria-label={`Antworten auf ${t.comment.authorName}`}
                       >
-                        <PiTrash className="size-3.5" />
-                      </button>
+                        {t.replies.map((r) => (
+                          <li key={r.id}>{renderComment(r, t.comment.id, true)}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {replying && (
+                      <CommentInput
+                        small
+                        autoFocus
+                        value={reply.text}
+                        onChange={(text) => setReply({ threadId: t.comment.id, text })}
+                        onSubmit={sendReply}
+                        onCancel={() => setReply(null)}
+                        pending={addReply.isPending}
+                        userName={currentUserName}
+                        placeholder={`${t.comment.authorName.split(' ')[0]} antworten …`}
+                        label={`Antwort an ${t.comment.authorName}`}
+                        error={addReply.isError ? errMessage(addReply.error) : null}
+                      />
                     )}
                   </div>
-                </div>
+                )}
               </li>
             );
           })}
         </ul>
       )}
 
+      <CommentInput
+        value={draft}
+        onChange={setDraft}
+        onSubmit={send}
+        pending={addComment.isPending}
+        userName={currentUserName}
+        placeholder="Kommentieren …"
+        label="Kommentar schreiben"
+        error={addComment.isError ? errMessage(addComment.error) : null}
+      />
+    </div>
+  );
+}
+
+interface CommentInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  onCancel?: () => void;
+  pending: boolean;
+  userName: string | null;
+  placeholder: string;
+  label: string;
+  error: string | null;
+  small?: boolean;
+  autoFocus?: boolean;
+}
+
+function CommentInput({
+  value,
+  onChange,
+  onSubmit,
+  onCancel,
+  pending,
+  userName,
+  placeholder,
+  label,
+  error,
+  small = false,
+  autoFocus = false,
+}: CommentInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  // Eine Antwort öffnet sich per Klick auf „Antworten“: der Fokus folgt dorthin, einmal.
+  useEffect(() => {
+    if (autoFocus) inputRef.current?.focus();
+  }, [autoFocus]);
+
+  return (
+    <div className="flex flex-col gap-xs">
       <form
-        className="grid grid-cols-[2rem_minmax(0,1fr)] items-center gap-2.5"
+        className={cn(
+          'grid items-center gap-2.5',
+          small ? 'grid-cols-[1.75rem_minmax(0,1fr)]' : 'grid-cols-[2rem_minmax(0,1fr)]'
+        )}
         onSubmit={(e) => {
           e.preventDefault();
-          send();
+          onSubmit();
         }}
       >
         <span
           aria-hidden
-          className="flex size-8 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white"
+          className={cn(
+            'flex items-center justify-center rounded-full bg-primary-600 font-bold text-white',
+            small ? 'size-7 text-[11px]' : 'size-8 text-xs'
+          )}
         >
-          {personInitials(currentUserName)}
+          {personInitials(userName)}
         </span>
         <div className="flex items-center gap-1.5 rounded-full border border-grey-200 bg-card py-1 pl-md pr-1 focus-within:border-primary-500 dark:border-grey-700">
           <input
             ref={inputRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Kommentieren …"
-            aria-label="Kommentar schreiben"
-            maxLength={2000}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && onCancel) onCancel();
+            }}
+            placeholder={placeholder}
+            aria-label={label}
+            maxLength={GROUP_COMMENT_MAX}
             className="h-8 min-w-0 flex-1 border-none bg-transparent text-[15px] text-foreground outline-none"
           />
+          {onCancel && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8 shrink-0 rounded-full text-muted-foreground"
+              aria-label="Antwort verwerfen"
+              onClick={onCancel}
+            >
+              <PiX className="size-4" />
+            </Button>
+          )}
           <Button
             type="submit"
             variant="brand"
             size="sm"
             className="rounded-full"
-            disabled={!draft.trim() || addComment.isPending}
+            disabled={!value.trim() || pending}
           >
             <PiPaperPlaneRight className="size-4" aria-hidden />
             Senden
           </Button>
         </div>
       </form>
-      {addComment.isError && (
-        <p className="m-0 text-sm text-red-600 dark:text-red-400">{errMessage(addComment.error)}</p>
-      )}
+      {error && <p className="m-0 text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }
