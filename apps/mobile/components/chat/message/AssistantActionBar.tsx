@@ -1,5 +1,6 @@
 import { ActionBarPrimitive, useAui } from '@assistant-ui/react-native';
 import { type ChatMessageMetadata } from '@gruenerator/chat';
+import { sourceLinksToCitations } from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
@@ -25,7 +26,7 @@ const HIT_SIZE = 40;
  * resolve — otherwise the checkmark would lie.
  */
 async function writeToClipboard(text: string): Promise<void> {
-  const ok = await copyToClipboard(text);
+  const ok = await copyToClipboard(sourceLinksToCitations(text));
   if (!ok) throw new Error('Clipboard write failed');
 }
 
@@ -45,13 +46,16 @@ async function writeToClipboard(text: string): Promise<void> {
  */
 export const AssistantActionBar = memo(function AssistantActionBar({
   theme,
-  messageText,
+  messageText: rawText,
   metadata,
 }: {
   theme: Theme;
   messageText: string;
   metadata: ChatMessageMetadata;
 }) {
+  // Every outlet here (copy, export, editor, TTS) is plain text: a source link
+  // `[Titel](quelle:N)` leaves the chat as `Titel [N]`, as on web.
+  const messageText = sourceLinksToCitations(rawText);
   const aui = useAui();
   const { state: ttsState, play, stop } = useNativeTTS();
   const target = useMemo(
