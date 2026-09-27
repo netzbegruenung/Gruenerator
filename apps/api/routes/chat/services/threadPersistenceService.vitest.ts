@@ -24,6 +24,8 @@ const {
   discardPendingAssistantIfEmpty,
   deleteEmptyStreamingRows,
   deleteTrailingAssistant,
+  getRecentToolSteps,
+  readThreadToolHistory,
 } = await import('./threadPersistenceService.js');
 
 /** Collapse whitespace so assertions don't depend on SQL formatting. */
@@ -145,4 +147,87 @@ describe('deleteTrailingAssistant (regression)', () => {
     expect(q).toContain("role = 'user'");
     expect(params()).toEqual(['thread-1']);
   });
+});
+
+describe('readThreadToolHistory.lastTurnToolSteps', () => {
+  const nbStep = { toolCallId: 'c1', toolName: 'notebook_quellen', args: {}, result: {} };
+
+  it('returns the steps of the newest row when it is the last completed turn', async () => {
+    queryMock.mockResolvedValueOnce([
+      { tool_results: { toolCalls: [nbStep] }, is_last_turn: true },
+      { tool_results: { toolCalls: [{ ...nbStep, toolCallId: 'c0' }] }, is_last_turn: false },
+    ]);
+    const history = await readThreadToolHistory('thread-1');
+    expect(history.lastTurnToolSteps()).toEqual([nbStep]);
+    expect(sql()).toContain("last.status = 'complete'");
+  });
+
+  it('is empty when the last turn ran no tool', async () => {
+    queryMock.mockResolvedValueOnce([
+      { tool_results: { intent: 'produktion', toolCalls: [] }, is_last_turn: true },
+      { tool_results: { toolCalls: [nbStep] }, is_last_turn: false },
+    ]);
+    expect((await readThreadToolHistory('thread-1')).lastTurnToolSteps()).toEqual([]);
+  });
+
+  it('is empty when the newest row with metadata is not the last turn', async () => {
+    // Der letzte Turn schrieb keine Metadaten (HITL-Ergebnis) — die neueste
+    // Zeile ist dann ein älterer Turn und zählt nicht als „der vorige".
+    queryMock.mockResolvedValueOnce([
+      { tool_results: { toolCalls: [nbStep] }, is_last_turn: false },
+    ]);
+    expect((await readThreadToolHistory('thread-1')).lastTurnToolSteps()).toEqual([]);
+  });
+});
+
+describe('toolSteps order', () => {
+  const call = (id: string, args: Record<string, unknown>, result: Record<string, unknown>) => ({
+    toolCallId: id,
+    toolName: 'notebook_quellen',
+    args,
+    result,
+  });
+
+  it('is oldest → newest across AND inside turns', async () => {
+    queryMock.mockResolvedValueOnce([
+      { tool_results: { toolCalls: [call('b1', {}, {}), call('b2', {}, {})] }, is_last_turn: true },
+      {
+        tool_results: { toolCalls: [call('a1', {}, {}), call('a2', {}, {})] },
+        is_last_turn: false,
+      },
+    ]);
+    const steps = await getRecentToolSteps('thread-1', 10);
+    expect(steps.map((s) => s.toolCallId)).toEqual(['a1', 'a2', 'b1', 'b2']);
+  });
+
+  it('keeps the NEWEST calls of a turn when the limit cuts into it', async () => {
+    queryMock.mockResolvedValueOnce([
+      {
+        tool_results: { toolCalls: [call('c1', {}, {}), call('c2', {}, {}), call('c3', {}, {})] },
+        is_last_turn: true,
+      },
+    ]);
+    const steps = await getRecentToolSteps('thread-1', 2);
+    expect(steps.map((s) => s.toolCallId)).toEqual(['c2', 'c3']);
+  });
+
+  it('the thread notebook is the explicit later call, not the pinned first one', async () => {
+    // Gepinnter erster Aufruf ohne id (Ergebnis: hamburg), danach ausdrücklich berlin.
+    const { notebookIdFromSteps } = await import('../agents/notebookSourceTools.js');
+    queryMock.mockResolvedValueOnce([
+      {
+        tool_results: {
+          toolCalls: [
+            call('p1', { action: 'list' }, { notebookId: 'hamburg' }),
+            call('p2', { action: 'list', notebookId: 'berlin' }, { notebookId: 'berlin' }),
+          ],
+        },
+        is_last_turn: true,
+      },
+    ]);
+    const history = await readThreadToolHistory('thread-1');
+    expect(notebookIdFromSteps(history.toolSteps())).toBe('berlin');
+    expect(notebookIdFromSteps(history.lastTurnToolSteps())).toBe('berlin');
+    // Der Import zieht den ganzen Werkzeugbaum — beim ersten Mal langsam.
+  }, 60_000);
 });

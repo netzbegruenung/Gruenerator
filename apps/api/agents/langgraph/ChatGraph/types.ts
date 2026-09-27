@@ -655,6 +655,12 @@ export interface ChatGraphState {
    */
   threadNotebookId?: string | null;
   /**
+   * The notebook of a successful `notebook_quellen` call in the assistant turn
+   * RIGHT BEFORE this one — null when that turn ran none. A short referential
+   * follow-up („nun die vorletzte") continues that turn's tool work.
+   */
+  lastTurnNotebookId?: string | null;
+  /**
    * Präzisionsmodus der Notebook-Seite: `notebook_quellen` darf nur diese
    * Notebooks öffnen (verglichen nach `resolveSystemCollection`), und mit
    * `readOnly` keine Schreibaktion ausführen. Fehlt ⇒ keine Einschränkung.
