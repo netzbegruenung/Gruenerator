@@ -16,7 +16,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from '@gruenerator/ui';
-import { type ReactElement, type ReactNode } from 'react';
+import { type ReactElement } from 'react';
 import { LuCheck, LuChevronDown, LuLayoutGrid, LuList } from 'react-icons/lu';
 
 import { NOTEBOOK_ACCENT_TEXT } from '../notebookTheme';
@@ -32,7 +32,19 @@ import {
 
 import { cn } from '@/utils/cn';
 
-type ResearchFilters = ReturnType<typeof useResearchFilters>;
+/** What the toolbar reads and sets — the filters hook itself, or a view over it
+ *  that layers filters recognised in the query on top. */
+export type ResearchOptions = Pick<
+  ReturnType<typeof useResearchFilters>,
+  | 'filterFields'
+  | 'activeFilters'
+  | 'searchMode'
+  | 'setSearchMode'
+  | 'sortBy'
+  | 'toggleFilter'
+  | 'setDateFilter'
+  | 'clearAllFilters'
+> & { setSortBy: (sortBy: SortOption) => void };
 
 const MODE_OPTIONS: { value: SearchMode; label: string }[] = [
   { value: 'hybrid', label: 'Kombiniert' },
@@ -53,29 +65,36 @@ const FACET_COPY: Record<string, { all: string; search: string }> = {
 
 const DATE_FIELD = 'published_at';
 
+const RECOGNISED_TITLE = 'Aus der Eingabe erkannt';
+
 // Neutral on/off for the view switch — brand green here read as a filter.
 const VIEW_ITEM =
   'text-grey-500 data-[state=on]:bg-grey-100 data-[state=on]:text-foreground dark:data-[state=on]:bg-grey-800';
 
-/** A control's trigger: the current value, in magenta once it differs from the default. */
+/** A control's trigger: the current value, in magenta once it differs from the
+ *  default or was recognised in the query. */
 function ControlTrigger({
   name,
   value,
   changed,
+  recognised,
   ...props
-}: { name: string; value: string; changed: boolean } & React.ComponentProps<typeof Button>) {
+}: { name: string; value: string; changed: boolean; recognised: boolean } & React.ComponentProps<
+  typeof Button
+>) {
   return (
     <Button
       variant="ghost"
       size="sm"
       aria-label={`${name}: ${value}`}
+      {...(recognised ? { title: RECOGNISED_TITLE } : {})}
       className="h-8 gap-1 px-2 text-sm font-normal"
       {...props}
     >
       <span
         className={cn(
           'max-w-[9rem] truncate sm:max-w-[12rem]',
-          changed ? cn(NOTEBOOK_ACCENT_TEXT, 'font-semibold') : 'text-foreground'
+          changed || recognised ? cn(NOTEBOOK_ACCENT_TEXT, 'font-semibold') : 'text-foreground'
         )}
       >
         {value}
@@ -98,19 +117,26 @@ function SelectControl<T extends string>({
   options,
   value,
   defaultValue,
+  recognised,
   onChange,
 }: {
   name: string;
   options: { value: T; label: string }[];
   value: T;
   defaultValue: T;
+  recognised: boolean;
   onChange: (value: T) => void;
 }) {
   const current = options.find((o) => o.value === value)?.label ?? value;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <ControlTrigger name={name} value={current} changed={value !== defaultValue} />
+        <ControlTrigger
+          name={name}
+          value={current}
+          changed={value !== defaultValue}
+          recognised={recognised}
+        />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-44">
         <DropdownMenuRadioGroup value={value} onValueChange={(v) => onChange(v as T)}>
@@ -130,11 +156,13 @@ function FacetControl({
   field,
   config,
   selected,
+  recognised,
   onToggle,
 }: {
   field: string;
   config: FilterFieldConfig;
   selected: string[];
+  recognised: boolean;
   onToggle: (field: string, value: string) => void;
 }) {
   const copy = FACET_COPY[field] ?? { all: `Alle: ${config.label}`, search: 'Suchen …' };
@@ -149,7 +177,12 @@ function FacetControl({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <ControlTrigger name={config.label} value={current} changed={selected.length > 0} />
+        <ControlTrigger
+          name={config.label}
+          value={current}
+          changed={selected.length > 0}
+          recognised={recognised}
+        />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 max-w-[calc(100vw-2rem)] p-0">
         <Command>
@@ -185,15 +218,17 @@ function FacetControl({
 }
 
 /** True when anything in the toolbar differs from its default. */
-export function researchOptionsAdjusted(filters: ResearchFilters): boolean {
+export function researchOptionsAdjusted(filters: ResearchOptions): boolean {
   return (
-    filters.activeFilterCount > 0 ||
+    Object.values(filters.activeFilters).some((v) =>
+      Array.isArray(v) ? v.length > 0 : !!(v.date_from || v.date_to)
+    ) ||
     filters.searchMode !== 'hybrid' ||
     filters.sortBy !== 'relevance'
   );
 }
 
-export function resetResearchOptions(filters: ResearchFilters): void {
+export function resetResearchOptions(filters: ResearchOptions): void {
   filters.clearAllFilters();
   filters.setSearchMode('hybrid');
   filters.setSortBy('relevance');
@@ -209,15 +244,18 @@ export function ResearchResultsToolbar({
   facetFields,
   view,
   onViewChange,
-  children,
+  recognised = [],
+  dateLabel,
 }: {
-  filters: ResearchFilters;
+  filters: ResearchOptions;
   /** Keyword facets offered here (the rest come from the settings menu). */
   facetFields: string[];
   view: ResearchView;
   onViewChange: (view: ResearchView) => void;
-  /** Extra chips after the controls (filters recognised in the query). */
-  children?: ReactNode;
+  /** Filter fields (and 'sortBy') whose current value was recognised in the query. */
+  recognised?: string[];
+  /** Label of a recognised time span that is none of the presets („seit 2023“). */
+  dateLabel?: string;
 }) {
   const { filterFields, activeFilters, searchMode, setSearchMode, sortBy, setSortBy } = filters;
 
@@ -226,6 +264,13 @@ export function ResearchResultsToolbar({
   const dateRange: DateRange = dateValue && !Array.isArray(dateValue) ? dateValue : {};
   const presets = datePresets(new Date());
   const presetKey = (r: DateRange) => `${r.date_from ?? ''}|${r.date_to ?? ''}`;
+  const dateOptions = presets.map((p) => ({ value: presetKey(p.range), label: p.label }));
+  if (!dateOptions.some((o) => o.value === presetKey(dateRange))) {
+    dateOptions.push({
+      value: presetKey(dateRange),
+      label: dateLabel ?? [dateRange.date_from, dateRange.date_to].filter(Boolean).join(' – '),
+    });
+  }
 
   const offeredFacets = facetFields.filter((f) => (filterFields[f]?.values ?? []).length > 0);
 
@@ -236,6 +281,7 @@ export function ResearchResultsToolbar({
       options={MODE_OPTIONS}
       value={searchMode}
       defaultValue="hybrid"
+      recognised={false}
       onChange={setSearchMode}
     />,
     <SelectControl
@@ -244,6 +290,7 @@ export function ResearchResultsToolbar({
       options={SORT_OPTIONS}
       value={sortBy}
       defaultValue="relevance"
+      recognised={recognised.includes('sortBy')}
       onChange={setSortBy}
     />,
   ];
@@ -252,10 +299,12 @@ export function ResearchResultsToolbar({
       <SelectControl
         key="date"
         name="Zeitraum"
-        options={presets.map((p) => ({ value: presetKey(p.range), label: p.label }))}
+        options={dateOptions}
         value={presetKey(dateRange)}
         defaultValue="|"
+        recognised={recognised.includes(DATE_FIELD)}
         onChange={(key) => {
+          if (key === presetKey(dateRange)) return;
           const range = presets.find((p) => presetKey(p.range) === key)?.range ?? {};
           filters.setDateFilter(DATE_FIELD, range.date_from, range.date_to);
         }}
@@ -270,6 +319,7 @@ export function ResearchResultsToolbar({
         field={field}
         config={filterFields[field]}
         selected={Array.isArray(active) ? active : []}
+        recognised={recognised.includes(field)}
         onToggle={filters.toggleFilter}
       />
     );
@@ -297,7 +347,6 @@ export function ResearchResultsToolbar({
             Zurücksetzen
           </Button>
         )}
-        {children && <div className="flex shrink-0 items-center pl-1">{children}</div>}
       </div>
       <ToggleGroup
         type="single"
