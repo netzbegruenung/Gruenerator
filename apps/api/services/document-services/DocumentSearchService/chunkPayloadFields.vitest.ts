@@ -37,6 +37,8 @@ const FULL_PAYLOAD: QdrantResultPayload = {
   published_at: '2024-03-01T00:00:00Z',
   source_url: 'https://example.org/x',
   source_id: 'src-9',
+  content_type_label: 'Pressemitteilung',
+  source_name: 'Bündnis 90/Die Grünen Berlin',
 };
 
 // Every payload-derived field the downstream pipeline relies on. If a mapper
@@ -56,6 +58,8 @@ const REQUIRED_KEYS = [
   'created_at',
   'published_at',
   'source_id',
+  'content_type_label',
+  'source_name',
   'url',
   'documents',
 ] as const;
@@ -71,6 +75,8 @@ describe('buildChunkPayloadFields', () => {
     expect(out.char_start).toBe(120);
     expect(out.char_end).toBe(1580);
     expect(out.source_id).toBe('src-9');
+    expect(out.content_type_label).toBe('Pressemitteilung');
+    expect(out.source_name).toBe('Bündnis 90/Die Grünen Berlin');
     expect(out.published_at).toBe('2024-03-01T00:00:00Z');
     expect(out.url).toBe('https://example.org/x');
     expect(out.documents).toEqual({
@@ -130,5 +136,7 @@ describe('buildChunkPayloadFields with a Wolke payload', () => {
     expect(out.documents.id).toBe('wolke://berlin-wps/WPS 2026/Grüne Antwort.pdf');
     expect(out.chunk_text).toBe('hello');
     expect(out.source_id).toBe('src-9');
+    expect(out.content_type_label).toBe('Pressemitteilung');
+    expect(out.source_name).toBe('Bündnis 90/Die Grünen Berlin');
   });
 });
