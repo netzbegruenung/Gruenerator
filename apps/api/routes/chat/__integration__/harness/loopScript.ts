@@ -24,7 +24,7 @@
  * real model would have stepped.
  */
 
-import { type LanguageModel, type ToolSet } from 'ai';
+import { type FlexibleSchema, type LanguageModel, type ToolSet } from 'ai';
 
 /** A part as `drain()` reads it. `text-delta` is the only one that reaches the user. */
 export interface ScriptedPart {
@@ -161,7 +161,9 @@ export function fakeLoopStreamText(options: {
     );
   }
 
-  const runCall = async (call: ScriptedCall, i: number): Promise<void> => {
+  // Validation is async, so it runs as its own phase: a parallel step starts
+  // all its executes in one tick afterwards, as `checkSearchConcurrency` expects.
+  const prepareCall = async (call: ScriptedCall, i: number): Promise<() => Promise<void>> => {
     const entry = (tools as Record<string, { execute?: unknown }>)[call.tool];
     if (!entry || typeof entry.execute !== 'function') {
       throw new Error(
@@ -176,24 +178,37 @@ export function fakeLoopStreamText(options: {
     // before reaching any search. Every guard downstream then saw a failure the
     // product would never have produced — a green map of an invented world,
     // which is the one thing this tier must not produce.
-    const schema = (entry as { inputSchema?: { parse?: (v: unknown) => unknown } }).inputSchema;
-    const input = typeof schema?.parse === 'function' ? schema.parse(call.args) : call.args;
+    // Go through `asSchema` rather than assuming zod: the loop hands the SDK
+    // `jsonSchema(...)` wrappers (`toolsForProvider`), which carry `validate`
+    // but no `.parse`. A schema without `validate` throws instead of falling
+    // back to raw args — raw args are the failure mode described above.
+    // Imported lazily: the test's `vi.mock('ai')` factory loads this module,
+    // so a static value import of `ai` here deadlocks collection.
+    const { asSchema } = await import('ai');
+    const { validate } = asSchema((entry as { inputSchema?: FlexibleSchema<unknown> }).inputSchema);
+    if (!validate) throw new Error(`scripted tool "${call.tool}" has no validating input schema`);
+    const parsed = await validate(call.args);
+    if (!parsed.success) throw parsed.error;
+    const input = parsed.value;
 
     const execute = entry.execute as (
       input: unknown,
       opts: { toolCallId: string; messages: never[] }
     ) => unknown;
-    const result = await execute(input, { toolCallId: `t${callIndex}-${i}`, messages: [] });
-    loopScript.toolCalls.push({ tool: call.tool, result });
+    return async () => {
+      const result = await execute(input, { toolCallId: `t${callIndex}-${i}`, messages: [] });
+      loopScript.toolCalls.push({ tool: call.tool, result });
+    };
   };
 
   return {
     stream: (async function* () {
       const calls = response.calls ?? [];
       if (response.parallel) {
-        await Promise.all(calls.map((call, i) => runCall(call, i)));
+        const runs = await Promise.all(calls.map((call, i) => prepareCall(call, i)));
+        await Promise.all(runs.map((run) => run()));
       } else {
-        for (const [i, call] of calls.entries()) await runCall(call, i);
+        for (const [i, call] of calls.entries()) await (await prepareCall(call, i))();
       }
       yield* partsOf(response);
     })(),
