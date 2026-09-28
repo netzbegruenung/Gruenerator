@@ -1016,9 +1016,10 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
       }
       const [kind, handle] = ref.split(':', 2);
       if (kind === 'reel') {
-        await getSubtitlerProjectService().deleteProject(userId, handle);
-        groundNote(sourceRegistry, 'Gelöscht', 'Reel wurde gelöscht.');
-        return { ok: true, note: 'Reel wurde gelöscht.' };
+        const result = await getSubtitlerProjectService().trashProject(userId, handle);
+        if (result !== 'ok') return { error: 'Reel nicht gefunden oder kein Zugriff.' };
+        groundNote(sourceRegistry, 'Gelöscht', 'Reel liegt jetzt im Papierkorb.');
+        return { ok: true, note: 'Reel liegt jetzt im Papierkorb.' };
       }
       if (kind === 'sharepic') {
         const result = await getSharedMediaService().trashShare(userId, handle);

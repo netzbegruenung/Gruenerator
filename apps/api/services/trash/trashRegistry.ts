@@ -42,6 +42,7 @@ import {
   type TrashedDocumentRow,
 } from '../document-services/PostgresDocumentService/metadataOperations.js';
 import { getSharedMediaService, type TrashedShareRow } from '../sharedMediaService.js';
+import { getSubtitlerProjectService, type TrashedProjectRow } from '../subtitler/ProjectService.js';
 
 import { compareTrashKey, type TrashCursor } from './trashCursor.js';
 
@@ -258,6 +259,29 @@ const sharedMediaHandler: TrashKindHandler = {
   listExpired: (cutoff, limit) => getSharedMediaService().listExpiredShares(cutoff, limit),
 };
 
+const projectItem = (row: TrashedProjectRow): TrashItem =>
+  toTrashItem({
+    kind: 'subtitler_project',
+    id: row.id,
+    title: row.title.trim() || 'Unbenanntes Reel',
+    subtype: null,
+    deletedAt: row.deleted_at,
+  });
+
+const subtitlerProjectHandler: TrashKindHandler = {
+  async listTrashed(userId, opts) {
+    return (await getSubtitlerProjectService().listTrashedProjects(userId, opts)).map(projectItem);
+  },
+  async getTrashed(userId, id) {
+    const found = await getSubtitlerProjectService().getTrashedProject(userId, id);
+    return typeof found === 'string' ? found : projectItem(found);
+  },
+  trash: (userId, id) => getSubtitlerProjectService().trashProject(userId, id),
+  restore: (userId, id) => getSubtitlerProjectService().restoreProject(userId, id),
+  purge: (id, cutoff) => getSubtitlerProjectService().purgeProject(id, cutoff),
+  listExpired: (cutoff, limit) => getSubtitlerProjectService().listExpiredProjects(cutoff, limit),
+};
+
 // Task 5 tightens this to `Record<TrashKind, TrashKindHandler>` once every kind has one.
 export const TRASH_KINDS = {
   collaborative_document: collaborativeDocumentHandler,
@@ -265,6 +289,7 @@ export const TRASH_KINDS = {
   notebook: notebookHandler,
   document: documentHandler,
   shared_media: sharedMediaHandler,
+  subtitler_project: subtitlerProjectHandler,
 } satisfies Partial<Record<TrashKind, TrashKindHandler>>;
 
 export function trashHandlerFor(kind: TrashKind): TrashKindHandler | null {

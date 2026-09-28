@@ -27,7 +27,7 @@ const hasWriteAccess = vi.fn();
 const emitToolConfirmAction = vi.fn();
 const dbQuery = vi.fn();
 const getUserProjects = vi.fn();
-const deleteProject = vi.fn();
+const trashProject = vi.fn();
 const searchReels = vi.fn().mockResolvedValue([]);
 const getReelTranscript = vi.fn().mockResolvedValue(null);
 const getUserShares = vi.fn();
@@ -80,7 +80,7 @@ vi.mock('../../../services/subtitler/ProjectService.js', () => ({
   getSubtitlerProjectService: () => ({
     ensureInitialized: () => Promise.resolve(),
     getUserProjects: (...a: unknown[]) => getUserProjects(...a),
-    deleteProject: (...a: unknown[]) => deleteProject(...a),
+    trashProject: (...a: unknown[]) => trashProject(...a),
   }),
 }));
 vi.mock('../../../services/subtitler/reelSearch.js', () => ({
@@ -566,9 +566,9 @@ describe('media', () => {
       limit: 15,
     })) as { needsConfirmation?: boolean };
     expect(ask.needsConfirmation).toBe(true);
-    expect(deleteProject).not.toHaveBeenCalled();
+    expect(trashProject).not.toHaveBeenCalled();
 
-    deleteProject.mockResolvedValue({ ok: true });
+    trashProject.mockResolvedValue('ok');
     await exec(makeMediaTool(ctx('u1')), {
       action: 'delete',
       type: 'all',
@@ -576,7 +576,7 @@ describe('media', () => {
       confirm: true,
       limit: 15,
     });
-    expect(deleteProject).toHaveBeenCalledWith('u1', 'p1');
+    expect(trashProject).toHaveBeenCalledWith('u1', 'p1');
   });
 
   const reelHit = {
