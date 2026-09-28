@@ -815,6 +815,24 @@ describe('split synthesis — a leaked tool plan is retried, never streamed', ()
     expect(out.text).not.toMatch(/anders formulieren/i);
   });
 
+  it("streams a GERMAN decline in the model's own words — policy or capability alike", async () => {
+    for (const decline of [
+      'Leider kann ich dabei nicht helfen — ein erfundenes Zitat schreibe ich nicht.',
+      // #3799: a capability decline read as a policy decline and was swapped.
+      'Ich kann keine Websuche durchführen. In den mir vorliegenden Quellen gibt es keine Informationen dazu.',
+    ]) {
+      const onText = vi.fn();
+      const { deps, systems } = synthDeps([decline, 'Eine zweite Antwort darf es nicht geben.']);
+
+      const out = await runAgenticLoop(baseParams({ mode: 'split', tools, onText }), deps);
+
+      expect(out.text, decline).toBe(decline);
+      expect(systems, decline).toHaveLength(1);
+      expect(onText, decline).toHaveBeenCalledWith(decline);
+      expect(out.replacement, decline).toBeUndefined();
+    }
+  });
+
   it('streams the summary when only the injected instruction was declined', async () => {
     const onText = vi.fn();
     const compliant =
