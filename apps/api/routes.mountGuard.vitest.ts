@@ -59,6 +59,7 @@ describe('routes.ts mount order', () => {
       { prefix: '/api/sharepic/text', mount: 'mountSharepicTextContractRouter(app)' },
       { prefix: '/api/translation', mount: 'mountTranslationContractRouter(app)' },
       { prefix: '/api/voice', mount: 'mountSpeechContractRouter(app)' },
+      { prefix: '/api/trash', mount: 'mountTrashContractRouter(app)' },
     ];
 
     for (const { prefix, mount } of cases) {

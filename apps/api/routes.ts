@@ -129,6 +129,7 @@ import { mountTexteContractRouter } from './routes/texte/texteContractRouter.js'
 import { mountTranslationContractRouter } from './routes/translation/translationContractRouter.js';
 import { translationUploadRouter } from './routes/translation/translationUploadRouter.js';
 import { mountTransparencyContractRouter } from './routes/transparency/transparencyContractRouter.js';
+import { mountTrashContractRouter } from './routes/trash/trashContractRouter.js';
 import { mountTreesContractRouter } from './routes/trees/treesContractRouter.js';
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
@@ -887,6 +888,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // cursor. Additive: /api/recent-activity, /api/share/* and /api/media/* stay.
   app.use('/api/content', requireAuth, publicReadLimiter);
   mountContentContractRouter(app);
+  // Papierkorb: list, restore and purge what the resources' own DELETE routes
+  // moved here. requireAuth on the prefix, before the ts-rest mount.
+  app.use('/api/trash', requireAuth, standardMutationLimiter);
+  mountTrashContractRouter(app);
   // ts-rest contract router for notifications — mounts BEFORE the legacy router
   // so contract-modeled routes match first.
   // requireAuth applied at prefix; notification-preferences also handled here.
