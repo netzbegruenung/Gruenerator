@@ -75,7 +75,7 @@ export {
   type AgenturaFilterable,
 } from './agenturaFilter.js';
 
-export { getAgentSlug, resolveAgentSlug } from './slug.js';
+export { agentKey, getAgentSlug, resolveAgentSlug } from './slug.js';
 
 export {
   LANDESVERBAENDE,
