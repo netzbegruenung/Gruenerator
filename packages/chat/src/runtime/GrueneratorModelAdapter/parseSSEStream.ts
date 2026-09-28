@@ -21,6 +21,7 @@ import { notifyError, notifyWarning } from '../../lib/notify';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { parseSSELine } from '../../lib/sseParser';
 import { TOOL_APPROVAL_OPTIONS } from '../../lib/toolApproval';
+import { dropDuplicateToolCalls } from '../../lib/toolCallParts';
 import {
   ARTIFACT_STAGE_INTENTS,
   ARTIFACT_TOOL_NAMES,
@@ -96,15 +97,25 @@ const NO_RETRIEVAL_STAGE_INTENTS: ReadonlySet<string> = new Set([
   'compute',
 ]);
 
+// Ids for cards the client fabricates. A counter, not `Date.now()`: two cards
+// in the same millisecond got the same id. Module-wide, because a client-tool
+// resume carries the previous stream's cards into the next one.
+let syntheticSeq = 0;
+
 export async function* parseSSEStream(
   response: Response,
   callbacks: GrueneratorAdapterCallbacks,
   outcome: StreamOutcome,
   agentInfo?: { agentId: string; agentMention?: string },
-  // Tool-call parts from an earlier stream of the SAME run (client-tool
-  // resume): pre-seeded so the run_python card stays visible while the
-  // resumed answer streams.
-  carryOver?: { toolCalls: ToolCallPart[] }
+  // `toolCalls`: parts from an earlier stream of the SAME run (client-tool
+  // resume), pre-seeded so the run_python card stays visible while the resumed
+  // answer streams.
+  // `knownToolCallIds`: cards the paused message already shows (ask_human /
+  // approval resume). assistant-ui APPENDS a resumed run's content to that
+  // message, so a card rebuilt here would sit next to its original and crash
+  // the message with "Duplicate key toolCallId-…". Events for these ids never
+  // become a card.
+  carryOver?: { toolCalls?: ToolCallPart[]; knownToolCallIds?: ReadonlySet<string> }
 ): AsyncGenerator<ChatModelRunResult, void> {
   const reader = response.body?.getReader();
 
@@ -213,6 +224,7 @@ export async function* parseSSEStream(
   let receivedAnswerModeReason: NotebookAnswerModeReason | null = null;
   let activeToolCall: ToolCallPart | null = null;
   const allToolCalls: ToolCallPart[] = [...(carryOver?.toolCalls ?? [])];
+  const knownToolCallIds = carryOver?.knownToolCallIds ?? new Set<string>();
   // Agentic tool-loop steps, keyed by stepId. The loop can run several tools in
   // ONE model step (parallel tool calls), so their start/result events
   // interleave — a single `activeToolCall` would drop all but the last. Each
@@ -362,7 +374,7 @@ export async function* parseSSEStream(
     const isInterrupted = interruptPending && currentProgress.stage === 'complete';
 
     const result: ChatModelRunResult = {
-      content,
+      content: dropDuplicateToolCalls(content),
       metadata: { custom },
       ...(isInterrupted
         ? { status: { type: 'requires-action' as const, reason: 'tool-calls' as const } }
@@ -506,7 +518,7 @@ export async function* parseSSEStream(
                         : toolName;
                   const card: ToolCallPart = {
                     type: 'tool-call',
-                    toolCallId: `tc_${Date.now()}_${i}_${src || 'default'}`,
+                    toolCallId: `tc_${++syntheticSeq}_${i}_${src || 'default'}`,
                     toolName: effToolName,
                     args: { query: queries[i] },
                     argsText: JSON.stringify({ query: queries[i] }),
@@ -523,7 +535,7 @@ export async function* parseSSEStream(
               const toolArgs = { query: searchQuery ?? '' };
               activeToolCall = {
                 type: 'tool-call',
-                toolCallId: `tc_${Date.now()}`,
+                toolCallId: `tc_${++syntheticSeq}`,
                 toolName,
                 args: toolArgs,
                 argsText: JSON.stringify(toolArgs),
@@ -910,7 +922,9 @@ export async function* parseSSEStream(
           pendingNarration = [];
           const title = toolStepTitle(stepData);
           const alreadyKnown =
-            toolStepsById.has(stepId) || allToolCalls.some((tc) => tc.toolCallId === stepId);
+            knownToolCallIds.has(stepId) ||
+            toolStepsById.has(stepId) ||
+            allToolCalls.some((tc) => tc.toolCallId === stepId);
           if (!alreadyKnown) {
             const toolCall = buildToolStepCard(stepData, title, cardNarration);
             // Push immediately so a parallel sibling's start doesn't orphan this
@@ -1011,6 +1025,7 @@ export async function* parseSSEStream(
             // `completed` closes it, so this event is for real tools only —
             // internal stages narrate through `progress_step` (see below).
             const isDuplicateStepId =
+              knownToolCallIds.has(stepId) ||
               (activeToolCall !== null && activeToolCall.toolCallId === stepId) ||
               allToolCalls.some((tc) => tc.toolCallId === stepId);
             if (!isDuplicateStepId) {
@@ -1178,6 +1193,7 @@ export async function* parseSSEStream(
             // Freigabe blockiert die Fortsetzung), `interruptPending` sorgt für
             // den `requires-action`-Status, den die Laufzeit dafür verlangt.
             for (const call of payload.calls) {
+              if (knownToolCallIds.has(call.toolCallId)) continue;
               const args = { ...(call.args ?? {}) };
               const part: ToolCallPart = {
                 type: 'tool-call',
@@ -1363,7 +1379,7 @@ export async function* parseSSEStream(
             // Create synthetic search_sources tool call for sources-first rendering
             const sourcesToolCall: ToolCallPart = {
               type: 'tool-call',
-              toolCallId: `tc_sources_${Date.now()}`,
+              toolCallId: `tc_sources_${++syntheticSeq}`,
               toolName: 'search_sources',
               argsText: '{}',
               args: {},
