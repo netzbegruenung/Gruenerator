@@ -94,9 +94,10 @@ async function resolveMedia(shareToken: string): Promise<ResolvedThumbnail> {
 
 async function resolveReel(projectId: string): Promise<ResolvedThumbnail> {
   if (!UUID_RE.test(projectId)) return { ok: false, reason: 'not_found' };
-  const rows = (await db.query(`SELECT thumbnail_path FROM subtitler_projects WHERE id = $1`, [
-    projectId,
-  ])) as Array<{ thumbnail_path: string | null }>;
+  const rows = (await db.query(
+    `SELECT thumbnail_path FROM subtitler_projects WHERE id = $1 AND deleted_at IS NULL`,
+    [projectId]
+  )) as Array<{ thumbnail_path: string | null }>;
   const relative = rows[0]?.thumbnail_path;
   if (!relative) return { ok: false, reason: 'not_found' };
 

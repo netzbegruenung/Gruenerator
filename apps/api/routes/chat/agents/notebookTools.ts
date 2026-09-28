@@ -105,7 +105,7 @@ export interface NotebookToolDeps {
     | 'getUserNotebookCollections'
     | 'getNotebookCollection'
     | 'updateNotebookCollection'
-    | 'deleteNotebookCollection'
+    | 'trashNotebookCollection'
     | 'storeNotebookCollection'
     | 'addDocumentsToCollection'
     | 'getCollectionDocuments'
@@ -525,8 +525,8 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
         groundNote(sourceRegistry, 'Bestätigung nötig', ask);
         return { needsConfirmation: true, note: ask };
       }
-      await helper.deleteNotebookCollection(id);
-      const note = `Notebook „${collection.name}" wurde gelöscht.`;
+      await helper.trashNotebookCollection(id);
+      const note = `Notebook „${collection.name}" wurde in den Papierkorb verschoben.`;
       groundNote(sourceRegistry, 'Gelöscht', note);
       return { ok: true, note };
     },
@@ -555,9 +555,10 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
     try {
       const [titleRows, groupRows, pendingRows] = await Promise.all([
         docIds.length
-          ? (deps.db.query('SELECT id, title FROM documents WHERE id = ANY($1)', [
-              docIds,
-            ]) as Promise<Array<{ id: string; title: string }>>)
+          ? (deps.db.query(
+              'SELECT id, title FROM documents WHERE id = ANY($1) AND deleted_at IS NULL',
+              [docIds]
+            ) as Promise<Array<{ id: string; title: string }>>)
           : Promise.resolve([]),
         deps.db.query(
           `SELECT g.id, g.name FROM group_content_shares gcs
@@ -698,10 +699,10 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
     if (ids.length === 0) return { error: 'add_documents braucht documentIds.' };
 
     const [owned, office] = await Promise.all([
-      deps.db.query('SELECT id FROM documents WHERE user_id = $1 AND id = ANY($2)', [
-        userId,
-        ids,
-      ]) as Promise<Array<{ id: string }>>,
+      deps.db.query(
+        'SELECT id FROM documents WHERE user_id = $1 AND id = ANY($2) AND deleted_at IS NULL',
+        [userId, ids]
+      ) as Promise<Array<{ id: string }>>,
       deps.db.query(
         'SELECT id, title FROM collaborative_documents WHERE created_by = $1 AND id = ANY($2) AND is_deleted = false',
         [userId, ids]

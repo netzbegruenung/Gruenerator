@@ -7,6 +7,7 @@ import { and, eq } from 'drizzle-orm';
 
 import { documents } from '../../../database/schema/documents.js';
 import { getDrizzleInstance } from '../../../database/services/DrizzleService.js';
+import { notTrashed } from '../../../database/trash.js';
 
 import type { DocumentMetadata, DocumentRecord } from './types.js';
 import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
@@ -28,7 +29,9 @@ export async function storeDocumentText(
     const rows = await db
       .select()
       .from(documents)
-      .where(and(eq(documents.id, documentId), eq(documents.user_id, userId)))
+      .where(
+        and(eq(documents.id, documentId), eq(documents.user_id, userId), notTrashed(documents))
+      )
       .limit(1);
 
     const document = rows[0];
@@ -79,7 +82,9 @@ export async function getDocumentText(
     const rows = await db
       .select()
       .from(documents)
-      .where(and(eq(documents.id, documentId), eq(documents.user_id, userId)))
+      .where(
+        and(eq(documents.id, documentId), eq(documents.user_id, userId), notTrashed(documents))
+      )
       .limit(1);
 
     const document = rows[0];

@@ -62,6 +62,7 @@ export const recurring_tasks = pgTable(
     last_run_at: timestamp('last_run_at', { withTimezone: true }),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deleted_at: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => [
     index('idx_recurring_tasks_due').on(t.enabled, t.next_run_at),

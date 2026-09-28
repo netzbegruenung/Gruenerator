@@ -23,15 +23,13 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
 
-import {
-  deleteThreadAttachmentVectors,
-  getThreadTabularFiles,
-} from './services/attachmentPersistenceService.js';
+import { getThreadTabularFiles } from './services/attachmentPersistenceService.js';
 import {
   getThreadSettings,
   insertThreadWithSlugRetry,
   updateThreadSettings,
 } from './services/threadPersistenceService.js';
+import { trashThread } from './services/threadTrashService.js';
 
 import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
@@ -99,7 +97,7 @@ export const threadsContractRouter = s.router(threadsContract, {
            ORDER BY created_at DESC
            LIMIT 1
          ) m ON true
-         WHERE (
+         WHERE t.deleted_at IS NULL AND (
            t.user_id::text = $1
            OR t.permissions ? $2::text
            OR t.is_public = true
@@ -222,7 +220,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       const postgres = getPostgresInstance();
 
       const existingThreads = await postgres.query(
-        `SELECT id, user_id, COALESCE(status, 'regular') AS status FROM chat_threads WHERE id = $1 LIMIT 1`,
+        `SELECT id, user_id, COALESCE(status, 'regular') AS status FROM chat_threads WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
         [threadId]
       );
 
@@ -337,29 +335,15 @@ export const threadsContractRouter = s.router(threadsContract, {
       const userId = getUserId(args.req);
       const { threadId } = args.query;
 
-      const postgres = getPostgresInstance();
-
-      const existingThreads = await postgres.query(
-        `SELECT id, user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
-        [threadId]
-      );
-
-      if (existingThreads.length === 0) {
+      // A thread with messages moves to the Papierkorb; an empty one is
+      // removed outright (see trashThread).
+      const result = await trashThread(threadId, userId);
+      if (result === 'not_found') {
         return { status: 404 as const, body: { error: 'Thread not found' } };
       }
-
-      if (existingThreads[0].user_id !== userId) {
+      if (result === 'forbidden') {
         return { status: 403 as const, body: { error: 'Forbidden' } };
       }
-
-      // Drop orphaned Qdrant vectors of embedded attachments BEFORE the CASCADE
-      // removes the rows we read document_ids from. Best-effort (won't throw).
-      await deleteThreadAttachmentVectors(threadId, userId);
-
-      // Remove the thread's semantic recall point too. Best-effort.
-      await deleteThreadRecallPoint(threadId);
-
-      await postgres.query(`DELETE FROM chat_threads WHERE id = $1`, [threadId]);
 
       return { status: 200 as const, body: { success: true as const } };
     } catch (error) {
@@ -375,7 +359,7 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       const postgres = getPostgresInstance();
       const threads = await postgres.query(
-        `SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+        `SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
         [threadId]
       );
       if (threads.length === 0) {
@@ -432,7 +416,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       const postgres = getPostgresInstance();
 
       const threads = await postgres.query(
-        `SELECT id, user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+        `SELECT id, user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
         [threadId]
       );
 
@@ -526,7 +510,7 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       const postgres = getPostgresInstance();
       const threads = await postgres.query(
-        `SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+        `SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
         [threadId]
       );
       if (threads.length === 0) {

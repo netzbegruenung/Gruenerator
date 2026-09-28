@@ -8,12 +8,12 @@
  * Generates AI-powered German titles using Mistral-small via `aiText`.
  */
 
-import { and, eq, isNull, or } from 'drizzle-orm';
-
 import { MAX_THREAD_TITLE_CHARS, clampThreadTitle } from '@gruenerator/shared/utils';
+import { and, eq, isNull, or } from 'drizzle-orm';
 
 import { chatThreads } from '../../database/schema/chat.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { notTrashed } from '../../database/trash.js';
 import { createLogger } from '../../utils/logger.js';
 import { aiText } from '../ai/generate.js';
 
@@ -46,7 +46,7 @@ export async function threadNeedsTitle(threadId: string): Promise<boolean> {
   const rows = await db
     .select({ title: chatThreads.title })
     .from(chatThreads)
-    .where(and(eq(chatThreads.id, threadId), unnamedCondition()))
+    .where(and(eq(chatThreads.id, threadId), notTrashed(chatThreads), unnamedCondition()))
     .limit(1);
   return rows.length > 0;
 }

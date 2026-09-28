@@ -43,9 +43,10 @@ router.get('/', async (req, res) => {
 
     // Verify thread ownership
     const postgres = getPostgresInstance();
-    const threads = await postgres.query(`SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`, [
-      threadId,
-    ]);
+    const threads = await postgres.query(
+      `SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
+      [threadId]
+    );
 
     if (threads.length === 0) {
       return res.status(404).json({ error: 'Thread not found' });
@@ -119,7 +120,7 @@ router.post(
       // Verify thread ownership
       const postgres = getPostgresInstance();
       const threads = await postgres.query(
-        `SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+        `SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
         [threadId]
       );
 

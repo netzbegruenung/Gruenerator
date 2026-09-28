@@ -7,6 +7,8 @@
  * - First chunk extraction for previews
  */
 
+import { withoutTrashedDocuments } from '../trashedDocuments.js';
+
 import type {
   DocumentFullTextResult,
   DocumentChunksResult,
@@ -609,10 +611,14 @@ export async function getMultipleDocumentsFullText(
       `[DocumentRetrieval] Bulk retrieving full text for ${documentIds.length} documents`
     );
 
+    // Trashed documents keep their chunks; hide them here like every search does.
+    const liveIds = await withoutTrashedDocuments(documentIds);
+    if (liveIds.length === 0) return { documents: [], errors: [], capped: false };
+
     const filter: QdrantFilter = {
       must: [
         { key: 'user_id', match: { value: userId } },
-        { key: 'document_id', match: { any: documentIds } },
+        { key: 'document_id', match: { any: liveIds } },
       ],
     };
 
@@ -738,16 +744,18 @@ export async function getDocumentFirstChunks(
       };
     }
 
+    const liveIds = await withoutTrashedDocuments(documentIds);
+    if (liveIds.length === 0) return { success: true, chunks: {}, foundCount: 0 };
     const filter: QdrantFilter = {
       must: [
         { key: 'user_id', match: { value: userId } },
-        { key: 'document_id', match: { any: documentIds } },
+        { key: 'document_id', match: { any: liveIds } },
         { key: 'chunk_index', match: { value: 0 } },
       ],
     };
 
     const chunks = await qdrantOps.scrollDocuments('documents', filter, {
-      limit: documentIds.length,
+      limit: liveIds.length,
       withPayload: true,
       withVector: false,
     });

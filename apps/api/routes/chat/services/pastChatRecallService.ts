@@ -65,7 +65,7 @@ export async function resolveSpaceThreadIds(
   try {
     const rows = (await db.query(
       `SELECT id, title FROM chat_threads
-       WHERE group_id = $1::uuid AND user_id = $2
+       WHERE group_id = $1::uuid AND user_id = $2 AND deleted_at IS NULL
          AND COALESCE(status, 'regular') = 'regular'
        ORDER BY updated_at DESC`,
       [groupId, userId]
@@ -94,7 +94,8 @@ export async function getSpaceRecallScope(
       `SELECT g.id, g.name
        FROM chat_threads t
        JOIN groups g ON g.id = t.group_id
-       WHERE t.id = $1::uuid AND t.user_id = $2 AND COALESCE(g.is_active, TRUE) = TRUE
+       WHERE t.id = $1::uuid AND t.user_id = $2 AND t.deleted_at IS NULL AND g.deleted_at IS NULL
+         AND COALESCE(g.is_active, TRUE) = TRUE
        LIMIT 1`,
       [threadId, userId]
     )) as Array<{ id: string; name: string }>;
@@ -349,7 +350,7 @@ export async function listRecentThreads(
     params.push(limit);
     const rows = (await db.query(
       `SELECT id FROM chat_threads
-       WHERE ${where.join(' AND ')}
+       WHERE deleted_at IS NULL AND ${where.join(' AND ')}
        ORDER BY updated_at DESC
        LIMIT $${params.length}`,
       params
@@ -382,7 +383,7 @@ export async function getThreadRecallContext(
     const threadRows = (await db.query(
       `SELECT title, updated_at, compaction_summary
        FROM chat_threads
-       WHERE id = $1::uuid
+       WHERE id = $1::uuid AND deleted_at IS NULL
          AND (user_id = $2 OR permissions ? $2::text)
          AND COALESCE(status, 'regular') = 'regular'`,
       [threadId, userId]
@@ -554,7 +555,7 @@ async function hydrateThreadsAsResults(
            ORDER BY m.created_at DESC LIMIT 1
          ) AS snippet_content
        FROM chat_threads t
-       WHERE t.id = ANY($1::uuid[])
+       WHERE t.id = ANY($1::uuid[]) AND t.deleted_at IS NULL
          AND (t.user_id = $2 OR t.permissions ? $2::text)
          AND COALESCE(t.status, 'regular') = 'regular'`,
       [threadIds, userId]

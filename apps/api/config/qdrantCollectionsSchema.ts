@@ -322,6 +322,8 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     indexes: [
       { field: 'user_id', type: 'keywordTenant' },
       { field: 'collection_id', type: 'keyword' },
+      // Papierkorb: set while trashed, absent when live.
+      { field: 'deleted_at', type: 'datetime' },
     ],
   },
   notebook_collection_documents: {

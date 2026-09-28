@@ -44,7 +44,7 @@ export async function getCompactionState(threadId: string): Promise<CompactionSt
 
   const result = await postgres.query(
     `SELECT compaction_summary, compacted_up_to_message_id, compaction_updated_at
-     FROM chat_threads WHERE id = $1`,
+     FROM chat_threads WHERE id = $1 AND deleted_at IS NULL`,
     [threadId]
   );
 

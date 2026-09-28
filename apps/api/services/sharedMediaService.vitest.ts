@@ -27,6 +27,9 @@ vi.mock('fs/promises', () => ({
   },
 }));
 
+const reportBackgroundError = vi.fn();
+vi.mock('../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
+
 vi.mock('../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({
     ensureInitialized: vi.fn().mockResolvedValue(undefined),
@@ -496,5 +499,151 @@ describe('share status policy', () => {
       ...ORPHANED_SHARE_STATUSES,
     ]);
     expect([...written].filter((s) => !classified.has(s))).toEqual([]);
+  });
+});
+
+/**
+ * The Papierkorb lifecycle. Trash touches nothing but `deleted_at`, so the files
+ * (and the quota slot) stay until the purge; only the purge runs the old hard
+ * delete, and only after its conditional DELETE actually removed the row.
+ */
+describe('Papierkorb', () => {
+  /** Every statement and every `fs.rm`, in order. */
+  const effects: string[] = [];
+
+  function db(opts: { owner?: string | null; trashed?: boolean; deleted?: number } = {}): void {
+    const owner = opts.owner === undefined ? 'user-1' : opts.owner;
+    query.mockImplementation((sql: string) => {
+      const s = sql.replace(/\s+/g, ' ').trim();
+      effects.push(s.split(' WHERE ')[0]);
+      if (s.startsWith('SELECT user_id FROM shared_media')) {
+        return Promise.resolve(owner && !opts.trashed ? [{ user_id: owner }] : []);
+      }
+      if (s.startsWith('SELECT share_token, title')) {
+        return Promise.resolve(
+          owner && opts.trashed
+            ? [
+                {
+                  share_token: 'tok-1',
+                  title: 'Plakat',
+                  original_filename: null,
+                  media_type: 'image',
+                  deleted_at: new Date('2026-09-01T10:00:00Z'),
+                  user_id: owner,
+                },
+              ]
+            : []
+        );
+      }
+      if (s.startsWith('DELETE FROM shared_media')) {
+        return Promise.resolve(Array.from({ length: opts.deleted ?? 0 }, () => ({ id: 'row-1' })));
+      }
+      return Promise.resolve([]);
+    });
+  }
+
+  beforeEach(() => {
+    effects.length = 0;
+    reportBackgroundError.mockClear();
+    rm.mockReset().mockImplementation((target) => {
+      effects.push(`rm ${String(target).split('/').slice(-1)[0]}`);
+      return Promise.resolve();
+    });
+  });
+
+  it('trash only sets deleted_at — no DELETE, the files stay', async () => {
+    db();
+    expect(await new SharedMediaService().trashShare('user-1', 'tok-1')).toBe('ok');
+    expect(effects).toEqual([
+      'SELECT user_id FROM shared_media',
+      'UPDATE shared_media SET deleted_at = now()',
+    ]);
+    expect(rm).not.toHaveBeenCalled();
+  });
+
+  it('trash, restore and purge-now answer the same owner check', async () => {
+    db({ owner: 'user-2' });
+    const service = new SharedMediaService();
+    expect(await service.trashShare('user-1', 'tok-1')).toBe('forbidden');
+
+    db({ owner: 'user-2', trashed: true });
+    expect(await service.getTrashedShare('user-1', 'tok-1')).toBe('forbidden');
+    expect(await service.restoreShare('user-1', 'tok-1')).toBe('forbidden');
+
+    db({ owner: null });
+    expect(await service.trashShare('user-1', 'tok-1')).toBe('not_found');
+    expect(effects.some((e) => e.startsWith('UPDATE'))).toBe(false);
+  });
+
+  it('restore clears only deleted_at, so the public link comes back as it was', async () => {
+    db({ trashed: true });
+    expect(await new SharedMediaService().restoreShare('user-1', 'tok-1')).toBe('ok');
+
+    const update = query.mock.calls.at(-1)![0];
+    expect(update).toContain('SET deleted_at = NULL');
+    expect(update).not.toMatch(/expires_at|password_hash/);
+  });
+
+  it('hides a trashed share from the public link and every listing', async () => {
+    const service = new SharedMediaService();
+    await service.getShareByToken('tok-1');
+    await service.getMediaById('user-1', 'row-1');
+    expect(queryOne.mock.calls.map(([sql]) => sql)).toEqual([
+      expect.stringContaining('sm.deleted_at IS NULL'),
+      expect.stringContaining('deleted_at IS NULL'),
+    ]);
+
+    await service.getUserShares('user-1', 'image');
+    expect(lastCall().sql).toContain('deleted_at IS NULL');
+
+    queryOne.mockClear();
+    await service.getMediaLibrary('user-1', { type: 'image' });
+    expect(lastCall().sql).toContain('deleted_at IS NULL');
+    expect(queryOne.mock.calls[0]![0]).toContain('deleted_at IS NULL');
+  });
+
+  it('keeps charging the quota for trashed media — their files are still on disk', async () => {
+    await withLibraryCount(1).getLibraryUsage('user-1');
+    expect(queryOne.mock.calls[0]![0]).not.toContain('deleted_at');
+  });
+
+  it('purge deletes the trashed row conditionally, then the share directory', async () => {
+    db({ deleted: 1 });
+    const cutoff = new Date('2026-08-30T00:00:00Z');
+    expect(await new SharedMediaService().purgeShare('tok-1', cutoff)).toBe(true);
+
+    const [sql, params] = query.mock.calls[0]!;
+    expect(sql).toContain('deleted_at IS NOT NULL');
+    expect(sql).toContain('deleted_at < $2');
+    expect(sql).toContain('RETURNING id');
+    expect(params).toEqual(['tok-1', cutoff]);
+    expect(effects).toEqual(['DELETE FROM shared_media', 'rm tok-1']);
+  });
+
+  it('touches no file when the row was restored meanwhile (0 rows)', async () => {
+    db({ deleted: 0 });
+    expect(await new SharedMediaService().purgeShare('tok-1', null)).toBe(false);
+    expect(effects).toEqual(['DELETE FROM shared_media']);
+    expect(rm).not.toHaveBeenCalled();
+  });
+
+  it('reports a failing file removal and never rethrows once the row is gone', async () => {
+    db({ deleted: 1 });
+    rm.mockRejectedValueOnce(new Error('EACCES'));
+    expect(await new SharedMediaService().purgeShare('tok-1', null)).toBe(true);
+    expect(reportBackgroundError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ job: 'trash-purge', kind: 'shared_media', id: 'tok-1' })
+    );
+  });
+
+  it('purges an internal thumbnail without a detour through the Papierkorb', async () => {
+    db({ deleted: 1 });
+    expect(await new SharedMediaService().purgeInternalShare('tok-1')).toBe(true);
+
+    const [sql] = query.mock.calls[0]!;
+    expect(sql).toContain('COALESCE(is_library_item, TRUE) = FALSE');
+    expect(sql).not.toContain('deleted_at');
+    expect(effects).toEqual(['DELETE FROM shared_media', 'rm tok-1']);
   });
 });

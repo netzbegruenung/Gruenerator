@@ -7,7 +7,11 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
-import { getIndexSchema, type CollectionSchema } from '../../../config/qdrantCollectionsSchema.js';
+import {
+  COLLECTION_SCHEMAS,
+  getIndexSchema,
+  type CollectionSchema,
+} from '../../../config/qdrantCollectionsSchema.js';
 
 import { createCollections } from './collections.js';
 
@@ -83,5 +87,27 @@ describe('createCollections index backfill', () => {
     expect(client.deletePayloadIndex).not.toHaveBeenCalled();
     expect(client.createPayloadIndex).toHaveBeenCalledTimes(2);
     expect(client.createCollection).not.toHaveBeenCalled();
+  });
+});
+
+describe('notebook_collections Papierkorb index', () => {
+  it('declares deleted_at as a datetime index, so the trash range filters are indexed', async () => {
+    const client = fakeClient({ user_id: 'keyword', collection_id: 'keyword' });
+    client.getCollections.mockResolvedValue({ collections: [{ name: 'notebook_collections' }] });
+
+    await createCollections(
+      client as unknown as QdrantClient,
+      1024,
+      {} as never,
+      { notebook_collections: COLLECTION_SCHEMAS.notebook_collections },
+      vi.fn(),
+      getIndexSchema,
+      log
+    );
+
+    expect(client.createPayloadIndex).toHaveBeenCalledWith('notebook_collections', {
+      field_name: 'deleted_at',
+      field_schema: { type: 'datetime' },
+    });
   });
 });

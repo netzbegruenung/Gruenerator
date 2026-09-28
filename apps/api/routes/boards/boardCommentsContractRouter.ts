@@ -305,7 +305,7 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
         `SELECT bc.user_id, bc.card_id, cd.created_by AS board_owner
          FROM board_comments bc
          JOIN collaborative_documents cd ON cd.id = bc.board_id
-         WHERE bc.id = $1 AND bc.board_id = $2`,
+         WHERE bc.id = $1 AND bc.board_id = $2 AND cd.is_deleted = false`,
         [commentId, boardId]
       );
 

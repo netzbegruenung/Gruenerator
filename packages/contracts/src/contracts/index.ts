@@ -8,6 +8,7 @@ export { exportsContract } from './exportsContract.js';
 export { recentValuesContract } from './recentValuesContract.js';
 export { recentActivityContract } from './recentActivityContract.js';
 export { contentContract } from './contentContract.js';
+export { trashContract } from './trashContract.js';
 export { itemUsageContract } from './itemUsageContract.js';
 export { userUsageContract } from './userUsageContract.js';
 export { treesContract } from './treesContract.js';

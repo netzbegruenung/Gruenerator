@@ -329,10 +329,12 @@ jobs:
 
       # The app role owns its database but is no superuser. schema.sql creates
       # its own extensions, which only works while they stay trusted ones.
+      # CREATEDB is for tests only: trashSchema.db.vitest.ts migrates a database
+      # of its own, because migrations.db.vitest.ts needs this one empty.
       - name: Create the app role and its empty database
         run: >-
           psql postgresql://postgres@localhost:5433/postgres
-          -c "CREATE ROLE gruenerator LOGIN"
+          -c "CREATE ROLE gruenerator LOGIN CREATEDB"
           -c "CREATE DATABASE gruenerator OWNER gruenerator"
 
       - name: Run tests

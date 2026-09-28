@@ -13,6 +13,7 @@ export const documents = pgTable('documents', {
   ocr_text: text('ocr_text'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  deleted_at: timestamp('deleted_at', { withTimezone: true }),
   ocr_method: text('ocr_method').default('tesseract'),
   source_url: text('source_url'),
   document_type: text('document_type').default('upload'),
