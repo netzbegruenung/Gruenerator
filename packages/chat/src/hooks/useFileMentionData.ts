@@ -38,6 +38,27 @@ function useConfigFetch() {
   return useChatConfigStore((s) => s.fetch);
 }
 
+function toCollectionItems(
+  collections: z.infer<typeof mentionCollectionSchema>[]
+): NotebookCollectionItem[] {
+  return collections.map<NotebookCollectionItem>((c) => ({
+    id: c.id,
+    name: c.name,
+    description: c.description,
+    documentCount: c.document_count,
+    // A backend predating `indexing_state` still answers here, so fall back
+    // to deriving it — same fallback the web notebook list uses. The list
+    // response carries no `vector_count`, so the derivation trusts `status`.
+    indexingState: c.indexing_state ?? deriveIndexingState(c.documents),
+    documents: c.documents.map((d) => ({
+      id: d.id,
+      title: d.title || 'Unbekanntes Dokument',
+      pageCount: d.page_count ?? null,
+      sourceType: d.source_type ?? null,
+    })),
+  }));
+}
+
 export function useNotebookCollectionsQuery(enabled: boolean) {
   const configFetch = useConfigFetch();
   return useQuery<NotebookCollectionItem[]>({
@@ -46,28 +67,27 @@ export function useNotebookCollectionsQuery(enabled: boolean) {
     staleTime: STALE_TIME,
     retry: 1,
     queryFn: async () => {
-      const response = await configFetch('/api/auth/notebook-collections');
+      // Notebooks shared via a Projekt are mentionable too — the chat resolves
+      // them by read access, like the notebook page. That list is best-effort:
+      // desktop and shipped mobile builds talk to a production backend that may
+      // predate the endpoint, and a missing shared list must never hide the
+      // user's own notebooks.
+      const [response, shared] = await Promise.all([
+        configFetch('/api/auth/notebook-collections'),
+        configFetch('/api/auth/notebook-collections/shared')
+          .then(async (res) =>
+            res.ok ? mentionCollectionsResponseSchema.parse(await res.json()).collections : []
+          )
+          // swallow-ok: Zusatzliste; ältere Backends kennen /shared nicht, die eigene Liste bleibt laut
+          .catch(() => []),
+      ]);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       // Parsing rather than casting, for the same reason the `!ok` branch above
       // throws: a silently mistyped payload renders exactly like "you have no
       // notebooks", which is the failure mode this file already had once.
       const { collections } = mentionCollectionsResponseSchema.parse(await response.json());
-      return collections.map<NotebookCollectionItem>((c) => ({
-        id: c.id,
-        name: c.name,
-        description: c.description,
-        documentCount: c.document_count,
-        // A backend predating `indexing_state` still answers here, so fall back
-        // to deriving it — same fallback the web notebook list uses. The list
-        // response carries no `vector_count`, so the derivation trusts `status`.
-        indexingState: c.indexing_state ?? deriveIndexingState(c.documents),
-        documents: c.documents.map((d) => ({
-          id: d.id,
-          title: d.title || 'Unbekanntes Dokument',
-          pageCount: d.page_count ?? null,
-          sourceType: d.source_type ?? null,
-        })),
-      }));
+      const ownIds = new Set(collections.map((c) => c.id));
+      return toCollectionItems([...collections, ...shared.filter((c) => !ownIds.has(c.id))]);
     },
   });
 }

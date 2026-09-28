@@ -60,6 +60,7 @@ import {
   type NotebookConfigEntry,
 } from '../config/notebooksConfig';
 import { usePublicNotebookCollections } from '../hooks/usePublicNotebookCollections';
+import { useSharedNotebookCollections } from '../hooks/useSharedNotebookCollections';
 
 import NotebookCoverArt from './NotebookCoverArt';
 import NotebookCreateCard from './NotebookCreateCard';
@@ -186,6 +187,41 @@ const BasisNotebooks = memo(({ collections }: { collections: NotebookCollection[
   );
 });
 BasisNotebooks.displayName = 'BasisNotebooks';
+
+// Which Projekt a notebook reached the viewer through — the one thing that
+// tells two same-named shared notebooks apart.
+const sharedNotebookMeta = (c: NotebookCollection): string | undefined =>
+  c.shared_via_groups?.length
+    ? `via ${c.shared_via_groups.join(', ')}`
+    : (c.description ?? undefined);
+
+/**
+ * „Mit dir geteilt" — notebooks others shared into a Projekt the user belongs
+ * to, so they no longer have to open each Projekt to find them.
+ */
+const SharedNotebooks = memo(({ collections }: { collections: NotebookCollection[] }) => {
+  const navigate = useNavigate();
+  return (
+    <section className="mt-md">
+      <SectionHeader title="Mit dir geteilt" />
+      <div className={NOTEBOOK_SCROLL_ROW}>
+        {collections.map((c) => (
+          <div key={c.id} className={NOTEBOOK_SCROLL_ITEM}>
+            <NotebookGalleryCard
+              title={c.name}
+              coverNode={<NotebookCoverArt title={c.name} subtitle={sharedNotebookMeta(c)} />}
+              accent="pink"
+              onActivate={() =>
+                void navigate(publicNotebookHref(c), { state: { freshConversation: true } })
+              }
+            />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+});
+SharedNotebooks.displayName = 'SharedNotebooks';
 
 interface EigeneNotebooksProps {
   qaCollections: NotebookCollection[];
@@ -614,7 +650,9 @@ export function NotebooksIndexFooter() {
           ),
     [isAustrian]
   );
-  const [openCategory, setOpenCategory] = useState<'laender' | 'eigene' | 'basis' | null>(null);
+  const [openCategory, setOpenCategory] = useState<
+    'laender' | 'eigene' | 'basis' | 'geteilt' | null
+  >(null);
 
   const { query: collectionsQuery, deleteQACollection } = useNotebookCollections({
     isActive: true,
@@ -704,10 +742,21 @@ export function NotebooksIndexFooter() {
   // fallen raus — die stehen schon unter "Eigene".
   const { data: basisData } = usePublicNotebookCollections({ enabled: true });
   const ownIds = useMemo(() => new Set(qaCollections.map((c) => c.id)), [qaCollections]);
-  const basisCollections = useMemo(
-    () => (basisData ?? EMPTY_COLLECTIONS).filter((c) => !ownIds.has(c.id)),
-    [basisData, ownIds]
+
+  // „Mit dir geteilt": über Projekte geteilte Notebooks anderer. Ein Notebook,
+  // das zugleich öffentlich ist, steht nur hier — die Projekt-Freigabe ist die
+  // persönlichere Antwort auf „wo finde ich das?".
+  const { data: sharedData } = useSharedNotebookCollections({ enabled: true });
+  const sharedCollections = useMemo(
+    () => (sharedData ?? EMPTY_COLLECTIONS).filter((c) => !ownIds.has(c.id)),
+    [sharedData, ownIds]
   );
+  const basisCollections = useMemo(() => {
+    const sharedIds = new Set(sharedCollections.map((c) => c.id));
+    return (basisData ?? EMPTY_COLLECTIONS).filter(
+      (c) => !ownIds.has(c.id) && !sharedIds.has(c.id)
+    );
+  }, [basisData, ownIds, sharedCollections]);
 
   const searchHits = useMemo<NotebookSearchHit[]>(() => {
     if (!trimmed) return [];
@@ -737,6 +786,17 @@ export function NotebooksIndexFooter() {
         });
       }
     }
+    for (const c of sharedCollections) {
+      if (!hit(c.name, c.description)) continue;
+      hits.push({
+        key: `shared-${c.id}`,
+        title: c.name,
+        icon: HiUserGroup,
+        coverNode: <NotebookCoverArt title={c.name} subtitle={sharedNotebookMeta(c)} />,
+        onActivate: () =>
+          void navigate(publicNotebookHref(c), { state: { freshConversation: true } }),
+      });
+    }
     for (const c of basisCollections) {
       if (!hit(c.name, c.description)) continue;
       hits.push({
@@ -748,7 +808,15 @@ export function NotebooksIndexFooter() {
       });
     }
     return hits;
-  }, [trimmed, orderedSystem, qaCollections, basisCollections, navigate, handleView]);
+  }, [
+    trimmed,
+    orderedSystem,
+    qaCollections,
+    sharedCollections,
+    basisCollections,
+    navigate,
+    handleView,
+  ]);
 
   return (
     <>
@@ -835,6 +903,21 @@ export function NotebooksIndexFooter() {
                 />
               </div>
             )}
+            {sharedCollections.length > 0 && (
+              <div className={NOTEBOOK_SCROLL_ITEM}>
+                <NotebookGalleryCard
+                  title="Mit dir geteilt"
+                  coverNode={
+                    <NotebookCoverArt
+                      title="Mit dir geteilt"
+                      subtitle={`${sharedCollections.length} ${sharedCollections.length === 1 ? 'geteiltes Notebook' : 'geteilte Notebooks'}`}
+                    />
+                  }
+                  accent="pink"
+                  onActivate={() => setOpenCategory((c) => (c === 'geteilt' ? null : 'geteilt'))}
+                />
+              </div>
+            )}
             {directAfter.map((nb) => (
               <div key={nb.id} className={NOTEBOOK_SCROLL_ITEM}>
                 <NotebookCard notebook={nb} />
@@ -859,6 +942,10 @@ export function NotebooksIndexFooter() {
 
       {!trimmed && openCategory === 'basis' && basisCollections.length > 0 && (
         <BasisNotebooks collections={basisCollections} />
+      )}
+
+      {!trimmed && openCategory === 'geteilt' && sharedCollections.length > 0 && (
+        <SharedNotebooks collections={sharedCollections} />
       )}
 
       {!trimmed && openCategory === 'eigene' && qaCollections.length > 0 && (
