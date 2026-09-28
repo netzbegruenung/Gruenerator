@@ -368,6 +368,33 @@ describe('search', () => {
   });
 });
 
+// Live 28.09.2026: get/search mit id="berlin" endeten in „nicht gefunden".
+describe('System-Notebook als id', () => {
+  it.each(['get', 'search'])(
+    '%s hands over to notebook_quellen and gruenerator_search',
+    async (action) => {
+      const { run, deps } = makeCtx();
+      const out = await run({ action, id: 'oesterreich', query: 'letzte Pressemitteilung' });
+      expect(out.error).toMatch(/notebook_quellen mit notebookId="oesterreich"/);
+      expect(out.error).toMatch(/gruenerator_search mit collection="oesterreich"/);
+      expect(deps.access).not.toHaveBeenCalled();
+    }
+  );
+
+  it('names the locale limit for a system key this turn cannot use', async () => {
+    const { run, deps } = makeCtx();
+    const out = await run({ action: 'get', id: 'berlin' });
+    expect(out.error).toMatch(/steht hier nicht zur Verfügung/);
+    expect(deps.access).not.toHaveBeenCalled();
+  });
+
+  it('leaves a real notebook id alone', async () => {
+    const { run, deps } = makeCtx();
+    await run({ action: 'get', id: 'c0ffee00-0000-4000-8000-000000000001' });
+    expect(deps.access).toHaveBeenCalled();
+  });
+});
+
 describe('create', () => {
   it('creates an empty private notebook with the audience of the session', async () => {
     const { run, helper, notes } = makeCtx();
