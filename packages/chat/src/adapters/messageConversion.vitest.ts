@@ -268,3 +268,38 @@ describe('convertToThreadMessageLike — pending tool approval', () => {
     expect(message?.status).toBeUndefined();
   });
 });
+
+describe('convertToThreadMessageLike — tool-call ids stay unique (Mobile-Pfad)', () => {
+  const idsOf = (content: ReadonlyArray<{ type: string; toolCallId?: string }>) =>
+    content.flatMap((p) => (p.type === 'tool-call' && p.toolCallId ? [p.toolCallId] : []));
+
+  it('gives every id-less step its own fallback id', () => {
+    const step = { toolCallId: '', toolName: 'web_search', args: {}, result: {} };
+    const [msg] = convertToThreadMessageLike([
+      { id: 'm1', role: 'assistant', content: 'x', metadata: { toolCalls: [step, step] } },
+    ]);
+    expect(idsOf(msg!.content)).toEqual(['tc_m1_0', 'tc_m1_1']);
+  });
+
+  it('keeps one card when a persisted step repeats the open question', () => {
+    const [msg] = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'x',
+        metadata: {
+          toolCalls: [
+            { toolCallId: 'call_ask', toolName: 'ask_human', args: { question: 'Wer?' } },
+          ],
+          pendingClarification: {
+            askTurnId: 'ask-1',
+            toolCallId: 'call_ask',
+            question: 'Wer?',
+            resolved: false,
+          },
+        },
+      },
+    ]);
+    expect(idsOf(msg!.content)).toEqual(['call_ask']);
+  });
+});

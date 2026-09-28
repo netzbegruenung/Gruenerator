@@ -194,6 +194,19 @@ export async function shareContentToGroup(
     if (contentOwnership[ownerColumn] !== userId) return NOT_OWNER;
   }
 
+  // Same reason as notebooks above: group access to a user agent requires
+  // share_mode <> 'private', and the sharing panel lists group shares only in
+  // 'groups' mode. Without the promotion this share would be dead and
+  // invisible to the owner. After the ownership check, so a non-owner cannot
+  // flip someone else's agent.
+  if (contentType === 'user_agents') {
+    await postgres.exec(
+      `UPDATE user_agents SET share_mode = 'groups', updated_at = NOW()
+        WHERE id = $1 AND share_mode = 'private'`,
+      [contentId]
+    );
+  }
+
   const existingShare = await postgres.queryOne<{ id: string }>(
     'SELECT id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
     [contentType, contentId, groupId],
