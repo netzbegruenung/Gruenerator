@@ -114,7 +114,7 @@ export async function reindexDocument(
 ): Promise<ReindexDocumentResult> {
   const deps = injected ?? (await defaultDeps());
   const rows = await deps.db.query<ReindexRow>(
-    `SELECT ${ROW_COLUMNS} FROM documents WHERE id = $1`,
+    `SELECT ${ROW_COLUMNS} FROM documents WHERE id = $1 AND deleted_at IS NULL`,
     [documentId]
   );
   const row = rows[0];
@@ -169,7 +169,7 @@ export async function reindexNotebookSources(
   if (ids.length === 0) return { status: 'ok', queued: [], unavailable: 0, consentMissing: 0 };
 
   const rows = await deps.db.query<ReindexRow>(
-    `SELECT ${ROW_COLUMNS} FROM documents WHERE id = ANY($1)`,
+    `SELECT ${ROW_COLUMNS} FROM documents WHERE id = ANY($1) AND deleted_at IS NULL`,
     [ids]
   );
 

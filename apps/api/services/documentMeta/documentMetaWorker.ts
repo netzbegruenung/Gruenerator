@@ -108,6 +108,7 @@ export const CLAIM_SQL = `UPDATE documents d
     SELECT id
       FROM documents
      WHERE status = 'completed'
+       AND deleted_at IS NULL
        AND user_id IS NOT NULL
        AND (
              (

@@ -118,7 +118,7 @@ export async function inspectCorpusState(
     const rows = (await postgres.query(
       `SELECT id, title, status, vector_count
          FROM documents
-         WHERE id = ANY($1) AND user_id = $2`,
+         WHERE id = ANY($1) AND user_id = $2 AND deleted_at IS NULL`,
       [documentIds, userId]
     )) as DocumentStatusRow[];
 

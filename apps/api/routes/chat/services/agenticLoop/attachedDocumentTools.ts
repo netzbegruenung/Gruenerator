@@ -79,12 +79,14 @@ async function readableIds(
 ): Promise<Set<string>> {
   const ids = sources.map((s) => s.id).filter((id) => UUID_RE.test(id));
   if (ids.length === 0) return new Set();
-  const rows = await db.query<{ id: string; user_id: string | null }>(
-    'SELECT id, user_id FROM documents WHERE id = ANY($1::uuid[])',
+  const rows = await db.query<{ id: string; user_id: string | null; trashed: boolean }>(
+    'SELECT id, user_id, (deleted_at IS NOT NULL) AS trashed FROM documents WHERE id = ANY($1::uuid[])',
     [ids]
   );
+  // A trashed document reads like a foreign one: its row exists, so the
+  // chunk-only fallback below must not open it either.
   const foreign = new Set(
-    rows.filter((r) => String(r.user_id) !== userId).map((r) => String(r.id))
+    rows.filter((r) => r.trashed || String(r.user_id) !== userId).map((r) => String(r.id))
   );
   return new Set(ids.filter((id) => !foreign.has(id)));
 }
