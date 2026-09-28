@@ -46,6 +46,10 @@ vi.mock('../../services/email/index.js', () => ({
   sendDocumentNotificationEmail: vi.fn(async () => {}),
 }));
 vi.mock('../user/ProfileService.js', () => ({ getProfileService: vi.fn() }));
+const warn = vi.fn();
+vi.mock('../../utils/logger.js', () => ({
+  createLogger: () => ({ warn, info: vi.fn(), debug: vi.fn(), error: vi.fn() }),
+}));
 
 const { createNotificationsForUsers } = await import('./NotificationService.js');
 
@@ -122,6 +126,16 @@ describe('createNotificationsForUsers', () => {
     await createNotificationsForUsers(['a'], base);
     expect(insertedUsers()).toEqual(['a']);
     expect(sendNotificationEmail).not.toHaveBeenCalled();
+  });
+
+  it('names recipients skipped for lack of a profile', async () => {
+    recipients = [user('a')];
+    await createNotificationsForUsers(['a', 'gone'], base);
+    expect(insertedUsers()).toEqual(['a']);
+    expect(warn).toHaveBeenCalledWith(
+      'Skipped notification recipients without profile',
+      expect.objectContaining({ userIds: ['gone'] })
+    );
   });
 
   it('does nothing for an empty list', async () => {

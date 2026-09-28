@@ -301,6 +301,14 @@ export async function createNotificationsForUsers(
     )
     .where(inArray(profiles.id, ids));
 
+  if (recipients.length < ids.length) {
+    const found = new Set(recipients.map((r) => r.id));
+    log.warn('Skipped notification recipients without profile', {
+      type,
+      userIds: ids.filter((id) => !found.has(id)),
+    });
+  }
+
   const delivered = recipients.flatMap((r) => {
     const channels = pickChannels(
       type,
