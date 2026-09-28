@@ -32,6 +32,7 @@
 import {
   DEFAULT_USER_AGENT_TOOLS,
   USER_SELECTABLE_TOOLS,
+  agentRef,
   canonicalSkillMention,
   getAgentSlug,
   isUserSelectableTool,
@@ -53,6 +54,7 @@ import {
   getUserAgent,
   listMentionableUserAgents,
   updateUserAgent,
+  type MentionableUserAgentRow,
   type UserAgentInput,
   type UserAgentPatch,
 } from '../../../services/userAgents/userAgentsRepository.js';
@@ -133,6 +135,15 @@ const COPY_SUFFIX = ' (Kopie)';
 
 /** Wie der Web-Builder: der Allrounder des Composers. */
 const DEFAULT_AGENT_MODEL = TEXT_MODEL_BY_ID['gruenerator-ultra'];
+
+/**
+ * How the model should name an agent: someone else's by its row uuid, since
+ * its identifier may belong to another owner's agent too; the caller's own by
+ * its readable identifier.
+ */
+function sharedRef(a: MentionableUserAgentRow): string {
+  return agentRef(a, !a.sharedFromGroup);
+}
 
 export function userAgentUrl(identifier: string): string {
   return `/agents/${getAgentSlug(identifier)}`;
@@ -526,12 +537,12 @@ Für create genügt brief: eine Beschreibung in ganzen Sätzen, was der Agent tu
     const results = rows.map((a) =>
       makeRow(
         a.title,
-        userAgentUrl(a.identifier),
+        userAgentUrl(sharedRef(a)),
         TYPE_LABEL,
         a.sharedFromGroup
           ? `${a.description} · geteilt aus Projekt „${a.sharedFromGroup}"`
           : a.description,
-        a.identifier
+        sharedRef(a)
       )
     );
     groundRows(sourceRegistry, results);
@@ -548,10 +559,10 @@ Für create genügt brief: eine Beschreibung in ganzen Sätzen, was der Agent tu
       // Nicht meiner — vielleicht in ein Projekt geteilt. Die Picker-Projektion
       // trägt bewusst keine Rolle; mehr gibt es über eine Freigabe nicht.
       const shared = (await deps.listMentionableUserAgents(userId)).find(
-        (a) => a.identifier === identifier && a.sharedFromGroup
+        (a) => (a.id === identifier || a.identifier === identifier) && a.sharedFromGroup
       );
       if (!shared) return { error: NOT_FOUND };
-      const url = userAgentUrl(shared.identifier);
+      const url = userAgentUrl(shared.id);
       const lines = [
         `Grünerator-Agent „${shared.title}" — ${url}`,
         `Beschreibung: ${shared.description}`,
@@ -567,7 +578,7 @@ Für create genügt brief: eine Beschreibung in ganzen Sätzen, was der Agent tu
       ]);
       return {
         agent: {
-          identifier: shared.identifier,
+          identifier: sharedRef(shared),
           title: shared.title,
           description: shared.description,
           sharedFromGroup: shared.sharedFromGroup,

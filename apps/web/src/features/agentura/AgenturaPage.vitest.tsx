@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 
 import AgenturaPage from './AgenturaPage';
 
+import useAgentFavoritesStore from '@/stores/agentFavoritesStore';
 import { axe, render, screen, userEvent, within } from '@/test-utils';
 
 const list = vi.hoisted(() => vi.fn());
@@ -49,12 +50,12 @@ vi.mock('@gruenerator/chat', async (importOriginal) => ({
   }),
 }));
 
-const userAgents = vi.hoisted(() => ({ current: [] as unknown[] }));
+const userAgents = vi.hoisted(() => ({ current: [] as unknown[], loaded: true }));
 const sharedUserAgents = vi.hoisted(() => ({ current: [] as unknown[] }));
 const publicAgents = vi.hoisted(() => ({ current: [] as unknown[] }));
 
 vi.mock('../agents/api', () => ({
-  useUserAgents: () => ({ data: userAgents.current }),
+  useUserAgents: () => ({ data: userAgents.current, isSuccess: userAgents.loaded }),
   useSharedSystemAgents: () => ({ data: [] }),
   useSharedUserAgents: () => ({ data: sharedUserAgents.current }),
   usePublicUserAgents: () => ({ data: publicAgents.current }),
@@ -153,7 +154,9 @@ beforeEach(() => {
   listPublic.mockReset().mockResolvedValue({ status: 200, body: { success: true, forms: [] } });
   remove.mockReset().mockResolvedValue({ status: 200, body: { success: true } });
   useSkillFavoritesStore.setState({ favorites: [] });
+  useAgentFavoritesStore.setState({ favoriteIdentifiers: [], favoriteTitles: {} });
   userAgents.current = [];
+  userAgents.loaded = true;
   sharedUserAgents.current = [];
   publicAgents.current = [];
 });
@@ -222,6 +225,49 @@ describe('AgenturaPage — Meine: eigene und geteilte Agenten', () => {
     await screen.findByRole('heading', { name: 'Aus Köln', level: 3 });
     expect(agentCards().map((h) => h.textContent)).toEqual(['Grüne Poesie', 'Aus Köln']);
     expect(keyWarnings).toEqual([]);
+  });
+
+  it('öffnet den fremden Agenten über seine id, den eigenen über seinen Bezeichner', async () => {
+    userAgents.current = [agent()];
+    sharedUserAgents.current = [{ agent: agent({ id: 'u-2', title: 'Aus Köln' }), groups: [] }];
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Aus Köln' }));
+    expect(navigate).toHaveBeenLastCalledWith('/agentura/agent/u-2');
+    await user.click(screen.getByRole('button', { name: 'Grüne Poesie' }));
+    expect(navigate).toHaveBeenLastCalledWith('/agentura/agent/gruene-poesie');
+  });
+
+  it('findet in der Suche auch den fremden Agenten mit dem Bezeichner eines eigenen', async () => {
+    userAgents.current = [agent()];
+    publicAgents.current = [agent({ id: 'p-1', title: 'Öffentliche Poesie' })];
+    renderPage('/agentura?q=poesie');
+
+    await screen.findByRole('heading', { name: 'Öffentliche Poesie', level: 3 });
+    expect(agentCards().map((h) => h.textContent)).toEqual(['Grüne Poesie', 'Öffentliche Poesie']);
+  });
+
+  it('hängt einen alten Stern am Bezeichner auf die id des fremden Agenten um', async () => {
+    useAgentFavoritesStore.setState({ favoriteIdentifiers: ['wahlkampf'], favoriteTitles: {} });
+    sharedUserAgents.current = [
+      { agent: agent({ id: 'u-2', identifier: 'wahlkampf', title: 'Aus Köln' }), groups: [] },
+    ];
+    renderPage();
+
+    await screen.findByRole('heading', { name: 'Aus Köln', level: 3 });
+    expect(useAgentFavoritesStore.getState().favoriteIdentifiers).toEqual(['u-2']);
+  });
+
+  it('lässt Sterne liegen, solange die eigenen Agenten nicht geladen sind', async () => {
+    // Vor dem Laden sieht ein eigener, öffentlich gelisteter Agent fremd aus.
+    useAgentFavoritesStore.setState({ favoriteIdentifiers: ['gruene-poesie'], favoriteTitles: {} });
+    userAgents.loaded = false;
+    publicAgents.current = [agent()];
+    renderPage('/agentura?cat=community');
+
+    await screen.findByRole('heading', { name: 'Grüne Poesie', level: 3 });
+    expect(useAgentFavoritesStore.getState().favoriteIdentifiers).toEqual(['gruene-poesie']);
   });
 
   it('lässt beim Regalwechsel keine Karten liegen', async () => {

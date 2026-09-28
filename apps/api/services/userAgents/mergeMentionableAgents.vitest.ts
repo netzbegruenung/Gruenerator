@@ -18,6 +18,7 @@ const agent = (
   title: string,
   sharedFromGroup: string | null
 ): MentionableUserAgentRow => ({
+  id: `id-${title}`,
   identifier,
   title,
   description: 'Ein Grünerator',
