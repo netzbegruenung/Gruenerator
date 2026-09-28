@@ -80,7 +80,10 @@ export { agentKey, agentRef, getAgentSlug, resolveAgentSlug } from './slug.js';
 
 export {
   LANDESVERBAENDE,
+  LANDESVERBAND_ENTRIES,
   isLandesverbandIdentifier,
+  landesverbandAgentIds,
+  landesverbandAgentRole,
   landesverbandLabel,
   landesverbandRegion,
   type LandesverbandEntry,

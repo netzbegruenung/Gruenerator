@@ -9,11 +9,13 @@ import AgentTiles from '@site/src/components/AgentTiles';
 
 Der Grünerator hat für mehrere Landesverbände **eigene, regional getunte Agents**. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher\*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme); eine Websuche haben nur die Öffentlichkeitsarbeit-Agents.
 
-Es gibt drei Sorten von Landesverband-Agents:
+Es gibt bis zu fünf Sorten von Landesverband-Agents:
 
 - **Öffentlichkeitsarbeit** — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands.
 - **Bürger\*innenanfragen** — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger\*innen.
 - **Wahlprüfsteine** — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands.
+- **Beschlusslage** — sagt belegt, was der Landesverband beschlossen hat, und schreibt auf Wunsch ein Statement daraus. Nur wo die Beschlüsse des Landesverbands in der Wissensdatenbank liegen.
+- **Wahlprogramm** — schlägt im Wahlprogramm des Landesverbands nach und prüft Aussagen dagegen. Nur wo das Wahlprogramm in der Wissensdatenbank liegt.
 
 :::info[Sichtbar mit der Rolle deiner Landesgeschäftsstelle]
 Die Agents, Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle _Mitarbeiter\*in Landesgeschäftsstelle_ (Österreich: _Landesorganisation_) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter [Für deinen Landesverband einrichten](/docs/guides/landesverbaende/landesverband-einrichten).
@@ -23,7 +25,7 @@ Die Agents, Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugete
 
 <AgentTiles />
 
-Jede Kachel verlinkt auf die **Landesverband-Seite** — sie bietet die drei Agents des Landesverbands zur Auswahl an: **Öffentlichkeitsarbeit**, **Bürger\*innenservice** und **Wahlprüfsteine** (alle siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook).
+Jede Kachel verlinkt auf die **Landesverband-Seite** — sie bietet die Agents des Landesverbands zur Auswahl an: **Öffentlichkeitsarbeit**, **Bürger\*innenservice**, **Wahlprüfsteine** und, wo vorhanden, **Beschlusslage** und **Wahlprogramm** (alle siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook).
 
 :::note[Österreich]
 Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben drei Agent-Typen (erreichbar unter `/agents/gruene-oesterreich`, Wissensdatenbank `/notebooks/oesterreich` · `@at`). Diese Agents verwenden österreichisches Vokabular (Nationalrat, Klubobfrau\*Klubobmann, Klimaticket) und erscheinen nur für Nutzer\*innen mit österreichischer Einstellung.
@@ -89,6 +91,25 @@ Fügst du eine Anfrage ganz ohne Abkürzung ein und hast die Rolle genau eines L
 Die Wahlprüfstein-Agents beantworten **Fragenkataloge von Verbänden und Initiativen** (Wahlprüfsteine): Du fügst den Katalog ein, der Agent recherchiert die Positionen des Landesverbands und antwortet im Format des Katalogs und im Stil des Landesverbands.
 
 Auch sie erreichst du über die Landesverband-Seite — dort wählst du **Wahlprüfsteine**.
+
+## Beschlusslage und Wahlprogramm nachschlagen
+
+Der **Beschlusslage**-Agent sucht ausschließlich in den Beschlüssen des Landesverbands und antwortet mit einer Belegtabelle (Beschluss, Gremium, Datum, Kernaussage, Link). Gibt es keine Beschlusslage, sagt er das — er füllt die Lücke nicht aus Pressemitteilungen oder dem Wahlprogramm. Auf Wunsch schreibt er daraus ein Statement oder eine Argumentationshilfe.
+
+Der **Wahlprogramm**-Agent sucht ausschließlich im Wahlprogramm und nennt zu jeder Aussage Kapitel und Wortlaut. Gibst du ihm eine Aussage, prüft er, ob das Programm sie deckt.
+
+| Landesverband          | Beschlusslage               | Wahlprogramm                   |
+| ---------------------- | --------------------------- | ------------------------------ |
+| Berlin                 | `@beschluss-berlin`         | `@wahlprogramm-berlin`         |
+| Mecklenburg-Vorpommern | `@beschluss-mv`             | —                              |
+| Thüringen              | `@beschluss-thueringen`     | `@wahlprogramm-thueringen`     |
+| Brandenburg            | `@beschluss-brandenburg`    | `@wahlprogramm-brandenburg`    |
+| Bayern                 | `@beschluss-bayern`         | `@wahlprogramm-bayern`         |
+| Hessen                 | `@beschluss-hessen`         | —                              |
+| Sachsen-Anhalt         | `@beschluss-sachsen-anhalt` | `@wahlprogramm-sachsen-anhalt` |
+| Saarland               | `@beschluss-saarland`       | —                              |
+
+Tippst du die Abkürzung im normalen Chat, arbeitet der Chat wie der Agent: er sucht für diese Anfrage nur in den Beschlüssen bzw. im Programm des Landesverbands.
 
 ## Die Wissensdatenbank dahinter
 
