@@ -4,9 +4,18 @@
  * Registries (SKILLS, LANDESVERBAENDE): die Zuordnung ist abgeleitet, nicht
  * konfiguriert, also muss der Test dieselbe Ableitung sehen wie die Laufzeit.
  */
+import {
+  DISABLED_LV_AGENT_IDS,
+  getSystemAgent,
+  LANDESVERBAND_ENTRIES,
+} from '@gruenerator/shared/agents';
 import { describe, expect, it } from 'vitest';
 
-import { preferredLvRecipeMention, roleAwareDefaultRecipeMention } from './lvRecipePreference.js';
+import {
+  ownedLvDefaultRecipeMention,
+  preferredLvRecipeMention,
+  roleAwareDefaultRecipeMention,
+} from './lvRecipePreference.js';
 
 /** Die eine Rolle, die LV-Material freischaltet (vgl. recipeCatalog.vitest). */
 const lgs = (bundesland: string) => ({
@@ -216,6 +225,112 @@ describe('preferredLvRecipeMention — Instanz-Tür', () => {
         roles: null,
         userLocale: 'de-DE',
         instanceId: 'bgst',
+      })
+    ).toBeNull();
+  });
+});
+
+describe('preferredLvRecipeMention — Bürger*innen-Familie', () => {
+  it('führt buergermail über die Rolle zur Variante des eigenen Landesverbands', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'buergermail',
+        roles: [lgs('Berlin')],
+        userLocale: 'de-DE',
+      })
+    ).toBe('buerger-berlin');
+  });
+
+  it('bindet buergermail auf dem Bürger-Agenten an dessen Landesverband', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'buergermail',
+        agentIdentifier: 'gruenerator-buergeranfragen-mecklenburg-vorpommern',
+        roles: [lgs('Hessen')],
+        userLocale: 'de-DE',
+      })
+    ).toBe('buerger-mv');
+  });
+
+  it('führt auch auf dem Bürger-Agenten presse zur Presse-Variante desselben Verbands', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'presse',
+        agentIdentifier: 'gruenerator-buergeranfragen-hessen',
+        roles: null,
+        userLocale: 'de-DE',
+      })
+    ).toBe('presse-hessen-partei');
+  });
+
+  it('biegt auf dem Agenten eines abgeschalteten Verbands nicht um', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'buergermail',
+        agentIdentifier: 'gruenerator-buergeranfragen-hamburg',
+        roles: null,
+        userLocale: 'de-DE',
+      })
+    ).toBeNull();
+  });
+});
+
+describe('ownedLvDefaultRecipeMention', () => {
+  // Die Regel ist abgeleitet („genau ein eigenes Rezept"), nicht deklariert.
+  // Bekäme ein Bürger-Agent ein zweites Rezept, fiele das Vorladen still weg —
+  // dieser Test macht das laut.
+  it.each(
+    LANDESVERBAND_ENTRIES.flatMap((lv) => [
+      lv.buergerAgentId,
+      lv.beschlussAgentId,
+      lv.wahlprogrammAgentId,
+    ])
+      .filter((id): id is string => id !== undefined && !DISABLED_LV_AGENT_IDS.has(id))
+      .map((id) => [id] as const)
+  )('lädt auf %s vor', (id) => {
+    const agent = getSystemAgent(id);
+    expect(agent).toBeDefined();
+    expect(ownedLvDefaultRecipeMention(agent ?? {})).toBe(agent?.defaultRecipeMention);
+  });
+
+  it('liefert das Rezept eines Ein-Rezept-LV-Agenten', () => {
+    expect(
+      ownedLvDefaultRecipeMention({
+        identifier: 'gruenerator-buergeranfragen-berlin',
+        defaultRecipeMention: 'buerger-berlin',
+      })
+    ).toBe('buerger-berlin');
+  });
+
+  it('lässt LV-PR-Agenten beim Selbstladen — sie führen mehr als ein Rezept', () => {
+    expect(
+      ownedLvDefaultRecipeMention({
+        identifier: 'gruenerator-oeffentlichkeitsarbeit-saarland',
+        defaultRecipeMention: 'presse-saarland',
+      })
+    ).toBeNull();
+  });
+
+  it('greift nicht, wenn der Default einem anderen Agenten gehört', () => {
+    expect(
+      ownedLvDefaultRecipeMention({
+        identifier: 'gruenerator-wahlpruefsteine-berlin',
+        defaultRecipeMention: 'wahlpruefstein',
+      })
+    ).toBeNull();
+    expect(
+      ownedLvDefaultRecipeMention({
+        identifier: 'gruenerator-buergerservice',
+        defaultRecipeMention: 'buergermail',
+      })
+    ).toBeNull();
+  });
+
+  it('greift nicht auf dem Agenten eines abgeschalteten Verbands', () => {
+    expect(
+      ownedLvDefaultRecipeMention({
+        identifier: 'gruenerator-buergeranfragen-hamburg',
+        defaultRecipeMention: 'buerger-hamburg',
       })
     ).toBeNull();
   });

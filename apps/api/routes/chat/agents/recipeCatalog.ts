@@ -47,6 +47,8 @@ export interface RecipeCatalogEntry {
   source: 'system' | 'user';
   /** Die Zeile hinter dem Eintrag — `null` für ein mitgeliefertes Systemrezept. */
   id: string | null;
+  /** Empfohlene Loop-Werkzeuge (nur Systemrezepte), auf die montierten gefiltert. */
+  recommendedTools?: readonly string[];
 }
 
 /**
@@ -117,6 +119,7 @@ export async function buildRecipeCatalog(params: {
       description: s.description,
       source: 'system' as const,
       id: null,
+      ...(s.recommendedTools ? { recommendedTools: s.recommendedTools } : {}),
     }));
 
   if (!userId) return system;
@@ -162,7 +165,11 @@ export async function buildRecipeCatalog(params: {
 /** The prompt block listing what the model may load. */
 export function renderRecipeCatalog(entries: readonly RecipeCatalogEntry[]): string {
   if (entries.length === 0) return '';
-  const lines = entries.map((e) => `- ${e.mention}: ${e.title} — ${e.description}`);
+  const lines = entries.map(
+    (e) =>
+      `- ${e.mention}: ${e.title} — ${e.description}` +
+      (e.recommendedTools?.length ? ` (Werkzeuge: ${e.recommendedTools.join(', ')})` : '')
+  );
   return [
     '',
     '',
@@ -170,6 +177,19 @@ export function renderRecipeCatalog(entries: readonly RecipeCatalogEntry[]): str
     ...lines,
     'Willst du einen Text in einer dieser Formen schreiben, rufe ZUERST `rezept_laden` mit der passenden Kennung auf und schreibe erst danach. Für Recherche, Rückfragen und normalen Fließtext brauchst du kein Rezept.',
   ].join('\n');
+}
+
+/**
+ * Die empfohlenen Werkzeuge eines Systemrezepts, beschränkt auf die im Turn
+ * montierten — ein Rezept nennt nichts, was der Agent gar nicht hat.
+ */
+export function recommendedToolsFor(
+  mention: string,
+  isMounted: (tool: string) => boolean
+): readonly string[] {
+  const allSkills: readonly Skill[] = SKILLS;
+  const skill = allSkills.find((s) => s.mention === mention);
+  return (skill?.recommendedTools ?? []).filter(isMounted);
 }
 
 /** Was die Werkzeug-Tür (`rezept_laden`) vom Nachschlag braucht. */

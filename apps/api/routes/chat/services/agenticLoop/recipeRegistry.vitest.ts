@@ -11,6 +11,26 @@ const recipe = (mention: string, body = 'Schreibe kurz.') => ({
 });
 
 describe('createRecipeRegistry', () => {
+  it('lets a chosen recipe replace the preloaded agent default instead of stacking', () => {
+    const reg = createRecipeRegistry();
+    reg.register({ ...recipe('buerger-berlin'), preloaded: true });
+    expect(reg.register(recipe('presse-berlin-partei'))).toBe('registered');
+    expect(reg.mentions).toEqual(['presse-berlin-partei']);
+  });
+
+  it('keeps the preloaded default when the model loads the same recipe again', () => {
+    const reg = createRecipeRegistry();
+    reg.register({ ...recipe('buerger-berlin'), preloaded: true });
+    expect(reg.register(recipe('buerger-berlin'))).toBe('duplicate');
+    expect(reg.mentions).toEqual(['buerger-berlin']);
+  });
+
+  it('renders the recommended tools under the recipe', () => {
+    const reg = createRecipeRegistry();
+    reg.register({ ...recipe('buerger-berlin'), recommendedTools: ['gruenerator_search'] });
+    expect(reg.render()).toContain('Für dieses Rezept geeignete Werkzeuge: gruenerator_search.');
+  });
+
   it('renders nothing while empty — the prompt must not gain a stray block', () => {
     expect(createRecipeRegistry().render()).toBe('');
   });

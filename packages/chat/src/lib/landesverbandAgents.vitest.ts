@@ -1,4 +1,10 @@
-import { LANDESVERBAENDE, LV_HUBS, getSystemAgent } from '@gruenerator/shared/agents';
+import {
+  LANDESVERBAENDE,
+  LANDESVERBAND_ENTRIES,
+  LV_HUBS,
+  getSystemAgent,
+  landesverbandAgentIds,
+} from '@gruenerator/shared/agents';
 import { describe, expect, it } from 'vitest';
 
 /**
@@ -32,6 +38,16 @@ describe('LV registry agents stay pinned to their notebook', () => {
         ).toBeDefined();
         expect(agent?.defaultNotebookIds).toContain(lv.notebookId);
       });
+
+      const entry = LANDESVERBAND_ENTRIES.find((e) => e.id === lv.id);
+      for (const id of [entry?.beschlussAgentId, entry?.wahlprogrammAgentId]) {
+        if (!id) continue;
+        it(`${id} resolves and pins ${lv.notebookId}`, () => {
+          const agent = getSystemAgent(id);
+          expect(agent, `${id} must resolve`).toBeDefined();
+          expect(agent?.defaultNotebookIds).toContain(lv.notebookId);
+        });
+      }
     });
   }
 });
@@ -45,6 +61,7 @@ describe('every hub derives from its registry entry', () => {
       expect(hub.prAgentId).toBe(lv?.prAgentId);
       expect(hub.buergerAgentId).toBe(lv?.buergerAgentId);
       expect(hub.wahlpruefsteinAgentId).toBe(lv?.wahlpruefsteinAgentId);
+      expect(hub.agentIds).toEqual(lv ? landesverbandAgentIds(lv) : []);
     });
   }
 });
