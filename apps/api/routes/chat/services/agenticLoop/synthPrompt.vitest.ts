@@ -16,6 +16,8 @@ import { createSourceRegistry } from './sourceRegistry.js';
 import { buildConnectorNotes, buildSynthSystem, type SynthPromptContext } from './synthPrompt.js';
 import { type PersistedStep } from './types.js';
 
+import { NO_CAPABILITY_DENIAL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { McpCatalog } from '../../agents/mcpCatalog.js';
 import type { ToolSet } from 'ai';
@@ -100,6 +102,27 @@ describe('buildSynthSystem — Quellenblock', () => {
     expect(prompt).not.toContain('GESAMMELTE QUELLEN');
     expect(prompt).not.toContain('ZITIER-REGELN');
     expect(prompt).toContain('hast du NICHTS recherchiert');
+    // #3778: der Schreiber hat nie Werkzeuge — „ich verfüge über keine Tools"
+    // war wahr für ihn und falsch für das Produkt.
+    expect(prompt).toContain(NO_CAPABILITY_DENIAL_RULE);
+  });
+
+  // Der #3778-Turn selbst: zwei gescheiterte `notebooks`-Aufrufe. Die
+  // Fehlschlag-Notiz sagt „fehlgeschlagen und warum" — „nicht nachgesehen"
+  // daneben wäre falsch, und ein echtes „kein Zugriff" muss sagbar bleiben.
+  it('überlässt einen gescheiterten Turn der Fehlschlag-Notiz', () => {
+    const steps: PersistedStep[] = [
+      {
+        toolCallId: 'c1',
+        toolName: 'notebooks',
+        args: { action: 'get', id: 'berlin' },
+        result: { error: 'Notebook nicht gefunden oder kein Zugriff.' },
+        ok: false,
+      },
+    ];
+    const prompt = buildSynthSystem('', ctx({ steps }));
+    expect(prompt).toContain('FEHLGESCHLAGENE WERKZEUGE');
+    expect(prompt).not.toContain(NO_CAPABILITY_DENIAL_RULE);
   });
 
   it('unterscheidet mitgeführte von gar keinen Quellen', () => {
