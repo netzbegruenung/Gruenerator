@@ -99,9 +99,7 @@ export async function createThread(
  * one thread per doc, shared across all collaborators (real-time sharing rides
  * the existing thread permissions/collab layer). The first user to open the doc
  * becomes user_id; downstream access checks should consult both user_id and
- * the doc's permissions. A doc thread that sits in the Papierkorb comes back
- * here: `doc_id` is unique, so it would otherwise block the doc's chat (every
- * reader hides it) until the purge.
+ * the doc's permissions.
  */
 export async function ensureDocChatThread(
   docId: string,
@@ -114,7 +112,7 @@ export async function ensureDocChatThread(
       `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, doc_id, slug_suffix)
        VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (doc_id) WHERE doc_id IS NOT NULL
-       DO UPDATE SET updated_at = CURRENT_TIMESTAMP, deleted_at = NULL
+       DO UPDATE SET updated_at = CURRENT_TIMESTAMP
        RETURNING id`,
       [userId, agentId, 'Dokument-Chat', 'chat', docId, slugSuffix]
     )
