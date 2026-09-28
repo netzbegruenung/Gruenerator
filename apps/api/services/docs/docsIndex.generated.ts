@@ -1874,6 +1874,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
     "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Beiträge, Erwähnungen und Benachrichtigungen",
+    "anchor": "#beiträge-erwähnungen-und-benachrichtigungen",
+    "category": "Guides",
+    "text": "Im Feed einer Gruppe kannst du Beiträge schreiben und kommentieren. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder der Gruppe. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt. Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter Benachrichtigungen ein. „Benachrichtigungen stummschalten“ im Drei-Punkte-Menü der Gruppe stoppt die E-Mails dieser Gruppe; in der Glocke erscheinen sie weiterhin."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
     "heading": "Ein Notebook hinzufügen",
     "anchor": "#ein-notebook-hinzufügen",
     "category": "Guides",

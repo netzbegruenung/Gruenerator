@@ -72,6 +72,17 @@ describe('groupMentionSegments', () => {
   });
 });
 
+describe('everyone segments', () => {
+  it('keeps the preceding character as text', () => {
+    expect(groupMentionSegments('Hi (@alle) @all')).toEqual([
+      { kind: 'text', text: 'Hi (' },
+      { kind: 'all', raw: '@alle' },
+      { kind: 'text', text: ') ' },
+      { kind: 'all', raw: '@all' },
+    ]);
+  });
+});
+
 describe('groupMentionsToPlain', () => {
   it('renders member tokens as @Label', () => {
     expect(groupMentionsToPlain(`@alle, ${buildMemberMention('Anna Beispiel', ANNA)} fragt`)).toBe(
@@ -97,6 +108,19 @@ describe('draft round trip', () => {
     expect(groupMentionsFromDraft('@Annabell und @Ben', picks)).toBe('@Annabell und @Ben');
     expect(groupMentionsFromDraft('Hi @Anna!', picks)).toBe(
       `Hi ${buildMemberMention('Anna', ANNA)}!`
+    );
+  });
+
+  it('does not turn a hyphenated name into the picked first name', () => {
+    const picks = [{ userId: ANNA, label: 'Anna' }];
+    expect(groupMentionsFromDraft('@Anna-Lena kommt', picks)).toBe('@Anna-Lena kommt');
+  });
+
+  it('keeps the character before a picked name, at the start and back to back', () => {
+    const picks = [{ userId: ANNA, label: 'Anna' }];
+    const token = buildMemberMention('Anna', ANNA);
+    expect(groupMentionsFromDraft('@Anna @Anna\n(@Anna)', picks)).toBe(
+      `${token} ${token}\n(${token})`
     );
   });
 
