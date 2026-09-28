@@ -24,6 +24,7 @@ import {
   recentValuesContract,
   recentActivityContract,
   contentContract,
+  trashContract,
   itemUsageContract,
   userUsageContract,
   treesContract,
@@ -259,6 +260,7 @@ const _speechClient = () => initClient(speechContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OPTS);
 const _contentClient = () => initClient(contentContract, CLIENT_OPTS);
+const _trashClient = () => initClient(trashContract, CLIENT_OPTS);
 const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
 const _userUsageClient = () => initClient(userUsageContract, CLIENT_OPTS);
 const _treesClient = () => initClient(treesContract, CLIENT_OPTS);
@@ -334,6 +336,7 @@ export interface ContractsClient {
   recentValues: ReturnType<typeof _recentValuesClient>;
   recentActivity: ReturnType<typeof _recentActivityClient>;
   content: ReturnType<typeof _contentClient>;
+  trash: ReturnType<typeof _trashClient>;
   itemUsage: ReturnType<typeof _itemUsageClient>;
   userUsage: ReturnType<typeof _userUsageClient>;
   trees: ReturnType<typeof _treesClient>;
@@ -422,6 +425,7 @@ export function getContractsClient(): ContractsClient {
     recentValues: _recentValuesClient(),
     recentActivity: _recentActivityClient(),
     content: _contentClient(),
+    trash: _trashClient(),
     itemUsage: _itemUsageClient(),
     userUsage: _userUsageClient(),
     trees: _treesClient(),
