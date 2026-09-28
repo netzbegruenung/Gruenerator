@@ -99,6 +99,22 @@ describe('TRASH_KINDS', () => {
     }
   });
 
+  it('wires every owner-bound kind', () => {
+    for (const kind of [
+      'user_agent',
+      'user_template',
+      'user_text_form',
+      'custom_prompt',
+      'user_site',
+      'recurring_task',
+      'user_letterhead',
+      'user_document',
+      'user_knowledge',
+    ] as const) {
+      expect(trashHandlerFor(kind), kind).not.toBeNull();
+    }
+  });
+
   it('has no handler for a kind that is not wired yet', () => {
     expect(trashHandlerFor('collaborative_document')).not.toBeNull();
     expect(trashHandlerFor('group')).toBeNull();

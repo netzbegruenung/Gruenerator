@@ -122,60 +122,28 @@ const ALLOWLIST: readonly AllowEntry[] = [
   ],
   ['apps/api/routes/auth/templates/adminTemplates.ts', 'user_templates', PERMANENT_ADMIN],
   [
+    'apps/api/services/canvas/canvasRepository.ts',
+    'user_templates',
+    "hides a Vorlage's snapshot canvas from the canvas list; a trashed Vorlage keeps it hidden until the purge removes both",
+    "ut.content_data->>'canvasId'",
+  ],
+  [
+    'apps/api/routes/sites/sitesContractRouter.ts',
+    'user_sites',
+    'subdomain availability: the unique index spans trashed sites, so a trashed one still holds its subdomain',
+    'SELECT id FROM user_sites WHERE subdomain',
+  ],
+  [
+    'apps/api/routes/sites/sitesController.ts',
+    'user_sites',
+    'subdomain availability: the unique index spans trashed sites, so a trashed one still holds its subdomain',
+    'SELECT id FROM user_sites WHERE subdomain',
+  ],
+  [
     'apps/api/routes/auth/templates/adminVorlagenContractRouter.ts',
     'user_templates',
     PERMANENT_ADMIN,
   ],
-  // ── Task 4 ──
-  ['apps/api/routes/auth/promptsContractRouter.ts', 'custom_prompts', 'pending: Task 4'],
-  ['apps/api/routes/auth/userCustomPrompts.ts', 'custom_prompts', 'pending: Task 4'],
-  ['apps/api/routes/chat/agents/agentLoader.ts', 'custom_prompts', 'pending: Task 4'],
-  ['apps/api/routes/custom_prompts/custom_prompt.ts', 'custom_prompts', 'pending: Task 4'],
-  ['apps/api/services/prompts/PromptVectorService.ts', 'custom_prompts', 'pending: Task 4'],
-  [
-    'apps/api/services/recurringTasks/recurringTasksRepository.ts',
-    'recurring_tasks',
-    'pending: Task 4',
-  ],
-  ['apps/api/services/userAgents/userAgentsRepository.ts', 'user_agents', 'pending: Task 4'],
-  ['apps/api/routes/auth/content/textConversion.ts', 'user_documents', 'pending: Task 4'],
-  ['apps/api/routes/auth/content/userLibrary.ts', 'user_documents', 'pending: Task 4'],
-  ['apps/api/routes/auth/initController.ts', 'user_documents', 'pending: Task 4'],
-  ['apps/api/routes/chat/services/documentContextService.ts', 'user_documents', 'pending: Task 4'],
-  [
-    'apps/api/services/document-services/PostgresDocumentService/statistics.ts',
-    'user_documents',
-    'pending: Task 4',
-  ],
-  ['apps/api/services/groups/groupContent.ts', 'user_documents', 'pending: Task 4'],
-  ['apps/api/utils/requestEnrichment.ts', 'user_documents', 'pending: Task 4'],
-  ['apps/api/services/user/KnowledgeService.ts', 'user_knowledge', 'pending: Task 4'],
-  ['apps/api/utils/requestEnrichment.ts', 'user_knowledge', 'pending: Task 4'],
-  ['apps/api/services/user/letterheadRepository.ts', 'user_letterheads', 'pending: Task 4'],
-  ['apps/api/routes/sites/sitesContractRouter.ts', 'user_sites', 'pending: Task 4'],
-  ['apps/api/routes/sites/sitesController.ts', 'user_sites', 'pending: Task 4'],
-  ['apps/api/routes/auth/groups/groupsContract/content.ts', 'user_templates', 'pending: Task 4'],
-  ['apps/api/routes/auth/templates/templateGallery.ts', 'user_templates', 'pending: Task 4'],
-  [
-    'apps/api/routes/auth/templates/templateInteractionsContractRouter.ts',
-    'user_templates',
-    'pending: Task 4',
-  ],
-  [
-    'apps/api/routes/auth/templates/userTemplatesContractRouter.ts',
-    'user_templates',
-    'pending: Task 4',
-  ],
-  ['apps/api/routes/vorlagen/sharedTemplateContractRouter.ts', 'user_templates', 'pending: Task 4'],
-  ['apps/api/services/canvas/canvasRepository.ts', 'user_templates', 'pending: Task 4'],
-  ['apps/api/services/groups/groupContent.ts', 'user_templates', 'pending: Task 4'],
-  [
-    'apps/api/services/templates/collaborativeTemplateService.ts',
-    'user_templates',
-    'pending: Task 4',
-  ],
-  ['apps/api/services/templates/templateEnrichment.ts', 'user_templates', 'pending: Task 4'],
-  ['apps/api/services/user/textFormRepository.ts', 'user_text_forms', 'pending: Task 4'],
   // ── Task 5 ──
   ['apps/api/routes/auth/groups/groupAvatar.ts', 'groups', 'pending: Task 5'],
   ['apps/api/routes/auth/groups/groupsContract/content.ts', 'groups', 'pending: Task 5'],
@@ -201,60 +169,32 @@ const ALLOWLIST: readonly AllowEntry[] = [
   ['apps/api/services/notebook/groupSharedNotebookListing.ts', 'groups', 'pending: Task 5'],
   ['apps/api/services/notifications/groupNotifications.ts', 'groups', 'pending: Task 5'],
   ['apps/api/services/user/textFormRepository.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/services/userAgents/userAgentsRepository.ts', 'groups', 'pending: Task 5'],
   ['apps/api/utils/integrations/nextcloud/shareManager.ts', 'groups', 'pending: Task 5'],
 ];
 
 /** Readers and writers the literal scan cannot see; each file must still contain its marker. */
 const FRAGMENTED_SQL: ReadonlyArray<readonly [...AllowEntry, marker: string]> = [
   // Ownership check before sharing to a Projekt; table from CONTENT_TABLE_NAME_MAP.
-  [
-    'apps/api/services/groups/groupContent.ts',
-    'documents',
-    'filtered: `AND deleted_at IS NULL` is appended for documents',
-    'FROM ${tableName}',
-  ],
-  [
-    'apps/api/services/groups/groupContent.ts',
-    'user_documents',
-    'pending: Task 4',
-    'FROM ${tableName}',
-  ],
-  [
-    'apps/api/services/groups/groupContent.ts',
-    'user_templates',
-    'pending: Task 4',
-    'FROM ${tableName}',
-  ],
-  [
-    'apps/api/services/groups/groupContent.ts',
-    'user_agents',
-    'pending: Task 4',
-    'FROM ${tableName}',
-  ],
+  ...(['documents', 'user_documents', 'user_templates', 'user_agents'] as const).map(
+    (table) =>
+      [
+        'apps/api/services/groups/groupContent.ts',
+        table,
+        'filtered: `AND deleted_at IS NULL` is appended for every TRASHABLE_TABLES table (groupContent.vitest.ts)',
+        'FROM ${tableName}',
+      ] as const
+  ),
   // PostgresService.update/delete(tableName, …) helpers.
   [
     'apps/api/routes/auth/content/userLibrary.ts',
     'user_documents',
-    'pending: Task 4',
-    "postgres.delete('user_documents'",
-  ],
-  [
-    'apps/api/routes/auth/content/userLibrary.ts',
-    'user_documents',
-    'pending: Task 4',
+    'writer: each update runs after a live-row SELECT of the same id and owner',
     "postgres.update('user_documents'",
   ],
   [
     'apps/api/routes/auth/templates/userTemplatesContractRouter.ts',
     'user_templates',
-    'pending: Task 4',
-    "postgres.delete('user_templates'",
-  ],
-  [
-    'apps/api/routes/auth/templates/userTemplatesContractRouter.ts',
-    'user_templates',
-    'pending: Task 4',
+    'writer: each update runs after a live-row SELECT of the same id',
     "postgres.update('user_templates'",
   ],
   [

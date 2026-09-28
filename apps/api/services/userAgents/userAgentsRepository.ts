@@ -12,6 +12,8 @@ import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { userAgents, type UserAgentRow } from '../../database/schema/userAgents.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { notTrashed } from '../../database/trash.js';
+import { deleteTrashedRow, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
 
 import { isUserAgentId } from './userAgentHandle.js';
 
@@ -149,7 +151,10 @@ function ownedByHandle(userId: string, handle: string) {
 
 export async function listUserAgents(userId: string): Promise<UserAgentRecord[]> {
   const db = getDrizzleInstance();
-  const agentRows = await db.select().from(userAgents).where(eq(userAgents.user_id, userId));
+  const agentRows = await db
+    .select()
+    .from(userAgents)
+    .where(and(eq(userAgents.user_id, userId), notTrashed(userAgents)));
   return agentRows.map(rowToAgent);
 }
 
@@ -158,7 +163,11 @@ export async function getUserAgent(
   handle: string
 ): Promise<UserAgentRecord | undefined> {
   const db = getDrizzleInstance();
-  const rows = await db.select().from(userAgents).where(ownedByHandle(userId, handle)).limit(1);
+  const rows = await db
+    .select()
+    .from(userAgents)
+    .where(and(ownedByHandle(userId, handle), notTrashed(userAgents)))
+    .limit(1);
   const row = rows[0];
   return row ? rowToAgent(row) : undefined;
 }
@@ -189,19 +198,33 @@ export async function updateUserAgent(
   const rows = await db
     .update(userAgents)
     .set(patchToUpdateValues(patch))
-    .where(ownedByHandle(userId, handle))
+    .where(and(ownedByHandle(userId, handle), notTrashed(userAgents)))
     .returning();
   const row = rows[0];
   return row ? rowToAgent(row) : undefined;
 }
 
+/**
+ * Move the caller's agent to the Papierkorb: only `deleted_at` is set, its
+ * group shares stay and grant nothing while every reader filters the row.
+ * Owner only — the same check restore and purge-now ask.
+ */
 export async function deleteUserAgent(userId: string, handle: string): Promise<boolean> {
   const db = getDrizzleInstance();
   const rows = await db
-    .delete(userAgents)
-    .where(ownedByHandle(userId, handle))
+    .update(userAgents)
+    .set({ deleted_at: new Date() })
+    .where(and(ownedByHandle(userId, handle), notTrashed(userAgents)))
     .returning({ id: userAgents.id });
   return rows.length > 0;
+}
+
+/** `(user_id, identifier)` is unique across trashed rows too, so a restore cannot collide today. */
+export const USER_AGENT_TRASH: OwnedTrashTable = { table: 'user_agents', columns: 'id, title' };
+
+/** Hard-delete a trashed agent. Its `group_content_shares` rows were never removed on delete either. */
+export async function purgeUserAgent(id: string, cutoff: Date | null): Promise<boolean> {
+  return (await deleteTrashedRow(USER_AGENT_TRASH, id, cutoff)) !== null;
 }
 
 // ── Sharing ────────────────────────────────────────────────────────────────
@@ -257,7 +280,7 @@ export async function getAgentSharing(
       public_ownership: userAgents.public_ownership,
     })
     .from(userAgents)
-    .where(ownedByHandle(userId, handle))
+    .where(and(ownedByHandle(userId, handle), notTrashed(userAgents)))
     .limit(1);
   const row = rows[0];
   if (!row) return undefined;
@@ -285,7 +308,7 @@ export async function updateAgentSharing(
   const rows = await db
     .update(userAgents)
     .set(values)
-    .where(ownedByHandle(userId, handle))
+    .where(and(ownedByHandle(userId, handle), notTrashed(userAgents)))
     .returning({ id: userAgents.id });
   return rows.length > 0;
 }
@@ -307,7 +330,9 @@ export async function listUserAgentsByIds(
   const rows = await db
     .select()
     .from(userAgents)
-    .where(and(inArray(userAgents.id, ids), ne(userAgents.share_mode, 'private')));
+    .where(
+      and(inArray(userAgents.id, ids), ne(userAgents.share_mode, 'private'), notTrashed(userAgents))
+    );
   return rows.map((row) => {
     const { systemRole: _systemRole, ...agent } = rowToAgent(row);
     return agent;
@@ -343,6 +368,7 @@ export async function getGroupSharedUserAgent(
        FROM user_agents ua
       WHERE ua.identifier = $1
         AND ua.share_mode <> 'private'
+        AND ua.deleted_at IS NULL
         AND EXISTS (
           SELECT 1
             FROM group_content_shares gcs
@@ -382,7 +408,13 @@ export async function getPublicUserAgent(identifier: string): Promise<UserAgentR
   const rows = await db
     .select()
     .from(userAgents)
-    .where(and(eq(userAgents.identifier, identifier), eq(userAgents.share_mode, 'authenticated')))
+    .where(
+      and(
+        eq(userAgents.identifier, identifier),
+        eq(userAgents.share_mode, 'authenticated'),
+        notTrashed(userAgents)
+      )
+    )
     .orderBy(userAgents.created_at, userAgents.id)
     .limit(1);
   const row = rows[0];
@@ -404,6 +436,7 @@ export async function getAccessibleUserAgentById(
     `SELECT ua.*
        FROM user_agents ua
       WHERE ua.id = $1::uuid
+        AND ua.deleted_at IS NULL
         AND (
           ua.user_id = $2::uuid
           OR ua.share_mode = 'authenticated'
@@ -495,7 +528,7 @@ export async function listMentionableUserAgents(
   const ownRows = await db
     .select(MENTIONABLE_COLUMNS)
     .from(userAgents)
-    .where(eq(userAgents.user_id, userId));
+    .where(and(eq(userAgents.user_id, userId), notTrashed(userAgents)));
   const own = ownRows.map((row) => toMentionable(row, null));
 
   // `group_content_shares` has no Drizzle table, so the join uses the raw
@@ -520,6 +553,8 @@ export async function listMentionableUserAgents(
                ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid AND gm.is_active = true
       WHERE ua.user_id <> $1::uuid
         AND ua.share_mode <> 'private'
+        AND ua.deleted_at IS NULL
+        AND g.deleted_at IS NULL
       ORDER BY ua.created_at, ua.id, g.name`,
     [userId],
     { table: 'user_agents' }
@@ -575,7 +610,8 @@ export async function listPublicUserAgents(
       and(
         eq(userAgents.is_public, true),
         eq(userAgents.share_mode, 'authenticated'),
-        eq(userAgents.locale, normalizeAudience(viewerLocale))
+        eq(userAgents.locale, normalizeAudience(viewerLocale)),
+        notTrashed(userAgents)
       )
     )
     .orderBy(

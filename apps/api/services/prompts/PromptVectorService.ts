@@ -151,9 +151,11 @@ class PromptVectorService {
       const existing = await this.postgres!.queryOne<{
         embedding_id: string | null;
         embedding_hash: string | null;
-      }>('SELECT embedding_id, embedding_hash FROM custom_prompts WHERE id = $1', [promptId], {
-        table: 'custom_prompts',
-      });
+      }>(
+        'SELECT embedding_id, embedding_hash FROM custom_prompts WHERE id = $1 AND deleted_at IS NULL',
+        [promptId],
+        { table: 'custom_prompts' }
+      );
 
       if (existing?.embedding_id && existing.embedding_hash === contentHash) {
         log.debug(`Prompt ${promptId} already vectorized with current content`);
@@ -229,6 +231,21 @@ class PromptVectorService {
   }
 
   /**
+   * Drop hits whose prompt sits in the Papierkorb: its point stays in Qdrant
+   * until the purge, so the payload alone would still list it.
+   */
+  private async keepLive(results: PromptSearchResult[]): Promise<PromptSearchResult[]> {
+    if (results.length === 0) return results;
+    const rows = await this.postgres!.query<{ id: string }>(
+      'SELECT id FROM custom_prompts WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL',
+      [results.map((r) => r.prompt_id)],
+      { table: 'custom_prompts' }
+    );
+    const live = new Set(rows.map((r) => r.id));
+    return results.filter((r) => live.has(r.prompt_id));
+  }
+
+  /**
    * Search user's own prompts semantically
    */
   async searchUserPrompts(
@@ -265,7 +282,8 @@ class PromptVectorService {
           similarity_score: hit.score,
         }));
 
-        return { success: true, results, total: results.length, search_type: 'vector' };
+        const live = await this.keepLive(results);
+        return { success: true, results: live, total: live.length, search_type: 'vector' };
       } catch (error: unknown) {
         const err = error as Error;
         log.warn('Vector search failed, falling back to text search:', err.message);
@@ -315,6 +333,7 @@ class PromptVectorService {
         if (excludeUserId) {
           results = results.filter((r) => r.user_id !== excludeUserId);
         }
+        results = await this.keepLive(results);
 
         return {
           success: true,
@@ -344,7 +363,7 @@ class PromptVectorService {
       let sql = `
         SELECT id, user_id, name, slug, prompt, description, is_public, created_at
         FROM custom_prompts
-        WHERE is_public = true AND is_active = true
+        WHERE is_public = true AND is_active = true AND deleted_at IS NULL
       `;
       const params: unknown[] = [];
 
@@ -397,7 +416,7 @@ class PromptVectorService {
                  ts_rank(to_tsvector('german', name || ' ' || COALESCE(description, '') || ' ' || prompt),
                          plainto_tsquery('german', $2)) as rank
           FROM custom_prompts
-          WHERE user_id = $1 AND is_active = true
+          WHERE user_id = $1 AND is_active = true AND deleted_at IS NULL
             AND (name ILIKE $3 OR description ILIKE $3 OR prompt ILIKE $3)
           ORDER BY rank DESC, created_at DESC
           LIMIT $4
@@ -409,7 +428,7 @@ class PromptVectorService {
                  ts_rank(to_tsvector('german', name || ' ' || COALESCE(description, '') || ' ' || prompt),
                          plainto_tsquery('german', $1)) as rank
           FROM custom_prompts
-          WHERE is_public = true AND is_active = true
+          WHERE is_public = true AND is_active = true AND deleted_at IS NULL
             AND (name ILIKE $2 OR description ILIKE $2 OR prompt ILIKE $2)
         `;
         params = [query, searchPattern];

@@ -29,13 +29,15 @@ import {
   type TextFormShareMode,
   type TextFormType,
 } from '@gruenerator/contracts';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 
 import { userTextForms, type UserTextFormRow } from '../../database/schema/textForms.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { notTrashed } from '../../database/trash.js';
 import { notifyContentShared } from '../groups/groupContent.js';
 import { assertCanShareToGroup } from '../groups/groupMembership.js';
+import { deleteTrashedRow, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
 
 import {
   isListableTextForm,
@@ -211,7 +213,10 @@ async function loadSharesFor(textFormIds: string[]): Promise<Map<string, TextFor
  */
 export async function listTextForms(userId: string): Promise<TextForm[]> {
   const db = getDrizzleInstance();
-  const ownRows = await db.select().from(userTextForms).where(eq(userTextForms.user_id, userId));
+  const ownRows = await db
+    .select()
+    .from(userTextForms)
+    .where(and(eq(userTextForms.user_id, userId), notTrashed(userTextForms)));
   const shares = await loadSharesFor(ownRows.map((r) => String(r.id)));
   const own = ownRows.map((row) =>
     rowToTextForm(row, { sharedWithGroups: shares.get(String(row.id)) ?? [] })
@@ -229,6 +234,8 @@ export async function listTextForms(userId: string): Promise<TextForm[]> {
        LEFT JOIN profiles p ON p.id = tf.user_id
       WHERE tf.user_id <> $2::uuid
         AND tf.share_mode <> 'private'
+        AND tf.deleted_at IS NULL
+        AND g.deleted_at IS NULL
       ORDER BY tf.created_at, tf.id, g.name`,
     [TEXT_FORM_CONTENT_TYPE, userId]
   )) as unknown as Array<UserTextFormRow & { group_name: string; owner_name: string | null }>;
@@ -274,7 +281,7 @@ export async function listPublicTextForms(limit = 200): Promise<PublicTextForm[]
     `SELECT tf.*, COALESCE(p.first_name, p.display_name) AS owner_name
        FROM user_text_forms tf
        LEFT JOIN profiles p ON p.id = tf.user_id
-      WHERE ${PUBLIC_VISIBLE}
+      WHERE ${PUBLIC_VISIBLE} AND tf.deleted_at IS NULL
       ORDER BY tf.updated_at DESC, tf.id
       LIMIT $1`,
     [limit]
@@ -334,6 +341,7 @@ function injectionSql(selector: string): string {
        FROM user_text_forms tf
       WHERE ${selector}
         AND ${VISIBLE_TO_CALLER}
+        AND tf.deleted_at IS NULL
       ORDER BY access_rank, tf.created_at, tf.id
       LIMIT 1`;
 }
@@ -429,7 +437,13 @@ export async function getTextFormSharing(
       public_ownership: userTextForms.public_ownership,
     })
     .from(userTextForms)
-    .where(and(eq(userTextForms.user_id, userId), eq(userTextForms.mention, mention)))
+    .where(
+      and(
+        eq(userTextForms.user_id, userId),
+        eq(userTextForms.mention, mention),
+        notTrashed(userTextForms)
+      )
+    )
     .limit(1);
   const row = rows[0];
   if (!row) return undefined;
@@ -461,7 +475,13 @@ export async function updateTextFormSharing(
       public_ownership: userTextForms.public_ownership,
     })
     .from(userTextForms)
-    .where(and(eq(userTextForms.user_id, userId), eq(userTextForms.mention, mention)))
+    .where(
+      and(
+        eq(userTextForms.user_id, userId),
+        eq(userTextForms.mention, mention),
+        notTrashed(userTextForms)
+      )
+    )
     .limit(1);
   const row = existing[0];
   if (!row) return { ok: true, updated: false };
@@ -510,7 +530,13 @@ async function findOwnRow(
   const rows = await db
     .select({ id: userTextForms.id, kind: userTextForms.kind })
     .from(userTextForms)
-    .where(and(eq(userTextForms.user_id, userId), eq(userTextForms.mention, mention)))
+    .where(
+      and(
+        eq(userTextForms.user_id, userId),
+        eq(userTextForms.mention, mention),
+        notTrashed(userTextForms)
+      )
+    )
     .limit(1);
   const row = rows[0];
   return row ? { id: String(row.id), kind: row.kind } : null;
@@ -666,20 +692,48 @@ export async function upsertTextForm(userId: string, input: TextFormInput): Prom
         analyzed_at: values.analyzed_at,
         updated_at: values.updated_at,
       },
+      setWhere: isNull(userTextForms.deleted_at),
     })
     .returning();
   const row = rows[0];
-  if (!row) throw new Error('Failed to upsert text form');
+  // `(user_id, mention)` stays taken while the recipe sits in the Papierkorb;
+  // `setWhere` keeps a save from overwriting it there, where nobody sees it.
+  if (!row) throw new Error(TEXT_FORM_IN_TRASH_MESSAGE);
   return rowToTextForm(row);
 }
 
+const TEXT_FORM_IN_TRASH_MESSAGE =
+  'Ein Rezept mit dieser Mention liegt im Papierkorb. Stelle es dort wieder her oder lösche es endgültig.';
+
+/**
+ * Move the caller's recipe to the Papierkorb: only `deleted_at` is set, its
+ * group shares stay and grant nothing while every reader filters the row.
+ * Owner only — the same check restore and purge-now ask.
+ */
 export async function deleteTextForm(userId: string, mention: string): Promise<boolean> {
   const db = getDrizzleInstance();
   const rows = await db
-    .delete(userTextForms)
-    .where(and(eq(userTextForms.user_id, userId), eq(userTextForms.mention, mention)))
+    .update(userTextForms)
+    .set({ deleted_at: new Date() })
+    .where(
+      and(
+        eq(userTextForms.user_id, userId),
+        eq(userTextForms.mention, mention),
+        notTrashed(userTextForms)
+      )
+    )
     .returning({ id: userTextForms.id });
   return rows.length > 0;
+}
+
+export const TEXT_FORM_TRASH: OwnedTrashTable = {
+  table: 'user_text_forms',
+  columns: 'id, title, mention',
+};
+
+/** Hard-delete a trashed recipe. Its `group_content_shares` rows were never removed on delete either. */
+export async function purgeTextForm(id: string, cutoff: Date | null): Promise<boolean> {
+  return (await deleteTrashedRow(TEXT_FORM_TRASH, id, cutoff)) !== null;
 }
 
 // ── Mentionable list ─────────────────────────────────────────────────────────
@@ -739,12 +793,14 @@ export async function listMentionableTextForms(
                        ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid
                       AND gm.is_active = TRUE
               WHERE gcs.content_type = $2 AND gcs.content_id = tf.id::text
+                AND g.deleted_at IS NULL
               ORDER BY g.name
               LIMIT 1) AS group_name,
             COALESCE(p.first_name, p.display_name) AS owner_name
        FROM user_text_forms tf
        LEFT JOIN profiles p ON p.id = tf.user_id
       WHERE ${includePublic ? VISIBLE_TO_CALLER : VISIBLE_TO_CALLER_NO_PUBLIC}
+        AND tf.deleted_at IS NULL
       ORDER BY access_rank, tf.created_at, tf.id
       LIMIT $3`,
     [userId, TEXT_FORM_CONTENT_TYPE, limit]
