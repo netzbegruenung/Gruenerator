@@ -8,6 +8,7 @@ import {
 } from '@gruenerator/chat';
 import { type PublicTextForm, type RecurringTask, type TextForm } from '@gruenerator/contracts';
 import {
+  agentKey,
   agenturaMetaLine,
   getAgentSlug,
   getVisibleSystemAgentsForLocale,
@@ -300,6 +301,15 @@ function AgenturaPage() {
     return [...byIdentifier.values()];
   }, [sharedSystemAgents, sharedUserAgents]);
 
+  // Shared agents minus the caller's own: sharing an own agent into an own
+  // group puts it in both lists, and „Meine" would show it twice. Compared by
+  // `agentKey`, not identifier — a colleague's agent under the same identifier
+  // is a different agent and stays.
+  const sharedForeignAgents = useMemo(() => {
+    const ownKeys = new Set(userAgents.map(agentKey));
+    return sharedAgents.filter((e) => !ownKeys.has(agentKey(e.agent)));
+  }, [sharedAgents, userAgents]);
+
   const hiddenSkillMentions = useHiddenSkillMentions();
   const hiddenAgentIdentifiers = useHiddenAgentIdentifiers();
   const hiddenAgentKey = hiddenAgentIdentifiers.join(',');
@@ -560,7 +570,7 @@ function AgenturaPage() {
 
   const agentCard = (entry: AgentEntry, isFavorite: boolean): ReactNode => (
     <MarketCard
-      key={`a-${entry.agent.identifier}`}
+      key={`a-${agentKey(entry.agent)}`}
       icon={<AgentIcon agent={entry.agent} isUser={entry.isUser} />}
       title={entry.agent.title}
       meta={agentMeta(entry.agent)}
@@ -642,7 +652,7 @@ function AgenturaPage() {
         // Geteiltes steht ohne eigene Überschrift mitten drin: für die
         // empfangende Person ist es Teil dessen, womit sie arbeitet. Woher es
         // kommt, sagt die Meta-Zeile der Kachel.
-        ...toAgentItems(sortAgentEntries(sharedAgents.map((e) => foreignEntry(e.agent)))),
+        ...toAgentItems(sortAgentEntries(sharedForeignAgents.map((e) => foreignEntry(e.agent)))),
         ...toRecipeItems(sortRecipeEntries(sharedRecipeEntries)),
       ];
 
@@ -698,7 +708,7 @@ function AgenturaPage() {
         return (
           userAgents.length +
           recurringTasks.length +
-          sharedAgents.length +
+          sharedForeignAgents.length +
           ownRecipes.length +
           sharedRecipes.length
         );
