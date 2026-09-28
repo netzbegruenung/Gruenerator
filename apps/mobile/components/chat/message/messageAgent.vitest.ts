@@ -131,3 +131,31 @@ describe('resolveMessageAgent — shared user agents', () => {
     expect(resolveMessageAgent({ agentId: 'mein-rezept' }, SYSTEM, CUSTOM)).toBeNull();
   });
 });
+
+describe('resolveMessageAgent for a public agent', () => {
+  const PUBLIC = [
+    {
+      id: '33333333-3333-4333-8333-333333333333',
+      title: 'Kims Pressestelle',
+      avatar: '🌻',
+      backgroundColor: '#005437',
+    },
+  ];
+
+  it('names a public agent that is in no mention catalogue by its row uuid', () => {
+    const agent = resolveMessageAgent(
+      { agentId: '33333333-3333-4333-8333-333333333333' },
+      SYSTEM,
+      CUSTOM,
+      PUBLIC
+    );
+
+    expect(agent?.title).toBe('Kims Pressestelle');
+  });
+
+  it('prefers the catalogues over the public list', () => {
+    expect(resolveMessageAgent({ agentId: 'ua-1' }, SYSTEM, CUSTOM, PUBLIC)?.title).toBe(
+      'Mein Rezept'
+    );
+  });
+});
