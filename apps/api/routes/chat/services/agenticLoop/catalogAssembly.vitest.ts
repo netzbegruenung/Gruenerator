@@ -18,6 +18,7 @@ import {
   assembleToolCatalog,
   buildToolReplay,
   priorTurnRetrieved,
+  priorTurnRetrievalFailed,
   wrapAssembledTools,
   type CatalogDeps,
 } from './catalogAssembly.js';
@@ -496,6 +497,52 @@ describe('priorTurnRetrieved', () => {
         lastGeneratedImageUrl: () => null,
       })
     ).toBe(false);
+  });
+});
+
+describe('priorTurnRetrievalFailed', () => {
+  const step = (toolName: string, ok: boolean): PersistedStep => ({
+    toolCallId: `c-${toolName}`,
+    toolName,
+    args: {},
+    result: ok ? { results: [] } : { error: 'Notebook nicht gefunden oder kein Zugriff.' },
+    ...(ok ? {} : { ok: false as const }),
+  });
+
+  it('jeder Abruf gescheitert → true (#3778: zweimal notebooks)', () => {
+    expect(priorTurnRetrievalFailed([step('notebooks', false), step('notebooks', false)])).toBe(
+      true
+    );
+  });
+
+  it('ein Abruf gelang → false, der Turn hat etwas zum Mitführen', () => {
+    expect(priorTurnRetrievalFailed([step('notebooks', false), step('web_search', true)])).toBe(
+      false
+    );
+  });
+
+  it('nur gescheiterte Aktionen → false, es wurde nichts zu holen versucht', () => {
+    expect(priorTurnRetrievalFailed([step('generate_image', false)])).toBe(false);
+  });
+
+  it('kein Schritt → false', () => {
+    expect(priorTurnRetrievalFailed([])).toBe(false);
+  });
+
+  it('ein gelungenes Rezept oder Gerüst verdeckt die gescheiterten Abrufe nicht', () => {
+    expect(
+      priorTurnRetrievalFailed([
+        step('rezept_laden', true),
+        step('gruenerator_examples_search', true),
+        step('notebooks', false),
+      ])
+    ).toBe(true);
+  });
+
+  it('ein gescheitertes Verbindungs-Werkzeug bleibt dem MCP-Anschluss', () => {
+    expect(priorTurnRetrievalFailed([{ ...step('m1__search', false), serverName: 'Notion' }])).toBe(
+      false
+    );
   });
 });
 

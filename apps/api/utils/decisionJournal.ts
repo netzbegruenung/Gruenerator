@@ -87,6 +87,8 @@ export const DECISION_POINTS = {
       'tier2_thread_notebook_tool_ask',
       // Kurze Anschlussfrage direkt nach einem `notebook_quellen`-Turn.
       'tier2_notebook_turn_followup',
+      // Kurze Anschlussfrage nach einem Turn, dessen Abrufe alle scheiterten.
+      'tier2_failed_tool_turn_followup',
       // Rezept/Grünerator-Agent anlegen → Schleife, vor den Textsorten-Pfaden.
       'tier2_agentura_create',
       'tier2.7_mcp_followup',

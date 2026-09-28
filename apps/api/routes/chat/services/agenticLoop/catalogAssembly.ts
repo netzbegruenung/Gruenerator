@@ -485,6 +485,35 @@ export function priorTurnRetrieved(toolHistory: ThreadToolHistory | null | undef
   }
 }
 
+/** Aufrufe, die nichts nachschlagen: das Rezept und die Rückfrage. */
+const NOT_A_LOOKUP: ReadonlySet<string> = new Set(['rezept_laden', 'ask_human']);
+
+/**
+ * Hat der vorige Turn etwas nachzuschlagen versucht, und ist JEDER dieser
+ * Aufrufe gescheitert? Dann hat er nichts zum Mitführen, und eine kurze
+ * Anschlussfrage („finde es", „stimmt nicht") ist ein neuer Versuch, keine
+ * Frage an die vorige Antwort (#3778: zweimal `notebooks` → „kein Zugriff",
+ * danach zwei Turns ohne Werkzeug). Ein einziger gelungener Abruf reicht für
+ * `false` — dann trägt der Quellen-Carry.
+ *
+ * Gezählt werden nur eigene Nachschlage-Werkzeuge. Aktionen, Gerüst, Rezept
+ * und Rückfrage nicht: ein gelungenes `rezept_laden` neben zwei gescheiterten
+ * `notebooks` hätte den Turn sonst als gelungen verbucht. Verbindungs-
+ * Werkzeuge (`serverName`) auch nicht — ihr Anschluss hat einen eigenen Weg
+ * (`tier2.7_mcp_followup`, auf den Server begrenzt), den dieser nicht
+ * überholen darf.
+ */
+export function priorTurnRetrievalFailed(steps: PersistedStep[]): boolean {
+  const lookups = steps.filter(
+    (s) =>
+      !s.serverName &&
+      !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName) &&
+      !ONE_SHOT_SCAFFOLD_TOOLS.has(s.toolName) &&
+      !NOT_A_LOOKUP.has(s.toolName)
+  );
+  return lookups.length > 0 && lookups.every((s) => s.ok === false);
+}
+
 /**
  * Cross-turn source rehydration: seed the registry with the sources gathered in
  * the last research turn so a follow-up grounds against research that ran turns

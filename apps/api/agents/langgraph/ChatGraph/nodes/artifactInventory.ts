@@ -207,6 +207,16 @@ export const NO_ARTIFACT_URL_RULE =
 export const NO_PHANTOM_ACTION_RULE =
   'Behaupte NIEMALS, eine Aktion oder ein Artefakt sei in diesem Turn erledigt, erstellt oder geändert worden, wenn kein Werkzeug das getan hat — und kündige nichts für „gleich" an: Was in diesem Turn kein Werkzeug tut, passiert nicht. Kannst du eine gewünschte Änderung hier nicht vornehmen, sag das in einem Satz.';
 
+/** Die Kehrseite: ein Werkzeug, das in DIESEM Turn nicht lief, fehlt dem
+ *  Produkt nicht. Der Split-Schreiber hat nie Werkzeuge, der Einzeldurchlauf
+ *  auch nicht — „ich habe keine Tools" ist für beide im Buchstaben wahr und in
+ *  der Sache falsch (#3778, beta 28.09.2026: „Ich verfüge über keine Tools, mit
+ *  denen ich eigenständig auf externe Notebooks … zugreifen kann"). Nennt nur,
+ *  was der Grünerator selbst kann; „Zugriff auf mein Gmail?" bleibt ein Nein.
+ *  Geteilt von `DIRECT_HONESTY_NOTE` und dem Schreiber ohne Material. */
+export const NO_CAPABILITY_DENIAL_RULE =
+  'Dass in diesem Turn nichts nachgeschlagen wurde, heißt nicht, dass dir die Werkzeuge fehlen: Behaupte NIE, du hättest keine Werkzeuge oder keinen Zugriff auf Notebooks, Dokumente oder die Websuche — der Grünerator hat sie. Sag stattdessen, dass du in diesem Turn nicht nachgesehen hast, und biete an, es zu tun.';
+
 /** Dieselbe Begründung wie beim URL-Verbot: das Modell sieht die Oberfläche
  *  nicht (live 15.09.2026: „als visuelle Karte über oder unter meiner Antwort"). */
 export const UI_BLIND_RULE =
