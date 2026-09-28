@@ -61,6 +61,9 @@ export async function buildReisekostenPdf(state: ReisekostenState): Promise<Buff
     entries: [
       { label: 'Name', value: stammdaten.name || '—' },
       ...(stammdaten.funktion ? [{ label: 'Funktion', value: stammdaten.funktion }] : []),
+      ...(stammdaten.wahlBeschlussVom
+        ? [{ label: 'Wahl/Beschluss vom', value: stammdaten.wahlBeschlussVom }]
+        : []),
       {
         label: 'Anschrift',
         value: `${stammdaten.strasse} ${stammdaten.hausnr}, ${stammdaten.plz} ${stammdaten.ort}`,
@@ -86,8 +89,16 @@ export async function buildReisekostenPdf(state: ReisekostenState): Promise<Buff
   const fahrtPosten: Array<{ label: string; value: number }> = [
     { label: 'Bahn', value: c.fahrtkosten.bahn },
     { label: 'ÖPNV', value: c.fahrtkosten.oepnv },
-    { label: 'Kfz', value: c.fahrtkosten.kfz },
-    { label: 'Miete / Carsharing', value: c.fahrtkosten.miete },
+    {
+      label: state.fahrt.kfz?.vorstandsbeschluss ? 'Kfz (mit Vorstandsbeschluss)' : 'Kfz',
+      value: c.fahrtkosten.kfz,
+    },
+    {
+      label: state.fahrt.miete?.vorstandsbeschluss
+        ? 'Miete / Carsharing (mit Vorstandsbeschluss)'
+        : 'Miete / Carsharing',
+      value: c.fahrtkosten.miete,
+    },
     { label: 'Taxi', value: c.fahrtkosten.taxi },
     { label: 'Sonstiges', value: c.fahrtkosten.sonstiges },
   ].filter((p) => p.value !== 0);
