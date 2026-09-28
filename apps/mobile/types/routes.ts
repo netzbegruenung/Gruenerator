@@ -63,9 +63,12 @@ export interface ModalRouteParams {
     kind: 'system' | 'user';
   };
   '/(focused)/notebook-reader': {
-    /** The hit's `*-system` collection. */
-    collectionId: string;
-    sourceUrl: string;
+    /** A system document: the hit's `*-system` collection and its URL. */
+    collectionId?: string;
+    sourceUrl?: string;
+    /** A user's own document, read through `notebookId` when it is shared. */
+    documentId?: string;
+    notebookId?: string;
     /** The search the hit came from — its terms mark the passages. */
     query: string;
     /** Shown while the document loads. */

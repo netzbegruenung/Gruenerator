@@ -129,11 +129,11 @@ function ReaderHeader({
   );
 }
 
-interface Props extends ResearchDocumentParams {
+type Props = ResearchDocumentParams & {
   title: string;
   theme: Theme;
   onClose: () => void;
-}
+};
 
 /**
  * A search hit read inside the notebook: the full text with the passages that
@@ -208,9 +208,11 @@ export function ResearchDocumentReader({ title, theme, onClose, ...params }: Pro
       </Text>
     );
 
-  const webButton = (
+  // An uploaded file has no original on the web.
+  const webUrl = data ? data.sourceUrl : 'sourceUrl' in params ? params.sourceUrl : null;
+  const webButton = webUrl && (
     <Pressable
-      onPress={() => openInBrowser(data?.sourceUrl ?? params.sourceUrl)}
+      onPress={() => openInBrowser(webUrl)}
       accessibilityRole="link"
       style={[styles.webButton, { borderColor: accent }]}
     >

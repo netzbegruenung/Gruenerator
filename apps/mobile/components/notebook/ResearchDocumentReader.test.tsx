@@ -23,7 +23,7 @@ jest.mock('react-native-safe-area-context', () => ({
 
 const mockFetch = fetchResearchDocument as jest.MockedFunction<typeof fetchResearchDocument>;
 
-const DOC: ResearchDocumentResponse = {
+const DOC = {
   title: 'Hitzeschutz für alle',
   sourceUrl: 'https://gruene.berlin/hitze',
   sourceName: 'Grüne Berlin',
@@ -59,7 +59,7 @@ const DOC: ResearchDocumentResponse = {
     { index: 0, heading: 'Forderungen', text: 'Hitzeschutz ist Pflicht.' },
     { index: 1, heading: 'Forderungen', text: 'Hitzeschutzbündnisse.' },
   ],
-};
+} satisfies ResearchDocumentResponse;
 
 const onClose = jest.fn();
 

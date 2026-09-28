@@ -398,6 +398,43 @@ export async function resolveSourceInNotebook(
   };
 }
 
+export interface ReaderSource {
+  ownerUserId: string;
+  title: string;
+  sourceUrl: string | null;
+}
+
+/**
+ * Der Zugriff des Dokument-Readers auf eine eigene Quelle: die Eigentümer*in
+ * liest immer, alle anderen nur über `resolveSourceInNotebook` — dieselbe Regel
+ * wie `notebook_quellen`. `null` ohne Zugriff, egal warum: ein fremdes Dokument
+ * sieht aus wie ein fehlendes.
+ */
+export async function resolveReaderSource(
+  input: { documentId: string; notebookId: string | null; userId: string },
+  deps: Pick<NotebookSourcesDeps, 'db' | 'helper' | 'access'>
+): Promise<ReaderSource | null> {
+  const [row] = await deps.db.query<{
+    user_id: string | null;
+    title: string | null;
+    source_url: string | null;
+  }>('SELECT user_id, title, source_url FROM documents WHERE id = $1', [input.documentId]);
+  if (!row?.user_id) return null;
+  if (row.user_id !== input.userId) {
+    if (!input.notebookId) return null;
+    const shared = await resolveSourceInNotebook(
+      { collectionId: input.notebookId, sourceId: input.documentId, userId: input.userId },
+      deps
+    );
+    if (!shared.ok) return null;
+  }
+  return {
+    ownerUserId: row.user_id,
+    title: row.title || '(ohne Titel)',
+    sourceUrl: documentLink(row.source_url),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Text, Gliederung, Scheiben
 // ---------------------------------------------------------------------------

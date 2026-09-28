@@ -38,6 +38,14 @@ export const researchDocumentQuerySchema = z.object({
   query: z.string().nullish(),
 });
 
+/** A user's own document for the reader. `notebookId` names the notebook the
+ *  link came from — reading through it is how members of a shared notebook
+ *  get access to a document they do not own. */
+export const userDocumentReaderQuerySchema = z.object({
+  notebookId: z.string().nullish(),
+  query: z.string().nullish(),
+});
+
 export const researchFiltersQuerySchema = z.object({
   /** Comma-separated system collection IDs; omitted = all collections. */
   collectionIds: z.string().nullish(),
@@ -99,10 +107,11 @@ export const researchDocumentPassageSchema = z.object({
   text: z.string(),
 });
 
-/** A system-collection document, ready for the notebook reader. */
+/** A document, ready for the notebook reader. */
 export const researchDocumentResponseSchema = z.object({
   title: z.string(),
-  sourceUrl: z.string(),
+  /** The original on the web; `null` for an uploaded file, which has none. */
+  sourceUrl: z.string().nullable(),
   sourceName: z.string().nullable(),
   contentTypeLabel: z.string().nullable(),
   publishedAt: z.string().nullable(),

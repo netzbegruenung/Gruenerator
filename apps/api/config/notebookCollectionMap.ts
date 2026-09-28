@@ -250,23 +250,31 @@ export function isUserNotebookId(id: string): boolean {
  * dropped and returns no documents. Downstream search trusts this set: it
  * filters by document_id only, never by owner.
  *
+ * `documentNotebookIds` names the notebook each document came in through: a
+ * shared notebook can hold a collaborator's document, and the reader grants
+ * access to that one only through the notebook.
+ *
  * Imported lazily inside the function body to avoid a Qdrant-helper boot
  * dependency at module load time (the helper initialises its Qdrant client).
  */
 export async function resolveUserNotebookDocumentIds(
   userId: string,
   notebookIds: string[]
-): Promise<{ documentIds: string[]; resolvedUserNotebookIds: string[] }> {
+): Promise<{
+  documentIds: string[];
+  resolvedUserNotebookIds: string[];
+  documentNotebookIds: Record<string, string>;
+}> {
   const uuids = notebookIds.filter(isUserNotebookId);
   if (uuids.length === 0 || !userId) {
-    return { documentIds: [], resolvedUserNotebookIds: [] };
+    return { documentIds: [], resolvedUserNotebookIds: [], documentNotebookIds: {} };
   }
   const [{ NotebookQdrantHelper }, { checkNotebookAccess }] = await Promise.all([
     import('../database/services/NotebookQdrantHelper.js'),
     import('../routes/notebook/notebookAccess.js'),
   ]);
   const helper = new NotebookQdrantHelper();
-  const documentIds = new Set<string>();
+  const documentNotebookIds: Record<string, string> = {};
   const resolved: string[] = [];
   for (const uuid of uuids) {
     const access = await checkNotebookAccess(uuid, userId);
@@ -274,8 +282,12 @@ export async function resolveUserNotebookDocumentIds(
     resolved.push(uuid);
     const docs = await helper.getCollectionDocuments(uuid);
     for (const d of docs) {
-      if (d.document_id) documentIds.add(d.document_id);
+      if (d.document_id) documentNotebookIds[d.document_id] ??= uuid;
     }
   }
-  return { documentIds: [...documentIds], resolvedUserNotebookIds: resolved };
+  return {
+    documentIds: Object.keys(documentNotebookIds),
+    resolvedUserNotebookIds: resolved,
+    documentNotebookIds,
+  };
 }
