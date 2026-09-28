@@ -13,7 +13,10 @@
  * was sie gesammelt hat.
  */
 
-import { NO_PHANTOM_ACTION_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+import {
+  NO_CAPABILITY_DENIAL_RULE,
+  NO_PHANTOM_ACTION_RULE,
+} from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { SOURCE_LINK_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/sourceLinkRule.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
@@ -211,7 +214,10 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   const nothingReachedTheWriter =
     sources.trim().length === 0 && !producedArtifact && !mcpRan && toolPayload === '';
   const honestyNote = nothingReachedTheWriter
-    ? '\n\nWICHTIG: In diesem Turn hast du NICHTS recherchiert und keine Quellen erhalten. Behaupte keine Recherche, nenne keine [N]-Belege, keine Studien und keine Quellen. Antworte nur aus gesichertem Kontext oder sag ehrlich, dass du es nachschlagen müsstest.'
+    ? '\n\nWICHTIG: In diesem Turn hast du NICHTS recherchiert und keine Quellen erhalten. Behaupte keine Recherche, nenne keine [N]-Belege, keine Studien und keine Quellen. Antworte nur aus gesichertem Kontext oder sag ehrlich, dass du es nachschlagen müsstest.' +
+      // Nach einem Fehlschlag sagt die Fehlschlag-Notiz, was zu sagen ist —
+      // „nicht nachgesehen" wäre dort falsch.
+      (toolFailures ? '' : ` ${NO_CAPABILITY_DENIAL_RULE}`)
     : carriedOnly && !producedArtifact
       ? // Mirrors CARRIED_SOURCES_NOTE on the single-pass path (respondNode).
         // The ban on [N] that used to stand here is what made the same

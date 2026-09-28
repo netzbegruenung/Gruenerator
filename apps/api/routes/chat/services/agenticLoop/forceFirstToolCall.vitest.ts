@@ -173,6 +173,17 @@ describe('shouldForceFirstToolCall', () => {
       expect(force({ ...followup, lastUserText: 'formuliere das um' })).toBe(true);
     });
 
+    // #3778: nach zwei gescheiterten `notebooks`-Aufrufen ist `priorTurnRetrieved`
+    // wahr (ein gescheiterter Abruf ist ein Abruf), und der Klassifikator
+    // liefert jetzt `agentic` — dieser Weg ist es, der den Planer dann
+    // tatsächlich zu einem Aufruf zwingt.
+    it.each([['finde es'], ['stimmt nicht du hast de tools'], ['nochmal versuchen']])(
+      'nach einem gescheiterten Abruf-Turn: „%s" erzwingt den Aufruf',
+      (lastUserText) => {
+        expect(force({ ...followup, lastUserText })).toBe(true);
+      }
+    );
+
     it('eine Höflichkeit erzwingt nichts', () => {
       expect(force({ ...followup, lastUserText: 'Danke!' })).toBe(false);
       expect(force({ ...followup, lastUserText: 'Okay' })).toBe(false);

@@ -58,6 +58,7 @@ import {
 } from './buildDocumentSources.js';
 import { heuristicExtractFilters } from './classifierFilters.js';
 import {
+  ANSWER_REPEAT_PATTERN,
   heuristicClassify,
   extractSearchTopic,
   extractMessageText,
@@ -261,7 +262,7 @@ function previousAssistantOffer(messages: ChatGraphState['messages']): string | 
  * Schreibangebot war („Soll ich daraus einen Social-Media-Post machen?" bleibt
  * beim heutigen Weg; „…, müsste ich diese neu nachschlagen." pinnt).
  */
-function continuesNotebookTurn(text: string, messages: ChatGraphState['messages']): boolean {
+function continuesToolTurn(text: string, messages: ChatGraphState['messages']): boolean {
   if (BARE_CONFIRMATION.test(text)) {
     const offer = previousAssistantOffer(messages);
     return !(
@@ -1080,17 +1081,23 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Turn"). Nicht für Erstellaufträge („mach daraus einen Post", „schreib
     // eine PM dazu"), Höflichkeiten, Schreibaufträge an ein System-Notebook
     // und nicht, wenn der Turn eigenes Material mitbringt.
+    //
+    // Dieselben Grenzen gelten für den Anschluss an einen GESCHEITERTEN
+    // Werkzeugturn weiter unten; darum stehen sie einmal hier.
     const lastTurnNotebookId = state.lastTurnNotebookId;
-    if (
-      lastTurnNotebookId &&
+    const continuesPreviousToolTurn =
+      (!!lastTurnNotebookId || state.lastTurnRetrievalFailed === true) &&
       state.agentConfig.identifier === 'gruenerator-universal' &&
       !hasAttachmentContext &&
       !hasImageAttachments &&
       !hasBoards &&
       !hasDocMentions &&
       !hasCurrentDocument &&
-      continuesNotebookTurn(askText, messages) &&
-      !editsThreadArtifact(state, userContent) &&
+      continuesToolTurn(askText, messages) &&
+      !editsThreadArtifact(state, userContent);
+    if (
+      continuesPreviousToolTurn &&
+      lastTurnNotebookId &&
       (isUserNotebookId(lastTurnNotebookId) || !looksLikeNotebookWriteAsk(askText))
     ) {
       log.info(
@@ -1104,6 +1111,39 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         searchQuery: userContent.slice(0, 500),
         detectedFilters: null,
         reasoning: 'Anschluss an einen Notebook-Werkzeugturn → Werkzeug notebook_quellen',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // Anschluss an einen GESCHEITERTEN Werkzeugturn (#3778, beta 28.09.2026):
+    // `notebooks` scheiterte zweimal, dann fiel „finde es" auf `direct`
+    // (Einzeldurchlauf, kein Werkzeug) und „stimmt nicht du hast de tools" auf
+    // `produktion` (Loop, steps=0). Der Zweig darüber greift nur nach einem
+    // GELUNGENEN `notebook_quellen`-Aufruf; nach einem Fehlschlag gibt es
+    // nichts mitzuführen, die Anschlussfrage ist ein neuer Versuch. `agentic`
+    // öffnet den Loop, und der Planer sieht den Fehlschlag im Werkzeug-Replay.
+    // Für rückbezügliche Anschlüsse erzwingt der siebte Weg in
+    // `shouldForceFirstToolCall` den ersten Aufruf; eine nackte Bestätigung
+    // („ja dann mach das") ist dort nicht rückbezüglich und bleibt dem Planer
+    // überlassen. Kein Pin: welches Werkzeug diesmal richtig ist, steht in der
+    // Fehlermeldung (seit #3779 nennt `notebooks` für System-Notebooks
+    // `notebook_quellen`). Nicht für Fragen an die vorige Antwort („warum?"):
+    // die wollen eine Erklärung des Fehlschlags, keinen erzwungenen Neuversuch.
+    if (
+      continuesPreviousToolTurn &&
+      state.lastTurnRetrievalFailed &&
+      !ANSWER_REPEAT_PATTERN.test(askText)
+    ) {
+      log.info('[Classifier] Follow-up on a failed tool turn → loop');
+      recordDecision('classifier.tier', 'tier2_failed_tool_turn_followup', {});
+      return {
+        intent: 'agentic',
+        searchSources: [],
+        searchQuery: userContent.slice(0, 500),
+        detectedFilters: null,
+        reasoning: 'Anschluss an einen fehlgeschlagenen Werkzeugturn → Loop',
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,
