@@ -42,7 +42,8 @@ vi.mock('../../services/chat/threadTitleService.js', () => ({
 vi.mock('../auth/groups/index.js', () => ({ getPostgresAndCheckMembership: vi.fn() }));
 
 vi.mock('./services/attachmentPersistenceService.js', () => ({
-  readThreadAttachmentVectorHandles: (threadId: string) => readVectorHandles(threadId),
+  readThreadAttachmentVectorHandles: (threadId: string, runQuery?: unknown) =>
+    readVectorHandles(threadId, runQuery),
   deleteAttachmentVectors: (threadId: string, handles: unknown) => deleteVectors(threadId, handles),
   getThreadTabularFiles: vi.fn(),
 }));
@@ -355,6 +356,24 @@ describe('delete — the Papierkorb for chat threads', () => {
     expect(effects).toEqual([
       'read attachment handles',
       'DELETE FROM chat_threads WHERE id = $1 RETURNING id',
+      'delete attachment vectors',
+      'delete recall point',
+    ]);
+  });
+
+  it("runs a purged document's thread through the document purge's own runner", async () => {
+    givenDb({});
+    const runQuery = vi.fn((sql: string) => {
+      effects.push(`runner: ${sql}`);
+      return Promise.resolve([{ id: THREAD_ID }]);
+    });
+
+    expect(await purgeDocThread(THREAD_ID, runQuery as never)).toBe(true);
+    expect(readVectorHandles).toHaveBeenCalledWith(THREAD_ID, runQuery);
+    expect(queryMock).not.toHaveBeenCalled();
+    expect(effects).toEqual([
+      'read attachment handles',
+      'runner: DELETE FROM chat_threads WHERE id = $1 RETURNING id',
       'delete attachment vectors',
       'delete recall point',
     ]);
