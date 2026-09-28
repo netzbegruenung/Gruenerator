@@ -45,8 +45,12 @@ export type UserAgentPatch = Partial<UserAgentInput>;
 // snake_case row → camelCase Agent. Boundary cast: DB layer is untyped jsonb
 // at runtime; Drizzle gives us $type<…> hints but TS treats them as nullable
 // by default for jsonb without a default.
-function rowToAgent(row: UserAgentRow): Agent {
+/** A user agent as it leaves this module: an `Agent` that always carries its row `id`. */
+export type UserAgentRecord = Agent & { id: string };
+
+function rowToAgent(row: UserAgentRow): UserAgentRecord {
   return {
+    id: row.id,
     identifier: row.identifier,
     title: row.title,
     description: row.description,
@@ -133,13 +137,16 @@ function patchToUpdateValues(patch: UserAgentPatch): Record<string, unknown> {
   return out;
 }
 
-export async function listUserAgents(userId: string): Promise<Agent[]> {
+export async function listUserAgents(userId: string): Promise<UserAgentRecord[]> {
   const db = getDrizzleInstance();
   const agentRows = await db.select().from(userAgents).where(eq(userAgents.user_id, userId));
   return agentRows.map(rowToAgent);
 }
 
-export async function getUserAgent(userId: string, identifier: string): Promise<Agent | undefined> {
+export async function getUserAgent(
+  userId: string,
+  identifier: string
+): Promise<UserAgentRecord | undefined> {
   const db = getDrizzleInstance();
   const rows = await db
     .select()
@@ -150,7 +157,10 @@ export async function getUserAgent(userId: string, identifier: string): Promise<
   return row ? rowToAgent(row) : undefined;
 }
 
-export async function createUserAgent(userId: string, input: UserAgentInput): Promise<Agent> {
+export async function createUserAgent(
+  userId: string,
+  input: UserAgentInput
+): Promise<UserAgentRecord> {
   const db = getDrizzleInstance();
   const rows = await db.insert(userAgents).values(inputToInsertValues(userId, input)).returning();
   const row = rows[0];
@@ -162,7 +172,7 @@ export async function updateUserAgent(
   userId: string,
   identifier: string,
   patch: UserAgentPatch
-): Promise<Agent | undefined> {
+): Promise<UserAgentRecord | undefined> {
   const db = getDrizzleInstance();
   const rows = await db
     .update(userAgents)
@@ -266,11 +276,11 @@ export async function updateAgentSharing(
  * is carried alongside the canonical Agent shape so the caller can match each
  * agent back to its group_content_shares row (content_id = the UUID).
  */
-export async function listUserAgentsByIds(ids: string[]): Promise<Array<Agent & { id: string }>> {
+export async function listUserAgentsByIds(ids: string[]): Promise<UserAgentRecord[]> {
   if (ids.length === 0) return [];
   const db = getDrizzleInstance();
   const rows = await db.select().from(userAgents).where(inArray(userAgents.id, ids));
-  return rows.map((row) => ({ ...rowToAgent(row), id: row.id }));
+  return rows.map(rowToAgent);
 }
 
 /**
@@ -295,7 +305,7 @@ export async function listUserAgentsByIds(ids: string[]): Promise<Array<Agent & 
 export async function getGroupSharedUserAgent(
   identifier: string,
   requestingUserId: string
-): Promise<Agent | undefined> {
+): Promise<UserAgentRecord | undefined> {
   const postgres = getPostgresInstance();
   const row = await postgres.queryOne<UserAgentRow>(
     `SELECT ua.*
@@ -335,7 +345,7 @@ export async function getGroupSharedUserAgent(
  * one — same `created_at, id` order as `getGroupSharedUserAgent`, so the choice
  * is stable across calls rather than left to the planner.
  */
-export async function getPublicUserAgent(identifier: string): Promise<Agent | undefined> {
+export async function getPublicUserAgent(identifier: string): Promise<UserAgentRecord | undefined> {
   const db = getDrizzleInstance();
   const rows = await db
     .select()
@@ -474,14 +484,15 @@ export function mergeMentionableAgents(
  * share_mode='authenticated'), filtered to the viewer's locale.
  *
  * One entry per identifier. `identifier` is only unique per owner, so several
- * people publishing the same slug put duplicates into the feed — the clients
- * key cards by identifier, and duplicate React keys leak cards on every tab
- * switch. The viewer's own row wins, then the oldest, as in the resolvers.
+ * people publishing the same slug put duplicates into the feed — and every
+ * client opens an agent by identifier, so all but one of them would open the
+ * one the resolvers pick. Shipped mobile binaries also key cards by it. The
+ * viewer's own row wins, then the oldest, as in the resolvers.
  */
 export async function listPublicUserAgents(
   viewerId: string,
   viewerLocale: string
-): Promise<Agent[]> {
+): Promise<UserAgentRecord[]> {
   const db = getDrizzleInstance();
   const rows = await db
     .select()

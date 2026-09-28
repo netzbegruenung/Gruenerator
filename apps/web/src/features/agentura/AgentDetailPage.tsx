@@ -1,4 +1,5 @@
 import {
+  agentKey,
   getAgentSlug,
   getVisibleSystemAgentsForLocale,
   type Agent,
@@ -281,7 +282,7 @@ function AgentDetailPage() {
         <CardGrid columns="auto" gap="md">
           {related.map((other) => (
             <AgentCard
-              key={other.identifier}
+              key={agentKey(other)}
               agent={other}
               onSelect={(a) =>
                 navigate(`/agentura/agent/${encodeURIComponent(getAgentSlug(a.identifier))}`)
