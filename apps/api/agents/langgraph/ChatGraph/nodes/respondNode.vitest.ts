@@ -10,6 +10,7 @@ import {
   limitAttachmentContext,
   formatThreadAttachmentsContext,
 } from './respondNode.js';
+import { NO_CAPABILITY_DENIAL_RULE } from './artifactInventory.js';
 
 import type { ChatGraphState, ComputeData, SearchResult, ThreadAttachment } from '../types.js';
 
@@ -272,6 +273,12 @@ describe('getModeGuidance turn-outcome honesty (direct path)', () => {
     const out = getModeGuidance(makeState({ intent: 'direct', searchResults: [] }));
     expect(out).toContain('NICHTS recherchiert');
     expect(out).toMatch(/keine Recherche/i);
+  });
+  // #3778: „Ich verfüge über keine Tools, mit denen ich … auf Notebooks
+  // zugreifen kann" — der Turn hatte keins, das Produkt hat sie.
+  it('a direct turn forbids denying the product has tools', () => {
+    const out = getModeGuidance(makeState({ intent: 'direct', searchResults: [] }));
+    expect(out).toContain(NO_CAPABILITY_DENIAL_RULE);
   });
   it('save_as_doc keeps plain direct guidance (it DOES create a doc)', () => {
     const out = getModeGuidance(makeState({ intent: 'save_as_doc', searchResults: [] }));
