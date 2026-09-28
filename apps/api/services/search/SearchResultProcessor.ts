@@ -245,31 +245,34 @@ export function validateAndInjectCitations(
 
   content = content.replace(/\n+Quellen:[\s\S]*$/i, '');
 
-  content = content.replace(/\[(\s*\d+(?:\s*,\s*\d+)+\s*)\]/g, (_m: string, inner: string) => {
-    const nums: string[] = inner
-      .split(',')
-      .map((s: string) => s.trim())
-      .filter(Boolean);
-    return nums.map((n: string) => `[${n}]`).join('');
-  });
-
+  // Source links and markers in one pass, like the renumbering before it: an
+  // id cited only by `[Titel](quelle:N)` still needs its citation, and a label
+  // such as `[2024]` is not a marker. `[1, 2]` becomes `[cite:1][cite:2]`; an
+  // unknown id stays a bare `[n]`, and a link to one keeps only its title.
   const usedIds = new Set<string>();
-  const citationPattern = /\[(\d+)\]/g;
-  let match;
-
-  while ((match = citationPattern.exec(content)) !== null) {
-    const n = match[1];
-    if (validIds.has(n)) {
-      usedIds.add(n);
-    } else {
-      errors.push(`Invalid citation [${n}]`);
+  content = content.replace(
+    citationReferenceRegex(),
+    (whole, label: string | undefined, linkId: string | undefined, inner: string | undefined) => {
+      if (label !== undefined && linkId !== undefined) {
+        if (validIds.has(linkId)) {
+          usedIds.add(linkId);
+          return whole;
+        }
+        errors.push(`Invalid citation [${linkId}]`);
+        return label;
+      }
+      return splitMarkerIds(inner ?? '')
+        .map((n) => {
+          if (validIds.has(n)) {
+            usedIds.add(n);
+            return `[cite:${n}]`;
+          }
+          errors.push(`Invalid citation [${n}]`);
+          return `[${n}]`;
+        })
+        .join('');
     }
-  }
-
-  for (const id of usedIds) {
-    const re = new RegExp(`\\[${id}\\]`, 'g');
-    content = content.replace(re, `[cite:${id}]`);
-  }
+  );
 
   // Dieselbe Decke wie die Suchvorschau (`CONTENT_MAX_EXCERPT_LENGTH`, 1500):
   // der Ausschnitt wird VERSCHOBEN, nicht gekürzt. Ein engerer Deckel hier
