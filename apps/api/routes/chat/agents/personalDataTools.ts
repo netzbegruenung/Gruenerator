@@ -165,7 +165,8 @@ export function groundSourceRows(
       url: r.url,
       documentId: r.ref ?? r.url,
       collectionId,
-    }))
+    })),
+    { inventory: true }
   );
 }
 
