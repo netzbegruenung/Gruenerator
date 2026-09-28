@@ -42,6 +42,7 @@ import { runNotebookSearch } from '../../../services/notebook/notebookToolSearch
 import { planNotebookVisibility } from '../../../services/notebook/notebookVisibility.js';
 import { previewWolkeFolder } from '../../../services/notebook/notebookWolkeAttach.js';
 import { listPublicNotebooksForViewer } from '../../../services/notebook/publicNotebookListing.js';
+import { resolveSystemCollection } from '../../../services/notebook/systemNotebookSources.js';
 import { createLogger } from '../../../utils/logger.js';
 import { checkNotebookAccess } from '../../notebook/notebookAccess.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
@@ -186,6 +187,23 @@ export function systemNotebookRows(locale: UserLocale | null): ResultRow[] {
       key
     );
   });
+}
+
+/**
+ * Ein System-Notebook („berlin") ist hier keine id — seine Quellen liest
+ * `notebook_quellen`, seinen Inhalt durchsucht `gruenerator_search`. Live
+ * (28.09.2026) fragte der Planer „was stand in der letzten Pressemitteilung im
+ * Notebook Berlin" zweimal mit `get`/`search` id="berlin" an, bekam ein nacktes
+ * „nicht gefunden" und die Antwort behauptete danach, es gebe keinen Zugriff.
+ */
+function systemHandover(id: string, locale: UserLocale | null): { error: string } | null {
+  const resolved = resolveSystemCollection(id, collectionsForLocale(locale));
+  if (!resolved) return null;
+  if ('error' in resolved) return resolved;
+  const { key, name } = resolved.collection;
+  return {
+    error: `„${id}" ist das System-Notebook ${name} und hat hier keine id. Quellen auflisten, lesen oder zählen: notebook_quellen mit notebookId="${key}" (z. B. action="list", sortBy="date"). Inhaltlich durchsuchen: gruenerator_search mit collection="${key}".`,
+  };
 }
 
 function readFolders(settings: Record<string, unknown>): WolkeFolderRef[] {
@@ -394,6 +412,8 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
 
       // Alle weiteren Aktionen zielen auf EIN Notebook.
       if (!id) return { error: `${action} braucht eine Notebook-ID (id).` };
+      const system = systemHandover(id, state.userLocale ?? null);
+      if (system) return system;
       const access = await deps.access(id, userId);
       if (!access.exists || !access.canRead) return { error: NOT_FOUND };
       const collection = await helper.getNotebookCollection(id);
