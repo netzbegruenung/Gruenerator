@@ -90,6 +90,7 @@ export const boardsContractRouter = s.router(boardsContract, {
               SELECT gcs.content_id::uuid
               FROM group_content_shares gcs
               INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2 AND gm.is_active = TRUE
+              INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
               WHERE gcs.content_type = 'collaborative_documents'
             )
           )
@@ -137,6 +138,7 @@ export const boardsContractRouter = s.router(boardsContract, {
         const groupAccess = (await db.query(
           `SELECT 1 FROM group_content_shares gcs
            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+           INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
            WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
           [userId, id]
         )) as unknown[];
@@ -216,7 +218,7 @@ export const boardsContractRouter = s.router(boardsContract, {
              INNER JOIN group_memberships gm
                ON gm.group_id = gcs.group_id
               AND gm.is_active = TRUE
-             INNER JOIN groups g ON g.id = gcs.group_id
+             INNER JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
              WHERE gcs.content_type = 'collaborative_documents'
                AND gcs.content_id = $1::text
                -- The system group holds every user; never expose them as assignees.

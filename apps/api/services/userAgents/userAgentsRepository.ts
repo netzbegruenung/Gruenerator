@@ -376,6 +376,7 @@ export async function getGroupSharedUserAgent(
           SELECT 1
             FROM group_content_shares gcs
             JOIN group_memberships gm ON gm.group_id = gcs.group_id
+            INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
            WHERE gcs.content_type = 'user_agents'
              AND gcs.content_id = ua.id::text
              AND gm.user_id = $2
@@ -449,6 +450,7 @@ export async function getAccessibleUserAgentById(
               SELECT 1
                 FROM group_content_shares gcs
                 JOIN group_memberships gm ON gm.group_id = gcs.group_id
+                INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
                WHERE gcs.content_type = 'user_agents'
                  AND gcs.content_id = ua.id::text
                  AND gm.user_id = $2

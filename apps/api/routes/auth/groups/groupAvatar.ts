@@ -81,7 +81,7 @@ router.post(
         .toFile(filepath);
 
       const existingGroup = (await postgres.queryOne(
-        'SELECT avatar_url FROM groups WHERE id = $1',
+        'SELECT avatar_url FROM groups WHERE id = $1 AND deleted_at IS NULL',
         [groupId],
         { table: 'groups' }
       )) as { avatar_url?: string | null } | null;
@@ -124,7 +124,7 @@ router.get(
       const { postgres } = await getPostgresAndCheckMembership(groupId, req.user?.id || '', false);
 
       const group = (await postgres.queryOne(
-        'SELECT avatar_url FROM groups WHERE id = $1',
+        'SELECT avatar_url FROM groups WHERE id = $1 AND deleted_at IS NULL',
         [groupId],
         { table: 'groups' }
       )) as { avatar_url?: string | null } | null;
@@ -176,7 +176,7 @@ router.delete(
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
 
       const group = (await postgres.queryOne(
-        'SELECT avatar_url FROM groups WHERE id = $1',
+        'SELECT avatar_url FROM groups WHERE id = $1 AND deleted_at IS NULL',
         [groupId],
         { table: 'groups' }
       )) as { avatar_url?: string | null } | null;

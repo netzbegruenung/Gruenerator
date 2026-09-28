@@ -5,8 +5,6 @@
  */
 
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
 
 import { groupsContract } from '@gruenerator/contracts';
 import { extractSlugSuffix } from '@gruenerator/shared/utils';
@@ -19,10 +17,7 @@ import {
   joinGroupByToken,
   updateGroupInfo,
 } from '../../../../services/groups/groupMutations.js';
-import {
-  deleteGroupPostFile,
-  listGroupPostFilenames,
-} from '../../../../services/groups/groupPosts.js';
+import { trashGroup } from '../../../../services/groups/groupTrash.js';
 import { SYSTEM_GROUP_FORBIDDEN } from '../../../../services/groups/systemGroup.js';
 import {
   createNotification,
@@ -37,7 +32,6 @@ import {
   getUserId,
   toIsoOrNull,
   groupErrorResponse,
-  AVATAR_UPLOAD_DIR,
   type StoredGroupLink,
 } from './shared.js';
 
@@ -68,7 +62,7 @@ export const coreRoutes = {
         `SELECT g.id, g.name, g.description, g.created_at, g.created_by, g.join_token, g.settings,
                 g.avatar_url, g.links, g.slug_suffix, g.group_type, g.is_system,
                 (SELECT COUNT(*)::int FROM group_memberships gm WHERE gm.group_id = g.id) AS member_count
-           FROM groups g WHERE g.id = ANY($1)
+           FROM groups g WHERE g.id = ANY($1) AND g.deleted_at IS NULL
           ORDER BY g.created_at DESC`, // neuestes Projekt zuerst — ohne das ist die Reihenfolge beliebig
         [groupIds],
         { table: 'groups' }
@@ -147,8 +141,8 @@ export const coreRoutes = {
 
       const row = (await postgres.queryOne(
         suffix
-          ? 'SELECT id FROM groups WHERE slug_suffix = $1'
-          : 'SELECT id FROM groups WHERE id = $1',
+          ? 'SELECT id FROM groups WHERE slug_suffix = $1 AND deleted_at IS NULL'
+          : 'SELECT id FROM groups WHERE id = $1 AND deleted_at IS NULL',
         [suffix ?? input],
         { table: 'groups' }
       )) as { id: string } | null;
@@ -206,108 +200,28 @@ export const coreRoutes = {
     const { groupId } = args.params;
     try {
       const userId = getUserId(args.req);
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
+      const result = await trashGroup(groupId, userId);
 
-      const groupData = (await postgres.queryOne(
-        'SELECT name, created_by, avatar_url, group_type, is_system FROM groups WHERE id = $1',
-        [groupId],
-        { table: 'groups' }
-      )) as {
-        name: string;
-        created_by: string;
-        avatar_url?: string | null;
-        group_type?: string | null;
-        is_system?: boolean | null;
-      } | null;
-
-      if (!groupData) {
+      if (result === 'not_found') {
         return {
           status: 404 as const,
           body: { success: false as const, message: 'Gruppe nicht gefunden.' },
         };
       }
-
-      if (groupData.is_system) {
+      if (result === 'system') {
         return {
           status: 403 as const,
           body: { success: false as const, message: SYSTEM_GROUP_FORBIDDEN },
         };
       }
-
-      if (groupData.created_by !== userId) {
-        const membership = (await postgres.queryOne(
-          'SELECT role FROM group_memberships WHERE group_id = $1 AND user_id = $2',
-          [groupId, userId],
-          { table: 'group_memberships' }
-        )) as { role: string } | null;
-        if (!membership || membership.role !== 'admin') {
-          return {
-            status: 403 as const,
-            body: {
-              success: false as const,
-              message: 'Keine Berechtigung zum Löschen dieser Gruppe.',
-            },
-          };
-        }
-      }
-
-      await notifyGroupMembers({
-        groupId,
-        excludeUserId: userId,
-        type: 'group_deleted',
-        title: 'Gruppe aufgelöst',
-        body: `„${groupData.name}" wurde aufgelöst`,
-        actionUrl: '/gruppen',
-      });
-
-      // Die Zeilen fallen per Cascade mit der Gruppe, die Dateien nicht.
-      const postFiles = await listGroupPostFilenames(postgres, groupId);
-
-      let memberCount = 0;
-      await postgres.transaction(async (client) => {
-        await postgres.transactionExec(
-          client,
-          'DELETE FROM group_instructions WHERE group_id = $1',
-          [groupId]
-        );
-        await postgres.transactionExec(
-          client,
-          'DELETE FROM group_content_shares WHERE group_id = $1',
-          [groupId]
-        );
-        const memberships = await postgres.transactionExec(
-          client,
-          'DELETE FROM group_memberships WHERE group_id = $1',
-          [groupId]
-        );
-        memberCount = memberships.changes;
-        const result = await postgres.transactionExec(client, 'DELETE FROM groups WHERE id = $1', [
-          groupId,
-        ]);
-        if (result.changes === 0) throw new Error('Group not found or already deleted');
-      });
-
-      // Der einzige Beleg, dass es diese Gruppe je gab. Das Löschen ist hart
-      // (kein `deleted_at`, keine Audit-Zeile), und die Benachrichtigung oben
-      // erreicht per `excludeUserId` gerade die löschende Person nicht — ein
-      // Solo-Projekt verschwand damit spurlos, und die Frage „gelöscht oder nie
-      // angelegt?" war hinterher nicht mehr zu beantworten.
-      // Der Name kommt von der Person und geht ungeprüft durch: `JSON.stringify`
-      // escapt Zeilenumbrüche und Anführungszeichen, sonst könnte ein Name wie
-      // `x\n[groupsContract.deleteGroup] deleted group=…` eine zweite, erfundene
-      // Zeile ins Log schreiben — und damit genau die Beweiskraft zerstören,
-      // für die diese Zeile da ist.
-      log.info(
-        `[groupsContract.deleteGroup] deleted group=${groupId} name=${JSON.stringify(groupData.name)} ` +
-          `type=${groupData.group_type ?? 'unknown'} members=${memberCount} by=${userId}`
-      );
-
-      void Promise.all(postFiles.map(deleteGroupPostFile));
-
-      if (groupData.avatar_url) {
-        const avatarPath = path.join(AVATAR_UPLOAD_DIR, path.basename(groupData.avatar_url));
-        fs.promises.unlink(avatarPath).catch(() => {});
+      if (result === 'forbidden') {
+        return {
+          status: 403 as const,
+          body: {
+            success: false as const,
+            message: 'Keine Berechtigung zum Löschen dieser Gruppe.',
+          },
+        };
       }
 
       return {
@@ -337,7 +251,7 @@ export const coreRoutes = {
                 g.group_type, g.is_system
            FROM group_memberships gm
            JOIN groups g ON g.id = gm.group_id
-          WHERE gm.group_id = $1 AND gm.user_id = $2`,
+          WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`,
         [groupId, userId],
         { table: 'group_memberships' }
       )) as {
@@ -490,7 +404,7 @@ export const coreRoutes = {
       }
 
       const group = (await postgres.queryOne(
-        'SELECT id, name FROM groups WHERE join_token = $1',
+        'SELECT id, name FROM groups WHERE join_token = $1 AND deleted_at IS NULL',
         [joinToken.trim()],
         { table: 'groups' }
       )) as { id: string; name: string } | null;
@@ -582,7 +496,7 @@ export const coreRoutes = {
       }
 
       const group = (await postgres.queryOne(
-        'SELECT name, join_token FROM groups WHERE id = $1',
+        'SELECT name, join_token FROM groups WHERE id = $1 AND deleted_at IS NULL',
         [groupId],
         { table: 'groups' }
       )) as { name: string; join_token: string | null } | null;
@@ -636,7 +550,7 @@ export const coreRoutes = {
         `SELECT gm.role, g.created_by, g.name, g.is_system
            FROM group_memberships gm
            JOIN groups g ON g.id = gm.group_id
-          WHERE gm.group_id = $1 AND gm.user_id = $2`,
+          WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`,
         [groupId, userId],
         { table: 'group_memberships' }
       )) as { role: string; created_by: string; name: string; is_system: boolean | null } | null;
@@ -800,9 +714,11 @@ export const coreRoutes = {
       }
 
       const [group, targetMembership] = await Promise.all([
-        postgres.queryOne('SELECT created_by, name FROM groups WHERE id = $1', [groupId], {
-          table: 'groups',
-        }) as Promise<{ created_by: string; name: string } | null>,
+        postgres.queryOne(
+          'SELECT created_by, name FROM groups WHERE id = $1 AND deleted_at IS NULL',
+          [groupId],
+          { table: 'groups' }
+        ) as Promise<{ created_by: string; name: string } | null>,
         postgres.queryOne(
           'SELECT role FROM group_memberships WHERE group_id = $1 AND user_id = $2',
           [groupId, memberId],
@@ -859,9 +775,11 @@ export const coreRoutes = {
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
       const body: GroupLinkBody = args.body;
 
-      const group = (await postgres.queryOne('SELECT links FROM groups WHERE id = $1', [groupId], {
-        table: 'groups',
-      })) as { links: StoredGroupLink[] | null } | null;
+      const group = (await postgres.queryOne(
+        'SELECT links FROM groups WHERE id = $1 AND deleted_at IS NULL',
+        [groupId],
+        { table: 'groups' }
+      )) as { links: StoredGroupLink[] | null } | null;
 
       const links = group?.links || [];
       if (links.length >= MAX_LINKS) {
@@ -898,9 +816,11 @@ export const coreRoutes = {
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
       const body: GroupLinkBody = args.body;
 
-      const group = (await postgres.queryOne('SELECT links FROM groups WHERE id = $1', [groupId], {
-        table: 'groups',
-      })) as { links: StoredGroupLink[] | null } | null;
+      const group = (await postgres.queryOne(
+        'SELECT links FROM groups WHERE id = $1 AND deleted_at IS NULL',
+        [groupId],
+        { table: 'groups' }
+      )) as { links: StoredGroupLink[] | null } | null;
 
       const links = group?.links || [];
       const idx = links.findIndex((l) => l.id === linkId);
@@ -937,9 +857,11 @@ export const coreRoutes = {
       const userId = getUserId(args.req);
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
 
-      const group = (await postgres.queryOne('SELECT links FROM groups WHERE id = $1', [groupId], {
-        table: 'groups',
-      })) as { links: StoredGroupLink[] | null } | null;
+      const group = (await postgres.queryOne(
+        'SELECT links FROM groups WHERE id = $1 AND deleted_at IS NULL',
+        [groupId],
+        { table: 'groups' }
+      )) as { links: StoredGroupLink[] | null } | null;
 
       const links = (group?.links || []).filter((l) => l.id !== linkId);
 

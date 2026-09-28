@@ -24,12 +24,7 @@ const other = { ...handler, listTrashed: vi.fn<TrashKindHandler['listTrashed']>(
 
 vi.mock('../../services/trash/trashRegistry.js', () => ({
   TRASH_KINDS: { collaborative_document: handler, chat_thread: other },
-  trashHandlerFor: (kind: string) =>
-    kind === 'collaborative_document' || kind === 'user_site'
-      ? handler
-      : kind === 'chat_thread'
-        ? other
-        : null,
+  trashHandlerFor: (kind: string) => (kind === 'chat_thread' ? other : handler),
 }));
 vi.mock('../../utils/logger.js', () => ({
   createLogger: () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }),
@@ -83,12 +78,6 @@ describe('validation and routing', () => {
     expect((await call('POST', '/api/trash/reel/abc/restore')).status).toBe(400);
     expect((await call('GET', '/api/trash?kind=reel')).status).toBe(400);
     expect(handler.getTrashed).not.toHaveBeenCalled();
-  });
-
-  it('answers 404 for a known kind without a handler yet', async () => {
-    expect((await call('POST', '/api/trash/group/abc/restore')).status).toBe(404);
-    expect((await call('DELETE', '/api/trash/group/abc')).status).toBe(404);
-    expect((await call('GET', '/api/trash?kind=group')).status).toBe(404);
   });
 });
 
