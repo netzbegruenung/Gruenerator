@@ -12,6 +12,15 @@ const customSlugToIdentifier = new Map<string, string>(
 );
 
 /**
+ * The React key for an agent card: the row uuid for user agents, the
+ * identifier for registry agents. Two owners can both have a user agent under
+ * the same identifier, and both can sit in one list.
+ */
+export function agentKey(agent: { id?: string; identifier: string }): string {
+  return agent.id ?? agent.identifier;
+}
+
+/**
  * Convert an agent identifier to its URL slug form. Agents with an explicit
  * `slug` use it verbatim; otherwise the `gruenerator-` registry prefix is
  * stripped so the browser bar shows `/agents/oeffentlichkeitsarbeit` instead
