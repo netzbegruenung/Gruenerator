@@ -1,7 +1,7 @@
 import { filterGroupFeed, type GroupFeedItem } from '@gruenerator/shared/groups';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -31,7 +31,8 @@ type ViewMode = 'feed' | 'all';
  * Teilen, Anheften und Kommentieren bleiben dem Web.
  */
 export default function ProjektDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `beitrag`: aus einer Benachrichtigung — zu diesem Beitrag scrollen.
+  const { id, beitrag } = useLocalSearchParams<{ id: string; beitrag?: string }>();
   const router = useRouter();
   const theme = useTheme();
 
@@ -44,6 +45,22 @@ export default function ProjektDetailScreen() {
   const [view, setView] = useState<ViewMode>('feed');
   const [query, setQuery] = useState('');
   const [commentsFor, setCommentsFor] = useState<GroupFeedItem | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  // Karte und Liste melden ihre Lage getrennt (die Karte zuerst); gescrollt wird einmal, wenn beide da sind.
+  const focus = useRef<{ listY: number | null; cardY: number | null; done: boolean }>({
+    listY: null,
+    cardY: null,
+    done: false,
+  });
+  const scrollToFocus = () => {
+    const f = focus.current;
+    if (f.done || f.listY === null || f.cardY === null) return;
+    f.done = true;
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, f.listY + f.cardY - spacing.small),
+      animated: true,
+    });
+  };
 
   const activeView: ViewMode = isPersonal ? 'all' : view;
   const items = feedQuery.data ?? [];
@@ -137,6 +154,7 @@ export default function ProjektDetailScreen() {
   return scaffold(
     <>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -185,17 +203,31 @@ export default function ProjektDetailScreen() {
         ) : visible.length === 0 ? (
           <Text style={[styles.emptyLine, { color: theme.textSecondary }]}>{emptyText}</Text>
         ) : activeView === 'feed' ? (
-          <View style={styles.padded}>
+          <View
+            style={styles.padded}
+            onLayout={(e) => {
+              focus.current.listY = e.nativeEvent.layout.y;
+              scrollToFocus();
+            }}
+          >
             {visible.map((item) => (
-              <GroupFeedCard
+              <View
                 key={item.key}
-                item={item}
-                groupId={id ?? ''}
-                token={token}
-                canComment={!isPersonal}
-                onOpen={open}
-                onShowComments={setCommentsFor}
-              />
+                onLayout={(e) => {
+                  if (!beitrag || item.share?.shareId !== beitrag) return;
+                  focus.current.cardY = e.nativeEvent.layout.y;
+                  scrollToFocus();
+                }}
+              >
+                <GroupFeedCard
+                  item={item}
+                  groupId={id ?? ''}
+                  token={token}
+                  canComment={!isPersonal}
+                  onOpen={open}
+                  onShowComments={setCommentsFor}
+                />
+              </View>
             ))}
           </View>
         ) : (
