@@ -19,8 +19,21 @@ import {
   type NotebookNameCandidate,
 } from './notebookScopeFromText.js';
 
+// Nur der Standard-Lister (ohne injiziertes `listOwn`) greift darauf zu.
+const ownLight = vi.fn(async (): Promise<Array<{ id: string; name: string }>> => []);
+const sharedList = vi.fn(async (): Promise<Array<{ id: string; name: string }>> => []);
+vi.mock('../../../database/services/NotebookQdrantHelper.js', () => ({
+  NotebookQdrantHelper: class {
+    getUserNotebookCollectionsLight = ownLight;
+  },
+}));
+vi.mock('../../../services/notebook/groupSharedNotebookListing.js', () => ({
+  listGroupSharedNotebooksForUser: sharedList,
+}));
+
 const OWN_ID = '3f1c2b7a-9d4e-4c5b-8a6f-1e2d3c4b5a69';
 const OWN_ID_2 = '7a1c2b7a-9d4e-4c5b-8a6f-1e2d3c4b5a70';
+const SHARED_ID = '9b2d3c8b-0e5f-4d6c-9b7a-2f3e4d5c6b71';
 
 const candidates = (): NotebookNameCandidate[] => [
   ...systemNotebookCandidates('de-DE'),
@@ -158,6 +171,72 @@ describe('resolveNotebookScopeFromText', () => {
       });
       await vi.advanceTimersByTimeAsync(OWN_NOTEBOOK_LIST_TIMEOUT_MS);
       await expect(pending).resolves.toBe('berlin-notebook');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ein über ein Projekt geteiltes Notebook scoped mit dem Wort Notebook', async () => {
+    const listOwn = vi.fn(async () => [{ id: SHARED_ID, name: 'Haushalt Nord', shared: true }]);
+    const id = await resolveNotebookScopeFromText({
+      userId: 'u1',
+      text: 'Was steht im Notebook Haushalt Nord zur Kita?',
+      locale: 'de-DE',
+      listOwn,
+    });
+    expect(id).toBe(SHARED_ID);
+  });
+
+  it('ein geteiltes Notebook scoped NICHT über den bloßen Namen', async () => {
+    // Ein eigenes Notebook mit diesem Namen träfe hier — ein geteiltes nicht.
+    const listOwn = vi.fn(async () => [{ id: SHARED_ID, name: 'Haushalt Nord', shared: true }]);
+    const id = await resolveNotebookScopeFromText({
+      userId: 'u1',
+      text: 'Was steht im Haushalt Nord zur Kita?',
+      locale: 'de-DE',
+      listOwn,
+    });
+    expect(id).toBeNull();
+  });
+
+  it('ein eigenes und ein geteiltes Notebook gleichen Namens → mehrdeutig', async () => {
+    const listOwn = vi.fn(async () => [
+      { id: OWN_ID, name: 'Haushalt Nord' },
+      { id: SHARED_ID, name: 'Haushalt Nord', shared: true },
+    ]);
+    const id = await resolveNotebookScopeFromText({
+      userId: 'u1',
+      text: 'im Notebook Haushalt Nord',
+      locale: 'de-DE',
+      listOwn,
+    });
+    expect(id).toBeNull();
+  });
+
+  it('der Standard-Lister findet geteilte Notebooks neben den eigenen', async () => {
+    ownLight.mockResolvedValueOnce([{ id: OWN_ID, name: 'Kreisverband Nord' }]);
+    sharedList.mockResolvedValueOnce([{ id: SHARED_ID, name: 'Haushalt Nord' }]);
+    const id = await resolveNotebookScopeFromText({
+      userId: 'u1',
+      text: 'im Notebook Haushalt Nord',
+      locale: 'de-DE',
+    });
+    expect(id).toBe(SHARED_ID);
+    expect(sharedList).toHaveBeenCalledWith('u1');
+  });
+
+  it('eine hängende geteilte Liste reißt die eigenen Namen nicht mit', async () => {
+    vi.useFakeTimers();
+    try {
+      ownLight.mockResolvedValueOnce([{ id: OWN_ID, name: 'Kreisverband Nord' }]);
+      sharedList.mockImplementationOnce(() => new Promise<never>(() => {}));
+      const pending = resolveNotebookScopeFromText({
+        userId: 'u1',
+        text: 'im Notebook Kreisverband Nord',
+        locale: 'de-DE',
+      });
+      await vi.advanceTimersByTimeAsync(OWN_NOTEBOOK_LIST_TIMEOUT_MS);
+      await expect(pending).resolves.toBe(OWN_ID);
     } finally {
       vi.useRealTimers();
     }
