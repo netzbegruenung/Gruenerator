@@ -133,7 +133,7 @@ _CREDIT_JOINERS = frozenset({":", "von", "by"})
 # change here reaches the existing payloads once this service is deployed —
 # independent of whether the API was deployed before or after it. Bump it with
 # every change to what `extract_persons_batch` returns.
-PERSONS_VERSION = 1
+PERSONS_VERSION = 2
 
 
 def _is_photo_credit(ent) -> bool:
@@ -182,6 +182,8 @@ def _name_from_entity(ent) -> str:
         start = next((i for i, t in enumerate(tokens) if t.pos_ == "PROPN"), None)
         if start is None:
             return ""
+        while start > 0 and _is_untagged_first_name(tokens[start - 1]):
+            start -= 1
         kept = [tokens[start]]
         for token in tokens[start + 1 :]:
             if token.pos_ == "PROPN" or token.text.casefold() in _NAME_PARTICLES:
@@ -193,6 +195,27 @@ def _name_from_entity(ent) -> str:
         tokens = kept
 
     return " ".join(t.text for t in tokens)
+
+
+def _is_untagged_first_name(token) -> bool:
+    """Whether a NOUN right before the name's first PROPN is a first name.
+
+    The model tags first names it has never seen as NOUN: "Philmon/NOUN
+    Ghirmai/PROPN" was cut to the bare "Ghirmai", which the per-document call
+    then dropped — the Berlin Landesvorsitzender kept 3 of 26 sampled
+    documents, Kaweh Mansoori 0 of 17. A role word sits in the same slot
+    ("Verkehrsminister Mansoori"), so a NOUN only counts when it is short,
+    purely alphabetic and has no vector in the model: roles are either known
+    words or long compounds ("CSU-Bauminister", "Verkehrsstaatssekretär").
+    """
+    text = token.text
+    return (
+        token.pos_ == "NOUN"
+        and text[:1].isupper()
+        and text.isalpha()
+        and len(text) <= 10
+        and token.orth not in token.vocab.vectors
+    )
 
 
 def _normalize_surface(name: str) -> str:
