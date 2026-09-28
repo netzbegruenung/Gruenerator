@@ -7,7 +7,11 @@ name: Docs Freshness (PR)
 # calibrate signal; the weekly full-scope issue-filer stays as the safety net.
 
 on:
+  # No `synchronize`: every push re-ran the audit on the Max-subscription quota.
+  # After follow-up pushes, add the `docs-check` label to re-run it — the run
+  # removes the label again so it can trigger next time.
   pull_request:
+    types: [opened, reopened, ready_for_review, labeled]
     paths:
       - 'apps/web/src/**'
       - 'packages/chat/**'
@@ -44,17 +48,25 @@ permissions:
   contents: read
   pull-requests: write
 
+# Any other label gets its own group, or it would cancel a running audit and
+# then be skipped itself.
 concurrency:
-  group: docs-freshness-pr-${{ github.event.pull_request.number }}
+  group: docs-freshness-pr-${{ github.event.pull_request.number }}${{ github.event.action == 'labeled' && github.event.label.name != 'docs-check' && '-other-label' || '' }}
   cancel-in-progress: true
 
 jobs:
   check:
     name: Audit affected docs
+    if: github.event.action != 'labeled' || github.event.label.name == 'docs-check'
     runs-on: ubuntu-latest
     # Only a handful of docs per PR; each audit idles waiting on the agent.
     timeout-minutes: 60
     steps:
+      - name: Remove trigger label
+        if: github.event.action == 'labeled'
+        run: gh api -X DELETE "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/docs-check" --silent
+        env:
+          GH_TOKEN: ${{ github.token }}
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # need the base ref to diff changed files
