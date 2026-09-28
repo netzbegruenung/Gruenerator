@@ -326,10 +326,12 @@ export const contentRoutes = {
   updateGroupPost: s.route(groupsContract.updateGroupPost, async (args) => {
     const { groupId, postId } = args.params;
     try {
+      const user = args.req.user as UserProfile | undefined;
       const outcome = await updateGroupPost({
         groupId,
         postId,
         userId: getUserId(args.req),
+        authorName: user?.display_name || user?.first_name || 'Jemand',
         body: args.body.body,
       });
       if ('message' in outcome) return feedError(outcome);
