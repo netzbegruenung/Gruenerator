@@ -302,7 +302,7 @@ async function getCurrentSpaceId(threadId: string | null, userId: string): Promi
   if (!threadId) return null;
   try {
     const rows = (await getPostgresInstance().query(
-      `SELECT group_id FROM chat_threads WHERE id = $1::uuid AND user_id = $2 LIMIT 1`,
+      `SELECT group_id FROM chat_threads WHERE id = $1::uuid AND deleted_at IS NULL AND user_id = $2 LIMIT 1`,
       [threadId, userId]
     )) as Array<{ group_id: string | null }>;
     return rows[0]?.group_id ?? null;

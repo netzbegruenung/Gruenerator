@@ -1,5 +1,6 @@
 /**
- * Handler tests for the threads contract router's `update`.
+ * Handler tests for the threads contract router's `update` and `delete`, and
+ * the Papierkorb lifecycle behind `delete` (threadTrashService).
  *
  * These pin the one invariant a shape test cannot see: the `chat_thread_recall`
  * Qdrant collection holds a point for exactly the regular threads, and `update`
@@ -20,6 +21,9 @@ import type { Request } from 'express';
 const queryMock = vi.fn();
 const deleteRecallPoint = vi.fn<(threadId: string) => Promise<void>>();
 const upsertRecallPoint = vi.fn<(threadId: string) => Promise<void>>();
+const readVectorHandles = vi.fn();
+const deleteVectors = vi.fn();
+const reportBackgroundError = vi.fn();
 
 vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: queryMock }),
@@ -38,9 +42,12 @@ vi.mock('../../services/chat/threadTitleService.js', () => ({
 vi.mock('../auth/groups/index.js', () => ({ getPostgresAndCheckMembership: vi.fn() }));
 
 vi.mock('./services/attachmentPersistenceService.js', () => ({
-  deleteThreadAttachmentVectors: vi.fn(),
+  readThreadAttachmentVectorHandles: (threadId: string) => readVectorHandles(threadId),
+  deleteAttachmentVectors: (threadId: string, handles: unknown) => deleteVectors(threadId, handles),
   getThreadTabularFiles: vi.fn(),
 }));
+
+vi.mock('../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
 
 vi.mock('./services/threadPersistenceService.js', () => ({
   getThreadSettings: vi.fn(),
@@ -49,6 +56,8 @@ vi.mock('./services/threadPersistenceService.js', () => ({
 }));
 
 const { threadsContractRouter } = await import('./threadsContractRouter.js');
+const { purgeDocThread, purgeThread, restoreThread } =
+  await import('./services/threadTrashService.js');
 
 const THREAD_ID = '550e8400-e29b-41d4-a716-446655440001';
 const OWNER = 'owner-1';
@@ -126,5 +135,197 @@ describe('update — thread recall point follows the archive state', () => {
     const res = await update({ status: 'archived' });
 
     expect(res.status).toBe(200);
+  });
+});
+
+describe('delete — the Papierkorb for chat threads', () => {
+  /** Every statement and side store, in the order it ran. */
+  const effects: string[] = [];
+
+  function givenDb(opts: {
+    owner?: string | null;
+    hasMessages?: boolean;
+    deleted?: unknown[];
+    trashed?: Record<string, unknown> | null;
+  }) {
+    queryMock.mockImplementation((sql: string) => {
+      const s = sql.replace(/\s+/g, ' ').trim();
+      effects.push(s);
+      if (s.startsWith('SELECT user_id FROM chat_threads')) {
+        return Promise.resolve(opts.owner ? [{ user_id: opts.owner }] : []);
+      }
+      if (s.startsWith('SELECT 1 FROM chat_messages')) {
+        return Promise.resolve(opts.hasMessages ? [{ '?column?': 1 }] : []);
+      }
+      if (s.startsWith('SELECT id, title, thread_type, deleted_at, user_id')) {
+        return Promise.resolve(opts.trashed ? [opts.trashed] : []);
+      }
+      if (s.startsWith('DELETE FROM chat_threads')) return Promise.resolve(opts.deleted ?? []);
+      return Promise.resolve([]);
+    });
+  }
+
+  function remove(threadId = THREAD_ID) {
+    return threadsContractRouter.delete({ req, query: { threadId } } as never);
+  }
+
+  const HANDLES = [{ documentId: 'doc-a', userId: OWNER }];
+
+  beforeEach(() => {
+    effects.length = 0;
+    readVectorHandles.mockReset().mockImplementation(() => {
+      effects.push('read attachment handles');
+      return Promise.resolve(HANDLES);
+    });
+    deleteVectors.mockReset().mockImplementation(() => {
+      effects.push('delete attachment vectors');
+      return Promise.resolve();
+    });
+    deleteRecallPoint.mockImplementation(() => {
+      effects.push('delete recall point');
+      return Promise.resolve();
+    });
+    reportBackgroundError.mockReset();
+  });
+
+  it('moves a thread with messages to the Papierkorb and keeps its vectors', async () => {
+    givenDb({ owner: OWNER, hasMessages: true });
+
+    const res = await remove();
+
+    expect(res.status).toBe(200);
+    expect(effects).toEqual([
+      'SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
+      'SELECT 1 FROM chat_messages WHERE thread_id = $1 LIMIT 1',
+      'UPDATE chat_threads SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL',
+      'delete recall point',
+    ]);
+    expect(readVectorHandles).not.toHaveBeenCalled();
+    expect(deleteVectors).not.toHaveBeenCalled();
+  });
+
+  it('still hard-deletes an empty thread — nothing to restore, no Papierkorb flood', async () => {
+    givenDb({ owner: OWNER, hasMessages: false, deleted: [{ id: THREAD_ID }] });
+
+    const res = await remove();
+
+    expect(res.status).toBe(200);
+    expect(effects).toEqual([
+      'SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
+      'SELECT 1 FROM chat_messages WHERE thread_id = $1 LIMIT 1',
+      'read attachment handles',
+      'DELETE FROM chat_threads WHERE id = $1 AND deleted_at IS NULL RETURNING id',
+      'delete attachment vectors',
+      'delete recall point',
+    ]);
+    expect(effects.some((e) => e.startsWith('UPDATE'))).toBe(false);
+  });
+
+  it("refuses someone else's thread without touching it", async () => {
+    givenDb({ owner: 'someone-else', hasMessages: true });
+
+    const res = await remove();
+
+    expect(res.status).toBe(403);
+    expect(effects).toHaveLength(1);
+    expect(deleteRecallPoint).not.toHaveBeenCalled();
+  });
+
+  it('answers 404 for a thread that is already in the Papierkorb or not a uuid', async () => {
+    givenDb({ owner: null });
+    expect((await remove()).status).toBe(404);
+    expect((await remove('__LOCALID_abc')).status).toBe(404);
+    expect(effects).toHaveLength(1);
+  });
+
+  it('restore clears deleted_at and rebuilds the recall point', async () => {
+    const deletedAt = new Date('2026-09-20T10:00:00Z');
+    givenDb({
+      trashed: {
+        id: THREAD_ID,
+        title: 'Klimaplan',
+        thread_type: 'chat',
+        deleted_at: deletedAt,
+        user_id: OWNER,
+      },
+    });
+
+    const found = await restoreThread(THREAD_ID, OWNER);
+
+    expect(found).toEqual({
+      status: 'ok',
+      row: { id: THREAD_ID, title: 'Klimaplan', thread_type: 'chat', deleted_at: deletedAt },
+    });
+    expect(effects).toContain(
+      'UPDATE chat_threads SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL'
+    );
+    expect(upsertRecallPoint).toHaveBeenCalledWith(THREAD_ID);
+  });
+
+  it('restore is owner-only, like delete', async () => {
+    givenDb({
+      trashed: {
+        id: THREAD_ID,
+        title: null,
+        thread_type: 'chat',
+        deleted_at: new Date(),
+        user_id: 'someone-else',
+      },
+    });
+
+    expect(await restoreThread(THREAD_ID, OWNER)).toEqual({ status: 'forbidden' });
+    expect(effects.some((e) => e.startsWith('UPDATE'))).toBe(false);
+    expect(upsertRecallPoint).not.toHaveBeenCalled();
+  });
+
+  it('purge reads the attachment handles, deletes the row conditionally, then Qdrant', async () => {
+    const cutoff = new Date('2026-08-30T00:00:00Z');
+    givenDb({ deleted: [{ id: THREAD_ID }] });
+
+    expect(await purgeThread(THREAD_ID, cutoff)).toBe(true);
+
+    expect(effects).toEqual([
+      'read attachment handles',
+      'DELETE FROM chat_threads WHERE id = $1 AND deleted_at IS NOT NULL AND ($2::timestamptz IS NULL OR deleted_at < $2) RETURNING id',
+      'delete attachment vectors',
+      'delete recall point',
+    ]);
+    expect(queryMock).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM chat_threads'), [
+      THREAD_ID,
+      cutoff,
+    ]);
+    expect(deleteVectors).toHaveBeenCalledWith(THREAD_ID, HANDLES);
+  });
+
+  it('purge touches no side store when the thread was restored meanwhile (0 rows)', async () => {
+    givenDb({ deleted: [] });
+
+    expect(await purgeThread(THREAD_ID, null)).toBe(false);
+    expect(deleteVectors).not.toHaveBeenCalled();
+    expect(deleteRecallPoint).not.toHaveBeenCalled();
+  });
+
+  it('purge reports a failing side store and still clears the rest', async () => {
+    givenDb({ deleted: [{ id: THREAD_ID }] });
+    deleteVectors.mockRejectedValue(new Error('qdrant unreachable'));
+
+    expect(await purgeThread(THREAD_ID, null)).toBe(true);
+    expect(reportBackgroundError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ job: 'trash-purge', id: THREAD_ID, store: 'attachment_vectors' })
+    );
+    expect(deleteRecallPoint).toHaveBeenCalledWith(THREAD_ID);
+  });
+
+  it("a purged document's chat thread goes whether trashed or not", async () => {
+    givenDb({ deleted: [{ id: THREAD_ID }] });
+
+    expect(await purgeDocThread(THREAD_ID)).toBe(true);
+    expect(effects).toEqual([
+      'read attachment handles',
+      'DELETE FROM chat_threads WHERE id = $1 RETURNING id',
+      'delete attachment vectors',
+      'delete recall point',
+    ]);
   });
 });
