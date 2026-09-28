@@ -83,7 +83,6 @@ import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
 import type { GradientFill } from '../utils/gradientFill';
-import type { MobileBridgeProps } from '../hooks/useMobileBridge';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 
@@ -118,8 +117,6 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
     isExporting: boolean;
     exportProgress: { current: number; total: number };
   };
-  /** Mobile bridge — when provided, hides Toolbar and reports state to native */
-  mobileBridge?: MobileBridgeProps;
   /** Callback to report toolbar state to parent (for layout-level toolbar rendering) */
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
   /**
@@ -219,7 +216,6 @@ function GenericCanvasWithRef<
     callbacks = EMPTY_CALLBACKS,
     onDelete,
     forwardedRef,
-    mobileBridge,
     onToolbarStateChange,
     onAutoSaveShareToken,
     preview = false,
@@ -419,7 +415,7 @@ function GenericCanvasWithRef<
   // explicit value (off in collab — Hocuspocus persists server-side — and off
   // beyond one page, where deck-level autosave takes over); standalone
   // consumers keep the historical default of on.
-  const autoSaveEnabled = !mobileBridge && !preview && (props.autoSave ?? true);
+  const autoSaveEnabled = !preview && (props.autoSave ?? true);
 
   // Fresh capture for the unmount-flush path — transformer hiding makes the
   // shot clean even while an element is still selected.
@@ -722,11 +718,7 @@ function GenericCanvasWithRef<
         debouncedSaveToHistory={debouncedSaveToHistory}
         canUndo={canUndo}
         canRedo={canRedo}
-        undo={undo}
-        redo={redo}
         onToolbarStateChange={onToolbarStateChange}
-        mobileBridge={mobileBridge}
-        handleFontSizeChange={elementHandlers.handleFontSizeChange}
       />
     </>
   );

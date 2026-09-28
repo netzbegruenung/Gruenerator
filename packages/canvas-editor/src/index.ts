@@ -35,7 +35,6 @@ export {
   type CanvasAiNamedOption,
   type TemplateAiCapabilities,
 } from './ai';
-export type { MobileBridgeProps, MobileBridgeCallbacks } from './hooks/useMobileBridge';
 export type { CanvasConfigId } from './configs/types';
 export type {
   DreizeilenAlternative,
@@ -58,9 +57,6 @@ export type {
   CanvasFormatIconKey,
   CanvasExportType,
 } from './formats';
-
-export { useCanvasSidebarStore } from './stores/canvasSidebarStore';
-export type { CanvasSidebarState } from './stores/canvasSidebarStore';
 
 export {
   CanvasStoreProvider,

@@ -31,11 +31,9 @@ import { Skeleton } from '@gruenerator/ui';
 import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
 import { useZoomGestures } from '../../hooks/useZoomGestures';
 import { CanvasEditorLayout } from '../../layouts';
-import { MobileSubsectionBridgeContext } from '../../sidebar/MobileSubsectionBridgeContext';
 import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
 import { SidebarTabBar, SidebarPanel } from '../../sidebar';
-import { AutoSaveStoreProvider, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
-import { useCanvasSidebarStore } from '../../stores/canvasSidebarStore';
+import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
 
 import { CanvasMetaBar } from '../CanvasMetaBar';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
@@ -63,7 +61,6 @@ import { useToolbarHandlers } from './hooks/useToolbarHandlers';
 import type { CanvasEditorProps, PageWrapperProps } from './types';
 import type { ToolbarStateReport } from '../GenericCanvas';
 import type { CanvasConfigId } from '../../configs/types';
-import type { MobileSubsectionBridgeValue } from '../../sidebar/MobileSubsectionBridgeContext';
 import type { SidebarTabId } from '../../sidebar/types';
 
 import { cn } from '../../utils/cn';
@@ -112,9 +109,6 @@ function CanvasEditorInner({
   callbacks = {},
   maxPages = 10,
   initialPages,
-  mobileBridge,
-  externalSidebar = false,
-  externalMobileMode = false,
   collaborative,
   chromeLeft,
   chromeCenter,
@@ -124,20 +118,11 @@ function CanvasEditorInner({
   onCollabSnapshot,
   onAutoSaveShareToken,
 }: CanvasEditorProps) {
-  const autoSaveStoreApi = useAutoSaveStoreApi();
   // Note: onAutoSaveShareToken is threaded down to useCanvasAutoSave (via
   // PageWrapper → GenericCanvas) instead of a store subscription here — a
   // subscription dies with the unmount, losing tokens that resolve after the
   // editor closes (flush save, in-flight save) and re-creating duplicates.
-  const isMobileBridge = Boolean(mobileBridge);
-  const isExternalSidebar = externalSidebar && !isMobileBridge;
-
-  // Mobile web viewport (< 900px, not native bridge)
-  const isCanvasMobile = useIsCanvasMobile();
-  const isMobileWeb = isCanvasMobile && !isMobileBridge;
-
-  // External mobile mode: active subsection mirrored into canvasSidebarStore
-  const [mobileWebActiveSubsection, setMobileWebActiveSubsection] = useState<string | null>(null);
+  const isMobileWeb = useIsCanvasMobile();
   const {
     pages,
     addPage,
@@ -201,11 +186,8 @@ function CanvasEditorInner({
   }, [pages]);
 
   // Sidebar state - ONE shared sidebar for all pages
-  // In mobile bridge mode, activeTab is controlled by native via mobileBridge.activeTab
-  const [localActiveTab, setLocalActiveTab] = useState<SidebarTabId | null>(null);
+  const [activeTab, setActiveTab] = useState<SidebarTabId | null>(null);
   const prevTabRef = useRef<SidebarTabId | null>(null);
-  const activeTab = isMobileBridge ? (mobileBridge!.activeTab ?? null) : localActiveTab;
-  const setActiveTab = setLocalActiveTab;
 
   // Active page state/actions/selectedElement - synced via effect from PageWrapper
   const [activePageData, setActivePageData] = useState<{
@@ -386,7 +368,6 @@ function CanvasEditorInner({
   const activePageCanUndo = toolbarState?.canUndo ?? false;
   const activePageCanRedo = toolbarState?.canRedo ?? false;
   usePageUndoRedoShortcuts({
-    isMobileBridge,
     activePageCanUndo,
     activePageCanRedo,
     canUndoPageOp,
@@ -487,7 +468,7 @@ function CanvasEditorInner({
   }, [canvasRefsRef]);
   useDeckAutoSave({
     ydoc: pagesDoc,
-    enabled: !collaborative && !isMobileBridge,
+    enabled: !collaborative,
     deckType: pages[0]?.configId ?? initialConfigId,
     captureImage: captureFirstPage,
     onShareToken: onAutoSaveShareToken,
@@ -649,7 +630,7 @@ function CanvasEditorInner({
     toolbarState !== null &&
     (toolbarState.selectedElement != null || toolbarState.activeFloatingModule != null);
   const isPanelOpen = activeTab !== null || hasMobileSelection;
-  const isMobileSheetOpen = isMobileWeb && !isExternalSidebar && isPanelOpen;
+  const isMobileSheetOpen = isMobileWeb && isPanelOpen;
   const panelTitle =
     (activeTab && activeConfig?.tabs.find((tab) => tab.id === activeTab)?.label) || 'Auswahl';
   useMobileSheetFit({
@@ -658,129 +639,6 @@ function CanvasEditorInner({
     pagesContainerRef,
     activePageRef: pageDomRefsRef.current[currentPageIndex],
   });
-
-  // Mobile bridge: report tab changes to native
-  useEffect(() => {
-    if (!mobileBridge) return;
-    const disabledSet = new Set(disabledTabs);
-    mobileBridge.callbacks.onTabsChange(
-      visibleTabs.map((tab) => ({
-        id: tab.id,
-        label: tab.label,
-        disabled: disabledSet.has(tab.id),
-      }))
-    );
-  }, [mobileBridge, visibleTabs, disabledTabs]);
-
-  useEffect(() => {
-    if (!mobileBridge) return;
-    mobileBridge.callbacks.onActiveTabChange(activeTab);
-  }, [mobileBridge, activeTab]);
-
-  // Clear stale subsections when active tab changes (new section will report its own).
-  const prevActiveTabRef = useRef(activeTab);
-  useEffect(() => {
-    if (prevActiveTabRef.current !== activeTab) {
-      prevActiveTabRef.current = activeTab;
-      if (mobileBridge) {
-        mobileBridge.callbacks.onSubsectionsChange([]);
-      }
-      if (isExternalSidebar && externalMobileMode) {
-        setMobileWebActiveSubsection(null);
-        useCanvasSidebarStore.getState().update({
-          mobileSubsections: [],
-          activeMobileSubsection: null,
-        });
-      }
-    }
-  }, [mobileBridge, isExternalSidebar, externalMobileMode, activeTab]);
-
-  // External sidebar store: lifecycle (activate on mount, deactivate on unmount)
-  useEffect(() => {
-    if (!isExternalSidebar) return;
-    useCanvasSidebarStore.getState().activate({
-      tabs: visibleTabs,
-      activeTab,
-      disabledTabs,
-      onTabClick: handleTabClick,
-    });
-    return () => {
-      useCanvasSidebarStore.getState().deactivate();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isExternalSidebar]);
-
-  // External sidebar store: sync tab state + auto-save status on changes
-  useEffect(() => {
-    if (!isExternalSidebar) return;
-    const autoSave = autoSaveStoreApi.getState().autoSaveStatus;
-    useCanvasSidebarStore.getState().update({
-      tabs: visibleTabs,
-      activeTab,
-      disabledTabs,
-      autoSaveStatus: autoSave,
-    });
-  }, [isExternalSidebar, visibleTabs, activeTab, disabledTabs, autoSaveStoreApi]);
-
-  // Subscribe to auto-save changes separately (different store)
-  useEffect(() => {
-    if (!isExternalSidebar) return;
-    let prevStatus = autoSaveStoreApi.getState().autoSaveStatus;
-    return autoSaveStoreApi.subscribe((state) => {
-      if (state.autoSaveStatus !== prevStatus) {
-        prevStatus = state.autoSaveStatus;
-        useCanvasSidebarStore.getState().update({ autoSaveStatus: state.autoSaveStatus });
-      }
-    });
-  }, [isExternalSidebar, autoSaveStoreApi]);
-
-  // External mobile mode: sync onMobileSubsectionClick callback to store
-  useEffect(() => {
-    if (!isExternalSidebar || !externalMobileMode) return;
-    useCanvasSidebarStore.getState().update({
-      onMobileSubsectionClick: setMobileWebActiveSubsection,
-    });
-  }, [isExternalSidebar, externalMobileMode]);
-
-  // Build subsection bridge context value for MobileSubsectionBridgeContext
-  // Active for the native bridge and the external mobile sidebar; mobile web
-  // renders its subsections as chips inside the sheet (SubsectionTabBar).
-  const subsectionBridgeValue = useMemo<MobileSubsectionBridgeValue>(() => {
-    if (isMobileBridge) {
-      return {
-        active: true,
-        activeSubsection: mobileBridge?.activeSubsection ?? null,
-        onSubsectionsChange: mobileBridge?.callbacks.onSubsectionsChange ?? (() => {}),
-        onActiveSubsectionChange: mobileBridge?.callbacks.onActiveSubsectionChange ?? (() => {}),
-      };
-    }
-    if (isExternalSidebar && externalMobileMode) {
-      return {
-        active: true,
-        activeSubsection: mobileWebActiveSubsection,
-        onSubsectionsChange: (subs: Array<{ id: string; label: string }>) => {
-          useCanvasSidebarStore.getState().update({ mobileSubsections: subs });
-        },
-        onActiveSubsectionChange: (id: string | null) => {
-          setMobileWebActiveSubsection(id);
-          useCanvasSidebarStore.getState().update({ activeMobileSubsection: id });
-        },
-      };
-    }
-    return {
-      active: false,
-      activeSubsection: null,
-      onSubsectionsChange: () => {},
-      onActiveSubsectionChange: () => {},
-    };
-  }, [
-    isMobileBridge,
-    isExternalSidebar,
-    externalMobileMode,
-    mobileBridge?.activeSubsection,
-    mobileBridge?.callbacks,
-    mobileWebActiveSubsection,
-  ]);
 
   // Share all pages via native share (Web Share API with multiple files)
   const shareAllPages = useCallback(async () => {
@@ -886,36 +744,6 @@ function CanvasEditorInner({
     [pageCount, downloadAllAsZip, isMultiExporting, exportProgress]
   );
 
-  // External sidebar: sync panel content to store so web Sidebar can render it.
-  // Must be before the early return to satisfy Rules of Hooks.
-  useEffect(() => {
-    if (!isExternalSidebar) return;
-    const panelContentElement =
-      activeTab !== null ? (
-        <MobileSubsectionBridgeContext.Provider value={subsectionBridgeValue}>
-          <Suspense fallback={sidebarLoadingFallback}>{renderActiveSection()}</Suspense>
-        </MobileSubsectionBridgeContext.Provider>
-      ) : null;
-    useCanvasSidebarStore.getState().update({ panelContent: panelContentElement });
-  }, [
-    isExternalSidebar,
-    activeTab,
-    activeConfig,
-    activeState,
-    activeActions,
-    activeSelectedElement,
-    subsectionBridgeValue,
-    renderActiveSection,
-  ]);
-
-  // Cleanup panelContent on unmount
-  useEffect(() => {
-    if (!isExternalSidebar) return;
-    return () => {
-      useCanvasSidebarStore.getState().update({ panelContent: null });
-    };
-  }, [isExternalSidebar]);
-
   const toolbarOnDelete = useMemo(
     () => (pageCount > 1 && currentPage ? () => removePage(currentPage.id) : undefined),
     [pageCount, currentPage, removePage]
@@ -968,27 +796,23 @@ function CanvasEditorInner({
   }
 
   // Build sidebar elements (static within the already-async editor chunk)
-  // In mobile bridge mode, native handles the tab bar
-  // In external sidebar mode, web app sidebar handles the tab bar
-  const tabBar =
-    isMobileBridge || isExternalSidebar ? null : (
-      <Suspense fallback={null}>
-        <SidebarTabBar
-          tabs={visibleTabs}
-          activeTab={activeTab}
-          onTabClick={handleTabClick}
-          disabledTabs={disabledTabs}
-        />
-      </Suspense>
-    );
+  const tabBar = (
+    <Suspense fallback={null}>
+      <SidebarTabBar
+        tabs={visibleTabs}
+        activeTab={activeTab}
+        onTabClick={handleTabClick}
+        disabledTabs={disabledTabs}
+      />
+    </Suspense>
+  );
 
   // Render the toolbar whenever there is something to put in it — either the
   // canvas has reported edit state (toolbarState) or the host has supplied
   // chrome slots (title, sync indicator, presence). This keeps host chrome
   // visible during the pre-sync "Synchronisiere..." phase in collab mode,
   // when toolbarState is still null.
-  const showToolbar =
-    !isMobileBridge && (toolbarState !== null || chromeLeft || chromeCenter || chromeRight);
+  const showToolbar = toolbarState !== null || chromeLeft || chromeCenter || chromeRight;
   const toolbarElement = showToolbar ? (
     <Toolbar
       canUndo={(toolbarState?.canUndo ?? false) || canUndoPageOp}
@@ -1009,22 +833,21 @@ function CanvasEditorInner({
   // in the page toolbar / thumbnail strip). The delete-page action still rides
   // along in the bar while an element is selected. Only one of the two bars is
   // mounted per viewport to avoid a hidden duplicate React tree.
-  const contextControlsProps =
-    !isMobileBridge && toolbarState
-      ? {
-          selectedElement: toolbarState.selectedElement ?? null,
-          activeFloatingModule: toolbarState.activeFloatingModule ?? null,
-          canMoveUp: toolbarState.canMoveUp ?? false,
-          canMoveDown: toolbarState.canMoveDown ?? false,
-          canDuplicate: toolbarState.canDuplicate ?? false,
-          handlers: {
-            ...toolbarHandlers,
-            onEditImage: () => setActiveTab('image-adjust'),
-          },
-          onDelete: toolbarOnDelete,
-          onDeselect: handleDeselectAll,
-        }
-      : null;
+  const contextControlsProps = toolbarState
+    ? {
+        selectedElement: toolbarState.selectedElement ?? null,
+        activeFloatingModule: toolbarState.activeFloatingModule ?? null,
+        canMoveUp: toolbarState.canMoveUp ?? false,
+        canMoveDown: toolbarState.canMoveDown ?? false,
+        canDuplicate: toolbarState.canDuplicate ?? false,
+        handlers: {
+          ...toolbarHandlers,
+          onEditImage: () => setActiveTab('image-adjust'),
+        },
+        onDelete: toolbarOnDelete,
+        onDeselect: handleDeselectAll,
+      }
+    : null;
   const hasContextControls =
     contextControlsProps !== null &&
     (contextControlsProps.selectedElement !== null ||
@@ -1038,16 +861,13 @@ function CanvasEditorInner({
       <MobileSelectionControls {...contextControlsProps} />
     ) : null;
 
-  // Internal/mobile mode: render SidebarPanel directly. External mode: panel is rendered by web Sidebar.
-  const panel = isExternalSidebar ? null : (
-    <MobileSubsectionBridgeContext.Provider value={subsectionBridgeValue}>
-      <Suspense fallback={sidebarLoadingFallback}>
-        <SidebarPanel isOpen={isPanelOpen} title={panelTitle} onClose={handlePanelClose}>
-          {mobileSelectionElement}
-          {renderActiveSection()}
-        </SidebarPanel>
-      </Suspense>
-    </MobileSubsectionBridgeContext.Provider>
+  const panel = (
+    <Suspense fallback={sidebarLoadingFallback}>
+      <SidebarPanel isOpen={isPanelOpen} title={panelTitle} onClose={handlePanelClose}>
+        {mobileSelectionElement}
+        {renderActiveSection()}
+      </SidebarPanel>
+    </Suspense>
   );
 
   // Die untere Leiste trägt zwei Dinge, und nur eines davon hängt an der
@@ -1056,8 +876,7 @@ function CanvasEditorInner({
   // Bis hierher hing beides an derselben Bedingung — bei einer einzelnen Seite
   // fiel damit auch der Zoom weg und war nur noch per Pinch bzw. Strg/Cmd+Rad
   // erreichbar.
-  const showBottomBar = !isMobileBridge;
-  const showPageStrip = showBottomBar && pages.length > 1;
+  const showPageStrip = pages.length > 1;
   const currentTemplateId = pages[currentPageIndex]?.configId;
   const sliderVariantHandler = pages[0]?.configId === 'slider' ? handleAddSliderVariant : undefined;
   // Restrict the template picker to the same category as the current template
@@ -1071,7 +890,7 @@ function CanvasEditorInner({
   // eigene, leicht durchscheinende Kapsel.
   const bottomBarGroup =
     'flex items-center rounded-xl border border-[var(--editor-border)] bg-[var(--editor-surface)]/80 shadow-sm backdrop-blur-sm pointer-events-auto';
-  const bottomBar = showBottomBar ? (
+  const bottomBar = (
     <div className="canvas-bottom-bar pointer-events-none flex items-center gap-2 px-2 pb-2">
       {showPageStrip ? (
         <div className="min-w-0 flex-1">
@@ -1116,7 +935,7 @@ function CanvasEditorInner({
         />
       </div>
     </div>
-  ) : null;
+  );
 
   return (
     <UserUploadsProvider>
@@ -1124,8 +943,8 @@ function CanvasEditorInner({
           nur so liegt sie über der Kontextleiste, die ihre Formatierungsknöpfe
           zeigt. Der Provider in `CanvasStage` merkt, dass er einen über sich
           hat, und reicht durch. Ob die Leiste die Knöpfe wirklich übernimmt,
-          meldet sie selbst an — im Brücken-Modus rendern wir sie nicht, und
-          dann zeigt das Overlay wieder seine eigene Karte. */}
+          meldet sie selbst an — wo wir sie nicht rendern, zeigt das Overlay
+          wieder seine eigene Karte. */}
       <CanvasTextEditorProvider>
         <CanvasEditorLayout
           sidebar={panel}
@@ -1134,18 +953,13 @@ function CanvasEditorInner({
           toolbar={toolbarElement}
           contextBar={contextBarElement}
           bottomBar={bottomBar}
-          hideMobileChrome={isMobileBridge}
-          externalSidebar={isExternalSidebar}
           mobileSheetOpen={isMobileSheetOpen}
           onCanvasBackdropPointerDown={isMobileSheetOpen ? handlePanelClose : undefined}
         >
           <div
             ref={pagesContainerRef}
             onPointerDown={handleWorkAreaPointerDown}
-            className={cn(
-              'heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs',
-              showBottomBar && 'has-bottom-bar'
-            )}
+            className="heterogeneous-multipage__pages-container has-bottom-bar flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs"
           >
             {pages.map((page, index) => {
               const config = loadedConfigs.get(page.configId);
@@ -1178,7 +992,6 @@ function CanvasEditorInner({
                   onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
                   onAutoSaveShareToken={onAutoSaveShareToken}
                   autoSave={false}
-                  mobileBridge={isActive ? mobileBridge : undefined}
                   pageBinding={pageBindingAt(index, page.id, isActive)}
                 />
               );
@@ -1196,19 +1009,13 @@ function CanvasEditorInner({
               />
             )}
 
-            {/* Seite hinzufügen unter der Fläche — für die Fälle, in denen die
-                untere Leiste den Knopf nicht trägt: im Brücken-Modus (dort gibt
-                es gar keine Leiste) und unterhalb von 900 px, wo
+            {/* Seite hinzufügen unter der Fläche — für den Fall, in dem die
+                untere Leiste den Knopf nicht trägt: unterhalb von 900 px, wo
                 `CanvasEditorLayout` sie per `max-canvas-mobile:hidden`
                 ausblendet. Die Breakpoint-Bedingung steht hier gespiegelt, weil
                 nur CSS sie kennt. */}
             {canAddMore && !showPageStrip && (
-              <div
-                className={cn(
-                  'w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs',
-                  showBottomBar && 'canvas-mobile:hidden'
-                )}
-              >
+              <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs canvas-mobile:hidden">
                 <AddPageButton
                   onSelectTemplate={handleAddPage}
                   onDuplicateCurrent={duplicateCurrentPage}
