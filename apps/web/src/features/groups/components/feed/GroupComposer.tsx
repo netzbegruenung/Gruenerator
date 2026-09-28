@@ -56,7 +56,7 @@ export function GroupComposer({
   onOpenShare,
 }: GroupComposerProps) {
   const [expanded, setExpanded] = useState(false);
-  const mention = useMentionDraft();
+  const mention = useMentionDraft(GROUP_POST_MAX);
   const text = mention.text;
   const textarea = useRef<HTMLTextAreaElement>(null);
   const [files, setFiles] = useState<PendingFile[]>([]);
@@ -122,7 +122,8 @@ export function GroupComposer({
     setExpanded(false);
   };
 
-  const canPost = (text.trim().length > 0 || files.length > 0) && !createPost.isPending;
+  const canPost =
+    (text.trim().length > 0 || files.length > 0) && !mention.tooLong && !createPost.isPending;
 
   const post = () => {
     if (!canPost) return;
@@ -233,7 +234,6 @@ export function GroupComposer({
               onKeyDown={onKeyDown}
               autoFocus
               rows={3}
-              maxLength={GROUP_POST_MAX}
               aria-label="Beitrag an die Gruppe"
               placeholder="Was möchtest du mit der Gruppe teilen? Mit @ erwähnst du jemanden."
               className="min-h-[88px] resize-none border-none bg-transparent px-md py-sm text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
