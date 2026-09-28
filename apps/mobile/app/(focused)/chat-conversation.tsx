@@ -1,9 +1,10 @@
 import { useAui } from '@assistant-ui/react-native';
-import { useAgentStore } from '@gruenerator/chat';
+import { findRegistryAgent, getUserAgentMentionables, useAgentStore } from '@gruenerator/chat';
 import {
   getSystemAgent,
   isAgentVisibleForPlatform,
   localizeAgent,
+  type Agent,
 } from '@gruenerator/shared/agents';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useLocalSearchParams } from 'expo-router';
@@ -17,6 +18,7 @@ import {
   NotebookAnswerModeSheet,
   useAnswerModeAccessory,
 } from '../../components/notebook/NotebookAnswerModeSheet';
+import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
 import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
@@ -98,10 +100,12 @@ export default function ChatConversationScreen() {
       : agentId;
   }, [agentId]);
 
-  // Only user agents need this list; a system agent resolves from the bundled
+  // Only user agents need these lists; a system agent resolves from the bundled
   // registry with no request at all.
   const isSystemAgent = Boolean(resolvedAgentId && getSystemAgent(resolvedAgentId));
-  const { data: userAgents = [] } = useUserAgents(Boolean(resolvedAgentId) && !isSystemAgent);
+  const needsUserAgents = Boolean(resolvedAgentId) && !isSystemAgent;
+  const { data: userAgents = [] } = useUserAgents(needsUserAgents);
+  const { data: publicAgents = [] } = usePublicUserAgents(needsUserAgents);
 
   /**
    * Who the user is talking to, for the header and the empty state.
@@ -110,13 +114,26 @@ export default function ChatConversationScreen() {
    * matter which Grünerator was selected — the choice was invisible the moment
    * it was made, and the agent's own opening question went unused.
    */
-  const activeAgent = useMemo(() => {
+  const activeAgent = useMemo((): Pick<
+    Agent,
+    'title' | 'description' | 'welcomeQuestion' | 'openingQuestions'
+  > | null => {
     if (!resolvedAgentId) return null;
     const system = getSystemAgent(resolvedAgentId);
     if (system) return localizeAgent(system, locale ?? 'de-DE');
     // User agents carry no locale variants — they are written by their owner.
-    return userAgents.find((a) => a.identifier === resolvedAgentId) ?? null;
-  }, [resolvedAgentId, locale, userAgents]);
+    // Own first: an identifier names the caller's own agent, a colleague's
+    // public one arrives as its row uuid.
+    const userAgent = findRegistryAgent([...userAgents, ...publicAgents], resolvedAgentId);
+    if (userAgent) return userAgent;
+    // A colleague's agent shared into a project (opened by uuid from the project
+    // feed) is only in the mention catalogue `useMentionablesSync` fills: it
+    // names itself, but carries no opening questions.
+    const shared = getUserAgentMentionables().find((m) => m.identifier === resolvedAgentId);
+    return shared
+      ? { title: shared.title, description: shared.description, openingQuestions: [] }
+      : null;
+  }, [resolvedAgentId, locale, userAgents, publicAgents]);
 
   const welcome: ThreadWelcome | undefined = activeAgent
     ? {

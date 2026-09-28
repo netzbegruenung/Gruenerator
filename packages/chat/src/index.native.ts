@@ -185,6 +185,11 @@ export {
 } from './lib/notebookAnswerMode';
 
 export { useDocumentChatStore } from './stores/documentChatStore';
+export {
+  findRegistryAgent,
+  useUserAgentsRegistry,
+  type RegistryAgent,
+} from './stores/userAgentsRegistry';
 export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 
 // Live head of the combined social post's text half. The shared SSE parser
