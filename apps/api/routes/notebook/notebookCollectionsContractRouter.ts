@@ -1149,7 +1149,13 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       const guard = await requireNotebookOwner(collectionId, userId);
       if (guard) return guard;
 
-      await notebookHelper.deleteNotebookCollection(collectionId);
+      const result = await notebookHelper.trashNotebookCollection(collectionId);
+      if (result === 'not_found') {
+        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+      }
+      if (result === 'forbidden') {
+        return { status: 403 as const, body: { error: 'Nur Eigentümer*in erlaubt' } };
+      }
 
       return {
         status: 200 as const,

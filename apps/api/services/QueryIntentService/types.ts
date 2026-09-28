@@ -3,6 +3,8 @@
  * Query analysis, intent detection, and filter generation for German/English queries
  */
 
+import { type IsEmptyCondition } from '../../database/services/QdrantService/types.js';
+
 /**
  * Intent types that can be detected from user queries
  */
@@ -81,7 +83,7 @@ export interface FilterCondition {
  */
 export interface QdrantFilter {
   /** Conditions that must all match */
-  must?: FilterCondition[] | undefined;
+  must?: Array<FilterCondition | IsEmptyCondition> | undefined;
   /** Conditions where at least one must match */
   should?: FilterCondition[] | undefined;
   /** Conditions that must not match */

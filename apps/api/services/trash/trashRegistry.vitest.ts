@@ -5,6 +5,13 @@ vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: vi.fn() }),
 }));
 
+const listTrashedNotebookCollections = vi.fn();
+vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
+  NotebookQdrantHelper: class {
+    listTrashedNotebookCollections = listTrashedNotebookCollections;
+  },
+}));
+
 const { TRASH_KINDS, TRASH_RETENTION_DAYS, purgeAtFor, toTrashItem, trashHandlerFor } =
   await import('./trashRegistry.js');
 const { compareTrashKey, decodeTrashCursor, encodeTrashCursor, trashKeysetWhere } =
@@ -90,5 +97,34 @@ describe('TRASH_KINDS', () => {
   it('has no handler for a kind that is not wired yet', () => {
     expect(trashHandlerFor('collaborative_document')).not.toBeNull();
     expect(trashHandlerFor('group')).toBeNull();
+  });
+});
+
+describe('notebook handler', () => {
+  const notebook = (id: string, deletedAt: string) => ({
+    id,
+    name: `Notebook ${id}`,
+    user_id: 'user-1',
+    deleted_at: deletedAt,
+  });
+
+  it('pages Qdrant results in memory by the shared trash key', async () => {
+    listTrashedNotebookCollections.mockResolvedValue([
+      notebook('b', '2026-09-20T10:00:00.000Z'),
+      notebook('c', '2026-09-21T10:00:00.000Z'),
+      notebook('a', '2026-09-20T10:00:00.000Z'),
+    ]);
+    const handler = trashHandlerFor('notebook')!;
+
+    const first = await handler.listTrashed('user-1', { limit: 2, before: null });
+    expect(first.map((i) => i.id)).toEqual(['c', 'a']);
+
+    const last = first[first.length - 1];
+    const next = await handler.listTrashed('user-1', {
+      limit: 2,
+      before: { deletedAt: last.deletedAt, id: last.id },
+    });
+    expect(next.map((i) => i.id)).toEqual(['b']);
+    expect(next[0]).toMatchObject({ kind: 'notebook', title: 'Notebook b', subtype: null });
   });
 });

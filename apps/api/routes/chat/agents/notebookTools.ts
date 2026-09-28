@@ -105,7 +105,7 @@ export interface NotebookToolDeps {
     | 'getUserNotebookCollections'
     | 'getNotebookCollection'
     | 'updateNotebookCollection'
-    | 'deleteNotebookCollection'
+    | 'trashNotebookCollection'
     | 'storeNotebookCollection'
     | 'addDocumentsToCollection'
     | 'getCollectionDocuments'
@@ -525,8 +525,8 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
         groundNote(sourceRegistry, 'Bestätigung nötig', ask);
         return { needsConfirmation: true, note: ask };
       }
-      await helper.deleteNotebookCollection(id);
-      const note = `Notebook „${collection.name}" wurde gelöscht.`;
+      await helper.trashNotebookCollection(id);
+      const note = `Notebook „${collection.name}" wurde in den Papierkorb verschoben.`;
       groundNote(sourceRegistry, 'Gelöscht', note);
       return { ok: true, note };
     },

@@ -8,6 +8,10 @@
  */
 import { type TrashItem, type TrashKind } from '@gruenerator/contracts';
 
+import {
+  NotebookQdrantHelper,
+  type TrashedNotebook,
+} from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import {
   getTrashedThread,
@@ -29,7 +33,7 @@ import {
   type TrashedCollabDocRow,
 } from '../docs/CollaborativeDocumentService.js';
 
-import { type TrashCursor } from './trashCursor.js';
+import { compareTrashKey, type TrashCursor } from './trashCursor.js';
 
 export const TRASH_RETENTION_DAYS = 30;
 
@@ -142,10 +146,61 @@ const chatThreadHandler: TrashKindHandler = {
   listExpired: listExpiredThreads,
 };
 
+const notebookHelper = new NotebookQdrantHelper();
+
+const notebookItem = (notebook: TrashedNotebook): TrashItem =>
+  toTrashItem({
+    kind: 'notebook',
+    id: notebook.id,
+    title: notebook.name,
+    subtype: null,
+    deletedAt: new Date(notebook.deleted_at),
+  });
+
+/**
+ * Notebooks live only in Qdrant, which cannot sort by the trash key; the
+ * user's trashed notebooks are few, so the page is cut in memory.
+ */
+const notebookHandler: TrashKindHandler = {
+  async listTrashed(userId, opts) {
+    const items = (await notebookHelper.listTrashedNotebookCollections(userId))
+      .map(notebookItem)
+      .sort(compareTrashKey);
+    const before = opts.before;
+    return (before ? items.filter((i) => compareTrashKey(i, before) > 0) : items).slice(
+      0,
+      opts.limit
+    );
+  },
+  async getTrashed(userId, id) {
+    const notebook = await notebookHelper.getTrashedNotebookCollection(id);
+    if (!notebook) return 'not_found';
+    return notebook.user_id === userId ? notebookItem(notebook) : 'forbidden';
+  },
+  async trash(userId, id) {
+    const notebook = await notebookHelper.getNotebookCollection(id);
+    if (!notebook) return 'not_found';
+    if (notebook.user_id !== userId) return 'forbidden';
+    return notebookHelper.trashNotebookCollection(id);
+  },
+  async restore(userId, id) {
+    const found = await notebookHandler.getTrashed(userId, id);
+    if (typeof found === 'string') return found;
+    await notebookHelper.restoreNotebookCollection(id);
+    return 'ok';
+  },
+  purge: (id, cutoff) => notebookHelper.purgeNotebookCollection(id, cutoff),
+  async listExpired(cutoff, limit) {
+    const expired = await notebookHelper.listExpiredNotebookCollections(cutoff, limit);
+    return expired.map((n) => ({ id: n.id, userId: n.user_id }));
+  },
+};
+
 // Task 5 tightens this to `Record<TrashKind, TrashKindHandler>` once every kind has one.
 export const TRASH_KINDS = {
   collaborative_document: collaborativeDocumentHandler,
   chat_thread: chatThreadHandler,
+  notebook: notebookHandler,
 } satisfies Partial<Record<TrashKind, TrashKindHandler>>;
 
 export function trashHandlerFor(kind: TrashKind): TrashKindHandler | null {
