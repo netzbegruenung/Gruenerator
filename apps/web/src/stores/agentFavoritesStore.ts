@@ -4,7 +4,9 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface AgentFavoritesState {
-  // Agent identifiers — system agents and user-created ones alike.
+  // `agentRef` of each agent: the identifier for system agents and the user's
+  // own, the row uuid for someone else's. Stars set before the uuid existed
+  // hold the identifier and are rekeyed by the Agentura (`rekey`).
   favoriteIdentifiers: string[];
   // Title taken at star time, keyed by identifier. The sidebar resolves system
   // agents from the static registry and the user's own from useUserAgents();
@@ -22,6 +24,8 @@ interface AgentFavoritesActions {
   isFavorite: (identifier: string) => boolean;
   /** Refresh snapshots for favourites the caller can resolve live. */
   recordTitles: (titles: Record<string, string>) => void;
+  /** Move favourites to a new key, carrying their title; no-op for keys not starred. */
+  rekey: (moves: Record<string, string>) => void;
 }
 
 type AgentFavoritesStore = AgentFavoritesState & AgentFavoritesActions;
@@ -94,6 +98,21 @@ const useAgentFavoritesStore = create<AgentFavoritesStore>()(
           changed = true;
         }
         if (changed) set({ favoriteTitles: next });
+      },
+      rekey: (moves) => {
+        const { favoriteIdentifiers, favoriteTitles } = get();
+        if (!favoriteIdentifiers.some((key) => moves[key])) return;
+        const titles = { ...favoriteTitles };
+        const keys: string[] = [];
+        for (const key of favoriteIdentifiers) {
+          const to = moves[key] ?? key;
+          if (to !== key) {
+            if (titles[key] && !titles[to]) titles[to] = titles[key];
+            delete titles[key];
+          }
+          if (!keys.includes(to)) keys.push(to);
+        }
+        set({ favoriteIdentifiers: keys, favoriteTitles: titles });
       },
     }),
     {

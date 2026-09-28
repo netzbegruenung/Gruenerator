@@ -3,7 +3,7 @@ import {
   type UpdateUserAgentBody,
   type DraftedAgentSpec,
 } from '@gruenerator/contracts';
-import { SYSTEM_AGENTS, type Agent } from '@gruenerator/shared/agents';
+import { SYSTEM_AGENTS, agentKey, type Agent } from '@gruenerator/shared/agents';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -203,19 +203,20 @@ export function useSharedUserAgents() {
         })
       );
 
-      // Deduplicate by identifier; collect which groups each comes from.
-      const byIdentifier = new Map<string, SharedAgentEntry>();
+      // Deduplicate by row id — two owners can share an identifier; collect
+      // which groups each agent comes from.
+      const byKey = new Map<string, SharedAgentEntry>();
       for (const { group, agents } of results) {
         for (const agent of agents) {
-          const existing = byIdentifier.get(agent.identifier);
+          const existing = byKey.get(agentKey(agent));
           if (existing) {
             existing.groups.push(group);
           } else {
-            byIdentifier.set(agent.identifier, { agent, groups: [group] });
+            byKey.set(agentKey(agent), { agent, groups: [group] });
           }
         }
       }
-      return [...byIdentifier.values()];
+      return [...byKey.values()];
     },
   });
 }
