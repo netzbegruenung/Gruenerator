@@ -16,6 +16,7 @@ import {
   deleteThreadRecallPoint,
   upsertThreadRecallPoint,
 } from '../../../services/chat/threadRecallEmbeddingService.js';
+import { type QueryRunner } from '../../../services/docs/CollaborativeDocumentService.js';
 import {
   type TrashCursor,
   trashKeysetWhere,
@@ -166,10 +167,16 @@ export function purgeThread(threadId: string, cutoff: Date | null): Promise<bool
 
 /**
  * Delete a purged document's chat thread (`chat_threads.doc_id`, no FK),
- * trashed or not — the document it belongs to is gone for good.
+ * trashed or not — the document it belongs to is gone for good. `runQuery` is
+ * the document purge's own runner, so the thread's statements cannot escape it.
  */
-export function purgeDocThread(threadId: string): Promise<boolean> {
-  return removeThread(threadId, 'DELETE FROM chat_threads WHERE id = $1 RETURNING id', [threadId]);
+export function purgeDocThread(threadId: string, runQuery?: QueryRunner): Promise<boolean> {
+  return removeThread(
+    threadId,
+    'DELETE FROM chat_threads WHERE id = $1 RETURNING id',
+    [threadId],
+    runQuery
+  );
 }
 
 /**
@@ -180,12 +187,12 @@ export function purgeDocThread(threadId: string): Promise<boolean> {
 async function removeThread(
   threadId: string,
   deleteSql: string,
-  params: unknown[]
+  params: unknown[],
+  runQuery: QueryRunner = (sql, p) => getPostgresInstance().query(sql, p)
 ): Promise<boolean> {
-  const db = getPostgresInstance();
-  const attachments = await readThreadAttachmentVectorHandles(threadId);
+  const attachments = await readThreadAttachmentVectorHandles(threadId, runQuery);
 
-  const deleted = await db.query<{ id: string }>(deleteSql, params);
+  const deleted = await runQuery<{ id: string }>(deleteSql, params);
   if (deleted.length === 0) return false;
 
   const sideStore = async (store: string, work: () => Promise<unknown>): Promise<void> => {
