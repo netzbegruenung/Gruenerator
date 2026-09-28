@@ -70,7 +70,3 @@ export interface CreateProjectData {
  * `validateBody`-typed request body flows in without a cast.
  */
 export type UpdateProjectData = UpdateProjectBody;
-
-export interface DeleteProjectResult {
-  success: boolean;
-}

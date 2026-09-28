@@ -108,17 +108,6 @@ const ALLOWLIST: readonly AllowEntry[] = [
     'user_templates',
     PERMANENT_ADMIN,
   ],
-  // ── Task 3 ──
-  ['apps/api/routes/chat/services/reelEditService.ts', 'subtitler_projects', 'pending: Task 3'],
-  ['apps/api/routes/content/contentQueries.ts', 'subtitler_projects', 'pending: Task 3'],
-  [
-    'apps/api/routes/workplace/recentActivityController.ts',
-    'subtitler_projects',
-    'pending: Task 3',
-  ],
-  ['apps/api/services/media/thumbnailResolvers.ts', 'subtitler_projects', 'pending: Task 3'],
-  ['apps/api/services/subtitler/ProjectService.ts', 'subtitler_projects', 'pending: Task 3'],
-  ['apps/api/services/subtitler/reelSearch.ts', 'subtitler_projects', 'pending: Task 3'],
   // ── Task 4 ──
   ['apps/api/routes/auth/promptsContractRouter.ts', 'custom_prompts', 'pending: Task 4'],
   ['apps/api/routes/auth/userCustomPrompts.ts', 'custom_prompts', 'pending: Task 4'],
