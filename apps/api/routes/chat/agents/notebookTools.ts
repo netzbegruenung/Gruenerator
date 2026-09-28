@@ -38,6 +38,10 @@ import { getCanonicalByKey } from '../../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { findGroups } from '../../../services/groups/groupQueries.js';
+import {
+  listGroupSharedNotebooksForUser,
+  type GroupSharedNotebook,
+} from '../../../services/notebook/groupSharedNotebookListing.js';
 import { runNotebookSearch } from '../../../services/notebook/notebookToolSearch.js';
 import { planNotebookVisibility } from '../../../services/notebook/notebookVisibility.js';
 import { previewWolkeFolder } from '../../../services/notebook/notebookWolkeAttach.js';
@@ -109,6 +113,7 @@ export interface NotebookToolDeps {
   access: (notebookId: string, userId: string) => Promise<NotebookAccess>;
   search: (input: NotebookSearchInput) => Promise<NotebookSearchOutcome>;
   listPublic: (viewerLocale: UserLocale) => Promise<NotebookCollection[]>;
+  listShared: (userId: string) => Promise<GroupSharedNotebook[]>;
   preview: (input: WolkeFolderPreviewInput) => Promise<WolkeFolderPreview | { error: string }>;
   findGroups: typeof findGroups;
   db: Pick<PostgresService, 'query'>;
@@ -125,6 +130,7 @@ function resolveDeps(partial: Partial<NotebookToolDeps> | undefined): NotebookTo
     access: partial?.access ?? checkNotebookAccess,
     search: partial?.search ?? runNotebookSearch,
     listPublic: partial?.listPublic ?? ((locale) => listPublicNotebooksForViewer(locale)),
+    listShared: partial?.listShared ?? ((userId) => listGroupSharedNotebooksForUser(userId)),
     preview: partial?.preview ?? previewWolkeFolder,
     findGroups: partial?.findGroups ?? findGroups,
     db: partial?.db ?? getPostgresInstance(),
@@ -269,9 +275,9 @@ export function makeNotebooksTool(ctx: NotebookToolCtx): Tool {
   return tool({
     description: `Zugriff auf die Notebooks der Person (eigene Wissenssammlungen aus Dokumenten, Wolke-Ordnern und Office-Dokumenten) — auflisten, ansehen, inhaltlich befragen, anlegen und verwalten.
 
-NUTZE FÜR: Notebooks auflisten (list — scope="mine" die eigenen, scope="system" die vom Grünerator gepflegten Wissenssammlungen, scope="basis" die öffentlich geteilten Notebooks anderer), Details eines Notebooks mit Dokumenten, Wolke-Ordnern, Freigaben und wartenden Dateien (get), eine Frage AN DEN INHALT eines Notebooks stellen und belegt beantworten (search mit id + query — „was steht im Notebook X zu …?"), ein Notebook anlegen (create; mit wolkeFolder wird der Ordner sofort angehängt und importiert), einen Wolke-Ordner an ein bestehendes Notebook hängen (add_wolke_folder), eigene Dokumente oder Office-Dokumente hinzufügen (add_documents), umbenennen (rename), Beschreibung, Anweisung (customPrompt) und Labels ändern (update), Sichtbarkeit und Bearbeitungsrechte ändern (set_visibility), mit einem Projekt teilen (share_to_group), löschen (delete mit confirm=true nach Zustimmung).
+NUTZE FÜR: Notebooks auflisten (list — scope="mine" die eigenen, scope="system" die vom Grünerator gepflegten Wissenssammlungen, scope="basis" die öffentlich geteilten Notebooks anderer, scope="shared" die Notebooks, die andere in ein Projekt der Person geteilt haben), Details eines Notebooks mit Dokumenten, Wolke-Ordnern, Freigaben und wartenden Dateien (get), eine Frage AN DEN INHALT eines Notebooks stellen und belegt beantworten (search mit id + query — „was steht im Notebook X zu …?"), ein Notebook anlegen (create; mit wolkeFolder wird der Ordner sofort angehängt und importiert), einen Wolke-Ordner an ein bestehendes Notebook hängen (add_wolke_folder), eigene Dokumente oder Office-Dokumente hinzufügen (add_documents), umbenennen (rename), Beschreibung, Anweisung (customPrompt) und Labels ändern (update), Sichtbarkeit und Bearbeitungsrechte ändern (set_visibility), mit einem Projekt teilen (share_to_group), löschen (delete mit confirm=true nach Zustimmung).
 
-Ein System-Notebook hat keine id zum Befragen — seine Zeile nennt im Feld ref den collection-Schlüssel, mit dem 'gruenerator_search' seinen Inhalt durchsucht. Öffentlich gelistete Notebooks haben eine echte id: get und search funktionieren damit wie bei eigenen.
+Ein System-Notebook hat keine id zum Befragen — seine Zeile nennt im Feld ref den collection-Schlüssel, mit dem 'gruenerator_search' seinen Inhalt durchsucht. Öffentlich gelistete und über Projekte geteilte Notebooks haben eine echte id: get und search funktionieren damit wie bei eigenen.
 
 NICHT für: Dateien in der Wolke durchsehen oder lesen (dafür 'cloud_files' — action=list_connections liefert die connectionId und action=list die Pfade, die wolkeFolder braucht), eigene Dokumente und Tabellen selbst (dafür 'documents'), Projekte verwalten (dafür 'groups'), die grüne Inhaltsdatenbank (dafür 'gruenerator_search'). Quellen lesen, durchsuchen oder auflisten: dafür 'notebook_quellen'.
 
@@ -291,10 +297,10 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
         'delete',
       ]),
       scope: z
-        .enum(['mine', 'system', 'basis'])
+        .enum(['mine', 'system', 'basis', 'shared'])
         .default('mine')
         .describe(
-          'Nur bei list: eigene Notebooks (mine), die vom Grünerator gepflegten Wissenssammlungen (system) oder die öffentlich geteilten Notebooks anderer (basis)'
+          'Nur bei list: eigene Notebooks (mine), die vom Grünerator gepflegten Wissenssammlungen (system) oder die öffentlich geteilten Notebooks anderer (basis) oder die über Projekte mit der Person geteilten (shared)'
         ),
       id: z.string().optional().describe('Notebook-ID (alle Aktionen außer list und create)'),
       name: z.string().optional().describe('Name (create) bzw. neuer Name (rename)'),
@@ -373,6 +379,21 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
           );
           groundRows(sourceRegistry, results);
           return { scope: 'basis', resultCount: results.length, results };
+        }
+
+        if (args.scope === 'shared') {
+          const shared = (await deps.listShared(userId)).slice(0, args.limit);
+          const results = shared.map((c) =>
+            makeRow(
+              c.name,
+              notebookUrl(c),
+              `Geteiltes Notebook · ${c.shared_via_groups.join(', ')}`,
+              c.description || `${c.document_count} Dokument(e)`,
+              c.id
+            )
+          );
+          groundRows(sourceRegistry, results);
+          return { scope: 'shared', resultCount: results.length, results };
         }
 
         const collections = await helper.getUserNotebookCollections(userId, { limit: args.limit });
