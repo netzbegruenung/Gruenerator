@@ -16,7 +16,14 @@ describe('shareCanvasPreviewUrl', () => {
     );
   });
 
+  it('übersetzt die mitgelieferten Stock-Hintergründe in die Canvas-Stufe', () => {
+    expect(shareCanvasPreviewUrl('/api/image-picker/stock-image/wind%20park.jpg')).toBe(
+      '/api/image-picker/stock-image/wind%20park.jpg?w=2160&fmt=webp'
+    );
+  });
+
   it.each([
+    ['Stock-Thumbnails', '/api/image-picker/stock-image/wind.jpg?size=thumb'],
     ['Blob-Vorschauen', 'blob:http://localhost/5d41402a-b4d3-11e9-9ee5-0a4c1e6b9c7c'],
     ['Fern-URLs von Stock-Bildern', 'https://images.unsplash.com/photo-123.jpg?w=1080'],
     ['andere Pfade', '/media/foo/bar.png'],

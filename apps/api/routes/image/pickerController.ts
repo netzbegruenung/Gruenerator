@@ -3,6 +3,7 @@
  * Handles AI-powered image selection from stock catalog
  */
 
+import fs from 'fs';
 import { dirname, join, basename } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -12,6 +13,8 @@ import { z } from 'zod';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import ImageSelectionService from '../../services/image/ImageSelectionService.js';
 import { enhanceWithAttribution } from '../../services/image/index.js';
+import { getThumbnailVariant, openVariant } from '../../services/media/thumbnailCache.js';
+import { isThumbnailFormat, isThumbnailWidth } from '../../services/media/thumbnailUrl.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { safeFetch } from '../../utils/validation/urlSecurity.js';
@@ -346,33 +349,85 @@ router.post(
   }
 );
 
+const STOCK_DIR = join(__dirname, '../../public/sharepic_example_bg');
+
 /**
  * GET /stock-image/:filename
- * Serves a stock image file directly (used for dev proxy compatibility)
- * Query params: ?size=thumb for 400px thumbnail
+ * Serves a stock image file.
+ * Query params:
+ *   ?size=thumb       400px JPEG thumbnail (picker grid)
+ *   ?w=<width>&fmt=   resized variant from the thumbnail cache — the canvas asks
+ *                     for 2160 (`shareCanvasPreviewUrl`). The originals are
+ *                     Unsplash downloads of up to 5792x8688 and 7.5 MB, for a
+ *                     1080px scene.
+ * A `w` outside `THUMBNAIL_WIDTHS` serves the original rather than an error:
+ * a wrong size is a slower image, a 400 is a missing one.
  */
 router.get(
   '/stock-image/:filename',
-  (req: AuthenticatedRequest<{ filename: string }>, res: Response) => {
+  async (req: AuthenticatedRequest<{ filename: string }>, res: Response) => {
     const { filename } = req.params;
-    const { size } = req.query as StockImageQuery;
+    const { size, w, fmt } = req.query as StockImageQuery;
     const sanitizedFilename = basename(filename);
 
-    let imagePath: string;
+    const sendStockFile = (imagePath: string) => {
+      res.set('Cache-Control', 'public, max-age=86400');
+      res.sendFile(imagePath, (err) => {
+        if (err) {
+          log.error('[ImagePicker API] Stock image serve error:', err);
+          res.status(404).json({ error: 'Image not found' });
+        }
+      });
+    };
+
     if (size === 'thumb') {
       const thumbName = sanitizedFilename.replace(/\.\w+$/, '.jpg');
-      imagePath = join(__dirname, '../../public/sharepic_example_bg/thumbs', thumbName);
-    } else {
-      imagePath = join(__dirname, '../../public/sharepic_example_bg', sanitizedFilename);
+      sendStockFile(join(STOCK_DIR, 'thumbs', thumbName));
+      return;
     }
 
-    res.set('Cache-Control', 'public, max-age=86400');
-    res.sendFile(imagePath, (err) => {
-      if (err) {
-        log.error('[ImagePicker API] Stock image serve error:', err);
+    const imagePath = join(STOCK_DIR, sanitizedFilename);
+    const width = Number(w);
+    if (!isThumbnailWidth(width)) {
+      sendStockFile(imagePath);
+      return;
+    }
+
+    try {
+      const stat = await fs.promises.stat(imagePath).catch(() => null);
+      if (!stat) {
         res.status(404).json({ error: 'Image not found' });
+        return;
       }
-    });
+      const variant = await getThumbnailVariant(
+        {
+          kind: 'stock',
+          id: sanitizedFilename,
+          // Size, not mtime: every deploy rewrites the mtime of files baked
+          // into the image, and would re-render the whole set each time.
+          v: `s${stat.size}`,
+          width,
+          fmt: typeof fmt === 'string' && isThumbnailFormat(fmt) ? fmt : 'webp',
+        },
+        { sourcePath: imagePath, contentType: 'image/jpeg' }
+      );
+      if (!variant) {
+        res.status(404).json({ error: 'Image not found' });
+        return;
+      }
+
+      res.setHeader('Content-Type', variant.contentType);
+      res.setHeader('Content-Length', variant.size);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      if (variant.buffer) {
+        res.send(variant.buffer);
+        return;
+      }
+      openVariant(variant.filePath as string).pipe(res);
+    } catch (error) {
+      log.error('[ImagePicker API] Stock image resize error:', error);
+      res.status(500).json({ error: 'Failed to load image' });
+    }
   }
 );
 

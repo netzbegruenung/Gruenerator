@@ -121,17 +121,22 @@ export function shareThumbnailPreviewUrl(
  */
 export const CANVAS_PREVIEW_WIDTH = 2160;
 
+const STOCK_IMAGE_RE = /^\/api\/image-picker\/stock-image\/[^/?#]+$/;
+
 /**
  * Rewrite a durable media URL to the working-size variant the canvas renders
  * live — Canva-style: edit on a small WebP preview, keep the original on disk.
  *
- * Only the `/api/share/<token>/download` shape is rewritten — that is exactly
- * what the collab doc stores as `currentImageSrc` — while `blob:` previews,
- * remote stock URLs and anything else pass through unchanged.
+ * Two shapes are rewritten: `/api/share/<token>/download` — what the collab doc
+ * stores as `currentImageSrc` — and the bundled stock backgrounds the sharepic
+ * generator picks (`/api/image-picker/stock-image/<file>`, originals up to
+ * 7.5 MB). `blob:` previews, remote URLs and anything else pass through
+ * unchanged.
  */
 export function shareCanvasPreviewUrl(
   url: string | undefined,
   width: number = CANVAS_PREVIEW_WIDTH
 ): string | undefined {
+  if (url && STOCK_IMAGE_RE.test(url)) return `${url}?w=${width}&fmt=webp`;
   return shareDownloadPreviewUrl(url, width);
 }
