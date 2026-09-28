@@ -18,7 +18,10 @@
  * (`collectionsForLocale`, dieselbe Menge wie bei `gruenerator_search` und
  * `notebook_quellen`) und genau EINE Sammlung haben — ein Mehr-Sammlungs-Notebook
  * („alle") kann `notebook_quellen` ohnehin nicht öffnen —, plus die eigenen
- * Notebooks des Kontos.
+ * Notebooks des Kontos und die, die andere in ein Projekt der Person geteilt
+ * haben. Geteilte zählen nur mit dem Wort „Notebook", nie über den bloßen Namen:
+ * ihre Namen hat die Person nicht selbst gewählt, und ein generischer
+ * Projekt-Name soll keine gewöhnliche Inhaltsfrage einfangen.
  *
  * `\b` ist neben Umlauten tot, deshalb Lookarounds — dasselbe Idiom wie
  * `agenturaContext.ts`.
@@ -150,7 +153,16 @@ const ownCache = new Map<string, { expiresAt: number; notebooks: OwnNotebook[] }
 interface OwnNotebook {
   id: string;
   name: string;
+  /** Über ein Projekt geteilt, nicht selbst angelegt — zählt nur mit dem Wort „Notebook". */
+  shared?: boolean;
 }
+
+/**
+ * Kürzer als `OWN_NOTEBOOK_LIST_TIMEOUT_MS`: die geteilte Liste (Postgres-Join
+ * plus Qdrant-Scroll) läuft in derselben Frist mit, und eine langsame darf die
+ * eigenen Namen nicht mitreißen — sie fällt vorher allein weg.
+ */
+const SHARED_NOTEBOOK_LIST_TIMEOUT_MS = 1_000;
 
 /** Nur für Tests: den Prozess-Cache leeren. */
 export function resetOwnNotebookNameCache(): void {
@@ -177,8 +189,23 @@ async function listOwnNotebooksDefault(userId: string): Promise<OwnNotebook[]> {
   // seinen Qdrant-Client.
   const { NotebookQdrantHelper } =
     await import('../../../database/services/NotebookQdrantHelper.js');
-  const collections = await new NotebookQdrantHelper().getUserNotebookCollectionsLight(userId);
-  return collections.map((c) => ({ id: c.id, name: c.name }));
+  const { listGroupSharedNotebooksForUser } =
+    await import('../../../services/notebook/groupSharedNotebookListing.js');
+  const [collections, shared] = await Promise.all([
+    new NotebookQdrantHelper().getUserNotebookCollectionsLight(userId),
+    withTimeout(
+      listGroupSharedNotebooksForUser(userId),
+      SHARED_NOTEBOOK_LIST_TIMEOUT_MS,
+      'shared notebook names'
+    ).catch((err: unknown) => {
+      log.warn('shared notebook list failed', err);
+      return [];
+    }),
+  ]);
+  return [
+    ...collections.map((c) => ({ id: c.id, name: c.name })),
+    ...shared.map((c) => ({ id: c.id, name: c.name, shared: true })),
+  ];
 }
 
 async function ownNotebooks(
@@ -205,8 +232,8 @@ async function ownNotebooks(
 /**
  * Das Notebook, das der Text nennt, als id für `notebookIds` — oder `null`.
  * Der Aufrufer ruft das nur, wenn der Turn KEIN Notebook gewählt oder erwähnt
- * hat; die eigenen Notebooks laufen danach durch dieselbe Besitzprüfung wie
- * eine Erwähnung (`resolveUserNotebookDocumentIds`).
+ * hat; eigene und geteilte Notebooks laufen danach durch dieselbe Leseprüfung
+ * wie eine Erwähnung (`resolveUserNotebookDocumentIds`).
  */
 export async function resolveNotebookScopeFromText(params: {
   userId: string;
@@ -219,7 +246,7 @@ export async function resolveNotebookScopeFromText(params: {
   const own = mayNameOwnNotebook(text) ? await ownNotebooks(userId, listOwn) : [];
   const id = findNotebookNamedInText(text, [
     ...systemNotebookCandidates(locale),
-    ...own.map((nb) => ({ id: nb.id, names: [nb.name], own: true })),
+    ...own.map((nb) => ({ id: nb.id, names: [nb.name], own: !nb.shared })),
   ]);
   if (id) log.info(`from text: ${id}`);
   return id;

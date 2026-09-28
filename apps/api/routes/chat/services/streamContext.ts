@@ -308,7 +308,7 @@ export async function buildStreamContext({
       ? rawDefaultNotebookId
       : undefined;
   // An agent can bind a user-owned notebook (UUID) as its default knowledge
-  // base. Resolve it to document IDs (ownership-checked) so search can scope
+  // base. Resolve it to document IDs (read-access-checked) so search can scope
   // to it — mirrors the mention path, but as a default rather than explicit.
   const { documentIds: defaultNotebookDocumentIds } =
     rawDefaultNotebookId && !defaultNotebookId && isUserNotebookId(rawDefaultNotebookId)

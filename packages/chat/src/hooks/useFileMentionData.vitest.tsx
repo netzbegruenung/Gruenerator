@@ -159,4 +159,36 @@ describe('useNotebookCollectionsQuery', () => {
 
     expect(result.current.data).toBeUndefined();
   });
+
+  it('adds notebooks shared via a Projekt after the own ones, without duplicates', async () => {
+    installFetch((url) =>
+      url.endsWith('/shared')
+        ? jsonResponse({
+            collections: [
+              collection({ id: 'own', name: 'Eigenes' }),
+              collection({ id: 'shared', name: 'Aus dem Projekt' }),
+            ],
+          })
+        : jsonResponse({ collections: [collection({ id: 'own', name: 'Eigenes' })] })
+    );
+
+    const { result } = renderHook(() => useNotebookCollectionsQuery(true), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.map((c) => c.id)).toEqual(['own', 'shared']);
+  });
+
+  it('keeps the own notebooks when the shared list is unavailable', async () => {
+    // A production backend that predates the endpoint answers 404.
+    installFetch((url) =>
+      url.endsWith('/shared')
+        ? new Response('Not found', { status: 404 })
+        : jsonResponse({ collections: [collection({ id: 'own' })] })
+    );
+
+    const { result } = renderHook(() => useNotebookCollectionsQuery(true), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.map((c) => c.id)).toEqual(['own']);
+  });
 });

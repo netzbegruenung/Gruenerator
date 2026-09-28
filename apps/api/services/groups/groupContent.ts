@@ -23,6 +23,7 @@ import { getNotebookDefinition } from '@gruenerator/shared/notebooks';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
+import { buildCanvasThumbnailUrl } from '../media/thumbnailUrl.js';
 import { notifyGroupMembers } from '../notifications/index.js';
 import { listUserAgentsByIds } from '../userAgents/userAgentsRepository.js';
 
@@ -540,7 +541,11 @@ export async function hydrateGroupContent(
     fetchPromises.push(
       postgres
         .query(
-          'SELECT id, title, document_subtype, created_by, created_at, updated_at FROM collaborative_documents WHERE id = ANY($1::uuid[]) AND is_deleted = false',
+          `SELECT cd.id, cd.title, cd.document_subtype, cd.created_by, cd.created_at, cd.updated_at,
+                  cdoc.thumbnail_url
+             FROM collaborative_documents cd
+             LEFT JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
+            WHERE cd.id = ANY($1::uuid[]) AND cd.is_deleted = false`,
           [ids],
           { table: 'collaborative_documents' }
         )
@@ -653,6 +658,14 @@ export async function hydrateGroupContent(
         ...(type === 'database' && {
           template_type: (parsedMetadata.template_type as string) || 'template',
           external_url: item.external_url,
+        }),
+        // The stored canvas URL is /api/share/<token>/download, which needs auth
+        // an <img> does not send — hand out the signed tile instead.
+        ...((type === 'collaborative_documents' || type === 'canvas_template') && {
+          thumbnail_url: buildCanvasThumbnailUrl(
+            item.id as string,
+            (item.thumbnail_url as string | null) ?? null
+          ),
         }),
       };
     });
