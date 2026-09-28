@@ -959,6 +959,28 @@ describe('Follow-up on a notebook tool turn pins notebook_quellen', () => {
     expect(result.mentionPinnedTool).toBe('notebook_quellen');
   });
 
+  it('a longer anaphoric follow-up still pins', async () => {
+    const state = buildState({
+      userMessage: 'Und was steht in der dritten davon?',
+      lastTurnNotebookId: 'mecklenburg-vorpommern',
+    });
+    expect((await classifierNode(state)).mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  // Beta 28.09.2026, derselbe Thread nach einer MV-Liste: eine neue Frage und
+  // ein Websuche-Auftrag pinnten beide das Notebook.
+  it.each(['Wie ist die letzte Landtagswahl in Berlin ausgegangen?', 'suche im web danach'])(
+    'after a notebook turn, a new question or a web ask does not pin: %s',
+    async (userMessage) => {
+      const state = buildState({
+        userMessage,
+        lastTurnNotebookId: 'mecklenburg-vorpommern',
+      });
+      const result = await classifierNode(state);
+      expect(result.mentionPinnedTool).toBeUndefined();
+    }
+  );
+
   // Voriger Turn las das Notebook, der Thread hält zudem ein Sharepic: eine
   // Sharepic-Bearbeitung bleibt bei Tier 2.7, ein Anschluss an die Liste nicht.
   describe('with a sharepic in the thread', () => {
