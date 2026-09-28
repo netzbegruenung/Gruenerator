@@ -2,6 +2,7 @@ import { MessagePrimitive, useAuiState } from '@assistant-ui/react-native';
 import {
   agentMentionables,
   getCustomAgentMentionables,
+  getUserAgentMentionables,
   getDefaultAgent,
   selectReasoningText,
   selectSearchSources,
@@ -83,11 +84,16 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const interrupted = metadata.interrupted;
   const answerModeChip = buildAnswerModeChipView(metadata);
 
-  // Which Grünerator wrote this. `getCustomAgentMentionables()` is a plain read
-  // of the module-level catalogue `useMentionablesSync` fills, so it re-resolves
-  // with the metadata rather than needing its own subscription.
+  // Which Grünerator wrote this. The user agents (own and shared, a colleague's
+  // by row uuid) and the custom prompts are plain reads of the module-level
+  // catalogues `useMentionablesSync` fills, so they re-resolve with the metadata
+  // rather than needing their own subscription.
   const agent = useMemo(
-    () => resolveMessageAgent(metadata, agentMentionables, getCustomAgentMentionables()),
+    () =>
+      resolveMessageAgent(metadata, agentMentionables, [
+        ...getUserAgentMentionables(),
+        ...getCustomAgentMentionables(),
+      ]),
     [metadata]
   );
 
