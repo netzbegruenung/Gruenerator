@@ -16,8 +16,13 @@ on:
   # von Hand starten, dieser Workflow nicht. `workflow_dispatch` waere auch kein
   # Ersatz — `track_progress` funktioniert laut Action-Doku nur auf PR-/Issue-
   # Ereignissen, ein Dispatch-Lauf traegt den PR-Kontext nicht.
+  #
+  # Kein `synchronize`: jeder Push startete einen vollen Review (1,6 Laeufe pro
+  # PR, alle auf dem Max-Abo-Kontingent). Nach Folge-Pushes das Label
+  # `claude-review` setzen — der Lauf nimmt es selbst wieder ab, damit es beim
+  # naechsten Mal erneut ausloest.
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, reopened, ready_for_review, labeled]
 
 # Kein id-token: write — das OIDC-Token brauchte nur der App-Token-Tausch, und
 # den ueberspringt die Action, seit github_token gesetzt ist.
@@ -27,9 +32,10 @@ permissions:
 
 # Auf einem PR-Zweig zählt nur die Spitze: ein neuer Push macht den laufenden
 # Review gegenstandslos, seine Inline-Kommentare hingen an Zeilen, die es
-# schon nicht mehr gibt.
+# schon nicht mehr gibt. Jedes andere Label landet in einer eigenen Gruppe —
+# sonst braeche es einen laufenden Review ab und wuerde selbst uebersprungen.
 concurrency:
-  group: pr-review-${{ github.event.pull_request.number }}
+  group: pr-review-${{ github.event.pull_request.number }}${{ github.event.action == 'labeled' && github.event.label.name != 'claude-review' && '-other-label' || '' }}
   cancel-in-progress: true
 
 jobs:
@@ -43,11 +49,18 @@ jobs:
     if: >-
       github.event.pull_request.draft == false &&
       github.event.pull_request.user.type != 'Bot' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' || github.event.label.name == 'claude-review')
     runs-on: ubuntu-latest
     # Der Runner idlet fast nur — die Zeit geht an den Agenten, nicht an die CPU.
     timeout-minutes: 45
     steps:
+      - name: Remove trigger label
+        if: github.event.action == 'labeled'
+        run: gh api -X DELETE "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/claude-review" --silent
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       # fetch-depth: 0, damit der Agent gegen den Basis-Branch diffen und
       # umliegenden Code lesen kann. Kein pnpm install: der Review liest Code,
       # er baut nichts.
