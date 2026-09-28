@@ -17,8 +17,10 @@ export type GroupMentionSegment =
 
 const MEMBER_TOKEN_SOURCE =
   '@\\[([^\\]\\n]{1,80})\\]\\(user:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\\)';
-// Kein \b: das kennt keine Umlaute, `@allä` gälte sonst als `@all`.
-const ALL_SOURCE = '(?<![\\p{L}\\p{N}_])@(?:alle|all)(?![\\p{L}\\p{N}_])';
+// Kein \b: das kennt keine Umlaute, `@allä` gälte sonst als `@all`. Keine
+// Lookbehind-Gruppe: die Web-App baut für Safari 15, dort ist das ein
+// Syntaxfehler — das Zeichen davor wird mitgefangen (Gruppe 1) und bleibt Text.
+const ALL_SOURCE = '(^|[^\\p{L}\\p{N}_])(@(?:alle|all))(?![\\p{L}\\p{N}_])';
 
 export function buildMemberMention(label: string, userId: string): string {
   const safeLabel =
@@ -34,9 +36,10 @@ function splitAll(text: string, out: GroupMentionSegment[]): void {
   let last = 0;
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
-    if (match.index > last) out.push({ kind: 'text', text: text.slice(last, match.index) });
-    out.push({ kind: 'all', raw: match[0] });
-    last = match.index + match[0].length;
+    const start = match.index + match[1]!.length;
+    if (start > last) out.push({ kind: 'text', text: text.slice(last, start) });
+    out.push({ kind: 'all', raw: match[2]! });
+    last = start + match[2]!.length;
   }
   if (last < text.length) out.push({ kind: 'text', text: text.slice(last) });
 }
@@ -100,7 +103,8 @@ function escapeRegExp(value: string): string {
 /**
  * Eingabefeld → gespeicherter Text: jedes noch dastehende `@Label` einer
  * gewählten Person wird wieder zum Token. Gelöschte oder angetippte Namen
- * bleiben Text — so erwähnt nur, wer aus der Liste gewählt wurde.
+ * bleiben Text — so erwähnt nur, wer aus der Liste gewählt wurde. Ein
+ * Bindestrich setzt den Namen fort: `@Anna-Lena` ist nicht die gewählte „Anna".
  */
 export function groupMentionsFromDraft(text: string, picks: GroupMentionPick[]): string {
   // Längere Namen zuerst: „@Anna Maria" darf nicht als „@Anna" enden.
@@ -108,10 +112,10 @@ export function groupMentionsFromDraft(text: string, picks: GroupMentionPick[]):
   let out = text;
   for (const p of sorted) {
     const re = new RegExp(
-      `(?<![\\p{L}\\p{N}_\\[])@${escapeRegExp(p.label)}(?![\\p{L}\\p{N}_\\]])`,
+      `(^|[^\\p{L}\\p{N}_\\[])@${escapeRegExp(p.label)}(?![\\p{L}\\p{N}_\\]-])`,
       'gu'
     );
-    out = out.replace(re, () => buildMemberMention(p.label, p.userId));
+    out = out.replace(re, (_m, before: string) => before + buildMemberMention(p.label, p.userId));
   }
   return out;
 }

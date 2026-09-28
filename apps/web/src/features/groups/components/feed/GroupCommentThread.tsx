@@ -48,19 +48,19 @@ export function GroupCommentThread({
   const addComment = useAddGroupShareComment(groupId, shareId);
   const addReply = useAddGroupShareComment(groupId, shareId);
   const deleteComment = useDeleteGroupShareComment(groupId, shareId);
-  const draft = useMentionDraft();
-  const replyDraft = useMentionDraft();
+  const draft = useMentionDraft(GROUP_COMMENT_MAX);
+  const replyDraft = useMentionDraft(GROUP_COMMENT_MAX);
   const [reply, setReply] = useState<ReplyDraft | null>(null);
 
   const send = () => {
     const body = draft.serialize();
-    if (!body || addComment.isPending) return;
+    if (!body || draft.tooLong || addComment.isPending) return;
     addComment.mutate({ body }, { onSuccess: () => draft.reset() });
   };
 
   const sendReply = () => {
     const body = replyDraft.serialize();
-    if (!reply || !body || addReply.isPending) return;
+    if (!reply || !body || replyDraft.tooLong || addReply.isPending) return;
     addReply.mutate({ body, parentId: reply.threadId }, { onSuccess: () => setReply(null) });
   };
 
@@ -262,7 +262,6 @@ function CommentInput({
             }}
             placeholder={placeholder}
             aria-label={label}
-            maxLength={GROUP_COMMENT_MAX}
             className="h-8 min-w-0 flex-1 border-none bg-transparent text-[15px] text-foreground outline-none"
           />
           {onCancel && (
@@ -282,7 +281,7 @@ function CommentInput({
             variant="brand"
             size="sm"
             className="rounded-full"
-            disabled={!mention.text.trim() || pending}
+            disabled={!mention.text.trim() || mention.tooLong || pending}
           >
             <PiPaperPlaneRight className="size-4" aria-hidden />
             Senden
