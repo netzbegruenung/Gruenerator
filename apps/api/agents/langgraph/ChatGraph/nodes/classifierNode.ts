@@ -268,9 +268,10 @@ function previousAssistantOffer(messages: ChatGraphState['messages']): string | 
 // letzte Landtagswahl in Berlin ausgegangen?" pinnte live das Notebook des
 // Turns davor (Beta 28.09.2026) — `isReferentialFollowup` lässt alles bis
 // acht Wörter durch. Einwände gegen den Turn davor („stimmt nicht, du hast
-// die Tools", „nochmal") hängen ebenfalls daran.
+// die Tools", „nochmal") hängen ebenfalls daran. Nicht „mehr" oder „Tools":
+// zu allgemein, sie stehen auch in neuen Fragen (Review #3800).
 const ANAPHORIC_CUE =
-  /(?<![\p{L}])(?:davon|daraus|darin|dazu|dort|diese[rnms]?|dieselben?|n(?:ä|ae)chste[nrs]?|vorletzte[nrs]?|davor|danach|weitere[nrs]?|mehr|nochmal|noch\s+mal|erneut|stimmt\s+nicht|tools?|werkzeuge?)(?![\p{L}])/iu;
+  /(?<![\p{L}])(?:davon|daraus|darin|dazu|dort|diese[rnms]?|dieselben?|n(?:ä|ae)chste[nrs]?|vorletzte[nrs]?|davor|danach|weitere[nrs]?|nochmal|noch\s+mal|erneut|stimmt\s+nicht)(?![\p{L}])/iu;
 const SHORT_FOLLOWUP_WORDS = 4;
 
 function continuesToolTurn(text: string, messages: ChatGraphState['messages']): boolean {
