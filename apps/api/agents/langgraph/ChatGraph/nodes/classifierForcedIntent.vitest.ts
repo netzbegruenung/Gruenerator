@@ -1090,3 +1090,82 @@ describe('Follow-up on a notebook tool turn pins notebook_quellen', () => {
     expect(result.mentionPinnedTool).toBeUndefined();
   });
 });
+
+/**
+ * #3778, beta 28.09.2026: der vorige Turn rief `notebooks` zweimal auf, beide
+ * Aufrufe scheiterten. Ohne erfolgreichen `notebook_quellen`-Schritt gibt es
+ * kein `lastTurnNotebookId` — „finde es" fiel auf `direct` (Einzeldurchlauf
+ * ohne Werkzeug), „stimmt nicht du hast die tools" auf `produktion` mit
+ * steps=0. Beide Antworten stritten ab, Werkzeuge zu haben.
+ */
+describe('Follow-up on a failed tool turn runs the loop', () => {
+  // Der Verlauf aus #3778: ohne ihn ist ein kurzer Turn keine vage
+  // Anschlussfrage, und Tier 3.5 demotiert ihn schon heute in den Loop.
+  const afterFailedTurn = (userMessage: string, over: Partial<ChatGraphState> = {}) =>
+    buildState({
+      userMessage,
+      messages: [
+        {
+          role: 'user' as const,
+          content: 'was stand in der letzen pressemitteilung im notebook berlin',
+        },
+        {
+          role: 'assistant' as const,
+          content:
+            'Ich konnte das Notebook „berlin" nicht öffnen: Notebook nicht gefunden oder kein Zugriff.',
+        },
+        { role: 'user' as const, content: userMessage },
+      ],
+      ...over,
+    });
+
+  it.each(['finde es', 'stimmt nicht du hast de tools', 'nochmal versuchen', 'ja dann mach das'])(
+    'after a failed tool turn: %s → agentic, no pin',
+    async (userMessage) => {
+      const result = await classifierNode(
+        afterFailedTurn(userMessage, { lastTurnRetrievalFailed: true })
+      );
+      expect(result.intent).toBe('agentic');
+      expect(result.mentionPinnedTool).toBeUndefined();
+    }
+  );
+
+  // Die Gegenprobe ist die Reproduktion: derselbe Verlauf ohne das Signal
+  // landet heute dort, wo beta ihn hatte — ohne Werkzeug.
+  it.each([
+    ['finde es', 'direct'],
+    ['stimmt nicht du hast de tools', 'produktion'],
+  ])('without the signal: %s → %s (beta, #3778)', async (userMessage, intent) => {
+    const result = await classifierNode(
+      afterFailedTurn(userMessage, { lastTurnRetrievalFailed: false })
+    );
+    expect(result.intent).toBe(intent);
+  });
+
+  it.each(['mach daraus einen Instagram-Post', 'danke dir', 'warum?', 'erklär mir das'])(
+    'creation, thanks and questions about the failure stay out: %s',
+    async (userMessage) => {
+      const result = await classifierNode(
+        afterFailedTurn(userMessage, { lastTurnRetrievalFailed: true })
+      );
+      expect(result.reasoning).not.toMatch(/fehlgeschlagen/);
+    }
+  );
+
+  it('a successful notebook_quellen turn keeps its pin', async () => {
+    const result = await classifierNode(
+      afterFailedTurn('finde es', { lastTurnRetrievalFailed: true, lastTurnNotebookId: 'berlin' })
+    );
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  it('own material in the turn stays out', async () => {
+    const result = await classifierNode(
+      afterFailedTurn('finde es', {
+        lastTurnRetrievalFailed: true,
+        attachmentContext: 'Anhang: Pressemitteilung vom 12.09.',
+      })
+    );
+    expect(result.reasoning).not.toMatch(/fehlgeschlagen/);
+  });
+});

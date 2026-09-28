@@ -305,7 +305,9 @@ const IMAGE_REGEN_PATTERN =
 
 // "nochmal" can also mean repeat-the-ANSWER — explain/repeat verbs keep the
 // prose path. Question-initial messages ("Was war nochmal der Prompt?") too.
-const ANSWER_REPEAT_PATTERN =
+// Also read by the classifier's failed-tool-turn follow-up: "warum?" after a
+// failed call asks for an explanation, not a retry.
+export const ANSWER_REPEAT_PATTERN =
   /(?:^|\W)(erkl(?:ä|ae)r|erz(?:ä|ae)hl|beschreib|wiederhol|begr(?:ü|ue)nd|zusammenfass|fass\b|antwort|sag\s+(?:mir|es|das)|warum|wieso|weshalb)/i;
 
 /**

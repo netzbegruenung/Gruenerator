@@ -46,6 +46,7 @@ import { notebookIdFromSteps } from '../agents/notebookSourceTools.js';
 import { getPipelineAgent } from '../agents/pipelines/index.js';
 import { getContextWindow } from '../agents/providers.js';
 
+import { priorTurnRetrievalFailed } from './agenticLoop/catalogAssembly.js';
 import { getThreadAttachments } from './attachmentPersistenceService.js';
 import {
   extractPromotablePasteText,
@@ -881,7 +882,9 @@ export async function buildStreamContext({
     initialState.lastToolContext = toolContext;
     initialState.threadArtifacts = history?.artifacts() ?? [];
     initialState.threadNotebookId = notebookIdFromSteps(history?.toolSteps() ?? []);
-    initialState.lastTurnNotebookId = notebookIdFromSteps(history?.lastTurnToolSteps() ?? []);
+    const lastTurnSteps = history?.lastTurnToolSteps() ?? [];
+    initialState.lastTurnNotebookId = notebookIdFromSteps(lastTurnSteps);
+    initialState.lastTurnRetrievalFailed = priorTurnRetrievalFailed(lastTurnSteps);
     // Weitergereicht statt verworfen: der agentische Loop las bis hierher
     // dieselben Zeilen ein zweites und drittes Mal (Tool-Replay und
     // Quellen-Rehydrierung). Bleibt es null, weil der Lesevorgang scheiterte,
