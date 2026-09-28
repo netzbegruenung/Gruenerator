@@ -18,7 +18,7 @@ Dafür musst du ihm einmal sagen, wo du arbeitest. Das dauert eine Minute und is
    - **Ebene:** Land
    - **Bundesland:** dein Landesverband
    - **Rolle:** _Mitarbeiter\*in Landesgeschäftsstelle_ (in Österreich: _Mitarbeiter\*in Landesorganisation_)
-5. Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „3 Agenten und 3 Rezepte sowie das Notebook Hessen erscheinen künftig in deiner Agentur und im Chat“. Speichern, fertig.
+5. Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „3 Agenten und 4 Rezepte sowie das Notebook Hessen erscheinen künftig in deiner Agentur und im Chat“. Speichern, fertig.
 
 ![Die Einstellungen, Bereich Personalisierung: oben das Feld „Anweisungen“, darunter der Kasten „Deine Rollen“ mit der Rolle „Mitarbeiter\*in Landesgeschäftsstelle, Hessen“, dem Hinweis „Über deine Rolle sind dir die Inhalte von Grüne Hessen zugeteilt“ und dem Knopf „Zu deinem Landesverband“.](/assets/images/landesverband-tutorial/rolle-anlegen.webp)
 
