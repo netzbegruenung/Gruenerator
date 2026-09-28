@@ -70,6 +70,7 @@ import {
   mentionsCloudStorage,
 } from '../services/cloudConnectionContext.js';
 import { hasReachableForm } from '../services/pdfFormAvailability.js';
+import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
 import { makeCloudFilesTool } from './cloudFileTools.js';
@@ -101,6 +102,7 @@ import {
   type PersonalToolCtx,
 } from './personalDataTools.js';
 import { makeRecurringTasksTool } from './recurringTaskTools.js';
+import { makeReisekostenTool } from './reisekostenTools.js';
 import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';
 import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 import { makeRecipesTool } from './textFormTools.js';
@@ -1065,6 +1067,18 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       const pdfCtx = { state, sse, threadId: loop.threadId ?? null };
       tools.read_pdf_form = makeReadPdfFormTool(pdfCtx);
       tools.fill_pdf_form = makeFillPdfFormTool(pdfCtx);
+    }
+    // Reisekostenabrechnung (Beta). Nur in Reisekosten-Turns: das Eingabeschema
+    // ist gross und zählte sonst gegen das Katalogbudget jedes Recherche-Turns.
+    // Dasselbe Prädikat entscheidet im Routing, ob der Turn in den Loop geht.
+    if (
+      !editorSurface &&
+      isReisekostenTurn(
+        state.activeSkillMention,
+        state.lastUserTextNoMentions ?? lastUserText(state)
+      )
+    ) {
+      tools.reisekosten_abrechnung = makeReisekostenTool({ state, sse });
     }
     // Text → audio file (Grünerator Voice engine). Never in an editor sidebar:
     // the file is a NEW artifact, and those surfaces only edit the open one.

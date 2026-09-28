@@ -29,6 +29,7 @@ import { AGENTIC_INTENTS } from '../services/agenticLoop/intents.js';
 import { decideTurnPlan, type TurnPlan } from '../services/agenticLoop/turnPlan.js';
 import { resolveOriginalText } from '../services/agentPipeline.js';
 import { hasReachableForm } from '../services/pdfFormAvailability.js';
+import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { getIntentMessage, type SSEWriter } from '../services/sseHelpers.js';
 
 import { type SharepicRefinement } from './earlyHandlerStage.js';
@@ -129,6 +130,10 @@ export function runRoutingStage({
     // neben einem nicht ausfüllbaren PDF schob den Turn sonst in den Loop, wo
     // ihn kein Werkzeug erwartet.
     isPdfFillRequest: hasReachableForm(classifiedState) && isSheetFillRequest(lastUserText),
+    isReisekostenTurn: isReisekostenTurn(
+      classifiedState.activeSkillMention,
+      lastUserTextNoMentions
+    ),
     classifierContradictedResearch: classifiedState.classifierContradictedResearch === true,
     // Same question the classifier's Tier 3.5 asks, asked again here because a
     // turn can reach this gate without having passed that tier (confident
