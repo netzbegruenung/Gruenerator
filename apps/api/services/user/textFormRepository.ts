@@ -190,7 +190,7 @@ async function loadSharesFor(textFormIds: string[]): Promise<Map<string, TextFor
   const rows = (await db.query(
     `SELECT gcs.content_id, gcs.group_id, g.name AS group_name
        FROM group_content_shares gcs
-       INNER JOIN groups g ON g.id = gcs.group_id
+       INNER JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
       WHERE gcs.content_type = $1 AND gcs.content_id = ANY($2::text[])`,
     [TEXT_FORM_CONTENT_TYPE, textFormIds]
   )) as unknown as Array<{ content_id: string; group_id: string; group_name: string }>;
@@ -301,6 +301,7 @@ const GROUP_SHARE_EXISTS = `(tf.share_mode <> 'private' AND EXISTS (
           SELECT 1 FROM group_content_shares gcs
            INNER JOIN group_memberships gm
                    ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid AND gm.is_active = TRUE
+           INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
            WHERE gcs.content_type = $2 AND gcs.content_id = tf.id::text
         ))`;
 
@@ -577,6 +578,7 @@ export async function shareTextFormWithGroup(
     `INSERT INTO group_content_shares (group_id, shared_by_user_id, content_type, content_id)
      SELECT gm.group_id, $1::uuid, $2, $3
        FROM group_memberships gm
+       INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
       WHERE gm.group_id = $4::uuid AND gm.user_id = $1::uuid AND gm.is_active = TRUE
         AND NOT EXISTS (
           SELECT 1 FROM group_content_shares x

@@ -58,10 +58,8 @@ function conflict(kind: TrashKind) {
 }
 
 /** The handlers a request covers: one kind, or every registered one. */
-function handlersFor(kind: TrashKind | undefined): TrashKindHandler[] | null {
-  if (!kind) return Object.values(TRASH_KINDS);
-  const handler = trashHandlerFor(kind);
-  return handler ? [handler] : null;
+function handlersFor(kind: TrashKind | undefined): TrashKindHandler[] {
+  return kind ? [trashHandlerFor(kind)] : Object.values(TRASH_KINDS);
 }
 
 /**
@@ -110,7 +108,6 @@ export const trashContractRouter = s.router(trashContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const handlers = handlersFor(args.query.kind);
-      if (!handlers) return NOT_FOUND;
       const before = args.query.cursor ? decodeTrashCursor(args.query.cursor) : null;
       if (args.query.cursor && !before) {
         return { status: 400 as const, body: { error: 'Ungültiger Cursor.' } };
@@ -127,7 +124,6 @@ export const trashContractRouter = s.router(trashContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const handler = trashHandlerFor(args.params.kind);
-      if (!handler) return NOT_FOUND;
       const item = await handler.getTrashed(userId, args.params.id);
       if (item === 'not_found') return NOT_FOUND;
       if (item === 'forbidden') return FORBIDDEN;
@@ -148,7 +144,6 @@ export const trashContractRouter = s.router(trashContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const handler = trashHandlerFor(args.params.kind);
-      if (!handler) return NOT_FOUND;
       const item = await handler.getTrashed(userId, args.params.id);
       if (item === 'not_found') return NOT_FOUND;
       if (item === 'forbidden') return FORBIDDEN;
@@ -165,7 +160,6 @@ export const trashContractRouter = s.router(trashContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const handlers = handlersFor(args.query.kind);
-      if (!handlers) return NOT_FOUND;
       return { status: 200 as const, body: { purged: await emptyTrash(handlers, userId) } };
     } catch (error) {
       log.error('[trashContract.empty] Error:', error);

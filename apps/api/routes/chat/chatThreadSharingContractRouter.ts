@@ -165,7 +165,7 @@ export const chatThreadSharingContractRouter = s.router(chatThreadSharingContrac
         `SELECT gcs.group_id, g.name AS group_name, gcs.shared_at,
                 COALESCE((gcs.permissions->>'write')::boolean, true) AS can_write
          FROM group_content_shares gcs
-         INNER JOIN groups g ON g.id = gcs.group_id
+         INNER JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
          WHERE gcs.content_type = 'chat_threads' AND gcs.content_id = $1
          ORDER BY gcs.shared_at DESC`,
         [threadId]

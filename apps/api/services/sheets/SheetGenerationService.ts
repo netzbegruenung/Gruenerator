@@ -326,6 +326,7 @@ export async function loadSheetState(
      AND (created_by = $3::uuid OR permissions ? $3::text
           OR id::text IN (SELECT gcs.content_id FROM group_content_shares gcs
                     INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $3::uuid AND gm.is_active = TRUE
+                    INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
                     WHERE gcs.content_type = 'collaborative_documents'))`,
     [sheetId, SHEETS_SUBTYPE, userId]
   );

@@ -247,7 +247,7 @@ export const contentRoutes = {
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
       const group = await postgres.queryOne(
-        'SELECT settings FROM groups WHERE id = $1',
+        'SELECT settings FROM groups WHERE id = $1 AND deleted_at IS NULL',
         [groupId],
         {
           table: 'groups',

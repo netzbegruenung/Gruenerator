@@ -130,6 +130,7 @@ export async function fetchRecentDocs(
           SELECT gcs.content_id::uuid
           FROM group_content_shares gcs
           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+          INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
           WHERE gcs.content_type = 'collaborative_documents'
         ) THEN 'group'
       END AS access_type
@@ -145,6 +146,7 @@ export async function fetchRecentDocs(
           SELECT gcs.content_id::uuid
           FROM group_content_shares gcs
           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+          INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
           WHERE gcs.content_type = 'collaborative_documents'
         )
       )
@@ -193,6 +195,7 @@ export async function fetchRecentBoards(
           SELECT gcs.content_id::uuid
           FROM group_content_shares gcs
           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+          INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
           WHERE gcs.content_type = 'collaborative_documents'
         ) THEN 'group'
       END AS access_type
@@ -208,6 +211,7 @@ export async function fetchRecentBoards(
           SELECT gcs.content_id::uuid
           FROM group_content_shares gcs
           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+          INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
           WHERE gcs.content_type = 'collaborative_documents'
         )
       )
@@ -357,6 +361,7 @@ export async function fetchRecentCanvases(
           SELECT gcs.content_id::uuid
           FROM group_content_shares gcs
           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2 AND gm.is_active = TRUE
+          INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
           WHERE gcs.content_type = 'collaborative_documents'
         ) THEN 'group'
       END AS access_type

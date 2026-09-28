@@ -51,7 +51,7 @@ async function getMembershipsForUserInGroups(
     `SELECT gm.role, (g.created_by = gm.user_id) AS is_creator
        FROM group_memberships gm
        INNER JOIN groups g ON g.id = gm.group_id
-       WHERE gm.user_id = $1 AND gm.group_id = ANY($2)`,
+       WHERE gm.user_id = $1 AND gm.group_id = ANY($2) AND g.deleted_at IS NULL`,
     [userId, groupIds]
   )) as MembershipRow[];
 }

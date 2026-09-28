@@ -86,6 +86,7 @@ export async function getThreadAccessLevel(
     `SELECT bool_or(COALESCE((gcs.permissions->>'write')::boolean, true)) AS can_write
      FROM group_content_shares gcs
      INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id
+     INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
      WHERE gcs.content_type = 'chat_threads'
      AND gcs.content_id = $1::text
      AND gm.user_id = $2::uuid
@@ -108,6 +109,7 @@ export async function getThreadAccessLevel(
        ON gm.group_id = gcs.group_id
       AND gm.user_id = $2::uuid
       AND gm.is_active = TRUE
+     INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
      WHERE ct.id = $1 AND ct.deleted_at IS NULL
        AND ct.doc_id IS NOT NULL
        AND COALESCE((gcs.permissions->>'read')::boolean, true) = true

@@ -267,7 +267,7 @@ export function notifyContentShared(
          FROM groups g
          LEFT JOIN group_content_shares s
            ON s.group_id = g.id AND s.content_type = $2 AND s.content_id = $3
-        WHERE g.id = $1`,
+        WHERE g.id = $1 AND g.deleted_at IS NULL`,
         [groupId, contentType, contentId, userId],
         { table: 'groups' }
       )

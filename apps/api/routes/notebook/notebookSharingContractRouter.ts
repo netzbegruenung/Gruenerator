@@ -209,7 +209,7 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
       const shares = (await postgres.query(
         `SELECT gcs.group_id, g.name AS group_name, gcs.shared_at
            FROM group_content_shares gcs
-           INNER JOIN groups g ON g.id = gcs.group_id
+           INNER JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
            WHERE gcs.content_type = 'notebook_collections' AND gcs.content_id = $1
            ORDER BY gcs.shared_at DESC`,
         [args.params.id]

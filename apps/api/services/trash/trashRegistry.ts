@@ -4,7 +4,7 @@
  *
  * The real work (trash/restore/purge SQL, rights, side stores) lives in each
  * kind's own service next to its old delete code; a handler only adapts that
- * service to one shape. Kinds without a handler yet answer 404.
+ * service to one shape.
  */
 import { type TrashItem, type TrashKind } from '@gruenerator/contracts';
 
@@ -41,6 +41,15 @@ import {
   trashDocuments,
   type TrashedDocumentRow,
 } from '../document-services/PostgresDocumentService/metadataOperations.js';
+import {
+  getTrashedGroup,
+  listExpiredGroups,
+  listTrashedGroups,
+  purgeGroup,
+  restoreGroup,
+  trashGroup,
+  type TrashedGroup,
+} from '../groups/groupTrash.js';
 import { CUSTOM_PROMPT_TRASH, purgeCustomPrompt } from '../prompts/customPromptTrash.js';
 import {
   deleteRecurringTask,
@@ -433,7 +442,33 @@ const userKnowledgeHandler = ownedRowHandler<Titled>({
   purge: (id, cutoff) => getKnowledgeService().purgeUserKnowledge(id, cutoff),
 });
 
-// Task 5 tightens this to `Record<TrashKind, TrashKindHandler>` once every kind has one.
+const groupItem = (row: TrashedGroup): TrashItem =>
+  toTrashItem({
+    kind: 'group',
+    id: row.id,
+    title: titled(row.name, 'Unbenanntes Projekt'),
+    subtype: row.group_type,
+    deletedAt: new Date(row.deleted_at),
+  });
+
+/** Rights are creator or admin member, not `user_id` — hence not an owned-row kind. */
+const groupHandler: TrashKindHandler = {
+  async listTrashed(userId, opts) {
+    return (await listTrashedGroups(userId, opts)).map(groupItem);
+  },
+  async getTrashed(userId, id) {
+    const found = await getTrashedGroup(userId, id);
+    return typeof found === 'string' ? found : groupItem(found);
+  },
+  async trash(userId, id) {
+    const result = await trashGroup(id, userId);
+    return result === 'system' ? 'forbidden' : result;
+  },
+  restore: restoreGroup,
+  purge: purgeGroup,
+  listExpired: listExpiredGroups,
+};
+
 export const TRASH_KINDS = {
   collaborative_document: collaborativeDocumentHandler,
   chat_thread: chatThreadHandler,
@@ -450,8 +485,9 @@ export const TRASH_KINDS = {
   user_letterhead: userLetterheadHandler,
   user_document: userDocumentHandler,
   user_knowledge: userKnowledgeHandler,
-} satisfies Partial<Record<TrashKind, TrashKindHandler>>;
+  group: groupHandler,
+} satisfies Record<TrashKind, TrashKindHandler>;
 
-export function trashHandlerFor(kind: TrashKind): TrashKindHandler | null {
-  return (TRASH_KINDS as Partial<Record<TrashKind, TrashKindHandler>>)[kind] ?? null;
+export function trashHandlerFor(kind: TrashKind): TrashKindHandler {
+  return TRASH_KINDS[kind];
 }

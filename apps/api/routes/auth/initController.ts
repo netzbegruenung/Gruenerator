@@ -49,7 +49,7 @@ async function fetchGroups(userId: string): Promise<unknown[]> {
 
     const groupIds = (memberships as Array<{ group_id: string }>).map((m) => m.group_id);
     const groupsData = await db.query(
-      'SELECT id, name, description, created_at, created_by, join_token, settings, avatar_url, links FROM groups WHERE id = ANY($1)',
+      'SELECT id, name, description, created_at, created_by, join_token, settings, avatar_url, links FROM groups WHERE id = ANY($1) AND deleted_at IS NULL',
       [groupIds]
     );
 
