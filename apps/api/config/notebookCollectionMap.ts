@@ -244,8 +244,11 @@ export function isUserNotebookId(id: string): boolean {
 
 /**
  * Resolve user-mentioned notebook UUIDs into the document IDs that scope chat
- * search. Ownership is enforced here — UUIDs not owned by `userId` are
- * silently dropped so a forged or stale ID returns no documents.
+ * search. Read access is enforced here via `checkNotebookAccess` — the same
+ * rule the notebook page applies — so a notebook shared into one of the
+ * user's Projekte resolves, while a forged, stale or unreadable ID is silently
+ * dropped and returns no documents. Downstream search trusts this set: it
+ * filters by document_id only, never by owner.
  *
  * Imported lazily inside the function body to avoid a Qdrant-helper boot
  * dependency at module load time (the helper initialises its Qdrant client).
@@ -258,13 +261,16 @@ export async function resolveUserNotebookDocumentIds(
   if (uuids.length === 0 || !userId) {
     return { documentIds: [], resolvedUserNotebookIds: [] };
   }
-  const { NotebookQdrantHelper } = await import('../database/services/NotebookQdrantHelper.js');
+  const [{ NotebookQdrantHelper }, { checkNotebookAccess }] = await Promise.all([
+    import('../database/services/NotebookQdrantHelper.js'),
+    import('../routes/notebook/notebookAccess.js'),
+  ]);
   const helper = new NotebookQdrantHelper();
   const documentIds = new Set<string>();
   const resolved: string[] = [];
   for (const uuid of uuids) {
-    const collection = await helper.getNotebookCollection(uuid);
-    if (!collection || collection.user_id !== userId) continue;
+    const access = await checkNotebookAccess(uuid, userId);
+    if (!access.canRead) continue;
     resolved.push(uuid);
     const docs = await helper.getCollectionDocuments(uuid);
     for (const d of docs) {
