@@ -149,6 +149,28 @@ describe('isWholesaleRefusal', () => {
     }
   });
 
+  it('does NOT fire on a capability decline — no search ran, nothing was refused', () => {
+    for (const text of [
+      // #3799, verbatim from the beta log.
+      'Ich kann keine Websuche durchführen. In den mir vorliegenden Quellen gibt es keine Informationen zum Ausgang der letzten Wahl.',
+      'Leider kann ich keine Internetrecherche durchführen.',
+      "I can't do a web search in this turn.",
+    ]) {
+      expect(isWholesaleRefusal(text), text).toBe(false);
+      expect(looksLikeRefusal(text), text).toBe(true);
+    }
+  });
+
+  it('still calls a policy decline phrased "Ich kann …" a decline', () => {
+    for (const text of [
+      'Ich kann dabei nicht helfen.',
+      'Ich kann dir dabei leider nicht weiterhelfen.',
+      'Leider kann ich diesen Auftrag nicht ausführen.',
+    ]) {
+      expect(isWholesaleRefusal(text), text).toBe(true);
+    }
+  });
+
   it('agrees with looksLikeRefusal on plain political prose', () => {
     for (const text of ['Wir dürfen nicht schweigen.', 'Keine Ausreden mehr: Klimaschutz jetzt!']) {
       expect(isWholesaleRefusal(text), text).toBe(false);
