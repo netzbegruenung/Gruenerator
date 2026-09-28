@@ -56,7 +56,7 @@ vi.mock('./services/threadPersistenceService.js', () => ({
 }));
 
 const { threadsContractRouter } = await import('./threadsContractRouter.js');
-const { purgeDocThread, purgeThread, restoreThread } =
+const { listTrashedThreads, purgeDocThread, purgeThread, restoreThread } =
   await import('./services/threadTrashService.js');
 
 const THREAD_ID = '550e8400-e29b-41d4-a716-446655440001';
@@ -144,6 +144,7 @@ describe('delete — the Papierkorb for chat threads', () => {
 
   function givenDb(opts: {
     owner?: string | null;
+    docId?: string | null;
     hasMessages?: boolean;
     deleted?: unknown[];
     trashed?: Record<string, unknown> | null;
@@ -151,8 +152,10 @@ describe('delete — the Papierkorb for chat threads', () => {
     queryMock.mockImplementation((sql: string) => {
       const s = sql.replace(/\s+/g, ' ').trim();
       effects.push(s);
-      if (s.startsWith('SELECT user_id FROM chat_threads')) {
-        return Promise.resolve(opts.owner ? [{ user_id: opts.owner }] : []);
+      if (s.startsWith('SELECT user_id, doc_id FROM chat_threads')) {
+        return Promise.resolve(
+          opts.owner ? [{ user_id: opts.owner, doc_id: opts.docId ?? null }] : []
+        );
       }
       if (s.startsWith('SELECT 1 FROM chat_messages')) {
         return Promise.resolve(opts.hasMessages ? [{ '?column?': 1 }] : []);
@@ -195,7 +198,7 @@ describe('delete — the Papierkorb for chat threads', () => {
 
     expect(res.status).toBe(200);
     expect(effects).toEqual([
-      'SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
+      'SELECT user_id, doc_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
       'SELECT 1 FROM chat_messages WHERE thread_id = $1 LIMIT 1',
       'UPDATE chat_threads SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL',
       'delete recall point',
@@ -211,7 +214,7 @@ describe('delete — the Papierkorb for chat threads', () => {
 
     expect(res.status).toBe(200);
     expect(effects).toEqual([
-      'SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
+      'SELECT user_id, doc_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
       'SELECT 1 FROM chat_messages WHERE thread_id = $1 LIMIT 1',
       'read attachment handles',
       'DELETE FROM chat_threads WHERE id = $1 AND deleted_at IS NULL RETURNING id',
@@ -219,6 +222,34 @@ describe('delete — the Papierkorb for chat threads', () => {
       'delete recall point',
     ]);
     expect(effects.some((e) => e.startsWith('UPDATE'))).toBe(false);
+  });
+
+  it('hard-deletes a doc chat even with messages — it never enters the Papierkorb', async () => {
+    // A doc chat "delete" clears the sidebar chat; the document itself is what
+    // the Papierkorb protects, and uq_chat_threads_doc_id leaves no room for a
+    // trashed copy beside the fresh thread the next open creates.
+    givenDb({ owner: OWNER, docId: 'doc-1', hasMessages: true, deleted: [{ id: THREAD_ID }] });
+
+    const res = await remove();
+
+    expect(res.status).toBe(200);
+    expect(effects).toEqual([
+      'SELECT user_id, doc_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
+      'read attachment handles',
+      'DELETE FROM chat_threads WHERE id = $1 AND deleted_at IS NULL RETURNING id',
+      'delete attachment vectors',
+      'delete recall point',
+    ]);
+    expect(effects.some((e) => e.startsWith('UPDATE'))).toBe(false);
+  });
+
+  it('lists only trashed threads of the owner, so a hard-deleted doc chat never shows', async () => {
+    givenDb({});
+
+    await listTrashedThreads(OWNER, { limit: 10, before: null });
+
+    expect(effects).toHaveLength(1);
+    expect(effects[0]).toContain('WHERE deleted_at IS NOT NULL AND user_id = $1');
   });
 
   it("refuses someone else's thread without touching it", async () => {
