@@ -62,6 +62,11 @@ describe('looksLikeNotebookToolAsk — trifft (Ort oder Menge)', () => {
     'Was regelt Kapitel 2 der Satzung?',
     'Welche Position vertreten wir zu Seite 3 des Koalitionsvertrags?',
     'Wie oft kommt das Wort Klimaneutralität vor?',
+    'was stand in der letzen pressemitteilung im notebook berlin',
+    'Was steht in der neuesten Pressemitteilung?',
+    'Und die vorletzte Pressemitteilung?',
+    'Fasse den letzten Beschluss zusammen',
+    'Zeig die drei jüngsten Anträge',
     'Wie oft wird Wasserstoff erwähnt?',
     // Testserver 23.09.2026: „vor" vor einem Komma, nicht am Satzende.
     'Wie oft kommt das Wort „Klimaschutz“ im Berlin-Notebook vor, und in welchen Quellen am häufigsten?',
@@ -119,6 +124,8 @@ describe('looksLikeNotebookToolAsk — trifft NICHT', () => {
     'Was steht im Notebook zur Wärmewende?',
     'Fasse das Notebook zusammen',
     'Erkläre mir die Grundsätze',
+    'Was ist im letzten Jahr passiert?',
+    'Wie war die letzte Landtagswahl?',
     'Was sagt die Quelle zur Mietpreisbremse?',
     // Wortgrenze: „Seite" steckt im Ortsnamen.
     'Wie ist die Lage in Seitenstetten?',

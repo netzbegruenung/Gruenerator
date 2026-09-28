@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   findNotebookNamedInText,
+  ALL_SOURCES_NOTEBOOK_ID,
   notebookIdsForTurn,
   OWN_NOTEBOOK_LIST_TIMEOUT_MS,
   mayNameOwnNotebook,
@@ -226,7 +227,7 @@ describe('notebookIdsForTurn — nur ohne gewähltes Notebook', () => {
     const ids = await notebookIdsForTurn({
       ...base,
       explicitIds: [],
-      hasDefaultNotebook: false,
+      defaultNotebookId: null,
       text: 'Liste die Quellen im Berlin-Notebook',
     });
     expect(ids).toEqual(['berlin-notebook']);
@@ -236,7 +237,7 @@ describe('notebookIdsForTurn — nur ohne gewähltes Notebook', () => {
     const ids = await notebookIdsForTurn({
       ...base,
       explicitIds: [OWN_ID],
-      hasDefaultNotebook: false,
+      defaultNotebookId: null,
       text: 'Liste die Quellen im Berlin-Notebook',
     });
     expect(ids).toEqual([OWN_ID]);
@@ -246,10 +247,21 @@ describe('notebookIdsForTurn — nur ohne gewähltes Notebook', () => {
     const ids = await notebookIdsForTurn({
       ...base,
       explicitIds: [],
-      hasDefaultNotebook: true,
+      defaultNotebookId: 'hamburg-notebook',
       text: 'Liste die Quellen im Berlin-Notebook',
     });
     expect(ids).toEqual([]);
+  });
+
+  // Der Web-Composer schickt „Alle Quellen" immer mit — das ist keine Auswahl.
+  it('die Voreinstellung „Alle Quellen" lässt den genannten Namen scopen', async () => {
+    const ids = await notebookIdsForTurn({
+      ...base,
+      explicitIds: [],
+      defaultNotebookId: ALL_SOURCES_NOTEBOOK_ID,
+      text: 'was stand in der letzen pressemitteilung im notebook berlin',
+    });
+    expect(ids).toEqual(['berlin-notebook']);
   });
 });
 

@@ -226,19 +226,29 @@ export async function resolveNotebookScopeFromText(params: {
 }
 
 /**
+ * Die Voreinstellung „Alle Quellen" — der Web-Composer schickt sie IMMER als
+ * `defaultNotebookId`, auch wenn niemand etwas gewählt hat. Als Auswahl gezählt,
+ * schaltete sie diesen Pfad für jeden Web-Turn ab: „was stand in der letzten
+ * Pressemitteilung im Notebook Berlin" blieb live ohne Notebook (28.09.2026).
+ */
+export const ALL_SOURCES_NOTEBOOK_ID = 'gruenerator-notebook';
+
+/**
  * Die Notebook-ids des Turns: gewählte/erwähnte gewinnen; nur ohne jede Auswahl
- * (auch kein Standard-Notebook im Composer) zählt ein im Text genanntes.
+ * (auch kein Standard-Notebook im Composer außer „Alle Quellen") zählt ein im
+ * Text genanntes.
  */
 export async function notebookIdsForTurn(params: {
   explicitIds: string[];
-  hasDefaultNotebook: boolean;
+  defaultNotebookId: string | null;
   userId: string;
   text: string;
   locale: string | null;
   listOwn?: (userId: string) => Promise<OwnNotebook[]>;
 }): Promise<string[]> {
-  const { explicitIds, hasDefaultNotebook, ...rest } = params;
-  if (explicitIds.length > 0 || hasDefaultNotebook) return explicitIds;
+  const { explicitIds, defaultNotebookId, ...rest } = params;
+  const chosenDefault = !!defaultNotebookId && defaultNotebookId !== ALL_SOURCES_NOTEBOOK_ID;
+  if (explicitIds.length > 0 || chosenDefault) return explicitIds;
   const id = await resolveNotebookScopeFromText(rest);
   return id ? [id] : [];
 }

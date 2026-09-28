@@ -102,6 +102,16 @@ const COUNTED_NOUN_DATIVE =
 const COUNT_ADJECTIVE =
   '(?:(?:neue|aktuelle|weitere|verschiedene|unterschiedliche|eigene|einzelne|gr(?:ü|ue)ne)n?\\s+)?';
 
+/**
+ * „die letzte Pressemitteilung", „der vorletzte Beschluss", „die neuesten
+ * Anträge" — die Reihenfolge nach Datum kennt nur `list`, eine Passagensuche
+ * findet „letzte" als Wort. Live (28.09.2026, auch mit „letzen") landete die
+ * Frage sonst in der Suche oder im falschen Werkzeug.
+ */
+const RECENT_ADJECTIVE = '(?:vor)?(?:letzt|letz|neuest|j(?:ü|ue)ngst|aktuellst)(?:e|en|er|es)';
+const DATED_NOUN =
+  '(?:pressemitteilung(?:en)?|beschl(?:uss|(?:ü|ue)sse)|antr(?:ag|(?:ä|ae)ge)|quellen?|dokumente?|artikel|positionspapiere?|protokolle?)';
+
 const REQUEST_INFINITIVES = `(?:sortieren|z(?:ä|ae)hlen|ordnen|auflisten|vorlesen|(?:ö|oe)ffnen|zitieren|${WRITE_INFINITIVES})`;
 
 /** Bittrahmen mit Infinitiv — nicht über ein Komma hinweg. */
@@ -157,6 +167,7 @@ const NOTEBOOK_TOOL_ASK = new RegExp(
       // Antwort und bleiben draußen.
       '(?:welche|was\\s+f(?:ü|ue)r)\\s+(?:quellen|dokumente|texte)\\s+(?:gibt\\s+es|liegen|findest\\s+du)',
       'nur\\s+(?:die\\s+)?titel',
+      `${RECENT_ADJECTIVE}\\s+(?:${COUNT}\\s+)?${DATED_NOUN}`,
       'seite\\s+\\d+',
       ...PAGE_ASKS,
       'abschnitt\\s+\\d+',
