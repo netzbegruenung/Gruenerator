@@ -129,7 +129,7 @@ export function landesverbandIdsForRoles(
 }
 
 /** Der Landesverband, dem dieser Agenten-Identifier gehört, oder `null`. */
-function lvIdForAgentIdentifier(identifier: string): string | null {
+export function lvIdForAgentIdentifier(identifier: string): string | null {
   const lv = LANDESVERBAENDE.find(
     (entry) =>
       entry.prAgentId === identifier ||

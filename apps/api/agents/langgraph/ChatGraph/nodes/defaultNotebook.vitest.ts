@@ -317,6 +317,22 @@ describe('searchNode – collection priority chain (mocked services)', () => {
     expect(result.searchResults!.length).toBeGreaterThan(0);
   });
 
+  it("forwards the agent's content-type pin to every collection search", async () => {
+    await searchNode(
+      makeState({
+        agentConfig: makeAgentConfig({
+          defaultFilter: { landesverband: ['HE', 'HE-F'], content_type: ['beschluss'] },
+        }),
+        defaultNotebookCollectionIds: ['hessen'],
+      })
+    );
+
+    expect(mockExecuteDirectSearch).toHaveBeenCalled();
+    for (const call of mockExecuteDirectSearch.mock.calls) {
+      expect(call[0].lvContentType).toEqual(['beschluss']);
+    }
+  });
+
   it('priority 4: multiple default notebook collections searched in parallel', async () => {
     await searchNode(
       makeState({

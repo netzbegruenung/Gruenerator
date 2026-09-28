@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { createLogger } from '../../../utils/logger.js';
 import { type RecipeRegistry } from '../services/agenticLoop/recipeRegistry.js';
 
-import { resolveRecipe, type RecipeCatalogEntry } from './recipeCatalog.js';
+import { recommendedToolsFor, resolveRecipe, type RecipeCatalogEntry } from './recipeCatalog.js';
 
 const log = createLogger('recipeTools');
 
@@ -30,8 +30,10 @@ export function makeRecipeTool(params: {
    * kleinen Loop-Modelle greifen sonst zuverlässig zur generischen Zeile.
    */
   preferLv?: (mention: string) => string | null;
+  /** Ist dieses Werkzeug im Turn montiert? Filtert die Empfehlungen des Rezepts. */
+  isMounted?: (tool: string) => boolean;
 }): Tool {
-  const { catalog, registry, userId, preferLv } = params;
+  const { catalog, registry, userId, preferLv, isMounted } = params;
   const mentions = catalog.map((e) => e.mention);
 
   return tool({
@@ -78,6 +80,7 @@ NICHT für Recherche, Rückfragen, Zusammenfassungen oder normalen Fließtext oh
         title: resolved.title,
         body: resolved.body,
         source: resolved.source,
+        ...(isMounted && { recommendedTools: recommendedToolsFor(effective, isMounted) }),
       });
 
       if (outcome === 'full') {

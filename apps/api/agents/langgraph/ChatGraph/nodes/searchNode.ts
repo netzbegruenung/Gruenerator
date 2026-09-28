@@ -564,6 +564,9 @@ export async function executeDocumentSearchParallel(
       if (searchFilters != null) {
         params.filters = searchFilters;
       }
+      if (agentConfig.defaultFilter?.content_type?.length) {
+        params.lvContentType = agentConfig.defaultFilter.content_type;
+      }
       return executeDirectSearch(params).catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
         log.warn(`[Search] Collection ${collection} failed for query "${sq}": ${msg}`);
@@ -969,6 +972,9 @@ export async function executeMultiDocFanout(
             query,
             collection,
             limit: perSourceLimit,
+            ...(agentConfig.defaultFilter?.content_type?.length && {
+              lvContentType: agentConfig.defaultFilter.content_type,
+            }),
           }).catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : String(err);
             errors.push({ source: `notebook:${src.id}:${collection}`, message: msg });
@@ -1545,6 +1551,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             };
             if (detectedFilters != null) {
               params.filters = detectedFilters;
+            }
+            if (agentConfig.defaultFilter?.content_type?.length) {
+              params.lvContentType = agentConfig.defaultFilter.content_type;
             }
             return executeDirectSearch(params).catch((err: unknown) => {
               const msg = err instanceof Error ? err.message : String(err);
