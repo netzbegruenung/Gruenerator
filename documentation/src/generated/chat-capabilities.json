@@ -635,14 +635,6 @@
       "audience": "de-DE"
     },
     {
-      "command": "@beschluss-hamburg",
-      "title": "Beschlussantrag Hamburg",
-      "description": "Beschlussanträge in der Beschlusssprache der Grünen Hamburg, im Anschluss an die bestehende Beschlusslage",
-      "avatar": "📜",
-      "category": "dokumente",
-      "audience": "de-DE"
-    },
-    {
       "command": "@beschluss-hessen",
       "title": "Beschlussantrag Hessen",
       "description": "Beschlussanträge in der Beschlusssprache der Grünen Hessen, im Anschluss an die bestehende Beschlusslage",

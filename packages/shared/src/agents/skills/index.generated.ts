@@ -678,20 +678,6 @@ export const SKILLS = [
     recommendedTools: ['gruenerator_search', 'web_search'],
   },
   {
-    identifier: 'gruenerator-beschluesse-hamburg',
-    title: 'Beschlussantrag Hamburg',
-    description:
-      'Beschlussanträge in der Beschlusssprache der Grünen Hamburg, im Anschluss an die bestehende Beschlusslage',
-    iconKey: 'PiAnchor',
-    avatar: '📜',
-    backgroundColor: '#316049',
-    mention: 'beschluss-hamburg',
-    skillCategory: 'dokumente',
-    audience: 'de-DE',
-    promptTemplate: 'Schreib einen Beschlussantrag zum Thema: ',
-    recommendedTools: ['gruenerator_search', 'web_search'],
-  },
-  {
     identifier: 'gruenerator-beschluesse-hessen',
     title: 'Beschlussantrag Hessen',
     description:
