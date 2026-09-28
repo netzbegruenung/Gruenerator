@@ -122,6 +122,36 @@ describe('shareContentToGroup', () => {
     expect(deps.updateNotebookCollection).not.toHaveBeenCalled();
   });
 
+  /**
+   * Gruppenzugriff auf einen User-Agent verlangt share_mode <> 'private'
+   * (#3784). Chat und MCP teilen über diesen Pfad — ohne Hochstufung wäre die
+   * Freigabe tot und im Teilen-Dialog unsichtbar.
+   */
+  it('promotes a private user agent to share_mode=groups before inserting', async () => {
+    const { deps, exec } = fakeDeps({ owner: { user_id: 'u1' } });
+    const out = await shareContentToGroup(
+      { ...base, contentType: 'user_agents', contentId: 'a1' },
+      deps
+    );
+    expect(out.status).toBe(200);
+    const [promoteSql, promoteParams] = exec.mock.calls[0] as unknown as [string, unknown[]];
+    expect(promoteSql).toMatch(/UPDATE user_agents SET share_mode = 'groups'/);
+    expect(promoteSql).toContain("share_mode = 'private'");
+    expect(promoteParams).toEqual(['a1']);
+    const [insertSql] = exec.mock.calls[1] as unknown as [string];
+    expect(insertSql).toContain('INSERT INTO group_content_shares');
+  });
+
+  it("does not touch someone else's user agent", async () => {
+    const { deps, exec } = fakeDeps({ owner: { user_id: 'other' } });
+    const out = await shareContentToGroup(
+      { ...base, contentType: 'user_agents', contentId: 'a1' },
+      deps
+    );
+    expect(out.status).toBe(403);
+    expect(exec).not.toHaveBeenCalled();
+  });
+
   it('is owner-only for notebooks', async () => {
     const { deps, exec } = fakeDeps(
       {},

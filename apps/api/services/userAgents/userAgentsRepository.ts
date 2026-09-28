@@ -7,7 +7,7 @@
  */
 
 import { type Agent, type AgentProvider } from '@gruenerator/shared/agents';
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 
 import { userAgents, type UserAgentRow } from '../../database/schema/userAgents.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
@@ -210,6 +210,13 @@ export async function deleteUserAgent(userId: string, handle: string): Promise<b
 // audience filter. Group shares live in the polymorphic group_content_shares
 // table keyed by the agent's UUID `id` (content_id), not the per-user
 // `identifier`. See migrations/user_agents_sharing_columns.sql.
+//
+// A share row alone grants nothing: every group-share reader also requires
+// `share_mode <> 'private'`, so setting an agent back to private revokes group
+// access without deleting the rows — switching back to 'groups' restores them,
+// and the sharing panel (which lists shares only in 'groups' mode) never hides
+// a share that still works. The share paths promote 'private' to 'groups'
+// before they insert (`shareContentToGroup`, `addGroupShare`).
 
 export type UserAgentAudience = 'de-DE' | 'de-AT';
 export type UserAgentShareMode = 'private' | 'groups' | 'authenticated';
@@ -297,7 +304,10 @@ export async function listUserAgentsByIds(
 ): Promise<Array<Omit<UserAgentRecord, 'systemRole'>>> {
   if (ids.length === 0) return [];
   const db = getDrizzleInstance();
-  const rows = await db.select().from(userAgents).where(inArray(userAgents.id, ids));
+  const rows = await db
+    .select()
+    .from(userAgents)
+    .where(and(inArray(userAgents.id, ids), ne(userAgents.share_mode, 'private')));
   return rows.map((row) => {
     const { systemRole: _systemRole, ...agent } = rowToAgent(row);
     return agent;
@@ -310,7 +320,7 @@ export async function listUserAgentsByIds(
  * `addGroupShare` flow inserts a `group_content_shares` row keyed by the
  * agent's UUID `id`). This is what lets group members chat with an agent a
  * teammate built. Returns undefined unless such an active-membership share
- * exists.
+ * exists and the agent is not private.
  *
  * `group_content_shares` has no Drizzle table, so the EXISTS join uses the raw
  * Postgres accessor; the matched row is mapped through the same `rowToAgent`
@@ -332,6 +342,7 @@ export async function getGroupSharedUserAgent(
     `SELECT ua.*
        FROM user_agents ua
       WHERE ua.identifier = $1
+        AND ua.share_mode <> 'private'
         AND EXISTS (
           SELECT 1
             FROM group_content_shares gcs
@@ -396,14 +407,17 @@ export async function getAccessibleUserAgentById(
         AND (
           ua.user_id = $2::uuid
           OR ua.share_mode = 'authenticated'
-          OR EXISTS (
-            SELECT 1
-              FROM group_content_shares gcs
-              JOIN group_memberships gm ON gm.group_id = gcs.group_id
-             WHERE gcs.content_type = 'user_agents'
-               AND gcs.content_id = ua.id::text
-               AND gm.user_id = $2
-               AND gm.is_active = true
+          OR (
+            ua.share_mode <> 'private'
+            AND EXISTS (
+              SELECT 1
+                FROM group_content_shares gcs
+                JOIN group_memberships gm ON gm.group_id = gcs.group_id
+               WHERE gcs.content_type = 'user_agents'
+                 AND gcs.content_id = ua.id::text
+                 AND gm.user_id = $2
+                 AND gm.is_active = true
+            )
           )
         )`,
     [id, requestingUserId],
@@ -505,6 +519,7 @@ export async function listMentionableUserAgents(
        INNER JOIN group_memberships gm
                ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid AND gm.is_active = true
       WHERE ua.user_id <> $1::uuid
+        AND ua.share_mode <> 'private'
       ORDER BY ua.created_at, ua.id, g.name`,
     [userId],
     { table: 'user_agents' }
