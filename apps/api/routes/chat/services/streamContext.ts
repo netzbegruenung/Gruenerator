@@ -296,10 +296,13 @@ export async function buildStreamContext({
   // another instance keeps working. Only `block` and `enabled: false` say no here.
   const systemNotebookIds = turnNotebookIds.filter(isNotebookResolvable);
   const userNotebookUuids = turnNotebookIds.filter(isUserNotebookId);
-  const { documentIds: notebookDocumentIds, resolvedUserNotebookIds } =
-    userNotebookUuids.length > 0
-      ? await resolveUserNotebookDocumentIds(userId, userNotebookUuids)
-      : { documentIds: [], resolvedUserNotebookIds: [] };
+  const {
+    documentIds: notebookDocumentIds,
+    resolvedUserNotebookIds,
+    documentNotebookIds: mentionedDocumentNotebookIds,
+  } = userNotebookUuids.length > 0
+    ? await resolveUserNotebookDocumentIds(userId, userNotebookUuids)
+    : { documentIds: [], resolvedUserNotebookIds: [], documentNotebookIds: {} };
   const notebookIds = [...systemNotebookIds, ...resolvedUserNotebookIds];
   // The composer's default pick scopes every following turn without being
   // restated, so it is implicit scoping — unlike the mention above.
@@ -310,10 +313,15 @@ export async function buildStreamContext({
   // An agent can bind a user-owned notebook (UUID) as its default knowledge
   // base. Resolve it to document IDs (ownership-checked) so search can scope
   // to it — mirrors the mention path, but as a default rather than explicit.
-  const { documentIds: defaultNotebookDocumentIds } =
+  const {
+    documentIds: defaultNotebookDocumentIds,
+    documentNotebookIds: defaultDocumentNotebookIds,
+  } =
     rawDefaultNotebookId && !defaultNotebookId && isUserNotebookId(rawDefaultNotebookId)
       ? await resolveUserNotebookDocumentIds(userId, [rawDefaultNotebookId])
-      : { documentIds: [] };
+      : { documentIds: [], documentNotebookIds: {} };
+  // The mention wins on overlap, as it wins the search scope.
+  const documentNotebookIds = { ...defaultDocumentNotebookIds, ...mentionedDocumentNotebookIds };
 
   // Filter wolkeFiles to refs whose shareLinkId is still owned + active for this user.
   // Stale refs (deleted/deactivated share link) are dropped so the chat still
@@ -800,6 +808,8 @@ export async function buildStreamContext({
     defaultNotebookId,
     defaultNotebookDocumentIds:
       defaultNotebookDocumentIds.length > 0 ? defaultNotebookDocumentIds : undefined,
+    documentNotebookIds:
+      Object.keys(documentNotebookIds).length > 0 ? documentNotebookIds : undefined,
     documentIds: rawDocumentIds?.length ? rawDocumentIds : undefined,
     documentChatIds: mergedDocumentChatIds.length
       ? mergedDocumentChatIds

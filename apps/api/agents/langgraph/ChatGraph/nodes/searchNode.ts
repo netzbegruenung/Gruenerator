@@ -1460,6 +1460,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             });
 
             for (const r of response.results || []) {
+              // A user notebook can hold a collaborator's document; the search
+              // does not filter by owner here, so the reader needs the notebook.
+              const notebookId = r.document_id
+                ? state.documentNotebookIds?.[r.document_id]
+                : undefined;
               results.push({
                 source: `document:${r.document_id || 'unknown'}`,
                 title: r.title || 'Dokument',
@@ -1467,6 +1472,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
                 url: r.source_url || undefined,
                 relevance: r.similarity_score ?? 0.5,
                 ...(r.document_id ? { documentId: r.document_id } : {}),
+                ...(notebookId ? { collectionId: notebookId } : {}),
               });
             }
             searchedCollections.push(fromUserNotebook ? 'user-notebook' : 'user-documents');
