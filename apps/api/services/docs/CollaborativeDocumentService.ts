@@ -270,8 +270,9 @@ export async function listExpiredCollaborativeDocuments(
  *
  * Cascades with the row: board_* tables, canvas_documents,
  * canvas_state_versions, chat_thread_canvases, collaborative_documents_init.
- * No FK, cleaned here: Yjs state, group shares, attachment files and the
- * canvas thumbnail share.
+ * No FK, cleaned here: Yjs state, group shares, the doc's chat thread
+ * (`chat_threads.doc_id`; its messages cascade from the thread), board
+ * schedules, attachment files and the canvas thumbnail share.
  */
 export async function purgeCollaborativeDocument(
   runQuery: QueryRunner,
@@ -320,6 +321,12 @@ export async function purgeCollaborativeDocument(
        WHERE content_type IN ('collaborative_documents', 'canvas_template') AND content_id = $1`,
       [id]
     )
+  );
+  await sideStore('chat_threads', () =>
+    runQuery('DELETE FROM chat_threads WHERE doc_id = $1', [id])
+  );
+  await sideStore('board_scheduled_runs', () =>
+    runQuery('DELETE FROM board_scheduled_runs WHERE board_id = $1', [id])
   );
   for (const { stored_filename } of attachments) {
     await sideStore('board_attachments', () => deleteStoredFile(stored_filename));

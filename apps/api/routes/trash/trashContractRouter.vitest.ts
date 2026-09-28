@@ -127,11 +127,13 @@ describe('purge now', () => {
     expect(handler.purge).not.toHaveBeenCalled();
 
     handler.getTrashed.mockResolvedValue(item('d1', '2026-09-01T00:00:00.000Z'));
+    handler.purge.mockResolvedValue(true);
     expect(await call('DELETE', '/api/trash/collaborative_document/d1')).toEqual({
       status: 200,
       body: { purged: 1 },
     });
-    expect(handler.purge).toHaveBeenCalledWith('d1');
+    // No cutoff: purge-now removes any trashed row, not only expired ones.
+    expect(handler.purge).toHaveBeenCalledWith('d1', null);
   });
 });
 
@@ -173,7 +175,9 @@ describe('list', () => {
 });
 
 describe('empty', () => {
-  it('purges everything the user has in the trash', async () => {
+  it('purges everything the user has in the trash, counting only rows actually deleted', async () => {
+    // t1 was restored between listing and purging: nothing matched, not counted.
+    handler.purge.mockImplementation((id) => Promise.resolve(id !== 't1'));
     handler.listTrashed.mockResolvedValueOnce([
       item('d2', '2026-09-02T00:00:00.000Z'),
       item('d1', '2026-09-01T00:00:00.000Z'),
@@ -182,7 +186,11 @@ describe('empty', () => {
       item('t1', '2026-09-01T00:00:00.000Z', 'chat_thread'),
     ]);
 
-    expect(await call('DELETE', '/api/trash')).toEqual({ status: 200, body: { purged: 3 } });
-    expect(handler.purge.mock.calls).toEqual([['d2'], ['d1'], ['t1']]);
+    expect(await call('DELETE', '/api/trash')).toEqual({ status: 200, body: { purged: 2 } });
+    expect(handler.purge.mock.calls).toEqual([
+      ['d2', null],
+      ['d1', null],
+      ['t1', null],
+    ]);
   });
 });

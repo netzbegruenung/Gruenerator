@@ -87,8 +87,7 @@ async function emptyTrash(handlers: TrashKindHandler[], userId: string): Promise
     for (;;) {
       const batch = await handler.listTrashed(userId, { limit: EMPTY_BATCH, before });
       for (const item of batch) {
-        await handler.purge(item.id);
-        purged++;
+        if (await handler.purge(item.id, null)) purged++;
       }
       const last = batch[batch.length - 1];
       if (batch.length < EMPTY_BATCH || !last) break;
@@ -146,8 +145,8 @@ export const trashContractRouter = s.router(trashContract, {
       if (item === 'not_found') return NOT_FOUND;
       if (item === 'forbidden') return FORBIDDEN;
 
-      await handler.purge(item.id);
-      return { status: 200 as const, body: { purged: 1 } };
+      const purged = await handler.purge(item.id, null);
+      return { status: 200 as const, body: { purged: purged ? 1 : 0 } };
     } catch (error) {
       log.error('[trashContract.purge] Error:', error);
       return { status: 500 as const, body: { error: 'Endgültiges Löschen fehlgeschlagen.' } };

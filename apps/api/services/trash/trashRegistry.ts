@@ -62,8 +62,11 @@ export interface TrashKindHandler {
   getTrashed(userId: string, id: string): Promise<TrashLookup>;
   trash(userId: string, id: string): Promise<'ok' | 'not_found' | 'forbidden'>;
   restore(userId: string, id: string): Promise<'ok' | 'not_found' | 'forbidden' | 'conflict'>;
-  /** Idempotent: hard delete plus side stores; a restored row is left alone. */
-  purge(id: string): Promise<void>;
+  /**
+   * Idempotent hard delete plus side stores. Only a row trashed before `cutoff`
+   * (any trashed row when null) is removed; true when a row was deleted.
+   */
+  purge(id: string, cutoff: Date | null): Promise<boolean>;
   listExpired(cutoff: Date, limit: number): Promise<Array<{ id: string; userId: string | null }>>;
 }
 
@@ -94,8 +97,8 @@ const collaborativeDocumentHandler: TrashKindHandler = {
   async restore(userId, id) {
     return (await restoreCollaborativeDocument(runQuery, id, userId)).status;
   },
-  async purge(id) {
-    await purgeCollaborativeDocument(runQuery, id, null);
+  purge(id, cutoff) {
+    return purgeCollaborativeDocument(runQuery, id, cutoff);
   },
   listExpired(cutoff, limit) {
     return listExpiredCollaborativeDocuments(runQuery, cutoff, limit);
