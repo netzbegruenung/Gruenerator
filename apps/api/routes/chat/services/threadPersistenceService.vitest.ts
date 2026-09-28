@@ -26,6 +26,7 @@ const {
   deleteTrailingAssistant,
   getRecentToolSteps,
   readThreadToolHistory,
+  ensureDocChatThread,
 } = await import('./threadPersistenceService.js');
 
 /** Collapse whitespace so assertions don't depend on SQL formatting. */
@@ -230,4 +231,17 @@ describe('toolSteps order', () => {
     expect(notebookIdFromSteps(history.lastTurnToolSteps())).toBe('berlin');
     // Der Import zieht den ganzen Werkzeugbaum — beim ersten Mal langsam.
   }, 60_000);
+});
+
+describe('ensureDocChatThread', () => {
+  it('brings a trashed doc thread back instead of handing out a hidden one', async () => {
+    // doc_id is unique: a trashed doc thread would win the conflict, and every
+    // reader hides it — the doc's chat would stay dead until the purge.
+    queryMock.mockResolvedValueOnce([{ id: 'thread-1' }]);
+
+    expect(await ensureDocChatThread('doc-1', 'user-1')).toEqual({ id: 'thread-1' });
+    expect(sql()).toContain(
+      'ON CONFLICT (doc_id) WHERE doc_id IS NOT NULL DO UPDATE SET updated_at = CURRENT_TIMESTAMP, deleted_at = NULL'
+    );
+  });
 });
