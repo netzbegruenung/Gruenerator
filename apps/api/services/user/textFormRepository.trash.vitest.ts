@@ -1,8 +1,8 @@
 /**
  * Rezepte im Papierkorb: löschen setzt nur `deleted_at`, jeder Leser blendet
- * die Zeile aus, und weil `(user_id, mention)` auch für getrashte Zeilen
- * belegt bleibt, darf ein Speichern unter derselben Mention die Zeile im
- * Papierkorb nicht still überschreiben.
+ * die Zeile aus, und weil `(user_id, mention)` nur unter lebenden Zeilen
+ * eindeutig ist, muss das Upsert den partiellen Index als Konfliktziel nennen
+ * — sonst scheitert jedes Speichern an 42P10.
  */
 import { type SQL } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
@@ -92,19 +92,18 @@ describe('Rezept Papierkorb', () => {
     }
   });
 
-  it('a save under the mention of a trashed recipe refuses instead of overwriting it', async () => {
-    upsertRows = [];
-    await expect(
-      upsertTextForm('u1', {
-        kind: 'custom',
-        mention: 'pressemitteilung-kv',
-        title: 'PM',
-        examples: [],
-        styleBlock: '',
-      })
-    ).rejects.toThrow(/Papierkorb/);
-    const config = onConflict.mock.calls[0]?.[0] as { setWhere: SQL };
-    expect(new PgDialect().sqlToQuery(config.setWhere).sql).toContain('"deleted_at" is null');
+  it('upserts against the partial index: a trashed recipe is no conflict', async () => {
+    upsertRows = [{ id: ID, mention: 'pressemitteilung-kv', kind: 'custom', examples: [] }];
+    await upsertTextForm('u1', {
+      kind: 'custom',
+      mention: 'pressemitteilung-kv',
+      title: 'PM',
+      examples: [],
+      styleBlock: '',
+    }).catch(() => null);
+    const config = onConflict.mock.calls[0]?.[0] as { targetWhere: SQL; setWhere?: SQL };
+    expect(new PgDialect().sqlToQuery(config.targetWhere).sql).toContain('"deleted_at" is null');
+    expect(config.setWhere).toBeUndefined();
   });
 
   it('purge deletes only a trashed row, conditionally on the cutoff', async () => {

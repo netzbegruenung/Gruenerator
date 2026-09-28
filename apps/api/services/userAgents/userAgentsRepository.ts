@@ -219,7 +219,10 @@ export async function deleteUserAgent(userId: string, handle: string): Promise<b
   return rows.length > 0;
 }
 
-/** `(user_id, identifier)` is unique across trashed rows too, so a restore cannot collide today. */
+/**
+ * `(user_id, identifier)` is unique among live rows only: a restore next to a
+ * newer agent with the same identifier answers `conflict`.
+ */
 export const USER_AGENT_TRASH: OwnedTrashTable = { table: 'user_agents', columns: 'id, title' };
 
 /** Hard-delete a trashed agent. Its `group_content_shares` rows were never removed on delete either. */
