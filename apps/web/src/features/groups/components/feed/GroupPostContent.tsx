@@ -7,10 +7,11 @@ import {
   type GroupPostContent as PostContent,
 } from '@gruenerator/shared/groups';
 import { Button, cn, Textarea } from '@gruenerator/ui';
-import { useState } from 'react';
+import { useRef } from 'react';
 import { PiDownloadSimple } from 'react-icons/pi';
 
 import { FileBadge } from './GroupComposer';
+import { GroupMentionText, MentionSuggestions, useMentionDraft } from './GroupMentions';
 
 interface GroupPostContentProps {
   groupId: string;
@@ -35,28 +36,31 @@ export function GroupPostContent({
   editing,
   onEditDone,
 }: GroupPostContentProps) {
-  const [draft, setDraft] = useState(post.body);
+  const draft = useMentionDraft(post.body);
+  const textarea = useRef<HTMLTextAreaElement>(null);
   const update = useUpdateGroupPost(groupId);
   const images = post.files.filter((f) => f.isImage);
   const others = post.files.filter((f) => !f.isImage);
   const grid = gridFor(images.length);
-  const canSave = (draft.trim().length > 0 || post.files.length > 0) && !update.isPending;
+  const canSave = (draft.text.trim().length > 0 || post.files.length > 0) && !update.isPending;
 
   return (
     <div className="flex flex-col gap-sm px-md pt-sm">
       {editing ? (
-        <div className="flex flex-col gap-xs">
+        <div className="relative flex flex-col gap-xs">
           <Textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            ref={textarea}
+            {...draft.inputProps}
             autoFocus
             rows={4}
             maxLength={GROUP_POST_MAX}
             aria-label="Beitrag bearbeiten"
             onKeyDown={(e) => {
+              if (draft.handleKey(e)) return;
               if (e.key === 'Escape') onEditDone();
             }}
           />
+          <MentionSuggestions {...draft.listProps} inputRef={textarea} className="top-full" />
           {update.isError && (
             <p role="alert" className="m-0 text-sm text-red-600 dark:text-red-400">
               {errMessage(update.error)}
@@ -71,7 +75,7 @@ export function GroupPostContent({
               size="sm"
               disabled={!canSave}
               onClick={() =>
-                update.mutate({ postId, body: draft.trim() }, { onSuccess: onEditDone })
+                update.mutate({ postId, body: draft.serialize() }, { onSuccess: onEditDone })
               }
             >
               Speichern
@@ -81,7 +85,7 @@ export function GroupPostContent({
       ) : (
         post.body && (
           <p className="m-0 whitespace-pre-wrap break-words text-base leading-relaxed">
-            {post.body}
+            <GroupMentionText text={post.body} />
             {post.editedAt && (
               <span className="ml-xs text-[13px] text-muted-foreground">(bearbeitet)</span>
             )}

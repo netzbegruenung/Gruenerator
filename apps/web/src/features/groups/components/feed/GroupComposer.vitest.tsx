@@ -7,6 +7,7 @@ import { server } from '../../../../test/msw-server';
 import { axe, renderWithProviders } from '../../../../test-utils';
 
 import { GroupComposer } from './GroupComposer';
+import { GroupMentionProvider } from './GroupMentions';
 
 const GROUP = 'g1';
 const POSTS_URL = `http://localhost/api/auth/groups/${GROUP}/posts`;
@@ -92,5 +93,64 @@ describe('GroupComposer', () => {
     await user.type(screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' }), ' Lest das ');
     await user.click(screen.getByRole('button', { name: 'Aus meinen Inhalten' }));
     expect(onOpenShare).toHaveBeenCalledWith('Lest das');
+  });
+});
+
+describe('GroupComposer mentions', () => {
+  const ANNA = '11111111-1111-4111-8111-111111111111';
+
+  it('offers @alle and members, and posts a picked member as a token', async () => {
+    let received: FormDataEntryValue | null = null;
+    server.use(
+      http.post(POSTS_URL, async ({ request }) => {
+        received = (await request.formData()).get('body');
+        return HttpResponse.json({ success: true, postId: 'p', shareId: 's' }, { status: 201 });
+      })
+    );
+    const { user, container } = renderWithProviders(
+      <GroupMentionProvider
+        value={{
+          candidates: [{ userId: ANNA, label: 'Anna Beispiel' }],
+          allowAll: true,
+          memberCount: 9,
+        }}
+      >
+        <GroupComposer {...props} />
+      </GroupMentionProvider>
+    );
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an die Gruppe …' }));
+    const box = screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' });
+
+    await user.type(box, 'Hallo @');
+    const list = screen.getByRole('listbox', { name: 'Erwähnen' });
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
+      '@allebenachrichtigt alle 9 Mitglieder',
+      'Anna Beispiel',
+    ]);
+    expect(box).toHaveAttribute('aria-controls', list.id);
+    expect(await axe(container)).toHaveNoViolations();
+
+    await user.type(box, 'an{ArrowDown}{Enter}');
+    expect(box).toHaveValue('Hallo @Anna Beispiel ');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+
+    await user.type(box, 'und @al{Enter}bitte');
+    expect(box).toHaveValue('Hallo @Anna Beispiel und @alle bitte');
+
+    await user.click(screen.getByRole('button', { name: 'Posten' }));
+    await waitFor(() =>
+      expect(received).toBe(`Hallo @[Anna Beispiel](user:${ANNA}) und @alle bitte`)
+    );
+  });
+
+  it('hides @alle when the viewer may not use it', async () => {
+    const { user } = renderWithProviders(
+      <GroupMentionProvider value={{ candidates: [], allowAll: false, memberCount: null }}>
+        <GroupComposer {...props} memberCount={null} />
+      </GroupMentionProvider>
+    );
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an die Gruppe …' }));
+    await user.type(screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' }), '@');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 });
