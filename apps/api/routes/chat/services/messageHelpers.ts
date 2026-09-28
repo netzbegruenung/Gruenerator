@@ -113,6 +113,12 @@ export function extractTextContent(content: ModelMessage['content']): string {
     .join('');
 }
 
+/** Text of the last user message, or `null` when there is none. */
+export function lastUserText(messages: readonly ModelMessage[]): string | null {
+  const last = [...messages].reverse().find((m) => m.role === 'user');
+  return last ? extractTextContent(last.content) : null;
+}
+
 /**
  * Convert an AI SDK ModelMessage to TokenCounter-compatible format.
  *

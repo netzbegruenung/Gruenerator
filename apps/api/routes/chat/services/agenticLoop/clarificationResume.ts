@@ -15,6 +15,8 @@ import { createLogger } from '../../../../utils/logger.js';
 import { suspendForLoopClarification } from '../../streamStages/clarificationLoopSuspend.js';
 import { suspendForToolApproval } from '../../streamStages/toolApprovalSuspend.js';
 import { loopClarificationStateStore } from '../loopClarificationStateStore.js';
+import { lastUserText } from '../messageHelpers.js';
+import { seedThreadTitleIfUnnamed } from '../postResponseService.js';
 import { finalizeAssistantMessage, touchThread } from '../threadPersistenceService.js';
 
 import { streamAgenticResponse } from './agenticRespondService.js';
@@ -188,6 +190,16 @@ export async function runClarificationLoopResume(params: {
       for (const step of outcome.steps) delete step.textOffset;
       await finalizeAssistantMessage(stored.pausedMessageId, mergedText || null, metadata);
       await touchThread(threadId);
+      // Hat schon der ERSTE Zug pausiert, ist der Thread hier noch unbenannt:
+      // der generate-title-Aufruf des Clients kam, als die Zeile noch ein
+      // Platzhalter war, und überspringt sie absichtlich (#3794).
+      if (mergedText) {
+        await seedThreadTitleIfUnnamed({
+          threadId,
+          userText: lastUserText(requestContext.validMessages),
+          fullText: mergedText,
+        });
+      }
     }
 
     await loopClarificationStateStore.delete(threadId);

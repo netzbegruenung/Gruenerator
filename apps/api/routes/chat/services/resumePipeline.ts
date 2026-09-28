@@ -44,7 +44,7 @@ import { pruneMessages } from './contextPruningService.js';
 import { imageVisibility } from './imageVisibility.js';
 import { executeIntentPipeline, reportUnavailableSources } from './intentExecutionService.js';
 import { loopClarificationStateStore } from './loopClarificationStateStore.js';
-import { extractTextContent } from './messageHelpers.js';
+import { extractTextContent, lastUserText } from './messageHelpers.js';
 import { createPendingAssistantWriter } from './pendingAssistantWriter.js';
 import { pipelineStateStore } from './pipelineStateStore.js';
 import { persistResumedResponse } from './postResponseService.js';
@@ -447,6 +447,7 @@ export async function runChatGraphResume({
         userId: requestContext.userId,
         processedMeta: requestContext.processedMeta,
         userMessageId: requestContext.userMessageId ?? null,
+        userText: lastUserText(requestContext.validMessages),
         sharepicVariants,
       });
       if (artifactPersist.discarded) sendChatWarning(sse, 'turn_discarded');
@@ -639,8 +640,8 @@ export async function runChatGraphResume({
         resumeRequestId
       );
     }
-    const lastUserMsg = [...validMessages].reverse().find((m) => m.role === 'user');
-    const traceInput = lastUserMsg ? extractTextContent(lastUserMsg.content) : '';
+    const userText = lastUserText(validMessages);
+    const traceInput = userText ?? '';
 
     let resumeTraceId: string | undefined;
     const resumeTelemetry = buildAiTelemetry('chat-graph.resume');
@@ -700,6 +701,7 @@ export async function runChatGraphResume({
       userId: requestContext.userId,
       processedMeta: requestContext.processedMeta,
       userMessageId: requestContext.userMessageId ?? null,
+      userText,
       ...(resumeTraceId != null && { traceId: resumeTraceId }),
       pendingMessageId: pendingId,
     });
