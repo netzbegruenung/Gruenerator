@@ -14,6 +14,7 @@ import {
   ResponsiveMenuToggle,
 } from '@gruenerator/ui';
 import {
+  BookOpen,
   Check,
   ExternalLink,
   FileText,
@@ -31,7 +32,13 @@ import {
 } from 'lucide-react';
 import { memo, useState } from 'react';
 
-import { COMPOSER_TOOLS, type ComposerToolIconKey } from '../../lib/composerControls';
+import {
+  COMPOSER_MODES_TITLE,
+  COMPOSER_TOOLS,
+  composerModeDef,
+  type ComposerIconKey,
+  type ComposerToolIconKey,
+} from '../../lib/composerControls';
 import { resolveMentionable, type Mentionable } from '../../lib/mentionables';
 import {
   connectorId,
@@ -95,6 +102,18 @@ const TOOL_ICONS: Record<ComposerToolIconKey, React.ComponentType<{ className?: 
   research: Telescope,
   document: FileText,
 };
+
+/** Web's half of the `COMPOSER_MODES` icon contract, like `TOOL_ICONS` below it. */
+const MODE_ICONS: Record<ComposerIconKey, React.ComponentType<{ className?: string }>> = {
+  chat: MessageSquare,
+  notebook: BookOpen,
+  custom: Settings,
+};
+
+const CHAT_MODE = composerModeDef('chat');
+const EIGENER_MODE = composerModeDef('eigener');
+const ChatModeIcon = MODE_ICONS[CHAT_MODE.icon];
+const EigenerModeIcon = MODE_ICONS[EIGENER_MODE.icon];
 
 /** Grey secondary text next to a row's label. */
 const Hint = ({ children }: { children: React.ReactNode }) => (
@@ -272,8 +291,8 @@ export const PlusMenu = memo(function PlusMenu({
       {showModes && (
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className={threadMode === 'eigener' ? activeClass : ''}>
-            <Settings className="h-3.5 w-3.5" />
-            <span className="flex-1 truncate">Rollen</span>
+            <EigenerModeIcon className="h-3.5 w-3.5" />
+            <span className="flex-1 truncate">{COMPOSER_MODES_TITLE}</span>
             {threadMode === 'eigener' && <Hint>{eigenerBadgeLabel}</Hint>}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
@@ -281,8 +300,8 @@ export const PlusMenu = memo(function PlusMenu({
               onSelect={selectChatMode}
               className={threadMode === 'chat' ? activeClass : ''}
             >
-              <MessageSquare className="h-3.5 w-3.5" />
-              <span className="flex-1">Ohne Rolle</span>
+              <ChatModeIcon className="h-3.5 w-3.5" />
+              <span className="flex-1">{CHAT_MODE.label}</span>
               {threadMode === 'chat' && <Check className="h-3.5 w-3.5" />}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -293,7 +312,7 @@ export const PlusMenu = memo(function PlusMenu({
                   onSelect={() => selectRole(i)}
                   className={isRoleActive(i) ? activeClass : ''}
                 >
-                  <Settings className="h-3.5 w-3.5" />
+                  <EigenerModeIcon className="h-3.5 w-3.5" />
                   <span className="flex-1 truncate">{role.rolle}</span>
                   {isRoleActive(i) && <Check className="h-3.5 w-3.5" />}
                 </DropdownMenuItem>
@@ -304,8 +323,8 @@ export const PlusMenu = memo(function PlusMenu({
                 onSelect={selectEigener}
                 className={threadMode === 'eigener' ? activeClass : ''}
               >
-                <Settings className="h-3.5 w-3.5" />
-                <span className="flex-1">Eigener Chat</span>
+                <EigenerModeIcon className="h-3.5 w-3.5" />
+                <span className="flex-1">{EIGENER_MODE.label}</span>
               </DropdownMenuItem>
             )}
             {onNavigate && (
@@ -486,19 +505,19 @@ export const PlusMenu = memo(function PlusMenu({
       </ResponsiveMenuSection>
 
       {showModes && (
-        <ResponsiveMenuSection title="Rollen">
+        <ResponsiveMenuSection title={COMPOSER_MODES_TITLE}>
           <ResponsiveMenuItem
-            icon={<MessageSquare />}
+            icon={<ChatModeIcon />}
             active={threadMode === 'chat'}
             onClick={() => handleMobileAction(selectChatMode)}
           >
-            Ohne Rolle
+            {CHAT_MODE.label}
           </ResponsiveMenuItem>
           {hasRoles ? (
             roles.map((role, i) => (
               <ResponsiveMenuItem
                 key={`role-${i}`}
-                icon={<Settings />}
+                icon={<EigenerModeIcon />}
                 active={isRoleActive(i)}
                 onClick={() => handleMobileAction(() => selectRole(i))}
               >
@@ -507,7 +526,7 @@ export const PlusMenu = memo(function PlusMenu({
             ))
           ) : (
             <ResponsiveMenuItem
-              icon={<Settings />}
+              icon={<EigenerModeIcon />}
               active={threadMode === 'eigener'}
               disabled={!hasCustomPrompt}
               onClick={() => handleMobileAction(selectEigener)}
