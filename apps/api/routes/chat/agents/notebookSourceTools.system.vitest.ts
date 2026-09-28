@@ -267,6 +267,85 @@ describe('list', () => {
     });
     expect(filtered.hint).toBeUndefined();
   });
+
+  // Live 28.09.2026: „pressemitteilung" gegen gespeichertes `presse` gab still total 0,
+  // und die Antwort behauptete, MV habe nur eine Pressemitteilung.
+  const categorized = () => [
+    ...fakeDoc(LV, 'https://gruene-hamburg.de/pm', ['Pressetext.'], {
+      landesverband: 'HH',
+      title: 'PM',
+      primary_category: 'presse',
+    }),
+    ...fakeDoc(LV, 'https://gruene-hamburg.de/lmv', ['Beschlusstext.'], {
+      landesverband: 'HH',
+      title: 'LMV',
+      primary_category: 'beschluss',
+    }),
+  ];
+
+  it('maps a guessed category to the stored value and says so', async () => {
+    const { run } = makeCtx({ more: categorized() });
+    const out = await run({
+      action: 'list',
+      notebookId: 'hamburg',
+      filter: { category: 'Pressemitteilungen' },
+    });
+    expect(out).toMatchObject({ total: 1, categoryResolved: 'Pressemitteilungen → presse' });
+    const plural = await run({
+      action: 'list',
+      notebookId: 'hamburg',
+      filter: { category: 'Beschlüsse' },
+    });
+    expect(plural.total).toBe(1);
+    const exact = await run({
+      action: 'list',
+      notebookId: 'hamburg',
+      filter: { category: 'Presse' },
+    });
+    expect(exact.categoryResolved).toBeUndefined();
+  });
+
+  it('refuses an unknown category with the stored values instead of an empty list', async () => {
+    const { run } = makeCtx({ more: categorized() });
+    for (const action of ['list', 'find', 'grep']) {
+      const out = await run({
+        action,
+        notebookId: 'hamburg',
+        query: 'Hafen',
+        phrase: 'Hafen',
+        filter: { category: 'Wahlprogramm' },
+      });
+      expect(out.error).toMatch(/„Wahlprogramm" gibt es in Grüne Hamburg nicht/);
+      expect(out.error).toMatch(/presse \(1\), beschluss \(1\)/);
+    }
+    const bare = await makeCtx().run({
+      action: 'list',
+      notebookId: 'hamburg',
+      filter: { category: 'presse' },
+    });
+    expect(bare.error).toMatch(/keine Kategorie/);
+  });
+
+  it('ignores a stray category where sourceId makes the filter moot', async () => {
+    const { run } = makeCtx({ more: categorized() });
+    const filter = { category: 'Wahlprogramm' };
+    const read = await run({
+      action: 'read',
+      notebookId: 'hamburg',
+      sourceId: HH_A,
+      seite: 2,
+      filter,
+    });
+    expect(read.error).toBeUndefined();
+    const grep = await run({
+      action: 'grep',
+      notebookId: 'hamburg',
+      sourceId: HH_A,
+      phrase: 'Wärmepumpe',
+      filter,
+    });
+    expect(grep.error).toBeUndefined();
+  });
 });
 
 describe('outline and read', () => {
@@ -285,6 +364,12 @@ describe('outline and read', () => {
       collectionId: 'hamburg',
       pageNumber: 2,
     });
+  });
+
+  it('read without sourceId points to list with offset, not to a missing source', async () => {
+    const { run } = makeCtx();
+    const out = await run({ action: 'read', notebookId: 'hamburg' });
+    expect(out.error).toMatch(/list mit sortBy date/);
   });
 
   it('refuses a URL from another Landesverband', async () => {

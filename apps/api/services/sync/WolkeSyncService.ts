@@ -387,7 +387,7 @@ export class WolkeSyncService {
         isUpdate: !!existingDoc,
       };
     } catch (error: unknown) {
-      console.error(`[WolkeSyncService] Error processing file ${file.name}:`, error);
+      console.error('[WolkeSyncService] Error processing file %s:', file.name, error);
       throw error;
     }
   }

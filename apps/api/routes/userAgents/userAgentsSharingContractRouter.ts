@@ -47,7 +47,7 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
   listPublic: async (args) => {
     try {
       const user = getAuthedUser(args.req);
-      const agents = await listPublicUserAgents(user.locale ?? 'de-DE');
+      const agents = await listPublicUserAgents(user.id, user.locale ?? 'de-DE');
       return { status: 200 as const, body: { success: true, agents } };
     } catch (error) {
       log.error('[userAgentsSharingContract.listPublic] Error:', error);
