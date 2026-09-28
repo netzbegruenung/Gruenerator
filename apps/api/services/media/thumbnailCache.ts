@@ -161,7 +161,7 @@ export async function getThumbnailVariant(
     .then(() => fsPromises.rename(tmpPath, cachePath))
     .catch((err: unknown) => {
       log.error('Failed to cache thumbnail:', err);
-      void fsPromises.rm(tmpPath, { force: true });
+      return fsPromises.rm(tmpPath, { force: true }).catch(() => undefined);
     });
 
   return { contentType, size: buffer.length, buffer };
