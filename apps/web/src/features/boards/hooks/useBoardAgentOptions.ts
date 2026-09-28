@@ -1,13 +1,9 @@
 import { useHiddenAgentIdentifiers } from '@gruenerator/chat';
-import {
-  getVisibleSystemAgentsForLocale,
-  isAdminVisibleAgent,
-  type Agent,
-} from '@gruenerator/shared/agents';
+import { getVisibleSystemAgentsForLocale, isAdminVisibleAgent } from '@gruenerator/shared/agents';
 import { useMemo } from 'react';
 
 import { CURRENT_INSTANCE } from '../../../config/instance';
-import { useSharedUserAgents, useUserAgents } from '../../agents/api';
+import { useSharedUserAgents, useUserAgents, type ForeignAgent } from '../../agents/api';
 
 import { useAuthStore } from '@/stores/authStore';
 
@@ -19,7 +15,7 @@ export interface BoardAgentOption {
   iconKey: string;
 }
 
-function toOption(agent: Agent): BoardAgentOption {
+function toOption(agent: ForeignAgent): BoardAgentOption {
   return {
     identifier: agent.identifier,
     title: agent.title,
