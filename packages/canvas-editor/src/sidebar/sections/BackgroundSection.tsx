@@ -6,6 +6,7 @@ import { HiPhoto, HiMagnifyingGlass, HiXMark } from 'react-icons/hi2';
 import UnsplashAttribution from '../../common/UnsplashAttribution';
 import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
+import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { persistImageSelection } from '../persistImageSelection';
 
 import type { StockImage } from '../../common/imageSourceTypes';
@@ -14,9 +15,74 @@ import { SidebarSlider } from '../components/SidebarSlider';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 
-import type { BackgroundSectionProps, StockImageAttribution } from '../types';
+import type {
+  BackgroundColorOption,
+  BackgroundSectionProps,
+  StockImageAttribution,
+} from '../types';
 
 import { cn } from '../../utils/cn';
+
+// ============================================================================
+// Shared mobile styling
+// ============================================================================
+
+/** Mobile slider rows: 13px muted label above the track, 18px between rows. */
+export const MOBILE_SLIDER_ROWS =
+  'max-canvas-mobile:gap-[18px] max-canvas-mobile:[&_.justify-between>span]:text-[13px] max-canvas-mobile:[&_.justify-between>span]:font-bold max-canvas-mobile:[&_.justify-between>span]:text-[var(--editor-text-muted)] max-canvas-mobile:[&_.justify-between]:mb-1.5';
+
+export const MOBILE_BLOCK_LABEL = 'm-0 text-[13px] font-bold text-[var(--editor-text-muted)]';
+
+export const MOBILE_SEARCH_FIELD =
+  'flex items-center gap-2 h-11 px-3.5 rounded-xl bg-[var(--editor-tile)] text-[var(--editor-text)] [&_input]:!text-[15px]';
+
+export const MOBILE_IMAGE_TILE =
+  'relative block aspect-square w-full overflow-hidden rounded-xl border-none p-0 cursor-pointer bg-[var(--editor-tile)]';
+
+/**
+ * Colour swatches: the round `ColorSwatchGrid` on desktop, a 5-column grid of
+ * square tiles in the mobile sheet.
+ */
+export function BackgroundSwatchGrid({
+  colors,
+  currentColor,
+  onColorChange,
+}: {
+  colors: readonly BackgroundColorOption[];
+  currentColor: string;
+  onColorChange: (color: string) => void;
+}) {
+  const isMobile = useIsCanvasMobile();
+  if (!isMobile) {
+    return (
+      <ColorSwatchGrid colors={colors} currentColor={currentColor} onColorChange={onColorChange} />
+    );
+  }
+  return (
+    <div className="grid grid-cols-5 gap-2.5">
+      {colors.map((option) => {
+        const isActive = currentColor === option.color;
+        return (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => onColorChange(option.color)}
+            aria-label={option.label}
+            aria-pressed={isActive}
+            title={option.label}
+            className={cn(
+              'aspect-square w-full rounded-xl border-none p-0 cursor-pointer',
+              isActive
+                ? 'shadow-[0_0_0_2px_var(--editor-surface),0_0_0_4px_var(--editor-accent)]'
+                : 'shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)]'
+            )}
+            style={{ backgroundColor: option.color }}
+          />
+        );
+      })}
+    </div>
+  );
+}
 
 // ============================================================================
 // ColorSubsection - Solid colors and gradient overlay
@@ -40,11 +106,15 @@ function ColorSubsection({
   const showGradient = gradientOpacity !== undefined && onGradientOpacityChange !== undefined;
 
   return (
-    <div className={cn(SIDEBAR_SECTION, 'w-full')}>
-      <ColorSwatchGrid colors={colors} currentColor={currentColor} onColorChange={onColorChange} />
+    <div className={cn(SIDEBAR_SECTION, 'w-full max-canvas-mobile:gap-4')}>
+      <BackgroundSwatchGrid
+        colors={colors}
+        currentColor={currentColor}
+        onColorChange={onColorChange}
+      />
 
       {showGradient && (
-        <div style={{ marginTop: 'var(--spacing-large)' }}>
+        <div className={cn('mt-[var(--spacing-large)] max-canvas-mobile:mt-0', MOBILE_SLIDER_ROWS)}>
           <SidebarSlider
             label="Gradient-Overlay"
             value={gradientOpacity}
@@ -77,6 +147,7 @@ interface ImageSubsectionProps {
 function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageSubsectionProps) {
   const { fetchUnsplashImageAsFile, trackUnsplashDownloadLive, uploadImage } =
     useCanvasEditorServices();
+  const isMobile = useIsCanvasMobile();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [pickError, setPickError] = useState<string | null>(null);
@@ -150,20 +221,24 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
   }, [onImageChange]);
 
   return (
-    <div className={SIDEBAR_SECTION}>
+    <div className={cn(SIDEBAR_SECTION, 'max-canvas-mobile:gap-4')}>
       {/* Search Input */}
       <div
-        className="image-search-bar"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--spacing-small)',
-          marginBottom: 'var(--spacing-medium)',
-          padding: 'var(--spacing-small)',
-          backgroundColor: 'var(--background-color)',
-          border: '1px solid var(--grey-200)',
-          borderRadius: 'var(--border-radius-medium)',
-        }}
+        className={isMobile ? MOBILE_SEARCH_FIELD : 'image-search-bar'}
+        style={
+          isMobile
+            ? undefined
+            : {
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--spacing-small)',
+                marginBottom: 'var(--spacing-medium)',
+                padding: 'var(--spacing-small)',
+                backgroundColor: 'var(--background-color)',
+                border: '1px solid var(--grey-200)',
+                borderRadius: 'var(--border-radius-medium)',
+              }
+        }
       >
         <HiMagnifyingGlass size={20} style={{ color: 'var(--color-foreground-muted)' }} />
         <input
@@ -203,14 +278,14 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
       {currentImageSrc && (
         <div
           style={{
-            marginBottom: 'var(--spacing-medium)',
+            marginBottom: isMobile ? 0 : 'var(--spacing-medium)',
             position: 'relative',
           }}
         >
           <div
             style={{
               position: 'relative',
-              borderRadius: 'var(--border-radius-medium)',
+              borderRadius: isMobile ? 12 : 'var(--border-radius-medium)',
               overflow: 'hidden',
               aspectRatio: '16/9',
             }}
@@ -295,12 +370,17 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
       {searchResults.length > 0 && (
         <>
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: 'var(--spacing-small)',
-              marginBottom: 'var(--spacing-medium)',
-            }}
+            className={isMobile ? 'grid grid-cols-3 gap-2.5' : undefined}
+            style={
+              isMobile
+                ? undefined
+                : {
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: 'var(--spacing-small)',
+                    marginBottom: 'var(--spacing-medium)',
+                  }
+            }
           >
             {searchResults.map((image) => {
               const isSelected = currentImageSrc === image.url;
@@ -309,18 +389,32 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
                   key={image.filename}
                   onClick={() => handleImageSelect(image)}
                   type="button"
-                  style={{
-                    position: 'relative',
-                    border: isSelected
-                      ? '2px solid var(--primary-600)'
-                      : '1px solid var(--grey-200)',
-                    borderRadius: 'var(--border-radius-medium)',
-                    overflow: 'hidden',
-                    cursor: 'pointer',
-                    padding: 0,
-                    background: 'none',
-                    aspectRatio: '3/4',
-                  }}
+                  aria-pressed={isSelected}
+                  className={
+                    isMobile
+                      ? cn(
+                          MOBILE_IMAGE_TILE,
+                          isSelected &&
+                            'shadow-[0_0_0_2px_var(--editor-surface),0_0_0_4px_var(--editor-accent)]'
+                        )
+                      : undefined
+                  }
+                  style={
+                    isMobile
+                      ? undefined
+                      : {
+                          position: 'relative',
+                          border: isSelected
+                            ? '2px solid var(--primary-600)'
+                            : '1px solid var(--grey-200)',
+                          borderRadius: 'var(--border-radius-medium)',
+                          overflow: 'hidden',
+                          cursor: 'pointer',
+                          padding: 0,
+                          background: 'none',
+                          aspectRatio: '3/4',
+                        }
+                  }
                 >
                   <img
                     src={image.url}
