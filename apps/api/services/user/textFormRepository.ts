@@ -227,6 +227,7 @@ export async function listTextForms(userId: string): Promise<TextForm[]> {
                ON gm.group_id = gcs.group_id AND gm.user_id = $2::uuid AND gm.is_active = TRUE
        LEFT JOIN profiles p ON p.id = tf.user_id
       WHERE tf.user_id <> $2::uuid
+        AND tf.share_mode <> 'private'
       ORDER BY tf.created_at, tf.id, g.name`,
     [TEXT_FORM_CONTENT_TYPE, userId]
   )) as unknown as Array<UserTextFormRow & { group_name: string; owner_name: string | null }>;
@@ -284,13 +285,16 @@ export async function listPublicTextForms(limit = 200): Promise<PublicTextForm[]
 }
 
 /** An active group share of `tf` reaching `$1::uuid`. Written once, used by
- * every query that has to answer "may this user see this row". */
-const GROUP_SHARE_EXISTS = `EXISTS (
+ * every query that has to answer "may this user see this row". A share row of a
+ * private recipe grants nothing: setting a recipe back to private revokes group
+ * access without deleting the rows (#3803), and the sharing panel lists group
+ * shares only in 'groups' mode. */
+const GROUP_SHARE_EXISTS = `(tf.share_mode <> 'private' AND EXISTS (
           SELECT 1 FROM group_content_shares gcs
            INNER JOIN group_memberships gm
                    ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid AND gm.is_active = TRUE
            WHERE gcs.content_type = $2 AND gcs.content_id = tf.id::text
-        )`;
+        ))`;
 
 /** The public disjunct: listed, authenticated — and custom, never a system override. */
 const PUBLIC_VISIBLE = `(tf.is_public = TRUE AND tf.share_mode = 'authenticated' AND tf.kind = 'custom')`;
@@ -530,6 +534,16 @@ export async function shareTextFormWithGroup(
   if (!allowed) return (await loadSharesFor([form.id])).get(form.id) ?? [];
 
   const pg = getPostgresInstance();
+  // Group access needs share_mode <> 'private' (see GROUP_SHARE_EXISTS), so a
+  // private recipe moves to 'groups' first — otherwise the share would be dead
+  // and missing from the owner's sharing panel. 'authenticated' already reaches
+  // further and stays. Leaving is_public alone is safe: a private row is never
+  // listed.
+  await pg.query(
+    `UPDATE user_text_forms SET share_mode = 'groups', updated_at = NOW()
+      WHERE id = $1::uuid AND share_mode = 'private'`,
+    [form.id]
+  );
   // Membership is checked in SQL: the insert only happens for a group the user
   // is actually an active member of, so a forged group id cannot leak a recipe.
   await pg.query(
