@@ -257,6 +257,24 @@ describe('NotebookStartpage — one composer', () => {
     expect(bodies[0]?.filters).toEqual({ persons: ['Nina Stahr'] });
   });
 
+  it('keeps the hits while an empty facet vocabulary is fetched again', async () => {
+    let release!: () => void;
+    let calls = 0;
+    server.use(
+      http.get(FILTERS, async () => {
+        if (calls++ > 0) await new Promise<void>((r) => (release = r));
+        return HttpResponse.json({ filters: {} });
+      })
+    );
+    const { queryClient } = renderPage('auto', 'Mieten');
+    await screen.findByText('Mietendeckel jetzt');
+
+    void queryClient.refetchQueries({ queryKey: ['research', 'filters'] });
+    await waitFor(() => expect(calls).toBe(2));
+    expect(screen.getByText('Mietendeckel jetzt')).toBeVisible();
+    release();
+  });
+
   it('waits until the query is long enough', async () => {
     renderPage('auto', 'Mi');
     await new Promise((r) => setTimeout(r, 400));
