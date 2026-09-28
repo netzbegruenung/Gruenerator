@@ -37,6 +37,7 @@ import {
   unlikeEntity,
 } from '../../services/entityLikes/EntityLikesService.js';
 import { summarizeDocumentRows } from '../../services/notebook/corpusState.js';
+import { listGroupSharedNotebooksForUser } from '../../services/notebook/groupSharedNotebookListing.js';
 import { fetchDocumentMetadata } from '../../services/notebook/notebookSources.js';
 import { listPublicNotebooksForViewer } from '../../services/notebook/publicNotebookListing.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
@@ -552,6 +553,25 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       };
     } catch (error) {
       log.error('[notebookCollectionsContract.listPublicCollections] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
+  listSharedCollections: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const shared = await listGroupSharedNotebooksForUser(userId);
+      // getNotebookCollectionsByIds attaches the document links, so the
+      // enrichment below never falls into its per-notebook lookup.
+      const collections = await Promise.all(
+        shared.map(async (c) => ({
+          ...(await enrichNotebookCollection(c as NotebookCollectionFromQdrantRaw, 'shared')),
+          shared_via_groups: c.shared_via_groups,
+        }))
+      );
+      return { status: 200 as const, body: { success: true, collections } };
+    } catch (error) {
+      log.error('[notebookCollectionsContract.listSharedCollections] Error:', error);
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },
