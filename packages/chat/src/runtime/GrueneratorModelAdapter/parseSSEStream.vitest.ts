@@ -667,3 +667,78 @@ describe('parseSSEStream notebook answer mode', () => {
     });
   });
 });
+
+describe('parseSSEStream — tool-call ids stay unique (GlitchTip #660)', () => {
+  async function contentWith(
+    events: Array<{ event: string; data: unknown }>,
+    carryOver: Parameters<typeof parseSSEStream>[4]
+  ): Promise<ContentPart[]> {
+    const outcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+    let last: { content: ContentPart[] } | undefined;
+    for await (const result of parseSSEStream(
+      sseResponse(events),
+      callbacks,
+      outcome,
+      undefined,
+      carryOver
+    )) {
+      last = result as unknown as { content: ContentPart[] };
+    }
+    return last?.content ?? [];
+  }
+
+  it('never rebuilds a card the paused message already shows', async () => {
+    const content = await contentWith(
+      [
+        { event: 'tool_step_start', data: { stepId: 'known', toolName: 'web_search' } },
+        { event: 'tool_step_result', data: { stepId: 'known', toolName: 'web_search', ok: true } },
+        {
+          event: 'thinking_step',
+          data: { stepId: 'known', toolName: 'ask_human', title: 'x', status: 'in_progress' },
+        },
+        {
+          event: 'interrupt',
+          data: {
+            interruptType: 'tool_approval',
+            calls: [
+              { toolCallId: 'known', toolName: 'mcp_x', args: {} },
+              { toolCallId: 'fresh', toolName: 'mcp_x', args: {} },
+            ],
+          },
+        },
+      ],
+      { knownToolCallIds: new Set(['known']) }
+    );
+    expect(content.filter(isCard).map((c) => c.toolCallId)).toEqual(['fresh']);
+  });
+
+  it('gives fabricated cards distinct ids within the same millisecond', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const content = await contentWith(
+      [
+        { event: 'intent', data: { intent: 'search', message: 'Suche', searchQuery: 'a' } },
+        { event: 'sources_preview', data: { results: [] } },
+        { event: 'sources_preview', data: { results: [] } },
+      ],
+      undefined
+    );
+    vi.restoreAllMocks();
+    const ids = content.filter(isCard).map((c) => c.toolCallId);
+    expect(ids.length).toBeGreaterThan(1);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('drops a repeated id instead of handing it to the runtime', async () => {
+    const card: ToolCallPart = {
+      type: 'tool-call',
+      toolCallId: 'dup',
+      toolName: 'run_python',
+      args: {},
+      argsText: '{}',
+    };
+    const content = await contentWith([{ event: 'text_delta', data: { text: 'x' } }], {
+      toolCalls: [card, { ...card }],
+    });
+    expect(content.filter(isCard).map((c) => c.toolCallId)).toEqual(['dup']);
+  });
+});
