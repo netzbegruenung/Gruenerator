@@ -663,6 +663,12 @@ export interface ChatGraphState {
    */
   lastTurnNotebookId?: string | null;
   /**
+   * The assistant turn RIGHT BEFORE this one tried to retrieve something and
+   * every retrieval call failed (`priorTurnRetrievalFailed`). A short follow-up
+   * („finde es") is then a retry and runs the loop instead of a tool-less lane.
+   */
+  lastTurnRetrievalFailed?: boolean;
+  /**
    * Präzisionsmodus der Notebook-Seite: `notebook_quellen` darf nur diese
    * Notebooks öffnen (verglichen nach `resolveSystemCollection`), und mit
    * `readOnly` keine Schreibaktion ausführen. Fehlt ⇒ keine Einschränkung.
