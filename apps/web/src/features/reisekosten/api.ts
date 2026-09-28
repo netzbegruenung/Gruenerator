@@ -1,6 +1,5 @@
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
-
-import { fileToBase64 } from '../../utils/fileAttachmentUtils';
+import { fileToBase64 } from '@gruenerator/shared/utils';
 
 import type {
   BelegTyp,
