@@ -7,13 +7,15 @@ import { and, desc, eq } from 'drizzle-orm';
 
 import { documents, type Document } from '../../../database/schema/documents.js';
 import { getDrizzleInstance } from '../../../database/services/DrizzleService.js';
+import { notTrashed } from '../../../database/trash.js';
+import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
+import { type TrashCursor, trashKeysetWhere, trashOrderBy } from '../../trash/trashCursor.js';
 
 import type {
   DocumentMetadata,
   DocumentRecord,
   DocumentUpdateData,
   DeleteResult,
-  BulkDeleteResult,
 } from './types.js';
 import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
 
@@ -261,8 +263,12 @@ export async function getDocumentsBySourceType(
       .from(documents)
       .where(
         sourceType
-          ? and(eq(documents.user_id, userId), eq(documents.source_type, sourceType))
-          : eq(documents.user_id, userId)
+          ? and(
+              eq(documents.user_id, userId),
+              eq(documents.source_type, sourceType),
+              notTrashed(documents)
+            )
+          : and(eq(documents.user_id, userId), notTrashed(documents))
       )
       .orderBy(desc(documents.created_at));
 
@@ -288,7 +294,9 @@ export async function getDocumentById(
     const rows = await db
       .select()
       .from(documents)
-      .where(and(eq(documents.id, documentId), eq(documents.user_id, userId)))
+      .where(
+        and(eq(documents.id, documentId), eq(documents.user_id, userId), notTrashed(documents))
+      )
       .limit(1);
 
     return rows[0] ? drizzleRowToDocumentRecord(rows[0]) : null;
@@ -326,33 +334,153 @@ export async function deleteDocument(
   }
 }
 
-/**
- * Bulk delete documents
- */
-export async function bulkDeleteDocuments(
+// ========================================
+// Papierkorb
+// ========================================
+//
+// A trashed document keeps its row, its Qdrant chunks and its notebook links;
+// it only carries `deleted_at`. Readers hide it: SQL readers filter the column,
+// Qdrant hits are hydrated against Postgres (`liveDocumentIds`). Only
+// `purgeDocument` deletes the row, the vectors and the notebook links.
+// Delete rights are the owner's (`documents.user_id`).
+
+export type TrashedDocumentRow = Pick<Document, 'id' | 'title' | 'source_type'> & {
+  deleted_at: Date;
+};
+
+export type TrashedDocumentLookup =
+  { status: 'not_found' } | { status: 'forbidden' } | { status: 'ok'; row: TrashedDocumentRow };
+
+/** Move the caller's live documents among `documentIds` to the Papierkorb. */
+export async function trashDocuments(
   postgres: PostgresService,
   documentIds: string[],
   userId: string
-): Promise<BulkDeleteResult> {
-  try {
-    await postgres.ensureInitialized();
+): Promise<string[]> {
+  if (documentIds.length === 0) return [];
+  await postgres.ensureInitialized();
+  const rows = await postgres.query<{ id: string }>(
+    `UPDATE documents SET deleted_at = now()
+     WHERE id = ANY($1) AND user_id = $2 AND deleted_at IS NULL
+     RETURNING id`,
+    [documentIds, userId]
+  );
+  return rows.map((row) => String(row.id));
+}
 
-    // Build query for bulk delete with user ownership check
-    const placeholders = documentIds.map((_, index) => `$${index + 2}`).join(',');
-    const query = `DELETE FROM documents WHERE user_id = $1 AND id IN (${placeholders}) RETURNING id`;
+/** Single-document form of {@link trashDocuments}; throws like the old delete did. */
+export async function trashDocument(
+  postgres: PostgresService,
+  documentId: string,
+  userId: string
+): Promise<DeleteResult> {
+  const trashed = await trashDocuments(postgres, [documentId], userId);
+  if (trashed.length === 0) throw new Error('Document not found or access denied');
+  return { success: true, deletedId: documentId };
+}
 
-    const result = await postgres.query(query, [userId, ...documentIds]);
+/** A trashed document the user may restore or purge. */
+export async function getTrashedDocument(
+  postgres: PostgresService,
+  documentId: string,
+  userId: string
+): Promise<TrashedDocumentLookup> {
+  const rows = await postgres.query<TrashedDocumentRow & { user_id: string | null }>(
+    `SELECT id, title, source_type, deleted_at, user_id FROM documents
+     WHERE id = $1 AND deleted_at IS NOT NULL`,
+    [documentId]
+  );
+  if (rows.length === 0) return { status: 'not_found' };
+  const { user_id, ...row } = rows[0];
+  if (user_id !== userId) return { status: 'forbidden' };
+  return { status: 'ok', row };
+}
 
-    console.log(
-      `[PostgresDocumentService] Bulk deleted ${result.length} documents for user ${userId}`
-    );
-    return {
-      success: true,
-      deletedCount: result.length,
-      deletedIds: (result as Array<{ id: string }>).map((row) => row.id),
-    };
-  } catch (error) {
-    console.error('[PostgresDocumentService] Error bulk deleting documents:', error);
-    throw new Error('Failed to bulk delete documents');
+/** Undo {@link trashDocuments}. Nothing to re-embed: the chunks never left. */
+export async function restoreDocument(
+  postgres: PostgresService,
+  documentId: string,
+  userId: string
+): Promise<TrashedDocumentLookup> {
+  const found = await getTrashedDocument(postgres, documentId, userId);
+  if (found.status !== 'ok') return found;
+  await postgres.query(
+    'UPDATE documents SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL',
+    [documentId]
+  );
+  return found;
+}
+
+export async function listTrashedDocuments(
+  postgres: PostgresService,
+  userId: string,
+  opts: { limit: number; before: TrashCursor | null }
+): Promise<TrashedDocumentRow[]> {
+  const params: unknown[] = [userId];
+  const keyset = trashKeysetWhere('deleted_at', 'id', opts.before, params);
+  params.push(opts.limit);
+  return postgres.query<TrashedDocumentRow>(
+    `SELECT id, title, source_type, deleted_at FROM documents
+     WHERE deleted_at IS NOT NULL AND user_id = $1 AND ${keyset}
+     ORDER BY ${trashOrderBy('deleted_at', 'id')}
+     LIMIT $${params.length}`,
+    params
+  );
+}
+
+export async function listExpiredDocuments(
+  postgres: PostgresService,
+  cutoff: Date,
+  limit: number
+): Promise<Array<{ id: string; userId: string | null }>> {
+  const rows = await postgres.query<{ id: string; user_id: string | null }>(
+    `SELECT id, user_id FROM documents
+     WHERE deleted_at IS NOT NULL AND deleted_at < $1
+     ORDER BY deleted_at LIMIT $2`,
+    [cutoff, limit]
+  );
+  return rows.map((r) => ({ id: r.id, userId: r.user_id }));
+}
+
+/**
+ * Hard-delete a trashed document: the conditional DELETE first (0 rows → a
+ * restored or never-trashed document, nothing else is touched), then its
+ * Qdrant chunks and notebook links — neither has a foreign key. Those go
+ * best-effort: the row cannot come back, so a failure is reported, never
+ * thrown. `cutoff` null purges any trashed row (purge-now).
+ */
+export async function purgeDocument(
+  postgres: PostgresService,
+  documentId: string,
+  cutoff: Date | null
+): Promise<boolean> {
+  const deleted = await postgres.query<{ id: string; user_id: string | null }>(
+    `DELETE FROM documents
+     WHERE id = $1 AND deleted_at IS NOT NULL AND ($2::timestamptz IS NULL OR deleted_at < $2)
+     RETURNING id, user_id`,
+    [documentId, cutoff]
+  );
+  if (deleted.length === 0) return false;
+  const ownerId = deleted[0].user_id;
+
+  const sideStore = async (store: string, work: () => Promise<unknown>): Promise<void> => {
+    try {
+      await work();
+    } catch (error) {
+      reportBackgroundError(error, { job: 'trash-purge', kind: 'document', id: documentId, store });
+    }
+  };
+  if (ownerId) {
+    await sideStore('document_vectors', async () => {
+      const { getQdrantDocumentService } =
+        await import('../DocumentSearchService/DocumentSearchService.js');
+      await getQdrantDocumentService().deleteDocumentVectors(documentId, ownerId);
+    });
   }
+  await sideStore('notebook_collection_documents', async () => {
+    const { NotebookQdrantHelper } =
+      await import('../../../database/services/NotebookQdrantHelper.js');
+    await new NotebookQdrantHelper().removeDocumentsFromAllCollections([documentId]);
+  });
+  return true;
 }

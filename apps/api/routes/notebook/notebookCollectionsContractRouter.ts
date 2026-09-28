@@ -126,6 +126,7 @@ async function resolveWolkeLinksToDocuments(
       SELECT id, title, page_count, created_at, source_type, wolke_share_link_id
       FROM documents
       WHERE user_id = $1
+      AND deleted_at IS NULL
       AND source_type = 'wolke'
       AND wolke_share_link_id = ANY($2)
       AND status = 'completed'
@@ -508,7 +509,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
           let documents: DocumentRecord[] = [];
           if (documentIds.length > 0) {
             documents = await postgres.query<DocumentRecord>(
-              'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1)',
+              'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1) AND deleted_at IS NULL',
               [documentIds]
             );
           }
@@ -680,7 +681,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         }
 
         const userDocuments = (await postgres.query(
-          'SELECT id FROM documents WHERE user_id = $1 AND id = ANY($2)',
+          'SELECT id FROM documents WHERE user_id = $1 AND id = ANY($2) AND deleted_at IS NULL',
           [userId, document_ids]
         )) as Array<{ id: string }>;
 
@@ -857,7 +858,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         }
 
         const userDocuments = (await postgres.query(
-          'SELECT id FROM documents WHERE user_id = $1 AND id = ANY($2)',
+          'SELECT id FROM documents WHERE user_id = $1 AND id = ANY($2) AND deleted_at IS NULL',
           [userId, document_ids]
         )) as Array<{ id: string }>;
 

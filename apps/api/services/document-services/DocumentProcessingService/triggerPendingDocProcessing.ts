@@ -35,7 +35,7 @@ export async function triggerPendingDocProcessing({
 
   const postgres = getPostgresInstance();
   const pendingDocs = (await postgres.query(
-    `SELECT id FROM documents WHERE id = ANY($1) AND user_id = $2 AND status = 'uploaded'`,
+    `SELECT id FROM documents WHERE id = ANY($1) AND user_id = $2 AND status = 'uploaded' AND deleted_at IS NULL`,
     [documentIds, userId]
   )) as Array<{ id: string }>;
 

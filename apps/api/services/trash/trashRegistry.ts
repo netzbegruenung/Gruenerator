@@ -32,6 +32,15 @@ import {
   type QueryRunner,
   type TrashedCollabDocRow,
 } from '../docs/CollaborativeDocumentService.js';
+import {
+  getTrashedDocument,
+  listExpiredDocuments,
+  listTrashedDocuments,
+  purgeDocument,
+  restoreDocument,
+  trashDocuments,
+  type TrashedDocumentRow,
+} from '../document-services/PostgresDocumentService/metadataOperations.js';
 
 import { compareTrashKey, type TrashCursor } from './trashCursor.js';
 
@@ -196,11 +205,40 @@ const notebookHandler: TrashKindHandler = {
   },
 };
 
+const documentItem = (row: TrashedDocumentRow): TrashItem =>
+  toTrashItem({
+    kind: 'document',
+    id: row.id,
+    title: row.title,
+    subtype: row.source_type,
+    deletedAt: row.deleted_at,
+  });
+
+const documentHandler: TrashKindHandler = {
+  async listTrashed(userId, opts) {
+    return (await listTrashedDocuments(getPostgresInstance(), userId, opts)).map(documentItem);
+  },
+  async getTrashed(userId, id) {
+    const found = await getTrashedDocument(getPostgresInstance(), id, userId);
+    return found.status === 'ok' ? documentItem(found.row) : found.status;
+  },
+  async trash(userId, id) {
+    const trashed = await trashDocuments(getPostgresInstance(), [id], userId);
+    return trashed.length > 0 ? 'ok' : 'not_found';
+  },
+  async restore(userId, id) {
+    return (await restoreDocument(getPostgresInstance(), id, userId)).status;
+  },
+  purge: (id, cutoff) => purgeDocument(getPostgresInstance(), id, cutoff),
+  listExpired: (cutoff, limit) => listExpiredDocuments(getPostgresInstance(), cutoff, limit),
+};
+
 // Task 5 tightens this to `Record<TrashKind, TrashKindHandler>` once every kind has one.
 export const TRASH_KINDS = {
   collaborative_document: collaborativeDocumentHandler,
   chat_thread: chatThreadHandler,
   notebook: notebookHandler,
+  document: documentHandler,
 } satisfies Partial<Record<TrashKind, TrashKindHandler>>;
 
 export function trashHandlerFor(kind: TrashKind): TrashKindHandler | null {

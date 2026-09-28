@@ -17,6 +17,7 @@ import { documents } from '../../database/schema/documents.js';
 import { userWebsites, type UserWebsiteRow } from '../../database/schema/userWebsites.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
+import { notTrashed } from '../../database/trash.js';
 import { createLogger } from '../../utils/logger.js';
 import {
   discoverWordpressSite,
@@ -55,6 +56,7 @@ async function loadDocumentFacts(userId: string, siteUrl: string): Promise<Docum
       and(
         eq(documents.user_id, userId),
         eq(documents.source_type, 'wordpress'),
+        notTrashed(documents),
         sql`${documents.metadata}->>'wp_site' = ${siteUrl}`
       )
     );

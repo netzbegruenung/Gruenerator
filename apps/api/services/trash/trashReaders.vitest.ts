@@ -47,6 +47,9 @@ const PERMANENT_CLEANUP =
   'file/link cleanup: the row-exists check must see trashed rows so their files survive until the purge';
 const PERMANENT_BACKFILL = 'backfill: writes every row, trashed ones included';
 const PERMANENT_ADMIN = 'admin surface: sees trashed rows on purpose';
+const PERMANENT_SYNC_DEDUPE =
+  'sync dedupe: must see trashed rows, or the next sync re-imports what the user trashed';
+const NOT_SQL = 'not SQL: the text only mentions the table';
 
 const ALLOWLIST: readonly AllowEntry[] = [
   // ── permanent ──
@@ -65,6 +68,31 @@ const ALLOWLIST: readonly AllowEntry[] = [
   ],
   ['apps/api/routes/admin/chunkInspectorContractRouter.ts', 'documents', PERMANENT_ADMIN],
   ['apps/api/services/cleanup/notebookLinkCleanupService.ts', 'documents', PERMANENT_CLEANUP],
+  ['apps/api/routes/notebook/wolkePendingContractRouter.ts', 'documents', PERMANENT_SYNC_DEDUPE],
+  [
+    'apps/api/services/document-services/PostgresDocumentService/wolkeOperations.ts',
+    'documents',
+    PERMANENT_SYNC_DEDUPE,
+  ],
+  ['apps/api/services/notebook/notebookWolkeAttach.ts', 'documents', PERMANENT_SYNC_DEDUPE],
+  ['apps/api/services/notebook/wordpressSourceService.ts', 'documents', PERMANENT_SYNC_DEDUPE],
+  ['apps/api/services/sync/WolkeSyncService.ts', 'documents', PERMANENT_SYNC_DEDUPE],
+  ['apps/api/services/sync/WolkeWatchService.ts', 'documents', PERMANENT_SYNC_DEDUPE],
+  [
+    'apps/api/services/document-services/PostgresDocumentService/metadataOperations.ts',
+    'documents',
+    'writer: updateDocumentMetadata must still record the status of a document trashed mid-ingest',
+  ],
+  [
+    'apps/api/services/document-services/DocumentQnAService/mistralIntegration.ts',
+    'documents',
+    `${NOT_SQL} (an error message)`,
+  ],
+  [
+    'apps/api/services/notebook/__fixtures__/fakeNotebookSources.ts',
+    'documents',
+    `${NOT_SQL} (a test fixture matching SQL text)`,
+  ],
   ['apps/api/services/migrations/backfillGroupSlugSuffixes.ts', 'groups', PERMANENT_BACKFILL],
   ['services/hocuspocus/src/auth.ts', 'groups', HOCUSPOCUS],
   ['apps/api/services/cleanup/uploadsCleanupService.ts', 'shared_media', PERMANENT_CLEANUP],
@@ -75,74 +103,6 @@ const ALLOWLIST: readonly AllowEntry[] = [
     'user_templates',
     PERMANENT_ADMIN,
   ],
-  // ── Task 2 ──
-  ['apps/api/routes/auth/initController.ts', 'documents', 'pending: Task 2'],
-  ['apps/api/routes/chat/agents/notebookSourceWriteActions.ts', 'documents', 'pending: Task 2'],
-  ['apps/api/routes/chat/agents/notebookTools.ts', 'documents', 'pending: Task 2'],
-  [
-    'apps/api/routes/chat/services/agenticLoop/attachedDocumentTools.ts',
-    'documents',
-    'pending: Task 2',
-  ],
-  ['apps/api/routes/chat/services/documentContextService.ts', 'documents', 'pending: Task 2'],
-  ['apps/api/routes/documents/documentsContractRouter.ts', 'documents', 'pending: Task 2'],
-  ['apps/api/routes/notebook/notebookCollectionsContractRouter.ts', 'documents', 'pending: Task 2'],
-  ['apps/api/routes/notebook/wolkePendingContractRouter.ts', 'documents', 'pending: Task 2'],
-  [
-    'apps/api/services/document-services/DocumentProcessingService/documentIngestWorker.ts',
-    'documents',
-    'pending: Task 2',
-  ],
-  [
-    'apps/api/services/document-services/DocumentProcessingService/reindex.ts',
-    'documents',
-    'pending: Task 2',
-  ],
-  [
-    'apps/api/services/document-services/DocumentProcessingService/triggerPendingDocProcessing.ts',
-    'documents',
-    'pending: Task 2',
-  ],
-  [
-    'apps/api/services/document-services/DocumentQnAService/mistralIntegration.ts',
-    'documents',
-    'pending: Task 2',
-  ],
-  [
-    'apps/api/services/document-services/PostgresDocumentService/metadataOperations.ts',
-    'documents',
-    'pending: Task 2',
-  ],
-  [
-    'apps/api/services/document-services/PostgresDocumentService/statistics.ts',
-    'documents',
-    'pending: Task 2',
-  ],
-  [
-    'apps/api/services/document-services/PostgresDocumentService/textOperations.ts',
-    'documents',
-    'pending: Task 2',
-  ],
-  [
-    'apps/api/services/document-services/PostgresDocumentService/wolkeOperations.ts',
-    'documents',
-    'pending: Task 2',
-  ],
-  ['apps/api/services/documentMeta/documentMetaWorker.ts', 'documents', 'pending: Task 2'],
-  ['apps/api/services/groups/groupContent.ts', 'documents', 'pending: Task 2'],
-  [
-    'apps/api/services/notebook/__fixtures__/fakeNotebookSources.ts',
-    'documents',
-    'pending: Task 2',
-  ],
-  ['apps/api/services/notebook/corpusState.ts', 'documents', 'pending: Task 2'],
-  ['apps/api/services/notebook/notebookSources.ts', 'documents', 'pending: Task 2'],
-  ['apps/api/services/notebook/notebookWolkeAttach.ts', 'documents', 'pending: Task 2'],
-  ['apps/api/services/notebook/wordpressSourceService.ts', 'documents', 'pending: Task 2'],
-  ['apps/api/services/sync/WolkeSyncService.ts', 'documents', 'pending: Task 2'],
-  ['apps/api/services/sync/WolkeWatchService.ts', 'documents', 'pending: Task 2'],
-  ['apps/api/services/user/userWebsiteService.ts', 'documents', 'pending: Task 2'],
-  ['apps/api/utils/requestEnrichment.ts', 'documents', 'pending: Task 2'],
   // ── Task 3 ──
   ['apps/api/routes/content/contentQueries.ts', 'shared_media', 'pending: Task 3'],
   ['apps/api/services/canvas/canvasRepository.ts', 'shared_media', 'pending: Task 3'],
@@ -240,7 +200,12 @@ const ALLOWLIST: readonly AllowEntry[] = [
 /** Readers and writers the literal scan cannot see; each file must still contain its marker. */
 const FRAGMENTED_SQL: ReadonlyArray<readonly [...AllowEntry, marker: string]> = [
   // Ownership check before sharing to a Projekt; table from CONTENT_TABLE_NAME_MAP.
-  ['apps/api/services/groups/groupContent.ts', 'documents', 'pending: Task 2', 'FROM ${tableName}'],
+  [
+    'apps/api/services/groups/groupContent.ts',
+    'documents',
+    'filtered: `AND deleted_at IS NULL` is appended for documents',
+    'FROM ${tableName}',
+  ],
   [
     'apps/api/services/groups/groupContent.ts',
     'user_documents',
@@ -287,19 +252,19 @@ const FRAGMENTED_SQL: ReadonlyArray<readonly [...AllowEntry, marker: string]> = 
   [
     'apps/api/services/document-services/PostgresDocumentService/metadataOperations.ts',
     'documents',
-    'pending: Task 2',
+    'deleteDocument: hard delete for sync removals only (the WordPress post is gone at the source)',
     "postgres.delete('documents'",
   ],
   [
     'apps/api/services/document-services/PostgresDocumentService/metadataOperations.ts',
     'documents',
-    'pending: Task 2',
+    'writer: see updateDocumentMetadata above',
     "postgres.update('documents'",
   ],
   [
     'apps/api/services/document-services/PostgresDocumentService/textOperations.ts',
     'documents',
-    'pending: Task 2',
+    'writer: storeDocumentText reads its row through a notTrashed() select first',
     "postgres.update('documents'",
   ],
   [
