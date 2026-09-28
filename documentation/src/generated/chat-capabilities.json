@@ -521,6 +521,94 @@
       "avatar": "🇦🇹",
       "category": "social",
       "audience": "de-AT"
+    },
+    {
+      "command": "@buerger-at",
+      "title": "Bürger*innen-Mail Österreich",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Österreich",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-AT"
+    },
+    {
+      "command": "@buerger-bayern",
+      "title": "Bürger*innen-Mail Bayern",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Bayern",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-berlin",
+      "title": "Bürger*innen-Mail Berlin",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Berlin",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-brandenburg",
+      "title": "Bürger*innen-Mail Brandenburg",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Brandenburg",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-hamburg",
+      "title": "Bürger*innen-Mail Hamburg",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Hamburg",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-hessen",
+      "title": "Bürger*innen-Mail Hessen",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Hessen",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-mv",
+      "title": "Bürger*innen-Mail Mecklenburg-Vorpommern",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Mecklenburg-Vorpommern",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-saarland",
+      "title": "Bürger*innen-Mail Saarland",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Saarland",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-sachsen-anhalt",
+      "title": "Bürger*innen-Mail Sachsen-Anhalt",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Sachsen-Anhalt",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-schleswig-holstein",
+      "title": "Bürger*innen-Mail Schleswig-Holstein",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Schleswig-Holstein",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-thueringen",
+      "title": "Bürger*innen-Mail Thüringen",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Thüringen",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
     }
   ],
   "skillCategoryLabels": {
