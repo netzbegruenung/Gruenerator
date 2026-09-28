@@ -124,6 +124,7 @@ export type UserAgent = z.infer<typeof userAgentSchema>;
  * agent reached the caller through, `null` for their own.
  */
 export const mentionableUserAgentSchema = z.object({
+  id: z.string().uuid(),
   identifier: z.string(),
   title: z.string(),
   description: z.string(),
