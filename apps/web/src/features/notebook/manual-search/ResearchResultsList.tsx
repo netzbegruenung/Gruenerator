@@ -1,3 +1,4 @@
+import { researchDocumentQueryKey } from '@gruenerator/shared/api';
 import { Button } from '@gruenerator/ui';
 import { type ReactNode, useId } from 'react';
 
@@ -128,7 +129,7 @@ export function ResearchResultsList({
 
       {reader.target && (
         <ResearchDocumentReader
-          key={reader.target.sourceUrl}
+          key={researchDocumentQueryKey(reader.target).join('|')}
           target={reader.target}
           onClose={reader.close}
         />

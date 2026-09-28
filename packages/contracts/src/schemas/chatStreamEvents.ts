@@ -601,6 +601,13 @@ const chatCitationBase = z.object({
    *  per `url` öffnet (z. B. `brandenburg-system`). Nur gesetzt, wenn der
    *  Reader es lesen kann — `collectionId` trägt den Chat-Key (`brandenburg`). */
   readerCollectionId: z.string().optional(),
+  /** Eigenes Dokument, das `GET /api/documents/:id/reader` öffnet.
+   *  `notebookId` nennt das Notebook, über das Mitglieder eines geteilten
+   *  Notebooks lesen; `null`, wo nur die Eigentümer*in zitiert wird. */
+  readerDocument: z
+    .object({ documentId: z.string(), notebookId: z.string().nullable() })
+    .optional()
+    .catch(undefined),
   /** Set on fan-out per-document retrieval, so the UI can group source cards
    *  by the document they answer for. */
   documentSourceId: z.string().optional(),

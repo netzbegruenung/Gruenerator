@@ -25,11 +25,15 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { COLLECTION_MAP } from '../../config/collectionMap.js';
 import { applyDefaultFilter } from '../../config/systemCollectionsConfig.js';
+import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
+import { readSourceText, resolveReaderSource } from '../../services/notebook/notebookSources.js';
+import { buildReaderDocument } from '../../services/research/documentReader.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
+import { checkNotebookAccess } from '../notebook/notebookAccess.js';
 
 import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
@@ -39,13 +43,14 @@ const log = createLogger('documentsContractRouter');
 // Services (mirrors the singleton pattern in the legacy controllers)
 const documentSearchService = new DocumentSearchService();
 const postgresDocumentService = getPostgresDocumentService();
+const notebookHelper = new NotebookQdrantHelper();
 
 /**
  * Extract the authenticated user id.
  * The requireAuth middleware in routes.ts ensures req.user is set before
  * this router is reached — this function is a safety guard only.
  */
-function getUserId(req: Request): string {
+function getUserId(req: Pick<Request, 'user' | 'originalUrl'>): string {
   const user = req.user as UserProfile | undefined;
   if (!user?.id) {
     log.error(
@@ -248,6 +253,40 @@ export const documentsContractRouter = s.router(documentsContract, {
           message: (error as Error).message || 'Failed to get document content',
         },
       };
+    }
+  },
+
+  getReader: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const documentId = args.params.id;
+      const db = getPostgresInstance();
+      const source = await resolveReaderSource(
+        { documentId, notebookId: args.query.notebookId ?? null, userId },
+        { db, helper: notebookHelper, access: checkNotebookAccess }
+      );
+      if (!source) return { status: 404 as const, body: { error: 'Document not found.' } };
+
+      const { text } = await readSourceText(
+        { sourceId: documentId, ownerUserId: source.ownerUserId },
+        { db, documentService: documentSearchService }
+      );
+      if (!text.trim()) return { status: 404 as const, body: { error: 'Document has no text.' } };
+
+      return {
+        status: 200 as const,
+        body: {
+          title: source.title,
+          sourceUrl: source.sourceUrl,
+          sourceName: null,
+          contentTypeLabel: null,
+          publishedAt: null,
+          ...buildReaderDocument(text, args.query.query ?? ''),
+        },
+      };
+    } catch (error) {
+      log.error('[documentsContract.getReader] Error:', error);
+      return { status: 500 as const, body: { error: 'Failed to load the document.' } };
     }
   },
 

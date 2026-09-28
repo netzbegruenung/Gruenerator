@@ -126,22 +126,31 @@ export const AssistantMessage = memo(function AssistantMessage() {
     return {
       citationMap: new Map<number, Citation>(citations.map((c) => [c.id, c])),
       onCitationPress: setSelectedCitation,
-      // A system document opens in the notebook reader; anything else in the
+      // A readable document opens in the notebook reader; anything else in the
       // detail sheet, which offers the passage and the original URL.
       onSourceLinkPress: (citation: Citation) => {
-        const { readerCollectionId, url, title } = citation;
-        if (!readerCollectionId || !url) {
+        const { readerCollectionId, readerDocument, url, title } = citation;
+        if (readerCollectionId && url) {
+          router.push(
+            routeWithParams('/(focused)/notebook-reader', {
+              collectionId: readerCollectionId,
+              sourceUrl: url,
+              query: '',
+              title,
+            })
+          );
+        } else if (readerDocument) {
+          router.push(
+            routeWithParams('/(focused)/notebook-reader', {
+              documentId: readerDocument.documentId,
+              ...(readerDocument.notebookId ? { notebookId: readerDocument.notebookId } : {}),
+              query: '',
+              title,
+            })
+          );
+        } else {
           setSelectedCitation(citation);
-          return;
         }
-        router.push(
-          routeWithParams('/(focused)/notebook-reader', {
-            collectionId: readerCollectionId,
-            sourceUrl: url,
-            query: '',
-            title,
-          })
-        );
       },
     };
   }, [citations, router]);

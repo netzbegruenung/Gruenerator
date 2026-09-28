@@ -6,6 +6,7 @@
  * (searchNode imports heavyweight services that break under Vitest).
  */
 
+import { isUserNotebookId } from '../../../../config/notebookCollectionMap.js';
 import { readerCollectionIdFor } from '../../../../config/systemCollectionsConfig.js';
 import { renumberCitationsInOrder } from '../../../../services/search/SearchResultProcessor.js';
 
@@ -122,6 +123,26 @@ export function resolveCollectionName(source: string): string | undefined {
 }
 
 /**
+ * A user's own document, opened by `GET /api/documents/:id/reader`. Found in a
+ * user notebook, the citation names that notebook — members of a shared one
+ * read through it. From the owner's document search (`document:`,
+ * `documentchat:`) it needs none.
+ */
+function userReaderDocument(
+  source: CitableSource
+): { documentId: string; notebookId: string | null } | null {
+  const { documentId, collectionId } = source.representative;
+  if (!documentId) return null;
+  if (collectionId && isUserNotebookId(collectionId)) {
+    return { documentId, notebookId: collectionId };
+  }
+  if (source.kind === 'document' || source.kind === 'document_chat') {
+    return { documentId, notebookId: null };
+  }
+  return null;
+}
+
+/**
  * Project a single CitableSource into the Citation shape the renderer
  * consumes. URL is `''` for sources without a public URL (private wolke
  * files, future no-URL types) — existing chip/popover code truthy-checks
@@ -132,6 +153,7 @@ export function projectCitation(source: CitableSource): Citation {
   // The reader looks documents up by URL, so a citation without one has
   // nothing to open there even in a readable collection.
   const readerCollectionId = source.url ? readerCollectionIdFor(r.collectionId) : null;
+  const readerDocument = readerCollectionId ? null : userReaderDocument(source);
   return {
     id: source.id,
     title: source.title || r.title,
@@ -150,6 +172,7 @@ export function projectCitation(source: CitableSource): Citation {
     similarityScore: r.similarityScore,
     collectionId: r.collectionId,
     ...(readerCollectionId ? { readerCollectionId } : {}),
+    ...(readerDocument ? { readerDocument } : {}),
     ...(r.pageNumber != null ? { pageNumber: r.pageNumber } : {}),
     documentSourceId: typeof r.documentSourceId === 'string' ? r.documentSourceId : undefined,
   };
