@@ -482,6 +482,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'file',
     accent: 'create',
   },
+  reisekosten_abrechnung: {
+    label: 'Reisekosten berechnet',
+    activeLabel: 'Berechne Reisekosten',
+    iconKey: 'file',
+    accent: 'create',
+  },
   vertonen: {
     label: 'Vertonung',
     activeLabel: 'Vertone den Text',
