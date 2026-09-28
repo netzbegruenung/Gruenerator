@@ -41,26 +41,30 @@ export type TrashedThreadLookup =
   { status: 'not_found' } | { status: 'forbidden' } | { status: 'ok'; row: TrashedThreadRow };
 
 /**
- * `deleted` = the thread had no messages and was removed outright: there is
- * nothing to restore, and the client's empty-thread cleanup would otherwise
- * flood the Papierkorb.
+ * `deleted` = the thread was removed outright instead of trashed:
+ * - it had no messages — nothing to restore, and the client's empty-thread
+ *   cleanup would otherwise flood the Papierkorb;
+ * - it belongs to a document (`doc_id`) — deleting a doc chat clears it, and
+ *   `uq_chat_threads_doc_id` leaves no room for a trashed copy beside the
+ *   fresh thread `ensureDocChatThread` creates on the next open.
  */
 export type TrashThreadResult = 'trashed' | 'deleted' | 'not_found' | 'forbidden';
 
 export async function trashThread(threadId: string, userId: string): Promise<TrashThreadResult> {
   if (!UUID_RE.test(threadId)) return 'not_found';
   const db = getPostgresInstance();
-  const rows = await db.query<{ user_id: string }>(
-    'SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
+  const rows = await db.query<{ user_id: string; doc_id: string | null }>(
+    'SELECT user_id, doc_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
     [threadId]
   );
   if (rows.length === 0) return 'not_found';
   if (rows[0].user_id !== userId) return 'forbidden';
 
-  const messages = await db.query('SELECT 1 FROM chat_messages WHERE thread_id = $1 LIMIT 1', [
-    threadId,
-  ]);
-  if (messages.length === 0) {
+  const hardDelete =
+    rows[0].doc_id !== null ||
+    (await db.query('SELECT 1 FROM chat_messages WHERE thread_id = $1 LIMIT 1', [threadId]))
+      .length === 0;
+  if (hardDelete) {
     await removeThread(
       threadId,
       'DELETE FROM chat_threads WHERE id = $1 AND deleted_at IS NULL RETURNING id',
