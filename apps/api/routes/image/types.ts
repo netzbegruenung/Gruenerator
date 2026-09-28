@@ -154,4 +154,6 @@ export interface StockCatalogQuery {
  */
 export interface StockImageQuery {
   size?: 'thumb' | string | undefined;
+  w?: unknown;
+  fmt?: unknown;
 }

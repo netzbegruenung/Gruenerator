@@ -41,7 +41,9 @@ const CONTENT_TYPE: Record<ThumbnailFormat, string> = {
 };
 
 export interface VariantRequest {
-  kind: ThumbnailKind;
+  /** `stock` is the bundled sharepic backgrounds — unsigned, so not a
+   *  `ThumbnailKind`; here it is only a cache-path segment. */
+  kind: ThumbnailKind | 'stock';
   id: string;
   /** Content version — a cache-path segment, so superseded entries are visible. */
   v: string;
