@@ -168,6 +168,19 @@ describe('shareContentToGroup', () => {
     expect(exec).toHaveBeenCalledTimes(1);
   });
 
+  it('stores a legacy system agent alias under its canonical id', async () => {
+    const { deps, exec, queryOne } = fakeDeps();
+    const out = await shareContentToGroup(
+      { ...base, contentType: 'system_agents', contentId: 'gruenerator-kommunal' },
+      deps
+    );
+    expect(out.status).toBe(200);
+    const [, dupParams] = queryOne.mock.calls[0] as unknown as [string, unknown[]];
+    expect(dupParams[1]).toBe('gruenerator-antrag');
+    const [, params] = exec.mock.calls[0] as unknown as [string, unknown[]];
+    expect(params[1]).toBe('gruenerator-antrag');
+  });
+
   it.each([
     ['system_notebooks', 'kommunalwiki'],
     ['system_agents', 'gruenerator-gibt-es-nicht'],
