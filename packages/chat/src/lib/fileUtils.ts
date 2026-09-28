@@ -5,7 +5,7 @@
  * Supports images for vision analysis and documents for text extraction.
  */
 
-import { fileToBase64 } from '@gruenerator/shared/utils';
+import { fileToBase64 } from '@gruenerator/shared/utils/fileToBase64';
 
 export { fileToBase64 };
 

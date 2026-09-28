@@ -82,9 +82,6 @@ export {
   type ParsedDataUrl,
 } from './dataUrl.js';
 
-// FileReader → base64 with actionable German read errors (chat + Reisekosten)
-export { fileToBase64, describeFileReadError } from './fileToBase64.js';
-
 // Natural-language notebook/research query parser (region/date/topic)
 export { parseNotebookQuery } from './notebookQuery.js';
 export type { NotebookQueryFilters } from './notebookQuery.js';

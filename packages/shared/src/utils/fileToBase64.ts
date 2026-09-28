@@ -40,7 +40,7 @@ function readFileAsBase64(file: File): Promise<string> {
         reject(new Error(`Fehler beim Konvertieren: ${file.name}`));
         return;
       }
-      resolve(result.split(',')[1]);
+      resolve(result.slice(result.indexOf(',') + 1));
     };
 
     reader.onerror = () => {
