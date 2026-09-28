@@ -15,7 +15,9 @@ import {
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { getInternalAgentPrompt } from '../../../services/skills/internalPrompts.js';
+import { isUserAgentId } from '../../../services/userAgents/userAgentHandle.js';
 import {
+  getAccessibleUserAgentById,
   getGroupSharedUserAgent,
   getPublicUserAgent,
   getUserAgent as getUserAgentRow,
@@ -110,6 +112,11 @@ export function clearAgentsCache(): void {
  *
  * Converted custom generators are plain `user_agents` rows (identifier
  * `cg-<slug>`), so they resolve through the same path as any other user agent.
+ *
+ * A user agent's row uuid names exactly one row: it is checked with all three
+ * access rules at once, and a miss is final. The identifier rungs serve
+ * handles sent before clients knew the uuid — an identifier is unique only per
+ * owner, so the group and public rungs pick the oldest match.
  */
 export async function getAgentForUser(
   identifier: string,
@@ -119,6 +126,11 @@ export async function getAgentForUser(
   if (builtIn) return builtIn;
 
   try {
+    if (isUserAgentId(identifier)) {
+      const byId = await getAccessibleUserAgentById(identifier, userId);
+      return byId ? ({ ...byId, isUserAgent: true } as AgentConfig) : undefined;
+    }
+
     const userAgent = await getUserAgentRow(userId, identifier);
     if (userAgent) return { ...userAgent, isUserAgent: true } as AgentConfig;
 

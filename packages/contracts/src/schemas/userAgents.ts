@@ -47,12 +47,20 @@ export const agentFewShotExampleSchema = z.object({
 
 export type AgentFewShotExample = z.infer<typeof agentFewShotExampleSchema>;
 
-/** Slug identifier: lowercase, digits, dashes. */
+/**
+ * Slug identifier: lowercase, digits, dashes. Never uuid-shaped: the API
+ * accepts an agent's row uuid wherever it accepts an identifier, and reads a
+ * uuid-shaped handle as the uuid first.
+ */
 const identifierSchema = z
   .string()
   .min(2)
   .max(64)
-  .regex(/^[a-z0-9-]+$/, 'Nur Kleinbuchstaben, Ziffern und Bindestriche erlaubt');
+  .regex(/^[a-z0-9-]+$/, 'Nur Kleinbuchstaben, Ziffern und Bindestriche erlaubt')
+  .refine(
+    (v) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(v),
+    'Der Bezeichner darf nicht wie eine UUID aussehen.'
+  );
 
 // ── Response item ──────────────────────────────────────────────────────────────
 
