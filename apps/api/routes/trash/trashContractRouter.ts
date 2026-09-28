@@ -11,6 +11,7 @@
 import { trashContract, type TrashItem, type TrashKind } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { isUniqueViolation } from '../../services/trash/ownedRowTrash.js';
 import {
   compareTrashKey,
   decodeTrashCursor,
@@ -40,13 +41,20 @@ const FORBIDDEN = {
   status: 403 as const,
   body: { error: 'Nur wer löschen darf, kann wiederherstellen oder endgültig löschen.' },
 };
-const CONFLICT = {
-  status: 409 as const,
-  body: { error: 'Ein Eintrag mit demselben Namen existiert bereits. Bitte zuerst umbenennen.' },
+const CONFLICT_MESSAGE =
+  'Ein Eintrag mit demselben Namen existiert bereits. Bitte zuerst umbenennen.';
+
+/** Where a restore clashes with something other than a name. */
+const CONFLICT_MESSAGE_BY_KIND: Partial<Record<TrashKind, string>> = {
+  user_site:
+    'Die Website lässt sich nicht wiederherstellen: Du hast inzwischen eine andere Website, oder ihre Subdomain ist vergeben.',
 };
 
-function isUniqueViolation(error: unknown): boolean {
-  return (error as { code?: unknown } | null)?.code === '23505';
+function conflict(kind: TrashKind) {
+  return {
+    status: 409 as const,
+    body: { error: CONFLICT_MESSAGE_BY_KIND[kind] ?? CONFLICT_MESSAGE },
+  };
 }
 
 /** The handlers a request covers: one kind, or every registered one. */
@@ -127,10 +135,10 @@ export const trashContractRouter = s.router(trashContract, {
       const result = await handler.restore(userId, args.params.id);
       if (result === 'not_found') return NOT_FOUND;
       if (result === 'forbidden') return FORBIDDEN;
-      if (result === 'conflict') return CONFLICT;
+      if (result === 'conflict') return conflict(args.params.kind);
       return { status: 200 as const, body: item };
     } catch (error) {
-      if (isUniqueViolation(error)) return CONFLICT;
+      if (isUniqueViolation(error)) return conflict(args.params.kind);
       log.error('[trashContract.restore] Error:', error);
       return { status: 500 as const, body: { error: 'Wiederherstellen fehlgeschlagen.' } };
     }

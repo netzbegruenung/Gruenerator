@@ -87,4 +87,15 @@ describe('Wissen im Papierkorb', () => {
     expect(out.search_type).toBe('vector');
     expect(out.results.map((r) => r.knowledge_id)).toEqual([LIVE]);
   });
+
+  it('speichern auf eine getrashte oder fremde ID ändert nichts und bettet nicht neu ein', async () => {
+    rows = [];
+    await expect(
+      new KnowledgeService().saveUserKnowledge(USER, { id: LIVE, title: 'T', content: 'C' })
+    ).rejects.toThrow(/not found/);
+    expect(effects).toEqual([
+      'UPDATE user_knowledge SET title = $1, content = $2, knowledge_type = $3, tags = $4, embedding_hash = $5, updated_at = CURRENT_TIMESTAMP',
+    ]);
+    expect(postgres.query.mock.calls[0]?.[0]).toContain('AND deleted_at IS NULL');
+  });
 });

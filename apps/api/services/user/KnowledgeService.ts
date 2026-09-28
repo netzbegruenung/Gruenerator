@@ -131,23 +131,33 @@ class KnowledgeService {
       let isNew = false;
 
       if (id && !id.toString().startsWith('new-')) {
-        const updateResult = await this.postgres!.update(
-          'user_knowledge',
-          {
-            title: title?.trim() || 'Unbenannter Eintrag',
-            content: content?.trim() || '',
-            knowledge_type,
-            tags,
-            embedding_hash: contentHash,
-          },
-          { id, user_id: userId }
-        );
+        // Live rows only: a stale client id of an entry in the Papierkorb must
+        // not edit it there, nor re-embed it into Qdrant.
+        const updated = isRowId(String(id))
+          ? await this.postgres!.query(
+              `UPDATE user_knowledge
+                  SET title = $1, content = $2, knowledge_type = $3, tags = $4,
+                      embedding_hash = $5, updated_at = CURRENT_TIMESTAMP
+                WHERE id = $6 AND user_id = $7 AND deleted_at IS NULL
+                RETURNING *`,
+              [
+                title?.trim() || 'Unbenannter Eintrag',
+                content?.trim() || '',
+                knowledge_type,
+                tags,
+                contentHash,
+                id,
+                userId,
+              ],
+              { table: 'user_knowledge' }
+            )
+          : [];
 
-        if (updateResult.data.length === 0) {
+        if (updated.length === 0) {
           throw new Error('Knowledge entry not found or access denied');
         }
 
-        const row = updateResult.data[0] as Record<string, unknown>;
+        const row = updated[0] as Record<string, unknown>;
         savedEntry = {
           id: row.id as string,
           user_id: row.user_id as string,
