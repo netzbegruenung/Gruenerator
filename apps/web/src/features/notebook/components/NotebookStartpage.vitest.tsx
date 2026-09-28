@@ -164,7 +164,7 @@ describe('NotebookStartpage — one composer', () => {
     rerender(page('auto'));
     expect(composer.magicIntent).toBe('suche');
 
-    // Enter searches at once — well inside the 300 ms the typing debounce waits.
+    // Enter searches at once — well inside the pause the typing waits out.
     act(() => composer.onManualSubmit!('Hitzeschutz'));
     await waitFor(() => expect(searches).toEqual(['Hitzeschutz']), { timeout: 200 });
   });
@@ -196,6 +196,83 @@ describe('NotebookStartpage — one composer', () => {
     );
     renderPage('auto', text);
     expect(await screen.findByText(hint)).toBeVisible();
+  });
+
+  it('waits longer mid-word than after a finished word', async () => {
+    const { rerender } = renderPage('auto', '');
+    composer.text = 'Miet';
+    rerender(page('auto'));
+    await new Promise((r) => setTimeout(r, 400));
+    expect(searches).toEqual([]);
+
+    composer.text = 'Miet ';
+    rerender(page('auto'));
+    await waitFor(() => expect(searches).toEqual(['Miet']), { timeout: 400 });
+  });
+
+  it('keeps an empty answer on screen while the next keystrokes wait', async () => {
+    server.use(
+      http.post(SEARCH, () =>
+        HttpResponse.json({
+          results: [],
+          metadata: { totalResults: 0, collections: ['berlin-system'], timeMs: 3 },
+        })
+      )
+    );
+    const { rerender } = renderPage('auto', 'Hitzeschutz');
+    const hint = 'Keine Treffer. Versuche andere Begriffe oder entferne Filter.';
+    expect(await screen.findByText(hint)).toBeVisible();
+
+    composer.text = 'Hitzeschutz K';
+    rerender(page('auto'));
+    expect(screen.getByText(hint)).toBeVisible();
+    expect(screen.getByText('0 Ergebnisse')).toBeVisible();
+  });
+
+  it('searches once the facet vocabulary is there, not before and again after', async () => {
+    let release!: () => void;
+    const vocabulary = new Promise<void>((r) => (release = r));
+    server.use(
+      http.get(FILTERS, async () => {
+        await vocabulary;
+        return HttpResponse.json({
+          filters: {
+            persons: {
+              label: 'Personen',
+              type: 'keyword',
+              values: [{ value: 'Nina Stahr', count: 1 }],
+            },
+          },
+        });
+      })
+    );
+    renderPage('auto', 'Nina Stahr Mieten');
+    await new Promise((r) => setTimeout(r, 300));
+    expect(searches).toEqual([]);
+
+    release();
+    await screen.findByText('Mietendeckel jetzt');
+    await new Promise((r) => setTimeout(r, 300));
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]?.filters).toEqual({ persons: ['Nina Stahr'] });
+  });
+
+  it('keeps the hits while an empty facet vocabulary is fetched again', async () => {
+    let release!: () => void;
+    let calls = 0;
+    server.use(
+      http.get(FILTERS, async () => {
+        if (calls++ > 0) await new Promise<void>((r) => (release = r));
+        return HttpResponse.json({ filters: {} });
+      })
+    );
+    const { queryClient } = renderPage('auto', 'Mieten');
+    await screen.findByText('Mietendeckel jetzt');
+
+    void queryClient.refetchQueries({ queryKey: ['research', 'filters'] });
+    await waitFor(() => expect(calls).toBe(2));
+    expect(screen.getByText('Mietendeckel jetzt')).toBeVisible();
+    release();
   });
 
   it('waits until the query is long enough', async () => {

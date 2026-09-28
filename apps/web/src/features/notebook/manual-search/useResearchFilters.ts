@@ -98,6 +98,7 @@ export function useResearchFilters(initialCollectionIds: string[] = []) {
     data: filterFields = {},
     isLoading: filtersLoading,
     isFetching: filtersFetching,
+    isFetched: filtersFetched,
   } = useQuery({
     queryKey: ['research', 'filters', collectionsCacheKey],
     queryFn: async () => {
@@ -231,6 +232,8 @@ export function useResearchFilters(initialCollectionIds: string[] = []) {
     setSelectedCollectionIds,
     filterFields: allowedFilterFields,
     filtersLoading: filtersLoading || filtersFetching,
+    /** The vocabulary has been asked for at least once (answered or failed). */
+    filtersFetched,
     filtersEnabled,
     setFiltersEnabled,
     activeFilters,
