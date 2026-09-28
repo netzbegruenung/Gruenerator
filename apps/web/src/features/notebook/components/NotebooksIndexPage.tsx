@@ -44,7 +44,7 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import { NotebookIcon } from '../../../config/icons';
 import { sortToolsByFavourites } from '../../../config/workplaceToolsConfig';
 import { useAuthStore } from '../../../stores/authStore';
-import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
+import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import { useGroups } from '../../groups/hooks/useGroups';
@@ -101,6 +101,7 @@ const NEU_COVER = coverNeu;
 
 const NotebookCard = memo(({ notebook }: { notebook: NotebookConfigEntry }) => {
   const navigate = useNavigate();
+  const starred = useIsFavourite(notebook.id);
   return (
     <NotebookGalleryCard
       title={notebook.title}
@@ -109,7 +110,10 @@ const NotebookCard = memo(({ notebook }: { notebook: NotebookConfigEntry }) => {
       coverImage={notebook.coverImage}
       accent="pink"
       onActivate={() => navigate(notebook.path, { state: { freshConversation: true } })}
-      action={<FavouriteStar id={notebook.id} size={16} />}
+      action={<FavouriteStar id={notebook.id} size={16} tone="notebook" />}
+      // An unstarred star is hover-revealed, so its pill is too; a starred one
+      // stays visible and keeps the pill — magenta on the pink cover is unreadable.
+      actionPillOnHover={!starred}
     />
   );
 });
