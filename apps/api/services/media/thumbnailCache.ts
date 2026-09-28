@@ -16,6 +16,7 @@
  * the source trees write-free.
  */
 
+import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -151,11 +152,16 @@ export async function getThumbnailVariant(
     return null;
   }
 
+  // Write aside, then rename: a request arriving mid-write must see no file
+  // or the whole one, never a truncated image at the final path (#3818).
+  const tmpPath = `${cachePath}.${process.pid}.${randomUUID()}.tmp`;
   void fsPromises
     .mkdir(path.dirname(cachePath), { recursive: true })
-    .then(() => fsPromises.writeFile(cachePath, buffer))
+    .then(() => fsPromises.writeFile(tmpPath, buffer))
+    .then(() => fsPromises.rename(tmpPath, cachePath))
     .catch((err: unknown) => {
       log.error('Failed to cache thumbnail:', err);
+      return fsPromises.rm(tmpPath, { force: true }).catch(() => undefined);
     });
 
   return { contentType, size: buffer.length, buffer };
