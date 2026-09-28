@@ -70,6 +70,24 @@ describe('SourceLink', () => {
     });
   });
 
+  it('opens a user document in the host reader, through its notebook', async () => {
+    const openSourceDocument = vi.fn();
+    useChatConfigStore.getState().configure({ onOpenSourceDocument: openSourceDocument });
+    const user = userEvent.setup();
+    renderMarkdown('[Antrag Radweg](quelle:1)', [
+      citation({ url: '', readerDocument: { documentId: 'doc-1', notebookId: 'nb-uuid' } }),
+    ]);
+
+    await user.click(screen.getByRole('button', { name: 'Antrag Radweg' }));
+
+    expect(openSourceDocument).toHaveBeenCalledWith({
+      documentId: 'doc-1',
+      notebookId: 'nb-uuid',
+      query: '',
+      title: 'Kohleausstieg vor 2038',
+    });
+  });
+
   it('opens a notebook chunk in the citation panel when there is no reader', async () => {
     const user = userEvent.setup();
     let panel: ReturnType<typeof useCitationPanel> | null = null;

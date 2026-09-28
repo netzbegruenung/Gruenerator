@@ -340,6 +340,8 @@ export interface Citation {
   collectionId?: string | undefined;
   /** See `readerCollectionId` in chatCitationBase. */
   readerCollectionId?: string | undefined;
+  /** See `readerDocument` in chatCitationBase. */
+  readerDocument?: { documentId: string; notebookId: string | null } | undefined;
   pageNumber?: number | null;
   // Set when this citation came from a fan-out per-document retrieval
   // (multi-document chat). Lets the UI group source cards by referenced doc.

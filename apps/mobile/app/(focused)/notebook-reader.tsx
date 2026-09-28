@@ -7,15 +7,16 @@ import { darkTheme, lightTheme } from '../../theme';
 import type { ModalRouteParams } from '../../types/routes';
 
 export default function NotebookReaderScreen() {
-  const { collectionId, sourceUrl, query, title } =
+  const { collectionId, sourceUrl, documentId, notebookId, query, title } =
     useLocalSearchParams<ModalRouteParams['/(focused)/notebook-reader']>();
   const router = useRouter();
   const theme = useColorScheme() === 'dark' ? darkTheme : lightTheme;
 
   return (
     <ResearchDocumentReader
-      collectionId={collectionId}
-      sourceUrl={sourceUrl}
+      {...(documentId
+        ? { documentId, notebookId: notebookId ?? null }
+        : { collectionId: collectionId ?? '', sourceUrl: sourceUrl ?? '' })}
       query={query ?? ''}
       title={title ?? ''}
       theme={theme}

@@ -1404,6 +1404,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
                 content: r.relevant_content || '',
                 url: r.source_url || undefined,
                 relevance: r.similarity_score ?? 0.5,
+                ...(r.document_id ? { documentId: r.document_id } : {}),
               });
             }
             searchedCollections.push('documentchat');
@@ -1465,6 +1466,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
                 content: r.relevant_content || '',
                 url: r.source_url || undefined,
                 relevance: r.similarity_score ?? 0.5,
+                ...(r.document_id ? { documentId: r.document_id } : {}),
               });
             }
             searchedCollections.push(fromUserNotebook ? 'user-notebook' : 'user-documents');
