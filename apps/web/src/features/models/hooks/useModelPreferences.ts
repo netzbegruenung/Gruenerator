@@ -1,3 +1,4 @@
+import { enabledModelIdsFromPreferences } from '@gruenerator/chat';
 import { type TextModelId } from '@gruenerator/shared/models';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -69,14 +70,10 @@ export function useModelPreferences(options: UseModelPreferencesOptions = {}) {
 
   const preferences = useMemo(() => query.data?.preferences ?? {}, [query.data]);
 
-  const enabledModelIds = useMemo(() => {
-    if (!query.data) return null;
-    const set = new Set<TextModelId>();
-    for (const [id, pref] of Object.entries(preferences)) {
-      if (pref?.enabled) set.add(id as TextModelId);
-    }
-    return set;
-  }, [preferences, query.data]);
+  const enabledModelIds = useMemo(
+    () => (query.data ? enabledModelIdsFromPreferences(preferences) : null),
+    [preferences, query.data]
+  );
 
   return {
     preferences,

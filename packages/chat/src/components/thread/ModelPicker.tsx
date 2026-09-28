@@ -1,9 +1,9 @@
 'use client';
 
-import { isModelEnabledByDefault } from '@gruenerator/shared/models';
 import { memo, useEffect, useMemo } from 'react';
 
 import { useModelPreferencesContext } from '../../context/ModelPreferencesContext';
+import { visibleComposerModels } from '../../lib/composerControls';
 import { AUTO_MODEL_ID, AUTO_MODEL_OPTION, type SelectedModel } from '../../lib/resolveAutoModel';
 import { useScopedSelectedModel, useScopedSetSelectedModel } from '../../lib/useScopedAgentState';
 import { MODEL_OPTIONS } from '../../stores/chatStore';
@@ -18,12 +18,10 @@ export const ModelPicker = memo(function ModelPicker() {
   const setSelectedModel = useScopedSetSelectedModel();
   const { enabledModelIds } = useModelPreferencesContext();
 
-  const visibleCatalogModels = useMemo(() => {
-    if (enabledModelIds) {
-      return MODEL_OPTIONS.filter((m) => enabledModelIds.has(m.id));
-    }
-    return MODEL_OPTIONS.filter((m) => isModelEnabledByDefault(m.id));
-  }, [enabledModelIds]);
+  const visibleCatalogModels = useMemo(
+    () => visibleComposerModels(enabledModelIds),
+    [enabledModelIds]
+  );
 
   const isAuto = selectedModel === AUTO_MODEL_ID;
   const fallback = visibleCatalogModels[0] ?? MODEL_OPTIONS[0];
