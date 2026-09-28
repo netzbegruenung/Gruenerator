@@ -11,7 +11,9 @@ import {
   useChatRuntimeReady,
   useDockedPanelActive,
   useReportPanelDockable,
+  findRegistryAgent,
   useUserAgentsRegistry,
+  type RegistryAgent,
   useUserLandesverbaende,
 } from '@gruenerator/chat';
 import {
@@ -37,7 +39,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 import { CURRENT_INSTANCE } from '@/config/instance';
-import { useUserAgents } from '@/features/agents/api';
+import { usePublicUserAgents, useSharedUserAgents, useUserAgents } from '@/features/agents/api';
 import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
 import { useRecipeDeepLink } from '@/features/chat/useRecipeDeepLink';
@@ -208,9 +210,25 @@ function ChatPage() {
   // the hero used to hardcode `sunrise`, which meant a pick made on /workplace
   // did not show on /chat.
   const chatBackground = resolveChatBackground(useAuthStore((s) => s.user?.chat_background));
-  const { data: userAgents } = useUserAgents();
-  // Bridge the user-agents query into the chat package so its welcome screen
-  // and message avatars can resolve a user agent's title/icon by identifier.
+  const ownAgents = useUserAgents();
+  const sharedAgents = useSharedUserAgents();
+  const publicAgents = usePublicUserAgents();
+  // Own agents first: an identifier then resolves to the caller's agent, and a
+  // colleague's shared or public one is found by the row uuid it is sent by.
+  const userAgents = useMemo<RegistryAgent[] | undefined>(
+    () =>
+      ownAgents.data && [
+        ...ownAgents.data,
+        ...(sharedAgents.data ?? []).map((e) => e.agent),
+        ...(publicAgents.data ?? []),
+      ],
+    [ownAgents.data, sharedAgents.data, publicAgents.data]
+  );
+  // A colleague's agent is only "unknown" once all three lists have answered.
+  const userAgentsSettled =
+    userAgents !== undefined && !sharedAgents.isLoading && !publicAgents.isLoading;
+  // Bridge the user-agents queries into the chat package so its welcome screen
+  // and message avatars can resolve a user agent's title/icon.
   const setRegistryAgents = useUserAgentsRegistry((s) => s.setUserAgents);
   useEffect(() => {
     if (userAgents) setRegistryAgents(userAgents);
@@ -292,18 +310,19 @@ function ChatPage() {
       // only ONCE per agent, not on every effect run. The agent's full notebook
       // set scopes search server-side (resolved from the agent record in
       // ChatGraph); the chip just shows one for continuity. System agents (per-LV
-      // PR agents etc.) resolve synchronously; user-created agents resolve from
-      // the user-agents list (which may load late), so we wait until it's
-      // available before marking this agent handled. Applying once avoids
+      // PR agents etc.) resolve synchronously; user-created agents — own,
+      // shared or public — resolve from the user-agents lists (which may load
+      // late), so we wait until they've answered before marking this agent
+      // handled. Applying once avoids
       // clobbering a manual notebook pick when the query reference changes later.
       if (notebookAppliedForRef.current !== agentParam) {
         const agentMeta = getSystemAgent(agentParam);
         const userAgentNotebook = agentMeta
           ? undefined
-          : userAgents?.find((a) => a.identifier === agentParam)?.defaultNotebookIds?.[0];
+          : userAgents && findRegistryAgent(userAgents, agentParam)?.defaultNotebookIds?.[0];
         const boundNotebookId = agentMeta?.defaultNotebookIds?.[0] ?? userAgentNotebook;
-        // "Resolved" = a system agent (sync) or the user-agents list has loaded.
-        const resolved = !!agentMeta || userAgents !== undefined;
+        // "Resolved" = a system agent (sync) or the user-agents lists have answered.
+        const resolved = !!agentMeta || userAgentsSettled;
         if (boundNotebookId) {
           if (store.selectedNotebookId !== boundNotebookId) {
             store.setSelectedNotebook(boundNotebookId);
@@ -332,7 +351,7 @@ function ChatPage() {
       store.setThreadMode(modeParam);
       store.setChatViewMode('thread');
     }
-  }, [agentParam, modeParam, threadSlug, userLocale, userAgents]);
+  }, [agentParam, modeParam, threadSlug, userLocale, userAgents, userAgentsSettled]);
 
   // `?rezept=<mention>` aktiviert das Rezept für den nächsten Turn — dieselbe
   // Wirkung, die eine `@`-Erwähnung im Composer hat. `rezeptId` trägt die
