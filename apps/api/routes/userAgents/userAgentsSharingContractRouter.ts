@@ -223,6 +223,11 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
         };
       }
 
+      // Group access requires share_mode <> 'private' (see userAgentsRepository).
+      if (sharing.share_mode === 'private') {
+        await updateAgentSharing(userId, args.params.identifier, { share_mode: 'groups' });
+      }
+
       const permissions = { read: true, write: false };
       await postgres.query(
         `INSERT INTO group_content_shares
