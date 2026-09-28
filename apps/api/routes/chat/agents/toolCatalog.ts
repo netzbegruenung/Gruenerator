@@ -1075,7 +1075,8 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       !editorSurface &&
       isReisekostenTurn(
         state.activeSkillMention,
-        state.lastUserTextNoMentions ?? lastUserText(state)
+        state.lastUserTextNoMentions ?? lastUserText(state),
+        state.messages
       )
     ) {
       tools.reisekosten_abrechnung = makeReisekostenTool({ state, sse });
