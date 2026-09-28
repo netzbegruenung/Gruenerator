@@ -263,14 +263,23 @@ export async function updateAgentSharing(
 
 /**
  * Hydrate agents by UUID — used by the group-content read path. The UUID `id`
- * is carried alongside the canonical Agent shape so the caller can match each
- * agent back to its group_content_shares row (content_id = the UUID).
+ * is carried alongside the Agent shape so the caller can match each agent back
+ * to its group_content_shares row (content_id = the UUID).
+ *
+ * Without `systemRole`: every member of the group reads this bucket, and a
+ * group share lets a teammate USE an agent, not read its prompt (#3781) —
+ * same policy as `listMentionableUserAgents`.
  */
-export async function listUserAgentsByIds(ids: string[]): Promise<Array<Agent & { id: string }>> {
+export async function listUserAgentsByIds(
+  ids: string[]
+): Promise<Array<Omit<Agent, 'systemRole'> & { id: string }>> {
   if (ids.length === 0) return [];
   const db = getDrizzleInstance();
   const rows = await db.select().from(userAgents).where(inArray(userAgents.id, ids));
-  return rows.map((row) => ({ ...rowToAgent(row), id: row.id }));
+  return rows.map((row) => {
+    const { systemRole: _systemRole, ...agent } = rowToAgent(row);
+    return { ...agent, id: row.id };
+  });
 }
 
 /**
