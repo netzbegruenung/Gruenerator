@@ -39,10 +39,6 @@ export interface CanvasEditorLayoutProps {
   contextBar?: ReactNode;
   /** Optional sticky-bottom region (page navigator, zoom/meta bar) pinned to viewport bottom */
   bottomBar?: ReactNode;
-  /** When true, removes mobile bottom padding and sidebar chrome (native handles these) */
-  hideMobileChrome?: boolean;
-  /** When true, the tab bar is rendered externally (web app sidebar) — panel still renders here */
-  externalSidebar?: boolean;
 }
 
 export function CanvasEditorLayout({
@@ -56,8 +52,6 @@ export function CanvasEditorLayout({
   toolbar,
   contextBar,
   bottomBar,
-  hideMobileChrome,
-  externalSidebar,
 }: CanvasEditorLayoutProps) {
   const hasSidebar = Boolean(tabBar);
   const hasPanel = Boolean(sidebar);
@@ -70,12 +64,7 @@ export function CanvasEditorLayout({
   });
 
   return (
-    <div
-      className={cn(
-        'canvas-editor-layout flex flex-col h-dvh min-h-[500px] bg-[var(--editor-bg)]',
-        hideMobileChrome && 'pb-0 max-canvas-mobile:pb-0'
-      )}
-    >
+    <div className="canvas-editor-layout flex flex-col h-dvh min-h-[500px] bg-[var(--editor-bg)]">
       {toolbar}
       {hasSidebar && (
         <div
@@ -109,7 +98,6 @@ export function CanvasEditorLayout({
         className={cn(
           'canvas-editor-layout__main relative flex flex-col justify-start items-center flex-1 min-h-0 overflow-hidden bg-[var(--editor-canvas-bg)] transition-[margin-left] duration-200 max-canvas-mobile:flex-1 max-canvas-mobile:p-0',
           hasSidebar &&
-            !externalSidebar &&
             'ml-[calc(var(--image-studio-tab-bar-width)_+_var(--canvas-panel-width,0px))] max-canvas-mobile:ml-0'
         )}
       >
@@ -139,8 +127,7 @@ export function CanvasEditorLayout({
           className={cn(
             'canvas-editor-layout__bottom-bar fixed bottom-0 right-0 z-[140] left-[var(--canvas-host-inset-left,0px)] max-canvas-mobile:hidden',
             hasSidebar &&
-              'left-[calc(var(--canvas-host-inset-left,0px)_+_var(--image-studio-tab-bar-width))]',
-            externalSidebar && '!left-[var(--canvas-host-inset-left,0px)]'
+              'left-[calc(var(--canvas-host-inset-left,0px)_+_var(--image-studio-tab-bar-width))]'
           )}
         >
           {bottomBar}

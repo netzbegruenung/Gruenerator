@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import type { IconType } from 'react-icons';
 
 import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
 
-import { useMobileSubsectionBridge } from './MobileSubsectionBridgeContext';
 import { HIDDEN_SCROLLBAR } from './sidebarStyles';
 import { cn } from '../utils/cn';
 
@@ -21,41 +20,8 @@ export interface SubsectionTabBarProps {
 }
 
 export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionTabBarProps) {
-  const bridge = useMobileSubsectionBridge();
-
-  // Report subsection metadata to bridge when active (native host)
-  const prevSerializedRef = useRef('');
-  useEffect(() => {
-    if (!bridge.active) return;
-    const meta = subsections.map((s) => ({ id: s.id, label: s.label }));
-    const serialized = JSON.stringify(meta);
-    if (serialized !== prevSerializedRef.current) {
-      prevSerializedRef.current = serialized;
-      bridge.onSubsectionsChange(meta);
-    }
-  }, [bridge, subsections]);
-
-  // Auto-select first subsection whenever the bridge is active and none is selected.
-  // In bridge/mobile mode the bottom sheet always shows exactly one subsection, so
-  // "nothing selected" is never a valid user state — re-select unconditionally rather
-  // than latching, which made recovery impossible if the active subsection was cleared
-  // externally.
-  useEffect(() => {
-    if (!bridge.active) return;
-    if (!bridge.activeSubsection && subsections.length > 0) {
-      bridge.onActiveSubsectionChange(defaultSubsection || subsections[0].id);
-    }
-  }, [bridge, subsections, defaultSubsection]);
-
   const isMobile = useIsCanvasMobile();
   const [localActiveSubsection, setLocalActiveSubsection] = useState<string | null>(null);
-
-  // In bridge mode (native host): render only the active subsection's content
-  if (bridge.active) {
-    const activeContent = subsections.find((s) => s.id === bridge.activeSubsection)?.content;
-    if (!activeContent) return null;
-    return <div className="pb-6 pt-md px-md [&>*]:animate-subsection-fade-in">{activeContent}</div>;
-  }
 
   if (!isMobile) {
     return (

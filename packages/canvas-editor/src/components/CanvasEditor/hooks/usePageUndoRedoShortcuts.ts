@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 
 interface UsePageUndoRedoShortcutsParams {
-  isMobileBridge: boolean;
   activePageCanUndo: boolean;
   activePageCanRedo: boolean;
   canUndoPageOp: boolean;
@@ -18,7 +17,6 @@ interface UsePageUndoRedoShortcutsParams {
  * element undo, the per-page handler takes it.
  */
 export function usePageUndoRedoShortcuts({
-  isMobileBridge,
   activePageCanUndo,
   activePageCanRedo,
   canUndoPageOp,
@@ -27,7 +25,6 @@ export function usePageUndoRedoShortcuts({
   redoPageOp,
 }: UsePageUndoRedoShortcutsParams): void {
   useEffect(() => {
-    if (isMobileBridge) return undefined;
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (
@@ -56,13 +53,5 @@ export function usePageUndoRedoShortcuts({
     };
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
-  }, [
-    isMobileBridge,
-    activePageCanUndo,
-    activePageCanRedo,
-    canUndoPageOp,
-    canRedoPageOp,
-    undoPageOp,
-    redoPageOp,
-  ]);
+  }, [activePageCanUndo, activePageCanRedo, canUndoPageOp, canRedoPageOp, undoPageOp, redoPageOp]);
 }
