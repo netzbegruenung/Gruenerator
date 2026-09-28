@@ -385,6 +385,24 @@
         "group": "groups"
       },
       {
+        "key": "group_post_created",
+        "label": "Neue Beiträge",
+        "description": "Wenn jemand in einem deiner Projekte einen Beitrag schreibt",
+        "group": "groups"
+      },
+      {
+        "key": "group_user_mentioned",
+        "label": "Erwähnungen",
+        "description": "Wenn dich jemand in einem Projekt mit @Name erwähnt",
+        "group": "groups"
+      },
+      {
+        "key": "group_mention_all",
+        "label": "@alle",
+        "description": "Wenn jemand in einem deiner Projekte alle mit @alle anspricht",
+        "group": "groups"
+      },
+      {
         "key": "group_deleted",
         "label": "Gruppe aufgelöst",
         "description": "Wenn eine deiner Gruppen aufgelöst wird",

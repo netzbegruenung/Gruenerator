@@ -15,6 +15,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { notifyContentShared } from '../../services/groups/groupContent.js';
 import {
   assertCanShareToGroup,
   listShareTargetGroups,
@@ -283,6 +284,12 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
           VALUES ('notebook_collections', $1, $2, $3, $4)`,
         [notebookId, group_id, userId, JSON.stringify(permissions)]
       );
+      notifyContentShared({
+        groupId: group_id,
+        userId,
+        contentType: 'notebook_collections',
+        contentId: notebookId,
+      });
 
       return {
         status: 201 as const,

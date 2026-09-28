@@ -67,6 +67,9 @@ describe('GroupFeedCard', () => {
     expect(screen.getByRole('button', { name: 'Lösen' })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  const TOM = '22222222-2222-4222-8222-222222222222';
+  const ANNA = '33333333-3333-4333-8333-333333333333';
+
   it('loads the thread on demand, comments and replies inside a thread', async () => {
     const posted: unknown[] = [];
     server.use(
@@ -78,7 +81,7 @@ describe('GroupFeedCard', () => {
               id: 'c1',
               shareId: SHARE,
               parentId: null,
-              userId: 'u2',
+              userId: TOM,
               authorName: 'Tom Krüger',
               body: 'Das Zitat nach vorne.',
               createdAt: '2026-09-26T09:00:00Z',
@@ -119,10 +122,14 @@ describe('GroupFeedCard', () => {
     expect(replyBox).toHaveFocus();
 
     await user.type(replyBox, 'mach ich.{Enter}');
-    await waitFor(() => expect(posted).toEqual([{ body: '@Tom mach ich.', parentId: 'c1' }]));
+    // Die Vorbelegung ist eine echte Erwähnung: gespeichert als Token, gezeigt als @Tom.
+    await waitFor(() =>
+      expect(posted).toEqual([{ body: `@[Tom](user:${TOM}) mach ich.`, parentId: 'c1' }])
+    );
 
     const replies = await screen.findByRole('list', { name: 'Antworten auf Tom Krüger' });
-    expect(within(replies).getByText('@Tom mach ich.')).toBeInTheDocument();
+    expect(within(replies).getByText('@Tom')).toHaveClass('font-semibold');
+    expect(within(replies).getByText('mach ich.', { exact: false })).toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'Antwort an Tom Krüger' })).toBeNull();
 
     await user.type(screen.getByRole('textbox', { name: 'Kommentar schreiben' }), 'Neuer Punkt');
@@ -142,7 +149,7 @@ describe('GroupFeedCard', () => {
               id: 'c1',
               shareId: SHARE,
               parentId: null,
-              userId: 'u2',
+              userId: TOM,
               authorName: 'Tom Krüger',
               body: 'Oben',
               createdAt: '2026-09-26T09:00:00Z',
@@ -151,7 +158,7 @@ describe('GroupFeedCard', () => {
               id: 'c2',
               shareId: SHARE,
               parentId: 'c1',
-              userId: 'u3',
+              userId: ANNA,
               authorName: 'Anna Lorenz',
               body: 'Darunter',
               createdAt: '2026-09-26T10:00:00Z',
@@ -172,7 +179,9 @@ describe('GroupFeedCard', () => {
     const box = screen.getByRole('textbox', { name: 'Antwort an Anna Lorenz' });
     expect(box).toHaveValue('@Anna ');
     await user.type(box, 'ok{Enter}');
-    await waitFor(() => expect(posted).toEqual([{ body: '@Anna ok', parentId: 'c1' }]));
+    await waitFor(() =>
+      expect(posted).toEqual([{ body: `@[Anna](user:${ANNA}) ok`, parentId: 'c1' }])
+    );
   });
 
   it('closes an open reply with Escape', async () => {
@@ -185,7 +194,7 @@ describe('GroupFeedCard', () => {
               id: 'c1',
               shareId: SHARE,
               parentId: null,
-              userId: 'u2',
+              userId: TOM,
               authorName: 'Tom Krüger',
               body: 'Oben',
               createdAt: '2026-09-26T09:00:00Z',

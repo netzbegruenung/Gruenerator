@@ -19,7 +19,7 @@ interface Fake {
   groupType?: 'standard' | 'personal';
   isSystem?: boolean;
   instanceAdmin?: boolean;
-  post?: { id: string; author_id: string | null } | null;
+  post?: { id: string; author_id: string | null; body: string; share_id: string | null } | null;
   fileCount?: number;
   failInsert?: boolean;
 }
@@ -37,7 +37,9 @@ function fakeDeps(f: Fake = {}) {
       };
     }
     if (sql.includes('FROM group_posts')) {
-      return f.post === undefined ? { id: 'p1', author_id: 'author' } : f.post;
+      return f.post === undefined
+        ? { id: 'p1', author_id: 'author', body: 'alt', share_id: 's1' }
+        : f.post;
     }
     if (sql.includes('COUNT(*)')) return { n: f.fileCount ?? 0 };
     if (sql.includes('FROM group_post_files')) {
@@ -96,15 +98,26 @@ describe('createGroupPost', () => {
     ]);
     expect(txQueryOne.mock.calls[1]?.[2]).toEqual(['group_post', 'p-new', 'g1', 'author']);
     expect(notify).toHaveBeenCalledWith(
-      expect.objectContaining({ excludeUserId: 'author', body: 'Jana: Wer hilft?' })
+      expect.objectContaining({
+        authorId: 'author',
+        body: 'Wer hilft?',
+        isSystem: false,
+        actionUrl: '/projekte/g1?beitrag=s-new',
+        base: { type: 'group_post_created', title: 'Neuer Beitrag', recipients: 'members' },
+      })
     );
     expect(deleteFile).not.toHaveBeenCalled();
   });
 
-  it('accepts files without text', async () => {
-    const { deps } = fakeDeps();
+  it('accepts files without text and says so in the notification', async () => {
+    const { deps, notify } = fakeDeps();
     const out = await createGroupPost({ ...base, body: '', files: [file('a.pdf')] }, deps);
     expect(out.status).toBe(201);
+    expect(notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        base: expect.objectContaining({ summary: 'Jana hat eine Datei geteilt' }),
+      })
+    );
   });
 
   it.each([
@@ -136,6 +149,7 @@ describe('createGroupPost', () => {
     expect((await createGroupPost({ ...base, body: 'Hallo', files: [] }, admin.deps)).status).toBe(
       201
     );
+    expect(admin.notify).toHaveBeenCalledWith(expect.objectContaining({ isSystem: true }));
   });
 
   it('removes the files when the user is not a member', async () => {
@@ -156,42 +170,40 @@ describe('createGroupPost', () => {
   });
 });
 
+const editBase = { groupId: 'g1', postId: 'p1', userId: 'author', authorName: 'Jana' };
+
 describe('updateGroupPost', () => {
-  it('lets the author edit the text', async () => {
-    const { deps, exec } = fakeDeps();
-    const out = await updateGroupPost(
-      { groupId: 'g1', postId: 'p1', userId: 'author', body: ' neu ' },
-      deps
-    );
+  it('lets the author edit the text and hands both versions to the mention check', async () => {
+    const { deps, exec, notify } = fakeDeps();
+    const out = await updateGroupPost({ ...editBase, body: ' neu ' }, deps);
     expect(out.status).toBe(200);
     expect(exec.mock.calls[0]?.[1]).toEqual(['neu', 'p1']);
+    expect(notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: 'neu',
+        previousBody: 'alt',
+        base: null,
+        actionUrl: '/projekte/g1?beitrag=s1',
+      })
+    );
   });
 
   it('forbids an admin who did not write it', async () => {
     const { deps, exec } = fakeDeps({ role: 'admin' });
-    const out = await updateGroupPost(
-      { groupId: 'g1', postId: 'p1', userId: 'other', body: 'x' },
-      deps
-    );
+    const out = await updateGroupPost({ ...editBase, userId: 'other', body: 'x' }, deps);
     expect(out.status).toBe(403);
     expect(exec).not.toHaveBeenCalled();
   });
 
   it('refuses to empty a post that has no files', async () => {
     const { deps } = fakeDeps({ fileCount: 0 });
-    const out = await updateGroupPost(
-      { groupId: 'g1', postId: 'p1', userId: 'author', body: '' },
-      deps
-    );
+    const out = await updateGroupPost({ ...editBase, body: '' }, deps);
     expect(out.status).toBe(400);
   });
 
   it('allows emptying the text when files remain', async () => {
     const { deps } = fakeDeps({ fileCount: 2 });
-    const out = await updateGroupPost(
-      { groupId: 'g1', postId: 'p1', userId: 'author', body: '' },
-      deps
-    );
+    const out = await updateGroupPost({ ...editBase, body: '' }, deps);
     expect(out.status).toBe(200);
   });
 });

@@ -62,3 +62,16 @@ describe('actionUrlToRoute', () => {
     expect(actionUrlToRoute('/chat/thread-1')).toBe('/chat/thread-1');
   });
 });
+
+describe('actionUrlToRoute for projects', () => {
+  it('maps legacy /gruppen/<id> links to the project screen', () => {
+    expect(actionUrlToRoute('/gruppen/g1')).toEqual({
+      pathname: '/(focused)/projekte/[id]',
+      params: { id: 'g1' },
+    });
+  });
+
+  it('pushes /projekte/<id>?beitrag=<share> unchanged so the screen reads beitrag', () => {
+    expect(actionUrlToRoute('/projekte/g1?beitrag=s1')).toBe('/projekte/g1?beitrag=s1');
+  });
+});

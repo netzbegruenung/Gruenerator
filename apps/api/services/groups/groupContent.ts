@@ -54,6 +54,8 @@ export const CONTENT_LABELS: Record<string, string> = {
   system_agents: 'einen Agenten',
   user_agents: 'eine*n Agent*in',
   canvas_template: 'eine Sharepic-Vorlage',
+  chat_threads: 'einen Chat',
+  user_text_forms: 'ein Rezept',
   nextcloud_share_link: 'eine Wolke-Verbindung',
 };
 
@@ -224,22 +226,60 @@ export async function shareContentToGroup(
     [contentType, contentId, groupId, userId, JSON.stringify(sharePermissions), note]
   );
 
-  void postgres
-    .queryOne('SELECT name FROM groups WHERE id = $1', [groupId], { table: 'groups' })
+  notifyContentShared({ groupId, userId, sharerName, contentType, contentId }, deps);
+
+  return { status: 200, success: true, message: 'Inhalt erfolgreich mit der Gruppe geteilt.' };
+}
+
+/**
+ * Meldet einen neu geteilten Inhalt an die übrigen Mitglieder und verlinkt
+ * den Beitrag im Feed. Auch für die Freigabe-Wege, die nicht über
+ * `shareContentToGroup` laufen (Chats, Notebooks, Agents, Rezepte).
+ * Losgelöst: ein Fehler hier darf das Teilen nicht scheitern lassen.
+ */
+export function notifyContentShared(
+  input: {
+    groupId: string;
+    userId: string;
+    /** Fehlt er, steht der Anzeigename aus dem Profil da. */
+    sharerName?: string;
+    contentType: string;
+    contentId: string;
+  },
+  deps: Pick<ShareContentDeps, 'postgres' | 'notify'> = defaultDeps()
+): void {
+  const { groupId, userId, sharerName, contentType, contentId } = input;
+  void Promise.resolve()
+    .then(() =>
+      deps.postgres.queryOne<{
+        name: string | null;
+        share_id: string | null;
+        sharer_name: string | null;
+      }>(
+        `SELECT g.name, s.id AS share_id,
+              (SELECT display_name FROM profiles WHERE id = $4) AS sharer_name
+         FROM groups g
+         LEFT JOIN group_content_shares s
+           ON s.group_id = g.id AND s.content_type = $2 AND s.content_id = $3
+        WHERE g.id = $1`,
+        [groupId, contentType, contentId, userId],
+        { table: 'groups' }
+      )
+    )
     .then((g) =>
       deps.notify({
         groupId,
         excludeUserId: userId,
         type: 'group_content_shared',
         title: 'Neuer Inhalt',
-        body: `${sharerName} hat ${CONTENT_LABELS[contentType] || 'etwas'} in „${(g as { name?: string } | null)?.name || 'deiner Gruppe'}" geteilt`,
-        actionUrl: `/gruppen/${groupId}`,
+        body: `${sharerName ?? (g?.sharer_name || 'Jemand')} hat ${CONTENT_LABELS[contentType] || 'etwas'} in „${g?.name || 'deinem Projekt'}" geteilt`,
+        actionUrl: g?.share_id
+          ? `/projekte/${groupId}?beitrag=${g.share_id}`
+          : `/projekte/${groupId}`,
         metadata: { contentType, contentId },
       })
     )
     .catch(() => {});
-
-  return { status: 200, success: true, message: 'Inhalt erfolgreich mit der Gruppe geteilt.' };
 }
 
 // ---------------------------------------------------------------------------
