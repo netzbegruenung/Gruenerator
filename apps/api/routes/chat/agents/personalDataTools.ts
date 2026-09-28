@@ -1021,10 +1021,10 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
         return { ok: true, note: 'Reel wurde gelöscht.' };
       }
       if (kind === 'sharepic') {
-        const ok = await getSharedMediaService().deleteShare(userId, handle);
-        if (!ok) return { error: 'Bild nicht gefunden oder kein Zugriff.' };
-        groundNote(sourceRegistry, 'Gelöscht', 'Bild wurde gelöscht.');
-        return { ok: true, note: 'Bild wurde gelöscht.' };
+        const result = await getSharedMediaService().trashShare(userId, handle);
+        if (result !== 'ok') return { error: 'Bild nicht gefunden oder kein Zugriff.' };
+        groundNote(sourceRegistry, 'Gelöscht', 'Bild liegt jetzt im Papierkorb.');
+        return { ok: true, note: 'Bild liegt jetzt im Papierkorb.' };
       }
       return { error: 'Unbekannter Medien-Verweis.' };
     },

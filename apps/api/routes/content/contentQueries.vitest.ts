@@ -63,3 +63,21 @@ describe('fetchImages', () => {
     expect(new Set(used)).toEqual(new Set(params.map((_, i) => i + 1)));
   });
 });
+
+/**
+ * A trashed image keeps its row until the purge, so the content feed has
+ * to leave it out itself — with and without a cursor, since the cursor branch
+ * rebuilds the WHERE.
+ */
+describe('Papierkorb', () => {
+  it.each([
+    ['images', () => fetchImages('user-1', 20, null)],
+    [
+      'images with a cursor',
+      () => fetchImages('user-1', 20, { kind: 'image', date: '2026-08-01T12:00:00.000Z', id: 'i' }),
+    ],
+  ])('hides trashed %s', async (_label, fetch) => {
+    await fetch();
+    expect(lastCall().sql).toMatch(/WHERE deleted_at IS NULL AND/);
+  });
+});

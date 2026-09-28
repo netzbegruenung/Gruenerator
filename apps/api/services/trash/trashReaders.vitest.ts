@@ -97,6 +97,11 @@ const ALLOWLIST: readonly AllowEntry[] = [
   ['services/hocuspocus/src/auth.ts', 'groups', HOCUSPOCUS],
   ['apps/api/services/cleanup/uploadsCleanupService.ts', 'shared_media', PERMANENT_CLEANUP],
   ['apps/api/services/cleanup/uploadsCleanupService.ts', 'subtitler_projects', PERMANENT_CLEANUP],
+  [
+    'apps/api/services/sharedMediaService.ts',
+    'shared_media',
+    'quota (getLibraryUsage) and the orphan bug counter: trashed media keep their files on disk until the purge, so they still count',
+  ],
   ['apps/api/routes/auth/templates/adminTemplates.ts', 'user_templates', PERMANENT_ADMIN],
   [
     'apps/api/routes/auth/templates/adminVorlagenContractRouter.ts',
@@ -104,10 +109,6 @@ const ALLOWLIST: readonly AllowEntry[] = [
     PERMANENT_ADMIN,
   ],
   // ── Task 3 ──
-  ['apps/api/routes/content/contentQueries.ts', 'shared_media', 'pending: Task 3'],
-  ['apps/api/services/canvas/canvasRepository.ts', 'shared_media', 'pending: Task 3'],
-  ['apps/api/services/sharedMediaService.ts', 'shared_media', 'pending: Task 3'],
-  ['apps/api/services/transferService.ts', 'shared_media', 'pending: Task 3'],
   ['apps/api/routes/chat/services/reelEditService.ts', 'subtitler_projects', 'pending: Task 3'],
   ['apps/api/routes/content/contentQueries.ts', 'subtitler_projects', 'pending: Task 3'],
   [
