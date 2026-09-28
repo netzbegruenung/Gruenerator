@@ -29,6 +29,14 @@ export interface LoadedRecipe {
   /** The prompt body — internal skill prompt or a user's learned style block. */
   body: string;
   source: 'system' | 'user';
+  /** Empfohlene, im Turn montierte Werkzeuge — als Zeile unter dem Rezept. */
+  recommendedTools?: readonly string[];
+  /**
+   * Vom Agenten vorab geladen, nicht gewählt. Lädt das Modell im selben Turn
+   * ein ANDERES Rezept, weicht dieses — zwei Formatgeber auf einem Text haben
+   * keinen Schlichter (eine Bürger-Mail und eine PM zugleich).
+   */
+  preloaded?: boolean;
 }
 
 export type RegisterOutcome = 'registered' | 'duplicate' | 'full';
@@ -76,6 +84,9 @@ export function createRecipeRegistry(maxRecipes: number = MAX_RECIPES_PER_TURN):
   return {
     register(recipe) {
       if (loaded.has(recipe.mention)) return 'duplicate';
+      if (!recipe.preloaded) {
+        for (const [mention, r] of loaded) if (r.preloaded) loaded.delete(mention);
+      }
       if (loaded.size >= maxRecipes) return 'full';
       loaded.set(recipe.mention, recipe);
       return 'registered';
@@ -98,7 +109,13 @@ export function createRecipeRegistry(maxRecipes: number = MAX_RECIPES_PER_TURN):
       if (loaded.size === 0) return '';
       // Same heading `buildSystemMessage` uses for an explicitly picked recipe,
       // so the model sees one shape regardless of how the recipe got there.
-      const blocks = [...loaded.values()].map((r) => `## AKTIVE PLATTFORM: ${r.title}\n${r.body}`);
+      const blocks = [...loaded.values()].map(
+        (r) =>
+          `## AKTIVE PLATTFORM: ${r.title}\n${r.body}` +
+          (r.recommendedTools?.length
+            ? `\n\nFür dieses Rezept geeignete Werkzeuge: ${r.recommendedTools.join(', ')}.`
+            : '')
+      );
       return `\n\n${blocks.join('\n\n')}\n\n${PRECEDENCE_NOTE}`;
     },
   };

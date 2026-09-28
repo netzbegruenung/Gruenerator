@@ -17,6 +17,7 @@ import type { Agent } from './types.js';
 export const LV_BUERGER_SPECS = LANDESVERBAENDE.map((lv) => ({
   lv: lv.id,
   title: lv.title,
+  recipeSlug: lv.recipeSlug,
   codes: lv.codes,
   notebook: lv.notebookId,
   homepage: lv.homepage,
@@ -46,7 +47,7 @@ export const LV_BUERGER_AGENTS: Agent[] = LV_BUERGER_SPECS.map((spec) => {
     title: `Bürger*innenanfragen (${spec.title})`,
     description: `Beantwortet Bürger*innenanfragen für die Grünen ${spec.title} als versandfertige, recherchebasierte Antwort-E-Mail.`,
     systemRole: '',
-    defaultRecipeMention: 'buergermail',
+    defaultRecipeMention: `buerger-${spec.recipeSlug}`,
     avatar: '✉️',
     backgroundColor: '#316049',
     tags: ['Bürgerservice', 'E-Mail', 'Anfragen', 'Grüne', spec.title],

@@ -240,6 +240,13 @@ export async function executeDirectSearch(params: {
    */
   agentLandesverband?: readonly string[] | string;
   /**
+   * Content types to restrict a Landesverband search to (`beschluss`,
+   * `wahlprogramm`, …). Like `agentLandesverband` it only touches
+   * `landesverbaende_documents` — the other collections carry no such field
+   * or a different vocabulary, and a filter there would zero the result.
+   */
+  lvContentType?: readonly string[];
+  /**
    * Retrieval strategy. Defaults to `hybrid`, which is what every caller wanted
    * before this was settable; `text` is keyword-only (exact wording, names,
    * quotes), `vector` purely semantic.
@@ -262,6 +269,7 @@ export async function executeDirectSearch(params: {
     limit = 5,
     filters,
     agentLandesverband,
+    lvContentType,
     searchMode = 'hybrid',
     useCache,
     rerankChunks,
@@ -275,7 +283,7 @@ export async function executeDirectSearch(params: {
   );
 
   log.info(
-    `[Direct Search] query="${query}" collection="${collection}" limit=${limit} mode=${searchMode}${filters ? ` filters=${JSON.stringify(filters)}` : ''}${agentLandesverband ? ` lv=${JSON.stringify(agentLandesverband)}` : ''}`
+    `[Direct Search] query="${query}" collection="${collection}" limit=${limit} mode=${searchMode}${filters ? ` filters=${JSON.stringify(filters)}` : ''}${agentLandesverband ? ` lv=${JSON.stringify(agentLandesverband)}` : ''}${lvContentType?.length ? ` contentType=${lvContentType.join(',')}` : ''}`
   );
 
   const mapping = COLLECTION_MAP[collection];
@@ -286,9 +294,22 @@ export async function executeDirectSearch(params: {
   const { qdrantCollection, systemId } = mapping || COLLECTION_MAP.deutschland;
   const searchParams = getSearchParams(systemId);
 
-  // Build filter: merge (a) collection default, (b) user-detected, (c) agent LV pin
+  // Build filter: merge (a) collection default, (b) user-detected, (c) agent LV pin,
+  // (d) LV content type
   const collectionDefault = applyDefaultFilter(systemId);
-  const userFilter = buildSubcategoryFilter(filters);
+  const pinsContentType =
+    lvContentType !== undefined &&
+    lvContentType.length > 0 &&
+    qdrantCollection === 'landesverbaende_documents';
+  // The pin replaces a detected content type instead of adding to it: two
+  // `must` clauses on one field (`presse` from the heuristic, `beschluss` from
+  // the agent) would match nothing.
+  let effectiveFilters = filters;
+  if (pinsContentType && filters?.content_type !== undefined) {
+    const { content_type: _replaced, ...rest } = filters;
+    effectiveFilters = rest;
+  }
+  const userFilter = buildSubcategoryFilter(effectiveFilters);
   let agentLvFilter: QdrantFilter | undefined;
   if (agentLandesverband && qdrantCollection === 'landesverbaende_documents') {
     const lvList: string[] =
@@ -303,7 +324,22 @@ export async function executeDirectSearch(params: {
     };
   }
 
-  const filterParts = [collectionDefault, userFilter, agentLvFilter].filter(
+  const lvContentTypeFilter: QdrantFilter | undefined =
+    pinsContentType && lvContentType
+      ? {
+          must: [
+            {
+              key: 'content_type',
+              match:
+                lvContentType.length === 1
+                  ? { value: lvContentType[0] as string }
+                  : { any: [...lvContentType] },
+            },
+          ],
+        }
+      : undefined;
+
+  const filterParts = [collectionDefault, userFilter, agentLvFilter, lvContentTypeFilter].filter(
     (f): f is QdrantFilter => f !== undefined
   );
   let additionalFilter: QdrantFilter | undefined;

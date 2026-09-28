@@ -192,3 +192,41 @@ describe('executeDirectSearch — Degradations-Marker', () => {
     expect(result).not.toHaveProperty('rerankDegraded');
   });
 });
+
+describe('executeDirectSearch — lvContentType', () => {
+  const must = (): Array<{ key: string; match?: unknown }> =>
+    search.mock.calls[0]?.[0].options.additionalFilter?.must ?? [];
+
+  it('pins the content type on a Landesverband collection', async () => {
+    search.mockResolvedValue(okResponse);
+    await executeDirectSearch({
+      query: 'Verkehr',
+      collection: 'hessen',
+      lvContentType: ['beschluss'],
+    });
+    expect(must()).toContainEqual({ key: 'content_type', match: { value: 'beschluss' } });
+  });
+
+  it('replaces a detected content type instead of adding a second clause', async () => {
+    search.mockResolvedValue(okResponse);
+    await executeDirectSearch({
+      query: 'Verkehr',
+      collection: 'hessen',
+      filters: { content_type: 'presse' },
+      lvContentType: ['beschluss'],
+    });
+    expect(must().filter((c) => c.key === 'content_type')).toEqual([
+      { key: 'content_type', match: { value: 'beschluss' } },
+    ]);
+  });
+
+  it('leaves collections outside the Landesverband corpus alone', async () => {
+    search.mockResolvedValue(okResponse);
+    await executeDirectSearch({
+      query: 'Verkehr',
+      collection: 'deutschland',
+      lvContentType: ['beschluss'],
+    });
+    expect(must().some((c) => c.key === 'content_type')).toBe(false);
+  });
+});

@@ -2,19 +2,22 @@
  * Bevorzugt die Landesverbands-Variante eines generischen Rezepts.
  *
  * Zwei Signale, in dieser Reihenfolge:
- *   1. Der Agent selbst — auf einem LV-PR-Agenten (per Link oder Inventar) ist
- *      dessen eigene Rezept-Variante immer die richtige, unabhängig von den
- *      Profilrollen der Person.
+ *   1. Der Agent selbst — auf einem LV-Agenten (per Link oder Inventar, gleich
+ *      welcher Familie) ist die Rezept-Variante SEINES Landesverbands immer
+ *      die richtige, unabhängig von den Profilrollen der Person.
  *   2. Die Profilrollen — wer genau EINEN Landesverband vertritt
  *      (Landesgeschäftsstellen-Rolle, `landesverbandIdsForRoles`), bekommt auf
  *      generischen Agenten die Variante dieses Verbands. Mehrere Verbände sind
  *      mehrdeutig, dann bleibt das generische Rezept stehen.
  *
  * Die Zuordnung generisch→LV läuft über die Rezept-Familie, nicht über
- * Namenskonventionen: `presse` ↔ Kategorie `presse`, `instagram` ↔ Kategorie
- * `social` (LV-Agenten führen als Social-Rezept ausschließlich die
- * Insta-Variante). Andere generische Rezepte (facebook, twitter, reel, …)
- * haben keine LV-Varianten und stehen deshalb nicht in der Tabelle. Bei
+ * Namenskonventionen: eine Familie ist eine Rezept-Kategorie plus der
+ * LV-Agent, dem die Varianten gehören — `presse` ↔ Kategorie `presse` am
+ * PR-Agenten, `instagram` ↔ Kategorie `social` am PR-Agenten (LV-Agenten führen
+ * als Social-Rezept ausschließlich die Insta-Variante), `buergermail` ↔
+ * Kategorie `dokumente` am Bürger*innenanfragen-Agenten. Andere generische
+ * Rezepte (facebook, twitter, reel, …) haben keine LV-Varianten und stehen
+ * deshalb nicht in der Tabelle. Bei
  * zweistufigen Verbänden gewinnt die Partei-Ebene — dieselbe Wahl wie
  * `LEGACY_SKILL_MENTIONS` und die `defaultRecipeMention` der PR-Agenten, weil
  * die Rollenzuteilung allein an der Landesgeschäftsstelle hängt. Käme je eine
@@ -33,6 +36,7 @@ import {
   SKILLS,
   isSkillOfferedIn,
   landesverbandIdsForRoles,
+  lvIdForAgentIdentifier,
   type RoleLandesverbandInput,
   type Skill,
 } from '@gruenerator/shared/agents';
@@ -40,16 +44,32 @@ import { type InstanceId } from '@gruenerator/shared/instances';
 
 import { CURRENT_INSTANCE } from '../../../config/instance.js';
 
+type LandesverbandRecord = (typeof LANDESVERBAENDE)[number];
+
+interface LvRecipeFamily {
+  /** `skillCategory` der LV-Varianten. */
+  category: string;
+  /** Registry-Feld des LV-Agenten, dem die Varianten gehören. */
+  owner: 'prAgentId' | 'buergerAgentId';
+}
+
 /** Rezept-Familie je generischer Mention — nur Familien MIT LV-Varianten. */
-const LV_FAMILY_BY_GENERIC_MENTION: Readonly<Record<string, string>> = {
-  presse: 'presse',
-  instagram: 'social',
+const LV_FAMILY_BY_GENERIC_MENTION: Readonly<Record<string, LvRecipeFamily>> = {
+  presse: { category: 'presse', owner: 'prAgentId' },
+  instagram: { category: 'social', owner: 'prAgentId' },
+  buergermail: { category: 'dokumente', owner: 'buergerAgentId' },
 };
+
+/** Der Landesverband, zu dem ein Agent gehört — gleich welcher LV-Familie. */
+function landesverbandOfAgent(agentIdentifier: string): LandesverbandRecord | null {
+  const id = lvIdForAgentIdentifier(agentIdentifier);
+  return id ? (LANDESVERBAENDE.find((lv) => lv.id === id) ?? null) : null;
+}
 
 export function preferredLvRecipeMention(params: {
   /** Die generisch gewählte Mention (`presse`, `instagram`, …). */
   mention: string | null | undefined;
-  /** Der Agent des Turns — LV-PR-Agenten binden die Wahl an sich. */
+  /** Der Agent des Turns — LV-Agenten binden die Wahl an ihren Landesverband. */
   agentIdentifier?: string | null;
   /** Profilrollen der Person; greifen nur auf Nicht-LV-Agenten. */
   roles?: readonly RoleLandesverbandInput[] | null;
@@ -69,18 +89,19 @@ export function preferredLvRecipeMention(params: {
   const family = LV_FAMILY_BY_GENERIC_MENTION[mention.toLowerCase()];
   if (!family) return null;
 
-  // Ein LV-Agent bindet die Wahl an sich — auch dann, wenn er selbst keine
-  // Variante dieser Familie führt (SH, Sachsen): sonst bekäme eine Person mit
-  // Hessen-Rolle auf dem SH-Agenten hessische Schreibvorgaben.
-  let ownerId: string | null = null;
-  if (agentIdentifier && LANDESVERBAENDE.some((lv) => lv.prAgentId === agentIdentifier)) {
-    ownerId = agentIdentifier;
-  } else {
+  // Ein LV-Agent bindet die Wahl an seinen Landesverband — auch dann, wenn
+  // der keine Variante dieser Familie führt (SH, Sachsen): sonst bekäme eine
+  // Person mit Hessen-Rolle auf dem SH-Agenten hessische Schreibvorgaben.
+  let lv: LandesverbandRecord | null = agentIdentifier
+    ? landesverbandOfAgent(agentIdentifier)
+    : null;
+  if (!lv) {
     const lvIds = landesverbandIdsForRoles(roles ?? [], userLocale ?? 'de-DE');
     if (lvIds.length === 1) {
-      ownerId = LANDESVERBAENDE.find((lv) => lv.id === lvIds[0])?.prAgentId ?? null;
+      lv = LANDESVERBAENDE.find((entry) => entry.id === lvIds[0]) ?? null;
     }
   }
+  const ownerId = lv?.[family.owner] ?? null;
   if (!ownerId || DISABLED_LV_AGENT_IDS.has(ownerId)) return null;
 
   // `SKILLS` is `as const`; entries without `lvEbene` reject the property —
@@ -89,7 +110,7 @@ export function preferredLvRecipeMention(params: {
   const candidates = allSkills.filter(
     (s) =>
       s.identifier === ownerId &&
-      s.skillCategory === family &&
+      s.skillCategory === family.category &&
       s.lvEbene !== 'fraktion' &&
       isSkillOfferedIn(s, instanceId)
   );
@@ -122,4 +143,34 @@ export function roleAwareDefaultRecipeMention(
       userLocale: ctx.userLocale ?? null,
     }) ?? base
   );
+}
+
+/**
+ * Das Rezept, das ein Ein-Rezept-LV-Agent im agentischen Loop VORAB lädt.
+ *
+ * Der Loop ignoriert `defaultRecipeMention` und überlässt die Wahl dem Modell
+ * über `rezept_laden` — für einen Agenten, der genau eine Textsorte schreibt
+ * (Bürger*innenanfragen), heißt das: das Rezept kommt selten an,
+ * weil die kleinen Loop-Modelle das Werkzeug überspringen. Solche Agenten
+ * bekommen es deshalb deterministisch.
+ *
+ * „Ein-Rezept" ist wörtlich gemeint: dem Agenten gehört genau EIN Rezept, und
+ * es ist sein Default. Ein LV-PR-Agent führt Presse UND Insta — ein vorab
+ * geladenes Presserezept stünde neben einem selbst gewählten Insta-Rezept, zwei
+ * Formatgeber auf einem Text. Er bleibt beim Selbstladen.
+ */
+export function ownedLvDefaultRecipeMention(
+  agentConfig: { identifier?: string | undefined; defaultRecipeMention?: string | undefined },
+  instanceId: InstanceId = CURRENT_INSTANCE
+): string | null {
+  const { identifier, defaultRecipeMention } = agentConfig;
+  if (!identifier || !defaultRecipeMention) return null;
+  if (!landesverbandOfAgent(identifier) || DISABLED_LV_AGENT_IDS.has(identifier)) return null;
+  const allSkills: readonly Skill[] = SKILLS;
+  const owned = allSkills.filter(
+    (s) => s.identifier === identifier && isSkillOfferedIn(s, instanceId)
+  );
+  return owned.length === 1 && owned[0]?.mention === defaultRecipeMention
+    ? defaultRecipeMention
+    : null;
 }

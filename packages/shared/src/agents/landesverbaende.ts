@@ -19,6 +19,11 @@ export interface LandesverbandEntry {
   id: string;
   /** Display name used in agent titles/prompts, e.g. `Berlin`. */
   title: string;
+  /**
+   * Kürzel in den Rezept-Mentions dieses Verbands (`insta-mv`, `buerger-mv`,
+   * `buerger-at`). Mentions sind F0 — das Kürzel wird nicht umbenannt.
+   */
+  recipeSlug: string;
   /** `landesverband` metadata code(s) for `defaultFilter` / example scoping. */
   codes: string | readonly string[];
   /** The LV notebook both specialist agents pin (and the hub's icon source). */
@@ -58,6 +63,7 @@ export const LANDESVERBAENDE = [
   {
     id: 'berlin',
     title: 'Berlin',
+    recipeSlug: 'berlin',
     codes: ['BE', 'BE-F'],
     notebookId: 'berlin-notebook',
     homepage: 'https://gruene.berlin',
@@ -72,6 +78,7 @@ export const LANDESVERBAENDE = [
   {
     id: 'hamburg',
     title: 'Hamburg',
+    recipeSlug: 'hamburg',
     codes: 'HH',
     notebookId: 'hamburg-notebook',
     homepage: 'https://www.gruene-hamburg.de',
@@ -86,6 +93,7 @@ export const LANDESVERBAENDE = [
   {
     id: 'mecklenburg-vorpommern',
     title: 'Mecklenburg-Vorpommern',
+    recipeSlug: 'mv',
     codes: ['MV', 'MV-F'],
     notebookId: 'mecklenburg-vorpommern-notebook',
     homepage: 'https://gruene-mv.de',
@@ -100,6 +108,7 @@ export const LANDESVERBAENDE = [
   {
     id: 'thueringen',
     title: 'Thüringen',
+    recipeSlug: 'thueringen',
     codes: ['TH', 'TH-F'],
     notebookId: 'thueringen-notebook',
     homepage: 'https://gruene-thueringen.de',
@@ -114,6 +123,7 @@ export const LANDESVERBAENDE = [
   {
     id: 'brandenburg',
     title: 'Brandenburg',
+    recipeSlug: 'brandenburg',
     codes: 'BB',
     notebookId: 'brandenburg-notebook',
     homepage: 'https://gruene-brandenburg.de',
@@ -128,6 +138,7 @@ export const LANDESVERBAENDE = [
   {
     id: 'bayern',
     title: 'Bayern',
+    recipeSlug: 'bayern',
     codes: ['BY', 'BY-F'],
     notebookId: 'bayern-notebook',
     homepage: 'https://www.gruene-bayern.de',
@@ -142,6 +153,7 @@ export const LANDESVERBAENDE = [
   {
     id: 'sachsen-anhalt',
     title: 'Sachsen-Anhalt',
+    recipeSlug: 'sachsen-anhalt',
     codes: ['LSA', 'LSA-F'],
     notebookId: 'sachsen-anhalt-notebook',
     homepage: 'https://www.gruene-lsa.de',
@@ -177,6 +189,7 @@ export const LANDESVERBAENDE = [
   {
     id: 'hessen',
     title: 'Hessen',
+    recipeSlug: 'hessen',
     codes: ['HE', 'HE-F'],
     notebookId: 'hessen-notebook',
     homepage: 'https://www.gruene-hessen.de',
@@ -191,6 +204,7 @@ export const LANDESVERBAENDE = [
   {
     id: 'saarland',
     title: 'Saarland',
+    recipeSlug: 'saarland',
     codes: 'SL',
     notebookId: 'saarland-notebook',
     homepage: 'https://gruene-saar.de',
@@ -205,6 +219,7 @@ export const LANDESVERBAENDE = [
   {
     id: 'schleswig-holstein',
     title: 'Schleswig-Holstein',
+    recipeSlug: 'schleswig-holstein',
     codes: 'SH',
     notebookId: 'schleswig-holstein-notebook',
     homepage: 'https://sh-gruene.de',
@@ -223,6 +238,7 @@ export const LANDESVERBAENDE = [
   {
     id: 'oesterreich',
     title: 'Österreich',
+    recipeSlug: 'at',
     codes: 'AT',
     notebookId: 'oesterreich-notebook',
     homepage: 'https://gruene.at',
