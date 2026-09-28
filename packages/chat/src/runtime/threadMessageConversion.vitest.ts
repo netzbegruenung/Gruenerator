@@ -499,6 +499,31 @@ describe('convertToThreadMessageLike — interleaved reload', () => {
     expect((content[3] as { toolCallId: string }).toolCallId).toBe('t2');
   });
 
+  it('keeps one card per toolCallId when a persisted turn repeats an id', () => {
+    // assistant-ui throws "Duplicate key toolCallId-…" on a repeat and takes the
+    // whole message down; rows written before the backend fix still carry them.
+    const content = contentOf({
+      toolCalls: [
+        {
+          toolCallId: 'wsnY18LfD',
+          toolName: 'notebook_search',
+          args: {},
+          result: {},
+          textOffset: 0,
+        },
+        { toolCallId: 'wsnY18LfD', toolName: 'artifact_edit', args: {}, result: {}, textOffset: 0 },
+        { toolCallId: 't2', toolName: 'web_search', args: {}, result: {}, textOffset: 5 },
+      ],
+    });
+    const cards = content.filter(
+      (p): p is ContentPart & { toolCallId: string; toolName: string } => p.type === 'tool-call'
+    );
+    expect(cards.map((c) => [c.toolCallId, c.toolName])).toEqual([
+      ['wsnY18LfD', 'notebook_search'],
+      ['t2', 'web_search'],
+    ]);
+  });
+
   it('sorts tool calls by offset (stable) before slicing', () => {
     const content = contentOf({
       toolCalls: [
