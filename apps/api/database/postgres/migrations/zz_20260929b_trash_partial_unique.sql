@@ -42,7 +42,25 @@ CREATE UNIQUE INDEX IF NOT EXISTS user_letterheads_user_label_unique
     ON user_letterheads (user_id, label) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS user_sites_subdomain_unique
     ON user_sites (subdomain) WHERE deleted_at IS NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS custom_prompts_slug_unique
-    ON custom_prompts (slug) WHERE deleted_at IS NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS custom_prompts_user_slug_unique
-    ON custom_prompts (user_id, slug) WHERE deleted_at IS NULL;
+
+-- custom_prompts: ob die Produktionstabelle die `UNIQUE(slug)`-Constraints aus
+-- `schema.sql` je bekommen hat, hängt davon ab, wann sie angelegt wurde. Fehlten
+-- sie, erzwingt dieser Index die Eindeutigkeit zum ersten Mal, und ein
+-- einziges Duplikat würde die ganze Datei zurückrollen — samt der vier
+-- Umstellungen oben — und jeden weiteren Start blockieren. Ein Duplikat lässt
+-- den Index deshalb aus und meldet sich im Log, statt das Deployment zu kippen.
+DO $$
+BEGIN
+    CREATE UNIQUE INDEX IF NOT EXISTS custom_prompts_slug_unique
+        ON custom_prompts (slug) WHERE deleted_at IS NULL;
+EXCEPTION WHEN unique_violation THEN
+    RAISE WARNING 'custom_prompts_slug_unique skipped: duplicate live slug(s) in custom_prompts';
+END $$;
+
+DO $$
+BEGIN
+    CREATE UNIQUE INDEX IF NOT EXISTS custom_prompts_user_slug_unique
+        ON custom_prompts (user_id, slug) WHERE deleted_at IS NULL;
+EXCEPTION WHEN unique_violation THEN
+    RAISE WARNING 'custom_prompts_user_slug_unique skipped: duplicate live (user_id, slug) in custom_prompts';
+END $$;
