@@ -907,7 +907,7 @@ describe('was der Schreiber im split-Modus wirklich sieht', () => {
     const registry = createSourceRegistry();
     const { run } = makeCtx({ registry });
     await run({ action: 'list' });
-    expect(registry.freshSize).toBe(5);
+    expect(registry.size).toBe(5);
     const block = registry.renderAll();
     expect(block).toContain('Pressemitteilung');
     expect(block).toContain('Eigene Textform — OV-Einladungen');
