@@ -64,7 +64,7 @@ export function QRCodeTool({ onJumpToUploads, onPlaceImageUrl }: QRCodeToolProps
               onChange={(e) => setValue(e.target.value)}
               placeholder="https://..."
               disabled={isBusy || isUploading}
-              className="rounded-md border border-grey-300 bg-background px-sm py-xs text-sm text-foreground outline-none focus:border-primary-500 disabled:opacity-50 dark:border-grey-600"
+              className="rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm text-foreground outline-none focus:border-primary-500 disabled:opacity-50"
             />
           </label>
           <div

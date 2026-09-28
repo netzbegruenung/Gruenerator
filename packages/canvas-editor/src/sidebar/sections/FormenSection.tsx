@@ -536,15 +536,15 @@ export const ALL_PALETTE_SHAPES: ReadonlyArray<ShapeDefinition> = Object.values(
 
 export interface ShapeVariant {
   color: string;
-  /** Tanne is illegible on the dark editor surface; the preview swaps to the standard
-      dark tint (must out-specify the inline style color, hence the important modifier)
-      while the inserted fill stays the true brand color. */
+  /** Tanne is illegible on the dark editor surface; the preview uses a token that flips
+      to the standard dark tint (must out-specify the inline style color, hence the
+      important modifier) while the inserted fill stays the true brand color. */
   darkPreviewClass: string;
 }
 
 const SHAPE_VARIANT_COLOR_IDS = ['tanne', 'klee', 'grashalm', 'himmel', 'hellgruen'];
 const DARK_PREVIEW_OVERRIDES: Partial<Record<string, string>> = {
-  tanne: 'dark:!text-secondary-300',
+  tanne: '!text-editor-tanne-preview',
 };
 
 /**

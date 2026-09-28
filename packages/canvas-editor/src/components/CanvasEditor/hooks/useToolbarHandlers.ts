@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 
-import type { GenericCanvasRef, ToolbarStateReport } from '../../GenericCanvas';
-import type { AlignmentDirection } from '../../Toolbar';
 import type { ShadowPatch } from '../../../hooks/useFloatingModuleHandlers';
 import type { GradientFill } from '../../../utils/gradientFill';
+import type { GenericCanvasRef, ToolbarStateReport } from '../../GenericCanvas';
+import type { AlignmentDirection } from '../../Toolbar';
+import type React from 'react';
 
 interface UseToolbarHandlersParams {
   canvasRefsRef: React.MutableRefObject<React.RefObject<GenericCanvasRef | null>[]>;
@@ -62,7 +63,6 @@ export function useToolbarHandlers({
       handleGradientSelect: (gradient: GradientFill | null) =>
         ref?.current?.handleGradientSelect?.(gradient),
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     canvasRefsRef,
     currentPageIndex,

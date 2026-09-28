@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import { HiPencilSquare, HiQrCode, HiScissors } from 'react-icons/hi2';
-import { PiArrowLeft, PiTextT, PiDropSimpleFill, PiPath } from 'react-icons/pi';
+import { PiArrowLeft, PiCaretRightBold, PiTextT, PiDropSimpleFill, PiPath } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { cn } from '../../../utils/cn';
 
 import { AiCreateTool } from './AiCreateTool';
@@ -37,6 +38,10 @@ type ToolView =
 interface ToolCard {
   id: Exclude<ToolView, 'browse'>;
   label: string;
+  /** One-sentence hint shown under the label in the mobile list. */
+  description: string;
+  /** Generative tools, grouped under "Mit KI" on mobile. */
+  ai: boolean;
   icon: IconType | ComponentType<{ size?: number; className?: string }>;
   iconColor: string;
   hoverShadow: string;
@@ -85,6 +90,57 @@ function ToolCardButton({
   );
 }
 
+function ToolListRow({ card, onClick }: { card: ToolCard; onClick: () => void }) {
+  const Icon = card.icon;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-3 w-full min-h-14 py-2 px-0 bg-transparent border-none cursor-pointer text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]"
+    >
+      <span
+        className={cn(
+          'flex items-center justify-center size-10 shrink-0 rounded-[10px]',
+          card.ai
+            ? 'bg-[var(--editor-active-bg)] text-[var(--editor-active-fg)]'
+            : 'bg-[var(--editor-tile)] text-[var(--editor-text)]'
+        )}
+      >
+        <Icon size={20} />
+      </span>
+      <span className="flex flex-col flex-1 min-w-0">
+        <span className="text-[15px] font-bold leading-tight text-[var(--editor-text)]">
+          {card.label}
+        </span>
+        <span className="text-[13px] leading-snug text-[var(--editor-text-muted)]">
+          {card.description}
+        </span>
+      </span>
+      <PiCaretRightBold size={14} className="shrink-0 text-[var(--editor-text-muted)]" />
+    </button>
+  );
+}
+
+function ToolListGroup({
+  label,
+  cards,
+  onSelect,
+}: {
+  label: string;
+  cards: ToolCard[];
+  onSelect: (id: ToolCard['id']) => void;
+}) {
+  if (cards.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-1">
+      <h4 className="m-0 text-[13px] font-bold text-[var(--editor-text-muted)]">{label}</h4>
+      {cards.map((card) => (
+        <ToolListRow key={card.id} card={card} onClick={() => onSelect(card.id)} />
+      ))}
+    </section>
+  );
+}
+
 function DrillDownHeader({ label, onBack }: { label: string; onBack: () => void }) {
   return (
     <button
@@ -101,72 +157,82 @@ function DrillDownHeader({ label, onBack }: { label: string; onBack: () => void 
 export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionProps) {
   const { removeBackgroundFromImage, generateAiImage, editAiImage } = useCanvasEditorServices();
   const [activeView, setActiveView] = useState<ToolView>('browse');
+  const isMobile = useIsCanvasMobile();
 
   const cards: ToolCard[] = [
     {
       id: 'remove-bg',
+      description: 'Person oder Objekt freistellen',
+      ai: false,
       label: 'Hintergrund entfernen',
       icon: HiScissors,
-      iconColor: 'text-secondary-600 dark:text-secondary-300',
-      hoverShadow:
-        'group-hover:shadow-sm group-hover:shadow-secondary-600/15 dark:group-hover:shadow-secondary-300/15',
+      iconColor: 'text-editor-secondary-fg',
+      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-secondary-fg/15',
       ring: 'focus-visible:ring-primary-600',
       available: !!removeBackgroundFromImage,
     },
     {
       id: 'ai-create',
+      description: 'Motiv per Beschreibung erzeugen',
+      ai: true,
       label: 'KI-Bild erstellen',
       icon: HiSparkles,
-      iconColor: 'text-primary-600 dark:text-primary-300',
-      hoverShadow:
-        'group-hover:shadow-sm group-hover:shadow-primary-600/15 dark:group-hover:shadow-primary-300/15',
+      iconColor: 'text-editor-active-fg',
+      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-active-fg/15',
       ring: 'focus-visible:ring-primary-600',
       available: !!generateAiImage,
     },
     {
       id: 'ai-edit',
+      description: 'Foto per Befehl verändern',
+      ai: true,
       label: 'Mit KI bearbeiten',
       icon: HiPencilSquare,
-      iconColor: 'text-tertiary-600 dark:text-tertiary-300',
+      iconColor: 'text-editor-text',
       hoverShadow: 'group-hover:shadow-sm',
       ring: 'focus-visible:ring-primary-600',
       available: !!editAiImage,
     },
     {
       id: 'qr-code',
+      description: 'Link als scanbaren Code',
+      ai: false,
       label: 'QR-Code erstellen',
       icon: HiQrCode,
-      iconColor: 'text-foreground dark:text-foreground',
-      hoverShadow:
-        'group-hover:shadow-sm group-hover:shadow-foreground/15 dark:group-hover:shadow-foreground/15',
+      iconColor: 'text-editor-text',
+      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-text/15',
       ring: 'focus-visible:ring-primary-600',
       available: true,
     },
     {
       id: 'gradient-text',
+      description: 'Schriftzug mit Farbverlauf gestalten',
+      ai: false,
       label: 'Verlaufstext erstellen',
       icon: PiTextT,
-      iconColor: 'text-primary-600 dark:text-primary-300',
-      hoverShadow:
-        'group-hover:shadow-sm group-hover:shadow-primary-600/15 dark:group-hover:shadow-primary-300/15',
+      iconColor: 'text-editor-active-fg',
+      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-active-fg/15',
       ring: 'focus-visible:ring-primary-600',
       available: true,
     },
     {
       id: 'blob',
+      description: 'Organische Form als Hintergrund',
+      ai: false,
       label: 'Blob erstellen',
       icon: PiDropSimpleFill,
-      iconColor: 'text-secondary-600 dark:text-secondary-300',
-      hoverShadow:
-        'group-hover:shadow-sm group-hover:shadow-secondary-600/15 dark:group-hover:shadow-secondary-300/15',
+      iconColor: 'text-editor-secondary-fg',
+      hoverShadow: 'group-hover:shadow-sm group-hover:shadow-editor-secondary-fg/15',
       ring: 'focus-visible:ring-primary-600',
       available: true,
     },
     {
       id: 'text-path',
+      description: 'Text entlang einer Kurve setzen',
+      ai: false,
       label: 'Pfadtext erstellen',
       icon: PiPath,
-      iconColor: 'text-tertiary-600 dark:text-tertiary-300',
+      iconColor: 'text-editor-text',
       hoverShadow: 'group-hover:shadow-sm',
       ring: 'focus-visible:ring-primary-600',
       available: true,
@@ -178,6 +244,23 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
   if (availableCards.length === 0) {
     return (
       <div className="p-4 text-xs text-foreground-muted">Keine KI-Werkzeuge konfiguriert.</div>
+    );
+  }
+
+  if (activeView === 'browse' && isMobile) {
+    return (
+      <div className="flex flex-col gap-4 w-full min-w-0">
+        <ToolListGroup
+          label="Mit KI"
+          cards={availableCards.filter((c) => c.ai)}
+          onSelect={setActiveView}
+        />
+        <ToolListGroup
+          label="Erstellen"
+          cards={availableCards.filter((c) => !c.ai)}
+          onSelect={setActiveView}
+        />
+      </div>
     );
   }
 
@@ -197,7 +280,7 @@ export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionP
   const goBack = () => setActiveView('browse');
 
   return (
-    <div className="flex flex-col gap-2 w-full min-w-0 px-md pt-md">
+    <div className={cn('flex flex-col gap-2 w-full min-w-0', !isMobile && 'px-md pt-md')}>
       <DrillDownHeader label={activeCard?.label ?? ''} onBack={goBack} />
       {activeView === 'remove-bg' && <RemoveBackgroundTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'ai-create' && <AiCreateTool onJumpToUploads={onJumpToUploads} />}

@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import './canvas-editor.css';
-import type { StockImageAttribution } from './common/imageSourceTypes';
 import { CanvasEditor } from './components/CanvasEditor';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
+
+import type { StockImageAttribution } from './common/imageSourceTypes';
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
-import type { MobileBridgeProps } from './hooks/useMobileBridge';
 import type { InitialPageDef } from './hooks/usePageManager';
-import * as Y from 'yjs';
+import type { HocuspocusProvider } from '@hocuspocus/provider';
+import type * as Y from 'yjs';
 
 type CanvasState = Record<string, unknown>;
 
@@ -120,12 +121,6 @@ export interface ControllableCanvasWrapperProps {
   initialPages?: InitialPageDef[];
   /** Called when the editor is ready (config loaded, canvas mounted) */
   onReady?: () => void;
-  /** Mobile bridge — when provided, hides web chrome and delegates to native controls */
-  mobileBridge?: MobileBridgeProps;
-  /** When true, tab bar is handled externally (e.g. web app sidebar) via canvasSidebarStore */
-  externalSidebar?: boolean;
-  /** When true + externalSidebar, syncs mobile subsection state to canvasSidebarStore for external mobile UI */
-  externalMobileMode?: boolean;
   /**
    * When provided, the editor enters collaborative mode: pages (state,
    * config) are bound to the supplied Y.Doc. The local initialState
@@ -136,7 +131,7 @@ export interface ControllableCanvasWrapperProps {
     ydoc: Y.Doc;
     isSynced: boolean;
     /** Hocuspocus provider — enables awareness features (remote selections). */
-    provider?: import('@hocuspocus/provider').HocuspocusProvider | null;
+    provider?: HocuspocusProvider | null;
   };
   /** Host-supplied content rendered at the very left of the toolbar (in-flow). */
   chromeLeft?: React.ReactNode;
@@ -173,9 +168,6 @@ export function ControllableCanvasWrapper({
   onStateChange,
   initialPages,
   onReady,
-  mobileBridge,
-  externalSidebar,
-  externalMobileMode,
   collaborative,
   chromeLeft,
   chromeCenter,
@@ -475,9 +467,6 @@ export function ControllableCanvasWrapper({
             callbacks={buildCallbacks()}
             maxPages={config.multiPage?.maxPages ?? 30}
             initialPages={initialPages}
-            mobileBridge={mobileBridge}
-            externalSidebar={externalSidebar}
-            externalMobileMode={externalMobileMode}
             collaborative={collaborative}
             chromeLeft={chromeLeft}
             chromeCenter={chromeCenter}

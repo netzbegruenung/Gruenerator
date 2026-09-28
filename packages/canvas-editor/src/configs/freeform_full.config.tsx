@@ -15,9 +15,8 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 import { buildAssetCapability } from '../ai/assetCapability';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { AssetsSection, BackgroundSection } from '../sidebar';
-import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
-
+import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
@@ -34,8 +33,8 @@ import type {
   ColorBackgroundState,
 } from './factory/baseTypes';
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
-import type { BackgroundColorOption } from '../sidebar/types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
+import type { BackgroundColorOption } from '../sidebar/types';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================
@@ -72,6 +71,16 @@ export interface FreeformState extends BaseCanvasState, ColorBackgroundState {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FreeformActions = Record<string, any>;
+
+interface FreeformBackgroundActions {
+  setBackgroundMode: (mode: 'color' | 'image') => void;
+  setBackgroundColor: (color: string) => void;
+  setCurrentImageSrc: (
+    file: File | null,
+    objectUrl?: string,
+    attribution?: StockImageAttribution | null
+  ) => void;
+}
 
 // ============================================================================
 // LAYOUT CALCULATOR (no-op for freeform — no computed positions)
@@ -230,23 +239,27 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     // `background-image` element is `transformable`), so no scale props here.
     background: section({
       component: BackgroundSection,
-      propsFactory: (state, actions) => ({
-        colors: BACKGROUND_COLORS,
-        currentColor: state.backgroundMode === 'color' ? state.backgroundColor : '#005538',
-        onColorChange: (color: string) => {
-          actions.setBackgroundColor(color);
-          if (state.backgroundMode !== 'color') actions.setBackgroundMode('color');
-        },
-        currentImageSrc: state.currentImageSrc,
-        onImageChange: (
-          file: File | null,
-          objectUrl?: string,
-          attribution?: StockImageAttribution | null
-        ) => {
-          actions.setCurrentImageSrc(file, objectUrl, attribution);
-          if (file) actions.setBackgroundMode('image');
-        },
-      }),
+      propsFactory: (state, anyActions) => {
+        // FreeformActions ist Record<string, any>; hier die Signaturen aus createActions unten.
+        const actions = anyActions as FreeformBackgroundActions;
+        return {
+          colors: BACKGROUND_COLORS,
+          currentColor: state.backgroundMode === 'color' ? state.backgroundColor : '#005538',
+          onColorChange: (color: string) => {
+            actions.setBackgroundColor(color);
+            if (state.backgroundMode !== 'color') actions.setBackgroundMode('color');
+          },
+          currentImageSrc: state.currentImageSrc,
+          onImageChange: (
+            file: File | null,
+            objectUrl?: string,
+            attribution?: StockImageAttribution | null
+          ) => {
+            actions.setCurrentImageSrc(file, objectUrl, attribution);
+            if (file) actions.setBackgroundMode('image');
+          },
+        };
+      },
     }),
 
     text: section({

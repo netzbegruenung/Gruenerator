@@ -89,7 +89,7 @@ export function ToolPanel({
             />
           </button>
           <div className="flex items-center gap-2 text-xs text-foreground-muted">
-            <HiCheckCircle size={12} className="shrink-0 text-green-700 dark:text-green-400" />
+            <HiCheckCircle size={12} className="shrink-0 text-editor-active-fg" />
             <span className="flex-1 truncate">
               {success.placedOnCanvas ? 'Auf Canvas platziert' : 'In Uploads gespeichert'} ·{' '}
               {success.itemName}

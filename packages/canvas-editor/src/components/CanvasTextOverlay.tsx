@@ -43,9 +43,9 @@
  * erscheint nur, solange niemand angemeldet ist. Ein Schalter am Provider
  * („über mir liegt eine Kopfleiste") wäre ein Versprechen, das der Aufrufer
  * brechen kann, ohne dass es auffällt — und genau das täte
- * `CanvasEditorInner` im Nativ-Brücken-Modus, wo die App die Leiste stellt
- * und die Kontextleiste gar nicht erst gerendert wird: der Text hätte dann
- * überhaupt keine Schnitt-Knöpfe mehr, weder Leiste noch Karte.
+ * `CanvasEditorInner`, sobald es die Kontextleiste gar nicht erst rendert:
+ * der Text hätte dann überhaupt keine Schnitt-Knöpfe mehr, weder Leiste noch
+ * Karte.
  *
  * Damit der Wirt den Editor erreicht, steht dieser Provider dort, wo auch die
  * Kopfleiste steht: an der Wurzel des Editors. Der Provider in `CanvasStage`

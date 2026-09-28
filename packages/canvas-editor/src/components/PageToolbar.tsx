@@ -31,6 +31,7 @@ export const PageToolbar = memo(function PageToolbar({
   const canMoveDown = pageIndex < pageCount - 1;
 
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- fängt nur den Klick ab, damit er nicht die Seite auswählt; die Knöpfe darin sind echte Buttons
     <div
       className={`flex items-center justify-end gap-1 px-1 py-0.5 rounded-lg transition-opacity duration-200 ${
         isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'

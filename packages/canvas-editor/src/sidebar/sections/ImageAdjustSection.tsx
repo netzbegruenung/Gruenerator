@@ -51,7 +51,7 @@ export function ImageAdjustSection({ selectedImage, onUpdateImage }: ImageAdjust
               key={preset.id}
               type="button"
               onClick={() => set(preset.values)}
-              className="rounded-md border border-grey-300 px-2 py-1.5 text-xs text-foreground-muted transition-colors hover:border-primary-500 hover:text-foreground dark:border-grey-600"
+              className="rounded-md border border-editor-border-strong px-2 py-1.5 text-xs text-foreground-muted transition-colors hover:border-primary-500 hover:text-foreground"
             >
               {preset.label}
             </button>

@@ -29,6 +29,7 @@ export function Lightbox({ isOpen, onClose, imageSrc, altText }: LightboxProps) 
   if (!isOpen) return null;
 
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- Klick auf den Hintergrund schließt; Escape (Effekt oben) und der Schließen-Knopf sind die Tastaturwege
     <div
       className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 cursor-zoom-out animate-in fade-in"
       onClick={onClose}
@@ -44,6 +45,7 @@ export function Lightbox({ isOpen, onClose, imageSrc, altText }: LightboxProps) 
       >
         <HiXMark size={28} />
       </button>
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- fängt nur den Klick ab, damit er nicht den Hintergrund schließt */}
       <img
         src={imageSrc}
         alt={altText || 'Vergrößertes Bild'}

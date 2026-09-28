@@ -10,8 +10,10 @@ import { render, act } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
 import { BalkenGroup } from '../BalkenGroup';
+import { CanvasStage, type CanvasStageRef } from '../CanvasStage';
+
+import type * as TextUtils from '../../utils/textUtils';
 
 // jsdom kennt kein `document.fonts`; `useFontGeneration` hängt seinen
 // `loadingdone`-Listener beim Modul-Import an — also muss das Ziel vorher da sein.
@@ -33,7 +35,7 @@ const measured = vi.hoisted(() => ({ width: 600 }));
 // `runMeasurer` selbst, nicht die Messfunktion darunter: die ruft es
 // modul-intern, ein gemockter Export erreicht sie nicht.
 vi.mock('../../utils/textUtils', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../utils/textUtils')>()),
+  ...(await importOriginal<typeof TextUtils>()),
   runMeasurer: () => () => measured.width,
 }));
 

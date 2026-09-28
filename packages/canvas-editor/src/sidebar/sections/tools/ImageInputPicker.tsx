@@ -89,7 +89,7 @@ export function ImageInputPicker({
           className={cn(
             'w-full py-6 px-3 flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed cursor-pointer transition-colors',
             isDragOver
-              ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20'
+              ? 'border-primary-600 bg-editor-active-soft'
               : 'border-[var(--card-border)] bg-[var(--background-alt)] hover:border-primary-500',
             disabled && 'opacity-50 cursor-not-allowed'
           )}
@@ -137,9 +137,7 @@ export function ImageInputPicker({
         </>
       ) : null}
 
-      {pickError ? (
-        <p className="m-0 text-[11px] text-red-600 dark:text-red-400">{pickError}</p>
-      ) : null}
+      {pickError ? <p className="m-0 text-[11px] text-editor-danger-fg">{pickError}</p> : null}
     </div>
   );
 }

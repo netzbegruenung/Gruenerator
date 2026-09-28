@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
-import type Konva from 'konva';
-
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { generateIconDataUrl } from '../utils/canvasIcons';
 import { calculateCenteredSnapPosition } from '../utils/snapping';
 
 import type { SnapLine, SnapTarget } from '../utils/snapping';
+import type Konva from 'konva';
 
 const BASE_SIZE = 200;
 const TARGET_SIZE = 120;
@@ -62,7 +61,7 @@ function IconPrimitiveInner({
     let cancelled = false;
     const size = 200;
 
-    generateIconDataUrl(icon, size, color).then((dataUrl) => {
+    void generateIconDataUrl(icon, size, color).then((dataUrl) => {
       if (cancelled || !dataUrl) return;
       const img = new window.Image();
       img.src = dataUrl;

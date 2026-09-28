@@ -3,6 +3,7 @@
 /* eslint-disable react-hooks/refs --
    Latest-ref pattern: the live canvas bridge + text getter are mirrored into
    refs so the memoized adapter's edit handler reads fresh values. */
+import { ComposerPrimitive, useAui, useAuiState } from '@assistant-ui/react';
 import { useCanvasStoreSelector } from '@gruenerator/canvas-editor';
 import {
   CompactThread,
@@ -15,7 +16,7 @@ import {
 } from '@gruenerator/chat';
 import { chatThreadResponseSchema } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
-import { Sparkles } from 'lucide-react';
+import { ArrowUp, Sparkles, Square } from 'lucide-react';
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { applyCanvasEditorOps } from './applyCanvasEditorOps';
@@ -213,21 +214,85 @@ function CanvasChatSurface({ applyError }: { applyError: string | null }) {
     );
   }
 
+  // Below 900px the thread's own composer is hidden and the sheet-styled
+  // CanvasMobileComposer takes its place; the welcome forks the same way.
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col max-canvas-mobile:gap-3">
       <CompactThread
+        className="max-canvas-mobile:[&_[data-gom-composer]]:hidden"
         welcome={
-          <CompactWelcome
-            icon={<Sparkles className="size-6 text-primary" />}
-            description="Stelle Fragen zu deinem Sharepic oder beschreibe direkt eine Änderung. Vorschläge erscheinen direkt am Canvas."
-            suggestions={QUICK_PROMPTS}
-          />
+          <>
+            <div className="max-canvas-mobile:hidden">
+              <CompactWelcome
+                icon={<Sparkles className="size-6 text-primary" />}
+                description="Stelle Fragen zu deinem Sharepic oder beschreibe direkt eine Änderung. Vorschläge erscheinen direkt am Canvas."
+                suggestions={QUICK_PROMPTS}
+              />
+            </div>
+            <div className="canvas-mobile:hidden">
+              <CanvasMobileSuggestions />
+            </div>
+          </>
         }
         assistantIcon={<Sparkles className="size-3.5" />}
         composerPlaceholder="Frage stellen oder Änderung beschreiben…"
       />
       <CanvasEditStatusRow error={applyError} />
+      <CanvasMobileComposer />
     </div>
+  );
+}
+
+function CanvasMobileSuggestions() {
+  const composerRuntime = useAui().composer;
+
+  return (
+    <div className="-mx-3 flex flex-col gap-2">
+      {QUICK_PROMPTS.map((text) => (
+        <button
+          key={text}
+          type="button"
+          onClick={() => {
+            composerRuntime.setText(text);
+            composerRuntime.send();
+          }}
+          className="flex h-10 items-center gap-2.5 rounded-xl border-none bg-[var(--editor-tile)] px-3.5 text-left text-sm text-[var(--editor-text)] cursor-pointer"
+        >
+          <Sparkles className="size-3.5 shrink-0 text-[var(--editor-active-fg)]" />
+          <span className="truncate">{text}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CanvasMobileComposer() {
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+
+  return (
+    <ComposerPrimitive.Root className="flex h-12 flex-none items-center gap-2 rounded-xl bg-[var(--editor-tile)] pl-4 pr-1.5 canvas-mobile:hidden">
+      <ComposerPrimitive.Input
+        placeholder="Frage oder Änderung…"
+        rows={1}
+        maxRows={1}
+        className="min-w-0 flex-1 resize-none border-none bg-transparent py-0 text-sm leading-5 text-[var(--editor-text)] outline-none placeholder:text-[var(--editor-text-muted)]"
+      />
+      {isRunning ? (
+        <ComposerPrimitive.Cancel
+          aria-label="Abbrechen"
+          className="flex size-9 shrink-0 items-center justify-center rounded-[10px] border-none bg-[var(--editor-active-bg)] text-[var(--editor-active-fg)] cursor-pointer"
+        >
+          <Square className="size-3.5" />
+        </ComposerPrimitive.Cancel>
+      ) : (
+        <ComposerPrimitive.Send
+          aria-label="Senden"
+          className="flex size-9 shrink-0 items-center justify-center rounded-[10px] border-none bg-primary-600 text-white cursor-pointer transition-opacity disabled:opacity-40"
+        >
+          <ArrowUp className="size-[18px]" />
+        </ComposerPrimitive.Send>
+      )}
+    </ComposerPrimitive.Root>
   );
 }
 

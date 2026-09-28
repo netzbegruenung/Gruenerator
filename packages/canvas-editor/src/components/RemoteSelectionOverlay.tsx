@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Group, Label, Rect, Tag, Text } from 'react-konva';
+import { Group, Label as KonvaLabel, Rect, Tag, Text } from 'react-konva';
 
 import type Konva from 'konva';
 
@@ -66,10 +66,10 @@ export function RemoteSelectionOverlay({
             dash={[6, 4]}
             listening={false}
           />
-          <Label name="selection-chrome" x={box.x} y={box.y - 34} listening={false}>
+          <KonvaLabel name="selection-chrome" x={box.x} y={box.y - 34} listening={false}>
             <Tag fill={selector.color} cornerRadius={4} />
             <Text text={selector.userName} fontSize={22} fill="#ffffff" padding={6} />
-          </Label>
+          </KonvaLabel>
         </>
       )}
     </Group>
