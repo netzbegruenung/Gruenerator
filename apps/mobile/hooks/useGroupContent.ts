@@ -115,7 +115,8 @@ export function openGroupFeedItem(router: Router, item: GroupFeedItem): void {
       });
       return;
     case 'agent':
-      // Native chat with the shared agent; the slug is the agent identifier.
+      // Native chat with the shared agent; for a user agent the slug is its
+      // row uuid, for a system agent its identifier.
       router.push({
         pathname: '/(focused)/chat-conversation',
         params: { threadId: 'new', agentId: item.slug ?? item.id },
