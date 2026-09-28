@@ -23,11 +23,7 @@ import { useEmitHostStateChanges } from '../collab/useEmitHostStateChanges';
 import { useSelectionAwareness } from '../collab/useSelectionAwareness';
 import { useYjsCanvasBinding } from '../collab/useYjsCanvasBinding';
 import { useYjsPageStateSync } from '../collab/useYjsPageStateSync';
-import {
-  CanvasStoreProvider,
-  useCanvasStore,
-  useCanvasStoreSelector,
-} from '../stores/CanvasStoreProvider';
+import { getCanvasFormatOrDefault } from '../formats';
 import {
   useCanvasInteractions,
   useCanvasStoreReset,
@@ -36,11 +32,15 @@ import {
   useFontLoader,
 } from '../hooks';
 import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
-import { useAutoSaveStore } from '../stores/useAutoSaveStore';
 import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
 import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
-import { getCanvasFormatOrDefault } from '../formats';
 import { CanvasStage, SnapGuidelines, AttributionOverlay } from '../primitives';
+import {
+  CanvasStoreProvider,
+  useCanvasStore,
+  useCanvasStoreSelector,
+} from '../stores/CanvasStoreProvider';
+import { useAutoSaveStore } from '../stores/useAutoSaveStore';
 import { alignElementX, alignElementY } from '../utils/alignment';
 import { calculateAttributionOverlay } from '../utils/attributionOverlay';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
@@ -53,7 +53,6 @@ import { CanvasRenderLayer } from './CanvasRenderLayer';
 import { ToolbarStateBridge } from './ToolbarStateBridge';
 
 import type { RemoteSelector } from './RemoteSelectionOverlay';
-
 import type { ToolbarBridgeState } from './ToolbarStateBridge';
 
 const EMPTY_CALLBACKS: Record<string, ((val: unknown) => void) | undefined> = {};
@@ -81,12 +80,13 @@ import type { AlignmentDirection } from './Toolbar';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
-import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
-import type { GradientFill } from '../utils/gradientFill';
-import type { MobileBridgeProps } from '../hooks/useMobileBridge';
+import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+import type { GradientFill } from '../utils/gradientFill';
+import type { HocuspocusProvider } from '@hocuspocus/provider';
+import type * as Y from 'yjs';
 
 export interface ToolbarStateReport {
   selectedElement: string | null;
@@ -119,8 +119,6 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
     isExporting: boolean;
     exportProgress: { current: number; total: number };
   };
-  /** Mobile bridge — when provided, hides Toolbar and reports state to native */
-  mobileBridge?: MobileBridgeProps;
   /** Callback to report toolbar state to parent (for layout-level toolbar rendering) */
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
   /**
@@ -170,10 +168,10 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
    * `provider` is only present in collab mode.
    */
   pageBinding?: {
-    pageYMap: import('yjs').Map<unknown>;
+    pageYMap: Y.Map<unknown>;
     isSynced: boolean;
     /** Hocuspocus provider — enables awareness features (remote selections). */
-    provider?: import('@hocuspocus/provider').HocuspocusProvider | null;
+    provider?: HocuspocusProvider | null;
     /** Id of this page, published to awareness so peers can filter selections per page. */
     pageId?: string | null;
     /** Only the active page publishes its selection to awareness. */
@@ -223,7 +221,6 @@ function GenericCanvasWithRef<
     callbacks = EMPTY_CALLBACKS,
     onDelete,
     forwardedRef,
-    mobileBridge,
     onToolbarStateChange,
     onAutoSaveShareToken,
     preview = false,
@@ -424,7 +421,7 @@ function GenericCanvasWithRef<
   // explicit value (off in collab — Hocuspocus persists server-side — and off
   // beyond one page, where deck-level autosave takes over); standalone
   // consumers keep the historical default of on.
-  const autoSaveEnabled = !mobileBridge && !preview && (props.autoSave ?? true);
+  const autoSaveEnabled = !preview && (props.autoSave ?? true);
 
   // Fresh capture for the unmount-flush path — transformer hiding makes the
   // shot clean even while an element is still selected.
@@ -735,11 +732,7 @@ function GenericCanvasWithRef<
         debouncedSaveToHistory={debouncedSaveToHistory}
         canUndo={canUndo}
         canRedo={canRedo}
-        undo={undo}
-        redo={redo}
         onToolbarStateChange={onToolbarStateChange}
-        mobileBridge={mobileBridge}
-        handleFontSizeChange={elementHandlers.handleFontSizeChange}
       />
     </PendingImagesContext.Provider>
   );
@@ -758,7 +751,7 @@ function CanvasYjsBindingMount({
   pageYMap,
   isSynced,
 }: {
-  pageYMap: import('yjs').Map<unknown>;
+  pageYMap: Y.Map<unknown>;
   isSynced: boolean;
 }) {
   useYjsCanvasBinding({ parent: pageYMap, isSynced });

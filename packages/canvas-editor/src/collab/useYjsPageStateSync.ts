@@ -41,7 +41,7 @@ export function useYjsPageStateSync(options: {
         ) {
           continue;
         }
-        for (const key of (event as Y.YMapEvent<unknown>).keysChanged) {
+        for (const key of (event as Y.YMapEvent<unknown>).keysChanged as Set<string>) {
           partial[key] = (stateY as Y.Map<unknown>).get(key);
         }
       }

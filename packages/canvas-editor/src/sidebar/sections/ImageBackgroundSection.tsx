@@ -1,28 +1,34 @@
+import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
 import { MasonryGrid, MasonryItem, Switch } from '@gruenerator/ui';
 import { useState, useEffect, useCallback } from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { HiAdjustments, HiColorSwatch } from 'react-icons/hi';
 import { HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
 
-import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
-
-import UnsplashAttribution from '../../common/UnsplashAttribution';
-import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
-import { persistImageSelection } from '../persistImageSelection';
-import { ColorSwatchGrid } from '../components/ColorSwatchGrid';
+import UnsplashAttribution from '../../common/UnsplashAttribution';
+import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
+import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
+import { cn } from '../../utils/cn';
+import { downscaleImageForUpload } from '../../utils/userImageUtils';
 import { MediaThumb } from '../components/MediaThumb';
 import { SidebarSlider } from '../components/SidebarSlider';
+import { persistImageSelection } from '../persistImageSelection';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 import { useUserUploads } from '../UserUploadsProvider';
-import { downscaleImageForUpload } from '../../utils/userImageUtils';
+
+import {
+  BackgroundSwatchGrid,
+  MOBILE_BLOCK_LABEL,
+  MOBILE_IMAGE_TILE,
+  MOBILE_SEARCH_FIELD,
+  MOBILE_SLIDER_ROWS,
+} from './BackgroundSection';
 
 import type { StockImage, StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BackgroundColorOption } from '../types';
 import type { MediaItem } from '@gruenerator/shared/media-library';
-
-import { cn } from '../../utils/cn';
 
 function buildUploadUrl(item: MediaItem): string | null {
   if (item.mediaUrl) return item.mediaUrl;
@@ -102,6 +108,7 @@ function SearchContent({
 
   const { fetchUnsplashImageAsFile, trackUnsplashDownloadLive, uploadImage } =
     useCanvasEditorServices();
+  const isMobile = useIsCanvasMobile();
 
   useEffect(() => {
     setUploadSearch(searchQuery);
@@ -114,7 +121,7 @@ function SearchContent({
 
   useEffect(() => {
     if (debouncedQuery.trim()) {
-      searchUnsplash(debouncedQuery);
+      void searchUnsplash(debouncedQuery);
     } else {
       clearUnsplashSearch();
     }
@@ -196,17 +203,32 @@ function SearchContent({
 
   return (
     <div
-      className={cn(SIDEBAR_SECTION, 'gap-3 p-4 px-3 max-canvas-mobile:p-3 max-canvas-mobile:px-2')}
+      className={cn(
+        SIDEBAR_SECTION,
+        'gap-3 p-4 px-3 max-canvas-mobile:gap-4 max-canvas-mobile:p-0'
+      )}
     >
       {/* Search Input */}
-      <div className="flex items-center gap-2 py-2 px-3 bg-background border border-[var(--font-color)] rounded-lg max-canvas-mobile:py-1.5 max-canvas-mobile:px-2.5">
-        <HiMagnifyingGlass size={18} className="text-foreground-muted shrink-0" />
+      <div
+        className={
+          isMobile
+            ? MOBILE_SEARCH_FIELD
+            : 'flex items-center gap-2 py-2 px-3 bg-background border border-[var(--font-color)] rounded-lg'
+        }
+      >
+        <HiMagnifyingGlass
+          size={18}
+          className={cn(
+            'shrink-0',
+            isMobile ? 'text-[var(--editor-text-muted)]' : 'text-foreground-muted'
+          )}
+        />
         <input
           type="text"
           placeholder="Bilder durchsuchen (eigene + Unsplash)"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 border-none outline-none bg-transparent text-foreground text-sm max-canvas-mobile:text-[14px]"
+          className="flex-1 min-w-0 border-none outline-none bg-transparent text-foreground text-sm max-canvas-mobile:text-[var(--editor-text)] max-canvas-mobile:placeholder:text-[var(--editor-text-muted)]"
         />
         {searchQuery && (
           <button
@@ -232,58 +254,115 @@ function SearchContent({
       {/* Section: Active image + User Uploads */}
       {hasLibrary && (
         <section className="flex flex-col gap-2">
-          <h3 className="m-0 text-xs font-semibold uppercase tracking-wide text-foreground-muted">
+          <h3
+            className={
+              isMobile
+                ? MOBILE_BLOCK_LABEL
+                : 'm-0 text-xs font-semibold uppercase tracking-wide text-foreground-muted'
+            }
+          >
             Deine Bilder
           </h3>
-          <MasonryGrid columns="2" gap="sm">
-            {hasActive && currentImageSrc && (
-              <MasonryItem
-                className="group relative overflow-hidden rounded-lg border-2 border-primary-600 ring-2 ring-primary-200 bg-[var(--card-background)]"
-                title="Aktuelles Hintergrundbild"
-              >
-                <img
-                  src={shareThumbnailPreviewUrl(currentImageSrc, 400)}
-                  alt="Aktuelles Hintergrundbild"
-                  className="w-full h-auto"
-                  loading="lazy"
-                  decoding="async"
-                  draggable={false}
-                />
-                <div className="absolute top-1 left-1 bg-primary-600 rounded-full size-5 flex items-center justify-center">
-                  <FaCheck size={10} color="white" />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleClearActive}
-                  aria-label="Hintergrund entfernen"
-                  className="absolute top-1 right-1 size-5 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100 max-canvas-mobile:opacity-100"
+          {isMobile ? (
+            <div className="grid grid-cols-3 gap-2.5">
+              {hasActive && currentImageSrc && (
+                <div
+                  className={cn(
+                    MOBILE_IMAGE_TILE,
+                    'shadow-[0_0_0_2px_var(--editor-surface),0_0_0_4px_var(--editor-accent)]'
+                  )}
+                  title="Aktuelles Hintergrundbild"
                 >
-                  <HiXMark size={10} />
-                </button>
-              </MasonryItem>
-            )}
-            {dedupedUploads.map((item) => (
-              <MasonryItem key={item.id}>
+                  <img
+                    src={shareThumbnailPreviewUrl(currentImageSrc, 400)}
+                    alt="Aktuelles Hintergrundbild"
+                    className="size-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                    draggable={false}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleClearActive}
+                    aria-label="Hintergrund entfernen"
+                    className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer"
+                  >
+                    <HiXMark size={12} />
+                  </button>
+                </div>
+              )}
+              {dedupedUploads.map((item) => (
                 <button
+                  key={item.id}
                   type="button"
                   onClick={() => void handlePickUpload(item)}
                   className={cn(
-                    'group relative block w-full overflow-hidden rounded-lg border bg-[var(--card-background)] transition-colors duration-150 cursor-pointer p-0',
-                    'border-[var(--card-border)] hover:border-primary-500'
+                    MOBILE_IMAGE_TILE,
+                    '[&_div]:size-full [&_picture]:size-full [&_img]:size-full [&_img]:object-cover'
                   )}
                   title={item.title ?? item.originalFilename ?? ''}
                 >
                   {item.thumbnailUrl ? (
-                    <MediaThumb item={item} alt={item.altText ?? item.title ?? ''} />
+                    <MediaThumb item={item} alt={item.altText ?? item.title ?? ''} sizes="140px" />
                   ) : (
-                    <div className="aspect-square flex items-center justify-center text-foreground-muted">
+                    <span className="size-full flex items-center justify-center text-[var(--editor-text-muted)]">
                       <HiPhoto size={20} />
-                    </div>
+                    </span>
                   )}
                 </button>
-              </MasonryItem>
-            ))}
-          </MasonryGrid>
+              ))}
+            </div>
+          ) : (
+            <MasonryGrid columns="2" gap="sm">
+              {hasActive && currentImageSrc && (
+                <MasonryItem
+                  className="group relative overflow-hidden rounded-lg border-2 border-primary-600 ring-2 ring-primary-200 bg-[var(--card-background)]"
+                  title="Aktuelles Hintergrundbild"
+                >
+                  <img
+                    src={shareThumbnailPreviewUrl(currentImageSrc, 400)}
+                    alt="Aktuelles Hintergrundbild"
+                    className="w-full h-auto"
+                    loading="lazy"
+                    decoding="async"
+                    draggable={false}
+                  />
+                  <div className="absolute top-1 left-1 bg-primary-600 rounded-full size-5 flex items-center justify-center">
+                    <FaCheck size={10} color="white" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearActive}
+                    aria-label="Hintergrund entfernen"
+                    className="absolute top-1 right-1 size-5 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100"
+                  >
+                    <HiXMark size={10} />
+                  </button>
+                </MasonryItem>
+              )}
+              {dedupedUploads.map((item) => (
+                <MasonryItem key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => void handlePickUpload(item)}
+                    className={cn(
+                      'group relative block w-full overflow-hidden rounded-lg border bg-[var(--card-background)] transition-colors duration-150 cursor-pointer p-0',
+                      'border-[var(--card-border)] hover:border-primary-500'
+                    )}
+                    title={item.title ?? item.originalFilename ?? ''}
+                  >
+                    {item.thumbnailUrl ? (
+                      <MediaThumb item={item} alt={item.altText ?? item.title ?? ''} />
+                    ) : (
+                      <div className="aspect-square flex items-center justify-center text-foreground-muted">
+                        <HiPhoto size={20} />
+                      </div>
+                    )}
+                  </button>
+                </MasonryItem>
+              ))}
+            </MasonryGrid>
+          )}
           {uploadsHasMore && !isUploadsLoading && (
             <button
               type="button"
@@ -299,10 +378,16 @@ function SearchContent({
       {/* Section: Unsplash */}
       {hasUnsplash && (
         <section className="flex flex-col gap-2">
-          <h3 className="m-0 text-xs font-semibold uppercase tracking-wide text-foreground-muted">
+          <h3
+            className={
+              isMobile
+                ? MOBILE_BLOCK_LABEL
+                : 'm-0 text-xs font-semibold uppercase tracking-wide text-foreground-muted'
+            }
+          >
             Unsplash
           </h3>
-          <div className="grid grid-cols-1 gap-2">
+          <div className={isMobile ? 'grid grid-cols-3 gap-2.5' : 'grid grid-cols-1 gap-2'}>
             {unsplashResults.map((image) => {
               const isSelected = currentImageSrc === image.url;
               return (
@@ -310,10 +395,19 @@ function SearchContent({
                   key={image.filename}
                   type="button"
                   onClick={() => void handlePickUnsplash(image)}
-                  className={cn(
-                    'relative border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden cursor-pointer p-0 bg-none aspect-[4/3] max-canvas-mobile:aspect-[3/2] hover:border-primary-600',
-                    isSelected && 'border-2 border-primary-600'
-                  )}
+                  aria-pressed={isSelected}
+                  className={
+                    isMobile
+                      ? cn(
+                          MOBILE_IMAGE_TILE,
+                          isSelected &&
+                            'shadow-[0_0_0_2px_var(--editor-surface),0_0_0_4px_var(--editor-accent)]'
+                        )
+                      : cn(
+                          'relative border border-[var(--editor-border)] rounded-lg overflow-hidden cursor-pointer p-0 bg-none aspect-[4/3] hover:border-primary-600',
+                          isSelected && 'border-2 border-primary-600'
+                        )
+                  }
                 >
                   <img
                     src={image.url}
@@ -331,7 +425,7 @@ function SearchContent({
                       />
                     </div>
                   )}
-                  {isSelected && (
+                  {isSelected && !isMobile && (
                     <div className="absolute top-2 right-2 bg-primary-600 rounded-full w-6 h-6 flex items-center justify-center">
                       <FaCheck size={12} color="white" />
                     </div>
@@ -345,7 +439,7 @@ function SearchContent({
               type="button"
               onClick={() => void loadMoreUnsplash()}
               disabled={isUnsplashLoading}
-              className="w-full py-2 bg-primary-600 text-white border-none rounded-lg cursor-pointer text-xs hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2 bg-primary-600 text-white border-none rounded-lg cursor-pointer text-xs hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed max-canvas-mobile:h-11 max-canvas-mobile:py-0 max-canvas-mobile:rounded-xl max-canvas-mobile:text-sm max-canvas-mobile:font-semibold max-canvas-mobile:bg-[var(--editor-tile)] max-canvas-mobile:text-[var(--editor-text)]"
             >
               {isUnsplashLoading
                 ? 'Lädt…'
@@ -401,7 +495,9 @@ function AdjustmentsContent({
   | 'onToggleLock'
 >) {
   return (
-    <div className={cn(SIDEBAR_SECTION, 'gap-4 px-3 pb-4')}>
+    <div
+      className={cn(SIDEBAR_SECTION, 'gap-4 px-3 pb-4 max-canvas-mobile:p-0', MOBILE_SLIDER_ROWS)}
+    >
       {scale !== undefined && onScaleChange !== undefined && (
         <SidebarSlider
           label="Zoom"
@@ -474,14 +570,19 @@ export function ImageBackgroundSection({
       icon: HiColorSwatch,
       label: 'Farbe',
       content: (
-        <div className={cn(SIDEBAR_SECTION, 'w-full gap-3 px-3 pb-4')}>
-          <ColorSwatchGrid
+        <div
+          className={cn(
+            SIDEBAR_SECTION,
+            'w-full gap-3 px-3 pb-4 max-canvas-mobile:gap-4 max-canvas-mobile:p-0'
+          )}
+        >
+          <BackgroundSwatchGrid
             colors={backgroundColors}
             currentColor={backgroundColor ?? ''}
             onColorChange={onBackgroundColorChange}
           />
           {currentImageSrc ? (
-            <p className="m-0 text-xs text-foreground-muted">
+            <p className="m-0 text-xs text-foreground-muted max-canvas-mobile:text-[13px] max-canvas-mobile:text-[var(--editor-text-muted)]">
               Das Bild liegt über der Farbe. Entferne es unter „Bilder", um die Farbe zu sehen.
             </p>
           ) : null}

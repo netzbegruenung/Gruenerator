@@ -1,4 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
+
+import type React from 'react';
 
 interface UsePageScrollSyncParams {
   pagesLength: number;

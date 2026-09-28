@@ -7,12 +7,15 @@ import {
   IconButton,
   IconButtonRow,
   Skeleton,
+  canRequestFeedback,
+  requestFeedback,
 } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
 import { FaCheck, FaDownload, FaSave, FaUserPlus } from 'react-icons/fa';
-import { PiArrowLeft } from 'react-icons/pi';
+import { PiArrowLeft, PiMegaphone } from 'react-icons/pi';
 import { IoShareOutline } from 'react-icons/io5';
 
+import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 
 import { DownloadSection, type CanvasDownloadChoice } from './DownloadSection';
@@ -62,6 +65,7 @@ export function ShareDropdown({
   onInvitePeople,
   onSaveAsTemplate,
 }: ShareDropdownProps) {
+  const isMobile = useIsCanvasMobile();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'main' | 'download'>('main');
   const [isSharing, setIsSharing] = useState(false);
@@ -115,10 +119,10 @@ export function ShareDropdown({
       <PopoverTrigger asChild>
         <Button
           size="sm"
-          className="ml-auto h-9 rounded-full bg-white px-4 font-extrabold text-[var(--editor-green-deep)] hover:bg-white/90 max-canvas-mobile:h-8 max-canvas-mobile:px-2.5"
+          className="ml-auto h-9 rounded-full bg-white px-4 font-extrabold text-[var(--editor-green-deep)] hover:bg-white/90 max-canvas-mobile:h-8 max-canvas-mobile:px-3"
         >
           <IoShareOutline className="size-4" />
-          <span className="max-canvas-mobile:hidden">Teilen</span>
+          <span>Teilen</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={8} className="w-80 p-0 overflow-hidden">
@@ -198,6 +202,19 @@ export function ShareDropdown({
                   onClick={() => {
                     setOpen(false);
                     onInvitePeople();
+                  }}
+                />
+              )}
+
+              {/* Mobil schwebt kein Feedback-Knopf über dem Editor — er wohnt hier. */}
+              {isMobile && canRequestFeedback() && (
+                <IconButton
+                  size="sm"
+                  icon={<PiMegaphone />}
+                  label="Feedback"
+                  onClick={() => {
+                    setOpen(false);
+                    requestFeedback();
                   }}
                 />
               )}

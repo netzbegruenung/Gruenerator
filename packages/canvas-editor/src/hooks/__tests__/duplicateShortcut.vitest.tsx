@@ -2,8 +2,8 @@ import { renderHook } from '@testing-library/react';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';
 import { createCanvasEditorStore } from '../../stores/createCanvasEditorStore';
+import { useCanvasKeyboardHandlers } from '../useCanvasKeyboardHandlers';
 
 import type { BaseCanvasState } from '../../configs/factory/baseTypes';
 
@@ -26,9 +26,11 @@ function setup(initial?: Partial<BaseCanvasState>) {
     ...initial,
   } as unknown as BaseCanvasState;
 
-  const setState = vi.fn((partial) => {
-    state = typeof partial === 'function' ? partial(state) : { ...state, ...partial };
-  });
+  const setState = vi.fn(
+    (partial: Partial<BaseCanvasState> | ((s: BaseCanvasState) => BaseCanvasState)) => {
+      state = typeof partial === 'function' ? partial(state) : { ...state, ...partial };
+    }
+  );
   const setSelectedElement = vi.fn((id: string | null) => {
     store.getState().setSelectedElement(id);
   });

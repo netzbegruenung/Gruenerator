@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
 import { HiArrowUpTray, HiMagnifyingGlass } from 'react-icons/hi2';
 
+import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { cn } from '../../utils/cn';
 import { buildPlacementUrl } from '../../utils/mediaPlacement';
 import { downscaleImageForUpload } from '../../utils/userImageUtils';
@@ -31,6 +32,7 @@ export function UploadsSection({
   onRemovePlaced,
 }: UploadsSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isMobile = useIsCanvasMobile();
   const {
     items,
     isLoading,
@@ -107,19 +109,139 @@ export function UploadsSection({
   const showEmpty = !isLoading && items.length === 0 && !isBusy;
   const displayedError = uploadError ?? error;
 
+  const fileInput = (
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept="image/*"
+      multiple
+      onChange={handleFileChange}
+      className="hidden"
+    />
+  );
+
+  const dragProps = {
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(true);
+    },
+    onDragLeave: () => setIsDragOver(false),
+    onDrop: handleDrop,
+  };
+
+  if (isMobile) {
+    // Mobiles Sheet: Suchfeld, dann ein 3er-Raster, dessen erste Kachel der
+    // Upload ist. Das Sheet stellt den Seitenabstand, daher kein Padding hier.
+    return (
+      <div
+        className={cn(
+          'flex flex-col gap-4 rounded-xl',
+          isDragOver && 'ring-2 ring-[var(--editor-accent)] ring-offset-2'
+        )}
+        {...dragProps}
+      >
+        <div className="relative">
+          <HiMagnifyingGlass
+            size={18}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--editor-text-muted)] pointer-events-none"
+          />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Eigene Bilder durchsuchen"
+            className="w-full h-11 pl-10 pr-3 rounded-xl border-none bg-[var(--editor-tile)] text-sm text-[var(--editor-text)] placeholder:text-[var(--editor-text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--editor-accent)]"
+          />
+        </div>
+
+        {fileInput}
+
+        <div className="grid grid-cols-3 gap-2.5">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isBusy}
+            className="aspect-square rounded-xl border-[1.5px] border-dashed border-[var(--editor-border-strong)] bg-transparent text-[var(--editor-text-secondary)] flex flex-col items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <HiArrowUpTray size={22} />
+            <span className="text-xs font-semibold">
+              {isBusy ? (activeUploads > 1 ? `Lädt ${activeUploads}…` : 'Lädt…') : 'Hochladen'}
+            </span>
+          </button>
+          {Array.from({ length: activeUploads }).map((_, i) => (
+            <div
+              key={`uploading-${i}`}
+              className="aspect-square rounded-xl bg-[var(--editor-tile)] animate-pulse"
+              aria-label="Lädt hoch…"
+            />
+          ))}
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="group relative aspect-square overflow-hidden rounded-xl bg-[var(--editor-tile)]"
+            >
+              <button
+                type="button"
+                onClick={() => handlePlace(item)}
+                className="block size-full p-0 bg-transparent border-none cursor-pointer [&_picture]:size-full [&_img]:size-full [&_img]:object-cover"
+                title={item.title ?? item.originalFilename ?? ''}
+              >
+                {item.shareToken ? (
+                  <MediaThumb item={item} alt={item.altText ?? item.title ?? ''} sizes="140px" />
+                ) : item.thumbnailUrl ? (
+                  <img
+                    src={item.thumbnailUrl}
+                    alt={item.altText ?? item.title ?? ''}
+                    className="size-full object-cover"
+                    draggable={false}
+                  />
+                ) : null}
+              </button>
+              <button
+                type="button"
+                onClick={() => void deleteFromLibrary(item.id)}
+                aria-label="Bild aus Bibliothek entfernen"
+                className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/60 text-white border-none rounded-md cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100"
+              >
+                <FaTrash size={10} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {displayedError ? (
+          <p role="alert" className="m-0 text-xs text-[var(--editor-text-muted)]">
+            {displayedError}
+          </p>
+        ) : null}
+
+        {hasMore && !isLoading ? (
+          <button
+            type="button"
+            onClick={() => void loadMore()}
+            className="self-center text-xs font-semibold text-[var(--editor-active-fg)] bg-transparent border-none cursor-pointer"
+          >
+            Mehr anzeigen
+          </button>
+        ) : null}
+
+        {showEmpty ? (
+          <p className="m-0 text-xs text-[var(--editor-text-muted)]">
+            Lade eigene Bilder hoch, um sie auf der Leinwand zu platzieren.
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
         SIDEBAR_SECTION,
-        'gap-md p-md max-canvas-mobile:p-sm',
+        'gap-md p-md',
         isDragOver && 'ring-2 ring-primary-500 ring-offset-2'
       )}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setIsDragOver(true);
-      }}
-      onDragLeave={() => setIsDragOver(false)}
-      onDrop={handleDrop}
+      {...dragProps}
     >
       <div className="relative">
         <HiMagnifyingGlass
@@ -149,14 +271,7 @@ export function UploadsSection({
           : 'Dateien hochladen'}
       </button>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={handleFileChange}
-        className="hidden"
-      />
+      {fileInput}
 
       {displayedError ? (
         <div

@@ -10,7 +10,6 @@
 
 import { addCollection } from '@iconify/react';
 import { getIconData, iconToSVG } from '@iconify/utils';
-
 import { type IconifyJSON } from '@iconify-json/tabler';
 
 export interface CanvasIcon {
@@ -335,8 +334,8 @@ export async function buildCanvasIcons(
 export const ALL_ICONS: IconDef[] = new Proxy([] as IconDef[], {
   get(target, prop) {
     if (syncList && prop !== 'constructor') {
-      return Reflect.get(syncList, prop);
+      return Reflect.get(syncList, prop) as unknown;
     }
-    return Reflect.get(target, prop);
+    return Reflect.get(target, prop) as unknown;
   },
 });

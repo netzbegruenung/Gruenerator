@@ -200,6 +200,12 @@
        Die dunkle Fassung steht auf #1e1e1e schon bei 5,78:1. */
     --editor-text-muted: #78766E;
     --editor-placeholder: #9A988F;
+    /* Eukalyptus-Akzent (Links, Rahmen-Icons) und Fehlerkasten. */
+    --editor-secondary-fg: var(--secondary-600);
+    --editor-danger-fg: var(--error-red);
+    --editor-danger-bg: #FEF2F2;
+    /* Formen-Vorschau in Tanne: auf dunkler Fläche unlesbar, dort Eukalyptus. */
+    --editor-tanne-preview: #005538;
 
     /* Scrollbar variables */
     --scrollbar-track-color: var(--background-color-alt);
@@ -426,6 +432,10 @@
     --editor-text-secondary: var(--grey-300);
     --editor-text-muted: var(--grey-400);
     --editor-placeholder: var(--grey-500);
+    --editor-secondary-fg: var(--secondary-300);
+    --editor-danger-fg: #F87171;
+    --editor-danger-bg: #450A0A;
+    --editor-tanne-preview: var(--secondary-300);
 
     /* Scrollbar variables for dark theme */
     --scrollbar-track-color: var(--background-color-alt);
@@ -599,6 +609,10 @@
         --editor-text-secondary: var(--grey-300);
         --editor-text-muted: var(--grey-400);
         --editor-placeholder: var(--grey-500);
+        --editor-secondary-fg: var(--secondary-300);
+        --editor-danger-fg: #F87171;
+        --editor-danger-bg: #450A0A;
+        --editor-tanne-preview: var(--secondary-300);
 
         /* Scrollbar variables for prefers-color-scheme: dark */
         --scrollbar-track-color: var(--background-color-alt);

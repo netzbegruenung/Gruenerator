@@ -1,6 +1,7 @@
 import { FaTrash } from 'react-icons/fa';
 import { PiPlusBold, PiTextAa, PiTextHBold } from 'react-icons/pi';
 
+import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
 import { SidebarHint } from '../components/SidebarHint';
 import { TextField } from '../components/TextFieldPrimitives';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
@@ -23,6 +24,13 @@ export interface CombinedTextSectionProps {
   fontSizes?: Record<string, number>;
   onFontSizeChange?: (key: string, size: number) => void;
 }
+
+const MOBILE_ADD_TILE =
+  'flex items-center w-full px-3.5 bg-[var(--editor-tile)] text-[var(--editor-text)] border-none rounded-xl cursor-pointer text-left transition-colors duration-150 hover:bg-[var(--editor-surface-hover)]';
+
+// Mobile: Eingabefelder der Vorlage als Kacheln statt mit Rahmen
+const MOBILE_FIELD_TILES =
+  'max-canvas-mobile:gap-4 max-canvas-mobile:[&_label]:text-[13px] max-canvas-mobile:[&_label]:font-bold max-canvas-mobile:[&_label]:text-[var(--editor-text-muted)] max-canvas-mobile:[&_:is(input[type=text],textarea)]:rounded-xl max-canvas-mobile:[&_:is(input[type=text],textarea)]:border-transparent max-canvas-mobile:[&_:is(input[type=text],textarea)]:bg-[var(--editor-tile)] max-canvas-mobile:[&_:is(input[type=text],textarea)]:text-[var(--editor-text)] max-canvas-mobile:[&_:is(input[type=text],textarea)]:px-3.5 max-canvas-mobile:[&_:is(input[type=text],textarea)]:py-3 max-canvas-mobile:[&_:is(input[type=text],textarea)]:focus:border-[var(--editor-accent)] max-canvas-mobile:[&_textarea+div]:bg-[var(--editor-tile)]';
 
 function getTextTypeIcon(type: AdditionalText['type']) {
   if (type === 'header' || type === 'subheader') return <PiTextHBold size={14} />;
@@ -48,13 +56,48 @@ export function CombinedTextSection({
   fontSizes,
   onFontSizeChange,
 }: CombinedTextSectionProps) {
+  const isMobile = useIsCanvasMobile();
   const hasFreeformText = onAddHeader !== undefined || onAddText !== undefined;
   const hasTemplateFields = textFields !== undefined && textFields.length > 0;
   const hasCanvasTexts = additionalTexts !== undefined && additionalTexts.length > 0;
 
   return (
-    <div className={cn(SIDEBAR_SECTION, 'gap-md p-md max-canvas-mobile:p-sm')}>
-      {hasFreeformText && (
+    <div
+      className={cn(SIDEBAR_SECTION, 'gap-md p-md max-canvas-mobile:gap-4 max-canvas-mobile:p-0')}
+    >
+      {hasFreeformText && isMobile && (
+        <div className="flex flex-col gap-2.5">
+          {onAddHeader && (
+            <button
+              type="button"
+              onClick={onAddHeader}
+              className={cn(MOBILE_ADD_TILE, 'h-12 text-[20px] font-black')}
+            >
+              Überschrift hinzufügen
+            </button>
+          )}
+          {onAddSubheader && (
+            <button
+              type="button"
+              onClick={onAddSubheader}
+              className={cn(MOBILE_ADD_TILE, 'h-11 text-[17px] font-bold')}
+            >
+              Untertitel hinzufügen
+            </button>
+          )}
+          {onAddText && (
+            <button
+              type="button"
+              onClick={onAddText}
+              className={cn(MOBILE_ADD_TILE, 'h-10 text-[15px] font-normal')}
+            >
+              Fließtext hinzufügen
+            </button>
+          )}
+        </div>
+      )}
+
+      {hasFreeformText && !isMobile && (
         <>
           {onAddText && (
             <button
@@ -72,7 +115,7 @@ export function CombinedTextSection({
               <button
                 type="button"
                 onClick={onAddHeader}
-                className="w-full text-left py-3 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-grey-300 dark:hover:border-grey-600"
+                className="w-full text-left py-3 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-editor-border-strong"
               >
                 <span className="font-[GrueneTypeNeue,Arial,sans-serif] text-xl font-bold text-foreground">
                   Titel
@@ -83,7 +126,7 @@ export function CombinedTextSection({
               <button
                 type="button"
                 onClick={onAddSubheader}
-                className="w-full text-left py-2.5 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-grey-300 dark:hover:border-grey-600"
+                className="w-full text-left py-2.5 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-editor-border-strong"
               >
                 <span className="font-[GrueneTypeNeue,Arial,sans-serif] text-base font-bold text-foreground">
                   Untertitel
@@ -94,7 +137,7 @@ export function CombinedTextSection({
               <button
                 type="button"
                 onClick={onAddText}
-                className="w-full text-left py-2 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-grey-300 dark:hover:border-grey-600"
+                className="w-full text-left py-2 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-editor-border-strong"
               >
                 <span className="font-[PT_Sans,Arial,sans-serif] text-sm text-foreground">
                   Text
@@ -106,7 +149,7 @@ export function CombinedTextSection({
       )}
 
       {hasTemplateFields && values && onFieldChange && (
-        <div className="flex flex-col gap-[var(--spacing-large)] max-canvas-mobile:gap-[var(--spacing-medium)]">
+        <div className={cn('flex flex-col gap-[var(--spacing-large)]', MOBILE_FIELD_TILES)}>
           {textFields.map((fieldConfig) => {
             const fontSize = fieldConfig.fontSizeStateKey
               ? fontSizes?.[fieldConfig.fontSizeStateKey]
@@ -132,14 +175,14 @@ export function CombinedTextSection({
       )}
 
       {hasCanvasTexts && onUpdateText && onRemoveText && (
-        <div className="flex flex-col gap-xs">
-          <span className="text-xs font-semibold text-foreground uppercase tracking-wide">
+        <div className="flex flex-col gap-xs max-canvas-mobile:gap-2.5">
+          <span className="text-xs font-semibold text-foreground uppercase tracking-wide max-canvas-mobile:text-[13px] max-canvas-mobile:font-bold max-canvas-mobile:normal-case max-canvas-mobile:tracking-normal max-canvas-mobile:text-[var(--editor-text-muted)]">
             Texte auf der Leinwand
           </span>
           {additionalTexts.map((text) => (
             <div
               key={text.id}
-              className="flex items-center gap-sm p-sm bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg"
+              className="flex items-center gap-sm p-sm bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg max-canvas-mobile:min-h-11 max-canvas-mobile:py-1 max-canvas-mobile:pl-3.5 max-canvas-mobile:pr-1.5 max-canvas-mobile:bg-[var(--editor-tile)] max-canvas-mobile:border-transparent max-canvas-mobile:rounded-xl"
             >
               <span className="text-xs text-foreground-muted shrink-0 w-5">
                 {getTextTypeIcon(text.type)}
@@ -148,7 +191,7 @@ export function CombinedTextSection({
                 type="text"
                 value={text.text}
                 onChange={(e) => onUpdateText(text.id, { text: e.target.value })}
-                className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-foreground-muted"
+                className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-foreground-muted max-canvas-mobile:text-[15px] max-canvas-mobile:text-[var(--editor-text)]"
                 placeholder={getTextTypePlaceholder(text.type)}
               />
               <button
