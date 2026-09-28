@@ -8,11 +8,13 @@ import { type Agent } from '@gruenerator/shared/agents';
  * Zwei Kopien derselben Zählung laufen auseinander, sobald jemand eine davon
  * um `plugins` oder eine weitere Wissensquelle erweitert.
  */
-export function toolCount(agent: Agent): number {
+export function toolCount(agent: Pick<Agent, 'enabledTools' | 'plugins'>): number {
   return (agent.enabledTools?.length ?? 0) + (agent.plugins?.length ?? 0);
 }
 
-export function hasKnowledge(agent: Agent): boolean {
+export function hasKnowledge(
+  agent: Pick<Agent, 'defaultNotebookIds' | 'toolRestrictions'>
+): boolean {
   return Boolean(
     (agent.defaultNotebookIds?.length ?? 0) > 0 ||
     agent.toolRestrictions?.defaultCollection ||
