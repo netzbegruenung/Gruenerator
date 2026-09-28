@@ -22,7 +22,7 @@
 import { applyContextCap } from '../../../../utils/contextCap.js';
 
 import { type PersistedStep } from './types.js';
-import { stripInternalFields } from './wrapTools.js';
+import { DEFAULT_MAX_RESULT_CHARS, resultForModel, stripInternalFields } from './wrapTools.js';
 
 import type { ModelMessage } from 'ai';
 
@@ -102,19 +102,40 @@ function shortValue(result: Record<string, unknown>): string {
 }
 
 /**
+ * A paused turn's own steps, replayed into its resume (#3795). The model is
+ * still working with these results, so it gets them shaped exactly as the loop
+ * handed them over before the pause — not the cross-turn preview above, which
+ * cut a 15-row notebook list to 500 of 4593 chars mid-turn.
+ */
+function sameTurnValue(result: Record<string, unknown>): string {
+  const shaped = resultForModel(stripInternalFields(result), DEFAULT_MAX_RESULT_CHARS);
+  let s: string;
+  try {
+    s = JSON.stringify(shaped);
+  } catch {
+    return '[nicht serialisierbar]';
+  }
+  return s ? stripReplayCitationMarkers(s) : '';
+}
+
+/**
  * Reconstruct `[assistant{tool-call…}, tool{tool-result…}]` from prior tool steps.
  *
  * @param steps            recent persisted steps (already filtered by the caller
  *                         to replayable observations), oldest → newest
  * @param currentCatalogNames tool names mounted THIS turn (validity gate)
+ * @param opts.sameTurn    the steps belong to the turn being resumed: no step
+ *                         cap and the loop's own result budget
  * @returns a 2-message block, or `[]` when no valid step remains
  */
 export function buildToolObservationReplay(
   steps: readonly PersistedStep[],
   currentCatalogNames: ReadonlySet<string>,
-  opts?: { maxSteps?: number }
+  opts?: { maxSteps?: number; sameTurn?: boolean }
 ): ModelMessage[] {
-  const maxSteps = opts?.maxSteps ?? DEFAULT_MAX_STEPS;
+  const sameTurn = opts?.sameTurn === true;
+  const maxSteps = sameTurn ? Infinity : (opts?.maxSteps ?? DEFAULT_MAX_STEPS);
+  const serialize = sameTurn ? sameTurnValue : shortValue;
   const seen = new Set<string>();
   const valid = steps.filter((s) => {
     if (!currentCatalogNames.has(s.toolName)) return false; // validity gate
@@ -122,7 +143,7 @@ export function buildToolObservationReplay(
     seen.add(s.toolCallId);
     return true;
   });
-  const kept = valid.slice(-maxSteps); // most-recent N
+  const kept = valid.slice(-maxSteps); // most-recent N (all for sameTurn)
   if (kept.length === 0) return [];
 
   const assistant: ModelMessage = {
@@ -140,7 +161,7 @@ export function buildToolObservationReplay(
       type: 'tool-result' as const,
       toolCallId: s.toolCallId,
       toolName: s.toolName,
-      output: { type: 'text' as const, value: shortValue(s.result) },
+      output: { type: 'text' as const, value: serialize(s.result) },
     })),
   };
   return [assistant, tool];
