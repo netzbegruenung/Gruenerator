@@ -125,7 +125,7 @@ srsly==2.5.3
     #   spacy
     #   thinc
     #   weasel
-starlette==1.6.0
+starlette==1.7.0
     # via fastapi
 thinc==8.3.13
     # via spacy
@@ -158,7 +158,7 @@ wasabi==1.1.3
     #   spacy
     #   thinc
     #   weasel
-watchfiles==1.2.0
+watchfiles==1.3.0
     # via uvicorn
 weasel==1.0.0
     # via spacy
