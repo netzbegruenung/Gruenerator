@@ -38,9 +38,9 @@ export function handleAttachmentAddError(event: AttachmentAddErrorEvent): void {
     return;
   }
 
-  // 'adapter-error': our adapter's validateFile()/fileToBase64() threw. Those
-  // throw user-ready German messages (e.g. "Datei zu groß: x.pdf (26.0MB).
-  // Maximum: 25.0MB"), so surface event.message directly instead of a generic
+  // 'adapter-error': our adapter's add() threw — validateFile() or the
+  // pick-time fileToBase64() read. Both throw user-ready German messages (e.g.
+  // "Datei zu groß: x.pdf (26.0MB). Maximum: 25.0MB"), so surface event.message directly instead of a generic
   // "try again" that hides the actual cause.
   if (event.reason === 'adapter-error') {
     pushNotice('Anhang nicht möglich', event.message);
