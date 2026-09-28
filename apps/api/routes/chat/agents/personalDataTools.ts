@@ -135,7 +135,11 @@ export function ground(
       title: i.title,
       content: i.content,
       ...(i.url ? { url: i.url } : {}),
-    }))
+    })),
+    // Eigene Inhalte sind Bestand der Person, keine Recherche: 20 Boards oder
+    // Treffer in früheren Chats sperrten sonst per search_budget die Websuche,
+    // wie es eine 20-zeilige Notebook-Liste live tat (Review #3800).
+    { inventory: true }
   );
 }
 
@@ -165,7 +169,8 @@ export function groundSourceRows(
       url: r.url,
       documentId: r.ref ?? r.url,
       collectionId,
-    }))
+    })),
+    { inventory: true }
   );
 }
 
