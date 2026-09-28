@@ -461,7 +461,7 @@ const groupHandler: TrashKindHandler = {
     return typeof found === 'string' ? found : groupItem(found);
   },
   async trash(userId, id) {
-    const result = await trashGroup(id, userId);
+    const result = await trashGroup(userId, id);
     return result === 'system' ? 'forbidden' : result;
   },
   restore: restoreGroup,

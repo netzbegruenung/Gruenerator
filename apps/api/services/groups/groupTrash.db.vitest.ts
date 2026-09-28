@@ -192,11 +192,11 @@ describe.skipIf(!url)('Projekte im Papierkorb (groupTrash)', () => {
   });
 
   it('refuses a plain member, an outsider and the system group', async () => {
-    expect(await trashGroup(ids.group, ids.member)).toBe('forbidden');
-    expect(await trashGroup(ids.group, ids.outsider)).toBe('forbidden');
-    expect(await trashGroup(ids.system, ids.creator)).toBe('system');
+    expect(await trashGroup(ids.member, ids.group)).toBe('forbidden');
+    expect(await trashGroup(ids.outsider, ids.group)).toBe('forbidden');
+    expect(await trashGroup(ids.creator, ids.system)).toBe('system');
     expect(await trashHandlerFor('group').trash(ids.creator, ids.system)).toBe('forbidden');
-    expect(await trashGroup('not-a-uuid', ids.creator)).toBe('not_found');
+    expect(await trashGroup(ids.creator, 'not-a-uuid')).toBe('not_found');
     expect(await deletedAt()).toBeNull();
     expect(notifyGroupMembers).not.toHaveBeenCalled();
   });
@@ -205,7 +205,7 @@ describe.skipIf(!url)('Projekte im Papierkorb (groupTrash)', () => {
     const before = await counts();
     expect(await memberSeesGroup()).toBe(true);
 
-    expect(await trashGroup(ids.group, ids.creator)).toBe('ok');
+    expect(await trashGroup(ids.creator, ids.group)).toBe('ok');
 
     expect(await deletedAt()).toBeInstanceOf(Date);
     expect(notifyGroupMembers).toHaveBeenCalledWith(
@@ -213,7 +213,7 @@ describe.skipIf(!url)('Projekte im Papierkorb (groupTrash)', () => {
     );
     expect(await memberSeesGroup()).toBe(false);
     expect(await counts()).toEqual(before);
-    expect(await trashGroup(ids.group, ids.creator)).toBe('not_found');
+    expect(await trashGroup(ids.creator, ids.group)).toBe('not_found');
   });
 
   it('lists and resolves the trashed Projekt for creator and admin members only', async () => {
@@ -256,7 +256,7 @@ describe.skipIf(!url)('Projekte im Papierkorb (groupTrash)', () => {
       expect(await purgeGroup(ids.group, null)).toBe(false);
       expect(fileDeletes).toEqual([]);
 
-      expect(await trashGroup(ids.group, ids.admin)).toBe('ok');
+      expect(await trashGroup(ids.admin, ids.group)).toBe('ok');
       expect(await purgeGroup(ids.group, new Date(Date.now() - 60_000))).toBe(false);
       expect(await deletedAt()).toBeInstanceOf(Date);
       expect(fileDeletes).toEqual([]);

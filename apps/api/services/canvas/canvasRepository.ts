@@ -94,9 +94,7 @@ const CANVAS_SELECT_COLUMNS = `${CANVAS_LIST_SELECT_COLUMNS}, cdoc.initial_state
  * anyone edits. Matched via `content_data->>'canvasId'` (the snapshot) and
  * NOT `metadata.source_canvas_id`, which points at the still-live original the
  * user very much does want to see. Single reads (`getCanvas`, `cloneCanvas`)
- * use their own queries, so using a template stays unaffected. The tail
- * deliberately ignores `ut.deleted_at`: a trashed Vorlage keeps its snapshot
- * hidden until the purge removes both.
+ * use their own queries, so using a template stays unaffected.
  */
 export const CANVAS_ACCESS_WHERE = `
   cd.document_subtype = $1

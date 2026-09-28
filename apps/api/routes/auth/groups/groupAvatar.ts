@@ -1,12 +1,12 @@
 import fs from 'fs';
-import path, { dirname } from 'path';
-import { fileURLToPath } from 'url';
+import path from 'path';
 
 import express, { type Router, type Response } from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
 
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
+import { GROUP_AVATAR_DIR } from '../../../services/groups/groupTrash.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { fromParam, type GroupId } from '../../../utils/types/branded.js';
@@ -15,23 +15,19 @@ import { getPostgresAndCheckMembership } from './groupCore.js';
 
 import type { AuthRequest } from '../types.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 const log = createLogger('group-avatar');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router: Router = express.Router();
 
-const AVATAR_UPLOAD_DIR = path.join(__dirname, '../../../uploads/group-avatars');
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_DIMENSION = 512;
 const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 
 void (async () => {
   try {
-    await fs.promises.mkdir(AVATAR_UPLOAD_DIR, { recursive: true });
-    log.debug(`Group avatar upload directory: ${AVATAR_UPLOAD_DIR}`);
+    await fs.promises.mkdir(GROUP_AVATAR_DIR, { recursive: true });
+    log.debug(`Group avatar upload directory: ${GROUP_AVATAR_DIR}`);
   } catch (err: unknown) {
     log.error(`Failed to create group avatar directory: ${(err as Error).message}`);
   }
@@ -73,7 +69,7 @@ router.post(
       }
 
       const filename = `${groupId}-${Date.now()}.webp`;
-      const filepath = path.join(AVATAR_UPLOAD_DIR, filename);
+      const filepath = path.join(GROUP_AVATAR_DIR, filename);
 
       await sharp(req.file.buffer)
         .resize(MAX_DIMENSION, MAX_DIMENSION, { fit: 'cover' })
@@ -87,7 +83,7 @@ router.post(
       )) as { avatar_url?: string | null } | null;
 
       if (existingGroup?.avatar_url) {
-        const oldPath = path.join(AVATAR_UPLOAD_DIR, path.basename(existingGroup.avatar_url));
+        const oldPath = path.join(GROUP_AVATAR_DIR, path.basename(existingGroup.avatar_url));
         fs.promises.unlink(oldPath).catch(() => {});
       }
 
@@ -134,7 +130,7 @@ router.get(
         return;
       }
 
-      const filepath = path.join(AVATAR_UPLOAD_DIR, path.basename(group.avatar_url));
+      const filepath = path.join(GROUP_AVATAR_DIR, path.basename(group.avatar_url));
 
       try {
         await fs.promises.access(filepath);
@@ -182,7 +178,7 @@ router.delete(
       )) as { avatar_url?: string | null } | null;
 
       if (group?.avatar_url) {
-        const filepath = path.join(AVATAR_UPLOAD_DIR, path.basename(group.avatar_url));
+        const filepath = path.join(GROUP_AVATAR_DIR, path.basename(group.avatar_url));
         fs.promises.unlink(filepath).catch(() => {});
       }
 

@@ -60,7 +60,7 @@ async function mayDelete(group: GroupRights, groupId: string, userId: string): P
  * Das Projekt in den Papierkorb. Die Mitglieder werden wie bisher benachrichtigt
  * — aus ihrer Sicht ist es aufgelöst, sie verlieren den Zugriff sofort.
  */
-export async function trashGroup(groupId: string, userId: string): Promise<GroupTrashResult> {
+export async function trashGroup(userId: string, groupId: string): Promise<GroupTrashResult> {
   if (!isRowId(groupId)) return 'not_found';
   const postgres = getPostgresInstance();
   const group = (await postgres.queryOne(

@@ -200,7 +200,7 @@ export const coreRoutes = {
     const { groupId } = args.params;
     try {
       const userId = getUserId(args.req);
-      const result = await trashGroup(groupId, userId);
+      const result = await trashGroup(userId, groupId);
 
       if (result === 'not_found') {
         return {

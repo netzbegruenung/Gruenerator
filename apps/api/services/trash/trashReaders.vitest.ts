@@ -105,7 +105,6 @@ const ALLOWLIST: readonly AllowEntry[] = [
     `${NOT_SQL} (a test fixture matching SQL text)`,
   ],
   ['apps/api/services/migrations/backfillGroupSlugSuffixes.ts', 'groups', PERMANENT_BACKFILL],
-  ['services/hocuspocus/src/auth.ts', 'groups', HOCUSPOCUS],
   [
     'apps/api/routes/docs/docsContractRouter.ts',
     'groups',
@@ -127,6 +126,12 @@ const ALLOWLIST: readonly AllowEntry[] = [
     'AND file_path IS NOT NULL',
   ],
   ['apps/api/routes/auth/templates/adminTemplates.ts', 'user_templates', PERMANENT_ADMIN],
+  [
+    'apps/api/services/canvas/canvasRepository.ts',
+    'user_templates',
+    "hides a Vorlage's snapshot canvas from the canvas list; a trashed Vorlage keeps it hidden until the purge removes both",
+    "ut.content_data->>'canvasId'",
+  ],
   [
     'apps/api/routes/auth/templates/adminVorlagenContractRouter.ts',
     'user_templates',
@@ -259,14 +264,37 @@ function readsTable(text: string, table: string): boolean {
   ).test(text);
 }
 
-type Filters = { trash: boolean; collab: boolean };
+/**
+ * `trash` counts every trash clause; `rowTrash` only those not qualified by an
+ * alias the literal binds to `groups`. An access path joins the live group
+ * (`INNER JOIN groups lg … lg.deleted_at IS NULL`) to drop members of a trashed
+ * Projekt — that clause filters the group, never the content row, and must not
+ * excuse a reader of any other table.
+ */
+type Filters = { trash: boolean; rowTrash: boolean; collab: boolean };
+
+const SQL_WORDS = /^(ON|WHERE|JOIN|INNER|LEFT|RIGHT|FULL|CROSS|USING|GROUP|ORDER|LIMIT)$/i;
+
+function withoutGroupClauses(text: string): string {
+  let out = text;
+  for (const m of text.matchAll(/\b(?:FROM|JOIN)\s+(?:public\.)?groups\s+(?:AS\s+)?(\w+)/gi)) {
+    if (SQL_WORDS.test(m[1])) continue;
+    out = out.replace(new RegExp(`\\b${m[1]}\\.deleted_at\\s+IS\\s+(NOT\\s+)?NULL`, 'gi'), '');
+  }
+  return out;
+}
 
 function filtersIn(text: string): Filters {
-  return { trash: TRASH_AWARE.test(text), collab: COLLAB_LIVE.test(text) };
+  return {
+    trash: TRASH_AWARE.test(text),
+    rowTrash: TRASH_AWARE.test(withoutGroupClauses(text)),
+    collab: COLLAB_LIVE.test(text),
+  };
 }
 
 function satisfies(filters: Filters, table: TrashableTableName): boolean {
-  return filters.trash || (table === 'collaborative_documents' && filters.collab);
+  if (table === 'groups') return filters.trash;
+  return filters.rowTrash || (table === 'collaborative_documents' && filters.collab);
 }
 
 /**
@@ -337,6 +365,7 @@ function scan(): Offender[] {
         const f = local.get(file)?.get(m[1]) ?? exported.get(m[1]);
         if (f) {
           acc.trash ||= f.trash;
+          acc.rowTrash ||= f.rowTrash;
           acc.collab ||= f.collab;
         }
       }
@@ -383,6 +412,27 @@ describe('Papierkorb readers hide trashed rows', () => {
     // docsAccessWhere is the canonical filtered fragment; if the scan stopped
     // resolving it, every docs reader would show up here as an offender.
     expect(offenders.filter((o) => o.file === 'apps/api/routes/docs/docsSearch.ts')).toEqual([]);
+  });
+
+  it('a live-group join excuses the group, never the content row', () => {
+    const statement = `SELECT d.id FROM documents d
+      INNER JOIN group_content_shares gcs ON gcs.content_id = d.id::text
+      INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id
+      INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL`;
+    expect(satisfies(filtersIn(statement), 'groups')).toBe(true);
+    expect(satisfies(filtersIn(statement), 'documents')).toBe(false);
+    expect(satisfies(filtersIn(`${statement} WHERE d.deleted_at IS NULL`), 'documents')).toBe(true);
+
+    // The three shared fragments that carry the live-group join: they still hide
+    // trashed groups, but excuse no other trash table through that clause.
+    for (const [file, name] of [
+      ['apps/api/routes/docs/constants.ts', 'docsAccessWhere'],
+      ['apps/api/services/canvas/canvasRepository.ts', 'CANVAS_ACCESS_WHERE'],
+      ['apps/api/services/user/textFormRepository.ts', 'GROUP_SHARE_EXISTS'],
+    ] as const) {
+      const fragment = fragmentsIn(fs.readFileSync(path.join(repoRoot, file), 'utf8')).get(name);
+      expect(fragment, name).toMatchObject({ trash: true, rowTrash: false });
+    }
   });
 
   it('every unfiltered reader is on the allowlist', () => {
