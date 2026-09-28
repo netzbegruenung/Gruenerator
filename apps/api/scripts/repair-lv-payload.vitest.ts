@@ -9,6 +9,7 @@ import {
   parseCliArgs,
   planFullTextRepair,
   planDateRepair,
+  planContentTypeRepair,
   planGone,
   planPointRepair,
   planRepair,
@@ -27,6 +28,7 @@ describe('parseCliArgs', () => {
         overwriteDates: null,
         gone: false,
         fulltext: false,
+        contentTypes: false,
         refetch: false,
         write: false,
         limit: null,
@@ -56,6 +58,7 @@ describe('parseCliArgs', () => {
         overwriteDates: null,
         gone: false,
         fulltext: false,
+        contentTypes: false,
         refetch: true,
         write: true,
         limit: 5,
@@ -91,6 +94,7 @@ describe('parseCliArgs', () => {
         overwriteDates: 'mid-june',
         gone: false,
         fulltext: false,
+        contentTypes: false,
         refetch: false,
         write: false,
         limit: null,
@@ -656,5 +660,80 @@ describe('--fulltext', () => {
       async () => ({ title: 'T', publishedAt: '2025-12-10', text: structured })
     );
     expect(result).toMatchObject({ fetchAttempted: true, patch: { full_text: structured } });
+  });
+});
+
+describe('--content-types (#3808)', () => {
+  const SL_PROGRAMM =
+    'https://gruene-saar.de/wp-content/uploads/sites/2/2022/02/22-02-17-wahlprogramm-ltw-2022.pdf';
+
+  it('läuft ohne Abruf, also auch mit --all', () => {
+    const parsed = parseCliArgs(['--content-types', '--all']);
+    expect(parsed).toMatchObject({ args: { contentTypes: true, all: true } });
+  });
+
+  it('steht nicht neben --gone', () => {
+    expect(parseCliArgs(['--gone', '--content-types', '--source', 'saarland-lv'])).toHaveProperty(
+      'error'
+    );
+  });
+
+  it('typisiert eine kuratierte Wahlprogramm-PDF um, die als Beschluss gespeichert ist', () => {
+    expect(
+      planContentTypeRepair({
+        source_url: SL_PROGRAMM,
+        content_type: 'beschluss',
+        content_type_label: 'Beschluss/Resolution',
+        curated_lists: [],
+      })
+    ).toEqual({
+      content_type: 'wahlprogramm',
+      content_type_label: 'Wahlprogramm',
+      curated_lists: ['wahlprogramm-sl'],
+    });
+  });
+
+  it('lässt einen schon richtigen Punkt stehen', () => {
+    expect(
+      planContentTypeRepair({
+        source_url: SL_PROGRAMM,
+        content_type: 'wahlprogramm',
+        content_type_label: 'Wahlprogramm',
+        curated_lists: ['wahlprogramm-sl'],
+      })
+    ).toBeNull();
+  });
+
+  it('fasst eine URL außerhalb jeder Liste nicht an', () => {
+    expect(
+      planContentTypeRepair({
+        source_url: 'https://gruene-saar.de/wp-content/uploads/sites/2/2023/05/beschluss.pdf',
+        content_type: 'beschluss',
+        content_type_label: 'Beschluss/Resolution',
+        curated_lists: [],
+      })
+    ).toBeNull();
+  });
+
+  it('hängt sich in planPointRepair ein, ohne abzurufen', async () => {
+    let calls = 0;
+    const result = await planPointRepair(
+      {
+        source_url: SL_PROGRAMM,
+        title: 'Landtagswahlprogramm 2022',
+        published_at: '2022-02-17',
+        content_type: 'beschluss',
+        content_type_label: 'Beschluss/Resolution',
+        curated_lists: [],
+      },
+      { titles: false, refetch: false, overwriteDates: null, contentTypes: true },
+      false,
+      async () => {
+        calls++;
+        return { title: '', publishedAt: null, text: '' };
+      }
+    );
+    expect(calls).toBe(0);
+    expect(result.patch).toMatchObject({ content_type: 'wahlprogramm' });
   });
 });
