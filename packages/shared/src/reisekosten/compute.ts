@@ -51,9 +51,9 @@ function dateRange(startKey: string, endKey: string): string[] {
 function computeKfz(kfz: Kfz | null, rate: RateConfig): number {
   if (!kfz) return 0;
   const satz = kfz.fahrzeug === 'motorrad' ? rate.kmSatzMotorrad : rate.kmSatzPkw;
-  // Above the km cap only the DB-Flexpreis is reimbursable (rule 1.3 / e).
-  if (kfz.km > rate.kmObergrenze) return round2(kfz.dbFlexpreis ?? 0);
-  return round2(kfz.km * satz);
+  // Form 1.7.2025, 1.3: up to kmObergrenze km; the Mehr-km only with a Vorstandsbeschluss.
+  const km = kfz.vorstandsbeschluss ? kfz.km : Math.min(kfz.km, rate.kmObergrenze);
+  return round2(km * satz);
 }
 
 function computeFahrtkosten(fahrt: Fahrt, rate: RateConfig): ComputeResult['fahrtkosten'] {
