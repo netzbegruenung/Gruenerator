@@ -18,8 +18,9 @@ import type * as Y from 'yjs';
  * exactly that transaction: y-prosemirror's `createDecorations` resolves every
  * collaborator's cursor in `doc` (the fork) and looks the fork's types up in
  * `binding.mapping` (the original) → "Cannot read properties of undefined
- * (reading 'nodeSize')", thrown out of merge() midway (GlitchTip #659). It only
- * fires while another client has a cursor in awareness.
+ * (reading 'nodeSize')", thrown out of merge() midway (GlitchTip #659, upstream
+ * TypeCellOS/BlockNote#3135). It only fires while another client has a cursor
+ * in awareness.
  *
  * The fix sits on the transaction rather than around merge(): a pre-set state
  * would just move the tear to the cursor plugin's `init`, which runs during the
