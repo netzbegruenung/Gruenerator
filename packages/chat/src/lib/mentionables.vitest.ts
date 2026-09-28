@@ -9,6 +9,7 @@ import {
   filterMentionables,
   getAllMentionables,
   setMentionLocale,
+  userAgentToMentionable,
 } from './mentionables';
 
 // ---------------------------------------------------------------------------
@@ -370,5 +371,31 @@ describe('link attachment mentionable', () => {
     const entry = filterMentionables('').tools.find((m) => m.identifier === 'webpage-trigger');
     expect(entry?.mention).toBe('link');
     expect(entry?.title).toBe('Link');
+  });
+});
+
+/**
+ * The picker's `identifier` is what the chat request carries as `agentId`. A
+ * teammate's agent may share its identifier with another owner's, so it routes
+ * by row id; the typed `@mention` stays the readable identifier.
+ */
+describe('userAgentToMentionable', () => {
+  const base = {
+    id: '44444444-4444-4444-8444-444444444444',
+    identifier: 'wahlkampf-xy',
+    title: 'Wahlkampf',
+    description: 'd',
+    avatar: '✨',
+    backgroundColor: '#316049',
+  };
+
+  it('routes a shared agent by its id', () => {
+    const m = userAgentToMentionable({ ...base, sharedFromGroup: 'Klima-AG' });
+    expect(m).toMatchObject({ identifier: base.id, mention: 'wahlkampf-xy' });
+  });
+
+  it('routes an own agent by its identifier', () => {
+    const m = userAgentToMentionable({ ...base, sharedFromGroup: null });
+    expect(m).toMatchObject({ identifier: 'wahlkampf-xy', mention: 'wahlkampf-xy' });
   });
 });

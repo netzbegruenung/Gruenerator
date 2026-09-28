@@ -212,6 +212,7 @@ describe('recipes shared from a group', () => {
  */
 describe('Grüneratoren aus einer Gruppe', () => {
   const agent = (identifier: string, title: string, sharedFromGroup: string | null) => ({
+    id: `id-${identifier}`,
     identifier,
     title,
     description: 'Ein Grünerator',
