@@ -49,7 +49,11 @@ describe('resolveUserNotebookDocumentIds', () => {
   it('drops a notebook the user cannot read without touching its documents', async () => {
     const result = await resolveUserNotebookDocumentIds('viewer', [FOREIGN]);
 
-    expect(result).toEqual({ documentIds: [], resolvedUserNotebookIds: [] });
+    expect(result).toEqual({
+      documentIds: [],
+      resolvedUserNotebookIds: [],
+      documentNotebookIds: {},
+    });
     expect(getCollectionDocuments).not.toHaveBeenCalled();
   });
 
