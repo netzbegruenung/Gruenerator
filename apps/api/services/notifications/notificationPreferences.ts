@@ -41,8 +41,13 @@ const TYPE_IMPORTANCE: Record<NotificationType, 1 | 2 | 3> = {
   group_member_joined: 3,
   group_member_left: 3,
   group_role_changed: 3,
-  group_content_shared: 3,
+  // Tier 2: project news is on by default ("Mittel").
+  group_content_shared: 2,
   group_comment_added: 2,
+  group_post_created: 2,
+  // Tier 1: someone addressed this user (or everyone) directly.
+  group_user_mentioned: 1,
+  group_mention_all: 1,
   group_deleted: 1,
   group_join_requested: 3,
   group_join_approved: 1,

@@ -16,9 +16,18 @@ interface GroupRow {
 // queue thousands of inserts on the pool at once.
 const DELIVER_CHUNK = 200;
 
+// Addressed to one person: shown on their own instead of folded into the
+// group's bundle in the bell, where only the newest line is clickable.
+const UNGROUPED_TYPES: ReadonlySet<NotificationType> = new Set([
+  'group_user_mentioned',
+  'group_mention_all',
+]);
+
 interface NotifyGroupParams {
   groupId: string;
   excludeUserId: string;
+  /** Further users to leave out — e.g. those already reached by a mention. */
+  skipUserIds?: string[];
   type: NotificationType;
   title: string;
   body: string;
@@ -27,15 +36,16 @@ interface NotifyGroupParams {
 }
 
 export async function notifyGroupMembers(params: NotifyGroupParams): Promise<void> {
-  const { groupId, excludeUserId } = params;
+  const { groupId, excludeUserId, skipUserIds = [] } = params;
 
   try {
     const db = getPostgresInstance();
 
     const [members, group] = await Promise.all([
       db.query(
-        'SELECT user_id FROM group_memberships WHERE group_id = $1 AND user_id != $2 AND is_active = TRUE',
-        [groupId, excludeUserId]
+        `SELECT user_id FROM group_memberships
+          WHERE group_id = $1 AND user_id != $2 AND user_id <> ALL($3::uuid[]) AND is_active = TRUE`,
+        [groupId, excludeUserId, skipUserIds]
       ) as Promise<Array<{ user_id: string }>>,
       db.queryOne('SELECT name, is_system FROM groups WHERE id = $1', [groupId], {
         table: 'groups',
@@ -103,8 +113,10 @@ export async function notifyGroupAdmins(params: NotifyGroupParams): Promise<void
 export async function notifyGroupUsers(
   params: NotifyGroupParams & { userIds: string[] }
 ): Promise<void> {
-  const { groupId, excludeUserId, userIds } = params;
-  const candidates = [...new Set(userIds)].filter((id) => id !== excludeUserId);
+  const { groupId, excludeUserId, userIds, skipUserIds = [] } = params;
+  const candidates = [...new Set(userIds)].filter(
+    (id) => id !== excludeUserId && !skipUserIds.includes(id)
+  );
   if (candidates.length === 0) return;
 
   try {
@@ -149,7 +161,7 @@ async function deliver(
           body,
           actionUrl,
           metadata: { groupId, groupName, ...metadata },
-          groupKey: `group:${groupId}`,
+          ...(UNGROUPED_TYPES.has(type) ? {} : { groupKey: `group:${groupId}` }),
           channelOverride,
         }).catch((err: unknown) => {
           log.warn('Failed to notify group user', {
