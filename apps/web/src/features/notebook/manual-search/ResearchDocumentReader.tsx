@@ -23,10 +23,10 @@ import type { ResearchDocumentPart, ResearchDocumentResponse } from '@gruenerato
 
 import { cn } from '@/utils/cn';
 
-export interface ReaderTarget extends ResearchDocumentParams {
+export type ReaderTarget = ResearchDocumentParams & {
   /** The hit's title, shown while the document loads. */
   title: string;
-}
+};
 
 const PROSE =
   'm-0 text-base leading-[1.75] text-foreground [overflow-wrap:anywhere] sm:text-[1.0625rem]';
@@ -88,7 +88,9 @@ function PassageNav({
   );
 }
 
-function WebLink({ href, className }: { href: string; className?: string }) {
+/** Nothing for an uploaded file, which has no original on the web. */
+function WebLink({ href, className }: { href: string | null; className?: string }) {
+  if (!href) return null;
   return (
     <Button asChild variant="brand-outline" size="brand-sm" className={className}>
       <a href={href} target="_blank" rel="noopener noreferrer">
@@ -350,7 +352,7 @@ export function ResearchDocumentReader({
                   <p className="m-0 text-base text-grey-700 dark:text-grey-200">
                     Das Dokument konnte nicht geladen werden.
                   </p>
-                  <WebLink href={target.sourceUrl} />
+                  <WebLink href={'sourceUrl' in target ? target.sourceUrl : null} />
                 </div>
               )}
             </div>
