@@ -435,7 +435,7 @@ export async function streamAgenticResponse(
       }
       toolReplayMessages = [
         ...toolReplayMessages,
-        ...buildToolObservationReplay(steps, new Set(Object.keys(wrapped))),
+        ...buildToolObservationReplay(steps, new Set(Object.keys(wrapped)), { sameTurn: true }),
       ];
     }
 

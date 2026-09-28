@@ -129,7 +129,9 @@ const REFS_FIELD = 'refs';
 const ROWS_REPEATED_BY_REFS: readonly string[] = ['results', 'ranking'];
 const REFS_EXEMPT: ReadonlySet<string> = new Set(['sources', REFS_FIELD]);
 
-function resultForModel(output: unknown, maxChars: number): unknown {
+export const DEFAULT_MAX_RESULT_CHARS = 6000;
+
+export function resultForModel(output: unknown, maxChars: number): unknown {
   if (!output || typeof output !== 'object' || Array.isArray(output)) {
     return truncateResultForModel(output, maxChars);
   }
@@ -252,7 +254,7 @@ export interface WrapToolsContext {
    *  announcement sentence(s) are associated with the tool they preceded.
    *  Split mode only; unified mode narration flows through the answer text. */
   takeNarration?: () => string | null;
-  /** Safety-net cap on the serialized model-facing result. Default 6000. */
+  /** Safety-net cap on the serialized model-facing result. Default {@link DEFAULT_MAX_RESULT_CHARS}. */
   maxResultChars?: number;
   /** Optional. Nicht gesetzt ⇒ Verhalten unverändert (es wird nichts
    *  zusätzlich awaitet). */
@@ -430,7 +432,7 @@ type ExecuteFn = (
 ) => Promise<unknown>;
 
 export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet {
-  const maxResultChars = ctx.maxResultChars ?? 6000;
+  const maxResultChars = ctx.maxResultChars ?? DEFAULT_MAX_RESULT_CHARS;
   const wrapped: ToolSet = {};
 
   for (const [toolName, toolDef] of Object.entries(tools)) {
