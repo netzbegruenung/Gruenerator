@@ -16,6 +16,7 @@ import {
   markedPageRanges,
   outlineSource,
   readSourceText,
+  resolveReaderSource,
   resolveSourceInNotebook,
   sliceSource,
   SLICE_DEFAULT_CHARS,
@@ -379,6 +380,58 @@ describe('resolveSourceInNotebook', () => {
       deps
     );
     expect(out).toEqual({ ok: false, error: 'Quelle nicht in diesem Notebook oder kein Zugriff.' });
+  });
+});
+
+describe('resolveReaderSource', () => {
+  it('lets the owner read without a notebook, and never asks for one', async () => {
+    const { deps, helper } = makeDeps({ rows: [docRow({ source_url: 'https://kv.de/radweg' })] });
+    const out = await resolveReaderSource(
+      { documentId: 'd1', notebookId: null, userId: 'owner-1' },
+      deps
+    );
+    expect(out).toEqual({
+      ownerUserId: 'owner-1',
+      title: 'Antrag Radweg',
+      sourceUrl: 'https://kv.de/radweg',
+    });
+    expect(helper.isDocumentInCollection).not.toHaveBeenCalled();
+  });
+
+  it('lets a notebook reader in when the document is linked into it', async () => {
+    const { deps } = makeDeps();
+    const out = await resolveReaderSource(
+      { documentId: 'd1', notebookId: 'n1', userId: 'member-1' },
+      deps
+    );
+    expect(out?.ownerUserId).toBe('owner-1');
+    expect(out?.sourceUrl).toBeNull();
+  });
+
+  it('refuses a foreign document without a notebook', async () => {
+    const { deps } = makeDeps();
+    const out = await resolveReaderSource(
+      { documentId: 'd1', notebookId: null, userId: 'stranger' },
+      deps
+    );
+    expect(out).toBeNull();
+  });
+
+  it('refuses when the notebook is not readable or does not hold the document', async () => {
+    const denied = makeDeps({ access: DENIED }).deps;
+    const unlinked = makeDeps({ inCollection: false }).deps;
+    const input = { documentId: 'd1', notebookId: 'n1', userId: 'stranger' };
+    expect(await resolveReaderSource(input, denied)).toBeNull();
+    expect(await resolveReaderSource(input, unlinked)).toBeNull();
+  });
+
+  it('refuses a document that does not exist', async () => {
+    const { deps } = makeDeps({ rows: [] });
+    const out = await resolveReaderSource(
+      { documentId: 'd1', notebookId: 'n1', userId: 'owner-1' },
+      deps
+    );
+    expect(out).toBeNull();
   });
 });
 

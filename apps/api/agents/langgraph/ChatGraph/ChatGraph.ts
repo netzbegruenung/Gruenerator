@@ -107,10 +107,10 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
       : []),
   ];
   const agentUserNotebookUuids = agentNotebookIds.filter(isUserNotebookId);
-  const agentNotebookDocumentIds =
+  const { documentIds: agentNotebookDocumentIds, documentNotebookIds: agentDocumentNotebookIds } =
     agentUserNotebookUuids.length > 0 && input.userId
-      ? (await resolveUserNotebookDocumentIds(input.userId, agentUserNotebookUuids)).documentIds
-      : [];
+      ? await resolveUserNotebookDocumentIds(input.userId, agentUserNotebookUuids)
+      : { documentIds: [], documentNotebookIds: {} };
 
   // The request record carries the composer toggles; a user-created agent's
   // `enabledTools` array narrows it here (explicit `false` per unchosen picker
@@ -157,6 +157,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     defaultNotebookDocumentIds: [
       ...new Set([...(input.defaultNotebookDocumentIds ?? []), ...agentNotebookDocumentIds]),
     ],
+    documentNotebookIds: { ...agentDocumentNotebookIds, ...input.documentNotebookIds },
 
     // Document scoping (from @datei mentions)
     documentIds: input.documentIds || [],

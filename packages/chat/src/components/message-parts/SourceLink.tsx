@@ -18,7 +18,8 @@ const LINK_CLASS =
  *
  * Where it leads depends on what the citation can open, best first:
  * 1. the host's document reader — system documents with a URL
- *    (`readerCollectionId`, set by the API only where the reader can read);
+ *    (`readerCollectionId`) and the user's own documents (`readerDocument`),
+ *    both set by the API only where the reader can read;
  * 2. the citation panel — notebook chunks (`documentId` + `collectionId` +
  *    `chunkIndex`), the same target as the badge's "Im Dokument lesen";
  * 3. the original URL in a new tab;
@@ -42,15 +43,17 @@ export const SourceLink = memo(function SourceLink({
   const citation = citations.find((c) => c.id === citationId);
   if (!citation) return <>{children}</>;
 
-  const { readerCollectionId, url, title } = citation;
-  if (readerCollectionId && url && openSourceDocument) {
+  const { readerCollectionId, readerDocument, url, title } = citation;
+  const readerTarget =
+    readerCollectionId && url
+      ? { collectionId: readerCollectionId, sourceUrl: url }
+      : readerDocument;
+  if (readerTarget && openSourceDocument) {
     return (
       <button
         type="button"
         className={LINK_CLASS}
-        onClick={() =>
-          openSourceDocument({ collectionId: readerCollectionId, sourceUrl: url, query: '', title })
-        }
+        onClick={() => openSourceDocument({ ...readerTarget, query: '', title })}
       >
         {children}
       </button>

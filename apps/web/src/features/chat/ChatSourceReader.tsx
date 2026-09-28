@@ -8,6 +8,7 @@
  * which only a mounted component knows.
  */
 
+import { researchDocumentQueryKey } from '@gruenerator/shared/api';
 import { useEffect } from 'react';
 
 import {
@@ -36,7 +37,7 @@ export function ChatSourceReaderHost() {
   if (!reader.target) return null;
   return (
     <ResearchDocumentReader
-      key={reader.target.sourceUrl}
+      key={researchDocumentQueryKey(reader.target).join('|')}
       target={reader.target}
       onClose={reader.close}
     />
