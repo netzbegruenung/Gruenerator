@@ -1,14 +1,14 @@
 ---
 identifier: 'gruenerator-beschluesse-saarland'
-title: 'Beschlusslage Saarland'
-description: 'Belegte Auskunft aus den Beschlüssen der Grünen Saarland, auf Wunsch als Statement'
+title: 'Beschlussantrag Saarland'
+description: 'Beschlussanträge in der Beschlusssprache der Grünen Saarland, im Anschluss an die bestehende Beschlusslage'
 iconKey: 'PiMountains'
-avatar: '📚'
+avatar: '📜'
 backgroundColor: '#316049'
 mention: 'beschluss-saarland'
-skillCategory: recherche
+skillCategory: dokumente
 audience: 'de-DE'
-recommendedTools: ['gruenerator_search']
-promptTemplate: 'Was haben die Grünen Saarland beschlossen zu: '
+recommendedTools: ['gruenerator_search', 'web_search']
+promptTemplate: 'Schreib einen Beschlussantrag zum Thema: '
 order: 74
 ---

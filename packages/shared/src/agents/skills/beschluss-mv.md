@@ -1,14 +1,14 @@
 ---
 identifier: 'gruenerator-beschluesse-mecklenburg-vorpommern'
-title: 'Beschlusslage Mecklenburg-Vorpommern'
-description: 'Belegte Auskunft aus den Beschlüssen der Grünen Mecklenburg-Vorpommern, auf Wunsch als Statement'
+title: 'Beschlussantrag Mecklenburg-Vorpommern'
+description: 'Beschlussanträge in der Beschlusssprache der Grünen Mecklenburg-Vorpommern, im Anschluss an die bestehende Beschlusslage'
 iconKey: 'PiWaves'
-avatar: '📚'
+avatar: '📜'
 backgroundColor: '#316049'
 mention: 'beschluss-mv'
-skillCategory: recherche
+skillCategory: dokumente
 audience: 'de-DE'
-recommendedTools: ['gruenerator_search']
-promptTemplate: 'Was haben die Grünen Mecklenburg-Vorpommern beschlossen zu: '
+recommendedTools: ['gruenerator_search', 'web_search']
+promptTemplate: 'Schreib einen Beschlussantrag zum Thema: '
 order: 74
 ---

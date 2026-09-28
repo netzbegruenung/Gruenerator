@@ -1,14 +1,14 @@
 ---
 identifier: 'gruenerator-beschluesse-hamburg'
-title: 'Beschlusslage Hamburg'
-description: 'Belegte Auskunft aus den Beschlüssen der Grünen Hamburg, auf Wunsch als Statement'
+title: 'Beschlussantrag Hamburg'
+description: 'Beschlussanträge in der Beschlusssprache der Grünen Hamburg, im Anschluss an die bestehende Beschlusslage'
 iconKey: 'PiAnchor'
-avatar: '📚'
+avatar: '📜'
 backgroundColor: '#316049'
 mention: 'beschluss-hamburg'
-skillCategory: recherche
+skillCategory: dokumente
 audience: 'de-DE'
-recommendedTools: ['gruenerator_search']
-promptTemplate: 'Was haben die Grünen Hamburg beschlossen zu: '
+recommendedTools: ['gruenerator_search', 'web_search']
+promptTemplate: 'Schreib einen Beschlussantrag zum Thema: '
 order: 74
 ---
