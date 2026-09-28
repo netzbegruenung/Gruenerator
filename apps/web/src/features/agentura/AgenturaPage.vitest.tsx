@@ -51,12 +51,13 @@ vi.mock('@gruenerator/chat', async (importOriginal) => ({
 
 const userAgents = vi.hoisted(() => ({ current: [] as unknown[] }));
 const sharedUserAgents = vi.hoisted(() => ({ current: [] as unknown[] }));
+const publicAgents = vi.hoisted(() => ({ current: [] as unknown[] }));
 
 vi.mock('../agents/api', () => ({
   useUserAgents: () => ({ data: userAgents.current }),
   useSharedSystemAgents: () => ({ data: [] }),
   useSharedUserAgents: () => ({ data: sharedUserAgents.current }),
-  usePublicUserAgents: () => ({ data: [] }),
+  usePublicUserAgents: () => ({ data: publicAgents.current }),
   useDeleteUserAgent: () => ({ mutate: vi.fn() }),
   // Duplizieren legt einen neuen Agenten an — die Kachel zieht den Haken über
   // `useDuplicateAgent`, auch wenn keine dieser Prüfungen ihn auslöst.
@@ -154,6 +155,7 @@ beforeEach(() => {
   useSkillFavoritesStore.setState({ favorites: [] });
   userAgents.current = [];
   sharedUserAgents.current = [];
+  publicAgents.current = [];
 });
 
 function agent(over: Record<string, unknown> = {}) {
@@ -222,17 +224,22 @@ describe('AgenturaPage — Meine: eigene und geteilte Agenten', () => {
     expect(keyWarnings).toEqual([]);
   });
 
-  it('wächst beim Regalwechsel nicht', async () => {
+  it('lässt beim Regalwechsel keine Karten liegen', async () => {
+    // Der Agents-Abschnitt muss zwischen den Regalen stehen bleiben — nur dann
+    // gleicht React die Kinder ab, statt den Abschnitt neu aufzubauen, und
+    // doppelte Keys hinterlassen Karten im anderen Regal.
     userAgents.current = [agent()];
     sharedUserAgents.current = [{ agent: agent({ id: 'u-2', title: 'Aus Köln' }), groups: [] }];
+    publicAgents.current = [agent({ id: 'p-1', identifier: 'fremd', title: 'Öffentlicher' })];
     const user = userEvent.setup();
     renderPage();
     await screen.findByRole('heading', { name: 'Aus Köln', level: 3 });
     for (let i = 0; i < 3; i++) {
       await user.click(screen.getByRole('tab', { name: /Öffentlich/ }));
+      expect(agentCards().map((h) => h.textContent)).toEqual(['Öffentlicher']);
       await user.click(screen.getByRole('tab', { name: /Meine/ }));
+      expect(agentCards()).toHaveLength(2);
     }
-    expect(agentCards()).toHaveLength(2);
   });
 });
 
