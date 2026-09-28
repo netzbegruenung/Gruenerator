@@ -97,6 +97,7 @@ export default [
       'apps/wordpress/**',
       'apps/api/scripts/**',
       'packages/shared/scripts/**',
+      'packages/canvas-editor/scripts/**',
     ],
   },
 ];

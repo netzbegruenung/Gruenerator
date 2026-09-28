@@ -11,7 +11,7 @@
 import { act, render } from '@testing-library/react';
 import Konva from 'konva';
 import React, { createRef } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { loadCanvasConfig } from '../configs/configLoader';
 import { AutoSaveStoreProvider } from '../stores/AutoSaveStoreProvider';
@@ -48,14 +48,13 @@ vi.mock('use-image', async () => {
   const { Image, createCanvas } = await import('@napi-rs/canvas');
   const bitmap = new Image();
   bitmap.src = createCanvas(4, 4).toBuffer('image/png');
-  return {
-    default: (url: string) => {
-      const status = useSyncExternalStore(imageStatus.subscribe, imageStatus.get);
-      if (!url) return [undefined, 'loading'];
-      if (!url.includes(STOCK)) return [bitmap, 'loaded'];
-      return status === 'loaded' ? [bitmap, 'loaded'] : [undefined, status];
-    },
+  const useImage = (url: string) => {
+    const status = useSyncExternalStore(imageStatus.subscribe, imageStatus.get);
+    if (!url) return [undefined, 'loading'];
+    if (!url.includes(STOCK)) return [bitmap, 'loaded'];
+    return status === 'loaded' ? [bitmap, 'loaded'] : [undefined, status];
   };
+  return { default: useImage };
 });
 
 // Konva cacht Bilder mit Filtern auf einem jsdom-Canvas, den der napi-Kontext
@@ -67,8 +66,18 @@ Object.defineProperty(document, 'fonts', {
   value: { check: () => true, load: async () => [], ready: Promise.resolve(), add() {} },
 });
 
+// Einmal geladen und mit eigenem Budget, wie in `remoteEditKeepsAddedElements`:
+// `loadCanvasConfig` zieht über einen dynamischen Import den ganzen Config-
+// Graphen (konva, recharts, @iconify) herein — kalt gemessen 5,1 s gegen die
+// 5 s des ersten Tests, das Rendern selbst 80 ms (#3775). Auf einer warmen
+// Maschine lag es knapp darunter, deshalb war die Datei lokal grün und in CI rot.
+let config: Awaited<ReturnType<typeof loadCanvasConfig>>;
+
+beforeAll(async () => {
+  config = await loadCanvasConfig('dreizeilen');
+}, 120_000);
+
 async function mount(initialProps: Record<string, unknown>) {
-  const config = await loadCanvasConfig('dreizeilen');
   const ref = createRef<GenericCanvasRef>();
   render(
     <AutoSaveStoreProvider>

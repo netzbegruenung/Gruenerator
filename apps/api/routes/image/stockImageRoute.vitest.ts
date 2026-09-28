@@ -50,6 +50,9 @@ afterAll(async () => {
 });
 
 describe('GET /stock-image/:filename', () => {
+  // The first request makes sharp decode a 5792x8688 JPEG and encode the WebP:
+  // 2.2 s on an M-series laptop, over the 5 s default on the CI runner
+  // (run 36363911000 on master, 5009 ms). Budget like the Konva-stage tests.
   it('serves the canvas tier as a 2160px WebP a fraction of the original', async () => {
     const original = await fs.stat(path.join(STOCK_DIR, LARGEST));
     const res = await fetch(`${baseUrl}/stock-image/${LARGEST}?w=2160&fmt=webp`);
@@ -67,7 +70,7 @@ describe('GET /stock-image/:filename', () => {
       await (await fetch(`${baseUrl}/stock-image/${LARGEST}?w=2160&fmt=webp`)).arrayBuffer()
     );
     expect(again.equals(body)).toBe(true);
-  });
+  }, 30_000);
 
   it.each([
     ['without w', ''],
