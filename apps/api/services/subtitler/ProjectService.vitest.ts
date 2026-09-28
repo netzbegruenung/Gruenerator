@@ -111,6 +111,16 @@ describe('Reel Papierkorb', () => {
     expect(rm).not.toHaveBeenCalled();
   });
 
+  it('reports an ownerless Reel instead of silently leaving its directory', async () => {
+    db({ owner: null, deleted: 1 });
+    expect(await new SubtitlerProjectService().purgeProject(PROJECT, null)).toBe(true);
+    expect(rm).not.toHaveBeenCalled();
+    expect(reportBackgroundError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ job: 'trash-purge', kind: 'subtitler_project', id: PROJECT })
+    );
+  });
+
   it('reports a failing file removal and never rethrows once the row is gone', async () => {
     db({ deleted: 1 });
     rm.mockRejectedValueOnce(new Error('EACCES'));

@@ -626,7 +626,14 @@ export class SubtitlerProjectService {
     if (deleted.length === 0) return false;
 
     const userId = deleted[0].user_id;
-    if (userId) {
+    if (!userId) {
+      reportBackgroundError(new Error('Reel has no owner; its directory cannot be located'), {
+        job: 'trash-purge',
+        kind: 'subtitler_project',
+        id: projectId,
+        store: 'files',
+      });
+    } else {
       try {
         validatePathId(userId, 'userId');
         const projectDir = path.resolve(PROJECT_STORAGE_BASE, userId, projectId);
