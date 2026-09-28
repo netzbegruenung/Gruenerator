@@ -12,6 +12,11 @@ vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
   },
 }));
 
+const getTrashedShare = vi.fn();
+vi.mock('../sharedMediaService.js', () => ({
+  getSharedMediaService: () => ({ getTrashedShare }),
+}));
+
 const { TRASH_KINDS, TRASH_RETENTION_DAYS, purgeAtFor, toTrashItem, trashHandlerFor } =
   await import('./trashRegistry.js');
 const { compareTrashKey, decodeTrashCursor, encodeTrashCursor, trashKeysetWhere } =
@@ -126,5 +131,26 @@ describe('notebook handler', () => {
     });
     expect(next.map((i) => i.id)).toEqual(['b']);
     expect(next[0]).toMatchObject({ kind: 'notebook', title: 'Notebook b', subtype: null });
+  });
+});
+
+describe('shared_media handler', () => {
+  it('keys a share by its token and falls back to the file name for the title', async () => {
+    getTrashedShare.mockResolvedValue({
+      share_token: 'tok-1',
+      title: '  ',
+      original_filename: 'foto.png',
+      media_type: 'image',
+      deleted_at: new Date('2026-09-20T10:00:00.000Z'),
+    });
+    expect(await trashHandlerFor('shared_media')!.getTrashed('user-1', 'tok-1')).toMatchObject({
+      kind: 'shared_media',
+      id: 'tok-1',
+      title: 'foto.png',
+      subtype: 'image',
+    });
+
+    getTrashedShare.mockResolvedValue('forbidden');
+    expect(await trashHandlerFor('shared_media')!.getTrashed('user-2', 'tok-1')).toBe('forbidden');
   });
 });

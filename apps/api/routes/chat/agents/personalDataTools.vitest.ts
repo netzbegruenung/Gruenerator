@@ -31,7 +31,7 @@ const deleteProject = vi.fn();
 const searchReels = vi.fn().mockResolvedValue([]);
 const getReelTranscript = vi.fn().mockResolvedValue(null);
 const getUserShares = vi.fn();
-const deleteShare = vi.fn();
+const trashShare = vi.fn();
 const readArtifactContent = vi.fn();
 const recallPastChats = vi.fn();
 const listRecentThreads = vi.fn();
@@ -73,7 +73,7 @@ vi.mock('../../../database/services/PostgresService.js', () => ({
 vi.mock('../../../services/sharedMediaService.js', () => ({
   getSharedMediaService: () => ({
     getUserShares: (...a: unknown[]) => getUserShares(...a),
-    deleteShare: (...a: unknown[]) => deleteShare(...a),
+    trashShare: (...a: unknown[]) => trashShare(...a),
   }),
 }));
 vi.mock('../../../services/subtitler/ProjectService.js', () => ({

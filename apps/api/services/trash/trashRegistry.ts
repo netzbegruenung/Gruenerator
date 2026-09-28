@@ -41,6 +41,7 @@ import {
   trashDocuments,
   type TrashedDocumentRow,
 } from '../document-services/PostgresDocumentService/metadataOperations.js';
+import { getSharedMediaService, type TrashedShareRow } from '../sharedMediaService.js';
 
 import { compareTrashKey, type TrashCursor } from './trashCursor.js';
 
@@ -233,12 +234,37 @@ const documentHandler: TrashKindHandler = {
   listExpired: (cutoff, limit) => listExpiredDocuments(getPostgresInstance(), cutoff, limit),
 };
 
+const shareItem = (row: TrashedShareRow): TrashItem =>
+  toTrashItem({
+    kind: 'shared_media',
+    id: row.share_token,
+    title: row.title?.trim() || row.original_filename?.trim() || 'Ohne Titel',
+    subtype: row.media_type,
+    deletedAt: row.deleted_at,
+  });
+
+/** Keyed by `share_token`, the handle `DELETE /api/share/:shareToken` already uses. */
+const sharedMediaHandler: TrashKindHandler = {
+  async listTrashed(userId, opts) {
+    return (await getSharedMediaService().listTrashedShares(userId, opts)).map(shareItem);
+  },
+  async getTrashed(userId, id) {
+    const found = await getSharedMediaService().getTrashedShare(userId, id);
+    return typeof found === 'string' ? found : shareItem(found);
+  },
+  trash: (userId, id) => getSharedMediaService().trashShare(userId, id),
+  restore: (userId, id) => getSharedMediaService().restoreShare(userId, id),
+  purge: (id, cutoff) => getSharedMediaService().purgeShare(id, cutoff),
+  listExpired: (cutoff, limit) => getSharedMediaService().listExpiredShares(cutoff, limit),
+};
+
 // Task 5 tightens this to `Record<TrashKind, TrashKindHandler>` once every kind has one.
 export const TRASH_KINDS = {
   collaborative_document: collaborativeDocumentHandler,
   chat_thread: chatThreadHandler,
   notebook: notebookHandler,
   document: documentHandler,
+  shared_media: sharedMediaHandler,
 } satisfies Partial<Record<TrashKind, TrashKindHandler>>;
 
 export function trashHandlerFor(kind: TrashKind): TrashKindHandler | null {

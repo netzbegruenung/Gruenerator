@@ -428,24 +428,16 @@ const SHARE_DOWNLOAD_URL_RE = /^\/api\/share\/([^/?#]+)\/download$/;
  * the superseded one must go or internal rows accumulate unbounded — they are
  * exempt from enforceUserLimit. Only internal artifacts (is_library_item =
  * FALSE) are ever deleted; a library image someone set as thumbnail survives.
- * Deletion runs as the share's own uploader — in collab docs the replacer may
- * be a different editor.
+ * The delete is a purge, not a trash: no listing shows internal rows, so a
+ * Papierkorb entry could never be restored.
  */
 export async function deleteReplacedThumbnailShare(url: string): Promise<void> {
   const match = SHARE_DOWNLOAD_URL_RE.exec(url);
   if (!match) return;
-  const token = match[1];
-
-  const rows = (await db.query(
-    `SELECT user_id FROM shared_media
-     WHERE share_token = $1 AND COALESCE(is_library_item, TRUE) = FALSE`,
-    [token]
-  )) as Array<{ user_id: string }>;
-  if (!rows[0]) return;
 
   const { getSharedMediaService } = await import('../../routes/share/shareServices.js');
   const service = await getSharedMediaService();
-  await service.deleteShare(rows[0].user_id, token);
+  await service.purgeInternalShare(match[1]);
 }
 
 /** Moves the canvas to the Papierkorb; the purge removes it for good. */

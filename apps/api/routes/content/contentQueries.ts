@@ -248,7 +248,7 @@ export async function fetchImages(
   const rows = (await db.query(
     `SELECT id, share_token, title, thumbnail_path, image_metadata, content_origin, created_at
      FROM shared_media
-     WHERE ${where}
+     WHERE deleted_at IS NULL AND ${where}
      ORDER BY created_at DESC, id DESC
      LIMIT $${params.length}`,
     params
