@@ -296,6 +296,31 @@ class TestEntityTrimming:
         )
         assert extract(classifier_over, [doc]) == [{"person": "Kaweh Mansoori", "count": 1}]
 
+    def test_keeps_a_first_name_the_model_tags_as_noun(self, classifier_over, make_doc):
+        # Tagging as de_core_news_lg produces it on the Berlin letterhead. The
+        # PROPN-only start cut this to "Ghirmai", which a single document then
+        # dropped as a bare surname.
+        doc = self.per_doc_pos(
+            make_doc,
+            ["Philmon", "Ghirmai", "Landesvorsitzende"],
+            ["NOUN", "PROPN", "ADJ"],
+            [(0, 3)],
+        )
+        assert extract(classifier_over, [doc]) == [
+            {"person": "Philmon Ghirmai", "count": 1}
+        ]
+
+    def test_a_role_compound_is_not_taken_for_a_first_name(
+        self, classifier_over, make_doc
+    ):
+        doc = self.per_doc_pos(
+            make_doc,
+            ["Landeswirtschaftsminister", "Kaweh", "Mansoori"],
+            ["NOUN", "NOUN", "PROPN"],
+            [(0, 3)],
+        )
+        assert extract(classifier_over, [doc]) == [{"person": "Kaweh Mansoori", "count": 1}]
+
     def test_drops_a_span_that_has_no_proper_noun_at_all(self, classifier_over, make_doc):
         doc = self.per_doc_pos(make_doc, ["Foto"], ["NOUN"], [(0, 1)])
         assert extract(classifier_over, [doc]) == []
