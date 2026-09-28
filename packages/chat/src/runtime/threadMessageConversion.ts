@@ -382,6 +382,23 @@ export function convertNotebookLoadedMessages(messages: LoadedMessage[]): Thread
   });
 }
 
+// assistant-ui keys tool-call parts by `toolCallId` and throws "Duplicate key
+// toolCallId-…" on a repeat, which takes the whole message view down. Rows
+// persisted before the backend made step ids unique per turn can carry a
+// repeated provider id (and several id-less steps share the `tc_<messageId>`
+// fallback), so the first card per id wins.
+function dropDuplicateToolCalls(
+  parts: Array<{ type: 'text'; text: string } | ToolCallLike>
+): Array<{ type: 'text'; text: string } | ToolCallLike> {
+  const seen = new Set<string>();
+  return parts.filter((p) => {
+    if (p.type !== 'tool-call') return true;
+    if (seen.has(p.toolCallId)) return false;
+    seen.add(p.toolCallId);
+    return true;
+  });
+}
+
 export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMessageLike[] {
   return messages
     .filter(
@@ -577,7 +594,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
 
       return {
         role: m.role as 'user' | 'assistant',
-        content: contentParts,
+        content: dropDuplicateToolCalls(contentParts),
         id: m.id,
         // Ohne `requires-action` verweigert assistant-ui die Antwort auf eine
         // Freigabe oder Rückfrage — die Karte wäre nach einem Reload nur noch
