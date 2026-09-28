@@ -117,7 +117,8 @@ export async function shareContentToGroup(
   input: ShareContentToGroupInput,
   deps: ShareContentDeps = defaultDeps()
 ): Promise<ShareContentOutcome> {
-  const { userId, contentType, contentId, groupId, permissions, sharerName } = input;
+  const { userId, contentType, groupId, permissions, sharerName } = input;
+  let { contentId } = input;
   const note = input.note?.trim() || null;
   const { postgres } = deps;
   await deps.checkMembership(groupId, userId);
@@ -132,7 +133,12 @@ export async function shareContentToGroup(
 
   // System content has no owner row — the registry is its existence check.
   if (contentType === 'system_notebooks' && !getNotebookDefinition(contentId)) return NOT_FOUND;
-  if (contentType === 'system_agents' && !getSystemAgent(contentId)) return NOT_FOUND;
+  if (contentType === 'system_agents') {
+    const agent = getSystemAgent(contentId);
+    if (!agent) return NOT_FOUND;
+    // Store the canonical id: the feed resolves titles without alias lookup.
+    contentId = agent.identifier;
+  }
 
   if (contentType === 'notebook_collections') {
     const collection = await deps.getNotebookCollection(contentId);
