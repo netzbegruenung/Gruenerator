@@ -19,7 +19,7 @@ const {
       log.push(`thumbnail ${url}`);
       return Promise.resolve();
     }),
-    purgeDocThread: vi.fn((threadId: string) => {
+    purgeDocThread: vi.fn((threadId: string, _runQuery?: unknown) => {
       log.push(`purge thread ${threadId}`);
       return Promise.resolve(true);
     }),
@@ -312,6 +312,7 @@ describe('purgeCollaborativeDocument', () => {
 
     expect(await purgeCollaborativeDocument(run, 'doc-1', cutoff)).toBe(true);
     expect(seen).toEqual([['doc-1', cutoff]]);
+    expect(purgeDocThread).toHaveBeenCalledWith('thread-1', run);
     expect(effects).toEqual([
       'SELECT stored_filename FROM board_attachments',
       'SELECT thumbnail_url FROM canvas_documents',

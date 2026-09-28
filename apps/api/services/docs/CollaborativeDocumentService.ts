@@ -330,7 +330,7 @@ export async function purgeCollaborativeDocument(
   for (const thread of docThreads) {
     await sideStore('chat_threads', async () => {
       const { purgeDocThread } = await import('../../routes/chat/services/threadTrashService.js');
-      await purgeDocThread(thread.id);
+      await purgeDocThread(thread.id, runQuery);
     });
   }
   await sideStore('board_scheduled_runs', () =>
