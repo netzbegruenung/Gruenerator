@@ -8,13 +8,14 @@ import {
   TabsList,
   TabsTrigger,
 } from '@gruenerator/ui';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { PiMagnifyingGlass, PiPlus, PiUsers } from 'react-icons/pi';
 import { useSearchParams } from 'react-router-dom';
 
 import { GroupAllView } from './GroupAllView';
 import { GroupComposer } from './GroupComposer';
 import { GroupFeedCard } from './GroupFeedCard';
+import { GroupMentionProvider } from './GroupMentions';
 import { GroupSidebar } from './GroupSidebar';
 
 type View = 'feed' | 'all';
@@ -76,6 +77,19 @@ export function GroupContentArea({
   const [query, setQuery] = useState('');
   const [infoOpen, setInfoOpen] = useState(false);
 
+  const mentionOptions = useMemo(
+    () => ({
+      candidates: members
+        .filter((m) => m.user_id !== currentUserId)
+        .map((m) => ({ userId: m.user_id, label: m.display_name || m.first_name || '' }))
+        .filter((c) => c.label),
+      // In der System-Gruppe erreicht @alle alle Nutzer*innen: nur wer dort schreiben darf.
+      allowAll: !isSystem || !!onOpenShare,
+      memberCount: isSystem ? null : members.length,
+    }),
+    [members, currentUserId, isSystem, onOpenShare]
+  );
+
   const visible = filterGroupFeed(items, query);
   const hasQuery = query.trim().length > 0;
 
@@ -125,111 +139,113 @@ export function GroupContentArea({
   );
 
   return (
-    <Tabs value={view} onValueChange={(v) => setView(v as View)} className="gap-lg">
-      <div className="flex flex-wrap items-center justify-between gap-sm">
-        <div className="flex flex-wrap items-center gap-xs">
-          {!isPersonal && (
-            <TabsList variant="line" className="h-auto gap-xs" aria-label="Ansicht">
-              <TabsTrigger value="feed" className={pillCls}>
-                Feed
-              </TabsTrigger>
-              <TabsTrigger value="all" className={pillCls}>
-                Alle
-                <span className="text-[13px] opacity-80">{items.length}</span>
-              </TabsTrigger>
-            </TabsList>
-          )}
-          {!isPersonal && view === 'feed' && (
-            <Button
-              variant="outline"
-              className={cn(
-                'h-[38px] rounded-full min-[900px]:hidden',
-                infoOpen && 'border-primary-300 bg-primary-50 dark:bg-primary-900/30'
-              )}
-              aria-expanded={infoOpen}
-              aria-controls="gruppen-info"
-              onClick={() => setInfoOpen((o) => !o)}
-            >
-              <PiUsers aria-hidden /> Info
-            </Button>
-          )}
+    <GroupMentionProvider value={mentionOptions}>
+      <Tabs value={view} onValueChange={(v) => setView(v as View)} className="gap-lg">
+        <div className="flex flex-wrap items-center justify-between gap-sm">
+          <div className="flex flex-wrap items-center gap-xs">
+            {!isPersonal && (
+              <TabsList variant="line" className="h-auto gap-xs" aria-label="Ansicht">
+                <TabsTrigger value="feed" className={pillCls}>
+                  Feed
+                </TabsTrigger>
+                <TabsTrigger value="all" className={pillCls}>
+                  Alle
+                  <span className="text-[13px] opacity-80">{items.length}</span>
+                </TabsTrigger>
+              </TabsList>
+            )}
+            {!isPersonal && view === 'feed' && (
+              <Button
+                variant="outline"
+                className={cn(
+                  'h-[38px] rounded-full min-[900px]:hidden',
+                  infoOpen && 'border-primary-300 bg-primary-50 dark:bg-primary-900/30'
+                )}
+                aria-expanded={infoOpen}
+                aria-controls="gruppen-info"
+                onClick={() => setInfoOpen((o) => !o)}
+              >
+                <PiUsers aria-hidden /> Info
+              </Button>
+            )}
+          </div>
+          <label className="flex h-[38px] w-[260px] max-w-full items-center gap-xs rounded-full border border-grey-200 bg-card px-3.5 text-muted-foreground focus-within:border-primary-500 dark:border-grey-700">
+            <PiMagnifyingGlass aria-hidden className="size-4 shrink-0" />
+            <span className="sr-only">
+              {isPersonal ? 'Im Projekt suchen' : 'In der Gruppe suchen'}
+            </span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={isPersonal ? 'Im Projekt suchen' : 'In der Gruppe suchen'}
+              className="min-w-0 flex-1 border-none bg-transparent text-sm text-foreground outline-none"
+            />
+          </label>
         </div>
-        <label className="flex h-[38px] w-[260px] max-w-full items-center gap-xs rounded-full border border-grey-200 bg-card px-3.5 text-muted-foreground focus-within:border-primary-500 dark:border-grey-700">
-          <PiMagnifyingGlass aria-hidden className="size-4 shrink-0" />
-          <span className="sr-only">
-            {isPersonal ? 'Im Projekt suchen' : 'In der Gruppe suchen'}
-          </span>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={isPersonal ? 'Im Projekt suchen' : 'In der Gruppe suchen'}
-            className="min-w-0 flex-1 border-none bg-transparent text-sm text-foreground outline-none"
-          />
-        </label>
-      </div>
 
-      {isLoading ? (
-        <LoadingSection label="Inhalte werden geladen …" />
-      ) : (
-        <>
-          {!isPersonal && (
-            <TabsContent value="feed" className="mt-0">
-              <div className="flex flex-col gap-lg min-[900px]:flex-row min-[900px]:items-start min-[900px]:gap-xl">
-                <div className="flex min-w-0 flex-1 flex-col gap-lg">
-                  {!hasQuery && onOpenShare && (
-                    <GroupComposer
-                      groupId={groupId}
-                      groupName={groupName}
-                      memberCount={isSystem ? null : members.length}
-                      currentUserName={currentUserName}
-                      onOpenShare={onOpenShare}
-                    />
-                  )}
-                  {visible.length === 0
-                    ? empty
-                    : visible.map((item) => (
-                        <GroupFeedCard
-                          key={item.key}
-                          item={item}
-                          groupId={groupId}
-                          isAdmin={isAdmin}
-                          canComment
-                          currentUserId={currentUserId}
-                          currentUserName={currentUserName}
-                          defaultOpen={!!focusShareId && item.share?.shareId === focusShareId}
-                          onUseTemplate={onUseTemplate}
-                          isCloning={cloningId === item.id}
-                          onRemove={onRemove}
-                        />
-                      ))}
+        {isLoading ? (
+          <LoadingSection label="Inhalte werden geladen …" />
+        ) : (
+          <>
+            {!isPersonal && (
+              <TabsContent value="feed" className="mt-0">
+                <div className="flex flex-col gap-lg min-[900px]:flex-row min-[900px]:items-start min-[900px]:gap-xl">
+                  <div className="flex min-w-0 flex-1 flex-col gap-lg">
+                    {!hasQuery && onOpenShare && (
+                      <GroupComposer
+                        groupId={groupId}
+                        groupName={groupName}
+                        memberCount={isSystem ? null : members.length}
+                        currentUserName={currentUserName}
+                        onOpenShare={onOpenShare}
+                      />
+                    )}
+                    {visible.length === 0
+                      ? empty
+                      : visible.map((item) => (
+                          <GroupFeedCard
+                            key={item.key}
+                            item={item}
+                            groupId={groupId}
+                            isAdmin={isAdmin}
+                            canComment
+                            currentUserId={currentUserId}
+                            currentUserName={currentUserName}
+                            defaultOpen={!!focusShareId && item.share?.shareId === focusShareId}
+                            onUseTemplate={onUseTemplate}
+                            isCloning={cloningId === item.id}
+                            onRemove={onRemove}
+                          />
+                        ))}
+                  </div>
+                  <div
+                    id="gruppen-info"
+                    className={cn(
+                      '-order-1 min-[900px]:sticky min-[900px]:top-lg min-[900px]:order-none min-[900px]:block min-[900px]:w-[300px] min-[900px]:shrink-0',
+                      !infoOpen && 'hidden'
+                    )}
+                  >
+                    {sidebar}
+                  </div>
                 </div>
-                <div
-                  id="gruppen-info"
-                  className={cn(
-                    '-order-1 min-[900px]:sticky min-[900px]:top-lg min-[900px]:order-none min-[900px]:block min-[900px]:w-[300px] min-[900px]:shrink-0',
-                    !infoOpen && 'hidden'
-                  )}
-                >
-                  {sidebar}
-                </div>
-              </div>
+              </TabsContent>
+            )}
+            <TabsContent value="all" className="mt-0">
+              {visible.length === 0 && (hasQuery || linkCount === 0) && empty}
+              <GroupAllView
+                items={visible}
+                groupId={groupId}
+                isAdmin={isAdmin}
+                showPinned={!hasQuery}
+                onUseTemplate={onUseTemplate}
+              >
+                {!hasQuery && extraAllSections}
+              </GroupAllView>
             </TabsContent>
-          )}
-          <TabsContent value="all" className="mt-0">
-            {visible.length === 0 && (hasQuery || linkCount === 0) && empty}
-            <GroupAllView
-              items={visible}
-              groupId={groupId}
-              isAdmin={isAdmin}
-              showPinned={!hasQuery}
-              onUseTemplate={onUseTemplate}
-            >
-              {!hasQuery && extraAllSections}
-            </GroupAllView>
-          </TabsContent>
-        </>
-      )}
-    </Tabs>
+          </>
+        )}
+      </Tabs>
+    </GroupMentionProvider>
   );
 }

@@ -9,9 +9,12 @@ import {
   useDeleteGroupShareComment,
   useGroupShareComments,
 } from '@gruenerator/shared/groups';
+import { buildMemberMention } from '@gruenerator/shared/utils';
 import { Button, cn } from '@gruenerator/ui';
 import { useEffect, useRef, useState } from 'react';
 import { PiPaperPlaneRight, PiTrash, PiX } from 'react-icons/pi';
+
+import { GroupMentionText, MentionSuggestions, useMentionDraft } from './GroupMentions';
 
 interface GroupCommentThreadProps {
   id: string;
@@ -22,11 +25,10 @@ interface GroupCommentThreadProps {
   isAdmin: boolean;
 }
 
-/** Offene Antwort: an welchem Kommentar oben sie hängt, wem sie antwortet, und der Entwurf. */
+/** Offene Antwort: an welchem Kommentar oben sie hängt und wem sie antwortet. */
 interface ReplyDraft {
   threadId: string;
   toName: string;
-  text: string;
 }
 
 /**
@@ -46,28 +48,33 @@ export function GroupCommentThread({
   const addComment = useAddGroupShareComment(groupId, shareId);
   const addReply = useAddGroupShareComment(groupId, shareId);
   const deleteComment = useDeleteGroupShareComment(groupId, shareId);
-  const [draft, setDraft] = useState('');
+  const draft = useMentionDraft(GROUP_COMMENT_MAX);
+  const replyDraft = useMentionDraft(GROUP_COMMENT_MAX);
   const [reply, setReply] = useState<ReplyDraft | null>(null);
 
   const send = () => {
-    const body = draft.trim();
-    if (!body || addComment.isPending) return;
-    addComment.mutate({ body }, { onSuccess: () => setDraft('') });
+    const body = draft.serialize();
+    if (!body || draft.tooLong || addComment.isPending) return;
+    addComment.mutate({ body }, { onSuccess: () => draft.reset() });
   };
 
   const sendReply = () => {
-    const body = reply?.text.trim();
-    if (!reply || !body || addReply.isPending) return;
+    const body = replyDraft.serialize();
+    if (!reply || !body || replyDraft.tooLong || addReply.isPending) return;
     addReply.mutate({ body, parentId: reply.threadId }, { onSuccess: () => setReply(null) });
   };
 
   const startReply = (threadId: string, to: GroupShareComment) => {
     addReply.reset();
-    setReply({
-      threadId,
-      toName: to.authorName,
-      text: to.userId === currentUserId ? '' : replyMention(to.authorName),
-    });
+    // Die Antwort beginnt mit einer echten Erwähnung — die Person bekommt sie mit.
+    replyDraft.reset(
+      to.userId === currentUserId
+        ? ''
+        : to.userId
+          ? `${buildMemberMention(to.authorName.split(' ')[0]!, to.userId)} `
+          : replyMention(to.authorName)
+    );
+    setReply({ threadId, toName: to.authorName });
   };
 
   const list = comments.data ?? [];
@@ -98,7 +105,7 @@ export function GroupCommentThread({
           <div className="flex max-w-full flex-col gap-0.5 self-start rounded-[4px_16px_16px_16px] bg-card px-3.5 py-2.5">
             <strong className="text-[13px]">{c.authorName}</strong>
             <span className="whitespace-pre-wrap break-words text-[15px] leading-snug">
-              {c.body}
+              <GroupMentionText text={c.body} />
             </span>
           </div>
           <div className="flex items-center gap-sm pl-3.5 text-xs text-muted-foreground">
@@ -162,8 +169,7 @@ export function GroupCommentThread({
                       <CommentInput
                         small
                         autoFocus
-                        value={reply.text}
-                        onChange={(text) => setReply({ ...reply, text })}
+                        mention={replyDraft}
                         onSubmit={sendReply}
                         onCancel={() => setReply(null)}
                         pending={addReply.isPending}
@@ -182,8 +188,7 @@ export function GroupCommentThread({
       )}
 
       <CommentInput
-        value={draft}
-        onChange={setDraft}
+        mention={draft}
         onSubmit={send}
         pending={addComment.isPending}
         userName={currentUserName}
@@ -196,8 +201,7 @@ export function GroupCommentThread({
 }
 
 interface CommentInputProps {
-  value: string;
-  onChange: (value: string) => void;
+  mention: ReturnType<typeof useMentionDraft>;
   onSubmit: () => void;
   onCancel?: () => void;
   pending: boolean;
@@ -210,8 +214,7 @@ interface CommentInputProps {
 }
 
 function CommentInput({
-  value,
-  onChange,
+  mention,
   onSubmit,
   onCancel,
   pending,
@@ -249,17 +252,16 @@ function CommentInput({
         >
           {personInitials(userName)}
         </span>
-        <div className="flex items-center gap-1.5 rounded-full border border-grey-200 bg-card py-1 pl-md pr-1 focus-within:border-primary-500 dark:border-grey-700">
+        <div className="relative flex items-center gap-1.5 rounded-full border border-grey-200 bg-card py-1 pl-md pr-1 focus-within:border-primary-500 dark:border-grey-700">
           <input
             ref={inputRef}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
+            {...mention.inputProps}
             onKeyDown={(e) => {
+              if (mention.handleKey(e)) return;
               if (e.key === 'Escape' && onCancel) onCancel();
             }}
             placeholder={placeholder}
             aria-label={label}
-            maxLength={GROUP_COMMENT_MAX}
             className="h-8 min-w-0 flex-1 border-none bg-transparent text-[15px] text-foreground outline-none"
           />
           {onCancel && (
@@ -279,11 +281,16 @@ function CommentInput({
             variant="brand"
             size="sm"
             className="rounded-full"
-            disabled={!value.trim() || pending}
+            disabled={!mention.text.trim() || mention.tooLong || pending}
           >
             <PiPaperPlaneRight className="size-4" aria-hidden />
             Senden
           </Button>
+          <MentionSuggestions
+            {...mention.listProps}
+            inputRef={inputRef}
+            className="top-full mt-1"
+          />
         </div>
       </form>
       {error && <p className="m-0 text-sm text-red-600 dark:text-red-400">{error}</p>}

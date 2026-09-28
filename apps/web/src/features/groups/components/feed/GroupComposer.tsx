@@ -15,6 +15,8 @@ import { isAxiosError } from 'axios';
 import { type DragEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { PiPaperclip, PiSparkle, PiX } from 'react-icons/pi';
 
+import { MentionSuggestions, useMentionDraft } from './GroupMentions';
+
 interface PendingFile {
   id: string;
   file: File;
@@ -54,7 +56,9 @@ export function GroupComposer({
   onOpenShare,
 }: GroupComposerProps) {
   const [expanded, setExpanded] = useState(false);
-  const [text, setText] = useState('');
+  const mention = useMentionDraft(GROUP_POST_MAX);
+  const text = mention.text;
+  const textarea = useRef<HTMLTextAreaElement>(null);
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
@@ -111,25 +115,27 @@ export function GroupComposer({
   const reset = () => {
     for (const f of files) if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
     setFiles([]);
-    setText('');
+    mention.reset();
     setLocalError(null);
     setProgress(null);
     createPost.reset();
     setExpanded(false);
   };
 
-  const canPost = (text.trim().length > 0 || files.length > 0) && !createPost.isPending;
+  const canPost =
+    (text.trim().length > 0 || files.length > 0) && !mention.tooLong && !createPost.isPending;
 
   const post = () => {
     if (!canPost) return;
     setLocalError(null);
     createPost.mutate(
-      { body: text.trim(), files: files.map((f) => f.file), onProgress: setProgress },
+      { body: mention.serialize(), files: files.map((f) => f.file), onProgress: setProgress },
       { onSuccess: reset, onSettled: () => setProgress(null) }
     );
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mention.handleKey(e)) return;
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       post();
@@ -221,17 +227,23 @@ export function GroupComposer({
             </div>
           </div>
 
-          <Textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={onKeyDown}
-            autoFocus
-            rows={3}
-            maxLength={GROUP_POST_MAX}
-            aria-label="Beitrag an die Gruppe"
-            placeholder="Was möchtest du mit der Gruppe teilen?"
-            className="min-h-[88px] resize-none border-none bg-transparent px-md py-sm text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
-          />
+          <div className="relative">
+            <Textarea
+              ref={textarea}
+              {...mention.inputProps}
+              onKeyDown={onKeyDown}
+              autoFocus
+              rows={3}
+              aria-label="Beitrag an die Gruppe"
+              placeholder="Was möchtest du mit der Gruppe teilen? Mit @ erwähnst du jemanden."
+              className="min-h-[88px] resize-none border-none bg-transparent px-md py-sm text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
+            />
+            <MentionSuggestions
+              {...mention.listProps}
+              inputRef={textarea}
+              className="top-full ml-md"
+            />
+          </div>
 
           {images.length > 0 && (
             <ul className="m-0 flex list-none flex-wrap gap-xs px-md pb-sm pt-0">

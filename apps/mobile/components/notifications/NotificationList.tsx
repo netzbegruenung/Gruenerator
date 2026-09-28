@@ -22,10 +22,17 @@ const TYPE_ICONS: Record<string, IoniconsIconName> = {
   document_access_revoked: 'lock-closed-outline',
   board_updates: 'grid-outline',
   group_member_joined: 'person-add-outline',
+  group_member_left: 'person-remove-outline',
   group_role_changed: 'swap-horizontal-outline',
   group_content_shared: 'share-outline',
   group_comment_added: 'chatbubble-outline',
+  group_post_created: 'newspaper-outline',
+  group_user_mentioned: 'at-outline',
+  group_mention_all: 'megaphone-outline',
   group_deleted: 'trash-outline',
+  group_join_requested: 'person-add-outline',
+  group_join_approved: 'checkmark-circle-outline',
+  group_join_denied: 'close-circle-outline',
   pushed_content: 'phone-portrait-outline',
 };
 

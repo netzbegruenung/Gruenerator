@@ -96,6 +96,17 @@ export {
 } from './mentionTokens.js';
 export type { MentionToken, MentionTokenType } from './mentionTokens.js';
 
+// Erwähnungen in Projekt-Beiträgen (@[Name](user:uuid), @alle)
+export {
+  buildMemberMention,
+  groupMentionSegments,
+  groupMentionsFromDraft,
+  groupMentionsToDraft,
+  groupMentionsToPlain,
+  parseGroupMentions,
+} from './groupMentions.js';
+export type { GroupMentionPick, GroupMentionSegment } from './groupMentions.js';
+
 // Source links ([Titel](quelle:N)) — citation-backed document links, FE/BE spec
 export {
   SOURCE_LINK_SCHEME,
