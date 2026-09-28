@@ -125,8 +125,9 @@ export function resolveCollectionName(source: string): string | undefined {
 /**
  * A user's own document, opened by `GET /api/documents/:id/reader`. Found in a
  * user notebook, the citation names that notebook — members of a shared one
- * read through it. From the owner's document search (`document:`,
- * `documentchat:`) it needs none.
+ * read through it — including a `document:` hit from a notebook-scoped search,
+ * which carries its notebook as `collectionId`. The owner's own documents
+ * (`document:`, `documentchat:`) need none.
  */
 function userReaderDocument(
   source: CitableSource

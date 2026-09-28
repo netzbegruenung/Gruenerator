@@ -31,6 +31,12 @@ vi.mock('../../../../services/search/QueryExpansionService.js', () => ({
   expandQuery: (...args: any[]) => mockExpandQuery(...args),
 }));
 
+const mockDocumentSearch = vi.fn();
+vi.mock('../../../../services/document-services/DocumentSearchService/index.js', () => ({
+  getQdrantDocumentService: () => ({ search: mockDocumentSearch }),
+  DocumentSearchService: class {},
+}));
+
 vi.mock('../../../../utils/logger.js', () => ({
   createLogger: () => ({
     info: vi.fn(),
@@ -484,6 +490,50 @@ describe('searchNode – collection priority chain (mocked services)', () => {
     );
 
     expect(result.searchedCollections).toEqual(['hamburg']);
+  });
+});
+
+// ─── searchNode: user-notebook scoped search ─────────────────────────────
+
+describe('searchNode – user-notebook scoped search', () => {
+  const NOTEBOOK = '0f8b6c1e-2d4a-4b8e-9c3f-5a6d7e8f9a0b';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDocumentSearch.mockResolvedValue({
+      results: [
+        {
+          document_id: 'doc-collab',
+          title: 'Von B',
+          relevant_content: 'Text',
+          similarity_score: 0.9,
+        },
+        {
+          document_id: 'doc-picked',
+          title: 'Eigen',
+          relevant_content: 'Text',
+          similarity_score: 0.8,
+        },
+      ],
+    });
+  });
+
+  it("cites a collaborator's document through the notebook it was found in", async () => {
+    const result = await searchNode(
+      makeState({
+        agentConfig: makeAgentConfig({ userId: 'owner' } as Partial<AgentConfig>),
+        documentIds: ['doc-picked'],
+        notebookDocumentIds: ['doc-collab'],
+        documentNotebookIds: { 'doc-collab': NOTEBOOK },
+      })
+    );
+
+    const byDoc = new Map(
+      result.citations!.map((c) => [c.readerDocument?.documentId, c.readerDocument])
+    );
+    expect(byDoc.get('doc-collab')).toEqual({ documentId: 'doc-collab', notebookId: NOTEBOOK });
+    // An @datei pick is the caller's own document — no notebook to go through.
+    expect(byDoc.get('doc-picked')).toEqual({ documentId: 'doc-picked', notebookId: null });
   });
 });
 

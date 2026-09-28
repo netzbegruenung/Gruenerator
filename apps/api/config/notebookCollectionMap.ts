@@ -247,20 +247,28 @@ export function isUserNotebookId(id: string): boolean {
  * search. Ownership is enforced here — UUIDs not owned by `userId` are
  * silently dropped so a forged or stale ID returns no documents.
  *
+ * `documentNotebookIds` names the notebook each document came in through: a
+ * shared notebook can hold a collaborator's document, and the reader grants
+ * access to that one only through the notebook.
+ *
  * Imported lazily inside the function body to avoid a Qdrant-helper boot
  * dependency at module load time (the helper initialises its Qdrant client).
  */
 export async function resolveUserNotebookDocumentIds(
   userId: string,
   notebookIds: string[]
-): Promise<{ documentIds: string[]; resolvedUserNotebookIds: string[] }> {
+): Promise<{
+  documentIds: string[];
+  resolvedUserNotebookIds: string[];
+  documentNotebookIds: Record<string, string>;
+}> {
   const uuids = notebookIds.filter(isUserNotebookId);
   if (uuids.length === 0 || !userId) {
-    return { documentIds: [], resolvedUserNotebookIds: [] };
+    return { documentIds: [], resolvedUserNotebookIds: [], documentNotebookIds: {} };
   }
   const { NotebookQdrantHelper } = await import('../database/services/NotebookQdrantHelper.js');
   const helper = new NotebookQdrantHelper();
-  const documentIds = new Set<string>();
+  const documentNotebookIds: Record<string, string> = {};
   const resolved: string[] = [];
   for (const uuid of uuids) {
     const collection = await helper.getNotebookCollection(uuid);
@@ -268,8 +276,12 @@ export async function resolveUserNotebookDocumentIds(
     resolved.push(uuid);
     const docs = await helper.getCollectionDocuments(uuid);
     for (const d of docs) {
-      if (d.document_id) documentIds.add(d.document_id);
+      if (d.document_id) documentNotebookIds[d.document_id] ??= uuid;
     }
   }
-  return { documentIds: [...documentIds], resolvedUserNotebookIds: resolved };
+  return {
+    documentIds: Object.keys(documentNotebookIds),
+    resolvedUserNotebookIds: resolved,
+    documentNotebookIds,
+  };
 }
