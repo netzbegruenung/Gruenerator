@@ -51,6 +51,7 @@ import {
   useSharedSystemAgents,
   useSharedUserAgents,
   useUserAgents,
+  type ForeignAgent,
   type SharedAgentEntry,
 } from '../agents/api';
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
@@ -141,17 +142,16 @@ function sortBy<T>(
 }
 
 /** Icon node for an agent chip — user agents use their chosen Phosphor `iconKey`. */
-function AgentIcon({ agent, isUser }: { agent: Agent; isUser?: boolean }) {
+function AgentIcon({ agent, isUser }: { agent: ForeignAgent; isUser?: boolean }) {
   if (isUser) return <PhosphorIcon name={agent.iconKey ?? 'PiSparkle'} />;
   const Icon = getAgentIcon(agent.identifier);
   return <Icon />;
 }
 
-interface AgentEntry {
-  agent: Agent;
-  isUser: boolean;
-  editable: boolean;
-}
+/** Only own agents carry the prompt, so only they can be edited or duplicated. */
+type AgentEntry =
+  | { agent: Agent; isUser: true; editable: true }
+  | { agent: ForeignAgent; isUser: false; editable: false };
 
 /**
  * One shape for every recipe card, whether it comes from the shipped catalogue
@@ -288,7 +288,7 @@ function AgenturaPage() {
 
   const q = search.toLowerCase();
 
-  const isAgentFav = (a: Agent) => agentFavorites.includes(a.identifier);
+  const isAgentFav = (a: ForeignAgent) => agentFavorites.includes(a.identifier);
 
   // Group-shared agents are system + user-created agents, deduped by identifier.
   const sharedAgents = useMemo<SharedAgentEntry[]>(() => {
@@ -506,7 +506,7 @@ function AgenturaPage() {
   const handleSelectRecipe = (mention: string) => {
     void navigate(`/agentura/rezept/${encodeURIComponent(mention)}`);
   };
-  const handleSelectAgent = (agent: Agent) => {
+  const handleSelectAgent = (agent: ForeignAgent) => {
     void navigate(`/agentura/agent/${encodeURIComponent(getAgentSlug(agent.identifier))}`);
   };
   const handleEditAgent = (agent: Agent) => {
@@ -519,7 +519,11 @@ function AgenturaPage() {
 
   // --- Item + card construction ---------------------------------------------
   const ownEntry = (agent: Agent): AgentEntry => ({ agent, isUser: true, editable: true });
-  const foreignEntry = (agent: Agent): AgentEntry => ({ agent, isUser: false, editable: false });
+  const foreignEntry = (agent: ForeignAgent): AgentEntry => ({
+    agent,
+    isUser: false,
+    editable: false,
+  });
 
   const toAgentItems = (entries: AgentEntry[]): MarketItem[] =>
     entries.map((entry) => ({
@@ -540,7 +544,7 @@ function AgenturaPage() {
   });
 
   /** „Agent · 5 Tools · Wissen" — die Zeile, die den Typ-Badge ersetzt. */
-  const agentMeta = (agent: Agent): string => {
+  const agentMeta = (agent: ForeignAgent): string => {
     const tools = toolCount(agent);
     return agenturaMetaLine([
       'Agent',
