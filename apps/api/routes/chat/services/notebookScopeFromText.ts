@@ -248,7 +248,16 @@ export async function notebookIdsForTurn(params: {
 }): Promise<string[]> {
   const { explicitIds, defaultNotebookId, ...rest } = params;
   const chosenDefault = !!defaultNotebookId && defaultNotebookId !== ALL_SOURCES_NOTEBOOK_ID;
-  if (explicitIds.length > 0 || chosenDefault) return explicitIds;
+  if (explicitIds.length > 0 || chosenDefault) {
+    // Beta 28.09.2026: „im notebook berlin" scopte nicht, und das Log sagte nicht,
+    // welche Auswahl davorstand.
+    if (NOTEBOOK_WORD_RE.test(rest.text)) {
+      log.info(
+        `text scope skipped: ${explicitIds.length > 0 ? `explicit ${explicitIds.join(', ')}` : `default ${defaultNotebookId}`}`
+      );
+    }
+    return explicitIds;
+  }
   const id = await resolveNotebookScopeFromText(rest);
   return id ? [id] : [];
 }
