@@ -183,6 +183,7 @@ export async function syncUserAgents(get: MentionableFetch): Promise<UserAgentMe
   );
   const list: UserAgentMentionable[] = Array.isArray(res?.agents)
     ? res.agents.map((a) => ({
+        id: a.id,
         identifier: a.identifier,
         title: a.title,
         description: a.description,

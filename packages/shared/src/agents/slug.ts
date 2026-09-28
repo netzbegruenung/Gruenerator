@@ -21,6 +21,17 @@ export function agentKey(agent: { id?: string; identifier: string }): string {
 }
 
 /**
+ * How to name an agent across owners — in URLs, chat requests, mentions and
+ * favourites: the row uuid for someone else's user agent (its identifier may
+ * collide with another owner's), the readable identifier for registry agents
+ * and the viewer's own (unique for them). Owner-only calls (edit, delete,
+ * sharing) keep using the identifier.
+ */
+export function agentRef(agent: { id?: string; identifier: string }, isOwn: boolean): string {
+  return agent.id && !isOwn ? agent.id : agent.identifier;
+}
+
+/**
  * Convert an agent identifier to its URL slug form. Agents with an explicit
  * `slug` use it verbatim; otherwise the `gruenerator-` registry prefix is
  * stripped so the browser bar shows `/agents/oeffentlichkeitsarbeit` instead

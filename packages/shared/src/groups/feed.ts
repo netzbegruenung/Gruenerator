@@ -179,7 +179,9 @@ export function toGroupFeedItems(
     items.push({
       ...base(r, 'user_agents', 'agent', str(r.title) ?? 'Grünerator-Agent'),
       excerpt: str(r.description),
-      slug: str(r.identifier),
+      // The row uuid, not the identifier: that is unique only per owner, and a
+      // colleague's agent may share it with the viewer's own.
+      slug: String(r.id),
     });
   }
   for (const r of rows('system_agents')) {

@@ -9,6 +9,7 @@ import {
 import { type PublicTextForm, type RecurringTask, type TextForm } from '@gruenerator/contracts';
 import {
   agentKey,
+  agentRef,
   agenturaMetaLine,
   getAgentSlug,
   getVisibleSystemAgentsForLocale,
@@ -21,7 +22,7 @@ import {
   type AgenturaType,
   type SkillCategory,
 } from '@gruenerator/shared/agents';
-import { sortByUsage, type UsageMap } from '@gruenerator/shared/utils';
+import { sortByUsage, type UsageMap, type UsageStat } from '@gruenerator/shared/utils';
 import {
   Button,
   ConfirmDialogProvider,
@@ -269,7 +270,7 @@ function AgenturaPage() {
   const toggleFavorite = useSkillFavoritesStore((s) => s.toggleFavorite);
   const { lvIds, shelfLabel: lvShelfLabel, isHydrated: rolesLoaded } = useUserLandesverbaende();
 
-  const { data: userAgents = [] } = useUserAgents();
+  const { data: userAgents = [], isSuccess: userAgentsLoaded } = useUserAgents();
   const { data: sharedSystemAgents = [] } = useSharedSystemAgents();
   const { data: sharedUserAgents = [] } = useSharedUserAgents();
   const { data: publicAgents = [] } = usePublicUserAgents();
@@ -278,6 +279,7 @@ function AgenturaPage() {
   const agentFavorites = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggleAgentFavorite = useAgentFavoritesStore((s) => s.toggle);
   const recordFavoriteTitles = useAgentFavoritesStore((s) => s.recordTitles);
+  const rekeyFavorites = useAgentFavoritesStore((s) => s.rekey);
   const { data: agentUsage = {} } = useItemUsage('agent');
   const { data: recurringTasks = [] } = useRecurringTasks();
 
@@ -289,26 +291,29 @@ function AgenturaPage() {
 
   const q = search.toLowerCase();
 
-  const isAgentFav = (a: ForeignAgent) => agentFavorites.includes(a.identifier);
+  const isAgentFav = (e: AgentEntry) => agentFavorites.includes(agentRef(e.agent, e.isUser));
 
-  // Group-shared agents are system + user-created agents, deduped by identifier.
+  // Group-shared agents are system + user-created agents, deduped by
+  // `agentKey` — a user agent's identifier is only unique per owner.
   const sharedAgents = useMemo<SharedAgentEntry[]>(() => {
-    const byIdentifier = new Map<string, SharedAgentEntry>();
+    const byKey = new Map<string, SharedAgentEntry>();
     for (const entry of [...sharedSystemAgents, ...sharedUserAgents]) {
-      if (!byIdentifier.has(entry.agent.identifier))
-        byIdentifier.set(entry.agent.identifier, entry);
+      const key = agentKey(entry.agent);
+      if (!byKey.has(key)) byKey.set(key, entry);
     }
-    return [...byIdentifier.values()];
+    return [...byKey.values()];
   }, [sharedSystemAgents, sharedUserAgents]);
+
+  const ownAgentKeys = useMemo(() => new Set(userAgents.map(agentKey)), [userAgents]);
 
   // Shared agents minus the caller's own: sharing an own agent into an own
   // group puts it in both lists, and „Meine" would show it twice. Compared by
   // `agentKey`, not identifier — a colleague's agent under the same identifier
   // is a different agent and stays.
-  const sharedForeignAgents = useMemo(() => {
-    const ownKeys = new Set(userAgents.map(agentKey));
-    return sharedAgents.filter((e) => !ownKeys.has(agentKey(e.agent)));
-  }, [sharedAgents, userAgents]);
+  const sharedForeignAgents = useMemo(
+    () => sharedAgents.filter((e) => !ownAgentKeys.has(agentKey(e.agent))),
+    [sharedAgents, ownAgentKeys]
+  );
 
   const hiddenSkillMentions = useHiddenSkillMentions();
   const hiddenAgentIdentifiers = useHiddenAgentIdentifiers();
@@ -331,10 +336,11 @@ function AgenturaPage() {
   // Public community agents („Öffentlich"): owners still see their own listing,
   // but drop agents only reachable via a group share (and not owned).
   const communityAgents = useMemo(() => {
-    const ownIds = new Set(userAgents.map((a) => a.identifier));
-    const sharedIds = new Set(sharedAgents.map((e) => e.agent.identifier));
-    return publicAgents.filter((a) => ownIds.has(a.identifier) || !sharedIds.has(a.identifier));
-  }, [publicAgents, userAgents, sharedAgents]);
+    const sharedKeys = new Set(sharedAgents.map((e) => agentKey(e.agent)));
+    return publicAgents.filter(
+      (a) => ownAgentKeys.has(agentKey(a)) || !sharedKeys.has(agentKey(a))
+    );
+  }, [publicAgents, ownAgentKeys, sharedAgents]);
 
   // Own recipes ("Meine Rezepte"): genuinely own, custom-mention rows — a
   // preset/recipe override (`kind !== 'custom'`) has no identity of its own,
@@ -486,21 +492,19 @@ function AgenturaPage() {
   // All agents deduped across pools — used for favourites + cross-category search.
   const allAgentEntries = useMemo<AgentEntry[]>(() => {
     const map = new Map<string, AgentEntry>();
-    for (const a of userAgents) map.set(a.identifier, { agent: a, isUser: true, editable: true });
-    for (const e of sharedAgents)
-      if (!map.has(e.agent.identifier))
-        map.set(e.agent.identifier, { agent: e.agent, isUser: false, editable: false });
-    for (const a of communityAgents)
-      if (!map.has(a.identifier))
-        map.set(a.identifier, { agent: a, isUser: false, editable: false });
-    for (const a of systemAgents)
-      if (!map.has(a.identifier))
-        map.set(a.identifier, { agent: a, isUser: false, editable: false });
+    const addForeign = (a: ForeignAgent) => {
+      const key = agentKey(a);
+      if (!map.has(key)) map.set(key, { agent: a, isUser: false, editable: false });
+    };
+    for (const a of userAgents) map.set(agentKey(a), { agent: a, isUser: true, editable: true });
+    for (const e of sharedAgents) addForeign(e.agent);
+    for (const a of communityAgents) addForeign(a);
+    for (const a of systemAgents) addForeign(a);
     return [...map.values()];
   }, [userAgents, sharedAgents, communityAgents, systemAgents]);
 
   const favoriteAgents = useMemo(
-    () => allAgentEntries.filter((e) => agentFavorites.includes(e.agent.identifier)),
+    () => allAgentEntries.filter((e) => agentFavorites.includes(agentRef(e.agent, e.isUser))),
     [allAgentEntries, agentFavorites]
   );
 
@@ -509,15 +513,58 @@ function AgenturaPage() {
   // favourites starred before the store carried titles.
   useEffect(() => {
     recordFavoriteTitles(
-      Object.fromEntries(favoriteAgents.map((e) => [e.agent.identifier, e.agent.title]))
+      Object.fromEntries(favoriteAgents.map((e) => [agentRef(e.agent, e.isUser), e.agent.title]))
     );
   }, [favoriteAgents, recordFavoriteTitles]);
+
+  // Stars on someone else's agent used to be stored under its identifier,
+  // which also lit every other agent of that name. Move each to the uuid, but
+  // only when that is unambiguous: the caller's own agents must have loaded
+  // (before that, an own agent looks foreign and would lose its star), none of
+  // them may carry the identifier, and exactly one foreign agent may.
+  useEffect(() => {
+    if (!userAgentsLoaded) return;
+    const ownIdentifiers = new Set(userAgents.map((a) => a.identifier));
+    const candidates = new Map<string, string[]>();
+    for (const e of allAgentEntries) {
+      const ref = agentRef(e.agent, e.isUser);
+      if (ref === e.agent.identifier || ownIdentifiers.has(e.agent.identifier)) continue;
+      candidates.set(e.agent.identifier, [...(candidates.get(e.agent.identifier) ?? []), ref]);
+    }
+    const moves: Record<string, string> = {};
+    for (const [identifier, refs] of candidates) if (refs.length === 1) moves[identifier] = refs[0];
+    rekeyFavorites(moves);
+  }, [allAgentEntries, userAgents, userAgentsLoaded, rekeyFavorites]);
+
+  // Usage is recorded under whatever the chat sent as `agentId`. A teammate's
+  // agent used to be sent by identifier and now goes by uuid, so its older
+  // usage sits under the identifier — carry it over unless one of the
+  // caller's own agents has that identifier (then the usage may be theirs).
+  const agentUsageByRef = useMemo(() => {
+    const map = new Map<string, UsageStat>(
+      agentUsage instanceof Map ? agentUsage : Object.entries(agentUsage)
+    );
+    const ownIdentifiers = new Set(userAgents.map((a) => a.identifier));
+    for (const e of allAgentEntries) {
+      const ref = agentRef(e.agent, e.isUser);
+      const legacy = map.get(e.agent.identifier);
+      if (
+        ref !== e.agent.identifier &&
+        legacy &&
+        !map.has(ref) &&
+        !ownIdentifiers.has(e.agent.identifier)
+      )
+        map.set(ref, legacy);
+    }
+    return map;
+  }, [agentUsage, allAgentEntries, userAgents]);
 
   const handleSelectRecipe = (mention: string) => {
     void navigate(`/agentura/rezept/${encodeURIComponent(mention)}`);
   };
-  const handleSelectAgent = (agent: ForeignAgent) => {
-    void navigate(`/agentura/agent/${encodeURIComponent(getAgentSlug(agent.identifier))}`);
+  const handleSelectAgent = (entry: AgentEntry) => {
+    const ref = agentRef(entry.agent, entry.isUser);
+    void navigate(`/agentura/agent/${encodeURIComponent(getAgentSlug(ref))}`);
   };
   const handleEditAgent = (agent: Agent) => {
     void navigate(`/agents/${agent.identifier}/edit`);
@@ -538,7 +585,7 @@ function AgenturaPage() {
   const toAgentItems = (entries: AgentEntry[]): MarketItem[] =>
     entries.map((entry) => ({
       kind: 'agent' as const,
-      isFavorite: isAgentFav(entry.agent),
+      isFavorite: isAgentFav(entry),
       entry,
     }));
   const toRecipeItems = (entries: RecipeEntry[]): MarketItem[] =>
@@ -580,9 +627,11 @@ function AgenturaPage() {
       meta={agentMeta(entry.agent)}
       headingLevel={3}
       description={entry.agent.description}
-      onSelect={() => handleSelectAgent(entry.agent)}
+      onSelect={() => handleSelectAgent(entry)}
       isFavorite={isFavorite}
-      onToggleFavorite={() => toggleAgentFavorite(entry.agent.identifier, entry.agent.title)}
+      onToggleFavorite={() =>
+        toggleAgentFavorite(agentRef(entry.agent, entry.isUser), entry.agent.title)
+      }
       onEdit={entry.editable ? () => handleEditAgent(entry.agent) : undefined}
       onDuplicate={
         entry.editable
@@ -625,8 +674,8 @@ function AgenturaPage() {
 
   const sortAgentEntries = (entries: AgentEntry[]) => {
     const sorted = sortBy(entries, sort, (e) => e.agent.title, {
-      getId: (e) => e.agent.identifier,
-      map: agentUsage,
+      getId: (e) => agentRef(e.agent, e.isUser),
+      map: agentUsageByRef,
     });
     return sort === 'empfohlen'
       ? pinnedFirst(sorted, (e) => Boolean(e.agent.pinnedToSidebar))

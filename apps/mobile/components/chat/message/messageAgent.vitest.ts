@@ -101,3 +101,33 @@ describe('shouldShowAgentBadge', () => {
     expect(shouldShowAgentBadge(null, 'gruenerator-chat')).toBe(false);
   });
 });
+
+/**
+ * A teammate's agent now routes by its row uuid, which is the mentionable's
+ * `identifier`. Threads started before that carry the readable identifier,
+ * which is the mentionable's `mention`.
+ */
+describe('resolveMessageAgent — shared user agents', () => {
+  const shared = mentionable({
+    type: 'useragent',
+    identifier: '44444444-4444-4444-8444-444444444444',
+    title: 'Wahlkampf',
+    mention: 'wahlkampf-xy',
+  });
+
+  it('resolves by row uuid', () => {
+    expect(resolveMessageAgent({ agentId: shared.identifier }, SYSTEM, [shared])?.title).toBe(
+      'Wahlkampf'
+    );
+  });
+
+  it('resolves an older thread by the readable identifier', () => {
+    expect(resolveMessageAgent({ agentId: 'wahlkampf-xy' }, SYSTEM, [shared])?.title).toBe(
+      'Wahlkampf'
+    );
+  });
+
+  it('does not match a recipe by its mention', () => {
+    expect(resolveMessageAgent({ agentId: 'mein-rezept' }, SYSTEM, CUSTOM)).toBeNull();
+  });
+});

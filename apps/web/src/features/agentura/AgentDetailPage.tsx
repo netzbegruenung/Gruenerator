@@ -1,5 +1,6 @@
 import {
   agentKey,
+  agentRef,
   getAgentSlug,
   getVisibleSystemAgentsForLocale,
   type Agent,
@@ -43,7 +44,7 @@ function AgentDetailPage() {
   const navigate = useNavigate();
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
   const { data: userAgents = [] } = useUserAgents();
-  const { agent, isUserAgent, isLoading } = useAgentBySlug(slug);
+  const { agent, isUserAgent, isOwn: isOwnAgent, isLoading } = useAgentBySlug(slug);
 
   const agentFavorites = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggleAgentFavorite = useAgentFavoritesStore((s) => s.toggle);
@@ -51,13 +52,8 @@ function AgentDetailPage() {
   const [showInfo, setShowInfo] = useState(false);
   const [tab, setTab] = useState<TabKey>('overview');
 
-  // Ownership: the caller's own agents come from useUserAgents(). Only owners
-  // get the share dialog; everyone else gets a plain copy-link.
-  const isOwnAgent = useMemo(
-    () => userAgents.some((a) => a.identifier === agent?.identifier),
-    [userAgents, agent]
-  );
-
+  // Only owners get the edit button and the share dialog; everyone else gets a
+  // plain copy-link.
   const related = useMemo(() => {
     if (!agent) return [];
     const pool: Agent[] = [
@@ -88,8 +84,9 @@ function AgentDetailPage() {
   }
 
   const Icon = getAgentIcon(agent.identifier);
-  const chatSlug = getAgentSlug(agent.identifier);
-  const isFavorite = agentFavorites.includes(agent.identifier);
+  const ref = agentRef(agent, isOwnAgent);
+  const chatSlug = getAgentSlug(ref);
+  const isFavorite = agentFavorites.includes(ref);
 
   const tools = [...(agent.enabledTools ?? []), ...(agent.plugins ?? [])];
   const knowledge: string[] = [];
@@ -154,7 +151,7 @@ function AgentDetailPage() {
           Im Chat öffnen
         </Button>
         <div className="mx-1 h-6 w-px bg-grey-200 dark:bg-grey-700" />
-        {isUserAgent && (
+        {isOwnAgent && (
           <button
             type="button"
             className={ICON_BTN}
@@ -168,7 +165,7 @@ function AgentDetailPage() {
           type="button"
           className={ICON_BTN}
           aria-label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-          onClick={() => toggleAgentFavorite(agent.identifier, agent.title)}
+          onClick={() => toggleAgentFavorite(ref, agent.title)}
         >
           {isFavorite ? (
             <PiStarFill className="h-[18px] w-[18px] text-secondary-600" />

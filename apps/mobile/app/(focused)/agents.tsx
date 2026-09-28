@@ -12,6 +12,7 @@ import {
   SKILL_CATEGORY_LABELS,
   SKILL_CATEGORY_ORDER,
   agentKey,
+  agentRef,
   agenturaCategoriesForPlatform,
   agenturaMetaLine,
   getSystemAgent,
@@ -141,11 +142,14 @@ export default function AgentsScreen() {
     [systemAgents]
   );
 
+  const ownAgentKeys = useMemo(() => new Set(userAgents.map(agentKey)), [userAgents]);
+
   // „Öffentlich": publicly-listed community agents, minus the ones the user
-  // already owns (those show under "Meine Grüneratoren").
+  // already owns (those show under "Meine Grüneratoren"). By `agentKey`: a
+  // colleague's agent under one of the user's identifiers is still theirs.
   const communityAgents = useMemo(
-    () => publicAgents.filter((pa) => !userAgents.some((ua) => ua.identifier === pa.identifier)),
-    [publicAgents, userAgents]
+    () => publicAgents.filter((pa) => !ownAgentKeys.has(agentKey(pa))),
+    [publicAgents, ownAgentKeys]
   );
 
   const hiddenSkillMentions = useHiddenSkillMentions();
@@ -186,11 +190,11 @@ export default function AgentsScreen() {
       router.push(
         routeWithParams('/(focused)/chat-conversation', {
           threadId: 'new',
-          agentId: agent.identifier,
+          agentId: agentRef(agent, ownAgentKeys.has(agentKey(agent))),
         })
       );
     },
-    [router]
+    [router, ownAgentKeys]
   );
 
   // A recipe is a composer mention, not an agent selection: open a fresh chat

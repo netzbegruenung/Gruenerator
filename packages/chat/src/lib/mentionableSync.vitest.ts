@@ -389,14 +389,20 @@ describe('syncUserAgents origin', () => {
   it('trägt die Gruppe geteilter Agenten und lässt eigene ohne Herkunft', async () => {
     const list = await syncUserAgents(
       fetchAgents([
-        { ...base, identifier: 'mein-agent', sharedFromGroup: null },
-        { ...base, identifier: 'kv-agent', iconKey: 'PiLeaf', sharedFromGroup: 'KV Köln' },
+        { ...base, id: 'u-1', identifier: 'mein-agent', sharedFromGroup: null },
+        {
+          ...base,
+          id: 'u-2',
+          identifier: 'kv-agent',
+          iconKey: 'PiLeaf',
+          sharedFromGroup: 'KV Köln',
+        },
       ])
     );
 
     expect(list).toEqual([
-      { ...base, identifier: 'mein-agent', sharedFromGroup: null },
-      { ...base, identifier: 'kv-agent', iconKey: 'PiLeaf', sharedFromGroup: 'KV Köln' },
+      { ...base, id: 'u-1', identifier: 'mein-agent', sharedFromGroup: null },
+      { ...base, id: 'u-2', identifier: 'kv-agent', iconKey: 'PiLeaf', sharedFromGroup: 'KV Köln' },
     ]);
   });
 

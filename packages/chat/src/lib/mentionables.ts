@@ -1,4 +1,5 @@
 import {
+  agentRef,
   isAdminVisibleSkill,
   isLvItemVisibleForRoles,
   isSkillOfferedIn,
@@ -420,11 +421,14 @@ export function getTextformMentionables(): Mentionable[] {
  * Writing its identifier into `activeSkillMention` would make the backend look
  * up a recipe by that name and announce a text form nobody chose.
  *
- * `mention` IS the identifier: `user_agents.identifier` is already a slug and
- * is the key `getAgentForUser` resolves against, so deriving a second string
- * here would just be a second spelling that can drift.
+ * `mention` IS the identifier: `user_agents.identifier` is already a slug, so
+ * deriving a second string here would just be a second spelling that can
+ * drift. The mentionable's own `identifier` — what the chat request sends as
+ * `agentId` — is `agentRef`: the row uuid for a teammate's agent, whose
+ * identifier may belong to another owner's agent too.
  */
 export interface UserAgentMentionable {
+  id: string;
   identifier: string;
   title: string;
   description: string;
@@ -447,7 +451,7 @@ export function userAgentToMentionable(a: UserAgentMentionable): Mentionable {
     // empty promptTemplate keeps the insertion identical to a skill's.
     category: 'function',
     trigger: '@',
-    identifier: a.identifier,
+    identifier: agentRef(a, !a.sharedFromGroup),
     title: a.title,
     description: a.sharedFromGroup ? `Grünerator aus ${a.sharedFromGroup}` : a.description,
     avatar: a.avatar,
