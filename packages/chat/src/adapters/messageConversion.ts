@@ -1,4 +1,5 @@
 import { TOOL_APPROVAL_OPTIONS } from '../lib/toolApproval';
+import { dropDuplicateToolCalls } from '../lib/toolCallParts';
 import { buildToolDerivedCustom } from '../lib/toolDerivedCustom';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 
@@ -139,14 +140,14 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
       const contentParts: Array<TextPart | ToolCallPart> = [];
 
       if (m.metadata?.toolCalls) {
-        for (const tc of m.metadata.toolCalls) {
+        for (const [i, tc] of m.metadata.toolCalls.entries()) {
           if (tc.toolName === 'ask_human') {
             // Beantwortete Loop-Rückfrage: echte args (question/options),
             // Antwort als String — die Karte rendert `String(result)`.
             const answer = (tc.result as Record<string, unknown> | undefined)?.answer;
             contentParts.push({
               type: 'tool-call' as const,
-              toolCallId: tc.toolCallId || `tc_${m.id}`,
+              toolCallId: tc.toolCallId || `tc_${m.id}_${i}`,
               toolName: tc.toolName,
               // Aus der Datenbank gelesenes JSON — die Form ist JSON-tauglich,
               // der persistierte Typ nur weiter gefasst.
@@ -157,7 +158,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
           }
           contentParts.push({
             type: 'tool-call' as const,
-            toolCallId: tc.toolCallId || `tc_${m.id}`,
+            toolCallId: tc.toolCallId || `tc_${m.id}_${i}`,
             toolName: tc.toolName,
             args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
             result: tc.result,
@@ -244,7 +245,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
 
       return {
         role: m.role as 'user' | 'assistant',
-        content: contentParts,
+        content: dropDuplicateToolCalls(contentParts),
         id: m.id,
         ...(clarUnresolved || approvalUnresolved
           ? { status: { type: 'requires-action' as const, reason: 'tool-calls' as const } }
