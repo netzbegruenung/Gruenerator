@@ -201,11 +201,8 @@ export function NotebookLiveSearch({
 
   // Without the facet vocabulary the parser reads the query differently, so a
   // search before it arrives would be replaced by a second one right after.
-  // It is requested with the first keystroke, so until then it counts as loading.
-  const awaitingVocabulary =
-    hasFacets &&
-    Object.keys(filters.filterFields).length === 0 &&
-    (!filters.filtersEnabled || filters.filtersLoading);
+  // Only its first load holds the search; a refetch never takes the hits away.
+  const awaitingVocabulary = hasFacets && !filters.filtersFetched;
 
   const live = useLiveResearch({
     enabled: !awaitingVocabulary,
