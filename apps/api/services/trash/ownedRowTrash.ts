@@ -12,7 +12,9 @@
  * constants, never input.
  */
 import { type TrashKind } from '@gruenerator/contracts';
+import { sql } from 'drizzle-orm';
 
+import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
 
@@ -85,8 +87,10 @@ export async function getTrashedOwnedRow<Row>(
 
 /**
  * Clear `deleted_at`. A unique key the row shares with a live one answers
- * `conflict` — never a silent rename. Runs in `transaction` because that path
- * rethrows the pg error with its code; `query` would strip it.
+ * `conflict` — never a silent rename; a row purged in between answers
+ * `not_found`. Runs through Drizzle because that path keeps the pg error code
+ * (in `cause`); `PostgresService.query` strips it, and its `transaction`
+ * would log the expected 23505 as a rollback error.
  */
 export async function restoreOwnedRow(
   t: OwnedTrashTable,
@@ -96,17 +100,15 @@ export async function restoreOwnedRow(
   const found = await getTrashedOwnedRow(t, userId, id);
   if (typeof found === 'string') return found;
   try {
-    await getPostgresInstance().transaction((client) =>
-      client.query(
-        `UPDATE ${t.table} SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`,
-        [id]
-      )
+    const result = await getDrizzleInstance().execute(
+      sql`UPDATE ${sql.raw(t.table)} SET deleted_at = NULL
+          WHERE id = ${id} AND deleted_at IS NOT NULL RETURNING id`
     );
+    return result.rows.length > 0 ? 'ok' : 'not_found';
   } catch (error) {
     if (isUniqueViolation(error)) return 'conflict';
     throw error;
   }
-  return 'ok';
 }
 
 export function listTrashedOwnedRows<Row>(

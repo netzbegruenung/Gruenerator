@@ -5,6 +5,8 @@
  * it in the Papierkorb, restore brings it back, purge removes it only while it
  * is still trashed.
  */
+import { type SQL } from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface Row {
@@ -16,6 +18,8 @@ interface Row {
 
 let rows: Row[] = [];
 let restoreError: unknown = null;
+/** A purge that lands between the restore's lookup and its UPDATE. */
+let purgedBeforeRestore = false;
 const statements: string[] = [];
 
 const norm = (sql: string): string => sql.replace(/\s+/g, ' ').trim();
@@ -33,8 +37,9 @@ function run(sql: string, params: unknown[]): Promise<unknown[]> {
   }
   if (s.startsWith('UPDATE agents SET deleted_at = NULL')) {
     if (restoreError) return Promise.reject(restoreError);
-    for (const r of rows) if (r.id === first && r.deleted_at) r.deleted_at = null;
-    return Promise.resolve([]);
+    const hit = rows.filter((r) => r.id === first && r.deleted_at && !purgedBeforeRestore);
+    for (const r of hit) r.deleted_at = null;
+    return Promise.resolve(hit.map((r) => ({ id: r.id })));
   }
   if (s.startsWith('SELECT id, title, deleted_at, user_id FROM agents')) {
     return Promise.resolve(rows.filter((r) => r.id === first && r.deleted_at));
@@ -60,9 +65,14 @@ function run(sql: string, params: unknown[]): Promise<unknown[]> {
 const reportBackgroundError = vi.fn();
 
 vi.mock('../../database/services/PostgresService.js', () => ({
-  getPostgresInstance: () => ({
-    query: vi.fn(run),
-    transaction: <T>(fn: (client: { query: typeof run }) => Promise<T>) => fn({ query: run }),
+  getPostgresInstance: () => ({ query: vi.fn(run) }),
+}));
+vi.mock('../../database/services/DrizzleService.js', () => ({
+  getDrizzleInstance: () => ({
+    execute: async (query: SQL) => {
+      const { sql, params } = new PgDialect().sqlToQuery(query);
+      return { rows: await run(sql, params) };
+    },
   }),
 }));
 vi.mock('../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
@@ -89,6 +99,7 @@ const trashed = async (): Promise<string[]> =>
 beforeEach(() => {
   rows = [{ id: ID, user_id: USER, title: 'Presse-Agent', deleted_at: null }];
   restoreError = null;
+  purgedBeforeRestore = false;
   statements.length = 0;
   reportBackgroundError.mockClear();
 });
@@ -137,6 +148,12 @@ describe('owned-row Papierkorb lifecycle', () => {
 
     restoreError = new Error('connection reset');
     await expect(restoreOwnedRow(TABLE, USER, ID)).rejects.toThrow('connection reset');
+  });
+
+  it('restore answers not_found when a purge removed the row in between', async () => {
+    await trashOwnedRow(TABLE, USER, ID);
+    purgedBeforeRestore = true;
+    expect(await restoreOwnedRow(TABLE, USER, ID)).toBe('not_found');
   });
 
   it('purges only a trashed row, and only one trashed before the cutoff', async () => {
