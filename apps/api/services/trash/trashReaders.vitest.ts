@@ -39,7 +39,18 @@ const SCAN_ROOTS = [
   'services/hocuspocus/src',
 ];
 
-type AllowEntry = readonly [file: string, table: TrashableTableName, reason: string];
+/**
+ * `marker` narrows an entry to the statements whose SQL contains it; without
+ * one the entry excuses every unfiltered reader of `table` in `file`. Permanent
+ * exceptions in a file that also holds filtered readers must carry a marker, or
+ * the guard goes blind for the whole file.
+ */
+type AllowEntry = readonly [
+  file: string,
+  table: TrashableTableName,
+  reason: string,
+  marker?: string,
+];
 
 const HOCUSPOCUS =
   'Hocuspocus stays untouched (Global Constraint 6); for collab docs auth.ts refuses is_deleted rows in code and persistence only runs after auth';
@@ -100,7 +111,14 @@ const ALLOWLIST: readonly AllowEntry[] = [
   [
     'apps/api/services/sharedMediaService.ts',
     'shared_media',
-    'quota (getLibraryUsage) and the orphan bug counter: trashed media keep their files on disk until the purge, so they still count',
+    'quota (getLibraryUsage): trashed media keep their files on disk until the purge, so they still count',
+    '${LIBRARY_ITEM_CLAUSE}',
+  ],
+  [
+    'apps/api/services/sharedMediaService.ts',
+    'shared_media',
+    'countFileBearingOrphans: a bug counter over dead-status rows, trashed or not',
+    'AND file_path IS NOT NULL',
   ],
   ['apps/api/routes/auth/templates/adminTemplates.ts', 'user_templates', PERMANENT_ADMIN],
   [
@@ -387,6 +405,7 @@ interface Offender {
   file: string;
   table: TrashableTableName;
   line: number;
+  statement: string;
 }
 
 function scan(): Offender[] {
@@ -425,7 +444,7 @@ function scan(): Offender[] {
     for (const { text, index } of stringLiterals(source)) {
       for (const table of TABLES) {
         if (readsTable(text, table) && !satisfies(fragmentFilters(text), table)) {
-          offenders.push({ file: rel, table, line: lineOf(index) });
+          offenders.push({ file: rel, table, line: lineOf(index), statement: text });
         }
       }
     }
@@ -442,7 +461,7 @@ function scan(): Offender[] {
         new RegExp(`isNull\\(\\s*\\w+\\.deleted_at\\s*\\)`).test(statement) ||
         (table === 'collaborative_documents' &&
           new RegExp(`eq\\(\\s*\\w+\\.is_deleted\\s*,\\s*false\\s*\\)`).test(statement));
-      if (!ok) offenders.push({ file: rel, table, line: lineOf(m.index) });
+      if (!ok) offenders.push({ file: rel, table, line: lineOf(m.index), statement });
     }
   }
   return offenders;
@@ -452,7 +471,10 @@ const key = (file: string, table: string): string => `${file} :: ${table}`;
 
 describe('Papierkorb readers hide trashed rows', () => {
   const offenders = scan();
-  const allowed = new Map(ALLOWLIST.map(([file, table, reason]) => [key(file, table), reason]));
+  const excuses = (entry: AllowEntry, o: Offender): boolean =>
+    entry[0] === o.file &&
+    entry[1] === o.table &&
+    (entry[3] === undefined || o.statement.includes(entry[3]));
 
   it('finds readers at all (the scan is not silently blind)', () => {
     expect(offenders.length + ALLOWLIST.length).toBeGreaterThan(0);
@@ -463,15 +485,14 @@ describe('Papierkorb readers hide trashed rows', () => {
 
   it('every unfiltered reader is on the allowlist', () => {
     const missing = offenders
-      .filter((o) => !allowed.has(key(o.file, o.table)))
+      .filter((o) => !ALLOWLIST.some((entry) => excuses(entry, o)))
       .map((o) => `${o.file}:${o.line} reads ${o.table} without deleted_at IS NULL`);
     expect(missing).toEqual([]);
   });
 
   it('every allowlist entry still matches an unfiltered reader', () => {
-    const live = new Set(offenders.map((o) => key(o.file, o.table)));
-    const stale = ALLOWLIST.filter(([file, table]) => !live.has(key(file, table))).map(
-      ([file, table]) => key(file, table)
+    const stale = ALLOWLIST.filter((entry) => !offenders.some((o) => excuses(entry, o))).map(
+      ([file, table, , marker]) => (marker ? `${key(file, table)} [${marker}]` : key(file, table))
     );
     expect(stale).toEqual([]);
   });
