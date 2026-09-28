@@ -78,6 +78,7 @@ export function useNotebookCollectionsQuery(enabled: boolean) {
           .then(async (res) =>
             res.ok ? mentionCollectionsResponseSchema.parse(await res.json()).collections : []
           )
+          // swallow-ok: Zusatzliste; ältere Backends kennen /shared nicht, die eigene Liste bleibt laut
           .catch(() => []),
       ]);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
