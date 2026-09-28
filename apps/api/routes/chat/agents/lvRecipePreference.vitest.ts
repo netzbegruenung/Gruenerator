@@ -4,7 +4,11 @@
  * Registries (SKILLS, LANDESVERBAENDE): die Zuordnung ist abgeleitet, nicht
  * konfiguriert, also muss der Test dieselbe Ableitung sehen wie die Laufzeit.
  */
-import { DISABLED_LV_AGENT_IDS, getSystemAgent, LANDESVERBAENDE } from '@gruenerator/shared/agents';
+import {
+  DISABLED_LV_AGENT_IDS,
+  getSystemAgent,
+  LANDESVERBAND_ENTRIES,
+} from '@gruenerator/shared/agents';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -276,9 +280,13 @@ describe('ownedLvDefaultRecipeMention', () => {
   // Bekäme ein Bürger-Agent ein zweites Rezept, fiele das Vorladen still weg —
   // dieser Test macht das laut.
   it.each(
-    LANDESVERBAENDE.filter((lv) => !DISABLED_LV_AGENT_IDS.has(lv.buergerAgentId)).map(
-      (lv) => [lv.buergerAgentId] as const
-    )
+    LANDESVERBAND_ENTRIES.flatMap((lv) => [
+      lv.buergerAgentId,
+      lv.beschlussAgentId,
+      lv.wahlprogrammAgentId,
+    ])
+      .filter((id): id is string => id !== undefined && !DISABLED_LV_AGENT_IDS.has(id))
+      .map((id) => [id] as const)
   )('lädt auf %s vor', (id) => {
     const agent = getSystemAgent(id);
     expect(agent).toBeDefined();

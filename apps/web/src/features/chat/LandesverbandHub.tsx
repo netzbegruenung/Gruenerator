@@ -1,6 +1,7 @@
 import {
   getAgentSlug,
   getSystemAgent,
+  landesverbandAgentRole,
   localizeAgent,
   type LvHub,
 } from '@gruenerator/shared/agents';
@@ -18,22 +19,18 @@ interface LandesverbandHubProps {
 
 /**
  * Landing for a Landesverband's branded link (`/agents/gruene-berlin`). The LV
- * runs three specialist agents — a creative Öffentlichkeitsarbeit agent, a
- * factual Bürger*innenanfragen agent and a Wahlprüfsteine agent — that stay
- * separate so no voice is diluted. This hub offers all of them behind the one
+ * runs up to five specialist agents — Öffentlichkeitsarbeit, Bürger*innen-
+ * anfragen, Wahlprüfsteine, and where the collection holds them Beschlusslage
+ * and Wahlprogramm — that stay separate so no voice is diluted. This hub offers all of them behind the one
  * link the LV shares, then drops into the chosen agent's chat via its derived slug.
  */
 export function LandesverbandHub({ hub, onNavigate, userLocale }: LandesverbandHubProps) {
   const HubIcon = NOTEBOOK_ICONS[hub.notebookId];
   const notebookPath = getNotebookById(hub.notebookId)?.path;
 
-  const cards = (
-    [
-      { agentId: hub.prAgentId, role: 'Öffentlichkeitsarbeit' },
-      { agentId: hub.buergerAgentId, role: 'Bürger*innenservice' },
-      { agentId: hub.wahlpruefsteinAgentId, role: 'Wahlprüfsteine' },
-    ] as const
-  ).flatMap(({ agentId, role }) => {
+  const cards = hub.agentIds.flatMap((agentId) => {
+    const role = landesverbandAgentRole(agentId);
+    if (!role) return [];
     const agent = getSystemAgent(agentId);
     if (!agent) return [];
     const localized = localizeAgent(agent, userLocale);
