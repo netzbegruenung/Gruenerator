@@ -12,6 +12,7 @@
 import { z } from 'zod';
 
 import { collabSubtypeSchema } from './docs.js';
+import { userAgentSchema } from './userAgents.js';
 
 // ── Closed sets ───────────────────────────────────────────────────────────────
 
@@ -514,6 +515,18 @@ export const groupCollabDocItemSchema = z
   })
   .passthrough();
 
+/**
+ * A teammate's agent as the `user_agents` bucket carries it: every member reads
+ * the bucket, and a group share lets them USE the agent, not read its prompt —
+ * so `systemRole` is not part of the shape (#3781). `id` is the row UUID the
+ * share points at; `.passthrough()` keeps the attached share metadata.
+ */
+export const groupSharedUserAgentSchema = userAgentSchema
+  .omit({ systemRole: true })
+  .extend({ id: z.string() })
+  .passthrough();
+export type GroupSharedUserAgent = z.infer<typeof groupSharedUserAgentSchema>;
+
 export const groupContentResponseSchema = z.object({
   success: z.literal(true),
   content: z.object({
@@ -525,7 +538,7 @@ export const groupContentResponseSchema = z.object({
     collaborative_documents: z.array(groupCollabDocItemSchema),
     system_notebooks: groupContentBucketSchema,
     system_agents: groupContentBucketSchema,
-    user_agents: groupContentBucketSchema,
+    user_agents: z.array(groupSharedUserAgentSchema),
     canvas_templates: groupContentBucketSchema,
     /** Optional: ältere Server liefern den Bucket nicht. */
     group_posts: z.array(groupPostItemSchema).optional(),

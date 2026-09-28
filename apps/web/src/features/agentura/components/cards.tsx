@@ -4,7 +4,7 @@ import { Badge } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
 import { PiPencilSimple, PiSparkle, PiStar, PiStarFill, PiTrash } from 'react-icons/pi';
 
-import { type SharedAgentEntry } from '../../agents/api';
+import { type ForeignAgent, type SharedAgentEntry } from '../../agents/api';
 import { PhosphorIcon } from '../../agents/icons/PhosphorIcon';
 
 import { CapabilityTags } from './CapabilityTags';
@@ -181,9 +181,9 @@ export function AgentCard({
 
 interface SharedAgentCardProps {
   entry: SharedAgentEntry;
-  onSelect: (agent: Agent) => void;
+  onSelect: (agent: ForeignAgent) => void;
   isFavorite?: boolean;
-  onToggleFavorite?: (agent: Agent) => void;
+  onToggleFavorite?: (agent: ForeignAgent) => void;
 }
 
 export function SharedAgentCard({

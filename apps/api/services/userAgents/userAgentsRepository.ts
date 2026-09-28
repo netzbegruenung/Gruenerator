@@ -13,6 +13,8 @@ import { userAgents, type UserAgentRow } from '../../database/schema/userAgents.
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 
+import { isUserAgentId } from './userAgentHandle.js';
+
 export interface UserAgentInput {
   identifier: string;
   title: string;
@@ -137,6 +139,14 @@ function patchToUpdateValues(patch: UserAgentPatch): Record<string, unknown> {
   return out;
 }
 
+/** The caller's own agent by handle — its row uuid or its identifier. */
+function ownedByHandle(userId: string, handle: string) {
+  return and(
+    eq(userAgents.user_id, userId),
+    isUserAgentId(handle) ? eq(userAgents.id, handle) : eq(userAgents.identifier, handle)
+  );
+}
+
 export async function listUserAgents(userId: string): Promise<UserAgentRecord[]> {
   const db = getDrizzleInstance();
   const agentRows = await db.select().from(userAgents).where(eq(userAgents.user_id, userId));
@@ -145,14 +155,10 @@ export async function listUserAgents(userId: string): Promise<UserAgentRecord[]>
 
 export async function getUserAgent(
   userId: string,
-  identifier: string
+  handle: string
 ): Promise<UserAgentRecord | undefined> {
   const db = getDrizzleInstance();
-  const rows = await db
-    .select()
-    .from(userAgents)
-    .where(and(eq(userAgents.user_id, userId), eq(userAgents.identifier, identifier)))
-    .limit(1);
+  const rows = await db.select().from(userAgents).where(ownedByHandle(userId, handle)).limit(1);
   const row = rows[0];
   return row ? rowToAgent(row) : undefined;
 }
@@ -161,6 +167,12 @@ export async function createUserAgent(
   userId: string,
   input: UserAgentInput
 ): Promise<UserAgentRecord> {
+  // Every handle that looks like a uuid is read as one; an identifier of that
+  // shape would be unreachable. The HTTP contract refuses it too — this covers
+  // the chat tool and MCP create paths.
+  if (isUserAgentId(input.identifier)) {
+    throw new Error('Der Bezeichner darf nicht wie eine UUID aussehen.');
+  }
   const db = getDrizzleInstance();
   const rows = await db.insert(userAgents).values(inputToInsertValues(userId, input)).returning();
   const row = rows[0];
@@ -170,24 +182,24 @@ export async function createUserAgent(
 
 export async function updateUserAgent(
   userId: string,
-  identifier: string,
+  handle: string,
   patch: UserAgentPatch
 ): Promise<UserAgentRecord | undefined> {
   const db = getDrizzleInstance();
   const rows = await db
     .update(userAgents)
     .set(patchToUpdateValues(patch))
-    .where(and(eq(userAgents.user_id, userId), eq(userAgents.identifier, identifier)))
+    .where(ownedByHandle(userId, handle))
     .returning();
   const row = rows[0];
   return row ? rowToAgent(row) : undefined;
 }
 
-export async function deleteUserAgent(userId: string, identifier: string): Promise<boolean> {
+export async function deleteUserAgent(userId: string, handle: string): Promise<boolean> {
   const db = getDrizzleInstance();
   const rows = await db
     .delete(userAgents)
-    .where(and(eq(userAgents.user_id, userId), eq(userAgents.identifier, identifier)))
+    .where(ownedByHandle(userId, handle))
     .returning({ id: userAgents.id });
   return rows.length > 0;
 }
@@ -226,7 +238,7 @@ function normalizeAudience(locale: string): UserAgentAudience {
 /** Owner-scoped lookup of an agent's sharing state (and its UUID). */
 export async function getAgentSharing(
   userId: string,
-  identifier: string
+  handle: string
 ): Promise<UserAgentSharing | undefined> {
   const db = getDrizzleInstance();
   const rows = await db
@@ -238,7 +250,7 @@ export async function getAgentSharing(
       public_ownership: userAgents.public_ownership,
     })
     .from(userAgents)
-    .where(and(eq(userAgents.user_id, userId), eq(userAgents.identifier, identifier)))
+    .where(ownedByHandle(userId, handle))
     .limit(1);
   const row = rows[0];
   if (!row) return undefined;
@@ -254,7 +266,7 @@ export async function getAgentSharing(
 /** Owner-scoped update of sharing fields. `audience` writes the `locale` column. */
 export async function updateAgentSharing(
   userId: string,
-  identifier: string,
+  handle: string,
   patch: UserAgentSharingPatch
 ): Promise<boolean> {
   const db = getDrizzleInstance();
@@ -266,21 +278,30 @@ export async function updateAgentSharing(
   const rows = await db
     .update(userAgents)
     .set(values)
-    .where(and(eq(userAgents.user_id, userId), eq(userAgents.identifier, identifier)))
+    .where(ownedByHandle(userId, handle))
     .returning({ id: userAgents.id });
   return rows.length > 0;
 }
 
 /**
  * Hydrate agents by UUID — used by the group-content read path. The UUID `id`
- * is carried alongside the canonical Agent shape so the caller can match each
- * agent back to its group_content_shares row (content_id = the UUID).
+ * is carried alongside the Agent shape so the caller can match each agent back
+ * to its group_content_shares row (content_id = the UUID).
+ *
+ * Without `systemRole`: every member of the group reads this bucket, and a
+ * group share lets a teammate USE an agent, not read its prompt (#3781) —
+ * same policy as `listMentionableUserAgents`.
  */
-export async function listUserAgentsByIds(ids: string[]): Promise<UserAgentRecord[]> {
+export async function listUserAgentsByIds(
+  ids: string[]
+): Promise<Array<Omit<UserAgentRecord, 'systemRole'>>> {
   if (ids.length === 0) return [];
   const db = getDrizzleInstance();
   const rows = await db.select().from(userAgents).where(inArray(userAgents.id, ids));
-  return rows.map(rowToAgent);
+  return rows.map((row) => {
+    const { systemRole: _systemRole, ...agent } = rowToAgent(row);
+    return agent;
+  });
 }
 
 /**
@@ -354,6 +375,40 @@ export async function getPublicUserAgent(identifier: string): Promise<UserAgentR
     .orderBy(userAgents.created_at, userAgents.id)
     .limit(1);
   const row = rows[0];
+  return row ? rowToAgent(row) : undefined;
+}
+
+/**
+ * An agent by its row uuid, if the caller may use it: they own it, it is
+ * shared into a group they are an active member of, or its owner opened it to
+ * every signed-in user. The same three checks as the identifier ladder above,
+ * in one query — a uuid names one row, so there is nothing to rank.
+ */
+export async function getAccessibleUserAgentById(
+  id: string,
+  requestingUserId: string
+): Promise<UserAgentRecord | undefined> {
+  const postgres = getPostgresInstance();
+  const row = await postgres.queryOne<UserAgentRow>(
+    `SELECT ua.*
+       FROM user_agents ua
+      WHERE ua.id = $1::uuid
+        AND (
+          ua.user_id = $2::uuid
+          OR ua.share_mode = 'authenticated'
+          OR EXISTS (
+            SELECT 1
+              FROM group_content_shares gcs
+              JOIN group_memberships gm ON gm.group_id = gcs.group_id
+             WHERE gcs.content_type = 'user_agents'
+               AND gcs.content_id = ua.id::text
+               AND gm.user_id = $2
+               AND gm.is_active = true
+          )
+        )`,
+    [id, requestingUserId],
+    { table: 'user_agents' }
+  );
   return row ? rowToAgent(row) : undefined;
 }
 

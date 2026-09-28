@@ -127,8 +127,11 @@ export function useShareSystemAgentWithGroup() {
   });
 }
 
+/** An agent someone else built — its prompt (`systemRole`) is owner-only (#3781). */
+export type ForeignAgent = Omit<Agent, 'systemRole'>;
+
 export interface SharedAgentEntry {
-  agent: Agent;
+  agent: ForeignAgent;
   groups: GroupSummary[];
 }
 
@@ -179,8 +182,8 @@ export function useSharedSystemAgents() {
 /**
  * Aggregates USER-created agents shared into any group the current user belongs
  * to. Mirrors useSharedSystemAgents, but each group's `/content` bucket already
- * carries the full agent (no static registry to resolve against). One
- * round-trip per group; groups list is cached by useGroups.
+ * carries the agent minus its prompt (no static registry to resolve against).
+ * One round-trip per group; groups list is cached by useGroups.
  */
 export function useSharedUserAgents() {
   const { userGroups } = useGroups({ isActive: true });
@@ -195,8 +198,7 @@ export function useSharedUserAgents() {
           const res = await getContractsClient().groups.listGroupContent({
             params: { groupId: group.id },
           });
-          const agents =
-            res.status === 200 ? (res.body.content.user_agents as unknown as Agent[]) : [];
+          const agents = res.status === 200 ? res.body.content.user_agents : [];
           return { group, agents };
         })
       );
