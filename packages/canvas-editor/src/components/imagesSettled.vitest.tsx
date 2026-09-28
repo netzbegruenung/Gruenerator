@@ -48,14 +48,13 @@ vi.mock('use-image', async () => {
   const { Image, createCanvas } = await import('@napi-rs/canvas');
   const bitmap = new Image();
   bitmap.src = createCanvas(4, 4).toBuffer('image/png');
-  return {
-    default: (url: string) => {
-      const status = useSyncExternalStore(imageStatus.subscribe, imageStatus.get);
-      if (!url) return [undefined, 'loading'];
-      if (!url.includes(STOCK)) return [bitmap, 'loaded'];
-      return status === 'loaded' ? [bitmap, 'loaded'] : [undefined, status];
-    },
+  const useImage = (url: string) => {
+    const status = useSyncExternalStore(imageStatus.subscribe, imageStatus.get);
+    if (!url) return [undefined, 'loading'];
+    if (!url.includes(STOCK)) return [bitmap, 'loaded'];
+    return status === 'loaded' ? [bitmap, 'loaded'] : [undefined, status];
   };
+  return { default: useImage };
 });
 
 // Konva cacht Bilder mit Filtern auf einem jsdom-Canvas, den der napi-Kontext
