@@ -115,3 +115,36 @@ describe('agentFavoritesStore titles', () => {
     expect(store.getState().favoriteTitles['geteilter-agent']).toBe('Neuer Name');
   });
 });
+
+/**
+ * A colleague's agent was starred under its identifier before agents carried a
+ * uuid. The Agentura rekeys it once it can see the agent, so the star stops
+ * applying to every other agent under that identifier.
+ */
+describe('agentFavoritesStore rekey', () => {
+  it('moves a star and its title to the new key, keeping the order', async () => {
+    const store = await loadStore({
+      state: {
+        favoriteIdentifiers: ['presse-agent', 'gruene-poesie', 'wahl'],
+        favoriteTitles: { 'gruene-poesie': 'Aus Köln' },
+      },
+      version: 2,
+    });
+
+    store.getState().rekey({ 'gruene-poesie': 'u-2', 'nicht-gesternt': 'u-3' });
+
+    expect(store.getState().favoriteIdentifiers).toEqual(['presse-agent', 'u-2', 'wahl']);
+    expect(store.getState().favoriteTitles).toEqual({ 'u-2': 'Aus Köln' });
+  });
+
+  it('merges into an existing star instead of duplicating it', async () => {
+    const store = await loadStore({
+      state: { favoriteIdentifiers: ['gruene-poesie', 'u-2'], favoriteTitles: {} },
+      version: 2,
+    });
+
+    store.getState().rekey({ 'gruene-poesie': 'u-2' });
+
+    expect(store.getState().favoriteIdentifiers).toEqual(['u-2']);
+  });
+});

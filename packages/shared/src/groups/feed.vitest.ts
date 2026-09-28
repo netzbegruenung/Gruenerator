@@ -208,3 +208,24 @@ describe('toGroupFeedItems — Beiträge', () => {
     expect(items[1]?.share?.pinnedAt).toBeTruthy();
   });
 });
+
+/**
+ * A user agent's identifier is unique only per owner: a colleague's shared
+ * agent can carry the same one as the viewer's own. The feed links it by its
+ * row uuid, which web and mobile both resolve to exactly that agent.
+ */
+describe('toGroupFeedItems — user agents', () => {
+  it('links a shared user agent by its row id, not its identifier', () => {
+    const [item] = toGroupFeedItems({
+      user_agents: [
+        {
+          id: '44444444-4444-4444-8444-444444444444',
+          identifier: 'presse',
+          title: 'Presse aus Köln',
+          shared_at: '2026-09-20T10:00:00Z',
+        },
+      ],
+    });
+    expect(item).toMatchObject({ kind: 'agent', slug: '44444444-4444-4444-8444-444444444444' });
+  });
+});

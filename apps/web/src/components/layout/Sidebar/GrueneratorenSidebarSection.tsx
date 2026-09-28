@@ -67,11 +67,11 @@ export const GrueneratorenSidebarSection = memo(function GrueneratorenSidebarSec
         seen.add(identifier);
         continue;
       }
-      const ua = userAgents.find((a) => a.identifier === identifier);
+      const ua = userAgents.find((a) => a.identifier === identifier || a.id === identifier);
       const title = ua?.title ?? favoriteTitles[identifier];
       if (title) {
         rows.push({ identifier, title, Icon: PiSparkle });
-        seen.add(identifier);
+        seen.add(ua?.identifier ?? identifier);
       }
     }
     for (const ua of userAgents) {

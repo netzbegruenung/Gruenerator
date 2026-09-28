@@ -25,6 +25,7 @@ beforeAll(() => {
   setDocMentionables([{ id: 'doc-xyz', title: 'Pressespiegel', slug: 'pressespiegel' }]);
   setUserAgentMentionables([
     {
+      id: '44444444-4444-4444-8444-444444444444',
       identifier: 'kv-klima-gruenerator',
       title: 'KV Klima-Grünerator',
       description: 'Klimapolitik im Kreisverband',
@@ -194,9 +195,11 @@ describe('mentionParser: skill mentions carry the recipe, not just the agent', (
  * gelesen wird (#2909).
  */
 describe('mentionParser: Grünerator-Agenten routen den Agenten, kein Rezept', () => {
+  // Ein geteilter Grünerator routet über seine Zeilen-id — sein Bezeichner kann
+  // auch einem anderen Agenten gehören. Getippt wird weiter der Bezeichner.
   it('@grünerator setzt agentId, aber keine skillMention', () => {
     const result = parseAllMentions('@kv-klima-gruenerator was steht im wahlprogramm?');
-    expect(result.agentId).toBe('kv-klima-gruenerator');
+    expect(result.agentId).toBe('44444444-4444-4444-8444-444444444444');
     expect(result.agentMention).toBe('kv-klima-gruenerator');
     expect(result.skillMention).toBeNull();
     expect(result.cleanText).toBe('was steht im wahlprogramm?');
@@ -204,12 +207,14 @@ describe('mentionParser: Grünerator-Agenten routen den Agenten, kein Rezept', (
 
   it('persistiert ihn als agent-Token, nicht als skill-Token', () => {
     const result = parseAllMentions('@kv-klima-gruenerator leg los');
-    expect(result.tokenText).toBe('@[KV Klima-Grünerator](agent:kv-klima-gruenerator) leg los');
+    expect(result.tokenText).toBe(
+      '@[KV Klima-Grünerator](agent:44444444-4444-4444-8444-444444444444) leg los'
+    );
   });
 
   it('lässt ein zuvor gewähltes Rezept unangetastet', () => {
     const result = parseAllMentions('@presse @kv-klima-gruenerator zum artenschutz');
-    expect(result.agentId).toBe('kv-klima-gruenerator');
+    expect(result.agentId).toBe('44444444-4444-4444-8444-444444444444');
     expect(result.skillMention).toBe('presse');
   });
 });

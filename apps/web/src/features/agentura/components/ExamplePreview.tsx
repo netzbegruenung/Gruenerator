@@ -1,10 +1,11 @@
-import { type Agent } from '@gruenerator/shared/agents';
 import { type ReactNode } from 'react';
+
+import { type ForeignAgent } from '../../agents/api';
 
 import { Markdown } from '@/components/common/Markdown';
 
 interface ExamplePreviewProps {
-  agent: Agent;
+  agent: ForeignAgent;
 }
 
 function Bubble({ speaker, children }: { speaker: 'assistant' | 'user'; children: ReactNode }) {

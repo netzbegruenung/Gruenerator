@@ -51,8 +51,12 @@ export function resolveMessageAgent(
   const bySystemId = systemAgents.find((a) => a.identifier === agentId);
   if (bySystemId) return toAgent(bySystemId);
 
-  // User recipes are not in the skills catalogue.
-  const byCustomId = customAgents.find((a) => a.identifier === agentId);
+  // User recipes are not in the skills catalogue. A teammate's agent routes by
+  // its row uuid now; threads started before that carry its identifier, which
+  // is the mentionable's `mention`.
+  const byCustomId =
+    customAgents.find((a) => a.identifier === agentId) ??
+    customAgents.find((a) => a.type === 'useragent' && a.mention === agentId);
   return byCustomId ? toAgent(byCustomId) : null;
 }
 
