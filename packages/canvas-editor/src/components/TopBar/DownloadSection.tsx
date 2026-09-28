@@ -122,7 +122,7 @@ export function DownloadSection({
       )}
 
       {isMultiExporting && exportProgress && exportProgress.total > 0 && (
-        <div className="relative w-full h-5 bg-grey-100 dark:bg-grey-800 rounded-full overflow-hidden">
+        <div className="relative w-full h-5 bg-editor-tile rounded-full overflow-hidden">
           <div
             className="absolute inset-y-0 left-0 bg-primary-600 rounded-full transition-[width] duration-300"
             style={{ width: `${(exportProgress.current / exportProgress.total) * 100}%` }}

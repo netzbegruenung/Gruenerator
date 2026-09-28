@@ -295,7 +295,7 @@ export function TemplatePickerFlyout({
           <div className="h-px bg-border my-3" />
 
           <button
-            className="flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-background-alt border border-border rounded-lg cursor-pointer text-[13px] font-medium text-foreground transition-[background-color,border-color] duration-150 hover:bg-hover-alt hover:border-grey-400 dark:hover:border-grey-500 [&>svg]:size-[18px] [&>svg]:text-foreground-muted"
+            className="flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-background-alt border border-border rounded-lg cursor-pointer text-[13px] font-medium text-foreground transition-[background-color,border-color] duration-150 hover:bg-hover-alt hover:border-editor-border-strong [&>svg]:size-[18px] [&>svg]:text-foreground-muted"
             onClick={handleDuplicate}
             type="button"
           >

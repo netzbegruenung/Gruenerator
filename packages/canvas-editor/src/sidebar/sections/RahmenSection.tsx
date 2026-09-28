@@ -82,7 +82,7 @@ export function RahmenSection({ onAddFrame, searchQuery = '' }: RahmenSectionPro
           <h5 className="text-sm font-bold text-foreground m-0">
             {FRAME_CATEGORY_LABELS[category]}
           </h5>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(56px,1fr))] gap-2 w-full text-secondary-600 dark:text-secondary-300">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(56px,1fr))] gap-2 w-full text-editor-secondary-fg">
             {presets.map((preset) => (
               <button
                 key={preset.id}

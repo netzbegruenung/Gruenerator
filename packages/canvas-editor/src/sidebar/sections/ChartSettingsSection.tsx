@@ -118,7 +118,7 @@ export function ChartSettingsSection({
           value={chart.title ?? ''}
           onChange={(e) => update({ title: e.target.value })}
           placeholder="Optional…"
-          className="rounded-md border border-grey-300 bg-background px-sm py-xs text-sm text-foreground outline-none focus:border-primary-500 dark:border-grey-600"
+          className="rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm text-foreground outline-none focus:border-primary-500"
         />
       </label>
 
@@ -134,13 +134,13 @@ export function ChartSettingsSection({
                 type="text"
                 value={point.name}
                 onChange={(e) => setDataPoint(i, 'name', e.target.value)}
-                className="min-w-0 flex-1 rounded-md border border-grey-300 bg-background px-2 py-1 text-sm text-foreground outline-none focus:border-primary-500 dark:border-grey-600"
+                className="min-w-0 flex-1 rounded-md border border-editor-border-strong bg-background px-2 py-1 text-sm text-foreground outline-none focus:border-primary-500"
               />
               <input
                 type="number"
                 value={point.value}
                 onChange={(e) => setDataPoint(i, 'value', e.target.value)}
-                className="w-16 rounded-md border border-grey-300 bg-background px-2 py-1 text-sm text-foreground outline-none focus:border-primary-500 dark:border-grey-600"
+                className="w-16 rounded-md border border-editor-border-strong bg-background px-2 py-1 text-sm text-foreground outline-none focus:border-primary-500"
               />
               <button
                 type="button"
@@ -157,7 +157,7 @@ export function ChartSettingsSection({
         <button
           type="button"
           onClick={addRow}
-          className="mt-1 inline-flex items-center justify-center gap-1.5 rounded-md border border-dashed border-grey-300 px-2 py-1.5 text-xs text-foreground-muted hover:border-primary-500 hover:text-foreground dark:border-grey-600"
+          className="mt-1 inline-flex items-center justify-center gap-1.5 rounded-md border border-dashed border-editor-border-strong px-2 py-1.5 text-xs text-foreground-muted hover:border-primary-500 hover:text-foreground"
         >
           <FaPlus size={10} /> Zeile hinzufügen
         </button>

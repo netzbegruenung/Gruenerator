@@ -149,11 +149,11 @@ export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientT
               onChange={(e) => setValue(e.target.value)}
               placeholder="Dein Text…"
               disabled={disabled}
-              className="rounded-md border border-grey-300 bg-background px-sm py-xs text-sm text-foreground outline-none focus:border-primary-500 disabled:opacity-50 dark:border-grey-600"
+              className="rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm text-foreground outline-none focus:border-primary-500 disabled:opacity-50"
             />
           </label>
 
-          <div className="flex items-center justify-center rounded-lg bg-grey-50 dark:bg-grey-900 p-4 overflow-hidden">
+          <div className="flex items-center justify-center rounded-lg bg-editor-inset p-4 overflow-hidden">
             <span
               className="text-3xl font-bold leading-tight text-center break-words"
               style={{
