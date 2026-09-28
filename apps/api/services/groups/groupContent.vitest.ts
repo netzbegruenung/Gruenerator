@@ -13,6 +13,11 @@ import {
   type ShareContentDeps,
 } from './groupContent.js';
 
+vi.mock('../media/thumbnailUrl.js', () => ({
+  buildCanvasThumbnailUrl: (id: string, stored: string | null) =>
+    stored ? `signed:${id}:${stored}` : null,
+}));
+
 interface FakeDbOptions {
   /** Antwort auf die Besitzabfrage (Tabelle → Zeile). */
   owner?: Record<string, string> | null;
@@ -417,6 +422,46 @@ describe('hydrateGroupContent', () => {
         share: expect.objectContaining({ shareId: 'share-p1' }),
       }),
     ]);
+  });
+
+  it('hands out signed canvas thumbnails, never the auth-only download URL', async () => {
+    const share = (content_type: string, content_id: string) => ({
+      content_type,
+      content_id,
+      shared_at: '2026-09-28T10:00:00Z',
+      permissions: {},
+      shared_by_user_id: 'u1',
+      first_name: null,
+      display_name: 'Moritz',
+    });
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM group_content_shares')) {
+        return [share('collaborative_documents', 'c1'), share('canvas_template', 't1')];
+      }
+      if (sql.includes("document_subtype = 'canvas'")) {
+        return [{ id: 't1', title: 'Vorlage', thumbnail_url: '/api/share/tok2/download' }];
+      }
+      if (sql.includes('FROM collaborative_documents')) {
+        return [
+          {
+            id: 'c1',
+            title: 'Arten retten',
+            document_subtype: 'canvas',
+            thumbnail_url: '/api/share/tok1/download',
+          },
+        ];
+      }
+      return [];
+    });
+    const out = await hydrateGroupContent('g1', {
+      postgres: { query } as unknown as HydrateGroupContentDeps['postgres'],
+      getNotebookCollectionsByIds: vi.fn(async () => []) as never,
+      listUserAgentsByIds: vi.fn(async () => []),
+    });
+    expect(out.collaborative_documents[0]?.thumbnail_url).toBe(
+      'signed:c1:/api/share/tok1/download'
+    );
+    expect(out.canvas_templates[0]?.thumbnail_url).toBe('signed:t1:/api/share/tok2/download');
   });
 
   it('returns empty buckets for a project with nothing shared', async () => {
