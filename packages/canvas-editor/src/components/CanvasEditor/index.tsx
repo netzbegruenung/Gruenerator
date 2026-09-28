@@ -24,47 +24,43 @@
  */
 
 import { downloadDataUrl } from '@gruenerator/shared';
-import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense } from 'react';
-
 import { Skeleton } from '@gruenerator/ui';
-
-import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
-import { useZoomGestures } from '../../hooks/useZoomGestures';
-import { CanvasEditorLayout } from '../../layouts';
-import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
-import { SidebarTabBar, SidebarPanel } from '../../sidebar';
-import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
-
-import { CanvasMetaBar } from '../CanvasMetaBar';
-import { getCategoryForTemplate } from '../../utils/templateRegistry';
-
-import { PageThumbnailStrip } from '../PageThumbnailStrip';
-import { Toolbar } from '../Toolbar';
-import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
-import { ContextToolbar } from '../TopBar/ContextToolbar';
-import { MobileSelectionControls } from '../TopBar/MobileSelectionControls';
-import { AddPageButton, TemplatePickerFlyout } from '../TemplatePickerFlyout';
+import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense } from 'react';
 
 import { PAGE_ELEMENT_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
+import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
-import { PageWrapper } from './PageWrapper';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
-import { useMobileSheetFit } from './hooks/useMobileSheetFit';
-import { getMobileSelectionArea } from './mobileSelectionArea';
-import { usePageRefs } from './hooks/usePageRefs';
+import { useZoomGestures } from '../../hooks/useZoomGestures';
+import { CanvasEditorLayout } from '../../layouts';
+import { SidebarTabBar, SidebarPanel } from '../../sidebar';
+import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
+import { AutoSaveStoreProvider } from '../../stores/useAutoSaveStore';
+import { cn } from '../../utils/cn';
+import { ensureFontsReady } from '../../utils/ensureFontsReady';
+import { getCategoryForTemplate } from '../../utils/templateRegistry';
+import { CanvasMetaBar } from '../CanvasMetaBar';
+import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
+import { PageThumbnailStrip } from '../PageThumbnailStrip';
+import { AddPageButton, TemplatePickerFlyout } from '../TemplatePickerFlyout';
+import { Toolbar } from '../Toolbar';
+import { ContextToolbar } from '../TopBar/ContextToolbar';
+import { MobileSelectionControls } from '../TopBar/MobileSelectionControls';
+
 import { useLoadedConfigs } from './hooks/useLoadedConfigs';
+import { useMobileSheetFit } from './hooks/useMobileSheetFit';
+import { usePageRefs } from './hooks/usePageRefs';
 import { usePageScrollSync } from './hooks/usePageScrollSync';
 import { usePageUndoRedoShortcuts } from './hooks/usePageUndoRedoShortcuts';
 import { useToolbarHandlers } from './hooks/useToolbarHandlers';
+import { getMobileSelectionArea } from './mobileSelectionArea';
+import { PageWrapper } from './PageWrapper';
 
 import type { CanvasEditorProps, PageWrapperProps } from './types';
-import type { ToolbarStateReport } from '../GenericCanvas';
 import type { CanvasConfigId } from '../../configs/types';
 import type { SidebarTabId } from '../../sidebar/types';
-
-import { cn } from '../../utils/cn';
-import { ensureFontsReady } from '../../utils/ensureFontsReady';
+import type { ToolbarStateReport } from '../GenericCanvas';
 
 // Hoisted static JSX elements (Rule 6.3: avoids re-creation every render)
 const sidebarLoadingFallback = (
@@ -570,15 +566,16 @@ function CanvasEditorInner({
   // the new slide re-reports state, falling through to the unfiltered `tabs:`
   // list (which intentionally contains hidden entries like `settings`/
   // `frame-settings` for `getAutoSwitchTab` to target).
+  // The AI chat tab is hidden for now (too unreliable) — drop `tab.id !== 'chat'` to restore it.
   const visibleTabs = useMemo(() => {
     if (!activeConfig) return [];
     if (activeConfig.getVisibleTabs) {
       const visibleIds = activeConfig.getVisibleTabs(activeState, {
         selectedElement: activeSelectedElement,
       });
-      return activeConfig.tabs.filter((tab) => visibleIds.includes(tab.id));
+      return activeConfig.tabs.filter((tab) => tab.id !== 'chat' && visibleIds.includes(tab.id));
     }
-    return activeConfig.tabs;
+    return activeConfig.tabs.filter((tab) => tab.id !== 'chat');
   }, [activeConfig, activeState, activeSelectedElement]);
 
   // Compute disabled tabs for active config
