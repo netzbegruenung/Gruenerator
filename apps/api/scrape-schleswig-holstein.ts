@@ -93,7 +93,7 @@ async function main() {
       source_name: 'Grüne Schleswig-Holstein',
       landesverband: 'SH',
       source_type: 'landesverband',
-      content_type: 'beschluss',
+      content_type: 'wahlprogramm',
       content_type_label: 'Wahlprogramm',
       content_hash: contentHash,
       chunk_index: index,
