@@ -86,6 +86,7 @@ function deps(over: Partial<CatalogDeps> = {}): CatalogDeps {
     loadMcpCatalog: async () => mcpCatalog(),
     loadManagedMcpCatalog: async () => mcpCatalog(),
     buildRecipeCatalog: async () => [],
+    resolveRecipe: async () => null,
     ...over,
   } as unknown as CatalogDeps;
 }
@@ -286,6 +287,77 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
       withRecipes()
     );
     expect(assembled.tools.rezept_laden).toBeUndefined();
+  });
+});
+
+describe('assembleToolCatalog — Rezept eines Ein-Rezept-LV-Agenten', () => {
+  const buergerBerlin = {
+    identifier: 'gruenerator-buergeranfragen-berlin',
+    defaultRecipeMention: 'buerger-berlin',
+    userId: 'u1',
+  };
+  const withSearch = (over: Partial<CatalogDeps> = {}) =>
+    deps({
+      buildChatToolCatalog: () => ({
+        tools: { gruenerator_search: { execute: async () => ({}) } },
+      }),
+      resolveRecipe: async ({ mention }) => ({
+        title: `Titel ${mention}`,
+        body: 'Rumpf',
+        source: 'system',
+      }),
+      ...over,
+    } as Partial<CatalogDeps>);
+
+  it('lädt das Rezept vorab, samt den montierten empfohlenen Werkzeugen', async () => {
+    const assembled = await assemble(
+      fakeState({
+        agentConfig: buergerBerlin,
+        lastUserTextNoMentions: 'Frau M. fragt nach der U-Bahn …',
+      }),
+      withSearch()
+    );
+    expect(assembled.recipeRegistry.mentions).toEqual(['buerger-berlin']);
+    expect(assembled.recipeRegistry.render()).toContain(
+      'Für dieses Rezept geeignete Werkzeuge: gruenerator_search.'
+    );
+  });
+
+  it('lädt nichts, wenn die Person selbst ein Rezept gewählt hat', async () => {
+    const resolveRecipe = vi.fn();
+    const assembled = await assemble(
+      fakeState({
+        agentConfig: buergerBerlin,
+        activeSkillMention: 'presse',
+        lastUserTextNoMentions: 'Schreib eine PM',
+      }),
+      withSearch({ resolveRecipe } as Partial<CatalogDeps>)
+    );
+    expect(resolveRecipe).not.toHaveBeenCalled();
+    expect(assembled.recipeRegistry.size).toBe(0);
+  });
+
+  it('lädt nichts auf einer Plauder- oder Produktfrage', async () => {
+    const assembled = await assemble(
+      fakeState({ agentConfig: buergerBerlin, lastUserTextNoMentions: 'was kannst du?' }),
+      withSearch()
+    );
+    expect(assembled.recipeRegistry.size).toBe(0);
+  });
+
+  it('lässt LV-PR-Agenten beim Selbstladen', async () => {
+    const assembled = await assemble(
+      fakeState({
+        agentConfig: {
+          identifier: 'gruenerator-oeffentlichkeitsarbeit-saarland',
+          defaultRecipeMention: 'presse-saarland',
+          userId: 'u1',
+        },
+        lastUserTextNoMentions: 'Schreib eine PM zur Saarbahn',
+      }),
+      withSearch()
+    );
+    expect(assembled.recipeRegistry.size).toBe(0);
   });
 });
 
