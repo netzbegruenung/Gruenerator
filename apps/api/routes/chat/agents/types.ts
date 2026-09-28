@@ -25,6 +25,8 @@ export interface FewShotExample {
 }
 
 export interface AgentConfig {
+  /** Row uuid of a user agent; absent on registry agents. */
+  id?: string | undefined;
   identifier: string;
   title: string;
   description: string;
