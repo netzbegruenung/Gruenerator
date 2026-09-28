@@ -6,18 +6,18 @@ Was im Chat-Composer auswählbar ist (Modi, Werkzeuge, Recherchetiefe, Modelle),
 
 | Registry | Datei | Inhalt |
 |---|---|---|
-| `COMPOSER_MODES` | `packages/chat/src/lib/composerControls.ts` | Thread-Modi (`chat`, `eigener`). `notebook` ist als Auswahl auskommentiert, der Transportweg bleibt (Kommentar dort). |
+| `COMPOSER_MODES` + `COMPOSER_MODES_TITLE` | `packages/chat/src/lib/composerControls.ts` | Thread-Modi (`chat` = „Ohne Rolle“, `eigener` = „Eigener Chat“) und die Überschrift „Rollen“. `notebook` ist als Auswahl auskommentiert, der Transportweg bleibt (Kommentar dort). |
 | `COMPOSER_TOOLS` | dieselbe Datei | Schaltergruppe im Plusmenü. Union aus `toggle` (bleibt über Turns gesetzt, mit Haken) und `once` (fügt eine @mention ein, gilt nur für diese Nachricht). |
 | `SEARCH_DEPTHS` + `showsSearchDepth()` | dieselbe Datei | Recherchetiefe. Die Regel, *ob* sie erscheint (`routeTo === 'search'` des Agenten), steht ebenfalls hier, damit Web und Mobile sie nicht verschieden beantworten. |
 | `NOTEBOOK_DEPTHS` | `packages/chat/src/lib/notebookDepth.ts` | Notebook-Tiefe (Klein/Mittel/Ultra). Eigenes Blattmodul, weil `chatStore` den Startwert liest. |
 | `NOTEBOOK_COMPOSER_MODES` | `packages/chat/src/lib/notebookAnswerMode.ts` | Antwortmodi der Notebook-Fläche plus der reine Client-Modus `manuell`. |
-| `MODEL_OPTIONS` | `packages/chat/src/stores/chatStore.ts` → `TEXT_MODELS` aus `packages/core/src/models/catalog.ts` | Modellauswahl. Gefiltert mit `isModelEnabledByDefault` aus `@gruenerator/shared/models`. |
+| `MODEL_OPTIONS` + `visibleComposerModels()` | `packages/chat/src/stores/chatStore.ts` → `TEXT_MODELS` aus `packages/core/src/models/catalog.ts`; die Regel in `composerControls.ts` | Modellauswahl. `visibleComposerModels(enabledModelIds)` nimmt die gespeicherte Auswahl der Person (`modelPreferences`-Contract) und fällt, solange sie fehlt, auf `isModelEnabledByDefault` zurück. `enabledModelIdsFromPreferences` macht aus der Antwort das Set. |
 
 ## Icons: semantische Schlüssel, Abbildung pro Plattform
 
 Die Registries importieren keine Icon-Bibliothek. Sie tragen Schlüssel (`ComposerIconKey`, `ComposerToolIconKey`, `SearchDepthIconKey`, `NotebookDepthIconKey`), und jede Plattform bildet sie ab:
 
-- **Web:** `TOOL_ICONS` in `packages/chat/src/components/thread/PlusMenu.tsx` (lucide), `DEPTH_ICONS` in `components/SearchDepthToggle.tsx` und `components/notebook/NotebookSettingsPopover.tsx`.
+- **Web:** `MODE_ICONS` / `TOOL_ICONS` in `packages/chat/src/components/thread/PlusMenu.tsx` (lucide), `DEPTH_ICONS` in `components/SearchDepthToggle.tsx` und `components/notebook/NotebookSettingsPopover.tsx`.
 - **Mobile:** `MODE_ICONS` / `TOOL_ICONS` / `DEPTH_ICONS` in `apps/mobile/components/chat/ComposerActionSheet.tsx` (Ionicons).
 
 Die Abbildungen sind als `Record<…IconKey, …>` typisiert. Ein neuer Schlüssel bricht deshalb den Typecheck beider Plattformen, bis beide ihn abbilden — so ist es gewollt.
@@ -26,17 +26,12 @@ Die Abbildungen sind als `Record<…IconKey, …>` typisiert. Ein neuer Schlüss
 
 | Registry | Web | Mobile |
 |---|---|---|
-| `COMPOSER_MODES` | **nicht** — siehe Abweichungen | `ComposerActionSheet.tsx` |
+| `COMPOSER_MODES` | `PlusMenu.tsx` (listet unter `eigener` zusätzlich die einzelnen Rollen) | `ComposerActionSheet.tsx` |
 | `COMPOSER_TOOLS` | `PlusMenu.tsx` | `ComposerActionSheet.tsx` |
 | `SEARCH_DEPTHS` / `showsSearchDepth` | `SearchDepthToggle.tsx` über `GrueneratorComposer.tsx` | `ComposerActionSheet.tsx` |
 | `NOTEBOOK_DEPTHS` | `components/notebook/NotebookSettingsPopover.tsx` | `apps/mobile/components/notebook/NotebookResearchPanel.tsx` |
 | `NOTEBOOK_COMPOSER_MODES` | `components/notebook/NotebookComposer.tsx` | — |
-| `MODEL_OPTIONS` | `components/thread/ModelPicker.tsx` | `ComposerActionSheet.tsx` |
-
-## Bekannte Abweichungen (Stand 28.09.2026)
-
-- **Modi auf Web kommen nicht aus `COMPOSER_MODES`.** `PlusMenu.tsx` baut das Untermenü „Rollen" mit „Ohne Rolle" selbst; Mobile zeigt aus der Registry „Chat" und „Eigener Chat". Dieselben Modi heißen also je Plattform anders (#3770).
-- **Modellliste:** Web (`ModelPicker`) nimmt die Auswahl der Nutzer*in aus `ModelPreferencesContext` (`enabledModelIds`) und fällt sonst auf `isModelEnabledByDefault` zurück. Mobile filtert nur mit `isModelEnabledByDefault`. Ob Mobile die Präferenzen bewusst nicht liest, ist ungeprüft (#3770).
+| `MODEL_OPTIONS` | `components/thread/ModelPicker.tsx` (Präferenzen über `ModelPreferencesContext`) | `ComposerActionSheet.tsx` (Präferenzen über `apps/mobile/hooks/useEnabledModelIds.ts`, nur lesend) |
 
 ## Regeln
 
