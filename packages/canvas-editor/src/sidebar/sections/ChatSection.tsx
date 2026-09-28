@@ -32,7 +32,7 @@ export function ChatSection({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col" data-tour="canvas-chat">
+    <div className="flex h-full min-h-0 flex-col max-canvas-mobile:flex-1" data-tour="canvas-chat">
       <ChatSectionContent
         canvasType={canvasType}
         getSharepicText={getSharepicText}

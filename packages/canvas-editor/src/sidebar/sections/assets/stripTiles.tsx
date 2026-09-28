@@ -133,7 +133,7 @@ export const RahmenStripTiles = memo(function RahmenStripTiles({
             title={`${preset.name} hinzufügen`}
             onClick={() => onAddFrame(preset.id)}
           >
-            <FrameIcon size={28} className="text-secondary-600 dark:text-secondary-300" />
+            <FrameIcon size={28} className="text-editor-secondary-fg" />
           </StripTile>
         );
       })}

@@ -1,4 +1,5 @@
 import type { BackgroundType, TextFieldConfig } from './unifiedTabs';
+import type { TemplateAiCapabilities } from '../ai/types';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { SidebarTabId, SidebarTab } from '../sidebar/types';
 import type { GradientFill } from '../utils/gradientFill';
@@ -469,7 +470,7 @@ export interface FullCanvasConfig<
    * an AI sidebar tab; templates that don't never see the AI section.
    * See @gruenerator/canvas-editor/src/ai/types.ts for shape.
    */
-  ai?: import('../ai/types').TemplateAiCapabilities<TState, TActions>;
+  ai?: TemplateAiCapabilities<TState, TActions>;
 }
 
 // ============================================================================

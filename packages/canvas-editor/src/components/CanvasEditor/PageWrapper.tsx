@@ -31,7 +31,6 @@ export const PageWrapper = memo(function PageWrapper({
   multiPageExport,
   onStateChange,
   onToolbarStateChange,
-  mobileBridge,
   onAutoSaveShareToken,
   autoSave,
   pageBinding,
@@ -105,7 +104,6 @@ export const PageWrapper = memo(function PageWrapper({
           onCancel={onCancel}
           callbacks={callbacks}
           multiPageExport={multiPageExport}
-          mobileBridge={mobileBridge}
           onToolbarStateChange={onToolbarStateChange}
           onAutoSaveShareToken={onAutoSaveShareToken}
           onLiveState={isActive ? handleLiveState : undefined}

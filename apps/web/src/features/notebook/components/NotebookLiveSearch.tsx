@@ -20,7 +20,10 @@ import {
 } from '../manual-search/useResearchFilters';
 import { parseResearchIntent } from '../omni/parseResearchIntent';
 
-const DEBOUNCE_MS = 300;
+/** A finished word is searched soon; a pause mid-word waits longer, so
+ *  half-typed words don't fetch (and swap) hits of their own. */
+const WORD_END_MS = 250;
+const MID_WORD_MS = 700;
 
 /** Per-browser memory of grid vs. list; storage may be unavailable. */
 const VIEW_KEY = 'gr-notebook-research-view';
@@ -93,7 +96,7 @@ export function NotebookLiveSearch({
   onAnswered,
 }: NotebookLiveSearchProps) {
   const trimmed = text.trim();
-  const debounced = useDebounce(trimmed, DEBOUNCE_MS);
+  const debounced = useDebounce(trimmed, /[\s.,;:!?]$/.test(text) ? WORD_END_MS : MID_WORD_MS);
   const query = submitted !== null && submitted === trimmed ? trimmed : debounced;
   const typing = trimmed.length >= LIVE_SEARCH_MIN_LENGTH;
   const hasFacets = !notebookId;
@@ -196,8 +199,13 @@ export function NotebookLiveSearch({
   const residual = parsed?.residualQuery ?? query;
   const searchQuery = residual.length >= LIVE_SEARCH_MIN_LENGTH ? residual : query;
 
+  // Without the facet vocabulary the parser reads the query differently, so a
+  // search before it arrives would be replaced by a second one right after.
+  // Only its first load holds the search; a refetch never takes the hits away.
+  const awaitingVocabulary = hasFacets && !filters.filtersFetched;
+
   const live = useLiveResearch({
-    enabled: true,
+    enabled: !awaitingVocabulary,
     query: searchQuery,
     ...(notebookId ? { notebookId } : {}),
     collectionIds: collectionIds.length > 0 ? collectionIds : undefined,
@@ -206,7 +214,9 @@ export function NotebookLiveSearch({
     sortBy,
   });
 
-  const debouncing = query !== trimmed && live.results.length === 0;
+  // Only before any answer: a settled one (even an empty one) stays on screen
+  // while the next keystrokes wait out the pause.
+  const debouncing = (query !== trimmed || awaitingVocabulary) && live.metadata === null;
   const answered = typing && !live.isPending && !debouncing;
   useEffect(() => {
     if (answered) onAnswered?.();

@@ -293,7 +293,7 @@ export const useCanvasAutoSave = (
     if (!generatedImage) return;
 
     const timer = setTimeout(() => {
-      performAutoSave(generatedImage);
+      void performAutoSave(generatedImage);
     }, 500);
 
     return () => clearTimeout(timer);

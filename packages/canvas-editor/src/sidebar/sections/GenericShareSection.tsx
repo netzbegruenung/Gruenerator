@@ -28,19 +28,19 @@ export interface GenericShareSectionProps {
 }
 
 const iconBtn =
-  'size-10 rounded-xl border-none bg-grey-100 dark:bg-grey-800 cursor-pointer flex items-center justify-center text-foreground text-lg transition-[background-color,color,transform] duration-200 hover:bg-primary-100 hover:text-primary-600 dark:hover:bg-primary-900 dark:hover:text-primary-400 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed';
+  'size-10 rounded-xl border-none bg-editor-tile cursor-pointer flex items-center justify-center text-foreground text-lg transition-[background-color,color,transform] duration-200 hover:bg-editor-active-bg hover:text-editor-active-fg active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed';
 
 const primaryBtn =
   'w-full py-2.5 px-4 rounded-lg border-none bg-primary-600 text-white font-medium text-sm cursor-pointer flex items-center justify-center gap-2 transition-[background-color,transform] duration-200 hover:bg-primary-700 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed';
 
 const secondaryBtn =
-  'w-full py-2 px-4 rounded-lg border border-grey-200 dark:border-grey-700 bg-transparent text-foreground font-medium text-sm cursor-pointer flex items-center justify-center gap-2 transition-[background-color,border-color] duration-200 hover:bg-grey-100 dark:hover:bg-grey-800';
+  'w-full py-2 px-4 rounded-lg border border-editor-border bg-transparent text-foreground font-medium text-sm cursor-pointer flex items-center justify-center gap-2 transition-[background-color,border-color] duration-200 hover:bg-editor-surface-hover';
 
 const dropdownMenu =
-  'bg-background-pure border border-grey-200 dark:border-grey-700 rounded-xl shadow-lg p-1 min-w-[200px]';
+  'bg-background-pure border border-editor-border rounded-xl shadow-lg p-1 min-w-[200px]';
 
 const dropdownOption =
-  'w-full py-2 px-3 rounded-lg border-none bg-transparent text-foreground text-sm cursor-pointer flex items-center gap-2 transition-[background-color] duration-150 hover:bg-grey-100 dark:hover:bg-grey-800 disabled:opacity-40 disabled:cursor-not-allowed';
+  'w-full py-2 px-3 rounded-lg border-none bg-transparent text-foreground text-sm cursor-pointer flex items-center gap-2 transition-[background-color] duration-150 hover:bg-editor-surface-hover disabled:opacity-40 disabled:cursor-not-allowed';
 
 function usePortalDropdown() {
   const [open, setOpen] = useState(false);
@@ -357,7 +357,7 @@ function DownloadShareSubsection({
       </div>
 
       {isMultiExporting && exportProgress && exportProgress.total > 0 && (
-        <div className="relative w-full h-6 bg-grey-100 dark:bg-grey-800 rounded-full overflow-hidden">
+        <div className="relative w-full h-6 bg-editor-tile rounded-full overflow-hidden">
           <div
             className="absolute inset-y-0 left-0 bg-primary-600 rounded-full transition-[width] duration-300"
             style={{ width: `${(exportProgress.current / exportProgress.total) * 100}%` }}

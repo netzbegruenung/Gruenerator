@@ -9,7 +9,7 @@ import {
   Skeleton,
   Switch,
 } from '@gruenerator/ui';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { FaDownload } from 'react-icons/fa';
 
 export type CanvasDownloadChoice = 'png' | 'jpeg' | 'webp';
@@ -37,6 +37,7 @@ export function DownloadSection({
   const [transparent, setTransparent] = useState(false);
   const [pageSelection, setPageSelection] = useState<'current' | 'all'>('current');
   const [isDownloading, setIsDownloading] = useState(false);
+  const fieldId = useId();
 
   const isMultiPage = pageCount > 1 && onDownloadAllZip;
   // JPEG has no alpha channel — the transparency toggle is only meaningful for
@@ -59,9 +60,11 @@ export function DownloadSection({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
-        <Label className="text-xs font-medium text-foreground-muted">Format</Label>
+        <Label htmlFor={`${fieldId}-format`} className="text-xs font-medium text-foreground-muted">
+          Format
+        </Label>
         <Select value={choice} onValueChange={(v) => setChoice(v as CanvasDownloadChoice)}>
-          <SelectTrigger size="sm" className="w-full">
+          <SelectTrigger id={`${fieldId}-format`} size="sm" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent position="popper" className="z-[10001]">
@@ -77,9 +80,14 @@ export function DownloadSection({
       {pageSelection === 'current' && (
         <>
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-medium text-foreground-muted">Auflösung</Label>
+            <Label
+              htmlFor={`${fieldId}-scale`}
+              className="text-xs font-medium text-foreground-muted"
+            >
+              Auflösung
+            </Label>
             <Select value={String(scale)} onValueChange={(v) => setScale(Number(v))}>
-              <SelectTrigger size="sm" className="w-full">
+              <SelectTrigger id={`${fieldId}-scale`} size="sm" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper" className="z-[10001]">
@@ -94,10 +102,17 @@ export function DownloadSection({
 
           {supportsTransparency && (
             <div className="flex items-center justify-between gap-2">
-              <Label className="text-xs font-medium text-foreground-muted">
+              <Label
+                htmlFor={`${fieldId}-transparent`}
+                className="text-xs font-medium text-foreground-muted"
+              >
                 Transparenter Hintergrund
               </Label>
-              <Switch checked={transparent} onCheckedChange={setTransparent} />
+              <Switch
+                id={`${fieldId}-transparent`}
+                checked={transparent}
+                onCheckedChange={setTransparent}
+              />
             </div>
           )}
         </>
@@ -105,12 +120,14 @@ export function DownloadSection({
 
       {isMultiPage && (
         <div className="flex flex-col gap-1.5">
-          <Label className="text-xs font-medium text-foreground-muted">Seiten auswählen</Label>
+          <Label htmlFor={`${fieldId}-pages`} className="text-xs font-medium text-foreground-muted">
+            Seiten auswählen
+          </Label>
           <Select
             value={pageSelection}
             onValueChange={(v) => setPageSelection(v as 'current' | 'all')}
           >
-            <SelectTrigger size="sm" className="w-full">
+            <SelectTrigger id={`${fieldId}-pages`} size="sm" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent position="popper" className="z-[10001]">
@@ -122,7 +139,7 @@ export function DownloadSection({
       )}
 
       {isMultiExporting && exportProgress && exportProgress.total > 0 && (
-        <div className="relative w-full h-5 bg-grey-100 dark:bg-grey-800 rounded-full overflow-hidden">
+        <div className="relative w-full h-5 bg-editor-tile rounded-full overflow-hidden">
           <div
             className="absolute inset-y-0 left-0 bg-primary-600 rounded-full transition-[width] duration-300"
             style={{ width: `${(exportProgress.current / exportProgress.total) * 100}%` }}

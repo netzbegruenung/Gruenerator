@@ -28,7 +28,7 @@ export function CategoryJumpBar({
             'text-[11.5px] transition-colors duration-150',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary-600/50',
             item.id === activeId
-              ? 'bg-secondary-600 text-white font-bold dark:bg-secondary-300 dark:text-grey-900'
+              ? 'bg-editor-secondary-fg text-editor-surface font-bold'
               : 'bg-transparent font-semibold text-[var(--editor-text-muted)] hover:bg-[var(--editor-tile)] hover:text-[var(--editor-text)]'
           )}
         >

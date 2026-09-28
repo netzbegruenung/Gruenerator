@@ -16,8 +16,8 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
 import * as Y from 'yjs';
 
-import { useYjsPages } from '../collab/useYjsPages';
 import { readPages } from '../collab/pagesDoc';
+import { useYjsPages } from '../collab/useYjsPages';
 import { loadCanvasConfig, isValidCanvasType } from '../configs/configLoader';
 import { extractInheritablePageState } from '../configs/pageInheritance';
 
@@ -247,7 +247,8 @@ export function usePageManager({
 
       setIsLoadingConfig(true);
       try {
-        const config = await loadCanvasConfig(configId);
+        // Der Loader liefert FullCanvasConfig<any, any> für heterogene Configs.
+        const config = (await loadCanvasConfig(configId)) as FullCanvasConfig;
         configCacheRef.current.set(configId, config);
         return config;
       } finally {

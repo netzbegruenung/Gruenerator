@@ -1,15 +1,11 @@
-import { useMeasuredCornerReservation } from '@gruenerator/ui';
-import { useState, useEffect, memo, useCallback, useRef } from 'react';
-import { FaCheck, FaExclamationTriangle } from 'react-icons/fa';
-import { useMediaQuery } from '@gruenerator/shared/hooks';
+import { memo, useCallback } from 'react';
 
-import { useAutoSaveStore } from '../stores/useAutoSaveStore';
+import { useIsCanvasMobile } from '../hooks/useIsCanvasMobile';
+import { AutoSaveIndicator } from '../components/TopBar/AutoSaveIndicator';
 
 import type { SidebarTabBarProps, SidebarTabId, SidebarTab } from './types';
 
 import { cn } from '../utils/cn';
-
-const MOBILE_TAB_BAR_CORNERS = ['bottom-left', 'bottom-right'] as const;
 
 interface TabButtonProps {
   tab: SidebarTab;
@@ -36,10 +32,8 @@ const TabButton = memo(function TabButton({
     return (
       <button
         className={cn(
-          'min-w-14 flex flex-col items-center justify-center gap-1 py-1.5 mx-0.5 rounded-[10px] border-none cursor-pointer min-h-[48px] transition-[background-color,color] duration-200 bg-transparent [&>svg]:size-[19px] [&>svg]:shrink-0',
-          isActive
-            ? 'bg-[var(--editor-active-bg)] text-[var(--editor-active-fg)] font-bold'
-            : 'text-[var(--editor-text-secondary)]',
+          'flex-1 min-w-0 flex flex-col items-center gap-1 border-none bg-transparent p-0 cursor-pointer select-none',
+          isActive ? 'text-[var(--editor-active-fg)]' : 'text-[var(--editor-text-secondary)]',
           isDisabled && 'opacity-40 cursor-not-allowed'
         )}
         onClick={handleClick}
@@ -49,8 +43,15 @@ const TabButton = memo(function TabButton({
         data-tour={`canvas-tab-${tab.id}`}
         type="button"
       >
-        <Icon size={19} />
-        <span className="text-[9.5px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
+        <span
+          className={cn(
+            'flex items-center justify-center w-[52px] h-8 rounded-2xl transition-colors duration-150',
+            isActive && 'bg-[var(--editor-active-bg)]'
+          )}
+        >
+          <Icon size={20} />
+        </span>
+        <span className="text-[11px] font-bold tracking-[-0.01em] whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
           {tab.label}
         </span>
       </button>
@@ -88,36 +89,19 @@ export const SidebarTabBar = memo(function SidebarTabBar({
   disabledTabs = [],
   horizontal = false,
 }: SidebarTabBarProps) {
-  const autoSaveStatus = useAutoSaveStore((s) => s.autoSaveStatus);
-  const retryAutoSave = useAutoSaveStore((s) => s.retryAutoSave);
-  const isMobile = useMediaQuery('(max-width: 899px)');
-  const [showSaved, setShowSaved] = useState(false);
-
-  useEffect(() => {
-    if (autoSaveStatus === 'saved') {
-      setShowSaved(true);
-      const timer = setTimeout(() => setShowSaved(false), 2000);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [autoSaveStatus]);
+  const isMobile = useIsCanvasMobile();
 
   const isHorizontal = horizontal || isMobile;
-  const mobileBarRef = useRef<HTMLDivElement>(null);
 
-  // Die mobile Tab-Leiste klebt an der unteren Kante — schwebende Nachbarn
-  // (Feedback-Button) rücken darüber, statt Tabs zu verdecken.
-  useMeasuredCornerReservation(mobileBarRef, {
-    corner: MOBILE_TAB_BAR_CORNERS,
-    axis: 'vertical',
-    active: isMobile,
-  });
-
+  // Eine feste Leiste: immer dieselben Einträge an derselben Stelle. Sie liegt
+  // im Fluss unter dem Sheet (order-2), damit der Canvas darüber schrumpft,
+  // statt verdeckt zu werden.
   if (isMobile) {
     return (
-      <div
-        ref={mobileBarRef}
-        className="fixed bottom-0 left-0 right-0 w-full flex items-center justify-evenly overflow-x-auto bg-[var(--editor-surface)] border-t border-[var(--editor-border)] shadow-[0_-2px_8px_rgba(0,0,0,0.08)] pt-2 pb-[calc(6px+env(safe-area-inset-bottom))] z-[100] min-h-[var(--mobile-tab-bar-height,60px)]"
+      <nav
+        aria-label="Editor-Bereiche"
+        data-suppress-feedback-launcher=""
+        className="order-2 flex-none flex h-[calc(64px+env(safe-area-inset-bottom))] pt-2 px-1 pb-[env(safe-area-inset-bottom)] bg-[var(--editor-surface)] border-t border-[var(--editor-border)]"
       >
         {tabs.map((tab) => (
           <TabButton
@@ -129,7 +113,7 @@ export const SidebarTabBar = memo(function SidebarTabBar({
             onTabClick={onTabClick}
           />
         ))}
-      </div>
+      </nav>
     );
   }
 
@@ -152,42 +136,9 @@ export const SidebarTabBar = memo(function SidebarTabBar({
         />
       ))}
 
-      <div className="sidebar-tab-bar__separator w-8 h-px bg-grey-200 dark:bg-grey-700 my-sm" />
+      <div className="sidebar-tab-bar__separator w-8 h-px bg-[var(--editor-border-strong)] my-sm" />
 
-      {autoSaveStatus && (
-        <div
-          className={cn(
-            'flex items-center justify-center size-10 opacity-0 transition-opacity duration-300',
-            autoSaveStatus === 'saving' && 'opacity-100',
-            autoSaveStatus === 'error' && 'opacity-100',
-            showSaved && 'opacity-100'
-          )}
-          title={
-            autoSaveStatus === 'saving'
-              ? 'Wird gespeichert...'
-              : autoSaveStatus === 'saved'
-                ? 'Gespeichert'
-                : autoSaveStatus === 'error'
-                  ? 'Fehler beim Speichern — klicken zum Wiederholen'
-                  : ''
-          }
-        >
-          {autoSaveStatus === 'saving' && (
-            <div className="size-4 border-2 border-[var(--border-subtle)] border-t-[var(--interactive-accent-color)] rounded-full animate-auto-save-spin" />
-          )}
-          {showSaved && <FaCheck size={14} className="text-green-500 animate-auto-save-check" />}
-          {autoSaveStatus === 'error' && (
-            <button
-              className="bg-transparent border-none p-0 cursor-pointer flex items-center justify-center"
-              onClick={() => retryAutoSave?.()}
-              aria-label="Speichern erneut versuchen"
-              type="button"
-            >
-              <FaExclamationTriangle size={14} className="text-red-500" />
-            </button>
-          )}
-        </div>
-      )}
+      <AutoSaveIndicator />
     </div>
   );
 });

@@ -286,6 +286,10 @@
   --color-editor-active-fg: var(--editor-active-fg);
   --color-editor-active-bg: var(--editor-active-bg);
   --color-editor-active-soft: var(--editor-active-soft);
+  --color-editor-secondary-fg: var(--editor-secondary-fg);
+  --color-editor-danger-fg: var(--editor-danger-fg);
+  --color-editor-danger-bg: var(--editor-danger-bg);
+  --color-editor-tanne-preview: var(--editor-tanne-preview);
 
   /* Spacing System */
   --spacing-xxs: var(--spacing-xxsmall);
@@ -648,4 +652,11 @@
 @keyframes galleryShimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* Unlayered on purpose: must beat the launcher's `flex` utility.
+   Surfaces with a full-width bottom bar (mobile canvas editor) offer feedback
+   in their own menu — the floating launcher would cover their controls. */
+body:has([data-suppress-feedback-launcher]) .feedback-widget-fab {
+  display: none;
 }

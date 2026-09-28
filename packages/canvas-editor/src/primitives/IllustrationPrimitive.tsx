@@ -124,7 +124,7 @@ function IllustrationPrimitiveInner({
         }
       };
 
-      loadSvg();
+      void loadSvg();
     }
   }, [
     illustration.source,

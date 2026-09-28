@@ -16,7 +16,6 @@ import { useCanvasStoreSelector } from '../stores/CanvasStoreProvider';
 import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
 import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
 import { useCanvasLayerControls } from '../hooks/useCanvasLayerControls';
-import { useMobileBridge } from '../hooks/useMobileBridge';
 import { canDuplicateElement, duplicateElementInState } from '../utils/duplicateElement';
 import { findTemplateEntry } from '../utils/templateElementInstance';
 
@@ -28,7 +27,6 @@ import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { CanvasItem } from '../utils/canvasLayerManager';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { MobileBridgeProps } from '../hooks/useMobileBridge';
 
 export interface ToolbarBridgeState {
   activeFloatingModule: FloatingModuleState | null;
@@ -60,11 +58,7 @@ interface ToolbarStateBridgeProps<
   debouncedSaveToHistory: (state: TState) => void;
   canUndo: boolean;
   canRedo: boolean;
-  undo: () => void;
-  redo: () => void;
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
-  mobileBridge?: MobileBridgeProps;
-  handleFontSizeChange: (id: string, size: number) => void;
 }
 
 export function ToolbarStateBridge<
@@ -82,11 +76,7 @@ export function ToolbarStateBridge<
   debouncedSaveToHistory,
   canUndo,
   canRedo,
-  undo,
-  redo,
   onToolbarStateChange,
-  mobileBridge,
-  handleFontSizeChange,
 }: ToolbarStateBridgeProps<TState, TActions>) {
   const selectedElement = useCanvasStoreSelector((s) => s.selectedElement);
 
@@ -140,23 +130,6 @@ export function ToolbarStateBridge<
     state,
     setState,
     debouncedSaveToHistory,
-  });
-
-  useMobileBridge(mobileBridge, {
-    selectedElement,
-    activeFloatingModule,
-    canUndo,
-    canRedo,
-    canMoveUp: layerControls.canMoveUp,
-    canMoveDown: layerControls.canMoveDown,
-    handlers: {
-      undo,
-      redo,
-      handleMoveLayer: layerControls.handleMoveLayer,
-      handleColorSelect: floatingHandlers.handleColorSelect,
-      handleOpacityChange: floatingHandlers.handleOpacityChange,
-      handleFontSizeChange,
-    },
   });
 
   // Write bridge state for GenericCanvasInner's useImperativeHandle.

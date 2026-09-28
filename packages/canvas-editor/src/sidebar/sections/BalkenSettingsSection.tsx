@@ -113,14 +113,14 @@ export function BalkenSettingsSection({
       <div className="text-[11px] font-semibold text-foreground-muted uppercase tracking-[0.8px] max-md:hidden">
         Feinabstimmung
       </div>
-      <div className="flex flex-col gap-2 p-3 bg-background-alt border border-grey-200 dark:border-grey-700 rounded-lg">
+      <div className="flex flex-col gap-2 p-3 bg-background-alt border border-editor-border rounded-lg">
         {[0, 1, 2].map((index) => {
           const colorPair = colorScheme.colors[index];
           return (
             <div key={index} className="flex items-center justify-center gap-3">
               <button
                 type="button"
-                className="size-7 flex items-center justify-center bg-grey-100 dark:bg-grey-800 border border-grey-300 dark:border-grey-600 rounded-md text-grey-600 dark:text-grey-300 cursor-pointer transition-all duration-150 hover:bg-primary-50 hover:border-primary-400 hover:text-primary-600 active:scale-95"
+                className="size-7 flex items-center justify-center bg-editor-tile border border-editor-border-strong rounded-md text-editor-text-secondary cursor-pointer transition-all duration-150 hover:bg-editor-active-soft hover:border-editor-accent hover:text-editor-active-fg active:scale-95"
                 onClick={() => handleNudgeLeft(index)}
                 aria-label="Nach links verschieben"
               >
@@ -135,7 +135,7 @@ export function BalkenSettingsSection({
               />
               <button
                 type="button"
-                className="size-7 flex items-center justify-center bg-grey-100 dark:bg-grey-800 border border-grey-300 dark:border-grey-600 rounded-md text-grey-600 dark:text-grey-300 cursor-pointer transition-all duration-150 hover:bg-primary-50 hover:border-primary-400 hover:text-primary-600 active:scale-95"
+                className="size-7 flex items-center justify-center bg-editor-tile border border-editor-border-strong rounded-md text-editor-text-secondary cursor-pointer transition-all duration-150 hover:bg-editor-active-soft hover:border-editor-accent hover:text-editor-active-fg active:scale-95"
                 onClick={() => handleNudgeRight(index)}
                 aria-label="Nach rechts verschieben"
               >
