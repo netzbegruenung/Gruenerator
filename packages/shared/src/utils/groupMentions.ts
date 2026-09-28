@@ -71,3 +71,47 @@ export function groupMentionsToPlain(text: string): string {
     .map((s) => (s.kind === 'text' ? s.text : s.kind === 'user' ? `@${s.label}` : s.raw))
     .join('');
 }
+
+/** Eine im Eingabefeld gewählte Person: dort steht nur `@Label`. */
+export interface GroupMentionPick {
+  userId: string;
+  label: string;
+}
+
+/** Gespeicherter Text → Eingabefeld: Tokens werden zu `@Label`, die Personen wandern mit. */
+export function groupMentionsToDraft(text: string): { text: string; picks: GroupMentionPick[] } {
+  const picks: GroupMentionPick[] = [];
+  const out = groupMentionSegments(text)
+    .map((s) => {
+      if (s.kind === 'text') return s.text;
+      if (s.kind === 'all') return s.raw;
+      if (!picks.some((p) => p.userId === s.userId))
+        picks.push({ userId: s.userId, label: s.label });
+      return `@${s.label}`;
+    })
+    .join('');
+  return { text: out, picks };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Eingabefeld → gespeicherter Text: jedes noch dastehende `@Label` einer
+ * gewählten Person wird wieder zum Token. Gelöschte oder angetippte Namen
+ * bleiben Text — so erwähnt nur, wer aus der Liste gewählt wurde.
+ */
+export function groupMentionsFromDraft(text: string, picks: GroupMentionPick[]): string {
+  // Längere Namen zuerst: „@Anna Maria" darf nicht als „@Anna" enden.
+  const sorted = [...picks].sort((a, b) => b.label.length - a.label.length);
+  let out = text;
+  for (const p of sorted) {
+    const re = new RegExp(
+      `(?<![\\p{L}\\p{N}_\\[])@${escapeRegExp(p.label)}(?![\\p{L}\\p{N}_\\]])`,
+      'gu'
+    );
+    out = out.replace(re, () => buildMemberMention(p.label, p.userId));
+  }
+  return out;
+}
