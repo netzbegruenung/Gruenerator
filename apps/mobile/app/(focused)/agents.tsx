@@ -11,6 +11,7 @@ import {
   DEFAULT_TYPE,
   SKILL_CATEGORY_LABELS,
   SKILL_CATEGORY_ORDER,
+  agentKey,
   agenturaCategoriesForPlatform,
   agenturaMetaLine,
   getSystemAgent,
@@ -247,7 +248,7 @@ export default function AgentsScreen() {
   }
 
   const agentItem = (agent: Agent): MarketItem => ({
-    key: `a-${agent.identifier}`,
+    key: `a-${agentKey(agent)}`,
     kind: 'agent',
     isFavorite: false,
     icon: agentIcon(agent.iconKey),

@@ -63,9 +63,14 @@ const identifierSchema = z
  */
 // Array fields are `.readonly()` so the inferred type matches the canonical
 // `Agent` (whose arrays are `readonly string[]`) in both directions — the
-// server can return an `Agent` and the frontend can hand `body.agents` back as
-// `Agent[]`, both without a cast.
+// server returns a `UserAgentRecord` (an `Agent` with its `id`) and the
+// frontend can hand `body.agents` back as `Agent[]`, both without a cast.
+//
+// `id` is the row's uuid and the agent's stable handle. `identifier` is only
+// unique per owner, so two people's agents can share one — anything that keys,
+// dedupes or addresses a user agent across owners must use `id`.
 export const userAgentSchema = z.object({
+  id: z.string().uuid(),
   identifier: z.string(),
   title: z.string(),
   description: z.string(),

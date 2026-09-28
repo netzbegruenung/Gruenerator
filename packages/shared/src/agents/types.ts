@@ -81,6 +81,12 @@ export interface AgentLocalization {
 }
 
 export interface Agent {
+  /**
+   * Row uuid of a user-created agent — its stable handle. Omitted on registry
+   * agents, whose `identifier` is globally unique. A user agent's `identifier`
+   * is unique only per owner, so key and dedupe through `agentKey`.
+   */
+  id?: string;
   identifier: string;
   /**
    * Optional URL slug override. When set, `/agents/<slug>` resolves here and
