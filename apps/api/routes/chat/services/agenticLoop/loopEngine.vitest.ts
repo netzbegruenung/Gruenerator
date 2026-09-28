@@ -830,6 +830,20 @@ describe('split synthesis — a leaked tool plan is retried, never streamed', ()
     expect(out.text).not.toBe(SYNTH_REFUSAL_TEXT);
   });
 
+  it('streams a capability decline instead of the canned policy refusal (#3799)', async () => {
+    const onText = vi.fn();
+    const honest =
+      'Ich kann keine Websuche durchführen. In den mir vorliegenden Quellen gibt es keine Informationen dazu.';
+    const { deps, systems } = synthDeps([honest, 'Eine zweite Antwort darf es nicht geben.']);
+
+    const out = await runAgenticLoop(baseParams({ mode: 'split', tools, onText }), deps);
+
+    expect(out.text).toBe(honest);
+    expect(systems).toHaveLength(1);
+    expect(onText).toHaveBeenCalledWith(honest);
+    expect(out.text).not.toBe(SYNTH_REFUSAL_TEXT);
+  });
+
   it('still retries a leaked tool plan — the refusal path must not swallow it', async () => {
     const onText = vi.fn();
     const { deps, systems } = synthDeps([

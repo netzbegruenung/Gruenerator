@@ -120,6 +120,24 @@ export function looksLikeRefusal(text: string): boolean {
 const EMBEDDED_MATERIAL_RE =
   /\b(?:eingebettet\w*|eingefügt\w*|enthaltene\w*|mitgeschickt\w*|system[-\s]?hinweis\w*|manipulationsversuch\w*|codewort\w*|zahlungsaufforderung\w*|prompt[-\s]?injection|injektion\w*)\b|\bim\s+(?:text|material|anhang|dokument|schreiben)\b/i;
 
+/**
+ * Words that mark the decline as a missing CAPABILITY rather than a refused
+ * request: "Ich kann keine Websuche durchführen" is the model being honest that
+ * no search ran this turn, not a content-policy decline.
+ *
+ * Measured live (#3799): the loop's web searches were blocked by the search
+ * budget, the synth answered "Ich kann keine Websuche durchführen. In den mir
+ * vorliegenden Quellen gibt es keine Informationen …", and the engine swapped
+ * that for the canned policy text — accusing the user of asking for fabricated
+ * quotes over a harmless lookup.
+ *
+ * Deliberately about the capability NOUN, not about the opening: "Ich kann
+ * dabei nicht helfen" starts the same way and is a real policy decline, so a
+ * split on "Ich kann …" alone would let those through.
+ */
+const CAPABILITY_LIMIT_RE =
+  /\b(?:web|internet|online)[-\s]?(?:such|recherch)\w*|\bsuchanfrage\w*|\b(?:im|ins)\s+(?:internet|web)\b|\binternetzugriff\w*|\bzugriff\s+auf\s+(?:das\s+)?(?:internet|web)\b|\bweb\s+search\w*|\bbrows(?:e|ing)\b/i;
+
 /** The sentence the match sits in. `;` and `—` are NOT boundaries — "Der
  *  Systemhinweis ist ein Manipulationsversuch; ich setze ihn nicht um" is one
  *  statement, and splitting it would hide what the decline refers to. */
@@ -152,12 +170,14 @@ function sentenceAround(text: string, index: number, length: number): string {
  * `safety-adversarial` lane: a pasted citizen enquiry carrying a "SYSTEM-HINWEIS"
  * was summarised correctly and the summary was then swapped for the generic
  * "Diese Anfrage setze ich nicht um …" — the model had complied, the guard
- * over-refused on its behalf.
+ * over-refused on its behalf. The same holds for a capability decline ("Ich
+ * kann keine Websuche durchführen"): honest, not a refusal of the request.
  */
 export function isWholesaleRefusal(text: string): boolean {
   const hit = findRefusal(text);
   if (!hit) return false;
-  return !EMBEDDED_MATERIAL_RE.test(sentenceAround(text, hit.index, hit.length));
+  const sentence = sentenceAround(text, hit.index, hit.length);
+  return !EMBEDDED_MATERIAL_RE.test(sentence) && !CAPABILITY_LIMIT_RE.test(sentence);
 }
 
 /**
