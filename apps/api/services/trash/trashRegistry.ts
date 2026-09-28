@@ -10,6 +10,15 @@ import { type TrashItem, type TrashKind } from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import {
+  getTrashedThread,
+  listExpiredThreads,
+  listTrashedThreads,
+  purgeThread,
+  restoreThread,
+  trashThread,
+  type TrashedThreadRow,
+} from '../../routes/chat/services/threadTrashService.js';
+import {
   getTrashedCollaborativeDocument,
   listExpiredCollaborativeDocuments,
   listTrashedCollaborativeDocuments,
@@ -105,9 +114,38 @@ const collaborativeDocumentHandler: TrashKindHandler = {
   },
 };
 
+const threadItem = (row: TrashedThreadRow): TrashItem =>
+  toTrashItem({
+    kind: 'chat_thread',
+    id: row.id,
+    title: row.title?.trim() || 'Unbenannter Chat',
+    subtype: row.thread_type,
+    deletedAt: row.deleted_at,
+  });
+
+const chatThreadHandler: TrashKindHandler = {
+  async listTrashed(userId, opts) {
+    return (await listTrashedThreads(userId, opts)).map(threadItem);
+  },
+  async getTrashed(userId, id) {
+    const found = await getTrashedThread(id, userId);
+    return found.status === 'ok' ? threadItem(found.row) : found.status;
+  },
+  async trash(userId, id) {
+    const result = await trashThread(id, userId);
+    return result === 'trashed' || result === 'deleted' ? 'ok' : result;
+  },
+  async restore(userId, id) {
+    return (await restoreThread(id, userId)).status;
+  },
+  purge: purgeThread,
+  listExpired: listExpiredThreads,
+};
+
 // Task 5 tightens this to `Record<TrashKind, TrashKindHandler>` once every kind has one.
 export const TRASH_KINDS = {
   collaborative_document: collaborativeDocumentHandler,
+  chat_thread: chatThreadHandler,
 } satisfies Partial<Record<TrashKind, TrashKindHandler>>;
 
 export function trashHandlerFor(kind: TrashKind): TrashKindHandler | null {

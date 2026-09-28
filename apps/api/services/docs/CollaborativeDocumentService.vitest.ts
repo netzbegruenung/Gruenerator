@@ -1,25 +1,35 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** Every side effect of a purge lands in this one ordered log. */
-const { effects, deleteStoredFile, deleteReplacedThumbnailShare, reportBackgroundError } =
-  vi.hoisted(() => {
-    const log: string[] = [];
-    return {
-      effects: log,
-      deleteStoredFile: vi.fn((name: string) => {
-        log.push(`unlink ${name}`);
-        return Promise.resolve();
-      }),
-      deleteReplacedThumbnailShare: vi.fn((url: string) => {
-        log.push(`thumbnail ${url}`);
-        return Promise.resolve();
-      }),
-      reportBackgroundError: vi.fn(),
-    };
-  });
+const {
+  effects,
+  deleteStoredFile,
+  deleteReplacedThumbnailShare,
+  purgeDocThread,
+  reportBackgroundError,
+} = vi.hoisted(() => {
+  const log: string[] = [];
+  return {
+    effects: log,
+    deleteStoredFile: vi.fn((name: string) => {
+      log.push(`unlink ${name}`);
+      return Promise.resolve();
+    }),
+    deleteReplacedThumbnailShare: vi.fn((url: string) => {
+      log.push(`thumbnail ${url}`);
+      return Promise.resolve();
+    }),
+    purgeDocThread: vi.fn((threadId: string) => {
+      log.push(`purge thread ${threadId}`);
+      return Promise.resolve(true);
+    }),
+    reportBackgroundError: vi.fn(),
+  };
+});
 
 vi.mock('../../routes/boards/boardAttachmentStorage.js', () => ({ deleteStoredFile }));
 vi.mock('../canvas/canvasRepository.js', () => ({ deleteReplacedThumbnailShare }));
+vi.mock('../../routes/chat/services/threadTrashService.js', () => ({ purgeDocThread }));
 vi.mock('../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
 
 import {
@@ -264,6 +274,7 @@ describe('purgeCollaborativeDocument', () => {
     effects.length = 0;
     deleteStoredFile.mockClear();
     deleteReplacedThumbnailShare.mockClear();
+    purgeDocThread.mockClear();
     reportBackgroundError.mockClear();
   });
 
@@ -279,6 +290,7 @@ describe('purgeCollaborativeDocument', () => {
       if (s.startsWith('SELECT thumbnail_url')) {
         return [{ thumbnail_url: '/api/share/tok-1/download' }];
       }
+      if (s.startsWith('SELECT id FROM chat_threads')) return [{ id: 'thread-1' }];
       if (s.startsWith('DELETE FROM collaborative_documents')) return opts.deleted;
       return [];
     }) as QueryRunner;
@@ -303,11 +315,12 @@ describe('purgeCollaborativeDocument', () => {
     expect(effects).toEqual([
       'SELECT stored_filename FROM board_attachments',
       'SELECT thumbnail_url FROM canvas_documents',
+      'SELECT id FROM chat_threads',
       'DELETE FROM collaborative_documents',
       'DELETE FROM yjs_document_updates',
       'DELETE FROM yjs_document_snapshots',
       'DELETE FROM group_content_shares',
-      'DELETE FROM chat_threads',
+      'purge thread thread-1',
       'DELETE FROM board_scheduled_runs',
       'unlink a.pdf',
       'unlink b.png',
@@ -322,8 +335,10 @@ describe('purgeCollaborativeDocument', () => {
     expect(effects).toEqual([
       'SELECT stored_filename FROM board_attachments',
       'SELECT thumbnail_url FROM canvas_documents',
+      'SELECT id FROM chat_threads',
       'DELETE FROM collaborative_documents',
     ]);
+    expect(purgeDocThread).not.toHaveBeenCalled();
     expect(deleteStoredFile).not.toHaveBeenCalled();
     expect(deleteReplacedThumbnailShare).not.toHaveBeenCalled();
   });

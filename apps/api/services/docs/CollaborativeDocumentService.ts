@@ -271,7 +271,8 @@ export async function listExpiredCollaborativeDocuments(
  * Cascades with the row: board_* tables, canvas_documents,
  * canvas_state_versions, chat_thread_canvases, collaborative_documents_init.
  * No FK, cleaned here: Yjs state, group shares, the doc's chat thread
- * (`chat_threads.doc_id`; its messages cascade from the thread), board
+ * (`chat_threads.doc_id`, via `purgeDocThread` so its attachment vectors and
+ * recall point go too), board
  * schedules, attachment files and the canvas thumbnail share.
  */
 export async function purgeCollaborativeDocument(
@@ -285,6 +286,10 @@ export async function purgeCollaborativeDocument(
   );
   const thumbnails = await runQuery<{ thumbnail_url: string | null }>(
     'SELECT thumbnail_url FROM canvas_documents WHERE document_id = $1',
+    [id]
+  );
+  const docThreads = await runQuery<{ id: string }>(
+    'SELECT id FROM chat_threads WHERE doc_id = $1',
     [id]
   );
 
@@ -322,9 +327,12 @@ export async function purgeCollaborativeDocument(
       [id]
     )
   );
-  await sideStore('chat_threads', () =>
-    runQuery('DELETE FROM chat_threads WHERE doc_id = $1', [id])
-  );
+  for (const thread of docThreads) {
+    await sideStore('chat_threads', async () => {
+      const { purgeDocThread } = await import('../../routes/chat/services/threadTrashService.js');
+      await purgeDocThread(thread.id);
+    });
+  }
   await sideStore('board_scheduled_runs', () =>
     runQuery('DELETE FROM board_scheduled_runs WHERE board_id = $1', [id])
   );
