@@ -56,8 +56,10 @@ function detectTrigger(text: string, caret: number): { start: number; query: str
 /**
  * Eingabe mit Erwähnungen: im Feld steht `@Name`, gespeichert wird das Token
  * (`serialize`). `@` öffnet die Auswahl, Pfeiltasten wählen, Enter/Tab setzt ein.
+ * `maxLength` gilt für den gespeicherten Text — das Feld bekommt nur, was nach
+ * den längeren Tokens übrig bleibt.
  */
-export function useMentionDraft(initialStored = '') {
+export function useMentionDraft(maxLength: number, initialStored = '') {
   const { candidates, allowAll, memberCount } = useContext(GroupMentionContext);
   const [draft, setDraft] = useState(() => groupMentionsToDraft(initialStored));
   const [trigger, setTrigger] = useState<{ start: number; query: string } | null>(null);
@@ -89,8 +91,13 @@ export function useMentionDraft(initialStored = '') {
   const activeIndex = Math.min(active, Math.max(suggestions.length - 1, 0));
   const optionId = (i: number) => `${listId}-${i}`;
 
+  const stored = groupMentionsFromDraft(draft.text, draft.picks);
+  const tokenOverhead = stored.length - draft.text.length;
+
   const setText = (text: string, caret: number) => {
-    setDraft((d) => ({ ...d, text }));
+    // Wessen `@Name` gelöscht ist, der ist nicht mehr gewählt — auch nicht,
+    // wenn der Name später von Hand wieder dasteht.
+    setDraft((d) => ({ text, picks: d.picks.filter((p) => text.includes(`@${p.label}`)) }));
     setTrigger(detectTrigger(text, caret));
     setActive(0);
   };
@@ -136,7 +143,9 @@ export function useMentionDraft(initialStored = '') {
 
   return {
     text: draft.text,
-    serialize: () => groupMentionsFromDraft(draft.text, draft.picks).trim(),
+    serialize: () => stored.trim(),
+    /** Gewählte Erwähnungen haben den Text über die Grenze geschoben. */
+    tooLong: stored.trim().length > maxLength,
     reset: (stored = '') => {
       setDraft(groupMentionsToDraft(stored));
       setTrigger(null);
@@ -144,6 +153,7 @@ export function useMentionDraft(initialStored = '') {
     handleKey,
     inputProps: {
       value: draft.text,
+      maxLength: Math.max(maxLength - tokenOverhead, 0),
       onChange: (e: { target: HTMLInputElement | HTMLTextAreaElement }) =>
         setText(e.target.value, e.target.selectionStart ?? e.target.value.length),
       onBlur: () => setTrigger(null),

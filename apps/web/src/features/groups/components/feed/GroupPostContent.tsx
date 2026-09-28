@@ -36,13 +36,14 @@ export function GroupPostContent({
   editing,
   onEditDone,
 }: GroupPostContentProps) {
-  const draft = useMentionDraft(post.body);
+  const draft = useMentionDraft(GROUP_POST_MAX, post.body);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const update = useUpdateGroupPost(groupId);
   const images = post.files.filter((f) => f.isImage);
   const others = post.files.filter((f) => !f.isImage);
   const grid = gridFor(images.length);
-  const canSave = (draft.text.trim().length > 0 || post.files.length > 0) && !update.isPending;
+  const canSave =
+    (draft.text.trim().length > 0 || post.files.length > 0) && !draft.tooLong && !update.isPending;
 
   return (
     <div className="flex flex-col gap-sm px-md pt-sm">
@@ -53,7 +54,6 @@ export function GroupPostContent({
             {...draft.inputProps}
             autoFocus
             rows={4}
-            maxLength={GROUP_POST_MAX}
             aria-label="Beitrag bearbeiten"
             onKeyDown={(e) => {
               if (draft.handleKey(e)) return;

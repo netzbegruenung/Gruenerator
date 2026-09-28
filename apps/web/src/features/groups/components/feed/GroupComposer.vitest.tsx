@@ -143,6 +143,41 @@ describe('GroupComposer mentions', () => {
     );
   });
 
+  it('counts the stored token against the limit and forgets a deleted pick', async () => {
+    let received: FormDataEntryValue | null = null;
+    server.use(
+      http.post(POSTS_URL, async ({ request }) => {
+        received = (await request.formData()).get('body');
+        return HttpResponse.json({ success: true, postId: 'p', shareId: 's' }, { status: 201 });
+      })
+    );
+    const { user } = renderWithProviders(
+      <GroupMentionProvider
+        value={{
+          candidates: [{ userId: ANNA, label: 'Anna Beispiel' }],
+          allowAll: true,
+          memberCount: 9,
+        }}
+      >
+        <GroupComposer {...props} />
+      </GroupMentionProvider>
+    );
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an die Gruppe …' }));
+    const box = screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' });
+    const free = Number(box.getAttribute('maxlength'));
+
+    await user.type(box, '@an{ArrowDown}{Enter}');
+    const token = `@[Anna Beispiel](user:${ANNA})`;
+    expect(Number(box.getAttribute('maxlength'))).toBe(
+      free - (token.length - '@Anna Beispiel'.length)
+    );
+
+    await user.clear(box);
+    await user.type(box, 'Hi @Anna Beispiel');
+    await user.click(screen.getByRole('button', { name: 'Posten' }));
+    await waitFor(() => expect(received).toBe('Hi @Anna Beispiel'));
+  });
+
   it('hides @alle when the viewer may not use it', async () => {
     const { user } = renderWithProviders(
       <GroupMentionProvider value={{ candidates: [], allowAll: false, memberCount: null }}>
