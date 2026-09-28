@@ -30,6 +30,7 @@
   "scripts": {
     "build:css": "tailwindcss -i ./src/styles/tailwind-input.css -o ./dist/styles/canvas-editor-bundle.css --minify",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "test": "vitest run"
   },
   "dependencies": {

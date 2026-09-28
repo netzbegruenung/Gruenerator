@@ -1,9 +1,15 @@
 import { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react';
 import { PiArrowLeft } from 'react-icons/pi';
 
-import { useDebounce } from '../../../hooks/useDebounce';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import { getAssetById, sortLogoAssets, type UniversalAsset } from '../../../utils/canvasAssets';
+import { useDebounce } from '../../../hooks/useDebounce';
+import {
+  getAssetById,
+  sortLogoAssets,
+  type UniversalAsset,
+  type AssetInstance,
+} from '../../../utils/canvasAssets';
+import { cn } from '../../../utils/cn';
 import { filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/illustrationCatalog';
 import { SIDEBAR_SECTION } from '../../sidebarStyles';
@@ -31,15 +37,12 @@ import {
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
 import type { AssetSearchState } from './useAssetSearch';
 import type { BalkenMode } from '../../../primitives';
-import type { AssetInstance } from '../../../utils/canvasAssets';
-import type { ShapeInstance, ShapeType } from '../../../utils/shapes';
 import type {
   IllustrationInstance,
   KawaiiIllustrationType,
   SvgDef,
 } from '../../../utils/illustrations/types';
-
-import { cn } from '../../../utils/cn';
+import type { ShapeInstance, ShapeType } from '../../../utils/shapes';
 
 // --- Sub-components ---
 

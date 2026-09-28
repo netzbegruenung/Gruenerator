@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import './canvas-editor.css';
-import type { StockImageAttribution } from './common/imageSourceTypes';
 import { CanvasEditor } from './components/CanvasEditor';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
+
+import type { StockImageAttribution } from './common/imageSourceTypes';
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
 import type { InitialPageDef } from './hooks/usePageManager';
-import * as Y from 'yjs';
+import type { HocuspocusProvider } from '@hocuspocus/provider';
+import type * as Y from 'yjs';
 
 type CanvasState = Record<string, unknown>;
 
@@ -129,7 +131,7 @@ export interface ControllableCanvasWrapperProps {
     ydoc: Y.Doc;
     isSynced: boolean;
     /** Hocuspocus provider — enables awareness features (remote selections). */
-    provider?: import('@hocuspocus/provider').HocuspocusProvider | null;
+    provider?: HocuspocusProvider | null;
   };
   /** Host-supplied content rendered at the very left of the toolbar (in-flow). */
   chromeLeft?: React.ReactNode;

@@ -12,14 +12,14 @@ import { Group, Rect, Circle, Text } from 'react-konva';
 import useImage from 'use-image';
 
 import { type GeometryReporter } from '../hooks/useGeometryReporter';
+import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
+import { useIsElementSelected } from '../stores/CanvasStoreProvider';
 import { canvasImageSourceUrl } from '../utils/canvasImageSource';
 // Die Aufloesung von x/y/width/height/opacity steht seit #3403 ausserhalb:
 // `templateElementToEntry` braucht dieselbe Rechnung, und zwei Fassungen
 // derselben Arithmetik driften auseinander.
-import { resolveColor, resolveImageElementBox, resolveValue } from '../utils/resolveElementValue';
 import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
-import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
-import { useIsElementSelected } from '../stores/CanvasStoreProvider';
+import { resolveColor, resolveImageElementBox, resolveValue } from '../utils/resolveElementValue';
 import {
   assertAsString,
   assertAsNumber,
@@ -461,12 +461,12 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
   stageHeight,
   snapTargets,
 }: GenericCanvasElementProps<TState>) {
+  const selected = useIsElementSelected(config.id);
+
   // Check visibility
   if (config.visible && !config.visible(state)) {
     return null;
   }
-
-  const selected = useIsElementSelected(config.id);
 
   switch (config.type) {
     case 'text':

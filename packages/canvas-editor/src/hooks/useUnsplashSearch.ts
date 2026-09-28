@@ -1,13 +1,11 @@
-import { useCallback } from 'react';
-
 import {
   useUnsplashSearch as useUnsplashSearchShared,
   type UnsplashSearchFn,
+  type UseUnsplashSearchReturn,
 } from '@gruenerator/shared/image-studio';
+import { useCallback } from 'react';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
-
-import type { UseUnsplashSearchReturn } from '@gruenerator/shared/image-studio';
 
 export function useUnsplashSearch(): UseUnsplashSearchReturn {
   const { searchUnsplashImages } = useCanvasEditorServices();

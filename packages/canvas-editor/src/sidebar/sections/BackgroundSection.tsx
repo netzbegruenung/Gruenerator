@@ -3,25 +3,23 @@ import { FaCheck } from 'react-icons/fa';
 import { HiColorSwatch } from 'react-icons/hi';
 import { HiPhoto, HiMagnifyingGlass, HiXMark } from 'react-icons/hi2';
 
-import UnsplashAttribution from '../../common/UnsplashAttribution';
-import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
+import UnsplashAttribution from '../../common/UnsplashAttribution';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
-import { persistImageSelection } from '../persistImageSelection';
-
-import type { StockImage } from '../../common/imageSourceTypes';
+import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
+import { cn } from '../../utils/cn';
 import { ColorSwatchGrid } from '../components/ColorSwatchGrid';
 import { SidebarSlider } from '../components/SidebarSlider';
+import { persistImageSelection } from '../persistImageSelection';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 
+import type { StockImage } from '../../common/imageSourceTypes';
 import type {
   BackgroundColorOption,
   BackgroundSectionProps,
   StockImageAttribution,
 } from '../types';
-
-import { cn } from '../../utils/cn';
 
 // ============================================================================
 // Shared mobile styling
@@ -173,7 +171,7 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
   // Execute search when debounced query changes
   useEffect(() => {
     if (debouncedQuery.trim()) {
-      searchUnsplash(debouncedQuery);
+      void searchUnsplash(debouncedQuery);
     } else {
       clearSearch();
     }

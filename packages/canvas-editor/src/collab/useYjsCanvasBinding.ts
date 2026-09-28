@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import * as Y from 'yjs';
 
 import { useCanvasStore } from '../stores/CanvasStoreProvider';
 
 import { bindCanvasStoreToYMap } from './yjsBinding';
+
+import type * as Y from 'yjs';
 
 interface Options {
   parent: Y.Map<unknown> | null;

@@ -9,6 +9,7 @@ import { downloadBlob } from '@gruenerator/shared';
 import { useState, useCallback, type RefObject } from 'react';
 
 import { useCanvasEditorServices } from '../CanvasEditorProvider';
+
 import type { GenericCanvasRef } from '../components/GenericCanvas';
 
 export interface UseMultiPageExportProps {
@@ -103,7 +104,7 @@ export function useMultiPageExport({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = (await response.json().catch(() => ({}))) as { message?: string };
         throw new Error(errorData.message || `ZIP-Export fehlgeschlagen (${response.status})`);
       }
 
