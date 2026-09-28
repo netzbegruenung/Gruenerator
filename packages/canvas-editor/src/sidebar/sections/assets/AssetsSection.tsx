@@ -4,6 +4,7 @@ import { HiSparkles } from 'react-icons/hi2';
 import { PiChartBar, PiFrameCornersFill, PiSmileyWink, PiTagFill } from 'react-icons/pi';
 
 import { useIconCatalog } from '../../../hooks/useIconCatalog';
+import { useIsCanvasMobile } from '../../../hooks/useIsCanvasMobile';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { sortLogoAssets, type AssetInstance } from '../../../utils/canvasAssets';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/illustrationCatalog';
@@ -27,6 +28,7 @@ import { IllustrationenSection } from '../IllustrationenSection';
 import { RahmenSection } from '../RahmenSection';
 
 import { BrowseView } from './BrowseView';
+import { MobileCatalogView } from './MobileCatalogView';
 import { SearchInput, SearchResultsGrid } from './SearchResultsGrid';
 import { useAssetSearch } from './useAssetSearch';
 
@@ -94,15 +96,8 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
     onAddFrame,
   } = props;
 
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' && window.innerWidth < 900
-  );
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 900);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const isMobile = useIsCanvasMobile();
+  const bridge = useMobileSubsectionBridge();
 
   const hasAssetsFeature = onAddAsset !== undefined;
   const hasIconsFeature = selectedIcons !== undefined && onIconToggle !== undefined;
@@ -148,7 +143,12 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
     );
   }
 
-  // --- Mobile: existing SubsectionTabBar ---
+  // --- Mobile web: search + category carousels with "Alle" drill-down ---
+  if (!bridge.active) {
+    return <MobileCatalogView search={search} {...props} />;
+  }
+
+  // --- Native host: the bridge drives SubsectionTabBar's active subsection ---
   return (
     <MobileView
       {...{
