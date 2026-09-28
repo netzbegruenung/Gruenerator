@@ -43,6 +43,7 @@ async function runReminderScan(): Promise<void> {
        FROM board_card_due_dates d
        JOIN collaborative_documents cd ON cd.id = d.board_id
        WHERE d.reminded_at IS NULL
+         AND cd.is_deleted = false
          AND d.due_date::date <= (CURRENT_DATE + INTERVAL '1 day')
          AND d.due_date::date >= CURRENT_DATE`,
       []

@@ -22,6 +22,7 @@ export const userSites = pgTable('user_sites', {
   sections: jsonb('sections').$type<Record<string, unknown>>().default({}),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  deleted_at: timestamp('deleted_at', { withTimezone: true }),
   last_published: timestamp('last_published', { withTimezone: true }),
   visit_count: integer('visit_count').default(0),
   meta_description: text('meta_description'),

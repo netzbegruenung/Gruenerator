@@ -28,6 +28,7 @@ export const userTextForms = pgTable(
     public_ownership: text('public_ownership'),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deleted_at: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => [
     unique('user_text_forms_user_mention_unique').on(t.user_id, t.mention),

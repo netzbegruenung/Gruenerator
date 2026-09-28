@@ -1307,3 +1307,18 @@ CREATE INDEX IF NOT EXISTS idx_board_comments_parent ON board_comments(parent_id
 CREATE INDEX IF NOT EXISTS idx_board_comments_user ON board_comments(user_id);
 CREATE INDEX IF NOT EXISTS idx_board_comments_mentioned ON board_comments USING gin(mentioned_user_ids) WHERE mentioned_user_ids != '{}';
 CREATE INDEX IF NOT EXISTS idx_board_comment_reactions_comment ON board_comment_reactions(comment_id);
+
+-- Papierkorb (zz_20260929_trash_deleted_at.sql). user_agents, user_text_forms,
+-- recurring_tasks und user_letterheads entstehen erst in Migrationen; dort legt
+-- die Migration die Spalte an. Partielle Indizes und CHECK stehen nur dort.
+ALTER TABLE collaborative_documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+ALTER TABLE subtitler_projects ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+ALTER TABLE user_templates ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+ALTER TABLE custom_prompts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+ALTER TABLE user_sites ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+ALTER TABLE user_documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+ALTER TABLE user_knowledge ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;

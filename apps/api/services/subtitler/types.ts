@@ -38,12 +38,12 @@ export interface SubtitlerProject extends Omit<
 /**
  * Project list item — the subset returned by `getUserProjects()`. Field
  * names mirror the Drizzle select projection (no subtitles blob, no
- * video_path, no user_id, no style_settings); `status` stays wide
+ * video_path, no user_id, no style_settings, no deleted_at); `status` stays wide
  * (`string`) because the projection drops Drizzle's text() to plain string.
  */
 export type SubtitlerProjectListItem = Omit<
   SubtitlerProjectRow,
-  'subtitles' | 'video_path' | 'user_id' | 'style_settings'
+  'subtitles' | 'video_path' | 'user_id' | 'style_settings' | 'deleted_at'
 >;
 
 /**
