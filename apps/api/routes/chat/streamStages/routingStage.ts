@@ -132,7 +132,8 @@ export function runRoutingStage({
     isPdfFillRequest: hasReachableForm(classifiedState) && isSheetFillRequest(lastUserText),
     isReisekostenTurn: isReisekostenTurn(
       classifiedState.activeSkillMention,
-      lastUserTextNoMentions
+      lastUserTextNoMentions,
+      classifiedState.messages
     ),
     classifierContradictedResearch: classifiedState.classifierContradictedResearch === true,
     // Same question the classifier's Tier 3.5 asks, asked again here because a
