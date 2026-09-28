@@ -142,9 +142,13 @@ export {
 // Composer controls — shared source of truth for the chat composer's modes/tools/labels/icons
 export {
   COMPOSER_MODES,
+  COMPOSER_MODES_TITLE,
   COMPOSER_TOOLS,
+  composerModeDef,
+  enabledModelIdsFromPreferences,
   SEARCH_DEPTHS,
   showsSearchDepth,
+  visibleComposerModels,
   type ComposerModeDef,
   type ComposerIconKey,
   type ComposerToolDef,

@@ -1,9 +1,10 @@
 import {
   useAgentStore,
-  MODEL_OPTIONS,
   AUTO_MODEL_ID,
   AUTO_MODEL_OPTION,
   COMPOSER_MODES,
+  COMPOSER_MODES_TITLE,
+  visibleComposerModels,
   SEARCH_DEPTHS,
   showsSearchDepth,
   quickSkillMentionables,
@@ -19,7 +20,6 @@ import {
   type Mentionable,
   type SearchDepthIconKey,
 } from '@gruenerator/chat';
-import { isModelEnabledByDefault } from '@gruenerator/shared/models';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { memo, useCallback, useState, type ReactNode } from 'react';
@@ -34,6 +34,7 @@ import {
 } from 'react-native';
 import { useShallow } from 'zustand/shallow';
 
+import { useEnabledModelIds } from '../../hooks/useEnabledModelIds';
 import { useTheme } from '../../hooks/useTheme';
 import { spacing, borderRadius, chatType, colors } from '../../theme';
 import { route } from '../../types/routes';
@@ -63,7 +64,7 @@ const DEPTH_ICONS: Record<SearchDepthIconKey, IoniconsIconName> = {
 type Detail = 'mode' | 'skills' | 'functions' | 'depth' | 'model' | 'connectors';
 
 const DETAIL_TITLES: Record<Detail, string> = {
-  mode: 'Modus',
+  mode: COMPOSER_MODES_TITLE,
   skills: 'Rezepte',
   functions: 'Funktionen',
   depth: 'Recherchetiefe',
@@ -97,8 +98,8 @@ interface Props {
  * and simply had no UI on either platform. They render from the shared
  * `COMPOSER_TOOLS`, so the set cannot diverge again. Recherchetiefe follows the shared
  * `showsSearchDepth` rule instead of being always visible, and the model list
- * web's own `isModelEnabledByDefault` filter, which mobile skipped and so
- * offered models web hides. Konnektoren is the opposite gap: web pins an MCP
+ * follows the shared `visibleComposerModels` rule over the user's saved model
+ * preferences, as web's ModelPicker does. Konnektoren is the opposite gap: web pins an MCP
  * server from this menu, mobile had no way to at all.
  *
  * Layout is the platform convention for a sheet like this: a row of large tiles
@@ -151,7 +152,8 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
   const skills = quickSkillMentionables(favorites);
   const functions = functionMentionables();
 
-  const models = MODEL_OPTIONS.filter((model) => isModelEnabledByDefault(model.id));
+  const enabledModelIds = useEnabledModelIds();
+  const models = visibleComposerModels(enabledModelIds);
   const activeModel =
     !selectedModel || selectedModel === AUTO_MODEL_ID
       ? AUTO_MODEL_OPTION.name
@@ -376,7 +378,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
             <ListGroup>
               <ListRow
                 icon={MODE_ICONS[activeMode.icon]}
-                title="Modus"
+                title={COMPOSER_MODES_TITLE}
                 value={activeMode.label}
                 onPress={() => setDetail('mode')}
               />

@@ -1,4 +1,10 @@
 import { getSystemAgent } from '@gruenerator/shared/agents';
+import {
+  isModelEnabledByDefault,
+  TEXT_MODELS,
+  type TextModelId,
+  type TextModelOption,
+} from '@gruenerator/shared/models';
 
 import { type SearchMode, type ThreadMode, type ToolKey } from '../stores/chatStore';
 
@@ -26,7 +32,10 @@ export interface ComposerModeDef {
  * Change a mode here → both platforms follow.
  */
 export const COMPOSER_MODES: ComposerModeDef[] = [
-  { mode: 'chat', label: 'Chat', icon: 'chat' },
+  // „Ohne Rolle", nicht „Chat": der Modus ist die Abwesenheit einer Rolle, und so
+  // heißt er auch in Einstellungen und Stores. Web listet unter `eigener` die
+  // einzelnen Rollen; „Eigener Chat" ist nur die Zeile, wenn es keine gibt.
+  { mode: 'chat', label: 'Ohne Rolle', icon: 'chat' },
   // NOTEBOOK-MODUS — vorerst nicht weiterverfolgt (08/2026).
   //
   // Als WÄHLBARER Modus stillgelegt: er stand im Plusmenü gleichrangig neben
@@ -44,6 +53,38 @@ export const COMPOSER_MODES: ComposerModeDef[] = [
   // { mode: 'notebook', label: 'Notebook', icon: 'notebook' },
   { mode: 'eigener', label: 'Eigener Chat', icon: 'custom' },
 ];
+
+/** Überschrift der Modus-Auswahl auf beiden Plattformen. */
+export const COMPOSER_MODES_TITLE = 'Rollen';
+
+export function composerModeDef(mode: 'chat' | 'eigener'): ComposerModeDef {
+  // Beide Einträge stehen fest in der Liste oben; der Test bewacht das.
+  return COMPOSER_MODES.find((m) => m.mode === mode) as ComposerModeDef;
+}
+
+/**
+ * Welche Modelle der Picker anbietet. `enabledModelIds` ist die gespeicherte
+ * Auswahl der Person (`modelPreferences`), `null` solange sie nicht geladen ist
+ * — dann gilt der Katalog-Standard.
+ */
+export function visibleComposerModels(
+  enabledModelIds: ReadonlySet<TextModelId> | null
+): TextModelOption[] {
+  return enabledModelIds
+    ? TEXT_MODELS.filter((m) => enabledModelIds.has(m.id))
+    : TEXT_MODELS.filter((m) => isModelEnabledByDefault(m.id));
+}
+
+/** Antwort von `modelPreferences.getPreferences` → die eingeschalteten IDs. */
+export function enabledModelIdsFromPreferences(
+  preferences: Record<string, { enabled: boolean } | undefined>
+): Set<TextModelId> {
+  const set = new Set<TextModelId>();
+  for (const [id, pref] of Object.entries(preferences)) {
+    if (pref?.enabled) set.add(id as TextModelId);
+  }
+  return set;
+}
 
 export type ComposerToolIconKey = 'document' | 'globe' | 'research';
 
