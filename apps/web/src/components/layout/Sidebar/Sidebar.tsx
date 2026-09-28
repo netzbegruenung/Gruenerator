@@ -561,7 +561,7 @@ const SidebarFavourites = memo(function SidebarFavourites({
         });
         continue;
       }
-      const ua = userAgents.find((a) => a.identifier === identifier);
+      const ua = userAgents.find((a) => a.identifier === identifier || a.id === identifier);
       const title = ua?.title ?? favoriteTitles[identifier];
       if (title) {
         rows.push({
