@@ -129,7 +129,7 @@ export function deriveLevel(
  *   - object  → merged with platform defaults (missing channels get defaults)
  *   - missing → platform defaults
  */
-function resolveChannelPreferences(
+export function resolveChannelPreferences(
   stored: unknown,
   category: NotificationType
 ): ChannelPreferences {

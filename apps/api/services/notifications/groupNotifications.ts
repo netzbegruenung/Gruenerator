@@ -1,7 +1,7 @@
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { createNotification } from './NotificationService.js';
+import { createNotificationsForUsers } from './NotificationService.js';
 
 import type { NotificationType } from './types.js';
 
@@ -12,8 +12,8 @@ interface GroupRow {
   is_system: boolean | null;
 }
 
-// The system group holds every user: deliver in slices so one share doesn't
-// queue thousands of inserts on the pool at once.
+// The system group holds every user: deliver in slices of one read and one
+// multi-row insert each, so no single statement grows with the user count.
 const DELIVER_CHUNK = 200;
 
 // Addressed to one person: shown on their own instead of folded into the
@@ -152,25 +152,21 @@ async function deliver(
   // In the system group notifications stay in-app — no mass email to every user.
   const channelOverride = group?.is_system ? { email: false } : undefined;
   for (let i = 0; i < userIds.length; i += DELIVER_CHUNK) {
-    await Promise.all(
-      userIds.slice(i, i + DELIVER_CHUNK).map((userId) =>
-        createNotification({
-          userId,
-          type,
-          title,
-          body,
-          actionUrl,
-          metadata: { groupId, groupName, ...metadata },
-          ...(UNGROUPED_TYPES.has(type) ? {} : { groupKey: `group:${groupId}` }),
-          channelOverride,
-        }).catch((err: unknown) => {
-          log.warn('Failed to notify group user', {
-            userId,
-            groupId,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        })
-      )
-    );
+    const chunk = userIds.slice(i, i + DELIVER_CHUNK);
+    await createNotificationsForUsers(chunk, {
+      type,
+      title,
+      body,
+      actionUrl,
+      metadata: { groupId, groupName, ...metadata },
+      ...(UNGROUPED_TYPES.has(type) ? {} : { groupKey: `group:${groupId}` }),
+      channelOverride,
+    }).catch((err: unknown) => {
+      log.warn('Failed to notify group users', {
+        groupId,
+        users: chunk.length,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
   }
 }
