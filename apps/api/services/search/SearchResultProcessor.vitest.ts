@@ -142,6 +142,48 @@ describe('buildReferencesMap: Upload-Zeit ist kein Quellendatum', () => {
   });
 });
 
+describe('validateAndInjectCitations: Quellenlinks', () => {
+  const ref = (document_id: string) => ({
+    title: `Titel ${document_id}`,
+    snippets: [['Vorschau']],
+    description: null,
+    date: null,
+    source: 'qa_documents',
+    document_id,
+    source_url: null,
+    filename: null,
+    similarity_score: 0.9,
+    chunk_index: 0,
+    page_number: null,
+  });
+  const map = { '1': ref('doc-1'), '2': ref('doc-2') };
+
+  it('zählt eine nur verlinkte Quelle als zitiert und lässt den Link stehen', () => {
+    const out = validateAndInjectCitations('Aussage.[1] Siehe [Klimaplan](quelle:2).', map);
+    expect(out.cleanDraft).toBe('Aussage.[cite:1] Siehe [Klimaplan](quelle:2).');
+    expect(out.citations.map((c) => c.index)).toEqual(['1', '2']);
+    expect(out.errors).toBeNull();
+  });
+
+  it('liest ein Zahlen-Label nicht als Marker', () => {
+    const out = validateAndInjectCitations('[2024](quelle:1) und [1](quelle:2).[1]', map);
+    expect(out.cleanDraft).toBe('[2024](quelle:1) und [1](quelle:2).[cite:1]');
+    expect(out.errors).toBeNull();
+  });
+
+  it('macht aus einem Link auf eine unbekannte Quelle den blanken Titel', () => {
+    const out = validateAndInjectCitations('Siehe [Erfunden](quelle:9).[1]', map);
+    expect(out.cleanDraft).toBe('Siehe Erfunden.[cite:1]');
+    expect(out.errors).toEqual(['Invalid citation [9]']);
+  });
+
+  it('teilt Gruppen-Marker weiter auf und lässt unbekannte Nummern stehen', () => {
+    const out = validateAndInjectCitations('Aussage.[1, 2, 7]', map);
+    expect(out.cleanDraft).toBe('Aussage.[cite:1][cite:2][7]');
+    expect(out.errors).toEqual(['Invalid citation [7]']);
+  });
+});
+
 describe('sourceTextForPrompt', () => {
   const tabelle = '| Programm | Satz |\n| --- | --- |\n| Heizungstausch | 30 Prozent |';
 

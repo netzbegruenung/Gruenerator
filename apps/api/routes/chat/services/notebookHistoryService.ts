@@ -21,6 +21,8 @@
  *    can re-cite an old source with a valid, clickable id.
  */
 
+import { SOURCE_LINK_SCHEME, sourceLinkRegex } from '@gruenerator/shared/utils';
+
 import { CHARS_PER_TOKEN } from './messageHelpers.js';
 
 import type { ReferenceData, ReferencesMap } from '../../../services/search/types.js';
@@ -70,11 +72,13 @@ const CARRY_MAX_ASSISTANT_MESSAGES = 3;
 const CARRY_MAX_SOURCES = 12;
 
 /**
- * Inline citation markers in both wire forms: `[cite:12]` (persisted answers)
- * and `[3]` / `[1, 4]` (normalized display text). Rebuilt per use — a shared
- * /g regex carries `lastIndex` between calls.
+ * Source links `[Titel](quelle:N)` and inline markers in both wire forms:
+ * `[cite:12]` (persisted answers) and `[3]` / `[1, 4]` (normalized display
+ * text). The link comes first, so its label is never read as a marker. Rebuilt
+ * per use — a shared /g regex carries `lastIndex` between calls.
+ * Groups: 1 = link label, 2 = link id, 3 = cite id, 4 = marker ids.
  */
-const HISTORY_MARKER_PATTERN = /\[cite:(\d+)\]|\[(\d+(?:\s*,\s*\d+)*)\]/g;
+const HISTORY_MARKER_SOURCE = `${sourceLinkRegex().source}|\\[cite:(\\d+)\\]|\\[(\\d+(?:\\s*,\\s*\\d+)*)\\]`;
 
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / CHARS_PER_TOKEN);
@@ -321,18 +325,31 @@ export function mergeCarriedCitations(
 /**
  * Rewrite `[cite:N]` and `[N]`/`[N, M]` markers via the given mapping; ids
  * without a mapping are dropped, and a marker whose ids all fail to map is
- * removed entirely (never left pointing at the wrong source).
+ * removed entirely (never left pointing at the wrong source). A source link
+ * gets the mapped id, or keeps only its title.
  */
 function rewriteMarkers(content: string, mapping: Map<string, string> | undefined): string {
-  const pattern = new RegExp(HISTORY_MARKER_PATTERN);
   return content
-    .replace(pattern, (_full, citeId: string | undefined, plainIds: string | undefined) => {
-      const ids = citeId != null ? [citeId] : (plainIds ?? '').split(',').map((s) => s.trim());
-      const mappedIds = mapping
-        ? ids.map((id) => mapping.get(id)).filter((id): id is string => !!id)
-        : [];
-      return mappedIds.length > 0 ? `[${mappedIds.join(', ')}]` : '';
-    })
+    .replace(
+      new RegExp(HISTORY_MARKER_SOURCE, 'g'),
+      (
+        _full,
+        label: string | undefined,
+        linkId: string | undefined,
+        citeId: string | undefined,
+        plainIds: string | undefined
+      ) => {
+        if (label !== undefined && linkId !== undefined) {
+          const mapped = mapping?.get(linkId);
+          return mapped ? `[${label}](${SOURCE_LINK_SCHEME}:${mapped})` : label;
+        }
+        const ids = citeId != null ? [citeId] : (plainIds ?? '').split(',').map((s) => s.trim());
+        const mappedIds = mapping
+          ? ids.map((id) => mapping.get(id)).filter((id): id is string => !!id)
+          : [];
+        return mappedIds.length > 0 ? `[${mappedIds.join(', ')}]` : '';
+      }
+    )
     .replace(/[ \t]+([.,;:!?])/g, '$1')
     .replace(/[ \t]{2,}/g, ' ');
 }

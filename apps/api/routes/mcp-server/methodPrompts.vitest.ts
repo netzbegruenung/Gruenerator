@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildConcisePromptGeneral,
   buildDraftPromptGeneral,
   buildDraftPromptGrundsatz,
 } from '../../agents/langgraph/prompts.js';
@@ -40,6 +41,13 @@ describe('answer surfaces in prompts.ts', () => {
     expect(mcp).toContain('`[n] Titel — URL`');
     expect(mcp).toContain('- Nur die Quellen-Nummern aus den Tool-Ergebnissen verwenden.');
     expect(mcp).not.toContain('Referenz-Map');
+  });
+
+  it('asks for source links only where the app renders them', () => {
+    expect(buildDraftPromptGrundsatz().system).toContain('(quelle:N)');
+    expect(buildConcisePromptGeneral().system).toContain('(quelle:N)');
+    // An MCP client has no reader to resolve `quelle:N`; it writes `[n] Titel — URL`.
+    expect(buildDraftPromptGrundsatz('X', 'mcp').system).not.toContain('quelle:');
   });
 
   it('keeps the substance of the protocol identical across surfaces', () => {
