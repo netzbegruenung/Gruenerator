@@ -39,6 +39,7 @@ import { createLogger } from '../../utils/logger.js';
 import { aiText } from '../ai/generate.js';
 import { getEnrichedPersonSearchService } from '../bundestag/index.js';
 import { DocumentSearchService } from '../document-services/index.js';
+import { withoutTrashedDocuments } from '../document-services/trashedDocuments.js';
 import { queryIntentService } from '../QueryIntentService/QueryIntentService.js';
 import { type QdrantFilter } from '../QueryIntentService/types.js';
 import { buildContextSummary, sourceDatePart } from '../search/contextSummary.js';
@@ -362,7 +363,8 @@ export class NotebookQAService {
           throw new Error('Collection not found or access denied');
         }
       }
-      documentIds = await getDocumentIdsFn(collectionId);
+      // Links to trashed documents stay until the purge; they are not sources.
+      documentIds = await withoutTrashedDocuments(await getDocumentIdsFn(collectionId));
       if (!documentIds || documentIds.length === 0) {
         throw new Error('No documents found in this collection');
       }
@@ -722,7 +724,8 @@ export class NotebookQAService {
           throw new Error('Collection not found or access denied');
         }
       }
-      documentIds = await getDocumentIdsFn(collectionId);
+      // Links to trashed documents stay until the purge; they are not sources.
+      documentIds = await withoutTrashedDocuments(await getDocumentIdsFn(collectionId));
       if (!documentIds || documentIds.length === 0) {
         throw new Error('No documents found in this collection');
       }

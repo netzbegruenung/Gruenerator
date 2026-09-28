@@ -20,7 +20,10 @@ router.get('/:id/groups', async (req: Request<{ id: string }>, res: Response) =>
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const thread = await db.query('SELECT user_id FROM chat_threads WHERE id = $1', [id]);
+    const thread = await db.query(
+      'SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
+      [id]
+    );
     if ((thread as unknown[]).length === 0)
       return res.status(404).json({ error: 'Thread not found' });
     if ((thread as { user_id: string }[])[0].user_id !== userId) {
@@ -59,7 +62,10 @@ router.post(
       const { group_id } = req.body;
       if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-      const thread = await db.query('SELECT user_id FROM chat_threads WHERE id = $1', [id]);
+      const thread = await db.query(
+        'SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
+        [id]
+      );
       if ((thread as unknown[]).length === 0)
         return res.status(404).json({ error: 'Thread not found' });
       if ((thread as { user_id: string }[])[0].user_id !== userId) {
@@ -111,7 +117,10 @@ router.delete(
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-      const thread = await db.query('SELECT user_id FROM chat_threads WHERE id = $1', [id]);
+      const thread = await db.query(
+        'SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
+        [id]
+      );
       if ((thread as unknown[]).length === 0)
         return res.status(404).json({ error: 'Thread not found' });
       if ((thread as { user_id: string }[])[0].user_id !== userId) {

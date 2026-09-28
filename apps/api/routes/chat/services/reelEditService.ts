@@ -211,7 +211,7 @@ async function listPickerProjects(userId: string): Promise<ReelPickerProject[]> 
              AND length(trim(subtitles)) > 0
              AND trim(subtitles) <> '[]') AS has_subtitles
      FROM subtitler_projects
-     WHERE user_id = $1
+     WHERE user_id = $1 AND deleted_at IS NULL
      ORDER BY last_edited_at DESC NULLS LAST
      LIMIT ${PICKER_PROJECT_LIMIT}`,
     [userId]

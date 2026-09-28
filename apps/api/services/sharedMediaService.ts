@@ -14,7 +14,9 @@ import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import { encode as encodeBlurhash } from 'blurhash';
 import sharp from 'sharp';
 
+import { type SharedMedia } from '../database/schema/media.js';
 import { type PostgresService, getPostgresInstance } from '../database/services/PostgresService.js';
+import { reportBackgroundError } from '../utils/reportBackgroundError.js';
 import { likeContainsPattern } from '../utils/sqlLike.js';
 
 import {
@@ -26,6 +28,7 @@ import {
   creationFeedWhere,
 } from './sharedMediaFilters.js';
 import { deriveContentOrigin } from './sharedMediaOrigin.js';
+import { type TrashCursor, trashKeysetWhere, trashOrderBy } from './trash/trashCursor.js';
 
 import type {
   SharedMediaRow,
@@ -62,6 +65,17 @@ export interface ReapedShare {
    * thumbnails in the same directory are not counted in that column. */
   fileSize: number;
 }
+
+export type TrashedShareRow = Pick<
+  SharedMedia,
+  'share_token' | 'title' | 'original_filename' | 'media_type'
+> & { deleted_at: Date };
+
+export type ShareTrashResult = 'ok' | 'not_found' | 'forbidden';
+
+/** Plain strings, not `{ status }` objects: `sharedMediaService.vitest.ts` reads every
+ * `status: '…'` literal in this file as a `shared_media.status` the service writes. */
+export type ShareTrashLookup = TrashedShareRow | Exclude<ShareTrashResult, 'ok'>;
 
 /** Snapshot of how full one account's Mediathek is. */
 export interface MediaLibraryUsage {
@@ -338,6 +352,8 @@ class SharedMediaService {
    *   out: the LRU eviction this replaces was the only thing that ever cleaned
    *   them up, so counting them would let a few failed renders lock an account
    *   out of uploading for good.
+   * - Trashed rows DO count: their files stay on disk until the purge, and
+   *   „Endgültig löschen" in the Papierkorb is what frees the slot.
    */
   async getLibraryUsage(userId: string): Promise<MediaLibraryUsage> {
     await this.ensureInitialized();
@@ -889,7 +905,7 @@ class SharedMediaService {
                        COALESCE(p.first_name, p.display_name, 'Jemand') as sharer_name
                 FROM shared_media sm
                 LEFT JOIN profiles p ON sm.user_id = p.id
-                WHERE sm.share_token = $1
+                WHERE sm.share_token = $1 AND sm.deleted_at IS NULL
             `;
 
       const result = await this.postgres!.queryOne<SharedMediaRow>(query, [shareToken]);
@@ -926,6 +942,7 @@ class SharedMediaService {
                        content_origin
                 FROM shared_media
                 WHERE user_id = $1
+                  AND deleted_at IS NULL
                   AND ${creationFeedWhere(params, status, mediaType)}
             `;
 
@@ -995,37 +1012,144 @@ class SharedMediaService {
     }
   }
 
-  async deleteShare(userId: string, shareToken: string): Promise<boolean> {
+  /**
+   * Move a share to the Papierkorb: the row and its files stay, only
+   * `deleted_at` is set. Every reader filters it (`trashReaders.vitest.ts`),
+   * so the public `/share/<token>` link is dead until {@link restoreShare}.
+   * Delete rights are the uploader's (`user_id`); restore and purge-now ask
+   * exactly that.
+   */
+  async trashShare(userId: string, shareToken: string): Promise<ShareTrashResult> {
     await this.ensureInitialized();
+    const rows = await this.postgres!.query<Pick<SharedMedia, 'user_id'>>(
+      'SELECT user_id FROM shared_media WHERE share_token = $1 AND deleted_at IS NULL',
+      [shareToken]
+    );
+    if (rows.length === 0) return 'not_found';
+    if (rows[0].user_id !== userId) return 'forbidden';
+    await this.postgres!.query(
+      'UPDATE shared_media SET deleted_at = now() WHERE share_token = $1 AND deleted_at IS NULL',
+      [shareToken]
+    );
+    return 'ok';
+  }
 
+  /** A trashed share the user may restore or purge. */
+  async getTrashedShare(userId: string, shareToken: string): Promise<ShareTrashLookup> {
+    await this.ensureInitialized();
+    const rows = await this.postgres!.query<TrashedShareRow & Pick<SharedMedia, 'user_id'>>(
+      `SELECT share_token, title, original_filename, media_type, deleted_at, user_id
+       FROM shared_media WHERE share_token = $1 AND deleted_at IS NOT NULL`,
+      [shareToken]
+    );
+    if (rows.length === 0) return 'not_found';
+    const { user_id, ...row } = rows[0];
+    return user_id === userId ? row : 'forbidden';
+  }
+
+  /**
+   * Undo {@link trashShare}. `expires_at` and `password_hash` are untouched,
+   * so the public link works again exactly as before. `share_token` stayed
+   * with the row, so nothing can have taken it meanwhile.
+   */
+  async restoreShare(userId: string, shareToken: string): Promise<ShareTrashResult> {
+    const found = await this.getTrashedShare(userId, shareToken);
+    if (typeof found === 'string') return found;
+    await this.postgres!.query(
+      'UPDATE shared_media SET deleted_at = NULL WHERE share_token = $1 AND deleted_at IS NOT NULL',
+      [shareToken]
+    );
+    return 'ok';
+  }
+
+  async listTrashedShares(
+    userId: string,
+    opts: { limit: number; before: TrashCursor | null }
+  ): Promise<TrashedShareRow[]> {
+    await this.ensureInitialized();
+    const params: unknown[] = [userId];
+    const keyset = trashKeysetWhere('deleted_at', 'share_token', opts.before, params);
+    params.push(opts.limit);
+    return this.postgres!.query<TrashedShareRow>(
+      `SELECT share_token, title, original_filename, media_type, deleted_at FROM shared_media
+       WHERE deleted_at IS NOT NULL AND user_id = $1 AND ${keyset}
+       ORDER BY ${trashOrderBy('deleted_at', 'share_token')}
+       LIMIT $${params.length}`,
+      params
+    );
+  }
+
+  async listExpiredShares(
+    cutoff: Date,
+    limit: number
+  ): Promise<Array<{ id: string; userId: string | null }>> {
+    await this.ensureInitialized();
+    const rows = await this.postgres!.query<Pick<SharedMedia, 'share_token' | 'user_id'>>(
+      `SELECT share_token, user_id FROM shared_media
+       WHERE deleted_at IS NOT NULL AND deleted_at < $1
+       ORDER BY deleted_at LIMIT $2`,
+      [cutoff, limit]
+    );
+    return rows.map((r) => ({ id: r.share_token, userId: r.user_id }));
+  }
+
+  /**
+   * Hard-delete a trashed share and its files. `shared_media_downloads`
+   * cascades with the row. `cutoff` null purges any trashed row (purge-now);
+   * the worker passes its retention cutoff.
+   */
+  purgeShare(shareToken: string, cutoff: Date | null): Promise<boolean> {
+    return this.removeShare(
+      shareToken,
+      `DELETE FROM shared_media
+       WHERE share_token = $1 AND deleted_at IS NOT NULL
+         AND ($2::timestamptz IS NULL OR deleted_at < $2)
+       RETURNING id`,
+      [shareToken, cutoff]
+    );
+  }
+
+  /**
+   * Hard-delete an internal artifact (a superseded canvas thumbnail, or the
+   * thumbnail of a purged canvas), trashed or not. Only rows with
+   * `is_library_item = FALSE` match — a library image someone set as a
+   * thumbnail survives. Internal rows never pass through the Papierkorb: no
+   * listing shows them, so nobody could restore them.
+   */
+  purgeInternalShare(shareToken: string): Promise<boolean> {
+    return this.removeShare(
+      shareToken,
+      `DELETE FROM shared_media
+       WHERE share_token = $1 AND COALESCE(is_library_item, TRUE) = FALSE
+       RETURNING id`,
+      [shareToken]
+    );
+  }
+
+  /**
+   * Run the conditional DELETE (0 rows → the files are not touched), then
+   * remove the share directory best-effort — the row cannot come back, so a
+   * failure is reported, never thrown.
+   */
+  private async removeShare(
+    shareToken: string,
+    deleteSql: string,
+    params: unknown[]
+  ): Promise<boolean> {
+    await this.ensureInitialized();
+    const deleted = await this.postgres!.query<{ id: string }>(deleteSql, params);
+    if (deleted.length === 0) return false;
     try {
-      const query = `
-                SELECT id, file_path, thumbnail_path
-                FROM shared_media
-                WHERE share_token = $1 AND user_id = $2
-            `;
-      const share = await this.postgres!.queryOne<{
-        id: string;
-        file_path: string;
-        thumbnail_path: string;
-      }>(query, [shareToken, userId]);
-
-      if (!share) {
-        throw new Error('Share not found or not owned by user');
-      }
-
-      const deleteQuery = `DELETE FROM shared_media WHERE id = $1`;
-      await this.postgres!.query(deleteQuery, [share.id]);
-
-      await this.cleanupShareFiles(shareToken);
-
-      console.log(`[SharedMediaService] Deleted share ${shareToken}`);
-
-      return true;
+      await fs.rm(getSafeShareDir(shareToken), { recursive: true, force: true });
     } catch (error) {
-      console.error('[SharedMediaService] Failed to delete share:', error);
-      throw new Error(`Failed to delete share: ${(error as Error).message}`);
+      reportBackgroundError(error, {
+        job: 'trash-purge',
+        kind: 'shared_media',
+        id: shareToken,
+        store: 'files',
+      });
     }
+    return true;
   }
 
   /** Rename a share (title only), owner-scoped. No file work — unlike the
@@ -1034,7 +1158,7 @@ class SharedMediaService {
   async renameShare(userId: string, shareToken: string, title: string): Promise<boolean> {
     await this.ensureInitialized();
     const rows = await this.postgres!.query(
-      'UPDATE shared_media SET title = $1 WHERE share_token = $2 AND user_id = $3 RETURNING id',
+      'UPDATE shared_media SET title = $1 WHERE share_token = $2 AND user_id = $3 AND deleted_at IS NULL RETURNING id',
       [title, shareToken, userId]
     );
     if (!rows || (rows as unknown[]).length === 0) {
@@ -1167,7 +1291,7 @@ class SharedMediaService {
                        image_metadata, status, download_count, view_count, created_at,
                        alt_text, upload_source, original_filename, content_origin
                 FROM shared_media
-                WHERE id = $1 AND user_id = $2
+                WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
             `;
       const result = await this.postgres!.queryOne<SharedMediaRow>(query, [mediaId, userId]);
       return result;
@@ -1212,7 +1336,7 @@ class SharedMediaService {
       const query = `
                 UPDATE shared_media
                 SET ${updates.join(', ')}
-                WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1}
+                WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1} AND deleted_at IS NULL
                 RETURNING id, share_token, title, alt_text
             `;
 
@@ -1379,7 +1503,7 @@ class SharedMediaService {
         file_path: string;
         image_metadata: Record<string, unknown> | null;
       }>(
-        'SELECT id, file_path, image_metadata FROM shared_media WHERE share_token = $1 AND user_id = $2',
+        'SELECT id, file_path, image_metadata FROM shared_media WHERE share_token = $1 AND user_id = $2 AND deleted_at IS NULL',
         [shareToken, userId]
       );
 

@@ -179,6 +179,9 @@ export async function shareContentToGroup(
       ownershipSQL += ` AND type = $2`;
       ownershipParams.push('template');
     }
+    if (tableName === 'documents') {
+      ownershipSQL += ` AND deleted_at IS NULL`;
+    }
     if (contentType === 'collaborative_documents') {
       ownershipSQL += ` AND is_deleted = false`;
     }
@@ -405,7 +408,7 @@ export async function hydrateGroupContent(
     fetchPromises.push(
       postgres
         .query(
-          'SELECT id, title, filename, file_size, status, created_at, updated_at, user_id FROM documents WHERE id = ANY($1)',
+          'SELECT id, title, filename, file_size, status, created_at, updated_at, user_id FROM documents WHERE id = ANY($1) AND deleted_at IS NULL',
           [ids],
           { table: 'documents' }
         )

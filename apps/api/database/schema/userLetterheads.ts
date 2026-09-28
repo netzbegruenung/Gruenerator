@@ -29,6 +29,7 @@ export const userLetterheads = pgTable(
     is_default: boolean('is_default').notNull().default(false),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deleted_at: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => [
     uniqueIndex('user_letterheads_user_label_unique').on(t.user_id, t.label),

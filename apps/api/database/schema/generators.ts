@@ -21,6 +21,7 @@ export const customPrompts = pgTable('custom_prompts', {
   usage_count: integer('usage_count').notNull().default(0),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deleted_at: timestamp('deleted_at', { withTimezone: true }),
   embedding_id: text('embedding_id'),
   embedding_hash: text('embedding_hash'),
   vector_indexed_at: timestamp('vector_indexed_at', { withTimezone: true }),

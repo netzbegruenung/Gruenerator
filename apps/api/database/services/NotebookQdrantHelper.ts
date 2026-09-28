@@ -12,6 +12,7 @@ import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.
 import { triggerPendingDocProcessing } from '../../services/document-services/DocumentProcessingService/index.js';
 import { mistralEmbeddingService } from '../../services/mistral/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
 
 import { getPostgresInstance } from './PostgresService.js';
 import { type QdrantService, getQdrantInstance } from './QdrantService/index.js';
@@ -135,6 +136,8 @@ interface NotebookCollection {
   notebook_collection_documents?: CollectionDocument[];
 }
 
+type TrashedNotebook = NotebookCollection & { deleted_at: string };
+
 interface CollectionDocument {
   document_id: string;
   added_at: string;
@@ -176,6 +179,18 @@ interface ScrollPoint {
 // =============================================================================
 // NotebookQdrantHelper Class
 // =============================================================================
+
+/**
+ * Hide trashed notebooks: a trashed collection point carries `deleted_at`
+ * (ISO string), a live one has no such field. Every reader of
+ * `notebook_collections` wraps its filter in this, except the Papierkorb's own
+ * list, lookup and purge (`notebookTrash.vitest.ts` checks the source).
+ */
+function liveOnly(filter: QdrantFilter): QdrantFilter {
+  return { ...filter, must: [...(filter.must ?? []), { is_empty: { key: 'deleted_at' } }] };
+}
+
+export type NotebookTrashResult = 'ok' | 'not_found' | 'forbidden';
 
 class NotebookQdrantHelper {
   private qdrant: QdrantService;
@@ -490,7 +505,7 @@ class NotebookQdrantHelper {
 
       const results = await this.qdrantOps!.scrollDocuments(
         this.qdrant.collections.notebook_collections,
-        filter,
+        liveOnly(filter),
         { limit: 1, withPayload: true }
       );
 
@@ -504,9 +519,13 @@ class NotebookQdrantHelper {
   }
 
   /**
-   * Get Notebook collection by ID
+   * Get Notebook collection by ID. A trashed notebook reads as null unless
+   * `includeTrashed` (Papierkorb lookup and restore only).
    */
-  async getNotebookCollection(collectionId: string): Promise<NotebookCollection | null> {
+  async getNotebookCollection(
+    collectionId: string,
+    { includeTrashed = false }: { includeTrashed?: boolean } = {}
+  ): Promise<NotebookCollection | null> {
     await this.ensureInitialized();
 
     try {
@@ -516,7 +535,7 @@ class NotebookQdrantHelper {
 
       const results = await this.qdrantOps!.scrollDocuments(
         this.qdrant.collections.notebook_collections,
-        filter,
+        includeTrashed ? filter : liveOnly(filter),
         { limit: 1, withPayload: true }
       );
 
@@ -550,7 +569,7 @@ class NotebookQdrantHelper {
 
       const results = await this.qdrantOps!.scrollDocuments(
         this.qdrant.collections.notebook_collections,
-        filter,
+        liveOnly(filter),
         { limit, offset, withPayload: true }
       );
 
@@ -601,7 +620,7 @@ class NotebookQdrantHelper {
       for (let page = 0; page < NOTEBOOK_SEARCH_MAX_PAGES; page++) {
         const points: ScrollPoint[] = await this.qdrantOps!.scrollDocuments(
           this.qdrant.collections.notebook_collections,
-          filter,
+          liveOnly(filter),
           { limit: NOTEBOOK_SEARCH_PAGE_SIZE, offset: cursor, withPayload: true }
         );
 
@@ -658,7 +677,7 @@ class NotebookQdrantHelper {
 
       const results = await this.qdrantOps!.scrollDocuments(
         this.qdrant.collections.notebook_collections,
-        filter,
+        liveOnly(filter),
         { limit, offset, withPayload: true }
       );
 
@@ -696,7 +715,7 @@ class NotebookQdrantHelper {
 
       const results = await this.qdrantOps!.scrollDocuments(
         this.qdrant.collections.notebook_collections,
-        filter,
+        liveOnly(filter),
         { limit, offset, withPayload: true }
       );
 
@@ -742,6 +761,131 @@ class NotebookQdrantHelper {
       logger.error(`Error updating Notebook collection: ${message}`);
       throw new Error(`Failed to update Notebook collection: ${message}`);
     }
+  }
+
+  /**
+   * Move a notebook to the Papierkorb: stamp `deleted_at` on its collection
+   * point via `setPayload` (the embedding stays). Its document links and
+   * public-access tokens stay too — `getPublicAccess` still resolves a token,
+   * but the follow-up `getNotebookCollection` answers null, so a public link is
+   * dead while trashed and alive again after restore. System notebooks
+   * (`user_id = 'SYSTEM'`) are never trashed.
+   */
+  async trashNotebookCollection(collectionId: string): Promise<NotebookTrashResult> {
+    const collection = await this.getNotebookCollection(collectionId);
+    if (!collection) return 'not_found';
+    if (collection.user_id === 'SYSTEM') return 'forbidden';
+
+    await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
+      payload: { deleted_at: new Date().toISOString() },
+      filter: { must: [{ key: 'collection_id', match: { value: collectionId } }] },
+    });
+    logger.info(`Moved Notebook collection to the Papierkorb: ${collectionId}`);
+    return 'ok';
+  }
+
+  /** Undo {@link trashNotebookCollection}: drop the `deleted_at` payload key. */
+  async restoreNotebookCollection(collectionId: string): Promise<void> {
+    await this.ensureInitialized();
+    await this.qdrantOps!.client.deletePayload(this.qdrant.collections.notebook_collections, {
+      keys: ['deleted_at'],
+      filter: { must: [{ key: 'collection_id', match: { value: collectionId } }] },
+    });
+  }
+
+  /** The user's trashed notebooks, unsorted; the Papierkorb pages them in memory. */
+  async listTrashedNotebookCollections(userId: string): Promise<TrashedNotebook[]> {
+    return this.scrollTrashed({
+      must: [
+        { key: 'user_id', match: { value: userId } },
+        { key: 'deleted_at', range: { gt: '1970-01-01T00:00:00Z' } },
+      ],
+    });
+  }
+
+  /** One trashed notebook, or null when it is live or gone. */
+  async getTrashedNotebookCollection(collectionId: string): Promise<TrashedNotebook | null> {
+    const [found] = await this.scrollTrashed(
+      {
+        must: [
+          { key: 'collection_id', match: { value: collectionId } },
+          { key: 'deleted_at', range: { gt: '1970-01-01T00:00:00Z' } },
+        ],
+      },
+      1
+    );
+    return found ?? null;
+  }
+
+  /** Notebooks trashed before `cutoff`, across all users, for the purge worker. */
+  async listExpiredNotebookCollections(cutoff: Date, limit: number): Promise<TrashedNotebook[]> {
+    return this.scrollTrashed(
+      { must: [{ key: 'deleted_at', range: { lt: cutoff.toISOString() } }] },
+      limit
+    );
+  }
+
+  /**
+   * Hard-delete a trashed notebook: {@link deleteNotebookCollection}, but only
+   * while the notebook is still trashed (before `cutoff`, any time when null).
+   * Qdrant's delete reports no count, so the trash state is checked before the
+   * conditional delete and the point's absence after it; a notebook restored in
+   * between keeps its links. The links and tokens go best-effort afterwards.
+   */
+  async purgeNotebookCollection(collectionId: string, cutoff: Date | null): Promise<boolean> {
+    await this.ensureInitialized();
+    const trashed: QdrantFilter = {
+      must: [
+        { key: 'collection_id', match: { value: collectionId } },
+        {
+          key: 'deleted_at',
+          range: cutoff ? { lt: cutoff.toISOString() } : { gt: '1970-01-01T00:00:00Z' },
+        },
+      ],
+    };
+    const found = await this.qdrantOps!.scrollDocuments(
+      this.qdrant.collections.notebook_collections,
+      trashed,
+      { limit: 1, withPayload: false }
+    );
+    if (found.length === 0) return false;
+
+    await this.qdrantOps!.batchDelete(this.qdrant.collections.notebook_collections, trashed);
+    if (await this.getNotebookCollection(collectionId, { includeTrashed: true })) return false;
+
+    const byCollection: QdrantFilter = {
+      must: [{ key: 'collection_id', match: { value: collectionId } }],
+    };
+    for (const store of [
+      this.qdrant.collections.notebook_collection_documents,
+      this.qdrant.collections.notebook_public_access,
+    ]) {
+      try {
+        await this.qdrantOps!.batchDelete(store, byCollection);
+      } catch (error) {
+        reportBackgroundError(error, {
+          job: 'trash-purge',
+          kind: 'notebook',
+          id: collectionId,
+          store,
+        });
+      }
+    }
+    logger.info(`Purged Notebook collection: ${collectionId}`);
+    return true;
+  }
+
+  private async scrollTrashed(filter: QdrantFilter, limit = 1000): Promise<TrashedNotebook[]> {
+    await this.ensureInitialized();
+    const points = await this.qdrantOps!.scrollDocuments(
+      this.qdrant.collections.notebook_collections,
+      filter,
+      { limit, withPayload: true }
+    );
+    return points.map((point) => ({
+      ...this.formatCollectionFromPayload(point.payload),
+      deleted_at: point.payload.deleted_at as string,
+    }));
   }
 
   /**
@@ -1225,7 +1369,7 @@ class NotebookQdrantHelper {
 
       const results = await this.qdrantOps!.scrollDocuments(
         this.qdrant.collections.notebook_collections,
-        filter,
+        liveOnly(filter),
         { limit: Math.max(collectionIds.length, 100), withPayload: true }
       );
 
@@ -1267,7 +1411,7 @@ class NotebookQdrantHelper {
 
       const results = await this.qdrantOps!.scrollDocuments(
         this.qdrant.collections.notebook_collections,
-        filter,
+        liveOnly(filter),
         { limit, offset, withPayload: true }
       );
 
@@ -1300,7 +1444,7 @@ class NotebookQdrantHelper {
 
       const results = await this.qdrantOps!.scrollDocuments(
         this.qdrant.collections.notebook_collections,
-        filter,
+        liveOnly(filter),
         { limit, offset, withPayload: true }
       );
 
@@ -1313,7 +1457,7 @@ class NotebookQdrantHelper {
   }
 
   /**
-   * Bulk delete collections
+   * Bulk delete collections: each owned one moves to the Papierkorb.
    */
   async bulkDeleteCollections(
     collectionIds: string[],
@@ -1333,7 +1477,10 @@ class NotebookQdrantHelper {
             continue;
           }
 
-          await this.deleteNotebookCollection(collectionId);
+          if ((await this.trashNotebookCollection(collectionId)) !== 'ok') {
+            results.failed.push({ id: collectionId, error: 'Not found or access denied' });
+            continue;
+          }
           results.deleted.push(collectionId);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
@@ -1409,5 +1556,6 @@ export type {
   CollectionDocument,
   PublicAccessData,
   BulkDeleteResult,
+  TrashedNotebook,
   GetCollectionsOptions,
 };

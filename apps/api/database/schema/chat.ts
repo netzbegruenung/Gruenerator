@@ -26,6 +26,7 @@ export const chatThreads = pgTable(
     status: varchar('status', { length: 20 }).default('regular'),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+    deleted_at: timestamp('deleted_at', { withTimezone: true }),
     permissions: jsonb('permissions').$type<Record<string, unknown>>().default({}),
     is_public: boolean('is_public').default(false),
     compaction_summary: text('compaction_summary'),

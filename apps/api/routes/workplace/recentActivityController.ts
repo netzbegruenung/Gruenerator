@@ -298,7 +298,7 @@ export async function fetchRecentReelProjects(
     `SELECT id, title, thumbnail_path, video_metadata,
             created_at, updated_at, last_edited_at
     FROM subtitler_projects
-    WHERE user_id = $1 AND subtitled_video_path IS NOT NULL
+    WHERE user_id = $1 AND subtitled_video_path IS NOT NULL AND deleted_at IS NULL
     ORDER BY COALESCE(last_edited_at, updated_at, created_at) DESC
     LIMIT $2`,
     [userId, limit]

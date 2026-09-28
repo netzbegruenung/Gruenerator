@@ -372,9 +372,10 @@ export async function touchThread(threadId: string): Promise<void> {
  */
 export async function getThreadLastMcpServer(threadId: string): Promise<string | null> {
   const postgres = getPostgresInstance();
-  const result = await postgres.query(`SELECT last_mcp_server_id FROM chat_threads WHERE id = $1`, [
-    threadId,
-  ]);
+  const result = await postgres.query(
+    `SELECT last_mcp_server_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL`,
+    [threadId]
+  );
   return (result[0]?.last_mcp_server_id as string) || null;
 }
 
@@ -393,9 +394,10 @@ export async function setThreadLastMcpServer(threadId: string, serverId: string)
  */
 export async function getThreadToolContext(threadId: string): Promise<ThreadToolContext | null> {
   const postgres = getPostgresInstance();
-  const result = await postgres.query(`SELECT last_tool_context FROM chat_threads WHERE id = $1`, [
-    threadId,
-  ]);
+  const result = await postgres.query(
+    `SELECT last_tool_context FROM chat_threads WHERE id = $1 AND deleted_at IS NULL`,
+    [threadId]
+  );
   const raw = result[0]?.last_tool_context;
   if (!raw) return null;
   try {
@@ -735,7 +737,7 @@ export interface ThreadSettings {
 export async function getThreadSettings(threadId: string): Promise<ThreadSettings | null> {
   const postgres = getPostgresInstance();
   const result = await postgres.query(
-    `SELECT custom_system_prompt, custom_enabled_tools, role_ref FROM chat_threads WHERE id = $1`,
+    `SELECT custom_system_prompt, custom_enabled_tools, role_ref FROM chat_threads WHERE id = $1 AND deleted_at IS NULL`,
     [threadId]
   );
   if (!result[0]) return null;
