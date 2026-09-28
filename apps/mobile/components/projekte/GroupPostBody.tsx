@@ -13,6 +13,8 @@ import { groupPostFileUrl, shareGroupPostFile } from '../../hooks/useGroupConten
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT, colors } from '../../theme';
 
+import { GroupMentionText } from './GroupMentionText';
+
 interface GroupPostBodyProps {
   groupId: string;
   postId: string;
@@ -51,7 +53,7 @@ export function GroupPostBody({ groupId, postId, post, token }: GroupPostBodyPro
     <View style={styles.root}>
       {post.body ? (
         <Text style={[styles.body, { color: theme.text }]}>
-          {post.body}
+          <GroupMentionText text={post.body} />
           {post.editedAt ? (
             <Text style={[styles.edited, { color: theme.textSecondary }]}> (bearbeitet)</Text>
           ) : null}

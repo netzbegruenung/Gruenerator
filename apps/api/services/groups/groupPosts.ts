@@ -22,8 +22,8 @@ import { GROUP_POST_FILE_LIMIT, GROUP_POST_MAX } from '@gruenerator/contracts';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { isKnownAttachmentType, lookupMime } from '../../utils/fileAttachments.js';
 import { createLogger } from '../../utils/logger.js';
-import { notifyGroupMembers } from '../notifications/index.js';
 
+import { notifyGroupActivity } from './groupActivityNotifications.js';
 import { getViewer, type FeedOutcome } from './groupFeed.js';
 
 import type { PostgresService } from '../../database/services/PostgresService.js';
@@ -50,7 +50,7 @@ export interface GroupPostDeps {
     PostgresService,
     'query' | 'queryOne' | 'exec' | 'transaction' | 'transactionQueryOne' | 'transactionExec'
   >;
-  notify: typeof notifyGroupMembers;
+  notify: typeof notifyGroupActivity;
   deleteFile: (storedFilename: string) => Promise<void>;
   /** Only consulted in the system group, where instance admins are the only admins. */
   isInstanceAdmin?: (userId: string) => Promise<boolean>;
@@ -59,7 +59,7 @@ export interface GroupPostDeps {
 function defaultDeps(): GroupPostDeps {
   return {
     postgres: getPostgresInstance(),
-    notify: notifyGroupMembers,
+    notify: notifyGroupActivity,
     deleteFile: deleteGroupPostFile,
   };
 }
@@ -87,8 +87,10 @@ export async function createGroupPost(
   const body = input.body.trim();
   const { postgres } = deps;
 
+  let isSystem = false;
   const outcome = await (async (): Promise<FeedOutcome<{ postId: string; shareId: string }>> => {
     const viewer = await getViewer(postgres, groupId, userId, deps.isInstanceAdmin);
+    isSystem = viewer.isSystem;
     if (viewer.isPersonal) {
       return { status: 400, message: 'In Projekten gibt es keine Beiträge.' };
     }
@@ -153,19 +155,29 @@ export async function createGroupPost(
     return outcome;
   }
 
-  const preview = body
-    ? `: ${body.length > 140 ? `${body.slice(0, 140)}…` : body}`
-    : files.length === 1
-      ? ' eine Datei geteilt'
-      : ` ${files.length} Dateien geteilt`;
   void deps.notify({
     groupId,
-    excludeUserId: userId,
-    type: 'group_content_shared',
-    title: 'Neuer Beitrag',
-    body: `${authorName}${preview}`,
+    authorId: userId,
+    authorName,
+    body,
+    isSystem,
+    // Schreiben darf hier nur, wer auch @alle darf (System-Gruppe: Instanz-Admins).
+    mayMentionAll: true,
     actionUrl: `/projekte/${groupId}?beitrag=${outcome.data.shareId}`,
     metadata: { contentType: GROUP_POST_CONTENT_TYPE, contentId: outcome.data.postId },
+    base: {
+      type: 'group_post_created',
+      title: 'Neuer Beitrag',
+      recipients: 'members',
+      ...(body
+        ? {}
+        : {
+            summary:
+              files.length === 1
+                ? `${authorName} hat eine Datei geteilt`
+                : `${authorName} hat ${files.length} Dateien geteilt`,
+          }),
+    },
   });
 
   return outcome;
@@ -174,6 +186,8 @@ export async function createGroupPost(
 interface PostRow {
   id: string;
   author_id: string | null;
+  body: string;
+  share_id: string | null;
 }
 
 async function getPost(
@@ -182,20 +196,24 @@ async function getPost(
   postId: string
 ): Promise<PostRow | null> {
   return (await postgres.queryOne(
-    'SELECT id, author_id FROM group_posts WHERE id = $1 AND group_id = $2',
-    [postId, groupId],
+    `SELECT p.id, p.author_id, p.body, s.id AS share_id
+       FROM group_posts p
+       LEFT JOIN group_content_shares s
+         ON s.content_type = $3 AND s.content_id = p.id AND s.group_id = p.group_id
+      WHERE p.id = $1 AND p.group_id = $2`,
+    [postId, groupId, GROUP_POST_CONTENT_TYPE],
     { table: 'group_posts' }
   )) as PostRow | null;
 }
 
 export async function updateGroupPost(
-  input: { groupId: string; postId: string; userId: string; body: string },
+  input: { groupId: string; postId: string; userId: string; authorName: string; body: string },
   deps: GroupPostDeps = defaultDeps()
 ): Promise<FeedOutcome> {
-  const { groupId, postId, userId } = input;
+  const { groupId, postId, userId, authorName } = input;
   const body = input.body.trim();
   const { postgres } = deps;
-  await getViewer(postgres, groupId, userId, deps.isInstanceAdmin);
+  const viewer = await getViewer(postgres, groupId, userId, deps.isInstanceAdmin);
   const post = await getPost(postgres, groupId, postId);
   if (!post) return POST_NOT_FOUND;
   if (post.author_id !== userId) {
@@ -215,6 +233,20 @@ export async function updateGroupPost(
     'UPDATE group_posts SET body = $1, edited_at = CURRENT_TIMESTAMP WHERE id = $2',
     [body, postId]
   );
+  void deps.notify({
+    groupId,
+    authorId: userId,
+    authorName,
+    body,
+    previousBody: post.body,
+    isSystem: viewer.isSystem,
+    mayMentionAll: true,
+    actionUrl: post.share_id
+      ? `/projekte/${groupId}?beitrag=${post.share_id}`
+      : `/projekte/${groupId}`,
+    metadata: { contentType: GROUP_POST_CONTENT_TYPE, contentId: postId },
+    base: null,
+  });
   return { status: 200, data: null };
 }
 

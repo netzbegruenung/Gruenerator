@@ -22,7 +22,9 @@ import {
   FileText,
   Heart,
   LayoutDashboard,
+  Megaphone,
   MessageSquare,
+  Newspaper,
   Share2,
   Sparkles,
   UserPlus,
@@ -169,6 +171,24 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     description:
       'Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast',
     icon: MessageSquare,
+    group: 'groups',
+  },
+  group_post_created: {
+    label: 'Neue Beiträge',
+    description: 'Wenn jemand in einem deiner Projekte einen Beitrag schreibt',
+    icon: Newspaper,
+    group: 'groups',
+  },
+  group_user_mentioned: {
+    label: 'Erwähnungen',
+    description: 'Wenn dich jemand in einem Projekt mit @Name erwähnt',
+    icon: AtSign,
+    group: 'groups',
+  },
+  group_mention_all: {
+    label: '@alle',
+    description: 'Wenn jemand in einem deiner Projekte alle mit @alle anspricht',
+    icon: Megaphone,
     group: 'groups',
   },
   group_deleted: {

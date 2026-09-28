@@ -15,6 +15,7 @@ import { userAgentsSharingContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { notifyContentShared } from '../../services/groups/groupContent.js';
 import { assertCanShareToGroup } from '../../services/groups/groupMembership.js';
 import {
   getAgentSharing,
@@ -234,6 +235,12 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
           VALUES ('user_agents', $1, $2, $3, $4)`,
         [sharing.id, group_id, userId, JSON.stringify(permissions)]
       );
+      notifyContentShared({
+        groupId: group_id,
+        userId,
+        contentType: 'user_agents',
+        contentId: sharing.id,
+      });
 
       return {
         status: 201 as const,

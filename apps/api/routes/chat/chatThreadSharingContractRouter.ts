@@ -17,6 +17,7 @@ import { extractSlugSuffix } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { notifyContentShared } from '../../services/groups/groupContent.js';
 import {
   assertCanShareToGroup,
   listShareTargetGroups,
@@ -217,6 +218,7 @@ export const chatThreadSharingContractRouter = s.router(chatThreadSharingContrac
            VALUES ('chat_threads', $1, $2, $3, jsonb_build_object('read', true, 'write', $4::boolean))`,
           [threadId, groupId, userId, canWrite]
         );
+        notifyContentShared({ groupId, userId, contentType: 'chat_threads', contentId: threadId });
       }
 
       return { status: 200 as const, body: { success: true as const } };

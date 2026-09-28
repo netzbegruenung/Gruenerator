@@ -16,6 +16,7 @@ import { BottomSheet } from '../common';
 import { SkeletonRows } from '../common/Skeleton';
 
 import { FEED_KIND_ICONS } from './feedIcons';
+import { GroupMentionText } from './GroupMentionText';
 
 interface GroupCommentsSheetProps {
   groupId: string;
@@ -44,7 +45,9 @@ export function GroupCommentsSheet({ groupId, item, onClose }: GroupCommentsShee
       <View style={styles.flex}>
         <View style={[styles.bubble, { backgroundColor: theme.surface }]}>
           <Text style={[styles.author, { color: theme.text }]}>{c.authorName}</Text>
-          <Text style={[styles.body, { color: theme.text }]}>{c.body}</Text>
+          <Text style={[styles.body, { color: theme.text }]}>
+            <GroupMentionText text={c.body} />
+          </Text>
         </View>
         <Text style={[styles.when, { color: theme.textSecondary }]}>
           {formatFeedDate(c.createdAt, 'short')}
