@@ -35,7 +35,7 @@ export async function getDocumentStats(
         COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_documents,
         SUM(vector_count) as total_vectors
       FROM documents
-      WHERE user_id = $1
+      WHERE user_id = $1 AND deleted_at IS NULL
     `,
       [userId]
     );

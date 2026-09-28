@@ -353,7 +353,7 @@ router.put(
 
 /**
  * DELETE /api/media/:id
- * Delete media item
+ * Move a media item to the Papierkorb
  */
 router.delete('/:id', async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
@@ -373,7 +373,10 @@ router.delete('/:id', async (req: Request<{ id: string }>, res: Response): Promi
       return;
     }
 
-    await mediaService.deleteShare(userId, item.share_token);
+    if ((await mediaService.trashShare(userId, item.share_token)) !== 'ok') {
+      res.status(404).json({ error: 'Media not found' });
+      return;
+    }
 
     res.json({
       success: true,

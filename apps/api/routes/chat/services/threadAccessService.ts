@@ -47,7 +47,7 @@ export async function getThreadAccessLevel(
             (permissions ? $2::text OR is_public = true) AS has_write_grant,
             (COALESCE(share_mode, 'private') = 'authenticated') AS is_link_shared
      FROM chat_threads
-     WHERE id = $1
+     WHERE id = $1 AND deleted_at IS NULL
      LIMIT 1`,
     [threadId, userId]
   );
@@ -64,8 +64,9 @@ export async function getThreadAccessLevel(
     `SELECT 1
      FROM chat_threads ct
      INNER JOIN collaborative_documents d ON d.id = ct.doc_id
-     WHERE ct.id = $1
+     WHERE ct.id = $1 AND ct.deleted_at IS NULL
        AND ct.doc_id IS NOT NULL
+       AND d.is_deleted = false
        AND (
          d.created_by = $2
          OR d.is_public = true
@@ -107,7 +108,7 @@ export async function getThreadAccessLevel(
        ON gm.group_id = gcs.group_id
       AND gm.user_id = $2::uuid
       AND gm.is_active = TRUE
-     WHERE ct.id = $1
+     WHERE ct.id = $1 AND ct.deleted_at IS NULL
        AND ct.doc_id IS NOT NULL
        AND COALESCE((gcs.permissions->>'read')::boolean, true) = true
      LIMIT 1`,

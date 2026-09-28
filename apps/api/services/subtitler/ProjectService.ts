@@ -9,11 +9,13 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { and, eq, sql, asc, type InferSelectModel } from 'drizzle-orm';
+import { and, eq, isNull, sql, asc, type InferSelectModel } from 'drizzle-orm';
 
 import { subtitlerProjects } from '../../database/schema/index.js';
 import { getDrizzleInstance, type DrizzleDB } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import { type TrashCursor, trashKeysetWhere, trashOrderBy } from '../trash/trashCursor.js';
 
 import { processSubtitleSegments } from './downloadUtils.js';
 import { ffmpegPath } from './ffmpegWrapper.js';
@@ -23,10 +25,15 @@ import type {
   SubtitlerProjectListItem,
   CreateProjectData,
   UpdateProjectData,
-  DeleteProjectResult,
 } from './types.js';
 
 type SubtitlerProjectRow = InferSelectModel<typeof subtitlerProjects>;
+
+export type TrashedProjectRow = Pick<SubtitlerProjectRow, 'id' | 'title'> & { deleted_at: Date };
+
+export type ProjectTrashResult = 'ok' | 'not_found' | 'forbidden';
+
+export type ProjectTrashLookup = TrashedProjectRow | Exclude<ProjectTrashResult, 'ok'>;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -142,7 +149,7 @@ export class SubtitlerProjectService {
         export_count: subtitlerProjects.export_count,
       })
         .from(subtitlerProjects)
-        .where(eq(subtitlerProjects.user_id, userId))
+        .where(and(eq(subtitlerProjects.user_id, userId), isNull(subtitlerProjects.deleted_at)))
         .orderBy(sql`${subtitlerProjects.last_edited_at} DESC`)
         .limit(MAX_PROJECTS_PER_USER);
 
@@ -161,7 +168,13 @@ export class SubtitlerProjectService {
     try {
       const rows = await this.db!.select()
         .from(subtitlerProjects)
-        .where(and(eq(subtitlerProjects.id, projectId), eq(subtitlerProjects.user_id, userId)))
+        .where(
+          and(
+            eq(subtitlerProjects.id, projectId),
+            eq(subtitlerProjects.user_id, userId),
+            isNull(subtitlerProjects.deleted_at)
+          )
+        )
         .limit(1);
 
       const result = rows[0];
@@ -189,7 +202,7 @@ export class SubtitlerProjectService {
     try {
       const rows = await this.db!.select()
         .from(subtitlerProjects)
-        .where(eq(subtitlerProjects.id, projectId))
+        .where(and(eq(subtitlerProjects.id, projectId), isNull(subtitlerProjects.deleted_at)))
         .limit(1);
 
       const result = rows[0];
@@ -228,7 +241,8 @@ export class SubtitlerProjectService {
         .where(
           and(
             eq(subtitlerProjects.user_id, userId),
-            eq(subtitlerProjects.video_filename, videoFilename)
+            eq(subtitlerProjects.video_filename, videoFilename),
+            isNull(subtitlerProjects.deleted_at)
           )
         )
         .orderBy(sql`${subtitlerProjects.updated_at} DESC`)
@@ -247,7 +261,13 @@ export class SubtitlerProjectService {
     try {
       const rows = await this.db!.select({ video_path: subtitlerProjects.video_path })
         .from(subtitlerProjects)
-        .where(and(eq(subtitlerProjects.id, projectId), eq(subtitlerProjects.user_id, userId)))
+        .where(
+          and(
+            eq(subtitlerProjects.id, projectId),
+            eq(subtitlerProjects.user_id, userId),
+            isNull(subtitlerProjects.deleted_at)
+          )
+        )
         .limit(1);
 
       return rows[0]?.video_path;
@@ -429,7 +449,13 @@ export class SubtitlerProjectService {
 
       const rows = await this.db!.update(subtitlerProjects)
         .set(updateData)
-        .where(and(eq(subtitlerProjects.id, projectId), eq(subtitlerProjects.user_id, userId)))
+        .where(
+          and(
+            eq(subtitlerProjects.id, projectId),
+            eq(subtitlerProjects.user_id, userId),
+            isNull(subtitlerProjects.deleted_at)
+          )
+        )
         .returning();
 
       if (rows.length === 0) {
@@ -503,45 +529,128 @@ export class SubtitlerProjectService {
     }
   }
 
-  async deleteProject(userId: string, projectId: string): Promise<DeleteProjectResult> {
-    await this.ensureInitialized();
+  /**
+   * Move a Reel to the Papierkorb: the row and its video files stay, only
+   * `deleted_at` is set. Every reader filters it (`trashReaders.vitest.ts`).
+   * Delete rights are the owner's (`user_id`); restore and purge-now ask
+   * exactly that.
+   */
+  async trashProject(userId: string, projectId: string): Promise<ProjectTrashResult> {
+    if (!UUID_RE.test(projectId)) return 'not_found';
+    const db = getPostgresInstance();
+    const rows = await db.query<Pick<SubtitlerProjectRow, 'user_id'>>(
+      'SELECT user_id FROM subtitler_projects WHERE id = $1 AND deleted_at IS NULL',
+      [projectId]
+    );
+    if (rows.length === 0) return 'not_found';
+    if (rows[0].user_id !== userId) return 'forbidden';
+    await db.query(
+      'UPDATE subtitler_projects SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL',
+      [projectId]
+    );
+    return 'ok';
+  }
 
-    try {
-      const project = await this.getProject(userId, projectId);
+  /** A trashed Reel the user may restore or purge. */
+  async getTrashedProject(userId: string, projectId: string): Promise<ProjectTrashLookup> {
+    if (!UUID_RE.test(projectId)) return 'not_found';
+    const rows = await getPostgresInstance().query<
+      TrashedProjectRow & Pick<SubtitlerProjectRow, 'user_id'>
+    >(
+      `SELECT id, title, deleted_at, user_id FROM subtitler_projects
+       WHERE id = $1 AND deleted_at IS NOT NULL`,
+      [projectId]
+    );
+    if (rows.length === 0) return 'not_found';
+    const { user_id, ...row } = rows[0];
+    return user_id === userId ? row : 'forbidden';
+  }
 
-      if (!project) {
-        throw new Error('Project not found');
-      }
+  /** Undo {@link trashProject}. No unique key besides the id, so nothing can collide. */
+  async restoreProject(userId: string, projectId: string): Promise<ProjectTrashResult> {
+    const found = await this.getTrashedProject(userId, projectId);
+    if (typeof found === 'string') return found;
+    await getPostgresInstance().query(
+      'UPDATE subtitler_projects SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL',
+      [projectId]
+    );
+    return 'ok';
+  }
 
-      await this.db!.delete(subtitlerProjects).where(
-        and(eq(subtitlerProjects.id, projectId), eq(subtitlerProjects.user_id, userId))
-      );
+  async listTrashedProjects(
+    userId: string,
+    opts: { limit: number; before: TrashCursor | null }
+  ): Promise<TrashedProjectRow[]> {
+    const params: unknown[] = [userId];
+    const keyset = trashKeysetWhere('deleted_at', 'id', opts.before, params);
+    params.push(opts.limit);
+    return getPostgresInstance().query<TrashedProjectRow>(
+      `SELECT id, title, deleted_at FROM subtitler_projects
+       WHERE deleted_at IS NOT NULL AND user_id = $1 AND ${keyset}
+       ORDER BY ${trashOrderBy('deleted_at', 'id')}
+       LIMIT $${params.length}`,
+      params
+    );
+  }
 
-      validatePathId(userId, 'userId');
-      validatePathId(projectId, 'projectId');
-      const projectDir = path.resolve(PROJECT_STORAGE_BASE, userId, projectId);
-      if (!projectDir.startsWith(PROJECT_STORAGE_BASE + path.sep)) {
-        throw new Error('Path traversal detected in projectDir');
-      }
+  async listExpiredProjects(
+    cutoff: Date,
+    limit: number
+  ): Promise<Array<{ id: string; userId: string | null }>> {
+    const rows = await getPostgresInstance().query<Pick<SubtitlerProjectRow, 'id' | 'user_id'>>(
+      `SELECT id, user_id FROM subtitler_projects
+       WHERE deleted_at IS NOT NULL AND deleted_at < $1
+       ORDER BY deleted_at LIMIT $2`,
+      [cutoff, limit]
+    );
+    return rows.map((r) => ({ id: r.id, userId: r.user_id }));
+  }
+
+  /**
+   * Hard-delete a trashed Reel and its directory
+   * `PROJECT_STORAGE_BASE/<user>/<project>`. `chat_thread_reels` cascades;
+   * `shared_media.project_id` and `subtitler_shared_videos.project_id` are set
+   * NULL. The DELETE is conditional (0 rows → the files are not touched) and
+   * hands back the owner the directory hangs under; after it the file removal
+   * is best-effort — the row cannot come back, so a failure is reported,
+   * never thrown. `cutoff` null purges any trashed row (purge-now).
+   */
+  async purgeProject(projectId: string, cutoff: Date | null): Promise<boolean> {
+    if (!UUID_RE.test(projectId)) return false;
+    const deleted = await getPostgresInstance().query<Pick<SubtitlerProjectRow, 'id' | 'user_id'>>(
+      `DELETE FROM subtitler_projects
+       WHERE id = $1 AND deleted_at IS NOT NULL AND ($2::timestamptz IS NULL OR deleted_at < $2)
+       RETURNING id, user_id`,
+      [projectId, cutoff]
+    );
+    if (deleted.length === 0) return false;
+
+    const userId = deleted[0].user_id;
+    if (!userId) {
+      reportBackgroundError(new Error('Reel has no owner; its directory cannot be located'), {
+        job: 'trash-purge',
+        kind: 'subtitler_project',
+        id: projectId,
+        store: 'files',
+      });
+    } else {
       try {
+        validatePathId(userId, 'userId');
+        const projectDir = path.resolve(PROJECT_STORAGE_BASE, userId, projectId);
+        if (!projectDir.startsWith(PROJECT_STORAGE_BASE + path.sep)) {
+          throw new Error('Path traversal detected in projectDir');
+        }
         await fs.rm(projectDir, { recursive: true, force: true });
-        console.log(`[SubtitlerProjectService] Deleted project files at ${projectDir}`);
-      } catch (fileError: unknown) {
-        console.warn(
-          '[SubtitlerProjectService] Failed to delete project files:',
-          fileError instanceof Error ? fileError.message : String(fileError)
-        );
+      } catch (error: unknown) {
+        reportBackgroundError(error, {
+          job: 'trash-purge',
+          kind: 'subtitler_project',
+          id: projectId,
+          store: 'files',
+        });
       }
-
-      console.log(`[SubtitlerProjectService] Deleted project ${projectId} for user ${userId}`);
-
-      return { success: true };
-    } catch (error: unknown) {
-      console.error('[SubtitlerProjectService] Failed to delete project:', error);
-      throw new Error(
-        `Failed to delete project: ${error instanceof Error ? error.message : String(error)}`
-      );
     }
+    return true;
   }
 
   async enforceProjectLimit(userId: string): Promise<void> {
@@ -550,7 +659,7 @@ export class SubtitlerProjectService {
     try {
       const countResult = await this.db!.select({ count: sql<number>`COUNT(*)::int` })
         .from(subtitlerProjects)
-        .where(eq(subtitlerProjects.user_id, userId));
+        .where(and(eq(subtitlerProjects.user_id, userId), isNull(subtitlerProjects.deleted_at)));
 
       const count = countResult[0]?.count ?? 0;
 
@@ -558,15 +667,15 @@ export class SubtitlerProjectService {
         const toDelete = count - MAX_PROJECTS_PER_USER + 1;
         const oldestProjects = await this.db!.select({ id: subtitlerProjects.id })
           .from(subtitlerProjects)
-          .where(eq(subtitlerProjects.user_id, userId))
+          .where(and(eq(subtitlerProjects.user_id, userId), isNull(subtitlerProjects.deleted_at)))
           .orderBy(asc(subtitlerProjects.last_edited_at))
           .limit(toDelete);
 
         for (const project of oldestProjects) {
           console.log(
-            `[SubtitlerProjectService] Auto-deleting oldest project ${project.id} to enforce limit`
+            `[SubtitlerProjectService] Moving oldest project ${project.id} to the Papierkorb to enforce limit`
           );
-          await this.deleteProject(userId, project.id);
+          await this.trashProject(userId, project.id);
         }
       }
     } catch (error: unknown) {
@@ -580,7 +689,7 @@ export class SubtitlerProjectService {
     try {
       const result = await this.db!.select({ count: sql<number>`COUNT(*)::int` })
         .from(subtitlerProjects)
-        .where(eq(subtitlerProjects.user_id, userId));
+        .where(and(eq(subtitlerProjects.user_id, userId), isNull(subtitlerProjects.deleted_at)));
 
       return result[0]?.count ?? 0;
     } catch (error: unknown) {

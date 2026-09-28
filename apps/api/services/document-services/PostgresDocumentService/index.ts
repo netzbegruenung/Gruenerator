@@ -29,7 +29,6 @@ export {
   getDocumentsBySourceType,
   getDocumentById,
   deleteDocument,
-  bulkDeleteDocuments,
 } from './metadataOperations.js';
 
 export { storeDocumentText, getDocumentText, createDocumentWithText } from './textOperations.js';

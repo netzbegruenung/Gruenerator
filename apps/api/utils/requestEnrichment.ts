@@ -806,7 +806,7 @@ class RequestEnricher {
         selectedDocumentIds.map(async (docId) => {
           try {
             const doc = await postgres.queryOne(
-              'SELECT id, title, filename, vector_count, file_size FROM documents WHERE id = $1 AND user_id = $2',
+              'SELECT id, title, filename, vector_count, file_size FROM documents WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
               [docId, userId],
               { table: 'documents' }
             );

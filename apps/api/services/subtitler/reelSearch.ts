@@ -103,7 +103,7 @@ export async function searchReels(userId: string, query: string, limit = 5): Pro
     const rows = (await db.query(
       `SELECT id, title, status, thumbnail_path, subtitled_video_path, subtitles, last_edited_at
        FROM subtitler_projects
-       WHERE user_id = $1
+       WHERE user_id = $1 AND deleted_at IS NULL
          AND (title ILIKE $2 OR subtitles ILIKE $2)
        ORDER BY last_edited_at DESC NULLS LAST
        LIMIT $3`,
@@ -143,7 +143,7 @@ export async function getReelTranscript(
     const rows = (await db.query(
       `SELECT id, title, status, thumbnail_path, subtitled_video_path, subtitles, last_edited_at
        FROM subtitler_projects
-       WHERE user_id = $1 AND id = $2
+       WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
        LIMIT 1`,
       [userId, projectId]
     )) as ReelSearchRow[];

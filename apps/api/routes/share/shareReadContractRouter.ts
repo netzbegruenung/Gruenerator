@@ -261,17 +261,8 @@ export const shareReadContractRouter = s.router(sharesReadContract, {
     try {
       const { shareToken } = params;
       const service = await getSharedMediaService();
-      await service.deleteShare(userId, shareToken);
-
-      log.info(`Share deleted: ${shareToken} by user ${userId}`);
-      return {
-        status: 200 as const,
-        body: { success: true as const, message: 'Geteiltes Medium gelöscht' },
-      };
-    } catch (error) {
-      log.error('Failed to delete share:', error);
-      const message = (error as Error).message;
-      if (message.includes('not found') || message.includes('not owned')) {
+      const result = await service.trashShare(userId, shareToken);
+      if (result !== 'ok') {
         return {
           status: 404 as const,
           body: {
@@ -280,6 +271,14 @@ export const shareReadContractRouter = s.router(sharesReadContract, {
           },
         };
       }
+
+      log.info(`Share trashed: ${shareToken} by user ${userId}`);
+      return {
+        status: 200 as const,
+        body: { success: true as const, message: 'Geteiltes Medium liegt jetzt im Papierkorb' },
+      };
+    } catch (error) {
+      log.error('Failed to delete share:', error);
       return {
         status: 500 as const,
         body: { success: false as const, error: 'Geteiltes Medium konnte nicht gelöscht werden' },

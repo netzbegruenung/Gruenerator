@@ -611,12 +611,17 @@ export interface FilterCondition {
   };
 }
 
+/** Matches a point whose payload field is missing, null or `[]`. */
+export interface IsEmptyCondition {
+  is_empty: { key: string };
+}
+
 /**
  * Qdrant filter object
  */
 export interface QdrantFilter {
   /** All conditions must match */
-  must?: FilterCondition[] | undefined;
+  must?: Array<FilterCondition | IsEmptyCondition> | undefined;
   /** None of these conditions should match */
   must_not?: FilterCondition[] | undefined;
   /** At least one condition should match */

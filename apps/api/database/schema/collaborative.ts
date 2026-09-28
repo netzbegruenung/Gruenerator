@@ -30,6 +30,7 @@ export const collaborative_documents = pgTable('collaborative_documents', {
   permissions: jsonb('permissions').$type<Record<string, unknown>>().default({}),
   folder_id: uuid('folder_id'),
   is_deleted: boolean('is_deleted').default(false),
+  deleted_at: timestamp('deleted_at', { withTimezone: true }),
   document_subtype: text('document_subtype').default('docs'),
   share_permission: text('share_permission').default('editor'),
   share_mode: text('share_mode').default('private'),

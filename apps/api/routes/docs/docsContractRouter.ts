@@ -25,7 +25,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { aiObject } from '../../services/ai/generate.js';
 import { viaLaxParser, withContent } from '../../services/ai/structuredParsing.js';
 import {
-  softDeleteCollaborativeDocument,
+  trashCollaborativeDocument,
   updateCollaborativeDocument,
   type QueryRunner,
 } from '../../services/docs/CollaborativeDocumentService.js';
@@ -170,12 +170,7 @@ export const docsContractRouter = s.router(docsContract, {
     try {
       const userId = getUserId(args.req);
       const { id } = args.params;
-      const result = await softDeleteCollaborativeDocument(
-        runQuery,
-        id,
-        userId,
-        DOCS_ONLY_SUBTYPES
-      );
+      const result = await trashCollaborativeDocument(runQuery, id, userId, DOCS_ONLY_SUBTYPES);
       if (result.status === 'not_found') {
         return { status: 404 as const, body: { error: 'Document not found' } };
       }
@@ -604,7 +599,7 @@ export const docsContractRouter = s.router(docsContract, {
       const docs = (await db.query(
         `SELECT id, created_by, permissions, is_public, share_mode
          FROM collaborative_documents
-         WHERE id = $1
+         WHERE id = $1 AND is_deleted = false
          LIMIT 1`,
         [id]
       )) as CollaborativeDocument[];

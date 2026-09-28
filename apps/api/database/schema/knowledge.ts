@@ -8,6 +8,7 @@ export const userKnowledge = pgTable('user_knowledge', {
   knowledge_type: text('knowledge_type').notNull().default('general'),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deleted_at: timestamp('deleted_at', { withTimezone: true }),
   tags: jsonb('tags').$type<Record<string, unknown>[]>(),
   is_active: boolean('is_active').notNull().default(true),
   embedding_id: text('embedding_id'),

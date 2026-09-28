@@ -147,7 +147,7 @@ async function fetchNotebookCollections(userId: string): Promise<unknown[]> {
           let documents: Array<Record<string, unknown>> = [];
           if (documentIds.length > 0) {
             documents = await db.query(
-              'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1)',
+              'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1) AND deleted_at IS NULL',
               [documentIds]
             );
           }

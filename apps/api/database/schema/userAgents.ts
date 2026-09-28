@@ -53,6 +53,7 @@ export const userAgents = pgTable(
       >(),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deleted_at: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => [
     unique('user_agents_user_identifier_unique').on(t.user_id, t.identifier),
