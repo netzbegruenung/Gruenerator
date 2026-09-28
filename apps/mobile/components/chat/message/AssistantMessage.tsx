@@ -2,6 +2,7 @@ import { MessagePrimitive, useAuiState } from '@assistant-ui/react-native';
 import {
   agentMentionables,
   getCustomAgentMentionables,
+  getUserAgentMentionables,
   getDefaultAgent,
   selectReasoningText,
   selectSearchSources,
@@ -16,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { Fragment, memo, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { usePublicUserAgents } from '../../../hooks/agents/usePublicUserAgents';
 import { useTheme } from '../../../hooks/useTheme';
 import { chatType, spacing } from '../../../theme';
 import { routeWithParams } from '../../../types/routes';
@@ -83,13 +85,16 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const interrupted = metadata.interrupted;
   const answerModeChip = buildAnswerModeChipView(metadata);
 
-  // Which Grünerator wrote this. `getCustomAgentMentionables()` is a plain read
-  // of the module-level catalogue `useMentionablesSync` fills, so it re-resolves
-  // with the metadata rather than needing its own subscription.
-  const agent = useMemo(
-    () => resolveMessageAgent(metadata, agentMentionables, getCustomAgentMentionables()),
-    [metadata]
-  );
+  // Which Grünerator wrote this. The user agents (own and shared, a colleague's
+  // by row uuid) and the custom prompts are plain reads of the module-level
+  // catalogues `useMentionablesSync` fills, so they re-resolve with the metadata
+  // rather than needing their own subscription. A colleague's public agent is
+  // in neither; only then is the public list fetched (cached across messages).
+  const customAgents = [...getUserAgentMentionables(), ...getCustomAgentMentionables()];
+  const catalogued = resolveMessageAgent(metadata, agentMentionables, customAgents);
+  const { data: publicAgents } = usePublicUserAgents(!catalogued && Boolean(metadata.agentId));
+  const agent =
+    catalogued ?? resolveMessageAgent(metadata, agentMentionables, customAgents, publicAgents);
 
   // While this (last) message is still streaming, surface the cycling stage word
   // + spinning cog the same way web does — the label rides on metadata.progress,

@@ -1,7 +1,7 @@
 import { SKILLS, getSystemAgent, localizeAgent, type SkillIcon } from '@gruenerator/shared/agents';
 import { useMemo } from 'react';
 
-import { useUserAgentsRegistry } from '../stores/userAgentsRegistry';
+import { findRegistryAgent, useUserAgentsRegistry } from '../stores/userAgentsRegistry';
 
 import { resolveAgentIcon } from './agentIcons';
 import { agentsList } from './agents';
@@ -58,10 +58,11 @@ export function useActiveAgentMeta(userLocale: string = 'de-DE'): ActiveAgentMet
         ...(agent.welcomeQuestion ? { welcomeQuestion: agent.welcomeQuestion } : {}),
       };
     }
-    // User agents: resolved from the host-populated registry. Their `iconKey`
-    // is a full Phosphor component name, so it goes through the dynamic resolver
-    // (the curated slug registry can't map it).
-    const userAgent = userAgents.find((a) => a.identifier === selectedAgentId);
+    // User agents — own, shared or public — resolved from the host-populated
+    // registry by uuid or identifier. Their `iconKey` is a full Phosphor
+    // component name, so it goes through the dynamic resolver (the curated slug
+    // registry can't map it).
+    const userAgent = findRegistryAgent(userAgents, selectedAgentId);
     if (userAgent) {
       return {
         identifier: selectedAgentId,

@@ -1,4 +1,5 @@
 import type { ChatMessageMetadata, Mentionable } from '@gruenerator/chat';
+import type { Agent } from '@gruenerator/shared/agents';
 
 /**
  * Which Grünerator wrote this answer.
@@ -23,6 +24,8 @@ export interface MessageAgent {
   backgroundColor: string;
 }
 
+type PublicAgent = Pick<Agent, 'id' | 'title' | 'avatar' | 'backgroundColor'>;
+
 function toAgent(m: Mentionable): MessageAgent {
   return {
     identifier: m.identifier,
@@ -35,7 +38,8 @@ function toAgent(m: Mentionable): MessageAgent {
 export function resolveMessageAgent(
   metadata: Pick<ChatMessageMetadata, 'agentId' | 'agentMention'> | null | undefined,
   systemAgents: readonly Mentionable[],
-  customAgents: readonly Mentionable[]
+  customAgents: readonly Mentionable[],
+  publicAgents: readonly PublicAgent[] = []
 ): MessageAgent | null {
   if (!metadata) return null;
 
@@ -57,7 +61,20 @@ export function resolveMessageAgent(
   const byCustomId =
     customAgents.find((a) => a.identifier === agentId) ??
     customAgents.find((a) => a.type === 'useragent' && a.mention === agentId);
-  return byCustomId ? toAgent(byCustomId) : null;
+  if (byCustomId) return toAgent(byCustomId);
+
+  // A colleague's public agent that is not shared into any of the caller's
+  // projects is in no mention catalogue. It reaches the chat by row uuid only,
+  // so match nothing else: an identifier here may be another owner's.
+  const byPublicId = publicAgents.find((a) => a.id === agentId);
+  return byPublicId
+    ? {
+        identifier: agentId,
+        title: byPublicId.title,
+        avatar: byPublicId.avatar,
+        backgroundColor: byPublicId.backgroundColor,
+      }
+    : null;
 }
 
 /**
