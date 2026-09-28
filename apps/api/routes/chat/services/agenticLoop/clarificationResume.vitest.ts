@@ -6,21 +6,29 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { storeMock, streamMock, finalizeMock, touchMock, suspendClarMock, suspendApprovalMock } =
-  vi.hoisted(() => ({
-    storeMock: {
-      get: vi.fn(),
-      claim: vi.fn(),
-      releaseClaim: vi.fn(),
-      delete: vi.fn(),
-      store: vi.fn(),
-    },
-    streamMock: vi.fn(),
-    finalizeMock: vi.fn(),
-    touchMock: vi.fn(),
-    suspendClarMock: vi.fn(async () => ({ status: 200 as const, body: undefined })),
-    suspendApprovalMock: vi.fn(async () => ({ status: 200 as const, body: undefined })),
-  }));
+const {
+  storeMock,
+  streamMock,
+  finalizeMock,
+  touchMock,
+  seedTitleMock,
+  suspendClarMock,
+  suspendApprovalMock,
+} = vi.hoisted(() => ({
+  storeMock: {
+    get: vi.fn(),
+    claim: vi.fn(),
+    releaseClaim: vi.fn(),
+    delete: vi.fn(),
+    store: vi.fn(),
+  },
+  streamMock: vi.fn(),
+  finalizeMock: vi.fn(),
+  touchMock: vi.fn(),
+  seedTitleMock: vi.fn(async () => undefined),
+  suspendClarMock: vi.fn(async () => ({ status: 200 as const, body: undefined })),
+  suspendApprovalMock: vi.fn(async () => ({ status: 200 as const, body: undefined })),
+}));
 
 vi.mock('../../../../agents/langgraph/ChatGraph/index.js', () => ({
   buildSystemMessage: vi.fn(async () => 'SYSTEM'),
@@ -37,6 +45,9 @@ vi.mock('../loopClarificationStateStore.js', () => ({
 vi.mock('../threadPersistenceService.js', () => ({
   finalizeAssistantMessage: finalizeMock,
   touchThread: touchMock,
+}));
+vi.mock('../postResponseService.js', () => ({
+  seedThreadTitleIfUnnamed: seedTitleMock,
 }));
 vi.mock('./agenticRespondService.js', () => ({
   streamAgenticResponse: streamMock,
@@ -227,6 +238,14 @@ describe('runClarificationLoopResume — Erfolg', () => {
     ).toolCalls;
     expect(persistedSteps[0]).not.toHaveProperty('textOffset');
 
+    // Pausierte schon der erste Zug, ist der Thread noch unbenannt (#3794):
+    // Titel aus der Frage der Nutzer*in und der fertigen Blase.
+    expect(seedTitleMock).toHaveBeenCalledWith({
+      threadId: 't1',
+      userText: 'Frage',
+      fullText: 'Ich habe zwei Kandidatinnen gefunden.\n\nAnna Müller stimmte dafür.',
+    });
+
     expect(storeMock.delete).toHaveBeenCalledWith('t1');
     expect(sent.some((e) => e.event === 'done')).toBe(true);
     expect(ended()).toBe(true);
@@ -258,6 +277,7 @@ describe('runClarificationLoopResume — Erfolg', () => {
       })
     );
     expect(finalizeMock).not.toHaveBeenCalled();
+    expect(seedTitleMock).not.toHaveBeenCalled();
   });
 
   it('pausiert als Freigabe, wenn die Fortsetzung auf ein Gate läuft', async () => {
