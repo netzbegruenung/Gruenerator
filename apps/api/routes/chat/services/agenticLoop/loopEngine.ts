@@ -861,7 +861,8 @@ const PLAN_ANNOUNCEMENT_RE =
   /^\s*(?:okay|ok|sure|alright|first|now)?[,:\s]*(?:let'?s\b|i'?ll\b|i\s+will\b|i\s+am\s+going\s+to\b|i\s+need\s+to\b|we'?ll\b|we\s+will\b|we\s+need\s+to\b)/i;
 
 /**
- * What the user reads when the synth DECLINED the request. Distinct from the
+ * What the user reads when the synth DECLINED the request in English (a German
+ * decline goes out as written). Distinct from the
  * caller's no-answer fallback on purpose: that one says "ich konnte nichts
  * finden … magst du die Frage anders formulieren?", which reads as a technical
  * failure and coaches the retry of a request we deliberately refused (observed
@@ -1160,23 +1161,35 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
   // A decline is checked BEFORE degeneracy: an English refusal trips the
   // no-German-marker rule, so without this it would be retried (a second model
   // call that refuses again) and then reported as "keine Antwort gefunden".
-  if (looksLikeSynthRefusal(first.text)) {
+  //
+  // Only an ENGLISH decline is swapped. A German one is already readable and
+  // says what it declines — and whether that is a policy decline or a missing
+  // capability ("Ich kann keine Websuche durchführen", #3799) cannot be read
+  // reliably from prose, so it goes out in the model's own words.
+  const refusalLang = looksLikeSynthRefusal(first.text) ? refusalLanguage(first.text) : null;
+  if (refusalLang === 'en') {
     first.discard();
     // The discarded text goes into the line on purpose: an over-refusal is
     // invisible without it — the wire only ever shows the canned message, so a
     // wrongly swapped answer looks exactly like a correct decline in the logs.
-    const lang = refusalLanguage(first.text) ?? 'de';
     log.info(
-      `[Engine] synth declined the request (${lang}) — ` +
+      `[Engine] synth declined the request (en) — ` +
         `surfacing the German refusal instead of retrying; discarded: ${JSON.stringify(
           first.text.trim().slice(0, 120)
         )}`
     );
     recordDecision('loop.synth_verdict', 'refusal_swapped', {
-      inputs: { refusalLanguage: lang },
+      inputs: { refusalLanguage: refusalLang },
     });
     p.onText(SYNTH_REFUSAL_TEXT);
     return { text: SYNTH_REFUSAL_TEXT, replacement: 'refusal_swap' };
+  }
+  if (refusalLang === 'de') {
+    log.info(
+      `[Engine] synth declined in German — passing its own words through: ${JSON.stringify(
+        first.text.trim().slice(0, 120)
+      )}`
+    );
   }
   if (!looksLikeToolPlanLeak(first.text, toolNames)) {
     // A degenerate pass earns the retry even when the trim left NOTHING — spam
