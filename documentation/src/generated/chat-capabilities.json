@@ -609,6 +609,118 @@
       "avatar": "✉️",
       "category": "dokumente",
       "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-bayern",
+      "title": "Beschlusslage Bayern",
+      "description": "Belegte Auskunft aus den Beschlüssen der Grünen Bayern, auf Wunsch als Statement",
+      "avatar": "📚",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-berlin",
+      "title": "Beschlusslage Berlin",
+      "description": "Belegte Auskunft aus den Beschlüssen der Grünen Berlin, auf Wunsch als Statement",
+      "avatar": "📚",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-brandenburg",
+      "title": "Beschlusslage Brandenburg",
+      "description": "Belegte Auskunft aus den Beschlüssen der Grünen Brandenburg, auf Wunsch als Statement",
+      "avatar": "📚",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-hamburg",
+      "title": "Beschlusslage Hamburg",
+      "description": "Belegte Auskunft aus den Beschlüssen der Grünen Hamburg, auf Wunsch als Statement",
+      "avatar": "📚",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-hessen",
+      "title": "Beschlusslage Hessen",
+      "description": "Belegte Auskunft aus den Beschlüssen der Grünen Hessen, auf Wunsch als Statement",
+      "avatar": "📚",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-mv",
+      "title": "Beschlusslage Mecklenburg-Vorpommern",
+      "description": "Belegte Auskunft aus den Beschlüssen der Grünen Mecklenburg-Vorpommern, auf Wunsch als Statement",
+      "avatar": "📚",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-saarland",
+      "title": "Beschlusslage Saarland",
+      "description": "Belegte Auskunft aus den Beschlüssen der Grünen Saarland, auf Wunsch als Statement",
+      "avatar": "📚",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-sachsen-anhalt",
+      "title": "Beschlusslage Sachsen-Anhalt",
+      "description": "Belegte Auskunft aus den Beschlüssen der Grünen Sachsen-Anhalt, auf Wunsch als Statement",
+      "avatar": "📚",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-thueringen",
+      "title": "Beschlusslage Thüringen",
+      "description": "Belegte Auskunft aus den Beschlüssen der Grünen Thüringen, auf Wunsch als Statement",
+      "avatar": "📚",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlprogramm-bayern",
+      "title": "Wahlprogramm Bayern",
+      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Bayern",
+      "avatar": "📘",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlprogramm-berlin",
+      "title": "Wahlprogramm Berlin",
+      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Berlin",
+      "avatar": "📘",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlprogramm-brandenburg",
+      "title": "Wahlprogramm Brandenburg",
+      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Brandenburg",
+      "avatar": "📘",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlprogramm-sachsen-anhalt",
+      "title": "Wahlprogramm Sachsen-Anhalt",
+      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Sachsen-Anhalt",
+      "avatar": "📘",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlprogramm-thueringen",
+      "title": "Wahlprogramm Thüringen",
+      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Thüringen",
+      "avatar": "📘",
+      "category": "recherche",
+      "audience": "de-DE"
     }
   ],
   "skillCategoryLabels": {
