@@ -298,7 +298,7 @@ router.get('/check-subdomain', (async (req: SitesRequest, res: Response): Promis
     }
 
     const result = await db.query<Pick<UserSiteRow, 'id'>>(
-      'SELECT id FROM user_sites WHERE subdomain = $1',
+      'SELECT id FROM user_sites WHERE subdomain = $1 AND deleted_at IS NULL',
       [subdomainLower]
     );
 

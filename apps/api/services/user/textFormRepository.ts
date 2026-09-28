@@ -680,6 +680,9 @@ export async function upsertTextForm(userId: string, input: TextFormInput): Prom
     .values(values)
     .onConflictDoUpdate({
       target: [userTextForms.user_id, userTextForms.mention],
+      // The unique index is partial (live rows only); the conflict target
+      // must name its predicate, and a recipe in the Papierkorb is no conflict.
+      targetWhere: isNull(userTextForms.deleted_at),
       set: {
         kind: values.kind,
         text_type: values.text_type,
@@ -692,18 +695,12 @@ export async function upsertTextForm(userId: string, input: TextFormInput): Prom
         analyzed_at: values.analyzed_at,
         updated_at: values.updated_at,
       },
-      setWhere: isNull(userTextForms.deleted_at),
     })
     .returning();
   const row = rows[0];
-  // `(user_id, mention)` stays taken while the recipe sits in the Papierkorb;
-  // `setWhere` keeps a save from overwriting it there, where nobody sees it.
-  if (!row) throw new Error(TEXT_FORM_IN_TRASH_MESSAGE);
+  if (!row) throw new Error('Failed to upsert text form');
   return rowToTextForm(row);
 }
-
-const TEXT_FORM_IN_TRASH_MESSAGE =
-  'Ein Rezept mit dieser Mention liegt im Papierkorb. Stelle es dort wieder her oder lösche es endgültig.';
 
 /**
  * Move the caller's recipe to the Papierkorb: only `deleted_at` is set, its

@@ -128,18 +128,6 @@ const ALLOWLIST: readonly AllowEntry[] = [
     "ut.content_data->>'canvasId'",
   ],
   [
-    'apps/api/routes/sites/sitesContractRouter.ts',
-    'user_sites',
-    'subdomain availability: the unique index spans trashed sites, so a trashed one still holds its subdomain',
-    'SELECT id FROM user_sites WHERE subdomain',
-  ],
-  [
-    'apps/api/routes/sites/sitesController.ts',
-    'user_sites',
-    'subdomain availability: the unique index spans trashed sites, so a trashed one still holds its subdomain',
-    'SELECT id FROM user_sites WHERE subdomain',
-  ],
-  [
     'apps/api/routes/auth/templates/adminVorlagenContractRouter.ts',
     'user_templates',
     PERMANENT_ADMIN,

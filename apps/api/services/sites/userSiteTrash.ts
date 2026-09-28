@@ -1,7 +1,8 @@
 /**
  * Papierkorb for Websites (`user_sites`). Trash only sets `deleted_at`, so the
- * public page under the subdomain goes dark (its reader filters) while the
- * subdomain stays taken — its unique index spans trashed rows too.
+ * public page under the subdomain goes dark (its reader filters) and the
+ * subdomain is free again — its unique index covers live rows only. A restore
+ * whose subdomain was taken meanwhile fails with 23505 and answers `conflict`.
  */
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import {
