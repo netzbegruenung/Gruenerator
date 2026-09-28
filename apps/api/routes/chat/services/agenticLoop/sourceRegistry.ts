@@ -85,8 +85,12 @@ export interface SourceRegistry {
   /** Add raw results (search/web/research/examples). Returns the numbered
    *  snippet block for exactly the newly-added results so the calling tool can
    *  hand it back to the model. `snippetChars` raises the per-line content cap
-   *  for these results (default 320) — honored in `renderAll` too. */
-  register(results: SearchResult[], opts?: { snippetChars?: number }): string;
+   *  for these results (default 320) — honored in `renderAll` too.
+   *  `inventory`: Bestandszeilen (eine `list` mit Titel und Datum), keine
+   *  Recherche — zitierbar, aber aus `freshSize` heraus wie der Vorab-Abruf.
+   *  Eine 20-zeilige Liste füllte sonst `MAX_SOURCES` und sperrte danach
+   *  `web_search` und `scrape_url` per `search_budget` (Beta 28.09.2026). */
+  register(results: SearchResult[], opts?: { snippetChars?: number; inventory?: boolean }): string;
   /**
    * Seed sources gathered in EARLIER turns (cross-turn rehydration).
    *
@@ -289,8 +293,8 @@ interface Entry {
   result: SearchResult;
   cap: number;
   prior: boolean;
-  /** Aus dem Vorab-Abruf der Anhänge, nicht aus einem Werkzeugaufruf des
-   *  Planers. Zitierbar wie jede Quelle, aber aus `freshSize` heraus. */
+  /** Aus dem Vorab-Abruf der Anhänge oder einer Bestandsliste, nicht aus einer
+   *  Recherche des Planers. Zitierbar wie jede Quelle, aber aus `freshSize` heraus. */
   seeded: boolean;
 }
 
@@ -368,7 +372,7 @@ export function createSourceRegistry(): SourceRegistry {
       const lines: string[] = [];
       const emitted = new Set<number>();
       for (const r of results) {
-        const index = add(r, cap, false);
+        const index = add(r, cap, false, opts?.inventory === true);
         if (index === null || emitted.has(index)) continue;
         emitted.add(index);
         lines.push(snippetLine(index, r, cap));

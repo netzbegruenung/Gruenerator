@@ -1103,7 +1103,9 @@ describe('was der Schreiber im split-Modus sieht', () => {
     const registry = createSourceRegistry();
     const { run } = makeCtx({ registry });
     await run({ action: 'list' });
-    expect(registry.freshSize).toBe(1);
+    // Bestand, keine Recherche: zitierbar, aber nicht im Suchbudget.
+    expect(registry.size).toBe(1);
+    expect(registry.freshSize).toBe(0);
     const [sources, vorgaenge = ''] = registry.renderAll().split('VORGÄNGE IN DIESEM TURN');
     expect(sources).toContain('Antrag Radweg');
     expect(vorgaenge).toContain('total: 1');
