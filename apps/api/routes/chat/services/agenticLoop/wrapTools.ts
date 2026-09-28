@@ -432,6 +432,17 @@ type ExecuteFn = (
 export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet {
   const maxResultChars = ctx.maxResultChars ?? 6000;
   const wrapped: ToolSet = {};
+  // Mistral hands out 9-char tool-call ids and can repeat one within a turn.
+  // The stepId keys the card, the persisted step and the replay pair; a repeat
+  // renders as two message parts with one key, which assistant-ui rejects with
+  // "Duplicate key toolCallId-…" and takes the whole message down on reload.
+  const usedStepIds = new Set<string>();
+  const uniqueStepId = (id: string): string => {
+    let candidate = id;
+    for (let n = 2; usedStepIds.has(candidate); n++) candidate = `${id}_${n}`;
+    usedStepIds.add(candidate);
+    return candidate;
+  };
 
   for (const [toolName, toolDef] of Object.entries(tools)) {
     const original = (toolDef as { execute?: ExecuteFn }).execute;
@@ -469,7 +480,7 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
     };
 
     const wrappedExecute: ExecuteFn = async (input, options) => {
-      const stepId = options.toolCallId;
+      const stepId = uniqueStepId(options.toolCallId);
       const args = asRecord(input);
       // MCP connector server title (undefined for internal tools) — persisted so
       // a later turn can identify + replay which server this call hit.
