@@ -20,7 +20,7 @@ import type { Agent } from './types.js';
 //                       template fans out to N LVs, so they stay builders).
 //   lvBuergerAgents.ts — generated per-LV "Bürger*innenanfragen" agents.
 //   lvWahlpruefsteinAgents.ts — generated per-LV "Wahlprüfsteine" agents.
-//   lvSourceAgents.ts — generated per-LV "Beschlusslage"/"Wahlprogramm" agents,
+//   lvSourceAgents.ts — generated per-LV "Beschlüsse"/"Wahlprogramm" agents,
 //                       only where the LV indexes that content type.
 // This file only assembles them into the registry and resolves identifiers.
 const RAW_SYSTEM_AGENTS: readonly Agent[] = [
@@ -32,7 +32,7 @@ const RAW_SYSTEM_AGENTS: readonly Agent[] = [
 ];
 
 // A Landesverband's specialist agents (PR, Bürger*innenanfragen, Wahlprüfsteine,
-// and where present Beschlusslage and Wahlprogramm)
+// and where present Beschlussanträge and Wahlprogramm)
 // are owned by its hub, which pins the LV notebook. When that notebook is turned
 // off (`enabled: false`), hide all of them from discovery — same single switch, no
 // per-agent flag. LV_HUBS (itself derived from the LV registry) is the

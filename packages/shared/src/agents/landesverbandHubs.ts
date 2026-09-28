@@ -38,7 +38,7 @@ export interface LvHub {
   wahlpruefsteinAgentId: SystemAgentId;
   /**
    * Every agent of the LV in hub order (`landesverbandAgentIds`) — the three
-   * above plus Beschlusslage/Wahlprogramm where the LV has them.
+   * above plus Beschlussanträge/Wahlprogramm where the LV has them.
    */
   agentIds: readonly SystemAgentId[];
   audience: AgentAudience;
