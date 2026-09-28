@@ -98,7 +98,6 @@ export const LANDESVERBAENDE = [
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
     buergerAgentId: 'gruenerator-buergeranfragen-hamburg',
     wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-hamburg',
-    beschlussAgentId: 'gruenerator-beschluesse-hamburg',
     hub: { slug: 'gruene-hamburg', name: 'Grüne Hamburg' },
   },
   {
