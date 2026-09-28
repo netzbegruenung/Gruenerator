@@ -47,6 +47,10 @@ import {
   resolveCardDisplay,
   type BoardState,
 } from '../../../services/boards/BoardService.js';
+import {
+  trashCollaborativeDocument,
+  type QueryRunner,
+} from '../../../services/docs/CollaborativeDocumentService.js';
 import { findGroups } from '../../../services/groups/groupQueries.js';
 import { USER_VISIBLE_SHARE_STATUSES } from '../../../services/sharedMediaFilters.js';
 import { getSharedMediaService } from '../../../services/sharedMediaService.js';
@@ -467,18 +471,13 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
           groundNote(sourceRegistry, 'Bestätigung nötig', ask);
           return { needsConfirmation: true, note: ask };
         }
-        const rows = (await db.query(
-          'SELECT created_by FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
-          [id]
-        )) as { created_by: string }[];
-        if (!rows.length || rows[0].created_by !== userId) {
-          return { error: 'Nur die erstellende Person kann dieses Dokument löschen.' };
+        const runQuery: QueryRunner = <T>(sql: string, params?: unknown[]) =>
+          db.query(sql, params) as Promise<T[]>;
+        const result = await trashCollaborativeDocument(runQuery, match.id, userId, null);
+        if (result.status !== 'ok') {
+          return { error: 'Nur Eigentümer*innen können dieses Dokument löschen.' };
         }
-        await db.query(
-          'UPDATE collaborative_documents SET is_deleted = true, updated_at = NOW() WHERE id = $1',
-          [id]
-        );
-        const note = `Dokument „${match.title}" wurde gelöscht.`;
+        const note = `Dokument „${match.title}" liegt jetzt im Papierkorb.`;
         groundNote(sourceRegistry, 'Gelöscht', note);
         return { ok: true, note };
       }

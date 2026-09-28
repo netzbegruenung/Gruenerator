@@ -66,6 +66,7 @@ export async function getThreadAccessLevel(
      INNER JOIN collaborative_documents d ON d.id = ct.doc_id
      WHERE ct.id = $1
        AND ct.doc_id IS NOT NULL
+       AND d.is_deleted = false
        AND (
          d.created_by = $2
          OR d.is_public = true

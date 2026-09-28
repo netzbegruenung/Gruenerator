@@ -79,6 +79,7 @@ export const sharedMedia = pgTable(
     download_count: integer('download_count').notNull().default(0),
     view_count: integer('view_count').notNull().default(0),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    deleted_at: timestamp('deleted_at', { withTimezone: true }),
     // Columns added via ALTER TABLE migrations
     is_library_item: boolean('is_library_item').notNull().default(true),
     alt_text: text('alt_text'),
