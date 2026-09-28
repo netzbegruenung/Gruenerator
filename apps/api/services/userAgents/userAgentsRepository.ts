@@ -7,7 +7,7 @@
  */
 
 import { type Agent, type AgentProvider } from '@gruenerator/shared/agents';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { userAgents, type UserAgentRow } from '../../database/schema/userAgents.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
@@ -472,8 +472,16 @@ export function mergeMentionableAgents(
 /**
  * Public Agentura discovery feed: agents listed publicly (is_public=true atop
  * share_mode='authenticated'), filtered to the viewer's locale.
+ *
+ * One entry per identifier. `identifier` is only unique per owner, so several
+ * people publishing the same slug put duplicates into the feed — the clients
+ * key cards by identifier, and duplicate React keys leak cards on every tab
+ * switch. The viewer's own row wins, then the oldest, as in the resolvers.
  */
-export async function listPublicUserAgents(viewerLocale: string): Promise<Agent[]> {
+export async function listPublicUserAgents(
+  viewerId: string,
+  viewerLocale: string
+): Promise<Agent[]> {
   const db = getDrizzleInstance();
   const rows = await db
     .select()
@@ -484,6 +492,14 @@ export async function listPublicUserAgents(viewerLocale: string): Promise<Agent[
         eq(userAgents.share_mode, 'authenticated'),
         eq(userAgents.locale, normalizeAudience(viewerLocale))
       )
+    )
+    .orderBy(
+      desc(sql`${userAgents.user_id} = ${viewerId}`),
+      asc(userAgents.created_at),
+      asc(userAgents.id)
     );
-  return rows.map(rowToAgent);
+  const seen = new Set<string>();
+  return rows
+    .filter((row) => !seen.has(row.identifier) && seen.add(row.identifier))
+    .map(rowToAgent);
 }
