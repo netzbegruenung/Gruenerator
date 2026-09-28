@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildMemberMention,
   groupMentionSegments,
+  groupMentionsFromDraft,
+  groupMentionsToDraft,
   groupMentionsToPlain,
   parseGroupMentions,
 } from './groupMentions.js';
@@ -74,6 +76,34 @@ describe('groupMentionsToPlain', () => {
   it('renders member tokens as @Label', () => {
     expect(groupMentionsToPlain(`@alle, ${buildMemberMention('Anna Beispiel', ANNA)} fragt`)).toBe(
       '@alle, @Anna Beispiel fragt'
+    );
+  });
+});
+
+describe('draft round trip', () => {
+  it('shows tokens as @Label and turns picked names back into tokens', () => {
+    const stored = `@alle: ${buildMemberMention('Anna', ANNA)} und ${buildMemberMention('Anna Maria', OEZLEM)}`;
+    const draft = groupMentionsToDraft(stored);
+    expect(draft.text).toBe('@alle: @Anna und @Anna Maria');
+    expect(draft.picks).toEqual([
+      { userId: ANNA, label: 'Anna' },
+      { userId: OEZLEM, label: 'Anna Maria' },
+    ]);
+    expect(groupMentionsFromDraft(draft.text, draft.picks)).toBe(stored);
+  });
+
+  it('leaves names that were not picked, or were edited, as text', () => {
+    const picks = [{ userId: ANNA, label: 'Anna' }];
+    expect(groupMentionsFromDraft('@Annabell und @Ben', picks)).toBe('@Annabell und @Ben');
+    expect(groupMentionsFromDraft('Hi @Anna!', picks)).toBe(
+      `Hi ${buildMemberMention('Anna', ANNA)}!`
+    );
+  });
+
+  it('escapes regex characters in labels', () => {
+    const picks = [{ userId: ANNA, label: 'A.(B)' }];
+    expect(groupMentionsFromDraft('@A.(B) @AxxB)', picks)).toBe(
+      `${buildMemberMention('A.(B)', ANNA)} @AxxB)`
     );
   });
 });
