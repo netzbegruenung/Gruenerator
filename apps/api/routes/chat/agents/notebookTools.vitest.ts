@@ -60,6 +60,7 @@ interface CtxOptions {
   search?: NotebookToolDeps['search'];
   /** Antwort auf `scope='basis'` — die öffentlich gelisteten Notebooks. */
   publicCollections?: NotebookCollection[];
+  sharedCollections?: Array<NotebookCollection & { shared_via_groups: string[] }>;
   groups?: Array<{ id: string; name: string; role: string }>;
   registry?: SourceRegistry;
   userText?: string;
@@ -119,6 +120,7 @@ function makeCtx(opts: CtxOptions = {}) {
     search:
       opts.search ?? vi.fn(async () => ({ ok: false as const, error: 'Suche nicht konfiguriert' })),
     listPublic: vi.fn(async () => opts.publicCollections ?? []),
+    listShared: vi.fn(async () => opts.sharedCollections ?? []),
     preview: opts.preview ?? vi.fn(async () => ({ error: 'Vorschau nicht konfiguriert' })),
     findGroups: vi.fn(async () =>
       (opts.groups ?? []).map((g) => ({ ...g, slug_suffix: null, member_count: 1 }))
@@ -213,6 +215,33 @@ describe('list', () => {
         type: 'Öffentliches Notebook',
         snippet: 'Anträge aus dem Kreisverband',
         ref: 'n2',
+      },
+    ]);
+  });
+
+  it('lists notebooks shared into the caller’s Projekte, naming the Projekt', async () => {
+    const shared = {
+      ...collection({
+        id: 'n3',
+        user_id: 'user-2',
+        name: 'Haushalt',
+        slug_suffix: 'Hh3kL9',
+        description: 'Haushaltsanträge',
+      }),
+      shared_via_groups: ['KV Nord'],
+    };
+    const { run, deps } = makeCtx({ sharedCollections: [shared] });
+    const result = await run({ action: 'list', scope: 'shared' });
+
+    expect(deps.listShared).toHaveBeenCalledWith('user-1');
+    expect(result.scope).toBe('shared');
+    expect(result.results).toEqual([
+      {
+        title: 'Haushalt',
+        url: '/notebooks/haushalt-Hh3kL9',
+        type: 'Geteiltes Notebook · KV Nord',
+        snippet: 'Haushaltsanträge',
+        ref: 'n3',
       },
     ]);
   });
