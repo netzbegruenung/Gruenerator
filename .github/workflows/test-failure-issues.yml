@@ -41,7 +41,7 @@ jobs:
           BRANCH: ${{ github.event.workflow_run.head_branch }}
           SHA: ${{ github.event.workflow_run.head_sha }}
           EVENT: ${{ github.event.workflow_run.event }}
-          PRS: ${{ join(github.event.workflow_run.pull_requests.*.number, ' #') }}
+          PRS: "${{ join(github.event.workflow_run.pull_requests.*.number, ' #') }}"
         run: |
           set -euo pipefail
 
