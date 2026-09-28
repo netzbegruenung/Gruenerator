@@ -1374,6 +1374,32 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         'https://www.gruene-lsa.de/wp-content/uploads/2026/05/Programm-zur-Landtagswahl-2026.pdf',
       ],
     },
+    {
+      id: 'wahlprogramm-bb',
+      label: 'Wahlprogramm',
+      shortName: 'BB',
+      // The five chapter PDFs of the Landtagswahlprogramm 2024 are linked from
+      // the Beschlüsse listing and would otherwise be stored as 'beschluss' (#3808).
+      contentType: 'wahlprogramm',
+      urls: [
+        'https://wordpress02.gcms.verdigado.net/gruene-brandenburg/wp-content/uploads/sites/291/2025/07/WP1_Jetzt_den_Planeten_schuetzen_Klima_und_Mobilitaet.pdf',
+        'https://wordpress02.gcms.verdigado.net/gruene-brandenburg/wp-content/uploads/sites/291/2025/07/WP-2_Jetzt_fuereinander_einstehen_Gesundheit_und_Soziales_.pdf',
+        'https://wordpress02.gcms.verdigado.net/gruene-brandenburg/wp-content/uploads/sites/291/2025/07/WP-3_Jetzt_Demokratie_verteidigen_Selbstbestimmung_und_Gerechtigkeit.pdf',
+        'https://wordpress02.gcms.verdigado.net/gruene-brandenburg/wp-content/uploads/sites/291/2025/07/WP-4_Jetzt_Zukunft_gestalten_Bildung_und_Wissenschaft.pdf',
+        'https://wordpress02.gcms.verdigado.net/gruene-brandenburg/wp-content/uploads/sites/291/2025/07/WP-5_Jetzt_klimaneutral_werden_Wirtschaft_erneuern.pdf',
+      ],
+    },
+    {
+      id: 'wahlprogramm-sl',
+      label: 'Wahlprogramm',
+      shortName: 'SL',
+      // Landtagswahlprogramm 2022, found by the /dokumente-2/ PDF archive whose
+      // path type is 'beschluss' (#3808).
+      contentType: 'wahlprogramm',
+      urls: [
+        'https://gruene-saar.de/wp-content/uploads/sites/2/2022/02/22-02-17-wahlprogramm-ltw-2022.pdf',
+      ],
+    },
   ],
 };
 
