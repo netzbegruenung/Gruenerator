@@ -144,6 +144,28 @@ describe('mergeCarriedCitations', () => {
     );
   });
 
+  it('schreibt Quellenlinks mit um und lässt ihr Label kein Marker sein', () => {
+    const linked: NotebookHistoryMessage[] = [
+      {
+        role: 'assistant',
+        content: 'Siehe [Wahlprogramm 2024](quelle:1) und [Frisch](quelle:2).',
+        citations: history[1]!.citations!,
+      },
+    ];
+    const { history: rewritten } = mergeCarriedCitations({ '1': ref() }, linked);
+    expect(rewritten[0].content).toBe(
+      'Siehe [Wahlprogramm 2024](quelle:2) und [Frisch](quelle:1).'
+    );
+  });
+
+  it('lässt von einem Link ohne Mapping nur den Titel stehen', () => {
+    const noMeta: NotebookHistoryMessage[] = [
+      { role: 'assistant', content: 'Siehe [Alter Beschluss](quelle:3).' },
+    ];
+    const { history: rewritten } = mergeCarriedCitations({ '1': ref() }, noMeta);
+    expect(rewritten[0].content).toBe('Siehe Alter Beschluss.');
+  });
+
   it('strippt Marker ohne Mapping, statt sie auf falsche Quellen zeigen zu lassen', () => {
     const noMeta: NotebookHistoryMessage[] = [
       { role: 'assistant', content: 'Behauptung mit altem Beleg [3].' },
