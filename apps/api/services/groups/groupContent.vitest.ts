@@ -472,3 +472,52 @@ describe('hydrateGroupContent', () => {
     expect(query).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * Both halves build their SQL from a table name (`CONTENT_TABLE_NAME_MAP`),
+ * which `trashReaders.vitest.ts` cannot see — so the Papierkorb filter is
+ * pinned here: a trashed item can neither be shared nor show up in a Projekt.
+ */
+describe('Papierkorb: trashed content in Projekte', () => {
+  it.each([
+    ['user_documents', 'user_documents'],
+    ['database', 'user_templates'],
+    ['user_agents', 'user_agents'],
+    ['documents', 'documents'],
+  ])('refuses to share trashed %s (%s)', async (contentType, table) => {
+    const { deps, queryOne } = fakeDeps({ owner: null });
+    const out = await shareContentToGroup({ ...base, contentType, contentId: 'x1' }, deps);
+    expect(out.status).toBe(404);
+    const ownership = (queryOne.mock.calls as unknown as Array<[string]>)
+      .map(([sql]) => sql)
+      .find((sql) => sql.includes(`FROM ${table} WHERE id = $1`));
+    expect(ownership).toContain('deleted_at IS NULL');
+  });
+
+  it('adds no deleted_at clause for a table without a Papierkorb', async () => {
+    const { deps, queryOne } = fakeDeps({ owner: { user_id: 'u1' } });
+    await shareContentToGroup({ ...base, contentType: 'custom_generators', contentId: 'x1' }, deps);
+    const [ownership] = queryOne.mock.calls[0] as unknown as [string];
+    expect(ownership).toContain('FROM custom_generators');
+    expect(ownership).not.toContain('deleted_at');
+  });
+
+  it('hydrates saved texts and Vorlagen without their trashed rows', async () => {
+    const query = vi.fn(async (sql: string) =>
+      sql.includes('FROM group_content_shares')
+        ? [
+            { content_type: 'user_documents', content_id: 't1', permissions: {} },
+            { content_type: 'database', content_id: 'v1', permissions: {} },
+          ]
+        : []
+    );
+    await hydrateGroupContent('g1', {
+      postgres: { query } as unknown as HydrateGroupContentDeps['postgres'],
+      getNotebookCollectionsByIds: vi.fn(async () => []) as never,
+      listUserAgentsByIds: vi.fn(async () => []),
+    });
+    const sqls = query.mock.calls.map(([sql]) => sql);
+    expect(sqls.find((sql) => sql.includes('FROM user_documents'))).toContain('deleted_at IS NULL');
+    expect(sqls.find((sql) => sql.includes('FROM user_templates'))).toContain('deleted_at IS NULL');
+  });
+});

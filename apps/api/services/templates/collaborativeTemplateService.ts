@@ -152,7 +152,7 @@ export async function createDocFromTemplate(
   const templateRows = (await db.query(
     `SELECT id, user_id, template_type, title, is_private, status, content_data
      FROM user_templates
-     WHERE id = $1 AND type = 'template'`,
+     WHERE id = $1 AND type = 'template' AND deleted_at IS NULL`,
     [templateId]
   )) as UserTemplateRow[];
 

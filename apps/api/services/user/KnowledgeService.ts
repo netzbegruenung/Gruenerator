@@ -1,3 +1,6 @@
+import { type InferSelectModel } from 'drizzle-orm';
+
+import { type userKnowledge } from '../../database/schema/knowledge.js';
 import {
   type PostgresService,
   getPostgresInstance,
@@ -6,6 +9,12 @@ import { type QdrantService, getQdrantInstance } from '../../database/services/Q
 import { generateContentHash, generatePointId } from '../../utils/validation/index.js';
 import { smartChunkDocument } from '../document-services/index.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
+import {
+  deleteTrashedRow,
+  isRowId,
+  purgeSideStore,
+  type OwnedTrashTable,
+} from '../trash/ownedRowTrash.js';
 
 import type {
   UserKnowledgeEntry,
@@ -17,6 +26,8 @@ import type {
   ChunkingOptions,
   DocumentChunk,
 } from './types.js';
+
+type KnowledgeRow = InferSelectModel<typeof userKnowledge>;
 
 /**
  * KnowledgeService - User knowledge operations with Postgres storage and Qdrant vectorization
@@ -73,7 +84,7 @@ class KnowledgeService {
         SELECT id, title, content, knowledge_type, created_at, updated_at, tags,
                embedding_id, embedding_hash, vector_indexed_at
         FROM user_knowledge
-        WHERE user_id = $1 AND is_active = true
+        WHERE user_id = $1 AND is_active = true AND deleted_at IS NULL
         ORDER BY created_at ASC
         LIMIT 3
       `;
@@ -195,44 +206,28 @@ class KnowledgeService {
   }
 
   /**
-   * Delete user knowledge entry
+   * Move a knowledge entry to the Papierkorb: only `deleted_at` is set, the
+   * Qdrant points stay until {@link purgeUserKnowledge}. Owner only — the
+   * check restore and purge-now ask too.
    */
   async deleteUserKnowledge(userId: string, knowledgeId: string): Promise<{ success: boolean }> {
     await this.ensureInitialized();
 
     try {
-      const entry = await this.postgres!.queryOne(
-        'SELECT embedding_id FROM user_knowledge WHERE id = $1 AND user_id = $2 AND is_active = true',
-        [knowledgeId, userId]
-      );
+      const trashed = isRowId(knowledgeId)
+        ? await this.postgres!.query<{ id: string }>(
+            `UPDATE user_knowledge SET deleted_at = now()
+             WHERE id = $1 AND user_id = $2 AND is_active = true AND deleted_at IS NULL
+             RETURNING id`,
+            [knowledgeId, userId]
+          )
+        : [];
 
-      if (!entry) {
+      if (trashed.length === 0) {
         throw new Error('Knowledge entry not found');
       }
 
-      if (entry.embedding_id && this.qdrant!.isAvailableSync()) {
-        try {
-          await this.qdrant!.client!.delete(this.qdrant!.collections.user_knowledge, {
-            filter: {
-              must: [{ key: 'knowledge_id', match: { value: knowledgeId } }],
-            },
-          });
-          console.log(`[KnowledgeService] Deleted vectors for knowledge ${knowledgeId}`);
-        } catch (qdrantError: unknown) {
-          console.warn(
-            '[KnowledgeService] Failed to delete vectors:',
-            qdrantError instanceof Error ? qdrantError.message : String(qdrantError)
-          );
-        }
-      }
-
-      await this.postgres!.update(
-        'user_knowledge',
-        { is_active: false },
-        { id: knowledgeId, user_id: userId }
-      );
-
-      console.log(`[KnowledgeService] Deleted knowledge entry ${knowledgeId} for user ${userId}`);
+      console.log(`[KnowledgeService] Trashed knowledge entry ${knowledgeId} for user ${userId}`);
 
       return { success: true };
     } catch (error: unknown) {
@@ -241,6 +236,42 @@ class KnowledgeService {
         `Failed to delete knowledge: ${error instanceof Error ? error.message : String(error)}`
       );
     }
+  }
+
+  /** Hard-delete a trashed knowledge entry, then its Qdrant points. */
+  async purgeUserKnowledge(id: string, cutoff: Date | null): Promise<boolean> {
+    await this.ensureInitialized();
+    const row = await deleteTrashedRow<Pick<KnowledgeRow, 'id' | 'embedding_id'>>(
+      KNOWLEDGE_TRASH,
+      id,
+      cutoff,
+      'id, embedding_id'
+    );
+    if (!row) return false;
+    if (row.embedding_id) {
+      await purgeSideStore('user_knowledge', id, 'qdrant', async () => {
+        if (!this.qdrant!.isAvailableSync()) throw new Error('Qdrant unavailable');
+        await this.qdrant!.client!.delete(this.qdrant!.collections.user_knowledge, {
+          filter: { must: [{ key: 'knowledge_id', match: { value: id } }] },
+        });
+      });
+    }
+    return true;
+  }
+
+  /**
+   * Drop hits whose entry sits in the Papierkorb: its points stay in Qdrant
+   * until the purge, so the payload alone would still find it.
+   */
+  private async liveKnowledgeIds(ids: string[]): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const rows = await this.postgres!.query<{ id: string }>(
+      `SELECT id FROM user_knowledge
+       WHERE id = ANY($1::uuid[]) AND is_active = true AND deleted_at IS NULL`,
+      [ids],
+      { table: 'user_knowledge' }
+    );
+    return new Set(rows.map((r) => r.id));
   }
 
   /**
@@ -258,7 +289,10 @@ class KnowledgeService {
       const existing = await this.postgres!.queryOne<{
         embedding_id: string | null;
         embedding_hash: string | null;
-      }>('SELECT embedding_id, embedding_hash FROM user_knowledge WHERE id = $1', [knowledgeId]);
+      }>(
+        'SELECT embedding_id, embedding_hash FROM user_knowledge WHERE id = $1 AND deleted_at IS NULL',
+        [knowledgeId]
+      );
 
       if (existing?.embedding_id && existing.embedding_hash === embedding_hash) {
         console.log(
@@ -353,11 +387,21 @@ class KnowledgeService {
           }
         );
 
+        const live = await this.liveKnowledgeIds(
+          searchResult.points
+            .map((hit) => (hit.payload as Record<string, unknown> | null)?.knowledge_id)
+            .filter((id): id is string => typeof id === 'string')
+        );
         const seen = new Set();
         const results = searchResult.points
           .filter((hit) => {
             const p = hit.payload as Record<string, unknown> | null;
-            return p && !seen.has(p.knowledge_id) && seen.add(p.knowledge_id);
+            return (
+              p &&
+              live.has(p.knowledge_id as string) &&
+              !seen.has(p.knowledge_id) &&
+              seen.add(p.knowledge_id)
+            );
           })
           .slice(0, limit)
           .map((hit) => {
@@ -393,7 +437,8 @@ class KnowledgeService {
         SELECT id, title, content, knowledge_type,
                ts_rank(to_tsvector('english', title || ' ' || content), plainto_tsquery('english', $2)) as rank
         FROM user_knowledge
-        WHERE user_id = $1 AND is_active = true AND (title ILIKE $3 OR content ILIKE $3)
+        WHERE user_id = $1 AND is_active = true AND deleted_at IS NULL
+          AND (title ILIKE $3 OR content ILIKE $3)
         ORDER BY rank DESC, created_at DESC LIMIT $4
       `,
         [userId, query, searchPattern, limit]
@@ -417,6 +462,11 @@ class KnowledgeService {
     }
   }
 }
+
+export const KNOWLEDGE_TRASH: OwnedTrashTable = {
+  table: 'user_knowledge',
+  columns: 'id, title',
+};
 
 // Export singleton instance
 let knowledgeServiceInstance: KnowledgeService | null = null;

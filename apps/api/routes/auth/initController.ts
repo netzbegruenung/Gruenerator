@@ -93,7 +93,7 @@ async function fetchSavedTexts(userId: string): Promise<unknown[]> {
     const data = await db.query(
       `SELECT id as document_id, title, content, document_type, created_at
        FROM user_documents
-       WHERE user_id = $1 AND is_active = true
+       WHERE user_id = $1 AND is_active = true AND deleted_at IS NULL
        ORDER BY created_at DESC
        LIMIT 20`,
       [userId]

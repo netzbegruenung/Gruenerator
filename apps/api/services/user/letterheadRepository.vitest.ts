@@ -12,20 +12,25 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 interface Recorded {
   kind: 'select' | 'insert' | 'update' | 'delete';
   inTransaction: boolean;
+  set?: Record<string, unknown>;
 }
 
 const recorded: Recorded[] = [];
 /** Results handed to consecutive select() calls, in order. */
-let selectQueue: Array<Array<{ id: string }>> = [];
-let deleteReturns: Array<{ id: string; is_default: boolean }> = [];
+let selectQueue: Array<Array<{ id: string } | { is_default: boolean }>> = [];
 
 /** Chainable stub — every builder method returns the thenable itself. */
 function builder(kind: Recorded['kind'], inTransaction: boolean, result: unknown) {
-  recorded.push({ kind, inTransaction });
+  const entry: Recorded = { kind, inTransaction };
+  recorded.push(entry);
   const chain: Record<string, unknown> = {};
-  for (const method of ['from', 'where', 'set', 'values', 'orderBy', 'limit', 'returning']) {
+  for (const method of ['from', 'where', 'values', 'orderBy', 'limit', 'returning', 'for']) {
     chain[method] = () => chain;
   }
+  chain.set = (values: Record<string, unknown>) => {
+    entry.set = values;
+    return chain;
+  };
   chain.then = (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve);
   return chain;
 }
@@ -35,7 +40,7 @@ function makeDb(inTransaction: boolean) {
     select: () => builder('select', inTransaction, selectQueue.shift() ?? []),
     insert: () => builder('insert', inTransaction, [{ id: 'new-row', is_default: true }]),
     update: () => builder('update', inTransaction, [{ id: 'updated' }]),
-    delete: () => builder('delete', inTransaction, deleteReturns),
+    delete: () => builder('delete', inTransaction, []),
   };
 }
 
@@ -46,13 +51,21 @@ const getDrizzleInstance = vi.fn(() => ({
 
 vi.mock('../../database/services/DrizzleService.js', () => ({ getDrizzleInstance }));
 
-const { createLetterhead, deleteLetterhead, updateLetterhead } =
+const query = vi.fn<(sql: string, params: unknown[]) => Promise<unknown[]>>();
+const deleteStationery = vi.fn<(userId: string, fileName: string) => Promise<void>>();
+const reportBackgroundError = vi.fn();
+vi.mock('../../database/services/PostgresService.js', () => ({
+  getPostgresInstance: () => ({ query }),
+}));
+vi.mock('./letterheadStationery.js', () => ({ deleteStationery }));
+vi.mock('../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
+
+const { createLetterhead, deleteLetterhead, purgeLetterhead, updateLetterhead } =
   await import('./letterheadRepository.js');
 
 beforeEach(() => {
   recorded.length = 0;
   selectQueue = [];
-  deleteReturns = [];
 });
 
 describe('createLetterhead', () => {
@@ -112,39 +125,102 @@ describe('updateLetterhead', () => {
   });
 });
 
-describe('deleteLetterhead', () => {
+describe('deleteLetterhead (into the Papierkorb)', () => {
+  const trashUpdate = () => recorded.find((r) => r.kind === 'update' && r.set?.deleted_at);
+
   it('reports a miss without touching anything else', async () => {
-    deleteReturns = [];
+    selectQueue = [[]];
 
     await expect(deleteLetterhead('user-1', 'nope')).resolves.toBe(false);
     expect(recorded.filter((r) => r.kind === 'update')).toHaveLength(0);
   });
 
+  it('only sets deleted_at and gives up is_default — no DELETE, the file stays', async () => {
+    selectQueue = [[{ is_default: false }]];
+
+    await expect(deleteLetterhead('user-1', 'lh-2')).resolves.toBe(true);
+
+    expect(recorded.some((r) => r.kind === 'delete')).toBe(false);
+    expect(trashUpdate()?.set).toMatchObject({ deleted_at: expect.any(Date), is_default: false });
+    expect(deleteStationery).not.toHaveBeenCalled();
+  });
+
   it('promotes the next letterhead when the default is deleted', async () => {
-    deleteReturns = [{ id: 'lh-1', is_default: true }];
-    selectQueue = [[{ id: 'lh-2' }]];
+    selectQueue = [[{ is_default: true }], [{ id: 'lh-2' }]];
 
     await expect(deleteLetterhead('user-1', 'lh-1')).resolves.toBe(true);
 
     // Without this the export would silently lose its preselection.
-    expect(recorded.filter((r) => r.kind === 'update')).toHaveLength(1);
+    const updates = recorded.filter((r) => r.kind === 'update');
+    expect(updates).toHaveLength(2);
+    expect(updates[1]?.set).toMatchObject({ is_default: true });
     expect(recorded.every((r) => r.inTransaction)).toBe(true);
   });
 
   it('does not promote when a non-default is deleted', async () => {
-    deleteReturns = [{ id: 'lh-2', is_default: false }];
-    selectQueue = [[{ id: 'lh-1' }]];
+    selectQueue = [[{ is_default: false }], [{ id: 'lh-1' }]];
 
     await deleteLetterhead('user-1', 'lh-2');
 
-    expect(recorded.filter((r) => r.kind === 'update')).toHaveLength(0);
+    expect(recorded.filter((r) => r.kind === 'update')).toHaveLength(1);
   });
 
   it('survives deleting the last letterhead', async () => {
-    deleteReturns = [{ id: 'lh-1', is_default: true }];
-    selectQueue = [[]];
+    selectQueue = [[{ is_default: true }], []];
 
     await expect(deleteLetterhead('user-1', 'lh-1')).resolves.toBe(true);
-    expect(recorded.filter((r) => r.kind === 'update')).toHaveLength(0);
+    expect(recorded.filter((r) => r.kind === 'update')).toHaveLength(1);
+  });
+});
+
+describe('purgeLetterhead', () => {
+  const ID = '33333333-3333-4333-8333-333333333333';
+  const effects: string[] = [];
+
+  beforeEach(() => {
+    effects.length = 0;
+    query.mockReset();
+    reportBackgroundError.mockClear();
+    deleteStationery.mockReset().mockImplementation((userId, fileName) => {
+      effects.push(`rm ${userId}/${fileName}`);
+      return Promise.resolve();
+    });
+  });
+
+  function deletes(rows: unknown[]): void {
+    query.mockImplementation((sql) => {
+      effects.push(sql.replace(/\s+/g, ' ').trim().split(' WHERE ')[0]);
+      return Promise.resolve(rows);
+    });
+  }
+
+  it('deletes the trashed row conditionally, then its stationery file', async () => {
+    deletes([{ id: ID, user_id: 'user-1', stationery_file: '1.pdf' }]);
+    const cutoff = new Date('2026-08-30T00:00:00Z');
+
+    await expect(purgeLetterhead(ID, cutoff)).resolves.toBe(true);
+
+    const [sql, params] = query.mock.calls[0]!;
+    expect(sql).toContain('deleted_at IS NOT NULL');
+    expect(sql).toContain('deleted_at < $2');
+    expect(params).toEqual([ID, cutoff]);
+    expect(effects).toEqual(['DELETE FROM user_letterheads', 'rm user-1/1.pdf']);
+  });
+
+  it('touches no file when the row was restored meanwhile (0 rows)', async () => {
+    deletes([]);
+    await expect(purgeLetterhead(ID, null)).resolves.toBe(false);
+    expect(deleteStationery).not.toHaveBeenCalled();
+  });
+
+  it('reports a failing file removal and never rethrows once the row is gone', async () => {
+    deletes([{ id: ID, user_id: 'user-1', stationery_file: '1.pdf' }]);
+    deleteStationery.mockRejectedValueOnce(new Error('EACCES'));
+
+    await expect(purgeLetterhead(ID, null)).resolves.toBe(true);
+    expect(reportBackgroundError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ job: 'trash-purge', kind: 'user_letterhead', id: ID })
+    );
   });
 });

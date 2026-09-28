@@ -271,7 +271,7 @@ export const contentRoutes = {
                 tags, categories, metadata, created_at
            FROM user_templates
           WHERE is_private = false AND status = 'published' AND type = 'template'
-            AND tags ?| $1::text[]
+            AND deleted_at IS NULL AND tags ?| $1::text[]
           ORDER BY created_at DESC`,
         [templateTags],
         { table: 'user_templates' }

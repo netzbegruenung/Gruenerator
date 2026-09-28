@@ -68,7 +68,7 @@ export async function getUserTexts(
     const query = `
       SELECT id, title, content, document_type, created_at, updated_at
       FROM user_documents
-      WHERE user_id = $1 AND is_active = true
+      WHERE user_id = $1 AND is_active = true AND deleted_at IS NULL
       ORDER BY created_at DESC
     `;
 

@@ -29,7 +29,7 @@ router.post(
       const { id: textId } = req.params;
 
       const rows = await db.query(
-        'SELECT id, title, content, metadata FROM user_documents WHERE id = $1 AND user_id = $2 AND is_active = true',
+        'SELECT id, title, content, metadata FROM user_documents WHERE id = $1 AND user_id = $2 AND is_active = true AND deleted_at IS NULL',
         [textId, userId]
       );
 
