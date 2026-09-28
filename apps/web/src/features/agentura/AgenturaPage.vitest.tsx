@@ -12,7 +12,7 @@
 import { useSkillFavoritesStore } from '@gruenerator/chat';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
 import AgenturaPage from './AgenturaPage';
 
@@ -49,11 +49,15 @@ vi.mock('@gruenerator/chat', async (importOriginal) => ({
   }),
 }));
 
+const userAgents = vi.hoisted(() => ({ current: [] as unknown[] }));
+const sharedUserAgents = vi.hoisted(() => ({ current: [] as unknown[] }));
+const publicAgents = vi.hoisted(() => ({ current: [] as unknown[] }));
+
 vi.mock('../agents/api', () => ({
-  useUserAgents: () => ({ data: [] }),
+  useUserAgents: () => ({ data: userAgents.current }),
   useSharedSystemAgents: () => ({ data: [] }),
-  useSharedUserAgents: () => ({ data: [] }),
-  usePublicUserAgents: () => ({ data: [] }),
+  useSharedUserAgents: () => ({ data: sharedUserAgents.current }),
+  usePublicUserAgents: () => ({ data: publicAgents.current }),
   useDeleteUserAgent: () => ({ mutate: vi.fn() }),
   // Duplizieren legt einen neuen Agenten an — die Kachel zieht den Haken über
   // `useDuplicateAgent`, auch wenn keine dieser Prüfungen ihn auslöst.
@@ -149,6 +153,94 @@ beforeEach(() => {
   listPublic.mockReset().mockResolvedValue({ status: 200, body: { success: true, forms: [] } });
   remove.mockReset().mockResolvedValue({ status: 200, body: { success: true } });
   useSkillFavoritesStore.setState({ favorites: [] });
+  userAgents.current = [];
+  sharedUserAgents.current = [];
+  publicAgents.current = [];
+});
+
+function agent(over: Record<string, unknown> = {}) {
+  return {
+    id: 'u-1',
+    identifier: 'gruene-poesie',
+    title: 'Grüne Poesie',
+    description: 'Gedichte',
+    systemRole: '',
+    avatar: '',
+    backgroundColor: '',
+    tags: [],
+    model: 'm',
+    provider: 'mistral',
+    params: { max_tokens: 1, temperature: 0 },
+    openingMessage: '',
+    openingQuestions: [],
+    locale: 'de-DE',
+    author: 'Eigener Agent',
+    ...over,
+  };
+}
+
+function agentCards() {
+  const heading = screen.getByRole('heading', { name: /^Agents$/i, level: 2 });
+  const section = heading.closest('section');
+  if (!section) throw new Error('Agents-Abschnitt fehlt');
+  return within(section).getAllByRole('heading', { level: 3 });
+}
+
+/**
+ * Nutzer-Agenten tragen ihre Zeilen-id. Der `identifier` ist nur pro Besitzer
+ * eindeutig — nach ihm gekeyt, stehen zwei Karten unter demselben React-Key,
+ * und beim Regalwechsel bleiben Knoten liegen: die Kachel „wuchert".
+ */
+describe('AgenturaPage — Meine: eigene und geteilte Agenten', () => {
+  let keyWarnings: string[];
+  let consoleError: MockInstance<typeof console.error>;
+  beforeEach(() => {
+    keyWarnings = [];
+    consoleError = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      const text = args.map(String).join(' ');
+      if (text.includes('same key')) keyWarnings.push(text);
+    });
+  });
+  afterEach(() => {
+    consoleError.mockRestore();
+  });
+
+  it('zeigt den eigenen Agenten einmal, auch wenn er in eine eigene Gruppe geteilt ist', async () => {
+    userAgents.current = [agent()];
+    sharedUserAgents.current = [{ agent: agent(), groups: [] }];
+    renderPage();
+    expect(await screen.findAllByRole('heading', { name: 'Grüne Poesie', level: 3 })).toHaveLength(
+      1
+    );
+    expect(keyWarnings).toEqual([]);
+  });
+
+  it('zeigt einen fremden Agenten mit gleichem Bezeichner neben dem eigenen', async () => {
+    userAgents.current = [agent()];
+    sharedUserAgents.current = [{ agent: agent({ id: 'u-2', title: 'Aus Köln' }), groups: [] }];
+    renderPage();
+    await screen.findByRole('heading', { name: 'Aus Köln', level: 3 });
+    expect(agentCards().map((h) => h.textContent)).toEqual(['Grüne Poesie', 'Aus Köln']);
+    expect(keyWarnings).toEqual([]);
+  });
+
+  it('lässt beim Regalwechsel keine Karten liegen', async () => {
+    // Der Agents-Abschnitt muss zwischen den Regalen stehen bleiben — nur dann
+    // gleicht React die Kinder ab, statt den Abschnitt neu aufzubauen, und
+    // doppelte Keys hinterlassen Karten im anderen Regal.
+    userAgents.current = [agent()];
+    sharedUserAgents.current = [{ agent: agent({ id: 'u-2', title: 'Aus Köln' }), groups: [] }];
+    publicAgents.current = [agent({ id: 'p-1', identifier: 'fremd', title: 'Öffentlicher' })];
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole('heading', { name: 'Aus Köln', level: 3 });
+    for (let i = 0; i < 3; i++) {
+      await user.click(screen.getByRole('tab', { name: /Öffentlich/ }));
+      expect(agentCards().map((h) => h.textContent)).toEqual(['Öffentlicher']);
+      await user.click(screen.getByRole('tab', { name: /Meine/ }));
+      expect(agentCards()).toHaveLength(2);
+    }
+  });
 });
 
 describe('AgenturaPage — Meine Rezepte', () => {

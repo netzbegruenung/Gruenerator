@@ -1,3 +1,4 @@
+import { agentKey } from '@gruenerator/shared/agents';
 import { AIPromptInput, type AIPromptInputExample, Button, SectionHeader } from '@gruenerator/ui';
 import { useVoxtralDictation } from '@gruenerator/voice';
 
@@ -77,7 +78,7 @@ function AgentStartScreen({
           <SectionHeader title="Meine Agents" />
           <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
             {agents.map((agent) => (
-              <AgentCard key={agent.identifier} agent={agent} />
+              <AgentCard key={agentKey(agent)} agent={agent} />
             ))}
           </div>
         </section>
