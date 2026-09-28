@@ -93,7 +93,7 @@ function makeCtx(opts: CtxOptions = {}) {
     getUserNotebookCollections: vi.fn(async () => opts.collections ?? (row ? [row] : [])),
     getNotebookCollection: vi.fn(async () => row),
     updateNotebookCollection: vi.fn(async () => ({ success: true })),
-    deleteNotebookCollection: vi.fn(async () => ({ success: true })),
+    trashNotebookCollection: vi.fn(async () => 'ok' as const),
     storeNotebookCollection: vi.fn(async () => ({
       success: true,
       collection_id: 'n-new',
@@ -765,16 +765,16 @@ describe('delete', () => {
     const { run, helper } = makeCtx();
     const first = await run({ action: 'delete', id: 'n1' });
     expect(first.needsConfirmation).toBe(true);
-    expect(helper.deleteNotebookCollection).not.toHaveBeenCalled();
+    expect(helper.trashNotebookCollection).not.toHaveBeenCalled();
     const second = await run({ action: 'delete', id: 'n1', confirm: true });
     expect(second.ok).toBe(true);
-    expect(helper.deleteNotebookCollection).toHaveBeenCalledWith('n1');
+    expect(helper.trashNotebookCollection).toHaveBeenCalledWith('n1');
   });
 
   it('is owner-only', async () => {
     const { run, helper } = makeCtx({ access: EDITOR });
     await run({ action: 'delete', id: 'n1', confirm: true });
-    expect(helper.deleteNotebookCollection).not.toHaveBeenCalled();
+    expect(helper.trashNotebookCollection).not.toHaveBeenCalled();
   });
 });
 
