@@ -22,7 +22,9 @@ import {
 } from '../docs/CollaborativeDocumentService.js';
 
 // Only the scheduler's SQL constant is used; its module-level pool is never touched.
-vi.mock('../../database/services/PostgresService/PostgresService.js', () => ({
+// The global instance has no `query`: a purge statement escaping `run` fails here.
+vi.mock('../../database/services/PostgresService/PostgresService.js', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   getPostgresInstance: () => ({}),
 }));
 const { DUE_SCHEDULES_SQL } = await import('../boards/boardScheduleService.js');

@@ -16,6 +16,7 @@ import { randomUUID } from 'node:crypto';
 import { generateText } from 'ai';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { type QueryRunner } from '../../../services/docs/CollaborativeDocumentService.js';
 import { chunkAndEmbedText } from '../../../services/document-services/DocumentProcessingService/index.js';
 import { getQdrantDocumentService } from '../../../services/document-services/DocumentSearchService/DocumentSearchService.js';
 import { visionService } from '../../../services/vision/VisionService.js';
@@ -465,9 +466,10 @@ export interface AttachmentVectorHandle {
  * Qdrant is a separate store that would otherwise keep orphaned vectors.
  */
 export async function readThreadAttachmentVectorHandles(
-  threadId: string
+  threadId: string,
+  runQuery: QueryRunner = (sql, params) => getPostgresInstance().query(sql, params)
 ): Promise<AttachmentVectorHandle[]> {
-  const rows = await getPostgresInstance().query<{ document_id: string; user_id: string }>(
+  const rows = await runQuery<{ document_id: string; user_id: string }>(
     `SELECT document_id, user_id FROM chat_thread_attachments
      WHERE thread_id = $1 AND document_id IS NOT NULL`,
     [threadId]
