@@ -9,6 +9,7 @@ import { renderWithProviders } from '../../../test-utils';
 import { NotebooksIndexFooter } from './NotebooksIndexPage';
 
 const PUBLIC_ENDPOINT = 'http://localhost/api/auth/notebook-collections/public';
+const SHARED_ENDPOINT = 'http://localhost/api/auth/notebook-collections/shared';
 const LIKES_ENDPOINT = 'http://localhost/api/auth/notebook-collections/likes';
 const MONITOR_LATEST = 'http://localhost/api/monitor/latest';
 const MONITOR_POLLS = 'http://localhost/api/monitor/polls';
@@ -38,10 +39,12 @@ function serveCollections(
   // The tool tiles fetch live subtexts; empty payloads keep them on their
   // static descriptions instead of failing the unhandled-request guard.
   monitor: Record<string, unknown> = { topics: [] },
-  feed: Record<string, unknown> = EMPTY_FEED
+  feed: Record<string, unknown> = EMPTY_FEED,
+  shared: ReturnType<typeof publicCollection>[] = []
 ) {
   server.use(
     http.get(PUBLIC_ENDPOINT, () => HttpResponse.json({ success: true, collections })),
+    http.get(SHARED_ENDPOINT, () => HttpResponse.json({ success: true, collections: shared })),
     http.get(LIKES_ENDPOINT, () => HttpResponse.json({ success: true, liked_ids: [] })),
     http.get(MONITOR_LATEST, () => HttpResponse.json(monitor, { status: 200 })),
     http.get(MONITOR_POLLS, () => HttpResponse.json({ average: {} }, { status: 200 })),
@@ -99,6 +102,56 @@ describe('NotebooksIndexFooter — „Öffentlich"', () => {
     // is measured after the public query settled, not before it resolved.
     expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Öffentlich/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('NotebooksIndexFooter — „Mit dir geteilt"', () => {
+  const sharedCollection = (over: Record<string, unknown> = {}) =>
+    publicCollection({
+      id: 'shared-1',
+      name: 'Haushalt 2027',
+      is_public: false,
+      access_source: 'shared',
+      shared_via_groups: ['KV Nord'],
+      ...over,
+    });
+
+  it('expands into the notebooks shared via a Projekt, naming the Projekt', async () => {
+    serveCollections([], undefined, undefined, [sharedCollection()]);
+
+    const { user } = renderWithProviders(<NotebooksIndexFooter />);
+    expect(await screen.findByText('1 geteiltes Notebook')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Mit dir geteilt/ }));
+
+    const section = screen
+      .getByRole('heading', { level: 2, name: 'Mit dir geteilt' })
+      .closest('section');
+    expect(section).not.toBeNull();
+    expect(within(section!).getByText('Haushalt 2027')).toBeInTheDocument();
+    expect(within(section!).getByText('via KV Nord')).toBeInTheDocument();
+  });
+
+  it('lists a notebook that is both shared and public only under „Mit dir geteilt"', async () => {
+    serveCollections(
+      [publicCollection({ id: 'both' }), publicCollection({ id: 'basis-2', name: 'Zweites' })],
+      undefined,
+      undefined,
+      [sharedCollection({ id: 'both' })]
+    );
+
+    renderWithProviders(<NotebooksIndexFooter />);
+
+    expect(await screen.findByText('1 geteiltes Notebook')).toBeInTheDocument();
+    expect(await screen.findByText('1 öffentliches Notebook')).toBeInTheDocument();
+  });
+
+  it('hides the tile when nothing is shared with the user', async () => {
+    serveCollections([]);
+
+    renderWithProviders(<NotebooksIndexFooter />);
+
+    expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Mit dir geteilt/ })).not.toBeInTheDocument();
   });
 });
 
