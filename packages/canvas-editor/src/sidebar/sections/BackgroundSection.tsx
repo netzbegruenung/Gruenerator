@@ -338,15 +338,15 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
 
       {/* Persist Error */}
       {pickError && (
-        <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg mb-3">
-          <p className="text-red-600 dark:text-red-400 text-sm m-0">{pickError}</p>
+        <div className="p-3 bg-editor-danger-bg rounded-lg mb-3">
+          <p className="text-editor-danger-fg text-sm m-0">{pickError}</p>
         </div>
       )}
 
       {/* Error State */}
       {searchError && (
-        <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg mb-3">
-          <p className="text-red-600 dark:text-red-400 text-sm m-0">{searchError}</p>
+        <div className="p-3 bg-editor-danger-bg rounded-lg mb-3">
+          <p className="text-editor-danger-fg text-sm m-0">{searchError}</p>
           <button
             type="button"
             onClick={() => searchUnsplash(debouncedQuery)}

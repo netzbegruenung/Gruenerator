@@ -128,6 +128,10 @@
   --color-editor-active-fg: var(--editor-active-fg);
   --color-editor-active-bg: var(--editor-active-bg);
   --color-editor-active-soft: var(--editor-active-soft);
+  --color-editor-secondary-fg: var(--editor-secondary-fg);
+  --color-editor-danger-fg: var(--editor-danger-fg);
+  --color-editor-danger-bg: var(--editor-danger-bg);
+  --color-editor-tanne-preview: var(--editor-tanne-preview);
 
   /* Spacing System */
   --spacing-xxs: var(--spacing-xxsmall);

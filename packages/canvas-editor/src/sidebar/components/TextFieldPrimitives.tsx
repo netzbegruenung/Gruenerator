@@ -31,10 +31,10 @@ export function FontSizeStepper({ value, onChange, min = 12, max = 200 }: FontSi
   };
 
   return (
-    <div className="flex items-center gap-0.5 bg-grey-100 dark:bg-grey-800 rounded-full p-0.5 max-canvas-mobile:[&_button]:w-5 max-canvas-mobile:[&_button]:h-5">
+    <div className="flex items-center gap-0.5 bg-editor-tile rounded-full p-0.5 max-canvas-mobile:[&_button]:w-5 max-canvas-mobile:[&_button]:h-5">
       <button
         type="button"
-        className="w-6 h-6 rounded-full border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:not-disabled:bg-hover-alt hover:not-disabled:text-primary-600 active:not-disabled:bg-grey-100 active:not-disabled:dark:bg-grey-800 disabled:opacity-30 disabled:cursor-not-allowed disabled:text-grey-400"
+        className="w-6 h-6 rounded-full border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:not-disabled:bg-hover-alt hover:not-disabled:text-primary-600 active:not-disabled:bg-editor-canvas-hover disabled:opacity-30 disabled:cursor-not-allowed disabled:text-grey-400"
         onClick={handleDecrement}
         disabled={value <= min}
         aria-label="Schriftgröße verringern"
@@ -52,7 +52,7 @@ export function FontSizeStepper({ value, onChange, min = 12, max = 200 }: FontSi
       />
       <button
         type="button"
-        className="w-6 h-6 rounded-full border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:not-disabled:bg-hover-alt hover:not-disabled:text-primary-600 active:not-disabled:bg-grey-100 active:not-disabled:dark:bg-grey-800 disabled:opacity-30 disabled:cursor-not-allowed disabled:text-grey-400"
+        className="w-6 h-6 rounded-full border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:not-disabled:bg-hover-alt hover:not-disabled:text-primary-600 active:not-disabled:bg-editor-canvas-hover disabled:opacity-30 disabled:cursor-not-allowed disabled:text-grey-400"
         onClick={handleIncrement}
         disabled={value >= max}
         aria-label="Schriftgröße erhöhen"
@@ -109,7 +109,7 @@ export function AutoExpandTextarea({
       <textarea
         ref={textareaRef}
         id={id}
-        className="w-full py-[var(--spacing-small)] px-[var(--spacing-medium)] text-[0.9375rem] font-[inherit] text-foreground bg-background border border-grey-200 dark:border-grey-700 rounded-lg outline-none resize-none overflow-hidden leading-relaxed transition-[border-color,box-shadow] duration-200 focus:border-primary-600 focus:shadow-[0_0_0_3px_var(--primary-100)] placeholder:text-foreground-muted"
+        className="w-full py-[var(--spacing-small)] px-[var(--spacing-medium)] text-[0.9375rem] font-[inherit] text-foreground bg-background border border-editor-border-strong rounded-lg outline-none resize-none overflow-hidden leading-relaxed transition-[border-color,box-shadow] duration-200 focus:border-primary-600 focus:shadow-[0_0_0_3px_var(--primary-100)] placeholder:text-foreground-muted"
         value={value}
         onChange={handleChange}
         placeholder={placeholder}
@@ -165,7 +165,7 @@ export function TextField({ config, value, onChange, fontSize, onFontSizeChange 
         <input
           id={fieldId}
           type="text"
-          className="w-full py-[var(--spacing-small)] px-[var(--spacing-medium)] text-[0.9375rem] font-[inherit] text-foreground bg-background border border-grey-200 dark:border-grey-700 rounded-lg outline-none transition-[border-color,box-shadow] duration-200 focus:border-primary-600 focus:shadow-[0_0_0_3px_var(--primary-100)] placeholder:text-foreground-muted"
+          className="w-full py-[var(--spacing-small)] px-[var(--spacing-medium)] text-[0.9375rem] font-[inherit] text-foreground bg-background border border-editor-border-strong rounded-lg outline-none transition-[border-color,box-shadow] duration-200 focus:border-primary-600 focus:shadow-[0_0_0_3px_var(--primary-100)] placeholder:text-foreground-muted"
           value={value}
           onChange={(e) => {
             const newValue = e.target.value;

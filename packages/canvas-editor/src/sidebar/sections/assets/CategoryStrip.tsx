@@ -25,7 +25,7 @@ export function CategoryStrip({
           <button
             type="button"
             onClick={onShowMore}
-            className="inline-flex items-center gap-0.5 bg-transparent border-none p-0 rounded text-xs font-bold text-secondary-600 dark:text-secondary-300 cursor-pointer hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary-600/50"
+            className="inline-flex items-center gap-0.5 bg-transparent border-none p-0 rounded text-xs font-bold text-editor-secondary-fg cursor-pointer hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary-600/50"
           >
             Mehr anzeigen
             <PiCaretRightBold size={11} />

@@ -156,7 +156,7 @@ export function BlobCreatorTool({ onJumpToUploads, onPlaceImageUrl }: BlobCreato
     <ToolPanel
       body={
         <div className="flex flex-col gap-3">
-          <div className="self-center rounded-lg bg-grey-50 dark:bg-grey-900 p-3">
+          <div className="self-center rounded-lg bg-editor-inset p-3">
             <Stage ref={stageRef} width={STAGE_SIZE} height={STAGE_SIZE}>
               <Layer>
                 <Line points={points} closed tension={TENSION} fill={color} />
@@ -168,7 +168,7 @@ export function BlobCreatorTool({ onJumpToUploads, onPlaceImageUrl }: BlobCreato
             type="button"
             onClick={() => setSeed(randomSeed())}
             disabled={disabled}
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-grey-300 bg-background px-sm py-xs text-sm text-foreground transition-colors hover:border-primary-500 disabled:opacity-50 dark:border-grey-600"
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm text-foreground transition-colors hover:border-primary-500 disabled:opacity-50"
           >
             <PiShuffle size={16} />
             Neu würfeln

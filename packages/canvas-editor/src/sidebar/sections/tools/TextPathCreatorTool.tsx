@@ -150,11 +150,11 @@ export function TextPathCreatorTool({
               onChange={(e) => setValue(e.target.value)}
               placeholder="Dein Text…"
               disabled={disabled}
-              className="rounded-md border border-grey-300 bg-background px-sm py-xs text-sm text-foreground outline-none focus:border-primary-500 disabled:opacity-50 dark:border-grey-600"
+              className="rounded-md border border-editor-border-strong bg-background px-sm py-xs text-sm text-foreground outline-none focus:border-primary-500 disabled:opacity-50"
             />
           </label>
 
-          <div className="flex items-center justify-center rounded-lg bg-grey-50 dark:bg-grey-900 p-3 min-h-[120px] overflow-hidden">
+          <div className="flex items-center justify-center rounded-lg bg-editor-inset p-3 min-h-[120px] overflow-hidden">
             {previewUrl ? (
               <img src={previewUrl} alt="Vorschau" className="max-h-[140px] max-w-full" />
             ) : (
@@ -174,7 +174,7 @@ export function TextPathCreatorTool({
                   className={`rounded-md border px-2 py-1.5 text-xs transition-colors disabled:opacity-50 ${
                     variant.id === v.id
                       ? 'border-primary-500 bg-primary-500/10 text-foreground'
-                      : 'border-grey-300 text-foreground-muted hover:border-primary-500 dark:border-grey-600'
+                      : 'border-editor-border-strong text-foreground-muted hover:border-primary-500'
                   }`}
                 >
                   {v.label}

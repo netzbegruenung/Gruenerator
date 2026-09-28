@@ -115,7 +115,7 @@ export function CombinedTextSection({
               <button
                 type="button"
                 onClick={onAddHeader}
-                className="w-full text-left py-3 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-grey-300 dark:hover:border-grey-600"
+                className="w-full text-left py-3 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-editor-border-strong"
               >
                 <span className="font-[GrueneTypeNeue,Arial,sans-serif] text-xl font-bold text-foreground">
                   Titel
@@ -126,7 +126,7 @@ export function CombinedTextSection({
               <button
                 type="button"
                 onClick={onAddSubheader}
-                className="w-full text-left py-2.5 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-grey-300 dark:hover:border-grey-600"
+                className="w-full text-left py-2.5 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-editor-border-strong"
               >
                 <span className="font-[GrueneTypeNeue,Arial,sans-serif] text-base font-bold text-foreground">
                   Untertitel
@@ -137,7 +137,7 @@ export function CombinedTextSection({
               <button
                 type="button"
                 onClick={onAddText}
-                className="w-full text-left py-2 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-grey-300 dark:hover:border-grey-600"
+                className="w-full text-left py-2 px-4 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg cursor-pointer transition-all duration-150 hover:bg-hover-alt hover:border-editor-border-strong"
               >
                 <span className="font-[PT_Sans,Arial,sans-serif] text-sm text-foreground">
                   Text
