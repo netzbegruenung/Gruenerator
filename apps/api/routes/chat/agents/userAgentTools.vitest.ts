@@ -59,6 +59,7 @@ function agent(over: Partial<Agent> = {}): Agent {
 
 function mentionable(over: Partial<MentionableUserAgentRow> = {}): MentionableUserAgentRow {
   return {
+    id: '33333333-3333-4333-8333-333333333333',
     identifier: 'presse-kv-ab12cd',
     title: 'Presse KV',
     description: 'Schreibt Pressemitteilungen für den Kreisverband.',
@@ -285,6 +286,30 @@ describe('user_agents: get', () => {
     const block = (registered[0] as Array<{ content: string }>)[0].content;
     expect(block).not.toContain('Rolle:');
     expect(block).toContain('nur benutzbar');
+  });
+
+  it("links a shared agent by its id, since its identifier may be someone else's too", async () => {
+    const shared = mentionable({
+      id: '44444444-4444-4444-8444-444444444444',
+      identifier: 'wahlkampf-xy',
+      title: 'Wahlkampf',
+      sharedFromGroup: 'Klima-AG',
+    });
+    const { run } = makeCtx({ own: null, mentionable: [shared] });
+
+    const listed = (await run({ action: 'list' })) as {
+      results: Array<{ url: string; ref?: string }>;
+    };
+    expect(listed.results[0]).toMatchObject({ url: `/agents/${shared.id}`, ref: shared.id });
+
+    const out = (await run({ action: 'get', identifier: shared.id })) as {
+      agent: Record<string, unknown>;
+    };
+    expect(out.agent).toMatchObject({
+      identifier: shared.id,
+      readOnly: true,
+      url: `/agents/${shared.id}`,
+    });
   });
 
   it('errors on an agent the person neither owns nor was given', async () => {

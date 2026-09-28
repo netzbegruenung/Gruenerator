@@ -417,6 +417,7 @@ export async function getAccessibleUserAgentById(
  * the caller through, `null` for their own.
  */
 export interface MentionableUserAgentRow {
+  id: string;
   identifier: string;
   title: string;
   description: string;
@@ -427,6 +428,7 @@ export interface MentionableUserAgentRow {
 }
 
 const MENTIONABLE_COLUMNS = {
+  id: userAgents.id,
   identifier: userAgents.identifier,
   title: userAgents.title,
   description: userAgents.description,
@@ -436,6 +438,7 @@ const MENTIONABLE_COLUMNS = {
 } as const;
 
 type MentionableColumns = {
+  id: string;
   identifier: string;
   title: string;
   description: string;
@@ -449,6 +452,7 @@ function toMentionable(
   sharedFromGroup: string | null
 ): MentionableUserAgentRow {
   return {
+    id: row.id,
     identifier: row.identifier,
     title: row.title,
     description: row.description,
@@ -492,7 +496,7 @@ export async function listMentionableUserAgents(
   // would flip between page loads.
   const pg = getPostgresInstance();
   const sharedRows = (await pg.query(
-    `SELECT ua.identifier, ua.title, ua.description, ua.avatar, ua.icon_key,
+    `SELECT ua.id, ua.identifier, ua.title, ua.description, ua.avatar, ua.icon_key,
             ua.background_color, g.name AS group_name
        FROM user_agents ua
        INNER JOIN group_content_shares gcs
