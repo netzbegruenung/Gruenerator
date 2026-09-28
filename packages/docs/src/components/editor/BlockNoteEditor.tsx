@@ -61,6 +61,7 @@ import { guardDocUndoAcrossAIFork, type UndoGuardEditor } from '../../lib/undoAc
 import { carryUndoAcrossEditorRecreate } from '../../lib/undoAcrossRecreate';
 import { type UndoableEditor } from '../../hooks/useDocUndoState';
 import { SuggestChangesExtension } from '../../lib/suggestChangesExtension';
+import { YSyncBindingConsistencyExtension } from '../../lib/ySyncBindingConsistency';
 import { useSuggestionMode } from '../../hooks/useSuggestionMode';
 import './BlockNoteEditor.css';
 
@@ -251,6 +252,12 @@ const BlockNoteEditorInner = ({
         documentStateBuilder: aiDocumentFormats._experimental_markdown.defaultDocumentStateBuilder,
       }),
     ];
+
+    // The AI fork/merge plugin swap briefly tears the ySync state; a
+    // collaborator's cursor then crashes accept/reject (GlitchTip #659).
+    if (collaborationOptions) {
+      exts.push(YSyncBindingConsistencyExtension);
+    }
 
     if (showComments && threadStore) {
       exts.push(
