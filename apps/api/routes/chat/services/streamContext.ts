@@ -284,7 +284,7 @@ export async function buildStreamContext({
   // den Turn wie eine Erwähnung — ab hier derselbe Weg, samt Besitzprüfung.
   const turnNotebookIds = await notebookIdsForTurn({
     explicitIds: mergedNotebookIds,
-    hasDefaultNotebook: !!rawDefaultNotebookId,
+    defaultNotebookId: rawDefaultNotebookId ?? null,
     userId,
     text: sanitizeMentionTokens(lastUserTextFromClient(clientMessages), 'remove'),
     locale: user.locale ?? null,
