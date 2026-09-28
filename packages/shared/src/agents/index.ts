@@ -2,6 +2,7 @@ export type {
   Agent,
   AgentAudience,
   AgentCategory,
+  AgentDefaultFilter,
   AgentLocalization,
   AgentParams,
   AgentProvider,
@@ -79,7 +80,10 @@ export { agentKey, agentRef, getAgentSlug, resolveAgentSlug } from './slug.js';
 
 export {
   LANDESVERBAENDE,
+  LANDESVERBAND_ENTRIES,
   isLandesverbandIdentifier,
+  landesverbandAgentIds,
+  landesverbandAgentRole,
   landesverbandLabel,
   landesverbandRegion,
   type LandesverbandEntry,
@@ -93,6 +97,7 @@ export {
   landesverbandOfferForBundesland,
   landesverbandShelfLabel,
   landesverbandTitle,
+  lvIdForAgentIdentifier,
   lvSkillMentionsForRoles,
   type LandesverbandOffer,
   type RoleLandesverbandInput,
