@@ -15,6 +15,7 @@ import {
 } from './freeform_full.config';
 
 import type { FullCanvasConfig } from './types';
+import type { BackgroundSectionProps } from '../sidebar/types';
 
 const AT = getBrandTheme('de-AT');
 
@@ -43,7 +44,7 @@ export const freeformAtFullConfig: FullCanvasConfig<FreeformState, FreeformActio
     background: {
       ...baseBackgroundSection,
       propsFactory: (state, actions, context) => ({
-        ...baseBackgroundSection.propsFactory(state, actions, context),
+        ...(baseBackgroundSection.propsFactory(state, actions, context) as BackgroundSectionProps),
         colors: AT_BACKGROUND_COLORS,
         currentColor: state.backgroundMode === 'color' ? state.backgroundColor : AT.colors.primary,
       }),

@@ -53,7 +53,7 @@ function CanvasIcon({
 
   useEffect(() => {
     let cancelled = false;
-    generateIconDataUrl(iconId, position.size * 2, color).then((url) => {
+    void generateIconDataUrl(iconId, position.size * 2, color).then((url) => {
       if (!cancelled) setDataUrl(url);
     });
     return () => {

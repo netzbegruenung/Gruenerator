@@ -15,7 +15,7 @@ Ein Token schaltet selbst zwischen Hell und Dunkel um. `dark:` tut das nicht zuv
 
 Fehlt eine Farbe, gehört ein neues Token her, keine `dark:`-Klasse.
 
-**Die Regel wird nicht maschinell geprüft:** das Paket steht in keinem ESLint-Glob. Im Bestand stehen noch `dark:`-Klassen, siehe #3766.
+**Die Regel wird maschinell geprüft**, aber nicht von ESLint (kein Regelwerk dort liest Tailwind-Klassen), sondern von `src/__tests__/editorTokenRules.vitest.ts`: der Test findet jede `dark:`-Klasse in `src/`, auch gestapelte wie `active:enabled:dark:`.
 
 ### Wo die Token stehen — vier Dateien plus eine Kopie
 
@@ -37,7 +37,7 @@ diff <(grep -oE -- '--editor-[a-z0-9-]+:' packages/canvas-editor/src/styles/vari
      <(grep -oE -- '--editor-[a-z0-9-]+:' apps/web/src/assets/styles/common/variables.css | sort -u)
 ```
 
-Der Vergleich prüft nur die Namen, nicht die Werte. Wer einen Wert ändert, ändert ihn in beiden Dateien.
+Der Vergleich prüft nur die Namen, nicht die Werte. Wer einen Wert ändert, ändert ihn in beiden Dateien. Derselbe Namensvergleich — plus das `@theme`-Mapping in Datei 3 und 4 — läuft in `editorTokenRules.vitest.ts`.
 
 ## Mobil (< 900 px)
 
@@ -48,11 +48,13 @@ Der Vergleich prüft nur die Namen, nicht die Werte. Wer einen Wert ändert, än
 
 ## Prüfen
 
-Kein ESLint (siehe oben), kein `lint`-Skript. Aus dem Paketverzeichnis:
+Aus dem Paketverzeichnis:
 
 ```bash
 pnpm exec tsc --noEmit
 pnpm exec vitest run
 ```
+
+ESLint läuft über die Wurzel-Config (`WEB_FILES`, also mit jsx-a11y) und typbewusst. Aus dem **Repo-Root** und in Häppchen von höchstens ~20 Dateien, sonst droht OOM: `npx eslint packages/canvas-editor/src/<datei>`. `pnpm --filter @gruenerator/canvas-editor lint` fährt das ganze Paket (~345 Dateien) und gehört deshalb in die CI, nicht in die laufende Arbeit. Warnungen (vor allem `import-x/order` und `react-hooks/refs`) sind Bestand; Fehler brechen den Lauf.
 
 Das Paket exportiert seine Oberfläche über `src/index.ts`, `apps/web` liest sie im Quelltext. Wer dort etwas entfernt oder umbenennt, prüft auch `pnpm --filter @gruenerator/web exec tsc --noEmit`.

@@ -132,7 +132,7 @@ export function useFontLoader(options: UseFontLoaderOptions | null): UseFontLoad
       }
     };
 
-    loadFont();
+    void loadFont();
 
     return () => {
       cancelled = true;

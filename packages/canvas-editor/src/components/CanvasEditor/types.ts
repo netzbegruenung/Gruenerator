@@ -1,8 +1,9 @@
-import type React from 'react';
-
-import type { GenericCanvasRef, ToolbarStateReport } from '../GenericCanvas';
 import type { CanvasConfigId, FullCanvasConfig } from '../../configs/types';
 import type { InitialPageDef } from '../../hooks/usePageManager';
+import type { GenericCanvasRef, ToolbarStateReport } from '../GenericCanvas';
+import type { HocuspocusProvider } from '@hocuspocus/provider';
+import type React from 'react';
+import type * as Y from 'yjs';
 
 export interface CanvasEditorProps {
   initialConfigId: CanvasConfigId;
@@ -25,10 +26,10 @@ export interface CanvasEditorProps {
    * a Yjs doc, and used to derive each page's Y.Map for config sync.
    */
   collaborative?: {
-    ydoc: import('yjs').Doc;
+    ydoc: Y.Doc;
     isSynced: boolean;
     /** Hocuspocus provider — enables awareness features (remote selections). */
-    provider?: import('@hocuspocus/provider').HocuspocusProvider | null;
+    provider?: HocuspocusProvider | null;
   };
   /** Host-supplied content rendered at the very left of the toolbar (in-flow). */
   chromeLeft?: React.ReactNode;
@@ -111,10 +112,10 @@ export interface PageWrapperProps {
    * modes; `provider` is only present in collab mode.
    */
   pageBinding?: {
-    pageYMap: import('yjs').Map<unknown>;
+    pageYMap: Y.Map<unknown>;
     isSynced: boolean;
     /** Hocuspocus provider — enables awareness features (remote selections). */
-    provider?: import('@hocuspocus/provider').HocuspocusProvider | null;
+    provider?: HocuspocusProvider | null;
     /** Id of this page, published to awareness so peers can filter selections per page. */
     pageId?: string | null;
     /** Only the active page publishes its selection to awareness. */

@@ -1,22 +1,22 @@
+import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
 import { MasonryGrid, MasonryItem, Switch } from '@gruenerator/ui';
 import { useState, useEffect, useCallback } from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { HiAdjustments, HiColorSwatch } from 'react-icons/hi';
 import { HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
 
-import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
-
-import UnsplashAttribution from '../../common/UnsplashAttribution';
-import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
+import UnsplashAttribution from '../../common/UnsplashAttribution';
 import { useIsCanvasMobile } from '../../hooks/useIsCanvasMobile';
-import { persistImageSelection } from '../persistImageSelection';
+import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
+import { cn } from '../../utils/cn';
+import { downscaleImageForUpload } from '../../utils/userImageUtils';
 import { MediaThumb } from '../components/MediaThumb';
 import { SidebarSlider } from '../components/SidebarSlider';
+import { persistImageSelection } from '../persistImageSelection';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 import { useUserUploads } from '../UserUploadsProvider';
-import { downscaleImageForUpload } from '../../utils/userImageUtils';
 
 import {
   BackgroundSwatchGrid,
@@ -29,8 +29,6 @@ import {
 import type { StockImage, StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BackgroundColorOption } from '../types';
 import type { MediaItem } from '@gruenerator/shared/media-library';
-
-import { cn } from '../../utils/cn';
 
 function buildUploadUrl(item: MediaItem): string | null {
   if (item.mediaUrl) return item.mediaUrl;
@@ -123,7 +121,7 @@ function SearchContent({
 
   useEffect(() => {
     if (debouncedQuery.trim()) {
-      searchUnsplash(debouncedQuery);
+      void searchUnsplash(debouncedQuery);
     } else {
       clearUnsplashSearch();
     }

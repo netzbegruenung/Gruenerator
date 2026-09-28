@@ -11,11 +11,12 @@ import { useCallback } from 'react';
 
 import { useCanvasStore } from '../stores/CanvasStoreProvider';
 
+import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
 
 export interface UseCanvasInteractionsOptions {
-  stageRef: React.RefObject<import('../primitives/CanvasStage').CanvasStageRef | null>;
+  stageRef: React.RefObject<CanvasStageRef | null>;
 }
 
 export interface UseCanvasInteractionsResult {

@@ -10,6 +10,7 @@ const WEB_FILES = [
   'apps/gruen-o-mat/**/*.{ts,tsx,js,jsx}',
   'packages/sites/**/*.{ts,tsx,js,jsx}',
   'packages/chat/**/*.{ts,tsx,js,jsx}',
+  'packages/canvas-editor/**/*.{ts,tsx,js,jsx}',
 ];
 
 // React Native: eigener a11y-Regelsatz (react-native-a11y statt jsx-a11y),
@@ -17,7 +18,7 @@ const WEB_FILES = [
 const NATIVE_FILES = ['apps/mobile/**/*.{ts,tsx,js,jsx}'];
 
 export default [
-  // React apps: web, desktop, gruen-o-mat, sites, chat
+  // React apps: web, desktop, gruen-o-mat, sites, chat, canvas-editor
   {
     files: WEB_FILES,
     ...reactConfig[0],

@@ -15,6 +15,7 @@ export function IllustrationThumb({
 }) {
   const { assetBaseUrl = '' } = useCanvasEditorServices();
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError ist ein technischer Ladefehler-Fallback, keine Bedienung
     <img
       src={getIllustrationThumbPath(def, assetBaseUrl)}
       alt={alt ?? def.name}
