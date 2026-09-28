@@ -225,7 +225,7 @@ describe('toGroupFeedItems — user agents', () => {
           shared_at: '2026-09-20T10:00:00Z',
         },
       ],
-    });
+    } as never);
     expect(item).toMatchObject({ kind: 'agent', slug: '44444444-4444-4444-8444-444444444444' });
   });
 });
