@@ -11,6 +11,7 @@ import {
   getAcceptedFileTypes,
 } from '../lib/fileUtils';
 import { isTabularFile } from '../lib/spreadsheetSetup';
+import { useAttachmentNoticeStore } from '../stores/attachmentNoticeStore';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { usePythonFileStore } from '../stores/pythonFileStore';
 
@@ -55,6 +56,15 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
     { promise: Promise<{ uploadId: string }>; abort: () => void }
   >();
 
+  /**
+   * File contents read in add(), consumed in send(). A picked File is a
+   * snapshot: once the file changes on disk (saved again, OneDrive sync) every
+   * later read fails with NotReadableError. Reading at pick time captures the
+   * bytes while they are valid, and a read error surfaces through AUI's
+   * attachmentAddError instead of an unhandled rejection at send time.
+   */
+  private readContents = new Map<string, { base64: string; pageCount: number | null }>();
+
   async add({ file }: { file: File }): Promise<PendingAttachment> {
     // Let validation errors propagate. AUI catches them and emits a structured
     // `attachmentAddError` (reason: 'adapter-error') carrying this message —
@@ -93,6 +103,9 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
       };
     }
 
+    const [base64, pageCount] = await Promise.all([fileToBase64(file), getPdfPageCount(file)]);
+    this.readContents.set(id, { base64, pageCount });
+
     return {
       id,
       type: isImageMimeType(file.type) ? 'image' : 'document',
@@ -104,6 +117,24 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
   }
 
   async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    try {
+      return await this.complete(attachment);
+    } catch (error) {
+      // AUI has no event for send-time attachment failures: it restores the
+      // draft and rethrows into an unawaited send(), so without this notice
+      // the user sees the text bounce back into the composer and nothing else.
+      useAttachmentNoticeStore.getState().setNotice({
+        title: 'Nachricht nicht gesendet',
+        description:
+          error instanceof Error
+            ? error.message
+            : `Der Anhang „${attachment.name}" konnte nicht verarbeitet werden.`,
+      });
+      throw error;
+    }
+  }
+
+  private async complete(attachment: PendingAttachment): Promise<CompleteAttachment> {
     const mimeType = attachment.contentType ?? 'application/octet-stream';
 
     const reelUpload = this.reelUploads.get(attachment.id);
@@ -127,6 +158,12 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
       }
     }
 
+    const { base64, pageCount } = this.readContents.get(attachment.id) ?? {
+      base64: await fileToBase64(attachment.file),
+      pageCount: await getPdfPageCount(attachment.file),
+    };
+    this.readContents.delete(attachment.id);
+
     // Bridge tabular files into the in-browser interpreter: keep the raw bytes
     // in a session store so the Python Run button can pass them to the Pyodide
     // worker (the base64 part below still goes to the model, so it knows the
@@ -135,17 +172,15 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
       usePythonFileStore.getState().setFile({
         name: attachment.name,
         mimeType,
-        bytes: await attachment.file.arrayBuffer(),
+        bytes: base64ToArrayBuffer(base64),
       });
     }
 
-    const base64 = await fileToBase64(attachment.file);
     const isImage = isImageMimeType(mimeType);
 
     // Display metadata for the attachment chip in the sent message. Data parts
     // are ignored by the model adapter, so this stays client-side only.
     const meta: AttachmentMetaData = { size: attachment.file.size };
-    const pageCount = await getPdfPageCount(attachment.file);
     if (pageCount != null) meta.pageCount = pageCount;
     const metaPart = { type: 'data' as const, name: ATTACHMENT_META_PART_NAME, data: meta };
 
@@ -166,5 +201,13 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
     // attachment keeps saturating the upstream and orphans a server file.
     this.reelUploads.get(attachment.id)?.abort();
     this.reelUploads.delete(attachment.id);
+    this.readContents.delete(attachment.id);
   }
+}
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
 }
