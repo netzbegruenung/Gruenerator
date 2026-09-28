@@ -307,6 +307,8 @@ describe('purgeCollaborativeDocument', () => {
       'DELETE FROM yjs_document_updates',
       'DELETE FROM yjs_document_snapshots',
       'DELETE FROM group_content_shares',
+      'DELETE FROM chat_threads',
+      'DELETE FROM board_scheduled_runs',
       'unlink a.pdf',
       'unlink b.png',
       'thumbnail /api/share/tok-1/download',

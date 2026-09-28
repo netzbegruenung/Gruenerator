@@ -9,7 +9,7 @@
 import { randomUUID } from 'node:crypto';
 
 import pg from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { TRASHABLE_TABLES } from '../../database/trash.js';
 import { runMigrations } from '../../database/services/PostgresService/migrations.js';
@@ -20,6 +20,12 @@ import {
   trashCollaborativeDocument,
   type QueryRunner,
 } from '../docs/CollaborativeDocumentService.js';
+
+// Only the scheduler's SQL constant is used; its module-level pool is never touched.
+vi.mock('../../database/services/PostgresService/PostgresService.js', () => ({
+  getPostgresInstance: () => ({}),
+}));
+const { DUE_SCHEDULES_SQL } = await import('../boards/boardScheduleService.js');
 
 const url = process.env.MIGRATIONS_TEST_DATABASE_URL;
 
@@ -90,6 +96,17 @@ describe.skipIf(!url)('Papierkorb schema (zz_20260929_trash_deleted_at.sql)', ()
       `INSERT INTO yjs_document_updates (document_id, update_data) VALUES ($1, '\\x00')`,
       [doc.id]
     );
+    await pool.query('INSERT INTO chat_threads (user_id, doc_id) VALUES ($1, $2)', [owner, doc.id]);
+    await pool.query(
+      `INSERT INTO board_scheduled_runs (board_id, card_id, created_by, flow_config, rrule, next_run_at)
+       VALUES ($1, 'c1', $2, '{}', 'FREQ=DAILY', now() - interval '1 minute')`,
+      [doc.id, owner]
+    );
+    const dueForDoc = async () =>
+      (await pool.query<{ board_id: string }>(DUE_SCHEDULES_SQL)).rows.filter(
+        (r) => r.board_id === doc.id
+      ).length;
+    expect(await dueForDoc()).toBe(1);
     const state = async () =>
       (
         await pool.query<{ is_deleted: boolean; deleted_at: Date | null }>(
@@ -100,6 +117,8 @@ describe.skipIf(!url)('Papierkorb schema (zz_20260929_trash_deleted_at.sql)', ()
 
     expect(await trashCollaborativeDocument(run, doc.id, owner, null)).toEqual({ status: 'ok' });
     expect(await state()).toMatchObject({ is_deleted: true, deleted_at: expect.any(Date) });
+    // A trashed board stops firing its schedules.
+    expect(await dueForDoc()).toBe(0);
     const listed = await listTrashedCollaborativeDocuments(run, owner, { limit: 10, before: null });
     expect(listed.map((r) => r.id)).toEqual([doc.id]);
 
@@ -121,5 +140,11 @@ describe.skipIf(!url)('Papierkorb schema (zz_20260929_trash_deleted_at.sql)', ()
       doc.id,
     ]);
     expect(yjs.rowCount).toBe(0);
+    const thread = await pool.query('SELECT 1 FROM chat_threads WHERE doc_id = $1', [doc.id]);
+    expect(thread.rowCount).toBe(0);
+    const schedules = await pool.query('SELECT 1 FROM board_scheduled_runs WHERE board_id = $1', [
+      doc.id,
+    ]);
+    expect(schedules.rowCount).toBe(0);
   });
 });
