@@ -34,6 +34,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { userTextForms, type UserTextFormRow } from '../../database/schema/textForms.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { notifyContentShared } from '../groups/groupContent.js';
 import { assertCanShareToGroup } from '../groups/groupMembership.js';
 
 import {
@@ -532,7 +533,7 @@ export async function shareTextFormWithGroup(
   const pg = getPostgresInstance();
   // Membership is checked in SQL: the insert only happens for a group the user
   // is actually an active member of, so a forged group id cannot leak a recipe.
-  await pg.query(
+  const inserted = (await pg.query(
     `INSERT INTO group_content_shares (group_id, shared_by_user_id, content_type, content_id)
      SELECT gm.group_id, $1::uuid, $2, $3
        FROM group_memberships gm
@@ -540,9 +541,18 @@ export async function shareTextFormWithGroup(
         AND NOT EXISTS (
           SELECT 1 FROM group_content_shares x
            WHERE x.group_id = gm.group_id AND x.content_type = $2 AND x.content_id = $3
-        )`,
+        )
+     RETURNING id`,
     [userId, TEXT_FORM_CONTENT_TYPE, form.id, groupId]
-  );
+  )) as Array<{ id: string }>;
+  if (inserted.length > 0) {
+    notifyContentShared({
+      groupId,
+      userId,
+      contentType: TEXT_FORM_CONTENT_TYPE,
+      contentId: form.id,
+    });
+  }
 
   const shares = await loadSharesFor([form.id]);
   return shares.get(form.id) ?? [];

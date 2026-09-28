@@ -23,7 +23,7 @@ function fakeDeps(opts: FakeDbOptions = {}, over: Partial<ShareContentDeps> = {}
   const exec = vi.fn(async () => ({ changes: 1 }));
   const queryOne = vi.fn(async (sql: string) => {
     if (sql.includes('FROM group_content_shares')) return opts.existingShare ? { id: 's1' } : null;
-    if (sql.includes('FROM groups')) return { name: 'Kreisverband' };
+    if (sql.includes('FROM groups')) return { name: 'Kreisverband', share_id: 's-new' };
     return opts.owner ?? null;
   });
   const deps: ShareContentDeps = {
@@ -203,7 +203,9 @@ describe('shareContentToGroup', () => {
       expect.objectContaining({
         groupId: 'g1',
         excludeUserId: 'u1',
+        type: 'group_content_shared',
         body: 'Moritz hat ein Dokument in „Kreisverband" geteilt',
+        actionUrl: '/projekte/g1?beitrag=s-new',
       })
     );
   });

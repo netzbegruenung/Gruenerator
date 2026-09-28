@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { notifyContentShared } from '../../services/groups/groupContent.js';
 import {
   assertCanShareToGroup,
   listShareTargetGroups,
@@ -84,6 +85,12 @@ router.post(
          VALUES ('chat_threads', $1, $2, $3, '{"read": true, "write": true}')`,
         [id, group_id, userId]
       );
+      notifyContentShared({
+        groupId: group_id,
+        userId,
+        contentType: 'chat_threads',
+        contentId: id,
+      });
 
       return res.status(201).json({ message: 'Thread shared' });
     } catch (error: unknown) {
