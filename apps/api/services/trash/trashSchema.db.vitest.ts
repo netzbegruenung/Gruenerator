@@ -30,6 +30,9 @@ vi.mock('../../database/services/PostgresService/PostgresService.js', async (imp
 const { DUE_SCHEDULES_SQL } = await import('../boards/boardScheduleService.js');
 
 const url = process.env.MIGRATIONS_TEST_DATABASE_URL;
+// Each test round-trips a CI Postgres that migrations.db.vitest.ts loads in parallel;
+// the 5 s default timed out on a single INSERT there.
+vi.setConfig({ testTimeout: 30_000 });
 
 describe.skipIf(!url)('Papierkorb schema (zz_20260929_trash_deleted_at.sql)', () => {
   const dbName = `trash_schema_${randomUUID().replace(/-/g, '')}`;
