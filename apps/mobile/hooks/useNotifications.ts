@@ -1,4 +1,4 @@
-import { getGlobalApiClient } from '@gruenerator/shared/api';
+import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface AppNotification {
@@ -23,9 +23,9 @@ export function useUnreadCount() {
 
   const fetch = useCallback(async () => {
     try {
-      const client = getGlobalApiClient();
-      const res = await client.get<{ unreadCount?: number }>('/notifications/unread-count');
-      setCount(res.data?.unreadCount ?? 0);
+      // Typed: the untyped read looked for `unreadCount`, the API sends `count`.
+      const res = await getContractsClient().notifications.getUnreadCount();
+      if (res.status === 200) setCount(res.body.count);
     } catch {
       // silently fail
     }
@@ -49,11 +49,12 @@ export function useNotifications() {
   const [hasMore, setHasMore] = useState(true);
 
   const fetchPage = useCallback(async (offset: number) => {
-    const client = getGlobalApiClient();
-    const res = await client.get<{ notifications?: AppNotification[] }>(
-      `/notifications?limit=${PAGE_SIZE}&offset=${offset}`
-    );
-    return res.data?.notifications ?? [];
+    // Typed: the API returns a bare array, not `{ notifications }`.
+    const res = await getContractsClient().notifications.list({
+      query: { limit: String(PAGE_SIZE), offset: String(offset) },
+    });
+    if (res.status !== 200) throw new Error(`Failed to fetch notifications (HTTP ${res.status})`);
+    return res.body;
   }, []);
 
   const refresh = useCallback(async () => {
