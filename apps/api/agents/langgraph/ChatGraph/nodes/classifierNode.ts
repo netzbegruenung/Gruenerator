@@ -79,6 +79,7 @@ import {
   SOCIAL_BARE_NOUN_PATTERN,
   SOCIAL_META_QUESTION_PATTERN,
   POST_NOUN_PATTERN,
+  EXPLICIT_WEB_SEARCH_PATTERN,
   isAmbiguousGraphicRequest,
 } from './classifierHeuristics.js';
 import {
@@ -262,7 +263,19 @@ function previousAssistantOffer(messages: ChatGraphState['messages']): string | 
  * Schreibangebot war („Soll ich daraus einen Social-Media-Post machen?" bleibt
  * beim heutigen Weg; „…, müsste ich diese neu nachschlagen." pinnt).
  */
+// Woran eine längere Nachricht erkennbar am Werkzeugturn davor hängt. Ohne
+// eines davon ist sie eine neue Frage, auch wenn sie kurz ist: „Wie ist die
+// letzte Landtagswahl in Berlin ausgegangen?" pinnte live das Notebook des
+// Turns davor (Beta 28.09.2026) — `isReferentialFollowup` lässt alles bis
+// acht Wörter durch. Einwände gegen den Turn davor („stimmt nicht, du hast
+// die Tools", „nochmal") hängen ebenfalls daran.
+const ANAPHORIC_CUE =
+  /(?<![\p{L}])(?:davon|daraus|darin|dazu|dort|diese[rnms]?|dieselben?|n(?:ä|ae)chste[nrs]?|vorletzte[nrs]?|davor|danach|weitere[nrs]?|mehr|nochmal|noch\s+mal|erneut|stimmt\s+nicht|tools?|werkzeuge?)(?![\p{L}])/iu;
+const SHORT_FOLLOWUP_WORDS = 4;
+
 function continuesToolTurn(text: string, messages: ChatGraphState['messages']): boolean {
+  // „suche im web danach" nennt eine andere Quelle — kein Anschluss ans Notebook.
+  if (EXPLICIT_WEB_SEARCH_PATTERN.test(text)) return false;
   if (BARE_CONFIRMATION.test(text)) {
     const offer = previousAssistantOffer(messages);
     return !(
@@ -270,8 +283,10 @@ function continuesToolTurn(text: string, messages: ChatGraphState['messages']): 
       (CREATION_VERB_RE.test(offer) || GENERATION_SIGNAL.test(offer) || WRITING_VERB.test(offer))
     );
   }
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
   return (
     isReferentialFollowup(text) &&
+    (words <= SHORT_FOLLOWUP_WORDS || ANAPHORIC_CUE.test(text)) &&
     !THANKS.test(text) &&
     !GENERATION_SIGNAL.test(text) &&
     !looksLikeUnsourcedWritingOrder(text, { hasOwnMaterial: false })
