@@ -33,7 +33,11 @@ All Landesverbände share a single Qdrant collection (`landesverbaende_documents
 
 8. **`apps/api/scrape-{name}.ts`** (NEW) — Runner script based on `scrape-berlin.ts` template. Sources should match the IDs from `landesverbaendeConfig.ts`.
 
-9. **`packages/shared/src/agents/landesverbandHubs.ts`** — Add an `LV_HUBS` entry so `/agents/gruene-{name}` opens the Landesverband hub (the landing offering both LV agents). Requires the two specialist agents to already exist — the Öffentlichkeitsarbeit agent in `oeffentlichkeitsarbeitAgents.ts` (or generated via `lvPrAgents.ts`) and the Bürger\*innenanfragen agent generated from `LV_BUERGER_SPECS` in `lvBuergerAgents.ts`. The hub owns the branded `gruene-{name}` slug; the agents keep their derived slugs. The hub's icon is the LV's notebook icon (`NOTEBOOK_ICONS[notebookId]`), so no extra icon wiring is needed.
+9. **`packages/shared/src/agents/landesverbaende.ts`** — Add an entry to `LANDESVERBAENDE`, the single source of truth for the LV's agents. It carries `recipeSlug` (the short form in recipe mentions, e.g. `mv`), the three agent ids (`prAgentId`, `buergerAgentId`, `wahlpruefsteinAgentId`) and the `hub`. The Bürger\*innen- and Wahlprüfstein agents are generated from it (`lvBuergerAgents.ts`, `lvWahlpruefsteinAgents.ts`), `LV_HUBS` derives the `/agents/gruene-{name}` landing from it. The PR agent is either hand-tuned (`definitions/gruenerator-oeffentlichkeitsarbeit-{name}.md`) or generated via `LV_PR_SPECS` in `lvPrAgents.ts` — never both.
+
+10. **`packages/shared/src/agents/skills/buerger-{recipeSlug}.md`** — Frontmatter for the LV's Bürger\*innen-Mail recipe (`identifier` = the Bürger agent). The Bürger agent points at it via `defaultRecipeMention` and, owning exactly this one recipe, loads it up front in the agentic loop too (`ownedLvDefaultRecipeMention`). `lvRecipeMentions.vitest.ts` fails if the file is missing.
+
+11. **Internal repo (`gruenerator-intern`)** — personas `agents/gruenerator-{oeffentlichkeitsarbeit,buergeranfragen,wahlpruefsteine}-{name}.md` and the recipe body `skills/buerger-{recipeSlug}.md` (`{{base:buergermail}}` + LV block). Roll out before the public deploy, otherwise the agents fall back to a generic role and the recipe to nothing.
 
 ## Prerequisite: Scraper Config
 

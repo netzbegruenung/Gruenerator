@@ -7,7 +7,7 @@ import AgentTiles from '@site/src/components/AgentTiles';
 
 # Landesverband-Agents
 
-Der Grünerator hat für mehrere Landesverbände **eigene, regional getunte Agents**. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher\*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web.
+Der Grünerator hat für mehrere Landesverbände **eigene, regional getunte Agents**. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher\*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme); eine Websuche haben nur die Öffentlichkeitsarbeit-Agents.
 
 Es gibt drei Sorten von Landesverband-Agents:
 
@@ -66,7 +66,23 @@ Unabhängig vom Landesverband gibt es allgemeine Rezepte für jede Plattform: `@
 
 Die Bürger\*innenanfragen-Agents helfen dir, eingehende E-Mails von Bürger\*innen zu beantworten. Du fügst die Anfrage ein, der Agent recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine **versandfertige Antwort-E-Mail** nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links.
 
-Du erreichst sie über die Landesverband-Seite (z. B. `/agents/gruene-berlin`) — dort wählst du den **Bürger\*innenservice** statt der Öffentlichkeitsarbeit.
+Du erreichst sie über die Landesverband-Seite (z. B. `/agents/gruene-berlin`) — dort wählst du den **Bürger\*innenservice** statt der Öffentlichkeitsarbeit. Der Agent schreibt immer mit dem Rezept seines Landesverbands: Absender, Selbstbezeichnung, Genderschreibweise und Signatur folgen dem Verband.
+
+Im normalen Chat geht es auch ohne Agent: tippe die Rezept-Abkürzung deines Landesverbands und füge die Anfrage dahinter ein.
+
+| Landesverband          | Bürger\*innen-Mail        |
+| ---------------------- | ------------------------- |
+| Berlin                 | `@buerger-berlin`         |
+| Mecklenburg-Vorpommern | `@buerger-mv`             |
+| Thüringen              | `@buerger-thueringen`     |
+| Brandenburg            | `@buerger-brandenburg`    |
+| Bayern                 | `@buerger-bayern`         |
+| Hessen                 | `@buerger-hessen`         |
+| Sachsen-Anhalt         | `@buerger-sachsen-anhalt` |
+| Saarland               | `@buerger-saarland`       |
+| Österreich             | `@buerger-at`             |
+
+Fügst du eine Anfrage ganz ohne Abkürzung ein und hast die Rolle genau eines Landesverbands hinterlegt, nimmt der Chat von sich aus die Variante deines Verbands. Eine ausdrücklich getippte Abkürzung wie `@buergermail` gilt dagegen immer so, wie du sie gewählt hast.
 
 ## Wahlprüfsteine beantworten
 
