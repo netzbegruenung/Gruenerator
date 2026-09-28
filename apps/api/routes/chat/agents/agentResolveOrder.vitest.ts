@@ -16,8 +16,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const getUserAgent = vi.fn();
 const getGroupSharedUserAgent = vi.fn();
 const getPublicUserAgent = vi.fn();
+const getAccessibleUserAgentById = vi.fn();
 
 vi.mock('../../../services/userAgents/userAgentsRepository.js', () => ({
+  getAccessibleUserAgentById: (...a: unknown[]) => getAccessibleUserAgentById(...a),
   getUserAgent: (...a: unknown[]) => getUserAgent(...a),
   getGroupSharedUserAgent: (...a: unknown[]) => getGroupSharedUserAgent(...a),
   getPublicUserAgent: (...a: unknown[]) => getPublicUserAgent(...a),
@@ -34,6 +36,7 @@ const { getAgentForUser } = await import('./agentLoader.js');
 const USER = '11111111-1111-4111-8111-111111111111';
 /** An identifier the shipped registry does not carry, so the built-in branch misses. */
 const IDENTIFIER = 'klima-gruenerator-testfall';
+const AGENT_ID = '22222222-2222-4222-8222-222222222222';
 
 const agent = (title: string) => ({
   identifier: IDENTIFIER,
@@ -57,6 +60,7 @@ beforeEach(() => {
   getUserAgent.mockResolvedValue(undefined);
   getGroupSharedUserAgent.mockResolvedValue(undefined);
   getPublicUserAgent.mockResolvedValue(undefined);
+  getAccessibleUserAgentById.mockResolvedValue(undefined);
 });
 
 describe('getAgentForUser — resolution order', () => {
@@ -102,5 +106,39 @@ describe('getAgentForUser — resolution order', () => {
     expect(resolved).toBeDefined();
     expect(getUserAgent).not.toHaveBeenCalled();
     expect(getPublicUserAgent).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A uuid names exactly one row, so it needs no ladder — one lookup that checks
+ * owner, group share and public access at once. A miss is final: falling back
+ * to the identifier rungs could hand the caller a different owner's agent.
+ */
+describe('getAgentForUser — uuid handle', () => {
+  it('loads the row by id and skips the identifier ladder', async () => {
+    getAccessibleUserAgentById.mockResolvedValue(agent('per id'));
+    getUserAgent.mockResolvedValue(agent('eigener'));
+
+    const resolved = await getAgentForUser(AGENT_ID, USER);
+
+    expect(resolved?.title).toBe('per id');
+    expect(resolved?.isUserAgent).toBe(true);
+    expect(getAccessibleUserAgentById).toHaveBeenCalledWith(AGENT_ID, USER);
+    expect(getUserAgent).not.toHaveBeenCalled();
+    expect(getGroupSharedUserAgent).not.toHaveBeenCalled();
+    expect(getPublicUserAgent).not.toHaveBeenCalled();
+  });
+
+  it('resolves nothing when no accessible row has that id', async () => {
+    getPublicUserAgent.mockResolvedValue(agent('fremder, uuid-förmiger Bezeichner'));
+
+    expect(await getAgentForUser(AGENT_ID, USER)).toBeUndefined();
+    expect(getUserAgent).not.toHaveBeenCalled();
+    expect(getPublicUserAgent).not.toHaveBeenCalled();
+  });
+
+  it('never looks an identifier up by id', async () => {
+    await getAgentForUser(IDENTIFIER, USER);
+    expect(getAccessibleUserAgentById).not.toHaveBeenCalled();
   });
 });
