@@ -77,6 +77,18 @@ const ALLOWLIST: readonly AllowEntry[] = [
     'chat_threads',
     'purge: a purged document takes its chat thread along, trashed or not',
   ],
+  [
+    'apps/api/services/docs/CollaborativeDocumentService.ts',
+    'collaborative_documents',
+    'account deletion: the sole-owned documents go, already trashed ones included',
+    'WHERE created_by = $1',
+  ],
+  [
+    'apps/api/services/entityLikes/EntityLikesService.ts',
+    'user_templates',
+    'account deletion: likes on every Vorlage of the user, trashed ones cascade too',
+    'DELETE FROM entity_likes',
+  ],
   ['apps/api/routes/admin/chunkInspectorContractRouter.ts', 'documents', PERMANENT_ADMIN],
   ['apps/api/services/cleanup/notebookLinkCleanupService.ts', 'documents', PERMANENT_CLEANUP],
   ['apps/api/routes/notebook/wolkePendingContractRouter.ts', 'documents', PERMANENT_SYNC_DEDUPE],
