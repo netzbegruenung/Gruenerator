@@ -973,16 +973,10 @@ describe('getToolQuery with per-tool keys', () => {
 });
 
 describe('bild_ansehen', () => {
-  it('shows the answer, or the failure, never the key/value dump', () => {
+  it('has a real label and parses like the other attachment readers', () => {
     const entry = resolveToolEntry('bild_ansehen');
     expect(entry.meta.label).toBe('Bildanalyse');
-    expect(entry.parse({ bild: 1 }, { bild: 'a.png', antwort: 'Ein Plakat.' })).toEqual({
-      kind: 'text-note',
-      text: 'Ein Plakat.',
-    });
-    expect(entry.parse({ bild: 1 }, { error: '„a.png“ konnte nicht gelesen werden.' })).toEqual({
-      kind: 'text-note',
-      text: '„a.png“ konnte nicht gelesen werden.',
-    });
+    expect(entry.kind).toBe('citations');
+    expect(entry.kind).toBe(resolveToolEntry('expand_attachment').kind);
   });
 });
