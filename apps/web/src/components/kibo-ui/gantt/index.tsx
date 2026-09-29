@@ -30,7 +30,7 @@ import {
   startOfDay,
   startOfMonth,
 } from 'date-fns';
-import { atom, useAtom } from 'jotai';
+import { atom, Provider, useAtom } from 'jotai';
 import throttle from 'lodash.throttle';
 import { PlusIcon, TrashIcon } from 'lucide-react';
 import type {
@@ -61,6 +61,9 @@ import {
 } from '@gruenerator/ui';
 import { cn } from '@/utils/cn';
 
+// Local change: view state is scoped per provider instance via a jotai <Provider>
+// (upstream uses module-global atoms shared by all instances). Re-pulling from the
+// kibo-ui registry would reintroduce the globals.
 const draggingAtom = atom(false);
 const scrollXAtom = atom(0);
 
@@ -1135,7 +1138,7 @@ export type GanttProviderProps = {
   className?: string;
 };
 
-export const GanttProvider: FC<GanttProviderProps> = ({
+const GanttProviderInner: FC<GanttProviderProps> = ({
   zoom = 100,
   range = 'monthly',
   onAddItem,
@@ -1363,6 +1366,12 @@ export const GanttProvider: FC<GanttProviderProps> = ({
     </GanttContext.Provider>
   );
 };
+
+export const GanttProvider: FC<GanttProviderProps> = (props) => (
+  <Provider>
+    <GanttProviderInner {...props} />
+  </Provider>
+);
 
 export type GanttTimelineProps = {
   children: ReactNode;
