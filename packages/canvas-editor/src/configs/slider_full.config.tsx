@@ -37,7 +37,6 @@ import { fromLayout } from './factory/layoutAccessors';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
 
-import type { TemplateAiCapabilities } from '../ai/types';
 import type {
   FullCanvasConfig,
   LayoutResult,
@@ -47,17 +46,18 @@ import type {
   ImageElementConfig,
   AdditionalText,
 } from './types';
-import type { CanvasAiSnapshot } from '@gruenerator/contracts';
+import type { TemplateAiCapabilities } from '../ai/types';
 import type { BackgroundColorOption, StockImageAttribution } from '../sidebar/types';
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
-import type { IllustrationInstance } from '../utils/illustrations/types';
-import type { ShapeInstance } from '../utils/shapes';
 import type { BaseCanvasState, IconState } from './factory/baseTypes';
+import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
+import type { ShapeInstance } from '../utils/shapes';
 import type { SliderColorScheme } from '../utils/sliderLayout';
+import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // Default arrow icon ID (HeroIcons chevron-right, resolved via canvasIcons.ts)
 /** Feste Id der Pille, die die Folien-Beschriftung traegt. */
@@ -592,6 +592,7 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
   getVisibleTabs: () => ['background', 'text', 'assets', 'tools', 'uploads', 'chat'],
 
   getAutoSwitchTab: (selectedElement) => {
+    if (selectedElement?.startsWith('balken-')) return 'settings';
     if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;

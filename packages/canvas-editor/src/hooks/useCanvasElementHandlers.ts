@@ -3,8 +3,10 @@ import { useCallback, useMemo } from 'react';
 import { resolveValue } from '../utils/canvasValueResolver';
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types';
+import type { CircleBadgeInstance } from '../primitives';
 import type { ChartInstance } from '../utils/chartUtils';
 import type { FrameInstance } from '../utils/frameUtils';
+import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
 import type { UserImageInstance } from '../utils/userImageUtils';
 
@@ -57,27 +59,8 @@ export interface OptionalCanvasActions {
     attrs: Partial<{ x: number; y: number; scale?: number; rotation?: number; opacity?: number }>
   ) => void;
   updateAdditionalText?: (id: string, attrs: Partial<AdditionalText>) => void;
-  updateCircleBadge?: (
-    id: string,
-    attrs: Partial<{
-      x: number;
-      y: number;
-      scale?: number;
-      rotation?: number;
-      opacity?: number;
-      textLines?: Array<{
-        text: string;
-        yOffset: number;
-        fontFamily: string;
-        fontSize: number;
-        fontWeight?: 'normal' | 'bold';
-      }>;
-    }>
-  ) => void;
-  updatePillBadge?: (
-    id: string,
-    attrs: Partial<{ x: number; y: number; scale?: number; rotation?: number; text?: string }>
-  ) => void;
+  updateCircleBadge?: (id: string, attrs: Partial<CircleBadgeInstance>) => void;
+  updatePillBadge?: (id: string, attrs: Partial<PillBadgeInstance>) => void;
   updateFrame?: (id: string, attrs: Partial<FrameInstance>) => void;
   setFrameImage?: (id: string, file: File, objectUrl: string) => void;
   updateUserImage?: (id: string, attrs: Partial<UserImageInstance>) => void;

@@ -2,13 +2,17 @@ import { HiArrowUpTray, HiChatBubbleLeftRight, HiWrenchScrewdriver } from 'react
 
 import { applyOperation, type CanvasAiActionsBase } from '../ai/applyOperation';
 import { ChatSection, ToolsSection, UploadsSection } from '../sidebar/sections';
+import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { ChartSettingsSection } from '../sidebar/sections/ChartSettingsSection';
 import { ImageAdjustSection } from '../sidebar/sections/ImageAdjustSection';
+import { COLOR_SCHEMES } from '../utils/dreizeilenLayout';
+
 import { buildSharepicText } from './buildSharepicText';
 import { makeSectionDefiner } from './factory/defineSection';
 
-import type { CanvasAiEditBridge } from '../CanvasEditorProvider';
 import type { TemplateAiCapabilities } from '../ai/types';
+import type { CanvasAiEditBridge } from '../CanvasEditorProvider';
+import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
 import type { SidebarTab } from '../sidebar/types';
 import type { ChartInstance } from '../utils/chartUtils';
@@ -18,6 +22,12 @@ interface ActionsWithChart {
   updateChart?: (id: string, partial: Partial<ChartInstance>) => void;
   removeChart?: (id: string) => void;
   addUserImageFromUrl?: (url: string, fileName: string) => void;
+}
+
+interface ActionsWithBalken {
+  updateBalken?: (id: string, partial: Partial<BalkenInstance>) => void;
+  removeBalken?: (id: string) => void;
+  duplicateBalken?: (id: string) => void;
 }
 
 interface ActionsWithUserImage {
@@ -107,6 +117,33 @@ export const chartSettingsSectionEntry = defineCommonSection({
 });
 
 /**
+ * Shared settings panel for a hand-added balken. Rendered when
+ * `activeTab === 'settings'` (configs auto-switch to it on `balken-*`
+ * selection). Dreizeilen overrides it: its primary balken is derived from
+ * template state and gets narrower controls.
+ */
+export const balkenSettingsSectionEntry = defineCommonSection({
+  component: BalkenSettingsSection,
+  propsFactory: (state, actions, context) => {
+    const s = state as { balkenInstances?: BalkenInstance[] };
+    const a = actions as ActionsWithBalken;
+    const selectedId = (context as { selectedElement?: string | null } | undefined)
+      ?.selectedElement;
+    const selectedBalken = selectedId
+      ? (s.balkenInstances?.find((b) => b.id === selectedId) ?? null)
+      : null;
+    return {
+      selectedBalken,
+      onUpdateBalken: a.updateBalken ?? (() => {}),
+      onRemoveBalken: a.removeBalken ?? (() => {}),
+      ...(a.duplicateBalken ? { onDuplicateBalken: a.duplicateBalken } : {}),
+      colorSchemes: COLOR_SCHEMES,
+      isPrimary: false,
+    };
+  },
+});
+
+/**
  * Shared image-adjust ("Bearbeiten") panel. Opened explicitly from the context
  * bar's Bearbeiten button (setActiveTab('image-adjust')), not on selection.
  */
@@ -150,6 +187,7 @@ export function createCommonSectionEntries<TState, TActions extends CanvasAiActi
     uploads: uploadsSectionEntry,
     chat: createChatSection(canvasType, capabilities),
     'chart-settings': chartSettingsSectionEntry,
+    settings: balkenSettingsSectionEntry,
     'image-adjust': imageAdjustSectionEntry,
   };
 }
