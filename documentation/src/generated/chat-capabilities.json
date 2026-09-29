@@ -713,6 +713,22 @@
       "avatar": "📘",
       "category": "recherche",
       "audience": "de-DE"
+    },
+    {
+      "command": "@reisekosten-nrw",
+      "title": "Reisekosten NRW (Beta)",
+      "description": "Reisekostenabrechnung für den Landesverband NRW aus deinen Belegen — Beta",
+      "avatar": "🧾",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@reisekosten-nrw-vorbereiten",
+      "title": "Reise vorbereiten NRW (Beta)",
+      "description": "Was vor einer Dienstreise für den Landesverband NRW zu erledigen ist — Beta",
+      "avatar": "🧳",
+      "category": "dokumente",
+      "audience": "de-DE"
     }
   ],
   "skillCategoryLabels": {
