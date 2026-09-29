@@ -1,7 +1,7 @@
 ---
 identifier: 'gruenerator-universal'
 title: 'Reisekosten NRW (Beta)'
-description: 'Reisekostenabrechnung für den Landesverband NRW aus deinen Belegen — Beta'
+description: 'Reisekostenabrechnung aus deinen Belegen, nur für Reisen, die der Landesverband NRW erstattet — andere Verbände haben eigene Regeln (Beta)'
 iconKey: 'PiFileText'
 avatar: '🧾'
 backgroundColor: '#316049'
