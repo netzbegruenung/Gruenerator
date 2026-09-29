@@ -69,6 +69,7 @@ import {
   attachedCloudShareLinks,
   mentionsCloudStorage,
 } from '../services/cloudConnectionContext.js';
+import { IMAGE_TOOL, imageVisibility } from '../services/imageVisibility.js';
 import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
@@ -87,6 +88,7 @@ import {
 } from './domainTools.js';
 import { makeEditArtifactTool } from './editorTools.js';
 import { makeGroupsTool } from './groupTools.js';
+import { makeBildAnsehenTool } from './imageTools.js';
 import { makeMemoryTool } from './memoryTools.js';
 import { makeNotebookSourcesTool } from './notebookSourceTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
@@ -690,6 +692,13 @@ NUTZE WENN:
         return { error: `"${attachmentName}" enthält keinen nachladbaren Text.` };
       },
     });
+  }
+
+  // The loop's only way to see this turn's images (#3841). Not part of the
+  // research ban: reading what the person attached is not new research. Mounted
+  // on the same answer that makes the system prompt name it.
+  if (loop && imageVisibility(loop.state, { loop: true }) === 'tool') {
+    tools[IMAGE_TOOL] = makeBildAnsehenTool({ images: loop.state.imageAttachments });
   }
 
   // Domain tools (loop path only). Mounted BROADLY, not gated on the exact

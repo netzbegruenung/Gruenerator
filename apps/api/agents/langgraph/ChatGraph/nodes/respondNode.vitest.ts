@@ -889,6 +889,28 @@ describe('formatImageContext — die Sichtbarkeitszusage folgt dem vision-Schalt
     expect(out).toContain('Stütze dich auf den BILDVERGLEICH-Block');
     expect(out).not.toContain('keine Beschreibung davon vor');
   });
+
+  it('zeigt im Loop auf bild_ansehen statt Sichtbarkeit zu behaupten (#3841)', async () => {
+    // Der Loop hängt keine Bytes an. Er liest die Bilder über das Werkzeug, das
+    // sie per Nummer adressiert — gleichnamige Bilder aus der Zwischenablage
+    // wären sonst nicht auseinanderzuhalten.
+    const state = makeState({
+      intent: 'produktion',
+      searchResults: [],
+      citations: [],
+      agentConfig: { identifier: 'gruenerator-universal' },
+      enabledTools: {},
+      imageAttachments: [
+        { name: 'image.png', type: 'image/png', data: 'AAAA' },
+        { name: 'image.png', type: 'image/png', data: 'BBBB' },
+      ],
+    } as unknown as Partial<ChatGraphState>);
+    const out = await buildSystemMessage(state, { retrievalExpected: true, loop: true });
+    expect(out).toContain('Bild 1: image.png, Bild 2: image.png');
+    expect(out).toContain('NICHT in der Nachricht sichtbar');
+    expect(out).toContain('bild_ansehen');
+    expect(out).not.toContain('Die Bilder sind in der Nachricht sichtbar');
+  });
 });
 
 /**
