@@ -41,7 +41,7 @@ export interface LandesverbandEntry {
   /** Identifier of the Wahlprüfsteine agent. */
   wahlpruefsteinAgentId: string;
   /**
-   * Identifier of the Beschlusslage agent — only where the LV collection holds
+   * Identifier of the Beschlussanträge agent — only where the LV collection holds
    * `content_type: 'beschluss'` documents (`lvFamilyContent.vitest.ts` checks
    * that against the scraper config).
    */
@@ -98,7 +98,6 @@ export const LANDESVERBAENDE = [
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
     buergerAgentId: 'gruenerator-buergeranfragen-hamburg',
     wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-hamburg',
-    beschlussAgentId: 'gruenerator-beschluesse-hamburg',
     hub: { slug: 'gruene-hamburg', name: 'Grüne Hamburg' },
   },
   {
@@ -319,7 +318,7 @@ const LV_AGENT_ROLE_LABELS: Readonly<Record<string, string>> = {
   oeffentlichkeitsarbeit: 'Öffentlichkeitsarbeit',
   buergeranfragen: 'Bürger*innenservice',
   wahlpruefsteine: 'Wahlprüfsteine',
-  beschluesse: 'Beschlusslage',
+  beschluesse: 'Beschlussanträge',
   wahlprogramm: 'Wahlprogramm',
 };
 
@@ -331,7 +330,7 @@ export function isLandesverbandIdentifier(identifier: string): boolean {
   return LV_IDENTIFIER_PREFIX_RE.test(identifier);
 }
 
-/** The hub label of an LV agent (`gruenerator-beschluesse-berlin` → `Beschlusslage`). */
+/** The hub label of an LV agent (`gruenerator-beschluesse-berlin` → `Beschlussanträge`). */
 export function landesverbandAgentRole(identifier: string): string | null {
   const family = LV_IDENTIFIER_PREFIX_RE.exec(identifier)?.[1];
   return family ? (LV_AGENT_ROLE_LABELS[family] ?? null) : null;

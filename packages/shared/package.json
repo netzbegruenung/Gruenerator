@@ -52,6 +52,12 @@
       "import": "./dist/utils/index.js",
       "default": "./dist/utils/index.js"
     },
+    "./utils/fileToBase64": {
+      "development": "./src/utils/fileToBase64.ts",
+      "types": "./src/utils/fileToBase64.ts",
+      "import": "./dist/utils/fileToBase64.js",
+      "default": "./dist/utils/fileToBase64.js"
+    },
     "./platform": {
       "development": "./src/platform/index.ts",
       "types": "./src/platform/index.ts",
