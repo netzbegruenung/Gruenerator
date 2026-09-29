@@ -1,4 +1,5 @@
 import {
+  Button,
   CardActionsMenu,
   CardGrid,
   cn,
@@ -13,7 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Download, Share2, Trash2 } from 'lucide-react';
 import React, { memo, useCallback, useState, lazy, Suspense } from 'react';
 import { PiStar, PiStarFill } from 'react-icons/pi';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import {
   BoardPreviewBody,
@@ -565,7 +566,17 @@ const RecentlyCreatedSection: React.FC = memo(() => {
 
   return (
     <section className="mb-xl">
-      <SectionHeader title="Zuletzt" />
+      <SectionHeader
+        title="Zuletzt"
+        actions={
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/papierkorb">
+              <Trash2 aria-hidden="true" className="size-4" />
+              Papierkorb
+            </Link>
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <CardGrid columns="5" gap="md" className={RECENT_GRID}>
