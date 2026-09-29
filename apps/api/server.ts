@@ -503,11 +503,13 @@ async function startWorker(): Promise<void> {
     // 1.7 hat `oAuthDiscoveryMetadata`/`oAuthProtectedResourceMetadata` aus
     // `better-auth/plugins` entfernt. Für den Autorisierungsserver gibt es
     // einen formgleichen Ersatz; die Ressourcen-Metadaten liefert jetzt der
-    // Ressourcen-Client als Objekt, das wir selbst in eine Antwort verpacken.
+    // Ressourcen-Client als Objekt, das wir selbst in eine Antwort verpacken —
+    // mit ausdrücklicher Ressource und Issuer, siehe den Kopf der Helferdatei.
     const { metadataResponse, oauthProviderAuthServerMetadata } =
       await import('@better-auth/oauth-provider');
-    const { oauthProviderResourceClient } =
-      await import('@better-auth/oauth-provider/resource-client');
+    const { mcpProtectedResourceMetadata } =
+      await import('./services/auth/protectedResourceMetadata.js');
+    const { MCP_RESOURCE_URL } = await import('./config/mcpServer.js');
     const { fromNodeHeaders } = await import('better-auth/node');
     const { auth } = await import('./config/betterAuth.js');
     const serveWellKnown =
@@ -540,11 +542,10 @@ async function startWorker(): Promise<void> {
       ['/.well-known/oauth-authorization-server', '/.well-known/oauth-authorization-server/*splat'],
       serveWellKnown(oauthProviderAuthServerMetadata(authWithServerConfig))
     );
-    const resourceActions = oauthProviderResourceClient(auth).getActions();
     app.get(
       ['/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/*splat'],
       serveWellKnown(async () =>
-        metadataResponse(await resourceActions.getProtectedResourceMetadata())
+        metadataResponse(await mcpProtectedResourceMetadata(auth, MCP_RESOURCE_URL))
       )
     );
   }
