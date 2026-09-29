@@ -22,6 +22,7 @@
  * 4. Genau zwei `updateNotebookCollection`-Schreibvorgänge: der Aufruf ist
  *    read-modify-write und embeddet neu, jeder weitere kostet.
  */
+import { NOTEBOOK_MAX_DOCUMENTS } from '@gruenerator/contracts';
 import { and, eq } from 'drizzle-orm';
 
 import { documents } from '../../database/schema/index.js';
@@ -56,6 +57,8 @@ export interface AttachWolkeFolderResult {
   importedNow: number;
   queued: number;
   failed: number;
+  /** Dateien, die über `NOTEBOOK_MAX_DOCUMENTS` hinaus weder importiert noch vorgemerkt wurden. */
+  skipped: number;
 }
 
 export interface AttachDeps {
@@ -143,18 +146,38 @@ export async function attachWolkeFolderToNotebook(
     await deps.helper.updateNotebookCollection(collectionId, { settings });
   }
 
-  // 2. Schon Importiertes nur anhängen.
+  // 2. Schon Importiertes nur anhängen. Was nicht schon im Notebook steckt,
+  // zählt gegen NOTEBOOK_MAX_DOCUMENTS — auch das, was erst vorgemerkt wird.
   const importedByPath = new Map(
     (await deps.findImported(userId, shareLinkId)).map((d) => [d.path, d.id])
   );
+  const inNotebook = new Set(
+    (await deps.helper.getCollectionDocuments(collectionId)).map((d) => d.document_id)
+  );
+  let room = Math.max(0, NOTEBOOK_MAX_DOCUMENTS - inNotebook.size);
   const attachedIds: string[] = [];
   const newFiles: NextcloudFile[] = [];
+  let alreadyImported = 0;
+  let skipped = 0;
   for (const f of files) {
     const id = importedByPath.get(f.href);
-    if (id) attachedIds.push(id);
-    else newFiles.push(f);
+    if (id && inNotebook.has(id)) {
+      attachedIds.push(id);
+      alreadyImported += 1;
+      continue;
+    }
+    if (room === 0) {
+      skipped += 1;
+      continue;
+    }
+    room -= 1;
+    if (id) {
+      attachedIds.push(id);
+      alreadyImported += 1;
+    } else {
+      newFiles.push(f);
+    }
   }
-  const alreadyImported = attachedIds.length;
 
   // 3./4. Gedeckelte Charge; Fehler und Rest in die Warteschlange.
   const start = deps.now();
@@ -209,6 +232,7 @@ export async function attachWolkeFolderToNotebook(
     importedNow,
     queued: queue.length,
     failed,
+    skipped,
   };
 }
 
