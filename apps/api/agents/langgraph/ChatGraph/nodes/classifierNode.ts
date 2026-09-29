@@ -32,6 +32,7 @@ import {
   looksLikeSelfContainedTurn,
   looksLikeToolableQuestion,
   looksLikeUnsourcedWritingOrder,
+  reworksSuppliedText,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { agenturaCreateTarget } from '../../../../routes/chat/services/agenturaContext.js';
 import {
@@ -1178,10 +1179,19 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // topic for the query refiner lives in the attachment, not in the typed
       // instruction ("Antworte auf diese E-Mail: …"), so pass an excerpt as
       // topical context.
+      //
+      // Not when the order reworks the attachment itself („rechtschreibung
+      // korrigieren", „übersetze das", „kürze den Text"): that is text work on
+      // material already here, and the forced search put it into the loop under
+      // `toolChoice: required` — live 29.09.2026 the planner then summarised the
+      // pasted newsletter instead of correcting it.
       const defaultNotebookScopeCount =
         (state.defaultNotebookCollectionIds?.length ?? 0) +
         (state.defaultNotebookDocumentIds?.length ?? 0);
-      if (defaultNotebookScopeCount > 0) {
+      if (
+        defaultNotebookScopeCount > 0 &&
+        !reworksSuppliedText(state.lastUserTextNoMentions ?? userContent)
+      ) {
         return classifyWithForcedSearch({
           reason: 'AttachmentDefaultNotebook',
           docCount: defaultNotebookScopeCount,
