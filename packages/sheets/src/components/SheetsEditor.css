@@ -18,6 +18,11 @@
   position: relative;
 }
 
+.gruenerator-sheets-editor__mount {
+  position: absolute;
+  inset: 0;
+}
+
 /* The palette itself is NOT set here — it is passed to `createUniver` as a
  * theme object (see `lib/univerTheme.ts`), which Univer expands into
  * `:root { --univer-* }` and also reads from JS for its canvas colours. This
