@@ -14,23 +14,30 @@ const ALWAYS: readonly QueryKey[] = [['recent-activity'], ['content'], ['trash']
  * The caches that list a kind's live items, invalidated after a restore puts one
  * back. Prefix keys: `['notebookCollections']` covers own, shared and public.
  *
- * Empty on purpose:
- * - `chat_thread`: the thread list lives in the chat runtime, not in TanStack —
- *   reloaded below via `requestThreadListReload()`.
- * - `custom_prompt`: the prompt list is read by `mentionableSync` (packages/chat)
- *   outside TanStack, so there is no query to invalidate.
+ * Empty on purpose: `chat_thread` — the thread list lives in the chat runtime,
+ * not in TanStack, and is reloaded below via `requestThreadListReload()`.
+ *
+ * The chat `@`-mention pickers (packages/chat `useMentionablesQuery`) cache the
+ * same lists under their own `mention-*` keys, so they are listed next to the page caches.
  */
 const BY_KIND: Record<TrashKind, readonly QueryKey[]> = {
-  collaborative_document: [['documents', 'list'], BOARDS_QUERY_KEY, ['canvas', 'list']],
+  collaborative_document: [
+    ['documents', 'list'],
+    BOARDS_QUERY_KEY,
+    ['canvas', 'list'],
+    ['mention-docs'],
+    ['mention-boards'],
+    ['mention-sheets'],
+  ],
   chat_thread: [],
-  notebook: [['notebookCollections'], ['notebook', 'collection']],
+  notebook: [['notebookCollections'], ['notebook', 'collection'], ['mention-user-notebooks']],
   document: [['notebook', 'collection']],
   shared_media: [MEDIA_LIBRARY_QUERY_KEY],
   subtitler_project: [['subtitler-beta', 'projects']],
-  user_agent: [['user-agents']],
-  user_template: [['userTemplates'], ['profileData']],
-  user_text_form: [['text-forms']],
-  custom_prompt: [],
+  user_agent: [['user-agents'], ['mention-user-agents']],
+  user_template: [['userTemplates'], ['profileData'], ['user-templates', 'docs-and-boards']],
+  user_text_form: [['text-forms'], ['mention-textforms']],
+  custom_prompt: [['mention-custom-agents']],
   user_site: [['my-site']],
   recurring_task: [['recurring-tasks']],
   user_letterhead: [LETTERHEADS_QUERY_KEY],
