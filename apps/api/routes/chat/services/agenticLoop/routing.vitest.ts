@@ -1422,6 +1422,8 @@ describe('reworksSuppliedText — der Auftrag, nicht der eingefügte Stoff (#390
   it.each([
     [`${paste}\n\nrechtschreibung korrigieren`],
     [`übersetze das ins Englische:\n\n${paste}`],
+    // „prüf" allein ist kein Nachschlagen.
+    [`${paste}\n\nprüf die Rechtschreibung und korrigiere sie`],
   ])('liest die Überarbeitung im Auftrags-Absatz: %s', (text) => {
     expect(reworksSuppliedText(text)).toBe(true);
   });
@@ -1429,6 +1431,9 @@ describe('reworksSuppliedText — der Auftrag, nicht der eingefügte Stoff (#390
   it.each([
     [`${paste}\n\nschreib daraus einen Instagram-Post`],
     [`recherchiere, ob das stimmt\n\n${paste}\n\nDas haben wir korrigiert.`],
+    // Eine Faktenprüfung schlägt nach, bevor sie korrigiert.
+    [`${paste}\n\nprüf die Fakten darin und korrigiere falsche Angaben`],
+    ['überprüfe die Zahlen und korrigiere sie'],
     // Ein einziger Absatz bleibt beim ganzen Text — wie vor #3903.
     [`${paste} Bitte korrigieren.`],
   ])('bleibt bei Schreib-, Recherche- oder ungetrenntem Auftrag aus: %s', (text) => {

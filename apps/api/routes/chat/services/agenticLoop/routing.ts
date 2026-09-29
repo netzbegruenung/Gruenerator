@@ -226,6 +226,12 @@ function orderParts(t: string): string[] {
 
 const asksForRework = (t: string): boolean => hasRewriteTarget(t) || REGENERATE_RE.test(t);
 
+/** „prüf die Fakten und korrigiere falsche Angaben" korrigiert nur, was es
+ *  vorher nachgeschlagen hat — kein reines Überarbeiten. Umlaut-Grenze per
+ *  Lookbehind, `\b` vor „ü" greift ohne `u` nicht. */
+const FACT_CHECK_RE =
+  /(?<!\p{L})(?:[üu]berpr[üu]f|pr[üu]f|verifizier|check)\p{L}*[^.?!]*?(?<!\p{L})(?:fakten|zahlen|angaben|daten|behauptung|aussage|stimm|richtig|korrekt|aktuell)/iu;
+
 /** „Antworte auf diese Mail", „Beantworte die Anfrage" — the job a notebook exists for. */
 const ANSWER_ORDER_RE = /\b(be)?antwort/i;
 
@@ -247,7 +253,11 @@ export function reworksSuppliedText(raw: string): boolean {
   const parts = orderParts(t);
   if (!parts.some(asksForRework)) return false;
   return !parts.some(
-    (p) => WRITING_ORDER_RE.test(p) || ANSWER_ORDER_RE.test(p) || looksLikeExplicitResearchOrder(p)
+    (p) =>
+      WRITING_ORDER_RE.test(p) ||
+      ANSWER_ORDER_RE.test(p) ||
+      FACT_CHECK_RE.test(p) ||
+      looksLikeExplicitResearchOrder(p)
   );
 }
 
