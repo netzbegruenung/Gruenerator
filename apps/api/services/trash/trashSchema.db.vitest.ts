@@ -28,6 +28,9 @@ vi.mock('../../database/services/PostgresService/PostgresService.js', async (imp
   getPostgresInstance: () => ({}),
 }));
 const { DUE_SCHEDULES_SQL } = await import('../boards/boardScheduleService.js');
+// The collab purge imports the thread purge lazily; load it here so the
+// lifecycle test does not pay a cold module import inside its own budget.
+await import('../../routes/chat/services/threadTrashService.js');
 
 const url = process.env.MIGRATIONS_TEST_DATABASE_URL;
 
@@ -148,7 +151,7 @@ describe.skipIf(!url)('Papierkorb schema (zz_20260929_trash_deleted_at.sql)', ()
       doc.id,
     ]);
     expect(schedules.rowCount).toBe(0);
-  });
+  }, 30_000);
 
   it('keeps unique keys among live rows only (zz_20260929b_trash_partial_unique.sql)', async () => {
     const owner = randomUUID();
