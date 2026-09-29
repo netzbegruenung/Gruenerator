@@ -996,3 +996,12 @@ describe('getToolQuery with per-tool keys', () => {
     expect(getToolQuery({ rezept: 'presse' })).toBeNull();
   });
 });
+
+describe('bild_ansehen', () => {
+  it('has a real label and parses like the other attachment readers', () => {
+    const entry = resolveToolEntry('bild_ansehen');
+    expect(entry.meta.label).toBe('Bildanalyse');
+    expect(entry.kind).toBe('citations');
+    expect(entry.kind).toBe(resolveToolEntry('expand_attachment').kind);
+  });
+});

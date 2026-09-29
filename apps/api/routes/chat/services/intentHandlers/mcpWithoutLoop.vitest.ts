@@ -30,34 +30,24 @@ function warningOf(): { code: string; message: string } {
 describe('reportMcpWithoutLoop', () => {
   it('warnt mit eigenem Code statt mit `mcp_unreachable`', () => {
     sse.send.mockClear();
-    reportMcpWithoutLoop(sse as never, state(), true);
+    reportMcpWithoutLoop(sse as never, state());
     expect(warningOf().code).toBe('mcp_not_consulted');
   });
 
-  it('nennt beim Bildanhang den Anhang als Grund und seine Abhilfe', () => {
-    sse.send.mockClear();
-    const s = state();
-    reportMcpWithoutLoop(sse as never, s, true);
-
-    expect(warningOf().message).toContain('Bildanhänge');
-    // Der Modell-Hinweis ist die zweite Hälfte: ohne ihn sagt die ANTWORT den
-    // Grund nicht, und die Warnung allein liest sich wie eine Randnotiz.
-    expect(s.degradationNotes?.[0]?.modelHint).toContain('Bildanhänge');
-    expect(s.degradationNotes?.[0]?.modelHint).toContain('Bild entfernen');
-  });
-
-  it('nennt beim Verbund-Agenten die Wissenssammlung, nicht das Bild', () => {
+  it('nennt beim Verbund-Agenten die Wissenssammlung als Grund und seine Abhilfe', () => {
     sse.send.mockClear();
     const s = state({ isCompound: true });
-    reportMcpWithoutLoop(sse as never, s, false);
+    reportMcpWithoutLoop(sse as never, s);
 
     expect(warningOf().message).toContain('Wissenssammlung');
-    expect(warningOf().message).not.toContain('Bildanhänge');
+    // Der Modell-Hinweis ist die zweite Hälfte: ohne ihn sagt die ANTWORT den
+    // Grund nicht, und die Warnung allein liest sich wie eine Randnotiz.
+    expect(s.degradationNotes?.[0]?.modelHint).toContain('allgemeinen Chat');
   });
 
   it('nennt den zweiten Intent, wenn er der greifende Schalter ist', () => {
     sse.send.mockClear();
-    reportMcpWithoutLoop(sse as never, state({ secondaryIntent: 'image' }), false);
+    reportMcpWithoutLoop(sse as never, state({ secondaryIntent: 'image' }));
     expect(warningOf().message).toContain('zweite Absicht');
   });
 
@@ -68,7 +58,7 @@ describe('reportMcpWithoutLoop', () => {
   it('nennt den eingefügten Link, statt ihn als zweite Absicht auszugeben', () => {
     sse.send.mockClear();
     const s = state({ secondaryIntent: 'scrape_url' });
-    reportMcpWithoutLoop(sse as never, s, false);
+    reportMcpWithoutLoop(sse as never, s);
 
     const { message } = warningOf();
     expect(message).toContain('Link');
@@ -82,15 +72,14 @@ describe('reportMcpWithoutLoop', () => {
   it('nennt alle greifenden Schalter, nicht nur den ersten', () => {
     sse.send.mockClear();
     const s = state({ isCompound: true, secondaryIntent: 'image' });
-    reportMcpWithoutLoop(sse as never, s, true);
+    reportMcpWithoutLoop(sse as never, s);
 
     const { message } = warningOf();
     expect(message).toContain('Wissenssammlung');
     expect(message).toContain('zweite Absicht');
-    expect(message).toContain('Bildanhänge');
     // Auch die Abhilfen vollständig — eine allein löst den Turn nicht.
     expect(s.degradationNotes?.[0]?.modelHint).toContain('allgemeinen Chat');
-    expect(s.degradationNotes?.[0]?.modelHint).toContain('Bild entfernen');
+    expect(s.degradationNotes?.[0]?.modelHint).toContain('Weiteres separat');
     // Jede Abhilfe hinter IHREM Grund: zwei getrennte Aufzählungen verschwimmen,
     // sobald eine Abhilfe selbst ein „und"/„oder" trägt.
     expect(message).toMatch(/\(1\).+— Abhilfe: .+; \(2\).+— Abhilfe: /);
@@ -100,7 +89,7 @@ describe('reportMcpWithoutLoop', () => {
   // ab, still als „zweite Absicht" zu erscheinen.
   it('rät nicht ins Blaue, wenn kein bekannter Schalter greift', () => {
     sse.send.mockClear();
-    reportMcpWithoutLoop(sse as never, state(), false);
+    reportMcpWithoutLoop(sse as never, state());
 
     const { message } = warningOf();
     expect(message).toContain('Einzeldurchlauf');
@@ -112,7 +101,7 @@ describe('reportMcpWithoutLoop', () => {
     const s = state({
       degradationNotes: [{ code: 'source_unavailable', modelHint: 'vorher' }],
     });
-    reportMcpWithoutLoop(sse as never, s, true);
+    reportMcpWithoutLoop(sse as never, s);
 
     expect(s.degradationNotes?.map((n) => n.code)).toEqual([
       'source_unavailable',

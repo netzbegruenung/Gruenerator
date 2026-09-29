@@ -82,6 +82,7 @@ export const UI_TOOL_NAMES = z.enum([
   'product_knowledge',
   'expand_attachment',
   'dokumente_lesen',
+  'bild_ansehen',
   'search_threads',
   'read_artifact',
   'memory',
@@ -975,6 +976,10 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
     citations: parseSearchCitations(r),
   })),
   expand_attachment: entry('expand_attachment', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  bild_ansehen: entry('bild_ansehen', 'citations', (_a, r) => ({
     kind: 'citations',
     citations: parseSearchCitations(r),
   })),

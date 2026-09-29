@@ -52,6 +52,12 @@ function loopToolNames(): ReadonlySet<string> {
   );
   if (attached?.[1]) names.add(attached[1]);
 
+  // `tools[IMAGE_TOOL] = ...` — named next to the prompt text that cites it.
+  const image = /IMAGE_TOOL\s*=\s*'([^']+)'/.exec(
+    repoFile('apps/api/routes/chat/services/imageVisibility.ts')
+  );
+  if (image?.[1]) names.add(image[1]);
+
   // `tools[loopToolName] = ...` — one per artifact kind.
   for (const m of repoFile('apps/api/routes/chat/services/artifactKindRegistry.ts').matchAll(
     /loopToolName:\s*'([^']+)'/g
