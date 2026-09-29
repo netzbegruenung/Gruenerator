@@ -93,6 +93,7 @@ export default [
       'packages/shared/src/tiptap-editor/**',
       '**/public/**',
       '**/metro.config.js',
+      'apps/mobile/app.config.js',
       'pnpm-lock.yaml',
       'apps/wordpress/**',
       'apps/api/scripts/**',
