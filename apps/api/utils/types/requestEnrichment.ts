@@ -26,7 +26,6 @@ export interface EnrichmentOptions {
   selectedTextIds?: string[] | undefined;
   searchQuery?: string | null | undefined;
   provider?: string | undefined;
-  req?: unknown | undefined;
   enableNotebookEnrich?: boolean | undefined;
   notebookEnrichPrompt?: string | undefined;
 }
@@ -148,13 +147,6 @@ export interface HybridSearchResult {
     similarity_score: number;
     matched_query?: string | undefined;
   }>;
-}
-
-export interface KnowledgeEntry {
-  id?: string | undefined;
-  title: string;
-  content: string;
-  created_at?: string | undefined;
 }
 
 export interface SavedText {
