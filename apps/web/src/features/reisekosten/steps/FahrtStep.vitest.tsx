@@ -47,20 +47,20 @@ describe('FahrtStep', () => {
     render(<FahrtStep state={state} belege={[]} update={vi.fn()} onBeleg={vi.fn()} />);
     expect(screen.getByText('Kfz (privater Pkw)')).toBeInTheDocument();
     expect(screen.getByDisplayValue('10')).toBeInTheDocument();
-    // Below the reimbursable-km threshold: no DB-Flexpreis field shown.
-    expect(screen.queryByText(/DB-Flexpreis/)).not.toBeInTheDocument();
+    // Below the reimbursable-km threshold: no Vorstandsbeschluss checkbox shown.
+    expect(screen.queryByText(/Vorstandsbeschluss/)).not.toBeInTheDocument();
   });
 
-  it('requires a DB-Flexpreis once km exceeds the rate threshold', () => {
+  it('offers the Vorstandsbeschluss once km exceeds the rate threshold', () => {
     const state: ReisekostenState = {
       ...baseState,
       fahrt: {
         ...baseState.fahrt,
-        kfz: { km: 500, fahrzeug: 'pkw', routenplanerVorhanden: false, dbFlexpreis: null },
+        kfz: { km: 600, fahrzeug: 'pkw', routenplanerVorhanden: false, dbFlexpreis: null },
       },
     };
     render(<FahrtStep state={state} belege={[]} update={vi.fn()} onBeleg={vi.fn()} />);
-    expect(screen.getByText(/DB-Flexpreis 2\. Kl\. \(Pflicht > 400 km\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Vorstandsbeschluss für mehr als 500 km/)).toBeInTheDocument();
   });
 
   it('has no axe violations', async () => {

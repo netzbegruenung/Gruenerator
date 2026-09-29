@@ -3,30 +3,9 @@ import {
   type ReisekostenState,
   type VerpflegungAbzug,
 } from '@gruenerator/contracts';
+import { emptyReisekostenState } from '@gruenerator/shared/reisekosten';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-
-export function emptyState(): ReisekostenState {
-  return {
-    rateKey: 'de-DE/nrw',
-    stammdaten: {
-      name: '',
-      strasse: '',
-      hausnr: '',
-      plz: '',
-      ort: '',
-      email: '',
-      telefon: '',
-      iban: '',
-      bic: '',
-    },
-    reise: { anlass: '', ziel: '', reisebeginn: '', rueckkehr: '' },
-    fahrt: { bahn: null, oepnv: null, kfz: null, miete: null, taxi: null, sonstiges: null },
-    verpflegungAbzuege: [],
-    uebernachtung: null,
-    spende: 0,
-  };
-}
 
 type Patch = (state: ReisekostenState) => ReisekostenState;
 
@@ -50,7 +29,7 @@ export const useReisekostenStore = create<ReisekostenStore>()(
   persist(
     (set) => ({
       step: 0,
-      state: emptyState(),
+      state: emptyReisekostenState(),
       belege: [],
       setStep: (step) => set({ step }),
       update: (patch) => set((s) => ({ state: patch(s.state) })),
@@ -74,7 +53,7 @@ export const useReisekostenStore = create<ReisekostenStore>()(
         }),
       addBeleg: (beleg) => set((s) => ({ belege: [...s.belege, beleg] })),
       removeBeleg: (index) => set((s) => ({ belege: s.belege.filter((_, i) => i !== index) })),
-      reset: () => set({ step: 0, state: emptyState(), belege: [] }),
+      reset: () => set({ step: 0, state: emptyReisekostenState(), belege: [] }),
     }),
     {
       name: 'gruenerator-reisekosten',
