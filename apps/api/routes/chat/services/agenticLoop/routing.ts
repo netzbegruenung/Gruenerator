@@ -197,6 +197,32 @@ export function rewritesSuppliedText(raw: string): boolean {
   return hasRewriteTarget(t) || REGENERATE_RE.test(t) || CREATIVE_FORM_RE.test(t);
 }
 
+/** „Antworte auf diese Mail", „Beantworte die Anfrage" — the job a notebook exists for. */
+const ANSWER_ORDER_RE = /\b(be)?antwort/i;
+
+/**
+ * The order is pure text work on material the turn brought along — correct,
+ * translate, shorten, rephrase it — and needs nothing looked up.
+ *
+ * Narrower than {@link rewritesSuppliedText} on purpose, because it switches
+ * retrieval OFF rather than just skipping a carry: creative forms are out (a
+ * slogan for a Landesverband still wants its positions), and so is anything
+ * that merely NAMES a rewrite word inside a writing, answering or research
+ * order — `k[üu]rze…` also matches the adjective in „schreib eine kurze
+ * Antwort auf diese Bürgeranfrage", which is exactly the turn a notebook-bound
+ * agent must search for.
+ */
+export function reworksSuppliedText(raw: string): boolean {
+  const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
+  if (t.length === 0) return false;
+  if (!hasRewriteTarget(t) && !REGENERATE_RE.test(t)) return false;
+  return !(
+    WRITING_ORDER_RE.test(t) ||
+    ANSWER_ORDER_RE.test(t) ||
+    looksLikeExplicitResearchOrder(t)
+  );
+}
+
 /**
  * Eine Anschlussfrage, die den Gegenstand des VORIGEN Turns weiterträgt statt
  * ein eigenes Thema zu eröffnen — „Und die FDP?", „Was ist mit Bayern?".
@@ -976,6 +1002,12 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   // where the `memory` tool is mounted. Single-pass would confirm a save it
   // never made (the failure the explicit-memory rebuild exists for).
   const memoryRequest = looksLikeMemoryRequest(p.lastUserText);
+  // „Kannst du das lektorieren?" is shaped like a question, but it asks for work
+  // on the material the turn brought along — nothing to look up. Without this
+  // the question rescue sent it into the loop, where the planner reached for
+  // tools instead of the text (live 29.09.2026: a pasted newsletter came back
+  // summarised instead of corrected).
+  const reworksOwnMaterial = p.hasOwnMaterial === true && reworksSuppliedText(p.lastUserText);
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
     // A named first-party connector puts the turn in the loop whatever the
@@ -985,7 +1017,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
     // shapes, and they can arrive under any verdict, not just a no-tool one.
     p.hasManagedSources === true ||
     (isGroundableProse(p.intent) &&
-      (looksLikeToolableQuestion(p.lastUserText) ||
+      ((looksLikeToolableQuestion(p.lastUserText) && !reworksOwnMaterial) ||
         p.classifierContradictedResearch === true ||
         unsourcedWriting ||
         !selfContained)) ||
@@ -1058,6 +1090,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       selfContained,
       memoryRequest,
       hasOwnMaterial: p.hasOwnMaterial === true,
+      ...(reworksOwnMaterial && { reworksOwnMaterial: true }),
       // Only on image turns, so the imageless decision maps keep their columns.
       ...(p.hasImageAttachments && { imageStaysSinglePass }),
     },
