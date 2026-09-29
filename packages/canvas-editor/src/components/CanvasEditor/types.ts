@@ -121,6 +121,6 @@ export interface PageWrapperProps {
     /** Only the active page publishes its selection to awareness. */
     publishSelection?: boolean;
   };
-  /** Forwarded ref to the wrapper div — used for IntersectionObserver tracking */
+  /** Forwarded ref to the wrapper div — used for scroll-into-view */
   pageRef?: React.Ref<HTMLDivElement>;
 }
