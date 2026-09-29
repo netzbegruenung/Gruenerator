@@ -21,10 +21,21 @@ const TRASH_ROOT = ['trash'] as const;
 export const trashKey = (kind: TrashKind | null) => ['trash', kind ?? 'all'] as const;
 
 /** The trash answers errors as `{ error }`; keep status and wording together. */
-function trashError(res: { status: number; body: unknown }): ApiError {
+export function trashError(res: { status: number; body: unknown }): ApiError {
   const body = res.body as { error?: unknown } | null;
   const message = typeof body?.error === 'string' ? body.error : 'Aktion fehlgeschlagen.';
   return new ApiError(res.status, message);
+}
+
+export function toastRestoreError(err: unknown): void {
+  // A 409 is no fault: a live item took the name meanwhile, and the server
+  // says which. The generic dictionary has no 409 entry and would both
+  // hide that sentence and report the conflict to Sentry as unclassified.
+  if (isApiErrorWithStatus(err, 409) && err instanceof Error) {
+    toast.error('Wiederherstellen nicht möglich', { description: err.message });
+    return;
+  }
+  toastApiError(err, { source: 'mutation' });
 }
 
 export function useTrashList(kind: TrashKind | null) {
@@ -84,14 +95,7 @@ export function useRestoreTrashItem() {
     }),
     onError: (err, _item, context) => {
       rollback(qc, context?.snapshot);
-      // A 409 is no fault: a live item took the name meanwhile, and the server
-      // says which. The generic dictionary has no 409 entry and would both
-      // hide that sentence and report the conflict to Sentry as unclassified.
-      if (isApiErrorWithStatus(err, 409) && err instanceof Error) {
-        toast.error('Wiederherstellen nicht möglich', { description: err.message });
-        return;
-      }
-      toastApiError(err, { source: 'mutation' });
+      toastRestoreError(err);
     },
     onSuccess: (_restored, item) => invalidateAfterTrashChange(qc, item.kind),
     onSettled: () => void qc.invalidateQueries({ queryKey: TRASH_ROOT }),
