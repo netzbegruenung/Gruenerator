@@ -3,13 +3,11 @@
  *
  * Discovery walks several WP REST endpoints and takes seconds, which used to
  * be paid again on every "Auswahl ändern" click. Results are cached per site
- * URL so re-opening a site is instant, and the pencil button prefetches on
- * hover so even the first open usually finds a warm cache.
+ * URL so re-opening a site is instant.
  */
 import { wpErrorResponseSchema, type WpDiscoverResponse } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
 
 const STALE_TIME = 10 * 60 * 1000;
 const GC_TIME = 30 * 60 * 1000;
@@ -69,15 +67,4 @@ export function useWordpressDiscovery(siteUrl: string | null) {
     ...discoveryOptions(siteUrl ?? '', queryClient),
     enabled: Boolean(siteUrl),
   });
-}
-
-/** Warm the cache from a hover/focus, so opening the panel feels instant. */
-export function useWordpressDiscoveryPrefetch() {
-  const queryClient = useQueryClient();
-  return useCallback(
-    (siteUrl: string) => {
-      void queryClient.prefetchQuery(discoveryOptions(siteUrl, queryClient));
-    },
-    [queryClient]
-  );
 }
