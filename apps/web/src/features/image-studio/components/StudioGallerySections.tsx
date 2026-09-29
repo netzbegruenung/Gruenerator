@@ -23,6 +23,7 @@ import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { useAuthStore } from '../../../stores/authStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { resolveApiAssetUrl, shareThumbnailPreviewUrl } from '../../../utils/platform';
+import { showTrashUndoToast } from '../../trash/trashUndoToast';
 import ReelsSection from '../../workplace/components/ReelsSection';
 import { useRecentCanvases } from '../hooks/useRecentCanvases';
 import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecentGalleryItems';
@@ -152,12 +153,16 @@ const StudioGallerySections = () => {
 
   const handleDeleteCanvas = useCallback(
     (item: CanvasListItem) => {
-      if (!window.confirm('Sharepic wirklich löschen?')) return;
       void getContractsClient()
         .canvas.remove({ params: { id: item.id } })
         .then((result) => {
           if (result.status === 200) {
             void queryClient.invalidateQueries({ queryKey: ['canvas', 'list'] });
+            showTrashUndoToast(queryClient, {
+              kind: 'collaborative_document',
+              id: item.id,
+              title: item.title,
+            });
           } else {
             console.error('[StudioGallerySections] canvas delete failed', result.status);
           }
@@ -171,12 +176,18 @@ const StudioGallerySections = () => {
 
   const handleDeleteShare = useCallback(
     (item: RecentGalleryItem) => {
-      if (!window.confirm('Sharepic wirklich löschen?')) return;
       void deleteShare(item.shareToken)
-        .then(() => refreshGallery())
+        .then(() => {
+          refreshGallery();
+          showTrashUndoToast(
+            queryClient,
+            { kind: 'shared_media', id: item.shareToken, title: item.title },
+            { onRestored: refreshGallery }
+          );
+        })
         .catch((err: unknown) => console.error('[StudioGallerySections] share delete failed', err));
     },
-    [deleteShare, refreshGallery]
+    [deleteShare, refreshGallery, queryClient]
   );
 
   const handleRenameShare = useCallback(
