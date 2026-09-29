@@ -49,6 +49,7 @@ export function useToolbarHandlers({
       },
       handleMoveLayer: (direction: 'up' | 'down') => ref?.current?.handleMoveLayer?.(direction),
       handleDuplicate: () => ref?.current?.handleDuplicate?.(),
+      handleDeleteElement: () => ref?.current?.handleDeleteElement?.(),
       handleColorSelect: (color: string) => ref?.current?.handleColorSelect?.(color),
       handleOpacityChange: (id: string, opacity: number, type: string) =>
         ref?.current?.handleOpacityChange?.(id, opacity, type),

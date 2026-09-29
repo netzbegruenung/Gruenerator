@@ -62,6 +62,7 @@
  * Zustand, wechselte das Feld beim ersten Marker mitten im Tippen den
  * Renderer, und der Editor würde unter der Hand abgeräumt.
  */
+import { PLAIN_STYLE, splitListItems } from '@gruenerator/contracts';
 import {
   createContext,
   useCallback,
@@ -74,8 +75,6 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
-
-import { PLAIN_STYLE, splitListItems } from '@gruenerator/contracts';
 
 import { fontMarkSupport, type FontMarkSupport } from '../utils/fontMarkSupport';
 import { fontStyleForRun, measureTextWidthWithFont } from '../utils/textUtils';
@@ -201,6 +200,14 @@ export function useCanvasTextFormatting(): {
   useEffect(() => claimHost?.(), [claimHost]);
   if (!context || !context.editor || !context.editingId) return null;
   return { editor: context.editor, marks: context.marks, editingId: context.editingId };
+}
+
+/**
+ * Wird gerade ein Text bearbeitet? Meldet sich — anders als
+ * `useCanvasTextFormatting` — NICHT als Wirt an, die Karte bleibt also, wo sie ist.
+ */
+export function useIsCanvasTextEditing(): boolean {
+  return useContext(TextEditorContext)?.editingId != null;
 }
 
 /**
