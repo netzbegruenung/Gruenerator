@@ -17,6 +17,7 @@ import {
   resolveEditorSurfaceKind,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import {
+  IMAGE_TOOL,
   type ImageVisibility,
   imageVisibility,
 } from '../../../../routes/chat/services/imageVisibility.js';
@@ -569,7 +570,7 @@ ${embedUntrusted('anhang', limitedContext)}`;
  * Warum die Bytes fehlen — je Grund ein Satz. „Nicht sichtbar“ steht nie ohne
  * Grund da: ohne ihn liest es sich wie ein Fehler, und das Modell rät doch.
  */
-const NOT_VISIBLE_REASON: Record<Exclude<ImageVisibility, 'visible'>, string> = {
+const NOT_VISIBLE_REASON: Record<Exclude<ImageVisibility, 'visible' | 'tool'>, string> = {
   // Unerreichbar — der Block unten steht hinter der Leerprüfung. Der Typ
   // verlangt den Fall, und ein leerer Satz wäre die stillere Lüge.
   none: 'Die Bilder sind NICHT in der Nachricht sichtbar.',
@@ -592,10 +593,20 @@ const UNGROUNDED_CLAUSE =
   'Es liegt auch keine Beschreibung davon vor. Sage das offen und rate den Inhalt nicht.';
 
 /**
+ * Der Loop sieht keine Pixel, kann sie aber über das Werkzeug lesen (#3841).
+ * Gilt für beide Rollen im Split-Modus: der Planer ruft das Werkzeug, der
+ * werkzeuglose Schreiber findet dessen Befund in den Quellen.
+ */
+const TOOL_SENTENCE =
+  'Die Bilder sind NICHT in der Nachricht sichtbar. Ihren Inhalt kennst du nur aus den ' +
+  `Ergebnissen des Werkzeugs ${IMAGE_TOOL} (\`bild\` = seine Nummer, \`frage\` = was du darüber ` +
+  'wissen musst). Sag nichts über ihren Inhalt, was dort nicht steht, und rate ihn nicht.';
+
+/**
  * Format image attachment context for the system message.
  * Instructs the model to acknowledge and describe the attached images.
  */
-function formatImageContext(state: ChatGraphState): string {
+function formatImageContext(state: ChatGraphState, opts: SystemMessageOptions): string {
   const sections: string[] = [];
 
   // Vision-grounded before/after descriptions populated by imageEditNode after a
@@ -609,17 +620,23 @@ function formatImageContext(state: ChatGraphState): string {
 
   if (state.imageAttachments && state.imageAttachments.length > 0) {
     const count = state.imageAttachments.length;
-    const names = state.imageAttachments.map((img) => img.name).join(', ');
     // Ob die Bytes wirklich in der Nachricht stehen, beantwortet EINE Stelle
     // für alle Antwortpfade (#3307, #3313). Vorher entschied das hier ein
     // eigener Ausdruck, und der Bearbeitungs- wie der Wiederaufnahme-Pfad
     // widersprachen ihm — ein Modell, dem man sagt, es sehe ein Bild, das ihm
     // niemand gegeben hat, beschreibt es trotzdem.
-    const visibility = imageVisibility(state);
+    const visibility = imageVisibility(state, { loop: opts.loop === true });
+    // Numbered on the tool path: names repeat ("image.png" twice from the
+    // clipboard), and `bild_ansehen` addresses an image by its number.
+    const names = state.imageAttachments
+      .map((img, i) => (visibility === 'tool' ? `Bild ${i + 1}: ${img.name}` : img.name))
+      .join(', ');
     const sentence =
       visibility === 'visible'
         ? 'Die Bilder sind in der Nachricht sichtbar.'
-        : `${NOT_VISIBLE_REASON[visibility]} ${hasEditDescriptions ? GROUNDED_CLAUSE : UNGROUNDED_CLAUSE}`;
+        : visibility === 'tool'
+          ? TOOL_SENTENCE
+          : `${NOT_VISIBLE_REASON[visibility]} ${hasEditDescriptions ? GROUNDED_CLAUSE : UNGROUNDED_CLAUSE}`;
     sections.push(`
 
 ## ANGEHÄNGTE BILDER
@@ -1838,6 +1855,12 @@ export interface SystemMessageOptions {
    * of the same name on {@link buildAnswerFormatRule} — it is the only consumer.
    */
   retrievalExpected?: boolean;
+  /**
+   * The agentic loop answers this turn. It never puts image bytes into its
+   * messages, so the image block points to `bild_ansehen` instead of claiming
+   * the images are visible (`imageVisibility`).
+   */
+  loop?: boolean;
 }
 
 /**
@@ -1893,7 +1916,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   const isPinnedTransfer = !!state.pipelineSourceText;
   const currentDocumentContext = isPinnedTransfer ? '' : formatCurrentDocument(state);
   const attachmentContext = isPinnedTransfer ? '' : formatAttachmentContext(state);
-  const imageContext = formatImageContext(state);
+  const imageContext = formatImageContext(state, opts);
   const summaryContextFormatted = formatSummaryContext(summaryContext);
   const computedResultFormatted = formatComputedResultContext(computedResult);
   const tabularComputeGuidance = formatTabularComputeGuidance(state);

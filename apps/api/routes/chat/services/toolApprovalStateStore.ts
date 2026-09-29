@@ -56,7 +56,11 @@ export interface SuspendedTurnStore<TPayload extends { createdAt: number }> {
  * Tab oder ein Doppelklick darf den Zug nicht zweimal fortsetzen).
  */
 export function createSuspendedTurnStore<
-  TPayload extends { createdAt: number; classifiedState: ChatGraphState },
+  TPayload extends {
+    createdAt: number;
+    classifiedState: ChatGraphState;
+    requestContext: StoredRequestContext;
+  },
 >(opts: { prefix: string; claimPrefix: string; label: string }): SuspendedTurnStore<TPayload> {
   const key = (threadId: string): string => opts.prefix + threadId;
   const claimKey = (threadId: string, turnId: string): string =>
@@ -65,8 +69,14 @@ export function createSuspendedTurnStore<
   return {
     async store(threadId, data) {
       // Gleiche Begründung wie beim Klärungs-Zustand: die PDF-Formularbytes liegen
-      // schon in `requestContext.processedMeta`.
-      const { pdfFormAttachments: _bytes, ...classifiedState } = data.classifiedState;
+      // schon in `requestContext.processedMeta`. Die Bildbytes ebenso in
+      // `requestContext.imageAttachments` — seit Bildzüge in den Loop dürfen
+      // (#3841), pausiert auch einer mit mehreren MB Fotos, 24 h lang.
+      const {
+        pdfFormAttachments: _bytes,
+        imageAttachments: _images,
+        ...classifiedState
+      } = data.classifiedState;
       const entry = {
         ...data,
         classifiedState: classifiedState as ChatGraphState,
@@ -87,7 +97,11 @@ export function createSuspendedTurnStore<
       try {
         const raw = await redisClient.get(key(threadId));
         if (!raw) return undefined;
-        return parseJSON<TPayload>(raw);
+        const entry = parseJSON<TPayload>(raw);
+        // Zurück aus der einen gespeicherten Kopie: ohne sie montiert der
+        // fortgesetzte Loop `bild_ansehen` nicht mehr.
+        entry.classifiedState.imageAttachments = entry.requestContext.imageAttachments ?? [];
+        return entry;
       } catch (err) {
         log.error(`${opts.label}-Zustand für Thread ${threadId} nicht lesbar:`, err);
         return undefined;

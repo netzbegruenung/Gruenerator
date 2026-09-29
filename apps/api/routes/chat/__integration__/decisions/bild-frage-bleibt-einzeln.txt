@@ -1,0 +1,17 @@
+# bild-frage-bleibt-einzeln — routing
+# Simulated decision map. Regenerate with SIM_UPDATE=1.
+# A green diff proves the BRANCHES ran as scripted. It proves nothing
+# about what a real model would have done.
+
+## turn 0: "Was steht auf dem Plakat?"
+router.run_agentic               = single_pass                    forcedLoop=false forcedTool=false gateOpen=true hasImageAttachments=true hasManagedSources=false hasOwnMaterial=true hasSelectedNotebook=false imageStaysSinglePass=true inLoopSet=true intent=produktion isCompound=false isPdfFillRequest=false loopEnabled=true memoryRequest=false mustLoop=false secondaryAllowed=true selfContained=true unsourcedWriting=false
+router.intent_override           = (not reached)
+router.implicit_recipe           = (not reached)
+router.persistent_action_gate    = (not reached)
+classifier.tier                  = (not reached)
+respond.answer_format            = brief                          complexity=simple intent=produktion retrievalExpected=false sourceCount=0 synthesisMode=none taskShape=none
+loop.tool_guard                  = (none)
+loop.synth_verdict               = (not reached)
+notebook.answer_mode             = (not reached)
+-- wire --
+intent=produktion agentic=false tools=[] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=24

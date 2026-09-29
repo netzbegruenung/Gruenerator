@@ -43,7 +43,13 @@ export type ImageVisibility =
    * ob er gerendert wird (`formatImageContext`) — auf einen fehlenden Abschnitt
    * zu zeigen ist derselbe Fehler wie eine erfundene Sichtbarkeit.
    */
-  | 'image_edit';
+  | 'image_edit'
+  /**
+   * Der Loop (#3841): keine Bytes in der Nachricht, aber das Werkzeug
+   * `bild_ansehen` liest die Bilder auf Nachfrage. Der Loop reicht nie Pixel an
+   * sein Modell — die Planer-Lanes sind nicht als Vision-fähig geführt.
+   */
+  | 'tool';
 
 /**
  * Sieht das Modell die angehängten Bilder in diesem Zug?
@@ -51,12 +57,21 @@ export type ImageVisibility =
  * Reihenfolge der Gründe: der ausdrückliche Schalter zuerst. Wer „Bildanalyse"
  * abwählt, soll das im Prompt wiederfinden und nicht die Erklärung eines
  * anderen Zweigs lesen.
+ *
+ * `loop` sagt, welcher Pfad antwortet. Dieselbe Antwort entscheidet, ob der
+ * Katalog `bild_ansehen` montiert — Zusage im Prompt und Werkzeug kommen so aus
+ * einer Quelle.
  */
 export function imageVisibility(
-  state: Pick<ChatGraphState, 'intent' | 'enabledTools' | 'imageAttachments'>
+  state: Pick<ChatGraphState, 'intent' | 'enabledTools' | 'imageAttachments'>,
+  opts: { loop?: boolean } = {}
 ): ImageVisibility {
   if (!state.imageAttachments || state.imageAttachments.length === 0) return 'none';
   if (state.enabledTools?.['vision'] === false) return 'vision_off';
   if (state.intent === 'image_edit') return 'image_edit';
-  return 'visible';
+  return opts.loop === true ? 'tool' : 'visible';
 }
+
+/** Name des Loop-Werkzeugs, das die Bilder bei `'tool'` liest. Hier und nicht am
+ *  Werkzeug, weil der Prompt-Bau es nennt und diese Datei importfrei bleibt. */
+export const IMAGE_TOOL = 'bild_ansehen';
