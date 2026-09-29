@@ -1,3 +1,5 @@
+import { RESEARCH_LOOP_TOOLS } from '@gruenerator/shared/chat-intents';
+
 import { type DecisionPointId } from '../../../utils/decisionJournal.js';
 
 import { type ScriptedResponse } from './harness/loopScript.js';
@@ -51,6 +53,16 @@ export interface LoopScenario {
    * dass ein Integrationstest es merkt.
    */
   firstToolChoice?: string;
+  /**
+   * Das `activeTools` des ERSTEN Planer-Schritts: jedes Werkzeug darin muss aus
+   * `within` stammen, keines aus `without`.
+   *
+   * Gegenstück zu `firstToolChoice` für den Zwang OHNE benanntes Werkzeug
+   * (#3880): `'required'` allein sagt nicht, unter WELCHEN Werkzeugen der
+   * Planer wählen muss — und genau dort griff er zu `media`, `read_pdf_form`
+   * und `summarize`.
+   */
+  firstStepActiveTools?: { within: readonly string[]; without: readonly string[] };
   /**
    * Ein Textstück, das im Systemtext des ersten Planer-Schritts stehen MUSS.
    *
@@ -420,5 +432,21 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
     // sein Digest erreicht den Schreiber also nur ueber diesen Block. Ohne ihn
     // war die teure Map-Reduce ueber den Volltext umsonst.
     synthSystemIncludes: 'ERGEBNISSE EIGENER WERKZEUGE IN DIESEM TURN',
+  },
+  {
+    id: 'recherche-auftrag-zuschnitt',
+    category: 'forced-scope',
+    note: 'Keine Modellannahme: ein ausdruecklicher Rechercheauftrag zwingt den ersten Aufruf (`research_order` in `shouldForceFirstToolCall`), und `forcedFirstStepTools` schneidet den Schritt auf die Recherche-Familie zu. Beides entscheidet ohne Modell. Gemessener Ausfall (#3880): `required` ueber den vollen Katalog, und der Planer griff zu `media`, `read_pdf_form` oder `summarize`. Das Skript ruft `web_search`; die Websuche ist gestubbt. `read_pdf_form` montiert diese Harness nicht (kein ausfuellbares PDF am Turn) — die Negativ-Zusicherung tragen `media` und `summarize`, die hier montiert sind.',
+    prompt: 'recherchiere aktuelle Zahlen zu Windkraft',
+    streams: [
+      { calls: [{ tool: 'web_search', args: { query: 'Windkraft aktuelle Zahlen' } }] },
+      { text: GERMAN_ANSWER },
+    ],
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
+    firstToolChoice: 'required',
+    firstStepActiveTools: {
+      within: [...RESEARCH_LOOP_TOOLS],
+      without: ['read_pdf_form', 'media', 'summarize'],
+    },
   },
 ];

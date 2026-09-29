@@ -49,6 +49,8 @@ import { ATTACHED_DOCS_TOOL, retrievableAttachedSources } from './attachedDocume
 import {
   assembleToolCatalog,
   buildToolReplay,
+  isLookupTool,
+  priorToolNames,
   priorTurnRetrieved,
   createLoopGuards,
   rehydrateCarriedSources,
@@ -57,9 +59,11 @@ import {
 } from './catalogAssembly.js';
 import { isToolScopeEnforced } from './flags.js';
 import {
+  forcedFirstStepTools,
   isMcpCapabilityQuestion,
   pinnedFirstTool,
   shouldForceFirstToolCall,
+  type ForceReason,
 } from './forceFirstToolCall.js';
 import { createTurnClocks, resolveBudget } from './loopBudget.js';
 import {
@@ -248,6 +252,13 @@ export async function streamAgenticResponse(
   let degraded: AgenticResponseOutcome['degraded'] | null = null;
   // Wie das Freigabe-Gate: der Abbruchpfad und der Rückgabewert lesen es.
   let askGate: AskHumanGate | null = null;
+  // Außerhalb des try, aus demselben Grund wie `answerReplaced`: die
+  // Zusammenfassung nennt den Zuschnitt des erzwungenen ersten Schritts.
+  let forceScope: {
+    reason: ForceReason;
+    tools: readonly string[] | null;
+    named: string | null;
+  } | null = null;
 
   // Computed BEFORE the model is resolved: the same number decides the lane
   // (precise + reasoning on) and, further down, whether the writer gives up the
@@ -566,29 +577,29 @@ export async function streamAgenticResponse(
 
     // Die acht Wege dahinter stehen in `shouldForceFirstToolCall` — samt der
     // Live-Ausfälle, die jeden einzelnen erzwungen haben.
-    const forceFirstToolCall =
-      shouldForceFirstToolCall({
-        researchBanned,
-        intent: finalState.intent,
-        hasMcpScope: finalState.mcpServerScope != null,
-        isMcpCapabilityQuestion: mcpCapabilityQuestion,
-        mcpToolCount: mcpCatalog?.labels.size ?? 0,
-        lastUserText,
-        loopDemotedFromRetrieval: finalState.loopDemotedFromRetrieval === true,
-        priorTurnRetrieved: priorTurnRetrieved(toolHistory),
-        classifierContradictedResearch: finalState.classifierContradictedResearch === true,
-        materialHeavy,
-        pinnedTool,
-        hasAttachedDocuments,
-        summaryAsk,
-        attachedSeedDelivered: seeded.delivered,
-      }) !== null;
+    const forceReason = shouldForceFirstToolCall({
+      researchBanned,
+      intent: finalState.intent,
+      hasMcpScope: finalState.mcpServerScope != null,
+      isMcpCapabilityQuestion: mcpCapabilityQuestion,
+      mcpToolCount: mcpCatalog?.labels.size ?? 0,
+      lastUserText,
+      loopDemotedFromRetrieval: finalState.loopDemotedFromRetrieval === true,
+      priorTurnRetrieved: priorTurnRetrieved(toolHistory),
+      classifierContradictedResearch: finalState.classifierContradictedResearch === true,
+      materialHeavy,
+      pinnedTool,
+      hasAttachedDocuments,
+      summaryAsk,
+      attachedSeedDelivered: seeded.delivered,
+    });
+    const forceFirstToolCall = forceReason !== null;
 
     // WELCHES Werkzeug der erste Schritt ruft, wenn eine @-Erwähnung eines
     // benannt hat. `required` allein garantiert nur irgendeinen Aufruf — und der
     // Erwähnungstext ist zu diesem Zeitpunkt aus der Nachricht entfernt, das
     // Modell kann die Wahl also gar nicht mehr sehen.
-    const firstToolName = forceFirstToolCall
+    const firstToolName = forceReason
       ? pinnedFirstTool({
           pinnedTool,
           hasAttachedDocuments,
@@ -596,8 +607,33 @@ export async function streamAgenticResponse(
           isMounted: (name) => name in wrapped,
         })
       : null;
+    // Ohne benanntes Werkzeug bekommt der erzwungene Schritt nur die Werkzeuge,
+    // die seinen Grund erfüllen (#3880) — sonst wählt der Planer unter zwanzig.
+    const firstStepTools =
+      forceReason && !firstToolName
+        ? forcedFirstStepTools({
+            reason: forceReason,
+            intent: finalState.intent,
+            mounted: Object.keys(wrapped),
+            mcpToolNames: Object.keys(mcpCatalog?.tools ?? {}),
+            managedToolNames: Object.keys(systemCatalog?.tools ?? {}),
+            priorToolNames: priorToolNames(toolHistory),
+            isLookupTool,
+          })
+        : null;
     if (firstToolName) {
       log.info(`[Agentic] ${firstToolName} ist als erster Werkzeugaufruf festgelegt`);
+    } else if (firstStepTools) {
+      log.info(
+        `[Agentic] erzwungener erster Aufruf (${forceReason}) sieht nur [${firstStepTools.join(', ')}]`
+      );
+    } else if (forceReason) {
+      log.warn(
+        `[Agentic] erzwungener erster Aufruf (${forceReason}) ohne passendes Werkzeug — voller Katalog`
+      );
+    }
+    if (forceReason) {
+      forceScope = { reason: forceReason, tools: firstStepTools, named: firstToolName };
     }
 
     // The synth phase emits nothing between the last tool result and the first
@@ -668,6 +704,7 @@ export async function streamAgenticResponse(
       activeTools: () => assembled.toolScope.activeTools(),
       forceFirstToolCall,
       firstToolName,
+      firstStepTools,
       // Turns "the web is now allowed" into "the web runs". Only when the tool
       // is actually mounted — a restricted agent without web_search must not be
       // forced into a tool it doesn't have.
@@ -930,6 +967,7 @@ export async function streamAgenticResponse(
       deferred: toolScope.deferredToolNames().length,
       misses: toolScope.misses(steps.map((s) => s.toolName)),
     },
+    forceScope,
     onInfo: (m) => log.info(m),
   });
   costLedger.log();
