@@ -121,7 +121,7 @@ export const chatThreadAttachments = pgTable(
  */
 export const chatThreadCanvases = pgTable('chat_thread_canvases', {
   id: uuid('id').primaryKey().defaultRandom(),
-  thread_id: uuid('thread_id').notNull(),
+  thread_id: uuid('thread_id').notNull(), // FK → chat_threads.id (ON DELETE CASCADE)
   variant_id: text('variant_id').notNull(),
   canvas_id: uuid('canvas_id').notNull(), // FK → collaborative_documents.id (ON DELETE CASCADE)
   canvas_type: text('canvas_type').notNull(),
@@ -138,7 +138,7 @@ export const chatThreadCanvases = pgTable('chat_thread_canvases', {
  */
 export const chatThreadReels = pgTable('chat_thread_reels', {
   id: uuid('id').primaryKey().defaultRandom(),
-  thread_id: uuid('thread_id').notNull(),
+  thread_id: uuid('thread_id').notNull(), // FK → chat_threads.id (ON DELETE CASCADE)
   project_id: uuid('project_id').notNull(), // FK → subtitler_projects.id (ON DELETE CASCADE)
   is_active: boolean('is_active').notNull().default(false),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
