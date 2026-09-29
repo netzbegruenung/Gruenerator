@@ -19,6 +19,9 @@ const SELECTION_LABELS: Record<FloatingModuleState['type'], string> = {
   background: 'Hintergrund',
   balken: 'Balken',
   frame: 'Rahmen',
+  chart: 'Diagramm',
+  'pill-badge': 'Badge',
+  'circle-badge': 'Badge',
 };
 
 /**

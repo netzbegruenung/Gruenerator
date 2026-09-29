@@ -119,6 +119,10 @@ export function useFloatingModuleHandlers<
             debouncedSaveToHistory(next);
           }
         }
+      } else if (activeFloatingModule.type === 'pill-badge') {
+        actions.updatePillBadge?.(activeFloatingModule.data.id, { backgroundColor: color });
+      } else if (activeFloatingModule.type === 'circle-badge') {
+        actions.updateCircleBadge?.(activeFloatingModule.data.id, { backgroundColor: color });
       }
     },
     [activeFloatingModule, actions, config.elements, state, setState, debouncedSaveToHistory]
@@ -188,6 +192,12 @@ export function useFloatingModuleHandlers<
         if (actions.updateUserImage) {
           actions.updateUserImage(id, { opacity });
         }
+      } else if (type === 'pill-badge') {
+        actions.updatePillBadge?.(id, { opacity });
+      } else if (type === 'circle-badge') {
+        actions.updateCircleBadge?.(id, { opacity });
+      } else if (type === 'chart') {
+        actions.updateChart?.(id, { opacity });
       }
     },
     [actions, config.elements, state, setState, debouncedSaveToHistory]
