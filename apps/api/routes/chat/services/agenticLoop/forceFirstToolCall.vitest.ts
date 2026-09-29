@@ -273,6 +273,25 @@ describe('shouldForceFirstToolCall', () => {
       expect(force({ loopDemotedFromRetrieval: true })).toBe('demoted_retrieval');
     });
 
+    // #3903, beta 29.09.2026: 370 Zeichen Newsletter plus „rechtschreibung
+    // korrigieren" — zu kurz für `materialHeavy`, trotzdem nichts zu suchen.
+    // „Schreibt uns" und „eure Antworten" im Stoff dürfen das nicht kippen,
+    // ein „Suche" darin darf keinen Recherche-Auftrag machen.
+    const newsletter =
+      'Liebe Freundinnen und Freunde, das Herbst-Update ist da! Die App gibt es jetzt für Android und iOS, und die Suche ist schneller. Schreibt uns, wir freuen uns auf eure Antworten.';
+
+    it.each([
+      [`${newsletter}\n\nrechtschreibung korrigieren`],
+      [`Kannst du das lektorieren?\n\n${newsletter}`],
+    ])('kurzer eingefügter Text mit Überarbeitungs-Auftrag sucht nicht: %s', (lastUserText) => {
+      expect(force({ loopDemotedFromRetrieval: true, lastUserText })).toBeNull();
+    });
+
+    it('ein Recherche-Auftrag oben zählt, auch wenn der Stoff mit „korrigiert" endet', () => {
+      const lastUserText = `recherchiere, ob diese Zahlen stimmen\n\n${newsletter}\n\nDie Zahlen haben wir korrigiert.`;
+      expect(force({ loopDemotedFromRetrieval: true, lastUserText })).toBe('research_order');
+    });
+
     it('derselbe Turn MIT eigenem Material sucht nicht', () => {
       // Turn 4 vom 13.08.2026: die Prüfliste wurde als `web@0.35` demotiert und
       // suchte den Artikel im Netz, der im Kontext stand.
