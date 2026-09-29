@@ -793,6 +793,17 @@ class NotebookQdrantHelper {
     });
   }
 
+  /** Every notebook of `userId`, trashed ones included — for account deletion. */
+  async listAllNotebookIdsOfUser(userId: string): Promise<string[]> {
+    await this.ensureInitialized();
+    const points = await this.qdrantOps!.scrollDocuments(
+      this.qdrant.collections.notebook_collections,
+      { must: [{ key: 'user_id', match: { value: userId } }] },
+      { limit: 1000, withPayload: true }
+    );
+    return points.map((point) => point.payload.collection_id as string);
+  }
+
   /** The user's trashed notebooks, unsorted; the Papierkorb pages them in memory. */
   async listTrashedNotebookCollections(userId: string): Promise<TrashedNotebook[]> {
     return this.scrollTrashed({

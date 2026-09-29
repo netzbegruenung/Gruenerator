@@ -214,13 +214,17 @@ describe('every notebook_collections reader filters liveOnly (source guard)', ()
     'utf8'
   );
 
-  /** Methods that must see trashed points: backfills, the Papierkorb list and the purge. */
+  /**
+   * Methods that must see trashed points: backfills, the Papierkorb list, the
+   * purge and account deletion.
+   */
   const EXEMPT = new Set([
     'backfillSlugSuffixes',
     'backfillGroupShareModes',
     'backfillAudience',
     'scrollTrashed',
     'purgeNotebookCollection',
+    'listAllNotebookIdsOfUser',
   ]);
 
   /** The argument text of every read call on the notebook_collections collection. */
