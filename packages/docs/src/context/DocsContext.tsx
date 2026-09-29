@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  ApiError,
   UnauthorizedError,
   unauthorizedInfoFromResponse,
   type UnauthorizedInfo,
@@ -127,7 +128,12 @@ export function createDocsApiClient(adapter: DocsAdapter): DocsApiClient {
           errorData
         );
       }
-      throw new Error(errorData.message || errorData.error || 'Request failed');
+      // Keeps the status so the web app's retry predicate and toastApiError
+      // can classify a 5xx instead of reporting it as an unclassified error.
+      throw new ApiError(
+        response.status,
+        String(errorData.message || errorData.error || 'Request failed')
+      );
     }
 
     const contentType = response.headers.get('content-type');
