@@ -16,12 +16,12 @@
 
 import { selectedCatalogIconIds } from '../utils/iconInstances';
 
-import type { SectionContext } from './types';
 import type { IconState } from './factory/baseTypes';
+import type { SectionContext } from './types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
-import type { ChartInstance } from '../utils/chartUtils';
 import type { CircleBadgeInstance } from '../primitives/CircleBadge';
 import type { ExtendedAssetsSectionProps } from '../sidebar/sections/assets';
+import type { ChartInstance } from '../utils/chartUtils';
 import type { FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
@@ -224,7 +224,13 @@ export function injectFeatureProps<S extends object, A extends object>(
   if ('frameInstances' in state && 'addFrame' in actions) {
     const stateWithFrames = state as FeatureStateWithFrames;
     injected.frameInstances = stateWithFrames.frameInstances;
-    injected.selectedFrameId = context?.selectedElement || null;
+    // Nur ein Rahmen ist ein ausgewählter Rahmen: die Kataloge springen bei
+    // gesetzter Id in die Rahmen-Ansicht, auch bei einer Illustration.
+    const selectedId = context?.selectedElement ?? null;
+    injected.selectedFrameId =
+      selectedId && stateWithFrames.frameInstances?.some((f) => f.id === selectedId)
+        ? selectedId
+        : null;
     injected.onAddFrame = actions.addFrame as (clipType: string) => void;
 
     if ('updateFrame' in actions) {

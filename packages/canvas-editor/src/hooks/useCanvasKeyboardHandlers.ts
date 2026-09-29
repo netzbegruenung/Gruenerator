@@ -6,6 +6,7 @@ import {
   findDuplicableEntry,
   insertInstance,
 } from '../utils/duplicateElement';
+import { findElementRemover } from '../utils/removeElement';
 import { assertAsPosition } from '../utils/stateTypeAssertions';
 import { findTemplateEntry } from '../utils/templateElementInstance';
 
@@ -296,94 +297,12 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
         }
       }
 
-      // DELETE / BACKSPACE
+      // DELETE / BACKSPACE — dieselbe Tür wie der Löschen-Knopf der mobilen Auswahl.
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (currentState.balkenInstances?.find((b) => b.id === selectedElement)) {
-          if (currentActions.removeBalken) {
-            currentActions.removeBalken(selectedElement);
-            setSelectedElement(null);
-            return;
-          }
-        }
-
-        if (currentState.selectedIcons?.includes(selectedElement)) {
-          if (currentActions.toggleIcon) {
-            currentActions.toggleIcon(selectedElement, false);
-            setSelectedElement(null);
-            return;
-          }
-        }
-
-        if (currentState.shapeInstances?.find((s) => s.id === selectedElement)) {
-          if (currentActions.removeShape) {
-            currentActions.removeShape(selectedElement);
-            setSelectedElement(null);
-            return;
-          }
-        }
-
-        if (currentState.additionalTexts?.find((t) => t.id === selectedElement)) {
-          if (currentActions.removeAdditionalText) {
-            currentActions.removeAdditionalText(selectedElement);
-            setSelectedElement(null);
-            return;
-          }
-        }
-
-        if (currentState.illustrationInstances?.find((i) => i.id === selectedElement)) {
-          if (currentActions.removeIllustration) {
-            currentActions.removeIllustration(selectedElement);
-            setSelectedElement(null);
-            return;
-          }
-        }
-
-        if (currentState.assetInstances?.find((a) => a.id === selectedElement)) {
-          if (currentActions.removeAsset) {
-            currentActions.removeAsset(selectedElement);
-            setSelectedElement(null);
-            return;
-          }
-        }
-
-        if (currentState.pillBadgeInstances?.find((p) => p.id === selectedElement)) {
-          if (currentActions.removePillBadge) {
-            currentActions.removePillBadge(selectedElement);
-            setSelectedElement(null);
-            return;
-          }
-        }
-
-        if (currentState.circleBadgeInstances?.find((c) => c.id === selectedElement)) {
-          if (currentActions.removeCircleBadge) {
-            currentActions.removeCircleBadge(selectedElement);
-            setSelectedElement(null);
-            return;
-          }
-        }
-
-        if (currentState.frameInstances?.find((f) => f.id === selectedElement)) {
-          if (currentActions.removeFrame) {
-            currentActions.removeFrame(selectedElement);
-            setSelectedElement(null);
-            return;
-          }
-        }
-
-        if (currentState.userImageInstances?.find((u) => u.id === selectedElement)) {
-          if (currentActions.removeUserImage) {
-            currentActions.removeUserImage(selectedElement);
-            setSelectedElement(null);
-            return;
-          }
-        }
-
-        if (currentState.chartInstances?.find((c) => c.id === selectedElement)) {
-          if (currentActions.removeChart) {
-            currentActions.removeChart(selectedElement);
-            setSelectedElement(null);
-            return;
-          }
+        const remove = findElementRemover(currentState, currentActions, selectedElement);
+        if (remove) {
+          remove();
+          setSelectedElement(null);
         }
       }
     };
