@@ -28,4 +28,11 @@ describe('invalidateAfterTrashChange', () => {
     invalidateAfterTrashChange(qc, null);
     expect(requestThreadListReload).not.toHaveBeenCalled();
   });
+
+  it('refreshes the candidate site (`my-site`), not the profile website links', () => {
+    const { qc, invalidate } = spyClient();
+    invalidateAfterTrashChange(qc, 'user_site');
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['my-site'] });
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ['user-websites'] });
+  });
 });
