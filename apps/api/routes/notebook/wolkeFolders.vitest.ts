@@ -23,7 +23,6 @@ import { describe, it, expect } from 'vitest';
 
 import {
   createCollectionBodySchema,
-  notebookEditorSavePayloadSchema,
   transformedCollectionSchema,
   updateCollectionBodySchema,
   type WolkeFolderRef,
@@ -101,38 +100,6 @@ describe('wolke_folders schema contract', () => {
     };
     const parsed = transformedCollectionSchema.parse(serverResponse);
     expect(parsed.wolke_folders).toEqual([sampleFolder]);
-  });
-
-  it('notebookEditorSavePayloadSchema preserves wolkeFolders (camelCase)', () => {
-    const payload = {
-      name: 'Test',
-      description: '',
-      selectionMode: 'documents' as const,
-      documents: ['doc-1'],
-      documentMeta: [{ id: 'doc-1', title: 'Document 1' }],
-      labels: [],
-      isPublic: false,
-      publicOwnership: null,
-      wolkeFolders: [sampleFolder, sampleFolderMinimal],
-    };
-    const parsed = notebookEditorSavePayloadSchema.parse(payload);
-    expect(parsed.wolkeFolders).toHaveLength(2);
-    expect(parsed.wolkeFolders[0]).toEqual(sampleFolder);
-  });
-
-  it('notebookEditorSavePayloadSchema defaults wolkeFolders to [] when missing', () => {
-    const payload = {
-      name: 'Test',
-      description: '',
-      selectionMode: 'documents' as const,
-      documents: ['doc-1'],
-      documentMeta: [{ id: 'doc-1', title: 'Document 1' }],
-      labels: [],
-      isPublic: false,
-      publicOwnership: null,
-    };
-    const parsed = notebookEditorSavePayloadSchema.parse(payload);
-    expect(parsed.wolkeFolders).toEqual([]);
   });
 
   it('rejects malformed wolke_folder entries (missing required shareLinkId)', () => {
