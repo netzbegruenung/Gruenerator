@@ -369,7 +369,7 @@ export function GrueneratorArchivedThreadListItem() {
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="h-3.5 w-3.5" />
-            Endgültig löschen
+            Löschen
           </ThreadListItemPrimitive.Delete>
         </ThreadListItemMorePrimitive.Content>
       </ThreadListItemMorePrimitive.Root>

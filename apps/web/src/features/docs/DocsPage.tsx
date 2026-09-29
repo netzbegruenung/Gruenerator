@@ -45,6 +45,7 @@ import {
   presentationTemplates,
 } from '../presentations/presentationTemplates';
 import { getSheetTemplate, sheetTemplates } from '../sheets/sheetTemplates';
+import { useTrashUndoToast } from '../trash/trashUndoToast';
 import { OFFICE_PILL_ROW, OfficeActionPill } from '../workplace/components/ToolsSection';
 import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
@@ -190,7 +191,9 @@ export function DocumentsContent({
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
     kind: 'document' | 'board';
+    title: string | null;
   } | null>(null);
+  const showTrashUndo = useTrashUndoToast();
 
   const isLoading = docsLoading || boardsLoading;
 
@@ -288,9 +291,11 @@ export function DocumentsContent({
   const handleDelete = useCallback(
     (id: string, kind: 'document' | 'board', e: React.MouseEvent) => {
       e.stopPropagation();
-      setDeleteTarget({ id, kind });
+      const source = kind === 'document' ? documents : boards;
+      const title = source.find((item) => item.id === id)?.title ?? null;
+      setDeleteTarget({ id, kind, title });
     },
-    []
+    [documents, boards]
   );
 
   const handleDeleteDoc = useCallback(
@@ -323,7 +328,7 @@ export function DocumentsContent({
 
   const handleConfirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
-    const { id, kind } = deleteTarget;
+    const { id, kind, title } = deleteTarget;
     setDeleteTarget(null);
     try {
       if (kind === 'document') {
@@ -331,10 +336,11 @@ export function DocumentsContent({
       } else {
         await deleteBoard.mutateAsync(id);
       }
+      showTrashUndo({ kind: 'collaborative_document', id, title });
     } catch (err) {
       console.error(`Failed to delete ${kind}:`, err);
     }
-  }, [deleteTarget, deleteDocumentMutation, deleteBoard]);
+  }, [deleteTarget, deleteDocumentMutation, deleteBoard, showTrashUndo]);
 
   const handleRenameBoard = useCallback(
     async (board: { id: string; title: string }, e: React.MouseEvent) => {
@@ -886,8 +892,10 @@ export function DocumentsContent({
               {deleteTarget?.kind === 'board' ? 'Board' : 'Dokument'} löschen
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Dieses {deleteTarget?.kind === 'board' ? 'Board' : 'Dokument'} wird unwiderruflich
-              gelöscht.
+              {deleteTarget?.title
+                ? `„${deleteTarget.title}“`
+                : `Dieses ${deleteTarget?.kind === 'board' ? 'Board' : 'Dokument'}`}{' '}
+              wird in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

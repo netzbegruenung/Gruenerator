@@ -1,4 +1,6 @@
+import { type TrashKind } from '@gruenerator/contracts';
 import {
+  Button,
   CardActionsMenu,
   CardGrid,
   cn,
@@ -13,7 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Download, Share2, Trash2 } from 'lucide-react';
 import React, { memo, useCallback, useState, lazy, Suspense } from 'react';
 import { PiStar, PiStarFill } from 'react-icons/pi';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import {
   BoardPreviewBody,
@@ -56,6 +58,8 @@ import {
 } from '../../../utils/platform';
 import { webAppDocsAdapter } from '../../docs/docsAdapter';
 import { Lightbox } from '../../image-studio/components/Lightbox';
+import { invalidateAfterTrashChange } from '../../trash/invalidateAfterTrashChange';
+import { showTrashUndoToast } from '../../trash/trashUndoToast';
 import {
   type RecentItem,
   type RecentItemType,
@@ -486,6 +490,18 @@ const RecentReelCard = memo(
 );
 RecentReelCard.displayName = 'RecentReelCard';
 
+/**
+ * The trash kind each DELETE lands in. `item.id` is already the handle the
+ * trash addresses: the share token for images, the row id for the rest.
+ */
+const TRASH_KIND_BY_TYPE: Record<RecentItemType, TrashKind> = {
+  doc: 'collaborative_document',
+  board: 'collaborative_document',
+  canvas: 'collaborative_document',
+  image: 'shared_media',
+  video: 'subtitler_project',
+};
+
 const RecentlyCreatedSection: React.FC = memo(() => {
   const queryClient = useQueryClient();
 
@@ -498,16 +514,6 @@ const RecentlyCreatedSection: React.FC = memo(() => {
 
   const handleDelete = useCallback(
     (item: RecentItem) => {
-      const messages: Record<RecentItemType, string> = {
-        doc: 'Dokument wirklich löschen?',
-        board: 'Board wirklich löschen?',
-        image: 'Bild wirklich löschen?',
-        video: 'Video wirklich löschen?',
-        canvas: 'Sharepic wirklich löschen?',
-      };
-
-      if (!window.confirm(messages[item.type])) return;
-
       // Both delete paths need an explicit `.catch()` — a bare `.then()`
       // escapes rejections to `window.onunhandledrejection`, which Sentry
       // captures as an unhandled error (the earlier DELETE 401 incident
@@ -529,12 +535,16 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         }
       };
 
+      const trashed = { kind: TRASH_KIND_BY_TYPE[item.type], id: item.id, title: item.title };
+      const onDeleted = () => {
+        invalidateAfterTrashChange(queryClient, trashed.kind);
+        showTrashUndoToast(queryClient, trashed);
+      };
+
       if (item.type === 'board') {
         void deleteBoard
           .mutateAsync(item.id)
-          .then(() => {
-            void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
-          })
+          .then(onDeleted)
           .catch((err: unknown) => onDeleteError(err, `board:${String(item.id)}`));
         return;
       }
@@ -543,9 +553,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         const endpoint = item.deleteEndpoint.replace(/^\/api/, '');
         void apiClient
           .delete(endpoint)
-          .then(() => {
-            void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
-          })
+          .then(onDeleted)
           .catch((err: unknown) => onDeleteError(err, endpoint));
       }
     },
@@ -583,7 +591,17 @@ const RecentlyCreatedSection: React.FC = memo(() => {
 
   return (
     <section className="mb-xl">
-      <SectionHeader title="Zuletzt" />
+      <SectionHeader
+        title="Zuletzt"
+        actions={
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/papierkorb">
+              <Trash2 aria-hidden="true" className="size-4" />
+              Papierkorb
+            </Link>
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <CardGrid columns="5" gap="md" className={RECENT_GRID}>

@@ -593,7 +593,7 @@ const GroupInfoSection = memo(
                           className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
                         >
                           <HiOutlineTrash className="size-4 mr-xs" />
-                          {isPersonal ? 'Projekt löschen' : 'Gruppe löschen'}
+                          Projekt löschen
                         </DropdownMenuItem>
                       </>
                     )}
@@ -770,11 +770,11 @@ const GroupInfoSection = memo(
         <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
           <DialogContent className="sm:max-w-[24rem]">
             <DialogHeader>
-              <DialogTitle>{isPersonal ? 'Projekt löschen' : 'Gruppe löschen'}</DialogTitle>
+              <DialogTitle>Projekt löschen</DialogTitle>
               <DialogDescription>
-                {isPersonal
-                  ? 'Dieses Projekt wird unwiderruflich gelöscht. Alle Inhalte werden permanent entfernt.'
-                  : 'Diese Gruppe wird für alle Mitglieder unwiderruflich gelöscht. Alle Inhalte und Mitgliedschaften werden permanent entfernt.'}
+                {`${data?.groupInfo?.name ? `„${data.groupInfo.name}“` : 'Dieses Projekt'} wird ${
+                  isPersonal ? '' : 'für alle Mitglieder '
+                }in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.`}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-xs">
@@ -789,7 +789,7 @@ const GroupInfoSection = memo(
                 }}
                 disabled={isDeletingGroup}
               >
-                Endgültig löschen
+                Löschen
               </Button>
             </DialogFooter>
           </DialogContent>

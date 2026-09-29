@@ -16,6 +16,7 @@ import { isCanvasEditorType, isGrueneratorType, type Template } from '../types';
 import { useGrueneratorVorlage } from './useGrueneratorVorlage';
 
 import { useUserTemplates } from '@/features/auth/hooks/useProfileData';
+import { useTrashUndoToast } from '@/features/trash/trashUndoToast';
 
 export interface TemplateAction {
   label: string;
@@ -49,6 +50,7 @@ export const useTemplateActions = ({ onEdit, onShare }: UseTemplateActionsArgs) 
     isActive: true,
   });
   const { openVorlage } = useGrueneratorVorlage();
+  const showTrashUndo = useTrashUndoToast();
   // Guards the async open of a canvas-editor template against double-clicks.
   const [openingId, setOpeningId] = useState<string | null>(null);
 
@@ -108,15 +110,14 @@ export const useTemplateActions = ({ onEdit, onShare }: UseTemplateActionsArgs) 
 
   const remove = useCallback(
     async (t: Template): Promise<void> => {
-      if (!window.confirm(`Möchtest du die Vorlage "${t.title}" wirklich löschen?`)) return;
       try {
         await deleteTemplate(t.id);
-        toast.success('Vorlage wurde gelöscht.');
+        showTrashUndo({ kind: 'user_template', id: t.id, title: t.title });
       } catch (e) {
         toast.error('Fehler beim Löschen: ' + errText(e));
       }
     },
-    [deleteTemplate]
+    [deleteTemplate, showTrashUndo]
   );
 
   const getActions = useCallback(

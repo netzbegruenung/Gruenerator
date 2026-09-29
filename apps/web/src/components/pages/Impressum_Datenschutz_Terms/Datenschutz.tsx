@@ -365,7 +365,9 @@ const Datenschutz = () => {
         Abwehr vertraglicher Ansprüche gemäß §§ 195, 199 BGB) weiter benötigt, beschränken wir die
         Verarbeitung entsprechend. Nach Beendigung der Nutzung werden Deine Daten für weitere 30
         Tage aufbewahrt und anschließend gelöscht, soweit keine gesetzliche Aufbewahrungspflicht
-        entgegensteht.
+        entgegensteht. Inhalte, die Du selbst löschst, liegen zunächst 30 Tage im Papierkorb, wo Du
+        sie wiederherstellen oder vorzeitig endgültig löschen kannst, und werden danach endgültig
+        gelöscht.
       </p>
 
       <p>
