@@ -8,6 +8,7 @@ import { type DeleteResult, getPostgresInstance } from '../../database/services/
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { deriveLandesverbandFromRoles } from '../landesverband/LandesverbandDerivationService.js';
 
+import { cleanUpBeforeProfileDelete } from './accountDeletionCleanup.js';
 import { toUserProfile } from './profileMapper.js';
 
 import type {
@@ -559,11 +560,13 @@ class ProfileService {
         console.warn(`[ProfileService] User ${userId} not found in profiles table`);
       }
 
-      console.log(`[ProfileService] Executing DELETE from profiles WHERE id = ${userId}`);
-
       // Use the legacy PostgresService delete for DeleteResult compatibility
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
+
+      await cleanUpBeforeProfileDelete(userId);
+
+      console.log(`[ProfileService] Executing DELETE from profiles WHERE id = ${userId}`);
       const result = await postgres.delete('profiles', { id: userId });
 
       if (result && result.changes > 0) {

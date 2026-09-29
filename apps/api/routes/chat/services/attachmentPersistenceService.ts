@@ -478,6 +478,29 @@ export async function readThreadAttachmentVectorHandles(
 }
 
 /**
+ * Stamp (`deletedAt` ISO) or clear (null) `deleted_at` on a thread's
+ * attachment vectors, so a trashed thread's chunks drop out of unscoped
+ * searches while the embeddings stay for a restore. Filtered by document_id
+ * AND user_id like the delete. Best-effort: a failure is reported, and the
+ * chunks stay findable (trash) or hidden from unscoped search (restore).
+ */
+export async function setAttachmentVectorsDeletedAt(
+  threadId: string,
+  handles: AttachmentVectorHandle[],
+  deletedAt: string | null
+): Promise<void> {
+  if (handles.length === 0) return;
+  const service = getQdrantDocumentService();
+  for (const { documentId, userId } of handles) {
+    try {
+      await service.setDocumentVectorsDeletedAt(documentId, userId, deletedAt);
+    } catch (err) {
+      reportBackgroundError(err, { job: 'attachment-vector-trash', threadId, documentId });
+    }
+  }
+}
+
+/**
  * Delete the vector sets read by {@link readThreadAttachmentVectorHandles}.
  *
  * Safe by construction: each delete is filtered by BOTH the attachment's

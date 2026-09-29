@@ -5,6 +5,7 @@
  */
 import { type UserTemplate } from '../../database/schema/templates.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
 import {
   deleteTrashedRow,
   isRowId,
@@ -38,9 +39,8 @@ export async function trashUserTemplates(userId: string, ids: string[]): Promise
 }
 
 /**
- * Hard-delete a trashed Vorlage, then its Qdrant point and snapshot canvas.
- * Likes live in the polymorphic `entity_likes` without a foreign key; the old
- * hard delete never removed them either.
+ * Hard-delete a trashed Vorlage, then its Qdrant point, snapshot canvas and
+ * likes (`entity_likes` is polymorphic, no FK cascades them).
  */
 export async function purgeUserTemplate(id: string, cutoff: Date | null): Promise<boolean> {
   const row = await deleteTrashedRow<
@@ -51,6 +51,9 @@ export async function purgeUserTemplate(id: string, cutoff: Date | null): Promis
   await purgeSideStore('user_template', id, 'qdrant', () => deleteTemplateVector(id));
   await purgeSideStore('user_template', id, 'snapshot_canvas', () =>
     purgeGrueneratorSnapshot(row.template_type, row.content_data, row.user_id)
+  );
+  await purgeSideStore('user_template', id, 'entity_likes', () =>
+    deleteLikesForEntity('template', id)
   );
   return true;
 }
