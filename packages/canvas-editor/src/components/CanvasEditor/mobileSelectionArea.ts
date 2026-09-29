@@ -12,6 +12,7 @@ const AREA_CANDIDATES: Partial<Record<SelectionType, readonly SidebarTabId[]>> =
   image: ['image', 'background', 'image-background'],
   illustration: ['elements', 'assets'],
   frame: ['elements', 'assets'],
+  chart: ['chart-settings'],
 };
 
 /**
