@@ -160,7 +160,11 @@ describe('estimateFootprint', () => {
     const shape = { provider: 'regolo', inputTokens: 500, outputTokens: 500, requests: 1 };
     const gemma = estimateFootprint({ ...shape, model: 'gemma4-31b' });
 
-    for (const model of ['mistral-small-4-119b', 'pixtral-large-latest']) {
+    for (const model of [
+      'mistral-small-4-119b',
+      'mistral-small-4-119b-instruct',
+      'pixtral-large-latest',
+    ]) {
       const bounded = estimateFootprint({ ...shape, model });
       expect(bounded?.basis).toBe('bound');
       // An upper bound must sit above the cheapest measured model of the fleet.
