@@ -593,7 +593,7 @@ const GroupInfoSection = memo(
                           className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
                         >
                           <HiOutlineTrash className="size-4 mr-xs" />
-                          {isPersonal ? 'Projekt löschen' : 'Gruppe löschen'}
+                          Projekt löschen
                         </DropdownMenuItem>
                       </>
                     )}
@@ -770,7 +770,7 @@ const GroupInfoSection = memo(
         <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
           <DialogContent className="sm:max-w-[24rem]">
             <DialogHeader>
-              <DialogTitle>{isPersonal ? 'Projekt löschen' : 'Gruppe löschen'}</DialogTitle>
+              <DialogTitle>Projekt löschen</DialogTitle>
               <DialogDescription>
                 {`${data?.groupInfo?.name ? `„${data.groupInfo.name}“` : 'Dieses Projekt'} wird ${
                   isPersonal ? '' : 'für alle Mitglieder '
