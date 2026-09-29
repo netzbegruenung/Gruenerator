@@ -26,7 +26,7 @@ function trashedMessage(item: TrashedItem): string {
     : `${TRASH_KIND_LABELS[item.kind]} wurde in den Papierkorb verschoben.`;
 }
 
-async function restore(qc: QueryClient, item: TrashedItem, opts: TrashUndoOptions | undefined) {
+async function restore(qc: QueryClient, item: TrashedItem, opts?: TrashUndoOptions) {
   try {
     const res = await getContractsClient().trash.restore({
       params: { kind: item.kind, id: item.id },

@@ -150,8 +150,6 @@ function updateThreadTagsCache(remoteId: string, tags: string[]): void {
   tagListeners.forEach((l) => l());
 }
 
-/** Update the local tags cache after an edit so the sidebar reflects it
- *  without waiting for the next list() refresh. */
 // Reload channel for hosts outside the runtime (a Papierkorb restore puts a
 // thread back; only the runtime can re-run list()).
 const reloadListeners = new Set<() => void>();
@@ -165,6 +163,8 @@ export function requestThreadListReload(): void {
   reloadListeners.forEach((l) => l());
 }
 
+/** Update the local tags cache after an edit so the sidebar reflects it
+ *  without waiting for the next list() refresh. */
 export function setThreadTagsCache(remoteId: string, tags: string[]): void {
   updateThreadTagsCache(remoteId, tags);
 }
