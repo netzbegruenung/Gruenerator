@@ -38,6 +38,15 @@ describe('docs index (generated)', () => {
     }
   });
 
+  it('keeps generated UI labels in the searchable guide text', () => {
+    const section = DOCS_SECTIONS.find(
+      (entry) =>
+        entry.url === '/docs/guides/einsteigerinnen/magic-search-in-notebooks-nutzen' &&
+        entry.anchor === '#so-gehts'
+    );
+    expect(section?.text).toContain('Gehe zu Wissen und öffne das Notebook Berlin.');
+  });
+
   it('anchors are lowercase slugs on the same page as their section', () => {
     for (const section of DOCS_SECTIONS) {
       if (!section.anchor) continue;
