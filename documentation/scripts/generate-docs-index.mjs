@@ -189,7 +189,13 @@ const COMPONENT_EXPANSIONS = {
 };
 
 function expandGeneratedComponents(body) {
-  return body.replace(/<(\w+)\s*\/>/g, (match, name) => {
+  const withLabels = body.replace(/<UiLabel\s+([^>]*?)\/>/g, (match, attributes) => {
+    const id = /\bid=(['"])([^'"]+)\1/.exec(attributes)?.[2];
+    const labels = loadManifest('ui-labels.json');
+    return (id && labels?.[id]?.title) || match;
+  });
+
+  return withLabels.replace(/<(\w+)\s*\/>/g, (match, name) => {
     const entry = COMPONENT_EXPANSIONS[name];
     const manifest = entry && loadManifest(entry.manifest);
     if (!manifest) return match;

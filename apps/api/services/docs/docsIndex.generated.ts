@@ -134,13 +134,13 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/features/boards",
     "title": "Boards",
     "category": "Features",
-    "lead": "Ein Board ist eine Tafel aus Spalten und Karten — für Aufgabenverteilung, Redaktionsplanung oder den Stand einer Kampagne. Du legst es über an."
+    "lead": "Ein Board ist eine Tafel aus Spalten und Karten — für Aufgabenverteilung, Redaktionsplanung oder den Stand einer Kampagne. Du legst es über Leeres Board an."
   },
   {
     "url": "/docs/features/dokumente",
     "title": "Dokumente",
     "category": "Features",
-    "lead": "Ein Dokument ist der Ort für Fließtext: Anträge, Pressemitteilungen, Protokolle, Notizen, Einladungen. Du legst es über an oder startest über aus einer Vorlage."
+    "lead": "Ein Dokument ist der Ort für Fließtext: Anträge, Pressemitteilungen, Protokolle, Notizen, Einladungen. Du legst es über Leeres Dokument an oder startest über Vorlagen aus einer Vorlage."
   },
   {
     "url": "/docs/features/intro",
@@ -170,7 +170,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/features/office",
     "title": "Office: Dokumente, Tabellen, Folien und Boards",
     "category": "Features",
-    "lead": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
+    "lead": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel Office."
   },
   {
     "url": "/docs/features/papierkorb",
@@ -182,13 +182,13 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/features/praesentationen",
     "title": "Präsentationen",
     "category": "Features",
-    "lead": "Eine Präsentation ist eine Folge von Folien mit eigenem Vortragsmodus. Du legst sie über an — oder lässt sie dir im Chat aus einem Thema erzeugen."
+    "lead": "Eine Präsentation ist eine Folge von Folien mit eigenem Vortragsmodus. Du legst sie über Leere Präsentation an — oder lässt sie dir im Chat aus einem Thema erzeugen."
   },
   {
     "url": "/docs/features/tabellen",
     "title": "Tabellen",
     "category": "Features",
-    "lead": "Eine Grünerator-Tabelle ist eine vollwertige Kalkulationstabelle: Formeln, Filter, Sortierung, Auswahllisten, bedingte Formatierung. Du legst sie über auf der Office-Startseite an — oder du lässt sie…"
+    "lead": "Eine Grünerator-Tabelle ist eine vollwertige Kalkulationstabelle: Formeln, Filter, Sortierung, Auswahllisten, bedingte Formatierung. Du legst sie über Leere Tabelle auf der Office-Startseite an — ode…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
@@ -231,6 +231,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "title": "Wie erstelle ich KI-Bilder?",
     "category": "Guides",
     "lead": "Am Ende hast du ein eigenes KI-Bild als Datei oder eine Grundlage für ein Sharepic. Du brauchst keine Bildbearbeitungskenntnisse; entscheidend ist eine gute Beschreibung."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/magic-search-in-notebooks-nutzen",
+    "title": "Wie nutze ich Magic Search in einem Notebook?",
+    "category": "Guides",
+    "lead": "Mit Magic Search findest du passende Quellen oder lässt Fragen aus einem Notebook beantworten, ohne Suche oder Chat zu wählen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/reel-erstellen",
@@ -899,7 +905,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — für Text und Zahlen, für Bilder und Videos, für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es Werkzeuge:"
+    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — Office für Text und Zahlen, Studio für Bilder und Videos, Wissen für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es Werkzeuge:"
   },
   {
     "url": "/docs/basics/tools",
@@ -1067,7 +1073,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wo du Dateien anhängst",
     "anchor": "#wo-du-dateien-anhängst",
     "category": "Chat",
-    "text": "Im Chat über das „+\"-Menü links im Eingabefeld. Das ist der einzige Ort — die früheren Generator-Formulare mit Büroklammer-Symbol gibt es nicht mehr, seit alles im Chat und in den zusammengelaufen ist."
+    "text": "Im Chat über das „+\"-Menü links im Eingabefeld. Das ist der einzige Ort — die früheren Generator-Formulare mit Büroklammer-Symbol gibt es nicht mehr, seit alles im Chat und in den Grüneratoren zusammengelaufen ist."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1083,7 +1089,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Agents aufrufen",
     "anchor": "#agents-aufrufen",
     "category": "Chat",
-    "text": "Für Anträge, Reden, Wahlprogramme und Bürger*innenanfragen gibt es eigene Agents — du findest sie unter dem Menüpunkt in der Seitenleiste und kannst sie direkt im Chat öffnen. Sie stehen außerdem in derselben @-Liste wie die Rezepte: deine eigenen unter eigene. Hat jemand aus einem deiner Projekte einen Agenten mit dem Projekt geteilt, steht er dort unter aus deinen Gruppen, mit dem Namen der Gruppe, aus der er kommt. Ein @-Aufruf wechselt für diese eine Nachricht auf diesen Agenten; ein Rezept, das du vorher gewählt hast, bleibt dabei aktiv."
+    "text": "Für Anträge, Reden, Wahlprogramme und Bürger*innenanfragen gibt es eigene Agents — du findest sie unter dem Menüpunkt Grüneratoren in der Seitenleiste und kannst sie direkt im Chat öffnen. Sie stehen außerdem in derselben @-Liste wie die Rezepte: deine eigenen unter eigene. Hat jemand aus einem deiner Projekte einen Agenten mit dem Projekt geteilt, steht er dort unter aus deinen Gruppen, mit dem Namen der Gruppe, aus der er kommt. Ein @-Aufruf wechselt für diese eine Nachricht auf diesen Agenten; ein Rezept, das du vorher gewählt hast, bleibt dabei aktiv."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1107,7 +1113,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Gespräch starten",
     "anchor": "#gespräch-starten",
     "category": "Chat",
-    "text": "Den Chat erreichst du über den Menüpunkt in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (eigene Projekte und Gruppen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld — Dateien anhängen, Websuche und Dokumentensuche ein- und ausschalten, Rezepte, Rollen, Konnektoren und die Erstellen-Werkzeuge Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
+    "text": "Den Chat erreichst du über den Menüpunkt Chat in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (eigene Projekte und Gruppen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld — Dateien anhängen, Websuche und Dokumentensuche ein- und ausschalten, Rezepte, Rollen, Konnektoren und die Erstellen-Werkzeuge Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1187,7 +1193,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was kann ich fragen?",
     "anchor": "",
     "category": "Chat",
-    "text": "Der Grünerator ist kein Suchfeld mit festen Befehlen — du schreibst in normalem Deutsch, was du brauchst. Diese Seite zeigt, was dabei alles möglich ist, mit Musterfragen zum Abschauen und Weiterschreiben. Du findest den Chat unter dem Menüpunkt . Wie du dort Rezepte, Quellen und Dateien auswählst, steht unter KI-Chat."
+    "text": "Der Grünerator ist kein Suchfeld mit festen Befehlen — du schreibst in normalem Deutsch, was du brauchst. Diese Seite zeigt, was dabei alles möglich ist, mit Musterfragen zum Abschauen und Weiterschreiben. Du findest den Chat unter dem Menüpunkt Chat. Wie du dort Rezepte, Quellen und Dateien auswählst, steht unter KI-Chat."
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -1219,7 +1225,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Agentura",
     "anchor": "",
     "category": "Features",
-    "text": "RecipeCategories, ShelfCount, SortOptions, } from '@site/src/components/AgenturaShelves'; Die Agentura ist der Marktplatz für alle Grüneratoren. Hier findest du an einem Ort alle verfügbaren Agents und Rezepte — vom Pressestellen-Profi bis zum Landesverbands-Assistenten — entdeckst neue Werkzeuge und baust dir mit wenigen Klicks deine eigenen. Du erreichst die Agentura über den Menüpunkt in der Seitenleiste oder direkt unter /agentura. Die alten Adressen /agents und /skills leiten automatisch dorthin weiter. Aus Skills sind Rezepte geworden, und der Reiter Von der Basis heißt jetzt Öffentlich. Ältere Screenshots und Newsletter benutzen noch die alten Begriffe — gemeint ist dasselbe."
+    "text": "RecipeCategories, ShelfCount, SortOptions, } from '@site/src/components/AgenturaShelves'; Die Agentura ist der Marktplatz für alle Grüneratoren. Hier findest du an einem Ort alle verfügbaren Agents und Rezepte — vom Pressestellen-Profi bis zum Landesverbands-Assistenten — entdeckst neue Werkzeuge und baust dir mit wenigen Klicks deine eigenen. Du erreichst die Agentura über den Menüpunkt Grüneratoren in der Seitenleiste oder direkt unter /agentura. Die alten Adressen /agents und /skills leiten automatisch dorthin weiter. Aus Skills sind Rezepte geworden, und der Reiter Von der Basis heißt jetzt Öffentlich. Ältere Screenshots und Newsletter benutzen noch die alten Begriffe — gemeint ist dasselbe."
   },
   {
     "url": "/docs/features/agentura",
@@ -1275,7 +1281,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schnell hinkommen",
     "anchor": "#schnell-hinkommen",
     "category": "Features",
-    "text": "In der Seitenleiste liegt als eigener Eintrag. Ein Klick öffnet eine kurze Auswahl deiner Favoriten und der zuletzt genutzten Agents — von dort startest du direkt ein Gespräch, ohne den Umweg über den Marktplatz. Der Eintrag Alle Grüneratoren & Verwaltung führt in die Agentura."
+    "text": "In der Seitenleiste liegt Grüneratoren als eigener Eintrag. Ein Klick öffnet eine kurze Auswahl deiner Favoriten und der zuletzt genutzten Agents — von dort startest du direkt ein Gespräch, ohne den Umweg über den Marktplatz. Der Eintrag Alle Grüneratoren & Verwaltung führt in die Agentura."
   },
   {
     "url": "/docs/features/agentura",
@@ -1291,7 +1297,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Boards",
     "anchor": "",
     "category": "Features",
-    "text": "Ein Board ist eine Tafel aus Spalten und Karten — für Aufgabenverteilung, Redaktionsplanung oder den Stand einer Kampagne. Du legst es über an. Was Boards von einer gewöhnlichen Aufgabenliste unterscheidet: Der Grünerator kann darin mitarbeiten. Er beantwortet Fragen in Karten, recherchiert, und kann eine ganze Spalte automatisch befüllen."
+    "text": "Ein Board ist eine Tafel aus Spalten und Karten — für Aufgabenverteilung, Redaktionsplanung oder den Stand einer Kampagne. Du legst es über Leeres Board an. Was Boards von einer gewöhnlichen Aufgabenliste unterscheidet: Der Grünerator kann darin mitarbeiten. Er beantwortet Fragen in Karten, recherchiert, und kann eine ganze Spalte automatisch befüllen."
   },
   {
     "url": "/docs/features/boards",
@@ -1339,7 +1345,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Dokumente",
     "anchor": "",
     "category": "Features",
-    "text": "Ein Dokument ist der Ort für Fließtext: Anträge, Pressemitteilungen, Protokolle, Notizen, Einladungen. Du legst es über an oder startest über aus einer Vorlage."
+    "text": "Ein Dokument ist der Ort für Fließtext: Anträge, Pressemitteilungen, Protokolle, Notizen, Einladungen. Du legst es über Leeres Dokument an oder startest über Vorlagen aus einer Vorlage."
   },
   {
     "url": "/docs/features/dokumente",
@@ -1587,7 +1593,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Office: Dokumente, Tabellen, Folien und Boards",
     "anchor": "",
     "category": "Features",
-    "text": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
+    "text": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel Office."
   },
   {
     "url": "/docs/features/office",
@@ -1619,7 +1625,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Etwas Neues anlegen",
     "anchor": "#etwas-neues-anlegen",
     "category": "Features",
-    "text": "Auf der Office-Startseite liegen fünf Kacheln. Vier davon legen sofort etwas Leeres an und öffnen es — es gibt keinen Zwischenschritt, kein Formular: — ein Textdokument — eine Kalkulationstabelle — eine Foliensammlung — ein Kanban-Board Die erste, , öffnet stattdessen die Vorlagengalerie. Nimm sie, wenn du nicht bei null anfangen willst: Anträge, Pressemitteilungen und Protokolle bringen ihre Gliederung schon mit. Du musst nicht erst ein leeres Dokument anlegen. „Erstell mir eine Tabelle mit dem Haushaltsentwurf\" oder „Mach eine Präsentation zu unserem Wahlprogramm\" im Chat erzeugt das fertige Dokument direkt — inklusive Inhalt. Bearbeiten kannst du es danach wie jedes andere."
+    "text": "Auf der Office-Startseite liegen fünf Kacheln. Vier davon legen sofort etwas Leeres an und öffnen es — es gibt keinen Zwischenschritt, kein Formular: Leeres Dokument — ein Textdokument Leere Tabelle — eine Kalkulationstabelle Leere Präsentation — eine Foliensammlung Leeres Board — ein Kanban-Board Die erste, Vorlagen, öffnet stattdessen die Vorlagengalerie. Nimm sie, wenn du nicht bei null anfangen willst: Anträge, Pressemitteilungen und Protokolle bringen ihre Gliederung schon mit. Du musst nicht erst ein leeres Dokument anlegen. „Erstell mir eine Tabelle mit dem Haushaltsentwurf\" oder „Mach eine Präsentation zu unserem Wahlprogramm\" im Chat erzeugt das fertige Dokument direkt — inklusive Inhalt. Bearbeiten kannst du es danach wie jedes andere."
   },
   {
     "url": "/docs/features/office",
@@ -1667,7 +1673,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Präsentationen",
     "anchor": "",
     "category": "Features",
-    "text": "Eine Präsentation ist eine Folge von Folien mit eigenem Vortragsmodus. Du legst sie über an — oder lässt sie dir im Chat aus einem Thema erzeugen."
+    "text": "Eine Präsentation ist eine Folge von Folien mit eigenem Vortragsmodus. Du legst sie über Leere Präsentation an — oder lässt sie dir im Chat aus einem Thema erzeugen."
   },
   {
     "url": "/docs/features/praesentationen",
@@ -1723,7 +1729,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Tabellen",
     "anchor": "",
     "category": "Features",
-    "text": "Eine Grünerator-Tabelle ist eine vollwertige Kalkulationstabelle: Formeln, Filter, Sortierung, Auswahllisten, bedingte Formatierung. Du legst sie über auf der Office-Startseite an — oder du lässt sie dir im Chat gleich mit Inhalt erzeugen."
+    "text": "Eine Grünerator-Tabelle ist eine vollwertige Kalkulationstabelle: Formeln, Filter, Sortierung, Auswahllisten, bedingte Formatierung. Du legst sie über Leere Tabelle auf der Office-Startseite an — oder du lässt sie dir im Chat gleich mit Inhalt erzeugen."
   },
   {
     "url": "/docs/features/tabellen",
@@ -2068,6 +2074,46 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wenn-es-nicht-passt",
     "category": "Guides",
     "text": "Das Bild trifft die Idee nicht? Formuliere die Beschreibung konkreter und ändere nur einen Aspekt pro neuer Variante. So erkennst du, welche Anweisung wirkt. Eine Änderung geht zu weit? Wähle in der Versionsleiste wieder die passende frühere Version und arbeite von dort weiter. Das Ergebnis soll ein Social-Media-Motiv werden? Öffne es mit „In Canvas bearbeiten“ und ergänze dort Überschrift, Absender und weitere Gestaltung."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/magic-search-in-notebooks-nutzen",
+    "pageTitle": "Wie nutze ich Magic Search in einem Notebook?",
+    "heading": "Wie nutze ich Magic Search in einem Notebook?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Mit Magic Search findest du passende Quellen oder lässt Fragen aus einem Notebook beantworten, ohne Suche oder Chat zu wählen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/magic-search-in-notebooks-nutzen",
+    "pageTitle": "Wie nutze ich Magic Search in einem Notebook?",
+    "heading": "Damit du schneller zum Ziel kommst",
+    "anchor": "#damit-du-schneller-zum-ziel-kommst",
+    "category": "Guides",
+    "text": "Quellen finden: Nutze kurze Begriffe wie Hitzeschutz, Mietendeckel oder Radverkehr. Das zeigt Originalquellen und Fundstellen ohne KI. Treffer eingrenzen: Nutze über der Liste Suchart, Sortierung, Zeitraum und — wenn vorhanden — Personen. Rechts wechselst du zwischen Kacheln und Liste. Inhalte verstehen: Stelle eine ausformulierte Frage, wenn du eine Erklärung, Zusammenfassung oder Gegenüberstellung möchtest. Exakt arbeiten: Wähle Präzision ausdrücklich für vollständige Listen, Seitenangaben, Zählungen oder eine wörtliche Zitatprüfung. Dieser Modus arbeitet langsamer direkt mit den Quellen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/magic-search-in-notebooks-nutzen",
+    "pageTitle": "Wie nutze ich Magic Search in einem Notebook?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Notebook öffnen. Gehe zu Wissen und öffne das Notebook Berlin. Im Tab Chat findest du das Eingabefeld. Magic Search auswählen. Klicke rechts im Eingabefeld auf den aktuellen Antwortmodus und wähle Magic Search. Der Modus ist als „Empfohlen“ gekennzeichnet und passt sich deiner Eingabe an. Mit Stichworten suchen. Gib Hitzeschutz ein. Beim Tippen erscheinen passende Beschlüsse, Pressemitteilungen, Wahlprogramme und Wahlprüfsteine. Die Treffer kommen direkt aus den Quellen — ohne KI-Zusammenfassung. Volltext und Fundstellen lesen. Klicke auf eine Trefferkarte. Der Volltext öffnet sich im Notebook: relevante Textstellen sind farbig hinterlegt und nummeriert, der Suchbegriff ist darin fett markiert. Rechts stehen alle relevanten Stellen. Klicke sie an oder nutze „Vorherige Stelle“ und „Nächste Stelle“. „Im Web öffnen“ führt zum Original, „Ergebnisse“ zurück. Eine Frage stellen. Formuliere stattdessen eine vollständige Frage, zum Beispiel: Magic Search erkennt die Frage am Satzbau oder Fragezeichen. Der Button „Suchen“ wird zu „Nachricht senden“; beim Absenden öffnet sich die Unterhaltung in einem neuen Browser-Tab. Deine Trefferliste bleibt im bisherigen Tab erhalten."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/magic-search-in-notebooks-nutzen",
+    "pageTitle": "Wie nutze ich Magic Search in einem Notebook?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Notebooks — Quellen, Teilen, Verwaltung und häufige Fragen Wie erstelle ich ein eigenes Notebook? — eigene Dokumente durchsuchbar machen"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/magic-search-in-notebooks-nutzen",
+    "pageTitle": "Wie nutze ich Magic Search in einem Notebook?",
+    "heading": "Wenn etwas nicht klappt",
+    "anchor": "#wenn-etwas-nicht-klappt",
+    "category": "Guides",
+    "text": "Keine Treffer? Probiere weniger oder andere Begriffe und entferne Filter. Falscher Weg erkannt? Wähle über den Modus-Schalter Chat, Präzision oder Manuell selbst. Antwort statt Originalquelle? Prüfe die angegebenen Fundstellen. KI-generierte Antworten können ungenau sein; Zahlen und Zitate solltest du immer in der Quelle kontrollieren."
   },
   {
     "url": "/docs/guides/einsteigerinnen/reel-erstellen",
