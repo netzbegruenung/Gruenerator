@@ -17,7 +17,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { atom, useAtom } from 'jotai';
+import { atom, Provider, useAtom } from 'jotai';
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon } from 'lucide-react';
 import { createContext, memo, useCallback, useContext } from 'react';
 
@@ -37,6 +37,9 @@ import { cn } from '@/utils/cn';
 
 export type { ColumnDef } from '@tanstack/react-table';
 
+// Local change: view state is scoped per provider instance via a jotai <Provider>
+// (upstream uses module-global atoms shared by all instances). Re-pulling from the
+// kibo-ui registry would reintroduce the globals.
 const sortingAtom = atom<SortingState>([]);
 
 export const TableContext = createContext<{
@@ -56,7 +59,7 @@ export type TableProviderProps<TData, TValue> = {
   className?: string;
 };
 
-export function TableProvider<TData, TValue>({
+function TableProviderInner<TData, TValue>({
   columns,
   data,
   children,
@@ -87,6 +90,14 @@ export function TableProvider<TData, TValue>({
     >
       <TableRaw className={className}>{children}</TableRaw>
     </TableContext.Provider>
+  );
+}
+
+export function TableProvider<TData, TValue>(props: TableProviderProps<TData, TValue>) {
+  return (
+    <Provider>
+      <TableProviderInner {...props} />
+    </Provider>
   );
 }
 
