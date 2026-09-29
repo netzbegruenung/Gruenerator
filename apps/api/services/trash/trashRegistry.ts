@@ -109,6 +109,7 @@ export function toTrashItem(input: {
   title: string;
   subtype: string | null;
   deletedAt: Date;
+  deletedBeforeTrash?: boolean;
 }): TrashItem {
   return {
     kind: input.kind,
@@ -116,6 +117,7 @@ export function toTrashItem(input: {
     title: input.title,
     subtype: input.subtype,
     deletedAt: input.deletedAt.toISOString(),
+    deletedBeforeTrash: input.deletedBeforeTrash ?? false,
     purgeAt: purgeAtFor(input.deletedAt).toISOString(),
   };
 }
@@ -152,6 +154,7 @@ const collabItem = (row: TrashedCollabDocRow): TrashItem =>
     title: row.title,
     subtype: row.document_subtype,
     deletedAt: row.deleted_at,
+    deletedBeforeTrash: row.deleted_before_trash,
   });
 
 const collaborativeDocumentHandler: TrashKindHandler = {

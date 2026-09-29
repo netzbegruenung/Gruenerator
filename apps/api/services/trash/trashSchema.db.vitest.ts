@@ -220,6 +220,36 @@ describe.skipIf(!url)('Papierkorb schema (zz_20260929_trash_deleted_at.sql)', ()
     expect(byId[inherited]).toMatchObject({ is_deleted: false, trashed: false });
   });
 
+  it('flags rows the migration moved in from is_deleted, whose real deletion time is lost', async () => {
+    const owner = randomUUID();
+    await pool.query('INSERT INTO profiles (id) VALUES ($1)', [owner]);
+    const insert = async (title: string) =>
+      (
+        await pool.query<{ id: string }>(
+          `INSERT INTO collaborative_documents (title, created_by, document_subtype)
+           VALUES ($1, $2, 'docs') RETURNING id`,
+          [title, owner]
+        )
+      ).rows[0].id;
+    const legacy = await insert('Alt gelöscht');
+    const fresh = await insert('Neu gelöscht');
+
+    // What the migration did in prod: `deleted_at = now()` inside the runner's
+    // transaction, the same `now()` it records as `applied_at`.
+    await pool.query(
+      `UPDATE collaborative_documents SET is_deleted = true,
+         deleted_at = (SELECT applied_at FROM schema_migrations
+                       WHERE filename = 'zz_20260929_trash_deleted_at.sql')
+       WHERE id = $1`,
+      [legacy]
+    );
+    await trashCollaborativeDocument(run, fresh, owner, null);
+
+    const listed = await listTrashedCollaborativeDocuments(run, owner, { limit: 10, before: null });
+    const byId = Object.fromEntries(listed.map((r) => [r.id, r.deleted_before_trash]));
+    expect(byId).toEqual({ [legacy]: true, [fresh]: false });
+  });
+
   it('bindings follow their chat thread (#3847)', async () => {
     const owner = randomUUID();
     await pool.query('INSERT INTO profiles (id) VALUES ($1)', [owner]);
