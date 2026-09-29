@@ -6,6 +6,8 @@ interface LabelEntry {
   title: string;
   subtitle?: string;
   path?: string;
+  /** Landesverband entries carry the canonical notebook route segment. */
+  notebook?: string;
 }
 
 const labels = labelsJson as Record<string, LabelEntry>;
@@ -15,7 +17,7 @@ const APP_URL = 'https://gruenerator.eu';
 interface UiLabelProps {
   /** Namespaced key into ui-labels.json, e.g. "catalog.tool-scanner". */
   id: string;
-  /** Render as a link to the tool's route (only when the entry has a `path`). */
+  /** Render as a link to the tool or Landesverband notebook route, when available. */
   link?: boolean;
 }
 
@@ -34,8 +36,9 @@ export default function UiLabel({ id, link = false }: UiLabelProps): React.JSX.E
         `and confirm the id exists in src/generated/ui-labels.json.`
     );
   }
-  if (link && entry.path) {
-    return <a href={`${APP_URL}${entry.path}`}>{entry.title}</a>;
+  const path = entry.path ?? (entry.notebook ? `/notebooks/${entry.notebook}` : null);
+  if (link && path) {
+    return <a href={`${APP_URL}${path}`}>{entry.title}</a>;
   }
   return <>{entry.title}</>;
 }
