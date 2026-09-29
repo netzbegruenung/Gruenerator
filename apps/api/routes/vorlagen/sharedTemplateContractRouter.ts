@@ -62,7 +62,7 @@ export const sharedTemplateContractRouter = s.router(sharedTemplateContract, {
       const template = await postgres.queryOne<TemplateRow>(
         `SELECT id, title, description, thumbnail_url, content_data, user_id
            FROM user_templates
-          WHERE id = $1 AND type = 'template'`,
+          WHERE id = $1 AND type = 'template' AND deleted_at IS NULL`,
         [args.params.id],
         { table: 'user_templates' }
       );

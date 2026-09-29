@@ -284,6 +284,22 @@ describe('buildRecipeCatalog', () => {
 });
 
 describe('renderRecipeCatalog', () => {
+  it('names the recommended tools behind the entry', () => {
+    const block = renderRecipeCatalog([
+      {
+        mention: 'buerger-berlin',
+        title: 'Bürger*innen-Mail Berlin',
+        description: 'Antwort-E-Mail',
+        source: 'system',
+        id: null,
+        recommendedTools: ['gruenerator_search'],
+      },
+    ]);
+    expect(block).toContain(
+      '- buerger-berlin: Bürger*innen-Mail Berlin — Antwort-E-Mail (Werkzeuge: gruenerator_search)'
+    );
+  });
+
   it('renders nothing for an empty catalogue', () => {
     expect(renderRecipeCatalog([])).toBe('');
   });

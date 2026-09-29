@@ -22,7 +22,9 @@ import { getNotebookDefinition } from '@gruenerator/shared/notebooks';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { TRASHABLE_TABLES } from '../../database/trash.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
+import { buildCanvasThumbnailUrl } from '../media/thumbnailUrl.js';
 import { notifyGroupMembers } from '../notifications/index.js';
 import { listUserAgentsByIds } from '../userAgents/userAgentsRepository.js';
 
@@ -54,6 +56,8 @@ export const CONTENT_LABELS: Record<string, string> = {
   system_agents: 'einen Agenten',
   user_agents: 'eine*n Agent*in',
   canvas_template: 'eine Sharepic-Vorlage',
+  chat_threads: 'einen Chat',
+  user_text_forms: 'ein Rezept',
   nextcloud_share_link: 'eine Wolke-Verbindung',
 };
 
@@ -176,6 +180,10 @@ export async function shareContentToGroup(
       ownershipSQL += ` AND type = $2`;
       ownershipParams.push('template');
     }
+    // A trashed item is invisible everywhere, so it cannot be shared either.
+    if (Object.hasOwn(TRASHABLE_TABLES, tableName)) {
+      ownershipSQL += ` AND deleted_at IS NULL`;
+    }
     if (contentType === 'collaborative_documents') {
       ownershipSQL += ` AND is_deleted = false`;
     }
@@ -190,6 +198,19 @@ export async function shareContentToGroup(
     );
     if (!contentOwnership) return NOT_FOUND;
     if (contentOwnership[ownerColumn] !== userId) return NOT_OWNER;
+  }
+
+  // Same reason as notebooks above: group access to a user agent requires
+  // share_mode <> 'private', and the sharing panel lists group shares only in
+  // 'groups' mode. Without the promotion this share would be dead and
+  // invisible to the owner. After the ownership check, so a non-owner cannot
+  // flip someone else's agent.
+  if (contentType === 'user_agents') {
+    await postgres.exec(
+      `UPDATE user_agents SET share_mode = 'groups', updated_at = NOW()
+        WHERE id = $1 AND share_mode = 'private'`,
+      [contentId]
+    );
   }
 
   const existingShare = await postgres.queryOne<{ id: string }>(
@@ -211,22 +232,60 @@ export async function shareContentToGroup(
     [contentType, contentId, groupId, userId, JSON.stringify(sharePermissions), note]
   );
 
-  void postgres
-    .queryOne('SELECT name FROM groups WHERE id = $1', [groupId], { table: 'groups' })
+  notifyContentShared({ groupId, userId, sharerName, contentType, contentId }, deps);
+
+  return { status: 200, success: true, message: 'Inhalt erfolgreich mit der Gruppe geteilt.' };
+}
+
+/**
+ * Meldet einen neu geteilten Inhalt an die übrigen Mitglieder und verlinkt
+ * den Beitrag im Feed. Auch für die Freigabe-Wege, die nicht über
+ * `shareContentToGroup` laufen (Chats, Notebooks, Agents, Rezepte).
+ * Losgelöst: ein Fehler hier darf das Teilen nicht scheitern lassen.
+ */
+export function notifyContentShared(
+  input: {
+    groupId: string;
+    userId: string;
+    /** Fehlt er, steht der Anzeigename aus dem Profil da. */
+    sharerName?: string;
+    contentType: string;
+    contentId: string;
+  },
+  deps: Pick<ShareContentDeps, 'postgres' | 'notify'> = defaultDeps()
+): void {
+  const { groupId, userId, sharerName, contentType, contentId } = input;
+  void Promise.resolve()
+    .then(() =>
+      deps.postgres.queryOne<{
+        name: string | null;
+        share_id: string | null;
+        sharer_name: string | null;
+      }>(
+        `SELECT g.name, s.id AS share_id,
+              (SELECT display_name FROM profiles WHERE id = $4) AS sharer_name
+         FROM groups g
+         LEFT JOIN group_content_shares s
+           ON s.group_id = g.id AND s.content_type = $2 AND s.content_id = $3
+        WHERE g.id = $1 AND g.deleted_at IS NULL`,
+        [groupId, contentType, contentId, userId],
+        { table: 'groups' }
+      )
+    )
     .then((g) =>
       deps.notify({
         groupId,
         excludeUserId: userId,
         type: 'group_content_shared',
         title: 'Neuer Inhalt',
-        body: `${sharerName} hat ${CONTENT_LABELS[contentType] || 'etwas'} in „${(g as { name?: string } | null)?.name || 'deiner Gruppe'}" geteilt`,
-        actionUrl: `/gruppen/${groupId}`,
+        body: `${sharerName ?? (g?.sharer_name || 'Jemand')} hat ${CONTENT_LABELS[contentType] || 'etwas'} in „${g?.name || 'deinem Projekt'}" geteilt`,
+        actionUrl: g?.share_id
+          ? `/projekte/${groupId}?beitrag=${g.share_id}`
+          : `/projekte/${groupId}`,
         metadata: { contentType, contentId },
       })
     )
     .catch(() => {});
-
-  return { status: 200, success: true, message: 'Inhalt erfolgreich mit der Gruppe geteilt.' };
 }
 
 // ---------------------------------------------------------------------------
@@ -351,7 +410,7 @@ export async function hydrateGroupContent(
     fetchPromises.push(
       postgres
         .query(
-          'SELECT id, title, filename, file_size, status, created_at, updated_at, user_id FROM documents WHERE id = ANY($1)',
+          'SELECT id, title, filename, file_size, status, created_at, updated_at, user_id FROM documents WHERE id = ANY($1) AND deleted_at IS NULL',
           [ids],
           { table: 'documents' }
         )
@@ -440,7 +499,7 @@ export async function hydrateGroupContent(
     fetchPromises.push(
       postgres
         .query(
-          'SELECT id, title, document_type, content, created_at, updated_at, user_id FROM user_documents WHERE id = ANY($1)',
+          'SELECT id, title, document_type, content, created_at, updated_at, user_id FROM user_documents WHERE id = ANY($1) AND deleted_at IS NULL',
           [ids],
           { table: 'user_documents' }
         )
@@ -471,7 +530,7 @@ export async function hydrateGroupContent(
     fetchPromises.push(
       postgres
         .query(
-          "SELECT id, title, description, external_url, thumbnail_url, metadata, created_at, updated_at, user_id FROM user_templates WHERE id = ANY($1) AND type = 'template'",
+          "SELECT id, title, description, external_url, thumbnail_url, metadata, created_at, updated_at, user_id FROM user_templates WHERE id = ANY($1) AND type = 'template' AND deleted_at IS NULL",
           [ids],
           { table: 'user_templates' }
         )
@@ -487,7 +546,11 @@ export async function hydrateGroupContent(
     fetchPromises.push(
       postgres
         .query(
-          'SELECT id, title, document_subtype, created_by, created_at, updated_at FROM collaborative_documents WHERE id = ANY($1::uuid[]) AND is_deleted = false',
+          `SELECT cd.id, cd.title, cd.document_subtype, cd.created_by, cd.created_at, cd.updated_at,
+                  cdoc.thumbnail_url
+             FROM collaborative_documents cd
+             LEFT JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
+            WHERE cd.id = ANY($1::uuid[]) AND cd.is_deleted = false`,
           [ids],
           { table: 'collaborative_documents' }
         )
@@ -600,6 +663,14 @@ export async function hydrateGroupContent(
         ...(type === 'database' && {
           template_type: (parsedMetadata.template_type as string) || 'template',
           external_url: item.external_url,
+        }),
+        // The stored canvas URL is /api/share/<token>/download, which needs auth
+        // an <img> does not send — hand out the signed tile instead.
+        ...((type === 'collaborative_documents' || type === 'canvas_template') && {
+          thumbnail_url: buildCanvasThumbnailUrl(
+            item.id as string,
+            (item.thumbnail_url as string | null) ?? null
+          ),
         }),
       };
     });

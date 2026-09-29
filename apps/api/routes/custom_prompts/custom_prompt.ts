@@ -80,7 +80,7 @@ router.get(
               p.first_name as owner_first_name, p.last_name as owner_last_name
        FROM custom_prompts cp
        LEFT JOIN profiles p ON p.id = cp.user_id
-       WHERE cp.slug = $1 AND cp.is_active = true`,
+       WHERE cp.slug = $1 AND cp.is_active = true AND cp.deleted_at IS NULL`,
         [slug],
         { table: 'custom_prompts' }
       );

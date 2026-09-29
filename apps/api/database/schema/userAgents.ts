@@ -1,5 +1,14 @@
-import { type InferSelectModel } from 'drizzle-orm';
-import { boolean, index, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { type InferSelectModel, sql } from 'drizzle-orm';
+import {
+  boolean,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 export const userAgents = pgTable(
   'user_agents',
@@ -53,9 +62,13 @@ export const userAgents = pgTable(
       >(),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deleted_at: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => [
-    unique('user_agents_user_identifier_unique').on(t.user_id, t.identifier),
+    // Nur unter lebenden Zeilen: ein Agent im Papierkorb blockiert seinen Bezeichner nicht.
+    uniqueIndex('user_agents_user_identifier_unique')
+      .on(t.user_id, t.identifier)
+      .where(sql`deleted_at IS NULL`),
     index('idx_user_agents_user_id').on(t.user_id),
     index('idx_user_agents_public').on(t.is_public),
   ]

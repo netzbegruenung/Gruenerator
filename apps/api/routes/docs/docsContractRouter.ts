@@ -25,7 +25,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { aiObject } from '../../services/ai/generate.js';
 import { viaLaxParser, withContent } from '../../services/ai/structuredParsing.js';
 import {
-  softDeleteCollaborativeDocument,
+  trashCollaborativeDocument,
   updateCollaborativeDocument,
   type QueryRunner,
 } from '../../services/docs/CollaborativeDocumentService.js';
@@ -170,12 +170,7 @@ export const docsContractRouter = s.router(docsContract, {
     try {
       const userId = getUserId(args.req);
       const { id } = args.params;
-      const result = await softDeleteCollaborativeDocument(
-        runQuery,
-        id,
-        userId,
-        DOCS_ONLY_SUBTYPES
-      );
+      const result = await trashCollaborativeDocument(runQuery, id, userId, DOCS_ONLY_SUBTYPES);
       if (result.status === 'not_found') {
         return { status: 404 as const, body: { error: 'Document not found' } };
       }
@@ -227,7 +222,7 @@ export const docsContractRouter = s.router(docsContract, {
       const shares = (await db.query(
         `SELECT gcs.group_id, g.name as group_name, gcs.permissions, gcs.shared_at
          FROM group_content_shares gcs
-         INNER JOIN groups g ON g.id = gcs.group_id
+         INNER JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
          WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $1
          ORDER BY gcs.shared_at DESC`,
         [id]
@@ -367,7 +362,7 @@ export const docsContractRouter = s.router(docsContract, {
                 gcs.permissions, gcs.shared_at,
                 (SELECT COUNT(*)::int FROM group_memberships WHERE group_id = gcs.group_id) AS member_count
          FROM group_content_shares gcs
-         JOIN groups g ON g.id = gcs.group_id
+         JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
          WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $1`,
         [id]
       )) as Array<{
@@ -604,7 +599,7 @@ export const docsContractRouter = s.router(docsContract, {
       const docs = (await db.query(
         `SELECT id, created_by, permissions, is_public, share_mode
          FROM collaborative_documents
-         WHERE id = $1
+         WHERE id = $1 AND is_deleted = false
          LIMIT 1`,
         [id]
       )) as CollaborativeDocument[];
@@ -752,6 +747,7 @@ export const docsContractRouter = s.router(docsContract, {
               SELECT gcs.content_id::uuid
               FROM group_content_shares gcs
               INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+              INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
               WHERE gcs.content_type = 'collaborative_documents'
                 AND (gcs.permissions->>'read')::boolean IS NOT FALSE
             ) THEN 'group'
@@ -760,7 +756,7 @@ export const docsContractRouter = s.router(docsContract, {
             (SELECT json_agg(json_build_object('group_id', g.id, 'group_name', g.name))
              FROM group_content_shares gcs2
              INNER JOIN group_memberships gm2 ON gm2.group_id = gcs2.group_id AND gm2.user_id = $1
-             INNER JOIN groups g ON g.id = gcs2.group_id
+             INNER JOIN groups g ON g.id = gcs2.group_id AND g.deleted_at IS NULL
              WHERE gcs2.content_type = 'collaborative_documents'
                AND gcs2.content_id = cd.id::text
             ), '[]'::json

@@ -28,7 +28,7 @@ import { runDeepAgentResearch } from '../../../services/research/deepAgent/index
 import { buildNotebookScope } from '../../../services/research/deepAgent/notebookScope.js';
 import { recordRunDocument } from '../../../services/research/deepAgent/runRegistry.js';
 import { DEFAULT_BUDGET } from '../../../services/research/deepAgent/types.js';
-import { getLinkupService } from '../../../services/search/LinkupService.js';
+import { canWebSearch } from '../../../services/search/webSearch.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { sendChatWarning } from './sseHelpers.js';
@@ -74,10 +74,9 @@ export async function runDeepAgentTurn(params: {
     log.info('[DeepAgent] Kein CORTECS_API_KEY — der alte Pfad übernimmt');
     return null;
   }
-  // Linkup is the floor under the search tools: GreenPT is optional and refuses
-  // under load, so without Linkup a run would spend minutes finding nothing.
-  if (!getLinkupService()) {
-    log.info('[DeepAgent] Kein LINKUP_API_KEY — der alte Pfad übernimmt');
+  // Without a search engine a run would spend minutes finding nothing.
+  if (!canWebSearch({ query: question, maxResults: 1 })) {
+    log.info('[DeepAgent] Keine Websuche konfiguriert — der alte Pfad übernimmt');
     return null;
   }
   if (question.length === 0) {

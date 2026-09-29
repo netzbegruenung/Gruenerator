@@ -25,6 +25,7 @@ export const userTemplates = pgTable(
     audience: text('audience').notNull().default('all'),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deleted_at: timestamp('deleted_at', { withTimezone: true }),
     vector_indexed_at: timestamp('vector_indexed_at', { withTimezone: true }),
   },
   (t) => [

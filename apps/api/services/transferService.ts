@@ -64,7 +64,7 @@ class TransferService {
               sm.wolke_file_path, sm.user_id, p.display_name as sharer_name
        FROM shared_media sm
        LEFT JOIN profiles p ON p.id = sm.user_id
-       WHERE sm.share_token = $1 AND sm.media_type = 'transfer'`,
+       WHERE sm.share_token = $1 AND sm.media_type = 'transfer' AND sm.deleted_at IS NULL`,
       [shareToken]
     );
 

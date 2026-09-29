@@ -21,6 +21,11 @@ services:
       - PORT=3001
       - NODE_ENV=production
       - WEB_BASE_URL=https://beta.gruenerator.eu
+      # The internal canvas/docs/boards API lives in the hocuspocus container
+      # on HEALTH_PORT; the code default (localhost:1241) would hit the api
+      # container itself. HOCUSPOCUS_INTERNAL_TOKEN stays in .env — it is a
+      # secret and both containers must read the same value.
+      - HOCUSPOCUS_INTERNAL_URL=http://hocuspocus:1241
       - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/gruenerator
       - REDIS_URL=redis://host.docker.internal:6379
     volumes:

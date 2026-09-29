@@ -813,17 +813,15 @@ Erstelle einen Instagram Reel Beitragstext, der:
       }
       const { projectId } = args.params;
       const service = await getProjectService();
-      await service.deleteProject(userId, projectId);
-      return { status: 200 as const, body: { success: true } };
-    } catch (error: unknown) {
-      log.error('[subtitlerContract.deleteProject] Error:', error);
-      const errMsg = error instanceof Error ? error.message : String(error);
-      if (errMsg.includes('not found')) {
+      if ((await service.trashProject(userId, projectId)) !== 'ok') {
         return {
           status: 404 as const,
           body: { success: false, error: 'Projekt nicht gefunden' },
         };
       }
+      return { status: 200 as const, body: { success: true } };
+    } catch (error: unknown) {
+      log.error('[subtitlerContract.deleteProject] Error:', error);
       return {
         status: 500 as const,
         body: { success: false, error: 'Projekt konnte nicht gelöscht werden' },

@@ -14,10 +14,11 @@ import {
   TooltipTrigger,
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { Bell, LogOut } from 'lucide-react';
+import { Bell, LogOut, Trash2 } from 'lucide-react';
 import { type MutableRefObject, type ReactNode, memo, useEffect, useState } from 'react';
 import { FiServer, FiSliders } from 'react-icons/fi';
 import { HiCog } from 'react-icons/hi';
+import { Link } from 'react-router-dom';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
@@ -178,6 +179,12 @@ const SidebarAccount = memo(function SidebarAccount({
       >
         <FiServer className="size-4" />
         <span>Konnektoren</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link to="/papierkorb">
+          <Trash2 aria-hidden="true" className="size-4" />
+          <span>Papierkorb</span>
+        </Link>
       </DropdownMenuItem>
       <DropdownMenuItem
         onSelect={() => openSettingsDeferred()}

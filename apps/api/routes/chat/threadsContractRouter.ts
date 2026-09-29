@@ -23,15 +23,13 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
 
-import {
-  deleteThreadAttachmentVectors,
-  getThreadTabularFiles,
-} from './services/attachmentPersistenceService.js';
+import { getThreadTabularFiles } from './services/attachmentPersistenceService.js';
 import {
   getThreadSettings,
   insertThreadWithSlugRetry,
   updateThreadSettings,
 } from './services/threadPersistenceService.js';
+import { trashThread } from './services/threadTrashService.js';
 
 import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
@@ -74,7 +72,9 @@ export const threadsContractRouter = s.router(threadsContract, {
       const rows = await postgres.query(
         `SELECT t.id, t.user_id, t.agent_id, t.title, t.created_at, t.updated_at,
                 COALESCE(t.status, 'regular') as status, COALESCE(t.thread_type, 'chat') as thread_type,
-                t.notebook_collection_id, t.group_id, COALESCE(t.tags, '[]'::jsonb) as tags, t.slug_suffix,
+                t.notebook_collection_id,
+                (SELECT g.id FROM groups g WHERE g.id = t.group_id AND g.deleted_at IS NULL) AS group_id,
+                COALESCE(t.tags, '[]'::jsonb) as tags, t.slug_suffix,
                 CASE
                   WHEN t.user_id::text = $1 THEN 'owner'
                   WHEN t.permissions ? $2::text THEN 'shared'
@@ -86,6 +86,7 @@ export const threadsContractRouter = s.router(threadsContract, {
                     SELECT bool_or(COALESCE((gcs.permissions->>'write')::boolean, true))
                     FROM group_content_shares gcs
                     INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id::text = $1 AND gm.is_active = TRUE
+                    INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
                     WHERE gcs.content_type = 'chat_threads' AND gcs.content_id = t.id::text
                       AND COALESCE((gcs.permissions->>'read')::boolean, true) = true
                   ), true)
@@ -99,13 +100,14 @@ export const threadsContractRouter = s.router(threadsContract, {
            ORDER BY created_at DESC
            LIMIT 1
          ) m ON true
-         WHERE (
+         WHERE t.deleted_at IS NULL AND (
            t.user_id::text = $1
            OR t.permissions ? $2::text
            OR t.is_public = true
            OR t.id IN (
              SELECT gcs.content_id::uuid FROM group_content_shares gcs
              INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id::text = $1 AND gm.is_active = TRUE
+             INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
              WHERE gcs.content_type = 'chat_threads'
                AND COALESCE((gcs.permissions->>'read')::boolean, true) = true
            )
@@ -222,7 +224,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       const postgres = getPostgresInstance();
 
       const existingThreads = await postgres.query(
-        `SELECT id, user_id, COALESCE(status, 'regular') AS status FROM chat_threads WHERE id = $1 LIMIT 1`,
+        `SELECT id, user_id, COALESCE(status, 'regular') AS status FROM chat_threads WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
         [threadId]
       );
 
@@ -337,31 +339,20 @@ export const threadsContractRouter = s.router(threadsContract, {
       const userId = getUserId(args.req);
       const { threadId } = args.query;
 
-      const postgres = getPostgresInstance();
-
-      const existingThreads = await postgres.query(
-        `SELECT id, user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
-        [threadId]
-      );
-
-      if (existingThreads.length === 0) {
+      // A thread with messages moves to the Papierkorb; an empty one is
+      // removed outright (see trashThread).
+      const result = await trashThread(threadId, userId);
+      if (result === 'not_found') {
         return { status: 404 as const, body: { error: 'Thread not found' } };
       }
-
-      if (existingThreads[0].user_id !== userId) {
+      if (result === 'forbidden') {
         return { status: 403 as const, body: { error: 'Forbidden' } };
       }
 
-      // Drop orphaned Qdrant vectors of embedded attachments BEFORE the CASCADE
-      // removes the rows we read document_ids from. Best-effort (won't throw).
-      await deleteThreadAttachmentVectors(threadId, userId);
-
-      // Remove the thread's semantic recall point too. Best-effort.
-      await deleteThreadRecallPoint(threadId);
-
-      await postgres.query(`DELETE FROM chat_threads WHERE id = $1`, [threadId]);
-
-      return { status: 200 as const, body: { success: true as const } };
+      return {
+        status: 200 as const,
+        body: { success: true as const, trashed: result === 'trashed' },
+      };
     } catch (error) {
       log.error('Error deleting thread:', error);
       return { status: 500 as const, body: { error: 'Failed to delete thread' } };
@@ -375,7 +366,7 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       const postgres = getPostgresInstance();
       const threads = await postgres.query(
-        `SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+        `SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
         [threadId]
       );
       if (threads.length === 0) {
@@ -432,7 +423,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       const postgres = getPostgresInstance();
 
       const threads = await postgres.query(
-        `SELECT id, user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+        `SELECT id, user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
         [threadId]
       );
 
@@ -526,7 +517,7 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       const postgres = getPostgresInstance();
       const threads = await postgres.query(
-        `SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+        `SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
         [threadId]
       );
       if (threads.length === 0) {

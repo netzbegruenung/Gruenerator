@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { PiCopy } from 'react-icons/pi';
 
+import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
+import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
+import { type GradientFill } from '../../utils/gradientFill';
 import { FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
-
 import { useCanvasTextFormatting } from '../CanvasTextOverlay';
 import { TextFormatControls } from '../TextFormatControls';
+import { type AlignmentDirection } from '../Toolbar';
 
 import { FloatingColorPicker } from './modules/FloatingColorPicker';
 import { FloatingFontSizeControl } from './modules/FloatingFontSizeControl';
@@ -13,11 +16,6 @@ import { FloatingLayerControls } from './modules/FloatingLayerControls';
 import { FloatingOpacityControl } from './modules/FloatingOpacityControl';
 import { FloatingOutlineControl } from './modules/FloatingOutlineControl';
 import { FloatingShadowControl } from './modules/FloatingShadowControl';
-
-import { type AlignmentDirection } from '../Toolbar';
-import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
-import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
-import { type GradientFill } from '../../utils/gradientFill';
 
 export interface ContextControlsProps {
   selectedElement: string | null;
@@ -44,6 +42,8 @@ export interface ContextControlsProps {
   onDelete?: () => void;
   /** Clears the element selection. Escape does the same, but is invisible. */
   onDeselect?: () => void;
+  /** Mobil: Duplizieren, Löschen und Abwählen liegen in Pille und ✓, nicht hier. */
+  hideObjectActions?: boolean;
 }
 
 const ICON_BTN =
@@ -66,6 +66,7 @@ export function ContextControls({
   handlers,
   onDelete,
   onDeselect,
+  hideObjectActions = false,
 }: ContextControlsProps) {
   const [isColorPickerExpanded, setIsColorPickerExpanded] = useState(false);
   // Fett/Kursiv/… nur, solange wirklich getippt wird: die Knöpfe bedienen die
@@ -81,7 +82,7 @@ export function ContextControls({
         ? { color: activeFloatingModule?.data.fill || '#FFFFFF', variant: 'swatch' as const }
         : null;
     }
-    if (type === 'shape') {
+    if (type === 'shape' || type === 'pill-badge' || type === 'circle-badge') {
       return { color: activeFloatingModule?.data.fill ?? '#000000', variant: 'swatch' as const };
     }
     // Assets are fixed-color brand graphics (PNG/SVG files) — AssetPrimitive
@@ -314,7 +315,7 @@ export function ContextControls({
   // nicht sein Aussehen. Der Knopf bleibt bei Vorlagen-Elementen und Icons
   // sichtbar, aber deaktiviert — verschwände er, wäre unklar, ob die Aktion
   // fehlt oder nur hier nicht geht.
-  if (selectedElement) {
+  if (selectedElement && !hideObjectActions) {
     groups.push(
       <button
         key="duplicate"
@@ -334,7 +335,7 @@ export function ContextControls({
     );
   }
 
-  if (onDelete) {
+  if (onDelete && !hideObjectActions) {
     groups.push(
       <button
         key="delete"
@@ -367,7 +368,7 @@ export function ContextControls({
   // useCanvasKeyboardHandlers but nothing in the UI ever said so, and the
   // artboard is fully covered by elements — clicking "somewhere empty" just
   // selects the background image instead of deselecting.
-  if (onDeselect && selectedElement) {
+  if (onDeselect && selectedElement && !hideObjectActions) {
     groups.push(
       <button
         key="deselect"

@@ -26,6 +26,11 @@ import {
   documentContentResponseSchema,
   documentContentErrorSchema,
 } from '../schemas/documents.js';
+import {
+  researchDocumentResponseSchema,
+  researchErrorResponseSchema,
+  userDocumentReaderQuerySchema,
+} from '../schemas/research.js';
 
 const c = initContract();
 
@@ -80,6 +85,27 @@ export const documentsContract = c.router(
         500: documentContentErrorSchema,
       },
       summary: 'Get a document’s metadata and full OCR text',
+    },
+
+    /**
+     * GET /api/documents/:id/reader?notebookId=&query=
+     * A user's own document, split for the reader like a system document. Read
+     * by its owner, or by anyone who may read the notebook `notebookId` that
+     * the document is linked into. 404 for everything else, so a foreign
+     * document looks like a missing one.
+     */
+    getReader: {
+      method: 'GET',
+      path: '/api/documents/:id/reader',
+      pathParams: z.object({ id: z.string() }),
+      query: userDocumentReaderQuerySchema,
+      responses: {
+        200: researchDocumentResponseSchema,
+        401: documentsAuthErrorSchema,
+        404: researchErrorResponseSchema,
+        500: researchErrorResponseSchema,
+      },
+      summary: 'Get a user document for the reader',
     },
 
     /**

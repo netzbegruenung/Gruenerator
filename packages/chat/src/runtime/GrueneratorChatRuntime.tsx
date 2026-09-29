@@ -56,6 +56,7 @@ import {
 } from './GrueneratorThreadListAdapter';
 import { MESSAGE_QUEUE_ENABLED } from './messageQueueFlag';
 import { ThreadDataSyncEffect } from './ThreadDataSyncEffect';
+import { ThreadListReloadListener } from './ThreadListReloadListener';
 import { convertToThreadMessageLike, type LoadedMessage } from './threadMessageConversion';
 import { useFeedbackAdapter } from './useFeedbackAdapter';
 
@@ -428,6 +429,7 @@ export function GrueneratorChatRuntimeProvider({
   userId,
   userName,
   getExternalThreads,
+  onThreadTrashed,
   onExternalThreadClick,
   activePath,
   threadListPortalSlotId,
@@ -437,6 +439,8 @@ export function GrueneratorChatRuntimeProvider({
   userId: string;
   userName?: string;
   getExternalThreads?: () => ExternalThreadEntry[];
+  /** A deleted thread went to the Papierkorb (empty and doc chats are removed outright). */
+  onThreadTrashed?: (thread: { remoteId: string; title: string | null }) => void;
   onExternalThreadClick?: (externalId: string) => void;
   activePath?: string;
   threadListPortalSlotId?: string;
@@ -457,6 +461,8 @@ export function GrueneratorChatRuntimeProvider({
 
   const getExternalThreadsRef = useRef(getExternalThreads);
   getExternalThreadsRef.current = getExternalThreads;
+  const onThreadTrashedRef = useRef(onThreadTrashed);
+  onThreadTrashedRef.current = onThreadTrashed;
 
   const threadListAdapter = useMemo(() => {
     const base = createGrueneratorThreadListAdapter(providerApiClient, getDefaultAgent(), {
@@ -465,6 +471,7 @@ export function GrueneratorChatRuntimeProvider({
           useAgentStore.getState().setCurrentThread(null);
         }
       },
+      onTrashed: (remoteId, title) => onThreadTrashedRef.current?.({ remoteId, title }),
       getExternalThreads: () => getExternalThreadsRef.current?.() ?? [],
     });
     return {
@@ -524,6 +531,7 @@ export function GrueneratorChatRuntimeProvider({
             <ActiveRoleSyncEffect />
             <ThreadTitleEffect />
             <AgentSwitchListener />
+            <ThreadListReloadListener />
             {threadListPortalSlotId && <ChatThreadListPortal slotId={threadListPortalSlotId} />}
             <ChatCollaborationBridge userId={userId} userName={userName}>
               {children}

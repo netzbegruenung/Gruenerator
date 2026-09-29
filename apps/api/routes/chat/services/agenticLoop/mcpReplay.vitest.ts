@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
+import { DEFAULT_MAX_RESULT_CHARS, resultForModel } from './wrapTools.js';
 
 import type { PersistedStep } from './types.js';
 import type { ModelMessage } from 'ai';
@@ -156,6 +157,46 @@ describe('buildToolObservationReplay', () => {
     // Die Zeilen selbst bleiben zurück — refs ist ihre kurze Form.
     expect(refsOut).not.toContain('"results"');
     expect(bareOut!.length).toBeLessThanOrEqual(501);
+  });
+
+  describe('sameTurn (resume of a paused turn, #3795)', () => {
+    // The shape of a 15-row `notebooks` list: bare rows, ~4.6k chars.
+    const notebookRows = Array.from({ length: 15 }, (_, i) => ({
+      id: `nb-${i}`,
+      name: `Notebook Pressemitteilungen Landesverband ${i}`,
+      description: 'Sammlung aller Pressemitteilungen und Positionspapiere '.repeat(4),
+    }));
+    const listStep = mcpStep({
+      toolName: 'gruenerator_search',
+      serverName: undefined,
+      result: { scope: 'all', resultCount: 15, results: notebookRows },
+    });
+    const valueOf = (msgs: ModelMessage[]) =>
+      (msgs[1].content as Array<{ output: { value: string } }>).map((c) => c.output.value);
+
+    it('replays the list the loop just saw in full, where the cross-turn preview cuts it', () => {
+      const [crossTurn] = valueOf(buildToolObservationReplay([listStep], catalog));
+      const [sameTurn] = valueOf(
+        buildToolObservationReplay([listStep], catalog, { sameTurn: true })
+      );
+      expect(crossTurn!.length).toBeLessThanOrEqual(501);
+      expect(JSON.stringify(listStep.result).length).toBeGreaterThan(4000);
+      expect(JSON.parse(sameTurn!)).toEqual(listStep.result);
+    });
+
+    it('keeps every step of the paused turn, not only the most recent six', () => {
+      const steps = Array.from({ length: 9 }, (_, i) => mcpStep({ toolCallId: `s${i}` }));
+      expect(valueOf(buildToolObservationReplay(steps, catalog))).toHaveLength(6);
+      expect(valueOf(buildToolObservationReplay(steps, catalog, { sameTurn: true }))).toHaveLength(
+        9
+      );
+    });
+
+    it('shapes an oversized result exactly as the loop did before the pause', () => {
+      const huge = mcpStep({ result: { content: 'x'.repeat(DEFAULT_MAX_RESULT_CHARS * 2) } });
+      const [value] = valueOf(buildToolObservationReplay([huge], catalog, { sameTurn: true }));
+      expect(JSON.parse(value!)).toEqual(resultForModel(huge.result, DEFAULT_MAX_RESULT_CHARS));
+    });
   });
 });
 

@@ -17,6 +17,7 @@ import { extractSlugSuffix } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { notifyContentShared } from '../../services/groups/groupContent.js';
 import {
   assertCanShareToGroup,
   listShareTargetGroups,
@@ -61,7 +62,10 @@ async function checkOwnership(
   // like the rest of this file (and threadAccessService) does: not found.
   if (!UUID_RE.test(threadId)) return 'missing';
   const db = getPostgresInstance();
-  const rows = await db.query(`SELECT user_id FROM chat_threads WHERE id = $1`, [threadId]);
+  const rows = await db.query(
+    `SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL`,
+    [threadId]
+  );
   if (rows.length === 0) return 'missing';
   return String(rows[0]?.user_id) === userId ? 'ok' : 'forbidden';
 }
@@ -83,9 +87,10 @@ export const chatThreadSharingContractRouter = s.router(chatThreadSharingContrac
       } else {
         const suffix = extractSlugSuffix(slugOrId);
         if (suffix) {
-          const rows = await db.query(`SELECT id FROM chat_threads WHERE slug_suffix = $1`, [
-            suffix,
-          ]);
+          const rows = await db.query(
+            `SELECT id FROM chat_threads WHERE slug_suffix = $1 AND deleted_at IS NULL`,
+            [suffix]
+          );
           threadId = rows.length > 0 ? String(rows[0]?.id) : null;
         }
       }
@@ -105,7 +110,7 @@ export const chatThreadSharingContractRouter = s.router(chatThreadSharingContrac
                 p.display_name AS owner_name
          FROM chat_threads t
          LEFT JOIN profiles p ON p.id = t.user_id
-         WHERE t.id = $1`,
+         WHERE t.id = $1 AND t.deleted_at IS NULL`,
         [threadId]
       );
       const row = rows[0];
@@ -160,7 +165,7 @@ export const chatThreadSharingContractRouter = s.router(chatThreadSharingContrac
         `SELECT gcs.group_id, g.name AS group_name, gcs.shared_at,
                 COALESCE((gcs.permissions->>'write')::boolean, true) AS can_write
          FROM group_content_shares gcs
-         INNER JOIN groups g ON g.id = gcs.group_id
+         INNER JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
          WHERE gcs.content_type = 'chat_threads' AND gcs.content_id = $1
          ORDER BY gcs.shared_at DESC`,
         [threadId]
@@ -217,6 +222,7 @@ export const chatThreadSharingContractRouter = s.router(chatThreadSharingContrac
            VALUES ('chat_threads', $1, $2, $3, jsonb_build_object('read', true, 'write', $4::boolean))`,
           [threadId, groupId, userId, canWrite]
         );
+        notifyContentShared({ groupId, userId, contentType: 'chat_threads', contentId: threadId });
       }
 
       return { status: 200 as const, body: { success: true as const } };
@@ -300,7 +306,7 @@ export const chatThreadSharingContractRouter = s.router(chatThreadSharingContrac
       const db = getPostgresInstance();
       const sourceRows = await db.query(
         `SELECT title, agent_id, COALESCE(thread_type, 'chat') AS thread_type
-         FROM chat_threads WHERE id = $1`,
+         FROM chat_threads WHERE id = $1 AND deleted_at IS NULL`,
         [threadId]
       );
       const source = sourceRows[0];

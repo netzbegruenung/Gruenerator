@@ -28,6 +28,7 @@ export const subtitlerProjects = pgTable('subtitler_projects', {
   style_settings: jsonb('style_settings').$type<Record<string, unknown>>().notNull().default({}),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deleted_at: timestamp('deleted_at', { withTimezone: true }),
   last_edited_at: timestamp('last_edited_at', { withTimezone: true }).notNull().defaultNow(),
   export_count: integer('export_count').notNull().default(0),
 });

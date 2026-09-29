@@ -35,6 +35,7 @@ import {
   hasDocumentContextEditTool,
   isEditorSurface,
   isEditToolEnabled,
+  isPixelTurn,
   looksLikeCompoundEdit,
   resolveEditorSurfaceKind,
   type CompoundGenerationKind,
@@ -139,6 +140,7 @@ export interface TurnPlanInput {
   hasImageAttachments: boolean;
   secondaryIntent: string | null;
   isPdfFillRequest: boolean;
+  isReisekostenTurn?: boolean;
   classifierContradictedResearch: boolean;
   hasOwnMaterial: boolean;
   /** Die Werkzeug-Schalter der Fläche — ein `edit_current_*`-Schlüssel je Fläche. */
@@ -392,7 +394,7 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     p.loopEnabled &&
     !p.isCompound &&
     !p.hasSelectedNotebook &&
-    !p.hasImageAttachments &&
+    !isPixelTurn(p.hasImageAttachments, proposedIntent) &&
     looksLikeCompoundEdit(p.lastUserText);
 
   // Werkzeugbasierte Editor-Bearbeitung: der Turn geht mit dem `edit_document`
@@ -411,6 +413,7 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     isCompound: p.isCompound,
     hasSelectedNotebook: p.hasSelectedNotebook,
     hasImageAttachments: p.hasImageAttachments,
+    intent: proposedIntent,
     secondaryIntent: p.secondaryIntent,
   });
 
@@ -475,6 +478,7 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
         compoundGeneration: compoundKind != null,
         hasImageAttachments: p.hasImageAttachments,
         isPdfFillRequest: p.isPdfFillRequest,
+        isReisekostenTurn: p.isReisekostenTurn === true,
         classifierContradictedResearch: p.classifierContradictedResearch,
         hasOwnMaterial: p.hasOwnMaterial,
       }));

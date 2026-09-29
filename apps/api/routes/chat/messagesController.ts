@@ -366,9 +366,10 @@ router.delete('/', async (req, res) => {
 
     const postgres = getPostgresInstance();
 
-    const thread = await postgres.query('SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1', [
-      threadId,
-    ]);
+    const thread = await postgres.query(
+      'SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL LIMIT 1',
+      [threadId]
+    );
     if ((thread as { user_id: string }[]).length === 0) {
       return res.status(404).json({ error: 'Thread not found' });
     }

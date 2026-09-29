@@ -20,6 +20,7 @@ import { InputValidator } from '../../../utils/validation/index.js';
 import { BaseSearchService } from '../../BaseSearchService/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { toStoredWolkeUrl } from '../../scrapers/utils/wolkeShareSecrets.js';
+import { trashedDocumentIds } from '../trashedDocuments.js';
 
 import * as docRetrieval from './documentRetrieval.js';
 import * as scoring from './scoring.js';
@@ -119,6 +120,14 @@ function carriedSparseQueryVector(source: Record<string, unknown> | undefined): 
   return value && Array.isArray(value.indices) && value.indices.length > 0
     ? { sparseQueryVector: value }
     : {};
+}
+
+/** Drop hits whose document is in the Papierkorb (see `trashedDocuments.ts`). */
+async function hideTrashedDocuments(response: SearchResponse): Promise<SearchResponse> {
+  if (!response.results?.length) return response;
+  const trashed = await trashedDocumentIds(response.results.map((r) => r.document_id));
+  if (trashed.size === 0) return response;
+  return { ...response, results: response.results.filter((r) => !trashed.has(r.document_id)) };
 }
 
 export class DocumentSearchService extends BaseSearchService {
@@ -366,18 +375,22 @@ export class DocumentSearchService extends BaseSearchService {
 
       const validated = this.validateSearchParams(searchParams);
       const mode = validated.options?.mode || 'vector';
+      const searchCollection = validated.filters?.searchCollection;
+      const system =
+        typeof searchCollection === 'string' && isSystemQdrantCollection(searchCollection);
 
+      let response: SearchResponse;
       if (mode === 'hybrid') {
         console.log('[DocumentSearchService] Executing hybrid search mode');
-        return await this.performHybridSearch(validated as SearchParams);
-      }
-
-      if (mode === 'text' || mode === 'keyword') {
+        response = await this.performHybridSearch(validated as SearchParams);
+      } else if (mode === 'text' || mode === 'keyword') {
         console.log('[DocumentSearchService] Executing full-text search mode');
-        return await this.performTextOnlySearch(validated as SearchParams);
+        response = await this.performTextOnlySearch(validated as SearchParams);
+      } else {
+        response = await this.performSimilaritySearch(validated as SearchParams);
       }
-
-      return await this.performSimilaritySearch(validated as SearchParams);
+      // System collections have no `documents` rows, hence nothing trashed.
+      return system ? response : await hideTrashedDocuments(response);
     } catch (error) {
       const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[DocumentSearchService] Search error:', error);
@@ -437,13 +450,15 @@ export class DocumentSearchService extends BaseSearchService {
         throw new Error('Qdrant not available');
       }
 
-      return await searchOps.performTextSearch(
-        this.qdrantOps,
-        query,
-        userId,
-        options,
-        this.chunkMultiplier,
-        this.groupAndRankHybridResults.bind(this)
+      return await hideTrashedDocuments(
+        await searchOps.performTextSearch(
+          this.qdrantOps,
+          query,
+          userId,
+          options,
+          this.chunkMultiplier,
+          this.groupAndRankHybridResults.bind(this)
+        )
       );
     } catch (error) {
       const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -474,7 +489,7 @@ export class DocumentSearchService extends BaseSearchService {
         );
       }
 
-      return await this.performHybridSearch({
+      const response = await this.performHybridSearch({
         query,
         userId,
         filters: {
@@ -493,6 +508,7 @@ export class DocumentSearchService extends BaseSearchService {
           hybridConfig: this.hybridConfig,
         },
       });
+      return await hideTrashedDocuments(response);
     } catch (error) {
       const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[DocumentSearchService] Hybrid search error:', error);
@@ -546,6 +562,18 @@ export class DocumentSearchService extends BaseSearchService {
       throw new Error('Qdrant not available');
     }
     return await vectorOps.deleteDocumentVectors(this.qdrantOps, documentId, userId);
+  }
+
+  async setDocumentVectorsDeletedAt(
+    documentId: string,
+    userId: string,
+    deletedAt: string | null
+  ): Promise<void> {
+    await this.ensureInitialized();
+    if (!this.qdrantOps) {
+      throw new Error('Qdrant not available');
+    }
+    await vectorOps.setDocumentVectorsDeletedAt(this.qdrantOps, documentId, userId, deletedAt);
   }
 
   async countVectorsByDocument(documentIds: readonly string[]): Promise<Map<string, number>> {

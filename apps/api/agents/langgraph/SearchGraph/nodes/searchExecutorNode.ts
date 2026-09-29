@@ -95,7 +95,10 @@ export async function searchExecutorNode(
   // "Tiefe Recherche" toggle, which routes to deepResearchNode instead.
   if (state.searchSources.includes('web')) {
     searchPromises.push(
-      executeWebSearch(searchQuery, { tier: 'standard' })
+      executeWebSearch(searchQuery, {
+        tier: 'standard',
+        ...(userLocale === 'de-AT' ? { locale: 'de-AT' as const } : {}),
+      })
         .then(({ results }) => ({ source: 'web', results }))
         .catch((err: unknown) => {
           log.warn(

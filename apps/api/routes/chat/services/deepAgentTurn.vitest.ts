@@ -16,7 +16,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const runDeepAgentResearch = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const createDocumentWithContent = vi.fn<(...args: unknown[]) => Promise<{ id: string }>>();
 const recordRunDocument = vi.fn<(...args: unknown[]) => Promise<void>>();
-let linkupService: unknown = {};
+let searchAvailable = true;
 const envMock = {
   CORTECS_API_KEY: 'sk-test',
 };
@@ -33,8 +33,8 @@ vi.mock('../../../services/research/deepAgent/runRegistry.js', () => ({
 vi.mock('../../../services/docs/DocGenerationService.js', () => ({
   createDocumentWithContent: (...args: unknown[]) => createDocumentWithContent(...args),
 }));
-vi.mock('../../../services/search/LinkupService.js', () => ({
-  getLinkupService: () => linkupService,
+vi.mock('../../../services/search/webSearch.js', () => ({
+  canWebSearch: () => searchAvailable,
 }));
 const { runDeepAgentTurn } = await import('./deepAgentTurn.js');
 
@@ -88,7 +88,7 @@ async function runServed(sse: ReturnType<typeof makeSse>, state: object = STATE)
 beforeEach(() => {
   vi.clearAllMocks();
   envMock.CORTECS_API_KEY = 'sk-test';
-  linkupService = {};
+  searchAvailable = true;
   createDocumentWithContent.mockResolvedValue({ id: 'doc-42' });
   runDeepAgentResearch.mockResolvedValue(GOOD_RESULT);
 });
@@ -104,8 +104,8 @@ describe('gates — each one falls through to the old path', () => {
     expect(sse.sent).toHaveLength(0);
   });
 
-  it('does nothing without Linkup, the floor under the search tools', async () => {
-    linkupService = null;
+  it('does nothing without a web search engine', async () => {
+    searchAvailable = false;
     expect(await run(makeSse())).toBeNull();
     expect(runDeepAgentResearch).not.toHaveBeenCalled();
   });

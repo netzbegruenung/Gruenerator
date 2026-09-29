@@ -55,6 +55,13 @@
  *     Der Lauf zählt als bestätigende zweite Sichtung, die Marke
  *     `lv_gone_since` des Scrapers wird übersprungen. 403, 5xx und Netzfehler
  *     löschen nie.
+ *   - `--content-types`: setzt `content_type`, `content_type_label` und
+ *     `curated_lists` für jede URL, die in einer kuratierten Liste der Config
+ *     steht (`curatedLists`, z. B. `wahlprogramm-bb`), auf den Wert, den der
+ *     Scraper heute beim Einlesen schreiben würde (#3808). Kein Abruf, daher
+ *     auch mit `--all`. Nötig, weil der Content-Hash-Gatter nur Titel und Datum
+ *     nachzieht — eine neu kuratierte Wahlprogramm-PDF bliebe sonst für immer
+ *     `beschluss`. URLs außerhalb jeder Liste bleiben unberührt.
  *
  * Geschrieben wird per `setPayload` auf alle Chunks derselben `source_url`.
  * Die Vektoren bleiben unverändert — sie wurden mit dem alten Titel als
@@ -67,6 +74,7 @@
  *   npx tsx scripts/repair-lv-payload.ts --overwrite-dates visible-date --source berlin-lv-presse
  *   npx tsx scripts/repair-lv-payload.ts --gone --source sachsen-anhalt-lv
  *   npx tsx scripts/repair-lv-payload.ts --fulltext --source berlin-lv-beschluesse
+ *   npx tsx scripts/repair-lv-payload.ts --content-types --all
  *   … jeweils mit --write, um wirklich zu schreiben; --limit N begrenzt die Punkte je Quelle.
  *
  * Bei mehreren `--source`: Quellen laufen mit `--parallel N` (Standard 4)
@@ -98,7 +106,12 @@ import {
 } from '../services/scrapers/implementations/LandesverbandScraper/goneState.js';
 
 import { type QdrantClient } from '@qdrant/js-client-rest';
-import { type LandesverbandSource } from '../config/landesverbaendeConfig.js';
+import {
+  CONTENT_TYPE_LABELS,
+  getCuratedContentTypeForUrl,
+  getCuratedListsForUrl,
+  type LandesverbandSource,
+} from '../config/landesverbaendeConfig.js';
 
 interface CliArgs {
   sources: string[];
@@ -107,6 +120,7 @@ interface CliArgs {
   overwriteDates: string | null;
   gone: boolean;
   fulltext: boolean;
+  contentTypes: boolean;
   refetch: boolean;
   write: boolean;
   limit: number | null;
@@ -128,10 +142,13 @@ interface Patch {
   published_at?: string;
   /** Chunk 0 only — the other chunks never carry it. */
   full_text?: string;
+  content_type?: string;
+  content_type_label?: string;
+  curated_lists?: string[];
 }
 
 const USAGE =
-  'Usage: repair-lv-payload.ts (--titles [--refetch] | --overwrite-dates <regel> | --fulltext) … (--source <id> [--source <id> …] | --all) [--limit N] [--parallel N] [--write]\n' +
+  'Usage: repair-lv-payload.ts (--titles [--refetch] | --overwrite-dates <regel> | --fulltext | --content-types) … (--source <id> [--source <id> …] | --all) [--limit N] [--parallel N] [--write]\n' +
   '       repair-lv-payload.ts --gone --source <id> [--source <id> …] [--limit N] [--parallel N] [--write]';
 const DEFAULT_COLLECTION = 'landesverbaende_documents';
 const UA = 'Gruenerator-Bot/1.0 (+https://gruenerator.eu)';
@@ -155,6 +172,7 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
     overwriteDates: null,
     gone: false,
     fulltext: false,
+    contentTypes: false,
     refetch: false,
     write: false,
     limit: null,
@@ -178,6 +196,7 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
       args.overwriteDates = rule;
     } else if (arg === '--gone') args.gone = true;
     else if (arg === '--fulltext') args.fulltext = true;
+    else if (arg === '--content-types') args.contentTypes = true;
     else if (arg === '--refetch') args.refetch = true;
     else if (arg === '--write') args.write = true;
     else if (arg === '--limit') {
@@ -190,13 +209,15 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
       args.parallel = n;
     } else return { error: `Unbekanntes Argument: ${arg}. ${USAGE}` };
   }
-  if (args.gone && (args.titles || args.overwriteDates || args.fulltext)) {
+  if (args.gone && (args.titles || args.overwriteDates || args.fulltext || args.contentTypes)) {
     return { error: '--gone steht allein: gelöschte Punkte bekommen keinen Patch.' };
   }
   if (args.gone && args.all) {
     return { error: '--gone nur mit --source: --all holt jede Seite aller Quellen.' };
   }
-  if (!args.titles && !args.overwriteDates && !args.gone && !args.fulltext) return { error: USAGE };
+  if (!args.titles && !args.overwriteDates && !args.gone && !args.fulltext && !args.contentTypes) {
+    return { error: USAGE };
+  }
   if (args.all === args.sources.length > 0) return { error: USAGE };
   if (args.refetch && !args.titles) {
     return { error: '--refetch nur mit --titles: nur die Titelregel liest die Seite neu.' };
@@ -320,6 +341,25 @@ export function planDateRepair(
   return DATE_RULES[rule](point, extracted);
 }
 
+/**
+ * What `DocumentProcessor` writes today for a URL in a curated list that sets
+ * its own type — or null when the URL is in no such list, so a point the
+ * scraper typed by its content path is never touched (#3808).
+ */
+export function planContentTypeRepair(
+  point: Pick<StoredPoint, 'source_url' | 'content_type' | 'content_type_label' | 'curated_lists'>
+): Pick<Patch, 'content_type' | 'content_type_label' | 'curated_lists'> | null {
+  const contentType = getCuratedContentTypeForUrl(point.source_url);
+  if (!contentType) return null;
+  const patch: Pick<Patch, 'content_type' | 'content_type_label' | 'curated_lists'> = {};
+  if (point.content_type !== contentType) patch.content_type = contentType;
+  const label = CONTENT_TYPE_LABELS[contentType];
+  if (point.content_type_label !== label) patch.content_type_label = label;
+  const lists = getCuratedListsForUrl(point.source_url);
+  if (lists.join('|') !== point.curated_lists.join('|')) patch.curated_lists = lists;
+  return Object.keys(patch).length > 0 ? patch : null;
+}
+
 const withoutWhitespace = (text: string): string => text.replace(/\s+/g, '');
 
 /**
@@ -348,6 +388,7 @@ interface RepairContext {
   refetch: boolean;
   overwriteDates: string | null;
   fulltext?: boolean;
+  contentTypes?: boolean;
 }
 
 interface RepairResult {
@@ -369,7 +410,7 @@ interface RepairResult {
 export async function planPointRepair(
   point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'> & {
     full_text?: string | null;
-  },
+  } & Partial<Pick<StoredPoint, 'content_type' | 'content_type_label' | 'curated_lists'>>,
   ctx: RepairContext,
   refetchable: boolean,
   fetchExtracted: () => Promise<Extracted & { text: string }>
@@ -409,6 +450,18 @@ export async function planPointRepair(
     const verdict = planFullTextRepair(point.full_text ?? null, extracted?.text ?? null);
     if (verdict === 'unresolved') unresolved = true;
     else if (verdict !== 'unchanged') patch.full_text = verdict.full_text;
+  }
+
+  if (ctx.contentTypes) {
+    Object.assign(
+      patch,
+      planContentTypeRepair({
+        source_url: point.source_url,
+        content_type: point.content_type ?? null,
+        content_type_label: point.content_type_label ?? null,
+        curated_lists: point.curated_lists ?? [],
+      })
+    );
   }
 
   return { patch, unresolved, fetchAttempted, fetchError };
@@ -475,6 +528,9 @@ interface StoredPoint {
   published_at: string | null;
   /** Only loaded for --fulltext — it is the heaviest field on the point. */
   full_text: string | null;
+  content_type: string | null;
+  content_type_label: string | null;
+  curated_lists: string[];
 }
 
 async function scrollChunkZero(
@@ -496,6 +552,9 @@ async function scrollChunkZero(
         'source_id',
         'title',
         'published_at',
+        'content_type',
+        'content_type_label',
+        'curated_lists',
         ...(withFullText ? ['full_text'] : []),
       ],
       with_vector: false,
@@ -510,6 +569,12 @@ async function scrollChunkZero(
         title: typeof payload.title === 'string' ? payload.title : '',
         published_at: typeof payload.published_at === 'string' ? payload.published_at : null,
         full_text: typeof payload.full_text === 'string' ? payload.full_text : null,
+        content_type: typeof payload.content_type === 'string' ? payload.content_type : null,
+        content_type_label:
+          typeof payload.content_type_label === 'string' ? payload.content_type_label : null,
+        curated_lists: Array.isArray(payload.curated_lists)
+          ? payload.curated_lists.filter((id): id is string => typeof id === 'string')
+          : [],
       });
     }
     offset = res.next_page_offset as typeof offset;
@@ -677,7 +742,7 @@ async function main(): Promise<void> {
       }
 
       const counts = { scanned: points.length, wouldPatch: 0, unchanged: 0, unresolved: 0 };
-      const extra = { title: 0, date: 0, fullText: 0, fetchFailed: 0, written: 0 };
+      const extra = { title: 0, date: 0, fullText: 0, contentType: 0, fetchFailed: 0, written: 0 };
       const samples: string[] = [];
 
       for (const point of points) {
@@ -691,6 +756,7 @@ async function main(): Promise<void> {
             refetch: args.refetch,
             overwriteDates: args.overwriteDates,
             fulltext: args.fulltext,
+            contentTypes: args.contentTypes,
           },
           refetchable,
           () => ContentExtractor.extractPageContent(point.source_url, source!, fetchOk)
@@ -711,11 +777,16 @@ async function main(): Promise<void> {
         if (patch.title !== undefined) extra.title++;
         if (patch.published_at !== undefined) extra.date++;
         if (patch.full_text !== undefined) extra.fullText++;
+        if (patch.content_type !== undefined) extra.contentType++;
         const bucket = classifyPoint(patch, unresolved);
         counts[bucket]++;
         if (bucket !== 'wouldPatch') continue;
         if (samples.length < 5) {
-          const old = { title: point.title, published_at: point.published_at };
+          const old = {
+            title: point.title,
+            published_at: point.published_at,
+            ...(args.contentTypes && { content_type: point.content_type }),
+          };
           // A full text is too long to print; its shape is what changed.
           const shown = {
             ...patch,
@@ -756,7 +827,7 @@ async function main(): Promise<void> {
         `  geprüft ${counts.scanned} = would-patch ${counts.wouldPatch} + unchanged ${counts.unchanged} + unresolved ${counts.unresolved} (unresolved nur ohne jeden Patch)`
       );
       lines.push(
-        `  davon Titel ${extra.title} · Datum ${extra.date} · Volltext ${extra.fullText} · Abruf fehlgeschlagen ${extra.fetchFailed} · geschrieben ${extra.written}`
+        `  davon Titel ${extra.title} · Datum ${extra.date} · Volltext ${extra.fullText} · Typ ${extra.contentType} · Abruf fehlgeschlagen ${extra.fetchFailed} · geschrieben ${extra.written}`
       );
       console.log(lines.join('\n'));
     } catch (error) {

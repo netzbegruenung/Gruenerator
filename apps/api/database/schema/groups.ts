@@ -23,6 +23,7 @@ export const groups = pgTable('groups', {
   created_by: uuid('created_by'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  deleted_at: timestamp('deleted_at', { withTimezone: true }),
   join_token: text('join_token'),
   is_active: boolean('is_active').default(true),
   group_type: text('group_type').default('standard'),

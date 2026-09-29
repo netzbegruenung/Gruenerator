@@ -196,6 +196,36 @@ describe('buildCitations — enriched fields', () => {
     expect(noUrl).not.toHaveProperty('readerCollectionId');
   });
 
+  it('names the reader document for a user notebook, with the notebook', () => {
+    const [citation] = buildCitations([
+      makeResult({
+        collectionId: '0f8b6c1e-2d4a-4b8e-9c3f-5a6d7e8f9a0b',
+        documentId: 'doc-1',
+        url: undefined,
+      }),
+    ]);
+    expect(citation.readerDocument).toEqual({
+      documentId: 'doc-1',
+      notebookId: '0f8b6c1e-2d4a-4b8e-9c3f-5a6d7e8f9a0b',
+    });
+  });
+
+  it("names the reader document without notebook for the owner's document search", () => {
+    const [citation] = buildCitations([
+      makeResult({ source: 'document:doc-2', documentId: 'doc-2' }),
+    ]);
+    expect(citation.readerDocument).toEqual({ documentId: 'doc-2', notebookId: null });
+  });
+
+  it('names no reader document for system collections or sources without documentId', () => {
+    const [system] = buildCitations([
+      makeResult({ collectionId: 'brandenburg', documentId: 'https://x.de/a' }),
+    ]);
+    const [noId] = buildCitations([makeResult({ source: 'document:unknown' })]);
+    expect(system).not.toHaveProperty('readerDocument');
+    expect(noId).not.toHaveProperty('readerDocument');
+  });
+
   it('threads pageNumber from SearchResult to Citation, and only when present', () => {
     expect(buildCitations([makeResult({ pageNumber: 12 })])[0].pageNumber).toBe(12);
     expect(buildCitations([makeResult({ pageNumber: null })])[0]).not.toHaveProperty('pageNumber');

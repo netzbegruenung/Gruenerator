@@ -136,6 +136,11 @@
       "title": "Einrichtung erneut starten",
       "description": "Holt den Bereich „Onboarding\" zurück und führt noch einmal durch Rolle, Friend und Hintergrund."
     },
+    "allgemein.papierkorb": {
+      "tab": "allgemein",
+      "title": "Papierkorb",
+      "description": "Gelöschte Inhalte 30 Tage lang wiederherstellen oder vorher endgültig löschen"
+    },
     "friends.avatar": {
       "tab": "friends",
       "title": "Dein Friend",
@@ -382,6 +387,24 @@
         "key": "group_comment_added",
         "label": "Kommentare in Gruppen",
         "description": "Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast",
+        "group": "groups"
+      },
+      {
+        "key": "group_post_created",
+        "label": "Neue Beiträge",
+        "description": "Wenn jemand in einem deiner Projekte einen Beitrag schreibt",
+        "group": "groups"
+      },
+      {
+        "key": "group_user_mentioned",
+        "label": "Erwähnungen",
+        "description": "Wenn dich jemand in einem Projekt mit @Name erwähnt",
+        "group": "groups"
+      },
+      {
+        "key": "group_mention_all",
+        "label": "@alle",
+        "description": "Wenn jemand in einem deiner Projekte alle mit @alle anspricht",
         "group": "groups"
       },
       {

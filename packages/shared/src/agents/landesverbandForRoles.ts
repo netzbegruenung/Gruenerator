@@ -23,7 +23,7 @@
  */
 import { type RoleBausteinKey, roleBausteinKey } from '../roles/rolesConfig.js';
 
-import { LANDESVERBAENDE } from './landesverbaende.js';
+import { LANDESVERBAENDE, landesverbandAgentIds } from './landesverbaende.js';
 import { SKILLS } from './skills/index.js';
 import { VISIBLE_SYSTEM_AGENTS, getSystemAgent } from './system.js';
 
@@ -86,14 +86,10 @@ const LV_ID_BY_TITLE: ReadonlyMap<string, string> = new Map(
  * darauf.
  */
 const DISCOVERABLE_LV_IDS: ReadonlySet<string> = new Set(
-  LANDESVERBAENDE.filter((lv) =>
-    VISIBLE_SYSTEM_AGENTS.some(
-      (agent) =>
-        agent.identifier === lv.prAgentId ||
-        agent.identifier === lv.buergerAgentId ||
-        agent.identifier === lv.wahlpruefsteinAgentId
-    )
-  ).map((lv) => lv.id)
+  LANDESVERBAENDE.filter((lv) => {
+    const ids = landesverbandAgentIds(lv);
+    return VISIBLE_SYSTEM_AGENTS.some((agent) => ids.includes(agent.identifier));
+  }).map((lv) => lv.id)
 );
 
 /**
@@ -128,15 +124,13 @@ export function landesverbandIdsForRoles(
   return LANDESVERBAENDE.filter((lv) => ids.has(lv.id)).map((lv) => lv.id);
 }
 
+const LV_ID_BY_AGENT_ID: ReadonlyMap<string, string> = new Map(
+  LANDESVERBAENDE.flatMap((lv) => landesverbandAgentIds(lv).map((id) => [id, lv.id] as const))
+);
+
 /** Der Landesverband, dem dieser Agenten-Identifier gehört, oder `null`. */
-function lvIdForAgentIdentifier(identifier: string): string | null {
-  const lv = LANDESVERBAENDE.find(
-    (entry) =>
-      entry.prAgentId === identifier ||
-      entry.buergerAgentId === identifier ||
-      entry.wahlpruefsteinAgentId === identifier
-  );
-  return lv?.id ?? null;
+export function lvIdForAgentIdentifier(identifier: string): string | null {
+  return LV_ID_BY_AGENT_ID.get(identifier) ?? null;
 }
 
 /**
@@ -192,7 +186,7 @@ export function lvSkillMentionsForRoles(
 export interface LandesverbandOffer {
   lvId: string;
   title: string;
-  /** Auffindbare Spezialagenten (Öffentlichkeitsarbeit, Bürger*innen, Wahlprüfsteine). */
+  /** Auffindbare Spezialagenten (`landesverbandAgentIds`: PR, Bürger*innen, Wahlprüfsteine, ggf. Beschlussanträge und Wahlprogramm). */
   agents: number;
   /** Rezepte, die einem dieser Agenten gehören. */
   skills: number;
@@ -213,7 +207,7 @@ export function landesverbandOfferForBundesland(bundesland: string): Landesverba
   const lv = LANDESVERBAENDE.find((entry) => entry.id === lvId);
   if (!lv) return null;
 
-  const agentIds: readonly string[] = [lv.prAgentId, lv.buergerAgentId, lv.wahlpruefsteinAgentId];
+  const agentIds: readonly string[] = landesverbandAgentIds(lv);
   const agents = agentIds.filter((id) =>
     VISIBLE_SYSTEM_AGENTS.some((agent) => agent.identifier === id)
   ).length;

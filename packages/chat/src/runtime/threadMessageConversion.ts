@@ -22,6 +22,7 @@ import { ATTACHMENT_META_PART_NAME, type AttachmentMetaData } from '../lib/attac
 import { mapRawCitationsToChat } from '../lib/citationUtils';
 import { isPastedTextAttachment, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
 import { TOOL_APPROVAL_OPTIONS } from '../lib/toolApproval';
+import { dropDuplicateToolCalls } from '../lib/toolCallParts';
 import { buildToolDerivedCustom } from '../lib/toolDerivedCustom';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import { type DocumentCreatedData } from '../types/messageMetadata';
@@ -368,14 +369,14 @@ export function convertNotebookLoadedMessages(messages: LoadedMessage[]): Thread
     // Precision answers ran the agentic loop: its steps come back as the
     // cards the live stream showed, above the text (no interleaving offsets).
     // One run sharing the first card's id, so the group renders as it did live.
-    const parts = (m.metadata?.toolCalls ?? []).map((tc) =>
-      persistedToolCallToPart(tc, `tc_${m.id}`)
+    const parts = (m.metadata?.toolCalls ?? []).map((tc, i) =>
+      persistedToolCallToPart(tc, `tc_${m.id}_${i}`)
     );
     const cards = parts.map((p) => ({ ...p, parentId: parts[0]!.toolCallId }));
 
     return {
       role: 'assistant' as const,
-      content: [...cards, { type: 'text' as const, text }],
+      content: dropDuplicateToolCalls([...cards, { type: 'text' as const, text }]),
       id: m.id,
       metadata: { custom },
     };
@@ -401,8 +402,11 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
 
       const contentParts: Array<{ type: 'text'; text: string } | ToolCallLike> = [];
 
-      const cardFor = (tc: PersistedToolCall, parentId: string): ToolCallLike => ({
-        ...persistedToolCallToPart(tc, `tc_${m.id}`),
+      // Per card, not per message: several id-less steps in one row would
+      // otherwise share one id and collide.
+      const fallbackId = (i: number) => `tc_${m.id}_${i}`;
+      const cardFor = (tc: PersistedToolCall, i: number, parentId: string): ToolCallLike => ({
+        ...persistedToolCallToPart(tc, fallbackId(i)),
         parentId,
       });
 
@@ -418,23 +422,22 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         // match the live tail behaviour.
         const sorted = toolCalls
           .map((tc, i) => ({ tc, i }))
-          .sort((a, b) => (a.tc.textOffset ?? 0) - (b.tc.textOffset ?? 0) || a.i - b.i)
-          .map((x) => x.tc);
+          .sort((a, b) => (a.tc.textOffset ?? 0) - (b.tc.textOffset ?? 0) || a.i - b.i);
 
         let cursor = 0;
         let runParentId: string | null = null;
         let prevWasCard = false;
-        for (const tc of sorted) {
+        for (const { tc, i } of sorted) {
           const offset = Math.max(cursor, Math.min(tc.textOffset ?? cursor, textContent.length));
           const slice = textContent.slice(cursor, offset);
           if (slice.length > 0) {
             contentParts.push({ type: 'text' as const, text: slice });
             prevWasCard = false;
           }
-          const toolCallId = tc.toolCallId || `tc_${m.id}`;
+          const toolCallId = tc.toolCallId || fallbackId(i);
           const parentId: string = prevWasCard && runParentId ? runParentId : toolCallId;
           runParentId = parentId;
-          contentParts.push(cardFor(tc, parentId));
+          contentParts.push(cardFor(tc, i, parentId));
           prevWasCard = true;
           cursor = offset;
         }
@@ -442,13 +445,13 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
       } else {
         // Legacy / split turns: cards first, then the full text — unchanged.
         if (toolCalls) {
-          for (const tc of toolCalls) {
+          for (const [i, tc] of toolCalls.entries()) {
             if (tc.toolName === 'ask_human') {
               // Gleiche Sonderform wie in `cardFor`: echte args, Antwort als String.
               const answer = (tc.result as Record<string, unknown> | undefined)?.answer;
               contentParts.push({
                 type: 'tool-call' as const,
-                toolCallId: tc.toolCallId || `tc_${m.id}`,
+                toolCallId: tc.toolCallId || fallbackId(i),
                 toolName: tc.toolName,
                 args: (tc.args ?? {}) as ToolCallMessagePart['args'],
                 result: answer != null ? String(answer) : tc.result,
@@ -457,7 +460,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
             }
             contentParts.push({
               type: 'tool-call' as const,
-              toolCallId: tc.toolCallId || `tc_${m.id}`,
+              toolCallId: tc.toolCallId || fallbackId(i),
               toolName: tc.toolName,
               args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
               result: tc.result,
@@ -577,7 +580,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
 
       return {
         role: m.role as 'user' | 'assistant',
-        content: contentParts,
+        content: dropDuplicateToolCalls(contentParts),
         id: m.id,
         // Ohne `requires-action` verweigert assistant-ui die Antwort auf eine
         // Freigabe oder Rückfrage — die Karte wäre nach einem Reload nur noch

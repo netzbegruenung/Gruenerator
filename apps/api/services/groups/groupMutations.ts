@@ -80,7 +80,7 @@ export async function getGroupByToken(joinToken: string): Promise<GroupTokenRef 
   const postgres = getPostgresInstance();
   await postgres.ensureInitialized();
   return (await postgres.queryOne(
-    'SELECT id, name FROM groups WHERE join_token = $1',
+    'SELECT id, name FROM groups WHERE join_token = $1 AND deleted_at IS NULL',
     [joinToken.trim()],
     { table: 'groups' }
   )) as GroupTokenRef | null;

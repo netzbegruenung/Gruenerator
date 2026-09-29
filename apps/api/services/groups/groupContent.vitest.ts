@@ -13,6 +13,11 @@ import {
   type ShareContentDeps,
 } from './groupContent.js';
 
+vi.mock('../media/thumbnailUrl.js', () => ({
+  buildCanvasThumbnailUrl: (id: string, stored: string | null) =>
+    stored ? `signed:${id}:${stored}` : null,
+}));
+
 interface FakeDbOptions {
   /** Antwort auf die Besitzabfrage (Tabelle → Zeile). */
   owner?: Record<string, string> | null;
@@ -23,7 +28,7 @@ function fakeDeps(opts: FakeDbOptions = {}, over: Partial<ShareContentDeps> = {}
   const exec = vi.fn(async () => ({ changes: 1 }));
   const queryOne = vi.fn(async (sql: string) => {
     if (sql.includes('FROM group_content_shares')) return opts.existingShare ? { id: 's1' } : null;
-    if (sql.includes('FROM groups')) return { name: 'Kreisverband' };
+    if (sql.includes('FROM groups')) return { name: 'Kreisverband', share_id: 's-new' };
     return opts.owner ?? null;
   });
   const deps: ShareContentDeps = {
@@ -122,6 +127,36 @@ describe('shareContentToGroup', () => {
     expect(deps.updateNotebookCollection).not.toHaveBeenCalled();
   });
 
+  /**
+   * Gruppenzugriff auf einen User-Agent verlangt share_mode <> 'private'
+   * (#3784). Chat und MCP teilen über diesen Pfad — ohne Hochstufung wäre die
+   * Freigabe tot und im Teilen-Dialog unsichtbar.
+   */
+  it('promotes a private user agent to share_mode=groups before inserting', async () => {
+    const { deps, exec } = fakeDeps({ owner: { user_id: 'u1' } });
+    const out = await shareContentToGroup(
+      { ...base, contentType: 'user_agents', contentId: 'a1' },
+      deps
+    );
+    expect(out.status).toBe(200);
+    const [promoteSql, promoteParams] = exec.mock.calls[0] as unknown as [string, unknown[]];
+    expect(promoteSql).toMatch(/UPDATE user_agents SET share_mode = 'groups'/);
+    expect(promoteSql).toContain("share_mode = 'private'");
+    expect(promoteParams).toEqual(['a1']);
+    const [insertSql] = exec.mock.calls[1] as unknown as [string];
+    expect(insertSql).toContain('INSERT INTO group_content_shares');
+  });
+
+  it("does not touch someone else's user agent", async () => {
+    const { deps, exec } = fakeDeps({ owner: { user_id: 'other' } });
+    const out = await shareContentToGroup(
+      { ...base, contentType: 'user_agents', contentId: 'a1' },
+      deps
+    );
+    expect(out.status).toBe(403);
+    expect(exec).not.toHaveBeenCalled();
+  });
+
   it('is owner-only for notebooks', async () => {
     const { deps, exec } = fakeDeps(
       {},
@@ -203,7 +238,9 @@ describe('shareContentToGroup', () => {
       expect.objectContaining({
         groupId: 'g1',
         excludeUserId: 'u1',
+        type: 'group_content_shared',
         body: 'Moritz hat ein Dokument in „Kreisverband" geteilt',
+        actionUrl: '/projekte/g1?beitrag=s-new',
       })
     );
   });
@@ -387,11 +424,100 @@ describe('hydrateGroupContent', () => {
     ]);
   });
 
+  it('hands out signed canvas thumbnails, never the auth-only download URL', async () => {
+    const share = (content_type: string, content_id: string) => ({
+      content_type,
+      content_id,
+      shared_at: '2026-09-28T10:00:00Z',
+      permissions: {},
+      shared_by_user_id: 'u1',
+      first_name: null,
+      display_name: 'Moritz',
+    });
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM group_content_shares')) {
+        return [share('collaborative_documents', 'c1'), share('canvas_template', 't1')];
+      }
+      if (sql.includes("document_subtype = 'canvas'")) {
+        return [{ id: 't1', title: 'Vorlage', thumbnail_url: '/api/share/tok2/download' }];
+      }
+      if (sql.includes('FROM collaborative_documents')) {
+        return [
+          {
+            id: 'c1',
+            title: 'Arten retten',
+            document_subtype: 'canvas',
+            thumbnail_url: '/api/share/tok1/download',
+          },
+        ];
+      }
+      return [];
+    });
+    const out = await hydrateGroupContent('g1', {
+      postgres: { query } as unknown as HydrateGroupContentDeps['postgres'],
+      getNotebookCollectionsByIds: vi.fn(async () => []) as never,
+      listUserAgentsByIds: vi.fn(async () => []),
+    });
+    expect(out.collaborative_documents[0]?.thumbnail_url).toBe(
+      'signed:c1:/api/share/tok1/download'
+    );
+    expect(out.canvas_templates[0]?.thumbnail_url).toBe('signed:t1:/api/share/tok2/download');
+  });
+
   it('returns empty buckets for a project with nothing shared', async () => {
     const { deps, query } = fakeHydrateDeps();
     query.mockResolvedValue([]);
     const out = await hydrateGroupContent('g1', deps);
     expect(Object.values(out).every((b: unknown[]) => b.length === 0)).toBe(true);
     expect(query).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Both halves build their SQL from a table name (`CONTENT_TABLE_NAME_MAP`),
+ * which `trashReaders.vitest.ts` cannot see — so the Papierkorb filter is
+ * pinned here: a trashed item can neither be shared nor show up in a Projekt.
+ */
+describe('Papierkorb: trashed content in Projekte', () => {
+  it.each([
+    ['user_documents', 'user_documents'],
+    ['database', 'user_templates'],
+    ['user_agents', 'user_agents'],
+    ['documents', 'documents'],
+  ])('refuses to share trashed %s (%s)', async (contentType, table) => {
+    const { deps, queryOne } = fakeDeps({ owner: null });
+    const out = await shareContentToGroup({ ...base, contentType, contentId: 'x1' }, deps);
+    expect(out.status).toBe(404);
+    const ownership = (queryOne.mock.calls as unknown as Array<[string]>)
+      .map(([sql]) => sql)
+      .find((sql) => sql.includes(`FROM ${table} WHERE id = $1`));
+    expect(ownership).toContain('deleted_at IS NULL');
+  });
+
+  it('adds no deleted_at clause for a table without a Papierkorb', async () => {
+    const { deps, queryOne } = fakeDeps({ owner: { user_id: 'u1' } });
+    await shareContentToGroup({ ...base, contentType: 'custom_generators', contentId: 'x1' }, deps);
+    const [ownership] = queryOne.mock.calls[0] as unknown as [string];
+    expect(ownership).toContain('FROM custom_generators');
+    expect(ownership).not.toContain('deleted_at');
+  });
+
+  it('hydrates saved texts and Vorlagen without their trashed rows', async () => {
+    const query = vi.fn(async (sql: string) =>
+      sql.includes('FROM group_content_shares')
+        ? [
+            { content_type: 'user_documents', content_id: 't1', permissions: {} },
+            { content_type: 'database', content_id: 'v1', permissions: {} },
+          ]
+        : []
+    );
+    await hydrateGroupContent('g1', {
+      postgres: { query } as unknown as HydrateGroupContentDeps['postgres'],
+      getNotebookCollectionsByIds: vi.fn(async () => []) as never,
+      listUserAgentsByIds: vi.fn(async () => []),
+    });
+    const sqls = query.mock.calls.map(([sql]) => sql);
+    expect(sqls.find((sql) => sql.includes('FROM user_documents'))).toContain('deleted_at IS NULL');
+    expect(sqls.find((sql) => sql.includes('FROM user_templates'))).toContain('deleted_at IS NULL');
   });
 });

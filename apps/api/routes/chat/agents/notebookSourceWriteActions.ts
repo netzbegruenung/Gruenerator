@@ -276,7 +276,7 @@ async function removeSources(
   // `add_documents` nimmt nur eigene Dokumente — für fremde Uploads gibt es
   // keinen Rückweg über dieses Werkzeug, also verspricht die Notiz keinen.
   const owners = await deps.db.query<{ id: string; user_id: string | null }>(
-    'SELECT id, user_id FROM documents WHERE id = ANY($1)',
+    'SELECT id, user_id FROM documents WHERE id = ANY($1) AND deleted_at IS NULL',
     [known]
   );
   const own = new Set(owners.filter((r) => r.user_id === userId).map((r) => String(r.id)));
@@ -341,7 +341,7 @@ async function transferSources(
   }
 
   const owners = await deps.db.query<{ id: string; user_id: string | null }>(
-    'SELECT id, user_id FROM documents WHERE id = ANY($1)',
+    'SELECT id, user_id FROM documents WHERE id = ANY($1) AND deleted_at IS NULL',
     [inSource]
   );
   const own = new Set(owners.filter((r) => r.user_id === userId).map((r) => String(r.id)));
@@ -491,7 +491,7 @@ async function tagSource(
   if ('error' in own) return own;
 
   const rows = await deps.db.query<{ metadata: unknown }>(
-    'SELECT metadata FROM documents WHERE id = $1 AND user_id = $2',
+    'SELECT metadata FROM documents WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
     [sourceId, userId]
   );
   const seen = new Set<string>();

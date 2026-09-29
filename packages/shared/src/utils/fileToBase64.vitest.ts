@@ -1,5 +1,5 @@
 /**
- * Tests for fileUtils — describeFileReadError mapping
+ * Tests for fileToBase64 — describeFileReadError mapping
  *
  * Covers the GlitchTip "Fehler beim Lesen" path: a FileReader DOMException must
  * become an actionable German message, and every case must keep the error name
@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { describeFileReadError } from './fileUtils';
+import { describeFileReadError } from './fileToBase64.js';
 
 describe('describeFileReadError', () => {
   it('gives actionable guidance for NotReadableError (file locked / open in Word)', () => {

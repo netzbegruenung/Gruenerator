@@ -70,6 +70,21 @@ export const skillFrontmatterSchema = z.object({
    */
   instances: z.array(z.string().min(1)).nonempty().optional(),
   /**
+   * Die Loop-Werkzeuge, mit denen dieses Rezept gut arbeitet (Modellnamen wie
+   * `gruenerator_search`, `memory`). Reiner Hinweis: er steht in der
+   * Katalogzeile von `rezept_laden` und im Rezeptblock des Systemprompts, und
+   * zwar nur für Werkzeuge, die im Turn tatsächlich montiert sind — ein Rezept
+   * schaltet nichts frei, was der Agent sperrt.
+   *
+   * Geprüft gegen die Montagestellen des Loop-Katalogs in
+   * `apps/api/routes/chat/agents/toolCatalogUiCoverage.vitest.ts`; contracts
+   * und shared kennen die Werkzeugnamen nicht.
+   */
+  recommendedTools: z
+    .array(z.string().regex(/^[a-z_][a-z0-9_]*$/, 'tool names are snake_case'))
+    .nonempty()
+    .optional(),
+  /**
    * Numeric ordering hint for the generated SKILLS array. Lower wins. Ties
    * break alphabetically by `mention`. When omitted, the skill sorts after
    * everything with an explicit order, then alphabetically within its

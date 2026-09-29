@@ -129,7 +129,8 @@ async function claimNextDocument(): Promise<ClaimedDocument | null> {
       WHERE id = (
         SELECT id
           FROM documents
-         WHERE (
+         WHERE deleted_at IS NULL
+           AND (
                  status = 'uploaded'
                  OR (
                    status = 'processing'

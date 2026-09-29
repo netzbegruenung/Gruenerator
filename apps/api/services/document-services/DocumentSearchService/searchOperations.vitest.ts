@@ -79,6 +79,16 @@ function hasUserIdClause(filter: CapturedFilter): boolean {
   );
 }
 
+/** #3848: the chunks of a trashed chat thread's attachments carry `deleted_at`. */
+function skipsTrashedChunks(filter: CapturedFilter): boolean {
+  if (!filter?.must) return false;
+  return filter.must.some(
+    (clause) =>
+      'is_empty' in clause &&
+      (clause as { is_empty: { key: string } }).is_empty.key === 'deleted_at'
+  );
+}
+
 function hasDocumentIdClause(filter: CapturedFilter): boolean {
   if (!filter?.must) return false;
   return filter.must.some(
@@ -107,6 +117,7 @@ describe('searchOperations — document scoping vs. user scoping invariant', () 
 
       expect(hasUserIdClause(captured.filter)).toBe(false);
       expect(hasDocumentIdClause(captured.filter)).toBe(true);
+      expect(skipsTrashedChunks(captured.filter)).toBe(false);
     });
 
     it('includes user_id filter when no documentIds (personal-library scan)', async () => {
@@ -120,6 +131,7 @@ describe('searchOperations — document scoping vs. user scoping invariant', () 
       });
 
       expect(hasUserIdClause(captured.filter)).toBe(true);
+      expect(skipsTrashedChunks(captured.filter)).toBe(true);
       expect(hasDocumentIdClause(captured.filter)).toBe(false);
     });
 
@@ -155,6 +167,7 @@ describe('searchOperations — document scoping vs. user scoping invariant', () 
 
       expect(hasUserIdClause(captured.filter)).toBe(false);
       expect(hasDocumentIdClause(captured.filter)).toBe(true);
+      expect(skipsTrashedChunks(captured.filter)).toBe(false);
     });
 
     it('includes user_id filter when no documentIds', async () => {
@@ -170,6 +183,7 @@ describe('searchOperations — document scoping vs. user scoping invariant', () 
       });
 
       expect(hasUserIdClause(captured.filter)).toBe(true);
+      expect(skipsTrashedChunks(captured.filter)).toBe(true);
     });
   });
 
@@ -243,6 +257,7 @@ describe('searchOperations — document scoping vs. user scoping invariant', () 
 
       expect(hasUserIdClause(captured.filter)).toBe(false);
       expect(hasDocumentIdClause(captured.filter)).toBe(true);
+      expect(skipsTrashedChunks(captured.filter)).toBe(false);
     });
 
     it('includes user_id filter when no documentIds', async () => {
@@ -250,6 +265,7 @@ describe('searchOperations — document scoping vs. user scoping invariant', () 
       await performTextSearch(ops, 'query', 'viewer-id', { limit: 5 }, 1, async () => []);
 
       expect(hasUserIdClause(captured.filter)).toBe(true);
+      expect(skipsTrashedChunks(captured.filter)).toBe(true);
       expect(hasDocumentIdClause(captured.filter)).toBe(false);
     });
 

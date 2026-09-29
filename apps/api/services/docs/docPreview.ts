@@ -25,7 +25,7 @@ export interface DocPreview {
 export async function getDocPreview(documentId: string): Promise<DocPreview | null> {
   try {
     const rows = await db.query<{ title: string | null; content: string | null }>(
-      'SELECT title, content FROM collaborative_documents WHERE id = $1',
+      'SELECT title, content FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
       [documentId]
     );
     if (rows.length === 0) return null;

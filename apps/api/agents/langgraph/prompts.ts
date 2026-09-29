@@ -2,6 +2,8 @@
  * Minimal, protocol-style prompts for the deterministic QA agent
  */
 
+import { SOURCE_LINK_RULE } from './ChatGraph/nodes/sourceLinkRule.js';
+
 /**
  * Prompt configuration object
  */
@@ -161,6 +163,7 @@ function buildDraftPrompt(
     '- Setze [n] NACH dem Satzzeichen (Punkt, Komma): "...Aussage.[1]" NICHT "...Aussage[1]."',
     '- Bei mehreren Quellen für eine Aussage: "statement.[1][3][5]"',
     '- JEDE Faktenaussage braucht mindestens eine Quellenangabe — auch bei Synthese mehrerer Quellen.',
+    ...(isApp ? [`- ${SOURCE_LINK_RULE}`] : []),
     '',
     '## VERBOTEN:',
     '- Antworten ohne Zitate',
@@ -212,6 +215,7 @@ function buildConcisePrompt(collectionName: string, isPolitical: boolean): Promp
     '- KEINE Blockzitate (>) - die UI zeigt Quellen separat.',
     '- Setze [n] NACH dem Satzzeichen (Punkt, Komma): "...Aussage.[1]" NICHT "...Aussage[1]."',
     '- Bei mehreren Quellen für eine Aussage: "statement.[1][3][5]"',
+    `- ${SOURCE_LINK_RULE}`,
     '',
     '## VERBOTEN:',
     '- Antworten ohne Zitate',

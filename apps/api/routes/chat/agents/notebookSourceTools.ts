@@ -591,7 +591,7 @@ NUTZE FÜR (direkt, umkehrbar): Quellen aus dem Notebook entfernen (remove — s
 
 Die sourceId stammt aus list (Feld ref) — rate sie nie. Eine Quelle nach Namen suchen: list mit filter.titleContains; nach Inhalt: find.
 Ohne notebookId gilt das im Chat ausgewählte Notebook, sonst das zuletzt in diesem Chat genutzte.
-System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="list" scope="system" (z. B. deutschland, hamburg, berlin); die sourceId ist dort die URL der Quelle. list nennt die Kategorien (categories, dazu Dokumenttypen in documentTypes) für filter.category — genau diese Werte, nicht übersetzen (Beschlüsse → beschluss); filter.dateFrom/dateTo grenzen auch find, rank, grep und stats ein (Quellen ohne Datum fallen dann weg — undatedExcluded). grep zählt dort alle Quellen; über 200 Quellen nur die Schreibweise der Phrase (Groß/klein egal, countRule) — Akzentvarianten (Charité/Charite) einzeln zählen. Nur lesen.`,
+System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="list" scope="system" (z. B. deutschland, hamburg, berlin); die sourceId ist dort die URL der Quelle — den Volltext liest read mit ihr, nicht scrape_url. list nennt die Kategorien (categories, dazu Dokumenttypen in documentTypes) für filter.category — genau diese Werte, nicht übersetzen (Beschlüsse → beschluss); filter.dateFrom/dateTo grenzen auch find, rank, grep und stats ein (Quellen ohne Datum fallen dann weg — undatedExcluded). grep zählt dort alle Quellen; über 200 Quellen nur die Schreibweise der Phrase (Groß/klein egal, countRule) — Akzentvarianten (Charité/Charite) einzeln zählen. Nur lesen.`,
     inputSchema,
     execute: async (rawArgs) => {
       const userId = requireUserId(state);

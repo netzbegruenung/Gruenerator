@@ -10,6 +10,7 @@ import apiClient from '../../../components/utils/apiClient';
 import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { useAuthStore } from '../../../stores/authStore';
 import { cn } from '../../../utils/cn';
+import { useTrashUndoToast } from '../../trash/trashUndoToast';
 import { buildStudioQuickStarts, QuickStartTiles } from '../components/QuickStartTiles';
 import { getSharepicRoute } from '../utils/sharepicRoutes';
 
@@ -279,6 +280,7 @@ const ImageGallery = () => {
     clearError,
   } = useShareStore();
 
+  const showTrashUndo = useTrashUndoToast();
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
 
@@ -293,9 +295,14 @@ const ImageGallery = () => {
 
   const handleDelete = useCallback(
     async (shareToken: string) => {
+      const title = shares.find((share) => share.shareToken === shareToken)?.title ?? null;
       await deleteShare(shareToken);
+      showTrashUndo(
+        { kind: 'shared_media', id: shareToken, title },
+        { onRestored: () => void fetchUserShares('image') }
+      );
     },
-    [deleteShare]
+    [deleteShare, shares, showTrashUndo, fetchUserShares]
   );
 
   const handleDownload = useCallback(async (image: GalleryImage) => {

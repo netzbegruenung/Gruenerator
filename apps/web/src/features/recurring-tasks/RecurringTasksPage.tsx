@@ -8,6 +8,8 @@ import { ConfirmDialogProvider, useConfirm } from '@gruenerator/ui';
 import { useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { useTrashUndoToast } from '../trash/trashUndoToast';
+
 import { useDeleteRecurringTask, useRecurringTasks, useUpdateRecurringTask } from './api';
 import { RunHistoryDisclosure } from './RunHistory';
 import { DELIVERY_LABEL, describeRecurrence } from './scheduleState';
@@ -16,6 +18,7 @@ import { useRecurringRunNow } from './useRecurringRunNow';
 function TaskRow({ task, highlighted }: { task: RecurringTask; highlighted: boolean }) {
   const update = useUpdateRecurringTask();
   const remove = useDeleteRecurringTask();
+  const showTrashUndo = useTrashUndoToast();
   const confirm = useConfirm();
   const navigate = useNavigate();
   const rowRef = useRef<HTMLDivElement | null>(null);
@@ -103,11 +106,15 @@ function TaskRow({ task, highlighted }: { task: RecurringTask; highlighted: bool
           onClick={() => {
             void confirm({
               title: 'Wiederkehrende Aufgabe löschen?',
-              description: `„${task.title}" wird gelöscht und läuft nicht mehr. Bereits gelieferte Ergebnisse bleiben erhalten.`,
+              description: `„${task.title}“ wird in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.`,
               confirmLabel: 'Löschen',
               variant: 'destructive',
             }).then((ok) => {
-              if (ok) remove.mutate(task.id);
+              if (!ok) return;
+              remove.mutate(task.id, {
+                onSuccess: () =>
+                  showTrashUndo({ kind: 'recurring_task', id: task.id, title: task.title }),
+              });
             });
           }}
           className="rounded border border-red-300 px-3 py-1 text-sm text-red-500"

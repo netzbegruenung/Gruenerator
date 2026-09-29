@@ -157,10 +157,19 @@ describe('system group', () => {
     ).toBe(200);
   });
 
-  it('lets every member comment', async () => {
-    const { deps } = fakeDeps({ role: 'member', isSystem: true });
-    const out = await createShareComment({ ...ids, body: 'Danke!', authorName: 'Kim' }, deps);
+  it('lets every member comment, but only instance admins reach @alle', async () => {
+    const member = fakeDeps({ role: 'member', isSystem: true });
+    const out = await createShareComment(
+      { ...ids, body: '@alle Danke!', authorName: 'Kim' },
+      member.deps
+    );
     expect(out.status).toBe(201);
+    expect(member.notify).toHaveBeenCalledWith(
+      expect.objectContaining({ isSystem: true, mayMentionAll: false })
+    );
+    const admin = fakeDeps({ role: 'member', isSystem: true, instanceAdmin: true });
+    await createShareComment({ ...ids, body: '@alle', authorName: 'Kim' }, admin.deps);
+    expect(admin.notify).toHaveBeenCalledWith(expect.objectContaining({ mayMentionAll: true }));
   });
 });
 
@@ -186,10 +195,16 @@ describe('comments', () => {
     expect(out.data).toMatchObject({ body: 'Passt so!', authorName: 'Moritz', userId: 'u1' });
     expect(notify).toHaveBeenCalledWith(
       expect.objectContaining({
-        excludeUserId: 'u1',
-        userIds: ['sharer', 'u2', 'u1'],
-        type: 'group_comment_added',
+        authorId: 'u1',
+        body: 'Passt so!',
+        isSystem: false,
+        mayMentionAll: true,
         actionUrl: '/projekte/g1?beitrag=s1',
+        base: {
+          type: 'group_comment_added',
+          title: 'Neuer Kommentar',
+          recipients: ['sharer', 'u2', 'u1'],
+        },
       })
     );
   });
@@ -207,7 +222,9 @@ describe('comments', () => {
       table: 'group_share_comments',
     });
     expect(notify).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Neue Antwort', userIds: ['sharer', 'u2'] })
+      expect.objectContaining({
+        base: expect.objectContaining({ title: 'Neue Antwort', recipients: ['sharer', 'u2'] }),
+      })
     );
   });
 

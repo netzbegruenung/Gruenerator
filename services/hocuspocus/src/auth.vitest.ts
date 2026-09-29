@@ -19,8 +19,14 @@ interface Rows {
   doc?: Record<string, unknown> | null;
   group?: { read?: boolean; write?: boolean } | null;
   membership?: boolean;
+  thread?: Record<string, unknown> | null;
+  /** The group behind `group`/`membership` is in the Papierkorb. */
+  groupTrashed?: boolean;
   displayName?: string;
 }
+
+/** A group lookup only sees a trashed group when its SQL forgets the live-group clause. */
+const LIVE_GROUP = /\b(lg|g)\.deleted_at IS NULL/;
 
 function makeDb(rows: Rows) {
   const captured: { sql: string; params?: unknown[] }[] = [];
@@ -28,10 +34,14 @@ function makeDb(rows: Rows) {
     captured.push({ sql, params });
     if (/UPDATE collaborative_documents/i.test(sql)) return [];
     if (/FROM collaborative_documents/i.test(sql)) return rows.doc ? [rows.doc] : [];
+    if (/FROM chat_threads/i.test(sql)) return rows.thread ? [rows.thread] : [];
+    const groupVisible = !rows.groupTrashed || !LIVE_GROUP.test(sql);
     if (/FROM group_content_shares/i.test(sql)) {
-      return rows.group ? [{ permissions: rows.group }] : [];
+      return rows.group && groupVisible ? [{ permissions: rows.group }] : [];
     }
-    if (/FROM group_memberships/i.test(sql)) return rows.membership ? [{ '?column?': 1 }] : [];
+    if (/FROM group_memberships/i.test(sql)) {
+      return rows.membership && groupVisible ? [{ '?column?': 1 }] : [];
+    }
     if (/FROM profiles/i.test(sql)) return [{ display_name: rows.displayName ?? 'Tester' }];
     return [];
   });
@@ -228,5 +238,63 @@ describe('AuthService — group membership requires is_active (finding #5)', () 
     const membershipQuery = captured.find((c) => /FROM group_memberships/i.test(c.sql));
     expect(membershipQuery?.sql).toMatch(/is_active = TRUE/i);
     expect(membershipQuery?.sql).toMatch(/NOT g\.is_system/);
+  });
+});
+
+describe('AuthService — a trashed Projekt grants nothing', () => {
+  const realFetch = global.fetch;
+  beforeEach(() => {
+    global.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ user: { id: 'user-9' } }), { status: 200 })
+    ) as unknown as typeof fetch;
+  });
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  const privateDoc = publicDoc({ is_public: false, share_mode: 'private', permissions: {} });
+
+  it('denies a document shared only into a trashed Projekt', async () => {
+    const shared = { doc: privateDoc, group: { read: true, write: true } };
+    const live = makeDb(shared);
+    expect(
+      (await new AuthService({ db: live.db, redis }).authenticateConnection(withToken('doc-1')))
+        .authenticated
+    ).toBe(true);
+
+    const trashed = makeDb({ ...shared, groupTrashed: true });
+    const res = await new AuthService({ db: trashed.db, redis }).authenticateConnection(
+      withToken('doc-1')
+    );
+    expect(res.authenticated).toBe(false);
+  });
+
+  it('denies a chat thread shared only into a trashed Projekt', async () => {
+    const shared = {
+      thread: { user_id: 'owner-1', permissions: null, is_public: false, doc_id: null },
+      group: { read: true },
+    };
+    const live = makeDb(shared);
+    expect(
+      (
+        await new AuthService({ db: live.db, redis }).authenticateConnection(
+          withToken('chat-thread-1')
+        )
+      ).authenticated
+    ).toBe(true);
+
+    const trashed = makeDb({ ...shared, groupTrashed: true });
+    const res = await new AuthService({ db: trashed.db, redis }).authenticateConnection(
+      withToken('chat-thread-1')
+    );
+    expect(res.authenticated).toBe(false);
+  });
+
+  it('denies the presence room of a trashed Projekt', async () => {
+    const res = await new AuthService({
+      db: makeDb({ membership: true, groupTrashed: true }).db,
+      redis,
+    }).authenticateConnection(withToken('group-presence-grp-1'));
+    expect(res.authenticated).toBe(false);
   });
 });

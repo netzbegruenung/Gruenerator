@@ -109,7 +109,7 @@ export async function fetchDocumentMetadata(
     `SELECT id, user_id, title, filename, page_count, file_size, status, source_type, source_url,
             document_type, created_at, vector_count, wolke_share_link_id, metadata,
             ${chars} AS chars
-       FROM documents WHERE id = ANY($1)`,
+       FROM documents WHERE id = ANY($1) AND deleted_at IS NULL`,
     [ids]
   );
 }
@@ -133,7 +133,8 @@ export async function fetchDocumentLinks(
   const unique = [...new Set(ids)];
   if (unique.length === 0) return new Map();
   const rows = await db.query<{ id: string; source_url: string | null }>(
-    `SELECT id, source_url FROM documents WHERE id = ANY($1) AND source_url IS NOT NULL`,
+    `SELECT id, source_url FROM documents
+     WHERE id = ANY($1) AND source_url IS NOT NULL AND deleted_at IS NULL`,
     [unique]
   );
   const links = new Map<string, string>();
@@ -383,7 +384,7 @@ export async function resolveSourceInNotebook(
   const [collection, rows] = await Promise.all([
     deps.helper.getNotebookCollection(input.collectionId),
     deps.db.query<{ user_id: string | null; title: string | null }>(
-      'SELECT user_id, title FROM documents WHERE id = $1',
+      'SELECT user_id, title FROM documents WHERE id = $1 AND deleted_at IS NULL',
       [input.sourceId]
     ),
   ]);
@@ -395,6 +396,45 @@ export async function resolveSourceInNotebook(
     ownerUserId: String(owner),
     collectionName: collection.name,
     title: rows[0]?.title || '(ohne Titel)',
+  };
+}
+
+export interface ReaderSource {
+  ownerUserId: string;
+  title: string;
+  sourceUrl: string | null;
+}
+
+/**
+ * Der Zugriff des Dokument-Readers auf eine eigene Quelle: die Eigentümer*in
+ * liest immer, alle anderen nur über `resolveSourceInNotebook` — dieselbe Regel
+ * wie `notebook_quellen`. `null` ohne Zugriff, egal warum: ein fremdes Dokument
+ * sieht aus wie ein fehlendes.
+ */
+export async function resolveReaderSource(
+  input: { documentId: string; notebookId: string | null; userId: string },
+  deps: Pick<NotebookSourcesDeps, 'db' | 'helper' | 'access'>
+): Promise<ReaderSource | null> {
+  const [row] = await deps.db.query<{
+    user_id: string | null;
+    title: string | null;
+    source_url: string | null;
+  }>('SELECT user_id, title, source_url FROM documents WHERE id = $1 AND deleted_at IS NULL', [
+    input.documentId,
+  ]);
+  if (!row?.user_id) return null;
+  if (row.user_id !== input.userId) {
+    if (!input.notebookId) return null;
+    const shared = await resolveSourceInNotebook(
+      { collectionId: input.notebookId, sourceId: input.documentId, userId: input.userId },
+      deps
+    );
+    if (!shared.ok) return null;
+  }
+  return {
+    ownerUserId: row.user_id,
+    title: row.title || '(ohne Titel)',
+    sourceUrl: documentLink(row.source_url),
   };
 }
 
@@ -473,7 +513,7 @@ export async function readSourceText(
 ): Promise<SourceText> {
   const [rows, chunkResult] = await Promise.all([
     deps.db.query<{ markdown_content: string | null }>(
-      'SELECT markdown_content FROM documents WHERE id = $1',
+      'SELECT markdown_content FROM documents WHERE id = $1 AND deleted_at IS NULL',
       [input.sourceId]
     ),
     deps.documentService.getDocumentChunks(input.ownerUserId, input.sourceId),
@@ -549,7 +589,7 @@ export async function loadPassagePageEnds(
               regexp_replace(left(d.markdown_content, w.e),
                              '[\\U00010000-\\U0010FFFF]', '..', 'g') AS md
          FROM (SELECT id, max(e) AS e FROM x GROUP BY id) w
-         JOIN documents d ON d.id = w.id
+         JOIN documents d ON d.id = w.id AND d.deleted_at IS NULL
      )
      SELECT x.i,
             (SELECT max(m[1]::int)

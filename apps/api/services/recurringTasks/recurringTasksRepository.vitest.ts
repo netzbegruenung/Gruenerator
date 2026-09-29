@@ -4,11 +4,40 @@
  * (seit PR #3270 geschrieben) und `duration_ms` — beide waren dadurch
  * write-only, im Vertrag nicht vorhanden und in keiner Oberfläche sichtbar.
  */
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type RecurringTaskRun } from '../../database/schema/recurringTasks.js';
 
-import { toApiRun } from './recurringTasksRepository.js';
+const statements: string[] = [];
+const params: unknown[][] = [];
+let result: unknown[] = [];
+const fakeDb = {
+  query: vi.fn(async (sql: string, p: unknown[] = []) => {
+    statements.push(sql.replace(/\s+/g, ' ').trim());
+    params.push(p);
+    return result;
+  }),
+  transaction: async <T>(fn: (client: unknown) => Promise<T>) => fn({}),
+  transactionQuery: vi.fn(async (_client: unknown, sql: string) => {
+    statements.push(sql.replace(/\s+/g, ' ').trim());
+    return [];
+  }),
+};
+vi.mock('../../database/services/PostgresService/PostgresService.js', () => ({
+  getPostgresInstance: () => fakeDb,
+}));
+vi.mock('../../database/services/PostgresService.js', () => ({
+  getPostgresInstance: () => fakeDb,
+}));
+
+const {
+  claimDueRecurringTasks,
+  deleteRecurringTask,
+  getRecurringTaskById,
+  listRecurringTasks,
+  purgeRecurringTask,
+  toApiRun,
+} = await import('./recurringTasksRepository.js');
 
 function row(over: Partial<RecurringTaskRun> = {}): RecurringTaskRun {
   return {
@@ -52,5 +81,49 @@ describe('toApiRun', () => {
       resultUrl: '/office/d1',
       createdAt: '2026-09-01T07:00:00.000Z',
     });
+  });
+});
+
+describe('Wiederkehrende Aufgabe im Papierkorb', () => {
+  const USER = '11111111-1111-4111-8111-111111111111';
+  const TASK = '33333333-3333-4333-8333-333333333333';
+
+  beforeEach(() => {
+    statements.length = 0;
+    params.length = 0;
+    result = [];
+  });
+
+  it('löschen setzt nur deleted_at — kein DELETE, die Läufe bleiben', async () => {
+    result = [{ id: TASK }];
+    await expect(deleteRecurringTask(USER, TASK)).resolves.toBe(true);
+    expect(statements).toHaveLength(1);
+    expect(statements[0]).toMatch(/^UPDATE recurring_tasks SET deleted_at = now\(\)/);
+    expect(statements[0]).toContain('user_id = $2 AND deleted_at IS NULL');
+  });
+
+  it('eine getrashte Aufgabe feuert nicht: die Fälligkeitsabfrage blendet sie aus', async () => {
+    await claimDueRecurringTasks();
+    expect(statements[0]).toContain('FROM recurring_tasks');
+    expect(statements[0]).toContain('deleted_at IS NULL');
+    expect(statements[0]).toContain('FOR UPDATE SKIP LOCKED');
+  });
+
+  it('Liste und Worker-Lookup sehen sie nicht mehr', async () => {
+    await listRecurringTasks(USER);
+    await getRecurringTaskById(TASK);
+    for (const sql of statements) expect(sql).toContain('deleted_at IS NULL');
+  });
+
+  it('purge löscht nur eine getrashte Zeile, bedingt auf den Stichtag', async () => {
+    result = [{ id: TASK }];
+    const cutoff = new Date('2026-08-30T00:00:00Z');
+    await expect(purgeRecurringTask(TASK, cutoff)).resolves.toBe(true);
+    expect(statements[0]).toContain('DELETE FROM recurring_tasks');
+    expect(statements[0]).toContain('deleted_at IS NOT NULL');
+    expect(params[0]).toEqual([TASK, cutoff]);
+
+    result = [];
+    await expect(purgeRecurringTask(TASK, null)).resolves.toBe(false);
   });
 });

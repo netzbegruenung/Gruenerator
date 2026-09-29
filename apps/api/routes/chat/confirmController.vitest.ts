@@ -3,8 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type PendingAction } from '../../agents/langgraph/ChatGraph/types.js';
 
 const repo = vi.hoisted(() => ({
-  getTextFormSharing: vi.fn(),
-  updateTextFormSharing: vi.fn(),
   shareTextFormWithGroup: vi.fn(),
 }));
 vi.mock('../../services/user/textFormRepository.js', () => repo);
@@ -24,51 +22,31 @@ const action: PendingAction = {
   payload: { mention: 'einladung', title: 'Einladung', groupId: 'g1', groupName: 'OV Mitte' },
 };
 
-describe('share_text_form (#3682 review)', () => {
+// Die Hochstufung von `private` auf `groups` sitzt in `shareTextFormWithGroup`
+// (#3803) — hier bleibt nur, wie die Aktion dessen Ergebnis deutet.
+describe('share_text_form', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    repo.getTextFormSharing.mockResolvedValue({ share_mode: 'private' });
-    repo.updateTextFormSharing.mockResolvedValue({ ok: true, updated: true });
   });
 
-  it('promotes a private recipe to groups BEFORE sharing it', async () => {
-    const order: string[] = [];
-    repo.updateTextFormSharing.mockImplementation(() => {
-      order.push('promote');
-      return Promise.resolve({ ok: true, updated: true });
-    });
-    repo.shareTextFormWithGroup.mockImplementation(() => {
-      order.push('share');
-      return Promise.resolve([{ groupId: 'g1' }]);
-    });
+  it('shares through the repository and links the project', async () => {
+    repo.shareTextFormWithGroup.mockResolvedValue([{ groupId: 'g1' }]);
 
     const result = await executeAction(action);
 
-    expect(order).toEqual(['promote', 'share']);
+    expect(repo.shareTextFormWithGroup).toHaveBeenCalledWith('u1', 'einladung', 'g1');
     expect(result.url).toBe('/gruppen/g1');
   });
 
-  it('shares nothing when the promotion fails', async () => {
-    repo.updateTextFormSharing.mockResolvedValue({ ok: true, updated: false });
+  it('refuses a recipe that is missing or not shareable', async () => {
+    repo.shareTextFormWithGroup.mockResolvedValue(null);
 
-    await expect(executeAction(action)).rejects.toThrow('Rezept nicht gefunden.');
-    expect(repo.shareTextFormWithGroup).not.toHaveBeenCalled();
+    await expect(executeAction(action)).rejects.toThrow('Rezept nicht gefunden');
   });
 
-  it('turns a promoted recipe private again when the share is refused', async () => {
+  it('refuses when the caller is not a member of the project', async () => {
     repo.shareTextFormWithGroup.mockResolvedValue([]);
 
     await expect(executeAction(action)).rejects.toThrow('nicht Mitglied');
-    expect(repo.updateTextFormSharing).toHaveBeenLastCalledWith('u1', 'einladung', {
-      share_mode: 'private',
-    });
-  });
-
-  it('leaves a non-private share mode alone', async () => {
-    repo.getTextFormSharing.mockResolvedValue({ share_mode: 'authenticated' });
-    repo.shareTextFormWithGroup.mockResolvedValue([]);
-
-    await expect(executeAction(action)).rejects.toThrow('nicht Mitglied');
-    expect(repo.updateTextFormSharing).not.toHaveBeenCalled();
   });
 });

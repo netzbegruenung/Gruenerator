@@ -52,6 +52,7 @@ export async function hasWriteAccess(documentId: string, userId: string): Promis
   const groupAccess = (await pg.query(
     `SELECT gcs.permissions FROM group_content_shares gcs
      INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+     INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
      WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
     [userId, documentId]
   )) as { permissions: { read: boolean; write: boolean } | null }[];
@@ -399,29 +400,13 @@ export async function executeAction(
     }
 
     case 'share_text_form': {
-      const { shareTextFormWithGroup, getTextFormSharing, updateTextFormSharing } =
-        await import('../../services/user/textFormRepository.js');
-      const { sharingFailure } = await import('../userTextForms/textFormRouterHelpers.js');
+      const { shareTextFormWithGroup } = await import('../../services/user/textFormRepository.js');
       const { mention, title, groupId, groupName } = action.payload;
-      // Die Agentura zeigt die Projektliste nur bei `share_mode = 'groups'` —
-      // ein privat gebliebenes Rezept wäre geteilt, ohne dass die Eigentümer*in
-      // die Freigabe dort sähe oder zurücknehmen könnte. Darum ZUERST der Modus,
-      // dann die Freigabe: scheitert die Freigabe, bleibt höchstens `groups`
-      // ohne Projekt stehen (wirkt wie privat) und wird zurückgedreht; die
-      // umgekehrte Reihenfolge hinterliesse eine unsichtbare Freigabe.
-      // `authenticated` bleibt stehen: das ist schon weiter als ein Projekt.
-      const current = await getTextFormSharing(action.userId, mention);
-      const promoted = current?.share_mode === 'private';
-      if (promoted) {
-        const failure = sharingFailure(
-          await updateTextFormSharing(action.userId, mention, { share_mode: 'groups' })
-        );
-        if (failure) throw new ConfirmActionRefusal(failure.message);
-      }
       // Derselbe Pfad wie `userTextFormsContract.share`: Besitz- und
       // Teilbarkeitsprüfung (`isShareableTextForm`) im Repository, Mitgliedschaft
-      // im SQL. Ein Nicht-Mitglied fügt still nichts ein — darum die Probe auf
-      // die zurückgegebene Liste.
+      // im SQL, und die Hochstufung von `private` auf `groups` erst nach beiden.
+      // Ein Nicht-Mitglied fügt still nichts ein — darum die Probe auf die
+      // zurückgegebene Liste.
       const shares = await shareTextFormWithGroup(action.userId, mention, groupId);
       const refusal =
         shares === null
@@ -429,12 +414,7 @@ export async function executeAction(
           : shares.some((s) => s.groupId === groupId)
             ? null
             : `Du bist nicht Mitglied im Projekt „${groupName}".`;
-      if (refusal) {
-        if (promoted) {
-          await updateTextFormSharing(action.userId, mention, { share_mode: 'private' });
-        }
-        throw new ConfirmActionRefusal(refusal);
-      }
+      if (refusal) throw new ConfirmActionRefusal(refusal);
       return {
         message: `Rezept **„${title}"** (@${mention}) wurde mit **„${groupName}"** geteilt.`,
         url: `/gruppen/${groupId}`,

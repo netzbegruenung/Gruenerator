@@ -19,6 +19,11 @@ export interface LandesverbandEntry {
   id: string;
   /** Display name used in agent titles/prompts, e.g. `Berlin`. */
   title: string;
+  /**
+   * Kürzel in den Rezept-Mentions dieses Verbands (`insta-mv`, `buerger-mv`,
+   * `buerger-at`). Mentions sind F0 — das Kürzel wird nicht umbenannt.
+   */
+  recipeSlug: string;
   /** `landesverband` metadata code(s) for `defaultFilter` / example scoping. */
   codes: string | readonly string[];
   /** The LV notebook both specialist agents pin (and the hub's icon source). */
@@ -36,7 +41,15 @@ export interface LandesverbandEntry {
   /** Identifier of the Wahlprüfsteine agent. */
   wahlpruefsteinAgentId: string;
   /**
-   * Branded hub: `/agents/<slug>` opens a landing offering all three agents.
+   * Identifier of the Beschlussanträge agent — only where the LV collection holds
+   * `content_type: 'beschluss'` documents (`lvFamilyContent.vitest.ts` checks
+   * that against the scraper config).
+   */
+  beschlussAgentId?: string;
+  /** Identifier of the Wahlprogramm agent — only where `wahlprogramm` content is indexed. */
+  wahlprogrammAgentId?: string;
+  /**
+   * Branded hub: `/agents/<slug>` opens a landing offering all of the LV's agents.
    *
    * Pflicht für jeden LV, auch bei deaktiviertem Notebook: der Hub ist die
    * einzige Stelle, an der die notebook→agents-Relation steht, und ALLE drei
@@ -58,6 +71,7 @@ export const LANDESVERBAENDE = [
   {
     id: 'berlin',
     title: 'Berlin',
+    recipeSlug: 'berlin',
     codes: ['BE', 'BE-F'],
     notebookId: 'berlin-notebook',
     homepage: 'https://gruene.berlin',
@@ -67,11 +81,14 @@ export const LANDESVERBAENDE = [
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-berlin',
     buergerAgentId: 'gruenerator-buergeranfragen-berlin',
     wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-berlin',
+    beschlussAgentId: 'gruenerator-beschluesse-berlin',
+    wahlprogrammAgentId: 'gruenerator-wahlprogramm-berlin',
     hub: { slug: 'gruene-berlin', name: 'Grüne Berlin' },
   },
   {
     id: 'hamburg',
     title: 'Hamburg',
+    recipeSlug: 'hamburg',
     codes: 'HH',
     notebookId: 'hamburg-notebook',
     homepage: 'https://www.gruene-hamburg.de',
@@ -86,6 +103,7 @@ export const LANDESVERBAENDE = [
   {
     id: 'mecklenburg-vorpommern',
     title: 'Mecklenburg-Vorpommern',
+    recipeSlug: 'mv',
     codes: ['MV', 'MV-F'],
     notebookId: 'mecklenburg-vorpommern-notebook',
     homepage: 'https://gruene-mv.de',
@@ -95,11 +113,13 @@ export const LANDESVERBAENDE = [
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
     buergerAgentId: 'gruenerator-buergeranfragen-mecklenburg-vorpommern',
     wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-mecklenburg-vorpommern',
+    beschlussAgentId: 'gruenerator-beschluesse-mecklenburg-vorpommern',
     hub: { slug: 'gruene-mv', name: 'Grüne Mecklenburg-Vorpommern' },
   },
   {
     id: 'thueringen',
     title: 'Thüringen',
+    recipeSlug: 'thueringen',
     codes: ['TH', 'TH-F'],
     notebookId: 'thueringen-notebook',
     homepage: 'https://gruene-thueringen.de',
@@ -109,11 +129,14 @@ export const LANDESVERBAENDE = [
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
     buergerAgentId: 'gruenerator-buergeranfragen-thueringen',
     wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-thueringen',
+    beschlussAgentId: 'gruenerator-beschluesse-thueringen',
+    wahlprogrammAgentId: 'gruenerator-wahlprogramm-thueringen',
     hub: { slug: 'gruene-thueringen', name: 'Grüne Thüringen' },
   },
   {
     id: 'brandenburg',
     title: 'Brandenburg',
+    recipeSlug: 'brandenburg',
     codes: 'BB',
     notebookId: 'brandenburg-notebook',
     homepage: 'https://gruene-brandenburg.de',
@@ -123,11 +146,14 @@ export const LANDESVERBAENDE = [
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
     buergerAgentId: 'gruenerator-buergeranfragen-brandenburg',
     wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-brandenburg',
+    beschlussAgentId: 'gruenerator-beschluesse-brandenburg',
+    wahlprogrammAgentId: 'gruenerator-wahlprogramm-brandenburg',
     hub: { slug: 'gruene-brandenburg', name: 'Grüne Brandenburg' },
   },
   {
     id: 'bayern',
     title: 'Bayern',
+    recipeSlug: 'bayern',
     codes: ['BY', 'BY-F'],
     notebookId: 'bayern-notebook',
     homepage: 'https://www.gruene-bayern.de',
@@ -137,11 +163,14 @@ export const LANDESVERBAENDE = [
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-bayern',
     buergerAgentId: 'gruenerator-buergeranfragen-bayern',
     wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-bayern',
+    beschlussAgentId: 'gruenerator-beschluesse-bayern',
+    wahlprogrammAgentId: 'gruenerator-wahlprogramm-bayern',
     hub: { slug: 'gruene-bayern', name: 'Grüne Bayern' },
   },
   {
     id: 'sachsen-anhalt',
     title: 'Sachsen-Anhalt',
+    recipeSlug: 'sachsen-anhalt',
     codes: ['LSA', 'LSA-F'],
     notebookId: 'sachsen-anhalt-notebook',
     homepage: 'https://www.gruene-lsa.de',
@@ -151,6 +180,8 @@ export const LANDESVERBAENDE = [
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
     buergerAgentId: 'gruenerator-buergeranfragen-sachsen-anhalt',
     wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-sachsen-anhalt',
+    beschlussAgentId: 'gruenerator-beschluesse-sachsen-anhalt',
+    wahlprogrammAgentId: 'gruenerator-wahlprogramm-sachsen-anhalt',
     hub: { slug: 'gruene-sachsen-anhalt', name: 'Grüne Sachsen-Anhalt' },
   },
   // Sachsen vorerst auskommentiert (#3713): Notebook steht auf `enabled: false`,
@@ -177,6 +208,7 @@ export const LANDESVERBAENDE = [
   {
     id: 'hessen',
     title: 'Hessen',
+    recipeSlug: 'hessen',
     codes: ['HE', 'HE-F'],
     notebookId: 'hessen-notebook',
     homepage: 'https://www.gruene-hessen.de',
@@ -186,11 +218,13 @@ export const LANDESVERBAENDE = [
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-hessen',
     buergerAgentId: 'gruenerator-buergeranfragen-hessen',
     wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-hessen',
+    beschlussAgentId: 'gruenerator-beschluesse-hessen',
     hub: { slug: 'gruene-hessen', name: 'Grüne Hessen' },
   },
   {
     id: 'saarland',
     title: 'Saarland',
+    recipeSlug: 'saarland',
     codes: 'SL',
     notebookId: 'saarland-notebook',
     homepage: 'https://gruene-saar.de',
@@ -200,11 +234,13 @@ export const LANDESVERBAENDE = [
     prAgentId: 'gruenerator-oeffentlichkeitsarbeit-saarland',
     buergerAgentId: 'gruenerator-buergeranfragen-saarland',
     wahlpruefsteinAgentId: 'gruenerator-wahlpruefsteine-saarland',
+    beschlussAgentId: 'gruenerator-beschluesse-saarland',
     hub: { slug: 'gruene-saarland', name: 'Grüne Saarland' },
   },
   {
     id: 'schleswig-holstein',
     title: 'Schleswig-Holstein',
+    recipeSlug: 'schleswig-holstein',
     codes: 'SH',
     notebookId: 'schleswig-holstein-notebook',
     homepage: 'https://sh-gruene.de',
@@ -223,6 +259,7 @@ export const LANDESVERBAENDE = [
   {
     id: 'oesterreich',
     title: 'Österreich',
+    recipeSlug: 'at',
     codes: 'AT',
     notebookId: 'oesterreich-notebook',
     homepage: 'https://gruene.at',
@@ -235,6 +272,13 @@ export const LANDESVERBAENDE = [
     hub: { slug: 'gruene-oesterreich', name: 'Grüne Österreich' },
   },
 ] as const satisfies readonly LandesverbandEntry[];
+
+/**
+ * The registry, widened to the declared interface. The literal tuple above has
+ * no `beschlussAgentId` key on entries without one, so reading the optional
+ * families off it needs an `in` check per site — read them from here instead.
+ */
+export const LANDESVERBAND_ENTRIES: readonly LandesverbandEntry[] = LANDESVERBAENDE;
 
 /** notebookId for a given PR agent id — drives the derived `defaultNotebookIds`
  *  pin on the hand-tuned Öffentlichkeitsarbeit agents. */
@@ -254,21 +298,47 @@ export function splitThemes(themes: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Every agent a Landesverband runs, in hub order. The one list the hiding
+ * cascade, the role gate and the hub read — a new family added here reaches
+ * all three.
+ */
+export function landesverbandAgentIds(lv: LandesverbandEntry): string[] {
+  return [
+    lv.prAgentId,
+    lv.buergerAgentId,
+    lv.wahlpruefsteinAgentId,
+    lv.beschlussAgentId,
+    lv.wahlprogrammAgentId,
+  ].filter((id): id is string => id !== undefined);
+}
+
+/** Hub label per agent family, keyed by the identifier's family segment. */
+const LV_AGENT_ROLE_LABELS: Readonly<Record<string, string>> = {
+  oeffentlichkeitsarbeit: 'Öffentlichkeitsarbeit',
+  buergeranfragen: 'Bürger*innenservice',
+  wahlpruefsteine: 'Wahlprüfsteine',
+  beschluesse: 'Beschlussanträge',
+  wahlprogramm: 'Wahlprogramm',
+};
+
+const LV_IDENTIFIER_PREFIX_RE =
+  /^gruenerator-(oeffentlichkeitsarbeit|buergeranfragen|wahlpruefsteine|beschluesse|wahlprogramm)-/;
+
 /** Per-Landesverband agents and skills share this identifier prefix family. */
 export function isLandesverbandIdentifier(identifier: string): boolean {
-  return (
-    identifier.startsWith('gruenerator-oeffentlichkeitsarbeit-') ||
-    identifier.startsWith('gruenerator-buergeranfragen-') ||
-    identifier.startsWith('gruenerator-wahlpruefsteine-')
-  );
+  return LV_IDENTIFIER_PREFIX_RE.test(identifier);
+}
+
+/** The hub label of an LV agent (`gruenerator-beschluesse-berlin` → `Beschlussanträge`). */
+export function landesverbandAgentRole(identifier: string): string | null {
+  const family = LV_IDENTIFIER_PREFIX_RE.exec(identifier)?.[1];
+  return family ? (LV_AGENT_ROLE_LABELS[family] ?? null) : null;
 }
 
 /** The Landesverband slug from an LV identifier (e.g. `…-berlin` → `berlin`). */
 export function landesverbandRegion(identifier: string): string {
-  return identifier.replace(
-    /^gruenerator-(oeffentlichkeitsarbeit|buergeranfragen|wahlpruefsteine)-/,
-    ''
-  );
+  return identifier.replace(LV_IDENTIFIER_PREFIX_RE, '');
 }
 
 /** Title-case an LV region slug for display (`berlin` → `Berlin`). */

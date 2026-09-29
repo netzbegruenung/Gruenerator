@@ -336,6 +336,19 @@ describe('createSourceRegistry', () => {
     const block = reg.seedAttached([result({ title: 'Anhang', content: 'x'.repeat(5_000) })]);
     expect(block.length).toBeLessThan(2_000);
   });
+  // Beta 28.09.2026: 20 Listenzeilen füllten MAX_SOURCES, danach sperrte
+  // search_budget web_search und scrape_url, ohne dass gesucht worden war.
+  it('zählt Bestandszeilen nicht gegen das Suchbudget, bis eine Suche sie findet', () => {
+    const reg = createSourceRegistry();
+    const rows = Array.from({ length: 20 }, (_, i) =>
+      result({ title: `PM ${i}`, url: `https://x.de/${i}`, content: `PM ${i}` })
+    );
+    reg.register(rows, { inventory: true });
+    expect(reg.size).toBe(20);
+    expect(reg.freshSize).toBe(0);
+    reg.register([result({ title: 'PM 3', url: 'https://x.de/3', content: 'PM 3' })]);
+    expect(reg.freshSize).toBe(1);
+  });
 });
 
 /**

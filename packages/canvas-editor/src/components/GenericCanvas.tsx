@@ -86,6 +86,7 @@ import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { GradientFill } from '../utils/gradientFill';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
+import type Konva from 'konva';
 import type * as Y from 'yjs';
 
 export interface ToolbarStateReport {
@@ -98,6 +99,9 @@ export interface ToolbarStateReport {
   /** Liegt die Auswahl in einer Instanz-Sammlung? Vorlagen-Elemente und Icons
    *  nicht — siehe `utils/duplicateElement.ts`. */
   canDuplicate: boolean;
+  /** Ist die Auswahl löschbar? Dieselbe Frage wie die Entf-Taste — siehe
+   *  `utils/removeElement.ts`. */
+  canDelete: boolean;
 }
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
@@ -179,6 +183,13 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
   };
 }
 
+export interface SelectionBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 export interface GenericCanvasRef {
   toDataURL: (options?: {
     format?: 'png' | 'jpeg' | 'webp';
@@ -200,6 +211,12 @@ export interface GenericCanvasRef {
   redo?: () => void;
   handleMoveLayer?: (direction: 'up' | 'down') => void;
   handleDuplicate?: () => void;
+  handleDeleteElement?: () => void;
+  /** Box der Auswahl in Fensterkoordinaten, für Bedienelemente am Objekt. */
+  getSelectionBox?: () => SelectionBox | null;
+  /** Meldet Beginn (`true`) und Ende (`false`) von Ziehen und Transformieren;
+   *  gibt das Abmelden zurück. */
+  subscribeManipulation?: (listener: (active: boolean) => void) => () => void;
   handleColorSelect?: (color: string) => void;
   handleOpacityChange?: (id: string, opacity: number, type: string) => void;
   handleFontSizeChange?: (id: string, size: number) => void;
@@ -657,6 +674,43 @@ function GenericCanvasWithRef<
       redo,
       handleMoveLayer: (dir) => bridgeRef.current?.handleMoveLayer(dir),
       handleDuplicate: () => bridgeRef.current?.handleDuplicate(),
+      handleDeleteElement: () => bridgeRef.current?.handleDelete(),
+      getSelectionBox: () => {
+        const selectedElement = store.getState().selectedElement;
+        const stage = stageRef.current?.getStage();
+        if (!selectedElement || !stage) return null;
+        // Instanz-Primitive (Formen, Balken, Illustrationen, Rahmen, …) tragen
+        // keine Konva-Id; ausgewählt hängt aber jedes an seinem Transformer.
+        const node =
+          stage.findOne(`#${selectedElement}`) ??
+          stage
+            .find<Konva.Transformer>('Transformer')
+            .map((tr) => tr.nodes()[0])
+            .find((n) => n !== undefined);
+        if (!node) return null;
+        const rect = node.getClientRect();
+        const container = stage.container().getBoundingClientRect();
+        // Die Seite kann per CSS gezoomt sein; Konva kennt nur seine eigenen Pixel.
+        const cssScale = stage.width() ? container.width / stage.width() : 1;
+        return {
+          left: container.left + rect.x * cssScale,
+          top: container.top + rect.y * cssScale,
+          width: rect.width * cssScale,
+          height: rect.height * cssScale,
+        };
+      },
+      subscribeManipulation: (listener) => {
+        const stage = stageRef.current?.getStage();
+        if (!stage) return () => {};
+        const start = () => listener(true);
+        const end = () => listener(false);
+        stage.on('dragstart transformstart', start);
+        stage.on('dragend transformend', end);
+        return () => {
+          stage.off('dragstart transformstart', start);
+          stage.off('dragend transformend', end);
+        };
+      },
       handleColorSelect: (color) => bridgeRef.current?.handleColorSelect(color),
       handleOpacityChange: (id, op, type) => bridgeRef.current?.handleOpacityChange(id, op, type),
       handleFontSizeChange: elementHandlers.handleFontSizeChange,
@@ -674,6 +728,7 @@ function GenericCanvasWithRef<
       handleAlign,
       setSelectedElement,
       pendingImages,
+      store,
     ]
   );
 

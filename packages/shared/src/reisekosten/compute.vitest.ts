@@ -66,13 +66,19 @@ describe('computeReisekosten — official NRW worked example', () => {
   });
 });
 
-describe('Kfz 400-km cap (rule 1.3)', () => {
-  const kfz = (km: number, dbFlexpreis: number | null) =>
+describe('Kfz 500-km cap (form 1.7.2025, rule 1.3)', () => {
+  const kfz = (km: number, vorstandsbeschluss?: boolean) =>
     makeState({
       fahrt: {
         bahn: null,
         oepnv: null,
-        kfz: { km, fahrzeug: 'pkw' as const, routenplanerVorhanden: true, dbFlexpreis },
+        kfz: {
+          km,
+          fahrzeug: 'pkw' as const,
+          routenplanerVorhanden: true,
+          dbFlexpreis: null,
+          ...(vorstandsbeschluss != null && { vorstandsbeschluss }),
+        },
         miete: null,
         taxi: null,
         sonstiges: null,
@@ -80,15 +86,19 @@ describe('Kfz 400-km cap (rule 1.3)', () => {
     });
 
   it('300 km → 90,00 €', () => {
-    expect(computeReisekosten(kfz(300, null)).fahrtkosten.kfz).toBe(90);
+    expect(computeReisekosten(kfz(300)).fahrtkosten.kfz).toBe(90);
   });
 
-  it('400 km → 120,00 € (cap)', () => {
-    expect(computeReisekosten(kfz(400, null)).fahrtkosten.kfz).toBe(120);
+  it('500 km → 150,00 € (cap)', () => {
+    expect(computeReisekosten(kfz(500)).fahrtkosten.kfz).toBe(150);
   });
 
-  it('450 km → only the DB-Flexpreis is reimbursable', () => {
-    expect(computeReisekosten(kfz(450, 89)).fahrtkosten.kfz).toBe(89);
+  it('600 km without Vorstandsbeschluss → capped at 500 km', () => {
+    expect(computeReisekosten(kfz(600)).fahrtkosten.kfz).toBe(150);
+  });
+
+  it('600 km with Vorstandsbeschluss → the Mehr-km count at 0,30 €', () => {
+    expect(computeReisekosten(kfz(600, true)).fahrtkosten.kfz).toBe(180);
   });
 });
 
@@ -147,21 +157,40 @@ describe('validateReisekosten', () => {
     expect(findings.some((f) => f.level === 'error' && f.field === 'reise.belegdatum')).toBe(true);
   });
 
-  it('flags Kfz > 400 km without a DB-Flexpreis', () => {
+  it('warns about Kfz > 500 km without a Vorstandsbeschluss', () => {
     const state = makeState({
       fahrt: {
         bahn: null,
         oepnv: null,
-        kfz: { km: 450, fahrzeug: 'pkw', routenplanerVorhanden: true, dbFlexpreis: null },
+        kfz: { km: 600, fahrzeug: 'pkw', routenplanerVorhanden: true, dbFlexpreis: null },
         miete: null,
         taxi: null,
         sonstiges: null,
       },
     });
     const findings = validateReisekosten(state, new Date('2025-04-10T12:00'));
-    expect(findings.some((f) => f.field === 'fahrt.kfz.dbFlexpreis' && f.level === 'error')).toBe(
-      true
-    );
+    expect(
+      findings.some((f) => f.field === 'fahrt.kfz.vorstandsbeschluss' && f.level === 'warn')
+    ).toBe(true);
+  });
+
+  it('rejects a rental car without a Vorstandsbeschluss, accepts it with one', () => {
+    const withMiete = (vorstandsbeschluss: boolean) =>
+      makeState({
+        fahrt: {
+          bahn: null,
+          oepnv: null,
+          kfz: null,
+          miete: { betrag: 80, dbFlexpreis: null, belegVorhanden: true, vorstandsbeschluss },
+          taxi: null,
+          sonstiges: null,
+        },
+      });
+    const isMieteError = (f: { field: string; level: string }) =>
+      f.field === 'fahrt.miete.vorstandsbeschluss' && f.level === 'error';
+    const now = new Date('2025-04-10T12:00');
+    expect(validateReisekosten(withMiete(false), now).some(isMieteError)).toBe(true);
+    expect(validateReisekosten(withMiete(true), now).some(isMieteError)).toBe(false);
   });
 
   it('passes a clean, timely form', () => {

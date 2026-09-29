@@ -12,6 +12,7 @@ import { getQdrantInstance } from '../../../database/services/QdrantService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { smartChunkDocument } from '../../../services/document-services/TextChunker/index.js';
 import { mistralEmbeddingService } from '../../../services/mistral/index.js';
+import { trashSavedTexts } from '../../../services/user/savedTextTrash.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -338,7 +339,7 @@ router.get(
       const query = `
       SELECT id as document_id, title, content, document_type, created_at
       FROM user_documents
-      WHERE ${conditions.join(' AND ')} AND is_active = true
+      WHERE ${conditions.join(' AND ')} AND is_active = true AND deleted_at IS NULL
       ORDER BY created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
@@ -410,7 +411,7 @@ router.get(
       const data = await postgres.query(
         `SELECT id as document_id, title, content, document_type, created_at
          FROM user_documents
-         WHERE id = $1 AND user_id = $2 AND is_active = true`,
+         WHERE id = $1 AND user_id = $2 AND is_active = true AND deleted_at IS NULL`,
         [id, userId],
         { table: 'user_documents' }
       );
@@ -443,6 +444,76 @@ router.get(
   }
 );
 
+// Must be registered before /saved-texts/:id, which would otherwise capture "bulk" as an id.
+router.delete(
+  '/saved-texts/bulk',
+  ensureAuthenticated,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const { ids } = req.body as BulkDeleteBody;
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: 'Array of text IDs is required',
+        });
+        return;
+      }
+
+      if (ids.length > 100) {
+        res.status(400).json({
+          success: false,
+          message: 'Maximum 100 texts can be deleted at once',
+        });
+        return;
+      }
+
+      const postgres = getPostgresInstance();
+      await postgres.ensureInitialized();
+
+      const verifyTexts = await postgres.query(
+        'SELECT id FROM user_documents WHERE user_id = $1 AND id = ANY($2) AND is_active = true AND deleted_at IS NULL',
+        [userId, ids],
+        { table: 'user_documents' }
+      );
+
+      const ownedIds = (verifyTexts as Array<{ id: string }>).map((text) => text.id);
+      const unauthorizedIds = ids.filter((id) => !ownedIds.includes(id));
+
+      if (unauthorizedIds.length > 0) {
+        res.status(403).json({
+          success: false,
+          message: `Access denied for texts: ${unauthorizedIds.join(', ')}`,
+          unauthorized_ids: unauthorizedIds,
+        });
+        return;
+      }
+
+      // Into the Papierkorb: the vectors stay until `purgeSavedText`.
+      const deletedIds = await trashSavedTexts(userId, ownedIds);
+      const failedIds = ownedIds.filter((id: string) => !deletedIds.includes(id));
+
+      res.json({
+        success: true,
+        message: `Bulk delete completed: ${deletedIds.length} of ${ids.length} texts deleted successfully`,
+        deleted_count: deletedIds.length,
+        failed_ids: failedIds,
+        total_requested: ids.length,
+        deleted_ids: deletedIds,
+      });
+    } catch (error) {
+      const err = error as Error;
+      log.error('[User Content /saved-texts/bulk DELETE] Error:', err.message);
+      res.status(500).json({
+        success: false,
+        message: toUserFacingMessage(err) || 'Failed to perform bulk delete of texts',
+        details: err.message,
+      });
+    }
+  }
+);
+
 router.delete(
   '/saved-texts/:id',
   ensureAuthenticated,
@@ -459,23 +530,12 @@ router.delete(
         return;
       }
 
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      await postgres.delete('user_documents', { id: id, user_id: userId });
-
-      setImmediate(async () => {
-        try {
-          const qdrant = getQdrantInstance();
-          if (await qdrant.isAvailable()) {
-            await qdrant.deleteDocument(id, 'user_texts');
-            log.debug(`[Vector Cleanup] Removed vectors for document ${id}`);
-          }
-        } catch (vectorError) {
-          const err = vectorError as Error;
-          log.error('[Vector Cleanup] Failed (non-critical):', err.message);
-        }
-      });
+      // Into the Papierkorb: the vectors stay until `purgeSavedText`.
+      const trashed = await trashSavedTexts(userId, [id]);
+      if (trashed.length === 0) {
+        res.status(404).json({ success: false, message: 'Text nicht gefunden.' });
+        return;
+      }
 
       res.json({
         success: true,
@@ -516,7 +576,7 @@ router.post(
       await postgres.ensureInitialized();
 
       const existingDoc = await postgres.query(
-        'SELECT id FROM user_documents WHERE id = $1 AND user_id = $2',
+        'SELECT id FROM user_documents WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
         [id, userId],
         { table: 'user_documents' }
       );
@@ -573,7 +633,7 @@ router.put(
       await postgres.ensureInitialized();
 
       const existingDoc = await postgres.query(
-        'SELECT id, title, document_type FROM user_documents WHERE id = $1 AND user_id = $2 AND is_active = true',
+        'SELECT id, title, document_type FROM user_documents WHERE id = $1 AND user_id = $2 AND is_active = true AND deleted_at IS NULL',
         [id, userId],
         { table: 'user_documents' }
       );
@@ -701,106 +761,6 @@ router.put(
   }
 );
 
-router.delete(
-  '/saved-texts/bulk',
-  ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const userId = req.user!.id;
-      const { ids } = req.body as BulkDeleteBody;
-
-      if (!Array.isArray(ids) || ids.length === 0) {
-        res.status(400).json({
-          success: false,
-          message: 'Array of text IDs is required',
-        });
-        return;
-      }
-
-      if (ids.length > 100) {
-        res.status(400).json({
-          success: false,
-          message: 'Maximum 100 texts can be deleted at once',
-        });
-        return;
-      }
-
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      const verifyTexts = await postgres.query(
-        'SELECT id FROM user_documents WHERE user_id = $1 AND id = ANY($2) AND is_active = true',
-        [userId, ids],
-        { table: 'user_documents' }
-      );
-
-      const ownedIds = (verifyTexts as Array<{ id: string }>).map((text) => text.id);
-      const unauthorizedIds = ids.filter((id) => !ownedIds.includes(id));
-
-      if (unauthorizedIds.length > 0) {
-        res.status(403).json({
-          success: false,
-          message: `Access denied for texts: ${unauthorizedIds.join(', ')}`,
-          unauthorized_ids: unauthorizedIds,
-        });
-        return;
-      }
-
-      const result = await postgres.query(
-        'UPDATE user_documents SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND id = ANY($2) AND is_active = true RETURNING id',
-        [userId, ownedIds],
-        { table: 'user_documents' }
-      );
-
-      const deletedIds = (result as Array<{ id: string }>).map((row) => row.id);
-      const failedIds = ownedIds.filter((id: string) => !deletedIds.includes(id));
-
-      if (deletedIds.length > 0) {
-        setImmediate(async () => {
-          try {
-            const qdrant = getQdrantInstance();
-            if (await qdrant.isAvailable()) {
-              const cleanupPromises = deletedIds.map(async (docId: string) => {
-                try {
-                  await qdrant.deleteDocument(docId, 'user_texts');
-                } catch (err) {
-                  const error = err as Error;
-                  log.error(`[Vector Cleanup] Failed for document ${docId}:`, error.message);
-                }
-              });
-
-              await Promise.all(cleanupPromises);
-              log.debug(
-                `[Vector Cleanup] Bulk cleanup completed for ${deletedIds.length} documents`
-              );
-            }
-          } catch (vectorError) {
-            const err = vectorError as Error;
-            log.error('[Vector Cleanup] Bulk cleanup failed (non-critical):', err.message);
-          }
-        });
-      }
-
-      res.json({
-        success: true,
-        message: `Bulk delete completed: ${deletedIds.length} of ${ids.length} texts deleted successfully`,
-        deleted_count: deletedIds.length,
-        failed_ids: failedIds,
-        total_requested: ids.length,
-        deleted_ids: deletedIds,
-      });
-    } catch (error) {
-      const err = error as Error;
-      log.error('[User Content /saved-texts/bulk DELETE] Error:', err.message);
-      res.status(500).json({
-        success: false,
-        message: toUserFacingMessage(err) || 'Failed to perform bulk delete of texts',
-        details: err.message,
-      });
-    }
-  }
-);
-
 // ============================================================================
 // Semantic Search
 // ============================================================================
@@ -881,7 +841,7 @@ router.post(
       await postgres.ensureInitialized();
 
       const documents = await postgres.query(
-        'SELECT id as document_id, title, content, document_type, created_at FROM user_documents WHERE id = ANY($1) AND user_id = $2 AND is_active = true',
+        'SELECT id as document_id, title, content, document_type, created_at FROM user_documents WHERE id = ANY($1) AND user_id = $2 AND is_active = true AND deleted_at IS NULL',
         [documentIds, userId],
         { table: 'user_documents' }
       );

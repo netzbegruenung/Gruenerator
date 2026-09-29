@@ -26,6 +26,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { SKILLS, type Skill } from '@gruenerator/shared/agents';
 import { describe, expect, it } from 'vitest';
 
 const repoFile = (rel: string): string =>
@@ -50,6 +51,12 @@ function loopToolNames(): ReadonlySet<string> {
     repoFile('apps/api/routes/chat/services/agenticLoop/attachedDocuments.ts')
   );
   if (attached?.[1]) names.add(attached[1]);
+
+  // `tools[IMAGE_TOOL] = ...` — named next to the prompt text that cites it.
+  const image = /IMAGE_TOOL\s*=\s*'([^']+)'/.exec(
+    repoFile('apps/api/routes/chat/services/imageVisibility.ts')
+  );
+  if (image?.[1]) names.add(image[1]);
 
   // `tools[loopToolName] = ...` — one per artifact kind.
   for (const m of repoFile('apps/api/routes/chat/services/artifactKindRegistry.ts').matchAll(
@@ -112,5 +119,19 @@ describe('loop catalog ↔ UI registry coverage', () => {
         `packages/chat/src/lib/toolResults.ts (TOOL_METADATA) UND ` +
         `packages/chat/src/lib/toolRegistry.ts (UI_TOOL_NAMES + TOOL_REGISTRY).`
     ).toEqual([]);
+  });
+});
+
+describe('recipe recommendedTools ↔ loop catalog', () => {
+  // Ein Tippfehler in `recommendedTools` fällt sonst nirgends auf: die
+  // Empfehlung wird zur Laufzeit auf die montierten Werkzeuge gefiltert, ein
+  // unbekannter Name verschwindet also still.
+  it('every recommended tool is a tool the loop can mount', () => {
+    const names = loopToolNames();
+    const allSkills: readonly Skill[] = SKILLS;
+    const unknown = allSkills.flatMap((s) =>
+      (s.recommendedTools ?? []).filter((t) => !names.has(t)).map((t) => `${s.mention}: ${t}`)
+    );
+    expect(unknown).toEqual([]);
   });
 });

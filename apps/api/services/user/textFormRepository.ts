@@ -29,12 +29,15 @@ import {
   type TextFormShareMode,
   type TextFormType,
 } from '@gruenerator/contracts';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 
 import { userTextForms, type UserTextFormRow } from '../../database/schema/textForms.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { notTrashed } from '../../database/trash.js';
+import { notifyContentShared } from '../groups/groupContent.js';
 import { assertCanShareToGroup } from '../groups/groupMembership.js';
+import { deleteTrashedRow, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
 
 import {
   isListableTextForm,
@@ -187,7 +190,7 @@ async function loadSharesFor(textFormIds: string[]): Promise<Map<string, TextFor
   const rows = (await db.query(
     `SELECT gcs.content_id, gcs.group_id, g.name AS group_name
        FROM group_content_shares gcs
-       INNER JOIN groups g ON g.id = gcs.group_id
+       INNER JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
       WHERE gcs.content_type = $1 AND gcs.content_id = ANY($2::text[])`,
     [TEXT_FORM_CONTENT_TYPE, textFormIds]
   )) as unknown as Array<{ content_id: string; group_id: string; group_name: string }>;
@@ -210,7 +213,10 @@ async function loadSharesFor(textFormIds: string[]): Promise<Map<string, TextFor
  */
 export async function listTextForms(userId: string): Promise<TextForm[]> {
   const db = getDrizzleInstance();
-  const ownRows = await db.select().from(userTextForms).where(eq(userTextForms.user_id, userId));
+  const ownRows = await db
+    .select()
+    .from(userTextForms)
+    .where(and(eq(userTextForms.user_id, userId), notTrashed(userTextForms)));
   const shares = await loadSharesFor(ownRows.map((r) => String(r.id)));
   const own = ownRows.map((row) =>
     rowToTextForm(row, { sharedWithGroups: shares.get(String(row.id)) ?? [] })
@@ -227,6 +233,9 @@ export async function listTextForms(userId: string): Promise<TextForm[]> {
                ON gm.group_id = gcs.group_id AND gm.user_id = $2::uuid AND gm.is_active = TRUE
        LEFT JOIN profiles p ON p.id = tf.user_id
       WHERE tf.user_id <> $2::uuid
+        AND tf.share_mode <> 'private'
+        AND tf.deleted_at IS NULL
+        AND g.deleted_at IS NULL
       ORDER BY tf.created_at, tf.id, g.name`,
     [TEXT_FORM_CONTENT_TYPE, userId]
   )) as unknown as Array<UserTextFormRow & { group_name: string; owner_name: string | null }>;
@@ -272,7 +281,7 @@ export async function listPublicTextForms(limit = 200): Promise<PublicTextForm[]
     `SELECT tf.*, COALESCE(p.first_name, p.display_name) AS owner_name
        FROM user_text_forms tf
        LEFT JOIN profiles p ON p.id = tf.user_id
-      WHERE ${PUBLIC_VISIBLE}
+      WHERE ${PUBLIC_VISIBLE} AND tf.deleted_at IS NULL
       ORDER BY tf.updated_at DESC, tf.id
       LIMIT $1`,
     [limit]
@@ -284,13 +293,17 @@ export async function listPublicTextForms(limit = 200): Promise<PublicTextForm[]
 }
 
 /** An active group share of `tf` reaching `$1::uuid`. Written once, used by
- * every query that has to answer "may this user see this row". */
-const GROUP_SHARE_EXISTS = `EXISTS (
+ * every query that has to answer "may this user see this row". A share row of a
+ * private recipe grants nothing: setting a recipe back to private revokes group
+ * access without deleting the rows (#3803), and the sharing panel lists group
+ * shares only in 'groups' mode. */
+const GROUP_SHARE_EXISTS = `(tf.share_mode <> 'private' AND EXISTS (
           SELECT 1 FROM group_content_shares gcs
            INNER JOIN group_memberships gm
                    ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid AND gm.is_active = TRUE
+           INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
            WHERE gcs.content_type = $2 AND gcs.content_id = tf.id::text
-        )`;
+        ))`;
 
 /** The public disjunct: listed, authenticated — and custom, never a system override. */
 const PUBLIC_VISIBLE = `(tf.is_public = TRUE AND tf.share_mode = 'authenticated' AND tf.kind = 'custom')`;
@@ -329,6 +342,7 @@ function injectionSql(selector: string): string {
        FROM user_text_forms tf
       WHERE ${selector}
         AND ${VISIBLE_TO_CALLER}
+        AND tf.deleted_at IS NULL
       ORDER BY access_rank, tf.created_at, tf.id
       LIMIT 1`;
 }
@@ -424,7 +438,13 @@ export async function getTextFormSharing(
       public_ownership: userTextForms.public_ownership,
     })
     .from(userTextForms)
-    .where(and(eq(userTextForms.user_id, userId), eq(userTextForms.mention, mention)))
+    .where(
+      and(
+        eq(userTextForms.user_id, userId),
+        eq(userTextForms.mention, mention),
+        notTrashed(userTextForms)
+      )
+    )
     .limit(1);
   const row = rows[0];
   if (!row) return undefined;
@@ -456,7 +476,13 @@ export async function updateTextFormSharing(
       public_ownership: userTextForms.public_ownership,
     })
     .from(userTextForms)
-    .where(and(eq(userTextForms.user_id, userId), eq(userTextForms.mention, mention)))
+    .where(
+      and(
+        eq(userTextForms.user_id, userId),
+        eq(userTextForms.mention, mention),
+        notTrashed(userTextForms)
+      )
+    )
     .limit(1);
   const row = existing[0];
   if (!row) return { ok: true, updated: false };
@@ -505,7 +531,13 @@ async function findOwnRow(
   const rows = await db
     .select({ id: userTextForms.id, kind: userTextForms.kind })
     .from(userTextForms)
-    .where(and(eq(userTextForms.user_id, userId), eq(userTextForms.mention, mention)))
+    .where(
+      and(
+        eq(userTextForms.user_id, userId),
+        eq(userTextForms.mention, mention),
+        notTrashed(userTextForms)
+      )
+    )
     .limit(1);
   const row = rows[0];
   return row ? { id: String(row.id), kind: row.kind } : null;
@@ -530,19 +562,39 @@ export async function shareTextFormWithGroup(
   if (!allowed) return (await loadSharesFor([form.id])).get(form.id) ?? [];
 
   const pg = getPostgresInstance();
+  // Group access needs share_mode <> 'private' (see GROUP_SHARE_EXISTS), so a
+  // private recipe moves to 'groups' first — otherwise the share would be dead
+  // and missing from the owner's sharing panel. 'authenticated' already reaches
+  // further and stays. Leaving is_public alone is safe: a private row is never
+  // listed.
+  await pg.query(
+    `UPDATE user_text_forms SET share_mode = 'groups', updated_at = NOW()
+      WHERE id = $1::uuid AND share_mode = 'private'`,
+    [form.id]
+  );
   // Membership is checked in SQL: the insert only happens for a group the user
   // is actually an active member of, so a forged group id cannot leak a recipe.
-  await pg.query(
+  const inserted = (await pg.query(
     `INSERT INTO group_content_shares (group_id, shared_by_user_id, content_type, content_id)
      SELECT gm.group_id, $1::uuid, $2, $3
        FROM group_memberships gm
+       INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
       WHERE gm.group_id = $4::uuid AND gm.user_id = $1::uuid AND gm.is_active = TRUE
         AND NOT EXISTS (
           SELECT 1 FROM group_content_shares x
            WHERE x.group_id = gm.group_id AND x.content_type = $2 AND x.content_id = $3
-        )`,
+        )
+     RETURNING id`,
     [userId, TEXT_FORM_CONTENT_TYPE, form.id, groupId]
-  );
+  )) as Array<{ id: string }>;
+  if (inserted.length > 0) {
+    notifyContentShared({
+      groupId,
+      userId,
+      contentType: TEXT_FORM_CONTENT_TYPE,
+      contentId: form.id,
+    });
+  }
 
   const shares = await loadSharesFor([form.id]);
   return shares.get(form.id) ?? [];
@@ -630,6 +682,9 @@ export async function upsertTextForm(userId: string, input: TextFormInput): Prom
     .values(values)
     .onConflictDoUpdate({
       target: [userTextForms.user_id, userTextForms.mention],
+      // The unique index is partial (live rows only); the conflict target
+      // must name its predicate, and a recipe in the Papierkorb is no conflict.
+      targetWhere: isNull(userTextForms.deleted_at),
       set: {
         kind: values.kind,
         text_type: values.text_type,
@@ -649,13 +704,35 @@ export async function upsertTextForm(userId: string, input: TextFormInput): Prom
   return rowToTextForm(row);
 }
 
+/**
+ * Move the caller's recipe to the Papierkorb: only `deleted_at` is set, its
+ * group shares stay and grant nothing while every reader filters the row.
+ * Owner only — the same check restore and purge-now ask.
+ */
 export async function deleteTextForm(userId: string, mention: string): Promise<boolean> {
   const db = getDrizzleInstance();
   const rows = await db
-    .delete(userTextForms)
-    .where(and(eq(userTextForms.user_id, userId), eq(userTextForms.mention, mention)))
+    .update(userTextForms)
+    .set({ deleted_at: new Date() })
+    .where(
+      and(
+        eq(userTextForms.user_id, userId),
+        eq(userTextForms.mention, mention),
+        notTrashed(userTextForms)
+      )
+    )
     .returning({ id: userTextForms.id });
   return rows.length > 0;
+}
+
+export const TEXT_FORM_TRASH: OwnedTrashTable = {
+  table: 'user_text_forms',
+  columns: 'id, title, mention',
+};
+
+/** Hard-delete a trashed recipe. Its `group_content_shares` rows were never removed on delete either. */
+export async function purgeTextForm(id: string, cutoff: Date | null): Promise<boolean> {
+  return (await deleteTrashedRow(TEXT_FORM_TRASH, id, cutoff)) !== null;
 }
 
 // ── Mentionable list ─────────────────────────────────────────────────────────
@@ -715,12 +792,14 @@ export async function listMentionableTextForms(
                        ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid
                       AND gm.is_active = TRUE
               WHERE gcs.content_type = $2 AND gcs.content_id = tf.id::text
+                AND g.deleted_at IS NULL
               ORDER BY g.name
               LIMIT 1) AS group_name,
             COALESCE(p.first_name, p.display_name) AS owner_name
        FROM user_text_forms tf
        LEFT JOIN profiles p ON p.id = tf.user_id
       WHERE ${includePublic ? VISIBLE_TO_CALLER : VISIBLE_TO_CALLER_NO_PUBLIC}
+        AND tf.deleted_at IS NULL
       ORDER BY access_rank, tf.created_at, tf.id
       LIMIT $3`,
     [userId, TEXT_FORM_CONTENT_TYPE, limit]

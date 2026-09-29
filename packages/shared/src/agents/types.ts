@@ -1,3 +1,5 @@
+import { type LandesverbandContentType } from '../search/collections/landesverbandSources.js';
+
 import type { ComponentType } from 'react';
 
 export type AgentProvider =
@@ -53,6 +55,13 @@ export interface ToolRestrictions {
 export interface AgentDefaultFilter {
   /** Landesverband shortName(s), e.g. 'BE' or ['BE', 'BE-F']. */
   landesverband?: readonly string[] | string;
+  /**
+   * Content types an LV agent searches exclusively (e.g. `['beschluss']`).
+   * Pinned onto every search of the Landesverband collection — it overrides
+   * the model's own `content_type` argument, and it leaves other collections
+   * alone (their payload has no such field).
+   */
+  content_type?: readonly LandesverbandContentType[];
 }
 
 /**
@@ -225,8 +234,10 @@ export interface Agent {
    * picked none — the agent's core text form (e.g. `presse-berlin` for the
    * Berlin PR agent). Keeps the agent's systemRole down to identity while the
    * craft rules live in exactly one place, the recipe body. The agentic loop
-   * ignores this and lets the model pick via `rezept_laden`. An explicit
-   * composer mention always wins.
+   * lets the model pick via `rezept_laden` — except on a Landesverband agent
+   * that owns exactly this one recipe (Bürger*innenanfragen): there it is
+   * loaded up front (`ownedLvDefaultRecipeMention`). An explicit composer
+   * mention always wins.
    */
   defaultRecipeMention?: string;
   /**
@@ -286,6 +297,8 @@ export interface Skill {
    * Werte gegen die Instanz-Registry. Siehe `skillFrontmatterSchema`.
    */
   instances?: readonly string[];
+  /** Loop-Werkzeuge, die dieses Rezept empfiehlt. Siehe `skillFrontmatterSchema`. */
+  recommendedTools?: readonly string[];
   // NOTE: there is deliberately no `skillSystemPrompt` here. A skill's prompt
   // body is party-internal and lives outside this repo; the API loads it at
   // runtime (apps/api/services/skills/internalPrompts.ts) and serves it to

@@ -58,6 +58,7 @@ export const UI_TOOL_NAMES = z.enum([
   'notebook_quellen',
   'read_pdf_form',
   'fill_pdf_form',
+  'reisekosten_abrechnung',
   'cloud_files',
   'text_uebersetzen',
   'recurring_tasks',
@@ -81,6 +82,7 @@ export const UI_TOOL_NAMES = z.enum([
   'product_knowledge',
   'expand_attachment',
   'dokumente_lesen',
+  'bild_ansehen',
   'search_threads',
   'read_artifact',
   'memory',
@@ -227,6 +229,31 @@ function parsePdfFormFillVM(args: unknown, result: unknown): ToolResultVM {
   return {
     kind: 'text-note',
     text: `${filled} Feld(er) in „${fileName}" ausgefüllt.${skipNote}`,
+  };
+}
+
+// reisekosten_abrechnung: totals only — the PDF renders in the compute card,
+// the breakdown and open questions belong in the answer.
+const eur = (n: number) =>
+  `${n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+
+function parseReisekostenVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const aufstellung = getObject(result, 'aufstellung');
+  const gesamt = getNumber(aufstellung, 'gesamt');
+  const auszahlung = getNumber(aufstellung, 'auszahlung');
+  if (gesamt == null || auszahlung == null) return parseGenericFallback(args, result);
+  const fileName = getString(result, 'fileName');
+  const offen = getArray(result, 'fehler')?.length ?? 0;
+  const suffix = fileName
+    ? ` PDF „${fileName}" erstellt.`
+    : offen > 0
+      ? ` ${offen} Angabe(n) fehlen noch.`
+      : '';
+  return {
+    kind: 'text-note',
+    text: `Gesamt ${eur(gesamt)}, Auszahlung ${eur(auszahlung)}.${suffix}`,
   };
 }
 
@@ -913,6 +940,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   // The filled file itself renders in the compute card (fileAssets); the tool
   // card only reports what happened.
   fill_pdf_form: entry('fill_pdf_form', 'text-note', parsePdfFormFillVM),
+  reisekosten_abrechnung: entry('reisekosten_abrechnung', 'text-note', parseReisekostenVM),
   // The audio file itself renders in the compute card (fileAssets); the tool
   // card only reports what was made.
   vertonen: entry('vertonen', 'text-note', parseVertonenVM),
@@ -948,6 +976,10 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
     citations: parseSearchCitations(r),
   })),
   expand_attachment: entry('expand_attachment', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  bild_ansehen: entry('bild_ansehen', 'citations', (_a, r) => ({
     kind: 'citations',
     citations: parseSearchCitations(r),
   })),

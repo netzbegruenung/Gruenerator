@@ -183,7 +183,11 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // sources carried in, the model DOES have material — telling it that it
   // "received no sources" made it deny, to the user's face, sources that
   // were visibly attached to the very same conversation.
-  const carriedOnly = ctx.sourceRegistry.freshSize === 0 && ctx.sourceRegistry.carriedSize > 0;
+  // `size`, nicht `freshSize`: eine Bestandsliste oder ein Anhang dieses Turns
+  // ist neues Material, auch wenn es nicht gegen das Suchbudget zählt.
+  const carriedOnly =
+    ctx.sourceRegistry.carriedSize > 0 &&
+    ctx.sourceRegistry.size === ctx.sourceRegistry.carriedSize;
   // The chat already shows the opening sentence as the first line of THIS
   // answer (see the emitter's narration handling) — the synth writes
   // everything AFTER it,
