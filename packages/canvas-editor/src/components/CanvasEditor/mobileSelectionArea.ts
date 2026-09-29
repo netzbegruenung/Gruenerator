@@ -17,6 +17,9 @@ const AREA_CANDIDATES: Record<SelectionType, readonly SidebarTabId[]> = {
   image: ['image', 'background', 'image-background', 'uploads'],
   'user-image': ['uploads', 'image'],
   balken: ['settings', 'text'],
+  chart: ['chart-settings', 'elements', 'assets'],
+  'pill-badge': ['elements', 'assets'],
+  'circle-badge': ['elements', 'assets'],
 };
 
 /** The visible area tab a mobile selection belongs to, or null if none fits. */
