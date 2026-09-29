@@ -47,6 +47,7 @@ import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerMan
 import { captureStageImage } from '../utils/captureStage';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { PendingImagesContext } from '../utils/pendingImages';
+import { stageCssScale } from '../utils/stageCssScale';
 import { getOptimalContainerWidth } from '../utils/viewport';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
@@ -156,6 +157,12 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
    */
   preview?: boolean;
   /**
+   * False for the pages of a multi-page editor that are not the active one:
+   * they drop their selection and ignore keyboard shortcuts, which every page
+   * registers on `window`. Single-canvas hosts leave it at the default.
+   */
+  isActivePage?: boolean;
+  /**
    * Pushes this page's live state/actions/selection to the host on every
    * change — the multi-page editor's shared sidebar renders from it.
    */
@@ -241,7 +248,9 @@ function GenericCanvasWithRef<
     onToolbarStateChange,
     onAutoSaveShareToken,
     preview = false,
+    isActivePage = true,
   } = props;
+  const shortcutsEnabled = !preview && isActivePage;
 
   const stageRef = useRef<CanvasStageRef>(null);
   const [pendingImages] = useState(() => new Set<string>());
@@ -349,7 +358,7 @@ function GenericCanvasWithRef<
   }, []);
 
   const { saveToHistory, debouncedSaveToHistory, undo, redo, canUndo, canRedo } =
-    useCanvasHistorySetup(collectState, handleRestore, 500);
+    useCanvasHistorySetup(collectState, handleRestore, 500, shortcutsEnabled);
 
   const getState = useCallback(() => state, [state]);
 
@@ -423,6 +432,11 @@ function GenericCanvasWithRef<
 
   const store = useCanvasStore();
   const { setSnapLines, updateElementPosition } = store.getState();
+
+  // One selection across all pages: leaving the active page drops its own.
+  useEffect(() => {
+    if (!isActivePage) setSelectedElement(null);
+  }, [isActivePage, setSelectedElement]);
 
   // Output canvas dimensions are driven by the chosen format. Layout calculators
   // continue to operate in the template's reference space (config.canvas.{width,height});
@@ -560,7 +574,7 @@ function GenericCanvasWithRef<
     elements: config.elements,
     layout,
     saveToHistory,
-    enabled: !preview,
+    enabled: shortcutsEnabled,
   });
 
   const canvasItems = useMemo(() => buildCanvasItems(config, state), [config, state]);
@@ -690,8 +704,7 @@ function GenericCanvasWithRef<
         if (!node) return null;
         const rect = node.getClientRect();
         const container = stage.container().getBoundingClientRect();
-        // Die Seite kann per CSS gezoomt sein; Konva kennt nur seine eigenen Pixel.
-        const cssScale = stage.width() ? container.width / stage.width() : 1;
+        const cssScale = stageCssScale(stage, container);
         return {
           left: container.left + rect.x * cssScale,
           top: container.top + rect.y * cssScale,
