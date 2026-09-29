@@ -950,7 +950,7 @@ class RequestEnricher {
 
       // Fetch knowledge entries from user_knowledge table
       const knowledgeData = await postgres.query(
-        'SELECT id, title, content FROM user_knowledge WHERE id = ANY($1) AND is_active = true',
+        'SELECT id, title, content FROM user_knowledge WHERE id = ANY($1) AND is_active = true AND deleted_at IS NULL',
         [knowledgeIds],
         { table: 'user_knowledge' }
       );
@@ -998,7 +998,7 @@ class RequestEnricher {
 
       // Fetch texts from user_documents table with additional metadata
       const textData = await postgres.query(
-        'SELECT id, title, content, document_type, word_count, created_at FROM user_documents WHERE id = ANY($1) AND is_active = true',
+        'SELECT id, title, content, document_type, word_count, created_at FROM user_documents WHERE id = ANY($1) AND is_active = true AND deleted_at IS NULL',
         [textIds],
         { table: 'user_documents' }
       );

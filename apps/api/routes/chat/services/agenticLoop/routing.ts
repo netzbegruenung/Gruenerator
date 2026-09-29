@@ -926,6 +926,10 @@ export interface AgenticDecisionInput {
    *  the caller (isSheetFillRequest + hasReachableForm) so this module stays
    *  import-free. */
   isPdfFillRequest: boolean;
+  /** A Reisekosten turn (`isReisekostenTurn`: pinned recipe or keyword). The
+   *  tool exists only in the loop, and "Mach meine Abrechnung, Belege anbei"
+   *  otherwise reads as a self-contained writing order. */
+  isReisekostenTurn?: boolean;
   /** The classifier answered `needsResearch: true` and then picked `direct`.
    *  Rescues the turn into the loop even when it isn't shaped like a question —
    *  the `direct` rescue below keys on phrasing, and the failing turns were
@@ -986,6 +990,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
         unsourcedWriting ||
         !selfContained)) ||
     p.isPdfFillRequest ||
+    p.isReisekostenTurn === true ||
     compoundGen ||
     memoryRequest;
   const secondaryAllowed =
@@ -1048,6 +1053,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       secondaryAllowed,
       hasImageAttachments: p.hasImageAttachments,
       isPdfFillRequest: p.isPdfFillRequest,
+      ...(p.isReisekostenTurn === true && { isReisekostenTurn: true }),
       unsourcedWriting,
       selfContained,
       memoryRequest,

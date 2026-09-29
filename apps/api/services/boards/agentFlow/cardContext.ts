@@ -200,6 +200,7 @@ export async function formatDocuments(
              OR id IN (SELECT gcs.content_id::uuid FROM group_content_shares gcs
                        INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id
                               AND gm.user_id = $2::uuid AND gm.is_active = TRUE
+                       INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
                        WHERE gcs.content_type = 'collaborative_documents'))`,
     [ids, userId]
   );

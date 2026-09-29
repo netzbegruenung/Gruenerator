@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   boolean,
   integer,
@@ -6,26 +7,39 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
-export const customPrompts = pgTable('custom_prompts', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  user_id: uuid('user_id'),
-  name: text('name').notNull(),
-  slug: text('slug').notNull().unique(),
-  prompt: text('prompt').notNull(),
-  description: text('description'),
-  is_public: boolean('is_public').notNull().default(false),
-  is_active: boolean('is_active').notNull().default(true),
-  usage_count: integer('usage_count').notNull().default(0),
-  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  deleted_at: timestamp('deleted_at', { withTimezone: true }),
-  embedding_id: text('embedding_id'),
-  embedding_hash: text('embedding_hash'),
-  vector_indexed_at: timestamp('vector_indexed_at', { withTimezone: true }),
-});
+export const customPrompts = pgTable(
+  'custom_prompts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    user_id: uuid('user_id'),
+    name: text('name').notNull(),
+    slug: text('slug').notNull(),
+    prompt: text('prompt').notNull(),
+    description: text('description'),
+    is_public: boolean('is_public').notNull().default(false),
+    is_active: boolean('is_active').notNull().default(true),
+    usage_count: integer('usage_count').notNull().default(0),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deleted_at: timestamp('deleted_at', { withTimezone: true }),
+    embedding_id: text('embedding_id'),
+    embedding_hash: text('embedding_hash'),
+    vector_indexed_at: timestamp('vector_indexed_at', { withTimezone: true }),
+  },
+  // Nur unter lebenden Zeilen: ein Prompt im Papierkorb blockiert seinen Slug nicht.
+  (t) => [
+    uniqueIndex('custom_prompts_slug_unique')
+      .on(t.slug)
+      .where(sql`deleted_at IS NULL`),
+    uniqueIndex('custom_prompts_user_slug_unique')
+      .on(t.user_id, t.slug)
+      .where(sql`deleted_at IS NULL`),
+  ]
+);
 
 export const savedPrompts = pgTable(
   'saved_prompts',

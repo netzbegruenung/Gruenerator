@@ -105,7 +105,12 @@ const ALLOWLIST: readonly AllowEntry[] = [
     `${NOT_SQL} (a test fixture matching SQL text)`,
   ],
   ['apps/api/services/migrations/backfillGroupSlugSuffixes.ts', 'groups', PERMANENT_BACKFILL],
-  ['services/hocuspocus/src/auth.ts', 'groups', HOCUSPOCUS],
+  [
+    'apps/api/routes/docs/docsContractRouter.ts',
+    'groups',
+    `${NOT_SQL} (an error message)`,
+    'unshare from groups',
+  ],
   ['apps/api/services/cleanup/uploadsCleanupService.ts', 'shared_media', PERMANENT_CLEANUP],
   ['apps/api/services/cleanup/uploadsCleanupService.ts', 'subtitler_projects', PERMANENT_CLEANUP],
   [
@@ -122,139 +127,41 @@ const ALLOWLIST: readonly AllowEntry[] = [
   ],
   ['apps/api/routes/auth/templates/adminTemplates.ts', 'user_templates', PERMANENT_ADMIN],
   [
+    'apps/api/services/canvas/canvasRepository.ts',
+    'user_templates',
+    "hides a Vorlage's snapshot canvas from the canvas list; a trashed Vorlage keeps it hidden until the purge removes both",
+    "ut.content_data->>'canvasId'",
+  ],
+  [
     'apps/api/routes/auth/templates/adminVorlagenContractRouter.ts',
     'user_templates',
     PERMANENT_ADMIN,
   ],
-  // ── Task 4 ──
-  ['apps/api/routes/auth/promptsContractRouter.ts', 'custom_prompts', 'pending: Task 4'],
-  ['apps/api/routes/auth/userCustomPrompts.ts', 'custom_prompts', 'pending: Task 4'],
-  ['apps/api/routes/chat/agents/agentLoader.ts', 'custom_prompts', 'pending: Task 4'],
-  ['apps/api/routes/custom_prompts/custom_prompt.ts', 'custom_prompts', 'pending: Task 4'],
-  ['apps/api/services/prompts/PromptVectorService.ts', 'custom_prompts', 'pending: Task 4'],
-  [
-    'apps/api/services/recurringTasks/recurringTasksRepository.ts',
-    'recurring_tasks',
-    'pending: Task 4',
-  ],
-  ['apps/api/services/userAgents/userAgentsRepository.ts', 'user_agents', 'pending: Task 4'],
-  ['apps/api/routes/auth/content/textConversion.ts', 'user_documents', 'pending: Task 4'],
-  ['apps/api/routes/auth/content/userLibrary.ts', 'user_documents', 'pending: Task 4'],
-  ['apps/api/routes/auth/initController.ts', 'user_documents', 'pending: Task 4'],
-  ['apps/api/routes/chat/services/documentContextService.ts', 'user_documents', 'pending: Task 4'],
-  [
-    'apps/api/services/document-services/PostgresDocumentService/statistics.ts',
-    'user_documents',
-    'pending: Task 4',
-  ],
-  ['apps/api/services/groups/groupContent.ts', 'user_documents', 'pending: Task 4'],
-  ['apps/api/utils/requestEnrichment.ts', 'user_documents', 'pending: Task 4'],
-  ['apps/api/services/user/KnowledgeService.ts', 'user_knowledge', 'pending: Task 4'],
-  ['apps/api/utils/requestEnrichment.ts', 'user_knowledge', 'pending: Task 4'],
-  ['apps/api/services/user/letterheadRepository.ts', 'user_letterheads', 'pending: Task 4'],
-  ['apps/api/routes/sites/sitesContractRouter.ts', 'user_sites', 'pending: Task 4'],
-  ['apps/api/routes/sites/sitesController.ts', 'user_sites', 'pending: Task 4'],
-  ['apps/api/routes/auth/groups/groupsContract/content.ts', 'user_templates', 'pending: Task 4'],
-  ['apps/api/routes/auth/templates/templateGallery.ts', 'user_templates', 'pending: Task 4'],
-  [
-    'apps/api/routes/auth/templates/templateInteractionsContractRouter.ts',
-    'user_templates',
-    'pending: Task 4',
-  ],
-  [
-    'apps/api/routes/auth/templates/userTemplatesContractRouter.ts',
-    'user_templates',
-    'pending: Task 4',
-  ],
-  ['apps/api/routes/vorlagen/sharedTemplateContractRouter.ts', 'user_templates', 'pending: Task 4'],
-  ['apps/api/services/canvas/canvasRepository.ts', 'user_templates', 'pending: Task 4'],
-  ['apps/api/services/groups/groupContent.ts', 'user_templates', 'pending: Task 4'],
-  [
-    'apps/api/services/templates/collaborativeTemplateService.ts',
-    'user_templates',
-    'pending: Task 4',
-  ],
-  ['apps/api/services/templates/templateEnrichment.ts', 'user_templates', 'pending: Task 4'],
-  ['apps/api/services/user/textFormRepository.ts', 'user_text_forms', 'pending: Task 4'],
-  // ── Task 5 ──
-  ['apps/api/routes/auth/groups/groupAvatar.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/routes/auth/groups/groupsContract/content.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/routes/auth/groups/groupsContract/core.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/routes/auth/groups/groupsContract/discovery.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/routes/auth/initController.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/routes/boards/boardsContractRouter.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/routes/chat/agents/notebookTools.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/routes/chat/chatThreadSharingContractRouter.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/routes/chat/services/intentHandlers/shareDoc.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/routes/chat/threadSharingController.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/routes/docs/docsContractRouter.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/routes/docs/permissionsController.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/routes/notebook/notebookAccess.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/routes/notebook/notebookSharingContractRouter.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/routes/userAgents/userAgentsSharingContractRouter.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/services/groups/groupContent.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/services/groups/groupFeed.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/services/groups/groupMembership.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/services/groups/groupMutations.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/services/groups/groupQueries.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/services/groups/systemGroup.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/services/notebook/groupSharedNotebookListing.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/services/notifications/groupNotifications.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/services/user/textFormRepository.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/services/userAgents/userAgentsRepository.ts', 'groups', 'pending: Task 5'],
-  ['apps/api/utils/integrations/nextcloud/shareManager.ts', 'groups', 'pending: Task 5'],
 ];
 
 /** Readers and writers the literal scan cannot see; each file must still contain its marker. */
 const FRAGMENTED_SQL: ReadonlyArray<readonly [...AllowEntry, marker: string]> = [
   // Ownership check before sharing to a Projekt; table from CONTENT_TABLE_NAME_MAP.
-  [
-    'apps/api/services/groups/groupContent.ts',
-    'documents',
-    'filtered: `AND deleted_at IS NULL` is appended for documents',
-    'FROM ${tableName}',
-  ],
-  [
-    'apps/api/services/groups/groupContent.ts',
-    'user_documents',
-    'pending: Task 4',
-    'FROM ${tableName}',
-  ],
-  [
-    'apps/api/services/groups/groupContent.ts',
-    'user_templates',
-    'pending: Task 4',
-    'FROM ${tableName}',
-  ],
-  [
-    'apps/api/services/groups/groupContent.ts',
-    'user_agents',
-    'pending: Task 4',
-    'FROM ${tableName}',
-  ],
+  ...(['documents', 'user_documents', 'user_templates', 'user_agents'] as const).map(
+    (table) =>
+      [
+        'apps/api/services/groups/groupContent.ts',
+        table,
+        'filtered: `AND deleted_at IS NULL` is appended for every TRASHABLE_TABLES table (groupContent.vitest.ts)',
+        'FROM ${tableName}',
+      ] as const
+  ),
   // PostgresService.update/delete(tableName, …) helpers.
   [
     'apps/api/routes/auth/content/userLibrary.ts',
     'user_documents',
-    'pending: Task 4',
-    "postgres.delete('user_documents'",
-  ],
-  [
-    'apps/api/routes/auth/content/userLibrary.ts',
-    'user_documents',
-    'pending: Task 4',
+    'writer: each update runs after a live-row SELECT of the same id and owner',
     "postgres.update('user_documents'",
   ],
   [
     'apps/api/routes/auth/templates/userTemplatesContractRouter.ts',
     'user_templates',
-    'pending: Task 4',
-    "postgres.delete('user_templates'",
-  ],
-  [
-    'apps/api/routes/auth/templates/userTemplatesContractRouter.ts',
-    'user_templates',
-    'pending: Task 4',
+    'writer: each update runs after a live-row SELECT of the same id',
     "postgres.update('user_templates'",
   ],
   [
@@ -357,14 +264,37 @@ function readsTable(text: string, table: string): boolean {
   ).test(text);
 }
 
-type Filters = { trash: boolean; collab: boolean };
+/**
+ * `trash` counts every trash clause; `rowTrash` only those not qualified by an
+ * alias the literal binds to `groups`. An access path joins the live group
+ * (`INNER JOIN groups lg … lg.deleted_at IS NULL`) to drop members of a trashed
+ * Projekt — that clause filters the group, never the content row, and must not
+ * excuse a reader of any other table.
+ */
+type Filters = { trash: boolean; rowTrash: boolean; collab: boolean };
+
+const SQL_WORDS = /^(ON|WHERE|JOIN|INNER|LEFT|RIGHT|FULL|CROSS|USING|GROUP|ORDER|LIMIT)$/i;
+
+function withoutGroupClauses(text: string): string {
+  let out = text;
+  for (const m of text.matchAll(/\b(?:FROM|JOIN)\s+(?:public\.)?groups\s+(?:AS\s+)?(\w+)/gi)) {
+    if (SQL_WORDS.test(m[1])) continue;
+    out = out.replace(new RegExp(`\\b${m[1]}\\.deleted_at\\s+IS\\s+(NOT\\s+)?NULL`, 'gi'), '');
+  }
+  return out;
+}
 
 function filtersIn(text: string): Filters {
-  return { trash: TRASH_AWARE.test(text), collab: COLLAB_LIVE.test(text) };
+  return {
+    trash: TRASH_AWARE.test(text),
+    rowTrash: TRASH_AWARE.test(withoutGroupClauses(text)),
+    collab: COLLAB_LIVE.test(text),
+  };
 }
 
 function satisfies(filters: Filters, table: TrashableTableName): boolean {
-  return filters.trash || (table === 'collaborative_documents' && filters.collab);
+  if (table === 'groups') return filters.trash;
+  return filters.rowTrash || (table === 'collaborative_documents' && filters.collab);
 }
 
 /**
@@ -435,6 +365,7 @@ function scan(): Offender[] {
         const f = local.get(file)?.get(m[1]) ?? exported.get(m[1]);
         if (f) {
           acc.trash ||= f.trash;
+          acc.rowTrash ||= f.rowTrash;
           acc.collab ||= f.collab;
         }
       }
@@ -481,6 +412,27 @@ describe('Papierkorb readers hide trashed rows', () => {
     // docsAccessWhere is the canonical filtered fragment; if the scan stopped
     // resolving it, every docs reader would show up here as an offender.
     expect(offenders.filter((o) => o.file === 'apps/api/routes/docs/docsSearch.ts')).toEqual([]);
+  });
+
+  it('a live-group join excuses the group, never the content row', () => {
+    const statement = `SELECT d.id FROM documents d
+      INNER JOIN group_content_shares gcs ON gcs.content_id = d.id::text
+      INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id
+      INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL`;
+    expect(satisfies(filtersIn(statement), 'groups')).toBe(true);
+    expect(satisfies(filtersIn(statement), 'documents')).toBe(false);
+    expect(satisfies(filtersIn(`${statement} WHERE d.deleted_at IS NULL`), 'documents')).toBe(true);
+
+    // The three shared fragments that carry the live-group join: they still hide
+    // trashed groups, but excuse no other trash table through that clause.
+    for (const [file, name] of [
+      ['apps/api/routes/docs/constants.ts', 'docsAccessWhere'],
+      ['apps/api/services/canvas/canvasRepository.ts', 'CANVAS_ACCESS_WHERE'],
+      ['apps/api/services/user/textFormRepository.ts', 'GROUP_SHARE_EXISTS'],
+    ] as const) {
+      const fragment = fragmentsIn(fs.readFileSync(path.join(repoRoot, file), 'utf8')).get(name);
+      expect(fragment, name).toMatchObject({ trash: true, rowTrash: false });
+    }
   });
 
   it('every unfiltered reader is on the allowlist', () => {

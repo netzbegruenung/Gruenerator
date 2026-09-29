@@ -16,9 +16,12 @@ import { and, eq } from 'drizzle-orm';
 import { customPrompts, savedPrompts } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { notTrashed } from '../../database/trash.js';
 import { sessionHasAiConsent } from '../../middleware/requireAiConsent.js';
 import { getIntermediateModel } from '../../services/ai/providers.js';
+import { CUSTOM_PROMPT_TRASH } from '../../services/prompts/customPromptTrash.js';
 import { getPromptVectorService } from '../../services/prompts/index.js';
+import { trashOwnedRow } from '../../services/trash/ownedRowTrash.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -116,7 +119,7 @@ export const promptsContractRouter = s.router(promptsContract, {
       const rows = await postgres.query<PromptRowInput>(
         `SELECT id, name, slug, prompt, description, is_public, created_at, updated_at, is_active, usage_count
          FROM custom_prompts
-         WHERE user_id = $1
+         WHERE user_id = $1 AND deleted_at IS NULL
          ORDER BY created_at DESC`,
         [userId],
         { table: 'custom_prompts' }
@@ -220,7 +223,7 @@ export const promptsContractRouter = s.router(promptsContract, {
           is_public: customPrompts.is_public,
         })
         .from(customPrompts)
-        .where(eq(customPrompts.id, id))
+        .where(and(eq(customPrompts.id, id), notTrashed(customPrompts)))
         .limit(1);
 
       const existingPrompt = existing[0] ?? null;
@@ -301,28 +304,17 @@ export const promptsContractRouter = s.router(promptsContract, {
       const userId = getAuthedUser(args.req).id;
       const { id } = args.params;
 
-      const db = getDrizzleInstance();
-      const existing = await db
-        .select({
-          id: customPrompts.id,
-          user_id: customPrompts.user_id,
-          name: customPrompts.name,
-          embedding_id: customPrompts.embedding_id,
-        })
-        .from(customPrompts)
-        .where(eq(customPrompts.id, id))
-        .limit(1);
+      // Into the Papierkorb: the vector stays until `purgeCustomPrompt`.
+      const result = await trashOwnedRow(CUSTOM_PROMPT_TRASH, userId, id);
 
-      const existingPrompt = existing[0] ?? null;
-
-      if (!existingPrompt) {
+      if (result === 'not_found') {
         return {
           status: 404 as const,
           body: { success: false as const, message: 'Prompt nicht gefunden.' },
         };
       }
 
-      if (existingPrompt.user_id !== userId) {
+      if (result === 'forbidden') {
         return {
           status: 403 as const,
           body: {
@@ -332,19 +324,7 @@ export const promptsContractRouter = s.router(promptsContract, {
         };
       }
 
-      if (existingPrompt.embedding_id) {
-        promptVectorService
-          .deletePromptVector(id)
-          .catch((err) => log.warn('Failed to delete prompt vectors:', err));
-      }
-
-      await db
-        .delete(customPrompts)
-        .where(and(eq(customPrompts.id, id), eq(customPrompts.user_id, userId)));
-
-      log.debug(
-        `[Prompts Contract] Prompt "${existingPrompt.name}" (${id}) deleted by user ${userId}`
-      );
+      log.debug(`[Prompts Contract] Prompt ${id} moved to the Papierkorb by user ${userId}`);
 
       return {
         status: 200 as const,
@@ -375,7 +355,7 @@ export const promptsContractRouter = s.router(promptsContract, {
          FROM saved_prompts sp
          JOIN custom_prompts cp ON cp.id = sp.prompt_id
          LEFT JOIN profiles p ON p.id = cp.user_id
-         WHERE sp.user_id = $1 AND cp.is_active = true
+         WHERE sp.user_id = $1 AND cp.is_active = true AND cp.deleted_at IS NULL
          ORDER BY sp.saved_at DESC`,
         [userId],
         { table: 'saved_prompts' }
@@ -411,7 +391,7 @@ export const promptsContractRouter = s.router(promptsContract, {
           is_active: customPrompts.is_active,
         })
         .from(customPrompts)
-        .where(eq(customPrompts.id, promptId))
+        .where(and(eq(customPrompts.id, promptId), notTrashed(customPrompts)))
         .limit(1);
 
       const promptData = existing[0] ?? null;

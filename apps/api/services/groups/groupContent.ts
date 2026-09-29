@@ -22,6 +22,7 @@ import { getNotebookDefinition } from '@gruenerator/shared/notebooks';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { TRASHABLE_TABLES } from '../../database/trash.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
 import { buildCanvasThumbnailUrl } from '../media/thumbnailUrl.js';
 import { notifyGroupMembers } from '../notifications/index.js';
@@ -179,7 +180,8 @@ export async function shareContentToGroup(
       ownershipSQL += ` AND type = $2`;
       ownershipParams.push('template');
     }
-    if (tableName === 'documents') {
+    // A trashed item is invisible everywhere, so it cannot be shared either.
+    if (Object.hasOwn(TRASHABLE_TABLES, tableName)) {
       ownershipSQL += ` AND deleted_at IS NULL`;
     }
     if (contentType === 'collaborative_documents') {
@@ -265,7 +267,7 @@ export function notifyContentShared(
          FROM groups g
          LEFT JOIN group_content_shares s
            ON s.group_id = g.id AND s.content_type = $2 AND s.content_id = $3
-        WHERE g.id = $1`,
+        WHERE g.id = $1 AND g.deleted_at IS NULL`,
         [groupId, contentType, contentId, userId],
         { table: 'groups' }
       )
@@ -497,7 +499,7 @@ export async function hydrateGroupContent(
     fetchPromises.push(
       postgres
         .query(
-          'SELECT id, title, document_type, content, created_at, updated_at, user_id FROM user_documents WHERE id = ANY($1)',
+          'SELECT id, title, document_type, content, created_at, updated_at, user_id FROM user_documents WHERE id = ANY($1) AND deleted_at IS NULL',
           [ids],
           { table: 'user_documents' }
         )
@@ -528,7 +530,7 @@ export async function hydrateGroupContent(
     fetchPromises.push(
       postgres
         .query(
-          "SELECT id, title, description, external_url, thumbnail_url, metadata, created_at, updated_at, user_id FROM user_templates WHERE id = ANY($1) AND type = 'template'",
+          "SELECT id, title, description, external_url, thumbnail_url, metadata, created_at, updated_at, user_id FROM user_templates WHERE id = ANY($1) AND type = 'template' AND deleted_at IS NULL",
           [ids],
           { table: 'user_templates' }
         )

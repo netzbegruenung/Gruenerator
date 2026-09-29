@@ -186,7 +186,7 @@ export function lvSkillMentionsForRoles(
 export interface LandesverbandOffer {
   lvId: string;
   title: string;
-  /** Auffindbare Spezialagenten (`landesverbandAgentIds`: PR, Bürger*innen, Wahlprüfsteine, ggf. Beschlusslage und Wahlprogramm). */
+  /** Auffindbare Spezialagenten (`landesverbandAgentIds`: PR, Bürger*innen, Wahlprüfsteine, ggf. Beschlussanträge und Wahlprogramm). */
   agents: number;
   /** Rezepte, die einem dieser Agenten gehören. */
   skills: number;

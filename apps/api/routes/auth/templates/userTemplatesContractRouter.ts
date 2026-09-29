@@ -37,16 +37,13 @@ import {
   UrlValidator,
 } from '../../../services/scrapers/implementations/UrlCrawler/index.js';
 import { createDocFromTemplate } from '../../../services/templates/collaborativeTemplateService.js';
-import {
-  cleanupGrueneratorSnapshot,
-  snapshotCanvasId,
-} from '../../../services/templates/grueneratorVorlage.js';
+import { snapshotCanvasId } from '../../../services/templates/grueneratorVorlage.js';
 import {
   enrichTemplate,
-  deleteTemplateVector,
   TEMPLATE_DESCRIPTION_INSTRUCTION,
 } from '../../../services/templates/templateEnrichment.js';
 import { resolveStatusTransition } from '../../../services/templates/templateStatusTransition.js';
+import { trashUserTemplates } from '../../../services/templates/userTemplateTrash.js';
 import { visionService } from '../../../services/vision/index.js';
 import { logContractValidationError } from '../../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../../utils/getAuthedUser.js';
@@ -370,13 +367,14 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         ? await postgres.query(
             `SELECT * FROM user_templates
              WHERE user_id = $1 AND type = $2 AND is_example = $3 AND template_type = $4
+               AND deleted_at IS NULL
              ORDER BY updated_at DESC`,
             [userId, 'template', false, templateTypeFilter],
             TABLE
           )
         : await postgres.query(
             `SELECT * FROM user_templates
-             WHERE user_id = $1 AND type = $2 AND is_example = $3
+             WHERE user_id = $1 AND type = $2 AND is_example = $3 AND deleted_at IS NULL
              ORDER BY updated_at DESC`,
             [userId, 'template', false],
             TABLE
@@ -483,13 +481,9 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
-      const verifyTemplates = await postgres.query<{
-        id: string;
-        template_type: string;
-        content_data: unknown;
-      }>(
-        `SELECT id, template_type, content_data FROM user_templates
-         WHERE user_id = $1 AND type = $2 AND id = ANY($3)`,
+      const verifyTemplates = await postgres.query<{ id: string }>(
+        `SELECT id FROM user_templates
+         WHERE user_id = $1 AND type = $2 AND id = ANY($3) AND deleted_at IS NULL`,
         [userId, 'template', ids],
         TABLE
       );
@@ -508,25 +502,9 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         };
       }
 
-      const deletedData = await postgres.query<{ id: string }>(
-        `DELETE FROM user_templates
-         WHERE user_id = $1 AND type = $2 AND id = ANY($3)
-         RETURNING id`,
-        [userId, 'template', ids],
-        TABLE
-      );
-
-      const deletedIds = deletedData.map((t) => t.id);
+      // Into the Papierkorb: vectors and snapshot canvases stay until the purge.
+      const deletedIds = await trashUserTemplates(userId, ids);
       const failedIds = ids.filter((id) => !deletedIds.includes(id));
-
-      const deletedSet = new Set(deletedIds);
-      for (const deletedId of deletedIds) void deleteTemplateVector(deletedId);
-      // Clean up snapshot canvases for any deleted Grünerator-Vorlagen.
-      for (const t of verifyTemplates) {
-        if (deletedSet.has(t.id)) {
-          void cleanupGrueneratorSnapshot(t.template_type, t.content_data, userId);
-        }
-      }
 
       return {
         status: 200 as const,
@@ -571,7 +549,8 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       await postgres.ensureInitialized();
 
       const existingTemplate = await postgres.queryOne(
-        `SELECT user_id, metadata, status, content_data FROM user_templates WHERE id = $1 AND type = $2`,
+        `SELECT user_id, metadata, status, content_data FROM user_templates
+         WHERE id = $1 AND type = $2 AND deleted_at IS NULL`,
         [id, 'template'],
         TABLE
       );
@@ -678,25 +657,11 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       const userId = getAuthedUser(args.req).id;
       const { id } = args.params;
 
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
+      // Into the Papierkorb: the vector and a Grünerator-Vorlage's snapshot
+      // canvas stay until the purge (`purgeUserTemplate`).
+      const trashed = await trashUserTemplates(userId, [id]);
 
-      // Read the bridge fields before deleting so we can clean up the snapshot
-      // canvas a Grünerator-Vorlage points at.
-      const existing = await postgres.queryOne(
-        `SELECT template_type, content_data FROM user_templates
-         WHERE id = $1 AND user_id = $2 AND type = 'template'`,
-        [id, userId],
-        TABLE
-      );
-
-      const result = await postgres.delete('user_templates', {
-        id,
-        user_id: userId,
-        type: 'template',
-      });
-
-      if (result.changes === 0) {
+      if (trashed.length === 0) {
         return {
           status: 404 as const,
           body: {
@@ -705,9 +670,6 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
           },
         };
       }
-
-      void deleteTemplateVector(id);
-      void cleanupGrueneratorSnapshot(existing?.template_type, existing?.content_data, userId);
 
       return {
         status: 200 as const,
@@ -732,7 +694,8 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       await postgres.ensureInitialized();
 
       const existingTemplate = await postgres.queryOne(
-        `SELECT user_id, metadata FROM user_templates WHERE id = $1 AND type = $2`,
+        `SELECT user_id, metadata FROM user_templates
+         WHERE id = $1 AND type = $2 AND deleted_at IS NULL`,
         [id, 'template'],
         TABLE
       );

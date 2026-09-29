@@ -53,7 +53,7 @@ export async function listGroupSharedNotebooksForUser(
     `SELECT gcs.content_id, array_agg(DISTINCT g.name ORDER BY g.name) AS group_names
        FROM group_content_shares gcs
        INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
-       INNER JOIN groups g ON g.id = gcs.group_id
+       INNER JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
        WHERE gcs.content_type = 'notebook_collections'
        GROUP BY gcs.content_id`,
     [userId]

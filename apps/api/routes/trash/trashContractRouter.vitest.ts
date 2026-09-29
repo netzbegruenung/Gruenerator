@@ -24,8 +24,7 @@ const other = { ...handler, listTrashed: vi.fn<TrashKindHandler['listTrashed']>(
 
 vi.mock('../../services/trash/trashRegistry.js', () => ({
   TRASH_KINDS: { collaborative_document: handler, chat_thread: other },
-  trashHandlerFor: (kind: string) =>
-    kind === 'collaborative_document' ? handler : kind === 'chat_thread' ? other : null,
+  trashHandlerFor: (kind: string) => (kind === 'chat_thread' ? other : handler),
 }));
 vi.mock('../../utils/logger.js', () => ({
   createLogger: () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }),
@@ -80,12 +79,6 @@ describe('validation and routing', () => {
     expect((await call('GET', '/api/trash?kind=reel')).status).toBe(400);
     expect(handler.getTrashed).not.toHaveBeenCalled();
   });
-
-  it('answers 404 for a known kind without a handler yet', async () => {
-    expect((await call('POST', '/api/trash/group/abc/restore')).status).toBe(404);
-    expect((await call('DELETE', '/api/trash/group/abc')).status).toBe(404);
-    expect((await call('GET', '/api/trash?kind=group')).status).toBe(404);
-  });
 });
 
 describe('restore', () => {
@@ -108,6 +101,23 @@ describe('restore', () => {
 
     handler.restore.mockRejectedValueOnce(Object.assign(new Error('dup'), { code: '23505' }));
     expect((await call('POST', '/api/trash/collaborative_document/d1/restore')).status).toBe(409);
+
+    // Drizzle wraps the pg error; the code sits in `cause`.
+    handler.restore.mockRejectedValueOnce(
+      Object.assign(new Error('Failed query'), { cause: { code: '23505' } })
+    );
+    const wrapped = await call('POST', '/api/trash/collaborative_document/d1/restore');
+    expect(wrapped.status).toBe(409);
+    expect(JSON.stringify(wrapped.body)).toContain('umbenennen');
+  });
+
+  it('409 for a Website says why, not "rename first"', async () => {
+    handler.getTrashed.mockResolvedValue(item('s1', '2026-09-01T00:00:00.000Z'));
+    handler.restore.mockResolvedValueOnce('conflict');
+    const res = await call('POST', '/api/trash/user_site/s1/restore');
+    expect(res.status).toBe(409);
+    expect(JSON.stringify(res.body)).toContain('andere Website');
+    expect(JSON.stringify(res.body)).not.toContain('umbenennen');
   });
 
   it('200 with the item it restored', async () => {

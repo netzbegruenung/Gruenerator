@@ -823,6 +823,83 @@ describe('toolCatalog bild_ansehen', () => {
   });
 });
 
+/**
+ * `reisekosten_abrechnung` hängt nur in Reisekosten-Turns: sein Schema ist
+ * gross und zählte sonst gegen das Katalogbudget jedes Recherche-Turns.
+ */
+describe('toolCatalog: reisekosten_abrechnung', () => {
+  const catalogFor = (state: Record<string, unknown>) => {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: { sse, state: { intent: 'agentic', ...state } as unknown as ChatGraphState },
+    });
+    return toolNames;
+  };
+
+  it('fehlt in einem gewöhnlichen Turn', () => {
+    expect(
+      catalogFor({ lastUserTextNoMentions: 'Was steht im Wahlprogramm zu Windkraft?' })
+    ).not.toContain('reisekosten_abrechnung');
+  });
+
+  it('ist montiert, wenn die Bitte Reisekosten nennt', () => {
+    expect(
+      catalogFor({ lastUserTextNoMentions: 'Mach mir die Reisekostenabrechnung, Belege anbei' })
+    ).toContain('reisekosten_abrechnung');
+  });
+
+  it('ist montiert, solange das Rezept angeheftet ist — auch ohne Schlagwort', () => {
+    expect(
+      catalogFor({
+        activeSkillMention: 'reisekosten-nrw',
+        lastUserTextNoMentions: 'Rückkehr war 22 Uhr',
+      })
+    ).toContain('reisekosten_abrechnung');
+  });
+
+  // Ein getipptes `/reisekosten-nrw` gilt nur in seinem Turn; im Verlauf steht
+  // es danach als Label der entschärften Mention.
+  it('ist montiert, wenn eine frühere Nutzernachricht das Rezept nannte', () => {
+    expect(
+      catalogFor({
+        lastUserTextNoMentions: 'Rückkehr war 22 Uhr',
+        messages: [
+          { role: 'user', content: '@Reisekosten NRW (Beta) Länderrat in Berlin' },
+          { role: 'assistant', content: 'Wann warst du zurück?' },
+          { role: 'user', content: 'Rückkehr war 22 Uhr' },
+        ],
+      })
+    ).toContain('reisekosten_abrechnung');
+  });
+
+  it('zählt nur Nutzernachrichten, nicht die Antworten', () => {
+    expect(
+      catalogFor({
+        lastUserTextNoMentions: 'Danke',
+        messages: [
+          { role: 'user', content: 'Was kann der Grünerator?' },
+          { role: 'assistant', content: 'Unter anderem Reisekosten abrechnen.' },
+          { role: 'user', content: 'Danke' },
+        ],
+      })
+    ).not.toContain('reisekosten_abrechnung');
+  });
+
+  it('fehlt in einer Editor-Seitenleiste', () => {
+    expect(
+      catalogFor({
+        activeSkillMention: 'reisekosten-nrw',
+        enabledTools: { edit_current_doc: true },
+      })
+    ).not.toContain('reisekosten_abrechnung');
+  });
+});
+
 describe('toolCatalog expand_attachment (M4)', () => {
   beforeEach(() => {
     documentSearch.mockReset();

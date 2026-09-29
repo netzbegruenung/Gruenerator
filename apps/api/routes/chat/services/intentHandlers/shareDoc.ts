@@ -86,7 +86,7 @@ export async function handleShareDoc(opts: {
     pg.query(
       `SELECT g.id, g.name FROM groups g
        INNER JOIN group_memberships gm ON gm.group_id = g.id
-       WHERE gm.user_id = $1 ORDER BY g.name ASC`,
+       WHERE gm.user_id = $1 AND g.deleted_at IS NULL ORDER BY g.name ASC`,
       [userId]
     ) as Promise<{ id: string; name: string }[]>,
   ]);

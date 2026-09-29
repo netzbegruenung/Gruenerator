@@ -104,7 +104,7 @@ router.get(
           p.first_name as owner_first_name
          FROM custom_prompts cp
          LEFT JOIN profiles p ON p.id = cp.user_id
-         WHERE cp.is_public = true AND cp.is_active = true
+         WHERE cp.is_public = true AND cp.is_active = true AND cp.deleted_at IS NULL
          AND (cp.user_id IS NULL OR cp.user_id != $1)
          ${whereClause}
          ORDER BY cp.usage_count DESC, cp.created_at DESC

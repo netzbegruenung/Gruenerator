@@ -39,6 +39,8 @@ export const stammdatenSchema = z.object({
   /** IBAN/BIC are client-only (localStorage); only sent in the /pdf request. */
   iban: z.string(),
   bic: z.string().optional(),
+  /** Form field „Wahl/Beschluss vom“: the election/decision that entitles the claim. */
+  wahlBeschlussVom: z.string().optional(),
 });
 
 export const reiseSchema = z.object({
@@ -60,14 +62,18 @@ export const kfzSchema = z.object({
   km: z.number(),
   fahrzeug: fahrzeugTypSchema,
   routenplanerVorhanden: z.boolean(),
-  /** Required (and used as the reimbursable amount) once km > kmObergrenze. */
+  /** No longer used for Kfz since the form of 1.7.2025; kept so stored drafts still parse. */
   dbFlexpreis: z.number().nullable(),
+  /** A Vorstandsbeschluss allows km beyond kmObergrenze. */
+  vorstandsbeschluss: z.boolean().optional(),
 });
 
 export const mieteSchema = z.object({
   betrag: z.number(),
   dbFlexpreis: z.number().nullable(),
   belegVorhanden: z.boolean(),
+  /** Rental car / carsharing is reimbursable only with a Vorstandsbeschluss. */
+  vorstandsbeschluss: z.boolean().optional(),
 });
 
 export const fahrtSchema = z.object({
