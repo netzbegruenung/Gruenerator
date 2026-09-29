@@ -17,6 +17,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   assembleToolCatalog,
   buildToolReplay,
+  isLookupTool,
+  priorToolNames,
   priorTurnRetrieved,
   priorTurnRetrievalFailed,
   wrapAssembledTools,
@@ -570,6 +572,44 @@ describe('priorTurnRetrieved', () => {
       })
     ).toBe(false);
   });
+});
+
+describe('priorToolNames', () => {
+  const history = (steps: PersistedStep[]) => ({
+    artifacts: () => [],
+    toolSteps: () => steps,
+    lastTurnToolSteps: () => [],
+    sources: () => [],
+    lastGeneratedImageUrl: () => null,
+  });
+
+  it('lässt Verbindungs-Schritte weg — ihr Anschluss hat einen eigenen Weg', () => {
+    expect(
+      priorToolNames(
+        history([
+          { toolCallId: 'c0', toolName: 'gruenerator_search', args: {}, result: {} },
+          { toolCallId: 'c1', toolName: 'm1__search', args: {}, result: {}, serverName: 'Notion' },
+        ])
+      )
+    ).toEqual(['gruenerator_search']);
+  });
+
+  it('ohne Thread ist die Liste leer', () => {
+    expect(priorToolNames(null)).toEqual([]);
+  });
+});
+
+describe('isLookupTool', () => {
+  it('web_search schlägt nach', () => {
+    expect(isLookupTool('web_search')).toBe(true);
+  });
+
+  it.each(['edit_document', 'gruenerator_examples_search', 'rezept_laden', 'ask_human'])(
+    '%s nicht',
+    (name) => {
+      expect(isLookupTool(name)).toBe(false);
+    }
+  );
 });
 
 describe('priorTurnRetrievalFailed', () => {
