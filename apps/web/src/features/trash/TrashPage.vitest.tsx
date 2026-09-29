@@ -101,6 +101,16 @@ describe('TrashPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it('does not claim a deletion time for items moved in from before the Papierkorb', async () => {
+    serveTrash([item({ deletedAt: new Date().toISOString(), deletedBeforeTrash: true })]);
+    renderWithProviders(<TrashPage />);
+
+    const [row] = within(await screen.findByRole('list')).getAllByRole('listitem');
+    expect(row).toHaveTextContent(
+      'Dokument · vor Einführung des Papierkorbs gelöscht · wird in 5 Tagen endgültig gelöscht'
+    );
+  });
+
   it('shows the empty state when nothing is in the trash', async () => {
     serveTrash([]);
     const { container } = renderWithProviders(<TrashPage />);

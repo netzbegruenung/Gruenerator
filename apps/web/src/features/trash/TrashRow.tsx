@@ -43,8 +43,11 @@ export default function TrashRow({ item, onRemove }: TrashRowProps) {
       <div className="min-w-0 flex-1">
         <p className="m-0 truncate font-medium text-foreground-heading">{title}</p>
         <p className="m-0 text-sm text-muted-foreground">
-          {trashItemLabel(item)} · gelöscht {lowerFirst(formatRelativeDate(item.deletedAt))} ·{' '}
-          {purgeCountdown(item.purgeAt)}
+          {trashItemLabel(item)} ·{' '}
+          {item.deletedBeforeTrash
+            ? 'vor Einführung des Papierkorbs gelöscht'
+            : `gelöscht ${lowerFirst(formatRelativeDate(item.deletedAt))}`}{' '}
+          · {purgeCountdown(item.purgeAt)}
         </p>
       </div>
       <div className="flex items-center gap-sm">
