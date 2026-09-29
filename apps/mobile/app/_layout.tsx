@@ -29,9 +29,12 @@ import { SettingsSheet } from '../components/settings';
 import { CURRENT_INSTANCE } from '../config/instance';
 import { useAppInitialization } from '../hooks/useAppInitialization';
 import { useHydrateUserProfile } from '../hooks/useHydrateUserProfile';
+import { initErrorReporting } from '../services/errorReporting';
 import { queryClient } from '../services/queryClient';
 import { useOnboardingStore } from '../stores/onboardingStore';
 import { lightTheme, darkTheme } from '../theme';
+
+initErrorReporting();
 
 void SplashScreen.preventAutoHideAsync();
 

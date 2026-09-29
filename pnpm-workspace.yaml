@@ -141,6 +141,10 @@ allowBuilds:
   node-sass: false
   protobufjs: false
   unrs-resolver: false
+  # Its postinstall downloads the sentry-cli binary. Mobile never runs it: the
+  # upload hooks come from the Expo config plugin, which is deliberately not
+  # installed (see apps/mobile/services/errorReporting.ts).
+  '@sentry/cli': false
 
 # The two dependencies we ship with a local fix. `decode-uri-component@0.2.2`
 # (GHSA-vcc3-ghjq-m6fr) decodes malformed percent-encoded input superlinearly:
