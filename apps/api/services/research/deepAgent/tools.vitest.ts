@@ -33,8 +33,16 @@ vi.mock('../../search/CrawlingService.js', () => ({
   crawlAndDistill: (...args: unknown[]) => crawlAndDistill(...args),
 }));
 
+// The last engine in the chain, pinned to "down" so a lane that fails above it
+// ends here instead of on the network.
+vi.mock('../../search/SearxngService.js', () => ({
+  searxngService: {
+    performWebSearch: () => Promise.resolve({ success: false, results: [] }),
+  },
+}));
 const { createResearchTools, toolsFor, SUBAGENT_TOOLSETS, LEAD_ONLY_TOOLS } =
   await import('./tools.js');
+const { env } = await import('../../../config/env.js');
 const { createBudget } = await import('./types.js');
 
 interface RunnableTool {
@@ -120,32 +128,16 @@ describe('web_suche', () => {
     await expect(webSuche.invoke({ query: 'Wien' })).resolves.toContain('fehlgeschlagen');
   });
 
-  /**
-   * The provider policy, which is where this agent parts ways with the chat:
-   * GreenPT is waited for and retried, and Linkup is what is left when that
-   * fails twice — not a co-equal engine one throttle away.
-   */
-  it('waits out the GreenPT spacing gate instead of dropping to Linkup', async () => {
-    greenptWebSearch.mockResolvedValue([
-      { url: 'https://a.example', title: 'A', description: 'x' },
-    ]);
-    const { webSuche } = setup();
-
-    await webSuche.invoke({ query: 'Wien' });
-
-    expect(greenptWebSearch.mock.calls[0]?.[0]).toMatchObject({ gate: 'wait' });
-  });
-
-  it('retries a throttled GreenPT once before paying Linkup', async () => {
+  it('retries the whole chain once when every engine failed, so one blip does not lose the sub-question', async () => {
     greenptWebSearch
       .mockRejectedValueOnce(new Error('GreenPT returned zero results'))
       .mockResolvedValueOnce([{ url: 'https://a.example', title: 'A', description: 'x' }]);
+    linkupWebSearch.mockRejectedValueOnce(new Error('ECONNRESET'));
     const { webSuche } = setup();
 
     const out = await webSuche.invoke({ query: 'Wien' });
 
     expect(greenptWebSearch).toHaveBeenCalledTimes(2);
-    expect(linkupWebSearch).not.toHaveBeenCalled();
     expect(out).toContain('a.example');
   });
 
@@ -194,12 +186,18 @@ describe('web_suche', () => {
   it('refunds the search unit when no engine exists at all — nothing was asked of anyone', async () => {
     greenptService = null;
     linkupService = null;
-    const { webSuche, ctx } = setup();
-    const before = ctx.budget.searchesLeft;
+    const chain = env.WEB_SEARCH_CHAIN;
+    env.WEB_SEARCH_CHAIN = ['greenpt', 'linkup'];
+    try {
+      const { webSuche, ctx } = setup();
+      const before = ctx.budget.searchesLeft;
 
-    await webSuche.invoke({ query: 'Wien' });
+      await webSuche.invoke({ query: 'Wien' });
 
-    expect(ctx.budget.searchesLeft).toBe(before);
+      expect(ctx.budget.searchesLeft).toBe(before);
+    } finally {
+      env.WEB_SEARCH_CHAIN = chain;
+    }
   });
 
   it('refuses once the search budget is spent, without calling any engine', async () => {
@@ -480,15 +478,16 @@ describe('what a search is allowed to bring back', () => {
     expect(linkupWebSearch).toHaveBeenCalledWith(expect.objectContaining({ maxResults: 20 }));
   });
 
-  it('holds GreenPT to ITS own ceiling instead of imposing it on Linkup', async () => {
-    // The old code clamped both lanes to 10 — GreenPT's hard limit — so a Linkup
-    // search was silently held to a foreign engine's constraint.
-    greenptWebSearch.mockResolvedValue([]);
+  it('skips an engine whose ceiling is below the request instead of asking it for fewer', async () => {
+    // GreenPT's ceiling is mocked at 10 here: a 20-hit request must reach an
+    // engine that can serve 20, not come back as 10 from one that cannot.
+    linkupWebSearch.mockResolvedValue({ results: [] });
     const { webSuche } = setup();
 
     await webSuche.invoke({ query: 'Wien', maxResults: 20 });
 
-    expect(greenptWebSearch).toHaveBeenCalledWith(expect.objectContaining({ maxResults: 10 }));
+    expect(greenptWebSearch).not.toHaveBeenCalled();
+    expect(linkupWebSearch).toHaveBeenCalledWith(expect.objectContaining({ maxResults: 20 }));
   });
 
   it('asks for eight hits when the model names no count', async () => {

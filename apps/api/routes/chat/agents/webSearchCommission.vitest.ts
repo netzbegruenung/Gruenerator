@@ -28,6 +28,13 @@ vi.mock('../../../services/search/GreenPTSearchService.js', () => ({
   GREENPT_MAX_RESULTS: 10,
 }));
 
+// The last engine in the chain, pinned to "down" so a lane that fails above it
+// ends here instead of on the network.
+vi.mock('../../../services/search/SearxngService.js', () => ({
+  searxngService: {
+    performWebSearch: () => Promise.resolve({ success: false, results: [] }),
+  },
+}));
 const { executeDirectWebSearch } = await import('./directSearchExecutors.js');
 
 beforeEach(() => {

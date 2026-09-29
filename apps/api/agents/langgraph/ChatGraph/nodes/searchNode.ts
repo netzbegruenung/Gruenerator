@@ -51,6 +51,7 @@ import {
   resolveTier,
   type SearchTier,
 } from '../../../../services/search/searchDepth.js';
+import { type WebSearchLocale } from '../../../../services/search/webSearch.js';
 import { createLogger } from '../../../../utils/logger.js';
 import {
   SOURCE_PREFIX,
@@ -682,6 +683,8 @@ export interface ExecuteWebSearchOptions {
    * throw away — the very mistake the pre-call domain filtering fixed.
    */
   includeImages?: boolean;
+  /** Austrian users get Austrian sources — see `localizeQuery`. */
+  locale?: WebSearchLocale;
 }
 
 export async function executeWebSearch(
@@ -698,6 +701,7 @@ export async function executeWebSearch(
     ...(options.fromDate ? { fromDate: options.fromDate } : {}),
     ...(options.toDate ? { toDate: options.toDate } : {}),
     ...(options.includeImages ? { includeImages: true } : {}),
+    ...(options.locale ? { locale: options.locale } : {}),
     // The default block list now rides along on every classifier-path search, so
     // the domains we used to throw away AFTER paying are never fetched. Dropped
     // automatically when an include scope is set (see executeDirectWebSearch):
@@ -1080,6 +1084,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     ...(state.webSiteScope?.include.length ? { includeDomains: state.webSiteScope.include } : {}),
     ...(detectedFilters?.date_from ? { fromDate: detectedFilters.date_from } : {}),
     ...(detectedFilters?.date_to ? { toDate: detectedFilters.date_to } : {}),
+    ...(state.userLocale === 'de-AT' ? { locale: 'de-AT' as const } : {}),
   } satisfies Partial<ExecuteWebSearchOptions>;
   if (Object.keys(webScope).length > 0) {
     log.info(`[Search] Web scope: ${JSON.stringify(webScope)}`);

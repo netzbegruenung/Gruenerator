@@ -723,6 +723,7 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
           // `maxResults` headroom keeps the images from eating the text hits, and
           // the client shows three of them, so the proxy serves three files.
           ...(options.wantsImages === true ? { includeImages: true } : {}),
+          ...(options.userLocale === 'de-AT' ? { locale: 'de-AT' as const } : {}),
         });
       } catch (error) {
         log.error('Direct web search error:', error);
