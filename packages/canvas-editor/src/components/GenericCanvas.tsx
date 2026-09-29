@@ -86,6 +86,7 @@ import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { GradientFill } from '../utils/gradientFill';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
+import type Konva from 'konva';
 import type * as Y from 'yjs';
 
 export interface ToolbarStateReport {
@@ -678,7 +679,14 @@ function GenericCanvasWithRef<
         const selectedElement = store.getState().selectedElement;
         const stage = stageRef.current?.getStage();
         if (!selectedElement || !stage) return null;
-        const node = stage.findOne(`#${selectedElement}`);
+        // Instanz-Primitive (Formen, Balken, Illustrationen, Rahmen, …) tragen
+        // keine Konva-Id; ausgewählt hängt aber jedes an seinem Transformer.
+        const node =
+          stage.findOne(`#${selectedElement}`) ??
+          stage
+            .find<Konva.Transformer>('Transformer')
+            .map((tr) => tr.nodes()[0])
+            .find((n) => n !== undefined);
         if (!node) return null;
         const rect = node.getClientRect();
         const container = stage.container().getBoundingClientRect();
