@@ -236,5 +236,6 @@ describe('delete', () => {
     expect(await deleteListedThread({ success: true, trashed: false })).not.toHaveBeenCalled();
     // An older backend answers without the flag — no undo it could not honour.
     expect(await deleteListedThread({ success: true })).not.toHaveBeenCalled();
+    expect(await deleteListedThread(null)).not.toHaveBeenCalled();
   });
 });
