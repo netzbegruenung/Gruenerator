@@ -370,56 +370,13 @@ router.get(
   }
 );
 
-/**
- * DELETE /:id - Move a document to the Papierkorb. Its vectors and notebook
- * links stay until the purge; readers hide it meanwhile.
- */
-router.delete(
-  '/:id',
-  async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
-    try {
-      const id = fromParam<DocumentId>(req.params.id);
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      // Ownership check included; throws "not found" otherwise.
-      await postgresDocumentService.trashDocument(id, userId);
-
-      res.json({
-        success: true,
-        message: 'Document deleted successfully',
-      });
-    } catch (error) {
-      log.error('[DELETE /:id] Error:', error);
-
-      if (
-        (error as Error).message.includes('not found') ||
-        (error as Error).message.includes('access denied')
-      ) {
-        res.status(404).json({
-          success: false,
-          message: 'Document not found or access denied',
-        });
-        return;
-      }
-
-      res.status(500).json({
-        success: false,
-        message: (error as Error).message || 'Failed to delete document',
-      });
-    }
-  }
-);
-
 const bulkDeleteSchema = z.object({
   ids: z.array(z.string()).min(1),
 });
 
 /**
  * DELETE /bulk - Move documents to the Papierkorb (see DELETE /:id)
+ * Must be registered before DELETE /:id, which would otherwise capture "bulk" as an id.
  */
 router.delete(
   '/bulk',
@@ -468,6 +425,50 @@ router.delete(
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to perform bulk delete',
+      });
+    }
+  }
+);
+
+/**
+ * DELETE /:id - Move a document to the Papierkorb. Its vectors and notebook
+ * links stay until the purge; readers hide it meanwhile.
+ */
+router.delete(
+  '/:id',
+  async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
+    try {
+      const id = fromParam<DocumentId>(req.params.id);
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      // Ownership check included; throws "not found" otherwise.
+      await postgresDocumentService.trashDocument(id, userId);
+
+      res.json({
+        success: true,
+        message: 'Document deleted successfully',
+      });
+    } catch (error) {
+      log.error('[DELETE /:id] Error:', error);
+
+      if (
+        (error as Error).message.includes('not found') ||
+        (error as Error).message.includes('access denied')
+      ) {
+        res.status(404).json({
+          success: false,
+          message: 'Document not found or access denied',
+        });
+        return;
+      }
+
+      res.status(500).json({
+        success: false,
+        message: (error as Error).message || 'Failed to delete document',
       });
     }
   }

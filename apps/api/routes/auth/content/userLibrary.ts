@@ -444,6 +444,76 @@ router.get(
   }
 );
 
+// Must be registered before /saved-texts/:id, which would otherwise capture "bulk" as an id.
+router.delete(
+  '/saved-texts/bulk',
+  ensureAuthenticated,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const { ids } = req.body as BulkDeleteBody;
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: 'Array of text IDs is required',
+        });
+        return;
+      }
+
+      if (ids.length > 100) {
+        res.status(400).json({
+          success: false,
+          message: 'Maximum 100 texts can be deleted at once',
+        });
+        return;
+      }
+
+      const postgres = getPostgresInstance();
+      await postgres.ensureInitialized();
+
+      const verifyTexts = await postgres.query(
+        'SELECT id FROM user_documents WHERE user_id = $1 AND id = ANY($2) AND is_active = true AND deleted_at IS NULL',
+        [userId, ids],
+        { table: 'user_documents' }
+      );
+
+      const ownedIds = (verifyTexts as Array<{ id: string }>).map((text) => text.id);
+      const unauthorizedIds = ids.filter((id) => !ownedIds.includes(id));
+
+      if (unauthorizedIds.length > 0) {
+        res.status(403).json({
+          success: false,
+          message: `Access denied for texts: ${unauthorizedIds.join(', ')}`,
+          unauthorized_ids: unauthorizedIds,
+        });
+        return;
+      }
+
+      // Into the Papierkorb: the vectors stay until `purgeSavedText`.
+      const deletedIds = await trashSavedTexts(userId, ownedIds);
+      const failedIds = ownedIds.filter((id: string) => !deletedIds.includes(id));
+
+      res.json({
+        success: true,
+        message: `Bulk delete completed: ${deletedIds.length} of ${ids.length} texts deleted successfully`,
+        deleted_count: deletedIds.length,
+        failed_ids: failedIds,
+        total_requested: ids.length,
+        deleted_ids: deletedIds,
+      });
+    } catch (error) {
+      const err = error as Error;
+      log.error('[User Content /saved-texts/bulk DELETE] Error:', err.message);
+      res.status(500).json({
+        success: false,
+        message: toUserFacingMessage(err) || 'Failed to perform bulk delete of texts',
+        details: err.message,
+      });
+    }
+  }
+);
+
 router.delete(
   '/saved-texts/:id',
   ensureAuthenticated,
@@ -685,75 +755,6 @@ router.put(
       res.status(500).json({
         success: false,
         message: 'Failed to update content',
-        details: err.message,
-      });
-    }
-  }
-);
-
-router.delete(
-  '/saved-texts/bulk',
-  ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const userId = req.user!.id;
-      const { ids } = req.body as BulkDeleteBody;
-
-      if (!Array.isArray(ids) || ids.length === 0) {
-        res.status(400).json({
-          success: false,
-          message: 'Array of text IDs is required',
-        });
-        return;
-      }
-
-      if (ids.length > 100) {
-        res.status(400).json({
-          success: false,
-          message: 'Maximum 100 texts can be deleted at once',
-        });
-        return;
-      }
-
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      const verifyTexts = await postgres.query(
-        'SELECT id FROM user_documents WHERE user_id = $1 AND id = ANY($2) AND is_active = true AND deleted_at IS NULL',
-        [userId, ids],
-        { table: 'user_documents' }
-      );
-
-      const ownedIds = (verifyTexts as Array<{ id: string }>).map((text) => text.id);
-      const unauthorizedIds = ids.filter((id) => !ownedIds.includes(id));
-
-      if (unauthorizedIds.length > 0) {
-        res.status(403).json({
-          success: false,
-          message: `Access denied for texts: ${unauthorizedIds.join(', ')}`,
-          unauthorized_ids: unauthorizedIds,
-        });
-        return;
-      }
-
-      // Into the Papierkorb: the vectors stay until `purgeSavedText`.
-      const deletedIds = await trashSavedTexts(userId, ownedIds);
-      const failedIds = ownedIds.filter((id: string) => !deletedIds.includes(id));
-
-      res.json({
-        success: true,
-        message: `Bulk delete completed: ${deletedIds.length} of ${ids.length} texts deleted successfully`,
-        deleted_count: deletedIds.length,
-        failed_ids: failedIds,
-        total_requested: ids.length,
-        deleted_ids: deletedIds,
-      });
-    } catch (error) {
-      const err = error as Error;
-      log.error('[User Content /saved-texts/bulk DELETE] Error:', err.message);
-      res.status(500).json({
-        success: false,
-        message: toUserFacingMessage(err) || 'Failed to perform bulk delete of texts',
         details: err.message,
       });
     }
