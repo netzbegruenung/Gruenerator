@@ -211,6 +211,9 @@ export function useFloatingModuleState<
           id: selectedElement,
           opacity: typeof currentOpacity === 'number' ? currentOpacity : 1,
           fill: typeof currentFill === 'string' && currentFill ? currentFill : undefined,
+          // Das austauschbare Foto der Vorlage — nicht Deko mit festem `src`
+          // und nicht der Profilbild-Avatar (`transparentImage`).
+          isPhoto: imageElement.srcKey === 'currentImageSrc',
         },
       };
     }
