@@ -1166,10 +1166,8 @@ const DOC_ARTIFACT_NOUN_PATTERN = /\b(dokument|protokoll|notiz|checkliste)\b/i;
 const SHARE_DOC_TRIGGER_PATTERN =
   /\b(teil[e]?\s+(das\s+)?(mit|an)\s+|share\s+mit|freigeben\s+für|send[e]?\s+an\s+(gruppe|ag\s|kv\s|ov\s))/i;
 
-// `überblick` sits outside the `\b` group: without the `u` flag `ü` is no word
-// character, so `\büberblick` could never match — the alternative was dead.
 const SUMMARY_KEYWORDS_PATTERN =
-  /\b(fass[e]?\s+(?:\S[^.!?\n]{0,60}?\s+)?zusammen\b|zusammenfass|zusammenfassung|kurzfassung)|(?<!\p{L})(überblick\s+erstell)/iu;
+  /\b(fass[e]?\s+(?:\S[^.!?\n]{0,60}?\s+)?zusammen\b|zusammenfass|zusammenfassung|kurzfassung|überblick\s+erstell)/i;
 
 /**
  * „Fasse das zusammen" — dieselbe Vokabel, die den `summary`-Auflöser auslöst.
