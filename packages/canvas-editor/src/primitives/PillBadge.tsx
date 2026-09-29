@@ -14,9 +14,10 @@
 import { useRef, useCallback, useEffect, useState, memo } from 'react';
 import { Group, Rect, Text, Transformer } from 'react-konva';
 
-import { calculatePillBadgeDimensions } from '../utils/pillBadgeUtils';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
+import { calculatePillBadgeDimensions } from '../utils/pillBadgeUtils';
 import { calculateElementSnapPosition } from '../utils/snapping';
+import { stageCssScale } from '../utils/stageCssScale';
 
 import type { PillBadgeFontStyle } from '../utils/pillBadgeUtils';
 import type { SnapTarget, SnapLine } from '../utils/snapping';
@@ -164,7 +165,10 @@ function PillBadgeInner({
 
     const stageBox = stage.container().getBoundingClientRect();
     const absolutePos = group.getAbsolutePosition();
-    const stageScale = stage.scaleX();
+    const cssScale = stageCssScale(stage, stageBox);
+    // Der Maßstab des Knotens trägt `scale`, die Format-Gruppe aus `CanvasStage`
+    // und die Bühne; `stage.scaleX()` allein kannte die Format-Gruppe nicht.
+    const nodeScale = group.getAbsoluteScale().x * cssScale;
 
     const textarea = document.createElement('textarea');
     document.body.appendChild(textarea);
@@ -172,15 +176,15 @@ function PillBadgeInner({
     const scrollX = window.scrollX || window.pageXOffset;
     const scrollY = window.scrollY || window.pageYOffset;
 
-    const scaledFontSize = fontSize * scale * stageScale;
-    const scaledPaddingX = paddingX * scale * stageScale;
-    const scaledPaddingY = paddingY * scale * stageScale;
-    const scaledWidth = dimensions.width * scale * stageScale;
+    const scaledFontSize = fontSize * nodeScale;
+    const scaledPaddingX = paddingX * nodeScale;
+    const scaledPaddingY = paddingY * nodeScale;
+    const scaledWidth = dimensions.width * nodeScale;
 
     textarea.value = text;
     textarea.style.position = 'absolute';
-    textarea.style.top = `${stageBox.top + scrollY + absolutePos.y + scaledPaddingY}px`;
-    textarea.style.left = `${stageBox.left + scrollX + absolutePos.x + scaledPaddingX}px`;
+    textarea.style.top = `${stageBox.top + scrollY + absolutePos.y * cssScale + scaledPaddingY}px`;
+    textarea.style.left = `${stageBox.left + scrollX + absolutePos.x * cssScale + scaledPaddingX}px`;
     textarea.style.width = `${scaledWidth - scaledPaddingX * 2}px`;
     textarea.style.height = `${scaledFontSize * 1.2}px`;
     textarea.style.fontSize = `${scaledFontSize}px`;
