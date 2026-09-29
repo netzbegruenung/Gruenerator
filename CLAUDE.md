@@ -67,6 +67,16 @@ User-facing/shareable resource URLs use a Notion-style slug — `slugifyName(nam
 - **Redis**: Sessions, caching, rate limiting.
 - **Qdrant**: Vector embeddings for semantic search.
 
+### Papierkorb (Soft-Delete)
+
+**Löschen heißt bei nutzereigenen Inhalten: die Zeile bleibt, sie bekommt `deleted_at`.** Nach 30 Tagen räumt der Purge-Worker (`services/trash/trashPurgeService.ts`) sie samt Dateien, Qdrant-Punkten und Yjs-Zeilen ab; bis dahin stellt `/papierkorb` sie wieder her. Welche Tabellen dazugehören und wie jede getrasht, wiederhergestellt und gepurgt wird, steht an genau einer Stelle: `services/trash/trashRegistry.ts`. `collaborative_documents` trägt zusätzlich das alte `is_deleted` — die CHECK-Constraint `collaborative_documents_trash_pair` zwingt beide Felder gleich (`COALESCE(is_deleted, false) = (deleted_at IS NOT NULL)`); wer `is_deleted = true` ohne `deleted_at` schreibt, bekommt einen 500, und das ist gewollt.
+
+**Jeder vergessene Leser ist ein Leck aus dem Papierkorb** — in eine Liste, eine Suche, einen öffentlichen Link. Der Wächter ist `services/trash/trashReaders.vitest.ts`: er liest den Quelltext und verlangt für jedes SQL-Literal mit `FROM|JOIN <tabelle>` und jedes Drizzle-`.from()` den Trash-Zustand **im selben Statement** (`deleted_at IS NULL`, `IS NOT NULL` für die Papierkorb-Seite selbst, `notTrashed(`, bei `collaborative_documents` auch `is_deleted = false`). Allowlist-Einträge gelten per `marker` nur für die Statements, deren SQL den Marker enthält, nicht für die ganze Datei, und die Liste ist in beide Richtungen exakt: ein toter Eintrag ist ebenso rot wie ein neuer ungefilterter Leser. **Falle:** eine Klausel an einem Alias, der auf `groups` zeigt (`INNER JOIN groups lg … lg.deleted_at IS NULL`), filtert das Projekt, nicht die Inhaltszeile — sie entschuldigt nur Leser von `groups`. SQL, das aus Tabellennamen zusammengesetzt wird, sieht der Scan nicht; es steht in `FRAGMENTED_SQL`.
+
+**Bewusst ohne Filter:** die Datei- und Link-Sweeper unter `services/cleanup/` (ihr „gibt es die Zeile noch?" muss getrashte Zeilen sehen, sonst löschen sie deren Dateien, bevor die Frist um ist) — sie stehen mit Begründung in der Allowlist. **Bewusst hart gelöscht:** leere Chat-Threads (der Client räumt sie ständig ab und würde den Papierkorb fluten) und Threads mit `doc_id` (der Doc-Chat wird beim Löschen geleert, `uq_chat_threads_doc_id` ließe neben dem nächsten frischen Thread keinen getrashten zu); der Thread-DELETE meldet deshalb `trashed: boolean`, und nur bei `true` bietet der Web-Client „Rückgängig" an. **Eindeutigkeit gilt nur unter lebenden Zeilen**: die Unique-Keys sind partiell (`WHERE deleted_at IS NULL`, `zz_20260929b_trash_partial_unique.sql`) — wer neu anlegt, was im Papierkorb liegt, bekommt den Schlüssel, und die Wiederherstellung der alten Zeile endet in 23505 → 409.
+
+**Der Purge-Worker läuft im Probelauf**, bis die Code-Konstante `APPLY` in `trashPurgeService.ts` auf `true` steht — absichtlich kein Env-Schalter. Umschalten erst nach einem Deploy mit sauberen Probelauf-Logs je Kind.
+
 ### Content Sync & Scraping
 
 Scrapers in `apps/api/services/scrapers/`. Automated via GitHub Actions (`content-sync.yml`): hourly for Landesverbände, daily for rest. Entry: `apps/api/update-all-content.ts`.
