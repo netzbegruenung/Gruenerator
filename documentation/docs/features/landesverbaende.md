@@ -7,14 +7,14 @@ import AgentTiles from '@site/src/components/AgentTiles';
 
 # Landesverband-Agents
 
-Der Grünerator hat für mehrere Landesverbände **eigene, regional getunte Agents**. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher\*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme); eine Websuche haben nur die Öffentlichkeitsarbeit-Agents.
+Der Grünerator hat für mehrere Landesverbände **eigene, regional getunte Agents**. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher\*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme); eine Websuche haben nur die Öffentlichkeitsarbeit- und die Beschluss-Agents.
 
 Es gibt bis zu fünf Sorten von Landesverband-Agents:
 
 - **Öffentlichkeitsarbeit** — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands.
 - **Bürger\*innenanfragen** — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger\*innen.
 - **Wahlprüfsteine** — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands.
-- **Beschlusslage** — sagt belegt, was der Landesverband beschlossen hat, und schreibt auf Wunsch ein Statement daraus. Nur wo die Beschlüsse des Landesverbands in der Wissensdatenbank liegen.
+- **Beschlussanträge** — schreibt Beschlussanträge in der Beschlusssprache des Landesverbands, im Anschluss an seine bestehenden Beschlüsse. Nur wo die Beschlüsse des Landesverbands in der Wissensdatenbank liegen.
 - **Wahlprogramm** — schlägt im Wahlprogramm des Landesverbands nach und prüft Aussagen dagegen. Nur wo das Wahlprogramm in der Wissensdatenbank liegt.
 
 :::info[Sichtbar mit der Rolle deiner Landesgeschäftsstelle]
@@ -25,7 +25,7 @@ Die Agents, Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugete
 
 <AgentTiles />
 
-Jede Kachel verlinkt auf die **Landesverband-Seite** — sie bietet die Agents des Landesverbands zur Auswahl an: **Öffentlichkeitsarbeit**, **Bürger\*innenservice**, **Wahlprüfsteine** und, wo vorhanden, **Beschlusslage** und **Wahlprogramm** (alle siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook).
+Jede Kachel verlinkt auf die **Landesverband-Seite** — sie bietet die Agents des Landesverbands zur Auswahl an: **Öffentlichkeitsarbeit**, **Bürger\*innenservice**, **Wahlprüfsteine** und, wo vorhanden, **Beschlussanträge** und **Wahlprogramm** (alle siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook).
 
 :::note[Österreich]
 Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben drei Agent-Typen (erreichbar unter `/agents/gruene-oesterreich`, Wissensdatenbank `/notebooks/oesterreich` · `@at`). Diese Agents verwenden österreichisches Vokabular (Nationalrat, Klubobfrau\*Klubobmann, Klimaticket) und erscheinen nur für Nutzer\*innen mit österreichischer Einstellung.
@@ -92,13 +92,13 @@ Die Wahlprüfstein-Agents beantworten **Fragenkataloge von Verbänden und Initia
 
 Auch sie erreichst du über die Landesverband-Seite — dort wählst du **Wahlprüfsteine**.
 
-## Beschlusslage und Wahlprogramm nachschlagen
+## Beschlussanträge schreiben und Wahlprogramm nachschlagen
 
-Der **Beschlusslage**-Agent sucht ausschließlich in den Beschlüssen des Landesverbands und antwortet mit einer Belegtabelle (Beschluss, Gremium, Datum, Kernaussage, Link). Gibt es keine Beschlusslage, sagt er das — er füllt die Lücke nicht aus Pressemitteilungen oder dem Wahlprogramm. Auf Wunsch schreibt er daraus ein Statement oder eine Argumentationshilfe.
+Der **Beschlussanträge**-Agent schreibt Anträge so, wie der Landesverband beschließt: mit seiner Einleitungsformel, seinem Aufbau (Antragstext, Begründung), seinen Forderungsformeln und seiner Schreibweise. Vorher sucht er in den Beschlüssen des Landesverbands, was dazu schon beschlossen ist, und knüpft daran an; Zahlen und Rechtsstand holt er aus der Websuche. Was vor der Antragstellung noch zu klären ist, markiert er am Ende unter _Offene Punkte_.
 
 Der **Wahlprogramm**-Agent sucht ausschließlich im Wahlprogramm und nennt zu jeder Aussage Kapitel und Wortlaut. Gibst du ihm eine Aussage, prüft er, ob das Programm sie deckt.
 
-| Landesverband          | Beschlusslage               | Wahlprogramm                   |
+| Landesverband          | Beschlussanträge            | Wahlprogramm                   |
 | ---------------------- | --------------------------- | ------------------------------ |
 | Berlin                 | `@beschluss-berlin`         | `@wahlprogramm-berlin`         |
 | Mecklenburg-Vorpommern | `@beschluss-mv`             | —                              |
@@ -109,7 +109,7 @@ Der **Wahlprogramm**-Agent sucht ausschließlich im Wahlprogramm und nennt zu je
 | Sachsen-Anhalt         | `@beschluss-sachsen-anhalt` | `@wahlprogramm-sachsen-anhalt` |
 | Saarland               | `@beschluss-saarland`       | —                              |
 
-Tippst du die Abkürzung im normalen Chat, arbeitet der Chat wie der Agent: er sucht für diese Anfrage nur in den Beschlüssen bzw. im Programm des Landesverbands.
+Tippst du die Abkürzung im normalen Chat, arbeitet der Chat wie der Agent: er schreibt den Antrag bzw. sucht für diese Anfrage nur im Programm des Landesverbands.
 
 ## Die Wissensdatenbank dahinter
 

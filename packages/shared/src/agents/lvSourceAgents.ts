@@ -10,15 +10,17 @@ import {
 import type { Agent } from './types.js';
 
 // ─── Per-LV agents over ONE content type of the LV collection ───
-// Beschlusslage and Wahlprogramm answer from a single kind of document — the
-// Landesverband's resolutions, or its election programme — and cite it. Both
-// pin that kind on every search (`defaultFilter.content_type`), so a question
-// about the programme never grounds in a press release. They exist only where
-// the LV collection indexes that content type (`beschlussAgentId` /
-// `wahlprogrammAgentId` on the registry entry).
+// Beschlüsse writes new resolutions in the Landesverband's own resolution
+// language, building on what it has already decided; Wahlprogramm answers from
+// the election programme and cites it. Both pin their content type on every
+// search (`defaultFilter.content_type`) — the resolutions serve the writer as
+// both prior position and form template, and a question about the programme
+// never grounds in a press release. They exist only where the LV collection
+// indexes that content type (`beschlussAgentId` / `wahlprogrammAgentId` on the
+// registry entry).
 //
-// The two families share everything but their wording, so they share one
-// builder. Each agent owns exactly one recipe (`<recipePrefix>-<recipeSlug>`),
+// The two families share everything but their wording and tools, so they share
+// one builder. Each agent owns exactly one recipe (`<recipePrefix>-<recipeSlug>`),
 // which the agentic loop therefore loads up front.
 
 interface SourceFamily {
@@ -32,6 +34,8 @@ interface SourceFamily {
   welcome: (lv: string) => string;
   questions: (lv: string, topics: readonly string[]) => string[];
   tags: readonly string[];
+  enabledTools: readonly string[];
+  inlineSourceLinks: boolean;
 }
 
 const FAMILIES: readonly SourceFamily[] = [
@@ -39,20 +43,23 @@ const FAMILIES: readonly SourceFamily[] = [
     idField: 'beschlussAgentId',
     contentType: 'beschluss',
     recipePrefix: 'beschluss',
-    titlePrefix: 'Beschlusslage',
-    avatar: '📚',
+    titlePrefix: 'Beschlüsse',
+    avatar: '📜',
     describe: (lv) =>
-      `Sagt belegt, was die Grünen ${lv} beschlossen haben — mit Beschlusstitel, Gremium und Datum — und schreibt auf dieser Grundlage Statements und Argumentationshilfen.`,
+      `Schreibt Beschlussanträge in der Beschlusssprache der Grünen ${lv} — mit Einleitungsformel, Aufbau und Forderungen, wie der Landesverband sie beschließt, und im Anschluss an seine bestehenden Beschlüsse.`,
     opening: (lv) =>
-      `Hallo! Ich kenne die Beschlüsse der Grünen ${lv}.\n\nFrag mich, was der Landesverband zu einem Thema beschlossen hat — ich antworte nur mit Belegen aus den Beschlüssen und sage offen, wo es keine Beschlusslage gibt.`,
-    welcome: (lv) => `Zu welchem Thema suchst du die Beschlusslage der Grünen ${lv}?`,
+      `Hallo! Ich schreibe Beschlussanträge für die Grünen ${lv}.\n\nNenn mir Thema, Gremium und Stoßrichtung — ich prüfe, was der Landesverband dazu schon beschlossen hat, und formuliere den Antrag so, wie eure Beschlüsse klingen. Offene Punkte markiere ich für die Antragsberatung.`,
+    welcome: (lv) => `Zu welchem Thema soll der Beschlussantrag der Grünen ${lv} sein?`,
     questions: (lv, [t0, t1, t2]) => [
-      `Was haben die Grünen ${lv} zu ${t0} beschlossen?`,
-      `Gibt es eine Beschlusslage zu ${t1}?`,
-      `Schreib ein kurzes Statement zu ${t2} auf Grundlage unserer Beschlüsse.`,
-      'Welche Beschlüsse stützen diese Forderung: …',
+      `Schreib einen Beschlussantrag zu ${t0} für den nächsten Parteitag der Grünen ${lv}.`,
+      `Formuliere einen Dringlichkeitsantrag zu ${t1}.`,
+      `Was haben wir zu ${t2} schon beschlossen, und was fehlt für einen neuen Antrag?`,
+      'Mach aus diesen Stichpunkten einen Antragstext: …',
     ],
-    tags: ['Beschlüsse', 'Beschlusslage', 'Recherche', 'Grüne'],
+    tags: ['Beschlüsse', 'Anträge', 'Schreiben', 'Grüne'],
+    enabledTools: ['search', 'web', 'memory'],
+    // Ein Antragstext trägt keine Fundstellen-Links im Fließtext.
+    inlineSourceLinks: false,
   },
   {
     idField: 'wahlprogrammAgentId',
@@ -72,6 +79,11 @@ const FAMILIES: readonly SourceFamily[] = [
       'Fasse das Kapitel zu … in fünf Punkten zusammen.',
     ],
     tags: ['Wahlprogramm', 'Programm', 'Recherche', 'Grüne'],
+    // Kein 'web'/'scrape' — die Antwort kommt aus dem gepinnten Inhaltstyp,
+    // nicht aus dem offenen Netz (siehe lvBuergerAgents).
+    enabledTools: ['search', 'memory'],
+    // Belegte Auskunft: die Fundstellen stehen als Links im Text.
+    inlineSourceLinks: true,
   },
 ];
 
@@ -98,16 +110,13 @@ function buildSourceAgent(family: SourceFamily, lv: LandesverbandEntry, identifi
     openingQuestions: family.questions(lv.title, three),
     locale: lv.audience,
     author: 'Grünerator',
-    // Kein 'web'/'scrape' — die Antwort kommt aus dem gepinnten Inhaltstyp,
-    // nicht aus dem offenen Netz (siehe lvBuergerAgents).
-    enabledTools: ['search', 'memory'],
-    // Belegte Auskunft: die Fundstellen stehen als Links im Text.
-    inlineSourceLinks: true,
+    enabledTools: family.enabledTools,
+    inlineSourceLinks: family.inlineSourceLinks,
     defaultNotebookIds: [lv.notebookId],
     defaultFilter: { landesverband: lv.codes, content_type: [family.contentType] },
     // Nur die eigene Sammlung: der Typ-Pin allein hielte die Suche nicht im
     // Landesverband — `gruenerator_search` böte sonst jede DE-Sammlung an, und
-    // Hamburger Beschlüsse stünden als Berliner Beschlusslage da. Der Schlüssel
+    // Hamburger Beschlüsse stünden als Berliner Vorlage da. Der Schlüssel
     // ist die LV-Id (`lvFamilyContent.vitest.ts` prüft, dass er auf die
     // LV-Sammlung zeigt). Deutsche Verbände only: der AT-Korpus trägt weder
     // `landesverband` noch `content_type`, dort liefe jeder Pin ins Leere.
