@@ -16,14 +16,19 @@ const AREA_CANDIDATES: Record<SelectionType, readonly SidebarTabId[]> = {
   background: ['background', 'image-background', 'image'],
   image: ['image', 'background', 'image-background', 'uploads'],
   'user-image': ['uploads', 'image'],
-  balken: ['settings', 'text'],
+  balken: ['text'],
 };
 
-/** The visible area tab a mobile selection belongs to, or null if none fits. */
+/**
+ * The tab a mobile selection opens: the config's detail tab for it (the one
+ * desktop auto-switches to, often hidden from the tab strip — e.g. `settings`
+ * for a balken) or else the visible area tab it belongs to; null if none fits.
+ */
 export function getMobileSelectionArea(
   type: SelectionType | null | undefined,
-  visibleTabIds: readonly SidebarTabId[]
+  visibleTabIds: readonly SidebarTabId[],
+  detailTab: SidebarTabId | null = null
 ): SidebarTabId | null {
   if (!type) return null;
-  return AREA_CANDIDATES[type].find((id) => visibleTabIds.includes(id)) ?? null;
+  return detailTab ?? AREA_CANDIDATES[type].find((id) => visibleTabIds.includes(id)) ?? null;
 }
