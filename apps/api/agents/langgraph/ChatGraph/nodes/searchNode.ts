@@ -51,6 +51,7 @@ import {
   resolveTier,
   type SearchTier,
 } from '../../../../services/search/searchDepth.js';
+import { type WebSearchLocale } from '../../../../services/search/webSearch.js';
 import { createLogger } from '../../../../utils/logger.js';
 import {
   SOURCE_PREFIX,
@@ -564,6 +565,9 @@ export async function executeDocumentSearchParallel(
       if (searchFilters != null) {
         params.filters = searchFilters;
       }
+      if (agentConfig.defaultFilter?.content_type?.length) {
+        params.lvContentType = agentConfig.defaultFilter.content_type;
+      }
       return executeDirectSearch(params).catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
         log.warn(`[Search] Collection ${collection} failed for query "${sq}": ${msg}`);
@@ -679,6 +683,8 @@ export interface ExecuteWebSearchOptions {
    * throw away — the very mistake the pre-call domain filtering fixed.
    */
   includeImages?: boolean;
+  /** Austrian users get Austrian sources — see `localizeQuery`. */
+  locale?: WebSearchLocale;
 }
 
 export async function executeWebSearch(
@@ -695,6 +701,7 @@ export async function executeWebSearch(
     ...(options.fromDate ? { fromDate: options.fromDate } : {}),
     ...(options.toDate ? { toDate: options.toDate } : {}),
     ...(options.includeImages ? { includeImages: true } : {}),
+    ...(options.locale ? { locale: options.locale } : {}),
     // The default block list now rides along on every classifier-path search, so
     // the domains we used to throw away AFTER paying are never fetched. Dropped
     // automatically when an include scope is set (see executeDirectWebSearch):
@@ -969,6 +976,9 @@ export async function executeMultiDocFanout(
             query,
             collection,
             limit: perSourceLimit,
+            ...(agentConfig.defaultFilter?.content_type?.length && {
+              lvContentType: agentConfig.defaultFilter.content_type,
+            }),
           }).catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : String(err);
             errors.push({ source: `notebook:${src.id}:${collection}`, message: msg });
@@ -1074,6 +1084,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     ...(state.webSiteScope?.include.length ? { includeDomains: state.webSiteScope.include } : {}),
     ...(detectedFilters?.date_from ? { fromDate: detectedFilters.date_from } : {}),
     ...(detectedFilters?.date_to ? { toDate: detectedFilters.date_to } : {}),
+    ...(state.userLocale === 'de-AT' ? { locale: 'de-AT' as const } : {}),
   } satisfies Partial<ExecuteWebSearchOptions>;
   if (Object.keys(webScope).length > 0) {
     log.info(`[Search] Web scope: ${JSON.stringify(webScope)}`);
@@ -1398,6 +1409,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
                 content: r.relevant_content || '',
                 url: r.source_url || undefined,
                 relevance: r.similarity_score ?? 0.5,
+                ...(r.document_id ? { documentId: r.document_id } : {}),
               });
             }
             searchedCollections.push('documentchat');
@@ -1453,12 +1465,19 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             });
 
             for (const r of response.results || []) {
+              // A user notebook can hold a collaborator's document; the search
+              // does not filter by owner here, so the reader needs the notebook.
+              const notebookId = r.document_id
+                ? state.documentNotebookIds?.[r.document_id]
+                : undefined;
               results.push({
                 source: `document:${r.document_id || 'unknown'}`,
                 title: r.title || 'Dokument',
                 content: r.relevant_content || '',
                 url: r.source_url || undefined,
                 relevance: r.similarity_score ?? 0.5,
+                ...(r.document_id ? { documentId: r.document_id } : {}),
+                ...(notebookId ? { collectionId: notebookId } : {}),
               });
             }
             searchedCollections.push(fromUserNotebook ? 'user-notebook' : 'user-documents');
@@ -1545,6 +1564,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             };
             if (detectedFilters != null) {
               params.filters = detectedFilters;
+            }
+            if (agentConfig.defaultFilter?.content_type?.length) {
+              params.lvContentType = agentConfig.defaultFilter.content_type;
             }
             return executeDirectSearch(params).catch((err: unknown) => {
               const msg = err instanceof Error ? err.message : String(err);

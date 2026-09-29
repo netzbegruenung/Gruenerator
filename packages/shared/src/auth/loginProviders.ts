@@ -174,6 +174,30 @@ export function buildProviderAuthUrl(
 }
 
 /**
+ * Die signierten Parameter, mit denen `/oauth2/authorize` auf Login- und
+ * Zustimmungsseite umleitet, als `oauth_query` für den nächsten POST — oder
+ * `null`, wenn die Seite nicht aus einem OAuth-Flow kommt.
+ *
+ * Ohne diesen Wert verliert better-auth 1.7 den Flow: der Login landet auf der
+ * Startseite statt zurück bei `authorize`, und `/oauth2/consent` antwortet
+ * `missing oauth query`. Das Client-Plugin `oauthProviderClient()` hängt ihn an
+ * jeden POST an, deckt aber unseren direkten `fetch` nicht ab. Die Auswahl ist
+ * die aus seinem `buildSignedOAuthQuery`, das die Bibliothek nicht exportiert:
+ * die Signatur deckt genau die in `ba_param` genannten Parameter, jeder weitere
+ * Parameter auf der Seite würde sie brechen.
+ */
+export function signedOAuthQuery(search: string): string | null {
+  const params = new URLSearchParams(search);
+  const signedNames = new Set(params.getAll('ba_param'));
+  if (!params.has('sig') || signedNames.size === 0) return null;
+  const signed = new URLSearchParams();
+  for (const [key, value] of params) {
+    if (key === 'sig' || key === 'ba_param' || signedNames.has(key)) signed.append(key, value);
+  }
+  return signed.toString();
+}
+
+/**
  * Initiate Better Auth OAuth sign-in.
  * POSTs to /api/auth/v2/sign-in/social, gets { url }, and redirects.
  *
@@ -187,6 +211,9 @@ export async function signInWithProvider(
   callbackURL: string,
   apiBaseUrl = '/api'
 ): Promise<void> {
+  // Kommt der Login aus einem OAuth-Flow (MCP-Konnektor, Excel-Add-in), setzt
+  // better-auth ihn nach dem Keycloak-Rückweg bei `authorize` fort.
+  const oauthQuery = signedOAuthQuery(window.location.search);
   const response = await fetch(`${apiBaseUrl}/auth/v2/sign-in/social`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -194,6 +221,7 @@ export async function signInWithProvider(
     body: JSON.stringify({
       provider: provider.betterAuthProviderId,
       callbackURL,
+      ...(oauthQuery ? { oauth_query: oauthQuery } : {}),
     }),
   });
 

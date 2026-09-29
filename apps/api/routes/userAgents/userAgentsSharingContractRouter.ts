@@ -15,6 +15,7 @@ import { userAgentsSharingContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { notifyContentShared } from '../../services/groups/groupContent.js';
 import { assertCanShareToGroup } from '../../services/groups/groupMembership.js';
 import {
   getAgentSharing,
@@ -171,7 +172,7 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
       const shares = (await postgres.query(
         `SELECT gcs.group_id, g.name AS group_name, gcs.shared_at
            FROM group_content_shares gcs
-           INNER JOIN groups g ON g.id = gcs.group_id
+           INNER JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
            WHERE gcs.content_type = 'user_agents' AND gcs.content_id = $1
            ORDER BY gcs.shared_at DESC`,
         [sharing.id]
@@ -222,6 +223,11 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
         };
       }
 
+      // Group access requires share_mode <> 'private' (see userAgentsRepository).
+      if (sharing.share_mode === 'private') {
+        await updateAgentSharing(userId, args.params.identifier, { share_mode: 'groups' });
+      }
+
       const permissions = { read: true, write: false };
       await postgres.query(
         `INSERT INTO group_content_shares
@@ -229,6 +235,12 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
           VALUES ('user_agents', $1, $2, $3, $4)`,
         [sharing.id, group_id, userId, JSON.stringify(permissions)]
       );
+      notifyContentShared({
+        groupId: group_id,
+        userId,
+        contentType: 'user_agents',
+        contentId: sharing.id,
+      });
 
       return {
         status: 201 as const,

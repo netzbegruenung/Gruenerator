@@ -237,6 +237,13 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'file',
     accent: 'knowledge',
   },
+  // F1: German wire name. Reads an image attached to this turn (#3841).
+  bild_ansehen: {
+    label: 'Bildanalyse',
+    activeLabel: 'Sehe mir das Bild an',
+    iconKey: 'image',
+    accent: 'knowledge',
+  },
   // F1: German wire name, and it reads slices rather than whole documents.
   dokumente_lesen: {
     label: 'Dokumente',
@@ -479,6 +486,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
   fill_pdf_form: {
     label: 'Formular ausfüllen',
     activeLabel: 'Fülle das Formular',
+    iconKey: 'file',
+    accent: 'create',
+  },
+  reisekosten_abrechnung: {
+    label: 'Reisekosten berechnet',
+    activeLabel: 'Berechne Reisekosten',
     iconKey: 'file',
     accent: 'create',
   },

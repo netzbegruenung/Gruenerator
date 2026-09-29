@@ -3,11 +3,13 @@ import { useMemo, useRef } from 'react';
 import { resolveValue } from '../utils/canvasValueResolver';
 
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
-import type { BalkenInstance } from '../primitives';
+import type { BalkenInstance, CircleBadgeInstance } from '../primitives';
 import type { AssetInstance } from '../utils/canvasAssets';
+import type { ChartInstance } from '../utils/chartUtils';
 import type { FrameInstance } from '../utils/frameUtils';
 import type { GradientFill } from '../utils/gradientFill';
 import type { IllustrationInstance } from '../utils/illustrations/types';
+import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
 import type { UserImageInstance } from '../utils/userImageUtils';
 
@@ -29,7 +31,10 @@ export interface FloatingModuleState {
     | 'background'
     | 'balken'
     | 'frame'
-    | 'user-image';
+    | 'user-image'
+    | 'chart'
+    | 'pill-badge'
+    | 'circle-badge';
   data: {
     id: string;
     fontSize?: number;
@@ -211,6 +216,9 @@ export function useFloatingModuleState<
           id: selectedElement,
           opacity: typeof currentOpacity === 'number' ? currentOpacity : 1,
           fill: typeof currentFill === 'string' && currentFill ? currentFill : undefined,
+          // Das austauschbare Foto der Vorlage — nicht Deko mit festem `src`
+          // und nicht der Profilbild-Avatar (`transparentImage`).
+          isPhoto: imageElement.srcKey === 'currentImageSrc',
         },
       };
     }
@@ -363,6 +371,44 @@ export function useFloatingModuleState<
       return {
         type: 'user-image' as const,
         data: { ...userImage, id: selectedElement, opacity: userImage.opacity ?? 1 },
+      };
+    }
+
+    // Badges: the swatch colours the badge body (`backgroundColor`), not its text.
+    const pillBadgeInstances = getStateArray<PillBadgeInstance>(state, 'pillBadgeInstances');
+    const pillBadge = pillBadgeInstances.find((p) => p.id === selectedElement);
+    if (pillBadge) {
+      return {
+        type: 'pill-badge' as const,
+        data: {
+          id: selectedElement,
+          fill: pillBadge.backgroundColor,
+          opacity: pillBadge.opacity ?? 1,
+        },
+      };
+    }
+
+    const circleBadgeInstances = getStateArray<CircleBadgeInstance>(state, 'circleBadgeInstances');
+    const circleBadge = circleBadgeInstances.find((c) => c.id === selectedElement);
+    if (circleBadge) {
+      return {
+        type: 'circle-badge' as const,
+        data: {
+          id: selectedElement,
+          fill: circleBadge.backgroundColor,
+          opacity: circleBadge.opacity ?? 1,
+        },
+      };
+    }
+
+    // Charts: series colours live in the chart-settings tab; the bar only
+    // carries opacity.
+    const chartInstances = getStateArray<ChartInstance>(state, 'chartInstances');
+    const chart = chartInstances.find((c) => c.id === selectedElement);
+    if (chart) {
+      return {
+        type: 'chart' as const,
+        data: { id: selectedElement, opacity: chart.opacity ?? 1 },
       };
     }
 

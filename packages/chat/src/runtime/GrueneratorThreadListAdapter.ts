@@ -9,7 +9,7 @@ import { useAgentStore } from '../stores/chatStore';
 
 import type { ChatApiClient } from '../context/ChatContext';
 import type { RemoteThreadListAdapter, ThreadMessage } from '@assistant-ui/react';
-import type { GenerateTitleResponse } from '@gruenerator/contracts';
+import type { DeleteThreadResponse, GenerateTitleResponse } from '@gruenerator/contracts';
 
 interface ApiThread {
   id: string;
@@ -150,6 +150,19 @@ function updateThreadTagsCache(remoteId: string, tags: string[]): void {
   tagListeners.forEach((l) => l());
 }
 
+// Reload channel for hosts outside the runtime (a Papierkorb restore puts a
+// thread back; only the runtime can re-run list()).
+const reloadListeners = new Set<() => void>();
+
+export function subscribeThreadListReload(cb: () => void): () => void {
+  reloadListeners.add(cb);
+  return () => reloadListeners.delete(cb);
+}
+
+export function requestThreadListReload(): void {
+  reloadListeners.forEach((l) => l());
+}
+
 /** Update the local tags cache after an edit so the sidebar reflects it
  *  without waiting for the next list() refresh. */
 export function setThreadTagsCache(remoteId: string, tags: string[]): void {
@@ -195,6 +208,8 @@ export function createGrueneratorThreadListAdapter(
   agentId: string,
   callbacks?: {
     onDelete?: (remoteId: string) => void;
+    /** After the DELETE, only when the thread went to the Papierkorb (not for empty or doc chats). */
+    onTrashed?: (remoteId: string, title: string | null) => void;
     getExternalThreads?: () => ExternalThreadEntry[];
   }
 ): RemoteThreadListAdapter {
@@ -370,9 +385,13 @@ export function createGrueneratorThreadListAdapter(
 
     async delete(remoteId: string) {
       if (isExternal(remoteId)) return;
+      const title = cachedThreads.find((t) => t.id === remoteId)?.title ?? null;
       forgetThreadCaches(remoteId);
       callbacks?.onDelete?.(remoteId);
-      await apiClient.delete(`/api/chat-service/threads?threadId=${remoteId}`);
+      const res = await apiClient.delete<Partial<DeleteThreadResponse> | null>(
+        `/api/chat-service/threads?threadId=${remoteId}`
+      );
+      if (res?.trashed === true) callbacks?.onTrashed?.(remoteId, title);
     },
 
     async fetch(remoteId: string) {

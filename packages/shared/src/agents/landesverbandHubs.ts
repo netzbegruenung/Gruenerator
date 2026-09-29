@@ -5,7 +5,7 @@ import {
   isNotebookResolvableIn,
 } from '../notebooks/index.js';
 
-import { LANDESVERBAENDE } from './landesverbaende.js';
+import { LANDESVERBAENDE, landesverbandAgentIds } from './landesverbaende.js';
 import { type SystemAgentId } from './system.js';
 import { type AgentAudience } from './types.js';
 
@@ -36,6 +36,11 @@ export interface LvHub {
   prAgentId: SystemAgentId;
   buergerAgentId: SystemAgentId;
   wahlpruefsteinAgentId: SystemAgentId;
+  /**
+   * Every agent of the LV in hub order (`landesverbandAgentIds`) — the three
+   * above plus Beschlussanträge/Wahlprogramm where the LV has them.
+   */
+  agentIds: readonly SystemAgentId[];
   audience: AgentAudience;
 }
 
@@ -59,6 +64,7 @@ export const LV_HUBS: readonly LvHub[] = LANDESVERBAENDE.map((lv) => ({
   prAgentId: lv.prAgentId as SystemAgentId,
   buergerAgentId: lv.buergerAgentId as SystemAgentId,
   wahlpruefsteinAgentId: lv.wahlpruefsteinAgentId as SystemAgentId,
+  agentIds: landesverbandAgentIds(lv) as SystemAgentId[],
   audience: lv.audience,
 }));
 
@@ -113,11 +119,9 @@ export function getLandesverbandHubs(
  */
 export function getLvAgentIdsHiddenIn(instanceId: InstanceId): ReadonlySet<string> {
   return new Set(
-    LV_HUBS.filter((hub) => !isNotebookOfferedIn(hub.notebookId, instanceId)).flatMap((hub) => [
-      hub.prAgentId,
-      hub.buergerAgentId,
-      hub.wahlpruefsteinAgentId,
-    ])
+    LV_HUBS.filter((hub) => !isNotebookOfferedIn(hub.notebookId, instanceId)).flatMap(
+      (hub) => hub.agentIds
+    )
   );
 }
 
@@ -143,7 +147,5 @@ export function hasLandesverbandContentIn(instanceId: InstanceId): boolean {
  * listing them all individually would re-introduce the clutter the hub removes.
  */
 export function getHubMemberAgentIds(): ReadonlySet<string> {
-  return new Set(
-    LV_HUBS.flatMap((hub) => [hub.prAgentId, hub.buergerAgentId, hub.wahlpruefsteinAgentId])
-  );
+  return new Set(LV_HUBS.flatMap((hub) => hub.agentIds));
 }

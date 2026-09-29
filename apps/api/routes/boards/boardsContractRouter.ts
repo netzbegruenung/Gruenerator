@@ -33,7 +33,7 @@ import {
 } from '../../services/boards/grueneratorBot.js';
 import {
   checkEditAccess,
-  softDeleteCollaborativeDocument,
+  trashCollaborativeDocument,
   type QueryRunner,
 } from '../../services/docs/CollaborativeDocumentService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -90,6 +90,7 @@ export const boardsContractRouter = s.router(boardsContract, {
               SELECT gcs.content_id::uuid
               FROM group_content_shares gcs
               INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2 AND gm.is_active = TRUE
+              INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
               WHERE gcs.content_type = 'collaborative_documents'
             )
           )
@@ -137,6 +138,7 @@ export const boardsContractRouter = s.router(boardsContract, {
         const groupAccess = (await db.query(
           `SELECT 1 FROM group_content_shares gcs
            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+           INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
            WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
           [userId, id]
         )) as unknown[];
@@ -216,7 +218,7 @@ export const boardsContractRouter = s.router(boardsContract, {
              INNER JOIN group_memberships gm
                ON gm.group_id = gcs.group_id
               AND gm.is_active = TRUE
-             INNER JOIN groups g ON g.id = gcs.group_id
+             INNER JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
              WHERE gcs.content_type = 'collaborative_documents'
                AND gcs.content_id = $1::text
                -- The system group holds every user; never expose them as assignees.
@@ -259,8 +261,8 @@ export const boardsContractRouter = s.router(boardsContract, {
       const { id } = args.params;
       const userId = getAuthedUser(args.req).id;
 
-      // Shared soft-delete impl, scoped to the boards subtype.
-      const result = await softDeleteCollaborativeDocument(runQuery, id, userId, [BOARDS_SUBTYPE]);
+      // Shared trash impl, scoped to the boards subtype.
+      const result = await trashCollaborativeDocument(runQuery, id, userId, [BOARDS_SUBTYPE]);
       if (result.status === 'not_found') {
         return { status: 404 as const, body: { error: 'Board not found' } };
       }
@@ -394,7 +396,7 @@ export const boardsContractRouter = s.router(boardsContract, {
       if (!source) return { status: 404 as const, body: { error: 'Board not found' } };
 
       const descRows = (await db.query(
-        'SELECT description FROM collaborative_documents WHERE id = $1',
+        'SELECT description FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
         [id]
       )) as { description: string | null }[];
 
@@ -415,7 +417,7 @@ export const boardsContractRouter = s.router(boardsContract, {
         `SELECT cd.*, p.display_name as creator_name
          FROM collaborative_documents cd
          LEFT JOIN profiles p ON cd.created_by = p.id
-         WHERE cd.id = $1`,
+         WHERE cd.id = $1 AND cd.is_deleted = false`,
         [created.id]
       )) as BoardDocument[];
 

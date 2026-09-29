@@ -423,7 +423,7 @@ describe('executeResearch — planning', () => {
     await executeResearch({ question: 'wer ist werner kogler' });
 
     expect(mockExecuteDirectWebSearch).toHaveBeenCalledWith(
-      expect.objectContaining({ language: 'de-AT' })
+      expect.objectContaining({ locale: 'de-AT' })
     );
     expect(mockExecuteDirectSearch).toHaveBeenCalledWith(
       expect.objectContaining({ collection: 'oesterreich' })

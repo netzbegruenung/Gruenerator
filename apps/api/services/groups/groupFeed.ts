@@ -19,18 +19,19 @@ import { GROUP_PIN_LIMIT, type GroupShareComment } from '@gruenerator/contracts'
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { isInstanceAdmin } from '../../utils/adminAuthz.js';
-import { notifyGroupUsers } from '../notifications/index.js';
+
+import { notifyGroupActivity } from './groupActivityNotifications.js';
 
 import type { PostgresService } from '../../database/services/PostgresService.js';
 
 export interface GroupFeedDeps {
   postgres: Pick<PostgresService, 'query' | 'queryOne' | 'exec'>;
-  notify: typeof notifyGroupUsers;
+  notify: typeof notifyGroupActivity;
   isInstanceAdmin: (userId: string) => Promise<boolean>;
 }
 
 function defaultDeps(): GroupFeedDeps {
-  return { postgres: getPostgresInstance(), notify: notifyGroupUsers, isInstanceAdmin };
+  return { postgres: getPostgresInstance(), notify: notifyGroupActivity, isInstanceAdmin };
 }
 
 export type FeedOutcome<T = null> =
@@ -39,6 +40,7 @@ export type FeedOutcome<T = null> =
 export interface Viewer {
   isAdmin: boolean;
   isPersonal: boolean;
+  isSystem: boolean;
   /** May put new content into the group (post, share). */
   canShare: boolean;
 }
@@ -53,7 +55,7 @@ export async function getViewer(
     `SELECT gm.role, g.group_type, g.created_by, g.is_system
        FROM group_memberships gm
        JOIN groups g ON g.id = gm.group_id
-      WHERE gm.group_id = $1 AND gm.user_id = $2`,
+      WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`,
     [groupId, userId],
     { table: 'group_memberships' }
   )) as {
@@ -71,6 +73,7 @@ export async function getViewer(
     // Same rule as `assertCanShareToGroup`: in the system group only admins post.
     canShare: !row.is_system || isAdmin,
     isPersonal: row.group_type === 'personal',
+    isSystem: !!row.is_system,
   };
 }
 
@@ -251,13 +254,19 @@ export async function createShareComment(
   ];
   void deps.notify({
     groupId,
-    excludeUserId: userId,
-    userIds: recipients,
-    type: 'group_comment_added',
-    title: parentId ? 'Neue Antwort' : 'Neuer Kommentar',
-    body: `${authorName}: ${body.length > 140 ? `${body.slice(0, 140)}…` : body}`,
+    authorId: userId,
+    authorName,
+    body,
+    isSystem: viewer.isSystem,
+    // In der System-Gruppe erreicht @alle alle Nutzer*innen — nur für Instanz-Admins.
+    mayMentionAll: viewer.canShare,
     actionUrl: `/projekte/${groupId}?beitrag=${shareId}`,
     metadata: { shareId },
+    base: {
+      type: 'group_comment_added',
+      title: parentId ? 'Neue Antwort' : 'Neuer Kommentar',
+      recipients,
+    },
   });
 
   return { status: 201, data: toComment({ ...row, author_name: authorName }) };

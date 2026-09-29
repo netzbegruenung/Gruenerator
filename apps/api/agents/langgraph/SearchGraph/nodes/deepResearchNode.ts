@@ -8,6 +8,7 @@
  */
 
 import { getLinkupService } from '../../../../services/search/LinkupService.js';
+import { canWebSearch, webSearch } from '../../../../services/search/webSearch.js';
 import { toUserFacingMessage } from '../../../../utils/errors/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { buildCitations } from '../../ChatGraph/nodes/searchNode.js';
@@ -231,11 +232,11 @@ export async function deepResearchNodeLegacy(
 
   // Prefer Linkup when configured; fall back to SearXNG for dev/no-key envs.
   const webSearchPromise = (async (): Promise<Partial<WebSearchState>> => {
-    const linkupResult = await searchViaLinkup(webState).catch((err: unknown) => {
+    const webResult = await searchViaLinkup(webState).catch((err: unknown) => {
       log.warn(`[DeepResearch] Linkup failed: ${errorMessage(err)}`);
       return null;
     });
-    if (linkupResult) return linkupResult;
+    if (webResult) return webResult;
     return searxngNode(webState).catch((err: unknown) => {
       log.warn(`[DeepResearch] SearXNG failed: ${errorMessage(err)}`);
       return {};
@@ -298,7 +299,8 @@ export async function deepResearchNodeLegacy(
 }
 
 /**
- * Deep research via Linkup's `webSearch` at `depth: 'deep'` — same search
+ * Deep research via a `depth: 'deep'` web search (webSearch.ts — today only
+ * Linkup serves `deep`) — same search
  * depth as `deepResearch`, but `outputType: 'searchResults'` instead of
  * `sourcedAnswer`, so we get the same sources without paying for (and
  * discarding) an LLM-written answer. Replaces our planner → searxng →
@@ -307,7 +309,7 @@ export async function deepResearchNodeLegacy(
  * Grundsatz (party-document) search runs in parallel against our internal
  * Qdrant collection — Linkup only covers the open web.
  *
- * Falls back to the legacy pipeline when LINKUP_API_KEY is unset.
+ * Falls back to the legacy pipeline when no engine in the chain can do `deep`.
  */
 export async function deepResearchNode(
   state: SearchGraphState
@@ -319,40 +321,43 @@ export async function deepResearchNode(
     return { searchTimeMs: Date.now() - start };
   }
 
-  const linkup = getLinkupService();
-  if (!linkup) {
-    log.info('[DeepResearch] LINKUP_API_KEY unset — falling back to legacy pipeline');
+  const request = {
+    query: state.searchQuery,
+    depth: 'deep' as const,
+    maxResults: 20,
+    ...(state.userLocale === 'de-AT' ? { locale: 'de-AT' as const } : {}),
+  };
+  if (!canWebSearch(request)) {
+    log.info('[DeepResearch] No engine for depth deep — falling back to legacy pipeline');
     return deepResearchNodeLegacy(state);
   }
 
-  log.info(`[DeepResearch] Starting Linkup deep research: "${state.searchQuery.substring(0, 80)}"`);
+  log.info(`[DeepResearch] Starting deep web research: "${state.searchQuery.substring(0, 80)}"`);
 
   const webState = toWebSearchState(state);
 
-  emitProgress('searching', 'Linkup recherchiert das Web...');
+  emitProgress('searching', 'Recherchiere im Web...');
   emitProgress('grundsatz', 'Durchsuche Parteiprogramme...');
 
-  const [linkupResult, grundsatzResult] = await Promise.all([
+  const [webResult, grundsatzResult] = await Promise.all([
     // `depth: 'deep'` keeps the search itself unchanged; `webSearch` (searchResults
     // output) replaces `deepResearch` (sourcedAnswer output) so we stop paying for
     // an LLM-written answer we never read — only `res.sources`/`res.results` below
     // ever left this function.
-    linkup
-      .webSearch({ query: state.searchQuery, depth: 'deep', maxResults: 20 })
-      .catch((err: unknown) => {
-        log.warn(`[DeepResearch] Linkup failed: ${errorMessage(err)}`);
-        return null;
-      }),
+    webSearch(request).catch((err: unknown) => {
+      log.warn(`[DeepResearch] Deep web search failed: ${errorMessage(err)}`);
+      return null;
+    }),
     grundsatzNode(webState).catch((err: unknown) => {
       log.warn(`[DeepResearch] Grundsatz failed: ${errorMessage(err)}`);
       return {};
     }),
   ]);
 
-  // If Linkup itself failed (network, quota, key revoked), fall back to legacy
+  // If the search itself failed (network, quota, key revoked), fall back to legacy
   // rather than returning grundsatz-only — the user asked for deep research.
-  if (!linkupResult) {
-    log.warn('[DeepResearch] Linkup returned null — falling back to legacy pipeline');
+  if (!webResult) {
+    log.warn('[DeepResearch] Deep web search returned null — falling back to legacy pipeline');
     return deepResearchNodeLegacy(state);
   }
 
@@ -361,13 +366,13 @@ export async function deepResearchNode(
   const seenUrls = new Set<string>();
   const searchResults: ChatSearchResult[] = [];
 
-  for (const src of linkupResult.results) {
+  for (const src of webResult.hits) {
     if (!src.url || seenUrls.has(src.url)) continue;
     seenUrls.add(src.url);
     searchResults.push({
       source: 'deep-research',
-      title: src.name || 'Unbekannt',
-      content: src.content || '',
+      title: src.title || 'Unbekannt',
+      content: src.content,
       url: src.url,
       relevance: 0.85,
     });
@@ -394,13 +399,15 @@ export async function deepResearchNode(
   const citations = buildCitations(trimmed);
 
   const searchTimeMs = Date.now() - start;
-  log.info(`[DeepResearch] Linkup complete: ${trimmed.length} sources in ${searchTimeMs}ms`);
+  log.info(
+    `[DeepResearch] Deep web search complete (${webResult.provider}): ${trimmed.length} sources in ${searchTimeMs}ms`
+  );
 
   return {
     searchResults: trimmed,
     citations,
     searchCount: 1,
     searchTimeMs,
-    searchedCollections: ['linkup-deep', 'grundsatz'],
+    searchedCollections: [`${webResult.provider}-deep`, 'grundsatz'],
   };
 }

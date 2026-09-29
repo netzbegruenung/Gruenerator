@@ -42,10 +42,12 @@ import { ensureFontsReady } from '../../utils/ensureFontsReady';
 import { getCategoryForTemplate } from '../../utils/templateRegistry';
 import { CanvasMetaBar } from '../CanvasMetaBar';
 import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
+import { MobileSelectionPill } from '../MobileSelectionPill';
 import { PageThumbnailStrip } from '../PageThumbnailStrip';
 import { AddPageButton, TemplatePickerFlyout } from '../TemplatePickerFlyout';
 import { Toolbar } from '../Toolbar';
 import { ContextToolbar } from '../TopBar/ContextToolbar';
+import { MobileSelectionBar } from '../TopBar/MobileSelectionBar';
 import { MobileSelectionControls } from '../TopBar/MobileSelectionControls';
 
 import { useLoadedConfigs } from './hooks/useLoadedConfigs';
@@ -313,13 +315,12 @@ function CanvasEditorInner({
     [setActiveTab]
   );
 
-  // Mobile: closing the sheet also ends the selection — the sheet is where a
-  // selection's settings live, and an open selection would reopen it.
+  // Mobile: closing the sheet keeps the selection — its controls live in the
+  // bottom selection bar, which comes back once the sheet is gone.
   const handlePanelClose = useCallback(() => {
     prevTabRef.current = null;
     setActiveTab(null);
-    if (isMobileWeb) canvasRefsRef.current.forEach((ref) => ref.current?.deselect());
-  }, [setActiveTab, isMobileWeb, canvasRefsRef]);
+  }, [setActiveTab]);
 
   // Page selection handler - functional setState (Rule 5.5)
   const handlePageSelect = useCallback(
@@ -406,7 +407,8 @@ function CanvasEditorInner({
         prev.canRedo === report.canRedo &&
         prev.canMoveUp === report.canMoveUp &&
         prev.canMoveDown === report.canMoveDown &&
-        prev.canDuplicate === report.canDuplicate
+        prev.canDuplicate === report.canDuplicate &&
+        prev.canDelete === report.canDelete
       ) {
         return prev;
       }
@@ -441,6 +443,18 @@ function CanvasEditorInner({
   const handleDeselectAll = useCallback(() => {
     canvasRefsRef.current.forEach((ref) => ref.current?.deselect());
   }, [canvasRefsRef]);
+
+  // Mobile selection pill: reads the active page's selection geometry.
+  const getSelectionBox = useCallback(
+    () => canvasRefsRef.current[currentPageIndex]?.current?.getSelectionBox?.() ?? null,
+    [canvasRefsRef, currentPageIndex]
+  );
+  const subscribeManipulation = useCallback(
+    (listener: (active: boolean) => void) =>
+      canvasRefsRef.current[currentPageIndex]?.current?.subscribeManipulation?.(listener) ??
+      (() => {}),
+    [canvasRefsRef, currentPageIndex]
+  );
 
   // The grey work area around the artboard is the natural "click out" target,
   // and until now nothing happened there: the Konva stage is sized exactly to
@@ -588,19 +602,19 @@ function CanvasEditorInner({
   }, [activeConfig, activeState]);
 
   // Auto-switch tabs based on config (e.g., switch to 'settings' when a balken is selected).
-  // On mobile every selection opens its area — the sheet shows the selection's
-  // settings, there is no separate context bar.
-  const selectionType = toolbarState?.activeFloatingModule?.type ?? null;
+  // Desktop only: on mobile a tap just selects — the canvas keeps its size, and
+  // the selection's area opens from the bottom bar's "Mehr" button instead.
   const mobileSelectionArea = isMobileWeb
     ? getMobileSelectionArea(
-        activeSelectedElement ? selectionType : null,
-        visibleTabs.map((tab) => tab.id)
+        activeSelectedElement,
+        toolbarState?.activeFloatingModule ?? null,
+        visibleTabs.map((tab) => tab.id),
+        activeConfig?.getAutoSwitchTab?.(activeSelectedElement ?? null) ?? null
       )
     : null;
   useEffect(() => {
-    const configTarget = activeConfig?.getAutoSwitchTab?.(activeSelectedElement ?? null) ?? null;
-    if (!activeConfig?.getAutoSwitchTab && !isMobileWeb) return;
-    const targetTab = configTarget ?? mobileSelectionArea;
+    if (!activeConfig?.getAutoSwitchTab || isMobileWeb) return;
+    const targetTab = activeConfig.getAutoSwitchTab(activeSelectedElement ?? null);
     if (targetTab) {
       setActiveTab((current) => {
         if (current !== targetTab) {
@@ -618,15 +632,9 @@ function CanvasEditorInner({
         return current;
       });
     }
-  }, [activeSelectedElement, activeConfig, setActiveTab, isMobileWeb, mobileSelectionArea]);
+  }, [activeSelectedElement, activeConfig, setActiveTab, isMobileWeb]);
 
-  // Mobile: a selection without an area of its own still gets a sheet, titled
-  // "Auswahl", so its controls stay reachable.
-  const hasMobileSelection =
-    isMobileWeb &&
-    toolbarState !== null &&
-    (toolbarState.selectedElement != null || toolbarState.activeFloatingModule != null);
-  const isPanelOpen = activeTab !== null || hasMobileSelection;
+  const isPanelOpen = activeTab !== null;
   const isMobileSheetOpen = isMobileWeb && isPanelOpen;
   const panelTitle =
     (activeTab && activeConfig?.tabs.find((tab) => tab.id === activeTab)?.label) || 'Auswahl';
@@ -793,7 +801,7 @@ function CanvasEditorInner({
   }
 
   // Build sidebar elements (static within the already-async editor chunk)
-  const tabBar = (
+  const areaTabBar = (
     <Suspense fallback={null}>
       <SidebarTabBar
         tabs={visibleTabs}
@@ -823,13 +831,16 @@ function CanvasEditorInner({
   ) : null;
 
   // Selection-driven formatting controls live outside the menu bar: a floating
-  // card over the canvas (desktop) and an "Auswahl" block at the top of the
-  // area sheet (mobile).
+  // card over the canvas (desktop); on mobile a bottom selection bar in the
+  // area tab bar's slot plus a pill on the object, and — once the user opens
+  // the selection's area — an "Auswahl" block at the top of the sheet.
   // Render only when the canvas has reported an actual element selection (not
   // merely because delete-page is available on a multi-page doc — page ops live
-  // in the page toolbar / thumbnail strip). The delete-page action still rides
-  // along in the bar while an element is selected. Only one of the two bars is
-  // mounted per viewport to avoid a hidden duplicate React tree.
+  // in the page toolbar / thumbnail strip). While an element is selected, the
+  // delete-page action rides along in the desktop card and the mobile sheet's
+  // "Auswahl" block, not in the mobile bottom bar (`hideObjectActions`). Only
+  // one of the two bars is mounted per viewport to avoid a hidden duplicate
+  // React tree.
   const contextControlsProps = toolbarState
     ? {
         selectedElement: toolbarState.selectedElement ?? null,
@@ -854,8 +865,36 @@ function CanvasEditorInner({
       <ContextToolbar {...contextControlsProps} />
     ) : null;
   const mobileSelectionElement =
-    contextControlsProps && hasContextControls && isMobileWeb ? (
+    contextControlsProps && hasContextControls && isMobileWeb && isPanelOpen ? (
       <MobileSelectionControls {...contextControlsProps} />
+    ) : null;
+  const openSelectionArea = mobileSelectionArea
+    ? () => setActiveTab(mobileSelectionArea)
+    : undefined;
+  const showMobileSelection =
+    contextControlsProps !== null && hasContextControls && isMobileWeb && !isPanelOpen;
+  const tabBar = showMobileSelection ? (
+    <MobileSelectionBar
+      {...contextControlsProps}
+      onOpenArea={openSelectionArea}
+      onDone={handleDeselectAll}
+    />
+  ) : (
+    areaTabBar
+  );
+  const selectionPill =
+    showMobileSelection && toolbarState?.selectedElement ? (
+      <MobileSelectionPill
+        measureKey={toolbarState.activeFloatingModule}
+        zoom={zoom}
+        getBox={getSelectionBox}
+        subscribeManipulation={subscribeManipulation}
+        canDuplicate={toolbarState.canDuplicate ?? false}
+        canDelete={toolbarState.canDelete ?? false}
+        onDuplicate={toolbarHandlers.handleDuplicate}
+        onDelete={toolbarHandlers.handleDeleteElement}
+        onMore={openSelectionArea}
+      />
     ) : null;
 
   const panel = (
@@ -1025,6 +1064,7 @@ function CanvasEditorInner({
             )}
           </div>
         </CanvasEditorLayout>
+        {selectionPill}
       </CanvasTextEditorProvider>
     </UserUploadsProvider>
   );

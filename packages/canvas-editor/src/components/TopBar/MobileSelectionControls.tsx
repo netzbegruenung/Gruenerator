@@ -1,7 +1,7 @@
 import React from 'react';
 
-import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 import { HIDDEN_SCROLLBAR } from '../../sidebar/sidebarStyles';
+import { useCanvasStoreSelector } from '../../stores/CanvasStoreProvider';
 import { cn } from '../../utils/cn';
 
 import { ContextControls, type ContextControlsProps } from './ContextControls';
@@ -19,13 +19,17 @@ const SELECTION_LABELS: Record<FloatingModuleState['type'], string> = {
   background: 'Hintergrund',
   balken: 'Balken',
   frame: 'Rahmen',
+  chart: 'Diagramm',
+  'pill-badge': 'Badge',
+  'circle-badge': 'Badge',
 };
 
 /**
  * MobileSelectionControls — the "Auswahl" block at the top of the mobile area
- * sheet. Tapping an element opens its area; this block carries the selection's
- * formatting controls (the desktop ContextToolbar's content), so the sheet is
- * the one place a selection is edited. Hidden while an AI suggestion is pending.
+ * sheet, shown when the user opens a selection's area via "Mehr". It carries
+ * the selection's formatting controls (the desktop ContextToolbar's content);
+ * without an open sheet they live in `MobileSelectionBar`. Hidden while an AI
+ * suggestion is pending.
  */
 export function MobileSelectionControls(props: ContextControlsProps) {
   const hasPendingAiSuggestion = useCanvasStoreSelector((s) => s.pendingAiSuggestion !== null);

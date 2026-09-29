@@ -1,7 +1,7 @@
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { createNotification } from './NotificationService.js';
+import { createNotificationsForUsers } from './NotificationService.js';
 
 import type { NotificationType } from './types.js';
 
@@ -12,13 +12,22 @@ interface GroupRow {
   is_system: boolean | null;
 }
 
-// The system group holds every user: deliver in slices so one share doesn't
-// queue thousands of inserts on the pool at once.
+// The system group holds every user: deliver in slices of one read and one
+// multi-row insert each, so no single statement grows with the user count.
 const DELIVER_CHUNK = 200;
+
+// Addressed to one person: shown on their own instead of folded into the
+// group's bundle in the bell, where only the newest line is clickable.
+const UNGROUPED_TYPES: ReadonlySet<NotificationType> = new Set([
+  'group_user_mentioned',
+  'group_mention_all',
+]);
 
 interface NotifyGroupParams {
   groupId: string;
   excludeUserId: string;
+  /** Further users to leave out — e.g. those already reached by a mention. */
+  skipUserIds?: string[];
   type: NotificationType;
   title: string;
   body: string;
@@ -27,19 +36,22 @@ interface NotifyGroupParams {
 }
 
 export async function notifyGroupMembers(params: NotifyGroupParams): Promise<void> {
-  const { groupId, excludeUserId } = params;
+  const { groupId, excludeUserId, skipUserIds = [] } = params;
 
   try {
     const db = getPostgresInstance();
 
     const [members, group] = await Promise.all([
       db.query(
-        'SELECT user_id FROM group_memberships WHERE group_id = $1 AND user_id != $2 AND is_active = TRUE',
-        [groupId, excludeUserId]
+        `SELECT user_id FROM group_memberships
+          WHERE group_id = $1 AND user_id != $2 AND user_id <> ALL($3::uuid[]) AND is_active = TRUE`,
+        [groupId, excludeUserId, skipUserIds]
       ) as Promise<Array<{ user_id: string }>>,
-      db.queryOne('SELECT name, is_system FROM groups WHERE id = $1', [groupId], {
-        table: 'groups',
-      }) as Promise<GroupRow | null>,
+      db.queryOne(
+        'SELECT name, is_system FROM groups WHERE id = $1 AND deleted_at IS NULL',
+        [groupId],
+        { table: 'groups' }
+      ) as Promise<GroupRow | null>,
     ]);
 
     if (!members || members.length === 0) return;
@@ -70,7 +82,8 @@ export async function notifyGroupAdmins(params: NotifyGroupParams): Promise<void
          SELECT user_id FROM group_memberships
            WHERE group_id = $1 AND role = 'admin' AND is_active = TRUE
          UNION
-         SELECT created_by AS user_id FROM groups WHERE id = $1 AND created_by IS NOT NULL
+         SELECT created_by AS user_id FROM groups
+          WHERE id = $1 AND created_by IS NOT NULL AND deleted_at IS NULL
        ) admins
        WHERE user_id != $2`,
       [groupId, excludeUserId]
@@ -79,7 +92,7 @@ export async function notifyGroupAdmins(params: NotifyGroupParams): Promise<void
     if (!admins || admins.length === 0) return;
 
     const group = (await db.queryOne(
-      'SELECT name, is_system FROM groups WHERE id = $1',
+      'SELECT name, is_system FROM groups WHERE id = $1 AND deleted_at IS NULL',
       [groupId],
       {
         table: 'groups',
@@ -103,8 +116,10 @@ export async function notifyGroupAdmins(params: NotifyGroupParams): Promise<void
 export async function notifyGroupUsers(
   params: NotifyGroupParams & { userIds: string[] }
 ): Promise<void> {
-  const { groupId, excludeUserId, userIds } = params;
-  const candidates = [...new Set(userIds)].filter((id) => id !== excludeUserId);
+  const { groupId, excludeUserId, userIds, skipUserIds = [] } = params;
+  const candidates = [...new Set(userIds)].filter(
+    (id) => id !== excludeUserId && !skipUserIds.includes(id)
+  );
   if (candidates.length === 0) return;
 
   try {
@@ -114,9 +129,11 @@ export async function notifyGroupUsers(
         'SELECT user_id FROM group_memberships WHERE group_id = $1 AND user_id = ANY($2::uuid[]) AND is_active = TRUE',
         [groupId, candidates]
       ) as Promise<Array<{ user_id: string }>>,
-      db.queryOne('SELECT name, is_system FROM groups WHERE id = $1', [groupId], {
-        table: 'groups',
-      }) as Promise<GroupRow | null>,
+      db.queryOne(
+        'SELECT name, is_system FROM groups WHERE id = $1 AND deleted_at IS NULL',
+        [groupId],
+        { table: 'groups' }
+      ) as Promise<GroupRow | null>,
     ]);
     if (!members || members.length === 0) return;
 
@@ -140,25 +157,21 @@ async function deliver(
   // In the system group notifications stay in-app — no mass email to every user.
   const channelOverride = group?.is_system ? { email: false } : undefined;
   for (let i = 0; i < userIds.length; i += DELIVER_CHUNK) {
-    await Promise.all(
-      userIds.slice(i, i + DELIVER_CHUNK).map((userId) =>
-        createNotification({
-          userId,
-          type,
-          title,
-          body,
-          actionUrl,
-          metadata: { groupId, groupName, ...metadata },
-          groupKey: `group:${groupId}`,
-          channelOverride,
-        }).catch((err: unknown) => {
-          log.warn('Failed to notify group user', {
-            userId,
-            groupId,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        })
-      )
-    );
+    const chunk = userIds.slice(i, i + DELIVER_CHUNK);
+    await createNotificationsForUsers(chunk, {
+      type,
+      title,
+      body,
+      actionUrl,
+      metadata: { groupId, groupName, ...metadata },
+      ...(UNGROUPED_TYPES.has(type) ? {} : { groupKey: `group:${groupId}` }),
+      channelOverride,
+    }).catch((err: unknown) => {
+      log.warn('Failed to notify group users', {
+        groupId,
+        users: chunk.length,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
   }
 }

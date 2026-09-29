@@ -89,6 +89,7 @@ export async function runAgenticAnswer({
   // the search has not happened yet.
   const systemMessage = await buildSystemMessage(classifiedState, {
     retrievalExpected: true,
+    loop: true,
   });
   // `contextWindowTokens` was computed before the classifier ran, when `auto`
   // had no concrete model yet (→ the conservative 32k default). Unlike the

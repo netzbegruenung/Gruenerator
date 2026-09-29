@@ -277,6 +277,18 @@ export function createGrueneratorModelAdapter(
       // Resume detection via unstable_getMessage() — the canonical way to read addResult() answers.
       // assistant-ui writes the result onto the current assistant message, NOT into messages[].
       if (currentAssistant) {
+        // assistant-ui HÄNGT den Inhalt einer Fortsetzung an die pausierte
+        // Nachricht an (`performRoundtrip`: `[...initialContent, ...content]`),
+        // statt ihn zu ersetzen. Eine Karte, die dort schon steht, darf die
+        // Fortsetzung deshalb nicht noch einmal liefern — zwei Parts mit
+        // derselben toolCallId reißen die ganze Nachricht mit
+        // „Duplicate key toolCallId-…" ab (GlitchTip #660).
+        const knownToolCallIds = new Set(
+          (currentAssistant.content ?? []).flatMap((p) =>
+            p.type === 'tool-call' ? [p.toolCallId] : []
+          )
+        );
+
         // Werkzeug-Freigabe VOR ask_human: assistant-ui ruft `run()` erst
         // wieder auf, wenn ALLE Freigaben entschieden sind, und schreibt bei
         // einer Ablehnung selbst ein `result: { error }` an den Part — das darf
@@ -321,29 +333,13 @@ export function createGrueneratorModelAdapter(
             );
           }
 
-          // Die schon gezeigten Karten werden mitgeführt, sonst verschwinden sie
-          // beim ersten Ergebnis der Fortsetzung aus der Blase. ALLE, nicht nur
-          // die Freigabe-Karten: vor dem Gate kann im selben Zug längst eine
-          // Suche gelaufen sein, und die soll nicht mit der Entscheidung
-          // verschwinden.
-          const priorToolCalls = (currentAssistant.content ?? [])
-            .filter((p): p is Extract<typeof p, { type: 'tool-call' }> => p.type === 'tool-call')
-            .map((p) => ({
-              type: 'tool-call' as const,
-              toolCallId: p.toolCallId,
-              toolName: p.toolName,
-              args: (p.args ?? {}) as Record<string, string | number | boolean | null>,
-              argsText: JSON.stringify(p.args ?? {}),
-              ...('approval' in p && p.approval != null && { approval: p.approval }),
-              ...('result' in p && p.result !== undefined ? { result: p.result } : {}),
-            }));
           const resumeOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
           yield* parseSSEStream(
             resumeResponse,
             callbacks,
             resumeOutcome,
             config.agentId ? { agentId: config.agentId } : undefined,
-            { toolCalls: priorToolCalls }
+            { knownToolCallIds }
           );
           if (resumeOutcome.interrupted) {
             interruptedThreadId = config.threadId;
@@ -394,7 +390,8 @@ export function createGrueneratorModelAdapter(
             resumeResponse,
             callbacks,
             resumeOutcome,
-            config.agentId ? { agentId: config.agentId } : undefined
+            config.agentId ? { agentId: config.agentId } : undefined,
+            { knownToolCallIds }
           );
           if (resumeOutcome.clientToolInterrupt) {
             resumeOutcome = yield* runClientToolResumes({

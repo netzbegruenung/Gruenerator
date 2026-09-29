@@ -60,6 +60,26 @@ describe('wrapToolsForLoop', () => {
     expect(steps[0]).toMatchObject({ toolName: 'search', toolCallId: 'call_1' });
   });
 
+  it('keeps stepIds unique when the provider repeats a toolCallId within a turn', async () => {
+    const { ctx, events, steps } = makeCtx();
+    const tools = wrapToolsForLoop(
+      {
+        search: { execute: async () => ({ results: [] }) },
+        lookup: { execute: async () => ({ results: [] }) },
+      } as unknown as ToolSet,
+      ctx
+    );
+
+    await run(tools, 'search', { query: 'a' }, 'wsnY18LfD');
+    await run(tools, 'lookup', { query: 'b' }, 'wsnY18LfD');
+
+    expect(steps.map((s) => s.toolCallId)).toEqual(['wsnY18LfD', 'wsnY18LfD_2']);
+    expect(events.filter((e) => e.event === 'tool_step_start').map((e) => e.data.stepId)).toEqual([
+      'wsnY18LfD',
+      'wsnY18LfD_2',
+    ]);
+  });
+
   it('contains a thrown tool as an { error } result and notes the failure', async () => {
     const { ctx, events } = makeCtx();
     const tools = wrapToolsForLoop(

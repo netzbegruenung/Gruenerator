@@ -30,7 +30,7 @@ export async function fetchDocumentContext(
 
   const postgres = getPostgresInstance();
   const owned = (await postgres.query(
-    'SELECT id, title FROM documents WHERE user_id = $1 AND id = ANY($2)',
+    'SELECT id, title FROM documents WHERE user_id = $1 AND id = ANY($2) AND deleted_at IS NULL',
     [userId, documentIds]
   )) as Array<{ id: string; title: string }>;
 
@@ -100,7 +100,7 @@ export async function fetchTextContext(
 
   const postgres = getPostgresInstance();
   const rows = (await postgres.query(
-    'SELECT id, title, content FROM user_documents WHERE user_id = $1 AND id = ANY($2) AND is_active = true',
+    'SELECT id, title, content FROM user_documents WHERE user_id = $1 AND id = ANY($2) AND is_active = true AND deleted_at IS NULL',
     [userId, textIds]
   )) as Array<{ id: string; title: string; content: string }>;
 

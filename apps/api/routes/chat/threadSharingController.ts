@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { notifyContentShared } from '../../services/groups/groupContent.js';
 import {
   assertCanShareToGroup,
   listShareTargetGroups,
@@ -19,7 +20,10 @@ router.get('/:id/groups', async (req: Request<{ id: string }>, res: Response) =>
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const thread = await db.query('SELECT user_id FROM chat_threads WHERE id = $1', [id]);
+    const thread = await db.query(
+      'SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
+      [id]
+    );
     if ((thread as unknown[]).length === 0)
       return res.status(404).json({ error: 'Thread not found' });
     if ((thread as { user_id: string }[])[0].user_id !== userId) {
@@ -29,7 +33,7 @@ router.get('/:id/groups', async (req: Request<{ id: string }>, res: Response) =>
     const shares = await db.query(
       `SELECT gcs.group_id, g.name as group_name, gcs.shared_at
        FROM group_content_shares gcs
-       INNER JOIN groups g ON g.id = gcs.group_id
+       INNER JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
        WHERE gcs.content_type = 'chat_threads' AND gcs.content_id = $1
        ORDER BY gcs.shared_at DESC`,
       [id]
@@ -58,7 +62,10 @@ router.post(
       const { group_id } = req.body;
       if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-      const thread = await db.query('SELECT user_id FROM chat_threads WHERE id = $1', [id]);
+      const thread = await db.query(
+        'SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
+        [id]
+      );
       if ((thread as unknown[]).length === 0)
         return res.status(404).json({ error: 'Thread not found' });
       if ((thread as { user_id: string }[])[0].user_id !== userId) {
@@ -84,6 +91,12 @@ router.post(
          VALUES ('chat_threads', $1, $2, $3, '{"read": true, "write": true}')`,
         [id, group_id, userId]
       );
+      notifyContentShared({
+        groupId: group_id,
+        userId,
+        contentType: 'chat_threads',
+        contentId: id,
+      });
 
       return res.status(201).json({ message: 'Thread shared' });
     } catch (error: unknown) {
@@ -104,7 +117,10 @@ router.delete(
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-      const thread = await db.query('SELECT user_id FROM chat_threads WHERE id = $1', [id]);
+      const thread = await db.query(
+        'SELECT user_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
+        [id]
+      );
       if ((thread as unknown[]).length === 0)
         return res.status(404).json({ error: 'Thread not found' });
       if ((thread as { user_id: string }[])[0].user_id !== userId) {

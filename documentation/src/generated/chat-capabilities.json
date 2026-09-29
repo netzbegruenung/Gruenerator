@@ -521,6 +521,214 @@
       "avatar": "🇦🇹",
       "category": "social",
       "audience": "de-AT"
+    },
+    {
+      "command": "@buerger-at",
+      "title": "Bürger*innen-Mail Österreich",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Österreich",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-AT"
+    },
+    {
+      "command": "@buerger-bayern",
+      "title": "Bürger*innen-Mail Bayern",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Bayern",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-berlin",
+      "title": "Bürger*innen-Mail Berlin",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Berlin",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-brandenburg",
+      "title": "Bürger*innen-Mail Brandenburg",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Brandenburg",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-hamburg",
+      "title": "Bürger*innen-Mail Hamburg",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Hamburg",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-hessen",
+      "title": "Bürger*innen-Mail Hessen",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Hessen",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-mv",
+      "title": "Bürger*innen-Mail Mecklenburg-Vorpommern",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Mecklenburg-Vorpommern",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-saarland",
+      "title": "Bürger*innen-Mail Saarland",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Saarland",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-sachsen-anhalt",
+      "title": "Bürger*innen-Mail Sachsen-Anhalt",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Sachsen-Anhalt",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-schleswig-holstein",
+      "title": "Bürger*innen-Mail Schleswig-Holstein",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Schleswig-Holstein",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@buerger-thueringen",
+      "title": "Bürger*innen-Mail Thüringen",
+      "description": "Antwort-E-Mail auf eine Bürger*innenanfrage an die Grünen Thüringen",
+      "avatar": "✉️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-bayern",
+      "title": "Beschlussantrag Bayern",
+      "description": "Beschlussanträge in der Beschlusssprache der Grünen Bayern, im Anschluss an die bestehende Beschlusslage",
+      "avatar": "📜",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-berlin",
+      "title": "Beschlussantrag Berlin",
+      "description": "Beschlussanträge in der Beschlusssprache der Grünen Berlin, im Anschluss an die bestehende Beschlusslage",
+      "avatar": "📜",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-brandenburg",
+      "title": "Beschlussantrag Brandenburg",
+      "description": "Beschlussanträge in der Beschlusssprache der Grünen Brandenburg, im Anschluss an die bestehende Beschlusslage",
+      "avatar": "📜",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-hessen",
+      "title": "Beschlussantrag Hessen",
+      "description": "Beschlussanträge in der Beschlusssprache der Grünen Hessen, im Anschluss an die bestehende Beschlusslage",
+      "avatar": "📜",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-mv",
+      "title": "Beschlussantrag Mecklenburg-Vorpommern",
+      "description": "Beschlussanträge in der Beschlusssprache der Grünen Mecklenburg-Vorpommern, im Anschluss an die bestehende Beschlusslage",
+      "avatar": "📜",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-saarland",
+      "title": "Beschlussantrag Saarland",
+      "description": "Beschlussanträge in der Beschlusssprache der Grünen Saarland, im Anschluss an die bestehende Beschlusslage",
+      "avatar": "📜",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-sachsen-anhalt",
+      "title": "Beschlussantrag Sachsen-Anhalt",
+      "description": "Beschlussanträge in der Beschlusssprache der Grünen Sachsen-Anhalt, im Anschluss an die bestehende Beschlusslage",
+      "avatar": "📜",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@beschluss-thueringen",
+      "title": "Beschlussantrag Thüringen",
+      "description": "Beschlussanträge in der Beschlusssprache der Grünen Thüringen, im Anschluss an die bestehende Beschlusslage",
+      "avatar": "📜",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlprogramm-bayern",
+      "title": "Wahlprogramm Bayern",
+      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Bayern",
+      "avatar": "📘",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlprogramm-berlin",
+      "title": "Wahlprogramm Berlin",
+      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Berlin",
+      "avatar": "📘",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlprogramm-brandenburg",
+      "title": "Wahlprogramm Brandenburg",
+      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Brandenburg",
+      "avatar": "📘",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlprogramm-sachsen-anhalt",
+      "title": "Wahlprogramm Sachsen-Anhalt",
+      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Sachsen-Anhalt",
+      "avatar": "📘",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlprogramm-thueringen",
+      "title": "Wahlprogramm Thüringen",
+      "description": "Fundstellen und Wortlaut aus dem Wahlprogramm der Grünen Thüringen",
+      "avatar": "📘",
+      "category": "recherche",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@reisekosten-nrw",
+      "title": "Reisekosten NRW (Beta)",
+      "description": "Reisekostenabrechnung aus deinen Belegen, nur für Reisen, die der Landesverband NRW erstattet — andere Verbände haben eigene Regeln (Beta)",
+      "avatar": "🧾",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@reisekosten-nrw-vorbereiten",
+      "title": "Reise vorbereiten NRW (Beta)",
+      "description": "Was vor einer Reise zu erledigen ist, nur für Reisen, die der Landesverband NRW erstattet — andere Verbände haben eigene Regeln (Beta)",
+      "avatar": "🧳",
+      "category": "dokumente",
+      "audience": "de-DE"
     }
   ],
   "skillCategoryLabels": {

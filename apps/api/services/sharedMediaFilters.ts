@@ -30,6 +30,12 @@ import { SOURCE_CONTENT_ORIGINS } from './sharedMediaOrigin.js';
  *    way back (#2980). Note this is the one family that keeps drafts *and*
  *    uploads, so it matches neither helper and builds its own WHERE.
  *
+ * The Papierkorb: every family but the quota hides trashed rows. The quota
+ * keeps counting them, because their files stay on disk until the purge —
+ * „Endgültig löschen" is what frees the slot. Creation feeds write
+ * `deleted_at IS NULL` at the call site rather than in
+ * {@link creationFeedWhere}, where `trashReaders.vitest.ts` can see it.
+ *
  * Why this module exists: the first two were raw SQL strings in three places
  * that had to be kept in step by hand, and they expressed the *same* intent
  * about internal artifacts through two different columns — `is_library_item`
@@ -172,7 +178,7 @@ export function creationFeedWhere(
  * where an upload belongs.
  */
 export function assetPoolWhere(): string {
-  return `status = 'ready' AND ${LIBRARY_ITEM_CLAUSE}`;
+  return `status = 'ready' AND ${LIBRARY_ITEM_CLAUSE} AND deleted_at IS NULL`;
 }
 
 /**

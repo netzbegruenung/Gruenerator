@@ -516,7 +516,7 @@ describe('was der Schreiber im split-Modus wirklich sieht', () => {
       }),
     });
     await run({ action: 'content', groupId: 'g1' });
-    expect(registry.freshSize).toBe(1);
+    expect(registry.size).toBe(1);
     expect(registry.renderAll()).toContain('Protokoll');
   });
 

@@ -90,7 +90,7 @@ export const boardAgentContractRouter = s.router(boardAgentContract, {
       let documentTitle: string | null = null;
       if (result_document_id) {
         const docRows = await db.query<{ title: string }>(
-          `SELECT title FROM collaborative_documents WHERE id = $1`,
+          `SELECT title FROM collaborative_documents WHERE id = $1 AND is_deleted = false`,
           [result_document_id]
         );
         documentTitle = docRows[0]?.title ?? null;

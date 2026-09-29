@@ -8,9 +8,6 @@
  * preserves full per-route type inference across files.
  */
 
-import path, { dirname } from 'path';
-import { fileURLToPath } from 'url';
-
 import { initServer } from '@ts-rest/express';
 
 import { createLogger } from '../../../../utils/logger.js';
@@ -21,10 +18,6 @@ import type { Request } from 'express';
 export const s = initServer();
 
 export const log = createLogger('groupsContractRouter');
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-export const AVATAR_UPLOAD_DIR = path.join(__dirname, '../../../../uploads/group-avatars');
 
 export interface StoredGroupLink {
   id: string;

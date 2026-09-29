@@ -13,6 +13,7 @@ import { useDeleteRecurringTask, useUpdateRecurringTask } from '../../recurring-
 import { RunHistoryDisclosure } from '../../recurring-tasks/RunHistory';
 import { DELIVERY_LABEL, describeRecurrence } from '../../recurring-tasks/scheduleState';
 import { useRecurringRunNow } from '../../recurring-tasks/useRecurringRunNow';
+import { useTrashUndoToast } from '../../trash/trashUndoToast';
 
 /** Grau wie {@link MarketCard} — die Kachel steht in derselben Rasterzeile. */
 const ICON_BTN = 'rounded-md p-2 text-foreground-muted transition-colors hover:bg-hover-alt';
@@ -20,6 +21,7 @@ const ICON_BTN = 'rounded-md p-2 text-foreground-muted transition-colors hover:b
 export function RecurringTaskCard({ task }: { task: RecurringTask }) {
   const update = useUpdateRecurringTask();
   const remove = useDeleteRecurringTask();
+  const showTrashUndo = useTrashUndoToast();
   const navigate = useNavigate();
   const { start: startRun, isBusy } = useRecurringRunNow(task, (url) => void navigate(url));
 
@@ -69,10 +71,12 @@ export function RecurringTaskCard({ task }: { task: RecurringTask }) {
           <button
             type="button"
             aria-label="Löschen"
-            onClick={() => {
-              if (window.confirm(`Aufgabe „${task.title}" wirklich löschen?`))
-                remove.mutate(task.id);
-            }}
+            onClick={() =>
+              remove.mutate(task.id, {
+                onSuccess: () =>
+                  showTrashUndo({ kind: 'recurring_task', id: task.id, title: task.title }),
+              })
+            }
             className="rounded-md p-2 text-red-600 transition-colors hover:bg-red-600/10"
           >
             <PiTrash className="h-4 w-4" />

@@ -46,6 +46,16 @@ describe('imageVisibility', () => {
     );
   });
 
+  it('sagt im Loop „tool": dort liest `bild_ansehen` die Bilder (#3841)', () => {
+    expect(imageVisibility(state({}), { loop: true })).toBe('tool');
+    // Die übrigen Gründe gelten im Loop genauso — ohne Bildanalyse wird das
+    // Werkzeug auch nicht montiert.
+    expect(imageVisibility(state({ enabledTools: { vision: false } }), { loop: true })).toBe(
+      'vision_off'
+    );
+    expect(imageVisibility(state({ imageAttachments: [] }), { loop: true })).toBe('none');
+  });
+
   it('liest ein ausdrückliches vision: true wie das Fehlen des Schlüssels', () => {
     // Die Datensatz-Semantik des ganzen Pfads ist `!== false`.
     expect(imageVisibility(state({ enabledTools: { vision: true } }))).toBe('visible');

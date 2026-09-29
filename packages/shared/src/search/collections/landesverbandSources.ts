@@ -43,6 +43,8 @@ export type LandesverbandSourceId = (typeof LANDESVERBAND_SOURCE_IDS)[number];
 export const CURATED_LIST_IDS = [
   'wahlprogramm-be',
   'wahlprogramm-lsa',
+  'wahlprogramm-bb',
+  'wahlprogramm-sl',
 ] as const satisfies readonly string[];
 
 export type CuratedListId = (typeof CURATED_LIST_IDS)[number];

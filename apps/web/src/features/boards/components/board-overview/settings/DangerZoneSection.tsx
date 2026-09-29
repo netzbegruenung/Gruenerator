@@ -58,7 +58,7 @@ export const DangerZoneSection = memo(function DangerZoneSection({
 
       <Row
         title="Board löschen"
-        description="Dieses Board und alle Karten werden unwiderruflich gelöscht."
+        description="Dieses Board und alle Karten werden in den Papierkorb verschoben und können 30 Tage lang wiederhergestellt werden."
       >
         <Button
           size="sm"
@@ -75,7 +75,8 @@ export const DangerZoneSection = memo(function DangerZoneSection({
           <DialogHeader>
             <DialogTitle>Board löschen?</DialogTitle>
             <DialogDescription>
-              Dieses Board und alle Karten werden unwiderruflich gelöscht.
+              Dieses Board und alle Karten werden in den Papierkorb verschoben und können 30 Tage
+              lang wiederhergestellt werden.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

@@ -14,6 +14,7 @@ import * as schema from '../database/schema/index.js';
 import { loadConfig } from '../database/services/PostgresService/config.js';
 import { mobileTokenExchange } from '../plugins/mobileTokenExchange.js';
 import { webViewHandoff } from '../plugins/webViewHandoff.js';
+import { oauthRequestDefaults } from '../services/auth/oauthRequestDefaults.js';
 import { createLogger } from '../utils/logger.js';
 import { captureAuthIssue } from '../utils/observability/captureAuthIssue.js';
 import { redisClient } from '../utils/redis/client.js';
@@ -24,6 +25,7 @@ import { env } from './env.js';
 import { syncLocaleFromProvider } from './localeSync.js';
 import { mapKeycloakProfileToUser } from './mapKeycloakProfileToUser.js';
 import {
+  CHAT_COMPLETIONS_SCOPE,
   MCP_CLIENT_REGISTRATION_SCOPES,
   MCP_CONSENT_PAGE,
   MCP_LOGIN_PAGE,
@@ -178,6 +180,11 @@ const rawMcpPlugin = mcp({
   // Was ein frisch registrierter Client bekommt. Bewusst enger als `scopes` —
   // siehe die Begründung an der Konstante.
   clientRegistrationDefaultScopes: [...MCP_CLIENT_REGISTRATION_SCOPES],
+  // Ohne diese Zeile weist `/oauth2/register` die Registrierung des
+  // Excel-Add-ins mit `invalid_scope` ab. 1.7 speichert sie in JEDEM
+  // dynamischen Client mit — die Vorgabe ohne `scope` setzt deshalb
+  // `oauthRequestDefaults` unten (#3668).
+  clientRegistrationAllowedScopes: [CHAT_COMPLETIONS_SCOPE],
   accessTokenExpiresIn: 3600,
   refreshTokenExpiresIn: 60 * 60 * 24 * 30,
   // 1.7 schaltet die dynamische Registrierung nicht mehr mit `mcp()` mit ein;
@@ -602,6 +609,7 @@ export const auth = betterAuth({
   // log + cluster it in GlitchTip (`auth.stage=oauth-callback`, fingerprint per
   // code). Benign replay/expiry codes are skipped to keep bot noise out.
   hooks: {
+    before: oauthRequestDefaults(MCP_CLIENT_REGISTRATION_SCOPES, MCP_RESOURCE_URL),
     after: createAuthMiddleware(async (ctx) => {
       // 1.7 macht aus jedem genericOAuth-Provider einen echten
       // Social-Provider: der Rückweg heißt jetzt `/callback/:id`, nicht

@@ -409,7 +409,7 @@ describe('was der Schreiber im split-Modus wirklich sieht', () => {
     const registry = createSourceRegistry();
     const { run } = makeCtx({ registry, tasks: [task()] });
     await run({ action: 'list' });
-    expect(registry.freshSize).toBe(1);
+    expect(registry.size).toBe(1);
     const block = registry.renderAll();
     expect(block).toContain('Wochenbericht');
     expect(block).toContain('wöchentlich (Montag)');

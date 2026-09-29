@@ -1,7 +1,7 @@
 /**
  * The cheap GreenPT lane is only correct if it stays out of the way of every
  * search that needs something GreenPT cannot do. Its endpoint carries no date
- * on its results, no image hits, no exclude list and a hard ceiling of ten — and
+ * on its results, no image hits, no domain scope and a result ceiling — and
  * it accepts unknown parameters silently instead of rejecting them, so a
  * wrongly-routed search does not fail, it quietly returns something narrower
  * than what was asked for.
@@ -22,6 +22,13 @@ vi.mock('../../../services/search/LinkupService.js', () => ({
   getLinkupService: () => ({ webSearch: mockLinkup }),
 }));
 
+// The last engine in the chain, pinned to "down" so a lane that fails above it
+// ends here instead of on the network.
+vi.mock('../../../services/search/SearxngService.js', () => ({
+  searxngService: {
+    performWebSearch: () => Promise.resolve({ success: false, results: [] }),
+  },
+}));
 const { executeDirectWebSearch } = await import('./directSearchExecutors.js');
 
 const greenptHit = (n: number) => ({
@@ -56,10 +63,31 @@ describe('simple lookups take the GreenPT lane', () => {
   });
 });
 
+describe('what GreenPT can take on itself', () => {
+  it('serves a block list by dropping the blocked hosts from its hits — the chat sends one with every search', async () => {
+    mockGreenPT.mockResolvedValue([
+      greenptHit(1),
+      { url: 'https://www.amazon.de/x', title: 'Shop', description: 'Kaufen' },
+    ]);
+    const res = await executeDirectWebSearch({
+      query: 'Klimapolitik',
+      excludeDomains: ['amazon.de'],
+    });
+    expect(mockLinkup).not.toHaveBeenCalled();
+    expect(res.results.map((r) => r.url)).toEqual(['https://gp.de/1']);
+  });
+
+  it('sends an Austrian search to Austria — country code plus the word, which is what moves generic queries', async () => {
+    await executeDirectWebSearch({ query: 'Pflegegeld Erhöhung', locale: 'de-AT' });
+    expect(mockGreenPT).toHaveBeenCalledWith(
+      expect.objectContaining({ query: 'Pflegegeld Erhöhung Österreich', country: 'at' })
+    );
+  });
+});
+
 describe('anything GreenPT cannot express stays on Linkup', () => {
   const cases: Array<[string, Parameters<typeof executeDirectWebSearch>[0]]> = [
     ['a site scope', { query: 'Klimapolitik', includeDomains: ['zeit.de'] }],
-    ['a block list', { query: 'Klimapolitik', excludeDomains: ['amazon.de'] }],
     ['an explicit date window', { query: 'Klimapolitik', fromDate: '2026-01-01' }],
     ['an upper date bound', { query: 'Klimapolitik', toDate: '2026-06-01' }],
     ['a relative time range', { query: 'Klimapolitik', timeRange: 'week' }],
@@ -86,12 +114,6 @@ describe('GreenPT failure falls through to Linkup', () => {
     expect(res.resultsCount).toBe(1);
     expect(res.results[0]?.url).toBe('https://lu.de/1');
     expect(res.error).toBeUndefined();
-  });
-
-  it('falls back when the rate gate refuses the call', async () => {
-    mockGreenPT.mockRejectedValue(new Error('GreenPT rate gate — 900ms since last call'));
-    const res = await executeDirectWebSearch({ query: 'Einwohnerzahl Kassel' });
-    expect(res.results[0]?.url).toBe('https://lu.de/1');
   });
 
   it('falls back when the circuit is open', async () => {

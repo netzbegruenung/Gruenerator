@@ -499,6 +499,49 @@ describe('convertToThreadMessageLike — interleaved reload', () => {
     expect((content[3] as { toolCallId: string }).toolCallId).toBe('t2');
   });
 
+  it('keeps one card per toolCallId when a persisted turn repeats an id', () => {
+    // assistant-ui throws "Duplicate key toolCallId-…" on a repeat and takes the
+    // whole message down; rows written before the backend fix still carry them.
+    const content = contentOf({
+      toolCalls: [
+        {
+          toolCallId: 'wsnY18LfD',
+          toolName: 'notebook_search',
+          args: {},
+          result: {},
+          textOffset: 0,
+        },
+        { toolCallId: 'wsnY18LfD', toolName: 'artifact_edit', args: {}, result: {}, textOffset: 0 },
+        { toolCallId: 't2', toolName: 'web_search', args: {}, result: {}, textOffset: 5 },
+      ],
+    });
+    const cards = content.filter(
+      (p): p is ContentPart & { toolCallId: string; toolName: string } => p.type === 'tool-call'
+    );
+    expect(cards.map((c) => [c.toolCallId, c.toolName])).toEqual([
+      ['wsnY18LfD', 'notebook_search'],
+      ['t2', 'web_search'],
+    ]);
+  });
+
+  it('gives every id-less step its own fallback id', () => {
+    const idsOf = (content: ContentPart[]) =>
+      content.flatMap((p) => (p.type === 'tool-call' ? [p.toolCallId] : []));
+    const step = { toolCallId: '', toolName: 'web_search', args: {}, result: {} };
+    // Interleaved and legacy (no offsets) layouts build their cards separately.
+    const interleaved = idsOf(
+      contentOf({
+        toolCalls: [
+          { ...step, textOffset: 2 },
+          { ...step, textOffset: 5 },
+        ],
+      })
+    );
+    const legacy = idsOf(contentOf({ toolCalls: [step, step] }));
+    expect(interleaved).toEqual(['tc_m1_0', 'tc_m1_1']);
+    expect(legacy).toEqual(['tc_m1_0', 'tc_m1_1']);
+  });
+
   it('sorts tool calls by offset (stable) before slicing', () => {
     const content = contentOf({
       toolCalls: [
@@ -653,6 +696,27 @@ describe('convertNotebookLoadedMessages', () => {
       } as unknown as LoadedMessage['metadata'],
     },
   ];
+
+  it('keeps one card per toolCallId in a precision answer', () => {
+    const [answer] = convertNotebookLoadedMessages([
+      {
+        id: 'a2',
+        role: 'assistant',
+        content: 'Antwort',
+        metadata: {
+          toolCalls: [
+            { toolCallId: 'x1', toolName: 'notebook_search', args: {}, result: {} },
+            { toolCallId: 'x1', toolName: 'notebook_search', args: {}, result: {} },
+            { toolCallId: '', toolName: 'notebook_search', args: {}, result: {} },
+          ],
+        },
+      },
+    ]);
+    const ids = ((answer?.content ?? []) as ContentPart[]).flatMap((p) =>
+      p.type === 'tool-call' ? [p.toolCallId] : []
+    );
+    expect(ids).toEqual(['x1', 'tc_a2_2']);
+  });
 
   it('rewrites [cite:N] markers to the [N] form the badge layer matches', () => {
     const [, answer] = convertNotebookLoadedMessages(rows);

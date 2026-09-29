@@ -340,6 +340,8 @@ export interface Citation {
   collectionId?: string | undefined;
   /** See `readerCollectionId` in chatCitationBase. */
   readerCollectionId?: string | undefined;
+  /** See `readerDocument` in chatCitationBase. */
+  readerDocument?: { documentId: string; notebookId: string | null } | undefined;
   pageNumber?: number | null;
   // Set when this citation came from a fan-out per-document retrieval
   // (multi-document chat). Lets the UI group source cards by referenced doc.
@@ -549,6 +551,8 @@ export interface ChatGraphInput {
    * user hasn't explicitly @mentioned a notebook this turn.
    */
   defaultNotebookDocumentIds?: string[] | undefined;
+  /** Notebook each of the above documents came in through (`resolveUserNotebookDocumentIds`). */
+  documentNotebookIds?: Record<string, string> | undefined;
   documentIds?: string[] | undefined;
   textIds?: string[] | undefined;
   documentChatIds?: string[] | undefined;
@@ -722,6 +726,9 @@ export interface ChatGraphState {
   defaultNotebookCollectionIds: string[];
   // Document IDs from a user-owned notebook bound to the agent as its default.
   defaultNotebookDocumentIds: string[];
+  // Notebook each user-notebook document came in through — becomes the hit's
+  // `collectionId`, so the reader can open a collaborator's document.
+  documentNotebookIds?: Record<string, string>;
 
   // Document scoping (from @datei mentions)
   documentIds: string[];

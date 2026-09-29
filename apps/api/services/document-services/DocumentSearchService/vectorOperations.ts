@@ -254,6 +254,35 @@ export async function deleteDocumentVectors(
 }
 
 /**
+ * Mark a document's vectors as trashed (`deletedAt` ISO) or live again (null)
+ * without touching the embeddings. Unscoped searches over `documents` skip
+ * points that carry `deleted_at` (see `searchOperations.ts`); used for chat
+ * attachment chunks, which have no `documents` row a search could join on.
+ */
+export async function setDocumentVectorsDeletedAt(
+  qdrantOps: QdrantOperations,
+  documentId: string,
+  userId: string,
+  deletedAt: string | null
+): Promise<void> {
+  const filter = {
+    must: [
+      { key: 'document_id', match: { value: documentId } },
+      { key: 'user_id', match: { value: userId } },
+    ],
+  };
+  if (deletedAt) {
+    await qdrantOps.client.setPayload('documents', {
+      payload: { deleted_at: deletedAt },
+      filter,
+      wait: true,
+    });
+  } else {
+    await qdrantOps.client.deletePayload('documents', { keys: ['deleted_at'], filter, wait: true });
+  }
+}
+
+/**
  * Delete all vectors for a user
  *
  * Removes all document vectors owned by a specific user.

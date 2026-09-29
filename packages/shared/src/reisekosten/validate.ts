@@ -102,28 +102,30 @@ export function validateReisekosten(state: ReisekostenState, now: Date = new Dat
         'Für Kfz-Fahrten muss ein Routenplaner-Ausdruck beigefügt werden.'
       );
     }
-    if (kfz.km > rate.kmObergrenze && !(kfz.dbFlexpreis && kfz.dbFlexpreis > 0)) {
+    if (kfz.km > rate.kmObergrenze && !kfz.vorstandsbeschluss) {
       push(
-        'error',
-        'fahrt.kfz.dbFlexpreis',
-        `Ab ${rate.kmObergrenze} km ist nur der DB-Flexpreis (2. Kl.) erstattungsfähig – bitte Flexpreis mit Beleg angeben.`
+        'warn',
+        'fahrt.kfz.vorstandsbeschluss',
+        `Ohne Vorstandsbeschluss sind nur ${rate.kmObergrenze} km erstattungsfähig – die Mehr-km werden nicht angesetzt.`
       );
     }
   }
 
   const miete = state.fahrt.miete;
   if (miete && miete.betrag > 0) {
+    if (!miete.vorstandsbeschluss) {
+      push(
+        'error',
+        'fahrt.miete.vorstandsbeschluss',
+        'Mietwagen/Carsharing ist nur mit Vorstandsbeschluss erstattungsfähig (ist beizufügen).'
+      );
+    }
     if (!miete.belegVorhanden) {
       push(
         'warn',
         'fahrt.miete',
         'Mietwagen/Carsharing nur mit Originalrechnung erstattungsfähig.'
       );
-    }
-    if (!(miete.dbFlexpreis && miete.dbFlexpreis > 0)) {
-      push('warn', 'fahrt.miete.dbFlexpreis', 'DB-Flexpreis-Beleg fehlt (bildet die Obergrenze).');
-    } else if (miete.betrag > miete.dbFlexpreis) {
-      push('warn', 'fahrt.miete.betrag', 'Mietkosten übersteigen den DB-Flexpreis (Obergrenze).');
     }
   }
 

@@ -327,6 +327,8 @@ export const transformedCollectionSchema = z.object({
   access_source: notebookAccessSourceSchema.nullish(),
   slug_suffix: z.string().nullish(),
   creator_name: z.string().nullish(),
+  /** Names of the viewer's Projekte this notebook was shared into (listSharedCollections only). */
+  shared_via_groups: z.array(z.string()).nullish(),
   /**
    * Derived server-side from the documents above (see deriveIndexingState).
    * Nullish so responses from a backend predating this field still parse —

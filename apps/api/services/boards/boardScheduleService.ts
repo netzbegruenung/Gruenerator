@@ -238,6 +238,21 @@ export async function redoRun(
 }
 
 /**
+ * Schedules due to fire. `board_id` has no FK, so a board in the Papierkorb
+ * (or already purged) is excluded here — otherwise its schedule would keep
+ * enqueueing agent tasks forever.
+ */
+export const DUE_SCHEDULES_SQL = `SELECT * FROM board_scheduled_runs s
+        WHERE s.enabled = TRUE AND s.next_run_at <= now()
+          AND EXISTS (
+            SELECT 1 FROM collaborative_documents cd
+             WHERE cd.id = s.board_id AND cd.is_deleted = false
+          )
+        ORDER BY s.next_run_at
+        FOR UPDATE OF s SKIP LOCKED
+        LIMIT 50`;
+
+/**
  * Claim every schedule whose next_run_at has passed and fire it. Cluster-safe:
  * the claim advances next_run_at inside a `FOR UPDATE SKIP LOCKED` transaction so
  * two nodes never fire the same schedule, and the enqueue happens after commit so
@@ -247,11 +262,7 @@ export async function claimAndEnqueueDueSchedules(): Promise<number> {
   const claimed = await db.transaction(async (client) => {
     const due = (await db.transactionQuery(
       client,
-      `SELECT * FROM board_scheduled_runs
-        WHERE enabled = TRUE AND next_run_at <= now()
-        ORDER BY next_run_at
-        FOR UPDATE SKIP LOCKED
-        LIMIT 50`,
+      DUE_SCHEDULES_SQL,
       []
     )) as unknown as BoardScheduledRun[];
 

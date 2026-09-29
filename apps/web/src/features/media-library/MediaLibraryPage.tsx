@@ -20,6 +20,7 @@ import { SharedMediaImage } from '../../components/common/SharedMediaImage';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { cn } from '../../utils/cn';
 import { formatAudioDuration } from '../../utils/formatAudioDuration';
+import { useTrashUndoToast } from '../trash/trashUndoToast';
 
 import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
 
@@ -73,7 +74,7 @@ const GRID_SIZES = '(max-width: 768px) 150px, 200px';
 // on a 2x display — never the unresized original.
 const MODAL_SIZES = '(max-width: 540px) 100vw, 500px';
 
-const MediaCard: React.FC<MediaCardProps> = ({
+export const MediaCard: React.FC<MediaCardProps> = ({
   item,
   onDelete,
   onEdit,
@@ -163,14 +164,16 @@ const MediaCard: React.FC<MediaCardProps> = ({
                 className="size-8 flex items-center justify-center border-none rounded-lg bg-[var(--success-color)] text-white cursor-pointer transition-all duration-200"
                 onClick={handleDelete}
                 disabled={isDeleting}
+                aria-label="In den Papierkorb verschieben"
               >
-                <FaCheck />
+                <FaCheck aria-hidden="true" />
               </button>
               <button
                 className="size-8 flex items-center justify-center border-none rounded-lg bg-[#D32F2F] text-white cursor-pointer transition-all duration-200"
                 onClick={() => setShowDeleteConfirm(false)}
+                aria-label="Abbrechen"
               >
-                <FaTimes />
+                <FaTimes aria-hidden="true" />
               </button>
             </div>
           ) : (
@@ -179,15 +182,17 @@ const MediaCard: React.FC<MediaCardProps> = ({
                 className="size-8 flex items-center justify-center border-none rounded-lg bg-white/90 text-foreground cursor-pointer transition-all duration-200 hover:bg-primary-600 hover:text-white"
                 onClick={() => onEdit(item)}
                 title="Bearbeiten"
+                aria-label="Bearbeiten"
               >
-                <FaEdit />
+                <FaEdit aria-hidden="true" />
               </button>
               <button
                 className="size-8 flex items-center justify-center border-none rounded-lg bg-white/90 text-foreground cursor-pointer transition-all duration-200 hover:bg-[#D32F2F] hover:text-white"
                 onClick={() => setShowDeleteConfirm(true)}
                 title="Löschen"
+                aria-label="Löschen"
               >
-                <FaTrash />
+                <FaTrash aria-hidden="true" />
               </button>
             </>
           )}
@@ -336,6 +341,20 @@ const MediaLibraryPage: React.FC = () => {
     deleteItem,
     updateItem,
   } = useMediaLibrary({ enabled: isAuthenticated });
+  const showTrashUndo = useTrashUndoToast();
+
+  // DELETE /api/media/:id takes the row id; the trash addresses a share by its token.
+  const handleDeleteItem = useCallback(
+    async (id: string) => {
+      const item = items.find((candidate) => candidate.id === id);
+      const deleted = await deleteItem(id);
+      if (deleted && item) {
+        showTrashUndo({ kind: 'shared_media', id: item.shareToken, title: item.title });
+      }
+      return deleted;
+    },
+    [items, deleteItem, showTrashUndo]
+  );
 
   const {
     upload,
@@ -566,7 +585,7 @@ const MediaLibraryPage: React.FC = () => {
                 key={item.id}
                 item={item}
                 index={i}
-                onDelete={deleteItem}
+                onDelete={handleDeleteItem}
                 onEdit={setEditingItem}
               />
             ))}

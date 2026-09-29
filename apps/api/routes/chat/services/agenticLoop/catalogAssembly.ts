@@ -14,12 +14,19 @@
  * Netz und ohne echte MCP-Server prüfbar ist.
  */
 import { lastUserText } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import { isProductMetaQuestion } from '../../../../services/chat/productKnowledge.js';
+import { createLogger } from '../../../../utils/logger.js';
 import { makeAskHumanTool } from '../../agents/askHumanTool.js';
-import { preferredLvRecipeMention } from '../../agents/lvRecipePreference.js';
+import {
+  ownedLvDefaultRecipeMention,
+  preferredLvRecipeMention,
+} from '../../agents/lvRecipePreference.js';
 import { loadManagedMcpCatalog as loadManagedMcpCatalogReal } from '../../agents/managedMcpCatalog.js';
 import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
   buildRecipeCatalog as buildRecipeCatalogReal,
+  recommendedToolsFor,
+  resolveRecipe as resolveRecipeReal,
   type RecipeCatalogEntry,
 } from '../../agents/recipeCatalog.js';
 import { makeRecipeTool } from '../../agents/recipeTools.js';
@@ -44,6 +51,7 @@ import { isLoopAskHumanEnabled, isMcpReplayEnabled, isToolScopeEnforced } from '
 import { createToolLoopGuards } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
 import { createRecipeRegistry, type RecipeRegistry } from './recipeRegistry.js';
+import { looksLikeChitchatTurn } from './routing.js';
 import { type SourceRegistry } from './sourceRegistry.js';
 import { type ToolApprovalGate } from './toolApprovalGate.js';
 import { createToolScope, type ToolScope } from './toolScope.js';
@@ -59,6 +67,8 @@ import type { ToolActivity } from './toolActivity.js';
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage, ToolSet } from 'ai';
 import type { Request } from 'express';
+
+const log = createLogger('catalogAssembly');
 
 /** Tools counted against the per-turn search budget (loopGuards). */
 export const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
@@ -79,6 +89,7 @@ export const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
  */
 const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
   'edit_document',
+  'reisekosten_abrechnung',
   'create_document',
   'create_board',
   'create_sheet',
@@ -130,6 +141,7 @@ export interface CatalogDeps {
   loadMcpCatalog: typeof loadMcpCatalogReal;
   loadManagedMcpCatalog: typeof loadManagedMcpCatalogReal;
   buildRecipeCatalog: typeof buildRecipeCatalogReal;
+  resolveRecipe: typeof resolveRecipeReal;
 }
 
 const defaultDeps: CatalogDeps = {
@@ -137,6 +149,7 @@ const defaultDeps: CatalogDeps = {
   loadMcpCatalog: loadMcpCatalogReal,
   loadManagedMcpCatalog: loadManagedMcpCatalogReal,
   buildRecipeCatalog: buildRecipeCatalogReal,
+  resolveRecipe: resolveRecipeReal,
 };
 
 export interface AssembledCatalog {
@@ -290,6 +303,40 @@ export async function assembleToolCatalog(
   }
   const mcpMountMs = Date.now() - mcpMountStart;
 
+  // Ein-Rezept-LV-Agenten (Bürger*innenanfragen) bekommen ihr Rezept vorab:
+  // nur ohne eigene Wahl und ohne Persona (wie `resolveEffectiveRecipeMention`)
+  // und nicht auf Plauder- oder Produktfragen. Anders als im Single-Pass-Pfad
+  // auch auf Recherchefragen („Wie positioniert sich der LV zu …?") — genau
+  // die laufen über den Loop; den Fall ohne Mail-Auftrag regelt der
+  // Rezepttext selbst. Wählt das Modell über `rezept_laden` ein anderes
+  // Rezept, ersetzt es das vorgeladene (`preloaded`), statt sich danebenzulegen.
+  const isMounted = (tool: string): boolean => tool in tools;
+  const ownedDefault = ownedLvDefaultRecipeMention(agentConfig);
+  if (
+    ownedDefault &&
+    !state.activeSkillMention &&
+    !state.activeRecipeId &&
+    !state.customSystemPrompt
+  ) {
+    const text = state.lastUserTextNoMentions ?? lastUserText(state);
+    if (!looksLikeChitchatTurn(text) && !isProductMetaQuestion(text)) {
+      const resolved = await deps.resolveRecipe({ mention: ownedDefault, userId: userId ?? null });
+      if (resolved) {
+        recipeRegistry.register({
+          mention: ownedDefault,
+          title: resolved.title,
+          body: resolved.body,
+          source: resolved.source,
+          recommendedTools: recommendedToolsFor(ownedDefault, isMounted),
+          preloaded: true,
+        });
+        log.info(`[Rezept] vorab geladen=${ownedDefault} (Agent-Default)`);
+      } else {
+        log.warn(`[Rezept] Agent-Default nicht verfügbar: ${ownedDefault}`);
+      }
+    }
+  }
+
   // Self-loading recipes. Mounted async like the MCP catalogs (the user's
   // learned text forms need a DB read), and only when nothing already
   // decides the writing form for this turn:
@@ -319,8 +366,14 @@ export async function assembleToolCatalog(
       userId: userId ?? null,
       roles: state.userRoles,
     });
+    recipeCatalog = recipeCatalog.map((entry) =>
+      entry.recommendedTools
+        ? { ...entry, recommendedTools: entry.recommendedTools.filter(isMounted) }
+        : entry
+    );
     if (recipeCatalog.length > 0) {
       tools.rezept_laden = makeRecipeTool({
+        isMounted,
         catalog: recipeCatalog,
         registry: recipeRegistry,
         userId: userId ?? null,

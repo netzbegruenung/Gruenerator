@@ -15,7 +15,6 @@ import express, { type Router, type Response } from 'express';
 import { z } from 'zod';
 
 import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
-import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
@@ -32,7 +31,6 @@ const router: Router = express.Router();
 // Initialize services
 const postgresDocumentService = getPostgresDocumentService();
 const documentSearchService = new DocumentSearchService();
-const notebookHelper = new NotebookQdrantHelper();
 
 /**
  * GET /user - Get user documents with enrichment
@@ -372,70 +370,13 @@ router.get(
   }
 );
 
-/**
- * DELETE /:id - Delete document (PostgreSQL + Qdrant only)
- */
-router.delete(
-  '/:id',
-  async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
-    try {
-      const id = fromParam<DocumentId>(req.params.id);
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      // Delete document metadata from PostgreSQL (includes ownership check)
-      await postgresDocumentService.deleteDocument(id, userId);
-
-      // Delete document vectors from Qdrant
-      try {
-        await documentSearchService.deleteDocumentVectors(id, userId);
-        log.debug(`[DELETE /:id] Successfully deleted vectors for document ${id}`);
-      } catch (vectorError) {
-        log.warn('[DELETE /:id] Vector deletion warning:', vectorError);
-        // Continue even if vector deletion fails - document metadata is already deleted
-      }
-
-      // Notebook membership lives in Qdrant, not in the Postgres table of the
-      // same name, so no foreign key takes this out for us. Left behind, the
-      // join point keeps naming a document that no longer exists: notebooks go
-      // on listing it, and QA filters on an id that can never match.
-      await notebookHelper.removeDocumentsFromAllCollections([id]);
-
-      res.json({
-        success: true,
-        message: 'Document deleted successfully',
-      });
-    } catch (error) {
-      log.error('[DELETE /:id] Error:', error);
-
-      if (
-        (error as Error).message.includes('not found') ||
-        (error as Error).message.includes('access denied')
-      ) {
-        res.status(404).json({
-          success: false,
-          message: 'Document not found or access denied',
-        });
-        return;
-      }
-
-      res.status(500).json({
-        success: false,
-        message: (error as Error).message || 'Failed to delete document',
-      });
-    }
-  }
-);
-
 const bulkDeleteSchema = z.object({
   ids: z.array(z.string()).min(1),
 });
 
 /**
- * DELETE /bulk - Bulk delete documents (PostgreSQL + Qdrant only)
+ * DELETE /bulk - Move documents to the Papierkorb (see DELETE /:id)
+ * Must be registered before DELETE /:id, which would otherwise capture "bulk" as an id.
  */
 router.delete(
   '/bulk',
@@ -461,33 +402,10 @@ router.delete(
       );
       log.debug('[DELETE /bulk] Document IDs to delete:', ids);
 
-      // Delete document metadata from PostgreSQL
-      log.debug('[DELETE /bulk] Starting bulk delete operation...');
-      const deleteResult = await postgresDocumentService.bulkDeleteDocuments(ids, userId);
+      const deletedIds = await postgresDocumentService.trashDocuments(ids, userId);
+      const deleteResult = { deletedCount: deletedIds.length, deletedIds };
 
-      // Delete document vectors from Qdrant
-      const vectorDeletePromises = deleteResult.deletedIds.map(async (documentId) => {
-        try {
-          await documentSearchService.deleteDocumentVectors(documentId, userId);
-          return { documentId, success: true };
-        } catch (error) {
-          log.warn(`[DELETE /bulk] Failed to delete vectors for document ${documentId}:`, error);
-          return { documentId, success: false, error: (error as Error).message };
-        }
-      });
-
-      const vectorDeleteResults = await Promise.allSettled(vectorDeletePromises);
-      const vectorDeleteSuccesses = vectorDeleteResults.filter(
-        (result) => result.status === 'fulfilled' && result.value.success
-      ).length;
-
-      // Same reason as the single delete above: nothing else clears the notebook
-      // join points, and a stale one outlives the document it names.
-      await notebookHelper.removeDocumentsFromAllCollections(deleteResult.deletedIds);
-
-      log.debug(
-        `[DELETE /bulk] Bulk delete completed: ${deleteResult.deletedCount} documents deleted, ${vectorDeleteSuccesses} vector collections deleted`
-      );
+      log.debug(`[DELETE /bulk] Moved ${deleteResult.deletedCount} documents to the Papierkorb`);
 
       res.json({
         success: true,
@@ -497,7 +415,8 @@ router.delete(
         total_requested: ids.length,
         deleted_ids: deleteResult.deletedIds,
         vector_cleanup: {
-          vectors_deleted: vectorDeleteSuccesses,
+          // Vectors stay until the purge.
+          vectors_deleted: 0,
           total_documents: deleteResult.deletedIds.length,
         },
       });
@@ -506,6 +425,50 @@ router.delete(
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to perform bulk delete',
+      });
+    }
+  }
+);
+
+/**
+ * DELETE /:id - Move a document to the Papierkorb. Its vectors and notebook
+ * links stay until the purge; readers hide it meanwhile.
+ */
+router.delete(
+  '/:id',
+  async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
+    try {
+      const id = fromParam<DocumentId>(req.params.id);
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      // Ownership check included; throws "not found" otherwise.
+      await postgresDocumentService.trashDocument(id, userId);
+
+      res.json({
+        success: true,
+        message: 'Document deleted successfully',
+      });
+    } catch (error) {
+      log.error('[DELETE /:id] Error:', error);
+
+      if (
+        (error as Error).message.includes('not found') ||
+        (error as Error).message.includes('access denied')
+      ) {
+        res.status(404).json({
+          success: false,
+          message: 'Document not found or access denied',
+        });
+        return;
+      }
+
+      res.status(500).json({
+        success: false,
+        message: (error as Error).message || 'Failed to delete document',
       });
     }
   }

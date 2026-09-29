@@ -173,6 +173,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel Office."
   },
   {
+    "url": "/docs/features/papierkorb",
+    "title": "Papierkorb",
+    "category": "Features",
+    "lead": "Was du im Grünerator löschst, ist nicht sofort weg: Es liegt zunächst 30 Tage im Papierkorb. Bis dahin kannst du es wiederherstellen; danach wird es endgültig gelöscht."
+  },
+  {
     "url": "/docs/features/praesentationen",
     "title": "Präsentationen",
     "category": "Features",
@@ -1211,7 +1217,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn etwas nicht geht",
     "anchor": "#wenn-etwas-nicht-geht",
     "category": "Chat",
-    "text": "Manches ist nur in der Web-Version möglich. Excel-/CSV-Vorlagen ausfüllen braucht die große Oberfläche; die App öffnet dafür den Web-Editor eingebettet. Reel-Untertitel bearbeitest du dagegen auch direkt in der App. Sharepics entstehen dagegen auch in der App — du siehst sie direkt im Gespräch, kannst sie teilen und speichern; zum Feinschliff öffnet sich der Editor eingebettet, ohne dass du die App verlässt. Einige Quellen decken nur Deutschland ab. Bundestag, Abgeordnetenwatch, Bahn, tagesschau und Gesetze (deutsches Bundesrecht) beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus. Nicht jede Zusatzquelle ist überall angebunden. Bahn, Wetterdienst, tagesschau, trivago und Gesetze werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht. Erfindet der Grünerator nichts? Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter Risiken und Gefahren von LLMs. Du nutzt den Grünerator in ChatGPT, Claude oder Le Chat? Dort steht ein kleinerer…"
+    "text": "Manches ist nur in der Web-Version möglich. Excel-/CSV-Vorlagen ausfüllen braucht die große Oberfläche; die App öffnet dafür den Web-Editor eingebettet. Reel-Untertitel bearbeitest du im Chat bislang nur in der Web-Version unter gruenerator.eu. Sharepics entstehen dagegen auch in der App — du siehst sie direkt im Gespräch, kannst sie teilen und speichern; zum Feinschliff öffnet sich der Editor eingebettet, ohne dass du die App verlässt. Einige Quellen decken nur Deutschland ab. Bundestag, Abgeordnetenwatch, Bahn, tagesschau und Gesetze (deutsches Bundesrecht) beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus. Nicht jede Zusatzquelle ist überall angebunden. Bahn, Wetterdienst, tagesschau, trivago und Gesetze werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht. Erfindet der Grünerator nichts? Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter Risiken und Gefahren von LLMs. Du nutzt den Grünerator in ChatGPT, Claude oder Le Chat?…"
   },
   {
     "url": "/docs/features/agentura",
@@ -1435,7 +1441,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverband-Agents",
     "anchor": "",
     "category": "Features",
-    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Agents. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web. Es gibt drei Sorten von Landesverband-Agents: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands. Die Agents, Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle Mitarbeiter*in Landesgeschäftsstelle (Österreich: Landesorganisation) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter Für deinen Landesverband einrichten."
+    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Agents. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme); eine Websuche haben nur die Öffentlichkeitsarbeit- und die Beschluss-Agents. Es gibt bis zu fünf Sorten von Landesverband-Agents: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands. Beschlussanträge — schreibt Beschlussanträge in der Beschlusssprache des Landesverbands, im Anschluss an seine bestehenden Beschlüsse. Nur wo die Beschlüsse des Landesverbands in der Wissensdatenbank liegen. Wahlprogramm — schlägt im Wahlprogramm des Landesverbands nach und prüft Aussagen dagegen. Nur wo das Wahlprogramm in der…"
   },
   {
     "url": "/docs/features/landesverbaende",
@@ -1443,7 +1449,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Abgedeckte Landesverbände",
     "anchor": "#abgedeckte-landesverbände",
     "category": "Features",
-    "text": "Jede Kachel verlinkt auf die Landesverband-Seite — sie bietet die drei Agents des Landesverbands zur Auswahl an: Öffentlichkeitsarbeit, Bürger*innenservice und Wahlprüfsteine (alle siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook). Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben drei Agent-Typen (erreichbar unter /agents/gruene-oesterreich, Wissensdatenbank /notebooks/oesterreich · @at). Diese Agents verwenden österreichisches Vokabular (Nationalrat, Klubobfrau*Klubobmann, Klimaticket) und erscheinen nur für Nutzer*innen mit österreichischer Einstellung."
+    "text": "Jede Kachel verlinkt auf die Landesverband-Seite — sie bietet die Agents des Landesverbands zur Auswahl an: Öffentlichkeitsarbeit, Bürger*innenservice, Wahlprüfsteine und, wo vorhanden, Beschlussanträge und Wahlprogramm (alle siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook). Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben drei Agent-Typen (erreichbar unter /agents/gruene-oesterreich, Wissensdatenbank /notebooks/oesterreich · @at). Diese Agents verwenden österreichisches Vokabular (Nationalrat, Klubobfrau*Klubobmann, Klimaticket) und erscheinen nur für Nutzer*innen mit österreichischer Einstellung."
+  },
+  {
+    "url": "/docs/features/landesverbaende",
+    "pageTitle": "Landesverband-Agents",
+    "heading": "Beschlussanträge schreiben und Wahlprogramm nachschlagen",
+    "anchor": "#beschlussanträge-schreiben-und-wahlprogramm-nachschlagen",
+    "category": "Features",
+    "text": "Der Beschlussanträge-Agent schreibt Anträge so, wie der Landesverband beschließt: mit seiner Einleitungsformel, seinem Aufbau (Antragstext, Begründung), seinen Forderungsformeln und seiner Schreibweise. Vorher sucht er in den Beschlüssen des Landesverbands, was dazu schon beschlossen ist, und knüpft daran an; Zahlen und Rechtsstand holt er aus der Websuche. Was vor der Antragstellung noch zu klären ist, markiert er am Ende unter Offene Punkte. Der Wahlprogramm-Agent sucht ausschließlich im Wahlprogramm und nennt zu jeder Aussage Kapitel und Wortlaut. Gibst du ihm eine Aussage, prüft er, ob das Programm sie deckt. Landesverband | Beschlussanträge | Wahlprogramm | ---------------------- | --------------------------- | ------------------------------ | Berlin | @beschluss-berlin | @wahlprogramm-berlin | Mecklenburg-Vorpommern | @beschluss-mv | — | Thüringen | @beschluss-thueringen | @wahlprogramm-thueringen | Brandenburg | @beschluss-brandenburg | @wahlprogramm-brandenburg | Bayern | @beschluss-bayern | @wahlprogramm-bayern | Hessen | @beschluss-hessen | — | Sachsen-Anhalt | @beschluss-sachsen-anhalt | @wahlprogramm-sachsen-anhalt | Saarland | @beschluss-saarland | — | Tippst du die…"
   },
   {
     "url": "/docs/features/landesverbaende",
@@ -1451,7 +1465,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Bürger*innenanfragen beantworten",
     "anchor": "#bürgerinnenanfragen-beantworten",
     "category": "Features",
-    "text": "Die Bürger*innenanfragen-Agents helfen dir, eingehende E-Mails von Bürger*innen zu beantworten. Du fügst die Anfrage ein, der Agent recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine versandfertige Antwort-E-Mail nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links. Du erreichst sie über die Landesverband-Seite (z. B. /agents/gruene-berlin) — dort wählst du den Bürger*innenservice statt der Öffentlichkeitsarbeit."
+    "text": "Die Bürger*innenanfragen-Agents helfen dir, eingehende E-Mails von Bürger*innen zu beantworten. Du fügst die Anfrage ein, der Agent recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine versandfertige Antwort-E-Mail nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links. Du erreichst sie über die Landesverband-Seite (z. B. /agents/gruene-berlin) — dort wählst du den Bürger*innenservice statt der Öffentlichkeitsarbeit. Der Agent schreibt immer mit dem Rezept seines Landesverbands: Absender, Selbstbezeichnung, Genderschreibweise und Signatur folgen dem Verband. Im normalen Chat geht es auch ohne Agent: tippe die Rezept-Abkürzung deines Landesverbands und füge die Anfrage dahinter ein. Landesverband | Bürger*innen-Mail | ---------------------- | ------------------------- | Berlin | @buerger-berlin | Mecklenburg-Vorpommern | @buerger-mv | Thüringen | @buerger-thueringen | Brandenburg | @buerger-brandenburg | Bayern | @buerger-bayern | Hessen | @buerger-hessen | Sachsen-Anhalt | @buerger-sachsen-anhalt | Saarland | @buerger-saarland | Österreich | @buerger-at | Fügst du eine Anfrage ganz ohne…"
   },
   {
     "url": "/docs/features/landesverbaende",
@@ -1620,6 +1634,38 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#teilen",
     "category": "Features",
     "text": "Ein Dokument kennt Stufen von Sichtbarkeit: Sichtbarkeit | Wer kommt hinein | ----------------- | ---------------------------------------------------------- | privat | nur du und ausdrücklich eingeladene Personen | Mit Anmeldung | alle, die im Grünerator angemeldet sind und den Link haben | öffentlich | alle mit dem Link, auch ohne Anmeldung | Unabhängig davon legst du fest, ob Eingeladene lesen oder bearbeiten dürfen. Beides lässt sich jederzeit ändern und zurücknehmen. Ein öffentlich geteiltes Dokument kann jede Person mit dem Link aufrufen — auch ohne Grünerator-Konto. Prüf vor dem Umschalten, ob im Dokument Namen, Adressen oder interne Absprachen stehen."
+  },
+  {
+    "url": "/docs/features/papierkorb",
+    "pageTitle": "Papierkorb",
+    "heading": "Papierkorb",
+    "anchor": "",
+    "category": "Features",
+    "text": "Was du im Grünerator löschst, ist nicht sofort weg: Es liegt zunächst 30 Tage im Papierkorb. Bis dahin kannst du es wiederherstellen; danach wird es endgültig gelöscht. Du erreichst den Papierkorb über dein Konto-Menü unten in der Seitenleiste (Papierkorb), über Zuletzt auf der Startseite oder in den Einstellungen."
+  },
+  {
+    "url": "/docs/features/papierkorb",
+    "pageTitle": "Papierkorb",
+    "heading": "Im Papierkorb",
+    "anchor": "#im-papierkorb",
+    "category": "Features",
+    "text": "Wiederherstellen legt den Inhalt wieder an seinen alten Platz. Endgültig löschen entfernt ihn sofort und ohne Rückweg. Papierkorb leeren löscht alles darin endgültig. Jede Zeile zeigt, wann der Inhalt endgültig gelöscht wird. Über den Filter grenzt du die Liste auf eine Art ein, etwa Dokumente, Chats, Notebooks oder Medien. Solange ein Inhalt im Papierkorb liegt, ist er für alle anderen unsichtbar: Er taucht in keiner Liste und keiner Suche auf, und öffentliche Links darauf funktionieren nicht mehr. Nach dem Wiederherstellen gilt alles wieder wie vorher."
+  },
+  {
+    "url": "/docs/features/papierkorb",
+    "pageTitle": "Papierkorb",
+    "heading": "Rückgängig direkt nach dem Löschen",
+    "anchor": "#rückgängig-direkt-nach-dem-löschen",
+    "category": "Features",
+    "text": "Nach dem Löschen erscheint kurz eine Meldung „… wurde in den Papierkorb verschoben.\" mit der Schaltfläche Rückgängig. Ein Klick darauf holt den Inhalt sofort zurück — der Umweg über den Papierkorb ist dann nicht nötig."
+  },
+  {
+    "url": "/docs/features/papierkorb",
+    "pageTitle": "Papierkorb",
+    "heading": "Was nicht im Papierkorb landet",
+    "anchor": "#was-nicht-im-papierkorb-landet",
+    "category": "Features",
+    "text": "Leere Chats ohne eine einzige Nachricht werden sofort gelöscht — es gibt nichts wiederherzustellen. Der Chat an einem Dokument wird beim Löschen sofort geleert. Geschützt ist hier das Dokument selbst: Löschst du das Dokument, landet es im Papierkorb."
   },
   {
     "url": "/docs/features/praesentationen",
@@ -1876,6 +1922,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "",
     "category": "Guides",
     "text": "Am Ende hast du einen gemeinsamen Bereich, in den du andere Menschen einladen und Inhalte wie Notebooks aufnehmen kannst. Die Team-Variante eines Projekts heißt in der aktuellen Oberfläche noch „Gruppe“."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Beiträge, Erwähnungen und Benachrichtigungen",
+    "anchor": "#beiträge-erwähnungen-und-benachrichtigungen",
+    "category": "Guides",
+    "text": "Im Feed einer Gruppe kannst du Beiträge schreiben und kommentieren. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder der Gruppe. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt. Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter Benachrichtigungen ein. „Benachrichtigungen stummschalten“ im Drei-Punkte-Menü der Gruppe stoppt die E-Mails dieser Gruppe; in der Glocke erscheinen sie weiterhin."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -2635,7 +2689,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "2. Verbindung starten",
     "anchor": "#2-verbindung-starten",
     "category": "Guides",
-    "text": "Öffne den gewünschten Eintrag und klicke auf Verbinden. Der weitere Ablauf hängt vom Dienst ab: Bei OAuth öffnet sich ein Anmeldefenster des Anbieters. Melde dich dort an und bestätige den angezeigten Zugriff. Bei einem Token öffnet der Grünerator einen Dialog für den Zugangsschlüssel. Erstelle den Schlüssel beim jeweiligen Anbieter und füge ihn dort ein. Dienste ohne Anmeldung werden direkt verbunden. Wenn der Browser das Anmeldefenster nicht öffnet, erlaube Pop-ups für gruenerator.eu und versuche es erneut. Bleibt der Status nach einer erfolgreichen Anmeldung unverändert, klicke oben auf Aktualisieren. Manche OAuth-Anbieter verlangen eine eigene App-Registrierung. In diesem Fall zeigt der Grünerator zusätzliche Felder für Client-ID und Client Secret sowie die benötigte Weiterleitungsadresse an."
+    "text": "Öffne den gewünschten Eintrag und klicke auf Verbinden. Der weitere Ablauf hängt vom Dienst ab: Bei OAuth öffnet sich ein Anmeldefenster des Anbieters. Melde dich dort an und bestätige den angezeigten Zugriff. Bei einem Token öffnet der Grünerator einen Dialog für den Zugangsschlüssel. Erstelle den Schlüssel beim jeweiligen Anbieter und füge ihn dort ein. Dienste ohne Anmeldung werden direkt verbunden. Wenn der Browser das Anmeldefenster nicht öffnet, erlaube Pop-ups für gruenerator.eu und versuche es erneut. Bleibt der Status nach einer erfolgreichen Anmeldung unverändert, klicke oben auf Aktualisieren. Manche OAuth-Anbieter verlangen eine eigene App-Registrierung. In diesem Fall zeigt der Grünerator zusätzliche Felder für Client-ID und Client Secret sowie die benötigte Weiterleitungsadresse an. Für die meisten Typeform-Konten wählst du Typeform. EU-gehostete Konten brauchen einen der beiden Typeform (EU …)-Einträge; die beiden EU-Endpunkte sind nicht austauschbar. Wenn du dein Rechenzentrum nicht kennst, frage den Typeform-Support bzw. deinen Customer Success Manager."
   },
   {
     "url": "/docs/guides/fortgeschrittene/konnektoren-einrichten",
@@ -2715,7 +2769,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 1: Deine Rolle eintragen",
     "anchor": "#schritt-1-deine-rolle-eintragen",
     "category": "Guides",
-    "text": "Öffne die Einstellungen — über dein Profilbild unten in der Seitenleiste oder direkt über /settings. Geh zu Personalisierung. Wenn du den Grünerator zum ersten Mal benutzt, ist das gleich der erste Schritt der Einrichtung („Was machst du bei den Grünen?“). Unter Deine Rollen auf Hinzufügen. Wähle nacheinander: Ebene: Land Bundesland: dein Landesverband Rolle: Mitarbeiter*in Landesgeschäftsstelle (in Österreich: Mitarbeiter*in Landesorganisation) Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „3 Agenten und 3 Rezepte sowie das Notebook Hessen erscheinen künftig in deiner Agentur und im Chat“. Speichern, fertig. Danach steht unter deinen Rollen ein Knopf „Zu deinem Landesverband“, der dich direkt in dein neues Regal bringt. Die Inhalte eines Landesverbands hängen an der Geschäftsstellen-Rolle und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Agents aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand. Umgekehrt gilt: Ohne passende Rolle siehst du die LV-Inhalte nicht. Das ist Absicht und kein Fehler — vor der Zuteilung stand dort…"
+    "text": "Öffne die Einstellungen — über dein Profilbild unten in der Seitenleiste oder direkt über /settings. Geh zu Personalisierung. Wenn du den Grünerator zum ersten Mal benutzt, ist das gleich der erste Schritt der Einrichtung („Was machst du bei den Grünen?“). Unter Deine Rollen auf Hinzufügen. Wähle nacheinander: Ebene: Land Bundesland: dein Landesverband Rolle: Mitarbeiter*in Landesgeschäftsstelle (in Österreich: Mitarbeiter*in Landesorganisation) Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „4 Agenten und 5 Rezepte sowie das Notebook Hessen erscheinen künftig in deiner Agentur und im Chat“. Speichern, fertig. Danach steht unter deinen Rollen ein Knopf „Zu deinem Landesverband“, der dich direkt in dein neues Regal bringt. Die Inhalte eines Landesverbands hängen an der Geschäftsstellen-Rolle und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Agents aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand. Umgekehrt gilt: Ohne passende Rolle siehst du die LV-Inhalte nicht. Das ist Absicht und kein Fehler — vor der Zuteilung stand dort…"
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",

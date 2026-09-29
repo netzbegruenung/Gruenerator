@@ -5,6 +5,7 @@
  * with the same grounded tool set. Both run them on-demand
  * (`toolChoice: 'auto'`) — a turn that needs no tool simply answers.
  */
+import { LANDESVERBAND_CONTENT_TYPES } from '@gruenerator/shared/search';
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
@@ -330,17 +331,22 @@ async function searchCollectionOrBundle(params: {
   collection: string;
   limit: number;
   rerankChunks?: boolean;
+  lvContentType?: readonly string[];
 }): Promise<DirectSearchResult> {
-  const { query, collection, limit, rerankChunks } = params;
+  const { query, collection, limit, rerankChunks, lvContentType } = params;
   // Einmal gebaut, in BEIDE Zweige gespreizt: ein Bündel, das den Reranker
-  // verliert, sieht im Ergebnis genauso aus wie eines, das ihn hat.
-  const rerank = rerankChunks === true ? { rerankChunks: true as const } : {};
+  // (oder den Typfilter) verliert, sieht im Ergebnis genauso aus wie eines,
+  // das ihn hat.
+  const shared = {
+    ...(rerankChunks === true ? { rerankChunks: true as const } : {}),
+    ...(lvContentType?.length ? { lvContentType } : {}),
+  };
   const members = COLLECTION_BUNDLES[collection];
-  if (!members) return executeDirectSearch({ query, collection, limit, ...rerank });
+  if (!members) return executeDirectSearch({ query, collection, limit, ...shared });
 
   // Each member is asked for the full limit; the merge below is what narrows.
   const parts = await Promise.all(
-    members.map((member) => executeDirectSearch({ query, collection: member, limit, ...rerank }))
+    members.map((member) => executeDirectSearch({ query, collection: member, limit, ...shared }))
   );
   const merged = deduplicateByUrl(
     parts.flatMap((p) => p.results),
@@ -458,6 +464,10 @@ export function createSearchTools(
     `[Tools] Creating tools for ${agentConfig.identifier}: collections=${allowedCollections.join(',')}, default=${defaultCollection}, personSearch=disabled, examplesCountry=${examplesCountry || 'all'}`
   );
 
+  const pinnedContentType = agentConfig.defaultFilter?.content_type?.length
+    ? agentConfig.defaultFilter.content_type
+    : undefined;
+
   const tools: ToolSet = {};
 
   tools.gruenerator_search = tool({
@@ -488,8 +498,14 @@ NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
         // five web pages. The descriptions already exist in SYSTEM_COLLECTIONS.
         .describe(`Sammlung — wähle nach Inhalt:\n${describeCollections(allowedCollections)}`),
       limit: z.number().optional().default(5).describe('Maximale Anzahl Ergebnisse'),
+      content_type: z
+        .enum(LANDESVERBAND_CONTENT_TYPES)
+        .optional()
+        .describe(
+          'Nur für Landesverbands-Sammlungen: auf einen Inhaltstyp beschränken, z. B. `beschluss` für die Beschlusslage oder `wahlprogramm`'
+        ),
     }),
-    execute: async ({ query, collection, limit }) => {
+    execute: async ({ query, collection, limit, content_type }) => {
       try {
         if (!allowedCollections.includes(collection)) {
           log.warn(`[Tools] Collection "${collection}" not allowed for ${agentConfig.identifier}`);
@@ -500,11 +516,15 @@ NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
             query,
           };
         }
+        // Der Pin des Agenten schlägt die Wahl des Modells: ein Beschluss-Agent
+        // bleibt bei Beschlüssen, auch wenn das Modell `presse` verlangt.
+        const lvContentType = pinnedContentType ?? (content_type ? [content_type] : undefined);
         return await searchCollectionOrBundle({
           query,
           collection,
           limit,
           ...(options.rerankSearchChunks === true && { rerankChunks: true }),
+          ...(lvContentType && { lvContentType }),
         });
       } catch (error) {
         log.error('Direct search error:', error);
@@ -703,6 +723,7 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
           // `maxResults` headroom keeps the images from eating the text hits, and
           // the client shows three of them, so the proxy serves three files.
           ...(options.wantsImages === true ? { includeImages: true } : {}),
+          ...(options.userLocale === 'de-AT' ? { locale: 'de-AT' as const } : {}),
         });
       } catch (error) {
         log.error('Direct web search error:', error);

@@ -10,6 +10,7 @@ import { Button, toast, useConfirm } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 
+import { useTrashUndoToast } from '../../trash/trashUndoToast';
 import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 import {
   letterheadApi,
@@ -292,6 +293,7 @@ function StationeryField({ letterhead }: { letterhead: Letterhead }) {
 const LetterheadsSection = () => {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
+  const showTrashUndo = useTrashUndoToast();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
@@ -322,10 +324,7 @@ const LetterheadsSection = () => {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => letterheadApi.remove(id),
-    onSuccess: async () => {
-      await invalidate();
-      toast.success('Briefkopf gelöscht');
-    },
+    onSuccess: () => invalidate(),
     onError: (error: Error) => toast.error(error.message),
   });
 
@@ -410,15 +409,19 @@ const LetterheadsSection = () => {
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    // Destructive and not undoable — and deleting the default
-                    // silently promotes another one, so ask first.
+                    // Deleting the default silently promotes another one, so ask first.
+                    const trashed = `„${lh.label}“ wird in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.`;
                     void confirm({
                       title: `„${lh.label}" löschen?`,
                       description: lh.is_default
-                        ? 'Das ist dein Standard-Briefkopf. Nach dem Löschen wird ein anderer zum Standard.'
-                        : 'Der Briefkopf steht dann beim Export nicht mehr zur Auswahl.',
+                        ? `${trashed} Das ist dein Standard-Briefkopf; ein anderer wird zum Standard.`
+                        : trashed,
                     }).then((confirmed) => {
-                      if (confirmed) deleteMutation.mutate(lh.id);
+                      if (!confirmed) return;
+                      deleteMutation.mutate(lh.id, {
+                        onSuccess: () =>
+                          showTrashUndo({ kind: 'user_letterhead', id: lh.id, title: lh.label }),
+                      });
                     });
                   }}
                 >

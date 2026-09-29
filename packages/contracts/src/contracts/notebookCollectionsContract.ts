@@ -91,6 +91,22 @@ export const notebookCollectionsContract = c.router(
     },
 
     /**
+     * GET /api/auth/notebook-collections/shared
+     * Notebooks others shared into a Projekt the caller is a member of.
+     * Powers the „Mit dir geteilt" section on /wissen and the chat mention picker.
+     */
+    listSharedCollections: {
+      method: 'GET',
+      path: '/api/auth/notebook-collections/shared',
+      responses: {
+        200: collectionsListResponseSchema,
+        401: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'List notebook collections shared with the caller via groups',
+    },
+
+    /**
      * POST /api/auth/notebook-collections
      * Create a new notebook collection.
      */

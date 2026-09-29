@@ -13,7 +13,8 @@ import {
   getDocumentsBySourceType,
   getDocumentById,
   deleteDocument,
-  bulkDeleteDocuments,
+  trashDocument,
+  trashDocuments,
 } from './metadataOperations.js';
 import { getDocumentStats, getUserTexts } from './statistics.js';
 import { storeDocumentText, getDocumentText, createDocumentWithText } from './textOperations.js';
@@ -25,7 +26,6 @@ import type {
   DocumentRecord,
   DocumentUpdateData,
   DeleteResult,
-  BulkDeleteResult,
   UserDocumentMode,
   UserDocumentModeResult,
   DocumentStats,
@@ -111,17 +111,21 @@ export class PostgresDocumentService {
   }
 
   /**
-   * Delete document metadata
+   * Hard-delete document metadata. Only for sync removals (the source is gone);
+   * a user's delete goes through {@link trashDocument}.
    */
   async deleteDocument(documentId: string, userId: string): Promise<DeleteResult> {
     return deleteDocument(this.postgres, documentId, userId);
   }
 
-  /**
-   * Bulk delete documents
-   */
-  async bulkDeleteDocuments(documentIds: string[], userId: string): Promise<BulkDeleteResult> {
-    return bulkDeleteDocuments(this.postgres, documentIds, userId);
+  /** Move a document to the Papierkorb (vectors and notebook links stay). */
+  async trashDocument(documentId: string, userId: string): Promise<DeleteResult> {
+    return trashDocument(this.postgres, documentId, userId);
+  }
+
+  /** Move the caller's documents to the Papierkorb; returns the ids that moved. */
+  async trashDocuments(documentIds: string[], userId: string): Promise<string[]> {
+    return trashDocuments(this.postgres, documentIds, userId);
   }
 
   // ========================================

@@ -194,15 +194,11 @@ export function FahrtStep({
                   onChange={(on) => setFahrt({ kfz: { ...f.kfz!, routenplanerVorhanden: on } })}
                 />
                 {f.kfz.km > kmObergrenze && (
-                  <Field
-                    label={`DB-Flexpreis 2. Kl. (Pflicht > ${kmObergrenze} km)`}
-                    hint={`Ab ${kmObergrenze} km ist nur der DB-Flexpreis erstattungsfähig.`}
-                  >
-                    <NumberInput
-                      value={f.kfz.dbFlexpreis}
-                      onChange={(v) => setFahrt({ kfz: { ...f.kfz!, dbFlexpreis: v } })}
-                    />
-                  </Field>
+                  <Checkbox
+                    label={`Vorstandsbeschluss für mehr als ${kmObergrenze} km liegt bei`}
+                    checked={f.kfz.vorstandsbeschluss === true}
+                    onChange={(on) => setFahrt({ kfz: { ...f.kfz!, vorstandsbeschluss: on } })}
+                  />
                 )}
               </DetailBox>
             )}
@@ -223,20 +219,17 @@ export function FahrtStep({
                     });
                   }}
                 />
-                <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
-                  <Field label="Betrag (€) *">
-                    <NumberInput
-                      value={f.miete.betrag || null}
-                      onChange={(v) => setFahrt({ miete: { ...f.miete!, betrag: v ?? 0 } })}
-                    />
-                  </Field>
-                  <Field label="DB-Flexpreis (Obergrenze)">
-                    <NumberInput
-                      value={f.miete.dbFlexpreis}
-                      onChange={(v) => setFahrt({ miete: { ...f.miete!, dbFlexpreis: v } })}
-                    />
-                  </Field>
-                </div>
+                <Field label="Betrag (€) *">
+                  <NumberInput
+                    value={f.miete.betrag || null}
+                    onChange={(v) => setFahrt({ miete: { ...f.miete!, betrag: v ?? 0 } })}
+                  />
+                </Field>
+                <Checkbox
+                  label="Vorstandsbeschluss liegt bei (Pflicht)"
+                  checked={f.miete.vorstandsbeschluss === true}
+                  onChange={(on) => setFahrt({ miete: { ...f.miete!, vorstandsbeschluss: on } })}
+                />
                 <BelegStatus
                   beleg={latestBeleg(belege, 'miete')}
                   confirmed={f.miete.belegVorhanden}

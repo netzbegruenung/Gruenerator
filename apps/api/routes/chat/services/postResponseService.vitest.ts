@@ -16,12 +16,25 @@ const touchThread = vi.fn();
 const setThreadToolContext = vi.fn();
 const saveThreadAttachment = vi.fn();
 const embedThreadAttachmentForRag = vi.fn();
+const threadNeedsTitle = vi.fn();
+const generateThreadTitle = vi.fn();
 
 vi.mock('./threadPersistenceService.js', () => ({
   createMessage,
   finalizeAssistantMessage,
   touchThread,
   setThreadToolContext,
+}));
+
+vi.mock('../../../services/chat/threadTitleService.js', () => ({
+  threadNeedsTitle,
+  generateThreadTitle,
+}));
+vi.mock('../../../services/chat/threadTagService.js', () => ({
+  generateThreadTags: vi.fn(async () => undefined),
+}));
+vi.mock('../../../services/chat/threadRecallEmbeddingService.js', () => ({
+  upsertThreadRecallPoint: vi.fn(async () => undefined),
 }));
 
 vi.mock('./attachmentPersistenceService.js', () => ({
@@ -55,6 +68,8 @@ beforeEach(() => {
   setThreadToolContext.mockReset().mockResolvedValue(undefined);
   saveThreadAttachment.mockReset().mockResolvedValue('attachment-1');
   embedThreadAttachmentForRag.mockReset().mockResolvedValue('doc-new');
+  threadNeedsTitle.mockReset().mockResolvedValue(false);
+  generateThreadTitle.mockReset().mockResolvedValue('Titel');
 });
 
 /**
@@ -157,6 +172,39 @@ describe('persistResumedResponse turn persistence', () => {
     // `ok: true` alone is indistinguishable from a real success — callers
     // need `discarded` to tell the client instead of leaving it waiting.
     expect(outcome).toEqual({ ok: true, discarded: true });
+  });
+});
+
+/**
+ * A thread whose FIRST turn paused on an interrupt is still unnamed when the
+ * resume finishes — the client's generate-title call saw only the placeholder
+ * row and skipped it (#3794). The resume has to seed the title itself.
+ */
+describe('persistResumedResponse names a thread that is still unnamed', () => {
+  it('seeds the title from the paused turn and the resumed answer', async () => {
+    threadNeedsTitle.mockResolvedValue(true);
+
+    await persistResumedResponse({ ...base, pendingMessageId: 'pending-1', userText: 'Frage?' });
+
+    expect(generateThreadTitle).toHaveBeenCalledWith('thread-1', 'Frage?', 'Die Antwort.', {
+      imageGenerated: false,
+    });
+  });
+
+  it('leaves an already named thread alone', async () => {
+    await persistResumedResponse({ ...base, pendingMessageId: 'pending-1', userText: 'Frage?' });
+
+    expect(generateThreadTitle).not.toHaveBeenCalled();
+  });
+
+  it('does not seed when the placeholder vanished', async () => {
+    threadNeedsTitle.mockResolvedValue(true);
+    finalizeAssistantMessage.mockResolvedValueOnce(false);
+
+    await persistResumedResponse({ ...base, pendingMessageId: 'gone', userText: 'Frage?' });
+
+    expect(threadNeedsTitle).not.toHaveBeenCalled();
+    expect(generateThreadTitle).not.toHaveBeenCalled();
   });
 });
 

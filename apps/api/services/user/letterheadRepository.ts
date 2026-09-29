@@ -11,6 +11,10 @@ import { and, asc, eq, ne } from 'drizzle-orm';
 
 import { userLetterheads, type UserLetterheadRow } from '../../database/schema/userLetterheads.js';
 import { getDrizzleInstance, type DrizzleDB } from '../../database/services/DrizzleService.js';
+import { notTrashed } from '../../database/trash.js';
+import { deleteTrashedRow, purgeSideStore, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
+
+import { deleteStationery } from './letterheadStationery.js';
 
 export interface LetterheadInput {
   label: string;
@@ -27,7 +31,7 @@ export async function listLetterheads(userId: string): Promise<UserLetterheadRow
   return db
     .select()
     .from(userLetterheads)
-    .where(eq(userLetterheads.user_id, userId))
+    .where(and(eq(userLetterheads.user_id, userId), notTrashed(userLetterheads)))
     .orderBy(asc(userLetterheads.label));
 }
 
@@ -36,7 +40,13 @@ export async function getLetterhead(userId: string, id: string): Promise<UserLet
   const rows = await db
     .select()
     .from(userLetterheads)
-    .where(and(eq(userLetterheads.id, id), eq(userLetterheads.user_id, userId)))
+    .where(
+      and(
+        eq(userLetterheads.id, id),
+        eq(userLetterheads.user_id, userId),
+        notTrashed(userLetterheads)
+      )
+    )
     .limit(1);
   return rows[0] ?? null;
 }
@@ -46,7 +56,13 @@ export async function getDefaultLetterhead(userId: string): Promise<UserLetterhe
   const rows = await db
     .select()
     .from(userLetterheads)
-    .where(and(eq(userLetterheads.user_id, userId), eq(userLetterheads.is_default, true)))
+    .where(
+      and(
+        eq(userLetterheads.user_id, userId),
+        eq(userLetterheads.is_default, true),
+        notTrashed(userLetterheads)
+      )
+    )
     .limit(1);
   return rows[0] ?? null;
 }
@@ -89,7 +105,7 @@ export async function createLetterhead(
     const existing = await tx
       .select({ id: userLetterheads.id })
       .from(userLetterheads)
-      .where(eq(userLetterheads.user_id, userId))
+      .where(and(eq(userLetterheads.user_id, userId), notTrashed(userLetterheads)))
       .limit(1);
     const shouldDefault = input.is_default === true || existing.length === 0;
     // Nothing to clear when this is the user's first — skip the no-op UPDATE.
@@ -133,29 +149,52 @@ export async function updateLetterhead(
         ...(input.is_default !== undefined && { is_default: input.is_default }),
         updated_at: new Date(),
       })
-      .where(and(eq(userLetterheads.id, id), eq(userLetterheads.user_id, userId)))
+      .where(
+        and(
+          eq(userLetterheads.id, id),
+          eq(userLetterheads.user_id, userId),
+          notTrashed(userLetterheads)
+        )
+      )
       .returning();
     return rows[0] ?? null;
   });
 }
 
+/**
+ * Move a Briefkopf to the Papierkorb. The trashed row gives up `is_default`
+ * (the partial unique index allows one default per user, trashed or not) and,
+ * in the same transaction, the next live one takes it over — a crash in
+ * between cannot leave the user without any default. A restore never sets
+ * `is_default` back; the stationery file stays until the purge.
+ */
 export async function deleteLetterhead(userId: string, id: string): Promise<boolean> {
   const db = getDrizzleInstance();
   return db.transaction(async (tx) => {
-    const rows = await tx
-      .delete(userLetterheads)
-      .where(and(eq(userLetterheads.id, id), eq(userLetterheads.user_id, userId)))
-      .returning();
-    if (!rows.length) return false;
+    const live = await tx
+      .select({ is_default: userLetterheads.is_default })
+      .from(userLetterheads)
+      .where(
+        and(
+          eq(userLetterheads.id, id),
+          eq(userLetterheads.user_id, userId),
+          notTrashed(userLetterheads)
+        )
+      )
+      .for('update')
+      .limit(1);
+    if (!live.length) return false;
 
-    // Deleting the default would leave the export with no preselection —
-    // promote the next one. Same transaction as the delete, so a crash in
-    // between cannot leave the user without any default at all.
-    if (rows[0]?.is_default) {
+    await tx
+      .update(userLetterheads)
+      .set({ deleted_at: new Date(), is_default: false, updated_at: new Date() })
+      .where(eq(userLetterheads.id, id));
+
+    if (live[0]?.is_default) {
       const remaining = await tx
         .select({ id: userLetterheads.id })
         .from(userLetterheads)
-        .where(eq(userLetterheads.user_id, userId))
+        .where(and(eq(userLetterheads.user_id, userId), notTrashed(userLetterheads)))
         .orderBy(asc(userLetterheads.label))
         .limit(1);
       const next = remaining[0];
@@ -168,6 +207,29 @@ export async function deleteLetterhead(userId: string, id: string): Promise<bool
     }
     return true;
   });
+}
+
+export const LETTERHEAD_TRASH: OwnedTrashTable = {
+  table: 'user_letterheads',
+  columns: 'id, label AS title',
+};
+
+/** Hard-delete a trashed Briefkopf, then its stationery file. */
+export async function purgeLetterhead(id: string, cutoff: Date | null): Promise<boolean> {
+  const row = await deleteTrashedRow<Pick<UserLetterheadRow, 'id' | 'user_id' | 'stationery_file'>>(
+    LETTERHEAD_TRASH,
+    id,
+    cutoff,
+    'id, user_id, stationery_file'
+  );
+  if (!row) return false;
+  const fileName = row.stationery_file;
+  if (fileName) {
+    await purgeSideStore('user_letterhead', id, 'files', () =>
+      deleteStationery(row.user_id, fileName)
+    );
+  }
+  return true;
 }
 
 /**
@@ -186,7 +248,13 @@ export async function setStationeryFile(
   const rows = await db
     .update(userLetterheads)
     .set({ stationery_file: fileName, updated_at: new Date() })
-    .where(and(eq(userLetterheads.id, id), eq(userLetterheads.user_id, userId)))
+    .where(
+      and(
+        eq(userLetterheads.id, id),
+        eq(userLetterheads.user_id, userId),
+        notTrashed(userLetterheads)
+      )
+    )
     .returning();
   return rows[0] ?? null;
 }

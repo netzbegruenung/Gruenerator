@@ -12,7 +12,7 @@ export interface RateConfig {
   kmSatzPkw: number;
   /** €/km for a motorcycle/scooter. */
   kmSatzMotorrad: number;
-  /** Above this many km only the DB-Flexpreis is reimbursable. */
+  /** Km reimbursable without a Vorstandsbeschluss (outbound + return). */
   kmObergrenze: number;
   /** One-day trip meal allowance. */
   verpflegungEintaegig: number;
@@ -35,10 +35,10 @@ export interface RateConfig {
 export const RATES: Record<RateKey, RateConfig> = {
   'de-DE/nrw': {
     key: 'de-DE/nrw',
-    label: 'NRW (gültig ab 1.1.2020)',
+    label: 'NRW (gültig ab 1.7.2025)',
     kmSatzPkw: 0.3,
     kmSatzMotorrad: 0.2,
-    kmObergrenze: 400,
+    kmObergrenze: 500,
     verpflegungEintaegig: 14,
     verpflegungAnreiseAbreise: 14,
     verpflegungZwischentag: 28,

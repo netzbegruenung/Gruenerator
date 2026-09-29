@@ -343,6 +343,69 @@ async function withMessageWriteRetry<T>(fn: () => Promise<T>, label: string): Pr
   });
 }
 
+/**
+ * Name a thread that has no title yet, from its first finished exchange.
+ *
+ * `isNewThread` alone is the wrong gate: it is only true when the client sent
+ * NO threadId, and the web client creates the thread up front via
+ * `initialize()` (POST /threads, title NULL). The title then hung entirely on
+ * the client's own generate-title call, which silently does not happen when
+ * the first message carries no text of its own (pasted text travels as an
+ * attachment) — or when the first turn paused on ask_human / a tool approval,
+ * so the call arrived while the assistant row was still a placeholder (#3794).
+ * Ask the row instead: every path that finishes a turn calls this, and an
+ * unnamed thread gets a title no matter which client or path wrote it.
+ * A failed lookup must not take the turn down with it: the message is already
+ * persisted at this point, and a missing title is a cosmetic loss.
+ */
+export async function seedThreadTitleIfUnnamed(params: {
+  threadId: string;
+  userText: string | null;
+  fullText: string;
+  isNewThread?: boolean;
+  imageGenerated?: boolean;
+}): Promise<void> {
+  const { threadId, userText, fullText, isNewThread = false, imageGenerated = false } = params;
+  const needsSeeding =
+    isNewThread ||
+    (await threadNeedsTitle(threadId).catch((err) => {
+      log.warn('[ChatGraph] Title-needed lookup failed, falling back to isNewThread:', err);
+      return false;
+    }));
+  log.info(
+    `[ChatGraph] Title generation check: isNewThread=${isNewThread}, needsSeeding=${needsSeeding}, hasUserMessage=${userText !== null}, threadId=${threadId}`
+  );
+  if (!needsSeeding) {
+    log.info(`[ChatGraph] Skipping title generation — already named (threadId=${threadId})`);
+    return;
+  }
+  if (userText === null) {
+    log.warn(`[ChatGraph] Skipping title generation — no user message (threadId=${threadId})`);
+    return;
+  }
+  log.info(`[ChatGraph] Triggering title generation for ${threadId}`, {
+    userTextLen: userText.length,
+    userTextPreview: userText.slice(0, 100),
+    fullTextLen: fullText.length,
+    fullTextPreview: fullText.slice(0, 100),
+    imageGenerated,
+  });
+  const titlePromise = generateThreadTitle(threadId, userText, fullText, {
+    imageGenerated,
+  }).catch((err) => log.warn('[ChatGraph] Thread title generation failed:', err));
+  // Auto-tag from the same first exchange. Triggered here (not only via the
+  // client generate-title endpoint) so every flow — web, mobile, resumed —
+  // gets tags; saveTagsIfEmpty keeps it idempotent and non-clobbering.
+  const tagsPromise = generateThreadTags(threadId, userText, fullText).catch((err) =>
+    log.warn('[ChatGraph] Thread tag generation failed:', err)
+  );
+  // Embed the thread for semantic recall AFTER title + tags land, so the
+  // recall point carries them. Fire-and-forget: recall is best-effort.
+  Promise.allSettled([titlePromise, tagsPromise])
+    .then(() => upsertThreadRecallPoint(threadId))
+    .catch((err) => log.warn('[ChatGraph] Thread recall embedding failed:', err));
+}
+
 export async function persistAssistantResponse(params: PersistParams): Promise<PersistOutcome> {
   const {
     threadId,
@@ -481,53 +544,13 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
 
     await touchThread(threadId);
 
-    // `isNewThread` alone is the wrong gate: it is only true when the client
-    // sent NO threadId, and the web client creates the thread up front via
-    // `initialize()` (POST /threads, title NULL) — so for every browser chat it
-    // is false and this whole block used to be dead. The title then hung
-    // entirely on the client's own generate-title call, which silently does not
-    // happen when the first message carries no text of its own (pasted text
-    // travels as an attachment). Ask the row instead: an unnamed thread gets a
-    // title here, on every turn, no matter which client wrote it.
-    // A failed lookup must not take the turn down with it: the message is
-    // already persisted at this point, and a missing title is a cosmetic loss.
-    const needsSeeding =
-      isNewThread ||
-      (await threadNeedsTitle(threadId).catch((err) => {
-        log.warn('[ChatGraph] Title-needed lookup failed, falling back to isNewThread:', err);
-        return false;
-      }));
-    log.info(
-      `[ChatGraph] Title generation check: isNewThread=${isNewThread}, needsSeeding=${needsSeeding}, hasLastUserMessage=${!!lastUserMessage}, threadId=${threadId}`
-    );
-    if (needsSeeding && lastUserMessage) {
-      const userText = extractTextContent(lastUserMessage.content);
-      log.info(`[ChatGraph] Triggering title generation for ${threadId}`, {
-        userTextLen: userText?.length ?? 0,
-        userTextPreview: userText?.slice(0, 100),
-        fullTextLen: fullText?.length ?? 0,
-        fullTextPreview: fullText?.slice(0, 100),
-        imageGenerated: !!generatedImage,
-      });
-      const titlePromise = generateThreadTitle(threadId, userText, fullText, {
-        imageGenerated: !!generatedImage,
-      }).catch((err) => log.warn('[ChatGraph] Thread title generation failed:', err));
-      // Auto-tag from the same first exchange. Triggered here (not only via the
-      // client generate-title endpoint) so every flow — web, mobile, resumed —
-      // gets tags; saveTagsIfEmpty keeps it idempotent and non-clobbering.
-      const tagsPromise = generateThreadTags(threadId, userText, fullText).catch((err) =>
-        log.warn('[ChatGraph] Thread tag generation failed:', err)
-      );
-      // Embed the thread for semantic recall AFTER title + tags land, so the
-      // recall point carries them. Fire-and-forget: recall is best-effort.
-      Promise.allSettled([titlePromise, tagsPromise])
-        .then(() => upsertThreadRecallPoint(threadId))
-        .catch((err) => log.warn('[ChatGraph] Thread recall embedding failed:', err));
-    } else if (!needsSeeding) {
-      log.info(`[ChatGraph] Skipping title generation — already named (threadId=${threadId})`);
-    } else if (!lastUserMessage) {
-      log.warn(`[ChatGraph] Skipping title generation — no lastUserMessage (threadId=${threadId})`);
-    }
+    await seedThreadTitleIfUnnamed({
+      threadId,
+      userText: lastUserMessage ? extractTextContent(lastUserMessage.content) : null,
+      fullText,
+      isNewThread,
+      imageGenerated: !!generatedImage,
+    });
 
     log.info(`[ChatGraph] Message persisted for thread ${threadId}`);
 
@@ -632,7 +655,8 @@ async function saveThreadAttachmentsFromMeta(
 }
 
 /**
- * Persist a resumed response (simpler — no title gen). Attachments
+ * Persist a resumed response. It seeds the title like the normal path: a
+ * thread whose FIRST turn paused on an interrupt is still unnamed here. Attachments
  * ARE saved here when the caller passes the stored request context: the
  * original turn ended in an interrupt, so this is the first (and only) chance
  * to persist the files uploaded with it.
@@ -658,6 +682,8 @@ export async function persistResumedResponse(params: {
    *  discarded), matching persistAssistantResponse. Null/omitted → insert. */
   pendingMessageId?: string | null;
   userMessageId?: string | null;
+  /** The paused turn's user text — seeds the title if the thread is unnamed. */
+  userText?: string | null;
 }): Promise<PersistOutcome> {
   const {
     threadId,
@@ -752,6 +778,8 @@ export async function persistResumedResponse(params: {
         userMessageId ?? null
       );
     }
+    await seedThreadTitleIfUnnamed({ threadId, userText: params.userText ?? null, fullText });
+
     log.info(`[ChatGraph:Resume] Message persisted for thread ${threadId}`);
     return { ok: attachmentsOk };
   } catch (error) {

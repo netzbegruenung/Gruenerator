@@ -18,6 +18,7 @@ import {
   generateTitleResponseSchema,
   tabularFilesResponseSchema,
   successResponseSchema,
+  deleteThreadResponseSchema,
   errorResponseSchema,
   threadStatusSchema,
 } from '../schemas/threads.js';
@@ -91,7 +92,7 @@ export const threadsContract = c.router(
       }),
       body: c.noBody(),
       responses: {
-        200: successResponseSchema,
+        200: deleteThreadResponseSchema,
         400: errorResponseSchema,
         401: errorResponseSchema,
         403: errorResponseSchema,

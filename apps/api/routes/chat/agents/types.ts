@@ -1,22 +1,13 @@
 /**
  * Agent configuration types for the AI chat service.
  *
- * `ToolRestrictions` is now sourced from `@gruenerator/shared/agents` so the
- * API and the shared package can't drift. Re-exported here so existing
+ * `ToolRestrictions` and `AgentDefaultFilter` are sourced from
+ * `@gruenerator/shared/agents` so the API and the shared package can't drift. Re-exported here so existing
  * `import { ToolRestrictions } from '.../routes/chat/agents/types'` callers
  * keep compiling without touching their import paths.
  */
-import type { ToolRestrictions } from '@gruenerator/shared/agents';
-export type { ToolRestrictions } from '@gruenerator/shared/agents';
-
-/**
- * Hard-pinned filters merged into tool calls (Qdrant / examples service).
- * Invisible to the LLM — applied server-side in directSearchExecutors.
- */
-export interface AgentDefaultFilter {
-  /** Landesverband shortName(s), e.g. 'BE' or ['BE', 'BE-F']. */
-  landesverband?: readonly string[] | string | undefined;
-}
+import { type AgentDefaultFilter, type ToolRestrictions } from '@gruenerator/shared/agents';
+export type { AgentDefaultFilter, ToolRestrictions } from '@gruenerator/shared/agents';
 
 export interface FewShotExample {
   input: string;

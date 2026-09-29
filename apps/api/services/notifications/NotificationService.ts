@@ -1,6 +1,6 @@
-import { and, count, eq, lt, sql, type InferSelectModel } from 'drizzle-orm';
+import { and, count, eq, inArray, lt, sql, type InferSelectModel } from 'drizzle-orm';
 
-import { group_memberships, notifications } from '../../database/schema/index.js';
+import { group_memberships, notifications, profiles } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import {
   sendBoardNotificationEmail,
@@ -9,17 +9,20 @@ import {
 } from '../../services/email/index.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { shouldDeliver, getProfileForDelivery } from './notificationPreferences.js';
+import {
+  getProfileForDelivery,
+  resolveChannelPreferences,
+  shouldDeliver,
+} from './notificationPreferences.js';
 import { publishNotification } from './notificationPubSub.js';
 
 import type {
   Notification,
+  ChannelPreferences,
   CreateNotificationParams,
-  NotificationChannel,
   NotificationListOptions,
   NotificationType,
 } from './types.js';
-import type { UserProfile } from '../user/types.js';
 
 // Types that have a dedicated, richer email template fired at the call site
 // (e.g. permissionsController → sendDocumentShareEmail). The central
@@ -57,9 +60,14 @@ function metaStrArray(metadata: Record<string, unknown>, key: string): string[] 
   return Array.isArray(v) && v.every((x) => typeof x === 'string') ? (v as string[]) : [];
 }
 
+interface EmailRecipient {
+  email?: string | null | undefined;
+  display_name?: string | null | undefined;
+}
+
 function fireEmail(
   userId: string,
-  profile: UserProfile | null,
+  profile: EmailRecipient | null,
   title: string,
   body: string | null,
   type: NotificationType,
@@ -180,6 +188,30 @@ async function isGroupMutedForUser(userId: string, groupId: string): Promise<boo
   }
 }
 
+/**
+ * The one decision which channels a notification goes out on, shared by the
+ * single and the bulk writer so the two can never disagree.
+ */
+function pickChannels(
+  type: NotificationType,
+  prefs: Pick<ChannelPreferences, 'in_app' | 'email'>,
+  groupMuted: boolean,
+  channelOverride: CreateNotificationParams['channelOverride']
+): { inApp: boolean; email: boolean } {
+  // A per-call override wins over the user's stored channel preference.
+  const inApp = channelOverride?.in_app ?? prefs.in_app;
+  // A muted group suppresses the noisy channel (email) for this user;
+  // the in-app notification is still recorded so nothing is lost.
+  const email =
+    !groupMuted &&
+    !EMAIL_HANDLED_ELSEWHERE.has(type) &&
+    !IN_APP_ONLY.has(type) &&
+    (channelOverride?.email ?? prefs.email);
+  // The 'push' channel is still a valid preference value (stored per user, part
+  // of the contract enum), but nothing delivers on it since push was removed.
+  return { inApp, email };
+}
+
 export async function createNotification(
   params: CreateNotificationParams
 ): Promise<NotificationRow | null> {
@@ -187,26 +219,21 @@ export async function createNotification(
 
   const profile = await getProfileForDelivery(userId);
 
-  // A muted group suppresses the noisy channel (email) for this user;
-  // the in-app notification is still recorded so nothing is lost.
   const groupId = resolveGroupId(metadata, groupKey);
   const groupMuted = groupId ? await isGroupMutedForUser(userId, groupId) : false;
 
-  // A per-call override wins over the user's stored channel preference.
-  const wants = async (channel: NotificationChannel): Promise<boolean> =>
-    channelOverride?.[channel] ?? (await shouldDeliver(userId, type, channel, profile));
-
-  const showInApp = await wants('in_app');
-  const sendEmailChannel =
-    !groupMuted &&
-    !EMAIL_HANDLED_ELSEWHERE.has(type) &&
-    !IN_APP_ONLY.has(type) &&
-    (await wants('email'));
-  // The 'push' channel is still a valid preference value (stored per user, part
-  // of the contract enum), but nothing delivers on it since push was removed.
+  const channels = pickChannels(
+    type,
+    {
+      in_app: await shouldDeliver(userId, type, 'in_app', profile),
+      email: await shouldDeliver(userId, type, 'email', profile),
+    },
+    groupMuted,
+    channelOverride
+  );
 
   // Nothing to deliver on any channel — skip entirely.
-  if (!showInApp && !sendEmailChannel) {
+  if (!channels.inApp && !channels.email) {
     return null;
   }
 
@@ -233,9 +260,97 @@ export async function createNotification(
     log.warn('Failed to publish notification via Redis', { userId, error: err.message });
   });
 
-  if (sendEmailChannel) fireEmail(userId, profile, title, body ?? null, type, actionUrl, metadata);
+  if (channels.email) fireEmail(userId, profile, title, body ?? null, type, actionUrl, metadata);
 
   return notification;
+}
+
+/**
+ * The same notification for many users in two round trips: one read for every
+ * recipient's stored preference and group mute, one multi-row insert. Channel
+ * rules are those of `createNotification`. Users without a profile are skipped
+ * (the insert's foreign key would reject them anyway). Returns the rows written.
+ */
+export async function createNotificationsForUsers(
+  userIds: string[],
+  params: Omit<CreateNotificationParams, 'userId'>
+): Promise<NotificationRow[]> {
+  const { type, title, body, metadata = {}, actionUrl, groupKey, channelOverride } = params;
+  const ids = [...new Set(userIds)];
+  if (ids.length === 0) return [];
+
+  const db = getDrizzleInstance();
+  const groupId = resolveGroupId(metadata, groupKey);
+  const recipients = await db
+    .select({
+      id: profiles.id,
+      email: profiles.email,
+      display_name: profiles.display_name,
+      stored: sql<unknown>`${profiles.user_defaults} -> 'notifications' -> ${type}`,
+      muted: groupId
+        ? sql<boolean>`COALESCE(${group_memberships.notifications_muted}, FALSE)`
+        : sql<boolean>`FALSE`,
+    })
+    .from(profiles)
+    .leftJoin(
+      group_memberships,
+      and(
+        eq(group_memberships.user_id, profiles.id),
+        groupId ? eq(group_memberships.group_id, groupId) : sql`FALSE`
+      )
+    )
+    .where(inArray(profiles.id, ids));
+
+  if (recipients.length < ids.length) {
+    const found = new Set(recipients.map((r) => r.id));
+    log.warn('Skipped notification recipients without profile', {
+      type,
+      userIds: ids.filter((id) => !found.has(id)),
+    });
+  }
+
+  const delivered = recipients.flatMap((r) => {
+    const channels = pickChannels(
+      type,
+      resolveChannelPreferences(r.stored, type),
+      r.muted,
+      channelOverride
+    );
+    return channels.inApp || channels.email ? [{ recipient: r, email: channels.email }] : [];
+  });
+  if (delivered.length === 0) return [];
+
+  const rows = await db
+    .insert(notifications)
+    .values(
+      delivered.map(({ recipient }) => ({
+        user_id: recipient.id,
+        type,
+        title,
+        body: body ?? null,
+        metadata,
+        action_url: actionUrl ?? null,
+        group_key: groupKey ?? null,
+      }))
+    )
+    .returning();
+
+  const emailTo = new Map(
+    delivered.filter((d) => d.email).map((d) => [d.recipient.id, d.recipient])
+  );
+  for (const row of rows) {
+    publishNotification(row.user_id, toNotification(row)).catch((err: Error) => {
+      log.warn('Failed to publish notification via Redis', {
+        userId: row.user_id,
+        error: err.message,
+      });
+    });
+    const recipient = emailTo.get(row.user_id);
+    if (recipient)
+      fireEmail(row.user_id, recipient, title, body ?? null, type, actionUrl, metadata);
+  }
+
+  return rows;
 }
 
 export async function getNotificationsForUser(

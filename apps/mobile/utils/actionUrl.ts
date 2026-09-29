@@ -16,5 +16,10 @@ export function actionUrlToRoute(url: string): Href {
   if (documentId) {
     return { pathname: '/(fullscreen)/doc-editor', params: { id: documentId } };
   }
+  // Ältere Meldungen verlinken noch `/gruppen/<id>` — in der App heißt der Bildschirm Projekte.
+  const legacyGroup = url.match(/^\/gruppen\/([^/?#]+)/);
+  if (legacyGroup) {
+    return { pathname: '/(focused)/projekte/[id]', params: { id: legacyGroup[1]! } };
+  }
   return url as Href;
 }

@@ -16,7 +16,7 @@ import {
   type StatusPartLike,
 } from '../../lib/toolStatusLine';
 import { cn } from '../../lib/utils';
-import { useUserAgentsRegistry } from '../../stores/userAgentsRegistry';
+import { findRegistryAgent, useUserAgentsRegistry } from '../../stores/userAgentsRegistry';
 import { HiddenReasoning, HiddenReasoningGroup } from '../assistant-ui/reasoning';
 import { GrueneratorHomeIconLoading } from '../icons';
 import { AnswerModeChip } from '../message-parts/AnswerModeChip';
@@ -124,10 +124,11 @@ export const AssistantMessage = memo(function AssistantMessage() {
         title: skill.title,
       };
     }
-    // User agents aren't in the skills catalog — resolve from the registry and
-    // map their Phosphor `iconKey` through the dynamic resolver.
+    // User agents aren't in the skills catalog — resolve from the registry (a
+    // colleague's agent by row uuid) and map their Phosphor `iconKey` through
+    // the dynamic resolver.
     if (agentId) {
-      const ua = userAgents.find((a) => a.identifier === agentId);
+      const ua = findRegistryAgent(userAgents, agentId);
       if (ua) {
         return {
           identifier: ua.identifier,

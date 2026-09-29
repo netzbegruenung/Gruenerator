@@ -11,10 +11,9 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 import { buildAssetCapability } from '../ai/assetCapability';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { AssetsSection, ImageBackgroundSection } from '../sidebar';
-import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
+import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
-import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
   calculateDreizeilenLayout,
@@ -24,6 +23,7 @@ import {
 } from '../utils/dreizeilenLayout';
 
 import { DEFAULT_PHOTO_BACKGROUND_DE, PHOTO_BACKGROUND_COLORS_DE } from './backgroundPalettes';
+import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { ADDITIONAL_TEXT_DEFAULTS } from './dreizeilen.constants';
 import {
   createAssetActions,
@@ -41,14 +41,13 @@ import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
 import { createShareSection } from './shareSection';
 
-import type { TemplateAiCapabilities } from '../ai/types';
 import type { DreizeilenFullState, DreizeilenFullActions } from './dreizeilen.types';
-import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 import type {
   FullCanvasConfig,
   LayoutResult as GenericLayoutResult,
   AdditionalText,
 } from './types';
+import type { TemplateAiCapabilities } from '../ai/types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { AssetInstance } from '../utils/canvasAssets';
@@ -59,6 +58,7 @@ import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
 import type { UserImageInstance } from '../utils/userImageUtils';
+import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================
 // CONSTANTS
@@ -308,24 +308,6 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
   },
 
   sections: {
-    settings: section({
-      component: BalkenSettingsSection,
-      propsFactory: (state, actions, context) => {
-        const selectedId = context?.selectedElement ?? null;
-        const selectedBalken = selectedId
-          ? state.balkenInstances.find((b) => b.id === selectedId)
-          : null;
-        return {
-          selectedBalken: selectedBalken ?? createBalkenInstance(state),
-          onUpdateBalken: actions.updateBalken,
-          onRemoveBalken: actions.removeBalken,
-          onDuplicateBalken: actions.duplicateBalken,
-          colorSchemes: COLOR_SCHEMES,
-          isPrimary: (selectedId ?? PRIMARY_BALKEN_ID) === PRIMARY_BALKEN_ID,
-        };
-      },
-    }),
-
     'frame-settings': section({
       component: FrameSettingsSection,
       propsFactory: (state, actions, context) => {
@@ -386,6 +368,26 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     }),
 
     ...createCommonSectionEntries('dreizeilen', dreizeilenAiCapabilities),
+
+    // After the common entries: overrides the shared balken panel so the
+    // primary balken keeps its narrow width range and cannot be removed.
+    settings: section({
+      component: BalkenSettingsSection,
+      propsFactory: (state, actions, context) => {
+        const selectedId = context?.selectedElement ?? null;
+        const selectedBalken = selectedId
+          ? state.balkenInstances.find((b) => b.id === selectedId)
+          : null;
+        return {
+          selectedBalken: selectedBalken ?? createBalkenInstance(state),
+          onUpdateBalken: actions.updateBalken,
+          onRemoveBalken: actions.removeBalken,
+          onDuplicateBalken: actions.duplicateBalken,
+          colorSchemes: COLOR_SCHEMES,
+          isPrimary: (selectedId ?? PRIMARY_BALKEN_ID) === PRIMARY_BALKEN_ID,
+        };
+      },
+    }),
 
     share: createShareSection<DreizeilenFullState>('dreizeilen', (state) =>
       `${state.line1}\n${state.line2}\n${state.line3}`.trim()

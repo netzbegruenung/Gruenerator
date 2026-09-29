@@ -1206,7 +1206,7 @@ const MATH_PATTERN =
   /(\d+\s*%\s*(von|of)\s*\d+)|\b(rechne|berechne)[nt]?\b|\bwie\s?viel\s+(ist|sind|macht)\b|\bwas\s+(ist|sind|ergibt)\s+\d|\b(erh(?:ö|oe)h|reduzier|senk|k(?:ü|ue)rz|steiger|verringer)\w*\b[^.!?\n]{0,60}?\bum\s+\d+(?:[.,]\d+)?\s*(%|prozent)/i;
 const DATE_MATH_PATTERN = /\b(wie\s+viele?\s+tage|tage\s+(bis|zwischen)|datum\s+in\s+\d)/i;
 
-const EXPLICIT_WEB_SEARCH_PATTERN =
+export const EXPLICIT_WEB_SEARCH_PATTERN =
   /\b(such|suche|durchsuche|finde?)\s*(im|das|den|die|in)?\s*(netz|internet|web|online)\b/i;
 const RESEARCH_NOUN_PATTERN = /\b(recherchiere|recherche|recherchier)\b/i;
 

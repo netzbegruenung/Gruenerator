@@ -75,7 +75,7 @@ export async function upsertThreadRecallPoint(threadId: string): Promise<void> {
          ORDER BY m.created_at ASC LIMIT 1
        ) AS first_message
      FROM chat_threads t
-     WHERE t.id = $1::uuid AND COALESCE(t.status, 'regular') = 'regular'`,
+     WHERE t.id = $1::uuid AND t.deleted_at IS NULL AND COALESCE(t.status, 'regular') = 'regular'`,
     [threadId]
   )) as ThreadRecallRow[];
 

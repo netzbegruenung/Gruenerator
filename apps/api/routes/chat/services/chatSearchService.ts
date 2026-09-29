@@ -167,7 +167,7 @@ export async function searchChatHistory(
       m.created_at AS matched_at
     FROM chat_messages m
     INNER JOIN chat_threads t ON t.id = m.thread_id
-    WHERE (
+    WHERE t.deleted_at IS NULL AND (
       t.user_id = $1
       OR t.permissions ? $1::text
       ${ownedOnly ? '' : 'OR t.is_public = true'}

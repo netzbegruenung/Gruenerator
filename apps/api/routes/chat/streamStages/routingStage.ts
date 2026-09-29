@@ -29,6 +29,7 @@ import { AGENTIC_INTENTS } from '../services/agenticLoop/intents.js';
 import { decideTurnPlan, type TurnPlan } from '../services/agenticLoop/turnPlan.js';
 import { resolveOriginalText } from '../services/agentPipeline.js';
 import { hasReachableForm } from '../services/pdfFormAvailability.js';
+import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { getIntentMessage, type SSEWriter } from '../services/sseHelpers.js';
 
 import { type SharepicRefinement } from './earlyHandlerStage.js';
@@ -129,13 +130,21 @@ export function runRoutingStage({
     // neben einem nicht ausfüllbaren PDF schob den Turn sonst in den Loop, wo
     // ihn kein Werkzeug erwartet.
     isPdfFillRequest: hasReachableForm(classifiedState) && isSheetFillRequest(lastUserText),
+    isReisekostenTurn: isReisekostenTurn(
+      classifiedState.activeSkillMention,
+      lastUserTextNoMentions,
+      classifiedState.messages
+    ),
     classifierContradictedResearch: classifiedState.classifierContradictedResearch === true,
     // Same question the classifier's Tier 3.5 asks, asked again here because a
     // turn can reach this gate without having passed that tier (confident
     // heuristic, LLM verdict, post-pass correction).
+    // An attached image is material like an attached PDF: "schreib einen Post
+    // zu dem Plakat" is not an unsourced writing order.
     hasOwnMaterial:
       lastUserText.length > NOUN_TRIGGER_MAX_LENGTH ||
       !!classifiedState.attachmentContext ||
+      imageAttachments.length > 0 ||
       !!classifiedState.currentDocument ||
       (classifiedState.docMentionIds ?? []).length > 0,
     enabledTools: enabledTools ?? null,

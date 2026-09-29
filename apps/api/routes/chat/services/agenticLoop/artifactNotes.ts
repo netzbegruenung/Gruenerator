@@ -44,8 +44,8 @@ function hasOpenEditTarget(state: ChatGraphState, kind: EditorSurfaceKind): bool
 /**
  * An editor sidebar whose artefact IS open, whose toggle IS on — and whose
  * `edit_document` was nevertheless not mounted, because `decideEditToolLoop`
- * refused the turn (image attachment, selected notebook, secondary intent, a
- * forced tool, a compound turn). That leaves NO edit path at all: nothing plans
+ * refused the turn (image generation/edit, selected notebook, secondary intent,
+ * a forced tool, a compound turn). That leaves NO edit path at all: nothing plans
  * ops, nothing dispatches, and without the note below the model is told only
  * that it sits in an editor and answers as if it had edited.
  *

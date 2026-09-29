@@ -67,6 +67,7 @@ function collabAccessWhere(user: number): string {
       FROM group_content_shares gcs
       INNER JOIN group_memberships gm
         ON gm.group_id = gcs.group_id AND gm.user_id = $${user} AND gm.is_active = TRUE
+      INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
       WHERE gcs.content_type = 'collaborative_documents'
     )
   )`;
@@ -248,7 +249,7 @@ export async function fetchImages(
   const rows = (await db.query(
     `SELECT id, share_token, title, thumbnail_path, image_metadata, content_origin, created_at
      FROM shared_media
-     WHERE ${where}
+     WHERE deleted_at IS NULL AND ${where}
      ORDER BY created_at DESC, id DESC
      LIMIT $${params.length}`,
     params
@@ -308,7 +309,7 @@ export async function fetchVideos(
     `SELECT id, title, thumbnail_path, video_metadata,
             ${sortExpr} AS sort_date
      FROM subtitler_projects
-     WHERE ${where}
+     WHERE deleted_at IS NULL AND ${where}
      ORDER BY ${sortExpr} DESC, id DESC
      LIMIT $${params.length}`,
     params
