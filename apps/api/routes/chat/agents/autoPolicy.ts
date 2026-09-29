@@ -495,9 +495,12 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  *
  * ZWEI EHRLICHE KOSTEN dieser Wahl:
  *
- * 1. Melious streamt OHNE `environment_impact` (#3544). Der Planer war seit
- *    13.08.2026 auf GreenPT, weil es als einziges pro Anfrage misst; auf dieser
- *    Lane fällt der Planer auf die Schätzung in `energyFootprint.ts` zurück.
+ * 1. Melious sendet `environment_impact` nur nicht-gestreamt. Damit der Planer
+ *    weiter gemessen statt geschätzt wird, fragt `meliousFetch` die Werkzeug-
+ *    phase nicht-gestreamt und spielt die Antwort dem SDK als Strom vor
+ *    (meliousThinkingFetch.ts). Preis: Narration und Denk-Deltas des Planers
+ *    kommen je Schritt erst mit der fertigen Antwort (~0,6 s), nicht Token für
+ *    Token.
  * 2. Beide Planer-Stufen hängen am selben Gateway. Ein Melious-Ausfall nimmt
  *    beide; `loopPlannerChoice` fällt dann auf Mistral Medium (andere Familie,
  *    anderer Vertragspartner). Mistral Small 4 wird von Melious an Regolo/IT
