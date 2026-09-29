@@ -12,29 +12,32 @@
 
 import { useCallback, useEffect, type MutableRefObject } from 'react';
 
-import { useCanvasStoreSelector } from '../stores/CanvasStoreProvider';
-import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
-import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
 import { useCanvasLayerControls } from '../hooks/useCanvasLayerControls';
+import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
+import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
+import { useCanvasStoreSelector } from '../stores/CanvasStoreProvider';
 import { canDuplicateElement, duplicateElementInState } from '../utils/duplicateElement';
+import { findElementRemover } from '../utils/removeElement';
 import { findTemplateEntry } from '../utils/templateElementInstance';
 
 import type { ToolbarStateReport } from './GenericCanvas';
-import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
-import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
-import type { GradientFill } from '../utils/gradientFill';
-import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
-import type { FullCanvasConfig, LayoutResult } from '../configs/types';
-import type { CanvasItem } from '../utils/canvasLayerManager';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
+import type { FullCanvasConfig, LayoutResult } from '../configs/types';
+import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
+import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
+import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
+import type { CanvasItem } from '../utils/canvasLayerManager';
+import type { GradientFill } from '../utils/gradientFill';
 
 export interface ToolbarBridgeState {
   activeFloatingModule: FloatingModuleState | null;
   canMoveUp: boolean;
   canMoveDown: boolean;
   canDuplicate: boolean;
+  canDelete: boolean;
   handleMoveLayer: (direction: 'up' | 'down') => void;
   handleDuplicate: () => void;
+  handleDelete: () => void;
   handleColorSelect: (color: string) => void;
   handleOpacityChange: (id: string, opacity: number, type: string) => void;
   handleShadowChange: (id: string, patch: ShadowPatch, type: string) => void;
@@ -123,6 +126,16 @@ export function ToolbarStateBridge<
     setSelectedElement(result.newId);
   }, [selectedElement, state, setState, saveToHistory, setSelectedElement, templateEntry]);
 
+  // Dieselbe Frage wie die Entf-Taste: Vorlagen-Elemente liegen in keiner
+  // Sammlung und sind nicht löschbar.
+  const removeSelected = findElementRemover(state, actions, selectedElement);
+  const canDelete = removeSelected !== null;
+  const handleDelete = useCallback(() => {
+    if (!removeSelected) return;
+    removeSelected();
+    setSelectedElement(null);
+  }, [removeSelected, setSelectedElement]);
+
   const floatingHandlers = useFloatingModuleHandlers({
     activeFloatingModule,
     actions,
@@ -140,8 +153,10 @@ export function ToolbarStateBridge<
       canMoveUp: layerControls.canMoveUp,
       canMoveDown: layerControls.canMoveDown,
       canDuplicate,
+      canDelete,
       handleMoveLayer: layerControls.handleMoveLayer,
       handleDuplicate,
+      handleDelete,
       handleColorSelect: floatingHandlers.handleColorSelect,
       handleOpacityChange: floatingHandlers.handleOpacityChange,
       handleShadowChange: floatingHandlers.handleShadowChange,
@@ -161,6 +176,7 @@ export function ToolbarStateBridge<
       canMoveUp: layerControls.canMoveUp,
       canMoveDown: layerControls.canMoveDown,
       canDuplicate,
+      canDelete,
     });
   }, [
     selectedElement,
@@ -170,6 +186,7 @@ export function ToolbarStateBridge<
     layerControls.canMoveUp,
     layerControls.canMoveDown,
     canDuplicate,
+    canDelete,
     onToolbarStateChange,
   ]);
 
