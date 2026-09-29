@@ -21,6 +21,9 @@ const deleteLikesForEntity = vi.fn(async (type: string, id: string) => {
 const deleteLikesOfDeletedUser = vi.fn(async (userId: string) => {
   effects.push(`likes of ${userId}`);
 });
+const removeUserOriginals = vi.fn((userId: string) => {
+  effects.push(`originals of ${userId}`);
+});
 const reportBackgroundError = vi.fn();
 
 vi.mock('../../database/services/PostgresService.js', () => ({
@@ -35,6 +38,7 @@ vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
 vi.mock('../docs/CollaborativeDocumentService.js', () => ({
   purgeSoleOwnedCollaborativeDocuments,
 }));
+vi.mock('../document-services/documentOriginals.js', () => ({ removeUserOriginals }));
 vi.mock('../entityLikes/EntityLikesService.js', () => ({
   deleteLikesForEntity,
   deleteLikesOfDeletedUser,
@@ -49,7 +53,7 @@ beforeEach(() => {
 });
 
 describe('cleanUpBeforeProfileDelete', () => {
-  it('removes documents, every notebook with its likes, then the user’s likes', async () => {
+  it('removes documents, every notebook with its likes, the originals, then the user’s likes', async () => {
     await cleanUpBeforeProfileDelete('user-1');
 
     expect(listAllNotebookIdsOfUser).toHaveBeenCalledWith('user-1');
@@ -59,6 +63,7 @@ describe('cleanUpBeforeProfileDelete', () => {
       'likes notebook nb-1',
       'delete notebook nb-2',
       'likes notebook nb-2',
+      'originals of user-1',
       'likes of user-1',
     ]);
   });

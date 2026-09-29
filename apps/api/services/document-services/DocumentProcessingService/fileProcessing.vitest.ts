@@ -23,6 +23,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const extractDocumentFromFile = vi.fn();
 const extracted = (text: string) => ({ text, pageCount: null, extractionMethod: null });
 const chunkAndEmbedText = vi.fn();
+const keepOriginal = vi.fn((_source: string, userId: string, documentId: string) =>
+  path.join(userId, `${documentId}.pdf`)
+);
 
 vi.mock('./textExtraction.js', async () => {
   const actual = await vi.importActual<typeof import('./textExtraction.js')>('./textExtraction.js');
@@ -32,6 +35,7 @@ vi.mock('./textExtraction.js', async () => {
   };
 });
 
+vi.mock('../documentOriginals.js', () => ({ keepOriginal, removeOriginal: vi.fn() }));
 vi.mock('./chunkingPipeline.js', () => ({
   chunkAndEmbedText: (...args: unknown[]) => chunkAndEmbedText(...args) as unknown,
 }));
@@ -224,6 +228,35 @@ describe('Seitenzahlen — nur der Dokument-Ingest setzt Marken', () => {
         pageCount: 3,
         additionalMetadata: expect.objectContaining({ extractionMethod: 'mistral-ocr' }),
       })
+    );
+  });
+
+  it('processUploadedDocument bewahrt das Original auf und schreibt den Pfad an die Zeile', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keep-'));
+    const filePath = path.join(dir, 'antrag.pdf');
+    fs.writeFileSync(filePath, '%PDF-1.4');
+    extractDocumentFromFile.mockResolvedValue(extracted('Beschluss'));
+    const updateDocumentMetadata = vi.fn().mockResolvedValue(undefined);
+    const getDocumentById = vi.fn().mockResolvedValue({
+      id: 'doc-1',
+      title: 'Antrag',
+      filename: 'antrag.pdf',
+      source_type: 'manual',
+      metadata: { filePath, mimetype: 'application/pdf' },
+    });
+
+    await processUploadedDocument(
+      { updateDocumentMetadata, getDocumentById } as never,
+      { storeDocumentVectors } as never,
+      'doc-1',
+      'u1'
+    );
+
+    expect(keepOriginal).toHaveBeenCalledWith(filePath, 'u1', 'doc-1');
+    expect(updateDocumentMetadata).toHaveBeenCalledWith(
+      'doc-1',
+      'u1',
+      expect.objectContaining({ status: 'completed', filePath: path.join('u1', 'doc-1.pdf') })
     );
   });
 });

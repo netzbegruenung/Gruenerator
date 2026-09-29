@@ -87,6 +87,8 @@ export interface DocumentMetadataRow {
   vector_count: number | null;
   wolke_share_link_id: string | null;
   metadata: unknown;
+  /** Ob eine hochgeladene Originaldatei aufbewahrt ist (`documents.file_path`). */
+  has_original: boolean;
   /** Länge des Originaltexts (`markdown_content`), `null` ohne Original. */
   chars: number | null;
 }
@@ -108,7 +110,7 @@ export async function fetchDocumentMetadata(
   return db.query<DocumentMetadataRow>(
     `SELECT id, user_id, title, filename, page_count, file_size, status, source_type, source_url,
             document_type, created_at, vector_count, wolke_share_link_id, metadata,
-            ${chars} AS chars
+            file_path IS NOT NULL AS has_original, ${chars} AS chars
        FROM documents WHERE id = ANY($1) AND deleted_at IS NULL`,
     [ids]
   );
