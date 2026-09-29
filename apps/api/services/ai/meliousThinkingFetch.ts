@@ -1,4 +1,4 @@
-import { captureMeliousImpact, meliousModelFromRequest } from './meliousImpact.js';
+import { captureMeliousImpact, meliousModelFromRequest, replayAsStream } from './meliousImpact.js';
 
 /**
  * Der Flavor-Suffix wählt bei Melious den Upstream — und damit das Fenster.
@@ -42,6 +42,19 @@ export function meliousWireModel(body: Record<string, unknown>): string | null {
 }
 
 /**
+ * Ein gestreamter Aufruf MIT Werkzeugen ist die Werkzeugphase des Loops
+ * (`gather` in loopEngine.ts); die Synthese läuft ohne Werkzeuge. Melious sendet
+ * `environment_impact` nur nicht-gestreamt, also fragt diese Phase nicht-
+ * gestreamt und spielt die fertige Antwort dem SDK als Strom vor
+ * (`replayAsStream`). Kosten: Narrations- und Denk-Deltas des Planers kommen
+ * erst mit der fertigen Antwort (gemessen ~0,6 s je Schritt) statt Token für
+ * Token. Dafür ist der Planer — der Lauf in JEDEM Zug — gemessen statt geschätzt.
+ */
+function isToolPhaseStream(body: Record<string, unknown>): boolean {
+  return body.stream === true && Array.isArray(body.tools) && body.tools.length > 0;
+}
+
+/**
  * Melious' `gemma-4-31b` thinks by DEFAULT — gemessen 23.09.2026 gegen
  * api.melious.ai, Zwei-Satz-Frage, `max_tokens` 400, Reasoning-Tokens / Zeit:
  *
@@ -63,12 +76,18 @@ export function meliousWireModel(body: Record<string, unknown>): string | null {
  */
 export const meliousFetch: typeof fetch = async (input, init) => {
   const logicalModel = meliousModelFromRequest(init?.body);
+  let replay = false;
   if (init?.body && typeof init.body === 'string') {
     try {
       const parsed = JSON.parse(init.body) as Record<string, unknown>;
       if (parsed.model && parsed.messages) {
         if (parsed.reasoning_effort == null) parsed.reasoning_effort = 'none';
         parsed.model = meliousWireModel(parsed) ?? parsed.model;
+        if (isToolPhaseStream(parsed)) {
+          replay = true;
+          parsed.stream = false;
+          delete parsed.stream_options;
+        }
         init = { ...init, body: JSON.stringify(parsed) };
       }
     } catch {
@@ -76,5 +95,6 @@ export const meliousFetch: typeof fetch = async (input, init) => {
     }
   }
   // Die HTTP-Grenze ist der einzige Ort, an dem Melious' Umweltdaten überleben.
-  return captureMeliousImpact(await fetch(input, init), logicalModel, init?.signal);
+  const response = captureMeliousImpact(await fetch(input, init), logicalModel, init?.signal);
+  return replay && response.ok ? replayAsStream(await response.json()) : response;
 };
