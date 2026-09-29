@@ -133,6 +133,40 @@ export class NextcloudShareManager {
   }
 
   /**
+   * Den gespeicherten Link zu dieser Freigabe liefern oder ihn anlegen. Für
+   * Oberflächen, die einen eingefügten Link direkt verwenden (Notebook-Hub),
+   * statt ihn erst in den Einstellungen speichern zu lassen. Gleich ist, was
+   * denselben Token auf demselben Host trägt — ein zweites Einfügen mit
+   * anderem Pfad oder Schrägstrich legt keinen zweiten Eintrag an.
+   */
+  static async findOrSaveShareLink(userId: string, shareLink: string): Promise<NextcloudShareLink> {
+    const validation = this.validateShareLink(shareLink);
+    if (!validation.isValid) {
+      throw new Error(validation.error ?? 'Invalid Nextcloud share link format');
+    }
+    const trimmed = shareLink.trim();
+    return this.mutateLinks(userId, (currentLinks) => {
+      const existing = currentLinks.find(
+        (link) =>
+          link.share_link === trimmed ||
+          (link.share_token === validation.shareToken && link.base_url === validation.baseUrl)
+      );
+      if (existing) return { links: currentLinks, result: existing };
+
+      const link: NextcloudShareLink = {
+        id: randomUUID(),
+        share_link: trimmed,
+        label: null,
+        base_url: validation.baseUrl || null,
+        share_token: validation.shareToken || null,
+        is_active: true,
+        created_at: new Date().toISOString(),
+      };
+      return { links: [...currentLinks, link], result: link };
+    });
+  }
+
+  /**
    * Get all share links for a user
    */
   static async getShareLinks(userId: string): Promise<NextcloudShareLink[]> {

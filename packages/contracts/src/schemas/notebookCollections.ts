@@ -454,6 +454,49 @@ export const reindexNotebookResponseSchema = z.object({
 });
 export type ReindexNotebookResponse = z.infer<typeof reindexNotebookResponseSchema>;
 
+/**
+ * Quellen an ein bestehendes Notebook anhängen, ohne die Menge zu ersetzen.
+ * Der Hub speichert jede Aktion sofort; ein read-modify-write über
+ * `updateCollection` würde parallele Uploads gegenseitig überschreiben.
+ */
+export const addDocumentsBodySchema = z.object({
+  document_ids: z.array(z.string()).min(1),
+  /** Wird an `settings.linked_docs` angehängt (dedupliziert auf `docId`). */
+  linked_docs: z.array(linkedDocRefSchema).nullish(),
+});
+export type AddDocumentsBody = z.infer<typeof addDocumentsBodySchema>;
+
+export const addDocumentsResponseSchema = z.object({
+  success: z.literal(true),
+  added: z.number(),
+  document_count: z.number(),
+});
+export type AddDocumentsResponse = z.infer<typeof addDocumentsResponseSchema>;
+
+/**
+ * Einen Wolke-Ordner anhängen oder erneut synchronisieren. Mit `url` legt der
+ * Server den Freigabelink an (oder nimmt den schon gespeicherten) und hängt
+ * dessen Wurzel an; mit `shareLinkId` + `folderPath` synchronisiert er einen
+ * schon angehängten Ordner.
+ */
+export const attachWolkeBodySchema = z.union([
+  z.object({ url: z.string(), includeSubfolders: z.boolean() }),
+  z.object({ shareLinkId: z.string(), folderPath: z.string(), includeSubfolders: z.boolean() }),
+]);
+export type AttachWolkeBody = z.infer<typeof attachWolkeBodySchema>;
+
+export const attachWolkeResponseSchema = z.object({
+  success: z.literal(true),
+  folderName: z.string(),
+  shareLinkId: z.string(),
+  total: z.number(),
+  alreadyImported: z.number(),
+  importedNow: z.number(),
+  queued: z.number(),
+  failed: z.number(),
+});
+export type AttachWolkeResponse = z.infer<typeof attachWolkeResponseSchema>;
+
 export const simpleSuccessMessageSchema = z.object({
   success: z.boolean(),
   message: z.string(),
