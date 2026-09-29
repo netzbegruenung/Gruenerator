@@ -4,6 +4,7 @@
  * Plan: Ref VOR dem Import, Deckel, Zeitbudget, Fehler → Warteschlange,
  * schon Importiertes ohne `processFile`, genau zwei Collection-Schreibvorgänge.
  */
+import { NOTEBOOK_MAX_DOCUMENTS } from '@gruenerator/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 import { attachWolkeFolderToNotebook, type AttachDeps } from './notebookWolkeAttach.js';
@@ -94,6 +95,22 @@ const INPUT = {
 };
 
 describe('attachWolkeFolderToNotebook', () => {
+  it('stops at NOTEBOOK_MAX_DOCUMENTS: only the room left is imported or queued', async () => {
+    const full = Array.from({ length: NOTEBOOK_MAX_DOCUMENTS - 2 }, (_, i) => `old-${i}`);
+    const { deps, insertPending, addDocumentsToCollection } = fakes({
+      files: [file('in.pdf'), file('a.pdf'), file('b.pdf'), file('c.pdf'), file('d.pdf')],
+      imported: [{ id: full[0]!, path: file('in.pdf').href }],
+      existingDocIds: full,
+    });
+
+    const out = await attachWolkeFolderToNotebook({ ...INPUT, maxInline: 1 }, deps);
+
+    // `in.pdf` is already in the notebook and costs nothing; two slots remain.
+    expect(out).toMatchObject({ alreadyImported: 1, importedNow: 1, queued: 1, skipped: 2 });
+    expect(insertPending).toHaveBeenCalledWith(expect.objectContaining({ files: [file('b.pdf')] }));
+    expect(addDocumentsToCollection).toHaveBeenCalledWith('n1', [full[0], 'doc-a.pdf'], 'u1');
+  });
+
   it('writes the folder ref BEFORE importing anything', async () => {
     const order: string[] = [];
     const { deps } = fakes({ files: [file('a.pdf')] });
@@ -136,6 +153,7 @@ describe('attachWolkeFolderToNotebook', () => {
       importedNow: 5,
       queued: 2,
       failed: 0,
+      skipped: 0,
     });
     const queued = (insertPending.mock.calls[0] as unknown as [{ files: NextcloudFile[] }])[0];
     expect(queued.files.map((f) => f.name)).toEqual(['f.pdf', 'g.pdf']);

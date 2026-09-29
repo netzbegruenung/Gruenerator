@@ -255,6 +255,7 @@ function describeAttach(r: AttachWolkeFolderResult, notebookName: string, url: s
   if (r.alreadyImported > 0) parts.push(`${r.alreadyImported} bereits vorhanden`);
   if (r.queued > 0) parts.push(`${r.queued} warten unter „Neue Dateien"`);
   if (r.failed > 0) parts.push(`${r.failed} fehlgeschlagen (ebenfalls dort)`);
+  if (r.skipped > 0) parts.push(`${r.skipped} übersprungen (Notebook voll)`);
   return `Ordner „${r.folderName}" hängt am Notebook „${notebookName}" — ${r.total} Datei${r.total === 1 ? '' : 'en'}: ${parts.join(', ')} (${absolutizeUrl(url)}).`;
 }
 

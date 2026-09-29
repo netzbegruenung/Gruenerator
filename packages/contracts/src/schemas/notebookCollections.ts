@@ -470,6 +470,8 @@ export const attachWolkeResponseSchema = z.object({
   importedNow: z.number(),
   queued: z.number(),
   failed: z.number(),
+  /** Over `NOTEBOOK_MAX_DOCUMENTS`: neither imported nor queued. */
+  skipped: z.number(),
 });
 export type AttachWolkeResponse = z.infer<typeof attachWolkeResponseSchema>;
 

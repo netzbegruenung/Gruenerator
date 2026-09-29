@@ -53,12 +53,14 @@ function summarize(r: {
   alreadyImported: number;
   queued: number;
   failed: number;
+  skipped: number;
 }) {
   const parts: string[] = [];
   if (r.importedNow > 0) parts.push(`${r.importedNow} importiert`);
   if (r.alreadyImported > 0) parts.push(`${r.alreadyImported} schon vorhanden`);
   if (r.queued > 0) parts.push(`${r.queued} unter „Neue Dateien" vorgemerkt`);
   if (r.failed > 0) parts.push(`${r.failed} nicht lesbar`);
+  if (r.skipped > 0) parts.push(`${r.skipped} übersprungen (Notebook voll)`);
   return parts.join(' · ') || 'Keine unterstützten Dateien gefunden.';
 }
 
@@ -159,10 +161,12 @@ export function WolkePanel({
     });
     if (!ok) return;
     try {
+      // Dokumente zuerst: scheitert danach der Verweis, bleibt ein leerer Ordner
+      // stehen statt verwaister Dateien unter „Weitere Wolke-Dateien".
+      if (group.documents.length > 0) await hub.removeDocuments(group.documents.map((d) => d.id));
       await hub.saveMeta({
         wolke_folders: removeWolkeFolder(folders, wolkeFolderKey(group.folder)),
       });
-      if (group.documents.length > 0) await hub.removeDocuments(group.documents.map((d) => d.id));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Trennen fehlgeschlagen.');
     }
