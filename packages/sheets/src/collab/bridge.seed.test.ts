@@ -26,7 +26,8 @@ function makeApi() {
       calls.createArg = data;
       return workbook;
     },
-    onCommandExecuted: () => ({ dispose() {} }),
+    Event: { CommandExecuted: 'CommandExecuted' },
+    addEvent: () => ({ dispose() {} }),
     executeCommand: () => {},
   };
   return { api: api as unknown as FUniver, calls };
