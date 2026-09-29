@@ -40,13 +40,20 @@ export default function WebsitesTab() {
   const [urlInput, setUrlInput] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  const showError = (e: Error) => setError(e.message || 'Unbekannter Fehler');
+
+  const handleRefresh = (websiteId: string) => {
+    setError(null);
+    refreshWebsite.mutate(websiteId, { onError: showError });
+  };
+
   const handleAdd = () => {
     const url = urlInput.trim();
     if (!url) return;
     setError(null);
     addWebsite.mutate(url, {
       onSuccess: () => setUrlInput(''),
-      onError: (e) => setError(e instanceof Error ? e.message : 'Unbekannter Fehler'),
+      onError: showError,
     });
   };
 
@@ -156,7 +163,7 @@ export default function WebsitesTab() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => refreshWebsite.mutate(site.id)}
+                    onClick={() => handleRefresh(site.id)}
                     disabled={refreshWebsite.isPending}
                     aria-label={`${site.siteName} aktualisieren`}
                   >
