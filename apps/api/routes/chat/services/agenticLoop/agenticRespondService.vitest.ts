@@ -508,6 +508,20 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
     expect(p.firstStepTools).toEqual(['bundestag']);
   });
 
+  it('followup: fehlt das frühere Werkzeug im Katalog, bleibt der Zuschnitt leer und der Zwang steht', async () => {
+    infoLines.length = 0;
+    const p = await loopParams(
+      fakeState(),
+      'Und die FDP?',
+      catalogWith(MOUNTED.filter((t) => t !== 'bundestag')),
+      { toolHistory: historyWith(['bundestag']) }
+    );
+    expect(p.forceFirstToolCall).toBe(true);
+    expect(p.firstStepTools).toBeNull();
+    const summary = infoLines.find((m) => m.startsWith('[Agentic] model='));
+    expect(summary).toContain(' force=followup:none');
+  });
+
   it('mcp_scope: ein Turn mit Server-Scope sieht nur dessen Werkzeuge', async () => {
     const mcpTools = ['mnotion__search', 'mnotion__create_page'];
     const mcpCatalog = {
