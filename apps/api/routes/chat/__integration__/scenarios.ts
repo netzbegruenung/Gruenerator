@@ -53,6 +53,16 @@ export interface SimScenario {
   notReached?: DecisionPointId[];
 }
 
+/** A 1×1 PNG, attached the way the composer sends it. Nothing reads its pixels
+ *  here — routing only asks whether an image is there. */
+const TINY_PNG = {
+  name: 'plakat.png',
+  type: 'image/png',
+  size: 68,
+  isImage: true,
+  data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+};
+
 export const SIM_SCENARIOS: readonly SimScenario[] = [
   {
     id: 'kein-dokument',
@@ -114,6 +124,22 @@ export const SIM_SCENARIOS: readonly SimScenario[] = [
       { point: 'classifier.tier', chose: 'tier3_short_message' },
       { point: 'router.run_agentic', chose: 'single_pass' },
     ],
+  },
+  {
+    id: 'bild-frage-bleibt-einzeln',
+    category: 'routing',
+    note: 'Braucht keine Modell-Annahme: der Bildanhang-Zweig des Klassifikators sagt produktion, und die Frage ist ein Fragewort-Satz, den das Gate ohne Bild in den Loop hoebe. Die reine Bildfrage haelt ihn im Einzeldurchlauf, wo ein Vision-Modell die Pixel sieht (#3841).',
+    prompt: 'Was steht auf dem Plakat?',
+    body: { attachments: [TINY_PNG] },
+    mustDecide: [{ point: 'router.run_agentic', chose: 'single_pass' }],
+  },
+  {
+    id: 'bild-werkzeugfrage-loop',
+    category: 'routing',
+    note: 'Gegenstueck: dasselbe Bild, aber die Frage reicht ueber das Bild hinaus (was die Leute zuletzt gesagt haben). Bis #3841 hielt jeder Bildanhang den Turn einzeln; jetzt geht er in den Loop, wo bild_ansehen das Bild liest.',
+    prompt: 'Wer sind die Leute auf dem Foto, und was haben sie zuletzt gesagt?',
+    body: { attachments: [TINY_PNG] },
+    mustDecide: [{ point: 'router.run_agentic', chose: 'loop' }],
   },
   // GELOESCHT: 'loop-aus-degradiert'.
   //
