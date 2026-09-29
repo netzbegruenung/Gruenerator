@@ -1,14 +1,14 @@
 ---
 identifier: 'gruenerator-beschluesse-hessen'
-title: 'Beschlusslage Hessen'
-description: 'Belegte Auskunft aus den Beschlüssen der Grünen Hessen, auf Wunsch als Statement'
+title: 'Beschlussantrag Hessen'
+description: 'Beschlussanträge in der Beschlusssprache der Grünen Hessen, im Anschluss an die bestehende Beschlusslage'
 iconKey: 'PiTree'
-avatar: '📚'
+avatar: '📜'
 backgroundColor: '#316049'
 mention: 'beschluss-hessen'
-skillCategory: recherche
+skillCategory: dokumente
 audience: 'de-DE'
-recommendedTools: ['gruenerator_search']
-promptTemplate: 'Was haben die Grünen Hessen beschlossen zu: '
+recommendedTools: ['gruenerator_search', 'web_search']
+promptTemplate: 'Schreib einen Beschlussantrag zum Thema: '
 order: 74
 ---

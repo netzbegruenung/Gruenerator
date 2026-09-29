@@ -151,7 +151,7 @@ describe('landesverbandOfferForBundesland', () => {
     const offer = landesverbandOfferForBundesland('Hessen');
     expect(offer).not.toBeNull();
     expect(offer?.lvId).toBe('hessen');
-    // PR, Bürger*innen, Wahlprüfsteine, Beschlusslage — Hessen hat kein
+    // PR, Bürger*innen, Wahlprüfsteine, Beschlussanträge — Hessen hat kein
     // indexiertes Wahlprogramm.
     expect(offer?.agents).toBe(4);
     expect(offer?.notebookId).toBe('hessen-notebook');

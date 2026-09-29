@@ -20,7 +20,7 @@ interface LandesverbandHubProps {
 /**
  * Landing for a Landesverband's branded link (`/agents/gruene-berlin`). The LV
  * runs up to five specialist agents — Öffentlichkeitsarbeit, Bürger*innen-
- * anfragen, Wahlprüfsteine, and where the collection holds them Beschlusslage
+ * anfragen, Wahlprüfsteine, and where the collection holds them Beschlussanträge
  * and Wahlprogramm — that stay separate so no voice is diluted. This hub offers all of them behind the one
  * link the LV shares, then drops into the chosen agent's chat via its derived slug.
  */

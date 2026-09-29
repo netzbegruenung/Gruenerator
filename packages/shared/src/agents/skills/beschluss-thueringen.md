@@ -1,14 +1,14 @@
 ---
 identifier: 'gruenerator-beschluesse-thueringen'
-title: 'Beschlusslage Thüringen'
-description: 'Belegte Auskunft aus den Beschlüssen der Grünen Thüringen, auf Wunsch als Statement'
+title: 'Beschlussantrag Thüringen'
+description: 'Beschlussanträge in der Beschlusssprache der Grünen Thüringen, im Anschluss an die bestehende Beschlusslage'
 iconKey: 'PiTree'
-avatar: '📚'
+avatar: '📜'
 backgroundColor: '#316049'
 mention: 'beschluss-thueringen'
-skillCategory: recherche
+skillCategory: dokumente
 audience: 'de-DE'
-recommendedTools: ['gruenerator_search']
-promptTemplate: 'Was haben die Grünen Thüringen beschlossen zu: '
+recommendedTools: ['gruenerator_search', 'web_search']
+promptTemplate: 'Schreib einen Beschlussantrag zum Thema: '
 order: 74
 ---
