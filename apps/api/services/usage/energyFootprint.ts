@@ -258,6 +258,14 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     mWhFixed: 13.26,
     basis: 'bound',
   },
+  // Melious' name for the same weights (loop planner second stage,
+  // LOOP_PLANNER_HEALTHY_ALT); only used when the impact capture came back empty.
+  'mistral-small-4-119b-instruct': {
+    mWhPerOutputToken: 4.519,
+    mWhPerInputToken: 0.0287,
+    mWhFixed: 13.26,
+    basis: 'bound',
+  },
   'pixtral-large-latest': {
     mWhPerOutputToken: 4.519,
     mWhPerInputToken: 0.0287,

@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   LOOP_PLANNER_PRIMARY,
   LOOP_PLANNER_HEALTHY_ALT,
-  LOOP_PLANNER_SELFHOSTED,
   LOOP_PLANNER_FALLBACK,
 } from './autoPolicy.js';
 
@@ -46,38 +45,34 @@ describe('loop planner fallback chain', () => {
   beforeEach(() => {
     configured.clear();
     slow.clear();
-    for (const p of ['greenpt', 'cortecs', 'melious', 'litellm']) configured.add(p);
+    for (const p of ['melious', 'mistral']) configured.add(p);
   });
 
   it('nimmt den Primär, solange er gesund ist', () => {
     expect(loopPlannerModelName()).toBe(LOOP_PLANNER_PRIMARY.model);
   });
 
-  it('weicht auf Cortecs aus, sobald der Primär als zäh vermerkt ist', () => {
+  it('weicht auf Mistral Small 4 aus, sobald der Primär als zäh vermerkt ist', () => {
     markSlow(LOOP_PLANNER_PRIMARY);
     expect(loopPlannerModelName()).toBe(LOOP_PLANNER_HEALTHY_ALT.model);
   });
 
-  it('geht Stufe für Stufe weiter, wenn mehrere Lanes stehen', () => {
+  it('verlässt Melious, wenn beide Stufen dort zäh sind', () => {
+    // Beide Stufen hängen am selben Gateway; ein Ausfall dort vermerkt beide.
     markSlow(LOOP_PLANNER_PRIMARY);
     markSlow(LOOP_PLANNER_HEALTHY_ALT);
-    expect(loopPlannerModelName()).toBe(LOOP_PLANNER_SELFHOSTED.model);
+    expect(loopPlannerModelName()).toBe(LOOP_PLANNER_FALLBACK.model);
   });
 
-  it('überspringt eine Stufe auch dann, wenn sie nur NICHT konfiguriert ist', () => {
-    configured.delete('greenpt');
-    expect(loopPlannerModelName()).toBe(LOOP_PLANNER_HEALTHY_ALT.model);
+  it('nimmt Mistral Medium, wenn Melious nicht konfiguriert ist', () => {
+    configured.delete('melious');
+    expect(loopPlannerModelName()).toBe(LOOP_PLANNER_FALLBACK.model);
   });
 
   it('nimmt lieber eine zähe Lane als gar keine', () => {
     // Alle vermerkt: ein zäher Planer ist immer noch ein Planer, und ohne
     // diesen Zweig stünde der agentische Zug ganz ohne Werkzeugphase da.
-    for (const s of [
-      LOOP_PLANNER_PRIMARY,
-      LOOP_PLANNER_HEALTHY_ALT,
-      LOOP_PLANNER_SELFHOSTED,
-      LOOP_PLANNER_FALLBACK,
-    ]) {
+    for (const s of [LOOP_PLANNER_PRIMARY, LOOP_PLANNER_HEALTHY_ALT, LOOP_PLANNER_FALLBACK]) {
       markSlow(s);
     }
     expect(loopPlannerModelName()).toBe(LOOP_PLANNER_PRIMARY.model);

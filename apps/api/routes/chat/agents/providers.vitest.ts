@@ -49,19 +49,16 @@ describe('prefersUnifiedLoop (unified vs planner/executor split)', () => {
 
 describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', () => {
   it('planner is a verified NON-Chinese tool-caller', () => {
-    // Die deklarierten Stufen (autoPolicy.ts): GreenPTs Mistral Small zuerst,
-    // dann Cortecs, dann das selbstgehostete Regolo, zuletzt Mistral Medium.
+    // Die deklarierten Stufen (autoPolicy.ts): Melious Gemma 4 31B zuerst,
+    // dann Melious Mistral Small 4, zuletzt Mistral Medium.
     // Die letzte Stufe war bis zum 29.08.2026 `litellm/verdigado-pro`, also
     // gpt-oss — das Modell, das `AVOID_AS_SYNTH` ausschliesst und einen
     // erzwungenen Werkzeugaufruf mit Prosa beantwortet.
-    // Werkzeugaufrufe wurden auf den Mistral-Stufen am 13.08.2026 live geprüft;
-    // für die Cortecs-Stufe steht diese Prüfung aus (siehe
-    // LOOP_PLANNER_HEALTHY_ALT).
+    // Werkzeugaufrufe beider Melious-Stufen wurden am 29.09.2026 live geprüft.
     const planner = loopPlannerModelName();
     expect([
-      'mistral-small-3.2-24b-instruct-2506',
-      GEMMA_31B_ON_CORTECS.model,
-      'mistral-small-4-119b',
+      GEMMA_31B_ON_MELIOUS.model,
+      'mistral-small-4-119b-instruct',
       'mistral-medium-2604',
     ]).toContain(planner);
     // The invariant behind that list, spelled out so widening the constants
@@ -70,9 +67,9 @@ describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', (
   });
 
   it('the planner never runs Mistral Small on the vendor API', () => {
-    // Mistral Small is served from GreenPT (Scaleway Paris) or self-hosted on
-    // Regolo — never `mistral-small-latest`, which would bill the Mistral API.
-    // The lane moved hosts on 13.08.2026; the rule about the vendor API did not.
+    // Mistral Small is served via Melious — never `mistral-small-latest`, which
+    // would bill the Mistral API. The lane moved hosts (13.08. and 29.09.2026);
+    // the rule about the vendor API did not.
     expect(loopPlannerModelName()).not.toBe('mistral-small-latest');
   });
 
