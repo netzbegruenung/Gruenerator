@@ -14,7 +14,7 @@ import * as schema from '../database/schema/index.js';
 import { loadConfig } from '../database/services/PostgresService/config.js';
 import { mobileTokenExchange } from '../plugins/mobileTokenExchange.js';
 import { webViewHandoff } from '../plugins/webViewHandoff.js';
-import { defaultAuthorizeScope } from '../services/auth/authorizeScopeDefault.js';
+import { oauthRequestDefaults } from '../services/auth/oauthRequestDefaults.js';
 import { createLogger } from '../utils/logger.js';
 import { captureAuthIssue } from '../utils/observability/captureAuthIssue.js';
 import { redisClient } from '../utils/redis/client.js';
@@ -183,7 +183,7 @@ const rawMcpPlugin = mcp({
   // Ohne diese Zeile weist `/oauth2/register` die Registrierung des
   // Excel-Add-ins mit `invalid_scope` ab. 1.7 speichert sie in JEDEM
   // dynamischen Client mit — die Vorgabe ohne `scope` setzt deshalb
-  // `defaultAuthorizeScope` unten (#3668).
+  // `oauthRequestDefaults` unten (#3668).
   clientRegistrationAllowedScopes: [CHAT_COMPLETIONS_SCOPE],
   accessTokenExpiresIn: 3600,
   refreshTokenExpiresIn: 60 * 60 * 24 * 30,
@@ -609,7 +609,7 @@ export const auth = betterAuth({
   // log + cluster it in GlitchTip (`auth.stage=oauth-callback`, fingerprint per
   // code). Benign replay/expiry codes are skipped to keep bot noise out.
   hooks: {
-    before: defaultAuthorizeScope(MCP_CLIENT_REGISTRATION_SCOPES),
+    before: oauthRequestDefaults(MCP_CLIENT_REGISTRATION_SCOPES, MCP_RESOURCE_URL),
     after: createAuthMiddleware(async (ctx) => {
       // 1.7 macht aus jedem genericOAuth-Provider einen echten
       // Social-Provider: der Rückweg heißt jetzt `/callback/:id`, nicht
