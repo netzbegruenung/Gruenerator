@@ -993,7 +993,9 @@ function CanvasEditorInner({
           actions={null}
           toolbar={toolbarElement}
           contextBar={contextBarElement}
-          bottomBar={bottomBar}
+          // Die Desktop-Leiste ist auf dem Handy per CSS ausgeblendet; gar
+          // nicht erst mitgeben, sonst hinge der Streifen zweimal im Baum.
+          bottomBar={isMobileWeb ? null : bottomBar}
           // Auf dem Handy scrollt ein Finger auf dem Sharepic nicht (wie in
           // Canva) — die Seiten wechselt dort dieser Streifen.
           mobilePageStrip={isMobileWeb && !isMobileSheetOpen ? pageStrip : null}
