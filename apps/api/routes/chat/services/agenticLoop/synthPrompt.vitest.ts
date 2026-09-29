@@ -135,7 +135,6 @@ describe('buildSynthSystem — Quellenblock', () => {
         toolName: 'find_content',
         args: { action: 'search', query: 'Radverkehrsstrategie' },
         result: { resultCount: 0, results: [] },
-        ok: true,
       },
     ];
     const prompt = buildSynthSystem('', ctx({ steps }));
