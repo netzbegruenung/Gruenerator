@@ -177,10 +177,11 @@ export function WordpressPanel({ hub, groups, total }: WordpressPanelProps) {
     });
     if (!ok) return;
     try {
+      // Dokumente zuerst, wie beim Wolke-Ordner.
+      if (group.documents.length > 0) await hub.removeDocuments(group.documents.map((d) => d.id));
       await hub.saveMeta({
         wordpress_sites: sites.filter((s) => s.websiteId !== group.site.websiteId),
       });
-      if (group.documents.length > 0) await hub.removeDocuments(group.documents.map((d) => d.id));
       setSheet(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Trennen fehlgeschlagen.');
