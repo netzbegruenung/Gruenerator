@@ -2,9 +2,9 @@ import { useMeasuredCornerReservation } from '@gruenerator/ui';
 import React from 'react';
 import { HiLink } from 'react-icons/hi';
 
-import type { ReactNode } from 'react';
-
 import { cn } from '../utils/cn';
+
+import type { ReactNode } from 'react';
 
 // Die Leiste füllt die untere Kante, ihre Höhe hängt am Seiten-Streifen.
 const BOTTOM_BAR_CORNERS = ['bottom-left', 'bottom-right'] as const;
@@ -101,11 +101,16 @@ export function CanvasEditorLayout({
             'ml-[calc(var(--image-studio-tab-bar-width)_+_var(--canvas-panel-width,0px))] max-canvas-mobile:ml-0'
         )}
       >
-        {contextBar && (
-          <div className="z-[90] flex w-full shrink-0 justify-center px-3 pt-3 max-canvas-mobile:hidden">
-            <div className="max-w-full">{contextBar}</div>
-          </div>
-        )}
+        {/* The slot keeps its height whether or not a selection shows the bar:
+            a bar in the flow moved every Stage under the pointer when it
+            appeared, and Konva added that shift to the element being dragged. */}
+        <div className="pointer-events-none sticky top-[var(--editor-topbar-height)] z-[90] h-14 w-full shrink-0 max-canvas-mobile:hidden">
+          {contextBar && (
+            <div className="absolute inset-x-0 top-0 flex justify-center px-3 pt-3">
+              <div className="pointer-events-auto max-w-full">{contextBar}</div>
+            </div>
+          )}
+        </div>
         {templateCreator && (
           <div className="flex items-center gap-xs py-xs px-sm bg-primary-50 border-b border-primary-100 text-foreground-muted text-[length:var(--font-size-small)] w-full max-canvas-mobile:text-[length:var(--font-size-xsmall)] max-canvas-mobile:py-xxs max-canvas-mobile:px-xs">
             <HiLink className="text-[var(--klee)] text-base shrink-0" />
