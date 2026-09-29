@@ -28,12 +28,13 @@ const item: MediaItem = {
 };
 
 describe('MediaCard delete confirmation', () => {
-  it('names the confirm and cancel buttons', async () => {
+  it('names the edit, delete, confirm and cancel buttons', async () => {
     const { container } = render(
       <MediaCard item={item} onDelete={vi.fn().mockResolvedValue(true)} onEdit={vi.fn()} />
     );
 
-    await userEvent.click(screen.getByTitle('Löschen'));
+    expect(screen.getByRole('button', { name: 'Bearbeiten' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Löschen' }));
 
     expect(
       screen.getByRole('button', { name: 'In den Papierkorb verschieben' })
