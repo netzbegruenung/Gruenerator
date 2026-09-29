@@ -52,10 +52,6 @@ export interface SheetsBridge {
   dispose(): void;
 }
 
-/** Univer mutations that are session-local bookkeeping despite lacking
- * `onlyLocal` tagging. Grown from observed traffic during manual testing. */
-const LOCAL_ONLY_MUTATIONS = new Set<string>(['sheet.mutation.set-worksheet-active-operation']);
-
 function readSnapshotVector(yMeta: Y.Map<unknown>): SnapshotVector {
   const raw = yMeta.get(SHEET_META_KEYS.snapshotVector);
   if (typeof raw !== 'object' || raw === null) return {};
@@ -191,7 +187,6 @@ export function attachYjsBridge({
     if (disposed || applyingRemote) return;
     if (commandInfo.type !== CommandType.MUTATION) return;
     if (options?.onlyLocal || options?.fromCollab || options?.fromChangeset) return;
-    if (LOCAL_ONLY_MUTATIONS.has(commandInfo.id)) return;
     // Only mutations for our unit; ignore internal editor docs (cell editor
     // runs a doc unit whose mutations must not enter the sheet log).
     const params = commandInfo.params as { unitId?: string } | undefined;

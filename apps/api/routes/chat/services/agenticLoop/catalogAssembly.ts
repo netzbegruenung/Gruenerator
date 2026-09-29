@@ -437,10 +437,15 @@ export async function assembleToolCatalog(
 }
 
 /** Wie `priorTurnRetrieved`: die vorhandene Projektion lesen, nie werfen. */
-function priorToolNames(toolHistory: ThreadToolHistory | null | undefined): string[] {
+export function priorToolNames(toolHistory: ThreadToolHistory | null | undefined): string[] {
   if (!toolHistory) return [];
   try {
-    return toolHistory.toolSteps().map((s) => s.toolName);
+    // Ohne Verbindungs-Schritte: ihr Anschluss hat einen eigenen Weg (`tier2.7_mcp_followup`),
+    // und MCP-Namen liegen in keiner zurückstellbaren Gruppe — `createToolScope` bleibt unberührt.
+    return toolHistory
+      .toolSteps()
+      .filter((s) => !s.serverName)
+      .map((s) => s.toolName);
   } catch {
     return [];
   }
@@ -542,6 +547,21 @@ export function priorTurnRetrieved(toolHistory: ThreadToolHistory | null | undef
 const NOT_A_LOOKUP: ReadonlySet<string> = new Set(['rezept_laden', 'ask_human']);
 
 /**
+ * Schlägt dieses Werkzeug etwas NACH? Die eine Stelle, an der die drei Listen
+ * oben zusammenkommen — `priorTurnRetrievalFailed` und der Zuschnitt des
+ * erzwungenen ersten Schritts (`forcedFirstStepTools`) stellen dieselbe Frage.
+ * Verbindungs-Werkzeuge (`serverName`) entscheidet der Aufrufer, weil der
+ * Name allein sie nicht verrät.
+ */
+export function isLookupTool(toolName: string): boolean {
+  return (
+    !NON_REPLAYABLE_ACTION_TOOLS.has(toolName) &&
+    !ONE_SHOT_SCAFFOLD_TOOLS.has(toolName) &&
+    !NOT_A_LOOKUP.has(toolName)
+  );
+}
+
+/**
  * Hat der vorige Turn etwas nachzuschlagen versucht, und ist JEDER dieser
  * Aufrufe gescheitert? Dann hat er nichts zum Mitführen, und eine kurze
  * Anschlussfrage („finde es", „stimmt nicht") ist ein neuer Versuch, keine
@@ -557,13 +577,7 @@ const NOT_A_LOOKUP: ReadonlySet<string> = new Set(['rezept_laden', 'ask_human'])
  * überholen darf.
  */
 export function priorTurnRetrievalFailed(steps: PersistedStep[]): boolean {
-  const lookups = steps.filter(
-    (s) =>
-      !s.serverName &&
-      !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName) &&
-      !ONE_SHOT_SCAFFOLD_TOOLS.has(s.toolName) &&
-      !NOT_A_LOOKUP.has(s.toolName)
-  );
+  const lookups = steps.filter((s) => !s.serverName && isLookupTool(s.toolName));
   return lookups.length > 0 && lookups.every((s) => s.ok === false);
 }
 

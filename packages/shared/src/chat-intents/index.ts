@@ -172,6 +172,15 @@ export interface RetrievalIntent extends IntentBase, Mentionable {
   uiTool?: string;
   /** Set only when the persisted name differs from the live one. */
   persistTool?: string;
+  /**
+   * Die LOOP-WERKZEUGE, über die der Abruf dieses Intents läuft — die Namen, die
+   * der erste Planer-Schritt sehen darf, wenn der Zwang zum Werkzeugaufruf aus
+   * genau diesem Verdikt kommt (`forcedFirstStepTools`). Nicht aus `uiTool`
+   * oder `pinsTool` abgeleitet: die benennen die Karte bzw. den Pin einer
+   * Erwähnung und fallen nur zufällig mit dem Werkzeugnamen zusammen —
+   * `compare` hat keins von beiden.
+   */
+  loopTools?: readonly string[];
 }
 
 /** Produces a rendered artefact in the turn (image, sharepic, chart). */
@@ -303,6 +312,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   research: {
     id: 'research',
     category: 'retrieval',
+    loopTools: ['web_search', 'gruenerator_search'],
     audience: 'all',
     localeSourced: true,
     uiTool: 'web_search',
@@ -339,10 +349,17 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       },
     ],
   },
-  compare: { id: 'compare', category: 'retrieval', audience: 'all', localeSourced: true },
+  compare: {
+    id: 'compare',
+    category: 'retrieval',
+    audience: 'all',
+    localeSourced: true,
+    loopTools: ['gruenerator_search', 'web_search'],
+  },
   search: {
     id: 'search',
     category: 'retrieval',
+    loopTools: ['gruenerator_search'],
     audience: 'all',
     localeSourced: true,
     uiTool: 'gruenerator_search',
@@ -358,6 +375,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   web: {
     id: 'web',
     category: 'retrieval',
+    loopTools: ['web_search'],
     audience: 'all',
     localeSourced: true,
     uiTool: 'web_search',
@@ -365,12 +383,14 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   scrape_url: {
     id: 'scrape_url',
     category: 'retrieval',
+    loopTools: ['scrape_url'],
     audience: 'all',
     persistTool: 'scrape_url',
   },
   examples: {
     id: 'examples',
     category: 'retrieval',
+    loopTools: ['gruenerator_examples_search'],
     audience: 'all',
     localeSourced: true,
     uiTool: 'gruenerator_examples_search',
@@ -393,6 +413,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   pressemitteilung_examples: {
     id: 'pressemitteilung_examples',
     category: 'retrieval',
+    loopTools: ['gruenerator_pressemitteilung_examples'],
     audience: 'all',
     localeSourced: true,
     availability: 'retired',
@@ -411,6 +432,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   abgeordnetenwatch: {
     id: 'abgeordnetenwatch',
     category: 'retrieval',
+    loopTools: ['abgeordnetenwatch'],
     audience: 'de-DE',
     degradeTo: 'web',
     declineNote: DECLINE_ABGEORDNETENWATCH,
@@ -426,6 +448,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   bundestag: {
     id: 'bundestag',
     category: 'retrieval',
+    loopTools: ['bundestag'],
     audience: 'de-DE',
     degradeTo: 'web',
     declineNote: DECLINE_BUNDESTAG,
@@ -504,6 +527,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   umfragen: {
     id: 'umfragen',
     category: 'retrieval',
+    loopTools: ['umfragen'],
     audience: 'all',
     localeSourced: true,
     availability: 'retired',
@@ -521,6 +545,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   hilfe: {
     id: 'hilfe',
     category: 'retrieval',
+    loopTools: ['gruenerator_docs_search'],
     audience: 'all',
     // Wohin ein `hilfe`-Turn ausweicht, den ein Notausschalter aus der Schleife
     // hält. Die Antwort war dieselbe, stand aber nur als Zweig im Entscheider
@@ -543,6 +568,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   chat_history: {
     id: 'chat_history',
     category: 'retrieval',
+    loopTools: ['search_chat_history'],
     audience: 'all',
     uiTool: 'search_chat_history',
     mention: {
@@ -895,6 +921,24 @@ export function intentToolNames(): {
   }
   return { ui: Object.freeze(ui), persist: Object.freeze(persist) };
 }
+
+/** Die Loop-Werkzeuge eines Intents — leer, wenn er keine hat oder kein Abruf-Intent ist. */
+export function loopToolsFor(intent: string): readonly string[] {
+  const def = CHAT_INTENTS[intent as ChatIntentId];
+  return def?.category === 'retrieval' ? (def.loopTools ?? []) : [];
+}
+
+/**
+ * Alle Loop-Werkzeuge der Recherche-Familie: die Vereinigung über jeden
+ * Abruf-Intent mit `loopTools`, `chat_history` ausgenommen (eigene Inhalte,
+ * keine Recherche). Das ist die Menge, die ein Turn sehen darf, dessen Zwang
+ * nur „hol Information" sagt, ohne den Intent zu nennen.
+ */
+export const RESEARCH_LOOP_TOOLS: ReadonlySet<string> = new Set(
+  ALL_CHAT_INTENTS.flatMap((i) =>
+    i.category === 'retrieval' && i.id !== 'chat_history' ? [...(i.loopTools ?? [])] : []
+  )
+);
 
 /**
  * Die Dispositions-Achse. Re-exportiert, damit `@gruenerator/shared/chat-intents`

@@ -76,6 +76,12 @@ export interface StreamTextRecord {
    * stünde das ohnehin.
    */
   toolChoice: unknown;
+  /**
+   * Das `activeTools` des ersten Schritts, neben `toolChoice` aufgezeichnet:
+   * der Unterschied zwischen "required über alles" und "required über diese"
+   * ist sonst nirgends beobachtbar. `null` = voller Umfang.
+   */
+  firstStepActiveTools: readonly string[] | null;
 }
 
 export interface LoopScript {
@@ -142,15 +148,19 @@ export function fakeLoopStreamText(options: {
   model: LanguageModel;
   system?: string;
   tools?: ToolSet;
-  prepareStep?: (arg: { stepNumber: number }) => { toolChoice?: unknown } | undefined;
+  prepareStep?: (arg: {
+    stepNumber: number;
+  }) => { toolChoice?: unknown; activeTools?: readonly string[] } | undefined;
 }): { stream: AsyncIterable<ScriptedPart> } {
   const callIndex = loopScript.calls.length;
   const tools = options.tools ?? {};
+  const firstStep = options.prepareStep?.({ stepNumber: 0 });
   loopScript.calls.push({
     modelId: modelIdOf(options.model),
     system: options.system ?? '',
     toolNames: Object.keys(tools),
-    toolChoice: options.prepareStep?.({ stepNumber: 0 })?.toolChoice ?? null,
+    toolChoice: firstStep?.toolChoice ?? null,
+    firstStepActiveTools: firstStep?.activeTools ?? null,
   });
 
   const response = queue.shift();

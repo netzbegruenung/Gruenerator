@@ -71,3 +71,31 @@ describe('logTurnSummary — der Werkzeug-Umfang', () => {
     );
   });
 });
+
+describe('logTurnSummary — der erzwungene erste Aufruf (#3880)', () => {
+  it('nennt Grund und Grösse des Zuschnitts', () => {
+    const out = line({
+      forceScope: {
+        reason: 'research_order',
+        tools: ['web_search', 'gruenerator_search', 'bundestag'],
+        named: null,
+      },
+    });
+    expect(out).toContain(' force=research_order:3');
+  });
+
+  it('meldet den Zwang über den vollen Katalog als none', () => {
+    const out = line({ forceScope: { reason: 'followup', tools: null, named: null } });
+    expect(out).toContain(' force=followup:none');
+  });
+
+  it('nennt ein benanntes Werkzeug beim Namen', () => {
+    const out = line({ forceScope: { reason: 'pinned', tools: null, named: 'bundestag' } });
+    expect(out).toContain(' force=pinned:bundestag');
+  });
+
+  it('schweigt, wenn nichts erzwungen war', () => {
+    expect(line({ forceScope: null })).not.toContain('force=');
+    expect(line()).not.toContain('force=');
+  });
+});
