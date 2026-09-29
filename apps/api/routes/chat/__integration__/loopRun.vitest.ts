@@ -278,6 +278,23 @@ describe('loop decision maps', () => {
       ).toBe(scenario.firstToolChoice);
     }
 
+    if (scenario.firstStepActiveTools) {
+      const active = loopScript.calls[0]?.firstStepActiveTools ?? null;
+      expect(
+        active,
+        `${scenario.id}: der erste Planer-Schritt sollte einen zugeschnittenen Katalog sehen`
+      ).not.toBeNull();
+      for (const name of active ?? []) {
+        expect(
+          scenario.firstStepActiveTools.within,
+          `${scenario.id}: ${name} gehoert nicht in den ersten Schritt`
+        ).toContain(name);
+      }
+      for (const name of scenario.firstStepActiveTools.without) {
+        expect(active, `${scenario.id}: ${name} im ersten Schritt`).not.toContain(name);
+      }
+    }
+
     if (scenario.systemIncludes) {
       expect(
         loopScript.calls[0]?.system ?? '',

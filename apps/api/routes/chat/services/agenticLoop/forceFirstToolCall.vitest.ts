@@ -5,7 +5,12 @@ import {
 } from '@gruenerator/shared/chat-intents';
 import { describe, it, expect } from 'vitest';
 
-import { pinnedFirstTool, shouldForceFirstToolCall } from './forceFirstToolCall.js';
+import {
+  forcedFirstStepTools,
+  pinnedFirstTool,
+  shouldForceFirstToolCall,
+  type ForceReason,
+} from './forceFirstToolCall.js';
 
 const base = {
   researchBanned: false,
@@ -28,7 +33,7 @@ const force = (over: Partial<typeof base> = {}) => shouldForceFirstToolCall({ ..
 
 describe('shouldForceFirstToolCall', () => {
   it('erzwingt nichts, wenn kein Weg zutrifft', () => {
-    expect(force()).toBe(false);
+    expect(force()).toBeNull();
   });
 
   // Achter Weg. Der gemessene Ausfall (23.08.2026): ein 21.785-Zeichen-PDF war
@@ -36,23 +41,23 @@ describe('shouldForceFirstToolCall', () => {
   // „fasse das pdf zusammen" aus `media`/`find_content` — mit einem fremden
   // Konto-Dokument. Beide Bedingungen zusammen, nicht einzeln.
   it('erzwingt einen Aufruf, wenn ein angehängtes Dokument zusammengefasst werden soll', () => {
-    expect(force({ hasAttachedDocuments: true, summaryAsk: true })).toBe(true);
+    expect(force({ hasAttachedDocuments: true, summaryAsk: true })).toBe('attached_summary');
   });
 
   it('erzwingt nichts bei einer Zusammenfassung OHNE angehängtes Dokument', () => {
-    expect(force({ hasAttachedDocuments: false, summaryAsk: true })).toBe(false);
+    expect(force({ hasAttachedDocuments: false, summaryAsk: true })).toBeNull();
   });
 
   it('erzwingt nichts bei einem Dokument ohne Zusammenfassungs-Bitte', () => {
-    expect(force({ hasAttachedDocuments: true, summaryAsk: false })).toBe(false);
+    expect(force({ hasAttachedDocuments: true, summaryAsk: false })).toBeNull();
   });
 
   // Der Bann vetoed alles — auch diesen Weg. „ohne neue Recherche" heisst nicht
   // „stattdessen halt zusammenfassen".
   it('weicht dem Recherche-Bann, auch mit Dokument und Zusammenfassungs-Bitte', () => {
-    expect(force({ researchBanned: true, hasAttachedDocuments: true, summaryAsk: true })).toBe(
-      false
-    );
+    expect(
+      force({ researchBanned: true, hasAttachedDocuments: true, summaryAsk: true })
+    ).toBeNull();
   });
 
   /**
@@ -95,7 +100,7 @@ describe('shouldForceFirstToolCall', () => {
       ['Was bringt Tempo 30 in der Innenstadt für die Verkehrssicherheit?'],
       ['Zeig mir die wichtigsten Argumente für ein Tempolimit'],
     ])('%s', (lastUserText) => {
-      expect(force({ ...demotedFromProse, lastUserText })).toBe(false);
+      expect(force({ ...demotedFromProse, lastUserText })).toBeNull();
     });
 
     it('ein Abruf-VERDIKT vor der Demotion erzwingt dagegen sehr wohl', () => {
@@ -110,7 +115,7 @@ describe('shouldForceFirstToolCall', () => {
           loopDemotedFromRetrieval: true,
           lastUserText: 'Wie hat die SPD zum Heizungsgesetz abgestimmt?',
         })
-      ).toBe(true);
+      ).toBe('demoted_retrieval');
     });
   });
 
@@ -139,13 +144,13 @@ describe('shouldForceFirstToolCall', () => {
     };
 
     it('erzwingt den Aufruf', () => {
-      expect(force(followup)).toBe(true);
+      expect(force(followup)).toBe('followup');
     });
 
     it.each([['Und die FDP?'], ['Was ist mit Bayern?'], ['Und wie war das 2021?']])(
       '%s',
       (lastUserText) => {
-        expect(force({ ...followup, lastUserText })).toBe(true);
+        expect(force({ ...followup, lastUserText })).toBe('followup');
       }
     );
 
@@ -160,7 +165,7 @@ describe('shouldForceFirstToolCall', () => {
       ['nochmal auf englisch'],
       ['umformulieren bitte'],
     ])('„%s" nach einem Abruf-Turn erzwingt NICHTS', (lastUserText) => {
-      expect(force({ ...followup, lastUserText })).toBe(false);
+      expect(force({ ...followup, lastUserText })).toBeNull();
     });
 
     // Offener Rand, hier festgehalten statt still gelassen: die TRENNBARE Form
@@ -170,23 +175,29 @@ describe('shouldForceFirstToolCall', () => {
     // entscheidet auch über die mitgeführten Quellen, und ihre heutige Form ist
     // über den 196-Turn-Korpus gemessen. Eigener Befund, eigene Messung.
     it('bekannte Lücke: die trennbare Umformulierungs-Form kommt durch', () => {
-      expect(force({ ...followup, lastUserText: 'formuliere das um' })).toBe(true);
+      expect(force({ ...followup, lastUserText: 'formuliere das um' })).toBe('followup');
     });
 
     // #3778: nach zwei gescheiterten `notebooks`-Aufrufen ist `priorTurnRetrieved`
     // wahr (ein gescheiterter Abruf ist ein Abruf), und der Klassifikator
     // liefert jetzt `agentic` — dieser Weg ist es, der den Planer dann
     // tatsächlich zu einem Aufruf zwingt.
-    it.each([['finde es'], ['stimmt nicht du hast de tools'], ['nochmal versuchen']])(
+    // „finde es" trägt schon der Recherche-Auftrag-Zweig weiter oben, die
+    // beiden anderen erst dieser.
+    it.each([
+      ['finde es', 'research_order'],
+      ['stimmt nicht du hast de tools', 'followup'],
+      ['nochmal versuchen', 'followup'],
+    ] as const)(
       'nach einem gescheiterten Abruf-Turn: „%s" erzwingt den Aufruf',
-      (lastUserText) => {
-        expect(force({ ...followup, lastUserText })).toBe(true);
+      (lastUserText, reason) => {
+        expect(force({ ...followup, lastUserText })).toBe(reason);
       }
     );
 
     it('eine Höflichkeit erzwingt nichts', () => {
-      expect(force({ ...followup, lastUserText: 'Danke!' })).toBe(false);
-      expect(force({ ...followup, lastUserText: 'Okay' })).toBe(false);
+      expect(force({ ...followup, lastUserText: 'Danke!' })).toBeNull();
+      expect(force({ ...followup, lastUserText: 'Okay' })).toBeNull();
     });
 
     it('ein Turn mit eigenem Thema braucht diesen Weg nicht', () => {
@@ -197,41 +208,43 @@ describe('shouldForceFirstToolCall', () => {
           ...followup,
           lastUserText: 'Erkläre mir bitte ausführlich, wie das Gebäudeenergiegesetz zustande kam',
         })
-      ).toBe(false);
+      ).toBeNull();
     });
 
     it('ohne Abrufkontext im Thread erzwingt nichts', () => {
       // Erster Turn eines Threads, oder ein Thread, der bisher nur erzeugt hat.
-      expect(force({ ...followup, priorTurnRetrieved: false })).toBe(false);
+      expect(force({ ...followup, priorTurnRetrieved: false })).toBeNull();
     });
 
     it('nicht für einen Turn, der gar nicht der Auffangwert ist', () => {
       // `sharepic`/`image_edit` u. ä. kommen mit ihrem eigenen Verdikt an —
       // „mach es blauer" nach einer Bundestags-Frage ist keine Nachschlage.
-      expect(force({ ...followup, intent: 'sharepic', lastUserText: 'mach es blauer' })).toBe(
-        false
-      );
+      expect(force({ ...followup, intent: 'sharepic', lastUserText: 'mach es blauer' })).toBeNull();
     });
 
     it('eigenes Material sticht auch hier', () => {
-      expect(force({ ...followup, materialHeavy: true })).toBe(false);
+      expect(force({ ...followup, materialHeavy: true })).toBeNull();
     });
 
     it('und der Recherche-Bann sticht ihn ebenfalls', () => {
-      expect(force({ ...followup, researchBanned: true })).toBe(false);
+      expect(force({ ...followup, researchBanned: true })).toBeNull();
     });
   });
 
   describe('der Recherche-Bann sticht alles', () => {
     it.each([
-      ['Demotion aus einem Abruf-Verdikt', { loopDemotedFromRetrieval: true }],
-      ['ausdrücklicher Rechercheauftrag', { lastUserText: 'Recherchiere das bitte.' }],
-      ['benannter Abruf-Intent', { intent: 'web' }],
-      ['Selbstwiderspruch der LLM-Stufe', { classifierContradictedResearch: true }],
-      ['ein per Erwähnung gepinntes Werkzeug', { pinnedTool: 'umfragen' }],
-    ])('%s', (_name, over) => {
-      expect(force(over)).toBe(true);
-      expect(force({ ...over, researchBanned: true })).toBe(false);
+      ['Demotion aus einem Abruf-Verdikt', { loopDemotedFromRetrieval: true }, 'demoted_retrieval'],
+      [
+        'ausdrücklicher Rechercheauftrag',
+        { lastUserText: 'Recherchiere das bitte.' },
+        'research_order',
+      ],
+      ['benannter Abruf-Intent', { intent: 'web' }, 'named_intent'],
+      ['Selbstwiderspruch der LLM-Stufe', { classifierContradictedResearch: true }, 'contradicted'],
+      ['ein per Erwähnung gepinntes Werkzeug', { pinnedTool: 'umfragen' }, 'pinned'],
+    ] as const)('%s', (_name, over, reason) => {
+      expect(force(over)).toBe(reason);
+      expect(force({ ...over, researchBanned: true })).toBeNull();
     });
   });
 
@@ -239,31 +252,31 @@ describe('shouldForceFirstToolCall', () => {
     const mcp = { intent: 'mcp', hasMcpScope: true, mcpToolCount: 3 };
 
     it('erzwingt den Aufruf', () => {
-      expect(force(mcp)).toBe(true);
+      expect(force(mcp)).toBe('mcp_scope');
     });
 
     it('nicht bei einer Fähigkeitsfrage — die beschreibt nur', () => {
-      expect(force({ ...mcp, isMcpCapabilityQuestion: true })).toBe(false);
+      expect(force({ ...mcp, isMcpCapabilityQuestion: true })).toBeNull();
     });
 
     it('nicht ohne gemountete Werkzeuge', () => {
-      expect(force({ ...mcp, mcpToolCount: 0 })).toBe(false);
+      expect(force({ ...mcp, mcpToolCount: 0 })).toBeNull();
     });
 
     it('nicht ohne Scope', () => {
-      expect(force({ ...mcp, hasMcpScope: false })).toBe(false);
+      expect(force({ ...mcp, hasMcpScope: false })).toBeNull();
     });
   });
 
   describe('eigenes Material entzieht der Demotion den Zwang', () => {
     it('demotierter Abruf-Turn OHNE eigenes Material sucht', () => {
-      expect(force({ loopDemotedFromRetrieval: true })).toBe(true);
+      expect(force({ loopDemotedFromRetrieval: true })).toBe('demoted_retrieval');
     });
 
     it('derselbe Turn MIT eigenem Material sucht nicht', () => {
       // Turn 4 vom 13.08.2026: die Prüfliste wurde als `web@0.35` demotiert und
       // suchte den Artikel im Netz, der im Kontext stand.
-      expect(force({ loopDemotedFromRetrieval: true, materialHeavy: true })).toBe(false);
+      expect(force({ loopDemotedFromRetrieval: true, materialHeavy: true })).toBeNull();
     });
 
     it('ein ausdrücklicher Auftrag sticht das eigene Material', () => {
@@ -275,15 +288,17 @@ describe('shouldForceFirstToolCall', () => {
           materialHeavy: true,
           lastUserText: 'Recherchiere ergänzend dazu.',
         })
-      ).toBe(true);
+      ).toBe('research_order');
     });
 
     it('ein ausdrücklich benannter Abruf-Intent ebenso', () => {
-      expect(force({ intent: 'web', materialHeavy: true })).toBe(true);
+      expect(force({ intent: 'web', materialHeavy: true })).toBe('named_intent');
     });
 
     it('und der Selbstwiderspruch der LLM-Stufe ebenso', () => {
-      expect(force({ classifierContradictedResearch: true, materialHeavy: true })).toBe(true);
+      expect(force({ classifierContradictedResearch: true, materialHeavy: true })).toBe(
+        'contradicted'
+      );
     });
   });
 
@@ -299,13 +314,13 @@ describe('shouldForceFirstToolCall', () => {
    */
   describe('der gelaufene Vorab-Seed entzieht dem Abruf-Intent den Zwang', () => {
     it('Dokument-Turn OHNE Seed-Treffer sucht', () => {
-      expect(force({ intent: 'search', hasAttachedDocuments: true })).toBe(true);
+      expect(force({ intent: 'search', hasAttachedDocuments: true })).toBe('named_intent');
     });
 
     it('derselbe Turn MIT geseedeten Passagen sucht nicht', () => {
       expect(
         force({ intent: 'search', hasAttachedDocuments: true, attachedSeedDelivered: true })
-      ).toBe(false);
+      ).toBeNull();
     });
 
     // Die Zusammenfassung steht VOR diesem Zweig und bleibt unberührt: sie
@@ -319,7 +334,7 @@ describe('shouldForceFirstToolCall', () => {
           attachedSeedDelivered: true,
           summaryAsk: true,
         })
-      ).toBe(true);
+      ).toBe('attached_summary');
     });
 
     // „Recherchiere dazu aktuelle Zahlen" ist mit Passagen aus dem Anhang nicht
@@ -332,7 +347,7 @@ describe('shouldForceFirstToolCall', () => {
           attachedSeedDelivered: true,
           lastUserText: 'Recherchiere ergänzend dazu.',
         })
-      ).toBe(true);
+      ).toBe('research_order');
     });
 
     it('der Selbstwiderspruch der LLM-Stufe ebenso', () => {
@@ -343,7 +358,7 @@ describe('shouldForceFirstToolCall', () => {
           attachedSeedDelivered: true,
           classifierContradictedResearch: true,
         })
-      ).toBe(true);
+      ).toBe('contradicted');
     });
 
     it('und eine @-Erwähnung, die ein Werkzeug benennt, ebenso', () => {
@@ -354,7 +369,7 @@ describe('shouldForceFirstToolCall', () => {
           attachedSeedDelivered: true,
           pinnedTool: 'umfragen',
         })
-      ).toBe(true);
+      ).toBe('pinned');
     });
   });
 
@@ -363,8 +378,8 @@ describe('shouldForceFirstToolCall', () => {
     // als `agentic`, und `agentic` ist aus NAMED_RETRIEVAL_INTENTS ausgenommen.
     // Ohne den Pin-Zweig hätte diese Erwähnung ihren Werkzeugzwang verloren.
     it('erzwingt den Aufruf für einen `agentic`-Turn mit gepinntem Werkzeug', () => {
-      expect(force({ intent: 'agentic', pinnedTool: 'umfragen' })).toBe(true);
-      expect(force({ intent: 'agentic', pinnedTool: null })).toBe(false);
+      expect(force({ intent: 'agentic', pinnedTool: 'umfragen' })).toBe('pinned');
+      expect(force({ intent: 'agentic', pinnedTool: null })).toBeNull();
     });
 
     it('auch ohne Erwähnung: der Pin aus Tier 3.4 auf `recurring_tasks` trägt', () => {
@@ -377,11 +392,13 @@ describe('shouldForceFirstToolCall', () => {
           pinnedTool: 'recurring_tasks',
           lastUserText: 'Erinnere mich jeden Montag um 9 an den Wochenbericht',
         })
-      ).toBe(true);
+      ).toBe('pinned');
     });
 
     it('sticht auch eigenes Material — der Pin ist eine ausdrückliche Wahl', () => {
-      expect(force({ intent: 'agentic', pinnedTool: 'umfragen', materialHeavy: true })).toBe(true);
+      expect(force({ intent: 'agentic', pinnedTool: 'umfragen', materialHeavy: true })).toBe(
+        'pinned'
+      );
     });
   });
 });
@@ -529,5 +546,184 @@ describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () =>
 
   it('`@doku` pinnt den Doku-Index', () => {
     expect(pinnedToolForMention('hilfe')).toBe('gruenerator_docs_search');
+  });
+});
+
+describe('forcedFirstStepTools', () => {
+  const MOUNTED = [
+    'web_search',
+    'gruenerator_search',
+    'bundestag',
+    'media',
+    'find_content',
+    'read_pdf_form',
+    'summarize',
+    'dokumente_lesen',
+    'text_uebersetzen',
+    'rezept_laden',
+    'ask_human',
+    'edit_document',
+    'm1__list',
+    'bahn',
+    'sharepic',
+    'meine_inhalte_laden',
+    'gruenerator_examples_search',
+    'scrape_url',
+    'notebooks',
+    'umfragen',
+  ];
+  const NOT_LOOKUP = new Set([
+    'rezept_laden',
+    'ask_human',
+    'edit_document',
+    'sharepic',
+    'gruenerator_examples_search',
+    'gruenerator_pressemitteilung_examples',
+  ]);
+  const tools = (
+    over: Partial<Parameters<typeof forcedFirstStepTools>[0]> & { reason: ForceReason }
+  ) =>
+    forcedFirstStepTools({
+      intent: 'agentic',
+      mounted: MOUNTED,
+      mcpToolNames: ['m1__list', 'm1__get'],
+      managedToolNames: ['bahn'],
+      priorToolNames: [],
+      isLookupTool: (name) => !NOT_LOOKUP.has(name),
+      attachedDocsTool: null,
+      userText: '',
+      ...over,
+    });
+
+  it('named_intent: search → gruenerator_search', () => {
+    expect(tools({ reason: 'named_intent', intent: 'search' })).toEqual(['gruenerator_search']);
+  });
+
+  it('named_intent: search mit Anhang → Suche, dann die angehängten Dokumente', () => {
+    expect(
+      tools({ reason: 'named_intent', intent: 'search', attachedDocsTool: 'dokumente_lesen' })
+    ).toEqual(['gruenerator_search', 'dokumente_lesen']);
+  });
+
+  it.each(['demoted_retrieval', 'contradicted', 'followup'] as const)(
+    '%s mit Anhang: die angehängten Dokumente sind dabei',
+    (reason) => {
+      expect(tools({ reason, attachedDocsTool: 'dokumente_lesen' })).toContain('dokumente_lesen');
+    }
+  );
+
+  it.each(['research_order', 'mcp_scope'] as const)(
+    '%s mit Anhang: die angehängten Dokumente bleiben draussen',
+    (reason) => {
+      expect(tools({ reason, attachedDocsTool: 'dokumente_lesen' })).not.toContain(
+        'dokumente_lesen'
+      );
+    }
+  );
+
+  it('research_order: „in meinen Dokumenten" hält die eigenen Inhalte erreichbar', () => {
+    const result = tools({
+      reason: 'research_order',
+      userText: 'Such in meinen Dokumenten nach dem Antrag zum Radverkehr',
+      mounted: [...MOUNTED, 'documents'],
+    });
+    expect(result).toContain('documents');
+    expect(result).toContain('find_content');
+  });
+
+  it('research_order: ohne Bezug auf eigene Inhalte bleiben sie draussen', () => {
+    const result = tools({
+      reason: 'research_order',
+      userText: 'recherchiere aktuelle Zahlen zu Windkraft',
+      mounted: [...MOUNTED, 'documents'],
+    });
+    expect(result).not.toContain('documents');
+    expect(result).not.toContain('find_content');
+  });
+
+  it('named_intent: bundestag → bundestag', () => {
+    expect(tools({ reason: 'named_intent', intent: 'bundestag' })).toEqual(['bundestag']);
+  });
+
+  it('named_intent: compare → Suche und Web', () => {
+    expect(tools({ reason: 'named_intent', intent: 'compare' })).toEqual([
+      'gruenerator_search',
+      'web_search',
+    ]);
+  });
+
+  it('named_intent: nicht gemountetes Werkzeug (de-AT) → null', () => {
+    const mounted = MOUNTED.filter((t) => t !== 'bundestag');
+    expect(tools({ reason: 'named_intent', intent: 'bundestag', mounted })).toBeNull();
+  });
+
+  it.each(['research_order', 'demoted_retrieval', 'contradicted'] as const)(
+    '%s: Recherche-Menge ∩ montiert, mit Konnektor, ohne Fremdes',
+    (reason) => {
+      const result = tools({ reason });
+      expect(result).toContain('web_search');
+      expect(result).toContain('gruenerator_search');
+      expect(result).toContain('bahn');
+      for (const t of ['media', 'read_pdf_form', 'summarize', 'text_uebersetzen']) {
+        expect(result).not.toContain(t);
+      }
+    }
+  );
+
+  it('research_order: nimmt die Nachschlage-Werkzeuge des Threads mit (#3778), einmal', () => {
+    const result = tools({ reason: 'research_order', priorToolNames: ['notebooks', 'notebooks'] });
+    expect(result?.filter((t) => t === 'notebooks')).toEqual(['notebooks']);
+  });
+
+  it('named_intent ohne eigene Werkzeuge → null', () => {
+    expect(tools({ reason: 'named_intent', intent: 'mcp', mcpToolNames: [] })).toBeNull();
+  });
+
+  it('followup: doppelte Werkzeuge erscheinen einmal', () => {
+    expect(tools({ reason: 'followup', priorToolNames: ['bundestag', 'bundestag'] })).toEqual([
+      'bundestag',
+      'web_search',
+    ]);
+  });
+
+  it('mcp_scope: genau die MCP-Werkzeuge, die montiert sind', () => {
+    expect(tools({ reason: 'mcp_scope' })).toEqual(['m1__list']);
+  });
+
+  it('mcp_scope: nichts montiert → null', () => {
+    expect(tools({ reason: 'mcp_scope', mcpToolNames: ['x__y'] })).toBeNull();
+  });
+
+  it('followup: die Nachschlage-Werkzeuge des Threads und das Web', () => {
+    expect(
+      tools({ reason: 'followup', priorToolNames: ['bundestag', 'sharepic', 'rezept_laden'] })
+    ).toEqual(['bundestag', 'web_search']);
+  });
+
+  it('followup: nur Aktionen und kein Web montiert → null', () => {
+    expect(
+      tools({
+        reason: 'followup',
+        priorToolNames: ['sharepic', 'edit_document'],
+        mounted: MOUNTED.filter((t) => t !== 'web_search'),
+      })
+    ).toBeNull();
+  });
+
+  it.each(['pinned', 'attached_summary'] as const)('%s: ungeschnitten', (reason) => {
+    expect(tools({ reason })).toBeNull();
+  });
+
+  it('enthält nie meine_inhalte_laden', () => {
+    for (const reason of ['research_order', 'named_intent', 'followup', 'mcp_scope'] as const) {
+      const result = tools({
+        reason,
+        intent: 'search',
+        priorToolNames: ['meine_inhalte_laden'],
+        mcpToolNames: ['meine_inhalte_laden'],
+        managedToolNames: ['meine_inhalte_laden'],
+      });
+      expect(result ?? []).not.toContain('meine_inhalte_laden');
+    }
   });
 });

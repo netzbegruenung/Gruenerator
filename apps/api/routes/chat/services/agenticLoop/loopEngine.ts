@@ -327,7 +327,13 @@ export function buildPrepareStep(
    * `extraSystem`: die Menge wächst mitten im Lauf, wenn das Modell einen Lader
    * ruft. Ein einmal eingefangenes Array wäre der Stand von Schritt 0.
    */
-  activeTools: () => readonly string[] | undefined = () => undefined
+  activeTools: () => readonly string[] | undefined = () => undefined,
+  /**
+   * Welche Werkzeuge der ERZWUNGENE erste Schritt sieht (`forcedFirstStepTools`),
+   * oder `null` für den vollen Umfang. Nur auf Schritt 0 gelesen, und nur
+   * wenn kein Werkzeug benannt ist — ein benanntes trägt sich selbst.
+   */
+  firstStepTools: readonly string[] | null = null
 ): ({ stepNumber, steps }: { stepNumber: number; steps?: ReadonlyArray<PreparedStepView> }) => {
   toolChoice?: 'none' | 'required' | { type: 'tool'; toolName: string };
   system?: string;
@@ -378,7 +384,11 @@ export function buildPrepareStep(
       return {
         toolChoice: choice,
         ...(extra && { system: `${baseSystem}${extra}` }),
-        ...(firstToolName ? withTool(firstToolName) : scope),
+        ...(firstToolName
+          ? withTool(firstToolName)
+          : firstStepTools
+            ? { activeTools: firstStepTools }
+            : scope),
       };
     }
     if (stepNumber > 0) {
@@ -554,6 +564,8 @@ export interface LoopEngineParams {
   activeTools?: () => readonly string[] | undefined;
   /** Names the tool that first step must call, when an @-mention pinned one. */
   firstToolName?: string | null;
+  /** Tool set the forced first step sees (`forcedFirstStepTools`); null = full scope. */
+  firstStepTools?: readonly string[] | null;
   /** Names a specific tool the next step must call — used to turn the "web is
    *  now allowed" permission after an empty internal search into an actual
    *  fallback. Evaluated per step; null leaves the choice to the model. */
@@ -700,7 +712,8 @@ async function streamWithTools(
       p.forcedToolForStep,
       p.getRecipeBlock,
       p.firstToolName ?? null,
-      p.activeTools
+      p.activeTools,
+      p.firstStepTools ?? null
     ),
     experimental_repairToolCall: repairToolCall,
     ...phaseTelemetry('unified'),
@@ -779,7 +792,8 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         p.forcedToolForStep,
         p.getRecipeBlock,
         p.firstToolName ?? null,
-        p.activeTools
+        p.activeTools,
+        p.firstStepTools ?? null
       ),
       experimental_repairToolCall: repairToolCall,
       ...phaseTelemetry('gather'),

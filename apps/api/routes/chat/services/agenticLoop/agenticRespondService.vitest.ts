@@ -15,6 +15,7 @@
  *  - dass ein ausgefallener MCP-Katalog den Turn NICHT abbricht,
  *  - dass die Erstellungs-Werkzeuge ihre eigene Zeitgrenze bekommen.
  */
+import { RESEARCH_LOOP_TOOLS } from '@gruenerator/shared/chat-intents';
 import { describe, it, expect, vi } from 'vitest';
 
 // Die Zusammenfassungszeile IST hier der Prüfgegenstand (siehe den letzten
@@ -432,6 +433,141 @@ describe('streamAgenticResponse — der Ersatz in der Zusammenfassungszeile', ()
     const summary = infoLines.find((m) => m.startsWith('[Agentic] model='));
     expect(summary).toBeDefined();
     expect(summary).not.toContain('replaced=');
+  });
+});
+
+describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#3880)', () => {
+  const tool = { execute: async () => ({}) };
+  // Das Feld, auf dem #3880 lief: Recherche-Werkzeuge neben den dreien, die der
+  // Planer unter `required` gegriffen hat.
+  const MOUNTED = [
+    'web_search',
+    'gruenerator_search',
+    'bundestag',
+    'read_pdf_form',
+    'media',
+    'summarize',
+  ];
+  const catalogWith = (names: readonly string[], over: Record<string, unknown> = {}) => ({
+    ...EMPTY_CATALOG,
+    tools: Object.fromEntries(names.map((n) => [n, tool])) as unknown as ToolSet,
+    ...over,
+  });
+  const historyWith = (toolNames: readonly string[]) => ({
+    artifacts: () => [],
+    toolSteps: (): PersistedStep[] =>
+      toolNames.map((toolName, i) => ({ toolCallId: `c${i}`, toolName, args: {}, result: {} })),
+    lastTurnToolSteps: () => [],
+    sources: () => [],
+    lastGeneratedImageUrl: () => null,
+  });
+
+  async function loopParams(
+    state: ChatGraphState,
+    userText: string,
+    catalog: ReturnType<typeof catalogWith>,
+    extra: Record<string, unknown> = {}
+  ): Promise<LoopEngineParams> {
+    const { sse } = fakeSse();
+    let seen: LoopEngineParams | null = null;
+    await streamAgenticResponse(
+      { ...baseParams(state, 'x'.repeat(4000), userText), sse, ...extra },
+      fakeDeps({ assemble: (async () => catalog) as never, onLoop: (p) => (seen = p) })
+    );
+    expect(seen).not.toBeNull();
+    return seen as NonNullable<typeof seen>;
+  }
+
+  it('named_intent: der benannte Abruf-Intent sieht nur seine eigenen Werkzeuge', async () => {
+    const p = await loopParams(fakeState({ intent: 'search' }), 'Frage?', catalogWith(MOUNTED));
+    expect(p.forceFirstToolCall).toBe(true);
+    expect(p.firstToolName).toBeNull();
+    expect(p.firstStepTools).toEqual(['gruenerator_search']);
+  });
+
+  it('named_intent mit Anhang ohne Vorab-Treffer: die angehängten Dokumente bleiben erreichbar', async () => {
+    // Ohne `searchQuery`/`lastUserTextNoMentions` hat der Vorab-Abruf keine
+    // Anfrage und liefert nichts — der Fall, in dem der Zwang stehen bleibt.
+    const p = await loopParams(
+      fakeState({
+        intent: 'search',
+        documentSources: [{ kind: 'document', id: 'doc-1' }],
+      } as never),
+      'Erstelle daraus eine Tabelle.',
+      catalogWith([...MOUNTED, 'dokumente_lesen'])
+    );
+    expect(p.forceFirstToolCall).toBe(true);
+    expect(p.firstStepTools).toEqual(['gruenerator_search', 'dokumente_lesen']);
+  });
+
+  it('research_order: ein Rechercheauftrag sieht die Recherche-Werkzeuge, nicht den Rest', async () => {
+    infoLines.length = 0;
+    const p = await loopParams(
+      fakeState(),
+      'recherchiere aktuelle Zahlen zu Windkraft',
+      catalogWith(MOUNTED)
+    );
+    expect(p.forceFirstToolCall).toBe(true);
+    expect(p.firstStepTools).toEqual([...RESEARCH_LOOP_TOOLS].filter((t) => MOUNTED.includes(t)));
+    for (const wrong of ['read_pdf_form', 'media', 'summarize']) {
+      expect(p.firstStepTools).not.toContain(wrong);
+    }
+    const summary = infoLines.find((m) => m.startsWith('[Agentic] model='));
+    expect(summary).toContain(` force=research_order:${p.firstStepTools!.length}`);
+  });
+
+  it('followup: die Anschlussfrage sieht, was der Thread schon nachgeschlagen hat, und das Web', async () => {
+    const p = await loopParams(fakeState(), 'Und die FDP?', catalogWith(MOUNTED), {
+      toolHistory: historyWith(['bundestag']),
+    });
+    expect(p.forceFirstToolCall).toBe(true);
+    expect(p.firstStepTools).toEqual(['bundestag', 'web_search']);
+  });
+
+  it('followup: fehlen das frühere Werkzeug und das Web im Katalog, bleibt der Zuschnitt leer und der Zwang steht', async () => {
+    infoLines.length = 0;
+    const p = await loopParams(
+      fakeState(),
+      'Und die FDP?',
+      catalogWith(MOUNTED.filter((t) => t !== 'bundestag' && t !== 'web_search')),
+      { toolHistory: historyWith(['bundestag']) }
+    );
+    expect(p.forceFirstToolCall).toBe(true);
+    expect(p.firstStepTools).toBeNull();
+    const summary = infoLines.find((m) => m.startsWith('[Agentic] model='));
+    expect(summary).toContain(' force=followup:none');
+  });
+
+  it('mcp_scope: ein Turn mit Server-Scope sieht nur dessen Werkzeuge', async () => {
+    const mcpTools = ['mnotion__search', 'mnotion__create_page'];
+    const mcpCatalog = {
+      tools: Object.fromEntries(mcpTools.map((n) => [n, tool])),
+      labels: new Map(mcpTools.map((n) => [n, { serverName: 'Notion', toolName: n }])),
+      close: async () => {},
+      scopedServerMissing: false,
+      scopedServerUnreachable: false,
+      driftedServers: [],
+      catalogSummary: '',
+      promptHints: [],
+    };
+    const p = await loopParams(
+      fakeState({ intent: 'mcp', mcpServerScope: 'notion' } as never),
+      'Lege eine Seite zum Heizungsgesetz an',
+      catalogWith([...MOUNTED, ...mcpTools], { mcpCatalog })
+    );
+    expect(p.forceFirstToolCall).toBe(true);
+    expect(p.firstStepTools).toEqual(mcpTools);
+  });
+
+  it('pinned: ein benanntes Werkzeug trägt sich selbst, ohne Zuschnitt', async () => {
+    const p = await loopParams(
+      fakeState({ mentionPinnedTool: 'bundestag' } as never),
+      'Was liegt zum Heizungsgesetz vor?',
+      catalogWith(MOUNTED)
+    );
+    expect(p.forceFirstToolCall).toBe(true);
+    expect(p.firstToolName).toBe('bundestag');
+    expect(p.firstStepTools).toBeNull();
   });
 });
 

@@ -3,17 +3,37 @@
  * Werkzeugaufruf ABVERLANGT wird — und die Fähigkeitsfrage, die genau das
  * verhindert.
  */
+import { loopToolsFor, RESEARCH_LOOP_TOOLS } from '@gruenerator/shared/chat-intents';
+
 import { NAMED_RETRIEVAL_INTENTS } from './intents.js';
 import { isReferentialFollowup, looksLikeExplicitResearchOrder } from './routing.js';
+import { DEFERRABLE_GROUPS } from './toolScope.js';
+
+/**
+ * WARUM der erste Schritt einen Aufruf verlangt — je ein Wert pro Weg unten.
+ * Der Grund entscheidet, WELCHE Werkzeuge der Schritt sehen darf
+ * (`forcedFirstStepTools`); ein blosses `true` wusste das nicht mehr.
+ */
+export type ForceReason =
+  | 'pinned'
+  | 'attached_summary'
+  | 'mcp_scope'
+  | 'research_order'
+  | 'demoted_retrieval'
+  | 'contradicted'
+  | 'followup'
+  | 'named_intent';
 
 /**
  * Darf der Loop dem Planer einen Werkzeugaufruf ABVERLANGEN (`toolChoice: required`)?
  *
- * Sieben Wege sind über die Zeit hier eingezogen, jeder aus einem eigenen Live-
+ * Acht Wege sind über die Zeit hier eingezogen, jeder aus einem eigenen Live-
  * Ausfall oder — beim Werkzeug-Pin — aus einer Stilllegung; die Kommentare an den
  * Zweigen nennen sie. Herausgezogen, weil eine mehrstellige Oder-Kette mit neun
- * Eingaben mitten in einer 1.700-Zeilen-Funktion nicht prüfbar ist: bis hierher
+ * Eingaben mitten in `streamAgenticResponse` nicht prüfbar ist: bis hierher
  * gab es keinen einzigen Test darauf, welcher Weg bei welchem Turn feuert.
+ * Der Rückgabewert benennt den Weg (`ForceReason`), damit der erste Schritt
+ * daran seinen Werkzeug-Zuschnitt ableiten kann.
  */
 export function shouldForceFirstToolCall(input: {
   researchBanned: boolean;
@@ -41,18 +61,18 @@ export function shouldForceFirstToolCall(input: {
   /** Der Vorab-Abruf hat für DIESEN Turn Passagen aus den angehängten
    *  Dokumenten in die Quellenregistry gelegt (`seedAttachedDocuments`). */
   attachedSeedDelivered?: boolean;
-}): boolean {
+}): ForceReason | null {
   // Der Bann vetoed alles. `toolChoice: 'required'` ist kein Vorschlag, den das
   // Modell gegen den Satz des Nutzers abwägen kann — unter „ohne neue Recherche"
   // sind die verbleibenden Werkzeuge die falschen.
-  if (input.researchBanned) return false;
+  if (input.researchBanned) return null;
 
   // Fünfter Weg: die Person hat ein Werkzeug BENANNT. Er steht neben dem
   // Intent-Weg unten und nicht in ihm, weil ein Pin keinen Intent mehr braucht —
   // `@umfragen` läuft seit der Stilllegung als `agentic`, und `agentic` ist aus
   // `NAMED_RETRIEVAL_INTENTS` ausgenommen (es IST der Auffangwert). Ohne diesen
   // Zweig verlöre genau diese Erwähnung den Werkzeugzwang, den sie vorher hatte.
-  if (input.pinnedTool != null) return true;
+  if (input.pinnedTool != null) return 'pinned';
 
   // Achter Weg: eine Zusammenfassung eines ANGEHÄNGTEN Dokuments. Steht neben
   // dem Intent-Weg unten, weil der Intent hier nicht verlässlich ist — der
@@ -60,7 +80,7 @@ export function shouldForceFirstToolCall(input: {
   // oder `agentic` schreiben, und `agentic` ist aus `NAMED_RETRIEVAL_INTENTS`
   // ausgenommen. Welches Werkzeug es sein muss, steht in `pinnedFirstTool`:
   // `summarize` liest den Volltext, alles andere sieht nur Passagen.
-  if (input.hasAttachedDocuments && input.summaryAsk) return true;
+  if (input.hasAttachedDocuments && input.summaryAsk) return 'attached_summary';
 
   // MCP mit gesetztem Server-Scope: eine Fähigkeitsfrage (WS-5 beschreibt die
   // Werkzeuge) braucht keinen Aufruf, alles andere schon.
@@ -70,14 +90,14 @@ export function shouldForceFirstToolCall(input: {
     !input.isMcpCapabilityQuestion &&
     input.mcpToolCount > 0
   ) {
-    return true;
+    return 'mcp_scope';
   }
 
   // Ein ausdrückliches „recherchiere das" muss auch suchen. Die Demotion schiebt
   // solche Turns nach `agentic`, wo der Planer gar nichts rufen kann — live als
   // steps=0-Antworten beobachtet, die die eben bestellte Recherche anboten.
-  // `direct_response` bleibt der Notausgang (searchTools.ts).
-  if (looksLikeExplicitResearchOrder(input.lastUserText)) return true;
+  // Einen Notausgang hat der erzwungene Schritt nicht; ab Schritt 1 ist die Wahl wieder frei.
+  if (looksLikeExplicitResearchOrder(input.lastUserText)) return 'research_order';
 
   // Derselbe Ausfall ohne das Verb: eine schlichte Faktenfrage, von der Heuristik
   // längst als Abruf erkannt („wer ist aktuell Bundeskanzler in Österreich" →
@@ -99,12 +119,12 @@ export function shouldForceFirstToolCall(input: {
   // Abruf abzuverlangen, waren zwei entgegengesetzte Urteile über denselben Turn.
   // Der Zwang fällt weg, die Möglichkeit bleibt: der Planer DARF suchen, wenn die
   // Aufgabe es verlangt. Das ausdrückliche „recherchiere das" oben ist unberührt.
-  if (input.loopDemotedFromRetrieval && !input.materialHeavy) return true;
+  if (input.loopDemotedFromRetrieval && !input.materialHeavy) return 'demoted_retrieval';
 
   // Dritter Weg: die LLM-Stufe sagte „braucht Recherche" und schrieb im selben
   // Atemzug `direct` — ihre eigene Begründung benannte die Suche, die dann nie
   // lief, und die Antwort war vollständig erfunden.
-  if (input.classifierContradictedResearch) return true;
+  if (input.classifierContradictedResearch) return 'contradicted';
 
   // Siebter Weg: die rückbezügliche Anschlussfrage nach einem Abruf-Turn.
   //
@@ -141,7 +161,7 @@ export function shouldForceFirstToolCall(input: {
     !input.materialHeavy &&
     isReferentialFollowup(input.lastUserText)
   ) {
-    return true;
+    return 'followup';
   }
 
   // Vierter Weg, der bis zuletzt keinen hatte: der Klassifikator hat einen
@@ -180,9 +200,9 @@ export function shouldForceFirstToolCall(input: {
   // dazu aktuelle Zahlen" ist mit Passagen aus dem Anhang NICHT erledigt),
   // `classifierContradictedResearch` ist ein Widerspruch im Verdikt, und die
   // beiden Material-Zweige prüfen ihre eigene Bedingung bereits selbst.
-  if (input.attachedSeedDelivered) return false;
+  if (input.attachedSeedDelivered) return null;
 
-  return NAMED_RETRIEVAL_INTENTS.has(input.intent ?? '');
+  return NAMED_RETRIEVAL_INTENTS.has(input.intent ?? '') ? 'named_intent' : null;
 }
 
 /**
@@ -249,4 +269,94 @@ export const MCP_CAPABILITY_QUESTION =
  */
 export function isMcpCapabilityQuestion(text: string): boolean {
   return MCP_CAPABILITY_QUESTION.test(text);
+}
+
+/**
+ * Welche Werkzeuge der erzwungene erste Schritt SEHEN darf, oder `null`,
+ * wenn der Katalog ungeschnitten bleibt.
+ *
+ * `toolChoice: 'required'` über den ganzen Katalog hat den Planer dreimal in
+ * ein unpassendes Werkzeug laufen lassen (#3880: `media`, `read_pdf_form`,
+ * `summarize`). Jeder Weg in `shouldForceFirstToolCall` heisst „dieser Turn
+ * muss Information holen" — der Zuschnitt sagt dem Schritt, welche.
+ *
+ * Gilt NUR für Schritt 0; danach sieht der Planer wieder den vollen Umfang.
+ * Deshalb darf die Menge eng sein: ein falsch klassifizierter Turn kostet
+ * einen Schritt, nie eine Fähigkeit — dasselbe Argument wie beim Lader in
+ * toolScope.ts.
+ *
+ * Nie leer: eine leere `activeTools`-Liste unter `required` bräche den
+ * Aufruf. Leer heisst `null`, und der Aufrufer protokolliert es.
+ */
+export function forcedFirstStepTools(input: {
+  reason: ForceReason;
+  intent: string | null | undefined;
+  /** Alles, was dieser Turn montiert hat (`Object.keys(wrapped)`). */
+  mounted: readonly string[];
+  /** Die Werkzeuge der verbundenen MCP-Server dieses Turns. */
+  mcpToolNames: readonly string[];
+  /** Die verwalteten Konnektoren dieses Turns (`systemCatalog`). */
+  managedToolNames: readonly string[];
+  /** Die Werkzeuge früherer Turns dieses Threads (`priorToolNames`, ohne Verbindungs-Schritte). */
+  priorToolNames: readonly string[];
+  isLookupTool: (name: string) => boolean;
+  /** Das Werkzeug für die angehängten Dokumente dieses Turns, oder `null` ohne Anhang. */
+  attachedDocsTool: string | null;
+  /** Der Text der Person ohne Erwähnungs-Label — derselbe, den `createToolScope` liest. */
+  userText: string;
+}): readonly string[] | null {
+  // Der Klassifikator schiebt jeden Dokument-Turn nach `search`. Hat der
+  // Vorab-Abruf nichts geliefert, müsste Schritt 0 sonst die Parteiprogramme
+  // nach dem eigenen PDF der Person durchsuchen — der Ausfall vom 23.08.2026 an
+  // neuer Stelle. Nicht für `research_order` (ein ausdrücklicher Auftrag geht
+  // nach draussen) und nicht für `mcp_scope` (der Server-Scope ist der Auftrag).
+  const attachedDocs = input.attachedDocsTool != null ? [input.attachedDocsTool] : [];
+  // „Such in meinen Dokumenten nach …" feuert `research_order` und braucht
+  // `documents`/`find_content`/… — dasselbe Signal, das in `createToolScope` die
+  // Gruppe offen hält, damit der scharfe Umfang und diese Menge sich nie widersprechen.
+  const ownContent = DEFERRABLE_GROUPS.filter((g) => g.hint.test(input.userText)).flatMap(
+    (g) => g.tools
+  );
+  let candidates: readonly string[];
+  switch (input.reason) {
+    case 'pinned':
+    case 'attached_summary':
+      return null;
+    case 'mcp_scope':
+      candidates = input.mcpToolNames;
+      break;
+    case 'named_intent':
+      candidates = [...loopToolsFor(input.intent ?? ''), ...attachedDocs];
+      break;
+    case 'research_order':
+    case 'demoted_retrieval':
+    case 'contradicted':
+      // Dazu die Nachschlage-Werkzeuge des Threads: „finde es" nach zwei
+      // gescheiterten `notebooks`-Aufrufen (#3778) feuert `research_order` VOR
+      // `followup`, und die Recherche-Menge kennt `notebooks` nicht — der
+      // erzwungene Schritt könnte das richtige Werkzeug nicht mehr wiederholen.
+      candidates = [
+        ...RESEARCH_LOOP_TOOLS,
+        ...input.managedToolNames,
+        ...input.priorToolNames.filter(input.isLookupTool),
+        ...ownContent,
+        ...(input.reason === 'research_order' ? [] : attachedDocs),
+      ];
+      break;
+    case 'followup':
+      // Dazu das Web: „Und was sagt die SPD dazu?" nach einem
+      // `gruenerator_search`-Turn muss aus dem Korpus der Grünen heraus können.
+      // `bundestag` deckt jede Partei ab, ein Partei-Korpus nicht.
+      candidates = [
+        ...input.priorToolNames.filter(input.isLookupTool),
+        ...loopToolsFor('web'),
+        ...attachedDocs,
+      ];
+      break;
+  }
+  const mounted = new Set(input.mounted);
+  // Die Lader (`meine_inhalte_laden` u. a.) öffnen nur eine Gruppe, sie holen nichts.
+  const loaders = new Set<string>(DEFERRABLE_GROUPS.map((g) => g.loaderTool));
+  const scoped = [...new Set(candidates)].filter((t) => mounted.has(t) && !loaders.has(t));
+  return scoped.length > 0 ? scoped : null;
 }
