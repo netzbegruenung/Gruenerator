@@ -626,6 +626,23 @@ describe('forcedFirstStepTools', () => {
     }
   );
 
+  it('research_order: nimmt die Nachschlage-Werkzeuge des Threads mit (#3778), einmal', () => {
+    const result = tools({ reason: 'research_order', priorToolNames: ['notebooks', 'notebooks'] });
+    expect(result?.filter((t) => t === 'notebooks')).toEqual(['notebooks']);
+  });
+
+  it('named_intent ohne eigene Werkzeuge fällt auf die Recherche-Menge zurück', () => {
+    const result = tools({ reason: 'named_intent', intent: 'mcp', mcpToolNames: [] });
+    expect(result).toContain('web_search');
+    expect(result).toContain('bahn');
+  });
+
+  it('followup: doppelte Werkzeuge erscheinen einmal', () => {
+    expect(tools({ reason: 'followup', priorToolNames: ['bundestag', 'bundestag'] })).toEqual([
+      'bundestag',
+    ]);
+  });
+
   it('mcp_scope: genau die MCP-Werkzeuge, die montiert sind', () => {
     expect(tools({ reason: 'mcp_scope' })).toEqual(['m1__list']);
   });

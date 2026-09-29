@@ -7,6 +7,7 @@ import { loopToolsFor, RESEARCH_LOOP_TOOLS } from '@gruenerator/shared/chat-inte
 
 import { NAMED_RETRIEVAL_INTENTS } from './intents.js';
 import { isReferentialFollowup, looksLikeExplicitResearchOrder } from './routing.js';
+import { DEFERRABLE_GROUPS } from './toolScope.js';
 
 /**
  * WARUM der erste Schritt einen Aufruf verlangt — je ein Wert pro Weg unten.
@@ -26,7 +27,7 @@ export type ForceReason =
 /**
  * Darf der Loop dem Planer einen Werkzeugaufruf ABVERLANGEN (`toolChoice: required`)?
  *
- * Sieben Wege sind über die Zeit hier eingezogen, jeder aus einem eigenen Live-
+ * Acht Wege sind über die Zeit hier eingezogen, jeder aus einem eigenen Live-
  * Ausfall oder — beim Werkzeug-Pin — aus einer Stilllegung; die Kommentare an den
  * Zweigen nennen sie. Herausgezogen, weil eine mehrstellige Oder-Kette mit neun
  * Eingaben mitten in `streamAgenticResponse` nicht prüfbar ist: bis hierher
@@ -316,15 +317,23 @@ export function forcedFirstStepTools(input: {
     case 'research_order':
     case 'demoted_retrieval':
     case 'contradicted':
-      candidates = [...RESEARCH_LOOP_TOOLS, ...input.managedToolNames];
+      // Dazu die Nachschlage-Werkzeuge des Threads: „finde es" nach zwei
+      // gescheiterten `notebooks`-Aufrufen (#3778) feuert `research_order` VOR
+      // `followup`, und die Recherche-Menge kennt `notebooks` nicht — der
+      // erzwungene Schritt könnte das richtige Werkzeug nicht mehr wiederholen.
+      candidates = [
+        ...RESEARCH_LOOP_TOOLS,
+        ...input.managedToolNames,
+        ...input.priorToolNames.filter(input.isLookupTool),
+      ];
       break;
     case 'followup':
       candidates = input.priorToolNames.filter(input.isLookupTool);
       break;
   }
   const mounted = new Set(input.mounted);
-  const scoped = [...new Set(candidates)].filter(
-    (t) => mounted.has(t) && t !== 'meine_inhalte_laden'
-  );
+  // Die Lader (`meine_inhalte_laden` u. a.) öffnen nur eine Gruppe, sie holen nichts.
+  const loaders = new Set<string>(DEFERRABLE_GROUPS.map((g) => g.loaderTool));
+  const scoped = [...new Set(candidates)].filter((t) => mounted.has(t) && !loaders.has(t));
   return scoped.length > 0 ? scoped : null;
 }
