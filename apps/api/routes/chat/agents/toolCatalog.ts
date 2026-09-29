@@ -698,7 +698,10 @@ NUTZE WENN:
   // research ban: reading what the person attached is not new research. Mounted
   // on the same answer that makes the system prompt name it.
   if (loop && imageVisibility(loop.state, { loop: true }) === 'tool') {
-    tools[IMAGE_TOOL] = makeBildAnsehenTool({ images: loop.state.imageAttachments });
+    tools[IMAGE_TOOL] = makeBildAnsehenTool({
+      images: loop.state.imageAttachments,
+      sourceRegistry,
+    });
   }
 
   // Domain tools (loop path only). Mounted BROADLY, not gated on the exact

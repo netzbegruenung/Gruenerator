@@ -436,10 +436,11 @@ export function looksLikeCompoundGeneration(raw: string): boolean {
 }
 
 // The ask points at the picture: an image noun, a seeing verb, or a bare
-// deictic ending ("Was ist das?", "Wer ist das hier?"). Noun forms are spelled
-// out so `bild` does not also claim "Bildung".
+// deictic ending ("Was ist das?", "Wer ist das hier?"). The nouns carry no
+// leading `\b` so compounds count ("Wahlplakat", "Gruppenfoto"); their endings
+// are spelled out so `bild` does not also claim "Bildung".
 const IMAGE_REFERENCE_RE =
-  /\b(bild(?:er|ern|es|s|chen)?|fotos?|fotografie|screenshots?|grafik(?:en)?|logos?|plakate?s?|motive?s?|abbildung(?:en)?|flyers?|siehst|sieht\s+man|zu\s+sehen|erkenn\w*|abgebildet|drauf|darauf|beschreib\w*|alt-?text\w*)\b|\b(das|dies|dieses|hier|da)\s*[?.!]*\s*$/i;
+  /(bild(?:er|ern|es|s|chen)?|fotos?|fotografie|screenshots?|grafik(?:en)?|logos?|plakat(?:e|en|es|s)?|motiv(?:e|en|s)?|abbildung(?:en)?|flyers?|sharepics?)\b|\b(siehst|sieht\s+man|zu\s+sehen|erkenn\w*|abgebildet|drauf|darauf|beschreib\w*|alt-?text\w*)\b|\b(das|dies|dieses|hier|da)\s*[?.!]*\s*$/i;
 
 // The answer lies OUTSIDE the picture: what someone said or demanded, how recent
 // something is, or where to look it up. RESEARCH_SIGNAL_RE counts as well.

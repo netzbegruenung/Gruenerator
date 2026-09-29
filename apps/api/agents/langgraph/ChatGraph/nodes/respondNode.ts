@@ -592,11 +592,15 @@ const GROUNDED_CLAUSE =
 const UNGROUNDED_CLAUSE =
   'Es liegt auch keine Beschreibung davon vor. Sage das offen und rate den Inhalt nicht.';
 
-/** Der Loop sieht keine Pixel, kann sie aber über das Werkzeug lesen (#3841). */
+/**
+ * Der Loop sieht keine Pixel, kann sie aber über das Werkzeug lesen (#3841).
+ * Gilt für beide Rollen im Split-Modus: der Planer ruft das Werkzeug, der
+ * werkzeuglose Schreiber findet dessen Befund in den Quellen.
+ */
 const TOOL_SENTENCE =
-  `Die Bilder sind NICHT in der Nachricht sichtbar. Lies ein Bild mit dem Werkzeug ${IMAGE_TOOL} ` +
-  '(`bild` = seine Nummer, `frage` = was du darüber wissen musst), bevor du etwas über seinen ' +
-  'Inhalt sagst, und rate ihn nicht.';
+  'Die Bilder sind NICHT in der Nachricht sichtbar. Ihren Inhalt kennst du nur aus den ' +
+  `Ergebnissen des Werkzeugs ${IMAGE_TOOL} (\`bild\` = seine Nummer, \`frage\` = was du darüber ` +
+  'wissen musst). Sag nichts über ihren Inhalt, was dort nicht steht, und rate ihn nicht.';
 
 /**
  * Format image attachment context for the system message.

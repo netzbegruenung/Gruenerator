@@ -545,6 +545,10 @@ describe('looksLikeImageOnlyAsk', () => {
     for (const t of [
       'Beschreib das Foto',
       'Ist auf dem Screenshot ein Tippfehler?',
+      // Compounds and plurals — the most common phrasings (#3841 review).
+      'Was steht auf dem Wahlplakat?',
+      'Wer ist auf dem Gruppenfoto?',
+      'Was steht auf den Plakaten?',
       'Was ist das hier?',
       'Kannst du mir einen Alt-Text schreiben?',
     ]) {
