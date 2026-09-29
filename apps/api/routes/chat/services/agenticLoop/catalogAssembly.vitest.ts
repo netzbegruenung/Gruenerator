@@ -17,6 +17,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   assembleToolCatalog,
   buildToolReplay,
+  isLookupTool,
   priorTurnRetrieved,
   priorTurnRetrievalFailed,
   wrapAssembledTools,
@@ -570,6 +571,19 @@ describe('priorTurnRetrieved', () => {
       })
     ).toBe(false);
   });
+});
+
+describe('isLookupTool', () => {
+  it('web_search schlägt nach', () => {
+    expect(isLookupTool('web_search')).toBe(true);
+  });
+
+  it.each(['edit_document', 'gruenerator_examples_search', 'rezept_laden', 'ask_human'])(
+    '%s nicht',
+    (name) => {
+      expect(isLookupTool(name)).toBe(false);
+    }
+  );
 });
 
 describe('priorTurnRetrievalFailed', () => {
