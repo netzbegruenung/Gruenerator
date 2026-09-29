@@ -815,7 +815,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-universal',
     title: 'Reisekosten NRW (Beta)',
-    description: 'Reisekostenabrechnung für den Landesverband NRW aus deinen Belegen — Beta',
+    description:
+      'Reisekostenabrechnung aus deinen Belegen, nur für Reisen, die der Landesverband NRW erstattet — andere Verbände haben eigene Regeln (Beta)',
     iconKey: 'PiFileText',
     avatar: '🧾',
     backgroundColor: '#316049',
@@ -827,7 +828,8 @@ export const SKILLS = [
   {
     identifier: 'gruenerator-universal',
     title: 'Reise vorbereiten NRW (Beta)',
-    description: 'Was vor einer Dienstreise für den Landesverband NRW zu erledigen ist — Beta',
+    description:
+      'Was vor einer Reise zu erledigen ist, nur für Reisen, die der Landesverband NRW erstattet — andere Verbände haben eigene Regeln (Beta)',
     iconKey: 'PiListChecks',
     avatar: '🧳',
     backgroundColor: '#316049',
