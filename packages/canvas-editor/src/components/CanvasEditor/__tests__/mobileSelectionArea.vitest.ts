@@ -22,6 +22,12 @@ describe('getMobileSelectionArea', () => {
     expect(getMobileSelectionArea(type, tabs)).toBe(expected);
   });
 
+  it("prefers the config's detail tab, even when it is hidden from the strip", () => {
+    expect(getMobileSelectionArea('balken', LEGACY, 'settings')).toBe('settings');
+    expect(getMobileSelectionArea('balken', LEGACY)).toBe('text');
+    expect(getMobileSelectionArea(null, LEGACY, 'settings')).toBeNull();
+  });
+
   it('returns null without a selection or a fitting tab', () => {
     expect(getMobileSelectionArea(null, UNIFIED)).toBeNull();
     expect(getMobileSelectionArea('text', ['background', 'uploads'])).toBeNull();

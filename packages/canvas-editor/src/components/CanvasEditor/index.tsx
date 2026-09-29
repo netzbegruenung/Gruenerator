@@ -608,7 +608,8 @@ function CanvasEditorInner({
   const mobileSelectionArea = isMobileWeb
     ? getMobileSelectionArea(
         activeSelectedElement ? selectionType : null,
-        visibleTabs.map((tab) => tab.id)
+        visibleTabs.map((tab) => tab.id),
+        activeConfig?.getAutoSwitchTab?.(activeSelectedElement) ?? null
       )
     : null;
   useEffect(() => {
