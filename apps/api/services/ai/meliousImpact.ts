@@ -102,3 +102,40 @@ export function captureMeliousImpact(
     headers: response.headers,
   });
 }
+
+/**
+ * Melious keeps `environment_impact` off the wire on streamed responses
+ * (docs.melious.ai/guides/streaming: "use the non-streaming shape if you need
+ * them"; no lookup endpoint exists). A caller that needs the measurement asks
+ * non-streaming and hands the SDK this replay: the finished completion as the
+ * chunk sequence a stream would have produced.
+ */
+export function replayAsStream(completion: unknown): Response {
+  const body = record(completion) ? completion : {};
+  const choice = Array.isArray(body.choices) && record(body.choices[0]) ? body.choices[0] : {};
+  const message = record(choice.message) ? choice.message : {};
+  const toolCalls = Array.isArray(message.tool_calls) ? message.tool_calls : [];
+  const frame = (delta: Record<string, unknown>, finish: unknown = null) => ({
+    id: body.id,
+    object: 'chat.completion.chunk',
+    created: body.created,
+    model: body.model,
+    choices: [{ index: 0, delta, finish_reason: finish }],
+  });
+  const frames: unknown[] = [
+    frame({ role: 'assistant', content: message.content ?? null }),
+    ...toolCalls.map((call, index) =>
+      frame({ tool_calls: [{ ...(record(call) ? call : {}), index }] })
+    ),
+    frame({}, choice.finish_reason ?? 'stop'),
+    {
+      id: body.id,
+      object: 'chat.completion.chunk',
+      model: body.model,
+      choices: [],
+      usage: body.usage,
+    },
+  ];
+  const sse = frames.map((f) => `data: ${JSON.stringify(f)}\n\n`).join('') + 'data: [DONE]\n\n';
+  return new Response(sse, { headers: { 'content-type': 'text/event-stream' } });
+}
