@@ -1,4 +1,4 @@
-import { type InferSelectModel } from 'drizzle-orm';
+import { type InferSelectModel, sql } from 'drizzle-orm';
 import { boolean, index, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 // Letterheads (Absender) a user can pick from when exporting a PDF. See
@@ -32,7 +32,10 @@ export const userLetterheads = pgTable(
     deleted_at: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => [
-    uniqueIndex('user_letterheads_user_label_unique').on(t.user_id, t.label),
+    // Nur unter lebenden Zeilen: ein Briefkopf im Papierkorb blockiert sein Label nicht.
+    uniqueIndex('user_letterheads_user_label_unique')
+      .on(t.user_id, t.label)
+      .where(sql`deleted_at IS NULL`),
     index('idx_user_letterheads_user_id').on(t.user_id),
   ]
 );

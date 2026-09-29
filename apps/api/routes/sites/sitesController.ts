@@ -7,6 +7,8 @@ import express, { type Response, type Router, type RequestHandler } from 'expres
 import { type UserSiteRow } from '../../database/schema/sites.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { USER_SITE_TRASH } from '../../services/sites/userSiteTrash.js';
+import { trashOwnedRow } from '../../services/trash/ownedRowTrash.js';
 import { createLogger } from '../../utils/logger.js';
 
 import {
@@ -51,7 +53,7 @@ router.get('/public/:subdomain', (async (
     const subdomainLower = subdomain.toLowerCase().trim();
 
     const result = await db.query<UserSiteRow>(
-      'SELECT * FROM user_sites WHERE subdomain = $1 AND is_published = true',
+      'SELECT * FROM user_sites WHERE subdomain = $1 AND is_published = true AND deleted_at IS NULL',
       [subdomainLower]
     );
 
@@ -81,9 +83,10 @@ router.get('/my-site', (async (req: SitesRequest, res: Response): Promise<void> 
       return;
     }
 
-    const result = await db.query<UserSiteRow>('SELECT * FROM user_sites WHERE user_id = $1', [
-      userId,
-    ]);
+    const result = await db.query<UserSiteRow>(
+      'SELECT * FROM user_sites WHERE user_id = $1 AND deleted_at IS NULL',
+      [userId]
+    );
 
     if (!result || result.length === 0) {
       res.json({ site: null });
@@ -139,7 +142,7 @@ router.post('/create', (async (req: SitesRequest, res: Response): Promise<void> 
     }
 
     const existingCheck = await db.query<Pick<UserSiteRow, 'id'>>(
-      'SELECT id FROM user_sites WHERE user_id = $1',
+      'SELECT id FROM user_sites WHERE user_id = $1 AND deleted_at IS NULL',
       [userId]
     );
 
@@ -216,7 +219,7 @@ router.put('/:id', (async (req: SitesRequest<{ id: string }>, res: Response): Pr
     const result = await db.query<UserSiteRow>(
       `UPDATE user_sites
        SET ${updateFields.join(', ')}
-       WHERE id = $${paramCounter} AND user_id = $${paramCounter + 1}
+       WHERE id = $${paramCounter} AND user_id = $${paramCounter + 1} AND deleted_at IS NULL
        RETURNING *`,
       values
     );
@@ -253,7 +256,7 @@ router.post('/:id/publish', (async (
     const result = await db.query<UserSiteRow>(
       `UPDATE user_sites
        SET is_published = $1, last_published = CASE WHEN $1 = true THEN CURRENT_TIMESTAMP ELSE last_published END
-       WHERE id = $2 AND user_id = $3
+       WHERE id = $2 AND user_id = $3 AND deleted_at IS NULL
        RETURNING *`,
       [publish, id, userId]
     );
@@ -295,7 +298,7 @@ router.get('/check-subdomain', (async (req: SitesRequest, res: Response): Promis
     }
 
     const result = await db.query<Pick<UserSiteRow, 'id'>>(
-      'SELECT id FROM user_sites WHERE subdomain = $1',
+      'SELECT id FROM user_sites WHERE subdomain = $1 AND deleted_at IS NULL',
       [subdomainLower]
     );
 
@@ -319,12 +322,10 @@ router.delete('/:id', (async (req: SitesRequest<{ id: string }>, res: Response):
 
     const { id } = req.params;
 
-    const result = await db.query<Pick<UserSiteRow, 'id'>>(
-      'DELETE FROM user_sites WHERE id = $1 AND user_id = $2 RETURNING id',
-      [id, userId]
-    );
+    // Into the Papierkorb; someone else's site answers 404 as before.
+    const result = await trashOwnedRow(USER_SITE_TRASH, userId, id);
 
-    if (!result || result.length === 0) {
+    if (result !== 'ok') {
       res.status(404).json({ success: false, error: 'Site nicht gefunden' });
       return;
     }

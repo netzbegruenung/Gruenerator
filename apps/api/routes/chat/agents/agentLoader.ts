@@ -169,7 +169,7 @@ export async function getAgentOrCustomPrompt(
       `SELECT cp.id, cp.name, cp.prompt, cp.slug
        FROM custom_prompts cp
        LEFT JOIN saved_prompts sp ON sp.prompt_id = cp.id AND sp.user_id = $2
-       WHERE cp.id::text = $1 AND cp.is_active = true
+       WHERE cp.id::text = $1 AND cp.is_active = true AND cp.deleted_at IS NULL
          AND (cp.user_id = $2 OR cp.is_public = true OR sp.id IS NOT NULL)
        LIMIT 1`,
       [identifier, userId],

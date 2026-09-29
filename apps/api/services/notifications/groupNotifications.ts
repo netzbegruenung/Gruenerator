@@ -47,9 +47,11 @@ export async function notifyGroupMembers(params: NotifyGroupParams): Promise<voi
           WHERE group_id = $1 AND user_id != $2 AND user_id <> ALL($3::uuid[]) AND is_active = TRUE`,
         [groupId, excludeUserId, skipUserIds]
       ) as Promise<Array<{ user_id: string }>>,
-      db.queryOne('SELECT name, is_system FROM groups WHERE id = $1', [groupId], {
-        table: 'groups',
-      }) as Promise<GroupRow | null>,
+      db.queryOne(
+        'SELECT name, is_system FROM groups WHERE id = $1 AND deleted_at IS NULL',
+        [groupId],
+        { table: 'groups' }
+      ) as Promise<GroupRow | null>,
     ]);
 
     if (!members || members.length === 0) return;
@@ -80,7 +82,8 @@ export async function notifyGroupAdmins(params: NotifyGroupParams): Promise<void
          SELECT user_id FROM group_memberships
            WHERE group_id = $1 AND role = 'admin' AND is_active = TRUE
          UNION
-         SELECT created_by AS user_id FROM groups WHERE id = $1 AND created_by IS NOT NULL
+         SELECT created_by AS user_id FROM groups
+          WHERE id = $1 AND created_by IS NOT NULL AND deleted_at IS NULL
        ) admins
        WHERE user_id != $2`,
       [groupId, excludeUserId]
@@ -89,7 +92,7 @@ export async function notifyGroupAdmins(params: NotifyGroupParams): Promise<void
     if (!admins || admins.length === 0) return;
 
     const group = (await db.queryOne(
-      'SELECT name, is_system FROM groups WHERE id = $1',
+      'SELECT name, is_system FROM groups WHERE id = $1 AND deleted_at IS NULL',
       [groupId],
       {
         table: 'groups',
@@ -126,9 +129,11 @@ export async function notifyGroupUsers(
         'SELECT user_id FROM group_memberships WHERE group_id = $1 AND user_id = ANY($2::uuid[]) AND is_active = TRUE',
         [groupId, candidates]
       ) as Promise<Array<{ user_id: string }>>,
-      db.queryOne('SELECT name, is_system FROM groups WHERE id = $1', [groupId], {
-        table: 'groups',
-      }) as Promise<GroupRow | null>,
+      db.queryOne(
+        'SELECT name, is_system FROM groups WHERE id = $1 AND deleted_at IS NULL',
+        [groupId],
+        { table: 'groups' }
+      ) as Promise<GroupRow | null>,
     ]);
     if (!members || members.length === 0) return;
 

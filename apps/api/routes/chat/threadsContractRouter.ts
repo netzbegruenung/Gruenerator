@@ -72,7 +72,9 @@ export const threadsContractRouter = s.router(threadsContract, {
       const rows = await postgres.query(
         `SELECT t.id, t.user_id, t.agent_id, t.title, t.created_at, t.updated_at,
                 COALESCE(t.status, 'regular') as status, COALESCE(t.thread_type, 'chat') as thread_type,
-                t.notebook_collection_id, t.group_id, COALESCE(t.tags, '[]'::jsonb) as tags, t.slug_suffix,
+                t.notebook_collection_id,
+                (SELECT g.id FROM groups g WHERE g.id = t.group_id AND g.deleted_at IS NULL) AS group_id,
+                COALESCE(t.tags, '[]'::jsonb) as tags, t.slug_suffix,
                 CASE
                   WHEN t.user_id::text = $1 THEN 'owner'
                   WHEN t.permissions ? $2::text THEN 'shared'
@@ -84,6 +86,7 @@ export const threadsContractRouter = s.router(threadsContract, {
                     SELECT bool_or(COALESCE((gcs.permissions->>'write')::boolean, true))
                     FROM group_content_shares gcs
                     INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id::text = $1 AND gm.is_active = TRUE
+                    INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
                     WHERE gcs.content_type = 'chat_threads' AND gcs.content_id = t.id::text
                       AND COALESCE((gcs.permissions->>'read')::boolean, true) = true
                   ), true)
@@ -104,6 +107,7 @@ export const threadsContractRouter = s.router(threadsContract, {
            OR t.id IN (
              SELECT gcs.content_id::uuid FROM group_content_shares gcs
              INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id::text = $1 AND gm.is_active = TRUE
+             INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
              WHERE gcs.content_type = 'chat_threads'
                AND COALESCE((gcs.permissions->>'read')::boolean, true) = true
            )
