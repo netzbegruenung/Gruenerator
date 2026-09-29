@@ -26,6 +26,9 @@ const ALL = 'all';
 function TrashContent() {
   const [kind, setKind] = useState<TrashKind | null>(null);
   const list = useTrashList(kind);
+  // „Papierkorb leeren“ empties every kind, so whether it has work depends on
+  // the unfiltered trash; with no filter this is the same query as `list`.
+  const allList = useTrashList(null);
   const emptyTrash = useEmptyTrash();
   const confirm = useConfirm();
   const filterRef = useRef<HTMLButtonElement | null>(null);
@@ -34,6 +37,7 @@ function TrashContent() {
   const focusAfterRemoval = useRef(false);
 
   const items = useMemo(() => list.data?.pages.flatMap((page) => page.items) ?? [], [list.data]);
+  const trashIsEmpty = allList.data?.pages.every((page) => page.items.length === 0) ?? true;
 
   useEffect(() => {
     if (!focusAfterRemoval.current) return;
@@ -82,7 +86,7 @@ function TrashContent() {
         <Button
           type="button"
           variant="outline"
-          disabled={items.length === 0 || emptyTrash.isPending}
+          disabled={trashIsEmpty || emptyTrash.isPending}
           onClick={() => void handleEmpty()}
         >
           <PiTrash aria-hidden="true" className="mr-xs size-4" />
@@ -105,6 +109,10 @@ function TrashContent() {
             </Button>
           </AlertDescription>
         </Alert>
+      ) : items.length === 0 && kind ? (
+        <p className="m-0 py-xl text-center font-medium text-foreground-heading">
+          Keine gelöschten Inhalte dieser Art.
+        </p>
       ) : items.length === 0 ? (
         <div className="py-xl text-center">
           <p className="m-0 font-medium text-foreground-heading">Der Papierkorb ist leer.</p>
