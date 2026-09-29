@@ -35,7 +35,7 @@ export const MCP_OAUTH_SCOPES_SUPPORTED = [
 
 /**
  * Was ein Client bekommt, der an `/oauth2/authorize` keinen `scope` schickt
- * (claude.ai lässt ihn oft weg). Eingesetzt von `defaultAuthorizeScope`, nicht
+ * (claude.ai lässt ihn oft weg). Eingesetzt von `oauthRequestDefaults`, nicht
  * von better-auth: dessen Vorgabe wäre `client.scopes`, und das enthält seit
  * 1.7 bei jedem dynamisch registrierten Client auch `chat:completions` (#3668).
  *
