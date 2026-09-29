@@ -715,7 +715,20 @@ NUTZE WENN:
   // tools); a per-turn selector is Phase 3n.
   if (loop) {
     const { sse, state } = loop;
-    tools.summarize = makeSummaryTool({ sse, state });
+    const attachedSources = retrievableAttachedSources(state);
+
+    // `summarize` is the exception to "mounted broadly", and it is gated on
+    // STATE, not on wording: it can only add something when the material is NOT
+    // already in the prompt. A pasted or small attachment is there in full —
+    // the writer can summarise it itself, and mounted anyway `summarize` was
+    // the planner's pick for any ask about it (live 29.09.2026: „rechtschreibung
+    // korrigieren" on a pasted newsletter, forced search, came back as a
+    // summary). A vectorized document is not in the prompt, so it keeps
+    // `summarize` beside `dokumente_lesen` as its only full-text path; the
+    // `summary` intent brings its own material (documents or the thread).
+    if (state.intent === 'summary' || attachedSources.length > 0) {
+      tools.summarize = makeSummaryTool({ sse, state });
+    }
 
     // dokumente_lesen: gezielte Frage an die Dokumente, die an DIESEN Turn
     // hängen. Gegated an den Dokumenten selbst, nicht an einer Konfiguration
@@ -727,7 +740,6 @@ NUTZE WENN:
     // Der Vorab-Seed (seedAttachedDocuments) hat die Passagen zur häufigsten
     // Frage schon geholt; dieses Werkzeug ist das Nachfassen, wenn er
     // danebengriff.
-    const attachedSources = retrievableAttachedSources(state);
     if (attachedSources.length > 0) {
       const mehrere = attachedSources.length > 1;
       tools[ATTACHED_DOCS_TOOL] = tool({
