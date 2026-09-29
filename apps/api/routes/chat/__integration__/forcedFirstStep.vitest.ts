@@ -9,17 +9,18 @@
  * Werkzeug erreichbar halten und keinen der Köder zeigen, zu denen der Planer
  * unter dem vollen Katalog griff (`media`, `read_pdf_form`, `summarize` …).
  *
- * LIVE (`FORCE_LIVE=1` + echter `GREENPT_API_KEY`): derselbe Schritt 0 geht
- * zweimal an das Produktionsmodell der Planer-Lane (`LOOP_PLANNER_PRIMARY`) —
- * mit dem Zuschnitt und ohne (master: `required` über den ganzen Katalog, weil
- * `toolScope` im Schattenbetrieb läuft). Gezählt wird, welches Werkzeug der
- * Planer als erstes ruft; kein Werkzeug läuft, die Aufrufe gehen ohne
- * `execute` hinaus. Kleiner als die Chat-Eval, weil nur der eine Schritt
- * gemessen wird, den die Änderung berührt.
- *   FORCE_LIVE=1 GREENPT_API_KEY=… npx vitest run routes/chat/__integration__/forcedFirstStep.vitest.ts
+ * LIVE (`FORCE_LIVE=1` + die Anbieter-Schlüssel): derselbe Schritt 0 geht
+ * zweimal an die Planer-Lane (`LOOP_PLANNER_PRIMARY`) — mit dem Zuschnitt und
+ * ohne (master: `required` über den ganzen Katalog, weil `toolScope` im
+ * Schattenbetrieb läuft). Gezählt wird, welches Werkzeug der Planer als erstes
+ * ruft; kein Werkzeug läuft, die Aufrufe gehen ohne `execute` hinaus. Kleiner
+ * als die Chat-Eval, weil nur der eine Schritt gemessen wird, den die Änderung
+ * berührt. `FORCE_LIVE_MODELS=provider/model,…` legt denselben Schritt statt
+ * der Lane jedem genannten Modell vor — der Prüfstand für einen Modellwechsel.
+ *   FORCE_LIVE=1 MELIOUS_API_KEY=… npx vitest run routes/chat/__integration__/forcedFirstStep.vitest.ts
  * Die Tabelle landet in `FORCE_LIVE_OUT` (Vorgabe: tmpdir), weil `console.log`
- * aus dem Lauf nicht ankommt. GreenPTs Kontingent teilt sich die Produktion —
- * ein Lauf sind CASES × 2 × REPS Aufrufe.
+ * aus dem Lauf nicht ankommt. Die Kontingente teilen sich die Produktion —
+ * ein Lauf sind CASES × Modelle × 2 × REPS Aufrufe.
  *
  * Der Fake-Store kennt keine Werkzeugschritte früherer Turns (#3891); die
  * Anschlussfälle legen sie über `ctl.priorSteps` selbst hinein.
@@ -163,6 +164,7 @@ vi.mock('../services/responseStreamingService.js', async (orig) => {
 
 const { generateText } = await vi.importActual<typeof import('ai')>('ai');
 const { LOOP_PLANNER_PRIMARY } = await import('../agents/autoPolicy.js');
+const { getModel } = await import('../agents/providers.js');
 const { startChatApp, userTurn } = await import('./harness/testApp.js');
 const { runTurn, installNetworkGuard } = await import('./harness/trace.js');
 const { createProviderStub } = await import('./harness/providerStub.js');
@@ -173,8 +175,25 @@ const { respond } = await import('./harness/respondScript.js');
 const { searchBackend } = await import('./harness/searchBackendStub.js');
 
 const LIVE = process.env.FORCE_LIVE === '1';
-// Vor `pinChatEnv` gelesen, das den Schlüssel sonst leert.
-const GREENPT_KEY = process.env.GREENPT_API_KEY ?? '';
+// Vor `pinChatEnv` gelesen, das die Schlüssel sonst leert.
+const LIVE_KEYS = Object.fromEntries(
+  [
+    'MELIOUS_API_KEY',
+    'GREENPT_API_KEY',
+    'MISTRAL_API_KEY',
+    'CORTECS_API_KEY',
+    'REGOLO_API_KEY',
+  ].map((k) => [k, process.env[k] ?? ''])
+);
+/**
+ * Welche Modelle den Schritt 0 bekommen, als `provider/model` mit Komma
+ * getrennt — jedes über dasselbe `getModel` wie der Loop. Leer: nur die
+ * Planer-Lane, die der Zug selbst wählte.
+ */
+const MODEL_SPECS = (process.env.FORCE_LIVE_MODELS ?? '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 const REPS = 3;
 const OUT = process.env.FORCE_LIVE_OUT ?? path.join(os.tmpdir(), 'forced-first-step-live.md');
 
@@ -302,9 +321,10 @@ const CASES: Case[] = [
   },
   // Das Protokoll aus #3778: zweimal `notebooks` gescheitert, dann „finde es".
   // `research_order` feuert vor `followup`, das gescheiterte Werkzeug muss
-  // wiederholbar bleiben. Passend ist auch der Quellenwechsel: „berlin" ist
-  // eine Systemsammlung, die `gruenerator_search` direkt erreicht — live wählt
-  // der Planer genau die, nie die Wiederholung.
+  // wiederholbar bleiben. Passend sind auch die zwei anderen Wege zur
+  // Systemsammlung „berlin": `gruenerator_search` durchsucht sie,
+  // `notebook_quellen` listet ihre Quellen nach Datum — genau „die letzte
+  // Pressemitteilung". Gemma wählt unter dem vollen Katalog das zweite.
   {
     id: 'finde-es',
     before: {
@@ -313,7 +333,7 @@ const CASES: Case[] = [
       failed: true,
     },
     prompt: 'finde es',
-    fits: ['notebooks', 'gruenerator_search'],
+    fits: ['notebooks', 'gruenerator_search', 'notebook_quellen'],
   },
   // Der Seed findet im Anhang nichts — der Fall, den das Review fand (#3888).
   {
@@ -352,11 +372,13 @@ const CASES: Case[] = [
 
 interface Row {
   id: string;
-  forced: string;
+  model: string;
   narrowed: readonly string[] | null;
   mounted: number;
   master: string[];
   branch: string[];
+  masterMs: number[];
+  branchMs: number[];
 }
 
 const rows: Row[] = [];
@@ -376,48 +398,98 @@ function withoutExecute(tools: ToolSet): ToolSet {
   ) as ToolSet;
 }
 
+/**
+ * Ein Aufruf, als erster Werkzeugname — oder `!<Fehler>`: ein Modell, das den
+ * Zwang ablehnt oder ausfällt, ist ein Messwert, kein Abbruch des Laufs.
+ */
 async function firstCall(
   planner: Record<string, unknown>,
+  model: LanguageModel,
   step0: ReturnType<PrepareStep>,
   activeTools: readonly string[] | null
-): Promise<string> {
-  // Die Optionen stammen aus dem abgefangenen `streamText`-Aufruf des Loops —
-  // die Casts sind die Grenze zu `Record<string, unknown>`.
-  const result = await generateText({
-    model: planner.model as LanguageModel,
-    system: step0.system ?? (planner.system as string),
-    messages: planner.messages as ModelMessage[],
-    tools: withoutExecute(planner.tools as ToolSet),
-    toolChoice: 'required',
-    ...(activeTools && { activeTools: [...activeTools] }),
-    ...(typeof planner.temperature === 'number' && { temperature: planner.temperature }),
-    ...(typeof planner.maxOutputTokens === 'number' && {
-      maxOutputTokens: planner.maxOutputTokens,
-    }),
-  });
-  return result.toolCalls.map((c) => c.toolName).join('+') || '(keins)';
+): Promise<{ pick: string; ms: number }> {
+  const started = performance.now();
+  try {
+    // Die Optionen stammen aus dem abgefangenen `streamText`-Aufruf des Loops —
+    // die Casts sind die Grenze zu `Record<string, unknown>`.
+    const result = await generateText({
+      model,
+      system: step0.system ?? (planner.system as string),
+      messages: planner.messages as ModelMessage[],
+      tools: withoutExecute(planner.tools as ToolSet),
+      toolChoice: 'required',
+      ...(activeTools && { activeTools: [...activeTools] }),
+      ...(typeof planner.temperature === 'number' && { temperature: planner.temperature }),
+      ...(typeof planner.maxOutputTokens === 'number' && {
+        maxOutputTokens: planner.maxOutputTokens,
+      }),
+    });
+    // Ein Aufruf eines Werkzeugs, das der Schritt nicht anbot, kommt als
+    // `invalid` zurück (NoSuchToolError) und läuft nie — markiert statt gezählt.
+    const pick =
+      result.toolCalls
+        .map((c) => ('invalid' in c && c.invalid ? `✗${c.toolName}` : c.toolName))
+        .join('+') || '(keins)';
+    return { pick, ms: Math.round(performance.now() - started) };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { pick: `!${message.slice(0, 60)}`, ms: Math.round(performance.now() - started) };
+  }
 }
 
-/** Wie oft der ERSTE gerufene Name zum Auftrag passt. */
+/** Wie oft der erste Aufruf, der wirklich läuft, zum Auftrag passt. */
 function fitCount(picks: string[], fits: readonly string[]): number {
-  return picks.filter((p) => fits.includes(p.split('+')[0] ?? '')).length;
+  return picks.filter((p) => {
+    const first = p.split('+').find((name) => !name.startsWith('✗'));
+    return first != null && fits.includes(first);
+  }).length;
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
 }
 
 function render(): string {
+  const fitsOf = (id: string) => CASES.find((c) => c.id === id)?.fits ?? [];
   const count = (picks: string[], fits: readonly string[]) =>
     `${fitCount(picks, fits)}/${picks.length}`;
+  const models = [...new Set(rows.map((r) => r.model))];
   const lines = [
-    `# Erzwungener erster Schritt, live — ${LOOP_PLANNER_PRIMARY.provider}/${LOOP_PLANNER_PRIMARY.model}, ${REPS} Wiederholungen`,
+    `# Erzwungener erster Schritt, live — ${REPS} Wiederholungen je Arm`,
     '',
-    '| Fall | Zwang | Katalog | Zuschnitt | passt master | passt Zuschnitt | master | Zuschnitt |',
-    '|---|---|---|---|---|---|---|---|',
+    '| Modell | passt master | passt Zuschnitt | Fehler | p50 master | p50 Zuschnitt |',
+    '|---|---|---|---|---|---|',
   ];
-  for (const r of rows) {
-    const fits = CASES.find((c) => c.id === r.id)?.fits ?? [];
-    lines.push(
-      `| ${r.id} | ${r.forced} | ${r.mounted} | ${r.narrowed ? r.narrowed.join(', ') : '—'} | ` +
-        `${count(r.master, fits)} | ${count(r.branch, fits)} | ${r.master.join(', ')} | ${r.branch.join(', ')} |`
+  for (const m of models) {
+    const mine = rows.filter((r) => r.model === m);
+    const sum = (pick: (r: Row) => string[]) =>
+      mine.reduce((n, r) => n + fitCount(pick(r), fitsOf(r.id)), 0);
+    const total = mine.reduce((n, r) => n + r.branch.length, 0);
+    const errors = mine.reduce(
+      (n, r) => n + [...r.master, ...r.branch].filter((p) => p.startsWith('!')).length,
+      0
     );
+    lines.push(
+      `| ${m} | ${sum((r) => r.master)}/${total} | ${sum((r) => r.branch)}/${total} | ${errors} | ` +
+        `${median(mine.flatMap((r) => r.masterMs))} ms | ${median(mine.flatMap((r) => r.branchMs))} ms |`
+    );
+  }
+  for (const m of models) {
+    lines.push(
+      '',
+      `## ${m}`,
+      '',
+      '| Fall | Zuschnitt | passt master | passt Zuschnitt | master | Zuschnitt |',
+      '|---|---|---|---|---|---|'
+    );
+    for (const r of rows.filter((row) => row.model === m)) {
+      lines.push(
+        `| ${r.id} | ${r.narrowed ? r.narrowed.join(', ') : '—'} | ` +
+          `${count(r.master, fitsOf(r.id))} | ${count(r.branch, fitsOf(r.id))} | ` +
+          `${r.master.join(', ')} | ${r.branch.join(', ')} |`
+      );
+    }
   }
   return `${lines.join('\n')}\n`;
 }
@@ -443,7 +515,7 @@ describe('forced first planner step', () => {
   });
 
   beforeEach(() => {
-    pinChatEnv(LIVE ? { GREENPT_API_KEY: GREENPT_KEY } : {});
+    pinChatEnv(LIVE ? LIVE_KEYS : {});
     resetThreadStore();
     resetMockControls();
     respond.reset();
@@ -505,38 +577,56 @@ describe('forced first planner step', () => {
       }
 
       if (!LIVE) return;
-      const model = planner.model as { modelId?: string };
-      expect(model.modelId, `${c.id}: nicht die Produktions-Lane des Planers`).toBe(
+      const lane = planner.model as LanguageModel & { modelId?: string };
+      expect(lane.modelId, `${c.id}: nicht die Produktions-Lane des Planers`).toBe(
         LOOP_PLANNER_PRIMARY.model
       );
+      const models: Array<{ label: string; model: LanguageModel }> =
+        MODEL_SPECS.length > 0
+          ? MODEL_SPECS.map((spec) => {
+              const cut = spec.indexOf('/');
+              return {
+                label: spec,
+                model: getModel(spec.slice(0, cut), spec.slice(cut + 1)),
+              };
+            })
+          : [{ label: `${LOOP_PLANNER_PRIMARY.provider}/${lane.modelId}`, model: lane }];
 
-      const row: Row = {
-        id: c.id,
-        forced:
-          typeof step0.toolChoice === 'string'
-            ? step0.toolChoice
-            : JSON.stringify(step0.toolChoice ?? null),
-        narrowed: step0.activeTools ?? null,
-        mounted: Object.keys(planner.tools as object).length,
-        master: [],
-        branch: [],
-      };
-      rows.push(row);
-
-      for (let i = 0; i < REPS; i++) {
-        row.master.push(await firstCall(planner, step0, null));
-        row.branch.push(await firstCall(planner, step0, step0.activeTools ?? null));
-      }
-      // Zugesichert wird, was die Änderung behauptet — nie schlechter als der
-      // volle Katalog —, nicht Fehlerfreiheit: das Modell streut auch im
-      // Zuschnitt, und die Tabelle zeigt wie.
-      expect
-        .soft(
-          fitCount(row.branch, c.fits),
-          `${c.id}: Zuschnitt [${row.branch.join(', ')}] gegen master [${row.master.join(', ')}]`
-        )
-        .toBeGreaterThanOrEqual(fitCount(row.master, c.fits));
+      // Die Modelle parallel, jedes mit seinen Wiederholungen nacheinander:
+      // verschiedene Anbieter, und alle zur selben Tageszeit gemessen.
+      await Promise.all(
+        models.map(async ({ label, model }) => {
+          const row: Row = {
+            id: c.id,
+            model: label,
+            narrowed: step0.activeTools ?? null,
+            mounted: Object.keys(planner.tools as object).length,
+            master: [],
+            branch: [],
+            masterMs: [],
+            branchMs: [],
+          };
+          rows.push(row);
+          for (let i = 0; i < REPS; i++) {
+            const master = await firstCall(planner, model, step0, null);
+            row.master.push(master.pick);
+            row.masterMs.push(master.ms);
+            const branch = await firstCall(planner, model, step0, step0.activeTools ?? null);
+            row.branch.push(branch.pick);
+            row.branchMs.push(branch.ms);
+          }
+          // Zugesichert wird, was die Änderung behauptet — nie schlechter als
+          // der volle Katalog —, nicht Fehlerfreiheit: das Modell streut auch
+          // im Zuschnitt, und die Tabelle zeigt wie.
+          expect
+            .soft(
+              fitCount(row.branch, c.fits),
+              `${c.id} @ ${label}: Zuschnitt [${row.branch.join(', ')}] gegen master [${row.master.join(', ')}]`
+            )
+            .toBeGreaterThanOrEqual(fitCount(row.master, c.fits));
+        })
+      );
     },
-    LIVE ? 180_000 : 15_000
+    LIVE ? 600_000 : 15_000
   );
 });
