@@ -18,7 +18,7 @@
  * - usePageRefs            — imperative canvas/DOM ref arrays
  * - useLoadedConfigs       — async config cache
  * - useMobileSheetFit      — mobile: fit the active page above the open sheet
- * - usePageScrollSync      — IntersectionObserver + auto-scroll on add
+ * - useScrollToAddedPage   — auto-scroll to a newly added page
  * - usePageUndoRedoShortcuts — Cmd/Ctrl+Z page-array history
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
@@ -53,8 +53,8 @@ import { MobileSelectionControls } from '../TopBar/MobileSelectionControls';
 import { useLoadedConfigs } from './hooks/useLoadedConfigs';
 import { useMobileSheetFit } from './hooks/useMobileSheetFit';
 import { usePageRefs } from './hooks/usePageRefs';
-import { usePageScrollSync } from './hooks/usePageScrollSync';
 import { usePageUndoRedoShortcuts } from './hooks/usePageUndoRedoShortcuts';
+import { useScrollToAddedPage } from './hooks/useScrollToAddedPage';
 import { useToolbarHandlers } from './hooks/useToolbarHandlers';
 import { getMobileSelectionArea } from './mobileSelectionArea';
 import { PageWrapper } from './PageWrapper';
@@ -199,8 +199,9 @@ function CanvasEditorInner({
   const [toolbarState, setToolbarState] = useState<ToolbarStateReport | null>(null);
 
   // Imperative canvas + DOM ref arrays (grown synchronously before render)
-  const { canvasRefsRef, pageDomRefsRef, pagesContainerRef, ignoreScrollSyncUntilRef, canvasRefs } =
-    usePageRefs(pages.length);
+  const { canvasRefsRef, pageDomRefsRef, pagesContainerRef, canvasRefs } = usePageRefs(
+    pages.length
+  );
 
   const [zoom, setZoom] = useState(1);
 
@@ -331,27 +332,21 @@ function CanvasEditorInner({
   );
 
   // Thumbnail-strip click: select page AND smooth-scroll its full-size wrapper into view.
-  // We briefly suppress IntersectionObserver scroll-driven updates so the destination
-  // page stays selected during the smooth-scroll animation.
   const handleThumbnailSelect = useCallback(
     (index: number) => {
       setCurrentPageIndex(index);
-      ignoreScrollSyncUntilRef.current = Date.now() + 700;
       pageDomRefsRef.current[index]?.current?.scrollIntoView({
         behavior: 'smooth',
         block: 'center',
       });
     },
-    [setCurrentPageIndex, ignoreScrollSyncUntilRef, pageDomRefsRef]
+    [setCurrentPageIndex, pageDomRefsRef]
   );
 
-  // Track most-visible page as active + auto-scroll to newly added pages
-  usePageScrollSync({
+  useScrollToAddedPage({
     pagesLength: pages.length,
     currentPageIndex,
-    setCurrentPageIndex,
     pageDomRefsRef,
-    ignoreScrollSyncUntilRef,
   });
 
   // Capture per-page PNG snapshots for the thumbnail strip

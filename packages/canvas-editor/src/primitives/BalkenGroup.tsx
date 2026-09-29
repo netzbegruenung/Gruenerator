@@ -8,15 +8,16 @@
 import { useRef, useCallback, useMemo, useEffect, useState, memo } from 'react';
 import { Group, Line, Text, Rect, Transformer } from 'react-konva';
 
+import { useFontGeneration } from '../hooks/useFontGeneration';
+import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import {
   DREIZEILEN_CONFIG,
   getColorScheme,
   calculateParallelogramPoints,
   flattenPoints,
 } from '../utils/dreizeilenLayout';
-import { useFontGeneration } from '../hooks/useFontGeneration';
-import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateElementSnapPosition } from '../utils/snapping';
+import { stageCssScale } from '../utils/stageCssScale';
 import { runMeasurer } from '../utils/textUtils';
 
 import type { SnapTarget } from '../utils/snapping';
@@ -303,8 +304,9 @@ function BalkenGroupInner({
     const scrollX = window.scrollX || window.pageXOffset;
     const scrollY = window.scrollY || window.pageYOffset;
 
-    const scaleX = groupNode.getAbsoluteScale().x;
-    const scaleY = groupNode.getAbsoluteScale().y;
+    const cssScale = stageCssScale(stage, stageBox);
+    const scaleX = groupNode.getAbsoluteScale().x * cssScale;
+    const scaleY = groupNode.getAbsoluteScale().y * cssScale;
 
     const input = inputRef.current;
 
@@ -315,8 +317,8 @@ function BalkenGroupInner({
     const textHeight = fontSize * lineHeight;
     const verticalOffset = (balken.height - textHeight) / 2;
 
-    input.style.top = `${stageBox.top + scrollY + pos.y + verticalOffset * scaleY}px`;
-    input.style.left = `${stageBox.left + scrollX + pos.x}px`;
+    input.style.top = `${stageBox.top + scrollY + pos.y * cssScale + verticalOffset * scaleY}px`;
+    input.style.left = `${stageBox.left + scrollX + pos.x * cssScale}px`;
     input.style.width = `${balken.width * scaleX}px`;
     input.style.height = `${textHeight * scaleY}px`;
     input.style.lineHeight = String(lineHeight);
@@ -393,11 +395,12 @@ function BalkenGroupInner({
       setLiveText({ index, text: textNode.text() });
 
       const stageBox = stage.container().getBoundingClientRect();
+      const cssScale = stageCssScale(stage, stageBox);
       const textPosition = textNode.getAbsolutePosition();
 
       const absScale = textNode.getAbsoluteScale();
-      const scaleX = absScale.x;
-      const scaleY = absScale.y;
+      const scaleX = absScale.x * cssScale;
+      const scaleY = absScale.y * cssScale;
 
       let input = inputRef.current;
       if (!input) {
@@ -418,8 +421,8 @@ function BalkenGroupInner({
 
       input.value = textNode.text();
       input.style.position = 'absolute';
-      input.style.top = `${stageBox.top + scrollY + textPosition.y + verticalOffset * scaleY}px`;
-      input.style.left = `${stageBox.left + scrollX + textPosition.x}px`;
+      input.style.top = `${stageBox.top + scrollY + textPosition.y * cssScale + verticalOffset * scaleY}px`;
+      input.style.left = `${stageBox.left + scrollX + textPosition.x * cssScale}px`;
       input.style.width = `${textNode.width() * scaleX}px`;
       input.style.height = `${textH * scaleY}px`; // Match text height
 

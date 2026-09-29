@@ -1,26 +1,28 @@
 import { Badge, Button, Input } from '@gruenerator/ui';
+import { useState } from 'react';
 import { HiPlus, HiX } from 'react-icons/hi';
 
-import type { NotebookEditorStateBundle } from './useNotebookEditorState';
+const MAX_LABELS = 10;
 
 interface LabelsFieldProps {
-  state: NotebookEditorStateBundle;
+  labels: string[];
+  onChange: (next: string[]) => void;
+  disabled?: boolean;
 }
 
-export default function LabelsField({ state }: LabelsFieldProps) {
-  const {
-    labels,
-    newLabel,
-    setNewLabel,
-    addingLabel,
-    setAddingLabel,
-    handleAddLabel,
-    handleRemoveLabel,
-    loading,
-  } = state;
+export default function LabelsField({ labels, onChange, disabled = false }: LabelsFieldProps) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    setDraft('');
+    if (!trimmed || labels.includes(trimmed) || labels.length >= MAX_LABELS) return;
+    onChange([...labels, trimmed]);
+  };
 
   return (
-    <section className="flex flex-wrap items-center gap-xs">
+    <div className="flex flex-wrap items-center justify-center gap-xs">
       {labels.map((label) => (
         <Badge
           key={label}
@@ -31,61 +33,65 @@ export default function LabelsField({ state }: LabelsFieldProps) {
           <button
             type="button"
             className="ml-0.5 inline-flex items-center hover:text-grey-200"
-            onClick={() => handleRemoveLabel(label)}
+            onClick={() => onChange(labels.filter((l) => l !== label))}
+            disabled={disabled}
             aria-label={`Label "${label}" entfernen`}
           >
             <HiX size={11} />
           </button>
         </Badge>
       ))}
-      {addingLabel ? (
+      {adding ? (
         <div className="flex items-center gap-xs">
           <Input
             type="text"
-            value={newLabel}
+            value={draft}
             autoFocus
-            onChange={(e) => setNewLabel(e.target.value)}
+            onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                handleAddLabel();
+                commit();
               } else if (e.key === 'Escape') {
                 e.preventDefault();
-                setNewLabel('');
-                setAddingLabel(false);
+                setDraft('');
+                setAdding(false);
               }
             }}
             onBlur={() => {
-              if (!newLabel.trim()) setAddingLabel(false);
+              if (!draft.trim()) setAdding(false);
             }}
             placeholder="Label…"
+            aria-label="Neues Label"
             maxLength={30}
-            disabled={loading || labels.length >= 10}
+            disabled={disabled}
             className="h-7 w-32 text-xs"
           />
           <Button
             type="button"
             variant="ghost"
             size="icon-xs"
-            onClick={handleAddLabel}
-            disabled={loading || !newLabel.trim() || labels.length >= 10}
+            onClick={commit}
+            disabled={disabled || !draft.trim()}
             aria-label="Label hinzufügen"
           >
             <HiPlus size={12} />
           </Button>
         </div>
       ) : (
-        labels.length < 10 && (
-          <button
+        labels.length < MAX_LABELS && (
+          <Button
             type="button"
-            onClick={() => setAddingLabel(true)}
-            className="inline-flex items-center gap-1 rounded-full border border-dashed border-grey-300 px-2 py-[2px] text-xs text-grey-500 transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-grey-600"
+            variant="ghost"
+            size="xs"
+            onClick={() => setAdding(true)}
+            disabled={disabled}
+            className="text-grey-500"
           >
-            <HiPlus size={10} />
-            {labels.length === 0 ? 'Label hinzufügen' : 'Weiteres Label'}
-          </button>
+            + Label
+          </Button>
         )
       )}
-    </section>
+    </div>
   );
 }

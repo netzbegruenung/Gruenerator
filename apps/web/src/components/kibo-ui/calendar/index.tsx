@@ -2,7 +2,7 @@
 'use client';
 
 import { getDay, getDaysInMonth, isSameDay } from 'date-fns';
-import { atom, useAtom } from 'jotai';
+import { atom, createStore, Provider, useAtom } from 'jotai';
 import { Check, ChevronLeftIcon, ChevronRightIcon, ChevronsUpDown } from 'lucide-react';
 import {
   createContext,
@@ -32,8 +32,12 @@ export type CalendarState = {
   year: number;
 };
 
-const monthAtom = atom<CalendarState['month']>(new Date().getMonth() as CalendarState['month']);
-const yearAtom = atom<CalendarState['year']>(new Date().getFullYear());
+// Local change: view state is scoped per provider instance via a jotai <Provider>
+// (upstream uses module-global atoms shared by all instances). Re-pulling from the
+// kibo-ui registry would reintroduce the globals.
+// The current month/year are seeded per provider at mount, not at module load.
+const monthAtom = atom<CalendarState['month']>(0);
+const yearAtom = atom<CalendarState['year']>(0);
 
 export const useCalendarMonth = () => useAtom(monthAtom);
 export const useCalendarYear = () => useAtom(yearAtom);
@@ -431,8 +435,20 @@ export const CalendarProvider = ({
   startDay = 0,
   children,
   className,
-}: CalendarProviderProps) => (
-  <CalendarContext.Provider value={{ locale, startDay }}>
-    <div className={cn('relative flex flex-col', className)}>{children}</div>
-  </CalendarContext.Provider>
-);
+}: CalendarProviderProps) => {
+  const [store] = useState(() => {
+    const now = new Date();
+    const initial = createStore();
+    initial.set(monthAtom, now.getMonth() as CalendarState['month']);
+    initial.set(yearAtom, now.getFullYear());
+    return initial;
+  });
+
+  return (
+    <Provider store={store}>
+      <CalendarContext.Provider value={{ locale, startDay }}>
+        <div className={cn('relative flex flex-col', className)}>{children}</div>
+      </CalendarContext.Provider>
+    </Provider>
+  );
+};

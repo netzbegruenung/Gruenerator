@@ -77,6 +77,7 @@ import {
 import { createPortal } from 'react-dom';
 
 import { fontMarkSupport, type FontMarkSupport } from '../utils/fontMarkSupport';
+import { stageCssScale } from '../utils/stageCssScale';
 import { fontStyleForRun, measureTextWidthWithFont } from '../utils/textUtils';
 
 import { RichTextField } from './RichTextField';
@@ -151,10 +152,11 @@ export function overlayBoxForNode(
   // Plakat), legt `CanvasStage` eine zusätzlich skalierte Gruppe um den
   // Entwurf. `stage.scaleX()` kennt die nicht — der Editor stünde dort zwar
   // an der richtigen Stelle, aber in der falschen Größe.
-  const scale = node.getAbsoluteScale().x;
+  const cssScale = stageCssScale(stage, stageBox);
+  const scale = node.getAbsoluteScale().x * cssScale;
   return {
-    top: stageBox.top + window.scrollY + position.y,
-    left: stageBox.left + window.scrollX + position.x,
+    top: stageBox.top + window.scrollY + position.y * cssScale,
+    left: stageBox.left + window.scrollX + position.x * cssScale,
     width: width * scale,
     minHeight: height * scale,
     scale,
