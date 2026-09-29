@@ -6,7 +6,11 @@
 import { loopToolsFor, RESEARCH_LOOP_TOOLS } from '@gruenerator/shared/chat-intents';
 
 import { NAMED_RETRIEVAL_INTENTS } from './intents.js';
-import { isReferentialFollowup, looksLikeExplicitResearchOrder } from './routing.js';
+import {
+  isReferentialFollowup,
+  looksLikeExplicitResearchOrder,
+  reworksSuppliedText,
+} from './routing.js';
 import { DEFERRABLE_GROUPS } from './toolScope.js';
 
 /**
@@ -97,7 +101,14 @@ export function shouldForceFirstToolCall(input: {
   // solche Turns nach `agentic`, wo der Planer gar nichts rufen kann — live als
   // steps=0-Antworten beobachtet, die die eben bestellte Recherche anboten.
   // Einen Notausgang hat der erzwungene Schritt nicht; ab Schritt 1 ist die Wahl wieder frei.
-  if (looksLikeExplicitResearchOrder(input.lastUserText)) return 'research_order';
+  //
+  // Nicht, wenn der Auftrag nur an mitgebrachtem Text arbeitet („rechtschreibung
+  // korrigieren" unter einem eingefügten Newsletter): ein „Suche" IM Newsletter
+  // ist kein Auftrag (#3903). Ein Recherche-Verb im Auftrag selbst schliesst
+  // `reworksSuppliedText` aus, der Zweig bleibt dafür scharf.
+  const reworksOwnText = reworksSuppliedText(input.lastUserText);
+  if (looksLikeExplicitResearchOrder(input.lastUserText) && !reworksOwnText)
+    return 'research_order';
 
   // Derselbe Ausfall ohne das Verb: eine schlichte Faktenfrage, von der Heuristik
   // längst als Abruf erkannt („wer ist aktuell Bundeskanzler in Österreich" →
@@ -119,7 +130,12 @@ export function shouldForceFirstToolCall(input: {
   // Abruf abzuverlangen, waren zwei entgegengesetzte Urteile über denselben Turn.
   // Der Zwang fällt weg, die Möglichkeit bleibt: der Planer DARF suchen, wenn die
   // Aufgabe es verlangt. Das ausdrückliche „recherchiere das" oben ist unberührt.
-  if (input.loopDemotedFromRetrieval && !input.materialHeavy) return 'demoted_retrieval';
+  //
+  // Dasselbe gilt für einen Auftrag, der nur an mitgebrachtem Text arbeitet
+  // („rechtschreibung korrigieren" unter einem eingefügten Newsletter), auch wenn
+  // der Stoff zu kurz ist, um `materialHeavy` zu setzen (#3903).
+  if (input.loopDemotedFromRetrieval && !input.materialHeavy && !reworksOwnText)
+    return 'demoted_retrieval';
 
   // Dritter Weg: die LLM-Stufe sagte „braucht Recherche" und schrieb im selben
   // Atemzug `direct` — ihre eigene Begründung benannte die Suche, die dann nie
