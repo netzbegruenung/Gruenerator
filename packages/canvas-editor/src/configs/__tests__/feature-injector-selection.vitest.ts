@@ -23,3 +23,15 @@ describe('injectFeatureProps: selectedFrameId', () => {
     ).toBeNull();
   });
 });
+
+// Die Illustrationen-Detailansicht öffnet mobil von selbst, sobald die Id gesetzt ist.
+describe('injectFeatureProps: selectedIllustrationId', () => {
+  it('ist nur bei einer ausgewählten Illustration gesetzt', () => {
+    expect(
+      injectFeatureProps(state, actions, { selectedElement: 'ill-1' }).selectedIllustrationId
+    ).toBe('ill-1');
+    expect(
+      injectFeatureProps(state, actions, { selectedElement: 'frame-1' }).selectedIllustrationId
+    ).toBeNull();
+  });
+});

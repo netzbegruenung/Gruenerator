@@ -145,7 +145,11 @@ export function injectFeatureProps<S extends object, A extends object>(
   if ('illustrationInstances' in state && 'addIllustration' in actions) {
     const stateWithIllustrations = state as FeatureStateWithIllustrations;
     injected.illustrationInstances = stateWithIllustrations.illustrationInstances;
-    injected.selectedIllustrationId = context?.selectedElement || null;
+    const selectedId = context?.selectedElement ?? null;
+    injected.selectedIllustrationId =
+      selectedId && stateWithIllustrations.illustrationInstances?.some((i) => i.id === selectedId)
+        ? selectedId
+        : null;
     injected.onAddIllustration = actions.addIllustration as (id: string) => void;
 
     if ('updateIllustration' in actions) {

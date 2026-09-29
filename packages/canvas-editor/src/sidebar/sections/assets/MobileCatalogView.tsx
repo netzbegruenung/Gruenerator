@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { PiArrowLeft, PiMagnifyingGlass, PiTagFill } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { sortLogoAssets } from '../../../utils/canvasAssets';
+import { cn } from '../../../utils/cn';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/illustrationCatalog';
 import { HIDDEN_SCROLLBAR } from '../../sidebarStyles';
 import { BadgeSection } from '../BadgeSection';
@@ -24,8 +25,6 @@ import {
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
 import type { AssetSearchState } from './useAssetSearch';
-
-import { cn } from '../../../utils/cn';
 
 // Re-skins the shared strip tiles as 80px squares. Only plain tiles get the
 // tile background — white logos and selected icons keep their own.
@@ -52,13 +51,21 @@ interface MobileCatalogViewProps extends ExtendedAssetsSectionProps {
 }
 
 export function MobileCatalogView({ search, ...props }: MobileCatalogViewProps) {
-  const [openCategory, setOpenCategory] = useState<CategoryId | null>(null);
+  // A frame or illustration selected on canvas needs its controls, which live in
+  // its detail view — open it whenever the selection changes to one.
+  const selectedId = props.selectedFrameId ?? props.selectedIllustrationId ?? null;
+  const selectedCategory: CategoryId | null = props.selectedFrameId
+    ? 'rahmen'
+    : props.selectedIllustrationId
+      ? 'illustrationen'
+      : null;
+  const [openCategory, setOpenCategory] = useState<CategoryId | null>(selectedCategory);
+  const [shownSelectionId, setShownSelectionId] = useState(selectedId);
+  if (selectedId !== shownSelectionId) {
+    setShownSelectionId(selectedId);
+    if (selectedCategory) setOpenCategory(selectedCategory);
+  }
   const { userLocale = 'de-DE' } = useCanvasEditorServices();
-
-  // A frame selected on canvas needs its controls, which live in the Rahmen grid
-  useEffect(() => {
-    if (props.selectedFrameId) setOpenCategory('rahmen');
-  }, [props.selectedFrameId]);
 
   const {
     onAddAsset,
