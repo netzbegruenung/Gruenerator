@@ -1,3 +1,4 @@
+import Konva from 'konva';
 import { useEffect } from 'react';
 
 interface ZoomGestureOptions {
@@ -8,7 +9,13 @@ interface ZoomGestureOptions {
 /**
  * Wires pinch (two-finger touch) and ctrl/cmd + wheel gestures to the
  * editor's existing zoom state (the CSS `--canvas-zoom` scale that
- * CanvasMetaBar's buttons already control).
+ * CanvasMetaBar's buttons already control). While an element is dragged or
+ * transformed the wheel neither zooms nor scrolls: either would move the
+ * page under a pointer that holds an element.
+ *
+ * Takes the element, not a ref: the editor renders a loading state first, and
+ * an effect keyed on a ref never re-ran once the pages container mounted —
+ * no listener was ever attached.
  *
  * Listeners attach to the surrounding canvas region rather than the pages
  * container itself, so gestures still work over the empty margin when the
@@ -16,12 +23,11 @@ interface ZoomGestureOptions {
  * to 100% (the canvas itself keeps double-click for inline text editing).
  */
 export function useZoomGestures(
-  containerRef: React.RefObject<HTMLElement | null>,
+  container: HTMLElement | null,
   onZoomChange: React.Dispatch<React.SetStateAction<number>>,
   { minZoom = 0.25, maxZoom = 1.5 }: ZoomGestureOptions = {}
 ): void {
   useEffect(() => {
-    const container = containerRef.current;
     if (!container) return;
     const target =
       (container.closest('.canvas-editor-layout__canvas') as HTMLElement | null) ??
@@ -31,6 +37,10 @@ export function useZoomGestures(
     const clamp = (z: number) => Math.min(maxZoom, Math.max(minZoom, z));
 
     const onWheel = (e: WheelEvent) => {
+      if (Konva.isDragging() || Konva.isTransforming()) {
+        e.preventDefault();
+        return;
+      }
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       const factor = Math.exp(-e.deltaY * 0.002);
@@ -95,5 +105,5 @@ export function useZoomGestures(
       target.removeEventListener('gesturestart', preventGesture);
       target.removeEventListener('gesturechange', preventGesture);
     };
-  }, [containerRef, onZoomChange, minZoom, maxZoom]);
+  }, [container, onZoomChange, minZoom, maxZoom]);
 }
