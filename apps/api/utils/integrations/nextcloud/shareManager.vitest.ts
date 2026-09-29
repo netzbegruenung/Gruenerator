@@ -43,6 +43,40 @@ beforeEach(() => {
   state.sql = [];
 });
 
+describe('findOrSaveShareLink', () => {
+  it('legt einen neuen Link unter der Sperre an', async () => {
+    const link = await NextcloudShareManager.findOrSaveShareLink(
+      'user-1',
+      ' https://w.example/s/Tok123 '
+    );
+
+    expect(state.sql[0]).toContain('FOR UPDATE');
+    expect(link).toMatchObject({ share_link: 'https://w.example/s/Tok123', share_token: 'Tok123' });
+    expect(state.links).toHaveLength(1);
+  });
+
+  it('gibt denselben Eintrag zurück, wenn dieselbe Freigabe anders geschrieben wird', async () => {
+    const first = await NextcloudShareManager.findOrSaveShareLink(
+      'user-1',
+      'https://w.example/s/Tok123'
+    );
+    const second = await NextcloudShareManager.findOrSaveShareLink(
+      'user-1',
+      'https://w.example/s/Tok123/'
+    );
+
+    expect(second.id).toBe(first.id);
+    expect(state.links).toHaveLength(1);
+  });
+
+  it('wirft bei einem Link ohne Freigabe-Token, ohne zu schreiben', async () => {
+    await expect(
+      NextcloudShareManager.findOrSaveShareLink('user-1', 'https://w.example/index.php')
+    ).rejects.toThrow();
+    expect(state.sql).toHaveLength(0);
+  });
+});
+
 describe('saveShareLink', () => {
   it('reads and writes inside one transaction, and locks the row it read', async () => {
     await NextcloudShareManager.saveShareLink('user-1', 'https://w.example/s/Tok123', 'Anträge');

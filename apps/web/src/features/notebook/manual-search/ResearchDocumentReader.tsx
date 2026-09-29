@@ -262,9 +262,11 @@ function ReaderBody({
 export function ResearchDocumentReader({
   target,
   onClose,
+  backLabel = 'Ergebnisse',
 }: {
   target: ReaderTarget;
   onClose: () => void;
+  backLabel?: string;
 }) {
   const { data, isPending, isError } = useQuery({
     queryKey: researchDocumentQueryKey(target),
@@ -311,7 +313,7 @@ export function ResearchDocumentReader({
         <div className="flex min-h-14 items-center gap-2 border-b border-grey-200 px-2 sm:px-5 dark:border-grey-700">
           <Button variant="ghost" onClick={onClose} className="min-h-11 md:min-h-9">
             <LuArrowLeft aria-hidden />
-            Ergebnisse
+            {backLabel}
           </Button>
           <div className="flex-1" />
           {count > 0 && (
