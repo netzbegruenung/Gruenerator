@@ -12,6 +12,12 @@ import { readMcpResult, type PersistedStep } from './types.js';
 import type { AnswerReplacement } from './loopEngine.js';
 import type { SearchIntent } from '../../../../agents/langgraph/ChatGraph/types.js';
 
+export interface ForceScopeSummary {
+  reason: ForceReason;
+  tools: readonly string[] | null;
+  named: string | null;
+}
+
 export function logTurnSummary(input: {
   modelName: string;
   mode: string;
@@ -43,11 +49,7 @@ export function logTurnSummary(input: {
    * war — `named` für ein benanntes Werkzeug, `tools` für den Zuschnitt,
    * beides null für den vollen Katalog. Null, wenn nichts erzwungen war.
    */
-  forceScope?: {
-    reason: ForceReason;
-    tools: readonly string[] | null;
-    named: string | null;
-  } | null;
+  forceScope?: ForceScopeSummary | null;
   onInfo: (message: string) => void;
 }): void {
   // Per-turn tool-outcome breakdown so a silent connector failure is visible in

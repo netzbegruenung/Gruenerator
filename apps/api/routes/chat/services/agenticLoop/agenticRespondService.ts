@@ -63,7 +63,6 @@ import {
   isMcpCapabilityQuestion,
   pinnedFirstTool,
   shouldForceFirstToolCall,
-  type ForceReason,
 } from './forceFirstToolCall.js';
 import { createTurnClocks, resolveBudget } from './loopBudget.js';
 import {
@@ -90,7 +89,7 @@ import { loadAllowlist } from './toolApprovalRepo.js';
 import { createToolCostLedger } from './toolCostLedger.js';
 import { type ToolScope } from './toolScope.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
-import { logTurnSummary } from './turnSummary.js';
+import { logTurnSummary, type ForceScopeSummary } from './turnSummary.js';
 import { type PendingAskRequest, type PendingToolCall, type PersistedStep } from './types.js';
 import { composeToolHooks } from './wrapTools.js';
 
@@ -254,11 +253,7 @@ export async function streamAgenticResponse(
   let askGate: AskHumanGate | null = null;
   // Außerhalb des try, aus demselben Grund wie `answerReplaced`: die
   // Zusammenfassung nennt den Zuschnitt des erzwungenen ersten Schritts.
-  let forceScope: {
-    reason: ForceReason;
-    tools: readonly string[] | null;
-    named: string | null;
-  } | null = null;
+  let forceScope: ForceScopeSummary | null = null;
 
   // Computed BEFORE the model is resolved: the same number decides the lane
   // (precise + reasoning on) and, further down, whether the writer gives up the
