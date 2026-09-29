@@ -11,6 +11,7 @@
  * - wolkeController: Wolke integration (sync, browse, import)
  * - searchController: Search operations (hybrid, text, vector)
  * - qdrantController: Qdrant-specific operations (full-text, stats)
+ * - originalController: Original file download
  * - retrievalController: Document retrieval, stats, delete operations
  */
 
@@ -20,6 +21,7 @@ import authMiddleware from '../../middleware/authMiddleware.js';
 
 import manualController from './manualController.js';
 import modeController from './modeController.js';
+import originalController from './originalController.js';
 import qdrantController from './qdrantController.js';
 import retrievalController from './retrievalController.js';
 import searchController from './searchController.js';
@@ -57,6 +59,9 @@ router.use('/search', searchController);
 
 // Qdrant operations
 router.use('/qdrant', qdrantController);
+
+// Original file download (/:id/original)
+router.use('/', originalController);
 
 // Retrieval & stats (MUST BE LAST - contains /:id route)
 router.use('/', retrievalController);

@@ -1,7 +1,8 @@
 /**
  * What account deletion removes before the profile row goes. No FK cascade
  * reaches any of it: `collaborative_documents.created_by` is SET NULL,
- * notebooks live in Qdrant, and `entity_likes` has no FK at all. Account
+ * notebooks live in Qdrant, `entity_likes` has no FK at all, and the kept
+ * upload originals are files (their `documents` rows cascade). Account
  * deletion stays hard — nothing here goes through the Papierkorb.
  *
  * Every step is best-effort: a failure is reported and the rest goes on, so
@@ -12,6 +13,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { createLogger } from '../../utils/logger.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
 import { purgeSoleOwnedCollaborativeDocuments } from '../docs/CollaborativeDocumentService.js';
+import { removeUserOriginals } from '../document-services/documentOriginals.js';
 import {
   deleteLikesForEntity,
   deleteLikesOfDeletedUser,
@@ -40,6 +42,12 @@ export async function cleanUpBeforeProfileDelete(userId: string): Promise<void> 
     }
   } catch (error) {
     reportBackgroundError(error, { job: 'account-deletion', store: 'notebook_collections' });
+  }
+
+  try {
+    removeUserOriginals(userId);
+  } catch (error) {
+    reportBackgroundError(error, { job: 'account-deletion', store: 'document_originals' });
   }
 
   try {

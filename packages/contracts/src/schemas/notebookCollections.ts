@@ -194,10 +194,15 @@ export const documentRecordSchema = z.object({
   processing_error: z.string().nullish(),
   /**
    * Ob „Neu indexieren" das Original noch erreicht — nur Wolke-Dateien. Ein
-   * Upload ist `false` (seine Datei ist nach der Verarbeitung gelöscht), URL-
+   * Upload ist `false` (Neu indexieren liest sein aufbewahrtes Original nicht), URL-
    * und WordPress-Quellen auch (ein Neu-Crawl brächte keine Seitenzahlen).
    */
   reindexable: z.boolean().nullish(),
+  /**
+   * Ob „Herunterladen" ein Original liefert: ein aufbewahrter Upload oder eine
+   * Wolke-Datei. Uploads von vor der Aufbewahrung haben keins.
+   */
+  downloadable: z.boolean().nullish(),
 });
 
 export const wolkeShareLinkSchema = z.object({

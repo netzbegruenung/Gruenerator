@@ -62,6 +62,8 @@ export interface DocumentUpdateData {
   /** Extracted plain text, kept so the source never has to be fetched again. */
   markdownContent?: string | null | undefined;
   pageCount?: number | undefined;
+  /** Relative path of the kept original, see `documentOriginals.ts`. */
+  filePath?: string | null | undefined;
   additionalMetadata?: Record<string, unknown> | undefined;
 }
 
