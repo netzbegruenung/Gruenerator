@@ -349,3 +349,44 @@ export async function purgeCollaborativeDocument(
   }
   return true;
 }
+
+/**
+ * Account deletion: purge the documents `userId` created and nobody else owns.
+ * `created_by` is `ON DELETE SET NULL`, so without this every such document
+ * would outlive the profile with no owner — nobody could trash it and the
+ * purge worker never sees it. A document with an `owner` permission entry for
+ * another existing profile stays; that person owns it from now on.
+ *
+ * Each document is trashed and purged in one go (account deletion stays hard,
+ * no Papierkorb). A failure is reported and the next document goes on, so one
+ * broken document cannot block deleting the account. Returns how many went.
+ */
+export async function purgeSoleOwnedCollaborativeDocuments(
+  runQuery: QueryRunner,
+  userId: string
+): Promise<number> {
+  const rows = await runQuery<{ id: string }>(
+    `SELECT id FROM collaborative_documents d
+     WHERE created_by = $1
+       AND NOT EXISTS (
+         SELECT 1 FROM jsonb_each(
+           CASE WHEN jsonb_typeof(d.permissions) = 'object' THEN d.permissions ELSE '{}'::jsonb END
+         ) p
+         JOIN profiles pr ON pr.id::text = p.key
+         WHERE p.key <> $1::text AND p.value ->> 'level' = 'owner'
+       )`,
+    [userId]
+  );
+
+  let purged = 0;
+  for (const { id } of rows) {
+    try {
+      // Already trashed → not_found; the purge below takes it either way.
+      await trashCollaborativeDocument(runQuery, id, userId, null);
+      if (await purgeCollaborativeDocument(runQuery, id, null)) purged++;
+    } catch (error) {
+      reportBackgroundError(error, { job: 'account-deletion', kind: 'collaborative_document', id });
+    }
+  }
+  return purged;
+}

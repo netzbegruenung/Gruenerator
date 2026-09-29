@@ -23,6 +23,7 @@ const deleteRecallPoint = vi.fn<(threadId: string) => Promise<void>>();
 const upsertRecallPoint = vi.fn<(threadId: string) => Promise<void>>();
 const readVectorHandles = vi.fn();
 const deleteVectors = vi.fn();
+const setVectorsDeletedAt = vi.fn();
 const reportBackgroundError = vi.fn();
 
 vi.mock('../../database/services/PostgresService.js', () => ({
@@ -45,6 +46,8 @@ vi.mock('./services/attachmentPersistenceService.js', () => ({
   readThreadAttachmentVectorHandles: (threadId: string, runQuery?: unknown) =>
     readVectorHandles(threadId, runQuery),
   deleteAttachmentVectors: (threadId: string, handles: unknown) => deleteVectors(threadId, handles),
+  setAttachmentVectorsDeletedAt: (threadId: string, handles: unknown, deletedAt: string | null) =>
+    setVectorsDeletedAt(threadId, handles, deletedAt),
   getThreadTabularFiles: vi.fn(),
 }));
 
@@ -165,6 +168,9 @@ describe('delete — the Papierkorb for chat threads', () => {
         return Promise.resolve(opts.trashed ? [opts.trashed] : []);
       }
       if (s.startsWith('DELETE FROM chat_threads')) return Promise.resolve(opts.deleted ?? []);
+      if (s.startsWith('UPDATE chat_threads SET deleted_at = now()')) {
+        return Promise.resolve([{ deleted_at: TRASHED_AT }]);
+      }
       return Promise.resolve([]);
     });
   }
@@ -174,6 +180,7 @@ describe('delete — the Papierkorb for chat threads', () => {
   }
 
   const HANDLES = [{ documentId: 'doc-a', userId: OWNER }];
+  const TRASHED_AT = new Date('2026-09-29T08:00:00Z');
 
   beforeEach(() => {
     effects.length = 0;
@@ -189,10 +196,14 @@ describe('delete — the Papierkorb for chat threads', () => {
       effects.push('delete recall point');
       return Promise.resolve();
     });
+    setVectorsDeletedAt.mockReset().mockImplementation((_t, _h, deletedAt: string | null) => {
+      effects.push(`stamp attachment vectors ${deletedAt}`);
+      return Promise.resolve();
+    });
     reportBackgroundError.mockReset();
   });
 
-  it('moves a thread with messages to the Papierkorb and keeps its vectors', async () => {
+  it('moves a thread with messages to the Papierkorb and hides, not deletes, its vectors', async () => {
     givenDb({ owner: OWNER, hasMessages: true });
 
     const res = await remove();
@@ -201,10 +212,12 @@ describe('delete — the Papierkorb for chat threads', () => {
     expect(effects).toEqual([
       'SELECT user_id, doc_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
       'SELECT 1 FROM chat_messages WHERE thread_id = $1 LIMIT 1',
-      'UPDATE chat_threads SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL',
+      'UPDATE chat_threads SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL RETURNING deleted_at',
       'delete recall point',
+      'read attachment handles',
+      `stamp attachment vectors ${TRASHED_AT.toISOString()}`,
     ]);
-    expect(readVectorHandles).not.toHaveBeenCalled();
+    expect(setVectorsDeletedAt).toHaveBeenCalledWith(THREAD_ID, HANDLES, TRASHED_AT.toISOString());
     expect(deleteVectors).not.toHaveBeenCalled();
   });
 
@@ -270,7 +283,7 @@ describe('delete — the Papierkorb for chat threads', () => {
     expect(effects).toHaveLength(1);
   });
 
-  it('restore clears deleted_at and rebuilds the recall point', async () => {
+  it('restore clears deleted_at, unhides the vectors and rebuilds the recall point', async () => {
     const deletedAt = new Date('2026-09-20T10:00:00Z');
     givenDb({
       trashed: {
@@ -291,6 +304,7 @@ describe('delete — the Papierkorb for chat threads', () => {
     expect(effects).toContain(
       'UPDATE chat_threads SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL'
     );
+    expect(setVectorsDeletedAt).toHaveBeenCalledWith(THREAD_ID, HANDLES, null);
     expect(upsertRecallPoint).toHaveBeenCalledWith(THREAD_ID);
   });
 

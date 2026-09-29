@@ -3,9 +3,11 @@
  *
  * A trashed thread keeps its row, messages and attachments; it only carries
  * `deleted_at` and loses its `chat_thread_recall` point, so neither the list
- * nor semantic recall can hand it out. Every reader of `chat_threads` filters
- * `deleted_at IS NULL` (`services/trash/trashReaders.vitest.ts`). Only
- * {@link purgeThread} deletes the row, and with it the attachment vectors.
+ * nor semantic recall can hand it out. Its attachment chunks get `deleted_at`
+ * stamped in Qdrant, which hides them from unscoped document search. Every
+ * reader of `chat_threads` filters `deleted_at IS NULL`
+ * (`services/trash/trashReaders.vitest.ts`). Only {@link purgeThread} deletes
+ * the row, and with it the attachment vectors.
  *
  * Delete rights are the owner's (`chat_threads.user_id`); restore and
  * purge-now ask exactly that.
@@ -28,6 +30,7 @@ import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 import {
   deleteAttachmentVectors,
   readThreadAttachmentVectorHandles,
+  setAttachmentVectorsDeletedAt,
 } from './attachmentPersistenceService.js';
 
 const log = createLogger('threadTrash');
@@ -74,11 +77,19 @@ export async function trashThread(threadId: string, userId: string): Promise<Tra
     return 'deleted';
   }
 
-  await db.query(
-    'UPDATE chat_threads SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL',
+  const trashed = await db.query<{ deleted_at: Date }>(
+    `UPDATE chat_threads SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL
+     RETURNING deleted_at`,
     [threadId]
   );
   await deleteThreadRecallPoint(threadId);
+  if (trashed.length > 0) {
+    await setAttachmentVectorsDeletedAt(
+      threadId,
+      await readThreadAttachmentVectorHandles(threadId),
+      new Date(trashed[0].deleted_at).toISOString()
+    );
+  }
   return 'trashed';
 }
 
@@ -100,8 +111,9 @@ export async function getTrashedThread(
 }
 
 /**
- * Undo {@link trashThread}. The recall point is rebuilt fire-and-forget, like
- * unarchiving: `upsertThreadRecallPoint` refuses archived threads by itself.
+ * Undo {@link trashThread}: the attachment chunks lose their stamp, and the
+ * recall point is rebuilt fire-and-forget, like unarchiving:
+ * `upsertThreadRecallPoint` refuses archived threads by itself.
  */
 export async function restoreThread(
   threadId: string,
@@ -113,6 +125,11 @@ export async function restoreThread(
   await getPostgresInstance().query(
     'UPDATE chat_threads SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL',
     [threadId]
+  );
+  await setAttachmentVectorsDeletedAt(
+    threadId,
+    await readThreadAttachmentVectorHandles(threadId),
+    null
   );
   upsertThreadRecallPoint(threadId).catch((err) =>
     log.warn(`[threadTrash] Recall point rebuild failed for thread ${threadId}:`, err)

@@ -28,6 +28,13 @@ import type { QdrantService } from '../../../database/services/QdrantService.js'
 import type { SearchResponse } from '../../BaseSearchService/types.js';
 
 /**
+ * Unscoped searches over `documents` skip points stamped `deleted_at`: the
+ * chunks of a trashed chat thread's attachments (`setDocumentVectorsDeletedAt`).
+ * Scoped searches pass authorized `documentIds` and need no stamp check.
+ */
+const LIVE_ONLY = { is_empty: { key: 'deleted_at' } } as const;
+
+/**
  * Payload-derived fields shared by every search-mode chunk mapper.
  *
  * Single source of truth for "what we read off a Qdrant chunk payload" —
@@ -143,7 +150,7 @@ export async function performTextSearch(
     // user_id clause there would return zero hits, which was the original
     // "Volltext changes nothing" symptom on LV notebooks.
     if (searchCollection === 'documents' && !scopedByDocumentIds) {
-      filter.must!.push({ key: 'user_id', match: { value: userId } });
+      filter.must!.push({ key: 'user_id', match: { value: userId } }, LIVE_ONLY);
     }
 
     if (scopedByDocumentIds) {
@@ -257,7 +264,7 @@ export async function findSimilarChunks(
   // set; adding a user_id filter on top would exclude documents owned by
   // someone who shared their notebook with us, breaking shared-notebook search.
   if (searchCollection === 'documents' && !scopedByDocumentIds) {
-    filter.must!.push({ key: 'user_id', match: { value: userId as string } });
+    filter.must!.push({ key: 'user_id', match: { value: userId as string } }, LIVE_ONLY);
   }
 
   if (scopedByDocumentIds) {
@@ -366,7 +373,7 @@ export async function findHybridChunks(
   // set; adding a user_id filter on top would exclude documents owned by
   // someone who shared their notebook with us, breaking shared-notebook search.
   if (searchCollection === 'documents' && !scopedByDocumentIds) {
-    filter.must!.push({ key: 'user_id', match: { value: userId as string } });
+    filter.must!.push({ key: 'user_id', match: { value: userId as string } }, LIVE_ONLY);
   }
 
   if (scopedByDocumentIds) {

@@ -1,7 +1,7 @@
 /**
  * Vorlagen im Papierkorb. Trash touches only `deleted_at` — the Qdrant point
  * and a Grünerator-Vorlage's snapshot canvas stay; the purge removes the row
- * first and only then, best-effort, the point and the snapshot.
+ * first and only then, best-effort, the point, the snapshot and the likes.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -15,6 +15,9 @@ const deleteTemplateVector = vi.fn(async (id: string) => {
 const deleteCanvas = vi.fn(async (id: string, _owner: string) => {
   effects.push(`trash canvas ${id}`);
   return { kind: 'ok' as 'ok' | 'not_found' | 'forbidden' };
+});
+const deleteLikesForEntity = vi.fn(async (type: string, id: string) => {
+  effects.push(`likes ${type} ${id}`);
 });
 const purgeCollaborativeDocument = vi.fn(async (_q: unknown, id: string) => {
   effects.push(`purge canvas ${id}`);
@@ -33,6 +36,7 @@ vi.mock('../../database/services/PostgresService.js', () => ({
 vi.mock('../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
 vi.mock('./templateEnrichment.js', () => ({ deleteTemplateVector }));
 vi.mock('../canvas/canvasRepository.js', () => ({ deleteCanvas }));
+vi.mock('../entityLikes/EntityLikesService.js', () => ({ deleteLikesForEntity }));
 vi.mock('../docs/CollaborativeDocumentService.js', () => ({ purgeCollaborativeDocument }));
 
 const { purgeUserTemplate, trashUserTemplates } = await import('./userTemplateTrash.js');
@@ -59,7 +63,7 @@ describe('Vorlage Papierkorb', () => {
     expect(deleteCanvas).not.toHaveBeenCalled();
   });
 
-  it('purge: conditional DELETE, then the vector, then the snapshot canvas', async () => {
+  it('purge: conditional DELETE, then the vector, the snapshot canvas, the likes', async () => {
     deleted = [
       { id: ID, user_id: USER, template_type: 'gruenerator', content_data: { canvasId: CANVAS } },
     ];
@@ -70,6 +74,7 @@ describe('Vorlage Papierkorb', () => {
       `qdrant ${ID}`,
       `trash canvas ${CANVAS}`,
       `purge canvas ${CANVAS}`,
+      `likes template ${ID}`,
     ]);
     expect(params[0]).toEqual([ID, cutoff]);
     expect(deleteCanvas).toHaveBeenCalledWith(CANVAS, USER);
@@ -78,7 +83,7 @@ describe('Vorlage Papierkorb', () => {
   it('a Canva-link Vorlage has no snapshot to purge', async () => {
     deleted = [{ id: ID, user_id: USER, template_type: 'canva', content_data: {} }];
     expect(await purgeUserTemplate(ID, null)).toBe(true);
-    expect(effects).toEqual(['DELETE FROM user_templates', `qdrant ${ID}`]);
+    expect(effects).toEqual(['DELETE FROM user_templates', `qdrant ${ID}`, `likes template ${ID}`]);
   });
 
   it('touches no side store when the row was restored meanwhile (0 rows)', async () => {

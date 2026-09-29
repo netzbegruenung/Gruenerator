@@ -7,6 +7,7 @@
  * next to it (the CI role has CREATEDB for that), migrates it and drops it.
  */
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -16,6 +17,7 @@ import { runMigrations } from '../../database/services/PostgresService/migration
 import {
   listTrashedCollaborativeDocuments,
   purgeCollaborativeDocument,
+  purgeSoleOwnedCollaborativeDocuments,
   restoreCollaborativeDocument,
   trashCollaborativeDocument,
   type QueryRunner,
@@ -155,6 +157,109 @@ describe.skipIf(!url)('Papierkorb schema (zz_20260929_trash_deleted_at.sql)', ()
     ]);
     expect(schedules.rowCount).toBe(0);
   }, 30_000);
+
+  it('account deletion purges only documents nobody else owns (#3845)', async () => {
+    const [gone, heir, ghost] = [randomUUID(), randomUUID(), randomUUID()];
+    await pool.query('INSERT INTO profiles (id) VALUES ($1), ($2)', [gone, heir]);
+    const insertDoc = async (permissions: string) =>
+      (
+        await pool.query<{ id: string }>(
+          `INSERT INTO collaborative_documents (title, created_by, document_subtype, permissions)
+           VALUES ('Antrag', $1, 'docs', $2::jsonb) RETURNING id`,
+          [gone, permissions]
+        )
+      ).rows[0].id;
+    const own = await insertDoc(JSON.stringify({ [gone]: { level: 'owner' } }));
+    const inherited = await insertDoc(JSON.stringify({ [heir]: { level: 'owner' } }));
+    // An owner entry for a profile that no longer exists owns nothing.
+    const ghostOwned = await insertDoc(JSON.stringify({ [ghost]: { level: 'owner' } }));
+    const editedOnly = await insertDoc(JSON.stringify({ [heir]: { level: 'editor' } }));
+    const jsonNull = await insertDoc('null');
+    const alreadyTrashed = await insertDoc('{}');
+    await trashCollaborativeDocument(run, alreadyTrashed, gone, null);
+
+    expect(await purgeSoleOwnedCollaborativeDocuments(run, gone)).toBe(5);
+
+    const left = await pool.query<{ id: string }>(
+      'SELECT id FROM collaborative_documents WHERE id = ANY($1::uuid[])',
+      [[own, inherited, ghostOwned, editedOnly, jsonNull, alreadyTrashed]]
+    );
+    expect(left.rows.map((r) => r.id)).toEqual([inherited]);
+  });
+
+  it('moves ownerless documents to the Papierkorb (zz_20260929d_trash_ownerless_documents.sql)', async () => {
+    const heir = randomUUID();
+    await pool.query('INSERT INTO profiles (id) VALUES ($1)', [heir]);
+    const insertOrphan = async (permissions: string) =>
+      (
+        await pool.query<{ id: string }>(
+          `INSERT INTO collaborative_documents (title, created_by, document_subtype, permissions)
+           VALUES ('Alt', NULL, 'docs', $1::jsonb) RETURNING id`,
+          [permissions]
+        )
+      ).rows[0].id;
+    const ownerless = await insertOrphan(JSON.stringify({ [randomUUID()]: { level: 'owner' } }));
+    const inherited = await insertOrphan(JSON.stringify({ [heir]: { level: 'owner' } }));
+
+    const sql = await readFile(
+      new URL(
+        '../../database/postgres/migrations/zz_20260929d_trash_ownerless_documents.sql',
+        import.meta.url
+      ),
+      'utf8'
+    );
+    await pool.query(sql);
+
+    const rows = await pool.query<{ id: string; is_deleted: boolean; trashed: boolean }>(
+      `SELECT id, is_deleted, deleted_at IS NOT NULL AS trashed FROM collaborative_documents
+       WHERE id = ANY($1::uuid[])`,
+      [[ownerless, inherited]]
+    );
+    const byId = Object.fromEntries(rows.rows.map((r) => [r.id, r]));
+    expect(byId[ownerless]).toMatchObject({ is_deleted: true, trashed: true });
+    expect(byId[inherited]).toMatchObject({ is_deleted: false, trashed: false });
+  });
+
+  it('bindings follow their chat thread (#3847)', async () => {
+    const owner = randomUUID();
+    await pool.query('INSERT INTO profiles (id) VALUES ($1)', [owner]);
+    const {
+      rows: [canvas],
+    } = await pool.query<{ id: string }>(
+      `INSERT INTO collaborative_documents (title, created_by, document_subtype)
+       VALUES ('Sharepic', $1, 'canvas') RETURNING id`,
+      [owner]
+    );
+    const {
+      rows: [thread],
+    } = await pool.query<{ id: string }>(
+      'INSERT INTO chat_threads (user_id) VALUES ($1) RETURNING id',
+      [owner]
+    );
+    const bind = (threadId: string) =>
+      pool.query(
+        `INSERT INTO chat_thread_canvases (thread_id, variant_id, canvas_id, canvas_type)
+         VALUES ($1, 'v1', $2, 'dreizeilen')`,
+        [threadId, canvas.id]
+      );
+
+    await expect(bind(randomUUID())).rejects.toMatchObject({ code: '23503' });
+    await bind(thread.id);
+    await pool.query('DELETE FROM chat_threads WHERE id = $1', [thread.id]);
+    const bound = await pool.query('SELECT 1 FROM chat_thread_canvases WHERE thread_id = $1', [
+      thread.id,
+    ]);
+    expect(bound.rowCount).toBe(0);
+
+    const fks = await pool.query<{ conname: string; confdeltype: string }>(
+      `SELECT conname, confdeltype FROM pg_constraint WHERE conname = ANY($1) ORDER BY conname`,
+      [['chat_thread_canvases_thread_fk', 'chat_thread_reels_thread_fk']]
+    );
+    expect(fks.rows).toEqual([
+      { conname: 'chat_thread_canvases_thread_fk', confdeltype: 'c' },
+      { conname: 'chat_thread_reels_thread_fk', confdeltype: 'c' },
+    ]);
+  });
 
   it('keeps unique keys among live rows only (zz_20260929b_trash_partial_unique.sql)', async () => {
     const owner = randomUUID();
