@@ -16,22 +16,11 @@ export interface ToolContext {
   /** Absent when nothing is in reach; the notebook tool is then not registered. */
   notebooks?: NotebookScope;
   /**
-   * The run's deadline, so a tool that WAITS (the GreenPT spacing gate, a retry
-   * pause) is cut short with it instead of outliving the run it belongs to.
+   * The run's deadline, so a tool that retries stops with it instead of
+   * outliving the run it belongs to.
    */
   signal?: AbortSignal;
   onStep: (label: string, status: 'running' | 'done' | 'failed') => void;
-}
-
-/**
- * Austria is an audience, not a toggle: an AT run that silently searches German
- * sources answers the wrong question. `country` is a bias on GreenPT and the
- * Linkup query carries the hint, because that is what each API accepts.
- */
-export function localeHint(locale: ResearchLocale): { greenpt: string; queryNote: string } {
-  return locale === 'de-AT'
-    ? { greenpt: 'de-AT', queryNote: ' (Österreich)' }
-    : { greenpt: 'de-DE', queryNote: '' };
 }
 
 /**

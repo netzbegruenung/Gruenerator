@@ -27,11 +27,10 @@ import { tool } from '@langchain/core/tools';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import { crawlAndDistill } from '../../search/CrawlingService.js';
-import { getGreenPTSearchService, GREENPT_MAX_RESULTS } from '../../search/GreenPTSearchService.js';
-import { getLinkupService } from '../../search/LinkupService.js';
+import { canWebSearch, webSearch } from '../../search/webSearch.js';
 
 import { createNotebookTool } from './notebookTool.js';
-import { budgetSpent, formatHits, localeHint, remember, type ToolContext } from './toolContext.js';
+import { budgetSpent, formatHits, remember, type ToolContext } from './toolContext.js';
 
 const log = createLogger('DeepAgentTools');
 
@@ -79,11 +78,9 @@ const DEEP_SNIPPET_CHARS = 1500;
 /**
  * Hits per `web_suche` call.
  *
- * The ceiling was 10, which is GreenPT's own hard limit (`GREENPT_MAX_RESULTS`)
- * applied to both lanes — so a Linkup search, which has no such limit, was
- * silently held to a foreign one. Each lane is now clamped to what IT can do;
- * neither is a cost decision, since `maxResults` is not a Linkup pricing
- * dimension (depth × outputType is).
+ * Not a cost decision: `maxResults` is not a Linkup pricing dimension (depth ×
+ * outputType is), and an engine that cannot serve the count is skipped by the
+ * provider chain rather than asked for fewer.
  */
 const MAX_SEARCH_RESULTS = 20;
 const DEFAULT_SEARCH_RESULTS = 8;
@@ -147,11 +144,9 @@ export function toolsFor<T extends { name: string }>(
  * a sentence the model can act on. The last error goes to `onFail` for the log —
  * a swallowed cause is how "the agent found nothing" stays unexplained.
  *
- * There is deliberately no pause between attempts. The one wait that helps is
- * GreenPT's 5 s spacing, and that already sits inside its own gate (`wait`
- * mode); everything else here fails on a network or parse error, where a second
- * try either works immediately or not at all. A blanket sleep would only spend
- * the run's clock to look diligent.
+ * There is deliberately no pause between attempts: a second try either works
+ * immediately or not at all, and a blanket sleep would only spend the run's
+ * clock to look diligent.
  */
 async function retrying<T>(
   attempt: (tryNo: number) => Promise<T>,
@@ -182,19 +177,9 @@ function refundCrawl(ctx: ToolContext): void {
 
 export function createResearchTools(ctx: ToolContext) {
   /**
-   * The workhorse — and the one place where this agent's provider policy differs
-   * from the chat's.
-   *
-   * GreenPT is not merely tried first here, it is WAITED for: `gate: 'wait'`
-   * queues behind the 5 s spacing instead of refusing, and a throttled call
-   * (`GreenPTEmptyError`, its only tell) is retried rather than handed to
-   * Linkup. In the chat the opposite is right — a person is watching a spinner.
-   * In a run measured in minutes, dropping to the paid engine to save five
-   * seconds is the wrong trade, and it is how a "GreenPT first" lane quietly
-   * became a Linkup lane in practice.
-   *
-   * Linkup stays as the floor under it: circuit open, no key, both attempts
-   * dead. It is a fallback now, not a co-equal.
+   * The workhorse. Which engine answers is `WEB_SEARCH_CHAIN`'s decision
+   * (webSearch.ts); a failed call is retried once as a whole, so a blip on the
+   * second engine does not lose the sub-question either.
    */
   const webSuche = tool(
     async (input: unknown): Promise<string> => {
@@ -204,79 +189,31 @@ export function createResearchTools(ctx: ToolContext) {
       if (ctx.budget.searchesLeft <= 0) {
         return 'Suchbudget aufgebraucht. Nutze die vorhandenen Ergebnisse und schreibe den Bericht.';
       }
-      ctx.budget.searchesLeft -= 1;
       const limit = Math.min(Math.max(maxResults ?? DEFAULT_SEARCH_RESULTS, 1), MAX_SEARCH_RESULTS);
-      const hint = localeHint(ctx.locale);
-      ctx.onStep(`Suche: ${query}`, 'running');
-
-      const greenpt = getGreenPTSearchService();
-      if (greenpt) {
-        const results = await retrying(
-          () =>
-            greenpt.webSearch({
-              query,
-              // Its own ceiling, not the shared one: asking for more than
-              // GreenPT serves is how a 20-hit request quietly became a 10-hit
-              // one for every lane.
-              maxResults: Math.min(limit, GREENPT_MAX_RESULTS),
-              language: hint.greenpt,
-              gate: 'wait',
-              ...(ctx.signal ? { signal: ctx.signal } : {}),
-            }),
-          (error, tryNo) =>
-            log.debug(
-              `[web_suche] GreenPT Versuch ${tryNo}/${ATTEMPTS} fehlgeschlagen: ${String(error)}`
-            ),
-          ctx.signal
-        );
-        if (results) {
-          const hits = results.map((r) => ({
-            url: r.url,
-            title: r.title,
-            snippet: r.description ?? '',
-          }));
-          hits.forEach((h) => remember(ctx, h.url, h.title));
-          ctx.onStep(`Suche: ${query}`, 'done');
-          return formatHits(hits);
-        }
-        log.info(`[web_suche] GreenPT nach ${ATTEMPTS} Versuchen ohne Treffer — Linkup übernimmt`);
-      }
-
-      const linkup = getLinkupService();
-      if (!linkup) {
-        ctx.onStep(`Suche: ${query}`, 'failed');
-        // The search budget is refunded: nothing was asked of any provider, so
-        // charging the run for it would shorten a report for no reason.
-        ctx.budget.searchesLeft += 1;
+      const request = { query, maxResults: limit, locale: ctx.locale };
+      // Nothing asked of anyone, so nothing charged to the run.
+      if (!canWebSearch(request)) {
         return 'Keine Suchmaschine verfügbar. Schreibe den Bericht aus dem vorhandenen Material.';
       }
+      ctx.budget.searchesLeft -= 1;
+      ctx.onStep(`Suche: ${query}`, 'running');
+
       const res = await retrying(
-        () =>
-          linkup.webSearch({
-            query: `${query}${hint.queryNote}`,
-            depth: 'standard',
-            maxResults: limit,
-          }),
+        () => webSearch(request),
         (error, tryNo) =>
-          log.warn(
-            `[web_suche] Linkup Versuch ${tryNo}/${ATTEMPTS} fehlgeschlagen: ${String(error)}`
-          ),
-        // Ohne das Signal liefe der zweite Versuch auch nach Fristablauf noch —
-        // und `LinkupService.webSearch` nimmt selbst keins entgegen, kennt nur
-        // seinen eigenen 60-s-Timeout. Das wäre eine Minute nach Feierabend.
+          log.warn(`[web_suche] Versuch ${tryNo}/${ATTEMPTS} fehlgeschlagen: ${String(error)}`),
+        // Without the signal the second attempt would still run after the deadline.
         ctx.signal
       );
       if (!res) {
         ctx.onStep(`Suche: ${query}`, 'failed');
         return 'Die Suche ist zweimal fehlgeschlagen. Überspringe diese Teilfrage oder formuliere sie anders — und arbeite sonst mit dem vorhandenen Material weiter.';
       }
-      const hits = res.results
-        .filter((r) => r.type !== 'image' && r.content)
-        .map((r) => ({
-          url: r.url,
-          title: r.name,
-          snippet: r.content.slice(0, SEARCH_SNIPPET_CHARS),
-        }));
+      const hits = res.hits.map((r) => ({
+        url: r.url,
+        title: r.title,
+        snippet: r.content.slice(0, SEARCH_SNIPPET_CHARS),
+      }));
       hits.forEach((h) => remember(ctx, h.url, h.title));
       ctx.onStep(`Suche: ${query}`, 'done');
       return formatHits(hits);
@@ -312,34 +249,32 @@ export function createResearchTools(ctx: ToolContext) {
       if (ctx.budget.deepSearchesLeft <= 0) {
         return 'Budget für Tiefensuchen aufgebraucht. Nutze web_suche oder schreibe den Bericht.';
       }
-      const linkup = getLinkupService();
-      if (!linkup) return 'Tiefensuche nicht verfügbar. Nutze web_suche.';
+      const request = {
+        query: frage,
+        depth: 'deep' as const,
+        maxResults: 15,
+        locale: ctx.locale,
+      };
+      if (!canWebSearch(request)) return 'Tiefensuche nicht verfügbar. Nutze web_suche.';
       ctx.budget.deepSearchesLeft -= 1;
       ctx.onStep(`Tiefensuche: ${frage}`, 'running');
       const res = await retrying(
-        () =>
-          linkup.webSearch({
-            query: `${frage}${localeHint(ctx.locale).queryNote}`,
-            depth: 'deep',
-            maxResults: 15,
-          }),
+        () => webSearch(request),
         (error, tryNo) =>
           log.warn(`[tiefen_suche] Versuch ${tryNo}/${ATTEMPTS} fehlgeschlagen: ${String(error)}`),
         ctx.signal
       );
       if (!res) {
         ctx.onStep(`Tiefensuche: ${frage}`, 'failed');
-        // The unit is NOT refunded: a `deep` call that reached Linkup may well
+        // The unit is NOT refunded: a `deep` call that reached the engine may well
         // have been billed, and the budget's job is to bound the bill.
         return 'Die Tiefensuche ist zweimal fehlgeschlagen. Überspringe sie und arbeite mit web_suche weiter.';
       }
-      const hits = res.results
-        .filter((r) => r.type !== 'image' && r.content)
-        .map((r) => ({
-          url: r.url,
-          title: r.name,
-          snippet: r.content.slice(0, DEEP_SNIPPET_CHARS),
-        }));
+      const hits = res.hits.map((r) => ({
+        url: r.url,
+        title: r.title,
+        snippet: r.content.slice(0, DEEP_SNIPPET_CHARS),
+      }));
       hits.forEach((h) => remember(ctx, h.url, h.title));
       ctx.onStep(`Tiefensuche: ${frage}`, 'done');
       return formatHits(hits);

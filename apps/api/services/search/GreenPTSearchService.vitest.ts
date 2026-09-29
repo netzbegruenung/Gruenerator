@@ -6,10 +6,10 @@
  * "fixed" by returning `[]` instead of throwing, the chat starts answering
  * ungrounded and nothing in the logs will say why.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../config/env.js', () => ({
-  env: { GREENPT_SEARCH_ENABLED: true, GREENPT_API_KEY: 'test-key', LOG_LEVEL: 'warn' },
+  env: { GREENPT_API_KEY: 'test-key', LOG_LEVEL: 'warn' },
 }));
 vi.mock('../usage/UsageTrackingService.js', () => ({ recordOperation: vi.fn() }));
 
@@ -40,16 +40,7 @@ const ok = (results: unknown[]) => ({
 beforeEach(() => {
   fetchMock.mockReset();
   _resetGreenPTSearchServiceForTests();
-  vi.useFakeTimers();
 });
-afterEach(() => {
-  vi.useRealTimers();
-});
-
-/** Move past the per-process spacing gate so a test can make another call. */
-function passRateGate() {
-  vi.advanceTimersByTime(6_000);
-}
 
 describe('GreenPTSearchService — empty means throttled, not "nothing found"', () => {
   it('throws GreenPTEmptyError on an empty result array', async () => {
@@ -85,7 +76,7 @@ describe('GreenPTSearchService — empty means throttled, not "nothing found"', 
 });
 
 describe('GreenPTSearchService — request shape', () => {
-  it("clamps maxResults to the endpoint's real ceiling of 10, whatever the docs advertise", async () => {
+  it("clamps maxResults to the endpoint's real ceiling, whatever the docs advertise", async () => {
     fetchMock.mockResolvedValue(ok([hit(1)]));
     await new GreenPTSearchService('k').webSearch({ query: 'q', maxResults: 50 });
     const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as { body: string }).body) as {
@@ -94,13 +85,13 @@ describe('GreenPTSearchService — request shape', () => {
     expect(body.maxResults).toBe(GREENPT_MAX_RESULTS);
   });
 
-  it('sends the language bias as `country`, the name the API actually uses', async () => {
+  it('sends the region as a lower-case country code — a locale like de-DE is silently ignored upstream', async () => {
     fetchMock.mockResolvedValue(ok([hit(1)]));
-    await new GreenPTSearchService('k').webSearch({ query: 'q', language: 'de-DE' });
+    await new GreenPTSearchService('k').webSearch({ query: 'q', country: 'at' });
     const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as { body: string }).body) as {
       country?: string;
     };
-    expect(body.country).toBe('de-DE');
+    expect(body.country).toBe('at');
   });
 
   it('treats a non-2xx as a failure', async () => {
@@ -109,94 +100,12 @@ describe('GreenPTSearchService — request shape', () => {
   });
 });
 
-describe('GreenPTSearchService — rate gate refuses rather than queues', () => {
-  it('refuses a second call inside the 5s window instead of delaying the user', async () => {
-    fetchMock.mockResolvedValue(ok([hit(1)]));
-    const svc = new GreenPTSearchService('k');
-    await svc.webSearch({ query: 'erste' });
-    // Sustained calls above ~1/5s make the provider answer empty; the caller has
-    // Linkup ready, so refusing immediately beats waiting.
-    await expect(svc.webSearch({ query: 'zweite' })).rejects.toThrow(/rate gate/i);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('allows the next call once the window has passed', async () => {
-    fetchMock.mockResolvedValue(ok([hit(1)]));
-    const svc = new GreenPTSearchService('k');
-    await svc.webSearch({ query: 'erste' });
-    passRateGate();
-    await expect(svc.webSearch({ query: 'zweite' })).resolves.toHaveLength(1);
-  });
-});
-
-/**
- * The second mode, for the deep research agent: there, refusing saves nobody's
- * time — it only routes a minutes-long run's whole fan-out to the paid engine.
- * So `wait` queues for the same 5 s window instead of declining.
- */
-describe('GreenPTSearchService — the wait mode the deep agent uses', () => {
-  it('queues behind the window instead of refusing', async () => {
-    fetchMock.mockResolvedValue(ok([hit(1)]));
-    const svc = new GreenPTSearchService('k');
-    await svc.webSearch({ query: 'erste' });
-
-    const pending = svc.webSearch({ query: 'zweite', gate: 'wait' });
-    await vi.advanceTimersByTimeAsync(1_000);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    await vi.advanceTimersByTimeAsync(5_000);
-    await expect(pending).resolves.toHaveLength(1);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  it('serialises several waiters, so they do not all wake into the same burst', async () => {
-    fetchMock.mockResolvedValue(ok([hit(1)]));
-    const svc = new GreenPTSearchService('k');
-    await svc.webSearch({ query: 'erste' });
-
-    const a = svc.webSearch({ query: 'a', gate: 'wait' });
-    const b = svc.webSearch({ query: 'b', gate: 'wait' });
-
-    await vi.advanceTimersByTimeAsync(5_000);
-    await a;
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-
-    await vi.advanceTimersByTimeAsync(5_000);
-    await b;
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-  });
-
-  it('gives up the wait when the run is aborted, rather than outliving it', async () => {
-    fetchMock.mockResolvedValue(ok([hit(1)]));
-    const svc = new GreenPTSearchService('k');
-    await svc.webSearch({ query: 'erste' });
-    const controller = new AbortController();
-
-    const pending = svc.webSearch({ query: 'zweite', gate: 'wait', signal: controller.signal });
-    const settled = expect(pending).rejects.toThrow(/aborted/i);
-    controller.abort();
-
-    await settled;
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('leaves the chat default untouched — no mode means refuse', async () => {
-    fetchMock.mockResolvedValue(ok([hit(1)]));
-    const svc = new GreenPTSearchService('k');
-    await svc.webSearch({ query: 'erste' });
-
-    await expect(svc.webSearch({ query: 'zweite' })).rejects.toThrow(/rate gate/i);
-  });
-});
-
 describe('GreenPTSearchService — circuit breaker', () => {
   it('opens after two consecutive empty responses, so a throttled window is not re-paid per search', async () => {
     fetchMock.mockResolvedValue(ok([]));
     const svc = new GreenPTSearchService('k');
     await expect(svc.webSearch({ query: 'a' })).rejects.toBeInstanceOf(GreenPTEmptyError);
-    passRateGate();
     await expect(svc.webSearch({ query: 'b' })).rejects.toBeInstanceOf(GreenPTEmptyError);
-    passRateGate();
     await expect(svc.webSearch({ query: 'c' })).rejects.toThrow(/circuit open/i);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
@@ -205,13 +114,12 @@ describe('GreenPTSearchService — circuit breaker', () => {
     fetchMock.mockResolvedValueOnce(ok([])).mockResolvedValue(ok([hit(1)]));
     const svc = new GreenPTSearchService('k');
     await expect(svc.webSearch({ query: 'a' })).rejects.toBeInstanceOf(GreenPTEmptyError);
-    passRateGate();
     await expect(svc.webSearch({ query: 'b' })).resolves.toHaveLength(1);
   });
 });
 
-describe('getGreenPTSearchService — gated on the explicit flag', () => {
-  it('returns a service when the flag is on and the key is set', () => {
+describe('getGreenPTSearchService — gated on the key alone', () => {
+  it('returns a service when the key is set; the chain decides whether searches reach it', () => {
     expect(getGreenPTSearchService()).not.toBeNull();
   });
 });
