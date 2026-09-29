@@ -36,8 +36,11 @@ export function useAddUserWebsite() {
       });
       if (result.status === 200) return result.body.website;
       const body = result.body as { error?: string } | undefined;
-      throw new Error(body?.error || 'Website konnte nicht verbunden werden.');
+      throw new ApiError(result.status, body?.error || 'Website konnte nicht verbunden werden.');
     },
+    // WebsitesTab shows the reason inline; a "REST-API deaktiviert" 422 is the
+    // user's site, not our bug, and must not also toast or reach GlitchTip.
+    meta: { silent: true },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
   });
 }
@@ -52,8 +55,9 @@ export function useRefreshUserWebsite() {
       });
       if (result.status === 200) return result.body.website;
       const body = result.body as { error?: string } | undefined;
-      throw new Error(body?.error || 'Website konnte nicht aktualisiert werden.');
+      throw new ApiError(result.status, body?.error || 'Website konnte nicht aktualisiert werden.');
     },
+    meta: { silent: true },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
   });
 }
