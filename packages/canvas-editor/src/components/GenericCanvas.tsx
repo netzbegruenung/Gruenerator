@@ -47,6 +47,7 @@ import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerMan
 import { captureStageImage } from '../utils/captureStage';
 import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { PendingImagesContext } from '../utils/pendingImages';
+import { stageCssScale } from '../utils/stageCssScale';
 import { getOptimalContainerWidth } from '../utils/viewport';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
@@ -703,8 +704,7 @@ function GenericCanvasWithRef<
         if (!node) return null;
         const rect = node.getClientRect();
         const container = stage.container().getBoundingClientRect();
-        // Die Seite kann per CSS gezoomt sein; Konva kennt nur seine eigenen Pixel.
-        const cssScale = stage.width() ? container.width / stage.width() : 1;
+        const cssScale = stageCssScale(stage, container);
         return {
           left: container.left + rect.x * cssScale,
           top: container.top + rect.y * cssScale,
