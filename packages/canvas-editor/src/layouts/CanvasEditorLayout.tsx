@@ -39,6 +39,8 @@ export interface CanvasEditorLayoutProps {
   contextBar?: ReactNode;
   /** Optional sticky-bottom region (page navigator, zoom/meta bar) pinned to viewport bottom */
   bottomBar?: ReactNode;
+  /** Mobile page navigator between canvas and bottom bar (the desktop bottomBar is hidden there) */
+  mobilePageStrip?: ReactNode;
 }
 
 export function CanvasEditorLayout({
@@ -52,6 +54,7 @@ export function CanvasEditorLayout({
   toolbar,
   contextBar,
   bottomBar,
+  mobilePageStrip,
 }: CanvasEditorLayoutProps) {
   const hasSidebar = Boolean(tabBar);
   const hasPanel = Boolean(sidebar);
@@ -126,6 +129,11 @@ export function CanvasEditorLayout({
           {children}
         </div>
       </div>
+      {mobilePageStrip && (
+        <div className="order-1 hidden flex-none justify-center border-t border-[var(--editor-border)] bg-[var(--editor-surface)] max-canvas-mobile:flex">
+          {mobilePageStrip}
+        </div>
+      )}
       {bottomBar && (
         <div
           ref={bottomBarRef}
