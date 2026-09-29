@@ -33,8 +33,8 @@ import type { StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BackgroundColorOption } from '../../sidebar/types';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
-import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
 import type { ChartInstance } from '../../utils/chartUtils';
+import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
@@ -402,6 +402,7 @@ export function createColorTwoTextCanvas<
     getVisibleTabs: () => ['background', 'text', 'assets', 'tools', 'uploads', 'chat'],
 
     getAutoSwitchTab: (selectedElement) => {
+      if (selectedElement?.startsWith('balken-')) return 'settings';
       if (selectedElement?.startsWith('chart-')) return 'chart-settings';
       if (selectedElement?.startsWith('frame-')) return 'frame-settings';
       return null;

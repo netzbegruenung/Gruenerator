@@ -32,7 +32,6 @@ import { createShareSection } from './shareSection';
 
 import type { TemplateAiCapabilities } from '../ai/types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
-import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives';
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
@@ -42,6 +41,7 @@ import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import type { UserImageInstance } from '../utils/userImageUtils';
+import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================
 // STATE TYPE
@@ -420,7 +420,9 @@ export const veranstaltungFullConfig: FullCanvasConfig<
         ? 'frame-settings'
         : selectedElement === 'background-image'
           ? 'image'
-          : null,
+          : selectedElement?.startsWith('balken-')
+            ? 'settings'
+            : null,
 
   sections: {
     image: section({

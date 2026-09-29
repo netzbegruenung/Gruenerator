@@ -1,6 +1,7 @@
 import { FaCheck, FaChevronLeft, FaChevronRight, FaTrash, FaCopy } from 'react-icons/fa';
 import { HiColorSwatch, HiAdjustments, HiArrowsExpand } from 'react-icons/hi';
 
+import { cn } from '../../utils/cn';
 import { SidebarSlider } from '../components/SidebarSlider';
 import { ACTION_BTN, ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '../sidebarStyles';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
@@ -8,10 +9,8 @@ import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 import type { BalkenInstance } from '../../primitives/BalkenGroup';
 import type { ColorScheme } from '../../utils/dreizeilenLayout';
 
-import { cn } from '../../utils/cn';
-
 export interface BalkenSettingsSectionProps {
-  selectedBalken: BalkenInstance;
+  selectedBalken: BalkenInstance | null;
   onUpdateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
   onRemoveBalken: (id: string) => void;
   onDuplicateBalken?: (id: string) => void;
@@ -27,6 +26,7 @@ export function BalkenSettingsSection({
   colorSchemes,
   isPrimary,
 }: BalkenSettingsSectionProps) {
+  if (!selectedBalken) return null;
   const STEP = 5;
   const activeSchemeId = selectedBalken.colorSchemeId;
   const colorScheme = colorSchemes.find((s) => s.id === activeSchemeId) ?? colorSchemes[0];

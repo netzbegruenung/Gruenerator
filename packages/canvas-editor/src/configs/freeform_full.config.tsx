@@ -227,6 +227,7 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     // The colour plane is id `background-color` and drawn `listening={false}`,
     // so the `background` branch that used to sit here was doubly dead.
     if (selectedElement === 'background-image') return 'background';
+    if (selectedElement?.startsWith('balken-')) return 'settings';
     if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
