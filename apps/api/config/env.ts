@@ -41,6 +41,11 @@ export const HYBRID_SERVER_FUSIONS = [
 
 export type ServerFusion = (typeof HYBRID_SERVER_FUSIONS)[number];
 
+/** Engines `WEB_SEARCH_CHAIN` can name. Adapters: `services/search/webSearch.ts`. */
+export const WEB_SEARCH_PROVIDERS = ['greenpt', 'linkup', 'searxng'] as const;
+
+export type WebSearchProviderId = (typeof WEB_SEARCH_PROVIDERS)[number];
+
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
@@ -248,16 +253,23 @@ const envSchema = z.object({
   DEEPL_GLOSSARY_NAME: z.string().default('Grünerator'),
 
   // ── Web Search Providers ───────────────────────────────────────────────
-  // Linkup (https://docs.linkup.so) — when set, replaces SearXNG for @web
-  // and replaces the deep-research orchestrator for @recherche.
   LINKUP_API_KEY: z.string().optional(),
-  // Route SIMPLE web searches (no domain scope, no time window, no images,
-  // ≤10 results) to GreenPT's link search first, with Linkup as the fallback.
-  // A separate flag rather than a key check on purpose: GREENPT_API_KEY is
-  // already set in production for chat and transcription, so gating on the key
-  // alone would swap the chat's search engine without anyone deciding to.
-  // The throttle it has to contain is documented in GreenPTSearchService.ts.
-  GREENPT_SEARCH_ENABLED: boolFlag(false),
+  // Ordered web search engines, comma-separated (`services/search/webSearch.ts`).
+  // Each search goes to the first engine that is configured and can honour all
+  // its constraints (GreenPT: no dates, domain scope, images or `deep`); a
+  // failing engine hands over to the next. Swapping engines = editing this line.
+  // `searxng` (a private instance, no key) is opt-in for key-less dev setups.
+  // Replaces GREENPT_SEARCH_ENABLED (removed 29.09.2026, ignored with a warning).
+  WEB_SEARCH_CHAIN: z
+    .string()
+    .default('greenpt,linkup')
+    .transform((v) =>
+      v
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
+    )
+    .pipe(z.array(z.enum(WEB_SEARCH_PROVIDERS)).min(1)),
 
   // Reranking on GreenPT (`green-rerank`) instead of Regolo. ON by default,
   // unlike the search flag above: this one is a host swap for identical weights
@@ -680,4 +692,11 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+if (process.env.GREENPT_SEARCH_ENABLED !== undefined) {
+  console.warn(
+    `GREENPT_SEARCH_ENABLED is ignored since 29.09.2026 — the engine order is WEB_SEARCH_CHAIN (now: ${env.WEB_SEARCH_CHAIN.join(',')}). Remove the variable.`
+  );
+}
+
 export type Env = z.infer<typeof envSchema>;

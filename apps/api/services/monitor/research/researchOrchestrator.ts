@@ -44,6 +44,7 @@ import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import { validateCitations, stripUngroundedCitations } from '../../search/CitationGrounder.js';
 import { crawlAndDistill } from '../../search/CrawlingService.js';
 import { applyMMR } from '../../search/DiversityReranker.js';
+import { type WebSearchLocale } from '../../search/webSearch.js';
 
 export type ResearchLocale = 'de' | 'at' | 'eu';
 export type ReportShape = 'biographical' | 'comparative' | 'positional' | 'event' | 'general';
@@ -287,7 +288,7 @@ function fallbackPlan(question: string, locale: ResearchLocale): DeepPlan {
  */
 export function localeToSearchScope(locale: ResearchLocale): {
   qdrantCollection: string;
-  webLanguage: string;
+  webLanguage: WebSearchLocale;
   docDomain: string;
 } {
   switch (locale) {
@@ -486,7 +487,7 @@ async function executeRound(
           // calls for what the engine offers in one.
           tier: 'gruendlich',
           maxResults: SUB_SEARCH_RESULTS,
-          language: webLanguage,
+          locale: webLanguage,
         })
           .then((data) => ({ kind: 'web' as const, query: sq.question, data }))
           .catch((err: unknown) => {

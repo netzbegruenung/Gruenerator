@@ -2,61 +2,35 @@
  * GreenPT Search Service
  *
  * Thin client around GreenPT's link-search endpoint
- * (`POST /v1/tools/search/web`), used as the cheap first door for SIMPLE web
- * searches, with Linkup behind it as the fallback for everything else.
+ * (`POST /v1/tools/search/web`). Which searches reach it is decided by the
+ * provider chain in `webSearch.ts`, not here.
  *
  * Two GreenPT endpoints exist and they are not interchangeable. The other one,
  * `/v1/tools/websearch`, scrapes pages and returns `relevant_content`; it was
- * measured and rejected (hard cap at ~3 hits, 4.2s p50, `site:` stripped,
- * navigation chrome inside the "LLM-ready" content). THIS one returns ranked
- * links with a ~230-char `description` each, 10 hits, 1.2–1.6s p50 — faster than
- * Linkup and, for factual lookups, sourced at least as well.
- *
- * Why the short snippets are not the disqualifier they look like: the chat
- * truncates EVERY source to 300 chars before the model sees it
- * (`snippetChars` in directSearchExecutors), and 88% of these descriptions are
- * already shorter than that. Measured over 12 fact questions with an objective
- * answer regex, at that same 300-char budget, the answer was present in the top
- * five hits 12/12 times (Linkup: 11/12).
+ * measured and rejected twice (31.07. and 29.09.2026: 2–3 hits whatever
+ * `count` says, 5–15s, `site:` stripped, navigation chrome inside the
+ * "LLM-ready" content). THIS one returns ranked links with a ~230-char
+ * `description` each, up to 20 hits, ~1.2–1.4s p50 — on par with Linkup, and
+ * for factual lookups sourced at least as well (29.09.2026: answer in the top
+ * five 16/16 against Linkup's 15/16, with ministries and Wikipedia where Linkup
+ * returned SEO calculator pages).
  *
  * ── The failure mode this module exists to contain ─────────────────────────
  *
- * Above roughly one request per five seconds SUSTAINED, the endpoint stops
- * searching and answers `HTTP 200` with `{"results": []}` in ~500ms (healthy
- * calls take ~1400ms). There is no 429, no error body, and no header movement —
- * `ratelimit-remaining` sat at 549/600 while every second response came back
- * empty. Measured, 14 calls per step, all queries distinct:
- *
- *     1 req / 1s → 50% empty      1 req / 3s →  7% empty
- *     1 req / 2s → 21% empty      1 req / 5s →  0% empty
- *
- * Bursts are fine — six concurrent calls came back 6/6 — so this is a token
- * bucket draining under sustained load, not a rate limiter. The documented
- * "600 requests / 15 min" does not describe it.
- *
- * Hence the two rules below, which are the whole point of this file:
+ * The endpoint periodically stops searching and answers `HTTP 200` with
+ * `{"results": []}`. No 429, no error body, no header movement. In July this
+ * tracked sustained load (a token bucket: ≥1 req/5s was clean); by September it
+ * no longer did — the same queries came back 15/24 empty in one minute and
+ * 30/30 full the next, at the same rate, and twelve parallel calls were fine.
+ * A client-side spacing gate therefore buys nothing and was removed; what
+ * contains it is:
  *
  *   1. An empty result set is a FAILURE, not an answer (`GreenPTEmptyError`).
- *      It is the only observable signal the throttle gives us, and if it were
- *      passed through as "the web has nothing on this", the chat would answer
- *      ungrounded and nothing in the logs would say why.
- *   2. Calls are gated to one per `MIN_CALL_GAP_MS`. In the CHAT a call that
- *      arrives inside that window is REFUSED rather than delayed — the caller
- *      drops to Linkup immediately, because the one thing a chat search cannot
- *      spend is the user's waiting time.
- *
- * ── Why the gate has a second mode ─────────────────────────────────────────
- *
- * `gate: 'wait'` queues instead of refusing. It exists for the deep research
- * agent, where the trade the chat makes is simply wrong: that run is minutes
- * long by design, its searches are serial anyway (one model round trip each,
- * seconds apart), and "refuse" there does not save anyone's time — it just
- * routes the whole fan-out to Linkup, which is the provider we are trying not
- * to pay. Waiting out the remainder of a 5 s window inside a 15-minute run is
- * free; a dozen Linkup searches are not.
- *
- * Waiters are serialised through one promise chain, so ten of them do not all
- * wake at the same moment and re-create the burst the gate exists to prevent.
+ *      It is the only observable signal, and passed through as "the web has
+ *      nothing on this" the chat would answer ungrounded with nothing in the
+ *      logs to say why. The provider chain moves on to the next engine.
+ *   2. The circuit breaker: two failures in a row and GreenPT rests for five
+ *      minutes, so an empty window is not re-paid by every search in it.
  */
 
 import { env } from '../../config/env.js';
@@ -70,47 +44,25 @@ const log = createLogger('GreenPTSearch');
 const GREENPT_SEARCH_URL = 'https://api.greenpt.ai/v1/tools/search/web';
 
 /**
- * Short by design. This provider is only ever tried when Linkup is available as
- * the fallback, so a slow GreenPT is strictly worse than no GreenPT: waiting
- * 10s to save half a cent costs the turn more than the search is worth. Healthy
- * calls land at 1.2–1.6s; the throttled ones return in ~500ms.
+ * Short by design. Another engine stands behind GreenPT in the chain, so a slow
+ * GreenPT is strictly worse than no GreenPT. Healthy calls land at 1.1–1.6s.
  */
 const GREENPT_TIMEOUT_MS = 5_000;
 
 /**
- * Minimum spacing between two GreenPT searches in this process.
- *
- * 5s is where the measured empty rate hits zero (3s still leaked 7%). It is a
- * per-process gate, and the API runs in cluster mode, so N workers can still
- * produce N/5 requests per second between them. That is deliberate: the gate is
- * a cheap way to keep a single worker's own loop from beating the provider
- * into the ground, not a distributed rate limiter. The circuit breaker below is
- * what actually contains a provider-wide stall, and both of them are backstops
- * — correctness never depends on either, because every path falls back to
- * Linkup.
+ * The endpoint's real ceiling. The docs advertise `maxResults` 1–50; until
+ * August anything above 10 came back as 10, on 29.09.2026 20 came back as 20.
  */
-const MIN_CALL_GAP_MS = 5_000;
+export const GREENPT_MAX_RESULTS = 20;
 
-/**
- * The endpoint's real ceiling. The docs advertise `maxResults` 1–50; 20 and 50
- * both come back with 10, so anything above this is a request we cannot serve
- * and must not pretend to.
- */
-export const GREENPT_MAX_RESULTS = 10;
-
-/**
- * Two consecutive failures open the circuit for five minutes — same shape and
- * thresholds as `linkupCircuit` and `searxngCircuit`. Since a throttled GreenPT
- * stays throttled for minutes at a time, this is what stops every search in
- * that window from paying ~500ms to discover the same thing again.
- */
+/** Same shape and thresholds as `linkupCircuit` and `searxngCircuit`. */
 const greenptCircuit = new CircuitBreaker({
   failureThreshold: 2,
   resetTimeMs: 5 * 60 * 1000,
   label: 'GreenPTSearch',
 });
 
-/** An empty `results` array — the throttle's only tell. See the header. */
+/** An empty `results` array — the outage's only tell. See the header. */
 export class GreenPTEmptyError extends Error {
   constructor() {
     super('GreenPT returned zero results (throttled or genuinely empty)');
@@ -132,96 +84,29 @@ interface GreenPTSearchResponse {
   results?: GreenPTSearchResult[];
 }
 
-/** Last call's start time, for the spacing gate. Module-level: one per worker. */
-let lastCallStartedAt = 0;
-
-/**
- * How a caller reacts to the spacing gate.
- *
- * `refuse` is the chat's default and stays the default here — a caller that
- * says nothing keeps the old behaviour. `wait` is the deep agent's.
- */
-export type GateMode = 'refuse' | 'wait';
-
-/**
- * Serialises the waiters. Without the chain, N callers that arrive together
- * would each read the same `lastCallStartedAt`, wait the same remainder and
- * then fire simultaneously — the exact burst the gate is there to prevent.
- */
-let gateChain: Promise<void> = Promise.resolve();
-
-function sleep(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(new Error('GreenPT gate wait aborted'));
-      return;
-    }
-    const timer = setTimeout(() => {
-      signal?.removeEventListener('abort', onAbort);
-      resolve();
-    }, ms);
-    function onAbort(): void {
-      clearTimeout(timer);
-      reject(new Error('GreenPT gate wait aborted'));
-    }
-    signal?.addEventListener('abort', onAbort, { once: true });
-  });
-}
-
-/**
- * Claims the next slot, refusing or waiting for it.
- *
- * Claiming is what makes the chain work: `lastCallStartedAt` is advanced HERE,
- * before the request goes out, so the next waiter measures from this call's
- * start rather than from the last one that happened to finish.
- */
-async function claimSlot(mode: GateMode, signal?: AbortSignal): Promise<void> {
-  if (mode === 'refuse') {
-    const since = Date.now() - lastCallStartedAt;
-    if (since < MIN_CALL_GAP_MS) {
-      // Refused, not queued. The caller has Linkup ready and the user is waiting.
-      throw new Error(`GreenPT rate gate — ${since}ms since last call, need ${MIN_CALL_GAP_MS}ms`);
-    }
-    lastCallStartedAt = Date.now();
-    return;
-  }
-
-  const mine = gateChain.then(async () => {
-    const remaining = MIN_CALL_GAP_MS - (Date.now() - lastCallStartedAt);
-    if (remaining > 0) await sleep(remaining, signal);
-    lastCallStartedAt = Date.now();
-  });
-  // The chain must not inherit a rejection, or one aborted waiter would poison
-  // every later one; the awaited handle below still surfaces it to its owner.
-  gateChain = mine.catch(() => undefined);
-  await mine;
-}
-
 export class GreenPTSearchService {
   constructor(private readonly apiKey: string) {}
 
   /**
    * Ranked links for a query.
    *
-   * Throws rather than returning an empty list — see `GreenPTEmptyError`. Every
-   * caller is expected to catch and fall back.
+   * Throws rather than returning an empty list — see `GreenPTEmptyError`.
    */
   async webSearch(params: {
     query: string;
     maxResults?: number;
-    /** Language/region bias, e.g. "de-DE". A weak bias, not a filter: for
-     *  "climate policy" it moved 3 of 10 hosts, and the query's own language
-     *  dominates it. Passed through because it costs nothing. */
-    language?: string;
-    /** Spacing-gate behaviour. Defaults to the chat's `refuse`. */
-    gate?: GateMode;
-    /** Aborts a queued wait — the deep agent's run deadline. */
-    signal?: AbortSignal;
+    /**
+     * Lower-case ISO country code (`'de'`, `'at'`). Upper case is a 400, and a
+     * locale like `'de-DE'` is accepted and silently ignored — which is what
+     * this client sent until 29.09.2026. Moves only queries whose terms are
+     * already regional ("Richtwertmieten": 1 → 9 AT hosts of 10); a generic
+     * query needs the country in its text, see `localizeQuery`.
+     */
+    country?: 'de' | 'at';
   }): Promise<GreenPTSearchResult[]> {
     if (greenptCircuit.isOpen()) {
       throw new Error('GreenPT circuit open — provider considered unavailable');
     }
-    await claimSlot(params.gate ?? 'refuse', params.signal);
 
     recordOperation({ unit: 'searches', provider: 'greenpt', model: 'search-web' });
 
@@ -237,11 +122,9 @@ export class GreenPTSearchService {
         body: JSON.stringify({
           query: params.query,
           maxResults: Math.min(params.maxResults ?? 5, GREENPT_MAX_RESULTS),
-          ...(params.language ? { country: params.language } : {}),
+          ...(params.country ? { country: params.country } : {}),
         }),
-        signal: params.signal
-          ? AbortSignal.any([controller.signal, params.signal])
-          : controller.signal,
+        signal: controller.signal,
       });
       if (!res.ok) {
         const text = await res.text().catch(() => '');
@@ -274,29 +157,20 @@ export class GreenPTSearchService {
 let _instance: GreenPTSearchService | null = null;
 
 /**
- * The service when GreenPT web search is switched on, null otherwise.
- *
- * Gated on an EXPLICIT flag, not merely on the key: `GREENPT_API_KEY` is already
- * set in production for chat completions and transcription, so keying off its
- * presence alone would have silently swapped the chat's search engine the moment
- * this file landed.
+ * The service when `GREENPT_API_KEY` is set, null otherwise. Whether searches
+ * reach it is `WEB_SEARCH_CHAIN`'s decision, not the key's.
  */
 export function getGreenPTSearchService(): GreenPTSearchService | null {
-  if (!env.GREENPT_SEARCH_ENABLED || !env.GREENPT_API_KEY) return null;
+  if (!env.GREENPT_API_KEY) return null;
   if (!_instance) {
     _instance = new GreenPTSearchService(env.GREENPT_API_KEY);
-    log.info('[GreenPTSearch] Service initialized (simple-query lane)');
+    log.info('[GreenPTSearch] Service initialized');
   }
   return _instance;
 }
 
-/** Test-only: reset singleton, circuit and rate gate. */
+/** Test-only: reset singleton and circuit. */
 export function _resetGreenPTSearchServiceForTests(): void {
   _instance = null;
   greenptCircuit.reset();
-  lastCallStartedAt = 0;
-  gateChain = Promise.resolve();
 }
-
-/** The spacing the deep agent has to plan its own retries around. */
-export { MIN_CALL_GAP_MS as GREENPT_MIN_CALL_GAP_MS };
