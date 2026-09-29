@@ -189,7 +189,8 @@ export const BoardDropdown = memo(function BoardDropdown({
             <DialogHeader>
               <DialogTitle>Board löschen?</DialogTitle>
               <DialogDescription>
-                Dieses Board und alle Karten werden unwiderruflich gelöscht.
+                Dieses Board und alle Karten werden in den Papierkorb verschoben und können 30 Tage
+                lang wiederhergestellt werden.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

@@ -20,6 +20,8 @@ import { memo, useState } from 'react';
 import { PiDotsThreeVertical, PiPencilSimple, PiTrash } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
+import { useTrashUndoToast } from '../trash/trashUndoToast';
+
 import { useDeleteUserAgent } from './api';
 import { AgentAvatar } from './icons/AgentAvatar';
 
@@ -34,6 +36,7 @@ interface AgentCardProps {
 const AgentCard = memo(({ agent }: AgentCardProps) => {
   const navigate = useNavigate();
   const deleteMut = useDeleteUserAgent();
+  const showTrashUndo = useTrashUndoToast();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const openChat = () => {
@@ -97,7 +100,8 @@ const AgentCard = memo(({ agent }: AgentCardProps) => {
           <DialogHeader>
             <DialogTitle>Agent löschen?</DialogTitle>
             <DialogDescription>
-              „{agent.title}“ wird dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.
+              „{agent.title}“ wird in den Papierkorb verschoben und kann 30 Tage lang
+              wiederhergestellt werden.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -108,7 +112,15 @@ const AgentCard = memo(({ agent }: AgentCardProps) => {
               variant="destructive"
               disabled={deleteMut.isPending}
               onClick={() =>
-                deleteMut.mutate(agent.identifier, { onSuccess: () => setConfirmOpen(false) })
+                deleteMut.mutate(agent.identifier, {
+                  onSuccess: () => {
+                    setConfirmOpen(false);
+                    // The trash addresses the row uuid; DELETE takes the identifier.
+                    if (agent.id) {
+                      showTrashUndo({ kind: 'user_agent', id: agent.id, title: agent.title });
+                    }
+                  },
+                })
               }
             >
               Löschen

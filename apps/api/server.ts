@@ -49,6 +49,7 @@ import { startContentSyncDispatcher } from './services/scrapers/contentSyncDispa
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
 import { shutdownLangfuseTelemetry } from './services/telemetry/langfuseTelemetry.js';
+import { startTrashPurge } from './services/trash/trashPurgeService.js';
 import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
 import { createLogger } from './utils/logger.js';
 import redisClient, { ensureConnected, checkRedisHealth } from './utils/redis/client.js';
@@ -92,6 +93,7 @@ if (skipCluster) {
   startExportCleanup();
   startUploadsCleanup();
   startNotebookLinkCleanup();
+  startTrashPurge();
   startNotificationCleanup();
   startDeepResearchCleanup();
   startModelLatencyCleanup();
@@ -175,6 +177,7 @@ if (skipCluster) {
   startExportCleanup();
   startUploadsCleanup();
   startNotebookLinkCleanup();
+  startTrashPurge();
   startNotificationCleanup();
   startDeepResearchCleanup();
   startModelLatencyCleanup();

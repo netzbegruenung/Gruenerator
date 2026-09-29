@@ -57,6 +57,8 @@ interface GrueneratorChatProviderProps {
   userName?: string;
   config?: ChatConfig;
   getExternalThreads?: () => ExternalThreadEntry[];
+  /** A deleted thread went to the Papierkorb — hosts offer the undo. Empty and doc chats never fire it. */
+  onThreadTrashed?: (thread: { remoteId: string; title: string | null }) => void;
   onExternalThreadClick?: (externalId: string) => void;
   activePath?: string;
   enabledModelIds?: ReadonlySet<TextModelId> | null;
@@ -84,6 +86,7 @@ export function GrueneratorChatProvider({
   userName,
   config,
   getExternalThreads,
+  onThreadTrashed,
   onExternalThreadClick,
   activePath,
   enabledModelIds,
@@ -151,6 +154,7 @@ export function GrueneratorChatProvider({
           userId={userId}
           userName={userName}
           getExternalThreads={getExternalThreads}
+          onThreadTrashed={onThreadTrashed}
           onExternalThreadClick={onExternalThreadClick}
           activePath={activePath}
           threadListPortalSlotId={threadListPortalSlotId}

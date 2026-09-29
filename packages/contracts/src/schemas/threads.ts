@@ -122,6 +122,12 @@ export const successResponseSchema = z.object({
   success: z.literal(true),
 });
 
+/** `trashed: false` — the thread was removed outright (empty, or a doc chat), so there is nothing to restore. */
+export const deleteThreadResponseSchema = successResponseSchema.extend({
+  trashed: z.boolean(),
+});
+export type DeleteThreadResponse = z.infer<typeof deleteThreadResponseSchema>;
+
 /** Raw bytes (base64) of a thread's tabular attachments, used to rehydrate the
  *  in-browser pandas interpreter after a reload. */
 export const tabularFileSchema = z.object({

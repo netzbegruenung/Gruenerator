@@ -173,6 +173,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
   },
   {
+    "url": "/docs/features/papierkorb",
+    "title": "Papierkorb",
+    "category": "Features",
+    "lead": "Was du im Grünerator löschst, ist nicht sofort weg: Es liegt zunächst 30 Tage im Papierkorb. Bis dahin kannst du es wiederherstellen; danach wird es endgültig gelöscht."
+  },
+  {
     "url": "/docs/features/praesentationen",
     "title": "Präsentationen",
     "category": "Features",
@@ -1205,7 +1211,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn etwas nicht geht",
     "anchor": "#wenn-etwas-nicht-geht",
     "category": "Chat",
-    "text": "Manches ist nur in der Web-Version möglich. Excel-/CSV-Vorlagen ausfüllen braucht die große Oberfläche; die App öffnet dafür den Web-Editor eingebettet. Reel-Untertitel bearbeitest du dagegen auch direkt in der App. Sharepics entstehen dagegen auch in der App — du siehst sie direkt im Gespräch, kannst sie teilen und speichern; zum Feinschliff öffnet sich der Editor eingebettet, ohne dass du die App verlässt. Einige Quellen decken nur Deutschland ab. Bundestag, Abgeordnetenwatch, Bahn, tagesschau und Gesetze (deutsches Bundesrecht) beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus. Nicht jede Zusatzquelle ist überall angebunden. Bahn, Wetterdienst, tagesschau, trivago und Gesetze werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht. Erfindet der Grünerator nichts? Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter Risiken und Gefahren von LLMs. Du nutzt den Grünerator in ChatGPT, Claude oder Le Chat? Dort steht ein kleinerer…"
+    "text": "Manches ist nur in der Web-Version möglich. Excel-/CSV-Vorlagen ausfüllen braucht die große Oberfläche; die App öffnet dafür den Web-Editor eingebettet. Reel-Untertitel bearbeitest du im Chat bislang nur in der Web-Version unter gruenerator.eu. Sharepics entstehen dagegen auch in der App — du siehst sie direkt im Gespräch, kannst sie teilen und speichern; zum Feinschliff öffnet sich der Editor eingebettet, ohne dass du die App verlässt. Einige Quellen decken nur Deutschland ab. Bundestag, Abgeordnetenwatch, Bahn, tagesschau und Gesetze (deutsches Bundesrecht) beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus. Nicht jede Zusatzquelle ist überall angebunden. Bahn, Wetterdienst, tagesschau, trivago und Gesetze werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht. Erfindet der Grünerator nichts? Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter Risiken und Gefahren von LLMs. Du nutzt den Grünerator in ChatGPT, Claude oder Le Chat?…"
   },
   {
     "url": "/docs/features/agentura",
@@ -1622,6 +1628,38 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#teilen",
     "category": "Features",
     "text": "Ein Dokument kennt Stufen von Sichtbarkeit: Sichtbarkeit | Wer kommt hinein | ----------------- | ---------------------------------------------------------- | privat | nur du und ausdrücklich eingeladene Personen | Mit Anmeldung | alle, die im Grünerator angemeldet sind und den Link haben | öffentlich | alle mit dem Link, auch ohne Anmeldung | Unabhängig davon legst du fest, ob Eingeladene lesen oder bearbeiten dürfen. Beides lässt sich jederzeit ändern und zurücknehmen. Ein öffentlich geteiltes Dokument kann jede Person mit dem Link aufrufen — auch ohne Grünerator-Konto. Prüf vor dem Umschalten, ob im Dokument Namen, Adressen oder interne Absprachen stehen."
+  },
+  {
+    "url": "/docs/features/papierkorb",
+    "pageTitle": "Papierkorb",
+    "heading": "Papierkorb",
+    "anchor": "",
+    "category": "Features",
+    "text": "Was du im Grünerator löschst, ist nicht sofort weg: Es liegt zunächst 30 Tage im Papierkorb. Bis dahin kannst du es wiederherstellen; danach wird es endgültig gelöscht. Du erreichst den Papierkorb über dein Konto-Menü unten in der Seitenleiste (Papierkorb), über Zuletzt auf der Startseite oder in den Einstellungen."
+  },
+  {
+    "url": "/docs/features/papierkorb",
+    "pageTitle": "Papierkorb",
+    "heading": "Im Papierkorb",
+    "anchor": "#im-papierkorb",
+    "category": "Features",
+    "text": "Wiederherstellen legt den Inhalt wieder an seinen alten Platz. Endgültig löschen entfernt ihn sofort und ohne Rückweg. Papierkorb leeren löscht alles darin endgültig. Jede Zeile zeigt, wann der Inhalt endgültig gelöscht wird. Über den Filter grenzt du die Liste auf eine Art ein, etwa Dokumente, Chats, Notebooks oder Medien. Solange ein Inhalt im Papierkorb liegt, ist er für alle anderen unsichtbar: Er taucht in keiner Liste und keiner Suche auf, und öffentliche Links darauf funktionieren nicht mehr. Nach dem Wiederherstellen gilt alles wieder wie vorher."
+  },
+  {
+    "url": "/docs/features/papierkorb",
+    "pageTitle": "Papierkorb",
+    "heading": "Rückgängig direkt nach dem Löschen",
+    "anchor": "#rückgängig-direkt-nach-dem-löschen",
+    "category": "Features",
+    "text": "Nach dem Löschen erscheint kurz eine Meldung „… wurde in den Papierkorb verschoben.\" mit der Schaltfläche Rückgängig. Ein Klick darauf holt den Inhalt sofort zurück — der Umweg über den Papierkorb ist dann nicht nötig."
+  },
+  {
+    "url": "/docs/features/papierkorb",
+    "pageTitle": "Papierkorb",
+    "heading": "Was nicht im Papierkorb landet",
+    "anchor": "#was-nicht-im-papierkorb-landet",
+    "category": "Features",
+    "text": "Leere Chats ohne eine einzige Nachricht werden sofort gelöscht — es gibt nichts wiederherzustellen. Der Chat an einem Dokument wird beim Löschen sofort geleert. Geschützt ist hier das Dokument selbst: Löschst du das Dokument, landet es im Papierkorb."
   },
   {
     "url": "/docs/features/praesentationen",

@@ -208,6 +208,14 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
       'Holt den Bereich „Onboarding" zurück und führt noch einmal durch Rolle, Friend und Hintergrund.',
   },
   {
+    // Web-only, und nur ein Einstieg: der Papierkorb ist eine eigene Seite
+    // (/papierkorb), kein Bereich des Dialogs.
+    id: 'allgemein.papierkorb',
+    tab: 'allgemein',
+    title: 'Papierkorb',
+    description: 'Gelöschte Inhalte 30 Tage lang wiederherstellen oder vorher endgültig löschen',
+  },
+  {
     id: 'friends.avatar',
     tab: 'friends',
     title: 'Dein Friend',

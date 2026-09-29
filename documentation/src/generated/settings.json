@@ -136,6 +136,11 @@
       "title": "Einrichtung erneut starten",
       "description": "Holt den Bereich „Onboarding\" zurück und führt noch einmal durch Rolle, Friend und Hintergrund."
     },
+    "allgemein.papierkorb": {
+      "tab": "allgemein",
+      "title": "Papierkorb",
+      "description": "Gelöschte Inhalte 30 Tage lang wiederherstellen oder vorher endgültig löschen"
+    },
     "friends.avatar": {
       "tab": "friends",
       "title": "Dein Friend",

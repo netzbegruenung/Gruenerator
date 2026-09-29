@@ -24,6 +24,7 @@ import { useNotebookChatStore } from '../features/notebook/stores/notebookChatSt
 import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { uploadVideoToTus } from '../features/subtitler/utils/videoUtils';
+import { useTrashUndoToast } from '../features/trash/trashUndoToast';
 import { useSetUserDefault } from '../features/user-defaults/userDefaultsQueries';
 import { sessionDebug } from '../lib/sessionDebug';
 import { runPython } from '../services/pythonInterpreter';
@@ -137,6 +138,13 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       updatedAt: new Date(e.timestamp).toISOString(),
     }));
   }, []);
+
+  const notifyTrashed = useTrashUndoToast();
+  const handleThreadTrashed = useCallback(
+    (t: { remoteId: string; title: string | null }) =>
+      notifyTrashed({ kind: 'chat_thread', id: t.remoteId, title: t.title }),
+    [notifyTrashed]
+  );
 
   const handleExternalClick = useCallback(
     (path: string) => {
@@ -400,6 +408,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       userName={userName}
       config={chatConfig}
       getExternalThreads={getExternalThreads}
+      onThreadTrashed={handleThreadTrashed}
       onExternalThreadClick={handleExternalClick}
       activePath={location.pathname}
       enabledModelIds={enabledModelIds}
