@@ -12,62 +12,85 @@ import {
   TableRow as TableRowRaw,
 } from '@gruenerator/ui';
 import {
+  createSortedRowModel,
   flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
+  rowSortingFeature,
+  sortFn_alphanumeric,
+  sortFn_datetime,
+  sortFn_text,
+  tableFeatures,
+  useTable,
 } from '@tanstack/react-table';
 import { atom, useAtom } from 'jotai';
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon } from 'lucide-react';
 import { createContext, memo, useCallback, useContext } from 'react';
 
 import type {
-  Cell,
-  Column,
-  ColumnDef,
-  Header,
-  HeaderGroup,
-  Row,
+  Cell as CellBase,
+  Column as ColumnBase,
+  ColumnDef as ColumnDefBase,
+  Header as HeaderBase,
+  HeaderGroup as HeaderGroupBase,
+  Row as RowBase,
+  RowData,
   SortingState,
-  Table,
+  Table as TableBase,
 } from '@tanstack/react-table';
 import type { HTMLAttributes, ReactNode } from 'react';
 
 import { cn } from '@/utils/cn';
 
-export type { ColumnDef } from '@tanstack/react-table';
+// The column auto-sort resolves 'datetime' / 'alphanumeric' / 'text' by name.
+const features = tableFeatures({
+  rowSortingFeature,
+  sortedRowModel: createSortedRowModel(),
+  sortFns: { alphanumeric: sortFn_alphanumeric, datetime: sortFn_datetime, text: sortFn_text },
+});
+
+type Features = typeof features;
+
+export type ColumnDef<TData extends RowData, TValue = unknown> = ColumnDefBase<
+  Features,
+  TData,
+  TValue
+>;
+type Cell<TData extends RowData, TValue> = CellBase<Features, TData, TValue>;
+type Column<TData extends RowData, TValue> = ColumnBase<Features, TData, TValue>;
+type Header<TData extends RowData, TValue> = HeaderBase<Features, TData, TValue>;
+type HeaderGroup<TData extends RowData> = HeaderGroupBase<Features, TData>;
+type Row<TData extends RowData> = RowBase<Features, TData>;
+type Table<TData extends RowData> = TableBase<Features, TData>;
 
 const sortingAtom = atom<SortingState>([]);
 
 export const TableContext = createContext<{
-  data: unknown[];
-  columns: ColumnDef<unknown, unknown>[];
-  table: Table<unknown> | null;
+  data: RowData[];
+  columns: ColumnDef<RowData, unknown>[];
+  table: Table<RowData> | null;
 }>({
   data: [],
   columns: [],
   table: null,
 });
 
-export type TableProviderProps<TData, TValue> = {
-  columns: ColumnDef<TData, TValue>[];
+export type TableProviderProps<TData extends RowData> = {
+  columns: ColumnDef<TData>[];
   data: TData[];
   children: ReactNode;
   className?: string;
 };
 
-export function TableProvider<TData, TValue>({
+export function TableProvider<TData extends RowData>({
   columns,
   data,
   children,
   className,
-}: TableProviderProps<TData, TValue>) {
+}: TableProviderProps<TData>) {
   const [sorting, setSorting] = useAtom(sortingAtom);
-  const table = useReactTable({
+  const table = useTable({
+    features,
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     onSortingChange: (updater) => {
       const newSorting = typeof updater === 'function' ? updater(sorting) : updater;
       setSorting(newSorting);
@@ -91,7 +114,7 @@ export function TableProvider<TData, TValue>({
 }
 
 export type TableHeadProps = {
-  header: Header<unknown, unknown>;
+  header: Header<RowData, unknown>;
   className?: string;
 };
 
@@ -104,8 +127,8 @@ export const TableHead = memo(({ header, className }: TableHeadProps) => (
 TableHead.displayName = 'TableHead';
 
 export type TableHeaderGroupProps = {
-  headerGroup: HeaderGroup<unknown>;
-  children: (props: { header: Header<unknown, unknown> }) => ReactNode;
+  headerGroup: HeaderGroup<RowData>;
+  children: (props: { header: Header<RowData, unknown> }) => ReactNode;
 };
 
 export const TableHeaderGroup = ({ headerGroup, children }: TableHeaderGroupProps) => (
@@ -116,7 +139,7 @@ export const TableHeaderGroup = ({ headerGroup, children }: TableHeaderGroupProp
 
 export type TableHeaderProps = {
   className?: string;
-  children: (props: { headerGroup: HeaderGroup<unknown> }) => ReactNode;
+  children: (props: { headerGroup: HeaderGroup<RowData> }) => ReactNode;
 };
 
 export const TableHeader = ({ className, children }: TableHeaderProps) => {
@@ -129,12 +152,15 @@ export const TableHeader = ({ className, children }: TableHeaderProps) => {
   );
 };
 
-export interface TableColumnHeaderProps<TData, TValue> extends HTMLAttributes<HTMLDivElement> {
+export interface TableColumnHeaderProps<
+  TData extends RowData,
+  TValue,
+> extends HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>;
   title: string;
 }
 
-export function TableColumnHeader<TData, TValue>({
+export function TableColumnHeader<TData extends RowData, TValue>({
   column,
   title,
   className,
@@ -183,7 +209,7 @@ export function TableColumnHeader<TData, TValue>({
 }
 
 export type TableCellProps = {
-  cell: Cell<unknown, unknown>;
+  cell: Cell<RowData, unknown>;
   className?: string;
 };
 
@@ -194,25 +220,20 @@ export const TableCell = ({ cell, className }: TableCellProps) => (
 );
 
 export type TableRowProps = {
-  row: Row<unknown>;
-  children: (props: { cell: Cell<unknown, unknown> }) => ReactNode;
+  row: Row<RowData>;
+  children: (props: { cell: Cell<RowData, unknown> }) => ReactNode;
   className?: string;
   onClick?: () => void;
 };
 
 export const TableRow = ({ row, children, className, onClick }: TableRowProps) => (
-  <TableRowRaw
-    className={className}
-    data-state={row.getIsSelected() && 'selected'}
-    key={row.id}
-    onClick={onClick}
-  >
-    {row.getVisibleCells().map((cell) => children({ cell }))}
+  <TableRowRaw className={className} key={row.id} onClick={onClick}>
+    {row.getAllCells().map((cell) => children({ cell }))}
   </TableRowRaw>
 );
 
 export type TableBodyProps = {
-  children: (props: { row: Row<unknown> }) => ReactNode;
+  children: (props: { row: Row<RowData> }) => ReactNode;
   className?: string;
 };
 
