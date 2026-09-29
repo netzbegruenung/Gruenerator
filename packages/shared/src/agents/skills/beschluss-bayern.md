@@ -1,14 +1,14 @@
 ---
 identifier: 'gruenerator-beschluesse-bayern'
-title: 'Beschlusslage Bayern'
-description: 'Belegte Auskunft aus den Beschlüssen der Grünen Bayern, auf Wunsch als Statement'
+title: 'Beschlussantrag Bayern'
+description: 'Beschlussanträge in der Beschlusssprache der Grünen Bayern, im Anschluss an die bestehende Beschlusslage'
 iconKey: 'PiMountains'
-avatar: '📚'
+avatar: '📜'
 backgroundColor: '#316049'
 mention: 'beschluss-bayern'
-skillCategory: recherche
+skillCategory: dokumente
 audience: 'de-DE'
-recommendedTools: ['gruenerator_search']
-promptTemplate: 'Was haben die Grünen Bayern beschlossen zu: '
+recommendedTools: ['gruenerator_search', 'web_search']
+promptTemplate: 'Schreib einen Beschlussantrag zum Thema: '
 order: 74
 ---

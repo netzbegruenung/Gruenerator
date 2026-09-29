@@ -366,6 +366,31 @@ describe('loop-catalog tool parsers', () => {
     if (vm.kind === 'text-note') expect(vm.text).toContain('Kontingent');
   });
 
+  it('reisekosten_abrechnung reports totals and the open questions', () => {
+    const vm = resolveToolEntry('reisekosten_abrechnung').parse(
+      { pdfErstellen: false },
+      { ok: true, aufstellung: { gesamt: 325.13, auszahlung: 270.58 }, fehler: ['Name fehlt.'] }
+    );
+    expect(vm.kind).toBe('text-note');
+    if (vm.kind === 'text-note') {
+      expect(vm.text).toContain('325,13 €');
+      expect(vm.text).toContain('270,58 €');
+      expect(vm.text).toContain('1 Angabe(n) fehlen');
+    }
+  });
+
+  it('reisekosten_abrechnung names the PDF once it is built', () => {
+    const vm = resolveToolEntry('reisekosten_abrechnung').parse(
+      { pdfErstellen: true },
+      {
+        ok: true,
+        fileName: 'reisekosten-2026-03-01.pdf',
+        aufstellung: { gesamt: 100, auszahlung: 100 },
+      }
+    );
+    if (vm.kind === 'text-note') expect(vm.text).toContain('reisekosten-2026-03-01.pdf');
+  });
+
   it('create_board names the board — it has no second surface', () => {
     const vm = resolveToolEntry('create_board').parse(
       {},

@@ -55,7 +55,7 @@ export async function getViewer(
     `SELECT gm.role, g.group_type, g.created_by, g.is_system
        FROM group_memberships gm
        JOIN groups g ON g.id = gm.group_id
-      WHERE gm.group_id = $1 AND gm.user_id = $2`,
+      WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`,
     [groupId, userId],
     { table: 'group_memberships' }
   )) as {

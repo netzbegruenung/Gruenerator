@@ -1,14 +1,14 @@
 ---
 identifier: 'gruenerator-beschluesse-berlin'
-title: 'Beschlusslage Berlin'
-description: 'Belegte Auskunft aus den Beschlüssen der Grünen Berlin, auf Wunsch als Statement'
+title: 'Beschlussantrag Berlin'
+description: 'Beschlussanträge in der Beschlusssprache der Grünen Berlin, im Anschluss an die bestehende Beschlusslage'
 iconKey: 'PiBuildings'
-avatar: '📚'
+avatar: '📜'
 backgroundColor: '#316049'
 mention: 'beschluss-berlin'
-skillCategory: recherche
+skillCategory: dokumente
 audience: 'de-DE'
-recommendedTools: ['gruenerator_search']
-promptTemplate: 'Was haben die Grünen Berlin beschlossen zu: '
+recommendedTools: ['gruenerator_search', 'web_search']
+promptTemplate: 'Schreib einen Beschlussantrag zum Thema: '
 order: 74
 ---

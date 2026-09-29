@@ -22,6 +22,8 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { type UserSiteRow } from '../../database/schema/sites.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { USER_SITE_TRASH } from '../../services/sites/userSiteTrash.js';
+import { trashOwnedRow } from '../../services/trash/ownedRowTrash.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -69,9 +71,10 @@ export const sitesContractRouter = s.router(sitesContract, {
         return { status: 401 as const, body: { error: 'Nicht authentifiziert' } };
       }
 
-      const result = await db.query<UserSiteRow>('SELECT * FROM user_sites WHERE user_id = $1', [
-        userId,
-      ]);
+      const result = await db.query<UserSiteRow>(
+        'SELECT * FROM user_sites WHERE user_id = $1 AND deleted_at IS NULL',
+        [userId]
+      );
 
       const row = result?.[0];
       return { status: 200 as const, body: { site: row ? toSiteBody(row) : null } };
@@ -113,7 +116,7 @@ export const sitesContractRouter = s.router(sitesContract, {
       }
 
       const existingCheck = await db.query<Pick<UserSiteRow, 'id'>>(
-        'SELECT id FROM user_sites WHERE user_id = $1',
+        'SELECT id FROM user_sites WHERE user_id = $1 AND deleted_at IS NULL',
         [userId]
       );
 
@@ -188,7 +191,7 @@ export const sitesContractRouter = s.router(sitesContract, {
       const result = await db.query<UserSiteRow>(
         `UPDATE user_sites
          SET ${updateFields.join(', ')}
-         WHERE id = $${paramCounter} AND user_id = $${paramCounter + 1}
+         WHERE id = $${paramCounter} AND user_id = $${paramCounter + 1} AND deleted_at IS NULL
          RETURNING *`,
         values
       );
@@ -214,7 +217,7 @@ export const sitesContractRouter = s.router(sitesContract, {
       const result = await db.query<UserSiteRow>(
         `UPDATE user_sites
          SET is_published = $1, last_published = CASE WHEN $1 = true THEN CURRENT_TIMESTAMP ELSE last_published END
-         WHERE id = $2 AND user_id = $3
+         WHERE id = $2 AND user_id = $3 AND deleted_at IS NULL
          RETURNING *`,
         [body.publish, params.id, userId]
       );
@@ -243,7 +246,7 @@ export const sitesContractRouter = s.router(sitesContract, {
       }
 
       const result = await db.query<Pick<UserSiteRow, 'id'>>(
-        'SELECT id FROM user_sites WHERE subdomain = $1',
+        'SELECT id FROM user_sites WHERE subdomain = $1 AND deleted_at IS NULL',
         [subdomainLower]
       );
 
@@ -261,12 +264,10 @@ export const sitesContractRouter = s.router(sitesContract, {
         return { status: 401 as const, body: { error: 'Nicht authentifiziert' } };
       }
 
-      const result = await db.query<Pick<UserSiteRow, 'id'>>(
-        'DELETE FROM user_sites WHERE id = $1 AND user_id = $2 RETURNING id',
-        [params.id, userId]
-      );
+      // Into the Papierkorb; someone else's site answers 404 as before.
+      const result = await trashOwnedRow(USER_SITE_TRASH, userId, params.id);
 
-      if (!result || result.length === 0) {
+      if (result !== 'ok') {
         return { status: 404 as const, body: { error: 'Site nicht gefunden' } };
       }
 

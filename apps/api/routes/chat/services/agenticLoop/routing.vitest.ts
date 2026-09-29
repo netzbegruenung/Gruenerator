@@ -375,6 +375,18 @@ describe('decideRunAgentic', () => {
     expect(decide({ ...fill, isPdfFillRequest: true, forcedTool: true })).toBe(false);
   });
 
+  it('lets a Reisekosten ask with receipts into the loop, where the tool lives', () => {
+    const ask = {
+      intent: 'direct',
+      lastUserText: 'Mach mir die Reisekostenabrechnung, Belege anbei',
+      hasOwnMaterial: true,
+    };
+    // Own material makes the turn self-contained — single-pass, no tool.
+    expect(decide(ask)).toBe(false);
+    expect(decide({ ...ask, isReisekostenTurn: true })).toBe(true);
+    expect(decide({ ...ask, isReisekostenTurn: true, loopEnabled: false })).toBe(false);
+  });
+
   it('rescues a research turn the classifier contradicted itself about (B7)', () => {
     // A statement, not a question: no question mark, no interrogative, so the
     // `direct` rescue by phrasing cannot see it. The classifier CAN — it

@@ -562,7 +562,7 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
           : Promise.resolve([]),
         deps.db.query(
           `SELECT g.id, g.name FROM group_content_shares gcs
-             INNER JOIN groups g ON g.id = gcs.group_id
+             INNER JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
              WHERE gcs.content_type = 'notebook_collections' AND gcs.content_id = $1
              ORDER BY g.name ASC`,
           [collection.id]

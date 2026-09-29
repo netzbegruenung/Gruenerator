@@ -50,7 +50,7 @@ async function notifyTemplateCreatorOnLike(templateId: string, likerId: string):
     const postgres = getPostgresInstance();
     await postgres.ensureInitialized();
     const row = await postgres.queryOne<{ user_id: string | null; title: string | null }>(
-      `SELECT user_id, title FROM user_templates WHERE id = $1`,
+      `SELECT user_id, title FROM user_templates WHERE id = $1 AND deleted_at IS NULL`,
       [templateId],
       { table: 'user_templates' }
     );

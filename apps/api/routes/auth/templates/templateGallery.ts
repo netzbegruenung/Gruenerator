@@ -100,7 +100,7 @@ export async function buildGalleryTemplates(
       SELECT id, title, description, template_type, thumbnail_url, external_url,
              images, categories, tags, content_data, metadata, audience, created_at, updated_at
       FROM user_templates
-      WHERE ${conditions.join(' AND ')}
+      WHERE deleted_at IS NULL AND ${conditions.join(' AND ')}
       ORDER BY created_at DESC
       LIMIT 100
     `;
@@ -177,7 +177,7 @@ router.get(
       // Build query for examples
       let sql = `SELECT id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, type, created_at, updated_at
                FROM user_templates
-               WHERE is_example = $1 AND status = $2`;
+               WHERE is_example = $1 AND status = $2 AND deleted_at IS NULL`;
       const params: unknown[] = [true, 'published'];
 
       // Filter by type if specified
@@ -285,7 +285,8 @@ router.post(
         // Fallback to text search
         let fallbackSql = `SELECT id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, type, created_at, updated_at
                          FROM user_templates
-                         WHERE is_example = $1 AND status = $2 AND title ILIKE $3`;
+                         WHERE is_example = $1 AND status = $2 AND title ILIKE $3
+                           AND deleted_at IS NULL`;
         const fallbackParams: unknown[] = [true, 'published', `%${String(query).trim()}%`];
 
         if (type) {
@@ -316,7 +317,7 @@ router.post(
         const rows = await postgres.query(
           `SELECT id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, type, created_at, updated_at
          FROM user_templates
-         WHERE is_example = $1 AND status = $2 AND id = ANY($3)`,
+         WHERE is_example = $1 AND status = $2 AND id = ANY($3) AND deleted_at IS NULL`,
           [true, 'published', ids],
           { table: 'user_templates' }
         );
@@ -387,6 +388,7 @@ router.get(
         `SELECT DISTINCT template_type
        FROM user_templates
        WHERE is_private = $1 AND status = $2 AND template_type IS NOT NULL
+         AND deleted_at IS NULL
        ORDER BY template_type ASC`,
         [false, 'published'],
         { table: 'user_templates' }

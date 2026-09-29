@@ -137,7 +137,7 @@ router.get('/:id/permissions', async (req: Request<{ id: string }>, res: Respons
               gcs.permissions, gcs.shared_at,
               (SELECT COUNT(*)::int FROM group_memberships WHERE group_id = gcs.group_id) AS member_count
        FROM group_content_shares gcs
-       JOIN groups g ON g.id = gcs.group_id
+       JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
        WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $1`,
       [id]
     )) as Array<{

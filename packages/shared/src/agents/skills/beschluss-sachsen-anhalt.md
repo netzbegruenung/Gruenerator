@@ -1,14 +1,14 @@
 ---
 identifier: 'gruenerator-beschluesse-sachsen-anhalt'
-title: 'Beschlusslage Sachsen-Anhalt'
-description: 'Belegte Auskunft aus den Beschlüssen der Grünen Sachsen-Anhalt, auf Wunsch als Statement'
+title: 'Beschlussantrag Sachsen-Anhalt'
+description: 'Beschlussanträge in der Beschlusssprache der Grünen Sachsen-Anhalt, im Anschluss an die bestehende Beschlusslage'
 iconKey: 'PiFlowerLight'
-avatar: '📚'
+avatar: '📜'
 backgroundColor: '#316049'
 mention: 'beschluss-sachsen-anhalt'
-skillCategory: recherche
+skillCategory: dokumente
 audience: 'de-DE'
-recommendedTools: ['gruenerator_search']
-promptTemplate: 'Was haben die Grünen Sachsen-Anhalt beschlossen zu: '
+recommendedTools: ['gruenerator_search', 'web_search']
+promptTemplate: 'Schreib einen Beschlussantrag zum Thema: '
 order: 74
 ---
