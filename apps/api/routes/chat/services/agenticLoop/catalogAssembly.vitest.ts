@@ -18,6 +18,7 @@ import {
   assembleToolCatalog,
   buildToolReplay,
   isLookupTool,
+  priorToolNames,
   priorTurnRetrieved,
   priorTurnRetrievalFailed,
   wrapAssembledTools,
@@ -570,6 +571,31 @@ describe('priorTurnRetrieved', () => {
         lastGeneratedImageUrl: () => null,
       })
     ).toBe(false);
+  });
+});
+
+describe('priorToolNames', () => {
+  const history = (steps: PersistedStep[]) => ({
+    artifacts: () => [],
+    toolSteps: () => steps,
+    lastTurnToolSteps: () => [],
+    sources: () => [],
+    lastGeneratedImageUrl: () => null,
+  });
+
+  it('lässt Verbindungs-Schritte weg — ihr Anschluss hat einen eigenen Weg', () => {
+    expect(
+      priorToolNames(
+        history([
+          { toolCallId: 'c0', toolName: 'gruenerator_search', args: {}, result: {} },
+          { toolCallId: 'c1', toolName: 'm1__search', args: {}, result: {}, serverName: 'Notion' },
+        ])
+      )
+    ).toEqual(['gruenerator_search']);
+  });
+
+  it('ohne Thread ist die Liste leer', () => {
+    expect(priorToolNames(null)).toEqual([]);
   });
 });
 

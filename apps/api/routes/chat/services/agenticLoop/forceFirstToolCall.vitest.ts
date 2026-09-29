@@ -590,11 +590,55 @@ describe('forcedFirstStepTools', () => {
       managedToolNames: ['bahn'],
       priorToolNames: [],
       isLookupTool: (name) => !NOT_LOOKUP.has(name),
+      attachedDocsTool: null,
+      userText: '',
       ...over,
     });
 
   it('named_intent: search → gruenerator_search', () => {
     expect(tools({ reason: 'named_intent', intent: 'search' })).toEqual(['gruenerator_search']);
+  });
+
+  it('named_intent: search mit Anhang → Suche, dann die angehängten Dokumente', () => {
+    expect(
+      tools({ reason: 'named_intent', intent: 'search', attachedDocsTool: 'dokumente_lesen' })
+    ).toEqual(['gruenerator_search', 'dokumente_lesen']);
+  });
+
+  it.each(['demoted_retrieval', 'contradicted', 'followup'] as const)(
+    '%s mit Anhang: die angehängten Dokumente sind dabei',
+    (reason) => {
+      expect(tools({ reason, attachedDocsTool: 'dokumente_lesen' })).toContain('dokumente_lesen');
+    }
+  );
+
+  it.each(['research_order', 'mcp_scope'] as const)(
+    '%s mit Anhang: die angehängten Dokumente bleiben draussen',
+    (reason) => {
+      expect(tools({ reason, attachedDocsTool: 'dokumente_lesen' })).not.toContain(
+        'dokumente_lesen'
+      );
+    }
+  );
+
+  it('research_order: „in meinen Dokumenten" hält die eigenen Inhalte erreichbar', () => {
+    const result = tools({
+      reason: 'research_order',
+      userText: 'Such in meinen Dokumenten nach dem Antrag zum Radverkehr',
+      mounted: [...MOUNTED, 'documents'],
+    });
+    expect(result).toContain('documents');
+    expect(result).toContain('find_content');
+  });
+
+  it('research_order: ohne Bezug auf eigene Inhalte bleiben sie draussen', () => {
+    const result = tools({
+      reason: 'research_order',
+      userText: 'recherchiere aktuelle Zahlen zu Windkraft',
+      mounted: [...MOUNTED, 'documents'],
+    });
+    expect(result).not.toContain('documents');
+    expect(result).not.toContain('find_content');
   });
 
   it('named_intent: bundestag → bundestag', () => {
@@ -631,15 +675,14 @@ describe('forcedFirstStepTools', () => {
     expect(result?.filter((t) => t === 'notebooks')).toEqual(['notebooks']);
   });
 
-  it('named_intent ohne eigene Werkzeuge fällt auf die Recherche-Menge zurück', () => {
-    const result = tools({ reason: 'named_intent', intent: 'mcp', mcpToolNames: [] });
-    expect(result).toContain('web_search');
-    expect(result).toContain('bahn');
+  it('named_intent ohne eigene Werkzeuge → null', () => {
+    expect(tools({ reason: 'named_intent', intent: 'mcp', mcpToolNames: [] })).toBeNull();
   });
 
   it('followup: doppelte Werkzeuge erscheinen einmal', () => {
     expect(tools({ reason: 'followup', priorToolNames: ['bundestag', 'bundestag'] })).toEqual([
       'bundestag',
+      'web_search',
     ]);
   });
 
@@ -651,14 +694,20 @@ describe('forcedFirstStepTools', () => {
     expect(tools({ reason: 'mcp_scope', mcpToolNames: ['x__y'] })).toBeNull();
   });
 
-  it('followup: nur die Nachschlage-Werkzeuge des Threads', () => {
+  it('followup: die Nachschlage-Werkzeuge des Threads und das Web', () => {
     expect(
       tools({ reason: 'followup', priorToolNames: ['bundestag', 'sharepic', 'rezept_laden'] })
-    ).toEqual(['bundestag']);
+    ).toEqual(['bundestag', 'web_search']);
   });
 
-  it('followup: nur Aktionen → null', () => {
-    expect(tools({ reason: 'followup', priorToolNames: ['sharepic', 'edit_document'] })).toBeNull();
+  it('followup: nur Aktionen und kein Web montiert → null', () => {
+    expect(
+      tools({
+        reason: 'followup',
+        priorToolNames: ['sharepic', 'edit_document'],
+        mounted: MOUNTED.filter((t) => t !== 'web_search'),
+      })
+    ).toBeNull();
   });
 
   it.each(['pinned', 'attached_summary'] as const)('%s: ungeschnitten', (reason) => {
