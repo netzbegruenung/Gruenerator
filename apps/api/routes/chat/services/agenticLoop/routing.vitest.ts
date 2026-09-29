@@ -18,6 +18,7 @@ import {
   needsThreadGrounding,
   looksLikeSelfContainedTurn,
   rewritesSuppliedText,
+  reworksSuppliedText,
   looksLikeUnsourcedWritingOrder,
   looksLikeImageOnlyAsk,
 } from './routing.js';
@@ -222,6 +223,21 @@ describe('decideRunAgentic', () => {
       decide({ ...withMaterial, lastUserText: 'Wetter Köln morgen', hasManagedSources: true })
     ).toBe(true);
     expect(decide({ ...withMaterial, lastUserText: '§ 823 BGB', hasManagedSources: true })).toBe(
+      true
+    );
+  });
+
+  // Live 29.09.2026: a pasted newsletter plus a correction order went into the
+  // loop and came back summarised. A question about reworking the turn's own
+  // material has nothing to look up.
+  it('keeps a question-shaped rework of the supplied material single-pass', () => {
+    const withMaterial = { intent: 'produktion', hasOwnMaterial: true };
+    expect(decide({ ...withMaterial, lastUserText: 'kannst du das lektorieren?' })).toBe(false);
+    expect(decide({ ...withMaterial, lastUserText: 'Kannst du den Text kürzen?' })).toBe(false);
+    // Without material the same question stays a rescue: there is nothing to rework.
+    expect(decide({ intent: 'produktion', lastUserText: 'Kannst du den Text kürzen?' })).toBe(true);
+    // A real lookup next to the material still loops.
+    expect(decide({ ...withMaterial, lastUserText: 'Welche Zahlen im Text sind veraltet?' })).toBe(
       true
     );
   });
@@ -1372,6 +1388,30 @@ describe('needsThreadGrounding', () => {
     // das nochmal" is a continuation that must stay grounded.
     expect(needsThreadGrounding('Erklär mir das nochmal')).toBe(true);
     expect(needsThreadGrounding('Prüfe das nochmal im Web')).toBe(true);
+  });
+});
+
+describe('reworksSuppliedText', () => {
+  it.each([
+    'rechtschreibung korrigieren',
+    'bitte übersetze das ins Englische',
+    'kürze den Text auf die Hälfte',
+    'gendere den Text',
+    'kannst du das lektorieren?',
+  ])('reads "%s" as text work on the supplied material', (text) => {
+    expect(reworksSuppliedText(text)).toBe(true);
+  });
+
+  // Each of these carries a rewrite word — `k[üu]rze…` also matches the
+  // adjective „kurze" — but asks for writing, answering or research.
+  it.each([
+    'Schreib eine kurze Antwort auf diese Bürgeranfrage mit unseren Positionen',
+    'Eine kurze Antwort auf diese Anfrage, bitte',
+    'Kannst du eine kurze Antwort mit Quellen dazu recherchieren?',
+    'Schreib einen Slogan zu diesem Text',
+    'Erstelle eine kurze Pressemitteilung dazu',
+  ])('does not read "%s" as a mere rework', (text) => {
+    expect(reworksSuppliedText(text)).toBe(false);
   });
 });
 
