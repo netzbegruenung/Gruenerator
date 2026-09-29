@@ -181,15 +181,17 @@ export const MediaCard: React.FC<MediaCardProps> = ({
                 className="size-8 flex items-center justify-center border-none rounded-lg bg-white/90 text-foreground cursor-pointer transition-all duration-200 hover:bg-primary-600 hover:text-white"
                 onClick={() => onEdit(item)}
                 title="Bearbeiten"
+                aria-label="Bearbeiten"
               >
-                <FaEdit />
+                <FaEdit aria-hidden="true" />
               </button>
               <button
                 className="size-8 flex items-center justify-center border-none rounded-lg bg-white/90 text-foreground cursor-pointer transition-all duration-200 hover:bg-[#D32F2F] hover:text-white"
                 onClick={() => setShowDeleteConfirm(true)}
                 title="Löschen"
+                aria-label="Löschen"
               >
-                <FaTrash />
+                <FaTrash aria-hidden="true" />
               </button>
             </>
           )}
