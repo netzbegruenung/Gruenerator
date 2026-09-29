@@ -213,13 +213,13 @@ describe('executeIntentPipeline — ein `mcp`-Turn ohne Schleife', () => {
   // Der Einzeldurchlauf hat für `mcp` keinen Ausführenden: die Werkzeuge des
   // gewählten Servers gibt es nur in der agentischen Schleife, und `searchNode`
   // bricht für diesen Intent ohne Abruf ab. Hier zu landen heisst also, dass ein
-  // Notausschalter (Bildanhang, Verbund, zweiter Intent) gegriffen hat.
+  // Notausschalter (Verbund, zweiter Intent) gegriffen hat.
   it('sagt ab, statt still `searchNode` für einen Intent ohne Zweig zu rufen', async () => {
     const { finalState } = await executeIntentPipeline({
-      classifiedState: buildState({ intent: 'mcp' }),
+      classifiedState: buildState({ intent: 'mcp', isCompound: true }),
       sse: sse as never,
       forcedTool: true,
-      imageAttachments: [{ mimeType: 'image/png', data: 'x' } as never],
+      imageAttachments: [],
     });
 
     expect(searchNode).not.toHaveBeenCalled();

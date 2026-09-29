@@ -19,6 +19,7 @@ import {
   looksLikeSelfContainedTurn,
   rewritesSuppliedText,
   looksLikeUnsourcedWritingOrder,
+  looksLikeImageOnlyAsk,
 } from './routing.js';
 
 describe('looksLikeToolableQuestion', () => {
@@ -238,7 +239,6 @@ describe('decideRunAgentic', () => {
     // A named connector opens `inLoopSet`; it does not override the guards that
     // exist because the loop cannot serve those turns at all.
     expect(decide({ hasManagedSources: true, isCompound: true })).toBe(false);
-    expect(decide({ hasManagedSources: true, hasImageAttachments: true })).toBe(false);
     expect(decide({ hasManagedSources: true, forcedTool: true })).toBe(false);
   });
 
@@ -319,11 +319,10 @@ describe('decideRunAgentic', () => {
     expect(decide({ ...forcedBundestag, hasSelectedNotebook: true })).toBe(false);
   });
 
-  it('multi-intent / notebook-compound / attachments stay single-pass', () => {
+  it('multi-intent / notebook-compound stay single-pass', () => {
     expect(decide({ secondaryIntent: 'image' })).toBe(false);
     expect(decide({ secondaryIntent: 'save_as_doc' })).toBe(false);
     expect(decide({ isCompound: true })).toBe(false);
-    expect(decide({ hasImageAttachments: true })).toBe(false);
   });
 
   it('keeps a turn with a chosen notebook single-pass — on EVERY agent', () => {
@@ -374,7 +373,6 @@ describe('decideRunAgentic', () => {
     // Kill-switches still win — the PDF tools are not worth a broken contract.
     expect(decide({ ...fill, isPdfFillRequest: true, loopEnabled: false })).toBe(false);
     expect(decide({ ...fill, isPdfFillRequest: true, forcedTool: true })).toBe(false);
-    expect(decide({ ...fill, isPdfFillRequest: true, hasImageAttachments: true })).toBe(false);
   });
 
   it('lets a Reisekosten ask with receipts into the loop, where the tool lives', () => {
@@ -419,9 +417,6 @@ describe('decideRunAgentic', () => {
     expect(decide({ ...statement, classifierContradictedResearch: true, forcedTool: true })).toBe(
       false
     );
-    expect(
-      decide({ ...statement, classifierContradictedResearch: true, hasImageAttachments: true })
-    ).toBe(false);
   });
 
   it('a writing order enters the loop unless the user supplied the substance', () => {
@@ -440,7 +435,6 @@ describe('decideRunAgentic', () => {
     // Kill-switches still win, exactly as for the other two `direct` rescues.
     expect(decide({ ...order, loopEnabled: false })).toBe(false);
     expect(decide({ ...order, forcedTool: true })).toBe(false);
-    expect(decide({ ...order, hasImageAttachments: true })).toBe(false);
   });
 
   it('pure creative FORM stays single-pass, supplied or not', () => {
@@ -482,9 +476,112 @@ describe('decideRunAgentic', () => {
     expect(decide({ intent: 'agentic', agenticIntents: agentic, loopEnabled: false })).toBe(false);
     expect(decide({ intent: 'agentic', agenticIntents: agentic, isCompound: true })).toBe(false);
     expect(decide({ intent: 'agentic', agenticIntents: agentic, forcedTool: true })).toBe(false);
-    expect(decide({ intent: 'agentic', agenticIntents: agentic, hasImageAttachments: true })).toBe(
-      false
-    );
+  });
+
+  // Until #3841 an image kept EVERY turn single-pass, because only that path put
+  // the pixels in front of a model. The loop now reads images through
+  // `bild_ansehen`, so an image only holds back what the picture alone answers.
+  describe('image attachments', () => {
+    // What routingStage passes for an image turn: the classifier's image branch
+    // says `produktion`, and the image counts as the turn's own material.
+    const image = { intent: 'produktion', hasImageAttachments: true, hasOwnMaterial: true };
+
+    it('a question the picture answers stays single-pass', () => {
+      for (const lastUserText of [
+        'Was siehst du auf dem Bild?',
+        'Passt das Logo so?',
+        'Was steht auf dem Plakat?',
+        'Wer ist das?',
+      ]) {
+        expect(decide({ ...image, lastUserText }), lastUserText).toBe(false);
+        // Control: the same question without the image is a loop turn, so the
+        // image rule is what holds it back.
+        expect(decide({ ...image, hasImageAttachments: false, lastUserText }), lastUserText).toBe(
+          true
+        );
+      }
+    });
+
+    it('a question that points past the picture enters the loop', () => {
+      for (const lastUserText of [
+        'Wer sind die Leute auf dem Foto, und was haben sie zuletzt gesagt?',
+        'Was sagt unser Wahlprogramm zu dem Thema auf dem Plakat?',
+        'Wann findet die Veranstaltung statt, und wer spricht dort?',
+      ]) {
+        expect(decide({ ...image, lastUserText }), lastUserText).toBe(true);
+      }
+    });
+
+    it('an image turn without a question stays single-pass like a PDF turn', () => {
+      // Own material makes a writing order self-contained — same as a PDF.
+      expect(decide({ ...image, lastUserText: 'Schreib einen Instagram-Post dazu' })).toBe(false);
+    });
+
+    it('an explicit loop reason beats the image-only reading', () => {
+      const lastUserText = 'Was steht auf dem Bild?';
+      expect(decide({ ...image, lastUserText })).toBe(false);
+      expect(decide({ ...image, lastUserText, hasManagedSources: true })).toBe(true);
+      expect(decide({ ...image, lastUserText, isPdfFillRequest: true })).toBe(true);
+      expect(decide({ ...image, lastUserText, intent: 'mcp', mustLoop: true })).toBe(true);
+      // A mention of a loop-lane intent counts; the lane property alone does not.
+      const bundestag = { ...image, lastUserText, intent: 'bundestag', forcedLoop: true };
+      expect(decide({ ...bundestag, forcedTool: true })).toBe(true);
+      expect(decide(bundestag)).toBe(false);
+      expect(
+        decide({ ...image, lastUserText: 'Merk dir, was auf dem Bild steht', intent: 'direct' })
+      ).toBe(true);
+    });
+
+    it('the pixel intents stay single-pass whatever the ask', () => {
+      const ask = 'Recherchiere, wer das ist, und mach daraus ein Poster';
+      expect(decide({ ...image, intent: 'image', lastUserText: ask })).toBe(false);
+      expect(decide({ ...image, intent: 'image_edit', lastUserText: ask, mustLoop: true })).toBe(
+        false
+      );
+      // Control: `image` without an attachment is an ordinary loop intent.
+      expect(decide({ intent: 'image', lastUserText: ask })).toBe(true);
+    });
+
+    it('the other kill-switches still apply', () => {
+      const lastUserText = 'Wer sind die Leute, und was haben sie zuletzt gesagt?';
+      expect(decide({ ...image, lastUserText })).toBe(true);
+      expect(decide({ ...image, lastUserText, isCompound: true })).toBe(false);
+      expect(decide({ ...image, lastUserText, loopEnabled: false })).toBe(false);
+      expect(decide({ ...image, lastUserText, secondaryIntent: 'save_as_doc' })).toBe(false);
+    });
+  });
+});
+
+describe('looksLikeImageOnlyAsk', () => {
+  it('reads asks about the picture as image-only', () => {
+    for (const t of [
+      'Beschreib das Foto',
+      'Ist auf dem Screenshot ein Tippfehler?',
+      // Compounds and plurals — the most common phrasings (#3841 review).
+      'Was steht auf dem Wahlplakat?',
+      'Wer ist auf dem Gruppenfoto?',
+      'Was steht auf den Plakaten?',
+      'Was ist das hier?',
+      'Kannst du mir einen Alt-Text schreiben?',
+    ]) {
+      expect(looksLikeImageOnlyAsk(t), t).toBe(true);
+    }
+  });
+
+  it('does not read asks that reach past the picture as image-only', () => {
+    for (const t of [
+      'Stimmen die Zahlen auf dem Screenshot? Such die Quelle.',
+      'Was hat die Person auf dem Foto gestern gesagt?',
+      'Welche meiner Dokumente passen zu dem Plakat?',
+    ]) {
+      expect(looksLikeImageOnlyAsk(t), t).toBe(false);
+    }
+  });
+
+  it('needs a reference to the picture at all', () => {
+    // `Bildung` is not `Bild`: the noun forms are spelled out.
+    expect(looksLikeImageOnlyAsk('Was sagt die Partei zur Bildung')).toBe(false);
+    expect(looksLikeImageOnlyAsk('Mach meine Reisekostenabrechnung')).toBe(false);
   });
 });
 
@@ -1050,6 +1147,7 @@ describe('decideEditToolLoop', () => {
     isCompound: false,
     hasSelectedNotebook: false,
     hasImageAttachments: false,
+    intent: 'direct',
     secondaryIntent: null,
   };
 
@@ -1091,8 +1189,18 @@ describe('decideEditToolLoop', () => {
     expect(decideEditToolLoop({ ...base, forcedTool: true })).toBe(false);
     expect(decideEditToolLoop({ ...base, isCompound: true })).toBe(false);
     expect(decideEditToolLoop({ ...base, hasSelectedNotebook: true })).toBe(false);
-    expect(decideEditToolLoop({ ...base, hasImageAttachments: true })).toBe(false);
+    expect(decideEditToolLoop({ ...base, hasImageAttachments: true, intent: 'image_edit' })).toBe(
+      false
+    );
     expect(decideEditToolLoop({ ...base, secondaryIntent: 'image' })).toBe(false);
+  });
+
+  it('keeps an image turn on the edit path — the loop reads the image (#3841)', () => {
+    // "Trag die Beträge vom Foto in die Tabelle ein": the one image turn an
+    // editor sidebar exists for.
+    expect(decideEditToolLoop({ ...base, hasImageAttachments: true, intent: 'produktion' })).toBe(
+      true
+    );
   });
 
   it('rejects a null surface', () => {

@@ -139,9 +139,12 @@ export function runRoutingStage({
     // Same question the classifier's Tier 3.5 asks, asked again here because a
     // turn can reach this gate without having passed that tier (confident
     // heuristic, LLM verdict, post-pass correction).
+    // An attached image is material like an attached PDF: "schreib einen Post
+    // zu dem Plakat" is not an unsourced writing order.
     hasOwnMaterial:
       lastUserText.length > NOUN_TRIGGER_MAX_LENGTH ||
       !!classifiedState.attachmentContext ||
+      imageAttachments.length > 0 ||
       !!classifiedState.currentDocument ||
       (classifiedState.docMentionIds ?? []).length > 0,
     enabledTools: enabledTools ?? null,

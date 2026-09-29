@@ -776,6 +776,53 @@ describe('toolCatalog: vertonen', () => {
   });
 });
 
+// The mount follows `imageVisibility(state, { loop: true })`, the same answer
+// that makes the loop's system prompt name the tool (#3841).
+describe('toolCatalog bild_ansehen', () => {
+  const image = { name: 'plakat.png', type: 'image/png', data: 'AAAA' };
+
+  function namesFor(state: Record<string, unknown>) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: {
+        sse,
+        state: { intent: 'agentic', enabledTools: {}, ...state } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+  }
+
+  it('mounts when the turn carries an image', () => {
+    expect(namesFor({ imageAttachments: [image] })).toContain('bild_ansehen');
+  });
+
+  it('does not mount without an image, without the loop, or with Bildanalyse off', () => {
+    expect(namesFor({ imageAttachments: [] })).not.toContain('bild_ansehen');
+    expect(namesFor({ imageAttachments: [image], enabledTools: { vision: false } })).not.toContain(
+      'bild_ansehen'
+    );
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+    });
+    expect(toolNames).not.toContain('bild_ansehen');
+  });
+
+  it('stays mounted when the person forbade new research', () => {
+    // Reading an image the person attached is not research.
+    const names = namesFor({
+      imageAttachments: [image],
+      messages: [{ role: 'user', content: 'Ohne neue Recherche: was steht auf dem Bild?' }],
+    });
+    expect(names).not.toContain('web_search'); // the ban did fire
+    expect(names).toContain('bild_ansehen');
+  });
+});
+
 /**
  * `reisekosten_abrechnung` hängt nur in Reisekosten-Turns: sein Schema ist
  * gross und zählte sonst gegen das Katalogbudget jedes Recherche-Turns.

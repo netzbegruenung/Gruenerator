@@ -218,7 +218,7 @@ describe('decideTurnPlan — die Kippfälle', () => {
   });
 
   it('agentic, das ein Notausschalter aussperrt, fällt ebenfalls auf search', () => {
-    const p = plan({ intent: 'agentic', hasImageAttachments: true });
+    const p = plan({ intent: 'agentic', isCompound: true });
     expect(p.runAgentic).toBe(false);
     expect(p.intent).toBe('search');
   });
@@ -226,7 +226,7 @@ describe('decideTurnPlan — die Kippfälle', () => {
   it('ein System-Tool-Intent ohne Schleife fällt auf web und verlangt eine Suchanfrage', () => {
     // Die Werkzeuge von `umfragen`/`hilfe` existieren nur in der Schleife, und
     // ihr `searchQuery` wurde als NON_SEARCH genullt.
-    const p = plan({ intent: 'umfragen', hasImageAttachments: true });
+    const p = plan({ intent: 'umfragen', isCompound: true });
     expect(p.runAgentic).toBe(false);
     expect(p.intent).toBe('web');
     expect(p.backfillSearchQuery).toBe(true);
@@ -346,7 +346,7 @@ describe('decideTurnPlan — Endgültigkeit des Intents', () => {
   const LOOP_ONLY: ChatIntentId[] = ['agentic', 'umfragen', 'hilfe'];
 
   it.each(LOOP_ONLY)('%s überlebt einen Einzeldurchlauf nicht', (intent) => {
-    const p = plan({ intent, hasImageAttachments: true });
+    const p = plan({ intent, isCompound: true });
     expect(p.runAgentic).toBe(false);
     expect(LOOP_ONLY).not.toContain(p.intent);
   });
@@ -372,7 +372,7 @@ describe('decideTurnPlan — Endgültigkeit des Intents', () => {
 
   // Die Gegenprobe — ohne Pipeline-Zwang greift der Auffang unverändert.
   it('ohne Pipeline-Zwang bleibt der System-Tool-Auffang unberührt', () => {
-    const p = plan({ intent: 'hilfe', hasImageAttachments: true });
+    const p = plan({ intent: 'hilfe', isCompound: true });
     expect(p.runAgentic).toBe(false);
     expect(p.intent).toBe('web');
     expect(p.backfillSearchQuery).toBe(true);
@@ -396,8 +396,17 @@ describe('decideTurnPlan — Anlegeauftrag für die Agentura (#3679)', () => {
     expect(p.runAgentic).toBe(false);
   });
 
-  it('ein Bildanhang sperrt ihn trotzdem aus', () => {
-    expect(plan({ ...order, hasImageAttachments: true }).runAgentic).toBe(false);
+  it('ein Verbund-Agent sperrt ihn trotzdem aus', () => {
+    expect(plan({ ...order, isCompound: true }).runAgentic).toBe(false);
+  });
+
+  // Seit #3841 liest der Loop Bilder über `bild_ansehen`; der Auftrag ist ein
+  // ausdrücklicher Grund für die Schleife und schlägt die Bildfrage-Vermutung.
+  it('ein Bildanhang sperrt ihn nicht mehr aus', () => {
+    expect(
+      plan({ ...order, hasImageAttachments: true, lastUserText: 'Was ist auf dem Bild?' })
+        .runAgentic
+    ).toBe(true);
   });
 });
 
@@ -433,10 +442,18 @@ describe('decideTurnPlan — ein per Erwähnung gepinntes Werkzeug', () => {
 
   // Die Notausschalter, die AUCH `mustLoop` nicht aufhebt, bleiben stehen —
   // sonst hätte der Pin mehr Macht als der Intent, den er ersetzt.
-  it('ein Bildanhang sperrt ihn trotzdem aus', () => {
-    const p = plan({ ...pinned, hasImageAttachments: true });
+  it('ein Verbund-Agent sperrt ihn trotzdem aus', () => {
+    const p = plan({ ...pinned, isCompound: true });
     expect(p.runAgentic).toBe(false);
     expect(p.intent).toBe('search');
+  });
+
+  // Ein Bildanhang war bis #3841 ein solcher Notausschalter. Der Pin ist ein
+  // ausdrücklicher Grund für die Schleife, und dort liest `bild_ansehen` das Bild.
+  it('ein Bildanhang sperrt ihn nicht mehr aus', () => {
+    const p = plan({ ...pinned, hasImageAttachments: true, lastUserText: 'Was siehst du?' });
+    expect(p.runAgentic).toBe(true);
+    expect(p.intent).toBe('agentic');
   });
 
   it('ein Pipeline-Agent vetot ihn trotzdem', () => {
@@ -474,7 +491,8 @@ describe('decideTurnPlan — der Degradierungsfall der Loop-Achse', () => {
     ['ausgeschaltete Schleife', { loopEnabled: false }],
     ['gewählte Wissenssammlung', { hasSelectedNotebook: true }],
     ['Verbund-Turn', { isCompound: true }],
-    ['Bildanhang', { hasImageAttachments: true }],
+    // Seit #3841 nur noch mit einer Frage, die das Bild allein beantwortet.
+    ['Bildanhang', { hasImageAttachments: true, lastUserText: 'Was siehst du auf dem Bild?' }],
     ['zweiter Intent', { secondaryIntent: 'save_as_doc' }],
   ];
 
@@ -519,7 +537,7 @@ describe('decideTurnPlan — der Degradierungsfall der Loop-Achse', () => {
   // nachträgt, macht jene Absage tot — und den Turn zu einer Websuche, die
   // niemand gewählt hat.
   it('mcp degradiert NICHT, weil die Registry kein Ziel nennt', () => {
-    const p = plan({ intent: 'mcp', hasImageAttachments: true });
+    const p = plan({ intent: 'mcp', isCompound: true });
     expect(p.runAgentic).toBe(false);
     expect(p.intent).toBe('mcp');
   });
@@ -566,7 +584,6 @@ describe('decideTurnPlan — die Suchfamilie am Erwähnungs-Pfad', () => {
 
   it.each([
     ['Verbund', { isCompound: true }],
-    ['Bildanhang', { hasImageAttachments: true }],
     ['zweiter Intent', { secondaryIntent: 'image' }],
     ['Schleife aus', { loopEnabled: false }],
   ] as const)('%s hält den erwähnten Turn weiterhin einzeln', (_name, over) => {

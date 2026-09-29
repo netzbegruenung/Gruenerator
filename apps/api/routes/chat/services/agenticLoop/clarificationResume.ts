@@ -111,7 +111,10 @@ export async function runClarificationLoopResume(params: {
     const outcome = await streamAgenticResponse({
       finalState: classifiedState,
       // Neu gebaut statt aus Redis geholt: derselbe Weg wie im Erst-Zug.
-      systemMessage: await buildSystemMessage(classifiedState, { retrievalExpected: true }),
+      systemMessage: await buildSystemMessage(classifiedState, {
+        retrievalExpected: true,
+        loop: true,
+      }),
       messages: requestContext.validMessages as ModelMessage[],
       ...(requestContext.modelId != null && { modelId: requestContext.modelId }),
       requestId: `clarification_resume_${Date.now()}`,
