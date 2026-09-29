@@ -13,7 +13,8 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_DEV_AUTH_BYPASS": "false"
+        "EXPO_PUBLIC_DEV_AUTH_BYPASS": "false",
+        "RELEASE_CHANNEL": "preview"
       }
     },
     "e2e-test": {
@@ -28,7 +29,8 @@
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_DEV_AUTH_BYPASS": "false"
+        "EXPO_PUBLIC_DEV_AUTH_BYPASS": "false",
+        "RELEASE_CHANNEL": "production"
       },
       "android": {
         "buildType": "app-bundle"

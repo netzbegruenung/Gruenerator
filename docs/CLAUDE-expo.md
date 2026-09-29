@@ -112,24 +112,53 @@ inputRef.current?.clear();
 
 ## OTA-Updates (`apps/mobile`)
 
-`expo-updates` + EAS Update. Channels hängen an den Build-Profilen in
-`eas.json`: `development` / `preview` / `production`. Das `e2e-test`-Profil hat
-**bewusst keinen** Channel — ein Maestro-Lauf soll den Build testen, den er
-gebaut hat, und nicht mitten im Test ein OTA-Bundle nachladen.
+`expo-updates` gegen **unseren eigenen xprem-Server** (expo-open-ota) unter
+`https://ota.moritz-waechter.de`, **nicht** EAS Update — ab Version 1.5.5. Grund:
+jede Update-Abfrage gegen `u.expo.dev` schickt die IP jedes Geräts an einen
+US-Anbieter, die Datenschutzerklärung sagt „keine Drittlandübermittlung" (#3904).
+Binaries bis 1.5.4 fragen weiter bei Expo; `eas update` erreicht nur noch sie.
+
+Die ganze Update-Config steht in `app.config.js` und greift **nur**, wenn
+`RELEASE_CHANNEL` gesetzt ist — gesetzt ist sie in den `eas.json`-Profilen
+`preview` und `production`. Alle anderen Builds (`development`, `e2e-test`, jedes
+lokale `expo run`) haben `updates.enabled: false`. Zwei Gründe, beide im Code
+nachgesehen:
+
+- EAS Build schreibt `expo-channel-name` nur, wenn `updates.url` auf `u.expo.dev`
+  zeigt (`isEASUpdateConfigured` in `@expo/build-tools`). Für den eigenen Server
+  setzt `app.config.js` den Header selbst; `channel` in `eas.json` wirkt dafür
+  nicht mehr.
+- Updates sind signiert (`certs/certificate.pem`, `keyid: main`). Ein Dev-Client
+  mit eingebautem Zertifikat verlangt signierte Manifeste auch von Metro, und
+  `expo start` bricht dann ohne privaten Schlüssel ab.
+
+Der **private Schlüssel liegt nicht im Repo** (öffentlich!), sondern beim
+xprem-Server. Geht er verloren, nehmen alle ausgelieferten Binaries keine Updates
+mehr an, bis ein neuer Store-Build mit neuem Zertifikat draußen ist. Das
+Zertifikat läuft am 29.09.2036 ab.
 
 ```bash
 cd apps/mobile
-npx eas update --branch production --message "fix: …"
-npx eas update --branch preview --message "…"      # Testkreis
-npx eas update:rollback                            # Notausgang
+RELEASE_CHANNEL=production EOO_TOKEN=… npx eoas publish --branch production
+RELEASE_CHANNEL=preview    EOO_TOKEN=… npx eoas publish --branch preview
+RELEASE_CHANNEL=production EOO_TOKEN=… npx eoas rollback --branch production  # Notausgang
 ```
+
+`RELEASE_CHANNEL` wählt die Config, mit der das Bundle exportiert wird, `--branch`
+das Ziel; beide gleich halten. Ohne `RELEASE_CHANNEL` fehlt `updates.url` in der
+Config, und `eoas` weiß nicht, wohin. `eoas publish` legt Hermes-Source-Maps
+neben das Bundle (`dist/`) — die gehören danach zu GlitchTip, sonst bleiben
+Stack-Traces aus OTA-Bundles minifiziert. `EOO_TOKEN` ist ein API-Token aus dem
+xprem-Dashboard (Postgres-Modus); im zustandslosen Modus stattdessen `EXPO_TOKEN`
+und kein `EOO_TOKEN` setzen. Server-Seite: `services/ota/README.md`.
 
 > **Nur von `master` veröffentlichen — und erst, wenn das Backend-Deploy durch
 > ist.** Mobile spricht mit dem deployten Prod-Backend. Das ist dieselbe Falle
 > wie bei Desktop (siehe `CLAUDE.md`), nur schärfer: einen Desktop-Build muss
 > sich jemand aktiv holen, ein OTA-Push landet ungefragt auf jedem Gerät. JS,
 > das einen Endpunkt aufruft, den Prod noch nicht kennt, hängt in
-> Ladeskeletten. Für Riskantes: prozentualer Rollout statt Vollausrollung.
+> Ladeskeletten. Für Riskantes: prozentualer Rollout statt Vollausrollung
+> (`eoas publish --rollout-percentage`, nur im Postgres-Modus von xprem).
 
 **Was OTA nicht kann:** alles Native. Änderungen an den Config-Plugins in
 `plugins/` und `config/`, an `expo-build-properties`, an Permissions, jedes neue
@@ -165,7 +194,7 @@ von `expo.version` in `app.json` im selben PR. `autoIncrement` erhöht nur
 vergessen, lädt ein altes Binary JS nach, das ein Modul erwartet, das es nicht
 hat — und stürzt beim ersten Aufruf ab.
 
-`eas update` bündelt **lokal** mit Metro, nicht in der Cloud: der Zustand von
+`eoas publish` bündelt **lokal** mit Metro, nicht in der Cloud: der Zustand von
 `pnpm install` auf der Maschine ist der, der ausgeliefert wird. Nach jedem
 Dependency-Merge vorher root-`pnpm install`.
 
