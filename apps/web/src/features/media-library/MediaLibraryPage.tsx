@@ -73,7 +73,7 @@ const GRID_SIZES = '(max-width: 768px) 150px, 200px';
 // on a 2x display — never the unresized original.
 const MODAL_SIZES = '(max-width: 540px) 100vw, 500px';
 
-const MediaCard: React.FC<MediaCardProps> = ({
+export const MediaCard: React.FC<MediaCardProps> = ({
   item,
   onDelete,
   onEdit,
@@ -163,14 +163,16 @@ const MediaCard: React.FC<MediaCardProps> = ({
                 className="size-8 flex items-center justify-center border-none rounded-lg bg-[var(--success-color)] text-white cursor-pointer transition-all duration-200"
                 onClick={handleDelete}
                 disabled={isDeleting}
+                aria-label="In den Papierkorb verschieben"
               >
-                <FaCheck />
+                <FaCheck aria-hidden="true" />
               </button>
               <button
                 className="size-8 flex items-center justify-center border-none rounded-lg bg-[#D32F2F] text-white cursor-pointer transition-all duration-200"
                 onClick={() => setShowDeleteConfirm(false)}
+                aria-label="Abbrechen"
               >
-                <FaTimes />
+                <FaTimes aria-hidden="true" />
               </button>
             </div>
           ) : (
