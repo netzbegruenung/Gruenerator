@@ -34,7 +34,7 @@
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 
-import { GEMMA_31B_PRIMARY, GEMMA_31B_ON_CORTECS } from '../../../services/ai/gemmaHosts.js';
+import { GEMMA_31B_PRIMARY, GEMMA_31B_ON_MELIOUS } from '../../../services/ai/gemmaHosts.js';
 
 import { getPipelineAgent } from './pipelines/index.js';
 
@@ -468,97 +468,72 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  * policy instead of two systems overriding each other. `providers.ts` turns
  * these into LanguageModel instances (it owns env + getModel).
  *
- * PLANNER: Mistral Small on GREENPT. The planner only calls tools and
- * formulates queries (the synth writes the prose), so Small's tool-calling is
- * plenty. Tool calls were verified live on all three tiers below on 13.08.2026:
- * `finish_reason=tool_calls`, valid argument JSON, empty `content`, no
- * reasoning leaking into the answer channel.
+ * PLANNER: Gemma 4 31B auf MELIOUS (`:balanced`, ohne Denken), Mistral Small 4
+ * auf Melious dahinter, Mistral Medium zuletzt. Der Planer ruft nur Werkzeuge
+ * und formuliert Suchanfragen (der Synth schreibt die Prosa), er läuft in JEDEM
+ * agentischen Zug.
  *
- * WHY GREENPT AND NOT REGOLO, which this lane used until 13.08.2026: the
- * planner runs on EVERY agentic turn, and on Regolo it was the single reason
- * the personal footprint comparison came out WORSE than GPT-4o. Two independent
- * derivations put `mistral-small-4-119b` at 2,68-2,97 mWh per output token
- * (Regolo's own playground figure, and our GreenPT measurement of the 24B
- * scaled by parameter count); against Italy's 270 g/kWh that is 0,70 mg
- * CO2/token, where the GPT-4o reference sits at 0,40. GreenPT serves the 24B
- * from Scaleway Paris at 24 g/kWh, which is 0,014 mg/token — a factor of 48.
+ * Gemessen am 29.09.2026 (Werkzeug-Probe: 12 deutsche Aufträge × 8 Läufe, sechs
+ * Werkzeuge, Enum-Argumente, parallele Aufrufe, Folgeschritt nach Werkzeug-
+ * Ergebnis; seriell, Temperatur 0; Skript nicht im Repo):
  *
- * Be honest about where that factor comes from: roughly 90% is the GRID, not
- * the model. The same move to Scaleway would pay off with a far heavier model.
+ *   melious/gemma-4-31b:balanced   96/96, p50 602 ms, p90 963 ms
+ *   melious/gemma-4-31b:eco        96/96, p50 758 ms — Upstream Regolo/IT
+ *   melious/mistral-small-4        33/36, p50 574 ms
+ *   greenpt-Mistral-Small-3.2      33/36, p50 500–970 ms (bisheriger Primär)
  *
- * Second reason, independent of the first: GreenPT is the only lane that
- * reports its own energy per request (`greenptImpact.ts`), so the planner's
- * footprint stops being an extrapolation from someone else's hardware.
+ * Gemma ist das einzige der kleinen Modelle, das den unklaren Auftrag („Mach
+ * was Schönes.") an `ask_human` gibt; Small 3.2 antwortet mit Prosa, Small 4
+ * ruft ein Suchwerkzeug. Beide fallen NUR an diesem einen Fall durch.
+ * Werkzeug-IDs beliebiger Länge nehmen beide Melious-Modelle an (kein
+ * Neun-Zeichen-Zwang wie bei mistral-common).
  *
- * History worth knowing before touching this: an earlier attempt at the regolo
- * planner was reverted for a "steps=0 gather" regression — the planner returned
- * without calling any tool. The `afterGather` guarantee in
- * agenticRespondService now backstops "did it actually call the generation
- * tool". A single tool-call probe does NOT prove multi-step gather holds, so if
- * it degrades, bump the model here (mistral-medium-3.5-128b on the same host)
- * rather than moving the provider back.
+ * Was die Probe NICHT zeigt: den mehrstufigen Sammellauf, an dem die frühere
+ * Regolo-Vorgabe mit „steps=0 gather" scheiterte. `afterGather` in
+ * agenticRespondService fängt diesen Fall ab; zeigt eine Stufe hier auffällig
+ * oft leere Züge, ist das der erste Ort zum Nachsehen.
  *
- * Trade-off accepted: no Mistral prompt caching on this host either, so the
- * planner's fixed tool-usage prefix is re-billed every turn — same as before.
+ * ZWEI EHRLICHE KOSTEN dieser Wahl:
  *
- * The two lower tiers keep the loop alive when GreenPT is not configured:
- * melious stays the self-hosted option, Mistral the last resort.
+ * 1. Melious sendet `environment_impact` nur nicht-gestreamt. Damit der Planer
+ *    weiter gemessen statt geschätzt wird, fragt `meliousFetch` die Werkzeug-
+ *    phase nicht-gestreamt und spielt die Antwort dem SDK als Strom vor
+ *    (meliousThinkingFetch.ts). Preis: Narration und Denk-Deltas des Planers
+ *    kommen je Schritt erst mit der fertigen Antwort (~0,6 s), nicht Token für
+ *    Token.
+ * 2. Beide Planer-Stufen hängen am selben Gateway. Ein Melious-Ausfall nimmt
+ *    beide; `loopPlannerChoice` fällt dann auf Mistral Medium (andere Familie,
+ *    anderer Vertragspartner). Mistral Small 4 wird von Melious an Regolo/IT
+ *    vermittelt (gemessen 29.09.2026) — den Host, der am 29.08.2026 mit 402
+ *    `trial_expired` ausfiel. Melious sagt kein Routing zu.
+ *
+ * `:balanced` trägt ~45k Tokens; was darüber liegt, schickt `meliousFetch` auf
+ * `:speed` (siehe meliousThinkingFetch.ts). `:eco` wurde bewusst NICHT gewählt:
+ * gleiche Zuverlässigkeit, aber langsamer und auf Regolo/IT.
+ *
+ * `mistral-small-3.2` auf GreenPT und Gemma auf Cortecs standen bis dahin als
+ * Stufen 1 und 2 hier. Cortecs fiel weg, weil es dieselben Gewichte wie der
+ * Primär bedient — ein Ausfall des Modells trifft beide.
  */
 export const LOOP_PLANNER_PRIMARY = {
-  provider: 'greenpt' as const,
-  model: 'mistral-small-3.2-24b-instruct-2506',
+  provider: GEMMA_31B_ON_MELIOUS.provider,
+  model: GEMMA_31B_ON_MELIOUS.model,
 };
 /**
- * Erste Ausweichstufe, wenn der Primär als zäh vermerkt ist.
- *
- * Cortecs, weil es die Lane ist, deren Gesundheit wir gerade am besten belegen
- * können: sie bedient bereits die SYNTH-Phase jedes Split-Zuges, ist in
- * `gemmaHosts.ts` als schnellster Endpunkt der Messreihe notiert (1122 ms bis
- * zum ersten Token) und lieferte im Vorfall vom 28.08.2026 die Antwort in 3 s,
- * während der Planer 45 s schwieg.
- *
- * Host und Modellname kommen aus `gemmaHosts.ts`, nicht als eigene Zeichen-
- * kette — dieselbe Regel wie bei LOOP_SYNTH_PRIMARY. Bewusst
- * `GEMMA_31B_ON_CORTECS` und nicht `GEMMA_31B_PRIMARY`: gemeint ist hier der
- * HOST Cortecs, nicht „wer gerade Gemma bedient". Zeigte der Wechselpunkt auf
- * Regolo, hätte diese Stufe sonst still den Anbieter gewechselt.
- *
- * ZWEI EHRLICHE EINSCHRÄNKUNGEN, beide bewusst in Kauf genommen:
- *
- * 1. Ob Gemma 4 so zuverlässig Werkzeuge ruft wie die Mistral-Gewichte der
- *    anderen Stufen, ist NICHT gemessen. Die Planer-Rolle lebt vom
- *    Werkzeugaufruf, und `isAgenticToolCapable` lässt bis heute nur Mistral zu
- *    (dort allerdings für die Nutzer-Auswahl im unified-Modus, nicht für diesen
- *    Slot). `afterGather` in agenticRespondService ist der Backstop, der ein
- *    „steps=0 gather" abfängt — genau die Regression, an der eine frühere
- *    Regolo-Vorgabe scheiterte. Wenn diese Stufe auffällig oft leer
- *    zurückkommt, ist das der erste Ort zum Nachsehen.
- * 2. Sie teilt Host UND Modell mit der Synth-Phase. Ein Cortecs-Ausfall nimmt
- *    dann beide Hälften des Zuges — der Grundsatz „der Ausweich ist ein anderer
- *    Vertragspartner" (siehe LOOP_SYNTH_*) gilt hier also nicht. Vertretbar,
- *    weil diese Stufe nur greift, wenn der Primär bereits nachweislich steht,
- *    und die dritte/vierte Stufe darunter andere Anbieter sind.
+ * Erste Ausweichstufe, wenn der Primär als zäh vermerkt ist: eine andere
+ * Modellfamilie, damit ein Gemma-spezifisches Problem nicht beide Stufen trifft.
+ * Läuft mit `reasoning_effort: 'none'` (Vorgabe von `meliousFetch`).
  */
 export const LOOP_PLANNER_HEALTHY_ALT = {
-  provider: GEMMA_31B_ON_CORTECS.provider,
-  model: GEMMA_31B_ON_CORTECS.model,
-};
-export const LOOP_PLANNER_SELFHOSTED = {
   provider: 'melious' as const,
-  model: 'gemma-4-31b:balanced',
+  model: 'mistral-small-4-119b-instruct',
 };
 /**
- * Die letzte Stufe. Stand bis zum 29.08.2026 auf `litellm/verdigado-pro` und
- * war damit zweimal falsch: der Alias IST gpt-oss (am Proxy gemessen
- * 19.08.2026), also genau das Modell, das `AVOID_AS_SYNTH` ausschliesst — und
- * die Planer-Rolle lebt vom Werkzeugaufruf, den gpt-oss über diesen Adapter
- * nachweislich mit Prosa beantwortet (siehe die Artefakt-Notiz in
- * services/ai/lanes.ts).
- *
- * Mistral und NICHT Cortecs, obwohl Cortecs sonst überall an Verdigados Stelle
- * tritt: Cortecs ist bereits Stufe 2 (LOOP_PLANNER_HEALTHY_ALT). Eine letzte
- * Stufe, die denselben Vertragspartner nennt wie die zweite, ist keine Stufe.
- * `isAgenticToolCapable` lässt ohnehin nur Mistral zu.
+ * Die letzte Stufe, bewusst nicht Melious: Mistral Medium bedient die
+ * Planer-Rolle über die Mistral-API. Nicht litellm/verdigado-pro (das ist
+ * gpt-oss und beantwortet einen Werkzeugaufruf mit Prosa, siehe die
+ * Artefakt-Notiz in services/ai/lanes.ts); `isAgenticToolCapable` lässt
+ * ohnehin nur Mistral zu.
  */
 export const LOOP_PLANNER_FALLBACK = {
   provider: 'mistral' as const,

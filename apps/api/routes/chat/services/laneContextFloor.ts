@@ -33,8 +33,8 @@
  * Ollama, nicht des Modells.
  *
  * WHAT THE FLOOR BUYS BEYOND THE NUMBER. It also keeps the split-mode PLANNER
- * inside its own window. The planner (`mistral-small-3.2-24b-instruct-2506` via
- * GreenPT, see LOOP_PLANNER_PRIMARY) does not go through `AVAILABLE_MODELS` at
+ * inside its own window. The planner (Melious Gemma 4 31B, see LOOP_PLANNER_PRIMARY;
+ * `meliousFetch` routes oversized bodies to `:speed`) does not go through `AVAILABLE_MODELS` at
  * all — nothing bounds what the loop sends it, and until now only the 32k
  * accident kept it safe. Budgeting against the SMALLEST lane keeps the history
  * under that model's window too. Anyone raising this to the resolved lane's

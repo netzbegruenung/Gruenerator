@@ -37,7 +37,6 @@ import {
   mayWriteAnswer,
   LOOP_PLANNER_PRIMARY,
   LOOP_PLANNER_HEALTHY_ALT,
-  LOOP_PLANNER_SELFHOSTED,
   LOOP_PLANNER_FALLBACK,
   LOOP_SYNTH_PRIMARY,
   LOOP_SYNTH_FALLBACK,
@@ -421,7 +420,7 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   // (its auto-policy role moved to `gemma-4-26b`, which was itself folded into
   // `gemma-litellm` on 07.08.2026 — see autoPolicy.ts). It stays registered
   // because it is still the model the intermediate stages and the loop
-  // PLANNER run on (LOOP_PLANNER_PRIMARY, DOCS_AI_MODELS / BOARD_AI_MODELS),
+  // PLANNER used to run on (DOCS_AI_MODELS / BOARD_AI_MODELS),
   // and because an id that has been persisted in threads must keep resolving.
   // Not in the model picker either (that is driven by MODEL_OPTIONS in
   // @gruenerator/core/models).
@@ -434,9 +433,8 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   },
   // This USER-SELECTABLE lane stays off by default (catalog `offByDefault`), so
   // nothing picks it as an answer model unless asked for by id. The greenpt
-  // PROVIDER is no longer unused though: since 13.08.2026 the loop planner runs
-  // there by default (LOOP_PLANNER_PRIMARY), which does not go through this
-  // entry — it names provider and model directly.
+  // PROVIDER is no longer unused though: from 13.08.2026 to 29.09.2026 the loop
+  // planner ran there (LOOP_PLANNER_PRIMARY), without going through this entry.
   greenpt: {
     kind: 'single',
     provider: 'greenpt',
@@ -830,10 +828,8 @@ export function prefersUnifiedLoop(provider: string, _modelName: string): boolea
  * keinmal.
  *
  * Und das ist Absicht, kein übersehener Rest. Ein einzelner Stillstand kann
- * ein Netz-Schluckauf sein, und die Stufe, die hier ausfällt, ist die
- * energetisch mit Abstand günstigste (siehe LOOP_PLANNER_PRIMARY: Faktor 48
- * gegenüber der Referenz, überwiegend über das Stromnetz des Standorts). Sie
- * wegen eines Ausreissers fünf Minuten zu meiden, wäre der teurere Fehler.
+ * ein Netz-Schluckauf sein; eine Stufe wegen eines Ausreissers fünf Minuten
+ * zu meiden, wäre der teurere Fehler.
  * Wer die Schwelle doch senken will, senkt sie nicht hier: `recordSlowVerdict`
  * teilt den Breaker mit den Durchsatz-Proben und mit `synth_stall`, dessen
  * Pfad im selben Zug schon eine Geschwister-Lane hat.
@@ -851,31 +847,21 @@ function plannerStageUsable(stage: { provider: Provider; model: string }): boole
 }
 
 function loopPlannerChoice(): { provider: Provider; model: string } {
-  // GreenPT first — see LOOP_PLANNER_PRIMARY in autoPolicy.ts for why. Regolo
-  // stays the self-hosted option, litellm/verdigado-pro the last resort.
+  // Melious Gemma first, Melious Mistral Small 4 second — see
+  // LOOP_PLANNER_PRIMARY in autoPolicy.ts for why and for the measurements.
   //
-  // Zum Ausweichen auf regolo: `LOOP_PLANNER_PRIMARY` warnt davor, den Anbieter
-  // DAUERHAFT zurückzudrehen (eine frühere regolo-Vorgabe fiel durch eine
-  // „steps=0 gather"-Regression auf). Das gilt für die Vorgabe, nicht für ein
-  // 5-Minuten-Ausweichen nach einem bewiesenen Stillstand: die stillstehende
-  // Lane liefert steps=0 garantiert, die Ausweichstufe nur vielleicht — und
-  // `afterGather` in agenticRespondService fängt genau diesen Fall ab.
+  // Beide Stufen hängen am selben Gateway: ein Melious-Ausfall vermerkt beide
+  // als zäh. Mistral Medium (andere Familie, anderer Vertragspartner) steht
+  // deshalb VOR dem „lieber zäh als gar keiner"-Zweig — sonst bliebe der Zug
+  // auf dem Gateway, das gerade steht.
   if (plannerStageUsable(LOOP_PLANNER_PRIMARY)) return LOOP_PLANNER_PRIMARY;
-  // Cortecs vor der selbstgehosteten Stufe: siehe LOOP_PLANNER_HEALTHY_ALT.
   if (plannerStageUsable(LOOP_PLANNER_HEALTHY_ALT)) return LOOP_PLANNER_HEALTHY_ALT;
-  if (plannerStageUsable(LOOP_PLANNER_SELFHOSTED)) return LOOP_PLANNER_SELFHOSTED;
-  // Ab hier zählt nur noch die Konfiguration: eine Stufe wird auch dann
-  // genommen, wenn sie als zäh gilt — ein zäher Planer ist besser als keiner.
-  if (isProviderConfigured('greenpt')) return LOOP_PLANNER_PRIMARY;
-  if (isProviderConfigured('cortecs')) return LOOP_PLANNER_HEALTHY_ALT;
-  if (isProviderConfigured('regolo')) return LOOP_PLANNER_SELFHOSTED;
-  // Last resort when NOTHING is configured, and it has to be litellm: its
-  // provider has a default base URL and tolerates an empty key, while greenpt
-  // and regolo both THROW without one. Returning the primary here (as this did
-  // until 14.08.2026) killed every agentic turn with "GREENPT_API_KEY
-  // environment variable is required" — the loop never reached its first model
-  // call. Before the lane moved to GreenPT the same line returned regolo, which
-  // `instantiateModel` silently substitutes with Mistral, so the bug was invisible.
+  if (plannerStageUsable(LOOP_PLANNER_FALLBACK)) return LOOP_PLANNER_FALLBACK;
+  // Ab hier zählt nur noch die Konfiguration: ein zäher Planer ist besser als
+  // keiner. Ist gar nichts konfiguriert, bleibt nur die letzte Stufe: den
+  // Primär dort zu liefern, obwohl sein Getter ohne Schlüssel wirft, tötete am
+  // 14.08.2026 jeden agentischen Zug, bevor er den ersten Modellaufruf erreichte.
+  if (isProviderConfigured('melious')) return LOOP_PLANNER_PRIMARY;
   return LOOP_PLANNER_FALLBACK;
 }
 
