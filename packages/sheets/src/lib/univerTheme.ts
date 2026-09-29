@@ -43,6 +43,7 @@ export const gruenatorUniverTheme = {
     900: '#1A332A',
   },
   gray: {
+    0: '#ffffff',
     50: '#f9f9f9',
     100: '#efefef',
     200: '#dcdcdc',
@@ -53,5 +54,6 @@ export const gruenatorUniverTheme = {
     700: '#525252',
     800: '#3a3a3a',
     900: '#2e2e2e',
+    1000: '#000000',
   },
 };

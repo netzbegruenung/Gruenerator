@@ -58,9 +58,8 @@ trustPolicyIgnoreAfter: 525600
 # `^2.6.0`, so rather than excluding the package from the policy — a permanent
 # hole, and the first-hit abort only ever reveals the next offender — the pin
 # `@blocknote/shadcn>tailwind-merge` in pnpm.overrides puts that one subtree on
-# 2.6.0: same range, already in the tree for @univerjs/design, and old enough to
-# predate the trusted-publishing era. Exact on purpose — a caret resolves straight
-# back to 2.6.1.
+# 2.6.0: same range, and old enough to predate the trusted-publishing era.
+# Exact on purpose — a caret resolves straight back to 2.6.1.
 
 # Moved here from .npmrc: pnpm 11 reads only auth and registry settings from
 # .npmrc. Kept as hoisted because Metro/React Native in apps/mobile cannot

@@ -187,9 +187,10 @@ export function attachYjsBridge({
     maybeCompact();
   };
 
-  const commandDisposable = univerAPI.onCommandExecuted((commandInfo, options) => {
+  const commandDisposable = univerAPI.addEvent(univerAPI.Event.CommandExecuted, (commandInfo) => {
     if (disposed || applyingRemote) return;
     if (commandInfo.type !== CommandType.MUTATION) return;
+    const { options } = commandInfo;
     if (options?.onlyLocal || options?.fromCollab || options?.fromChangeset) return;
     if (LOCAL_ONLY_MUTATIONS.has(commandInfo.id)) return;
     // Only mutations for our unit; ignore internal editor docs (cell editor
