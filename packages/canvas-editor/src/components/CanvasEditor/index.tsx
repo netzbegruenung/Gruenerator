@@ -604,11 +604,12 @@ function CanvasEditorInner({
   // Auto-switch tabs based on config (e.g., switch to 'settings' when a balken is selected).
   // Desktop only: on mobile a tap just selects — the canvas keeps its size, and
   // the selection's area opens from the bottom bar's "Mehr" button instead.
-  const selectionType = toolbarState?.activeFloatingModule?.type ?? null;
   const mobileSelectionArea = isMobileWeb
     ? getMobileSelectionArea(
-        activeSelectedElement ? selectionType : null,
-        visibleTabs.map((tab) => tab.id)
+        activeSelectedElement,
+        toolbarState?.activeFloatingModule ?? null,
+        visibleTabs.map((tab) => tab.id),
+        activeConfig?.getAutoSwitchTab?.(activeSelectedElement ?? null) ?? null
       )
     : null;
   useEffect(() => {
