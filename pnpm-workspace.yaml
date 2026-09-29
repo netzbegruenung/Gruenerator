@@ -325,7 +325,7 @@ overrides:
   zustand: 5.0.15
   katex: ^0.18.1
   pyodide: ^314.0.5
-  react-dropzone: ^19.1.1
+  react-dropzone: ^20.1.2
   prosemirror-view: ^1.42.4
   '@blocknote/core': ^0.55.0
   '@blocknote/react': ^0.55.0
