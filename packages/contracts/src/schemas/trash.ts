@@ -34,6 +34,11 @@ export const trashItemSchema = z.object({
   /** document_subtype / media_type / … — display only. */
   subtype: z.string().nullable(),
   deletedAt: z.string(),
+  /**
+   * Deleted before the Papierkorb existed: `deletedAt` is when it was moved
+   * in, the real deletion time is unknown. Optional for older servers.
+   */
+  deletedBeforeTrash: z.boolean().optional(),
   /** Computed on the server; the client never knows the retention period. */
   purgeAt: z.string(),
 });

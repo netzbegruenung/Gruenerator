@@ -48,6 +48,7 @@ describe('purgeAt', () => {
       title: 'Antrag',
       subtype: 'sheets',
       deletedAt: '2026-01-31T00:00:00.000Z',
+      deletedBeforeTrash: false,
       purgeAt: '2026-03-02T00:00:00.000Z',
     });
   });

@@ -183,7 +183,19 @@ export interface TrashedCollabDocRow {
   title: string;
   document_subtype: string | null;
   deleted_at: Date;
+  deleted_before_trash: boolean;
 }
+
+/**
+ * True for rows `zz_20260929_trash_deleted_at.sql` moved in from the old
+ * `is_deleted` flag. Their real deletion time is gone: the migration stamped
+ * `deleted_at = now()`, and the `updated_at` trigger overwrote the other
+ * column that held it. The runner records `applied_at` in the same
+ * transaction, so it equals that `now()` exactly.
+ */
+const DELETED_BEFORE_TRASH_SQL = `COALESCE(deleted_at = (
+    SELECT applied_at FROM schema_migrations WHERE filename = 'zz_20260929_trash_deleted_at.sql'
+  ), false) AS deleted_before_trash`;
 
 export type TrashedLookup =
   { status: 'not_found' } | { status: 'forbidden' } | { status: 'ok'; row: TrashedCollabDocRow };
@@ -197,7 +209,7 @@ export async function getTrashedCollaborativeDocument(
   const rows = await runQuery<
     TrashedCollabDocRow & Pick<CollabDocRow, 'created_by' | 'permissions'>
   >(
-    `SELECT id, title, document_subtype, deleted_at, created_by, permissions
+    `SELECT id, title, document_subtype, deleted_at, ${DELETED_BEFORE_TRASH_SQL}, created_by, permissions
      FROM collaborative_documents WHERE id = $1 AND deleted_at IS NOT NULL`,
     [id]
   );
@@ -236,7 +248,8 @@ export async function listTrashedCollaborativeDocuments(
   const keyset = trashKeysetWhere('deleted_at', 'id', opts.before, params);
   params.push(opts.limit);
   return runQuery<TrashedCollabDocRow>(
-    `SELECT id, title, document_subtype, deleted_at FROM collaborative_documents
+    `SELECT id, title, document_subtype, deleted_at, ${DELETED_BEFORE_TRASH_SQL}
+     FROM collaborative_documents
      WHERE deleted_at IS NOT NULL AND ${OWNER_SQL} AND ${keyset}
      ORDER BY ${trashOrderBy('deleted_at', 'id')}
      LIMIT $${params.length}`,
