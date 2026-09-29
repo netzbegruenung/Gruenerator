@@ -4,7 +4,7 @@
  *
  * The real work (trash/restore/purge SQL, rights, side stores) lives in each
  * kind's own service next to its old delete code; a handler only adapts that
- * service to one shape. Kinds without a handler yet answer 404.
+ * service to one shape.
  */
 import { type TrashItem, type TrashKind } from '@gruenerator/contracts';
 
@@ -41,9 +41,55 @@ import {
   trashDocuments,
   type TrashedDocumentRow,
 } from '../document-services/PostgresDocumentService/metadataOperations.js';
+import {
+  getTrashedGroup,
+  listExpiredGroups,
+  listTrashedGroups,
+  purgeGroup,
+  restoreGroup,
+  trashGroup,
+  type TrashedGroup,
+} from '../groups/groupTrash.js';
+import { CUSTOM_PROMPT_TRASH, purgeCustomPrompt } from '../prompts/customPromptTrash.js';
+import {
+  deleteRecurringTask,
+  purgeRecurringTask,
+  RECURRING_TASK_TRASH,
+} from '../recurringTasks/recurringTasksRepository.js';
 import { getSharedMediaService, type TrashedShareRow } from '../sharedMediaService.js';
+import { purgeUserSite, restoreUserSite, USER_SITE_TRASH } from '../sites/userSiteTrash.js';
 import { getSubtitlerProjectService, type TrashedProjectRow } from '../subtitler/ProjectService.js';
+import {
+  purgeUserTemplate,
+  trashUserTemplates,
+  USER_TEMPLATE_TRASH,
+} from '../templates/userTemplateTrash.js';
+import { getKnowledgeService, KNOWLEDGE_TRASH } from '../user/KnowledgeService.js';
+import {
+  deleteLetterhead,
+  LETTERHEAD_TRASH,
+  purgeLetterhead,
+} from '../user/letterheadRepository.js';
+import { purgeSavedText, SAVED_TEXT_TRASH, trashSavedTexts } from '../user/savedTextTrash.js';
+import { purgeTextForm, TEXT_FORM_TRASH } from '../user/textFormRepository.js';
+import {
+  deleteUserAgent,
+  purgeUserAgent,
+  USER_AGENT_TRASH,
+} from '../userAgents/userAgentsRepository.js';
 
+import {
+  getTrashedOwnedRow,
+  isRowId,
+  listExpiredOwnedRows,
+  listTrashedOwnedRows,
+  restoreOwnedRow,
+  trashOwnedRow,
+  type OwnedRestoreResult,
+  type OwnedTrashResult,
+  type OwnedTrashTable,
+  type Trashed,
+} from './ownedRowTrash.js';
 import { compareTrashKey, type TrashCursor } from './trashCursor.js';
 
 export const TRASH_RETENTION_DAYS = 30;
@@ -282,7 +328,147 @@ const subtitlerProjectHandler: TrashKindHandler = {
   listExpired: (cutoff, limit) => getSubtitlerProjectService().listExpiredProjects(cutoff, limit),
 };
 
-// Task 5 tightens this to `Record<TrashKind, TrashKindHandler>` once every kind has one.
+/** What an owner-bound kind adds to the shared steps in `ownedRowTrash.ts`. */
+interface OwnedKindSpec<Row> {
+  kind: TrashKind;
+  table: OwnedTrashTable;
+  title(row: Trashed<Row>): string;
+  trash(userId: string, id: string): Promise<OwnedTrashResult>;
+  /** Only where a restore can clash with more than a unique index. */
+  restore?(userId: string, id: string): Promise<OwnedRestoreResult>;
+  purge(id: string, cutoff: Date | null): Promise<boolean>;
+}
+
+function ownedRowHandler<Row>(spec: OwnedKindSpec<Row>): TrashKindHandler {
+  const item = (row: Trashed<Row>): TrashItem =>
+    toTrashItem({
+      kind: spec.kind,
+      id: row.id,
+      title: spec.title(row),
+      subtype: null,
+      deletedAt: new Date(row.deleted_at),
+    });
+  return {
+    async listTrashed(userId, opts) {
+      return (await listTrashedOwnedRows<Row>(spec.table, userId, opts)).map(item);
+    },
+    async getTrashed(userId, id) {
+      const found = await getTrashedOwnedRow<Row>(spec.table, userId, id);
+      return typeof found === 'string' ? found : item(found);
+    },
+    trash: spec.trash,
+    restore: spec.restore ?? ((userId, id) => restoreOwnedRow(spec.table, userId, id)),
+    purge: spec.purge,
+    listExpired: (cutoff, limit) => listExpiredOwnedRows(spec.table, cutoff, limit),
+  };
+}
+
+type Titled = { title: string | null };
+
+const titled = (value: string | null, fallback: string): string => value?.trim() || fallback;
+
+const okOr404 = (done: boolean): OwnedTrashResult => (done ? 'ok' : 'not_found');
+
+const userAgentHandler = ownedRowHandler<Titled>({
+  kind: 'user_agent',
+  table: USER_AGENT_TRASH,
+  title: (row) => titled(row.title, 'Unbenannter Agent'),
+  trash: async (userId, id) => okOr404(await deleteUserAgent(userId, id)),
+  purge: purgeUserAgent,
+});
+
+const userTemplateHandler = ownedRowHandler<Titled>({
+  kind: 'user_template',
+  table: USER_TEMPLATE_TRASH,
+  title: (row) => titled(row.title, 'Unbenannte Vorlage'),
+  trash: async (userId, id) => okOr404((await trashUserTemplates(userId, [id])).length > 0),
+  purge: purgeUserTemplate,
+});
+
+const userTextFormHandler = ownedRowHandler<Titled>({
+  kind: 'user_text_form',
+  table: TEXT_FORM_TRASH,
+  title: (row) => titled(row.title, 'Unbenanntes Rezept'),
+  trash: (userId, id) => trashOwnedRow(TEXT_FORM_TRASH, userId, id),
+  purge: purgeTextForm,
+});
+
+const customPromptHandler = ownedRowHandler<Titled>({
+  kind: 'custom_prompt',
+  table: CUSTOM_PROMPT_TRASH,
+  title: (row) => titled(row.title, 'Unbenannter Prompt'),
+  trash: (userId, id) => trashOwnedRow(CUSTOM_PROMPT_TRASH, userId, id),
+  purge: purgeCustomPrompt,
+});
+
+const userSiteHandler = ownedRowHandler<Titled>({
+  kind: 'user_site',
+  table: USER_SITE_TRASH,
+  title: (row) => titled(row.title, 'Unbenannte Website'),
+  trash: (userId, id) => trashOwnedRow(USER_SITE_TRASH, userId, id),
+  restore: restoreUserSite,
+  purge: purgeUserSite,
+});
+
+const recurringTaskHandler = ownedRowHandler<Titled>({
+  kind: 'recurring_task',
+  table: RECURRING_TASK_TRASH,
+  title: (row) => titled(row.title, 'Unbenannte Wiederkehrende Aufgabe'),
+  trash: async (userId, id) => okOr404(await deleteRecurringTask(userId, id)),
+  purge: purgeRecurringTask,
+});
+
+const userLetterheadHandler = ownedRowHandler<Titled>({
+  kind: 'user_letterhead',
+  table: LETTERHEAD_TRASH,
+  title: (row) => titled(row.title, 'Unbenannter Briefkopf'),
+  trash: async (userId, id) => okOr404(isRowId(id) && (await deleteLetterhead(userId, id))),
+  purge: purgeLetterhead,
+});
+
+const userDocumentHandler = ownedRowHandler<Titled>({
+  kind: 'user_document',
+  table: SAVED_TEXT_TRASH,
+  title: (row) => titled(row.title, 'Unbenannter Text'),
+  trash: async (userId, id) => okOr404((await trashSavedTexts(userId, [id])).length > 0),
+  purge: purgeSavedText,
+});
+
+const userKnowledgeHandler = ownedRowHandler<Titled>({
+  kind: 'user_knowledge',
+  table: KNOWLEDGE_TRASH,
+  title: (row) => titled(row.title, 'Unbenannter Eintrag'),
+  trash: (userId, id) => trashOwnedRow(KNOWLEDGE_TRASH, userId, id),
+  purge: (id, cutoff) => getKnowledgeService().purgeUserKnowledge(id, cutoff),
+});
+
+const groupItem = (row: TrashedGroup): TrashItem =>
+  toTrashItem({
+    kind: 'group',
+    id: row.id,
+    title: titled(row.name, 'Unbenanntes Projekt'),
+    subtype: row.group_type,
+    deletedAt: new Date(row.deleted_at),
+  });
+
+/** Rights are creator or admin member, not `user_id` — hence not an owned-row kind. */
+const groupHandler: TrashKindHandler = {
+  async listTrashed(userId, opts) {
+    return (await listTrashedGroups(userId, opts)).map(groupItem);
+  },
+  async getTrashed(userId, id) {
+    const found = await getTrashedGroup(userId, id);
+    return typeof found === 'string' ? found : groupItem(found);
+  },
+  async trash(userId, id) {
+    const result = await trashGroup(userId, id);
+    return result === 'system' ? 'forbidden' : result;
+  },
+  restore: restoreGroup,
+  purge: purgeGroup,
+  listExpired: listExpiredGroups,
+};
+
 export const TRASH_KINDS = {
   collaborative_document: collaborativeDocumentHandler,
   chat_thread: chatThreadHandler,
@@ -290,8 +476,18 @@ export const TRASH_KINDS = {
   document: documentHandler,
   shared_media: sharedMediaHandler,
   subtitler_project: subtitlerProjectHandler,
-} satisfies Partial<Record<TrashKind, TrashKindHandler>>;
+  user_agent: userAgentHandler,
+  user_template: userTemplateHandler,
+  user_text_form: userTextFormHandler,
+  custom_prompt: customPromptHandler,
+  user_site: userSiteHandler,
+  recurring_task: recurringTaskHandler,
+  user_letterhead: userLetterheadHandler,
+  user_document: userDocumentHandler,
+  user_knowledge: userKnowledgeHandler,
+  group: groupHandler,
+} satisfies Record<TrashKind, TrashKindHandler>;
 
-export function trashHandlerFor(kind: TrashKind): TrashKindHandler | null {
-  return (TRASH_KINDS as Partial<Record<TrashKind, TrashKindHandler>>)[kind] ?? null;
+export function trashHandlerFor(kind: TrashKind): TrashKindHandler {
+  return TRASH_KINDS[kind];
 }

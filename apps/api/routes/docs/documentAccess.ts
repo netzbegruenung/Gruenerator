@@ -37,6 +37,7 @@ export async function checkGroupAccess(userId: string, documentId: string): Prom
   const groupAccess = (await db.query(
     `SELECT gcs.content_type, gcs.permissions FROM group_content_shares gcs
      INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+     INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
      WHERE gcs.content_type IN ('collaborative_documents', 'canvas_template')
        AND gcs.content_id = $2
      LIMIT 1`,
@@ -100,6 +101,7 @@ export async function checkDocumentWriteAccess(
   const groupAccess = (await db.query(
     `SELECT gcs.permissions FROM group_content_shares gcs
      INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+     INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
      WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2
      LIMIT 1`,
     [userId, documentId]

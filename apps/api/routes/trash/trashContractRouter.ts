@@ -11,6 +11,7 @@
 import { trashContract, type TrashItem, type TrashKind } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { isUniqueViolation } from '../../services/trash/ownedRowTrash.js';
 import {
   compareTrashKey,
   decodeTrashCursor,
@@ -40,20 +41,25 @@ const FORBIDDEN = {
   status: 403 as const,
   body: { error: 'Nur wer löschen darf, kann wiederherstellen oder endgültig löschen.' },
 };
-const CONFLICT = {
-  status: 409 as const,
-  body: { error: 'Ein Eintrag mit demselben Namen existiert bereits. Bitte zuerst umbenennen.' },
+const CONFLICT_MESSAGE =
+  'Ein Eintrag mit demselben Namen existiert bereits. Bitte zuerst umbenennen.';
+
+/** Where a restore clashes with something other than a name. */
+const CONFLICT_MESSAGE_BY_KIND: Partial<Record<TrashKind, string>> = {
+  user_site:
+    'Die Website lässt sich nicht wiederherstellen: Du hast inzwischen eine andere Website, oder ihre Subdomain ist vergeben.',
 };
 
-function isUniqueViolation(error: unknown): boolean {
-  return (error as { code?: unknown } | null)?.code === '23505';
+function conflict(kind: TrashKind) {
+  return {
+    status: 409 as const,
+    body: { error: CONFLICT_MESSAGE_BY_KIND[kind] ?? CONFLICT_MESSAGE },
+  };
 }
 
 /** The handlers a request covers: one kind, or every registered one. */
-function handlersFor(kind: TrashKind | undefined): TrashKindHandler[] | null {
-  if (!kind) return Object.values(TRASH_KINDS);
-  const handler = trashHandlerFor(kind);
-  return handler ? [handler] : null;
+function handlersFor(kind: TrashKind | undefined): TrashKindHandler[] {
+  return kind ? [trashHandlerFor(kind)] : Object.values(TRASH_KINDS);
 }
 
 /**
@@ -102,7 +108,6 @@ export const trashContractRouter = s.router(trashContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const handlers = handlersFor(args.query.kind);
-      if (!handlers) return NOT_FOUND;
       const before = args.query.cursor ? decodeTrashCursor(args.query.cursor) : null;
       if (args.query.cursor && !before) {
         return { status: 400 as const, body: { error: 'Ungültiger Cursor.' } };
@@ -119,7 +124,6 @@ export const trashContractRouter = s.router(trashContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const handler = trashHandlerFor(args.params.kind);
-      if (!handler) return NOT_FOUND;
       const item = await handler.getTrashed(userId, args.params.id);
       if (item === 'not_found') return NOT_FOUND;
       if (item === 'forbidden') return FORBIDDEN;
@@ -127,10 +131,10 @@ export const trashContractRouter = s.router(trashContract, {
       const result = await handler.restore(userId, args.params.id);
       if (result === 'not_found') return NOT_FOUND;
       if (result === 'forbidden') return FORBIDDEN;
-      if (result === 'conflict') return CONFLICT;
+      if (result === 'conflict') return conflict(args.params.kind);
       return { status: 200 as const, body: item };
     } catch (error) {
-      if (isUniqueViolation(error)) return CONFLICT;
+      if (isUniqueViolation(error)) return conflict(args.params.kind);
       log.error('[trashContract.restore] Error:', error);
       return { status: 500 as const, body: { error: 'Wiederherstellen fehlgeschlagen.' } };
     }
@@ -140,7 +144,6 @@ export const trashContractRouter = s.router(trashContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const handler = trashHandlerFor(args.params.kind);
-      if (!handler) return NOT_FOUND;
       const item = await handler.getTrashed(userId, args.params.id);
       if (item === 'not_found') return NOT_FOUND;
       if (item === 'forbidden') return FORBIDDEN;
@@ -157,7 +160,6 @@ export const trashContractRouter = s.router(trashContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const handlers = handlersFor(args.query.kind);
-      if (!handlers) return NOT_FOUND;
       return { status: 200 as const, body: { purged: await emptyTrash(handlers, userId) } };
     } catch (error) {
       log.error('[trashContract.empty] Error:', error);

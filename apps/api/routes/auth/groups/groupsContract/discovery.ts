@@ -47,6 +47,7 @@ export const discoveryRoutes = {
            FROM groups g
           WHERE g.is_public = TRUE
             AND g.is_active = TRUE
+            AND g.deleted_at IS NULL
             AND COALESCE(g.group_type, 'standard') <> 'personal'
             AND NOT g.is_system
             AND g.audience IN ($2, 'all')
@@ -111,7 +112,7 @@ export const discoveryRoutes = {
       await postgres.ensureInitialized();
 
       const group = (await postgres.queryOne(
-        'SELECT id, name, is_public FROM groups WHERE id = $1 AND is_active = TRUE',
+        'SELECT id, name, is_public FROM groups WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL',
         [groupId],
         { table: 'groups' }
       )) as { id: string; name: string; is_public: boolean } | null;
@@ -247,9 +248,11 @@ export const discoveryRoutes = {
         };
       }
 
-      const group = (await postgres.queryOne('SELECT name FROM groups WHERE id = $1', [groupId], {
-        table: 'groups',
-      })) as { name: string } | null;
+      const group = (await postgres.queryOne(
+        'SELECT name FROM groups WHERE id = $1 AND deleted_at IS NULL',
+        [groupId],
+        { table: 'groups' }
+      )) as { name: string } | null;
 
       await postgres.transaction(async (client) => {
         await postgres.transactionExec(
@@ -339,9 +342,11 @@ export const discoveryRoutes = {
         [reviewerId, requestId]
       );
 
-      const group = (await postgres.queryOne('SELECT name FROM groups WHERE id = $1', [groupId], {
-        table: 'groups',
-      })) as { name: string } | null;
+      const group = (await postgres.queryOne(
+        'SELECT name FROM groups WHERE id = $1 AND deleted_at IS NULL',
+        [groupId],
+        { table: 'groups' }
+      )) as { name: string } | null;
       const groupName = group?.name || 'Gruppe';
 
       void createNotification({

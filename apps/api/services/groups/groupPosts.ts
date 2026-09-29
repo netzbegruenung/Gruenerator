@@ -301,16 +301,3 @@ export async function getGroupPostFile(
     { table: 'group_post_files' }
   )) as GroupPostFileRecord | null;
 }
-
-/** Vor dem Löschen einer Gruppe: welche Dateien danach von der Platte müssen. */
-export async function listGroupPostFilenames(
-  postgres: Pick<PostgresService, 'query'>,
-  groupId: string
-): Promise<string[]> {
-  const rows = (await postgres.query(
-    'SELECT stored_filename FROM group_post_files WHERE group_id = $1',
-    [groupId],
-    { table: 'group_post_files' }
-  )) as Array<{ stored_filename: string }>;
-  return rows.map((r) => r.stored_filename);
-}

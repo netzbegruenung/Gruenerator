@@ -80,12 +80,10 @@ describe('trash cursor', () => {
 });
 
 describe('TRASH_KINDS', () => {
-  it('only registers kinds the contract knows, each with the full handler', () => {
-    const kinds = Object.keys(TRASH_KINDS);
-    expect(kinds.length).toBeGreaterThan(0);
-    for (const kind of kinds) {
-      expect(trashKindSchema.options).toContain(kind);
-      const handler = trashHandlerFor(trashKindSchema.parse(kind));
+  it('has the full handler for every kind the contract knows, and no other', () => {
+    expect(Object.keys(TRASH_KINDS).sort()).toEqual([...trashKindSchema.options].sort());
+    for (const kind of trashKindSchema.options) {
+      const handler = trashHandlerFor(kind);
       for (const method of [
         'listTrashed',
         'getTrashed',
@@ -94,14 +92,9 @@ describe('TRASH_KINDS', () => {
         'purge',
         'listExpired',
       ] as const) {
-        expect(typeof handler?.[method], `${kind}.${method}`).toBe('function');
+        expect(typeof handler[method], `${kind}.${method}`).toBe('function');
       }
     }
-  });
-
-  it('has no handler for a kind that is not wired yet', () => {
-    expect(trashHandlerFor('collaborative_document')).not.toBeNull();
-    expect(trashHandlerFor('group')).toBeNull();
   });
 });
 
