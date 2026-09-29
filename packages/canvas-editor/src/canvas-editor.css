@@ -73,6 +73,14 @@
   touch-action: pan-x pan-y;
 }
 
+/* On a sharepic a finger never scrolls — it moves elements, two fingers zoom.
+   Konva only cancels `touchstart` on shapes, so without this a swipe over an
+   empty spot scrolled the pages. Scrolling stays possible beside and between
+   the pages; on mobile the page strip switches pages. */
+.canvas-editor-layout__canvas .konvajs-content {
+  touch-action: none;
+}
+
 /* ── Zoom (CSS scale) on the entire pages container ── */
 .heterogeneous-multipage__pages-container {
   transform: scale(var(--canvas-zoom, 1));
