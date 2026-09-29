@@ -21,7 +21,7 @@ import {
   tableFeatures,
   useTable,
 } from '@tanstack/react-table';
-import { atom, useAtom } from 'jotai';
+import { atom, Provider, useAtom } from 'jotai';
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon } from 'lucide-react';
 import { createContext, memo, useCallback, useContext } from 'react';
 
@@ -61,6 +61,9 @@ type HeaderGroup<TData extends RowData> = HeaderGroupBase<Features, TData>;
 type Row<TData extends RowData> = RowBase<Features, TData>;
 type Table<TData extends RowData> = TableBase<Features, TData>;
 
+// Local change: view state is scoped per provider instance via a jotai <Provider>
+// (upstream uses module-global atoms shared by all instances). Re-pulling from the
+// kibo-ui registry would reintroduce the globals.
 const sortingAtom = atom<SortingState>([]);
 
 export const TableContext = createContext<{
@@ -80,7 +83,7 @@ export type TableProviderProps<TData extends RowData> = {
   className?: string;
 };
 
-export function TableProvider<TData extends RowData>({
+function TableProviderInner<TData extends RowData>({
   columns,
   data,
   children,
@@ -110,6 +113,14 @@ export function TableProvider<TData extends RowData>({
     >
       <TableRaw className={className}>{children}</TableRaw>
     </TableContext.Provider>
+  );
+}
+
+export function TableProvider<TData extends RowData>(props: TableProviderProps<TData>) {
+  return (
+    <Provider>
+      <TableProviderInner {...props} />
+    </Provider>
   );
 }
 
