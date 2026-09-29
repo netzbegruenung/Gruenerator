@@ -34,18 +34,14 @@ export const MCP_OAUTH_SCOPES_SUPPORTED = [
 ];
 
 /**
- * Was ein dynamisch registrierter Client (RFC 7591) an Rechten bekommt — und
- * damit zugleich seine Obergrenze: `/oauth2/authorize` prüft gegen
- * `client.scopes ?? opts.scopes` und setzt dieselbe Liste ein, wenn der Client
- * gar keinen `scope` schickt (claude.ai lässt ihn oft weg).
+ * Was ein Client bekommt, der an `/oauth2/authorize` keinen `scope` schickt
+ * (claude.ai lässt ihn oft weg). Eingesetzt von `defaultAuthorizeScope`, nicht
+ * von better-auth: dessen Vorgabe wäre `client.scopes`, und das enthält seit
+ * 1.7 bei jedem dynamisch registrierten Client auch `chat:completions` (#3668).
  *
  * `chat:completions` steht hier absichtlich **nicht** drin: „ohne Angabe alles"
  * würde sonst jedem MCP-Konnektor Modellzugriff mitgeben, den niemand
- * angefordert hat. Das Add-in fragt den Scope ausdrücklich an.
- *
- * Falls das Excel-Add-in seinen Client dynamisch registriert, kann es den Scope
- * ab better-auth 1.7 nicht mehr bekommen — DCR speichert immer die Vereinigung
- * aus Default- und Allowed-Scopes (#3668).
+ * angefordert hat. Das Excel-Add-in fragt den Scope ausdrücklich an.
  */
 export const MCP_CLIENT_REGISTRATION_SCOPES = [...OAUTH_BASE_SCOPES, ...MCP_SCOPES];
 
