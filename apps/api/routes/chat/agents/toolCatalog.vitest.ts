@@ -213,13 +213,43 @@ describe('toolCatalog domain tool mounting', () => {
     return buildChatToolCatalog({ agentConfig, sourceRegistry, loop: { sse, state } });
   }
 
-  it('mounts bundestag/abgeordnetenwatch/summarize regardless of the classified intent', () => {
+  it('mounts bundestag/abgeordnetenwatch regardless of the classified intent', () => {
     // The classifier routinely mislabels Bundestag/politician questions as
     // `search`; the loop must still expose those tools so the model can pick.
     const { toolNames } = catalogFor('search');
-    expect(toolNames).toEqual(
-      expect.arrayContaining(['bundestag', 'abgeordnetenwatch', 'summarize'])
+    expect(toolNames).toEqual(expect.arrayContaining(['bundestag', 'abgeordnetenwatch']));
+  });
+
+  // Mounted on every turn, `summarize` was the planner's pick for any ask about
+  // an attachment — live 29.09.2026 a spelling correction of a pasted
+  // newsletter came back as its summary.
+  it('mounts summarize only for a summary ask or the summary intent', () => {
+    expect(catalogFor('search', 'rechtschreibung korrigieren').toolNames).not.toContain(
+      'summarize'
     );
+    expect(catalogFor('produktion', 'übersetze das ins Englische').toolNames).not.toContain(
+      'summarize'
+    );
+    expect(catalogFor('search', 'fasse das Dokument zusammen').toolNames).toContain('summarize');
+    expect(catalogFor('search', 'Überblick erstellen, bitte').toolNames).toContain('summarize');
+    expect(catalogFor('summary').toolNames).toContain('summarize');
+  });
+
+  // A vectorized document is not in the prompt; `summarize` is the only way the
+  // planner gets its full text, so it stays next to `dokumente_lesen`.
+  it('keeps summarize mounted while a vectorized document hangs on the turn', () => {
+    const state = {
+      intent: 'search',
+      enabledTools: {},
+      messages: [{ role: 'user', content: 'worum geht es darin?' }],
+      documentSources: [{ kind: 'document_chat', id: 'doc-1', label: 'Programm.pdf' }],
+    } as unknown as ChatGraphState;
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: { sse: { send: () => {} } as never, state },
+    });
+    expect(toolNames).toEqual(expect.arrayContaining(['summarize', 'dokumente_lesen']));
   });
 
   it('mounts generate_image only for image + explicitly image-phrased agentic turns', () => {
@@ -1217,9 +1247,8 @@ describe('research ban (forbidsNewResearch → no search tools)', () => {
   });
 
   it('leaves everything else mounted — a research ban is not a work ban', () => {
-    const names = catalogFor('Ohne neue Recherche bitte.');
-    expect(names).toContain('summarize');
-    expect(names).toContain('documents');
+    expect(catalogFor('Ohne neue Recherche bitte.')).toContain('documents');
+    expect(catalogFor('Fasse das ohne neue Recherche zusammen.')).toContain('summarize');
   });
 
   it('mounts the full catalog for an ordinary turn', () => {

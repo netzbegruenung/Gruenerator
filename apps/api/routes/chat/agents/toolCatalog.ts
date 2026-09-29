@@ -34,7 +34,10 @@ import { isIntentAllowedForLocale } from '@gruenerator/shared/chat-intents';
 import { tool, type Tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
-import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import {
+  isSummaryAsk,
+  lastUserText,
+} from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { looksLikeRecurringOrder } from '../../../agents/langgraph/ChatGraph/nodes/classifierSignals.js';
 import { forbidsNewResearch } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import {
@@ -715,7 +718,24 @@ NUTZE WENN:
   // tools); a per-turn selector is Phase 3n.
   if (loop) {
     const { sse, state } = loop;
-    tools.summarize = makeSummaryTool({ sse, state });
+    const attachedSources = retrievableAttachedSources(state);
+
+    // `summarize` is the exception to "mounted broadly": it can do exactly one
+    // thing, and its description is the only one that names "die angehängten
+    // Dokumente". Mounted on every turn it was the planner's pick for ANY ask
+    // about an attachment — live 29.09.2026, „rechtschreibung korrigieren" plus
+    // a pasted newsletter under a composer notebook (forced search, `required`)
+    // came back as a summary. A pasted or small attachment is in the prompt in
+    // full, so there `summarize` only helps when someone asks for a summary.
+    // A vectorized document is NOT in the prompt: there it stays mounted beside
+    // `dokumente_lesen` as the only full-text path („worum geht es darin?").
+    if (
+      state.intent === 'summary' ||
+      attachedSources.length > 0 ||
+      isSummaryAsk(state.lastUserTextNoMentions ?? lastUserText(state))
+    ) {
+      tools.summarize = makeSummaryTool({ sse, state });
+    }
 
     // dokumente_lesen: gezielte Frage an die Dokumente, die an DIESEN Turn
     // hängen. Gegated an den Dokumenten selbst, nicht an einer Konfiguration
@@ -727,7 +747,6 @@ NUTZE WENN:
     // Der Vorab-Seed (seedAttachedDocuments) hat die Passagen zur häufigsten
     // Frage schon geholt; dieses Werkzeug ist das Nachfassen, wenn er
     // danebengriff.
-    const attachedSources = retrievableAttachedSources(state);
     if (attachedSources.length > 0) {
       const mehrere = attachedSources.length > 1;
       tools[ATTACHED_DOCS_TOOL] = tool({
