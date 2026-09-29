@@ -35,4 +35,14 @@ describe('invalidateAfterTrashChange', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['my-site'] });
     expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ['user-websites'] });
   });
+
+  it('refreshes the chat mention pickers and the template gallery alongside the page lists', () => {
+    const { qc, invalidate } = spyClient();
+    invalidateAfterTrashChange(qc, 'custom_prompt');
+    invalidateAfterTrashChange(qc, 'collaborative_document');
+    invalidateAfterTrashChange(qc, 'user_template');
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['mention-custom-agents'] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['mention-docs'] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['user-templates', 'docs-and-boards'] });
+  });
 });
