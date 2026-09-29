@@ -18,7 +18,6 @@ import type {
   WebSearchResult,
   DocumentSearchResult,
   AttachmentProcessingResult,
-  KnowledgeEntry,
   SavedText,
   VectorSearchResult,
   FullTextResult,
@@ -63,21 +62,6 @@ class RequestEnricher {
   constructor() {
     this.maxConcurrentUrls = 5;
     this.urlCrawlTimeout = 15000;
-  }
-
-  /**
-   * Format knowledge entries with detailed metadata (matches frontend formatting)
-   * @param {Array} knowledgeData - Raw knowledge entries from database
-   * @returns {Array} Formatted knowledge strings
-   */
-  formatKnowledgeEntries(knowledgeData: KnowledgeEntry[]): string[] {
-    if (!knowledgeData || knowledgeData.length === 0) {
-      return [];
-    }
-
-    return knowledgeData.map((entry) => {
-      return `## ${entry.title}\n${entry.content}`;
-    });
   }
 
   /**
@@ -427,7 +411,7 @@ class RequestEnricher {
         this.performDocumentVectorSearch(
           selectedDocumentIds,
           searchQuery,
-          options.req as {
+          req as {
             user?: { id: string };
             headers?: Record<string, string | string[] | undefined>;
           }
@@ -451,7 +435,7 @@ class RequestEnricher {
     // Fetch saved texts by IDs (if texts selected)
     if (selectedTextIds.length > 0) {
       enrichmentTasks.push(
-        this.fetchTextsByIds(selectedTextIds, options.req as { user?: { id: string } })
+        this.fetchTextsByIds(selectedTextIds, req as { user?: { id: string } } | null)
           .then((result) => ({
             type: 'texts' as const,
             knowledge: result.knowledge,
@@ -929,63 +913,22 @@ class RequestEnricher {
   }
 
   /**
-   * Fetch knowledge entries by IDs from the database
-   */
-  async fetchKnowledgeByIds(
-    knowledgeIds: string[],
-    _req: { user?: { id: string } }
-  ): Promise<DocumentSearchResult> {
-    if (!knowledgeIds || knowledgeIds.length === 0) {
-      console.log('🎯 [RequestEnricher] Knowledge fetch skipped: no IDs provided');
-      return { knowledge: [] };
-    }
-
-    try {
-      console.log(`🎯 [RequestEnricher] Fetching ${knowledgeIds.length} knowledge entries by IDs`);
-
-      // Get database instance
-      const { getPostgresInstance } = await import('../database/services/PostgresService.js');
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      // Fetch knowledge entries from user_knowledge table
-      const knowledgeData = await postgres.query(
-        'SELECT id, title, content FROM user_knowledge WHERE id = ANY($1) AND is_active = true AND deleted_at IS NULL',
-        [knowledgeIds],
-        { table: 'user_knowledge' }
-      );
-
-      if (!knowledgeData || knowledgeData.length === 0) {
-        console.log('🎯 [RequestEnricher] No knowledge entries found for provided IDs');
-        return { knowledge: [] };
-      }
-
-      // Format as knowledge content using new formatter
-      const knowledgeEntries = this.formatKnowledgeEntries(
-        knowledgeData as unknown as KnowledgeEntry[]
-      );
-
-      console.log(
-        `🎯 [RequestEnricher] Successfully fetched ${knowledgeEntries.length} knowledge entries`
-      );
-
-      return { knowledge: knowledgeEntries };
-    } catch (error) {
-      console.log('🎯 [RequestEnricher] Knowledge fetch error:', getErrorMessage(error));
-      return { knowledge: [] };
-    }
-  }
-
-  /**
    * Fetch saved texts by IDs from the database
    */
   async fetchTextsByIds(
     textIds: string[],
-    _req: { user?: { id: string } }
+    req: { user?: { id: string } } | null
   ): Promise<DocumentSearchResult> {
     if (!textIds || textIds.length === 0) {
       console.log('🎯 [RequestEnricher] Texts fetch skipped: no IDs provided');
       return { knowledge: [] };
+    }
+
+    const userId = req?.user?.id;
+
+    if (!userId) {
+      console.log('🎯 [RequestEnricher] Texts fetch skipped: no user ID');
+      return { knowledge: [], textReferences: [] };
     }
 
     try {
@@ -998,8 +941,8 @@ class RequestEnricher {
 
       // Fetch texts from user_documents table with additional metadata
       const textData = await postgres.query(
-        'SELECT id, title, content, document_type, word_count, created_at FROM user_documents WHERE id = ANY($1) AND is_active = true AND deleted_at IS NULL',
-        [textIds],
+        'SELECT id, title, content, document_type, word_count, created_at FROM user_documents WHERE id = ANY($1) AND user_id = $2 AND is_active = true AND deleted_at IS NULL',
+        [textIds, userId],
         { table: 'user_documents' }
       );
 
