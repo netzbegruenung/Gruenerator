@@ -73,18 +73,39 @@ async function registerAddin(): Promise<Response> {
   );
 }
 
-/** Ohne Sitzung leitet `/oauth2/authorize` zum Login — mit dem Scope, den es gewählt hat. */
-async function authorizedScope(clientId: string, scope: string | null): Promise<string[]> {
-  const url = new URL(`${BASE}/oauth2/authorize`);
-  url.searchParams.set('response_type', 'code');
-  url.searchParams.set('client_id', clientId);
-  url.searchParams.set('redirect_uri', REDIRECT_URI);
-  url.searchParams.set('state', 'state-123');
-  url.searchParams.set('code_challenge', 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
-  url.searchParams.set('code_challenge_method', 'S256');
-  if (scope !== null) url.searchParams.set('scope', scope);
+type AuthorizeMethod = 'GET' | 'POST';
 
-  const response = await auth.handler(new Request(url));
+/**
+ * Ohne Sitzung leitet `/oauth2/authorize` zum Login — mit dem Scope, den es gewählt hat.
+ *
+ * POST ist die Formular-Variante aus RFC 6749 §3.1: der Endpunkt liest dann den
+ * Body statt der Query, und der Haken muss dort einsetzen.
+ */
+async function authorizedScope(
+  clientId: string,
+  scope: string | null,
+  method: AuthorizeMethod = 'GET'
+): Promise<string[]> {
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: clientId,
+    redirect_uri: REDIRECT_URI,
+    state: 'state-123',
+    code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+    code_challenge_method: 'S256',
+  });
+  if (scope !== null) params.set('scope', scope);
+
+  const request =
+    method === 'GET'
+      ? new Request(`${BASE}/oauth2/authorize?${params.toString()}`)
+      : new Request(`${BASE}/oauth2/authorize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params.toString(),
+        });
+
+  const response = await auth.handler(request);
   const location = new URL(response.headers.get('location') ?? '', 'https://gruenerator.eu');
   expect(location.pathname).toBe('/login');
   return (location.searchParams.get('scope') ?? '').split(' ');
@@ -96,19 +117,21 @@ describe('dynamic registration and chat:completions', () => {
     expect(response.status).toBe(201);
   });
 
-  it('grants chat:completions to a client that asks for it', async () => {
-    const { client_id } = (await (await registerAddin()).json()) as { client_id: string };
-    expect(await authorizedScope(client_id, 'chat:completions offline_access')).toEqual([
-      'chat:completions',
-      'offline_access',
-    ]);
-  });
+  describe.each<AuthorizeMethod>(['GET', 'POST'])('authorize via %s', (method) => {
+    it('grants chat:completions to a client that asks for it', async () => {
+      const { client_id } = (await (await registerAddin()).json()) as { client_id: string };
+      expect(await authorizedScope(client_id, 'chat:completions offline_access', method)).toEqual([
+        'chat:completions',
+        'offline_access',
+      ]);
+    });
 
-  it('falls back to the default list, without chat:completions, when scope is omitted', async () => {
-    const { client_id } = (await (await registerAddin()).json()) as { client_id: string };
-    const scopes = await authorizedScope(client_id, null);
-    expect(scopes).toEqual(MCP_CLIENT_REGISTRATION_SCOPES);
-    expect(scopes).not.toContain(CHAT_COMPLETIONS_SCOPE);
+    it('falls back to the default list, without chat:completions, when scope is omitted', async () => {
+      const { client_id } = (await (await registerAddin()).json()) as { client_id: string };
+      const scopes = await authorizedScope(client_id, null, method);
+      expect(scopes).toEqual(MCP_CLIENT_REGISTRATION_SCOPES);
+      expect(scopes).not.toContain(CHAT_COMPLETIONS_SCOPE);
+    });
   });
 
   it('gives a client migrated from 1.6 (scopes NULL) the default list too', async () => {
