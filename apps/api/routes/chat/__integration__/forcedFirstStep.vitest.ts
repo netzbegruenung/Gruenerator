@@ -1,29 +1,34 @@
 /**
- * Der erzwungene erste Planer-Schritt gegen das ECHTE Planer-Modell (#3880).
+ * Der erzwungene erste Planer-Schritt (#3880), echte Turns bis zum Modell.
  *
  * Die Harness entscheidet alles bis zum Modell echt — Klassifikator, Router,
  * Werkzeugkatalog, `shouldForceFirstToolCall`, `forcedFirstStepTools` — und
- * fängt den ersten `streamText`-Aufruf des Planers ab. Genau dieser Schritt 0
- * geht dann zweimal an das Produktionsmodell der Planer-Lane
- * (`LOOP_PLANNER_PRIMARY`): einmal mit dem zugeschnittenen `activeTools` (dieser
- * Stand), einmal ohne (master: `required` über den ganzen Katalog, weil
+ * fängt den ersten `streamText`-Aufruf des Planers ab. Zwei Stufen:
+ *
+ * IMMER (CI): jeder Fall muss den ersten Schritt erzwingen, ein passendes
+ * Werkzeug erreichbar halten und keinen der Köder zeigen, zu denen der Planer
+ * unter dem vollen Katalog griff (`media`, `read_pdf_form`, `summarize` …).
+ *
+ * LIVE (`FORCE_LIVE=1` + echter `GREENPT_API_KEY`): derselbe Schritt 0 geht
+ * zweimal an das Produktionsmodell der Planer-Lane (`LOOP_PLANNER_PRIMARY`) —
+ * mit dem Zuschnitt und ohne (master: `required` über den ganzen Katalog, weil
  * `toolScope` im Schattenbetrieb läuft). Gezählt wird, welches Werkzeug der
- * Planer als erstes ruft. Kein Werkzeug läuft: die Aufrufe gehen ohne `execute`
- * hinaus.
- *
- * Kleiner als die Chat-Eval, weil nur der eine Schritt gemessen wird, den die
- * Änderung berührt — ohne Backend, Datenbank oder Keycloak.
- *
- * Läuft NUR mit `FORCE_LIVE=1` und einem echten `GREENPT_API_KEY`:
- *   FORCE_LIVE=1 GREENPT_API_KEY=… npx vitest run routes/chat/__integration__/forcedFirstStep.live.vitest.ts
+ * Planer als erstes ruft; kein Werkzeug läuft, die Aufrufe gehen ohne
+ * `execute` hinaus. Kleiner als die Chat-Eval, weil nur der eine Schritt
+ * gemessen wird, den die Änderung berührt.
+ *   FORCE_LIVE=1 GREENPT_API_KEY=… npx vitest run routes/chat/__integration__/forcedFirstStep.vitest.ts
  * Die Tabelle landet in `FORCE_LIVE_OUT` (Vorgabe: tmpdir), weil `console.log`
  * aus dem Lauf nicht ankommt. GreenPTs Kontingent teilt sich die Produktion —
  * ein Lauf sind CASES × 2 × REPS Aufrufe.
+ *
+ * Der Fake-Store kennt keine Werkzeugschritte früherer Turns (#3891); die
+ * Anschlussfälle legen sie über `ctl.priorSteps` selbst hinein.
  */
 import { writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { type LanguageModel, type ModelMessage, type ToolSet } from 'ai';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const ctl = vi.hoisted(() => ({
@@ -159,7 +164,7 @@ vi.mock('../services/responseStreamingService.js', async (orig) => {
 const { generateText } = await vi.importActual<typeof import('ai')>('ai');
 const { LOOP_PLANNER_PRIMARY } = await import('../agents/autoPolicy.js');
 const { startChatApp, userTurn } = await import('./harness/testApp.js');
-const { runTurn } = await import('./harness/trace.js');
+const { runTurn, installNetworkGuard } = await import('./harness/trace.js');
 const { createProviderStub } = await import('./harness/providerStub.js');
 const { pinChatEnv } = await import('./harness/env.js');
 const { resetThreadStore } = await import('./harness/fakeThreadStore.js');
@@ -195,23 +200,43 @@ const BUERGERANFRAGE = [
   'Mit freundlichen Grüßen, Petra Lindner',
 ].join('\n\n');
 
+/**
+ * Die Werkzeuge, zu denen der Planer unter `required` über den vollen Katalog
+ * griff (#3880 und die Live-Messung dazu) — keins davon holt, was ein
+ * erzwungener Schritt holen soll.
+ */
+const DECOYS = [
+  'media',
+  'find_content',
+  'read_artifact',
+  'summarize',
+  'read_pdf_form',
+  'rezept_laden',
+  'meine_inhalte_laden',
+];
+
 interface Case {
   id: string;
   prompt: string;
   body?: Record<string, unknown>;
-  /** Ein Turn davor im selben Thread, und welche Werkzeuge er rief. */
-  before?: { prompt: string; steps: string[] };
+  locale?: 'de-AT';
+  /** Ein Turn davor im selben Thread, welche Werkzeuge er rief, und ob sie scheiterten. */
+  before?: { prompt: string; steps: string[]; failed?: boolean };
   emptySeed?: boolean;
   /** Die Werkzeuge, die als ERSTER Aufruf zum Auftrag passen. */
   fits: readonly string[];
+  /** Was der erzwungene Schritt NICHT zeigen darf. Vorgabe: `DECOYS`. */
+  without?: readonly string[];
 }
 
-function priorStep(toolName: string): Record<string, unknown> {
+function priorStep(toolName: string, i: number, before: NonNullable<Case['before']>) {
   return {
-    toolCallId: `prior-${toolName}`,
+    toolCallId: `prior-${i}`,
     toolName,
-    args: { query: 'SPD Heizungsgesetz Abstimmung' },
-    result: { results: [{ title: 'Gebäudeenergiegesetz — namentliche Abstimmung' }] },
+    args: { query: before.prompt },
+    ...(before.failed
+      ? { ok: false as const, result: { error: 'Keine Treffer.' } }
+      : { result: { results: [{ title: 'Ein Treffer zur Frage davor' }] } }),
   };
 }
 
@@ -232,10 +257,21 @@ const CASES: Case[] = [
     prompt: 'Was steht im Grundsatzprogramm der Grünen zum Tierschutz?',
     fits: ['gruenerator_search'],
   },
+  // Die eigenen Inhalte öffnen ihre ganze Gruppe — `media` und `read_artifact`
+  // gehören hier dazu.
   {
     id: 'meine-dokumente',
     prompt: 'such in meinen Dokumenten nach dem Antrag zur Radverkehrsstrategie',
     fits: ['documents', 'find_content'],
+    without: ['summarize', 'read_pdf_form', 'rezept_laden', 'meine_inhalte_laden'],
+  },
+  // Österreich: die Bundestags-Werkzeuge sind nicht montiert, die Websuche bleibt.
+  {
+    id: 'recherche-at',
+    locale: 'de-AT',
+    prompt: 'recherchiere die aktuelle Arbeitslosenquote in Österreich',
+    fits: ['web_search'],
+    without: [...DECOYS, 'bundestag'],
   },
   {
     id: 'bundestag',
@@ -253,13 +289,54 @@ const CASES: Case[] = [
     prompt: 'Und die FDP?',
     fits: ['abgeordnetenwatch', 'bundestag', 'web_search'],
   },
-  // Der Seed findet im Anhang nichts — der Fall, den das Review fand.
+  // Parteiwechsel nach einer Programmsuche: die Antwort steht nicht im
+  // Grünen-Korpus, der Schritt muss hinaus können.
+  {
+    id: 'anschlussfrage-partei',
+    before: {
+      prompt: 'Was steht in unserem Wahlprogramm zum Mindestlohn?',
+      steps: ['gruenerator_search'],
+    },
+    prompt: 'Und was sagt die SPD dazu?',
+    fits: ['web_search'],
+  },
+  // Das Protokoll aus #3778: zweimal `notebooks` gescheitert, dann „finde es".
+  // `research_order` feuert vor `followup`, das gescheiterte Werkzeug muss
+  // wiederholbar bleiben. Passend ist auch der Quellenwechsel: „berlin" ist
+  // eine Systemsammlung, die `gruenerator_search` direkt erreicht — live wählt
+  // der Planer genau die, nie die Wiederholung.
+  {
+    id: 'finde-es',
+    before: {
+      prompt: 'was stand in der letzen pressemitteilung im notebook berlin',
+      steps: ['notebooks', 'notebooks'],
+      failed: true,
+    },
+    prompt: 'finde es',
+    fits: ['notebooks', 'gruenerator_search'],
+  },
+  // Der Seed findet im Anhang nichts — der Fall, den das Review fand (#3888).
   {
     id: 'pdf-seed-leer',
     prompt: 'erstelle daraus eine tabelle',
     body: { documentChatIds: ['doc-1'] },
     emptySeed: true,
     fits: ['dokumente_lesen'],
+  },
+  {
+    id: 'pdf-seed-leer-frage',
+    prompt: 'welche Forderungen stehen in dem Dokument?',
+    body: { documentChatIds: ['doc-1'] },
+    emptySeed: true,
+    fits: ['dokumente_lesen'],
+  },
+  // Hier passt der Programmabgleich ebenso wie das Dokument.
+  {
+    id: 'pdf-seed-leer-vergleich',
+    prompt: 'vergleiche das Dokument mit unserem Wahlprogramm',
+    body: { documentChatIds: ['doc-1'] },
+    emptySeed: true,
+    fits: ['dokumente_lesen', 'gruenerator_search'],
   },
   // Die Familie von #3878: Einfügung plus Composer-Notebook.
   {
@@ -291,10 +368,12 @@ type PrepareStep = (arg: { stepNumber: number; steps?: [] }) => {
 };
 
 /** Ohne `execute`: der Planer darf wählen, ausgeführt wird nichts. */
-function withoutExecute(tools: Record<string, object>): Record<string, object> {
+function withoutExecute(tools: ToolSet): ToolSet {
+  // Grenz-Cast: ein Werkzeug ohne `execute` ist gewollt — das SDK gibt den
+  // Aufruf dann nur zurück.
   return Object.fromEntries(
     Object.entries(tools).map(([name, t]) => [name, { ...t, execute: undefined }])
-  );
+  ) as ToolSet;
 }
 
 async function firstCall(
@@ -302,13 +381,15 @@ async function firstCall(
   step0: ReturnType<PrepareStep>,
   activeTools: readonly string[] | null
 ): Promise<string> {
+  // Die Optionen stammen aus dem abgefangenen `streamText`-Aufruf des Loops —
+  // die Casts sind die Grenze zu `Record<string, unknown>`.
   const result = await generateText({
-    model: planner.model as Parameters<typeof generateText>[0]['model'],
+    model: planner.model as LanguageModel,
     system: step0.system ?? (planner.system as string),
-    messages: planner.messages as Parameters<typeof generateText>[0]['messages'] & object,
-    tools: withoutExecute(planner.tools as Record<string, object>) as never,
+    messages: planner.messages as ModelMessage[],
+    tools: withoutExecute(planner.tools as ToolSet),
     toolChoice: 'required',
-    ...(activeTools && { activeTools: [...activeTools] as never }),
+    ...(activeTools && { activeTools: [...activeTools] }),
     ...(typeof planner.temperature === 'number' && { temperature: planner.temperature }),
     ...(typeof planner.maxOutputTokens === 'number' && {
       maxOutputTokens: planner.maxOutputTokens,
@@ -341,21 +422,28 @@ function render(): string {
   return `${lines.join('\n')}\n`;
 }
 
-describe.runIf(LIVE)('forced first planner step — live', () => {
+describe('forced first planner step', () => {
   const pool = createProviderStub();
   let app: Awaited<ReturnType<typeof startChatApp>>;
+  let atApp: Awaited<ReturnType<typeof startChatApp>>;
+  let restoreNetwork: (() => void) | null = null;
 
   beforeAll(async () => {
+    // Nur der Live-Lauf darf hinaus — und nur zum Planer.
+    if (!LIVE) restoreNetwork = installNetworkGuard();
     app = await startChatApp();
+    atApp = await startChatApp({ user: { locale: 'de-AT' } });
   }, 60_000);
 
   afterAll(async () => {
-    writeFileSync(OUT, render(), 'utf8');
+    if (LIVE) writeFileSync(OUT, render(), 'utf8');
     await app?.close();
+    await atApp?.close();
+    restoreNetwork?.();
   });
 
   beforeEach(() => {
-    pinChatEnv({ GREENPT_API_KEY: GREENPT_KEY });
+    pinChatEnv(LIVE ? { GREENPT_API_KEY: GREENPT_KEY } : {});
     resetThreadStore();
     resetMockControls();
     respond.reset();
@@ -370,14 +458,16 @@ describe.runIf(LIVE)('forced first planner step — live', () => {
     '%s',
     async (_id, c) => {
       ctl.emptySeed = c.emptySeed ?? false;
+      const baseUrl = c.locale === 'de-AT' ? atApp.baseUrl : app.baseUrl;
       if (c.before) {
-        const first = await runTurn(app.baseUrl, {
-          messages: [userTurn(c.before.prompt)],
+        const before = c.before;
+        const first = await runTurn(baseUrl, {
+          messages: [userTurn(before.prompt)],
           ...c.body,
         });
-        ctl.priorSteps = c.before.steps.map(priorStep);
+        ctl.priorSteps = before.steps.map((tool, i) => priorStep(tool, i, before));
         ctl.captured.length = 0;
-        await runTurn(app.baseUrl, {
+        await runTurn(baseUrl, {
           messages: [
             userTurn(c.before.prompt, 'm1'),
             { id: 'a1', role: 'assistant', parts: [{ type: 'text', text: 'Eine Antwort.' }] },
@@ -387,22 +477,38 @@ describe.runIf(LIVE)('forced first planner step — live', () => {
           ...c.body,
         });
       } else {
-        await runTurn(app.baseUrl, { messages: [userTurn(c.prompt)], ...c.body });
+        await runTurn(baseUrl, { messages: [userTurn(c.prompt)], ...c.body });
       }
 
       const planner = ctl.captured[0];
       expect(planner, `${c.id}: der Zug erreichte den Loop nicht`).toBeDefined();
       if (!planner) return;
-      const model = planner.model as { modelId?: string };
-      expect(model.modelId, `${c.id}: nicht die Produktions-Lane des Planers`).toBe(
-        LOOP_PLANNER_PRIMARY.model
-      );
 
       const prepare = planner.prepareStep as PrepareStep;
       const step0 = prepare({ stepNumber: 0, steps: [] });
       // Ohne Schattenbetrieb hätte master schon einen Zuschnitt gehabt — dann
       // verglichen die zwei Arme nicht mehr master gegen diesen Stand.
       expect(prepare({ stepNumber: 1, steps: [] }).activeTools).toBeUndefined();
+
+      expect(step0.toolChoice, `${c.id}: kein Zwang ohne benanntes Werkzeug`).toBe('required');
+      const narrowed = step0.activeTools ?? [];
+      expect(
+        narrowed.length,
+        `${c.id}: der erzwungene Schritt sieht den vollen Katalog`
+      ).toBeGreaterThan(0);
+      expect(
+        c.fits.some((f) => narrowed.includes(f)),
+        `${c.id}: kein passendes Werkzeug in [${narrowed.join(', ')}]`
+      ).toBe(true);
+      for (const decoy of c.without ?? DECOYS) {
+        expect(narrowed, `${c.id}: ${decoy} im erzwungenen Schritt`).not.toContain(decoy);
+      }
+
+      if (!LIVE) return;
+      const model = planner.model as { modelId?: string };
+      expect(model.modelId, `${c.id}: nicht die Produktions-Lane des Planers`).toBe(
+        LOOP_PLANNER_PRIMARY.model
+      );
 
       const row: Row = {
         id: c.id,
@@ -416,8 +522,6 @@ describe.runIf(LIVE)('forced first planner step — live', () => {
         branch: [],
       };
       rows.push(row);
-      expect.soft(step0.toolChoice, `${c.id}: kein Zwang ohne benanntes Werkzeug`).toBe('required');
-      if (step0.toolChoice !== 'required') return;
 
       for (let i = 0; i < REPS; i++) {
         row.master.push(await firstCall(planner, step0, null));
@@ -433,6 +537,6 @@ describe.runIf(LIVE)('forced first planner step — live', () => {
         )
         .toBeGreaterThanOrEqual(fitCount(row.master, c.fits));
     },
-    180_000
+    LIVE ? 180_000 : 15_000
   );
 });
