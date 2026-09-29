@@ -129,7 +129,31 @@ describe('TrashPage', () => {
         true
       )
     );
-    expect(await screen.findByText('Der Papierkorb ist leer.')).toBeInTheDocument();
+  });
+
+  it('says the filter is empty, not the trash, when a filtered kind has no items', async () => {
+    serveTrash([item()]);
+    const { user } = renderWithProviders(<TrashPage />);
+    await screen.findByRole('list');
+
+    await user.click(screen.getByRole('combobox', { name: 'Inhalte filtern' }));
+    await user.click(await screen.findByRole('option', { name: 'Rezept' }));
+
+    expect(await screen.findByText('Keine gelöschten Inhalte dieser Art.')).toBeInTheDocument();
+    expect(screen.queryByText('Der Papierkorb ist leer.')).not.toBeInTheDocument();
+  });
+
+  it('keeps „Papierkorb leeren“ enabled under a filter whose view is empty', async () => {
+    serveTrash([item()]);
+    const { user } = renderWithProviders(<TrashPage />);
+    await screen.findByRole('list');
+
+    await user.click(screen.getByRole('combobox', { name: 'Inhalte filtern' }));
+    await user.click(await screen.findByRole('option', { name: 'Rezept' }));
+    await screen.findByText('Keine gelöschten Inhalte dieser Art.');
+
+    // The button empties every kind, and the trash still holds a document.
+    expect(screen.getByRole('button', { name: /Papierkorb leeren/ })).toBeEnabled();
   });
 
   it('restores an item and removes its row', async () => {
