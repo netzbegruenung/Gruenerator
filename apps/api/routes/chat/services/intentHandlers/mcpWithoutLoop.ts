@@ -4,9 +4,10 @@
  * Die MCP-Werkzeuge eines Servers existieren NUR in der agentischen Schleife —
  * `executeIntentPipeline` hat für `mcp` keinen Zweig, und `searchNode` bricht
  * für diesen Intent ohne Abruf ab. `decideRunAgentic` lässt den Turn deshalb
- * über `mustLoop` bedingungslos ins Gate, aber drei Einzeldurchlauf-Notausschalter
- * greifen auch danach noch: ein Verbund-Agent, ein zweiter Intent und ein
- * Bildanhang. Trifft einer davon, lief der Turn bis hierher stumm als
+ * über `mustLoop` bedingungslos ins Gate, aber zwei Einzeldurchlauf-Notausschalter
+ * greifen auch danach noch: ein Verbund-Agent und ein zweiter Intent. (Ein
+ * Bildanhang war der dritte, bis der Loop Bilder über `bild_ansehen` lesen
+ * konnte, #3841.) Trifft einer davon, lief der Turn bis hierher stumm als
  * gewöhnliche Antwort aus dem Gedächtnis weiter — mit dem gewählten Server
  * ungefragt und ohne ein Wort darüber.
  *
@@ -58,13 +59,8 @@ const SCRAPE_URL: DeclineReason = {
   remedy: 'den Link weglassen und ihn getrennt zusammenfassen lassen',
 };
 
-const IMAGE: DeclineReason = {
-  cause: 'Anfragen an einen verbundenen Server können keine Bildanhänge verarbeiten',
-  remedy: 'Bild entfernen oder die Frage ohne den Bildanhang erneut stellen',
-};
-
 /**
- * Auffang, falls die Kette hier ankommt, ohne dass einer der drei Schalter
+ * Auffang, falls die Kette hier ankommt, ohne dass einer der zwei Schalter
  * greift. Heute unerreichbar (die vierte Sperre `hasSelectedNotebook` hebt
  * `mustLoop` für `mcp` auf, und `forcedLoop` deckt `forcedTool`), aber eine
  * neue Sperre in `decideRunAgentic` fiele sonst still auf den letzten Grund
@@ -100,18 +96,17 @@ function composeMessage(reasons: DeclineReason[]): string {
  * ALLE zutreffenden Notausschalter, nicht nur der erste.
  *
  * Die Reihenfolge ist die Kurzschluss-Kette aus `decideRunAgentic`
- * (`!isCompound` → `secondaryAllowed` → `!hasImageAttachments`); welcher davon
+ * (`!isCompound` → `secondaryAllowed`); welcher davon
  * dort zuerst greift, ist für die Person aber bedeutungslos — die Kette liefert
  * so oder so `false`. Nennte die Meldung nur einen von zweien, befolgte sie den
  * genannten Rat und würde erneut abgewiesen.
  */
-function reasonsFor(state: ChatGraphState, hasImageAttachments: boolean): DeclineReason[] {
+function reasonsFor(state: ChatGraphState): DeclineReason[] {
   const reasons: DeclineReason[] = [];
   if (state.isCompound) reasons.push(COMPOUND);
   if (state.secondaryIntent != null) {
     reasons.push(state.secondaryIntent === 'scrape_url' ? SCRAPE_URL : SECONDARY);
   }
-  if (hasImageAttachments) reasons.push(IMAGE);
   return reasons.length > 0 ? reasons : [UNKNOWN];
 }
 
@@ -122,12 +117,8 @@ function reasonsFor(state: ChatGraphState, hasImageAttachments: boolean): Declin
  * {@link reportUnavailableSources}: der Aufrufer reicht denselben State weiter,
  * den der Respond-Knoten danach liest.
  */
-export function reportMcpWithoutLoop(
-  sse: SSEWriter,
-  state: ChatGraphState,
-  hasImageAttachments: boolean
-): void {
-  const reasons = reasonsFor(state, hasImageAttachments);
+export function reportMcpWithoutLoop(sse: SSEWriter, state: ChatGraphState): void {
+  const reasons = reasonsFor(state);
   const message = composeMessage(reasons);
   sendChatWarning(sse, 'mcp_not_consulted', message);
   state.degradationNotes = [

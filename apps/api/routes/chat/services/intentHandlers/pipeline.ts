@@ -243,7 +243,7 @@ export async function executeIntentPipeline(opts: {
       // sagt das, statt still aus dem Gedächtnis zu antworten. Vor dem
       // Auffangzweig, der sonst `searchNode` für einen Intent riefe, der dort
       // `break` ohne Abruf macht.
-      reportMcpWithoutLoop(sse, finalState, imageAttachments.length > 0);
+      reportMcpWithoutLoop(sse, finalState);
     } else if (
       currentIntent !== 'produktion' &&
       currentIntent !== 'direct' &&

@@ -435,6 +435,47 @@ export function looksLikeCompoundGeneration(raw: string): boolean {
   return (GENERATION_NOUN_RE.test(t) || hasExplicitSharepicWord(t)) && RESEARCH_SIGNAL_RE.test(t);
 }
 
+// The ask points at the picture: an image noun, a seeing verb, or a bare
+// deictic ending ("Was ist das?", "Wer ist das hier?"). Noun forms are spelled
+// out so `bild` does not also claim "Bildung".
+const IMAGE_REFERENCE_RE =
+  /\b(bild(?:er|ern|es|s|chen)?|fotos?|fotografie|screenshots?|grafik(?:en)?|logos?|plakate?s?|motive?s?|abbildung(?:en)?|flyers?|siehst|sieht\s+man|zu\s+sehen|erkenn\w*|abgebildet|drauf|darauf|beschreib\w*|alt-?text\w*)\b|\b(das|dies|dieses|hier|da)\s*[?.!]*\s*$/i;
+
+// The answer lies OUTSIDE the picture: what someone said or demanded, how recent
+// something is, or where to look it up. RESEARCH_SIGNAL_RE counts as well.
+const BEYOND_THE_IMAGE_RE =
+  /\b(zuletzt|neulich|heute|gestern|gesagt|ge[äa]u(?:ß|ss)ert|gefordert|hintergr[üu]nd\w*|internet|online|web|google)\b/i;
+
+/**
+ * An image turn whose question the picture itself answers — "Was siehst du?",
+ * "Passt das Logo?", "Was steht auf dem Plakat?".
+ *
+ * Those stay single-pass (#3841): there a vision model reads the pixels
+ * directly, while the loop can only ask about the image through `bild_ansehen`
+ * and pays a planner step on top. A question that points past the picture
+ * ("Wer sind die Leute, und was haben sie zuletzt gesagt?") is not image-only
+ * and takes the normal gate.
+ *
+ * Errs towards the loop: an image question it misses still gets answered there,
+ * one tool call later.
+ */
+export function looksLikeImageOnlyAsk(raw: string): boolean {
+  const t = (raw ?? '').trim();
+  if (!IMAGE_REFERENCE_RE.test(t)) return false;
+  return !RESEARCH_SIGNAL_RE.test(t) && !BEYOND_THE_IMAGE_RE.test(t) && !PERSONAL_DATA_RE.test(t);
+}
+
+const PIXEL_INTENTS: ReadonlySet<string> = new Set(['image', 'image_edit']);
+
+/**
+ * An image turn whose intent works on the pixels themselves (generate from or
+ * edit the attachment). No loop tool does that, so these stay single-pass on
+ * every path; every other image turn can read the image via `bild_ansehen`.
+ */
+export function isPixelTurn(hasImageAttachments: boolean, intent: string): boolean {
+  return hasImageAttachments && PIXEL_INTENTS.has(intent);
+}
+
 // An instruction to MODIFY the open document/board (editor sidebars). Catches
 // the edit verbs and "als/ins <artifact-part>" targets. Used with a research
 // signal to detect a compound "recherchiere X UND bau es ins Dokument ein" turn.
@@ -763,6 +804,8 @@ export interface EditToolLoopInput {
   /** The turn carries a selected notebook. See {@link AgenticDecisionInput}. */
   hasSelectedNotebook: boolean;
   hasImageAttachments: boolean;
+  /** The classifier's proposal — only read to keep the pixel intents out. */
+  intent: string;
   secondaryIntent: string | null;
 }
 
@@ -789,7 +832,10 @@ export function decideEditToolLoop(p: EditToolLoopInput): boolean {
     !p.forcedTool &&
     !p.isCompound &&
     !p.hasSelectedNotebook &&
-    !p.hasImageAttachments &&
+    // Only the pixel intents: every other image turn reads the image through
+    // `bild_ansehen`, so "trag die Zahlen vom Foto in die Tabelle ein" can edit
+    // (#3841). No image-only-question rule here — a sidebar loops every turn.
+    !isPixelTurn(p.hasImageAttachments, p.intent) &&
     p.secondaryIntent == null
   );
 }
@@ -870,7 +916,9 @@ export interface AgenticDecisionInput {
   secondaryIntent: string | null;
   /** Compound research+generation sharepic turn (fat tool mounted). */
   compoundGeneration: boolean;
-  /** image_edit / vision turns stay single-pass. */
+  /** The turn carries image attachments. The loop reads them through
+   *  `bild_ansehen`; which image turns still stay single-pass is
+   *  `imageStaysSinglePass` in {@link decideRunAgentic}. */
   hasImageAttachments: boolean;
   /** A fill ask ("füll das aus") on a thread that has a REACHABLE form — a PDF
    *  whose bytes were kept because `isFillablePdf` accepted it. Precomputed by
@@ -943,7 +991,8 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
     p.secondaryIntent == null || (compoundGen && p.secondaryIntent === 'scrape_url');
   // `mcp` is the ONLY executor for its turns (the legacy mcpToolNode was removed),
   // so it always enters the loop — independent of CHAT_AGENT_LOOP and of inLoopSet.
-  // The single-pass kill-switches below (compound / image / secondary) still apply.
+  // The single-pass kill-switches below (compound / secondary) still apply; an
+  // image no longer holds it back (`explicitLoopReason`).
   const gateOpen = p.mustLoop || (p.loopEnabled && inLoopSet);
   // Zwei Ausnahmen aus zwei Gründen, die lange derselbe waren.
   //
@@ -958,13 +1007,31 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   // Einzelwerkzeug an". Es hebt NUR den forcedTool-Notausschalter auf; das
   // Gate und die Notebook-Sperre bleiben, weil ein Intent mit eigenem
   // Executor beides nicht braucht.
+  //
+  // Bilder hielten bis #3841 JEDEN Turn im Einzeldurchlauf, weil der Loop keine
+  // Pixel sieht. Seit `bild_ansehen` liest er sie über ein Werkzeug, und draussen
+  // bleiben nur noch zwei Fälle: die Pixel-Intents, die am Bild selbst arbeiten,
+  // und eine Frage, die das Bild allein beantwortet — dort liest ein
+  // Vision-Modell die Pixel direkt. Ein ausdrücklicher Grund für die Schleife
+  // (Konnektor, Gedächtnis, Formular, Zwang) schlägt diese Vermutung.
+  // `forcedLoop` is a property of the intent; only with `forcedTool` is it a
+  // mention the person made.
+  const explicitLoopReason =
+    p.mustLoop ||
+    (p.forcedTool && p.forcedLoop) ||
+    p.hasManagedSources === true ||
+    p.isPdfFillRequest ||
+    memoryRequest;
+  const imageStaysSinglePass =
+    isPixelTurn(p.hasImageAttachments, p.intent) ||
+    (p.hasImageAttachments && !explicitLoopReason && looksLikeImageOnlyAsk(p.lastUserText));
   const runAgentic =
     gateOpen &&
     (!p.forcedTool || p.forcedLoop) &&
     !p.isCompound &&
     (!p.hasSelectedNotebook || p.mustLoop) &&
     secondaryAllowed &&
-    !p.hasImageAttachments;
+    !imageStaysSinglePass;
   recordDecision('router.run_agentic', runAgentic ? 'loop' : 'single_pass', {
     inputs: {
       intent: p.intent,
@@ -984,6 +1051,8 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       selfContained,
       memoryRequest,
       hasOwnMaterial: p.hasOwnMaterial === true,
+      // Only on image turns, so the imageless decision maps keep their columns.
+      ...(p.hasImageAttachments && { imageStaysSinglePass }),
     },
   });
   return runAgentic;
