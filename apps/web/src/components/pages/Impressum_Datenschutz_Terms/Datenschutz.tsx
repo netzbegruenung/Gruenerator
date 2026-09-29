@@ -46,13 +46,17 @@
  * (`apps/api/scripts/generate-legal-docx.mjs`), und
  * `scripts/check-privacy-subprocessors.mjs` bricht ab, wenn ein Host aus
  * `documentation/src/generated/models.json` hier keine Zeile hat.
+ *
+ * Am 30.09.2026 um die Fehlerberichte der Mobile-App ergänzt: welche Felder
+ * gesendet und welche abgeschaltet sind, steht in
+ * `apps/mobile/services/errorReporting.ts`.
  */
 
 const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 23. September 2026</p>
+      <p>Stand: 30. September 2026</p>
 
       <h2>Einleitung</h2>
       <p>
@@ -521,6 +525,13 @@ const Datenschutz = () => {
         der EU. Verarbeitet werden Fehlerberichte, Stack-Traces, Browserinformationen und
         IP-Adressen; eine Weitergabe an Dritte findet nicht statt. Löschung nach 90 Tagen.
         Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO.
+      </p>
+      <p>
+        Auch die GRÜNERATOR-App für iOS und Android meldet technische Fehler an diese
+        GlitchTip-Instanz, und zwar nur aus veröffentlichten App-Versionen. Übermittelt werden
+        Fehlermeldung und Stack-Trace, die App-Version sowie technische Geräteangaben (z. B.
+        Gerätemodell, Betriebssystem und Spracheinstellung). Nicht übermittelt werden
+        Bildschirmfotos, Konsolenausgaben, Deine Eingaben oder eine Nutzerkennung.
       </p>
 
       <h3>Qualitätssicherung der KI-Chat-Funktion (Langfuse)</h3>
