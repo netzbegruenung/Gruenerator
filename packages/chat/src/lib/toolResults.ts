@@ -237,6 +237,13 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'file',
     accent: 'knowledge',
   },
+  // F1: German wire name. Reads an image attached to this turn (#3841).
+  bild_ansehen: {
+    label: 'Bildanalyse',
+    activeLabel: 'Sehe mir das Bild an',
+    iconKey: 'image',
+    accent: 'knowledge',
+  },
   // F1: German wire name, and it reads slices rather than whole documents.
   dokumente_lesen: {
     label: 'Dokumente',

@@ -111,7 +111,10 @@ export async function runToolApprovalResume(params: {
       finalState: classifiedState,
       // Neu gebaut statt aus Redis geholt: derselbe Weg wie im Erst-Zug, und
       // die Nachricht hängt an Zustandsfeldern, die sich geändert haben können.
-      systemMessage: await buildSystemMessage(classifiedState, { retrievalExpected: true }),
+      systemMessage: await buildSystemMessage(classifiedState, {
+        retrievalExpected: true,
+        loop: true,
+      }),
       messages: requestContext.validMessages as ModelMessage[],
       ...(requestContext.modelId != null && { modelId: requestContext.modelId }),
       requestId: `approval_resume_${Date.now()}`,

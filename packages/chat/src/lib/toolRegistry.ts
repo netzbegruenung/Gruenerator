@@ -81,6 +81,7 @@ export const UI_TOOL_NAMES = z.enum([
   'product_knowledge',
   'expand_attachment',
   'dokumente_lesen',
+  'bild_ansehen',
   'search_threads',
   'read_artifact',
   'memory',
@@ -951,6 +952,10 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
     kind: 'citations',
     citations: parseSearchCitations(r),
   })),
+  bild_ansehen: entry('bild_ansehen', 'text-note', (a, r) => {
+    const text = getString(r, 'error') ?? getString(r, 'antwort');
+    return text ? { kind: 'text-note', text } : parseGenericFallback(a, r);
+  }),
   // Never the result's `hinweis` — it is addressed to the model, not the reader.
   meine_inhalte_laden: entry('meine_inhalte_laden', 'text-note', () => ({
     kind: 'text-note',

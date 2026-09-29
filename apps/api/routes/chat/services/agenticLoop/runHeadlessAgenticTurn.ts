@@ -145,7 +145,10 @@ export async function runHeadlessAgenticTurn(
 
   // `retrievalExpected` wie im Request-Pfad: der Prompt entsteht, bevor ein
   // Tool lief — eine Zitatzahl von 0 sagt hier nichts über die Antwort.
-  const baseSystem = await deps.buildSystemMessage(finalState, { retrievalExpected: true });
+  const baseSystem = await deps.buildSystemMessage(finalState, {
+    retrievalExpected: true,
+    loop: true,
+  });
   const systemMessage = `${baseSystem}${p.longForm ? DOCUMENT_MODE : COMMENT_MODE}${NO_QUESTIONS_MODE}`;
 
   const messages: ModelMessage[] = [
