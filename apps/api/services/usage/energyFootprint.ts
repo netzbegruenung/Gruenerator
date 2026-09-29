@@ -86,6 +86,16 @@ export interface EnergyCoefficients {
   basis: 'measured' | 'bound';
 }
 
+// Top of the bracket (see BOUND_FLOOR below); declared here because MODEL_ENERGY
+// reads it at module load. The three unmetered Mistral entries spread it, so one
+// edit moves all of them.
+const BOUND_CEILING: EnergyCoefficients = {
+  mWhPerOutputToken: 4.519,
+  mWhPerInputToken: 0.0287,
+  mWhFixed: 13.26,
+  basis: 'bound',
+};
+
 /**
  * Measured 2026-07-31 against api.greenpt.ai with `apps/api/scripts/probeGreenptImpact.ts`
  * (35 runs: output lengths 8/60/200/400/800/1200 plus a 3900-token prompt to
@@ -253,24 +263,15 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
   // `basis: 'bound'` propagates to the API and the UI, and the scale narrows
   // the day someone meters the lane.
   'mistral-small-4-119b': {
-    mWhPerOutputToken: 4.519,
-    mWhPerInputToken: 0.0287,
-    mWhFixed: 13.26,
-    basis: 'bound',
+    ...BOUND_CEILING,
   },
   // Melious' name for the same weights (loop planner second stage,
   // LOOP_PLANNER_HEALTHY_ALT); only used when the impact capture came back empty.
   'mistral-small-4-119b-instruct': {
-    mWhPerOutputToken: 4.519,
-    mWhPerInputToken: 0.0287,
-    mWhFixed: 13.26,
-    basis: 'bound',
+    ...BOUND_CEILING,
   },
   'pixtral-large-latest': {
-    mWhPerOutputToken: 4.519,
-    mWhPerInputToken: 0.0287,
-    mWhFixed: 13.26,
-    basis: 'bound',
+    ...BOUND_CEILING,
   },
 };
 
@@ -1017,13 +1018,6 @@ const BOUND_FLOOR: EnergyCoefficients = {
   mWhPerOutputToken: 0.811,
   mWhPerInputToken: 0.0003,
   mWhFixed: 11.05,
-  basis: 'bound',
-};
-
-const BOUND_CEILING: EnergyCoefficients = {
-  mWhPerOutputToken: 4.519,
-  mWhPerInputToken: 0.0287,
-  mWhFixed: 13.26,
   basis: 'bound',
 };
 
