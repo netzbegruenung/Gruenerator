@@ -82,7 +82,7 @@ export function ContextControls({
         ? { color: activeFloatingModule?.data.fill || '#FFFFFF', variant: 'swatch' as const }
         : null;
     }
-    if (type === 'shape') {
+    if (type === 'shape' || type === 'pill-badge' || type === 'circle-badge') {
       return { color: activeFloatingModule?.data.fill ?? '#000000', variant: 'swatch' as const };
     }
     // Assets are fixed-color brand graphics (PNG/SVG files) — AssetPrimitive
