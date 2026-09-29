@@ -222,16 +222,16 @@ describe('toolCatalog domain tool mounting', () => {
 
   // Mounted on every turn, `summarize` was the planner's pick for any ask about
   // an attachment — live 29.09.2026 a spelling correction of a pasted
-  // newsletter came back as its summary.
-  it('mounts summarize only for a summary ask or the summary intent', () => {
+  // newsletter came back as its summary. Gated on state, not wording: the
+  // wording alone mounts nothing.
+  it('mounts summarize for the summary intent, not for any other turn', () => {
     expect(catalogFor('search', 'rechtschreibung korrigieren').toolNames).not.toContain(
       'summarize'
     );
     expect(catalogFor('produktion', 'übersetze das ins Englische').toolNames).not.toContain(
       'summarize'
     );
-    expect(catalogFor('search', 'fasse das Dokument zusammen').toolNames).toContain('summarize');
-    expect(catalogFor('search', 'Überblick erstellen, bitte').toolNames).toContain('summarize');
+    expect(catalogFor('search', 'fasse das zusammen').toolNames).not.toContain('summarize');
     expect(catalogFor('summary').toolNames).toContain('summarize');
   });
 
@@ -1248,7 +1248,7 @@ describe('research ban (forbidsNewResearch → no search tools)', () => {
 
   it('leaves everything else mounted — a research ban is not a work ban', () => {
     expect(catalogFor('Ohne neue Recherche bitte.')).toContain('documents');
-    expect(catalogFor('Fasse das ohne neue Recherche zusammen.')).toContain('summarize');
+    expect(catalogFor('Ohne neue Recherche bitte.')).toContain('boards_tasks');
   });
 
   it('mounts the full catalog for an ordinary turn', () => {

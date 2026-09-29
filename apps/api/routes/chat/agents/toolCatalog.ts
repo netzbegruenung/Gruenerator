@@ -34,10 +34,7 @@ import { isIntentAllowedForLocale } from '@gruenerator/shared/chat-intents';
 import { tool, type Tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
-import {
-  isSummaryAsk,
-  lastUserText,
-} from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { looksLikeRecurringOrder } from '../../../agents/langgraph/ChatGraph/nodes/classifierSignals.js';
 import { forbidsNewResearch } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import {
@@ -720,20 +717,16 @@ NUTZE WENN:
     const { sse, state } = loop;
     const attachedSources = retrievableAttachedSources(state);
 
-    // `summarize` is the exception to "mounted broadly": it can do exactly one
-    // thing, and its description is the only one that names "die angehängten
-    // Dokumente". Mounted on every turn it was the planner's pick for ANY ask
-    // about an attachment — live 29.09.2026, „rechtschreibung korrigieren" plus
-    // a pasted newsletter under a composer notebook (forced search, `required`)
-    // came back as a summary. A pasted or small attachment is in the prompt in
-    // full, so there `summarize` only helps when someone asks for a summary.
-    // A vectorized document is NOT in the prompt: there it stays mounted beside
-    // `dokumente_lesen` as the only full-text path („worum geht es darin?").
-    if (
-      state.intent === 'summary' ||
-      attachedSources.length > 0 ||
-      isSummaryAsk(state.lastUserTextNoMentions ?? lastUserText(state))
-    ) {
+    // `summarize` is the exception to "mounted broadly", and it is gated on
+    // STATE, not on wording: it can only add something when the material is NOT
+    // already in the prompt. A pasted or small attachment is there in full —
+    // the writer can summarise it itself, and mounted anyway `summarize` was
+    // the planner's pick for any ask about it (live 29.09.2026: „rechtschreibung
+    // korrigieren" on a pasted newsletter, forced search, came back as a
+    // summary). A vectorized document is not in the prompt, so it keeps
+    // `summarize` beside `dokumente_lesen` as its only full-text path; the
+    // `summary` intent brings its own material (documents or the thread).
+    if (state.intent === 'summary' || attachedSources.length > 0) {
       tools.summarize = makeSummaryTool({ sse, state });
     }
 
