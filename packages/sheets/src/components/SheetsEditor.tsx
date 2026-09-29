@@ -58,8 +58,14 @@ export function SheetsEditor({
   const setCurrentUserRef = useRef<((user: SheetCurrentUser) => void) | null>(null);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const host = containerRef.current;
+    if (!host) return;
+    // One mount node per instance: Univer keys its React root by container and
+    // is disposed late (see cleanup), so a re-run of this effect must not share
+    // a node with the instance still waiting to be torn down.
+    const container = document.createElement('div');
+    container.className = 'gruenerator-sheets-editor__mount';
+    host.appendChild(container);
 
     const { univer, univerAPI, setCurrentUser } = createUniverInstance({
       container,
@@ -89,8 +95,14 @@ export function SheetsEditor({
       bridge.dispose();
       apiRef.current = null;
       setCurrentUserRef.current = null;
-      univerAPI.dispose();
-      univer.dispose();
+      container.remove();
+      // Not synchronously: inside React's commit phase Univer's own
+      // root.unmount() is only scheduled, so its UI (e.g. the shortcut panel)
+      // outlives the disposed LocaleService and throws "Locale not initialized".
+      queueMicrotask(() => {
+        univerAPI.dispose();
+        univer.dispose();
+      });
     };
     // darkMode changes are applied reactively below, not by re-creating.
     // eslint-disable-next-line react-hooks/exhaustive-deps
