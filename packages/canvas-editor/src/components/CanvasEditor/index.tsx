@@ -835,9 +835,11 @@ function CanvasEditorInner({
   // the selection's area — an "Auswahl" block at the top of the sheet.
   // Render only when the canvas has reported an actual element selection (not
   // merely because delete-page is available on a multi-page doc — page ops live
-  // in the page toolbar / thumbnail strip). The delete-page action still rides
-  // along in the bar while an element is selected. Only one of the two bars is
-  // mounted per viewport to avoid a hidden duplicate React tree.
+  // in the page toolbar / thumbnail strip). While an element is selected, the
+  // delete-page action rides along in the desktop card and the mobile sheet's
+  // "Auswahl" block, not in the mobile bottom bar (`hideObjectActions`). Only
+  // one of the two bars is mounted per viewport to avoid a hidden duplicate
+  // React tree.
   const contextControlsProps = toolbarState
     ? {
         selectedElement: toolbarState.selectedElement ?? null,
