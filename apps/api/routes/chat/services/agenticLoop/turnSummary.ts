@@ -6,6 +6,7 @@
  * sichtbar werden KANN, und beide Male hatte sie es weggefiltert (siehe die
  * Kommentare unten). Was sie zeigt, ist eine Aussage, keine Formatierung.
  */
+import { type ForceReason } from './forceFirstToolCall.js';
 import { readMcpResult, type PersistedStep } from './types.js';
 
 import type { AnswerReplacement } from './loopEngine.js';
@@ -37,6 +38,16 @@ export function logTurnSummary(input: {
    * lässt, ob das Tor scharf geschaltet werden darf.
    */
   toolScope: { enforced: boolean; deferred: number; misses: readonly string[] } | null;
+  /**
+   * Warum der erste Schritt einen Aufruf verlangte und worauf er beschränkt
+   * war — `named` für ein benanntes Werkzeug, `tools` für den Zuschnitt,
+   * beides null für den vollen Katalog. Null, wenn nichts erzwungen war.
+   */
+  forceScope?: {
+    reason: ForceReason;
+    tools: readonly string[] | null;
+    named: string | null;
+  } | null;
   onInfo: (message: string) => void;
 }): void {
   // Per-turn tool-outcome breakdown so a silent connector failure is visible in
@@ -74,6 +85,10 @@ export function logTurnSummary(input: {
           scope.misses.length > 0 ? ` scopeMiss=[${scope.misses.join(', ')}]` : ''
         }`
       : '';
+  const force = input.forceScope;
+  const forceInfo = force
+    ? ` force=${force.reason}:${force.named ?? (force.tools ? String(force.tools.length) : 'none')}`
+    : '';
   input.onInfo(
     `[Agentic] model=${input.modelName} mode=${input.mode}${
       input.plannerName ? ` planner=${input.plannerName} synth=${input.synthName}` : ''
@@ -81,6 +96,6 @@ export function logTurnSummary(input: {
       input.carriedCount > 0 ? `(carried=${input.carriedCount})` : ''
     } chars=${input.answerChars}${
       input.answerReplaced ? ` replaced=${input.answerReplaced}` : ''
-    }${input.mcpMountMs > 0 ? ` mcpMountMs=${input.mcpMountMs}` : ''}${scopeInfo}${failedTools}${mcpContent}`
+    }${input.mcpMountMs > 0 ? ` mcpMountMs=${input.mcpMountMs}` : ''}${scopeInfo}${forceInfo}${failedTools}${mcpContent}`
   );
 }

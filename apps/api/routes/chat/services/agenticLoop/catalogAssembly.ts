@@ -437,7 +437,7 @@ export async function assembleToolCatalog(
 }
 
 /** Wie `priorTurnRetrieved`: die vorhandene Projektion lesen, nie werfen. */
-function priorToolNames(toolHistory: ThreadToolHistory | null | undefined): string[] {
+export function priorToolNames(toolHistory: ThreadToolHistory | null | undefined): string[] {
   if (!toolHistory) return [];
   try {
     return toolHistory.toolSteps().map((s) => s.toolName);
