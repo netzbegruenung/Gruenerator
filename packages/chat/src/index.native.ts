@@ -70,6 +70,7 @@ export {
   getThreadAccessType,
   isThreadReadOnly,
   resolveThreadBySlugSuffix,
+  requestThreadListReload,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
 

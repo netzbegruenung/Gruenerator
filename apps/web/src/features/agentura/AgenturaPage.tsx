@@ -58,6 +58,7 @@ import {
 } from '../agents/api';
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
 import { useRecurringTasks } from '../recurring-tasks/api';
+import { useTrashUndoToast } from '../trash/trashUndoToast';
 import { useItemUsage } from '../usage/useItemUsage';
 import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
@@ -287,6 +288,7 @@ function AgenturaPage() {
   const { data: publicRecipes = [] } = usePublicRecipes();
   const deleteRecipe = useDeleteRecipe();
   const confirmDialog = useConfirm();
+  const showTrashUndo = useTrashUndoToast();
   const { duplicate: duplicateAgent } = useDuplicateAgent();
 
   const q = search.toLowerCase();
@@ -370,10 +372,13 @@ function AgenturaPage() {
   const handleDeleteRecipe = async (form: TextForm) => {
     const confirmed = await confirmDialog({
       title: 'Rezept löschen?',
-      description: `„${form.title}" wird dauerhaft entfernt — samt Beispielen und Anleitung.`,
+      description: `„${form.title}“ wird in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.`,
     });
     if (!confirmed) return;
-    deleteRecipe.mutate(form.mention);
+    // DELETE takes the mention; the trash addresses the row id.
+    deleteRecipe.mutate(form.mention, {
+      onSuccess: () => showTrashUndo({ kind: 'user_text_form', id: form.id, title: form.title }),
+    });
   };
 
   const ownRecipeEntries = useMemo<RecipeEntry[]>(
@@ -387,7 +392,7 @@ function AgenturaPage() {
           },
         })
       ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `handleDeleteRecipe` is recreated every render but only closes over `confirmDialog`/`deleteRecipe.mutate`, both stable, so omitting it changes nothing
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `handleDeleteRecipe` is recreated every render but only closes over `confirmDialog`/`deleteRecipe.mutate`/`showTrashUndo`, all stable, so omitting it changes nothing
     [ownRecipes]
   );
   const sharedRecipeEntries = useMemo<RecipeEntry[]>(
@@ -570,8 +575,12 @@ function AgenturaPage() {
     void navigate(`/agents/${agent.identifier}/edit`);
   };
   const handleDeleteAgent = (agent: Agent) => {
-    if (!confirm(`Möchtest du "${agent.title}" wirklich löschen?`)) return;
-    deleteUserAgent.mutate(agent.identifier);
+    deleteUserAgent.mutate(agent.identifier, {
+      onSuccess: () => {
+        // The trash addresses the row uuid; DELETE takes the identifier.
+        if (agent.id) showTrashUndo({ kind: 'user_agent', id: agent.id, title: agent.title });
+      },
+    });
   };
 
   // --- Item + card construction ---------------------------------------------

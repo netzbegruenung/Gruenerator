@@ -3,7 +3,7 @@ import { getPinnedLocale } from '@gruenerator/shared/instances';
 import { DEFAULT_TTS_VOICE_ID } from '@gruenerator/shared/settings';
 import { Button, toast } from '@gruenerator/ui';
 import { type QueryClient } from '@tanstack/react-query';
-import { Rocket, RotateCcw } from 'lucide-react';
+import { Rocket, RotateCcw, Trash2 } from 'lucide-react';
 import { type IconType } from 'react-icons';
 import {
   PiBriefcase,
@@ -15,6 +15,7 @@ import {
   PiSun,
   PiTextT,
 } from 'react-icons/pi';
+import { Link } from 'react-router-dom';
 
 import { CURRENT_INSTANCE } from '../../../config/instance';
 import VoicePicker from '../../voice/components/VoicePicker';
@@ -210,6 +211,19 @@ const GeneralTab = () => {
           >
             <RotateCcw className="mr-xs h-4 w-4" />
             Zurücksetzen
+          </Button>
+        </SettingsRow>
+
+        <SettingsRow id="allgemein.papierkorb">
+          <Button
+            asChild
+            variant="outline"
+            onClick={() => useSettingsDialogStore.getState().close()}
+          >
+            <Link to="/papierkorb">
+              <Trash2 aria-hidden="true" className="mr-xs h-4 w-4" />
+              Öffnen
+            </Link>
           </Button>
         </SettingsRow>
       </div>

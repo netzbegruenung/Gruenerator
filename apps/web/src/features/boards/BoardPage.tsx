@@ -20,6 +20,7 @@ import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import useUserDefaults from '../../hooks/useUserDefaults';
 import { useAuthStore } from '../../stores/authStore';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
+import { useTrashUndoToast } from '../trash/trashUndoToast';
 
 import { BoardActivitySheet } from './components/board-overview/BoardActivitySheet';
 import { BoardQuickBar } from './components/board-overview/BoardQuickBar';
@@ -103,10 +104,17 @@ function BoardContent() {
   // way out but a chrome-less dead end (`RouteComponent` forces `noChrome`
   // while embedded), reachable only via the host's own close button.
   const leaveBoard = useHostAwareBack('/workplace');
+  const showTrashUndo = useTrashUndoToast();
   const handleDelete = useCallback(() => {
     if (!id) return;
-    deleteBoard.mutate(id, { onSuccess: leaveBoard });
-  }, [deleteBoard, id, leaveBoard]);
+    const title = board?.title ?? null;
+    deleteBoard.mutate(id, {
+      onSuccess: () => {
+        leaveBoard();
+        showTrashUndo({ kind: 'collaborative_document', id, title });
+      },
+    });
+  }, [deleteBoard, id, leaveBoard, board?.title, showTrashUndo]);
   const handleArchiveToggle = useCallback(() => {
     if (!id) return;
     const willArchive = !board || !isBoardArchived(board);

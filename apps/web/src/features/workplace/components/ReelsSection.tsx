@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
 import { getPublicAppOrigin, resolveApiAssetUrl } from '../../../utils/platform';
+import { showTrashUndoToast } from '../../trash/trashUndoToast';
 import { REELS_QUERY_KEY, useReels, type ReelItem } from '../hooks/useContent';
 import { RECENT_ACTIVITY_KEY } from '../hooks/useRecentActivity';
 
@@ -72,7 +73,6 @@ const ReelsSection: React.FC = memo(() => {
 
   const handleDelete = useCallback(
     (item: ReelItem) => {
-      if (!window.confirm('Video wirklich löschen?')) return;
       const endpoint = item.deleteEndpoint.replace(/^\/api/, '');
       // Must `.catch()` — bare `.then()` lets rejections escape to
       // `window.onunhandledrejection`, which then routes through Sentry
@@ -82,7 +82,14 @@ const ReelsSection: React.FC = memo(() => {
       // trigger).
       void apiClient
         .delete(endpoint)
-        .then(invalidate)
+        .then(() => {
+          invalidate();
+          showTrashUndoToast(queryClient, {
+            kind: 'subtitler_project',
+            id: item.id,
+            title: item.title,
+          });
+        })
         .catch((err: unknown) => {
           const status =
             typeof err === 'object' && err !== null && 'response' in err
@@ -96,7 +103,7 @@ const ReelsSection: React.FC = memo(() => {
           }
         });
     },
-    [invalidate]
+    [invalidate, queryClient]
   );
 
   const handleShare = useCallback((item: ReelItem) => {

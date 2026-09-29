@@ -14,6 +14,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { AgentAvatar } from '../../agents/icons/AgentAvatar';
 import { IconPicker } from '../../agents/icons/IconPicker';
+import { useTrashUndoToast } from '../../trash/trashUndoToast';
 
 import { useDeleteRecipe, useOwnRecipes, useSaveRecipe } from './api';
 import { ExamplesPanel } from './ExamplesPanel';
@@ -106,6 +107,7 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
   const confirm = useConfirm();
   const saveMut = useSaveRecipe();
   const deleteMut = useDeleteRecipe();
+  const showTrashUndo = useTrashUndoToast();
   const mentionErrorId = useId();
   const mentionHintId = useId();
   const { lvIds } = useUserLandesverbaende();
@@ -227,13 +229,17 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
   const handleDelete = async () => {
     const ok = await confirm({
       title: `„${form.title || mention}“ löschen?`,
-      description: 'Das Rezept wird endgültig gelöscht.',
+      description: `„${form.title || mention}“ wird in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.`,
       confirmLabel: 'Löschen',
       variant: 'destructive',
     });
     if (!ok) return;
     try {
       await deleteMut.mutateAsync(mention);
+      // DELETE takes the mention; the trash addresses the row id.
+      if (recipeId) {
+        showTrashUndo({ kind: 'user_text_form', id: recipeId, title: form.title || mention });
+      }
       void navigate('/agentura?cat=meine');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Löschen fehlgeschlagen.');
