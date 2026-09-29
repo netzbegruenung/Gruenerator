@@ -564,6 +564,18 @@ export class DocumentSearchService extends BaseSearchService {
     return await vectorOps.deleteDocumentVectors(this.qdrantOps, documentId, userId);
   }
 
+  async setDocumentVectorsDeletedAt(
+    documentId: string,
+    userId: string,
+    deletedAt: string | null
+  ): Promise<void> {
+    await this.ensureInitialized();
+    if (!this.qdrantOps) {
+      throw new Error('Qdrant not available');
+    }
+    await vectorOps.setDocumentVectorsDeletedAt(this.qdrantOps, documentId, userId, deletedAt);
+  }
+
   async countVectorsByDocument(documentIds: readonly string[]): Promise<Map<string, number>> {
     await this.ensureInitialized();
     if (!this.qdrantOps) {
