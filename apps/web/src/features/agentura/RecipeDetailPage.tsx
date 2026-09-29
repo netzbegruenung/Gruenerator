@@ -44,6 +44,7 @@ import {
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { AgentAvatar } from '../agents/icons/AgentAvatar';
+import { useTrashUndoToast } from '../trash/trashUndoToast';
 
 import { SkillCard, TypeBadge } from './components/cards';
 import { ShareRecipeModal } from './components/ShareRecipeModal';
@@ -237,6 +238,7 @@ function UserRecipeView({
   const favorites = useSkillFavoritesStore((s) => s.favorites);
   const toggleFavorite = useSkillFavoritesStore((s) => s.toggleFavorite);
   const deleteRecipe = useDeleteRecipe();
+  const showTrashUndo = useTrashUndoToast();
   const [shareOpen, setShareOpen] = useState(false);
   const [tab, setTab] = useState<'anleitung' | 'beispiele'>('anleitung');
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -249,11 +251,13 @@ function UserRecipeView({
   const handleDelete = async () => {
     const confirmed = await confirm({
       title: 'Rezept löschen?',
-      description: `„${form.title}“ wird dauerhaft entfernt — samt Beispielen und Anleitung.`,
+      description: `„${form.title}“ wird in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.`,
     });
     if (!confirmed) return;
     try {
       await deleteRecipe.mutateAsync(form.mention);
+      // DELETE takes the mention; the trash addresses the row id.
+      showTrashUndo({ kind: 'user_text_form', id: form.id, title: form.title });
       void navigate('/agentura?cat=meine');
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Löschen fehlgeschlagen.');

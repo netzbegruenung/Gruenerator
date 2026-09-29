@@ -251,6 +251,7 @@ const UebersetzerPage = lazy(() => import('../features/uebersetzer/UebersetzerPa
 const VoicePage = lazy(() => import('../features/voice/VoicePage'));
 const TranskriptionPage = lazy(() => import('../features/transkription/TranskriptionPage'));
 const RecurringTasksPage = lazy(() => import('../features/recurring-tasks/RecurringTasksPage'));
+const TrashPage = lazy(() => import('../features/trash/TrashPage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
 const ProjektePage = lazy(() => import('../features/groups/pages/ProjektePage'));
 const OfficeSuiteLandingPage = lazy(() => import('../features/docs/OfficeSuiteLandingPage'));
@@ -359,6 +360,7 @@ const standardRoutes: RouteConfig[] = [
     : []),
   // EXPERIMENTAL — recurring agent tasks management.
   { path: '/wiederkehrend', component: RecurringTasksPage },
+  { path: '/papierkorb', component: TrashPage },
   // Agentura — the agents & recipes marketplace. Detail "product pages" sit
   // under /agentura/agent/<slug> and /agentura/rezept/<mention>; the storefront
   // is /agentura. Old library links (/agents, /skills) redirect here.

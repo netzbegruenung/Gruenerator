@@ -349,7 +349,10 @@ export const threadsContractRouter = s.router(threadsContract, {
         return { status: 403 as const, body: { error: 'Forbidden' } };
       }
 
-      return { status: 200 as const, body: { success: true as const } };
+      return {
+        status: 200 as const,
+        body: { success: true as const, trashed: result === 'trashed' },
+      };
     } catch (error) {
       log.error('Error deleting thread:', error);
       return { status: 500 as const, body: { error: 'Failed to delete thread' } };

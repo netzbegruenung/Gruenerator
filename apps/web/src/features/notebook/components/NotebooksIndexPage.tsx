@@ -6,6 +6,7 @@ import coverNeu from '@gruenerator/shared/assets/notebook-covers/notebook-neu.we
 import { canShareIntoGroup } from '@gruenerator/shared/groups';
 import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import {
+  ConfirmDialogProvider,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -17,6 +18,7 @@ import {
   SectionHeader,
   Skeleton,
   cn,
+  useConfirm,
 } from '@gruenerator/ui';
 import {
   BarChart3,
@@ -51,6 +53,7 @@ import { useGroups } from '../../groups/hooks/useGroups';
 import { useEntityLikes } from '../../likes/hooks/useEntityLikes';
 import { useMonitorSnapshot, usePolls, useWhatHappened } from '../../monitor/hooks/useMonitor';
 import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam';
+import { useTrashUndoToast } from '../../trash/trashUndoToast';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import {
   getAustrianNotebooks,
@@ -250,22 +253,28 @@ const EigeneNotebooks = memo(
     const [sharedInfo, setSharedInfo] = useState<string | null>(null);
     const [shareError, setShareError] = useState<string | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
+    const confirm = useConfirm();
+    const showTrashUndo = useTrashUndoToast();
 
     const { userGroups: allGroups = [] } = useGroups({ isActive: qaCollections.length > 0 });
     const userGroups = allGroups.filter(canShareIntoGroup);
 
     const handleDelete = async (id: string, name: string) => {
-      if (window.confirm(`Notebook "${name}" wirklich löschen?`)) {
-        setDeletingId(id);
-        setDeleteError(null);
-        try {
-          await onDelete(id);
-        } catch {
-          setDeleteError(id);
-          setTimeout(() => setDeleteError(null), 2000);
-        } finally {
-          setDeletingId(null);
-        }
+      const ok = await confirm({
+        title: 'Notebook löschen?',
+        description: `„${name}“ wird in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.`,
+      });
+      if (!ok) return;
+      setDeletingId(id);
+      setDeleteError(null);
+      try {
+        await onDelete(id);
+        showTrashUndo({ kind: 'notebook', id, title: name });
+      } catch {
+        setDeleteError(id);
+        setTimeout(() => setDeleteError(null), 2000);
+      } finally {
+        setDeletingId(null);
       }
     };
 
@@ -949,16 +958,18 @@ export function NotebooksIndexFooter() {
       )}
 
       {!trimmed && openCategory === 'eigene' && qaCollections.length > 0 && (
-        <EigeneNotebooks
-          qaCollections={qaCollections}
-          onView={handleView}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onShare={handleShare}
-          onCreate={handleCreate}
-          loading={collectionsLoading}
-          copiedId={copiedId}
-        />
+        <ConfirmDialogProvider>
+          <EigeneNotebooks
+            qaCollections={qaCollections}
+            onView={handleView}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onShare={handleShare}
+            onCreate={handleCreate}
+            loading={collectionsLoading}
+            copiedId={copiedId}
+          />
+        </ConfirmDialogProvider>
       )}
 
       {!trimmed && <WissenToolsRow />}
