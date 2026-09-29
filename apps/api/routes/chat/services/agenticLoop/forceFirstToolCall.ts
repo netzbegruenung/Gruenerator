@@ -96,7 +96,7 @@ export function shouldForceFirstToolCall(input: {
   // Ein ausdrückliches „recherchiere das" muss auch suchen. Die Demotion schiebt
   // solche Turns nach `agentic`, wo der Planer gar nichts rufen kann — live als
   // steps=0-Antworten beobachtet, die die eben bestellte Recherche anboten.
-  // `direct_response` bleibt der Notausgang (searchTools.ts).
+  // Einen Notausgang hat der erzwungene Schritt nicht; ab Schritt 1 ist die Wahl wieder frei.
   if (looksLikeExplicitResearchOrder(input.lastUserText)) return 'research_order';
 
   // Derselbe Ausfall ohne das Verb: eine schlichte Faktenfrage, von der Heuristik
@@ -297,10 +297,26 @@ export function forcedFirstStepTools(input: {
   mcpToolNames: readonly string[];
   /** Die verwalteten Konnektoren dieses Turns (`systemCatalog`). */
   managedToolNames: readonly string[];
-  /** Die Werkzeuge früherer Turns dieses Threads (`toolHistory.toolSteps()`). */
+  /** Die Werkzeuge früherer Turns dieses Threads (`priorToolNames`, ohne Verbindungs-Schritte). */
   priorToolNames: readonly string[];
   isLookupTool: (name: string) => boolean;
+  /** Das Werkzeug für die angehängten Dokumente dieses Turns, oder `null` ohne Anhang. */
+  attachedDocsTool: string | null;
+  /** Der Text der Person ohne Erwähnungs-Label — derselbe, den `createToolScope` liest. */
+  userText: string;
 }): readonly string[] | null {
+  // Der Klassifikator schiebt jeden Dokument-Turn nach `search`. Hat der
+  // Vorab-Abruf nichts geliefert, müsste Schritt 0 sonst die Parteiprogramme
+  // nach dem eigenen PDF der Person durchsuchen — der Ausfall vom 23.08.2026 an
+  // neuer Stelle. Nicht für `research_order` (ein ausdrücklicher Auftrag geht
+  // nach draussen) und nicht für `mcp_scope` (der Server-Scope ist der Auftrag).
+  const attachedDocs = input.attachedDocsTool != null ? [input.attachedDocsTool] : [];
+  // „Such in meinen Dokumenten nach …" feuert `research_order` und braucht
+  // `documents`/`find_content`/… — dasselbe Signal, das in `createToolScope` die
+  // Gruppe offen hält, damit der scharfe Umfang und diese Menge sich nie widersprechen.
+  const ownContent = DEFERRABLE_GROUPS.filter((g) => g.hint.test(input.userText)).flatMap(
+    (g) => g.tools
+  );
   let candidates: readonly string[];
   switch (input.reason) {
     case 'pinned':
@@ -309,11 +325,9 @@ export function forcedFirstStepTools(input: {
     case 'mcp_scope':
       candidates = input.mcpToolNames;
       break;
-    case 'named_intent': {
-      const own = loopToolsFor(input.intent ?? '');
-      candidates = own.length > 0 ? own : [...RESEARCH_LOOP_TOOLS, ...input.managedToolNames];
+    case 'named_intent':
+      candidates = [...loopToolsFor(input.intent ?? ''), ...attachedDocs];
       break;
-    }
     case 'research_order':
     case 'demoted_retrieval':
     case 'contradicted':
@@ -325,10 +339,19 @@ export function forcedFirstStepTools(input: {
         ...RESEARCH_LOOP_TOOLS,
         ...input.managedToolNames,
         ...input.priorToolNames.filter(input.isLookupTool),
+        ...ownContent,
+        ...(input.reason === 'research_order' ? [] : attachedDocs),
       ];
       break;
     case 'followup':
-      candidates = input.priorToolNames.filter(input.isLookupTool);
+      // Dazu das Web: „Und was sagt die SPD dazu?" nach einem
+      // `gruenerator_search`-Turn muss aus dem Korpus der Grünen heraus können.
+      // `bundestag` deckt jede Partei ab, ein Partei-Korpus nicht.
+      candidates = [
+        ...input.priorToolNames.filter(input.isLookupTool),
+        ...loopToolsFor('web'),
+        ...attachedDocs,
+      ];
       break;
   }
   const mounted = new Set(input.mounted);

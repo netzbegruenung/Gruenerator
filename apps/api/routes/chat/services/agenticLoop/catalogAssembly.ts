@@ -440,7 +440,12 @@ export async function assembleToolCatalog(
 export function priorToolNames(toolHistory: ThreadToolHistory | null | undefined): string[] {
   if (!toolHistory) return [];
   try {
-    return toolHistory.toolSteps().map((s) => s.toolName);
+    // Ohne Verbindungs-Schritte: ihr Anschluss hat einen eigenen Weg (`tier2.7_mcp_followup`),
+    // und MCP-Namen liegen in keiner zurückstellbaren Gruppe — `createToolScope` bleibt unberührt.
+    return toolHistory
+      .toolSteps()
+      .filter((s) => !s.serverName)
+      .map((s) => s.toolName);
   } catch {
     return [];
   }

@@ -474,7 +474,8 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
       { ...baseParams(state, 'x'.repeat(4000), userText), sse, ...extra },
       fakeDeps({ assemble: (async () => catalog) as never, onLoop: (p) => (seen = p) })
     );
-    return seen!;
+    expect(seen).not.toBeNull();
+    return seen as NonNullable<typeof seen>;
   }
 
   it('named_intent: der benannte Abruf-Intent sieht nur seine eigenen Werkzeuge', async () => {
@@ -482,6 +483,21 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
     expect(p.forceFirstToolCall).toBe(true);
     expect(p.firstToolName).toBeNull();
     expect(p.firstStepTools).toEqual(['gruenerator_search']);
+  });
+
+  it('named_intent mit Anhang ohne Vorab-Treffer: die angehängten Dokumente bleiben erreichbar', async () => {
+    // Ohne `searchQuery`/`lastUserTextNoMentions` hat der Vorab-Abruf keine
+    // Anfrage und liefert nichts — der Fall, in dem der Zwang stehen bleibt.
+    const p = await loopParams(
+      fakeState({
+        intent: 'search',
+        documentSources: [{ kind: 'document', id: 'doc-1' }],
+      } as never),
+      'Erstelle daraus eine Tabelle.',
+      catalogWith([...MOUNTED, 'dokumente_lesen'])
+    );
+    expect(p.forceFirstToolCall).toBe(true);
+    expect(p.firstStepTools).toEqual(['gruenerator_search', 'dokumente_lesen']);
   });
 
   it('research_order: ein Rechercheauftrag sieht die Recherche-Werkzeuge, nicht den Rest', async () => {
@@ -500,20 +516,20 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
     expect(summary).toContain(` force=research_order:${p.firstStepTools!.length}`);
   });
 
-  it('followup: die Anschlussfrage sieht nur, was der Thread schon nachgeschlagen hat', async () => {
+  it('followup: die Anschlussfrage sieht, was der Thread schon nachgeschlagen hat, und das Web', async () => {
     const p = await loopParams(fakeState(), 'Und die FDP?', catalogWith(MOUNTED), {
       toolHistory: historyWith(['bundestag']),
     });
     expect(p.forceFirstToolCall).toBe(true);
-    expect(p.firstStepTools).toEqual(['bundestag']);
+    expect(p.firstStepTools).toEqual(['bundestag', 'web_search']);
   });
 
-  it('followup: fehlt das frühere Werkzeug im Katalog, bleibt der Zuschnitt leer und der Zwang steht', async () => {
+  it('followup: fehlen das frühere Werkzeug und das Web im Katalog, bleibt der Zuschnitt leer und der Zwang steht', async () => {
     infoLines.length = 0;
     const p = await loopParams(
       fakeState(),
       'Und die FDP?',
-      catalogWith(MOUNTED.filter((t) => t !== 'bundestag')),
+      catalogWith(MOUNTED.filter((t) => t !== 'bundestag' && t !== 'web_search')),
       { toolHistory: historyWith(['bundestag']) }
     );
     expect(p.forceFirstToolCall).toBe(true);

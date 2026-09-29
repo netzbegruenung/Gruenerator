@@ -614,6 +614,8 @@ export async function streamAgenticResponse(
             managedToolNames: Object.keys(systemCatalog?.tools ?? {}),
             priorToolNames: priorToolNames(toolHistory),
             isLookupTool,
+            attachedDocsTool: hasAttachedDocuments ? ATTACHED_DOCS_TOOL : null,
+            userText: finalState.lastUserTextNoMentions ?? lastUserText,
           })
         : null;
     if (firstToolName) {
