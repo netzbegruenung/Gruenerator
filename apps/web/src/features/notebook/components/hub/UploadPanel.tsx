@@ -6,6 +6,7 @@ import { HiUpload } from 'react-icons/hi';
 import { useDocumentsStore } from '../../../../stores/documentsStore';
 import { cn } from '../../../../utils/cn';
 
+import { downloadOriginal } from './downloadOriginal';
 import { EmptySources, filterByTitle, NoMatches, SearchRow } from './PanelChrome';
 import { SourceTable } from './SourceTable';
 import {
@@ -164,6 +165,17 @@ export function UploadPanel({
               label: 'Neu indexieren',
               when: (doc) => Boolean(doc.reindexable),
               onSelect: (doc) => void onReindex([doc.id]),
+            },
+            {
+              label: 'Herunterladen',
+              when: (doc) => Boolean(doc.downloadable),
+              onSelect: (doc) => {
+                const notebookId = hub.collection?.id;
+                if (!notebookId) return;
+                downloadOriginal(doc, notebookId).catch(() => {
+                  toast.error(`„${doc.title}" konnte nicht heruntergeladen werden.`);
+                });
+              },
             },
           ]}
           onRemove={onRemove}

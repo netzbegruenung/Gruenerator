@@ -268,7 +268,12 @@ async function enrichNotebookCollection(
         status: row.status,
         processing_error: typeof meta.processing_error === 'string' ? meta.processing_error : null,
         reindexable: isReindexable(row),
-      } as DocumentRecord & { processing_error: string | null; reindexable: boolean };
+        downloadable: row.has_original || isReindexable(row),
+      } as DocumentRecord & {
+        processing_error: string | null;
+        reindexable: boolean;
+        downloadable: boolean;
+      };
     });
   }
 

@@ -179,12 +179,6 @@ const FRAGMENTED_SQL: ReadonlyArray<readonly [...AllowEntry, marker: string]> = 
   [
     'apps/api/services/document-services/PostgresDocumentService/metadataOperations.ts',
     'documents',
-    'deleteDocument: hard delete for sync removals only (the WordPress post is gone at the source)',
-    "postgres.delete('documents'",
-  ],
-  [
-    'apps/api/services/document-services/PostgresDocumentService/metadataOperations.ts',
-    'documents',
     'writer: see updateDocumentMetadata above',
     "postgres.update('documents'",
   ],

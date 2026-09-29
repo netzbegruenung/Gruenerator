@@ -4,8 +4,10 @@
  */
 
 import fs from 'fs';
+import path from 'path';
 
 import { hasAiConsent } from '../../../middleware/requireAiConsent.js';
+import { keepOriginal, removeOriginal } from '../documentOriginals.js';
 
 import { chunkAndEmbedText } from './chunkingPipeline.js';
 import { fetchOriginal, reindexOrigin, type ReindexOrigin } from './reindexOrigin.js';
@@ -142,6 +144,8 @@ export async function processUploadedDocument(
   console.log(`[DocumentProcessingService] Deferred processing for document: ${documentId}`);
 
   let filePath: string | null = null;
+  // Where the original went once it was read, until the row points at it.
+  let keptOriginal: string | null = null;
   // Gesetzt, wenn die Zeile über „Neu indexieren" kam und das Original erst
   // geholt werden muss. Bis `vectorsReplaced` bleiben die alten Punkte stehen.
   let reindex: ReindexOrigin | null = null;
@@ -291,13 +295,29 @@ export async function processUploadedDocument(
       }
     );
 
+    // The upload stays for „Herunterladen" (a reindex fetched its original
+    // into memory, there is nothing on disk to keep).
+    const pendingDir = filePath ? path.dirname(filePath) : null;
+    if (filePath && !reindex) {
+      try {
+        keptOriginal = keepOriginal(filePath, userId, documentId);
+        filePath = null;
+      } catch (err) {
+        console.warn(
+          `[DocumentProcessingService] keeping the original failed for ${documentId}:`,
+          (err as Error).message
+        );
+      }
+    }
+
     await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
       status: 'completed',
       vectorCount: chunks.length,
-      // Keep the extracted text: the source file is deleted right below and the
-      // chunks in Qdrant are overlapping fragments, so without this the only way
-      // back to the full text is re-fetching (and for uploads, not at all).
+      // Keep the extracted text: the chunks in Qdrant are overlapping
+      // fragments, so without this the only way back to the full text is
+      // re-fetching or re-reading the original.
       markdownContent: capStoredText(extractedText),
+      ...(keptOriginal ? { filePath: keptOriginal } : {}),
       ...(extraction.pageCount !== null ? { pageCount: extraction.pageCount } : {}),
       additionalMetadata: {
         // Nur die eigenen Felder — der Rest wird in der Datenbank
@@ -310,13 +330,12 @@ export async function processUploadedDocument(
       },
     });
 
-    // Clean up temp file (a reindex fetched its original into memory)
-    if (filePath && !reindex) {
+    keptOriginal = null;
+    if (pendingDir) {
       try {
-        fs.unlinkSync(filePath);
-        const dir = filePath.substring(0, filePath.lastIndexOf('/'));
-        if (fs.existsSync(dir) && fs.readdirSync(dir).length === 0) {
-          fs.rmdirSync(dir);
+        if (filePath) fs.unlinkSync(filePath);
+        if (fs.existsSync(pendingDir) && fs.readdirSync(pendingDir).length === 0) {
+          fs.rmdirSync(pendingDir);
         }
       } catch {
         // Non-critical cleanup error
@@ -377,6 +396,13 @@ export async function processUploadedDocument(
     }
 
     // Clean up temp file on error
+    if (keptOriginal) {
+      try {
+        removeOriginal(keptOriginal);
+      } catch {
+        // Non-critical
+      }
+    }
     if (filePath) {
       try {
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);

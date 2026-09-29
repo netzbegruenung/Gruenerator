@@ -10,6 +10,7 @@ import { getDrizzleInstance } from '../../../database/services/DrizzleService.js
 import { notTrashed } from '../../../database/trash.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 import { type TrashCursor, trashKeysetWhere, trashOrderBy } from '../../trash/trashCursor.js';
+import { removeOriginal } from '../documentOriginals.js';
 
 import type {
   DocumentMetadata,
@@ -159,6 +160,7 @@ export async function updateDocumentMetadata(
     if (updates.markdownContent !== undefined)
       updateData.markdown_content = updates.markdownContent;
     if (updates.pageCount !== undefined) updateData.page_count = updates.pageCount;
+    if (updates.filePath !== undefined) updateData.file_path = updates.filePath;
 
     // EINE Anweisung für Spalten und Metadaten. Metadaten werden in der
     // Datenbank zusammengeführt, nicht lesen-ändern-schreiben: ein langer
@@ -317,13 +319,22 @@ export async function deleteDocument(
   try {
     await postgres.ensureInitialized();
 
-    const result = await postgres.delete('documents', {
-      id: documentId,
-      user_id: userId,
-    });
+    const deleted = await postgres.query<{ file_path: string | null }>(
+      'DELETE FROM documents WHERE id = $1 AND user_id = $2 RETURNING file_path',
+      [documentId, userId]
+    );
 
-    if (result.changes === 0) {
+    if (deleted.length === 0) {
       throw new Error('Document not found or access denied');
+    }
+    try {
+      removeOriginal(deleted[0].file_path);
+    } catch (error) {
+      reportBackgroundError(error, {
+        job: 'document-delete',
+        id: documentId,
+        store: 'original_file',
+      });
     }
 
     console.log(`[PostgresDocumentService] Document ${documentId} deleted`);
@@ -454,10 +465,14 @@ export async function purgeDocument(
   documentId: string,
   cutoff: Date | null
 ): Promise<boolean> {
-  const deleted = await postgres.query<{ id: string; user_id: string | null }>(
+  const deleted = await postgres.query<{
+    id: string;
+    user_id: string | null;
+    file_path: string | null;
+  }>(
     `DELETE FROM documents
      WHERE id = $1 AND deleted_at IS NOT NULL AND ($2::timestamptz IS NULL OR deleted_at < $2)
-     RETURNING id, user_id`,
+     RETURNING id, user_id, file_path`,
     [documentId, cutoff]
   );
   if (deleted.length === 0) return false;
@@ -476,6 +491,10 @@ export async function purgeDocument(
         await import('../DocumentSearchService/DocumentSearchService.js');
       await getQdrantDocumentService().deleteDocumentVectors(documentId, ownerId);
     });
+  }
+  const originalPath = deleted[0].file_path;
+  if (originalPath) {
+    await sideStore('original_file', async () => removeOriginal(originalPath));
   }
   await sideStore('notebook_collection_documents', async () => {
     const { NotebookQdrantHelper } =
