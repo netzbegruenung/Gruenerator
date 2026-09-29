@@ -3,6 +3,7 @@ export {
   REMEMBERED_PROVIDER_KEY,
   buildProviderAuthUrl,
   signInWithProvider,
+  signedOAuthQuery,
   getProviderById,
   getRememberedProvider,
   rememberProvider,

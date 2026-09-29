@@ -1,3 +1,4 @@
+import { signedOAuthQuery } from '@gruenerator/shared/auth';
 import { Button } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -5,8 +6,8 @@ import { useSearchParams } from 'react-router-dom';
 import { authClient } from '../../../lib/authClient';
 
 // OAuth consent for the MCP authorization server: authorize redirects here
-// with consent_code/client_id/scope; the consent POST answers with the client
-// redirect URI.
+// with a signed query (client_id, scope, …, sig). The consent POST sends it
+// back as `oauth_query` and answers with the client redirect as `url`.
 
 const SCOPE_LABELS: Record<string, string> = {
   search: 'Programme, Beschlüsse und Umfragen durchsuchen',
@@ -26,7 +27,7 @@ const OAuthConsentPage = () => {
   const [submitting, setSubmitting] = useState<'accept' | 'deny' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const consentCode = params.get('consent_code');
+  const oauthQuery = useMemo(() => signedOAuthQuery(params.toString()), [params]);
   const clientId = params.get('client_id');
   const scopes = useMemo(() => (params.get('scope') ?? '').split(' ').filter(Boolean), [params]);
 
@@ -37,26 +38,26 @@ const OAuthConsentPage = () => {
     setSubmitting(accept ? 'accept' : 'deny');
     setError(null);
     try {
-      const { data, error: apiError } = await authClient.$fetch<{ redirectURI: string }>(
+      const { data, error: apiError } = await authClient.$fetch<{ url: string }>(
         '/oauth2/consent',
         {
           method: 'POST',
-          body: { accept, ...(consentCode ? { consent_code: consentCode } : {}) },
+          body: { accept, oauth_query: oauthQuery },
         }
       );
-      if (apiError || !data?.redirectURI) {
+      if (apiError || !data?.url) {
         setError('Die Anfrage ist abgelaufen. Bitte starte die Verbindung in der App neu.');
         setSubmitting(null);
         return;
       }
-      window.location.href = data.redirectURI;
+      window.location.href = data.url;
     } catch {
       setError('Die Anfrage ist abgelaufen. Bitte starte die Verbindung in der App neu.');
       setSubmitting(null);
     }
   };
 
-  if (!consentCode) {
+  if (!oauthQuery) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background p-4">
         <div className="w-full max-w-md rounded-2xl border border-grey-200 bg-background-pure p-8 text-center shadow-sm dark:border-grey-700">
