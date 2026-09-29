@@ -772,9 +772,9 @@ const GroupInfoSection = memo(
             <DialogHeader>
               <DialogTitle>{isPersonal ? 'Projekt löschen' : 'Gruppe löschen'}</DialogTitle>
               <DialogDescription>
-                {isPersonal
-                  ? 'Dieses Projekt wird unwiderruflich gelöscht. Alle Inhalte werden permanent entfernt.'
-                  : 'Diese Gruppe wird für alle Mitglieder unwiderruflich gelöscht. Alle Inhalte und Mitgliedschaften werden permanent entfernt.'}
+                {`${data?.groupInfo?.name ? `„${data.groupInfo.name}“` : 'Dieses Projekt'} wird ${
+                  isPersonal ? '' : 'für alle Mitglieder '
+                }in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.`}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-xs">
@@ -789,7 +789,7 @@ const GroupInfoSection = memo(
                 }}
                 disabled={isDeletingGroup}
               >
-                Endgültig löschen
+                Löschen
               </Button>
             </DialogFooter>
           </DialogContent>
