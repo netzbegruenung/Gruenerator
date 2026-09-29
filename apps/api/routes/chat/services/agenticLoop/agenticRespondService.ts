@@ -566,22 +566,23 @@ export async function streamAgenticResponse(
 
     // Die acht Wege dahinter stehen in `shouldForceFirstToolCall` — samt der
     // Live-Ausfälle, die jeden einzelnen erzwungen haben.
-    const forceFirstToolCall = shouldForceFirstToolCall({
-      researchBanned,
-      intent: finalState.intent,
-      hasMcpScope: finalState.mcpServerScope != null,
-      isMcpCapabilityQuestion: mcpCapabilityQuestion,
-      mcpToolCount: mcpCatalog?.labels.size ?? 0,
-      lastUserText,
-      loopDemotedFromRetrieval: finalState.loopDemotedFromRetrieval === true,
-      priorTurnRetrieved: priorTurnRetrieved(toolHistory),
-      classifierContradictedResearch: finalState.classifierContradictedResearch === true,
-      materialHeavy,
-      pinnedTool,
-      hasAttachedDocuments,
-      summaryAsk,
-      attachedSeedDelivered: seeded.delivered,
-    });
+    const forceFirstToolCall =
+      shouldForceFirstToolCall({
+        researchBanned,
+        intent: finalState.intent,
+        hasMcpScope: finalState.mcpServerScope != null,
+        isMcpCapabilityQuestion: mcpCapabilityQuestion,
+        mcpToolCount: mcpCatalog?.labels.size ?? 0,
+        lastUserText,
+        loopDemotedFromRetrieval: finalState.loopDemotedFromRetrieval === true,
+        priorTurnRetrieved: priorTurnRetrieved(toolHistory),
+        classifierContradictedResearch: finalState.classifierContradictedResearch === true,
+        materialHeavy,
+        pinnedTool,
+        hasAttachedDocuments,
+        summaryAsk,
+        attachedSeedDelivered: seeded.delivered,
+      }) !== null;
 
     // WELCHES Werkzeug der erste Schritt ruft, wenn eine @-Erwähnung eines
     // benannt hat. `required` allein garantiert nur irgendeinen Aufruf — und der
