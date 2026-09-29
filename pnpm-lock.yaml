@@ -247,7 +247,7 @@ overrides:
   zustand: 5.0.15
   katex: ^0.18.1
   pyodide: ^314.0.5
-  react-dropzone: ^19.1.1
+  react-dropzone: ^20.1.2
   prosemirror-view: ^1.42.4
   '@blocknote/core': ^0.55.0
   '@blocknote/react': ^0.55.0
@@ -292,10 +292,6 @@ patchedDependencies:
 importers:
 
   .:
-    dependencies:
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
     devDependencies:
       '@commitlint/cli':
         specifier: ^21.2.2
@@ -505,8 +501,8 @@ importers:
         specifier: ^6.0.1
         version: 6.0.1
       dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
+        specifier: ^18.0.3
+        version: 18.0.3
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@cloudflare/workers-types@4.20260207.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(better-sqlite3@12.6.2)(kysely@0.29.5)(pg@8.23.0)
@@ -549,9 +545,6 @@ importers:
       nodemailer:
         specifier: ^10.0.10
         version: 10.0.10
-      openai:
-        specifier: ^6.49.0
-        version: 6.49.0(ws@8.21.3)(zod@3.25.76)
       pdf-lib:
         specifier: ^1.17.1
         version: 1.17.1
@@ -1017,7 +1010,7 @@ importers:
     dependencies:
       '@assistant-ui/react':
         specifier: ^0.15.22
-        version: 0.15.22(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.102(zod@3.25.76))(immer@11.1.18)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.8))
+        version: 0.15.22(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.102)(immer@11.1.18)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.8))
       '@blocknote/core':
         specifier: ^0.55.0
         version: 0.55.0(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.4)(y-protocols@1.0.7(yjs@13.6.32))(yjs@13.6.32))(y-protocols@1.0.7(yjs@13.6.32))(yjs@13.6.32)
@@ -1097,8 +1090,8 @@ importers:
         specifier: ^5.101.4
         version: 5.102.8(react@19.2.8)
       '@tanstack/react-table':
-        specifier: ^8.21.3
-        version: 8.21.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^9.2.4
+        version: 9.2.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@tanstack/react-virtual':
         specifier: ^3.14.11
         version: 3.14.11(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -1166,8 +1159,8 @@ importers:
         specifier: ^11.1.18
         version: 11.1.18
       jotai:
-        specifier: ^2.20.3
-        version: 2.20.3(@babel/core@7.29.7(supports-color@10.2.2))(@babel/template@8.0.0)(@types/react@19.2.18)(react@19.2.8)
+        specifier: ^3.0.0
+        version: 3.0.0(@types/react@19.2.18)(react@19.2.8)
       konva:
         specifier: ^10.5.0
         version: 10.5.0
@@ -1184,8 +1177,8 @@ importers:
         specifier: ^4.7.0
         version: 4.7.0
       motion:
-        specifier: ^12.43.0
-        version: 12.43.0(@emotion/is-prop-valid@1.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^13.4.1
+        version: 13.4.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       onnxruntime-web:
         specifier: 1.27.0
         version: 1.27.0
@@ -1208,8 +1201,8 @@ importers:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
       react-dropzone:
-        specifier: ^19.1.1
-        version: 19.3.0(@types/react@19.2.18)(react@19.2.8)
+        specifier: ^20.1.2
+        version: 20.1.2(@types/react@19.2.18)(react@19.2.8)
       react-hook-form:
         specifier: ^7.87.0
         version: 7.87.0(react@19.2.8)
@@ -1657,10 +1650,10 @@ importers:
     dependencies:
       '@assistant-ui/core':
         specifier: ^0.3.21
-        version: 0.3.21(@assistant-ui/store@0.3.15(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(react@19.2.8))(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(assistant-cloud@0.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1)))(ioredis@5.11.1(supports-color@10.2.2))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))
+        version: 0.3.21(@assistant-ui/store@0.3.15(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(react@19.2.8))(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(assistant-cloud@0.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(ai@7.0.102)(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1)))(ioredis@5.11.1(supports-color@10.2.2))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))
       '@assistant-ui/react':
         specifier: ^0.15.22
-        version: 0.15.22(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.102(zod@3.25.76))(immer@11.1.18)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.8))
+        version: 0.15.22(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.102)(immer@11.1.18)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.8))
       '@assistant-ui/react-markdown':
         specifier: ^0.14.17
         version: 0.14.17(@assistant-ui/react@0.15.22(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.102(zod@3.25.76))(immer@11.1.18)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.8)))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(supports-color@10.2.2)
@@ -2457,8 +2450,8 @@ importers:
         specifier: ^1.43.0
         version: 1.43.0(react@19.2.8)
       motion:
-        specifier: ^12.43.0
-        version: 12.43.0(@emotion/is-prop-valid@1.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^13.4.1
+        version: 13.4.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       nanoid:
         specifier: '>=5.0.9'
         version: 6.0.1
@@ -2478,8 +2471,8 @@ importers:
         specifier: ^19.0.0
         version: 19.2.8(react@19.2.8)
       react-dropzone:
-        specifier: ^19.1.1
-        version: 19.3.0(@types/react@19.2.18)(react@19.2.8)
+        specifier: ^20.1.2
+        version: 20.1.2(@types/react@19.2.18)(react@19.2.8)
       react-icons:
         specifier: ^5.7.0
         version: 5.7.0(react@19.2.8)
@@ -2555,8 +2548,8 @@ importers:
         specifier: ^5.101.4
         version: 5.102.8(react@19.2.8)
       motion:
-        specifier: ^12.43.0
-        version: 12.43.0(@emotion/is-prop-valid@1.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^13.4.1
+        version: 13.4.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
         specifier: ^19.0.0
         version: 19.2.8
@@ -2592,8 +2585,8 @@ importers:
         specifier: ^4.6.0
         version: 4.6.0(srvx@0.11.22)(y-protocols@1.0.7(yjs@13.6.32))(yjs@13.6.32)
       dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
+        specifier: ^18.0.3
+        version: 18.0.3
       express:
         specifier: ^5.2.1
         version: 5.2.1(supports-color@10.2.2)
@@ -3017,10 +3010,6 @@ packages:
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/code-frame@8.0.0':
-    resolution: {integrity: sha512-dYYg153EyN2Ekbqw2zAsbd6/JR+9N2SEoC7YV2GyyqMM7x9bLDTjBD6XBhSMLH0wtIVyJj03jWNriQhaN+eoCw==}
-    engines: {node: ^22.18.0 || >=24.11.0}
-
   '@babel/compat-data@7.29.7':
     resolution: {integrity: sha512-locTkQyKvwIEgBzVrn8693ebc97F2U8ZHjbXwDXJ5Fn2TCpNwTlKcaKLkdHop5c/icOFE7qt7Q9JC5hnKNa6Gg==}
     engines: {node: '>=6.9.0'}
@@ -3111,17 +3100,9 @@ packages:
     resolution: {integrity: sha512-Pb5ijPrZ89GDH8223L4UP8i6QApWxs04RbPQJTeWDV0/keR2E36MeKnyr6LYmUUvqRRI+Iv87SuF1W6ErINzYw==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/helper-string-parser@8.0.0':
-    resolution: {integrity: sha512-6mJgmFFFIIO82vvoLt9XtRC7/TkzXfts1t/SpRX4IHSzMgqoPYCWesVu1udUPUWioAE/2fcG6WuI8zrkE1gwrg==}
-    engines: {node: ^22.18.0 || >=24.11.0}
-
   '@babel/helper-validator-identifier@7.29.7':
     resolution: {integrity: sha512-qehxGkRj55h/ff8EMaJ+cYhyaKlHIxqYDn682wQD7RNp9UujOQsHog2uS0r2vzr4pW+sXf90NeeayjcNaX3fFg==}
     engines: {node: '>=6.9.0'}
-
-  '@babel/helper-validator-identifier@8.0.4':
-    resolution: {integrity: sha512-4wFaiLd0bVo4cIoTXI3zKI038NIWE/cr3jvBjejOVYVxV/m8Ltav1USiGzG1fmS5J2RhgEOgXNNK46cRPnRsrg==}
-    engines: {node: ^22.18.0 || >=24.11.0}
 
   '@babel/helper-validator-option@7.29.7':
     resolution: {integrity: sha512-N9ZErrD+yW5geCDtBqnOoxmR8+tNKiGuxKlDpuJxfsqpa2dFcexaziGAE/qoHLiDDreVNMupxGmSoNlyvsA3gw==}
@@ -3138,11 +3119,6 @@ packages:
   '@babel/parser@7.29.8':
     resolution: {integrity: sha512-E8lTAYNB1KW+FH+VGJuZM1ioAx2E6oVlvQFRrf5P8ZZmsiJXYAD9vTFV7yyEURNzgh1dFqMZuO6tUwcARbqFCA==}
     engines: {node: '>=6.0.0'}
-    hasBin: true
-
-  '@babel/parser@8.0.4':
-    resolution: {integrity: sha512-srpptsAkEbbNIC/q8nT7o+m6CQe8CJUTV/t7MYc9NnWlgYVtHOb7JH6SorxMhN0kuRJjVqXbKClG6xSbPtzz+g==}
-    engines: {node: ^22.18.0 || >=24.11.0}
     hasBin: true
 
   '@babel/plugin-bugfix-firefox-class-in-computed-class-key@7.29.7':
@@ -3722,10 +3698,6 @@ packages:
     resolution: {integrity: sha512-puq+Gf35oI24FeN11LkoUQFqv9uwNeWpxXZi/Ji3rRIoKAzKnxRaZ+Gkj0vKS9ZCiTESfng1N9LyOyXvo+m+Gg==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/template@8.0.0':
-    resolution: {integrity: sha512-eAD0QW/AlbamBbw0FeGiwasbCVPq5ncW0HNVyLP3B9czqLyh4gvw+5JTSNt6le9+ziAU7mqDZsKTHf3jTb4chQ==}
-    engines: {node: ^22.18.0 || >=24.11.0}
-
   '@babel/traverse@7.29.8':
     resolution: {integrity: sha512-I5z7H3bf/41ktsNVLtpN0wAa336HkqIHQ5BuPLEhTkt1jVSyZpeNKIzTgEWmlxjdg81R0IgUCcaE+Ok3NvrfZg==}
     engines: {node: '>=6.9.0'}
@@ -3733,10 +3705,6 @@ packages:
   '@babel/types@7.29.8':
     resolution: {integrity: sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg==}
     engines: {node: '>=6.9.0'}
-
-  '@babel/types@8.0.4':
-    resolution: {integrity: sha512-eY+Yn3dCqTGmyiq2QRU66lA5FL8lqqqvecHt0fF3uHONIa7ToYsaCiWV8lOKqAs0Rb2SjixiKFROngnulPtt2g==}
-    engines: {node: ^22.18.0 || >=24.11.0}
 
   '@base-ui/react@1.6.0':
     resolution: {integrity: sha512-/jzjTWJYXhRFO45Bev9lc3cHbmjzCMpUqbMZ2AgKy/z25mY9B6shGSNcXcjQar9n5doM0KYW1W8fcFv2jZBuMw==}
@@ -9751,12 +9719,17 @@ packages:
     peerDependencies:
       react: ^18 || ^19
 
-  '@tanstack/react-table@8.21.3':
-    resolution: {integrity: sha512-5nNMTSETP4ykGegmVkhjcS8tTLW6Vl4axfEGQN3v0zdHYbK4UfoqfPChclTrJ4EoK9QynqAu9oUf8VEmrpZ5Ww==}
-    engines: {node: '>=12'}
+  '@tanstack/react-store@0.11.1':
+    resolution: {integrity: sha512-HaIGKI3YLmjBYIvy5DFDY23oNaYZIsTZfngey07Uh5iLVJgM3bIGCnZeOFOqzjFld9JHWcaHJnasD/bKoGKwJQ==}
     peerDependencies:
-      react: '>=16.8'
-      react-dom: '>=16.8'
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  '@tanstack/react-table@9.2.4':
+    resolution: {integrity: sha512-Rzp1Q4e0/nIgEjmISYR5HeEgLTNtrG+C7NFZf/AbCxPO5hg+zC3yNGwcoECigUk8SFzzvhXbd2rFdtP2ZiGrfA==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      react: '>=18'
 
   '@tanstack/react-virtual@3.14.11':
     resolution: {integrity: sha512-SStWf8bYdTgAquYqG4Pi2+d1XimQKoCIJ94H3jsm0D6UA0yqffvWuvUzrrQ4idewFWq8BSPpahnmLVosJIAs6g==}
@@ -9764,9 +9737,12 @@ packages:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  '@tanstack/table-core@8.21.3':
-    resolution: {integrity: sha512-ldZXEhOBb8Is7xLs01fR3YEc3DERiz5silj8tnGkFZytt1abEvl/GhUmCE0PMLaMPTa3Jk4HbKmRlHmu+gCftg==}
-    engines: {node: '>=12'}
+  '@tanstack/store@0.11.1':
+    resolution: {integrity: sha512-mzTOBhypOuDJAy/D8n2MfUZ1HFkXnmSETviRyhqEC8LUE7/IZQExOTxMANj3KjTofYTkFNpBY67qaVrT41YccA==}
+
+  '@tanstack/table-core@9.2.4':
+    resolution: {integrity: sha512-GwdDyGGr6UXAtubF14yAwcXvdaogqfsQgIk89Suebjxob/Rjq2xvfmXsjDF1rQmKmhHsJm9TOY7myxv3i6geJw==}
+    engines: {node: '>=20'}
 
   '@tanstack/virtual-core@3.17.9':
     resolution: {integrity: sha512-M8Bzy7CCMvUjRiuoHVH9mRjyUVczRs8v8RcUEphLFGc445ZP4KQ15Y1sLqhQqJi/HgGJrxfCHnEnIX0x9mVrBg==}
@@ -12524,9 +12500,9 @@ packages:
   atomically@2.1.1:
     resolution: {integrity: sha512-P4w9o2dqARji6P7MHprklbfiArZAWvo07yW7qs3pdljb3BWr12FIB7W+p0zJiuiVsUpRO0iZn1kFFcpPegg0tQ==}
 
-  attr-accept@2.2.5:
-    resolution: {integrity: sha512-0bDNnY/u6pPwHDMoF0FieU354oBi0a8rD9FcsLwzcGWbc8KS8KPIi7y+s13OlVY+gMWc/9xEMUgNE6Qm8ZllYQ==}
-    engines: {node: '>=4'}
+  attr-accept@4.0.0:
+    resolution: {integrity: sha512-hmCnJClmeKNKlsBHgbM8yLZRiQZ4/20UXbLJb6OUT16eWcM5/xNZerr80a/zCYob768KIGq++aLrQNTuwPsIOQ==}
+    engines: {node: '>= 22'}
 
   autoprefixer@10.5.5:
     resolution: {integrity: sha512-uiRYvQYe/nNSzBJ7OUnd2/TZVsAdob3blml44teEpee9Cc1f4rGZFewO+JT3Wo8mgFOSzNqes4FHZn/Qz8WOuw==}
@@ -14256,9 +14232,10 @@ packages:
     resolution: {integrity: sha512-1gxPBJpI/pcjQhKgIU91II6Wkay+dLcN3M6rf2uwP8hRur3HtQXjVrdAK3sjC0piaEuxzMwjXChcETiJl47lAQ==}
     engines: {node: '>=18'}
 
-  dotenv@17.4.2:
-    resolution: {integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==}
+  dotenv@18.0.3:
+    resolution: {integrity: sha512-/8CJTyL817qPnfbQrJgOEcrU3fDrJkRIoXBE566wHuvIXKOCHUZhPqGPbCPi9SogjdGnreF0TlvnTgK6J/8zpA==}
     engines: {node: '>=12'}
+    hasBin: true
 
   driver.js@1.8.0:
     resolution: {integrity: sha512-+8/IO7h1v14IzWh2GP60N7T3PFZweXwdn5e5POuxRSBoCYUojsBxzqawPeXh3YZIibRy7EehYNEyxe7slwwtdg==}
@@ -15408,9 +15385,9 @@ packages:
   file-saver@2.0.5:
     resolution: {integrity: sha512-P9bmyZ3h/PRG+Nzga+rbdI4OEpNDzAVyy74uVO9ATgzLK6VtAsYybF/+TOCvrc0MO793d6+42lLyZTw7/ArVzA==}
 
-  file-selector@4.1.0:
-    resolution: {integrity: sha512-Io1mP8CI3zec5Bxy3P3TxdrKnt35Cm8vNIHnZsvyj43l4YFjD4NRInBp240S5bDJQ0EP1jnh7nCAwXsO818OCg==}
-    engines: {node: '>= 20'}
+  file-selector@5.0.1:
+    resolution: {integrity: sha512-v0g/PTeuQgvKCBrVRsfVudvwXlRHSWHEQkVgKawgCGHkEpKA1clp3Om5jvEVhz8G9W/mOYjJH9FhkH4C888PgQ==}
+    engines: {node: '>= 22'}
 
   file-type@22.0.2:
     resolution: {integrity: sha512-0H8TsCUGBLx+V5adH3EY52hTAcyLKbV1D4gq5cIOJ6DnQAHeV9Z2Hhuc5CoBX4YmvB2oL+JIC84z0qO7JsCoNw==}
@@ -15609,15 +15586,12 @@ packages:
       react-dom:
         optional: true
 
-  framer-motion@12.43.0:
-    resolution: {integrity: sha512-1eaL3RvR/kAlbG7UYcpMptEyzPoENO0c6w7ZnB3/hh2vSAz/6uGAFn6fdoqTBguNstf3MsFhJHsD/0DHiclG+g==}
+  framer-motion@13.4.1:
+    resolution: {integrity: sha512-6DsbU4hsNsokXkwSp3ezdMWMiv5yWzCcdjFgakkeUC6FVIK01Py8ToSzsXvBw8cYA5hff/oXFvZFU7ltbVyUYA==}
     peerDependencies:
-      '@emotion/is-prop-valid': '*'
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
-      '@emotion/is-prop-valid':
-        optional: true
       react:
         optional: true
       react-dom:
@@ -16994,19 +16968,13 @@ packages:
       react:
         optional: true
 
-  jotai@2.20.3:
-    resolution: {integrity: sha512-N8L9FUbeGDP+0qNJw1FebOxt+5hk+jTOwUA2LlRE4C081jUcY6F1T/FSETp4DT2/INMtiSRZyNm2D+yZdzrSgA==}
-    engines: {node: '>=12.20.0'}
+  jotai@3.0.0:
+    resolution: {integrity: sha512-KxhbmsJUp/tmrv6aZgO+nzB3H9K8C0xmk5i3aGkwy/EANg73DVBkggv3zVHaAi5PlNlQgTgP4uiVepo+JC+wSA==}
+    engines: {node: '>=22.12.0'}
     peerDependencies:
-      '@babel/core': 7.29.7
-      '@babel/template': '>=7.0.0'
       '@types/react': 19.2.18
-      react: '>=17.0.0'
+      react: '>=18.0.0'
     peerDependenciesMeta:
-      '@babel/core':
-        optional: true
-      '@babel/template':
-        optional: true
       '@types/react':
         optional: true
       react:
@@ -18451,24 +18419,21 @@ packages:
   motion-dom@11.18.1:
     resolution: {integrity: sha512-g76KvA001z+atjfxczdRtw/RXOM3OMSdd1f4DL77qCTF/+avrRJiawSG4yDibEQ215sr9kpinSlX2pCTJ9zbhw==}
 
-  motion-dom@12.43.0:
-    resolution: {integrity: sha512-azKON4d9S65PEoFUiQTMTgPheEmzf2QngdRc50AKfJp9Q9mmcBVw22c8eMq9k8kxOFHdL7+WZY7N/5F/lwiDag==}
+  motion-dom@13.4.1:
+    resolution: {integrity: sha512-qw6ILBFHrIPQd3k9Dd1fNlCLHTNzvMXW2zpeTlxn4wZXX02m0Dnsf8ycyvcjtAZtBiBnL4SfbyDIXWg+b1x/Ig==}
 
   motion-utils@11.18.1:
     resolution: {integrity: sha512-49Kt+HKjtbJKLtgO/LKj9Ld+6vw9BjH5d9sc40R/kVyH8GLAXgT42M2NnuPcJNuA3s9ZfZBUcwIgpmZWGEE+hA==}
 
-  motion-utils@12.39.0:
-    resolution: {integrity: sha512-8nadJAJjTtqRkmRF36FoJTrywK9nnFmnPwnSMyxaOCU7GDjN9RTMJIxx9De8ErM+vpPhMccr/6fo5WciyQLnMQ==}
+  motion-utils@13.3.0:
+    resolution: {integrity: sha512-sgSschQp7EseHInIlR7hBbMuvet3RA0bs28KPZAXJcGKGdxHGvh1ogpYDilY3bOMtl73EqPNmp75sAKHYPU5sg==}
 
-  motion@12.43.0:
-    resolution: {integrity: sha512-BQgQbSa9Hn3/mtbib0MK53y6JSANa+YKUKlaYnWzAVDH424RYQ5LVpV3pNiWH00BA2z4ojsSdMzqT7g2FQwjuQ==}
+  motion@13.4.1:
+    resolution: {integrity: sha512-9YjJ918QN6/4VSigEoqJysNPh33uTruTLbrBdGDI7pM6WTWU4kTPKzmEqJ4bXzLGYyDyZ5ubWX2tv2uTuFQugg==}
     peerDependencies:
-      '@emotion/is-prop-valid': '*'
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
-      '@emotion/is-prop-valid':
-        optional: true
       react:
         optional: true
       react-dom:
@@ -20085,9 +20050,9 @@ packages:
     peerDependencies:
       react: ^19.2.8
 
-  react-dropzone@19.3.0:
-    resolution: {integrity: sha512-H16cE2atFhWleWm/fihusM+FoVM/qjZ7w7WndC+gnCVg0lDKhGlKRwrpWI89divejSUoxBavEzEXmWwX7kRbTg==}
-    engines: {node: '>= 20'}
+  react-dropzone@20.1.2:
+    resolution: {integrity: sha512-gj2m31ZmYOZjTuW6CDfx38/WW2JlbuQ/X2Il8cOwIWa7Znp7vQSPJFtRfDbAjusBuoXzAYktI+r2R6iKMaRTPw==}
+    engines: {node: '>= 22'}
     peerDependencies:
       '@types/react': 19.2.18
       react: '>= 18'
@@ -23435,35 +23400,7 @@ snapshots:
       - ioredis
       - redis
 
-  '@assistant-ui/core@0.3.21(@assistant-ui/store@0.3.15(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(react@19.2.8))(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(assistant-cloud@0.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(ai@7.0.102(zod@3.25.76))(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1)))(ioredis@5.11.1(supports-color@10.2.2))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))':
-    dependencies:
-      '@assistant-ui/store': 0.3.15(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(react@19.2.8)
-      '@assistant-ui/tap': 0.9.19(@types/react@19.2.18)(react@19.2.8)
-      assistant-stream: 0.3.45(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1))
-      nanoid: 6.0.1
-    optionalDependencies:
-      '@types/react': 19.2.18
-      assistant-cloud: 0.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(ai@7.0.102(zod@3.25.76))(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1))
-      react: 19.2.8
-    transitivePeerDependencies:
-      - ioredis
-      - redis
-
   '@assistant-ui/core@0.3.21(@assistant-ui/store@0.3.15(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(react@19.2.8))(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(assistant-cloud@0.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(ai@7.0.102)(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1)))(ioredis@5.11.1(supports-color@10.2.2))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))':
-    dependencies:
-      '@assistant-ui/store': 0.3.15(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(react@19.2.8)
-      '@assistant-ui/tap': 0.9.19(@types/react@19.2.18)(react@19.2.8)
-      assistant-stream: 0.3.45(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1))
-      nanoid: 6.0.1
-    optionalDependencies:
-      '@types/react': 19.2.18
-      assistant-cloud: 0.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(ai@7.0.102)(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1))
-      react: 19.2.8
-    transitivePeerDependencies:
-      - ioredis
-      - redis
-
-  '@assistant-ui/core@0.3.21(@assistant-ui/store@0.3.15(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(react@19.2.8))(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(assistant-cloud@0.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1)))(ioredis@5.11.1(supports-color@10.2.2))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))':
     dependencies:
       '@assistant-ui/store': 0.3.15(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(react@19.2.8)
       '@assistant-ui/tap': 0.9.19(@types/react@19.2.18)(react@19.2.8)
@@ -23479,7 +23416,7 @@ snapshots:
 
   '@assistant-ui/react-markdown@0.14.17(@assistant-ui/react@0.15.22(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.102(zod@3.25.76))(immer@11.1.18)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.8)))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(supports-color@10.2.2)':
     dependencies:
-      '@assistant-ui/react': 0.15.22(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.102(zod@3.25.76))(immer@11.1.18)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.8))
+      '@assistant-ui/react': 0.15.22(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.102)(immer@11.1.18)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.8))
       '@radix-ui/react-primitive': 2.1.10(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@radix-ui/react-use-callback-ref': 1.1.4(@types/react@19.2.18)(react@19.2.8)
       '@types/hast': 3.0.5
@@ -23514,7 +23451,7 @@ snapshots:
 
   '@assistant-ui/react-streamdown@0.3.17(@assistant-ui/react@0.15.22(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.102(zod@3.25.76))(immer@11.1.18)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.8)))(@streamdown/math@1.0.2(react@19.2.8)(supports-color@10.2.2))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(supports-color@10.2.2)':
     dependencies:
-      '@assistant-ui/react': 0.15.22(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.102(zod@3.25.76))(immer@11.1.18)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.8))
+      '@assistant-ui/react': 0.15.22(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.102)(immer@11.1.18)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.8))
       '@assistant-ui/react-markdown': 0.14.17(@assistant-ui/react@0.15.22(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.102(zod@3.25.76))(immer@11.1.18)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.8)))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(supports-color@10.2.2)
       '@types/hast': 3.0.5
       micromark-util-html-tag-name: 2.0.1
@@ -23532,33 +23469,6 @@ snapshots:
       - '@types/react-dom'
       - react-dom
       - supports-color
-
-  '@assistant-ui/react@0.15.22(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.102(zod@3.25.76))(immer@11.1.18)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.8))':
-    dependencies:
-      '@assistant-ui/core': 0.3.21(@assistant-ui/store@0.3.15(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(react@19.2.8))(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(assistant-cloud@0.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(ai@7.0.102(zod@3.25.76))(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1)))(ioredis@5.11.1(supports-color@10.2.2))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))
-      '@assistant-ui/store': 0.3.15(@assistant-ui/tap@0.9.19(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(react@19.2.8)
-      '@assistant-ui/tap': 0.9.19(@types/react@19.2.18)(react@19.2.8)
-      assistant-cloud: 0.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(ai@7.0.102(zod@3.25.76))(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1))
-      assistant-stream: 0.3.45(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1))
-      radix-ui: 1.6.7(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
-      react-textarea-autosize: 8.5.9(@types/react@19.2.18)(react@19.2.8)
-      safe-content-frame: 0.0.31
-      zod: 3.25.76
-      zustand: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
-    optionalDependencies:
-      '@types/react': 19.2.18
-      '@types/react-dom': 19.2.7(@types/react@19.2.18)
-    transitivePeerDependencies:
-      - '@opentelemetry/api'
-      - '@opentelemetry/exporter-trace-otlp-http'
-      - '@opentelemetry/sdk-trace-base'
-      - ai
-      - immer
-      - ioredis
-      - redis
-      - use-sync-external-store
 
   '@assistant-ui/react@0.15.22(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.11.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.102)(immer@11.1.18)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.8))':
     dependencies:
@@ -23621,12 +23531,6 @@ snapshots:
       '@babel/helper-validator-identifier': 7.29.7
       js-tokens: 4.0.0
       picocolors: 1.1.1
-
-  '@babel/code-frame@8.0.0':
-    dependencies:
-      '@babel/helper-validator-identifier': 8.0.4
-      js-tokens: 10.0.0
-    optional: true
 
   '@babel/compat-data@7.29.7': {}
 
@@ -23767,13 +23671,7 @@ snapshots:
 
   '@babel/helper-string-parser@7.29.7': {}
 
-  '@babel/helper-string-parser@8.0.0':
-    optional: true
-
   '@babel/helper-validator-identifier@7.29.7': {}
-
-  '@babel/helper-validator-identifier@8.0.4':
-    optional: true
 
   '@babel/helper-validator-option@7.29.7': {}
 
@@ -23793,11 +23691,6 @@ snapshots:
   '@babel/parser@7.29.8':
     dependencies:
       '@babel/types': 7.29.8
-
-  '@babel/parser@8.0.4':
-    dependencies:
-      '@babel/types': 8.0.4
-    optional: true
 
   '@babel/plugin-bugfix-firefox-class-in-computed-class-key@7.29.7(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2)':
     dependencies:
@@ -24497,13 +24390,6 @@ snapshots:
       '@babel/parser': 7.29.8
       '@babel/types': 7.29.8
 
-  '@babel/template@8.0.0':
-    dependencies:
-      '@babel/code-frame': 8.0.0
-      '@babel/parser': 8.0.4
-      '@babel/types': 8.0.4
-    optional: true
-
   '@babel/traverse@7.29.8(supports-color@10.2.2)':
     dependencies:
       '@babel/code-frame': 7.29.7
@@ -24520,12 +24406,6 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
-
-  '@babel/types@8.0.4':
-    dependencies:
-      '@babel/helper-string-parser': 8.0.0
-      '@babel/helper-validator-identifier': 8.0.4
-    optional: true
 
   '@base-ui/react@1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.18)(date-fns@4.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
@@ -32141,11 +32021,20 @@ snapshots:
       '@tanstack/query-core': 5.102.8
       react: 19.2.8
 
-  '@tanstack/react-table@8.21.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@tanstack/react-store@0.11.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
-      '@tanstack/table-core': 8.21.3
+      '@tanstack/store': 0.11.1
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
+      use-sync-external-store: 1.6.0(react@19.2.8)
+
+  '@tanstack/react-table@9.2.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@tanstack/react-store': 0.11.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@tanstack/table-core': 9.2.4
+      react: 19.2.8
+    transitivePeerDependencies:
+      - react-dom
 
   '@tanstack/react-virtual@3.14.11(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
@@ -32153,7 +32042,11 @@ snapshots:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
-  '@tanstack/table-core@8.21.3': {}
+  '@tanstack/store@0.11.1': {}
+
+  '@tanstack/table-core@9.2.4':
+    dependencies:
+      '@tanstack/store': 0.11.1
 
   '@tanstack/virtual-core@3.17.9': {}
 
@@ -36559,7 +36452,7 @@ snapshots:
       stubborn-fs: 2.0.0
       when-exit: 2.1.5
 
-  attr-accept@2.2.5: {}
+  attr-accept@4.0.0: {}
 
   autoprefixer@10.5.5(postcss@8.5.28):
     dependencies:
@@ -38514,7 +38407,7 @@ snapshots:
     dependencies:
       type-fest: 4.41.0
 
-  dotenv@17.4.2: {}
+  dotenv@18.0.3: {}
 
   driver.js@1.8.0: {}
 
@@ -40014,7 +39907,7 @@ snapshots:
 
   file-saver@2.0.5: {}
 
-  file-selector@4.1.0: {}
+  file-selector@5.0.1: {}
 
   file-type@22.0.2(supports-color@10.2.2):
     dependencies:
@@ -40216,13 +40109,12 @@ snapshots:
     optionalDependencies:
       '@emotion/is-prop-valid': 1.4.0
 
-  framer-motion@12.43.0(@emotion/is-prop-valid@1.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  framer-motion@13.4.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
-      motion-dom: 12.43.0
-      motion-utils: 12.39.0
+      motion-dom: 13.4.1
+      motion-utils: 13.3.0
       tslib: 2.8.1
     optionalDependencies:
-      '@emotion/is-prop-valid': 1.4.0
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
@@ -41983,10 +41875,8 @@ snapshots:
       '@types/react': 19.2.18
       react: 19.2.8
 
-  jotai@2.20.3(@babel/core@7.29.7(supports-color@10.2.2))(@babel/template@8.0.0)(@types/react@19.2.18)(react@19.2.8):
+  jotai@3.0.0(@types/react@19.2.18)(react@19.2.8):
     optionalDependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
-      '@babel/template': 8.0.0
       '@types/react': 19.2.18
       react: 19.2.8
 
@@ -44046,20 +43936,19 @@ snapshots:
     dependencies:
       motion-utils: 11.18.1
 
-  motion-dom@12.43.0:
+  motion-dom@13.4.1:
     dependencies:
-      motion-utils: 12.39.0
+      motion-utils: 13.3.0
 
   motion-utils@11.18.1: {}
 
-  motion-utils@12.39.0: {}
+  motion-utils@13.3.0: {}
 
-  motion@12.43.0(@emotion/is-prop-valid@1.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  motion@13.4.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
-      framer-motion: 12.43.0(@emotion/is-prop-valid@1.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      framer-motion: 13.4.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       tslib: 2.8.1
     optionalDependencies:
-      '@emotion/is-prop-valid': 1.4.0
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
@@ -44465,6 +44354,7 @@ snapshots:
     optionalDependencies:
       ws: 8.21.3
       zod: 3.25.76
+    optional: true
 
   openai@7.10.0(undici@8.10.2)(ws@8.21.3)(zod@3.25.76):
     optionalDependencies:
@@ -45894,10 +45784,10 @@ snapshots:
       react: 19.2.8
       scheduler: 0.27.0
 
-  react-dropzone@19.3.0(@types/react@19.2.18)(react@19.2.8):
+  react-dropzone@20.1.2(@types/react@19.2.18)(react@19.2.8):
     dependencies:
-      attr-accept: 2.2.5
-      file-selector: 4.1.0
+      attr-accept: 4.0.0
+      file-selector: 5.0.1
       react: 19.2.8
     optionalDependencies:
       '@types/react': 19.2.18
