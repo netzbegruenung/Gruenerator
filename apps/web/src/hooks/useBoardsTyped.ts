@@ -17,7 +17,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { isBoardArchived, type BoardType } from '../features/boards/types';
 
-const BOARDS_QUERY_KEY = ['boards'];
+export const BOARDS_QUERY_KEY = ['boards'];
 
 export const useBoardsTyped = (options?: { enabled?: boolean }) => {
   const queryClient = useQueryClient();

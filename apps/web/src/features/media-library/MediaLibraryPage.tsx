@@ -20,6 +20,7 @@ import { SharedMediaImage } from '../../components/common/SharedMediaImage';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { cn } from '../../utils/cn';
 import { formatAudioDuration } from '../../utils/formatAudioDuration';
+import { useTrashUndoToast } from '../trash/trashUndoToast';
 
 import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
 
@@ -336,6 +337,20 @@ const MediaLibraryPage: React.FC = () => {
     deleteItem,
     updateItem,
   } = useMediaLibrary({ enabled: isAuthenticated });
+  const showTrashUndo = useTrashUndoToast();
+
+  // DELETE /api/media/:id takes the row id; the trash addresses a share by its token.
+  const handleDeleteItem = useCallback(
+    async (id: string) => {
+      const item = items.find((candidate) => candidate.id === id);
+      const deleted = await deleteItem(id);
+      if (deleted && item) {
+        showTrashUndo({ kind: 'shared_media', id: item.shareToken, title: item.title });
+      }
+      return deleted;
+    },
+    [items, deleteItem, showTrashUndo]
+  );
 
   const {
     upload,
@@ -566,7 +581,7 @@ const MediaLibraryPage: React.FC = () => {
                 key={item.id}
                 item={item}
                 index={i}
-                onDelete={deleteItem}
+                onDelete={handleDeleteItem}
                 onEdit={setEditingItem}
               />
             ))}

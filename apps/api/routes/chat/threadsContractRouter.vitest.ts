@@ -197,7 +197,7 @@ describe('delete — the Papierkorb for chat threads', () => {
 
     const res = await remove();
 
-    expect(res.status).toBe(200);
+    expect(res).toMatchObject({ status: 200, body: { trashed: true } });
     expect(effects).toEqual([
       'SELECT user_id, doc_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
       'SELECT 1 FROM chat_messages WHERE thread_id = $1 LIMIT 1',
@@ -213,7 +213,7 @@ describe('delete — the Papierkorb for chat threads', () => {
 
     const res = await remove();
 
-    expect(res.status).toBe(200);
+    expect(res).toMatchObject({ status: 200, body: { trashed: false } });
     expect(effects).toEqual([
       'SELECT user_id, doc_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
       'SELECT 1 FROM chat_messages WHERE thread_id = $1 LIMIT 1',
@@ -233,7 +233,7 @@ describe('delete — the Papierkorb for chat threads', () => {
 
     const res = await remove();
 
-    expect(res.status).toBe(200);
+    expect(res).toMatchObject({ status: 200, body: { trashed: false } });
     expect(effects).toEqual([
       'SELECT user_id, doc_id FROM chat_threads WHERE id = $1 AND deleted_at IS NULL',
       'read attachment handles',

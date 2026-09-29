@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../stores/authStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
 import { getNotebookById } from '../../notebook/config/notebooksConfig';
+import { useTrashUndoToast } from '../../trash/trashUndoToast';
 import { useGroupPresence } from '../hooks/useGroupPresence';
 import {
   useGroups,
@@ -87,6 +88,7 @@ const GroupDetailSection = memo(
     );
 
     const navigate = useNavigate();
+    const showTrashUndo = useTrashUndoToast();
 
     const { deleteGroup, isDeletingGroup, updateGroupName, updateGroupInfo, isUpdatingGroupName } =
       useGroups({ isActive: true });
@@ -138,11 +140,24 @@ const GroupDetailSection = memo(
       if (!groupId || !data?.isAdmin) return;
       onSuccessMessage('');
       onErrorMessage('');
+      const title = data.groupInfo?.name ?? null;
       deleteGroup(groupId, {
-        onSuccess: () => navigate('/'),
+        onSuccess: () => {
+          void navigate('/');
+          showTrashUndo({ kind: 'group', id: groupId, title });
+        },
         onError: (error: Error) => onErrorMessage(`Fehler beim Löschen: ${error.message}`),
       });
-    }, [groupId, data?.isAdmin, deleteGroup, navigate, onErrorMessage, onSuccessMessage]);
+    }, [
+      groupId,
+      data?.isAdmin,
+      data?.groupInfo?.name,
+      deleteGroup,
+      navigate,
+      onErrorMessage,
+      onSuccessMessage,
+      showTrashUndo,
+    ]);
 
     const startEditingName = useCallback(() => {
       if (data?.isAdmin) {
