@@ -75,6 +75,87 @@ describe('buildPrepareStep — forceFirstToolCall', () => {
     );
     expect(prep({ stepNumber: 0 })).toEqual({});
   });
+
+  it('gibt dem erzwungenen Schritt 0 die eigene Werkzeugmenge, Schritt 1 behält den Umfang', () => {
+    const first = ['web_search', 'gruenerator_search'];
+    const noScope = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      true,
+      undefined,
+      undefined,
+      null,
+      undefined,
+      first
+    );
+    expect(noScope({ stepNumber: 0 })).toEqual({ toolChoice: 'required', activeTools: first });
+    expect(noScope({ stepNumber: 1 })).toEqual({});
+
+    const withScope = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      true,
+      undefined,
+      undefined,
+      null,
+      () => ['a', 'b', 'meine_inhalte_laden'],
+      first
+    );
+    expect(withScope({ stepNumber: 0 })).toEqual({ toolChoice: 'required', activeTools: first });
+    expect(withScope({ stepNumber: 1 })).toEqual({
+      activeTools: ['a', 'b', 'meine_inhalte_laden'],
+    });
+  });
+
+  it('ein benanntes Werkzeug schlägt die Menge des ersten Schritts', () => {
+    const named = { toolChoice: { type: 'tool', toolName: 'bundestag' } };
+    const bare = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      true,
+      undefined,
+      undefined,
+      'bundestag',
+      undefined,
+      ['web_search']
+    );
+    expect(bare({ stepNumber: 0 })).toEqual(named);
+    const scoped = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      true,
+      undefined,
+      undefined,
+      'bundestag',
+      () => ['a'],
+      ['web_search']
+    );
+    expect(scoped({ stepNumber: 0 })).toEqual({ ...named, activeTools: ['a', 'bundestag'] });
+  });
+
+  it('die Menge des ersten Schritts wird ohne Zwang nie gelesen', () => {
+    const prep = buildPrepareStep(
+      'sys',
+      'suffix',
+      5,
+      never,
+      false,
+      undefined,
+      undefined,
+      null,
+      undefined,
+      ['web_search']
+    );
+    expect(prep({ stepNumber: 0 })).toEqual({});
+  });
 });
 
 describe('buildPrepareStep — welche Werkzeuge mitgehen', () => {
