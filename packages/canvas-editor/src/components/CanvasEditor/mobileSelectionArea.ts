@@ -3,32 +3,32 @@ import type { SidebarTabId } from '../../sidebar/types';
 
 type SelectionType = FloatingModuleState['type'];
 
-// Auswahl = Bereich: welches Sheet ein angetipptes Element öffnet. Mehrere
-// Kandidaten, weil ältere Vorlagen ihre Bereiche noch unter Legacy-IDs führen
-// (`assets` statt `elements`, `image-background` statt `background`).
-const AREA_CANDIDATES: Record<SelectionType, readonly SidebarTabId[]> = {
-  text: ['text'],
-  shape: ['elements', 'assets'],
-  icon: ['elements', 'assets'],
-  illustration: ['elements', 'assets'],
-  asset: ['elements', 'assets'],
-  frame: ['elements', 'assets'],
+// Nur Bereiche, die das angetippte Objekt selbst zeigen. Text, Formen, Icons,
+// Grafiken und Uploads fehlen bewusst: ihre Tabs sind Kataloge zum Hinzufügen
+// und kennen die Auswahl nicht. Mehrere Kandidaten, weil ältere Vorlagen ihre
+// Bereiche unter Legacy-IDs führen (`assets`, `image-background`).
+const AREA_CANDIDATES: Partial<Record<SelectionType, readonly SidebarTabId[]>> = {
   background: ['background', 'image-background', 'image'],
-  image: ['image', 'background', 'image-background', 'uploads'],
-  'user-image': ['uploads', 'image'],
-  balken: ['text'],
+  image: ['image', 'background', 'image-background'],
+  illustration: ['elements', 'assets'],
+  frame: ['elements', 'assets'],
 };
 
 /**
- * The tab a mobile selection opens: the config's detail tab for it (the one
- * desktop auto-switches to, often hidden from the tab strip — e.g. `settings`
- * for a balken) or else the visible area tab it belongs to; null if none fits.
+ * Where the mobile "Mehr" button leads for the current selection, or null if no
+ * tab has anything about this object. The config's `getAutoSwitchTab` target —
+ * what desktop opens — wins, even for tabs `getVisibleTabs` hides.
  */
 export function getMobileSelectionArea(
-  type: SelectionType | null | undefined,
+  selectedId: string | null,
+  module: FloatingModuleState | null,
   visibleTabIds: readonly SidebarTabId[],
-  detailTab: SidebarTabId | null = null
+  configTarget: SidebarTabId | null
 ): SidebarTabId | null {
-  if (!type) return null;
-  return detailTab ?? AREA_CANDIDATES[type].find((id) => visibleTabIds.includes(id)) ?? null;
+  if (!selectedId) return null;
+  if (configTarget) return configTarget;
+  if (!module) return null;
+  // Eine Vorlagen-Deko (Anführungszeichen, Sonnenblume, Logo) ist kein Foto.
+  if (module.type === 'image' && !module.data.isPhoto) return null;
+  return AREA_CANDIDATES[module.type]?.find((id) => visibleTabIds.includes(id)) ?? null;
 }
