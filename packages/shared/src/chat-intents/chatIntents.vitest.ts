@@ -9,6 +9,9 @@ import {
   isIntentAllowedForLocale,
   degradeTargetForLocale,
   intentToolNames,
+  intentsWithDisposition,
+  loopToolsFor,
+  RESEARCH_LOOP_TOOLS,
   pinnedToolForMention,
   skillForMention,
   type ChatIntentId,
@@ -263,5 +266,42 @@ describe('artifact intents', () => {
     expect(byId.create_pdf).toBe('pdf-erstellen');
     // Deliberately none: reached by classification only.
     expect(byId.create_recurring_task).toBeNull();
+  });
+});
+
+describe('loopTools', () => {
+  it('every loop-disposition intent except agentic names its loop tools', () => {
+    for (const id of intentsWithDisposition('loop')) {
+      if (id === 'agentic') continue;
+      expect(loopToolsFor(id).length, id).toBeGreaterThan(0);
+    }
+  });
+
+  it('a mention pin on a retrieval intent is one of its loop tools', () => {
+    for (const intent of ALL_CHAT_INTENTS) {
+      if (intent.category !== 'retrieval' || !intent.mention?.pinsTool) continue;
+      expect(loopToolsFor(intent.id), intent.id).toContain(intent.mention.pinsTool);
+    }
+  });
+
+  it('the research family is exactly the retrieval loop tools without chat_history', () => {
+    expect(RESEARCH_LOOP_TOOLS).toEqual(
+      new Set([
+        'web_search',
+        'gruenerator_search',
+        'scrape_url',
+        'gruenerator_examples_search',
+        'gruenerator_pressemitteilung_examples',
+        'abgeordnetenwatch',
+        'bundestag',
+        'umfragen',
+        'gruenerator_docs_search',
+      ])
+    );
+  });
+
+  it('non-retrieval intents have none', () => {
+    expect(loopToolsFor('agentic')).toEqual([]);
+    expect(loopToolsFor('summary')).toEqual([]);
   });
 });
