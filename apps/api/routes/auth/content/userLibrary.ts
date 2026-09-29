@@ -12,6 +12,7 @@ import { getQdrantInstance } from '../../../database/services/QdrantService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { smartChunkDocument } from '../../../services/document-services/TextChunker/index.js';
 import { mistralEmbeddingService } from '../../../services/mistral/index.js';
+import { trashSavedTexts } from '../../../services/user/savedTextTrash.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -338,7 +339,7 @@ router.get(
       const query = `
       SELECT id as document_id, title, content, document_type, created_at
       FROM user_documents
-      WHERE ${conditions.join(' AND ')} AND is_active = true
+      WHERE ${conditions.join(' AND ')} AND is_active = true AND deleted_at IS NULL
       ORDER BY created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
@@ -410,7 +411,7 @@ router.get(
       const data = await postgres.query(
         `SELECT id as document_id, title, content, document_type, created_at
          FROM user_documents
-         WHERE id = $1 AND user_id = $2 AND is_active = true`,
+         WHERE id = $1 AND user_id = $2 AND is_active = true AND deleted_at IS NULL`,
         [id, userId],
         { table: 'user_documents' }
       );
@@ -459,23 +460,12 @@ router.delete(
         return;
       }
 
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      await postgres.delete('user_documents', { id: id, user_id: userId });
-
-      setImmediate(async () => {
-        try {
-          const qdrant = getQdrantInstance();
-          if (await qdrant.isAvailable()) {
-            await qdrant.deleteDocument(id, 'user_texts');
-            log.debug(`[Vector Cleanup] Removed vectors for document ${id}`);
-          }
-        } catch (vectorError) {
-          const err = vectorError as Error;
-          log.error('[Vector Cleanup] Failed (non-critical):', err.message);
-        }
-      });
+      // Into the Papierkorb: the vectors stay until `purgeSavedText`.
+      const trashed = await trashSavedTexts(userId, [id]);
+      if (trashed.length === 0) {
+        res.status(404).json({ success: false, message: 'Text nicht gefunden.' });
+        return;
+      }
 
       res.json({
         success: true,
@@ -516,7 +506,7 @@ router.post(
       await postgres.ensureInitialized();
 
       const existingDoc = await postgres.query(
-        'SELECT id FROM user_documents WHERE id = $1 AND user_id = $2',
+        'SELECT id FROM user_documents WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
         [id, userId],
         { table: 'user_documents' }
       );
@@ -573,7 +563,7 @@ router.put(
       await postgres.ensureInitialized();
 
       const existingDoc = await postgres.query(
-        'SELECT id, title, document_type FROM user_documents WHERE id = $1 AND user_id = $2 AND is_active = true',
+        'SELECT id, title, document_type FROM user_documents WHERE id = $1 AND user_id = $2 AND is_active = true AND deleted_at IS NULL',
         [id, userId],
         { table: 'user_documents' }
       );
@@ -729,7 +719,7 @@ router.delete(
       await postgres.ensureInitialized();
 
       const verifyTexts = await postgres.query(
-        'SELECT id FROM user_documents WHERE user_id = $1 AND id = ANY($2) AND is_active = true',
+        'SELECT id FROM user_documents WHERE user_id = $1 AND id = ANY($2) AND is_active = true AND deleted_at IS NULL',
         [userId, ids],
         { table: 'user_documents' }
       );
@@ -746,40 +736,9 @@ router.delete(
         return;
       }
 
-      const result = await postgres.query(
-        'UPDATE user_documents SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND id = ANY($2) AND is_active = true RETURNING id',
-        [userId, ownedIds],
-        { table: 'user_documents' }
-      );
-
-      const deletedIds = (result as Array<{ id: string }>).map((row) => row.id);
+      // Into the Papierkorb: the vectors stay until `purgeSavedText`.
+      const deletedIds = await trashSavedTexts(userId, ownedIds);
       const failedIds = ownedIds.filter((id: string) => !deletedIds.includes(id));
-
-      if (deletedIds.length > 0) {
-        setImmediate(async () => {
-          try {
-            const qdrant = getQdrantInstance();
-            if (await qdrant.isAvailable()) {
-              const cleanupPromises = deletedIds.map(async (docId: string) => {
-                try {
-                  await qdrant.deleteDocument(docId, 'user_texts');
-                } catch (err) {
-                  const error = err as Error;
-                  log.error(`[Vector Cleanup] Failed for document ${docId}:`, error.message);
-                }
-              });
-
-              await Promise.all(cleanupPromises);
-              log.debug(
-                `[Vector Cleanup] Bulk cleanup completed for ${deletedIds.length} documents`
-              );
-            }
-          } catch (vectorError) {
-            const err = vectorError as Error;
-            log.error('[Vector Cleanup] Bulk cleanup failed (non-critical):', err.message);
-          }
-        });
-      }
 
       res.json({
         success: true,
@@ -881,7 +840,7 @@ router.post(
       await postgres.ensureInitialized();
 
       const documents = await postgres.query(
-        'SELECT id as document_id, title, content, document_type, created_at FROM user_documents WHERE id = ANY($1) AND user_id = $2 AND is_active = true',
+        'SELECT id as document_id, title, content, document_type, created_at FROM user_documents WHERE id = ANY($1) AND user_id = $2 AND is_active = true AND deleted_at IS NULL',
         [documentIds, userId],
         { table: 'user_documents' }
       );

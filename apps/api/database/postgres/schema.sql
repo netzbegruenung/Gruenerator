@@ -465,9 +465,7 @@ CREATE TABLE IF NOT EXISTS custom_prompts (
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     embedding_id TEXT,
     embedding_hash TEXT,
-    vector_indexed_at TIMESTAMPTZ,
-    UNIQUE(slug),
-    UNIQUE(user_id, slug)
+    vector_indexed_at TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS saved_prompts (
@@ -550,7 +548,7 @@ CREATE TABLE IF NOT EXISTS user_sharepics (
 CREATE TABLE IF NOT EXISTS user_sites (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-    subdomain TEXT UNIQUE NOT NULL,
+    subdomain TEXT NOT NULL,
     is_published BOOLEAN DEFAULT FALSE,
     site_title TEXT NOT NULL,
     tagline TEXT,
@@ -1310,7 +1308,9 @@ CREATE INDEX IF NOT EXISTS idx_board_comment_reactions_comment ON board_comment_
 
 -- Papierkorb (zz_20260929_trash_deleted_at.sql). user_agents, user_text_forms,
 -- recurring_tasks und user_letterheads entstehen erst in Migrationen; dort legt
--- die Migration die Spalte an. Partielle Indizes und CHECK stehen nur dort.
+-- die Migration die Spalte an. Partielle Indizes und CHECK stehen nur dort —
+-- auch die Eindeutigkeit von user_sites.subdomain und custom_prompts.slug, die
+-- nur unter lebenden Zeilen gilt (zz_20260929b_trash_partial_unique.sql).
 ALTER TABLE collaborative_documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;

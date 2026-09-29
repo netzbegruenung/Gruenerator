@@ -38,7 +38,7 @@ export async function getPostgresAndCheckMembership(
   const row = (await postgres.queryOne(
     `SELECT gm.role, g.created_by, g.is_system
      FROM group_memberships gm JOIN groups g ON g.id = gm.group_id
-     WHERE gm.group_id = $1 AND gm.user_id = $2`,
+     WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`,
     [groupId, userId],
     { table: 'group_memberships' }
   )) as { role: string; created_by: string | null; is_system: boolean | null } | null;
@@ -93,7 +93,7 @@ export async function listShareTargetGroups(userId: string): Promise<ShareTarget
     `SELECT g.id, g.name, gm.role, g.is_system
        FROM groups g
        INNER JOIN group_memberships gm ON gm.group_id = g.id
-      WHERE gm.user_id = $1 AND gm.is_active = TRUE
+      WHERE gm.user_id = $1 AND gm.is_active = TRUE AND g.deleted_at IS NULL
       ORDER BY g.name ASC`,
     [userId]
   )) as Array<ShareTargetGroup & { is_system: boolean | null }>;

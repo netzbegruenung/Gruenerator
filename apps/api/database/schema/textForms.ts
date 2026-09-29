@@ -1,5 +1,14 @@
-import { type InferSelectModel } from 'drizzle-orm';
-import { boolean, index, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { type InferSelectModel, sql } from 'drizzle-orm';
+import {
+  boolean,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 // Per-user learned writing styles ("angelernte Textformen"). See
 // migrations/create_user_text_forms.sql for the full rationale. `mention` is the
@@ -31,7 +40,10 @@ export const userTextForms = pgTable(
     deleted_at: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => [
-    unique('user_text_forms_user_mention_unique').on(t.user_id, t.mention),
+    // Nur unter lebenden Zeilen: ein Rezept im Papierkorb blockiert seine Mention nicht.
+    uniqueIndex('user_text_forms_user_mention_unique')
+      .on(t.user_id, t.mention)
+      .where(sql`deleted_at IS NULL`),
     index('idx_user_text_forms_user_id').on(t.user_id),
     index('idx_user_text_forms_public').on(t.is_public),
     index('idx_user_text_forms_mention').on(t.mention),

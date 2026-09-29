@@ -247,7 +247,7 @@ export const contentRoutes = {
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
       const group = await postgres.queryOne(
-        'SELECT settings FROM groups WHERE id = $1',
+        'SELECT settings FROM groups WHERE id = $1 AND deleted_at IS NULL',
         [groupId],
         {
           table: 'groups',
@@ -271,7 +271,7 @@ export const contentRoutes = {
                 tags, categories, metadata, created_at
            FROM user_templates
           WHERE is_private = false AND status = 'published' AND type = 'template'
-            AND tags ?| $1::text[]
+            AND deleted_at IS NULL AND tags ?| $1::text[]
           ORDER BY created_at DESC`,
         [templateTags],
         { table: 'user_templates' }

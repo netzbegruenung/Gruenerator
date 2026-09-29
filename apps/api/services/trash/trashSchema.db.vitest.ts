@@ -28,6 +28,9 @@ vi.mock('../../database/services/PostgresService/PostgresService.js', async (imp
   getPostgresInstance: () => ({}),
 }));
 const { DUE_SCHEDULES_SQL } = await import('../boards/boardScheduleService.js');
+// The collab purge imports the thread purge lazily; load it here so the
+// lifecycle test does not pay a cold module import inside its own budget.
+await import('../../routes/chat/services/threadTrashService.js');
 
 const url = process.env.MIGRATIONS_TEST_DATABASE_URL;
 
@@ -148,5 +151,56 @@ describe.skipIf(!url)('Papierkorb schema (zz_20260929_trash_deleted_at.sql)', ()
       doc.id,
     ]);
     expect(schedules.rowCount).toBe(0);
+  }, 30_000);
+
+  it('keeps unique keys among live rows only (zz_20260929b_trash_partial_unique.sql)', async () => {
+    const owner = randomUUID();
+    await pool.query('INSERT INTO profiles (id) VALUES ($1)', [owner]);
+    const label = 'Kreisverband';
+    const insert = () =>
+      pool.query<{ id: string }>(
+        `INSERT INTO user_letterheads (user_id, label) VALUES ($1, $2) RETURNING id`,
+        [owner, label]
+      );
+
+    const {
+      rows: [old],
+    } = await insert();
+    await expect(insert()).rejects.toMatchObject({ code: '23505' });
+
+    await pool.query('UPDATE user_letterheads SET deleted_at = now() WHERE id = $1', [old.id]);
+    // A trashed row does not block its label.
+    await insert();
+    // Restoring it next to the new one is the conflict the Papierkorb answers with 409.
+    await expect(
+      pool.query('UPDATE user_letterheads SET deleted_at = NULL WHERE id = $1', [old.id])
+    ).rejects.toMatchObject({ code: '23505' });
+
+    const partial = await pool.query<{ indexname: string; indexdef: string }>(
+      `SELECT indexname, indexdef FROM pg_indexes
+        WHERE schemaname = 'public' AND indexname = ANY($1)`,
+      [
+        [
+          'user_agents_user_identifier_unique',
+          'user_text_forms_user_mention_unique',
+          'user_letterheads_user_label_unique',
+          'user_sites_subdomain_unique',
+          'custom_prompts_slug_unique',
+          'custom_prompts_user_slug_unique',
+        ],
+      ]
+    );
+    expect(partial.rows).toHaveLength(6);
+    for (const row of partial.rows) {
+      expect(row.indexdef, row.indexname).toContain('UNIQUE');
+      expect(row.indexdef, row.indexname).toContain('WHERE (deleted_at IS NULL)');
+    }
+    // No full unique constraint is left on those keys.
+    const full = await pool.query(
+      `SELECT conname FROM pg_constraint
+        WHERE contype = 'u'
+          AND conrelid::regclass::text IN ('user_agents', 'user_text_forms', 'user_sites', 'custom_prompts')`
+    );
+    expect(full.rows).toEqual([]);
   });
 });

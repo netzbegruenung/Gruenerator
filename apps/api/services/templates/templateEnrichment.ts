@@ -62,7 +62,7 @@ export async function enrichTemplate(templateId: string): Promise<void> {
 
     const row = await postgres.queryOne<TemplateRow>(
       `SELECT id, user_id, title, description, thumbnail_url, template_type, status, is_private, tags
-       FROM user_templates WHERE id = $1`,
+       FROM user_templates WHERE id = $1 AND deleted_at IS NULL`,
       [templateId],
       { table: 'user_templates' }
     );
@@ -174,7 +174,8 @@ export async function searchTemplates(query: string, limit = 15): Promise<Templa
     }>(
       `SELECT id, title, description, thumbnail_url, external_url
        FROM user_templates
-       WHERE status = 'published' AND is_private = false AND id = ANY($1)`,
+       WHERE status = 'published' AND is_private = false AND id = ANY($1)
+         AND deleted_at IS NULL`,
       [ids],
       { table: 'user_templates' }
     );
@@ -196,16 +197,10 @@ export async function searchTemplates(query: string, limit = 15): Promise<Templa
   }
 }
 
-/**
- * Remove a template's vector from Qdrant. Best-effort.
- */
+/** Remove a purged template's point. Throws — the purge reports it as a side store. */
 export async function deleteTemplateVector(templateId: string): Promise<void> {
-  try {
-    const qdrant = getQdrantInstance();
-    if (qdrant.isAvailableSync() && qdrant.client) {
-      await deleteUserTemplateVectors(qdrant.client, COLLECTION_NAME, templateId);
-    }
-  } catch (error) {
-    log.warn(`Failed to delete vector for template ${templateId}:`, error);
+  const qdrant = getQdrantInstance();
+  if (qdrant.isAvailableSync() && qdrant.client) {
+    await deleteUserTemplateVectors(qdrant.client, COLLECTION_NAME, templateId);
   }
 }

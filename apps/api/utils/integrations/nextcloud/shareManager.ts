@@ -423,7 +423,7 @@ export class NextcloudShareManager {
          owner.nextcloud_share_links AS owner_links
        FROM group_content_shares gcs
        JOIN group_memberships gm ON gm.group_id = gcs.group_id
-       JOIN groups g ON g.id = gcs.group_id
+       JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
        LEFT JOIN profiles owner ON owner.id = gcs.shared_by_user_id
        WHERE gcs.content_type = 'nextcloud_share_link'
          AND gm.user_id = $1
@@ -475,7 +475,7 @@ export class NextcloudShareManager {
     }>(
       `SELECT gcs.group_id, g.name AS group_name, gcs.shared_at
        FROM group_content_shares gcs
-       JOIN groups g ON g.id = gcs.group_id
+       JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
        WHERE gcs.content_type = 'nextcloud_share_link'
          AND gcs.content_id = $1
          AND gcs.shared_by_user_id = $2

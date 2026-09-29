@@ -222,7 +222,7 @@ export const docsContractRouter = s.router(docsContract, {
       const shares = (await db.query(
         `SELECT gcs.group_id, g.name as group_name, gcs.permissions, gcs.shared_at
          FROM group_content_shares gcs
-         INNER JOIN groups g ON g.id = gcs.group_id
+         INNER JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
          WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $1
          ORDER BY gcs.shared_at DESC`,
         [id]
@@ -362,7 +362,7 @@ export const docsContractRouter = s.router(docsContract, {
                 gcs.permissions, gcs.shared_at,
                 (SELECT COUNT(*)::int FROM group_memberships WHERE group_id = gcs.group_id) AS member_count
          FROM group_content_shares gcs
-         JOIN groups g ON g.id = gcs.group_id
+         JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
          WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $1`,
         [id]
       )) as Array<{
@@ -747,6 +747,7 @@ export const docsContractRouter = s.router(docsContract, {
               SELECT gcs.content_id::uuid
               FROM group_content_shares gcs
               INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+              INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
               WHERE gcs.content_type = 'collaborative_documents'
                 AND (gcs.permissions->>'read')::boolean IS NOT FALSE
             ) THEN 'group'
@@ -755,7 +756,7 @@ export const docsContractRouter = s.router(docsContract, {
             (SELECT json_agg(json_build_object('group_id', g.id, 'group_name', g.name))
              FROM group_content_shares gcs2
              INNER JOIN group_memberships gm2 ON gm2.group_id = gcs2.group_id AND gm2.user_id = $1
-             INNER JOIN groups g ON g.id = gcs2.group_id
+             INNER JOIN groups g ON g.id = gcs2.group_id AND g.deleted_at IS NULL
              WHERE gcs2.content_type = 'collaborative_documents'
                AND gcs2.content_id = cd.id::text
             ), '[]'::json

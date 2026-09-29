@@ -34,7 +34,7 @@ export async function ensureSystemGroup(): Promise<void> {
     const added = await postgres.query<{ user_id: string }>(
       `INSERT INTO group_memberships (group_id, user_id, role)
        SELECT g.id, p.id, 'member' FROM groups g CROSS JOIN profiles p
-       WHERE g.is_system
+       WHERE g.is_system AND g.deleted_at IS NULL
        ON CONFLICT (group_id, user_id) DO NOTHING
        RETURNING user_id`
     );
@@ -49,7 +49,7 @@ export async function addUserToSystemGroup(userId: string): Promise<void> {
   try {
     await getPostgresInstance().query(
       `INSERT INTO group_memberships (group_id, user_id, role)
-       SELECT id, $1, 'member' FROM groups WHERE is_system
+       SELECT id, $1, 'member' FROM groups WHERE is_system AND deleted_at IS NULL
        ON CONFLICT (group_id, user_id) DO NOTHING`,
       [userId]
     );
@@ -60,7 +60,7 @@ export async function addUserToSystemGroup(userId: string): Promise<void> {
 
 export async function isSystemGroup(groupId: string): Promise<boolean> {
   const row = await getPostgresInstance().queryOne(
-    'SELECT is_system FROM groups WHERE id = $1',
+    'SELECT is_system FROM groups WHERE id = $1 AND deleted_at IS NULL',
     [groupId],
     { table: 'groups' }
   );

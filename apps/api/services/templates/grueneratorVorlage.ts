@@ -8,10 +8,15 @@
 
 import { GRUENERATOR_TEMPLATE_TYPE } from '@gruenerator/contracts';
 
-import { createLogger } from '../../utils/logger.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { deleteCanvas } from '../canvas/canvasRepository.js';
+import {
+  purgeCollaborativeDocument,
+  type QueryRunner,
+} from '../docs/CollaborativeDocumentService.js';
 
-const log = createLogger('grueneratorVorlage');
+const runQuery: QueryRunner = <T>(sql: string, params?: unknown[]) =>
+  getPostgresInstance().query<T>(sql, params);
 
 /** Read the snapshot canvas id out of a stored `content_data` blob, if present. */
 export function snapshotCanvasId(contentData: unknown): string | null {
@@ -20,22 +25,25 @@ export function snapshotCanvasId(contentData: unknown): string | null {
 }
 
 /**
- * Soft-delete the snapshot canvas backing a deleted Grünerator-Vorlage so frozen
- * snapshots don't leak. `ownerId` is the template's `user_id` (the snapshot's
- * creator), required by `deleteCanvas`'s owner check. No-op for non-gruenerator
- * rows. Best-effort: failures are logged, never thrown.
+ * Hard-delete the snapshot canvas backing a purged Grünerator-Vorlage. The
+ * snapshot is no library item of its own: it lives and dies with its Vorlage,
+ * so trashing the Vorlage leaves it alone and only the purge removes it.
+ * `ownerId` is the template's `user_id` (the snapshot's creator), required by
+ * `deleteCanvas`'s owner check; the purge only takes a trashed row, hence the
+ * trash step first (`not_found` there is a snapshot already trashed or gone).
+ * No-op for non-gruenerator rows. Throws — the caller reports it as a side store.
  */
-export async function cleanupGrueneratorSnapshot(
+export async function purgeGrueneratorSnapshot(
   templateType: unknown,
   contentData: unknown,
-  ownerId: string | null | undefined
+  ownerId: string | null
 ): Promise<void> {
   if (templateType !== GRUENERATOR_TEMPLATE_TYPE || !ownerId) return;
   const canvasId = snapshotCanvasId(contentData);
   if (!canvasId) return;
-  try {
-    await deleteCanvas(canvasId, ownerId);
-  } catch (err) {
-    log.warn('[cleanupGrueneratorSnapshot] failed to delete snapshot canvas', err);
+  const trashed = await deleteCanvas(canvasId, ownerId);
+  if (trashed.kind === 'forbidden') {
+    throw new Error('Snapshot canvas is not owned by the Vorlage owner');
   }
+  await purgeCollaborativeDocument(runQuery, canvasId, null);
 }

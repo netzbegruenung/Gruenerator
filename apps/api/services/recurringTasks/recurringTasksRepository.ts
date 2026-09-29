@@ -27,6 +27,7 @@ import {
   rruleStringToRecurrence,
   withRecurrenceDefaults,
 } from '../boards/scheduleRecurrence.js';
+import { deleteTrashedRow, isRowId, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
 
 const db = getPostgresInstance();
 
@@ -83,7 +84,7 @@ function resolveSchedule(
 
 export async function listRecurringTasks(userId: string): Promise<ApiRecurringTask[]> {
   const rows = await db.query<RecurringTask>(
-    `SELECT * FROM recurring_tasks WHERE user_id = $1 ORDER BY created_at DESC`,
+    `SELECT * FROM recurring_tasks WHERE user_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC`,
     [userId]
   );
   return rows.map(toApiTask);
@@ -94,7 +95,7 @@ export async function getRecurringTask(
   id: string
 ): Promise<ApiRecurringTask | undefined> {
   const rows = await db.query<RecurringTask>(
-    `SELECT * FROM recurring_tasks WHERE id = $1 AND user_id = $2 LIMIT 1`,
+    `SELECT * FROM recurring_tasks WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL LIMIT 1`,
     [id, userId]
   );
   return rows[0] ? toApiTask(rows[0]) : undefined;
@@ -106,7 +107,7 @@ export async function getRecurringTaskRow(
   id: string
 ): Promise<RecurringTask | undefined> {
   const rows = await db.query<RecurringTask>(
-    `SELECT * FROM recurring_tasks WHERE id = $1 AND user_id = $2 LIMIT 1`,
+    `SELECT * FROM recurring_tasks WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL LIMIT 1`,
     [id, userId]
   );
   return rows[0];
@@ -185,7 +186,7 @@ export async function updateRecurringTask(
             next_run_at = $11,
             email_notify = $12,
             updated_at = now()
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
       RETURNING *`,
     [
       id,
@@ -205,12 +206,34 @@ export async function updateRecurringTask(
   return rows[0] ? toApiTask(rows[0]) : undefined;
 }
 
+/**
+ * Move a Wiederkehrende Aufgabe to the Papierkorb: only `deleted_at` is set.
+ * The worker's due query skips it, so it does not fire while trashed; its
+ * runs stay until the purge. Owner only — the check restore and purge-now ask.
+ */
 export async function deleteRecurringTask(userId: string, id: string): Promise<boolean> {
+  if (!isRowId(id)) return false;
   const rows = await db.query<{ id: string }>(
-    `DELETE FROM recurring_tasks WHERE id = $1 AND user_id = $2 RETURNING id`,
+    `UPDATE recurring_tasks SET deleted_at = now()
+      WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+      RETURNING id`,
     [id, userId]
   );
   return rows.length > 0;
+}
+
+export const RECURRING_TASK_TRASH: OwnedTrashTable = {
+  table: 'recurring_tasks',
+  columns: 'id, title',
+};
+
+/**
+ * Hard-delete a trashed task; `recurring_task_runs` cascades. A restore keeps
+ * the old `next_run_at`, so a task whose slot passed while trashed fires once
+ * on the next tick — the same catch-up a re-enabled task gets.
+ */
+export async function purgeRecurringTask(id: string, cutoff: Date | null): Promise<boolean> {
+  return (await deleteTrashedRow(RECURRING_TASK_TRASH, id, cutoff)) !== null;
 }
 
 export async function listRecurringTaskRuns(
@@ -221,7 +244,7 @@ export async function listRecurringTaskRuns(
   const rows = await db.query<RecurringTaskRun>(
     `SELECT r.* FROM recurring_task_runs r
        JOIN recurring_tasks t ON t.id = r.task_id
-      WHERE r.task_id = $1 AND t.user_id = $2
+      WHERE r.task_id = $1 AND t.user_id = $2 AND t.deleted_at IS NULL
       ORDER BY r.created_at DESC
       LIMIT $3`,
     [taskId, userId, limit]
@@ -243,7 +266,7 @@ export async function claimDueRecurringTasks(
     const due = (await db.transactionQuery(
       client,
       `SELECT * FROM recurring_tasks
-        WHERE enabled = TRUE AND next_run_at <= now()
+        WHERE enabled = TRUE AND next_run_at <= now() AND deleted_at IS NULL
         ORDER BY next_run_at
         FOR UPDATE SKIP LOCKED
         LIMIT $1`,
@@ -320,7 +343,7 @@ export async function sweepStaleRecurringRuns(staleMinutes = 20): Promise<number
 /** Fetch a task row by id without owner scoping (trusted worker path). */
 export async function getRecurringTaskById(id: string): Promise<RecurringTask | undefined> {
   const rows = await db.query<RecurringTask>(
-    `SELECT * FROM recurring_tasks WHERE id = $1 LIMIT 1`,
+    `SELECT * FROM recurring_tasks WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
     [id]
   );
   return rows[0];

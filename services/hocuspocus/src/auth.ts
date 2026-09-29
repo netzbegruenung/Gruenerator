@@ -153,6 +153,7 @@ export class AuthService {
     const rows = await this.db(
       `SELECT gcs.permissions FROM group_content_shares gcs
        INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+       INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
        WHERE gcs.content_type IN ('collaborative_documents', 'canvas_template')
          AND gcs.content_id = $2
        LIMIT 1`,
@@ -234,6 +235,7 @@ export class AuthService {
     const groupAccess = await this.db(
       `SELECT 1 FROM group_content_shares gcs
        INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id
+       INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
        WHERE gcs.content_type = 'chat_threads'
        AND gcs.content_id = $1::uuid
        AND gm.user_id = $2::uuid
@@ -268,7 +270,7 @@ export class AuthService {
     const membership = await this.db(
       `SELECT 1 FROM group_memberships gm JOIN groups g ON g.id = gm.group_id
        WHERE gm.group_id = $1 AND gm.user_id = $2::uuid AND gm.is_active = TRUE
-         AND NOT g.is_system LIMIT 1`,
+         AND NOT g.is_system AND g.deleted_at IS NULL LIMIT 1`,
       [groupId, userId]
     );
 
