@@ -11,9 +11,6 @@ export const STROKE_ONLY_SHAPES: ReadonlySet<string> = new Set([
   'line-dotted',
   'line-double',
   'line-arrow',
-  'arrow',
-  'double-arrow',
-  'arrow-curved',
 ]);
 
 export type ShapeType =
