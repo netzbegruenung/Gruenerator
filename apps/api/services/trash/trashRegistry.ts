@@ -41,6 +41,7 @@ import {
   trashDocuments,
   type TrashedDocumentRow,
 } from '../document-services/PostgresDocumentService/metadataOperations.js';
+import { deleteLikesForEntity } from '../entityLikes/EntityLikesService.js';
 import {
   getTrashedGroup,
   listExpiredGroups,
@@ -83,6 +84,7 @@ import {
   isRowId,
   listExpiredOwnedRows,
   listTrashedOwnedRows,
+  purgeSideStore,
   restoreOwnedRow,
   trashOwnedRow,
   type OwnedRestoreResult,
@@ -246,7 +248,13 @@ const notebookHandler: TrashKindHandler = {
     await notebookHelper.restoreNotebookCollection(id);
     return 'ok';
   },
-  purge: (id, cutoff) => notebookHelper.purgeNotebookCollection(id, cutoff),
+  async purge(id, cutoff) {
+    if (!(await notebookHelper.purgeNotebookCollection(id, cutoff))) return false;
+    await purgeSideStore('notebook', id, 'entity_likes', () =>
+      deleteLikesForEntity('notebook', id)
+    );
+    return true;
+  },
   async listExpired(cutoff, limit) {
     const expired = await notebookHelper.listExpiredNotebookCollections(cutoff, limit);
     return expired.map((n) => ({ id: n.id, userId: n.user_id }));

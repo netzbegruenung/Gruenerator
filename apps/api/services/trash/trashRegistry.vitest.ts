@@ -6,11 +6,16 @@ vi.mock('../../database/services/PostgresService.js', () => ({
 }));
 
 const listTrashedNotebookCollections = vi.fn();
+const purgeNotebookCollection = vi.fn();
 vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
   NotebookQdrantHelper: class {
     listTrashedNotebookCollections = listTrashedNotebookCollections;
+    purgeNotebookCollection = purgeNotebookCollection;
   },
 }));
+
+const deleteLikesForEntity = vi.fn();
+vi.mock('../entityLikes/EntityLikesService.js', () => ({ deleteLikesForEntity }));
 
 const getTrashedShare = vi.fn();
 vi.mock('../sharedMediaService.js', () => ({
@@ -124,6 +129,18 @@ describe('notebook handler', () => {
     });
     expect(next.map((i) => i.id)).toEqual(['b']);
     expect(next[0]).toMatchObject({ kind: 'notebook', title: 'Notebook b', subtype: null });
+  });
+
+  it('purge takes the likes along, but only once the notebook is really gone (#3850)', async () => {
+    const handler = trashHandlerFor('notebook')!;
+
+    purgeNotebookCollection.mockResolvedValueOnce(false);
+    expect(await handler.purge('nb-1', null)).toBe(false);
+    expect(deleteLikesForEntity).not.toHaveBeenCalled();
+
+    purgeNotebookCollection.mockResolvedValueOnce(true);
+    expect(await handler.purge('nb-1', null)).toBe(true);
+    expect(deleteLikesForEntity).toHaveBeenCalledWith('notebook', 'nb-1');
   });
 });
 

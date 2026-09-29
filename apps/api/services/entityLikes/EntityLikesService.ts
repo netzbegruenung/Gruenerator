@@ -2,6 +2,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { entityLikes, type EntityLikeType } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('EntityLikesService');
@@ -111,3 +112,30 @@ export async function isLikedByUser(params: LikeParams): Promise<boolean> {
 }
 
 export { log as entityLikesLog };
+
+/**
+ * `entity_likes` is polymorphic (no FK on `entity_id`), so nothing removes a
+ * like when its entity goes. Each kind's purge calls this for its own id.
+ */
+export async function deleteLikesForEntity(
+  entityType: EntityLikeType,
+  entityId: string
+): Promise<void> {
+  await getDrizzleInstance()
+    .delete(entityLikes)
+    .where(and(eq(entityLikes.entity_type, entityType), eq(entityLikes.entity_id, entityId)));
+}
+
+/**
+ * Account deletion: the user's own likes (`user_id` has no FK either) and the
+ * likes on their Vorlagen, whose rows cascade away with the profile.
+ */
+export async function deleteLikesOfDeletedUser(userId: string): Promise<void> {
+  await getDrizzleInstance().delete(entityLikes).where(eq(entityLikes.user_id, userId));
+  // Trashed Vorlagen included: they cascade with the profile just the same.
+  await getPostgresInstance().query(
+    `DELETE FROM entity_likes WHERE entity_type = 'template'
+     AND entity_id IN (SELECT id::text FROM user_templates WHERE user_id = $1)`,
+    [userId]
+  );
+}

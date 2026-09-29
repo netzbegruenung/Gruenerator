@@ -6,6 +6,9 @@ import { profiles } from '../../database/schema/core.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { type DeleteResult, getPostgresInstance } from '../../database/services/PostgresService.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
+import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import { purgeSoleOwnedCollaborativeDocuments } from '../docs/CollaborativeDocumentService.js';
+import { deleteLikesOfDeletedUser } from '../entityLikes/EntityLikesService.js';
 import { deriveLandesverbandFromRoles } from '../landesverband/LandesverbandDerivationService.js';
 
 import { toUserProfile } from './profileMapper.js';
@@ -559,11 +562,24 @@ class ProfileService {
         console.warn(`[ProfileService] User ${userId} not found in profiles table`);
       }
 
-      console.log(`[ProfileService] Executing DELETE from profiles WHERE id = ${userId}`);
-
       // Use the legacy PostgresService delete for DeleteResult compatibility
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
+
+      // No FK cascade reaches these: collaborative_documents.created_by is
+      // SET NULL and entity_likes has no FK at all.
+      const purgedDocs = await purgeSoleOwnedCollaborativeDocuments(
+        (sql, params) => postgres.query(sql, params),
+        userId
+      );
+      console.log(`[ProfileService] Purged ${purgedDocs} sole-owned documents of ${userId}`);
+      try {
+        await deleteLikesOfDeletedUser(userId);
+      } catch (error) {
+        reportBackgroundError(error, { job: 'account-deletion', store: 'entity_likes' });
+      }
+
+      console.log(`[ProfileService] Executing DELETE from profiles WHERE id = ${userId}`);
       const result = await postgres.delete('profiles', { id: userId });
 
       if (result && result.changes > 0) {
