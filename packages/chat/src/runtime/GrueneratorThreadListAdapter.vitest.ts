@@ -205,4 +205,36 @@ describe('delete', () => {
     expect(resolveThreadBySlugSuffix('zzdelt1')).toBeNull();
     expect(getThreadAgentId('thread-loeschen')).toBeNull();
   });
+
+  async function deleteListedThread(response: unknown) {
+    const apiClient = makeApiClient();
+    const old = new Date(Date.now() - 3_600_000).toISOString();
+    apiClient.get = vi.fn().mockResolvedValue([
+      {
+        id: 'thread-papierkorb',
+        agentId: 'chat',
+        title: 'Haushaltsrede',
+        status: 'archived',
+        updatedAt: old,
+        lastMessage: { content: 'x', role: 'user', created_at: old },
+      },
+    ]);
+    apiClient.delete = vi.fn().mockResolvedValue(response);
+    const onTrashed = vi.fn();
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat', { onTrashed });
+    await adapter.list();
+    await adapter.delete('thread-papierkorb');
+    return onTrashed;
+  }
+
+  it('reicht den gecachten Titel an onTrashed, wenn der Thread im Papierkorb liegt', async () => {
+    const onTrashed = await deleteListedThread({ success: true, trashed: true });
+    expect(onTrashed).toHaveBeenCalledWith('thread-papierkorb', 'Haushaltsrede');
+  });
+
+  it('meldet nichts, wenn der Server den Thread endgültig entfernt hat (leer oder Doc-Chat)', async () => {
+    expect(await deleteListedThread({ success: true, trashed: false })).not.toHaveBeenCalled();
+    // An older backend answers without the flag — no undo it could not honour.
+    expect(await deleteListedThread({ success: true })).not.toHaveBeenCalled();
+  });
 });

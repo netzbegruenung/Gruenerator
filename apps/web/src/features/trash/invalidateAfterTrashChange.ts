@@ -1,3 +1,4 @@
+import { requestThreadListReload } from '@gruenerator/chat';
 import { type TrashKind } from '@gruenerator/contracts';
 import { GROUPS_QUERY_KEY } from '@gruenerator/shared/groups';
 import { MEDIA_LIBRARY_QUERY_KEY } from '@gruenerator/shared/media-library';
@@ -14,8 +15,8 @@ const ALWAYS: readonly QueryKey[] = [['recent-activity'], ['content'], ['trash']
  * back. Prefix keys: `['notebookCollections']` covers own, shared and public.
  *
  * Empty on purpose:
- * - `chat_thread`: the thread list lives in the chat runtime, not in TanStack;
- *   its reload hook arrives separately.
+ * - `chat_thread`: the thread list lives in the chat runtime, not in TanStack —
+ *   reloaded below via `requestThreadListReload()`.
  * - `custom_prompt`: the prompt list is read by `mentionableSync` (packages/chat)
  *   outside TanStack, so there is no query to invalidate.
  */
@@ -42,4 +43,5 @@ const BY_KIND: Record<TrashKind, readonly QueryKey[]> = {
 export function invalidateAfterTrashChange(qc: QueryClient, kind: TrashKind | null): void {
   const keys = kind ? [...ALWAYS, ...BY_KIND[kind]] : ALWAYS;
   for (const queryKey of keys) void qc.invalidateQueries({ queryKey });
+  if (kind === 'chat_thread') requestThreadListReload();
 }
