@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
+import { orderMayMeanArtifact, orderText } from './orderText.js';
 import {
   asksForNewArtifact,
   isSharepicEditInstruction,
   isVerificationQuestion,
+  namesSharepicTarget,
 } from './sharepicEditHeuristics.js';
 
 /**
@@ -222,5 +224,76 @@ describe('isSharepicEditInstruction', () => {
   it('never fires on fresh-deck requests', () => {
     expect(isSharepicEditInstruction('mach mir ein neues karussell')).toBe(false);
     expect(isSharepicEditInstruction('erstelle einen neuen slider über klimaschutz')).toBe(false);
+  });
+});
+
+/** Die Stufe fragt den Auftrag (`orderText`), nicht den Stoff (#3912). */
+describe('isSharepicEditInstruction liest den Auftrag, nicht den Stoff', () => {
+  const newsletter =
+    'Neu im Grünerator: neue Vorlagen für Sharepics und ein schnellerer Untertitler. Schreibt uns eure Rückmeldungen, wir freuen uns über jede Idee und jeden Hinweis aus den Kreisverbänden!';
+
+  it('„Sharepics" und „Schreibt" im eingefügten Text holen keine Bearbeitung', () => {
+    const text = `${newsletter}\n\nrechtschreibung korrigieren`;
+    expect(isSharepicEditInstruction(text)).toBe(true);
+    expect(isSharepicEditInstruction(orderText(text))).toBe(false);
+  });
+
+  it('ein echter Bearbeitungsauftrag greift weiter', () => {
+    expect(isSharepicEditInstruction(orderText('mach den Text kürzer'))).toBe(true);
+  });
+});
+
+/** #3918: mit eingefügtem Stoff muss der Auftrag das Sharepic nennen oder ersetzen. */
+describe('Sharepic-Bearbeitung: ein Auftrag ohne Ziel über eingefügtem Stoff meint den Stoff', () => {
+  const paste =
+    'Unser Ortsverband lädt am Samstag zum Radfahr-Aktionstag ein: Treffpunkt ist um 10 Uhr am Rathausplatz, danach fahren wir gemeinsam die neue Fahrradstraße ab und sammeln Ideen für den Stadtrat.';
+
+  it('„mach den Text kürzer" über Stoff greift nicht', () => {
+    const message = `${paste}\n\nmach den Text kürzer`;
+    expect(isSharepicEditInstruction(orderText(message))).toBe(true);
+    expect(orderMayMeanArtifact(message, namesSharepicTarget)).toBe(false);
+  });
+
+  it.each([
+    [`Ersetze das Zitat im Sharepic durch:\n\n${paste}`],
+    [`Ersetze den Text durch:\n\n${paste}`],
+    [`${paste}\n\nmach die Überschrift kürzer`],
+  ])('ein Auftrag, der ein Sharepic-Feld nennt oder ersetzt, greift weiter: %s', (message) => {
+    expect(isSharepicEditInstruction(orderText(message))).toBe(true);
+    expect(orderMayMeanArtifact(message, namesSharepicTarget)).toBe(true);
+  });
+
+  it('ohne Stoff bleibt es beim Sharepic', () => {
+    expect(orderMayMeanArtifact('mach den Text kürzer', namesSharepicTarget)).toBe(true);
+  });
+});
+
+/** #3924: ein Präfix wie „bild" oder „seite" nennt noch kein Sharepic. */
+describe('namesSharepicTarget: nur ganze Sharepic-Nomen', () => {
+  const paste =
+    'Unser Ortsverband lädt am Samstag zum Radfahr-Aktionstag ein: Treffpunkt ist um 10 Uhr am Rathausplatz, danach fahren wir gemeinsam die neue Fahrradstraße ab und sammeln Ideen für den Stadtrat.';
+
+  it.each([
+    ['kürzer bitte, mit Fokus auf Bildung'],
+    ['mach das auf Seitenlänge kürzer'],
+    ['mach eine Liste daraus'],
+    ['korrigier die Farbigkeit der Sprache'],
+  ])('mit Stoff greift nicht: %s', (order) => {
+    expect(namesSharepicTarget(order)).toBe(false);
+    expect(orderMayMeanArtifact(`${paste}\n\n${order}`, namesSharepicTarget)).toBe(false);
+  });
+
+  it.each([
+    ['mach das Bild heller'],
+    ['tausch die Bilder aus'],
+    ['mach die Überschrift kürzer'],
+    ['ändere die Farbe des Balkens'],
+    ['kürz den Text auf Seite 2'],
+    ['mach das Sharepic kürzer'],
+    ['ändere Zeile 2'],
+    ['nimm ein anderes Foto'],
+  ])('ein Auftrag, der ein Sharepic-Feld nennt, greift weiter: %s', (order) => {
+    expect(namesSharepicTarget(order)).toBe(true);
+    expect(orderMayMeanArtifact(`${paste}\n\n${order}`, namesSharepicTarget)).toBe(true);
   });
 });
