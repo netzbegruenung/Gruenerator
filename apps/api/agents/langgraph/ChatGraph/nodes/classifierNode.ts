@@ -237,10 +237,23 @@ function docFollowUpAddressed(
   state: ChatGraphState,
   kind: 'document' | 'sheet',
   text: string,
-  title: string | null
+  target: { ref?: string | null; label?: string | null }
 ): boolean {
-  if (state.lastTurnEditables?.includes(kind) === true) return true;
+  // „Kam direkt davor" gilt nur für GENAU das Artefakt, auf das
+  // `last_tool_context` zeigt — `lastTurnEditables` kennt nur die Art. Mit zwei
+  // Dokumenten im Thread konnte die Modell-Wahl (`resolveEditTarget`) sonst das
+  // ältere nehmen, und die Art des neueren stand dafür ein (Claude-Review #3949).
+  // Eine Bearbeitung setzt `last_tool_context` nicht neu: nach der Bearbeitung
+  // eines älteren Dokuments muss der nächste Auftrag es wieder nennen.
+  if (
+    state.lastTurnEditables?.includes(kind) === true &&
+    target.ref != null &&
+    target.ref === state.lastToolContext?.ref
+  ) {
+    return true;
+  }
   const order = stripQuotedSpans(orderText(text));
+  const title = target.label ?? null;
   return kind === 'document' ? namesDocumentTarget(order, title) : namesSheetTarget(order, title);
 }
 
@@ -257,7 +270,7 @@ function editsThreadArtifact(state: ChatGraphState, text: string): boolean {
   const held = [state.lastToolContext, ...(state.threadArtifacts ?? [])];
   const kinds = new Set(held.map((a) => a?.kind));
   const addressed = (kind: 'document' | 'sheet') =>
-    held.some((a) => a?.kind === kind && docFollowUpAddressed(state, kind, text, a.label ?? null));
+    held.some((a) => a?.kind === kind && docFollowUpAddressed(state, kind, text, a));
   return (
     ((addressed('document') || addressed('sheet')) && DOC_MODIFY_PATTERN.test(text)) ||
     (kinds.has('image') &&
@@ -1538,7 +1551,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         docModifyPattern.test(userContent) &&
         // Und nur mit Adressat: `tc` ist Dauerzustand, das Verb allein kein
         // Auftrag an ein altes Dokument (#3941, siehe docFollowUpAddressed).
-        docFollowUpAddressed(state, 'document', userContent, tc.label ?? null) &&
+        docFollowUpAddressed(state, 'document', userContent, tc) &&
         // "Gib den Stand als JSON aus, keine Dokumentaktion" matches the modify
         // verbs and used to update the thread's last document anyway — this tier
         // is purely positive-patterned and had no negation check.
@@ -1575,7 +1588,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         !hasAnyDocuments &&
         !hasBoards &&
         docModifyPattern.test(userContent) &&
-        docFollowUpAddressed(state, 'sheet', userContent, tc.label ?? null) &&
+        docFollowUpAddressed(state, 'sheet', userContent, tc) &&
         !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.sheet) &&
         // Same escape as the doc branch: a summary/bullet-point order without
         // the word "Tabelle" wants the answer in chat, not 7 sheet ops
