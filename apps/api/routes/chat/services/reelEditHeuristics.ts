@@ -53,6 +53,14 @@ export function hasStrongReelNoun(text: string): boolean {
 }
 
 /**
+ * Nennt der Auftrag das Reel? Für die Reel-Modus-Abkürzung unter eingefügtem
+ * Stoff: „kürzer bitte" kann dort den Stoff meinen, nicht das Reel (#3912).
+ */
+export function namesReelTarget(text: string): boolean {
+  return REEL_NOUN_PATTERN.test(text);
+}
+
+/**
  * Relaxed check for active Reel-Modus: with a reel attached to the thread,
  * an edit verb alone is enough ("mach das kürzer", "korrigier das") — the
  * follow-up usually drops the noun.

@@ -18,6 +18,7 @@ import {
   handleReelEdit,
   hasReelEditVerb,
   isReelEditInstruction,
+  namesReelTarget,
 } from '../services/reelEditService.js';
 import {
   handleSharepicEdit,
@@ -151,7 +152,13 @@ export async function runEarlyHandlerStage({
     // und „Schreibt uns" in einem Newsletter über „rechtschreibung korrigieren"
     // holten die Reel-Auswahl (#3912). Der Handler bekommt weiter alles.
     const reelOrder = orderText(reelText);
-    const reelModeRelaxed = rawCurrentReel != null && !!reelText && hasReelEditVerb(reelOrder);
+    // Die Abkürzung ohne Reel-Nomen gilt nur ohne Stoff: „kürzer bitte" unter
+    // einem eingefügten Text meint den Text, nicht das offene Reel.
+    const reelModeRelaxed =
+      rawCurrentReel != null &&
+      !!reelText &&
+      hasReelEditVerb(reelOrder) &&
+      orderMayMeanArtifact(reelText, namesReelTarget);
     if (reelText && (isReelEditInstruction(reelOrder) || reelModeRelaxed)) {
       const handled = await handleReelEdit({
         sse,
