@@ -594,6 +594,15 @@ export interface ChatGraphInput {
  * NOTE: Does not include req/res - the graph is decoupled from HTTP.
  * Streaming is handled by the controller via @ai-sdk/langchain adapter.
  */
+/** Ein Nachschlage-Schritt eines früheren Turns, so knapp wie der Schreiber ihn braucht. */
+export interface PriorLookup {
+  toolName: string;
+  /** `query`, ersatzweise `url` des Aufrufs. */
+  query: string | null;
+  resultCount: number | null;
+  failed: boolean;
+}
+
 export interface ChatGraphState {
   /**
    * The search query was inherited from a prior turn because this turn's ask was
@@ -672,6 +681,13 @@ export interface ChatGraphState {
    * („finde es") is then a retry and runs the loop instead of a tool-less lane.
    */
   lastTurnRetrievalFailed?: boolean;
+  /**
+   * Die Nachschlage-Schritte der letzten Turns dieses Threads, älteste zuerst
+   * (`priorLookups`). Der Schreiber sieht sonst nur die Werkzeuge SEINES Turns
+   * und beantwortete „hast du vorhin nachgesehen?" mit „in diesem Turn nicht"
+   * (#3931).
+   */
+  threadLookups?: PriorLookup[];
   /**
    * Präzisionsmodus der Notebook-Seite: `notebook_quellen` darf nur diese
    * Notebooks öffnen (verglichen nach `resolveSystemCollection`), und mit
