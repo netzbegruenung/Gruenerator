@@ -673,6 +673,14 @@ export interface ChatGraphState {
    */
   lastTurnRetrievalFailed?: boolean;
   /**
+   * Der Assistenz-Turn DIREKT vor diesem hat ein Sharepic gebaut oder bearbeitet.
+   * `lastToolContext` taugt dafür nicht: `chat_threads.last_tool_context`
+   * überschreibt erst das NÄCHSTE Artefakt, und ohne diesen Adressaten wurde
+   * Tage später „Verbesser den Antrag" zur Sharepic-Bearbeitung (Beta-Audit
+   * 30.09.2026). Siehe `sharepicEditAddressed`.
+   */
+  lastTurnSharepic?: boolean;
+  /**
    * Präzisionsmodus der Notebook-Seite: `notebook_quellen` darf nur diese
    * Notebooks öffnen (verglichen nach `resolveSystemCollection`), und mit
    * `readOnly` keine Schreibaktion ausführen. Fehlt ⇒ keine Einschränkung.

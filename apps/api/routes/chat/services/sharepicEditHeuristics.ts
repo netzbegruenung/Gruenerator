@@ -137,6 +137,40 @@ export function namesSharepicTarget(text: string): boolean {
   return SHAREPIC_TARGET_NOUN_PATTERN.test(text);
 }
 
+/**
+ * Eine Sharepic-Bearbeitung braucht einen ADRESSATEN: die offene Karte („Im
+ * Chat bearbeiten"), ein Sharepic im Turn direkt davor, oder der Auftrag nennt
+ * das Sharepic bzw. eins seiner Felder.
+ *
+ * „Der Thread hat irgendwo ein Sharepic" reichte bis zum Beta-Audit 30.09.2026,
+ * und mit Einzelwort-Mustern (`anders`, `freundlich`, `verbesser`) machte das
+ * Tage später aus „Ist das im Wahlprogramm anders?", „Verbesser den Antrag"
+ * oder „Mach mir eine Liste der Argumente" eine Sharepic-Bearbeitung. Eine
+ * Regel für beide Türen: die Router-Weichen und Tier 2.7 des Klassifikators.
+ */
+/**
+ * Hat der Turn direkt davor ein Sharepic gebaut oder bearbeitet? Eine
+ * Bearbeitung speichert `sharepic_edit` statt neuer Varianten und taucht in den
+ * Artefakten deshalb nicht auf — ohne den zweiten Halbsatz bräche die zweite
+ * Korrektur in Folge („Zeile 2 kürzer", dann „und grüner") am Adressaten ab.
+ */
+export function priorTurnMadeSharepic(
+  artifacts: ReadonlyArray<{ kind: string }>,
+  steps: ReadonlyArray<{ toolName: string }>
+): boolean {
+  return (
+    artifacts.some((a) => a.kind === 'sharepic') ||
+    steps.some((step) => step.toolName === 'sharepic_edit')
+  );
+}
+
+export function sharepicEditAddressed(
+  order: string,
+  context: { cardOpen: boolean; lastTurnSharepic: boolean }
+): boolean {
+  return context.cardOpen || context.lastTurnSharepic || namesSharepicTarget(order);
+}
+
 export function isSharepicEditInstruction(text: string): boolean {
   if (NEW_VARIANTS_PATTERN.test(text)) return false;
   if (NEW_ARTIFACT_PATTERN.test(text)) return false;

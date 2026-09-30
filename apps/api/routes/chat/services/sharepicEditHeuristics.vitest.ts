@@ -6,6 +6,8 @@ import {
   isSharepicEditInstruction,
   isVerificationQuestion,
   namesSharepicTarget,
+  priorTurnMadeSharepic,
+  sharepicEditAddressed,
 } from './sharepicEditHeuristics.js';
 
 /**
@@ -295,5 +297,51 @@ describe('namesSharepicTarget: nur ganze Sharepic-Nomen', () => {
   ])('ein Auftrag, der ein Sharepic-Feld nennt, greift weiter: %s', (order) => {
     expect(namesSharepicTarget(order)).toBe(true);
     expect(orderMayMeanArtifact(`${paste}\n\n${order}`, namesSharepicTarget)).toBe(true);
+  });
+});
+
+// Beta-Audit 30.09.2026: „der Thread hat irgendwo ein Sharepic" war die einzige
+// Bedingung — Tage später wurde so jeder Satz mit „mach … Liste" zur Bearbeitung.
+describe('sharepicEditAddressed', () => {
+  const later = { cardOpen: false, lastTurnSharepic: false };
+
+  it.each([
+    'Verbesser den Antrag',
+    'Mach mir eine Liste der Argumente',
+    'Ist das im Wahlprogramm anders?',
+    'Zeig mir den Text des Beschlusses',
+    'Schreib eine freundliche Mail an Herrn X',
+  ])('Turns später ohne Adressat: %s', (order) => {
+    expect(sharepicEditAddressed(order, later)).toBe(false);
+  });
+
+  it.each(['mach den Text auf dem Sharepic kürzer', 'anderes Hintergrundbild', 'Zeile 2 kürzer'])(
+    'Turns später, der Auftrag nennt das Sharepic: %s',
+    (order) => {
+      expect(sharepicEditAddressed(order, later)).toBe(true);
+    }
+  );
+
+  it.each(['mach es kürzer', 'verlängern'])('direkt nach dem Sharepic: %s', (order) => {
+    expect(sharepicEditAddressed(order, { cardOpen: false, lastTurnSharepic: true })).toBe(true);
+  });
+
+  it('die offene Karte ist immer ein Adressat', () => {
+    expect(
+      sharepicEditAddressed('mach es kürzer', { cardOpen: true, lastTurnSharepic: false })
+    ).toBe(true);
+  });
+});
+
+describe('priorTurnMadeSharepic', () => {
+  it('zählt ein neues Sharepic und eine Bearbeitung', () => {
+    expect(priorTurnMadeSharepic([{ kind: 'sharepic' }], [])).toBe(true);
+    // Die zweite Korrektur in Folge: der Turn davor speicherte nur `sharepic_edit`.
+    expect(priorTurnMadeSharepic([], [{ toolName: 'sharepic_edit' }])).toBe(true);
+  });
+
+  it('zählt keinen anderen Turn', () => {
+    expect(priorTurnMadeSharepic([], [])).toBe(false);
+    expect(priorTurnMadeSharepic([{ kind: 'document' }], [{ toolName: 'web_search' }])).toBe(false);
   });
 });

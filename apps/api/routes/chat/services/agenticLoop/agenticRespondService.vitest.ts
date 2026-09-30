@@ -178,6 +178,7 @@ describe('streamAgenticResponse — Mistral prompt cache', () => {
     artifacts: () => [],
     toolSteps: () => [],
     lastTurnToolSteps: () => [],
+    lastTurnArtifacts: () => [],
     sources: () => [],
     lastGeneratedImageUrl: () => null,
   };
@@ -458,6 +459,7 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
     toolSteps: (): PersistedStep[] =>
       toolNames.map((toolName, i) => ({ toolCallId: `c${i}`, toolName, args: {}, result: {} })),
     lastTurnToolSteps: () => [],
+    lastTurnArtifacts: () => [],
     sources: () => [],
     lastGeneratedImageUrl: () => null,
   });
