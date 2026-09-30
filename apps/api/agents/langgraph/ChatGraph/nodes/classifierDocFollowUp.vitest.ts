@@ -174,3 +174,44 @@ describe('Offenes Dokument — die Seitenleiste bleibt, wie sie war', () => {
     expect(result.intent).toBe('edit_current_doc');
   });
 });
+
+// Claude-Review #3949: `lastTurnEditables` kennt nur die ART. Mit zwei
+// Dokumenten im Thread darf die Modell-Wahl nicht das ältere nehmen und sich
+// dabei auf das neuere berufen, das direkt davor entstand.
+describe('Tier 2.7 — „direkt davor" gilt nur für genau dieses Dokument', () => {
+  const OLD = { kind: 'document' as const, ref: 'doc-old', label: 'Satzung Ortsverband' };
+  const NEW = { kind: 'document' as const, ref: 'doc-new', label: 'Antrag Radverkehr' };
+
+  async function classifyWithPick(text: string, pick: string) {
+    executeProvider.mockImplementation(async () => ({ content: pick }));
+    try {
+      return await classifierNode(
+        buildState({
+          userMessage: text,
+          lastToolContext: NEW,
+          threadArtifacts: [NEW, OLD],
+          lastTurnEditables: ['document'],
+        })
+      );
+    } finally {
+      executeProvider.mockImplementation(async () => ({ content: 'keine' }));
+    }
+  }
+
+  it('die Wahl des älteren Dokuments ist kein Adressat', async () => {
+    const result = await classifyWithPick('Kürze die Begründung auf die Hälfte', '2');
+    expect(result.docMentionIds ?? []).not.toContain('doc-old');
+  });
+
+  it('das Dokument von direkt davor bleibt adressiert', async () => {
+    const result = await classifyWithPick('Kürze die Begründung auf die Hälfte', '1');
+    expect(result.intent).toBe('modify_doc');
+    expect(result.docMentionIds).toEqual(['doc-new']);
+  });
+
+  it('nennt der Auftrag das Dokument, zählt auch das ältere', async () => {
+    const result = await classifyWithPick('Kürze im Dokument die Begründung auf die Hälfte', '2');
+    expect(result.intent).toBe('modify_doc');
+    expect(result.docMentionIds).toEqual(['doc-old']);
+  });
+});
