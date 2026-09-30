@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { carriesMaterial, orderText, pointsAtMaterial } from './orderText.js';
+import { orderMayMeanArtifact, orderText } from './orderText.js';
 import { isSharepicEditInstruction } from './sharepicEditHeuristics.js';
 import { isSocialTextEditInstruction, namesSocialPostTarget } from './socialPostEditHeuristics.js';
 
@@ -152,46 +152,48 @@ describe('Post-Text-Weiche liest den Auftrag, nicht den Stoff', () => {
 });
 
 /**
- * #3918: bringt die Nachricht Stoff mit, meint „übersetze das" den Stoff, nicht
- * den Post im Thread. Dann muss der Auftrag den Post nennen. So setzt die Stufe
- * die Prädikate zusammen (`earlyHandlerStage.ts`).
+ * #3918: bringt die Nachricht Stoff mit, kann ein Auftrag ohne Ziel den Stoff
+ * meinen statt des Posts im Thread. Die Stufe fragt dann
+ * `orderMayMeanArtifact(message, namesSocialPostTarget)`.
  */
-describe('Post-Text-Weiche: ein Zeigewort über eingefügtem Stoff meint den Stoff', () => {
-  const claimsPostEdit = (message: string) => {
-    const order = orderText(message);
-    return (
-      isSocialTextEditInstruction(order) &&
-      (!carriesMaterial(message) || !pointsAtMaterial(order) || namesSocialPostTarget(order))
-    );
-  };
+describe('Post-Text-Weiche: ein Auftrag ohne Ziel über eingefügtem Stoff meint den Stoff', () => {
   const paste =
     'Unser Ortsverband lädt am Samstag zum Radfahr-Aktionstag ein: Treffpunkt ist um 10 Uhr am Rathausplatz, danach fahren wir gemeinsam die neue Fahrradstraße ab und sammeln Ideen für den Stadtrat.';
 
   it.each([
     [`${paste}\n\nübersetze das ins Englische`],
     [`${paste}\n\nmach es kürzer`],
+    [`${paste}\n\nins Englische übersetzen`],
+    [`${paste}\n\nauf Englisch bitte`],
+    [`${paste}\n\nkürzer bitte`],
+    [`${paste}\n\nübersetze ins Englische`],
+    [`${paste}\n\nmach ihn kürzer`],
     // „Text" allein kann ebenso der eingefügte Text sein.
     [`${paste}\n\nverbesser den Text`],
-  ])('ein Zeigewort über Stoff greift nicht: %s', (message) => {
+  ])('greift nicht: %s', (message) => {
     // Nur der Auftrag gelesen, würde die Weiche greifen — das war der Ausfall.
     expect(isSocialTextEditInstruction(orderText(message))).toBe(true);
-    expect(claimsPostEdit(message)).toBe(false);
+    expect(orderMayMeanArtifact(message, namesSocialPostTarget)).toBe(false);
   });
 
   it.each([
     [`Ersetze den Text im Post durch:\n\n${paste}`],
-    // Ein Ersetzungsauftrag zeigt nicht auf den Stoff — der Stoff IST der neue Text.
+    // Ein Ersetzungsauftrag: der Stoff IST der neue Text des Posts.
     [`Ersetze den Text durch:\n\n${paste}`],
     [`${paste}\n\nübersetze den Post ins Englische`],
     [`${paste}\n\nkürze die Caption`],
-  ])('ein Auftrag, der den Post nennt, greift weiter: %s', (message) => {
-    expect(claimsPostEdit(message)).toBe(true);
+  ])('ein Auftrag, der den Post nennt oder ersetzt, greift weiter: %s', (message) => {
+    expect(isSocialTextEditInstruction(orderText(message))).toBe(true);
+    expect(orderMayMeanArtifact(message, namesSocialPostTarget)).toBe(true);
   });
 
-  it.each([['übersetze das ins Englische'], ['mach es kürzer'], ['verbesser den Text']])(
-    'ohne Stoff bleibt es beim Post: %s',
-    (message) => {
-      expect(claimsPostEdit(message)).toBe(true);
-    }
-  );
+  it.each([
+    ['übersetze das ins Englische'],
+    ['mach es kürzer'],
+    ['kürzer bitte'],
+    ['verbesser den Text'],
+  ])('ohne Stoff bleibt es beim Post: %s', (message) => {
+    expect(isSocialTextEditInstruction(orderText(message))).toBe(true);
+    expect(orderMayMeanArtifact(message, namesSocialPostTarget)).toBe(true);
+  });
 });
