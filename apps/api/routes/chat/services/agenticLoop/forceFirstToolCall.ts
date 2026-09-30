@@ -9,7 +9,6 @@ import { orderText } from '../orderText.js';
 
 import { NAMED_RETRIEVAL_INTENTS } from './intents.js';
 import {
-  FACT_CHECK_RE,
   isReferentialFollowup,
   looksLikeExplicitResearchOrder,
   reworksSuppliedText,
@@ -119,7 +118,7 @@ export function shouldForceFirstToolCall(input: {
   // die Recherche-Signale des Klassifikators.
   const reworksOwnText = reworksSuppliedText(input.lastUserText);
   const order = orderText(input.lastUserText);
-  if ((looksLikeExplicitResearchOrder(order) || FACT_CHECK_RE.test(order)) && !reworksOwnText)
+  if ((looksLikeExplicitResearchOrder(order) || looksLikeFactCheckOrder(order)) && !reworksOwnText)
     return 'research_order';
 
   // Derselbe Ausfall ohne das Verb: eine schlichte Faktenfrage, von der Heuristik
@@ -231,6 +230,29 @@ export function shouldForceFirstToolCall(input: {
   if (input.attachedSeedDelivered) return null;
 
   return NAMED_RETRIEVAL_INTENTS.has(input.intent ?? '') ? 'named_intent' : null;
+}
+
+/** Ein Prüfwort und ein Sachgegenstand im selben Satz, in beliebiger Reihenfolge. */
+const CHECK_WORD = String.raw`(?:(?:[üu]berpr[üu]f|pr[üu]f|verifizier|check|kontrollier|stimm)\p{L}*)`;
+const FACT_NOUN = String.raw`(?:fakten|zahlen|angaben|daten|behauptung(?:en)?|aussagen?|quellen)(?!\p{L})`;
+const FACT_CHECK_ORDER_RE = new RegExp(
+  String.raw`(?<!\p{L})${CHECK_WORD}[^.?!]*?(?<!\p{L})${FACT_NOUN}|(?<!\p{L})${FACT_NOUN}[^.?!]*?(?<!\p{L})${CHECK_WORD}|(?<!\p{L})ob(?!\p{L})[^.?!]*?(?<!\p{L})stimm`,
+  'iu'
+);
+
+/** Prüft die Sprache, nicht die Sache — „ob die Kommasetzung stimmt". */
+const LANGUAGE_CHECK_RE =
+  /(?<!\p{L})(?:rechtschreib|orthogra[fp]h?|komma|zeichensetzung|grammatik|tippfehler|schreibfehler|stil|formulierung|ausdruck)/iu;
+
+/**
+ * Eine Faktenprüfung, die nachschlagen muss (#3915): „prüf die Fakten darin",
+ * „stimmen die Angaben?". Enger als `FACT_CHECK_RE` in `routing.ts` — das ist
+ * ein Veto gegen die Überarbeitungs-Abkürzung und darf grosszügig sein; hier
+ * ERZWINGT der Treffer eine Websuche, und „prüfe, ob die Rechtschreibung
+ * korrekt ist" darf das nicht (#3903).
+ */
+function looksLikeFactCheckOrder(order: string): boolean {
+  return FACT_CHECK_ORDER_RE.test(order) && !LANGUAGE_CHECK_RE.test(order);
 }
 
 /**

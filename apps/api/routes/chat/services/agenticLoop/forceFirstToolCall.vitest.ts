@@ -304,6 +304,25 @@ describe('shouldForceFirstToolCall', () => {
       expect(force({ lastUserText })).toBe('research_order');
     });
 
+    // Die Faktenprüfung erzwingt eine Websuche — eine Prüfung der SPRACHE darf
+    // das nicht, das wäre #3903 in anderer Form.
+    it.each([
+      ['prüfe, ob die Rechtschreibung korrekt ist'],
+      ['prüf bitte, ob die Kommasetzung richtig ist'],
+      ['prüf ob die Kommasetzung stimmt'],
+      [`${claim}\n\nprüf, ob die Grammatik stimmt`],
+    ])('eine Sprachprüfung sucht nicht: %s', (lastUserText) => {
+      expect(force({ lastUserText })).toBeNull();
+    });
+
+    it.each([
+      ['prüf, ob die Zahlen stimmen'],
+      [`${claim}\n\nstimmen die Angaben?`],
+      [`${claim}\n\nKannst du prüfen, ob das stimmt?`],
+    ])('eine Faktenprüfung sucht: %s', (lastUserText) => {
+      expect(force({ lastUserText })).toBe('research_order');
+    });
+
     it('„prüfen … Zahlen" im Stoff macht keine Faktenprüfung', () => {
       const lastUserText = `Der Kämmerer will prüfen, ob die Zahlen im Haushalt stimmen. ${claim}\n\nschreib daraus einen Post`;
       expect(force({ lastUserText })).toBeNull();
