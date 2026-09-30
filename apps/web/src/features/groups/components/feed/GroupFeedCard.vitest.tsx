@@ -214,6 +214,71 @@ describe('GroupFeedCard', () => {
   it('hides comments where the group does not allow them', () => {
     renderWithProviders(<GroupFeedCard {...baseProps} canComment={false} />);
     expect(screen.queryByRole('button', { name: /Kommentare/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reaktion hinzufügen' })).not.toBeInTheDocument();
+  });
+
+  const REACTIONS_URL = 'http://localhost/api/auth/reactions/:entityType/:entityId/:emoji';
+
+  it('reacts to the post itself', async () => {
+    const seen: unknown[] = [];
+    server.use(
+      http.put(REACTIONS_URL, ({ params }) => {
+        seen.push({ ...params });
+        return HttpResponse.json({ reactions: [{ emoji: '🎉', count: 3, reacted: true }] });
+      })
+    );
+    const reacted = {
+      ...item,
+      share: { ...item.share!, reactions: [{ emoji: '🎉', count: 2, reacted: false }] },
+    };
+    const { user } = renderWithProviders(<GroupFeedCard {...baseProps} item={reacted} />);
+    const chip = screen.getByRole('button', { name: '🎉 – 2 Reaktionen' });
+    expect(chip).toHaveAttribute('aria-pressed', 'false');
+    await user.click(chip);
+    await waitFor(() =>
+      expect(seen).toEqual([{ entityType: 'group_share', entityId: SHARE, emoji: '🎉' }])
+    );
+  });
+
+  it('reacts to a comment: the chip appears with its count and pressed', async () => {
+    const seen: unknown[] = [];
+    let reactions: { emoji: string; count: number; reacted: boolean }[] = [];
+    server.use(
+      http.get(COMMENTS_URL, () =>
+        HttpResponse.json({
+          success: true,
+          comments: [
+            {
+              id: 'c1',
+              shareId: SHARE,
+              parentId: null,
+              userId: TOM,
+              authorName: 'Tom Krüger',
+              body: 'Das Zitat nach vorne.',
+              createdAt: '2026-09-26T09:00:00Z',
+              reactions,
+            },
+          ],
+        })
+      ),
+      http.put(REACTIONS_URL, ({ params }) => {
+        seen.push({ ...params });
+        reactions = [{ emoji: '👍', count: 1, reacted: true }];
+        return HttpResponse.json({ reactions });
+      })
+    );
+    const { user, container } = renderWithProviders(<GroupFeedCard {...baseProps} />);
+    await user.click(screen.getByRole('button', { name: 'Kommentare (1)' }));
+    const comment = (await screen.findByText('Das Zitat nach vorne.')).closest('li')!;
+    await user.click(within(comment).getByRole('button', { name: 'Reaktion hinzufügen' }));
+    await user.click(await screen.findByRole('button', { name: 'Mit 👍 reagieren' }));
+
+    const chip = await within(comment).findByRole('button', { name: '👍 – 1 Reaktion, von dir' });
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(() =>
+      expect(seen).toEqual([{ entityType: 'group_comment', entityId: 'c1', emoji: '👍' }])
+    );
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
 

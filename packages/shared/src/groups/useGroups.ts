@@ -411,6 +411,13 @@ export const useUpdateGroupShare = (groupId: string) => {
   });
 };
 
+// The groups client does not validate responses, so the schema default never runs:
+// a server from before reactions sends comments without the field.
+const withReactions = (c: GroupShareComment): GroupShareComment => ({
+  ...c,
+  reactions: (c.reactions as GroupShareComment['reactions'] | undefined) ?? [],
+});
+
 export const useGroupShareComments = (
   groupId: string,
   shareId: string,
@@ -424,7 +431,7 @@ export const useGroupShareComments = (
       });
       if (res.status !== 200)
         throw apiErrorFromResponse(res, 'Kommentare konnten nicht geladen werden.');
-      return res.body.comments;
+      return res.body.comments.map(withReactions);
     },
     enabled: (options.enabled ?? true) && !!groupId && !!shareId,
     staleTime: 30 * 1000,
@@ -440,7 +447,7 @@ export const useAddGroupShareComment = (groupId: string, shareId: string) => {
       });
       if (res.status !== 201)
         throw apiErrorFromResponse(res, 'Kommentar konnte nicht gesendet werden.');
-      return res.body.comment;
+      return withReactions(res.body.comment);
     },
     onSuccess: (comment) => {
       qc.setQueryData<GroupShareComment[]>(groupShareCommentsKey(groupId, shareId), (prev) => [
