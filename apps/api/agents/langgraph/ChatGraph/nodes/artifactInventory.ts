@@ -205,7 +205,7 @@ export const NO_ARTIFACT_URL_RULE =
  *  Split-Schreiber und DIRECT_HONESTY_NOTE, damit ein Prompt nicht drei
  *  Fassungen davon trägt. */
 export const NO_PHANTOM_ACTION_RULE =
-  'Behaupte NIEMALS, eine Aktion oder ein Artefakt sei in diesem Turn erledigt, erstellt oder geändert worden, wenn kein Werkzeug das getan hat — und kündige nichts für „gleich" an: Was in diesem Turn kein Werkzeug tut, passiert nicht. Kannst du eine gewünschte Änderung hier nicht vornehmen, sag das in einem Satz.';
+  'Behaupte NIEMALS, eine Aktion oder ein Artefakt sei in diesem Turn erledigt, erstellt oder geändert worden, wenn kein Werkzeug das getan hat — und kündige nichts für „gleich" an: Was in diesem Turn kein Werkzeug tut, passiert nicht. Kannst du eine gewünschte Änderung hier nicht vornehmen, sag das in einem Satz. Auch „Ich habe mir das notiert/gemerkt/gespeichert" und „das merke ich mir" sind solche Behauptungen: sie stimmen nur, wenn das Werkzeug `memory` in diesem Turn gelaufen ist (Zeile „Gemerkt"); sonst nimm die Angabe einfach zur Kenntnis oder biete an, sie zu merken.';
 
 /** Die Kehrseite: ein Werkzeug, das in DIESEM Turn nicht lief, fehlt dem
  *  Produkt nicht. Der Split-Schreiber hat nie Werkzeuge, der Einzeldurchlauf
