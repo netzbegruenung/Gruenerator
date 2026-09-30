@@ -1,0 +1,157 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "gruene-de-waermepumpe",
+      "collection": "gruene-de-system",
+      "query": "Förderung beim Heizungstausch und Wärmepumpen",
+      "rank": 2,
+      "topTitles": [
+        "Bezahlbare Energie für Privathaushalte",
+        "Neues Heizungsgesetz schreddert die Klimaziele.",
+        "Leben bezahlbar machen: Wohnen",
+        "Grüner 10-Punkte-Plan für das Update der Energiewende",
+        "Lösung gefunden: Entlastungen im Haushalt 2024"
+      ],
+      "searchTimeMs": 773
+    },
+    {
+      "id": "gruene-de-vielfalt",
+      "collection": "gruene-de-system",
+      "query": "Einsatz gegen Rechtsextremismus und für eine vielfältige Gesellschaft",
+      "rank": 2,
+      "topTitles": [
+        "1. Diversitaetsrat 2024 am 19. und 20. April in Berlin",
+        "Mit Mut und Entschlossenheit gegen Rechtsextreme und die AfD",
+        "Eine vielfältige Gesellschaft gestalten",
+        "Koalitionsvertrag: Mehr Fortschritt wagen",
+        "Zukunft sichern mit einer Waldpolitik, die Klima und Natur schützt"
+      ],
+      "searchTimeMs": 222
+    },
+    {
+      "id": "gruene-de-frauentag",
+      "collection": "gruene-de-system",
+      "query": "Gleichberechtigung und feministische Politik",
+      "rank": 1,
+      "topTitles": [
+        "Bundesfrauenkonferenz 2025",
+        "Gleichberechtigung verwirklichen",
+        "Impulspapier zur Gründung des Vorstandsbeirats Bündnisgrüner Osten",
+        "Nachhaltige Friedenspolitik in Israel und Palästina",
+        "Charta der Europäischen Grünen"
+      ],
+      "searchTimeMs": 264
+    },
+    {
+      "id": "gruene-de-energie",
+      "collection": "gruene-de-system",
+      "query": "Ausbau der erneuerbaren Energien in Deutschland",
+      "rank": 1,
+      "topTitles": [
+        "Energiewende vorantreiben",
+        "Der fatale Irrweg der schwarz-roten Energiepolitik",
+        "KLIMASCHUTZ",
+        "Bezahlbar, sicher, sauber – Energiewende dank Solarpaket weiter auf Erfolgskurs",
+        "Wirtschaftsappell: Mehr Energiewende – nicht weniger!"
+      ],
+      "searchTimeMs": 233
+    },
+    {
+      "id": "gruene-de-artenschutz",
+      "collection": "gruene-de-system",
+      "query": "Artenvielfalt und Naturschutz",
+      "rank": 1,
+      "topTitles": [
+        "Mehr schaffen: Für einen offensiven Mitmach-Naturschutz für alle.",
+        "KLIMASCHUTZ",
+        "Das neue Grundsatzprogramm",
+        "Echten Natur- und Umweltschutz gibt’s nur mit GRÜN.",
+        "Zukunft sichern mit einer Waldpolitik, die Klima und Natur schützt"
+      ],
+      "searchTimeMs": 183
+    },
+    {
+      "id": "gruene-de-vorsitz",
+      "collection": "gruene-de-system",
+      "query": "Wer ist im Bundesvorstand der Partei?",
+      "rank": 5,
+      "topTitles": [
+        "Gründung der Arbeitsgruppe Vielfalt",
+        "Impulspapier zur Gründung des Vorstandsbeirats Bündnisgrüner Osten",
+        "Aufarbeitung und Verantwortung",
+        "Die Mitglieder haben entschieden: Was die Urabstimmung für uns bedeutet",
+        "Bericht und Beschluss des Bundesvorstands von BÜNDNIS 90/DIE GRÜNEN zur zukünftigen Aufstellung unserer Ombudsstrukturen"
+      ],
+      "searchTimeMs": 213
+    },
+    {
+      "id": "gruene-de-mitglied",
+      "collection": "gruene-de-system",
+      "query": "Wie kann ich Mitglied werden?",
+      "rank": 1,
+      "topTitles": [
+        "Parteimitgliedschaft",
+        "Die Mitglieder haben entschieden: Was die Urabstimmung für uns bedeutet",
+        "Datenschutzhinweise beim SEPA-Mandat",
+        "Gründung der Arbeitsgruppe Vielfalt",
+        "Programm Bundesfrauenkonferenz 2025"
+      ],
+      "searchTimeMs": 193
+    },
+    {
+      "id": "gruene-de-europa",
+      "collection": "gruene-de-system",
+      "query": "Europapolitik und die Rolle der EU",
+      "rank": 1,
+      "topTitles": [
+        "Europastrategie von BÜNDNIS 90/DIE GRÜNEN",
+        "Außenpolitik in Verantwortung",
+        "Warum ist Desinformation gefährlich für Demokratien?",
+        "Zum Europatag: Neue Regierung muss Europa stärken",
+        "Impulspapier zur Gründung des Vorstandsbeirats Bündnisgrüner Osten"
+      ],
+      "searchTimeMs": 268
+    },
+    {
+      "id": "kw-gruene-de-paragraf-218",
+      "collection": "gruene-de-system",
+      "query": "§ 218 StGB Beratungsbescheinigung",
+      "rank": 1,
+      "topTitles": [
+        "Neuregelung von Schwangerschaftsabbrüchen",
+        "Das Bürokratieentlastungsgesetz",
+        "Tag 2: Neustartklar.",
+        "Programm Bundesfrauenkonferenz 2025",
+        "Datenschutzhinweise beim SEPA-Mandat"
+      ],
+      "searchTimeMs": 176
+    },
+    {
+      "id": "kw-gruene-de-urabstimmung",
+      "collection": "gruene-de-system",
+      "query": "Urabstimmung der Mitglieder",
+      "rank": 1,
+      "topTitles": [
+        "Koalitionsvertrag: Mehr Fortschritt wagen",
+        "Die Mitglieder haben entschieden: Was die Urabstimmung für uns bedeutet",
+        "Bericht und Beschluss des Bundesvorstands von BÜNDNIS 90/DIE GRÜNEN zur zukünftigen Aufstellung unserer Ombudsstrukturen",
+        "Parteimitgliedschaft",
+        "Aufarbeitung und Verantwortung"
+      ],
+      "searchTimeMs": 177
+    },
+    {
+      "id": "kw-gruene-de-lieferkettengesetz",
+      "collection": "gruene-de-system",
+      "query": "Lieferkettengesetz Lieferkettenrichtlinie",
+      "rank": 1,
+      "topTitles": [
+        "Schulterschluss mit Rechtsextremen: Konservative schwächen Umweltschutz und Menschenrechte"
+      ],
+      "searchTimeMs": 203
+    }
+  ]
+}

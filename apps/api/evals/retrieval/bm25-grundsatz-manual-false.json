@@ -1,0 +1,29 @@
+{
+  "pipeline": "manual",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "manual-grundsatz-kindergrundsicherung",
+      "collection": "grundsatz-system",
+      "query": "Kindergrundsicherung",
+      "rank": 1,
+      "topTitles": [
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "Regierungsprogramm 2025 – Zusammen wachsen"
+      ]
+    },
+    {
+      "id": "manual-grundsatz-schuldenbremse",
+      "collection": "grundsatz-system",
+      "query": "Schuldenbremse",
+      "rank": 1,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "EU-Wahlprogramm 2024 – Was uns schützt"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "gruenblog-ki-strom",
+      "collection": "gruenblog-system",
+      "query": "Wie viel Strom werden Rechenzentren durch Künstliche Intelligenz verbrauchen?",
+      "rank": 1,
+      "topTitles": [
+        "Energiefresser KI - grünblog - Onlinemagazin der Grünen",
+        "„Nichts und niemand ist eine Insel“ - grünblog - Onlinemagazin der Grünen",
+        "„Basis ist Boss“ - grünblog - Onlinemagazin der Grünen",
+        "Volle Kraft voraus! - grünblog - Onlinemagazin der Grünen",
+        "„Der Markt wird es nicht richten“ - grünblog - Onlinemagazin der Grünen"
+      ],
+      "searchTimeMs": 865
+    },
+    {
+      "id": "gruenblog-satzungsreform",
+      "collection": "gruenblog-system",
+      "query": "Was ändert die Reform der Parteisatzung an der Trennung von Amt und Mandat?",
+      "rank": 1,
+      "topTitles": [
+        "Agil in die Zukunft - grünblog - Onlinemagazin der Grünen",
+        "„Demokratischer, vielfältiger, schneller“ - grünblog - Onlinemagazin der Grünen",
+        "Heiße Eisen und heilige Kühe - grünblog - Onlinemagazin der Grünen",
+        "Mit Rückenwind in die Zukunft - grünblog - Onlinemagazin der Grünen",
+        "Sommer des sozialen Kahlschlags? - grünblog - Onlinemagazin der Grünen"
+      ],
+      "searchTimeMs": 274
+    }
+  ]
+}

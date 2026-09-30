@@ -1,0 +1,85 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "gruene-at-klima",
+      "collection": "gruene-at-system",
+      "query": "Klimapolitik der Grünen in Österreich",
+      "rank": 11,
+      "topTitles": [
+        "Thomas Waitz - Die Grünen",
+        "Programm - Die Grünen",
+        "Außenpolitik",
+        "Netzwerk - Die Grünen",
+        "Grund- und Menschenrechte"
+      ],
+      "searchTimeMs": 695
+    },
+    {
+      "id": "gruene-at-team",
+      "collection": "gruene-at-system",
+      "query": "Wer sitzt für die Grünen im Nationalrat?",
+      "rank": 8,
+      "topTitles": [
+        "Die Grünen im Parlament - Die Grünen",
+        "Süleyman Zorba - Die Grünen",
+        "Der Bundesvorstand - Die Grünen",
+        "Struktur der Partei - Die Grünen",
+        "45. Bundeskongress in Graz - Die Grünen"
+      ],
+      "searchTimeMs": 175
+    },
+    {
+      "id": "gruene-at-energiewende",
+      "collection": "gruene-at-system",
+      "query": "Energiewende und Ausstieg aus Öl und Gas in Österreich",
+      "rank": 1,
+      "topTitles": [
+        "Energie",
+        "Klimaschutz",
+        "Teuerungsausgleich - Die Grünen",
+        "Programm - Die Grünen",
+        "Ein Turbo für die Energiewende - Die Grünen"
+      ],
+      "searchTimeMs": 186
+    },
+    {
+      "id": "gruene-at-frauen",
+      "collection": "gruene-at-system",
+      "query": "Frauenpolitik und Gewaltschutz in Österreich",
+      "rank": 2,
+      "topTitles": [
+        "Wahlprogramm Nationalratswahl 2024 - Die Grünen",
+        "Frauen und Gleichstellung",
+        "Das Umbau-Budget 2023 - Die Grünen",
+        "Die Zukunft leidenschaftlich gestalten - Die Grünen",
+        "Grund- und Menschenrechte"
+      ],
+      "searchTimeMs": 211
+    },
+    {
+      "id": "kw-gruene-at-orf-beitrag",
+      "collection": "gruene-at-system",
+      "query": "ORF-Beitrag",
+      "rank": 1,
+      "topTitles": ["Ein fairer Beitrag für einen starken ORF - Die Grünen"],
+      "searchTimeMs": 219
+    },
+    {
+      "id": "kw-gruene-at-maklerprovision",
+      "collection": "gruene-at-system",
+      "query": "Maklerprovision Miete wer zahlt",
+      "rank": 1,
+      "topTitles": [
+        "Maklerinnenprovision - Die Grünen",
+        "Superreiche fair besteuern. - Die Grünen",
+        "Leistbar Heizen, leistbar Wohnen - Die Grünen",
+        "Gezielt und nachhaltig gegen die Teuerung - Die Grünen",
+        "Zufallsgewinnabgabe kommt - Die Grünen"
+      ],
+      "searchTimeMs": 190
+    }
+  ]
+}
