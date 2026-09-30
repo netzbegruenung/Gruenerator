@@ -1,6 +1,6 @@
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -67,6 +67,7 @@ export function RecentItemsSection({
   style,
   viewMode = 'grid',
   onOpen,
+  headerRight,
 }: {
   title: string;
   items: RecentItem[];
@@ -76,6 +77,8 @@ export function RecentItemsSection({
   style?: StyleProp<ViewStyle>;
   viewMode?: ViewMode;
   onOpen: (item: RecentItem) => void;
+  /** A control at the right end of the heading (Arbeiten: the grid/list switch). */
+  headerRight?: ReactElement;
 }) {
   const isDark = useColorScheme() === 'dark';
   const theme = isDark ? darkTheme : lightTheme;
@@ -92,10 +95,17 @@ export function RecentItemsSection({
   // The view mode is already decided when the items are still on their way, and
   // so is `cardWidth` — so the placeholder can be the real arrangement: the
   // 4:3 cards at their measured width, or the 48-dp rows of the list.
+  const heading = (
+    <View style={styles.header}>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
+      {headerRight}
+    </View>
+  );
+
   if (isLoading) {
     return (
       <View style={[styles.section, style]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
+        {heading}
         {isList ? (
           <SkeletonRows count={4} leading={48} gap={spacing.xxsmall} />
         ) : (
@@ -117,7 +127,7 @@ export function RecentItemsSection({
 
   return (
     <View style={[styles.section, style]}>
-      <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
+      {heading}
       <View style={isList ? styles.list : styles.grid}>
         {items.map((item) => {
           const key = `${item.type}-${item.id}`;
@@ -212,6 +222,11 @@ export function RecentItemsSection({
 const styles = StyleSheet.create({
   section: {
     gap: spacing.small,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   sectionTitle: {
     fontFamily: BODY_FONT,

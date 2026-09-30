@@ -175,7 +175,6 @@ export function WorkplaceArbeitenScreen() {
       title="Arbeiten"
       titleNode={<WorkplaceTopTabs active="arbeiten" />}
       backdrop={backdrop}
-      headerRight={<ViewModeToggle mode={viewMode} onChange={setViewMode} />}
     >
       <GestureDetector gesture={swipe}>
         <ScrollView
@@ -194,6 +193,7 @@ export function WorkplaceArbeitenScreen() {
 
           <RecentItemsSection
             title="Zuletzt"
+            headerRight={<ViewModeToggle mode={viewMode} onChange={setViewMode} />}
             items={recentItems}
             isLoading={recent.isLoading}
             style={styles.section}
