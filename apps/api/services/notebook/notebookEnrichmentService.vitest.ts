@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { alreadyEnriched, enrichCollection, NLP_VERSION } from './notebookEnrichmentService.js';
+import { COLLECTION_SCHEMAS, NLP_FACET_INDEXES } from '../../config/qdrantCollectionsSchema.js';
+import {
+  alreadyEnriched,
+  ENRICHMENT_COLLECTIONS,
+  enrichCollection,
+  NLP_VERSION,
+} from './notebookEnrichmentService.js';
 
 const { client, nlp } = vi.hoisted(() => ({
   client: {
@@ -93,5 +99,14 @@ describe('enrichCollection time budget', () => {
 
     expect(stats.enriched).toBe(60);
     expect(stats.pending).toBe(0);
+  });
+});
+
+describe('NLP facet indexes in the collection schemas', () => {
+  // A copy migration (migrate-bm25-sparse) recreates a collection from its
+  // schema; an index only the nightly run creates is gone until that run.
+  it.each(ENRICHMENT_COLLECTIONS)('%s declares the facet indexes', (collection) => {
+    const fields = COLLECTION_SCHEMAS[collection]?.indexes.map((i) => i.field) ?? [];
+    for (const { field } of NLP_FACET_INDEXES) expect(fields).toContain(field);
   });
 });
