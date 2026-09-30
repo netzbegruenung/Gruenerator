@@ -47,8 +47,8 @@ export type DesktopOS = 'macos' | 'windows' | 'linux' | 'unknown';
 
 /**
  * Detects the host OS for the desktop (Tauri) shell so the title bar can follow
- * platform conventions: native traffic lights on macOS, custom caption controls
- * on Windows/Linux. Synchronous (UA-based) so it is safe to use during render.
+ * platform conventions: native decorations on macOS and Linux, custom caption
+ * controls on Windows only. Synchronous (UA-based) so it is safe to use during render.
  */
 export const getDesktopOS = (): DesktopOS => {
   if (typeof navigator === 'undefined') return 'unknown';
