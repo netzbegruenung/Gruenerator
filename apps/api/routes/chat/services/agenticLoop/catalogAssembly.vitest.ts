@@ -20,6 +20,7 @@ import {
   isLookupTool,
   priorToolNames,
   priorTurnRetrieved,
+  priorLookups,
   priorTurnRetrievalFailed,
   wrapAssembledTools,
   type CatalogDeps,
@@ -742,5 +743,45 @@ describe('assembleToolCatalog — toolAllowlist', () => {
     });
     expect(Object.keys(assembled.tools)).toEqual(['notebook_quellen']);
     expect(buildRecipeCatalog).not.toHaveBeenCalled();
+  });
+});
+
+describe('priorLookups (#3931)', () => {
+  it('liefert nur eigene Abrufe, mit Begriff, Trefferzahl und Ausgang', () => {
+    const steps: PersistedStep[] = [
+      {
+        toolCallId: 'a',
+        toolName: 'find_content',
+        args: { action: 'search', query: ' Wärmepumpe ' },
+        result: { resultCount: 0, results: [] },
+      },
+      { toolCallId: 'b', toolName: 'sharepic', args: {}, result: {} },
+      { toolCallId: 'c', toolName: 'rezept_laden', args: {}, result: {} },
+      {
+        toolCallId: 'd',
+        toolName: 'm1__search',
+        args: { query: 'x' },
+        result: {},
+        serverName: 'Notion',
+      },
+      {
+        toolCallId: 'e',
+        toolName: 'web_search',
+        args: { query: 'Solar' },
+        result: { error: 'down' },
+        ok: false,
+      },
+      {
+        toolCallId: 'f',
+        toolName: 'scrape_url',
+        args: { url: 'https://example.org' },
+        result: { results: [{}, {}] },
+      },
+    ];
+    expect(priorLookups(steps)).toEqual([
+      { toolName: 'find_content', query: 'Wärmepumpe', resultCount: 0, failed: false },
+      { toolName: 'web_search', query: 'Solar', resultCount: null, failed: true },
+      { toolName: 'scrape_url', query: 'https://example.org', resultCount: 2, failed: false },
+    ]);
   });
 });

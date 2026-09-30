@@ -262,6 +262,7 @@ const fullMaterial = {
   threadAttachments: [protokoll],
   imageAttachments: [{ name: 'plakat.png', data: '', mimeType: 'image/png' }],
   threadArtifacts: [{ kind: 'image', ref: 'https://x/alt.png', label: 'Windrad' }],
+  threadLookups: [{ toolName: 'find_content', query: 'Wärmepumpe', resultCount: 0, failed: false }],
   summaryContext: 'Kurzfassung des Dokuments.',
   computedResult: computed,
   hasTabularAttachment: true,
