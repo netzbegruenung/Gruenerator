@@ -180,6 +180,40 @@ describe('readThreadToolHistory.lastTurnToolSteps', () => {
   });
 });
 
+describe('readThreadToolHistory.lastTurnArtifacts', () => {
+  const sharepicMeta = {
+    toolCalls: [
+      {
+        toolName: 'sharepic',
+        result: { variants: [{ initialProps: { line1: 'Mehr', line2: 'Radwege' } }] },
+      },
+    ],
+  };
+
+  it('returns the sharepic the last completed turn produced', async () => {
+    queryMock.mockResolvedValueOnce([{ tool_results: sharepicMeta, is_last_turn: true }]);
+    const history = await readThreadToolHistory('thread-1');
+    expect(history.lastTurnArtifacts().map((a) => a.kind)).toEqual(['sharepic']);
+  });
+
+  it('is empty when the sharepic is older than the last turn', async () => {
+    // Die Lücke aus dem Beta-Audit 30.09.2026: der Thread HAT ein Sharepic, der
+    // Turn davor war aber eine Frage ohne Werkzeug.
+    queryMock.mockResolvedValueOnce([
+      { tool_results: { intent: 'produktion', toolCalls: [] }, is_last_turn: true },
+      { tool_results: sharepicMeta, is_last_turn: false },
+    ]);
+    const history = await readThreadToolHistory('thread-1');
+    expect(history.lastTurnArtifacts()).toEqual([]);
+    expect(history.artifacts().map((a) => a.kind)).toEqual(['sharepic']);
+  });
+
+  it('is empty when the newest row with metadata is not the last turn', async () => {
+    queryMock.mockResolvedValueOnce([{ tool_results: sharepicMeta, is_last_turn: false }]);
+    expect((await readThreadToolHistory('thread-1')).lastTurnArtifacts()).toEqual([]);
+  });
+});
+
 describe('toolSteps order', () => {
   const call = (id: string, args: Record<string, unknown>, result: Record<string, unknown>) => ({
     toolCallId: id,

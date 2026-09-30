@@ -43,6 +43,7 @@ import { orderMayMeanArtifact, orderText } from '../../../../routes/chat/service
 import {
   isSharepicEditInstruction,
   namesSharepicTarget,
+  sharepicEditAddressed,
 } from '../../../../routes/chat/services/sharepicEditHeuristics.js';
 import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
@@ -1618,11 +1619,20 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // Wie die Edit-Weiche im Router (`earlyHandlerStage`): nur der Auftrag
       // zählt, und mit mitgebrachtem Stoff nur, wenn er das Sharepic meint —
       // sonst kürzt „kürzer bitte" unter einem Newsletter das Sharepic (#3918).
+      //
+      // `tc` stammt aus `last_tool_context`, und das überschreibt erst das
+      // nächste Artefakt — nach beliebig vielen Frage-Turns steht dort noch
+      // „sharepic". Deshalb derselbe Adressat wie im Router (Beta-Audit
+      // 30.09.2026); die offene Karte sieht nur der Router.
       if (
         tc.kind === 'sharepic' &&
         !hasImageAttachments &&
         isSharepicEditInstruction(orderText(userContent)) &&
-        orderMayMeanArtifact(userContent, namesSharepicTarget)
+        orderMayMeanArtifact(userContent, namesSharepicTarget) &&
+        sharepicEditAddressed(orderText(userContent), {
+          cardOpen: false,
+          lastTurnSharepic: state.lastTurnSharepic === true,
+        })
       ) {
         log.info('[Classifier] Follow-up sharepic edit via thread artifact → sharepic');
         recordDecision('classifier.tier', 'tier2.7_sharepic_followup', {

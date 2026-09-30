@@ -54,6 +54,7 @@ export const recordedSourcePersists: Array<{
 
 const threadToolContextFixtures = new Map<string, ThreadToolContext | null>();
 const threadArtifactFixtures = new Map<string, ThreadToolContext[]>();
+const lastTurnArtifactFixtures = new Map<string, ThreadToolContext[]>();
 
 export function messagesOf(threadId: string): FakeMessage[] {
   return Array.from(messages.values())
@@ -67,6 +68,7 @@ export function resetThreadStore(): void {
   recordedSourcePersists.length = 0;
   threadToolContextFixtures.clear();
   threadArtifactFixtures.clear();
+  lastTurnArtifactFixtures.clear();
 }
 
 /** Script `getThreadToolContext`'s return for a given thread (default: null). */
@@ -77,6 +79,11 @@ export function setThreadToolContextFixture(threadId: string, ctx: ThreadToolCon
 /** Script `listThreadArtifacts` (newest first) for a thread that holds several. */
 export function setThreadArtifactsFixture(threadId: string, list: ThreadToolContext[]): void {
   threadArtifactFixtures.set(threadId, list);
+}
+
+/** Script `lastTurnArtifacts` — what the turn right before produced (default: nothing). */
+export function setLastTurnArtifactsFixture(threadId: string, list: ThreadToolContext[]): void {
+  lastTurnArtifactFixtures.set(threadId, list);
 }
 
 export const getUser = (req: AuthRequest | express.Request): UserProfile | undefined =>
@@ -320,6 +327,7 @@ export async function readThreadToolHistory(threadId: string): Promise<ThreadToo
     artifacts: (limit = 4) => artifacts.slice(0, limit),
     toolSteps: () => [],
     lastTurnToolSteps: () => [],
+    lastTurnArtifacts: () => lastTurnArtifactFixtures.get(threadId) ?? [],
     sources: () => [],
     lastGeneratedImageUrl: () => null,
   };

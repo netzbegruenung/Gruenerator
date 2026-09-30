@@ -194,13 +194,24 @@ export function pipelineStateStoreMock(): Record<string, unknown> {
  */
 export interface SharepicControl {
   threadHasSharepic: boolean;
+  /** Was `getLastSharepicVariant` findet — die Tür der Neufassungs-Weiche. */
+  lastVariant: { canvasType: string; props: Record<string, unknown> } | null;
 }
-export const sharepicControl: SharepicControl = { threadHasSharepic: false };
+export const sharepicControl: SharepicControl = { threadHasSharepic: false, lastVariant: null };
 
 export function sharepicEditMock(original: Record<string, unknown>): Record<string, unknown> {
   return {
     ...original,
     threadHasSharepic: () => Promise.resolve(sharepicControl.threadHasSharepic),
+  };
+}
+
+export function sharepicVariantHelpersMock(
+  original: Record<string, unknown>
+): Record<string, unknown> {
+  return {
+    ...original,
+    getLastSharepicVariant: () => Promise.resolve(sharepicControl.lastVariant),
   };
 }
 
@@ -248,6 +259,7 @@ export function internalPromptsMock(original: Record<string, unknown>): Record<s
 export function resetMockControls(): void {
   threadAccess.allow = true;
   sharepicControl.threadHasSharepic = false;
+  sharepicControl.lastVariant = null;
   persistControl.ok = true;
   persistControl.calls.length = 0;
   pipelineStates.clear();
