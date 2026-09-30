@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
+import { isWorkplaceLayout } from '../../config/navLayout';
 import { useUnreadCount } from '../../hooks/useNotifications';
 import { logout } from '../../services/auth';
 import { useSettingsSheetStore } from '../../stores/settingsSheetStore';
@@ -27,9 +28,10 @@ interface MenuItem {
 }
 
 // Projekte and Agentura live here and in the drawer only — the bottom bar is
-// reserved for the four everyday surfaces (Chat, Arbeiten, Studio, Wissen).
+// reserved for the four everyday surfaces (Chat, Arbeiten, Studio, Wissen). The
+// workplace shell has them as tiles on Arbeiten, so there the list is empty.
 // Einstellungen is not in this list: it is a sheet, not a destination.
-const MENU_ITEMS: MenuItem[] = [
+const TOOL_ITEMS: MenuItem[] = [
   {
     key: 'projekte',
     label: 'Projekte',
@@ -38,6 +40,7 @@ const MENU_ITEMS: MenuItem[] = [
   },
   { key: 'agentura', label: 'Agentura', icon: 'people-outline', href: '/(focused)/agents' },
 ];
+const MENU_ITEMS: MenuItem[] = isWorkplaceLayout ? [] : TOOL_ITEMS;
 
 const getPossessiveForm = (name: string | undefined): string => {
   if (!name) return 'Dein';
