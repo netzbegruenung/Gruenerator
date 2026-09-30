@@ -132,10 +132,11 @@ nachgesehen:
   mit eingebautem Zertifikat verlangt signierte Manifeste auch von Metro, und
   `expo start` bricht dann ohne privaten Schlüssel ab.
 
-Der **private Schlüssel liegt nicht im Repo** (öffentlich!), sondern beim
-xprem-Server. Geht er verloren, nehmen alle ausgelieferten Binaries keine Updates
-mehr an, bis ein neuer Store-Build mit neuem Zertifikat draußen ist. Das
-Zertifikat läuft am 29.09.2036 ab.
+Der **private Schlüssel liegt nicht im Repo** (öffentlich!), sondern verschlüsselt
+in der Postgres-Datenbank des xprem-Servers, versiegelt mit
+`DB_KEYS_MASTER_KEY_B64`. Geht einer von beiden verloren, nehmen alle
+ausgelieferten Binaries keine Updates mehr an, bis ein neuer Store-Build mit neuem
+Zertifikat draußen ist. Das Zertifikat läuft am 30.09.2036 ab.
 
 ```bash
 cd apps/mobile

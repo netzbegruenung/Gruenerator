@@ -15,6 +15,8 @@
  * config of the channel it is published for.
  */
 const OTA_MANIFEST_URL = 'https://ota.moritz-waechter.de/manifest';
+// App ID of the `Gruenerator` app in the xprem dashboard (App Info).
+const XPREM_APP_ID = '9af925be-1aa5-426b-98c2-855300438cb3';
 
 module.exports = ({ config }) => {
   const channel = process.env.RELEASE_CHANNEL;
@@ -34,7 +36,7 @@ module.exports = ({ config }) => {
       // stays declared (empty) so branch surfing works later without a rebuild.
       requestHeaders: {
         'expo-channel-name': channel,
-        'expo-app-id': config.extra.eas.projectId,
+        'expo-app-id': XPREM_APP_ID,
         'xprem-branch': '',
       },
     },
