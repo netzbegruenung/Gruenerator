@@ -125,6 +125,25 @@ describe('buildSynthSystem — Quellenblock', () => {
     expect(prompt).not.toContain(NO_CAPABILITY_DENIAL_RULE);
   });
 
+  // #3902, beta 29.09.2026: zwei `find_content` ohne Treffer, und die Antwort
+  // lautete „Ich habe in diesem Turn noch nicht in deinen Dokumenten
+  // nachgesehen" — die Zeile ohne Material stand hinter der Leer-Notiz.
+  it('sagt nach einer leeren Suche „gesucht, nichts gefunden", nicht „nicht nachgesehen"', () => {
+    const steps: PersistedStep[] = [
+      {
+        toolCallId: 'c1',
+        toolName: 'find_content',
+        args: { action: 'search', query: 'Radverkehrsstrategie' },
+        result: { resultCount: 0, results: [] },
+      },
+    ];
+    const prompt = buildSynthSystem('', ctx({ steps }));
+    expect(prompt).toContain('LEERE ERGEBNISSE');
+    expect(prompt).toContain('Du HAST in diesem Turn nachgesehen');
+    expect(prompt).not.toContain('hast du NICHTS recherchiert');
+    expect(prompt).not.toContain(NO_CAPABILITY_DENIAL_RULE);
+  });
+
   it('unterscheidet mitgeführte von gar keinen Quellen', () => {
     const prompt = buildSynthSystem('[1] Antrag', ctx({ sourceRegistry: carriedRegistry() }));
     // Der Turn HAT Material — die „nichts recherchiert"-Zeile daneben war die
