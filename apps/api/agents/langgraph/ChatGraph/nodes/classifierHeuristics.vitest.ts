@@ -167,3 +167,28 @@ describe('heuristicClassify — Sharepic nur auf Bestellung', () => {
     expect(heuristicClassify(text).intent).not.toBe('sharepic');
   });
 });
+
+// Beta-Audit 30.09.2026: die PDF-Regel lief ohne Wächter über die ganze
+// Nachricht samt Zitaten, und „Fragebogen" mit `schreib` war schon ein PDF.
+describe('heuristicClassify — PDF nur auf Bestellung', () => {
+  it.each([
+    'erstelle mir das als PDF',
+    'mach ein PDF mit Briefkopf',
+    'erstelle einen Fragebogen als PDF',
+    'schreib das als PDF',
+    'Mach einen Fragebogen für die Mitgliederbefragung',
+  ])('bleibt create_pdf: %s', (text) => {
+    expect(heuristicClassify(text).intent).toBe('create_pdf');
+  });
+
+  it.each([
+    'Schreib einen Fragebogen-Text für die Umfrage',
+    'was steht im PDF?',
+    'kein PDF, nur Text bitte',
+    'Erstell die Antwort, aber kein PDF daraus machen',
+    'Wie erstelle ich ein PDF mit Briefkopf?',
+    'Mein Kollege schrieb: "mach ein PDF mit Briefkopf" – was hältst du davon?',
+  ])('kein create_pdf: %s', (text) => {
+    expect(heuristicClassify(text).intent).not.toBe('create_pdf');
+  });
+});
