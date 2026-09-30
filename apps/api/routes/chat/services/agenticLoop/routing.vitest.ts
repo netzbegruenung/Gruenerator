@@ -1635,3 +1635,25 @@ describe('compoundGenerationKind — Relativsatz', () => {
     ).toBe('presentation');
   });
 });
+
+// Beta-Test 30.09.2026: das Register trug eine eigene PDF-Liste, und die
+// Garantie las Zitate und Meta-Fragen mit — die Heuristik war längst sauber.
+describe('compoundGenerationKind — dieselbe PDF-Regel wie der Klassifikator', () => {
+  it.each([
+    'Schreib einen Fragebogen-Text für die Umfrage zur Radverkehrsplanung',
+    'Wie erstelle ich ein PDF mit Briefkopf?',
+    'Mein Kollege schrieb: "mach ein PDF mit Briefkopf" – was hältst du davon?',
+    'Schreib eine Zusammenfassung des PDF',
+  ])('kein PDF: %s', (text) => {
+    expect(compoundGenerationKind('produktion', text)).toBeNull();
+  });
+
+  it.each([
+    'erstelle einen Fragebogen als PDF zur Radverkehrsplanung',
+    'bitte eine schöne pdf erstellen',
+    'PDF erstellen zum Klimageld',
+    'mach ein PDF mit Briefkopf',
+  ])('bleibt PDF: %s', (text) => {
+    expect(compoundGenerationKind('produktion', text)).toBe('pdf');
+  });
+});

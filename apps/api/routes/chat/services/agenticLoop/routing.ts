@@ -18,8 +18,10 @@ import {
   CREATION_VERB_RE,
   forbidsPersistentAction,
   hasExplicitSharepicWord,
+  isMetaQuestionAbout,
   isNegatedArtifactRequest,
   POST_NOUN_PATTERN,
+  stripQuotedSpans,
 } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
@@ -806,7 +808,10 @@ export function compoundGenerationKind(
     //
     // Order = specificity, and it is the registry's array order — see
     // `recoverKindFromText`.
-    const kind = pinnedKind ?? recoverKindFromText(t);
+    // Ohne Zitate: „Mein Kollege schrieb: ‚mach ein PDF mit Briefkopf' – was
+    // hältst du davon?" bestellt nichts. Die Klassifikator-Regeln lesen
+    // ebenfalls nur `stripped`.
+    const kind = pinnedKind ?? recoverKindFromText(stripQuotedSpans(t));
     if (kind == null) return null;
     // Die Erwähnung liefert das SUBSTANTIV, das dem Text fehlt — aber nicht den
     // Auftrag. `looksLikeCompoundGeneration` verlangt beides (Substantiv UND
@@ -821,6 +826,10 @@ export function compoundGenerationKind(
     // forbade. Re-checked here because this is where the kind first exists.
     const family = artifactKind(kind).forbiddableFamily;
     if (family && forbidsPersistentAction(t, ARTIFACT_NOUN_BY_KIND[family])) return null;
+    // Eine Frage ÜBER das Artefakt ist kein Auftrag: „Wie erstelle ich ein PDF
+    // mit Briefkopf?" bekam über diese Garantie ein PDF, obwohl die
+    // Klassifikator-Regel mit ihrem Wächter schon Text daraus machte.
+    if (!pinnedKind && family && isMetaQuestionAbout(t, ARTIFACT_NOUN_BY_KIND[family])) return null;
     return kind;
   }
   return null;

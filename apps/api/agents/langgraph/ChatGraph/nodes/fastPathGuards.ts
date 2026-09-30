@@ -408,6 +408,38 @@ export function creationOrderPattern(
   );
 }
 
+// Finished PDFs, incl. letterhead and fillable forms. The nouns are deliberately
+// qualified ("als PDF", "ein PDF", "PDF-Dokument") rather than a bare "pdf": a
+// bare noun plus a nearby creation verb also describes work ON an existing file
+// ("erstell eine Zusammenfassung des PDFs").
+const PDF_CREATE_PATTERN = creationOrderPattern(
+  'als\\s+pdf|ein\\s+pdf|pdf[\\s-]?(?:dokument|datei|formular|vorlage|fragebogen)|briefkopf' +
+    '|offiziell[a-zäöü]*\\s+(?:brief|schreiben|anschreiben)' +
+    '|(?:ausfüllbar|ausfuellbar)[a-zäöü]*\\s+(?:formular|vorlage|dokument)' +
+    '|formular\\s+zum\\s+ausfüllen',
+  { extraVerbs: 'schreib', forward: 60 }
+);
+// Die Formular-Nomen sind ein Format nur, wenn sie GEBAUT werden: ohne
+// `schreib` und nicht als Bestimmungswort („Fragebogen-Text"). „Schreib einen
+// Fragebogen-Text für die Umfrage" wurde bis zum Beta-Audit 30.09.2026 mit 0.9
+// zum PDF — bestellt war Text.
+const PDF_FORM_CREATE_PATTERN = creationOrderPattern(
+  '(?:fragebogen|anmeldebogen|antragsformular|anmeldeformular)(?![\\s-]*text)',
+  { forward: 60 }
+);
+/**
+ * Bestellt der Auftrag ein PDF? Die EINE Regel für die Klassifikator-Regel
+ * `create_pdf` und das Artefakt-Register, aus dem die Verbund-Garantie die Art
+ * liest (`recoverKindFromText`). Das Register trug bis zum Beta-Test 30.09.2026
+ * eine eigene Liste mit nacktem `fragebogen` und `schreib` — „Schreib einen
+ * Fragebogen-Text für die Umfrage zur Radverkehrsplanung" war in der Heuristik
+ * schon Text und bekam über die Garantie trotzdem ein PDF.
+ */
+export const PDF_ORDER_PATTERN = new RegExp(
+  `(?:${PDF_CREATE_PATTERN.source})|(?:${PDF_FORM_CREATE_PATTERN.source})`,
+  'i'
+);
+
 /**
  * The ONLY accepted sharepic vocabulary. A sharepic is a branded party template
  * with text on it — "Grafik" and "Kachel" mean a chart or a tile just as often,
