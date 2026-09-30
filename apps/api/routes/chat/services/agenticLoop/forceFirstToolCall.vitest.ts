@@ -315,6 +315,15 @@ describe('shouldForceFirstToolCall', () => {
       expect(force({ lastUserText })).toBeNull();
     });
 
+    // „ob … Stimm…" ist nicht „ob … stimmt": ein Schreibauftrag über die
+    // Stimmung im Ortsverband sucht nicht. Das Verb steht im ob-Satz am Ende.
+    it.each([
+      ['Schreib einen Post darüber, ob die Stimmung im Ortsverband kippt'],
+      ['Schreib eine Rede darüber, ob die Stimmen der Jugend gehört werden'],
+    ])('ein Schreibauftrag mit „Stimm…" sucht nicht: %s', (lastUserText) => {
+      expect(force({ lastUserText })).toBeNull();
+    });
+
     it.each([
       ['prüf, ob die Zahlen stimmen'],
       [`${claim}\n\nstimmen die Angaben?`],

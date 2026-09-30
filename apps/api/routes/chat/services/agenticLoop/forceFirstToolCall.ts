@@ -232,11 +232,12 @@ export function shouldForceFirstToolCall(input: {
   return NAMED_RETRIEVAL_INTENTS.has(input.intent ?? '') ? 'named_intent' : null;
 }
 
-/** Ein Prüfwort und ein Sachgegenstand im selben Satz, in beliebiger Reihenfolge. */
-const CHECK_WORD = String.raw`(?:(?:[üu]berpr[üu]f|pr[üu]f|verifizier|check|kontrollier|stimm)\p{L}*)`;
+/** Ein Prüfwort und ein Sachgegenstand im selben Satz, in beliebiger Reihenfolge.
+ *  „stimmt"/„stimmen" nur als Verb: Stimmung, Stimmzettel sind kein Prüfen. */
+const CHECK_WORD = String.raw`(?:(?:[üu]berpr[üu]f|pr[üu]f|verifizier|check|kontrollier)\p{L}*|stimm(?:t|en)(?!\p{L}))`;
 const FACT_NOUN = String.raw`(?:fakten|zahlen|angaben|daten|behauptung(?:en)?|aussagen?|quellen)(?!\p{L})`;
 const FACT_CHECK_ORDER_RE = new RegExp(
-  String.raw`(?<!\p{L})${CHECK_WORD}[^.?!]*?(?<!\p{L})${FACT_NOUN}|(?<!\p{L})${FACT_NOUN}[^.?!]*?(?<!\p{L})${CHECK_WORD}|(?<!\p{L})ob(?!\p{L})[^.?!]*?(?<!\p{L})stimm`,
+  String.raw`(?<!\p{L})${CHECK_WORD}[^.?!]*?(?<!\p{L})${FACT_NOUN}|(?<!\p{L})${FACT_NOUN}[^.?!]*?(?<!\p{L})${CHECK_WORD}|(?<!\p{L})ob(?!\p{L})[^.?!]*?(?<!\p{L})stimm(?:t|en)(?:\s+oder\s+nicht)?\s*(?:[.?!,;:)]|$)`,
   'iu'
 );
 
