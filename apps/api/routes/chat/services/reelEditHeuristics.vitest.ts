@@ -158,3 +158,28 @@ describe('Reel-Modus: ein Auftrag ohne Reel über eingefügtem Stoff meint den S
     }
   );
 });
+
+/** #3923: die Schlusszeile des Stoffs („Mehr in unseren Reels!") ist kein Auftrag. */
+describe('Reel-Weiche: Schlusszeile des Stoffs', () => {
+  const newsletter =
+    'Neu im Grünerator: neue Vorlagen, eine schnellere Suche und ältere Beschlüsse eurer Landesverbände. Wir freuen uns über jede Idee und jeden Hinweis aus den Kreisverbänden!';
+
+  it.each([
+    [`rechtschreibung korrigieren:\n\n${newsletter}\n\nMehr in unseren Reels!`],
+    [`Kannst du das lektorieren?\n\n${newsletter}\n\nMehr in unseren Reels!`],
+  ])('holt kein Reel: %s', (message) => {
+    // Beide Ränder zusammen hätten verb∧noun geliefert — das war der Ausfall.
+    expect(isReelEditInstruction(`rechtschreibung korrigieren:\n\nMehr in unseren Reels!`)).toBe(
+      true
+    );
+    expect(isReelEditInstruction(orderText(message))).toBe(false);
+  });
+
+  it('ein Reel-Auftrag über dem Stoff greift weiter', () => {
+    expect(
+      isReelEditInstruction(
+        orderText(`Korrigiere die Untertitel im Reel:\n\n${newsletter}\n\nSchreibt uns!`)
+      )
+    ).toBe(true);
+  });
+});

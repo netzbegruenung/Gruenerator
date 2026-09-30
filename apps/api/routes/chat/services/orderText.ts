@@ -45,6 +45,19 @@ function isCourtesyParagraph(p: string): boolean {
   return prefix != null && COURTESY_NAME_TAIL_RE.test(p.slice(prefix[0].length));
 }
 
+/**
+ * Liest sich wie ein Auftrag: beginnt wie einer, sagt „bitte" („Bitte kürzer
+ * halten.", „kürzer bitte") oder endet im Infinitiv eines Auftrags
+ * („rechtschreibung korrigieren:", „ins Englische übersetzen").
+ */
+const POLITE_RE = /(?<!\p{L})bitte(?!\p{L})/iu;
+const ORDER_INFINITIVE_END_RE =
+  /(?<!\p{L})(?:schreib|erstell|formulier|verfass|entwerf|recherchier|such|find|pr[üu]f|[üu]berpr[üu]f|beantwort|zusammenfass|k[üu]rz|[üu]bersetz|[üu]berarbeit|korrigier|lektorier|verbesser|umschreib|mach|zeig|erkl[äa]r|analysier|vergleich)en(?:\s+bitte)?[\s\p{P}]*$/iu;
+
+function readsAsOrder(p: string): boolean {
+  return ORDER_OPENING_RE.test(p) || POLITE_RE.test(p) || ORDER_INFINITIVE_END_RE.test(p);
+}
+
 function splitOrder(message: string): { order: string; material: boolean } {
   const t = (message ?? '').trim();
   const paragraphs = t
@@ -56,7 +69,13 @@ function splitOrder(message: string): { order: string; material: boolean } {
   // Nur die Ränder: der Auftrag steht vor oder hinter dem Stoff, und eine kurze
   // Zwischenzeile im Stoff („Schreibt uns!") ist keiner.
   const edges = [paragraphs[0], paragraphs[paragraphs.length - 1]];
-  const orders = edges.filter((p) => p.length <= ORDER_PARAGRAPH_MAX || ORDER_OPENING_RE.test(p));
+  let orders = edges.filter((p) => p.length <= ORDER_PARAGRAPH_MAX || ORDER_OPENING_RE.test(p));
+  // Sind beide Ränder kurz, ist einer oft die Schlusszeile des Stoffs („Mehr in
+  // unseren Reels!", #3923). Liest sich nur einer als Auftrag, zählt nur der.
+  if (orders.length === 2) {
+    const readAsOrder = orders.filter(readsAsOrder);
+    if (readAsOrder.length === 1) orders = readAsOrder;
+  }
   // Stoff ist erst ein langer Absatz, der kein Auftrag ist. Ohne ihn bleibt es
   // beim ganzen Text: lauter kurze Absätze sind eher ein zerlegter Auftrag
   // (mit einem Gruß, den das Muster oben nicht kennt) als eingefügter Stoff.

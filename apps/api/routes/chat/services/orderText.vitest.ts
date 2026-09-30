@@ -171,6 +171,37 @@ describe('orderText: Gruß und Dank sind weder Auftrag noch Stoff', () => {
   });
 });
 
+// #3923: die kurze Schlusszeile eines Newsletters galt neben dem echten
+// Auftrag als Auftrag, und ihr „Reels" holte die Reel-Auswahl.
+describe('orderText: eine kurze Schlusszeile des Stoffs ist kein Auftrag', () => {
+  it.each([
+    ['rechtschreibung korrigieren:', 'Mehr in unseren Reels!'],
+    ['rechtschreibung korrigieren:', 'Schreibt uns!'],
+    ['Kannst du das lektorieren?', 'Mehr in unseren Reels!'],
+    ['ins Englische übersetzen', 'Folgt uns auf Instagram!'],
+  ])('„%s" oben, „%s" unten: nur der Auftrag zählt', (order, closing) => {
+    expect(orderText(`${order}\n\n${newsletter}\n\n${closing}`)).toBe(order);
+  });
+
+  it('eine kurze Überschrift über dem Stoff verdrängt den Auftrag unten nicht', () => {
+    expect(orderText(`Newsletter September\n\n${newsletter}\n\nrechtschreibung korrigieren`)).toBe(
+      'rechtschreibung korrigieren'
+    );
+  });
+
+  it.each([
+    [`${longOrder}\n\nBitte kürzer halten.`, `${longOrder}\n\nBitte kürzer halten.`],
+    [`mach das kürzer\n\n${newsletter}\n\nkürzer bitte`, 'mach das kürzer\n\nkürzer bitte'],
+    // Liest sich keiner der Ränder als Auftrag, bleiben beide — wie bisher.
+    [
+      `Newsletter September\n\n${newsletter}\n\nstimmt das so?`,
+      'Newsletter September\n\nstimmt das so?',
+    ],
+  ])('lesen sich beide oder keiner als Auftrag, bleiben beide: %s', (message, order) => {
+    expect(orderText(message)).toBe(order);
+  });
+});
+
 describe('orderMayMeanArtifact', () => {
   // Eine Weiche, die ihr Ziel an „Post" erkennt — genügt, um die Regel zu prüfen.
   const namesPost = (order: string) => /(?<!\p{L})post(?!\p{L})/iu.test(order);
