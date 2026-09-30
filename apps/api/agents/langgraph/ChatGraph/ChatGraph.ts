@@ -204,6 +204,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     customSystemPrompt: input.customSystemPrompt || null,
     roleBausteinActive: input.roleBausteinActive === true,
     userRoles: input.userRoles ?? [],
+    activeRole: input.activeRole ?? null,
 
     // Active skill (drives platform-specific prompt fragment in respondNode)
     activeSkillMention: input.activeSkillMention || null,
