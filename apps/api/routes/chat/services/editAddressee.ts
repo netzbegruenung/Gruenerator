@@ -44,7 +44,7 @@ const EDITABLE_BY_TOOL: Readonly<Record<string, EditableArtifact>> = {
  */
 export function priorTurnEditables(
   artifacts: ReadonlyArray<{ kind: string }>,
-  steps: ReadonlyArray<{ toolName: string }>
+  steps: ReadonlyArray<{ toolName: string; result?: Record<string, unknown>; ok?: false }>
 ): EditableArtifact[] {
   const found = new Set<EditableArtifact>();
   for (const a of artifacts) {
@@ -52,9 +52,30 @@ export function priorTurnEditables(
   }
   for (const step of steps) {
     const kind = EDITABLE_BY_TOOL[step.toolName];
-    if (kind) found.add(kind);
+    if (kind && producedSomething(step)) found.add(kind);
   }
   return [...found];
+}
+
+/**
+ * Hat der Schritt wirklich etwas gebaut? Ein abgelehntes Sharepic speichert
+ * seinen Schritt trotzdem — mit `{ variants: [] }`, weil der Turn eine
+ * Absage-Antwort trägt —, und ohne diese Prüfung machte er den NÄCHSTEN Turn
+ * zum Adressaten des alten Sharepics („Kürz den Text" über eine
+ * Pressemitteilung). Dieselben Kriterien wie die Leser der Artefakte:
+ * `artifactFromMessageMetadata` (Varianten) und `findSocialPost` (`postId` +
+ * Text). Die Bearbeitungs-Dienste speichern ihren Schritt nur bei Erfolg.
+ */
+function producedSomething(step: {
+  toolName: string;
+  result?: Record<string, unknown>;
+  ok?: false;
+}): boolean {
+  if (step.ok === false) return false;
+  const r = step.result;
+  if (step.toolName === 'sharepic') return Array.isArray(r?.variants) && r.variants.length > 0;
+  if (step.toolName === 'social_post') return r?.postId != null && typeof r.text === 'string';
+  return true;
 }
 
 /** Die Stelle, an der ein Muster greift — Anfang und Ende im Text. */

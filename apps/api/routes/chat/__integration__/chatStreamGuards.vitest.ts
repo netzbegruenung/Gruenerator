@@ -291,7 +291,10 @@ describe('reel edit needs an order and an addressee', () => {
 // im Thread, gleich wie alt. Beobachtet am Ergebnis: die Post-Spur scheitert
 // hier am Postgres-Wächter und meldet `social_post_edit_error`.
 describe('social post text edit needs an addressee', () => {
-  async function postTurn(text: string, lastTurnTools: string[]) {
+  async function postTurn(
+    text: string,
+    lastTurnTools: Parameters<typeof setLastTurnToolStepsFixture>[1]
+  ) {
     const thread = await createThread(TEST_USER.id, 'gruenerator-universal', 'Post-Thread');
     setLastTurnToolStepsFixture(thread.id, lastTurnTools);
     const { events } = await runTurn(suite.baseUrl(), {
@@ -311,9 +314,16 @@ describe('social post text edit needs an addressee', () => {
   it.each(['kürzer', 'mach den Text knackiger'])(
     '„%s" right after a post reaches the post lane',
     async (text) => {
-      expect(await postTurn(text, ['social_post'])).toBe(true);
+      expect(
+        await postTurn(text, [{ toolName: 'social_post', result: { postId: 'p1', text: 'Hallo' } }])
+      ).toBe(true);
     }
   );
+
+  // Claude-Review #3940: ein gescheiterter Post-Schritt ist kein Adressat.
+  it('„kürzer" right after a failed post reaches no post lane', async () => {
+    expect(await postTurn('kürzer', [{ toolName: 'social_post', result: {} }])).toBe(false);
+  });
 
   it('„kürz den Post" names the post and reaches the lane', async () => {
     expect(await postTurn('kürz den Post', [])).toBe(true);
