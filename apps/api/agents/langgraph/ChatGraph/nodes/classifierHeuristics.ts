@@ -37,6 +37,7 @@ import {
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
   negatedOrMeta,
+  PDF_ORDER_PATTERN,
   POST_NOUN_PATTERN,
   stripQuotedSpans,
 } from './fastPathGuards.js';
@@ -931,25 +932,6 @@ export function looksMultiTopic(query: string): boolean {
 // boundary is `(?![a-zäöüß0-9])`, not `\b` — JS \b is ASCII-only, so `fuß\b`
 // before a space can never match. Module scope: new RegExp compiles per
 // call, unlike regex literals.
-// Finished PDFs, incl. letterhead and fillable forms. The nouns are deliberately
-// qualified ("als PDF", "ein PDF", "PDF-Dokument") rather than a bare "pdf": a
-// bare noun plus a nearby creation verb also describes work ON an existing file
-// ("erstell eine Zusammenfassung des PDFs").
-const PDF_CREATE_PATTERN = creationOrderPattern(
-  'als\\s+pdf|ein\\s+pdf|pdf[\\s-]?(?:dokument|datei|formular|vorlage|fragebogen)|briefkopf' +
-    '|offiziell[a-zäöü]*\\s+(?:brief|schreiben|anschreiben)' +
-    '|(?:ausfüllbar|ausfuellbar)[a-zäöü]*\\s+(?:formular|vorlage|dokument)' +
-    '|formular\\s+zum\\s+ausfüllen',
-  { extraVerbs: 'schreib', forward: 60 }
-);
-// Die Formular-Nomen sind ein Format nur, wenn sie GEBAUT werden: ohne
-// `schreib` und nicht als Bestimmungswort („Fragebogen-Text"). „Schreib einen
-// Fragebogen-Text für die Umfrage" wurde bis zum Beta-Audit 30.09.2026 mit 0.9
-// zum PDF — bestellt war Text.
-const PDF_FORM_CREATE_PATTERN = creationOrderPattern(
-  '(?:fragebogen|anmeldebogen|antragsformular|anmeldeformular)(?![\\s-]*text)',
-  { forward: 60 }
-);
 const PDF_NOUN_PATTERN =
   /\b(?:pdf\w*|briefkopf\w*|formular\w*|fragebogen\w*|anmeldebogen\w*|antragsformular\w*|anmeldeformular\w*)\b/i;
 
@@ -1427,9 +1409,7 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
     longPaste: 'skip',
     guard: 'negatedOrMeta',
     guardNoun: PDF_NOUN_PATTERN,
-    match: (m) =>
-      (PDF_CREATE_PATTERN.test(m.stripped) || PDF_FORM_CREATE_PATTERN.test(m.stripped)) &&
-      !DECK_NOUN_PATTERN.test(m.stripped),
+    match: (m) => PDF_ORDER_PATTERN.test(m.stripped) && !DECK_NOUN_PATTERN.test(m.stripped),
     result: () => ({
       intent: 'create_pdf',
       searchQuery: null,
