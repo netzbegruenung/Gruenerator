@@ -32,6 +32,7 @@ const DRY_RUN_SUPPORT: Record<ContentSyncSource, boolean> = {
   'boell-stiftung': false,
   bundestag: false,
   'social-media': false,
+  'lv-instagram': false,
   grundsatz: false,
   oesterreich: false,
   'gruene-de': false,

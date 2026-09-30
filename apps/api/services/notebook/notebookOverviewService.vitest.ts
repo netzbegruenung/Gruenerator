@@ -10,8 +10,15 @@ vi.mock('../../utils/redis/jsonCache.js', () => ({
   setCachedJson: vi.fn(),
 }));
 
-const { aggregateOverview, regionTerms, signatureTerms, toHeadDoc, trendOf } =
-  await import('./notebookOverviewService.js');
+const {
+  aggregateOverview,
+  headFilter,
+  pickInstagramPosts,
+  regionTerms,
+  signatureTerms,
+  toHeadDoc,
+  trendOf,
+} = await import('./notebookOverviewService.js');
 
 const NOW = new Date('2026-09-27T12:00:00Z');
 
@@ -397,5 +404,55 @@ describe('trendOf', () => {
 
   it('calls small moves flat', () => {
     expect(trendOf(11, 100, 10, 100)).toBe('flat');
+  });
+});
+
+describe('Instagram posts', () => {
+  const excludesInstagram = { key: 'content_type', match: { value: 'instagram' } };
+
+  it('keeps them out of the statistics of a Landesverband and of the LV baseline', () => {
+    expect(headFilter('berlin-system')).toMatchObject({ must_not: [excludesInstagram] });
+    expect(headFilter(null)).toMatchObject({ must_not: [excludesInstagram] });
+  });
+
+  it('leaves collections outside the LV corpus unfiltered', () => {
+    expect(headFilter('kommunalwiki-system')).not.toHaveProperty('must_not');
+  });
+
+  it('returns the six newest, dropping points without link or caption', () => {
+    const points = Array.from({ length: 8 }, (_, i) => ({
+      id: i,
+      payload: {
+        source_url: `https://www.instagram.com/p/${i}/`,
+        full_text: `Beitrag ${i}`,
+        published_at: `2026-09-${String(10 + i).padStart(2, '0')}T08:00:00.000Z`,
+        image_path: i === 7 ? null : `/lv-social/images/${i}.webp`,
+        source_account: 'gruene_berlin',
+      },
+    }));
+    points.push({
+      id: 99,
+      payload: { full_text: 'ohne Link', published_at: '2026-10-01' },
+    } as never);
+
+    const posts = pickInstagramPosts(points);
+
+    expect(posts.map((p) => p.id)).toEqual(['7', '6', '5', '4', '3', '2']);
+    expect(posts[0]).toEqual({
+      id: '7',
+      url: 'https://www.instagram.com/p/7/',
+      caption: 'Beitrag 7',
+      publishedAt: '2026-09-17T08:00:00.000Z',
+      imagePath: null,
+      account: 'gruene_berlin',
+    });
+  });
+
+  it('shortens long captions', () => {
+    const [post] = pickInstagramPosts([
+      { id: 1, payload: { source_url: 'https://x', full_text: 'a'.repeat(400) } },
+    ]);
+    expect(post?.caption).toHaveLength(280);
+    expect(post?.caption.endsWith('…')).toBe(true);
   });
 });

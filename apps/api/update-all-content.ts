@@ -63,6 +63,7 @@ import { grueneAtScraperService } from './services/scrapers/implementations/Grue
 import { grueneDeScraperService } from './services/scrapers/implementations/GrueneDeScraper.js';
 import { kommunalwikiScraper } from './services/scrapers/implementations/KommunalwikiScraper.js';
 import { landesverbandScraperService } from './services/scrapers/implementations/LandesverbandScraper/index.js';
+import { scrapeLvInstagram } from './services/scrapers/implementations/LvInstagramScraper.js';
 import {
   grundsatzPdfScraperService,
   oesterreichPdfScraperService,
@@ -377,6 +378,24 @@ const SOURCE_GROUPS: SourceGroup[] = [
     timeoutMs: 30 * 60 * 1000,
     async run(args) {
       const result = await scrapeAndIndexSocialMedia({
+        forceUpdate: args.force,
+        ...(args.landesverband && { landesverband: args.landesverband }),
+      });
+      return {
+        stored: result.stored,
+        updated: result.updated,
+        skipped: result.skipped,
+        fetchErrors: result.fetchErrors,
+        errors: result.errors,
+      };
+    },
+  },
+  {
+    id: 'lv-instagram',
+    name: 'Landesverbände Instagram (Notebook-Übersicht)',
+    timeoutMs: 30 * 60 * 1000,
+    async run(args) {
+      const result = await scrapeLvInstagram({
         forceUpdate: args.force,
         ...(args.landesverband && { landesverband: args.landesverband }),
       });
