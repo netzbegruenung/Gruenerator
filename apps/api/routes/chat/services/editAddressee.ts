@@ -12,8 +12,8 @@
  * Blatt ohne schwere Importe, damit Klassifikator und Router es teilen.
  */
 
-/** Die Artefakte, die eine Bearbeitungs-Weiche des Routers im Chat ändern kann. */
-export type EditableArtifact = 'sharepic' | 'social_post' | 'reel';
+/** Die Artefakte, die eine Bearbeitungs-Weiche im Chat ändern kann. */
+export type EditableArtifact = 'sharepic' | 'social_post' | 'reel' | 'image';
 
 /**
  * Welche Werkzeug-Schritte ein Artefakt BAUEN oder BEARBEITEN. Die Bearbeitungen
@@ -47,7 +47,9 @@ export function priorTurnEditables(
   steps: ReadonlyArray<{ toolName: string }>
 ): EditableArtifact[] {
   const found = new Set<EditableArtifact>();
-  for (const a of artifacts) if (a.kind === 'sharepic') found.add('sharepic');
+  for (const a of artifacts) {
+    if (a.kind === 'sharepic' || a.kind === 'image') found.add(a.kind);
+  }
   for (const step of steps) {
     const kind = EDITABLE_BY_TOOL[step.toolName];
     if (kind) found.add(kind);

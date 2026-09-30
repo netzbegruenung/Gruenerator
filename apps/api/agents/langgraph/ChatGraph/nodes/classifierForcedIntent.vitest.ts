@@ -607,6 +607,7 @@ describe('Tier 2.7 — follow-up on the thread last artifact (lastToolContext)',
     const state = buildState({
       userMessage: 'Nochmal, aber abends mit warmem Licht',
       lastToolContext: { kind: 'image' },
+      lastTurnEditables: ['image'],
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('image_edit');
@@ -616,6 +617,7 @@ describe('Tier 2.7 — follow-up on the thread last artifact (lastToolContext)',
     const state = buildState({
       userMessage: 'mach es blauer',
       lastToolContext: { kind: 'image' },
+      lastTurnEditables: ['image'],
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('image_edit');
@@ -625,9 +627,32 @@ describe('Tier 2.7 — follow-up on the thread last artifact (lastToolContext)',
     const state = buildState({
       userMessage: 'Erklär nochmal, warum du diese Farben gewählt hast',
       lastToolContext: { kind: 'image' },
+      lastTurnEditables: ['image'],
     });
     const result = await classifierNode(state);
     expect(result.intent).not.toBe('image_edit');
+  });
+
+  // Beta-Audit 30.09.2026: `last_tool_context` bleibt „image", bis das nächste
+  // Artefakt kommt — Turns später war „nochmal" noch eine Bildbearbeitung.
+  it('stale image context + "Nochmal, aber abends" → NOT image_edit', async () => {
+    const state = buildState({
+      userMessage: 'Nochmal, aber abends mit warmem Licht',
+      lastToolContext: { kind: 'image' },
+      lastTurnEditables: [],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('image_edit');
+  });
+
+  it('stale image context + an order that names the image → image_edit', async () => {
+    const state = buildState({
+      userMessage: 'Mach das Bild heller',
+      lastToolContext: { kind: 'image' },
+      lastTurnEditables: [],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('image_edit');
   });
 
   it('no lastToolContext + "Nochmal, aber abends" → NOT image_edit (gate needs context)', async () => {

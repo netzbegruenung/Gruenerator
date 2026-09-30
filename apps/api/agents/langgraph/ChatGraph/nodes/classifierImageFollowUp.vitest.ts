@@ -97,7 +97,7 @@ describe('classifierNode — Bild-Folgeauftrag', () => {
     'bearbeite das Bild',
   ])('beansprucht "%s" als Bildbearbeitung, ohne das Modell zu fragen', async (text) => {
     const result = await classifierNode(
-      buildState({ userMessage: text, lastToolContext: afterImage })
+      buildState({ userMessage: text, lastToolContext: afterImage, lastTurnEditables: ['image'] })
     );
     expect(result.intent).toBe('image_edit');
     expect(executeProvider).not.toHaveBeenCalled();
@@ -108,7 +108,11 @@ describe('classifierNode — Bild-Folgeauftrag', () => {
     // unbestimmten Artikel. Ohne diesen Wächter würde FLUX das alte Bild
     // Richtung „ein neues Bild" bearbeiten, also Unsinn erzeugen.
     const result = await classifierNode(
-      buildState({ userMessage: 'Mach mir ein neues Bild', lastToolContext: afterImage })
+      buildState({
+        userMessage: 'Mach mir ein neues Bild',
+        lastToolContext: afterImage,
+        lastTurnEditables: ['image'],
+      })
     );
     expect(result.intent).not.toBe('image_edit');
   });
@@ -118,7 +122,11 @@ describe('classifierNode — Bild-Folgeauftrag', () => {
     // vor dem EINGEFÜGTEN Ding, nicht vor dem Bild. Ein weiter gefasster
     // Wächter hätte genau diese Formulierung mitgenommen.
     const result = await classifierNode(
-      buildState({ userMessage: 'Setz eine Sonnenblume ins Bild', lastToolContext: afterImage })
+      buildState({
+        userMessage: 'Setz eine Sonnenblume ins Bild',
+        lastToolContext: afterImage,
+        lastTurnEditables: ['image'],
+      })
     );
     expect(result.intent).toBe('image_edit');
   });
@@ -130,7 +138,7 @@ describe('classifierNode — Bild-Folgeauftrag', () => {
       // Artefakt. „Poster" bestand die Prüfung vorher nur durch Zufall — das
       // Neu-Würfel-Muster sucht „mach das …er", und Poster endet auf -er.
       const result = await classifierNode(
-        buildState({ userMessage: text, lastToolContext: afterImage })
+        buildState({ userMessage: text, lastToolContext: afterImage, lastTurnEditables: ['image'] })
       );
       expect(result.intent).toBe('image_edit');
     }
@@ -151,7 +159,7 @@ describe('classifierNode — Bild-Folgeauftrag', () => {
     ['Ändere das Bild nicht, sag mir nur was drauf ist', 'ausdrückliches Verbot'],
   ])('lässt "%s" in Ruhe (%s)', async (text) => {
     const result = await classifierNode(
-      buildState({ userMessage: text, lastToolContext: afterImage })
+      buildState({ userMessage: text, lastToolContext: afterImage, lastTurnEditables: ['image'] })
     );
     expect(result.intent).not.toBe('image_edit');
   });
@@ -175,6 +183,7 @@ describe('classifierNode — Bild-Folgeauftrag', () => {
         userMessage: 'Mach den Hintergrund dunkler',
         imageAttachments: [{ mimeType: 'image/png', data: 'x' }],
         lastToolContext: afterImage,
+        lastTurnEditables: ['image'],
       })
     );
     expect(result.reasoning).not.toContain('lastToolContext(image)');

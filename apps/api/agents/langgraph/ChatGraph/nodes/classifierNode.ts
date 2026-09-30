@@ -1573,9 +1573,16 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // dunkler"). Sie trägt weder ein Bearbeiten-Verb noch eine Neu-Formel, lag
       // deshalb bis zur Löschung der LLM-Stufe bei dieser und fiel danach ins
       // Residual — Prosa auf einen Auftrag, für den ein Bild bereitlag.
+      //
+      // Und nur mit Adressat — das Bild kam im Turn davor, oder der Auftrag nennt
+      // eins. `last_tool_context` bleibt „image", bis das nächste Artefakt kommt,
+      // und `isImageRegenRequest` feuert auf „nochmal"/„anders": Turns später
+      // wurde „Erklär das nochmal" zur Bildbearbeitung (Beta-Audit 30.09.2026).
       if (
         tc.kind === 'image' &&
         !hasImageAttachments &&
+        (state.lastTurnEditables?.includes('image') === true ||
+          ARTIFACT_NOUN_BY_KIND.image.test(stripQuotedSpans(orderText(userContent)))) &&
         (hasImageEditVerb(userContent) ||
           isImageRegenRequest(userContent) ||
           isImageEditInstruction(userContent)) &&

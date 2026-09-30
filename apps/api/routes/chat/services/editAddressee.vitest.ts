@@ -9,6 +9,10 @@ describe('priorTurnEditables', () => {
     expect(priorTurnEditables([], [{ toolName: 'sharepic_edit' }])).toEqual(['sharepic']);
   });
 
+  it('kennt ein Bild aus den Artefakten', () => {
+    expect(priorTurnEditables([{ kind: 'image' }], [])).toEqual(['image']);
+  });
+
   it('kennt Post und Reel aus ihren Schritten', () => {
     expect(priorTurnEditables([], [{ toolName: 'social_post' }])).toEqual(['social_post']);
     expect(priorTurnEditables([], [{ toolName: 'social_post_edit' }])).toEqual(['social_post']);
