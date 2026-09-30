@@ -183,6 +183,12 @@ describe('orderText: eine kurze Schlusszeile des Stoffs ist kein Auftrag', () =>
     expect(orderText(`${order}\n\n${newsletter}\n\n${closing}`)).toBe(order);
   });
 
+  it('eine kurze Überschrift über einer Frage fällt weg', () => {
+    expect(orderText(`Newsletter September\n\n${newsletter}\n\nstimmt das so?`)).toBe(
+      'stimmt das so?'
+    );
+  });
+
   it('eine kurze Überschrift über dem Stoff verdrängt den Auftrag unten nicht', () => {
     expect(orderText(`Newsletter September\n\n${newsletter}\n\nrechtschreibung korrigieren`)).toBe(
       'rechtschreibung korrigieren'
@@ -194,8 +200,22 @@ describe('orderText: eine kurze Schlusszeile des Stoffs ist kein Auftrag', () =>
     [`mach das kürzer\n\n${newsletter}\n\nkürzer bitte`, 'mach das kürzer\n\nkürzer bitte'],
     // Liest sich keiner der Ränder als Auftrag, bleiben beide — wie bisher.
     [
-      `Newsletter September\n\n${newsletter}\n\nstimmt das so?`,
-      'Newsletter September\n\nstimmt das so?',
+      `Newsletter September\n\n${newsletter}\n\ndas mal kürzer`,
+      'Newsletter September\n\ndas mal kürzer',
+    ],
+    // Eine Werbezeile mit „bitte" oder Infinitiv verdrängt keine Frage und
+    // keinen Nachsatz (Re-Review #3923).
+    [
+      `Ist das korrekt?\n\n${newsletter}\n\nBitte weitersagen!`,
+      'Ist das korrekt?\n\nBitte weitersagen!',
+    ],
+    [
+      `fass das zusammen\n\n${newsletter}\n\nund prüf die Fakten`,
+      'fass das zusammen\n\nund prüf die Fakten',
+    ],
+    [
+      `schreib daraus einen Post\n\n${newsletter}\n\nAußerdem: stimmen die Zahlen?`,
+      'schreib daraus einen Post\n\nAußerdem: stimmen die Zahlen?',
     ],
   ])('lesen sich beide oder keiner als Auftrag, bleiben beide: %s', (message, order) => {
     expect(orderText(message)).toBe(order);
