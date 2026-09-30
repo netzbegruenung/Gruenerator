@@ -24,10 +24,10 @@ class StubClassifier:
     is_ready = True
 
     def __init__(self):
-        self.calls: list[tuple[str, list[dict], int | None]] = []
+        self.calls: list[tuple[str, list[dict], int | bool | None]] = []
 
-    def classify_batch(self, texts):
-        self.calls.append(("classify", texts, None))
+    def classify_batch(self, texts, exclude_persons=False):
+        self.calls.append(("classify", texts, exclude_persons))
         return [
             {
                 "id": t["id"],
@@ -110,6 +110,12 @@ class TestTopicsEndpoint:
             json={"texts": [{"id": "doc-1", "title": "Titel", "text": "Fließtext"}]},
         )
         assert stub.calls[0][1] == [{"id": "doc-1", "title": "Titel", "text": "Fließtext"}]
+
+    def test_person_exclusion_is_opt_in(self, client, stub):
+        texts = [{"id": "doc-1"}]
+        client.post("/analyze/topics", json={"texts": texts})
+        client.post("/analyze/topics", json={"texts": texts, "exclude_persons": True})
+        assert [call[2] for call in stub.calls] == [False, True]
 
     def test_title_and_text_are_optional(self, client, stub):
         response = client.post("/analyze/topics", json={"texts": [{"id": "doc-1"}]})
