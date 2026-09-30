@@ -37,6 +37,7 @@ import {
   handleSocialPostTextEdit,
   isSocialTextEditInstruction,
   namesSocialPostTarget,
+  socialPostEditAddressed,
 } from '../services/socialPostEditService.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
 
@@ -240,10 +241,18 @@ export async function runEarlyHandlerStage({
     // Bringt die Nachricht Stoff mit, kann ein Auftrag ohne Ziel („übersetze
     // das", „kürzer bitte") den Stoff meinen statt des Posts — dann nur, wenn er
     // den Post nennt oder ihn ersetzt (#3918, `orderMayMeanArtifact`).
+    //
+    // Und nur mit Adressat (Karte, Post im Turn davor, oder der Auftrag nennt
+    // ihn): `findSocialPost` findet sonst den Post von vor zehn Turns
+    // (Beta-Audit 30.09.2026).
     if (
       editText &&
       isSocialTextEditInstruction(editOrder) &&
-      orderMayMeanArtifact(editText, namesSocialPostTarget)
+      orderMayMeanArtifact(editText, namesSocialPostTarget) &&
+      socialPostEditAddressed(editOrder, {
+        cardOpen: rawCurrentSocialPost != null,
+        lastTurnPost: lastTurnEditables.includes('social_post'),
+      })
     ) {
       // Sibling of the sharepic-branch log below: the two edit branches are
       // where a follow-up either lands correctly or is silently misread.
