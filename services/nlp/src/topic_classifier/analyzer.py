@@ -158,7 +158,11 @@ def _is_photo_credit(ent) -> bool:
 
 
 def _name_from_entity(ent) -> str:
-    """Reduce a PER span to the name itself.
+    return " ".join(t.text for t in _name_tokens(ent))
+
+
+def _name_tokens(ent) -> list:
+    """Reduce a PER span to the tokens of the name itself.
 
     Two problems the raw span text has, both measured on the live corpus:
     a leading role or title ("Verkehrsminister Mansoori", "Dr. Terpe") and a
@@ -186,7 +190,7 @@ def _name_from_entity(ent) -> str:
     if any(t.pos_ for t in tokens):
         start = next((i for i, t in enumerate(tokens) if t.pos_ == "PROPN"), None)
         if start is None:
-            return ""
+            return []
         while start > 0 and _is_untagged_first_name(tokens[start - 1]):
             start -= 1
         kept = [tokens[start]]
@@ -199,7 +203,7 @@ def _name_from_entity(ent) -> str:
             kept.pop()
         tokens = kept
 
-    return " ".join(t.text for t in tokens)
+    return tokens
 
 
 def _is_untagged_first_name(token) -> bool:
@@ -382,8 +386,11 @@ class TopicClassifier:
 
         Args:
             texts: List of dicts with 'id', 'title', 'text' fields.
-            exclude_persons: Keep tokens inside a PER entity out of `topNouns`.
-                Runs NER, so it costs extra; topic scores are unaffected.
+            exclude_persons: Keep names out of `topNouns` — the tokens of a PER
+                entity that `_name_tokens` keeps, so a role word the model
+                glued into the span ("Verkehrsminister Mansoori") stays a
+                keyword. Runs NER, so it costs extra; topic scores are
+                unaffected.
 
         Returns:
             List of dicts with 'id', 'topics', 'primaryTopic' fields.
@@ -410,6 +417,11 @@ class TopicClassifier:
             lemma_counts: Counter[str] = Counter()
             total_nouns = 0
             title_end = title_char_ends[idx]
+            name_indices = (
+                {t.i for ent in doc.ents if ent.label_ == "PER" for t in _name_tokens(ent)}
+                if exclude_persons
+                else set()
+            )
 
             for token in doc:
                 if token.pos_ not in ("NOUN", "PROPN"):
@@ -421,7 +433,7 @@ class TopicClassifier:
                     continue
 
                 total_nouns += 1
-                if not (exclude_persons and token.ent_type_ == "PER"):
+                if token.i not in name_indices:
                     lemma_counts[lemma] += 1
 
                 in_title = token.idx < title_end

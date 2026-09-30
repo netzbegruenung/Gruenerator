@@ -143,6 +143,24 @@ class TestTopNouns:
         assert {n["noun"] for n in dropped[0]["topNouns"]} == {"minister", "rente"}
         assert dropped[0]["topics"] == kept[0]["topics"]
 
+    def test_role_word_inside_the_person_span_stays_a_keyword(
+        self, classifier_over, make_doc
+    ):
+        # The model glues a leading role into the PER span; the persons pass
+        # cuts it off by POS, and so must the keyword exclusion.
+        docs = [
+            make_doc(
+                ["Verkehrsminister", "Mansoori", "Rente"],
+                lemmas=["verkehrsminister", "mansoori", "rente"],
+                pos=["NOUN", "PROPN", "NOUN"],
+                ents=["B-PER", "I-PER", "O"],
+            )
+        ]
+        result = classifier_over(docs).classify_batch(
+            [{"id": "a", "title": "", "text": ""}], exclude_persons=True
+        )
+        assert {n["noun"] for n in result[0]["topNouns"]} == {"verkehrsminister", "rente"}
+
 
 class TestKeywords:
     def test_counts_are_aggregated_across_documents(self, classifier_over, make_doc):
