@@ -256,11 +256,11 @@ const FACT_CHECK_ORDER_RE = new RegExp(
   'iu'
 );
 
-/** Prüft die Sprache, nicht die Sache — „ob die Kommasetzung stimmt". Mit
- *  Wortende, wo ein Stamm Sachwörter trifft: „Stilllegung", „Kommando". „Ausdruck"
- *  fehlt bewusst: „bevor ich das im Ausdruck verteile" ist der Papierausdruck. */
+/** Prüft die Sprache, nicht die Sache — „ob die Kommasetzung stimmt", „Ist das
+ *  korrekt formuliert?". Mit Wortende, wo ein Stamm Sachwörter trifft:
+ *  „Stilllegung", „Kommando". „Ausdruck" fehlt bewusst: „bevor ich das im Ausdruck verteile" ist der Papierausdruck. */
 const LANGUAGE_CHECK_RE =
-  /(?<!\p{L})(?:rechtschreib|orthogra[fp]h?|komma(?:s|ta|setzung|fehler)?(?!\p{L})|zeichensetzung|grammatik|tippfehler|schreibfehler|stil(?:s|istik|istisch\p{L}*)?(?!\p{L})|formulierung|ausdrucksweise|sprachlich)/iu;
+  /(?<!\p{L})(?:rechtschreib|orthogra[fp]h?|komma(?:s|ta|setzung|fehler)?(?!\p{L})|zeichensetzung|grammatik|tippfehler|schreibfehler|stil(?:s|istik|istisch\p{L}*)?(?!\p{L})|formulierung|ausdrucksweise|sprachlich|(?:formuliert|geschrieben|ausgedrückt|ausgedrueckt)(?!\p{L}))/iu;
 
 /**
  * Eine Faktenprüfung, die nachschlagen muss (#3915): „prüf die Fakten darin",

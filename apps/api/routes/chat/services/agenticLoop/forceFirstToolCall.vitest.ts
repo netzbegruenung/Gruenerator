@@ -373,6 +373,9 @@ describe('shouldForceFirstToolCall', () => {
       [`${claim}\n\nprüf, ob die Kommas stimmen`],
       [`${claim}\n\nprüf den Stil der Aussagen`],
       [`${claim}\n\nKannst du das auf sprachliche Richtigkeit prüfen?`],
+      [`${claim}\n\nIst das korrekt formuliert?`],
+      [`${claim}\n\nIst das so richtig geschrieben?`],
+      [`${claim}\n\nSind die Aussagen richtig formuliert?`],
       // Die Prüfwörter stehen im Stoff, der Auftrag ist ein anderer.
       [`Faktencheck: Stimmt das? ${claim}\n\nschreib daraus einen Post`],
     ])('eine Sprachprüfung oder ein anderer Auftrag sucht nicht: %s', (lastUserText) => {
@@ -403,6 +406,7 @@ describe('shouldForceFirstToolCall', () => {
       [
         'Wie hoch waren die Fördermittel für Wallboxen in Bayern im Jahr 2025, und wie viele Anträge wurden bewilligt? Bitte mit Quellen recherchieren.\n\nDanke dir!',
       ],
+      [`Hallo Team,\n\n${claim}\n\nrecherchiere dazu aktuelle Zahlen\n\nLG Moritz`],
       [`Hallo,\n\n${claim}\n\nprüf die Fakten darin\n\nDanke!`],
     ])('ein Recherche-Auftrag zwischen Gruß und Dank sucht: %s', (lastUserText) => {
       expect(force({ lastUserText })).toBe('research_order');

@@ -26,21 +26,31 @@ const ORDER_PARAGRAPH_MAX = 120;
 // „Gibt es", „Suchtprävention" eröffnen Stoff, keinen Auftrag — mit `\p{L}*`
 // dahinter wurde ein so beginnender Newsletter wieder ganz gelesen (#3912).
 const ORDER_OPENING_RE =
-  /^(?:(?:hallo|hi|hey|moin|servus)\p{P}*\s+)?(?:bitte\s+)?(?:(?:kannst|könntest|koenntest|würdest|wuerdest)\s+du|ich\s+(?:brauche|möchte|moechte|will|hätte|haette)|(?:(?:schreib|erstell|formulier|verfass|entwerf|recherchier|such|find|pr[üu]f|[üu]berpr[üu]f|beantwort|fass|k[üu]rz|[üu]bersetz|[üu]berarbeit|korrigier|lektorier|mach|zeig|erkl[äa]r|analysier)e?|entwirf|antworte|gib|vergleiche)(?!\p{L}))/iu;
+  /^(?:(?:hallo|hi|hey|moin|servus)\p{P}*\s+)?(?:bitte\s+)?(?:(?:kannst|könntest|koenntest|würdest|wuerdest)\s+du|ich\s+(?:brauche|möchte|moechte|will|hätte|haette)|(?:(?:schreib|erstell|formulier|verfass|entwerf|recherchier|such|find|pr[üu]f|[üu]berpr[üu]f|beantwort|fass|k[üu]rz|[üu]bersetz|[üu]berarbeit|korrigier|lektorier|mach|zeig|erkl[äa]r|analysier)e?|entwirf|antworte|gib|vergleiche?(?=\s+(?:die|den|das|diese[nrs]?|beide[n]?|mir)(?!\p{L})))(?!\p{L}))/iu;
 
 /**
  * Ein Absatz nur aus Gruß und Dank („Hallo,", „Danke dir!", „Vielen Dank und
  * liebe Grüße") ist weder Auftrag noch Stoff. Als Rand genommen, verdrängte er
  * den Auftrag dazwischen — „Hallo,\n\n<Auftrag>\n\nDanke!" las „Hallo, Danke!".
+ * Ein Name dahinter („LG Moritz") ändert daran nichts.
  */
-const COURTESY_PARAGRAPH_RE =
-  /^(?:(?:hallo|hi|hey|moin|servus|guten|morgen|tag|abend|zusammen|ihr|du|danke|dankeschön|dankeschoen|vielen|lieben|herzlichen|herzliche|besten|beste|liebe|viele|dank|dir|euch|ihnen|schon|mal|im|voraus|und|lg|vg|mfg|grüße|grüsse|gruesse|gruß|gruss|merci|thx|thanks|cheers)[\s\p{P}]*)+$/iu;
+const COURTESY_PREFIX_RE =
+  /^(?:(?:hallo|hi|hey|moin|servus|guten|morgen|tag|abend|zusammen|ihr|du|danke|dankeschön|dankeschoen|vielen|lieben|herzlichen|herzliche|besten|beste|liebe|viele|dank|dir|euch|ihnen|schon|mal|im|voraus|und|lg|vg|mfg|grüße|grüsse|gruesse|gruß|gruss|merci|thx|thanks|cheers)(?!\p{L})[\s\p{P}]*)+/iu;
+
+/** Bis zu drei großgeschriebene Wörter nach Gruß oder Dank: „LG Moritz", „Hallo Team,". */
+const COURTESY_NAME_TAIL_RE = /^(?:\p{Lu}[\p{L}'-]*[\s\p{P}]*){0,3}$/u;
+
+function isCourtesyParagraph(p: string): boolean {
+  const prefix = COURTESY_PREFIX_RE.exec(p);
+  return prefix != null && COURTESY_NAME_TAIL_RE.test(p.slice(prefix[0].length));
+}
+
 function splitOrder(message: string): { order: string; material: boolean } {
   const t = (message ?? '').trim();
   const paragraphs = t
     .split(/\n\s*\n/)
     .map((p) => p.trim())
-    .filter((p) => p && !COURTESY_PARAGRAPH_RE.test(p));
+    .filter((p) => p && !isCourtesyParagraph(p));
   const whole = { order: paragraphs.length > 0 ? paragraphs.join('\n\n') : t, material: false };
   if (paragraphs.length < 2) return whole;
   // Nur die Ränder: der Auftrag steht vor oder hinter dem Stoff, und eine kurze
