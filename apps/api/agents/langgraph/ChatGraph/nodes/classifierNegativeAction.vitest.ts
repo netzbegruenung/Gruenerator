@@ -80,7 +80,10 @@ describe('Tier 2.7 — Folgeauftrag auf das letzte Dokument', () => {
     // The control case. Without it a broken guard would look like a passing
     // suite: everything stands down, nothing routes, all assertions green.
     const result = await classifierNode(
-      buildState('Kürze die Begründung auf die Hälfte', { lastToolContext: AFTER_DOC })
+      buildState('Kürze die Begründung auf die Hälfte', {
+        lastToolContext: AFTER_DOC,
+        lastTurnEditables: ['document'],
+      })
     );
     expect(result.intent).toBe('modify_doc');
     expect(result.docMentionIds).toEqual(['doc-1']);
@@ -92,7 +95,9 @@ describe('Tier 2.7 — Folgeauftrag auf das letzte Dokument', () => {
       'Überarbeite den Text nur im Chat, nichts speichern',
       'Aktualisiere die Zielgruppe — das Dokument unverändert lassen',
     ]) {
-      const result = await classifierNode(buildState(msg, { lastToolContext: AFTER_DOC }));
+      const result = await classifierNode(
+        buildState(msg, { lastToolContext: AFTER_DOC, lastTurnEditables: ['document'] })
+      );
       expect(result.intent, msg).not.toBe('modify_doc');
     }
   });

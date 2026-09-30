@@ -106,7 +106,9 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
     const pool = scriptEditTarget('2');
     const result = await classifierNode(
       buildState({
-        userMessage: 'Kürze die Begründung auf die Hälfte',
+        // Das Dokument ist älter als der Turn davor — seit #3941 braucht der
+        // Auftrag es dann beim Namen; die Wahl des Auflösers ist kein Adressat.
+        userMessage: 'Kürze im Dokument die Begründung auf die Hälfte',
         lastToolContext: SHAREPIC,
         threadArtifacts: BOTH,
       })
@@ -140,6 +142,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         userMessage: 'Kürze die Begründung auf die Hälfte',
         lastToolContext: DOCUMENT,
         threadArtifacts: [DOCUMENT, SHAREPIC],
+        lastTurnEditables: ['document'],
       })
     );
     expect(result.intent).toBe('modify_doc');
@@ -155,6 +158,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         userMessage: 'Kürze die Begründung auf die Hälfte',
         lastToolContext: DOCUMENT,
         threadArtifacts: [DOCUMENT, SHAREPIC],
+        lastTurnEditables: ['document'],
       })
     );
     expect(result.intent).toBe('modify_doc');
@@ -197,6 +201,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         userMessage: 'Kürze die Begründung auf die Hälfte',
         lastToolContext: DOCUMENT,
         threadArtifacts: [DOCUMENT, SHAREPIC],
+        lastTurnEditables: ['document'],
       })
     );
     expect(pool.editTargetCalls).toHaveLength(1);
@@ -208,7 +213,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
     const pool = scriptEditTarget('Nummer 2.');
     const result = await classifierNode(
       buildState({
-        userMessage: 'Kürze die Begründung auf die Hälfte',
+        userMessage: 'Kürze im Dokument die Begründung auf die Hälfte',
         lastToolContext: SHAREPIC,
         threadArtifacts: BOTH,
       })
