@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { checkCloudShareLink } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { deleteReactionsForShares } from '../../../services/groups/groupShareReactions.js';
 
 import type {
   NextcloudShareLink,
@@ -323,6 +324,11 @@ export class NextcloudShareManager {
 
       // Cascade: remove any group shares that point at this link. There is no FK
       // (content_id is just TEXT in group_content_shares), so we delete manually.
+      await deleteReactionsForShares({
+        contentTypes: ['nextcloud_share_link'],
+        contentId: shareLinkId,
+        sharedBy: userId,
+      });
       await postgres.exec(
         `DELETE FROM group_content_shares
          WHERE content_type = 'nextcloud_share_link'

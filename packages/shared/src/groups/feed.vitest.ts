@@ -8,6 +8,7 @@ const share = (over: Record<string, unknown> = {}) => ({
   pinnedAt: null,
   pinnedByName: null,
   commentCount: 0,
+  reactions: [],
   ...over,
 });
 

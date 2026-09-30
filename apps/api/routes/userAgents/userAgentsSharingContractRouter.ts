@@ -17,6 +17,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { notifyContentShared } from '../../services/groups/groupContent.js';
 import { assertCanShareToGroup } from '../../services/groups/groupMembership.js';
+import { deleteReactionsForShares } from '../../services/groups/groupShareReactions.js';
 import {
   getAgentSharing,
   listPublicUserAgents,
@@ -259,6 +260,11 @@ export const userAgentsSharingContractRouter = s.router(userAgentsSharingContrac
       if (!sharing) {
         return { status: 404 as const, body: { error: 'Agent*in nicht gefunden' } };
       }
+      await deleteReactionsForShares({
+        contentTypes: ['user_agents'],
+        contentId: sharing.id,
+        groupId: args.params.groupId,
+      });
       const postgres = getPostgresInstance();
       const result = (await postgres.query(
         `DELETE FROM group_content_shares

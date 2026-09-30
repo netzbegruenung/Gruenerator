@@ -30,6 +30,7 @@ import {
 import { type TrashCursor, trashKeysetWhere, trashOrderBy } from '../trash/trashCursor.js';
 
 import { deleteGroupPostFile } from './groupPosts.js';
+import { shareReactionsDeleteSql } from './groupShareReactions.js';
 
 const log = createLogger('groupTrash');
 
@@ -217,6 +218,9 @@ export async function purgeGroup(groupId: string, cutoff: Date | null): Promise<
     await postgres.transactionExec(client, 'DELETE FROM group_instructions WHERE group_id = $1', [
       groupId,
     ]);
+    // Kommentare fallen per Cascade mit den Freigaben, ihre Reaktionen nicht.
+    const reactions = shareReactionsDeleteSql({ groupId });
+    await postgres.transactionExec(client, reactions.sql, reactions.params);
     await postgres.transactionExec(client, 'DELETE FROM group_content_shares WHERE group_id = $1', [
       groupId,
     ]);

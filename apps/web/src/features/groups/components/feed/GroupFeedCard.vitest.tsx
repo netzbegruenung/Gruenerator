@@ -30,6 +30,7 @@ const item: GroupFeedItem = {
     pinnedAt: '2026-09-25T10:00:00Z',
     pinnedByName: 'Moritz',
     commentCount: 1,
+    reactions: [],
   },
   post: null,
 };

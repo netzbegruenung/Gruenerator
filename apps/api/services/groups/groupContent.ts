@@ -24,6 +24,7 @@ import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelp
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { TRASHABLE_TABLES } from '../../database/trash.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
+import { getReactionSummaries } from '../entityReactions/EntityReactionsService.js';
 import { buildCanvasThumbnailUrl } from '../media/thumbnailUrl.js';
 import { notifyGroupMembers } from '../notifications/index.js';
 import { listUserAgentsByIds } from '../userAgents/userAgentsRepository.js';
@@ -32,7 +33,12 @@ import { assertCanShareToGroup } from './groupMembership.js';
 import { normalizeSharePermissions } from './groupSharePermissions.js';
 
 import type { PostgresService } from '../../database/services/PostgresService.js';
-import type { GroupContentType, GroupShareMeta, ShareContentBody } from '@gruenerator/contracts';
+import type {
+  GroupContentType,
+  GroupShareMeta,
+  ReactionSummary,
+  ShareContentBody,
+} from '@gruenerator/contracts';
 
 /** Contract-Typ → Tabelle, wo die beiden auseinanderfallen. */
 export const CONTENT_TABLE_NAME_MAP: Record<string, string> = {
@@ -312,13 +318,14 @@ interface ContentItem {
   [key: string]: unknown;
 }
 
-function toShareMeta(r: ShareRecord): GroupShareMeta {
+function toShareMeta(r: ShareRecord, reactions: ReactionSummary[]): GroupShareMeta {
   return {
     shareId: r.share_id,
     note: r.note,
     pinnedAt: r.pinned_at instanceof Date ? r.pinned_at.toISOString() : r.pinned_at,
     pinnedByName: r.pinned_at ? r.pinned_by_name : null,
     commentCount: Number(r.comment_count) || 0,
+    reactions,
   };
 }
 
@@ -342,6 +349,7 @@ export interface HydrateGroupContentDeps {
   postgres: Pick<PostgresService, 'query'>;
   getNotebookCollectionsByIds: NotebookQdrantHelper['getNotebookCollectionsByIds'];
   listUserAgentsByIds: typeof listUserAgentsByIds;
+  getReactionSummaries: typeof getReactionSummaries;
 }
 
 function defaultHydrateDeps(): HydrateGroupContentDeps {
@@ -350,18 +358,20 @@ function defaultHydrateDeps(): HydrateGroupContentDeps {
     postgres: getPostgresInstance(),
     getNotebookCollectionsByIds: (ids) => helper.getNotebookCollectionsByIds(ids),
     listUserAgentsByIds,
+    getReactionSummaries,
   };
 }
 
 /**
  * Alle mit `groupId` geteilten Inhalte, je Typ zu ihren Datensätzen
  * aufgelöst und um `contentType`, `shared_at`, `group_permissions` und
- * `shared_by_name` ergänzt. Wolke-Verbindungen (`nextcloud_share_link`)
+ * `shared_by_name` ergänzt; `share.reactions` aus Sicht von `viewerId`. Wolke-Verbindungen (`nextcloud_share_link`)
  * haben hier keinen Bucket — sie waren es im Handler nie und tragen den
  * Freigabe-Link, der das Zugangsmittel ist.
  */
 export async function hydrateGroupContent(
   groupId: string,
+  viewerId: string,
   deps: HydrateGroupContentDeps = defaultHydrateDeps()
 ): Promise<GroupContentBuckets> {
   const { postgres } = deps;
@@ -610,7 +620,14 @@ export async function hydrateGroupContent(
     );
   }
 
-  const contentResults = (await Promise.all(fetchPromises)).filter(Boolean) as ContentResult[];
+  const [contentResults, reactions] = await Promise.all([
+    Promise.all(fetchPromises).then((r) => r.filter(Boolean) as ContentResult[]),
+    deps.getReactionSummaries(
+      'group_share',
+      sharedContent.map((s) => s.share_id),
+      viewerId
+    ),
+  ]);
 
   const groupContent: GroupContentBuckets = {
     documents: [],
@@ -659,7 +676,7 @@ export async function hydrateGroupContent(
         shared_at: shareInfo?.shared_at,
         group_permissions: parsedPermissions,
         shared_by_name: shareInfo?.display_name || shareInfo?.first_name || 'Unknown User',
-        share: shareInfo ? toShareMeta(shareInfo) : null,
+        share: shareInfo ? toShareMeta(shareInfo, reactions.get(shareInfo.share_id) ?? []) : null,
         ...(type === 'database' && {
           template_type: (parsedMetadata.template_type as string) || 'template',
           external_url: item.external_url,

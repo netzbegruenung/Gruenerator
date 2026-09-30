@@ -22,6 +22,7 @@ import {
   assertCanShareToGroup,
   listShareTargetGroups,
 } from '../../services/groups/groupMembership.js';
+import { deleteReactionsForShares } from '../../services/groups/groupShareReactions.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
@@ -244,6 +245,11 @@ export const chatThreadSharingContractRouter = s.router(chatThreadSharingContrac
         return { status: 403 as const, body: { error: 'Only thread owner can manage sharing' } };
 
       const db = getPostgresInstance();
+      await deleteReactionsForShares({
+        contentTypes: ['chat_threads'],
+        contentId: threadId,
+        groupId,
+      });
       await db.query(
         `DELETE FROM group_content_shares
          WHERE content_type = 'chat_threads' AND content_id = $1 AND group_id = $2`,

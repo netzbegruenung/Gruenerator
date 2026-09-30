@@ -41,6 +41,7 @@ import {
   listShareTargetGroups,
 } from '../../services/groups/groupMembership.js';
 import { shareToPermissionLevel } from '../../services/groups/groupSharePermissions.js';
+import { deleteReactionsForShares } from '../../services/groups/groupShareReactions.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { ensureDocChatThread } from '../chat/services/threadPersistenceService.js';
@@ -269,6 +270,11 @@ export const docsContractRouter = s.router(docsContract, {
         };
       }
 
+      await deleteReactionsForShares({
+        contentTypes: ['collaborative_documents'],
+        contentId: id,
+        groupId,
+      });
       const result = (await db.query(
         `DELETE FROM group_content_shares
          WHERE content_type = 'collaborative_documents' AND content_id = $1 AND group_id = $2
