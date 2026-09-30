@@ -209,8 +209,17 @@ function CanvasEditorInner({
     pagesContainerRef.current?.style.setProperty('--canvas-zoom', String(zoom));
   }, [zoom, pagesContainerRef]);
 
-  // Pinch and ctrl/cmd+wheel drive the same zoom as the CanvasMetaBar buttons
-  useZoomGestures(pagesContainerRef, setZoom);
+  // Pinch and ctrl/cmd+wheel drive the same zoom as the CanvasMetaBar buttons.
+  // The container mounts after the loading state, so the hook gets it as state.
+  const [pagesContainer, setPagesContainer] = useState<HTMLDivElement | null>(null);
+  const pagesContainerCallbackRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      pagesContainerRef.current = el;
+      setPagesContainer(el);
+    },
+    [pagesContainerRef]
+  );
+  useZoomGestures(pagesContainer, setZoom);
 
   // Every page binds its config to its page Y.Map — in collab mode
   // that syncs to peers, in local mode it makes duplicate/move/undo carry
@@ -921,25 +930,26 @@ function CanvasEditorInner({
   // eigene, leicht durchscheinende Kapsel.
   const bottomBarGroup =
     'flex items-center rounded-xl border border-[var(--editor-border)] bg-[var(--editor-surface)]/80 shadow-sm backdrop-blur-sm pointer-events-auto';
+  const pageStrip = showPageStrip ? (
+    <PageThumbnailStrip
+      pages={pages}
+      currentPageIndex={currentPageIndex}
+      thumbnails={pageThumbnails}
+      loadedConfigs={loadedConfigs}
+      currentTemplateId={currentTemplateId}
+      canAddMore={canAddMore}
+      onSelect={handleThumbnailSelect}
+      onAddPage={handleAddPage}
+      onDuplicateCurrent={duplicateCurrentPage}
+      onAddSliderVariant={sliderVariantHandler}
+      templateFilter={categoryFilter}
+    />
+  ) : null;
   const bottomBar = (
     <div className="canvas-bottom-bar pointer-events-none flex items-center gap-2 px-2 pb-2">
-      {showPageStrip ? (
+      {pageStrip ? (
         <div className="min-w-0 flex-1">
-          <div className={cn('w-fit max-w-full', bottomBarGroup)}>
-            <PageThumbnailStrip
-              pages={pages}
-              currentPageIndex={currentPageIndex}
-              thumbnails={pageThumbnails}
-              loadedConfigs={loadedConfigs}
-              currentTemplateId={currentTemplateId}
-              canAddMore={canAddMore}
-              onSelect={handleThumbnailSelect}
-              onAddPage={handleAddPage}
-              onDuplicateCurrent={duplicateCurrentPage}
-              onAddSliderVariant={sliderVariantHandler}
-              templateFilter={categoryFilter}
-            />
-          </div>
+          <div className={cn('w-fit max-w-full', bottomBarGroup)}>{pageStrip}</div>
         </div>
       ) : (
         <div className="min-w-0 flex-1">
@@ -983,12 +993,17 @@ function CanvasEditorInner({
           actions={null}
           toolbar={toolbarElement}
           contextBar={contextBarElement}
-          bottomBar={bottomBar}
+          // Die Desktop-Leiste ist auf dem Handy per CSS ausgeblendet; gar
+          // nicht erst mitgeben, sonst hinge der Streifen zweimal im Baum.
+          bottomBar={isMobileWeb ? null : bottomBar}
+          // Auf dem Handy scrollt ein Finger auf dem Sharepic nicht (wie in
+          // Canva) — die Seiten wechselt dort dieser Streifen.
+          mobilePageStrip={isMobileWeb && !isMobileSheetOpen ? pageStrip : null}
           mobileSheetOpen={isMobileSheetOpen}
           onCanvasBackdropPointerDown={isMobileSheetOpen ? handlePanelClose : undefined}
         >
           <div
-            ref={pagesContainerRef}
+            ref={pagesContainerCallbackRef}
             onPointerDown={handleWorkAreaPointerDown}
             className="heterogeneous-multipage__pages-container has-bottom-bar flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs"
           >
