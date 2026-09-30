@@ -309,13 +309,16 @@ describe('hydrateGroupContent', () => {
         },
       ]) as never,
       listUserAgentsByIds: vi.fn(async () => []),
+      getReactionSummaries: vi.fn(
+        async () => new Map([['share-d1', [{ emoji: '🎉', count: 1, reacted: false }]]])
+      ),
     };
     return { deps, query };
   }
 
   it('resolves each share to its record and attaches the share metadata', async () => {
     const { deps } = fakeHydrateDeps();
-    const out = await hydrateGroupContent('g1', deps);
+    const out = await hydrateGroupContent('g1', 'viewer', deps);
     expect(out.collaborative_documents).toEqual([
       expect.objectContaining({
         id: 'd1',
@@ -330,9 +333,15 @@ describe('hydrateGroupContent', () => {
           pinnedAt: '2026-09-02T12:00:00.000Z',
           pinnedByName: 'Moritz',
           commentCount: 2,
+          reactions: [{ emoji: '🎉', count: 1, reacted: false }],
         },
       }),
     ]);
+    expect(deps.getReactionSummaries).toHaveBeenCalledWith(
+      'group_share',
+      expect.arrayContaining(['share-d1']),
+      'viewer'
+    );
     expect(out.notebooks).toEqual([
       expect.objectContaining({
         id: 'n1',
@@ -345,7 +354,7 @@ describe('hydrateGroupContent', () => {
 
   it('reads only the tables that have shares, and never a share-link table', async () => {
     const { deps, query } = fakeHydrateDeps();
-    await hydrateGroupContent('g1', deps);
+    await hydrateGroupContent('g1', 'viewer', deps);
     const tables = query.mock.calls.map(([sql]) => sql as string);
     expect(tables.some((sql) => sql.includes('FROM collaborative_documents'))).toBe(true);
     expect(tables.some((sql) => sql.includes('FROM documents'))).toBe(false);
@@ -355,7 +364,7 @@ describe('hydrateGroupContent', () => {
 
   it('has no bucket for a wolke connection — the link is the access secret', async () => {
     const { deps } = fakeHydrateDeps();
-    const out = await hydrateGroupContent('g1', deps);
+    const out = await hydrateGroupContent('g1', 'viewer', deps);
     expect(JSON.stringify(out)).not.toContain('link-1');
     expect(Object.keys(out).sort()).toEqual([
       'canvas_templates',
@@ -406,10 +415,11 @@ describe('hydrateGroupContent', () => {
       }
       return [];
     });
-    const out = await hydrateGroupContent('g1', {
+    const out = await hydrateGroupContent('g1', 'viewer', {
       postgres: { query } as unknown as HydrateGroupContentDeps['postgres'],
       getNotebookCollectionsByIds: vi.fn(async () => []) as never,
       listUserAgentsByIds: vi.fn(async () => []),
+      getReactionSummaries: vi.fn(async () => new Map()),
     });
     const postCall = query.mock.calls.find(([sql]) => sql.includes('FROM group_posts'));
     expect(postCall?.[1]).toEqual([['p1'], 'g1']);
@@ -453,10 +463,11 @@ describe('hydrateGroupContent', () => {
       }
       return [];
     });
-    const out = await hydrateGroupContent('g1', {
+    const out = await hydrateGroupContent('g1', 'viewer', {
       postgres: { query } as unknown as HydrateGroupContentDeps['postgres'],
       getNotebookCollectionsByIds: vi.fn(async () => []) as never,
       listUserAgentsByIds: vi.fn(async () => []),
+      getReactionSummaries: vi.fn(async () => new Map()),
     });
     expect(out.collaborative_documents[0]?.thumbnail_url).toBe(
       'signed:c1:/api/share/tok1/download'
@@ -467,7 +478,7 @@ describe('hydrateGroupContent', () => {
   it('returns empty buckets for a project with nothing shared', async () => {
     const { deps, query } = fakeHydrateDeps();
     query.mockResolvedValue([]);
-    const out = await hydrateGroupContent('g1', deps);
+    const out = await hydrateGroupContent('g1', 'viewer', deps);
     expect(Object.values(out).every((b: unknown[]) => b.length === 0)).toBe(true);
     expect(query).toHaveBeenCalledTimes(1);
   });
@@ -511,10 +522,11 @@ describe('Papierkorb: trashed content in Projekte', () => {
           ]
         : []
     );
-    await hydrateGroupContent('g1', {
+    await hydrateGroupContent('g1', 'viewer', {
       postgres: { query } as unknown as HydrateGroupContentDeps['postgres'],
       getNotebookCollectionsByIds: vi.fn(async () => []) as never,
       listUserAgentsByIds: vi.fn(async () => []),
+      getReactionSummaries: vi.fn(async () => new Map()),
     });
     const sqls = query.mock.calls.map(([sql]) => sql);
     expect(sqls.find((sql) => sql.includes('FROM user_documents'))).toContain('deleted_at IS NULL');

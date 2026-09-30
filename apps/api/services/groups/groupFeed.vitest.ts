@@ -84,12 +84,16 @@ function fakeDeps(f: Fake = {}) {
     ];
   });
   const notify = vi.fn(async () => {});
+  const getReactionSummaries = vi.fn(
+    async () => new Map([['c1', [{ emoji: '👍', count: 2, reacted: true }]]])
+  );
   const deps = {
     postgres: { exec, queryOne, query } as unknown as GroupFeedDeps['postgres'],
     notify,
     isInstanceAdmin: vi.fn(async () => f.instanceAdmin ?? false),
+    getReactionSummaries,
   } satisfies GroupFeedDeps;
-  return { deps, exec, notify, query };
+  return { deps, exec, notify, query, getReactionSummaries };
 }
 
 const ids = { groupId: 'g1', shareId: 's1', userId: 'u1' };
@@ -184,6 +188,17 @@ describe('comments', () => {
     expect(out.data.map((c) => c.parentId)).toEqual([null, 'c1']);
   });
 
+  it('attaches the reactions of each comment from the viewer', async () => {
+    const { deps, getReactionSummaries } = fakeDeps();
+    const out = await listShareComments(ids, deps);
+    if (!('data' in out)) throw new Error('expected data');
+    expect(getReactionSummaries).toHaveBeenCalledWith('group_comment', ['c1', 'c2'], 'u1');
+    expect(out.data.map((c) => c.reactions)).toEqual([
+      [{ emoji: '👍', count: 2, reacted: true }],
+      [],
+    ]);
+  });
+
   it('creates a comment and notifies sharer + earlier commenters', async () => {
     const { deps, notify } = fakeDeps({ earlierCommenters: ['u2', 'u1'] });
     const out = await createShareComment(
@@ -192,7 +207,12 @@ describe('comments', () => {
     );
     expect(out.status).toBe(201);
     if (!('data' in out)) throw new Error('expected data');
-    expect(out.data).toMatchObject({ body: 'Passt so!', authorName: 'Moritz', userId: 'u1' });
+    expect(out.data).toMatchObject({
+      body: 'Passt so!',
+      authorName: 'Moritz',
+      userId: 'u1',
+      reactions: [],
+    });
     expect(notify).toHaveBeenCalledWith(
       expect.objectContaining({
         authorId: 'u1',

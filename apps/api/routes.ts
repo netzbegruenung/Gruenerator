@@ -23,6 +23,7 @@ import { mountImageModelPreferenceContractRouter } from './routes/auth/imageMode
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountPromptsContractRouter } from './routes/auth/promptsContractRouter.js';
+import { mountEntityReactionsContractRouter } from './routes/auth/reactions/entityReactionsContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountTemplateInteractionsContractRouter } from './routes/auth/templates/templateInteractionsContractRouter.js';
 import { mountUserTemplatesContractRouter } from './routes/auth/templates/userTemplatesContractRouter.js';
@@ -397,6 +398,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // the prefix because every route requires authentication.
   app.use('/api/auth/templates', requireAuth);
   mountTemplateInteractionsContractRouter(app);
+  // Emoji reactions on group posts/comments and board comments — requireAuth
+  // at the prefix; per-entity permission checks in reactionTargets.ts.
+  app.use('/api/auth/reactions', requireAuth);
+  mountEntityReactionsContractRouter(app);
   // ts-rest contract router for user prompts (custom_prompts + saved_prompts
   // CRUD) — mounts BEFORE authRouter so contract routes match first; the
   // legacy userCustomPrompts router keeps the semantic-search / discovery
