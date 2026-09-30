@@ -15,8 +15,9 @@ interface RerankCall {
 type RerankScore = { originalIndex: number; relevanceScore: number };
 
 const rerank = vi.fn<(req: RerankCall) => Promise<RerankScore[]>>();
-vi.mock('./RegoloRerankService.js', () => ({
-  regoloRerankService: { rerank: (req: RerankCall) => rerank(req) },
+vi.mock('./GreenPTRerankService.js', () => ({
+  greenptRerankService: { isAvailable: () => true, rerank: (req: RerankCall) => rerank(req) },
+  GreenPTRerankError: class GreenPTRerankError extends Error {},
 }));
 
 vi.mock('../../utils/logger.js', () => ({

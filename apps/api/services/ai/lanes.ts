@@ -49,8 +49,7 @@ const MISTRAL_MEDIUM = 'mistral-medium-2604';
 const GEMMA_4 = GEMMA_31B_PRIMARY.model;
 /** Gemma 4 bei GreenPT — welche Gewichte, ist unbelegt (siehe GEMMA_4_GREENPT in
  *  routes/chat/agents/providers.ts). Gewählt ist es dafür, dass es den
- *  erzwungenen Tool-Call bedient statt JSON als Prosa zu schreiben, anders als
- *  Regolo. Siehe ARTIFACT_MODEL in services/providers/providerSelector.ts. */
+ *  erzwungenen Tool-Call bedient statt JSON als Prosa zu schreiben. Siehe ARTIFACT_MODEL in services/providers/providerSelector.ts. */
 const GEMMA_4_GREENPT = 'gemma4';
 
 /**
@@ -257,7 +256,7 @@ export function providerForModel(modelName = ''): ProviderName {
   // für einen halben Tag und ist dort unbedienbar geworden (der einzige
   // brauchbare Unterauftragnehmer verschwand aus dem Katalog, der zweite ist
   // quantisiert) — wer sie hier auf `cortecs` schickt, erntet genau diesen
-  // Filterfehler. `gemma4-31b` (ohne Bindestrich nach gemma) ist Regolos.
+  // Filterfehler.
   if (name === 'gemma-4-26b-a4b-it') return 'scaleway';
   // Das DICHTE 31B dagegen ist die Cortecs-Seite: Primär von `heavy` und
   // `pruefung` und der Ausweich der Gemma-Antwortlane. Ohne diese Zeile fällt
@@ -279,8 +278,6 @@ export function providerForModel(modelName = ''): ProviderName {
   // Familien unter eigenen Kennungen.
   if (name.includes('gpt-') || name.includes('openai')) return 'cortecs';
   if (name.includes('mistral') || name.includes('mixtral')) return 'cortecs';
-  if (name.includes('llama') || name.includes('meta-llama')) return 'regolo';
-  if (name.startsWith('regolo/') || name.includes('regolo')) return 'regolo';
   return 'mistral';
 }
 

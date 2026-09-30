@@ -89,7 +89,7 @@ export const PROVIDER_LABELS: Record<string, string> = {
   infercom: 'infercom',
   berget: 'Berget',
   litellm: 'verdigado',
-  regolo: 'Regolo / Seeweb',
+  regolo: 'Regolo (eingestellt)',
   greenpt: 'GreenPT',
   bfl: 'Black Forest Labs',
   linkup: 'Linkup',

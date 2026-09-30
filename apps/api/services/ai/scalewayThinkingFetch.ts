@@ -28,7 +28,7 @@
  *
  * NOT applied to Mistral Medium 3.5 on Scaleway: that lane is reached through
  * `routeMistralModel` under `provider: 'mistral'` and MUST keep its thinking
- * turns (they are served by `regoloReasoningStream`). This client is only
+ * turns (they are served by `openAiReasoningStream`). This client is only
  * constructed for `provider: 'scaleway'`.
  */
 export const scalewayFetchWithThinkingDisabled: typeof fetch = async (input, init) => {

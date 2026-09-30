@@ -11,7 +11,7 @@
  *   EVAL_FILTER      only run cases whose id contains this substring
  *   EVAL_DEPTH       depth profile: fast | deep | ultra (default fast;
  *                    notebook defaults to deep, the production notebook default)
- *   EVAL_RERANK=1    additionally score the post-rerank ranking (Regolo). qa,
+ *   EVAL_RERANK=1    additionally score the post-rerank ranking (GreenPT). qa,
  *                    notebook, and chat-notebook — manual has no rerank stage.
  *   EVAL_RERANK_INSTRUCT  preset key from `rerankInstructs.ts` (`service`
  *                    default, `chat`, `qa`, `de`, `de-strict`). Needs

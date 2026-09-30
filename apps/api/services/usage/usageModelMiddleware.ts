@@ -98,7 +98,7 @@ export function withUsageTracking(model: LanguageModel, provider: string): Langu
       // die Zäh-Erkennung dieser Lanes wäre still tot. Sie taugt hier ohnehin
       // nur auf Lane-Ebene: welchen Unterauftragnehmer der Router nimmt,
       // entscheiden nicht wir, handeln können wir nur durch den Wechsel auf den
-      // Regolo-Sibling — und der hängt am Lane-Namen.
+      // Sibling — und der hängt am Lane-Namen.
       recordModelSample({
         provider,
         model: wrapped.modelId,

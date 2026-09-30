@@ -28,11 +28,8 @@ export type TranscriptionProviderOverride = TranscriptionProvider | 'auto';
  * GreenPT is 4–6× faster and runs on different infrastructure, which is what
  * makes it a real failover rather than a second instance of the same risk.
  *
- * There is no length rule any more. It existed for Regolo, whose own guidance
- * capped it at 2 minutes ("to prevent hallucinations and duplicate
- * transcriptions" — reproduced live on a 180 s excerpt, where it repeated a
- * whole sentence). Neither remaining provider carries that caveat: Voxtral was
- * verified over 45 minutes at 99.9 % coverage, GreenPT likewise.
+ * There is no length rule: neither provider carries a duration caveat. Voxtral
+ * was verified over 45 minutes at 99.9 % coverage, GreenPT likewise.
  */
 export const TRANSCRIPTION_CHAIN: readonly TranscriptionProvider[] = ['voxtral', 'greenpt'];
 
@@ -42,9 +39,8 @@ export const TRANSCRIPTION_CHAIN: readonly TranscriptionProvider[] = ['voxtral',
  * produce one must not appear in the chain at all — it would return a
  * perfectly valid transcript with every speaker silently merged.
  *
- * Currently every provider qualifies. The list is what made Regolo drop out of
- * diarized chains automatically when it was removed, and it is what a fourth
- * provider will be measured against.
+ * Currently every provider qualifies. The list is what a further provider will be
+ * measured against.
  */
 const DIARIZATION_CAPABLE: readonly TranscriptionProvider[] = ['voxtral', 'greenpt'];
 
@@ -125,10 +121,9 @@ export function chooseProvider(input: ProviderChoiceInput = {}): ProviderChoice 
 /**
  * Both locales transcribe as plain `de`.
  *
- * Measured 2026-07-29 against Regolo's faster-whisper, which validates the
+ * Measured 2026-07-29 against a Whisper endpoint, which validates the
  * code against Whisper's 100-entry ISO-639-1 set and answers `de-AT`, `at` and
- * `de_AT` with HTTP 422. Regolo is gone, but Voxtral has never been tested
- * with a regional code either, so the mapping stands until someone measures it.
+ * `de_AT` with HTTP 422. Voxtral has never been tested with a regional code, so the mapping stands until someone measures it.
  *
  * Kept as a named function so that a provider which does learn regional codes
  * is a one-line change rather than a hunt through the request builders.

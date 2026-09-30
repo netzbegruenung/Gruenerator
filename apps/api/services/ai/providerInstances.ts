@@ -28,7 +28,6 @@ import { cortecsFetchWithPolicy } from './cortecsRequestPolicy.js';
 import { greenptFetchWithThinkingDisabled } from './greenptThinkingFetch.js';
 import { litellmFetchWithThinkingDisabled } from './litellmThinkingFetch.js';
 import { meliousFetch } from './meliousThinkingFetch.js';
-import { regoloFetchWithThinkingDisabled } from './regoloThinkingFetch.js';
 import { scalewayBaseUrl } from './scalewayEndpoint.js';
 import { scalewayFetchWithMistralFallback } from './scalewayMistralFallbackFetch.js';
 import { scalewayFetchWithThinkingDisabled } from './scalewayThinkingFetch.js';
@@ -36,7 +35,6 @@ import { scalewayFetchWithThinkingDisabled } from './scalewayThinkingFetch.js';
 const log = createLogger('providerInstances');
 
 export const LITELLM_DEFAULT_BASE_URL = 'https://litellm.netzbegruenung.verdigado.net';
-export const REGOLO_BASE_URL = 'https://api.regolo.ai/v1';
 export const MELIOUS_BASE_URL = 'https://api.melious.ai/v1';
 export const GREENPT_BASE_URL = 'https://api.greenpt.ai/v1';
 
@@ -66,7 +64,6 @@ export const MISTRAL_API_URL =
 
 let mistralInstance: ReturnType<typeof createMistral> | null = null;
 let litellmInstance: ReturnType<typeof createOpenAI> | null = null;
-let regoloInstance: ReturnType<typeof createOpenAI> | null = null;
 let meliousInstance: ReturnType<typeof createOpenAI> | null = null;
 let greenptInstance: ReturnType<typeof createOpenAI> | null = null;
 let scalewayInstance: ReturnType<typeof createOpenAI> | null = null;
@@ -111,25 +108,6 @@ export function getLiteLLMProvider(): ReturnType<typeof createOpenAI> {
   return litellmInstance;
 }
 
-/** Regolo. Throws without a key — callers that want a fallback must ask for it
- *  explicitly (see `isProviderConfigured`), not receive a different provider
- *  silently. */
-export function getRegoloProvider(): ReturnType<typeof createOpenAI> {
-  if (!regoloInstance) {
-    const apiKey = env.REGOLO_API_KEY;
-    if (!apiKey) {
-      throw new Error('REGOLO_API_KEY environment variable is required');
-    }
-    regoloInstance = createOpenAI({
-      baseURL: REGOLO_BASE_URL,
-      apiKey,
-      name: 'regolo',
-      fetch: regoloFetchWithThinkingDisabled,
-    });
-  }
-  return regoloInstance;
-}
-
 /**
  * Melious. Its chat-completions API is OpenAI-compatible and routes requests
  * between European inference providers. The model's `:balanced` suffix is part
@@ -153,7 +131,8 @@ export function getMeliousProvider(): ReturnType<typeof createOpenAI> {
 }
 
 /**
- * GreenPT. Throws without a key, same reasoning as Regolo.
+ * GreenPT. Throws without a key — callers that want a fallback must ask for it
+ * explicitly (see `isProviderConfigured`), not receive a different provider silently.
  *
  * Model caveat (probed against all 25 servable models, 2026-07-24): the
  * thinking lanes (gemma4, glm-5.2, kimi-*, minimax-m2.5, qwen3.5/3.6, green-r,
@@ -190,7 +169,7 @@ export function getGreenPTProvider(): ReturnType<typeof createOpenAI> {
  * have silently switched all of those OFF for the flagship model. Routing lives
  * one level below the name, in {@link routeMistralModel}.
  *
- * Throws without a key, same reasoning as Regolo: callers that want the Mistral
+ * Throws without a key, same reasoning as GreenPT: callers that want the Mistral
  * API instead must be routed there deliberately, not by a silent substitution.
  */
 export function getScalewayProvider(): ReturnType<typeof createOpenAI> {
@@ -218,7 +197,7 @@ export function getScalewayProvider(): ReturnType<typeof createOpenAI> {
  *  - `scalewayFetchWithThinkingDisabled` instead of the Mistral-fallback fetch.
  *    Replaying a failed `gemma-4-26b-a4b-it` call against the Mistral API would
  *    ask for a model that does not exist there; the lane's safety net is the
- *    ordinary provider chain (litellm → regolo → mistral), not a same-host
+ *    ordinary provider chain (cortecs → melious → mistral), not a same-host
  *    replay.
  *  - it forces `reasoning_effort: 'none'`, without which this lane answers with
  *    empty `content` — see scalewayThinkingFetch.ts for the measurement.
@@ -264,7 +243,7 @@ export function getScalewayTextProvider(): ReturnType<typeof createOpenAI> {
  * bei den Aufrufern steht — und warum der Filter allein nicht trägt — steht in
  * cortecsRequestPolicy.ts.
  *
- * Wirft ohne Schlüssel, aus demselben Grund wie Regolo und Scaleway: ein
+ * Wirft ohne Schlüssel, aus demselben Grund wie GreenPT und Scaleway: ein
  * Aufrufer landet nicht durch stille Ersetzung woanders.
  */
 export function getCortecsProvider(): ReturnType<typeof createOpenAI> {
@@ -294,7 +273,7 @@ export function getCortecsProvider(): ReturnType<typeof createOpenAI> {
  * going to the Mistral API — which is why this is a lookup table and not a
  * `startsWith('mistral-')` test.
  *
- * Exported because the reasoning streamer (services/ai/regoloReasoningStream.ts)
+ * Exported because the reasoning streamer (services/ai/openAiReasoningStream.ts)
  * has to answer the same question — "does Scaleway serve this id, and under what
  * name" — for the thinking lane. Two tables would drift.
  */
@@ -334,7 +313,7 @@ export interface RouteOptions {
  *
  * Der Schalter sitzt hier und nicht an den Aufrufern, weil ZWEI Pfade dieselbe
  * Frage stellen: dieses Routing für normale Turns und
- * {@link SCALEWAY_MISTRAL_MODELS} in `regoloReasoningStream.ts` für die
+ * {@link SCALEWAY_MISTRAL_MODELS} in `openAiReasoningStream.ts` für die
  * Denk-Lane. Ein Schalter, der nur einen davon kennt, lässt die Hälfte des
  * Verkehrs in Paris.
  *
@@ -424,8 +403,6 @@ export function isProviderConfigured(provider: string): boolean {
     case 'litellm':
       // The base URL has a default, so only the key is a hard requirement.
       return !!env.LITELLM_API_KEY;
-    case 'regolo':
-      return !!env.REGOLO_API_KEY;
     case 'melious':
       return !!env.MELIOUS_API_KEY;
     case 'greenpt':
@@ -443,7 +420,7 @@ let logged = false;
 export function logProviderAvailability(): void {
   if (logged) return;
   logged = true;
-  const lanes = ['mistral', 'litellm', 'regolo', 'greenpt', 'scaleway', 'cortecs']
+  const lanes = ['mistral', 'litellm', 'melious', 'greenpt', 'scaleway', 'cortecs']
     .map((p) => `${p}=${isProviderConfigured(p) ? 'ok' : 'not configured'}`)
     .join(' · ');
   log.info(`Provider availability: ${lanes}`);

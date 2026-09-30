@@ -1,7 +1,7 @@
 /**
  * Welches Modell gerade zäh antwortet — und wie lange wir uns das merken.
  *
- * Am 14.08.2026 antwortete `regolo/gemma4-31b` mit 3,7 tok/s statt der bis
+ * Am 14.08.2026 antwortete das damalige Primär-Modell (`gemma4-31b`) mit 3,7 tok/s statt der bis
  * dahin notierten ~76. Keine Sicherung schlug an: das Modell war nie STILL, es
  * rann. Die Fristen im Repo (`createIdleDeadline`, die Zeitsperren in
  * die Fassade) messen alle Schweigen, und die Fallback-Kette in `generate.ts`

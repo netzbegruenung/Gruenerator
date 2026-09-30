@@ -9,6 +9,7 @@
 
 import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 
+import { retireLiteLLM } from '../../../services/ai/litellmRetired.js';
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
 import { recordSlowVerdict } from '../../../services/ai/modelHealth.js';
 import { clampToModelOutputLimit } from '../../../services/ai/modelOutputLimits.js';
@@ -17,7 +18,7 @@ import {
   ReasoningStreamUnavailableError,
   streamWithReasoning,
   type ThinkingEffort,
-} from '../../../services/ai/regoloReasoningStream.js';
+} from '../../../services/ai/openAiReasoningStream.js';
 import { classifyProviderError } from '../../../services/providers/providerErrors.js';
 import { createLogger } from '../../../utils/logger.js';
 import {
@@ -65,7 +66,7 @@ const SINGLE_PASS_WALL_CLOCK_MS = (() => {
 /**
  * Dieselbe Uhr für eine DENKENDE Lane — sie muss Denken UND Schreiben tragen.
  *
- * Gemessen 13.08.2026 gegen regolo/gemma4-31b mit der echten Aufgabe des
+ * Gemessen 13.08.2026 gegen Gemma 4 31B mit der echten Aufgabe des
  * Agenten „Einfache Sprache" (5.979 Zeichen Fachtext, `max_tokens: 12000`):
  * 31 s bis zum ersten Antworttext, 61 s bis fertig, 8.267 Zeichen Denken,
  * 9.514 Zeichen Antwort, keine Zahl verloren. Derselbe Zug ohne Denken war
@@ -110,7 +111,7 @@ const REASONING_PHASE_BUDGET_MS = (() => {
   return Number.isInteger(n) && n > 0 ? n : 120_000;
 })();
 /**
- * Reasoning models (Regolo vLLM) hold back answer text until thinking
+ * Reasoning models (vLLM-style hosts) hold back answer text until thinking
  * completes, so the wait for the first TEXT token is legitimately longer than
  * on a plain lane.
  *
@@ -119,7 +120,7 @@ const REASONING_PHASE_BUDGET_MS = (() => {
  * as long as the model keeps emitting. It only trips on true silence — which is
  * what "hung" actually means. Before that fix the same 20s was a hard ceiling
  * on thinking, and a research turn died on verdigado-think at exactly 20s, then
- * on its regolo/gemma4-31b sibling at exactly 20s again.
+ * on its Gemma sibling at exactly 20s again.
  *
  * Dass die Zahl der oben gleicht, ist ein MESSERGEBNIS und keine Definition:
  * beide Fristen messen Schweigen, und 20 s hat sich für beide Arten von
@@ -243,7 +244,7 @@ export function mistralReasoningOption(setting: ReasoningSetting): 'high' | null
  * Fallback im Catch-Block unten voraussetzt: läuft der Reasoning-Pfad, dann ist
  * `resolution.model` die Mistral-API — es gibt also wirklich ein zweites Zuhause.
  *
- * Lanes ohne binären Dial (Regolo/vLLM, LiteLLM/Ollama) behalten ihre Lesart:
+ * Lanes ohne binären Dial (Melious/vLLM, LiteLLM/Ollama) behalten ihre Lesart:
  * dort ist alles außer `off` ein Denken.
  */
 export function thinksOnThisLane(
@@ -264,10 +265,8 @@ export function thinksOnThisLane(
  * Order: explicit user selection → auto policy (intent + complexity) → agent
  * default. The vision override runs last and beats all of them.
  *
- * Async because the gpt-oss overflow lane acquires a Redis slot before choosing
- * Verdigado vs Regolo. requestId tags the slot for correct release. Gemma 4 is
- * no longer such a lane: it is pinned to Regolo and takes no slot, see
- * GEMMA_4_REGOLO in agents/providers.ts.
+ * Stays async for its callers although nothing waits any more: the Redis slot
+ * that once made it necessary is gone with the Verdigado host.
  */
 export async function resolveModel(
   agentConfig: { provider: string; model: string; defaultModel?: string | undefined },
@@ -289,7 +288,7 @@ export async function resolveModel(
     surface?: 'notebook';
   }
 ): Promise<ModelResolution> {
-  let modelProvider = agentConfig.provider;
+  let modelProvider: string = agentConfig.provider;
   let modelName = agentConfig.model;
   let sibling: { provider: string; model: string } | undefined;
   let resolvedId: string | undefined;
@@ -346,6 +345,16 @@ export async function resolveModel(
         `[ChatGraph] auto policy returned unknown lane "${selection.modelId}" — using agent default`
       );
     }
+  }
+
+  // F0: gespeicherte Agenten-Konfigurationen nennen weiter `provider: 'regolo'`
+  // (Regolo ist seit 30.09.2026 abgeschaltet). Hier umbiegen, BEVOR Vision-Weiche,
+  // Denk-Strom-Wahl und Kontextfenster den Namen ansehen — `getModel` biegt ihn
+  // zwar auch um, aber erst danach.
+  if (modelProvider === 'regolo') {
+    const live = retireLiteLLM(modelProvider, modelName);
+    modelProvider = live.provider;
+    modelName = live.model ?? modelName;
   }
 
   // For image_edit, the chat model narrates from pre-grounded BILDVERGLEICH
@@ -851,7 +860,7 @@ function markTruncated(text: string, sse: SSEWriter, logPrefix: string): string 
 }
 
 /**
- * Internal: same as streamAndAccumulateOrThrow but for the Regolo
+ * Internal: same as streamAndAccumulateOrThrow but for the
  * reasoning-aware path. Throws StreamFailure on first-token failure.
  */
 async function streamAndAccumulateWithReasoningOrThrow(params: {
@@ -1030,7 +1039,7 @@ export const streamAndAccumulateWithReasoning = wrapWithCompatCatch(
 /**
  * Stream from a primary model with single-step fallback to its sibling on
  * first-token failure. The sibling is set by resolveModel() — for overflow
- * lanes it's the unchosen Verdigado/Regolo partner; for single configs
+ * lanes it's the unchosen partner; for single configs
  * without a sibling, no fallback fires.
  *
  * Single-step by design: the fallback's buildStream is invoked directly, not
@@ -1148,7 +1157,7 @@ export async function streamWithFallback(params: {
  * Reasoning has three different shapes upstream, all driven by the single
  * `resolution.reasoningEffort` value:
  *   - Mistral: a per-request `reasoningEffort` provider option.
- *   - Regolo (vLLM): `reasoning_effort` (`none` schaltet ab).
+ *   - Melious (vLLM): `reasoning_effort` (`none` schaltet ab).
  *   - LiteLLM/Ollama: thinking is ON by default; `off` means taking the SDK
  *     path instead, which sets `think: false` via litellmFetchWithThinkingDisabled.
  */
@@ -1209,11 +1218,11 @@ export async function streamForResolution(params: {
   let thinkingRetriedWithoutBudget = false;
 
   // `off` deliberately skips the reasoning streamer entirely: for the lanes
-  // that stream thinking by default (verdigado-pro/-think, the Regolo family)
+  // that stream thinking by default (verdigado-pro/-think, Cortecs/Melious Gemma)
   // that is the ONLY way to actually stop them from thinking, and it is what
   // makes `direct` a real speed path.
   if (thinking && isReasoningStreamModel(resolution.provider, resolution.modelName)) {
-    // Regolo reasoning path is a raw fetch (regoloReasoningStream), not the AI
+    // The reasoning path is a raw fetch (openAiReasoningStream), not the AI
     // SDK — it bypasses the global telemetry registration, so it stays
     // uninstrumented for now.
     const args: Parameters<typeof streamAndAccumulateWithReasoningOrThrow>[0] = {
@@ -1255,7 +1264,7 @@ export async function streamForResolution(params: {
       // here; retrying would replay tokens the user has already seen.
       // Das Denk-Budget ist die zweite Art, auf der ein Denk-Versuch enden
       // darf, ohne dass der Zug verloren ist — und sie gilt auf JEDER Lane:
-      // unten steht der SDK-Pfad, und der denkt nicht (Regolo pinnt dort
+      // unten steht der SDK-Pfad, und der denkt nicht (Melious pinnt dort
       // `reasoning_effort:'none'`, Mistral bekommt keine providerOptions).
       // Dieselbe Sicherheitsbedingung wie darunter: es ist noch kein
       // Antworttext beim Nutzer, nur Denk-Deltas.
@@ -1271,8 +1280,8 @@ export async function streamForResolution(params: {
         // offen: `ReasoningStreamUnavailableError` heisst laut eigener Doku,
         // dass der Upstream nie geantwortet hat, und Phase 2 wirft hier gar
         // nicht (sie gibt `null` zurück), also ist garantiert noch kein
-        // Antworttext beim Nutzer. Ohne diese Übersetzung flog ein 503 der
-        // Regolo-Denk-Lane roh am Fallback vorbei bis in den Router-Catch.
+        // Antworttext beim Nutzer. Ohne diese Übersetzung flog ein 503 einer
+        // Denk-Lane roh am Fallback vorbei bis in den Router-Catch.
         // `null` als Abbruch-Grund: ein echter Abbruch hat den Phase-1-Catch
         // des Streamers oben schon in einen Abbruch-Fehler übersetzt.
         throw phase1UpstreamError(err, null);

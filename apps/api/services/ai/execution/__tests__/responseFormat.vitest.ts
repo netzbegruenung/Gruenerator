@@ -34,7 +34,7 @@ vi.mock('../../../tools/index.js', () => ({
 
 const { execute } = await import('../execute.js');
 
-const PROVIDERS = ['mistral', 'litellm', 'regolo', 'greenpt'] as const;
+const PROVIDERS = ['mistral', 'litellm', 'melious', 'greenpt'] as const;
 
 function request(options: Record<string, unknown> = {}) {
   return { type: 'chat', messages: [{ role: 'user' as const, content: 'Hallo' }], options };

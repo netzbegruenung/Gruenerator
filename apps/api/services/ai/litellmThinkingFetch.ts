@@ -10,7 +10,7 @@
  * gpt-oss) do NOT use this fetch: `@ai-sdk/openai`'s Chat Completions schema
  * has no reasoning field and would silently drop the model's thinking, so they
  * bypass the SDK entirely and parse the raw SSE `reasoning` field themselves
- * (see `regoloReasoningStream.ts`). For the lanes that DO go through the SDK,
+ * (see `openAiReasoningStream.ts`). For the lanes that DO go through the SDK,
  * thinking is invisible, so we strip it here.
  *
  * The proxy ignores `think: false` on think-enabled aliases, so this stays a

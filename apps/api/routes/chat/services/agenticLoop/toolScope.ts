@@ -30,7 +30,7 @@
  *
  * Die Rechnung dahinter: 95,7 % aller Tokens der Plattform sind Eingabe
  * (83,5 von 87,3 Mio. in 90 Tagen, `/api/transparency/usage`), und nichts davon
- * wird zwischengespeichert — GreenPT, Regolo und Scaleway machen nur
+ * wird zwischengespeichert — GreenPT und Scaleway machen nur
  * serverseitiges Prefix-Caching, das Latenz spart und nicht Tokens.
  *
  * ── Warum ein Lader und nicht bloss ein Tor ──

@@ -158,7 +158,7 @@ const content = [
   { h: 3, text: '§ 2 Leistungsbeschreibung' },
   { p: '(1) Die Plattform bietet insbesondere folgende Funktionen:' },
   {
-    li: '**KI-Textgenerierung:** Erstellung von Pressemitteilungen, Social-Media-Beiträgen, Reden und weiteren Texten. Im Chat ist das Modell wählbar (Voreinstellung „Automatisch"); bei den übrigen Generatorfunktionen ist der Dienstleister je Funktionstyp fest vorgegeben. Eingesetzt werden ausschließlich Dienstleister mit Verarbeitung in der EU (Mistral AI/FR, eigene KI-Modelle der netzbegrünung e.V./EU, Seeweb/Regolo AI/IT, GreenPT BV/NL mit Verarbeitung in FR; Mistral Medium 3.5 läuft auf Rechenleistung von Scaleway/FR)',
+    li: '**KI-Textgenerierung:** Erstellung von Pressemitteilungen, Social-Media-Beiträgen, Reden und weiteren Texten. Im Chat ist das Modell wählbar (Voreinstellung „Automatisch"); bei den übrigen Generatorfunktionen ist der Dienstleister je Funktionstyp fest vorgegeben. Eingesetzt werden ausschließlich Dienstleister mit Verarbeitung in der EU (Mistral AI/FR, eigene KI-Modelle der netzbegrünung e.V./EU, GreenPT BV/NL mit Verarbeitung in FR; Mistral Medium 3.5 läuft auf Rechenleistung von Scaleway/FR)',
   },
   {
     li: '**Bildbearbeitung und -generierung:** Sharepics und Grafiken (Grünerator Imagine, FLUX-Modell von Black Forest Labs; Verarbeitung in der EU)',
@@ -307,7 +307,7 @@ const content = [
     p: '(7) Auskünfte an Dritte oder die betroffene Person darf der Auftragsverarbeiter nur nach vorheriger ausdrücklicher schriftlicher (oder dokumentierter elektronischer) Zustimmung durch den Verantwortlichen erteilen, es sei denn er ist gesetzlich zur Herausgabe verpflichtet.',
   },
   {
-    p: '(8) **Zweckbindung und KI-Training:** Der Auftragsverarbeiter verwendet die Daten für keine anderen Zwecke und ist insbesondere nicht berechtigt, sie an Dritte weiterzugeben, es sei denn er ist hierzu gesetzlich verpflichtet. Insbesondere ist eine Nutzung personenbezogener Daten zu Trainings- oder Modellentwicklungszwecken durch den Auftragsverarbeiter oder dessen Subunternehmer (z. B. Mistral AI, Scaleway, GreenPT, Seeweb/Regolo AI, KugelAudio, Black Forest Labs) vertraglich ausgeschlossen bzw. per Opt-out deaktiviert, sofern dies nicht ausdrücklich vom Verantwortlichen angewiesen wurde.',
+    p: '(8) **Zweckbindung und KI-Training:** Der Auftragsverarbeiter verwendet die Daten für keine anderen Zwecke und ist insbesondere nicht berechtigt, sie an Dritte weiterzugeben, es sei denn er ist hierzu gesetzlich verpflichtet. Insbesondere ist eine Nutzung personenbezogener Daten zu Trainings- oder Modellentwicklungszwecken durch den Auftragsverarbeiter oder dessen Subunternehmer (z. B. Mistral AI, Scaleway, GreenPT, KugelAudio, Black Forest Labs) vertraglich ausgeschlossen bzw. per Opt-out deaktiviert, sofern dies nicht ausdrücklich vom Verantwortlichen angewiesen wurde.',
   },
   {
     p: '(9) Der Verantwortliche führt das Verzeichnis von Verarbeitungstätigkeiten i. S. d. Art. 30 Abs. 1 DSGVO. Der Auftragsverarbeiter führt entsprechend den Vorgaben des Art. 30 Abs. 2 DSGVO ein Verzeichnis zu allen Kategorien von im Auftrag des Verantwortlichen durchgeführten Tätigkeiten.',
@@ -361,7 +361,7 @@ const content = [
     p: '(2) Nach Abschluss der Leistungen oder auf Aufforderung gibt der Auftragsverarbeiter sämtliche verarbeiteten personenbezogenen Daten zurück oder löscht sie datenschutzgerecht.',
   },
   {
-    p: '(3) **Besonderheit bei KI-Diensten:** Daten in den temporären Speichern (Caches) der Subunternehmer (z. B. Mistral AI) werden gemäß deren festgelegten Fristen (max. 30 Tage zur Missbrauchserkennung) automatisch gelöscht. Bei GreenPT (Audio/Video) werden die Eingaben ausschließlich im Arbeitsspeicher verarbeitet und nicht dauerhaft gespeichert; bei Seeweb/Regolo AI erfolgt die Löschung unmittelbar nach der Verarbeitung („Zero Data Retention").',
+    p: '(3) **Besonderheit bei KI-Diensten:** Daten in den temporären Speichern (Caches) der Subunternehmer (z. B. Mistral AI) werden gemäß deren festgelegten Fristen (max. 30 Tage zur Missbrauchserkennung) automatisch gelöscht. Bei GreenPT (Audio/Video) werden die Eingaben ausschließlich im Arbeitsspeicher verarbeitet und nicht dauerhaft gespeichert.',
   },
 
   { h: 3, text: '§ 8 Subunternehmen' },
@@ -461,7 +461,7 @@ const content = [
         [
           '7',
           'Datenminimierung',
-          'Keine dauerhafte Speicherung der Audio-/Video-Eingaben bei den Transkriptionsanbietern (Mistral AI Voxtral, GreenPT); Zero Data Retention bei Seeweb/Regolo AI; Kurzzeit-Logs (max. 30 Tage) bei KI-Providern; lokale Browser-Speicherung für Entwürfe bevorzugt.',
+          'Keine dauerhafte Speicherung der Audio-/Video-Eingaben bei den Transkriptionsanbietern (Mistral AI Voxtral, GreenPT); Kurzzeit-Logs (max. 30 Tage) bei KI-Providern; lokale Browser-Speicherung für Entwürfe bevorzugt.',
         ],
         [
           '8',
@@ -528,13 +528,6 @@ const content = [
           '[zu prüfen]',
           'KI-Textmodelle sowie Audio-/Videotranskription',
           'Sitz NL, Verarbeitung in FR (EU). Keine dauerhafte Speicherung. Kein Training.',
-        ],
-        [
-          'Seeweb S.r.l. / Regolo AI',
-          'C.so Lazio 9/a, 03100 Frosinone, IT',
-          'Bestehend',
-          'KI-Textmodelle, Reranking, Bildgenerierung (Qwen-Image)',
-          'Verarbeitung in IT (EU). Zero Data Retention. Kein Training.',
         ],
         [
           'Linkup Technologies SAS',

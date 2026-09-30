@@ -1,16 +1,14 @@
 /**
  * Tests for rerankPipeline (shared rerank logic)
  *
- * Mocks the Regolo cross-encoder to test the pipeline orchestration:
- * filtering, MMR routing, index mapping, and error handling. GreenPT is the
- * primary host in production; here it is forced unavailable so the mock below
- * is what answers, regardless of whether GREENPT_API_KEY is in the environment.
+ * Mocks the GreenPT cross-encoder to test the pipeline orchestration:
+ * filtering, MMR routing, index mapping, and error handling. `isAvailable` is
+ * forced true so the mock below answers regardless of GREENPT_API_KEY.
  *
  * Run with: npx tsx apps/api/services/search/__manual_tests__/rerankPipeline.test.ts
  */
 
 import { greenptRerankService } from '../GreenPTRerankService.js';
-import { regoloRerankService } from '../RegoloRerankService.js';
 import { rerankPipeline, type RerankableItem } from '../rerankPipeline.js';
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
@@ -20,13 +18,12 @@ let failed = 0;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let mockRerankFn: ((req: any) => Promise<any>) | null = null;
 
-// Keep the pipeline on the mocked Regolo path — see the header.
-greenptRerankService.isAvailable = () => false;
+greenptRerankService.isAvailable = () => true;
 
 // Mock the rerank service
-const originalRerank = regoloRerankService.rerank.bind(regoloRerankService);
+const originalRerank = greenptRerankService.rerank.bind(greenptRerankService);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-regoloRerankService.rerank = async (req: any) => {
+greenptRerankService.rerank = async (req: any) => {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   if (mockRerankFn) return mockRerankFn(req);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
@@ -258,7 +255,7 @@ await test('adds source tags when sourceTagFn provided', async () => {
   expect(receivedDocs[2]).toContain('[Sonstige]');
 });
 
-await test('graceful fallback on Regolo error', async () => {
+await test('graceful fallback on rerank error', async () => {
   const items = makeItems(5);
   setMockRerank(async () => {
     throw new Error('API unavailable');

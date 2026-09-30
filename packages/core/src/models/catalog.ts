@@ -1,4 +1,4 @@
-export type TextProvider = 'mistral' | 'litellm' | 'regolo' | 'melious' | 'greenpt' | 'cortecs';
+export type TextProvider = 'mistral' | 'litellm' | 'melious' | 'greenpt' | 'cortecs';
 export type ImageBackend = 'hosted' | 'melious';
 
 export type Provider = TextProvider;
@@ -102,8 +102,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     id: 'gruenerator-medium',
     name: 'Mittel',
     description: 'Ausgewogen, für den Alltag',
-    model: 'gemma4-31b',
-    provider: 'regolo',
+    model: 'gemma-4-31b-it',
+    provider: 'cortecs',
     icon: 'server',
     region: 'self-hosted',
   },
@@ -173,8 +173,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
   },
   {
     modality: 'image',
-    // F0: the historic `regolo-image` preference stays readable. The ID now
-    // resolves to Melious; it must not cause another Qwen request.
+    // F0: the historic `regolo-image` preference stays readable (Regolo removed
+    // 2026-09-30). The ID resolves to Melious.
     id: 'regolo-image',
     family: 'melious',
     name: '🌿 FLUX.2 [klein]',

@@ -51,7 +51,7 @@ import { AUTO_LANE_IDS } from '../agents/autoPolicy.js';
 import { getModelConfig, type ModelConfig } from '../agents/providers.js';
 
 /** Smallest window this lane can serve. Bis zum 29.08.2026 konnte eine Lane
- *  zwei verschieden grosse Seiten haben (Verdigado-Primär, Regolo-Überlauf) und
+ *  zwei verschieden grosse Seiten haben (Verdigado-Primär, Überlauf beim zweiten Host) und
  *  diese Funktion nahm die kleinere; jede Lane ist jetzt einseitig. */
 function laneFloor(config: ModelConfig): number {
   return config.contextWindow;

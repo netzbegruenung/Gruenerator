@@ -6,7 +6,7 @@
  * Wer sein Modell über `getIntermediateModel()` holt und direkt
  * `generateText`/`generateObject` ruft, hing an genau einem Anbieter — der
  * `try`/`catch` des Aufrufers war das ganze Netz. Am 29.08.2026 kostete das die
- * Auto-Verschlagwortung: Regolo antwortete mit HTTP 402
+ * Auto-Verschlagwortung: der damalige Primär antwortete mit HTTP 402
  * (`trial_expired`), und `ThreadTag` gab still auf, obwohl zwei andere
  * Vertragspartner dasselbe kleine Modell bedienen.
  *

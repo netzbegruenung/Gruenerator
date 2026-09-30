@@ -212,8 +212,8 @@ async function askOne(
  *
  * ── Warum dazuschalten und nicht umschalten ──
  *
- * Am 14.08.2026 antwortete Regolos `gemma4-31b` mit 3,7 tok/s statt der
- * notierten ~76; Regolo selbst war gesund. Eine Störung ist keine Eigenschaft,
+ * Am 14.08.2026 antwortete das damalige Primär-Modell mit 3,7 tok/s statt der
+ * notierten ~76; der Host selbst war gesund. Eine Störung ist keine Eigenschaft,
  * also wäre ein dauerhafter Modellwechsel die falsche Lehre — er schriebe eine
  * Überlast von einem Nachmittag ins Repo. Der Sibling tritt deshalb nur DAZU,
  * und sobald der Primär sich fängt, ist der Normalzustand von selbst zurück:

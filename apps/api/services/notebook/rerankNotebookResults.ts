@@ -1,7 +1,7 @@
 /**
  * Rerank utility for notebook search results.
  *
- * Uses the shared rerankPipeline (Regolo cross-encoder + MMR diversity)
+ * Uses the shared rerankPipeline (GreenPT cross-encoder + MMR diversity)
  * to score search results by relevance, then filters, applies diversity
  * reranking, and renumbers citations.
  */
