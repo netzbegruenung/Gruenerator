@@ -1,4 +1,5 @@
 import { useAuth } from '@gruenerator/shared/hooks';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -25,17 +26,19 @@ import { useTabNavigationSwipe } from '../../hooks/useTabSwipe';
 import { useDocsStore } from '../../stores/docsStore';
 import { colors, darkTheme, lightTheme, spacing, BODY_FONT } from '../../theme';
 import { getSurfaceFab, getToolTheme } from '../../theme/toolTheme';
+import { CreateMenuSheet, SHEET_HANDOFF_MS, type CreateMenuEntry } from '../common/CreateMenuSheet';
 import { Fab } from '../common/Fab';
 import { RecentItemsSection } from '../common/RecentItemsSection';
 import { ViewModeToggle, type ViewMode } from '../common/ViewModeToggle';
-import { CreateDocSheet, type CreateSheetAction } from '../docs/CreateDocSheet';
+import { CreateDocSheet } from '../docs/CreateDocSheet';
 import { toDocListItems } from '../docs/docListItems';
 import { useDocCreation } from '../docs/useDocCreation';
+import { MenuIcon } from '../icons/WebMirrorIcons';
 import { ScreenScaffold } from '../navigation/ScreenScaffold';
 import { WorkplaceTopTabs } from '../navigation/WorkplaceTopTabs';
 import { pushOfficeItem, type OfficeItem } from '../office/officeItem';
 import { useOfficeExtraItems } from '../office/useOfficeExtraItems';
-import { STUDIO_TOOLS, STUDIO_TOOL_GLYPHS, WORKPLACE_TILES } from '../tools/toolsConfig';
+import { STUDIO_TOOLS, WORKPLACE_TILES } from '../tools/toolsConfig';
 import { ToolSquareGrid } from '../tools/ToolSquareGrid';
 
 import { OFFICE_SECTIONS, groupOfficeItems, toRecentItem } from './officeSections';
@@ -49,8 +52,8 @@ const SECTION_LIMIT = 6;
  * The Arbeiten tab of the workplace shell (`config/navLayout`): the former
  * Arbeiten and Studio tabs on one page, in web's order — tool tiles, "Zuletzt",
  * then one section per kind, office first, studio media after. The FAB opens
- * one sheet holding every create path: the Studio tools on top, then describe,
- * find or pick a template for a document.
+ * Studio's "Neu erstellen" menu with Dokument as a fourth entry, which hands
+ * over to the docs sheet (describe, find or pick a template).
  *
  * Sections hide while they are empty, so a new account sees the tiles and the
  * FAB and nothing that reads as missing.
@@ -68,7 +71,9 @@ export function WorkplaceArbeitenScreen() {
   const fabTone = getSurfaceFab('arbeiten', isDark);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [recentExpanded, setRecentExpanded] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [docSheetPending, setDocSheetPending] = useState(false);
+  const [docSheetOpen, setDocSheetOpen] = useState(false);
 
   const recent = useRecentActivity();
   const openRecent = useOpenRecentItem();
@@ -78,7 +83,7 @@ export function WorkplaceArbeitenScreen() {
   const docsLoading = useDocsStore((s) => s.isLoading);
   const fetchDocuments = useDocsStore((s) => s.fetchDocuments);
   const prefetchRecentDocs = useDocsStore((s) => s.prefetchRecentDocs);
-  const { isCreating, createFromTemplate, generate } = useDocCreation(() => setCreateOpen(false));
+  const { isCreating, createFromTemplate, generate } = useDocCreation(() => setDocSheetOpen(false));
 
   useEffect(() => {
     if (user) {
@@ -123,17 +128,41 @@ export function WorkplaceArbeitenScreen() {
   const recentItems = recentExpanded ? recent.items : recent.items.slice(0, RECENT_COLLAPSED);
   const canExpand = recent.items.length > RECENT_COLLAPSED;
 
-  const studioActions = useMemo<CreateSheetAction[]>(
-    () =>
-      STUDIO_TOOLS.map((tool) => ({
-        key: tool.id,
-        icon: STUDIO_TOOL_GLYPHS[tool.id] ?? 'sparkles',
-        title: tool.title,
-        subtitle: tool.description,
-        onPress: () => router.push(tool.route as Href),
-      })),
-    [router]
-  );
+  // The docs sheet opens only once the menu has slid out: iOS will not present
+  // a Modal while another one is still leaving.
+  useEffect(() => {
+    if (!docSheetPending) return;
+    const timer = setTimeout(() => {
+      setDocSheetPending(false);
+      setDocSheetOpen(true);
+    }, SHEET_HANDOFF_MS);
+    return () => clearTimeout(timer);
+  }, [docSheetPending]);
+
+  const menuEntries = useMemo<CreateMenuEntry[]>(() => {
+    const docsTone = getToolTheme('docs', isDark);
+    return [
+      ...STUDIO_TOOLS.map((tool) => {
+        const tone = getToolTheme(tool.id, isDark);
+        return {
+          key: tool.id,
+          title: tool.title,
+          description: tool.description,
+          tone,
+          icon: <MenuIcon name={tool.icon} size={22} color={tone.icon} />,
+          onPress: () => router.push(tool.route as Href),
+        };
+      }),
+      {
+        key: 'docs',
+        title: 'Dokument',
+        description: 'Beschreiben, finden oder aus Vorlage',
+        tone: docsTone,
+        icon: <Ionicons name="document-text" size={22} color={docsTone.icon} />,
+        onPress: () => setDocSheetPending(true),
+      },
+    ];
+  }, [isDark, router]);
 
   const swipe = useTabNavigationSwipe('/(tabs)/(arbeiten)');
 
@@ -232,22 +261,27 @@ export function WorkplaceArbeitenScreen() {
       <Fab
         icon="add"
         accessibilityLabel="Neu erstellen"
-        onPress={() => setCreateOpen(true)}
+        onPress={() => setMenuOpen(true)}
         loading={isCreating}
         color={fabTone.icon}
         style={{ backgroundColor: fabTone.background, bottom: fabBottom }}
       />
 
+      <CreateMenuSheet
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        entries={menuEntries}
+      />
+
       <CreateDocSheet
-        visible={createOpen}
-        onClose={() => setCreateOpen(false)}
+        visible={docSheetOpen}
+        onClose={() => setDocSheetOpen(false)}
         items={officeItems}
         isCreating={isCreating}
-        extraActions={studioActions}
         onGenerate={(description) => void generate(description)}
         onSelectTemplate={(template) => void createFromTemplate(template)}
         onOpenItem={(item) => {
-          setCreateOpen(false);
+          setDocSheetOpen(false);
           openOfficeItem(item);
         }}
       />
