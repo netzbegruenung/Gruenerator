@@ -1,4 +1,4 @@
-import { type TopicCategory } from '@gruenerator/contracts';
+import { type NotebookInstagramPost, type TopicCategory } from '@gruenerator/contracts';
 import { getAgentSlug, type Agent } from '@gruenerator/shared/agents';
 import {
   Tooltip,
@@ -8,7 +8,8 @@ import {
   WordCloud,
   cn,
 } from '@gruenerator/ui';
-import { useId, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
+import { FaInstagram } from 'react-icons/fa';
 import {
   FiArrowDownRight,
   FiArrowRight,
@@ -29,6 +30,7 @@ import {
 } from '../../notebookTheme';
 
 const TRACK = 'bg-[#F4E6ED] dark:bg-white/10';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 const nf = new Intl.NumberFormat('de-DE');
 const pct = (share: number) => `${Math.round(share * 100)} %`;
 
@@ -483,6 +485,62 @@ export function RecentDocuments({ overview }: { overview: NotebookOverview }) {
             </li>
           );
         })}
+      </ul>
+    </OverviewCard>
+  );
+}
+
+// ── Instagram ───────────────────────────────────────────────────────────────
+
+function InstagramPostCard({ post }: { post: NotebookInstagramPost }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const meta = [post.publishedAt ? formatRelativeDate(post.publishedAt) : null, `@${post.account}`]
+    .filter(Boolean)
+    .join(' · ');
+  return (
+    <li className="min-w-0">
+      <a
+        href={post.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group flex h-full flex-col gap-2 no-underline"
+      >
+        {post.imagePath && !imageFailed && (
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError ist ein technischer Ladefehler-Fallback, keine Bedienung
+          <img
+            src={`${API_BASE_URL}${post.imagePath}`}
+            alt=""
+            loading="lazy"
+            onError={() => setImageFailed(true)}
+            className="aspect-square w-full rounded-lg bg-[#F4E6ED] object-cover dark:bg-white/10"
+          />
+        )}
+        <span className={cn('line-clamp-3 text-sm group-hover:underline', NOTEBOOK_TEXT_STRONG)}>
+          {post.caption}
+        </span>
+        <span className={cn('mt-auto text-xs', NOTEBOOK_TEXT_MUTED)}>{meta}</span>
+        <span className="sr-only">(Instagram, öffnet in neuem Tab)</span>
+      </a>
+    </li>
+  );
+}
+
+export function InstagramPosts({ posts }: { posts: NotebookInstagramPost[] }) {
+  return (
+    <OverviewCard
+      title="Neu auf Instagram"
+      subtitle={
+        <span className="inline-flex items-center gap-1.5">
+          <FaInstagram aria-hidden className="size-3.5" />
+          Die letzten Beiträge des Landesverbands
+        </span>
+      }
+      className="lg:col-span-2"
+    >
+      <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        {posts.map((post) => (
+          <InstagramPostCard key={post.id} post={post} />
+        ))}
       </ul>
     </OverviewCard>
   );

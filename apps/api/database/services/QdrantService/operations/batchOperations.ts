@@ -22,7 +22,8 @@ import type {
 const logger = createLogger('QdrantOperations:batchOperations');
 
 interface QdrantPoint {
-  id: number;
+  /** Qdrant takes unsigned integers or UUID strings. */
+  id: number | string;
   vector: number[];
   payload: Record<string, unknown>;
 }

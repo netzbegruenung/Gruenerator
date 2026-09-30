@@ -272,7 +272,8 @@ async function scrollLvPayloads(
   let scanned = 0;
   while (scanned < SCROLL_MAX_PER_SCROLL) {
     const result = await client.scroll(LV_COLLECTION, {
-      filter: { must },
+      // Instagram posts share the corpus but belong to the notebook overview only.
+      filter: { must, must_not: [{ key: 'content_type', match: { value: 'instagram' } }] },
       limit: SCROLL_PAGE,
       with_payload: true,
       with_vector: false,

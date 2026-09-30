@@ -1410,6 +1410,7 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   blog: 'Blog/News',
   wahlprogramm: 'Wahlprogramm',
   wahlpruefstein: 'Wahlprüfstein',
+  instagram: 'Instagram-Post',
 };
 
 export const CMS_TYPES: Record<CMSType, CMSType> = {

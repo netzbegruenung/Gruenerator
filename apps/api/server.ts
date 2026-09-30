@@ -46,6 +46,10 @@ import { startNotificationCleanup } from './services/notifications/notificationC
 import { startRecurringTaskWorker } from './services/recurringTasks/recurringTaskWorker.js';
 import { startDeepResearchCleanup } from './services/research/deepAgent/resumableRuns.js';
 import { startContentSyncDispatcher } from './services/scrapers/contentSyncDispatcher.js';
+import {
+  LV_SOCIAL_IMAGE_DIR,
+  LV_SOCIAL_IMAGE_PATH,
+} from './services/scrapers/utils/lvSocialImages.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
 import { shutdownLangfuseTelemetry } from './services/telemetry/langfuseTelemetry.js';
@@ -582,6 +586,20 @@ async function startWorker(): Promise<void> {
       },
     });
   });
+
+  // Instagram thumbnails of the Landesverbände (LvInstagramScraper). Before the
+  // API routes, whose /api fallthrough would answer 404 first.
+  app.use(
+    `/api${LV_SOCIAL_IMAGE_PATH}`,
+    express.static(LV_SOCIAL_IMAGE_DIR, {
+      dotfiles: 'deny',
+      fallthrough: false,
+      immutable: true,
+      maxAge: '30d',
+      // The desktop app loads the web build from its own origin.
+      setHeaders: (res) => res.set('Cross-Origin-Resource-Policy', 'cross-origin'),
+    })
+  );
 
   // Setup API routes
   await setupRoutes(app);

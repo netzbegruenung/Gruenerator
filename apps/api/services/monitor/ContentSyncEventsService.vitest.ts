@@ -100,6 +100,12 @@ describe('loadRecentLvArticles', () => {
     const urls = result.days.flatMap((d) => d.articles.map((a) => a.sourceUrl));
     expect(urls).toEqual(['https://lv/a', 'https://lv/b']);
     expect(result.days.map((d) => d.date)).toEqual(['2026-09-01', '2026-08-20']);
+    // Instagram posts share the corpus but belong to the notebook overview only.
+    for (const call of scroll.mock.calls) {
+      expect(call[1].filter.must_not).toEqual([
+        { key: 'content_type', match: { value: 'instagram' } },
+      ]);
+    }
   });
 
   it('follows next_page_offset within one filtered scroll', async () => {
