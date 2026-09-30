@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { type ReactNode } from 'react';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../test/msw-server';
 
@@ -52,7 +52,7 @@ function setup() {
     { wrapper }
   );
   const feed = () => queryClient.getQueryData<Feed>(QUERY_KEY);
-  return { result, feed };
+  return { result, feed, queryClient };
 }
 
 function deferred() {
@@ -89,6 +89,56 @@ describe('useToggleReaction (MSW)', () => {
     expect(seen).toEqual({ entityType: 'group_share', entityId: 's1', emoji: '👍' });
   });
 
+  it('writes the server summaries into the cache instead of refetching', async () => {
+    const serverState = [
+      { emoji: '👍', count: 5, reacted: true },
+      { emoji: '🎉', count: 1, reacted: false },
+    ];
+    server.use(http.put(ENDPOINT, () => HttpResponse.json({ reactions: serverState })));
+    const { result, feed, queryClient } = setup();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+    act(() => result.current.toggle('👍', false));
+
+    await waitFor(() => expect(feed()?.items[0].reactions).toEqual(serverState));
+    expect(feed()?.items[1]).toBe(initial.items[1]);
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
+  it('sends rapid toggles on one entity in order; the last answer wins', async () => {
+    const gates = [deferred(), deferred()];
+    const calls: string[] = [];
+    server.use(
+      http.put(ENDPOINT, async () => {
+        calls.push('PUT');
+        await gates[0].promise;
+        return HttpResponse.json({ reactions: [{ emoji: '👍', count: 2, reacted: true }] });
+      }),
+      http.delete(ENDPOINT, async () => {
+        calls.push('DELETE');
+        await gates[1].promise;
+        return HttpResponse.json({ reactions: [{ emoji: '👍', count: 1, reacted: false }] });
+      })
+    );
+    const { result, feed } = setup();
+
+    act(() => result.current.toggle('👍', false));
+    act(() => result.current.toggle('👍', true));
+
+    // Both clicks are visible at once, but only the first request is on the wire.
+    await waitFor(() => expect(calls).toEqual(['PUT']));
+    expect(feed()?.items[0].reactions).toEqual([{ emoji: '👍', count: 1, reacted: false }]);
+
+    // The PUT's answer must not undo the queued DELETE's optimistic state.
+    gates[0].release();
+    await waitFor(() => expect(calls).toEqual(['PUT', 'DELETE']));
+    expect(feed()?.items[0].reactions).toEqual([{ emoji: '👍', count: 1, reacted: false }]);
+
+    gates[1].release();
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+    expect(feed()?.items[0].reactions).toEqual([{ emoji: '👍', count: 1, reacted: false }]);
+  });
+
   it('sends a DELETE when the viewer already reacted', async () => {
     let method: string | null = null;
     server.use(
@@ -112,7 +162,8 @@ describe('useToggleReaction (MSW)', () => {
         return HttpResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
       })
     );
-    const { result, feed } = setup();
+    const { result, feed, queryClient } = setup();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
 
     act(() => result.current.toggle('🎉', false));
     await waitFor(() => expect(feed()?.items[0].reactions).toHaveLength(2));
@@ -120,6 +171,7 @@ describe('useToggleReaction (MSW)', () => {
     gate.release();
     await waitFor(() => expect(result.current.isPending).toBe(false));
     expect(feed()).toEqual(initial);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: QUERY_KEY });
   });
 
   it('does not try to add an emoji outside the fixed set', () => {

@@ -119,7 +119,7 @@ describe('CardComments reactions', () => {
     server.use(
       http.put(REACTION_URL, async ({ params }) => {
         seen = { ...params };
-        // Held open so the refetch after the PUT cannot replace the optimistic chip.
+        // Held open so the chip is asserted before the server answer lands.
         await gate;
         return HttpResponse.json({ reactions: [{ emoji: '🎉', count: 2, reacted: true }] });
       })

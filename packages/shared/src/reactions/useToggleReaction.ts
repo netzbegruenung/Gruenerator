@@ -24,8 +24,6 @@ interface ToggleVariables {
   reacted: boolean;
 }
 
-type Snapshot<TData> = { data: TData } | null;
-
 export function useToggleReaction<TData>({
   entityType,
   entityId,
@@ -33,10 +31,19 @@ export function useToggleReaction<TData>({
   update,
 }: UseToggleReactionOptions<TData>) {
   const queryClient = useQueryClient();
-  const mutationKey = ['entity-reaction', ...queryKey];
+  const scopeId = `${entityType}:${entityId}`;
 
-  const mutation = useMutation<ReactionSummary[], Error, ToggleVariables, Snapshot<TData>>({
-    mutationKey,
+  // Patches only this entity; other entities in the same query keep their state.
+  const patch = (apply: (reactions: ReactionSummary[]) => ReactionSummary[]) =>
+    queryClient.setQueryData<TData>(queryKey, (data) =>
+      data === undefined ? undefined : update(data, apply)
+    );
+
+  const mutation = useMutation<ReactionSummary[], Error, ToggleVariables>({
+    mutationKey: ['entity-reaction', ...queryKey],
+    // Toggles on one entity reach the server in click order; onMutate still
+    // runs immediately, so every click is shown optimistically at once.
+    scope: { id: scopeId },
     mutationFn: async ({ emoji, reacted }) => {
       const client = getContractsClient().entityReactions;
       if (reacted) {
@@ -54,21 +61,17 @@ export function useToggleReaction<TData>({
     },
     onMutate: async ({ emoji, reacted }) => {
       await queryClient.cancelQueries({ queryKey });
-      const previous = queryClient.getQueryData<TData>(queryKey);
-      if (previous === undefined) return null;
-      queryClient.setQueryData<TData>(
-        queryKey,
-        update(previous, (r) => applyReaction(r, emoji, !reacted))
-      );
-      return { data: previous };
+      patch((r) => applyReaction(r, emoji, !reacted));
     },
-    onError: (_error, _variables, snapshot) => {
-      if (snapshot) queryClient.setQueryData<TData>(queryKey, snapshot.data);
+    onSuccess: (reactions) => {
+      // A queued toggle on this entity is already applied optimistically; its
+      // own response (the last in the scope) carries the final state.
+      const inScope = queryClient.isMutating({ predicate: (m) => m.options.scope?.id === scopeId });
+      if (inScope > 1) return;
+      patch(() => reactions);
     },
-    onSettled: async () => {
-      // With several toggles in flight, the first refetch would briefly undo
-      // the optimistic state of the later ones — only the last one refetches.
-      if (queryClient.isMutating({ mutationKey }) > 1) return;
+    onError: async (_error, { emoji, reacted }) => {
+      patch((r) => applyReaction(r, emoji, reacted));
       await queryClient.invalidateQueries({ queryKey });
     },
   });
