@@ -204,7 +204,10 @@ export const mobileTokenExchange = () => {
           }
 
           if (payload.token_use !== 'app_login_code' || !payload.sub) {
-            log.warn('[TokenExchangeCode] Invalid token payload: %o', payload);
+            log.warn('[TokenExchangeCode] Invalid token payload', {
+              token_use: payload.token_use,
+              hasSub: Boolean(payload.sub),
+            });
             throw new Error('Invalid token payload');
           }
 
