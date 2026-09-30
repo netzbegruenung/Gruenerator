@@ -346,6 +346,19 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     expect(result.intent).toBe('agentic');
   });
 
+  it('own reels/documents go to the loop (find_content/media), not to chat recall', async () => {
+    // #3913: „zeig mir meine Reels zum Thema Seilbahn" lief als Chat-Recall, fand
+    // 0 Threads und wurde mit „kein Zugriff" beantwortet. Reels und Dokumente
+    // durchsucht nur der Loop.
+    for (const userMessage of [
+      'zeig mir meine Reels zum Thema Seilbahn',
+      'Zeig mir meine Präsentationen',
+    ]) {
+      const result = await classifierNode(buildState({ userMessage }));
+      expect(result.intent).toBe('agentic');
+    }
+  });
+
   /**
    * Live-Quellen-Formulierungen laufen jetzt GLATT durch die Demotion.
    *
