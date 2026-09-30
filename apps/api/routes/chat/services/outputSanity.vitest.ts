@@ -8,6 +8,7 @@ import {
   looksLikeToolCallLeak,
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
+  stripPhantomMemoryClaim,
   stripToolControlTokens,
   containsBrokenJsonPayload,
   createControlTokenFilter,
@@ -440,5 +441,63 @@ describe('announcesPendingWork', () => {
       false
     );
     expect(announcesPendingWork('Nimm dir einen Moment und atme dreimal tief durch.')).toBe(false);
+  });
+});
+
+describe('stripPhantomMemoryClaim (#3914)', () => {
+  const beta =
+    'Vielen Dank für die Information und die Korrektur der Zahlen. Ich habe mir das notiert.';
+
+  it('entfernt den Behauptungssatz ohne memory-Schritt, der Dank bleibt', () => {
+    const r = stripPhantomMemoryClaim(beta, { memoryRan: false, stepCount: 0 });
+    expect(r.text).toBe('Vielen Dank für die Information und die Korrektur der Zahlen.');
+    expect(r.removed).toEqual(['Ich habe mir das notiert.']);
+  });
+
+  it.each([
+    'Das habe ich mir gemerkt.',
+    'Ich merke mir das.',
+    'Ich habe das gespeichert.',
+    'Ich habe die Zahlen notiert.',
+  ])('erkennt „%s"', (claim) => {
+    const r = stripPhantomMemoryClaim(`Danke. ${claim}`, { memoryRan: false, stepCount: 0 });
+    expect(r.text).toBe('Danke.');
+  });
+
+  it('lässt die Antwort unverändert, wenn ein memory-Schritt lief', () => {
+    expect(stripPhantomMemoryClaim(beta, { memoryRan: true, stepCount: 1 }).text).toBe(beta);
+  });
+
+  it('lässt „gespeichert" nach einem Werkzeug stehen', () => {
+    const doc = 'Ich habe das Dokument gespeichert.';
+    expect(stripPhantomMemoryClaim(doc, { memoryRan: false, stepCount: 1 }).text).toBe(doc);
+    const es = 'Ich habe es gespeichert.';
+    expect(stripPhantomMemoryClaim(es, { memoryRan: false, stepCount: 2 }).text).toBe(es);
+  });
+
+  it('entfernt nur den Behauptungsabsatz, Sätze und Absatzstruktur bleiben', () => {
+    const text = 'Satz A. Satz B.\n\nIch habe mir das notiert.';
+    expect(stripPhantomMemoryClaim(text, { memoryRan: false, stepCount: 0 }).text).toBe(
+      'Satz A. Satz B.'
+    );
+    const mid = 'Absatz eins.\n\nIch habe mir das notiert.\n\nAbsatz zwei.';
+    expect(stripPhantomMemoryClaim(mid, { memoryRan: false, stepCount: 0 }).text).toBe(
+      'Absatz eins.\n\nAbsatz zwei.'
+    );
+    const inline = 'A. Ich habe mir das notiert. B.';
+    expect(stripPhantomMemoryClaim(inline, { memoryRan: false, stepCount: 0 }).text).toBe('A. B.');
+  });
+
+  it('entfernt den Satz in einer zeilenumbrochenen Listenantwort', () => {
+    const text = '- Punkt eins\n- Punkt zwei\nIch habe mir das notiert.\n- Punkt drei';
+    expect(stripPhantomMemoryClaim(text, { memoryRan: false, stepCount: 0 }).text).toBe(
+      '- Punkt eins\n- Punkt zwei\n- Punkt drei'
+    );
+  });
+
+  it('liefert nie eine leere Antwort', () => {
+    expect(
+      stripPhantomMemoryClaim('Ich habe mir das notiert.', { memoryRan: false, stepCount: 0 }).text
+    ).toBe('Danke für die Information.');
   });
 });

@@ -31,6 +31,7 @@ import {
   announcesPendingWork,
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
+  stripPhantomMemoryClaim,
 } from '../services/outputSanity.js';
 import {
   buildMessagesForAI,
@@ -340,6 +341,14 @@ export async function runSinglePassAnswer({
       log.warn(`[ChatGraph] Removed fabricated artefact delivery: ${delivery.removed.join(', ')}`);
       fullText = delivery.text;
     }
+    // Kein Werkzeug gemountet: „Ich habe mir das notiert" ist hier nie wahr (#3914).
+    const phantomNote = stripPhantomMemoryClaim(fullText, { memoryRan: false, stepCount: 0 });
+    if (phantomNote.removed.length > 0) {
+      log.warn(
+        `[ChatGraph] Removed memory claim without memory step: ${phantomNote.removed.join(' | ')}`
+      );
+      fullText = phantomNote.text;
+    }
     // Telemetry only — the text is already on the wire; the prompt rules are the fix.
     if (announcesPendingWork(fullText)) {
       log.warn(
@@ -347,7 +356,12 @@ export async function runSinglePassAnswer({
       );
     }
     const citeClamp = stripOutOfRangeCitations(fullText, finalState.citations.length);
-    if (citeClamp.changed || sanity.fabricated.length > 0 || delivery.removed.length > 0) {
+    if (
+      citeClamp.changed ||
+      sanity.fabricated.length > 0 ||
+      delivery.removed.length > 0 ||
+      phantomNote.removed.length > 0
+    ) {
       fullText = citeClamp.text;
       sse.send('completion', { text: fullText, citations: finalState.citations });
     }
