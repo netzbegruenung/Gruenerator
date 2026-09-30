@@ -8,6 +8,7 @@ import { useCallback, useRef, useState } from 'react';
 import * as tus from 'tus-js-client';
 
 import apiClient from '../../../components/utils/apiClient';
+import { useDesktopNotify } from '../../../utils/desktopNotification';
 import { platformFetch } from '../../../utils/platformFetch';
 import { getTusAuthOptions } from '../../../utils/tusAuth';
 
@@ -160,6 +161,7 @@ async function tusUpload(
 }
 
 export function useTranscription() {
+  const notifyDesktop = useDesktopNotify();
   const [state, setState] = useState<TranscriptionState>(INITIAL_STATE);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -244,6 +246,7 @@ export function useTranscription() {
           if (!sawDone) {
             throw new Error('Verbindung abgebrochen — bitte erneut versuchen');
           }
+          notifyDesktop('transcription');
           return fullText;
         } else {
           const response = await apiClient.post<TranscribeResponse>(
@@ -273,6 +276,7 @@ export function useTranscription() {
             speakerMap: data.speakerMap ?? {},
             error: null,
           });
+          notifyDesktop('transcription');
           return text;
         }
       } catch (err) {
@@ -285,7 +289,7 @@ export function useTranscription() {
         return null;
       }
     },
-    []
+    [notifyDesktop]
   );
 
   const reset = useCallback(() => {
