@@ -1566,3 +1566,25 @@ describe('compoundGenerationKind — liest nur den Auftrag', () => {
     ).toBe('sharepic');
   });
 });
+
+// Beta 30.09.2026 (D1): eine Faktenprüfung mit eigenem Stoff galt als in sich
+// geschlossen, endete als Single-Pass und erreichte den Such-Zwang nie.
+describe('looksLikeSelfContainedTurn — Faktenprüfung schlägt nach', () => {
+  const WALLBOX =
+    'Der Bund fördert seit 2025 jede private Wallbox mit 900 Euro, und in Deutschland gibt es inzwischen über 200.000 öffentliche Ladepunkte. Damit ist das Ziel der Bundesregierung für 2030 bereits erreicht.';
+  const material = { hasOwnMaterial: true };
+
+  it.each(['prüf die Fakten darin und korrigiere falsche Angaben', 'stimmt das so?'])(
+    'Stoff + „%s" ist nicht in sich geschlossen',
+    (order) => {
+      expect(looksLikeSelfContainedTurn(`${WALLBOX}\n\n${order}`, material)).toBe(false);
+    }
+  );
+
+  it.each(['prüf, ob die Rechtschreibung korrekt ist', 'Ist das korrekt formuliert?'])(
+    'eine Sprachprüfung bleibt in sich geschlossen: „%s"',
+    (order) => {
+      expect(looksLikeSelfContainedTurn(`${WALLBOX}\n\n${order}`, material)).toBe(true);
+    }
+  );
+});
