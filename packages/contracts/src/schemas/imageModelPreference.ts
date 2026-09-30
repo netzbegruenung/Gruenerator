@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+// `regolo-image` is legacy: Regolo removed 2026-09-30, kept so stored rows still parse
 export const imageModelIdSchema = z.enum(['flux-klein', 'flux-pro', 'flux-max', 'regolo-image']);
 
 export const imageModelPreferenceResponseSchema = z.object({

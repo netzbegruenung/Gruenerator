@@ -142,7 +142,7 @@ describe('the delete guard', () => {
         'grundsatz_documents',
         'eval_embed_bge-m3__grundsatz_documents',
         'documents',
-        'eval_embed_qwen3-8b-regolo__kommunalwiki_documents',
+        'eval_embed_qwen3-8b-greenpt__kommunalwiki_documents',
         'eval_embed_',
         'eval_embed_broken',
       ],
@@ -151,7 +151,7 @@ describe('the delete guard', () => {
 
     expect(dropped).toEqual([
       'eval_embed_bge-m3__grundsatz_documents',
-      'eval_embed_qwen3-8b-regolo__kommunalwiki_documents',
+      'eval_embed_qwen3-8b-greenpt__kommunalwiki_documents',
     ]);
     expect(deleteFn.mock.calls.map((c) => c[0])).toEqual(dropped);
   });
@@ -270,7 +270,7 @@ describe('the delete guard, scoped to one candidate', () => {
     'grundsatz_documents',
     'eval_embed_bge-m3__grundsatz_documents',
     'eval_embed_bge-m3__kommunalwiki_documents',
-    'eval_embed_qwen3-8b-regolo__grundsatz_documents',
+    'eval_embed_qwen3-8b-greenpt__grundsatz_documents',
   ];
 
   it('drops only the named candidate, never a sibling still being measured', async () => {

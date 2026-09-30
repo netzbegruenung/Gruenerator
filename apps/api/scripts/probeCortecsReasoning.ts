@@ -4,7 +4,7 @@
  * Ein erster Lauf am 21.08.2026 kam zu „nur `mistral-small-2603` liefert
  * `reasoning_content`". Das ist ein Befund über EINE Parameterform, nicht über
  * das Modell: Medium 3.5' Regler ist BINÄR (`['none','high']`, `low`/`medium`
- * antworten mit 400, siehe regoloReasoningStream.ts), und ein Router, der einen
+ * antworten mit 400, siehe openAiReasoningStream.ts), und ein Router, der einen
  * unbekannten Parameter still fallen lässt, sieht von aussen genauso aus wie
  * ein Modell, das nicht denkt.
  *

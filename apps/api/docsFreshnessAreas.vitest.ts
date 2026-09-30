@@ -102,7 +102,7 @@ describe('foldersForChangedFiles', () => {
     // (basics/nachhaltigkeit.md) and the README's provider list.
     const folders = foldersForChangedFiles([
       'apps/api/services/ai/providerInstances.ts',
-      'apps/api/services/ai/regoloReasoningStream.ts',
+      'apps/api/services/ai/providers.ts',
     ]);
 
     expect(folders).toEqual(expect.arrayContaining(['chat', 'basics', 'readme']));

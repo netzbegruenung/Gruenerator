@@ -70,7 +70,7 @@ function isToolPhaseStream(body: Record<string, unknown>): boolean {
  * Das Denken kommt als `reasoning_content`, das der Chat-Completions-Parser des
  * SDK nicht liest — es wäre unsichtbar und zählte trotzdem gegen `max_tokens`.
  * Deshalb `none`, sofern der Aufrufer nichts anderes verlangt. Wer denken will,
- * nimmt den Denk-Strom (`regoloReasoningStream.ts`), der gradierte Werte sendet;
+ * nimmt den Denk-Strom (`openAiReasoningStream.ts`), der gradierte Werte sendet;
  * ein ausdrücklich gesetzter Wert wird hier nicht überschrieben, damit er nicht
  * still zum No-Op wird.
  */

@@ -33,7 +33,7 @@ export const GREENPT_FETCH_TIMEOUT_MS = (() => {
  * gets an empty answer (probed 2026-07-24: gemma4 spent 15s and 297 reasoning
  * tokens on "17*24" and returned no content).
  *
- * We disable thinking on the SDK path for the same reason as the Regolo and
+ * We disable thinking on the SDK path for the same reason as the Melious and
  * LiteLLM wrappers: the SDK cannot surface it, so paying for it is pure waste.
  *
  * WHICH flags — this is the load-bearing decision. GreenPT is a fan-out, so

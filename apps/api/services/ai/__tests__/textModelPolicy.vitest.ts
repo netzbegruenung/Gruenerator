@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest';
 
 import { AI_LANES } from '../lanes.js';
 import { getDefaultModel } from '../providers.js';
-import { isExcludedTextModel, regoloTextDefault, REGOLO_TEXT_DEFAULT } from '../textModelPolicy.js';
+import { isExcludedTextModel } from '../textModelPolicy.js';
 
 import type { ProviderName } from '../providers.js';
 
@@ -34,7 +34,7 @@ describe('Text-Modell-Sperre', () => {
 
   it('lässt die europäischen Modelle in Ruhe', () => {
     for (const m of [
-      'gemma4-31b',
+      'gemma-4-31b-it',
       'mistral-medium-2604',
       'mistral-small-4-119b',
       'mistral-small-3.2-24b-instruct-2506',
@@ -49,10 +49,10 @@ describe('Text-Modell-Sperre', () => {
 });
 
 describe('kein Default fällt still auf ein gesperrtes Modell', () => {
-  const PROVIDERS: ProviderName[] = ['mistral', 'litellm', 'regolo', 'greenpt'];
+  const PROVIDERS: ProviderName[] = ['mistral', 'litellm', 'melious', 'greenpt', 'cortecs'];
 
   // Das ist der Fall, der live war: providerFallback.getFallbackModelForProvider
-  // gibt genau dieses `getDefaultModel` zurück, und die Kette endet auf regolo.
+  // gibt genau dieses `getDefaultModel` zurück, und die Kette führt über cortecs/melious.
   it.each(PROVIDERS)('getDefaultModel("%s") ist kein gesperrtes Modell', (provider) => {
     expect(isExcludedTextModel(getDefaultModel(provider))).toBe(false);
   });
@@ -61,25 +61,11 @@ describe('kein Default fällt still auf ein gesperrtes Modell', () => {
     if (config.model === null) return; // Provider-Default, oben schon geprüft
     expect(isExcludedTextModel(config.model)).toBe(false);
   });
-
-  it('verwirft einen gesperrten REGOLO_DEFAULT_MODEL statt ihn zu übernehmen', () => {
-    expect(regoloTextDefault({ REGOLO_DEFAULT_MODEL: 'qwen3.5-122b' })).toBe(REGOLO_TEXT_DEFAULT);
-  });
-
-  it('übernimmt einen zulässigen REGOLO_DEFAULT_MODEL', () => {
-    expect(regoloTextDefault({ REGOLO_DEFAULT_MODEL: 'gemma4-31b' })).toBe('gemma4-31b');
-  });
-
-  it('liefert ohne Env-Wert den benannten Standard, nie einen leeren Namen', () => {
-    expect(regoloTextDefault({})).toBe(REGOLO_TEXT_DEFAULT);
-    expect(regoloTextDefault({})).not.toBe('');
-  });
 });
 
 describe('Bild und Rerank sind ausdrücklich NICHT betroffen', () => {
   /**
-   * Diese beiden laufen über eigene Services (`RegoloImageService`,
-   * `RegoloRerankService`) und nie über `getModel`, sind von der Sperre also
+   * Diese beiden laufen über eigene Services (Bild- und Rerank-Service) und nie über `getModel`, sind von der Sperre also
    * unberührt — dass der Regex sie MATCHT, ist genau der Grund, warum das hier
    * festgehalten wird: wer die Sperre irgendwann breiter anwendet, muss diese
    * beiden Pfade ausnehmen, sonst fallen ein UI-Modell und das Reranking aus.

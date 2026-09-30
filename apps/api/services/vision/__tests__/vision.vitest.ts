@@ -4,7 +4,7 @@ import { isProviderConfigured } from '../../ai/providers.js';
 import { isVisionCapable, getAvailableModels } from '../../ai/modelDiscovery.js';
 import { executeProvider } from '../../ai/execution/index.js';
 
-const HAS_REGOLO = !!process.env.REGOLO_API_KEY;
+const HAS_MISTRAL = !!process.env.MISTRAL_API_KEY;
 
 // A tiny 1x1 red PNG pixel as base64
 const TINY_RED_PNG =
@@ -14,8 +14,8 @@ const TINY_RED_PNG =
 
 describe('Vision — unit tests', () => {
   describe('isVisionCapable', () => {
-    it('returns true for known vision models', () => {
-      expect(isVisionCapable('gemma4-31b')).toBe(true);
+    it('returns true for known vision models and false for Gemma 4 (no host takes images)', () => {
+      expect(isVisionCapable('gemma-4-31b-it')).toBe(false);
       expect(isVisionCapable('pixtral-large-latest')).toBe(true);
       expect(isVisionCapable('mistral-small-4-119b')).toBe(true);
     });
@@ -43,16 +43,16 @@ describe('Vision — unit tests', () => {
   });
 });
 
-// ─── Regolo adapter multimodal tests (no API call, tests message conversion) ─
+// ─── Mistral adapter multimodal tests (no API call, tests message conversion) ─
 
-describe('Regolo adapter — multimodal message handling', () => {
+describe('Mistral adapter — multimodal message handling', () => {
   it('preserves image content in Anthropic format via executeProvider', async () => {
-    if (!HAS_REGOLO) {
+    if (!HAS_MISTRAL) {
       expect(true).toBe(true);
       return;
     }
 
-    const result = await executeProvider('regolo', 'test-vision-anthropic-format', {
+    const result = await executeProvider('mistral', 'test-vision-anthropic-format', {
       messages: [
         {
           role: 'user',
@@ -70,24 +70,24 @@ describe('Regolo adapter — multimodal message handling', () => {
         },
       ],
       type: 'vision-test',
-      options: { max_tokens: 50, model: 'gemma4-31b', temperature: 0.1 },
+      options: { max_tokens: 50, model: 'pixtral-large-latest', temperature: 0.1 },
       metadata: {},
     });
 
     expect(result.success).toBe(true);
     expect(result.content).toBeTruthy();
-    expect(result.metadata?.provider).toBe('regolo');
+    expect(result.metadata?.provider).toBe('mistral');
   }, 30000);
 
   it('preserves image_url content format via executeProvider', async () => {
-    if (!HAS_REGOLO) {
+    if (!HAS_MISTRAL) {
       expect(true).toBe(true);
       return;
     }
 
     const dataUrl = `data:image/png;base64,${TINY_RED_PNG}`;
 
-    const result = await executeProvider('regolo', 'test-vision-imageurl-format', {
+    const result = await executeProvider('mistral', 'test-vision-imageurl-format', {
       messages: [
         {
           role: 'user',
@@ -98,22 +98,22 @@ describe('Regolo adapter — multimodal message handling', () => {
         },
       ],
       type: 'vision-test',
-      options: { max_tokens: 50, model: 'gemma4-31b', temperature: 0.1 },
+      options: { max_tokens: 50, model: 'pixtral-large-latest', temperature: 0.1 },
       metadata: {},
     });
 
     expect(result.success).toBe(true);
     expect(result.content).toBeTruthy();
-    expect(result.metadata?.provider).toBe('regolo');
+    expect(result.metadata?.provider).toBe('mistral');
   }, 30000);
 
   it('falls back to text-only for non-image content arrays', async () => {
-    if (!HAS_REGOLO) {
+    if (!HAS_MISTRAL) {
       expect(true).toBe(true);
       return;
     }
 
-    const result = await executeProvider('regolo', 'test-text-array', {
+    const result = await executeProvider('mistral', 'test-text-array', {
       messages: [
         {
           role: 'user',
@@ -121,7 +121,7 @@ describe('Regolo adapter — multimodal message handling', () => {
         },
       ],
       type: 'text-test',
-      options: { max_tokens: 50, model: 'gemma4-31b', temperature: 0.1 },
+      options: { max_tokens: 50, model: 'pixtral-large-latest', temperature: 0.1 },
       metadata: {},
     });
 
@@ -130,98 +130,101 @@ describe('Regolo adapter — multimodal message handling', () => {
   }, 30000);
 });
 
-// ─── VisionService integration tests (requires REGOLO_API_KEY) ───────────
+// ─── VisionService integration tests (requires MISTRAL_API_KEY) ───────────
 
-describe.skipIf(!HAS_REGOLO)('VisionService — integration tests (requires REGOLO_API_KEY)', () => {
-  beforeAll(() => {
-    expect(isProviderConfigured('regolo')).toBe(true);
-  });
+describe.skipIf(!HAS_MISTRAL)(
+  'VisionService — integration tests (requires MISTRAL_API_KEY)',
+  () => {
+    beforeAll(() => {
+      expect(isProviderConfigured('mistral')).toBe(true);
+    });
 
-  it('analyzeImage returns a description', async () => {
-    const { visionService } = await import('../index.js');
+    it('analyzeImage returns a description', async () => {
+      const { visionService } = await import('../index.js');
 
-    const result = await visionService.analyzeImage(
-      TINY_RED_PNG,
-      'What is this image? Answer briefly.'
-    );
+      const result = await visionService.analyzeImage(
+        TINY_RED_PNG,
+        'What is this image? Answer briefly.'
+      );
 
-    expect(typeof result).toBe('string');
-    expect(result.length).toBeGreaterThan(0);
-  }, 30000);
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
+    }, 30000);
 
-  it('analyzeImage accepts data URL format', async () => {
-    const { visionService } = await import('../index.js');
+    it('analyzeImage accepts data URL format', async () => {
+      const { visionService } = await import('../index.js');
 
-    const result = await visionService.analyzeImage(
-      `data:image/png;base64,${TINY_RED_PNG}`,
-      'What is this image? Answer briefly.'
-    );
+      const result = await visionService.analyzeImage(
+        `data:image/png;base64,${TINY_RED_PNG}`,
+        'What is this image? Answer briefly.'
+      );
 
-    expect(typeof result).toBe('string');
-    expect(result.length).toBeGreaterThan(0);
-  }, 30000);
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
+    }, 30000);
 
-  it('detectTextContent returns structured result', async () => {
-    const { visionService } = await import('../index.js');
+    it('detectTextContent returns structured result', async () => {
+      const { visionService } = await import('../index.js');
 
-    const result = await visionService.detectTextContent(TINY_RED_PNG);
+      const result = await visionService.detectTextContent(TINY_RED_PNG);
 
-    expect(result).toHaveProperty('hasText');
-    expect(result).toHaveProperty('textType');
-    expect(result).toHaveProperty('confidence');
-    expect(result).toHaveProperty('briefDescription');
-    expect(typeof result.hasText).toBe('boolean');
-    expect(['screenshot', 'document', 'sign', 'handwriting', 'none']).toContain(result.textType);
-    expect(typeof result.confidence).toBe('number');
-  }, 30000);
+      expect(result).toHaveProperty('hasText');
+      expect(result).toHaveProperty('textType');
+      expect(result).toHaveProperty('confidence');
+      expect(result).toHaveProperty('briefDescription');
+      expect(typeof result.hasText).toBe('boolean');
+      expect(['screenshot', 'document', 'sign', 'handwriting', 'none']).toContain(result.textType);
+      expect(typeof result.confidence).toBe('number');
+    }, 30000);
 
-  it('detectTextContent returns hasText=false for a plain pixel', async () => {
-    const { visionService } = await import('../index.js');
+    it('detectTextContent returns hasText=false for a plain pixel', async () => {
+      const { visionService } = await import('../index.js');
 
-    const result = await visionService.detectTextContent(TINY_RED_PNG);
+      const result = await visionService.detectTextContent(TINY_RED_PNG);
 
-    expect(result.hasText).toBe(false);
-    expect(result.textType).toBe('none');
-  }, 30000);
+      expect(result.hasText).toBe(false);
+      expect(result.textType).toBe('none');
+    }, 30000);
 
-  it('analyzeWithOcr returns full analysis result', async () => {
-    const { visionService } = await import('../index.js');
+    it('analyzeWithOcr returns full analysis result', async () => {
+      const { visionService } = await import('../index.js');
 
-    const result = await visionService.analyzeWithOcr(TINY_RED_PNG);
+      const result = await visionService.analyzeWithOcr(TINY_RED_PNG);
 
-    expect(result).toHaveProperty('description');
-    expect(result).toHaveProperty('textDetection');
-    expect(result).toHaveProperty('extractedText');
-    expect(typeof result.description).toBe('string');
-    expect(result.description.length).toBeGreaterThan(0);
-    expect(result.textDetection.hasText).toBe(false);
-    expect(result.extractedText).toBeNull();
-  }, 60000);
+      expect(result).toHaveProperty('description');
+      expect(result).toHaveProperty('textDetection');
+      expect(result).toHaveProperty('extractedText');
+      expect(typeof result.description).toBe('string');
+      expect(result.description.length).toBeGreaterThan(0);
+      expect(result.textDetection.hasText).toBe(false);
+      expect(result.extractedText).toBeNull();
+    }, 60000);
 
-  it('generateAltText returns alt text string', async () => {
-    const { visionService } = await import('../index.js');
+    it('generateAltText returns alt text string', async () => {
+      const { visionService } = await import('../index.js');
 
-    const result = await visionService.generateAltText(TINY_RED_PNG);
+      const result = await visionService.generateAltText(TINY_RED_PNG);
 
-    expect(typeof result).toBe('string');
-    expect(result.length).toBeGreaterThan(0);
-    // Should not contain the XML tags (they should be stripped)
-    expect(result).not.toContain('<alt_text>');
-    expect(result).not.toContain('</alt_text>');
-  }, 30000);
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
+      // Should not contain the XML tags (they should be stripped)
+      expect(result).not.toContain('<alt_text>');
+      expect(result).not.toContain('</alt_text>');
+    }, 30000);
 
-  it('generateAltText accepts context parameter', async () => {
-    const { visionService } = await import('../index.js');
+    it('generateAltText accepts context parameter', async () => {
+      const { visionService } = await import('../index.js');
 
-    const result = await visionService.generateAltText(
-      TINY_RED_PNG,
-      'Dieses Bild zeigt ein Testbild für Barrierefreiheit'
-    );
+      const result = await visionService.generateAltText(
+        TINY_RED_PNG,
+        'Dieses Bild zeigt ein Testbild für Barrierefreiheit'
+      );
 
-    expect(typeof result).toBe('string');
-    expect(result.length).toBeGreaterThan(0);
-  }, 30000);
-});
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
+    }, 30000);
+  }
+);
 
 // ─── Model discovery vision utilities ────────────────────────────────────
 

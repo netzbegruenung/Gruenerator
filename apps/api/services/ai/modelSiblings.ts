@@ -6,7 +6,7 @@
  * 1. **Ein belegtes Geschwister** — dasselbe Modell bei einem anderen Anbieter,
  *    an denselben Prompts gegeneinander gemessen. Gleichwertigkeit ist hier
  *    nachgewiesen, nicht angenommen.
- * 2. **Die bestehende Fallback-Kette** (`litellm → regolo → mistral`), die heute
+ * 2. **Die bestehende Fallback-Kette** (`cortecs → melious → mistral`), die heute
  *    schon greift, wenn ein Anbieter AUSFÄLLT. Sie ist für Ausfall gebaut und
  *    nicht für Gleichwertigkeit — ein Qualitätsunterschied ist also möglich.
  *    Bewusst angenommen: die Alternative ist nicht „dasselbe Modell", sondern
@@ -50,7 +50,7 @@ export interface ModelTarget {
  * getroffen wird.
  *
  * `gemma-4-26b-a4b-it` (über Cortecs, vermittelt nach Scaleway/Paris) gegen
- * `gemma4-31b` (Regolo), gemessen am 01.08. an den echten Prompts der
+ * das dichte `gemma4-31b`, gemessen am 01.08. an den echten Prompts der
  * Zwischenstufen und am 14.08. am echten Prüf-Prompt: gleiche Inhaltstreue,
  * rund doppelte Geschwindigkeit. Siehe den Doc-Block bei `heavy` und
  * `pruefung` in intermediateLanes.ts.

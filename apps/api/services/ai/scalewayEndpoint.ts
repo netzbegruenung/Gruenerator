@@ -18,8 +18,7 @@ export const SCALEWAY_DEFAULT_BASE_URL =
  *
  * Reads `process.env` rather than the parsed `env` module so that runtime
  * changes, and tests that set or unset the variable, take effect; the parsed
- * module is cached at import time. Same reasoning as
- * regoloTranscriptionService's call-time key read.
+ * module is cached at import time.
  */
 export function scalewayBaseUrl(): string {
   const configured = process.env.SCALEWAY_BASE_URL;

@@ -30,10 +30,7 @@ describe('EMBED_CANDIDATES', () => {
 
   it('carries the query instruction only where the model card asks for one', () => {
     const withInstruction = EMBED_CANDIDATES.filter((c) => c.queryInstruction !== null);
-    expect(withInstruction.map((c) => c.slug)).toEqual(['qwen3-8b-greenpt', 'qwen3-8b-regolo']);
-    // Beide Hosts fahren dieselben Gewichte — eine abweichende Anleitung würde
-    // den Hostvergleich in einen Modellvergleich verwandeln.
-    expect(withInstruction[0].queryInstruction).toBe(withInstruction[1].queryInstruction);
+    expect(withInstruction.map((c) => c.slug)).toEqual(['qwen3-8b-greenpt']);
   });
 
   it('resolves known slugs and refuses unknown ones', () => {
@@ -123,11 +120,11 @@ describe('resolveEvalTarget', () => {
 
   it('points at the candidate collection and carries the candidate', () => {
     const target = resolveEvalTarget(
-      { EVAL_EMBED_CANDIDATE: 'qwen3-8b-regolo' },
+      { EVAL_EMBED_CANDIDATE: 'qwen3-8b-greenpt' },
       'grundsatz_documents'
     );
-    expect(target.collection).toBe('eval_embed_qwen3-8b-regolo__grundsatz_documents');
-    expect(target.candidate?.model).toBe('Qwen3-Embedding-8B');
+    expect(target.collection).toBe('eval_embed_qwen3-8b-greenpt__grundsatz_documents');
+    expect(target.candidate?.model).toBe('qwen3-embedding-8b');
   });
 
   it('throws on an unknown slug instead of silently measuring production', () => {

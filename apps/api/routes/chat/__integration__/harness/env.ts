@@ -33,7 +33,6 @@ const PINNED: Record<string, string> = {
 
   // Provider keys decide which lane the loop picks (isProviderConfigured).
   MISTRAL_API_KEY: '',
-  REGOLO_API_KEY: '',
   GREENPT_API_KEY: '',
   LITELLM_API_KEY: '',
 

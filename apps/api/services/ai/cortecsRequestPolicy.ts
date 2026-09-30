@@ -92,7 +92,7 @@ const log = createLogger('cortecsRequestPolicy');
  *
  * Der Hebel, der auf diesem Host WIRKT, ist `chat_template_kwargs.enable_thinking`
  * — an wie aus, beides bestätigt. Er sitzt nicht hier, sondern im Denk-Strom
- * (services/ai/regoloReasoningStream.ts), weil nur der die `reasoning_content`-
+ * (services/ai/openAiReasoningStream.ts), weil nur der die `reasoning_content`-
  * Deltas auch lesen kann.
  */
 const REASONING_OFF_MODELS: ReadonlySet<string> = new Set(['gemma-4-26b-a4b-it']);

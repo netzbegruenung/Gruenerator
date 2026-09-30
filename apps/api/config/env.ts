@@ -207,8 +207,6 @@ const envSchema = z.object({
   MISTRAL_REGION: z.enum(['eu', 'global']).default('eu'),
   LITELLM_API_KEY: z.string().optional(),
   LITELLM_BASE_URL: z.string().optional(),
-  REGOLO_API_KEY: z.string().optional(),
-  REGOLO_DEFAULT_MODEL: z.string().optional(),
   // Melious — OpenAI-compatible European inference router,
   // https://api.melious.ai/v1. The default model includes the documented
   // `:balanced` is the default routing flavor for chat.
@@ -271,11 +269,9 @@ const envSchema = z.object({
     )
     .pipe(z.array(z.enum(WEB_SEARCH_PROVIDERS)).min(1)),
 
-  // Reranking on GreenPT (`green-rerank`) instead of Regolo. ON by default,
-  // unlike the search flag above: this one is a host swap for identical weights
-  // (both serve Qwen3-Reranker-4B), so there is no quality trade to opt into —
-  // only the `impact` measurement to gain. The flag exists as a rollback lever
-  // that needs no code change, and as the two arms of the retrieval eval.
+  // Reranking on GreenPT (`green-rerank`), the only reranker. ON by default.
+  // `false` switches reranking off (callers keep retrieval order) — a kill
+  // switch that needs no code change, and the off arm of the retrieval eval.
   GREENPT_RERANK_ENABLED: boolFlag(true),
 
   // No DEEP_AGENT_* switches. Which lane the subagent runs on and whether the
@@ -296,9 +292,8 @@ const envSchema = z.object({
   // 'auto' applies the duration rule (services/transcription/providerPolicy);
   // naming a provider pins every request to it. An enum because as a free
   // string a typo silently matched neither branch of the old provider chain.
-  // 'regolo' is still ACCEPTED but no longer selectable: it left the
-  // transcription chain, and an env var is externally frozen — a deployment
-  // that still pins it must degrade to the normal rules, not fail to boot.
+  // 'regolo' is a deprecated legacy value: still ACCEPTED (maps to 'auto') so a
+  // deployment that still pins it degrades to the normal rules, not fails to boot.
   TRANSCRIPTION_PROVIDER: z
     .enum(['auto', 'voxtral', 'greenpt', 'regolo'])
     .default('auto')

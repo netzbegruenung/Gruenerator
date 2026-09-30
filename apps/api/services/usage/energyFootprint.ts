@@ -15,7 +15,7 @@
  *
  * WHY THE COEFFICIENTS ARE TRUSTWORTHY AT ALL: GreenPT serves several of the
  * exact models we run elsewhere. Measuring `gemma4` there tells us what
- * `gemma4-31b` costs at Regolo, because it is the same model doing the same
+ * `gemma4-31b` costs elsewhere, because it is the same model doing the same
  * work. What differs is the hardware, the batching and the grid — hardware and
  * batching we cannot correct for (hence "≈"), the grid we can and do.
  *
@@ -24,8 +24,8 @@
  * and Scaleway puts every AI server in DC5 (Impact Report 2025, p. 25). Our
  * `mistral-medium-2604` lane routes to Scaleway too — so for the default chat
  * model the measurement and the production workload share a datacenter, a PUE
- * and a GPU generation. There the transfer is near-exact; for the Regolo and
- * verdigado lanes it stays a transfer.
+ * and a GPU generation. There the transfer is near-exact; for the other
+ * lanes it stays a transfer.
  *
  * WHY ENERGY AND EMISSIONS ARE SEPARATE: emissions = energy x grid intensity.
  * The measurement series found `emissions/energy` pinned at 30.4 g/kWh across
@@ -347,6 +347,8 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // Vorbehalt weiter unten). Vorher 363 — das war der 2024er Erstwert, den das
   // UBA inzwischen selbst auf 353 revidiert hat.
   litellm: 344,
+  // Historische Zeile: Regolo ist seit 30.09.2026 kein Anbieter mehr; sie erklärt nur
+  // gespeicherte Nutzungszeilen (Lookup-Toleranz, F0).
   regolo: 270, // Italy 2024, Ember Yearly Electricity Data
   // Fallback only — GreenPT rows carry measured emissions. Same value as
   // Scaleway because GreenPT runs on Scaleway Paris.
@@ -502,6 +504,8 @@ const MARKET_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // zu behaupten.
   greenpt: 0,
   litellm: 0,
+  // Historische Zeile: Regolo ist seit 30.09.2026 kein Anbieter mehr; sie erklärt nur
+  // gespeicherte Nutzungszeilen (Lookup-Toleranz, F0).
   regolo: 0,
 };
 
@@ -576,6 +580,8 @@ const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
   // reached "nelle nostre server farm più recenti", so 1,2 is the BEST case of
   // the fleet, not its average. Kept because it is what both sources state,
   // but it is the one PUE here that likely flatters rather than errs high.
+  // Historische Zeile: Regolo ist seit 30.09.2026 kein Anbieter mehr; sie erklärt nur
+  // gespeicherte Nutzungszeilen (Lookup-Toleranz, F0).
   regolo: 1.2,
   // Scaleway Impact Report 2025, p. 25: DC5 runs at PUE 1,25 and "all the
   // servers necessary for artificial intelligence are installed in this data
@@ -808,6 +814,8 @@ const IMAGE_ENERGY: Readonly<Record<string, ImageEnergy>> = {
  * meter and carry no datacenter overhead at all, so here PUE is absolute.
  */
 const IMAGE_PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
+  // Historische Zeile: Regolo ist seit 30.09.2026 kein Anbieter mehr; sie erklärt nur
+  // gespeicherte Nutzungszeilen (Lookup-Toleranz, F0).
   regolo: 1.2, // Seeweb, DHH sustainability report 2024, p. 8
 };
 

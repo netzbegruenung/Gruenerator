@@ -321,7 +321,7 @@ export async function handleNotebookStream(
     // only one without any cut at all; the eval in the `rerank` docblock above
     // then found the cross-encoder itself dispensable for the default path.
     // rerankNotebookResults still degrades openly when `mode: 'sort'`/`'filter'`
-    // is requested — with Regolo unconfigured it returns the original order
+    // is requested — with the reranker unavailable it returns the original order
     // rather than throwing.
     if (searchContext) {
       const rerankMode = options.rerank?.mode;

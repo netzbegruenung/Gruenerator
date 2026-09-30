@@ -9,8 +9,8 @@ import {
   recordSlowVerdict,
 } from './modelHealth.js';
 
-const P = 'regolo';
-const M = 'gemma4-31b';
+const P = 'cortecs';
+const M = 'gemma-4-31b-it';
 
 /** Eine Antwort mit `tokens` Ausgabe-Tokens bei `rate` tok/s. */
 function sample(rate: number, tokens = 200): void {

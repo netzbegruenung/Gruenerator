@@ -15,18 +15,18 @@
  * ── Warum ein Paar aus Provider UND Modell ──
  *
  * Dieselben Gewichte heissen bei den beiden Hosts verschieden — `gemma4-31b`
- * bei Regolo, `gemma-4-31b-it` bei Cortecs. Ein Wechsel, der nur den Provider
+ * bei Regolo (seit 30.09.2026 abgeschaltet), `gemma-4-31b-it` bei Cortecs. Ein Wechsel, der nur den Provider
  * umhängt und den Modellnamen mitnimmt, erntet einen 404; genau das passierte
  * am 21.08.2026 beim Umzug einer Lane auf GreenPT. Deshalb ist der
  * Wechselpunkt ein Paar und kein Provider-String.
  *
  * ── Warum Cortecs seit dem 25.08.2026 der Primär ist ──
  *
- * Gemessen am 21.08.2026 (`scripts/probeGemma31Hosts.ts`), gestreamt,
+ * Gemessen am 21.08.2026, gestreamt,
  * verschränkt, mit Aufwärmlauf, je fünf ruhige und vier gleichzeitige Läufe:
  *
  *                        TTFT     Durchsatz    gesamt
- *   regolo/gemma4-31b     129 ms   81,3 tok/s   5,06 s
+ *   früherer Primär       129 ms   81,3 tok/s   5,06 s
  *   cortecs (infercom)   1122 ms  210,7 tok/s   2,81 s
  *
  * Der Gleichstand liegt bei rund 130 Ausgabe-Tokens. Alles, was Gemma hier
@@ -89,9 +89,9 @@
  *
  * `GEMMA_31B_ALTERNATE` bleibt trotzdem die tragende Reserve, und zwar aus
  * einem Grund, den kein Endpunkt-Zählen berührt: es ist ein anderer
- * VERTRAGSPARTNER. Dass es die braucht, zeigte der 14.08.2026: Regolos
- * `gemma4-31b` antwortete mit 3,7 tok/s statt der sonst gemessenen ~76, Regolo
- * selbst war gesund, es war dieses eine Modell dort — ein Prüfbericht, der
+ * VERTRAGSPARTNER. Dass es die braucht, zeigte der 14.08.2026: das damalige
+ * Primär-Modell antwortete mit 3,7 tok/s statt der sonst gemessenen ~76, der
+ * Host selbst war gesund, es war dieses eine Modell dort — ein Prüfbericht, der
  * ruhig 36 s braucht, brauchte 218 s. Genau derselbe Ausfall ist auf infercom
  * möglich; dass berget daneben steht, hilft nur, wenn Cortecs als Ganzes
  * gesund ist.
@@ -102,18 +102,19 @@
  *    `reasoning_effort` an, das etwas bewirkt — die gradierten Werte gehen
  *    durch und ändern nichts, `none` wird mit 400 abgelehnt. Was wirkt, ist
  *    `chat_template_kwargs.enable_thinking`, und zwar in beide Richtungen.
- *    Verdrahtet ist das in `regoloReasoningStream.ts`, wo auch die Messreihe
+ *    Verdrahtet ist das in `openAiReasoningStream.ts`, wo auch die Messreihe
  *    steht; die 14 Intents der Auto-Policy, die auf dieser Lane denken,
  *    behalten ihr Verhalten. Ohne diesen Einbau wäre ihr `reasoning: 'low'`
  *    ein stiller No-Op geworden — der Wächter in `autoPolicy.vitest.ts` hat
  *    genau das abgefangen.
- *  - **Bilder bleiben auf Regolo, und das ist jetzt gemessen.** Der Katalog
+ *  - **Bilder gehen NICHT an Gemma, und das ist gemessen.** Der Katalog
  *    behauptet Bildfähigkeit (`input_modalities: ['text','image']`, Tag
  *    `Image`); ein echter Bild-Turn gegen infercom antwortet am 25.08.2026
- *    mit **HTTP 500** (`unexpected_error`). `gemma-4-31b-it` steht in
- *    `modelDiscovery.ts` deshalb mit `vision: false`, die Bild-Weiche in
- *    `responseStreamingService.ts` tauscht innerhalb der Lane auf den
- *    Regolo-Sibling. Der Katalog ist hier keine Quelle — er beschreibt die
+ *    mit **HTTP 500** (`unexpected_error`), gegen Melious am 23.09.2026 mit
+ *    HTTP 400. `gemma-4-31b-it` steht in `modelDiscovery.ts` deshalb mit
+ *    `vision: false`, die Bild-Weiche in `responseStreamingService.ts` schickt
+ *    Bild-Züge an `VISION_MODEL` (Mistral Pixtral, routes/chat/agents/
+ *    providers.ts). Der Katalog ist hier keine Quelle — er beschreibt die
  *    Gewichte, nicht den Endpunkt.
  *  - **Der CO₂-Ausweis bleibt.** `gemma-4-31b-it` erbt in
  *    `energyFootprint.ts` die gemessenen Koeffizienten des 31B — dieselben
@@ -126,8 +127,8 @@
  * Cortecs ist VORAUSBEZAHLT. Ein leeres Guthaben antwortet mit HTTP 401 wie
  * ein fehlender Schlüssel. Das trifft jetzt den PRIMÄR und nicht mehr nur den
  * Ausweich, also alle Gemma-Lanes auf einmal. Aufgefangen wird es zweifach:
- * `instantiateModel` prüft `CORTECS_API_KEY` und weicht auf Regolo aus, und
- * die Ausweichkette hat Regolo als Ziel. Der eigentliche Schalter dagegen ist
+ * `instantiateModel` prüft `CORTECS_API_KEY` und weicht auf Melious aus, und
+ * die Ausweichkette hat Melious als Ziel. Der eigentliche Schalter dagegen ist
  * Auto-Top-up im Cortecs-Konto, nicht Code.
  *
  * F0/F1 (CLAUDE.md): die Modell-IDs sind Anbieter-Kennungen und Registry-IDs.
@@ -156,16 +157,6 @@ export interface GemmaHost {
    */
   readonly laneId: string;
 }
-
-/** Regolos Kennung für das dichte 31B. Auch `REGOLO_TEXT_DEFAULT` in
- *  `textModelPolicy.ts` — das ist Regolos EIGENER Standard und bleibt bei
- *  Regolo, egal wo der Primär gerade liegt. */
-export const GEMMA_31B_ON_REGOLO: GemmaHost = {
-  provider: 'regolo',
-  model: 'gemma4-31b',
-  contextWindow: 262_144,
-  laneId: 'gemma-regolo',
-};
 
 /** Melious' European routing endpoint serving the same Gemma 4 31B weights.
  *
@@ -210,7 +201,7 @@ export const GEMMA_31B_ON_REGOLO: GemmaHost = {
  *  Denken: dieser Host denkt OHNE Vorgabe (~300 Reasoning-Tokens auf eine
  *  Zwei-Satz-Frage, 3–4 s statt 1 s). Abgeschaltet wird es auf dem SDK-Pfad
  *  (`meliousThinkingFetch.ts`), angeschaltet im Denk-Strom
- *  (`regoloReasoningStream.ts`). */
+ *  (`openAiReasoningStream.ts`). */
 export const GEMMA_31B_ON_MELIOUS: GemmaHost = {
   provider: 'melious',
   model: 'gemma-4-31b:balanced',
@@ -274,7 +265,7 @@ export const GEMMA_31B_ON_CORTECS: GemmaHost = {
  *      Ohne Eintrag ist `isVisionCapable` falsch und die Bild-Weiche greift.
  *   2. `energyFootprint.ts` — hat der neue Modellname einen Koeffizienten?
  *      Ohne ihn fällt die grösste Lane aus der CO₂-Übersicht.
- *   3. `regoloReasoningStream.ts` — kennt der neue Host einen Denk-Hebel, und
+ *   3. `openAiReasoningStream.ts` — kennt der neue Host einen Denk-Hebel, und
  *      welchen? Die drei Hosts benutzen drei verschiedene.
  *   4. `modelSiblings.ts` und die Lane-Konfigurationen ziehen von selbst mit.
  */

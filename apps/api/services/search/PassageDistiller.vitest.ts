@@ -17,6 +17,11 @@ vi.mock('./rerankPipeline.js', () => ({
   DEFAULT_RELEVANCE: 0.5,
 }));
 
+let rerankAvailable = true;
+vi.mock('./GreenPTRerankService.js', () => ({
+  greenptRerankService: { isAvailable: () => rerankAvailable },
+}));
+
 const getCachedDistill = vi.fn();
 const setCachedDistill = vi.fn();
 vi.mock('./distillCache.js', () => ({
@@ -58,7 +63,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   process.env.CHAT_PASSAGE_DISTILL = 'true';
   process.env.CHAT_PASSAGE_DISTILL_LLM = 'false';
-  process.env.REGOLO_API_KEY = 'test-key';
+  rerankAvailable = true;
   getCachedDistill.mockResolvedValue(null);
   setCachedDistill.mockResolvedValue(undefined);
   rerankPipeline.mockImplementation(rerankRanking(['CHARLIE', 'ALPHA', 'DELTA', 'BRAVO']));
@@ -139,15 +144,15 @@ describe('distillPassages', () => {
       expect(out.digest.length).toBeGreaterThan(0);
     });
 
-    it('never calls the cross-encoder without an API key', async () => {
-      delete process.env.REGOLO_API_KEY;
+    it('never calls the cross-encoder when the reranker is unavailable', async () => {
+      rerankAvailable = false;
       const out = await distillPassages({ ...base, text: FOUR_BLOCKS });
       expect(rerankPipeline).not.toHaveBeenCalled();
       expect(out.method).toBe('lexical');
     });
 
     it('picks the query-bearing passage on the lexical path', async () => {
-      delete process.env.REGOLO_API_KEY;
+      rerankAvailable = false;
       const text = FOUR_BLOCKS.replace(
         'CHARLIE',
         'CHARLIE Der Beitragssatz steigt auf 3,6 Prozent.'

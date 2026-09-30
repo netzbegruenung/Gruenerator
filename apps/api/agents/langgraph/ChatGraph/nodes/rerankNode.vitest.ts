@@ -87,7 +87,7 @@ describe('rerankNode', () => {
       scores: new Map(),
       rerankTimeMs: 5,
       failed: true,
-      error: 'regolo cross-encoder unreachable',
+      error: 'greenpt cross-encoder unreachable',
     });
 
     const state = makeState();
@@ -96,7 +96,7 @@ describe('rerankNode', () => {
     expect(result.searchResults).toHaveLength(6);
     expect(result.rerankFailed).toBe(true);
     expect(result.searchErrors).toEqual([
-      { source: 'rerank', message: 'regolo cross-encoder unreachable' },
+      { source: 'rerank', message: 'greenpt cross-encoder unreachable' },
     ]);
   });
 

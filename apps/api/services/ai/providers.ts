@@ -3,7 +3,7 @@
  * Centralizes all AI provider management using Vercel AI SDK
  *
  * This module provides a single source of truth for:
- * - Provider instantiation (Mistral, LiteLLM, Regolo)
+ * - Provider instantiation (Mistral, Cortecs, Melious, …)
  * - Model selection based on provider
  * - Provider availability checking
  */
@@ -21,13 +21,11 @@ import {
   getMistralProvider,
   getCortecsProvider,
   getMeliousProvider,
-  getRegoloProvider,
   getScalewayProvider,
   getScalewayTextProvider,
   isProviderConfigured,
   routeMistralModel,
 } from './providerInstances.js';
-import { regoloTextDefault } from './textModelPolicy.js';
 import { withWireSafeToolCallIds } from './toolCallIds.js';
 
 import type { IntermediateLaneId, LaneTarget } from './intermediateLanes.js';
@@ -64,7 +62,6 @@ import type { LanguageModel } from 'ai';
 export const PROVIDER_NAMES = [
   'mistral',
   'litellm',
-  'regolo',
   'melious',
   'greenpt',
   'scaleway',
@@ -76,7 +73,7 @@ export const PROVIDER_NAMES = [
  * pflegen lässt: `ToolHandler.formatToolsForProvider` (Issue #3044) gateet
  * auf genau diesem Array. Bis zum 28.08.2026 führte ToolHandler eine eigene
  * Liste `['litellm', 'mistral']`, und genau diese Zweitliste stufte
- * greenpt/cortecs/scaleway/regolo als "Unknown provider" ab und ließ
+ * greenpt/cortecs/scaleway als "Unknown provider" ab und ließ
  * Claude-shaped Tools unverändert durch.
  */
 export type ProviderName = (typeof PROVIDER_NAMES)[number];
@@ -88,7 +85,6 @@ const PROVIDER_DEFAULTS = {
   // Der Eintrag bleibt, weil `getDefaultModel` ein `ProviderName` bedienen muss,
   // den gespeicherte Agenten-Konfigurationen weiterhin nennen dürfen (F0).
   litellm: RETIRED_LITELLM_DEFAULT.model,
-  regolo: regoloTextDefault(),
   melious: env.MELIOUS_DEFAULT_MODEL ?? 'gemma-4-31b:balanced',
   greenpt: env.GREENPT_DEFAULT_MODEL ?? 'mistral-medium-3.5-128b',
   // Gemma 4 26B-A4B. Named rather than inherited: Scaleway also serves
@@ -124,12 +120,12 @@ const PROVIDER_DEFAULTS = {
  * `getModel` fragt im Kopf `pickHealthyTarget` und ersetzt ein als zäh
  * vermerktes Paar STILL. Diese Ersetzung kennt die Kette nicht: sie zieht ihr
  * Ziel aus `MODEL_SIBLINGS`, sonst aus `FALLBACK_CHAIN`
- * (cortecs → regolo → mistral). Für einen Aufrufer mit EINEM Ziel ist das
+ * (cortecs → melious → mistral). Für einen Aufrufer mit EINEM Ziel ist das
  * richtig; für einen, der bereits eine Kette deklariert hat, bricht es genau
  * die zwei Eigenschaften, die diese Kette zusichert:
  *
  * 1. **Die Kette klappt auf einen Anbieter zusammen.** `heavy` und `pruefung`
- *    führen `cortecs/gemma-4-31b-it` vor `regolo/gemma4-31b` — und die beiden
+ *    führen `cortecs/gemma-4-31b-it` vor dem Melious-Gemma — und die beiden
  *    sind einander als Geschwister eingetragen (gemmaHosts.ts). Ein zäher
  *    Cortecs macht aus Glied 1 genau Glied 2: zwei „verschiedene
  *    Vertragspartner" werden zu zwei Aufrufen an dasselbe Konto.
@@ -203,7 +199,6 @@ export function getIntermediateModel(lane: IntermediateLaneId): LanguageModel {
 // importers of this module keep working.
 export {
   LITELLM_DEFAULT_BASE_URL,
-  REGOLO_BASE_URL,
   MELIOUS_BASE_URL,
   GREENPT_BASE_URL,
   MISTRAL_API_URL,
@@ -219,8 +214,8 @@ export {
  * und derselbe Host bediente den stündlichen Monitor-Lauf, die GPT-OSS-Lanes
  * und (bis zum selben Tag) den Ausweg der Chat-Gemma-Lane. Ein Hintergrundlauf
  * darf einem wartenden Menschen nicht den Ausweichhost wegnehmen — deshalb
- * zieht der Monitor auf GreenPT um, und die Chat-Lanes behalten Regolo,
- * Scaleway und Verdigado für sich.
+ * zieht der Monitor auf GreenPT um, und die Chat-Lanes behalten Cortecs,
+ * Melious und Scaleway für sich.
  *
  * `mistral-small-3.2-24b` und NICHT `gemma4`, obwohl beide auf GreenPT liegen:
  * GreenPTs Gemma denkt immer (~5.400 Zeichen, kein Flag schaltet es ab, siehe
@@ -302,10 +297,6 @@ function instantiateModel(
       const retired = retireLiteLLM('litellm', modelId);
       return getCortecsProvider().chat(retired.model ?? PROVIDER_DEFAULTS.cortecs);
     }
-    case 'regolo': {
-      const regolo = getRegoloProvider();
-      return regolo.chat(modelId || PROVIDER_DEFAULTS.regolo);
-    }
     case 'melious': {
       const melious = getMeliousProvider();
       return melious.chat(modelId || PROVIDER_DEFAULTS.melious);
@@ -345,8 +336,6 @@ export function getDefaultModel(provider: ProviderName | string): string {
       return PROVIDER_DEFAULTS.mistral;
     case 'litellm':
       return PROVIDER_DEFAULTS.litellm;
-    case 'regolo':
-      return PROVIDER_DEFAULTS.regolo;
     case 'melious':
       return PROVIDER_DEFAULTS.melious;
     case 'greenpt':
@@ -371,8 +360,6 @@ export function getProviderDisplayName(provider: ProviderName | string): string 
       // Der Name wird noch gelesen (F0), bedient aber Cortecs — siehe
       // ./litellmRetired.ts. Die Anzeige sagt, was tatsächlich antwortet.
       return 'Cortecs (ehem. LiteLLM)';
-    case 'regolo':
-      return 'Regolo AI';
     case 'melious':
       return 'Melious';
     case 'greenpt':
@@ -392,7 +379,9 @@ export function getProviderDisplayName(provider: ProviderName | string): string 
 export function normalizeProviderName(provider: string): ProviderName {
   const lower = provider.toLowerCase();
   if (lower === 'litellm') return 'litellm';
-  if (lower === 'regolo') return 'regolo';
+  // F0: `regolo` wurde am 30.09.2026 aus dem Produkt genommen; der Name steht noch in
+  // gespeicherten Konfigurationen und wird tolerant auf den Ersatzhost gelesen.
+  if (lower === 'regolo') return 'cortecs';
   if (lower === 'melious') return 'melious';
   if (lower === 'greenpt') return 'greenpt';
   if (lower === 'scaleway') return 'scaleway';

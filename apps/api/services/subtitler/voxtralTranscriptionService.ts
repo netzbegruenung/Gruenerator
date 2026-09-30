@@ -54,7 +54,7 @@ async function transcribeWithVoxtral(
     file: { fileName, content: audioBuffer },
     language: toTranscriptionLanguage(locale),
     // Steers spelling of party names, institutions and politicians for the
-    // user's country. Voxtral-only — Regolo has no equivalent parameter.
+    // user's country. Voxtral-only.
     contextBias: buildContextBias(locale),
     ...(requestWordTimestamps
       ? { responseFormat: 'verbose_json', timestampGranularities: ['word'] }
