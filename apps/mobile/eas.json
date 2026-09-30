@@ -7,13 +7,17 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development"
+      "channel": "development",
+      "env": {
+        "pnpm_config_allow_unused_patches": "true"
+      }
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
       "env": {
         "EXPO_PUBLIC_DEV_AUTH_BYPASS": "false",
+        "pnpm_config_allow_unused_patches": "true",
         "RELEASE_CHANNEL": "preview"
       }
     },
@@ -22,7 +26,8 @@
       "ios": { "simulator": true },
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_DEV_AUTH_BYPASS": "false"
+        "EXPO_PUBLIC_DEV_AUTH_BYPASS": "false",
+        "pnpm_config_allow_unused_patches": "true"
       }
     },
     "production": {
@@ -30,6 +35,7 @@
       "channel": "production",
       "env": {
         "EXPO_PUBLIC_DEV_AUTH_BYPASS": "false",
+        "pnpm_config_allow_unused_patches": "true",
         "RELEASE_CHANNEL": "production"
       },
       "android": {
