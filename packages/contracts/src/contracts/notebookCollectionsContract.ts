@@ -27,6 +27,10 @@ import {
   getCollectionResponseSchema,
   reindexDocumentResponseSchema,
   reindexNotebookResponseSchema,
+  addDocumentsBodySchema,
+  addDocumentsResponseSchema,
+  attachWolkeBodySchema,
+  attachWolkeResponseSchema,
 } from '../schemas/notebookCollections.js';
 
 const c = initContract();
@@ -241,6 +245,47 @@ export const notebookCollectionsContract = c.router(
         500: notebookErrorResponseSchema,
       },
       summary: 'Remove a document from a notebook collection',
+    },
+
+    /**
+     * POST /api/auth/notebook-collections/:id/documents
+     * Append documents to a collection without replacing the existing set.
+     */
+    addDocuments: {
+      method: 'POST',
+      path: '/api/auth/notebook-collections/:id/documents',
+      pathParams: z.object({ id: z.string() }),
+      body: addDocumentsBodySchema,
+      responses: {
+        200: addDocumentsResponseSchema,
+        400: notebookErrorResponseSchema,
+        401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Append documents to a notebook collection',
+    },
+
+    /**
+     * POST /api/auth/notebook-collections/:id/wolke
+     * Attach a Wolke folder by share link (or re-sync an attached one) and
+     * import a capped first batch right away; the rest is queued as pending.
+     */
+    attachWolke: {
+      method: 'POST',
+      path: '/api/auth/notebook-collections/:id/wolke',
+      pathParams: z.object({ id: z.string() }),
+      body: attachWolkeBodySchema,
+      responses: {
+        200: attachWolkeResponseSchema,
+        400: notebookErrorResponseSchema,
+        401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Attach or re-sync a Wolke folder on a notebook',
     },
 
     /**

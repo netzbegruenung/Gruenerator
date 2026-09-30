@@ -211,12 +211,12 @@ const NotebookOverviewPage = lazy(
   () => import('../features/notebook/components/overview/NotebookOverviewPage')
 );
 const NotebookCreatePage = lazy(() =>
-  import('../features/notebook/components/NotebookEditorPage').then((m) => ({
+  import('../features/notebook/components/NotebookHubPage').then((m) => ({
     default: m.NotebookCreatePage,
   }))
 );
 const NotebookEditPage = lazy(() =>
-  import('../features/notebook/components/NotebookEditorPage').then((m) => ({
+  import('../features/notebook/components/NotebookHubPage').then((m) => ({
     default: m.NotebookEditPage,
   }))
 );

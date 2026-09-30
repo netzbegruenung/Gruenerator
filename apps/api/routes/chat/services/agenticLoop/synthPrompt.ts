@@ -218,10 +218,15 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   const nothingReachedTheWriter =
     sources.trim().length === 0 && !producedArtifact && !mcpRan && toolPayload === '';
   const honestyNote = nothingReachedTheWriter
-    ? '\n\nWICHTIG: In diesem Turn hast du NICHTS recherchiert und keine Quellen erhalten. Behaupte keine Recherche, nenne keine [N]-Belege, keine Studien und keine Quellen. Antworte nur aus gesichertem Kontext oder sag ehrlich, dass du es nachschlagen müsstest.' +
-      // Nach einem Fehlschlag sagt die Fehlschlag-Notiz, was zu sagen ist —
-      // „nicht nachgesehen" wäre dort falsch.
-      (toolFailures ? '' : ` ${NO_CAPABILITY_DENIAL_RULE}`)
+    ? // Gesucht und nichts gefunden ist das Gegenteil von „nicht nachgesehen" —
+      // als letzter Absatz überstimmte die Zeile unten die Leer-Notiz, und der
+      // Schreiber bot an, erst noch zu suchen (#3902).
+      toolEmpties
+      ? '\n\nWICHTIG: Du HAST in diesem Turn nachgesehen — die Werkzeuge unter LEERE ERGEBNISSE liefen und fanden nichts. Sag genau das: dass du gesucht und nichts gefunden hast. Behaupte NICHT, du hättest nicht nachgesehen, und biete nicht an, erst noch zu suchen. Nenne keine [N]-Belege und keine Quellen.'
+      : '\n\nWICHTIG: In diesem Turn hast du NICHTS recherchiert und keine Quellen erhalten. Behaupte keine Recherche, nenne keine [N]-Belege, keine Studien und keine Quellen. Antworte nur aus gesichertem Kontext oder sag ehrlich, dass du es nachschlagen müsstest.' +
+        // Nach einem Fehlschlag sagt die Fehlschlag-Notiz, was zu sagen ist —
+        // „nicht nachgesehen" wäre dort falsch.
+        (toolFailures ? '' : ` ${NO_CAPABILITY_DENIAL_RULE}`)
     : carriedOnly && !producedArtifact
       ? // Mirrors CARRIED_SOURCES_NOTE on the single-pass path (respondNode).
         // The ban on [N] that used to stand here is what made the same

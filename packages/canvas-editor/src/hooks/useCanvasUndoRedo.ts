@@ -1,5 +1,4 @@
 import { useEffect, useCallback, useRef } from 'react';
-
 import { useStore } from 'zustand';
 
 import { useCanvasStore } from '../stores/CanvasStoreProvider';
@@ -37,7 +36,8 @@ export function useCanvasUndoRedo<
   TComponentState extends Record<string, unknown> = Record<string, unknown>,
 >(
   debounceMs = 250,
-  onRestore?: (state: TComponentState) => void
+  onRestore?: (state: TComponentState) => void,
+  shortcutsEnabled = true
 ): UseCanvasUndoRedoReturn<TComponentState> {
   const store = useCanvasStore();
   // Use individual selectors to avoid subscribing to entire store
@@ -112,8 +112,10 @@ export function useCanvasUndoRedo<
     [flushDebouncedSave]
   );
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts — off for inactive pages of a multi-page editor, whose
+  // window listeners would otherwise undo on every page at once.
   useEffect(() => {
+    if (!shortcutsEnabled) return undefined;
     const handleKeyDown = (e: KeyboardEvent) => {
       // Skip if user is typing in an input/textarea
       const target = e.target as HTMLElement;
@@ -152,7 +154,7 @@ export function useCanvasUndoRedo<
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [shortcutsEnabled]);
 
   // Cleanup debounce timeout on unmount
   useEffect(() => {

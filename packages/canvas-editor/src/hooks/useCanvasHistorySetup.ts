@@ -31,16 +31,18 @@ export interface UseCanvasHistorySetupResult<T extends Record<string, unknown>> 
  * @param collectState - Function that collects current component state
  * @param handleRestore - Function that restores component state from history
  * @param debounceMs - Debounce delay for text input saves (default: 500)
+ * @param shortcutsEnabled - Whether this canvas answers Cmd/Ctrl+Z/Y
  */
 export function useCanvasHistorySetup<T extends Record<string, unknown>>(
   collectState: () => T,
   handleRestore: (state: T) => void,
-  debounceMs = 500
+  debounceMs = 500,
+  shortcutsEnabled = true
 ): UseCanvasHistorySetupResult<T> {
   const initialHistorySavedRef = useRef(false);
 
   const { saveToHistory, debouncedSaveToHistory, undo, redo, canUndo, canRedo } =
-    useCanvasUndoRedo<T>(debounceMs, handleRestore);
+    useCanvasUndoRedo<T>(debounceMs, handleRestore, shortcutsEnabled);
 
   // Refs for stable access in callbacks without causing re-renders
   const saveToHistoryRef = useRef(saveToHistory);

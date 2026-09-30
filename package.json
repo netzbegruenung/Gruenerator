@@ -10,9 +10,6 @@
     "services/hocuspocus",
     "documentation"
   ],
-  "dependencies": {
-    "dotenv": "^17.4.2"
-  },
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.2.2",

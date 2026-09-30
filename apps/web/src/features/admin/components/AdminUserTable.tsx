@@ -14,9 +14,8 @@ import {
 import { useMemo, useState } from 'react';
 import { FaUsers } from 'react-icons/fa';
 
-import type { ColumnDef } from '@tanstack/react-table';
-
 import {
+  type ColumnDef,
   TableProvider,
   TableHeader,
   TableHeaderGroup,

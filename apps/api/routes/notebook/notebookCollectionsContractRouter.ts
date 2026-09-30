@@ -39,12 +39,14 @@ import {
 import { summarizeDocumentRows } from '../../services/notebook/corpusState.js';
 import { listGroupSharedNotebooksForUser } from '../../services/notebook/groupSharedNotebookListing.js';
 import { fetchDocumentMetadata } from '../../services/notebook/notebookSources.js';
+import { attachWolkeFolderToNotebook } from '../../services/notebook/notebookWolkeAttach.js';
 import { listPublicNotebooksForViewer } from '../../services/notebook/publicNotebookListing.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
 import { getUsageMap } from '../../services/usage/ItemUsageService.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
+import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type DocumentId, type NotebookId } from '../../utils/types/branded.js';
 
@@ -673,13 +675,8 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
           };
         }
       } else {
-        if (document_ids.length === 0) {
-          return {
-            status: 400 as const,
-            body: { error: 'At least one document must be selected' },
-          };
-        }
-
+        // Ein leeres Notebook ist erlaubt: der Hub legt es beim Klick auf
+        // „Neu" an, die Quellen kommen danach über addDocuments/attachWolke.
         const userDocuments = (await postgres.query(
           'SELECT id FROM documents WHERE user_id = $1 AND id = ANY($2) AND deleted_at IS NULL',
           [userId, document_ids]
@@ -723,7 +720,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       const collectionId = result.collection_id;
 
       try {
-        await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
+        if (allDocumentIds.length > 0) {
+          await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
+        }
       } catch (docError) {
         log.error(
           '[notebookCollectionsContract.createCollection] Error adding documents:',
@@ -850,13 +849,6 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
           };
         }
       } else if (documentsProvided) {
-        if (document_ids.length === 0) {
-          return {
-            status: 400 as const,
-            body: { error: 'At least one document must be selected' },
-          };
-        }
-
         const userDocuments = (await postgres.query(
           'SELECT id FROM documents WHERE user_id = $1 AND id = ANY($2) AND deleted_at IS NULL',
           [userId, document_ids]
@@ -945,7 +937,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
           await notebookHelper.removeDocumentsFromCollection(collectionId, existingDocIds);
         }
 
-        await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
+        if (allDocumentIds.length > 0) {
+          await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
+        }
       }
 
       return {
@@ -1196,6 +1190,109 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
     } catch (error) {
       log.error('[notebookCollectionsContract.removeDocument] Error:', error);
       return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
+  addDocuments: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const collectionId = fromParam<NotebookId>(args.params.id);
+      const { document_ids, linked_docs } = args.body;
+
+      const guard = await requireNotebookEdit(collectionId, userId);
+      if (guard) return guard;
+
+      const collection = await notebookHelper.getNotebookCollection(collectionId);
+      if (!collection) {
+        return { status: 404 as const, body: { error: 'Notebook collection not found' } };
+      }
+
+      const requested = [...new Set(document_ids)];
+      const owned = (await getPostgresInstance().query(
+        'SELECT id FROM documents WHERE user_id = $1 AND id = ANY($2) AND deleted_at IS NULL',
+        [userId, requested]
+      )) as Array<{ id: string }>;
+      if (owned.length !== requested.length) {
+        return { status: 403 as const, body: { error: 'Access denied to one or more documents' } };
+      }
+
+      const existing = new Set(
+        (await notebookHelper.getCollectionDocuments(collectionId)).map((d) => d.document_id)
+      );
+      const toAdd = requested.filter((id) => !existing.has(id));
+      if (existing.size + toAdd.length > NOTEBOOK_MAX_DOCUMENTS) {
+        return {
+          status: 400 as const,
+          body: { error: `A notebook can contain at most ${NOTEBOOK_MAX_DOCUMENTS} documents` },
+        };
+      }
+      if (toAdd.length > 0) {
+        await notebookHelper.addDocumentsToCollection(collectionId, toAdd, userId);
+      }
+
+      const documentCount = existing.size + toAdd.length;
+      const update: Record<string, unknown> = { document_count: documentCount };
+      if (linked_docs && linked_docs.length > 0) {
+        const settings = { ...((collection.settings as Record<string, unknown>) || {}) };
+        const current = Array.isArray(settings.linked_docs)
+          ? (settings.linked_docs as LinkedDocRef[])
+          : [];
+        const incoming = new Map(linked_docs.map((d) => [d.docId, d]));
+        settings.linked_docs = [
+          ...current.filter((d) => !incoming.has(d.docId)),
+          ...incoming.values(),
+        ];
+        update.settings = settings;
+      }
+      await notebookHelper.updateNotebookCollection(collectionId, update);
+
+      return {
+        status: 200 as const,
+        body: { success: true as const, added: toAdd.length, document_count: documentCount },
+      };
+    } catch (error) {
+      log.error('[notebookCollectionsContract.addDocuments] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
+  attachWolke: async (args) => {
+    const userId = getUserId(args.req);
+    const collectionId = fromParam<NotebookId>(args.params.id);
+
+    const guard = await requireNotebookEdit(collectionId, userId);
+    if (guard) return guard;
+
+    const body = args.body;
+    let shareLinkId: string;
+    let folderPath: string;
+    try {
+      if ('url' in body) {
+        shareLinkId = (await NextcloudShareManager.findOrSaveShareLink(userId, body.url)).id;
+        folderPath = '/';
+      } else {
+        shareLinkId = body.shareLinkId;
+        folderPath = body.folderPath;
+      }
+    } catch {
+      return {
+        status: 400 as const,
+        body: { error: 'Das sieht nicht nach einem Nextcloud-Freigabelink aus (…/s/…).' },
+      };
+    }
+
+    try {
+      const result = await attachWolkeFolderToNotebook({
+        userId,
+        collectionId,
+        shareLinkId,
+        folderPath,
+        includeSubfolders: body.includeSubfolders,
+      });
+      return { status: 200 as const, body: { success: true as const, shareLinkId, ...result } };
+    } catch (error) {
+      log.error('[notebookCollectionsContract.attachWolke] Error:', error);
+      return { status: 500 as const, body: { error: toUserFacingMessage(error) } };
     }
   },
 
