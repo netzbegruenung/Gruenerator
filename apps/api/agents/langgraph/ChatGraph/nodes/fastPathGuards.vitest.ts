@@ -11,6 +11,7 @@ import {
   forbidsNewResearch,
   asksForChatDeliverable,
   ARTIFACT_NOUN_BY_KIND,
+  creationOrderPattern,
 } from './fastPathGuards.js';
 
 const SHAREPIC = /\b(share[\s-]?pics?|sharepics?)\b/i;
@@ -433,5 +434,33 @@ describe('asksForSharepic', () => {
 
   it.each(SHAREPIC_MENTIONS)('erwähnt nur: %s', (text) => {
     expect(asksForSharepic(text)).toBe(false);
+  });
+});
+
+// #3941: die Lücke zwischen Verb und Nomen bleibt im Hauptsatz desselben Satzes.
+describe('creationOrderPattern — Satz- und Nebensatzgrenze', () => {
+  const chart = creationOrderPattern('chart|diagramm');
+
+  it.each([
+    'Erstelle eine Rede, die das Chart von gestern erwähnt',
+    'Mach eine Zusammenfassung, weil das Diagramm fehlt',
+    'Mach eine Zusammenfassung. Das Chart hat Anna',
+    'Das Chart ist fertig. Kannst du jetzt eine Rede erstellen',
+  ])('keine Bestellung: %s', (text) => {
+    expect(chart.test(text)).toBe(false);
+  });
+
+  it.each([
+    'Erstelle ein Chart, das die Emissionen seit 1990 zeigt',
+    'Erstelle bitte, falls es geht ein Chart',
+    'das Chart bitte erstellen',
+  ])('bleibt Bestellung: %s', (text) => {
+    expect(chart.test(text)).toBe(true);
+  });
+
+  it('Genitiv-Kette hinter der Zweck-Präposition', () => {
+    const site = creationOrderPattern('website');
+    expect(site.test('Mach mir Vorschläge für den Aufbau unserer Website')).toBe(false);
+    expect(site.test('mach mir eine Website für unseren Ortsverband')).toBe(true);
   });
 });
