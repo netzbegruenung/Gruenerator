@@ -223,3 +223,25 @@ describe('heuristicClassify — Zweck-Nomen ist nicht das Bestellte', () => {
     expect(heuristicClassify(text).intent).toBe(intent);
   });
 });
+
+// Beta-Audit 30.09.2026: der Tippfehler-Fänger machte aus dem Nomen allein, über
+// die ganze Nachricht, ein Bild.
+describe('heuristicClassify — Bild-Stichwort nur als Auftrag', () => {
+  it.each([
+    'zeichne eine Windkraftanlage',
+    'erstelle eine Illustration einer Solaranlage',
+    'visualisiere den Kohleausstieg',
+    'Bitte eine Windkraftanlage zeichnen',
+  ])('bleibt Bild: %s', (text) => {
+    expect(heuristicClassify(text).intent).toBe('image');
+  });
+
+  it.each([
+    'Die Grafik im Bericht zeigt einen Anstieg – was bedeutet das?',
+    'Welche Illustration passt zu meinem Artikel?',
+    'keine Grafik bitte',
+    'Das illustriert das Problem ganz gut, oder?',
+  ])('kein Bild: %s', (text) => {
+    expect(heuristicClassify(text).intent).not.toBe('image');
+  });
+});
