@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest';
 
 import { orderMayMeanArtifact, orderText } from './orderText.js';
 import { isSharepicEditInstruction } from './sharepicEditHeuristics.js';
-import { isSocialTextEditInstruction, namesSocialPostTarget } from './socialPostEditHeuristics.js';
+import {
+  isSocialTextEditInstruction,
+  namesSocialPostTarget,
+  socialPostEditAddressed,
+} from './socialPostEditHeuristics.js';
 
 /**
  * Disambiguation matrix for the combined social post: which instructions edit
@@ -214,5 +218,30 @@ describe('Post-Text-Weiche: Auftrag zwischen Gruß und Dank', () => {
     const message =
       'Erklärung der Landesvorsitzenden: Wir haben neue Vorlagen, der Untertitler versieht Reels automatisch mit Untertiteln, und ihr könnt jetzt jeden Post direkt teilen. Schreibt uns!\n\nübersetze das ins Englische';
     expect(orderMayMeanArtifact(message, namesSocialPostTarget)).toBe(false);
+  });
+});
+
+// Beta-Audit 30.09.2026: ohne Karte bearbeitete die Weiche den neuesten Post der
+// letzten 30 Nachrichten — auch zehn Turns später, auf ein einzelnes Tonwort.
+describe('socialPostEditAddressed', () => {
+  const later = { cardOpen: false, lastTurnPost: false };
+
+  it.each(['kürzer', 'mach den Text knackiger'])('Turns später ohne Adressat: %s', (order) => {
+    expect(socialPostEditAddressed(order, later)).toBe(false);
+  });
+
+  it('der Auftrag nennt den Post', () => {
+    expect(socialPostEditAddressed('kürz den Post', later)).toBe(true);
+    expect(socialPostEditAddressed('andere Hashtags bitte', later)).toBe(true);
+  });
+
+  it('direkt nach dem Post oder mit offener Karte', () => {
+    expect(socialPostEditAddressed('kürzer', { cardOpen: false, lastTurnPost: true })).toBe(true);
+    expect(socialPostEditAddressed('kürzer', { cardOpen: true, lastTurnPost: false })).toBe(true);
+  });
+
+  it('eine Frage nach dem Handwerk ist keine Bearbeitung', () => {
+    expect(isSocialTextEditInstruction('Wie schreibe ich einen guten Text?')).toBe(false);
+    expect(isSocialTextEditInstruction('Wie wäre es, wenn du den Text kürzt?')).toBe(true);
   });
 });

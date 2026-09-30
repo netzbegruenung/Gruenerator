@@ -138,3 +138,22 @@ describe('classifierNode — Rückfrage statt Raten bei "Grafik"', () => {
     expect(result.needsClarification).not.toBe(true);
   });
 });
+
+// Beta-Audit 30.09.2026: der Tippfehler-Fänger lieferte `image@0.65` auf das
+// Nomen allein, und fiel der Generierungs-Auflöser aus, blieb das Residual dabei.
+describe('classifierNode — ein erwähntes Bild-Nomen ohne Auftrag', () => {
+  it.each([
+    'Die Grafik im Bericht zeigt einen Anstieg – was bedeutet das?',
+    'Die Grafik aus dem letzten Bericht gefällt mir sehr.',
+  ])('bleibt kein Bild, auch wenn der Auflöser ausfällt: %s', async (text) => {
+    executeProvider.mockImplementation(async () => {
+      throw new Error('timeout');
+    });
+    try {
+      const result = await classifierNode(buildState(text));
+      expect(result.intent).not.toBe('image');
+    } finally {
+      executeProvider.mockImplementation(async () => ({ content: 'keine' }));
+    }
+  });
+});
