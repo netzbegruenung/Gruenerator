@@ -1606,3 +1606,17 @@ describe('looksLikeSelfContainedTurn — Faktenprüfung schlägt nach', () => {
     }
   );
 });
+
+// Beta-Audit 30.09.2026: die Verbund-Garantie liest dieselben Erstell-Muster —
+// das Zweck-Nomen („für meine Präsentation") garantierte sonst ein Artefakt.
+describe('compoundGenerationKind — Zweck-Nomen', () => {
+  it('garantiert keine Präsentation für Stichpunkte zu einer Präsentation', () => {
+    expect(
+      compoundGenerationKind('agentic', 'Mach mir Stichpunkte für meine Präsentation morgen')
+    ).toBeNull();
+  });
+
+  it('eine Umwandlung bleibt eine Bestellung', () => {
+    expect(compoundGenerationKind('agentic', 'mach daraus eine Präsentation')).toBe('presentation');
+  });
+});

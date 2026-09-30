@@ -167,3 +167,103 @@ describe('heuristicClassify — Sharepic nur auf Bestellung', () => {
     expect(heuristicClassify(text).intent).not.toBe('sharepic');
   });
 });
+
+// Beta-Audit 30.09.2026: die PDF-Regel lief ohne Wächter über die ganze
+// Nachricht samt Zitaten, und „Fragebogen" mit `schreib` war schon ein PDF.
+describe('heuristicClassify — PDF nur auf Bestellung', () => {
+  it.each([
+    'erstelle mir das als PDF',
+    'mach ein PDF mit Briefkopf',
+    'erstelle einen Fragebogen als PDF',
+    'schreib das als PDF',
+    'Mach einen Fragebogen für die Mitgliederbefragung',
+  ])('bleibt create_pdf: %s', (text) => {
+    expect(heuristicClassify(text).intent).toBe('create_pdf');
+  });
+
+  it.each([
+    'Schreib einen Fragebogen-Text für die Umfrage',
+    'was steht im PDF?',
+    'kein PDF, nur Text bitte',
+    'Erstell die Antwort, aber kein PDF daraus machen',
+    'Wie erstelle ich ein PDF mit Briefkopf?',
+    'Mein Kollege schrieb: "mach ein PDF mit Briefkopf" – was hältst du davon?',
+  ])('kein create_pdf: %s', (text) => {
+    expect(heuristicClassify(text).intent).not.toBe('create_pdf');
+  });
+});
+
+// Beta-Audit 30.09.2026: im 40-Zeichen-Fenster war das Nomen hinter „für"/„zur"
+// das bestellte Artefakt.
+describe('heuristicClassify — Zweck-Nomen ist nicht das Bestellte', () => {
+  it.each([
+    'Mach mir Stichpunkte für meine Präsentation morgen',
+    'Schreib mir eine Rede für die Präsentation',
+    'Stichpunkte für meine Präsentation erstellen',
+  ])('keine Präsentation: %s', (text) => {
+    expect(heuristicClassify(text).intent).not.toBe('create_presentation');
+  });
+
+  it.each([
+    'Erstell eine Zusammenfassung zur Tabelle',
+    'Erstell mir eine Gliederung für die Tabelle',
+  ])('keine Tabelle: %s', (text) => {
+    expect(heuristicClassify(text).intent).not.toBe('create_sheet');
+  });
+
+  it.each([
+    ['mach daraus eine Präsentation', 'create_presentation'],
+    ['erstelle eine Präsentation zum Klimaschutz', 'create_presentation'],
+    ['mach aus der Tabelle eine Präsentation', 'create_presentation'],
+    ['mach eine Tabelle mit den Zahlen', 'create_sheet'],
+    ['mach das zu einer Tabelle', 'create_sheet'],
+    ['erstelle die Übersicht in einer Tabelle', 'create_sheet'],
+    ['Mach mir eine Tabelle für die Präsentation', 'create_sheet'],
+  ])('bleibt Auftrag: %s', (text, intent) => {
+    expect(heuristicClassify(text).intent).toBe(intent);
+  });
+});
+
+// Beta-Audit 30.09.2026: der Tippfehler-Fänger machte aus dem Nomen allein, über
+// die ganze Nachricht, ein Bild.
+describe('heuristicClassify — Bild-Stichwort nur als Auftrag', () => {
+  it.each([
+    'zeichne eine Windkraftanlage',
+    'erstelle eine Illustration einer Solaranlage',
+    'visualisiere den Kohleausstieg',
+    'Bitte eine Windkraftanlage zeichnen',
+  ])('bleibt Bild: %s', (text) => {
+    expect(heuristicClassify(text).intent).toBe('image');
+  });
+
+  it.each([
+    'Die Grafik im Bericht zeigt einen Anstieg – was bedeutet das?',
+    'Welche Illustration passt zu meinem Artikel?',
+    'keine Grafik bitte',
+    'Das illustriert das Problem ganz gut, oder?',
+  ])('kein Bild: %s', (text) => {
+    expect(heuristicClassify(text).intent).not.toBe('image');
+  });
+});
+
+// Beta-Audit 30.09.2026: Diagramm und HTML/SVG verlangten Nomen und Verb nur
+// irgendwo, und „zeigt" zählte als Befehl.
+describe('heuristicClassify — Diagramm und HTML nur auf Bestellung', () => {
+  it.each([
+    ['Erstelle ein Diagramm über die Wahlergebnisse', 'chart'],
+    ['Zeige mir ein Balkendiagramm der Umfragewerte', 'chart'],
+    ['stell die Zahlen als Diagramm dar', 'chart'],
+    ['Bau mir eine Landingpage für die Kampagne', 'artifact'],
+    ['Schreib mir ein HTML-Snippet mit einem Countdown', 'artifact'],
+  ])('bleibt Auftrag: %s', (text, intent) => {
+    expect(heuristicClassify(text).intent).toBe(intent);
+  });
+
+  it.each([
+    ['Erkläre mir, was das Diagramm zeigt', 'chart'],
+    ['Das Diagramm zeigt, dass die Emissionen sinken. Schreib mir dazu einen Absatz.', 'chart'],
+    ['Schreib mir einen Text über unsere Website', 'artifact'],
+  ])('kein Artefakt: %s', (text, intent) => {
+    expect(heuristicClassify(text).intent).not.toBe(intent);
+  });
+});

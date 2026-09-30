@@ -79,7 +79,8 @@ const { runTurn } = await import('./harness/trace.js');
 const { respond } = await import('./harness/respondScript.js');
 const { sharepicControl } = await import('./harness/mocks.js');
 const { NO_SHAREPIC_TO_EDIT_TEXT } = await import('../services/platformGating.js');
-const { createThread, setLastTurnArtifactsFixture } = await import('./harness/fakeThreadStore.js');
+const { createThread, setLastTurnArtifactsFixture, setLastTurnToolStepsFixture } =
+  await import('./harness/fakeThreadStore.js');
 const { TEST_USER } = await import('./harness/fakeUser.js');
 
 const suite = useChatApp();
@@ -214,13 +215,30 @@ describe('sharepic edit needs an addressee', () => {
     expect(editLane).toBe(true);
   });
 
-  it.each(['Zeile 2 kürzer', 'anderes Hintergrundbild', 'verlängern'])(
-    'edits „%s" right after a sharepic',
-    async (text) => {
-      const { editLane } = await followUp(text, true);
-      expect(editLane).toBe(true);
-    }
-  );
+  it.each([
+    'Zeile 2 kürzer',
+    'anderes Hintergrundbild',
+    'verlängern',
+    // Lief vorher in die Post-Weiche: die lag vor dem Sharepic, und „Text" +
+    // „mach" reichten ihr auch ohne Post im Turn davor.
+    'mach den Text kürzer',
+    'setz das Datum auf Freitag',
+    'Farbe grüner',
+  ])('edits „%s" right after a sharepic', async (text) => {
+    const { editLane } = await followUp(text, true);
+    expect(editLane).toBe(true);
+  });
+
+  // Der Adressat ist da — also entscheidet, ob der Satz ein Auftrag an das
+  // Sharepic ist (Beta-Audit 30.09.2026).
+  it.each([
+    'Zeig mir den Text des Beschlusses',
+    'Mach mir eine Liste der Argumente für die Wärmepumpe',
+  ])('does not claim „%s" right after a sharepic', async (text) => {
+    const { trace, editLane } = await followUp(text, true);
+    expect(editLane).toBe(false);
+    expect(trace.intent).not.toBe('sharepic');
+  });
 
   it('refines right after a sharepic when the edit lane declines', async () => {
     const { trace } = await followUp('verlängern', true, false);
@@ -230,6 +248,85 @@ describe('sharepic edit needs an addressee', () => {
   it('does not refine turns later when the edit lane declines', async () => {
     const { trace } = await followUp('Verbesser den Antrag', false, false);
     expect(trace.intent).not.toBe('sharepic');
+  });
+});
+
+// Beta-Audit 30.09.2026: ein Reel-Nomen und ein Verb irgendwo öffneten die
+// Reel-Auswahl oder bearbeiteten ein Reel von vor Tagen. Beobachtet am
+// Ergebnis: die Reel-Spur scheitert hier am Postgres-Wächter und meldet
+// `reel_edit_error`.
+describe('reel edit needs an order and an addressee', () => {
+  async function reelTurn(text: string, lastTurnTools: string[] = []) {
+    const thread = await createThread(TEST_USER.id, 'gruenerator-universal', 'Reel-Thread');
+    setLastTurnToolStepsFixture(thread.id, lastTurnTools);
+    const { events } = await runTurn(suite.baseUrl(), {
+      threadId: thread.id,
+      messages: [userTurn(text)],
+    });
+    return events.some((e) => e.event === 'reel_edit_error');
+  }
+
+  it.each([
+    'Wie mache ich gute Reels?',
+    'Schreib mir drei Ideen für Reels',
+    'Was sind gute Untertitel für Instagram?',
+  ])('„%s" reaches no reel lane, not even right after a reel', async (text) => {
+    expect(await reelTurn(text)).toBe(false);
+    expect(await reelTurn(text, ['reel_edit'])).toBe(false);
+  });
+
+  it.each(['mach den Untertitel im Reel kürzer', 'gender die Untertitel in meinem Reel'])(
+    '„%s" names an existing reel and reaches the lane',
+    async (text) => {
+      expect(await reelTurn(text)).toBe(true);
+    }
+  );
+
+  it('„fix den Tippfehler im Untertitel" right after a reel reaches the lane', async () => {
+    expect(await reelTurn('fix den Tippfehler im Untertitel', ['reel_edit'])).toBe(true);
+  });
+});
+
+// Beta-Audit 30.09.2026: ohne Karte griff die Post-Weiche auf den neuesten Post
+// im Thread, gleich wie alt. Beobachtet am Ergebnis: die Post-Spur scheitert
+// hier am Postgres-Wächter und meldet `social_post_edit_error`.
+describe('social post text edit needs an addressee', () => {
+  async function postTurn(
+    text: string,
+    lastTurnTools: Parameters<typeof setLastTurnToolStepsFixture>[1]
+  ) {
+    const thread = await createThread(TEST_USER.id, 'gruenerator-universal', 'Post-Thread');
+    setLastTurnToolStepsFixture(thread.id, lastTurnTools);
+    const { events } = await runTurn(suite.baseUrl(), {
+      threadId: thread.id,
+      messages: [userTurn(text)],
+    });
+    return events.some((e) => e.event === 'social_post_edit_error');
+  }
+
+  it.each(['kürzer', 'mach den Text knackiger'])(
+    '„%s" turns after a post reaches no post lane',
+    async (text) => {
+      expect(await postTurn(text, [])).toBe(false);
+    }
+  );
+
+  it.each(['kürzer', 'mach den Text knackiger'])(
+    '„%s" right after a post reaches the post lane',
+    async (text) => {
+      expect(
+        await postTurn(text, [{ toolName: 'social_post', result: { postId: 'p1', text: 'Hallo' } }])
+      ).toBe(true);
+    }
+  );
+
+  // Claude-Review #3940: ein gescheiterter Post-Schritt ist kein Adressat.
+  it('„kürzer" right after a failed post reaches no post lane', async () => {
+    expect(await postTurn('kürzer', [{ toolName: 'social_post', result: {} }])).toBe(false);
+  });
+
+  it('„kürz den Post" names the post and reaches the lane', async () => {
+    expect(await postTurn('kürz den Post', [])).toBe(true);
   });
 });
 
