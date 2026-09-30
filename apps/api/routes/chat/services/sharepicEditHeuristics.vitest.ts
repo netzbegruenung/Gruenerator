@@ -6,7 +6,6 @@ import {
   isSharepicEditInstruction,
   isVerificationQuestion,
   namesSharepicTarget,
-  priorTurnMadeSharepic,
   sharepicEditAddressed,
 } from './sharepicEditHeuristics.js';
 
@@ -330,19 +329,6 @@ describe('sharepicEditAddressed', () => {
     expect(
       sharepicEditAddressed('mach es kürzer', { cardOpen: true, lastTurnSharepic: false })
     ).toBe(true);
-  });
-});
-
-describe('priorTurnMadeSharepic', () => {
-  it('zählt ein neues Sharepic und eine Bearbeitung', () => {
-    expect(priorTurnMadeSharepic([{ kind: 'sharepic' }], [])).toBe(true);
-    // Die zweite Korrektur in Folge: der Turn davor speicherte nur `sharepic_edit`.
-    expect(priorTurnMadeSharepic([], [{ toolName: 'sharepic_edit' }])).toBe(true);
-  });
-
-  it('zählt keinen anderen Turn', () => {
-    expect(priorTurnMadeSharepic([], [])).toBe(false);
-    expect(priorTurnMadeSharepic([{ kind: 'document' }], [{ toolName: 'web_search' }])).toBe(false);
   });
 });
 

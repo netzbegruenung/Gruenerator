@@ -156,22 +156,6 @@ export function namesSharepicTarget(text: string): boolean {
  * oder „Mach mir eine Liste der Argumente" eine Sharepic-Bearbeitung. Eine
  * Regel für beide Türen: die Router-Weichen und Tier 2.7 des Klassifikators.
  */
-/**
- * Hat der Turn direkt davor ein Sharepic gebaut oder bearbeitet? Eine
- * Bearbeitung speichert `sharepic_edit` statt neuer Varianten und taucht in den
- * Artefakten deshalb nicht auf — ohne den zweiten Halbsatz bräche die zweite
- * Korrektur in Folge („Zeile 2 kürzer", dann „und grüner") am Adressaten ab.
- */
-export function priorTurnMadeSharepic(
-  artifacts: ReadonlyArray<{ kind: string }>,
-  steps: ReadonlyArray<{ toolName: string }>
-): boolean {
-  return (
-    artifacts.some((a) => a.kind === 'sharepic') ||
-    steps.some((step) => step.toolName === 'sharepic_edit')
-  );
-}
-
 export function sharepicEditAddressed(
   order: string,
   context: { cardOpen: boolean; lastTurnSharepic: boolean }

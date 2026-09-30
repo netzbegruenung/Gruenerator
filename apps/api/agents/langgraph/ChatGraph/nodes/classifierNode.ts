@@ -1631,7 +1631,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         orderMayMeanArtifact(userContent, namesSharepicTarget) &&
         sharepicEditAddressed(orderText(userContent), {
           cardOpen: false,
-          lastTurnSharepic: state.lastTurnSharepic === true,
+          lastTurnSharepic: state.lastTurnEditables?.includes('sharepic') === true,
         })
       ) {
         log.info('[Classifier] Follow-up sharepic edit via thread artifact → sharepic');

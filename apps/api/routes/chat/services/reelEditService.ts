@@ -60,6 +60,7 @@ export {
   hasReelEditVerb,
   hasStrongReelNoun,
   namesReelTarget,
+  reelEditAddressed,
 } from './reelEditHeuristics.js';
 
 const PICKER_PROJECT_LIMIT = 10;

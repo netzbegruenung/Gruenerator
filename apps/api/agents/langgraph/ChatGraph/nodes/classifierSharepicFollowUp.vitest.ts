@@ -98,7 +98,7 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
       buildState({
         userMessage: ADD_INSTRUCTION,
         lastToolContext: afterSharepic,
-        lastTurnSharepic: true,
+        lastTurnEditables: ['sharepic'],
       })
     );
     expect(result.intent).toBe('sharepic');
@@ -110,7 +110,7 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
       buildState({
         userMessage: 'Mach den Text größer',
         lastToolContext: afterSharepic,
-        lastTurnSharepic: true,
+        lastTurnEditables: ['sharepic'],
       })
     );
     expect(result.intent).toBe('sharepic');
@@ -125,7 +125,7 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
         userMessage: 'Mach den Text größer',
         imageAttachments: [{ mimeType: 'image/png', data: 'x' }],
         lastToolContext: afterSharepic,
-        lastTurnSharepic: true,
+        lastTurnEditables: ['sharepic'],
       })
     );
     expect(result.intent).not.toBe('sharepic');
@@ -141,7 +141,7 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
       buildState({
         userMessage: 'Mach das Foto heller',
         lastToolContext: afterSharepic,
-        lastTurnSharepic: true,
+        lastTurnEditables: ['sharepic'],
       })
     );
     expect(result.intent).toBe('sharepic');
@@ -189,7 +189,7 @@ describe('classifierNode — Sharepic-Folgeauftrag mit mitgebrachtem Stoff', () 
       buildState({
         userMessage: `${NEWSLETTER}\n\nmach es kürzer`,
         lastToolContext: afterSharepic,
-        lastTurnSharepic: true,
+        lastTurnEditables: ['sharepic'],
       })
     );
     expect(result.intent).not.toBe('sharepic');
@@ -200,7 +200,7 @@ describe('classifierNode — Sharepic-Folgeauftrag mit mitgebrachtem Stoff', () 
       buildState({
         userMessage: `${NEWSLETTER}\n\nmach den Text auf dem Sharepic kürzer`,
         lastToolContext: afterSharepic,
-        lastTurnSharepic: true,
+        lastTurnEditables: ['sharepic'],
       })
     );
     expect(result.intent).toBe('sharepic');
@@ -221,7 +221,7 @@ describe('classifierNode — Sharepic-Folgeauftrag braucht einen Adressaten', ()
     'Zeig mir den Text des Beschlusses',
   ])('beansprucht „%s" Turns nach dem Sharepic nicht', async (text) => {
     const result = await classifierNode(
-      buildState({ userMessage: text, lastToolContext: staleSharepic, lastTurnSharepic: false })
+      buildState({ userMessage: text, lastToolContext: staleSharepic, lastTurnEditables: [] })
     );
     expect(result.intent).not.toBe('sharepic');
   });
@@ -231,7 +231,7 @@ describe('classifierNode — Sharepic-Folgeauftrag braucht einen Adressaten', ()
       buildState({
         userMessage: 'mach den Text auf dem Sharepic kürzer',
         lastToolContext: staleSharepic,
-        lastTurnSharepic: false,
+        lastTurnEditables: [],
       })
     );
     expect(result.intent).toBe('sharepic');
@@ -242,7 +242,7 @@ describe('classifierNode — Sharepic-Folgeauftrag braucht einen Adressaten', ()
       buildState({
         userMessage: 'Mach die Liste kürzer',
         lastToolContext: staleSharepic,
-        lastTurnSharepic: true,
+        lastTurnEditables: ['sharepic'],
       })
     );
     expect(result.intent).toBe('sharepic');
