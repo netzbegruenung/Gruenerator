@@ -40,6 +40,7 @@ import { FEED_KIND_ICONS, feedItemHref } from '../../config/groupFeedPresentatio
 
 import { GroupCommentThread } from './GroupCommentThread';
 import { GroupPostContent } from './GroupPostContent';
+import { ShareReactions } from './GroupReactions';
 
 export interface GroupFeedCardProps {
   item: GroupFeedItem;
@@ -325,6 +326,10 @@ export function GroupFeedCard({
             preview
           )}
         </div>
+      )}
+
+      {canComment && share && (
+        <ShareReactions groupId={groupId} share={share} className="px-md pt-sm" />
       )}
 
       <footer className="flex items-center justify-between gap-sm px-md py-sm">

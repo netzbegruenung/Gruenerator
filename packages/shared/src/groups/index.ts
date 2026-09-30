@@ -68,3 +68,9 @@ export {
 } from './feed.js';
 
 export { replyMention, threadComments, type GroupCommentThread } from './comments.js';
+
+export {
+  patchCommentReactions,
+  patchShareReactions,
+  type GroupContentBuckets,
+} from './reactionPatches.js';
