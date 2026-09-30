@@ -282,7 +282,7 @@
     "gray-matter": "^4.0.3",
     "tsx": "^4.23.13",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.1"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",
