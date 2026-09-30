@@ -899,7 +899,8 @@ export async function buildStreamContext({
     initialState.lastTurnRetrievalFailed = priorTurnRetrievalFailed(lastTurnSteps);
     initialState.lastTurnEditables = priorTurnEditables(
       history?.lastTurnArtifacts() ?? [],
-      lastTurnSteps
+      lastTurnSteps,
+      history?.lastTurnIntent() ?? null
     );
     // Weitergereicht statt verworfen: der agentische Loop las bis hierher
     // dieselben Zeilen ein zweites und drittes Mal (Tool-Replay und

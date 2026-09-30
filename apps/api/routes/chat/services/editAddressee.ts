@@ -13,7 +13,7 @@
  */
 
 /** Die Artefakte, die eine Bearbeitungs-Weiche im Chat ändern kann. */
-export type EditableArtifact = 'sharepic' | 'social_post' | 'reel' | 'image';
+export type EditableArtifact = 'sharepic' | 'social_post' | 'reel' | 'image' | 'document' | 'sheet';
 
 /**
  * Welche Werkzeug-Schritte ein Artefakt BAUEN oder BEARBEITEN. Die Bearbeitungen
@@ -30,6 +30,19 @@ const EDITABLE_BY_TOOL: Readonly<Record<string, EditableArtifact>> = {
   reel_edit: 'reel',
   reel_processing: 'reel',
   reel_picker: 'reel',
+  create_document: 'document',
+  create_sheet: 'sheet',
+};
+
+/**
+ * Bearbeitungen, die KEINEN Werkzeug-Schritt speichern, sondern nur ihren
+ * Intent: `modify_doc` antwortet mit Text und einer Bestätigungskarte,
+ * `edit_sheet` schickt Editor-Operationen. Ohne sie bräche „kürz den zweiten
+ * Absatz", dann „und ergänz einen Abschnitt zu Kosten" am Adressaten ab (#3941).
+ */
+const EDITABLE_BY_INTENT: Readonly<Record<string, EditableArtifact>> = {
+  modify_doc: 'document',
+  edit_sheet: 'sheet',
 };
 
 /**
@@ -44,16 +57,26 @@ const EDITABLE_BY_TOOL: Readonly<Record<string, EditableArtifact>> = {
  */
 export function priorTurnEditables(
   artifacts: ReadonlyArray<{ kind: string }>,
-  steps: ReadonlyArray<{ toolName: string; result?: Record<string, unknown>; ok?: false }>
+  steps: ReadonlyArray<{ toolName: string; result?: Record<string, unknown>; ok?: false }>,
+  intent: string | null = null
 ): EditableArtifact[] {
   const found = new Set<EditableArtifact>();
   for (const a of artifacts) {
-    if (a.kind === 'sharepic' || a.kind === 'image') found.add(a.kind);
+    if (
+      a.kind === 'sharepic' ||
+      a.kind === 'image' ||
+      a.kind === 'document' ||
+      a.kind === 'sheet'
+    ) {
+      found.add(a.kind);
+    }
   }
   for (const step of steps) {
     const kind = EDITABLE_BY_TOOL[step.toolName];
     if (kind && producedSomething(step)) found.add(kind);
   }
+  const byIntent = intent ? EDITABLE_BY_INTENT[intent] : null;
+  if (byIntent) found.add(byIntent);
   return [...found];
 }
 
@@ -76,6 +99,51 @@ function producedSomething(step: {
   if (step.toolName === 'sharepic') return Array.isArray(r?.variants) && r.variants.length > 0;
   if (step.toolName === 'social_post') return r?.postId != null && typeof r.text === 'string';
   return true;
+}
+
+// Der Auftrag nennt das Dokument bzw. die Tabelle mit bestimmtem Artikel oder
+// Possessiv: „kürz das Dokument", „den Text im Dokument", „in der Tabelle".
+// Ein unbestimmtes „füg eine Tabelle ein" bestellt etwas Neues und meint die
+// alte Tabelle nicht.
+const DEFINITE_TARGET_DET =
+  '(?:d(?:as|ie|er|en|em|es)|im|ins|diese[snrm]?|mein\\p{L}*|unser\\p{L}*)\\s+(?:\\p{L}+\\s+)?';
+const DOCUMENT_TARGET_RE = new RegExp(
+  `(?<!\\p{L})${DEFINITE_TARGET_DET}(?:text)?dokument(?:e?s)?(?!\\p{L})`,
+  'iu'
+);
+const SHEET_TARGET_RE = new RegExp(
+  `(?<!\\p{L})${DEFINITE_TARGET_DET}(?:tabelle|kalkulation|sheet)(?!\\p{L})`,
+  'iu'
+);
+
+/**
+ * Nennt der Auftrag das Artefakt beim Titel — ganz, oder ein Titelwort mit
+ * bestimmtem Artikel: „Kürze in dem Antrag von vorhin die Begründung" nach
+ * „Antrag für einen autofreien Sonntag" (Korpus `golden-doc-at-depth#11`).
+ */
+function namesTitle(order: string, title: string | null): boolean {
+  const t = title?.trim().toLowerCase() ?? '';
+  if (t.length < 4) return false;
+  if (order.toLowerCase().includes(t)) return true;
+  return t
+    .split(/[^\p{L}\d]+/u)
+    .filter((w) => w.length >= 5)
+    .some((w) => new RegExp(`(?<!\\p{L})${DEFINITE_TARGET_DET}${w}(?!\\p{L})`, 'iu').test(order));
+}
+
+/**
+ * Der Auftrag nennt das Dokument: „das Dokument", „den Text im Dokument" oder
+ * seinen Titel. Tier 2.7 bearbeitete bis #3941 das letzte Dokument des Threads
+ * auf ein einzelnes Verb hin — zehn Turns später wurde „Verbesser meine
+ * Formulierung: …" zu `modify_doc`.
+ */
+export function namesDocumentTarget(order: string, title: string | null): boolean {
+  return DOCUMENT_TARGET_RE.test(order) || namesTitle(order, title);
+}
+
+/** Der Auftrag nennt die Tabelle: „die Tabelle", „in der Tabelle" oder ihren Titel. */
+export function namesSheetTarget(order: string, title: string | null): boolean {
+  return SHEET_TARGET_RE.test(order) || namesTitle(order, title);
 }
 
 /** Die Stelle, an der ein Muster greift — Anfang und Ende im Text. */
