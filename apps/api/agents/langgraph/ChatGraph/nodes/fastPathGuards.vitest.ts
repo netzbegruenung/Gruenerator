@@ -458,6 +458,18 @@ describe('creationOrderPattern — Satz- und Nebensatzgrenze', () => {
     expect(chart.test(text)).toBe(true);
   });
 
+  // Claude-Review #3940: zwischen Artikel und Nomen stand nur EIN Wort.
+  it('zwei Adjektive hinter der Zweck-Präposition', () => {
+    const deck = creationOrderPattern('pr[äa]sentation');
+    expect(deck.test('Mach Stichpunkte für die geplante morgige Präsentation')).toBe(false);
+    expect(deck.test('Erstell Notizen für die nächste wichtige Präsentation')).toBe(false);
+    // Das Zweck-Nomen selbst ist kein Adjektiv — das Bestellte bleibt bestellt.
+    expect(
+      creationOrderPattern('sharepics?').test('Erstelle für die Kampagne neue Sharepics')
+    ).toBe(true);
+    expect(deck.test('mach aus der Tabelle eine Präsentation')).toBe(true);
+  });
+
   it('Genitiv-Kette hinter der Zweck-Präposition', () => {
     const site = creationOrderPattern('website');
     expect(site.test('Mach mir Vorschläge für den Aufbau unserer Website')).toBe(false);
