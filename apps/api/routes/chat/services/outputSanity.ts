@@ -438,3 +438,41 @@ export function containsBrokenJsonPayload(text: string): boolean {
     }
   });
 }
+
+/**
+ * „Ich habe mir das notiert." ohne `memory`-Schritt (#3914, beta 30.09.2026,
+ * steps=0): der Schreiber behauptete eine Speicherung, die nie lief, obwohl die
+ * Regel im Prompt stand. Wie bei den anderen Wächtern hier entscheidet der
+ * fertige Text — Satzgrenze, nie die ganze Antwort.
+ *
+ * Eng gehalten: `notiert`/`gemerkt` und „merke mir" sind Erinnerungs-Sprache.
+ * „gespeichert" ist es nur mit Pronomen-Objekt („das", „es", „diese
+ * Information") UND nur auf einem Turn ganz ohne Schritte — sonst kann es ein
+ * Dokument meinen, das ein Werkzeug wirklich angelegt hat.
+ */
+const MEMORY_NOTE_CLAIM_RE =
+  /(?<!\p{L})(?:ich\s+habe\s+(?:mir\s+)?(?:(?:das|es|dies|alles|die|diese|deine?)\s+(?:\p{L}+\s+)?)?(?:notiert|gemerkt)|das\s+habe\s+ich\s+(?:mir\s+)?(?:notiert|gemerkt)|ich\s+(?:merke|notiere)\s+(?:mir\s+)?(?:das|es|dies|alles)|(?:das|es)\s+(?:werde|will)\s+ich\s+(?:mir\s+)?(?:merken|notieren)|ich\s+werde\s+(?:mir\s+)?(?:das|es|dies)\s+(?:merken|notieren))(?!\p{L})/iu;
+const MEMORY_SAVED_CLAIM_RE =
+  /(?<!\p{L})ich\s+habe\s+(?:(?:das|es|dies|alles|diese\s+(?:information|angabe)\p{L}*|die\s+(?:information|angabe|zahl|korrektur)\p{L}*)\s+)(?:\p{L}+\s+)?gespeichert(?!\p{L})/iu;
+
+export const PHANTOM_NOTE_FALLBACK = 'Danke für die Information.';
+
+export function stripPhantomMemoryClaim(
+  text: string,
+  turn: { memoryRan: boolean; stepCount: number }
+): { text: string; removed: string[] } {
+  if (typeof text !== 'string' || text.length === 0 || turn.memoryRan) {
+    return { text: typeof text === 'string' ? text : '', removed: [] };
+  }
+  const removed: string[] = [];
+  const kept = text.split(/(?<=[.!?])[ \t]+/).filter((sentence) => {
+    const hit =
+      MEMORY_NOTE_CLAIM_RE.test(sentence) ||
+      (turn.stepCount === 0 && MEMORY_SAVED_CLAIM_RE.test(sentence));
+    if (hit) removed.push(sentence.trim());
+    return !hit;
+  });
+  if (removed.length === 0) return { text, removed };
+  const out = kept.join(' ').trim();
+  return { text: out.length > 0 ? out : PHANTOM_NOTE_FALLBACK, removed };
+}
