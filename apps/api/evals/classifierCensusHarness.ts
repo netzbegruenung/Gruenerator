@@ -10,6 +10,7 @@ import {
 } from '../utils/decisionJournal.js';
 
 import type { ChatGraphState, ThreadToolContext } from '../agents/langgraph/ChatGraph/types.js';
+import type { EditableArtifact } from '../routes/chat/services/editAddressee.js';
 import type { ChatIntentId } from '@gruenerator/shared/chat-intents';
 import type { ModelMessage } from 'ai';
 
@@ -160,7 +161,7 @@ function buildState(
   userMessage: string,
   history: ModelMessage[],
   artifacts: ThreadToolContext[],
-  lastTurnSharepic: boolean
+  lastTurnEditables: EditableArtifact[]
 ): ChatGraphState {
   return {
     messages: [...history, { role: 'user', content: userMessage }],
@@ -181,7 +182,7 @@ function buildState(
     clientPlatform: 'web',
     ...(artifacts[0] ? { lastToolContext: artifacts[0] } : {}),
     threadArtifacts: artifacts,
-    lastTurnSharepic,
+    lastTurnEditables,
     attachmentContext: null,
     imageAttachments: [],
     threadAttachments: [],
@@ -258,9 +259,9 @@ export async function runClassifierCensus(): Promise<CensusRun> {
         : (entry.turns ?? []);
     const history: ModelMessage[] = [];
     let artifacts: ThreadToolContext[] = [];
-    // Hat der Vorturn ein Sharepic gebaut? Anders als `artifacts` vergisst das
-    // jeder Turn wieder — wie `lastTurnSharepic` im echten Thread.
-    let lastTurnSharepic = false;
+    // Hat der Vorturn ein Sharepic oder Bild gebaut? Anders als `artifacts` vergisst das
+    // jeder Turn wieder — wie `lastTurnEditables` im echten Thread.
+    let lastTurnEditables: EditableArtifact[] = [];
     /** Ab hier weiss die Kette nicht mehr, was in ihr entstanden ist. */
     let blind = false;
 
@@ -273,7 +274,7 @@ export async function runClassifierCensus(): Promise<CensusRun> {
       let intent: string;
       try {
         const result = await runWithDecisionJournal(journal, () =>
-          classifierNode(buildState(prompt, history, artifacts, lastTurnSharepic))
+          classifierNode(buildState(prompt, history, artifacts, lastTurnEditables))
         );
         intent = String(result.intent ?? '?');
       } catch (err) {
@@ -324,7 +325,7 @@ export async function runClassifierCensus(): Promise<CensusRun> {
       const kind = effectiveIntent
         ? ARTIFACT_KIND_BY_INTENT[effectiveIntent as ChatIntentId]
         : undefined;
-      lastTurnSharepic = kind === 'sharepic';
+      lastTurnEditables = kind === 'sharepic' || kind === 'image' ? [kind] : [];
       if (kind) {
         artifacts = [
           {

@@ -6,6 +6,7 @@ import {
   hasReelEditVerb,
   hasStrongReelNoun,
   namesReelTarget,
+  reelEditAddressed,
 } from './reelEditHeuristics.js';
 
 describe('isReelEditInstruction', () => {
@@ -88,8 +89,10 @@ describe('Reel-Weiche liest den Auftrag, nicht den Stoff', () => {
     [`${newsletter}\n\nrechtschreibung korrigieren`],
     [`${newsletter}\n\nübersetze das ins Englische`],
   ])('eingefügter Text mit Reizwörtern fällt durch: %s', (text) => {
-    // Über den ganzen Text greift die Weiche — das war der Ausfall.
-    expect(isReelEditInstruction(text)).toBe(true);
+    // Über den ganzen Text griff die Weiche — das war der Ausfall. Seit Verb und
+    // Nomen beieinander stehen müssen (Beta-Audit 30.09.2026), schliesst schon
+    // der Abstand diese Tür; der Auftrag bleibt die erste.
+    expect(isReelEditInstruction(text)).toBe(false);
     expect(isReelEditInstruction(orderText(text))).toBe(false);
   });
 
@@ -168,9 +171,10 @@ describe('Reel-Weiche: Schlusszeile des Stoffs', () => {
     [`rechtschreibung korrigieren:\n\n${newsletter}\n\nMehr in unseren Reels!`],
     [`Kannst du das lektorieren?\n\n${newsletter}\n\nMehr in unseren Reels!`],
   ])('holt kein Reel: %s', (message) => {
-    // Beide Ränder zusammen hätten verb∧noun geliefert — das war der Ausfall.
+    // Beide Ränder zusammen lieferten verb∧noun — das war der Ausfall. Seit
+    // Verb und Nomen im selben Satz stehen müssen, nicht mehr (Beta-Audit 30.09.2026).
     expect(isReelEditInstruction(`rechtschreibung korrigieren:\n\nMehr in unseren Reels!`)).toBe(
-      true
+      false
     );
     expect(isReelEditInstruction(orderText(message))).toBe(false);
   });
@@ -181,5 +185,52 @@ describe('Reel-Weiche: Schlusszeile des Stoffs', () => {
         orderText(`Korrigiere die Untertitel im Reel:\n\n${newsletter}\n\nSchreibt uns!`)
       )
     ).toBe(true);
+  });
+});
+
+// Beta-Audit 30.09.2026: ein starkes Nomen und ein Verb irgendwo reichten, und
+// ohne Reel im Thread öffnete das die Reel-Auswahl.
+describe('Reel-Bearbeitung — Verb am Objekt und ein Adressat', () => {
+  const none = { reelOpen: false, lastTurnReel: false };
+  const afterReel = { reelOpen: false, lastTurnReel: true };
+
+  it.each(['mach den Untertitel im Reel kürzer', 'gender die Untertitel in meinem Reel'])(
+    'bestehendes Reel im Auftrag genannt: %s',
+    (order) => {
+      expect(isReelEditInstruction(order)).toBe(true);
+      expect(reelEditAddressed(order, none)).toBe(true);
+    }
+  );
+
+  it('direkt nach einem Reel-Turn genügt der Untertitel', () => {
+    const order = 'fix den Tippfehler im Untertitel';
+    expect(isReelEditInstruction(order)).toBe(true);
+    expect(reelEditAddressed(order, afterReel)).toBe(true);
+  });
+
+  it.each([
+    'Wie mache ich gute Reels?',
+    'Schreib mir drei Ideen für Reels',
+    'Was sind gute Untertitel für Instagram?',
+  ])('kein Auftrag an ein Reel, auch direkt nach einem: %s', (order) => {
+    expect(isReelEditInstruction(order)).toBe(false);
+  });
+
+  it.each(['Wie mache ich gute Reels?', 'Schreib mir drei Ideen für Reels'])(
+    'ohne Reel-Kontext kein Adressat: %s',
+    (order) => {
+      expect(reelEditAddressed(order, none)).toBe(false);
+    }
+  );
+
+  it('verneint oder in verschiedenen Sätzen ist keine Bearbeitung', () => {
+    expect(isReelEditInstruction('Mach ein Video ohne Untertitel')).toBe(false);
+    expect(isReelEditInstruction('Mach weiter. Die Untertitel lese ich morgen.')).toBe(false);
+  });
+
+  it('das offene Reel ist immer ein Adressat', () => {
+    expect(reelEditAddressed('mach das kürzer', { reelOpen: true, lastTurnReel: false })).toBe(
+      true
+    );
   });
 });

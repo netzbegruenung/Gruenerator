@@ -936,12 +936,22 @@ export function looksMultiTopic(query: string): boolean {
 // bare noun plus a nearby creation verb also describes work ON an existing file
 // ("erstell eine Zusammenfassung des PDFs").
 const PDF_CREATE_PATTERN = creationOrderPattern(
-  'als\\s+pdf|ein\\s+pdf|pdf[\\s-]?(?:dokument|datei|formular|vorlage)|briefkopf' +
+  'als\\s+pdf|ein\\s+pdf|pdf[\\s-]?(?:dokument|datei|formular|vorlage|fragebogen)|briefkopf' +
     '|offiziell[a-zäöü]*\\s+(?:brief|schreiben|anschreiben)' +
     '|(?:ausfüllbar|ausfuellbar)[a-zäöü]*\\s+(?:formular|vorlage|dokument)' +
-    '|formular\\s+zum\\s+ausfüllen|fragebogen|anmeldebogen|antragsformular|anmeldeformular',
+    '|formular\\s+zum\\s+ausfüllen',
   { extraVerbs: 'schreib', forward: 60 }
 );
+// Die Formular-Nomen sind ein Format nur, wenn sie GEBAUT werden: ohne
+// `schreib` und nicht als Bestimmungswort („Fragebogen-Text"). „Schreib einen
+// Fragebogen-Text für die Umfrage" wurde bis zum Beta-Audit 30.09.2026 mit 0.9
+// zum PDF — bestellt war Text.
+const PDF_FORM_CREATE_PATTERN = creationOrderPattern(
+  '(?:fragebogen|anmeldebogen|antragsformular|anmeldeformular)(?![\\s-]*text)',
+  { forward: 60 }
+);
+const PDF_NOUN_PATTERN =
+  /\b(?:pdf\w*|briefkopf\w*|formular\w*|fragebogen\w*|anmeldebogen\w*|antragsformular\w*|anmeldeformular\w*)\b/i;
 
 const PRESENTATION_NOUN_SRC = 'präsentation|foliensatz|folien|slides?|pitch[\\s-]?deck';
 const PRESENTATION_CREATE_PATTERN = creationOrderPattern(PRESENTATION_NOUN_SRC);
@@ -1176,16 +1186,26 @@ export function isSummaryAsk(text: string): boolean {
   return SUMMARY_KEYWORDS_PATTERN.test(text);
 }
 
-const CHART_TYPE_NOUN_PATTERN =
-  /\b(diagramm|balkendiagramm|kreisdiagramm|liniendiagramm|tortendiagramm|chart|graph)\b/i;
-const CHART_CREATE_IMPERATIVE_PATTERN =
-  /\b(erstell|generier|mach|bau|baue|visualisier|zeig|zeichn|erzeug|stell)[etn]*\b/i;
+// Diagramm und HTML/SVG verlangten bis zum Beta-Audit 30.09.2026 nur Nomen UND
+// Verb irgendwo in der Nachricht, und `zeig[etn]*` las „zeigt" als Befehl:
+// „Erkläre mir, was das Diagramm zeigt" wurde `chart@0.88`, „Schreib mir einen
+// Text über unsere Website" wurde `artifact@0.85`. Jetzt dieselbe Bestellung wie
+// bei jedem anderen Artefakt — Verb am Nomen, beide Wortstellungen, kein
+// Zweck-Nomen (`creationOrderPattern`).
+const CHART_NOUN_SRC =
+  'diagramm|balkendiagramm|kreisdiagramm|liniendiagramm|tortendiagramm|chart|graph';
+const CHART_TYPE_NOUN_PATTERN = new RegExp(`\\b(${CHART_NOUN_SRC})\\b`, 'i');
+const CHART_CREATE_PATTERN = creationOrderPattern(CHART_NOUN_SRC, {
+  extraVerbs: 'visualisier|zeig|zeichn|stell',
+});
 const DATA_VISUALIZE_PATTERN = /\bvisualisier.{0,15}(daten|statistik|chart|werte|zahlen)\b/i;
 
-const ARTIFACT_NOUN_PATTERN =
-  /\b(html|svg|webseite|website|landingpage|landing-page|mockup|prototyp|vektorgrafik)\b/i;
-const ARTIFACT_CREATE_IMPERATIVE_PATTERN =
-  /\b(erstell|generier|mach|bau|baue|erzeug|schreib|gestalt|entwirf|entwickl)[etn]*\b/i;
+const ARTIFACT_NOUN_SRC =
+  'html|svg|webseite|website|landingpage|landing-page|mockup|prototyp|vektorgrafik';
+const ARTIFACT_NOUN_PATTERN = new RegExp(`\\b(${ARTIFACT_NOUN_SRC})\\b`, 'i');
+const ARTIFACT_CREATE_PATTERN = creationOrderPattern(ARTIFACT_NOUN_SRC, {
+  extraVerbs: 'schreib|entwickl',
+});
 
 const COUNT_PATTERN =
   /\b(z(?:ä|ae)hl\w*|anzahl|wie\s+viele?|wie\s+lang)\b[\s\S]*\b(zeichen|buchstaben|w(?:ö|oe)rter|worte|wortanzahl|zeilen|vokale|silben|absätze|abs(?:ä|ae)tze)\b/i;
@@ -1259,10 +1279,42 @@ function isVoteQuestion(text: string): boolean {
  * Abstimmungs-Verben steht daneben der Bedeutungs-Wächter oben — dieselbe Form
  * von Fehlgriff, nur aus Wortsinn statt aus Verneinung.
  */
+// Die Bild-Stichworte sind drei Verben und zwei Nomen. Ein Verb ist selbst der
+// Auftrag, aber nur in Befehls- oder Grundform: „zeichnet"/„illustriert" in
+// „Das illustriert das Problem" beschreibt etwas. Ein Nomen braucht ein
+// Erstell-Verb daran. Bis zum Beta-Audit 30.09.2026 genügte das Nomen allein,
+// über die ganze Nachricht: „Die Grafik im Bericht zeigt einen Anstieg – was
+// bedeutet das?" wurde `image@0.65`, und fiel der Auflöser aus, blieb es dabei.
+const IMAGE_FUZZY_VERBS: ReadonlySet<string> = new Set(['visualisiere', 'zeichne', 'illustriere']);
+
+function imageFuzzyOrdered(rawWord: string, order: string): boolean {
+  const word = rawWord.replace(/[^a-zäöüß]/g, '');
+  if (!word) return false;
+  if (!new RegExp(`(?:^|[^a-zäöüß])${escapeRegExp(word)}(?![a-zäöüß])`, 'i').test(order)) {
+    return false;
+  }
+  const keyword = findBestMatch(word, INTENT_KEYWORDS.image, 0.75)?.match;
+  if (keyword && IMAGE_FUZZY_VERBS.has(keyword)) return /e(?:n)?$/.test(word);
+  return creationOrderPattern(escapeRegExp(word), { forward: 20 }).test(order);
+}
+
+function chartFuzzyOrdered(rawWord: string, order: string): boolean {
+  const word = rawWord.replace(/[^a-zäöüß]/g, '');
+  if (!word) return false;
+  return creationOrderPattern(escapeRegExp(word), {
+    extraVerbs: 'visualisier|zeig|zeichn|stell',
+  }).test(order);
+}
+
 function fuzzyHit(m: AnalyzedMessage): SearchIntent | null {
   for (const word of m.lower.split(/\s+/).filter((w) => w.length >= 4)) {
     const fuzzyIntent = fuzzyMatchIntent(word);
     if (!fuzzyIntent) continue;
+    if (fuzzyIntent === 'image' && !imageFuzzyOrdered(word, m.order.stripped)) continue;
+    // Dasselbe für die Diagramm-Nomen: „Erkläre mir, was das Diagramm zeigt"
+    // wurde über diesen Fänger `chart@0.65`, nachdem die Diagramm-Regel oben
+    // es nicht mehr nahm (Beta-Audit 30.09.2026).
+    if (fuzzyIntent === 'chart' && !chartFuzzyOrdered(word, m.order.stripped)) continue;
     if (GENERATION_FUZZY_INTENTS.has(fuzzyIntent)) {
       const kw = INTENT_KEYWORDS[fuzzyIntent as keyof typeof INTENT_KEYWORDS] ?? [];
       if (kw.length > 0) {
@@ -1367,11 +1419,17 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
   // Fertiges PDF inkl. Briefkopf und ausfüllbarer Formulare. VOR save_as_doc,
   // damit "mach ein PDF-Dokument daraus" nicht von machDaraus gestohlen wird.
   // Deck-Nomen ausgenommen: "Präsentation als PDF" baut weiterhin einen Foliensatz.
+  // Bis zum Beta-Audit 30.09.2026 ohne Wächter und über `lower` (Zitate
+  // eingeschlossen): „kein PDF, nur Text bitte" und reportierte Rede konnten
+  // das PDF bestellen.
   {
     id: 'create_pdf',
     longPaste: 'skip',
-    guard: 'none',
-    match: (m) => PDF_CREATE_PATTERN.test(m.lower) && !DECK_NOUN_PATTERN.test(m.lower),
+    guard: 'negatedOrMeta',
+    guardNoun: PDF_NOUN_PATTERN,
+    match: (m) =>
+      (PDF_CREATE_PATTERN.test(m.stripped) || PDF_FORM_CREATE_PATTERN.test(m.stripped)) &&
+      !DECK_NOUN_PATTERN.test(m.stripped),
     result: () => ({
       intent: 'create_pdf',
       searchQuery: null,
@@ -1454,10 +1512,7 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
     longPaste: 'skip',
     guard: 'negatedOrMeta',
     guardNoun: CHART_TYPE_NOUN_PATTERN,
-    match: (m) =>
-      (CHART_TYPE_NOUN_PATTERN.test(m.stripped) &&
-        CHART_CREATE_IMPERATIVE_PATTERN.test(m.stripped)) ||
-      DATA_VISUALIZE_PATTERN.test(m.stripped),
+    match: (m) => CHART_CREATE_PATTERN.test(m.stripped) || DATA_VISUALIZE_PATTERN.test(m.stripped),
     result: (m) => ({
       intent: 'chart',
       searchQuery: m.raw,
@@ -1490,8 +1545,7 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
     longPaste: 'skip',
     guard: 'negatedOrMeta',
     guardNoun: ARTIFACT_NOUN_PATTERN,
-    match: (m) =>
-      ARTIFACT_NOUN_PATTERN.test(m.stripped) && ARTIFACT_CREATE_IMPERATIVE_PATTERN.test(m.stripped),
+    match: (m) => ARTIFACT_CREATE_PATTERN.test(m.stripped),
     result: (m) => ({
       intent: 'artifact',
       searchQuery: m.raw,

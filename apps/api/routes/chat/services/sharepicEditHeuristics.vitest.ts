@@ -6,7 +6,6 @@ import {
   isSharepicEditInstruction,
   isVerificationQuestion,
   namesSharepicTarget,
-  priorTurnMadeSharepic,
   sharepicEditAddressed,
 } from './sharepicEditHeuristics.js';
 
@@ -333,15 +332,36 @@ describe('sharepicEditAddressed', () => {
   });
 });
 
-describe('priorTurnMadeSharepic', () => {
-  it('zählt ein neues Sharepic und eine Bearbeitung', () => {
-    expect(priorTurnMadeSharepic([{ kind: 'sharepic' }], [])).toBe(true);
-    // Die zweite Korrektur in Folge: der Turn davor speicherte nur `sharepic_edit`.
-    expect(priorTurnMadeSharepic([], [{ toolName: 'sharepic_edit' }])).toBe(true);
+// Beta-Audit 30.09.2026: Verb und Nomen irgendwo in der Nachricht genügten —
+// direkt nach einem Sharepic ist der Adressat da, also entscheidet das Prädikat.
+describe('isSharepicEditInstruction — Verb am Nomen', () => {
+  it.each([
+    'Zeile 2 kürzer',
+    'mach den Text kürzer',
+    'anderes Hintergrundbild',
+    'setz das Datum auf Freitag',
+    'Farbe grüner',
+    'mach die Schrift heller',
+    'Wie wäre es mit einem anderen Hintergrundbild?',
+  ])('bleibt Bearbeitung: %s', (text) => {
+    expect(isSharepicEditInstruction(text)).toBe(true);
   });
 
-  it('zählt keinen anderen Turn', () => {
-    expect(priorTurnMadeSharepic([], [])).toBe(false);
-    expect(priorTurnMadeSharepic([{ kind: 'document' }], [{ toolName: 'web_search' }])).toBe(false);
+  it.each([
+    'Zeig mir den Text des Beschlusses',
+    'Mach mir eine Liste der Argumente für die Wärmepumpe',
+    // Verb und Nomen in verschiedenen Sätzen.
+    'Mach weiter so. Den Text zum Beschluss lese ich später.',
+    // Frage nach dem Weg, nicht Auftrag.
+    'Wie mache ich den Text kürzer?',
+    // Komparativ ohne Wortende-Treffer.
+    'Das Grünere Wahlprogramm hat mehr Text',
+  ])('keine Bearbeitung: %s', (text) => {
+    expect(isSharepicEditInstruction(text)).toBe(false);
+  });
+
+  it('ein schwaches Verb am Allerweltsnomen zählt mit Sharepic-Feld oder Rückverweis', () => {
+    expect(isSharepicEditInstruction('zeig den Text in Zeile 2 fett')).toBe(true);
+    expect(isSharepicEditInstruction('mach eine Liste draus')).toBe(true);
   });
 });

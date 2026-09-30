@@ -55,6 +55,7 @@ import {
 } from './attachmentProcessingService.js';
 import { countCloudConnections } from './cloudConnectionContext.js';
 import { enrichContext } from './contextEnrichmentService.js';
+import { priorTurnEditables } from './editAddressee.js';
 import { backfillEmptyUserMessages } from './historyBackfill.js';
 import {
   extractTextContent,
@@ -62,7 +63,6 @@ import {
   sanitizeUIFileParts,
 } from './messageHelpers.js';
 import { notebookIdsForTurn } from './notebookScopeFromText.js';
-import { priorTurnMadeSharepic } from './sharepicEditHeuristics.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canWriteThread } from './threadAccessService.js';
 import {
@@ -897,7 +897,7 @@ export async function buildStreamContext({
     const lastTurnSteps = history?.lastTurnToolSteps() ?? [];
     initialState.lastTurnNotebookId = notebookIdFromSteps(lastTurnSteps);
     initialState.lastTurnRetrievalFailed = priorTurnRetrievalFailed(lastTurnSteps);
-    initialState.lastTurnSharepic = priorTurnMadeSharepic(
+    initialState.lastTurnEditables = priorTurnEditables(
       history?.lastTurnArtifacts() ?? [],
       lastTurnSteps
     );

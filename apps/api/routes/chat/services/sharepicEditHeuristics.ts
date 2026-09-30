@@ -8,6 +8,8 @@
  * (the old `\w*` behavior, now including umlaut continuations).
  */
 
+import { isQuestionAboutEditing, verbNearNoun } from './editAddressee.js';
+
 // `ergänz`/`hinzufüg`/`einfüg` are ADD verbs, and their absence was a hole, not
 // a scope decision: "Und jetzt noch die Uhrzeit 15 Uhr ergänzen" after a
 // sharepic matched no edit verb anywhere, so neither the classifier's Tier 2.7
@@ -24,8 +26,14 @@
 //    while "trag/trage/tragt/tragen" and "füg/füge/fügst/fügt" stay in;
 //  - the particle must sit in the SAME clause, which is where German puts it —
 //    hence `,` and `;` end the window alongside sentence punctuation.
+//
+// Die Farb-, Mass- und Ton-Komparative am Ende sind Verben im Sinn dieser
+// Weiche: „Farbe grüner" nannte ein Feld und sagte, wie es werden soll, und traf
+// bis zum Beta-Audit 30.09.2026 keine Tür; „mach den Text knackiger" braucht sie,
+// seit „mach" am Allerweltsnomen „Text" allein nicht mehr zählt. Mit Wortende, damit „Grüneres Wahlprogramm"
+// oder „längerfristig" nicht zählen.
 const EDIT_VERB_PATTERN =
-  /(?<!\p{L})(änder|aender|mach|verschieb|beweg|setz|tausch|ersetz|wechsel|vergrößer|vergroesser|verklein|größer|groesser|kleiner|höher|hoeher|tiefer|kürz|kuerz|verläng|verlaeng|anpass|entfern|ausblend|einblend|zeig|versteck|ergänz|ergaenz|hinzufüg|hinzufueg|einfüg|einfueg|(?:füg|fueg|trag)(?:e|st|t|en)?\s[^.!?,;\n]{0,80}?(?<!\p{L})(?:ein|hinzu|dazu|rein)(?!\p{L})|bestück|bestueck|nach\s+(?:oben|unten|links|rechts)|anderes?|neues?)/iu;
+  /(?<!\p{L})(änder|aender|mach|verschieb|beweg|setz|tausch|ersetz|wechsel|vergrößer|vergroesser|verklein|größer|groesser|kleiner|höher|hoeher|tiefer|kürz|kuerz|verläng|verlaeng|anpass|entfern|ausblend|einblend|zeig|versteck|ergänz|ergaenz|hinzufüg|hinzufueg|einfüg|einfueg|(?:füg|fueg|trag)(?:e|st|t|en)?\s[^.!?,;\n]{0,80}?(?<!\p{L})(?:ein|hinzu|dazu|rein)(?!\p{L})|bestück|bestueck|nach\s+(?:oben|unten|links|rechts)|anderes?|neues?|(?:dunkler|heller|gr(?:ü|ue)ner|blauer|bunter|kr(?:ä|ae)ftiger|fetter|d(?:ü|ue)nner|breiter|schmaler|l(?:ä|ae)nger|knackiger|pr(?:ä|ae)gnanter|emotionaler|sachlicher|lockerer|freundlicher|f(?:ö|oe)rmlicher)(?!\p{L}))/iu;
 
 // `uhrzeit`/`datum` for the same reason: an invitation sharepic is exactly the
 // template where they are the fields being edited. Kept to the two unambiguous
@@ -148,22 +156,6 @@ export function namesSharepicTarget(text: string): boolean {
  * oder „Mach mir eine Liste der Argumente" eine Sharepic-Bearbeitung. Eine
  * Regel für beide Türen: die Router-Weichen und Tier 2.7 des Klassifikators.
  */
-/**
- * Hat der Turn direkt davor ein Sharepic gebaut oder bearbeitet? Eine
- * Bearbeitung speichert `sharepic_edit` statt neuer Varianten und taucht in den
- * Artefakten deshalb nicht auf — ohne den zweiten Halbsatz bräche die zweite
- * Korrektur in Folge („Zeile 2 kürzer", dann „und grüner") am Adressaten ab.
- */
-export function priorTurnMadeSharepic(
-  artifacts: ReadonlyArray<{ kind: string }>,
-  steps: ReadonlyArray<{ toolName: string }>
-): boolean {
-  return (
-    artifacts.some((a) => a.kind === 'sharepic') ||
-    steps.some((step) => step.toolName === 'sharepic_edit')
-  );
-}
-
 export function sharepicEditAddressed(
   order: string,
   context: { cardOpen: boolean; lastTurnSharepic: boolean }
@@ -171,10 +163,33 @@ export function sharepicEditAddressed(
   return context.cardOpen || context.lastTurnSharepic || namesSharepicTarget(order);
 }
 
+// „mach"/„zeig"/„anderes"/„neues" sind die Verben, die ebenso gut etwas NEUES
+// bestellen oder zeigen lassen, und Text, Liste, Datum, Seite und Stichpunkte
+// sind die Nomen, die ebenso gut den Stoff meinen. Ein solches Paar allein ist
+// kein Auftrag an das Sharepic: „Zeig mir den Text des Beschlusses", „Mach mir
+// eine Liste der Argumente für die Wärmepumpe" (Beta-Audit 30.09.2026). Es
+// braucht im selben Satz ein Sharepic-Feld oder einen Rückverweis („mach eine
+// Aufzählung draus"); ein stärkeres Verb („mach den Text kürzer") paart sich
+// ohnehin selbst.
+const WEAK_EDIT_VERB = /^(?:mach|zeig|anderes?|neues?)$/iu;
+const GENERIC_EDIT_NOUN =
+  /^(?:text|liste|datum|seite\s*\d*|stichpunkt|stichwort|aufzähl|aufzaehl|bullet(?:[\s-]?points?|s)?)$/iu;
+const BACK_REFERENCE_PATTERN =
+  /(?<!\p{L})(?:draus|daraus|dort|drauf|darauf|rein|hinein|drin|darin)(?!\p{L})/iu;
+
+function editPairCounts(verb: string, noun: string, clause: string): boolean {
+  if (!WEAK_EDIT_VERB.test(verb) || !GENERIC_EDIT_NOUN.test(noun)) return true;
+  return namesSharepicTarget(clause) || BACK_REFERENCE_PATTERN.test(clause);
+}
+
 export function isSharepicEditInstruction(text: string): boolean {
   if (NEW_VARIANTS_PATTERN.test(text)) return false;
   if (NEW_ARTIFACT_PATTERN.test(text)) return false;
   if (OTHER_ARTIFACT_OBJECT_PATTERN.test(text)) return false;
   if (isVerificationQuestion(text)) return false;
-  return EDIT_VERB_PATTERN.test(text) && EDIT_NOUN_PATTERN.test(text);
+  // „Wie mache ich den Text kürzer?" fragt nach dem Weg, nicht nach der Änderung.
+  if (isQuestionAboutEditing(text)) return false;
+  // Verb und Nomen müssen beieinander stehen — irgendwo in der Nachricht
+  // paarte „zeig" aus dem einen Satz mit „Liste" aus dem nächsten.
+  return verbNearNoun(text, EDIT_VERB_PATTERN, EDIT_NOUN_PATTERN, { accept: editPairCounts });
 }
