@@ -275,6 +275,8 @@ describe('heuristicClassify — Relativsatz und Genitiv-Kette', () => {
     ['Erstelle eine Rede, die das Chart von gestern erwähnt', 'chart'],
     ['Mach mir Vorschläge für den Aufbau unserer Website', 'artifact'],
     ['Erstell eine Gliederung, die die Tabelle erklärt', 'create_sheet'],
+    ['Mach mir Stichpunkte für die geplante morgige Präsentation', 'create_presentation'],
+    ['Mach Stichpunkte für die geplante morgige Präsentation', 'create_presentation'],
   ])('kein Artefakt: %s', (text, intent) => {
     expect(heuristicClassify(text).intent).not.toBe(intent);
   });
@@ -285,6 +287,7 @@ describe('heuristicClassify — Relativsatz und Genitiv-Kette', () => {
     ['Erstelle ein Sharepic zur Wärmepumpe', 'sharepic'],
     ['mach daraus eine Präsentation', 'create_presentation'],
     ['mach eine Tabelle mit den Zahlen', 'create_sheet'],
+    ['Erstelle für die Kampagne neue Sharepics', 'sharepic'],
   ])('bleibt Auftrag: %s', (text, intent) => {
     expect(heuristicClassify(text).intent).toBe(intent);
   });
