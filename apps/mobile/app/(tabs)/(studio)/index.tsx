@@ -1,9 +1,9 @@
 import { useRouter, type Href } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { ScrollView, StyleSheet, View, useColorScheme } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 
-import { BottomSheet } from '../../../components/common/BottomSheet';
+import { CreateMenuSheet } from '../../../components/common/CreateMenuSheet';
 import { EmptyState } from '../../../components/common/EmptyState';
 import { Fab } from '../../../components/common/Fab';
 import { RecentItemsSection } from '../../../components/common/RecentItemsSection';
@@ -17,7 +17,7 @@ import { useOpenRecentItem } from '../../../hooks/useRecentActivity';
 import { useStudioMedia } from '../../../hooks/useStudioMedia';
 import { useTabBarClearance } from '../../../hooks/useTabBarClearance';
 import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
-import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
+import { spacing } from '../../../theme';
 import { getSurfaceFab, getToolTheme } from '../../../theme/toolTheme';
 
 const SECTION_LIMIT = 6;
@@ -37,7 +37,6 @@ export default function StudioScreen() {
   const fabBottom = useTabBarClearance(spacing.small);
   const router = useRouter();
   const isDark = useColorScheme() === 'dark';
-  const theme = isDark ? darkTheme : lightTheme;
   const fabTone = getSurfaceFab('studio', isDark);
   const { sharepics, kiImages, reels, isLoading, isError, refetch } = useStudioMedia();
   const openItem = useOpenRecentItem();
@@ -173,36 +172,21 @@ export default function StudioScreen() {
         }}
       />
 
-      <BottomSheet visible={createOpen} onClose={() => setCreateOpen(false)} padded>
-        <Text style={[styles.sheetTitle, { color: theme.text }]}>Neu erstellen</Text>
-        {STUDIO_TOOLS.map((tool) => {
+      <CreateMenuSheet
+        visible={createOpen}
+        onClose={() => setCreateOpen(false)}
+        entries={STUDIO_TOOLS.map((tool) => {
           const tone = getToolTheme(tool.id, isDark);
-          return (
-            <Pressable
-              key={tool.id}
-              onPress={() => {
-                setCreateOpen(false);
-                router.push(tool.route as Href);
-              }}
-              style={({ pressed }) => [
-                styles.row,
-                { backgroundColor: pressed ? theme.surface : 'transparent' },
-              ]}
-              accessibilityRole="button"
-            >
-              <View style={[styles.rowIcon, { backgroundColor: tone.tile }]}>
-                <MenuIcon name={tool.icon} size={22} color={tone.icon} />
-              </View>
-              <View style={styles.rowText}>
-                <Text style={[styles.rowTitle, { color: theme.text }]}>{tool.title}</Text>
-                <Text style={[styles.rowDesc, { color: theme.textSecondary }]}>
-                  {tool.description}
-                </Text>
-              </View>
-            </Pressable>
-          );
+          return {
+            key: tool.id,
+            title: tool.title,
+            description: tool.description,
+            tone,
+            icon: <MenuIcon name={tool.icon} size={22} color={tone.icon} />,
+            onPress: () => router.push(tool.route as Href),
+          };
         })}
-      </BottomSheet>
+      />
     </ScreenScaffold>
   );
 }
@@ -220,37 +204,5 @@ const styles = StyleSheet.create({
   },
   section: {
     paddingTop: spacing.large,
-  },
-  sheetTitle: {
-    fontFamily: 'Raleway_700Bold',
-    fontSize: 18,
-    paddingBottom: spacing.small,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.small,
-    paddingVertical: spacing.small,
-    paddingHorizontal: spacing.xsmall,
-    borderRadius: borderRadius.medium,
-  },
-  rowIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.medium,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowText: {
-    flex: 1,
-  },
-  rowTitle: {
-    fontFamily: 'Raleway_600SemiBold',
-    fontSize: 16,
-  },
-  rowDesc: {
-    fontFamily: BODY_FONT,
-    fontSize: 13,
-    marginTop: 1,
   },
 });
