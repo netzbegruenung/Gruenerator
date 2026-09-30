@@ -259,8 +259,9 @@ export async function runClassifierCensus(): Promise<CensusRun> {
         : (entry.turns ?? []);
     const history: ModelMessage[] = [];
     let artifacts: ThreadToolContext[] = [];
-    // Hat der Vorturn ein Sharepic oder Bild gebaut? Anders als `artifacts` vergisst das
-    // jeder Turn wieder — wie `lastTurnEditables` im echten Thread.
+    // Hat der Vorturn ein Sharepic, Bild, Dokument oder eine Tabelle gebaut?
+    // Anders als `artifacts` vergisst das jeder Turn wieder — wie
+    // `lastTurnEditables` im echten Thread.
     let lastTurnEditables: EditableArtifact[] = [];
     /** Ab hier weiss die Kette nicht mehr, was in ihr entstanden ist. */
     let blind = false;
@@ -325,7 +326,10 @@ export async function runClassifierCensus(): Promise<CensusRun> {
       const kind = effectiveIntent
         ? ARTIFACT_KIND_BY_INTENT[effectiveIntent as ChatIntentId]
         : undefined;
-      lastTurnEditables = kind === 'sharepic' || kind === 'image' ? [kind] : [];
+      lastTurnEditables =
+        kind === 'sharepic' || kind === 'image' || kind === 'document' || kind === 'sheet'
+          ? [kind]
+          : [];
       if (kind) {
         artifacts = [
           {

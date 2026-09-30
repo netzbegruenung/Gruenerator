@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 
-import { isQuestionAboutEditing, priorTurnEditables, verbNearNoun } from './editAddressee.js';
+import {
+  isQuestionAboutEditing,
+  namesDocumentTarget,
+  namesSheetTarget,
+  priorTurnEditables,
+  verbNearNoun,
+} from './editAddressee.js';
 
 describe('priorTurnEditables', () => {
   it('zählt ein neues Sharepic und eine Bearbeitung', () => {
@@ -39,10 +45,67 @@ describe('priorTurnEditables', () => {
     ).toEqual(['sharepic']);
   });
 
+  it('kennt Dokument und Tabelle aus Artefakt, Schritt und Intent (#3941)', () => {
+    expect(priorTurnEditables([{ kind: 'document' }], [])).toEqual(['document']);
+    expect(priorTurnEditables([{ kind: 'sheet' }], [])).toEqual(['sheet']);
+    expect(priorTurnEditables([], [{ toolName: 'create_document' }])).toEqual(['document']);
+    expect(priorTurnEditables([], [{ toolName: 'create_sheet' }])).toEqual(['sheet']);
+    // Die Bearbeitungen speichern keinen Schritt, nur ihren Intent.
+    expect(priorTurnEditables([], [], 'modify_doc')).toEqual(['document']);
+    expect(priorTurnEditables([], [], 'edit_sheet')).toEqual(['sheet']);
+  });
+
   it('zählt keinen anderen Turn', () => {
     expect(priorTurnEditables([], [])).toEqual([]);
-    expect(priorTurnEditables([{ kind: 'document' }], [{ toolName: 'web_search' }])).toEqual([]);
+    expect(priorTurnEditables([{ kind: 'presentation' }], [{ toolName: 'web_search' }])).toEqual(
+      []
+    );
+    expect(priorTurnEditables([], [], 'direct')).toEqual([]);
   });
+});
+
+describe('namesDocumentTarget / namesSheetTarget', () => {
+  it.each(['kürz das Dokument', 'den Text im Dokument straffen', 'Überarbeite dieses Dokument'])(
+    'nennt das Dokument: %s',
+    (text) => {
+      expect(namesDocumentTarget(text, null)).toBe(true);
+    }
+  );
+
+  it.each([
+    'Verbesser meine Formulierung: Wir fordern mehr Radwege.',
+    'Erstelle ein Dokument',
+    'Verbessere die Dokumentation',
+  ])('nennt kein Dokument: %s', (text) => {
+    expect(namesDocumentTarget(text, null)).toBe(false);
+  });
+
+  it('der Titel zählt als Name', () => {
+    expect(namesDocumentTarget('kürz den Antrag Radverkehr', 'Antrag Radverkehr')).toBe(true);
+    expect(
+      namesDocumentTarget(
+        'Kürze in dem Antrag von vorhin die Begründung auf die Hälfte',
+        'Antrag für einen autofreien Sonntag'
+      )
+    ).toBe(true);
+    expect(namesDocumentTarget('Verbesser meinen Absatz zum Radverkehr', 'Antrag Radverkehr')).toBe(
+      false
+    );
+  });
+
+  it.each(['die Tabelle', 'füg in der Tabelle eine Zeile ein', 'in meiner Tabelle'])(
+    'nennt die Tabelle: %s',
+    (text) => {
+      expect(namesSheetTarget(text, null)).toBe(true);
+    }
+  );
+
+  it.each(['füg eine Tabelle ein', 'Entfern bitte die Füllwörter aus meinem Absatz'])(
+    'nennt keine Tabelle: %s',
+    (text) => {
+      expect(namesSheetTarget(text, null)).toBe(false);
+    }
+  );
 });
 
 describe('verbNearNoun', () => {
