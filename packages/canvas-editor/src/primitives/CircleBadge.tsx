@@ -15,6 +15,7 @@ import { Group, Circle, Text, Rect, Transformer } from 'react-konva';
 
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateElementSnapPosition } from '../utils/snapping';
+import { stageCssScale } from '../utils/stageCssScale';
 
 import type { SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
@@ -171,10 +172,11 @@ function CircleBadgeInner({
       setEditingIndex(index);
 
       const stageBox = stage.container().getBoundingClientRect();
+      const cssScale = stageCssScale(stage, stageBox);
       const textPosition = textNode.getAbsolutePosition();
       const absScale = textNode.getAbsoluteScale();
-      const scaleX = absScale.x;
-      const scaleY = absScale.y;
+      const scaleX = absScale.x * cssScale;
+      const scaleY = absScale.y * cssScale;
 
       let input = inputRef.current;
       if (!input) {
@@ -192,8 +194,8 @@ function CircleBadgeInner({
 
       input.value = line.text;
       input.style.position = 'absolute';
-      input.style.top = `${stageBox.top + scrollY + textPosition.y}px`;
-      input.style.left = `${stageBox.left + scrollX + textPosition.x}px`;
+      input.style.top = `${stageBox.top + scrollY + textPosition.y * cssScale}px`;
+      input.style.left = `${stageBox.left + scrollX + textPosition.x * cssScale}px`;
       input.style.width = `${radius * 2 * scaleX}px`;
       input.style.height = `${textH * scaleY}px`;
       input.style.fontSize = `${line.fontSize * scaleY}px`;

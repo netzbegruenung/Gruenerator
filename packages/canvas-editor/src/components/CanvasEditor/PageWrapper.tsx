@@ -1,10 +1,9 @@
 import React, { useCallback, memo } from 'react';
 
+import { cn } from '../../utils/cn';
 import { GenericCanvas } from '../GenericCanvas';
 import { PageToolbar } from '../PageToolbar';
 import { ZoomableViewport } from '../ZoomableViewport';
-
-import { cn } from '../../utils/cn';
 
 import type { PageWrapperProps } from './types';
 
@@ -49,13 +48,32 @@ export const PageWrapper = memo(function PageWrapper({
     [onStateChange, page.id]
   );
 
-  // Functional setState callback (Rule 5.5: stable callback)
-  const handleSelect = useCallback(() => {
-    onSelect(index);
-  }, [onSelect, index]);
+  // A mouse activates the page on pointer-down (capture), so the page switch —
+  // and the toolbar swap it causes — happens before a Konva drag starts; the
+  // click that ends a drag used to switch pages mid-gesture. Touch waits for
+  // the tap: a pointer-down there may start a scroll, and Konva cancels
+  // `touchstart` on shapes, so a touch drag never ends in a click. The page's
+  // own toolbar buttons act on their page without activating it.
+  const activateFrom = useCallback(
+    (target: EventTarget) => {
+      if (isActive || (target as Element).closest('button')) return;
+      onSelect(index);
+    },
+    [isActive, onSelect, index]
+  );
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.pointerType === 'mouse' && e.button === 0) activateFrom(e.target);
+    },
+    [activateFrom]
+  );
+  const handleClick = useCallback((e: React.MouseEvent) => activateFrom(e.target), [activateFrom]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      // Only the wrapper itself — a bubbled Enter/Space from a toolbar button
+      // must keep activating that button.
+      if (e.target !== e.currentTarget) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         onSelect(index);
@@ -73,7 +91,8 @@ export const PageWrapper = memo(function PageWrapper({
         '[&_.zoomable-viewport-wrapper]:w-fit [&_.zoomable-viewport-container]:p-0 [&_.zoomable-viewport-container]:overflow-visible',
         isActive && 'heterogeneous-multipage__page-wrapper--active'
       )}
-      onClick={handleSelect}
+      onPointerDownCapture={handlePointerDown}
+      onClick={handleClick}
       role="button"
       tabIndex={0}
       onKeyDown={handleKeyDown}
@@ -107,6 +126,7 @@ export const PageWrapper = memo(function PageWrapper({
           onToolbarStateChange={onToolbarStateChange}
           onAutoSaveShareToken={onAutoSaveShareToken}
           onLiveState={isActive ? handleLiveState : undefined}
+          isActivePage={isActive}
           autoSave={autoSave}
           pageBinding={pageBinding}
         />

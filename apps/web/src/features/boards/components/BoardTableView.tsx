@@ -3,9 +3,9 @@ import { memo, useMemo, useCallback } from 'react';
 import { FIELD_IDS } from '../types';
 
 import type { Field, Row, SelectOption, CellValue } from '../types';
-import type { ColumnDef } from '@tanstack/react-table';
 
 import {
+  type ColumnDef,
   TableProvider,
   TableHeader,
   TableHeaderGroup,
