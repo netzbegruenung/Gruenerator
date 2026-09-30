@@ -724,7 +724,10 @@ export function compoundGenerationKind(
    */
   pinnedKind: ArtifactKindId | null = null
 ): CompoundGenerationKind | null {
-  const t = (raw ?? '').trim();
+  // Nur der Auftrag: die Art GARANTIERT ein Artefakt (`forceCompoundGeneration`),
+  // und „die neue Suche findet …" oder „Sharepics" in einem eingefügten
+  // Newsletter hat so ein Sharepic unter jede Korrektur gesetzt (Beta 30.09.2026).
+  const t = orderText(raw ?? '');
   // A NAMED generation intent has a single-pass dispatcher of its own, so only a
   // turn that ALSO carries a research signal is lifted into the loop; without it
   // `null` means "the dispatcher builds it", which is correct and faster.

@@ -1543,3 +1543,26 @@ describe('asksAboutOwnPastAction', () => {
     expect(asksAboutOwnPastAction('hast du bei der FDP nachgeschaut?')).toBe(true);
   });
 });
+
+// Die Art GARANTIERT ein Artefakt (forceCompoundGeneration). Beta 30.09.2026:
+// „die neue Suche findet …" und „Sharepics" im eingefügten Newsletter setzten
+// ein Sharepic unter jede Korrektur.
+describe('compoundGenerationKind — liest nur den Auftrag', () => {
+  const NEWSLETTER =
+    'Im September hat der Kreisverband zwei neue Werkzeuge vorgestellt: Der Untertitler versieht Reels automatish mit Untertiteln, und die neue Suche findet Beschlüsse aus den letzten zehn Jahren. Beim Sommerfest kamen über 80 Menschen, und unsere Sharepics zur Kommunalwahl wurden mehr als 2.000 Mal geteilt. Schreibt uns eure Rückmeldungne bis zum 15. Oktober!';
+
+  it('leitet aus Stoff mit Recherche- und Sharepic-Wörtern keine Art ab', () => {
+    expect(
+      compoundGenerationKind('sharepic', `${NEWSLETTER}\n\nrechtschreibung korrigieren`)
+    ).toBeNull();
+    expect(
+      compoundGenerationKind('agentic', `${NEWSLETTER}\n\nübersetze das ins Englische`)
+    ).toBeNull();
+  });
+
+  it('behält die Art, wenn der Auftrag sie nennt', () => {
+    expect(
+      compoundGenerationKind('sharepic', `${NEWSLETTER}\n\nRecherchiere dazu und mach ein Sharepic`)
+    ).toBe('sharepic');
+  });
+});
