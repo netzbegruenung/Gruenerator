@@ -381,10 +381,12 @@ pub fn run() {
                     #[cfg(debug_assertions)]
                     main_window.open_devtools();
 
-                    // The window keeps native decorations on macOS so the traffic
-                    // lights render via `titleBarStyle: "Overlay"`. On Windows/Linux
-                    // we go frameless and draw our own caption controls (DesktopTitlebar).
-                    #[cfg(not(target_os = "macos"))]
+                    // The window keeps native decorations on macOS (traffic lights via
+                    // `titleBarStyle: "Overlay"`) and on Linux (button order/side/presence
+                    // come from the desktop environment, which we cannot reproduce).
+                    // Only Windows goes frameless and draws its own caption controls
+                    // (DesktopTitlebar).
+                    #[cfg(target_os = "windows")]
                     {
                         let _ = main_window.set_decorations(false);
                     }

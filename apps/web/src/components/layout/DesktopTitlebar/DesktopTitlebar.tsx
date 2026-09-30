@@ -54,10 +54,11 @@ const TitlebarFallback = () => (
 );
 
 /**
- * Windows / Linux caption controls (minimize, maximize, close) following the
+ * Windows caption controls (minimize, maximize, close) following the
  * Windows 11 layout: equal-width buttons docked top-right, close turns red on hover.
- * On macOS these are intentionally not rendered — the native traffic lights are
- * overlaid by the OS via `titleBarStyle: "Overlay"`.
+ * On macOS and Linux these are intentionally not rendered — the window keeps its
+ * native decorations (macOS traffic lights via `titleBarStyle: "Overlay"`, Linux
+ * window-manager buttons in the layout the desktop environment configures).
  */
 const CaptionControls = () => (
   <div className="flex items-center h-full" style={appRegionNoDrag}>
@@ -98,7 +99,7 @@ const CaptionControls = () => (
 const DesktopTitlebar = () => {
   if (!isDesktopApp()) return null;
 
-  const isMac = getDesktopOS() === 'macos';
+  const hasCustomCaption = getDesktopOS() === 'windows';
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
@@ -114,11 +115,11 @@ const DesktopTitlebar = () => {
       className="fixed top-0 left-0 right-0 h-[var(--titlebar-height)] bg-[var(--bar-background)] flex items-center justify-between z-[9999] select-none"
       style={{
         ...appRegionDrag,
-        // macOS keeps the native title bar (traffic lights live there); this row holds
-        // the tabs beneath it. Windows/Linux are frameless, so tabs hug the edge and
-        // the custom caption controls sit on the right.
+        // macOS and Linux keep the native title bar; this row holds the tabs beneath
+        // it. Windows is frameless, so tabs hug the edge and the custom caption
+        // controls sit on the right.
         paddingLeft: 8,
-        paddingRight: isMac ? 8 : 0,
+        paddingRight: hasCustomCaption ? 0 : 8,
       }}
       data-tauri-drag-region
       onDoubleClick={handleDoubleClick}
@@ -129,7 +130,7 @@ const DesktopTitlebar = () => {
         </Suspense>
       </TabBarErrorBoundary>
 
-      {!isMac && <CaptionControls />}
+      {hasCustomCaption && <CaptionControls />}
     </div>
   );
 };
