@@ -51,6 +51,18 @@ export async function getViewer(
   userId: string,
   checkInstanceAdmin: (userId: string) => Promise<boolean> = isInstanceAdmin
 ): Promise<Viewer> {
+  const viewer = await findViewer(postgres, groupId, userId, checkInstanceAdmin);
+  if (!viewer) throw new Error('Du bist nicht Mitglied dieser Gruppe.');
+  return viewer;
+}
+
+/** Wie `getViewer`, aber `null` statt Wurf, wenn nicht Mitglied oder die Gruppe im Papierkorb liegt. */
+export async function findViewer(
+  postgres: Pick<GroupFeedDeps['postgres'], 'queryOne'>,
+  groupId: string,
+  userId: string,
+  checkInstanceAdmin: (userId: string) => Promise<boolean> = isInstanceAdmin
+): Promise<Viewer | null> {
   const row = (await postgres.queryOne(
     `SELECT gm.role, g.group_type, g.created_by, g.is_system
        FROM group_memberships gm
@@ -64,7 +76,7 @@ export async function getViewer(
     created_by: string | null;
     is_system: boolean | null;
   } | null;
-  if (!row) throw new Error('Du bist nicht Mitglied dieser Gruppe.');
+  if (!row) return null;
   const isAdmin = row.is_system
     ? await checkInstanceAdmin(userId)
     : row.role === 'admin' || row.created_by === userId;
