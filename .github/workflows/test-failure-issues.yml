@@ -49,9 +49,15 @@ jobs:
             --description "Automated report of a failing test" --force >/dev/null 2>&1 || true
 
           : > failures.tsv
-          for JOB in $(gh run view "$RUN_ID" --repo "$REPO" --json jobs \
-              --jq '.jobs[] | select(.conclusion == "failure") | .databaseId'); do
-            gh api "repos/$REPO/actions/jobs/$JOB/logs" > "job-$JOB.log" 2>/dev/null || continue
+          JOBS=$(gh run view "$RUN_ID" --repo "$REPO" --json jobs \
+            --jq '.jobs[] | select(.conclusion == "failure") | .databaseId')
+          echo "Failed jobs: ${JOBS:-none}"
+          for JOB in $JOBS; do
+            if ! gh api "repos/$REPO/actions/jobs/$JOB/logs" > "job-$JOB.log"; then
+              echo "::warning::Could not download the log of job $JOB"
+              continue
+            fi
+            echo "Job $JOB: $(wc -c < "job-$JOB.log") bytes of log"
             .github/scripts/failed-tests.sh < "job-$JOB.log" | while IFS= read -r TEST; do
               printf '%s\t%s\n' "$JOB" "$TEST" >> failures.tsv
             done
