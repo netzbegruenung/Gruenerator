@@ -9,6 +9,7 @@
 
 import { type PersistedStep } from '../../services/agenticLoop/types.js';
 import { type ThreadToolHistory } from '../../services/threadPersistenceService.js';
+import { toSources, toToolSteps, type ToolStepRow } from '../../services/threadToolProjections.js';
 
 import type {
   SearchResult,
@@ -310,17 +311,38 @@ export async function listThreadArtifacts(
 }
 
 /**
- * The real module's one-read/many-projections door. Delegates to the same
- * fixtures as the functions above, so a test that scripts artifacts sees them
- * whether the caller reads through here or through `listThreadArtifacts`.
+ * What the real `readThreadToolRows` selects: the assistant messages that carry
+ * `tool_results`, newest first, and whether the newest is the last completed
+ * assistant turn. Built from the messages this store already keeps, so a
+ * scripted first turn that calls a tool leaves real steps for the second.
+ */
+function toolRowsOf(threadId: string): { rows: ToolStepRow[]; newestIsLastTurn: boolean } {
+  const assistant = messagesOf(threadId)
+    .filter((m) => m.role === 'assistant')
+    .reverse();
+  const withMetadata = assistant.filter((m) => m.metadata && typeof m.metadata === 'object');
+  const lastComplete = assistant.find((m) => m.status === 'complete');
+  return {
+    rows: withMetadata.map((m) => m.metadata as ToolStepRow),
+    newestIsLastTurn: withMetadata[0] !== undefined && withMetadata[0] === lastComplete,
+  };
+}
+
+/**
+ * The real module's one-read/many-projections door. Artifacts delegate to the
+ * fixtures above, so a test that scripts them sees them whether the caller reads
+ * through here or through `listThreadArtifacts`; tool steps and sources come
+ * from the persisted assistant metadata through the real projections.
  */
 export async function readThreadToolHistory(threadId: string): Promise<ThreadToolHistory> {
   const artifacts = await listThreadArtifacts(threadId, Number.MAX_SAFE_INTEGER);
+  const { rows, newestIsLastTurn } = toolRowsOf(threadId);
   return {
     artifacts: (limit = 4) => artifacts.slice(0, limit),
-    toolSteps: () => [],
-    lastTurnToolSteps: () => [],
-    sources: () => [],
+    toolSteps: (limit = 6) => toToolSteps(rows, limit),
+    lastTurnToolSteps: () =>
+      newestIsLastTurn ? toToolSteps(rows.slice(0, 1), Number.MAX_SAFE_INTEGER) : [],
+    sources: (limit = 10) => toSources(rows, limit),
     lastGeneratedImageUrl: () => null,
   };
 }
@@ -337,15 +359,15 @@ export async function getLastGeneratedImageUrl(_threadId: string): Promise<strin
   return null;
 }
 
-export async function getRecentToolSteps(_threadId: string, _limit = 6): Promise<PersistedStep[]> {
-  return [];
+export async function getRecentToolSteps(threadId: string, limit = 6): Promise<PersistedStep[]> {
+  return toToolSteps(toolRowsOf(threadId).rows, limit);
 }
 
 export async function getRecentThreadSources(
-  _threadId: string,
-  _limit = 10
+  threadId: string,
+  limit = 10
 ): Promise<SearchResult[]> {
-  return [];
+  return toSources(toolRowsOf(threadId).rows, limit);
 }
 
 export interface ThreadSettings {
