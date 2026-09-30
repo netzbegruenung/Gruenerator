@@ -533,6 +533,7 @@ describe('priorTurnRetrieved', () => {
         result: {},
       })),
     lastTurnToolSteps: () => [],
+    lastTurnArtifacts: () => [],
     sources: () => [],
     lastGeneratedImageUrl: () => null,
   });
@@ -568,6 +569,7 @@ describe('priorTurnRetrieved', () => {
           throw new Error('boom');
         },
         lastTurnToolSteps: () => [],
+        lastTurnArtifacts: () => [],
         sources: () => [],
         lastGeneratedImageUrl: () => null,
       })
@@ -580,6 +582,7 @@ describe('priorToolNames', () => {
     artifacts: () => [],
     toolSteps: () => steps,
     lastTurnToolSteps: () => [],
+    lastTurnArtifacts: () => [],
     sources: () => [],
     lastGeneratedImageUrl: () => null,
   });
