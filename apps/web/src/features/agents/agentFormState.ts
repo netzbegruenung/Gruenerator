@@ -37,6 +37,7 @@ export interface FormState {
   defaultRecipeId: string | null;
   tags: string;
   model: string;
+  // 'regolo' is legacy: Regolo removed 2026-09-30, kept so stored rows still parse
   provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'melious' | 'greenpt' | 'cortecs';
   maxTokens: number;
   temperature: number;

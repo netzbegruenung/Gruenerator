@@ -6,7 +6,6 @@ import {
   type ProviderName,
   LITELLM_DEFAULT_BASE_URL,
   MISTRAL_API_URL,
-  REGOLO_BASE_URL,
   MELIOUS_BASE_URL,
   GREENPT_BASE_URL,
   isProviderConfigured,
@@ -35,7 +34,8 @@ interface OpenAIModelsResponse {
 // Mistral Medium 3.5, Gemma 4 and gpt-oss are all reasoning
 // models with configurable thinking. `reasoning: true` here flags that; how (or
 // whether) that reasoning is surfaced to the UI depends on the streaming path
-// (SDK fullStream for Mistral; Regolo raw streamer for Regolo's reasoning_content).
+// (SDK fullStream for Mistral; the raw streamer in openAiReasoningStream.ts for
+// hosts that emit `reasoning_content`).
 const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision: boolean }> = {
   'mistral-medium-2604': { name: 'Mistral Medium 3.5', reasoning: true, vision: false },
   'mistral-medium-3.5': { name: 'Mistral Medium 3.5', reasoning: true, vision: false },
@@ -43,7 +43,8 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   'mistral-large-latest': { name: 'Mistral Large', reasoning: false, vision: false },
   'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: false },
   'mistral-small-2503': { name: 'Mistral Small (Vision)', reasoning: false, vision: true },
-  'gemma4-31b': { name: 'Gemma 4 31B', reasoning: true, vision: true },
+  // F0: Name aus gespeicherten Modell-Einstellungen (früher ein anderer Host); Bildannahme ist bei keinem lebenden Gemma-Host belegt.
+  'gemma4-31b': { name: 'Gemma 4 31B', reasoning: true, vision: false },
   // DASSELBE Modell über Cortecs (infercom) — der Primär aller
   // Gemma-Lanes seit 25.08.2026, siehe services/ai/gemmaHosts.ts. Zwei Flags,
   // die absichtlich vom Zwilling darüber abweichen:
@@ -58,9 +59,8 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   //   gegen infercom antwortet am 25.08.2026 mit HTTP 500 (`unexpected_error`),
   //   obwohl der Katalog `input_modalities: ['text','image']` und den Tag
   //   `Image` führt. Der Katalog beschreibt die Gewichte, nicht den Endpunkt.
-  //   Folge: die Bild-Weiche in responseStreamingService.ts sieht den
-  //   vision-fähigen Sibling (Regolo) und tauscht innerhalb der Lane dorthin —
-  //   ein geprüfter Pfad, und sie protokolliert es.
+  //   Folge: die Bild-Weiche in responseStreamingService.ts schickt Bild-Züge
+  //   an VISION_MODEL (Mistral Pixtral) und protokolliert es.
   'gemma-4-31b-it': { name: 'Gemma 4 31B', reasoning: false, vision: false },
   // Dasselbe Modell über Melious. Beide Flags aus demselben Grund wie eine
   // Zeile höher: `reasoning: false`, weil der SDK-Pfad das Denken abschaltet
@@ -78,8 +78,8 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   // Verdigado/LiteLLM serves Gemma 4 under the 'verdigado-think' alias
   // (resolves server-side to gemma4:31b-ctx128k). Without this entry,
   // isVisionCapable would return false and the vision-override would hijack
-  // every image request on the gemma-4 overflow lane to Regolo, defeating
-  // alternation.
+  // every image request on the gemma-4 overflow lane to the vision model,
+  // defeating alternation.
   'verdigado-think': { name: 'Gemma 4', reasoning: true, vision: true },
   // The bare 'gemma' alias resolves to gemma4:26b-ctx16k — a smaller model
   // with an eighth of the context. It is EXCLUDE_IDS'd out of discovery so
@@ -114,8 +114,7 @@ const EXCLUDE_PATTERNS = [
 
 /**
  * Exact model IDs to hide from discovery. Unlike EXCLUDE_PATTERNS these must
- * match the whole ID — a /gemma/i pattern would also swallow the Regolo
- * 'gemma4-31b' we do want.
+ * match the whole ID — a /gemma/i pattern would also swallow the 'gemma-4-31b-it' we do want.
  *
  * 'gemma' is the verdigado proxy's legacy alias for gemma4:26b-ctx16k. Grünerator
  * asks for Gemma via 'verdigado-think' (gemma4:31b-ctx128k) everywhere, so the
@@ -128,7 +127,6 @@ const EXCLUDE_IDS = new Set(['gemma']);
 const CATEGORY_NAMES: Record<ProviderName, string> = {
   mistral: 'Mistral',
   litellm: 'Cortecs (ehem. LiteLLM)',
-  regolo: 'Regolo',
   melious: 'Melious',
   greenpt: 'GreenPT',
   scaleway: 'Scaleway',
@@ -137,7 +135,6 @@ const CATEGORY_NAMES: Record<ProviderName, string> = {
 
 const CAT_ORDER: Record<string, number> = {
   Mistral: 0,
-  Regolo: 1,
   Melious: 1,
   LiteLLM: 2,
   GreenPT: 3,
@@ -150,8 +147,8 @@ let fetchInProgress: Promise<PlaygroundModel[]> | null = null;
 
 function isExcludedModel(modelId: string): boolean {
   // `isExcludedTextModel` prüfte bisher nur das Routing. Diese Liste speist den
-  // Modellwähler des Playgrounds und entsteht live aus `/v1/models` — Regolo
-  // bietet die chinesisch trainierten Modelle weiter an, wählbar war also, was
+  // Modellwähler des Playgrounds und entsteht live aus `/v1/models` — die Anbieter
+  // bieten die chinesisch trainierten Modelle mit an, wählbar war also, was
   // nirgends geroutet werden darf. Dieselbe Funktion, keine zweite Liste.
   return (
     EXCLUDE_IDS.has(modelId) ||
@@ -247,10 +244,6 @@ const PROVIDER_ENDPOINTS: Record<
   greenpt: {
     url: () => `${GREENPT_BASE_URL}/models`,
     getApiKey: () => env.GREENPT_API_KEY ?? null,
-  },
-  regolo: {
-    url: () => `${REGOLO_BASE_URL}/models`,
-    getApiKey: () => env.REGOLO_API_KEY ?? null,
   },
   melious: {
     url: () => `${MELIOUS_BASE_URL}/models`,

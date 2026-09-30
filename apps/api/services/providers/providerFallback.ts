@@ -38,7 +38,7 @@ export function getFallbackModelForProvider(provider: ProviderName): ModelName {
 }
 
 /**
- * Sharepic-specific fallback chain: Mistral (Magistral) → Cortecs → Regolo.
+ * Sharepic-specific fallback chain: Mistral (Magistral) → Cortecs → Melious.
  * LiteLLM stand hier bis zum 29.08.2026 — siehe services/ai/litellmRetired.ts.
  */
 export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'cortecs', 'melious'];
@@ -71,7 +71,7 @@ function aggregateFailure(
  * @param execForProvider - Async function that executes the request for a given provider
  * @param requestId - Request ID for logging
  * @param data - Request data to be passed to executor
- * @param chain - Provider chain to try in order (default: Cortecs → Regolo → Mistral)
+ * @param chain - Provider chain to try in order (default: Cortecs → Melious → Mistral)
  * @throws {Error} When no providers are configured or all providers fail
  * @returns The successful response from the first working provider
  */
@@ -124,7 +124,7 @@ export async function tryFallbackProviders(
 
   if (attemptedProviders.length === 0) {
     throw new Error(
-      'No fallback providers are configured. Please set LITELLM_API_KEY, MISTRAL_API_KEY, or REGOLO_API_KEY'
+      'No fallback providers are configured. Please set CORTECS_API_KEY, MELIOUS_API_KEY, or MISTRAL_API_KEY'
     );
   }
 
@@ -133,7 +133,7 @@ export async function tryFallbackProviders(
 
 /**
  * Sharepic-specific fallback with higher quality models.
- * Uses Magistral → LiteLLM → Regolo chain.
+ * Uses the Mistral → Cortecs → Melious chain (SHAREPIC_FALLBACK_CHAIN).
  */
 export async function trySharepicFallbackProviders(
   execForProvider: ProviderExecutor,

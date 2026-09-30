@@ -39,14 +39,6 @@ export function determineProviderFromModel(modelName: string = ''): ProviderName
   if (name.includes('mistral') || name.includes('mixtral')) {
     return 'cortecs';
   }
-  // Llama models via Regolo (hosts Llama-3.3-70B-Instruct)
-  if (name.includes('llama') || name.includes('meta-llama')) {
-    return 'regolo';
-  }
-  // Regolo-prefixed models
-  if (name.startsWith('regolo/') || name.includes('regolo')) {
-    return 'regolo';
-  }
   return 'mistral';
 }
 
@@ -179,9 +171,8 @@ const TEXT_MODEL = GEMMA_31B_PRIMARY.model;
  *
  * NICHT verallgemeinert. Die anderen STRUCTURE_TYPES sind ungemessen, und die
  * Sharepics sitzen aus einem eigenen gemessenen Grund auf Mistral. Die
- * Schwester-Lanes bei Regolo (`gemma4-31b`) und LiteLLM (`verdigado-think`)
- * liefern zwar gültiges JSON, aber nur über den Text-Fallback und mit 105–168 s
- * bei LiteLLM.
+ * Schwester-Lane bei LiteLLM (`verdigado-think`) liefert zwar gültiges JSON,
+ * aber nur über den Text-Fallback und mit 105–168 s.
  *
  * Voraussetzung ist das größere Output-Budget in services/ai/config.ts: bei
  * 4096 Tokens verliert ein abgeschnittener Tool-Call ALLES (`content` bleibt
@@ -252,7 +243,7 @@ export function selectProviderAndModel({
     provider = TEXT_PROVIDER;
     model = options.model || TEXT_MODEL;
   }
-  // Fast helper tasks — Intermediate model (Regolo)
+  // Fast helper tasks — Intermediate model
   else if (
     type === 'image_picker' ||
     type === 'antrag_question_generation' ||

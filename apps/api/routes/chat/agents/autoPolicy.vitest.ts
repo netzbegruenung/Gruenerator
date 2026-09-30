@@ -3,7 +3,7 @@ import { intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 import { describe, it, expect } from 'vitest';
 
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
-import { isReasoningStreamModel } from '../../../services/ai/regoloReasoningStream.js';
+import { isReasoningStreamModel } from '../../../services/ai/openAiReasoningStream.js';
 import { mistralReasoningOption } from '../services/responseStreamingService.js';
 
 import { AUTO_POLICY_EXEMPT, POLICY, resolveAutoSelection, type Complexity } from './autoPolicy.js';
@@ -166,7 +166,7 @@ describe('autoPolicy — lane assignment per task shape', () => {
   });
 
   it('report-lane intents keep reasoning OFF at every complexity', () => {
-    // Load-bearing, not decorative: the lane's current host (Regolo) honours
+    // Load-bearing, not decorative: the lane's current host honours
     // `enable_thinking`, so a graded setting here would actually buy reasoning
     // tokens for turns that only report material already in context.
     for (const intent of [

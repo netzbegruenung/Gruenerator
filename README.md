@@ -50,12 +50,12 @@ Political organizations need to create compelling, consistent content across mul
 
 Grünerator is built on **100% European infrastructure** with a commitment to digital sovereignty:
 
-| Principle                 | Implementation                                                                                                                              |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| **100% EU Hosting**       | All servers located exclusively in the European Union                                                                                       |
-| **European AI Providers** | Mistral AI (France), Cortecs, Regolo & Melious (EU-hosted open models), Black Forest Labs (Germany), KugelAudio (Germany, speech synthesis) |
-| **Self-hosted AI**        | Green-powered inference hosted by netzbegrünung e.V. and EU partners                                                                        |
-| **75% EU Target**         | Minimum 75% of spending with European companies                                                                                             |
+| Principle                 | Implementation                                                                                                                      |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **100% EU Hosting**       | All servers located exclusively in the European Union                                                                               |
+| **European AI Providers** | Mistral AI (France), Cortecs & Melious (EU-hosted open models), Black Forest Labs (Germany), KugelAudio (Germany, speech synthesis) |
+| **Self-hosted AI**        | Green-powered inference hosted by netzbegrünung e.V. and EU partners                                                                |
+| **75% EU Target**         | Minimum 75% of spending with European companies                                                                                     |
 
 ### Key Features
 
@@ -174,9 +174,9 @@ Professional subtitle generation for videos:
 │                         BACKEND                              │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
 │  │  Express 5   │  │   Cluster    │  │    AI (in-process) │  │
-│  │   Server     │──│   Workers    │──│ Mistral │ Regolo   │  │
-│  │              │  │              │  │ GreenPT │ Scaleway │  │
-│  └──────────────┘  └──────────────┘  │ Cortecs │ Melious  │  │
+│  │   Server     │──│   Workers    │──│ Mistral │ GreenPT  │  │
+│  │              │  │              │  │ Scaleway│ Cortecs  │  │
+│  └──────────────┘  └──────────────┘  │ Melious │          │  │
 │                                      └────────────────────┘  │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
 │  │  ChatGraph   │  │  Keycloak    │  │    PostgreSQL      │  │
@@ -324,7 +324,6 @@ User documentation lives in `documentation/` (Docusaurus, deployed to [doku.grue
 # AI APIs (EU providers)
 MISTRAL_API_KEY=...                    # Primary AI provider (France)
 CORTECS_API_KEY=...                    # EU-hosted open models via Cortecs (serves former LiteLLM/verdigado targets)
-REGOLO_API_KEY=...                     # EU-hosted open models via Regolo (Italy)
 MELIOUS_API_KEY=...                    # EU-hosted open models via Melious (Gemma fallback host, Finland)
 LITELLM_API_KEY=...                    # Retired alias — still read for CI/scripts; requests are remapped to Cortecs
 BFL_API_KEY=...                        # Image generation (Black Forest Labs, Germany)

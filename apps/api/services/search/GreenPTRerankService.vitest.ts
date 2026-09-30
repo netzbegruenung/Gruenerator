@@ -76,7 +76,7 @@ describe('GreenPTRerankService', () => {
     expect(results).toEqual([{ originalIndex: 1, relevanceScore: 0.42, text: 'doc b' }]);
   });
 
-  it('sends the same <Instruct>/<Document> wrapping Regolo gets', async () => {
+  it('sends the same <Instruct>/<Document> wrapping the model expects', async () => {
     fetchMock.mockResolvedValue(ok({ results: [] }));
 
     await greenptRerankService.rerank({ ...REQUEST, instruct: 'Find the answer.' });
@@ -87,7 +87,7 @@ describe('GreenPTRerankService', () => {
     expect(body.documents).toEqual(['<Document>: doc a', '<Document>: doc b', '<Document>: doc c']);
   });
 
-  it('marks a timeout as timedOut so the pipeline does not stack a Regolo call behind it', async () => {
+  it('marks a timeout as timedOut so the pipeline can tell a hang from a fast failure', async () => {
     const timeout = new Error('aborted');
     timeout.name = 'TimeoutError';
     fetchMock.mockRejectedValue(timeout);
@@ -98,7 +98,7 @@ describe('GreenPTRerankService', () => {
     });
   });
 
-  it('marks a 429 as a fast failure — Regolo is worth trying, the latency budget is intact', async () => {
+  it('marks a 429 as a fast failure', async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 429,
@@ -120,7 +120,7 @@ describe('GreenPTRerankService', () => {
     expect(greenptRerankService.isAvailable()).toBe(false);
   });
 
-  it('opens the circuit after two timeouts — the one failure Regolo cannot pick up', async () => {
+  it('opens the circuit after two timeouts — a hang costs the full timeout on every call otherwise', async () => {
     const timeout = new Error('aborted');
     timeout.name = 'TimeoutError';
     fetchMock.mockRejectedValue(timeout);
@@ -128,9 +128,8 @@ describe('GreenPTRerankService', () => {
     await greenptRerankService.rerank(REQUEST).catch(() => {});
     await greenptRerankService.rerank(REQUEST).catch(() => {});
 
-    // A timeout is not retried on Regolo (see rerankPipeline), so every
-    // uncounted one costs 4s AND the ranking. Opening the circuit is what makes
-    // the next call skip straight to Regolo and keep its ranking.
+    // Every uncounted timeout costs 4s; opening the circuit makes the next
+    // call skip straight to input order.
     expect(greenptRerankService.isAvailable()).toBe(false);
   });
 

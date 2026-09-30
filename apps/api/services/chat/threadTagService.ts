@@ -5,7 +5,7 @@
  * exchange, mirroring threadTitleService's fire-and-forget pattern. Tags power
  * the sidebar tag filter and tag-scoped chat search.
  *
- * Uses the intermediate model (regolo/mistral-small) via generateText directly
+ * Uses the intermediate model (mistral-small) via generateText directly
  * — same approach as compactionService.
  */
 

@@ -1,7 +1,7 @@
 /**
  * Rerank Node
  *
- * Uses the shared rerankPipeline (Regolo cross-encoder + MMR diversity)
+ * Uses the shared rerankPipeline (GreenPT cross-encoder + MMR diversity)
  * to rerank search results by semantic relevance. Sits between the search
  * and respond nodes in the graph pipeline.
  *

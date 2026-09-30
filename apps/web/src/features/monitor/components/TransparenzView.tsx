@@ -896,9 +896,8 @@ function ReferencePanel({ footprint }: { footprint: TransparencyFootprintDto }) 
               Bilanz. Das günstige Ende der Spanne ist marktbasiert und rechnet den bezogenen
               Ökostrom an: {formatGrams(comparison.textMarketEmissions)} statt{' '}
               {formatGrams(comparison.textEmissions)}. Belege dafür sind Scaleways
-              Herkunftsnachweise, Hetzners EMAS-Registrierung und Seewebs zertifizierter Bezug; für
-              die Bildmodelle gibt es keinen, weil wir die Region gar nicht kennen — dort fallen
-              beide Methoden zusammen.{' '}
+              Herkunftsnachweise und Hetzners EMAS-Registrierung; für die Bildmodelle gibt es
+              keinen, weil wir die Region gar nicht kennen — dort fallen beide Methoden zusammen.{' '}
               <strong className={MONITOR_MUTED}>Die Verrechnung gilt nur für unsere Seite:</strong>{' '}
               Microsoft kauft ebenfalls Erneuerbare ein, aber deren Nachweise sind nicht unsere. Das
               günstige Ende vergleicht insofern zwei Methoden, nicht zwei Rechenzentren.

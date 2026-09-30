@@ -30,7 +30,6 @@ import {
 } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import { env } from '../../config/env.js';
 import {
   getFilePathFromUploadId,
   checkFileExists,
@@ -274,9 +273,7 @@ export const voiceContractRouter = s.router(voiceContract, {
           supportedFormats: formats,
           maxFileSize: MAX_FILE_SIZE_LABEL,
           maxDuration: MAX_DURATION_LABEL,
-          provider: env.REGOLO_API_KEY
-            ? 'Regolo Whisper (Voxtral fallback, video converted via FFmpeg)'
-            : 'Mistral Voxtral (video converted via FFmpeg)',
+          provider: 'Mistral Voxtral (video converted via FFmpeg)',
         },
       };
     } catch (error) {

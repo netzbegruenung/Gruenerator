@@ -1032,7 +1032,7 @@ describe('runAgenticLoop — split gather narration', () => {
   });
 
   it('forwards the planner’s thinking — the tool phase used to have none', async () => {
-    // Split mode runs the thinking lanes (GreenPT/Regolo gpt-oss). Dropping the
+    // Split mode runs the thinking lanes (GreenPT gpt-oss). Dropping the
     // gather reasoning left every one of those turns with an empty "Gedanken"
     // panel until the answer was already being written.
     const onReasoning = vi.fn();

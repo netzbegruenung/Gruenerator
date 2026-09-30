@@ -9,8 +9,10 @@ import type { ExtractionResult } from '../OcrService/types.js';
 
 const log = createLogger('VisionService');
 
-const DEFAULT_VISION_PROVIDER: ProviderName = 'regolo';
-const DEFAULT_VISION_MODEL = env.VISION_DEFAULT_MODEL || 'gemma4-31b';
+// Mistral Pixtral: Gemma 4 nimmt bei keinem lebenden Host Bilder an (siehe VISION_MODEL in
+// routes/chat/agents/providers.ts).
+export const DEFAULT_VISION_PROVIDER: ProviderName = 'mistral';
+export const DEFAULT_VISION_MODEL = env.VISION_DEFAULT_MODEL || 'pixtral-large-latest';
 
 export interface VisionOptions {
   provider?: ProviderName | undefined;
@@ -67,8 +69,12 @@ function resolveImageContent(
 }
 
 function resolveVisionModel(options?: VisionOptions) {
-  const provider = options?.provider ?? DEFAULT_VISION_PROVIDER;
-  const modelId = options?.model ?? DEFAULT_VISION_MODEL;
+  // F0: ein Aufrufer, der noch `regolo` nennt (abgeschaltet 30.09.2026), bekommt den Standard statt eines Gemma ohne Bildannahme.
+  const legacy = (options?.provider as string | undefined) === 'regolo';
+  const provider = legacy
+    ? DEFAULT_VISION_PROVIDER
+    : (options?.provider ?? DEFAULT_VISION_PROVIDER);
+  const modelId = legacy ? DEFAULT_VISION_MODEL : (options?.model ?? DEFAULT_VISION_MODEL);
   return { model: getModel(provider, modelId), provider, modelId };
 }
 

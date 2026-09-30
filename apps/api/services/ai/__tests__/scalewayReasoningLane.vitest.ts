@@ -30,7 +30,7 @@ async function loadStream(env: Record<string, string | undefined>) {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
   }
-  return import('../regoloReasoningStream.js');
+  return import('../openAiReasoningStream.js');
 }
 
 afterEach(() => {

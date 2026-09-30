@@ -1,7 +1,7 @@
 /**
  * Wer macht die kleine Arbeit — die, die keine Antwort schreibt.
  *
- * `INTERMEDIATE_MODEL` war EIN Paar (regolo + mistral-small-4-119b), aus dem 36
+ * `INTERMEDIATE_MODEL` war EIN Paar (mistral-small-4-119b), aus dem 36
  * Stellen ihr Modell zogen: Thread-Titel neben `computeNode`, Auto-Tags neben
  * dem Klassifikator. Gemessen an echten Nutzungsdaten ist das die grösste Lane
  * im System (289 von 502 Anfragen, 65 % aller Tokens in 90 Tagen), und sie
@@ -20,19 +20,18 @@
  *   compute   mistral-medium-2604 → Paris    einzige Stufe, wo ein Fehler eine
  *                                            falsche ZAHL ist
  *
- * ── Warum Regolo nirgends mehr vorne steht ──
+ * ── Warum die kleinen Stufen auf GreenPT/Cortecs liegen ──
  *
  * `trivial` und `standard` liefen bis zum 29.08.2026 auf
- * `regolo/mistral-small-4-119b`, und die Messreihe von 31.07.2026 weiter unten
- * trug diese Wahl: 95,6 % gegen 96,7 %, aber 185/359 ms gegen 761/1760 ms, und
- * die Stufe `standard` hat Sperren ab 900 ms.
+ * `mistral-small-4-119b` bei einem Einzelanbieter, und die Messreihe von
+ * 31.07.2026 weiter unten trug diese Wahl: 95,6 % gegen 96,7 %, aber
+ * 185/359 ms gegen 761/1760 ms, und die Stufe `standard` hat Sperren ab 900 ms.
  *
  * Was die Messreihe nicht messen konnte, ist die Ausfallart, die dann eintrat:
- * an diesem Tag antwortete Regolo mit HTTP 402 (`trial_expired`) — ein
+ * an diesem Tag wies der Anbieter mit HTTP 402 (`trial_expired`) ab — ein
  * KONTO-Limit, kein Modellproblem. Ein zu langsames Modell liefert eine
- * schlechtere Antwort; ein abgewiesenes Konto liefert keine. Regolo steht
- * seither auf keiner Stufe mehr vorne und trägt als letztes Kettenglied
- * weiterhin bei, wo es hilft.
+ * schlechtere Antwort; ein abgewiesenes Konto liefert keine. Der Anbieter ist
+ * seit dem 30.09.2026 ganz aus dem Produkt genommen.
  *
  * Der Latenz-Einwand ist damit NICHT erledigt, sondern verschoben, und das
  * gehört hierhin: gemessen am 29.08.2026 gegen die lebenden Endpunkte, ruhig
@@ -47,7 +46,7 @@
  *
  * Energie und CO₂ pro Anfrage hängen an Modellgrösse UND Standort;
  * Koeffizienten in `services/usage/energyFootprint.ts`. Der Standortunterschied
- * allein ist gross: Regolo (Italien) 270 g/kWh × PUE 1,20 gegen Scaleway/GreenPT
+ * allein ist gross: Italien 270 g/kWh × PUE 1,20 gegen Scaleway/GreenPT
  * (Paris) 24 g/kWh × PUE 1,25 — Faktor 10,8. Das macht GreenPT zum
  * naheliegenden Ziel für die Stufen, die keine Antwort schreiben.
  *
@@ -63,7 +62,7 @@
  * eigenen dokumentierten Fallen, 3 Wiederholungen.
  *
  *   Modell                                  Treffer    schwankend   p50/p90 Latenz
- *   regolo/mistral-small-4-119b (heute)     95,6 %     1 von 30     185 / 359 ms
+ *   mistral-small-4-119b (damals)           95,6 %     1 von 30     185 / 359 ms
  *   greenpt/mistral-small-3.2-24b           96,7 %     0 von 30     761 / 1760 ms
  *   greenpt/gpt-oss-120b                     0,0 %     —            (unbrauchbar)
  *
@@ -85,7 +84,7 @@
  *
  * 2. **mistral-small-3.2-24b ist qualitativ gut genug** (leicht besser und
  *    stabiler als heute), scheitert aber am Zeitbudget: unter 10 gleichzeitigen
- *    Anfragen lagen 5 von 30 Antworten über 1500 ms, bei Regolo 0 von 30. Die
+ *    Anfragen lagen 5 von 30 Antworten über 1500 ms, bei Small 4 0 von 30. Die
  *    Auflöser haben harte Budgets von 900–1500 ms; ein Überschreiten liefert
  *    `null`, der Turn fällt auf Tier 4 durch und zahlt den 27k-Zeichen-Prompt —
  *    genau das, was die Dispositions-Serie (#2272–#2279) von 18,1 % auf 3,0 %
@@ -98,7 +97,7 @@
  * Zwei Konsumententypen, die man beim nächsten Verschieben nicht verwechseln
  * darf:
  *   - über `aiText`/`aiObject`/`aiTools` → die Fallback-Kette
- *     (`litellm` → `regolo` → `mistral`, providerFallback.ts) fängt Ausfall UND
+ *     (`cortecs` → `melious` → `mistral`, providerFallback.ts) fängt Ausfall UND
  *     leere Antwort ab. GreenPT steht NICHT in der Kette, wäre also selbst
  *     abgesichert, ohne je als Auffangnetz zu dienen.
  *   - über `getIntermediateModel()` + direktes `generateText`/`generateObject`
@@ -106,7 +105,7 @@
  *     `services/ai/fallbackModel.ts` um das zurückgegebene Modell. Bis dahin
  *     stand hier „KEINE Fallback-Kette, es zählt nur der `try`/`catch` des
  *     Aufrufers" — und genau so verlor `ThreadTag` an jenem Tag seine Antwort,
- *     als Regolo mit HTTP 402 (`trial_expired`) abwies.
+ *     als der damalige Anbieter mit HTTP 402 (`trial_expired`) abwies.
  *
  * F1 (CLAUDE.md): Stufennamen und Modell-IDs sind interne IDs und werden nicht
  * umbenannt.
@@ -139,7 +138,7 @@ export interface IntermediateLaneConfig extends LaneTarget {
    * Stufen gar keine Kette. Der Kommentar zur Ausfallsicherheit oben sagte es
    * schon — wer sein Modell über `getIntermediateModel()` holt und direkt
    * `generateText` ruft, umgeht die Fassade und damit `providerFallback.ts`.
-   * An diesem Tag antwortete Regolo mit HTTP 402 (`trial_expired`), und die
+   * An diesem Tag antwortete der damalige Primär mit HTTP 402 (`trial_expired`), und die
    * Auto-Verschlagwortung (`trivial`) gab still auf. Ein optionales Feld hätte
    * dieselbe Lücke gelassen, nur später; deshalb muss jede Stufe eine Kette
    * nennen, und ein Wächter in `__tests__/intermediateFallback.vitest.ts`
@@ -196,11 +195,10 @@ const MELIOUS_GEMMA_4 = { provider: 'melious', model: 'gemma-4-31b:balanced' } a
  * (services/usage/energyFootprint.ts), im Repo bereits in Gebrauch
  * (promptAssemblyGraph, argumentsSummarizer).
  *
- * `regolo/mistral-small-4-119b` steht als LETZTES. Es war bis zum 29.08.2026
- * der Primär dieser beiden Stufen; an diesem Tag wies das Konto mit HTTP 402
- * (`trial_expired`) ab, und weil es primär war, hatte die Auto-Verschlagwortung
- * nichts dahinter. Es bleibt in der Kette, weil ein vierter Vertragspartner
- * mehr wert ist als eine kurze Kette — aber nicht mehr vorn.
+ * `melious/gemma-4-31b` steht als LETZTES: ein vierter Vertragspartner ist
+ * mehr wert als eine kurze Kette — aber nicht vorn, weil es ein anderes Modell
+ * ist. Der frühere Primär dieser Stufen (`mistral-small-4-119b`) ist am
+ * 29.08.2026 mit HTTP 402 ausgefallen und seit dem 30.09.2026 ganz weg.
  */
 const GREENPT_SMALL_32 = {
   provider: 'greenpt',
@@ -300,20 +298,12 @@ export const INTERMEDIATE_LANES = {
    * Die compute-Suite (100 % gegen 94,1 %) taugt NICHT als Beleg für diese
    * Stufe — ihre Konsumenten sind mit diesem PR nach `compute` gezogen.
    *
-   * NICHT als Begründung verwendet, weil unbewiesen: auf dem
-   * `json_schema`-/Tool-Call-Pfad meldet Regolo im Antwortfeld `model` einen
-   * anderen Namen zurück, als der Request angefragt hat. Das ist eine
-   * Selbstauskunft des Gateways und kann ebenso gut eine falsche Beschriftung
-   * sein; ohne einen unterscheidenden Test (zeichengleiche Antworten bei
-   * Temperatur 0) trägt das keine Modellentscheidung. Erwähnt, damit niemand
-   * beim Debuggen über das Feld stolpert und es für gesichert hält.
-   *
    * ── 01.08.2026: umgezogen nach Scaleway, gleiche Modellfamilie ──
    *
    * `gemma-4-26b-a4b-it` — Gemma 4 als MoE mit 4B AKTIVEN Parametern. Der oben
    * notierte Preis („rund doppelte Latenz bei Zusammenfassungen, 4,9–6,1 s")
    * war der einzige Einwand gegen diese Stufe, und er verschwindet: gemessen
-   * mit den ECHTEN Prompts aller drei Konsumenten, gegen regolo/gemma4-31b.
+   * mit den ECHTEN Prompts aller drei Konsumenten, gegen das dichte 31B.
    *
    *   Konsument                                  26B-A4B      31B (vorher)
    *   Zusammenfassung, Überschriften/Doku (9×)   3,7 · 2,36s  3,7 · 5,28s
@@ -336,7 +326,7 @@ export const INTERMEDIATE_LANES = {
    * Energie-Koeffizient, und weder Scaleway noch Cortecs melden Verbrauch
    * zurück. `heavy` fällt damit aus der CO₂-Übersicht (siehe
    * services/usage/energyFootprint.ts). Das Pariser Netz (24 g/kWh gegen
-   * Regolos 270) spricht dafür, dass die reale Bilanz besser wird — beziffern
+   * Italiens 270) spricht dafür, dass die reale Bilanz besser wird — beziffern
    * lässt sie sich nicht mehr. Schätzen aus der Geschwindigkeit lag im Repo
    * schon einmal um 62 % daneben.
    *
@@ -356,9 +346,9 @@ export const INTERMEDIATE_LANES = {
    * Das dichte 31B lag zu diesem Zeitpunkt bei infercom UND berget — und liegt
    * dort wieder: die Gegenbehauptung vom 25.08.2026 ist am 29.08. live
    * widerlegt (Messung in services/ai/gemmaHosts.ts). Die tragende Reserve
-   * dieser Stufe bleibt trotzdem der Regolo-Hedge unten, weil er ein anderer
+   * dieser Stufe bleibt trotzdem der Melious-Hedge unten, weil er ein anderer
    * VERTRAGSPARTNER ist; der zweite Cortecs-Endpunkt hilft nur, solange Cortecs
-   * als Ganzes gesund ist. Der Preis der MoE-Ablösung ist der dokumentierte: sie antwortete
+   * als Ganzes gesund ist. Der Preis der MoE-Ablösung: sie antwortete
    * rund doppelt so schnell. Bezahlt wird er für Verfügbarkeit.
    *
    * KEIN Denk-Pin für dieses Modell — und das ist kein Versäumnis: infercom
@@ -374,14 +364,6 @@ export const INTERMEDIATE_LANES = {
    * Inhalt ist für die Fassade kein Fehler, sondern startet die Fallback-Kette;
    * `classifyDeliverable` mit seinen 20 Token stirbt zuerst.
    *
-   * Historisch (mem0 ist seit 01.09.2026 weg, die Falle bleibt lehrreich):
-   * mem0s Extraktion folgte dieser Stufe zuletzt wieder (31.08.2026, #3065). Sie tat
-   * es zwischendurch nicht: `services/mem0/config.ts` band `REGOLO_BASE_URL` +
-   * `REGOLO_API_KEY` fest an den Modellnamen VON HIER und hätte bei einem Umzug
-   * dieser Stufe einen fremden Namen an Regolos Basis-URL geschickt. Der Pin
-   * war die Antwort darauf, die falsche: die Stelle nimmt jetzt das aufgelöste
-   * MODELL statt seines Namens, und mit ihm den Transport — ein Umzug hier
-   * erreicht sie also von selbst und richtig. Siehe den Kopf jener Datei.
    */
   heavy: {
     provider: GEMMA_PRIMARY.provider,
@@ -450,7 +432,7 @@ export const INTERMEDIATE_LANES = {
    *    „keine schwierigen Stellen" meldete, während ein Ortsname fehlte.
    *
    * Modell: das dichte 31B, auf BEIDEN Seiten dasselbe — Primär über Cortecs,
-   * Ausweich auf Regolo. Es ist NICHT dasselbe wie `heavy`: diese Stufe zog am
+   * Ausweich auf Melious. Es ist NICHT dasselbe wie `heavy`: diese Stufe zog am
    * 01.08.2026 auf die MoE-Variante um, weil die mit 4B aktiven Parametern
    * rund doppelt so schnell antwortet, und kam zurück, weil das dichte 31B den
    * Prüfbericht ausdrücklich besser trägt.
@@ -461,12 +443,12 @@ export const INTERMEDIATE_LANES = {
    * ruhige Läufe und vier gleichzeitige:
    *
    *                        TTFT     Durchsatz    gesamt
-   *   regolo/gemma4-31b     129 ms   81,3 tok/s   5,06 s
+   *   früherer Primär       129 ms   81,3 tok/s   5,06 s
    *   cortecs (infercom)   1122 ms  210,7 tok/s   2,81 s
    *
-   * Regolo antwortet neunmal schneller AN, Cortecs generiert 2,6-mal schneller.
+   * Der frühere Primär antwortet neunmal schneller AN, Cortecs generiert 2,6-mal schneller.
    * Der Gleichstand liegt bei rund 130 Ausgabe-Tokens — und diese Stufe hat
-   * einen Deckel von 11.000. Auf einen ~3.000-Token-Bericht gerechnet: Regolo
+   * einen Deckel von 11.000. Auf einen ~3.000-Token-Bericht gerechnet: früher
    * 0,13 + 36,9 = 37 s, was die am 14.08.2026 gemessenen 35,9 / 36,9 s genau
    * trifft; Cortecs 1,1 + 14,2 = 15 s. Die Sekunde Anlauf ist bei dieser
    * Ausgabelänge belanglos, zumal die Kette hinter einer bereits gestreamten
@@ -475,14 +457,12 @@ export const INTERMEDIATE_LANES = {
    * Inhaltstreue war in 22 Läufen nicht unterscheidbar: beide Hosts fanden
    * jedes Mal eine eingebaute Auslassung UND einen Zahlendreher, mit
    * Abdeckungstabelle und Gesamturteil, ohne die Regeln der Einfachen Sprache
-   * fälschlich als Mangel zu melden. Messwerkzeug:
-   * `scripts/probeGemma31Hosts.ts`.
+   * fälschlich als Mangel zu melden.
    *
    * ── 14.08.2026: warum es überhaupt zwei Seiten gibt ──
    *
-   * Regolos `gemma4-31b` antwortete an diesem Tag mit **3,7 tok/s** statt der
-   * sonst gemessenen ~76. Regolo selbst war gesund (sein `mistral-small-4-119b`
-   * lief mit 113 tok/s), es war dieses eine Modell dort. Ein Prüfbericht, der
+   * Das damalige Primär-Modell antwortete an diesem Tag mit **3,7 tok/s** statt
+   * der sonst gemessenen ~76 — der Host war gesund, es war dieses eine Modell. Ein Prüfbericht, der
    * ruhig 36 s braucht, brauchte 218 s und riss die Zeitsperre — auf dieselben
    * 3.000 Tokens gerechnet wären es 810 s gewesen.
    *

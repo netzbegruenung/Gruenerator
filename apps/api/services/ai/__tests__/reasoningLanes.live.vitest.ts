@@ -2,16 +2,15 @@
  * Live reasoning check — one case per lane the auto policy can select.
  *
  * These hit the REAL upstreams and are skipped without the matching API key,
- * following the convention in services/ai/execution/__tests__/regolo.vitest.ts and
- * services/vision/__tests__/vision.vitest.ts.
+ * following the convention in services/vision/__tests__/vision.vitest.ts.
  *
- *   REGOLO_API_KEY=…  MISTRAL_API_KEY=… \
+ *   MELIOUS_API_KEY=…  MISTRAL_API_KEY=… \
  *     pnpm --filter @gruenerator/api test reasoningLanes
  *
  * What it verifies, per lane:
  *   1. reasoning ON  → the lane actually emits reasoning deltas, and text too.
  *   2. reasoning OFF → NO reasoning is emitted (this is the whole point of the
- *      `direct` speed path: the Regolo family thinks by DEFAULT, so "off" is a
+ *      `direct` speed path: Melious' Gemma thinks by DEFAULT, so "off" is a
  *      real behavioural switch, not a no-op).
  *
  * Der Verdigado-Block stand hier bis zum 29.08.2026 und ist mit dem Host weg —
@@ -25,11 +24,11 @@ import { generateText } from 'ai';
 import { describe, it, expect } from 'vitest';
 
 import { getModel } from '../../../routes/chat/agents/providers.js';
-import { isReasoningStreamModel, streamWithReasoning } from '../regoloReasoningStream.js';
+import { isReasoningStreamModel, streamWithReasoning } from '../openAiReasoningStream.js';
 
 import type { ModelMessage } from 'ai';
 
-const HAS_REGOLO = !!process.env.REGOLO_API_KEY;
+const HAS_MELIOUS = !!process.env.MELIOUS_API_KEY;
 const HAS_MISTRAL = !!process.env.MISTRAL_API_KEY;
 
 const TIMEOUT_MS = 90_000;
@@ -95,49 +94,26 @@ function looksLikeLeakedThinking(text: string): boolean {
   return /<think>|<\|channel\|>|^\s*analysis/i.test(text);
 }
 
-// ─── Regolo lanes ───────────────────────────────────────────────────────────
+// ─── Melious lanes ──────────────────────────────────────────────────────────
 
-describe.skipIf(!HAS_REGOLO)('reasoning lanes — Regolo', () => {
+describe.skipIf(!HAS_MELIOUS)('reasoning lanes — Melious', () => {
   it(
-    'mistral-small-4-119b CAN think — so grading it up would not be a no-op',
+    'gemma-4-31b:balanced emits reasoning',
     async () => {
-      // The capability is real, which is why it is registered. The policy still
-      // keeps this lane at `off`: measured cost was ~1.6-2k chars of reasoning
-      // for a trivial question, on the lane we picked for speed.
-      expect(isReasoningStreamModel('regolo', 'mistral-small-4-119b')).toBe(true);
-      const run = await runReasoningLane('regolo', 'mistral-small-4-119b', 'low');
-      expect(run.text.length, 'no answer text').toBeGreaterThan(0);
-      expect(run.reasoning.length, 'no reasoning deltas').toBeGreaterThan(0);
+      expect(isReasoningStreamModel('melious', 'gemma-4-31b:balanced')).toBe(true);
+      const run = await runReasoningLane('melious', 'gemma-4-31b:balanced', 'low');
+      expect(run.text.length).toBeGreaterThan(0);
+      expect(run.reasoning.length).toBeGreaterThan(0);
     },
     TIMEOUT_MS
   );
 
   it(
-    'mistral-small-4-119b stays silent about thinking on the SDK path (off)',
+    'gemma-4-31b:balanced stays silent about thinking on the SDK path (off)',
     async () => {
-      const text = await runSdkLane('regolo', 'mistral-small-4-119b');
+      const text = await runSdkLane('melious', 'gemma-4-31b:balanced');
       expect(text.length).toBeGreaterThan(0);
       expect(looksLikeLeakedThinking(text), `leaked: ${text.slice(0, 200)}`).toBe(false);
-    },
-    TIMEOUT_MS
-  );
-
-  it(
-    'gemma4-31b emits reasoning',
-    async () => {
-      const run = await runReasoningLane('regolo', 'gemma4-31b');
-      expect(run.text.length).toBeGreaterThan(0);
-      expect(run.reasoning.length).toBeGreaterThan(0);
-    },
-    TIMEOUT_MS
-  );
-
-  it(
-    'gpt-oss-120b honours the native reasoning_effort dial',
-    async () => {
-      const run = await runReasoningLane('regolo', 'gpt-oss-120b', 'low');
-      expect(run.text.length).toBeGreaterThan(0);
-      expect(run.reasoning.length).toBeGreaterThan(0);
     },
     TIMEOUT_MS
   );

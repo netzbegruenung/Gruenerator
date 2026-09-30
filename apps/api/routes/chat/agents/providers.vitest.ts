@@ -41,9 +41,8 @@ describe('prefersUnifiedLoop (unified vs planner/executor split)', () => {
   it('every other provider runs the split (planner does tools, selection writes)', () => {
     expect(prefersUnifiedLoop('litellm', 'verdigado-think')).toBe(false);
     expect(prefersUnifiedLoop('litellm', 'verdigado-pro')).toBe(false);
-    expect(prefersUnifiedLoop('regolo', 'gemma4-31b')).toBe(false);
-    expect(prefersUnifiedLoop('regolo', 'gpt-oss-120b')).toBe(false);
-    expect(prefersUnifiedLoop('regolo', 'qwen3.5-122b')).toBe(false);
+    expect(prefersUnifiedLoop('cortecs', 'gemma-4-31b-it')).toBe(false);
+    expect(prefersUnifiedLoop('melious', 'gemma-4-31b:balanced')).toBe(false);
   });
 });
 
@@ -168,12 +167,13 @@ describe('getContextWindow', () => {
     // Gemma 4 trägt die 128k des Cortecs-Endpunkts: infercom lehnt über
     // 131.072 laut ab, per Nadelprobe bestätigt (#3067, gemmaHosts.ts).
     expect(getContextWindow('gemma-4')).toBe(128_000);
-    // `gemma-regolo` löst seit dem Melious-Umzug auf Melious auf. Dessen
+    // `gemma-regolo` (F0-Alias) löst seit dem Melious-Umzug auf Melious auf. Dessen
     // Standardweg nimmt nur ~45k; grössere Züge gehen auf `:speed` (131k,
     // Nadelprobe 23.09.2026), daher dieselben 128k wie Cortecs.
     expect(getContextWindow('gemma-regolo')).toBe(128_000);
     expect(getContextWindow('melious')).toBe(128_000);
-    expect(getContextWindow('regolo')).toBe(262_144);
+    // F0-Alias `regolo` → Gemma-Antwortlane (Cortecs, 128k).
+    expect(getContextWindow('regolo')).toBe(128_000);
   });
 
   it('returns default for unknown model', () => {
@@ -189,7 +189,6 @@ describe('getContextWindow', () => {
     expect(getContextWindow('auto', 'mistral')).toBe(262_144);
     // `litellm` wird nur noch als Name gelesen und bedient Cortecs.
     expect(getContextWindow('auto', 'litellm')).toBe(131_000);
-    expect(getContextWindow('auto', 'regolo')).toBe(262_144);
   });
 
   it('legacy litellm ID resolves to the small answer lane window', () => {
@@ -236,8 +235,7 @@ describe('getModelConfig', () => {
     // `gemma-regolo` ist seit dem 14.09.2026 NICHT mehr dasselbe Objekt wie
     // `gemma-4`: die Antwortlane liegt auf Cortecs, und dieser Alias ist die
     // historisch Regolo benennende Kennung (F0, persistiert) — er bedient seit
-    // dem Melious-Umzug Melious und kann keinen Regolo-Textaufruf mehr
-    // auslösen. Zwei Kennungen, die verschiedene Hosts MEINEN, dürfen nicht auf
+    // dem Melious-Umzug Melious. Zwei Kennungen, die verschiedene Hosts MEINEN, dürfen nicht auf
     // dieselbe Konfiguration zeigen, sonst zeigt der Ausweg auf sich selbst.
     // Was der Alias garantieren muss, ist nur: er löst auf, und er meint den
     // Gemma-Ausweichhost.
@@ -247,6 +245,8 @@ describe('getModelConfig', () => {
       model: GEMMA_31B_ON_MELIOUS.model,
     });
     expect(getModelConfig('gemma-melious')).toBe(getModelConfig('gemma-regolo'));
+    // F0: die Nutzer-Kennung `regolo` löst auf die Gemma-Antwortlane auf.
+    expect(getModelConfig('regolo')).toBe(getModelConfig('gemma-4'));
   });
 
   it('returns null for unknown model', () => {
@@ -259,9 +259,8 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
   // reported contextWindow must follow the side actually chosen, otherwise the
   // request is pruned to the small lane's budget while running on the big one.
   // Gemma 4 left the overflow scheme on 2026-07-31: Verdigado's Gemma answers
-  // in 38s against Regolo's 4s and thinks unstoppably (no flag disables it on
-  // that host), so there is no load-balancing decision left to make — see
-  // GEMMA_4_REGOLO. Seit 19.08.2026 bedient Verdigado diese Lane auch als
+  // in 38s against the other host's 4s and thinks unstoppably (no flag disables it on
+  // that host), so there is no load-balancing decision left to make. Seit 19.08.2026 bedient Verdigado diese Lane auch als
   // Ausweg nicht mehr; diese Fälle halten fest, dass kein Zug dort landet.
   it('resolves Gemma 4 to the zentral gewählten Host, never to Verdigado', async () => {
     const tuple = await resolveModelTuple('gemma-4', 'req-primary');
@@ -278,7 +277,7 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
     expect(tuple!.provider).not.toBe('litellm');
     expect(tuple!.sibling?.provider).not.toBe('litellm');
     // Das Fenster folgt dem HOST, nicht den Gewichten: Cortecs' Endpunkt
-    // führt 128k (Katalog), Regolos 262k. Genau diese Asymmetrie war der
+    // führt 128k (Katalog), die Gewichte tragen mehr. Genau diese Asymmetrie war der
     // Fehler, den der Verdigado-Ausweich schon einmal hatte — der Prompt wurde
     // gegen das grössere Fenster bemessen und lief auf dem kleineren in eine
     // stille Kürzung.
@@ -291,7 +290,7 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
     // Token, Denken nicht abschaltbar, und EIN Inferenz-Slot, den sich der
     // Ausweg mit den GPT-OSS-Lanes teilte — also genau dann belegt, wenn er
     // gebraucht wird. Der Ausweg darf nicht an derselben Engstelle hängen wie
-    // die Lane, die ihn braucht; siehe GEMMA_4_REGOLO.
+    // die Lane, die ihn braucht.
     //
     // Am 21.08.2026 stand hier für einen halben Tag greenpt/gemma4 und ist es
     // nicht mehr: es denkt unabschaltbar (4615 ms bis zum ersten Token) und
@@ -302,7 +301,7 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
     // wäre auch der gleich, wäre es kein Ausweg.
     //
     // Am 25.08.2026 haben Primär und Ausweich die Plätze getauscht — Cortecs
-    // schreibt, Regolo weicht aus (Messreihe in services/ai/gemmaHosts.ts).
+    // schreibt, Melious weicht aus (Messreihe in services/ai/gemmaHosts.ts).
     // Die Aussage dieses Tests ist davon unberührt und wird deshalb aus den
     // Konstanten gebaut: gleiches MODELL, anderer ANBIETER.
     expect(tuple!.provider).toBe(GEMMA_31B_PRIMARY.provider);
@@ -348,7 +347,7 @@ describe('das Ausweich-Veto überlebt die zweite getModel-Tür', () => {
     const fresh = await import('./providers.js');
     const veto = (t: { model: string }) => t.model !== 'verdigado-pro';
 
-    fresh.getModel('regolo', 'gemma4-31b', { acceptTarget: veto });
+    fresh.getModel('mistral', 'mistral-medium-2604', { acceptTarget: veto });
 
     expect(seen).toHaveLength(1);
     expect(seen[0]).toBe(veto);

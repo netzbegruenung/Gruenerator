@@ -2,6 +2,7 @@ import { type LandesverbandContentType } from '../search/collections/landesverba
 
 import type { ComponentType } from 'react';
 
+// 'regolo' is legacy: Regolo removed 2026-09-30, kept so stored rows still parse
 export type AgentProvider =
   'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'melious' | 'greenpt' | 'cortecs';
 

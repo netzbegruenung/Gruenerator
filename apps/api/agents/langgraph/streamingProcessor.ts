@@ -281,12 +281,11 @@ export async function processGraphRequestStreaming(
      *    `'high' | 'none'` and throws a ZodError on 'low'/'medium', so the
      *    scale collapses exactly as `mistralReasoningOption` collapses it in
      *    routes/chat/services/responseStreamingService.ts;
-     *  - regolo takes NO reasoning option at all. Its provider id is 'regolo'
-     *    (createOpenAI({name:'regolo'})), so an `openai` block would not reach
-     *    it anyway, and its fetch wrapper pins `reasoning_effort: 'none'` on
-     *    every request (services/ai/regoloThinkingFetch.ts). Sending one would
-     *    be a lie in the code about what the lane does — denkende Regolo-Züge
-     *    laufen über regoloReasoningStream, nicht über diesen Pfad.
+     *  - the other OpenAI-compat hosts (melious, cortecs, greenpt, scaleway)
+     *    take NO reasoning option here: their fetch wrappers pin
+     *    `reasoning_effort: 'none'` (or the host ignores it). Sending one would
+     *    be a lie in the code about what the lane does — denkende Züge laufen
+     *    über openAiReasoningStream, nicht über diesen Pfad.
      */
     let reasoningProviderOptions: Record<string, Record<string, string>> | undefined;
     if (reasoningEffort) {

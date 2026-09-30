@@ -39,8 +39,8 @@
  * Am 23.09.2026 an den Code angeglichen (#3517): Cortecs fehlte, obwohl es seit
  * August die meisten Antworten schreibt (`GEMMA_31B_PRIMARY` in
  * `services/ai/gemmaHosts.ts`); Scaleway rechnet Mistral Medium 3.5 nur noch
- * hinter `SCALEWAY_MISTRAL_ROUTING` (Standard aus); Regolo erzeugt keine Bilder
- * mehr (`services/flux/` kennt nur BFL und Melious); die selbst gehosteten
+ * hinter `SCALEWAY_MISTRAL_ROUTING` (Standard aus); Regolo/Seeweb ist seit
+ * 30.09.2026 aus dem Produkt entfernt und deshalb auch hier gestrichen; die selbst gehosteten
  * Modelle der netzbegrünung sind seit 29.08.2026 stillgelegt
  * (`services/ai/litellmRetired.ts`). Die DOCX-Fassung liest diese Datei
  * (`apps/api/scripts/generate-legal-docx.mjs`), und
@@ -295,14 +295,6 @@ const Datenschutz = () => {
             </td>
           </tr>
           <tr>
-            <td>Seeweb S.r.l. / Regolo AI</td>
-            <td>Italien (EU)</td>
-            <td>
-              KI-Textmodelle (u. a. Bildverstehen) sowie Reranking als Ausweichweg (Zero Data
-              Retention)
-            </td>
-          </tr>
-          <tr>
             <td>Black Forest Labs</td>
             <td>EU (EU-API api.eu.bfl.ai)</td>
             <td>Bildgenerierung (FLUX)</td>
@@ -342,10 +334,10 @@ const Datenschutz = () => {
         Ville-l&apos;Évêque, 75008 Paris, Frankreich (RCS Paris 433 115 904) · GreenPT BV,
         Plompetorengracht 4, 3512 CC Utrecht, Niederlande (KvK 97084360) · Cortecs GmbH,
         Althanstraße 4, 1090 Wien, Österreich (FN 560802i) · KugelAudio GmbH, Rosenthaler Str. 36,
-        10178 Berlin, Deutschland (Amtsgericht Charlottenburg, HRB 277989 B) · Seeweb S.r.l., C.so
-        Lazio 9/a, 03100 Frosinone, Italien · Melious AI GmbH, Universität des Saarlandes, Campus
-        Starterzentrum, Geb. A1.2, 66123 Saarbrücken, Deutschland · Linkup Technologies SAS, 28
-        avenue des Pépinières, 94260 Fresnes, Frankreich (RCS Créteil 930 910 740).
+        10178 Berlin, Deutschland (Amtsgericht Charlottenburg, HRB 277989 B) · Melious AI GmbH,
+        Universität des Saarlandes, Campus Starterzentrum, Geb. A1.2, 66123 Saarbrücken, Deutschland
+        · Linkup Technologies SAS, 28 avenue des Pépinières, 94260 Fresnes, Frankreich (RCS Créteil
+        930 910 740).
       </p>
 
       <p>
@@ -456,19 +448,19 @@ const Datenschutz = () => {
       <p>
         Die von Dir eingegebenen Texte werden zur Bearbeitung an KI-Dienstleister mit Verarbeitung
         in der EU weitergeleitet (Mistral AI/FR, Cortecs/AT mit Verarbeitung bei
-        Rechenzentrumsbetreibern in der EU, Melious/DE, Seeweb/Regolo AI/IT, GreenPT/NL mit
-        Verarbeitung in FR). Welcher Dienstleister eingesetzt wird, richtet sich nach der genutzten
-        Funktion: Im Chat kannst Du das Modell selbst wählen; voreingestellt ist „Automatisch“, bei
-        dieser Einstellung wählt die Plattform den Dienstleister anhand von Funktion und
-        Verfügbarkeit. Bei allen übrigen Funktionen (u. a. Anträge, Reden, Sharepic-Texte,
-        Notebooks, Präsentationen) ist der Dienstleister je Funktionstyp fest vorgegeben. Cortecs
-        vermittelt Anfragen ausschließlich an Rechenzentrumsbetreiber, die in der EU bzw. im EWR
-        ansässig sind und Eingaben nicht speichern; welcher Betreiber eine Anfrage bearbeitet hat,
-        teilt Cortecs bei jeder Antwort mit, und wir prüfen es nach. Eine Nutzung Deiner Eingaben
-        zum Training der KI findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO;
-        enthalten Deine Eingaben besondere Kategorien (z. B. politische Meinungen), stützt sich
-        deren Verarbeitung auf Art. 9 Abs. 2 lit. a DSGVO (Deine ausdrückliche Einwilligung, die wir
-        vor der ersten Nutzung der KI-Funktionen gesondert einholen).
+        Rechenzentrumsbetreibern in der EU, Melious/DE, GreenPT/NL mit Verarbeitung in FR). Welcher
+        Dienstleister eingesetzt wird, richtet sich nach der genutzten Funktion: Im Chat kannst Du
+        das Modell selbst wählen; voreingestellt ist „Automatisch“, bei dieser Einstellung wählt die
+        Plattform den Dienstleister anhand von Funktion und Verfügbarkeit. Bei allen übrigen
+        Funktionen (u. a. Anträge, Reden, Sharepic-Texte, Notebooks, Präsentationen) ist der
+        Dienstleister je Funktionstyp fest vorgegeben. Cortecs vermittelt Anfragen ausschließlich an
+        Rechenzentrumsbetreiber, die in der EU bzw. im EWR ansässig sind und Eingaben nicht
+        speichern; welcher Betreiber eine Anfrage bearbeitet hat, teilt Cortecs bei jeder Antwort
+        mit, und wir prüfen es nach. Eine Nutzung Deiner Eingaben zum Training der KI findet nicht
+        statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO; enthalten Deine Eingaben besondere
+        Kategorien (z. B. politische Meinungen), stützt sich deren Verarbeitung auf Art. 9 Abs. 2
+        lit. a DSGVO (Deine ausdrückliche Einwilligung, die wir vor der ersten Nutzung der
+        KI-Funktionen gesondert einholen).
       </p>
 
       <h3>Bildbearbeitung und -generierung (Grünerator Imagine)</h3>

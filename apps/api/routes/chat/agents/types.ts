@@ -27,6 +27,8 @@ export interface AgentConfig {
   tags: string[];
   model: string;
   defaultModel?: string | undefined;
+  // 'regolo' is legacy (F0): removed 2026-09-30, kept because stored agent rows and the
+  // contract enum still carry it; `resolveModel` retires it to Cortecs.
   provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'melious' | 'greenpt' | 'cortecs';
   params: {
     max_tokens: number;

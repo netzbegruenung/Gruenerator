@@ -9,7 +9,7 @@
  * Warum sie ALLE Configs liest und nicht nur eine Familie: die zwei Abweichungen,
  * die es gab, sassen in verschiedenen Verzeichnissen. `sharepic/simple.json`
  * schickte `mistral-large-2512` an eine Lane, die Medium sagt; `antrag_simple`
- * schickte den LiteLLM-Alias `gpt-oss:120b` an Regolo, wo dasselbe Modell
+ * schickte den LiteLLM-Alias `gpt-oss:120b` an einen Host, wo dasselbe Modell
  * `gpt-oss-120b` heisst — der `provider` der Config verpuffte dabei wortlos,
  * weil der geroutete Typ ihn überschreibt. Ein Wächter über einem Verzeichnis
  * hätte je nur eine der beiden gefunden.

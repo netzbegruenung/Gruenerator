@@ -13,7 +13,7 @@
  *
  * 2. The defaults DIVERGE per provider, and that is pinned here rather than
  *    tidied away. mistral runs the type/platform table in `services/ai/config.ts`,
- *    litellm hardcodes 0.7/1.0, regolo and greenpt hardcode 0/0.1. So the same
+ *    litellm hardcodes 0.7/1.0, greenpt hardcodes 0/0.1. So the same
  *    request gets different parameters depending on which provider answers —
  *    which, on the fallback path, is not something the caller chose. Collapsing
  *    the four adapters into one must not quietly flatten this, and the commit
@@ -38,7 +38,7 @@ vi.mock('../../../tools/index.js', () => ({
 
 const { execute } = await import('../execute.js');
 
-const PROVIDERS = ['mistral', 'litellm', 'regolo', 'greenpt'] as const;
+const PROVIDERS = ['mistral', 'litellm', 'melious', 'greenpt'] as const;
 type Provider = (typeof PROVIDERS)[number];
 const run = (provider: Provider, data: unknown) => execute(provider, 'req', data as never);
 
@@ -88,7 +88,7 @@ describe('an explicit sampling value reaches the model', () => {
  * The defaults, now identical across providers.
  *
  * They were not. mistral consulted the type/platform table, litellm hardcoded
- * 0.7/1.0, regolo and greenpt hardcoded 0/0.1 — and which one a request got was
+ * 0.7/1.0, greenpt hardcoded 0/0.1 — and which one a request got was
  * decided by the fallback chain rather than by the caller. This block is what
  * that change had to walk through: it asserted the divergence before, so the
  * commit unifying it could not happen quietly.

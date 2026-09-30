@@ -3,7 +3,7 @@
  *
  * Both were invisible for the same reason: the transcription provider chain
  * catches a provider error and continues on the next one, so a hard 4xx from
- * Voxtral looked like "Regolo answered" rather than like a bug. They only
+ * Voxtral looked like "the next provider answered" rather than like a bug. They only
  * surfaced when a real recording was pushed through the real code path.
  */
 

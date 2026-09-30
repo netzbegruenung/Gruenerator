@@ -264,18 +264,17 @@ const MIN_VIABLE_ATTEMPT_MS = 20_000;
  * feste Reserve für „einen weiteren" sieht aus wie eine Lösung und ist bei
  * einer Kette ab drei Anbietern keine: sie garantiert immer genau einen Zug,
  * egal wie viele dahinter stehen. Mit 45 s fest bekam `doc_generation`
- * (fünf Anbieter) `greenpt`=75 s, `cortecs`=45 s — und litellm, regolo und
- * mistral liefen NIE, auch nicht, wenn noch Zeit gewesen wäre. Die
+ * (damals fünf Anbieter) `greenpt`=75 s, `cortecs`=45 s — und die übrigen
+ * Glieder liefen NIE, auch nicht, wenn noch Zeit gewesen wäre. Die
  * vier-tiefen Ketten aller anderen Lanes verloren ebenso ihre letzten zwei.
  *
  * Mit der Skalierung bekommt jeder Anbieter einen Zug, und die kürzere Kette
  * den grosszügigeren Primär — was richtig herum ist, denn der Primär ist das
  * für diese Lane GEWÄHLTE Modell und beantwortet den Normalfall:
  *
- *   5 Anbieter, 120 s   greenpt 40 s │ cortecs 20 │ litellm 20 │ regolo 20 │ mistral 20
- *   4 Anbieter, 120 s   cortecs 60 s │ litellm 20 │ regolo  20 │ mistral 20
- *   3 Anbieter, 120 s   mistral 80 s │ cortecs 20 │ litellm 20
- *   5 Anbieter, 240 s   greenpt 160 s │ … je 20
+ *   4 Anbieter, 120 s   greenpt 60 s │ cortecs 20 │ melious 20 │ mistral 20
+ *   3 Anbieter, 120 s   mistral 80 s │ cortecs 20 │ melious 20
+ *   4 Anbieter, 240 s   greenpt 180 s │ … je 20
  *
  * Reicht die Frist des Aufrufers nicht für alle, verhungert der Schwanz
  * weiterhin — daran ist nichts zu rechnen: fünf Anbieter brauchen 5 × 20 s,
