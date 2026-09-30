@@ -85,10 +85,13 @@ export function setThreadArtifactsFixture(threadId: string, list: ThreadToolCont
 }
 
 /** Script `lastTurnToolSteps` — the tool names the turn right before ran (default: none). */
-export function setLastTurnToolStepsFixture(threadId: string, toolNames: string[]): void {
+export function setLastTurnToolStepsFixture(
+  threadId: string,
+  steps: ReadonlyArray<string | { toolName: string; result: Record<string, unknown> }>
+): void {
   lastTurnToolStepFixtures.set(
     threadId,
-    toolNames.map((toolName) => ({ toolName }))
+    steps.map((step) => (typeof step === 'string' ? { toolName: step } : step))
   );
 }
 
