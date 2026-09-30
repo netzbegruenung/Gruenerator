@@ -7,6 +7,7 @@ import { loopToolsFor, RESEARCH_LOOP_TOOLS } from '@gruenerator/shared/chat-inte
 
 import { NAMED_RETRIEVAL_INTENTS } from './intents.js';
 import {
+  asksAboutOwnPastAction,
   isReferentialFollowup,
   looksLikeExplicitResearchOrder,
   reworksSuppliedText,
@@ -175,7 +176,9 @@ export function shouldForceFirstToolCall(input: {
     input.priorTurnRetrieved &&
     input.intent === 'agentic' &&
     !input.materialHeavy &&
-    isReferentialFollowup(input.lastUserText)
+    isReferentialFollowup(input.lastUserText) &&
+    // Frage über die eigene vorige Abrufhandlung: die Antwort steht im Thread (#3916).
+    !asksAboutOwnPastAction(input.lastUserText)
   ) {
     return 'followup';
   }
