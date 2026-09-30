@@ -340,6 +340,27 @@ export const CREATION_VERB_CORE = 'erstell|erzeug|generier|mach|bau|entwirf|entw
 /** Any core creation verb, any inflection, anywhere — "is this an order at all?" */
 export const CREATION_VERB_RE = new RegExp(`\\b(?:${CREATION_VERB_CORE})[a-zäöü]*\\b`, 'i');
 
+/**
+ * Das Nomen hinter einer Zweck- oder Bezugspräposition ist nicht das Bestellte:
+ * „Mach mir Stichpunkte für meine Präsentation morgen", „Schreib mir eine Rede
+ * für die Präsentation", „Erstell eine Zusammenfassung zur Tabelle". Im
+ * 40-Zeichen-Fenster griff bis zum Beta-Audit 30.09.2026 jedes davon als
+ * Präsentations- bzw. Tabellen-Auftrag.
+ *
+ * `zu` und `in` nur mit bestimmtem Artikel oder Possessiv: „mach das zu einer
+ * Tabelle" ist eine Umwandlung und „in einer Tabelle" nennt das Format — beides
+ * bestellt das Artefakt. Negatives Lookbehind statt `\b`, weil `über` mit einem
+ * Umlaut beginnt und das Muster ohne `u`-Flag gebaut wird.
+ */
+const DEFINITE_DET =
+  '(?:der|die|das|den|dem|des|mein\\w*|dein\\w*|sein\\w*|ihr\\w*|unser\\w*|eu(?:e)?r\\w*|diese?\\w*|jene?\\w*)';
+const NOT_PURPOSE_OBJECT =
+  '(?<!(?:^|[^a-zäöüß])(?:' +
+  `(?:für|fuer|über|ueber|von|nach|aus)\\s+(?:(?:${DEFINITE_DET}|ein\\w*)\\s+)?` +
+  `|(?:zum|zur|im)\\s+` +
+  `|(?:zu|in)\\s+${DEFINITE_DET}\\s+` +
+  ')(?:[a-zäöüß]+\\s+)?)';
+
 export function creationOrderPattern(
   noun: string,
   opts: { extraVerbs?: string; verbs?: string; forward?: number; backward?: number } = {}
@@ -354,8 +375,8 @@ export function creationOrderPattern(
   const forward = opts.forward ?? 40;
   const backward = opts.backward ?? forward;
   return new RegExp(
-    `\\b${verbAnyForm}\\b.{0,${forward}}\\b(?:${noun})\\b` +
-      `|\\b(?:${noun})\\b.{0,${backward}}\\b${verbFinalForm}\\b`,
+    `\\b${verbAnyForm}\\b.{0,${forward}}${NOT_PURPOSE_OBJECT}\\b(?:${noun})\\b` +
+      `|${NOT_PURPOSE_OBJECT}\\b(?:${noun})\\b.{0,${backward}}\\b${verbFinalForm}\\b`,
     'i'
   );
 }
