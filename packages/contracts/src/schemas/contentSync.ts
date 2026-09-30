@@ -18,6 +18,7 @@ export const contentSyncSourceSchema = z.enum([
   'boell-stiftung',
   'bundestag',
   'social-media',
+  'lv-instagram',
   'abgeordnetenwatch',
   'grundsatz',
   'gruene-de',

@@ -5,10 +5,10 @@ import { LV_SOCIAL_ACCOUNTS } from '../../../config/landesverbaendeSocialAccount
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
+import { fetchInstagramPosts } from '../utils/apifyInstagram.js';
 
 const log = createLogger('SocialMediaExamplesScraper');
 
-const INSTAGRAM_ACTOR = 'apify/instagram-post-scraper';
 const FACEBOOK_ACTOR = 'apify/facebook-posts-scraper';
 const DEFAULT_WAIT_SECS = 180;
 const DEFAULT_MAX_POSTS_PER_ACCOUNT = 50;
@@ -82,41 +82,18 @@ function getClient(): ApifyClient | null {
   return new ApifyClient({ token });
 }
 
-async function fetchInstagramPosts(
+async function fetchInstagramExamples(
   client: ApifyClient,
   handle: string,
   maxItems: number
 ): Promise<RawPost[]> {
-  const run = await client.actor(INSTAGRAM_ACTOR).call(
-    {
-      username: [handle],
-      resultsLimit: maxItems,
-    },
-    { waitSecs: DEFAULT_WAIT_SECS }
-  );
-
-  // eslint-disable-next-line @typescript-eslint/await-thenable -- apify-client listItems() returns an awaitable PaginatedIterator (official usage)
-  const { items } = await client.dataset(run.defaultDatasetId).listItems();
-  const posts: RawPost[] = [];
-
-  for (const item of items) {
-    const post = item as Record<string, unknown>;
-    const caption = (post.caption || post.text || '') as string;
-    const shortCode = post.shortCode || post.code;
-    const postUrl = (post.url ||
-      (shortCode ? `https://www.instagram.com/p/${shortCode}/` : null)) as string | null;
-
-    if (!postUrl || !shortCode || !caption || caption.length < 20) continue;
-
-    posts.push({
-      url: postUrl,
-      content: caption,
-      publishedAt: (post.timestamp || post.taken_at || post.date || null) as string | null,
-      sourceAccount: handle,
-    });
-  }
-
-  return posts;
+  const posts = await fetchInstagramPosts(client, handle, { resultsLimit: maxItems });
+  return posts.map((post) => ({
+    url: post.url,
+    content: post.caption,
+    publishedAt: post.publishedAt,
+    sourceAccount: post.sourceAccount,
+  }));
 }
 
 async function fetchFacebookPosts(
@@ -132,7 +109,6 @@ async function fetchFacebookPosts(
     { waitSecs: DEFAULT_WAIT_SECS }
   );
 
-  // eslint-disable-next-line @typescript-eslint/await-thenable -- apify-client listItems() returns an awaitable PaginatedIterator (official usage)
   const { items } = await client.dataset(run.defaultDatasetId).listItems();
   const posts: RawPost[] = [];
 
@@ -159,7 +135,7 @@ async function scrapeAccount(
   account: AccountConfig,
   maxPosts: number
 ): Promise<RawPost[]> {
-  const fetcher = account.platform === 'instagram' ? fetchInstagramPosts : fetchFacebookPosts;
+  const fetcher = account.platform === 'instagram' ? fetchInstagramExamples : fetchFacebookPosts;
   return fetcher(client, account.handle, maxPosts);
 }
 

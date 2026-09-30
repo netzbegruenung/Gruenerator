@@ -6,15 +6,19 @@
 import { describe, expect, it, vi } from 'vitest';
 
 const getNotebookOverview = vi.fn();
-vi.mock('./notebookOverviewService.js', () => ({ getNotebookOverview }));
+vi.mock('./notebookOverviewService.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./notebookOverviewService.js')>()),
+  getNotebookOverview,
+}));
 vi.mock('../../utils/redis/client.js', () => ({
   default: { get: vi.fn(async () => null), set: vi.fn(async () => 'OK') },
 }));
+const count = vi.fn(async () => ({ count: 3 }));
 vi.mock('../../database/services/QdrantService/index.js', () => ({
   getQdrantInstance: () => ({
     init: vi.fn(async () => undefined),
     client: {
-      count: vi.fn(async () => ({ count: 3 })),
+      count,
       scroll: vi.fn(async () => ({ points: [], next_page_offset: null })),
     },
     getFieldValueCounts: vi.fn(async () => []),
@@ -50,5 +54,18 @@ describe('getNotebookStats', () => {
     ]);
     expect(stats.topicSampleSize).toBe(3);
     expect(stats.topPersons).toEqual([{ person: 'Ada Muster', count: 2 }]);
+  });
+
+  it('counts the same documents as the overview, without Instagram posts', async () => {
+    getNotebookOverview.mockResolvedValueOnce(null);
+    await getNotebookStats(['berlin-system']);
+    expect(count).toHaveBeenCalledWith(
+      'landesverbaende_documents',
+      expect.objectContaining({
+        filter: expect.objectContaining({
+          must_not: [{ key: 'content_type', match: { value: 'instagram' } }],
+        }),
+      })
+    );
   });
 });

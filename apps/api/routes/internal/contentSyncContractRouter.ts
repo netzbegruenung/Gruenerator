@@ -218,6 +218,17 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
       };
       break;
     }
+    case 'lv-instagram': {
+      const { scrapeLvInstagram } =
+        await import('../../services/scrapers/implementations/LvInstagramScraper.js');
+      config = {
+        name: 'LV Instagram',
+        timeoutMs: 30 * 60 * 1000,
+        init: async () => {},
+        run: (opts) => scrapeLvInstagram({ forceUpdate: opts.forceUpdate }),
+      };
+      break;
+    }
     case 'abgeordnetenwatch': {
       const { getAbgeordnetenwatchScraperService } =
         await import('../../services/scrapers/implementations/AbgeordnetenwatchScraper/index.js');

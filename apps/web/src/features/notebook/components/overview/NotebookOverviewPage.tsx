@@ -27,6 +27,7 @@ import { NotebookTabs } from '../NotebookTabs';
 
 import {
   ActivityChart,
+  InstagramPosts,
   NotebookGrueneratoren,
   OverviewKpis,
   PeopleList,
@@ -172,6 +173,7 @@ function OverviewBody({ config }: { config: NotebookConfig }) {
           )}
           {overview.persons.length > 0 && <PeopleList overview={overview} />}
           {overview.recent.length > 0 && <RecentDocuments overview={overview} />}
+          {overview.instagram.length > 0 && <InstagramPosts posts={overview.instagram} />}
           {(overview.contentTypes.length > 1 || overview.sources.length > 1) && (
             <SourceMix overview={overview} />
           )}
