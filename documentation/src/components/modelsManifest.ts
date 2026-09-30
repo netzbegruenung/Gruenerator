@@ -49,7 +49,6 @@ export const PROVIDER_HOSTS = [
   'GreenPT',
   'Melious',
   'Mistral AI',
-  'Regolo',
   'Scaleway',
 ] as const;
 

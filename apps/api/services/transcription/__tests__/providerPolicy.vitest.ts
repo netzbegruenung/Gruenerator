@@ -67,8 +67,8 @@ describe('chooseProvider', () => {
 
 describe('toTranscriptionLanguage', () => {
   it('maps both locales to the ISO-639-1 code', () => {
-    // Measured against Regolo 2026-07-29: 'de-AT', 'at' and 'de_AT' all return
-    // HTTP 422 listing the 100 accepted Whisper codes — 'de' is the only German.
+    // Whisper-style endpoints reject 'de-AT', 'at' and 'de_AT' with HTTP 422
+    // (measured 2026-07-29) — 'de' is the only German code.
     expect(toTranscriptionLanguage('de-DE')).toBe('de');
     expect(toTranscriptionLanguage('de-AT')).toBe('de');
   });

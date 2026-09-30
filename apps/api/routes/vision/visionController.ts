@@ -2,11 +2,14 @@ import { parseDataUrl } from '@gruenerator/shared/utils';
 import express, { type Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 
-import { env } from '../../config/env.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getAvailableModels } from '../../services/ai/modelDiscovery.js';
 import { ocrService } from '../../services/OcrService/index.js';
 import { visionService } from '../../services/vision/index.js';
+import {
+  DEFAULT_VISION_MODEL,
+  DEFAULT_VISION_PROVIDER,
+} from '../../services/vision/VisionService.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { ProviderName } from '../../services/ai/providers.js';
@@ -64,8 +67,8 @@ router.post(
         textDetection: result.textDetection,
         extractedText: result.extractedText,
         ocrMethod: result.ocrMethod ?? null,
-        model: options.model ?? env.VISION_DEFAULT_MODEL ?? 'gemma4-31b',
-        provider: options.provider ?? 'regolo',
+        model: options.model ?? DEFAULT_VISION_MODEL,
+        provider: options.provider ?? DEFAULT_VISION_PROVIDER,
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -144,8 +147,8 @@ router.post(
 
       res.json({
         altText,
-        model: options.model ?? env.VISION_DEFAULT_MODEL ?? 'gemma4-31b',
-        provider: options.provider ?? 'regolo',
+        model: options.model ?? DEFAULT_VISION_MODEL,
+        provider: options.provider ?? DEFAULT_VISION_PROVIDER,
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';

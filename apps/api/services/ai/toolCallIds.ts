@@ -20,7 +20,7 @@
  *
  *  - persistierte IDs aus Zügen, die vor dieser Änderung liefen (`tc_…`,
  *    `forced-edit`, `mcp-…`) — die stehen in der Datenbank und ändern sich nie;
- *  - IDs, die ein ANDERER Anbieter geprägt hat (litellm/regolo geben
+ *  - IDs, die ein ANDERER Anbieter geprägt hat (litellm und andere OpenAI-kompatible Hosts geben
  *    `call_<24 Zeichen>`), und die die Ausweichkette mitten im Zug auf eine
  *    Mistral-Lane trägt;
  *  - IDs aus dem Verlauf, den der Client zurückschickt.

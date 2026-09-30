@@ -1,7 +1,7 @@
 /**
  * Audio MIME lookup shared by both provider request builders.
  *
- * The subtitler's Regolo call used to hardcode `audio/wav` while always
+ * The subtitler's Whisper call used to hardcode `audio/wav` while always
  * handing it an .mp3 — harmless in practice, but the two builders disagreeing
  * about the same upload is exactly the drift this folder exists to end.
  */

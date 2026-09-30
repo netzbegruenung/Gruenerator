@@ -317,8 +317,8 @@ describe('pinned targets', () => {
   it('takes provider and model from the named intermediate stage', async () => {
     await aiText({ lane: 'chat_intent_classification', pinned: 'standard', prompt: 'x' });
 
-    // Seit 29.08.2026 GreenPT statt Regolo — siehe „Warum Regolo nirgends mehr
-    // vorne steht" im Kopf von intermediateLanes.ts.
+    // Seit 29.08.2026 GreenPT — siehe „Warum die kleinen Stufen auf GreenPT/Cortecs
+    // liegen" im Kopf von intermediateLanes.ts.
     expect(callAt(0).provider).toBe('greenpt');
     expect(callAt(0).data.options.model).toBe('mistral-small-3.2-24b-instruct-2506');
   });
@@ -326,12 +326,12 @@ describe('pinned targets', () => {
   it('takes a literal pair for the call sites that name one', async () => {
     await aiText({
       lane: 'text_adjustment',
-      pinned: { provider: 'regolo', model: 'gemma4-31b' },
+      pinned: { provider: 'melious', model: 'gemma-4-31b:balanced' },
       prompt: 'x',
     });
 
-    expect(callAt(0).provider).toBe('regolo');
-    expect(callAt(0).data.options.model).toBe('gemma4-31b');
+    expect(callAt(0).provider).toBe('melious');
+    expect(callAt(0).data.options.model).toBe('gemma-4-31b:balanced');
   });
 
   /**

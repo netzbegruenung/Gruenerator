@@ -79,7 +79,7 @@ describe('Cortecs-Nutzung wird dem echten Unterauftragnehmer zugeschrieben', () 
     //
     // Die beiden Empfänger wollen verschiedene Dinge, und das ist der Punkt:
     // die Buchhaltung den Standort (CO₂), die Gesundheit die Lane (nur die
-    // lässt sich auf den Regolo-Sibling umschalten).
+    // lässt sich auf den Sibling umschalten).
     await laufen({ 'x-cortecs-provider': 'scaleway' });
     expect(gemessen[0]?.provider).toBe('cortecs');
     expect(gebucht[0]?.provider).toBe('scaleway');
@@ -106,9 +106,9 @@ describe('Cortecs-Nutzung wird dem echten Unterauftragnehmer zugeschrieben', () 
   });
 
   it('lässt jede andere Lane unangetastet', async () => {
-    // Ein Regolo-Aufruf darf sich von einem fremden Header nicht umbuchen
+    // Ein Aufruf eines anderen Anbieters darf sich von einem fremden Header nicht umbuchen
     // lassen — die Auflösung gilt ausschliesslich für den Router.
-    await laufen({ 'x-cortecs-provider': 'scaleway' }, 'regolo');
-    expect(gebucht[0]?.provider).toBe('regolo');
+    await laufen({ 'x-cortecs-provider': 'scaleway' }, 'melious');
+    expect(gebucht[0]?.provider).toBe('melious');
   });
 });

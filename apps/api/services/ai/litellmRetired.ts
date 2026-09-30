@@ -1,6 +1,14 @@
 /**
- * LiteLLM/Verdigado ist als Modellziel stillgelegt. Wer noch dorthin zeigt,
- * landet bei Cortecs.
+ * LiteLLM/Verdigado und Regolo sind als Modellziel stillgelegt. Wer noch
+ * dorthin zeigt, landet bei Cortecs.
+ *
+ * Regolo (`provider: 'regolo'`) ist am 30.09.2026 aus dem Produkt genommen
+ * worden; seine Ersatzhosts sind Cortecs und Melious. Der Name bleibt F0 —
+ * gespeicherte Agenten-Konfigurationen und Modell-Einstellungen nennen ihn
+ * weiter — und wird in `retireLiteLLM` (Name historisch, gilt für beide Hosts)
+ * tolerant umgebogen. Die Regolo-Kennungen (`gemma4-31b`,
+ * `mistral-small-4-119b`, `gpt-oss-120b`) heissen bei Cortecs anders; ein
+ * durchgereichter Name wäre dort ein 404.
  *
  * ── Warum ──
  *
@@ -24,7 +32,7 @@
  * `intermediateLanes.ts` (0 von 90 Läufen brauchbar bei `max_tokens: 16`),
  * dem inzwischen entfernten `services/mem0/config.ts` und CLAUDE.md zum Scaleway-Reasoning.
  *
- * Die Lane bat nie um gpt-oss. Sie war auf `trivial` gepinnt (regolo bzw. seit
+ * Die Lane bat nie um gpt-oss. Sie war auf `trivial` gepinnt (Regolo bzw. seit
  * #3061 greenpt) und fiel durch die Kette; ein Ausweichglied antwortet immer
  * auf dem EIGENEN Default des Anbieters (`generate.ts`), und der von litellm
  * war `verdigado-pro`. Ein Denkmodell als stiller Auffangort einer
@@ -88,13 +96,31 @@ const RETIRED_MODELS: Readonly<Record<string, RetiredTarget>> = {
  * Das kleine Modell, nicht Gemma: ein Aufrufer ohne Modellwunsch ist fast immer
  * eine Zwischenstufe, und genau die zerbrach an einem Denkmodell.
  */
+/**
+ * Wohin die Regolo-Kennungen gehen: das dichte Gemma auf die Cortecs-Kopie,
+ * die kleinen Modelle (Small 4, gpt-oss) auf das kleine Modell der
+ * Zwischenstufen. Jede andere Regolo-Kennung — auch die Qwen-Namen, die
+ * `textModelPolicy` ohnehin sperrt — geht auf `RETIRED_REGOLO_DEFAULT`.
+ */
+const RETIRED_REGOLO_MODELS: Readonly<Record<string, RetiredTarget>> = {
+  'gemma4-31b': { provider: 'cortecs', model: GEMMA_31B_ON_CORTECS.model },
+  'mistral-small-4-119b': { provider: 'cortecs', model: CORTECS_SMALL_32.model },
+  'gpt-oss-120b': { provider: 'cortecs', model: CORTECS_SMALL_32.model },
+};
+
+/** Regolos Textstandard war `gemma4-31b`; ein Aufrufer ohne Modellwunsch bekommt sein Gegenstück. */
+export const RETIRED_REGOLO_DEFAULT: RetiredTarget = {
+  provider: 'cortecs',
+  model: GEMMA_31B_ON_CORTECS.model,
+};
+
 export const RETIRED_LITELLM_DEFAULT: RetiredTarget = {
   provider: 'cortecs',
   model: CORTECS_SMALL_32.model,
 };
 
 /**
- * Biegt ein Ziel um, das noch auf LiteLLM zeigt. Alles andere kommt unverändert
+ * Biegt ein Ziel um, das noch auf LiteLLM oder Regolo zeigt. Alles andere kommt unverändert
  * zurück, damit die Funktion an beiden `getModel`-Türen bedenkenlos davorsteht.
  *
  * Ein UNBEKANNTER Modellname unter `litellm` geht ebenfalls auf den Standard
@@ -106,6 +132,10 @@ export function retireLiteLLM(
   provider: ProviderName | string,
   model?: string | null
 ): { provider: ProviderName | string; model: string | null } {
+  if (provider === 'regolo') {
+    const mapped = (model && RETIRED_REGOLO_MODELS[model]) || RETIRED_REGOLO_DEFAULT;
+    return { provider: mapped.provider, model: mapped.model };
+  }
   if (provider !== 'litellm') return { provider, model: model ?? null };
   const mapped = (model && RETIRED_MODELS[model]) || RETIRED_LITELLM_DEFAULT;
   return { provider: mapped.provider, model: mapped.model };

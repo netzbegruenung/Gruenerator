@@ -99,7 +99,7 @@ export const aiRequestBodySchema = z.object({
 export type AiRequestBody = z.infer<typeof aiRequestBodySchema>;
 
 // Per-provider model map. Model IDs are not portable across providers — LiteLLM's
-// verdigado proxy has no Mistral models, and Regolo's gpt-oss endpoint leaks
+// verdigado proxy has no Mistral models, and gpt-oss endpoints leak
 // reasoning into content (verified failure for tool calls). Each entry below was
 // probed against a tool-call request and confirmed to return finish_reason:tool_calls.
 const DOCS_AI_MODELS: Record<AgentConfig['provider'], string> = {
@@ -107,7 +107,8 @@ const DOCS_AI_MODELS: Record<AgentConfig['provider'], string> = {
   // Cortecs — services/ai/litellmRetired.ts biegt ihn in `getModel` um. Der
   // Eintrag nennt deshalb das Modell, das dort tatsächlich antwortet.
   litellm: 'gemma-4-31b-it',
-  regolo: 'mistral-small-4-119b',
+  // F0: gespeicherter Name eines abgeschalteten Hosts; bedient wird Cortecs (services/ai/litellmRetired.ts).
+  regolo: 'gemma-4-31b-it',
   melious: 'gemma-4-31b:balanced',
   mistral: 'mistral-medium-2604',
   anthropic: 'mistral-medium-2604',
@@ -139,8 +140,8 @@ export async function handleAiRequest(req: TypedRequest<AiRequestBody>, res: Res
 
     log.info(`[DocsAI] Tool definitions received: ${Object.keys(toolDefinitions).join(', ')}`);
 
-    // Order: mistral first (mistral-medium-2604 / Medium 3.5), then regolo
-    // (mistral-small-4-119b), cortecs last (Gemma 4 31B). `litellm` stand hier
+    // Order: mistral first (mistral-medium-2604 / Medium 3.5), then melious
+    // (Gemma 4 31B), cortecs last (Gemma 4 31B). `litellm` stand hier
     // bis zum 29.08.2026 und war der schlechteste denkbare letzte Halt: es
     // beantwortet einen erzwungenen Tool-Call mit Prosa, und dieser Endpunkt
     // tut nichts anderes als Tools aufzurufen.

@@ -80,20 +80,16 @@ const graded = (
 ): Record<Complexity, ReasoningSetting> => ({ simple, moderate, complex });
 
 /**
- * Gemma 4 31B (Regolo) is now the single content-answer lane. Lane A (Gemma 4
+ * Gemma 4 31B (host: services/ai/gemmaHosts.ts) is now the single content-answer lane. Lane A (Gemma 4
  * 26B, Scaleway) and Lane D (GPT-OSS) were folded into it on 07.08.2026: both
  * were picked for speed over a small/latency-critical prose share, and Gemma 4
- * on Regolo matches that latency (4.0s end to end, measured 2026-07-31)
+ * matches that latency (4.0s end to end, measured 2026-07-31)
  * without GPT-OSS's known weakness — it answers a forced tool call with prose,
  * which is what put a production PDF generation on the floor (see the artefact
  * note in services/ai/lanes.ts). `gemma-4-26b` and `litellm` stay registered in
  * providers.ts (persisted ids) but are no longer an auto-policy target.
  *
- * Der hier notierte degradierte Pfad („wenn Regolo ausfällt, landen Lane-A-
- * Intents auf verdigado-think, ~20 s bis zum ersten Token") gilt seit dem
- * 29.08.2026 nicht mehr: Verdigado bedient keine Lane mehr, und der Ausweich
- * ist der andere Gemma-Host (services/ai/gemmaHosts.ts). Dieselben Gewichte,
- * 1122 ms bis zum ersten Token statt 20 s.
+ * Der Ausweich ist der andere Gemma-Host (services/ai/gemmaHosts.ts).
  */
 const GEMMA: AutoLaneId = 'gemma-litellm';
 /** Mistral Medium 3.5. Where the model calls tools ITSELF and the unified loop
@@ -132,7 +128,7 @@ type ExemptIntent = (typeof AUTO_POLICY_EXEMPT)[number];
  * means.
  */
 export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
-  // ── Content answers: Gemma 4 (31B, Regolo) ──
+  // ── Content answers: Gemma 4 (31B) ──
   // Synth summarises tool output; the planner makes the MCP calls.
   mcp: { modelId: GEMMA, reasoning: 'off' },
   // summarizeNode runs on the `heavy` intermediate stage — same tier.
@@ -165,7 +161,7 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   // writes the whole answer from raw sources, so a research turn is ordinary
   // synthesis and takes the default lane like `web` does.
 
-  // ── Prose over sources: Gemma 4 (31B, Regolo) ──
+  // ── Prose over sources: Gemma 4 (31B) ──
   //
   // `research` denkt auf `moderate` eine Stufe mehr als der Rest der Familie,
   // und der Grund ist NICHT der Intent, sondern die Materialmenge: der
@@ -239,7 +235,7 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   // The vision override in resolveModel wins over this anyway.
   image_edit: { modelId: MEDIUM, reasoning: 'off' },
 
-  // ── Short/direct turns: Gemma 4 (31B, Regolo) — the former speed lane, folded in on 07.08.2026 (see the lane comment above) ──
+  // ── Short/direct turns: Gemma 4 (31B) — the former speed lane, folded in on 07.08.2026 (see the lane comment above) ──
   // Same grading as before: the substance is in the message, so the work is
   // formulating, not reasoning — but a complex rewrite still earns `low`.
   produktion: { modelId: GEMMA, reasoning: graded('off', 'off', 'low') },
@@ -255,8 +251,8 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
  *
  * This was the GPT-OSS speed lane until the 2026-07-31 wind-down. A catch-all
  * is exactly where GPT-OSS is most dangerous: an unlisted intent may well be
- * one that forces a tool call, and GPT-OSS answers those with prose. Gemma 4 on
- * Regolo costs no meaningful latency here (4.0s) and writes the better German.
+ * one that forces a tool call, and GPT-OSS answers those with prose. Gemma 4
+ * costs no meaningful latency here (4.0s) and writes the better German.
  */
 const DEFAULT_ENTRY: AutoEntry = { modelId: GEMMA, reasoning: graded('off', 'off', 'low') };
 
@@ -364,13 +360,12 @@ export const MATERIAL_LANE_MIN_CHARS = 3_000;
  * lang — inhaltlich brauchbar, aber stark wiederholend —, schrieb kein einziges
  * Antwort-Token und starb an der Turn-Uhr. Der Nutzer verlor den ganzen Zug.
  *
- * Gemessen am selben Tag gegen api.regolo.ai, gleicher Prompt: gemma4-31b
- * denkt ~2.500 Zeichen und ist nach 13 s fertig (ohne Denken 3,5 s).
+ * Gemma 4 31B denkt ~2.500 Zeichen und ist nach 13 s fertig (ohne Denken 3,5 s).
  *
  * `off` seit 14.08.2026, VERSUCHSWEISE — der Wert stand auf `medium`. Diese
  * Lane hat das Denken an dem Vormittag in KEINEM gemessenen Lauf zu Ende
- * gebracht: jeder endete mit „regolo/gemma4-31b hat 120000ms gedacht ohne zu
- * antworten — zweiter Versuch ohne Denken". Die ausgelieferte Fassung kam also
+ * gebracht: jeder endete mit „120000ms gedacht ohne zu antworten — zweiter
+ * Versuch ohne Denken". Die ausgelieferte Fassung kam also
  * ohnehin jedes Mal vom Pfad ohne Denken; `medium` kaufte nichts und kostete
  * zwei Minuten pro Zug. `off` macht daraus die Voreinstellung, statt sie
  * zweimal anzulaufen.
@@ -378,7 +373,7 @@ export const MATERIAL_LANE_MIN_CHARS = 3_000;
  * Zurückdrehen, sobald ein Lauf zeigt, dass das Denken hier durchkommt und die
  * Fassung besser macht — die Stufen selbst sind auf dieser Lane ohnehin Rauschen
  * (low/medium/high: 2533/2589/2412 Zeichen Reasoning, Messtabelle in
- * `services/ai/regoloReasoningStream.ts`), die Frage ist nur an/aus.
+ * `services/ai/openAiReasoningStream.ts`), die Frage ist nur an/aus.
  *
  * Warum die Entscheidung HIER und nicht in der Pipeline-Registry steht: die
  * Registry sagt ausdrücklich, dass sie keine Modellwahl deklariert (zwei Orte,
@@ -478,7 +473,7 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  * Ergebnis; seriell, Temperatur 0; Skript nicht im Repo):
  *
  *   melious/gemma-4-31b:balanced   96/96, p50 602 ms, p90 963 ms
- *   melious/gemma-4-31b:eco        96/96, p50 758 ms — Upstream Regolo/IT
+ *   melious/gemma-4-31b:eco        96/96, p50 758 ms
  *   melious/mistral-small-4        33/36, p50 574 ms
  *   greenpt-Mistral-Small-3.2      33/36, p50 500–970 ms (bisheriger Primär)
  *
@@ -489,7 +484,7 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  * Neun-Zeichen-Zwang wie bei mistral-common).
  *
  * Was die Probe NICHT zeigt: den mehrstufigen Sammellauf, an dem die frühere
- * Regolo-Vorgabe mit „steps=0 gather" scheiterte. `afterGather` in
+ * frühere Vorgabe mit „steps=0 gather" scheiterte. `afterGather` in
  * agenticRespondService fängt diesen Fall ab; zeigt eine Stufe hier auffällig
  * oft leere Züge, ist das der erste Ort zum Nachsehen.
  *
@@ -503,13 +498,11 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  *    Token.
  * 2. Beide Planer-Stufen hängen am selben Gateway. Ein Melious-Ausfall nimmt
  *    beide; `loopPlannerChoice` fällt dann auf Mistral Medium (andere Familie,
- *    anderer Vertragspartner). Mistral Small 4 wird von Melious an Regolo/IT
- *    vermittelt (gemessen 29.09.2026) — den Host, der am 29.08.2026 mit 402
- *    `trial_expired` ausfiel. Melious sagt kein Routing zu.
+ *    anderer Vertragspartner). Melious sagt kein Routing zu.
  *
  * `:balanced` trägt ~45k Tokens; was darüber liegt, schickt `meliousFetch` auf
  * `:speed` (siehe meliousThinkingFetch.ts). `:eco` wurde bewusst NICHT gewählt:
- * gleiche Zuverlässigkeit, aber langsamer und auf Regolo/IT.
+ * gleiche Zuverlässigkeit, aber langsamer.
  *
  * `mistral-small-3.2` auf GreenPT und Gemma auf Cortecs standen bis dahin als
  * Stufen 1 und 2 hier. Cortecs fiel weg, weil es dieselben Gewichte wie der
@@ -543,10 +536,9 @@ export const LOOP_PLANNER_FALLBACK = {
 /** SYNTH: best German writer, and never a reasoning lane (latency).
  *
  *  Host und Modellname kommen aus `services/ai/gemmaHosts.ts` — dort steht die
- *  eine Entscheidung, wer Gemma 4 bedient, samt Messreihe. Hier stand bis zum
- *  25.08.2026 `regolo` fest verdrahtet, mit dem Zusatz „gemma-4 lives only on
- *  regolo"; das gilt seit dem Cortecs-Anschluss nicht mehr, und die doppelte
- *  Notiz war genau die Art Drift, die der zentrale Wechselpunkt beendet.
+ *  eine Entscheidung, wer Gemma 4 bedient, samt Messreihe. Ein hier
+ *  hart notierter Host wäre genau die Art Drift, die der zentrale
+ *  Wechselpunkt beendet.
  *
  *  Der Ausweich ging bis 19.08.2026 auf `litellm/verdigado-pro` — „die
  *  always-up Lane". Am Proxy nachgemessen liegt hinter diesem Alias
@@ -566,7 +558,7 @@ export const LOOP_SYNTH_FALLBACK = { provider: 'mistral' as const, model: 'mistr
  *  gpt-oss (verified tool-call fail / reasoning leak) und die chinesisch
  *  trainierten Lanes. Letztere sind heute nirgends mehr wählbar — der Zweig
  *  bleibt als zweite Sicherung neben `isExcludedTextModel`, weil
- *  REGOLO_DEFAULT_MODEL aus der Umgebung kommt und dort wieder eine stehen
+ *  ein Modellname aus der Umgebung kommen kann und dort wieder einer stehen
  *  könnte. Any of these in the synth slot is rewritten to the
  *  best-writer lane. Stays active even when the policy chose the model.
  *
@@ -575,7 +567,7 @@ export const LOOP_SYNTH_FALLBACK = { provider: 'mistral' as const, model: 'mistr
  *  persistierten Thread-Zuständen und in gespeicherten Modell-Einstellungen;
  *  diese Liste prüft NAMEN, nicht Modelle, und ein alter Name, der hier
  *  durchfiele, wäre wieder ein Denkmodell im Synth-Slot. `gpt-oss` bleibt aus
- *  demselben Grund: Regolo serviert es weiterhin unter eigenem Namen. */
+ *  demselben Grund: gpt-oss-Namen stehen in gespeicherten Einstellungen. */
 export const AVOID_AS_SYNTH = /verdigado-think|verdigado-pro|qwen|gpt-oss/i;
 
 /**

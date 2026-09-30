@@ -23,6 +23,7 @@ import { withTimeout } from '../../utils/withTimeout.js';
 
 import { getCachedDistill, setCachedDistill } from './distillCache.js';
 import { isDistillLlmEnabled, isPassageDistillEnabled } from './distillFlags.js';
+import { greenptRerankService } from './GreenPTRerankService.js';
 import { scoreTextsLexically } from './lexicalPassageScore.js';
 import { chunkPageForDistill } from './passageChunker.js';
 import { rerankPipeline } from './rerankPipeline.js';
@@ -185,7 +186,7 @@ async function selectChunks(
     return { scores: chunks.map(() => 0), method: 'passthrough' };
   }
 
-  if (!process.env.REGOLO_API_KEY) {
+  if (!greenptRerankService.isAvailable()) {
     return {
       scores: scoreTextsLexically(
         chunks.map((c) => c.text),

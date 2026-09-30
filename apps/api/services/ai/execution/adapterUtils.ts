@@ -187,8 +187,7 @@ async function documentToText(c: ContentPart): Promise<string> {
  * chain rather than by the caller:
  *
  *   mistral  tool round-trips, base64 images, PDF→OCR — but not `image_url`
- *   regolo   base64 images and `image_url` — but no tool round-trips
- *   greenpt  (a copy of regolo)
+ *   greenpt  base64 images and `image_url` — but no tool round-trips
  *   litellm  text only: `c.text || c.content || ''`, so a document or image
  *            block collapsed to an empty string
  *

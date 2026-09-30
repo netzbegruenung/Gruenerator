@@ -105,7 +105,7 @@ Ein gewähltes Notebook (`notebookIds`) hält den Turn weiterhin im Einzeldurchl
 **Was nach Abzug übrig bleibt.** Zieht man ab, was das AI SDK ohnehin liefert (Subagenten als Tool, HITL, Tool-Subsetting, Structured Output, Tool-Timeouts, Idle-Erkennung) und was wir bereits eigen und besser haben (`compactionService` macht LLM-Zusammenfassung, das SDK-Core nur mechanisches Pruning; Grüneratoren als Skills; mem0 als Memory), bleibt als Alleinstellung: **virtuelles Dateisystem, FS-Backends, Pfad-Permissions.** Also der für ein Chat-Produkt am wenigsten relevante Teil.
 
 **Zwei Reizthemen, die nicht ziehen:**
-- Prompt-Caching in Deep Agents ist Anthropic/Bedrock-only → No-op auf unserer Mistral/verdigado/Regolo-Lane. Das AI SDK exponiert ebenfalls **kein** Mistral-Caching-Feld (alle dokumentierten `providerOptions.mistral`-Felder geprüft). Unsere Provider können es schlicht nicht.
+- Prompt-Caching in Deep Agents ist Anthropic/Bedrock-only → No-op auf unserer Mistral/Cortecs/Melious-Lane. Das AI SDK exponiert ebenfalls **kein** Mistral-Caching-Feld (alle dokumentierten `providerOptions.mistral`-Felder geprüft). Unsere Provider können es schlicht nicht.
 - Sandboxes sind sämtlich Dritt-Cloud (LangSmith/Daytona/Modal), **ohne EU-Residency-Aussage in den Docs**. Eigene Isolation wäre implementierbar (`SandboxBackendProtocol`), aber dann ist der Gewinn weg.
 
 **Strategisch:** Das JS-Paket ist der jüngere Zwilling; Python bekommt Fähigkeiten zuerst.

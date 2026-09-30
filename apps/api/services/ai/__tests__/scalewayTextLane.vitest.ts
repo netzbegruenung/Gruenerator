@@ -33,7 +33,7 @@ import type { ProviderName } from '../providers.js';
 const ALL_PROVIDERS: ProviderName[] = [
   'mistral',
   'litellm',
-  'regolo',
+  'melious',
   'greenpt',
   'scaleway',
   'cortecs',

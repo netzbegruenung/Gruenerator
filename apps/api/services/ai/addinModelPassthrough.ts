@@ -8,7 +8,7 @@
  *
  * Deliberately a raw `fetch` rather than the AI SDK: `@ai-sdk/openai`'s
  * Chat-Completions delta schema has no `reasoning` field, so a thinking model's
- * stream would be dropped on that path — the same gap `regoloReasoningStream.ts`
+ * stream would be dropped on that path — the same gap `openAiReasoningStream.ts`
  * exists to work around. Piping the upstream bytes is both less code and
  * lossless for fields we do not model.
  *

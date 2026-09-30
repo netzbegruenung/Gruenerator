@@ -85,7 +85,7 @@ export class ToolHandler {
     // lane speaks the OpenAI wire format (see providerInstances.ts), so every
     // known provider gets the nested `function` shape. Until 28.08.2026 the
     // list here was `['litellm', 'mistral']` — stale since cortecs landed —
-    // and every greenpt/cortecs/scaleway/regolo tool call logged "Unknown
+    // and every greenpt/cortecs/scaleway tool call logged "Unknown
     // provider" and shipped Claude-shaped tools as-is (Issue #3044).
     const isKnownProvider: boolean = PROVIDER_NAMES.includes(targetProvider);
 

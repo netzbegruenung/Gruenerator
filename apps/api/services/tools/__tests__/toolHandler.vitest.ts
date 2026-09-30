@@ -2,7 +2,7 @@
  * `ToolHandler.formatToolsForProvider`: the provider gate.
  *
  * Until 28.08.2026 the gate was a hand-written list `['litellm', 'mistral']`
- * (Issue #3044). Every other lane — regolo, greenpt, scaleway, cortecs — fell
+ * (Issue #3044). Every other lane — melious, greenpt, scaleway, cortecs — fell
  * into the "Unknown provider" branch, warned once per tool, and kept shipping
  * Claude-shaped tools as-is. All lanes speak the OpenAI wire format
  * (see providerInstances.ts), so every known provider gets the nested
@@ -144,7 +144,7 @@ describe('prepareToolsPayload', () => {
  * actually go through".
  */
 describe('wire shape (OpenAI serialisation)', () => {
-  const CHANGED_LANES = ['regolo', 'greenpt', 'scaleway', 'cortecs'] as const;
+  const CHANGED_LANES = ['melious', 'greenpt', 'scaleway', 'cortecs'] as const;
 
   it.each(CHANGED_LANES)('sends a forced tool call for %s', async (provider) => {
     const captured: { body: Record<string, unknown> }[] = [];

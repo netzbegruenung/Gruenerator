@@ -7,12 +7,11 @@
  * fragt sie ab. Ein zweiter Ort für die Regel hiesse: eine Messung, die eine
  * Sammlung durchsucht, die der Kopierer nie gefüllt hat.
  *
- * WARUM DIE SLUGS NICHT DIE MODELLNAMEN SIND. Zwei Kandidaten fahren dieselben
- * Gewichte auf verschiedenen Hosts (`qwen3-embedding-8b` bei GreenPT,
- * `Qwen3-Embedding-8B` bei Regolo) — als Slug unterschieden sie sich nur in der
- * Grossschreibung, und ein Sammlungsname, der bloss daran hängt, ist eine
- * Falle. Der Slug nennt darum Modell UND Host; `model` trägt die exakte
- * Modell-ID, die der Anbieter erwartet.
+ * WARUM DIE SLUGS NICHT DIE MODELLNAMEN SIND. Dieselben Gewichte können auf
+ * verschiedenen Hosts laufen (Regolo, das `Qwen3-Embedding-8B` neben GreenPTs
+ * `qwen3-embedding-8b` fuhr, ist seit 30.09.2026 entfernt) — als Slug
+ * unterschieden sie sich nur in der Grossschreibung. Der Slug nennt darum
+ * Modell UND Host; `model` trägt die exakte Modell-ID, die der Anbieter erwartet.
  *
  * Dimensionen und Kontextlängen sind nachgeschlagen, nicht geschätzt:
  *  - `bge-m3`: 1024 Dim., live gegen Cortecs' `POST /v1/embeddings` gemessen
@@ -20,7 +19,7 @@
  *  - `bge-multilingual-gemma2`: `config.json` der Modellkarte
  *    (huggingface.co/BAAI/bge-multilingual-gemma2, abgerufen 03.09.2026) nennt
  *    `hidden_size: 3584` und `max_position_embeddings: 8192`.
- *  - `Qwen3-Embedding-8B`: `config.json` nennt `hidden_size: 4096`
+ *  - `qwen3-embedding-8b`: `config.json` nennt `hidden_size: 4096`
  *    (`max_position_embeddings: 40960`), die Modellkarte "Context Length: 32k" —
  *    hier gilt die konservativere Angabe der Karte.
  *
@@ -31,7 +30,7 @@
  * beidseitig anwendet, misst ein anderes Modell als das empfohlene.
  */
 
-export type EmbedProvider = 'cortecs' | 'greenpt' | 'regolo';
+export type EmbedProvider = 'cortecs' | 'greenpt';
 
 export interface EmbedCandidate {
   /** Kennung auf der Kommandozeile und im Sammlungsnamen. Modell + Host. */
@@ -70,14 +69,6 @@ export const EMBED_CANDIDATES = [
     slug: 'qwen3-8b-greenpt',
     provider: 'greenpt',
     model: 'qwen3-embedding-8b',
-    dims: 4096,
-    maxTokens: 32768,
-    queryInstruction: QWEN3_QUERY_INSTRUCTION,
-  },
-  {
-    slug: 'qwen3-8b-regolo',
-    provider: 'regolo',
-    model: 'Qwen3-Embedding-8B',
     dims: 4096,
     maxTokens: 32768,
     queryInstruction: QWEN3_QUERY_INSTRUCTION,

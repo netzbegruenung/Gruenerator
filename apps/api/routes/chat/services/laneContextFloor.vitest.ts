@@ -16,7 +16,7 @@ import { AVAILABLE_MODELS, getModelConfig } from '../agents/providers.js';
 import { resolveLaneContextFloor } from './laneContextFloor.js';
 
 /** Every window a request on this lane could run against. Bis zum 29.08.2026
- *  konnten das ZWEI sein (Verdigado-Primär, Regolo-Überlauf); die Bauform ist
+ *  konnten das ZWEI sein (Verdigado-Primär, Überlauf beim zweiten Host); die Bauform ist
  *  mit dem Host weg — siehe services/ai/litellmRetired.ts. */
 function reachableWindows(modelId: string): number[] {
   const config = getModelConfig(modelId);

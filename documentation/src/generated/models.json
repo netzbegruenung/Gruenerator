@@ -62,12 +62,12 @@
           "role": "primary"
         },
         {
-          "model": "mistral-small-4-119b",
-          "code": "mistral-small-4-119b",
-          "label": "Mistral Small 4",
-          "provider": "regolo",
-          "host": "Regolo",
-          "flag": "🇮🇹",
+          "model": "mistral-small-latest",
+          "code": "mistral-small-latest",
+          "label": "Mistral Small",
+          "provider": "mistral",
+          "host": "Mistral AI",
+          "flag": "🇫🇷",
           "role": "fallback"
         }
       ]
@@ -137,12 +137,12 @@
       "task": "Bilder verstehen",
       "models": [
         {
-          "model": "gemma4-31b",
-          "code": "gemma4-31b",
-          "label": "Gemma 4 (31 Mrd.)",
-          "provider": "regolo",
-          "host": "Regolo",
-          "flag": "🇮🇹",
+          "model": "pixtral-large-latest",
+          "code": "pixtral-large-latest",
+          "label": "Pixtral Large",
+          "provider": "mistral",
+          "host": "Mistral AI",
+          "flag": "🇫🇷",
           "role": "primary"
         }
       ]
@@ -234,7 +234,6 @@
     "Cortecs 🇱🇺",
     "GreenPT 🇪🇺",
     "Melious 🇪🇺",
-    "Mistral AI 🇫🇷",
-    "Regolo 🇮🇹"
+    "Mistral AI 🇫🇷"
   ]
 }

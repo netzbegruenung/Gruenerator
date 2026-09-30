@@ -39,9 +39,9 @@ vi.mock('../../../services/ai/modelDiscovery.js', () => ({
 }));
 
 const mockStreamWithReasoning = vi.fn();
-vi.mock('../../../services/ai/regoloReasoningStream.js', () => ({
+vi.mock('../../../services/ai/openAiReasoningStream.js', () => ({
   isReasoningStreamModel: (provider: string, model: string) =>
-    (provider === 'regolo' && (model.startsWith('qwen') || model === 'gemma4-31b')) ||
+    (provider === 'melious' && model === 'gemma-4-31b:balanced') ||
     (provider === 'litellm' && (model === 'verdigado-think' || model === 'verdigado-pro')) ||
     // Medium 3.5 HAT einen Roh-Reasoning-Pfad (Scaleway). Stand hier vorher auf
     // false und machte damit jede Aussage über das Zusammenspiel von Pin und
@@ -72,7 +72,7 @@ vi.mock('../../../utils/logger.js', () => ({
 }));
 
 const { ReasoningStreamUnavailableError } =
-  await import('../../../services/ai/regoloReasoningStream.js');
+  await import('../../../services/ai/openAiReasoningStream.js');
 
 /** Aus dem 'ai'-Mock oben — dieselbe Klasse, die `classifyProviderError` prüft. */
 const { APICallError } = (await import('ai')) as unknown as {
@@ -225,8 +225,7 @@ describe('getFirstTokenDeadlineMs', () => {
   it('gives reasoning-stream models the longest deadline (but not so long a hang stalls the turn)', () => {
     // Cut 45s→20s: a hanging verdigado-think used to make the user wait 45s
     // before the sibling fallback even started (observed 86s turn).
-    expect(getFirstTokenDeadlineMs('regolo', 'qwen3.5-122b')).toBe(20_000);
-    expect(getFirstTokenDeadlineMs('regolo', 'gemma4-31b')).toBe(20_000);
+    expect(getFirstTokenDeadlineMs('melious', 'gemma-4-31b:balanced')).toBe(20_000);
     expect(getFirstTokenDeadlineMs('litellm', 'verdigado-think')).toBe(20_000);
     expect(getFirstTokenDeadlineMs('litellm', 'verdigado-pro')).toBe(20_000);
   });
@@ -261,11 +260,11 @@ describe('resolveModel', () => {
   });
 
   it('uses the resolved tuple for a known modelId without flagging', async () => {
-    mockResolveModelTuple.mockResolvedValue({ provider: 'regolo', model: 'gemma4-31b' });
+    mockResolveModelTuple.mockResolvedValue({ provider: 'melious', model: 'gemma-4-31b:balanced' });
     const resolution = await resolveModel(agentConfig, 'gemma-4', 'req_test');
     expect(resolution.unknownModelId).toBeUndefined();
-    expect(resolution.provider).toBe('regolo');
-    expect(resolution.modelName).toBe('gemma4-31b');
+    expect(resolution.provider).toBe('melious');
+    expect(resolution.modelName).toBe('gemma-4-31b:balanced');
   });
 });
 
@@ -283,13 +282,13 @@ describe('thinksOnThisLane', () => {
   });
 
   it('lässt Lanes ohne binären Dial bei ihrer Lesart: alles außer off denkt', () => {
-    expect(thinksOnThisLane('regolo', 'qwen3.5-122b', 'low')).toBe(true);
+    expect(thinksOnThisLane('melious', 'gemma-4-31b:balanced', 'low')).toBe(true);
     expect(thinksOnThisLane('litellm', 'verdigado-pro', 'low')).toBe(true);
   });
 
   it('off heißt überall off', () => {
     expect(thinksOnThisLane('mistral', 'mistral-medium-2604', 'off')).toBe(false);
-    expect(thinksOnThisLane('regolo', 'qwen3.5-122b', 'off')).toBe(false);
+    expect(thinksOnThisLane('melious', 'gemma-4-31b:balanced', 'off')).toBe(false);
   });
 
   it('ein Mistral-Modell ohne Reasoning denkt auch bei high nicht', () => {
@@ -434,7 +433,7 @@ describe('Pin und Streamer stellen dieselbe Frage', () => {
     mockStreamText.mockReturnValue(streamOf([{ type: 'text-delta', text: 'ok' }]));
     await streamForResolution({
       resolution: makeResolution({
-        provider: 'regolo',
+        provider: 'cortecs',
         modelName: 'gpt-oss-120b',
         reasoningEffort: 'off',
       }) as never,
@@ -477,7 +476,7 @@ describe('clampToModelOutputLimit', () => {
   it('deckelt ein Modell ohne bekannte Decke nicht — der Anbieter entscheidet', async () => {
     mockStreamText.mockReturnValue(streamOf([{ type: 'text-delta', text: 'ok' }]));
     await runWithMaxTokens(
-      makeResolution({ provider: 'regolo', modelName: 'gpt-oss-120b' }),
+      makeResolution({ provider: 'cortecs', modelName: 'gpt-oss-120b' }),
       40_000
     );
     expect(mockStreamText.mock.calls[0][0].maxOutputTokens).toBe(40_000);
@@ -536,7 +535,7 @@ describe('streamWithFallback', () => {
 
   it('lets a model that thinks past the deadline finish — reasoning is proof of life', async () => {
     // The live failure this closes: a research turn on verdigado-think died at
-    // exactly 20s, fell back to regolo/gemma4-31b (also a reasoning lane, same
+    // exactly 20s, fell back to its Gemma sibling (also a reasoning lane, same
     // reasoning=medium) and died at exactly 20s again. The fallback could not
     // help, because a fixed one-shot deadline kills every long thinking phase.
     vi.useFakeTimers();
@@ -792,16 +791,16 @@ describe('Upstream-Fehler vor dem ersten Token', () => {
 
   it('der Roh-Reasoning-Pfad fällt bei 503 ebenfalls auf den Sibling', async () => {
     mockStreamWithReasoning.mockImplementationOnce(() => {
-      throw new ReasoningStreamUnavailableError('regolo', 503, 'upstream down');
+      throw new ReasoningStreamUnavailableError('melious', 503, 'upstream down');
     });
     mockStreamText.mockReturnValueOnce(streamOf([{ type: 'text-delta', text: 'vom Sibling' }]));
     const sse = makeSse();
 
     const result = await runStream(
       makeResolution({
-        model: { provider: 'regolo', model: 'gemma4-31b' },
-        provider: 'regolo',
-        modelName: 'gemma4-31b',
+        model: { provider: 'melious', model: 'gemma-4-31b:balanced' },
+        provider: 'melious',
+        modelName: 'gemma-4-31b:balanced',
         reasoningEffort: 'medium',
         // Sibling BEWUSST ohne Roh-Reasoning-Pfad: sonst liefe der zweite
         // Versuch im Mock erneut über streamWithReasoning statt über das SDK.
@@ -817,16 +816,16 @@ describe('Upstream-Fehler vor dem ersten Token', () => {
 
   it('der Roh-Reasoning-Pfad fällt bei 400 NICHT auf den Sibling', async () => {
     mockStreamWithReasoning.mockImplementationOnce(() => {
-      throw new ReasoningStreamUnavailableError('regolo', 400, 'bad payload');
+      throw new ReasoningStreamUnavailableError('melious', 400, 'bad payload');
     });
     const sse = makeSse();
 
     await expect(
       runStream(
         makeResolution({
-          model: { provider: 'regolo', model: 'gemma4-31b' },
-          provider: 'regolo',
-          modelName: 'gemma4-31b',
+          model: { provider: 'melious', model: 'gemma-4-31b:balanced' },
+          provider: 'melious',
+          modelName: 'gemma-4-31b:balanced',
           reasoningEffort: 'medium',
           sibling: { provider: 'mistral', model: 'mistral-medium-2604' },
         }),

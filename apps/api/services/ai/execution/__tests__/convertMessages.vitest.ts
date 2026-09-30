@@ -5,8 +5,7 @@
  * by the fallback chain rather than by the caller:
  *
  *   mistral  tool round-trips, base64 images, PDF→OCR — but NOT `image_url`
- *   regolo   base64 images and `image_url` — but no tool round-trips
- *   greenpt  a copy of regolo
+ *   greenpt  base64 images and `image_url` — but no tool round-trips
  *   litellm  text only — every non-text block collapsed to '' and vanished
  *
  * Two jobs here. The first group is the safety net for the collapse: plain text

@@ -20,7 +20,7 @@ type TimestampGranularity = 'segment';
  *    an empty granularity list and Voxtral answered HTTP 422: "When diarize is
  *    set to True and streaming is disabled, the timestamp granularity must be
  *    set to ['segment'], got []". That killed speaker identification outright:
- *    the fallback then handed a 45-minute file to Regolo, which gave up after
+ *    the fallback then handed a 45-minute file to another provider, which gave up after
  *    five minutes, and `identifySpeakers` received no `[speaker_N]` marker at
  *    all.
  *  - CONTEXT BIAS IS SINGLE WORDS. See normalizeContextBias. Callers may pass

@@ -26,6 +26,7 @@ export const agentProviderSchema = z.enum([
   'mistral',
   'anthropic',
   'litellm',
+  // legacy: Regolo removed 2026-09-30, kept so stored rows still parse
   'regolo',
   'melious',
   'greenpt',
