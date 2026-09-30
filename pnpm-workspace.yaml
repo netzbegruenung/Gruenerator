@@ -256,6 +256,7 @@ overrides:
   diff: '>=5.2.2'
   hono: '>=4.13.5'
   '@hono/node-server': '>=2.0.10'
+  '@grpc/grpc-js': '>=1.14.5 <2'
   basic-ftp: '>=6.0.1'
   langsmith: '>=0.4.6'
   markdown-it: '>=14.2.0 <15'
