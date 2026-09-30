@@ -24,47 +24,37 @@ alten Wert:
 | Wert     | Stand                                                                                                                |
 | -------- | -------------------------------------------------------------------------------------------------------------------- |
 | Adresse  | `https://ota.moritz-waechter.de/manifest` — der Server muss unter genau diesem Pfad antworten (`BASE_URL` ohne Pfad) |
-| Signatur | `apps/mobile/certs/certificate.pem`, `keyid: main`, `alg: rsa-v1_5-sha256`, gültig bis 29.09.2036                    |
-| App-ID   | Header `expo-app-id: 86989c3a-549f-47fe-b141-df891ff6e075` (= EAS-Projekt-ID)                                        |
+| Signatur | `apps/mobile/certs/certificate.pem`, `keyid: main`, `alg: rsa-v1_5-sha256`, gültig bis 30.09.2036                    |
+| App-ID   | Header `expo-app-id: 9af925be-1aa5-426b-98c2-855300438cb3` (App „Gruenerator" im xprem-Dashboard)                    |
 | Kanäle   | Header `expo-channel-name`: `production` bzw. `preview`                                                              |
 
-**Der private Schlüssel** wurde am 30.09.2026 lokal erzeugt und liegt nicht im
-Repo. Er gehört in den Passwortmanager und als `PRIVATE_EXPO_KEY_B64` in Coolify
-(`base64 -i private-key.pem`, ebenso für `public-key.pem`). **Geht er verloren,
-nimmt keine ausgelieferte Binary mehr ein Update an.**
+**Die Signaturschlüssel** hat der Server am 30.09.2026 beim Anlegen der App
+erzeugt („Managed for you"); sie liegen mit `DB_KEYS_MASTER_KEY_B64`
+verschlüsselt in Postgres. Das Zertifikat im Repo stammt aus dem Dashboard (App
+Info → Download certificate). **Master-Key und Postgres-Backup gehören beide
+gesichert** — fehlt eins davon, nimmt keine ausgelieferte Binary mehr ein Update
+an, bis ein neuer Store-Build mit neuem Zertifikat draußen ist.
 
-## Aufsetzen
+## Aufsetzen (Stand 30.09.2026)
 
-1. Coolify: neuen Docker-Compose-Dienst aus `docker-compose.yml`, Domain
-   `ota.moritz-waechter.de` auf Port 3000, TLS über Coolify.
-2. Variablen setzen: `JWT_SECRET` und `DB_KEYS_MASTER_KEY_B64` (je
-   `openssl rand -base64 32`), `POSTGRES_PASSWORD`, `ADMIN_EMAIL`,
-   `ADMIN_PASSWORD` (mind. 8 Zeichen, Groß-/Kleinbuchstabe, Ziffer, Sonderzeichen),
-   die beiden Schlüssel. **Den Master-Key sichern** — ohne ihn sind die in
-   Postgres versiegelten Schlüssel unlesbar.
-3. Prüfen, dass der Server mit **unseren** Schlüsseln signiert (siehe unten),
-   dann im Dashboard die Kanäle `production` und `preview` je auf den
-   gleichnamigen Branch zeigen lassen und einen API-Token anlegen.
+Läuft in Coolify aus `docker-compose.yml`. Noch offen:
+
+1. Domain `ota.moritz-waechter.de` am Dienst eintragen (TLS über Coolify), und
+   `BASE_URL=https://ota.moritz-waechter.de` — daraus baut der Server die
+   Download-Adressen der Bundles.
+2. `DISABLE_DEVICE_TELEMETRY=true` und `DISABLE_TELEMETRY=true` setzen (siehe
+   unten; die Datenschutzerklärung sagt „kein Geräteverzeichnis").
+3. Kanäle `production` und `preview` je auf den gleichnamigen Branch, API-Token
+   für den OTA-Workflow anlegen.
 4. Erstes Update auf `preview` veröffentlichen, auf einem Preview-Build prüfen,
    erst dann `production`.
-
-**Ungeprüft, beim Aufsetzen verifizieren:** Laut Doku übernimmt der Postgres-Modus
-Schlüssel aus `KEYS_STORAGE_TYPE=environment` beim ersten Start („reads your local
-or environment keys once and seals them into the database"), beschrieben ist das
-aber für die Migration eines zuvor zustandslos laufenden Servers. Wenn der Server
-stattdessen ein eigenes Paar erzeugt, passt es nicht zum eingebauten Zertifikat
-und jedes Update wird abgelehnt. Sicherer Weg: erst **ohne** `DB_URL` starten
-(zustandslos, braucht dann `EXPO_ACCESS_TOKEN`), ein Test-Manifest abrufen, dann
-`DB_URL` dazunehmen. Nachsehen, welches Zertifikat der Server nutzt: im Dashboard
-unter App Info „Download certificate" und mit
-`apps/mobile/certs/certificate.pem` vergleichen.
 
 Rauchtest ohne App:
 
 ```bash
 curl -s -H 'expo-platform: android' -H 'expo-runtime-version: 1.5.5' \
   -H 'expo-channel-name: preview' \
-  -H 'expo-app-id: 86989c3a-549f-47fe-b141-df891ff6e075' \
+  -H 'expo-app-id: 9af925be-1aa5-426b-98c2-855300438cb3' \
   -H 'expo-expect-signature: sig, keyid="main", alg="rsa-v1_5-sha256"' \
   -D - https://ota.moritz-waechter.de/manifest -o /dev/null
 ```

@@ -17,12 +17,8 @@ services:
       DISABLE_TELEMETRY: 'true'
       STORAGE_MODE: local
       LOCAL_BUCKET_BASE_PATH: /data/updates
-      # Das Schlüsselpaar, zu dem certs/certificate.pem in apps/mobile gehört.
-      KEYS_STORAGE_TYPE: environment
-      PUBLIC_EXPO_KEY_B64: ${PUBLIC_EXPO_KEY_B64}
-      PRIVATE_EXPO_KEY_B64: ${PRIVATE_EXPO_KEY_B64}
-      EXPO_APP_ID: 86989c3a-549f-47fe-b141-df891ff6e075
-      # Postgres-Modus. Weglassen = zustandslos (dann EXPO_ACCESS_TOKEN setzen).
+      # Postgres-Modus. Die Signaturschlüssel erzeugt der Server selbst und
+      # versiegelt sie mit dem Master-Key in der Datenbank — den Key sichern.
       DB_URL: postgres://xprem:${POSTGRES_PASSWORD}@postgres:5432/xprem?sslmode=disable
       DB_KEYS_MASTER_KEY_B64: ${DB_KEYS_MASTER_KEY_B64}
     volumes:
