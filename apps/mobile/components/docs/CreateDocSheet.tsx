@@ -41,6 +41,14 @@ const EXAMPLE_PROMPTS = [
 
 const MAX_MATCHES = 5;
 
+export interface CreateSheetAction {
+  key: string;
+  icon: IoniconsIconName;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+}
+
 /**
  * Create-or-find sheet for the Arbeiten tab — the mobile counterpart of web's
  * `features/docs/DocsComposer`: one input that either generates a document from
@@ -59,6 +67,7 @@ export function CreateDocSheet({
   onGenerate,
   onSelectTemplate,
   onOpenItem,
+  extraActions,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -74,6 +83,13 @@ export function CreateDocSheet({
   onGenerate: (description: string) => void;
   onSelectTemplate: (template: DocumentTemplate) => void;
   onOpenItem: (item: OfficeItem) => void;
+  /**
+   * Further ways to create, listed above the document ones — the workplace
+   * shell's Arbeiten tab puts the Studio tools here, so one sheet holds every
+   * create path. With these present the input does not grab focus: the keyboard
+   * would cover the very rows the sheet was opened for.
+   */
+  extraActions?: CreateSheetAction[];
 }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -170,7 +186,7 @@ export function CreateDocSheet({
             onSubmitEditing={() => trimmed && exit(() => onGenerate(trimmed))}
             returnKeyType="go"
             editable={!isCreating}
-            autoFocus
+            autoFocus={!extraActions}
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={() => setQuery('')} accessibilityLabel="Eingabe löschen">
@@ -223,6 +239,14 @@ export function CreateDocSheet({
           </>
         ) : (
           <>
+            {extraActions?.map((action) =>
+              row(action.key, action.icon, action.title, action.subtitle, () =>
+                exit(() => {
+                  onClose();
+                  action.onPress();
+                })
+              )
+            )}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
