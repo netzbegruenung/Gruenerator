@@ -18,8 +18,9 @@ const TABS: readonly { id: WorkplaceTab; label: string; path: TabRoute }[] = [
 
 /**
  * The two pills top centre — the mobile port of web's `WorkplaceTabs` on
- * `GlassTabBar`: one frosted capsule, the active pill tinted per tab (Chat
- * neutral, Arbeiten soft green). Colours are web's `PILL_TINT`/`ACTIVE_TEXT`.
+ * `GlassTabBar`: one frosted capsule with the active pill in white (dark: grey).
+ * Both tabs are neutral, unlike web where Arbeiten is tinted green; the colours
+ * are web's neutral `PILL_TINT`/`ACTIVE_TEXT`.
  *
  * `navigate`, not `push`: the two tabs are siblings, and pushing would stack a
  * history the back gesture then has to unwind.
@@ -28,15 +29,9 @@ export function WorkplaceTopTabs({ active }: { active: WorkplaceTab }) {
   const router = useRouter();
   const isDark = useColorScheme() === 'dark';
 
-  const tint: Record<WorkplaceTab, { bg: string; text: string }> = isDark
-    ? {
-        chat: { bg: colors.grey[800], text: colors.grey[100] },
-        arbeiten: { bg: '#16301F', text: colors.primary[300] },
-      }
-    : {
-        chat: { bg: colors.white, text: colors.grey[900] },
-        arbeiten: { bg: '#E9F4EC', text: colors.primary[700] },
-      };
+  const tint = isDark
+    ? { bg: colors.grey[800], text: colors.grey[100] }
+    : { bg: colors.white, text: colors.grey[900] };
 
   return (
     <View
@@ -60,13 +55,13 @@ export function WorkplaceTopTabs({ active }: { active: WorkplaceTab }) {
             accessibilityRole="tab"
             accessibilityState={{ selected }}
             hitSlop={4}
-            style={[styles.pill, selected && { backgroundColor: tint[tab.id].bg }]}
+            style={[styles.pill, selected && { backgroundColor: tint.bg }]}
           >
             <Text
               style={[
                 styles.label,
                 selected
-                  ? [styles.labelActive, { color: tint[tab.id].text }]
+                  ? [styles.labelActive, { color: tint.text }]
                   : { color: isDark ? colors.grey[400] : colors.grey[600] },
               ]}
             >
