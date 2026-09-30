@@ -157,6 +157,7 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
       buildState({
         userMessage: 'Mach den Text größer',
         lastToolContext: { kind: 'image', ref: 'img-1', label: 'Bild' },
+        lastTurnEditables: ['image'],
       })
     );
     expect(result.intent).toBe('image_edit');
