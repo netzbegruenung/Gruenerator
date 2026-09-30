@@ -199,6 +199,18 @@ export const SYSTEM_COLLECTION_STANDARD_INDEXES: CollectionSchemaIndex[] = [
   { field: 'chunk_text', type: 'text' },
 ];
 
+/**
+ * Keyword indexes behind the theme/person facets and filters. The nightly NLP
+ * enrichment writes these fields (`notebookEnrichmentService`), so every
+ * collection it covers declares them here: a copy migration recreates a
+ * collection from this list and would otherwise drop them until the next run.
+ */
+export const NLP_FACET_INDEXES: CollectionSchemaIndex[] = [
+  { field: 'themes', type: 'keyword' },
+  { field: 'persons', type: 'keyword' },
+  { field: 'primary_topic', type: 'keyword' },
+];
+
 // =============================================================================
 // Collection Schemas
 // =============================================================================
@@ -225,6 +237,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     optimizer: 'medium',
     hnsw: 'standard',
     indexes: [
+      ...NLP_FACET_INDEXES,
       { field: 'source_url', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'indexed_at', type: 'keyword' },
@@ -236,6 +249,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     optimizer: 'medium',
     hnsw: 'standard',
     indexes: [
+      ...NLP_FACET_INDEXES,
       { field: 'source_url', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'indexed_at', type: 'keyword' },
@@ -361,6 +375,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     optimizer: 'medium',
     hnsw: 'standard',
     indexes: [
+      ...NLP_FACET_INDEXES,
       { field: 'source_url', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'content_type', type: 'keyword' },
@@ -375,6 +390,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     optimizer: 'large',
     hnsw: 'standard',
     indexes: [
+      ...NLP_FACET_INDEXES,
       { field: 'source_url', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'country', type: 'keyword' },
@@ -388,6 +404,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     optimizer: 'large',
     hnsw: 'standard',
     indexes: [
+      ...NLP_FACET_INDEXES,
       { field: 'source_url', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'country', type: 'keyword' },
@@ -401,6 +418,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     optimizer: 'large',
     hnsw: 'standard',
     indexes: [
+      ...NLP_FACET_INDEXES,
       { field: 'source_url', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'country', type: 'keyword' },
@@ -414,6 +432,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     optimizer: 'large',
     hnsw: 'standard',
     indexes: [
+      ...NLP_FACET_INDEXES,
       { field: 'source_url', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'content_type', type: 'keyword' },
@@ -429,6 +448,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     optimizer: 'small',
     hnsw: 'standard',
     indexes: [
+      ...NLP_FACET_INDEXES,
       { field: 'source_url', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'content_type', type: 'keyword' },
@@ -456,6 +476,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     optimizer: 'medium',
     hnsw: 'standard',
     indexes: [
+      ...NLP_FACET_INDEXES,
       { field: 'source_url', type: 'keyword' },
       { field: 'content_type', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
