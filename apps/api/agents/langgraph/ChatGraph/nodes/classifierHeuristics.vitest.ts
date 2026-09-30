@@ -245,3 +245,25 @@ describe('heuristicClassify — Bild-Stichwort nur als Auftrag', () => {
     expect(heuristicClassify(text).intent).not.toBe('image');
   });
 });
+
+// Beta-Audit 30.09.2026: Diagramm und HTML/SVG verlangten Nomen und Verb nur
+// irgendwo, und „zeigt" zählte als Befehl.
+describe('heuristicClassify — Diagramm und HTML nur auf Bestellung', () => {
+  it.each([
+    ['Erstelle ein Diagramm über die Wahlergebnisse', 'chart'],
+    ['Zeige mir ein Balkendiagramm der Umfragewerte', 'chart'],
+    ['stell die Zahlen als Diagramm dar', 'chart'],
+    ['Bau mir eine Landingpage für die Kampagne', 'artifact'],
+    ['Schreib mir ein HTML-Snippet mit einem Countdown', 'artifact'],
+  ])('bleibt Auftrag: %s', (text, intent) => {
+    expect(heuristicClassify(text).intent).toBe(intent);
+  });
+
+  it.each([
+    ['Erkläre mir, was das Diagramm zeigt', 'chart'],
+    ['Das Diagramm zeigt, dass die Emissionen sinken. Schreib mir dazu einen Absatz.', 'chart'],
+    ['Schreib mir einen Text über unsere Website', 'artifact'],
+  ])('kein Artefakt: %s', (text, intent) => {
+    expect(heuristicClassify(text).intent).not.toBe(intent);
+  });
+});
