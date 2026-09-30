@@ -22,6 +22,11 @@ const reactionPathParams = z.object({
   emoji: reactionEmojiSchema,
 });
 
+// Removing accepts any emoji: backfilled legacy board reactions (e.g. 💡) must stay removable.
+const removeReactionPathParams = reactionPathParams.extend({
+  emoji: z.string().min(1).max(32),
+});
+
 export const entityReactionsContract = c.router(
   {
     /** PUT /api/auth/reactions/:entityType/:entityId/:emoji — idempotent add. */
@@ -45,7 +50,7 @@ export const entityReactionsContract = c.router(
     removeReaction: {
       method: 'DELETE',
       path: '/api/auth/reactions/:entityType/:entityId/:emoji',
-      pathParams: reactionPathParams,
+      pathParams: removeReactionPathParams,
       body: c.noBody(),
       responses: {
         200: reactionsResponseSchema,

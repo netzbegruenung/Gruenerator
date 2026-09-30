@@ -1,4 +1,10 @@
-import { REACTION_EMOJIS, reactionEmojiSchema } from '@gruenerator/contracts';
+import {
+  boardCommentReplySchema,
+  entityReactionsContract,
+  groupShareMetaSchema,
+  REACTION_EMOJIS,
+  reactionEmojiSchema,
+} from '@gruenerator/contracts';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { setGlobalApiClient } from './client.js';
@@ -41,4 +47,54 @@ describe('entityReactions emoji path round trip', () => {
       expect(reactionEmojiSchema.parse(decodeURIComponent(wireEmoji))).toBe(emoji);
     }
   );
+});
+
+describe('entityReactions emoji path params', () => {
+  const params = (emoji: string) => ({ entityType: 'board_comment', entityId: 'c1', emoji });
+
+  it('adding accepts only the fixed set', () => {
+    const schema = entityReactionsContract.addReaction.pathParams;
+    expect(schema.safeParse(params('👍')).success).toBe(true);
+    expect(schema.safeParse(params('💡')).success).toBe(false);
+  });
+
+  it('removing accepts legacy emojis so backfilled reactions stay removable', () => {
+    const schema = entityReactionsContract.removeReaction.pathParams;
+    expect(schema.safeParse(params('💡')).success).toBe(true);
+    expect(schema.safeParse(params('')).success).toBe(false);
+  });
+});
+
+describe('reaction fields tolerate an older backend without them', () => {
+  it('group share meta defaults reactions to []', () => {
+    const meta = groupShareMetaSchema.parse({
+      shareId: 's1',
+      note: null,
+      pinnedAt: null,
+      pinnedByName: null,
+      commentCount: 0,
+    });
+    expect(meta.reactions).toEqual([]);
+  });
+
+  it('board comment defaults reactionSummaries to []', () => {
+    const reply = boardCommentReplySchema.parse({
+      id: 'r1',
+      board_id: 'b1',
+      card_id: 'card-1',
+      parent_id: 'c1',
+      user_id: 'u1',
+      content: null,
+      blocks: [],
+      mentioned_user_ids: [],
+      is_edited: false,
+      edited_at: null,
+      created_at: '2026-09-01T10:00:00Z',
+      updated_at: '2026-09-01T10:00:00Z',
+      author_name: null,
+      author_avatar_robot_id: null,
+      reactions: [],
+    });
+    expect(reply.reactionSummaries).toEqual([]);
+  });
 });

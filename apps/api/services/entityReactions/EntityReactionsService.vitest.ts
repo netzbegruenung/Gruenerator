@@ -6,13 +6,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { entityReactions } from '../../database/schema/index.js';
 
-const onConflictDoNothing = vi.fn(async () => undefined);
+const returning = vi.fn(async (): Promise<unknown[]> => []);
+const onConflictDoNothing = vi.fn(() => ({ returning }));
 const values = vi.fn(() => ({ onConflictDoNothing }));
 const insert = vi.fn(() => ({ values }));
 const deleteWhere = vi.fn(async () => undefined);
 const del = vi.fn(() => ({ where: deleteWhere }));
 const groupBy = vi.fn(async (): Promise<unknown[]> => []);
-const select = vi.fn(() => ({ from: () => ({ where: () => ({ groupBy }) }) }));
+const orderBy = vi.fn(async (): Promise<unknown[]> => []);
+const select = vi.fn(() => ({ from: () => ({ where: () => ({ groupBy, orderBy }) }) }));
 
 vi.mock('../../database/services/DrizzleService.js', () => ({
   getDrizzleInstance: () => ({ insert, delete: del, select }),
@@ -21,8 +23,10 @@ vi.mock('../../database/services/DrizzleService.js', () => ({
 const {
   addReaction,
   deleteReactionsForEntities,
+  getReactionRows,
   getReactionSummaries,
   removeReaction,
+  summarizeReactionRows,
   toReactionSummaries,
 } = await import('./EntityReactionsService.js');
 
@@ -47,6 +51,13 @@ describe('addReaction / removeReaction', () => {
         entityReactions.emoji,
       ],
     });
+  });
+
+  it('liefert die neue Zeile, bei Konflikt null', async () => {
+    const row = { id: 'r1', entity_id: 's1' };
+    returning.mockResolvedValueOnce([row]);
+    expect(await addReaction('u1', 'group_share', 's1', '🎉')).toBe(row);
+    expect(await addReaction('u1', 'group_share', 's1', '🎉')).toBeNull();
   });
 
   it('löscht auch, wenn es nichts zu löschen gibt, ohne Fehler', async () => {
@@ -87,6 +98,44 @@ describe('toReactionSummaries', () => {
       { entity_id: 'x', emoji: '❤️', count: 1, reacted: false, first_at: new Date(t) },
     ]);
     expect(map.get('x')?.map((r) => r.emoji)).toEqual(['🚀', '👍', '❤️', '👀', '💡']);
+  });
+});
+
+describe('getReactionRows / summarizeReactionRows', () => {
+  it('leere ids → kein Query', async () => {
+    expect(await getReactionRows('board_comment', [])).toEqual([]);
+    expect(select).not.toHaveBeenCalled();
+  });
+
+  it('ein Query, nach created_at sortiert', async () => {
+    await getReactionRows('board_comment', ['a', 'b']);
+    expect(select).toHaveBeenCalledTimes(1);
+    expect(orderBy).toHaveBeenCalledTimes(1);
+  });
+
+  it('fasst Zeilen wie getReactionSummaries zusammen', () => {
+    const row = (entity_id: string, user_id: string, emoji: string, iso: string) => ({
+      id: `${entity_id}-${user_id}-${emoji}`,
+      entity_type: 'board_comment',
+      entity_id,
+      user_id,
+      emoji,
+      created_at: new Date(iso),
+    });
+    const map = summarizeReactionRows(
+      [
+        row('a', 'u2', '👍', '2026-09-01T10:05:00Z'),
+        row('a', 'u1', '💡', '2026-09-01T10:01:00Z'),
+        row('a', 'u1', '👍', '2026-09-01T10:02:00Z'),
+        row('b', 'u2', '🎉', '2026-09-01T10:00:00Z'),
+      ],
+      'u1'
+    );
+    expect(map.get('a')).toEqual([
+      { emoji: '💡', count: 1, reacted: true },
+      { emoji: '👍', count: 2, reacted: true },
+    ]);
+    expect(map.get('b')).toEqual([{ emoji: '🎉', count: 1, reacted: false }]);
   });
 });
 
