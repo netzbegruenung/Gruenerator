@@ -14,10 +14,12 @@ import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-i
 
 import {
   ARTIFACT_NOUN_BY_KIND,
+  asksForSharepic,
   CREATION_VERB_RE,
   forbidsPersistentAction,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
+  POST_NOUN_PATTERN,
 } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
@@ -717,7 +719,7 @@ export type CompoundGenerationKind = ArtifactKindId;
  * The generation KIND recovered from the TEXT, in registry (specificity) order.
  *
  * `sharepic` is the one kind with no `createPattern`: its vocabulary is
- * `SHAREPIC_WORD_RE`, and `hasExplicitSharepicWord` carries the negation and
+ * `SHAREPIC_WORD_RE`, and `asksForSharepic` carries the order, negation and
  * quote guards that a bare noun regex would lose. It sits first in the registry,
  * which is where it was in the ternary.
  *
@@ -730,7 +732,11 @@ function recoverKindFromText(text: string): ArtifactKindId | null {
   for (const kind of ARTIFACT_KINDS) {
     const named = kind.createPattern
       ? kind.createPattern.test(text)
-      : hasExplicitSharepicWord(text) && CREATION_VERB_RE.test(text);
+      : // Dasselbe Prädikat wie die Klassifikator-Regel, samt Post-Vorfahrt: mit
+        // „Erstell-Verb irgendwo" garantierte die Verbund-Garantie für „Erstelle
+        // einen Post mit Sharepic" ein Sharepic, das der Klassifikator dem
+        // Schreibzweig gegeben hatte (Beta-Audit 30.09.2026).
+        asksForSharepic(text) && !POST_NOUN_PATTERN.test(text);
     if (!named) continue;
     if (kind.extraGuard && !kind.extraGuard(text)) continue;
     return kind.id;
