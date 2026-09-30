@@ -16,7 +16,10 @@ import { createSourceRegistry } from './sourceRegistry.js';
 import { buildConnectorNotes, buildSynthSystem, type SynthPromptContext } from './synthPrompt.js';
 import { type PersistedStep } from './types.js';
 
-import { NO_CAPABILITY_DENIAL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+import {
+  NO_CAPABILITY_DENIAL_RULE,
+  NO_PHANTOM_ACTION_RULE,
+} from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { McpCatalog } from '../../agents/mcpCatalog.js';
@@ -339,5 +342,15 @@ describe('buildConnectorNotes — Dienst-Lage', () => {
     // Der Planer muss die Geschwister-Tools SEHEN, bevor er wegen eines
     // fehlenden Parameters zurückfragt.
     expect(out.connectorCatalogNote).toContain('Sally: ticket(id), list()');
+  });
+});
+
+describe('buildSynthSystem — Erinnerungs-Behauptung ohne Werkzeug (#3914)', () => {
+  it('trägt auf einem Turn ohne Schritte die Regel samt notiert/gemerkt-Formen', () => {
+    // Beta 30.09.2026: steps=0, „Ich habe mir das notiert." — kein memory-Aufruf.
+    const prompt = buildSynthSystem('', ctx({ steps: [] }));
+    expect(prompt).toContain(NO_PHANTOM_ACTION_RULE);
+    expect(prompt).toContain('Ich habe mir das notiert/gemerkt/gespeichert');
+    expect(prompt).toContain('nur, wenn das Werkzeug `memory` in diesem Turn gelaufen ist');
   });
 });
