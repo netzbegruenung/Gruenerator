@@ -15,7 +15,7 @@ Im Modus **Automatisch** wählt der Grünerator das passende Modell für deine j
 
 ## Verfügbare Modelle
 
-Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen, die du auch in der Chrome-Erweiterung und im Excel-Add-in findest.
+Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen findest du auch in der Chrome-Erweiterung. Im Excel-Add-in stehen Klein und Mittel zur Wahl.
 
 **Klein** – Am schnellsten, für kurze Aufgaben. Offenes Modell (Open Weights) bei einem europäischen Anbieter.
 
