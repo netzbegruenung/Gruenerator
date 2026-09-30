@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 
 import apiClient, { SERVER_TASK_TIMEOUT_MS } from '../../../components/utils/apiClient';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import { useDesktopNotify } from '../../../utils/desktopNotification';
 import { IMAGE_STUDIO_TYPES, getTypeConfig } from '../utils/typeConfig';
 
 interface TextFormData {
@@ -145,6 +146,7 @@ interface UseImageGenerationReturn {
 export const useImageGeneration = (): UseImageGenerationReturn => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const notifyDesktop = useDesktopNotify();
 
   const generateText = useCallback(
     async (type: string, formData: TextFormData): Promise<TextGenerationResult | null> => {
@@ -377,7 +379,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
     []
   );
 
-  const generateKiImage = useCallback(
+  const generateKiImageInner = useCallback(
     async (type: string, formData: KiImageFormData): Promise<string> => {
       const config = getTypeConfig(type);
 
@@ -464,6 +466,15 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
       throw new Error('Unbekannter KI-Typ');
     },
     []
+  );
+
+  const generateKiImage = useCallback(
+    async (type: string, formData: KiImageFormData): Promise<string> => {
+      const image = await generateKiImageInner(type, formData);
+      notifyDesktop('sharepic');
+      return image;
+    },
+    [generateKiImageInner, notifyDesktop]
   );
 
   const validateFormData = useCallback(

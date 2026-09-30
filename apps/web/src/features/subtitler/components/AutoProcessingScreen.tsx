@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MdCheck, MdError } from 'react-icons/md';
 
 import JobErrorNotice from '../../../components/common/JobErrorNotice';
+import { useDesktopNotify } from '../../../utils/desktopNotification';
 
 const POLL_INTERVAL = 2000;
 const POLL_INTERVAL_EXTENDED = 5000;
@@ -44,6 +45,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
   const [errorId, setErrorId] = useState<string | null>(null);
   const [retryable, setRetryable] = useState<boolean | null>(null);
 
+  const notifyDesktop = useDesktopNotify();
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startTimeRef = useRef<number>(Date.now());
 
@@ -71,6 +73,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
           pollingRef.current = null;
         }
 
+        notifyDesktop('reel');
         onComplete({
           outputPath: data.outputPath ?? '',
           duration: data.duration ?? 0,
@@ -108,7 +111,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
         console.error('[AutoProcessingScreen] Poll error:', err);
       }
     }
-  }, [uploadId, onComplete, onError]);
+  }, [uploadId, onComplete, onError, notifyDesktop]);
 
   useEffect(() => {
     if (!uploadId) return;
