@@ -11,6 +11,12 @@ Inhaltslemmata und die Wortformen gefragter Lemmata, für `notebook_quellen
 action="stats"`. Der Dienst läuft ohne Parser; die Satzzahl kommt dort aus der
 Satzendzeichen-Zählung in `text_stats.py`.
 
+`/analyze/topics` mit `exclude_persons: true` (so ruft die Notebook-Anreicherung
+auf) lässt Tokens innerhalb einer PER-Entität aus `topNouns` heraus und fährt
+dafür die NER mit. Nötig, weil ein Nachname allein („Minister Mansoori") in der
+Personen-Erkennung wegfällt und sonst als Schlagwort bleibt (#3942). Der
+Monitor ruft ohne den Schalter und behält Namen in seinen Schlagwörtern.
+
 ## Tests
 
 ```bash

@@ -122,6 +122,28 @@ class TestTopNouns:
         assert len(result[0]["topNouns"]) == 10
 
 
+    def test_person_tokens_can_be_kept_out_of_top_nouns(self, classifier_over, make_doc):
+        # "Minister Mansoori": the surname is a noun lemma like any other, and
+        # only the entity tag tells it apart (#3942).
+        def docs():
+            return [
+                make_doc(
+                    ["Minister", "Mansoori", "Rente"],
+                    lemmas=["minister", "mansoori", "rente"],
+                    pos=["NOUN", "PROPN", "NOUN"],
+                    ents=["O", "B-PER", "O"],
+                )
+            ]
+
+        items = [{"id": "a", "title": "", "text": ""}]
+        kept = classifier_over(docs()).classify_batch(items)
+        dropped = classifier_over(docs()).classify_batch(items, exclude_persons=True)
+
+        assert "mansoori" in {n["noun"] for n in kept[0]["topNouns"]}
+        assert {n["noun"] for n in dropped[0]["topNouns"]} == {"minister", "rente"}
+        assert dropped[0]["topics"] == kept[0]["topics"]
+
+
 class TestKeywords:
     def test_counts_are_aggregated_across_documents(self, classifier_over, make_doc):
         docs = [noun_doc(make_doc, ["Rente", "Tisch"]), noun_doc(make_doc, ["Rente", "Stuhl"])]
