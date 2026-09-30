@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import React, { memo, useState, useMemo } from 'react';
 
+import { downloadBlob } from '../../../utils/downloadFile';
 import SettingsRow from '../components/SettingsRow';
 import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 
@@ -212,12 +213,7 @@ export default memo(function MemoriesSection() {
       const res = await getContractsClient().memory.export();
       if (res.status !== 200) throw new ApiError(res.status, res.body.message);
       const blob = new Blob([JSON.stringify(res.body, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `gruenerator-erinnerungen-${res.body.exportedAt.slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadBlob(blob, `gruenerator-erinnerungen-${res.body.exportedAt.slice(0, 10)}.json`);
     } catch (err: unknown) {
       setMutationError((err instanceof Error ? err.message : null) ?? 'Export fehlgeschlagen.');
     }

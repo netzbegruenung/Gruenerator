@@ -4,6 +4,7 @@ import { ARTIFACT_TYPE_META, subtypeToArtifactKind } from '@gruenerator/shared/d
 import { Code2, Download, ExternalLink, X } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 
+import { downloadBlob } from '../lib/downloadBlob';
 import { useArtifactLiveStore } from '../stores/artifactLiveStore';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
@@ -108,12 +109,7 @@ export function ArtifactPanel({ className }: { className?: string }) {
     const mime = active.type === 'svg' ? 'image/svg+xml' : 'text/html';
     const ext = active.type === 'svg' ? 'svg' : 'html';
     const blob = new Blob([active.content], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${active.title || 'artefakt'}.${ext}`;
-    a.click();
-    URL.revokeObjectURL(url);
+    void downloadBlob(blob, `${active.title || 'artefakt'}.${ext}`);
   };
 
   const badge = isDocument

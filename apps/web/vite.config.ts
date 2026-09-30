@@ -81,7 +81,9 @@ export const getVersion = () => Promise.resolve("web");
 export const relaunch = () => Promise.resolve();
 export const invoke = () => Promise.resolve(null);
 export const listen = () => Promise.resolve(() => {});
+export const addPluginListener = () => Promise.resolve({ unregister: () => Promise.resolve() });
 export class Resource { close() {} }
+export const writeFile = () => Promise.resolve();
 `;
       }
       return null;

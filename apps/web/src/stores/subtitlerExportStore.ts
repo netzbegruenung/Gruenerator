@@ -11,6 +11,7 @@ import axios from 'axios';
 import { create } from 'zustand';
 
 import apiClient from '../components/utils/apiClient';
+import { downloadBlob } from '../utils/downloadFile';
 
 // Constants for export states
 export const EXPORT_STATUS = {
@@ -464,22 +465,7 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
 
       console.log(`[SubtitlerExportStore] Triggering download: ${filename}`);
 
-      // Create download URL
-      const url = window.URL.createObjectURL(blob);
-
-      // Create and trigger download link
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      link.style.display = 'none';
-
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Browsers keep a started download alive after revoke; revoking now
-      // avoids leaking the blob URL if the tab closes before a timer fires.
-      window.URL.revokeObjectURL(url);
+      await downloadBlob(blob, filename);
 
       console.log(`[SubtitlerExportStore] Download triggered successfully: ${filename}`);
     } catch (error) {

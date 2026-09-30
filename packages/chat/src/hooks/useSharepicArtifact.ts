@@ -1,4 +1,5 @@
 import { getSharepicVariantLabel, isMintableCanvasType } from '@gruenerator/contracts';
+import { downloadDataUrl } from '@gruenerator/shared';
 import { useState, useCallback, useEffect, useRef } from 'react';
 
 import { notifyError, notifyWarning } from '../lib/notify';
@@ -262,12 +263,7 @@ export function useSharepicArtifact(variant: SharepicVariant) {
       : null;
     const href = full ?? imageBase64;
     if (!href) return;
-    const link = document.createElement('a');
-    link.href = href;
-    link.download = `sharepic-${variant.canvasType}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    await downloadDataUrl(href, `sharepic-${variant.canvasType}.png`);
   }, [imageBase64, variant.canvasType, renderInput]);
 
   const openInStudio = useCallback(() => {
