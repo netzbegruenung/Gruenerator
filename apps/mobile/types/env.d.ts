@@ -7,6 +7,7 @@ declare global {
       readonly EXPO_PUBLIC_API_URL?: string;
       readonly EXPO_PUBLIC_DOCS_API_URL?: string;
       readonly EXPO_PUBLIC_HOCUSPOCUS_URL?: string;
+      readonly EXPO_PUBLIC_SENTRY_DSN?: string;
     }
   }
 }

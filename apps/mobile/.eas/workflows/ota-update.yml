@@ -1,0 +1,52 @@
+name: ota-update
+
+# Publishes a JS-only update to our own xprem server (ota.moritz-waechter.de),
+# not to EAS Update. Manual only:
+#   eas workflow:run .eas/workflows/ota-update.yml
+# Native changes (plugins, permissions, new native modules, SDK bumps) need a
+# store build via release.yml instead — an update cannot carry them.
+# Publish from master only, and only after the backend deploy it relies on.
+#
+# eoas is pinned to the server's minor: a 3.2 CLI cannot upload to a 3.1
+# server ("No file names provided") and vice versa. Bump both together.
+#
+# Needs EOO_TOKEN (xprem API token, visibility: secret) in the EAS environment
+# of the chosen channel. EXPO_PUBLIC_* comes from the same environment, which is
+# the point: eoas exports with EXPO_NO_DOTENV=1, so only the job environment
+# reaches the bundle (docs/CLAUDE-expo.md).
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        type: choice
+        description: 'preview first, production once it looks right on a preview build'
+        options:
+          - preview
+          - production
+        default: preview
+      message:
+        type: string
+        description: 'Shown in the xprem dashboard'
+        required: true
+
+jobs:
+  publish:
+    environment: ${{ inputs.channel }}
+    env:
+      RELEASE_CHANNEL: ${{ inputs.channel }}
+      UPDATE_MESSAGE: ${{ inputs.message }}
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - name: Publish update
+        run: >-
+          npx -y eoas@3.2.5 publish --branch "$RELEASE_CHANNEL" --platform all
+          --nonInteractive --disableRepositoryCheck --message "$UPDATE_MESSAGE"
+      # A bundle exported without EXPO_PUBLIC_SENTRY_DSN compiles error reporting
+      # away without failing anything. Fail loudly instead.
+      - name: Check error reporting survived the export
+        run: |
+          for f in dist/_expo/static/js/*/*.hbc; do
+            grep -a -q 'glitchtip-w088w4oo8wgs4goo4kgs0gog' "$f" \
+              || { echo "No GlitchTip DSN in $f — error reporting is off in this update"; exit 1; }
+          done
