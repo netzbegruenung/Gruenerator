@@ -64,7 +64,7 @@ import {
 import { wrapToolsForLoop, type ToolHooks } from './wrapTools.js';
 
 import type { ToolActivity } from './toolActivity.js';
-import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
+import type { ChatGraphState, PriorLookup } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage, ToolSet } from 'ai';
 import type { Request } from 'express';
 
@@ -579,6 +579,27 @@ export function isLookupTool(toolName: string): boolean {
 export function priorTurnRetrievalFailed(steps: PersistedStep[]): boolean {
   const lookups = steps.filter((s) => !s.serverName && isLookupTool(s.toolName));
   return lookups.length > 0 && lookups.every((s) => s.ok === false);
+}
+
+/**
+ * Die Nachschlage-Schritte früherer Turns für den Schreiber (`threadLookups`) —
+ * dieselbe Auswahl wie oben, also ohne Verbindungs-Werkzeuge: deren Ergebnisse
+ * spielt `mcpReplay` ein.
+ */
+export function priorLookups(steps: PersistedStep[]): PriorLookup[] {
+  return steps
+    .filter((s) => !s.serverName && isLookupTool(s.toolName))
+    .map((s) => {
+      const query = s.args.query ?? s.args.url;
+      const count =
+        s.result.resultCount ?? (Array.isArray(s.result.results) ? s.result.results.length : null);
+      return {
+        toolName: s.toolName,
+        query: typeof query === 'string' && query.trim() ? query.trim() : null,
+        resultCount: typeof count === 'number' ? count : null,
+        failed: s.ok === false,
+      };
+    });
 }
 
 /**
