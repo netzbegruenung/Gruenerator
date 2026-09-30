@@ -148,7 +148,12 @@ export function registerAiTool(
   aiTool: Tool,
   opts: RegisterAiToolOptions = {}
 ): void {
-  const schema = aiTool.inputSchema as z.ZodObject<z.ZodRawShape>;
+  // Ein Chat-Werkzeug mit `superRefine` (find_content) liefert ZodEffects; der
+  // MCP-Server will die Form darunter, die Prüfung selbst steht in `execute` ein zweites Mal.
+  const declared = aiTool.inputSchema as z.ZodTypeAny;
+  const schema = (
+    declared instanceof z.ZodEffects ? declared.innerType() : declared
+  ) as z.ZodObject<z.ZodRawShape>;
   const shape: z.ZodRawShape = { ...schema.shape, ...(opts.extraShape ?? {}) };
   if (opts.actions) {
     // Action lists have no compile-time link to the chat tool's enum — catch

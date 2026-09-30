@@ -57,6 +57,7 @@ import {
   buildArtifactInventory,
   renderArtifactInventory,
   NO_CAPABILITY_DENIAL_RULE,
+  renderPriorLookups,
   NO_PHANTOM_ACTION_RULE,
 } from './artifactInventory.js';
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
@@ -1967,6 +1968,8 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
       fresh: artifactsFromTurn(state),
     })
   );
+  // Dieselbe Naht für das, was frühere Turns nachgeschlagen haben (#3931).
+  const priorLookups = renderPriorLookups(state.threadLookups ?? []);
 
   const hasSources = citableSourcesAvailable(state);
   // Citations are the canonical "what the model can cite as [N]" — derived
@@ -2217,6 +2220,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
     attachmentContext,
     imageContext,
     artifactInventory,
+    priorLookups,
     summaryContextFormatted,
     computedResultFormatted,
     tabularComputeGuidance,
@@ -2350,6 +2354,7 @@ const PROMPT_BLOCKS = [
   { id: 'attachments', branches: BOTH, render: (ctx) => ctx.attachmentContext },
   { id: 'image-context', branches: BOTH, render: (ctx) => ctx.imageContext },
   { id: 'artifact-inventory', branches: BOTH, render: (ctx) => ctx.artifactInventory },
+  { id: 'prior-lookups', branches: BOTH, render: (ctx) => ctx.priorLookups },
   { id: 'summary-context', branches: BOTH, render: (ctx) => ctx.summaryContextFormatted },
   { id: 'computed-result', branches: BOTH, render: (ctx) => ctx.computedResultFormatted },
   {
