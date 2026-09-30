@@ -96,7 +96,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
     log.info('[Email] Sent', { to: options.to, subject: options.subject });
     return true;
   } catch (error) {
-    log.error('[Email] Failed to send', { to: options.to, subject: options.subject, error });
+    log.error('[Email] Failed to send', { error });
     return false;
   }
 }
