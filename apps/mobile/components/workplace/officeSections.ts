@@ -1,3 +1,5 @@
+import { type OfficeSearchItem } from '@gruenerator/contracts';
+
 import { type RecentItem } from '../../hooks/useRecentActivity';
 import { type OfficeItem, type OfficeKind } from '../office/officeItem';
 
@@ -44,4 +46,33 @@ export function groupOfficeItems(items: OfficeItem[]): Record<SectionKind, Offic
     if (item.kind !== 'canvas') groups[item.kind].push(item);
   }
   return groups;
+}
+
+const SEARCH_KIND: Record<OfficeSearchItem['kind'], SectionKind> = {
+  doc: 'doc',
+  sheet: 'sheet',
+  pres: 'presentation',
+  board: 'board',
+};
+
+/**
+ * A hit from `/api/global-search/office` as an office item, so it opens through
+ * `pushOfficeItem` like everything else on the page. The body excerpt stands in
+ * for the preview; an empty one (title-only match) is left out.
+ */
+export function fromOfficeSearchItem(hit: OfficeSearchItem): OfficeItem {
+  return {
+    id: hit.id,
+    title: hit.title,
+    updatedAt: hit.updatedAt ?? '',
+    kind: SEARCH_KIND[hit.kind],
+    ...(hit.snippet !== '' && { preview: hit.snippet }),
+  };
+}
+
+/** Case-insensitive title match for the media sections, which have no endpoint. */
+export function filterByTitle<T extends { title: string }>(items: T[], query: string): T[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return items;
+  return items.filter((item) => item.title.toLowerCase().includes(q));
 }

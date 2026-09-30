@@ -15,6 +15,7 @@ import {
 import { GestureDetector } from 'react-native-gesture-handler';
 
 import { useContentColumn, useLayout } from '../../hooks/useLayout';
+import { useOfficeSearch } from '../../hooks/useOfficeSearch';
 import {
   useOpenRecentItem,
   useRecentActivity,
@@ -41,7 +42,14 @@ import { useOfficeExtraItems } from '../office/useOfficeExtraItems';
 import { STUDIO_TOOLS, WORKPLACE_TILES } from '../tools/toolsConfig';
 import { ToolSquareGrid } from '../tools/ToolSquareGrid';
 
-import { OFFICE_SECTIONS, groupOfficeItems, toRecentItem } from './officeSections';
+import {
+  OFFICE_SECTIONS,
+  filterByTitle,
+  fromOfficeSearchItem,
+  groupOfficeItems,
+  toRecentItem,
+} from './officeSections';
+import { WorkplaceSearchBar } from './WorkplaceSearchBar';
 
 /** "Zuletzt" shows a 2×2 block until it is unfolded. */
 const RECENT_COLLAPSED = 4;
@@ -71,6 +79,8 @@ export function WorkplaceArbeitenScreen() {
   const fabTone = getSurfaceFab('arbeiten', isDark);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [recentExpanded, setRecentExpanded] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [docSheetPending, setDocSheetPending] = useState(false);
   const [docSheetOpen, setDocSheetOpen] = useState(false);
@@ -96,11 +106,39 @@ export function WorkplaceArbeitenScreen() {
     () => toDocListItems(documents, extra.items),
     [documents, extra.items]
   );
-  const officeGroups = useMemo(() => groupOfficeItems(officeItems), [officeItems]);
-  const officeById = useMemo(
-    () => new Map(officeItems.map((item) => [item.id, item])),
-    [officeItems]
+  // With a query the same sections show the hits instead: office by title and
+  // body from the server, media by title from what is already loaded.
+  const officeSearch = useOfficeSearch(searchOpen ? searchQuery : '');
+  const searching = searchOpen && searchQuery.trim() !== '';
+  const shownOffice = useMemo(
+    () => (searching ? officeSearch.items.map(fromOfficeSearchItem) : officeItems),
+    [searching, officeSearch.items, officeItems]
   );
+  const officeGroups = useMemo(() => groupOfficeItems(shownOffice), [shownOffice]);
+  const officeById = useMemo(
+    () => new Map(shownOffice.map((item) => [item.id, item])),
+    [shownOffice]
+  );
+  const limit = searching ? Infinity : SECTION_LIMIT;
+  const media = searching
+    ? {
+        sharepics: filterByTitle(studio.sharepics, searchQuery),
+        kiImages: filterByTitle(studio.kiImages, searchQuery),
+        reels: filterByTitle(studio.reels, searchQuery),
+      }
+    : studio;
+  const noHits =
+    searching &&
+    !officeSearch.isSearching &&
+    shownOffice.length === 0 &&
+    media.sharepics.length === 0 &&
+    media.kiImages.length === 0 &&
+    media.reels.length === 0;
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    setSearchQuery('');
+  }, []);
 
   const openOffice = useCallback(
     (item: RecentItem) => {
@@ -165,6 +203,7 @@ export function WorkplaceArbeitenScreen() {
   }, [isDark, router]);
 
   const swipe = useTabNavigationSwipe('/(tabs)/(arbeiten)');
+  const viewToggle = <ViewModeToggle mode={viewMode} onChange={setViewMode} />;
 
   const backdrop = isDark ? undefined : (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.flatBg]} />
@@ -180,6 +219,7 @@ export function WorkplaceArbeitenScreen() {
         <ScrollView
           contentContainerStyle={[gridColumn, styles.content, { paddingBottom: bottomClearance }]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -196,37 +236,76 @@ export function WorkplaceArbeitenScreen() {
             blocksGesture={swipe}
           />
 
-          <RecentItemsSection
-            title="Zuletzt"
-            headerRight={<ViewModeToggle mode={viewMode} onChange={setViewMode} />}
-            items={recentItems}
-            isLoading={recent.isLoading}
-            style={styles.section}
-            viewMode={viewMode}
-            onOpen={openRecent}
-          />
-          {canExpand && (
-            <Pressable
-              onPress={() => setRecentExpanded((open) => !open)}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: recentExpanded }}
-              hitSlop={8}
-              style={styles.more}
-            >
-              <Text style={[styles.moreText, { color: theme.textSecondary }]}>
-                {recentExpanded
-                  ? 'Weniger anzeigen'
-                  : `${recent.items.length - RECENT_COLLAPSED} weitere anzeigen`}
-              </Text>
-            </Pressable>
+          {searchOpen ? (
+            <View style={styles.section}>
+              <WorkplaceSearchBar
+                value={searchQuery}
+                onChange={setSearchQuery}
+                onClose={closeSearch}
+                trailing={viewToggle}
+              />
+              {searching && (
+                <Text style={[styles.searchStatus, { color: theme.textSecondary }]}>
+                  {officeSearch.isError
+                    ? 'Die Dokumentsuche ist fehlgeschlagen.'
+                    : officeSearch.isSearching
+                      ? 'Suche…'
+                      : !officeSearch.active
+                        ? 'Dokumente ab 2 Zeichen'
+                        : noHits
+                          ? `Keine Treffer für „${searchQuery.trim()}“`
+                          : null}
+                </Text>
+              )}
+            </View>
+          ) : (
+            <>
+              <RecentItemsSection
+                title="Zuletzt"
+                headerRight={
+                  <View style={styles.headerControls}>
+                    <Pressable
+                      onPress={() => setSearchOpen(true)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Arbeiten durchsuchen"
+                      style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+                    >
+                      <Ionicons name="search" size={22} color={theme.text} />
+                    </Pressable>
+                    {viewToggle}
+                  </View>
+                }
+                items={recentItems}
+                isLoading={recent.isLoading}
+                style={styles.section}
+                viewMode={viewMode}
+                onOpen={openRecent}
+              />
+              {canExpand && (
+                <Pressable
+                  onPress={() => setRecentExpanded((open) => !open)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: recentExpanded }}
+                  hitSlop={8}
+                  style={styles.more}
+                >
+                  <Text style={[styles.moreText, { color: theme.textSecondary }]}>
+                    {recentExpanded
+                      ? 'Weniger anzeigen'
+                      : `${recent.items.length - RECENT_COLLAPSED} weitere anzeigen`}
+                  </Text>
+                </Pressable>
+              )}
+            </>
           )}
 
           {OFFICE_SECTIONS.map((section) => (
             <RecentItemsSection
               key={section.kind}
               title={section.title}
-              items={officeGroups[section.kind].slice(0, SECTION_LIMIT).map(toRecentItem)}
-              isLoading={docsLoading && documents.length === 0}
+              items={officeGroups[section.kind].slice(0, limit).map(toRecentItem)}
+              isLoading={!searching && docsLoading && documents.length === 0}
               style={styles.section}
               viewMode={viewMode}
               onOpen={openOffice}
@@ -235,8 +314,8 @@ export function WorkplaceArbeitenScreen() {
 
           <RecentItemsSection
             title="Sharepics"
-            items={studio.sharepics.slice(0, SECTION_LIMIT)}
-            isLoading={studio.isLoading}
+            items={media.sharepics.slice(0, limit)}
+            isLoading={!searching && studio.isLoading}
             accent={getToolTheme('vorlagen', isDark).icon}
             style={styles.section}
             viewMode={viewMode}
@@ -244,8 +323,8 @@ export function WorkplaceArbeitenScreen() {
           />
           <RecentItemsSection
             title="KI-Bilder"
-            items={studio.kiImages.slice(0, SECTION_LIMIT)}
-            isLoading={studio.isLoading}
+            items={media.kiImages.slice(0, limit)}
+            isLoading={!searching && studio.isLoading}
             accent={getToolTheme('ki-bildgenerierung', isDark).icon}
             style={styles.section}
             viewMode={viewMode}
@@ -253,8 +332,8 @@ export function WorkplaceArbeitenScreen() {
           />
           <RecentItemsSection
             title="Reels"
-            items={studio.reels.slice(0, SECTION_LIMIT)}
-            isLoading={studio.isLoading}
+            items={media.reels.slice(0, limit)}
+            isLoading={!searching && studio.isLoading}
             accent={getToolTheme('reel', isDark).icon}
             style={styles.section}
             viewMode={viewMode}
@@ -300,6 +379,18 @@ const styles = StyleSheet.create({
   },
   section: {
     paddingTop: spacing.large,
+  },
+  headerControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  // Same 40x40 as the grid/list switch beside it.
+  iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  pressed: { opacity: 0.6 },
+  searchStatus: {
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    paddingTop: spacing.small,
   },
   more: {
     alignSelf: 'center',
