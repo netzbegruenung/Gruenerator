@@ -1,0 +1,161 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "gruene-de-waermepumpe",
+      "collection": "gruene-de-system",
+      "query": "Förderung beim Heizungstausch und Wärmepumpen",
+      "rank": 4,
+      "topTitles": [
+        "Grüner 10-Punkte-Plan für das Update der Energiewende",
+        "Klima schützen",
+        "Bezahlbare Energie für Privathaushalte",
+        "Reiches Heizungsgesetz: Fossile Kostenfalle und Klimakiller",
+        "Lösung gefunden: Entlastungen im Haushalt 2024"
+      ],
+      "searchTimeMs": 2420
+    },
+    {
+      "id": "gruene-de-vielfalt",
+      "collection": "gruene-de-system",
+      "query": "Einsatz gegen Rechtsextremismus und für eine vielfältige Gesellschaft",
+      "rank": 1,
+      "topTitles": [
+        "Mit Mut und Entschlossenheit gegen Rechtsextreme und die AfD",
+        "Eine vielfältige Gesellschaft gestalten",
+        "Bericht zur ersten Sitzung der Rechtsextremismuskommission 2018",
+        "FRIEDEN",
+        "Gemeinsam für Demokratie und Zusammenhalt: Unsere Antwort auf die erstarkende Rechte"
+      ],
+      "searchTimeMs": 1169
+    },
+    {
+      "id": "gruene-de-frauentag",
+      "collection": "gruene-de-system",
+      "query": "Gleichberechtigung und feministische Politik",
+      "rank": 1,
+      "topTitles": [
+        "Gleichberechtigung verwirklichen",
+        "Programm Bundesfrauenkonferenz 2025",
+        "Eine vielfältige Gesellschaft gestalten",
+        "Das neue Grundsatzprogramm",
+        "Charta der Europäischen Grünen"
+      ],
+      "searchTimeMs": 650
+    },
+    {
+      "id": "gruene-de-energie",
+      "collection": "gruene-de-system",
+      "query": "Ausbau der erneuerbaren Energien in Deutschland",
+      "rank": 1,
+      "topTitles": [
+        "Energiewende vorantreiben",
+        "Monitoringbericht Energiewende: Reiche mit fragwürdigen Ideen",
+        "Klimaschutz ist keine Luxusfrage",
+        "Grüner 10-Punkte-Plan für das Update der Energiewende",
+        "Schwarz-rote Koalitionsverhandlungen sind ein Frontalangriff auf den Klimaschutz"
+      ],
+      "searchTimeMs": 678
+    },
+    {
+      "id": "gruene-de-artenschutz",
+      "collection": "gruene-de-system",
+      "query": "Artenvielfalt und Naturschutz",
+      "rank": 1,
+      "topTitles": [
+        "Mehr schaffen: Für einen offensiven Mitmach-Naturschutz für alle.",
+        "KLIMASCHUTZ",
+        "Echten Natur- und Umweltschutz gibt’s nur mit GRÜN.",
+        "Achten und schützen – Für ein krisenfestes Land",
+        "Zukunft sichern mit einer Waldpolitik, die Klima und Natur schützt"
+      ],
+      "searchTimeMs": 669
+    },
+    {
+      "id": "gruene-de-vorsitz",
+      "collection": "gruene-de-system",
+      "query": "Wer ist im Bundesvorstand der Partei?",
+      "rank": 3,
+      "topTitles": [
+        "Impulspapier zur Gründung des Vorstandsbeirats Bündnisgrüner Osten",
+        "Die Mitglieder haben entschieden: Was die Urabstimmung für uns bedeutet",
+        "Bericht und Beschluss des Bundesvorstands von BÜNDNIS 90/DIE GRÜNEN zur zukünftigen Aufstellung unserer Ombudsstrukturen",
+        "Gründung der Arbeitsgruppe Vielfalt",
+        "Tag 2: Neustartklar."
+      ],
+      "searchTimeMs": 592
+    },
+    {
+      "id": "gruene-de-mitglied",
+      "collection": "gruene-de-system",
+      "query": "Wie kann ich Mitglied werden?",
+      "rank": 2,
+      "topTitles": [
+        "Fünf Dinge, die du gegen Desinformation tun kannst",
+        "Die Mitglieder haben entschieden: Was die Urabstimmung für uns bedeutet",
+        "Parteimitgliedschaft",
+        "Datenschutzhinweise für grüne Online-Veranstaltungen",
+        "Eine vielfältige Gesellschaft gestalten"
+      ],
+      "searchTimeMs": 2246
+    },
+    {
+      "id": "gruene-de-europa",
+      "collection": "gruene-de-system",
+      "query": "Europapolitik und die Rolle der EU",
+      "rank": 1,
+      "topTitles": [
+        "Europawahlprogramm 2024",
+        "Außenpolitik in Verantwortung",
+        "Europastrategie von BÜNDNIS 90/DIE GRÜNEN",
+        "Impulspapier zur Gründung des Vorstandsbeirats Bündnisgrüner Osten",
+        "Charta der Europäischen Grünen"
+      ],
+      "searchTimeMs": 584
+    },
+    {
+      "id": "kw-gruene-de-paragraf-218",
+      "collection": "gruene-de-system",
+      "query": "§ 218 StGB Beratungsbescheinigung",
+      "rank": 1,
+      "topTitles": [
+        "Neuregelung von Schwangerschaftsabbrüchen",
+        "Datenschutzhinweise beim SEPA-Mandat",
+        "Aufarbeitung und Verantwortung",
+        "Programm Bundesfrauenkonferenz 2025",
+        "Bericht und Beschluss des Bundesvorstands von BÜNDNIS 90/DIE GRÜNEN zur zukünftigen Aufstellung unserer Ombudsstrukturen"
+      ],
+      "searchTimeMs": 789
+    },
+    {
+      "id": "kw-gruene-de-urabstimmung",
+      "collection": "gruene-de-system",
+      "query": "Urabstimmung der Mitglieder",
+      "rank": 1,
+      "topTitles": [
+        "Koalitionsvertrag: Mehr Fortschritt wagen",
+        "Die Mitglieder haben entschieden: Was die Urabstimmung für uns bedeutet",
+        "Bericht und Beschluss des Bundesvorstands von BÜNDNIS 90/DIE GRÜNEN zur zukünftigen Aufstellung unserer Ombudsstrukturen",
+        "Aufarbeitung und Verantwortung",
+        "Impulspapier zur Gründung des Vorstandsbeirats Bündnisgrüner Osten"
+      ],
+      "searchTimeMs": 555
+    },
+    {
+      "id": "kw-gruene-de-lieferkettengesetz",
+      "collection": "gruene-de-system",
+      "query": "Lieferkettengesetz Lieferkettenrichtlinie",
+      "rank": 1,
+      "topTitles": [
+        "Schulterschluss mit Rechtsextremen: Konservative schwächen Umweltschutz und Menschenrechte",
+        "Wirtschaftssicherheit ist Standortpolitik.",
+        "Datenschutzerklärung für Facebook",
+        "Achten und schützen – Für ein krisenfestes Land",
+        "Koalitionsvertrag: Mehr Fortschritt wagen"
+      ],
+      "searchTimeMs": 746
+    }
+  ]
+}

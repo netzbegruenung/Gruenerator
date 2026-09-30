@@ -1,0 +1,83 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "boell-demokratie",
+      "collection": "boell-stiftung-system",
+      "query": "Studien zur Stärkung der Demokratie",
+      "rank": 2,
+      "topTitles": [
+        "Leipziger Autoritarismus-Studie 2024: Methoden, Ergebnisse und Langzeitverlauf | Heinrich-Böll-Stiftung",
+        "Demokratische Vielfalt wagen: Die Bundesländer als Pioniere für Reformen | Heinrich-Böll-Stiftung",
+        "Die Demokratie verliert ihre Schule | Heinrich-Böll-Stiftung",
+        "Neue Bündnisse für Demokratie | Heinrich-Böll-Stiftung",
+        "Demokratie beginnt im Lokalen | Heinrich-Böll-Stiftung"
+      ],
+      "searchTimeMs": 1132
+    },
+    {
+      "id": "boell-atlas",
+      "collection": "boell-stiftung-system",
+      "query": "Fakten aus einem Atlas der Böll-Stiftung, zum Beispiel zu Fleisch oder Mobilität",
+      "rank": 1,
+      "topTitles": [
+        "Konzernatlas 2026 | Heinrich-Böll-Stiftung",
+        "Wirtschaftsatlas 2024 | Heinrich-Böll-Stiftung",
+        "Brazilian Amazon Atlas | Heinrich-Böll-Stiftung",
+        "Daten für nachhaltige urbane Mobilität: ein transatlantischer Vergleich | Heinrich-Böll-Stiftung",
+        "Atlas da Amazônia Brasileira | Heinrich-Böll-Stiftung"
+      ],
+      "searchTimeMs": 334
+    },
+    {
+      "id": "boell-feminismus",
+      "collection": "boell-stiftung-system",
+      "query": "Geschlechtergerechtigkeit und feministische Außenpolitik",
+      "rank": 1,
+      "topTitles": [
+        "Feminismus braucht Finanzierung! Es ist Zeit für eine feministische Finanzierungsstrategie | Heinrich-Böll-Stiftung",
+        "Feministische Außenpolitik: ein Leitfaden zur praktischen Umsetzung | Heinrich-Böll-Stiftung",
+        "Warum eine wehrhafte Demokratie ein feministisches Fördersystem braucht | Heinrich-Böll-Stiftung",
+        "UN-Frauenrechtskommission: Bleiben oder gehen? | Heinrich-Böll-Stiftung",
+        "Das gewaltsame Verschwindenlassen von Zivilist*innen im Krieg Russlands gegen die Ukraine | Heinrich-Böll-Stiftung"
+      ],
+      "searchTimeMs": 293
+    },
+    {
+      "id": "boell-klimagerechtigkeit",
+      "collection": "boell-stiftung-system",
+      "query": "Internationale Klimagerechtigkeit und Klimafinanzierung",
+      "rank": 2,
+      "topTitles": [
+        "Vier zentrale Baustellen der Wirtschaftspolitik für die nächste Regierung | Heinrich-Böll-Stiftung",
+        "Klimapragmatismus oder Faustischer Pakt? Was das neue US-Klimagesetz leistet - und wo es versagt | Heinrich-Böll-Stiftung",
+        "Europa muss Afrika helfen, den Kreislauf der Verschuldung zu durchbrechen | Heinrich-Böll-Stiftung",
+        "Wie Schuldenerlass Afrikas Weg zu Klimaresilienz ebnet | Heinrich-Böll-Stiftung",
+        "Schulden, Klima und Geopolitik: Was G20 und COP30 wirklich bewegt haben | Heinrich-Böll-Stiftung"
+      ],
+      "searchTimeMs": 354
+    },
+    {
+      "id": "kw-boell-carbon-bubble",
+      "collection": "boell-stiftung-system",
+      "query": "Carbon Bubble",
+      "rank": 1,
+      "topTitles": [
+        "Die \"Carbon Bubble\": Finanzwirtschaft am Kipppunkt? | Heinrich-Böll-Stiftung"
+      ],
+      "searchTimeMs": 250
+    },
+    {
+      "id": "kw-boell-bergkarabach",
+      "collection": "boell-stiftung-system",
+      "query": "Bergkarabach-Krieg 2020",
+      "rank": 1,
+      "topTitles": [
+        "Armenien vor der Wahl: Welche Art von Demokratie wird sich durchsetzen? | Heinrich-Böll-Stiftung"
+      ],
+      "searchTimeMs": 196
+    }
+  ]
+}

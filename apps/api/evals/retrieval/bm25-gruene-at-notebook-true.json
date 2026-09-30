@@ -1,0 +1,79 @@
+{
+  "pipeline": "notebook",
+  "depth": "deep",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "gruene-at-klima",
+      "collection": "gruene-at-system",
+      "query": "Klimapolitik der Grünen in Österreich",
+      "rank": null,
+      "topTitles": [
+        "Thomas Waitz - Die Grünen",
+        "Thomas Waitz - Die Grünen",
+        "Programm - Die Grünen",
+        "Programm - Die Grünen",
+        "Programm - Die Grünen"
+      ]
+    },
+    {
+      "id": "gruene-at-team",
+      "collection": "gruene-at-system",
+      "query": "Wer sitzt für die Grünen im Nationalrat?",
+      "rank": null,
+      "topTitles": [
+        "Die Grünen im Parlament - Die Grünen",
+        "Die Grünen im Parlament - Die Grünen",
+        "Die Grünen im Parlament - Die Grünen",
+        "Die Grünen im Parlament - Die Grünen",
+        "Die Grünen im Parlament - Die Grünen"
+      ]
+    },
+    {
+      "id": "gruene-at-energiewende",
+      "collection": "gruene-at-system",
+      "query": "Energiewende und Ausstieg aus Öl und Gas in Österreich",
+      "rank": 1,
+      "topTitles": ["Energie", "Energie", "Energie", "Energie", "Energie"]
+    },
+    {
+      "id": "gruene-at-frauen",
+      "collection": "gruene-at-system",
+      "query": "Frauenpolitik und Gewaltschutz in Österreich",
+      "rank": 3,
+      "topTitles": [
+        "Wahlprogramm Nationalratswahl 2024 - Die Grünen",
+        "Wahlprogramm Nationalratswahl 2024 - Die Grünen",
+        "Frauen und Gleichstellung",
+        "Frauen und Gleichstellung",
+        "Frauen und Gleichstellung"
+      ]
+    },
+    {
+      "id": "kw-gruene-at-orf-beitrag",
+      "collection": "gruene-at-system",
+      "query": "ORF-Beitrag",
+      "rank": 1,
+      "topTitles": [
+        "Ein fairer Beitrag für einen starken ORF - Die Grünen",
+        "Ein fairer Beitrag für einen starken ORF - Die Grünen",
+        "Ein fairer Beitrag für einen starken ORF - Die Grünen",
+        "Ein fairer Beitrag für einen starken ORF - Die Grünen",
+        "Ein fairer Beitrag für einen starken ORF - Die Grünen"
+      ]
+    },
+    {
+      "id": "kw-gruene-at-maklerprovision",
+      "collection": "gruene-at-system",
+      "query": "Maklerprovision Miete wer zahlt",
+      "rank": 1,
+      "topTitles": [
+        "Maklerinnenprovision - Die Grünen",
+        "Maklerinnenprovision - Die Grünen",
+        "Maklerinnenprovision - Die Grünen",
+        "Maklerinnenprovision - Die Grünen",
+        "Maklerinnenprovision - Die Grünen"
+      ]
+    }
+  ]
+}
