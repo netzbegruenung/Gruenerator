@@ -1269,10 +1269,30 @@ function isVoteQuestion(text: string): boolean {
  * Abstimmungs-Verben steht daneben der Bedeutungs-Wächter oben — dieselbe Form
  * von Fehlgriff, nur aus Wortsinn statt aus Verneinung.
  */
+// Die Bild-Stichworte sind drei Verben und zwei Nomen. Ein Verb ist selbst der
+// Auftrag, aber nur in Befehls- oder Grundform: „zeichnet"/„illustriert" in
+// „Das illustriert das Problem" beschreibt etwas. Ein Nomen braucht ein
+// Erstell-Verb daran. Bis zum Beta-Audit 30.09.2026 genügte das Nomen allein,
+// über die ganze Nachricht: „Die Grafik im Bericht zeigt einen Anstieg – was
+// bedeutet das?" wurde `image@0.65`, und fiel der Auflöser aus, blieb es dabei.
+const IMAGE_FUZZY_VERBS: ReadonlySet<string> = new Set(['visualisiere', 'zeichne', 'illustriere']);
+
+function imageFuzzyOrdered(rawWord: string, order: string): boolean {
+  const word = rawWord.replace(/[^a-zäöüß]/g, '');
+  if (!word) return false;
+  if (!new RegExp(`(?:^|[^a-zäöüß])${escapeRegExp(word)}(?![a-zäöüß])`, 'i').test(order)) {
+    return false;
+  }
+  const keyword = findBestMatch(word, INTENT_KEYWORDS.image, 0.75)?.match;
+  if (keyword && IMAGE_FUZZY_VERBS.has(keyword)) return /e(?:n)?$/.test(word);
+  return creationOrderPattern(escapeRegExp(word), { forward: 20 }).test(order);
+}
+
 function fuzzyHit(m: AnalyzedMessage): SearchIntent | null {
   for (const word of m.lower.split(/\s+/).filter((w) => w.length >= 4)) {
     const fuzzyIntent = fuzzyMatchIntent(word);
     if (!fuzzyIntent) continue;
+    if (fuzzyIntent === 'image' && !imageFuzzyOrdered(word, m.order.stripped)) continue;
     if (GENERATION_FUZZY_INTENTS.has(fuzzyIntent)) {
       const kw = INTENT_KEYWORDS[fuzzyIntent as keyof typeof INTENT_KEYWORDS] ?? [];
       if (kw.length > 0) {
