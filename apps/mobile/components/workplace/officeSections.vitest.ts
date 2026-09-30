@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { type OfficeItem } from '../office/officeItem';
 
-import { groupOfficeItems, toRecentItem } from './officeSections';
+import {
+  filterByTitle,
+  fromOfficeSearchItem,
+  groupOfficeItems,
+  toRecentItem,
+} from './officeSections';
 
 const item = (over: Partial<OfficeItem> & Pick<OfficeItem, 'id' | 'kind'>): OfficeItem => ({
   title: `Titel ${over.id}`,
@@ -48,5 +53,42 @@ describe('toRecentItem', () => {
     expect(recent.type).toBe('board');
     expect('content' in recent).toBe(false);
     expect('thumbnailUrl' in recent).toBe(false);
+  });
+});
+
+describe('fromOfficeSearchItem', () => {
+  const hit = {
+    id: 'h1',
+    kind: 'pres' as const,
+    title: 'Klausur',
+    snippet: 'Folie 3: Radwege',
+    url: '/office/h1',
+    updatedAt: '2026-09-30T10:00:00Z',
+  };
+
+  // The endpoint says `pres`, the office model `presentation` — a missed
+  // mapping would open the hit in the doc editor.
+  it('maps the search kind onto the office kind', () => {
+    expect(fromOfficeSearchItem(hit)).toMatchObject({
+      kind: 'presentation',
+      preview: 'Folie 3: Radwege',
+    });
+    expect(fromOfficeSearchItem({ ...hit, kind: 'board' }).kind).toBe('board');
+  });
+
+  it('drops an empty snippet instead of claiming an empty preview', () => {
+    expect('preview' in fromOfficeSearchItem({ ...hit, snippet: '' })).toBe(false);
+  });
+});
+
+describe('filterByTitle', () => {
+  const items = [{ title: 'Sonnenblumenfeld' }, { title: 'Lastenrad in der Innenstadt' }];
+
+  it('matches case-insensitively and ignores surrounding blanks', () => {
+    expect(filterByTitle(items, '  LASTEN ')).toEqual([items[1]]);
+  });
+
+  it('keeps everything for an empty query', () => {
+    expect(filterByTitle(items, ' ')).toEqual(items);
   });
 });
