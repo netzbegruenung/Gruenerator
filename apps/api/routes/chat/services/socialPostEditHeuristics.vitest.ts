@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
-import { orderText } from './orderText.js';
+import { carriesMaterial, orderText } from './orderText.js';
 import { isSharepicEditInstruction } from './sharepicEditHeuristics.js';
-import { isSocialTextEditInstruction } from './socialPostEditHeuristics.js';
+import { isSocialTextEditInstruction, namesSocialPostTarget } from './socialPostEditHeuristics.js';
 
 /**
  * Disambiguation matrix for the combined social post: which instructions edit
@@ -149,4 +149,47 @@ describe('Post-Text-Weiche liest den Auftrag, nicht den Stoff', () => {
       isSocialTextEditInstruction(orderText(`Ersetze den Text im Post durch:\n\n${claim}`))
     ).toBe(true);
   });
+});
+
+/**
+ * #3918: bringt die Nachricht Stoff mit, meint „übersetze das" den Stoff, nicht
+ * den Post im Thread. Dann muss der Auftrag den Post nennen. So setzt die Stufe
+ * die Prädikate zusammen (`earlyHandlerStage.ts`).
+ */
+describe('Post-Text-Weiche: ein Zeigewort über eingefügtem Stoff meint den Stoff', () => {
+  const claimsPostEdit = (message: string) => {
+    const order = orderText(message);
+    return (
+      isSocialTextEditInstruction(order) &&
+      (!carriesMaterial(message) || namesSocialPostTarget(order))
+    );
+  };
+  const paste =
+    'Unser Ortsverband lädt am Samstag zum Radfahr-Aktionstag ein: Treffpunkt ist um 10 Uhr am Rathausplatz, danach fahren wir gemeinsam die neue Fahrradstraße ab und sammeln Ideen für den Stadtrat.';
+
+  it.each([
+    [`${paste}\n\nübersetze das ins Englische`],
+    [`${paste}\n\nmach es kürzer`],
+    // „Text" allein kann ebenso der eingefügte Text sein.
+    [`${paste}\n\nverbesser den Text`],
+  ])('ein Zeigewort über Stoff greift nicht: %s', (message) => {
+    // Nur der Auftrag gelesen, würde die Weiche greifen — das war der Ausfall.
+    expect(isSocialTextEditInstruction(orderText(message))).toBe(true);
+    expect(claimsPostEdit(message)).toBe(false);
+  });
+
+  it.each([
+    [`Ersetze den Text im Post durch:\n\n${paste}`],
+    [`${paste}\n\nübersetze den Post ins Englische`],
+    [`${paste}\n\nkürze die Caption`],
+  ])('ein Auftrag, der den Post nennt, greift weiter: %s', (message) => {
+    expect(claimsPostEdit(message)).toBe(true);
+  });
+
+  it.each([['übersetze das ins Englische'], ['mach es kürzer'], ['verbesser den Text']])(
+    'ohne Stoff bleibt es beim Post: %s',
+    (message) => {
+      expect(claimsPostEdit(message)).toBe(true);
+    }
+  );
 });

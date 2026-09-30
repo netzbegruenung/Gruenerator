@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
-import { orderText } from './orderText.js';
+import { carriesMaterial, orderText } from './orderText.js';
+import { namesSharepicTarget } from './sharepicEditHeuristics.js';
 import { isSharepicRefinement } from './sharepicVariantHelpers.js';
 
 /**
@@ -59,5 +60,29 @@ describe('Sharepic-Weichen lesen den Auftrag, nicht den Stoff', () => {
 
   it('ein echter Überarbeitungsauftrag greift weiter', () => {
     expect(isSharepicRefinement(orderText('mach den Text kürzer'))).toBe(true);
+  });
+});
+
+/** #3918: „mach es kürzer" über eingefügtem Stoff meint den Stoff, nicht das Sharepic. */
+describe('Sharepic-Überarbeitung: ein Zeigewort über eingefügtem Stoff meint den Stoff', () => {
+  const claimsRefinement = (message: string) => {
+    const order = orderText(message);
+    return isSharepicRefinement(order) && (!carriesMaterial(message) || namesSharepicTarget(order));
+  };
+  const paste =
+    'Unser Ortsverband lädt am Samstag zum Radfahr-Aktionstag ein: Treffpunkt ist um 10 Uhr am Rathausplatz, danach fahren wir gemeinsam die neue Fahrradstraße ab und sammeln Ideen für den Stadtrat.';
+
+  it('„mach es kürzer" über Stoff greift nicht', () => {
+    const message = `${paste}\n\nmach es kürzer`;
+    expect(isSharepicRefinement(orderText(message))).toBe(true);
+    expect(claimsRefinement(message)).toBe(false);
+  });
+
+  it('ein Auftrag, der das Sharepic nennt, greift weiter', () => {
+    expect(claimsRefinement(`${paste}\n\nmach das Sharepic kürzer`)).toBe(true);
+  });
+
+  it('ohne Stoff bleibt es beim Sharepic', () => {
+    expect(claimsRefinement('mach es kürzer')).toBe(true);
   });
 });

@@ -12,7 +12,7 @@
 
 import { createLogger } from '../../../utils/logger.js';
 import { extractTextContent } from '../services/messageHelpers.js';
-import { orderText } from '../services/orderText.js';
+import { carriesMaterial, orderText } from '../services/orderText.js';
 import {
   buildReelContextBlock,
   handleReelEdit,
@@ -22,6 +22,7 @@ import {
 import {
   handleSharepicEdit,
   isSharepicEditInstruction,
+  namesSharepicTarget,
   threadHasSharepic,
 } from '../services/sharepicEditService.js';
 import {
@@ -32,6 +33,7 @@ import {
 import {
   handleSocialPostTextEdit,
   isSocialTextEditInstruction,
+  namesSocialPostTarget,
 } from '../services/socialPostEditService.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
 
@@ -214,7 +216,14 @@ export async function runEarlyHandlerStage({
     (rawCurrentSocialPost != null || rawCurrentSharepic == null)
   ) {
     const editText = lastUserTextNoMentions.trim();
-    if (editText && isSocialTextEditInstruction(orderText(editText))) {
+    const editOrder = orderText(editText);
+    // Bringt die Nachricht Stoff mit, meint „übersetze das" den Stoff, nicht
+    // den Post im Thread — dann muss der Auftrag den Post nennen (#3918).
+    if (
+      editText &&
+      isSocialTextEditInstruction(editOrder) &&
+      (!carriesMaterial(editText) || namesSocialPostTarget(editOrder))
+    ) {
       // Sibling of the sharepic-branch log below: the two edit branches are
       // where a follow-up either lands correctly or is silently misread.
       log.info(
@@ -253,13 +262,15 @@ export async function runEarlyHandlerStage({
   ) {
     const editText = lastUserTextNoMentions.replace(/@sharepic\b/gi, ' ').trim();
     const editOrder = orderText(editText);
-    const candidate = !editText
-      ? null
-      : isSharepicEditInstruction(editOrder)
-        ? 'edit-instruction'
-        : isSharepicRefinement(editOrder)
-          ? 'refinement'
-          : null;
+    // Wie beim Post: mit eingefügtem Stoff nur, wenn der Auftrag das Sharepic nennt (#3918).
+    const candidate =
+      !editText || (carriesMaterial(editText) && !namesSharepicTarget(editOrder))
+        ? null
+        : isSharepicEditInstruction(editOrder)
+          ? 'edit-instruction'
+          : isSharepicRefinement(editOrder)
+            ? 'refinement'
+            : null;
     // BOTH lanes must prove there is something to edit. `refinement` always
     // did; `edit-instruction` never did, and that asymmetry was a hole, not
     // a nuance: on a thread with no sharepic the handler declined, the turn
@@ -318,7 +329,11 @@ export async function runEarlyHandlerStage({
     !universalEditForced
   ) {
     const followText = lastUserTextNoMentions;
-    if (isSharepicRefinement(orderText(followText))) {
+    const followOrder = orderText(followText);
+    if (
+      isSharepicRefinement(followOrder) &&
+      (!carriesMaterial(followText) || namesSharepicTarget(followOrder))
+    ) {
       const prior = await getLastSharepicVariant(actualThreadId);
       if (prior) {
         sharepicRefinement = {

@@ -25,16 +25,30 @@ const ORDER_PARAGRAPH_MAX = 120;
 const ORDER_OPENING_RE =
   /^(?:(?:hallo|hi|hey|moin|servus)\p{P}*\s+)?(?:bitte\s+)?(?:(?:kannst|könntest|koenntest|würdest|wuerdest)\s+du|ich\s+(?:brauche|möchte|moechte|will|hätte|haette)|(?:schreib|erstell|formulier|verfass|entw[iu]rf|entwerf|recherchier|such|find|pr[üu]f|[üu]berpr[üu]f|beantwort|antwort|fass|k[üu]rz|[üu]bersetz|[üu]berarbeit|korrigier|lektorier|mach|gib|zeig|erkl[äa]r|analysier|vergleich)\p{L}*)/iu;
 
-export function orderText(message: string): string {
+function splitOrder(message: string): { order: string; material: boolean } {
   const t = (message ?? '').trim();
   const paragraphs = t
     .split(/\n\s*\n/)
     .map((p) => p.trim())
     .filter(Boolean);
-  if (paragraphs.length < 2) return t;
+  if (paragraphs.length < 2) return { order: t, material: false };
   // Nur die Ränder: der Auftrag steht vor oder hinter dem Stoff, und eine kurze
   // Zwischenzeile im Stoff („Schreibt uns!") ist keiner.
   const edges = [paragraphs[0], paragraphs[paragraphs.length - 1]];
   const orders = edges.filter((p) => p.length <= ORDER_PARAGRAPH_MAX || ORDER_OPENING_RE.test(p));
-  return orders.length > 0 ? orders.join('\n\n') : t;
+  if (orders.length === 0) return { order: t, material: false };
+  return { order: orders.join('\n\n'), material: orders.length < paragraphs.length };
+}
+
+export function orderText(message: string): string {
+  return splitOrder(message).order;
+}
+
+/**
+ * Die Nachricht bringt Stoff mit, der vom Auftrag getrennt wurde. Dann kann
+ * ein „das"/„es" im Auftrag auch den Stoff meinen und nicht das Artefakt im
+ * Thread (#3918).
+ */
+export function carriesMaterial(message: string): boolean {
+  return splitOrder(message).material;
 }
