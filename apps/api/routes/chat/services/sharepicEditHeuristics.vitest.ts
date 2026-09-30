@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { carriesMaterial, orderText } from './orderText.js';
+import { carriesMaterial, orderText, pointsAtMaterial } from './orderText.js';
 import {
   asksForNewArtifact,
   isSharepicEditInstruction,
@@ -248,7 +248,8 @@ describe('Sharepic-Bearbeitung: ein bloßes „Text" über eingefügtem Stoff me
   const claimsSharepicEdit = (message: string) => {
     const order = orderText(message);
     return (
-      (!carriesMaterial(message) || namesSharepicTarget(order)) && isSharepicEditInstruction(order)
+      (!carriesMaterial(message) || !pointsAtMaterial(order) || namesSharepicTarget(order)) &&
+      isSharepicEditInstruction(order)
     );
   };
   const paste =
@@ -262,6 +263,7 @@ describe('Sharepic-Bearbeitung: ein bloßes „Text" über eingefügtem Stoff me
 
   it('ein Auftrag, der ein Sharepic-Feld nennt, greift weiter', () => {
     expect(claimsSharepicEdit(`Ersetze das Zitat im Sharepic durch:\n\n${paste}`)).toBe(true);
+    expect(claimsSharepicEdit(`Ersetze den Text durch:\n\n${paste}`)).toBe(true);
     expect(claimsSharepicEdit(`${paste}\n\nmach die Überschrift kürzer`)).toBe(true);
   });
 

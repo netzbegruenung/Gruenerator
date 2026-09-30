@@ -12,7 +12,7 @@
 
 import { createLogger } from '../../../utils/logger.js';
 import { extractTextContent } from '../services/messageHelpers.js';
-import { carriesMaterial, orderText } from '../services/orderText.js';
+import { carriesMaterial, orderText, pointsAtMaterial } from '../services/orderText.js';
 import {
   buildReelContextBlock,
   handleReelEdit,
@@ -219,10 +219,13 @@ export async function runEarlyHandlerStage({
     const editOrder = orderText(editText);
     // Bringt die Nachricht Stoff mit, meint „übersetze das" den Stoff, nicht
     // den Post im Thread — dann muss der Auftrag den Post nennen (#3918).
+    // „Ersetze den Text durch:" + Stoff bleibt ein Post-Edit.
     if (
       editText &&
       isSocialTextEditInstruction(editOrder) &&
-      (!carriesMaterial(editText) || namesSocialPostTarget(editOrder))
+      (!carriesMaterial(editText) ||
+        !pointsAtMaterial(editOrder) ||
+        namesSocialPostTarget(editOrder))
     ) {
       // Sibling of the sharepic-branch log below: the two edit branches are
       // where a follow-up either lands correctly or is silently misread.
@@ -264,7 +267,8 @@ export async function runEarlyHandlerStage({
     const editOrder = orderText(editText);
     // Wie beim Post: mit eingefügtem Stoff nur, wenn der Auftrag das Sharepic nennt (#3918).
     const candidate =
-      !editText || (carriesMaterial(editText) && !namesSharepicTarget(editOrder))
+      !editText ||
+      (carriesMaterial(editText) && pointsAtMaterial(editOrder) && !namesSharepicTarget(editOrder))
         ? null
         : isSharepicEditInstruction(editOrder)
           ? 'edit-instruction'
@@ -332,7 +336,9 @@ export async function runEarlyHandlerStage({
     const followOrder = orderText(followText);
     if (
       isSharepicRefinement(followOrder) &&
-      (!carriesMaterial(followText) || namesSharepicTarget(followOrder))
+      (!carriesMaterial(followText) ||
+        !pointsAtMaterial(followOrder) ||
+        namesSharepicTarget(followOrder))
     ) {
       const prior = await getLastSharepicVariant(actualThreadId);
       if (prior) {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { carriesMaterial, orderText } from './orderText.js';
+import { carriesMaterial, orderText, pointsAtMaterial } from './orderText.js';
 
 // Der eingefügte Newsletter vom beta-Lauf (#3912), gekürzt auf die Reizwörter.
 const newsletter =
@@ -60,5 +60,22 @@ describe('carriesMaterial', () => {
     expect(carriesMaterial(`${newsletter} Bitte korrigieren.`)).toBe(false);
     expect(carriesMaterial(`${longOrder}\n\nBitte kürzer halten.`)).toBe(false);
     expect(carriesMaterial(`${newsletter}\n\n${newsletter}`)).toBe(false);
+  });
+});
+
+describe('pointsAtMaterial', () => {
+  it.each([['übersetze das ins Englische'], ['mach es kürzer'], ['mach den Text kürzer']])(
+    'ein Zeigewort oder ein blosses „Text" kann den Stoff meinen: %s',
+    (order) => {
+      expect(pointsAtMaterial(order)).toBe(true);
+    }
+  );
+
+  it.each([
+    ['Ersetze den Text durch:'],
+    ['tausch es gegen den neuen Absatz'],
+    ['kürze die Caption'],
+  ])('ein Ersetzungsauftrag oder ein Auftrag ohne Zeigewort nicht: %s', (order) => {
+    expect(pointsAtMaterial(order)).toBe(false);
   });
 });
