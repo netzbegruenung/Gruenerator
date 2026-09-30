@@ -20,6 +20,7 @@ import {
   runWithDecisionJournal,
 } from '../../../../utils/decisionJournal.js';
 
+import type * as productKnowledge from '../../../../services/chat/productKnowledge.js';
 import type { ChatGraphState } from '../types.js';
 
 vi.mock('../../../../utils/logger.js', () => ({
@@ -54,7 +55,7 @@ vi.mock('../../../../services/docs/docsIndex.js', () => ({
 }));
 
 vi.mock('../../../../services/chat/productKnowledge.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../../../services/chat/productKnowledge.js')>()),
+  ...(await importOriginal<typeof productKnowledge>()),
   buildProductKnowledgeBlock: async () => '\n\n<<PRODUKTWISSEN>>',
 }));
 
@@ -262,6 +263,7 @@ const fullMaterial = {
   threadAttachments: [protokoll],
   imageAttachments: [{ name: 'plakat.png', data: '', mimeType: 'image/png' }],
   threadArtifacts: [{ kind: 'image', ref: 'https://x/alt.png', label: 'Windrad' }],
+  threadLookups: [{ toolName: 'find_content', query: 'Wärmepumpe', resultCount: 0, failed: false }],
   summaryContext: 'Kurzfassung des Dokuments.',
   computedResult: computed,
   hasTabularAttachment: true,

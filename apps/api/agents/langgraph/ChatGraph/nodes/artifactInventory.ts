@@ -23,7 +23,7 @@
  * zweiten Fehler gegen den ersten zu tauschen: `[A1]` in der Nutzerantwort.
  */
 
-import type { ChatGraphState, ThreadToolContext } from '../types.js';
+import type { ChatGraphState, PriorLookup, ThreadToolContext } from '../types.js';
 
 /** Deutsche Artefakt-Nomen für jede Prompt-Liste. Total, damit eine neue
  *  `ThreadToolContext`-Art ein Compile-Fehler ist und kein Loch. */
@@ -215,7 +215,30 @@ export const NO_PHANTOM_ACTION_RULE =
  *  was der Grünerator selbst kann; „Zugriff auf mein Gmail?" bleibt ein Nein.
  *  Geteilt von `DIRECT_HONESTY_NOTE` und dem Schreiber ohne Material. */
 export const NO_CAPABILITY_DENIAL_RULE =
-  'Dass in diesem Turn nichts nachgeschlagen wurde, heißt nicht, dass dir die Werkzeuge fehlen: Behaupte NIE, du hättest keine Werkzeuge oder keinen Zugriff auf Notebooks, Dokumente oder die Websuche — der Grünerator hat sie. Sag stattdessen, dass du in diesem Turn nicht nachgesehen hast, und biete an, es zu tun.';
+  'Dass in diesem Turn nichts nachgeschlagen wurde, heißt nicht, dass dir die Werkzeuge fehlen: Behaupte NIE, du hättest keine Werkzeuge oder keinen Zugriff auf Notebooks, Dokumente oder die Websuche — der Grünerator hat sie. Sag stattdessen, dass du in diesem Turn nicht nachgesehen hast, und biete an, es zu tun. Das gilt nur für DIESEN Turn: Suchen, die unter FRÜHERE SUCHEN IN DIESEM GESPRÄCH stehen, hast du wirklich ausgeführt — leugne sie nie.';
+
+/**
+ * Was frühere Turns nachgeschlagen haben. Ohne diese Liste kannte der Schreiber
+ * nur die Werkzeuge seines eigenen Turns und leugnete auf „hast du vorhin in
+ * meinen Dokumenten nachgesehen?" die Suche, die eine Karte darüber stand —
+ * gestützt auf die Regel oben, die „in diesem Turn nicht" ausdrücklich
+ * vorformuliert (#3931). Deshalb verweist die Regel auf diesen Block.
+ */
+export function renderPriorLookups(lookups: readonly PriorLookup[]): string {
+  if (lookups.length === 0) return '';
+  const lines = lookups
+    .map((l) => {
+      const query = l.query ? ` „${l.query}"` : '';
+      const outcome = l.failed
+        ? 'fehlgeschlagen'
+        : l.resultCount != null
+          ? `${l.resultCount} Treffer`
+          : 'ausgeführt';
+      return `- ${l.toolName}${query} — ${outcome}`;
+    })
+    .join('\n');
+  return `\n\n## FRÜHERE SUCHEN IN DIESEM GESPRÄCH\n\n${lines}\n\nDiese Suchen hast du in früheren Turns dieses Gesprächs selbst ausgeführt. Fragt jemand, ob, wo oder wonach du vorhin nachgesehen hast, antworte daraus („vorhin habe ich nach … gesucht und … gefunden") und nenne dabei keine Werkzeugnamen. Neue sachliche Angaben belegen sie nicht — dafür gilt, was über diesen Turn gesagt ist.`;
+}
 
 /** Dieselbe Begründung wie beim URL-Verbot: das Modell sieht die Oberfläche
  *  nicht (live 15.09.2026: „als visuelle Karte über oder unter meiner Antwort"). */

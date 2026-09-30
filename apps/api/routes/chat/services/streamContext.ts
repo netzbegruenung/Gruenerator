@@ -46,7 +46,7 @@ import { notebookIdFromSteps } from '../agents/notebookSourceTools.js';
 import { getPipelineAgent } from '../agents/pipelines/index.js';
 import { getContextWindow } from '../agents/providers.js';
 
-import { priorTurnRetrievalFailed } from './agenticLoop/catalogAssembly.js';
+import { priorLookups, priorTurnRetrievalFailed } from './agenticLoop/catalogAssembly.js';
 import { getThreadAttachments } from './attachmentPersistenceService.js';
 import {
   extractPromotablePasteText,
@@ -892,6 +892,7 @@ export async function buildStreamContext({
     initialState.lastToolContext = toolContext;
     initialState.threadArtifacts = history?.artifacts() ?? [];
     initialState.threadNotebookId = notebookIdFromSteps(history?.toolSteps() ?? []);
+    initialState.threadLookups = priorLookups(history?.toolSteps() ?? []);
     const lastTurnSteps = history?.lastTurnToolSteps() ?? [];
     initialState.lastTurnNotebookId = notebookIdFromSteps(lastTurnSteps);
     initialState.lastTurnRetrievalFailed = priorTurnRetrievalFailed(lastTurnSteps);
