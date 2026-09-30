@@ -365,9 +365,12 @@ export function creationOrderPattern(
  * with text on it — "Grafik" and "Kachel" mean a chart or a tile just as often,
  * and inferring one from them is what made sharepics appear unasked-for.
  * Add words HERE; nothing else in the codebase may carry its own sharepic list.
+ * Exported as regex SOURCE so order patterns (`asksForSharepic`) embed this very
+ * list instead of a copy.
  */
-export const SHAREPIC_WORD_RE =
-  /\b(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*|drei[\s-]?zeiler\w*)\b/i;
+export const SHAREPIC_NOUN_SRC =
+  'share[\\s-]?pics?|sharepics?|spruchbild\\w*|zitatbild\\w*|drei[\\s-]?zeiler\\w*';
+export const SHAREPIC_WORD_RE = new RegExp(`\\b(${SHAREPIC_NOUN_SRC})\\b`, 'i');
 
 /**
  * True when the user asked for a sharepic in so many words. Quotes, negation
@@ -386,4 +389,56 @@ export function hasExplicitSharepicWord(text: string): boolean {
   // first word would refuse a perfectly explicit ask.
   const firstSentence = t.split(/[.!?]/)[0] ?? t;
   return !isMetaQuestionAbout(firstSentence, SHAREPIC_WORD_RE);
+}
+
+/**
+ * Der Auftrag nennt ein POST-Nomen und nicht nur ein Sharepic ("Post mit
+ * Sharepic"). Er gehört damit dem Schreibzweig, nicht der Sharepic-Route.
+ *
+ * Bis 08/2026 hiess die Begründung „`social_post` trägt die Sharepic-Hälfte
+ * selbst" — das Verdikt ist stillgelegt, die Vorfahrt bleibt: der Text ist
+ * bestellt, die Grafik ist ein eigener Auftrag. Steht hier (Blatt), weil die
+ * Klassifikator-Regel und die Verbund-Garantie im Loop dieselbe Frage stellen.
+ */
+export const POST_NOUN_PATTERN = /\b(post(ing)?|beitrag|tweet|caption)\b/i;
+
+// Erstell-Verben im gewohnten 40-Zeichen-Fenster, beide Wortstellungen.
+const SHAREPIC_CREATE_ORDER = creationOrderPattern(SHAREPIC_NOUN_SRC, {
+  extraVerbs: 'kreier|bastel',
+});
+// Wunsch-Verben und „bitte" nur dicht am Nomen und im selben Satz: im weiten
+// Fenster machte „Ich brauche Infos zur Kampagne – Plakat, Sharepic, Flyer"
+// aus einer Aufzählung eine Bestellung.
+const SHAREPIC_WISH_ORDER = new RegExp(
+  `\\b(?:brauch|will|möcht|hätt|gib|bitte)[a-zäöü]*\\b[^.!?\\n]{0,20}\\b(?:${SHAREPIC_NOUN_SRC})\\b` +
+    `|\\b(?:${SHAREPIC_NOUN_SRC})\\b[^.!?\\n]{0,20}\\bbitte\\b`,
+  'i'
+);
+// Das Nomen eröffnet den Auftrag: „Sharepic zum Klimageld", „ein Zitatbild mit …".
+const SHAREPIC_NOMINAL_ORDER = new RegExp(
+  `^\\s*(?:bitte\\s+)?(?:(?:ein|einen|eine)\\s+)?(?:${SHAREPIC_NOUN_SRC})\\b`,
+  'i'
+);
+
+/**
+ * Der Auftrag BESTELLT ein Sharepic — das Wort allein genügt nicht mehr.
+ *
+ * `hasExplicitSharepicWord` fing Zitat, Verneinung und Meta-Frage ab, aber
+ * nicht die blosse Erwähnung: „Schreib eine Pressemitteilung. Dazu passt
+ * später ein Sharepic.", „Letzten Monat haben wir 12 Sharepics gemacht – ist
+ * das viel?" wurden zum Sharepic (Beta-Audit 30.09.2026). Verlangt wird jetzt
+ * zusätzlich ein Bestell-Signal: ein Erstell- oder Wunsch-Verb am Nomen, oder
+ * das Nomen eröffnet den Auftrag.
+ *
+ * Ein Prädikat für alle Türen — Klassifikator-Regel, Sharepic-Lizenz und die
+ * Verbund-Garantie im Loop müssen dieselbe Antwort geben, sonst garantiert die
+ * eine, was die andere abgelehnt hat. Aufrufer übergeben den AUFTRAG
+ * (`orderText`), nicht die ganze Nachricht.
+ */
+export function asksForSharepic(order: string): boolean {
+  if (!hasExplicitSharepicWord(order)) return false;
+  const t = stripQuotedSpans(order);
+  return (
+    SHAREPIC_CREATE_ORDER.test(t) || SHAREPIC_WISH_ORDER.test(t) || SHAREPIC_NOMINAL_ORDER.test(t)
+  );
 }
