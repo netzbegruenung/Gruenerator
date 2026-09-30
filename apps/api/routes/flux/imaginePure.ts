@@ -37,7 +37,8 @@ const imaginePureSchema = z.object({
     .nullish(),
   imageModel: z.enum(IMAGE_MODEL_IDS as [ImageModelId, ...ImageModelId[]]).nullish(),
   // Deprecated legacy alias kept for one release for non-UI callers.
-  // 'ionos' is accepted but remapped — the IONOS backend is retired.
+  // 'ionos' and 'regolo' are accepted but remapped — both backends are retired
+  // ('regolo' resolves to the Melious model, see below).
   backend: z.enum(['hosted', 'regolo', 'melious', 'ionos']).nullish(),
   seed: z.number().nullish(),
   width: z.number().nullish(),
@@ -139,6 +140,7 @@ router.post(
           ? (rawImageModel as ImageModelId)
           : null;
       if (!selectedModelId && rawBackend) {
+        // `regolo-image` is the legacy id of the Melious-served model (F0).
         if (rawBackend === 'regolo' || rawBackend === 'melious') selectedModelId = 'regolo-image';
         else selectedModelId = 'flux-pro';
       }

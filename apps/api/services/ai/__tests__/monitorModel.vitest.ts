@@ -20,9 +20,6 @@ vi.mock('../providerInstances.js', () => ({
   getLiteLLMProvider: () => ({
     chat: (model: string) => ({ provider: 'litellm', modelId: model }),
   }),
-  getRegoloProvider: () => ({
-    chat: (model: string) => ({ provider: 'regolo', modelId: model }),
-  }),
   getGreenPTProvider: () => ({
     chat: (model: string) => ({ provider: 'greenpt', modelId: model }),
   }),
@@ -31,7 +28,6 @@ vi.mock('../providerInstances.js', () => ({
   }),
   routeMistralModel: (model: string) => ({ model, upstream: 'mistral' }),
   LITELLM_DEFAULT_BASE_URL: '',
-  REGOLO_BASE_URL: '',
   GREENPT_BASE_URL: '',
   MISTRAL_API_URL: '',
   logProviderAvailability: () => {},

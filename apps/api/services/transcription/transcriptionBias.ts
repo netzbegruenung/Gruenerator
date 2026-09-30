@@ -8,10 +8,7 @@
  * Only Voxtral consumes this — Mistral's `context_bias` takes up to 100 single
  * WORDS to steer spelling of proper nouns and domain vocabulary. Not phrases:
  * an entry containing whitespace, a comma or a slash is rejected with HTTP 400,
- * which is why the lists below are run through `normalizeContextBias`. Regolo's
- * faster-whisper endpoint has no equivalent parameter (measured 2026-07-29:
- * it accepts only file/model/language), so short clips routed there fall back
- * to the model's own German, which handled Austrian terms well in testing.
+ * which is why the lists below are run through `normalizeContextBias`.
  *
  * Mistral documents context biasing as "optimized for English; support for
  * other languages is experimental" — treat this as a nudge, not a guarantee.
@@ -137,7 +134,7 @@ const DE_TERMS: readonly string[] = [
  * contain commas or whitespace (context_bias_input_method=comma_separated)"`.
  * 13 of the 31 German terms were phrases, so EVERY Voxtral call from the
  * subtitler died on this; the failure was invisible because the provider chain
- * caught it and silently continued on Regolo.
+ * caught it and silently continued on the next provider.
  *
  * Splitting rather than dropping is the point: the phrases are exactly the
  * proper nouns worth steering. `'Leonore Gewessler'` → `Leonore`, `Gewessler`

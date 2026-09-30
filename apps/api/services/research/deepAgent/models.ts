@@ -72,8 +72,8 @@ const MISTRAL_MEDIUM = 'mistral-medium-2604';
  * gegenstandslos, seit DIESES das dichte 31B IST.
  *
  * Für das dichte 31B in der Worker-Rolle liegen diese Zahlen NICHT vor. Was
- * vorliegt, ist die `pruefung`-Messung (Inhaltstreue in 22 Läufen nicht von
- * Regolo unterscheidbar) und ein Live-Lauf der gebauten Kette — beides sagt
+ * vorliegt, ist die `pruefung`-Messung (Inhaltstreue in 22 Läufen nicht vom
+ * früheren Primär unterscheidbar) und ein Live-Lauf der gebauten Kette — beides sagt
  * nichts über wohlgeformte Tool-Calls unter knappem Budget, und genau das ist
  * die Eigenschaft, von der ein Worker hier lebt. `scripts/probeCortecs.ts`
  * misst sie (Tool-Call und `json_object`); wer sie braucht, lässt es laufen,

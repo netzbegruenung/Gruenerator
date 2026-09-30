@@ -6,17 +6,14 @@
  * *Responses* API (`response.reasoning_summary_text.delta`). Its Chat
  * Completions delta schema has NO reasoning field at all, so any thinking that
  * an OpenAI-compat upstream streams alongside the answer is silently dropped.
- * Two of our upstreams do exactly that:
- *   - Regolo / vLLM (Qwen3, gpt-oss, Gemma 4): `delta.reasoning_content`,
- *     gesteuert über `reasoning_effort` (`none` schaltet ab).
- *   - Verdigado / LiteLLM / Ollama (Gemma 4 `verdigado-think`):
- *     `delta.reasoning`, on by default.
+ * Our upstreams do exactly that:
+ *   - vLLM-style hosts (Melious): `delta.reasoning_content`, gesteuert über
+ *     `reasoning_effort` (`none` schaltet ab).
+ *   - Cortecs: `chat_template_kwargs.enable_thinking`.
+ *   - Scaleway / Ollama-style: `delta.reasoning`, on by default.
  * To surface either to our UI (Reasoning/ReasoningGroup components), we bypass
  * the AI SDK for these reasoning-capable models and parse the raw SSE stream
  * ourselves, reading whichever reasoning field the upstream uses.
- *
- * The module name is historical — it began as Regolo-only; it now covers any
- * configured OpenAI-compat reasoning lane.
  */
 
 import { env } from '../../config/env.js';
@@ -67,24 +64,10 @@ interface ReasoningStreamConfig {
   model?: string;
 }
 
-const REGOLO_ENDPOINT = 'https://api.regolo.ai/v1/chat/completions';
-
 /**
- * Models that stream reasoning to us, keyed by provider. Regolo's vLLM family
- * bekommt hier ein echtes `reasoning_effort` (die Umkehr des `none`, das
- * `regoloFetchWithThinkingDisabled` auf dem SDK-Pfad setzt); LiteLLM's
- * Ollama-backed aliases (`verdigado-think` = Gemma 4, `verdigado-pro` =
- * gpt-oss) emit `reasoning` by default and need no flag.
+ * Models that stream reasoning to us, keyed by provider. LiteLLM's
+ * Ollama-backed aliases emit `reasoning` by default and need no flag.
  */
-const REGOLO_REASONING_MODELS = new Set([
-  'gpt-oss-120b',
-  'gemma4-31b',
-  // Small 4 is reasoning-capable but ran with thinking hard-off everywhere
-  // (it was only ever the intermediate model). The auto policy can now grade it up
-  // to `low` on moderate/complex turns; without this entry that grading would
-  // be silently ignored — the SDK path forces reasoning_effort:'none'.
-  'mistral-small-4-119b',
-]);
 /** Leer seit dem 29.08.2026: der Host bedient kein Ziel mehr, und `getModel`
  *  biegt den Namen vorher auf Cortecs um (./litellmRetired.ts). Das Set bleibt
  *  stehen, damit der Zweig unten symmetrisch zu den anderen Anbietern liest —
@@ -94,7 +77,7 @@ const LITELLM_REASONING_MODELS = new Set<string>();
 
 /**
  * Cortecs-Modelle, die uns Denken streamen — und der Hebel dafür ist ein
- * ANDERER als bei Regolo.
+ * ANDERER als bei Melious.
  *
  * Gemessen 25.08.2026 live gegen api.cortecs.ai (`gemma-4-31b-it`, identischer
  * Prompt, max_tokens 1500, Zeichen Reasoning / Zeichen Inhalt):
@@ -117,12 +100,12 @@ const LITELLM_REASONING_MODELS = new Set<string>();
  *     abgelehnte. Ein Modell, das einen Parameter annimmt und ignoriert, ist
  *     die teuerste Sorte Fehler: er sieht wie ein funktionierender Regler aus.
  *  2. Diese Lane könne über Cortecs nicht denken. Sie kann — nur nicht über
- *     den Hebel, den Regolo benutzt.
+ *     `reasoning_effort`.
  *
  * Der Wert wird deshalb NICHT aus `effort` abgeleitet: `enable_thinking` ist
  * binär, und dieses Modul zu erreichen heisst bereits „denken an". Eine Stufe
  * hineinzulesen, die der Upstream nicht anbietet, ist derselbe Fehler wie bei
- * Regolos Gemma (low/medium/high → 2533/2589/2412 Zeichen, also Rauschen).
+ * Melious' Gemma (siehe unten: gradierte Werte sind dort Rauschen).
  */
 const CORTECS_REASONING_MODELS = new Set(['gemma-4-31b-it']);
 
@@ -130,11 +113,11 @@ const CORTECS_REASONING_MODELS = new Set(['gemma-4-31b-it']);
  * Melious' Gemma 4 31B (`gemmaHosts.ts`, GEMMA_31B_ON_MELIOUS) — der Ausweich
  * der Gemma-Antwortlane und die zweite Seite von `heavy`/`pruefung`.
  *
- * Der Hebel ist `reasoning_effort`, wie bei Regolo: `none` schaltet ab (das tut
+ * Der Hebel ist `reasoning_effort`: `none` schaltet ab (das tut
  * `meliousThinkingFetch.ts` auf dem SDK-Pfad), die gradierten Werte schalten
  * an. Gemessen 23.09.2026, Reasoning-Tokens: low 252 · medium 1124 · high 572
- * auf zwei verschiedenen Fragen — also „an", keine verlässliche Stufe, derselbe
- * Befund wie bei Regolos Gemma. `chat_template_kwargs.enable_thinking` wirkt
+ * auf zwei verschiedenen Fragen — also „an", keine verlässliche Stufe, kein Dial.
+ * `chat_template_kwargs.enable_thinking` wirkt
  * hier NICHT. Das Denken kommt als `delta.reasoning_content`.
  */
 const MELIOUS_REASONING_MODELS = new Set(['gemma-4-31b:balanced']);
@@ -166,7 +149,6 @@ function scalewayReasoningModel(model: string): string | null {
 }
 
 export function isReasoningStreamModel(provider: string, model: string): boolean {
-  if (provider === 'regolo') return REGOLO_REASONING_MODELS.has(model);
   if (provider === 'litellm') return LITELLM_REASONING_MODELS.has(model);
   if (provider === 'cortecs') return CORTECS_REASONING_MODELS.has(model);
   if (provider === 'melious') return MELIOUS_REASONING_MODELS.has(model);
@@ -190,48 +172,11 @@ export class ReasoningStreamUnavailableError extends Error {
   }
 }
 
-/**
- * ── Warum Regolo `reasoning_effort` bekommt und kein `enable_thinking` ──
- *
- * Regolo nimmt `reasoning_effort` für JEDES seiner Modelle an — nicht nur für
- * gpt-oss, wie hier bis 13.08.2026 stand. Es ist auch der bessere Hebel als
- * `chat_template_kwargs.enable_thinking`, gemessen 13.08.2026 gegen
- * api.regolo.ai (identischer Prompt, `max_tokens` 800–1500, Zeichen Reasoning
- * bzw. Antworttext):
- *
- *   Modell               nichts     effort:high    effort:none   enable_thinking:true/false
- *   gemma4-31b           0 / 1025   2412 / 1222    0 / 957       2600 / 1257   ·  0 / 959
- *   mistral-small-4-119b 0 /  513   5526 /  184    0 / 288       5420 /    0   ·  0 / 214
- *   gpt-oss-120b       334 /  594   1285 /  425    0 / 487        208 /  549   ·  208 / 633
- *   qwen3.5-122b      3516 /    0   3487 /    0    0 / 532       3303 /    0   ·  0 / 518
- *   qwen3.6-27b       2061 /  521   1799 /  436    0 / 504       2185 /  531   ·  0 / 432
- *
- * Zwei Konsequenzen, und beide sind der Grund für die Umstellung:
- *
- *  - `enable_thinking:false` schaltet gpt-oss NICHT ab (208 Zeichen mit wie
- *    ohne Flag), `reasoning_effort:'none'` schon. Der Aus-Hebel auf dem
- *    SDK-Pfad war für diese Lane also wirkungslos — siehe regoloThinkingFetch.
- *  - Als Regler taugt der Dial nur dort, wo das Modell ihn kennt: gemma4-31b
- *    liefert für low/medium/high 2533/2589/2412 Zeichen, also Rauschen statt
- *    Stufen — dort heisst alles ausser `none` schlicht „an". Bei
- *    mistral-small (3805/2830/5526) und gpt-oss ist ein Effekt messbar.
- *    Wer `medium` als „halb so viel Denken" liest, liest auf Gemma etwas
- *    hinein, das der Upstream nicht anbietet.
- */
 function resolveConfig(
   provider: string,
   model: string,
   effort?: ThinkingEffort
 ): ReasoningStreamConfig | null {
-  if (provider === 'regolo') {
-    return {
-      endpoint: REGOLO_ENDPOINT,
-      apiKey: env.REGOLO_API_KEY,
-      // `high`, wenn der Aufrufer nichts sagt: dieses Modul zu erreichen heisst
-      // bereits „denken an", und `none` wäre die stille Umkehr davon.
-      bodyExtras: { reasoning_effort: effort ?? 'high' },
-    };
-  }
   if (provider === 'cortecs') {
     return {
       endpoint: `${cortecsBaseUrl()}/chat/completions`,
@@ -390,7 +335,7 @@ function extractDelta(chunk: unknown): { text: string; reasoning: string } {
   const choices = (chunk as { choices?: Array<{ delta?: Record<string, unknown> }> }).choices;
   const delta = choices?.[0]?.delta ?? {};
   const text = typeof delta.content === 'string' ? delta.content : '';
-  // vLLM/Regolo use `reasoning_content`; Ollama/LiteLLM use `reasoning`.
+  // vLLM-style hosts use `reasoning_content`; Ollama/LiteLLM use `reasoning`.
   const reasoning =
     typeof delta.reasoning_content === 'string'
       ? delta.reasoning_content

@@ -80,6 +80,7 @@ const OUT_FILE = 'documentation/src/generated/models.json';
 const MODEL_LABELS = {
   'mistral-medium-2604': 'Mistral Medium 3.5',
   'mistral-small-4-119b': 'Mistral Small 4',
+  'mistral-small-latest': 'Mistral Small',
   'mistral-small-3.2-24b-instruct-2506': 'Mistral Small 3.2',
   'pixtral-large-latest': 'Pixtral Large',
   'mistral-embed': 'Mistral Embed',
@@ -113,7 +114,6 @@ const MODEL_LABELS = {
  */
 const PROVIDER_HOSTS = {
   mistral: { host: 'Mistral AI', flag: '🇫🇷' },
-  regolo: { host: 'Regolo', flag: '🇮🇹' },
   melious: { host: 'Melious', flag: '🇪🇺' },
   // Stillgelegt am 29.08.2026 — der Name wird nur noch gelesen und bedient
   // Cortecs (apps/api/services/ai/litellmRetired.ts). Der Eintrag bleibt, damit
@@ -432,7 +432,7 @@ function generate() {
     return readLane(lanes, node, SRC.intermediate, `INTERMEDIATE_LANES.${id}`);
   };
 
-  // Vision: `{ provider: 'regolo' as const, model: env.VISION_DEFAULT_MODEL || 'gemma4-31b' }`
+  // Vision: `{ provider: 'mistral' as const, model: env.VISION_DEFAULT_MODEL || 'pixtral-large-latest' }`
   const vision = readLane(
     chat,
     findDeclaration(chat, 'VISION_MODEL'),

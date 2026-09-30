@@ -1,14 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { isReasoningStreamModel, streamWithReasoning } from '../regoloReasoningStream.js';
+import { isReasoningStreamModel, streamWithReasoning } from '../openAiReasoningStream.js';
 
 describe('isReasoningStreamModel', () => {
-  it('returns true for gpt-oss-120b on regolo', () => {
-    expect(isReasoningStreamModel('regolo', 'gpt-oss-120b')).toBe(true);
-  });
-
-  it('returns true for gemma4-31b on regolo (overflow reasoning lane)', () => {
-    expect(isReasoningStreamModel('regolo', 'gemma4-31b')).toBe(true);
+  it('returns false for the retired regolo provider (F0 name, no reasoning stream)', () => {
+    expect(isReasoningStreamModel('regolo', 'gemma4-31b')).toBe(false);
   });
 
   /**
@@ -35,7 +31,7 @@ describe('isReasoningStreamModel', () => {
     expect(isReasoningStreamModel('cortecs', 'gemma-4-31b-it')).toBe(true);
   });
 
-  it('returns false for the Regolo spelling of the same weights asked on cortecs', () => {
+  it('returns false for the old `gemma4-31b` spelling of the same weights asked on cortecs', () => {
     // Dieselben Gewichte, andere Kennung. Ein Treffer hier hiesse, dass der
     // Denk-Strom eine Modell-ID an einen Host schickt, der sie nicht führt.
     expect(isReasoningStreamModel('cortecs', 'gemma4-31b')).toBe(false);
@@ -48,46 +44,16 @@ describe('isReasoningStreamModel', () => {
     expect(isReasoningStreamModel('melious', 'gemma-4-31b:balanced')).toBe(true);
   });
 
-  it('returns false for a regolo-only model asked on litellm', () => {
+  it('returns false for gpt-oss-120b asked on litellm', () => {
     expect(isReasoningStreamModel('litellm', 'gpt-oss-120b')).toBe(false);
   });
 });
 
-describe.skipIf(!process.env.REGOLO_API_KEY)('streamWithReasoning — live integration', () => {
-  it('yields both reasoning and text chunks from gemma4-31b', async () => {
-    const chunks: Array<{ type: 'text' | 'reasoning'; delta: string }> = [];
-
-    for await (const chunk of streamWithReasoning({
-      provider: 'regolo',
-      model: 'gemma4-31b',
-      messages: [
-        {
-          role: 'system',
-          content: 'Answer in at most 3 words. Do not explain.',
-        },
-        { role: 'user', content: 'Say only "Hallo"' },
-      ],
-      maxTokens: 2000,
-      temperature: 0,
-    })) {
-      chunks.push(chunk);
-      if (chunks.length > 500) break; // safety
-    }
-
-    const textChunks = chunks.filter((c) => c.type === 'text');
-    const reasoningChunks = chunks.filter((c) => c.type === 'reasoning');
-
-    expect(reasoningChunks.length).toBeGreaterThan(0);
-    expect(textChunks.length).toBeGreaterThan(0);
-
-    const fullText = textChunks.map((c) => c.delta).join('');
-    expect(fullText.toLowerCase()).toContain('hallo');
-  }, 30_000);
-
-  it('throws a useful error on unknown model', async () => {
+describe.skipIf(!process.env.MELIOUS_API_KEY)('streamWithReasoning — live integration', () => {
+  it('throws ReasoningStreamUnavailableError on unknown model', async () => {
     const run = async (): Promise<void> => {
       for await (const _chunk of streamWithReasoning({
-        provider: 'regolo',
+        provider: 'melious',
         model: 'this-model-does-not-exist',
         messages: [{ role: 'user', content: 'x' }],
         maxTokens: 10,
@@ -97,16 +63,10 @@ describe.skipIf(!process.env.REGOLO_API_KEY)('streamWithReasoning — live integ
       }
     };
     // „unavailable", nicht „failed": das ist der Wortlaut von
-    // ReasoningStreamUnavailableError, und der Unterschied trägt Bedeutung —
-    // *unavailable* heisst „nichts ist beim Nutzer angekommen, ein anderer Host
-    // darf es nochmal versuchen", während ein Abriss MITTEN im Strom als
-    // schlichter Error geworfen wird und NICHT wiederholt werden darf.
-    //
-    // Der Regex suchte bis zum 25.08.2026 „failed" und konnte deshalb nie
-    // bestehen. Aufgefallen ist das erst jetzt, weil dieser Block ohne
-    // REGOLO_API_KEY übersprungen wird — in der CI läuft er nicht, lokal
-    // scheiterte er still.
-    await expect(run()).rejects.toThrow(/regolo reasoning stream unavailable/);
+    // ReasoningStreamUnavailableError — *unavailable* heisst „nichts ist beim
+    // Nutzer angekommen, ein anderer Host darf es nochmal versuchen", ein Abriss
+    // MITTEN im Strom ist ein schlichter Error und darf NICHT wiederholt werden.
+    await expect(run()).rejects.toThrow(/melious reasoning stream unavailable/);
   }, 15_000);
 });
 
@@ -121,7 +81,7 @@ describe('streamWithReasoning — Melious-Flavor nach Grösse', () => {
   async function sentModel(chars: number): Promise<unknown> {
     vi.resetModules();
     process.env.MELIOUS_API_KEY = 'mel-key';
-    const { streamWithReasoning: stream } = await import('../regoloReasoningStream.js');
+    const { streamWithReasoning: stream } = await import('../openAiReasoningStream.js');
     let body: Record<string, unknown> = {};
     vi.stubGlobal('fetch', async (_input: RequestInfo | URL, init?: RequestInit) => {
       body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;

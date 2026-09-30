@@ -2,9 +2,8 @@
  * Voice Controller
  * Handles audio transcription and chat.
  *
- * STT provider priority:
- *   1. Regolo faster-whisper-large-v3 (EU-hosted, preferred)
- *   2. Mistral Voxtral (fallback, also used for streaming & real-time)
+ * STT: Mistral Voxtral (also used for streaming & real-time), GreenPT as failover
+ * via services/transcription/providerPolicy.
  */
 
 import fs from 'fs';
@@ -127,7 +126,7 @@ const upload = multer({
 
 /**
  * POST /api/voice/transcribe
- * Transcribe audio file — prefers Regolo Whisper, falls back to Voxtral
+ * Transcribe audio file — Voxtral first, GreenPT as failover
  */
 router.post(
   '/transcribe',

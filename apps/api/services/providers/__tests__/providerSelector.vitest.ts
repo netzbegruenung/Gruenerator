@@ -92,12 +92,12 @@ describe('selectProviderAndModel — provider and model agree', () => {
    * Finished texts go to Gemma 4 — the best German writer, which is why it also
    * holds the chat loop's synth slot.
    *
-   * The model must be NAMED: Regolo's default is `qwen3.5-122b`, and qwen is
-   * excluded by policy (AVOID_AS_SYNTH in routes/chat/agents/autoPolicy.ts).
-   * A lane that resolves to the bare Regolo default is a policy breach, not a
-   * style choice — hence the explicit model assertion on every type.
+   * The model must be NAMED: a lane that resolves to a bare host default could
+   * land on a qwen model, which is excluded by policy (AVOID_AS_SYNTH in
+   * routes/chat/agents/autoPolicy.ts) — hence the explicit model assertion on
+   * every type.
    */
-  it('routes finished texts to Gemma 4 on its zentral gewählten Host, never to the Regolo default', () => {
+  it('routes finished texts to Gemma 4 on its zentral gewählten Host, never to a bare host default', () => {
     const textTypes = [
       'antrag',
       'antrag_simple',
@@ -123,8 +123,8 @@ describe('selectProviderAndModel — provider and model agree', () => {
       expect(provider, type).toBe(GEMMA_31B_PRIMARY.provider);
       expect(model, type).toBe(GEMMA_31B_PRIMARY.model);
       // Die eigentliche Aussage des Tests, host-unabhängig: diese Lanes
-      // benennen ihr Modell und fallen NIE in den Regolo-Umgebungs-Default —
-      // dort stand `qwen3.5-122b`.
+      // benennen ihr Modell und fallen NIE in einen Host-Default, der ein
+      // qwen-Modell sein könnte.
       expect(model, type).not.toMatch(/qwen/);
     }
   });

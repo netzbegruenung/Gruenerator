@@ -12,7 +12,7 @@ import type { AIRequestData, AiResult } from '../types.js';
 const KNOWN: readonly ProviderName[] = [
   'mistral',
   'litellm',
-  'regolo',
+  'melious',
   'greenpt',
   'scaleway',
   'cortecs',

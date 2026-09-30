@@ -52,7 +52,8 @@ describe('parity with providerSelector', () => {
     const registry = laneTarget('sharepic_zitat', {}, env);
 
     expect(registry).toEqual({ provider: chain.provider, model: chain.model });
-    expect(registry.provider).toBe('regolo');
+    // Llama hat seit der Regolo-Abschaltung keinen eigenen Host mehr → Standard.
+    expect(registry.provider).toBe('mistral');
   });
 });
 
@@ -73,8 +74,7 @@ describe('providerForModel', () => {
     // `litellm` bis zum 29.08.2026 — der Host ist stillgelegt
     // (services/ai/litellmRetired.ts), MAIN_LLM_OVERRIDE zeigt jetzt auf Cortecs.
     ['gpt-oss-120b', 'cortecs'],
-    ['Llama-3.3-70B-Instruct', 'regolo'],
-    ['regolo/qwen3.5-122b', 'regolo'],
+    ['Llama-3.3-70B-Instruct', 'mistral'],
     ['', 'mistral'],
   ])('%s → %s', (model, provider) => {
     expect(providerForModel(model)).toBe(provider);
@@ -93,7 +93,7 @@ describe('laneFallback', () => {
     // first; everything else leads with Cortecs (the fastest Gemma 4 host).
     expect(laneFallback('sharepic_zitat')[0]).toBe('cortecs'); // mistral is primary, so dropped
     expect(laneFallback('default')[0]).toBe('cortecs'); // mistral is primary, so dropped
-    expect(laneFallback('image_picker')[0]).toBe('cortecs'); // regolo is primary, so dropped
+    expect(laneFallback('image_picker')[0]).toBe('cortecs');
   });
 
   it('leaves the creation families the second Gemma host, then Mistral', () => {
@@ -103,7 +103,7 @@ describe('laneFallback', () => {
     // das ist ein Gewinn, kein Nebeneffekt: der Gemma-Primär liegt jetzt auf
     // Cortecs (services/ai/gemmaHosts.ts), also filtert `laneFallback` Melious
     // nicht mehr als eigenen Primär heraus — und Melious ist der ZWEITE Host
-    // derselben Gewichte (GEMMA_31B_ALTERNATE, vormals Regolo).
+    // derselben Gewichte (GEMMA_31B_ALTERNATE).
     //
     // Cortecs steht seit dem 28.08.2026 in der Kette, taucht hier aber NICHT
     // auf: es ist der Primär dieser Lanes, und `laneFallback` filtert den.

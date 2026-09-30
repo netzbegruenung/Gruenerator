@@ -49,7 +49,7 @@ interface Sampling {
  *
  * This used to be one resolver per provider: mistral consulted the
  * type/platform table in `services/ai/config.ts`, litellm hardcoded 0.7/1.0,
- * regolo and greenpt hardcoded 0/0.1. Which of those a request got was decided
+ * greenpt hardcoded 0/0.1. Which of those a request got was decided
  * by the fallback chain, not by the caller — so a press release drafted on the
  * mistral primary and the same press release drafted on the litellm fallback
  * were sampled differently, and a Twitter post was capped at 120 output tokens
@@ -109,7 +109,6 @@ function modelFor(provider: ProviderName, model: string, options: AIRequestOptio
 const CONFIG_HINT: Record<ProviderName, string> = {
   mistral: 'MISTRAL_API_KEY',
   litellm: 'LITELLM_API_KEY',
-  regolo: 'REGOLO_API_KEY',
   melious: 'MELIOUS_API_KEY',
   greenpt: 'GREENPT_API_KEY',
   scaleway: 'SCALEWAY_API_KEY',

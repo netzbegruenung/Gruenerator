@@ -533,7 +533,7 @@ export interface LoopEngineParams {
    * It has to be threaded through rather than baked into the model instance
    * because `@ai-sdk/mistral` takes the effort per request, not per client. And
    * it must not reach the GATHER phase: that runs on the fixed planner lane
-   * (Mistral Small on Regolo), an OpenAI-compat client that would drop a
+   * (Gemma on Melious), an OpenAI-compat client that would drop a
    * `mistral` block in silence — and the planner has no prose to think about
    * anyway.
    */

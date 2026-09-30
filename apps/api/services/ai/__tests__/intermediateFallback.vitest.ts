@@ -1,7 +1,7 @@
 /**
  * Dass jede Zwischenstufe ein Netz HAT, und dass das Netz trägt.
  *
- * Der Anlass steht in `intermediateLanes.ts`: am 29.08.2026 wies Regolo die
+ * Der Anlass steht in `intermediateLanes.ts`: am 29.08.2026 wies der damalige Primär die
  * Auto-Verschlagwortung mit HTTP 402 (`trial_expired`) ab, und weil
  * `getIntermediateModel()` an der Fassade und damit an `providerFallback.ts`
  * vorbeigeht, gab der Aufrufer still auf.
@@ -17,7 +17,7 @@ import { resolveIntermediateChain } from '../providers.js';
 /** Nur die Konfigurationsfrage wird gestellt, alles andere bleibt echt — die
  *  Kette soll gegen die WIRKLICHE Ausweich-Logik geprüft werden, nicht gegen
  *  eine Attrappe davon. */
-const configured = new Set(['greenpt', 'cortecs', 'mistral', 'regolo', 'melious', 'litellm']);
+const configured = new Set(['greenpt', 'cortecs', 'mistral', 'melious', 'litellm']);
 vi.mock('../providerInstances.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../providerInstances.js')>()),
   isProviderConfigured: (p: string) => configured.has(p),
@@ -88,8 +88,8 @@ describe('withFallbackChain', () => {
     const err = Object.assign(new Error('Daily token limit exceeded or trial expired.'), {
       statusCode: 402,
     });
-    const primary = fakeModel('regolo', { kind: 'throw', error: err });
-    const backup = fakeModel('greenpt', { kind: 'text', text: '["klimaschutz"]' });
+    const primary = fakeModel('greenpt', { kind: 'throw', error: err });
+    const backup = fakeModel('cortecs', { kind: 'text', text: '["klimaschutz"]' });
 
     const result = await generate(withFallbackChain(primary.model, [backup.model], 'test'));
 
@@ -153,13 +153,13 @@ describe('INTERMEDIATE_LANES fallback chains', () => {
     expect(new Set(providers).size).toBe(providers.length);
   });
 
-  it('never puts regolo first on any stage', () => {
-    // Festgehalten am 29.08.2026, nachdem Regolo als Primär von `trivial` und
-    // `standard` mit HTTP 402 (`trial_expired`) abwies und die Stufen ohne
-    // Antwort dastanden. Regolo bleibt als letztes Kettenglied nützlich —
-    // vorne steht es nicht mehr.
+  it('names no regolo target on any stage', () => {
+    // Regolo wurde am 30.09.2026 abgeschaltet (vorher am 29.08.2026 mit HTTP 402
+    // `trial_expired` als Primär ausgefallen). Kein Ziel einer Stufe darf den
+    // Namen noch tragen — er wird nur als F0-Name tolerant gelesen.
     for (const [name, config] of lanes) {
-      expect(config.provider, `${name} must not lead with regolo`).not.toBe('regolo');
+      const providers: string[] = [config.provider, ...config.fallback.map((t) => t.provider)];
+      expect(providers, `${name} must not name regolo`).not.toContain('regolo');
     }
   });
 

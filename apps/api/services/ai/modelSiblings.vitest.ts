@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { _resetModelHealthForTests, recordSlowVerdict } from './modelHealth.js';
 import { pickHealthyTarget, resolveAlternative } from './modelSiblings.js';
 
-const configured = new Set(['regolo', 'cortecs', 'mistral', 'melious']);
+const configured = new Set(['cortecs', 'mistral', 'melious']);
 
 /** Mutabel, weil Melious' Standard aus der Umgebung kommt
  *  (`MELIOUS_DEFAULT_MODEL`, siehe providers.ts) — genau der Grund, warum das
@@ -11,7 +11,6 @@ const configured = new Set(['regolo', 'cortecs', 'mistral', 'melious']);
  *  der Kette steht. */
 const defaults: Record<string, string> = {
   cortecs: 'gemma-4-31b-it',
-  regolo: 'gemma4-31b',
   melious: 'gemma-4-31b:balanced',
   mistral: 'mistral-medium-2604',
 };
@@ -31,54 +30,52 @@ describe('modelSiblings', () => {
   beforeEach(() => {
     _resetModelHealthForTests();
     configured.clear();
-    for (const p of ['regolo', 'cortecs', 'mistral', 'melious']) configured.add(p);
+    for (const p of ['cortecs', 'mistral', 'melious']) configured.add(p);
     defaults.cortecs = 'gemma-4-31b-it';
-    defaults.regolo = 'gemma4-31b';
     defaults.melious = 'gemma-4-31b:balanced';
     defaults.mistral = 'mistral-medium-2604';
   });
 
   it('ohne Vermerk bleibt alles, wie es war', () => {
-    expect(pickHealthyTarget('regolo', 'gemma4-31b')).toBeNull();
+    expect(pickHealthyTarget('melious', 'gemma-4-31b:balanced')).toBeNull();
   });
 
   it('das belegte Geschwister geht vor der Fallback-Kette', () => {
-    markSlow('regolo', 'gemma4-31b');
-    expect(pickHealthyTarget('regolo', 'gemma4-31b')).toEqual({
+    markSlow('melious', 'gemma-4-31b:balanced');
+    expect(pickHealthyTarget('melious', 'gemma-4-31b:balanced')).toEqual({
       provider: 'cortecs',
       model: 'gemma-4-31b-it',
     });
   });
 
   it('ist das Geschwister selbst zäh, greift die Kette', () => {
-    markSlow('regolo', 'gemma4-31b');
+    markSlow('melious', 'gemma-4-31b:balanced');
     markSlow('cortecs', 'gemma-4-31b-it');
-    expect(pickHealthyTarget('regolo', 'gemma4-31b')).toEqual({
-      provider: 'melious',
-      model: 'gemma-4-31b:balanced',
+    expect(pickHealthyTarget('melious', 'gemma-4-31b:balanced')).toEqual({
+      provider: 'mistral',
+      model: 'mistral-medium-2604',
     });
   });
 
   it('ein nicht konfigurierter Anbieter wird übersprungen', () => {
     configured.delete('cortecs');
-    markSlow('regolo', 'gemma4-31b');
-    expect(pickHealthyTarget('regolo', 'gemma4-31b')).toEqual({
-      provider: 'melious',
-      model: 'gemma-4-31b:balanced',
+    markSlow('melious', 'gemma-4-31b:balanced');
+    expect(pickHealthyTarget('melious', 'gemma-4-31b:balanced')).toEqual({
+      provider: 'mistral',
+      model: 'mistral-medium-2604',
     });
   });
 
   it('ist alles zäh, bleibt es beim Primär — langsam schlägt gar nicht', () => {
-    markSlow('regolo', 'gemma4-31b');
-    markSlow('cortecs', 'gemma-4-31b-it');
     markSlow('melious', 'gemma-4-31b:balanced');
+    markSlow('cortecs', 'gemma-4-31b-it');
     markSlow('mistral', 'mistral-medium-2604');
-    expect(pickHealthyTarget('regolo', 'gemma4-31b')).toBeNull();
+    expect(pickHealthyTarget('melious', 'gemma-4-31b:balanced')).toBeNull();
   });
 
   it('für ein Modell ohne Geschwister liefert die Kette den nächsten Anbieter', () => {
-    markSlow('regolo', 'mistral-small-4-119b');
-    expect(resolveAlternative('regolo', 'mistral-small-4-119b')).toEqual({
+    markSlow('greenpt', 'gemma4');
+    expect(resolveAlternative('greenpt', 'gemma4')).toEqual({
       provider: 'cortecs',
       model: 'gemma-4-31b-it',
     });
@@ -90,8 +87,7 @@ describe('modelSiblings', () => {
    * Damals war es `litellm/verdigado-pro` = `gpt-oss:120b-ctx128k`, das erste
    * Glied der Kette. Der Host ist seit dem 29.08.2026 stillgelegt
    * (./litellmRetired.ts), das Veto bleibt trotzdem nötig: der Standard eines
-   * Kettenanbieters kommt aus dessen Umgebungsvariable (`MELIOUS_DEFAULT_MODEL`
-   * bzw. `REGOLO_DEFAULT_MODEL`), und Melious serviert gpt-oss unter eigenem
+   * Kettenanbieters kommt aus dessen Umgebungsvariable (`MELIOUS_DEFAULT_MODEL`), und Melious serviert gpt-oss unter eigenem
    * Namen. Die Tests stellen genau das ein — Vermerk statt echter Störung.
    */
   describe('Veto des Aufrufers gegen ein Ausweichziel', () => {

@@ -2,8 +2,8 @@
  * Voxtral's two request-shape rules, pinned at the boundary that sends them.
  *
  * Found 2026-07-31 by running a 45-minute recording through the protokoll path:
- * the request came back HTTP 422, the chain then handed the file to Regolo,
- * Regolo gave up after five minutes, and `identifySpeakers` got no
+ * the request came back HTTP 422, the chain then handed the file to the
+ * fallback provider, which gave up after five minutes, and `identifySpeakers` got no
  * `[speaker_N]` marker at all. Speaker identification was simply dead.
  *
  * The service is a default-exported singleton whose methods call the network,

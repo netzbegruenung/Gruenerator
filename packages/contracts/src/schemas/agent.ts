@@ -62,6 +62,7 @@ export const agentFrontmatterSchema = z.object({
   tags: z.array(z.string()),
   model: z.string().min(1),
   defaultModel: z.string().min(1).optional(),
+  // legacy: Regolo removed 2026-09-30, kept so stored rows still parse
   provider: z.enum(['mistral', 'anthropic', 'litellm', 'regolo', 'melious', 'greenpt', 'cortecs']),
   params: agentParamsSchema,
   openingMessage: z.string(),

@@ -807,7 +807,7 @@ export class BaseSearchService {
    * hat `firstRelevantOffset` in #2289 widerlegt (3219/9966/8673).
    *
    * Rückfall ist überall das heutige Verhalten: `null` heisst „nach Kosinus
-   * sortieren wie bisher". `rerankPipeline` wirft nicht — bei Regolo-Ausfall
+   * sortieren wie bisher". `rerankPipeline` wirft nicht — bei Rerank-Ausfall
    * kommt die Eingabereihenfolge zurück, und die Kosinus-Reihenfolge ist genau
    * das.
    */

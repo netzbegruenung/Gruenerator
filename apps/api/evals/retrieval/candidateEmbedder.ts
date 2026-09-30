@@ -158,7 +158,7 @@ interface ResolvedModel {
    * Der Antwort-Header, der den tatsächlich rechnenden Unterauftragnehmer
    * nennt — `null`, wo es keinen gibt.
    *
-   * Nur Cortecs ist ein Router. GreenPT und Regolo rechnen selbst; ihnen den
+   * Nur Cortecs ist ein Router. GreenPT rechnet selbst; ihnen den
    * Cortecs-Header-Namen hinzuhalten hiesse, aus jeder Antwort ohne diesen
    * Header eine Aussage über einen Unterauftragnehmer zu machen, den es dort
    * nicht gibt.
@@ -175,9 +175,8 @@ async function resolveEmbeddingModel(candidate: EmbedCandidate): Promise<Resolve
       upstreamHeader: CORTECS_UPSTREAM_HEADER,
     };
   }
-  const { getGreenPTProvider, getRegoloProvider } =
-    await import('../../services/ai/providerInstances.js');
-  const provider = candidate.provider === 'greenpt' ? getGreenPTProvider() : getRegoloProvider();
+  const { getGreenPTProvider } = await import('../../services/ai/providerInstances.js');
+  const provider = getGreenPTProvider();
   return { model: provider.embeddingModel(candidate.model), upstreamHeader: null };
 }
 
