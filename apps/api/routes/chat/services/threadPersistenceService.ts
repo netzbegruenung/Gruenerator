@@ -422,9 +422,14 @@ export async function setThreadToolContext(
 
 const WIDEST_ROW_WINDOW = Math.max(...Object.values(ROW_WINDOW));
 
-/** The four `tool_results` keys the projections below read. */
+/** The `tool_results` keys the projections below read. */
 interface ThreadToolRow extends ArtifactMetadataShape {
   searchResults?: unknown[] | null;
+  intent?: unknown;
+}
+
+function intentOf(row: ThreadToolRow | undefined): string | null {
+  return typeof row?.intent === 'string' && row.intent ? row.intent : null;
 }
 
 /**
@@ -495,6 +500,8 @@ export interface ThreadToolHistory {
   lastTurnToolSteps(): PersistedStep[];
   /** The artifact the assistant turn right before this one produced — empty when it made none. */
   lastTurnArtifacts(): ThreadToolContext[];
+  /** The persisted intent of the assistant turn right before this one — null when unknown. */
+  lastTurnIntent(): string | null;
   sources(limit?: number): SearchResult[];
   lastGeneratedImageUrl(): string | null;
 }
@@ -525,6 +532,7 @@ export async function readThreadToolHistory(threadId: string): Promise<ThreadToo
       newestIsLastTurn ? toToolSteps(rows.slice(0, 1), Number.MAX_SAFE_INTEGER) : [],
     lastTurnArtifacts: () =>
       newestIsLastTurn ? toArtifacts(rows.slice(0, 1), Number.MAX_SAFE_INTEGER) : [],
+    lastTurnIntent: () => (newestIsLastTurn ? intentOf(rows[0]) : null),
     sources: (limit = 10) => toSources(rows, limit),
     lastGeneratedImageUrl: () => toLastGeneratedImageUrl(rows),
   };
