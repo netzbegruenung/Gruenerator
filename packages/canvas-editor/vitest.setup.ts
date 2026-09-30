@@ -1,6 +1,8 @@
-import '@testing-library/jest-dom/vitest';
+import * as jestDomMatchers from '@testing-library/jest-dom/matchers';
 import { cleanup } from '@testing-library/react';
-import { afterEach } from 'vitest';
+import { afterEach, expect } from 'vitest';
+
+expect.extend(jestDomMatchers);
 
 // ProseMirror rechnet nach jeder Transaktion aus, ob es zur Auswahl scrollen
 // muss, und fragt dafür `getClientRects` auf Knoten und Bereichen. jsdom

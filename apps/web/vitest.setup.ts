@@ -1,5 +1,4 @@
-import '@testing-library/jest-dom/vitest';
-
+import * as jestDomMatchers from '@testing-library/jest-dom/matchers';
 import { cleanup, configure } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, expect } from 'vitest';
 import * as axeMatchers from 'vitest-axe/matchers';
@@ -8,6 +7,7 @@ import { installMatchMediaStub } from './src/test/match-media';
 import { server } from './src/test/msw-server';
 
 // jest-dom + axe matchers (toBeInTheDocument, toHaveNoViolations, …).
+expect.extend(jestDomMatchers);
 expect.extend(axeMatchers);
 
 // RTL's default asyncUtilTimeout of 1000 ms assumes a mounted tree waiting only
