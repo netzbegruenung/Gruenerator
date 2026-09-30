@@ -5,6 +5,7 @@ import {
   getApiLocale,
   notifyAiConsentRequired,
   rejectAbortedResponse,
+  sendFormDataAsMultipart,
   setApiLocale,
   setGlobalApiClient,
 } from '@gruenerator/shared/api';
@@ -673,6 +674,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig): Promise<InternalAxiosRequestConfig> => {
     config.headers['X-User-Locale'] = getApiLocale();
+    sendFormDataAsMultipart(config);
     widenTimeoutForBulkTransfer(config);
     // Desktop app uses JWT token from localStorage
     if (isDesktopApp()) {

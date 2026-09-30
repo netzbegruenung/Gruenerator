@@ -23,6 +23,7 @@ import {
 import express, { type NextFunction, type Request, type Response, type Router } from 'express';
 import multer from 'multer';
 
+import { Sentry } from '../../lib/sentry.js';
 import { DeepLError } from '../../services/translation/DeepLService.js';
 import { documentJobFile, startDocumentJob } from '../../services/translation/documentJobs.js';
 import {
@@ -89,6 +90,17 @@ translationUploadRouter.post(
     }
     const file = req.file;
     if (!file) {
+      // The page disables the button without a file, so a body that is not
+      // multipart at all is a client bug, not a user mistake. A handled 400
+      // never reaches the Express error handler — report it here.
+      const contentType = req.headers['content-type'] ?? '';
+      if (!contentType.startsWith('multipart/form-data')) {
+        Sentry.withScope((scope) => {
+          scope.setLevel('warning');
+          scope.setTag('content-type', contentType.split(';')[0] || 'none');
+          Sentry.captureMessage('[translation] document upload without multipart body');
+        });
+      }
       fail(res, 400, 'Keine Datei hochgeladen.');
       return;
     }
