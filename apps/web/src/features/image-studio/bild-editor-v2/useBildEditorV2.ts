@@ -8,6 +8,7 @@ import { useShareStore } from '@gruenerator/shared/share';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { downloadDataUrl } from '../../../utils/downloadFile';
 import { editAiImage, removeImageBackground } from '../services/imageEditingService';
 
 import { type BevMode, type BevSettings, type BevVersion } from './types';
@@ -349,10 +350,7 @@ export function useBildEditorV2() {
 
   const download = useCallback(() => {
     if (!active) return;
-    const link = document.createElement('a');
-    link.href = active.image;
-    link.download = `gruenerator-bild-${active.num}.jpg`;
-    link.click();
+    void downloadDataUrl(active.image, `gruenerator-bild-${active.num}.jpg`);
   }, [active]);
 
   const resetAll = useCallback(() => {
