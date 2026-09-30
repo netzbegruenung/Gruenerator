@@ -11,6 +11,7 @@ import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
 import { buildUrl } from '../../../config/domains';
 import { useAuthStore } from '../../../stores/authStore';
+import { downloadBlob } from '../../../utils/downloadFile';
 import { getPublicAppOrigin } from '../../../utils/platform';
 import { canShare, shareContent, copyToClipboard } from '../../../utils/shareUtils';
 
@@ -111,20 +112,12 @@ const SharedVideoPage = () => {
       // `responseType: 'blob'` makes axios return a Blob — pass it
       // directly to `new Blob([...])` without re-casting.
       const blob = new Blob([response.data], { type: 'video/mp4' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-
       const filename = `${shareData?.title || 'video'}_gruenerator.mp4`.replace(
         /[^a-zA-Z0-9_-]/g,
         '_'
       );
-      link.download = filename;
 
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      await downloadBlob(blob, filename);
 
       setDownloadSuccess(true);
       setTimeout(() => setDownloadSuccess(false), 3000);

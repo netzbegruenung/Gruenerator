@@ -557,7 +557,7 @@ function CanvasEditorInner({
       });
       if (dataUrl) {
         const ext = format === 'jpeg' ? 'jpg' : format;
-        downloadDataUrl(dataUrl, `gruenerator-seite-${currentPageIndex + 1}.${ext}`);
+        await downloadDataUrl(dataUrl, `gruenerator-seite-${currentPageIndex + 1}.${ext}`);
         onDownload?.(dataUrl);
       }
     },
@@ -689,7 +689,7 @@ function CanvasEditorInner({
           await ensureFontsReady();
           const dataUrl = ref.current.toDataURL({ pixelRatio: 1 });
           if (dataUrl) {
-            downloadDataUrl(dataUrl, `gruenerator-slider-seite-${currentPageIndex + 1}.png`);
+            await downloadDataUrl(dataUrl, `gruenerator-slider-seite-${currentPageIndex + 1}.png`);
           }
         }
       },

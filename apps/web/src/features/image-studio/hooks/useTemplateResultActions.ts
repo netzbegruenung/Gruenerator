@@ -5,6 +5,7 @@ import { useState, useCallback } from 'react';
 import useAltTextGeneration from '../../../components/hooks/useAltTextGeneration';
 import { useGenerateSocialPost } from '../../../components/hooks/useGenerateSocialPost';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import { downloadDataUrl } from '../../../utils/downloadFile';
 import { formatDownloadFilename } from '../utils/templateResultUtils';
 
 import { useImageHelpers } from './useImageHelpers';
@@ -73,12 +74,10 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
 
   const handleDownload = useCallback(() => {
     if (!generatedImageSrc) return;
-    const link = document.createElement('a');
-    link.href = generatedImageSrc;
-    link.download = formatDownloadFilename(type, { formatId: selectedFormatId, ext: 'png' });
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    void downloadDataUrl(
+      generatedImageSrc,
+      formatDownloadFilename(type, { formatId: selectedFormatId, ext: 'png' })
+    );
   }, [generatedImageSrc, type, selectedFormatId]);
 
   const handleShareToInstagram = useCallback(async () => {
