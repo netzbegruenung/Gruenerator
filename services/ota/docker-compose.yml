@@ -1,0 +1,41 @@
+# xprem (expo-open-ota) — OTA-Updates für apps/mobile ab 1.5.5.
+# Vorlage für Coolify; Werte in Coolify als Umgebungsvariablen setzen, nicht hier.
+# Warum und wie: README.md daneben.
+services:
+  xprem:
+    image: ghcr.io/mercuretechnologies/xprem:v3.2.5
+    restart: unless-stopped
+    environment:
+      BASE_URL: https://ota.moritz-waechter.de
+      JWT_SECRET: ${JWT_SECRET}
+      USE_DASHBOARD: 'true'
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      # Datenschutz: kein Geräteregister (EAS-Client-ID, Check-ins), kein
+      # stündlicher Nutzungs-Ping an den Hersteller, keine Geolokalisierung.
+      DISABLE_DEVICE_TELEMETRY: 'true'
+      DISABLE_TELEMETRY: 'true'
+      STORAGE_MODE: local
+      LOCAL_BUCKET_BASE_PATH: /data/updates
+      # Postgres-Modus. Die Signaturschlüssel erzeugt der Server selbst und
+      # versiegelt sie mit dem Master-Key in der Datenbank — den Key sichern.
+      DB_URL: postgres://xprem:${POSTGRES_PASSWORD}@postgres:5432/xprem?sslmode=disable
+      DB_KEYS_MASTER_KEY_B64: ${DB_KEYS_MASTER_KEY_B64}
+    volumes:
+      - updates:/data/updates
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: xprem
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: xprem
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  updates:
+  pgdata:

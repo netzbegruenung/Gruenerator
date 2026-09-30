@@ -1,0 +1,45 @@
+name: release
+
+# Manual only: every run is two paid store builds.
+#   eas workflow:run .eas/workflows/release.yml
+# Needs a native change's version bump in app.json first (runtimeVersion policy
+# is appVersion) — for JS-only changes use ota-update.yml instead.
+# Android submits with the Google Service Account key stored in EAS credentials,
+# iOS with the App Store Connect key stored there; neither lives in the repo.
+on:
+  workflow_dispatch:
+    inputs:
+      submit_profile:
+        type: choice
+        description: 'production = Play internal + TestFlight; open-testing = Play beta (Open testing) + TestFlight'
+        options:
+          - production
+          - open-testing
+        default: production
+
+jobs:
+  build_android:
+    type: build
+    params:
+      platform: android
+      profile: production
+
+  build_ios:
+    type: build
+    params:
+      platform: ios
+      profile: production
+
+  submit_android:
+    needs: [build_android]
+    type: submit
+    params:
+      build_id: ${{ needs.build_android.outputs.build_id }}
+      profile: ${{ inputs.submit_profile }}
+
+  submit_ios:
+    needs: [build_ios]
+    type: submit
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: ${{ inputs.submit_profile }}

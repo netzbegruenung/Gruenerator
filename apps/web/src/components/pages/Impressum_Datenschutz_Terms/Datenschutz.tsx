@@ -46,13 +46,19 @@
  * (`apps/api/scripts/generate-legal-docx.mjs`), und
  * `scripts/check-privacy-subprocessors.mjs` bricht ab, wenn ein Host aus
  * `documentation/src/generated/models.json` hier keine Zeile hat.
+ *
+ * Am 30.09.2026 um die Fehlerberichte der Mobile-App ergänzt: welche Felder
+ * gesendet und welche abgeschaltet sind, steht in
+ * `apps/mobile/services/errorReporting.ts`. Ebenso um den eigenen
+ * Update-Server (`services/ota/`, `apps/mobile/app.config.js`); Apps bis 1.5.4
+ * fragen noch bei Expo in den USA — offen in #3904.
  */
 
 const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 23. September 2026</p>
+      <p>Stand: 30. September 2026</p>
 
       <h2>Einleitung</h2>
       <p>
@@ -317,6 +323,11 @@ const Datenschutz = () => {
             <td>Fehler- und Anwendungsmonitoring</td>
           </tr>
           <tr>
+            <td>xprem (selbst gehostet)</td>
+            <td>EU</td>
+            <td>Updates der GRÜNERATOR-App</td>
+          </tr>
+          <tr>
             <td>Langfuse (selbst gehostet)</td>
             <td>Deutschland (EU)</td>
             <td>Qualitätssicherung und Fehleranalyse der KI-Chat-Funktion</td>
@@ -521,6 +532,26 @@ const Datenschutz = () => {
         der EU. Verarbeitet werden Fehlerberichte, Stack-Traces, Browserinformationen und
         IP-Adressen; eine Weitergabe an Dritte findet nicht statt. Löschung nach 90 Tagen.
         Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO.
+      </p>
+      <p>
+        Auch die GRÜNERATOR-App für iOS und Android meldet technische Fehler an diese
+        GlitchTip-Instanz, und zwar nur aus veröffentlichten App-Versionen. Übermittelt werden
+        Fehlermeldung und Stack-Trace, die App-Version sowie technische Geräteangaben (z. B.
+        Gerätemodell, Betriebssystem und Spracheinstellung). Nicht übermittelt werden
+        Bildschirmfotos, Konsolenausgaben, Deine Eingaben oder eine Nutzerkennung.
+      </p>
+
+      <h3>Updates der GRÜNERATOR-App</h3>
+      <p>
+        Ab Version 1.5.5 fragt die GRÜNERATOR-App für iOS und Android beim Start bei unserem eigenen
+        Update-Server (selbst gehostete Open-Source-Software xprem auf eigenen Servern in der EU)
+        nach, ob eine neuere Programmversion bereitsteht, und lädt sie gegebenenfalls herunter.
+        Dabei werden IP-Adresse, Plattform (iOS oder Android), App- und Programmversion, der
+        Update-Kanal sowie eine zufällig erzeugte Installationskennung übermittelt, die keinen Bezug
+        zu Deinem Benutzerkonto hat und bei einer Neuinstallation neu entsteht. Ein
+        Geräteverzeichnis wird daraus nicht angelegt, eine Weitergabe an Dritte findet nicht statt.
+        Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der schnellen
+        Behebung von Fehlern und Sicherheitslücken).
       </p>
 
       <h3>Qualitätssicherung der KI-Chat-Funktion (Langfuse)</h3>
