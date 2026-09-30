@@ -35,19 +35,29 @@ Info → Download certificate). **Master-Key und Postgres-Backup gehören beide
 gesichert** — fehlt eins davon, nimmt keine ausgelieferte Binary mehr ein Update
 an, bis ein neuer Store-Build mit neuem Zertifikat draußen ist.
 
-## Aufsetzen (Stand 30.09.2026)
+## Stand 30.09.2026
 
-Läuft in Coolify aus `docker-compose.yml`. Noch offen:
+Läuft in Coolify aus `docker-compose.yml` unter `https://ota.moritz-waechter.de`
+(Let's Encrypt), Kanäle `production` und `preview` zeigen auf gleichnamige
+Branches, ein API-Token für `production` liegt im Schlüsselbund. Der Rauchtest
+unten liefert für beide Kanäle `noUpdateAvailable`, und die Signatur prüft gegen
+`apps/mobile/certs/certificate.pem`:
 
-1. Domain `ota.moritz-waechter.de` am Dienst eintragen (TLS über Coolify), und
-   `BASE_URL=https://ota.moritz-waechter.de` — daraus baut der Server die
-   Download-Adressen der Bundles.
-2. `DISABLE_DEVICE_TELEMETRY=true` und `DISABLE_TELEMETRY=true` setzen (siehe
-   unten; die Datenschutzerklärung sagt „kein Geräteverzeichnis").
-3. Kanäle `production` und `preview` je auf den gleichnamigen Branch, API-Token
-   für den OTA-Workflow anlegen.
-4. Erstes Update auf `preview` veröffentlichen, auf einem Preview-Build prüfen,
-   erst dann `production`.
+```bash
+openssl x509 -in apps/mobile/certs/certificate.pem -pubkey -noout > pub.pem
+openssl dgst -sha256 -verify pub.pem -signature sig.bin directive.json
+```
+
+(`sig.bin` = base64-dekodierter `sig=` aus dem `expo-signature`-Header des
+`directive`-Teils, `directive.json` = dessen Rumpf.)
+
+**Backup:** tägliches Postgres-Volume-Backup um 02:00, 7 Stück, bisher nur lokal
+auf dem Coolify-Server. Fällt der Server aus, sind Schlüssel und Backup zugleich
+weg — ein Ziel außerhalb (S3/Offsite) fehlt noch. Der Master-Key liegt zusätzlich
+im Schlüsselbund.
+
+Erstes Update auf `preview` veröffentlichen, auf einem Preview-Build von 1.5.5
+prüfen, erst dann `production`.
 
 Rauchtest ohne App:
 
