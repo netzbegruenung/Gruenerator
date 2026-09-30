@@ -15,11 +15,13 @@
  * nicht mehr vergessen — sie kann ihn nur noch ausdrücklich weglassen, und das
  * steht dann als `guard: 'none'` da, wo ein Reviewer es sieht.
  *
- * Bewusst ein Blatt (nur `fastPathGuards`, selbst ein Blatt): die Regeln leben
+ * Bewusst ein Blatt (nur `fastPathGuards` und `orderText`, beide selbst Blätter): die Regeln leben
  * bei ihren Mustern in `classifierHeuristics.ts`, der Läufer hier weiss von
  * ihnen nichts. Deshalb gibt es keinen Zyklus und die Vorstufe ist für sich
  * testbar.
  */
+
+import { orderText } from '../../../../routes/chat/services/orderText.js';
 
 import { isMetaQuestionAbout, negatedOrMeta, stripQuotedSpans } from './fastPathGuards.js';
 
@@ -47,6 +49,13 @@ export interface AnalyzedMessage {
   isLongPaste: boolean;
   /** Eine Tabelle hängt am Turn (Voraussetzung der beiden compute-Regeln). */
   hasTabularAttachment: boolean;
+  /**
+   * Dieselbe Sicht, nur über den AUFTRAG (`orderText`) — ohne mitgebrachten
+   * Stoff ist das die Nachricht selbst. Die 500-Zeichen-Grenze fängt kurzen
+   * Stoff nicht: ein 386-Zeichen-Newsletter mit „Sharepics" darin machte aus
+   * „rechtschreibung korrigieren" ein Sharepic (Beta 30.09.2026).
+   */
+  order: Pick<AnalyzedMessage, 'raw' | 'lower' | 'stripped'>;
 }
 
 export function analyzeMessage(
@@ -54,12 +63,19 @@ export function analyzeMessage(
   opts?: { hasTabularAttachment?: boolean }
 ): AnalyzedMessage {
   const lower = userContent.toLowerCase();
+  const stripped = stripQuotedSpans(lower);
+  const orderRaw = orderText(userContent);
+  const orderLower = orderRaw.toLowerCase();
   return {
     raw: userContent,
     lower,
-    stripped: stripQuotedSpans(lower),
+    stripped,
     isLongPaste: userContent.length > NOUN_TRIGGER_MAX_LENGTH,
     hasTabularAttachment: opts?.hasTabularAttachment === true,
+    order:
+      orderRaw === userContent.trim()
+        ? { raw: userContent, lower, stripped }
+        : { raw: orderRaw, lower: orderLower, stripped: stripQuotedSpans(orderLower) },
   };
 }
 
@@ -124,12 +140,16 @@ export function runRules<TResult>(
     if (rule.longPaste === 'skip' && m.isLongPaste) continue;
     if (rule.longPaste === 'require' && !m.isLongPaste) continue;
     if (rule.requiresTabularAttachment && !m.hasTabularAttachment) continue;
-    if (!rule.match(m)) continue;
+    // Nomen-getriebene Regeln fragen nur den Auftrag: ein Reizwort im
+    // mitgebrachten Stoff ist keiner. Das Ergebnis baut weiter auf der ganzen
+    // Nachricht auf.
+    const view = rule.longPaste === 'skip' ? { ...m, ...m.order } : m;
+    if (!rule.match(view)) continue;
     if (rule.guard !== 'none' && rule.guardNoun) {
       const blocked =
         rule.guard === 'negatedOrMeta'
-          ? negatedOrMeta(m.stripped, rule.guardNoun)
-          : isMetaQuestionAbout(m.stripped, rule.guardNoun);
+          ? negatedOrMeta(view.stripped, rule.guardNoun)
+          : isMetaQuestionAbout(view.stripped, rule.guardNoun);
       if (blocked) continue;
     }
     return { rule, result: rule.result(m) };
