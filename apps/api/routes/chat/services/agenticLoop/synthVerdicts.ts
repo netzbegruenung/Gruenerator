@@ -20,6 +20,7 @@ import {
   deniesSearchAbilityDespiteSearching,
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
+  stripPhantomMemoryClaim,
 } from '../outputSanity.js';
 
 import { stripOutOfRangeCitations } from './citationStrip.js';
@@ -91,6 +92,8 @@ export function finalizeAnswerText(input: {
   /** Numbered registry size — the upper bound for a legal `[N]`. */
   sourceCount: number;
   stepCount: number;
+  /** Ein `memory`-Schritt lief in diesem Turn — nur dann darf „notiert" stehen. */
+  memoryRan?: boolean;
   /** Rendered source block, the user's own words, attachments, open document —
    *  everything the model may legitimately name. */
   seenTexts: readonly string[];
@@ -118,6 +121,18 @@ export function finalizeAnswerText(input: {
   if (delivery.removed.length > 0) {
     warnings.push(`[Agentic] Removed fabricated artefact delivery: ${delivery.removed.join(', ')}`);
     text = delivery.text;
+  }
+
+  // „Ich habe mir das notiert" ohne memory-Schritt: nichts wurde gespeichert.
+  const phantomNote = stripPhantomMemoryClaim(text, {
+    memoryRan: input.memoryRan === true,
+    stepCount: input.stepCount,
+  });
+  if (phantomNote.removed.length > 0) {
+    warnings.push(
+      `[Agentic] Removed memory claim without memory step: ${phantomNote.removed.join(' | ')}`
+    );
+    text = phantomNote.text;
   }
 
   if (
@@ -162,7 +177,7 @@ export function finalizeAnswerText(input: {
   // caller pushes the corrected answer via `completion` — the frontend replaces
   // the streamed deltas with it (same channel the notebook flow uses).
   const clamp = stripOutOfRangeCitations(text, input.sourceCount);
-  const replaced = clamp.changed || sanity.fabricated.length > 0;
+  const replaced = clamp.changed || sanity.fabricated.length > 0 || phantomNote.removed.length > 0;
   if (replaced) text = clamp.text;
 
   return { text, replaced, warnings };

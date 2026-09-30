@@ -270,9 +270,16 @@ export const CHAT_HISTORY_KEYWORDS =
  *
  * Everything here names either an earlier conversation or a piece of the user's
  * own content, and cannot plausibly mean anything else.
+ *
+ * Eigene Inhalte, die `find_content`/`media` durchsuchen (Dokumente, Tabellen,
+ * Präsentationen, Boards, Reels/Videos/Clips), stehen NICHT mehr hier: diese
+ * Route durchsucht nur vergangene Chat-Threads, „zeig mir meine Reels zum Thema
+ * X" fand dort 0 Threads und wurde mit „kein Zugriff" beantwortet (#3913). Solche
+ * Turns fallen durch in den Loop, der die Werkzeuge mountet. Notizen und Anträge
+ * bleiben: kein Werkzeug durchsucht sie, ungeprüft ob sie im Chat besprochen wurden.
  */
 export const CHAT_HISTORY_DIRECT =
-  /(?<!\p{L})(letzte[sn]?\s+gespräch|vorher\s+besprochen|gestern\s+besprochen|damals\s+besprochen|erinnere?\s+dich|früheres?\s+chat|voriges?\s+gespräch|unser(?:e[nmrs]?)?\s+(?:chat|gespräch|unterhaltung)|was\s+haben\s+wir\s+(?:\p{L}+\s+){0,4}?(?:besprochen|geredet|gesprochen|erarbeitet|entschieden|festgehalten)|wo\s+wir\s+aufgehört|mein(?:e|en)?\s+(?:dokument|präsentation|tabelle|notiz|antrag|board|kanban|tafel|reel|video|clip)|meine\s+(?:dokumente|präsentationen|tabellen|notizen|boards|reels|videos|clips)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich|das\s+board\s+das\s+ich|das\s+(?:reel|video)\s+(?:das\s+ich|zum?\s|über)|welches\s+(?:reel|video)|in\s+welchem\s+(?:reel|video))(?!\p{L})/iu;
+  /(?<!\p{L})(letzte[sn]?\s+gespräch|vorher\s+besprochen|gestern\s+besprochen|damals\s+besprochen|erinnere?\s+dich|früheres?\s+chat|voriges?\s+gespräch|unser(?:e[nmrs]?)?\s+(?:chat|gespräch|unterhaltung)|was\s+haben\s+wir\s+(?:\p{L}+\s+){0,4}?(?:besprochen|geredet|gesprochen|erarbeitet|entschieden|festgehalten)|wo\s+wir\s+aufgehört|mein(?:e|en)?\s+(?:notiz|antrag)|meine\s+notizen)(?!\p{L})/iu;
 
 /**
  * A standing order: something that should happen again and again, not once.

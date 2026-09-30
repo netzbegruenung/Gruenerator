@@ -942,6 +942,7 @@ export async function streamAgenticResponse(
     text: emitter.text,
     sourceCount: sourceRegistry.size,
     stepCount: steps.length,
+    memoryRan: steps.some((step) => step.toolName === 'memory' && step.ok !== false),
     seenTexts: [
       // A name the user typed themselves is not one the model invented.
       finalState.lastUserTextNoMentions ?? '',
