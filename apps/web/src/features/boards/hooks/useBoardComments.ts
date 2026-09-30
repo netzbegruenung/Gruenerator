@@ -2,14 +2,22 @@ import { type CommentBlock } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { withReactionSummaries } from './boardCommentReactions';
+
+export const boardCommentsKey = (boardId: string | undefined, cardId: string) => [
+  'board-comments',
+  boardId,
+  cardId,
+];
+
 /**
  * Typed comment thread for a board card (/api/board-comments/*). Covers list,
- * create, delete, and add/remove reaction. Form-state side effects stay in the
+ * create and delete; reactions go through `useToggleReaction` on the same key. Form-state side effects stay in the
  * component via per-call onSuccess; the hook owns query invalidation.
  */
 export function useBoardComments(boardId: string | undefined, cardId: string) {
   const queryClient = useQueryClient();
-  const queryKey = ['board-comments', boardId, cardId];
+  const queryKey = boardCommentsKey(boardId, cardId);
 
   const commentsQuery = useQuery({
     queryKey,
@@ -20,7 +28,7 @@ export function useBoardComments(boardId: string | undefined, cardId: string) {
       if (result.status !== 200) {
         throw new ApiError(result.status, `Failed to load comments (HTTP ${result.status})`);
       }
-      return result.body;
+      return withReactionSummaries(result.body);
     },
     enabled: !!boardId && !!cardId,
     staleTime: 30_000,
@@ -67,37 +75,5 @@ export function useBoardComments(boardId: string | undefined, cardId: string) {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey }),
   });
 
-  const toggleReaction = useMutation({
-    mutationFn: async ({
-      commentId,
-      emoji,
-      remove,
-    }: {
-      commentId: string;
-      emoji: string;
-      remove: boolean;
-    }) => {
-      const client = getContractsClient();
-      if (remove) {
-        const result = await client.boardComments.removeReaction({
-          params: { boardId: boardId!, commentId, emoji },
-          body: {},
-        });
-        if (result.status !== 200) {
-          throw new ApiError(result.status, `Failed to remove reaction (HTTP ${result.status})`);
-        }
-      } else {
-        const result = await client.boardComments.addReaction({
-          params: { boardId: boardId!, commentId },
-          body: { emoji },
-        });
-        if (result.status !== 200 && result.status !== 201) {
-          throw new ApiError(result.status, `Failed to add reaction (HTTP ${result.status})`);
-        }
-      }
-    },
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey }),
-  });
-
-  return { commentsQuery, addComment, deleteComment, toggleReaction };
+  return { commentsQuery, addComment, deleteComment };
 }

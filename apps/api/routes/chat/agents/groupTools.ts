@@ -62,7 +62,7 @@ export interface GroupToolDeps {
   getGroupByToken: typeof getGroupByToken;
   getGroupForMember: typeof getGroupForMember;
   countGroupContent: typeof countGroupContent;
-  hydrateGroupContent: (groupId: string) => Promise<GroupContentBuckets>;
+  hydrateGroupContent: (groupId: string, viewerId: string) => Promise<GroupContentBuckets>;
   updateGroupInfo: typeof updateGroupInfo;
 }
 
@@ -76,7 +76,8 @@ function resolveDeps(partial: Partial<GroupToolDeps> | undefined): GroupToolDeps
     getGroupByToken: partial?.getGroupByToken ?? getGroupByToken,
     getGroupForMember: partial?.getGroupForMember ?? getGroupForMember,
     countGroupContent: partial?.countGroupContent ?? countGroupContent,
-    hydrateGroupContent: partial?.hydrateGroupContent ?? ((id) => hydrateGroupContent(id)),
+    hydrateGroupContent:
+      partial?.hydrateGroupContent ?? ((id, viewerId) => hydrateGroupContent(id, viewerId)),
     updateGroupInfo: partial?.updateGroupInfo ?? updateGroupInfo,
   };
 }
@@ -361,7 +362,7 @@ Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt.
       if (action === 'get') return getGroup(group);
 
       if (action === 'content') {
-        const buckets = await deps.hydrateGroupContent(group.id);
+        const buckets = await deps.hydrateGroupContent(group.id, userId);
         const all = groupContentRows(buckets, groupUrl(group));
         const results = all.slice(0, limit);
         if (results.length === 0) {

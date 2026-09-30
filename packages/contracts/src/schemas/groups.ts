@@ -12,6 +12,7 @@
 import { z } from 'zod';
 
 import { collabSubtypeSchema } from './docs.js';
+import { reactionSummariesSchema } from './entityReactions.js';
 import { userAgentSchema } from './userAgents.js';
 
 // ── Closed sets ───────────────────────────────────────────────────────────────
@@ -400,6 +401,7 @@ export const groupShareMetaSchema = z.object({
   pinnedAt: z.string().nullable(),
   pinnedByName: z.string().nullable(),
   commentCount: z.number().int(),
+  reactions: reactionSummariesSchema.default([]),
 });
 export type GroupShareMeta = z.infer<typeof groupShareMetaSchema>;
 
@@ -423,6 +425,7 @@ export const groupShareCommentSchema = z.object({
   authorName: z.string(),
   body: z.string(),
   createdAt: z.string(),
+  reactions: reactionSummariesSchema.default([]),
 });
 export type GroupShareComment = z.infer<typeof groupShareCommentSchema>;
 

@@ -126,7 +126,7 @@ export const contentRoutes = {
     try {
       const userId = getUserId(args.req);
       await getPostgresAndCheckMembership(groupId, userId, false);
-      const groupContent = await hydrateGroupContent(groupId);
+      const groupContent = await hydrateGroupContent(groupId, userId);
 
       // Boundary assertion: the buckets are hydrated as loose records here; the
       // contract types the homogeneous collaborative_documents bucket (id +

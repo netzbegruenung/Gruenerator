@@ -1,22 +1,26 @@
 import {
+  type BoardComment,
   type BoardCommentReply,
   type CommentBlock,
-  type CommentReaction,
+  type ReactionSummary,
 } from '@gruenerator/contracts';
 import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
+import { useToggleReaction } from '@gruenerator/shared/reactions';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
 import { Button } from '@gruenerator/ui';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { FiSend, FiCornerDownRight, FiMessageSquare, FiX } from 'react-icons/fi';
 import { useParams } from 'react-router-dom';
 
-import { useBoardComments } from '../hooks/useBoardComments';
+import { patchBoardCommentReactions } from '../hooks/boardCommentReactions';
+import { boardCommentsKey, useBoardComments } from '../hooks/useBoardComments';
 
 import { UserMentionPopover, type MentionUser } from './UserMentionPopover';
 
 import type { ReactNode } from 'react';
 
 import { RobotAvatar } from '@/components/common/RobotAvatar';
+import { ReactionBar } from '@/components/reactions/ReactionBar';
 
 // ── Tracked mention (position in text) ──────────────────────────────────
 
@@ -30,8 +34,6 @@ interface TrackedMention {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
-
-const REACTION_EMOJI = ['👍', '❤️', '🎉', '👀', '🚀', '💡'];
 
 function formatCommentDate(isoString: string): string {
   return formatRelativeTime(isoString, {
@@ -108,16 +110,33 @@ function detectMentionQuery(
   return { query, triggerPos: atIdx };
 }
 
-// ── Reaction summary ────────────────────────────────────────────────────
+// ── Reactions ───────────────────────────────────────────────────────────
 
-function groupReactions(reactions: CommentReaction[]): Map<string, string[]> {
-  const map = new Map<string, string[]>();
-  for (const r of reactions) {
-    const arr = map.get(r.emoji) ?? [];
-    arr.push(r.user_id);
-    map.set(r.emoji, arr);
-  }
-  return map;
+const hasReacted = (reactions: ReactionSummary[], emoji: string) =>
+  reactions.find((r) => r.emoji === emoji)?.reacted ?? false;
+
+function CommentReactions({
+  comment,
+  boardId,
+  cardId,
+}: {
+  comment: BoardCommentReply;
+  boardId: string;
+  cardId: string;
+}) {
+  const { toggle } = useToggleReaction<BoardComment[]>({
+    entityType: 'board_comment',
+    entityId: comment.id,
+    queryKey: boardCommentsKey(boardId, cardId),
+    update: (data, apply) => patchBoardCommentReactions(data, comment.id, apply),
+  });
+  return (
+    <ReactionBar
+      reactions={comment.reactionSummaries}
+      onToggle={(emoji) => toggle(emoji, hasReacted(comment.reactionSummaries, emoji))}
+      className="mt-1"
+    />
+  );
 }
 
 // ── Single comment ──────────────────────────────────────────────────────
@@ -127,23 +146,21 @@ interface CommentItemProps {
   currentUserId: string;
   currentUserAvatarRobotId: number;
   boardId: string;
+  cardId: string;
   isReply?: boolean;
   onReply?: (commentId: string) => void;
   onDelete: (commentId: string) => void;
-  onToggleReaction: (commentId: string, emoji: string) => void;
 }
 
 const CommentItem = memo(function CommentItem({
   comment,
   currentUserId,
+  boardId,
+  cardId,
   isReply,
   onReply,
   onDelete,
-  onToggleReaction,
 }: CommentItemProps) {
-  const [showReactions, setShowReactions] = useState(false);
-  const grouped = groupReactions(comment.reactions);
-
   return (
     <div className={`flex gap-2 group ${isReply ? 'ml-8' : ''}`}>
       <RobotAvatar
@@ -170,13 +187,6 @@ const CommentItem = memo(function CommentItem({
                 <FiCornerDownRight size={16} />
               </button>
             )}
-            <button
-              onClick={() => setShowReactions((v) => !v)}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-base leading-none hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
-              title="Reagieren"
-            >
-              😀
-            </button>
             {comment.user_id === currentUserId && (
               <button
                 onClick={() => onDelete(comment.id)}
@@ -192,44 +202,7 @@ const CommentItem = memo(function CommentItem({
           {renderBlocks(comment.blocks)}
         </p>
 
-        {showReactions && (
-          <div className="flex gap-1 mt-1">
-            {REACTION_EMOJI.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => {
-                  onToggleReaction(comment.id, emoji);
-                  setShowReactions(false);
-                }}
-                className="w-7 h-7 flex items-center justify-center rounded hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer text-sm transition-colors"
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {grouped.size > 0 && (
-          <div className="flex gap-1 mt-1 flex-wrap">
-            {Array.from(grouped.entries()).map(([emoji, userIds]) => {
-              const hasOwn = userIds.includes(currentUserId);
-              return (
-                <button
-                  key={emoji}
-                  onClick={() => onToggleReaction(comment.id, emoji)}
-                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors cursor-pointer bg-transparent ${
-                    hasOwn
-                      ? 'border-primary-300 dark:border-primary-600 text-primary-600 dark:text-primary-400'
-                      : 'border-grey-200 dark:border-grey-700 text-grey-500'
-                  }`}
-                >
-                  <span>{emoji}</span>
-                  <span>{userIds.length}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
+        <CommentReactions comment={comment} boardId={boardId} cardId={cardId} />
       </div>
     </div>
   );
@@ -263,10 +236,7 @@ export const CardComments = memo(function CardComments({
   const [mentionAnchor, setMentionAnchor] = useState<{ x: number; y: number } | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
 
-  const { commentsQuery, addComment, deleteComment, toggleReaction } = useBoardComments(
-    boardId,
-    cardId
-  );
+  const { commentsQuery, addComment, deleteComment } = useBoardComments(boardId, cardId);
   const comments = useMemo(() => commentsQuery.data ?? [], [commentsQuery.data]);
   const isLoading = commentsQuery.isLoading;
 
@@ -391,18 +361,6 @@ export const CardComments = memo(function CardComments({
     [mentionQuery, handleSubmit]
   );
 
-  const handleToggleReaction = useCallback(
-    (commentId: string, emoji: string) => {
-      const allComments = comments.flatMap((c) => [c, ...c.replies]);
-      const comment = allComments.find((c) => c.id === commentId);
-      const hasOwn = comment?.reactions.some(
-        (r) => r.user_id === currentUserId && r.emoji === emoji
-      );
-      toggleReaction.mutate({ commentId, emoji, remove: !!hasOwn });
-    },
-    [comments, currentUserId, toggleReaction]
-  );
-
   const totalCount = comments.reduce((sum, c) => sum + 1 + c.replies.length, 0);
   const replyingTo = replyToId ? comments.find((c) => c.id === replyToId) : null;
 
@@ -429,9 +387,9 @@ export const CardComments = memo(function CardComments({
                 currentUserId={currentUserId}
                 currentUserAvatarRobotId={currentUserAvatarRobotId}
                 boardId={boardId!}
+                cardId={cardId}
                 onReply={setReplyToId}
                 onDelete={(id) => deleteComment.mutate(id)}
-                onToggleReaction={handleToggleReaction}
               />
               {comment.replies.length > 0 && (
                 <div className="flex flex-col gap-2 mt-2">
@@ -442,9 +400,9 @@ export const CardComments = memo(function CardComments({
                       currentUserId={currentUserId}
                       currentUserAvatarRobotId={currentUserAvatarRobotId}
                       boardId={boardId!}
+                      cardId={cardId}
                       isReply
                       onDelete={(id) => deleteComment.mutate(id)}
-                      onToggleReaction={handleToggleReaction}
                     />
                   ))}
                 </div>

@@ -15,10 +15,15 @@
  * Nichtmitglieder bekommen einen Wurf mit der Meldung von
  * `getPostgresAndCheckMembership`; der Handler macht daraus ein 403.
  */
-import { GROUP_PIN_LIMIT, type GroupShareComment } from '@gruenerator/contracts';
+import {
+  GROUP_PIN_LIMIT,
+  type GroupShareComment,
+  type ReactionSummary,
+} from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { isInstanceAdmin } from '../../utils/adminAuthz.js';
+import { getReactionSummaries } from '../entityReactions/EntityReactionsService.js';
 
 import { notifyGroupActivity } from './groupActivityNotifications.js';
 
@@ -28,10 +33,16 @@ export interface GroupFeedDeps {
   postgres: Pick<PostgresService, 'query' | 'queryOne' | 'exec'>;
   notify: typeof notifyGroupActivity;
   isInstanceAdmin: (userId: string) => Promise<boolean>;
+  getReactionSummaries: typeof getReactionSummaries;
 }
 
 function defaultDeps(): GroupFeedDeps {
-  return { postgres: getPostgresInstance(), notify: notifyGroupActivity, isInstanceAdmin };
+  return {
+    postgres: getPostgresInstance(),
+    notify: notifyGroupActivity,
+    isInstanceAdmin,
+    getReactionSummaries,
+  };
 }
 
 export type FeedOutcome<T = null> =
@@ -51,6 +62,18 @@ export async function getViewer(
   userId: string,
   checkInstanceAdmin: (userId: string) => Promise<boolean> = isInstanceAdmin
 ): Promise<Viewer> {
+  const viewer = await findViewer(postgres, groupId, userId, checkInstanceAdmin);
+  if (!viewer) throw new Error('Du bist nicht Mitglied dieser Gruppe.');
+  return viewer;
+}
+
+/** Wie `getViewer`, aber `null` statt Wurf, wenn nicht Mitglied oder die Gruppe im Papierkorb liegt. */
+export async function findViewer(
+  postgres: Pick<GroupFeedDeps['postgres'], 'queryOne'>,
+  groupId: string,
+  userId: string,
+  checkInstanceAdmin: (userId: string) => Promise<boolean> = isInstanceAdmin
+): Promise<Viewer | null> {
   const row = (await postgres.queryOne(
     `SELECT gm.role, g.group_type, g.created_by, g.is_system
        FROM group_memberships gm
@@ -64,7 +87,7 @@ export async function getViewer(
     created_by: string | null;
     is_system: boolean | null;
   } | null;
-  if (!row) throw new Error('Du bist nicht Mitglied dieser Gruppe.');
+  if (!row) return null;
   const isAdmin = row.is_system
     ? await checkInstanceAdmin(userId)
     : row.role === 'admin' || row.created_by === userId;
@@ -162,7 +185,7 @@ interface CommentRow {
   author_name: string | null;
 }
 
-function toComment(r: CommentRow): GroupShareComment {
+function toComment(r: CommentRow, reactions: ReactionSummary[]): GroupShareComment {
   return {
     id: r.id,
     shareId: r.share_id,
@@ -171,6 +194,7 @@ function toComment(r: CommentRow): GroupShareComment {
     authorName: r.author_name || 'Ehemaliges Mitglied',
     body: r.body,
     createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+    reactions,
   };
 }
 
@@ -193,7 +217,12 @@ export async function listShareComments(
     [shareId, groupId],
     { table: 'group_share_comments' }
   )) as CommentRow[];
-  return { status: 200, data: rows.map(toComment) };
+  const reactions = await deps.getReactionSummaries(
+    'group_comment',
+    rows.map((r) => r.id),
+    userId
+  );
+  return { status: 200, data: rows.map((r) => toComment(r, reactions.get(r.id) ?? [])) };
 }
 
 export async function createShareComment(
@@ -269,7 +298,7 @@ export async function createShareComment(
     },
   });
 
-  return { status: 201, data: toComment({ ...row, author_name: authorName }) };
+  return { status: 201, data: toComment({ ...row, author_name: authorName }, []) };
 }
 
 export async function deleteShareComment(
