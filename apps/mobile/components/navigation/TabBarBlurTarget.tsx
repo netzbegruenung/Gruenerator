@@ -1,6 +1,7 @@
 import { useIsFocused } from 'expo-router';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
+import { isWorkplaceLayout } from '../../config/navLayout';
 import { useReduceTransparency } from '../../hooks/useAccessibilityPreferences';
 import { usePreferencesStore } from '../../stores/preferencesStore';
 
@@ -50,7 +51,9 @@ const TabBarBlurSetterContext = createContext<Dispatch<SetStateAction<View | nul
 export function useTabBarBlurEnabled(): boolean {
   const reduceTransparency = useReduceTransparency();
   const performanceMode = usePreferencesStore((s) => s.performanceMode);
-  return !reduceTransparency && !performanceMode;
+  // The workplace shell has no tab bar, so there is nothing to blur and the
+  // target would be pure cost.
+  return !isWorkplaceLayout && !reduceTransparency && !performanceMode;
 }
 
 export function TabBarBlurTargetProvider({ children }: { children: ReactNode }) {
