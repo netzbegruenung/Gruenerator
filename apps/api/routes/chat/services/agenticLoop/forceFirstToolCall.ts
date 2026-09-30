@@ -357,7 +357,12 @@ export function forcedFirstStepTools(input: {
       candidates = input.mcpToolNames;
       break;
     case 'named_intent':
-      candidates = [...loopToolsFor(input.intent ?? ''), ...attachedDocs];
+      // Mit Anhang erreicht dieser Weg den Zwang nur, wenn der Seed nichts
+      // geliefert hat (`attachedSeedDelivered` sperrt ihn vorher). Neben dem
+      // Dokument griff der Planer dann in einem von fünf Läufen zu
+      // `gruenerator_search` (#3888). „Vergleiche mit dem Wahlprogramm" kostet
+      // das einen Schritt, die Suche ist ab Schritt 1 wieder frei.
+      candidates = attachedDocs.length > 0 ? attachedDocs : loopToolsFor(input.intent ?? '');
       break;
     case 'research_order':
     case 'demoted_retrieval':
