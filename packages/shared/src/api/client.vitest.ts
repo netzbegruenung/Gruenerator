@@ -51,10 +51,13 @@ describe('createApiClient and FormData bodies', () => {
     form.append('document', new Blob(['x']), 'antrag.docx');
     form.append('targetLang', 'en-GB');
 
-    let sent: { data: unknown; contentType: unknown } | null = null;
+    let sent: { data: unknown; contentType: string } | null = null;
     await client.post('/translation/document', form, {
       adapter: (config) => {
-        sent = { data: config.data, contentType: config.headers.getContentType() };
+        // A deleted header may read back as undefined, or as axios' own POST
+        // default; either way it must not be JSON. toMatch throws on a
+        // non-string even under .not, so normalize first.
+        sent = { data: config.data, contentType: String(config.headers.getContentType() ?? '') };
         return Promise.resolve({ status: 200, statusText: '', data: {}, headers: {}, config });
       },
     });
