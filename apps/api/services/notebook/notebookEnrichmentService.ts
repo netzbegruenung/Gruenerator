@@ -13,6 +13,7 @@
  * Decoupled from content-sync: run as a one-time backfill (`mode: 'all'`) and a
  * nightly job (`mode: 'missing'`) against NLP_SERVICE_URL. Never re-embeds.
  */
+import { NLP_FACET_INDEXES } from '../../config/qdrantCollectionsSchema.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { TOPIC_CATEGORIES, type TopicCategory } from '../monitor/types.js';
@@ -152,7 +153,7 @@ async function ensureNlpIndexes(
   client: NonNullable<ReturnType<typeof getQdrantInstance>['client']>,
   collection: string
 ): Promise<void> {
-  for (const field of ['themes', 'persons', 'primary_topic']) {
+  for (const { field } of NLP_FACET_INDEXES) {
     try {
       await client.createPayloadIndex(collection, { field_name: field, field_schema: 'keyword' });
     } catch (err) {
