@@ -352,20 +352,29 @@ export const CREATION_VERB_RE = new RegExp(`\\b(?:${CREATION_VERB_CORE})[a-zäö
  * bestellt das Artefakt. Negatives Lookbehind statt `\b`, weil `über` mit einem
  * Umlaut beginnt und das Muster ohne `u`-Flag gebaut wird.
  *
- * Hinter dem Wort nach der Präposition darf eine Genitiv-Kette folgen: „Mach
- * mir Vorschläge für den Aufbau unserer Website" war `artifact@0.85`, weil das
- * Zweck-Nomen „Aufbau" die Website noch ein Wort weiter schob (#3941).
+ * Zwischen Artikel und Nomen dürfen bis zu zwei Wörter stehen, danach eine
+ * Genitiv-Kette: „Mach Stichpunkte für die geplante morgige Präsentation" und
+ * „Mach mir Vorschläge für den Aufbau unserer Website" (`artifact@0.85`) waren
+ * Bestellungen, weil das Muster nur EIN Wort vor dem Nomen kannte (#3941).
+ * Artikel, Zahlwörter und Füllpartikeln zählen nicht als Füllwort: in „mach aus
+ * der Tabelle eine Präsentation" beginnt mit „eine" das Bestellte.
  */
 const DEFINITE_DET =
   '(?:der|die|das|den|dem|des|mein\\w*|dein\\w*|sein\\w*|ihr\\w*|unser\\w*|eu(?:e)?r\\w*|diese?\\w*|jene?\\w*)';
 const GENITIVE_DET =
   '(?:des|der|eines|einer|(?:mein|dein|sein|ihr|unser|eu(?:e)?r|dies|jen)(?:es|er))';
+// Das zweite Füllwort nur, wenn das erste wie ein Adjektiv aussieht („geplante",
+// „morgige", „nächste"): sonst wäre in „Erstelle für die Kampagne neue Sharepics"
+// die Kampagne das Füllwort und das Bestellte ein Zweck-Nomen.
+const ADJECTIVE_SHAPE = '[a-zäöüß]+(?:ig|isch|lich|bar|sam|haft|los|end|t)e[nmrs]?';
+const NOT_FILLER =
+  '(?:k?ein(?:e[nmrs]?)?|der|die|das|den|dem|des|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|paar|mehrere|einige|bitte|mal|noch|auch|mir|uns|dir|euch)(?![a-zäöüß])';
 const NOT_PURPOSE_OBJECT =
   '(?<!(?:^|[^a-zäöüß])(?:' +
   `(?:für|fuer|über|ueber|von|nach|aus)\\s+(?:(?:${DEFINITE_DET}|ein\\w*)\\s+)?` +
   `|(?:zum|zur|im)\\s+` +
   `|(?:zu|in)\\s+${DEFINITE_DET}\\s+` +
-  `)(?:[a-zäöüß]+\\s+(?:${GENITIVE_DET}\\s+)?)?)`;
+  `)(?:${ADJECTIVE_SHAPE}\\s+)?(?:(?!${NOT_FILLER})[a-zäöüß]+\\s+)?(?:${GENITIVE_DET}\\s+)?)`;
 
 /**
  * Die Lücke zwischen Verb und Nomen bleibt im selben Satz und im Hauptsatz:
