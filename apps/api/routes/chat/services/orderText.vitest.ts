@@ -49,6 +49,110 @@ describe('orderText', () => {
   });
 });
 
+// Final-Review PR #3922: gewöhnliche Anfangswörter eines Stoffs sind keine
+// Befehlsform. Mit Stamm + beliebigen Buchstaben galt ein so beginnender
+// Newsletter als Auftrag und wurde wieder ganz gelesen (#3912).
+describe('orderText: wie ein Auftrag beginnt nur die Befehlsform', () => {
+  const rest =
+    ' der Untertitler versieht Reels automatisch mit Untertiteln, und die Suche findet jetzt auch ältere Beschlüsse eurer Landesverbände. Schreibt uns!';
+
+  it.each([
+    ['Kürzlich hat der Landesvorstand beschlossen:'],
+    ['Macht mit beim Klimastreik!'],
+    ['Erklärung der Landesvorsitzenden:'],
+    ['Gibt es schon Neuigkeiten?'],
+    ['Findet ihr das auch gut?'],
+    ['Suchtprävention bleibt Thema:'],
+    ['Antwort der Landesregierung:'],
+    ['Entwurf des Antrags:'],
+    ['Vergleich der Wahlprogramme:'],
+  ])('ein Stoff, der mit „%s" beginnt, ist kein Auftrag', (opening) => {
+    const paste = opening + rest;
+    expect(paste.length).toBeGreaterThan(120);
+    expect(orderText(`${paste}\n\nrechtschreibung korrigieren`)).toBe(
+      'rechtschreibung korrigieren'
+    );
+  });
+
+  const tail =
+    ' für den Ortsverband Musterstadt, mit Fokus auf Wärmepumpen, kommunale Wärmeplanung und die Sanierung von Schulgebäuden in der Innenstadt';
+
+  it.each([
+    ['Schreib eine Rede über Klimaschutz'],
+    ['Schreibe eine Rede über Klimaschutz'],
+    ['Fasse die Beschlüsse zusammen'],
+    ['Fass die Beschlüsse zusammen'],
+    ['Überarbeite den Entwurf'],
+    ['Korrigiere den Newsletter'],
+    ['Kürze den Newsletter'],
+    ['Mach daraus eine Rede'],
+    ['Gib mir drei Überschriften'],
+    ['Erkläre die Beschlüsse'],
+    ['Such mir Quellen'],
+    ['Finde Belege'],
+    ['Recherchiere die Förderprogramme'],
+    ['Entwirf einen Antrag'],
+    ['Vergleiche die Programme'],
+    ['Antworte auf die Anfrage'],
+    ['Bitte prüfe die Zahlen'],
+    ['Kannst du eine Rede schreiben'],
+    ['Ich brauche eine Rede'],
+    ['Hallo, schreib eine Rede'],
+  ])('ein langer Auftrag, der mit „%s" beginnt, bleibt Auftrag', (opening) => {
+    const order = opening + tail;
+    expect(order.length).toBeGreaterThan(120);
+    expect(orderText(`${order}\n\n${newsletter}`)).toBe(order);
+  });
+});
+
+// Final-Review PR #3922: ein Gruß- oder Dank-Absatz am Rand verdrängte den
+// Auftrag dazwischen („Hallo,\n\n<Auftrag>\n\nDanke!" las „Hallo, Danke!").
+describe('orderText: Gruß und Dank sind weder Auftrag noch Stoff', () => {
+  const longPostOrder =
+    'Den Post bitte auf drei Sätze kürzen, den Hinweis auf die Veranstaltung am Samstag behalten und die Hashtags am Ende einfach stehen lassen, danke';
+  const longResearch =
+    'Für unseren Ortsverband recherchiere bitte, wie viele öffentliche Ladepunkte es 2025 in Bayern gab und wie stark die Zahl seit 2020 gestiegen ist';
+  const questionWithResearch =
+    'Wie hoch waren die Fördermittel für Wallboxen in Bayern im Jahr 2025, und wie viele Anträge wurden bewilligt? Bitte mit Quellen recherchieren.';
+
+  it.each([
+    [
+      'Hallo,\n\nkannst du den Post etwas kürzer machen?\n\nDanke!',
+      'kannst du den Post etwas kürzer machen?',
+    ],
+    [
+      'Moin\n\nmach den Untertitel im Reel kürzer\n\nDanke dir',
+      'mach den Untertitel im Reel kürzer',
+    ],
+    ['Hallo!\n\nmach das Sharepic kürzer\n\nDanke', 'mach das Sharepic kürzer'],
+    [
+      'Hallo zusammen,\n\nbitte recherchiere, wie viele Ladepunkte es 2025 in Bayern gab.\n\nVielen Dank und liebe Grüße',
+      'bitte recherchiere, wie viele Ladepunkte es 2025 in Bayern gab.',
+    ],
+    [`${longPostOrder}\n\nDanke!`, longPostOrder],
+    [`${longResearch}\n\nDanke!`, longResearch],
+    [`${questionWithResearch}\n\nDanke dir!`, questionWithResearch],
+    ['Hi\n\nübersetze das ins Englische\n\nLG', 'übersetze das ins Englische'],
+  ])('der Auftrag zwischen Gruß und Dank bleibt: %s', (message, order) => {
+    expect(orderText(message)).toBe(order);
+  });
+
+  it('Stoff zwischen Gruß und Auftrag bleibt Stoff', () => {
+    expect(
+      orderText(`Hallo zusammen,\n\n${newsletter}\n\nrechtschreibung korrigieren\n\nDanke!`)
+    ).toBe('rechtschreibung korrigieren');
+    expect(orderText(`Hallo,\n\n${newsletter}\n\nübersetze das ins Englische\n\nViele Grüße`)).toBe(
+      'übersetze das ins Englische'
+    );
+  });
+
+  it('lauter kurze Absätze sind kein Stoff: der ganze Text zählt', () => {
+    // Ein Gruß, den das Muster nicht kennt, darf den Auftrag nicht verdrängen.
+    const message = 'Hallo Grünerator,\n\nkannst du den Post etwas kürzer machen?\n\nBis später';
+    expect(orderText(message)).toBe(message);
+  });
+});
+
 describe('orderMayMeanArtifact', () => {
   // Eine Weiche, die ihr Ziel an „Post" erkennt — genügt, um die Regel zu prüfen.
   const namesPost = (order: string) => /(?<!\p{L})post(?!\p{L})/iu.test(order);
@@ -69,6 +173,18 @@ describe('orderMayMeanArtifact', () => {
   ])('mit Stoff nicht, wenn der Auftrag sein Ziel nicht nennt: %s', (order) => {
     expect(orderMayMeanArtifact(`${newsletter}\n\n${order}`, namesPost)).toBe(false);
     expect(orderMayMeanArtifact(`${order}\n\n${newsletter}`, namesPost)).toBe(false);
+  });
+
+  it('Gruß und Dank sind kein Stoff', () => {
+    expect(
+      orderMayMeanArtifact('Hallo,\n\nkannst du das etwas kürzer machen?\n\nDanke!', namesPost)
+    ).toBe(true);
+    expect(
+      orderMayMeanArtifact('Hallo Grünerator,\n\nmach es kürzer\n\nBis später', namesPost)
+    ).toBe(true);
+    expect(
+      orderMayMeanArtifact(`Hallo,\n\n${newsletter}\n\nmach es kürzer\n\nDanke!`, namesPost)
+    ).toBe(false);
   });
 
   it('mit Stoff, wenn der Auftrag das Ziel nennt oder ersetzt', () => {

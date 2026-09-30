@@ -22,22 +22,37 @@
 /** Länger ist kein Auftrag mehr, sondern schon Stoff — es sei denn, er beginnt wie einer. */
 const ORDER_PARAGRAPH_MAX = 120;
 
+// Befehlsformen mit Wortende, keine Stämme: „Kürzlich", „Macht mit", „Erklärung",
+// „Gibt es", „Suchtprävention" eröffnen Stoff, keinen Auftrag — mit `\p{L}*`
+// dahinter wurde ein so beginnender Newsletter wieder ganz gelesen (#3912).
 const ORDER_OPENING_RE =
-  /^(?:(?:hallo|hi|hey|moin|servus)\p{P}*\s+)?(?:bitte\s+)?(?:(?:kannst|könntest|koenntest|würdest|wuerdest)\s+du|ich\s+(?:brauche|möchte|moechte|will|hätte|haette)|(?:schreib|erstell|formulier|verfass|entw[iu]rf|entwerf|recherchier|such|find|pr[üu]f|[üu]berpr[üu]f|beantwort|antwort|fass|k[üu]rz|[üu]bersetz|[üu]berarbeit|korrigier|lektorier|mach|gib|zeig|erkl[äa]r|analysier|vergleich)\p{L}*)/iu;
+  /^(?:(?:hallo|hi|hey|moin|servus)\p{P}*\s+)?(?:bitte\s+)?(?:(?:kannst|könntest|koenntest|würdest|wuerdest)\s+du|ich\s+(?:brauche|möchte|moechte|will|hätte|haette)|(?:(?:schreib|erstell|formulier|verfass|entwerf|recherchier|such|find|pr[üu]f|[üu]berpr[üu]f|beantwort|fass|k[üu]rz|[üu]bersetz|[üu]berarbeit|korrigier|lektorier|mach|zeig|erkl[äa]r|analysier)e?|entwirf|antworte|gib|vergleiche)(?!\p{L}))/iu;
 
+/**
+ * Ein Absatz nur aus Gruß und Dank („Hallo,", „Danke dir!", „Vielen Dank und
+ * liebe Grüße") ist weder Auftrag noch Stoff. Als Rand genommen, verdrängte er
+ * den Auftrag dazwischen — „Hallo,\n\n<Auftrag>\n\nDanke!" las „Hallo, Danke!".
+ */
+const COURTESY_PARAGRAPH_RE =
+  /^(?:(?:hallo|hi|hey|moin|servus|guten|morgen|tag|abend|zusammen|ihr|du|danke|dankeschön|dankeschoen|vielen|lieben|herzlichen|herzliche|besten|beste|liebe|viele|dank|dir|euch|ihnen|schon|mal|im|voraus|und|lg|vg|mfg|grüße|grüsse|gruesse|gruß|gruss|merci|thx|thanks|cheers)[\s\p{P}]*)+$/iu;
 function splitOrder(message: string): { order: string; material: boolean } {
   const t = (message ?? '').trim();
   const paragraphs = t
     .split(/\n\s*\n/)
     .map((p) => p.trim())
-    .filter(Boolean);
-  if (paragraphs.length < 2) return { order: t, material: false };
+    .filter((p) => p && !COURTESY_PARAGRAPH_RE.test(p));
+  const whole = { order: paragraphs.length > 0 ? paragraphs.join('\n\n') : t, material: false };
+  if (paragraphs.length < 2) return whole;
   // Nur die Ränder: der Auftrag steht vor oder hinter dem Stoff, und eine kurze
   // Zwischenzeile im Stoff („Schreibt uns!") ist keiner.
   const edges = [paragraphs[0], paragraphs[paragraphs.length - 1]];
   const orders = edges.filter((p) => p.length <= ORDER_PARAGRAPH_MAX || ORDER_OPENING_RE.test(p));
-  if (orders.length === 0) return { order: t, material: false };
-  return { order: orders.join('\n\n'), material: orders.length < paragraphs.length };
+  // Stoff ist erst ein langer Absatz, der kein Auftrag ist. Ohne ihn bleibt es
+  // beim ganzen Text: lauter kurze Absätze sind eher ein zerlegter Auftrag
+  // (mit einem Gruß, den das Muster oben nicht kennt) als eingefügter Stoff.
+  const material = paragraphs.some((p) => p.length > ORDER_PARAGRAPH_MAX && !orders.includes(p));
+  if (orders.length === 0 || !material) return whole;
+  return { order: orders.join('\n\n'), material: true };
 }
 
 export function orderText(message: string): string {
