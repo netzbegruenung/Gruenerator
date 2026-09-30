@@ -746,3 +746,31 @@ describe('forcedFirstStepTools', () => {
     }
   });
 });
+
+// #3916: eine Frage über die eigene vorige Abrufhandlung braucht keinen neuen Abruf.
+describe('followup-Zweig: Frage über die eigene vorige Abrufhandlung', () => {
+  const afterLookup = { intent: 'agentic', priorTurnRetrieved: true };
+
+  it.each([
+    ['hast du vorhin in meinen Dokumenten nachgesehen?'],
+    ['Hast du eben nachgeschaut?'],
+    ['hast du das wirklich gesucht?'],
+    ['wo hast du das gefunden?'],
+    ['woher hast du das?'],
+  ])('„%s" erzwingt keinen Aufruf', (lastUserText) => {
+    expect(force({ ...afterLookup, lastUserText })).toBeNull();
+  });
+
+  it.each([
+    ['Und die FDP?'],
+    ['hast du auch was zur FDP?'],
+    ['hast du noch etwas zur FDP gefunden?'],
+  ])('„%s" erzwingt weiter followup', (lastUserText) => {
+    expect(force({ ...afterLookup, lastUserText })).toBe('followup');
+  });
+
+  // Trägt der research_order-Zweig; wichtig ist nur, dass es weiter zwingt.
+  it('„such nochmal genauer" zwingt weiter', () => {
+    expect(force({ ...afterLookup, lastUserText: 'such nochmal genauer' })).not.toBeNull();
+  });
+});
