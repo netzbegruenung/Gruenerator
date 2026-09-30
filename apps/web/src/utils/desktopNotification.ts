@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import useUserDefaults from '../hooks/useUserDefaults';
 
@@ -55,11 +55,14 @@ export const desktopNotificationPrefKey = (kind: DesktopNotificationKind): strin
 
 export function useDesktopNotify(): (kind: DesktopNotificationKind) => void {
   const { get } = useUserDefaults<boolean>('notifications');
-  return useCallback(
-    (kind) => {
-      if (get(desktopNotificationPrefKey(kind), true) === false) return;
-      void notifyDesktop(kind);
-    },
-    [get]
-  );
+  // `get` changes identity on every user-defaults write anywhere in the app.
+  // A stable callback keeps polling effects that depend on it from restarting.
+  const getRef = useRef(get);
+  useEffect(() => {
+    getRef.current = get;
+  }, [get]);
+  return useCallback((kind) => {
+    if (getRef.current(desktopNotificationPrefKey(kind), true) === false) return;
+    void notifyDesktop(kind);
+  }, []);
 }
