@@ -1,5 +1,11 @@
+import * as Sentry from '@sentry/react';
 import React, { lazy, useEffect, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  Routes as RouterRoutes,
+  Route,
+  useLocation,
+} from 'react-router-dom';
 
 import { GlobalBridges } from './components/common/Layout/GlobalBridges';
 import SuspenseWrapper from './components/common/SuspenseWrapper';
@@ -23,6 +29,9 @@ import { type User, useAuthStore } from './stores/authStore';
 import { cleanupDesktopAuth, type DesktopUser, initDesktopAuth } from './utils/desktopAuth';
 import { isDesktopApp, isEmbedded } from './utils/platform';
 import './App.css';
+
+// Names pageload/navigation transactions by route template (see index.tsx).
+const Routes = Sentry.withSentryReactRouterV7Routing(RouterRoutes);
 
 function UserProfileHydrationBridge() {
   useHydrateUserProfile();
