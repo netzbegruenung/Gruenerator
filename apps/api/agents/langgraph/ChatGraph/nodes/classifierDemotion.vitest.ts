@@ -297,6 +297,23 @@ describe('Tier 3.5 — demoted band (agentic, LLM skipped)', () => {
   });
 });
 
+// Beta 30.09.2026 (D1): „prüf die Fakten darin und korrigiere falsche Angaben"
+// unter einem eingefügten Absatz lief über die Generierungsstufe als
+// `produktion` — ohne Schleife, also ohne den Such-Zwang für Faktenprüfungen.
+describe('Tier 3.5 — Faktenprüfung mit eigenem Stoff', () => {
+  const WALLBOX =
+    'Der Bund fördert seit 2025 jede private Wallbox mit 900 Euro, und in Deutschland gibt es inzwischen über 200.000 öffentliche Ladepunkte. Damit ist das Ziel der Bundesregierung für 2030 bereits erreicht.';
+
+  it('geht in die Schleife statt in einen Single-Pass', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage: `${WALLBOX}\n\nprüf die Fakten darin und korrigiere falsche Angaben`,
+      })
+    );
+    expect(result.intent).toBe('agentic');
+  });
+});
+
 describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
   it('ein Social-Post-Auftrag wird nicht herabgestuft — das Gitter greift vor Tier 3.5', async () => {
     // Das Verdikt hiess `social_post`, bis es 08/2026 stillgelegt wurde; der

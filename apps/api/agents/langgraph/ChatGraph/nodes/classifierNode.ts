@@ -39,7 +39,11 @@ import {
   looksLikeNotebookToolAsk,
   looksLikeNotebookWriteAsk,
 } from '../../../../routes/chat/services/notebookToolAsk.js';
-import { isSharepicEditInstruction } from '../../../../routes/chat/services/sharepicEditHeuristics.js';
+import { orderMayMeanArtifact, orderText } from '../../../../routes/chat/services/orderText.js';
+import {
+  isSharepicEditInstruction,
+  namesSharepicTarget,
+} from '../../../../routes/chat/services/sharepicEditHeuristics.js';
 import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import {
@@ -1611,10 +1615,14 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // is the sharepic's own background, which the sharepic edit path CAN change.
       // The explicit phrasings still reach image_edit: Tier 1 above claims
       // "bearbeite das Bild" (edit verb + image noun) before this branch runs.
+      // Wie die Edit-Weiche im Router (`earlyHandlerStage`): nur der Auftrag
+      // zählt, und mit mitgebrachtem Stoff nur, wenn er das Sharepic meint —
+      // sonst kürzt „kürzer bitte" unter einem Newsletter das Sharepic (#3918).
       if (
         tc.kind === 'sharepic' &&
         !hasImageAttachments &&
-        isSharepicEditInstruction(userContent)
+        isSharepicEditInstruction(orderText(userContent)) &&
+        orderMayMeanArtifact(userContent, namesSharepicTarget)
       ) {
         log.info('[Classifier] Follow-up sharepic edit via thread artifact → sharepic');
         recordDecision('classifier.tier', 'tier2.7_sharepic_followup', {

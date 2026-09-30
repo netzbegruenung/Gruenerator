@@ -168,3 +168,29 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
     expect(result.intent).not.toBe('sharepic');
   });
 });
+
+// Beta 30.09.2026 (C1/C2): „kürzer bitte" UNTER einem eingefügten Newsletter
+// meint den Newsletter, nicht das Sharepic davor — dieselbe Regel wie die
+// Edit-Weiche im Router (`orderMayMeanArtifact`).
+describe('classifierNode — Sharepic-Folgeauftrag mit mitgebrachtem Stoff', () => {
+  const afterSharepic = { kind: 'sharepic' as const, ref: 'canvas-1', label: 'Sharepic' };
+  const NEWSLETTER =
+    'Im September hat der Kreisverband zwei neue Werkzeuge vorgestellt: Der Untertitler versieht Reels automatish mit Untertiteln, und die neue Suche findet Beschlüsse aus den letzten zehn Jahren. Beim Sommerfest kamen über 80 Menschen, und unsere Sharepics zur Kommunalwahl wurden mehr als 2.000 Mal geteilt. Schreibt uns eure Rückmeldungne bis zum 15. Oktober!';
+
+  it('beansprucht Newsletter + „mach es kürzer" nicht für das Sharepic', async () => {
+    const result = await classifierNode(
+      buildState({ userMessage: `${NEWSLETTER}\n\nmach es kürzer`, lastToolContext: afterSharepic })
+    );
+    expect(result.intent).not.toBe('sharepic');
+  });
+
+  it('beansprucht den Stoff, wenn der Auftrag das Sharepic nennt', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage: `${NEWSLETTER}\n\nmach den Text auf dem Sharepic kürzer`,
+        lastToolContext: afterSharepic,
+      })
+    );
+    expect(result.intent).toBe('sharepic');
+  });
+});

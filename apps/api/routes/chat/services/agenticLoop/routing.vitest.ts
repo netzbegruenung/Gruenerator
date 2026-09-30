@@ -1543,3 +1543,48 @@ describe('asksAboutOwnPastAction', () => {
     expect(asksAboutOwnPastAction('hast du bei der FDP nachgeschaut?')).toBe(true);
   });
 });
+
+// Die Art GARANTIERT ein Artefakt (forceCompoundGeneration). Beta 30.09.2026:
+// „die neue Suche findet …" und „Sharepics" im eingefügten Newsletter setzten
+// ein Sharepic unter jede Korrektur.
+describe('compoundGenerationKind — liest nur den Auftrag', () => {
+  const NEWSLETTER =
+    'Im September hat der Kreisverband zwei neue Werkzeuge vorgestellt: Der Untertitler versieht Reels automatish mit Untertiteln, und die neue Suche findet Beschlüsse aus den letzten zehn Jahren. Beim Sommerfest kamen über 80 Menschen, und unsere Sharepics zur Kommunalwahl wurden mehr als 2.000 Mal geteilt. Schreibt uns eure Rückmeldungne bis zum 15. Oktober!';
+
+  it('leitet aus Stoff mit Recherche- und Sharepic-Wörtern keine Art ab', () => {
+    expect(
+      compoundGenerationKind('sharepic', `${NEWSLETTER}\n\nrechtschreibung korrigieren`)
+    ).toBeNull();
+    expect(
+      compoundGenerationKind('agentic', `${NEWSLETTER}\n\nübersetze das ins Englische`)
+    ).toBeNull();
+  });
+
+  it('behält die Art, wenn der Auftrag sie nennt', () => {
+    expect(
+      compoundGenerationKind('sharepic', `${NEWSLETTER}\n\nRecherchiere dazu und mach ein Sharepic`)
+    ).toBe('sharepic');
+  });
+});
+
+// Beta 30.09.2026 (D1): eine Faktenprüfung mit eigenem Stoff galt als in sich
+// geschlossen, endete als Single-Pass und erreichte den Such-Zwang nie.
+describe('looksLikeSelfContainedTurn — Faktenprüfung schlägt nach', () => {
+  const WALLBOX =
+    'Der Bund fördert seit 2025 jede private Wallbox mit 900 Euro, und in Deutschland gibt es inzwischen über 200.000 öffentliche Ladepunkte. Damit ist das Ziel der Bundesregierung für 2030 bereits erreicht.';
+  const material = { hasOwnMaterial: true };
+
+  it.each(['prüf die Fakten darin und korrigiere falsche Angaben', 'stimmt das so?'])(
+    'Stoff + „%s" ist nicht in sich geschlossen',
+    (order) => {
+      expect(looksLikeSelfContainedTurn(`${WALLBOX}\n\n${order}`, material)).toBe(false);
+    }
+  );
+
+  it.each(['prüf, ob die Rechtschreibung korrekt ist', 'Ist das korrekt formuliert?'])(
+    'eine Sprachprüfung bleibt in sich geschlossen: „%s"',
+    (order) => {
+      expect(looksLikeSelfContainedTurn(`${WALLBOX}\n\n${order}`, material)).toBe(true);
+    }
+  );
+});

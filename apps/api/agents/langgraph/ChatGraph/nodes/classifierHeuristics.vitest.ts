@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { extractDomainScope } from './classifierHeuristics.js';
+import { extractDomainScope, heuristicClassify } from './classifierHeuristics.js';
 
 /**
  * extractDomainScope turns "such auf zeit.de und spiegel.de nach X" into
@@ -120,5 +120,25 @@ describe('extractDomainScope', () => {
     expect(
       extractDomainScope('Suche ausschliesslich auf orf.at und derstandard.at nach der Wahl.')
     ).toEqual({ include: ['orf.at', 'derstandard.at'], exclude: [] });
+  });
+});
+
+// Beta 30.09.2026: ein 386-Zeichen-Newsletter mit „Sharepics" darin machte aus
+// jeder Korrektur ein Sharepic — die 500-Zeichen-Grenze fängt kurzen Stoff nicht.
+describe('heuristicClassify — Sharepic-Wort im mitgebrachten Stoff', () => {
+  const NEWSLETTER =
+    'Im September hat der Kreisverband zwei neue Werkzeuge vorgestellt: Der Untertitler versieht Reels automatish mit Untertiteln, und die neue Suche findet Beschlüsse aus den letzten zehn Jahren. Beim Sommerfest kamen über 80 Menschen, und unsere Sharepics zur Kommunalwahl wurden mehr als 2.000 Mal geteilt. Schreibt uns eure Rückmeldungne bis zum 15. Oktober!';
+
+  it.each(['rechtschreibung korrigieren', 'übersetze das ins Englische', 'kürzer bitte'])(
+    'macht aus Newsletter + „%s" kein Sharepic',
+    (order) => {
+      expect(heuristicClassify(`${NEWSLETTER}\n\n${order}`).intent).not.toBe('sharepic');
+      expect(heuristicClassify(`${order}:\n\n${NEWSLETTER}`).intent).not.toBe('sharepic');
+    }
+  );
+
+  it('nimmt ein Sharepic, wenn der Auftrag es nennt', () => {
+    expect(heuristicClassify(`${NEWSLETTER}\n\nmach daraus ein Sharepic`).intent).toBe('sharepic');
+    expect(heuristicClassify('erstelle ein Sharepic zur Wärmepumpe').intent).toBe('sharepic');
   });
 });
