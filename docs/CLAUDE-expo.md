@@ -180,9 +180,37 @@ und kein `EOO_TOKEN` setzen. Server-Seite: `services/ota/README.md`.
 > Ladeskeletten. Für Riskantes: prozentualer Rollout statt Vollausrollung
 > (`eoas publish --rollout-percentage`, nur im Postgres-Modus von xprem).
 
-**Was OTA nicht kann:** alles Native. Änderungen an den Config-Plugins in
-`plugins/` und `config/`, an `expo-build-properties`, an Permissions, jedes neue
-Native-Modul und jedes SDK-Upgrade brauchen weiter einen Store-Build.
+**OTA oder Store-Build — die Regel.** Ein Update tauscht nur das JS-Bundle und
+die Assets, die der Code per `require` lädt. Alles, was beim Prebuild in
+`android/`/`ios/` landet, kommt nur mit einem Store-Build. Maßstab ist die
+Quellenliste von `@expo/fingerprint` (`npx @expo/fingerprint .`, am 30.09.2026
+für dieses Projekt ausgelesen):
+
+| Änderung | Weg |
+| --- | --- |
+| `app.json`/`app.config.js`: Plugins, Permissions, Scheme, Bundle-ID, `updates.*` (URL, Kanal-Header, Zertifikat), `runtimeVersion` | Store-Build + `version` |
+| `plugins/*.js`, `config/with*.ts` (eigene Config-Plugins) | Store-Build + `version` |
+| Icon, Adaptive Icon, Splash, die Schriften aus dem `expo-font`-Plugin | Store-Build + `version` |
+| Paket mit nativem Code neu, entfernt oder in **irgendeiner** Version gehoben — auch per Lockfile, Dependabot oder Override. Erkennbar an `android/`, `ios/` oder `expo-module.config.json` im Paket | Store-Build + `version` |
+| Expo-SDK-, React-Native-Upgrade, `expo-build-properties` | Store-Build + `version` |
+| JS/TS in `apps/mobile` und `packages/*`, Texte, Styles, reine JS-Pakete, per `require` geladene Bilder | OTA |
+| `EXPO_PUBLIC_*` in der EAS-Umgebung (der Wert wird ins Bundle eingesetzt), z. B. ein neuer DSN | OTA |
+| `eas.json`, `.easignore`, `.gitignore`, `scripts` in `package.json` | weder noch — der Fingerprint zählt sie, das Binary ändert sich nicht; wirkt beim nächsten Build |
+
+Was der Fingerprint **nicht** sieht und trotzdem bricht: JS, das eine native
+Methode aufruft, die das ausgelieferte Binary nicht hat — etwa nach einem
+Paket-Update, bei dem nur die JS-Seite ins Update käme. Deshalb die Zeile oben:
+ein natives Paket zu heben ist **immer** ein Store-Build, auch als Patch-Version.
+Und JS, das einen neuen Backend-Endpunkt braucht, geht erst nach dem
+Backend-Deploy raus (siehe oben). Reihenfolge bei jedem Update: `preview`, auf
+einem Preview-Build derselben `version` prüfen, dann `production`.
+
+**Automatisch prüfen lässt sich die Regel hier nicht.** Der naheliegende Wächter —
+Fingerprint des ausgelieferten Builds gegen den aktuellen Stand — scheitert an der
+Reproduzierbarkeit: den von EAS gespeicherten Fingerprint von Build `504a80d2`
+(`1bb18afa…`, 1.5.5, preview) ergibt lokal keine von vier Rechnungen
+(Projekt- und neueste `@expo/fingerprint`-Version, nur Android, mit der
+Build-Umgebung aus `eas.json`; 30.09.2026). Die Tabelle ist die Prüfung.
 
 **`runtimeVersion` ist `{ "policy": "appVersion" }`** — und das ist eine
 Notlösung mit einer Pflicht daran, keine freie Wahl.
