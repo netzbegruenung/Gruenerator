@@ -1306,6 +1306,20 @@ CREATE INDEX IF NOT EXISTS idx_board_comments_user ON board_comments(user_id);
 CREATE INDEX IF NOT EXISTS idx_board_comments_mentioned ON board_comments USING gin(mentioned_user_ids) WHERE mentioned_user_ids != '{}';
 CREATE INDEX IF NOT EXISTS idx_board_comment_reactions_comment ON board_comment_reactions(comment_id);
 
+-- Polymorphic emoji reactions (group_share, group_comment, board_comment).
+-- No FK on entity_id: every delete path of the entity must delete its reactions.
+CREATE TABLE IF NOT EXISTS entity_reactions (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    entity_type TEXT NOT NULL,
+    entity_id   TEXT NOT NULL,
+    user_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    emoji       TEXT NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (entity_type, entity_id, user_id, emoji)
+);
+
+CREATE INDEX IF NOT EXISTS idx_entity_reactions_entity ON entity_reactions (entity_type, entity_id);
+
 -- Papierkorb (zz_20260929_trash_deleted_at.sql). user_agents, user_text_forms,
 -- recurring_tasks und user_letterheads entstehen erst in Migrationen; dort legt
 -- die Migration die Spalte an. Partielle Indizes und CHECK stehen nur dort —
