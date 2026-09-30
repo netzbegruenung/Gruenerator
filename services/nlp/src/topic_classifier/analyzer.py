@@ -132,8 +132,13 @@ _CREDIT_JOINERS = frozenset({":", "von", "by"})
 # on every enriched document and re-tags whatever carries a different one, so a
 # change here reaches the existing payloads once this service is deployed —
 # independent of whether the API was deployed before or after it. Bump it with
-# every change to what `extract_persons_batch` returns.
-PERSONS_VERSION = 2
+# every change to what `extract_persons_batch` returns — and to which names
+# `classify_batch(exclude_persons=True)` keeps out of the keywords.
+#
+# 3 (09/2026): keywords drop tokens inside a PER entity. The persons pass
+# folds a bare surname only within one document, so "Minister Mansoori" never
+# became a person and "mansoori" led the Hessen notebook's keywords (#3942).
+PERSONS_VERSION = 3
 
 
 def _is_photo_credit(ent) -> bool:
@@ -371,11 +376,14 @@ class TopicClassifier:
     def classify_batch(
         self,
         texts: list[dict],
+        exclude_persons: bool = False,
     ) -> list[dict]:
         """Classify multiple texts in batch using nlp.pipe().
 
         Args:
             texts: List of dicts with 'id', 'title', 'text' fields.
+            exclude_persons: Keep tokens inside a PER entity out of `topNouns`.
+                Runs NER, so it costs extra; topic scores are unaffected.
 
         Returns:
             List of dicts with 'id', 'topics', 'primaryTopic' fields.
@@ -390,7 +398,12 @@ class TopicClassifier:
 
         results = []
         for idx, (doc, item) in enumerate(zip(
-            self.nlp.pipe(text_contents, batch_size=50, n_process=1, disable=["ner"]),
+            self.nlp.pipe(
+                text_contents,
+                batch_size=50,
+                n_process=1,
+                disable=[] if exclude_persons else ["ner"],
+            ),
             texts,
         )):
             noun_counts: Counter[TopicCategory] = Counter()
@@ -408,7 +421,8 @@ class TopicClassifier:
                     continue
 
                 total_nouns += 1
-                lemma_counts[lemma] += 1
+                if not (exclude_persons and token.ent_type_ == "PER"):
+                    lemma_counts[lemma] += 1
 
                 in_title = token.idx < title_end
                 multiplier = TITLE_WEIGHT if in_title else 1.0
