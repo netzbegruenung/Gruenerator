@@ -337,6 +337,77 @@ describe('shouldForceFirstToolCall', () => {
       expect(force({ lastUserText })).toBeNull();
     });
 
+    // Final-Review PR #3922: „Stimmen" ist auch das Nomen, „stimmt," eine
+    // Zustimmung — beide zwangen neben „Zahlen" eine Websuche.
+    it.each([
+      ['Schreib einen Post über die Stimmen und Zahlen der Landtagswahl in Bayern'],
+      [`${claim}\n\nFasse die Stimmen und Zahlen aus dem Text in drei Sätzen zusammen`],
+      [`${claim}\n\nSchreib daraus einen Post mit den Stimmen und Zahlen`],
+      ['stimmt, schreib den Post mit den Zahlen'],
+      ['Stimmen der Jugend: schreib einen Post über die Zahlen zur Wahlbeteiligung.'],
+    ])('„Stimmen" als Nomen oder Zustimmung sucht nicht: %s', (lastUserText) => {
+      expect(force({ lastUserText })).toBeNull();
+    });
+
+    // Die Frage nach der Richtigkeit bleibt eine Faktenprüfung, auch knapp und
+    // unter eingefügtem Text.
+    it.each([
+      [`${claim}\n\nstimmt das so?`],
+      [`${claim}\n\nStimmen die Angaben?`],
+      [`${claim}\n\nIst das korrekt?`],
+      [`${claim}\n\nfaktencheck bitte`],
+      [`${claim}\n\nKannst du das auf Richtigkeit prüfen?`],
+      [`${claim}\n\nSind die Zahlen richtig?`],
+      ['stimmt das, dass die Förderung bis 2027 läuft?'],
+      // Wortende der Sprachprüfung: „Stilllegung" ist kein Stil, der
+      // Papierausdruck keine Ausdrucksweise, „Kommando" kein Komma.
+      ['prüf, ob die Zahlen zur Stilllegung stimmen'],
+      ['Überprüf bitte die Zahlen, bevor ich das im Ausdruck verteile'],
+      ['prüf die Angaben zum Kommando Spezialkräfte'],
+    ])('eine Faktenprüfung sucht: %s', (lastUserText) => {
+      expect(force({ lastUserText })).toBe('research_order');
+    });
+
+    it.each([
+      [`${claim}\n\nist die Rechtschreibung korrekt?`],
+      [`${claim}\n\nprüf, ob die Kommas stimmen`],
+      [`${claim}\n\nprüf den Stil der Aussagen`],
+      [`${claim}\n\nKannst du das auf sprachliche Richtigkeit prüfen?`],
+      // Die Prüfwörter stehen im Stoff, der Auftrag ist ein anderer.
+      [`Faktencheck: Stimmt das? ${claim}\n\nschreib daraus einen Post`],
+    ])('eine Sprachprüfung oder ein anderer Auftrag sucht nicht: %s', (lastUserText) => {
+      expect(force({ lastUserText })).toBeNull();
+    });
+
+    // Final-Review PR #3922: Befehlsformen mit Wortende. „Gibt es …" eröffnete
+    // als Auftrag, der ganze Newsletter samt „die Suche" wurde gelesen.
+    const suchePaste =
+      ' Die Suche findet jetzt auch ältere Beschlüsse eurer Landesverbände, und der Untertitler versieht Reels automatisch mit Untertiteln. Schreibt uns!';
+    it.each([
+      ['Gibt es schon Neuigkeiten?', 'schreib daraus einen Instagram-Post'],
+      ['Kürzlich hat der Landesvorstand beschlossen:', 'rechtschreibung korrigieren'],
+      ['Macht mit beim Klimastreik!', 'rechtschreibung korrigieren'],
+      ['Erklärung der Landesvorsitzenden:', 'übersetze das ins Englische'],
+    ])('ein Stoff, der mit „%s" beginnt, erzwingt keine Suche', (opening, order) => {
+      expect(force({ lastUserText: `${opening}${suchePaste}\n\n${order}` })).toBeNull();
+    });
+
+    // Final-Review PR #3922: Gruß und Dank verdrängten den Recherche-Auftrag.
+    it.each([
+      [
+        'Hallo zusammen,\n\nbitte recherchiere, wie viele Ladepunkte es 2025 in Bayern gab.\n\nVielen Dank und liebe Grüße',
+      ],
+      [
+        'Für unseren Ortsverband recherchiere bitte, wie viele öffentliche Ladepunkte es 2025 in Bayern gab und wie stark die Zahl seit 2020 gestiegen ist\n\nDanke!',
+      ],
+      [
+        'Wie hoch waren die Fördermittel für Wallboxen in Bayern im Jahr 2025, und wie viele Anträge wurden bewilligt? Bitte mit Quellen recherchieren.\n\nDanke dir!',
+      ],
+      [`Hallo,\n\n${claim}\n\nprüf die Fakten darin\n\nDanke!`],
+    ])('ein Recherche-Auftrag zwischen Gruß und Dank sucht: %s', (lastUserText) => {
+      expect(force({ lastUserText })).toBe('research_order');
+    });
+
     it('ein Recherche-Auftrag oben zählt, auch wenn der Stoff mit „korrigiert" endet', () => {
       const lastUserText = `recherchiere, ob diese Zahlen stimmen\n\n${newsletter}\n\nDie Zahlen haben wir korrigiert.`;
       expect(force({ loopDemotedFromRetrieval: true, lastUserText })).toBe('research_order');
