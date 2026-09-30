@@ -4,8 +4,8 @@
  * A dedicated, non-global OpenTelemetry TracerProvider feeds a
  * LangfuseSpanProcessor. We register it via `setLangfuseTracerProvider` so the
  * Langfuse SDK's `startActiveObservation` / `getLangfuseTracer` emit through
- * OUR provider — NOT the global one Sentry installs with a rate-0 sampler
- * (which would silently drop every span in production).
+ * OUR provider — NOT the global one Sentry installs with a sampled (10%) sampler
+ * (which would drop most spans and ship the rest to GlitchTip).
  *
  * The whole module is a no-op unless LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY
  * and LANGFUSE_BASE_URL are all set — so dev and unconfigured environments pay
@@ -141,7 +141,7 @@ export function initLangfuseTelemetry(): void {
 
     // AI SDK 7 dropped the per-call `tracer` option; the tracer now belongs to a
     // telemetry integration. Built here so it carries OUR tracer (from the
-    // non-global provider above) instead of Sentry's rate-0 global one — and
+    // non-global provider above) instead of Sentry's sampled global one — and
     // deliberately NOT handed to `registerTelemetry`, which would flip the whole
     // API to opt-out tracing (see the module header). `buildAiTelemetry` passes
     // this one instance per call; it keeps its state keyed by call id, so

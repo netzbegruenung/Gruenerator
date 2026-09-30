@@ -409,7 +409,7 @@ const Datenschutz = () => {
             <td>Live-Stream ohne Persistierung</td>
           </tr>
           <tr>
-            <td>Fehlerberichte (GlitchTip)</td>
+            <td>Fehlerberichte, Leistungsdaten und Server-Warnungen (GlitchTip)</td>
             <td>90 Tage</td>
           </tr>
           <tr>
@@ -524,6 +524,13 @@ const Datenschutz = () => {
         der EU. Verarbeitet werden Fehlerberichte, Stack-Traces, Browserinformationen und
         IP-Adressen; eine Weitergabe an Dritte findet nicht statt. Löschung nach 90 Tagen.
         Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO.
+      </p>
+      <p>
+        Zur Messung der Ladezeiten erfassen wir außerdem bei einem Teil der Seitenaufrufe (etwa
+        jedem zehnten) Leistungsdaten: die aufgerufene Seite, die Dauer von Seitenaufbau und
+        Serveranfragen sowie Messwerte zur Darstellungsgeschwindigkeit. Der Server meldet zusätzlich
+        Warn- und Fehlermeldungen aus seinen Protokollen an GlitchTip. Diese Daten werden ebenfalls
+        nach 90 Tagen gelöscht.
       </p>
       <p>
         Auch die GRÜNERATOR-App für iOS und Android meldet technische Fehler an diese
