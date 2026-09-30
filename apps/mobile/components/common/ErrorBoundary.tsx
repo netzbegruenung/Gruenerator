@@ -3,6 +3,7 @@ import { Component, type ReactNode } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
+import { reportError } from '../../services/errorReporting';
 import { colors, spacing, borderRadius, typography, BODY_FONT } from '../../theme';
 
 interface Props {
@@ -44,6 +45,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('[ErrorBoundary]', error.message, errorInfo.componentStack);
+    reportError(error, errorInfo.componentStack);
     this.props.onError?.(error, errorInfo);
   }
 
