@@ -41,6 +41,24 @@ export class NativeDownloadTooLargeError extends Error {
   }
 }
 
+/**
+ * Saves a blob through the desktop shell's native save dialog.
+ *
+ * Injected rather than imported: this package is also bundled for the mobile
+ * app, which has no `@tauri-apps/*` packages for Metro to resolve. `apps/web`
+ * registers the implementation at startup when it runs inside Tauri, and every
+ * consumer of `downloadBlob` (chat, canvas editor, web features) gets it for
+ * free. The Tauri webview silently ignores a synthetic `<a download>` click,
+ * so without a saver the export does nothing.
+ */
+export type DesktopSaver = (blob: Blob, filename: string) => Promise<void>;
+
+let desktopSaver: DesktopSaver | null = null;
+
+export function registerDesktopSaver(saver: DesktopSaver): void {
+  desktopSaver = saver;
+}
+
 /** True when this base64 payload would exceed what the bridge accepts. */
 export function exceedsNativeLimit(base64: string): boolean {
   return base64.length > WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH;
@@ -83,7 +101,13 @@ function postToHost(base64: string, mime: string, filename: string): void {
  * data URL: routing it through a Blob would decode and re-encode several MB for
  * nothing.
  */
-export function downloadDataUrl(dataUrl: string, filename: string): void {
+export function downloadDataUrl(dataUrl: string, filename: string): void | Promise<void> {
+  if (desktopSaver) {
+    const save = desktopSaver;
+    return fetch(dataUrl)
+      .then((res) => res.blob())
+      .then((blob) => save(blob, sanitizeDownloadFilename(filename)));
+  }
   if (!hasNativeHost()) {
     clickAnchor(dataUrl, filename, false);
     return;
@@ -101,6 +125,10 @@ export function downloadDataUrl(dataUrl: string, filename: string): void {
  * of them sequence anything after the download.
  */
 export async function downloadBlob(blob: Blob, filename: string): Promise<void> {
+  if (desktopSaver) {
+    await desktopSaver(blob, sanitizeDownloadFilename(filename));
+    return;
+  }
   if (!hasNativeHost()) {
     clickAnchor(URL.createObjectURL(blob), filename, true);
     return;

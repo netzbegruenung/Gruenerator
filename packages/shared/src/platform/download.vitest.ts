@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { downloadDataUrl, exceedsNativeLimit, NativeDownloadTooLargeError } from './download.js';
+import {
+  downloadBlob,
+  downloadDataUrl,
+  exceedsNativeLimit,
+  NativeDownloadTooLargeError,
+  registerDesktopSaver,
+} from './download.js';
 import { WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH } from './webviewBridge.js';
 
 /**
@@ -44,7 +50,7 @@ describe('downloadDataUrl — native host present', () => {
   it('posts the decomposed data URL instead of clicking an anchor', () => {
     const host = withNativeHost();
     try {
-      downloadDataUrl('data:image/png;base64,aGVsbG8=', 'gruenerator-seite-1.png');
+      void downloadDataUrl('data:image/png;base64,aGVsbG8=', 'gruenerator-seite-1.png');
       expect(host.posted).toHaveLength(1);
       expect(JSON.parse(host.posted[0] as string)).toEqual({
         type: 'DOWNLOAD_FILE',
@@ -62,7 +68,7 @@ describe('downloadDataUrl — native host present', () => {
     // the host picks gallery-vs-share from the mime, so it has to be the real one.
     const host = withNativeHost();
     try {
-      downloadDataUrl('data:image/webp;base64,QQ==', 'bild.png');
+      void downloadDataUrl('data:image/webp;base64,QQ==', 'bild.png');
       expect(JSON.parse(host.posted[0] as string).mime).toBe('image/webp');
     } finally {
       host.restore();
@@ -101,5 +107,24 @@ describe('downloadDataUrl — no native host', () => {
     // `window` is undefined in this lane, so `hasNativeHost()` is false and the
     // anchor branch is taken — which needs a document, hence the throw.
     expect(() => downloadDataUrl('data:image/png;base64,aGVsbG8=', 'x.png')).toThrow();
+  });
+});
+
+describe('desktop saver registered', () => {
+  it('routes downloadBlob through the saver with a sanitised filename', async () => {
+    const saver = vi.fn().mockResolvedValue(undefined);
+    registerDesktopSaver(saver);
+    const blob = new Blob(['x'], { type: 'text/plain' });
+    await downloadBlob(blob, 'Protokoll 12/2026.txt');
+    expect(saver).toHaveBeenCalledWith(blob, 'Protokoll 12-2026.txt');
+  });
+
+  it('routes downloadDataUrl through the saver as a blob', async () => {
+    const saver = vi.fn().mockResolvedValue(undefined);
+    registerDesktopSaver(saver);
+    await downloadDataUrl('data:text/plain;base64,aGVsbG8=', 'a.txt');
+    const [blob, name] = saver.mock.calls[0] as [Blob, string];
+    expect(name).toBe('a.txt');
+    expect(await blob.text()).toBe('hello');
   });
 });

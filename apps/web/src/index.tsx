@@ -1,3 +1,4 @@
+import { registerDesktopSaver } from '@gruenerator/shared';
 import * as Sentry from '@sentry/react';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
@@ -5,11 +6,20 @@ import { createRoot } from 'react-dom/client';
 import './assets/styles/index.css';
 import App from './App';
 import { trackFocusModality } from './components/utils/focusModality';
+import { isDesktopApp } from './utils/platform';
 import { registerServiceWorker } from './utils/registerServiceWorker';
 
 // Before React renders: the composer autofocuses itself, so the attribute has
 // to be on <html> ahead of the first paint.
 trackFocusModality();
+
+// Tauri's webview ignores `<a download>`; route every shared export through the
+// native save dialog. Lazy, so the plugins never reach the web bundle's hot path.
+if (isDesktopApp()) {
+  registerDesktopSaver((blob, filename) =>
+    import('./utils/desktopSave').then((m) => m.saveBlobToDisk(blob, filename))
+  );
+}
 
 // Stale deploy: cached HTML/chunks reference hashed assets that no longer exist.
 // Reload once per URL to pick up the new build; a second failure surfaces normally.
