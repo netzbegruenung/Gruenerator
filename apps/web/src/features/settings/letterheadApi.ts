@@ -78,14 +78,14 @@ export const letterheadApi = {
     const form = new FormData();
     form.append('stationery', file);
     const res = await getGlobalApiClient().post<{ success: boolean; stationery_file: string }>(
-      `/api/auth/letterheads/${id}/stationery`,
+      `/auth/letterheads/${id}/stationery`,
       form
     );
     return res.data.stationery_file;
   },
 
   async removeStationery(id: string): Promise<void> {
-    await getGlobalApiClient().delete(`/api/auth/letterheads/${id}/stationery`);
+    await getGlobalApiClient().delete(`/auth/letterheads/${id}/stationery`);
   },
 };
 
