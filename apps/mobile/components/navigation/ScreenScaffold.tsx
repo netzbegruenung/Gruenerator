@@ -38,15 +38,20 @@ import { useRegisterTabBarBlurTarget, useTabBarBlurEnabled } from './TabBarBlurT
  * screens (Agentura, Projekte) use: same chrome as the tabs, but the leading
  * control has to lead somewhere — a hamburger on a screen you arrived at by
  * pushing offers the wrong way out.
+ *
+ * `titleNode` replaces the title text in the middle of the bar — the workplace
+ * shell puts its Chat | Arbeiten pills there.
  */
 export function ScreenScaffold({
   title,
+  titleNode,
   children,
   backdrop,
   onBack,
   headerRight = <ProfileMenu />,
 }: {
   title: string;
+  titleNode?: ReactElement;
   children: ReactNode;
   backdrop?: ReactNode;
   onBack?: () => void;
@@ -95,9 +100,11 @@ export function ScreenScaffold({
         </View>
         {/* Agent names run longer than the tab titles this header was built
               for — without this a long one wraps and grows the whole bar. */}
-        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
-          {title}
-        </Text>
+        {titleNode ?? (
+          <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
+            {title}
+          </Text>
+        )}
         <View style={[styles.headerSide, styles.headerSideRight]}>{headerRight}</View>
       </View>
       {children}
