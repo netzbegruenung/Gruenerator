@@ -1,0 +1,63 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "berlin-mieten",
+      "collection": "berlin-system",
+      "query": "Mietenpolitik und bezahlbares Wohnen in Berlin",
+      "rank": 1,
+      "topTitles": [
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung",
+        "Beschluss \"Grüne Wohnungspolitik für ganz Berlin – Gemeinwohl statt Mietenspekulation\"",
+        "Eigentum verpflichtet – Vermieter*innen klare Regeln setzen: Ein „Bezahlbare-Mieten-Gesetz“ für Berlin",
+        "Es braucht einen Paradigmenwechsel in der Wohnungspolitik – für ein faires und gemeinwohlorientiertes Miet- und Baurecht!",
+        "WPS-Gruene-Berlin-2026-06-01-Berliner_Mieterverein-Antwort"
+      ],
+      "searchTimeMs": 2596
+    },
+    {
+      "id": "berlin-verkehr",
+      "collection": "berlin-system",
+      "query": "Ausbau von Radwegen und ÖPNV in Berlin",
+      "rank": 2,
+      "topTitles": [
+        "20210527_Grüne Antworten_WPS_Bürgerforum Berlin e.V",
+        "Grüne fordern im Verkehrshaushalt mehr Verkehrssicherheit und eine Angebotsoffensive im ÖPNV",
+        "Nahverkehrstangente Ost (NVT) retten: Die Regio-S-Bahn bringt den Osten Berlins und das Umland voran!",
+        "WPS-Gruene-Berlin-2026-06-23-ADFC-Antwort",
+        "20210511_Grüne Antworten_WPS_Arbeitsgemeinschaften der Historischen Bürgervereine Berlin"
+      ],
+      "searchTimeMs": 1019
+    },
+    {
+      "id": "berlin-wahlprogramm",
+      "collection": "berlin-system",
+      "query": "Wahlprogramm zur Wahl des Abgeordnetenhauses",
+      "rank": 3,
+      "topTitles": [
+        "WPS-Gruene-Berlin-2026-08-10-Abgeordnetenwatch-Antwortvorlage",
+        "Berlin ist für Dich da – Aufbruch 2026",
+        "”Politik ändern, Berlin bleiben.” – Wahlprogramm für 2026 beschlossen",
+        "WPS-Gruene-Berlin-2026-08-05-Berliner_Frauennetzwerk_bfn-Antwort",
+        "Unser Wahlprogramm - Präambel"
+      ],
+      "searchTimeMs": 904
+    },
+    {
+      "id": "kw-berlin-rummelsburger-bucht",
+      "collection": "berlin-system",
+      "query": "Rummelsburger Bucht Kulturhafen",
+      "rank": 1,
+      "topTitles": [
+        "20210813_Grüne Antworten_WPS_Bürgerforum Stralau",
+        "20210727_Grüne Antworten_WPS_Koalition der Freien Szene",
+        "Menschenwürdige Unterbringung statt Notunterkünfte – Berlin kann mehr!",
+        "WPS-Gruene-Berlin-2026-08-26-Uferhallen-Antwort",
+        "Grüne Antworten NWAGTK"
+      ],
+      "searchTimeMs": 652
+    }
+  ]
+}
