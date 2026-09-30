@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { type z } from 'zod';
 
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
@@ -145,6 +146,17 @@ describe('find_content', () => {
     };
     expect(out.error).toMatch(/Suchbegriff/);
     expect(searchOfficeContent).not.toHaveBeenCalled();
+  });
+
+  // #3932: die Suche ohne Begriff scheitert am Schema — vor `execute`, also
+  // bevor eine Karte entsteht.
+  it('schema rejects search without a query, accepts recent without one', () => {
+    const schema = makeFindContentTool(ctx('u1')).inputSchema as unknown as z.ZodTypeAny;
+    const missing = schema.safeParse({ action: 'search', query: '  ' });
+    expect(missing.success).toBe(false);
+    expect(missing.error?.issues[0]?.path).toEqual(['query']);
+    expect(schema.safeParse({ action: 'search', query: 'Solar' }).success).toBe(true);
+    expect(schema.safeParse({ action: 'recent' }).success).toBe(true);
   });
 
   it('search maps hits to clickable rows scoped to the user', async () => {

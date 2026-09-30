@@ -252,11 +252,25 @@ export function makeFindContentTool(ctx: PersonalToolCtx): Tool {
     description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen sowie Reels/untertitelte Videos) oder listet die zuletzt bearbeiteten. Reels werden dabei auch nach ihrem gesprochenen Untertitel-Inhalt durchsucht.
 
 NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'. Für das VOLLE Transkript eines Reels (z. B. um eine Caption zu schreiben) nutze 'media' mit action="transcript". NOTEBOOKS erreicht dieses Werkzeug NICHT — zum Auflisten, Ansehen und inhaltlichen Befragen eines Notebooks nutze 'notebooks'.`,
-    inputSchema: z.object({
-      action: z.enum(['search', 'recent']),
-      query: z.string().optional().describe('Suchbegriff (nur bei action="search")'),
-      limit: z.number().int().min(1).max(30).default(15),
-    }),
+    // Eine Suche ohne Begriff scheitert hier am Schema statt in `execute`: nur
+    // dort entsteht eine Karte, und die zeigte der Person einen Fehlschlag, den
+    // das Modell im nächsten Schritt selbst korrigierte (#3932, „und zu Solar?").
+    inputSchema: z
+      .object({
+        action: z.enum(['search', 'recent']),
+        query: z.string().optional().describe('Suchbegriff (Pflicht bei action="search")'),
+        limit: z.number().int().min(1).max(30).default(15),
+      })
+      .superRefine((input, ctx) => {
+        if (input.action === 'search' && !input.query?.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['query'],
+            message:
+              'action="search" braucht query mit dem Suchbegriff — bei einer Anschlussfrage („und zu Solar?") das neue Thema.',
+          });
+        }
+      }),
     execute: async ({ action, query, limit }) => {
       const userId = requireUserId(state);
       if (!userId) return { error: NO_SESSION };
