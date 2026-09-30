@@ -17,6 +17,8 @@
  * `(?<!\p{L})` instead.
  */
 
+import { isQuestionAboutEditing } from './editAddressee.js';
+
 const TEXT_EDIT_VERB_PATTERN =
   /(?<!\p{L})(änder|aender|mach|kürz|kuerz|verläng|verlaeng|umformulier|formulier|überarbeit|ueberarbeit|verbesser|anpass|ergänz|ergaenz|entfern|streich|ersetz|schreib)/iu;
 
@@ -109,6 +111,23 @@ export function namesSocialPostTarget(text: string): boolean {
 }
 
 /**
+ * Eine Post-Bearbeitung braucht einen ADRESSATEN: die aktivierte Post-Karte,
+ * einen Post im Turn direkt davor, oder der Auftrag nennt den Post.
+ *
+ * Ohne Karte griff `findSocialPost` bis zum Beta-Audit 30.09.2026 auf den
+ * neuesten Post der letzten 30 Nachrichten, und `TONE_WORD_PATTERN` feuert auf
+ * ein einzelnes Wort: zehn Turns nach einem Post schrieb „Wie schreibe ich
+ * einen guten Text?" oder „kürzer" unter einer Antwort den Post um. Dieselbe
+ * Regel wie `sharepicEditAddressed` und `reelEditAddressed`.
+ */
+export function socialPostEditAddressed(
+  order: string,
+  context: { cardOpen: boolean; lastTurnPost: boolean }
+): boolean {
+  return context.cardOpen || context.lastTurnPost || namesSocialPostTarget(order);
+}
+
+/**
  * True when the message reads like an edit instruction for the TEXT of an
  * existing social post. Only meaningful when the thread actually has a
  * social_post message — callers check target existence first.
@@ -120,6 +139,9 @@ export function isSocialTextEditInstruction(text: string): boolean {
   // A request to SEE something is never a request to CHANGE it. Checked before
   // the verb∧noun rule, which "schreib mir den Text mit HTML-Tags" satisfies.
   if (OUTPUT_REQUEST_PATTERN.test(text)) return false;
+  // „Wie schreibe ich einen guten Text?" fragt nach dem Handwerk, nicht nach
+  // einer Änderung am Post (Beta-Audit 30.09.2026).
+  if (isQuestionAboutEditing(text)) return false;
   if (TEXT_EDIT_VERB_PATTERN.test(text) && TEXT_NOUN_PATTERN.test(text)) return true;
   // Checked after the creation guards, so only a translation of the EXISTING
   // post reaches here — "schreib einen Post auf Englisch zu X" left above.

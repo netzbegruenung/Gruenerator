@@ -219,6 +219,9 @@ describe('sharepic edit needs an addressee', () => {
     'Zeile 2 kürzer',
     'anderes Hintergrundbild',
     'verlängern',
+    // Lief vorher in die Post-Weiche: die lag vor dem Sharepic, und „Text" +
+    // „mach" reichten ihr auch ohne Post im Turn davor.
+    'mach den Text kürzer',
     'setz das Datum auf Freitag',
     'Farbe grüner',
   ])('edits „%s" right after a sharepic', async (text) => {
@@ -281,6 +284,39 @@ describe('reel edit needs an order and an addressee', () => {
 
   it('„fix den Tippfehler im Untertitel" right after a reel reaches the lane', async () => {
     expect(await reelTurn('fix den Tippfehler im Untertitel', ['reel_edit'])).toBe(true);
+  });
+});
+
+// Beta-Audit 30.09.2026: ohne Karte griff die Post-Weiche auf den neuesten Post
+// im Thread, gleich wie alt. Beobachtet am Ergebnis: die Post-Spur scheitert
+// hier am Postgres-Wächter und meldet `social_post_edit_error`.
+describe('social post text edit needs an addressee', () => {
+  async function postTurn(text: string, lastTurnTools: string[]) {
+    const thread = await createThread(TEST_USER.id, 'gruenerator-universal', 'Post-Thread');
+    setLastTurnToolStepsFixture(thread.id, lastTurnTools);
+    const { events } = await runTurn(suite.baseUrl(), {
+      threadId: thread.id,
+      messages: [userTurn(text)],
+    });
+    return events.some((e) => e.event === 'social_post_edit_error');
+  }
+
+  it.each(['kürzer', 'mach den Text knackiger'])(
+    '„%s" turns after a post reaches no post lane',
+    async (text) => {
+      expect(await postTurn(text, [])).toBe(false);
+    }
+  );
+
+  it.each(['kürzer', 'mach den Text knackiger'])(
+    '„%s" right after a post reaches the post lane',
+    async (text) => {
+      expect(await postTurn(text, ['social_post'])).toBe(true);
+    }
+  );
+
+  it('„kürz den Post" names the post and reaches the lane', async () => {
+    expect(await postTurn('kürz den Post', [])).toBe(true);
   });
 });
 
