@@ -4,8 +4,8 @@ import babel from '@rolldown/plugin-babel';
 import { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-// Inline `test.projects` erben das `resolve` der Wurzel nicht — beide Lanes
-// bekommen dasselbe Objekt, wie in apps/web.
+// Beide Lanes erben dieses `resolve`: seit vitest 5 erweitern inline
+// `test.projects` die Wurzel-Config, wie in apps/web.
 const resolve = {
   alias: {
     // Subpath resolved via vite alias in the apps (no exports-map entry) —
@@ -22,7 +22,6 @@ export default defineConfig({
   test: {
     projects: [
       {
-        resolve,
         test: {
           name: 'node',
           include: ['**/*.vitest.ts'],
@@ -53,7 +52,6 @@ export default defineConfig({
         // `*.vitest.tsx`, damit die schnelle Node-Lane unberührt bleibt. Der
         // React-Compiler-Preset ist derselbe, den `vite build` fährt.
         plugins: [babel({ presets: [reactCompilerPreset()] })],
-        resolve,
         test: {
           name: 'dom',
           include: ['**/*.vitest.tsx'],
