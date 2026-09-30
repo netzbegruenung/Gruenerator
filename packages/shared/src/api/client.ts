@@ -22,6 +22,20 @@ export type AuthMode = 'cookie' | 'bearer';
 export type AuthRequestConfig = AxiosRequestConfig & { skipAuthRefresh?: boolean };
 
 /**
+ * Both clients default to `Content-Type: application/json`, and with that
+ * header axios serializes a FormData body to JSON — every file becomes `{}`
+ * and multer sees no upload. Dropping the header lets the platform send
+ * multipart with its own boundary. An explicit multipart header from the
+ * caller stays (mobile uploads rely on it). Call from a *request* interceptor.
+ */
+export function sendFormDataAsMultipart(config: InternalAxiosRequestConfig): void {
+  if (typeof FormData === 'undefined' || !(config.data instanceof FormData)) return;
+  if (/json/i.test(String(config.headers.getContentType() ?? ''))) {
+    config.headers.delete('Content-Type');
+  }
+}
+
+/**
  * A request the browser tore down (page reload/navigation while it was in
  * flight) ends with status 0. axios `settle()` resolves any response whose
  * status is falsy without consulting `validateStatus`, so it reaches callers
@@ -75,6 +89,7 @@ export function createApiClient(options: CreateApiClientOptions): AxiosInstance 
   client.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
     // Read per request, not at construction: the locale becomes known at login.
     config.headers['X-User-Locale'] = getApiLocale();
+    sendFormDataAsMultipart(config);
     if (authMode === 'bearer' && getAuthToken) {
       const token = await getAuthToken();
       if (token) {

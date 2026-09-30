@@ -376,9 +376,21 @@ describe('UebersetzerPage', () => {
   it('keeps a running document job over a tab switch', async () => {
     withLanguages();
     server.use(
-      http.post('*/api/translation/document', () =>
-        HttpResponse.json({ jobId: 'job-1', filename: 'antrag.docx' })
-      ),
+      // Read the body like multer would: a FormData the client serialized to
+      // JSON arrives without the file and the real server answers 400. (jsdom's
+      // File crosses into undici's FormData as a nameless Blob, so the part is
+      // checked for presence, not by filename.)
+      http.post('*/api/translation/document', async ({ request }) => {
+        const form = await request.formData().catch(() => null);
+        const file = form?.get('document');
+        if (!file || typeof file === 'string' || !form?.get('targetLang')) {
+          return HttpResponse.json(
+            { success: false, error: 'Keine Datei hochgeladen.' },
+            { status: 400 }
+          );
+        }
+        return HttpResponse.json({ jobId: 'job-1', filename: 'antrag.docx' });
+      }),
       http.get('*/api/translation/document/:jobId/status', () =>
         HttpResponse.json({
           jobId: 'job-1',
