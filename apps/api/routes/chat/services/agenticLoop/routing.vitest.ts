@@ -1620,3 +1620,18 @@ describe('compoundGenerationKind — Zweck-Nomen', () => {
     expect(compoundGenerationKind('agentic', 'mach daraus eine Präsentation')).toBe('presentation');
   });
 });
+
+// #3941: eine Präsentation im Relativsatz ist nicht das Bestellte.
+describe('compoundGenerationKind — Relativsatz', () => {
+  it('garantiert keine Präsentation, die nur im Relativsatz vorkommt', () => {
+    expect(
+      compoundGenerationKind('agentic', 'Erstelle eine Rede, die die Präsentation zusammenfasst')
+    ).toBeNull();
+  });
+
+  it('der Relativsatz hinter dem Nomen bleibt eine Bestellung', () => {
+    expect(
+      compoundGenerationKind('agentic', 'Erstelle eine Präsentation, die unsere Ziele zeigt')
+    ).toBe('presentation');
+  });
+});

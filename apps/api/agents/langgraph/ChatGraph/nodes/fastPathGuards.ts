@@ -351,15 +351,42 @@ export const CREATION_VERB_RE = new RegExp(`\\b(?:${CREATION_VERB_CORE})[a-zäö
  * Tabelle" ist eine Umwandlung und „in einer Tabelle" nennt das Format — beides
  * bestellt das Artefakt. Negatives Lookbehind statt `\b`, weil `über` mit einem
  * Umlaut beginnt und das Muster ohne `u`-Flag gebaut wird.
+ *
+ * Zwischen Artikel und Nomen dürfen bis zu zwei Wörter stehen, danach eine
+ * Genitiv-Kette: „Mach Stichpunkte für die geplante morgige Präsentation" und
+ * „Mach mir Vorschläge für den Aufbau unserer Website" (`artifact@0.85`) waren
+ * Bestellungen, weil das Muster nur EIN Wort vor dem Nomen kannte (#3941).
+ * Artikel, Zahlwörter und Füllpartikeln zählen nicht als Füllwort: in „mach aus
+ * der Tabelle eine Präsentation" beginnt mit „eine" das Bestellte.
  */
 const DEFINITE_DET =
   '(?:der|die|das|den|dem|des|mein\\w*|dein\\w*|sein\\w*|ihr\\w*|unser\\w*|eu(?:e)?r\\w*|diese?\\w*|jene?\\w*)';
+const GENITIVE_DET =
+  '(?:des|der|eines|einer|(?:mein|dein|sein|ihr|unser|eu(?:e)?r|dies|jen)(?:es|er))';
+// Das zweite Füllwort nur, wenn das erste wie ein Adjektiv aussieht („geplante",
+// „morgige", „nächste"): sonst wäre in „Erstelle für die Kampagne neue Sharepics"
+// die Kampagne das Füllwort und das Bestellte ein Zweck-Nomen.
+const ADJECTIVE_SHAPE = '[a-zäöüß]+(?:ig|isch|lich|bar|sam|haft|los|end|t)e[nmrs]?';
+const NOT_FILLER =
+  '(?:k?ein(?:e[nmrs]?)?|der|die|das|den|dem|des|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|paar|mehrere|einige|bitte|mal|noch|auch|mir|uns|dir|euch)(?![a-zäöüß])';
 const NOT_PURPOSE_OBJECT =
   '(?<!(?:^|[^a-zäöüß])(?:' +
   `(?:für|fuer|über|ueber|von|nach|aus)\\s+(?:(?:${DEFINITE_DET}|ein\\w*)\\s+)?` +
   `|(?:zum|zur|im)\\s+` +
   `|(?:zu|in)\\s+${DEFINITE_DET}\\s+` +
-  ')(?:[a-zäöüß]+\\s+)?)';
+  `)(?:${ADJECTIVE_SHAPE}\\s+)?(?:(?!${NOT_FILLER})[a-zäöüß]+\\s+)?(?:${GENITIVE_DET}\\s+)?)`;
+
+/**
+ * Die Lücke zwischen Verb und Nomen bleibt im selben Satz und im Hauptsatz:
+ * kein Satzende, und kein Komma, auf das ein Relativpronomen oder eine
+ * Konjunktion folgt. „Erstelle eine Rede, die das Chart von gestern erwähnt"
+ * bestellt die Rede — das Chart steht im Relativsatz und war `chart@0.88`
+ * (#3941). Ein Relativsatz HINTER dem Nomen („Erstelle ein Chart, das die
+ * Emissionen zeigt") liegt nicht in der Lücke und bleibt eine Bestellung.
+ */
+const CLAUSE_STOP =
+  '(?:[.!?\\n]|,\\s*(?:der|die|das|dem|den|dessen|deren|welche\\w*|wo|weil|dass|damit|wenn|ob)(?![a-zäöüß]))';
+const gapWithinClause = (max: number) => `(?:(?!${CLAUSE_STOP}).){0,${max}}`;
 
 export function creationOrderPattern(
   noun: string,
@@ -375,8 +402,8 @@ export function creationOrderPattern(
   const forward = opts.forward ?? 40;
   const backward = opts.backward ?? forward;
   return new RegExp(
-    `\\b${verbAnyForm}\\b.{0,${forward}}${NOT_PURPOSE_OBJECT}\\b(?:${noun})\\b` +
-      `|${NOT_PURPOSE_OBJECT}\\b(?:${noun})\\b.{0,${backward}}\\b${verbFinalForm}\\b`,
+    `\\b${verbAnyForm}\\b${gapWithinClause(forward)}${NOT_PURPOSE_OBJECT}\\b(?:${noun})\\b` +
+      `|${NOT_PURPOSE_OBJECT}\\b(?:${noun})\\b${gapWithinClause(backward)}\\b${verbFinalForm}\\b`,
     'i'
   );
 }

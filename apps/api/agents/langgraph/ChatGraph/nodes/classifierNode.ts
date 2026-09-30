@@ -36,6 +36,10 @@ import {
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { agenturaCreateTarget } from '../../../../routes/chat/services/agenturaContext.js';
 import {
+  namesDocumentTarget,
+  namesSheetTarget,
+} from '../../../../routes/chat/services/editAddressee.js';
+import {
   looksLikeNotebookToolAsk,
   looksLikeNotebookWriteAsk,
 } from '../../../../routes/chat/services/notebookToolAsk.js';
@@ -218,6 +222,29 @@ const THANKS = /(?<!\p{L})(?:danke\p{L}*|dank|thx)(?!\p{L})/iu;
 const WRITING_VERB = /(?<!\p{L})(?:schreib|formulier|verfass|entwirf|entwerfe)\p{L}*/iu;
 
 /**
+ * Hat eine Dokument- bzw. Tabellen-Bearbeitung in Tier 2.7 einen ADRESSATEN:
+ * das Artefakt kam im Turn direkt davor (gebaut oder bearbeitet), oder der
+ * Auftrag nennt es („das Dokument", „in der Tabelle", sein Titel)?
+ *
+ * `last_tool_context` überschreibt erst das nächste Artefakt, und
+ * `DOC_MODIFY_PATTERN` feuert auf einzelne Verben — zehn Turns nach einem
+ * Dokument wurde „Verbesser meine Formulierung: …" zu `modify_doc` (#3941).
+ * Das offene Dokument fehlt hier absichtlich: mit `currentDocument` oder einem
+ * Dokument-Chat entscheidet Tier 1 (`edit_current_doc`), und Tier 2.7 steht
+ * dann ohnehin still.
+ */
+function docFollowUpAddressed(
+  state: ChatGraphState,
+  kind: 'document' | 'sheet',
+  text: string,
+  title: string | null
+): boolean {
+  if (state.lastTurnEditables?.includes(kind) === true) return true;
+  const order = stripQuotedSpans(orderText(text));
+  return kind === 'document' ? namesDocumentTarget(order, title) : namesSheetTarget(order, title);
+}
+
+/**
  * Liest sich der Turn als Bearbeitung eines Artefakts, das der Thread hält?
  * Dieselben Muster wie Tier 2.7, das tiefer unten entscheidet. Der Anschluss
  * an einen Notebook-Turn steht dann zurück, sonst nähme er Tier 2.7 einen
@@ -227,11 +254,12 @@ const WRITING_VERB = /(?<!\p{L})(?:schreib|formulier|verfass|entwirf|entwerfe)\p
  * vorletzte" für einen alten Konnektor.
  */
 function editsThreadArtifact(state: ChatGraphState, text: string): boolean {
-  const kinds = new Set(
-    [state.lastToolContext, ...(state.threadArtifacts ?? [])].map((a) => a?.kind)
-  );
+  const held = [state.lastToolContext, ...(state.threadArtifacts ?? [])];
+  const kinds = new Set(held.map((a) => a?.kind));
+  const addressed = (kind: 'document' | 'sheet') =>
+    held.some((a) => a?.kind === kind && docFollowUpAddressed(state, kind, text, a.label ?? null));
   return (
-    ((kinds.has('document') || kinds.has('sheet')) && DOC_MODIFY_PATTERN.test(text)) ||
+    ((addressed('document') || addressed('sheet')) && DOC_MODIFY_PATTERN.test(text)) ||
     (kinds.has('image') &&
       (hasImageEditVerb(text) || isImageRegenRequest(text) || isImageEditInstruction(text))) ||
     (kinds.has('sharepic') && isSharepicEditInstruction(text))
@@ -1508,6 +1536,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         !hasAnyDocuments &&
         !hasBoards &&
         docModifyPattern.test(userContent) &&
+        // Und nur mit Adressat: `tc` ist Dauerzustand, das Verb allein kein
+        // Auftrag an ein altes Dokument (#3941, siehe docFollowUpAddressed).
+        docFollowUpAddressed(state, 'document', userContent, tc.label ?? null) &&
         // "Gib den Stand als JSON aus, keine Dokumentaktion" matches the modify
         // verbs and used to update the thread's last document anyway — this tier
         // is purely positive-patterned and had no negation check.
@@ -1544,6 +1575,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         !hasAnyDocuments &&
         !hasBoards &&
         docModifyPattern.test(userContent) &&
+        docFollowUpAddressed(state, 'sheet', userContent, tc.label ?? null) &&
         !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.sheet) &&
         // Same escape as the doc branch: a summary/bullet-point order without
         // the word "Tabelle" wants the answer in chat, not 7 sheet ops

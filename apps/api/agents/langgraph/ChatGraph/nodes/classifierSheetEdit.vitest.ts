@@ -87,6 +87,7 @@ describe('Tier 2.7 — Folgeauftrag auf die letzte Tabelle', () => {
     const result = await classifierNode(
       buildState('Mach die erste Zeile fett, aber keine Tabellenaktion', {
         lastToolContext: AFTER_SHEET,
+        lastTurnEditables: ['sheet'],
       })
     );
     expect(result.intent).not.toBe('edit_sheet');
@@ -122,7 +123,7 @@ describe('Tier 2.7 — Chat-Deliverable klebt nicht an der Tabelle', () => {
     const result = await classifierNode(
       buildState(
         'Neue Information: Der Termin aus Quelle B wurde bestätigt. Erstelle eine aktualisierte Zusammenfassung in genau zwei Stichpunkten.',
-        { lastToolContext: AFTER_SHEET }
+        { lastToolContext: AFTER_SHEET, lastTurnEditables: ['sheet'] }
       )
     );
     expect(result.intent).not.toBe('edit_sheet');
