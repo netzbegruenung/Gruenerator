@@ -10,6 +10,7 @@ import apiClient from '../../../components/utils/apiClient';
 import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { useAuthStore } from '../../../stores/authStore';
 import { cn } from '../../../utils/cn';
+import { downloadBlob } from '../../../utils/downloadFile';
 import { useTrashUndoToast } from '../../trash/trashUndoToast';
 import { buildStudioQuickStarts, QuickStartTiles } from '../components/QuickStartTiles';
 import { getSharepicRoute } from '../utils/sharepicRoutes';
@@ -310,15 +311,7 @@ const ImageGallery = () => {
       const response = await apiClient.get<Blob>(`/share/${image.shareToken}/download`, {
         responseType: 'blob',
       });
-      const blob = response.data;
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${image.title || 'bild'}_gruenerator.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      await downloadBlob(response.data, `${image.title || 'bild'}_gruenerator.png`);
     } catch (err) {
       console.error('Download failed:', err);
     }

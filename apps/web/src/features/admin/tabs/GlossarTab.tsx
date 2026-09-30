@@ -3,6 +3,7 @@ import { Alert, AlertDescription, Button, Input, Label, Skeleton } from '@gruene
 import { useId, useMemo, useState } from 'react';
 import { PiPlus, PiTrash } from 'react-icons/pi';
 
+import { downloadFile } from '../../../utils/downloadFile';
 import {
   useDeleteDictionary,
   useGlossary,
@@ -162,12 +163,7 @@ function GlossaryEditor({ name, exists, dictionaries, roots }: GlossaryEditorPro
 
   const exportTsv = () => {
     const tsv = cleaned.map((e) => `${e.source}\t${e.target}`).join('\n');
-    const url = URL.createObjectURL(new Blob([tsv], { type: 'text/tab-separated-values' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `glossar-${sourceLang}-${targetLang}.tsv`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    void downloadFile(tsv, `glossar-${sourceLang}-${targetLang}.tsv`, 'text/tab-separated-values');
   };
 
   const error = save.error?.message ?? remove.error?.message ?? null;

@@ -18,6 +18,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 
 import apiClient from '../../../components/utils/apiClient';
+import { downloadBlob } from '../../../utils/downloadFile';
 
 export const LANGUAGES_QUERY_KEY = ['translation', 'languages'] as const;
 
@@ -182,16 +183,5 @@ export async function downloadTranslatedDocument(jobId: string, filename: string
   const response = await apiClient.get<Blob>(`/translation/document/${jobId}/result`, {
     responseType: 'blob',
   });
-  const url = URL.createObjectURL(response.data);
-  try {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  } finally {
-    // Give the click a tick before revoking, or Safari cancels the download.
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
+  await downloadBlob(response.data, filename);
 }
