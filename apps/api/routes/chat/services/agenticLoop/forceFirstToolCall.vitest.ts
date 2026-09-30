@@ -395,6 +395,21 @@ describe('shouldForceFirstToolCall', () => {
       expect(force({ lastUserText: `${opening}${suchePaste}\n\n${order}` })).toBeNull();
     });
 
+    // Re-Review #3923: eine Werbezeile des Stoffs mit „bitte" oder Infinitiv
+    // darf eine Faktenfrage am anderen Rand nicht verdrängen.
+    it.each([
+      [`Ist das korrekt?\n\n${claim}\n\nBitte weitersagen!`],
+      [`stimmt das so?\n\n${claim}\n\nBitte vormerken: 12. Oktober`],
+      [`Bitte vormerken: 12. Oktober\n\n${claim}\n\nstimmt das so?`],
+      [`stimmt das so?\n\n${claim}\n\nHier mehr erfahren und Kommentare schreiben`],
+      [`Stimmen die Zahlen?\n\n${claim}\n\nJetzt Termine finden`],
+      [`Faktencheck\n\n${claim}\n\nBitte teilen!`],
+      [`schreib daraus einen Post\n\n${claim}\n\nAußerdem: stimmen die Zahlen?`],
+      [`fass das zusammen\n\n${claim}\n\nund prüf die Fakten`],
+    ])('eine Faktenfrage neben einer Werbezeile sucht: %s', (lastUserText) => {
+      expect(force({ lastUserText })).toBe('research_order');
+    });
+
     // Final-Review PR #3922: Gruß und Dank verdrängten den Recherche-Auftrag.
     it.each([
       [

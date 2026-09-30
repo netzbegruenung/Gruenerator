@@ -46,16 +46,28 @@ function isCourtesyParagraph(p: string): boolean {
 }
 
 /**
- * Liest sich wie ein Auftrag: beginnt wie einer, sagt „bitte" („Bitte kürzer
- * halten.", „kürzer bitte") oder endet im Infinitiv eines Auftrags
- * („rechtschreibung korrigieren:", „ins Englische übersetzen").
+ * Liest sich wie ein Auftrag. Bewusst weit: verworfen wird ein Rand nur, wenn
+ * er das NICHT tut und der andere schon — ein echter Auftrag darf nie einer
+ * Werbezeile des Stoffs weichen. Zählt: ein Auftragsanfang; „bitte"; eine
+ * Befehlsform irgendwo („und prüf die Fakten"); der Infinitiv eines Auftrags am
+ * Ende („rechtschreibung korrigieren:"); eine Frage („stimmt das so?") oder ein
+ * „Faktencheck".
  */
 const POLITE_RE = /(?<!\p{L})bitte(?!\p{L})/iu;
+const IMPERATIVE_ANYWHERE_RE =
+  /(?<!\p{L})(?:(?:schreib|erstell|formulier|verfass|entwerf|recherchier|such|find|pr[üu]f|[üu]berpr[üu]f|beantwort|fass|k[üu]rz|[üu]bersetz|[üu]berarbeit|korrigier|lektorier|verbesser|mach|zeig|erkl[äa]r|analysier|vergleich)e?|entwirf|antworte|gib)(?!\p{L})/iu;
 const ORDER_INFINITIVE_END_RE =
   /(?<!\p{L})(?:schreib|erstell|formulier|verfass|entwerf|recherchier|such|find|pr[üu]f|[üu]berpr[üu]f|beantwort|zusammenfass|k[üu]rz|[üu]bersetz|[üu]berarbeit|korrigier|lektorier|verbesser|umschreib|mach|zeig|erkl[äa]r|analysier|vergleich)en(?:\s+bitte)?[\s\p{P}]*$/iu;
+const QUESTION_RE = /\?[\s\p{P}]*$|(?<!\p{L})(?:fakten-?check|fact-?check)/iu;
 
 function readsAsOrder(p: string): boolean {
-  return ORDER_OPENING_RE.test(p) || POLITE_RE.test(p) || ORDER_INFINITIVE_END_RE.test(p);
+  return (
+    ORDER_OPENING_RE.test(p) ||
+    POLITE_RE.test(p) ||
+    IMPERATIVE_ANYWHERE_RE.test(p) ||
+    ORDER_INFINITIVE_END_RE.test(p) ||
+    QUESTION_RE.test(p)
+  );
 }
 
 function splitOrder(message: string): { order: string; material: boolean } {
