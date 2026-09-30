@@ -1,7 +1,13 @@
 import { registerDesktopSaver } from '@gruenerator/shared';
 import * as Sentry from '@sentry/react';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import {
+  createRoutesFromChildren,
+  matchRoutes,
+  useLocation,
+  useNavigationType,
+} from 'react-router-dom';
 
 import './assets/styles/index.css';
 import App from './App';
@@ -44,7 +50,17 @@ if (sentryDsn) {
     dsn: sentryDsn,
     environment: import.meta.env.MODE as string,
     enabled: import.meta.env.PROD,
-    tracesSampleRate: 0,
+    // Route-template names (/notebook/:slug) instead of raw URLs carrying resource names.
+    integrations: [
+      Sentry.reactRouterV7BrowserTracingIntegration({
+        useEffect,
+        useLocation,
+        useNavigationType,
+        createRoutesFromChildren,
+        matchRoutes,
+      }),
+    ],
+    tracesSampleRate: 0.1,
     ignoreErrors: [
       'ResizeObserver loop limit exceeded',
       'ResizeObserver loop completed with undelivered notifications',
