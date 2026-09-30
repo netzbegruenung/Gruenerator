@@ -668,7 +668,7 @@ const standardRoutes: RouteConfig[] = [
   // default layout (same as every other in-app screen): noChrome skips
   // PageLayout's isDesktop branch entirely, and DesktopTitlebar is the only
   // source of the frameless Tauri window's drag region and minimize/maximize/
-  // close controls on Windows/Linux — /login is reachable from inside the
+  // close controls on Windows — /login is reachable from inside the
   // desktop shell itself (sidebar "Anmelden" link, dead-session redirect).
   isDesktopApp()
     ? { path: '/login', component: LoginPage, public: true }
