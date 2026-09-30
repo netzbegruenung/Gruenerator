@@ -13,7 +13,10 @@ if (dsn) {
     dsn,
     environment: env.NODE_ENV,
     enabled: env.NODE_ENV === 'production',
-    tracesSampleRate: 0,
+    tracesSampleRate: 0.1,
+    // Only warn/error reach GlitchTip (see the transport in utils/logger.ts):
+    // info logs carry user ids and request snippets.
+    enableLogs: true,
   });
 }
 

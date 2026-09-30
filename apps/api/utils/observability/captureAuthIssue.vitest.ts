@@ -37,6 +37,13 @@ vi.mock('@sentry/node', () => ({
     });
   },
   captureException: captureExceptionMock,
+  // utils/logger.ts builds its GlitchTip transport at import.
+  createSentryWinstonTransport: (TransportClass: new () => object) =>
+    class extends TransportClass {
+      log(_info: unknown, callback: () => void) {
+        callback();
+      }
+    },
 }));
 
 vi.mock('../../config/env.js', () => ({

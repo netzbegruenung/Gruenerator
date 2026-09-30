@@ -1,8 +1,23 @@
+import * as Sentry from '@sentry/node';
 import * as winston from 'winston';
+import TransportStream from 'winston-transport';
 
 import { env } from '../config/env.js';
 
 const LOG_LEVEL = env.LOG_LEVEL;
+
+// No-op unless Sentry initialised with enableLogs (instrument.ts).
+const SentryWinstonTransport = Sentry.createSentryWinstonTransport(TransportStream, {
+  levels: ['warn', 'error'],
+});
+
+// Sentry serialises an Error attribute as "{}"; send its stack text instead.
+const errorsToText = winston.format((info) => {
+  for (const [key, value] of Object.entries(info)) {
+    if (value instanceof Error) info[key] = value.stack ?? `${value.name}: ${value.message}`;
+  }
+  return info;
+});
 
 const logger = winston.createLogger({
   level: LOG_LEVEL,
@@ -36,7 +51,10 @@ const logger = winston.createLogger({
       return `${timestamp} ${level.toUpperCase().padEnd(5)} ${svc} ${message}${meta}`;
     })
   ),
-  transports: [new winston.transports.Console()],
+  transports: [
+    new winston.transports.Console(),
+    new SentryWinstonTransport({ format: errorsToText() }),
+  ],
 });
 
 export const createLogger = (service: string): winston.Logger => logger.child({ service });
