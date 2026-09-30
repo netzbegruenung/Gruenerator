@@ -6,6 +6,7 @@ import {
   isMetaQuestionAbout,
   negatedOrMeta,
   hasExplicitSharepicWord,
+  asksForSharepic,
   forbidsPersistentAction,
   forbidsNewResearch,
   asksForChatDeliverable,
@@ -404,5 +405,33 @@ describe('asksForChatDeliverable', () => {
   it('feuert nicht auf echte Änderungsaufträge ohne Prosa-Deliverable', () => {
     expect(asksForChatDeliverable('Ändere die dritte Zeile auf 2027.')).toBe(false);
     expect(asksForChatDeliverable('Mach die erste Zeile fett.')).toBe(false);
+  });
+});
+
+// Beta-Audit 30.09.2026: das Wort allein machte aus Erwähnungen Sharepics.
+const SHAREPIC_ORDERS = [
+  'Erstelle ein Sharepic zur Wärmepumpe',
+  'mach daraus ein Sharepic',
+  'Sharepic zum Klimageld',
+  'ein Zitatbild mit Robert Habeck',
+  'Kannst du mir ein Sharepic zum Tempolimit machen?',
+  'Ich hätte gern ein Sharepic zu Solar',
+  'Dreizeiler zur Mietpreisbremse',
+];
+const SHAREPIC_MENTIONS = [
+  'Schreib eine Pressemitteilung. Dazu passt später ein Sharepic.',
+  "Ich brauche Infos zur Kampagne 'Grün wirkt' – Plakat, Sharepic, Flyer",
+  'Letzten Monat haben wir 12 Sharepics gemacht – ist das viel?',
+  'Was macht ein gutes Sharepic aus?',
+  'Post ohne Sharepic',
+];
+
+describe('asksForSharepic', () => {
+  it.each(SHAREPIC_ORDERS)('bestellt: %s', (text) => {
+    expect(asksForSharepic(text)).toBe(true);
+  });
+
+  it.each(SHAREPIC_MENTIONS)('erwähnt nur: %s', (text) => {
+    expect(asksForSharepic(text)).toBe(false);
   });
 });

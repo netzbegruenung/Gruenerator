@@ -62,6 +62,7 @@ import {
   sanitizeUIFileParts,
 } from './messageHelpers.js';
 import { notebookIdsForTurn } from './notebookScopeFromText.js';
+import { priorTurnMadeSharepic } from './sharepicEditHeuristics.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canWriteThread } from './threadAccessService.js';
 import {
@@ -896,6 +897,10 @@ export async function buildStreamContext({
     const lastTurnSteps = history?.lastTurnToolSteps() ?? [];
     initialState.lastTurnNotebookId = notebookIdFromSteps(lastTurnSteps);
     initialState.lastTurnRetrievalFailed = priorTurnRetrievalFailed(lastTurnSteps);
+    initialState.lastTurnSharepic = priorTurnMadeSharepic(
+      history?.lastTurnArtifacts() ?? [],
+      lastTurnSteps
+    );
     // Weitergereicht statt verworfen: der agentische Loop las bis hierher
     // dieselben Zeilen ein zweites und drittes Mal (Tool-Replay und
     // Quellen-Rehydrierung). Bleibt es null, weil der Lesevorgang scheiterte,

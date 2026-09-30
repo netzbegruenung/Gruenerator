@@ -51,6 +51,10 @@ vi.mock('../services/sharepicEditService.js', async (orig) => {
   const { sharepicEditMock } = await import('./harness/mocks.js');
   return sharepicEditMock((await orig()) as Record<string, unknown>);
 });
+vi.mock('../services/sharepicVariantHelpers.js', async (orig) => {
+  const { sharepicVariantHelpersMock } = await import('./harness/mocks.js');
+  return sharepicVariantHelpersMock((await orig()) as Record<string, unknown>);
+});
 vi.mock('../services/agenticLoop/agenticRespondService.js', async (orig) => {
   const { fakeStreamAgenticResponse } = await import('./harness/respondScript.js');
   return {
@@ -75,6 +79,8 @@ const { runTurn } = await import('./harness/trace.js');
 const { respond } = await import('./harness/respondScript.js');
 const { sharepicControl } = await import('./harness/mocks.js');
 const { NO_SHAREPIC_TO_EDIT_TEXT } = await import('../services/platformGating.js');
+const { createThread, setLastTurnArtifactsFixture } = await import('./harness/fakeThreadStore.js');
+const { TEST_USER } = await import('./harness/fakeUser.js');
 
 const suite = useChatApp();
 
@@ -158,6 +164,72 @@ describe('sharepic licence', () => {
 
     expect(trace.sharepicGenerated).toBe(false);
     expect(trace.sharepicVariants).toHaveLength(0);
+  });
+});
+
+// Beta-Audit 30.09.2026: „der Thread hat irgendwo ein Sharepic" war die einzige
+// Bedingung beider Bearbeitungs-Weichen im Router. Mit Einzelwort-Mustern wurde
+// so Tage später jeder zweite Satz zur Sharepic-Bearbeitung. Beobachtet wird die
+// Weiche am Ergebnis: die Bearbeitungs-Spur scheitert hier am Postgres-Wächter
+// und meldet `sharepic_edit_error`, die Neufassungs-Spur setzt `sharepic`.
+describe('sharepic edit needs an addressee', () => {
+  const PRIOR = {
+    canvasType: 'dreizeilen',
+    props: { line1: 'Mehr', line2: 'Radwege', line3: 'jetzt' },
+  };
+
+  async function followUp(text: string, lastTurnSharepic: boolean, editLaneOpen = true) {
+    const thread = await createThread(TEST_USER.id, 'gruenerator-universal', 'Sharepic-Thread');
+    // `editLaneOpen: false` lässt die Bearbeitungs-Spur ablehnen (kein Ziel),
+    // damit die Neufassungs-Spur dahinter überhaupt an die Reihe kommt.
+    sharepicControl.threadHasSharepic = editLaneOpen;
+    sharepicControl.lastVariant = PRIOR;
+    setLastTurnArtifactsFixture(
+      thread.id,
+      lastTurnSharepic ? [{ kind: 'sharepic', ref: null, label: 'Mehr Radwege jetzt' }] : []
+    );
+    const { trace, events } = await runTurn(suite.baseUrl(), {
+      threadId: thread.id,
+      messages: [userTurn(text)],
+    });
+    return {
+      trace,
+      editLane: events.some((e) => e.event === 'sharepic_edit_error'),
+    };
+  }
+
+  it.each([
+    'Verbesser den Antrag',
+    'Mach mir eine Liste der Argumente',
+    'Ist das im Wahlprogramm anders?',
+    'Zeig mir den Text des Beschlusses',
+  ])('does not claim „%s" turns after the sharepic', async (text) => {
+    const { trace, editLane } = await followUp(text, false);
+    expect(editLane).toBe(false);
+    expect(trace.intent).not.toBe('sharepic');
+  });
+
+  it('still edits when the order names the sharepic', async () => {
+    const { editLane } = await followUp('mach den Text auf dem Sharepic kürzer', false);
+    expect(editLane).toBe(true);
+  });
+
+  it.each(['Zeile 2 kürzer', 'anderes Hintergrundbild', 'verlängern'])(
+    'edits „%s" right after a sharepic',
+    async (text) => {
+      const { editLane } = await followUp(text, true);
+      expect(editLane).toBe(true);
+    }
+  );
+
+  it('refines right after a sharepic when the edit lane declines', async () => {
+    const { trace } = await followUp('verlängern', true, false);
+    expect(trace.intent).toBe('sharepic');
+  });
+
+  it('does not refine turns later when the edit lane declines', async () => {
+    const { trace } = await followUp('Verbesser den Antrag', false, false);
+    expect(trace.intent).not.toBe('sharepic');
   });
 });
 
