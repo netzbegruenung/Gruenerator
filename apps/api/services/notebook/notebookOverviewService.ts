@@ -217,16 +217,46 @@ const WORD = /^\p{L}[\p{L}*-]*$/u;
 /** The party's own label in regional form: "landtags-grün", "saargrüne". */
 const SELF_LABEL = /grün(e|en|er)?$/;
 
+/** "Kommandantenstr." from the press-release footer is an address, not a topic. */
+const STREET_ABBREVIATION = /\p{L}{3}str$/u;
+/** The role in a signature block: "Landesvorsitzende Nina Stahr", "Landessprecherin". */
+const ROLE = /(vorsitzend(e|er)?|sprecher(in)?)$/;
+/** A region or format prefix shorter than this would also catch unrelated words. */
+const PREFIX_MIN = 4;
+/** A plural or inflection of a format name: "wahlprüfstein" → "wahlprüfsteine". */
+const CATEGORY_SUFFIX_MAX = 2;
+/** A full name has to be found this often before its parts count as a name without the NER. */
+const KNOWN_NAME_MIN_DOCS = 2;
+
+/** A name part as the lemmatiser may have written it: "Erben" → erben, erbe. */
+function nameForms(part: string): string[] {
+  const stem = part.replace(/(?<=\p{L}{3})[ns]$/u, '');
+  return stem === part ? [part] : [part, stem];
+}
+
 /** Tokens of the full names the NER found in this document. */
 function nameTokens(doc: HeadDoc): Set<string> {
   const tokens = new Set<string>();
   for (const person of doc.persons.filter(isFullName)) {
     for (const part of person.toLowerCase().split(/\s+/)) {
-      tokens.add(part);
-      for (const piece of part.split('-')) tokens.add(piece);
+      for (const form of nameForms(part)) tokens.add(form);
+      for (const piece of part.split('-')) for (const form of nameForms(piece)) tokens.add(form);
     }
   }
   return tokens;
+}
+
+/** Full names the NER found in several documents, as the forms of each part. */
+function knownNames(docs: HeadDoc[]): string[][][] {
+  const counts = new Map<string, number>();
+  for (const doc of docs) {
+    for (const person of new Set(doc.persons.filter(isFullName).map((p) => p.toLowerCase()))) {
+      increment(counts, person);
+    }
+  }
+  return [...counts]
+    .filter(([, n]) => n >= KNOWN_NAME_MIN_DOCS)
+    .map(([person]) => person.split(/\s+/).map(nameForms));
 }
 
 /**
@@ -235,13 +265,28 @@ function nameTokens(doc: HeadDoc): Set<string> {
  * filled every list in the measurement. A word counts as a name fragment when
  * most of its documents name a person containing it; a collection-wide name
  * list would also drop "fischer" or "wolf" wherever they are the plain noun.
+ *
+ * The NER misses names in signature blocks ("Landesvorsitzende … Philmon
+ * Ghirmai, Kommandantenstr. 80" named him in 4 of 40 documents), so a document
+ * also names a person whose full name is known from elsewhere in the notebook
+ * when every part of it is among its keywords. Single parts do not count: the
+ * NER's spans carry role words ("Chaos-Minister Mansoori"), and their parts
+ * would drop "minister" or "wahl".
  */
 function nameFragments(docs: HeadDoc[]): Set<string> {
+  const known = knownNames(docs);
   const total = new Map<string, number>();
   const asName = new Map<string, number>();
   for (const doc of docs) {
+    const keywords = new Set(doc.keywords);
     const names = nameTokens(doc);
-    for (const word of new Set(doc.keywords)) {
+    for (const parts of known) {
+      const matched = parts.map((forms) => forms.find((form) => keywords.has(form)));
+      if (matched.every((form): form is string => form !== undefined)) {
+        for (const form of matched) names.add(form);
+      }
+    }
+    for (const word of keywords) {
       increment(total, word);
       if (names.has(word)) increment(asName, word);
     }
@@ -251,14 +296,40 @@ function nameFragments(docs: HeadDoc[]): Set<string> {
   );
 }
 
-function isSignatureCandidate(
-  word: string,
-  region: ReadonlySet<string>,
-  names: ReadonlySet<string>
-): boolean {
-  if (!WORD.test(word) || SELF_LABEL.test(word) || names.has(word)) return false;
-  for (const name of region) if (word.startsWith(name)) return false;
-  return true;
+/** Words of the notebook's own format labels ("Wahlprüfstein", "Beschluss/Resolution"). */
+function categoryTerms(docs: HeadDoc[]): Set<string> {
+  const terms = new Set<string>();
+  for (const doc of docs) {
+    for (const label of [doc.contentType, doc.contentTypeLabel]) {
+      for (const word of (label ?? '').toLowerCase().split(/[^\p{L}]+/u)) {
+        if (word.length >= PREFIX_MIN) terms.add(word);
+      }
+    }
+  }
+  return terms;
+}
+
+/**
+ * Which keywords stand for a topic. Names, the notebook's formats, its region
+ * ("saar", "bayer" included), the party's own label and signature blocks (role,
+ * address) fill every list otherwise — frequent and distinctive, but they say
+ * nothing about what the notebook covers. People have their own card.
+ */
+function topicTermFilter(docs: HeadDoc[], region: ReadonlySet<string>): (word: string) => boolean {
+  const names = nameFragments(docs);
+  const categories = [...categoryTerms(docs)];
+  return (word) => {
+    if (!WORD.test(word) || SELF_LABEL.test(word) || names.has(word)) return false;
+    if (ROLE.test(word) || STREET_ABBREVIATION.test(word)) return false;
+    for (const name of region) {
+      if (word.startsWith(name)) return false;
+      if (word.length >= PREFIX_MIN && name.startsWith(word)) return false;
+    }
+    return !categories.some(
+      (category) =>
+        word.startsWith(category) && word.length - category.length <= CATEGORY_SUFFIX_MAX
+    );
+  };
 }
 
 /**
@@ -272,7 +343,8 @@ function isSignatureCandidate(
  */
 export function signatureTerms(
   docs: HeadDoc[],
-  input: SignatureInput
+  input: SignatureInput,
+  isTopic: (word: string) => boolean = topicTermFilter(docs, input.region)
 ): Array<{ word: string; count: number; lift: number }> {
   const target = termStrata(docs);
   const all = termStrata(input.lvDocs);
@@ -281,10 +353,9 @@ export function signatureTerms(
     for (const [term, n] of stratum.terms) observed.set(term, (observed.get(term) ?? 0) + n);
   }
 
-  const names = nameFragments(docs);
   const hits: Array<{ word: string; count: number; lift: number; z: number }> = [];
   for (const [word, count] of observed) {
-    if (count < SIGNATURE_MIN_DOCS || !isSignatureCandidate(word, input.region, names)) continue;
+    if (count < SIGNATURE_MIN_DOCS || !isTopic(word)) continue;
     let expected = 0;
     let variance = 0;
     for (const [key, stratum] of target) {
@@ -408,6 +479,7 @@ export function aggregateOverview(
   }
 
   const byCountDesc = <T extends { count: number }>(a: T, b: T) => b.count - a.count;
+  const isTopic = tagged === 0 ? null : topicTermFilter(docs, signature?.region ?? new Set());
 
   return {
     totals: {
@@ -442,11 +514,12 @@ export function aggregateOverview(
       .sort(byCountDesc)
       .slice(0, TOP_PERSONS),
     terms:
-      tagged === 0
+      isTopic === null
         ? null
         : {
             documents: tagged,
             words: [...termCounts.entries()]
+              .filter(([word]) => isTopic(word))
               .map(([word, count]) => ({ word, count }))
               .sort(byCountDesc)
               .slice(0, TOP_TERMS),
@@ -455,6 +528,7 @@ export function aggregateOverview(
               .filter(
                 ([word, recent]) =>
                   recent >= RISING_MIN_RECENT &&
+                  isTopic(word) &&
                   trendOf(recent, recentTagged, termPrior.get(word) ?? 0, priorTagged) === 'up'
               )
               .map(([word, recentCount]) => ({
@@ -464,7 +538,7 @@ export function aggregateOverview(
               }))
               .sort((a, b) => b.recentCount - a.recentCount)
               .slice(0, TOP_RISING_TERMS),
-            signature: signature ? signatureTerms(docs, signature) : null,
+            signature: signature ? signatureTerms(docs, signature, isTopic) : null,
           },
     contentTypes: [...typeCounts.entries()]
       .map(([value, count]) => ({

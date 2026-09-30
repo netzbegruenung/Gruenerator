@@ -159,6 +159,32 @@ describe('aggregateOverview', () => {
     ]);
   });
 
+  it('keeps names, formats, roles and footer addresses out of the word lists', () => {
+    const result = aggregateOverview(
+      Array.from({ length: 4 }, (_, i) =>
+        doc({
+          published_at: daysAgo(5 + i),
+          content_type: 'wahlpruefstein',
+          content_type_label: 'Wahlprüfstein',
+          persons: ['Nina Stahr'],
+          keywords: [
+            'miete',
+            'nina',
+            'stahr',
+            'wahlprüfsteine',
+            'landesvorsitzender',
+            'kommandantenstr',
+            'landtags-grün',
+          ],
+        })
+      ),
+      NOW,
+      null
+    );
+
+    expect(result.terms?.words).toEqual([{ word: 'miete', count: 4 }]);
+  });
+
   it('has no terms before the enrichment tagged any document', () => {
     expect(aggregateOverview([doc({ published_at: daysAgo(5) })], NOW, null).terms).toBeNull();
   });
@@ -284,6 +310,65 @@ describe('signatureTerms', () => {
     );
 
     expect(words).toEqual(['fischer']);
+  });
+
+  it('recognises a known name in a signature block the NER did not tag', () => {
+    // The NER names "Philmon Ghirmai" twice; in the footer of the other 10
+    // documents both parts stand among the keywords, and that is a name too.
+    const target = Array.from({ length: 40 }, (_, i) =>
+      doc({
+        source_type: 'landesverband',
+        keywords: ['partei', ...(i < 12 ? ['philmon', 'ghirmai'] : [])],
+        persons: i < 2 ? ['Philmon Ghirmai'] : [],
+      })
+    );
+    const others = tagged(400, 'landesverband', () => ['partei']);
+
+    expect(signatureTerms(target, { lvDocs: [...target, ...others], region: none })).toEqual([]);
+  });
+
+  it('does not treat one part of a known name as the name', () => {
+    // The NER span carries the role word; "minister" alone is still a word.
+    const target = Array.from({ length: 40 }, (_, i) =>
+      doc({
+        source_type: 'landesverband',
+        keywords: ['partei', ...(i < 12 ? ['minister'] : [])],
+        persons: i >= 30 && i < 33 ? ['Chaos-Minister Mansoori'] : [],
+      })
+    );
+    const others = tagged(400, 'landesverband', () => ['partei']);
+
+    const words = signatureTerms(target, { lvDocs: [...target, ...others], region: none }).map(
+      (t) => t.word
+    );
+
+    expect(words).toEqual(['minister']);
+  });
+
+  it('matches a name to its lemmatised keyword', () => {
+    // "Stephanie Erben" comes out of the lemmatiser as "stephanie", "erbe".
+    const target = Array.from({ length: 40 }, (_, i) =>
+      doc({
+        source_type: 'landesverband',
+        keywords: ['partei', ...(i < 12 ? ['stephanie', 'erbe'] : [])],
+        persons: i < 7 ? ['Stephanie Erben'] : [],
+      })
+    );
+    const others = tagged(400, 'landesverband', () => ['partei']);
+
+    expect(signatureTerms(target, { lvDocs: [...target, ...others], region: none })).toEqual([]);
+  });
+
+  it('skips a shortened region name', () => {
+    const target = tagged(40, 'landesverband', () => ['saar', 'bayer', 'partei']);
+    const others = tagged(400, 'landesverband', () => ['partei']);
+
+    expect(
+      signatureTerms(target, {
+        lvDocs: [...target, ...others],
+        region: new Set([...regionTerms('Grüne Saarland'), ...regionTerms('Grüne Bayern')]),
+      })
+    ).toEqual([]);
   });
 
   it('is null outside LV notebooks and set inside them', () => {
