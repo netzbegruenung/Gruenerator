@@ -101,12 +101,27 @@ describe('looksLikeRecurringOrder — satzweise, nicht absatzweise', () => {
 describe('CHAT_HISTORY_DIRECT — die Präzisionshälfte', () => {
   it.each([
     'Was haben wir letztes Mal zur Kampagnenplanung besprochen?',
-    'Finde mein Dokument über Windkraft',
-    'Zeig mir meine Präsentationen',
     'Erinnerst du dich an unseren Chat über den Newsletter?',
-    'In welchem Reel habe ich über Verkehr geredet?',
+    'Was haben wir gestern zum Antrag besprochen?',
   ])('beansprucht: %s', (text) => {
     expect(CHAT_HISTORY_DIRECT.test(text)).toBe(true);
+  });
+
+  // #3913: eigene Inhalte, die `find_content`/`media` durchsuchen, sind keine
+  // Chat-Erinnerung — die Route fand dort 0 Threads und antwortete „kein Zugriff".
+  it.each([
+    'zeig mir meine Reels zum Thema Seilbahn',
+    'In welchem Reel habe ich über Verkehr geredet?',
+    'zeig mir meine Videos',
+    'welches Video habe ich zu Verkehr gemacht',
+    'das Video das ich hochgeladen habe',
+    'Finde mein Dokument über Windkraft',
+    'Zeig mir meine Präsentationen',
+    'zeig mir meine Boards',
+    'die Tabelle die ich gestern gemacht habe',
+    'das Board das ich letzte Woche angelegt habe',
+  ])('lässt eigene Inhalte dem Loop: %s', (text) => {
+    expect(CHAT_HISTORY_DIRECT.test(text)).toBe(false);
   });
 
   it.each([
