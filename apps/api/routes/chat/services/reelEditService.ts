@@ -55,7 +55,12 @@ import type { ReelPickerProject } from '@gruenerator/contracts';
 
 const log = createLogger('ReelEdit');
 
-export { isReelEditInstruction, hasReelEditVerb, hasStrongReelNoun } from './reelEditHeuristics.js';
+export {
+  isReelEditInstruction,
+  hasReelEditVerb,
+  hasStrongReelNoun,
+  namesReelTarget,
+} from './reelEditHeuristics.js';
 
 const PICKER_PROJECT_LIMIT = 10;
 /** Guard against pathological projects blowing up the prompt; reels are short. */
