@@ -212,6 +212,17 @@ describe('readThreadToolHistory.lastTurnArtifacts', () => {
     queryMock.mockResolvedValueOnce([{ tool_results: sharepicMeta, is_last_turn: false }]);
     expect((await readThreadToolHistory('thread-1')).lastTurnArtifacts()).toEqual([]);
   });
+  // #3941: eine Dokument- oder Tabellen-Bearbeitung speichert nur ihren Intent.
+  it('lastTurnIntent reads the intent of the last completed turn only', async () => {
+    queryMock.mockResolvedValueOnce([
+      { tool_results: { intent: 'edit_sheet' }, is_last_turn: true },
+    ]);
+    expect((await readThreadToolHistory('thread-1')).lastTurnIntent()).toBe('edit_sheet');
+    queryMock.mockResolvedValueOnce([
+      { tool_results: { intent: 'modify_doc' }, is_last_turn: false },
+    ]);
+    expect((await readThreadToolHistory('thread-1')).lastTurnIntent()).toBeNull();
+  });
 });
 
 describe('toolSteps order', () => {
