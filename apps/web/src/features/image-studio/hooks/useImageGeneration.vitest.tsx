@@ -10,11 +10,15 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { renderHook, act } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../../test/msw-server';
 
 import { useImageGeneration } from './useImageGeneration';
+
+// The desktop notifier reads user defaults through TanStack Query; this suite
+// only exercises text generation, so it runs without a QueryClientProvider.
+vi.mock('../../../utils/desktopNotification', () => ({ useDesktopNotify: () => () => {} }));
 
 const BASE = 'http://localhost/api/sharepic/text';
 
