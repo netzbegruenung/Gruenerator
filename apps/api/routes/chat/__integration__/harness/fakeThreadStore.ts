@@ -364,6 +364,12 @@ export async function readThreadToolHistory(threadId: string): Promise<ThreadToo
       (lastTurnToolStepFixtures.get(threadId) as PersistedStep[] | undefined) ??
       (newestIsLastTurn ? toToolSteps(rows.slice(0, 1), Number.MAX_SAFE_INTEGER) : []),
     lastTurnArtifacts: () => lastTurnArtifactFixtures.get(threadId) ?? [],
+    lastTurnIntent: () => {
+      const intent = newestIsLastTurn
+        ? (rows[0] as { intent?: unknown } | undefined)?.intent
+        : null;
+      return typeof intent === 'string' ? intent : null;
+    },
     sources: (limit = 10) => toSources(rows, limit),
     lastGeneratedImageUrl: () => null,
   };

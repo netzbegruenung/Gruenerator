@@ -693,8 +693,9 @@ export interface ChatGraphState {
   threadLookups?: PriorLookup[];
   /**
    * Was der Assistenz-Turn DIREKT vor diesem gebaut oder bearbeitet hat
-   * (Sharepic, Social-Post, Reel). `lastToolContext` taugt dafür nicht:
-   * `chat_threads.last_tool_context` überschreibt erst das NÄCHSTE Artefakt, und
+   * (Sharepic, Social-Post, Reel, Bild, Dokument, Tabelle). `lastToolContext`
+   * taugt dafür nicht: `chat_threads.last_tool_context` überschreibt erst das
+   * NÄCHSTE Artefakt, und
    * ohne diesen Adressaten wurde Tage später „Verbesser den Antrag" zur
    * Sharepic-Bearbeitung (Beta-Audit 30.09.2026). Eine Liste statt eines
    * Schalters je Art, weil jede Bearbeitungs-Weiche dieselbe Frage stellt —

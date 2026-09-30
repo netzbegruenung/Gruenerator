@@ -54,6 +54,7 @@ import {
   creationOrderPattern,
   dictatesInlineTableColumns,
   type ForbiddableArtifact,
+  PDF_ORDER_PATTERN,
 } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 
 export interface ArtifactKind {
@@ -157,10 +158,14 @@ export const ARTIFACT_KINDS = [
     mentionToken: ARTIFACT_CREATE_TOKENS.pdf,
     loopToolName: 'create_pdf',
     forbiddableFamily: 'pdf',
-    createPattern: creationOrderPattern(
-      'pdf|briefkopf|antragsformular|anmeldeformular|fragebogen' +
-        '|(?:ausf(?:ü|ue)llbar)[a-zäöü]*\\s+(?:formular|vorlage)',
-      { extraVerbs: 'schreib', forward: 60 }
+    // Die Regel der Klassifikator-Regel `create_pdf`, dazu das nackte „PDF" am
+    // Erstell-Verb („bitte eine schöne pdf erstellen"), das die Heuristik
+    // bewusst nicht kennt. Eine eigene Nomen-Liste mit `fragebogen` und
+    // `schreib` hat „Schreib einen Fragebogen-Text für die Umfrage …" zum PDF
+    // gemacht, das die Heuristik längst als Text las (Beta-Test 30.09.2026).
+    createPattern: new RegExp(
+      `${PDF_ORDER_PATTERN.source}|${creationOrderPattern('pdf', { forward: 60 }).source}`,
+      'i'
     ),
     label: 'PDF',
     extraGuard: null,
