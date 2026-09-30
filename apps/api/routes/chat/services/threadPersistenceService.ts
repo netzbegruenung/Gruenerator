@@ -11,6 +11,7 @@ import { generateSlugSuffix } from '@gruenerator/shared/utils';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 
 import { type PersistedStep } from './agenticLoop/types.js';
+import { ROW_WINDOW, toSources, toToolSteps } from './threadToolProjections.js';
 
 import type { SearchResult, ThreadToolContext } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { UserProfile } from '../../../services/user/types.js';
@@ -419,25 +420,6 @@ export async function setThreadToolContext(
   ]);
 }
 
-/**
- * How deep each projection looks into the thread. Four functions used to run
- * the SAME query — `thread_id`, `role='assistant'`, `tool_results IS NOT NULL`,
- * newest first — differing in nothing but this number, and a single loop turn
- * fired three of them.
- *
- * The windows stay PER PROJECTION on purpose. The widest is read once and each
- * projection slices its own depth, so unifying the read does not quietly change
- * how far back replay or source rehydration reaches. Whether artifacts really
- * need 20 where sources get 12 is a product question; this is not the change
- * that answers it.
- */
-const ROW_WINDOW = {
-  artifacts: 20,
-  toolSteps: 12,
-  sources: 12,
-  lastImage: 10,
-} as const;
-
 const WIDEST_ROW_WINDOW = Math.max(...Object.values(ROW_WINDOW));
 
 /** The four `tool_results` keys the projections below read. */
@@ -664,24 +646,6 @@ export async function getRecentToolSteps(threadId: string, limit = 6): Promise<P
   return toToolSteps((await readThreadToolRows(threadId)).rows, limit);
 }
 
-function toToolSteps(rows: ThreadToolRow[], limit: number): PersistedStep[] {
-  // Newest first throughout, then one reverse: rows come newest first, but a
-  // row's calls are stored in call order, so they are walked backwards here.
-  // Walking them forwards reversed the order inside a turn and made the
-  // turn's FIRST call look like its newest.
-  const steps: PersistedStep[] = [];
-  for (const row of rows.slice(0, ROW_WINDOW.toolSteps)) {
-    const calls = (Array.isArray(row.toolCalls) ? row.toolCalls : []) as PersistedStep[];
-    for (const c of [...calls].reverse()) {
-      if (c && typeof c === 'object' && typeof (c as PersistedStep).toolName === 'string') {
-        steps.push(c);
-      }
-    }
-    if (steps.length >= limit) break;
-  }
-  return steps.slice(0, limit).reverse();
-}
-
 /**
  * Recent search sources of a thread, for cross-turn REGISTRY rehydration.
  * Reads the `searchResults` array persisted on each assistant message's
@@ -708,24 +672,6 @@ export async function getRecentThreadSources(
   limit = 10
 ): Promise<SearchResult[]> {
   return toSources((await readThreadToolRows(threadId)).rows, limit);
-}
-
-function toSources(rows: ThreadToolRow[], limit: number): SearchResult[] {
-  const collected: SearchResult[] = [];
-  const seen = new Set<string>();
-  for (const row of rows.slice(0, ROW_WINDOW.sources)) {
-    const results = (Array.isArray(row.searchResults) ? row.searchResults : []) as SearchResult[];
-    for (const r of results) {
-      if (!r || typeof r !== 'object') continue;
-      if (typeof r.content !== 'string' || r.content.trim() === '') continue;
-      const key = `${r.url ?? ''}::${r.title ?? ''}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      collected.push(r);
-      if (collected.length >= limit) return collected;
-    }
-  }
-  return collected;
 }
 
 export interface ThreadSettings {
