@@ -475,6 +475,26 @@ describe('stripPhantomMemoryClaim (#3914)', () => {
     expect(stripPhantomMemoryClaim(es, { memoryRan: false, stepCount: 2 }).text).toBe(es);
   });
 
+  it('entfernt nur den Behauptungsabsatz, Sätze und Absatzstruktur bleiben', () => {
+    const text = 'Satz A. Satz B.\n\nIch habe mir das notiert.';
+    expect(stripPhantomMemoryClaim(text, { memoryRan: false, stepCount: 0 }).text).toBe(
+      'Satz A. Satz B.'
+    );
+    const mid = 'Absatz eins.\n\nIch habe mir das notiert.\n\nAbsatz zwei.';
+    expect(stripPhantomMemoryClaim(mid, { memoryRan: false, stepCount: 0 }).text).toBe(
+      'Absatz eins.\n\nAbsatz zwei.'
+    );
+    const inline = 'A. Ich habe mir das notiert. B.';
+    expect(stripPhantomMemoryClaim(inline, { memoryRan: false, stepCount: 0 }).text).toBe('A. B.');
+  });
+
+  it('entfernt den Satz in einer zeilenumbrochenen Listenantwort', () => {
+    const text = '- Punkt eins\n- Punkt zwei\nIch habe mir das notiert.\n- Punkt drei';
+    expect(stripPhantomMemoryClaim(text, { memoryRan: false, stepCount: 0 }).text).toBe(
+      '- Punkt eins\n- Punkt zwei\n- Punkt drei'
+    );
+  });
+
   it('liefert nie eine leere Antwort', () => {
     expect(
       stripPhantomMemoryClaim('Ich habe mir das notiert.', { memoryRan: false, stepCount: 0 }).text

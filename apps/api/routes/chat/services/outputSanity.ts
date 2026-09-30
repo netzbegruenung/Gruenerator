@@ -465,14 +465,26 @@ export function stripPhantomMemoryClaim(
     return { text: typeof text === 'string' ? text : '', removed: [] };
   }
   const removed: string[] = [];
-  const kept = text.split(/(?<=[.!?])[ \t]+/).filter((sentence) => {
+  // Ungerade Einträge sind Trenner (Leerraum nach Satzende oder Zeilenumbruch);
+  // sie bleiben erhalten, damit Absätze und Listen heil bleiben.
+  const parts = text.split(/((?<=[.!?])[ \t]+|\s*\n\s*)/);
+  let out = '';
+  let pendingSep = '';
+  for (let i = 0; i < parts.length; i += 2) {
+    const sentence = parts[i];
+    const sep = parts[i + 1] ?? '';
     const hit =
       MEMORY_NOTE_CLAIM_RE.test(sentence) ||
       (turn.stepCount === 0 && MEMORY_SAVED_CLAIM_RE.test(sentence));
-    if (hit) removed.push(sentence.trim());
-    return !hit;
-  });
+    if (hit) {
+      removed.push(sentence.trim());
+      // Der Trenner des Satzes entfällt mit ihm; der davor hält die Nachbarn zusammen.
+      continue;
+    }
+    out += pendingSep + sentence;
+    pendingSep = sep;
+  }
   if (removed.length === 0) return { text, removed };
-  const out = kept.join(' ').trim();
+  out = out.trim();
   return { text: out.length > 0 ? out : PHANTOM_NOTE_FALLBACK, removed };
 }
