@@ -12,6 +12,7 @@ import apiClient from '../../components/utils/apiClient';
 import { buildUrl } from '../../config/domains';
 import { useAuthStore } from '../../stores/authStore';
 import { cn } from '../../utils/cn';
+import { downloadBlob } from '../../utils/downloadFile';
 import { getPublicAppOrigin } from '../../utils/platform';
 import { canShare, shareContent, copyToClipboard } from '../../utils/shareUtils';
 
@@ -167,20 +168,12 @@ const SharedMediaPage = () => {
       const { mimeType, extension } = fileMeta(shareData);
 
       const blob = new Blob([response.data as BlobPart], { type: mimeType });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-
       const filename = `${shareData?.title || 'media'}_gruenerator.${extension}`.replace(
         /[^a-zA-Z0-9_.-]/g,
         '_'
       );
-      link.download = filename;
 
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      await downloadBlob(blob, filename);
 
       setDownloadSuccess(true);
       setTimeout(() => setDownloadSuccess(false), 3000);

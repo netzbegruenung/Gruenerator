@@ -5,6 +5,7 @@ import {
   type SharepicVariant,
 } from '@gruenerator/chat';
 import { type RoleRef } from '@gruenerator/contracts';
+import { downloadBlob } from '@gruenerator/shared';
 import { ApiError, getContractsClient, type UnauthorizedInfo } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
@@ -287,14 +288,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           { images, canvasType },
           { responseType: 'blob' }
         );
-        const url = URL.createObjectURL(response.data as Blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `gruenerator-${canvasType}-${Date.now()}.zip`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        await downloadBlob(response.data as Blob, `gruenerator-${canvasType}-${Date.now()}.zip`);
       },
       fetchSharepicVersions: async (canvasId: string) => {
         const result = await getContractsClient().canvas.listVersions({

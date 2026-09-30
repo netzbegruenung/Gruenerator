@@ -49,6 +49,7 @@ const LazyShareModal = lazy(() =>
 import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { formatRelativeDate } from '../../../utils/dateFormatter';
+import { downloadBlob } from '../../../utils/downloadFile';
 import { parseDocPreview } from '../../../utils/parseDocPreview';
 import { parseTablePreview } from '../../../utils/parseTablePreview';
 import {
@@ -265,14 +266,10 @@ const ImageOwnerCard = memo(
         const res = await apiClient.get<Blob>(`/share/${item.id}/download`, {
           responseType: 'blob',
         });
-        const url = window.URL.createObjectURL(res.data as Blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${(item.title || 'bild').replace(/[^a-zA-Z0-9_.-]/g, '_')}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
+        await downloadBlob(
+          res.data as Blob,
+          `${(item.title || 'bild').replace(/[^a-zA-Z0-9_.-]/g, '_')}.png`
+        );
       } catch (err) {
         console.warn('[ImageOwnerCard] download failed', err);
       }

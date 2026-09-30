@@ -1,6 +1,8 @@
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
 
+import { downloadBlob } from '../../utils/downloadFile';
+
 import type { PdfExportLayout, pdfExportLetterSchema } from '@gruenerator/contracts';
 import type { z } from 'zod';
 
@@ -76,14 +78,7 @@ export const useExportStore = create<ExportState>((set) => ({
       // binaryFileResponseSchema is z.unknown(); axios adapter returns Blob
       // when the path is in BINARY_RESPONSE_PATHS in contractsClient.ts.
       const blob = result.body as Blob;
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      await downloadBlob(blob, filename);
     } catch (error) {
       console.error('PDF generation error:', error);
       throw error;
@@ -106,14 +101,7 @@ export const useExportStore = create<ExportState>((set) => ({
         throw new ApiError(result.status, `DOCX generation failed (HTTP ${result.status})`);
       }
       const blob = result.body as Blob;
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      await downloadBlob(blob, filename);
     } catch (error) {
       console.error('DOCX generation error:', error);
       throw error;

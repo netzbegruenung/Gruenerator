@@ -22,6 +22,7 @@ import apiClient from '../../../components/utils/apiClient';
 import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { useAuthStore } from '../../../stores/authStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import { downloadBlob } from '../../../utils/downloadFile';
 import { resolveApiAssetUrl, shareThumbnailPreviewUrl } from '../../../utils/platform';
 import { showTrashUndoToast } from '../../trash/trashUndoToast';
 import ReelsSection from '../../workplace/components/ReelsSection';
@@ -294,14 +295,10 @@ const StudioGallerySections = () => {
       const res = await apiClient.get<Blob>(`/share/${item.shareToken}/download`, {
         responseType: 'blob',
       });
-      const url = window.URL.createObjectURL(res.data as Blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${(item.title || 'sharepic').replace(/[^a-zA-Z0-9_.-]/g, '_')}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      await downloadBlob(
+        res.data as Blob,
+        `${(item.title || 'sharepic').replace(/[^a-zA-Z0-9_.-]/g, '_')}.png`
+      );
     } catch (err) {
       console.warn('[StudioGallerySections] download failed', err);
     }

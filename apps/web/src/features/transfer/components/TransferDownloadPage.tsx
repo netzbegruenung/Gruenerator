@@ -15,6 +15,7 @@ import {
 
 import Spinner from '../../../components/common/Spinner';
 import { buildUrl } from '../../../config/domains';
+import { downloadBlob } from '../../../utils/downloadFile';
 import { formatFileSize } from '../../../utils/formatFileSize';
 import { getPublicAppOrigin } from '../../../utils/platform';
 
@@ -102,14 +103,7 @@ export default function TransferDownloadPage({ shareToken, shareData }: Transfer
       }
 
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = shareData.fileName || 'download';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
+      await downloadBlob(blob, shareData.fileName || 'download');
     } catch {
       setDownloadError('Download fehlgeschlagen. Bitte versuche es erneut.');
     } finally {

@@ -1,6 +1,7 @@
 'use client';
 
 // `Image` umbenannt: unter diesem Namen hält jsx-a11y das Icon für ein <img>.
+import { downloadDataUrl } from '@gruenerator/shared';
 import { Loader2, Image as ImageIcon, Download, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -48,12 +49,7 @@ export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {
   }, [isLightboxOpen]);
 
   const handleDownload = () => {
-    const link = document.createElement('a');
-    link.href = imageSrc;
-    link.download = image.filename || 'generated-image.jpg';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    void downloadDataUrl(imageSrc, image.filename || 'generated-image.jpg');
   };
 
   return (

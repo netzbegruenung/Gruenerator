@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 
+import { downloadBlob } from '../../../utils/downloadFile';
 import { generatePdf, validateReise } from '../api';
 import { STEPS } from '../constants';
 import {
@@ -85,12 +86,7 @@ export function PruefenStep({
     setError(null);
     try {
       const { filename, blob } = await generatePdf(state);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadBlob(blob, filename);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'PDF-Erstellung fehlgeschlagen');
     } finally {
