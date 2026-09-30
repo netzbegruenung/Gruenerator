@@ -2,7 +2,8 @@
  * ts-rest contract router for emoji reactions (/api/auth/reactions).
  *
  * Permission per entity type lives in `services/entityReactions/reactionTargets.ts`;
- * both routes answer with the entity's fresh summaries. requireAuth is applied
+ * its optional `onChanged` hook runs after a successful change (board comments:
+ * live bump for other board viewers). Both routes answer with the entity's fresh summaries. requireAuth is applied
  * at the /api/auth/reactions prefix in routes.ts.
  */
 import { entityReactionsContract, type ReactionEntityType } from '@gruenerator/contracts';
@@ -43,9 +44,10 @@ export const entityReactionsContractRouter = s.router(entityReactionsContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const { entityType, entityId, emoji } = args.params;
-      const access = await reactionTargets[entityType](userId, entityId);
-      if (access !== 'ok') return denied(access);
+      const target = await reactionTargets[entityType](userId, entityId);
+      if (target.access !== 'ok') return denied(target.access);
       await addReaction(userId, entityType, entityId, emoji);
+      target.onChanged?.();
       return await summariesFor(entityType, entityId, userId);
     } catch (error) {
       log.error('Error adding reaction', { error });
@@ -57,9 +59,10 @@ export const entityReactionsContractRouter = s.router(entityReactionsContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const { entityType, entityId, emoji } = args.params;
-      const access = await reactionTargets[entityType](userId, entityId);
-      if (access !== 'ok') return denied(access);
+      const target = await reactionTargets[entityType](userId, entityId);
+      if (target.access !== 'ok') return denied(target.access);
       await removeReaction(userId, entityType, entityId, emoji);
+      target.onChanged?.();
       return await summariesFor(entityType, entityId, userId);
     } catch (error) {
       log.error('Error removing reaction', { error });

@@ -5,9 +5,14 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../routes/boards/boardAccess.js', () => ({ checkBoardAccess: vi.fn() }));
+vi.mock('../boards/boardLiveSignalService.js', () => ({ bumpCardComments: vi.fn() }));
 
-const { checkBoardCommentReaction, checkGroupCommentReaction, checkGroupShareReaction } =
-  await import('./reactionTargets.js');
+const {
+  checkBoardCommentReaction,
+  checkGroupCommentReaction,
+  checkGroupShareReaction,
+  reactionTargets,
+} = await import('./reactionTargets.js');
 
 type Deps = Parameters<typeof checkGroupShareReaction>[2];
 
@@ -32,7 +37,7 @@ function fakeDeps(f: Fake = {}) {
         is_system: false,
       };
     }
-    return f.entity === undefined ? { group_id: 'g1', board_id: 'b1' } : f.entity;
+    return f.entity === undefined ? { group_id: 'g1', board_id: 'b1', card_id: 'c1' } : f.entity;
   });
   const checkBoardAccess = vi.fn(async () => ({
     hasAccess: f.board?.hasAccess ?? true,
@@ -40,12 +45,14 @@ function fakeDeps(f: Fake = {}) {
     createdBy: f.board ? f.board.createdBy : 'owner',
     canEdit: false,
   }));
+  const bumpCardComments = vi.fn(async () => {});
   const deps = {
     postgres: { queryOne },
     isInstanceAdmin: vi.fn(async () => false),
     checkBoardAccess,
+    bumpCardComments,
   } as unknown as Deps;
-  return { deps, queryOne, checkBoardAccess };
+  return { deps, queryOne, checkBoardAccess, bumpCardComments };
 }
 
 describe.each([
@@ -84,24 +91,38 @@ describe.each([
 
 describe('board_comment', () => {
   it('Board-Zugriff → ok, geprüft am Board des Kommentars', async () => {
-    const { deps, checkBoardAccess } = fakeDeps();
-    expect(await checkBoardCommentReaction('u1', ID, deps)).toBe('ok');
+    const { deps, checkBoardAccess, bumpCardComments } = fakeDeps();
+    const result = await checkBoardCommentReaction('u1', ID, deps);
+    expect(result.access).toBe('ok');
     expect(checkBoardAccess).toHaveBeenCalledWith('b1', 'u1');
+    expect(bumpCardComments).not.toHaveBeenCalled();
+    result.onChanged?.();
+    expect(bumpCardComments).toHaveBeenCalledWith('b1', 'c1');
   });
 
-  it('kein Zugriff → forbidden', async () => {
+  it('kein Zugriff → forbidden, ohne Hook', async () => {
     const { deps } = fakeDeps({ board: { hasAccess: false, createdBy: 'owner' } });
-    expect(await checkBoardCommentReaction('u1', ID, deps)).toBe('forbidden');
+    expect(await checkBoardCommentReaction('u1', ID, deps)).toEqual({ access: 'forbidden' });
   });
 
   it('Board gelöscht → not_found', async () => {
     const { deps } = fakeDeps({ board: { hasAccess: false, createdBy: null } });
-    expect(await checkBoardCommentReaction('u1', ID, deps)).toBe('not_found');
+    expect(await checkBoardCommentReaction('u1', ID, deps)).toEqual({ access: 'not_found' });
   });
 
   it('Kommentar unbekannt → not_found', async () => {
     const { deps, checkBoardAccess } = fakeDeps({ entity: null });
-    expect(await checkBoardCommentReaction('u1', ID, deps)).toBe('not_found');
+    expect(await checkBoardCommentReaction('u1', ID, deps)).toEqual({ access: 'not_found' });
     expect(checkBoardAccess).not.toHaveBeenCalled();
+  });
+});
+
+describe('Registry', () => {
+  it('Gruppen-Typen tragen keinen onChanged-Hook', async () => {
+    const result = await reactionTargets.group_share('u1', 'keine-uuid');
+    expect(result).toEqual({ access: 'not_found' });
+    expect(await reactionTargets.group_comment('u1', 'keine-uuid')).toEqual({
+      access: 'not_found',
+    });
   });
 });
