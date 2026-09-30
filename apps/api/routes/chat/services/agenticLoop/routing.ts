@@ -262,6 +262,34 @@ export function reworksSuppliedText(raw: string): boolean {
 }
 
 /**
+ * Eine Frage über die eigene VERGANGENE Handlung des Assistenten — „hast du
+ * vorhin in meinen Dokumenten nachgesehen?", „wo hast du das gefunden?". Sie ist
+ * kurz und rückbezüglich, steht hinter einem Abruf-Turn und würde vom siebten
+ * Weg in `shouldForceFirstToolCall` als `followup` gezwungen — dabei will sie
+ * nichts Neues, die Antwort steht im Thread und in den mitgeführten Quellen (#3916).
+ *
+ * Bewusst eng: nur „hast du" + höchstens vier Füllwörter + Partizip der
+ * Abrufhandlung. Füllwörter, die NEUEN Inhalt einführen (auch, noch, was, etwas,
+ * zu/zur/zum, über), lassen den Treffer platzen — „hast du auch was zur FDP?"
+ * und „hast du noch etwas zur FDP gefunden?" bitten um Neues und müssen zwingen.
+ * „Wo/woher hast du das gefunden?" fragt nach der Quelle des Vorigen und zählt
+ * mit: die mitgeführten Quellen beantworten das ohne neuen Abruf.
+ */
+const PAST_LOOKUP_PARTICIPLE =
+  '(?:nachgesehen|nachgeschaut|nachgeschlagen|gesucht|recherchiert|geprüft|gefunden|gelesen|durchsucht)';
+const OWN_PAST_LOOKUP_RE = new RegExp(
+  `(?<!\\p{L})hast\\s+du\\s+(?:(?!(?:auch|noch|was|etwas|zu|zur|zum|über)(?!\\p{L}))[\\p{L}-]+\\s+){0,4}${PAST_LOOKUP_PARTICIPLE}(?!\\p{L})`,
+  'iu'
+);
+const WHERE_FOUND_RE =
+  /(?<!\p{L})(?:woher\s+hast\s+du\s+(?:das|die|den)|wo\s+hast\s+du\s+(?:das|die|den)\b[^?]{0,30}?gefunden)(?!\p{L})/iu;
+
+export function asksAboutOwnPastAction(raw: string): boolean {
+  const t = (raw ?? '').trim();
+  return OWN_PAST_LOOKUP_RE.test(t) || WHERE_FOUND_RE.test(t);
+}
+
+/**
  * Eine Anschlussfrage, die den Gegenstand des VORIGEN Turns weiterträgt statt
  * ein eigenes Thema zu eröffnen — „Und die FDP?", „Was ist mit Bayern?".
  *
