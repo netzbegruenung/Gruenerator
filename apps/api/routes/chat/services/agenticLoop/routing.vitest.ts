@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  asksAboutOwnPastAction,
   looksLikeChitchatTurn,
   looksLikeToolableQuestion,
   looksLikeCompoundGeneration,
@@ -1502,5 +1503,38 @@ describe('umlaut-initial rewrite verbs — \\b vor Umlaut ist keine Wortgrenze',
 
   it('kein Match mitten im Wort', () => {
     expect(rewritesSuppliedText('Die Grenzüberarbeitung der Behörde war Thema')).toBe(false);
+  });
+});
+
+describe('asksAboutOwnPastAction', () => {
+  it.each([
+    'hast du vorhin in meinen Dokumenten nachgesehen?',
+    'Hast du eben nachgeschaut?',
+    'hast du das wirklich gesucht?',
+    'wo hast du das gefunden?',
+    'woher hast du das?',
+  ])('„%s" fragt nach der eigenen vorigen Handlung', (t) => {
+    expect(asksAboutOwnPastAction(t)).toBe(true);
+  });
+
+  it.each([
+    'Und die FDP?',
+    'hast du auch was zur FDP?',
+    'hast du noch etwas zur FDP gefunden?',
+    'hast du über die FDP recherchiert?',
+    'hast du zur FDP schon nachgesehen?',
+  ])('„%s" bittet um Neues und trifft nicht', (t) => {
+    expect(asksAboutOwnPastAction(t)).toBe(false);
+  });
+
+  // Die Füllwortgrenze: über/zu/zur/zum führen ein Thema ein und sprengen den Treffer.
+  it.each(['über', 'zu', 'zur', 'zum'])('„%s" zwischen „hast du" und Partizip verneint', (w) => {
+    expect(asksAboutOwnPastAction(`hast du ${w} Wahlen nachgesehen?`)).toBe(false);
+  });
+
+  // Bekannter Rest: „bei" ist kein Ausschlusswort, also trifft das, obwohl es ein
+  // Thema nennt. Das irrt zur Seite des Nicht-Zwingens.
+  it('„bei" ist kein Ausschlusswort (bekannter Rest, irrt Richtung Nicht-Zwingen)', () => {
+    expect(asksAboutOwnPastAction('hast du bei der FDP nachgeschaut?')).toBe(true);
   });
 });
