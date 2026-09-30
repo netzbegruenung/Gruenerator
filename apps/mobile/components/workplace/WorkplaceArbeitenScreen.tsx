@@ -1,9 +1,12 @@
+import { templates } from '@gruenerator/docs/templates';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, type Href } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -25,23 +28,34 @@ import { useStudioMedia } from '../../hooks/useStudioMedia';
 import { useTabBarClearance } from '../../hooks/useTabBarClearance';
 import { useTabNavigationSwipe } from '../../hooks/useTabSwipe';
 import { useDocsStore } from '../../stores/docsStore';
+import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { colors, darkTheme, lightTheme, spacing, BODY_FONT } from '../../theme';
+import { officeTypeColor } from '../../theme/officeColors';
 import { getSurfaceFab, getToolTheme } from '../../theme/toolTheme';
 import { CreateMenuSheet, SHEET_HANDOFF_MS, type CreateMenuEntry } from '../common/CreateMenuSheet';
+import { EmptyState, type EmptyStateAction } from '../common/EmptyState';
 import { Fab } from '../common/Fab';
 import { RecentItemsSection } from '../common/RecentItemsSection';
 import { ViewModeToggle, type ViewMode } from '../common/ViewModeToggle';
 import { CreateDocSheet } from '../docs/CreateDocSheet';
 import { toDocListItems } from '../docs/docListItems';
+import { NativeShareModal } from '../docs/NativeShareModal';
 import { useDocCreation } from '../docs/useDocCreation';
 import { MenuIcon } from '../icons/WebMirrorIcons';
 import { ScreenScaffold } from '../navigation/ScreenScaffold';
 import { WorkplaceTopTabs } from '../navigation/WorkplaceTopTabs';
-import { pushOfficeItem, type OfficeItem } from '../office/officeItem';
+import {
+  isDocFamily,
+  officeIconFor,
+  pushOfficeItem,
+  type OfficeItem,
+  type OfficeKind,
+} from '../office/officeItem';
 import { useOfficeExtraItems } from '../office/useOfficeExtraItems';
-import { STUDIO_TOOLS, WORKPLACE_TILES } from '../tools/toolsConfig';
+import { STUDIO_TOOLS, STUDIO_TOOL_GLYPHS, WORKPLACE_TILES } from '../tools/toolsConfig';
 import { ToolSquareGrid } from '../tools/ToolSquareGrid';
 
+import { LoadErrorNotice } from './LoadErrorNotice';
 import {
   OFFICE_SECTIONS,
   filterByTitle,
@@ -53,8 +67,37 @@ import { WorkplaceSearchBar } from './WorkplaceSearchBar';
 
 /** "Zuletzt" shows a 2×2 block until it is unfolded. */
 const RECENT_COLLAPSED = 4;
-/** Same cap the Studio tab puts on each of its sections. */
+/** Same cap the Studio tab puts on each of its sections, until unfolded. */
 const SECTION_LIMIT = 6;
+/** The empty state's fanned stack, as the old Arbeiten tab drew it. */
+const EMPTY_TILE_KINDS: OfficeKind[] = ['presentation', 'doc', 'sheet'];
+
+/** "N weitere anzeigen" / "Weniger anzeigen" under a capped section. */
+function MoreToggle({
+  hidden,
+  expanded,
+  onToggle,
+  color,
+}: {
+  hidden: number;
+  expanded: boolean;
+  onToggle: () => void;
+  color: string;
+}) {
+  return (
+    <Pressable
+      onPress={onToggle}
+      accessibilityRole="button"
+      accessibilityState={{ expanded }}
+      hitSlop={8}
+      style={styles.more}
+    >
+      <Text style={[styles.moreText, { color }]}>
+        {expanded ? 'Weniger anzeigen' : `${hidden} weitere anzeigen`}
+      </Text>
+    </Pressable>
+  );
+}
 
 /**
  * The Arbeiten tab of the workplace shell (`config/navLayout`): the former
@@ -63,8 +106,11 @@ const SECTION_LIMIT = 6;
  * Studio's "Neu erstellen" menu with Dokument as a fourth entry, which hands
  * over to the docs sheet (describe, find or pick a template).
  *
- * Sections hide while they are empty, so a new account sees the tiles and the
- * FAB and nothing that reads as missing.
+ * Everything the two old tabs offered is still here: every item is reachable
+ * (each section unfolds past its cap), documents keep their ⋮ menu (share,
+ * delete), a failed load says so instead of looking like an empty account, and
+ * an empty account gets the create entry points of both old empty states.
+ * Favourited tiles move to the front of the row, as on web.
  */
 export function WorkplaceArbeitenScreen() {
   const isDark = useColorScheme() === 'dark';
@@ -78,7 +124,9 @@ export function WorkplaceArbeitenScreen() {
   const fabBottom = useTabBarClearance(spacing.medium);
   const fabTone = getSurfaceFab('arbeiten', isDark);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [recentExpanded, setRecentExpanded] = useState(false);
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const [docSheetTemplates, setDocSheetTemplates] = useState(false);
+  const [activeDoc, setActiveDoc] = useState<{ id: string; title: string } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -91,6 +139,8 @@ export function WorkplaceArbeitenScreen() {
   const extra = useOfficeExtraItems();
   const documents = useDocsStore((s) => s.documents);
   const docsLoading = useDocsStore((s) => s.isLoading);
+  const docsError = useDocsStore((s) => s.error);
+  const deleteDocument = useDocsStore((s) => s.deleteDocument);
   const fetchDocuments = useDocsStore((s) => s.fetchDocuments);
   const prefetchRecentDocs = useDocsStore((s) => s.prefetchRecentDocs);
   const { isCreating, createFromTemplate, generate } = useDocCreation(() => setDocSheetOpen(false));
@@ -119,7 +169,6 @@ export function WorkplaceArbeitenScreen() {
     () => new Map(shownOffice.map((item) => [item.id, item])),
     [shownOffice]
   );
-  const limit = searching ? Infinity : SECTION_LIMIT;
   const media = searching
     ? {
         sharepics: filterByTitle(studio.sharepics, searchQuery),
@@ -163,8 +212,135 @@ export function WorkplaceArbeitenScreen() {
     setRefreshing(false);
   }, [refreshExtra, refetchStudio, fetchDocuments, queryClient]);
 
-  const recentItems = recentExpanded ? recent.items : recent.items.slice(0, RECENT_COLLAPSED);
-  const canExpand = recent.items.length > RECENT_COLLAPSED;
+  const toggleExpanded = useCallback((key: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+  /** A section's items, capped unless unfolded or searching, plus its toggle. */
+  const capped = <T,>(key: string, items: T[], cap: number) => {
+    const open = searching || expanded.has(key);
+    const hidden = items.length - cap;
+    return {
+      items: open ? items : items.slice(0, cap),
+      toggle:
+        !searching && hidden > 0 ? (
+          <MoreToggle
+            hidden={hidden}
+            expanded={expanded.has(key)}
+            onToggle={() => toggleExpanded(key)}
+            color={theme.textSecondary}
+          />
+        ) : null,
+    };
+  };
+
+  const favorites = useToolFavoritesStore((s) => s.favorites);
+  const tiles = useMemo(() => {
+    const rank = (id: string) => {
+      const i = favorites.indexOf(id);
+      return i === -1 ? favorites.length : i;
+    };
+    return [...WORKPLACE_TILES].sort((a, b) => rank(a.id) - rank(b.id));
+  }, [favorites]);
+
+  // The ⋮ menu the old Arbeiten list had on docs, sheets and presentations.
+  const openActions = useCallback(
+    (item: RecentItem) => {
+      const office = officeById.get(item.id);
+      if (office && isDocFamily(office.kind)) {
+        setActiveDoc({ id: office.id, title: office.title || 'Unbenannt' });
+      }
+    },
+    [officeById]
+  );
+  const handleDelete = (id: string, title: string) => {
+    setActiveDoc(null);
+    Alert.alert('Dokument löschen', `Möchtest du "${title}" wirklich löschen?`, [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Löschen',
+        style: 'destructive',
+        onPress: () => {
+          void deleteDocument(id).then(() =>
+            queryClient.invalidateQueries({ queryKey: ['office-search'] })
+          );
+        },
+      },
+    ]);
+  };
+
+  const openDocSheet = (withTemplates: boolean) => {
+    setDocSheetTemplates(withTemplates);
+    setDocSheetOpen(true);
+  };
+
+  const officeLoading = docsLoading && documents.length === 0;
+  const officeEmpty = !officeLoading && officeItems.length === 0;
+  const mediaEmpty =
+    !studio.isLoading &&
+    studio.sharepics.length === 0 &&
+    studio.kiImages.length === 0 &&
+    studio.reels.length === 0;
+  const showDocsError = !!docsError && officeEmpty;
+  const showMediaError = studio.isError && mediaEmpty;
+  const accountEmpty =
+    officeEmpty &&
+    mediaEmpty &&
+    !showDocsError &&
+    !showMediaError &&
+    !recent.isLoading &&
+    recent.items.length === 0;
+
+  // Both old empty states in one: the office starting points, then the studio
+  // tools, with the same wording as the create menu so no route looks like two.
+  const emptyActions: EmptyStateAction[] = [
+    {
+      key: 'blank',
+      glyph: 'document-outline',
+      title: 'Leeres Dokument',
+      description: 'Sofort losschreiben',
+      tone: officeTypeColor('doc', isDark),
+      onPress: () => {
+        const blank = templates.find((t) => t.id === 'blank');
+        if (blank) void createFromTemplate(blank);
+      },
+    },
+    {
+      key: 'ai',
+      glyph: 'sparkles-outline',
+      title: 'Mit KI erstellen',
+      description: 'Beschreiben, den Entwurf schreibt die KI',
+      tone: officeTypeColor('canvas', isDark),
+      onPress: () => openDocSheet(false),
+    },
+    {
+      key: 'templates',
+      glyph: 'albums-outline',
+      title: 'Vorlage wählen',
+      description: 'Antrag, Pressemitteilung, Protokoll und mehr',
+      tone: officeTypeColor('sheet', isDark),
+      onPress: () => openDocSheet(true),
+    },
+    ...STUDIO_TOOLS.map((tool) => ({
+      key: tool.id,
+      glyph: STUDIO_TOOL_GLYPHS[tool.id] ?? 'sparkles',
+      title: tool.title,
+      description: tool.description,
+      tone: getToolTheme(tool.id, isDark),
+      onPress: () => router.push(tool.route as Href),
+    })),
+  ];
+
+  const recentList = capped('recent', recent.items, RECENT_COLLAPSED);
+  const mediaSections = [
+    { key: 'sharepics', title: 'Sharepics', items: media.sharepics, tone: 'vorlagen' },
+    { key: 'kiImages', title: 'KI-Bilder', items: media.kiImages, tone: 'ki-bildgenerierung' },
+    { key: 'reels', title: 'Reels', items: media.reels, tone: 'reel' },
+  ] as const;
 
   // The docs sheet opens only once the menu has slid out: iOS will not present
   // a Modal while another one is still leaving.
@@ -197,7 +373,10 @@ export function WorkplaceArbeitenScreen() {
         description: 'Beschreiben, finden oder aus Vorlage',
         tone: docsTone,
         icon: <Ionicons name="document-text" size={22} color={docsTone.icon} />,
-        onPress: () => setDocSheetPending(true),
+        onPress: () => {
+          setDocSheetTemplates(false);
+          setDocSheetPending(true);
+        },
       },
     ];
   }, [isDark, router]);
@@ -215,6 +394,7 @@ export function WorkplaceArbeitenScreen() {
       titleNode={<WorkplaceTopTabs active="arbeiten" />}
       backdrop={backdrop}
     >
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <GestureDetector gesture={swipe}>
         <ScrollView
           contentContainerStyle={[gridColumn, styles.content, { paddingBottom: bottomClearance }]}
@@ -229,12 +409,7 @@ export function WorkplaceArbeitenScreen() {
             />
           }
         >
-          <ToolSquareGrid
-            tools={WORKPLACE_TILES}
-            availableWidth={gridWidth}
-            row
-            blocksGesture={swipe}
-          />
+          <ToolSquareGrid tools={tiles} availableWidth={gridWidth} row blocksGesture={swipe} />
 
           {searchOpen ? (
             <View style={styles.section}>
@@ -276,69 +451,82 @@ export function WorkplaceArbeitenScreen() {
                     {viewToggle}
                   </View>
                 }
-                items={recentItems}
+                items={recentList.items}
                 isLoading={recent.isLoading}
                 style={styles.section}
                 viewMode={viewMode}
                 onOpen={openRecent}
               />
-              {canExpand && (
-                <Pressable
-                  onPress={() => setRecentExpanded((open) => !open)}
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded: recentExpanded }}
-                  hitSlop={8}
-                  style={styles.more}
-                >
-                  <Text style={[styles.moreText, { color: theme.textSecondary }]}>
-                    {recentExpanded
-                      ? 'Weniger anzeigen'
-                      : `${recent.items.length - RECENT_COLLAPSED} weitere anzeigen`}
-                  </Text>
-                </Pressable>
-              )}
+              {recentList.toggle}
             </>
           )}
 
-          {OFFICE_SECTIONS.map((section) => (
-            <RecentItemsSection
-              key={section.kind}
-              title={section.title}
-              items={officeGroups[section.kind].slice(0, limit).map(toRecentItem)}
-              isLoading={!searching && docsLoading && documents.length === 0}
+          {!searching && accountEmpty ? (
+            <EmptyState
               style={styles.section}
-              viewMode={viewMode}
-              onOpen={openOffice}
+              tiles={EMPTY_TILE_KINDS.map((kind) => ({
+                glyph: officeIconFor(kind),
+                ...officeTypeColor(kind, isDark),
+              }))}
+              title="Noch nichts erstellt"
+              description="Dokumente, Präsentationen, Tabellen, Boards, Sharepics, KI-Bilder und Reels sammeln sich hier — alles an einem Ort."
+              actions={emptyActions}
             />
-          ))}
+          ) : null}
 
-          <RecentItemsSection
-            title="Sharepics"
-            items={media.sharepics.slice(0, limit)}
-            isLoading={!searching && studio.isLoading}
-            accent={getToolTheme('vorlagen', isDark).icon}
-            style={styles.section}
-            viewMode={viewMode}
-            onOpen={openRecent}
-          />
-          <RecentItemsSection
-            title="KI-Bilder"
-            items={media.kiImages.slice(0, limit)}
-            isLoading={!searching && studio.isLoading}
-            accent={getToolTheme('ki-bildgenerierung', isDark).icon}
-            style={styles.section}
-            viewMode={viewMode}
-            onOpen={openRecent}
-          />
-          <RecentItemsSection
-            title="Reels"
-            items={media.reels.slice(0, limit)}
-            isLoading={!searching && studio.isLoading}
-            accent={getToolTheme('reel', isDark).icon}
-            style={styles.section}
-            viewMode={viewMode}
-            onOpen={openRecent}
-          />
+          {!searching && showDocsError && (
+            <View style={styles.section}>
+              <LoadErrorNotice
+                title="Dokumente konnten nicht geladen werden"
+                description="Dokumente, Tabellen, Präsentationen und Boards liegen weiter auf dem Server."
+                onRetry={() => void handleRefresh()}
+              />
+            </View>
+          )}
+          {OFFICE_SECTIONS.map((section) => {
+            const list = capped(section.kind, officeGroups[section.kind], SECTION_LIMIT);
+            return (
+              <View key={section.kind}>
+                <RecentItemsSection
+                  title={section.title}
+                  items={list.items.map(toRecentItem)}
+                  isLoading={!searching && officeLoading}
+                  style={styles.section}
+                  viewMode={viewMode}
+                  onOpen={openOffice}
+                  {...(isDocFamily(section.kind) && { onActions: openActions })}
+                />
+                {list.toggle}
+              </View>
+            );
+          })}
+
+          {!searching && showMediaError && (
+            <View style={styles.section}>
+              <LoadErrorNotice
+                title="Deine Medien konnten nicht geladen werden"
+                description="Sharepics, KI-Bilder und Reels liegen weiterhin auf dem Server — hier fehlt nur die Verbindung."
+                onRetry={studio.refetch}
+              />
+            </View>
+          )}
+          {mediaSections.map((section) => {
+            const list = capped(section.key, section.items, SECTION_LIMIT);
+            return (
+              <View key={section.key}>
+                <RecentItemsSection
+                  title={section.title}
+                  items={list.items}
+                  isLoading={!searching && studio.isLoading}
+                  accent={getToolTheme(section.tone, isDark).icon}
+                  style={styles.section}
+                  viewMode={viewMode}
+                  onOpen={openRecent}
+                />
+                {list.toggle}
+              </View>
+            );
+          })}
         </ScrollView>
       </GestureDetector>
 
@@ -362,6 +550,7 @@ export function WorkplaceArbeitenScreen() {
         onClose={() => setDocSheetOpen(false)}
         items={officeItems}
         isCreating={isCreating}
+        expandTemplates={docSheetTemplates}
         onGenerate={(description) => void generate(description)}
         onSelectTemplate={(template) => void createFromTemplate(template)}
         onOpenItem={(item) => {
@@ -369,6 +558,17 @@ export function WorkplaceArbeitenScreen() {
           openOfficeItem(item);
         }}
       />
+
+      {activeDoc && (
+        <NativeShareModal
+          visible
+          onClose={() => setActiveDoc(null)}
+          documentId={activeDoc.id}
+          userDisplayName={user?.display_name ?? undefined}
+          isOwner
+          onDelete={() => handleDelete(activeDoc.id, activeDoc.title)}
+        />
+      )}
     </ScreenScaffold>
   );
 }
