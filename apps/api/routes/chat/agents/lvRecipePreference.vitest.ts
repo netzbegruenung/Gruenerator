@@ -27,10 +27,18 @@ const lgs = (bundesland: string) => ({
 describe('preferredLvRecipeMention — Rollen-Pfad (generischer Agent)', () => {
   it('führt presse zur Partei-Variante des eigenen Landesverbands', () => {
     expect(
-      preferredLvRecipeMention({ mention: 'presse', roles: [lgs('Bayern')], userLocale: 'de-DE' })
+      preferredLvRecipeMention({
+        mention: 'presse',
+        activeRole: lgs('Bayern'),
+        userLocale: 'de-DE',
+      })
     ).toBe('presse-bayern-partei');
     expect(
-      preferredLvRecipeMention({ mention: 'presse', roles: [lgs('Hessen')], userLocale: 'de-DE' })
+      preferredLvRecipeMention({
+        mention: 'presse',
+        activeRole: lgs('Hessen'),
+        userLocale: 'de-DE',
+      })
     ).toBe('presse-hessen-partei');
   });
 
@@ -38,7 +46,7 @@ describe('preferredLvRecipeMention — Rollen-Pfad (generischer Agent)', () => {
     expect(
       preferredLvRecipeMention({
         mention: 'instagram',
-        roles: [lgs('Bayern')],
+        activeRole: lgs('Bayern'),
         userLocale: 'de-DE',
       })
     ).toBe('insta-bayern');
@@ -47,42 +55,47 @@ describe('preferredLvRecipeMention — Rollen-Pfad (generischer Agent)', () => {
   it('lässt Rezepte ohne LV-Varianten in Ruhe (facebook, reel, …)', () => {
     for (const mention of ['facebook', 'twitter', 'linkedin', 'reel', 'wahlpruefstein']) {
       expect(
-        preferredLvRecipeMention({ mention, roles: [lgs('Bayern')], userLocale: 'de-DE' })
+        preferredLvRecipeMention({ mention, activeRole: lgs('Bayern'), userLocale: 'de-DE' })
       ).toBeNull();
     }
   });
 
   it('steht ohne Landesgeschäftsstellen-Rolle still', () => {
     expect(
-      preferredLvRecipeMention({ mention: 'presse', roles: [], userLocale: 'de-DE' })
-    ).toBeNull();
-    expect(
-      preferredLvRecipeMention({ mention: 'presse', roles: null, userLocale: 'de-DE' })
+      preferredLvRecipeMention({ mention: 'presse', activeRole: null, userLocale: 'de-DE' })
     ).toBeNull();
     expect(
       preferredLvRecipeMention({
         mention: 'presse',
-        roles: [{ ebene: 'land', rolle: 'Mitarbeiter*in Landtagsfraktion', bundesland: 'Bayern' }],
+        activeRole: {
+          ebene: 'land',
+          rolle: 'Mitarbeiter*in Landtagsfraktion',
+          bundesland: 'Bayern',
+        },
         userLocale: 'de-DE',
       })
     ).toBeNull();
   });
 
-  it('steht bei mehreren Landesverbänden still — die Wahl wäre geraten', () => {
+  it('ignoriert gespeicherte, aber nicht aktive Rollen — „Ohne Rolle" heißt ohne LV-Vorzug', () => {
+    // Die Hessen-LGS-Rolle steht im Profil, im Chat ist aber keine Rolle aktiv:
+    // der Server reicht dann `activeRole: null` durch, nicht die Rollenliste.
     expect(
-      preferredLvRecipeMention({
-        mention: 'presse',
-        roles: [lgs('Bayern'), lgs('Hessen')],
-        userLocale: 'de-DE',
-      })
+      preferredLvRecipeMention({ mention: 'presse', activeRole: null, userLocale: 'de-DE' })
     ).toBeNull();
+    expect(
+      roleAwareDefaultRecipeMention(
+        { identifier: 'gruenerator-oeffentlichkeitsarbeit', defaultRecipeMention: 'presse' },
+        { activeRole: null, userLocale: 'de-DE' }
+      )
+    ).toBe('presse');
   });
 
   it('lässt eine bereits LV-spezifische Mention unangetastet', () => {
     expect(
       preferredLvRecipeMention({
         mention: 'presse-saarland',
-        roles: [lgs('Saarland')],
+        activeRole: lgs('Saarland'),
         userLocale: 'de-DE',
       })
     ).toBeNull();
@@ -90,12 +103,12 @@ describe('preferredLvRecipeMention — Rollen-Pfad (generischer Agent)', () => {
 });
 
 describe('preferredLvRecipeMention — Agenten-Pfad (LV-PR-Agent)', () => {
-  it('bindet die Wahl an den LV-Agenten, unabhängig von den Rollen', () => {
+  it('bindet die Wahl an den LV-Agenten, unabhängig von der aktiven Rolle', () => {
     expect(
       preferredLvRecipeMention({
         mention: 'presse',
         agentIdentifier: 'gruenerator-oeffentlichkeitsarbeit-saarland',
-        roles: null,
+        activeRole: null,
         userLocale: 'de-DE',
       })
     ).toBe('presse-saarland');
@@ -104,7 +117,7 @@ describe('preferredLvRecipeMention — Agenten-Pfad (LV-PR-Agent)', () => {
       preferredLvRecipeMention({
         mention: 'presse',
         agentIdentifier: 'gruenerator-oeffentlichkeitsarbeit-saarland',
-        roles: [lgs('Hessen')],
+        activeRole: lgs('Hessen'),
         userLocale: 'de-DE',
       })
     ).toBe('presse-saarland');
@@ -117,7 +130,7 @@ describe('preferredLvRecipeMention — Agenten-Pfad (LV-PR-Agent)', () => {
       preferredLvRecipeMention({
         mention: 'presse',
         agentIdentifier: 'gruenerator-oeffentlichkeitsarbeit-schleswig-holstein',
-        roles: [lgs('Hessen')],
+        activeRole: lgs('Hessen'),
         userLocale: 'de-DE',
       })
     ).toBeNull();
@@ -128,7 +141,7 @@ describe('preferredLvRecipeMention — Agenten-Pfad (LV-PR-Agent)', () => {
       preferredLvRecipeMention({
         mention: 'presse',
         agentIdentifier: 'gruenerator-oeffentlichkeitsarbeit-at',
-        roles: null,
+        activeRole: null,
         userLocale: 'de-AT',
       })
     ).toBe('presse-at');
@@ -139,7 +152,7 @@ describe('preferredLvRecipeMention — Agenten-Pfad (LV-PR-Agent)', () => {
       preferredLvRecipeMention({
         mention: 'presse',
         agentIdentifier: 'gruenerator-universal',
-        roles: [lgs('Hessen')],
+        activeRole: lgs('Hessen'),
         userLocale: 'de-DE',
       })
     ).toBe('presse-hessen-partei');
@@ -151,7 +164,7 @@ describe('roleAwareDefaultRecipeMention', () => {
     expect(
       roleAwareDefaultRecipeMention(
         { identifier: 'gruenerator-oeffentlichkeitsarbeit', defaultRecipeMention: 'presse' },
-        { userRoles: [lgs('Hessen')], userLocale: 'de-DE' }
+        { activeRole: lgs('Hessen'), userLocale: 'de-DE' }
       )
     ).toBe('presse-hessen-partei');
   });
@@ -163,7 +176,7 @@ describe('roleAwareDefaultRecipeMention', () => {
           identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen',
           defaultRecipeMention: 'presse-hessen-partei',
         },
-        { userRoles: [lgs('Bayern')], userLocale: 'de-DE' }
+        { activeRole: lgs('Bayern'), userLocale: 'de-DE' }
       )
     ).toBe('presse-hessen-partei');
   });
@@ -172,7 +185,7 @@ describe('roleAwareDefaultRecipeMention', () => {
     expect(
       roleAwareDefaultRecipeMention(
         { identifier: 'gruenerator-universal' },
-        { userRoles: [lgs('Hessen')], userLocale: 'de-DE' }
+        { activeRole: lgs('Hessen'), userLocale: 'de-DE' }
       )
     ).toBeNull();
   });
@@ -184,7 +197,7 @@ describe('roleAwareDefaultRecipeMention', () => {
     expect(
       roleAwareDefaultRecipeMention(
         { identifier: 'gruenerator-universal', defaultRecipeMention: 'omveinladungen' },
-        { userRoles: [lgs('Hessen')], userLocale: 'de-DE' }
+        { activeRole: lgs('Hessen'), userLocale: 'de-DE' }
       )
     ).toBe('omveinladungen');
   });
@@ -199,7 +212,7 @@ describe('preferredLvRecipeMention — Instanz-Tür', () => {
     expect(
       preferredLvRecipeMention({
         mention: 'presse',
-        roles: [lgs('Bayern')],
+        activeRole: lgs('Bayern'),
         userLocale: 'de-DE',
         instanceId: 'bgst',
       })
@@ -210,7 +223,7 @@ describe('preferredLvRecipeMention — Instanz-Tür', () => {
     expect(
       preferredLvRecipeMention({
         mention: 'presse',
-        roles: [lgs('Bayern')],
+        activeRole: lgs('Bayern'),
         userLocale: 'de-DE',
         instanceId: 'production',
       })
@@ -222,7 +235,7 @@ describe('preferredLvRecipeMention — Instanz-Tür', () => {
       preferredLvRecipeMention({
         mention: 'presse',
         agentIdentifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
-        roles: null,
+        activeRole: null,
         userLocale: 'de-DE',
         instanceId: 'bgst',
       })
@@ -235,7 +248,7 @@ describe('preferredLvRecipeMention — Bürger*innen-Familie', () => {
     expect(
       preferredLvRecipeMention({
         mention: 'buergermail',
-        roles: [lgs('Berlin')],
+        activeRole: lgs('Berlin'),
         userLocale: 'de-DE',
       })
     ).toBe('buerger-berlin');
@@ -246,7 +259,7 @@ describe('preferredLvRecipeMention — Bürger*innen-Familie', () => {
       preferredLvRecipeMention({
         mention: 'buergermail',
         agentIdentifier: 'gruenerator-buergeranfragen-mecklenburg-vorpommern',
-        roles: [lgs('Hessen')],
+        activeRole: lgs('Hessen'),
         userLocale: 'de-DE',
       })
     ).toBe('buerger-mv');
@@ -257,7 +270,7 @@ describe('preferredLvRecipeMention — Bürger*innen-Familie', () => {
       preferredLvRecipeMention({
         mention: 'presse',
         agentIdentifier: 'gruenerator-buergeranfragen-hessen',
-        roles: null,
+        activeRole: null,
         userLocale: 'de-DE',
       })
     ).toBe('presse-hessen-partei');
@@ -268,7 +281,7 @@ describe('preferredLvRecipeMention — Bürger*innen-Familie', () => {
       preferredLvRecipeMention({
         mention: 'buergermail',
         agentIdentifier: 'gruenerator-buergeranfragen-hamburg',
-        roles: null,
+        activeRole: null,
         userLocale: 'de-DE',
       })
     ).toBeNull();

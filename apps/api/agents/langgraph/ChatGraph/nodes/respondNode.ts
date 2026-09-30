@@ -2085,7 +2085,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // `rezept_laden` and the model picks the recipe itself; baking one in here
   // would double-inject and overrule that choice. Der Rückfall ist LV-bewusst
   // (`roleAwareDefaultRecipeMention`): ein generischer Default wird für eine
-  // Person mit genau einer Landesverbands-Rolle zur Variante dieses Verbands.
+  // Person mit aktiver Landesgeschäftsstellen-Rolle zur Variante dieses Verbands.
   //
   // Single-pass is a necessary condition, not a sufficient one: chitchat and
   // help turns ("was kannst du?", "hilfe") also run single-pass with a
@@ -2117,7 +2117,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
     isWriteEligibleTurn,
     agentDefault: () =>
       roleAwareDefaultRecipeMention(agentConfig, {
-        userRoles: state.userRoles,
+        activeRole: state.activeRole,
         userLocale: state.userLocale,
       }),
     agentDefaultRecipeId: agentConfig.defaultRecipeId ?? null,

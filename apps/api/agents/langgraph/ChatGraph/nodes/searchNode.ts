@@ -1804,7 +1804,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         const lvEbene = lvEbeneForMentions([
           state.activeSkillMention,
           roleAwareDefaultRecipeMention(agentConfig, {
-            userRoles: state.userRoles,
+            activeRole: state.activeRole,
             userLocale: state.userLocale,
           }),
         ]);
