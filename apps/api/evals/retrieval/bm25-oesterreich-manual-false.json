@@ -1,0 +1,18 @@
+{
+  "pipeline": "manual",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "manual-at-klimaticket",
+      "collection": "oesterreich-gruene-system",
+      "query": "Klimaticket",
+      "rank": 1,
+      "topTitles": [
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "EU-Wahlprogramm 2024 der Grünen (Österreich)",
+        "Grundsatzprogramm der Grünen (Österreich)"
+      ]
+    }
+  ]
+}

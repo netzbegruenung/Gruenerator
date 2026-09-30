@@ -50,7 +50,7 @@ export const SOCIAL_EDIT_REFUSAL_TEXT =
   'Diese Änderung setze ich nicht um — sie widerspricht den inhaltlichen Regeln des Grünerators, ' +
   'etwa erfundene Behauptungen über real existierende Personen. Dein bestehender Post bleibt unverändert.';
 
-export { isSocialTextEditInstruction } from './socialPostEditHeuristics.js';
+export { isSocialTextEditInstruction, namesSocialPostTarget } from './socialPostEditHeuristics.js';
 
 interface PostHit {
   post: SocialPostToolResult;

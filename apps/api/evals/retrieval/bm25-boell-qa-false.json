@@ -1,0 +1,91 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "boell-demokratie",
+      "collection": "boell-stiftung-system",
+      "query": "Studien zur Stärkung der Demokratie",
+      "rank": 3,
+      "topTitles": [
+        "Inklusion vom Rand in die Mitte rücken: das geht uns alle an! | Heinrich-Böll-Stiftung",
+        "Von Boomern, Millenials und Generation Z – Die Frage nach demokratischen Mehrheiten in intergenerationeller Perspektive | Heinrich-Böll-Stiftung",
+        "Demokratische Vielfalt wagen: Die Bundesländer als Pioniere für Reformen | Heinrich-Böll-Stiftung",
+        "Leipziger Autoritarismus-Studie 2024: Methoden, Ergebnisse und Langzeitverlauf | Heinrich-Böll-Stiftung",
+        "Neue Bündnisse für Demokratie | Heinrich-Böll-Stiftung"
+      ],
+      "searchTimeMs": 2333
+    },
+    {
+      "id": "boell-atlas",
+      "collection": "boell-stiftung-system",
+      "query": "Fakten aus einem Atlas der Böll-Stiftung, zum Beispiel zu Fleisch oder Mobilität",
+      "rank": 1,
+      "topTitles": [
+        "Brazilian Amazon Atlas | Heinrich-Böll-Stiftung",
+        "Wirtschaftsatlas 2024: Grafiken und Lizenzbestimmungen | Heinrich-Böll-Stiftung",
+        "Daten für nachhaltige urbane Mobilität: ein transatlantischer Vergleich | Heinrich-Böll-Stiftung",
+        "Konzernatlas 2026 | Heinrich-Böll-Stiftung",
+        "Einmischung erwünscht! | Heinrich-Böll-Stiftung"
+      ],
+      "searchTimeMs": 1112
+    },
+    {
+      "id": "boell-feminismus",
+      "collection": "boell-stiftung-system",
+      "query": "Geschlechtergerechtigkeit und feministische Außenpolitik",
+      "rank": 1,
+      "topTitles": [
+        "Feminismus braucht Finanzierung! Es ist Zeit für eine feministische Finanzierungsstrategie | Heinrich-Böll-Stiftung",
+        "Warum eine wehrhafte Demokratie ein feministisches Fördersystem braucht | Heinrich-Böll-Stiftung",
+        "UN-Frauenrechtskommission: Bleiben oder gehen? | Heinrich-Böll-Stiftung",
+        "Frauen, Frieden und Sicherheit darf in der arabischen Welt kein hohles Versprechen sein | Heinrich-Böll-Stiftung",
+        "\"Die Kämpfe sind miteinander verflochten\" | Heinrich-Böll-Stiftung"
+      ],
+      "searchTimeMs": 593
+    },
+    {
+      "id": "boell-klimagerechtigkeit",
+      "collection": "boell-stiftung-system",
+      "query": "Internationale Klimagerechtigkeit und Klimafinanzierung",
+      "rank": 1,
+      "topTitles": [
+        "Schulden, Klima und Geopolitik: Was G20 und COP30 wirklich bewegt haben | Heinrich-Böll-Stiftung",
+        "Klimapragmatismus oder Faustischer Pakt? Was das neue US-Klimagesetz leistet - und wo es versagt | Heinrich-Böll-Stiftung",
+        "UN-Klimaverhandlungen könnten die in der Biodiversitätskonvention geforderte Vorsorge gegen Geoengineering untergraben | Heinrich-Böll-Stiftung",
+        "Artikel 6: Bürokratie, Technologie und die Zukunft der globalen Kohlenstoffmärkte | Heinrich-Böll-Stiftung",
+        "Afrikas Schuldenkrise: Das komplexe Puzzle, das noch kein vollständiges Bild ergibt | Heinrich-Böll-Stiftung"
+      ],
+      "searchTimeMs": 1034
+    },
+    {
+      "id": "kw-boell-carbon-bubble",
+      "collection": "boell-stiftung-system",
+      "query": "Carbon Bubble",
+      "rank": 1,
+      "topTitles": [
+        "Die \"Carbon Bubble\": Finanzwirtschaft am Kipppunkt? | Heinrich-Böll-Stiftung",
+        "Artikel 6: Bürokratie, Technologie und die Zukunft der globalen Kohlenstoffmärkte | Heinrich-Böll-Stiftung",
+        "Konferenz von Santa Marta plant Ausstieg aus fossilen Brennstoffen | Heinrich-Böll-Stiftung",
+        "Der Ausstieg aus den fossilen Energien – vor Senegal im Meer versenkt? | Heinrich-Böll-Stiftung",
+        "UN-Klimaverhandlungen könnten die in der Biodiversitätskonvention geforderte Vorsorge gegen Geoengineering untergraben | Heinrich-Böll-Stiftung"
+      ],
+      "searchTimeMs": 510
+    },
+    {
+      "id": "kw-boell-bergkarabach",
+      "collection": "boell-stiftung-system",
+      "query": "Bergkarabach-Krieg 2020",
+      "rank": 1,
+      "topTitles": [
+        "Armenien vor der Wahl: Welche Art von Demokratie wird sich durchsetzen? | Heinrich-Böll-Stiftung",
+        "Afrika verliert den Iran-Krieg | Heinrich-Böll-Stiftung",
+        "Krieg gegen Iran schafft keinen Frieden im Nahen Osten | Heinrich-Böll-Stiftung",
+        "Trumps Wiederwahl begründet eine neue Ära des Autoritarismus | Heinrich-Böll-Stiftung",
+        "Sexualisierte Gewalt im Krieg: Überleben geht vor, was folgt danach? | Heinrich-Böll-Stiftung"
+      ],
+      "searchTimeMs": 745
+    }
+  ]
+}

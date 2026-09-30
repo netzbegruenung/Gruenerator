@@ -47,7 +47,7 @@ import type { SSEWriter } from './sseHelpers.js';
 
 const log = createLogger('SharepicEdit');
 
-export { isSharepicEditInstruction } from './sharepicEditHeuristics.js';
+export { isSharepicEditInstruction, namesSharepicTarget } from './sharepicEditHeuristics.js';
 
 interface ThreadCanvasRow {
   variant_id: string;

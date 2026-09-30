@@ -1,0 +1,24 @@
+{
+  "pipeline": "manual",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "manual-grundsatz-kindergrundsicherung",
+      "collection": "grundsatz-system",
+      "query": "Kindergrundsicherung",
+      "rank": 2,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt"
+      ]
+    },
+    {
+      "id": "manual-grundsatz-schuldenbremse",
+      "collection": "grundsatz-system",
+      "query": "Schuldenbremse",
+      "rank": 1,
+      "topTitles": ["Regierungsprogramm 2025 – Zusammen wachsen"]
+    }
+  ]
+}

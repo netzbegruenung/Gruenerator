@@ -27,6 +27,7 @@ import {
   artifactKind,
   type ArtifactKindId,
 } from '../artifactKindRegistry.js';
+import { orderText } from '../orderText.js';
 
 /**
  * The classifier can still drop a factual question into a no-tool verdict —
@@ -197,33 +198,6 @@ export function rewritesSuppliedText(raw: string): boolean {
   return hasRewriteTarget(t) || REGENERATE_RE.test(t) || CREATIVE_FORM_RE.test(t);
 }
 
-/** Länger ist kein Auftrag mehr, sondern schon Stoff. */
-const ORDER_PARAGRAPH_MAX = 120;
-
-/**
- * Wo in einer Nachricht, die ihren Stoff mitbringt, der Auftrag steht: die
- * kurzen Absätze am Anfang und Ende, sofern einer davon eine Überarbeitung
- * verlangt. Sonst der ganze Text, wie bisher.
- *
- * Über den ganzen Text gefragt, entscheidet der eingefügte Stoff mit — beta
- * 29.09.2026 (#3903): ein Newsletter mit „Schreibt uns" und „eure Antworten"
- * traf `WRITING_ORDER_RE` und `ANSWER_ORDER_RE`, und „rechtschreibung
- * korrigieren" darunter galt nicht mehr als Überarbeitung. BEIDE Ränder, weil
- * der Auftrag oben stehen kann und der letzte Absatz des Stoffs zufällig ein
- * „korrigiert" trägt — ein „recherchiere" oben muss dann weiter zählen.
- */
-function orderParts(t: string): string[] {
-  const paragraphs = t
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-  if (paragraphs.length < 2) return [t];
-  const edges = [paragraphs[0], paragraphs[paragraphs.length - 1]].filter(
-    (p) => p.length <= ORDER_PARAGRAPH_MAX
-  );
-  return edges.some(asksForRework) ? edges : [t];
-}
-
 const asksForRework = (t: string): boolean => hasRewriteTarget(t) || REGENERATE_RE.test(t);
 
 /** „prüf die Fakten und korrigiere falsche Angaben" korrigiert nur, was es
@@ -250,14 +224,14 @@ const ANSWER_ORDER_RE = /\b(be)?antwort/i;
 export function reworksSuppliedText(raw: string): boolean {
   const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
   if (t.length === 0) return false;
-  const parts = orderParts(t);
-  if (!parts.some(asksForRework)) return false;
-  return !parts.some(
-    (p) =>
-      WRITING_ORDER_RE.test(p) ||
-      ANSWER_ORDER_RE.test(p) ||
-      FACT_CHECK_RE.test(p) ||
-      looksLikeExplicitResearchOrder(p)
+  // Der Auftrag, nicht der eingefügte Stoff (#3903) — siehe `orderText`.
+  const order = orderText(t);
+  if (!asksForRework(order)) return false;
+  return !(
+    WRITING_ORDER_RE.test(order) ||
+    ANSWER_ORDER_RE.test(order) ||
+    FACT_CHECK_RE.test(order) ||
+    looksLikeExplicitResearchOrder(order)
   );
 }
 
