@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
+import { orderText } from './orderText.js';
 import { isReelEditInstruction, hasReelEditVerb, hasStrongReelNoun } from './reelEditHeuristics.js';
 
 describe('isReelEditInstruction', () => {
@@ -65,5 +66,34 @@ describe('hasReelEditVerb', () => {
 
   it('rejects plain questions', () => {
     expect(hasReelEditVerb('wie ist das wetter heute?')).toBe(false);
+  });
+});
+
+/**
+ * Der Stoff entscheidet nicht (#3912, beta 30.09.2026): ein eingefügter
+ * Newsletter mit „Reels … Untertiteln" und „Schreibt uns" lieferte beide Hälften
+ * von verb∧noun, und „rechtschreibung korrigieren" darunter bekam die
+ * Reel-Auswahl. Die Stufe fragt den Auftrag (`orderText`), nicht die Nachricht.
+ */
+describe('Reel-Weiche liest den Auftrag, nicht den Stoff', () => {
+  const newsletter =
+    'Neu im Grünerator: der Untertitler versieht Reels automatisch mit Untertiteln, und die Suche findet jetzt auch ältere Beschlüsse eurer Landesverbände. Außerdem gibt es neue Vorlagen für Sharepics. Schreibt uns eure Rückmeldungen, wir freuen uns über jede Idee und jeden Hinweis!';
+
+  it.each([
+    [`${newsletter}\n\nrechtschreibung korrigieren`],
+    [`${newsletter}\n\nübersetze das ins Englische`],
+  ])('eingefügter Text mit Reizwörtern fällt durch: %s', (text) => {
+    // Über den ganzen Text greift die Weiche — das war der Ausfall.
+    expect(isReelEditInstruction(text)).toBe(true);
+    expect(isReelEditInstruction(orderText(text))).toBe(false);
+  });
+
+  it('ein echter Reel-Auftrag greift weiter', () => {
+    expect(isReelEditInstruction(orderText('mach den Untertitel im Reel kürzer'))).toBe(true);
+    expect(
+      isReelEditInstruction(
+        orderText('Korrigiere die Tippfehler in den Untertiteln:\n\n' + newsletter)
+      )
+    ).toBe(true);
   });
 });

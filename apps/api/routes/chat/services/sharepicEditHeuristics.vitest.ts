@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
+import { orderText } from './orderText.js';
 import {
   asksForNewArtifact,
   isSharepicEditInstruction,
@@ -222,5 +223,21 @@ describe('isSharepicEditInstruction', () => {
   it('never fires on fresh-deck requests', () => {
     expect(isSharepicEditInstruction('mach mir ein neues karussell')).toBe(false);
     expect(isSharepicEditInstruction('erstelle einen neuen slider über klimaschutz')).toBe(false);
+  });
+});
+
+/** Die Stufe fragt den Auftrag (`orderText`), nicht den Stoff (#3912). */
+describe('isSharepicEditInstruction liest den Auftrag, nicht den Stoff', () => {
+  const newsletter =
+    'Neu im Grünerator: neue Vorlagen für Sharepics und ein schnellerer Untertitler. Schreibt uns eure Rückmeldungen, wir freuen uns über jede Idee und jeden Hinweis aus den Kreisverbänden!';
+
+  it('„Sharepics" und „Schreibt" im eingefügten Text holen keine Bearbeitung', () => {
+    const text = `${newsletter}\n\nrechtschreibung korrigieren`;
+    expect(isSharepicEditInstruction(text)).toBe(true);
+    expect(isSharepicEditInstruction(orderText(text))).toBe(false);
+  });
+
+  it('ein echter Bearbeitungsauftrag greift weiter', () => {
+    expect(isSharepicEditInstruction(orderText('mach den Text kürzer'))).toBe(true);
   });
 });
