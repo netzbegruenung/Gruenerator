@@ -16,28 +16,28 @@ import {
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
 // --- mocked services (lazy refs so vi.mock hoisting is safe) -----------------
-const searchOfficeContent = vi.fn();
-const listUserDocuments = vi.fn();
-const aggregateRecentActivity = vi.fn();
-const listUserBoards = vi.fn();
-const loadBoardState = vi.fn();
-const resolveCardDisplay = vi.fn();
-const updateCard = vi.fn();
-const findGroups = vi.fn();
-const hasWriteAccess = vi.fn();
-const emitToolConfirmAction = vi.fn();
-const dbQuery = vi.fn();
-const getUserProjects = vi.fn();
-const trashProject = vi.fn();
-const searchReels = vi.fn().mockResolvedValue([]);
-const getReelTranscript = vi.fn().mockResolvedValue(null);
-const getUserShares = vi.fn();
-const trashShare = vi.fn();
-const readArtifactContent = vi.fn();
-const recallPastChats = vi.fn();
-const listRecentThreads = vi.fn();
-const getThreadRecallContext = vi.fn();
-const resolveSpaceThreadIds = vi.fn();
+const searchOfficeContent = vi.fn<(...a: unknown[]) => unknown>();
+const listUserDocuments = vi.fn<(...a: unknown[]) => unknown>();
+const aggregateRecentActivity = vi.fn<(...a: unknown[]) => unknown>();
+const listUserBoards = vi.fn<(...a: unknown[]) => unknown>();
+const loadBoardState = vi.fn<(...a: unknown[]) => unknown>();
+const resolveCardDisplay = vi.fn<(...a: unknown[]) => unknown>();
+const updateCard = vi.fn<(...a: unknown[]) => unknown>();
+const findGroups = vi.fn<(...a: unknown[]) => unknown>();
+const hasWriteAccess = vi.fn<(...a: unknown[]) => unknown>();
+const emitToolConfirmAction = vi.fn<(...a: unknown[]) => unknown>();
+const dbQuery = vi.fn<(...a: unknown[]) => unknown>();
+const getUserProjects = vi.fn<(...a: unknown[]) => unknown>();
+const trashProject = vi.fn<(...a: unknown[]) => unknown>();
+const searchReels = vi.fn<(...a: unknown[]) => unknown>().mockResolvedValue([]);
+const getReelTranscript = vi.fn<(...a: unknown[]) => unknown>().mockResolvedValue(null);
+const getUserShares = vi.fn<(...a: unknown[]) => unknown>();
+const trashShare = vi.fn<(...a: unknown[]) => unknown>();
+const readArtifactContent = vi.fn<(...a: unknown[]) => unknown>();
+const recallPastChats = vi.fn<(...a: unknown[]) => unknown>();
+const listRecentThreads = vi.fn<(...a: unknown[]) => unknown>();
+const getThreadRecallContext = vi.fn<(...a: unknown[]) => unknown>();
+const resolveSpaceThreadIds = vi.fn<(...a: unknown[]) => unknown>();
 
 vi.mock('../../docs/docsSearch.js', () => ({
   searchOfficeContent: (...a: unknown[]) => searchOfficeContent(...a),
@@ -234,7 +234,7 @@ describe('find_content', () => {
   // what the tool COVERS and where to go instead — so the redirect may keep
   // naming notebooks while the promise above it may not.
   it('does not claim to cover notebooks, and redirects to the notebooks tool', () => {
-    const description = makeFindContentTool(ctx('u1')).description ?? '';
+    const description: string = makeFindContentTool(ctx('u1')).description ?? '';
     const [coverage, guidance] = description.split('NUTZE WENN');
     expect(guidance, 'description lost its "NUTZE WENN" marker').toBeTruthy();
     expect(
