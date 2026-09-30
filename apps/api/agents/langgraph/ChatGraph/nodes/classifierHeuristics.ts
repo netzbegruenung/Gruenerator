@@ -936,12 +936,22 @@ export function looksMultiTopic(query: string): boolean {
 // bare noun plus a nearby creation verb also describes work ON an existing file
 // ("erstell eine Zusammenfassung des PDFs").
 const PDF_CREATE_PATTERN = creationOrderPattern(
-  'als\\s+pdf|ein\\s+pdf|pdf[\\s-]?(?:dokument|datei|formular|vorlage)|briefkopf' +
+  'als\\s+pdf|ein\\s+pdf|pdf[\\s-]?(?:dokument|datei|formular|vorlage|fragebogen)|briefkopf' +
     '|offiziell[a-zäöü]*\\s+(?:brief|schreiben|anschreiben)' +
     '|(?:ausfüllbar|ausfuellbar)[a-zäöü]*\\s+(?:formular|vorlage|dokument)' +
-    '|formular\\s+zum\\s+ausfüllen|fragebogen|anmeldebogen|antragsformular|anmeldeformular',
+    '|formular\\s+zum\\s+ausfüllen',
   { extraVerbs: 'schreib', forward: 60 }
 );
+// Die Formular-Nomen sind ein Format nur, wenn sie GEBAUT werden: ohne
+// `schreib` und nicht als Bestimmungswort („Fragebogen-Text"). „Schreib einen
+// Fragebogen-Text für die Umfrage" wurde bis zum Beta-Audit 30.09.2026 mit 0.9
+// zum PDF — bestellt war Text.
+const PDF_FORM_CREATE_PATTERN = creationOrderPattern(
+  '(?:fragebogen|anmeldebogen|antragsformular|anmeldeformular)(?![\\s-]*text)',
+  { forward: 60 }
+);
+const PDF_NOUN_PATTERN =
+  /\b(?:pdf\w*|briefkopf\w*|formular\w*|fragebogen\w*|anmeldebogen\w*|antragsformular\w*|anmeldeformular\w*)\b/i;
 
 const PRESENTATION_NOUN_SRC = 'präsentation|foliensatz|folien|slides?|pitch[\\s-]?deck';
 const PRESENTATION_CREATE_PATTERN = creationOrderPattern(PRESENTATION_NOUN_SRC);
@@ -1367,11 +1377,17 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
   // Fertiges PDF inkl. Briefkopf und ausfüllbarer Formulare. VOR save_as_doc,
   // damit "mach ein PDF-Dokument daraus" nicht von machDaraus gestohlen wird.
   // Deck-Nomen ausgenommen: "Präsentation als PDF" baut weiterhin einen Foliensatz.
+  // Bis zum Beta-Audit 30.09.2026 ohne Wächter und über `lower` (Zitate
+  // eingeschlossen): „kein PDF, nur Text bitte" und reportierte Rede konnten
+  // das PDF bestellen.
   {
     id: 'create_pdf',
     longPaste: 'skip',
-    guard: 'none',
-    match: (m) => PDF_CREATE_PATTERN.test(m.lower) && !DECK_NOUN_PATTERN.test(m.lower),
+    guard: 'negatedOrMeta',
+    guardNoun: PDF_NOUN_PATTERN,
+    match: (m) =>
+      (PDF_CREATE_PATTERN.test(m.stripped) || PDF_FORM_CREATE_PATTERN.test(m.stripped)) &&
+      !DECK_NOUN_PATTERN.test(m.stripped),
     result: () => ({
       intent: 'create_pdf',
       searchQuery: null,
