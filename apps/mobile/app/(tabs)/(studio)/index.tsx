@@ -1,4 +1,3 @@
-import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useRouter, type Href } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
@@ -12,7 +11,7 @@ import { StudioGradientBackground } from '../../../components/common/StudioGradi
 import { ViewModeToggle, type ViewMode } from '../../../components/common/ViewModeToggle';
 import { MenuIcon } from '../../../components/icons/WebMirrorIcons';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
-import { STUDIO_TOOLS } from '../../../components/tools/toolsConfig';
+import { STUDIO_TOOLS, STUDIO_TOOL_GLYPHS } from '../../../components/tools/toolsConfig';
 import { useContentColumn } from '../../../hooks/useLayout';
 import { useOpenRecentItem } from '../../../hooks/useRecentActivity';
 import { useStudioMedia } from '../../../hooks/useStudioMedia';
@@ -22,18 +21,6 @@ import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../.
 import { getSurfaceFab, getToolTheme } from '../../../theme/toolTheme';
 
 const SECTION_LIMIT = 6;
-
-/**
- * Ionicons equivalents of the studio tools' shared glyph keys. The create sheet
- * draws them through `MenuIcon`, which speaks `@gruenerator/shared/icons`;
- * `EmptyState` speaks Ionicons like the rest of the app's list rows, so the
- * three tools need a name in that set too.
- */
-const STUDIO_TILE_GLYPHS: Record<string, IoniconsIconName> = {
-  vorlagen: 'albums',
-  'ki-bildgenerierung': 'sparkles',
-  reel: 'videocam',
-};
 
 /**
  * The Studio tab — what the user has made with Vorlagen, KI-Bild und Reel, one
@@ -116,7 +103,7 @@ export default function StudioScreen() {
           <View style={[styles.empty, { paddingBottom: bottomClearance }]}>
             <EmptyState
               tiles={STUDIO_TOOLS.map((tool) => ({
-                glyph: STUDIO_TILE_GLYPHS[tool.id] ?? 'sparkles',
+                glyph: STUDIO_TOOL_GLYPHS[tool.id] ?? 'sparkles',
                 ...getToolTheme(tool.id, isDark),
               }))}
               title="Dein Studio ist noch leer"
@@ -127,7 +114,7 @@ export default function StudioScreen() {
               // routes to the same tool look like two tools.
               actions={STUDIO_TOOLS.map((tool) => ({
                 key: tool.id,
-                glyph: STUDIO_TILE_GLYPHS[tool.id] ?? 'sparkles',
+                glyph: STUDIO_TOOL_GLYPHS[tool.id] ?? 'sparkles',
                 title: tool.title,
                 description: tool.description,
                 tone: getToolTheme(tool.id, isDark),

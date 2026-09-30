@@ -6,6 +6,8 @@ import { ViewModeToggle, type ViewMode } from '../../../components/common/ViewMo
 import { DocumentsView } from '../../../components/docs/DocumentsView';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { useOfficeExtraItems } from '../../../components/office/useOfficeExtraItems';
+import { WorkplaceArbeitenScreen } from '../../../components/workplace/WorkplaceArbeitenScreen';
+import { isWorkplaceLayout } from '../../../config/navLayout';
 import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
 
 /**
@@ -17,7 +19,12 @@ import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
  * list with different chrome, so Office is gone and its `extraItems` (boards +
  * canvases, which the /docs endpoint does not return) are fetched here instead.
  */
-export default function ArbeitenScreen() {
+export default function ArbeitenRoute() {
+  return isWorkplaceLayout ? <WorkplaceArbeitenScreen /> : <ArbeitenScreen />;
+}
+
+/** The Arbeiten tab of the four-tab shell (`config/navLayout`). */
+function ArbeitenScreen() {
   const isDark = useColorScheme() === 'dark';
   const { items } = useOfficeExtraItems();
 
