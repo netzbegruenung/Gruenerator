@@ -131,6 +131,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     customSystemPrompt: null,
     roleBausteinActive: false,
     userRoles: [],
+    activeRole: null,
     activeSkillMention: null,
     activeRecipeId: null,
     userInstructions: null,

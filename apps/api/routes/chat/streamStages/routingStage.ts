@@ -232,11 +232,11 @@ export function runRoutingStage({
     if (implicitRecipe) {
       // Der Matcher liefert bewusst nur generische Mentions (ein nacktes
       // Plattformwort trägt keine Region). Die Region kommt aus dem Kontext:
-      // LV-PR-Agent oder genau EINE Landesverbands-Rolle → deren Variante.
+      // LV-PR-Agent oder aktive Landesgeschäftsstellen-Rolle → deren Variante.
       const lvVariant = preferredLvRecipeMention({
         mention: implicitRecipe,
         agentIdentifier: classifiedState.agentConfig?.identifier ?? null,
-        roles: classifiedState.userRoles ?? null,
+        activeRole: classifiedState.activeRole ?? null,
         userLocale: classifiedState.userLocale ?? null,
       });
       recordDecision('router.implicit_recipe', implicitRecipe, {

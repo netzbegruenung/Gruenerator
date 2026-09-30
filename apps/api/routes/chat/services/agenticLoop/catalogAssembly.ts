@@ -378,15 +378,15 @@ export async function assembleToolCatalog(
         registry: recipeRegistry,
         userId: userId ?? null,
         // Wählt das Modell die generische Zeile (`presse`, `instagram`),
-        // obwohl der Agent ein LV-PR-Agent ist oder die Person genau einen
-        // Landesverband vertritt, lädt das Tool deterministisch dessen
+        // obwohl der Agent ein LV-PR-Agent ist oder die Person gerade als
+        // Landesgeschäftsstelle schreibt (aktive Rolle), lädt das Tool deterministisch dessen
         // Variante — die kleinen Loop-Modelle greifen sonst zuverlässig zur
         // generischen Vorlage, obwohl die LV-Zeile im Katalog steht.
         preferLv: (mention) =>
           preferredLvRecipeMention({
             mention,
             agentIdentifier: agentConfig.identifier ?? null,
-            roles: state.userRoles ?? null,
+            activeRole: state.activeRole ?? null,
             userLocale: state.userLocale ?? null,
           }),
       });

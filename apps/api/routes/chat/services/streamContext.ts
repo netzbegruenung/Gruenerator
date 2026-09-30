@@ -749,8 +749,9 @@ export async function buildStreamContext({
   // Selbstladen im Loop bleibt dann AN — siehe resolveCustomSystemPrompt.
   let roleBausteinActive = false;
   // Die ganze Rollenliste, nicht nur die referenzierte: der Rezept-Katalog
-  // leitet daraus die Landesverbands-Zuteilung ab, und die gilt in jedem Turn —
-  // auch in einem ohne gewählte Rolle.
+  // leitet daraus die Landesverbands-Zuteilung ab (welche LV-Rezepte sichtbar
+  // sind), und die gilt in jedem Turn — auch in einem ohne gewählte Rolle. Den
+  // automatischen LV-Vorzug steuert dagegen nur `activeRole`.
   //
   // Ein fehlendes Feld wird zur leeren Liste, nicht zu `null`: anders als das
   // Frontend, das vor der Hydratation ehrlich nichts weiß, hat der Server den
@@ -760,8 +761,10 @@ export async function buildStreamContext({
   // Gelesen wird aus der Profiltabelle, NICHT aus `user`: das Sitzungsobjekt
   // führt `user_defaults` gar nicht — siehe `services/roles/userRoles.ts`.
   const userRoles: UserRole[] = await loadUserRoles(userId);
+  let activeRole: UserRole | null = null;
   if (rawRoleRef) {
     const role = findRole(userRoles, rawRoleRef);
+    activeRole = role;
     if (!role) {
       log.warn(
         `[${requestId}] roleRef ${rawRoleRef.ebene}/${rawRoleRef.rolle} findet keine ` +
@@ -855,6 +858,7 @@ export async function buildStreamContext({
     customSystemPrompt,
     roleBausteinActive,
     userRoles,
+    activeRole,
     // Token first, body second — same precedence as every other mention field:
     // the durable `skill:`-token names what THIS message ordered, the body
     // field is the store's ambient choice (and the only carrier old clients
