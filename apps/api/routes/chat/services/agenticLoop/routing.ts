@@ -203,7 +203,7 @@ const asksForRework = (t: string): boolean => hasRewriteTarget(t) || REGENERATE_
 /** „prüf die Fakten und korrigiere falsche Angaben" korrigiert nur, was es
  *  vorher nachgeschlagen hat — kein reines Überarbeiten. Umlaut-Grenze per
  *  Lookbehind, `\b` vor „ü" greift ohne `u` nicht. */
-export const FACT_CHECK_RE =
+const FACT_CHECK_RE =
   /(?<!\p{L})(?:[üu]berpr[üu]f|pr[üu]f|verifizier|check)\p{L}*[^.?!]*?(?<!\p{L})(?:fakten|zahlen|angaben|daten|behauptung|aussage|stimm|richtig|korrekt|aktuell)/iu;
 
 /** „Antworte auf diese Mail", „Beantworte die Anfrage" — the job a notebook exists for. */
