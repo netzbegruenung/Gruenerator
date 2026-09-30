@@ -138,11 +138,17 @@ in der Postgres-Datenbank des xprem-Servers, versiegelt mit
 ausgelieferten Binaries keine Updates mehr an, bis ein neuer Store-Build mit neuem
 Zertifikat draußen ist. Das Zertifikat läuft am 30.09.2036 ab.
 
+**Standardweg ist der Workflow** `apps/mobile/.eas/workflows/ota-update.yml`
+(`eas workflow:run .eas/workflows/ota-update.yml`, Kanal und Nachricht als
+Eingabe). Er zieht die EAS-Variablen der gewählten Umgebung, startet ohne
+Metro-Cache und scheitert, wenn der GlitchTip-DSN nicht im Bundle steckt. Braucht
+`EOO_TOKEN` als geheime EAS-Variable in `preview` und `production`. Von Hand:
+
 ```bash
 cd apps/mobile
 export EOO_TOKEN=…   # API-Token aus dem xprem-Dashboard
-eas env:exec preview    'RELEASE_CHANNEL=preview    npx eoas publish --branch preview'
-eas env:exec production 'RELEASE_CHANNEL=production npx eoas publish --branch production'
+eas env:exec preview    'RELEASE_CHANNEL=preview    npx eoas@3.2.5 publish --branch preview'
+eas env:exec production 'RELEASE_CHANNEL=production npx eoas@3.2.5 publish --branch production'
 RELEASE_CHANNEL=production npx eoas rollback --branch production   # Notausgang
 ```
 
