@@ -119,6 +119,16 @@ export function isVerificationQuestion(text: string): boolean {
 const OTHER_ARTIFACT_OBJECT_PATTERN =
   /(?<!\p{L})(?:im|ins|in\s+(?:der|die|das|dem|den|mein\w*)|der|die|das|dem|den|zur|zum)\s+(?:dokument|pr(?:ä|ae)sentation|tabelle|board|kalender|newsletter|pressemitteilung|post(?:ing)?)(?!\p{L})/iu;
 
+/**
+ * Die Anweisung nennt das Sharepic oder eins seiner Felder — ein blosses
+ * „Text" zählt nicht, das kann ebenso der eingefügte Text sein. Dieselbe Regel
+ * wie `namesSocialPostTarget`, nur über die Sharepic-Nomen (#3918).
+ */
+export function namesSharepicTarget(text: string): boolean {
+  const nouns = new RegExp(EDIT_NOUN_PATTERN.source, 'giu');
+  return [...text.matchAll(nouns)].some((m) => m[1].toLowerCase() !== 'text');
+}
+
 export function isSharepicEditInstruction(text: string): boolean {
   if (NEW_VARIANTS_PATTERN.test(text)) return false;
   if (NEW_ARTIFACT_PATTERN.test(text)) return false;

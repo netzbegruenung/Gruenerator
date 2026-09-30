@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
-import { orderText } from './orderText.js';
+import { carriesMaterial, orderText } from './orderText.js';
 import {
   asksForNewArtifact,
   isSharepicEditInstruction,
   isVerificationQuestion,
+  namesSharepicTarget,
 } from './sharepicEditHeuristics.js';
 
 /**
@@ -239,5 +240,32 @@ describe('isSharepicEditInstruction liest den Auftrag, nicht den Stoff', () => {
 
   it('ein echter Bearbeitungsauftrag greift weiter', () => {
     expect(isSharepicEditInstruction(orderText('mach den Text kürzer'))).toBe(true);
+  });
+});
+
+/** #3918: mit eingefügtem Stoff muss der Auftrag das Sharepic nennen. */
+describe('Sharepic-Bearbeitung: ein bloßes „Text" über eingefügtem Stoff meint den Stoff', () => {
+  const claimsSharepicEdit = (message: string) => {
+    const order = orderText(message);
+    return (
+      (!carriesMaterial(message) || namesSharepicTarget(order)) && isSharepicEditInstruction(order)
+    );
+  };
+  const paste =
+    'Unser Ortsverband lädt am Samstag zum Radfahr-Aktionstag ein: Treffpunkt ist um 10 Uhr am Rathausplatz, danach fahren wir gemeinsam die neue Fahrradstraße ab und sammeln Ideen für den Stadtrat.';
+
+  it('„mach den Text kürzer" über Stoff greift nicht', () => {
+    const message = `${paste}\n\nmach den Text kürzer`;
+    expect(isSharepicEditInstruction(orderText(message))).toBe(true);
+    expect(claimsSharepicEdit(message)).toBe(false);
+  });
+
+  it('ein Auftrag, der ein Sharepic-Feld nennt, greift weiter', () => {
+    expect(claimsSharepicEdit(`Ersetze das Zitat im Sharepic durch:\n\n${paste}`)).toBe(true);
+    expect(claimsSharepicEdit(`${paste}\n\nmach die Überschrift kürzer`)).toBe(true);
+  });
+
+  it('ohne Stoff bleibt es beim Sharepic', () => {
+    expect(claimsSharepicEdit('mach den Text kürzer')).toBe(true);
   });
 });

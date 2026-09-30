@@ -98,6 +98,17 @@ const OUTPUT_REQUEST_PATTERN =
   /(?<!\p{L})(gib|zeig|zeige|nenn|nenne|liste|drucke?|printe?|ausgeben|ausgabe|rendere?)(?!\p{L})|(?<!\p{L})(w(?:ö|oe)rtlich|unver(?:ä|ae)ndert|so\s+wie\s+es\s+ist|als\s+(?:code|markdown|html|json|klartext|plain\s*text))(?!\p{L})|<\/?[a-z][\w-]*>|```/iu;
 
 /**
+ * Die Anweisung nennt den Post (oder einen seiner Teile) — ein blosses „Text"
+ * zählt nicht, das kann ebenso der eingefügte Text sein. Braucht die Stufe nur,
+ * wenn die Nachricht Stoff mitbringt: dann meint „übersetze das" eher den
+ * Stoff als den Post im Thread (#3918).
+ */
+export function namesSocialPostTarget(text: string): boolean {
+  const nouns = new RegExp(TEXT_NOUN_PATTERN.source, 'giu');
+  return [...text.matchAll(nouns)].some((m) => m[1].toLowerCase() !== 'text');
+}
+
+/**
  * True when the message reads like an edit instruction for the TEXT of an
  * existing social post. Only meaningful when the thread actually has a
  * social_post message — callers check target existence first.
