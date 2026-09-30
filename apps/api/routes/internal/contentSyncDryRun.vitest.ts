@@ -25,9 +25,9 @@ describe('dry-run capability', () => {
     }
   });
 
-  it('refuses the nine sources that would store for real', () => {
+  it('refuses the ten sources that would store for real', () => {
     const refused = contentSyncSourceSchema.options.filter((id) => !supportsDryRun(id));
-    expect(refused).toHaveLength(9);
+    expect(refused).toHaveLength(10);
     expect(refused).toContain('gruene-de');
     expect(refused).toContain('grundsatz');
   });

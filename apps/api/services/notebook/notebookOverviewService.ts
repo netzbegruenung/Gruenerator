@@ -12,6 +12,7 @@
 import {
   notebookOverviewResponseSchema,
   topicCategorySchema,
+  type NotebookInstagramPost,
   type NotebookOverviewDocument,
   type NotebookOverviewResponse,
   type NotebookTopicTrend,
@@ -53,6 +54,17 @@ const SIGNATURE_MIN_LIFT = 2;
 /** Thousands of words are tested per notebook — 1.96 would let dozens through by chance. */
 const SIGNATURE_Z = 3;
 const LV_COLLECTION = 'landesverbaende_documents';
+const INSTAGRAM_TYPE = 'instagram';
+const INSTAGRAM_POSTS = 6;
+const CAPTION_MAX = 280;
+const INSTAGRAM_FIELDS = [
+  'source_url',
+  'full_text',
+  'chunk_text',
+  'published_at',
+  'image_path',
+  'source_account',
+];
 
 const HEAD_FIELDS = [
   'published_at',
@@ -84,7 +96,7 @@ export interface HeadDoc {
 
 export type OverviewAggregate = Omit<
   NotebookOverviewResponse,
-  'collectionId' | 'computedAt' | 'recent'
+  'collectionId' | 'computedAt' | 'recent' | 'instagram'
 > & {
   /** Newest dated documents first; the caller loads their full payload. */
   recentIds: Array<string | number>;
@@ -584,9 +596,84 @@ async function scrollHeadDocs(
   return docs;
 }
 
-function headFilter(collectionId: string | null): Record<string, unknown> {
+/** `null` = every Landesverband. */
+export function headFilter(collectionId: string | null): Record<string, unknown> {
   const base = collectionId ? (applyDefaultFilter(collectionId, undefined) ?? {}) : {};
-  return { ...base, must: [...(base.must ?? []), { key: 'chunk_index', match: { value: 0 } }] };
+  const filter = {
+    ...base,
+    must: [...(base.must ?? []), { key: 'chunk_index', match: { value: 0 } }],
+  };
+  const isLv =
+    collectionId === null ||
+    getSystemCollectionConfig(collectionId)?.qdrantCollection === LV_COLLECTION;
+  if (!isLv) return filter;
+  // Instagram posts sit in the LV corpus for the chat; the statistics would
+  // jump with every daily post, so they get their own card instead.
+  return {
+    ...filter,
+    must_not: [...(base.must_not ?? []), { key: 'content_type', match: { value: INSTAGRAM_TYPE } }],
+  };
+}
+
+function toInstagramPost(
+  id: string | number,
+  payload: Record<string, unknown>
+): NotebookInstagramPost | null {
+  const url = str(payload.source_url);
+  const caption = str(payload.full_text) ?? str(payload.chunk_text);
+  if (!url || !caption) return null;
+  return {
+    id: String(id),
+    url,
+    caption: caption.length > CAPTION_MAX ? `${caption.slice(0, CAPTION_MAX - 1)}…` : caption,
+    publishedAt: str(payload.published_at),
+    imagePath: str(payload.image_path),
+    account: str(payload.source_account) ?? '',
+  };
+}
+
+/** Newest first; points without link or caption are dropped. */
+export function pickInstagramPosts(
+  points: Array<{ id: string | number; payload?: Record<string, unknown> | null }>
+): NotebookInstagramPost[] {
+  return points
+    .flatMap((point) => {
+      const post = toInstagramPost(point.id, point.payload ?? {});
+      return post ? [post] : [];
+    })
+    .sort((a, b) => (b.publishedAt ?? '').localeCompare(a.publishedAt ?? ''))
+    .slice(0, INSTAGRAM_POSTS);
+}
+
+/** A few hundred posts per LV at most, sorted in Node like the head scroll. */
+async function loadInstagram(
+  client: QdrantClient,
+  collectionId: string
+): Promise<NotebookInstagramPost[]> {
+  const base = applyDefaultFilter(collectionId, undefined) ?? {};
+  const filter = {
+    ...base,
+    must: [
+      ...(base.must ?? []),
+      { key: 'chunk_index', match: { value: 0 } },
+      { key: 'content_type', match: { value: INSTAGRAM_TYPE } },
+    ],
+  };
+  const points: Array<{ id: string | number; payload?: Record<string, unknown> | null }> = [];
+  let offset: string | number | null = null;
+  do {
+    const page = await client.scroll(LV_COLLECTION, {
+      filter,
+      limit: SCROLL_PAGE,
+      with_payload: INSTAGRAM_FIELDS,
+      with_vector: false,
+      ...(offset !== null && { offset }),
+    });
+    points.push(...page.points);
+    const next = page.next_page_offset;
+    offset = typeof next === 'string' || typeof next === 'number' ? next : null;
+  } while (offset !== null);
+  return pickInstagramPosts(points);
 }
 
 /** Topic shares over every Landesverband — the yardstick for one LV's profile. */
@@ -656,10 +743,11 @@ async function computeOverview(collectionId: string): Promise<NotebookOverviewRe
   const collection = config.qdrantCollection;
   const isLv = collection === LV_COLLECTION;
   const t0 = Date.now();
-  const [docs, baseline, lvDocs] = await Promise.all([
+  const [docs, baseline, lvDocs, instagram] = await Promise.all([
     scrollHeadDocs(client, collection, headFilter(collectionId)),
     isLv ? loadLvBaseline(client) : Promise.resolve(null),
     isLv ? scrollHeadDocs(client, LV_COLLECTION, headFilter(null)) : Promise.resolve(null),
+    isLv ? loadInstagram(client, collectionId) : Promise.resolve([]),
   ]);
 
   const now = new Date();
@@ -673,6 +761,7 @@ async function computeOverview(collectionId: string): Promise<NotebookOverviewRe
     computedAt: now.toISOString(),
     ...aggregate,
     recent,
+    instagram,
   };
 }
 
