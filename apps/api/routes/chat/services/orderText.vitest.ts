@@ -66,6 +66,7 @@ describe('orderText: wie ein Auftrag beginnt nur die Befehlsform', () => {
     ['Antwort der Landesregierung:'],
     ['Entwurf des Antrags:'],
     ['Vergleich der Wahlprogramme:'],
+    ['Vergleiche der Parteien zeigen:'],
   ])('ein Stoff, der mit „%s" beginnt, ist kein Auftrag', (opening) => {
     const paste = opening + rest;
     expect(paste.length).toBeGreaterThan(120);
@@ -94,6 +95,8 @@ describe('orderText: wie ein Auftrag beginnt nur die Befehlsform', () => {
     ['Entwirf einen Antrag'],
     ['Vergleiche die Programme'],
     ['Antworte auf die Anfrage'],
+    ['Vergleich die zwei Texte'],
+    ['Vergleich mir die Programme'],
     ['Bitte prüfe die Zahlen'],
     ['Kannst du eine Rede schreiben'],
     ['Ich brauche eine Rede'],
@@ -137,6 +140,20 @@ describe('orderText: Gruß und Dank sind weder Auftrag noch Stoff', () => {
     expect(orderText(message)).toBe(order);
   });
 
+  it.each([
+    ['Hallo Team,', 'LG Moritz'],
+    ['Liebe Anna,', 'Viele Grüße, Anna'],
+    ['Moin zusammen', 'Danke dir, Grüße Jana Maria Schulz'],
+  ])('ein Gruß mit Namen verdrängt den Auftrag nicht: %s … %s', (hello, bye) => {
+    expect(
+      orderText(`${hello}\n\n${newsletter}\n\nrecherchiere dazu aktuelle Zahlen\n\n${bye}`)
+    ).toBe('recherchiere dazu aktuelle Zahlen');
+  });
+
+  it('ein Auftrag nach dem Gruß ist kein Gruß mit Namen', () => {
+    expect(orderText(`Hallo, mach das kürzer\n\n${newsletter}`)).toBe('Hallo, mach das kürzer');
+  });
+
   it('Stoff zwischen Gruß und Auftrag bleibt Stoff', () => {
     expect(
       orderText(`Hallo zusammen,\n\n${newsletter}\n\nrechtschreibung korrigieren\n\nDanke!`)
@@ -148,7 +165,8 @@ describe('orderText: Gruß und Dank sind weder Auftrag noch Stoff', () => {
 
   it('lauter kurze Absätze sind kein Stoff: der ganze Text zählt', () => {
     // Ein Gruß, den das Muster nicht kennt, darf den Auftrag nicht verdrängen.
-    const message = 'Hallo Grünerator,\n\nkannst du den Post etwas kürzer machen?\n\nBis später';
+    const message =
+      'Na, wie geht es euch?\n\nkannst du den Post etwas kürzer machen?\n\nBis später';
     expect(orderText(message)).toBe(message);
   });
 });
