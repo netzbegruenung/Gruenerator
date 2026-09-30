@@ -4,6 +4,8 @@
  */
 import { z } from 'zod';
 
+import { reactionSummariesSchema } from './entityReactions.js';
+
 // ── Building blocks ───────────────────────────────────────────────────────────
 
 export const commentBlockSchema = z.object({
@@ -39,10 +41,13 @@ export const boardCommentRowSchema = z.object({
 });
 
 // A reply: row + author + reactions (replies never nest further, no reply_count).
+// `reactions` is the legacy per-user row list; `reactionSummaries` the viewer-specific
+// aggregate (additive — defaults to [] against an older backend).
 export const boardCommentReplySchema = boardCommentRowSchema.extend({
   author_name: z.string().nullable(),
   author_avatar_robot_id: z.number().nullable(),
   reactions: z.array(commentReactionSchema),
+  reactionSummaries: reactionSummariesSchema.default([]),
 });
 
 // A top-level comment: reply shape + reply_count + nested replies.

@@ -758,10 +758,10 @@ describe('forcedFirstStepTools', () => {
     expect(tools({ reason: 'named_intent', intent: 'search' })).toEqual(['gruenerator_search']);
   });
 
-  it('named_intent: search mit Anhang → Suche, dann die angehängten Dokumente', () => {
+  it('named_intent: search mit Anhang (Seed leer) → nur die angehängten Dokumente', () => {
     expect(
       tools({ reason: 'named_intent', intent: 'search', attachedDocsTool: 'dokumente_lesen' })
-    ).toEqual(['gruenerator_search', 'dokumente_lesen']);
+    ).toEqual(['dokumente_lesen']);
   });
 
   it.each(['demoted_retrieval', 'contradicted', 'followup'] as const)(

@@ -196,6 +196,12 @@
       "import": "./dist/groups/index.js",
       "default": "./dist/groups/index.js"
     },
+    "./reactions": {
+      "development": "./src/reactions/index.ts",
+      "types": "./src/reactions/index.ts",
+      "import": "./dist/reactions/index.js",
+      "default": "./dist/reactions/index.js"
+    },
     "./agents": {
       "development": "./src/agents/index.ts",
       "types": "./src/agents/index.ts",

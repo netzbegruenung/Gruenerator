@@ -15,6 +15,7 @@ import {
 } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { type EntityReactionRow } from '../../database/schema/index.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { enqueueAgentTask } from '../../services/boards/agentTaskService.js';
 import { bumpCardComments } from '../../services/boards/boardLiveSignalService.js';
@@ -22,6 +23,12 @@ import { buildCardEmailMetadata } from '../../services/boards/BoardService.js';
 import { recordCardActivity } from '../../services/boards/cardActivityService.js';
 import { autoSubscribe } from '../../services/boards/cardSubscriptionService.js';
 import { GRUENERATOR_BOT_USER_ID } from '../../services/boards/grueneratorBot.js';
+import {
+  addReaction as addEntityReaction,
+  getReactionRows,
+  removeReaction as removeEntityReaction,
+  summarizeReactionRows,
+} from '../../services/entityReactions/EntityReactionsService.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -35,8 +42,20 @@ const log = createLogger('boardCommentsContract');
 const db = getPostgresInstance();
 
 // Row shapes before JS-side enrichment (reactions/replies attached after the query).
-type TopLevelCommentRow = Omit<BoardComment, 'reactions' | 'replies'>;
-type ReplyRow = Omit<BoardCommentReply, 'reactions'>;
+type TopLevelCommentRow = Omit<BoardComment, 'reactions' | 'reactionSummaries' | 'replies'>;
+type ReplyRow = Omit<BoardCommentReply, 'reactions' | 'reactionSummaries'>;
+
+/** Legacy `board_comment_reactions` row shape, synthesized from `entity_reactions`. */
+function toLegacyReaction(r: EntityReactionRow): CommentReaction {
+  return {
+    id: r.id,
+    // Only called for board_comment rows, where the CHECK makes this non-null.
+    comment_id: r.board_comment_id!,
+    user_id: r.user_id,
+    emoji: r.emoji,
+    created_at: new Date(r.created_at).toISOString(),
+  };
+}
 
 function extractPlainText(blocks: CommentBlock[]): string {
   return blocks
@@ -52,11 +71,11 @@ function extractMentionedUserIds(blocks: CommentBlock[]): string[] {
   return blocks.filter((b) => b.type === 'mention' && b.userId).map((b) => b.userId!);
 }
 
-/** The card a comment belongs to, for live-signalling reaction/delete changes. */
-async function cardIdForComment(commentId: string): Promise<string | null> {
+/** The card a comment on `boardId` belongs to (null if it is not on that board). */
+async function cardIdForComment(commentId: string, boardId: string): Promise<string | null> {
   const rows = await db.query<{ card_id: string }>(
-    `SELECT card_id FROM board_comments WHERE id = $1`,
-    [commentId]
+    `SELECT card_id FROM board_comments WHERE id = $1 AND board_id = $2`,
+    [commentId, boardId]
   );
   return rows[0]?.card_id ?? null;
 }
@@ -88,7 +107,7 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
       const commentIds = comments.map((c) => c.id);
 
       let replyRows: ReplyRow[] = [];
-      let reactions: CommentReaction[] = [];
+      let reactionRows: EntityReactionRow[] = [];
 
       if (commentIds.length > 0) {
         replyRows = await db.query<ReplyRow>(
@@ -104,22 +123,26 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
         );
 
         const allIds = [...commentIds, ...replyRows.map((r) => r.id)];
-        reactions = await db.query<CommentReaction>(
-          `SELECT * FROM board_comment_reactions WHERE comment_id = ANY($1)`,
-          [allIds]
-        );
+        // One query feeds both the legacy rows and the viewer's summaries.
+        reactionRows = await getReactionRows('board_comment', allIds);
       }
 
       const reactionsByComment = new Map<string, CommentReaction[]>();
-      for (const r of reactions) {
-        const arr = reactionsByComment.get(r.comment_id) ?? [];
-        arr.push(r);
-        reactionsByComment.set(r.comment_id, arr);
+      for (const r of reactionRows) {
+        const legacy = toLegacyReaction(r);
+        const arr = reactionsByComment.get(legacy.comment_id) ?? [];
+        arr.push(legacy);
+        reactionsByComment.set(legacy.comment_id, arr);
       }
+      const summariesByComment = summarizeReactionRows(reactionRows, userId);
 
       const repliesByParent = new Map<string, BoardCommentReply[]>();
       for (const r of replyRows) {
-        const reply: BoardCommentReply = { ...r, reactions: reactionsByComment.get(r.id) ?? [] };
+        const reply: BoardCommentReply = {
+          ...r,
+          reactions: reactionsByComment.get(r.id) ?? [],
+          reactionSummaries: summariesByComment.get(r.id) ?? [],
+        };
         const arr = repliesByParent.get(r.parent_id!) ?? [];
         arr.push(reply);
         repliesByParent.set(r.parent_id!, arr);
@@ -128,6 +151,7 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
       const result: BoardComment[] = comments.map((c) => ({
         ...c,
         reactions: reactionsByComment.get(c.id) ?? [],
+        reactionSummaries: summariesByComment.get(c.id) ?? [],
         replies: repliesByParent.get(c.id) ?? [],
       }));
 
@@ -189,13 +213,13 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
       // sees "I'm on it" right away — the actual answer follows from the worker.
       let botReactions: CommentReaction[] = [];
       if (mentionedUserIds.includes(GRUENERATOR_BOT_USER_ID)) {
-        botReactions = await db.query<CommentReaction>(
-          `INSERT INTO board_comment_reactions (comment_id, user_id, emoji)
-           VALUES ($1, $2, '👍')
-           ON CONFLICT (comment_id, user_id, emoji) DO NOTHING
-           RETURNING *`,
-          [comment.id, GRUENERATOR_BOT_USER_ID]
+        const row = await addEntityReaction(
+          GRUENERATOR_BOT_USER_ID,
+          'board_comment',
+          comment.id,
+          '👍'
         );
+        if (row) botReactions = [toLegacyReaction(row)];
       }
 
       // Commenter becomes a watcher; record the activity for the unified feed.
@@ -220,6 +244,11 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
         author_avatar_robot_id: profile[0]?.avatar_robot_id ?? null,
         reply_count: 0,
         reactions: botReactions,
+        reactionSummaries: botReactions.map((r) => ({
+          emoji: r.emoji,
+          count: 1,
+          reacted: r.user_id === userId,
+        })),
         replies: [],
       };
 
@@ -339,22 +368,19 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
       const { hasAccess } = await checkBoardAccess(boardId, userId);
       if (!hasAccess) return { status: 403 as const, body: { error: 'Kein Zugriff' } };
 
-      const rows = await db.query<CommentReaction>(
-        `INSERT INTO board_comment_reactions (comment_id, user_id, emoji)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (comment_id, user_id, emoji) DO NOTHING
-         RETURNING *`,
-        [commentId, userId, emoji]
-      );
+      // The comment must exist on THIS board, or the user could react to a
+      // comment on a board they cannot see.
+      const cardId = await cardIdForComment(commentId, boardId);
+      if (!cardId) return { status: 403 as const, body: { error: 'Kein Zugriff' } };
 
-      if (rows.length === 0) {
+      const row = await addEntityReaction(userId, 'board_comment', commentId, emoji);
+      if (!row) {
         return { status: 200 as const, body: { already_exists: true } };
       }
 
-      const cardId = await cardIdForComment(commentId);
-      if (cardId) void bumpCardComments(boardId, cardId);
+      void bumpCardComments(boardId, cardId);
 
-      return { status: 201 as const, body: rows[0] };
+      return { status: 201 as const, body: toLegacyReaction(row) };
     } catch (error) {
       log.error('Error adding reaction', { error: errMsg(error) });
       return { status: 500 as const, body: { error: 'Reaktion konnte nicht hinzugefügt werden' } };
@@ -369,12 +395,9 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
       const { hasAccess } = await checkBoardAccess(boardId, userId);
       if (!hasAccess) return { status: 403 as const, body: { error: 'Kein Zugriff' } };
 
-      await db.query(
-        `DELETE FROM board_comment_reactions WHERE comment_id = $1 AND user_id = $2 AND emoji = $3`,
-        [commentId, userId, decodeURIComponent(emoji)]
-      );
+      await removeEntityReaction(userId, 'board_comment', commentId, decodeURIComponent(emoji));
 
-      const cardId = await cardIdForComment(commentId);
+      const cardId = await cardIdForComment(commentId, boardId);
       if (cardId) void bumpCardComments(boardId, cardId);
 
       return { status: 200 as const, body: { success: true } };

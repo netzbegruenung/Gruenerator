@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from 'react';
 import { PiPaperPlaneRight, PiTrash, PiX } from 'react-icons/pi';
 
 import { GroupMentionText, MentionSuggestions, useMentionDraft } from './GroupMentions';
+import { CommentReactions } from './GroupReactions';
 
 interface GroupCommentThreadProps {
   id: string;
@@ -108,7 +109,7 @@ export function GroupCommentThread({
               <GroupMentionText text={c.body} />
             </span>
           </div>
-          <div className="flex items-center gap-sm pl-3.5 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-sm pl-3.5 text-xs text-muted-foreground">
             <time dateTime={c.createdAt}>{formatFeedDate(c.createdAt, 'short')}</time>
             <button
               type="button"
@@ -128,6 +129,7 @@ export function GroupCommentThread({
                 <PiTrash className="size-3.5" />
               </button>
             )}
+            <CommentReactions groupId={groupId} comment={c} />
           </div>
         </div>
       </div>
