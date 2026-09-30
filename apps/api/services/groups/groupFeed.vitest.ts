@@ -87,15 +87,13 @@ function fakeDeps(f: Fake = {}) {
   const getReactionSummaries = vi.fn(
     async () => new Map([['c1', [{ emoji: '👍', count: 2, reacted: true }]]])
   );
-  const deleteReactionsForEntities = vi.fn(async () => {});
   const deps = {
     postgres: { exec, queryOne, query } as unknown as GroupFeedDeps['postgres'],
     notify,
     isInstanceAdmin: vi.fn(async () => f.instanceAdmin ?? false),
     getReactionSummaries,
-    deleteReactionsForEntities,
   } satisfies GroupFeedDeps;
-  return { deps, exec, notify, query, getReactionSummaries, deleteReactionsForEntities };
+  return { deps, exec, notify, query, getReactionSummaries };
 }
 
 const ids = { groupId: 'g1', shareId: 's1', userId: 'u1' };
@@ -281,11 +279,9 @@ describe('comments', () => {
     const stranger = fakeDeps({ role: 'member', comment: { user_id: 'someone' } });
     expect((await deleteShareComment({ ...ids, commentId: 'c1' }, stranger.deps)).status).toBe(403);
     expect(stranger.exec).not.toHaveBeenCalled();
-    expect(stranger.deleteReactionsForEntities).not.toHaveBeenCalled();
 
     const author = fakeDeps({ role: 'member', comment: { user_id: 'u1' } });
     expect((await deleteShareComment({ ...ids, commentId: 'c1' }, author.deps)).status).toBe(200);
-    expect(author.deleteReactionsForEntities).toHaveBeenCalledWith('group_comment', ['c1']);
 
     const admin = fakeDeps({ role: 'admin', comment: { user_id: 'someone' } });
     expect((await deleteShareComment({ ...ids, commentId: 'c1' }, admin.deps)).status).toBe(200);

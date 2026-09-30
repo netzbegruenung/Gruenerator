@@ -1,24 +1,33 @@
-import { type InferSelectModel } from 'drizzle-orm';
-import { index, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { type InferSelectModel, sql } from 'drizzle-orm';
+import { check, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
+// One nullable FK column per reactable entity (ON DELETE CASCADE in SQL), so
+// Postgres removes reactions together with their target.
 export const entityReactions = pgTable(
   'entity_reactions',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    entity_type: text('entity_type').notNull(),
-    entity_id: text('entity_id').notNull(),
     user_id: uuid('user_id').notNull(),
     emoji: text('emoji').notNull(),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    group_share_id: uuid('group_share_id'),
+    group_comment_id: uuid('group_comment_id'),
+    board_comment_id: uuid('board_comment_id'),
   },
   (t) => [
-    unique('entity_reactions_entity_type_entity_id_user_id_emoji_key').on(
-      t.entity_type,
-      t.entity_id,
-      t.user_id,
-      t.emoji
+    check(
+      'entity_reactions_one_target',
+      sql`num_nonnulls(${t.group_share_id}, ${t.group_comment_id}, ${t.board_comment_id}) = 1`
     ),
-    index('idx_entity_reactions_entity').on(t.entity_type, t.entity_id),
+    uniqueIndex('uq_entity_reactions_group_share')
+      .on(t.group_share_id, t.user_id, t.emoji)
+      .where(sql`${t.group_share_id} IS NOT NULL`),
+    uniqueIndex('uq_entity_reactions_group_comment')
+      .on(t.group_comment_id, t.user_id, t.emoji)
+      .where(sql`${t.group_comment_id} IS NOT NULL`),
+    uniqueIndex('uq_entity_reactions_board_comment')
+      .on(t.board_comment_id, t.user_id, t.emoji)
+      .where(sql`${t.board_comment_id} IS NOT NULL`),
   ]
 );
 

@@ -8,7 +8,6 @@ import {
   assertCanShareToGroup,
   listShareTargetGroups,
 } from '../../services/groups/groupMembership.js';
-import { deleteReactionsForShares } from '../../services/groups/groupShareReactions.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { fromParam, type ThreadId, type GroupId } from '../../utils/types/branded.js';
 
@@ -128,7 +127,6 @@ router.delete(
         return res.status(403).json({ error: 'Only thread owner can manage sharing' });
       }
 
-      await deleteReactionsForShares({ contentTypes: ['chat_threads'], contentId: id, groupId });
       await db.query(
         `DELETE FROM group_content_shares WHERE content_type = 'chat_threads' AND content_id = $1 AND group_id = $2`,
         [id, groupId]

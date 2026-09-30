@@ -23,10 +23,7 @@ import {
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { isInstanceAdmin } from '../../utils/adminAuthz.js';
-import {
-  deleteReactionsForEntities,
-  getReactionSummaries,
-} from '../entityReactions/EntityReactionsService.js';
+import { getReactionSummaries } from '../entityReactions/EntityReactionsService.js';
 
 import { notifyGroupActivity } from './groupActivityNotifications.js';
 
@@ -37,7 +34,6 @@ export interface GroupFeedDeps {
   notify: typeof notifyGroupActivity;
   isInstanceAdmin: (userId: string) => Promise<boolean>;
   getReactionSummaries: typeof getReactionSummaries;
-  deleteReactionsForEntities: typeof deleteReactionsForEntities;
 }
 
 function defaultDeps(): GroupFeedDeps {
@@ -46,7 +42,6 @@ function defaultDeps(): GroupFeedDeps {
     notify: notifyGroupActivity,
     isInstanceAdmin,
     getReactionSummaries,
-    deleteReactionsForEntities,
   };
 }
 
@@ -322,7 +317,6 @@ export async function deleteShareComment(
   if (!viewer.isAdmin && comment.user_id !== userId) {
     return { status: 403, message: 'Du kannst nur eigene Kommentare löschen.' };
   }
-  await deps.deleteReactionsForEntities('group_comment', [commentId]);
   await postgres.exec('DELETE FROM group_share_comments WHERE id = $1', [commentId]);
   return { status: 200, data: null };
 }
