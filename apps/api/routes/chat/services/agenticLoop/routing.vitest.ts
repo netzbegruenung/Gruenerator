@@ -1620,3 +1620,40 @@ describe('compoundGenerationKind — Zweck-Nomen', () => {
     expect(compoundGenerationKind('agentic', 'mach daraus eine Präsentation')).toBe('presentation');
   });
 });
+
+// #3941: eine Präsentation im Relativsatz ist nicht das Bestellte.
+describe('compoundGenerationKind — Relativsatz', () => {
+  it('garantiert keine Präsentation, die nur im Relativsatz vorkommt', () => {
+    expect(
+      compoundGenerationKind('agentic', 'Erstelle eine Rede, die die Präsentation zusammenfasst')
+    ).toBeNull();
+  });
+
+  it('der Relativsatz hinter dem Nomen bleibt eine Bestellung', () => {
+    expect(
+      compoundGenerationKind('agentic', 'Erstelle eine Präsentation, die unsere Ziele zeigt')
+    ).toBe('presentation');
+  });
+});
+
+// Beta-Test 30.09.2026: das Register trug eine eigene PDF-Liste, und die
+// Garantie las Zitate und Meta-Fragen mit — die Heuristik war längst sauber.
+describe('compoundGenerationKind — dieselbe PDF-Regel wie der Klassifikator', () => {
+  it.each([
+    'Schreib einen Fragebogen-Text für die Umfrage zur Radverkehrsplanung',
+    'Wie erstelle ich ein PDF mit Briefkopf?',
+    'Mein Kollege schrieb: "mach ein PDF mit Briefkopf" – was hältst du davon?',
+    'Schreib eine Zusammenfassung des PDF',
+  ])('kein PDF: %s', (text) => {
+    expect(compoundGenerationKind('produktion', text)).toBeNull();
+  });
+
+  it.each([
+    'erstelle einen Fragebogen als PDF zur Radverkehrsplanung',
+    'bitte eine schöne pdf erstellen',
+    'PDF erstellen zum Klimageld',
+    'mach ein PDF mit Briefkopf',
+  ])('bleibt PDF: %s', (text) => {
+    expect(compoundGenerationKind('produktion', text)).toBe('pdf');
+  });
+});

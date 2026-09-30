@@ -568,6 +568,7 @@ describe('Tier 2.7 — follow-up on the thread last artifact (lastToolContext)',
     const state = buildState({
       userMessage: 'Kürze die Begründung auf die Hälfte',
       lastToolContext: { kind: 'document', ref: 'doc-created-1' },
+      lastTurnEditables: ['document'],
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('modify_doc');
