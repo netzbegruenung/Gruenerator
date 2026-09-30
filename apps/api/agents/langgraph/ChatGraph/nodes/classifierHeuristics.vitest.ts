@@ -192,3 +192,34 @@ describe('heuristicClassify — PDF nur auf Bestellung', () => {
     expect(heuristicClassify(text).intent).not.toBe('create_pdf');
   });
 });
+
+// Beta-Audit 30.09.2026: im 40-Zeichen-Fenster war das Nomen hinter „für"/„zur"
+// das bestellte Artefakt.
+describe('heuristicClassify — Zweck-Nomen ist nicht das Bestellte', () => {
+  it.each([
+    'Mach mir Stichpunkte für meine Präsentation morgen',
+    'Schreib mir eine Rede für die Präsentation',
+    'Stichpunkte für meine Präsentation erstellen',
+  ])('keine Präsentation: %s', (text) => {
+    expect(heuristicClassify(text).intent).not.toBe('create_presentation');
+  });
+
+  it.each([
+    'Erstell eine Zusammenfassung zur Tabelle',
+    'Erstell mir eine Gliederung für die Tabelle',
+  ])('keine Tabelle: %s', (text) => {
+    expect(heuristicClassify(text).intent).not.toBe('create_sheet');
+  });
+
+  it.each([
+    ['mach daraus eine Präsentation', 'create_presentation'],
+    ['erstelle eine Präsentation zum Klimaschutz', 'create_presentation'],
+    ['mach aus der Tabelle eine Präsentation', 'create_presentation'],
+    ['mach eine Tabelle mit den Zahlen', 'create_sheet'],
+    ['mach das zu einer Tabelle', 'create_sheet'],
+    ['erstelle die Übersicht in einer Tabelle', 'create_sheet'],
+    ['Mach mir eine Tabelle für die Präsentation', 'create_sheet'],
+  ])('bleibt Auftrag: %s', (text, intent) => {
+    expect(heuristicClassify(text).intent).toBe(intent);
+  });
+});
