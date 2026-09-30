@@ -20,6 +20,7 @@ import {
   isReelEditInstruction,
   namesReelTarget,
 } from '../services/reelEditService.js';
+import { sharepicEditAddressed } from '../services/sharepicEditHeuristics.js';
 import {
   handleSharepicEdit,
   isSharepicEditInstruction,
@@ -286,8 +287,18 @@ export async function runEarlyHandlerStage({
     // fell through, and the pipeline then CREATED a sharepic about the edit
     // instruction ("Mach den Text im Sharepic größer" became a sharepic
     // whose topic was that sentence). One check, both lanes.
+    //
+    // Existenz allein reicht nicht: der Auftrag braucht einen ADRESSATEN (offene
+    // Karte, Sharepic im Turn davor, oder er nennt es) — sonst wird Tage später
+    // „Mach mir eine Liste der Argumente" zur Sharepic-Bearbeitung. Gelesen
+    // VOR dem Entfernen von „@sharepic": die Erwähnung nennt das Ziel.
     const sharepicTrigger =
-      candidate && (rawCurrentSharepic != null || (await threadHasSharepic(actualThreadId)))
+      candidate &&
+      sharepicEditAddressed(orderText(lastUserTextNoMentions), {
+        cardOpen: rawCurrentSharepic != null,
+        lastTurnSharepic: initialState.lastTurnSharepic === true,
+      }) &&
+      (rawCurrentSharepic != null || (await threadHasSharepic(actualThreadId)))
         ? candidate
         : null;
     if (sharepicTrigger) {
@@ -341,7 +352,14 @@ export async function runEarlyHandlerStage({
     const followOrder = orderText(followText);
     if (
       isSharepicRefinement(followOrder) &&
-      orderMayMeanArtifact(followText, namesSharepicTarget)
+      orderMayMeanArtifact(followText, namesSharepicTarget) &&
+      // Derselbe Adressat wie oben: `getLastSharepicVariant` findet das Sharepic
+      // noch 30 Nachrichten später, und „Ist das im Wahlprogramm anders?" wurde
+      // so zur Neufassung des Sharepics (Beta-Audit 30.09.2026).
+      sharepicEditAddressed(followOrder, {
+        cardOpen: rawCurrentSharepic != null,
+        lastTurnSharepic: initialState.lastTurnSharepic === true,
+      })
     ) {
       const prior = await getLastSharepicVariant(actualThreadId);
       if (prior) {

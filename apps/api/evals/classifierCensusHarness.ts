@@ -159,7 +159,8 @@ export function censusExecuteProvider(
 function buildState(
   userMessage: string,
   history: ModelMessage[],
-  artifacts: ThreadToolContext[]
+  artifacts: ThreadToolContext[],
+  lastTurnSharepic: boolean
 ): ChatGraphState {
   return {
     messages: [...history, { role: 'user', content: userMessage }],
@@ -180,6 +181,7 @@ function buildState(
     clientPlatform: 'web',
     ...(artifacts[0] ? { lastToolContext: artifacts[0] } : {}),
     threadArtifacts: artifacts,
+    lastTurnSharepic,
     attachmentContext: null,
     imageAttachments: [],
     threadAttachments: [],
@@ -256,6 +258,9 @@ export async function runClassifierCensus(): Promise<CensusRun> {
         : (entry.turns ?? []);
     const history: ModelMessage[] = [];
     let artifacts: ThreadToolContext[] = [];
+    // Hat der Vorturn ein Sharepic gebaut? Anders als `artifacts` vergisst das
+    // jeder Turn wieder — wie `lastTurnSharepic` im echten Thread.
+    let lastTurnSharepic = false;
     /** Ab hier weiss die Kette nicht mehr, was in ihr entstanden ist. */
     let blind = false;
 
@@ -268,7 +273,7 @@ export async function runClassifierCensus(): Promise<CensusRun> {
       let intent: string;
       try {
         const result = await runWithDecisionJournal(journal, () =>
-          classifierNode(buildState(prompt, history, artifacts))
+          classifierNode(buildState(prompt, history, artifacts, lastTurnSharepic))
         );
         intent = String(result.intent ?? '?');
       } catch (err) {
@@ -319,6 +324,7 @@ export async function runClassifierCensus(): Promise<CensusRun> {
       const kind = effectiveIntent
         ? ARTIFACT_KIND_BY_INTENT[effectiveIntent as ChatIntentId]
         : undefined;
+      lastTurnSharepic = kind === 'sharepic';
       if (kind) {
         artifacts = [
           {

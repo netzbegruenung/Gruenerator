@@ -98,6 +98,7 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
       buildState({
         userMessage: ADD_INSTRUCTION,
         lastToolContext: afterSharepic,
+        lastTurnSharepic: true,
       })
     );
     expect(result.intent).toBe('sharepic');
@@ -109,6 +110,7 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
       buildState({
         userMessage: 'Mach den Text größer',
         lastToolContext: afterSharepic,
+        lastTurnSharepic: true,
       })
     );
     expect(result.intent).toBe('sharepic');
@@ -123,6 +125,7 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
         userMessage: 'Mach den Text größer',
         imageAttachments: [{ mimeType: 'image/png', data: 'x' }],
         lastToolContext: afterSharepic,
+        lastTurnSharepic: true,
       })
     );
     expect(result.intent).not.toBe('sharepic');
@@ -135,7 +138,11 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
     // des Sharepics ist. Die ausdrücklichen Formulierungen („bearbeite das
     // Bild") beansprucht weiterhin Tier 1, eine Stufe früher.
     const result = await classifierNode(
-      buildState({ userMessage: 'Mach das Foto heller', lastToolContext: afterSharepic })
+      buildState({
+        userMessage: 'Mach das Foto heller',
+        lastToolContext: afterSharepic,
+        lastTurnSharepic: true,
+      })
     );
     expect(result.intent).toBe('sharepic');
   });
@@ -179,7 +186,11 @@ describe('classifierNode — Sharepic-Folgeauftrag mit mitgebrachtem Stoff', () 
 
   it('beansprucht Newsletter + „mach es kürzer" nicht für das Sharepic', async () => {
     const result = await classifierNode(
-      buildState({ userMessage: `${NEWSLETTER}\n\nmach es kürzer`, lastToolContext: afterSharepic })
+      buildState({
+        userMessage: `${NEWSLETTER}\n\nmach es kürzer`,
+        lastToolContext: afterSharepic,
+        lastTurnSharepic: true,
+      })
     );
     expect(result.intent).not.toBe('sharepic');
   });
@@ -189,6 +200,49 @@ describe('classifierNode — Sharepic-Folgeauftrag mit mitgebrachtem Stoff', () 
       buildState({
         userMessage: `${NEWSLETTER}\n\nmach den Text auf dem Sharepic kürzer`,
         lastToolContext: afterSharepic,
+        lastTurnSharepic: true,
+      })
+    );
+    expect(result.intent).toBe('sharepic');
+  });
+});
+
+// Beta-Audit 30.09.2026: `last_tool_context` bleibt „sharepic", bis das NÄCHSTE
+// Artefakt es überschreibt — über beliebig viele Frage-Turns hinweg. Ohne
+// Adressaten wurde so Tage später jeder Satz mit „mach … Liste/Text" zur
+// Sharepic-Bearbeitung.
+describe('classifierNode — Sharepic-Folgeauftrag braucht einen Adressaten', () => {
+  const staleSharepic = { kind: 'sharepic' as const, ref: null, label: 'Sharepic' };
+
+  it.each([
+    'Verbesser den Antrag',
+    'Mach mir eine Liste der Argumente',
+    'Ist das im Wahlprogramm anders?',
+    'Zeig mir den Text des Beschlusses',
+  ])('beansprucht „%s" Turns nach dem Sharepic nicht', async (text) => {
+    const result = await classifierNode(
+      buildState({ userMessage: text, lastToolContext: staleSharepic, lastTurnSharepic: false })
+    );
+    expect(result.intent).not.toBe('sharepic');
+  });
+
+  it('beansprucht weiter, wenn der Auftrag das Sharepic nennt', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage: 'mach den Text auf dem Sharepic kürzer',
+        lastToolContext: staleSharepic,
+        lastTurnSharepic: false,
+      })
+    );
+    expect(result.intent).toBe('sharepic');
+  });
+
+  it('beansprucht direkt nach dem Sharepic wie bisher', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage: 'Mach die Liste kürzer',
+        lastToolContext: staleSharepic,
+        lastTurnSharepic: true,
       })
     );
     expect(result.intent).toBe('sharepic');

@@ -886,6 +886,24 @@ describe('compoundGenerationKind', () => {
     ).toBe('pdf');
   });
 
+  // Beta-Audit 30.09.2026: „ein Erstell-Verb irgendwo" genügte, und die
+  // Verbund-Garantie baute dann ein Sharepic, das der Klassifikator dem
+  // Schreibzweig gegeben hatte. Jetzt dasselbe Prädikat wie dort.
+  it('recovers a sharepic only when it is ordered, and never over a post', () => {
+    expect(compoundGenerationKind('agentic', 'Recherchiere dazu und mach ein Sharepic')).toBe(
+      'sharepic'
+    );
+    expect(compoundGenerationKind('produktion', 'Erstelle einen Post mit Sharepic')).not.toBe(
+      'sharepic'
+    );
+    expect(
+      compoundGenerationKind(
+        'produktion',
+        'Schreib eine Pressemitteilung. Dazu passt später ein Sharepic.'
+      )
+    ).toBe(null);
+  });
+
   it('returns null for a NAMED generation intent without a research signal', () => {
     // These keep their single-pass dispatcher: null means "the dispatcher builds
     // it", which is the correct and faster route.

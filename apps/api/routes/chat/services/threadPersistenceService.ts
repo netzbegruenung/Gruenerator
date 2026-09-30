@@ -493,6 +493,8 @@ export interface ThreadToolHistory {
   toolSteps(limit?: number): PersistedStep[];
   /** The tool steps of the assistant turn right before this one — empty when it ran none. */
   lastTurnToolSteps(): PersistedStep[];
+  /** The artifact the assistant turn right before this one produced — empty when it made none. */
+  lastTurnArtifacts(): ThreadToolContext[];
   sources(limit?: number): SearchResult[];
   lastGeneratedImageUrl(): string | null;
 }
@@ -521,6 +523,8 @@ export async function readThreadToolHistory(threadId: string): Promise<ThreadToo
     toolSteps: (limit = 6) => toToolSteps(rows, limit),
     lastTurnToolSteps: () =>
       newestIsLastTurn ? toToolSteps(rows.slice(0, 1), Number.MAX_SAFE_INTEGER) : [],
+    lastTurnArtifacts: () =>
+      newestIsLastTurn ? toArtifacts(rows.slice(0, 1), Number.MAX_SAFE_INTEGER) : [],
     sources: (limit = 10) => toSources(rows, limit),
     lastGeneratedImageUrl: () => toLastGeneratedImageUrl(rows),
   };

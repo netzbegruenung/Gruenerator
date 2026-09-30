@@ -31,11 +31,13 @@ import {
   looksLikeGeltungsfrage,
 } from './classifierSignals.js';
 import {
+  asksForSharepic,
   creationOrderPattern,
   dictatesInlineTableColumns,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
   negatedOrMeta,
+  POST_NOUN_PATTERN,
   stripQuotedSpans,
 } from './fastPathGuards.js';
 
@@ -57,15 +59,9 @@ const log = createLogger('ChatGraph:Classifier');
 // Shared by the heuristic fast-path and the classifier's dedicated branches so
 // escape hatches and platform detection can't drift between tiers.
 
-/**
- * Der Auftrag nennt ein POST-Nomen und nicht nur ein Sharepic ("Post mit
- * Sharepic"). Er gehört damit dem Schreibzweig, nicht der Sharepic-Route.
- *
- * Bis 08/2026 hiess die Begründung „`social_post` trägt die Sharepic-Hälfte
- * selbst" — das Verdikt ist stillgelegt, die Vorfahrt bleibt: der Text ist
- * bestellt, die Grafik ist ein eigener Auftrag.
- */
-export const POST_NOUN_PATTERN = /\b(post(ing)?|beitrag|tweet|caption)\b/i;
+// Lebt im Blatt `fastPathGuards`, weil die Verbund-Garantie im Loop dieselbe
+// Vorfahrt braucht; hier nur weitergereicht für die bestehenden Importeure.
+export { POST_NOUN_PATTERN };
 
 /**
  * "Grafik"/"Kachel" name three different products in this app: a branded
@@ -1338,13 +1334,14 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
   // Sharepic — eine gebrandete Vorlage mit Text, KEIN freies KI-Bild. Vor der
   // Bildregel, die es sonst schluckt. "Post MIT Sharepic" nennt ein Post-Nomen
   // und gehört deshalb der Schreibregel darunter. Eigener Wächter:
-  // `hasExplicitSharepicWord` prüft Zitat, Negation und Meta-Frage bereits
-  // selbst (und satzweise, nicht über die ganze Nachricht).
+  // `asksForSharepic` prüft Zitat, Negation und Meta-Frage bereits selbst und
+  // verlangt eine BESTELLUNG — das Nomen allein („Dazu passt später ein
+  // Sharepic.") fiel bis zum Beta-Audit 30.09.2026 mit 0.93 hierher.
   {
     id: 'sharepic',
     longPaste: 'skip',
     guard: 'none',
-    match: (m) => hasExplicitSharepicWord(m.stripped) && !POST_NOUN_PATTERN.test(m.stripped),
+    match: (m) => asksForSharepic(m.stripped) && !POST_NOUN_PATTERN.test(m.stripped),
     result: () => ({
       intent: 'sharepic',
       searchQuery: null,
