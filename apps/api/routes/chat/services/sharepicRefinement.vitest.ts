@@ -86,3 +86,10 @@ describe('Sharepic-Überarbeitung: ein Auftrag ohne Ziel über eingefügtem Stof
     expect(orderMayMeanArtifact('mach es kürzer', namesSharepicTarget)).toBe(true);
   });
 });
+
+/** Final-Review PR #3922: Gruß und Dank am Rand verdrängen den Auftrag nicht. */
+it('Sharepic-Auftrag zwischen Gruß und Dank greift', () => {
+  const message = 'Hallo!\n\nmach das Sharepic kürzer\n\nDanke';
+  expect(isSharepicRefinement(orderText(message))).toBe(true);
+  expect(orderMayMeanArtifact(message, namesSharepicTarget)).toBe(true);
+});

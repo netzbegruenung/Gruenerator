@@ -197,3 +197,22 @@ describe('Post-Text-Weiche: ein Auftrag ohne Ziel über eingefügtem Stoff meint
     expect(orderMayMeanArtifact(message, namesSocialPostTarget)).toBe(true);
   });
 });
+
+/** Final-Review PR #3922: Gruß und Dank am Rand verdrängen den Auftrag nicht. */
+describe('Post-Text-Weiche: Auftrag zwischen Gruß und Dank', () => {
+  it.each([
+    ['Hallo,\n\nkannst du den Post etwas kürzer machen?\n\nDanke!'],
+    [
+      'Den Post bitte auf drei Sätze kürzen, den Hinweis auf die Veranstaltung am Samstag behalten und die Hashtags am Ende einfach stehen lassen, danke\n\nDanke!',
+    ],
+  ])('greift: %s', (message) => {
+    expect(isSocialTextEditInstruction(orderText(message))).toBe(true);
+    expect(orderMayMeanArtifact(message, namesSocialPostTarget)).toBe(true);
+  });
+
+  it('ein Stoff, der mit „Erklärung" beginnt, ist kein Post-Auftrag', () => {
+    const message =
+      'Erklärung der Landesvorsitzenden: Wir haben neue Vorlagen, der Untertitler versieht Reels automatisch mit Untertiteln, und ihr könnt jetzt jeden Post direkt teilen. Schreibt uns!\n\nübersetze das ins Englische';
+    expect(orderMayMeanArtifact(message, namesSocialPostTarget)).toBe(false);
+  });
+});
