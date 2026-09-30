@@ -36,6 +36,7 @@ class TextItem(BaseModel):
 
 class BatchRequest(BaseModel):
     texts: list[TextItem]
+    exclude_persons: bool = False
 
 
 class NounCount(BaseModel):
@@ -79,7 +80,7 @@ def analyze_topics(request: BatchRequest):
         return BatchResponse(results=[])
 
     items = [{"id": t.id, "title": t.title, "text": t.text} for t in request.texts]
-    results = classifier.classify_batch(items)
+    results = classifier.classify_batch(items, exclude_persons=request.exclude_persons)
     return BatchResponse(results=[TopicResult(**r) for r in results])
 
 

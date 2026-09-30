@@ -15,15 +15,21 @@ export interface NlpRequestOptions {
   timeoutMs?: number;
 }
 
+export interface ClassifyOptions {
+  /** Keep names (tokens inside a PER entity) out of `topNouns`. */
+  excludePersons?: boolean;
+}
+
 export async function classifyArticles<Topic extends string = string>(
-  articles: Array<{ id: string; title: string; text: string }>
+  articles: Array<{ id: string; title: string; text: string }>,
+  options: ClassifyOptions = {}
 ): Promise<NlpClassificationResult<Topic>[]> {
   if (articles.length === 0) return [];
 
   try {
     const response = await axios.post<{ results: NlpClassificationResult<Topic>[] }>(
       `${NLP_SERVICE_URL}/analyze/topics`,
-      { texts: articles },
+      { texts: articles, exclude_persons: options.excludePersons ?? false },
       { timeout: NLP_TIMEOUT_MS }
     );
     return response.data.results;
@@ -46,7 +52,7 @@ export async function classifyArticles<Topic extends string = string>(
  */
 export async function classifyArticlesBatched<Topic extends string = string>(
   articles: Array<{ id: string; title: string; text: string }>,
-  options: { batchSize?: number } = {}
+  options: ClassifyOptions & { batchSize?: number } = {}
 ): Promise<NlpClassificationResult<Topic>[]> {
   if (articles.length === 0) return [];
   const batchSize = options.batchSize ?? 15;
@@ -54,7 +60,7 @@ export async function classifyArticlesBatched<Topic extends string = string>(
   const results: NlpClassificationResult<Topic>[] = [];
   for (let i = 0; i < articles.length; i += batchSize) {
     const batch = articles.slice(i, i + batchSize);
-    results.push(...(await classifyArticles<Topic>(batch)));
+    results.push(...(await classifyArticles<Topic>(batch, options)));
   }
   return results;
 }

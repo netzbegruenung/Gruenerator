@@ -32,6 +32,11 @@ const log = createLogger('notebookEnrichment');
  *
  * 4 (09/2026): per-document `keywords` for the notebook overview.
  *
+ * 5 (09/2026): `keywords` leave out names (`excludePersons`), so a minister
+ * named by surname only ("Minister Mansoori") no longer tops the overview
+ * (#3942). The service bumps `persons_version` for the same change; with both
+ * bumped the re-tag converges whichever side deploys first.
+ *
  * Changes to the person rules no longer need a bump here: the NLP service
  * reports its own `persons_version`, which is stamped as `nlp_persons_version`
  * and compared in `alreadyEnriched`. The API-side bump could only ever say "re-tag
@@ -39,7 +44,7 @@ const log = createLogger('notebookEnrichment');
  * documents with pre-v3 names (bare `Böttcher` next to `Bernd Böttcher`), and
  * they were never looked at again (#3695).
  */
-export const NLP_VERSION = 4;
+export const NLP_VERSION = 5;
 /** Per-mille noun-frequency floor for including a topic in `themes`. */
 const THEME_MIN_SCORE = 30;
 /** Cap themes per doc to bound facet noise on long programmatic docs. */
@@ -331,7 +336,7 @@ export async function enrichCollection(
       const batch = due.slice(i, i + NLP_BATCH_SIZE);
       const classifications = await classifyArticlesBatched<TopicCategory>(
         batch.map((d) => ({ id: d.idValue, title: d.title, text: d.text })),
-        { batchSize: NLP_BATCH_SIZE }
+        { batchSize: NLP_BATCH_SIZE, excludePersons: true }
       );
       if (classifications.length === 0) {
         // NLP service failure/timeout — do NOT write empty tags or stamp markers.
