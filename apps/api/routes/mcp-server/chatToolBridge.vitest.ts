@@ -124,6 +124,19 @@ describe('registerAiTool', () => {
     expect(result.isError).toBeUndefined();
   });
 
+  it('registers the shape under a refined chat schema (find_content)', () => {
+    const { server, tools } = fakeServer();
+    const refined = tool({
+      description: 'refined',
+      inputSchema: z
+        .object({ action: z.enum(['search', 'recent']), query: z.string().optional() })
+        .superRefine(() => {}),
+      execute: vi.fn(async () => ({ ok: true })),
+    });
+    registerAiTool(server, 'find_content', refined, { actions: ['search'] });
+    expect(Object.keys(tools.get('find_content')!.config.inputSchema)).toEqual(['action', 'query']);
+  });
+
   it('narrows the action enum to the granted subset', () => {
     const { server, tools } = fakeServer();
     registerAiTool(server, 'documents', sampleTool(), { actions: ['list', 'get'] });
