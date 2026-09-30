@@ -32,6 +32,12 @@ export function initErrorReporting(): void {
     attachScreenshot: false,
     attachViewHierarchy: false,
     enableCaptureFailedRequests: false,
+    // `DeviceContext` copies the native SDK's installation id into every JS
+    // event as `user.id`, regardless of `sendDefaultPii`.
+    beforeSend(event) {
+      delete event.user;
+      return event;
+    },
     beforeBreadcrumb(breadcrumb) {
       // Konsolenausgaben können Chat- und Dokumentinhalte enthalten.
       if (breadcrumb.category === 'console') return null;
@@ -41,6 +47,10 @@ export function initErrorReporting(): void {
       return breadcrumb;
     },
   });
+  // The native SDKs put their installation id into `user.id` of native crash
+  // reports whenever no id is set (sentry-java `mergeUser`, sentry-cocoa
+  // `setUserIdIfNoUserSet`). A constant shared by every install keeps that out.
+  Sentry.setUser({ id: 'anonymous' });
 }
 
 export function reportError(error: Error, componentStack?: string | null): void {
