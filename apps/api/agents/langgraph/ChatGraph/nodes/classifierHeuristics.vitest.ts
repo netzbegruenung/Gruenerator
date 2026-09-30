@@ -142,3 +142,28 @@ describe('heuristicClassify — Sharepic-Wort im mitgebrachten Stoff', () => {
     expect(heuristicClassify('erstelle ein Sharepic zur Wärmepumpe').intent).toBe('sharepic');
   });
 });
+
+// Beta-Audit 30.09.2026: die Regel feuerte auf das Nomen allein, mit 0.93.
+describe('heuristicClassify — Sharepic nur auf Bestellung', () => {
+  it.each([
+    'Erstelle ein Sharepic zur Wärmepumpe',
+    'mach daraus ein Sharepic',
+    'Sharepic zum Klimageld',
+    'ein Zitatbild mit Robert Habeck',
+    'Kannst du mir ein Sharepic zum Tempolimit machen?',
+    'Ich hätte gern ein Sharepic zu Solar',
+    'Dreizeiler zur Mietpreisbremse',
+  ])('bleibt Sharepic: %s', (text) => {
+    expect(heuristicClassify(text).intent).toBe('sharepic');
+  });
+
+  it.each([
+    'Schreib eine Pressemitteilung. Dazu passt später ein Sharepic.',
+    "Ich brauche Infos zur Kampagne 'Grün wirkt' – Plakat, Sharepic, Flyer",
+    'Letzten Monat haben wir 12 Sharepics gemacht – ist das viel?',
+    'Was macht ein gutes Sharepic aus?',
+    'Post ohne Sharepic',
+  ])('kein Sharepic: %s', (text) => {
+    expect(heuristicClassify(text).intent).not.toBe('sharepic');
+  });
+});
