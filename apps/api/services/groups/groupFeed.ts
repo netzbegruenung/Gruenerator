@@ -15,10 +15,18 @@
  * Nichtmitglieder bekommen einen Wurf mit der Meldung von
  * `getPostgresAndCheckMembership`; der Handler macht daraus ein 403.
  */
-import { GROUP_PIN_LIMIT, type GroupShareComment } from '@gruenerator/contracts';
+import {
+  GROUP_PIN_LIMIT,
+  type GroupShareComment,
+  type ReactionSummary,
+} from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { isInstanceAdmin } from '../../utils/adminAuthz.js';
+import {
+  deleteReactionsForEntities,
+  getReactionSummaries,
+} from '../entityReactions/EntityReactionsService.js';
 
 import { notifyGroupActivity } from './groupActivityNotifications.js';
 
@@ -28,10 +36,18 @@ export interface GroupFeedDeps {
   postgres: Pick<PostgresService, 'query' | 'queryOne' | 'exec'>;
   notify: typeof notifyGroupActivity;
   isInstanceAdmin: (userId: string) => Promise<boolean>;
+  getReactionSummaries: typeof getReactionSummaries;
+  deleteReactionsForEntities: typeof deleteReactionsForEntities;
 }
 
 function defaultDeps(): GroupFeedDeps {
-  return { postgres: getPostgresInstance(), notify: notifyGroupActivity, isInstanceAdmin };
+  return {
+    postgres: getPostgresInstance(),
+    notify: notifyGroupActivity,
+    isInstanceAdmin,
+    getReactionSummaries,
+    deleteReactionsForEntities,
+  };
 }
 
 export type FeedOutcome<T = null> =
@@ -174,7 +190,7 @@ interface CommentRow {
   author_name: string | null;
 }
 
-function toComment(r: CommentRow): GroupShareComment {
+function toComment(r: CommentRow, reactions: ReactionSummary[]): GroupShareComment {
   return {
     id: r.id,
     shareId: r.share_id,
@@ -183,6 +199,7 @@ function toComment(r: CommentRow): GroupShareComment {
     authorName: r.author_name || 'Ehemaliges Mitglied',
     body: r.body,
     createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+    reactions,
   };
 }
 
@@ -205,7 +222,12 @@ export async function listShareComments(
     [shareId, groupId],
     { table: 'group_share_comments' }
   )) as CommentRow[];
-  return { status: 200, data: rows.map(toComment) };
+  const reactions = await deps.getReactionSummaries(
+    'group_comment',
+    rows.map((r) => r.id),
+    userId
+  );
+  return { status: 200, data: rows.map((r) => toComment(r, reactions.get(r.id) ?? [])) };
 }
 
 export async function createShareComment(
@@ -281,7 +303,7 @@ export async function createShareComment(
     },
   });
 
-  return { status: 201, data: toComment({ ...row, author_name: authorName }) };
+  return { status: 201, data: toComment({ ...row, author_name: authorName }, []) };
 }
 
 export async function deleteShareComment(
@@ -300,6 +322,7 @@ export async function deleteShareComment(
   if (!viewer.isAdmin && comment.user_id !== userId) {
     return { status: 403, message: 'Du kannst nur eigene Kommentare löschen.' };
   }
+  await deps.deleteReactionsForEntities('group_comment', [commentId]);
   await postgres.exec('DELETE FROM group_share_comments WHERE id = $1', [commentId]);
   return { status: 200, data: null };
 }

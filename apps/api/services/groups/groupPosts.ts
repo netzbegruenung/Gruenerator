@@ -25,6 +25,7 @@ import { createLogger } from '../../utils/logger.js';
 
 import { notifyGroupActivity } from './groupActivityNotifications.js';
 import { getViewer, type FeedOutcome } from './groupFeed.js';
+import { shareReactionsDeleteSql } from './groupShareReactions.js';
 
 import type { PostgresService } from '../../database/services/PostgresService.js';
 
@@ -269,7 +270,14 @@ export async function deleteGroupPost(
     { table: 'group_post_files' }
   )) as Array<{ stored_filename: string }>;
   await postgres.transaction(async (client) => {
-    // Die Share-Zeile nimmt Anheftung und Kommentare (ON DELETE CASCADE) mit.
+    // Die Share-Zeile nimmt Anheftung und Kommentare (ON DELETE CASCADE) mit,
+    // die Reaktionen daran nicht — die gehen vorher.
+    const reactions = shareReactionsDeleteSql({
+      contentTypes: [GROUP_POST_CONTENT_TYPE],
+      contentId: postId,
+      groupId,
+    });
+    await postgres.transactionExec(client, reactions.sql, reactions.params);
     await postgres.transactionExec(
       client,
       'DELETE FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',

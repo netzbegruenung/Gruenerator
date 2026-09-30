@@ -37,6 +37,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { notTrashed } from '../../database/trash.js';
 import { notifyContentShared } from '../groups/groupContent.js';
 import { assertCanShareToGroup } from '../groups/groupMembership.js';
+import { deleteReactionsForShares } from '../groups/groupShareReactions.js';
 import { deleteTrashedRow, type OwnedTrashTable } from '../trash/ownedRowTrash.js';
 
 import {
@@ -615,6 +616,11 @@ export async function unshareTextFormFromGroup(
   const form = await findOwnRow(userId, mention);
   if (!form) return null;
 
+  await deleteReactionsForShares({
+    contentTypes: [TEXT_FORM_CONTENT_TYPE],
+    contentId: form.id,
+    groupId,
+  });
   const pg = getPostgresInstance();
   await pg.query(
     `DELETE FROM group_content_shares

@@ -15,6 +15,7 @@
 
 import { deleteStoredFile } from '../../routes/boards/boardAttachmentStorage.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import { deleteReactionsForShares } from '../groups/groupShareReactions.js';
 import { type TrashCursor, trashKeysetWhere, trashOrderBy } from '../trash/trashCursor.js';
 
 export type QueryRunner = <T = Record<string, unknown>>(
@@ -334,13 +335,15 @@ export async function purgeCollaborativeDocument(
   await sideStore('yjs_document_snapshots', () =>
     runQuery('DELETE FROM yjs_document_snapshots WHERE document_id = $1', [id])
   );
-  await sideStore('group_content_shares', () =>
-    runQuery(
+  await sideStore('group_content_shares', async () => {
+    const shares = { contentTypes: ['collaborative_documents', 'canvas_template'], contentId: id };
+    await deleteReactionsForShares(shares, runQuery);
+    await runQuery(
       `DELETE FROM group_content_shares
        WHERE content_type IN ('collaborative_documents', 'canvas_template') AND content_id = $1`,
       [id]
-    )
-  );
+    );
+  });
   for (const thread of docThreads) {
     await sideStore('chat_threads', async () => {
       const { purgeDocThread } = await import('../../routes/chat/services/threadTrashService.js');

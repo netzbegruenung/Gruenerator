@@ -320,6 +320,7 @@ describe('purgeCollaborativeDocument', () => {
       'DELETE FROM collaborative_documents',
       'DELETE FROM yjs_document_updates',
       'DELETE FROM yjs_document_snapshots',
+      'WITH doomed AS (SELECT id FROM group_content_shares',
       'DELETE FROM group_content_shares',
       'purge thread thread-1',
       'DELETE FROM board_scheduled_runs',

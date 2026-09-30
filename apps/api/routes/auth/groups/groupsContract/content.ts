@@ -18,6 +18,7 @@ import {
   type FeedOutcome,
 } from '../../../../services/groups/groupFeed.js';
 import { deleteGroupPost, updateGroupPost } from '../../../../services/groups/groupPosts.js';
+import { deleteReactionsForShares } from '../../../../services/groups/groupShareReactions.js';
 import { getPostgresAndCheckMembership } from '../groupCore.js';
 
 import { s, getUserId, groupErrorResponse } from './shared.js';
@@ -99,6 +100,7 @@ export const contentRoutes = {
         };
       }
 
+      await deleteReactionsForShares({ contentTypes: [contentType], contentId, groupId });
       const result = await postgres.exec(
         'DELETE FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
         [contentType, contentId, groupId]
@@ -126,7 +128,7 @@ export const contentRoutes = {
     try {
       const userId = getUserId(args.req);
       await getPostgresAndCheckMembership(groupId, userId, false);
-      const groupContent = await hydrateGroupContent(groupId);
+      const groupContent = await hydrateGroupContent(groupId, userId);
 
       // Boundary assertion: the buckets are hydrated as loose records here; the
       // contract types the homogeneous collaborative_documents bucket (id +
@@ -221,6 +223,7 @@ export const contentRoutes = {
         };
       }
 
+      await deleteReactionsForShares({ contentTypes: [contentType], contentId, groupId });
       const result = await postgres.exec(
         'DELETE FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
         [contentType, contentId, groupId]
