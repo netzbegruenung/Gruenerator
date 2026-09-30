@@ -1104,6 +1104,9 @@ importers:
       '@tauri-apps/plugin-fs':
         specifier: ^2.5.2
         version: 2.5.2
+      '@tauri-apps/plugin-notification':
+        specifier: ^2.4.0
+        version: 2.4.0
       '@tauri-apps/plugin-opener':
         specifier: ^2.5.5
         version: 2.5.5
