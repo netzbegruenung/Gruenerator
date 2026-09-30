@@ -1296,10 +1296,12 @@ describe('CHAT_HISTORY_KEYWORDS: reels', () => {
   // Aufgabe liegt jetzt eine Ebene früher — bei `CHAT_HISTORY_DIRECT`, dem
   // Präzisionsmuster hinter der Direktroute (Tier 3.4). Dieselbe Aussage, an
   // der Stelle geprüft, an der sie heute entschieden wird.
-  it('claims a reel search outright', () => {
+  // Seit #3913 gehört die Reel-Suche dem Loop (`find_content`/`media`), nicht
+  // der Chat-Erinnerung: die durchsucht nur vergangene Threads.
+  it('leaves a reel search to the loop', () => {
     expect(
       CHAT_HISTORY_DIRECT.test('Such mein Reel zum Thema Windkraft und schreib eine Caption')
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('leaves reel creation alone', () => {
