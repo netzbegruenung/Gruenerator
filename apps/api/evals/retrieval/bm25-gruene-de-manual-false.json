@@ -1,0 +1,20 @@
+{
+  "pipeline": "manual",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "manual-gruene-de-heizungsgesetz",
+      "collection": "gruene-de-system",
+      "query": "Heizungsgesetz",
+      "rank": 1,
+      "topTitles": [
+        "Reiches Heizungsgesetz: Fossile Kostenfalle und Klimakiller",
+        "Der fatale Irrweg der schwarz-roten Energiepolitik",
+        "Schwarz-rote Koalitionsverhandlungen sind ein Frontalangriff auf den Klimaschutz",
+        "Neues Heizungsgesetz schreddert die Klimaziele.",
+        "Grüner 10-Punkte-Plan für das Update der Energiewende"
+      ]
+    }
+  ]
+}

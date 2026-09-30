@@ -1,0 +1,190 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "grundsatz-oekologie",
+      "collection": "grundsatz-system",
+      "query": "Was sagt das Grundsatzprogramm zum Verhältnis von Ökologie und Ökonomie?",
+      "rank": 1,
+      "topTitles": [
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "EU-Wahlprogramm 2024 – Was uns schützt"
+      ],
+      "searchTimeMs": 843
+    },
+    {
+      "id": "grundsatz-wuerde",
+      "collection": "grundsatz-system",
+      "query": "Warum heißt das Grundsatzprogramm „zu achten und zu schützen\"?",
+      "rank": 1,
+      "topTitles": [
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "EU-Wahlprogramm 2024 – Was uns schützt"
+      ],
+      "searchTimeMs": 332
+    },
+    {
+      "id": "grundsatz-btw25-klima",
+      "collection": "grundsatz-system",
+      "query": "Klimaschutz-Forderungen im Wahlprogramm zur Bundestagswahl 2025",
+      "rank": 1,
+      "topTitles": [
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt"
+      ],
+      "searchTimeMs": 289
+    },
+    {
+      "id": "grundsatz-btw25-wirtschaft",
+      "collection": "grundsatz-system",
+      "query": "Was plant die Partei laut Bundestagswahlprogramm für die Wirtschaft und Investitionen?",
+      "rank": 2,
+      "topTitles": [
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "Regierungsprogramm 2025 – Zusammen wachsen"
+      ],
+      "searchTimeMs": 301
+    },
+    {
+      "id": "grundsatz-europa",
+      "collection": "grundsatz-system",
+      "query": "Positionen aus dem Europawahlprogramm 2024",
+      "rank": 1,
+      "topTitles": [
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Regierungsprogramm 2025 – Zusammen wachsen"
+      ],
+      "searchTimeMs": 197
+    },
+    {
+      "id": "grundsatz-grundsicherung",
+      "collection": "grundsatz-system",
+      "query": "Kindergrundsicherung und soziale Garantien in den Programmen",
+      "rank": 1,
+      "topTitles": [
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "Regierungsprogramm 2025 – Zusammen wachsen"
+      ],
+      "searchTimeMs": 216
+    },
+    {
+      "id": "grundsatz-frieden",
+      "collection": "grundsatz-system",
+      "query": "Haltung zu Friedenspolitik und Auslandseinsätzen der Bundeswehr",
+      "rank": 1,
+      "topTitles": [
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "EU-Wahlprogramm 2024 – Was uns schützt"
+      ],
+      "searchTimeMs": 195
+    },
+    {
+      "id": "grundsatz-klimaneutral",
+      "collection": "grundsatz-system",
+      "query": "Bis wann soll Deutschland klimaneutral werden?",
+      "rank": 2,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt"
+      ],
+      "searchTimeMs": 196
+    },
+    {
+      "id": "grundsatz-verkehrswende",
+      "collection": "grundsatz-system",
+      "query": "Forderungen zur Verkehrswende und zum Ausbau der Bahn",
+      "rank": 2,
+      "topTitles": [
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "Regierungsprogramm 2025 – Zusammen wachsen"
+      ],
+      "searchTimeMs": 198
+    },
+    {
+      "id": "grundsatz-mindestlohn",
+      "collection": "grundsatz-system",
+      "query": "Position zum Mindestlohn",
+      "rank": 1,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt"
+      ],
+      "searchTimeMs": 187
+    },
+    {
+      "id": "grundsatz-buergerversicherung",
+      "collection": "grundsatz-system",
+      "query": "Was ist die Bürgerversicherung und wer soll einzahlen?",
+      "rank": 3,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "EU-Wahlprogramm 2024 – Was uns schützt"
+      ],
+      "searchTimeMs": 185
+    },
+    {
+      "id": "grundsatz-wahlrecht16",
+      "collection": "grundsatz-system",
+      "query": "Absenkung des Wahlalters auf 16 Jahre",
+      "rank": 2,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt"
+      ],
+      "searchTimeMs": 193
+    },
+    {
+      "id": "kw-grundsatz-paragraf-218",
+      "collection": "grundsatz-system",
+      "query": "§ 218 StGB Schwangerschaftsabbruch",
+      "rank": 1,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "EU-Wahlprogramm 2024 – Was uns schützt"
+      ],
+      "searchTimeMs": 159
+    },
+    {
+      "id": "kw-grundsatz-tariftreuegesetz",
+      "collection": "grundsatz-system",
+      "query": "Tariftreuegesetz öffentliche Aufträge",
+      "rank": 1,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt"
+      ],
+      "searchTimeMs": 190
+    },
+    {
+      "id": "kw-grundsatz-anthropozaen",
+      "collection": "grundsatz-system",
+      "query": "Anthropozän",
+      "rank": 1,
+      "topTitles": ["Grundsatzprogramm 2020 – Veränderung schafft Halt"],
+      "searchTimeMs": 175
+    },
+    {
+      "id": "kw-grundsatz-bologna-prozess",
+      "collection": "grundsatz-system",
+      "query": "Bologna-Prozess Studienabschlüsse",
+      "rank": 1,
+      "topTitles": ["EU-Wahlprogramm 2024 – Was uns schützt"],
+      "searchTimeMs": 211
+    }
+  ]
+}

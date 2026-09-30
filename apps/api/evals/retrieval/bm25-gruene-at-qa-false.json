@@ -1,0 +1,91 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "gruene-at-klima",
+      "collection": "gruene-at-system",
+      "query": "Klimapolitik der Grünen in Österreich",
+      "rank": 4,
+      "topTitles": [
+        "Programm - Die Grünen",
+        "Partei - Die Grünen",
+        "Teuerungsausgleich - Die Grünen",
+        "Klima- und Transformationsoffensive – Der Plan für eine nachhaltige Industrie - Die Grünen",
+        "Ökosoziale Steuerreform - Die Grünen"
+      ],
+      "searchTimeMs": 2039
+    },
+    {
+      "id": "gruene-at-team",
+      "collection": "gruene-at-system",
+      "query": "Wer sitzt für die Grünen im Nationalrat?",
+      "rank": 4,
+      "topTitles": [
+        "Der Bundesvorstand - Die Grünen",
+        "Struktur der Partei - Die Grünen",
+        "Die Grünen im Parlament - Die Grünen",
+        "Wahlprogramm Nationalratswahl 2024 - Die Grünen",
+        "Partei - Die Grünen"
+      ],
+      "searchTimeMs": 758
+    },
+    {
+      "id": "gruene-at-energiewende",
+      "collection": "gruene-at-system",
+      "query": "Energiewende und Ausstieg aus Öl und Gas in Österreich",
+      "rank": 2,
+      "topTitles": [
+        "Klimaschutz",
+        "Ein Turbo für die Energiewende - Die Grünen",
+        "Das Umbau-Budget 2023 - Die Grünen",
+        "Saubere Energie für alle - Die Grünen",
+        "Partei - Die Grünen"
+      ],
+      "searchTimeMs": 661
+    },
+    {
+      "id": "gruene-at-frauen",
+      "collection": "gruene-at-system",
+      "query": "Frauenpolitik und Gewaltschutz in Österreich",
+      "rank": 1,
+      "topTitles": [
+        "Frauen und Gleichstellung",
+        "Das Umbau-Budget 2023 - Die Grünen",
+        "Grund- und Menschenrechte",
+        "Wahlprogramm Nationalratswahl 2024 - Die Grünen",
+        "Grün hält Frauen den Rücken frei - Die Grünen"
+      ],
+      "searchTimeMs": 743
+    },
+    {
+      "id": "kw-gruene-at-orf-beitrag",
+      "collection": "gruene-at-system",
+      "query": "ORF-Beitrag",
+      "rank": 1,
+      "topTitles": [
+        "Ein fairer Beitrag für einen starken ORF - Die Grünen",
+        "Innovation",
+        "Ibiza Abschluss - Die Grünen",
+        "Medien",
+        "45. Bundeskongress in Graz - Die Grünen"
+      ],
+      "searchTimeMs": 588
+    },
+    {
+      "id": "kw-gruene-at-maklerprovision",
+      "collection": "gruene-at-system",
+      "query": "Maklerprovision Miete wer zahlt",
+      "rank": 1,
+      "topTitles": [
+        "Maklerinnenprovision - Die Grünen",
+        "Leistbar Heizen, leistbar Wohnen - Die Grünen",
+        "Gezielt und nachhaltig gegen die Teuerung - Die Grünen",
+        "Zufallsgewinnabgabe kommt - Die Grünen",
+        "Superreiche fair besteuern. - Die Grünen"
+      ],
+      "searchTimeMs": 840
+    }
+  ]
+}

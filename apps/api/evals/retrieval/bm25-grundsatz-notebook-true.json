@@ -1,0 +1,215 @@
+{
+  "pipeline": "notebook",
+  "depth": "deep",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "grundsatz-oekologie",
+      "collection": "grundsatz-system",
+      "query": "Was sagt das Grundsatzprogramm zum Verhältnis von Ökologie und Ökonomie?",
+      "rank": 1,
+      "topTitles": [
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt"
+      ]
+    },
+    {
+      "id": "grundsatz-wuerde",
+      "collection": "grundsatz-system",
+      "query": "Warum heißt das Grundsatzprogramm „zu achten und zu schützen\"?",
+      "rank": 1,
+      "topTitles": [
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt"
+      ]
+    },
+    {
+      "id": "grundsatz-btw25-klima",
+      "collection": "grundsatz-system",
+      "query": "Klimaschutz-Forderungen im Wahlprogramm zur Bundestagswahl 2025",
+      "rank": 1,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen"
+      ]
+    },
+    {
+      "id": "grundsatz-btw25-wirtschaft",
+      "collection": "grundsatz-system",
+      "query": "Was plant die Partei laut Bundestagswahlprogramm für die Wirtschaft und Investitionen?",
+      "rank": 11,
+      "topTitles": [
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt"
+      ]
+    },
+    {
+      "id": "grundsatz-europa",
+      "collection": "grundsatz-system",
+      "query": "Positionen aus dem Europawahlprogramm 2024",
+      "rank": 1,
+      "topTitles": [
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "EU-Wahlprogramm 2024 – Was uns schützt"
+      ]
+    },
+    {
+      "id": "grundsatz-grundsicherung",
+      "collection": "grundsatz-system",
+      "query": "Kindergrundsicherung und soziale Garantien in den Programmen",
+      "rank": 1,
+      "topTitles": [
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt"
+      ]
+    },
+    {
+      "id": "grundsatz-frieden",
+      "collection": "grundsatz-system",
+      "query": "Haltung zu Friedenspolitik und Auslandseinsätzen der Bundeswehr",
+      "rank": 1,
+      "topTitles": [
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt"
+      ]
+    },
+    {
+      "id": "grundsatz-klimaneutral",
+      "collection": "grundsatz-system",
+      "query": "Bis wann soll Deutschland klimaneutral werden?",
+      "rank": 11,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen"
+      ]
+    },
+    {
+      "id": "grundsatz-verkehrswende",
+      "collection": "grundsatz-system",
+      "query": "Forderungen zur Verkehrswende und zum Ausbau der Bahn",
+      "rank": 11,
+      "topTitles": [
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt"
+      ]
+    },
+    {
+      "id": "grundsatz-mindestlohn",
+      "collection": "grundsatz-system",
+      "query": "Position zum Mindestlohn",
+      "rank": 1,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen"
+      ]
+    },
+    {
+      "id": "grundsatz-buergerversicherung",
+      "collection": "grundsatz-system",
+      "query": "Was ist die Bürgerversicherung und wer soll einzahlen?",
+      "rank": 21,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen"
+      ]
+    },
+    {
+      "id": "grundsatz-wahlrecht16",
+      "collection": "grundsatz-system",
+      "query": "Absenkung des Wahlalters auf 16 Jahre",
+      "rank": 11,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen"
+      ]
+    },
+    {
+      "id": "kw-grundsatz-paragraf-218",
+      "collection": "grundsatz-system",
+      "query": "§ 218 StGB Schwangerschaftsabbruch",
+      "rank": 1,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen"
+      ]
+    },
+    {
+      "id": "kw-grundsatz-tariftreuegesetz",
+      "collection": "grundsatz-system",
+      "query": "Tariftreuegesetz öffentliche Aufträge",
+      "rank": 1,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Regierungsprogramm 2025 – Zusammen wachsen"
+      ]
+    },
+    {
+      "id": "kw-grundsatz-anthropozaen",
+      "collection": "grundsatz-system",
+      "query": "Anthropozän",
+      "rank": 1,
+      "topTitles": [
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt"
+      ]
+    },
+    {
+      "id": "kw-grundsatz-bologna-prozess",
+      "collection": "grundsatz-system",
+      "query": "Bologna-Prozess Studienabschlüsse",
+      "rank": 1,
+      "topTitles": [
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "EU-Wahlprogramm 2024 – Was uns schützt"
+      ]
+    }
+  ]
+}

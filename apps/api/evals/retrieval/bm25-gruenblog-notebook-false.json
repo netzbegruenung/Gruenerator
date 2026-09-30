@@ -1,0 +1,33 @@
+{
+  "pipeline": "notebook",
+  "depth": "deep",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "gruenblog-ki-strom",
+      "collection": "gruenblog-system",
+      "query": "Wie viel Strom werden Rechenzentren durch Künstliche Intelligenz verbrauchen?",
+      "rank": 1,
+      "topTitles": [
+        "Energiefresser KI - grünblog - Onlinemagazin der Grünen",
+        "Energiefresser KI - grünblog - Onlinemagazin der Grünen",
+        "Energiefresser KI - grünblog - Onlinemagazin der Grünen",
+        "Energiefresser KI - grünblog - Onlinemagazin der Grünen",
+        "„Der Markt wird es nicht richten“ - grünblog - Onlinemagazin der Grünen"
+      ]
+    },
+    {
+      "id": "gruenblog-satzungsreform",
+      "collection": "gruenblog-system",
+      "query": "Was ändert die Reform der Parteisatzung an der Trennung von Amt und Mandat?",
+      "rank": 1,
+      "topTitles": [
+        "Heiße Eisen und heilige Kühe - grünblog - Onlinemagazin der Grünen",
+        "Heiße Eisen und heilige Kühe - grünblog - Onlinemagazin der Grünen",
+        "Heiße Eisen und heilige Kühe - grünblog - Onlinemagazin der Grünen",
+        "Heiße Eisen und heilige Kühe - grünblog - Onlinemagazin der Grünen",
+        "Heiße Eisen und heilige Kühe - grünblog - Onlinemagazin der Grünen"
+      ]
+    }
+  ]
+}
