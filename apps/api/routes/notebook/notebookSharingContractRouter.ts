@@ -20,7 +20,6 @@ import {
   assertCanShareToGroup,
   listShareTargetGroups,
 } from '../../services/groups/groupMembership.js';
-import { deleteReactionsForShares } from '../../services/groups/groupShareReactions.js';
 import { applyNotebookVisibility } from '../../services/notebook/notebookVisibility.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -315,11 +314,6 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
           body: { error: 'Nur Eigentümer*in kann Freigaben entfernen' },
         };
       }
-      await deleteReactionsForShares({
-        contentTypes: ['notebook_collections'],
-        contentId: args.params.id,
-        groupId: args.params.groupId,
-      });
       const postgres = getPostgresInstance();
       const result = (await postgres.query(
         `DELETE FROM group_content_shares

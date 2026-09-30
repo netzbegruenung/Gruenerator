@@ -209,17 +209,15 @@ describe('updateGroupPost', () => {
 });
 
 describe('deleteGroupPost', () => {
-  it('lets an admin delete it and removes reactions, share row, post and files', async () => {
+  it('lets an admin delete it and removes share row, post and files', async () => {
     const { deps, txExec, deleteFile } = fakeDeps({ role: 'admin' });
     const out = await deleteGroupPost({ groupId: 'g1', postId: 'p1', userId: 'other' }, deps);
     expect(out.status).toBe(200);
     expect(txExec.mock.calls.map((c) => c[1])).toEqual([
-      expect.stringContaining('DELETE FROM entity_reactions'),
       expect.stringContaining('DELETE FROM group_content_shares'),
       expect.stringContaining('DELETE FROM group_posts'),
     ]);
-    expect(txExec.mock.calls[0]?.[2]).toEqual([['group_post'], 'p1', 'g1']);
-    expect(txExec.mock.calls[1]?.[2]).toEqual(['group_post', 'p1', 'g1']);
+    expect(txExec.mock.calls[0]?.[2]).toEqual(['group_post', 'p1', 'g1']);
     expect(deleteFile).toHaveBeenCalledWith('stored-1.png');
   });
 

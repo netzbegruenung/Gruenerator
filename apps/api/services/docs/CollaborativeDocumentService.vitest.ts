@@ -291,9 +291,6 @@ describe('purgeCollaborativeDocument', () => {
         return [{ thumbnail_url: '/api/share/tok-1/download' }];
       }
       if (s.startsWith('SELECT id FROM chat_threads')) return [{ id: 'thread-1' }];
-      if (s.startsWith('SELECT id::text AS id FROM board_comments')) {
-        return [{ id: 'comment-1' }, { id: 'reply-1' }];
-      }
       if (s.startsWith('DELETE FROM collaborative_documents')) return opts.deleted;
       return [];
     }) as QueryRunner;
@@ -320,13 +317,10 @@ describe('purgeCollaborativeDocument', () => {
       'SELECT stored_filename FROM board_attachments',
       'SELECT thumbnail_url FROM canvas_documents',
       'SELECT id FROM chat_threads',
-      'SELECT id::text AS id FROM board_comments',
       'DELETE FROM collaborative_documents',
       'DELETE FROM yjs_document_updates',
       'DELETE FROM yjs_document_snapshots',
-      'WITH doomed AS (SELECT id FROM group_content_shares',
       'DELETE FROM group_content_shares',
-      'DELETE FROM entity_reactions',
       'purge thread thread-1',
       'DELETE FROM board_scheduled_runs',
       'unlink a.pdf',
@@ -343,7 +337,6 @@ describe('purgeCollaborativeDocument', () => {
       'SELECT stored_filename FROM board_attachments',
       'SELECT thumbnail_url FROM canvas_documents',
       'SELECT id FROM chat_threads',
-      'SELECT id::text AS id FROM board_comments',
       'DELETE FROM collaborative_documents',
     ]);
     expect(purgeDocThread).not.toHaveBeenCalled();
@@ -362,33 +355,5 @@ describe('purgeCollaborativeDocument', () => {
     );
     expect(effects).toContain('DELETE FROM yjs_document_snapshots');
     expect(effects).toContain('thumbnail /api/share/tok-1/download');
-  });
-
-  it('deletes the board comment reactions collected before the cascade', async () => {
-    const seen: unknown[][] = [];
-    const base = purgeRunner({ deleted: [{ id: 'doc-1' }] });
-    const run = (async (sql: string, params?: unknown[]) => {
-      if (sql.includes('FROM board_comments') || sql.includes("'board_comment'")) {
-        seen.push(params ?? []);
-      }
-      return base(sql, params);
-    }) as QueryRunner;
-
-    await purgeCollaborativeDocument(run, 'doc-1', null);
-    expect(seen).toEqual([['doc-1'], [['comment-1', 'reply-1']]]);
-  });
-
-  it('still deletes the shares when their reaction cleanup fails', async () => {
-    const run = purgeRunner({
-      deleted: [{ id: 'doc-1' }],
-      failOn: 'WITH doomed AS (SELECT id FROM group_content_shares',
-    });
-
-    expect(await purgeCollaborativeDocument(run, 'doc-1', null)).toBe(true);
-    expect(reportBackgroundError).toHaveBeenCalledWith(
-      expect.any(Error),
-      expect.objectContaining({ store: 'group_share_reactions' })
-    );
-    expect(effects).toContain('DELETE FROM group_content_shares');
   });
 });

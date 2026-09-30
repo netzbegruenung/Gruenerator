@@ -1,7 +1,11 @@
 /**
- * Reaktionen gegen eine Fake-Drizzle-Kette: idempotentes Schreiben über den
- * Unique-Schlüssel, ein Query für viele ids, Sortierung der Zusammenfassung.
+ * Reaktionen gegen eine Fake-Drizzle-Kette: Typ → FK-Spalte, idempotentes
+ * Schreiben über die partiellen Unique-Indizes, ein Query für viele ids,
+ * Sortierung der Zusammenfassung. Dazu der Migrationstext: FK-Spalten mit
+ * Cascade, CHECK und partielle Unique-Indizes.
  */
+import { readFileSync } from 'node:fs';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { entityReactions } from '../../database/schema/index.js';
@@ -21,8 +25,8 @@ vi.mock('../../database/services/DrizzleService.js', () => ({
 }));
 
 const {
+  REACTION_TARGET_COLUMN,
   addReaction,
-  deleteReactionsForEntities,
   getReactionRows,
   getReactionSummaries,
   removeReaction,
@@ -35,26 +39,26 @@ beforeEach(() => {
 });
 
 describe('addReaction / removeReaction', () => {
-  it('schreibt idempotent über den vollen Unique-Schlüssel', async () => {
-    await addReaction('u1', 'group_share', 's1', '🎉');
-    expect(values).toHaveBeenCalledWith({
-      user_id: 'u1',
-      entity_type: 'group_share',
-      entity_id: 's1',
-      emoji: '🎉',
-    });
-    expect(onConflictDoNothing).toHaveBeenCalledWith({
-      target: [
-        entityReactions.entity_type,
-        entityReactions.entity_id,
-        entityReactions.user_id,
-        entityReactions.emoji,
-      ],
+  it('bildet jeden Typ auf seine FK-Spalte ab', () => {
+    expect(REACTION_TARGET_COLUMN).toEqual({
+      group_share: entityReactions.group_share_id,
+      group_comment: entityReactions.group_comment_id,
+      board_comment: entityReactions.board_comment_id,
     });
   });
 
+  it.each([
+    ['group_share', 'group_share_id'],
+    ['group_comment', 'group_comment_id'],
+    ['board_comment', 'board_comment_id'],
+  ] as const)('%s schreibt in %s, idempotent ohne Konfliktziel', async (type, column) => {
+    await addReaction('u1', type, 'e1', '🎉');
+    expect(values).toHaveBeenCalledWith({ user_id: 'u1', [column]: 'e1', emoji: '🎉' });
+    expect(onConflictDoNothing).toHaveBeenCalledWith();
+  });
+
   it('liefert die neue Zeile, bei Konflikt null', async () => {
-    const row = { id: 'r1', entity_id: 's1' };
+    const row = { id: 'r1', group_share_id: 's1' };
     returning.mockResolvedValueOnce([row]);
     expect(await addReaction('u1', 'group_share', 's1', '🎉')).toBe(row);
     expect(await addReaction('u1', 'group_share', 's1', '🎉')).toBeNull();
@@ -116,8 +120,9 @@ describe('getReactionRows / summarizeReactionRows', () => {
   it('fasst Zeilen wie getReactionSummaries zusammen', () => {
     const row = (entity_id: string, user_id: string, emoji: string, iso: string) => ({
       id: `${entity_id}-${user_id}-${emoji}`,
-      entity_type: 'board_comment',
-      entity_id,
+      group_share_id: null,
+      group_comment_id: null,
+      board_comment_id: entity_id,
       user_id,
       emoji,
       created_at: new Date(iso),
@@ -139,14 +144,28 @@ describe('getReactionRows / summarizeReactionRows', () => {
   });
 });
 
-describe('deleteReactionsForEntities', () => {
-  it('leere ids → kein Query', async () => {
-    await deleteReactionsForEntities('group_share', []);
-    expect(del).not.toHaveBeenCalled();
+describe('Migration', () => {
+  const sql = readFileSync(
+    new URL('../../database/postgres/migrations/zz_20261001_entity_reactions.sql', import.meta.url),
+    'utf8'
+  ).replace(/\s+/g, ' ');
+
+  it.each([
+    ['group_share_id', 'group_content_shares'],
+    ['group_comment_id', 'group_share_comments'],
+    ['board_comment_id', 'board_comments'],
+  ])('%s verweist mit ON DELETE CASCADE auf %s', (column, table) => {
+    expect(sql).toContain(`${column} UUID REFERENCES ${table}(id) ON DELETE CASCADE`);
+    expect(sql).toMatch(
+      new RegExp(
+        `CREATE UNIQUE INDEX IF NOT EXISTS \\w+ ON entity_reactions \\(${column}, user_id, emoji\\) WHERE ${column} IS NOT NULL`
+      )
+    );
   });
 
-  it('löscht alle ids eines Typs in einem Statement', async () => {
-    await deleteReactionsForEntities('group_share', ['a', 'b']);
-    expect(deleteWhere).toHaveBeenCalledTimes(1);
+  it('verlangt genau ein Ziel je Zeile', () => {
+    expect(sql).toContain(
+      'CHECK (num_nonnulls(group_share_id, group_comment_id, board_comment_id) = 1)'
+    );
   });
 });

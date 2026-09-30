@@ -18,10 +18,6 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { type EntityReactionRow } from '../../database/schema/index.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { enqueueAgentTask } from '../../services/boards/agentTaskService.js';
-import {
-  collectDoomedBoardCommentIds,
-  deleteBoardCommentReactions,
-} from '../../services/boards/boardCommentReactions.js';
 import { bumpCardComments } from '../../services/boards/boardLiveSignalService.js';
 import { buildCardEmailMetadata } from '../../services/boards/BoardService.js';
 import { recordCardActivity } from '../../services/boards/cardActivityService.js';
@@ -53,7 +49,8 @@ type ReplyRow = Omit<BoardCommentReply, 'reactions' | 'reactionSummaries'>;
 function toLegacyReaction(r: EntityReactionRow): CommentReaction {
   return {
     id: r.id,
-    comment_id: r.entity_id,
+    // Only called for board_comment rows, where the CHECK makes this non-null.
+    comment_id: r.board_comment_id!,
     user_id: r.user_id,
     emoji: r.emoji,
     created_at: new Date(r.created_at).toISOString(),
@@ -132,9 +129,10 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
 
       const reactionsByComment = new Map<string, CommentReaction[]>();
       for (const r of reactionRows) {
-        const arr = reactionsByComment.get(r.entity_id) ?? [];
-        arr.push(toLegacyReaction(r));
-        reactionsByComment.set(r.entity_id, arr);
+        const legacy = toLegacyReaction(r);
+        const arr = reactionsByComment.get(legacy.comment_id) ?? [];
+        arr.push(legacy);
+        reactionsByComment.set(legacy.comment_id, arr);
       }
       const summariesByComment = summarizeReactionRows(reactionRows, userId);
 
@@ -350,8 +348,6 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
         return { status: 403 as const, body: { error: 'Keine Berechtigung zum Löschen' } };
       }
 
-      // Replies cascade with the comment; their reactions have no FK.
-      await deleteBoardCommentReactions(await collectDoomedBoardCommentIds({ commentId }));
       await db.query(`DELETE FROM board_comments WHERE id = $1`, [commentId]);
 
       void bumpCardComments(boardId, existing[0].card_id);
@@ -372,8 +368,8 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
       const { hasAccess } = await checkBoardAccess(boardId, userId);
       if (!hasAccess) return { status: 403 as const, body: { error: 'Kein Zugriff' } };
 
-      // entity_reactions has no FK: the comment must exist on THIS board, or the
-      // row would be an orphan (or a reaction on a board the user cannot see).
+      // The comment must exist on THIS board, or the user could react to a
+      // comment on a board they cannot see.
       const cardId = await cardIdForComment(commentId, boardId);
       if (!cardId) return { status: 403 as const, body: { error: 'Kein Zugriff' } };
 

@@ -1,8 +1,7 @@
 /**
  * Board comment reactions live in `entity_reactions` (`board_comment`): the
  * legacy row list keeps its shape, `reactionSummaries` is added for the viewer,
- * the legacy endpoints keep their status codes, and deleting a comment clears
- * the reactions of the comment and its replies.
+ * and the legacy endpoints keep their status codes.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,8 +16,6 @@ const { query, checkBoardAccess, addReaction, removeReaction, getReactionRows } 
     getReactionRows: vi.fn(),
   })
 );
-const collectDoomedBoardCommentIds = vi.hoisted(() => vi.fn());
-const deleteBoardCommentReactions = vi.hoisted(() => vi.fn());
 
 vi.mock('../../database/services/PostgresService/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query }),
@@ -30,10 +27,6 @@ vi.mock('../../services/entityReactions/EntityReactionsService.js', async (impor
   addReaction,
   removeReaction,
   getReactionRows,
-}));
-vi.mock('../../services/boards/boardCommentReactions.js', () => ({
-  collectDoomedBoardCommentIds,
-  deleteBoardCommentReactions,
 }));
 vi.mock('../../services/boards/agentTaskService.js', () => ({ enqueueAgentTask: vi.fn() }));
 vi.mock('../../services/boards/boardLiveSignalService.js', () => ({ bumpCardComments: vi.fn() }));
@@ -57,10 +50,11 @@ const handler = (name: keyof typeof boardCommentsContractRouter) =>
 const req = (id = 'viewer') => ({ user: { id } }) as unknown as Request;
 const at = (iso: string) => new Date(iso);
 
-const reaction = (id: string, entityId: string, userId: string, emoji: string, iso: string) => ({
+const reaction = (id: string, commentId: string, userId: string, emoji: string, iso: string) => ({
   id,
-  entity_type: 'board_comment',
-  entity_id: entityId,
+  group_share_id: null,
+  group_comment_id: null,
+  board_comment_id: commentId,
   user_id: userId,
   emoji,
   created_at: at(iso),
@@ -236,46 +230,5 @@ describe('removeReaction (legacy endpoint)', () => {
     });
     expect(res).toEqual({ status: 200, body: { success: true } });
     expect(removeReaction).toHaveBeenCalledWith('viewer', 'board_comment', 'c1', '💡');
-  });
-});
-
-describe('deleteComment', () => {
-  it('clears the reactions of the comment and its replies before the delete', async () => {
-    const order: string[] = [];
-    query.mockImplementation(async (sql: string) => {
-      if (sql.includes('JOIN collaborative_documents')) {
-        return [{ user_id: 'viewer', card_id: 'card-1', board_owner: 'owner' }];
-      }
-      if (sql.startsWith('DELETE FROM board_comments')) order.push('delete comment');
-      return [];
-    });
-    collectDoomedBoardCommentIds.mockResolvedValue(['c1', 'r1']);
-    deleteBoardCommentReactions.mockImplementation(async () => {
-      order.push('delete reactions');
-    });
-
-    const res = await handler('deleteComment')({
-      req: req(),
-      params: { boardId: 'board-1', commentId: 'c1' },
-    });
-
-    expect(res.status).toBe(200);
-    expect(collectDoomedBoardCommentIds).toHaveBeenCalledWith({ commentId: 'c1' });
-    expect(deleteBoardCommentReactions).toHaveBeenCalledWith(['c1', 'r1']);
-    expect(order).toEqual(['delete reactions', 'delete comment']);
-  });
-
-  it('keeps reactions when the caller may not delete', async () => {
-    query.mockImplementation(async (sql: string) =>
-      sql.includes('JOIN collaborative_documents')
-        ? [{ user_id: 'someone', card_id: 'card-1', board_owner: 'owner' }]
-        : []
-    );
-    const res = await handler('deleteComment')({
-      req: req(),
-      params: { boardId: 'board-1', commentId: 'c1' },
-    });
-    expect(res.status).toBe(403);
-    expect(deleteBoardCommentReactions).not.toHaveBeenCalled();
   });
 });

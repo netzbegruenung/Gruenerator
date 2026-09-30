@@ -1,8 +1,7 @@
 /**
  * What account deletion removes before the profile row goes. No FK cascade
  * reaches any of it: `collaborative_documents.created_by` is SET NULL,
- * notebooks live in Qdrant, and `entity_likes` / `entity_reactions` have no
- * FK on the entity. Account
+ * notebooks live in Qdrant, and `entity_likes` has no FK at all. Account
  * deletion stays hard — nothing here goes through the Papierkorb.
  *
  * Every step is best-effort: a failure is reported and the rest goes on, so
@@ -12,10 +11,6 @@ import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelp
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
-import {
-  collectDoomedBoardCommentIds,
-  deleteBoardCommentReactions,
-} from '../boards/boardCommentReactions.js';
 import { purgeSoleOwnedCollaborativeDocuments } from '../docs/CollaborativeDocumentService.js';
 import {
   deleteLikesForEntity,
@@ -45,15 +40,6 @@ export async function cleanUpBeforeProfileDelete(userId: string): Promise<void> 
     }
   } catch (error) {
     reportBackgroundError(error, { job: 'account-deletion', store: 'notebook_collections' });
-  }
-
-  // The person's board comments (and replies to them) cascade with the profile;
-  // reactions on them have no FK. Her own reactions cascade via user_id.
-  try {
-    const commentIds = await collectDoomedBoardCommentIds({ authorId: userId });
-    await deleteBoardCommentReactions(commentIds);
-  } catch (error) {
-    reportBackgroundError(error, { job: 'account-deletion', store: 'board_comment_reactions' });
   }
 
   try {

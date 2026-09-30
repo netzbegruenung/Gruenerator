@@ -1,9 +1,12 @@
 /**
  * Emoji-Reaktionen auf Beiträge und Kommentare (`entity_reactions`).
  *
- * Polymorph wie `entity_likes`: kein FK auf `entity_id`, jede Löschstelle der
- * Entität ruft `deleteReactionsForEntities`. Wer reagieren darf, entscheidet
- * `reactionTargets.ts` — dieser Dienst prüft keine Rechte.
+ * Je Entitätstyp eine eigene FK-Spalte mit ON DELETE CASCADE — Postgres räumt
+ * die Reaktionen mit ihrer Entität ab, keine Löschstelle muss daran denken.
+ * Nach außen bleibt es `(entityType, entityId)`; `REACTION_TARGET_COLUMN`
+ * übersetzt. Wer reagieren darf, entscheidet `reactionTargets.ts` — dieser
+ * Dienst prüft keine Rechte. Die ids müssen UUIDs sein (sonst 22P02); das
+ * stellen `reactionTargets` bzw. die aus der DB gelesenen ids der Aufrufer sicher.
  */
 import {
   REACTION_EMOJIS,
@@ -15,6 +18,17 @@ import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { entityReactions, type EntityReactionRow } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 
+export const REACTION_TARGET_COLUMN = {
+  group_share: entityReactions.group_share_id,
+  group_comment: entityReactions.group_comment_id,
+  board_comment: entityReactions.board_comment_id,
+} satisfies Record<ReactionEntityType, unknown>;
+
+/** Die gesetzte Ziel-Spalte einer Zeile; der CHECK garantiert genau eine. */
+function targetIdOf(row: EntityReactionRow): string {
+  return (row.group_share_id ?? row.group_comment_id ?? row.board_comment_id)!;
+}
+
 export async function addReaction(
   userId: string,
   entityType: ReactionEntityType,
@@ -23,15 +37,9 @@ export async function addReaction(
 ): Promise<EntityReactionRow | null> {
   const rows = await getDrizzleInstance()
     .insert(entityReactions)
-    .values({ user_id: userId, entity_type: entityType, entity_id: entityId, emoji })
-    .onConflictDoNothing({
-      target: [
-        entityReactions.entity_type,
-        entityReactions.entity_id,
-        entityReactions.user_id,
-        entityReactions.emoji,
-      ],
-    })
+    .values({ user_id: userId, [REACTION_TARGET_COLUMN[entityType].name]: entityId, emoji })
+    // Ohne target: greift für jeden der drei partiellen Unique-Indizes.
+    .onConflictDoNothing()
     .returning();
   return rows[0] ?? null;
 }
@@ -47,8 +55,7 @@ export async function removeReaction(
     .where(
       and(
         eq(entityReactions.user_id, userId),
-        eq(entityReactions.entity_type, entityType),
-        eq(entityReactions.entity_id, entityId),
+        eq(REACTION_TARGET_COLUMN[entityType], entityId),
         eq(entityReactions.emoji, emoji)
       )
     );
@@ -93,22 +100,18 @@ export async function getReactionSummaries(
   viewerId: string
 ): Promise<Map<string, ReactionSummary[]>> {
   if (entityIds.length === 0) return new Map();
+  const column = REACTION_TARGET_COLUMN[entityType];
   const rows = await getDrizzleInstance()
     .select({
-      entity_id: entityReactions.entity_id,
+      entity_id: sql<string>`${column}`,
       emoji: entityReactions.emoji,
       count: sql<number>`count(*)::int`,
       reacted: sql<boolean>`bool_or(${entityReactions.user_id} = ${viewerId})`,
       first_at: sql<Date | string>`min(${entityReactions.created_at})`,
     })
     .from(entityReactions)
-    .where(
-      and(
-        eq(entityReactions.entity_type, entityType),
-        inArray(entityReactions.entity_id, entityIds)
-      )
-    )
-    .groupBy(entityReactions.entity_id, entityReactions.emoji);
+    .where(inArray(column, entityIds))
+    .groupBy(column, entityReactions.emoji);
   return toReactionSummaries(rows);
 }
 
@@ -121,12 +124,7 @@ export async function getReactionRows(
   return getDrizzleInstance()
     .select()
     .from(entityReactions)
-    .where(
-      and(
-        eq(entityReactions.entity_type, entityType),
-        inArray(entityReactions.entity_id, entityIds)
-      )
-    )
+    .where(inArray(REACTION_TARGET_COLUMN[entityType], entityIds))
     .orderBy(asc(entityReactions.created_at));
 }
 
@@ -137,11 +135,12 @@ export function summarizeReactionRows(
 ): Map<string, ReactionSummary[]> {
   const aggregates = new Map<string, ReactionAggregateRow>();
   for (const r of rows) {
-    const key = `${r.entity_id}\u0000${r.emoji}`;
+    const entityId = targetIdOf(r);
+    const key = `${entityId}\u0000${r.emoji}`;
     const agg = aggregates.get(key);
     if (!agg) {
       aggregates.set(key, {
-        entity_id: r.entity_id,
+        entity_id: entityId,
         emoji: r.emoji,
         count: 1,
         reacted: r.user_id === viewerId,
@@ -154,19 +153,4 @@ export function summarizeReactionRows(
     if (new Date(r.created_at) < new Date(agg.first_at)) agg.first_at = r.created_at;
   }
   return toReactionSummaries([...aggregates.values()]);
-}
-
-export async function deleteReactionsForEntities(
-  entityType: ReactionEntityType,
-  entityIds: string[]
-): Promise<void> {
-  if (entityIds.length === 0) return;
-  await getDrizzleInstance()
-    .delete(entityReactions)
-    .where(
-      and(
-        eq(entityReactions.entity_type, entityType),
-        inArray(entityReactions.entity_id, entityIds)
-      )
-    );
 }
