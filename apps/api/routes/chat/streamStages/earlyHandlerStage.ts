@@ -12,7 +12,7 @@
 
 import { createLogger } from '../../../utils/logger.js';
 import { extractTextContent } from '../services/messageHelpers.js';
-import { carriesMaterial, orderText, pointsAtMaterial } from '../services/orderText.js';
+import { orderMayMeanArtifact, orderText } from '../services/orderText.js';
 import {
   buildReelContextBlock,
   handleReelEdit,
@@ -217,15 +217,13 @@ export async function runEarlyHandlerStage({
   ) {
     const editText = lastUserTextNoMentions.trim();
     const editOrder = orderText(editText);
-    // Bringt die Nachricht Stoff mit, meint „übersetze das" den Stoff, nicht
-    // den Post im Thread — dann muss der Auftrag den Post nennen (#3918).
-    // „Ersetze den Text durch:" + Stoff bleibt ein Post-Edit.
+    // Bringt die Nachricht Stoff mit, kann ein Auftrag ohne Ziel („übersetze
+    // das", „kürzer bitte") den Stoff meinen statt des Posts — dann nur, wenn er
+    // den Post nennt oder ihn ersetzt (#3918, `orderMayMeanArtifact`).
     if (
       editText &&
       isSocialTextEditInstruction(editOrder) &&
-      (!carriesMaterial(editText) ||
-        !pointsAtMaterial(editOrder) ||
-        namesSocialPostTarget(editOrder))
+      orderMayMeanArtifact(editText, namesSocialPostTarget)
     ) {
       // Sibling of the sharepic-branch log below: the two edit branches are
       // where a follow-up either lands correctly or is silently misread.
@@ -265,10 +263,10 @@ export async function runEarlyHandlerStage({
   ) {
     const editText = lastUserTextNoMentions.replace(/@sharepic\b/gi, ' ').trim();
     const editOrder = orderText(editText);
-    // Wie beim Post: mit eingefügtem Stoff nur, wenn der Auftrag das Sharepic nennt (#3918).
+    // Wie beim Post: mit eingefügtem Stoff nur, wenn der Auftrag das Sharepic
+    // nennt oder ersetzt (#3918).
     const candidate =
-      !editText ||
-      (carriesMaterial(editText) && pointsAtMaterial(editOrder) && !namesSharepicTarget(editOrder))
+      !editText || !orderMayMeanArtifact(editText, namesSharepicTarget)
         ? null
         : isSharepicEditInstruction(editOrder)
           ? 'edit-instruction'
@@ -336,9 +334,7 @@ export async function runEarlyHandlerStage({
     const followOrder = orderText(followText);
     if (
       isSharepicRefinement(followOrder) &&
-      (!carriesMaterial(followText) ||
-        !pointsAtMaterial(followOrder) ||
-        namesSharepicTarget(followOrder))
+      orderMayMeanArtifact(followText, namesSharepicTarget)
     ) {
       const prior = await getLastSharepicVariant(actualThreadId);
       if (prior) {

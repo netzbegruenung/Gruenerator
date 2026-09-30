@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { carriesMaterial, orderText, pointsAtMaterial } from './orderText.js';
+import { isReplaceOrder, orderMayMeanArtifact, orderText } from './orderText.js';
 
 // Der eingefügte Newsletter vom beta-Lauf (#3912), gekürzt auf die Reizwörter.
 const newsletter =
@@ -49,33 +49,43 @@ describe('orderText', () => {
   });
 });
 
-describe('carriesMaterial', () => {
-  it('meldet Stoff, wenn der Auftrag davon getrennt wurde', () => {
-    expect(carriesMaterial(`${newsletter}\n\nrechtschreibung korrigieren`)).toBe(true);
-    expect(carriesMaterial(`Kannst du das lektorieren?\n\n${newsletter}`)).toBe(true);
+describe('orderMayMeanArtifact', () => {
+  // Eine Weiche, die ihr Ziel an „Post" erkennt — genügt, um die Regel zu prüfen.
+  const namesPost = (order: string) => /(?<!\p{L})post(?!\p{L})/iu.test(order);
+
+  it('ohne Stoff darf die Weiche jeden Auftrag nehmen', () => {
+    expect(orderMayMeanArtifact('übersetze das ins Englische', namesPost)).toBe(true);
+    expect(orderMayMeanArtifact(`${newsletter} Bitte korrigieren.`, namesPost)).toBe(true);
+    expect(orderMayMeanArtifact(`${longOrder}\n\nBitte kürzer halten.`, namesPost)).toBe(true);
+    // Nur Stoff an den Rändern: kein Auftrag abgetrennt, also kein Stoff erkannt.
+    expect(orderMayMeanArtifact(`${newsletter}\n\n${newsletter}`, namesPost)).toBe(true);
   });
 
-  it('meldet keinen Stoff ohne Trennung', () => {
-    expect(carriesMaterial('übersetze das ins Englische')).toBe(false);
-    expect(carriesMaterial(`${newsletter} Bitte korrigieren.`)).toBe(false);
-    expect(carriesMaterial(`${longOrder}\n\nBitte kürzer halten.`)).toBe(false);
-    expect(carriesMaterial(`${newsletter}\n\n${newsletter}`)).toBe(false);
+  it.each([
+    ['rechtschreibung korrigieren'],
+    ['ins Englische übersetzen'],
+    ['kürzer bitte'],
+    ['mach ihn kürzer'],
+  ])('mit Stoff nicht, wenn der Auftrag sein Ziel nicht nennt: %s', (order) => {
+    expect(orderMayMeanArtifact(`${newsletter}\n\n${order}`, namesPost)).toBe(false);
+    expect(orderMayMeanArtifact(`${order}\n\n${newsletter}`, namesPost)).toBe(false);
+  });
+
+  it('mit Stoff, wenn der Auftrag das Ziel nennt oder ersetzt', () => {
+    expect(orderMayMeanArtifact(`${newsletter}\n\nübersetze den Post`, namesPost)).toBe(true);
+    expect(orderMayMeanArtifact(`Ersetze den Text durch:\n\n${newsletter}`, namesPost)).toBe(true);
   });
 });
 
-describe('pointsAtMaterial', () => {
-  it.each([['übersetze das ins Englische'], ['mach es kürzer'], ['mach den Text kürzer']])(
-    'ein Zeigewort oder ein blosses „Text" kann den Stoff meinen: %s',
+describe('isReplaceOrder', () => {
+  it.each([['Ersetze den Text durch:'], ['tausch es gegen den neuen Absatz']])(
+    'erkennt: %s',
     (order) => {
-      expect(pointsAtMaterial(order)).toBe(true);
+      expect(isReplaceOrder(order)).toBe(true);
     }
   );
 
-  it.each([
-    ['Ersetze den Text durch:'],
-    ['tausch es gegen den neuen Absatz'],
-    ['kürze die Caption'],
-  ])('ein Ersetzungsauftrag oder ein Auftrag ohne Zeigewort nicht: %s', (order) => {
-    expect(pointsAtMaterial(order)).toBe(false);
+  it.each([['ersetze die Emojis'], ['übersetze das ins Englische']])('nicht: %s', (order) => {
+    expect(isReplaceOrder(order)).toBe(false);
   });
 });

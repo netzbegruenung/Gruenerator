@@ -44,28 +44,29 @@ export function orderText(message: string): string {
   return splitOrder(message).order;
 }
 
-/**
- * Die Nachricht bringt Stoff mit, der vom Auftrag getrennt wurde. Dann kann
- * ein „das"/„es" im Auftrag auch den Stoff meinen und nicht das Artefakt im
- * Thread (#3918).
- */
-export function carriesMaterial(message: string): boolean {
-  return splitOrder(message).material;
-}
-
-/** Ein Zeigewort als Objekt, oder ein blosses „Text" — beides kann den Stoff meinen. */
-const MATERIAL_REFERENCE_RE = /(?<!\p{L})(?:das|es|dies|dieses|diesen|text)(?!\p{L})/iu;
-
 /** „Ersetze den Text durch:", „tausch es gegen …" — der Stoff IST der neue Text. */
 const REPLACE_ORDER_RE =
   /(?<!\p{L})(?:ersetz|tausch|austausch)\p{L}*[^.!?]*?(?<!\p{L})(?:durch|gegen)(?!\p{L})/iu;
 
+export function isReplaceOrder(order: string): boolean {
+  return REPLACE_ORDER_RE.test(order);
+}
+
 /**
- * Der Auftrag kann den mitgebrachten Stoff meinen statt das Artefakt im Thread:
- * „übersetze das ins Englische", „mach den Text kürzer" unter einem eingefügten
- * Text (#3918). Ein Ersetzungsauftrag nicht — dort ist der Stoff der Ersatz.
- * Ob der Auftrag sein Ziel nennt („den Post"), prüft der Aufrufer.
+ * Darf eine Weiche, die ein Artefakt im Thread bearbeitet (Post, Sharepic),
+ * diesen Auftrag für sich beanspruchen?
+ *
+ * Ohne mitgebrachten Stoff ja — „übersetze das ins Englische" direkt nach
+ * einem Post meint den Post. MIT Stoff kann jeder Auftrag, der sein Ziel nicht
+ * nennt, den Stoff meinen: „übersetze das", „ins Englische übersetzen",
+ * „kürzer bitte", „mach ihn kürzer" (#3918). Dann nur, wenn der Auftrag das
+ * Artefakt nennt (`namesTarget`, je Weiche) oder ein Ersetzungsauftrag ist —
+ * dort ist der Stoff der Ersatz, nicht der Gegenstand.
  */
-export function pointsAtMaterial(order: string): boolean {
-  return MATERIAL_REFERENCE_RE.test(order) && !REPLACE_ORDER_RE.test(order);
+export function orderMayMeanArtifact(
+  message: string,
+  namesTarget: (order: string) => boolean
+): boolean {
+  const { order, material } = splitOrder(message);
+  return !material || namesTarget(order) || isReplaceOrder(order);
 }
