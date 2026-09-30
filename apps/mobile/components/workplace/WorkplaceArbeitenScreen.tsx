@@ -189,7 +189,12 @@ export function WorkplaceArbeitenScreen() {
             />
           }
         >
-          <ToolSquareGrid tools={WORKPLACE_TILES} availableWidth={gridWidth} />
+          <ToolSquareGrid
+            tools={WORKPLACE_TILES}
+            availableWidth={gridWidth}
+            row
+            blocksGesture={swipe}
+          />
 
           <RecentItemsSection
             title="Zuletzt"
