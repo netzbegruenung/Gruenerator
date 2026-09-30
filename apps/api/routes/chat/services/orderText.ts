@@ -52,3 +52,20 @@ export function orderText(message: string): string {
 export function carriesMaterial(message: string): boolean {
   return splitOrder(message).material;
 }
+
+/** Ein Zeigewort als Objekt, oder ein blosses „Text" — beides kann den Stoff meinen. */
+const MATERIAL_REFERENCE_RE = /(?<!\p{L})(?:das|es|dies|dieses|diesen|text)(?!\p{L})/iu;
+
+/** „Ersetze den Text durch:", „tausch es gegen …" — der Stoff IST der neue Text. */
+const REPLACE_ORDER_RE =
+  /(?<!\p{L})(?:ersetz|tausch|austausch)\p{L}*[^.!?]*?(?<!\p{L})(?:durch|gegen)(?!\p{L})/iu;
+
+/**
+ * Der Auftrag kann den mitgebrachten Stoff meinen statt das Artefakt im Thread:
+ * „übersetze das ins Englische", „mach den Text kürzer" unter einem eingefügten
+ * Text (#3918). Ein Ersetzungsauftrag nicht — dort ist der Stoff der Ersatz.
+ * Ob der Auftrag sein Ziel nennt („den Post"), prüft der Aufrufer.
+ */
+export function pointsAtMaterial(order: string): boolean {
+  return MATERIAL_REFERENCE_RE.test(order) && !REPLACE_ORDER_RE.test(order);
+}

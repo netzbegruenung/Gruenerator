@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { carriesMaterial, orderText } from './orderText.js';
+import { carriesMaterial, orderText, pointsAtMaterial } from './orderText.js';
 import { isSharepicEditInstruction } from './sharepicEditHeuristics.js';
 import { isSocialTextEditInstruction, namesSocialPostTarget } from './socialPostEditHeuristics.js';
 
@@ -161,7 +161,7 @@ describe('Post-Text-Weiche: ein Zeigewort über eingefügtem Stoff meint den Sto
     const order = orderText(message);
     return (
       isSocialTextEditInstruction(order) &&
-      (!carriesMaterial(message) || namesSocialPostTarget(order))
+      (!carriesMaterial(message) || !pointsAtMaterial(order) || namesSocialPostTarget(order))
     );
   };
   const paste =
@@ -180,6 +180,8 @@ describe('Post-Text-Weiche: ein Zeigewort über eingefügtem Stoff meint den Sto
 
   it.each([
     [`Ersetze den Text im Post durch:\n\n${paste}`],
+    // Ein Ersetzungsauftrag zeigt nicht auf den Stoff — der Stoff IST der neue Text.
+    [`Ersetze den Text durch:\n\n${paste}`],
     [`${paste}\n\nübersetze den Post ins Englische`],
     [`${paste}\n\nkürze die Caption`],
   ])('ein Auftrag, der den Post nennt, greift weiter: %s', (message) => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { carriesMaterial, orderText } from './orderText.js';
+import { carriesMaterial, orderText, pointsAtMaterial } from './orderText.js';
 import { namesSharepicTarget } from './sharepicEditHeuristics.js';
 import { isSharepicRefinement } from './sharepicVariantHelpers.js';
 
@@ -67,7 +67,10 @@ describe('Sharepic-Weichen lesen den Auftrag, nicht den Stoff', () => {
 describe('Sharepic-Überarbeitung: ein Zeigewort über eingefügtem Stoff meint den Stoff', () => {
   const claimsRefinement = (message: string) => {
     const order = orderText(message);
-    return isSharepicRefinement(order) && (!carriesMaterial(message) || namesSharepicTarget(order));
+    return (
+      isSharepicRefinement(order) &&
+      (!carriesMaterial(message) || !pointsAtMaterial(order) || namesSharepicTarget(order))
+    );
   };
   const paste =
     'Unser Ortsverband lädt am Samstag zum Radfahr-Aktionstag ein: Treffpunkt ist um 10 Uhr am Rathausplatz, danach fahren wir gemeinsam die neue Fahrradstraße ab und sammeln Ideen für den Stadtrat.';
