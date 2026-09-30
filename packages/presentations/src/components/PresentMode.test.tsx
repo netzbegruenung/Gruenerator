@@ -7,11 +7,6 @@
  * blank tab. That is a silent dead end, not a failure the user can act on.
  */
 
-// vitest.setup.ts already loads these matchers at runtime, but it sits outside
-// this package's `rootDir: ./src`, so it cannot go in tsconfig's `include` and
-// its type augmentation never reaches the checker. Import it here instead.
-import '@testing-library/jest-dom/vitest';
-
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';

@@ -4,8 +4,8 @@ import babel from '@rolldown/plugin-babel';
 import { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-// Resolve workspace packages (@gruenerator/*) to their TS sources. Shared by both
-// projects — inline `test.projects` do not inherit the root-level `resolve`.
+// Resolve workspace packages (@gruenerator/*) to their TS sources. Both projects
+// inherit it: since vitest 5 inline `test.projects` extend the root config.
 // Force react/react-dom onto the single hoisted copy. @tanstack/react-query ships
 // a nested older react (19.2.3 vs the root 19.2.8); without this, a hook rendered
 // under QueryClientProvider crashes with "Cannot read properties of null (reading
@@ -25,11 +25,10 @@ const resolve = {
 export default defineConfig({
   resolve,
   test: {
-    ...(process.env.CI ? {} : { maxWorkers: 2, minWorkers: 1 }),
+    ...(process.env.CI ? {} : { maxWorkers: 2 }),
     projects: [
       {
         // Fast pure-logic lane — no DOM, unchanged from the original config.
-        resolve,
         test: {
           name: 'node',
           include: ['**/*.vitest.ts'],
@@ -47,7 +46,6 @@ export default defineConfig({
         // With the preset here, component tests execute the compiled code the
         // bundle ships. packages/chat's config carries the same line.
         plugins: [babel({ presets: [reactCompilerPreset()] })],
-        resolve,
         test: {
           name: 'dom',
           include: ['**/*.vitest.tsx'],
