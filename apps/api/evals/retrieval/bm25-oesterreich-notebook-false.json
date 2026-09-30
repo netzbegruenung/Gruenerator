@@ -1,0 +1,124 @@
+{
+  "pipeline": "notebook",
+  "depth": "deep",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "at-grundsatz",
+      "collection": "oesterreich-gruene-system",
+      "query": "Grundwerte im Grundsatzprogramm der österreichischen Grünen",
+      "rank": 1,
+      "topTitles": [
+        "Grundsatzprogramm der Grünen (Österreich)",
+        "Grundsatzprogramm der Grünen (Österreich)",
+        "Grundsatzprogramm der Grünen (Österreich)",
+        "Grundsatzprogramm der Grünen (Österreich)",
+        "Grundsatzprogramm der Grünen (Österreich)"
+      ]
+    },
+    {
+      "id": "at-nrw-klima",
+      "collection": "oesterreich-gruene-system",
+      "query": "Klimaschutz im Wahlprogramm zur Nationalratswahl",
+      "rank": 1,
+      "topTitles": [
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)"
+      ]
+    },
+    {
+      "id": "at-bodenverbrauch",
+      "collection": "oesterreich-gruene-system",
+      "query": "Bodenverbrauch und Bodenversiegelung in Österreich stoppen",
+      "rank": 1,
+      "topTitles": [
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)"
+      ]
+    },
+    {
+      "id": "at-kinderbetreuung",
+      "collection": "oesterreich-gruene-system",
+      "query": "Rechtsanspruch auf Kinderbetreuung in Österreich",
+      "rank": 1,
+      "topTitles": [
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)"
+      ]
+    },
+    {
+      "id": "at-klimaticket",
+      "collection": "oesterreich-gruene-system",
+      "query": "Klimaticket und öffentlicher Verkehr",
+      "rank": 1,
+      "topTitles": [
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)"
+      ]
+    },
+    {
+      "id": "at-korruption",
+      "collection": "oesterreich-gruene-system",
+      "query": "Maßnahmen gegen Korruption und für saubere Politik",
+      "rank": 1,
+      "topTitles": [
+        "EU-Wahlprogramm 2024 der Grünen (Österreich)",
+        "EU-Wahlprogramm 2024 der Grünen (Österreich)",
+        "EU-Wahlprogramm 2024 der Grünen (Österreich)",
+        "EU-Wahlprogramm 2024 der Grünen (Österreich)",
+        "EU-Wahlprogramm 2024 der Grünen (Österreich)"
+      ]
+    },
+    {
+      "id": "kw-at-klimabonus",
+      "collection": "oesterreich-gruene-system",
+      "query": "Klimabonus und CO2-Preis",
+      "rank": 1,
+      "topTitles": [
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)"
+      ]
+    },
+    {
+      "id": "kw-at-zwentendorf",
+      "collection": "oesterreich-gruene-system",
+      "query": "Zwentendorf Hainburger Au",
+      "rank": 21,
+      "topTitles": [
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)"
+      ]
+    },
+    {
+      "id": "kw-at-fit-for-55",
+      "collection": "oesterreich-gruene-system",
+      "query": "Fit for 55 Emissionshandel",
+      "rank": 1,
+      "topTitles": [
+        "EU-Wahlprogramm 2024 der Grünen (Österreich)",
+        "EU-Wahlprogramm 2024 der Grünen (Österreich)",
+        "EU-Wahlprogramm 2024 der Grünen (Österreich)",
+        "EU-Wahlprogramm 2024 der Grünen (Österreich)",
+        "EU-Wahlprogramm 2024 der Grünen (Österreich)"
+      ]
+    }
+  ]
+}

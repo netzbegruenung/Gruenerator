@@ -1,0 +1,85 @@
+{
+  "pipeline": "notebook",
+  "depth": "deep",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "boell-demokratie",
+      "collection": "boell-stiftung-system",
+      "query": "Studien zur Stärkung der Demokratie",
+      "rank": 11,
+      "topTitles": [
+        "Leipziger Autoritarismus-Studie 2024: Methoden, Ergebnisse und Langzeitverlauf | Heinrich-Böll-Stiftung",
+        "Leipziger Autoritarismus-Studie 2024: Methoden, Ergebnisse und Langzeitverlauf | Heinrich-Böll-Stiftung",
+        "Leipziger Autoritarismus-Studie 2024: Methoden, Ergebnisse und Langzeitverlauf | Heinrich-Böll-Stiftung",
+        "Leipziger Autoritarismus-Studie 2024: Methoden, Ergebnisse und Langzeitverlauf | Heinrich-Böll-Stiftung",
+        "Leipziger Autoritarismus-Studie 2024: Methoden, Ergebnisse und Langzeitverlauf | Heinrich-Böll-Stiftung"
+      ]
+    },
+    {
+      "id": "boell-atlas",
+      "collection": "boell-stiftung-system",
+      "query": "Fakten aus einem Atlas der Böll-Stiftung, zum Beispiel zu Fleisch oder Mobilität",
+      "rank": 1,
+      "topTitles": [
+        "Konzernatlas 2026 | Heinrich-Böll-Stiftung",
+        "Wirtschaftsatlas 2024 | Heinrich-Böll-Stiftung",
+        "Brazilian Amazon Atlas | Heinrich-Böll-Stiftung",
+        "Brazilian Amazon Atlas | Heinrich-Böll-Stiftung",
+        "Brazilian Amazon Atlas | Heinrich-Böll-Stiftung"
+      ]
+    },
+    {
+      "id": "boell-feminismus",
+      "collection": "boell-stiftung-system",
+      "query": "Geschlechtergerechtigkeit und feministische Außenpolitik",
+      "rank": 1,
+      "topTitles": [
+        "Feminismus braucht Finanzierung! Es ist Zeit für eine feministische Finanzierungsstrategie | Heinrich-Böll-Stiftung",
+        "Feminismus braucht Finanzierung! Es ist Zeit für eine feministische Finanzierungsstrategie | Heinrich-Böll-Stiftung",
+        "Feminismus braucht Finanzierung! Es ist Zeit für eine feministische Finanzierungsstrategie | Heinrich-Böll-Stiftung",
+        "Feminismus braucht Finanzierung! Es ist Zeit für eine feministische Finanzierungsstrategie | Heinrich-Böll-Stiftung",
+        "Feminismus braucht Finanzierung! Es ist Zeit für eine feministische Finanzierungsstrategie | Heinrich-Böll-Stiftung"
+      ]
+    },
+    {
+      "id": "boell-klimagerechtigkeit",
+      "collection": "boell-stiftung-system",
+      "query": "Internationale Klimagerechtigkeit und Klimafinanzierung",
+      "rank": 3,
+      "topTitles": [
+        "Vier zentrale Baustellen der Wirtschaftspolitik für die nächste Regierung | Heinrich-Böll-Stiftung",
+        "Vier zentrale Baustellen der Wirtschaftspolitik für die nächste Regierung | Heinrich-Böll-Stiftung",
+        "Klimapragmatismus oder Faustischer Pakt? Was das neue US-Klimagesetz leistet - und wo es versagt | Heinrich-Böll-Stiftung",
+        "Klimapragmatismus oder Faustischer Pakt? Was das neue US-Klimagesetz leistet - und wo es versagt | Heinrich-Böll-Stiftung",
+        "Klimapragmatismus oder Faustischer Pakt? Was das neue US-Klimagesetz leistet - und wo es versagt | Heinrich-Böll-Stiftung"
+      ]
+    },
+    {
+      "id": "kw-boell-carbon-bubble",
+      "collection": "boell-stiftung-system",
+      "query": "Carbon Bubble",
+      "rank": 1,
+      "topTitles": [
+        "Die \"Carbon Bubble\": Finanzwirtschaft am Kipppunkt? | Heinrich-Böll-Stiftung",
+        "Die \"Carbon Bubble\": Finanzwirtschaft am Kipppunkt? | Heinrich-Böll-Stiftung",
+        "Die \"Carbon Bubble\": Finanzwirtschaft am Kipppunkt? | Heinrich-Böll-Stiftung",
+        "Die \"Carbon Bubble\": Finanzwirtschaft am Kipppunkt? | Heinrich-Böll-Stiftung",
+        "Die \"Carbon Bubble\": Finanzwirtschaft am Kipppunkt? | Heinrich-Böll-Stiftung"
+      ]
+    },
+    {
+      "id": "kw-boell-bergkarabach",
+      "collection": "boell-stiftung-system",
+      "query": "Bergkarabach-Krieg 2020",
+      "rank": 1,
+      "topTitles": [
+        "Armenien vor der Wahl: Welche Art von Demokratie wird sich durchsetzen? | Heinrich-Böll-Stiftung",
+        "Armenien vor der Wahl: Welche Art von Demokratie wird sich durchsetzen? | Heinrich-Böll-Stiftung",
+        "Armenien vor der Wahl: Welche Art von Demokratie wird sich durchsetzen? | Heinrich-Böll-Stiftung",
+        "Armenien vor der Wahl: Welche Art von Demokratie wird sich durchsetzen? | Heinrich-Böll-Stiftung",
+        "Armenien vor der Wahl: Welche Art von Demokratie wird sich durchsetzen? | Heinrich-Böll-Stiftung"
+      ]
+    }
+  ]
+}
