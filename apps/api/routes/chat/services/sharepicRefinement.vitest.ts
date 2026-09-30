@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
+import { orderText } from './orderText.js';
 import { isSharepicRefinement } from './sharepicVariantHelpers.js';
 
 /**
@@ -42,5 +43,21 @@ describe('isSharepicRefinement', () => {
     // Diese Grenze ist der Grund, warum kein blanker "?"-Test genügt.
     expect(isSharepicRefinement('Kannst du das kürzer machen?')).toBe(true);
     expect(isSharepicRefinement('Magst du ein anderes Bild nehmen?')).toBe(true);
+  });
+});
+
+/** Beide Sharepic-Türen fragen den Auftrag (`orderText`), nicht den Stoff (#3912). */
+describe('Sharepic-Weichen lesen den Auftrag, nicht den Stoff', () => {
+  const paste =
+    'Unser Antrag für den Stadtrat: Die Innenstadt soll kürzer getaktete Busse bekommen, und die Radwege an der Hauptstraße werden verbreitert. Außerdem fordern wir mehr Bäume am Marktplatz.';
+
+  it('„kürzer" im eingefügten Text holt keine Überarbeitung', () => {
+    const text = `${paste}\n\nübersetze das ins Englische`;
+    expect(isSharepicRefinement(text)).toBe(true);
+    expect(isSharepicRefinement(orderText(text))).toBe(false);
+  });
+
+  it('ein echter Überarbeitungsauftrag greift weiter', () => {
+    expect(isSharepicRefinement(orderText('mach den Text kürzer'))).toBe(true);
   });
 });

@@ -5,8 +5,11 @@
  */
 import { loopToolsFor, RESEARCH_LOOP_TOOLS } from '@gruenerator/shared/chat-intents';
 
+import { orderText } from '../orderText.js';
+
 import { NAMED_RETRIEVAL_INTENTS } from './intents.js';
 import {
+  FACT_CHECK_RE,
   isReferentialFollowup,
   looksLikeExplicitResearchOrder,
   reworksSuppliedText,
@@ -106,8 +109,17 @@ export function shouldForceFirstToolCall(input: {
   // korrigieren" unter einem eingefügten Newsletter): ein „Suche" IM Newsletter
   // ist kein Auftrag (#3903). Ein Recherche-Verb im Auftrag selbst schliesst
   // `reworksSuppliedText` aus, der Zweig bleibt dafür scharf.
+  //
+  // Gefragt wird der Auftrag, nicht der Stoff (`orderText`): „die Suche" im
+  // Newsletter über „schreib daraus einen Instagram-Post" ist keiner (#3912).
+  // Eine Faktenprüfung ist auch einer — „prüf die Fakten darin und korrigiere
+  // falsche Angaben" unter einer Behauptung antwortete sonst aus dem
+  // Modellgedächtnis (#3915). Bewusst hier und nicht in
+  // `looksLikeExplicitResearchOrder`: die trägt auch `looksLikeCompoundEdit` und
+  // die Recherche-Signale des Klassifikators.
   const reworksOwnText = reworksSuppliedText(input.lastUserText);
-  if (looksLikeExplicitResearchOrder(input.lastUserText) && !reworksOwnText)
+  const order = orderText(input.lastUserText);
+  if ((looksLikeExplicitResearchOrder(order) || FACT_CHECK_RE.test(order)) && !reworksOwnText)
     return 'research_order';
 
   // Derselbe Ausfall ohne das Verb: eine schlichte Faktenfrage, von der Heuristik

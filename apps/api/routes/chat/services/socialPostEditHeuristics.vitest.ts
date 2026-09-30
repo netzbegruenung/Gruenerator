@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
+import { orderText } from './orderText.js';
 import { isSharepicEditInstruction } from './sharepicEditHeuristics.js';
 import { isSocialTextEditInstruction } from './socialPostEditHeuristics.js';
 
@@ -124,5 +125,28 @@ describe('isSocialTextEditInstruction', () => {
     expect(isSocialTextEditInstruction('Mach den Text knackiger')).toBe(true);
     expect(isSocialTextEditInstruction('Kürze den Post auf zwei Sätze')).toBe(true);
     expect(isSocialTextEditInstruction('Ergänze zwei Hashtags')).toBe(true);
+  });
+});
+
+/**
+ * Die Stufe fragt den Auftrag (`orderText`), nicht die Nachricht (#3912). Beta
+ * 30.09.2026 00:27:36: ein eingefügter Wallbox-Absatz mit Faktenprüfung darunter
+ * lief in den Text-Edit-Zweig und fiel nur durch, weil der Thread keinen Post
+ * hatte.
+ */
+describe('Post-Text-Weiche liest den Auftrag, nicht den Stoff', () => {
+  const claim =
+    'Seit Januar fördert der Bund private Wallboxen mit 900 Euro pro Ladepunkt, und inzwischen gibt es in Deutschland über 500.000 öffentliche Ladepunkte. Die Förderung läuft noch bis Ende 2027 und gilt auch für Mieter.';
+
+  it('eine Faktenprüfung unter eingefügtem Text ist kein Post-Edit', () => {
+    const text = `${claim}\n\nprüf die Fakten darin und korrigiere falsche Angaben`;
+    expect(isSocialTextEditInstruction(text)).toBe(true);
+    expect(isSocialTextEditInstruction(orderText(text))).toBe(false);
+  });
+
+  it('ein Ersetzungsauftrag mit mitgebrachtem Text bleibt ein Post-Edit', () => {
+    expect(
+      isSocialTextEditInstruction(orderText(`Ersetze den Text im Post durch:\n\n${claim}`))
+    ).toBe(true);
   });
 });

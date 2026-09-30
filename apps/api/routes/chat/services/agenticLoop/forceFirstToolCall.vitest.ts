@@ -287,6 +287,28 @@ describe('shouldForceFirstToolCall', () => {
       expect(force({ loopDemotedFromRetrieval: true, lastUserText })).toBeNull();
     });
 
+    // #3912: „die Suche" im Stoff machte aus einem Schreibauftrag eine erzwungene
+    // Websuche. Gefragt wird der Auftrag (`orderText`).
+    it('ein Reizwort im Stoff über einem Schreibauftrag erzwingt nichts', () => {
+      const lastUserText = `${newsletter}\n\nschreib daraus einen Instagram-Post`;
+      expect(force({ lastUserText })).toBeNull();
+    });
+
+    // #3915, beta 30.09.2026 00:27:36: die Faktenprüfung antwortete aus dem
+    // Modellgedächtnis, weil kein Weg sie zum Suchen zwang.
+    const claim =
+      'Seit Januar fördert der Bund private Wallboxen mit 900 Euro pro Ladepunkt, und inzwischen gibt es in Deutschland über 500.000 öffentliche Ladepunkte. Die Förderung läuft noch bis Ende 2027 und gilt auch für Mieter.';
+
+    it('eine Faktenprüfung unter eingefügtem Text sucht', () => {
+      const lastUserText = `${claim}\n\nprüf die Fakten darin und korrigiere falsche Angaben`;
+      expect(force({ lastUserText })).toBe('research_order');
+    });
+
+    it('„prüfen … Zahlen" im Stoff macht keine Faktenprüfung', () => {
+      const lastUserText = `Der Kämmerer will prüfen, ob die Zahlen im Haushalt stimmen. ${claim}\n\nschreib daraus einen Post`;
+      expect(force({ lastUserText })).toBeNull();
+    });
+
     it('ein Recherche-Auftrag oben zählt, auch wenn der Stoff mit „korrigiert" endet', () => {
       const lastUserText = `recherchiere, ob diese Zahlen stimmen\n\n${newsletter}\n\nDie Zahlen haben wir korrigiert.`;
       expect(force({ loopDemotedFromRetrieval: true, lastUserText })).toBe('research_order');

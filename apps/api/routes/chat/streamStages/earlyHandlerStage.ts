@@ -12,6 +12,7 @@
 
 import { createLogger } from '../../../utils/logger.js';
 import { extractTextContent } from '../services/messageHelpers.js';
+import { orderText } from '../services/orderText.js';
 import {
   buildReelContextBlock,
   handleReelEdit,
@@ -144,8 +145,12 @@ export async function runEarlyHandlerStage({
     !universalEditForced
   ) {
     const reelText = lastUserTextNoMentions.trim();
-    const reelModeRelaxed = rawCurrentReel != null && !!reelText && hasReelEditVerb(reelText);
-    if (reelText && (isReelEditInstruction(reelText) || reelModeRelaxed)) {
+    // Geprüft wird der Auftrag, nicht der eingefügte Stoff: „Reels … Untertiteln"
+    // und „Schreibt uns" in einem Newsletter über „rechtschreibung korrigieren"
+    // holten die Reel-Auswahl (#3912). Der Handler bekommt weiter alles.
+    const reelOrder = orderText(reelText);
+    const reelModeRelaxed = rawCurrentReel != null && !!reelText && hasReelEditVerb(reelOrder);
+    if (reelText && (isReelEditInstruction(reelOrder) || reelModeRelaxed)) {
       const handled = await handleReelEdit({
         sse,
         threadId: actualThreadId,
@@ -209,7 +214,7 @@ export async function runEarlyHandlerStage({
     (rawCurrentSocialPost != null || rawCurrentSharepic == null)
   ) {
     const editText = lastUserTextNoMentions.trim();
-    if (editText && isSocialTextEditInstruction(editText)) {
+    if (editText && isSocialTextEditInstruction(orderText(editText))) {
       // Sibling of the sharepic-branch log below: the two edit branches are
       // where a follow-up either lands correctly or is silently misread.
       log.info(
@@ -247,11 +252,12 @@ export async function runEarlyHandlerStage({
     !universalEditForced
   ) {
     const editText = lastUserTextNoMentions.replace(/@sharepic\b/gi, ' ').trim();
+    const editOrder = orderText(editText);
     const candidate = !editText
       ? null
-      : isSharepicEditInstruction(editText)
+      : isSharepicEditInstruction(editOrder)
         ? 'edit-instruction'
-        : isSharepicRefinement(editText)
+        : isSharepicRefinement(editOrder)
           ? 'refinement'
           : null;
     // BOTH lanes must prove there is something to edit. `refinement` always
@@ -312,7 +318,7 @@ export async function runEarlyHandlerStage({
     !universalEditForced
   ) {
     const followText = lastUserTextNoMentions;
-    if (isSharepicRefinement(followText)) {
+    if (isSharepicRefinement(orderText(followText))) {
       const prior = await getLastSharepicVariant(actualThreadId);
       if (prior) {
         sharepicRefinement = {
