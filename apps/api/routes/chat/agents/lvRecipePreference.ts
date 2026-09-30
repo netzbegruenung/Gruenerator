@@ -5,10 +5,13 @@
  *   1. Der Agent selbst — auf einem LV-Agenten (per Link oder Inventar, gleich
  *      welcher Familie) ist die Rezept-Variante SEINES Landesverbands immer
  *      die richtige, unabhängig von den Profilrollen der Person.
- *   2. Die Profilrollen — wer genau EINEN Landesverband vertritt
- *      (Landesgeschäftsstellen-Rolle, `landesverbandIdsForRoles`), bekommt auf
- *      generischen Agenten die Variante dieses Verbands. Mehrere Verbände sind
- *      mehrdeutig, dann bleibt das generische Rezept stehen.
+ *   2. Die AKTIVE Rolle — ist die im Chat gewählte Rolle eine
+ *      Landesgeschäftsstellen-Rolle (`landesverbandIdsForRoles`), bekommt die
+ *      Person die Variante dieses Verbands. Die übrigen gespeicherten Rollen
+ *      zählen hier nicht: sie regeln nur, welche LV-Rezepte sichtbar sind
+ *      (Zuteilung, `recipeCatalog`). Wer im Composer „Ohne Rolle" wählt, meint
+ *      damit auch „nicht als Landesgeschäftsstelle schreiben" — bis 09/2026
+ *      bog die gespeicherte Rolle trotzdem jedes `presse` auf die LV-Variante um.
  *
  * Die Zuordnung generisch→LV läuft über die Rezept-Familie, nicht über
  * Namenskonventionen: eine Familie ist eine Rezept-Kategorie plus der
@@ -71,8 +74,8 @@ export function preferredLvRecipeMention(params: {
   mention: string | null | undefined;
   /** Der Agent des Turns — LV-Agenten binden die Wahl an ihren Landesverband. */
   agentIdentifier?: string | null;
-  /** Profilrollen der Person; greifen nur auf Nicht-LV-Agenten. */
-  roles?: readonly RoleLandesverbandInput[] | null;
+  /** Die im Chat aktive Rolle (aufgelöste `roleRef`); greift nur auf Nicht-LV-Agenten. */
+  activeRole?: RoleLandesverbandInput | null;
   userLocale: string | null;
   /**
    * Die Instanz, auf der der Turn läuft. Ein Deployment ohne Landesverbands-
@@ -83,7 +86,7 @@ export function preferredLvRecipeMention(params: {
    */
   instanceId?: InstanceId;
 }): string | null {
-  const { mention, agentIdentifier, roles, userLocale } = params;
+  const { mention, agentIdentifier, activeRole, userLocale } = params;
   const instanceId = params.instanceId ?? CURRENT_INSTANCE;
   if (!mention) return null;
   const family = LV_FAMILY_BY_GENERIC_MENTION[mention.toLowerCase()];
@@ -96,7 +99,7 @@ export function preferredLvRecipeMention(params: {
     ? landesverbandOfAgent(agentIdentifier)
     : null;
   if (!lv) {
-    const lvIds = landesverbandIdsForRoles(roles ?? [], userLocale ?? 'de-DE');
+    const lvIds = landesverbandIdsForRoles(activeRole ? [activeRole] : [], userLocale ?? 'de-DE');
     if (lvIds.length === 1) {
       lv = LANDESVERBAENDE.find((entry) => entry.id === lvIds[0]) ?? null;
     }
@@ -121,15 +124,15 @@ export function preferredLvRecipeMention(params: {
 
 /**
  * Der `defaultRecipeMention`-Rückfall eines Agenten, LV-bewusst: auf einem
- * generischen Agenten mit generischem Default bekommt eine Person mit genau
- * einer Landesverbands-Rolle die LV-Variante. Kuratierte LV-Defaults
+ * generischen Agenten mit generischem Default bekommt eine Person mit aktiver
+ * Landesgeschäftsstellen-Rolle die LV-Variante. Kuratierte LV-Defaults
  * (`presse-hessen-partei`, `presse-saarland`) stehen nicht in der Familien-
  * Tabelle und passieren unverändert.
  */
 export function roleAwareDefaultRecipeMention(
   agentConfig: { identifier?: string | undefined; defaultRecipeMention?: string | undefined },
   ctx: {
-    userRoles?: readonly RoleLandesverbandInput[] | null | undefined;
+    activeRole?: RoleLandesverbandInput | null | undefined;
     userLocale?: string | null | undefined;
   }
 ): string | null {
@@ -139,7 +142,7 @@ export function roleAwareDefaultRecipeMention(
     preferredLvRecipeMention({
       mention: base,
       agentIdentifier: agentConfig.identifier ?? null,
-      roles: ctx.userRoles ?? null,
+      activeRole: ctx.activeRole ?? null,
       userLocale: ctx.userLocale ?? null,
     }) ?? base
   );

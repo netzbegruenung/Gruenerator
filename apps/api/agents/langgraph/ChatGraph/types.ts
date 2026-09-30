@@ -581,6 +581,8 @@ export interface ChatGraphInput {
    * Zuteilung, die Agentura und das Mention-Menü anwenden.
    */
   userRoles?: readonly RoleLandesverbandInput[] | undefined;
+  /** Die im Turn aktive Rolle (aufgelöste `roleRef`) — Quelle des LV-Rezept-Vorzugs. */
+  activeRole?: RoleLandesverbandInput | null | undefined;
   activeSkillMention?: string | undefined;
   /** Zeilen-id der gewählten Textform. Schlägt die Mention beim Nachschlag. */
   activeRecipeId?: string | undefined;
@@ -839,6 +841,11 @@ export interface ChatGraphState {
   // Rezept-Katalog: leer heißt „keine Landesgeschäftsstellen-Rolle" und damit
   // keine LV-Rezepte — dieselbe Regel wie in Agentura und im Mention-Menü.
   userRoles: readonly RoleLandesverbandInput[];
+
+  // Die im Turn aktive Rolle (aufgelöste `roleRef`), `null` bei „Ohne Rolle".
+  // Quelle des LV-Rezept-Vorzugs (`preferredLvRecipeMention`) — anders als
+  // `userRoles`, das nur die Sichtbarkeit regelt.
+  activeRole: RoleLandesverbandInput | null;
 
   // Mention key of the active skill (e.g. 'instagram'). When set, respondNode
   // appends the skill's `skillSystemPrompt` as an additive section.
