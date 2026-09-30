@@ -140,10 +140,23 @@ Zertifikat draußen ist. Das Zertifikat läuft am 30.09.2036 ab.
 
 ```bash
 cd apps/mobile
-RELEASE_CHANNEL=production EOO_TOKEN=… npx eoas publish --branch production
-RELEASE_CHANNEL=preview    EOO_TOKEN=… npx eoas publish --branch preview
-RELEASE_CHANNEL=production EOO_TOKEN=… npx eoas rollback --branch production  # Notausgang
+export EOO_TOKEN=…   # API-Token aus dem xprem-Dashboard
+eas env:exec preview    'RELEASE_CHANNEL=preview    npx eoas publish --branch preview'
+eas env:exec production 'RELEASE_CHANNEL=production npx eoas publish --branch production'
+RELEASE_CHANNEL=production npx eoas rollback --branch production   # Notausgang
 ```
+
+**`eas env:exec` ist Pflicht, nicht Komfort.** `eoas` startet `expo export` mit
+`EXPO_NO_DOTENV=1` — die `.env` wird ignoriert, jede `EXPO_PUBLIC_*`-Variable muss
+in der Shell stehen. Fehlt `EXPO_PUBLIC_SENTRY_DSN`, wird `if (!dsn) return;` fest
+eingesetzt und der Minifier streicht die ganze Initialisierung: das Update schaltet
+die Fehlerberichte still ab, ohne dass etwas scheitert. `eas env:exec <umgebung>`
+speist dieselben EAS-Variablen ein, mit denen der Build gebaut wurde. **Zweite
+Falle:** Metro cacht die Einsetzung. Wer einmal ohne Variable exportiert hat,
+bekommt sie auch mit Variable nicht, bis der Cache leer ist
+(`npx expo export --clear` einmal laufen lassen) — `eoas` meldet dann
+„No changes found". Gegenprobe nach jedem Publish:
+`strings dist/_expo/static/js/android/*.hbc | grep -c glitchtip` muss 1 sein.
 
 `RELEASE_CHANNEL` wählt die Config, mit der das Bundle exportiert wird, `--branch`
 das Ziel; beide gleich halten. Ohne `RELEASE_CHANNEL` fehlt `updates.url` in der
