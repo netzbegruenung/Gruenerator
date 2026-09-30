@@ -15,6 +15,10 @@
 
 import { deleteStoredFile } from '../../routes/boards/boardAttachmentStorage.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import {
+  collectDoomedBoardCommentIds,
+  deleteBoardCommentReactions,
+} from '../boards/boardCommentReactions.js';
 import { deleteReactionsForShares } from '../groups/groupShareReactions.js';
 import { type TrashCursor, trashKeysetWhere, trashOrderBy } from '../trash/trashCursor.js';
 
@@ -285,7 +289,8 @@ export async function listExpiredCollaborativeDocuments(
  *
  * Cascades with the row: board_* tables, canvas_documents,
  * canvas_state_versions, chat_thread_canvases, collaborative_documents_init.
- * No FK, cleaned here: Yjs state, group shares, the doc's chat thread
+ * No FK, cleaned here: Yjs state, group shares (and their reactions), board
+ * comment reactions, the doc's chat thread
  * (`chat_threads.doc_id`, via `purgeDocThread` so its attachment vectors and
  * recall point go too), board
  * schedules, attachment files and the canvas thumbnail share.
@@ -307,6 +312,8 @@ export async function purgeCollaborativeDocument(
     'SELECT id FROM chat_threads WHERE doc_id = $1',
     [id]
   );
+  // board_comments cascade with the row; their reactions have no FK.
+  const boardCommentIds = await collectDoomedBoardCommentIds({ boardId: id }, runQuery);
 
   const deleted = await runQuery<{ id: string }>(
     `DELETE FROM collaborative_documents
@@ -335,15 +342,24 @@ export async function purgeCollaborativeDocument(
   await sideStore('yjs_document_snapshots', () =>
     runQuery('DELETE FROM yjs_document_snapshots WHERE document_id = $1', [id])
   );
-  await sideStore('group_content_shares', async () => {
-    const shares = { contentTypes: ['collaborative_documents', 'canvas_template'], contentId: id };
-    await deleteReactionsForShares(shares, runQuery);
-    await runQuery(
+  // Own step, before the share delete: it still needs the shares to find their
+  // comments, and a failure here must not keep the shares alive.
+  await sideStore('group_share_reactions', () =>
+    deleteReactionsForShares(
+      { contentTypes: ['collaborative_documents', 'canvas_template'], contentId: id },
+      runQuery
+    )
+  );
+  await sideStore('group_content_shares', () =>
+    runQuery(
       `DELETE FROM group_content_shares
        WHERE content_type IN ('collaborative_documents', 'canvas_template') AND content_id = $1`,
       [id]
-    );
-  });
+    )
+  );
+  await sideStore('board_comment_reactions', () =>
+    deleteBoardCommentReactions(boardCommentIds, runQuery)
+  );
   for (const thread of docThreads) {
     await sideStore('chat_threads', async () => {
       const { purgeDocThread } = await import('../../routes/chat/services/threadTrashService.js');

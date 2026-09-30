@@ -10,9 +10,9 @@ import {
   type ReactionEntityType,
   type ReactionSummary,
 } from '@gruenerator/contracts';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 
-import { entityReactions } from '../../database/schema/index.js';
+import { entityReactions, type EntityReactionRow } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 
 export async function addReaction(
@@ -20,8 +20,8 @@ export async function addReaction(
   entityType: ReactionEntityType,
   entityId: string,
   emoji: string
-): Promise<void> {
-  await getDrizzleInstance()
+): Promise<EntityReactionRow | null> {
+  const rows = await getDrizzleInstance()
     .insert(entityReactions)
     .values({ user_id: userId, entity_type: entityType, entity_id: entityId, emoji })
     .onConflictDoNothing({
@@ -31,7 +31,9 @@ export async function addReaction(
         entityReactions.user_id,
         entityReactions.emoji,
       ],
-    });
+    })
+    .returning();
+  return rows[0] ?? null;
 }
 
 export async function removeReaction(
@@ -108,6 +110,50 @@ export async function getReactionSummaries(
     )
     .groupBy(entityReactions.entity_id, entityReactions.emoji);
   return toReactionSummaries(rows);
+}
+
+/** Rohe Zeilen für alle ids in einem Query — für Aufrufer, die neben den Summaries die Einzelzeilen brauchen. */
+export async function getReactionRows(
+  entityType: ReactionEntityType,
+  entityIds: string[]
+): Promise<EntityReactionRow[]> {
+  if (entityIds.length === 0) return [];
+  return getDrizzleInstance()
+    .select()
+    .from(entityReactions)
+    .where(
+      and(
+        eq(entityReactions.entity_type, entityType),
+        inArray(entityReactions.entity_id, entityIds)
+      )
+    )
+    .orderBy(asc(entityReactions.created_at));
+}
+
+/** Dieselben Summaries wie `getReactionSummaries`, aber aus bereits geladenen Zeilen. */
+export function summarizeReactionRows(
+  rows: EntityReactionRow[],
+  viewerId: string
+): Map<string, ReactionSummary[]> {
+  const aggregates = new Map<string, ReactionAggregateRow>();
+  for (const r of rows) {
+    const key = `${r.entity_id}\u0000${r.emoji}`;
+    const agg = aggregates.get(key);
+    if (!agg) {
+      aggregates.set(key, {
+        entity_id: r.entity_id,
+        emoji: r.emoji,
+        count: 1,
+        reacted: r.user_id === viewerId,
+        first_at: r.created_at,
+      });
+      continue;
+    }
+    agg.count++;
+    agg.reacted ||= r.user_id === viewerId;
+    if (new Date(r.created_at) < new Date(agg.first_at)) agg.first_at = r.created_at;
+  }
+  return toReactionSummaries([...aggregates.values()]);
 }
 
 export async function deleteReactionsForEntities(
