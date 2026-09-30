@@ -5,6 +5,10 @@
  * `\bänder...` never matches — "ä" is not \w. Suffixes stay prefix-matched.
  */
 
+import { isNegatedArtifactRequest } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
+
+import { isQuestionAboutEditing, verbNearNoun } from './editAddressee.js';
+
 const EDIT_VERB_PATTERN =
   /(?<!\p{L})(änder|aender|anpass|korrigier|verbesser|kürz|kuerz|verläng|verlaeng|umformulier|formulier|ersetz|umschreib|schreib|mach|fix|entfern|lösch|loesch|tipp?fehler|rechtschreib|gender)/iu;
 
@@ -17,6 +21,14 @@ const STRONG_REEL_NOUN_PATTERN = /(?<!\p{L})(untertitel|subtitle|reels?|captions
 
 const REEL_NOUN_PATTERN =
   /(?<!\p{L})(untertitel|subtitle|reels?|captions?|segmente?s?\s*\d*|video.?text)/iu;
+
+// Das bearbeitete Objekt, nicht der Zweck: „für Reels", „über meine Reels",
+// „zum Reel" nennen, WOFÜR etwas geschrieben wird. „Schreib mir drei Ideen für
+// Reels" traf mit „schreib" am Nomen die Bearbeitung (Beta-Audit 30.09.2026).
+const REEL_OBJECT_NOUN_PATTERN = new RegExp(
+  `(?<!(?<!\\p{L})(?:f(?:ü|ue)r|(?:ü|ue)ber|zu[mr]?)\\s+(?:\\p{L}+\\s+){0,2})${REEL_NOUN_PATTERN.source}`,
+  'iu'
+);
 
 /** Phrases that mean "create a new reel/video" — never treated as an edit. */
 const NEW_REEL_PATTERN =
@@ -39,7 +51,35 @@ const SOCIAL_CONTENT_PATTERN =
  */
 export function isReelEditInstruction(text: string): boolean {
   if (NEW_REEL_PATTERN.test(text) || SOCIAL_CONTENT_PATTERN.test(text)) return false;
-  return EDIT_VERB_PATTERN.test(text) && REEL_NOUN_PATTERN.test(text);
+  // Beta-Audit 30.09.2026: „Wie mache ich gute Reels?" traf „mach" und „Reels"
+  // und holte die Reel-Auswahl — eine Frage darüber, verneint oder mit Verb und
+  // Nomen in verschiedenen Sätzen ist kein Auftrag an ein Reel.
+  if (isQuestionAboutEditing(text)) return false;
+  if (isNegatedArtifactRequest(text, STRONG_REEL_NOUN_PATTERN)) return false;
+  return verbNearNoun(text, EDIT_VERB_PATTERN, REEL_OBJECT_NOUN_PATTERN);
+}
+
+// Der Auftrag zeigt auf ein BESTEHENDES Reel: bestimmter Artikel oder
+// Possessiv vor dem Reel-Nomen („den Untertitel im Reel", „in meinem Reel",
+// „die Untertitel"). „Reels" ohne Artikel ist die Gattung.
+const EXISTING_REEL_PATTERN =
+  /(?<!\p{L})(?:mein\p{L}*|dein\p{L}*|unser\p{L}*|eu(?:e)?r\p{L}*|de[mnrs]|die|das|im|ins|diese[mnrs]?)\s+(?:\p{L}+\s+)?(?:untertitel\p{L}*|subtitles?|reels?|captions?)(?!\p{L})/iu;
+
+/**
+ * Eine Reel-Bearbeitung — und damit auch die Reel-Auswahl — braucht einen
+ * ADRESSATEN: das offene Reel (Reel-Modus), ein Reel-Turn direkt davor, oder
+ * der Auftrag zeigt auf ein bestehendes Reel.
+ *
+ * Bis zum Beta-Audit 30.09.2026 genügte ein starkes Nomen: ohne Reel im Thread
+ * öffnete „Schreib mir drei Ideen für Reels" die Auswahl, und mit einem Reel
+ * irgendwann im Thread (`chat_thread_reels` bleibt stehen) bearbeitete sie
+ * dessen Untertitel. Dieselbe Regel wie `sharepicEditAddressed`.
+ */
+export function reelEditAddressed(
+  order: string,
+  context: { reelOpen: boolean; lastTurnReel: boolean }
+): boolean {
+  return context.reelOpen || context.lastTurnReel || EXISTING_REEL_PATTERN.test(order);
 }
 
 /**

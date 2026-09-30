@@ -19,6 +19,7 @@ import {
   hasReelEditVerb,
   isReelEditInstruction,
   namesReelTarget,
+  reelEditAddressed,
 } from '../services/reelEditService.js';
 import { sharepicEditAddressed } from '../services/sharepicEditHeuristics.js';
 import {
@@ -104,6 +105,10 @@ export async function runEarlyHandlerStage({
   rawCurrentSocialPost,
 }: EarlyHandlerStageParams): Promise<MaybeHandled<EarlyHandlerStageOutput>> {
   let forcedTool = false;
+  // Was der Turn direkt davor gebaut hat — der Adressat, den jede
+  // Bearbeitungs-Weiche unten fragt (siehe `priorTurnEditables`).
+  const lastTurnEditables = initialState.lastTurnEditables ?? [];
+  const lastTurnSharepic = lastTurnEditables.includes('sharepic');
 
   // === Reel upload: composer-attached video → auto-transcription ===
   // Deliberately NOT behind the image/intent guards of the edit branch
@@ -160,7 +165,14 @@ export async function runEarlyHandlerStage({
       !!reelText &&
       hasReelEditVerb(reelOrder) &&
       orderMayMeanArtifact(reelText, namesReelTarget);
-    if (reelText && (isReelEditInstruction(reelOrder) || reelModeRelaxed)) {
+    // Und nur mit Adressat: ohne ihn öffnete „Schreib mir drei Ideen für Reels"
+    // die Auswahl, und ein Reel von vor Tagen (`chat_thread_reels`) bekam die
+    // Bearbeitung (Beta-Audit 30.09.2026).
+    const reelAddressed = reelEditAddressed(reelOrder, {
+      reelOpen: rawCurrentReel != null,
+      lastTurnReel: lastTurnEditables.includes('reel'),
+    });
+    if (reelText && reelAddressed && (isReelEditInstruction(reelOrder) || reelModeRelaxed)) {
       const handled = await handleReelEdit({
         sse,
         threadId: actualThreadId,
@@ -296,7 +308,7 @@ export async function runEarlyHandlerStage({
       candidate &&
       sharepicEditAddressed(orderText(lastUserTextNoMentions), {
         cardOpen: rawCurrentSharepic != null,
-        lastTurnSharepic: initialState.lastTurnSharepic === true,
+        lastTurnSharepic,
       }) &&
       (rawCurrentSharepic != null || (await threadHasSharepic(actualThreadId)))
         ? candidate
@@ -358,7 +370,7 @@ export async function runEarlyHandlerStage({
       // so zur Neufassung des Sharepics (Beta-Audit 30.09.2026).
       sharepicEditAddressed(followOrder, {
         cardOpen: rawCurrentSharepic != null,
-        lastTurnSharepic: initialState.lastTurnSharepic === true,
+        lastTurnSharepic,
       })
     ) {
       const prior = await getLastSharepicVariant(actualThreadId);

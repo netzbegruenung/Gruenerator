@@ -125,7 +125,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         threadArtifacts: BOTH,
         // Das Sharepic kam im Turn davor — ohne diesen Adressaten ist es seit
         // dem Beta-Audit 30.09.2026 keine Sharepic-Bearbeitung.
-        lastTurnSharepic: true,
+        lastTurnEditables: ['sharepic'],
       })
     );
     expect(result.intent).toBe('sharepic');
@@ -181,7 +181,7 @@ describe('classifierNode — Folgeauftrag in einem Thread mit mehreren Artefakte
         userMessage: 'Mach den Text größer',
         lastToolContext: SHAREPIC,
         threadArtifacts: [SHAREPIC],
-        lastTurnSharepic: true,
+        lastTurnEditables: ['sharepic'],
       })
     );
     expect(pool.editTargetCalls).toHaveLength(0);

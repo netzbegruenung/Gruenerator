@@ -18,6 +18,7 @@ import type {
 } from '../../../database/services/NotebookQdrantHelper.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { ArtifactKindId } from '../../../routes/chat/services/artifactKindRegistry.js';
+import type { EditableArtifact } from '../../../routes/chat/services/editAddressee.js';
 import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
 import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
 import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';
@@ -689,13 +690,15 @@ export interface ChatGraphState {
    */
   threadLookups?: PriorLookup[];
   /**
-   * Der Assistenz-Turn DIREKT vor diesem hat ein Sharepic gebaut oder bearbeitet.
-   * `lastToolContext` taugt dafür nicht: `chat_threads.last_tool_context`
-   * überschreibt erst das NÄCHSTE Artefakt, und ohne diesen Adressaten wurde
-   * Tage später „Verbesser den Antrag" zur Sharepic-Bearbeitung (Beta-Audit
-   * 30.09.2026). Siehe `sharepicEditAddressed`.
+   * Was der Assistenz-Turn DIREKT vor diesem gebaut oder bearbeitet hat
+   * (Sharepic, Social-Post, Reel). `lastToolContext` taugt dafür nicht:
+   * `chat_threads.last_tool_context` überschreibt erst das NÄCHSTE Artefakt, und
+   * ohne diesen Adressaten wurde Tage später „Verbesser den Antrag" zur
+   * Sharepic-Bearbeitung (Beta-Audit 30.09.2026). Eine Liste statt eines
+   * Schalters je Art, weil jede Bearbeitungs-Weiche dieselbe Frage stellt —
+   * siehe `priorTurnEditables`.
    */
-  lastTurnSharepic?: boolean;
+  lastTurnEditables?: EditableArtifact[];
   /**
    * Präzisionsmodus der Notebook-Seite: `notebook_quellen` darf nur diese
    * Notebooks öffnen (verglichen nach `resolveSystemCollection`), und mit

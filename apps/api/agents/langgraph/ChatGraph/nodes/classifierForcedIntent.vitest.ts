@@ -995,7 +995,7 @@ describe('Follow-up on a notebook tool turn pins notebook_quellen', () => {
           lastToolContext: afterSharepic,
           // Tier 2.7 braucht seit dem Beta-Audit 30.09.2026 einen Adressaten;
           // hier geht es um den Vorrang vor dem Notebook-Pin.
-          lastTurnSharepic: true,
+          lastTurnEditables: ['sharepic'],
         });
         const result = await classifierNode(state);
         expect(result.intent).toBe('sharepic');
