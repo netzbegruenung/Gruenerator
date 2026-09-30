@@ -5,6 +5,8 @@
  */
 import { loopToolsFor, RESEARCH_LOOP_TOOLS } from '@gruenerator/shared/chat-intents';
 
+import { orderText } from '../orderText.js';
+
 import { NAMED_RETRIEVAL_INTENTS } from './intents.js';
 import {
   asksAboutOwnPastAction,
@@ -107,8 +109,17 @@ export function shouldForceFirstToolCall(input: {
   // korrigieren" unter einem eingefügten Newsletter): ein „Suche" IM Newsletter
   // ist kein Auftrag (#3903). Ein Recherche-Verb im Auftrag selbst schliesst
   // `reworksSuppliedText` aus, der Zweig bleibt dafür scharf.
+  //
+  // Gefragt wird der Auftrag, nicht der Stoff (`orderText`): „die Suche" im
+  // Newsletter über „schreib daraus einen Instagram-Post" ist keiner (#3912).
+  // Eine Faktenprüfung ist auch einer — „prüf die Fakten darin und korrigiere
+  // falsche Angaben" unter einer Behauptung antwortete sonst aus dem
+  // Modellgedächtnis (#3915). Bewusst hier und nicht in
+  // `looksLikeExplicitResearchOrder`: die trägt auch `looksLikeCompoundEdit` und
+  // die Recherche-Signale des Klassifikators.
   const reworksOwnText = reworksSuppliedText(input.lastUserText);
-  if (looksLikeExplicitResearchOrder(input.lastUserText) && !reworksOwnText)
+  const order = orderText(input.lastUserText);
+  if ((looksLikeExplicitResearchOrder(order) || looksLikeFactCheckOrder(order)) && !reworksOwnText)
     return 'research_order';
 
   // Derselbe Ausfall ohne das Verb: eine schlichte Faktenfrage, von der Heuristik
@@ -222,6 +233,47 @@ export function shouldForceFirstToolCall(input: {
   if (input.attachedSeedDelivered) return null;
 
   return NAMED_RETRIEVAL_INTENTS.has(input.intent ?? '') ? 'named_intent' : null;
+}
+
+/** Ein Prüfwort und ein Sachgegenstand im selben Satz, in beliebiger Reihenfolge.
+ *  „stimmt"/„stimmen" zählt hier nicht: „die Stimmen und Zahlen der Wahl" ist
+ *  das Nomen, und „stimmt, schreib den Post mit den Zahlen" eine Zustimmung.
+ *  Das Verb trägt nur im ob-Satz und in der Frage (unten). */
+const CHECK_WORD = String.raw`(?:[üu]berpr[üu]f|pr[üu]f|verifizier|check|kontrollier)\p{L}*`;
+const FACT_NOUN = String.raw`(?:fakten|zahlen|angaben|daten|behauptung(?:en)?|aussagen?|quellen|richtigkeit|korrektheit|wahrheitsgehalt)(?!\p{L})`;
+/** Satzanfang — auch unter dem Stoff, wenn beide Ränder Auftrag sind. */
+const SENTENCE_START = String.raw`(?:^|[.?!:\n]\s*)`;
+const FACT_CHECK_ORDER_RE = new RegExp(
+  [
+    String.raw`(?<!\p{L})${CHECK_WORD}[^.?!]*?(?<!\p{L})${FACT_NOUN}`,
+    String.raw`(?<!\p{L})${FACT_NOUN}[^.?!]*?(?<!\p{L})${CHECK_WORD}`,
+    // „…, ob die Zahlen stimmen" — das Verb steht am Ende des ob-Satzes.
+    String.raw`(?<!\p{L})ob(?!\p{L})[^.?!]*?(?<!\p{L})stimm(?:t|en)(?:\s+oder\s+nicht)?\s*(?:[.?!,;:)]|$)`,
+    // „stimmt das so?", „stimmen die Angaben?" — als Frage, nicht als Aussage
+    // („Stimmen der Jugend werden lauter.").
+    String.raw`${SENTENCE_START}stimm(?:t|en)\s+(?:das|dies|diese\p{L}*|die|der)(?!\p{L})[^.?!\n]*(?:\?|$)`,
+    // „Ist das korrekt?", „Sind die Zahlen richtig?"
+    String.raw`${SENTENCE_START}(?:ist|sind)\s+(?:das|dies|die\s+${FACT_NOUN})(?:\s+so)?\s+(?:korrekt|richtig|zutreffend|wahr|belegt)(?!\p{L})`,
+    String.raw`(?<!\p{L})(?:fakten-?check|fact-?check)`,
+  ].join('|'),
+  'iu'
+);
+
+/** Prüft die Sprache, nicht die Sache — „ob die Kommasetzung stimmt", „Ist das
+ *  korrekt formuliert?". Mit Wortende, wo ein Stamm Sachwörter trifft:
+ *  „Stilllegung", „Kommando". „Ausdruck" fehlt bewusst: „bevor ich das im Ausdruck verteile" ist der Papierausdruck. */
+const LANGUAGE_CHECK_RE =
+  /(?<!\p{L})(?:rechtschreib|orthogra[fp]h?|komma(?:s|ta|setzung|fehler)?(?!\p{L})|zeichensetzung|grammatik|tippfehler|schreibfehler|stil(?:s|istik|istisch\p{L}*)?(?!\p{L})|formulierung|ausdrucksweise|sprachlich|(?:formuliert|geschrieben|ausgedrückt|ausgedrueckt)(?!\p{L}))/iu;
+
+/**
+ * Eine Faktenprüfung, die nachschlagen muss (#3915): „prüf die Fakten darin",
+ * „stimmen die Angaben?". Enger als `FACT_CHECK_RE` in `routing.ts` — das ist
+ * ein Veto gegen die Überarbeitungs-Abkürzung und darf grosszügig sein; hier
+ * ERZWINGT der Treffer eine Websuche, und „prüfe, ob die Rechtschreibung
+ * korrekt ist" darf das nicht (#3903).
+ */
+function looksLikeFactCheckOrder(order: string): boolean {
+  return FACT_CHECK_ORDER_RE.test(order) && !LANGUAGE_CHECK_RE.test(order);
 }
 
 /**

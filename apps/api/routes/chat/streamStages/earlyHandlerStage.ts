@@ -12,15 +12,18 @@
 
 import { createLogger } from '../../../utils/logger.js';
 import { extractTextContent } from '../services/messageHelpers.js';
+import { orderMayMeanArtifact, orderText } from '../services/orderText.js';
 import {
   buildReelContextBlock,
   handleReelEdit,
   hasReelEditVerb,
   isReelEditInstruction,
+  namesReelTarget,
 } from '../services/reelEditService.js';
 import {
   handleSharepicEdit,
   isSharepicEditInstruction,
+  namesSharepicTarget,
   threadHasSharepic,
 } from '../services/sharepicEditService.js';
 import {
@@ -31,6 +34,7 @@ import {
 import {
   handleSocialPostTextEdit,
   isSocialTextEditInstruction,
+  namesSocialPostTarget,
 } from '../services/socialPostEditService.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
 
@@ -144,8 +148,18 @@ export async function runEarlyHandlerStage({
     !universalEditForced
   ) {
     const reelText = lastUserTextNoMentions.trim();
-    const reelModeRelaxed = rawCurrentReel != null && !!reelText && hasReelEditVerb(reelText);
-    if (reelText && (isReelEditInstruction(reelText) || reelModeRelaxed)) {
+    // Geprüft wird der Auftrag, nicht der eingefügte Stoff: „Reels … Untertiteln"
+    // und „Schreibt uns" in einem Newsletter über „rechtschreibung korrigieren"
+    // holten die Reel-Auswahl (#3912). Der Handler bekommt weiter alles.
+    const reelOrder = orderText(reelText);
+    // Die Abkürzung ohne Reel-Nomen gilt nur ohne Stoff: „kürzer bitte" unter
+    // einem eingefügten Text meint den Text, nicht das offene Reel.
+    const reelModeRelaxed =
+      rawCurrentReel != null &&
+      !!reelText &&
+      hasReelEditVerb(reelOrder) &&
+      orderMayMeanArtifact(reelText, namesReelTarget);
+    if (reelText && (isReelEditInstruction(reelOrder) || reelModeRelaxed)) {
       const handled = await handleReelEdit({
         sse,
         threadId: actualThreadId,
@@ -209,7 +223,15 @@ export async function runEarlyHandlerStage({
     (rawCurrentSocialPost != null || rawCurrentSharepic == null)
   ) {
     const editText = lastUserTextNoMentions.trim();
-    if (editText && isSocialTextEditInstruction(editText)) {
+    const editOrder = orderText(editText);
+    // Bringt die Nachricht Stoff mit, kann ein Auftrag ohne Ziel („übersetze
+    // das", „kürzer bitte") den Stoff meinen statt des Posts — dann nur, wenn er
+    // den Post nennt oder ihn ersetzt (#3918, `orderMayMeanArtifact`).
+    if (
+      editText &&
+      isSocialTextEditInstruction(editOrder) &&
+      orderMayMeanArtifact(editText, namesSocialPostTarget)
+    ) {
       // Sibling of the sharepic-branch log below: the two edit branches are
       // where a follow-up either lands correctly or is silently misread.
       log.info(
@@ -247,13 +269,17 @@ export async function runEarlyHandlerStage({
     !universalEditForced
   ) {
     const editText = lastUserTextNoMentions.replace(/@sharepic\b/gi, ' ').trim();
-    const candidate = !editText
-      ? null
-      : isSharepicEditInstruction(editText)
-        ? 'edit-instruction'
-        : isSharepicRefinement(editText)
-          ? 'refinement'
-          : null;
+    const editOrder = orderText(editText);
+    // Wie beim Post: mit eingefügtem Stoff nur, wenn der Auftrag das Sharepic
+    // nennt oder ersetzt (#3918).
+    const candidate =
+      !editText || !orderMayMeanArtifact(editText, namesSharepicTarget)
+        ? null
+        : isSharepicEditInstruction(editOrder)
+          ? 'edit-instruction'
+          : isSharepicRefinement(editOrder)
+            ? 'refinement'
+            : null;
     // BOTH lanes must prove there is something to edit. `refinement` always
     // did; `edit-instruction` never did, and that asymmetry was a hole, not
     // a nuance: on a thread with no sharepic the handler declined, the turn
@@ -312,7 +338,11 @@ export async function runEarlyHandlerStage({
     !universalEditForced
   ) {
     const followText = lastUserTextNoMentions;
-    if (isSharepicRefinement(followText)) {
+    const followOrder = orderText(followText);
+    if (
+      isSharepicRefinement(followOrder) &&
+      orderMayMeanArtifact(followText, namesSharepicTarget)
+    ) {
       const prior = await getLastSharepicVariant(actualThreadId);
       if (prior) {
         sharepicRefinement = {

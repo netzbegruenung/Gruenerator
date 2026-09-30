@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
+import { orderMayMeanArtifact, orderText } from './orderText.js';
 import { isSharepicEditInstruction } from './sharepicEditHeuristics.js';
-import { isSocialTextEditInstruction } from './socialPostEditHeuristics.js';
+import { isSocialTextEditInstruction, namesSocialPostTarget } from './socialPostEditHeuristics.js';
 
 /**
  * Disambiguation matrix for the combined social post: which instructions edit
@@ -124,5 +125,94 @@ describe('isSocialTextEditInstruction', () => {
     expect(isSocialTextEditInstruction('Mach den Text knackiger')).toBe(true);
     expect(isSocialTextEditInstruction('Kürze den Post auf zwei Sätze')).toBe(true);
     expect(isSocialTextEditInstruction('Ergänze zwei Hashtags')).toBe(true);
+  });
+});
+
+/**
+ * Die Stufe fragt den Auftrag (`orderText`), nicht die Nachricht (#3912). Beta
+ * 30.09.2026 00:27:36: ein eingefügter Wallbox-Absatz mit Faktenprüfung darunter
+ * lief in den Text-Edit-Zweig und fiel nur durch, weil der Thread keinen Post
+ * hatte.
+ */
+describe('Post-Text-Weiche liest den Auftrag, nicht den Stoff', () => {
+  const claim =
+    'Seit Januar fördert der Bund private Wallboxen mit 900 Euro pro Ladepunkt, und inzwischen gibt es in Deutschland über 500.000 öffentliche Ladepunkte. Die Förderung läuft noch bis Ende 2027 und gilt auch für Mieter.';
+
+  it('eine Faktenprüfung unter eingefügtem Text ist kein Post-Edit', () => {
+    const text = `${claim}\n\nprüf die Fakten darin und korrigiere falsche Angaben`;
+    expect(isSocialTextEditInstruction(text)).toBe(true);
+    expect(isSocialTextEditInstruction(orderText(text))).toBe(false);
+  });
+
+  it('ein Ersetzungsauftrag mit mitgebrachtem Text bleibt ein Post-Edit', () => {
+    expect(
+      isSocialTextEditInstruction(orderText(`Ersetze den Text im Post durch:\n\n${claim}`))
+    ).toBe(true);
+  });
+});
+
+/**
+ * #3918: bringt die Nachricht Stoff mit, kann ein Auftrag ohne Ziel den Stoff
+ * meinen statt des Posts im Thread. Die Stufe fragt dann
+ * `orderMayMeanArtifact(message, namesSocialPostTarget)`.
+ */
+describe('Post-Text-Weiche: ein Auftrag ohne Ziel über eingefügtem Stoff meint den Stoff', () => {
+  const paste =
+    'Unser Ortsverband lädt am Samstag zum Radfahr-Aktionstag ein: Treffpunkt ist um 10 Uhr am Rathausplatz, danach fahren wir gemeinsam die neue Fahrradstraße ab und sammeln Ideen für den Stadtrat.';
+
+  it.each([
+    [`${paste}\n\nübersetze das ins Englische`],
+    [`${paste}\n\nmach es kürzer`],
+    [`${paste}\n\nins Englische übersetzen`],
+    [`${paste}\n\nauf Englisch bitte`],
+    [`${paste}\n\nkürzer bitte`],
+    [`${paste}\n\nübersetze ins Englische`],
+    [`${paste}\n\nmach ihn kürzer`],
+    // „Text" allein kann ebenso der eingefügte Text sein.
+    [`${paste}\n\nverbesser den Text`],
+  ])('greift nicht: %s', (message) => {
+    // Nur der Auftrag gelesen, würde die Weiche greifen — das war der Ausfall.
+    expect(isSocialTextEditInstruction(orderText(message))).toBe(true);
+    expect(orderMayMeanArtifact(message, namesSocialPostTarget)).toBe(false);
+  });
+
+  it.each([
+    [`Ersetze den Text im Post durch:\n\n${paste}`],
+    // Ein Ersetzungsauftrag: der Stoff IST der neue Text des Posts.
+    [`Ersetze den Text durch:\n\n${paste}`],
+    [`${paste}\n\nübersetze den Post ins Englische`],
+    [`${paste}\n\nkürze die Caption`],
+  ])('ein Auftrag, der den Post nennt oder ersetzt, greift weiter: %s', (message) => {
+    expect(isSocialTextEditInstruction(orderText(message))).toBe(true);
+    expect(orderMayMeanArtifact(message, namesSocialPostTarget)).toBe(true);
+  });
+
+  it.each([
+    ['übersetze das ins Englische'],
+    ['mach es kürzer'],
+    ['kürzer bitte'],
+    ['verbesser den Text'],
+  ])('ohne Stoff bleibt es beim Post: %s', (message) => {
+    expect(isSocialTextEditInstruction(orderText(message))).toBe(true);
+    expect(orderMayMeanArtifact(message, namesSocialPostTarget)).toBe(true);
+  });
+});
+
+/** Final-Review PR #3922: Gruß und Dank am Rand verdrängen den Auftrag nicht. */
+describe('Post-Text-Weiche: Auftrag zwischen Gruß und Dank', () => {
+  it.each([
+    ['Hallo,\n\nkannst du den Post etwas kürzer machen?\n\nDanke!'],
+    [
+      'Den Post bitte auf drei Sätze kürzen, den Hinweis auf die Veranstaltung am Samstag behalten und die Hashtags am Ende einfach stehen lassen, danke\n\nDanke!',
+    ],
+  ])('greift: %s', (message) => {
+    expect(isSocialTextEditInstruction(orderText(message))).toBe(true);
+    expect(orderMayMeanArtifact(message, namesSocialPostTarget)).toBe(true);
+  });
+
+  it('ein Stoff, der mit „Erklärung" beginnt, ist kein Post-Auftrag', () => {
+    const message =
+      'Erklärung der Landesvorsitzenden: Wir haben neue Vorlagen, der Untertitler versieht Reels automatisch mit Untertiteln, und ihr könnt jetzt jeden Post direkt teilen. Schreibt uns!\n\nübersetze das ins Englische';
+    expect(orderMayMeanArtifact(message, namesSocialPostTarget)).toBe(false);
   });
 });

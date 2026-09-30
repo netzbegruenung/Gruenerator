@@ -1437,6 +1437,11 @@ describe('reworksSuppliedText — der Auftrag, nicht der eingefügte Stoff (#390
     ['überprüfe die Zahlen und korrigiere sie'],
     // Ein einziger Absatz bleibt beim ganzen Text — wie vor #3903.
     [`${paste} Bitte korrigieren.`],
+    // Ein langer Schreibauftrag verschwindet nicht hinter seinem kurzen
+    // Nachsatz (#3912): „kürzer" allein macht daraus keine Überarbeitung.
+    [
+      'Schreib eine Rede über Klimaschutz für den Ortsverband Musterstadt, mit Fokus auf Wärmepumpen, kommunale Wärmeplanung und die Sanierung von Schulgebäuden\n\nBitte kürzer halten.',
+    ],
   ])('bleibt bei Schreib-, Recherche- oder ungetrenntem Auftrag aus: %s', (text) => {
     expect(reworksSuppliedText(text)).toBe(false);
   });
