@@ -55,7 +55,7 @@ export type DesktopSaver = (blob: Blob, filename: string) => Promise<void>;
 
 let desktopSaver: DesktopSaver | null = null;
 
-export function registerDesktopSaver(saver: DesktopSaver): void {
+export function registerDesktopSaver(saver: DesktopSaver | null): void {
   desktopSaver = saver;
 }
 

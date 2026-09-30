@@ -111,6 +111,8 @@ describe('downloadDataUrl — no native host', () => {
 });
 
 describe('desktop saver registered', () => {
+  afterEach(() => registerDesktopSaver(null));
+
   it('routes downloadBlob through the saver with a sanitised filename', async () => {
     const saver = vi.fn().mockResolvedValue(undefined);
     registerDesktopSaver(saver);
