@@ -9,12 +9,13 @@
 
 import {
   ARTIFACT_NOUN_BY_KIND,
+  asksForSharepic,
   forbidsPersistentAction,
-  hasExplicitSharepicWord,
   type ForbiddableArtifact,
 } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { recordDecision } from '../../../utils/decisionJournal.js';
 import { createLogger } from '../../../utils/logger.js';
+import { orderText } from '../services/orderText.js';
 import { NO_SHAREPIC_TO_EDIT_TEXT } from '../services/platformGating.js';
 import { threadHasSharepic } from '../services/sharepicEditService.js';
 
@@ -64,7 +65,9 @@ export async function runActionGateStage({
   const sharepicLicensed =
     forcedTool || // @sharepic mention — an explicit pick
     initialState.agentConfig?.identifier === 'gruenerator-sharepic' ||
-    hasExplicitSharepicWord(lastUserTextNoMentions);
+    // Dasselbe Prädikat wie die Klassifikator-Regel: eine blosse Erwähnung
+    // („Dazu passt später ein Sharepic.") lizenziert nichts (Beta-Audit 30.09.2026).
+    asksForSharepic(orderText(lastUserTextNoMentions));
 
   if (classifiedState.intent === 'sharepic' && !sharepicLicensed) {
     if (actualThreadId && (await threadHasSharepic(actualThreadId))) {
