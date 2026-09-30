@@ -267,3 +267,33 @@ describe('Sharepic-Bearbeitung: ein Auftrag ohne Ziel über eingefügtem Stoff m
     expect(orderMayMeanArtifact('mach den Text kürzer', namesSharepicTarget)).toBe(true);
   });
 });
+
+/** #3924: ein Präfix wie „bild" oder „seite" nennt noch kein Sharepic. */
+describe('namesSharepicTarget: nur ganze Sharepic-Nomen', () => {
+  const paste =
+    'Unser Ortsverband lädt am Samstag zum Radfahr-Aktionstag ein: Treffpunkt ist um 10 Uhr am Rathausplatz, danach fahren wir gemeinsam die neue Fahrradstraße ab und sammeln Ideen für den Stadtrat.';
+
+  it.each([
+    ['kürzer bitte, mit Fokus auf Bildung'],
+    ['mach das auf Seitenlänge kürzer'],
+    ['mach eine Liste daraus'],
+    ['korrigier die Farbigkeit der Sprache'],
+  ])('mit Stoff greift nicht: %s', (order) => {
+    expect(namesSharepicTarget(order)).toBe(false);
+    expect(orderMayMeanArtifact(`${paste}\n\n${order}`, namesSharepicTarget)).toBe(false);
+  });
+
+  it.each([
+    ['mach das Bild heller'],
+    ['tausch die Bilder aus'],
+    ['mach die Überschrift kürzer'],
+    ['ändere die Farbe des Balkens'],
+    ['kürz den Text auf Seite 2'],
+    ['mach das Sharepic kürzer'],
+    ['ändere Zeile 2'],
+    ['nimm ein anderes Foto'],
+  ])('ein Auftrag, der ein Sharepic-Feld nennt, greift weiter: %s', (order) => {
+    expect(namesSharepicTarget(order)).toBe(true);
+    expect(orderMayMeanArtifact(`${paste}\n\n${order}`, namesSharepicTarget)).toBe(true);
+  });
+});

@@ -123,10 +123,18 @@ const OTHER_ARTIFACT_OBJECT_PATTERN =
  * Die Anweisung nennt das Sharepic oder eins seiner Felder — ein blosses
  * „Text" zählt nicht, das kann ebenso der eingefügte Text sein. Dieselbe Regel
  * wie `namesSocialPostTarget`, nur über die Sharepic-Nomen (#3918).
+ *
+ * Eine eigene Liste mit Wortende statt `EDIT_NOUN_PATTERN`: dessen Präfixe
+ * („bild", „seite", „farb") halten den Recall des Bearbeitungs-Detektors hoch,
+ * hier aber machten sie „mit Fokus auf Bildung" und „auf Seitenlänge" zum
+ * Sharepic (#3924). Formate, die ebenso den Stoff meinen können (Liste,
+ * Stichpunkte, Datum), nennen kein Ziel.
  */
+const SHAREPIC_TARGET_NOUN_PATTERN =
+  /(?<!\p{L})(?:sharepics?|kacheln?|bild(?:er|ern|es|s)?|fotos?|grafik(?:en)?|motive?s?|zeilen?(?:\s*[123])?|balken|schrift(?:art|zug|farbe)?|font|farben?|hintergrund(?:bild|farbe)?|sonnenblumen?|logos?|zitate?s?|(?:ü|ue)berschrift(?:en)?|header|headline|varianten?|slides?|folien?(?:\s*\d+)?|seite\s*\d+|karussells?|slider|cover|abschlussfolie|untertext|zusatztext|label)(?!\p{L})/iu;
+
 export function namesSharepicTarget(text: string): boolean {
-  const nouns = new RegExp(EDIT_NOUN_PATTERN.source, 'giu');
-  return [...text.matchAll(nouns)].some((m) => m[1].toLowerCase() !== 'text');
+  return SHAREPIC_TARGET_NOUN_PATTERN.test(text);
 }
 
 export function isSharepicEditInstruction(text: string): boolean {
