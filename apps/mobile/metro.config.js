@@ -58,6 +58,8 @@ config.resolver.nodeModulesPaths = [
 // from source since Metro transforms TS directly.
 config.resolver.unstable_conditionNames = ['development', 'require', 'react-native'];
 
+const sentryReactNativeEntry = require.resolve('@sentry/react-native', { paths: [projectRoot] });
+
 // Custom resolver for various edge cases
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   // Dedupe React to a single physical copy for the whole bundle.
@@ -100,6 +102,24 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   ) {
     return context.resolveRequest(
       { ...context, originModulePath: path.join(projectRoot, 'index.js') },
+      moduleName,
+      platform
+    );
+  }
+
+  // Dedupe @sentry/core inside the Sentry SDK to the copy @sentry/react-native
+  // itself uses. The SDK family pins one exact core version (10.37.0 for RN
+  // 7.11), but web/api hoist a newer @sentry/core to the root, so the hoisted
+  // linker nests a private 10.37.0 copy under each of the seven Sentry packages
+  // — and Metro bundled all seven: ~5.8 MB of identical code, a quarter of the
+  // bundle, measured with Expo Atlas. Only requests from Sentry packages are
+  // redirected; they are the ones bound to that pinned version.
+  if (
+    (moduleName === '@sentry/core' || moduleName.startsWith('@sentry/core/')) &&
+    /[/\\]node_modules[/\\]@sentry(-internal)?[/\\]/.test(context.originModulePath)
+  ) {
+    return context.resolveRequest(
+      { ...context, originModulePath: sentryReactNativeEntry },
       moduleName,
       platform
     );
