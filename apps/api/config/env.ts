@@ -328,6 +328,13 @@ const envSchema = z.object({
   NANGO_SECRET_KEY: z.string().optional(),
   NANGO_SERVER_URL: z.string().default('http://nango:3003'),
 
+  // ── Google Picker (drive.file) ─────────────────────────────────────────
+  // Browser-Key (auf die Picker API und gruenerator.eu beschränkt) und die
+  // Cloud-Projektnummer als App-ID. Beide landen im Browser, sind also keine
+  // Geheimnisse; sie stehen hier, damit ein Key-Wechsel keinen Web-Build braucht.
+  GOOGLE_PICKER_API_KEY: z.string().optional(),
+  GOOGLE_PICKER_APP_ID: z.string().optional(),
+
   // ── Canva Connect API (direct OAuth2 + PKCE, no Nango) ──────────────────
   CANVA_CLIENT_ID: z.string().optional(),
   CANVA_CLIENT_SECRET: z.string().optional(),

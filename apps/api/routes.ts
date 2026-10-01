@@ -13,6 +13,7 @@ import { deprecatedRoute } from './middleware/deprecatedRoute.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import { requireAiConsent } from './middleware/requireAiConsent.js';
 import { mountChunkInspectorContractRouter } from './routes/admin/chunkInspectorContractRouter.js';
+import { mountConnectorTestContractRouter } from './routes/admin/connectorTestContractRouter.js';
 import { mountInstanceAdminOverviewContractRouter } from './routes/admin/instanceAdminOverviewContractRouter.js';
 import { mountLandesverbandAdminContractRouter } from './routes/admin/landesverbandAdminContractRouter.js';
 import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
@@ -931,6 +932,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // pro Handler — dieselbe Bauform wie die Admin-Router oben.
   app.use('/api/auth/admin/chunk-inspector', requireAuth);
   mountChunkInspectorContractRouter(app);
+  // Konnektor-Testseite: Google/Microsoft über Nango vor der Freigabe prüfen.
+  // Gleiche Bauform: requireAuth am Präfix, requireInstanceAdmin pro Handler.
+  app.use('/api/auth/admin/connector-test', requireAuth);
+  mountConnectorTestContractRouter(app);
   // Per-user external MCP server registry (EXPERIMENTAL). requireAuth at the
   // prefix — every route is user-scoped and handles user-entered credentials.
   app.use('/api/mcp/servers', requireAuth);
