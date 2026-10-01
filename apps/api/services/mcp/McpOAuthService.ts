@@ -43,7 +43,6 @@ import {
   saveOAuthState,
   type McpOAuthState,
 } from './mcpOAuthState.js';
-import { platformClient } from './McpRegistryService.js';
 import { McpServerRegistry } from './McpServerRegistry.js';
 import { UserMCPClient } from './UserMCPClient.js';
 
@@ -120,25 +119,6 @@ function providerErrorDetail(err: unknown): string {
     }
   }
   return msg;
-}
-
-/**
- * The OAuth client a row authenticates as: the platform client from env for a
- * `platform` row, otherwise the stored client_id and its encrypted secret.
- */
-function clientCredentials(
-  server: McpServer
-): { client_id: string; client_secret?: string } | null {
-  const oidc = server.oauth_meta;
-  if (oidc?.scheme === 'platform') {
-    const platform = platformClient(server.url);
-    return platform ? { client_id: platform.clientId, client_secret: platform.clientSecret } : null;
-  }
-  if (!oidc?.clientId) return null;
-  const secret = server.oauth_client_secret_encrypted
-    ? decryptCredential(server.oauth_client_secret_encrypted)
-    : undefined;
-  return { client_id: oidc.clientId, ...(secret && { client_secret: secret }) };
 }
 
 function getRedirectUri(): string {
@@ -253,17 +233,13 @@ export class McpOAuthService {
 
     const redirectUri = getRedirectUri();
     const stored = server.oauth_meta ?? null;
-    // A client we registered with the provider ourselves (Canva admits only
-    // portal-created or allowlisted clients). Read from env on every use — never
-    // copied into the row, so rotating the secret reaches every user at once.
-    const platform = platformClient(server.url);
 
     // SEP-2352: client credentials are bound to the AS that issued them. If
     // discovery now resolves somewhere else (URL edited, provider moved), the
     // stored client_id/secret must not travel to the new AS — drop them and
     // re-register. Legacy rows without a recorded issuer are left alone.
     const issuerChanged = Boolean(
-      !platform && stored?.clientId && stored.issuer && stored.issuer !== authorizationServerUrl
+      stored?.clientId && stored.issuer && stored.issuer !== authorizationServerUrl
     );
     if (issuerChanged && stored?.scheme === 'pre_registration') {
       // Hand-entered credentials — we must not silently DCR against an AS the
@@ -285,22 +261,17 @@ export class McpOAuthService {
 
     // One invariant, one expression: when the issuer moved we keep neither the
     // client_id nor the secret, so both hang off `existing`.
-    const existing = issuerChanged || platform ? null : stored;
-    let clientId = platform?.clientId ?? existing?.clientId;
+    const existing = issuerChanged ? null : stored;
+    let clientId = existing?.clientId;
     let clientSecret =
-      platform?.clientSecret ??
-      (existing && server.oauth_client_secret_encrypted
+      existing && server.oauth_client_secret_encrypted
         ? decryptCredential(server.oauth_client_secret_encrypted)
-        : undefined);
+        : undefined;
     const scopes =
       existing?.scopes && existing.scopes.length
         ? existing.scopes
         : selectScopes(info.resourceMetadata?.scopes_supported, metadata.scopes_supported);
-    let scheme: McpOidcConfig['scheme'] = platform
-      ? 'platform'
-      : clientId
-        ? 'pre_registration'
-        : 'dcr';
+    let scheme: McpOidcConfig['scheme'] = clientId ? 'pre_registration' : 'dcr';
 
     if (!clientId) {
       if (!metadata.registration_endpoint) {
@@ -369,10 +340,9 @@ export class McpOAuthService {
       .update(mcp_servers)
       .set({
         oauth_meta: oidc,
-        ...(clientSecret !== undefined &&
-          !platform && {
-            oauth_client_secret_encrypted: encryptCredential(clientSecret),
-          }),
+        ...(clientSecret !== undefined && {
+          oauth_client_secret_encrypted: encryptCredential(clientSecret),
+        }),
         updated_at: new Date(),
       })
       .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.id, serverId)));
@@ -465,18 +435,23 @@ export class McpOAuthService {
 
     const server = await getServer(st.userId, st.serverId);
     const oidc = server?.oauth_meta;
-    const client = server ? clientCredentials(server) : null;
-    if (!server || !oidc?.redirectUri || !client) {
+    if (!server || !oidc?.clientId || !oidc.redirectUri) {
       throw Object.assign(new Error('Server-/OAuth-Konfiguration fehlt'), { statusCode: 400 });
     }
     const redirectUri = oidc.redirectUri;
+    const clientSecret = server.oauth_client_secret_encrypted
+      ? decryptCredential(server.oauth_client_secret_encrypted)
+      : undefined;
 
     const metadata = (await discoverAuthorizationServerMetadata(st.authorizationServerUrl)) as
       AsMetadata | undefined;
 
     const tokens = await exchangeAuthorization(st.authorizationServerUrl, {
       metadata: metadata as never,
-      clientInformation: client,
+      clientInformation: {
+        client_id: oidc.clientId,
+        ...(clientSecret && { client_secret: clientSecret }),
+      },
       authorizationCode: code,
       codeVerifier: st.codeVerifier,
       redirectUri,
@@ -524,13 +499,18 @@ export class McpOAuthService {
 
     try {
       const oidc = server.oauth_meta;
-      const client = clientCredentials(server);
-      if (!oidc?.issuer || !client) return fallback;
+      if (!oidc?.issuer || !oidc.clientId) return fallback;
+      const clientSecret = server.oauth_client_secret_encrypted
+        ? decryptCredential(server.oauth_client_secret_encrypted)
+        : undefined;
       const metadata = (await discoverAuthorizationServerMetadata(oidc.issuer)) as
         AsMetadata | undefined;
       const tokens = await refreshAuthorization(oidc.issuer, {
         metadata: metadata as never,
-        clientInformation: client,
+        clientInformation: {
+          client_id: oidc.clientId,
+          ...(clientSecret && { client_secret: clientSecret }),
+        },
         refreshToken: decryptCredential(server.refresh_token_encrypted),
         ...(oidc.resource ? { resource: new URL(oidc.resource) } : {}),
       });
