@@ -21,3 +21,15 @@ export async function fetchInstanceAdminRoles() {
   }
   return result.body.data;
 }
+
+export async function setInstanceAdminUserPanda(userId: string, enabled: boolean) {
+  const client = getContractsClient();
+  const result = await client.instanceAdminOverview.setUserPanda({
+    params: { userId },
+    body: { enabled },
+  });
+  if (result.status !== 200) {
+    throw new ApiError(result.status, `Failed to set Panda unlock (HTTP ${result.status})`);
+  }
+  return result.body.data;
+}

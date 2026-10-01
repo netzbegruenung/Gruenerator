@@ -10,6 +10,7 @@ import {
   PaginationItem,
   PaginationLink,
   Skeleton,
+  Switch,
 } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
 import { FaUsers } from 'react-icons/fa';
@@ -31,6 +32,10 @@ import {
  * name, email, a role/status badge, joined date — no prop for arbitrary
  * extra columns, which is the enforcement point for data minimalism: adding
  * a PII field here requires a conscious code change, not a prop.
+ *
+ * The one conscious exception is the „Panda" column: not a personal field but
+ * the instance admin's unlock of the DeepSeek lane after training. It renders
+ * only on the surface that passes `onPandaChange` (the instance Users tab).
  */
 export interface AdminUserRow {
   id: string;
@@ -40,6 +45,10 @@ export interface AdminUserRow {
   isAdmin?: boolean;
   /** Undefined = not applicable to this surface (no badge shown). */
   emailVerified?: boolean;
+  /** The admin's decision on the „Panda" lane; null = instance default. */
+  pandaEnabled?: boolean | null;
+  /** Whether the lane is on for this person right now. */
+  pandaEffective?: boolean;
 }
 
 interface AdminUserTableProps {
@@ -47,6 +56,10 @@ interface AdminUserTableProps {
   isLoading: boolean;
   emptyLabel?: string;
   pageSize?: number;
+  /** Shows the „Panda" column; omitted on every other admin surface. */
+  onPandaChange?: (userId: string, enabled: boolean) => void;
+  /** The row whose unlock is being saved — its switch is disabled meanwhile. */
+  pandaPendingUserId?: string | null;
 }
 
 function formatDate(value: string | null): string {
@@ -63,6 +76,8 @@ export default function AdminUserTable({
   isLoading,
   emptyLabel = 'Keine Nutzer:innen gefunden.',
   pageSize = 25,
+  onPandaChange,
+  pandaPendingUserId = null,
 }: AdminUserTableProps) {
   const [page, setPage] = useState(0);
   const pageCount = Math.max(1, Math.ceil(users.length / pageSize));
@@ -106,8 +121,31 @@ export default function AdminUserTable({
           <span className="text-sm text-grey-500">{formatDate(row.original.joinedAt)}</span>
         ),
       },
+      ...(onPandaChange
+        ? [
+            {
+              id: 'panda',
+              header: 'Panda',
+              cell: ({ row }) => (
+                <div className="flex items-center gap-sm">
+                  <Switch
+                    checked={row.original.pandaEffective === true}
+                    disabled={pandaPendingUserId === row.original.id}
+                    onCheckedChange={(checked) => onPandaChange(row.original.id, checked)}
+                    aria-label={`Panda für ${row.original.name} ${
+                      row.original.pandaEffective ? 'sperren' : 'freischalten'
+                    }`}
+                  />
+                  {row.original.pandaEnabled == null && (
+                    <span className="text-xs text-grey-500">Standard</span>
+                  )}
+                </div>
+              ),
+            } satisfies ColumnDef<AdminUserRow>,
+          ]
+        : []),
     ],
-    []
+    [onPandaChange, pandaPendingUserId]
   );
 
   if (isLoading) {

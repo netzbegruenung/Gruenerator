@@ -6,6 +6,7 @@ import {
   getInstance,
   getPinnedLocale,
   hasUnlimitedTrees,
+  isPandaTierDefaultOn,
   isChannelVisibleIn,
   isInstanceId,
   isToolOfferedIn,
@@ -218,6 +219,13 @@ describe('current instances', () => {
     for (const id of ['production', 'beta', 'local'] as const) {
       expect(getInstance(id).treeAllowance).toBeUndefined();
       expect(hasUnlimitedTrees(id)).toBe(false);
+    }
+  });
+
+  it('turns the Panda lane on by default only on bgst', () => {
+    expect(isPandaTierDefaultOn('bgst')).toBe(true);
+    for (const id of ['production', 'beta', 'local'] as const) {
+      expect(isPandaTierDefaultOn(id)).toBe(false);
     }
   });
 

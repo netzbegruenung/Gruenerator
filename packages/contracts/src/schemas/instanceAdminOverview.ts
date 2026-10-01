@@ -13,6 +13,22 @@ export const instanceAdminUserSummarySchema = z.object({
   isAdmin: z.boolean(),
   lastLogin: z.string().nullable(),
   createdAt: z.string().nullable(),
+  /** The admin's decision on the „Panda" lane; null = instance default. */
+  pandaEnabled: z.boolean().nullable(),
+  /** What applies right now: the decision, else the instance default. */
+  pandaEffective: z.boolean(),
+});
+
+export type InstanceAdminUserSummary = z.infer<typeof instanceAdminUserSummarySchema>;
+
+/** Unlock or lock the „Panda" lane for one account (after training). */
+export const instanceAdminSetPandaBodySchema = z.object({
+  enabled: z.boolean(),
+});
+
+export const instanceAdminSetPandaResponseSchema = z.object({
+  success: z.boolean(),
+  data: instanceAdminUserSummarySchema,
 });
 
 export const instanceAdminUsersResponseSchema = z.object({
