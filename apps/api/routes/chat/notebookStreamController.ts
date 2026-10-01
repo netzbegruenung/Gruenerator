@@ -16,6 +16,7 @@ import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { memoryService } from '../../services/memory/index.js';
 import { withRetry } from '../../services/search/searchRetryStrategy.js';
+import { gatePandaModelId } from '../../services/user/pandaEntitlement.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
@@ -117,13 +118,14 @@ router.post(
       collectionId,
       collectionIds,
       filters,
-      model,
+      model: requestedModel,
       mode,
       answerMode,
       documentIds,
       threadId: existingThreadId,
     } = req.body;
     const messages = rawMessages as ModelMessage[] | undefined;
+    const model = await gatePandaModelId(requestedModel, user.id);
 
     const lastUserMessage = Array.isArray(messages)
       ? messages.filter((m: { role: string }) => m.role === 'user').pop()

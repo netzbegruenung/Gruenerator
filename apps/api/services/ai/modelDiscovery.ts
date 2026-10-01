@@ -68,6 +68,12 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   // antwortete am 23.09.2026 mit HTTP 400, obwohl die Hub-Seite Bildeingabe
   // führt. Bild-Züge gehen damit an VISION_MODEL.
   'gemma-4-31b:balanced': { name: 'Gemma 4 31B', reasoning: false, vision: false },
+  // Lane „Panda" auf Melious (Ausweich GreenPT). `reasoning: true` ehrlich:
+  // es denkt standardmäßig, `reasoning_effort: 'none'` schaltet ab (gemessen
+  // 01.10.2026). Reiner Textmodell-Endpunkt — Bild-Züge gehen an VISION_MODEL.
+  // Taucht in der Playground-Liste trotzdem nie auf: `isExcludedTextModel`
+  // filtert die Discovery weiter.
+  'deepseek-v4.1-flash': { name: 'DeepSeek V4.1 Flash', reasoning: true, vision: false },
   // Scaleway's Gemma 4, MoE with 4B active parameters — the `heavy` stage.
   // `reasoning: true` is the honest flag (it thinks by DEFAULT), which is
   // exactly why its client forces `reasoning_effort: 'none'`; see

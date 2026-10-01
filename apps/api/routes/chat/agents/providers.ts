@@ -25,6 +25,7 @@ import {
   isProviderConfigured,
   routeMistralModel,
 } from '../../../services/ai/providerInstances.js';
+import { PANDA_LANE_MODEL } from '../../../services/ai/textModelPolicy.js';
 import { withWireSafeToolCallIds } from '../../../services/ai/toolCallIds.js';
 import { withUsageTracking } from '../../../services/usage/usageModelMiddleware.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -455,6 +456,29 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
 AVAILABLE_MODELS['gruenerator-small'] = SMALL_ANSWER_LANE;
 AVAILABLE_MODELS['gruenerator-medium'] = GEMMA_ANSWER_LANE;
 AVAILABLE_MODELS['gruenerator-ultra'] = AVAILABLE_MODELS['mistral-medium-3.5'];
+
+/**
+ * „Panda": DeepSeek v4.1 Flash auf Melious — die einzige Lane, die die
+ * China-Sperre ausnimmt (`PANDA_LANE_MODEL` in services/ai/textModelPolicy.ts),
+ * erreichbar nur über die Freischaltung in services/user/pandaEntitlement.ts.
+ *
+ * `CTX_FULL`, nicht mehr: gemessen 01.10.2026 nahm Melious 359k Eingabetokens
+ * an (FI, kein stilles Kürzen) und lehnte ~1,07M mit `context_length_exceeded`
+ * ab; GreenPT nahm 359k ebenso. Über 262k hinaus zu gehen hiesse, dem Split-Loop
+ * mehr Material zu erlauben als jeder anderen Lane.
+ *
+ * Fallback Ultra: der Stream-Sibling greift, wenn DeepSeek vor dem ersten Token
+ * scheitert. Die Zwischenstufe GreenPT hängt NICHT hier, sondern an
+ * `MODEL_SIBLINGS` (services/ai/modelSiblings.ts) — `streamWithFallback` ist
+ * bewusst einstufig.
+ */
+AVAILABLE_MODELS['gruenerator-panda'] = {
+  kind: 'single',
+  provider: 'melious',
+  model: PANDA_LANE_MODEL,
+  contextWindow: CTX_FULL,
+  fallback: 'gruenerator-ultra',
+};
 
 // Legacy IDs from persisted client state and DB. F0 — sie werden tolerant
 // weitergelesen, nicht mehr angeboten. `litellm` und `gpt-oss-regolo` (historischer Name) zeigten

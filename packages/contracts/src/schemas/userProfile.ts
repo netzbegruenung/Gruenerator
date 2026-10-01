@@ -240,6 +240,11 @@ export const userProfileSchema = z.object({
   boards: z.boolean().optional(),
   bundestag_api_enabled: z.boolean().optional(),
   memory_enabled: z.boolean().optional(),
+  /**
+   * „Panda" lane unlock, written only by an instance admin; null = instance
+   * default. Deliberately absent from `profileUpdateBodySchema`.
+   */
+  panda_enabled: z.boolean().nullish(),
   custom_prompt: z.string().optional(),
   created_at: z.union([z.string(), z.date()]),
   updated_at: z.union([z.string(), z.date()]),
