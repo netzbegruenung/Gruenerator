@@ -1,0 +1,59 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "bayern-flaechenfrass",
+      "collection": "bayern-system",
+      "query": "Flächenverbrauch und Flächenfraß in Bayern begrenzen",
+      "rank": 2,
+      "topTitles": [
+        "„Söder-Regierung sind selbst die eigenen Ziele egal“",
+        "Statement zur Flächenstatistik",
+        "„Flächenfraß steigt auf 11,6 Hektar täglich an – brauchen Pflichtwert statt Richtwert“",
+        "Grüne Bilanz zur 18. Legislaturperiode",
+        "BauGB-Novelle: Mit bayerischem Umbau-Booster gegen Flächenfraß"
+      ],
+      "searchTimeMs": 1661
+    },
+    {
+      "id": "bayern-artenvielfalt",
+      "collection": "bayern-system",
+      "query": "Volksbegehren Artenvielfalt — Rettet die Bienen",
+      "rank": 1,
+      "topTitles": [
+        "Erfolge des Volksbegehrens sind gefährdet",
+        "Grüne Bilanz zur 18. Legislaturperiode",
+        "Zum Weltbienentag: Rechtsgutachten zeigt zahlreiche Lücken und Handlungsbedarf im Insektenschutz",
+        "Drei Jahre Volksbegehren Artenvielfalt",
+        "Schon Bienen gerettet?"
+      ],
+      "searchTimeMs": 486
+    },
+    {
+      "id": "bayern-100-tage",
+      "collection": "bayern-system",
+      "query": "Was wollen die bayerischen Grünen in den ersten 100 Tagen einer Regierung umsetzen?",
+      "rank": 1,
+      "topTitles": [
+        "14 in 100 – das 100-Tage-Programm der Bayerischen Grünen",
+        "Bilanz nach 100 Tagen Schwarz-Rot: Koalition der Versprechenbrecher",
+        "Start der grünen Welle",
+        "Regierungsprogramm der Grünen Bayern 2023",
+        "100 Tage Ampel: Grüne Bundesministerien handeln, Söder blockiert"
+      ],
+      "searchTimeMs": 393
+    },
+    {
+      "id": "kw-bayern-anbindegebot",
+      "collection": "bayern-system",
+      "query": "Anbindegebot Lockerung",
+      "rank": 1,
+      "topTitles": [
+        "„Flächenfraß steigt auf 11,6 Hektar täglich an – brauchen Pflichtwert statt Richtwert“"
+      ],
+      "searchTimeMs": 249
+    }
+  ]
+}

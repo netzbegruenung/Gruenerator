@@ -1,0 +1,63 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "berlin-mieten",
+      "collection": "berlin-system",
+      "query": "Mietenpolitik und bezahlbares Wohnen in Berlin",
+      "rank": 1,
+      "topTitles": [
+        "Sozialgipfel 2024: Bezahlbarer Wohnraum ist eine zentrale Frage unserer Zeit",
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung",
+        "Berlin ist für Dich da – Aufbruch 2026",
+        "Beschluss \"Grüne Wohnungspolitik für ganz Berlin – Gemeinwohl statt Mietenspekulation\"",
+        "Wohnraumversorgungsgesetz: Sicheres Wohnen ohne Kontrolle?"
+      ],
+      "searchTimeMs": 1098
+    },
+    {
+      "id": "berlin-verkehr",
+      "collection": "berlin-system",
+      "query": "Ausbau von Radwegen und ÖPNV in Berlin",
+      "rank": 2,
+      "topTitles": [
+        "WPS-Gruene-Berlin-2026-07-08-NABU_Antwortentwurf",
+        "Nahverkehrstangente Ost (NVT) retten: Die Regio-S-Bahn bringt den Osten Berlins und das Umland voran!",
+        "20210527_Grüne Antworten_WPS_Bürgerforum Berlin e.V",
+        "Sondervermögen darf für Berlin nicht zum Nullsummenspiel werden",
+        "WPS-Gruene-Berlin-2026-06-23-ADFC-Antwort"
+      ],
+      "searchTimeMs": 391
+    },
+    {
+      "id": "berlin-wahlprogramm",
+      "collection": "berlin-system",
+      "query": "Wahlprogramm zur Wahl des Abgeordnetenhauses",
+      "rank": 1,
+      "topTitles": [
+        "”Politik ändern, Berlin bleiben.” – Wahlprogramm für 2026 beschlossen",
+        "Unser Wahlprogramm - Präambel",
+        "20210810_Grüne Antworten_WPS_Mehr Demokratie e.V",
+        "WPS-Gruene-Berlin-2026-08-10-Abgeordnetenwatch-Antwortvorlage",
+        "WPS-Gruene-Berlin-2026-08-05-Berliner_Frauennetzwerk_bfn-Antwort"
+      ],
+      "searchTimeMs": 359
+    },
+    {
+      "id": "kw-berlin-rummelsburger-bucht",
+      "collection": "berlin-system",
+      "query": "Rummelsburger Bucht Kulturhafen",
+      "rank": 1,
+      "topTitles": [
+        "20210813_Grüne Antworten_WPS_Bürgerforum Stralau",
+        "Grüne Antworten bbk",
+        "20210528_Grüne Antworten_WPS_Netzwerk TanzRaumBerlin und Zeitgenössischer Tanz Berlin e.V",
+        "WPS-Gruene-Berlin-2026-07-08-NABU_Antwortentwurf",
+        "20210820_WPS_Bündnisgrüne Antwort_DeGeDe"
+      ],
+      "searchTimeMs": 338
+    }
+  ]
+}

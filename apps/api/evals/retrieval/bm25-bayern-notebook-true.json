@@ -1,0 +1,56 @@
+{
+  "pipeline": "notebook",
+  "depth": "deep",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "bayern-flaechenfrass",
+      "collection": "bayern-system",
+      "query": "Flächenverbrauch und Flächenfraß in Bayern begrenzen",
+      "rank": 3,
+      "topTitles": [
+        "„Söder-Regierung sind selbst die eigenen Ziele egal“",
+        "„Söder-Regierung sind selbst die eigenen Ziele egal“",
+        "Statement zur Flächenstatistik",
+        "„Flächenfraß steigt auf 11,6 Hektar täglich an – brauchen Pflichtwert statt Richtwert“",
+        "„Flächenfraß steigt auf 11,6 Hektar täglich an – brauchen Pflichtwert statt Richtwert“"
+      ]
+    },
+    {
+      "id": "bayern-artenvielfalt",
+      "collection": "bayern-system",
+      "query": "Volksbegehren Artenvielfalt — Rettet die Bienen",
+      "rank": 1,
+      "topTitles": [
+        "Erfolge des Volksbegehrens sind gefährdet",
+        "Erfolge des Volksbegehrens sind gefährdet",
+        "Erfolge des Volksbegehrens sind gefährdet",
+        "Erfolge des Volksbegehrens sind gefährdet",
+        "Erfolge des Volksbegehrens sind gefährdet"
+      ]
+    },
+    {
+      "id": "bayern-100-tage",
+      "collection": "bayern-system",
+      "query": "Was wollen die bayerischen Grünen in den ersten 100 Tagen einer Regierung umsetzen?",
+      "rank": 1,
+      "topTitles": [
+        "14 in 100 – das 100-Tage-Programm der Bayerischen Grünen",
+        "14 in 100 – das 100-Tage-Programm der Bayerischen Grünen",
+        "Bilanz nach 100 Tagen Schwarz-Rot: Koalition der Versprechenbrecher",
+        "Bilanz nach 100 Tagen Schwarz-Rot: Koalition der Versprechenbrecher",
+        "Start der grünen Welle"
+      ]
+    },
+    {
+      "id": "kw-bayern-anbindegebot",
+      "collection": "bayern-system",
+      "query": "Anbindegebot Lockerung",
+      "rank": 1,
+      "topTitles": [
+        "„Flächenfraß steigt auf 11,6 Hektar täglich an – brauchen Pflichtwert statt Richtwert“",
+        "„Flächenfraß steigt auf 11,6 Hektar täglich an – brauchen Pflichtwert statt Richtwert“"
+      ]
+    }
+  ]
+}
