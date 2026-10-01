@@ -25,7 +25,6 @@ import {
 } from '../../services/docs/docsShareApi';
 import { secureStorage } from '../../services/storage';
 import { WEB_ORIGIN } from '../../services/webOrigin';
-import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
 import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 import { SkeletonBar, SkeletonCircle, SkeletonGroup } from '../common/Skeleton';
@@ -58,6 +57,7 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   documentId: string;
+  documentTitle: string;
   userDisplayName?: string;
   isOwner?: boolean;
   onDelete?: () => void;
@@ -392,6 +392,7 @@ export function NativeShareModal({
   visible,
   onClose,
   documentId,
+  documentTitle,
   userDisplayName,
   isOwner = false,
   onDelete,
@@ -399,8 +400,6 @@ export function NativeShareModal({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const theme = isDark ? darkTheme : lightTheme;
-  const documentTitle = useDocsEditorBridgeStore((s) => s.documentTitle) || 'Dokument';
-  const canEdit = useDocsEditorBridgeStore((s) => s.canEdit);
 
   const [copiedLink, setCopiedLink] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null);
@@ -477,7 +476,7 @@ export function NativeShareModal({
   );
 
   const openTemplate = useCallback(() => {
-    setTemplateTitle(documentTitle === 'Dokument' ? '' : documentTitle);
+    setTemplateTitle(documentTitle === 'Unbenannt' ? '' : documentTitle);
     setTemplateSaved(false);
     setShowTemplate(true);
   }, [documentTitle]);
@@ -528,7 +527,7 @@ export function NativeShareModal({
             onPress={() => setShowDownload(true)}
             theme={theme}
           />
-          {canEdit && (
+          {isOwner && (
             <QuickAction
               icon="bookmark-outline"
               label="Als Vorlage"

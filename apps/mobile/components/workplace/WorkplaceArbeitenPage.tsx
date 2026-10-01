@@ -137,15 +137,13 @@ export function WorkplaceArbeitenPage() {
   const docsError = useDocsStore((s) => s.error);
   const deleteDocument = useDocsStore((s) => s.deleteDocument);
   const fetchDocuments = useDocsStore((s) => s.fetchDocuments);
-  const prefetchRecentDocs = useDocsStore((s) => s.prefetchRecentDocs);
   const { isCreating, createFromTemplate, generate } = useDocCreation(() => setDocSheetOpen(false));
 
   useEffect(() => {
     if (user) {
       void fetchDocuments();
-      void prefetchRecentDocs();
     }
-  }, [fetchDocuments, prefetchRecentDocs, user]);
+  }, [fetchDocuments, user]);
 
   const officeItems = useMemo(
     () => toDocListItems(documents, extra.items),
@@ -547,6 +545,7 @@ export function WorkplaceArbeitenPage() {
           visible
           onClose={() => setActiveDoc(null)}
           documentId={activeDoc.id}
+          documentTitle={activeDoc.title}
           userDisplayName={user?.display_name ?? undefined}
           isOwner
           onDelete={() => handleDelete(activeDoc.id, activeDoc.title)}
