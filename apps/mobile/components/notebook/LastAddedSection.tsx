@@ -5,7 +5,7 @@ import {
   useLastAddedDocuments,
   type RecentDocumentCard,
 } from '../../hooks/notebook/useLastAddedDocuments';
-import { spacing, borderRadius, BODY_FONT } from '../../theme';
+import { spacing, borderRadius, BODY_FONT, HEADING_FONT_BOLD } from '../../theme';
 import { formatRelativeDate } from '../../utils/date';
 
 import type { Theme } from '../../theme/colors';
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   title: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 16,
   },
   list: {

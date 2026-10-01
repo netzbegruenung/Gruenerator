@@ -34,7 +34,6 @@
   },
   "dependencies": {
     "@assistant-ui/react-native": "0.1.44",
-    "@expo-google-fonts/raleway": "^0.4.2",
     "@expo/dom-webview": "~56.0.6",
     "@expo/metro-runtime": "~57.0.15",
     "@expo/react-native-action-sheet": "^4.1.1",

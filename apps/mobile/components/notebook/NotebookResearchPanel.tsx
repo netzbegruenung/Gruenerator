@@ -33,7 +33,14 @@ import {
 } from '../../hooks/notebook/useNotebookResearch';
 import { useNotebookFilterStore } from '../../stores/notebookFilterStore';
 import { usePreferencesStore } from '../../stores/preferencesStore';
-import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../theme';
+import {
+  colors,
+  spacing,
+  typography,
+  borderRadius,
+  BODY_FONT,
+  HEADING_FONT_BOLD,
+} from '../../theme';
 import { getSurfaceFab } from '../../theme/toolTheme';
 import { routeWithParams } from '../../types/routes';
 import { CitationDetailSheet } from '../chat/CitationDetailSheet';
@@ -652,11 +659,11 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xsmall,
   },
   heroTitle: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 26,
   },
   heroSubtitle: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 26,
     marginTop: 2,
   },

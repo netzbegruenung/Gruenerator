@@ -1,11 +1,4 @@
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
-import {
-  useFonts,
-  Raleway_400Regular,
-  Raleway_500Medium,
-  Raleway_600SemiBold,
-  Raleway_700Bold,
-} from '@expo-google-fonts/raleway';
 import { setMentionInstance } from '@gruenerator/chat';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -208,25 +201,17 @@ function RootLayout() {
   const hasHydratedOnboarding = useOnboardingStore((s) => s.hasHydrated);
   useAppInitialization();
 
-  const [fontsLoaded] = useFonts({
-    Raleway_400Regular,
-    Raleway_500Medium,
-    Raleway_600SemiBold,
-    Raleway_700Bold,
-    // PT Sans is NOT loaded here: it is linked natively by the expo-font config
-    // plugin (app.json) as one family with weights, which is what makes
-    // `fontWeight` select a real face instead of being ignored.
-  });
-
+  // No font gate: Raleway and PT Sans are linked into the binary by the
+  // expo-font config plugin (app.json), so they exist before the first frame.
   useEffect(() => {
-    if (fontsLoaded && !isLoading && hasHydratedOnboarding) {
+    if (!isLoading && hasHydratedOnboarding) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, isLoading, hasHydratedOnboarding]);
+  }, [isLoading, hasHydratedOnboarding]);
 
   // Wait for the persisted onboarding flag too — deciding the redirect before it
   // rehydrates would flash the carousel at a returning user (defaults to false).
-  if (!fontsLoaded || isLoading || !hasHydratedOnboarding) {
+  if (isLoading || !hasHydratedOnboarding) {
     return null;
   }
 

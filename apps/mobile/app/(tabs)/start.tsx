@@ -25,7 +25,7 @@ import { useTabBarClearance } from '../../hooks/useTabBarClearance';
 import { useTabNavigationSwipe } from '../../hooks/useTabSwipe';
 import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
-import { spacing, lightTheme, darkTheme, typeScale } from '../../theme';
+import { spacing, lightTheme, darkTheme, typeScale, HEADING_FONT_BOLD } from '../../theme';
 import { COMPOSER_BOTTOM_INSET_RAISED, collapsingSection, dockingSpacer } from '../../theme/layout';
 import { route, routeWithParams } from '../../types/routes';
 import { mobileGreeting } from '../../utils/greeting';
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.small,
   },
   welcomeText: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 28,
   },
   // A step, not a scaling. Once the column is capped the greeting no longer has
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   sectionTitle: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 16,
   },
 });

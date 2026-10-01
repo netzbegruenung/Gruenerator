@@ -7,7 +7,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { colors } from '../../theme';
+import { colors, HEADING_FONT_BOLD } from '../../theme';
 
 export const WORKPLACE_TABS = [
   { id: 'chat', label: 'Chat' },
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   // One weight for both: a bold active label would change the pill's width the
   // moment the page settles, and the thumb would jump to the new measurement.
   label: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 15,
   },
 });

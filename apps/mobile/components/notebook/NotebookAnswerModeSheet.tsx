@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native'
 
 import { useTheme } from '../../hooks/useTheme';
 import { usePreferencesStore } from '../../stores/preferencesStore';
-import { spacing } from '../../theme';
+import { spacing, HEADING_FONT_BOLD } from '../../theme';
 import { type Theme } from '../../theme/colors';
 import { BottomSheet } from '../common/BottomSheet';
 import { type ComposerAccessory } from '../common/Composer';
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 22,
   },
   content: {

@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView, useColorScheme } from 'r
 
 import { useLayout } from '../../hooks/useLayout';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
-import { spacing, borderRadius, colors, BODY_FONT } from '../../theme';
+import { spacing, borderRadius, colors, BODY_FONT, HEADING_FONT_BOLD } from '../../theme';
 import { gridColumns } from '../../theme/layout';
 import { getToolTheme } from '../../theme/toolTheme';
 import { MenuIcon } from '../icons/WebMirrorIcons';
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 17,
     lineHeight: 21,
   },

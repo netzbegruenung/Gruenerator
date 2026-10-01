@@ -31,7 +31,7 @@ import { setChatBackground } from '../../services/chatBackground';
 import { fetchRoles } from '../../services/roles';
 import { usePreferencesStore, type ThemeMode } from '../../stores/preferencesStore';
 import { useSettingsSheetStore, type SettingsDetail } from '../../stores/settingsSheetStore';
-import { spacing, colors, borderRadius, BODY_FONT } from '../../theme';
+import { spacing, colors, borderRadius, BODY_FONT, HEADING_FONT_BOLD } from '../../theme';
 import { chatBackgroundColor, chatBackgroundMesh, darkMesh } from '../../theme/chatBackgrounds';
 import { route } from '../../types/routes';
 import { BottomSheet } from '../common/BottomSheet';
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 22,
   },
   content: {

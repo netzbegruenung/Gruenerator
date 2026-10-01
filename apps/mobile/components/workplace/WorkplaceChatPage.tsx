@@ -9,7 +9,7 @@ import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useLayout } from '../../hooks/useLayout';
 import { useTabSwipe } from '../../hooks/useTabSwipe';
 import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
-import { darkTheme, lightTheme, spacing } from '../../theme';
+import { darkTheme, lightTheme, spacing, HEADING_FONT_BOLD } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 import { mobileGreeting } from '../../utils/greeting';
 import { BottomComposerBar } from '../common/BottomComposerBar';
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.large,
   },
   greeting: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 28,
     textAlign: 'center',
   },

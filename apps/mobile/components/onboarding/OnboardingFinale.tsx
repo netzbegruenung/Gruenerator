@@ -6,7 +6,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { spacing, lightTheme, darkTheme } from '../../theme';
+import { spacing, lightTheme, darkTheme, HEADING_FONT_BOLD } from '../../theme';
 import { LoginPanel } from '../auth/LoginPanel';
 import { Button } from '../common';
 
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   title: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 34,
     textAlign: 'center',
     marginBottom: spacing.medium,

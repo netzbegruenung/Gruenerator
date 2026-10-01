@@ -4,7 +4,15 @@ import { memo, useMemo, type ReactNode } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme, type ViewStyle } from 'react-native';
 
 import { useLayout } from '../../hooks/useLayout';
-import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+import {
+  colors,
+  spacing,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+  HEADING_FONT_SEMIBOLD,
+} from '../../theme';
 import { gridColumns } from '../../theme/layout';
 
 /**
@@ -154,7 +162,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
   },
   title: {
-    fontFamily: 'Raleway_600SemiBold',
+    fontFamily: HEADING_FONT_SEMIBOLD,
     fontSize: 13,
     lineHeight: 17,
   },
