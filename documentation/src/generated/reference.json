@@ -236,19 +236,19 @@
     "Analyse & SEO": [
       {
         "title": "SISTRIX",
-        "auth": "Zugangsschlüssel",
+        "auth": "Anmeldung beim Dienst",
         "description": "SEO-Metriken, Sichtbarkeit und Keyword-Rankings."
       },
       {
         "title": "Statista",
-        "auth": "Zugangsschlüssel",
+        "auth": "Anmeldung beim Dienst",
         "description": "Statistiken, Konsumenten- und Marktdaten."
       }
     ],
     "Automatisierung": [
       {
         "title": "Zapier",
-        "auth": "Zugangsschlüssel",
+        "auth": "Anmeldung beim Dienst",
         "description": "Über 7.000 Apps und Workflows verbinden."
       }
     ],
@@ -260,7 +260,7 @@
       },
       {
         "title": "Brevo",
-        "auth": "Zugangsschlüssel",
+        "auth": "Anmeldung beim Dienst",
         "description": "Kontakte, E-Mail-Kampagnen, Newsletter-Listen und CRM verwalten."
       },
       {
@@ -343,7 +343,7 @@
       },
       {
         "title": "Sally",
-        "auth": "Zugangsschlüssel",
+        "auth": "Anmeldung beim Dienst",
         "description": "Termine, Aufzeichnungen, Zusammenfassungen und Transkripte abfragen."
       },
       {
