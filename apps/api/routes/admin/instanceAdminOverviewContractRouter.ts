@@ -1,13 +1,17 @@
 /**
  * ts-rest contract router for the Bundesgeschäftsstelle-instance admin
- * overview. Read-only, `requireInstanceAdmin`-gated per-handler like
+ * overview. Read-only except for the „Panda" unlock, `requireInstanceAdmin`-gated per-handler like
  * skillVisibilityContractRouter/adminTemplates — `requireAuth` at the mount
  * prefix in routes.ts covers authentication only.
  */
-import { instanceAdminOverviewContract } from '@gruenerator/contracts';
+import {
+  instanceAdminOverviewContract,
+  type InstanceAdminUserSummary,
+} from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { isPandaEntitled } from '../../services/user/pandaEntitlement.js';
 import { requireInstanceAdmin } from '../../utils/adminAuthz.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -33,6 +37,22 @@ interface ProfileRow {
   is_admin: boolean;
   last_login: string | null;
   created_at: string | null;
+  panda_enabled: boolean | null;
+}
+
+const PROFILE_COLUMNS = 'id, email, display_name, is_admin, last_login, created_at, panda_enabled';
+
+function toUserSummary(row: ProfileRow): InstanceAdminUserSummary {
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.display_name,
+    isAdmin: row.is_admin,
+    lastLogin: row.last_login,
+    createdAt: row.created_at,
+    pandaEnabled: row.panda_enabled,
+    pandaEffective: isPandaEntitled(row.panda_enabled),
+  };
 }
 
 interface ProfileRolesRow {
@@ -52,7 +72,7 @@ export const instanceAdminOverviewContractRouter = s.router(instanceAdminOvervie
 
       const postgres = getPostgresInstance();
       const rows = await postgres.query<ProfileRow>(
-        `SELECT id, email, display_name, is_admin, last_login, created_at
+        `SELECT ${PROFILE_COLUMNS}
          FROM profiles ORDER BY created_at DESC NULLS LAST LIMIT $1`,
         [USER_LIST_LIMIT]
       );
@@ -61,14 +81,7 @@ export const instanceAdminOverviewContractRouter = s.router(instanceAdminOvervie
         status: 200 as const,
         body: {
           success: true,
-          data: rows.map((row) => ({
-            id: row.id,
-            email: row.email,
-            displayName: row.display_name,
-            isAdmin: row.is_admin,
-            lastLogin: row.last_login,
-            createdAt: row.created_at,
-          })),
+          data: rows.map(toUserSummary),
         },
       };
     } catch (error) {
@@ -76,6 +89,39 @@ export const instanceAdminOverviewContractRouter = s.router(instanceAdminOvervie
       return {
         status: 500 as const,
         body: { success: false, message: 'Fehler beim Laden der Nutzerliste.' },
+      };
+    }
+  },
+
+  setUserPanda: async (args) => {
+    try {
+      const authedUser = getAuthedUser(args.req);
+      if (!(await requireInstanceAdmin(authedUser.id, authedUser.email))) return FORBIDDEN;
+
+      const { userId } = args.params;
+      const { enabled } = args.body;
+      const postgres = getPostgresInstance();
+      const rows = await postgres.query<ProfileRow>(
+        `UPDATE profiles SET panda_enabled = $1 WHERE id = $2::uuid RETURNING ${PROFILE_COLUMNS}`,
+        [enabled, userId]
+      );
+      const row = rows[0];
+      if (!row) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Nutzer:in nicht gefunden.' },
+        };
+      }
+
+      log.info(
+        `[instanceAdminOverviewContract.setUserPanda] ${authedUser.id} set panda_enabled=${enabled} for ${userId}`
+      );
+      return { status: 200 as const, body: { success: true, data: toUserSummary(row) } };
+    } catch (error) {
+      log.error('[instanceAdminOverviewContract.setUserPanda] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false, message: 'Fehler beim Speichern der Freischaltung.' },
       };
     }
   },

@@ -1,18 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
+import { type InstanceAdminUserSummary } from '@gruenerator/contracts';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   fetchInstanceAdminUsers,
   fetchInstanceAdminRoles,
+  setInstanceAdminUserPanda,
 } from '../../../hooks/useInstanceAdminOverviewTyped';
 
-export interface InstanceAdminUser {
-  id: string;
-  email: string | null;
-  displayName: string | null;
-  isAdmin: boolean;
-  lastLogin: string | null;
-  createdAt: string | null;
-}
+export type InstanceAdminUser = InstanceAdminUserSummary;
 
 export interface InstanceAdminUserRole {
   userId: string;
@@ -31,6 +26,18 @@ export function useInstanceAdminUsers(enabled = true) {
     queryFn: fetchInstanceAdminUsers,
     staleTime: 30_000,
     enabled,
+  });
+}
+
+/** Unlock or lock the „Panda" lane for one account. */
+export function useSetUserPanda() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, enabled }: { userId: string; enabled: boolean }) =>
+      setInstanceAdminUserPanda(userId, enabled),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['bgst-admin-users'] });
+    },
   });
 }
 

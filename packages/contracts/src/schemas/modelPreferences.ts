@@ -16,6 +16,7 @@ export const modelIdSchema = z.enum([
   'gruenerator-small',
   'gruenerator-medium',
   'gruenerator-ultra',
+  'gruenerator-panda',
   'greenpt',
   // Veraltet — nur noch entgegengenommen, nicht mehr angeboten.
   'mistral-medium-3.5',

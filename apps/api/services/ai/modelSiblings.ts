@@ -30,6 +30,7 @@ import { createLogger } from '../../utils/logger.js';
 import { GEMMA_31B_ON_CORTECS, GEMMA_31B_ON_MELIOUS } from './gemmaHosts.js';
 import { isModelSlow } from './modelHealth.js';
 import { getDefaultModel, isProviderConfigured } from './providers.js';
+import { PANDA_LANE_MODEL } from './textModelPolicy.js';
 
 import type { ProviderName } from './providers.js';
 
@@ -60,7 +61,24 @@ export interface ModelTarget {
  * gebliebener `scaleway/…`-Schlüssel würde nie mehr getroffen — `pickHealthyTarget`
  * schlägt `${provider}/${model}` nach, und der Provider heisst jetzt anders.
  */
+/**
+ * Ob GreenPT die Zwischenstufe der Lane „Panda" sein darf.
+ *
+ * GreenPT führt `deepseek-v4.1-flash`, meldet es aber mit `owned_by: deepseek`
+ * (Melious: `owned_by: melious`), und schon der ERSTE Aufruf kam am 01.10.2026
+ * mit 11.520 gecachten Tokens zurück — das sieht nach einem geteilten
+ * Upstream aus. Wo die Anfragen dort verarbeitet werden, ist nicht geklärt.
+ * Bis GreenPT das schriftlich bestätigt, geht ein zäher DeepSeek-Primär direkt
+ * an Ultra. Bewusst eine Konstante und kein Env-Schalter: wer sie umlegt, tut
+ * es im Diff, mit der Bestätigung im PR.
+ */
+const GREENPT_DEEPSEEK_CLEARED = false;
+
 const MODEL_SIBLINGS: Readonly<Record<string, ModelTarget>> = {
+  // „Panda": nur in diese Richtung — GreenPT ist Ausweich, nie Primär.
+  [`melious/${PANDA_LANE_MODEL}`]: GREENPT_DEEPSEEK_CLEARED
+    ? { provider: 'greenpt', model: PANDA_LANE_MODEL }
+    : { provider: 'mistral', model: 'mistral-medium-2604' },
   // Das dichte 31B auf seinen beiden Hosts — dieselben GEWICHTE, nicht nur
   // dieselbe Familie. Gemessen 21.08.2026 am Prüf-Prompt: Inhaltstreue in 22
   // Läufen nicht unterscheidbar, Cortecs 210,7 gegen 81,3 tok/s bei 1122 gegen
