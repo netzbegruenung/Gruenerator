@@ -25,6 +25,7 @@ import {
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import { useIsTouchDevice, useMediaQuery } from '@gruenerator/shared/hooks';
+import { hasNativeHost } from '@gruenerator/shared/platform';
 import { Fab, Skeleton, useIsMobile, useScreenCornerReservation } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -927,6 +928,8 @@ function EditorContent() {
               commentsPortalTarget={commentsPortalTarget}
               onEditorReady={handleEditorReady}
               localUser={suggestionAuthor}
+              // The app's WebView grants no microphone, so getUserMedia fails there.
+              showDictationButton={!hasNativeHost()}
             />
           ) : (
             <div className="flex items-center justify-center h-[200px] text-grey-500 text-sm">

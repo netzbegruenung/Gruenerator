@@ -66,9 +66,9 @@ export async function invokeDocumentAI(opts: {
     return false;
   }
 
-  // NOTE: we deliberately do NOT call `openAIMenuAtBlock`. On mobile the web AI
-  // popover (which hosts the Accept/Reject buttons) is suppressed entirely; the
-  // review UX is rendered natively (DocAiReviewBar → accept/rejectDocumentAI).
+  // NOTE: we deliberately do NOT call `openAIMenuAtBlock`. BlockNote's AI
+  // popover (which hosts the Accept/Reject buttons) would lock the editor; the
+  // review UX is the web DocAiReviewBar → accept/rejectDocumentAI.
   // `invokeAI` still applies the diff as ProseMirror suggestions regardless of
   // menu state — the suggestion plugin is independent of the menu.
   inFlight.add(opts.documentId);
