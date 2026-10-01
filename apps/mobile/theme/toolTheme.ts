@@ -28,6 +28,10 @@ interface ToolThemePair {
 }
 
 const TOOL_THEME: Record<string, ToolThemePair> = {
+  docs: {
+    light: { tile: '#F6EFD4', icon: '#6B5A12', title: '#4E4310', desc: '#786B33' },
+    dark: { tile: '#2B2612', icon: '#CBB86A', title: '#E4D6A0', desc: '#AB9C64' },
+  },
   agents: {
     light: { tile: '#F5EFC9', icon: '#7C6A1E', title: '#5F5212', desc: '#786A37' },
     dark: { tile: '#26220F', icon: '#CDBB72', title: '#E1D296', desc: '#AC9C68' },
@@ -47,6 +51,10 @@ const TOOL_THEME: Record<string, ToolThemePair> = {
   'ki-bildgenerierung': {
     light: { tile: '#E9E7F2', icon: '#3E3663', title: '#332B54', desc: '#5F587E' },
     dark: { tile: '#1F1B2E', icon: '#A99ED1', title: '#C6BCE4', desc: '#8E86AB' },
+  },
+  wissen: {
+    light: { tile: '#F5DEE9', icon: '#993D68', title: '#7A2E52', desc: '#85576E' },
+    dark: { tile: '#2B1620', icon: '#D69BB8', title: '#E9BCD2', desc: '#B0829A' },
   },
   reel: {
     light: { tile: '#F5DEE6', icon: '#8A3E5C', title: '#6E2E48', desc: '#85576A' },

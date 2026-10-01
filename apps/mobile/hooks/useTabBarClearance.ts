@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { isWorkplaceLayout } from '../config/navLayout';
 import { FLOATING_TAB_BAR_HEIGHT } from '../theme/layout';
 
 /**
@@ -19,9 +20,13 @@ import { FLOATING_TAB_BAR_HEIGHT } from '../theme/layout';
  * `FLOATING_TAB_BAR_HEIGHT` was the only thing holding the copies in step, and it
  * did not hold them.
  *
+ * The workplace shell (`config/navLayout`) has no tab bar at all, so there only
+ * the safe area is left to clear.
+ *
  * @param extra Gap between the tab bar and the element, e.g. `spacing.small`.
  */
 export function useTabBarClearance(extra = 0): number {
   const insets = useSafeAreaInsets();
-  return insets.bottom + (Platform.OS === 'ios' ? 0 : FLOATING_TAB_BAR_HEIGHT) + extra;
+  const bar = isWorkplaceLayout || Platform.OS === 'ios' ? 0 : FLOATING_TAB_BAR_HEIGHT;
+  return insets.bottom + bar + extra;
 }

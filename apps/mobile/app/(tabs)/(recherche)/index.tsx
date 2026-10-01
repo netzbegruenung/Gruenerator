@@ -29,6 +29,7 @@ import {
   notebookTileGridStyle,
   useNotebookTileGrid,
 } from '../../../components/notebook/NotebookTile';
+import { isWorkplaceLayout } from '../../../config/navLayout';
 import {
   getMobileNotebooksByCategory,
   getVisibleNotebooks,
@@ -36,12 +37,12 @@ import {
 } from '../../../config/notebooksConfig';
 import { useNotebookSharing } from '../../../hooks/notebook/useNotebookSharing';
 import { useContentColumn } from '../../../hooks/useLayout';
-import { useTabBarClearance } from '../../../hooks/useTabBarClearance';
 import {
   collectionIndexingState,
   useNotebookCollections,
   type MobileNotebookCollection,
 } from '../../../hooks/useNotebookCollections';
+import { useTabBarClearance } from '../../../hooks/useTabBarClearance';
 import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
 import { useFavoritesStore } from '../../../stores/favoritesStore';
 import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
@@ -234,7 +235,13 @@ export default function NotebooksScreen() {
   );
 
   return (
-    <ScreenScaffold title="Wissen" backdrop={<NotebookGradientBackground />}>
+    <ScreenScaffold
+      title="Wissen"
+      backdrop={<NotebookGradientBackground />}
+      // In the workplace shell Wissen is a tile on Arbeiten, not a tab, so the
+      // leading control leads back there.
+      {...(isWorkplaceLayout && { onBack: () => router.back() })}
+    >
       <GestureDetector gesture={swipe}>
         <View style={styles.container}>
           <ScrollView

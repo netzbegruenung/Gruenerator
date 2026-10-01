@@ -10,6 +10,14 @@ import type { ReactNode } from 'react';
 const START_DELAY_MS = 2000;
 /** Move on even if `onWarm` never arrives (bundle error, offline, slow device). */
 const GIVE_UP_MS = 30000;
+/**
+ * How long the WebView outlives its `onWarm`. Expo answers every native action
+ * by injecting the result back into the WebView (`webview-wrapper.tsx`,
+ * `emitResolve`); retiring the target inside the action unmounted the view
+ * before that reply was sent, and the rejected `injectJavaScript` surfaced as
+ * an uncaught "Unable to find … DomWebView view with tag" on every app start.
+ */
+const RETIRE_DELAY_MS = 1000;
 
 const noop = async () => {};
 
@@ -102,7 +110,10 @@ export function DomWarmup() {
 
   return (
     <View style={styles.offscreen} pointerEvents="none" accessibilityElementsHidden>
-      {current.render(async () => useDomWarmupStore.getState().complete(current.id))}
+      {current.render(async () => {
+        const id = current.id;
+        setTimeout(() => useDomWarmupStore.getState().complete(id), RETIRE_DELAY_MS);
+      })}
     </View>
   );
 }

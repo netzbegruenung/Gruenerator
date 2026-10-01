@@ -1,6 +1,6 @@
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -67,6 +67,8 @@ export function RecentItemsSection({
   style,
   viewMode = 'grid',
   onOpen,
+  headerRight,
+  onActions,
 }: {
   title: string;
   items: RecentItem[];
@@ -76,6 +78,14 @@ export function RecentItemsSection({
   style?: StyleProp<ViewStyle>;
   viewMode?: ViewMode;
   onOpen: (item: RecentItem) => void;
+  /** A control at the right end of the heading (Arbeiten: the grid/list switch). */
+  headerRight?: ReactElement;
+  /**
+   * Adds a ⋮ button to every item — Arbeiten's share/delete menu for documents.
+   * It is a sibling of the card, not a child: a pressable inside a pressable
+   * swallows the outer press on Android.
+   */
+  onActions?: (item: RecentItem) => void;
 }) {
   const isDark = useColorScheme() === 'dark';
   const theme = isDark ? darkTheme : lightTheme;
@@ -92,10 +102,17 @@ export function RecentItemsSection({
   // The view mode is already decided when the items are still on their way, and
   // so is `cardWidth` — so the placeholder can be the real arrangement: the
   // 4:3 cards at their measured width, or the 48-dp rows of the list.
+  const heading = (
+    <View style={styles.header}>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
+      {headerRight}
+    </View>
+  );
+
   if (isLoading) {
     return (
       <View style={[styles.section, style]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
+        {heading}
         {isList ? (
           <SkeletonRows count={4} leading={48} gap={spacing.xxsmall} />
         ) : (
@@ -117,7 +134,7 @@ export function RecentItemsSection({
 
   return (
     <View style={[styles.section, style]}>
-      <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
+      {heading}
       <View style={isList ? styles.list : styles.grid}>
         {items.map((item) => {
           const key = `${item.type}-${item.id}`;
@@ -172,36 +189,54 @@ export function RecentItemsSection({
             </>
           );
 
+          const actions = onActions ? (
+            <Pressable
+              onPress={() => onActions(item)}
+              hitSlop={8}
+              style={isList ? styles.rowActions : styles.cardActions}
+              accessibilityRole="button"
+              accessibilityLabel="Weitere Optionen"
+            >
+              <Ionicons name="ellipsis-vertical" size={16} color={theme.textSecondary} />
+            </Pressable>
+          ) : null;
+
           return isList ? (
-            <Pressable
-              key={key}
-              onPress={() => onOpen(item)}
-              style={({ pressed }) => [
-                styles.row,
-                { backgroundColor: pressed ? theme.surface : 'transparent' },
-              ]}
-              accessibilityRole="button"
-            >
-              {thumbnail}
-              <View style={styles.rowBody}>{label}</View>
-            </Pressable>
+            <View key={key} style={styles.itemWrap}>
+              <Pressable
+                onPress={() => onOpen(item)}
+                style={({ pressed }) => [
+                  styles.row,
+                  actions && styles.rowWithActions,
+                  { backgroundColor: pressed ? theme.surface : 'transparent' },
+                ]}
+                accessibilityRole="button"
+              >
+                {thumbnail}
+                <View style={styles.rowBody}>{label}</View>
+              </Pressable>
+              {actions}
+            </View>
           ) : (
-            <Pressable
-              key={key}
-              onPress={() => onOpen(item)}
-              style={({ pressed }) => [
-                styles.card,
-                { width: cardWidth },
-                {
-                  backgroundColor: pressed ? theme.surface : theme.card,
-                  borderColor: theme.cardBorder,
-                },
-              ]}
-              accessibilityRole="button"
-            >
-              {thumbnail}
-              <View style={styles.cardBody}>{label}</View>
-            </Pressable>
+            <View key={key} style={[styles.itemWrap, { width: cardWidth }]}>
+              <Pressable
+                onPress={() => onOpen(item)}
+                style={({ pressed }) => [
+                  styles.card,
+                  {
+                    backgroundColor: pressed ? theme.surface : theme.card,
+                    borderColor: theme.cardBorder,
+                  },
+                ]}
+                accessibilityRole="button"
+              >
+                {thumbnail}
+                <View style={[styles.cardBody, actions && styles.cardBodyWithActions]}>
+                  {label}
+                </View>
+              </Pressable>
+              {actions}
+            </View>
           );
         })}
       </View>
@@ -210,8 +245,37 @@ export function RecentItemsSection({
 }
 
 const styles = StyleSheet.create({
+  itemWrap: {
+    position: 'relative',
+  },
+  // Level with the title in the card's caption, clear of the thumbnail.
+  cardActions: {
+    position: 'absolute',
+    right: spacing.xxsmall,
+    bottom: spacing.small,
+    padding: spacing.xxsmall,
+  },
+  cardBodyWithActions: {
+    paddingRight: spacing.large,
+  },
+  rowActions: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xsmall,
+  },
+  rowWithActions: {
+    paddingRight: spacing.xlarge,
+  },
   section: {
     gap: spacing.small,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   sectionTitle: {
     fontFamily: BODY_FONT,
