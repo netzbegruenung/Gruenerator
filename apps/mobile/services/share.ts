@@ -8,6 +8,7 @@ import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import * as Clipboard from 'expo-clipboard';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import * as WebBrowser from 'expo-web-browser';
 import { Share as RNShare, Linking, Platform } from 'react-native';
 
 import { getErrorMessage } from '../utils/errors';
@@ -223,13 +224,23 @@ export async function canOpenUrl(url: string): Promise<boolean> {
 }
 
 /**
- * Open a URL in the default browser
+ * Open a URL in the default browser. iOS can refuse that hand-off
+ * (`Unable to open URL`, GlitchTip #669); a web link then opens in the
+ * in-app browser instead of doing nothing.
  */
 export async function openUrl(url: string): Promise<boolean> {
   try {
     await Linking.openURL(url);
     return true;
   } catch (error: unknown) {
+    if (/^https?:\/\//i.test(url)) {
+      try {
+        await WebBrowser.openBrowserAsync(url);
+        return true;
+      } catch {
+        // fall through to the log below
+      }
+    }
     console.error('[ShareService] openUrl error:', getErrorMessage(error));
     return false;
   }

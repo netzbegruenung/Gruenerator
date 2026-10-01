@@ -1,8 +1,9 @@
 import { parseScrapeResult } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback } from 'react';
-import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 
+import { openUrl } from '../../../services/share';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
@@ -17,7 +18,7 @@ interface ToolCallPart {
 export function ScrapeUrlCard({ part, theme }: { part: ToolCallPart; theme: Theme }) {
   const page = parseScrapeResult(part.args, part.result);
   const openHref = useCallback(() => {
-    if (page?.url) void Linking.openURL(page.url);
+    if (page?.url) void openUrl(page.url);
   }, [page?.url]);
 
   if (!page) {

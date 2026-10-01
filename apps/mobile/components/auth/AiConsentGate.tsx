@@ -30,10 +30,9 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 
 import { useTheme } from '../../hooks/useTheme';
 import { logout } from '../../services/auth';
+import { openUrl } from '../../services/share';
 import { BODY_FONT, borderRadius, spacing } from '../../theme';
 import { Button } from '../common/Button';
-
-import { openLegalPage } from './LegalNotice';
 
 const DATENSCHUTZ_URL = 'https://gruenerator.eu/datenschutz';
 
@@ -83,7 +82,7 @@ export function AiConsentGate() {
               KI-Modelle mit Deinen Daten findet nicht statt.{' '}
               <Text
                 style={[styles.link, { color: theme.link }]}
-                onPress={() => openLegalPage(DATENSCHUTZ_URL)}
+                onPress={() => void openUrl(DATENSCHUTZ_URL)}
               >
                 Zur Datenschutzerklärung
               </Text>
