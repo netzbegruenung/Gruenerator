@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const h = vi.hoisted(() => ({
+  env: { BASE_URL: 'https://gruenerator.eu' } as Record<string, string | undefined>,
+}));
+
 vi.mock('@modelcontextprotocol/sdk/client/auth.js', () => ({
   discoverOAuthServerInfo: vi.fn(),
   discoverAuthorizationServerMetadata: vi.fn(),
@@ -14,7 +18,7 @@ vi.mock('./mcpOAuthState.js', () => ({
   saveOAuthState: vi.fn(),
 }));
 vi.mock('../../database/services/DrizzleService.js', () => ({ getDrizzleInstance: vi.fn() }));
-vi.mock('../../config/env.js', () => ({ env: { BASE_URL: 'https://gruenerator.eu' } }));
+vi.mock('../../config/env.js', () => ({ env: h.env }));
 vi.mock('../../utils/validation/encryption.js', () => ({
   encryptCredential: vi.fn((v: string) => `enc:${v}`),
   decryptCredential: vi.fn((v: string) => v.replace(/^enc:/, '')),
@@ -320,6 +324,58 @@ describe('startAuthorization — what gets registered', () => {
     expect(reg?.clientMetadata).toMatchObject({ token_endpoint_auth_method: 'none', scope: 'all' });
     expect(vi.mocked(startAuthorization).mock.calls[0]?.[1].scope).toBe('all');
   });
+
+  it('uses the platform client from env for Canva instead of registering', async () => {
+    h.env.CANVA_MCP_CLIENT_ID = 'canva-cid';
+    h.env.CANVA_MCP_CLIENT_SECRET = 'canva-secret';
+    try {
+      vi.mocked(discoverOAuthServerInfo).mockResolvedValue({
+        authorizationServerUrl: 'https://mcp.canva.com',
+        authorizationServerMetadata: {
+          issuer: 'https://mcp.canva.com',
+          registration_endpoint: 'https://mcp.canva.com/register',
+        },
+      } as never);
+      const set = vi.fn(() => ({ where: async () => undefined }));
+      vi.mocked(getDrizzleInstance).mockReturnValue({
+        ...dbStub(serverRow({}, null, 'https://mcp.canva.com/mcp')),
+        update: () => ({ set }),
+      } as never);
+
+      await McpOAuthService.startAuthorization('user-1', 'srv-1');
+
+      expect(registerClient).not.toHaveBeenCalled();
+      expect(vi.mocked(startAuthorization).mock.calls[0]?.[1].clientInformation).toEqual({
+        client_id: 'canva-cid',
+        client_secret: 'canva-secret',
+      });
+      // Never copied into the row: a rotated secret must reach every user.
+      expect(set).toHaveBeenCalledWith(
+        expect.objectContaining({ oauth_meta: expect.objectContaining({ scheme: 'platform' }) })
+      );
+      expect(set.mock.calls[0]?.[0]).not.toHaveProperty('oauth_client_secret_encrypted');
+    } finally {
+      delete h.env.CANVA_MCP_CLIENT_ID;
+      delete h.env.CANVA_MCP_CLIENT_SECRET;
+    }
+  });
+
+  it('falls back to dynamic registration for Canva when the env is unset', async () => {
+    vi.mocked(discoverOAuthServerInfo).mockResolvedValue({
+      authorizationServerUrl: 'https://mcp.canva.com',
+      authorizationServerMetadata: {
+        issuer: 'https://mcp.canva.com',
+        registration_endpoint: 'https://mcp.canva.com/register',
+      },
+    } as never);
+    vi.mocked(getDrizzleInstance).mockReturnValue(
+      dbStub(serverRow({}, null, 'https://mcp.canva.com/mcp')) as never
+    );
+
+    await McpOAuthService.startAuthorization('user-1', 'srv-1');
+
+    expect(registerClient).toHaveBeenCalledOnce();
+  });
 });
 
 describe('getValidAccessToken', () => {
@@ -369,6 +425,48 @@ describe('getValidAccessToken', () => {
     await expect(
       McpOAuthService.getValidAccessToken('user-1', 'srv-1', { force: true })
     ).resolves.toBeNull();
+  });
+});
+
+describe('platform client — resolved from env on every use', () => {
+  const canvaRow = (meta: Record<string, unknown>) =>
+    serverRow(
+      { redirectUri: 'https://gruenerator.eu/api/mcp/auth/callback', ...meta },
+      'enc:stale-secret',
+      'https://mcp.canva.com/mcp'
+    );
+
+  it('redeems the code with the current env secret, not a stored one', async () => {
+    h.env.CANVA_MCP_CLIENT_ID = 'canva-cid';
+    h.env.CANVA_MCP_CLIENT_SECRET = 'rotated-secret';
+    try {
+      vi.mocked(getDrizzleInstance).mockReturnValue(
+        dbStub(canvaRow({ clientId: 'canva-cid', scheme: 'platform' })) as never
+      );
+      vi.mocked(consumeOAuthState).mockResolvedValue(state() as never);
+
+      await McpOAuthService.handleCallback('code', 'state-token');
+
+      expect(vi.mocked(exchangeAuthorization).mock.calls[0]?.[1].clientInformation).toEqual({
+        client_id: 'canva-cid',
+        client_secret: 'rotated-secret',
+      });
+    } finally {
+      delete h.env.CANVA_MCP_CLIENT_ID;
+      delete h.env.CANVA_MCP_CLIENT_SECRET;
+    }
+  });
+
+  it('fails the callback when the platform env was removed', async () => {
+    vi.mocked(getDrizzleInstance).mockReturnValue(
+      dbStub(canvaRow({ clientId: 'canva-cid', scheme: 'platform' })) as never
+    );
+    vi.mocked(consumeOAuthState).mockResolvedValue(state() as never);
+
+    await expect(McpOAuthService.handleCallback('code', 'state-token')).rejects.toThrow(
+      /Konfiguration fehlt/
+    );
+    expect(exchangeAuthorization).not.toHaveBeenCalled();
   });
 });
 
