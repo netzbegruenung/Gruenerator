@@ -86,7 +86,6 @@ The testIDs the flows rely on:
 | `onboarding-skip`                                         | [app/(auth)/onboarding.tsx](<../app/(auth)/onboarding.tsx>) — skips the carousel                                 |
 | `login-open`                                              | [app/(auth)/login.tsx](<../app/(auth)/login.tsx>) — opens the source picker                                      |
 | `login-source-detected` / `login-source-other`            | locale-based login source (DE/AT)                                                                                |
-| `login-source-netzbegruenung`                             | Netzbegrünung login                                                                                              |
 | `chat-composer-input`                                     | [components/common/Composer.tsx](../components/common/Composer.tsx)                                              |
 | `chat-composer-send`                                      | send button (only mounted once the input has text)                                                               |
 | `chat-message-edit`                                       | [components/chat/message/UserMessage.tsx](../components/chat/message/UserMessage.tsx) — pencil on an own message |

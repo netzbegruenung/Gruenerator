@@ -336,13 +336,13 @@ export const auth = betterAuth({
       createdAt: 'created_at',
       updatedAt: 'updated_at',
     },
-    // Trust all four Keycloak providers for account linking. Without this,
+    // Trust all three Keycloak providers for account linking. Without this,
     // Better Auth's link-account.mjs:18-26 refuses to link an OAuth account
     // to an existing user unless the provider is trusted OR the OAuth profile
     // returns email_verified: true. Some Keycloak realms don't always return
     // a verified email claim, which causes `account_not_linked` errors on
-    // sign-in. All four IdPs route through trusted Keycloak realms operated
-    // by netzbegruenung, so trusting them is safe.
+    // sign-in. All three IdPs route through trusted Keycloak realms, so
+    // trusting them is safe.
     // `requireLocalEmailVerified` defaults to `true` since better-auth 1.6.11.
     // It's a SECOND, separate gate from `trustedProviders`: even a trusted
     // provider is refused with `account_not_linked` when the *existing local*
@@ -353,17 +353,12 @@ export const auth = betterAuth({
     // second IdP (e.g. an existing Grünerator-login account signing in via Grünes
     // Netz). We disable it because the threat it defends against (ghost-account
     // hijacking via local email/password signup) does not exist here: there is no
-    // `emailAndPassword` provider, all auth flows through the four Keycloak realms
+    // `emailAndPassword` provider, all auth flows through the three Keycloak realms
     // we operate, and `trustedProviders` is restricted to exactly those realms.
     accountLinking: {
       enabled: true,
       requireLocalEmailVerified: false,
-      trustedProviders: [
-        'keycloak-netzbegruenung',
-        'keycloak-gruenes-netz',
-        'keycloak-gruene-at',
-        'keycloak-gruenerator',
-      ],
+      trustedProviders: ['keycloak-gruenes-netz', 'keycloak-gruene-at', 'keycloak-gruenerator'],
     },
   },
 
@@ -670,7 +665,6 @@ export const auth = betterAuth({
     jwt(),
     genericOAuth({
       config: [
-        keycloakProvider('keycloak-netzbegruenung', 'netzbegruenung'),
         keycloakProvider('keycloak-gruenes-netz', 'gruenes-netz'),
         keycloakProvider('keycloak-gruene-at', 'gruene-at-login'),
         keycloakProvider('keycloak-gruenerator', 'gruenerator-user'),
