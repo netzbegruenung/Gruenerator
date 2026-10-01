@@ -13,13 +13,6 @@ vi.mock('../../../services/mcp/McpServerRegistry.js', () => ({
   },
 }));
 
-const getValidAccessToken = vi.fn();
-vi.mock('../../../services/mcp/McpOAuthService.js', () => ({
-  McpOAuthService: {
-    getValidAccessToken: (...a: unknown[]) => getValidAccessToken(...a),
-  },
-}));
-
 const connect = vi.fn();
 const listTools = vi.fn();
 const callTool = vi.fn();
@@ -28,14 +21,12 @@ vi.mock('../../../services/mcp/UserMCPClient.js', () => ({
   UserMCPClient: class {
     name: string;
     id: string;
-    token: string | null;
-    constructor(cfg: { id: string; name: string; token?: string | null }) {
+    constructor(cfg: { id: string; name: string }) {
       this.id = cfg.id;
       this.name = cfg.name;
-      this.token = cfg.token ?? null;
     }
     connect() {
-      return connect(this.name, this.token);
+      return connect(this.name);
     }
     listTools() {
       return listTools(this.name);
@@ -60,7 +51,6 @@ describe('loadMcpCatalog', () => {
     saveToolsSnapshot.mockReset();
     saveToolFingerprints.mockReset();
     connect.mockReset().mockResolvedValue(undefined);
-    getValidAccessToken.mockReset();
     listTools.mockReset();
     callTool.mockReset();
     close.mockReset().mockResolvedValue(undefined);
@@ -284,65 +274,5 @@ describe('loadMcpCatalog', () => {
       expect(Object.keys(cat.tools)).toEqual(['mb__search']);
       expect(cat.driftedServers).toHaveLength(1);
     });
-  });
-});
-
-describe('loadMcpCatalog — OAuth server answers 401', () => {
-  const oauthConfig = {
-    id: 'srv-oauth',
-    name: 'Tally',
-    url: 'https://api.tally.so/mcp',
-    authType: 'oauth',
-    token: 'stale',
-  };
-  const unauthorized = Object.assign(new Error('Unauthorized'), { code: 401 });
-
-  beforeEach(() => {
-    getConnectionConfigs.mockReset().mockResolvedValue([oauthConfig]);
-    connect.mockReset();
-    listTools
-      .mockReset()
-      .mockResolvedValue([
-        { name: 'list_forms', description: 'forms', inputSchema: { type: 'object' } },
-      ]);
-    close.mockReset().mockResolvedValue(undefined);
-    getValidAccessToken.mockReset();
-  });
-
-  it('refreshes once and mounts the server with the new token', async () => {
-    connect.mockImplementation((_n: string, token: string | null) =>
-      token === 'fresh' ? Promise.resolve() : Promise.reject(unauthorized)
-    );
-    getValidAccessToken.mockResolvedValue('fresh');
-
-    const cat = await loadMcpCatalog({ userId: 'u1', scope: 'srv-oauth' });
-
-    expect(getValidAccessToken).toHaveBeenCalledWith('u1', 'srv-oauth', { force: true });
-    expect(Object.keys(cat.tools)).toHaveLength(1);
-    expect(cat.scopedServerUnreachable).toBe(false);
-  });
-
-  it('gives up when the refresh yields no token', async () => {
-    connect.mockRejectedValue(unauthorized);
-    getValidAccessToken.mockResolvedValue(null);
-
-    const cat = await loadMcpCatalog({ userId: 'u1', scope: 'srv-oauth' });
-
-    expect(connect).toHaveBeenCalledOnce();
-    expect(cat.scopedServerUnreachable).toBe(true);
-  });
-
-  it('does not refresh API-key servers or non-auth failures', async () => {
-    getConnectionConfigs.mockResolvedValue([
-      { ...oauthConfig, authType: 'bearer' },
-      { ...oauthConfig, id: 'srv-down', name: 'Down' },
-    ]);
-    connect.mockImplementation((name: string) =>
-      Promise.reject(name === 'Down' ? new Error('ECONNREFUSED') : unauthorized)
-    );
-
-    await loadMcpCatalog({ userId: 'u1', scope: null });
-
-    expect(getValidAccessToken).not.toHaveBeenCalled();
   });
 });

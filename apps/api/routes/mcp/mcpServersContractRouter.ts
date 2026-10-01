@@ -9,7 +9,6 @@
 import { mcpServersContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import { connectRefreshingOnce } from '../../services/mcp/connectRefreshingOnce.js';
 import { classifyMcpFailure, describeEmptyToolList } from '../../services/mcp/mcpFailure.js';
 import { McpOAuthService } from '../../services/mcp/McpOAuthService.js';
 import { McpRegistryService } from '../../services/mcp/McpRegistryService.js';
@@ -172,9 +171,9 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
       if (!config)
         return { status: 404 as const, body: { error: 'Server nicht gefunden oder deaktiviert.' } };
 
-      let client = new UserMCPClient(config);
+      const client = new UserMCPClient(config);
       try {
-        client = await connectRefreshingOnce(userId, client, config);
+        await client.connect();
         const tools = await client.listTools();
         // Cache the tool list for chat mention hints + classifier context.
         // Managed connectors have no row to cache into (see mcpCatalog) — the

@@ -17,7 +17,6 @@
  */
 import { dynamicTool, jsonSchema, type JSONSchema7, type ToolSet } from 'ai';
 
-import { connectRefreshingOnce } from '../../../services/mcp/connectRefreshingOnce.js';
 import { McpServerRegistry } from '../../../services/mcp/McpServerRegistry.js';
 import { describeDrift, evaluateToolDrift } from '../../../services/mcp/mcpToolDrift.js';
 import { UserMCPClient } from '../../../services/mcp/UserMCPClient.js';
@@ -146,10 +145,10 @@ export async function loadMcpCatalog(params: {
 
   await Promise.all(
     configs.map(async (config) => {
-      let client = new UserMCPClient(config);
+      const client = new UserMCPClient(config);
       const mountStart = Date.now();
       try {
-        client = await connectRefreshingOnce(userId, client, config);
+        await client.connect();
         const listed = await client.listTools();
         clients.push(client);
         // Mount timing was invisible: a slow-but-successful connect/listTools

@@ -12,9 +12,7 @@ export interface McpOidcConfig {
   tokenEndpoint?: string;
   registrationEndpoint?: string;
   clientId?: string;
-  // `platform`: the client comes from env (see McpRegistryService `clientEnv`)
-  // and is resolved on every use; `clientId` here is informational only.
-  scheme?: 'dcr' | 'pre_registration' | 'platform';
+  scheme?: 'dcr' | 'pre_registration';
   scopes?: string[];
   redirectUri?: string;
   resource?: string;
