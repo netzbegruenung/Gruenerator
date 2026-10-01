@@ -4,7 +4,7 @@ const Nutzungsbedingungen = () => {
   return (
     <div className="page-container">
       <h1>Nutzungsbedingungen</h1>
-      <p>Stand: 23. September 2026</p>
+      <p>Stand: 1. Oktober 2026</p>
 
       <h2>§ 1 Geltungsbereich</h2>
       <p>
@@ -19,8 +19,7 @@ const Nutzungsbedingungen = () => {
       </p>
       <p>
         (3) Der Betreiber stellt die Plattform im Auftrag und in Zusammenarbeit mit der{' '}
-        <a href="https://netzbegruenung.de/">netzbegrünung – Verein für grüne Netzkultur e.V.</a>{' '}
-        bereit.
+        <a href="https://verdigado.com/">verdigado eG</a> bereit.
       </p>
 
       <h2>§ 2 Leistungsbeschreibung</h2>
@@ -71,7 +70,7 @@ const Nutzungsbedingungen = () => {
       <h2>§ 3 Registrierung und Benutzerkonto</h2>
       <p>
         (1) Die Nutzung der Plattform setzt eine Registrierung voraus. Die Registrierung erfolgt
-        über den zentralen Anmeldedienst (Keycloak) der netzbegrünung e.V.
+        über den zentralen Anmeldedienst (Keycloak) der verdigado eG.
       </p>
       <p>
         (2) Du bist verpflichtet, bei der Registrierung wahrheitsgemäße und vollständige Angaben zu

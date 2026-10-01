@@ -45,8 +45,7 @@ function toAbsoluteUrl(url: string): string {
   return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
-export type AuthSource =
-  'gruenerator-login' | 'gruenes-netz-login' | 'netzbegruenung-login' | 'gruene-oesterreich-login';
+export type AuthSource = 'gruenerator-login' | 'gruenes-netz-login' | 'gruene-oesterreich-login';
 
 export interface DesktopUser {
   id: string;

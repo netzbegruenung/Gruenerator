@@ -1,5 +1,4 @@
-export type LoginProviderId =
-  'gruenes-netz' | 'gruene-oesterreich' | 'netzbegruenung' | 'gruenerator';
+export type LoginProviderId = 'gruenes-netz' | 'gruene-oesterreich' | 'gruenerator';
 
 export interface LoginProvider {
   id: LoginProviderId;
@@ -45,19 +44,6 @@ export const LOGIN_PROVIDERS: LoginProvider[] = [
     enabledByDefault: true,
   },
   {
-    id: 'netzbegruenung',
-    source: 'netzbegruenung-login',
-    betterAuthProviderId: 'keycloak-netzbegruenung',
-    title: 'Netzbegrünung Login',
-    description: 'Mit deinem Netzbegrünung Account anmelden',
-    className: 'netzbegruenung',
-    logoPath: '/images/nb_icon.png',
-    logoAlt: 'Netzbegrünung',
-    // Only reachable via the special link (?provider=netzbegruenung); hidden
-    // from the default provider set on both the start page and /login.
-    enabledByDefault: false,
-  },
-  {
     id: 'gruenerator',
     source: 'gruenerator-login',
     betterAuthProviderId: 'keycloak-gruenerator',
@@ -66,7 +52,7 @@ export const LOGIN_PROVIDERS: LoginProvider[] = [
     className: 'gruenerator',
     logoPath: null,
     logoAlt: 'Grünerator',
-    // Like netzbegruenung: not offered anywhere in the web frontend, reachable
+    // Not offered anywhere in the web frontend, reachable
     // only via the deep link /login?login=gruenerator (which makes it the
     // primary provider and re-adds it to the expanded list).
     enabledByDefault: false,
