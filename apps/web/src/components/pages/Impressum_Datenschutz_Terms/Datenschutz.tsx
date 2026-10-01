@@ -41,7 +41,7 @@
  * `services/ai/gemmaHosts.ts`); Scaleway rechnet Mistral Medium 3.5 nur noch
  * hinter `SCALEWAY_MISTRAL_ROUTING` (Standard aus); Regolo/Seeweb ist seit
  * 30.09.2026 aus dem Produkt entfernt und deshalb auch hier gestrichen; die selbst gehosteten
- * Modelle der netzbegrünung sind seit 29.08.2026 stillgelegt
+ * Modelle sind seit 29.08.2026 stillgelegt
  * (`services/ai/litellmRetired.ts`). Die DOCX-Fassung liest diese Datei
  * (`apps/api/scripts/generate-legal-docx.mjs`), und
  * `scripts/check-privacy-subprocessors.mjs` bricht ab, wenn ein Host aus
@@ -58,7 +58,7 @@ const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 30. September 2026</p>
+      <p>Stand: 1. Oktober 2026</p>
 
       <h2>Einleitung</h2>
       <p>
@@ -95,9 +95,8 @@ const Datenschutz = () => {
         Website: <a href="https://gruenerator.eu">https://gruenerator.eu</a>
       </p>
       <p>
-        Der GRÜNERATOR wird in technischer Zusammenarbeit mit der netzbegrünung – Verein für grüne
-        Netzkultur e.V. bereitgestellt, die als Auftragsverarbeiter Teile der Infrastruktur
-        betreibt.
+        Der GRÜNERATOR wird in technischer Zusammenarbeit mit der verdigado eG bereitgestellt, die
+        als Auftragsverarbeiter Teile der Infrastruktur betreibt.
       </p>
 
       <h2>Kategorien der verarbeiteten Daten</h2>
@@ -225,7 +224,7 @@ const Datenschutz = () => {
             <td>Hosting der Webanwendung und Server (ISO 27001)</td>
           </tr>
           <tr>
-            <td>netzbegrünung e.V.</td>
+            <td>verdigado eG</td>
             <td>Deutschland / Finnland (EU)</td>
             <td>
               Kerninfrastruktur, Datenbank (PostgreSQL), Keycloak-Authentifizierung, Redis,
@@ -329,9 +328,9 @@ const Datenschutz = () => {
 
       <p>
         <strong>Ladungsfähige Anschriften:</strong> Hetzner Online GmbH, Industriestr. 25, 91710
-        Gunzenhausen, Deutschland · netzbegrünung – Verein für grüne Netzkultur e.V., Deutschland ·
-        Mistral AI, 15 rue des Halles, 75001 Paris, Frankreich · Scaleway SAS, 8 rue de la
-        Ville-l&apos;Évêque, 75008 Paris, Frankreich (RCS Paris 433 115 904) · GreenPT BV,
+        Gunzenhausen, Deutschland · verdigado eG, Heilig-Kreuz-Straße 16, 86609 Donauwörth,
+        Deutschland · Mistral AI, 15 rue des Halles, 75001 Paris, Frankreich · Scaleway SAS, 8 rue
+        de la Ville-l&apos;Évêque, 75008 Paris, Frankreich (RCS Paris 433 115 904) · GreenPT BV,
         Plompetorengracht 4, 3512 CC Utrecht, Niederlande (KvK 97084360) · Cortecs GmbH,
         Althanstraße 4, 1090 Wien, Österreich (FN 560802i) · KugelAudio GmbH, Rosenthaler Str. 36,
         10178 Berlin, Deutschland (Amtsgericht Charlottenburg, HRB 277989 B) · Melious AI GmbH,
@@ -437,11 +436,11 @@ const Datenschutz = () => {
       <h3>Registrierung und Benutzerkonto</h3>
       <p>
         Die Nutzung setzt eine Registrierung über den zentralen Anmeldedienst (Keycloak) der
-        netzbegrünung e.V. voraus. Wir verarbeiten die dabei angegebenen Bestands- und Anmeldedaten
-        zur Bereitstellung und Verwaltung des Kontos. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b
-        DSGVO. Du kannst Dein Konto jederzeit löschen. Die Bereitstellung Deiner Daten ist weder
-        gesetzlich noch vertraglich vorgeschrieben; ohne die für die Registrierung erforderlichen
-        Angaben kann das Benutzerkonto und damit der GRÜNERATOR jedoch nicht genutzt werden.
+        verdigado eG voraus. Wir verarbeiten die dabei angegebenen Bestands- und Anmeldedaten zur
+        Bereitstellung und Verwaltung des Kontos. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO. Du
+        kannst Dein Konto jederzeit löschen. Die Bereitstellung Deiner Daten ist weder gesetzlich
+        noch vertraglich vorgeschrieben; ohne die für die Registrierung erforderlichen Angaben kann
+        das Benutzerkonto und damit der GRÜNERATOR jedoch nicht genutzt werden.
       </p>
 
       <h3 id="ki-textgenerierung">KI-Textgenerierung und Chat</h3>
@@ -490,7 +489,7 @@ const Datenschutz = () => {
         Der GRÜNERATOR bietet einen bidirektionalen Sprachdialog. Eine Sitzung beginnt nur nach
         Deinem ausdrücklichen, aktiven Start über das Mikrofon-Symbol. Dein Mikrofon-Audio wird im
         Browser auf 16&nbsp;kHz heruntergerechnet und über eine verschlüsselte Verbindung an unseren
-        Server (netzbegrünung, EU) und von dort zur Spracherkennung an Mistral AI Voxtral (EU)
+        Server (verdigado eG, EU) und von dort zur Spracherkennung an Mistral AI Voxtral (EU)
         übermittelt; die Sprachausgabe erfolgt über KugelAudio (EU). Audio-Frames werden
         ausschließlich im Arbeitsspeicher durchgereicht (Live-Stream, keine Persistierung); es
         werden keine Sprachprofile erstellt. Das Mikrofon wird automatisch freigegeben, sobald Du
@@ -520,7 +519,7 @@ const Datenschutz = () => {
       <h3>Fehler- und Anwendungsmonitoring (GlitchTip)</h3>
       <p>
         Zur Erkennung und Behebung technischer Fehler nutzen wir die selbst gehostete
-        Open-Source-Software GlitchTip auf eigenen bzw. von der netzbegrünung betriebenen Servern in
+        Open-Source-Software GlitchTip auf eigenen bzw. von der verdigado eG betriebenen Servern in
         der EU. Verarbeitet werden Fehlerberichte, Stack-Traces, Browserinformationen und
         IP-Adressen; eine Weitergabe an Dritte findet nicht statt. Löschung nach 90 Tagen.
         Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO.

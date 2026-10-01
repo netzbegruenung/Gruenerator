@@ -265,11 +265,7 @@ export const FORM_PLACEHOLDERS = {
 
 // Footer Text
 export const FOOTER_TEXT = {
-  COPYRIGHT:
-    '© 2024. Eine Website von Moritz Wächter. Alle Rechte vorbehalten. Der Grünerator wird unterstützt von der netzbegrünung.',
-  MEMBERSHIP: 'Du kannst hier Mitglied werden.',
-  MEMBERSHIP_LINK: 'https://netzbegruenung.de/verein/mitgliedsantrag/',
-  NETZBEGRUENUNG_LINK: 'https://netzbegruenung.de/',
+  COPYRIGHT: '© 2024. Eine Website von Moritz Wächter. Alle Rechte vorbehalten.',
   SOCIAL_MEDIA: {
     TWITTER: 'https://twitter.com/MoritzWaech',
     INSTAGRAM: 'https://www.instagram.com/moritz_waechter/?hl=bg',
