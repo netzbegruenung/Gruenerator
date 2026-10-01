@@ -52,7 +52,10 @@ export interface SeedConnectionHints {
 const SEEDS: Seed[] = [
   ['Notion', 'https://mcp.notion.com/mcp', 'oauth', 'Seiten, Datenbanken und Aufgaben durchsuchen und bearbeiten.', 'https://notion.com', 'Produktivität'],
   ['Coda', 'https://coda.io/apis/mcp', 'oauth', 'Dokumente erstellen, Tabellen lesen und Inhalte aktualisieren.', 'https://coda.io', 'Produktivität'],
-  ['monday.com', 'https://mcp.monday.com/sse', 'oauth', 'Work OS für Projekte, Aufgaben und Team-Workflows.', 'https://monday.com', 'Produktivität'],
+  // `/mcp`: the PRM names `https://mcp.monday.com/mcp` as the resource, and the
+  // OAuth `resource` parameter is taken from this URL. Rows still on the legacy
+  // `/sse` keep working; the web matches connected cards by host.
+  ['monday.com', 'https://mcp.monday.com/mcp', 'oauth', 'Work OS für Projekte, Aufgaben und Team-Workflows.', 'https://monday.com', 'Produktivität'],
   ['Jamie', 'https://mcp.meetjamie.ai/mcp', 'oauth', 'Meeting-Notizen durchsuchen und Action Items extrahieren.', 'https://meetjamie.ai', 'Produktivität'],
   // OAuth-or-key providers below: discovery + DCR checked live 2026-10-01.
   ['Sally', 'https://app.sally.io/api/v1/McpExternal', 'oauth', 'Termine, Aufzeichnungen, Zusammenfassungen und Transkripte abfragen.', 'https://sally.io', 'Produktivität', { alt: ['bearer'] }],

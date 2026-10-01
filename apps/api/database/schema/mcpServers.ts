@@ -12,7 +12,8 @@ export interface McpOidcConfig {
   tokenEndpoint?: string;
   registrationEndpoint?: string;
   clientId?: string;
-  scheme?: 'dcr' | 'pre_registration';
+  // `cimd`: clientId is our Client ID Metadata Document URL (SEP-991).
+  scheme?: 'dcr' | 'pre_registration' | 'cimd';
   scopes?: string[];
   redirectUri?: string;
   resource?: string;

@@ -140,4 +140,8 @@ export const mcpRegistryResponseSchema = z.object({
   recommended: z.array(mcpRegistryEntrySchema),
   servers: z.array(mcpRegistryEntrySchema),
   nextCursor: z.string().nullable(),
+  // The redirect URI the backend registers — what a user enters when creating
+  // an OAuth app by hand. Taken from BASE_URL, not the browser's origin.
+  oauthRedirectUri: z.string().nullable().optional(),
 });
+export type McpRegistryResponse = z.infer<typeof mcpRegistryResponseSchema>;
