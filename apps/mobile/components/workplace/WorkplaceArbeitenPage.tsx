@@ -547,6 +547,7 @@ export function WorkplaceArbeitenPage() {
           visible
           onClose={() => setActiveDoc(null)}
           documentId={activeDoc.id}
+          documentTitle={activeDoc.title}
           userDisplayName={user?.display_name ?? undefined}
           isOwner
           onDelete={() => handleDelete(activeDoc.id, activeDoc.title)}

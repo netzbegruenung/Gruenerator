@@ -15,7 +15,6 @@ import { enableFreeze } from 'react-native-screens';
 
 import { AiConsentGate } from '../components/auth/AiConsentGate';
 import { SharepicRenderHost } from '../components/chat/SharepicRenderHost';
-import { DomWarmup } from '../components/common/DomWarmup';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { AppDrawer } from '../components/navigation';
 import { SettingsSheet } from '../components/settings';
@@ -244,10 +243,6 @@ function RootLayout() {
                     is on screen. Mounted here — once — because the drawer and the
                     profile menu both reach for them from different screens. */}
                 {user ? <SettingsSheet /> : null}
-                {/* Off-screen preload of the `use dom` WebView bundles (docs
-                    editor), so the first document a user opens doesn't pay for
-                    the WebView boot. Retires itself. */}
-                {user ? <DomWarmup /> : null}
                 {/* Zeichnet Sharepics für den Chat in einer versteckten WebView
                     — die App kann Konva nicht selbst rendern. Mountet sich nur,
                     solange es etwas zu zeichnen gibt (`useRenderHostDemand`),

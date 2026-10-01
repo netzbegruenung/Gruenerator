@@ -57,7 +57,7 @@ export function officeIconFor(kind: OfficeKind): IoniconsIconName {
 }
 
 export function pushOfficeItem(router: AppRouter, item: OfficeItem): void {
-  // doc-editor only reads `id`; the viewers also show the title while loading.
+  // The viewers show the title while the editor loads.
   // Literal pathnames (not a variable) so expo-router's typed routes accept them.
   const params = { id: item.id, title: item.title || 'Unbenannt' };
   switch (item.kind) {
