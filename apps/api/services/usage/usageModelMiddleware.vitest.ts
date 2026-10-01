@@ -94,4 +94,27 @@ describe('withUsageTracking', () => {
       expect.objectContaining({ provider: 'regolo', outputTokens: 200 })
     );
   });
+
+  it('bucht den Cache-Anteil der Eingabe mit, wenn der Anbieter ihn meldet', async () => {
+    const model = {
+      specificationVersion: 'v3',
+      provider: 'fake',
+      modelId: 'fake-model',
+      doGenerate: async () => ({
+        content: [{ type: 'text', text: 'ok' }],
+        usage: {
+          inputTokens: { total: 11635, noCache: 115, cacheRead: 11520, cacheWrite: undefined },
+          outputTokens: { total: 5, text: 5, reasoning: undefined },
+        },
+        finishReason: 'stop',
+        warnings: [],
+      }),
+    } as unknown as LanguageModel;
+    await (
+      withUsageTracking(model, 'melious') as unknown as { doGenerate: () => Promise<unknown> }
+    ).doGenerate();
+    expect(recordTokenUsage).toHaveBeenCalledWith(
+      expect.objectContaining({ inputTokens: 11635, outputTokens: 5, cachedInputTokens: 11520 })
+    );
+  });
 });

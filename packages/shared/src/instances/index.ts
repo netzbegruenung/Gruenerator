@@ -176,6 +176,14 @@ export interface InstanceDefinition {
    * instance ever needs its own number.
    */
   treeAllowance?: 'unlimited';
+  /**
+   * Whether the „Panda" model lane (DeepSeek, see the catalog in
+   * @gruenerator/core/models) is on for users nobody has decided about. Absent =
+   * off: elsewhere an instance admin unlocks it per account after training.
+   * A per-user decision (`profiles.panda_enabled`) always wins over this
+   * default, in both directions.
+   */
+  pandaTierDefault?: true;
 }
 
 /**
@@ -232,6 +240,7 @@ export const INSTANCES = [
     lockedLocale: true,
     heroGreeting: 'Willkommen zur Bgst-KI, @Vorname',
     treeAllowance: 'unlimited',
+    pandaTierDefault: true,
   },
   {
     id: 'local',
@@ -391,6 +400,11 @@ export function policyCoversSkill(
 export function getPinnedLocale(instanceId: InstanceId): 'de-DE' | 'de-AT' | null {
   const instance = getInstance(instanceId);
   return instance.lockedLocale === true && instance.defaultLocale ? instance.defaultLocale : null;
+}
+
+/** Is the „Panda" lane on for users without a per-account decision? */
+export function isPandaTierDefaultOn(instanceId: InstanceId): boolean {
+  return getInstance(instanceId).pandaTierDefault === true;
 }
 
 /** Does this instance meter the daily "Bäume" budget at all? */
