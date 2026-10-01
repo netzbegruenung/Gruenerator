@@ -6,7 +6,7 @@ import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useContentColumn } from '../../hooks/useLayout';
-import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, lightTheme, darkTheme, HEADING_FONT_BOLD } from '../../theme';
 
 import { ProfileMenu } from './ProfileMenu';
 import { SidebarMenuButton } from './SidebarMenuButton';
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   headerSideRight: { justifyContent: 'flex-end' },
   // flexShrink lets the title give way to the sides instead of overrunning them.
   headerTitle: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 20,
     textAlign: 'center',
     flexShrink: 1,

@@ -3,7 +3,6 @@ import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, type Href } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -15,7 +14,6 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import { GestureDetector } from 'react-native-gesture-handler';
 
 import { useContentColumn, useLayout } from '../../hooks/useLayout';
 import { useOfficeSearch } from '../../hooks/useOfficeSearch';
@@ -26,7 +24,6 @@ import {
 } from '../../hooks/useRecentActivity';
 import { useStudioMedia } from '../../hooks/useStudioMedia';
 import { useTabBarClearance } from '../../hooks/useTabBarClearance';
-import { useTabNavigationSwipe } from '../../hooks/useTabSwipe';
 import { useDocsStore } from '../../stores/docsStore';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { colors, darkTheme, lightTheme, spacing, BODY_FONT } from '../../theme';
@@ -42,8 +39,6 @@ import { toDocListItems } from '../docs/docListItems';
 import { NativeShareModal } from '../docs/NativeShareModal';
 import { useDocCreation } from '../docs/useDocCreation';
 import { MenuIcon } from '../icons/WebMirrorIcons';
-import { ScreenScaffold } from '../navigation/ScreenScaffold';
-import { WorkplaceTopTabs } from '../navigation/WorkplaceTopTabs';
 import {
   isDocFamily,
   officeIconFor,
@@ -100,7 +95,7 @@ function MoreToggle({
 }
 
 /**
- * The Arbeiten tab of the workplace shell (`config/navLayout`): the former
+ * The Arbeiten page of the workplace pager (`WorkplacePager`): the former
  * Arbeiten and Studio tabs on one page, in web's order — tool tiles, "Zuletzt",
  * then one section per kind, office first, studio media after. The FAB opens
  * Studio's "Neu erstellen" menu with Dokument as a fourth entry, which hands
@@ -112,7 +107,7 @@ function MoreToggle({
  * an empty account gets the create entry points of both old empty states.
  * Favourited tiles move to the front of the row, as on web.
  */
-export function WorkplaceArbeitenScreen() {
+export function WorkplaceArbeitenPage() {
   const isDark = useColorScheme() === 'dark';
   const theme = isDark ? darkTheme : lightTheme;
   const router = useRouter();
@@ -381,154 +376,142 @@ export function WorkplaceArbeitenScreen() {
     ];
   }, [isDark, router]);
 
-  const swipe = useTabNavigationSwipe('/(tabs)/(arbeiten)');
   const viewToggle = <ViewModeToggle mode={viewMode} onChange={setViewMode} />;
 
-  const backdrop = isDark ? undefined : (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.flatBg]} />
-  );
-
   return (
-    <ScreenScaffold
-      title="Arbeiten"
-      titleNode={<WorkplaceTopTabs active="arbeiten" />}
-      backdrop={backdrop}
-    >
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      <GestureDetector gesture={swipe}>
-        <ScrollView
-          contentContainerStyle={[gridColumn, styles.content, { paddingBottom: bottomClearance }]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => void handleRefresh()}
-              tintColor={colors.primary[600]}
-              colors={[colors.primary[600]]}
-            />
-          }
-        >
-          <ToolSquareGrid tools={tiles} availableWidth={gridWidth} row blocksGesture={swipe} />
+    <>
+      <ScrollView
+        contentContainerStyle={[gridColumn, styles.content, { paddingBottom: bottomClearance }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void handleRefresh()}
+            tintColor={colors.primary[600]}
+            colors={[colors.primary[600]]}
+          />
+        }
+      >
+        <ToolSquareGrid tools={tiles} availableWidth={gridWidth} row />
 
-          {searchOpen ? (
-            <View style={styles.section}>
-              <WorkplaceSearchBar
-                value={searchQuery}
-                onChange={setSearchQuery}
-                onClose={closeSearch}
-                trailing={viewToggle}
-              />
-              {searching && (
-                <Text style={[styles.searchStatus, { color: theme.textSecondary }]}>
-                  {officeSearch.isError
-                    ? 'Die Dokumentsuche ist fehlgeschlagen.'
-                    : officeSearch.isSearching
-                      ? 'Suche…'
-                      : !officeSearch.active
-                        ? 'Dokumente ab 2 Zeichen'
-                        : noHits
-                          ? `Keine Treffer für „${searchQuery.trim()}“`
-                          : null}
-                </Text>
-              )}
-            </View>
-          ) : (
-            <>
+        {searchOpen ? (
+          <View style={styles.section}>
+            <WorkplaceSearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              onClose={closeSearch}
+              trailing={viewToggle}
+            />
+            {searching && (
+              <Text style={[styles.searchStatus, { color: theme.textSecondary }]}>
+                {officeSearch.isError
+                  ? 'Die Dokumentsuche ist fehlgeschlagen.'
+                  : officeSearch.isSearching
+                    ? 'Suche…'
+                    : !officeSearch.active
+                      ? 'Dokumente ab 2 Zeichen'
+                      : noHits
+                        ? `Keine Treffer für „${searchQuery.trim()}“`
+                        : null}
+              </Text>
+            )}
+          </View>
+        ) : (
+          <>
+            <RecentItemsSection
+              title="Zuletzt"
+              headerRight={
+                <View style={styles.headerControls}>
+                  <Pressable
+                    onPress={() => setSearchOpen(true)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Arbeiten durchsuchen"
+                    style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+                  >
+                    <Ionicons name="search" size={22} color={theme.text} />
+                  </Pressable>
+                  {viewToggle}
+                </View>
+              }
+              items={recentList.items}
+              isLoading={recent.isLoading}
+              style={styles.section}
+              viewMode={viewMode}
+              onOpen={openRecent}
+            />
+            {recentList.toggle}
+          </>
+        )}
+
+        {!searching && accountEmpty ? (
+          <EmptyState
+            style={styles.section}
+            tiles={EMPTY_TILE_KINDS.map((kind) => ({
+              glyph: officeIconFor(kind),
+              ...officeTypeColor(kind, isDark),
+            }))}
+            title="Noch nichts erstellt"
+            description="Dokumente, Präsentationen, Tabellen, Boards, Sharepics, KI-Bilder und Reels sammeln sich hier — alles an einem Ort."
+            actions={emptyActions}
+          />
+        ) : null}
+
+        {!searching && showDocsError && (
+          <View style={styles.section}>
+            <LoadErrorNotice
+              title="Dokumente konnten nicht geladen werden"
+              description="Dokumente, Tabellen, Präsentationen und Boards liegen weiter auf dem Server."
+              onRetry={() => void handleRefresh()}
+            />
+          </View>
+        )}
+        {OFFICE_SECTIONS.map((section) => {
+          const list = capped(section.kind, officeGroups[section.kind], SECTION_LIMIT);
+          return (
+            <View key={section.kind}>
               <RecentItemsSection
-                title="Zuletzt"
-                headerRight={
-                  <View style={styles.headerControls}>
-                    <Pressable
-                      onPress={() => setSearchOpen(true)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Arbeiten durchsuchen"
-                      style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-                    >
-                      <Ionicons name="search" size={22} color={theme.text} />
-                    </Pressable>
-                    {viewToggle}
-                  </View>
-                }
-                items={recentList.items}
-                isLoading={recent.isLoading}
+                title={section.title}
+                items={list.items.map(toRecentItem)}
+                isLoading={!searching && officeLoading}
+                style={styles.section}
+                viewMode={viewMode}
+                onOpen={openOffice}
+                {...(isDocFamily(section.kind) && { onActions: openActions })}
+              />
+              {list.toggle}
+            </View>
+          );
+        })}
+
+        {!searching && showMediaError && (
+          <View style={styles.section}>
+            <LoadErrorNotice
+              title="Deine Medien konnten nicht geladen werden"
+              description="Sharepics, KI-Bilder und Reels liegen weiterhin auf dem Server — hier fehlt nur die Verbindung."
+              onRetry={studio.refetch}
+            />
+          </View>
+        )}
+        {mediaSections.map((section) => {
+          const list = capped(section.key, section.items, SECTION_LIMIT);
+          return (
+            <View key={section.key}>
+              <RecentItemsSection
+                title={section.title}
+                items={list.items}
+                isLoading={!searching && studio.isLoading}
+                accent={getToolTheme(section.tone, isDark).icon}
                 style={styles.section}
                 viewMode={viewMode}
                 onOpen={openRecent}
               />
-              {recentList.toggle}
-            </>
-          )}
-
-          {!searching && accountEmpty ? (
-            <EmptyState
-              style={styles.section}
-              tiles={EMPTY_TILE_KINDS.map((kind) => ({
-                glyph: officeIconFor(kind),
-                ...officeTypeColor(kind, isDark),
-              }))}
-              title="Noch nichts erstellt"
-              description="Dokumente, Präsentationen, Tabellen, Boards, Sharepics, KI-Bilder und Reels sammeln sich hier — alles an einem Ort."
-              actions={emptyActions}
-            />
-          ) : null}
-
-          {!searching && showDocsError && (
-            <View style={styles.section}>
-              <LoadErrorNotice
-                title="Dokumente konnten nicht geladen werden"
-                description="Dokumente, Tabellen, Präsentationen und Boards liegen weiter auf dem Server."
-                onRetry={() => void handleRefresh()}
-              />
+              {list.toggle}
             </View>
-          )}
-          {OFFICE_SECTIONS.map((section) => {
-            const list = capped(section.kind, officeGroups[section.kind], SECTION_LIMIT);
-            return (
-              <View key={section.kind}>
-                <RecentItemsSection
-                  title={section.title}
-                  items={list.items.map(toRecentItem)}
-                  isLoading={!searching && officeLoading}
-                  style={styles.section}
-                  viewMode={viewMode}
-                  onOpen={openOffice}
-                  {...(isDocFamily(section.kind) && { onActions: openActions })}
-                />
-                {list.toggle}
-              </View>
-            );
-          })}
-
-          {!searching && showMediaError && (
-            <View style={styles.section}>
-              <LoadErrorNotice
-                title="Deine Medien konnten nicht geladen werden"
-                description="Sharepics, KI-Bilder und Reels liegen weiterhin auf dem Server — hier fehlt nur die Verbindung."
-                onRetry={studio.refetch}
-              />
-            </View>
-          )}
-          {mediaSections.map((section) => {
-            const list = capped(section.key, section.items, SECTION_LIMIT);
-            return (
-              <View key={section.key}>
-                <RecentItemsSection
-                  title={section.title}
-                  items={list.items}
-                  isLoading={!searching && studio.isLoading}
-                  accent={getToolTheme(section.tone, isDark).icon}
-                  style={styles.section}
-                  viewMode={viewMode}
-                  onOpen={openRecent}
-                />
-                {list.toggle}
-              </View>
-            );
-          })}
-        </ScrollView>
-      </GestureDetector>
+          );
+        })}
+      </ScrollView>
 
       <Fab
         icon="add"
@@ -569,7 +552,7 @@ export function WorkplaceArbeitenScreen() {
           onDelete={() => handleDelete(activeDoc.id, activeDoc.title)}
         />
       )}
-    </ScreenScaffold>
+    </>
   );
 }
 
@@ -600,9 +583,5 @@ const styles = StyleSheet.create({
     fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
-  },
-  // Web's Arbeiten tab tint (bg-[#F7FBF8]); dark keeps the app gradient.
-  flatBg: {
-    backgroundColor: '#F7FBF8',
   },
 });

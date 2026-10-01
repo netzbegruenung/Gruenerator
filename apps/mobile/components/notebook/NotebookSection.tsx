@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 
 import { getNotebookCover } from '../../config/notebookCovers';
 import { type MobileNotebookEntry } from '../../config/notebooksConfig';
-import { spacing, lightTheme, darkTheme } from '../../theme';
+import { spacing, lightTheme, darkTheme, HEADING_FONT_BOLD } from '../../theme';
 
 import { NotebookTile, notebookTileGridStyle, useNotebookTileGrid } from './NotebookTile';
 
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.large,
   },
   sectionTitle: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 17,
     marginBottom: spacing.small,
   },

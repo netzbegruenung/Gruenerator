@@ -1,4 +1,4 @@
-import { type TextStyle } from 'react-native';
+import { Platform, type TextStyle } from 'react-native';
 
 import { typeScale } from './scale';
 
@@ -12,40 +12,56 @@ import { typeScale } from './scale';
  *
  * The two faces are linked into the native projects by the `expo-font` config
  * plugin (see `app.json`) as one family with weights 400 and 700, which is why
- * `fontWeight` works here — the platform picks the face. Raleway takes the other
- * route: `useFonts` loads it at runtime, one family name per weight
- * (`Raleway_700Bold`), and setting `fontWeight` on it does nothing.
+ * `fontWeight` works here — the platform picks the face.
  *
  * Because it is linked rather than loaded, PT Sans needs a native rebuild to
  * appear, and it is available before the first render — no splash-screen gate.
  */
 export const BODY_FONT = 'PT Sans';
 
+/**
+ * Raleway, the heading face — one name per weight, and `fontWeight` on it does
+ * nothing.
+ *
+ * Linked like PT Sans, but as plain files rather than a family: Android names a
+ * plain font after its file, iOS after its PostScript name, hence the select.
+ * Only these two weights are in the binary; add the file to `assets/fonts` and
+ * `app.json` before reaching for another.
+ */
+export const HEADING_FONT_BOLD = Platform.select({
+  ios: 'Raleway-Bold',
+  default: 'Raleway_700Bold',
+});
+export const HEADING_FONT_SEMIBOLD = Platform.select({
+  ios: 'Raleway-SemiBold',
+  default: 'Raleway_600SemiBold',
+});
+
 export const typography = {
   // Headings - Raleway (matches web)
   h1: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: typeScale(32),
     lineHeight: typeScale(40),
     letterSpacing: -0.5,
   } as TextStyle,
 
   h2: {
-    fontFamily: 'Raleway_600SemiBold',
+    fontFamily: HEADING_FONT_SEMIBOLD,
     fontSize: typeScale(24),
     lineHeight: typeScale(32),
     letterSpacing: -0.3,
   } as TextStyle,
 
   h3: {
-    fontFamily: 'Raleway_600SemiBold',
+    fontFamily: HEADING_FONT_SEMIBOLD,
     fontSize: typeScale(20),
     lineHeight: typeScale(28),
     letterSpacing: -0.2,
   } as TextStyle,
 
   h4: {
-    fontFamily: 'Raleway_600SemiBold',
+    fontFamily: HEADING_FONT_SEMIBOLD,
     fontSize: typeScale(18),
     lineHeight: typeScale(24),
   } as TextStyle,

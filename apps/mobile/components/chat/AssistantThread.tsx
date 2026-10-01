@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useContentColumn } from '../../hooks/useLayout';
 import { useTheme } from '../../hooks/useTheme';
-import { spacing, BODY_FONT, typeScale } from '../../theme';
+import { spacing, BODY_FONT, typeScale, HEADING_FONT_BOLD } from '../../theme';
 import {
   COMPOSER_BOTTOM_INSET,
   COMPOSER_BOTTOM_INSET_RAISED,
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SCREEN_EDGE,
   },
   emptyTitle: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 28,
   },
   emptyDescription: {

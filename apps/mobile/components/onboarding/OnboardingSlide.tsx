@@ -7,7 +7,15 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+import {
+  colors,
+  spacing,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+  HEADING_FONT_BOLD,
+} from '../../theme';
 
 /**
  * A single onboarding page: an animated illustration inside a eucalyptus-tinted
@@ -86,7 +94,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xlarge,
   },
   title: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 28,
     textAlign: 'center',
     marginBottom: spacing.small,

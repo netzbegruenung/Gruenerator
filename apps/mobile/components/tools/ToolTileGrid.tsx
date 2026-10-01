@@ -1,6 +1,13 @@
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+import {
+  colors,
+  spacing,
+  lightTheme,
+  darkTheme,
+  HEADING_FONT_BOLD,
+  HEADING_FONT_SEMIBOLD,
+} from '../../theme';
 
 /**
  * Section heading (title + optional pill badge) — the mobile echo of the web
@@ -43,7 +50,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.small,
   },
   headingTitle: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 20,
   },
   badge: {
@@ -52,7 +59,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   badgeText: {
-    fontFamily: 'Raleway_600SemiBold',
+    fontFamily: HEADING_FONT_SEMIBOLD,
     fontSize: 12,
   },
 });

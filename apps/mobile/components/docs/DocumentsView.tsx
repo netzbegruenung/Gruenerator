@@ -19,7 +19,14 @@ import {
 import { useContentColumn, useLayout } from '../../hooks/useLayout';
 import { useTabBarClearance } from '../../hooks/useTabBarClearance';
 import { useDocsStore } from '../../stores/docsStore';
-import { lightTheme, darkTheme, colors, spacing, BODY_FONT } from '../../theme';
+import {
+  lightTheme,
+  darkTheme,
+  colors,
+  spacing,
+  BODY_FONT,
+  HEADING_FONT_SEMIBOLD,
+} from '../../theme';
 import { gridColumns } from '../../theme/layout';
 import { officeTypeColor } from '../../theme/officeColors';
 import { getSurfaceFab } from '../../theme/toolTheme';
@@ -678,7 +685,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   errorTitle: {
-    fontFamily: 'Raleway_600SemiBold',
+    fontFamily: HEADING_FONT_SEMIBOLD,
     fontSize: 18,
     marginTop: 16,
     marginBottom: 24,
