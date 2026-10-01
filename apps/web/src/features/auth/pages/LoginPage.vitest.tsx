@@ -52,8 +52,7 @@ describe('LoginPage (standalone) — Land erkannt', () => {
     expect(toggle).toHaveTextContent(/anbieter ausblenden/i);
     expect(screen.getByRole('list')).toBeInTheDocument();
     // Nur die `enabledByDefault`-Anbieter — gleiche Regel wie StartpageHero.
-    // Grünerator und Netzbegrünung sind Deeplink-Anbieter und tauchen hier
-    // nicht auf; der Deeplink-Fall wird unten eigens geprüft.
+    // Grünerator ist ein Deeplink-Anbieter und taucht hier nicht auf; der Deeplink-Fall wird unten eigens geprüft.
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
     expect(screen.queryByRole('button', { name: /grünerator login/i })).not.toBeInTheDocument();
 

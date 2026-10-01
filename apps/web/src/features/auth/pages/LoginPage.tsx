@@ -164,15 +164,6 @@ const LoginPage = ({
       }
     : undefined;
 
-  // Netzbegrünung is no longer part of the default provider set; it stays
-  // reachable only via the special link /login?provider=netzbegruenung, which
-  // re-adds it alongside the defaults. (The standalone screen below uses its
-  // own, newer provider-detection mechanism — see primaryProviderId.)
-  const requiredEnabledProviders: LoginProviderId[] | undefined =
-    new URLSearchParams(location.search).get('provider') === 'netzbegruenung'
-      ? ['gruenes-netz', 'gruene-oesterreich', 'netzbegruenung']
-      : undefined;
-
   // Same mechanism as the public start page (StartpageHero): a remembered or
   // deep-linked provider wins, else the timezone decides the country. Only one
   // provider card is shown up front; "Anderer Anbieter" reveals the rest.
@@ -186,9 +177,7 @@ const LoginPage = ({
     const loginParam = params.get('login');
     const deepLinked = LOGIN_PROVIDERS.some((p) => p.id === loginParam)
       ? (loginParam as LoginProviderId)
-      : params.get('provider') === 'netzbegruenung'
-        ? ('netzbegruenung' as LoginProviderId)
-        : null;
+      : null;
     const primary = deepLinked ?? getRememberedProvider() ?? detectCountryProviderId();
     return { primaryProviderId: primary, providersInitiallyOpen: deepLinked !== null };
   });
@@ -248,7 +237,6 @@ const LoginPage = ({
   const requiredLoginProviders = (
     <>
       <LoginProviders
-        enabledProviders={requiredEnabledProviders}
         redirectTo={intendedRedirect}
         apiBaseUrl={AUTH_BASE_URL}
         disabled={isAuthenticating}

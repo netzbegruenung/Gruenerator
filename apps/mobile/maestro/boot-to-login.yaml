@@ -53,8 +53,6 @@ appId: de.gruenerator.app
     id: 'login-provider-gruenes-netz'
 - assertVisible:
     id: 'login-provider-gruene-oesterreich'
-- assertVisible:
-    id: 'login-provider-netzbegruenung'
 
 # Der Grünerator-Login ist gesperrt und bleibt es auch mit offener Liste. Das
 # ist die Zusicherung, die zählt: fällt sie, sehen ihn alle Mitglieder.
