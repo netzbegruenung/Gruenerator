@@ -132,7 +132,7 @@ function render(blocks) {
 // =========================================================================
 const content = [
   { title: 'Leistungsvereinbarung und Vereinbarung zur Auftragsverarbeitung' },
-  { p: '**Muster** – Stand: 2. September 2026' },
+  { p: '**Muster** – Stand: 1. Oktober 2026' },
   {
     p: 'Dieses Dokument besteht aus der Leistungsvereinbarung (Teil A), der ihr als Anlage beigefügten Vereinbarung zur Auftragsverarbeitung (Teil B) sowie den zugehörigen Anhängen (Weisungsbefugnis, technisch-organisatorische Maßnahmen, Subunternehmen).',
   },
@@ -152,13 +152,13 @@ const content = [
     p: '(1) Gegenstand dieser Vereinbarung ist die Bereitstellung und Nutzung der KI-gestützten Content-Erstellungsplattform **GRUENERATOR** (erreichbar unter [[https://gruenerator.eu|https://gruenerator.eu]]) durch den Auftragnehmer für den Auftraggeber.',
   },
   {
-    p: '(2) Der Auftragnehmer stellt die Plattform im Auftrag und in Zusammenarbeit mit der [[netzbegrünung – Verein für grüne Netzkultur e.V.|https://netzbegruenung.de/]] bereit.',
+    p: '(2) Der Auftragnehmer stellt die Plattform im Auftrag und in Zusammenarbeit mit der [[verdigado eG|https://verdigado.com/]] bereit.',
   },
 
   { h: 3, text: '§ 2 Leistungsbeschreibung' },
   { p: '(1) Die Plattform bietet insbesondere folgende Funktionen:' },
   {
-    li: '**KI-Textgenerierung:** Erstellung von Pressemitteilungen, Social-Media-Beiträgen, Reden und weiteren Texten. Im Chat ist das Modell wählbar (Voreinstellung „Automatisch"); bei den übrigen Generatorfunktionen ist der Dienstleister je Funktionstyp fest vorgegeben. Eingesetzt werden ausschließlich Dienstleister mit Verarbeitung in der EU (Mistral AI/FR, eigene KI-Modelle der netzbegrünung e.V./EU, GreenPT BV/NL mit Verarbeitung in FR; Mistral Medium 3.5 läuft auf Rechenleistung von Scaleway/FR)',
+    li: '**KI-Textgenerierung:** Erstellung von Pressemitteilungen, Social-Media-Beiträgen, Reden und weiteren Texten. Im Chat ist das Modell wählbar (Voreinstellung „Automatisch"); bei den übrigen Generatorfunktionen ist der Dienstleister je Funktionstyp fest vorgegeben. Eingesetzt werden ausschließlich Dienstleister mit Verarbeitung in der EU (Mistral AI/FR, GreenPT BV/NL mit Verarbeitung in FR; Mistral Medium 3.5 läuft auf Rechenleistung von Scaleway/FR)',
   },
   {
     li: '**Bildbearbeitung und -generierung:** Sharepics und Grafiken (Grünerator Imagine, FLUX-Modell von Black Forest Labs; Verarbeitung in der EU)',
@@ -313,7 +313,7 @@ const content = [
     p: '(9) Der Verantwortliche führt das Verzeichnis von Verarbeitungstätigkeiten i. S. d. Art. 30 Abs. 1 DSGVO. Der Auftragsverarbeiter führt entsprechend den Vorgaben des Art. 30 Abs. 2 DSGVO ein Verzeichnis zu allen Kategorien von im Auftrag des Verantwortlichen durchgeführten Tätigkeiten.',
   },
   {
-    p: '(10) **Verarbeitungsort:** Die Verarbeitung der Daten im Auftrag des Verantwortlichen findet ausschließlich auf dem Gebiet der Europäischen Union (EU) bzw. des Europäischen Wirtschaftsraumes (EWR) statt (insb. Deutschland, Frankreich, Finnland, Italien, die Niederlande und Polen). Dies gilt auch für die eingesetzten KI-Dienstleister. Eine Übermittlung personenbezogener Daten in Drittländer findet nicht statt. Selbst gehostete Dienste (z. B. Fehlermonitoring mit GlitchTip, Metasuche mit SearXNG) werden auf eigenen bzw. von der netzbegrünung betriebenen EU-Servern ausgeführt.',
+    p: '(10) **Verarbeitungsort:** Die Verarbeitung der Daten im Auftrag des Verantwortlichen findet ausschließlich auf dem Gebiet der Europäischen Union (EU) bzw. des Europäischen Wirtschaftsraumes (EWR) statt (insb. Deutschland, Frankreich, Finnland, Italien, die Niederlande und Polen). Dies gilt auch für die eingesetzten KI-Dienstleister. Eine Übermittlung personenbezogener Daten in Drittländer findet nicht statt. Selbst gehostete Dienste (z. B. Fehlermonitoring mit GlitchTip, Metasuche mit SearXNG) werden auf eigenen bzw. von der verdigado eG betriebenen EU-Servern ausgeführt.',
   },
   {
     p: '(11) Der Auftragsverarbeiter gewährleistet, dass ihm unterstellte natürliche Personen, die Zugang zu Daten haben, diese nur auf Anweisung des Verantwortlichen verarbeiten. Telearbeit/Home Office ist unter Einhaltung angemessener TOM zulässig.',
@@ -436,7 +436,7 @@ const content = [
         [
           '2',
           'Vertraulichkeit / Integrität',
-          'Härtung der Server (Hetzner/netzbegrünung); Firewalling; Patch-Management; Datentrennung durch Mandantenfähigkeit (Keycloak).',
+          'Härtung der Server (Hetzner/verdigado); Firewalling; Patch-Management; Datentrennung durch Mandantenfähigkeit (Keycloak).',
         ],
         [
           '3',
@@ -495,10 +495,10 @@ const content = [
           'Verarbeitung in DE (EU); ISO-27001 zertifiziert.',
         ],
         [
-          'netzbegrünung – Verein für grüne Netzkultur e.V.',
-          'Deutschland',
+          'verdigado eG',
+          'Heilig-Kreuz-Straße 16, 86609 Donauwörth, DE',
           'Ausstehend',
-          'Infrastruktur, eigene KI-Modelle, Datenbanken, Vektorsuche, Authentifizierung',
+          'Infrastruktur, Datenbanken, Vektorsuche, Authentifizierung',
           'Verarbeitung in DE/Finnland (EU).',
         ],
         [
