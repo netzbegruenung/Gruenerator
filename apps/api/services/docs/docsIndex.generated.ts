@@ -1929,7 +1929,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Beiträge, Erwähnungen und Benachrichtigungen",
     "anchor": "#beiträge-erwähnungen-und-benachrichtigungen",
     "category": "Guides",
-    "text": "Im Feed einer Gruppe kannst du Beiträge schreiben und kommentieren. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder der Gruppe. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt. Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter Benachrichtigungen ein. „Benachrichtigungen stummschalten“ im Drei-Punkte-Menü der Gruppe stoppt die E-Mails dieser Gruppe; in der Glocke erscheinen sie weiterhin."
+    "text": "Im Feed einer Gruppe öffnet „Schreib etwas an die Gruppe …“ den Beitragseditor. Schreibe deinen Text, hänge bei Bedarf über „Dateien“ Anhänge an und klicke auf „Posten“. Ein Beitrag darf bis zu 5.000 Zeichen und zehn Dateien mit jeweils höchstens 25 MiB enthalten; auch ein Beitrag nur mit Dateien ist möglich. Über die Sprechblase unter einem Beitrag oder geteilten Inhalt öffnest du die Kommentare. Schreibe ins Kommentarfeld und klicke auf „Senden“. Auf vorhandene Kommentare kannst du antworten; Antworten werden als Thread zusammengefasst. Kommentare dürfen bis zu 2.000 Zeichen enthalten. Über das Stecknadel-Symbol können Admins bis zu drei Einträge anheften. Eine weitere Anheftung löst die älteste. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder der Gruppe. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt. Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -1937,7 +1937,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Ein Notebook hinzufügen",
     "anchor": "#ein-notebook-hinzufügen",
     "category": "Guides",
-    "text": "Klicke neben „Geteilte Inhalte“ auf das Plus. Der Button heißt für Hilfstechnologien „Inhalte hinzufügen“. Wähle „Notebooks“. Klicke auf das Notebook, das du freigeben möchtest. Ein Häkchen zeigt die Auswahl an. Du kannst auch mehrere Notebooks auswählen. Klicke unten rechts auf „1 hinzufügen“. Bei mehreren ausgewählten Inhalten passt sich die Zahl automatisch an. Das Notebook erscheint danach im Abschnitt „Geteilte Inhalte“. Mitglieder des Projekts können es dort öffnen und lesen; durch das Hinzufügen erhalten sie keine Schreibrechte am Notebook."
+    "text": "Klicke oben rechts auf „Inhalte teilen“. Im geöffneten Beitragseditor erreichst du dieselbe Auswahl über „Aus meinen Inhalten“. Wähle „Notebooks“. Klicke auf das Notebook, das du freigeben möchtest. Ein Häkchen zeigt die Auswahl an. Du kannst auch mehrere Notebooks auswählen. Optional kannst du eine Notiz für die Gruppe ergänzen. Klicke unten rechts auf „1 hinzufügen“. Bei mehreren ausgewählten Inhalten passt sich die Zahl automatisch an. Das Notebook erscheint danach im Feed und unter „Alle“ im Abschnitt „Notebooks“. Mitglieder des Projekts können es dort öffnen und lesen; durch das Hinzufügen erhalten sie keine Schreibrechte am Notebook."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -1945,7 +1945,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Einladungslink kopieren",
     "anchor": "#einladungslink-kopieren",
     "category": "Guides",
-    "text": "Öffne oben rechts das Drei-Punkte-Menü „Aktionen“. Klicke auf „Einladungslink kopieren“. Der Link wird direkt in die Zwischenablage kopiert. Füge den Link in eine Nachricht an die Personen ein, die beitreten sollen. Der Link ist eine Einladung zu deinem Projekt. Teile ihn nur mit den vorgesehenen Personen. Nur Admins sehen diese Aktion. Alternativ kannst du im selben Menü „Per E-Mail einladen“ wählen."
+    "text": "Öffne oben rechts das Drei-Punkte-Menü „Gruppenoptionen“. Klicke auf „Einladungslink kopieren“. Der Link wird direkt in die Zwischenablage kopiert. Füge den Link in eine Nachricht an die Personen ein, die beitreten sollen. Der Link ist eine Einladung zu deinem Projekt. Teile ihn nur mit den vorgesehenen Personen. Nur Admins sehen diese Aktion. Alternativ kannst du im selben Menü „Per E-Mail einladen“ wählen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Feed und Inhaltsübersicht",
+    "anchor": "#feed-und-inhaltsübersicht",
+    "category": "Guides",
+    "text": "Gemeinsame Projekte haben zwei Ansichten: „Feed“ zeigt Beiträge und geteilte Inhalte, „Alle“ sortiert die Inhalte nach Art. Angeheftete Einträge stehen im Feed oben. Über das Suchfeld findest du Inhalte anhand von Titel, Notiz, Beitragstext oder Dateinamen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -1961,7 +1969,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Inhalte wieder entfernen",
     "anchor": "#inhalte-wieder-entfernen",
     "category": "Guides",
-    "text": "Als Admin kannst du einen geteilten Inhalt über den Entfernen-Button an seiner Karte wieder aus dem Projekt nehmen. Das löscht das ursprüngliche Notebook nicht — nur seine Freigabe im Projekt wird entfernt."
+    "text": "Als Admin kannst du einen geteilten Inhalt über das Aktionsmenü seiner Karte im Feed wieder aus dem Projekt nehmen. Das löscht das ursprüngliche Notebook nicht — nur seine Freigabe im Projekt wird entfernt."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -1985,7 +1993,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn etwas fehlt",
     "anchor": "#wenn-etwas-fehlt",
     "category": "Guides",
-    "text": "Kein Einladungslink im Menü? Dann handelt es sich wahrscheinlich um ein persönliches Projekt oder du bist kein Admin. Einladungen gibt es nur bei gemeinsamen Projekten. „Notebooks“ wird nicht angeboten? Die Auswahl zeigt nur Kategorien, in denen dir Inhalte zur Verfügung stehen. Erstelle zunächst eines oder prüfe, ob du Zugriff auf ein Notebook hast. Das Plus bei „Geteilte Inhalte“ fehlt? Nur Admins können Inhalte hinzufügen oder entfernen."
+    "text": "Kein Einladungslink im Menü? Dann handelt es sich wahrscheinlich um ein persönliches Projekt oder du bist kein Admin. Einladungen gibt es nur bei gemeinsamen Projekten. „Notebooks“ wird nicht angeboten? Die Auswahl zeigt nur Kategorien, in denen dir Inhalte zur Verfügung stehen. Erstelle zunächst eines oder prüfe, ob du Zugriff auf ein Notebook hast. „Inhalte teilen“ fehlt? Im System-Projekt „Grünerator“ dürfen nur Instanz-Admins Inhalte teilen und Beiträge schreiben. In normalen gemeinsamen Projekten dürfen Mitglieder teilen; Entfernen geteilter Inhalte bleibt eine Admin-Aktion."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",
