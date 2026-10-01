@@ -137,7 +137,8 @@
       "./config/withBlockedAndroidMediaPermissions"
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "reactCompiler": true
     },
     "extra": {
       "router": {},
