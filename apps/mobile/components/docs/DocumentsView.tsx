@@ -559,12 +559,13 @@ export function DocumentsView({
         }}
       />
 
-      {/* Document share/actions modal — reuses the same share modal as the editor */}
+      {/* Document share/actions modal */}
       {activeDoc && (
         <NativeShareModal
           visible={true}
           onClose={() => setActiveDoc(null)}
           documentId={activeDoc.id}
+          documentTitle={activeDoc.title}
           userDisplayName={user?.display_name ?? undefined}
           isOwner={true}
           onDelete={() => handleDelete(activeDoc.id, activeDoc.title)}

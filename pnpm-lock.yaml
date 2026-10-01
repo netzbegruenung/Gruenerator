@@ -780,9 +780,6 @@ importers:
       '@gruenerator/chat':
         specifier: workspace:*
         version: link:../../packages/chat
-      '@gruenerator/collab':
-        specifier: workspace:*
-        version: link:../../packages/collab
       '@gruenerator/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

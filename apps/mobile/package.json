@@ -39,7 +39,6 @@
     "@expo/react-native-action-sheet": "^4.1.1",
     "@expo/ui": "~57.0.17",
     "@gruenerator/chat": "workspace:*",
-    "@gruenerator/collab": "workspace:*",
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/docs": "workspace:^",
     "@gruenerator/shared": "workspace:*",
