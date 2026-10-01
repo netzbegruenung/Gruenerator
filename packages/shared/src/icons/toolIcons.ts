@@ -15,7 +15,8 @@
  * Keys name the glyph, not the tool, so two tools can share one and the mapping
  * below stays the only place a tool's icon is chosen.
  */
-export type ToolIconKey = 'spy' | 'userGroup' | 'scan' | 'paintBrush' | 'magic' | 'videoCamera';
+export type ToolIconKey =
+  'spy' | 'userGroup' | 'scan' | 'paintBrush' | 'magic' | 'videoCamera' | 'book';
 
 /**
  * Tool id → glyph. Ids are the shared ones (F1-frozen on mobile, where
@@ -28,6 +29,7 @@ export const TOOL_ICON_KEYS = {
   vorlagen: 'paintBrush',
   'ki-bildgenerierung': 'magic',
   reel: 'videoCamera',
+  wissen: 'book',
 } as const satisfies Record<string, ToolIconKey>;
 
 export type ToolIconId = keyof typeof TOOL_ICON_KEYS;

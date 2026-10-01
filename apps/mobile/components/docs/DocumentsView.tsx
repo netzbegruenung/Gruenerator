@@ -1,4 +1,4 @@
-import { templates, type DocumentTemplate } from '@gruenerator/docs/templates';
+import { templates } from '@gruenerator/docs/templates';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
@@ -38,6 +38,7 @@ import {
 import { CreateDocSheet } from './CreateDocSheet';
 import { toDocListItems } from './docListItems';
 import { NativeShareModal } from './NativeShareModal';
+import { useDocCreation } from './useDocCreation';
 
 /**
  * One formatter for the whole list. `toLocaleDateString` builds a fresh
@@ -245,16 +246,17 @@ export function DocumentsView({
   const isLoading = useDocsStore((s) => s.isLoading);
   const error = useDocsStore((s) => s.error);
   const fetchDocuments = useDocsStore((s) => s.fetchDocuments);
-  const createDocument = useDocsStore((s) => s.createDocument);
-  const generateDocument = useDocsStore((s) => s.generateDocument);
   const deleteDocument = useDocsStore((s) => s.deleteDocument);
-  const clearError = useDocsStore((s) => s.clearError);
   const prefetchRecentDocs = useDocsStore((s) => s.prefetchRecentDocs);
   const fabTones = getSurfaceFab('arbeiten', colorScheme === 'dark');
   const fabBottom = useTabBarClearance(spacing.medium);
   const [createOpen, setCreateOpen] = useState(false);
   const [createTemplates, setCreateTemplates] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const {
+    isCreating,
+    createFromTemplate: handleSelectTemplate,
+    generate: handleGenerate,
+  } = useDocCreation(() => setCreateOpen(false));
   const [activeDoc, setActiveDoc] = useState<{ id: string; title: string } | null>(null);
 
   // Sheets/presentations already arrive in `documents` via /docs — the subtype
@@ -274,49 +276,6 @@ export function DocumentsView({
   const handleRefresh = useCallback(() => {
     void fetchDocuments();
   }, [fetchDocuments]);
-
-  const handleSelectTemplate = async (template: DocumentTemplate) => {
-    if (isCreating) return;
-    setIsCreating(true);
-    setCreateOpen(false);
-    try {
-      const doc = await createDocument(
-        template.defaultTitle,
-        template.id === 'blank' ? undefined : template.id
-      );
-      if (doc) {
-        router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: doc.id } });
-      } else {
-        // The store swallows the failure into `error`; clearing it keeps a failed
-        // create from replacing the whole list with the load-error screen.
-        clearError();
-        Alert.alert('Fehler', 'Dokument konnte nicht erstellt werden.');
-      }
-    } catch {
-      Alert.alert('Fehler', 'Dokument konnte nicht erstellt werden.');
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  const handleGenerate = async (description: string) => {
-    if (isCreating) return;
-    setIsCreating(true);
-    setCreateOpen(false);
-    try {
-      const doc = await generateDocument(description);
-      if (doc) {
-        router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: doc.id } });
-      } else {
-        clearError();
-        Alert.alert('Fehler', 'Dokument konnte nicht generiert werden.');
-      }
-    } catch {
-      Alert.alert('Fehler', 'Dokument konnte nicht generiert werden.');
-    } finally {
-      setIsCreating(false);
-    }
-  };
 
   // Stable identities: these reach every card as props, and a fresh function per
   // render would undo the cards' `memo` exactly as the inline closures did.

@@ -17,6 +17,8 @@ import { SunriseBackground } from '../../components/common/SunriseBackground';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { ALL_TOOLS } from '../../components/tools/toolsConfig';
 import { ToolSquareGrid } from '../../components/tools/ToolSquareGrid';
+import { WorkplaceChatScreen } from '../../components/workplace/WorkplaceChatScreen';
+import { isWorkplaceLayout } from '../../config/navLayout';
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useLayout } from '../../hooks/useLayout';
 import { useTabBarClearance } from '../../hooks/useTabBarClearance';
@@ -36,6 +38,11 @@ import { mobileGreeting } from '../../utils/greeting';
 const TABLET_TOP_ANCHOR = 0.18;
 
 export default function StartScreen() {
+  return isWorkplaceLayout ? <WorkplaceChatScreen /> : <ClassicStartScreen />;
+}
+
+/** The Chat tab of the four-tab shell (`config/navLayout`). */
+function ClassicStartScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();

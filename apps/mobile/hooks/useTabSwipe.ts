@@ -2,26 +2,9 @@ import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
 
-import { route, type AppRoute } from '../types/routes';
+import { route } from '../types/routes';
 
-/**
- * The tab bar, left to right. One list, because the swipe neighbours are derived
- * from it: wiring each screen to its neighbours by hand meant four places that
- * could disagree with the bar — and did, since only two of the four screens had
- * a gesture at all.
- *
- * Must stay in the same order as the `Tabs.Screen`s in `ClassicTabLayout` /
- * `NativeTabLayout`; a swipe that lands on a different tab than the bar's
- * neighbour is worse than no swipe.
- */
-export const TAB_ORDER = [
-  '/start',
-  '/(tabs)/(arbeiten)',
-  '/(tabs)/(studio)',
-  '/(tabs)/(recherche)',
-] as const satisfies readonly AppRoute[];
-
-export type TabRoute = (typeof TAB_ORDER)[number];
+import { TAB_ORDER, tabNeighbours, type TabRoute } from './tabOrder';
 
 /** How far a drag has to travel horizontally before it counts as a swipe. */
 const DISTANCE = 60;
@@ -81,17 +64,16 @@ export function useTabNavigationSwipe(
   { onSwipeRightAtStart }: { onSwipeRightAtStart?: () => void } = {}
 ) {
   const router = useRouter();
-  const index = TAB_ORDER.indexOf(current);
-  const next = TAB_ORDER[index + 1];
-  const previous = index > 0 ? TAB_ORDER[index - 1] : undefined;
+  const { next, previous, inRow } = tabNeighbours(TAB_ORDER, current);
 
   const onSwipeLeft = useMemo(
     () => (next ? () => router.navigate(route(next)) : undefined),
     [next, router]
   );
   const onSwipeRight = useMemo(
-    () => (previous ? () => router.navigate(route(previous)) : onSwipeRightAtStart),
-    [previous, router, onSwipeRightAtStart]
+    () =>
+      previous ? () => router.navigate(route(previous)) : inRow ? onSwipeRightAtStart : undefined,
+    [previous, router, onSwipeRightAtStart, inRow]
   );
 
   return useTabSwipe({ onSwipeLeft, onSwipeRight });
