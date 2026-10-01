@@ -11,8 +11,6 @@
 
 import { type McpAuthType, type McpRegistryEntry } from '@gruenerator/contracts';
 
-import { env } from '../../config/env.js';
-
 export type { McpRegistryEntry };
 
 export interface McpRegistryPage {
@@ -43,19 +41,11 @@ interface SeedOpts {
   // `Authorization: Bearer` (Google answers that with "Expected OAuth 2 access
   // token").
   keyHeader?: string;
-  // Server-side only. Env names of a client we registered with the provider
-  // ourselves — for an AS that admits only allowlisted or portal-created
-  // clients. Unset env → dynamic registration as usual.
-  clientEnv?: { id: string; secret: string };
-  // The provider has no dynamic registration either: without `clientEnv`
-  // configured, nobody can connect, so the entry is not listed at all.
-  platformOnly?: true;
 }
 
 /** Connection details a seed carries that never go over the wire. */
 export interface SeedConnectionHints {
   keyHeader?: string;
-  clientEnv?: { id: string; secret: string };
 }
 
 // prettier-ignore
@@ -89,19 +79,11 @@ const SEEDS: Seed[] = [
   // Goodnotes serves MCP without any auth (verified 2026-07-21).
   ['Goodnotes', 'https://claude-mcp-api.ml.goodnotes.com/mcp', 'none', 'Notizen und handschriftliche Dokumente durchsuchen und verwalten.', 'https://goodnotes.com', 'Produktivität'],
   // Removed (audit 2026-07-21): IFTTT, Booking.com, Expedia — allowlisted
-  // clients only (no DCR for our domain, no public app registration); DocuSign
-  // still requires users to register their own vendor app.
-  // Zoom: OAuth without DCR or CIMD (checked 2026-10-01), so it runs on our own
-  // Marketplace app (General app, user-level OAuth). The PRM names the global
-  // host as the resource; the regional gateways answer for the same resource.
-  ['Zoom', 'https://mcp.zoom.us/mcp/zoom/streamable', 'oauth', 'Meetings planen, Aufzeichnungen und Meeting-Zusammenfassungen durchsuchen.', 'https://zoom.us', 'Kommunikation', { clientEnv: { id: 'ZOOM_MCP_CLIENT_ID', secret: 'ZOOM_MCP_CLIENT_SECRET' }, platformOnly: true }],
+  // clients only (no DCR for our domain, no public app registration); Zoom and
+  // DocuSign still require users to register their own vendor app.
   ['Yahoo Finance', 'https://gateway.mcpservers.org/yahoo-finance/mcp', 'none', 'Marktdaten, Finanznachrichten, Kennzahlen und Kursverläufe abfragen.', 'https://finance.yahoo.com', 'Finanzen'],
   ['Jotform', 'https://mcp.jotform.com/mcp-app', 'oauth', 'Formulare erstellen und Antworten auswerten.', 'https://jotform.com', 'Formulare'],
   ['Swat.io', 'https://mcp.swatio.app/mcp', 'oauth', 'Social-Media-Beiträge planen und vorbereiten (Beta; kein Direkt-Publishing).', 'https://swat.io', 'Social Media'],
-  // Canva admits portal-created or allowlisted clients only; DCR is deprecated
-  // there. Without CANVA_MCP_* set, connecting falls back to DCR and shows the
-  // manual-registration form if Canva refuses it.
-  ['Canva', 'https://mcp.canva.com/mcp', 'oauth', 'Designs erstellen, bearbeiten und exportieren, Vorlagen und Marken-Kits nutzen.', 'https://canva.com', 'Design', { clientEnv: { id: 'CANVA_MCP_CLIENT_ID', secret: 'CANVA_MCP_CLIENT_SECRET' } }],
   ['Ansvar', 'https://gateway.ansvar.eu/mcp', 'oauth', 'EU-Recht und Compliance recherchieren — mit verifizierten Zitaten und Quellenangaben.', 'https://ansvar.eu', 'Recht & Compliance'],
 ];
 
@@ -125,37 +107,8 @@ const SEED_BY_HOST = new Map(RECOMMENDED.map((e) => [e.name, e]));
 
 const HINTS_BY_HOST = new Map<string, SeedConnectionHints>(
   SEEDS.flatMap(([, url, , , , , opts]) =>
-    opts?.keyHeader || opts?.clientEnv
-      ? [
-          [
-            new URL(url).host,
-            {
-              ...(opts.keyHeader ? { keyHeader: opts.keyHeader } : {}),
-              ...(opts.clientEnv ? { clientEnv: opts.clientEnv } : {}),
-            },
-          ],
-        ]
-      : []
+    opts?.keyHeader ? [[new URL(url).host, { keyHeader: opts.keyHeader }]] : []
   )
-);
-
-/**
- * The OAuth client we registered with this host's provider ourselves, from env.
- * Read on every use — never copied into a row — so a rotated secret reaches
- * every user at once. Null when the seed has none or the env is unset.
- */
-export function platformClient(url: string): { clientId: string; clientSecret: string } | null {
-  const names = seedConnectionHints(url).clientEnv;
-  if (!names) return null;
-  // Boundary read: the seed names env keys as plain strings.
-  const vars = env as unknown as Record<string, string | undefined>;
-  const clientId = vars[names.id];
-  const clientSecret = vars[names.secret];
-  return clientId && clientSecret ? { clientId, clientSecret } : null;
-}
-
-const PLATFORM_ONLY_URLS = new Set(
-  SEEDS.filter(([, , , , , , opts]) => opts?.platformOnly).map(([, url]) => url)
 );
 
 /** Server-side connection hints for a curated host; empty for anything else. */
@@ -272,17 +225,14 @@ export class McpRegistryService {
   static async list(params: { search?: string; cursor?: string }): Promise<McpRegistryPage> {
     const term = params.search?.trim() ?? '';
     const search = term.toLowerCase();
-    const offered = RECOMMENDED.filter(
-      (e) => !PLATFORM_ONLY_URLS.has(e.url) || platformClient(e.url) !== null
-    );
     const recommended = search
-      ? offered.filter(
+      ? RECOMMENDED.filter(
           (e) =>
             e.title.toLowerCase().includes(search) ||
             e.description.toLowerCase().includes(search) ||
             (e.category?.toLowerCase().includes(search) ?? false)
         )
-      : offered;
+      : RECOMMENDED;
     // Only poll the open registry on an actual search (no firehose on load).
     const external = term
       ? await fetchOfficialRegistry(term, params.cursor)
