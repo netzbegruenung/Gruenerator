@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BackHandler,
+  Platform,
   StyleSheet,
   View,
   useColorScheme,
@@ -16,6 +17,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { SunriseBackground } from '../common/SunriseBackground';
 import { ScreenScaffold } from '../navigation/ScreenScaffold';
 import { WORKPLACE_TABS, WorkplaceTopTabs } from '../navigation/WorkplaceTopTabs';
@@ -27,17 +29,27 @@ const AnimatedPagerView = Animated.createAnimatedComponent(PagerView);
 
 const ARBEITEN = 1;
 
+/**
+ * How far past its first page the pager has to be pulled, as a share of the
+ * page width, before letting go opens the thread drawer (iOS, see below).
+ */
+const DRAWER_PULL = 0.15;
+
 type PageScrollEvent = NativeSyntheticEvent<{ position: number; offset: number }>;
 
 /**
  * The pager's live position (page index plus fraction) into a shared value, on
  * the UI thread. Reanimated hands the worklet the unwrapped native payload.
+ * `pull` keeps the furthest the current drag got past the first page (negative
+ * progress, iOS rubber band only).
  */
-function usePagerProgress(progress: SharedValue<number>) {
+function usePagerProgress(progress: SharedValue<number>, pull: SharedValue<number>) {
   return useEvent<PageScrollEvent>(
     (e) => {
       'worklet';
-      progress.set(e.position + e.offset);
+      const value = e.position + e.offset;
+      progress.set(value);
+      if (value < pull.get()) pull.set(value);
     },
     ['onPageScroll']
   );
@@ -62,6 +74,14 @@ function pageFromParam(page: string | string[] | undefined) {
  * Arbeiten is the heavy page (four queries, a long list); it mounts once the
  * Chat page is on screen, or immediately when a drag or a link asks for it.
  *
+ * The thread drawer opens with a right drag on Chat. On Android that is the
+ * Chat page's own swipe (`WorkplaceChatPage`); on iOS the pager's scroll view
+ * claims every horizontal drag, its first page included, so that swipe never
+ * starts there. iOS instead gets the rubber band at the edges (`overdrag`), and
+ * pulling Chat past `DRAWER_PULL` and letting go opens the drawer — the pull
+ * follows the finger like the pages do. ViewPager2 reports no overscroll, which
+ * is why Android keeps the gesture.
+ *
  * Both pages live in the `start` route; `/(tabs)/(arbeiten)` redirects here
  * with `?page=arbeiten`, so deep links and `router.replace` to it still land.
  */
@@ -76,7 +96,9 @@ export function WorkplacePager() {
   const [page, setPage] = useState(initialPage);
   const [arbeitenMounted, setArbeitenMounted] = useState(initialPage === ARBEITEN);
   const progress = useSharedValue(initialPage);
-  const onPageScroll = usePagerProgress(progress);
+  const pull = useSharedValue(0);
+  const onPageScroll = usePagerProgress(progress, pull);
+  const openDrawer = useDrawerStore((s) => s.openDrawer);
 
   useEffect(() => {
     if (arbeitenMounted) return;
@@ -112,7 +134,7 @@ export function WorkplacePager() {
     pagerRef.current?.setPage(index);
   }, []);
 
-  const flatStyle = useAnimatedStyle(() => ({ opacity: progress.get() }));
+  const flatStyle = useAnimatedStyle(() => ({ opacity: Math.max(progress.get(), 0) }));
   const backdrop = (
     <>
       <SunriseBackground />
@@ -142,11 +164,18 @@ export function WorkplacePager() {
         ref={pagerRef}
         style={styles.pager}
         initialPage={initialPage}
-        overdrag={false}
+        overdrag={Platform.OS === 'ios'}
         keyboardDismissMode="on-drag"
         onPageScroll={onPageScroll}
         onPageScrollStateChanged={(e) => {
-          if (e.nativeEvent.pageScrollState === 'dragging') setArbeitenMounted(true);
+          if (e.nativeEvent.pageScrollState === 'dragging') {
+            setArbeitenMounted(true);
+            pull.set(0);
+            return;
+          }
+          // Finger lifted (settling) or the scroll came to rest without one.
+          if (pull.get() < -DRAWER_PULL) openDrawer();
+          pull.set(0);
         }}
         onPageSelected={(e) => setPage(e.nativeEvent.position)}
       >

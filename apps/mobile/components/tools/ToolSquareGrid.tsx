@@ -44,9 +44,11 @@ const ROW_VISIBLE = 2.5;
  * larger than a grid tile, so on a tablet the whole row simply fits.
  *
  * Inside the workplace pager the strip is a nested horizontal scroller, and the
- * platform settles who moves: the strip scrolls first, and a drag that starts
- * where it cannot scroll any further goes to the pager. `bounces={false}` is
- * what lets iOS hand over at the edge — a bouncing strip would keep the drag.
+ * platform settles who moves. On Android (ViewPager2) the strip scrolls first
+ * and a drag that starts where it cannot scroll any further goes to the pager.
+ * iOS has no such hand-over: the strip's own pan claims every drag that starts
+ * on it, edge or not, even with bouncing off — so it keeps the bounce, which
+ * at least answers the drag; the page swipe works everywhere else.
  */
 export function ToolSquareGrid({
   tools,
@@ -123,7 +125,6 @@ export function ToolSquareGrid({
       // rather than at the column's padding.
       <ScrollView
         horizontal
-        bounces={false}
         showsHorizontalScrollIndicator={false}
         style={{ marginHorizontal: -edge }}
         contentContainerStyle={[styles.row, { paddingHorizontal: edge }]}
