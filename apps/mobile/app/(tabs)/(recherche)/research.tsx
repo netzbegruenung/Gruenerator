@@ -11,11 +11,11 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Linking,
   Keyboard,
   Modal,
 } from 'react-native';
 
+import { openUrl } from '../../../services/share';
 import {
   colors,
   spacing,
@@ -860,7 +860,7 @@ export default function ResearchScreen() {
         {results.map((result) => (
           <Pressable
             key={result.document_id}
-            onPress={() => result.source_url && Linking.openURL(result.source_url)}
+            onPress={() => result.source_url && void openUrl(result.source_url)}
             style={({ pressed }) => [
               styles.resultCard,
               {
