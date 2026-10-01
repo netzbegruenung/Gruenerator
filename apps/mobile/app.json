@@ -28,7 +28,7 @@
     },
     "android": {
       "package": "de.gruenerator.app",
-      "predictiveBackGestureEnabled": true,
+      "predictiveBackGestureEnabled": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#005538"
