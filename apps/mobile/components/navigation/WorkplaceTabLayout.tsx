@@ -2,8 +2,9 @@ import { Tabs } from 'expo-router';
 
 /**
  * The workplace shell (`config/navLayout`): the same routes as the four-tab
- * layouts, without a bar. Switching happens through the pills in
- * `WorkplaceTopTabs` and the swipe from `useTabNavigationSwipe`.
+ * layouts, without a bar. Chat and Arbeiten are not two of these routes but two
+ * pages of the pager in `start` (`WorkplacePager`); `(arbeiten)` only forwards
+ * there.
  *
  * Every group stays registered so deep links and pushes into Studio, Wissen or
  * the tools keep resolving. `backBehavior="history"` because Wissen and the

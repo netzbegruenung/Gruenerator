@@ -1,3 +1,4 @@
+import { Redirect } from 'expo-router';
 import { useState } from 'react';
 import { View, StyleSheet, useColorScheme } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
@@ -6,7 +7,6 @@ import { ViewModeToggle, type ViewMode } from '../../../components/common/ViewMo
 import { DocumentsView } from '../../../components/docs/DocumentsView';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { useOfficeExtraItems } from '../../../components/office/useOfficeExtraItems';
-import { WorkplaceArbeitenScreen } from '../../../components/workplace/WorkplaceArbeitenScreen';
 import { isWorkplaceLayout } from '../../../config/navLayout';
 import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
 
@@ -18,9 +18,17 @@ import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
  * This screen absorbed the former Office tab. On mobile the two were the same
  * list with different chrome, so Office is gone and its `extraItems` (boards +
  * canvases, which the /docs endpoint does not return) are fetched here instead.
+ *
+ * In the workplace shell Arbeiten is the second page of the pager in `start`;
+ * this route only forwards there, so links and `router.replace` to it land on
+ * that page.
  */
 export default function ArbeitenRoute() {
-  return isWorkplaceLayout ? <WorkplaceArbeitenScreen /> : <ArbeitenScreen />;
+  return isWorkplaceLayout ? (
+    <Redirect href={{ pathname: '/start', params: { page: 'arbeiten' } }} />
+  ) : (
+    <ArbeitenScreen />
+  );
 }
 
 /** The Arbeiten tab of the four-tab shell (`config/navLayout`). */

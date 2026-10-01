@@ -19,6 +19,11 @@ const VELOCITY = 550;
  * moved sideways, and `failOffsetY` hands it back the moment the finger drifts
  * down — without those a scroll that starts at a slight angle would flip tabs.
  *
+ * It only claims the directions it has a handler for. A one-sided swipe (the
+ * first tab: right opens the drawer, left goes on) that activated both ways
+ * would contest every drag the other way with whatever sits underneath — a
+ * horizontal list, or the workplace pager — for nothing.
+ *
  * `runOnJS(true)` because the callbacks navigate; there is nothing to animate on
  * the UI thread, so a worklet would only add a `runOnJS` hop.
  */
@@ -32,7 +37,10 @@ export function useTabSwipe({
   return useMemo(
     () =>
       Gesture.Pan()
-        .activeOffsetX([-20, 20])
+        // A single positive value activates on rightward drags only, a negative
+        // one on leftward drags only (RNGH's one-sided offset).
+        .activeOffsetX(onSwipeLeft && onSwipeRight ? [-20, 20] : onSwipeLeft ? -20 : 20)
+        .enabled(!!(onSwipeLeft || onSwipeRight))
         .failOffsetY([-16, 16])
         .runOnJS(true)
         .onEnd((e) => {

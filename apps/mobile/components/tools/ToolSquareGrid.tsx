@@ -1,8 +1,6 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter, type Href } from 'expo-router';
-import { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, useColorScheme } from 'react-native';
-import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler';
 
 import { useLayout } from '../../hooks/useLayout';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
@@ -45,20 +43,19 @@ const ROW_VISIBLE = 2.5;
  * in view, running out to the screen edge (the workplace Arbeiten tab). Never
  * larger than a grid tile, so on a tablet the whole row simply fits.
  *
- * `blocksGesture` is the screen's tab swipe: on the strip a horizontal drag
- * scrolls the tiles, so the swipe has to wait for the scroll to fail. Without
- * it a drag to the right switched to the Chat tab instead of scrolling back.
+ * Inside the workplace pager the strip is a nested horizontal scroller, and the
+ * platform settles who moves: the strip scrolls first, and a drag that starts
+ * where it cannot scroll any further goes to the pager. `bounces={false}` is
+ * what lets iOS hand over at the edge — a bouncing strip would keep the drag.
  */
 export function ToolSquareGrid({
   tools,
   availableWidth,
   row = false,
-  blocksGesture,
 }: {
   tools: ToolDef[];
   availableWidth?: number;
   row?: boolean;
-  blocksGesture?: GestureType;
 }) {
   const isDark = useColorScheme() === 'dark';
   const { contentWidth, edge } = useLayout();
@@ -71,12 +68,6 @@ export function ToolSquareGrid({
   const tileSize = row
     ? Math.min(Math.floor((room - GAP * Math.floor(ROW_VISIBLE)) / ROW_VISIBLE), MIN_TILE)
     : Math.floor((room - GAP * (columns - 1)) / columns);
-
-  const rowScroll = useMemo(
-    () =>
-      blocksGesture ? Gesture.Native().blocksExternalGesture(blocksGesture) : Gesture.Native(),
-    [blocksGesture]
-  );
 
   const tiles = tools.map((tool) => {
     const tone = getToolTheme(tool.id, isDark);
@@ -130,16 +121,15 @@ export function ToolSquareGrid({
     return (
       // Out to the screen edge, so the cut-off tile ends where the screen does
       // rather than at the column's padding.
-      <GestureDetector gesture={rowScroll}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginHorizontal: -edge }}
-          contentContainerStyle={[styles.row, { paddingHorizontal: edge }]}
-        >
-          {tiles}
-        </ScrollView>
-      </GestureDetector>
+      <ScrollView
+        horizontal
+        bounces={false}
+        showsHorizontalScrollIndicator={false}
+        style={{ marginHorizontal: -edge }}
+        contentContainerStyle={[styles.row, { paddingHorizontal: edge }]}
+      >
+        {tiles}
+      </ScrollView>
     );
   }
 

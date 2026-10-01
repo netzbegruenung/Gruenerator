@@ -17,12 +17,13 @@ export type TabRoute = (typeof CLASSIC_TAB_ORDER)[number];
  * a gesture at all.
  *
  * Must stay in the same order as the `Tabs.Screen`s in `ClassicTabLayout` /
- * `NativeTabLayout`, or as the pills in `WorkplaceTopTabs`; a swipe that lands
- * on a different tab than the bar's neighbour is worse than no swipe.
+ * `NativeTabLayout`; a swipe that lands on a different tab than the bar's
+ * neighbour is worse than no swipe.
+ *
+ * Empty in the workplace shell: Chat and Arbeiten are pages of one native
+ * pager there (`WorkplacePager`), which owns the swipe, so no route is in a row.
  */
-export const TAB_ORDER: readonly TabRoute[] = isWorkplaceLayout
-  ? ['/start', '/(tabs)/(arbeiten)']
-  : CLASSIC_TAB_ORDER;
+export const TAB_ORDER: readonly TabRoute[] = isWorkplaceLayout ? [] : CLASSIC_TAB_ORDER;
 
 /**
  * Left and right neighbour of `current` in `order`. A screen outside the row
