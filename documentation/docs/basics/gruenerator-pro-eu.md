@@ -27,7 +27,6 @@ apps/api/services/ai/intermediateLanes.ts, apps/api/services/search/ */}
 - **GreenPT** (Utrecht, Niederlande; Verarbeitung in Paris, Frankreich) — Anfragen einordnen und Werkzeug-Planung mit Mistral Small (Ausweichwege über Cortecs, Mistral und Melious; die Reihenfolge hängt von der Aufgabe ab), erzeugte Dateien (PDFs, Präsentationen, Tabellen, Dokumente) mit Gemma 4, das Sortieren von Suchergebnissen (Reranking) sowie der Ausweichweg für die Transkription, 100 % erneuerbare Energie
 - **Melious** (Saarbrücken, Deutschland; Gemma 4 läuft auf einem Melious-Knoten in Finnland) — Ausweichweg für Gemma 4 (Kreativtexte und Werkzeug-Planung) sowie Bilderzeugung mit FLUX 2 Klein, unter anderem für „KI-Bild erstellen“ im Sharepic-Editor
 - **DeepL** (Köln) — maschinelle Übersetzung von Texten und Dokumenten im Übersetzer und im Chat-Werkzeug `text_uebersetzen`; Dokumente werden nach dem Abruf bei DeepL gelöscht
-- **Scaleway** (Paris) — Gemma 4 (`gemma-4-26b-a4b-it`); das Zusammenfassen langer Dokumente lief hier bis August 2026 und läuft seitdem über Cortecs
 - **netzbegrünung e.V. / verdigado eG** (Deutschland / Finnland) — Infrastruktur und Datenbank. Die selbst gehostete Modell-Instanz bediente bis zum 29.08.2026 auch Sprachmodell-Anfragen; sie tut es nicht mehr (siehe [Nachhaltigkeit](./nachhaltigkeit.md))
 - **Linkup** (Paris) — Websuche mit Quellenangaben im Chat und in der Recherche
 - **SearXNG** (selbstgehostet, Deutschland) — Suche

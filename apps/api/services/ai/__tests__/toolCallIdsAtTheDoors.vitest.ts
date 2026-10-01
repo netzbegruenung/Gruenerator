@@ -44,8 +44,6 @@ vi.mock('../providerInstances.js', async (importOriginal) => {
     getLiteLLMProvider: () => fakeClient,
     getMeliousProvider: () => fakeClient,
     getCortecsProvider: () => fakeClient,
-    getScalewayProvider: () => fakeClient,
-    getScalewayTextProvider: () => fakeClient,
     getMistralProvider: () => () => capturingModel(),
     isProviderConfigured: () => true,
   };

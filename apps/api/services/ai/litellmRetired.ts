@@ -30,7 +30,8 @@
  * sein Denken über diesen Adapter als TEXT, wird also nicht einmal als
  * Reasoning abgerechnet. Dieselbe Falle steht dreimal im Repo:
  * `intermediateLanes.ts` (0 von 90 Läufen brauchbar bei `max_tokens: 16`),
- * dem inzwischen entfernten `services/mem0/config.ts` und CLAUDE.md zum Scaleway-Reasoning.
+ * dem inzwischen entfernten `services/mem0/config.ts` und dem ebenfalls entfernten
+ * direkten Scaleway-Pfad.
  *
  * Die Lane bat nie um gpt-oss. Sie war auf `trivial` gepinnt (Regolo bzw. seit
  * #3061 greenpt) und fiel durch die Kette; ein Ausweichglied antwortet immer

@@ -17,7 +17,7 @@
  *   reasoning_effort=low    → content LEER, 521 Zeichen Denken, finish=length
  *   reasoning_effort=none   → content 477 Zeichen, kein Denken, finish=stop
  *
- * WARUM EINE WHITELIST, anders als bei Scaleway. Der Scaleway-Wrapper pinnt
+ * WARUM EINE WHITELIST. Der frühere direkte Scaleway-Wrapper pinnte
  * bedingungslos, mit der ausdrücklichen Begründung, Scaleway sei "not a fan-out
  * over many backends, so there is no lane here that might reject the enum
  * value". Cortecs IST ein Fan-out, und genau dieses Risiko ist eingetreten:
@@ -161,9 +161,7 @@ export const CORTECS_UPSTREAM_HEADER = 'x-cortecs-provider';
 /**
  * Wer eine Cortecs-Anfrage tatsächlich bedient hat, für die Nutzungserfassung.
  *
- * Die Buchhaltung führt den UPSTREAM, nicht den Lane-Namen — dasselbe Muster,
- * nach dem Scaleway-geroutetes Mistral Medium unter `scaleway` landet und nicht
- * unter `mistral`. Bei einem Router ist das kein Detail: die
+ * Die Buchhaltung führt den UPSTREAM, nicht den Lane-Namen. Bei einem Router ist das kein Detail: die
  * CO₂-Koeffizienten in services/usage/energyFootprint.ts hängen am STANDORT,
  * und zwischen Scaleway (Frankreich, 24 g/kWh) und einem deutschen
  * Unterauftragnehmer (363) liegt Faktor 15. Solange die Lane `cortecs`

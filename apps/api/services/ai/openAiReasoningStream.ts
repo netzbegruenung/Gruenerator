@@ -10,7 +10,7 @@
  *   - vLLM-style hosts (Melious): `delta.reasoning_content`, gesteuert über
  *     `reasoning_effort` (`none` schaltet ab).
  *   - Cortecs: `chat_template_kwargs.enable_thinking`.
- *   - Scaleway / Ollama-style: `delta.reasoning`, on by default.
+ *   - Ollama-style: `delta.reasoning`, on by default.
  * To surface either to our UI (Reasoning/ReasoningGroup components), we bypass
  * the AI SDK for these reasoning-capable models and parse the raw SSE stream
  * ourselves, reading whichever reasoning field the upstream uses.
@@ -22,12 +22,7 @@ import { cortecsBaseUrl } from './cortecsEndpoint.js';
 import { assertSovereignUpstream, SOVEREIGN_ZDR_PROVIDERS } from './cortecsRequestPolicy.js';
 import { meliousWireModel } from './meliousThinkingFetch.js';
 import { recordModelSample } from './modelHealth.js';
-import {
-  isScalewayMistralRoutingEnabled,
-  MELIOUS_BASE_URL,
-  SCALEWAY_MISTRAL_MODELS,
-} from './providerInstances.js';
-import { scalewayBaseUrl } from './scalewayEndpoint.js';
+import { MELIOUS_BASE_URL } from './providerInstances.js';
 
 import type { ModelMessage } from 'ai';
 
@@ -56,12 +51,6 @@ interface ReasoningStreamConfig {
   apiKey: string | undefined;
   /** Extra request-body fields that switch the upstream into thinking mode. */
   bodyExtras: Record<string, unknown>;
-  /**
-   * The id the chosen upstream knows the model by, when it differs from the
-   * lane's own id. Only the Mistral lane needs this: Scaleway serves the same
-   * weights as `mistral-medium-3.5-128b`.
-   */
-  model?: string;
 }
 
 /**
@@ -122,37 +111,10 @@ const CORTECS_REASONING_MODELS = new Set(['gemma-4-31b-it']);
  */
 const MELIOUS_REASONING_MODELS = new Set(['gemma-4-31b:balanced']);
 
-/**
- * Mistral Medium 3.5 on Scaleway, when Scaleway is configured.
- *
- * The `mistral` lane is the odd one out: Scaleway is an UPSTREAM, not a
- * `ProviderName` (see routeMistralModel), so the caller still holds
- * `provider: 'mistral'` and the lane's own id — the Scaleway swap happens
- * below it. This function therefore keys on the lane, and returns the id
- * Scaleway knows the same weights by.
- *
- * Measured 2026-07-31 against all three hosts that serve these weights:
- * Scaleway streams thinking as `delta.reasoning` (a plain string), which is
- * the shape `extractDelta` already reads for Ollama/LiteLLM — so this lane
- * needs no parser work. The Mistral API, by contrast, streams
- * `delta.content` as a block ARRAY (`[{type:'thinking',…}]`) that this module
- * cannot read at all; that asymmetry is why the fallback for this lane is the
- * `@ai-sdk/mistral` path and never a raw replay (see streamForResolution).
- *
- * Ohne Scaleway-Routing (Schlüssel fehlt oder `SCALEWAY_MISTRAL_ROUTING` aus —
- * derzeit der Normalfall) gibt das null zurück und die Lane behält ihr
- * vorheriges Verhalten: Denken über die Mistral-API durchs SDK.
- */
-function scalewayReasoningModel(model: string): string | null {
-  if (!isScalewayMistralRoutingEnabled()) return null;
-  return SCALEWAY_MISTRAL_MODELS[model] ?? null;
-}
-
 export function isReasoningStreamModel(provider: string, model: string): boolean {
   if (provider === 'litellm') return LITELLM_REASONING_MODELS.has(model);
   if (provider === 'cortecs') return CORTECS_REASONING_MODELS.has(model);
   if (provider === 'melious') return MELIOUS_REASONING_MODELS.has(model);
-  if (provider === 'mistral') return scalewayReasoningModel(model) !== null;
   return false;
 }
 
@@ -161,7 +123,7 @@ export function isReasoningStreamModel(provider: string, model: string): boolean
  * body is touched. Callers may safely retry on another lane, because nothing
  * has been streamed to the user yet. A stream that dies mid-flight throws a
  * plain Error instead and must NOT be retried: the tokens are already on
- * screen. Same rule, and the same reason, as scalewayMistralFallbackFetch.
+ * screen.
  */
 export class ReasoningStreamUnavailableError extends Error {
   readonly status: number;
@@ -172,11 +134,7 @@ export class ReasoningStreamUnavailableError extends Error {
   }
 }
 
-function resolveConfig(
-  provider: string,
-  model: string,
-  effort?: ThinkingEffort
-): ReasoningStreamConfig | null {
+function resolveConfig(provider: string, effort?: ThinkingEffort): ReasoningStreamConfig | null {
   if (provider === 'cortecs') {
     return {
       endpoint: `${cortecsBaseUrl()}/chat/completions`,
@@ -204,22 +162,6 @@ function resolveConfig(
       bodyExtras: { reasoning_effort: effort ?? 'high' },
     };
   }
-  if (provider === 'mistral') {
-    const scalewayModel = scalewayReasoningModel(model);
-    if (!scalewayModel) return null;
-    return {
-      endpoint: `${scalewayBaseUrl()}/chat/completions`,
-      apiKey: env.SCALEWAY_API_KEY,
-      model: scalewayModel,
-      // Medium 3.5's dial is BINARY, and all three hosts that serve these
-      // weights reject `low`/`medium` with a 400 (measured 2026-07-31:
-      // "supported values are: ['none','high']"). `effortExtra` is therefore
-      // deliberately not spread here — reaching this module already means
-      // "thinking on", which is exactly what 'high' encodes. This is the same
-      // collapse mistralReasoningOption performs on the SDK path.
-      bodyExtras: { reasoning_effort: 'high' },
-    };
-  }
   return null;
 }
 
@@ -231,7 +173,7 @@ function resolveConfig(
 export async function* streamWithReasoning(
   params: ReasoningStreamParams
 ): AsyncGenerator<ReasoningStreamChunk, void, unknown> {
-  const config = resolveConfig(params.provider, params.model, params.effort);
+  const config = resolveConfig(params.provider, params.effort);
   if (!config) {
     throw new Error(`No reasoning-stream config for provider '${params.provider}'`);
   }
@@ -243,7 +185,7 @@ export async function* streamWithReasoning(
   }
 
   const body: Record<string, unknown> = {
-    model: config.model ?? params.model,
+    model: params.model,
     messages: params.messages,
     ...(params.maxTokens != null && { max_tokens: params.maxTokens }),
     temperature: params.temperature,

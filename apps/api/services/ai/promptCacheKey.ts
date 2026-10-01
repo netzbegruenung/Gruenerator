@@ -8,8 +8,7 @@ import { createHash } from 'node:crypto';
  * hash, not the thread id: internal UUIDs do not leave the house.
  *
  * Sent as `providerOptions.mistral.promptCacheKey`, which only `@ai-sdk/mistral`
- * reads. Every other client — including Scaleway's OpenAI-compatible one when
- * `SCALEWAY_MISTRAL_ROUTING` is on — ignores the `mistral` block, so the field
+ * reads. Every other client ignores the `mistral` block, so the field
  * never reaches a host that does not know it.
  */
 export function promptCacheKeyForThread(threadId: string | null): string | null {

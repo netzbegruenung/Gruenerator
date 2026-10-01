@@ -10,7 +10,6 @@ import {
   GREENPT_BASE_URL,
   isProviderConfigured,
 } from './providers.js';
-import { scalewayBaseUrl } from './scalewayEndpoint.js';
 import { isExcludedTextModel } from './textModelPolicy.js';
 
 const log = createLogger('modelDiscovery');
@@ -68,12 +67,9 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   // antwortete am 23.09.2026 mit HTTP 400, obwohl die Hub-Seite Bildeingabe
   // führt. Bild-Züge gehen damit an VISION_MODEL.
   'gemma-4-31b:balanced': { name: 'Gemma 4 31B', reasoning: false, vision: false },
-  // Scaleway's Gemma 4, MoE with 4B active parameters — the `heavy` stage.
-  // `reasoning: true` is the honest flag (it thinks by DEFAULT), which is
-  // exactly why its client forces `reasoning_effort: 'none'`; see
-  // scalewayThinkingFetch.ts. Vision per Scaleway's model card, recorded for
-  // the same reason as verdigado-think: without it isVisionCapable says false
-  // and the vision override would hijack image requests off this lane.
+  // Gemma 4 als MoE mit 4B aktiven Parametern — früher die `heavy`-Stufe,
+  // direkt bei Scaleway (als direkter Anbieter seit 01.10.2026 entfernt).
+  // `reasoning: true`, weil es standardmässig denkt; Vision laut Modellkarte.
   'gemma-4-26b-a4b-it': { name: 'Gemma 4 26B-A4B', reasoning: true, vision: true },
   // Verdigado/LiteLLM serves Gemma 4 under the 'verdigado-think' alias
   // (resolves server-side to gemma4:31b-ctx128k). Without this entry,
@@ -129,7 +125,6 @@ const CATEGORY_NAMES: Record<ProviderName, string> = {
   litellm: 'Cortecs (ehem. LiteLLM)',
   melious: 'Melious',
   greenpt: 'GreenPT',
-  scaleway: 'Scaleway',
   cortecs: 'Cortecs',
 };
 
@@ -138,7 +133,6 @@ const CAT_ORDER: Record<string, number> = {
   Melious: 1,
   LiteLLM: 2,
   GreenPT: 3,
-  Scaleway: 4,
 };
 
 let cachedModels: PlaygroundModel[] | null = null;
@@ -249,10 +243,6 @@ const PROVIDER_ENDPOINTS: Record<
     url: () => `${MELIOUS_BASE_URL}/models`,
     getApiKey: () => env.MELIOUS_API_KEY ?? null,
   },
-  scaleway: {
-    url: () => `${scalewayBaseUrl()}/models`,
-    getApiKey: () => env.SCALEWAY_API_KEY ?? null,
-  },
   cortecs: {
     url: () => `${cortecsBaseUrl()}/models`,
     getApiKey: () => env.CORTECS_API_KEY ?? null,
@@ -273,10 +263,10 @@ const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-medium-2604', 'mistral-smal
   .concat(['gemma-4-31b:balanced'].map((id) => enrichModel(id, 'melious')));
 
 async function discoverModels(): Promise<PlaygroundModel[]> {
-  // `greenpt`, `scaleway` und `cortecs` sind bewusst abwesend, nicht vergessen:
-  // diese Liste speist die Modellauswahl im Playground, und alle drei sind
-  // reine Backend-Lanes (cortecs bedient seit 21.08.2026 die `heavy`-Stufe,
-  // vorher scaleway). Ihr PROVIDER_ENDPOINTS-Eintrag bleibt, damit das
+  // `greenpt` und `cortecs` sind bewusst abwesend, nicht vergessen:
+  // diese Liste speist die Modellauswahl im Playground, und beide sind
+  // reine Backend-Lanes (cortecs bedient seit 21.08.2026 die `heavy`-Stufe).
+  // Ihr PROVIDER_ENDPOINTS-Eintrag bleibt, damit das
   // Aufnehmen ein Ein-Wort-Eingriff ist.
   // `litellm` ist am 29.08.2026 aus dieser Liste geflogen: sein Katalog führte
   // für uns nur zwei Denkmodelle, und beide sind stillgelegt
