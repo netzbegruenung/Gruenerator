@@ -28,6 +28,8 @@ export const userUsageDaily = pgTable(
     requests: integer('requests').notNull().default(0),
     inputTokens: bigint('input_tokens', { mode: 'number' }).notNull().default(0),
     outputTokens: bigint('output_tokens', { mode: 'number' }).notNull().default(0),
+    /** Share of `inputTokens` the provider served from its prompt cache. */
+    cachedInputTokens: bigint('cached_input_tokens', { mode: 'number' }).notNull().default(0),
     ops: integer('ops').notNull().default(0),
     /**
      * MEASURED footprint, in GreenPT's own units (watt-milliseconds, micrograms
