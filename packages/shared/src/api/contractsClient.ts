@@ -69,6 +69,7 @@ import {
   skillPromptContract,
   agentVisibilityContract,
   chunkInspectorContract,
+  connectorTestContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
   translationContract,
@@ -307,6 +308,7 @@ const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLI
 const _skillPromptClient = () => initClient(skillPromptContract, CLIENT_OPTS);
 const _agentVisibilityClient = () => initClient(agentVisibilityContract, CLIENT_OPTS);
 const _chunkInspectorClient = () => initClient(chunkInspectorContract, CLIENT_OPTS);
+const _connectorTestClient = () => initClient(connectorTestContract, CLIENT_OPTS);
 const _skillVisibilityClient = () => initClient(skillVisibilityContract, CLIENT_OPTS);
 const _instanceAdminOverviewClient = () => initClient(instanceAdminOverviewContract, CLIENT_OPTS);
 const _translationClient = () => initClient(translationContract, CLIENT_OPTS);
@@ -385,6 +387,7 @@ export interface ContractsClient {
   skillPrompt: ReturnType<typeof _skillPromptClient>;
   agentVisibility: ReturnType<typeof _agentVisibilityClient>;
   chunkInspector: ReturnType<typeof _chunkInspectorClient>;
+  connectorTest: ReturnType<typeof _connectorTestClient>;
   skillVisibility: ReturnType<typeof _skillVisibilityClient>;
   instanceAdminOverview: ReturnType<typeof _instanceAdminOverviewClient>;
   lvAdminAssignment: ReturnType<typeof _lvAdminAssignmentClient>;
@@ -475,6 +478,7 @@ export function getContractsClient(): ContractsClient {
     skillPrompt: _skillPromptClient(),
     agentVisibility: _agentVisibilityClient(),
     chunkInspector: _chunkInspectorClient(),
+    connectorTest: _connectorTestClient(),
     skillVisibility: _skillVisibilityClient(),
     instanceAdminOverview: _instanceAdminOverviewClient(),
     lvAdminAssignment: _lvAdminAssignmentClient(),

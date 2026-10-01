@@ -170,6 +170,7 @@ const LandesverbandAdminPage = lazy(
   () => import('../features/landesverband-admin/LandesverbandAdminPage')
 );
 const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
+const ConnectorTestPage = lazy(() => import('../features/admin/ConnectorTestPage'));
 // Playground stillgelegt: die Seite war der zweite Ort mit freier Modellwahl und
 // musste deshalb in der Datenschutzerklärung als Empfänger benannt werden. Die
 // Route bleibt auskommentiert, bis entschieden ist, ob sie zurückkommt.
@@ -484,6 +485,7 @@ const standardRoutes: RouteConfig[] = [
     layoutMode: 'sidebarOnly',
   },
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
+  { path: '/admin/konnektoren', component: ConnectorTestPage },
   // { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
