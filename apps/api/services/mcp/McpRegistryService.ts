@@ -9,7 +9,9 @@
  * URL. `authHint` tells the UI what to expect before connecting.
  */
 
-import { type McpRegistryEntry } from '@gruenerator/contracts';
+import { type McpAuthType, type McpRegistryEntry } from '@gruenerator/contracts';
+
+import { env } from '../../config/env.js';
 
 export type { McpRegistryEntry };
 
@@ -22,13 +24,39 @@ export interface McpRegistryPage {
 type Seed = [
   title: string,
   url: string,
-  authHint: McpRegistryEntry['authHint'],
+  authHint: McpAuthType,
   description: string,
   websiteUrl: string,
   category: string,
-  // Provider rejects DCR → user creates an app and pastes Client-ID/Secret.
-  opts?: { setupUrl: string },
+  opts?: SeedOpts,
 ];
+
+interface SeedOpts {
+  // Provider rejects DCR → user creates an app and pastes Client-ID/Secret.
+  setupUrl?: string;
+  // Further auth ways after `authHint`, e.g. a provider that offers OAuth AND
+  // API keys. The UI offers them as "Stattdessen …".
+  alt?: McpAuthType[];
+  // Where the user creates the API key for the bearer path.
+  keyUrl?: string;
+  // Server-side only. The provider wants the key raw in this header instead of
+  // `Authorization: Bearer` (Google answers that with "Expected OAuth 2 access
+  // token").
+  keyHeader?: string;
+  // Server-side only. Env names of a client we registered with the provider
+  // ourselves — for an AS that admits only allowlisted or portal-created
+  // clients. Unset env → dynamic registration as usual.
+  clientEnv?: { id: string; secret: string };
+  // The provider has no dynamic registration either: without `clientEnv`
+  // configured, nobody can connect, so the entry is not listed at all.
+  platformOnly?: true;
+}
+
+/** Connection details a seed carries that never go over the wire. */
+export interface SeedConnectionHints {
+  keyHeader?: string;
+  clientEnv?: { id: string; secret: string };
+}
 
 // prettier-ignore
 const SEEDS: Seed[] = [
@@ -36,33 +64,44 @@ const SEEDS: Seed[] = [
   ['Coda', 'https://coda.io/apis/mcp', 'oauth', 'Dokumente erstellen, Tabellen lesen und Inhalte aktualisieren.', 'https://coda.io', 'Produktivität'],
   ['monday.com', 'https://mcp.monday.com/sse', 'oauth', 'Work OS für Projekte, Aufgaben und Team-Workflows.', 'https://monday.com', 'Produktivität'],
   ['Jamie', 'https://mcp.meetjamie.ai/mcp', 'oauth', 'Meeting-Notizen durchsuchen und Action Items extrahieren.', 'https://meetjamie.ai', 'Produktivität'],
-  ['Sally', 'https://app.sally.io/api/v1/McpExternal', 'bearer', 'Termine, Aufzeichnungen, Zusammenfassungen und Transkripte abfragen.', 'https://sally.io', 'Produktivität'],
+  // OAuth-or-key providers below: discovery + DCR checked live 2026-10-01.
+  ['Sally', 'https://app.sally.io/api/v1/McpExternal', 'oauth', 'Termine, Aufzeichnungen, Zusammenfassungen und Transkripte abfragen.', 'https://sally.io', 'Produktivität', { alt: ['bearer'] }],
   ['HubSpot', 'https://app.hubspot.com/mcp/v1/http', 'bearer', 'Kontakte, Deals, Unternehmen und Marketing-Daten.', 'https://hubspot.com', 'CRM & Marketing'],
-  // websiteUrl deep-links to the API-keys page — the MCP token is created there
-  // (Account > SMTP & API > API Keys, "MCP" option checked).
-  ['Brevo', 'https://mcp.brevo.com/v1/brevo/mcp', 'bearer', 'Kontakte, E-Mail-Kampagnen, Newsletter-Listen und CRM verwalten.', 'https://app.brevo.com/settings/keys/api', 'CRM & Marketing'],
+  // Key path: Account > SMTP & API > API Keys, "MCP" option checked. The AS
+  // accepts public clients only (`token_endpoint_auth_methods_supported: none`).
+  ['Brevo', 'https://mcp.brevo.com/v1/brevo/mcp', 'oauth', 'Kontakte, E-Mail-Kampagnen, Newsletter-Listen und CRM verwalten.', 'https://brevo.com', 'CRM & Marketing', { alt: ['bearer'], keyUrl: 'https://app.brevo.com/settings/keys/api' }],
   ['Attio', 'https://mcp.attio.com/mcp', 'oauth', 'CRM für Beziehungen, Kontakte und Deals.', 'https://attio.com', 'CRM & Marketing'],
-  ['Statista', 'https://api.statista.ai/v1/mcp', 'bearer', 'Statistiken, Konsumenten- und Marktdaten.', 'https://statista.com', 'Analyse & SEO'],
-  ['SISTRIX', 'https://api.sistrix.com/mcp/', 'bearer', 'SEO-Metriken, Sichtbarkeit und Keyword-Rankings.', 'https://sistrix.com', 'Analyse & SEO'],
-  ['Zapier', 'https://mcp.zapier.com/api/mcp/mcp', 'bearer', 'Über 7.000 Apps und Workflows verbinden.', 'https://zapier.com', 'Automatisierung'],
-  ['Google Maps', 'https://mapstools.googleapis.com/mcp', 'bearer', 'Geocoding, Places, Routing und Kartendaten.', 'https://developers.google.com/maps', 'Karten'],
-  ['Tally', 'https://api.tally.so/mcp', 'oauth', 'Formulare erstellen, bearbeiten und Antworten auswerten.', 'https://tally.so', 'Formulare'],
+  ['Statista', 'https://api.statista.ai/v1/mcp', 'oauth', 'Statistiken, Konsumenten- und Marktdaten.', 'https://statista.com', 'Analyse & SEO', { alt: ['bearer'] }],
+  ['SISTRIX', 'https://api.sistrix.com/mcp/', 'oauth', 'SEO-Metriken, Sichtbarkeit und Keyword-Rankings.', 'https://sistrix.com', 'Analyse & SEO', { alt: ['bearer'] }],
+  ['Zapier', 'https://mcp.zapier.com/api/mcp/mcp', 'oauth', 'Über 7.000 Apps und Workflows verbinden.', 'https://zapier.com', 'Automatisierung', { alt: ['bearer'] }],
+  // A Maps API key, sent as X-Goog-Api-Key — as `Authorization: Bearer` Google
+  // takes it for an OAuth token and rejects every tool call (checked 2026-10-01).
+  ['Google Maps', 'https://mapstools.googleapis.com/mcp', 'bearer', 'Geocoding, Places, Routing und Kartendaten.', 'https://developers.google.com/maps', 'Karten', { keyUrl: 'https://console.cloud.google.com/google/maps-apis/credentials', keyHeader: 'X-Goog-Api-Key' }],
+  ['Tally', 'https://api.tally.so/mcp', 'oauth', 'Formulare erstellen, bearbeiten und Antworten auswerten.', 'https://tally.so', 'Formulare', { alt: ['bearer'], keyUrl: 'https://tally.so/settings/api-keys' }],
   // Typeform allowlists gruenerator.eu for DCR (verified 2026-09-14). Its
   // account regions are separate MCP resources, so offer each documented
   // endpoint rather than routing a user's OAuth token across regions.
   ['Typeform', 'https://api.typeform.com/mcp', 'oauth', 'Formulare erstellen, bearbeiten, veröffentlichen und Antworten auswerten.', 'https://typeform.com', 'Formulare'],
   ['Typeform (EU – .com)', 'https://api.eu.typeform.com/mcp', 'oauth', 'Formulare und Antworten im EU-Rechenzentrum (api.eu.typeform.com) verwalten.', 'https://typeform.com', 'Formulare'],
   ['Typeform (EU – .eu)', 'https://api.typeform.eu/mcp', 'oauth', 'Formulare und Antworten im EU-Rechenzentrum (api.typeform.eu) verwalten.', 'https://typeform.com', 'Formulare'],
-  ['Todoist', 'https://ai.todoist.net/mcp', 'oauth', 'Aufgaben, Projekte und To-do-Listen verwalten.', 'https://todoist.com', 'Produktivität'],
+  ['Todoist', 'https://ai.todoist.net/mcp', 'oauth', 'Aufgaben, Projekte und To-do-Listen verwalten.', 'https://todoist.com', 'Produktivität', { alt: ['bearer'], keyUrl: 'https://app.todoist.com/app/settings/integrations/developer' }],
   ['Miro', 'https://mcp.miro.com/', 'oauth', 'Whiteboards, Boards und Diagramme lesen und bearbeiten.', 'https://miro.com', 'Produktivität'],
   // Goodnotes serves MCP without any auth (verified 2026-07-21).
   ['Goodnotes', 'https://claude-mcp-api.ml.goodnotes.com/mcp', 'none', 'Notizen und handschriftliche Dokumente durchsuchen und verwalten.', 'https://goodnotes.com', 'Produktivität'],
   // Removed (audit 2026-07-21): IFTTT, Booking.com, Expedia — allowlisted
-  // clients only (no DCR for our domain, no public app registration); Zoom and
-  // DocuSign still require users to register their own vendor app.
+  // clients only (no DCR for our domain, no public app registration); DocuSign
+  // still requires users to register their own vendor app.
+  // Zoom: OAuth without DCR or CIMD (checked 2026-10-01), so it runs on our own
+  // Marketplace app (General app, user-level OAuth). The PRM names the global
+  // host as the resource; the regional gateways answer for the same resource.
+  ['Zoom', 'https://mcp.zoom.us/mcp/zoom/streamable', 'oauth', 'Meetings planen, Aufzeichnungen und Meeting-Zusammenfassungen durchsuchen.', 'https://zoom.us', 'Kommunikation', { clientEnv: { id: 'ZOOM_MCP_CLIENT_ID', secret: 'ZOOM_MCP_CLIENT_SECRET' }, platformOnly: true }],
   ['Yahoo Finance', 'https://gateway.mcpservers.org/yahoo-finance/mcp', 'none', 'Marktdaten, Finanznachrichten, Kennzahlen und Kursverläufe abfragen.', 'https://finance.yahoo.com', 'Finanzen'],
   ['Jotform', 'https://mcp.jotform.com/mcp-app', 'oauth', 'Formulare erstellen und Antworten auswerten.', 'https://jotform.com', 'Formulare'],
   ['Swat.io', 'https://mcp.swatio.app/mcp', 'oauth', 'Social-Media-Beiträge planen und vorbereiten (Beta; kein Direkt-Publishing).', 'https://swat.io', 'Social Media'],
+  // Canva admits portal-created or allowlisted clients only; DCR is deprecated
+  // there. Without CANVA_MCP_* set, connecting falls back to DCR and shows the
+  // manual-registration form if Canva refuses it.
+  ['Canva', 'https://mcp.canva.com/mcp', 'oauth', 'Designs erstellen, bearbeiten und exportieren, Vorlagen und Marken-Kits nutzen.', 'https://canva.com', 'Design', { clientEnv: { id: 'CANVA_MCP_CLIENT_ID', secret: 'CANVA_MCP_CLIENT_SECRET' } }],
   ['Ansvar', 'https://gateway.ansvar.eu/mcp', 'oauth', 'EU-Recht und Compliance recherchieren — mit verifizierten Zitaten und Quellenangaben.', 'https://ansvar.eu', 'Recht & Compliance'],
 ];
 
@@ -72,15 +111,61 @@ const RECOMMENDED: McpRegistryEntry[] = SEEDS.map(
     title,
     url,
     authHint,
+    authOptions: [authHint, ...(opts?.alt ?? [])],
     description,
     websiteUrl,
     category,
     recommended: true,
-    ...(opts ? { requiresManualRegistration: true, setupUrl: opts.setupUrl } : {}),
+    ...(opts?.keyUrl ? { keyUrl: opts.keyUrl } : {}),
+    ...(opts?.setupUrl ? { requiresManualRegistration: true, setupUrl: opts.setupUrl } : {}),
   })
 );
 
 const SEED_BY_HOST = new Map(RECOMMENDED.map((e) => [e.name, e]));
+
+const HINTS_BY_HOST = new Map<string, SeedConnectionHints>(
+  SEEDS.flatMap(([, url, , , , , opts]) =>
+    opts?.keyHeader || opts?.clientEnv
+      ? [
+          [
+            new URL(url).host,
+            {
+              ...(opts.keyHeader ? { keyHeader: opts.keyHeader } : {}),
+              ...(opts.clientEnv ? { clientEnv: opts.clientEnv } : {}),
+            },
+          ],
+        ]
+      : []
+  )
+);
+
+/**
+ * The OAuth client we registered with this host's provider ourselves, from env.
+ * Read on every use — never copied into a row — so a rotated secret reaches
+ * every user at once. Null when the seed has none or the env is unset.
+ */
+export function platformClient(url: string): { clientId: string; clientSecret: string } | null {
+  const names = seedConnectionHints(url).clientEnv;
+  if (!names) return null;
+  // Boundary read: the seed names env keys as plain strings.
+  const vars = env as unknown as Record<string, string | undefined>;
+  const clientId = vars[names.id];
+  const clientSecret = vars[names.secret];
+  return clientId && clientSecret ? { clientId, clientSecret } : null;
+}
+
+const PLATFORM_ONLY_URLS = new Set(
+  SEEDS.filter(([, , , , , , opts]) => opts?.platformOnly).map(([, url]) => url)
+);
+
+/** Server-side connection hints for a curated host; empty for anything else. */
+export function seedConnectionHints(url: string): SeedConnectionHints {
+  try {
+    return HINTS_BY_HOST.get(new URL(url).host) ?? {};
+  } catch {
+    return {};
+  }
+}
 
 /**
  * Resolve a curated seed for a server URL by host (falls back to exact URL).
@@ -187,14 +272,17 @@ export class McpRegistryService {
   static async list(params: { search?: string; cursor?: string }): Promise<McpRegistryPage> {
     const term = params.search?.trim() ?? '';
     const search = term.toLowerCase();
+    const offered = RECOMMENDED.filter(
+      (e) => !PLATFORM_ONLY_URLS.has(e.url) || platformClient(e.url) !== null
+    );
     const recommended = search
-      ? RECOMMENDED.filter(
+      ? offered.filter(
           (e) =>
             e.title.toLowerCase().includes(search) ||
             e.description.toLowerCase().includes(search) ||
             (e.category?.toLowerCase().includes(search) ?? false)
         )
-      : RECOMMENDED;
+      : offered;
     // Only poll the open registry on an actual search (no firehose on load).
     const external = term
       ? await fetchOfficialRegistry(term, params.cursor)
