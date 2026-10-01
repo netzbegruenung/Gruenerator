@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-import { spacing } from '../../theme';
+import { spacing, HEADING_FONT_BOLD } from '../../theme';
 
 /**
  * Branded cover art for notebooks that have no designed webp — i.e. everything a
@@ -134,13 +134,13 @@ export function NotebookCoverArt({
 const styles = StyleSheet.create({
   title: {
     position: 'absolute',
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     color: '#ffffff',
   },
   subtitle: {
     position: 'absolute',
     bottom: spacing.xsmall,
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     color: 'rgba(255,255,255,0.9)',
   },
 });

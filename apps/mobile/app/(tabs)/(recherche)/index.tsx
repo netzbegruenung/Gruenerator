@@ -45,7 +45,15 @@ import {
 import { useTabBarClearance } from '../../../hooks/useTabBarClearance';
 import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
 import { useFavoritesStore } from '../../../stores/favoritesStore';
-import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import {
+  colors,
+  spacing,
+  typography,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  HEADING_FONT_BOLD,
+} from '../../../theme';
 import { getSurfaceFab } from '../../../theme/toolTheme';
 import { routeWithParams } from '../../../types/routes';
 
@@ -433,7 +441,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sectionTitle: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 17,
     marginBottom: spacing.small,
   },
