@@ -24,6 +24,8 @@ import { z } from 'zod';
 import { createLogger } from '../../utils/logger.js';
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
+import { seedConnectionHints } from './McpRegistryService.js';
+
 const log = createLogger('user-mcp-client');
 
 /** Which wire protocol carried the session. */
@@ -252,6 +254,11 @@ export class UserMCPClient {
       (this.config.authType === 'bearer' || this.config.authType === 'oauth') &&
       this.config.token
     ) {
+      // A curated provider may want its API key raw in its own header (Google
+      // Maps: X-Goog-Api-Key). OAuth access tokens are always Bearer.
+      const keyHeader =
+        this.config.authType === 'bearer' ? seedConnectionHints(this.config.url).keyHeader : null;
+      if (keyHeader) return { [keyHeader]: this.config.token };
       return { Authorization: `Bearer ${this.config.token}` };
     }
     return {};

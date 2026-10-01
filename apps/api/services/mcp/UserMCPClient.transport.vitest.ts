@@ -11,6 +11,8 @@ const h = vi.hoisted(() => ({
   attempts: [] as string[],
   /** Kinds whose handshake should fail. */
   failing: new Set<string>(),
+  /** Request headers each HTTP transport was built with. */
+  headers: [] as Record<string, string>[],
 }));
 
 vi.mock('../../utils/validation/urlSecurity.js', () => ({
@@ -34,6 +36,9 @@ vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
 vi.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({
   StreamableHTTPClientTransport: class {
     kind = 'http';
+    constructor(_url: URL, opts?: { requestInit?: { headers?: Record<string, string> } }) {
+      h.headers.push(opts?.requestInit?.headers ?? {});
+    }
     protocolVersion = '2025-06-18';
     close() {
       return Promise.resolve();
@@ -58,6 +63,7 @@ function connectTo(url: string) {
 
 beforeEach(() => {
   h.attempts.length = 0;
+  h.headers.length = 0;
   h.failing.clear();
 });
 
@@ -93,5 +99,26 @@ describe('UserMCPClient transport selection', () => {
     h.failing.add('sse');
     await expect(connectTo('https://example.invalid/mcp').connect()).rejects.toThrow('http kaputt');
     expect(h.attempts).toEqual(['http', 'sse']);
+  });
+});
+
+describe('UserMCPClient — where the credential goes', () => {
+  function withKey(url: string, authType: 'bearer' | 'oauth') {
+    return new UserMCPClient({ id: '1', name: 'Test', url, authType, token: 'secret' });
+  }
+
+  it('sends a Google Maps API key as X-Goog-Api-Key, never as Bearer', async () => {
+    await withKey('https://mapstools.googleapis.com/mcp', 'bearer').connect();
+    expect(h.headers[0]).toEqual({ 'X-Goog-Api-Key': 'secret' });
+  });
+
+  it('keeps Bearer for every other API key', async () => {
+    await withKey('https://api.tally.so/mcp', 'bearer').connect();
+    expect(h.headers[0]).toEqual({ Authorization: 'Bearer secret' });
+  });
+
+  it('keeps Bearer for an OAuth token even on a host with a key header', async () => {
+    await withKey('https://mapstools.googleapis.com/mcp', 'oauth').connect();
+    expect(h.headers[0]).toEqual({ Authorization: 'Bearer secret' });
   });
 });

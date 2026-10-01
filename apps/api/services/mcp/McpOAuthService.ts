@@ -43,6 +43,7 @@ import {
   saveOAuthState,
   type McpOAuthState,
 } from './mcpOAuthState.js';
+import { platformClient } from './McpRegistryService.js';
 import { McpServerRegistry } from './McpServerRegistry.js';
 import { UserMCPClient } from './UserMCPClient.js';
 
@@ -50,6 +51,7 @@ const log = createLogger('mcp-oauth');
 
 const EXPIRY_SKEW_MS = 60_000;
 const REFRESH_LOCK_MS = 10_000;
+const REFRESH_POLL_MS = 200;
 
 interface AsMetadata {
   issuer?: string;
@@ -57,7 +59,39 @@ interface AsMetadata {
   token_endpoint?: string;
   registration_endpoint?: string;
   scopes_supported?: string[];
+  token_endpoint_auth_methods_supported?: string[];
   authorization_response_iss_parameter_supported?: boolean;
+}
+
+/**
+ * Scopes to request: what the MCP resource declares (RFC 9728 PRM), never the
+ * AS catalogue — on a shared AS (Auth0, Keycloak) that is every scope of every
+ * API, `phone` and `address` included. `offline_access` is added when the AS
+ * offers it, since many such AS issue no refresh token without it.
+ */
+export function selectScopes(
+  resourceScopes: string[] | undefined,
+  asScopes: string[] | undefined
+): string[] | undefined {
+  if (!resourceScopes?.length) return undefined;
+  const wantsOffline =
+    asScopes?.includes('offline_access') && !resourceScopes.includes('offline_access');
+  return wantsOffline ? [...resourceScopes, 'offline_access'] : resourceScopes;
+}
+
+/**
+ * Token-endpoint auth method to register with — the one the SDK will then use
+ * at the token endpoint (`selectClientAuthMethod`: basic before post before
+ * none, basic when the AS omits the field, per RFC 8414 §2). Registering a
+ * different one than the SDK sends fails at any AS that enforces it. `none` is
+ * the PKCE-only public client — all Brevo accepts.
+ */
+export function selectTokenEndpointAuthMethod(supported: string[] | undefined): string {
+  if (!supported?.length) return 'client_secret_basic';
+  return (
+    ['client_secret_basic', 'client_secret_post', 'none'].find((m) => supported.includes(m)) ??
+    'client_secret_basic'
+  );
 }
 
 type McpOAuthErrorCode = 'dcr_rejected' | 'no_oauth_support';
@@ -86,6 +120,25 @@ function providerErrorDetail(err: unknown): string {
     }
   }
   return msg;
+}
+
+/**
+ * The OAuth client a row authenticates as: the platform client from env for a
+ * `platform` row, otherwise the stored client_id and its encrypted secret.
+ */
+function clientCredentials(
+  server: McpServer
+): { client_id: string; client_secret?: string } | null {
+  const oidc = server.oauth_meta;
+  if (oidc?.scheme === 'platform') {
+    const platform = platformClient(server.url);
+    return platform ? { client_id: platform.clientId, client_secret: platform.clientSecret } : null;
+  }
+  if (!oidc?.clientId) return null;
+  const secret = server.oauth_client_secret_encrypted
+    ? decryptCredential(server.oauth_client_secret_encrypted)
+    : undefined;
+  return { client_id: oidc.clientId, ...(secret && { client_secret: secret }) };
 }
 
 function getRedirectUri(): string {
@@ -200,13 +253,17 @@ export class McpOAuthService {
 
     const redirectUri = getRedirectUri();
     const stored = server.oauth_meta ?? null;
+    // A client we registered with the provider ourselves (Canva admits only
+    // portal-created or allowlisted clients). Read from env on every use — never
+    // copied into the row, so rotating the secret reaches every user at once.
+    const platform = platformClient(server.url);
 
     // SEP-2352: client credentials are bound to the AS that issued them. If
     // discovery now resolves somewhere else (URL edited, provider moved), the
     // stored client_id/secret must not travel to the new AS — drop them and
     // re-register. Legacy rows without a recorded issuer are left alone.
     const issuerChanged = Boolean(
-      stored?.clientId && stored.issuer && stored.issuer !== authorizationServerUrl
+      !platform && stored?.clientId && stored.issuer && stored.issuer !== authorizationServerUrl
     );
     if (issuerChanged && stored?.scheme === 'pre_registration') {
       // Hand-entered credentials — we must not silently DCR against an AS the
@@ -228,15 +285,22 @@ export class McpOAuthService {
 
     // One invariant, one expression: when the issuer moved we keep neither the
     // client_id nor the secret, so both hang off `existing`.
-    const existing = issuerChanged ? null : stored;
-    let clientId = existing?.clientId;
+    const existing = issuerChanged || platform ? null : stored;
+    let clientId = platform?.clientId ?? existing?.clientId;
     let clientSecret =
-      existing && server.oauth_client_secret_encrypted
+      platform?.clientSecret ??
+      (existing && server.oauth_client_secret_encrypted
         ? decryptCredential(server.oauth_client_secret_encrypted)
-        : undefined;
+        : undefined);
     const scopes =
-      existing?.scopes && existing.scopes.length ? existing.scopes : metadata.scopes_supported;
-    let scheme: McpOidcConfig['scheme'] = clientId ? 'pre_registration' : 'dcr';
+      existing?.scopes && existing.scopes.length
+        ? existing.scopes
+        : selectScopes(info.resourceMetadata?.scopes_supported, metadata.scopes_supported);
+    let scheme: McpOidcConfig['scheme'] = platform
+      ? 'platform'
+      : clientId
+        ? 'pre_registration'
+        : 'dcr';
 
     if (!clientId) {
       if (!metadata.registration_endpoint) {
@@ -260,7 +324,9 @@ export class McpOAuthService {
             redirect_uris: [redirectUri],
             grant_types: ['authorization_code', 'refresh_token'],
             response_types: ['code'],
-            token_endpoint_auth_method: 'client_secret_post',
+            token_endpoint_auth_method: selectTokenEndpointAuthMethod(
+              metadata.token_endpoint_auth_methods_supported
+            ),
             application_type: 'web',
             ...(scopes?.length ? { scope: scopes.join(' ') } : {}),
           } as Parameters<typeof registerClient>[1]['clientMetadata'],
@@ -303,9 +369,10 @@ export class McpOAuthService {
       .update(mcp_servers)
       .set({
         oauth_meta: oidc,
-        ...(clientSecret !== undefined && {
-          oauth_client_secret_encrypted: encryptCredential(clientSecret),
-        }),
+        ...(clientSecret !== undefined &&
+          !platform && {
+            oauth_client_secret_encrypted: encryptCredential(clientSecret),
+          }),
         updated_at: new Date(),
       })
       .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.id, serverId)));
@@ -398,23 +465,18 @@ export class McpOAuthService {
 
     const server = await getServer(st.userId, st.serverId);
     const oidc = server?.oauth_meta;
-    if (!server || !oidc?.clientId || !oidc.redirectUri) {
+    const client = server ? clientCredentials(server) : null;
+    if (!server || !oidc?.redirectUri || !client) {
       throw Object.assign(new Error('Server-/OAuth-Konfiguration fehlt'), { statusCode: 400 });
     }
     const redirectUri = oidc.redirectUri;
-    const clientSecret = server.oauth_client_secret_encrypted
-      ? decryptCredential(server.oauth_client_secret_encrypted)
-      : undefined;
 
     const metadata = (await discoverAuthorizationServerMetadata(st.authorizationServerUrl)) as
       AsMetadata | undefined;
 
     const tokens = await exchangeAuthorization(st.authorizationServerUrl, {
       metadata: metadata as never,
-      clientInformation: {
-        client_id: oidc.clientId,
-        ...(clientSecret && { client_secret: clientSecret }),
-      },
+      clientInformation: client,
       authorizationCode: code,
       codeVerifier: st.codeVerifier,
       redirectUri,
@@ -428,52 +490,83 @@ export class McpOAuthService {
 
   /**
    * A currently-valid access token, refreshing lazily (under a Redis lock) when
-   * near expiry. Returns null when the server has no token. Never throws — on a
-   * refresh failure it returns the stored token as a best-effort.
+   * near expiry. Returns null when the server has no token, or when the token
+   * has expired and could not be refreshed — the caller then reports "neu
+   * autorisieren" instead of sending a dead token that comes back as a bare 401.
+   * Never throws.
+   *
+   * `force` refreshes regardless of the stored expiry — for a server that just
+   * answered 401. Providers that send no `expires_in` are otherwise never
+   * refreshed at all, since there is no expiry to compare against.
    */
-  static async getValidAccessToken(userId: string, serverId: string): Promise<string | null> {
+  static async getValidAccessToken(
+    userId: string,
+    serverId: string,
+    opts?: { force?: boolean }
+  ): Promise<string | null> {
     const server = await getServer(userId, serverId);
     if (!server?.token_encrypted) return null;
 
     const expiresAt = server.token_expires_at?.getTime();
     const stored = safeDecrypt(server.token_encrypted);
-    if (!expiresAt || Date.now() < expiresAt - EXPIRY_SKEW_MS) return stored;
-    if (!server.refresh_token_encrypted || !server.oauth_meta?.clientId) return stored;
+    const force = opts?.force === true;
+    if (!force && (!expiresAt || Date.now() < expiresAt - EXPIRY_SKEW_MS)) return stored;
+    // Inside the skew window the stored token still works; past expiry — or
+    // after the server rejected it — it doesn't.
+    const fallback = !force && expiresAt && Date.now() < expiresAt ? stored : null;
+    if (!server.refresh_token_encrypted || !server.oauth_meta?.clientId) return fallback;
 
     // Lock so concurrent tool calls don't double-refresh a single-use token.
     await ensureConnected();
     const lockKey = `oauth:mcp:refresh:${serverId}`;
     const acquired = await redisClient.set(lockKey, '1', { NX: true, PX: REFRESH_LOCK_MS });
-    if (!acquired) return stored; // another request is refreshing; use current
+    if (!acquired) return this.awaitConcurrentRefresh(userId, serverId, lockKey, stored, fallback);
 
     try {
       const oidc = server.oauth_meta;
-      if (!oidc?.issuer || !oidc.clientId) return stored;
-      const clientSecret = server.oauth_client_secret_encrypted
-        ? decryptCredential(server.oauth_client_secret_encrypted)
-        : undefined;
+      const client = clientCredentials(server);
+      if (!oidc?.issuer || !client) return fallback;
       const metadata = (await discoverAuthorizationServerMetadata(oidc.issuer)) as
         AsMetadata | undefined;
       const tokens = await refreshAuthorization(oidc.issuer, {
         metadata: metadata as never,
-        clientInformation: {
-          client_id: oidc.clientId,
-          ...(clientSecret && { client_secret: clientSecret }),
-        },
+        clientInformation: client,
         refreshToken: decryptCredential(server.refresh_token_encrypted),
         ...(oidc.resource ? { resource: new URL(oidc.resource) } : {}),
       });
       await this.persistTokens(userId, serverId, tokens, server.refresh_token_encrypted);
       return tokens.access_token;
     } catch (err) {
-      log.warn('MCP token refresh failed; using stored token', {
+      log.warn('MCP token refresh failed', {
         serverId,
+        expired: fallback === null,
         error: err instanceof Error ? err.message : String(err),
       });
-      return stored;
+      return fallback;
     } finally {
       await redisClient.del(lockKey).catch(() => {});
     }
+  }
+
+  /**
+   * Another request holds the refresh lock: wait for it to finish, then take
+   * the token it stored. Returning early would hand this caller the token that
+   * is being replaced — expired, or just rejected with a 401.
+   */
+  private static async awaitConcurrentRefresh(
+    userId: string,
+    serverId: string,
+    lockKey: string,
+    stored: string | null,
+    fallback: string | null
+  ): Promise<string | null> {
+    const deadline = Date.now() + REFRESH_LOCK_MS;
+    while (Date.now() < deadline && (await redisClient.exists(lockKey))) {
+      await new Promise((resolve) => setTimeout(resolve, REFRESH_POLL_MS));
+    }
+    const server = await getServer(userId, serverId);
+    const current = server?.token_encrypted ? safeDecrypt(server.token_encrypted) : null;
+    return current && current !== stored ? current : fallback;
   }
 
   private static async persistTokens(

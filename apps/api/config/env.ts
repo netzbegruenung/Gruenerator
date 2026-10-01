@@ -332,6 +332,14 @@ const envSchema = z.object({
   CANVA_CLIENT_ID: z.string().optional(),
   CANVA_CLIENT_SECRET: z.string().optional(),
   CANVA_REDIRECT_URI: z.string().optional(),
+  // Canva MCP connector (mcp.canva.com): a Developer-Portal app with Canva MCP
+  // switched on. Unset → the connector falls back to dynamic registration.
+  CANVA_MCP_CLIENT_ID: z.string().optional(),
+  CANVA_MCP_CLIENT_SECRET: z.string().optional(),
+  // Zoom MCP connector (mcp.zoom.us): a Marketplace General app, user-level
+  // OAuth. Zoom offers no dynamic registration — unset means no Zoom.
+  ZOOM_MCP_CLIENT_ID: z.string().optional(),
+  ZOOM_MCP_CLIENT_SECRET: z.string().optional(),
 
   // ── MCP ────────────────────────────────────────────────────────────────
   MCP_URL: z.string().optional(),
