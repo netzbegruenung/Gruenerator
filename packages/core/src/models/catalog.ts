@@ -16,7 +16,11 @@ export type Provider = TextProvider;
  * Oberfläche umhängen, ein Vendormodell im Bundle nicht.
  */
 export type TextModelId =
-  'gruenerator-small' | 'gruenerator-medium' | 'gruenerator-ultra' | 'greenpt';
+  | 'gruenerator-small'
+  | 'gruenerator-medium'
+  | 'gruenerator-ultra'
+  | 'gruenerator-panda'
+  | 'greenpt';
 
 /**
  * Die Vendor-IDs, unter denen dieselben Lanes vorher liefen.
@@ -116,6 +120,22 @@ export const MODEL_OPTIONS: ModelOption[] = [
     provider: 'mistral',
     icon: 'sparkles',
     region: 'eu',
+  },
+  {
+    modality: 'text',
+    id: 'gruenerator-panda',
+    name: 'Panda',
+    description: 'Für sehr anspruchsvolle Aufgaben',
+    // DeepSeek — die einzige Lane, die die China-Sperre in
+    // apps/api/services/ai/textModelPolicy.ts ausnimmt. Sichtbar nur für
+    // Accounts, die ein Admin nach der Schulung freigeschaltet hat (auf der
+    // Instanz `bgst` standardmäßig); `offByDefault` hält sie aus dem
+    // Agent-Editor und aus den Standard-Präferenzen.
+    model: 'deepseek-v4.1-flash',
+    provider: 'melious',
+    icon: 'brain',
+    region: 'eu',
+    offByDefault: true,
   },
   {
     modality: 'text',

@@ -181,6 +181,21 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     mWhFixed: 0,
     basis: 'measured',
   },
+  // `deepseek-v4.1-flash` auf Melious — die Lane „Panda". Aus demselben Grund
+  // wie Gemma darüber aus Melious' EIGENEN Meldungen kalibriert (gestreamte
+  // Antworten tragen kein `environment_impact`): 5 nicht-gestreamte Aufrufe am
+  // 01.10.2026, `reasoning_effort: 'none'`, ohne Cache-Treffer. Reiner Prefill
+  // 8.112 / 41.012 / 111.012 Tokens → 0,026 / 0,032 / 0,013 mWh/Token, Median
+  // 0,026; Ausgabe 1.200 / 1.193 Tokens → 1,89 / 2,11 mWh/Token, Mittel 2,0.
+  // Die Streuung ist wieder zeitbasiert. × 1,25/1,2 wie oben. Gecachte
+  // Eingabe ist hier nicht abgesetzt — Melious meldete für einen gecachten
+  // Aufruf 111 statt 184 mWh, das ist eine Überschätzung zu unseren Lasten.
+  'deepseek-v4.1-flash': {
+    mWhPerOutputToken: 2.08,
+    mWhPerInputToken: 0.0271,
+    mWhFixed: 0,
+    basis: 'measured',
+  },
   // `gemma-4-26b-a4b-it` (Scaleway, die `heavy`-Stufe seit 01.08.2026) fehlt
   // hier BEWUSST und bleibt „nicht abgedeckt". Es ist eine andere Architektur
   // als das 31B — MoE mit 4B aktiven Parametern —, der Koeffizient des 31B gilt

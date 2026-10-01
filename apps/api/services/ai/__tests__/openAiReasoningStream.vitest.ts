@@ -42,6 +42,7 @@ describe('isReasoningStreamModel', () => {
   // setzt — das Denken wäre still weg.
   it('returns true for gemma-4-31b:balanced on melious', () => {
     expect(isReasoningStreamModel('melious', 'gemma-4-31b:balanced')).toBe(true);
+    expect(isReasoningStreamModel('melious', 'deepseek-v4.1-flash')).toBe(true);
   });
 
   it('returns false for gpt-oss-120b asked on litellm', () => {
@@ -203,5 +204,70 @@ describe('streamWithReasoning — Fehlerarten und Delta-Formen', () => {
       { type: 'reasoning', delta: ', der' },
       { type: 'text', delta: '120 km' },
     ]);
+  });
+});
+
+/**
+ * Der rohe Strom geht an `withUsageTracking` vorbei. Für Melious bucht er die
+ * Tokens deshalb selbst — aus dem Usage-Chunk, den `include_usage` anhängt.
+ * Ohne das tauchte die Lane „Panda" weder im Nutzungs-Tab noch in der
+ * Cache-Quote auf.
+ */
+describe('streamWithReasoning — Melious bucht Tokens samt Cache-Anteil', () => {
+  const ORIGINAL_ENV = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...ORIGINAL_ENV };
+    vi.unstubAllGlobals();
+    vi.doUnmock('../../usage/UsageTrackingService.js');
+  });
+
+  it('fordert include_usage an und verbucht prompt, completion und cached_tokens', async () => {
+    vi.resetModules();
+    process.env.MELIOUS_API_KEY = 'mel-key';
+    const recordTokenUsage = vi.fn();
+    vi.doMock('../../usage/UsageTrackingService.js', () => ({ recordTokenUsage }));
+    const { streamWithReasoning: stream } = await import('../openAiReasoningStream.js');
+
+    let body: Record<string, unknown> = {};
+    const sse = [
+      `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: 'hm' } }] })}`,
+      `data: ${JSON.stringify({ choices: [{ delta: { content: '391' } }] })}`,
+      `data: ${JSON.stringify({
+        choices: [],
+        usage: {
+          prompt_tokens: 11635,
+          completion_tokens: 18,
+          prompt_tokens_details: { cached_tokens: 11520 },
+        },
+      })}`,
+      'data: [DONE]',
+      '',
+    ].join('\n');
+    vi.stubGlobal('fetch', async (_input: RequestInfo | URL, init?: RequestInit) => {
+      body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      return new Response(sse, { status: 200 });
+    });
+
+    const chunks: string[] = [];
+    for await (const chunk of stream({
+      provider: 'melious',
+      model: 'deepseek-v4.1-flash',
+      messages: [{ role: 'user', content: '17*23?' }],
+      temperature: 0,
+    })) {
+      chunks.push(`${chunk.type}:${chunk.delta}`);
+    }
+
+    expect(chunks).toEqual(['reasoning:hm', 'text:391']);
+    expect(body.stream_options).toEqual({ include_usage: true });
+    expect(body.model).toBe('deepseek-v4.1-flash');
+    expect(recordTokenUsage).toHaveBeenCalledWith({
+      provider: 'melious',
+      model: 'deepseek-v4.1-flash',
+      inputTokens: 11635,
+      outputTokens: 18,
+      cachedInputTokens: 11520,
+    });
   });
 });

@@ -45,6 +45,8 @@ interface UsageDelta {
   requests: number;
   inputTokens: number;
   outputTokens: number;
+  /** Share of `inputTokens` the provider served from its prompt cache. */
+  cachedInputTokens: number;
   ops: number;
   /** Measured footprint reported by GreenPT and Melious. */
   energyWms: number;
@@ -71,6 +73,7 @@ function add(entry: Omit<UsageDelta, 'day'>): void {
     existing.requests += entry.requests;
     existing.inputTokens += entry.inputTokens;
     existing.outputTokens += entry.outputTokens;
+    existing.cachedInputTokens += entry.cachedInputTokens;
     existing.ops += entry.ops;
     existing.energyWms += entry.energyWms;
     existing.emissionsUg += entry.emissionsUg;
@@ -103,6 +106,7 @@ export function recordTokenUsage(params: {
   model: string;
   inputTokens: number;
   outputTokens: number;
+  cachedInputTokens?: number;
   userId?: string | null;
   feature?: string | null;
 }): void {
@@ -118,6 +122,7 @@ export function recordTokenUsage(params: {
     requests: 1,
     inputTokens: Math.max(0, Math.round(params.inputTokens || 0)),
     outputTokens: Math.max(0, Math.round(params.outputTokens || 0)),
+    cachedInputTokens: Math.max(0, Math.round(params.cachedInputTokens || 0)),
     ops: 0,
     energyWms: 0,
     emissionsUg: 0,
@@ -162,6 +167,7 @@ export function recordImpact(params: {
     requests: 0,
     inputTokens: 0,
     outputTokens: 0,
+    cachedInputTokens: 0,
     ops: 0,
     energyWms: Math.max(0, Math.round(params.energyWms || 0)),
     emissionsUg: Math.max(0, Math.round(params.emissionsUg || 0)),
@@ -194,6 +200,7 @@ export function recordOperation(params: {
     requests: 0,
     inputTokens: 0,
     outputTokens: 0,
+    cachedInputTokens: 0,
     ops: params.count ?? 1,
     energyWms: 0,
     emissionsUg: 0,
@@ -230,6 +237,7 @@ export async function flushUsageBuffer(): Promise<void> {
             requests: sql`${userUsageDaily.requests} + excluded.requests`,
             inputTokens: sql`${userUsageDaily.inputTokens} + excluded.input_tokens`,
             outputTokens: sql`${userUsageDaily.outputTokens} + excluded.output_tokens`,
+            cachedInputTokens: sql`${userUsageDaily.cachedInputTokens} + excluded.cached_input_tokens`,
             ops: sql`${userUsageDaily.ops} + excluded.ops`,
             energyWms: sql`${userUsageDaily.energyWms} + excluded.energy_wms`,
             emissionsUg: sql`${userUsageDaily.emissionsUg} + excluded.emissions_ug`,
