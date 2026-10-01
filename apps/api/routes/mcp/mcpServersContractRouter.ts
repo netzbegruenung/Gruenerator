@@ -9,6 +9,7 @@
 import { mcpServersContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { connectRefreshingOnce } from '../../services/mcp/connectRefreshingOnce.js';
 import { classifyMcpFailure, describeEmptyToolList } from '../../services/mcp/mcpFailure.js';
 import { McpOAuthService } from '../../services/mcp/McpOAuthService.js';
 import { McpRegistryService } from '../../services/mcp/McpRegistryService.js';
@@ -21,6 +22,15 @@ import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 import { revokeApprovalsForServer } from '../chat/services/agenticLoop/toolApprovalRepo.js';
 
 import type { Application } from 'express';
+
+/** What providers must have on file; null when BASE_URL is unset (OAuth can't run then). */
+function redirectUriOrNull(): string | null {
+  try {
+    return McpOAuthService.redirectUri();
+  } catch {
+    return null;
+  }
+}
 
 const log = createLogger('mcpServersContract');
 
@@ -44,7 +54,7 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
         ...(args.query.search !== undefined && { search: args.query.search }),
         ...(args.query.cursor !== undefined && { cursor: args.query.cursor }),
       });
-      return { status: 200 as const, body: page };
+      return { status: 200 as const, body: { ...page, oauthRedirectUri: redirectUriOrNull() } };
     } catch (error) {
       log.error('registry failed', error);
       return { status: 500 as const, body: { error: (error as Error).message || 'Fehler' } };
@@ -125,6 +135,10 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
         ...(args.body.authType !== undefined && { authType: args.body.authType }),
         ...(args.body.token !== undefined && { token: args.body.token }),
         ...(args.body.enabled !== undefined && { enabled: args.body.enabled }),
+        ...(args.body.oauthClientId !== undefined && { oauthClientId: args.body.oauthClientId }),
+        ...(args.body.oauthClientSecret !== undefined && {
+          oauthClientSecret: args.body.oauthClientSecret,
+        }),
       });
       if (!server) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
       return { status: 200 as const, body: { server } };
@@ -148,8 +162,11 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
           },
         };
       }
+      const revoke = await McpOAuthService.tokenRevocation(userId, args.params.id);
       const deleted = await McpServerRegistry.delete(userId, args.params.id);
       if (!deleted) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
+      // Only once the row is gone, and without waiting on the provider.
+      if (revoke) void revoke();
       // Die dauerhaften Werkzeug-Freigaben dieses Servers verlieren mit ihm
       // ihren Gegenstand — sie stünden sonst für immer in der Liste unter
       // „Konnektoren". Best-effort: das Entfernen selbst ist schon passiert.
@@ -171,9 +188,9 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
       if (!config)
         return { status: 404 as const, body: { error: 'Server nicht gefunden oder deaktiviert.' } };
 
-      const client = new UserMCPClient(config);
+      let client = new UserMCPClient(config);
       try {
-        await client.connect();
+        client = await connectRefreshingOnce(userId, client, config);
         const tools = await client.listTools();
         // Cache the tool list for chat mention hints + classifier context.
         // Managed connectors have no row to cache into (see mcpCatalog) — the
