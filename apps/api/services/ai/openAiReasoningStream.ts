@@ -17,6 +17,7 @@
  */
 
 import { env } from '../../config/env.js';
+import { recordTokenUsage } from '../usage/UsageTrackingService.js';
 
 import { cortecsBaseUrl } from './cortecsEndpoint.js';
 import { assertSovereignUpstream, SOVEREIGN_ZDR_PROVIDERS } from './cortecsRequestPolicy.js';
@@ -108,8 +109,11 @@ const CORTECS_REASONING_MODELS = new Set(['gemma-4-31b-it']);
  * auf zwei verschiedenen Fragen — also „an", keine verlässliche Stufe, kein Dial.
  * `chat_template_kwargs.enable_thinking` wirkt
  * hier NICHT. Das Denken kommt als `delta.reasoning_content`.
+ *
+ * DeepSeek v4.1 Flash (Lane „Panda") folgt demselben Hebel, gemessen
+ * 01.10.2026: `high` streamt `reasoning_content`, `none` denkt gar nicht.
  */
-const MELIOUS_REASONING_MODELS = new Set(['gemma-4-31b:balanced']);
+const MELIOUS_REASONING_MODELS = new Set(['gemma-4-31b:balanced', 'deepseek-v4.1-flash']);
 
 export function isReasoningStreamModel(provider: string, model: string): boolean {
   if (provider === 'litellm') return LITELLM_REASONING_MODELS.has(model);
@@ -159,7 +163,13 @@ function resolveConfig(provider: string, effort?: ThinkingEffort): ReasoningStre
     return {
       endpoint: `${MELIOUS_BASE_URL}/chat/completions`,
       apiKey: env.MELIOUS_API_KEY,
-      bodyExtras: { reasoning_effort: effort ?? 'high' },
+      // `include_usage` gemessen 01.10.2026: Melious hängt den Usage-Block
+      // (samt `prompt_tokens_details.cached_tokens`) als letzten Chunk an.
+      // Ohne ihn verbucht dieser Pfad keinen einzigen Token — siehe unten.
+      bodyExtras: {
+        reasoning_effort: effort ?? 'high',
+        stream_options: { include_usage: true },
+      },
     };
   }
   return null;
@@ -221,6 +231,7 @@ export async function* streamWithReasoning(
   const decoder = new TextDecoder();
   let buffer = '';
   let firstTextAt: number | null = null;
+  let usage: StreamUsage | null = null;
 
   try {
     while (true) {
@@ -244,6 +255,7 @@ export async function* streamWithReasoning(
           continue;
         }
 
+        usage = extractUsage(parsed) ?? usage;
         const delta = extractDelta(parsed);
         if (delta.reasoning) yield { type: 'reasoning', delta: delta.reasoning };
         if (delta.text) {
@@ -266,11 +278,30 @@ export async function* streamWithReasoning(
     recordModelSample({
       provider: params.provider,
       model: params.model,
-      outputTokens: 0,
+      outputTokens: usage?.outputTokens ?? 0,
       durationMs: Date.now() - startedAt,
       ttftMs: firstTextAt === null ? null : firstTextAt - startedAt,
     });
+    // Nur, wer `include_usage` sendet, bekommt hier Zahlen (heute Melious).
+    if (usage) recordTokenUsage({ provider: params.provider, model: params.model, ...usage });
   }
+}
+
+interface StreamUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number;
+}
+
+function extractUsage(chunk: unknown): StreamUsage | null {
+  const usage = (chunk as { usage?: Record<string, unknown> | null }).usage;
+  if (!usage || typeof usage.prompt_tokens !== 'number') return null;
+  const details = usage.prompt_tokens_details as { cached_tokens?: unknown } | null | undefined;
+  return {
+    inputTokens: usage.prompt_tokens,
+    outputTokens: typeof usage.completion_tokens === 'number' ? usage.completion_tokens : 0,
+    cachedInputTokens: typeof details?.cached_tokens === 'number' ? details.cached_tokens : 0,
+  };
 }
 
 function extractDelta(chunk: unknown): { text: string; reasoning: string } {
