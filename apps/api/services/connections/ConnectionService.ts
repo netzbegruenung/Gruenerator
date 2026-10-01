@@ -24,7 +24,10 @@ export interface ConnectionDetail {
 }
 
 export class ConnectionService {
-  static async listConnections(userId: string): Promise<ConnectionStatus[]> {
+  static async listConnections(
+    userId: string,
+    { includeHidden = false }: { includeHidden?: boolean } = {}
+  ): Promise<ConnectionStatus[]> {
     // Connections are created via createConnectSession with end_user.id = userId, so Nango
     // files them under that end-user id and assigns its own random connection_id. Filter by
     // userId (→ ?endUserId=), NOT connectionId (which never equals userId).
@@ -40,7 +43,7 @@ export class ConnectionService {
     }
 
     return Object.entries(NANGO_PROVIDERS)
-      .filter(([key]) => !HIDDEN_NANGO_PROVIDERS.has(key as NangoProviderKey))
+      .filter(([key]) => includeHidden || !HIDDEN_NANGO_PROVIDERS.has(key as NangoProviderKey))
       .map(([key, config]) => {
         const connection = connections.find((c) => c.provider_config_key === key);
         return {
@@ -100,5 +103,14 @@ export class ConnectionService {
       },
     });
     return response.data.token;
+  }
+
+  /** Connect-Link für genau einen Anbieter — Nango zeigt dann keine Auswahl. */
+  static async createConnectLink(userId: string, providerKey: NangoProviderKey): Promise<string> {
+    const response = await getNango().createConnectSession({
+      end_user: { id: userId },
+      allowed_integrations: [providerKey],
+    });
+    return response.data.connect_link;
   }
 }

@@ -222,7 +222,7 @@ describe('resource indicator spelling (RFC 8707)', () => {
     const loginPage = new URL(authorize.headers.get('location') ?? '', 'https://gruenerator.eu');
     expect(loginPage.pathname).toBe('/login');
     // Ein Parameter, den unsere Loginseite selbst kennt, darf die Signatur nicht brechen.
-    loginPage.searchParams.set('provider', 'netzbegruenung');
+    loginPage.searchParams.set('login', 'gruenerator');
 
     const signUp = await auth.handler(
       new Request(`${BASE}/sign-up/email`, {

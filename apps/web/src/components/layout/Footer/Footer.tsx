@@ -46,13 +46,9 @@ const Footer = () => {
               </a>
             </div>
             <p className="m-0 text-[0.85em] text-foreground opacity-70 text-right max-sm:text-center max-[575px]:text-[0.8em] [&_a]:text-link [&_a]:underline [&_a]:transition-colors [&_a]:duration-300 [&_a:hover]:text-primary-500">
-              © 2026. Eine Website von Moritz Wächter. Alle Rechte vorbehalten. Der Grünerator wird
-              unterstützt von der{' '}
-              <a href="https://netzbegruenung.de/" target="_blank" rel="noopener noreferrer">
-                netzbegrünung
-              </a>
-              . <Link to="/impressum">Impressum</Link> · <Link to="/datenschutz">Datenschutz</Link>{' '}
-              · <Link to="/ki-transparenz">KI-Transparenz</Link>
+              © 2026. Eine Website von Moritz Wächter. Alle Rechte vorbehalten.{' '}
+              <Link to="/impressum">Impressum</Link> · <Link to="/datenschutz">Datenschutz</Link> ·{' '}
+              <Link to="/ki-transparenz">KI-Transparenz</Link>
             </p>
           </div>
           <p className="m-0 mt-md text-[0.8em] text-muted-foreground text-center max-[575px]:text-[0.75em]">

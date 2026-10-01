@@ -35,7 +35,6 @@ const JWKS = createRemoteJWKSet(new URL(`${KC_ISSUER}/protocol/openid-connect/ce
 const LOCALE_MAP: Record<string, 'de-DE' | 'de-AT'> = {
   'gruene-oesterreich-login': 'de-AT',
   'gruenes-netz-login': 'de-DE',
-  'netzbegruenung-login': 'de-DE',
 };
 
 export const mobileTokenExchange = () => {

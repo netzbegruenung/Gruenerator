@@ -83,7 +83,6 @@ const JWT_SECRET = new TextEncoder().encode(env.SESSION_SECRET ?? 'fallback-secr
 const SOURCE_TO_PROVIDER: Record<string, string> = {
   'gruenerator-login': 'keycloak-gruenerator',
   'gruenes-netz-login': 'keycloak-gruenes-netz',
-  'netzbegruenung-login': 'keycloak-netzbegruenung',
   'gruene-oesterreich-login': 'keycloak-gruene-at',
 };
 

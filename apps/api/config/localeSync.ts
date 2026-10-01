@@ -1,11 +1,10 @@
 /**
  * Der einzige Ort, an dem ein Login das Land eines Profils schreibt.
  *
- * Drei der vier Keycloak-IdPs nennen ein Land, einer nicht:
+ * Zwei der drei Keycloak-IdPs nennen ein Land, einer nicht:
  *
  *   keycloak-gruene-at       → de-AT   (Die Grünen Österreich)
  *   keycloak-gruenes-netz    → de-DE   (Grünes Netz, Bündnis 90/Die Grünen)
- *   keycloak-netzbegruenung  → de-DE   (Netzbegrünung, deutscher Verein)
  *   keycloak-gruenerator       — kein Ländersignal; wird derzeit nicht genutzt
  *
  * Der Unterschied zu vorher steckt nicht in dieser Liste, sondern in dem, was
@@ -48,7 +47,6 @@ export type SupportedLocale = 'de-DE' | 'de-AT';
 export const PROVIDER_LOCALE: Record<string, SupportedLocale> = {
   'keycloak-gruene-at': 'de-AT',
   'keycloak-gruenes-netz': 'de-DE',
-  'keycloak-netzbegruenung': 'de-DE',
 };
 
 type Db = NodePgDatabase<typeof schema>;

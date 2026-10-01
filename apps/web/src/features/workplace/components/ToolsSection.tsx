@@ -52,12 +52,6 @@ const FAVORITES: FavoriteItem[] = [
     href: 'https://termine.netzbegruenung.de',
     icon: getIcon('actions', 'link')!,
   },
-  {
-    id: 'netzbegruenung',
-    title: 'Netzbegrünung',
-    href: 'https://netzbegruenung.de/',
-    icon: getIcon('navigation', 'home')!,
-  },
 ];
 
 // Soft, hover-lift card surface for the favorite pills. Mirrors the workplace's

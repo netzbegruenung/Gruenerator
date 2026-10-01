@@ -23,7 +23,6 @@ export type { CountryProviderId, LoginProvider, LoginProviderId };
 export const PROVIDER_SOURCE = {
   'gruenes-netz': 'gruenes-netz-login',
   'gruene-oesterreich': 'gruene-oesterreich-login',
-  netzbegruenung: 'netzbegruenung-login',
   gruenerator: 'gruenerator-login',
 } as const satisfies Record<LoginProviderId, string>;
 
@@ -77,10 +76,7 @@ export function deviceCountryProvider(): CountryProviderId {
  * Anbieter, die erst nach dem Freischalt-Griff erscheinen (siehe
  * `app/(auth)/login.tsx`).
  *
- * Nur `gruenerator` steht hier, nicht die zwei, die Web hinter `?provider=`
- * versteckt: Netzbegrünung bleibt sichtbar, weil ein Telefon keine Adresszeile
- * hat und diese Konten sonst gar nicht mehr in die App kämen. Der
- * Grünerator-Login ist der einzige Weg auf ein Keycloak-Formular mit
+ * Der Grünerator-Login ist der einzige Weg auf ein Keycloak-Formular mit
  * Benutzername und Passwort — brauchbar für die App-Review, verwirrend für die
  * Mitglieder, die so ein Konto nicht haben.
  *
@@ -94,9 +90,8 @@ export const GATED_PROVIDERS: readonly LoginProviderId[] = ['gruenerator'];
  * The provider list as the sheet shows it: the detected one first, the rest
  * behind it in registry order.
  *
- * Nicht web's Default-Menge: Netzbegrünung bleibt drin (Begründung an
- * {@link GATED_PROVIDERS}), nur die dort genannten fallen weg, bis
- * `showGated` sie hereinholt.
+ * Nur die in {@link GATED_PROVIDERS} genannten fallen weg, bis `showGated`
+ * sie hereinholt.
  *
  * Ein gesperrter `primary` würde die Liste um genau diesen Eintrag kürzen —
  * kann heute nicht vorkommen, weil `deviceCountryProvider` ausschließlich
