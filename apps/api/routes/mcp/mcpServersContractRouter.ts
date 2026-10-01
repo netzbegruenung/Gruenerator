@@ -23,15 +23,6 @@ import { revokeApprovalsForServer } from '../chat/services/agenticLoop/toolAppro
 
 import type { Application } from 'express';
 
-/** What providers must have on file; null when BASE_URL is unset (OAuth can't run then). */
-function redirectUriOrNull(): string | null {
-  try {
-    return McpOAuthService.redirectUri();
-  } catch {
-    return null;
-  }
-}
-
 const log = createLogger('mcpServersContract');
 
 const s = initServer();
@@ -54,7 +45,7 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
         ...(args.query.search !== undefined && { search: args.query.search }),
         ...(args.query.cursor !== undefined && { cursor: args.query.cursor }),
       });
-      return { status: 200 as const, body: { ...page, oauthRedirectUri: redirectUriOrNull() } };
+      return { status: 200 as const, body: page };
     } catch (error) {
       log.error('registry failed', error);
       return { status: 500 as const, body: { error: (error as Error).message || 'Fehler' } };
@@ -135,10 +126,6 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
         ...(args.body.authType !== undefined && { authType: args.body.authType }),
         ...(args.body.token !== undefined && { token: args.body.token }),
         ...(args.body.enabled !== undefined && { enabled: args.body.enabled }),
-        ...(args.body.oauthClientId !== undefined && { oauthClientId: args.body.oauthClientId }),
-        ...(args.body.oauthClientSecret !== undefined && {
-          oauthClientSecret: args.body.oauthClientSecret,
-        }),
       });
       if (!server) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
       return { status: 200 as const, body: { server } };
@@ -162,11 +149,8 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
           },
         };
       }
-      const revoke = await McpOAuthService.tokenRevocation(userId, args.params.id);
       const deleted = await McpServerRegistry.delete(userId, args.params.id);
       if (!deleted) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
-      // Only once the row is gone, and without waiting on the provider.
-      if (revoke) void revoke();
       // Die dauerhaften Werkzeug-Freigaben dieses Servers verlieren mit ihm
       // ihren Gegenstand — sie stünden sonst für immer in der Liste unter
       // „Konnektoren". Best-effort: das Entfernen selbst ist schon passiert.

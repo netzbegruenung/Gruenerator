@@ -1,6 +1,5 @@
 /**
- * OAuth redirect target for user-managed MCP servers: GET /api/mcp/auth/callback,
- * plus our Client ID Metadata Document at GET /api/mcp/auth/client-metadata.json.
+ * OAuth redirect target for user-managed MCP servers: GET /api/mcp/auth/callback
  *
  * Public (no cookie): identity comes from the one-time Redis state, so the
  * cross-site redirect works even when the session cookie is dropped. Exchanges
@@ -96,17 +95,6 @@ export function mountMcpOAuthCallbackRouter(app: Application): void {
   const router: Router = Router();
   router.get('/callback', (req, res) => {
     void handleCallback(req, res);
-  });
-  // SEP-991 Client ID Metadata Document: authorization servers fetch it to
-  // identify us, so it is public and cacheable.
-  router.get('/client-metadata.json', (_req, res) => {
-    const doc = McpOAuthService.clientMetadataDocument();
-    if (!doc) {
-      res.status(404).json({ error: 'not_configured' });
-      return;
-    }
-    res.setHeader('Cache-Control', 'public, max-age=3600');
-    res.json(doc);
   });
   app.use('/api/mcp/auth', router);
 }

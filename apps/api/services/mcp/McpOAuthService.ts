@@ -14,14 +14,11 @@
  * expiry can't race to invalidate a single-use refresh token.
  */
 
-import { isIP } from 'node:net';
-
 import { type McpOauthStartResult } from '@gruenerator/contracts';
 import {
   discoverOAuthServerInfo,
   discoverAuthorizationServerMetadata,
   registerClient,
-  selectClientAuthMethod,
   startAuthorization,
   exchangeAuthorization,
   refreshAuthorization,
@@ -62,13 +59,8 @@ interface AsMetadata {
   registration_endpoint?: string;
   scopes_supported?: string[];
   token_endpoint_auth_methods_supported?: string[];
-  revocation_endpoint?: string;
-  revocation_endpoint_auth_methods_supported?: string[];
-  client_id_metadata_document_supported?: boolean;
   authorization_response_iss_parameter_supported?: boolean;
 }
-
-const REVOKE_TIMEOUT_MS = 5_000;
 
 /**
  * Scopes to request: what the MCP resource declares (RFC 9728 PRM), never the
@@ -127,26 +119,6 @@ function providerErrorDetail(err: unknown): string {
     }
   }
   return msg;
-}
-
-/**
- * Where we publish our Client ID Metadata Document (SEP-991). An AS that
- * supports it fetches this URL to learn who we are — so it has to be publicly
- * reachable over https. Null in local dev, where no AS could fetch it; those
- * fall back to dynamic registration.
- */
-function clientMetadataDocumentUrl(): string | null {
-  const base = env.BASE_URL?.replace(/\/$/, '');
-  if (!base) return null;
-  try {
-    const { protocol, hostname } = new URL(base);
-    const host = hostname.replace(/^\[|\]$/g, '');
-    const local = host === 'localhost' || host.endsWith('.localhost') || isIP(host) !== 0;
-    if (protocol !== 'https:' || local) return null;
-  } catch {
-    return null;
-  }
-  return `${base}/api/mcp/auth/client-metadata.json`;
 }
 
 function getRedirectUri(): string {
@@ -225,25 +197,6 @@ export class McpOAuthService {
   }
 
   /**
-   * Our Client ID Metadata Document, served at its own URL — the URL is the
-   * `client_id`. Public client: a document anyone can read carries no secret,
-   * so PKCE alone protects the flow. Null when there is no public https origin.
-   */
-  static clientMetadataDocument(): Record<string, unknown> | null {
-    const url = clientMetadataDocumentUrl();
-    if (!url) return null;
-    return {
-      client_id: url,
-      client_name: 'Grünerator',
-      client_uri: new URL(url).origin,
-      redirect_uris: [getRedirectUri()],
-      grant_types: ['authorization_code', 'refresh_token'],
-      response_types: ['code'],
-      token_endpoint_auth_method: 'none',
-    };
-  }
-
-  /**
    * Begin authorization: discover, register (DCR) or reuse the client, persist
    * the OIDC config, and return the provider authorize URL. The PKCE verifier is
    * parked in Redis keyed by an opaque state for the callback.
@@ -309,36 +262,16 @@ export class McpOAuthService {
     // One invariant, one expression: when the issuer moved we keep neither the
     // client_id nor the secret, so both hang off `existing`.
     const existing = issuerChanged ? null : stored;
-    // A CIMD client is re-derived every time: its URL follows BASE_URL, and the
-    // AS may stop reading documents. Everything else is reused as stored.
-    const reusable = existing?.scheme === 'cimd' ? null : existing;
-    let clientId = reusable?.clientId;
+    let clientId = existing?.clientId;
     let clientSecret =
-      reusable && server.oauth_client_secret_encrypted
+      existing && server.oauth_client_secret_encrypted
         ? decryptCredential(server.oauth_client_secret_encrypted)
         : undefined;
     const scopes =
       existing?.scopes && existing.scopes.length
         ? existing.scopes
         : selectScopes(info.resourceMetadata?.scopes_supported, metadata.scopes_supported);
-    // A reused client keeps the scheme it was obtained under — re-authorizing a
-    // DCR client must not turn it into a hand-entered one.
-    let scheme: McpOidcConfig['scheme'] = clientId
-      ? (reusable?.scheme ?? 'pre_registration')
-      : 'dcr';
-    // A client obtained in this call replaces the stored secret, including with
-    // none: a public client (CIMD, or DCR with `none`) must not inherit one.
-    let freshClient = false;
-
-    // SEP-991: where the AS reads Client ID Metadata Documents, our published
-    // document is the client — nothing to register, nothing stored at the
-    // provider per connection. Same preference order as the SDK's own `auth()`.
-    const metadataUrl = clientMetadataDocumentUrl();
-    if (!clientId && metadataUrl && metadata.client_id_metadata_document_supported === true) {
-      clientId = metadataUrl;
-      scheme = 'cimd';
-      freshClient = true;
-    }
+    let scheme: McpOidcConfig['scheme'] = clientId ? 'pre_registration' : 'dcr';
 
     if (!clientId) {
       if (!metadata.registration_endpoint) {
@@ -384,7 +317,6 @@ export class McpOAuthService {
       clientId = reg.client_id;
       clientSecret = reg.client_secret ?? undefined;
       scheme = 'dcr';
-      freshClient = true;
     }
 
     const oidc: McpOidcConfig = {
@@ -408,8 +340,8 @@ export class McpOAuthService {
       .update(mcp_servers)
       .set({
         oauth_meta: oidc,
-        ...(freshClient && {
-          oauth_client_secret_encrypted: clientSecret ? encryptCredential(clientSecret) : null,
+        ...(clientSecret !== undefined && {
+          oauth_client_secret_encrypted: encryptCredential(clientSecret),
         }),
         updated_at: new Date(),
       })
@@ -594,92 +526,6 @@ export class McpOAuthService {
     } finally {
       await redisClient.del(lockKey).catch(() => {});
     }
-  }
-
-  /**
-   * RFC 7009: tell the provider the tokens are dead. Without it, removing a
-   * connector only forgets the tokens on our side; the provider keeps them
-   * valid until they expire — a refresh token often for months.
-   *
-   * Two phases, because the row is about to go: this reads what revocation
-   * needs and returns the network part, which the caller runs only once the
-   * delete succeeded — and in the background, so a slow provider never holds
-   * up the removal. Null when there is nothing to revoke. The returned
-   * function never throws; a provider without a revocation endpoint is skipped.
-   */
-  static async tokenRevocation(
-    userId: string,
-    serverId: string
-  ): Promise<(() => Promise<void>) | null> {
-    const server = await getServer(userId, serverId).catch(() => undefined);
-    const oidc = server?.oauth_meta;
-    if (!server || server.auth_type !== 'oauth' || !oidc?.issuer || !oidc.clientId) return null;
-    const tokens = [
-      { value: server.refresh_token_encrypted, hint: 'refresh_token' },
-      { value: server.token_encrypted, hint: 'access_token' },
-    ]
-      .map((t) => ({ hint: t.hint, token: t.value ? safeDecrypt(t.value) : null }))
-      .filter((t): t is { hint: string; token: string } => t.token !== null);
-    if (tokens.length === 0) return null;
-
-    const issuer = oidc.issuer;
-    const clientId = oidc.clientId;
-    const clientSecret = server.oauth_client_secret_encrypted
-      ? safeDecrypt(server.oauth_client_secret_encrypted)
-      : null;
-
-    return async () => {
-      try {
-        // The issuer came from discovery on a user-supplied server: same SSRF
-        // gate as every other fetch it steers.
-        const issuerCheck = await validateUrlForFetch(issuer);
-        if (!issuerCheck.isValid) return;
-        const metadata = (await discoverAuthorizationServerMetadata(issuer)) as
-          AsMetadata | undefined;
-        const endpointCheck = metadata?.revocation_endpoint
-          ? await validateUrlForFetch(metadata.revocation_endpoint)
-          : null;
-        if (!metadata || !endpointCheck?.isValid || !endpointCheck.url) return;
-        const endpoint = endpointCheck.url;
-
-        const method = selectClientAuthMethod(
-          { client_id: clientId, ...(clientSecret && { client_secret: clientSecret }) },
-          metadata.revocation_endpoint_auth_methods_supported ??
-            metadata.token_endpoint_auth_methods_supported ??
-            []
-        );
-        await Promise.all(
-          tokens.map(async ({ token, hint }) => {
-            const body = new URLSearchParams({ token, token_type_hint: hint });
-            const headers: Record<string, string> = {
-              'Content-Type': 'application/x-www-form-urlencoded',
-            };
-            if (method === 'client_secret_basic' && clientSecret) {
-              // Encoded exactly as the SDK does at the token endpoint, so one
-              // client authenticates the same way on both.
-              headers.Authorization = `Basic ${btoa(`${clientId}:${clientSecret}`)}`;
-            } else {
-              body.set('client_id', clientId);
-              if (method === 'client_secret_post' && clientSecret)
-                body.set('client_secret', clientSecret);
-            }
-            const res = await fetch(endpoint, {
-              method: 'POST',
-              headers,
-              body,
-              signal: AbortSignal.timeout(REVOKE_TIMEOUT_MS),
-            });
-            if (!res.ok)
-              log.warn('MCP token revocation refused', { serverId, hint, status: res.status });
-          })
-        );
-      } catch (err) {
-        log.warn('MCP token revocation failed', {
-          serverId,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    };
   }
 
   /**
