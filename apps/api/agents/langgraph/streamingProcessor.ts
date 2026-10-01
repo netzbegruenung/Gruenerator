@@ -281,7 +281,7 @@ export async function processGraphRequestStreaming(
      *    `'high' | 'none'` and throws a ZodError on 'low'/'medium', so the
      *    scale collapses exactly as `mistralReasoningOption` collapses it in
      *    routes/chat/services/responseStreamingService.ts;
-     *  - the other OpenAI-compat hosts (melious, cortecs, greenpt, scaleway)
+     *  - the other OpenAI-compat hosts (melious, cortecs, greenpt)
      *    take NO reasoning option here: their fetch wrappers pin
      *    `reasoning_effort: 'none'` (or the host ignores it). Sending one would
      *    be a lie in the code about what the lane does — denkende Züge laufen
@@ -327,15 +327,7 @@ export async function processGraphRequestStreaming(
     }
 
     // Create the language model and stream.
-    //
-    // `needsReasoning` pins the lane to the Mistral API whenever a `mistral`
-    // reasoning block was built above: the Scaleway upstream that otherwise
-    // serves Medium 3.5 speaks @ai-sdk/openai and never receives that
-    // namespace, which is precisely the silent drop the comment above warns
-    // about. See routeMistralModel in services/ai/providerInstances.ts.
-    const model = getModel(effectiveProvider, effectiveModel, {
-      needsReasoning: reasoningProviderOptions?.mistral !== undefined,
-    });
+    const model = getModel(effectiveProvider, effectiveModel);
 
     // Die Denk-Variante fordert 32768 und `max_tokens * 2` kann beliebig hoch
     // liegen — beides über der Ausgabedecke von Mistral Medium 3.5 (16.384),

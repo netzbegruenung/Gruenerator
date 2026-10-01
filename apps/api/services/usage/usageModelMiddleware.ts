@@ -47,9 +47,8 @@ function tokenCount(value: unknown): number {
  * Der Provider, unter dem eine Anfrage verbucht wird.
  *
  * Für alle Lanes ist das der Name, unter dem das Modell gebaut wurde. Für
- * `cortecs` NICHT: das ist ein Router, und die Buchhaltung führt den Upstream —
- * dasselbe Muster, nach dem Scaleway-geroutetes Mistral Medium unter
- * `scaleway` landet. Ohne diese Auflösung stünde der CO₂-Koeffizient dieser
+ * `cortecs` NICHT: das ist ein Router, und die Buchhaltung führt den Upstream.
+ * Ohne diese Auflösung stünde der CO₂-Koeffizient dieser
  * Lane auf einer Zusage statt auf dem Messwert, der bei jeder Antwort im
  * Header mitkommt.
  *

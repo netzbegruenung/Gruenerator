@@ -251,14 +251,7 @@ export function laneTarget(
  */
 export function providerForModel(modelName = ''): ProviderName {
   const name = String(modelName || '').toLowerCase();
-  // Before the generic gemma test below: die MoE-Variante `gemma-4-26b-a4b-it`
-  // ist NUR direkt bei Scaleway zu haben. Über Cortecs lief sie am 21.08.2026
-  // für einen halben Tag und ist dort unbedienbar geworden (der einzige
-  // brauchbare Unterauftragnehmer verschwand aus dem Katalog, der zweite ist
-  // quantisiert) — wer sie hier auf `cortecs` schickt, erntet genau diesen
-  // Filterfehler.
-  if (name === 'gemma-4-26b-a4b-it') return 'scaleway';
-  // Das DICHTE 31B dagegen ist die Cortecs-Seite: Primär von `heavy` und
+  // Das DICHTE 31B ist die Cortecs-Seite: Primär von `heavy` und
   // `pruefung` und der Ausweich der Gemma-Antwortlane. Ohne diese Zeile fällt
   // der Name durch die ganze Kette bis zum `return 'mistral'` am Ende — es
   // gibt gar keinen generischen gemma-Test — und ein Operator bekäme einen 404

@@ -23,10 +23,6 @@ vi.mock('../providerInstances.js', () => ({
   getGreenPTProvider: () => ({
     chat: (model: string) => ({ provider: 'greenpt', modelId: model }),
   }),
-  getScalewayProvider: () => ({
-    chat: (model: string) => ({ provider: 'scaleway', modelId: model }),
-  }),
-  routeMistralModel: (model: string) => ({ model, upstream: 'mistral' }),
   LITELLM_DEFAULT_BASE_URL: '',
   GREENPT_BASE_URL: '',
   MISTRAL_API_URL: '',

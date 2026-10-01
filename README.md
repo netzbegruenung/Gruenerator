@@ -175,9 +175,8 @@ Professional subtitle generation for videos:
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
 │  │  Express 5   │  │   Cluster    │  │    AI (in-process) │  │
 │  │   Server     │──│   Workers    │──│ Mistral │ GreenPT  │  │
-│  │              │  │              │  │ Scaleway│ Cortecs  │  │
-│  └──────────────┘  └──────────────┘  │ Melious │          │  │
-│                                      └────────────────────┘  │
+│  │              │  │              │  │ Melious │ Cortecs  │  │
+│  └──────────────┘  └──────────────┘  └────────────────────┘  │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
 │  │  ChatGraph   │  │  Keycloak    │  │    PostgreSQL      │  │
 │  │  Agent Loop  │  │  OIDC SSO    │  │    Database        │  │

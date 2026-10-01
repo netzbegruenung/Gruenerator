@@ -35,25 +35,17 @@ vi.mock('@langchain/openai', () => ({
 vi.mock('../../ai/cortecsEndpoint.js', () => ({
   cortecsBaseUrl: () => 'https://cortecs.example/v1',
 }));
-vi.mock('../../ai/scalewayEndpoint.js', () => ({
-  scalewayBaseUrl: () => 'https://scaleway.example/v1',
-}));
-
 // Mocked rather than imported for real: the module pulls the whole provider
 // construction site (AI SDK clients included) and all this test needs from it is
-// one boolean and one URL.
-const routing = { enabled: false };
+// one URL.
 vi.mock('../../ai/providerInstances.js', () => ({
-  isScalewayMistralRoutingEnabled: () => routing.enabled,
   MISTRAL_API_URL: 'https://mistral.example/v1',
 }));
 
 const envMock: {
-  SCALEWAY_API_KEY?: string;
   MISTRAL_API_KEY?: string;
   CORTECS_API_KEY?: string;
 } = {
-  SCALEWAY_API_KEY: 'test-key',
   MISTRAL_API_KEY: 'mistral-test-key',
   CORTECS_API_KEY: 'cortecs-test-key',
 };
@@ -71,10 +63,8 @@ const { leadModel, workerModel } = await import('./models.js');
 
 beforeEach(() => {
   constructed.length = 0;
-  envMock.SCALEWAY_API_KEY = 'test-key';
   envMock.MISTRAL_API_KEY = 'mistral-test-key';
   envMock.CORTECS_API_KEY = 'cortecs-test-key';
-  routing.enabled = false; // the deployed default since 08/2026
 });
 
 function configOf(build: () => unknown): CapturedConfig {
@@ -91,22 +81,11 @@ describe('leadModel', () => {
 
   it('runs the lane whose tool-calling discipline the run depends on', () => {
     // A lead that fumbles `task` or `write_file` produces no document at all.
-    // Same weights either way — only the name the host knows them by changes.
     expect(configOf(leadModel).model).toBe('mistral-medium-2604');
-    routing.enabled = true;
-    expect(configOf(leadModel).model).toBe('mistral-medium-3.5-128b');
   });
 
-  it('follows the Scaleway switch, though nothing here goes through routeMistralModel', () => {
-    // The regression this exists for: when Mistral Medium moved back off
-    // Scaleway (08/2026), this lane was missed on the first pass. It builds its
-    // own ChatOpenAI and names the host in a local constant, so neither the
-    // routing table nor a grep for `routeMistralModel` led here — and deep
-    // research kept running on the upstream everything else had just left.
+  it('runs on the Mistral API', () => {
     expect(configOf(leadModel).configuration?.baseURL).toBe('https://mistral.example/v1');
-
-    routing.enabled = true;
-    expect(configOf(leadModel).configuration?.baseURL).toBe('https://scaleway.example/v1');
   });
 });
 
@@ -160,36 +139,19 @@ describe('workerModel', () => {
     });
   });
 
-  it('bleibt auf Cortecs, was auch immer das Mistral-Routing tut', () => {
-    // The switch is about Mistral Medium's host, and Gemma is not Mistral. The
-    // worker's reason for sitting here is untouched by it — so it must NOT
-    // ride along.
-    expect(configOf(workerModel).configuration?.baseURL).toBe('https://cortecs.example/v1');
-    routing.enabled = true;
+  it('läuft auf Cortecs', () => {
     expect(configOf(workerModel).configuration?.baseURL).toBe('https://cortecs.example/v1');
   });
 });
 
 describe('configuration faults', () => {
-  it('names the key the lead actually needs, which depends on the routing', () => {
+  it('names the key the lead actually needs', () => {
     delete envMock.MISTRAL_API_KEY;
     expect(() => leadModel()).toThrow(/MISTRAL_API_KEY/);
-
-    routing.enabled = true;
-    envMock.MISTRAL_API_KEY = 'mistral-test-key';
-    delete envMock.SCALEWAY_API_KEY;
-    expect(() => leadModel()).toThrow(/SCALEWAY_API_KEY/);
   });
 
   it('names the missing key instead of failing somewhere inside a run', () => {
     delete envMock.CORTECS_API_KEY;
     expect(() => workerModel()).toThrow(/CORTECS_API_KEY/);
-  });
-
-  it('der Worker haengt am Cortecs-Schluessel, nicht mehr am Scaleway-Schluessel', () => {
-    // Nach dem Umzug vom 21.08.2026 die eigentliche Trennlinie: ein
-    // Deployment, das nur noch den alten Schluessel fuehrt, faellt hier auf.
-    delete envMock.SCALEWAY_API_KEY;
-    expect(() => workerModel()).not.toThrow();
   });
 });
