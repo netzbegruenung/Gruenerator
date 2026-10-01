@@ -2,9 +2,9 @@ import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter, type Href } from 'expo-router';
 import { useCallback } from 'react';
-import { Linking } from 'react-native';
 
 import { DEV_FIXTURES_ENABLED, DEV_RECENT_ACTIVITY } from '../services/devFixtures';
+import { openUrl } from '../services/share';
 import { WEB_ORIGIN } from '../services/webOrigin';
 
 export type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'presentation' | 'canvas';
@@ -89,7 +89,7 @@ export function useOpenRecentItem(): (item: RecentItem) => void {
         } as Href);
         return;
       }
-      void Linking.openURL(`${WEB_ORIGIN}${item.href}`);
+      void openUrl(`${WEB_ORIGIN}${item.href}`);
     },
     [router]
   );

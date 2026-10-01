@@ -1,8 +1,9 @@
 import { type SerializableCitation } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback } from 'react';
-import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 
+import { openUrl } from '../../../services/share';
 import { spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
@@ -17,7 +18,7 @@ export function ToolCitationList({
   theme: Theme;
 }) {
   const openHref = useCallback((href: string) => {
-    if (href) void Linking.openURL(href);
+    if (href) void openUrl(href);
   }, []);
 
   if (citations.length === 0) {

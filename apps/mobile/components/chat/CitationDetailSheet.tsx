@@ -5,12 +5,12 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  Linking,
   ActivityIndicator,
   ScrollView,
   useColorScheme,
 } from 'react-native';
 
+import { openUrl } from '../../services/share';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
@@ -156,7 +156,7 @@ export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }:
                   styles.actionButton,
                   { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },
                 ]}
-                onPress={() => Linking.openURL(citation.url)}
+                onPress={() => void openUrl(citation.url)}
                 accessibilityRole="link"
               >
                 <Ionicons name="open-outline" size={16} color={theme.textSecondary} />
