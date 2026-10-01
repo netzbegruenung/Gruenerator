@@ -34,6 +34,7 @@ import {
   fetchMcpServers,
   startMcpOAuth,
   testMcpServer,
+  updateMcpServer,
   McpOAuthStartError,
   type McpAuthType,
   type McpServerTestResult,
@@ -122,6 +123,9 @@ const chipClass =
   'inline-flex items-center px-2 py-0.5 rounded-md bg-primary-50 text-primary-700 border border-primary-100 dark:bg-primary-950/30 dark:text-primary-300 dark:border-primary-800 text-[11px] font-medium';
 
 const okTextClass = 'text-primary-700 dark:text-primary-400';
+
+const textBtnClass =
+  'text-xs font-medium text-grey-500 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50';
 
 const secondaryBtnClass =
   'px-lg py-sm rounded-xl font-medium text-sm cursor-pointer bg-transparent border border-grey-300 text-foreground hover:bg-grey-50 dark:border-grey-600 dark:hover:bg-grey-800 transition-colors';
@@ -324,7 +328,16 @@ McpAddForm.displayName = 'McpAddForm';
 // ── Connected MCP server row ─────────────────────────────────────────────────
 
 const McpServerRow = memo(
-  ({ server, onSuccess, onError }: { server: McpServerSummary } & McpSectionProps) => {
+  ({
+    server,
+    onSuccess,
+    onError,
+    onUseKey,
+  }: {
+    server: McpServerSummary;
+    /** Opens the key dialog for a row still waiting for OAuth. */
+    onUseKey?: (() => void) | null;
+  } & McpSectionProps) => {
     const del = useDeleteMcpServer();
     const update = useUpdateMcpServer();
     const test = useTestMcpServer();
@@ -433,11 +446,21 @@ const McpServerRow = memo(
                 Autorisieren
               </button>
             )}
+            {needsAuth && onUseKey && (
+              <button type="button" onClick={onUseKey} className={textBtnClass}>
+                Stattdessen API-Key
+              </button>
+            )}
+            {!isManaged && !needsAuth && server.authType === 'oauth' && (
+              <button type="button" onClick={authorize} className={textBtnClass}>
+                Neu verbinden
+              </button>
+            )}
             <button
               type="button"
               onClick={runTest}
               disabled={test.isPending}
-              className="text-xs font-medium text-grey-500 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
+              className={textBtnClass}
             >
               {test.isPending ? 'Teste…' : 'Testen'}
             </button>
@@ -503,16 +526,24 @@ const CardShell = memo(
     title,
     connecting,
     onConnect,
+    onUseKey,
   }: {
     title: string;
     connecting: boolean;
     onConnect: () => void;
+    /** Provider also takes an API key — offered next to the one-click login. */
+    onUseKey?: (() => void) | null;
   }) => (
     <div className="flex items-center gap-sm rounded-xl border border-grey-200 bg-background-pure p-sm transition-colors hover:border-primary-300 dark:border-grey-700">
       <McpLogo title={title} size={30} />
       <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground-heading">
         {title}
       </span>
+      {onUseKey && !connecting && (
+        <button type="button" onClick={onUseKey} className={textBtnClass}>
+          oder API-Key
+        </button>
+      )}
       {connecting ? (
         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary dark:text-primary-400">
           <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary-200 border-t-primary dark:border-primary-800" />
@@ -530,6 +561,8 @@ CardShell.displayName = 'CardShell';
 
 // ── Bearer connect dialog ────────────────────────────────────────────────────
 
+const takesKey = (entry: McpRegistryEntry) => entry.authOptions?.includes('bearer') === true;
+
 /**
  * One-step connect for token-based servers: paste the token, we create the
  * server AND verify it live. A failing token deletes the half-created server
@@ -537,10 +570,16 @@ CardShell.displayName = 'CardShell';
  */
 const BearerConnectDialog = ({
   entry,
+  pendingOAuthId,
   onClose,
   onConnected,
 }: {
   entry: McpRegistryEntry;
+  /**
+   * An OAuth row of this connector still waiting for authorization: switched
+   * to the key in place — a second row would collide on the unique name.
+   */
+  pendingOAuthId?: string | null;
   onClose: () => void;
   onConnected: (toolCount: number) => void;
 }) => {
@@ -549,14 +588,15 @@ const BearerConnectDialog = ({
   const [error, setError] = useState<string | null>(null);
   const [tools, setTools] = useState<string[] | null>(null);
 
-  const websiteHost = useMemo(() => {
-    if (!entry.websiteUrl) return null;
+  const keyPage = entry.keyUrl ?? entry.websiteUrl ?? null;
+  const keyHost = useMemo(() => {
+    if (!keyPage) return null;
     try {
-      return new URL(entry.websiteUrl).host;
+      return new URL(keyPage).host;
     } catch {
       return null;
     }
-  }, [entry.websiteUrl]);
+  }, [keyPage]);
 
   const connect = async () => {
     if (!token.trim() || busy) return;
@@ -564,19 +604,27 @@ const BearerConnectDialog = ({
     setError(null);
     let serverId: string | null = null;
     try {
-      const server = await createMcpServer({
-        name: entry.title,
-        url: entry.url,
-        authType: 'bearer',
-        token: token.trim(),
-      });
-      serverId = server.id;
-      const result = await testMcpServer(server.id);
+      if (pendingOAuthId) {
+        await updateMcpServer(pendingOAuthId, { authType: 'bearer', token: token.trim() });
+        serverId = pendingOAuthId;
+      } else {
+        const server = await createMcpServer({
+          name: entry.title,
+          url: entry.url,
+          authType: 'bearer',
+          token: token.trim(),
+        });
+        serverId = server.id;
+      }
+      const result = await testMcpServer(serverId);
       if (!result.ok) throw new Error(result.error || 'Verbindung fehlgeschlagen');
       setTools(result.toolNames);
       onConnected(result.toolCount);
     } catch (e) {
-      if (serverId) await deleteMcpServer(serverId).catch(() => {});
+      // A fresh row goes again; a row that waited for OAuth goes back to waiting.
+      if (serverId && !pendingOAuthId) await deleteMcpServer(serverId).catch(() => {});
+      else if (serverId)
+        await updateMcpServer(serverId, { authType: 'oauth', token: null }).catch(() => {});
       setError(e instanceof Error ? e.message : 'Verbindung fehlgeschlagen');
     } finally {
       setBusy(false);
@@ -621,17 +669,17 @@ const BearerConnectDialog = ({
             <p className="text-sm text-grey-500 leading-relaxed m-0">
               Füge deinen API-Token ein — er wird verschlüsselt gespeichert und nur für deine
               Anfragen genutzt.
-              {websiteHost && (
+              {keyHost && (
                 <>
                   {' '}
                   Du findest ihn in deinem Konto auf{' '}
                   <a
-                    href={entry.websiteUrl ?? undefined}
+                    href={keyPage ?? undefined}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 underline"
                   >
-                    {websiteHost}
+                    {keyHost}
                   </a>
                   .
                 </>
@@ -739,7 +787,12 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   const [cat, setCat] = useState('Alle');
   const [connecting, setConnecting] = useState<string | null>(null);
   const [prefill, setPrefill] = useState<McpPrefill | null>(null);
-  const [bearerEntry, setBearerEntry] = useState<McpRegistryEntry | null>(null);
+  const [bearerTarget, setBearerTarget] = useState<{
+    entry: McpRegistryEntry;
+    pendingOAuthId: string | null;
+  } | null>(null);
+  const openKeyDialog = (entry: McpRegistryEntry, pendingOAuthId: string | null = null) =>
+    setBearerTarget({ entry, pendingOAuthId });
   const addFormRef = useRef<HTMLDivElement>(null);
   // Debounced so typing doesn't hit the external MCP registry on every keystroke.
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -804,6 +857,21 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   const connected = own.filter((s) => !(s.authType === 'oauth' && !s.hasToken));
   const activeCount = connected.filter((s) => s.enabled).length;
 
+  // Curated entry for a saved row, so the row knows whether a key path exists.
+  const entryByUrl = useMemo(
+    () => new Map((registry?.recommended ?? []).map((e) => [e.url, e])),
+    [registry]
+  );
+  /** Key link on a card whose one-click way is OAuth but which also takes a key. */
+  const keyAlternative = (entry: McpRegistryEntry) =>
+    entry.authHint === 'oauth' && takesKey(entry) ? () => openKeyDialog(entry) : null;
+  /** Key action on a row still waiting for OAuth, where the provider takes keys. */
+  const rowKeyAction = (server: McpServerSummary) => {
+    const entry = entryByUrl.get(server.url);
+    if (!entry || !takesKey(entry)) return null;
+    return () => openKeyDialog(entry, server.id);
+  };
+
   const handlePickMcp = (entry: McpRegistryEntry) => {
     if (entry.authHint === 'oauth') {
       // Providers that reject DCR need a pre-registered client → route to the
@@ -844,7 +912,15 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
         else if (result.status === 'no_auth_required')
           onSuccess(`${entry.title} verbunden — der Server benötigt keine Anmeldung`);
         else if (result.status === 'error') {
-          if (result.code === 'dcr_rejected') {
+          const oauthImpossible =
+            result.code === 'dcr_rejected' || result.code === 'no_oauth_support';
+          if (oauthImpossible && takesKey(entry)) {
+            // OAuth cannot work here, but the provider takes an API key — the
+            // shorter way out than registering an OAuth app by hand. Transient
+            // failures (blocked popup, provider hiccup) only get the toast; the
+            // waiting row offers "Stattdessen API-Key" anyway.
+            openKeyDialog(entry, result.startFailed || !createdId ? null : createdId);
+          } else if (result.code === 'dcr_rejected') {
             // Provider refuses automatic registration → guide the user into the
             // manual app-registration form instead of leaving them at a banner.
             setPrefill({
@@ -873,7 +949,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
       return;
     }
     // bearer / unknown → one-step token dialog right on the card.
-    setBearerEntry(entry);
+    openKeyDialog(entry);
   };
 
   // Registry hits have no declared auth — prefill the add-form so the user picks
@@ -968,6 +1044,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                 server={server}
                 onSuccess={onSuccess}
                 onError={onError}
+                onUseKey={rowKeyAction(server)}
               />
             ))}
           </div>
@@ -1059,6 +1136,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                         title={it.entry.title}
                         connecting={connecting === it.entry.url}
                         onConnect={() => handlePickMcp(it.entry)}
+                        onUseKey={keyAlternative(it.entry)}
                       />
                     ))}
                   </div>
@@ -1073,6 +1151,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                   title={it.entry.title}
                   connecting={connecting === it.entry.url}
                   onConnect={() => handlePickMcp(it.entry)}
+                  onUseKey={keyAlternative(it.entry)}
                 />
               ))}
             </div>
@@ -1125,16 +1204,17 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
         <McpAddForm onSuccess={onSuccess} onError={onError} prefill={prefill} />
       </div>
 
-      {bearerEntry && (
+      {bearerTarget && (
         <BearerConnectDialog
-          entry={bearerEntry}
+          entry={bearerTarget.entry}
+          pendingOAuthId={bearerTarget.pendingOAuthId}
           onClose={() => {
-            setBearerEntry(null);
+            setBearerTarget(null);
             refreshMcp();
           }}
           onConnected={(toolCount) => {
             refreshMcp();
-            onSuccess(`${bearerEntry.title} verbunden — ${toolCount} Tools verfügbar`);
+            onSuccess(`${bearerTarget.entry.title} verbunden — ${toolCount} Tools verfügbar`);
           }}
         />
       )}
