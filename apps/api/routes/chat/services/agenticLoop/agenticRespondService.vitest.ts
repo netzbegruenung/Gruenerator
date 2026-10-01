@@ -489,9 +489,10 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
     expect(p.firstStepTools).toEqual(['gruenerator_search']);
   });
 
-  it('named_intent mit Anhang ohne Vorab-Treffer: die angehängten Dokumente bleiben erreichbar', async () => {
+  it('named_intent mit Anhang ohne Vorab-Treffer: nur die angehängten Dokumente (#3888)', async () => {
     // Ohne `searchQuery`/`lastUserTextNoMentions` hat der Vorab-Abruf keine
     // Anfrage und liefert nichts — der Fall, in dem der Zwang stehen bleibt.
+    // Neben dem Dokument griff der Planer sonst zur Programmsuche.
     const p = await loopParams(
       fakeState({
         intent: 'search',
@@ -501,7 +502,7 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
       catalogWith([...MOUNTED, 'dokumente_lesen'])
     );
     expect(p.forceFirstToolCall).toBe(true);
-    expect(p.firstStepTools).toEqual(['gruenerator_search', 'dokumente_lesen']);
+    expect(p.firstStepTools).toEqual(['dokumente_lesen']);
   });
 
   it('research_order: ein Rechercheauftrag sieht die Recherche-Werkzeuge, nicht den Rest', async () => {
