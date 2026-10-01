@@ -28,7 +28,7 @@ apps/api/services/ai/intermediateLanes.ts, apps/api/services/search/ */}
 - **Melious** (Saarbrücken, Deutschland; Gemma 4 läuft auf einem Melious-Knoten in Finnland) — Ausweichweg für Gemma 4 (Kreativtexte und Werkzeug-Planung) sowie Bilderzeugung mit FLUX 2 Klein, unter anderem für „KI-Bild erstellen“ im Sharepic-Editor
 - **DeepL** (Köln) — maschinelle Übersetzung von Texten und Dokumenten im Übersetzer und im Chat-Werkzeug `text_uebersetzen`; Dokumente werden nach dem Abruf bei DeepL gelöscht
 - **Scaleway** (Paris) — Gemma 4 (`gemma-4-26b-a4b-it`); das Zusammenfassen langer Dokumente lief hier bis August 2026 und läuft seitdem über Cortecs
-- **netzbegrünung e.V. / verdigado eG** (Deutschland / Finnland) — Infrastruktur und Datenbank. Die selbst gehostete Modell-Instanz bediente bis zum 29.08.2026 auch Sprachmodell-Anfragen; sie tut es nicht mehr (siehe [Nachhaltigkeit](./nachhaltigkeit.md))
+- **verdigado eG** (Deutschland / Finnland) — Infrastruktur und Datenbank. Die selbst gehostete Modell-Instanz bediente bis zum 29.08.2026 auch Sprachmodell-Anfragen; sie tut es nicht mehr (siehe [Nachhaltigkeit](./nachhaltigkeit.md))
 - **Linkup** (Paris) — Websuche mit Quellenangaben im Chat und in der Recherche
 - **SearXNG** (selbstgehostet, Deutschland) — Suche
 - **Hetzner** (Deutschland) — Hosting, an deutschen Standorten mit 100 % Wasserkraft
