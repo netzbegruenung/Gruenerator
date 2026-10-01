@@ -1,6 +1,14 @@
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
-import { borderRadius, darkTheme, lightTheme, spacing, BODY_FONT } from '../../theme';
+import {
+  borderRadius,
+  darkTheme,
+  lightTheme,
+  spacing,
+  BODY_FONT,
+  HEADING_FONT_BOLD,
+  HEADING_FONT_SEMIBOLD,
+} from '../../theme';
 import { type ToolTheme } from '../../theme/toolTheme';
 
 import { BottomSheet } from './BottomSheet';
@@ -69,7 +77,7 @@ export const SHEET_HANDOFF_MS = 350;
 
 const styles = StyleSheet.create({
   sheetTitle: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 18,
     paddingBottom: spacing.small,
   },
@@ -92,7 +100,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowTitle: {
-    fontFamily: 'Raleway_600SemiBold',
+    fontFamily: HEADING_FONT_SEMIBOLD,
     fontSize: 16,
   },
   rowDesc: {

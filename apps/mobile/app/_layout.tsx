@@ -1,11 +1,4 @@
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
-import {
-  useFonts,
-  Raleway_400Regular,
-  Raleway_500Medium,
-  Raleway_600SemiBold,
-  Raleway_700Bold,
-} from '@expo-google-fonts/raleway';
 import { setMentionInstance } from '@gruenerator/chat';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -13,7 +6,7 @@ import * as Notifications from 'expo-notifications';
 import { Stack, Redirect, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { memo, useEffect, type ReactNode } from 'react';
 import { View, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -102,44 +95,39 @@ enableFreeze(true);
  */
 setMentionInstance(CURRENT_INSTANCE);
 
-function RootLayout() {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+/**
+ * Sends a signed-out visitor to onboarding or login, unless they are already in
+ * the auth flow.
+ *
+ * Its own component so that only the signed-out tree subscribes to the route:
+ * `useSegments` re-renders its caller on every navigation, and in `RootLayout`
+ * that meant the whole app — drawer, chat runtime, settings sheet — re-rendered
+ * on every tab switch and every push, mid-animation.
+ */
+function SignedOutGate({
+  hasCompletedOnboarding,
+  children,
+}: {
+  hasCompletedOnboarding: boolean;
+  children: ReactNode;
+}) {
   const segments = useSegments();
-  const { user, isLoading } = useAuthStore();
-  const hasCompletedOnboarding = useOnboardingStore((s) => s.hasCompletedOnboarding);
-  const hasHydratedOnboarding = useOnboardingStore((s) => s.hasHydrated);
-  useAppInitialization();
-
-  const [fontsLoaded] = useFonts({
-    Raleway_400Regular,
-    Raleway_500Medium,
-    Raleway_600SemiBold,
-    Raleway_700Bold,
-    // PT Sans is NOT loaded here: it is linked natively by the expo-font config
-    // plugin (app.json) as one family with weights, which is what makes
-    // `fontWeight` select a real face instead of being ignored.
-  });
-
-  useEffect(() => {
-    if (fontsLoaded && !isLoading && hasHydratedOnboarding) {
-      void SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, isLoading, hasHydratedOnboarding]);
-
-  // Wait for the persisted onboarding flag too — deciding the redirect before it
-  // rehydrates would flash the carousel at a returning user (defaults to false).
-  if (!fontsLoaded || isLoading || !hasHydratedOnboarding) {
-    return null;
-  }
-
   const isInAuthFlow = segments[0] === '(auth)' || segments[0] === 'auth';
-
-  if (!user && !isInAuthFlow) {
+  if (!isInAuthFlow) {
     return <Redirect href={hasCompletedOnboarding ? '/(auth)/login' : '/(auth)/onboarding'} />;
   }
+  return children;
+}
 
-  const appContent = (
+/**
+ * The navigator itself. Memoised and prop-less, so a `RootLayout` re-render
+ * (auth or onboarding state) never re-renders the Stack and its screen options;
+ * only a colour-scheme change does.
+ */
+const AppStack = memo(function AppStack() {
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  return (
     <View style={{ flex: 1 }}>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       <Stack
@@ -204,6 +192,28 @@ function RootLayout() {
       </Stack>
     </View>
   );
+});
+
+function RootLayout() {
+  const user = useAuthStore((s) => s.user);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const hasCompletedOnboarding = useOnboardingStore((s) => s.hasCompletedOnboarding);
+  const hasHydratedOnboarding = useOnboardingStore((s) => s.hasHydrated);
+  useAppInitialization();
+
+  // No font gate: Raleway and PT Sans are linked into the binary by the
+  // expo-font config plugin (app.json), so they exist before the first frame.
+  useEffect(() => {
+    if (!isLoading && hasHydratedOnboarding) {
+      void SplashScreen.hideAsync();
+    }
+  }, [isLoading, hasHydratedOnboarding]);
+
+  // Wait for the persisted onboarding flag too — deciding the redirect before it
+  // rehydrates would flash the carousel at a returning user (defaults to false).
+  if (isLoading || !hasHydratedOnboarding) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -221,7 +231,15 @@ function RootLayout() {
                     blieb `lvIds` null und die App zeigte die Inhalte aller
                     Landesverbände (#2931). */}
                 {user ? <UserProfileHydrationBridge /> : null}
-                {user ? <AppDrawer>{appContent}</AppDrawer> : appContent}
+                {user ? (
+                  <AppDrawer>
+                    <AppStack />
+                  </AppDrawer>
+                ) : (
+                  <SignedOutGate hasCompletedOnboarding={hasCompletedOnboarding}>
+                    <AppStack />
+                  </SignedOutGate>
+                )}
                 {/* Settings are a sheet, not a route, so they open over whatever
                     is on screen. Mounted here — once — because the drawer and the
                     profile menu both reach for them from different screens. */}

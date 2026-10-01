@@ -4,11 +4,19 @@
  */
 
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { lazy, Suspense } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
 
 import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius, typography } from '../../theme';
+
+// Loaded when the share sheet first shows a link, not at launch: the QR
+// library's logo support pulls in css-tree, which builds its whole CSS grammar
+// from mdn-data on import (616 KB of bundle, ~36 ms in Node on a fast Mac) —
+// work every app start paid for a code only this sheet draws.
+const QRCode = lazy(() => import('react-native-qrcode-svg'));
+
+const QR_SIZE = 160;
 
 interface ShareLinkDisplayProps {
   shareUrl: string;
@@ -24,12 +32,14 @@ export function ShareLinkDisplay({ shareUrl, onCopy, onShare, copied }: ShareLin
     <View style={styles.container}>
       {/* QR tile stays white in both schemes: QR codes need a light background to scan reliably */}
       <View style={styles.qrContainer}>
-        <QRCode
-          value={shareUrl}
-          size={160}
-          backgroundColor={colors.white}
-          color={colors.grey[900]}
-        />
+        <Suspense fallback={<View style={styles.qrPlaceholder} />}>
+          <QRCode
+            value={shareUrl}
+            size={QR_SIZE}
+            backgroundColor={colors.white}
+            color={colors.grey[900]}
+          />
+        </Suspense>
       </View>
 
       <Text style={[styles.label, { color: theme.textSecondary }]}>Link zum Teilen</Text>
@@ -94,6 +104,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  qrPlaceholder: {
+    width: QR_SIZE,
+    height: QR_SIZE,
   },
   label: {
     ...typography.caption,

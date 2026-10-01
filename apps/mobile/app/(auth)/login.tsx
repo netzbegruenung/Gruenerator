@@ -21,7 +21,7 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { LegalNotice } from '../../components/auth/LegalNotice';
 import { LoginPanel } from '../../components/auth/LoginPanel';
-import { darkTheme, lightTheme, spacing, typography } from '../../theme';
+import { darkTheme, lightTheme, spacing, typography, HEADING_FONT_BOLD } from '../../theme';
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const BRAND_LOGO = require('../../assets/images/sonnenblume.png') as ImageSourcePropType;
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.small,
   },
   headline: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 30,
     lineHeight: 36,
     letterSpacing: -0.4,

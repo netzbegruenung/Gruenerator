@@ -1,6 +1,6 @@
 import { AssistantRuntimeProvider } from '@assistant-ui/react-native';
-import { useEffect, type ReactNode } from 'react';
-import { BackHandler, useColorScheme, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { BackHandler, View, useColorScheme, useWindowDimensions } from 'react-native';
 import { Drawer } from 'react-native-drawer-layout';
 
 import { useChatDrawerRuntime } from '../../hooks/useChatDrawerRuntime';
@@ -20,6 +20,26 @@ export function AppDrawer({ children }: { children: ReactNode }) {
   const open = useDrawerStore((s) => s.open);
   const openDrawer = useDrawerStore((s) => s.openDrawer);
   const closeDrawer = useDrawerStore((s) => s.closeDrawer);
+
+  // The thread list is closed almost all the time, so it waits for the first
+  // idle moment after launch instead of rendering alongside the first screen.
+  // Idle rather than on first open, so opening the drawer never has to build
+  // the whole list during its own slide-in.
+  const [contentReady, setContentReady] = useState(false);
+  useEffect(() => {
+    const handle = requestIdleCallback(() => setContentReady(true));
+    return () => cancelIdleCallback(handle);
+  }, []);
+  const showContent = contentReady || open;
+
+  const drawerStyle = useMemo(
+    () => ({ width: drawerWidth, backgroundColor: theme.background }),
+    [drawerWidth, theme.background]
+  );
+  const renderDrawerContent = useCallback(
+    () => (showContent ? <ThreadListDrawer theme={theme} /> : <View />),
+    [showContent, theme]
+  );
 
   // react-native-drawer-layout installs no back handler of its own (react-navigation's
   // drawer does). Without this, Android's back button navigated the stack *behind* an
@@ -48,8 +68,8 @@ export function AppDrawer({ children }: { children: ReactNode }) {
         swipeEnabled={open}
         swipeEdgeWidth={width}
         drawerType="slide"
-        drawerStyle={{ width: drawerWidth, backgroundColor: theme.background }}
-        renderDrawerContent={() => <ThreadListDrawer theme={theme} />}
+        drawerStyle={drawerStyle}
+        renderDrawerContent={renderDrawerContent}
       >
         {children}
       </Drawer>

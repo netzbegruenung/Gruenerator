@@ -9,7 +9,14 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+import {
+  spacing,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+  HEADING_FONT_SEMIBOLD,
+} from '../../theme';
 
 /** A hue pair from `officeTypeColor` / `getToolTheme` — pastel field, dark glyph. */
 export interface EmptyStateTone {
@@ -160,7 +167,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   title: {
-    fontFamily: 'Raleway_600SemiBold',
+    fontFamily: HEADING_FONT_SEMIBOLD,
     fontSize: 19,
     textAlign: 'center',
   },

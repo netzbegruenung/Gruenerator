@@ -83,6 +83,7 @@
       [
         "expo-font",
         {
+          "fonts": ["./assets/fonts/Raleway_600SemiBold.ttf", "./assets/fonts/Raleway_700Bold.ttf"],
           "android": {
             "fonts": [
               {
@@ -137,7 +138,8 @@
       "./config/withBlockedAndroidMediaPermissions"
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "reactCompiler": true
     },
     "extra": {
       "router": {},

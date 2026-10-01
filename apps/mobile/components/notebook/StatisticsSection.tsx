@@ -5,7 +5,7 @@ import {
   useNotebookOverview,
   type NotebookOverview,
 } from '../../hooks/notebook/useNotebookOverview';
-import { spacing, borderRadius, BODY_FONT } from '../../theme';
+import { spacing, borderRadius, BODY_FONT, HEADING_FONT_BOLD } from '../../theme';
 import { SkeletonBar, SkeletonGroup } from '../common/Skeleton';
 
 import type { Theme } from '../../theme/colors';
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   title: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 16,
   },
   body: {
