@@ -1,0 +1,59 @@
+{
+  "pipeline": "notebook",
+  "depth": "deep",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "berlin-mieten",
+      "collection": "berlin-system",
+      "query": "Mietenpolitik und bezahlbares Wohnen in Berlin",
+      "rank": 1,
+      "topTitles": [
+        "Sozialgipfel 2024: Bezahlbarer Wohnraum ist eine zentrale Frage unserer Zeit",
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung",
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung",
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung",
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung"
+      ]
+    },
+    {
+      "id": "berlin-verkehr",
+      "collection": "berlin-system",
+      "query": "Ausbau von Radwegen und ÖPNV in Berlin",
+      "rank": 6,
+      "topTitles": [
+        "20210527_Grüne Antworten_WPS_Bürgerforum Berlin e.V",
+        "20210527_Grüne Antworten_WPS_Bürgerforum Berlin e.V",
+        "20210527_Grüne Antworten_WPS_Bürgerforum Berlin e.V",
+        "20210527_Grüne Antworten_WPS_Bürgerforum Berlin e.V",
+        "20210527_Grüne Antworten_WPS_Bürgerforum Berlin e.V"
+      ]
+    },
+    {
+      "id": "berlin-wahlprogramm",
+      "collection": "berlin-system",
+      "query": "Wahlprogramm zur Wahl des Abgeordnetenhauses",
+      "rank": 3,
+      "topTitles": [
+        "Berlin ist für Dich da – Aufbruch 2026",
+        "Berlin ist für Dich da – Aufbruch 2026",
+        "”Politik ändern, Berlin bleiben.” – Wahlprogramm für 2026 beschlossen",
+        "”Politik ändern, Berlin bleiben.” – Wahlprogramm für 2026 beschlossen",
+        "WPS-Gruene-Berlin-2026-08-10-Abgeordnetenwatch-Antwortvorlage"
+      ]
+    },
+    {
+      "id": "kw-berlin-rummelsburger-bucht",
+      "collection": "berlin-system",
+      "query": "Rummelsburger Bucht Kulturhafen",
+      "rank": 1,
+      "topTitles": [
+        "20210813_Grüne Antworten_WPS_Bürgerforum Stralau",
+        "20210813_Grüne Antworten_WPS_Bürgerforum Stralau",
+        "20210813_Grüne Antworten_WPS_Bürgerforum Stralau",
+        "20210813_Grüne Antworten_WPS_Bürgerforum Stralau",
+        "20210813_Grüne Antworten_WPS_Bürgerforum Stralau"
+      ]
+    }
+  ]
+}

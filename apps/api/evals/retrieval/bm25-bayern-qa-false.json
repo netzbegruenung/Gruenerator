@@ -1,0 +1,63 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "bayern-flaechenfrass",
+      "collection": "bayern-system",
+      "query": "Flächenverbrauch und Flächenfraß in Bayern begrenzen",
+      "rank": 1,
+      "topTitles": [
+        "Statement zur Flächenstatistik",
+        "Dein Ort wird schöner mit dir. Dafür stehen wir GRÜNE bei der Kommunalwahl 2026 in Bayern.",
+        "„Söder-Regierung sind selbst die eigenen Ziele egal“",
+        "Grüne Bilanz zur 18. Legislaturperiode",
+        "BauGB-Novelle: Mit bayerischem Umbau-Booster gegen Flächenfraß"
+      ],
+      "searchTimeMs": 2306
+    },
+    {
+      "id": "bayern-artenvielfalt",
+      "collection": "bayern-system",
+      "query": "Volksbegehren Artenvielfalt — Rettet die Bienen",
+      "rank": 1,
+      "topTitles": [
+        "Erfolge des Volksbegehrens sind gefährdet",
+        "Regierungsprogramm der Grünen Bayern 2023",
+        "Schon Bienen gerettet?",
+        "Anhörung zu 5 Jahren Volksbegehren „Rettet die Bienen“ und Artenschutzgesetz",
+        "„Artenschwund ist größte Bedrohung neben der Klimakrise“"
+      ],
+      "searchTimeMs": 833
+    },
+    {
+      "id": "bayern-100-tage",
+      "collection": "bayern-system",
+      "query": "Was wollen die bayerischen Grünen in den ersten 100 Tagen einer Regierung umsetzen?",
+      "rank": 6,
+      "topTitles": [
+        "Bayern verdient Zuversicht",
+        "Regierungsprogramm der Grünen Bayern 2023",
+        "Grüne Bilanz zur 18. Legislaturperiode",
+        "Bayern braucht eine Regierung, die sagt: „Wir machen das.“",
+        "Grüne CO2-Spar-Tipps für die Staatsregierung"
+      ],
+      "searchTimeMs": 1300
+    },
+    {
+      "id": "kw-bayern-anbindegebot",
+      "collection": "bayern-system",
+      "query": "Anbindegebot Lockerung",
+      "rank": null,
+      "topTitles": [
+        "Schluss mit der Unsicherheit für alle!",
+        "Menschlichkeit und Rechtsstaatlichkeit – für Integration und Ordnung",
+        "Regierungsprogramm der Grünen Bayern 2023",
+        "Barrierefreiheitsgesetz: Für ein Bayern ohne Barrieren – den Traum Wirklichkeit werden lassen",
+        "Weniger Bürokratie in Wirtschaft und Landwirtschaft"
+      ],
+      "searchTimeMs": 980
+    }
+  ]
+}
