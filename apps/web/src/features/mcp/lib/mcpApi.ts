@@ -2,6 +2,7 @@ import {
   type McpServerSummary,
   type McpAuthType,
   type McpRegistryEntry,
+  type McpRegistryResponse,
   type McpOauthStartResult,
   type McpServerTestResult,
 } from '@gruenerator/contracts';
@@ -28,11 +29,7 @@ export class McpOAuthStartError extends Error {
   }
 }
 
-export interface McpRegistryPage {
-  recommended: McpRegistryEntry[];
-  servers: McpRegistryEntry[];
-  nextCursor: string | null;
-}
+export type McpRegistryPage = McpRegistryResponse;
 
 export interface McpServerCreateInput {
   name: string;
@@ -69,6 +66,8 @@ export async function updateMcpServer(
     authType?: McpAuthType;
     token?: string | null;
     enabled?: boolean;
+    oauthClientId?: string | null;
+    oauthClientSecret?: string | null;
   }
 ): Promise<McpServerSummary> {
   const client = getContractsClient();

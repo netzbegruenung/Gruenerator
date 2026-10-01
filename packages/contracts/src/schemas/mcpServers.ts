@@ -120,6 +120,12 @@ export const mcpRegistryEntrySchema = z.object({
   url: z.string(),
   websiteUrl: z.string().nullish(),
   authHint: z.enum(['none', 'bearer', 'oauth', 'unknown']),
+  // Every way this connector accepts, preferred first (`authOptions[0]` equals
+  // `authHint`). Lets the UI offer "Stattdessen API-Key verwenden" where a
+  // provider takes both. Absent for registry results, where nothing is known.
+  authOptions: z.array(mcpAuthTypeSchema).optional(),
+  // Provider page where the user creates an API key for the bearer path.
+  keyUrl: z.string().optional(),
   recommended: z.boolean(),
   // Directory grouping for the category filter pills (e.g. "Produktivität").
   category: z.string().optional(),
@@ -134,4 +140,8 @@ export const mcpRegistryResponseSchema = z.object({
   recommended: z.array(mcpRegistryEntrySchema),
   servers: z.array(mcpRegistryEntrySchema),
   nextCursor: z.string().nullable(),
+  // The redirect URI the backend registers — what a user enters when creating
+  // an OAuth app by hand. Taken from BASE_URL, not the browser's origin.
+  oauthRedirectUri: z.string().nullable().optional(),
 });
+export type McpRegistryResponse = z.infer<typeof mcpRegistryResponseSchema>;
