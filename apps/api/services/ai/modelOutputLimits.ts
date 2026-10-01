@@ -8,9 +8,7 @@
  * to 16384 for mistral-medium-3.5-128b`, gemessen am 13.08.2026 gegen Scaleway
  * mit den 40.000 aus `config/notebookDepthProfiles.ts`.
  *
- * Es ist KEIN Host-Problem: die Mistral-API deckelt dieselben Gewichte gleich,
- * der Replay in `scalewayMistralFallbackFetch` liefe in denselben Fehler (und
- * failt bei 400 zurecht gar nicht erst über).
+ * Es ist KEIN Host-Problem: die Mistral-API deckelt dieselben Gewichte gleich.
  *
  * Eigenes Modul, weil es zwei Aufrufer in verschiedenen Ebenen gibt — den
  * Chat-Streamer (`routes/chat/services/responseStreamingService.ts`) und den
@@ -24,10 +22,8 @@ import { createLogger } from '../../utils/logger.js';
 const log = createLogger('modelOutputLimits');
 
 /**
- * Beide Upstream-Namen desselben Modells stehen drin, weil `routeMistralModel`
- * zwischen Aufrufer und Upstream umbenennt: der Clamp greift eine Ebene ÜBER
- * dieser Umbenennung und sieht nur `mistral-medium-2604`, während dieselbe
- * Decke unter dem Scaleway-Namen gilt.
+ * Beide Namen desselben Modells stehen drin: `mistral-medium-3.5-128b` heissen
+ * dieselben Gewichte bei GreenPT.
  *
  * Ein Modell OHNE Eintrag wird nicht gedeckelt — der Anbieter entscheidet dann,
  * so wie die Antwortpfade es seit #2002 ohnehin halten. Eine geratene Zahl wäre

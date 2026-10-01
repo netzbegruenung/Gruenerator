@@ -20,10 +20,7 @@ import {
   getMeliousProvider,
   getMistralProvider,
   getCortecsProvider,
-  getScalewayProvider,
-  getScalewayTextProvider,
   isProviderConfigured,
-  routeMistralModel,
 } from '../../../services/ai/providerInstances.js';
 import { PANDA_LANE_MODEL } from '../../../services/ai/textModelPolicy.js';
 import { withWireSafeToolCallIds } from '../../../services/ai/toolCallIds.js';
@@ -82,7 +79,7 @@ export { isVisionCapable };
  * Begründung steht bei `ModelConfigSingle` unten, damit sie nicht zweimal
  * gepflegt werden muss.
  */
-export type Provider = 'mistral' | 'litellm' | 'melious' | 'greenpt' | 'scaleway' | 'cortecs';
+export type Provider = 'mistral' | 'litellm' | 'melious' | 'greenpt' | 'cortecs';
 
 const GREENPT_DEFAULT_MODEL = 'mistral-medium-3.5-128b';
 
@@ -344,7 +341,7 @@ const GEMMA_ANSWER_LANE: ModelConfigSingle = {
  * `think:false` and `reasoning_effort:'none'` were each probed here: accepted
  * and ignored (5,337 chars with the flag, 5,282 without). `greenptThinkingFetch`
  * sends them anyway; here that is documented as known residue, not as a working
- * switch — unlike Scaleway, where the transport really does pin the thinking off.
+ * switch.
  *
  * The practical consequence is why this is the failover and not the primary:
  * with a small output budget the entire allowance goes into the invisible
@@ -447,9 +444,8 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
  * Endpunkt den Erweiterungen anbietet (`GATEWAY_LANES` in
  * services/ai/modelGateway.ts).
  *
- * Geteilt ist der NAME, nicht der Upstream: dort geht `gruenerator-medium`
- * direkt an Scaleways Gemma 26B, hier an die Konfiguration, die der Chat-Stack
- * für dieselbe Größe schon fährt — mit Fallback-Kette und Reasoning. Genau
+ * Geteilt ist der NAME, nicht der Upstream: hier hängt `gruenerator-medium` an
+ * der Konfiguration, die der Chat-Stack für dieselbe Größe schon fährt — mit Fallback-Kette und Reasoning. Genau
  * dafür gibt es einen Lane-Namen: er lässt sich je Oberfläche umhängen, ohne
  * dass ein ausgeliefertes Bundle davon weiß.
  */
@@ -579,8 +575,6 @@ export function getContextWindow(
   // nicht mehr die gemessene Ollama-Decke, die es hier bis 29.08.2026 hatte.
   if (provider === 'litellm') return SMALL_ANSWER_LANE.contextWindow;
   if (provider === 'greenpt') return CTX_FULL;
-  // Gemma 4 26B-A4B carries 262k on Scaleway's H100 instances (model card).
-  if (provider === 'scaleway') return CTX_FULL;
   // NICHT CTX_FULL, obwohl die Gewichte mehr tragen: der Cortecs-Endpunkt
   // führt 128k (Katalog). Die Zahl steht bei GEMMA_31B_ON_CORTECS, damit ein
   // Host-Wechsel sie nicht hier vergisst.
@@ -629,23 +623,16 @@ export function getModel(
   const healthy = pickHealthyTarget(live.provider, live.model ?? modelId, options.acceptTarget);
   const lane = healthy ?? { provider: live.provider, model: live.model ?? modelId };
 
-  // Attribute usage to the upstream that actually served it — the Mistral lane
-  // runs on Scaleway. `takeProviderFallback` is deliberately NOT set for that:
-  // it drives user-visible "answered on a different model" reporting, and this
-  // is the same model on a different upstream, which users should not be shown.
-  const upstream =
-    lane.provider === 'mistral' ? routeMistralModel(lane.model, options).upstream : lane.provider;
   // Werkzeug-Aufruf-IDs werden erst hier leitungsfähig gemacht — siehe
   // services/ai/toolCallIds.ts. Das ist die Tür, die der ganze Chat-Pfad
   // benutzt, und damit die, über die der Wiederabspieler seine persistierten
   // `tc_…`-IDs auf die Leitung schickt.
   const model = withUsageTracking(
-    withWireSafeToolCallIds(instantiateModel(lane.provider, lane.model, options)),
-    upstream
+    withWireSafeToolCallIds(instantiateModel(lane.provider, lane.model)),
+    lane.provider
   );
 
-  // Ein Gesundheits-Tausch IST ein anderes Modell — anders als der
-  // Scaleway-Upstream oben. Er wird nach `instantiateModel` gemeldet, weil das den
+  // Ein Gesundheits-Tausch IST ein anderes Modell. Er wird nach `instantiateModel` gemeldet, weil das den
   // Vermerk zurücksetzt, und über denselben Kanal wie der bestehende
   // First-Token-Fallback: die Anzeige sagt dann, worauf geantwortet wurde.
   if (healthy) lastFallbackProvider = healthy.provider;
@@ -683,19 +670,11 @@ export function takeProviderFallback(): string | null {
  * agent default). Two different questions under one name, in the same call
  * chain; this one only constructs.
  */
-function instantiateModel(
-  provider: string,
-  modelId: string,
-  options: RouteOptions = {}
-): LanguageModel {
+function instantiateModel(provider: string, modelId: string): LanguageModel {
   lastFallbackProvider = null;
   switch (provider) {
-    case 'mistral': {
-      const routed = routeMistralModel(modelId, options);
-      return routed.upstream === 'scaleway'
-        ? getScalewayProvider().chat(routed.model)
-        : getMistralProvider()(routed.model);
-    }
+    case 'mistral':
+      return getMistralProvider()(modelId);
     // Stillgelegt — `getModel` oben biegt den Namen bereits um; dieser Zweig
     // fängt nur einen direkten Aufruf ab. Siehe services/ai/litellmRetired.ts.
     case 'litellm':
@@ -721,27 +700,6 @@ function instantiateModel(
       return getGreenPTProvider().chat(
         modelId || env.GREENPT_DEFAULT_MODEL || GREENPT_DEFAULT_MODEL
       );
-    // The TEXT instance, not `getScalewayProvider()`: that one carries the
-    // Mistral-fallback fetch, which belongs to Medium 3.5 and would route a
-    // Gemma id to an upstream that does not serve it. This one pins
-    // `reasoning_effort: 'none'` instead — the enforcement the MoE relies on.
-    case 'scaleway': {
-      if (!env.SCALEWAY_API_KEY) {
-        // Without the key every turn here would 401 and only then fail over.
-        // Naming the substitute here keeps the lane inside the Gemma family and
-        // says so once in the log instead of once per request downstream.
-        log.warn(
-          `SCALEWAY_API_KEY not set — answering on Melious Gemma 4 instead (requested "${modelId}")`
-        );
-        lastFallbackProvider = 'melious';
-        return getMeliousProvider().chat(GEMMA_4_MELIOUS.model);
-      }
-      // Literal, NICHT aus einer Lane-Konfiguration gezogen: das ist der Name,
-      // den DIESER Host serviert. Eine Lane, die den Provider wechselt, nähme
-      // ihren Modellnamen sonst mit und liesse hier einen unbekannten zurück —
-      // genau das passierte am 21.08.2026 beim Umzug auf GreenPT.
-      return getScalewayTextProvider().chat(modelId || 'gemma-4-26b-a4b-it');
-    }
     // Dieselbe Ersatzregel wie oben, aus demselben Grund — und hier zusätzlich,
     // weil Cortecs vorausbezahlt ist: ein leeres Guthaben antwortet mit 401 wie
     // ein fehlender Schlüssel, nur eben erst auf der Leitung. Der Schlüsseltest
@@ -1008,8 +966,6 @@ export function getProviderName(provider: AgentConfig['provider'] | Provider): s
       return 'Melious';
     case 'greenpt':
       return 'GreenPT';
-    case 'scaleway':
-      return 'Scaleway';
     case 'cortecs':
       return 'Cortecs';
     case 'anthropic':

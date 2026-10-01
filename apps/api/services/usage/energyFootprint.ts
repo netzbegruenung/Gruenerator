@@ -22,10 +22,10 @@
  * One lane is stronger than that: GreenPT states "every GreenPT request runs on
  * Scaleway's 100% renewable-powered compute in Paris" (greenpt.com/partners),
  * and Scaleway puts every AI server in DC5 (Impact Report 2025, p. 25). Our
- * `mistral-medium-2604` lane routes to Scaleway too — so for the default chat
- * model the measurement and the production workload share a datacenter, a PUE
- * and a GPU generation. There the transfer is near-exact; for the other
- * lanes it stays a transfer.
+ * `mistral-medium-2604` lane was routed to Scaleway until 08/2026 — for those
+ * rows the measurement and the production workload share a datacenter, a PUE
+ * and a GPU generation, and the transfer is near-exact; for the other lanes
+ * it stays a transfer.
  *
  * WHY ENERGY AND EMISSIONS ARE SEPARATE: emissions = energy x grid intensity.
  * The measurement series found `emissions/energy` pinned at 30.4 g/kWh across
@@ -121,9 +121,9 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     mWhFixed: 13.26,
     basis: 'measured',
   },
-  // The SAME lane after Scaleway routing: SCALEWAY_MISTRAL_MODELS rewrites
-  // 'mistral-medium-2604' to 'mistral-medium-3.5-128b', and usage records the
-  // ROUTED id. Both spellings must be here or the best-measured coefficient in
+  // The SAME weights under the id GreenPT uses, and the one the former
+  // Scaleway routing (removed 10/2026) recorded for 'mistral-medium-2604' —
+  // usage records the upstream's id. Both spellings must be here or the best-measured coefficient in
   // this table silently misses its own traffic — which is exactly what happened
   // until real usage data showed a `mistral-medium-3.5-128b @ scaleway` row.
   'mistral-medium-3.5-128b': {
@@ -293,9 +293,10 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
 /**
  * Grid carbon intensity by the provider recorded in `user_usage_daily`.
  *
- * The recorded provider is the UPSTREAM, not the lane: `withUsageTracking` is
- * handed `routeMistralModel(...).upstream`, so Scaleway-routed Mistral Medium
- * lands under 'scaleway'. That is exactly the granularity this table needs.
+ * The recorded provider is the UPSTREAM, not the lane: Cortecs traffic is
+ * booked under its sub-processor (`x-cortecs-provider`, see
+ * usageModelMiddleware.ts), and historical Scaleway-routed Mistral Medium sits
+ * under 'scaleway'. That is exactly the granularity this table needs.
  *
  * Location-based annual averages. Annual rather than hourly because we have no
  * hourly feed of our own — GreenPT buys that from Nodera.

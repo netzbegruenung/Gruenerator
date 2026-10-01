@@ -42,11 +42,7 @@ const mockStreamWithReasoning = vi.fn();
 vi.mock('../../../services/ai/openAiReasoningStream.js', () => ({
   isReasoningStreamModel: (provider: string, model: string) =>
     (provider === 'melious' && model === 'gemma-4-31b:balanced') ||
-    (provider === 'litellm' && (model === 'verdigado-think' || model === 'verdigado-pro')) ||
-    // Medium 3.5 HAT einen Roh-Reasoning-Pfad (Scaleway). Stand hier vorher auf
-    // false und machte damit jede Aussage über das Zusammenspiel von Pin und
-    // Streamer auf der Mistral-Lane wertlos — der Zweig war im Test unerreichbar.
-    (provider === 'mistral' && model === 'mistral-medium-2604'),
+    (provider === 'litellm' && (model === 'verdigado-think' || model === 'verdigado-pro')),
   streamWithReasoning: (...args: unknown[]) => mockStreamWithReasoning(...args),
   ReasoningStreamUnavailableError: class ReasoningStreamUnavailableError extends Error {
     status: number;
@@ -296,33 +292,8 @@ describe('thinksOnThisLane', () => {
   });
 });
 
-describe('Pin und Streamer stellen dieselbe Frage', () => {
+describe('Mistral-Lane: Denken über die SDK', () => {
   const agentConfig = { provider: 'mistral', model: 'mistral-medium-2604' };
-
-  // Der Kern des Fehlers: der Streamer hielt `low` für „denken" und ging auf
-  // den Roh-Pfad, während der Pin es für „nicht denken" hielt und den Host auf
-  // Scaleway ließ. Der „Ersatz über die Mistral-API" lief dann auf denselben
-  // Host zurück, den der erste Versuch gerade abgelehnt hatte.
-  it('pinnt den Host für einen denkenden Zug auf die Mistral-API', async () => {
-    mockResolveModelTuple.mockResolvedValue(null);
-    await resolveModel(agentConfig, undefined, 'req_test', {
-      surface: 'notebook',
-      complexity: 'complex',
-    });
-    // `toMatchObject`, nicht `toEqual`: die Aussage dieses Tests ist der PIN.
-    // Im selben Options-Objekt reist seit 19.08.2026 auch das Ausweich-Veto
-    // (`acceptTarget`) mit — es hat eigene Tests weiter unten.
-    expect(mockGetModel.mock.calls.at(-1)?.[2]).toMatchObject({ needsReasoning: true });
-  });
-
-  it('pinnt NICHT, wenn der Zug auf dieser Lane gar nicht denkt (low)', async () => {
-    mockResolveModelTuple.mockResolvedValue(null);
-    await resolveModel(agentConfig, undefined, 'req_test', {
-      surface: 'notebook',
-      complexity: 'simple',
-    });
-    expect(mockGetModel.mock.calls.at(-1)?.[2]).toMatchObject({ needsReasoning: false });
-  });
 
   /**
    * Das Ausweich-Veto reist mit — sonst greift es genau dort nicht, wo der
@@ -350,7 +321,7 @@ describe('Pin und Streamer stellen dieselbe Frage', () => {
     expect(accept?.({ model: 'mistral-medium-2604' })).toBe(true);
   });
 
-  it('nimmt bei low NICHT den Reasoning-Pfad — sonst hinge er über einem Host, den der Pin nicht umgestellt hat', async () => {
+  it('fragt bei low kein Reasoning an', async () => {
     mockStreamText.mockReturnValue(streamOf([{ type: 'text-delta', text: 'ok' }]));
     await streamForResolution({
       resolution: makeResolution({ reasoningEffort: 'low' }) as Parameters<
@@ -361,31 +332,10 @@ describe('Pin und Streamer stellen dieselbe Frage', () => {
       sse: makeSse() as never,
     });
     expect(mockStreamWithReasoning).not.toHaveBeenCalled();
-    // Und dann auch keine halbe Wahrheit: kein Reasoning angefragt.
     expect(mockStreamText.mock.calls[0][0].providerOptions).toBeUndefined();
   });
 
-  it('nimmt bei high den Reasoning-Pfad', async () => {
-    mockStreamWithReasoning.mockImplementation(async function* () {
-      yield { type: 'text', delta: 'ok' };
-    });
-    await streamForResolution({
-      resolution: makeResolution({ reasoningEffort: 'high' }) as Parameters<
-        typeof streamForResolution
-      >[0]['resolution'],
-      messages: MESSAGES,
-      temperature: 0.2,
-      sse: makeSse() as never,
-    });
-    expect(mockStreamWithReasoning).toHaveBeenCalled();
-  });
-
-  // Das zweite Zuhause muss eines SEIN: fällt der Roh-Pfad aus, läuft der Zug
-  // über die SDK — und dort mit Reasoning, nicht als stumme Kurzantwort.
-  it('trägt das Reasoning in den zweiten Versuch, wenn der Roh-Pfad ausfällt', async () => {
-    mockStreamWithReasoning.mockImplementation(() => {
-      throw new ReasoningStreamUnavailableError('scaleway', 503, 'upstream weg');
-    });
+  it('denkt bei high über die SDK, nicht über den Roh-Pfad', async () => {
     mockStreamText.mockReturnValue(streamOf([{ type: 'text-delta', text: 'ok' }]));
     const text = await streamForResolution({
       resolution: makeResolution({ reasoningEffort: 'high' }) as Parameters<
@@ -396,6 +346,7 @@ describe('Pin und Streamer stellen dieselbe Frage', () => {
       sse: makeSse() as never,
     });
     expect(text).toBe('ok');
+    expect(mockStreamWithReasoning).not.toHaveBeenCalled();
     expect(mockStreamText.mock.calls[0][0].providerOptions).toEqual({
       mistral: { reasoningEffort: 'high' },
     });
@@ -414,9 +365,6 @@ describe('Pin und Streamer stellen dieselbe Frage', () => {
       mistral: { promptCacheKey: 'k1' },
     });
 
-    mockStreamWithReasoning.mockImplementation(() => {
-      throw new ReasoningStreamUnavailableError('scaleway', 503, 'upstream weg');
-    });
     await streamForResolution({
       resolution: makeResolution({ reasoningEffort: 'high' }) as never,
       messages: MESSAGES,
@@ -804,7 +752,7 @@ describe('Upstream-Fehler vor dem ersten Token', () => {
         reasoningEffort: 'medium',
         // Sibling BEWUSST ohne Roh-Reasoning-Pfad: sonst liefe der zweite
         // Versuch im Mock erneut über streamWithReasoning statt über das SDK.
-        sibling: { provider: 'scaleway', model: 'gemma-4-26b-a4b-it' },
+        sibling: { provider: 'mistral', model: 'mistral-medium-2604' },
       }),
       sse
     );
@@ -944,6 +892,13 @@ describe('Uhr-Abbruch verliert den Zug nicht mehr', () => {
 });
 
 describe('Denk-Budget', () => {
+  // Der Roh-Pfad gehört den Lanes mit eigenem Denk-Strom (hier Melious' Gemma).
+  const MELIOUS_GEMMA = {
+    model: { provider: 'melious', model: 'gemma-4-31b:balanced' },
+    provider: 'melious',
+    modelName: 'gemma-4-31b:balanced',
+  };
+
   it('bricht endloses Denken ab und schreibt den Zug ohne Denken zu Ende (Roh-Pfad)', async () => {
     vi.useFakeTimers();
     mockStreamWithReasoning.mockImplementationOnce((params: { signal: AbortSignal }) =>
@@ -953,7 +908,10 @@ describe('Denk-Budget', () => {
       streamOf([{ type: 'text-delta', text: 'Die Übertragung, ungedacht.' }])
     );
     const sse = makeSse();
-    const resultPromise = runStream(makeResolution({ reasoningEffort: 'medium' }), sse);
+    const resultPromise = runStream(
+      makeResolution({ ...MELIOUS_GEMMA, reasoningEffort: 'medium' }),
+      sse
+    );
     // 120 s Denk-Budget < 280 s Turn-Uhr der denkenden Lane: das Budget greift zuerst.
     await vi.advanceTimersByTimeAsync(125_000);
     expect(await resultPromise).toBe('Die Übertragung, ungedacht.');
@@ -964,10 +922,7 @@ describe('Denk-Budget', () => {
 
   it('bricht endloses Denken auch auf dem SDK-Pfad ab', async () => {
     vi.useFakeTimers();
-    // Scaleway fällt aus → SDK-Pfad übernimmt MIT Denken (providerOptions)…
-    mockStreamWithReasoning.mockImplementationOnce(() => {
-      throw new ReasoningStreamUnavailableError('mistral', 503, 'upstream down');
-    });
+    // Die Mistral-Lane denkt über die SDK (providerOptions)…
     mockStreamText
       .mockImplementationOnce(abortAware([], { thinkEveryMs: 10_000 }))
       .mockImplementationOnce(() =>
@@ -993,7 +948,10 @@ describe('Denk-Budget', () => {
       },
     }));
     const sse = makeSse();
-    const resultPromise = runStream(makeResolution({ reasoningEffort: 'medium' }), sse);
+    const resultPromise = runStream(
+      makeResolution({ ...MELIOUS_GEMMA, reasoningEffort: 'medium' }),
+      sse
+    );
     await vi.advanceTimersByTimeAsync(70_000);
     expect(await resultPromise).toBe('Gut überlegte Antwort.');
     expect(mockStreamText).not.toHaveBeenCalled();

@@ -5,12 +5,9 @@
  * `deepagents` runs on LangChain, the rest of the app on the AI SDK, and there
  * is no bridge between the two tool protocols. Only the plumbing is shared —
  * base URL, key and the model ids — so ein Host-Wechsel weiterhin an einer
- * Stelle passiert (`cortecsEndpoint.ts` bzw. `scalewayEndpoint.ts`).
+ * Stelle passiert (`cortecsEndpoint.ts` bzw. `MISTRAL_API_URL`).
  *
- * Both lanes are OpenAI-compatible, so `ChatOpenAI` serves both. Measured
- * 10.08.2026 through this exact wrapper, one tool-call round trip each:
- * Scaleway `mistral-medium-3.5-128b` 861 ms, GreenPT `gemma4` 2.4 s, both
- * emitting a well-formed tool call.
+ * Both lanes are OpenAI-compatible, so `ChatOpenAI` serves both.
  *
  * ── No environment switches here, deliberately ────────────────────────────
  *
@@ -28,14 +25,9 @@ import { ChatOpenAI } from '@langchain/openai';
 import { env } from '../../../config/env.js';
 import { cortecsBaseUrl } from '../../ai/cortecsEndpoint.js';
 import { cortecsFetchWithPolicy, SOVEREIGN_ZDR_PROVIDERS } from '../../ai/cortecsRequestPolicy.js';
-import { isScalewayMistralRoutingEnabled, MISTRAL_API_URL } from '../../ai/providerInstances.js';
-import { scalewayBaseUrl } from '../../ai/scalewayEndpoint.js';
+import { MISTRAL_API_URL } from '../../ai/providerInstances.js';
 
-/** Scaleway's name for Mistral Medium 3.5 — mirrors SCALEWAY_MISTRAL_MODELS. */
-const SCALEWAY_MEDIUM = 'mistral-medium-3.5-128b';
-
-/** The same weights under the name the Mistral API knows them by — the key of
- *  SCALEWAY_MISTRAL_MODELS that maps to SCALEWAY_MEDIUM. */
+/** Mistral Medium 3.5 under the name the Mistral API knows it by. */
 const MISTRAL_MEDIUM = 'mistral-medium-2604';
 
 /**
@@ -150,38 +142,15 @@ const SOVEREIGN_ROUTING = {
  * Mistral Medium 3.5 because the run lives or dies on tool-calling discipline —
  * a lead that fumbles `task` or `write_file` produces no document at all.
  *
- * THE THIRD PATH. `isScalewayMistralRoutingEnabled()` also gates this one, even
- * though nothing here goes through `routeMistralModel`: this is the same
- * weights on the same upstream, so a host that answers badly answers badly
- * here too. It was missed on the first pass — the module builds its own
- * `ChatOpenAI` and named the host in a local constant, so neither the routing
- * table nor a grep for `routeMistralModel` led here.
- *
- * The module comment above says "no environment switches here, deliberately",
- * and that still holds: WHICH MODEL each role runs is a research decision with
- * measurements behind it, and that is untouched. WHICH HOST serves the same
- * weights is an operational one, and it is the only thing this reads.
- *
  * The Mistral API is OpenAI-compatible on this endpoint — `ChatOpenAI` needs no
- * adapter. That is not a guess: `scalewayMistralFallbackFetch` already replays
- * a Scaleway-shaped body against `/v1/chat/completions` there, model id swapped,
- * and the whole fallback design rests on it.
+ * adapter.
  */
 export function leadModel(): ChatOpenAI {
-  if (!isScalewayMistralRoutingEnabled()) {
-    return new ChatOpenAI({
-      model: MISTRAL_MEDIUM,
-      apiKey: requireMistralKey(),
-      temperature: 0.3,
-      configuration: { baseURL: MISTRAL_API_URL },
-      modelKwargs: { ...PARALLEL_TOOL_CALLS },
-    });
-  }
   return new ChatOpenAI({
-    model: SCALEWAY_MEDIUM,
-    apiKey: requireScalewayKey(),
+    model: MISTRAL_MEDIUM,
+    apiKey: requireMistralKey(),
     temperature: 0.3,
-    configuration: { baseURL: scalewayBaseUrl() },
+    configuration: { baseURL: MISTRAL_API_URL },
     modelKwargs: { ...PARALLEL_TOOL_CALLS },
   });
 }
@@ -231,15 +200,8 @@ export function workerModel(): ChatOpenAI {
   });
 }
 
-/** A missing key is a configuration fault and is the one thing a run may throw on. */
-function requireScalewayKey(): string {
-  const apiKey = env.SCALEWAY_API_KEY;
-  if (!apiKey) throw new Error('SCALEWAY_API_KEY is required for the deep research agent');
-  return apiKey;
-}
-
-/** Dasselbe für den Worker-Host. Cortecs ist vorausbezahlt: ein leeres Guthaben
- *  sieht auf der Leitung aus wie ein falscher Schlüssel (HTTP 401) und ist von
+/** A missing key is a configuration fault and is the one thing a run may throw on.
+ *  Cortecs ist vorausbezahlt: ein leeres Guthaben sieht auf der Leitung aus wie ein falscher Schlüssel (HTTP 401) und ist von
  *  hier aus nicht unterscheidbar — der Lauf bricht dann mit dem Anbieterfehler
  *  ab, nicht mit dieser Meldung. */
 function requireCortecsKey(): string {
@@ -248,8 +210,7 @@ function requireCortecsKey(): string {
   return apiKey;
 }
 
-/** Same rule for the lead's other host. The worker keeps needing its own key
- *  either way — it runs Gemma, which is not affected by the switch. */
+/** Same rule for the lead's host. */
 function requireMistralKey(): string {
   const apiKey = env.MISTRAL_API_KEY;
   if (!apiKey) throw new Error('MISTRAL_API_KEY is required for the deep research lead agent');

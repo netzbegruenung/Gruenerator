@@ -74,6 +74,8 @@ describe('providerForModel', () => {
     // `litellm` bis zum 29.08.2026 — der Host ist stillgelegt
     // (services/ai/litellmRetired.ts), MAIN_LLM_OVERRIDE zeigt jetzt auf Cortecs.
     ['gpt-oss-120b', 'cortecs'],
+    ['gemma-4-31b-it', 'cortecs'],
+    ['gemma-4-26b-a4b-it', 'cortecs'],
     ['Llama-3.3-70B-Instruct', 'mistral'],
     ['', 'mistral'],
   ])('%s → %s', (model, provider) => {

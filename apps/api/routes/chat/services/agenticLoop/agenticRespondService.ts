@@ -741,10 +741,8 @@ export async function streamAgenticResponse(
       // The old 4000-token floor truncated think-lane answers mid-sentence.
       //
       // The auto policy grades a reasoning strength for every turn, and until
-      // now the loop resolved it and then dropped it: `resolveModel` used it to
-      // pin a thinking turn to the Mistral API (`needsReasoning`), but no phase
-      // ever sent the option that actually switches thinking on. The lane moved,
-      // the reasoning did not.
+      // now the loop resolved it and then dropped it: no phase ever sent the
+      // option that actually switches thinking on.
       //
       // `promptCacheKey` keeps the thread's turns on one Mistral prompt cache
       // (cached input is billed at 10 %). Ignored by every non-Mistral client.

@@ -243,8 +243,9 @@ describe('estimateFootprint', () => {
   });
 
   it('covers the Scaleway-routed spelling of Mistral Medium', () => {
-    // Regression: SCALEWAY_MISTRAL_MODELS rewrites 'mistral-medium-2604' to
-    // 'mistral-medium-3.5-128b' and usage records the ROUTED id. Real usage
+    // Regression: the Scaleway routing (removed 10/2026) rewrote
+    // 'mistral-medium-2604' to 'mistral-medium-3.5-128b' and usage recorded the
+    // ROUTED id; historical rows still carry it. Real usage
     // data showed that row sitting uncovered while the table held only the
     // pre-routing spelling — the best-measured coefficient missing its own lane.
     const shape = { inputTokens: 600, outputTokens: 400, requests: 1 };

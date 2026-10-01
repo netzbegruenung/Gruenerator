@@ -11,8 +11,8 @@ export type Provider = TextProvider;
  * `apps/api/services/ai/modelGateway.ts`) den Erweiterungen anbietet, damit
  * Web, Mobile und die Add-ins dieselbe Auswahl zeigen. Der Name ist geteilt,
  * das Backend dahinter nicht: hier hängt die Lane an `AVAILABLE_MODELS` im
- * Chat-Stack (Verdigado-Overflow, Fallback-Ketten, Reasoning), dort direkt an
- * einem Scaleway-Upstream. Genau dafür ist ein Lane-Name da — er lässt sich je
+ * Chat-Stack (Verdigado-Overflow, Fallback-Ketten, Reasoning), dort an der
+ * Gateway-Konfiguration. Genau dafür ist ein Lane-Name da — er lässt sich je
  * Oberfläche umhängen, ein Vendormodell im Bundle nicht.
  */
 export type TextModelId =

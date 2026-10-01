@@ -144,7 +144,7 @@ describe('prepareToolsPayload', () => {
  * actually go through".
  */
 describe('wire shape (OpenAI serialisation)', () => {
-  const CHANGED_LANES = ['melious', 'greenpt', 'scaleway', 'cortecs'] as const;
+  const CHANGED_LANES = ['melious', 'greenpt', 'cortecs'] as const;
 
   it.each(CHANGED_LANES)('sends a forced tool call for %s', async (provider) => {
     const captured: { body: Record<string, unknown> }[] = [];

@@ -120,7 +120,6 @@ const PROVIDER_HOSTS = {
   // eine Alt-Kennung nicht ohne Standort in der Tabelle landet.
   litellm: { host: 'Cortecs', flag: '🇱🇺' },
   greenpt: { host: 'GreenPT', flag: '🇪🇺' },
-  scaleway: { host: 'Scaleway', flag: '🇫🇷' },
   cortecs: { host: 'Cortecs', flag: '🇱🇺' },
   bfl: { host: 'Black Forest Labs', flag: '🇩🇪' },
   // Transcription names its providers after the model family, not the company.

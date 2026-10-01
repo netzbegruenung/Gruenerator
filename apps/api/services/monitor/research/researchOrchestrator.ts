@@ -18,8 +18,8 @@
  * Antwort geht verloren) oder ganz mitgeführt (sie verdrängt die neun anderen
  * Quellen). Erst die Isolation macht zwölf gelesene Seiten bezahlbar.
  *
- * Dass die billige Bahn liest, ist Absicht. `heavy` (Gemma 4 26B-A4B auf
- * Scaleway) trägt ein 262k-Fenster und bekam ~3k Zeichen Snippets vorgesetzt;
+ * Dass die billige Bahn liest, ist Absicht. `heavy` (damals Gemma 4 26B-A4B
+ * auf Scaleway) trug ein 262k-Fenster und bekam ~3k Zeichen Snippets vorgesetzt;
  * die Grenze war nie die Kapazität des Modells, sondern dass die Pipeline den
  * Text wegwarf, bevor das Fenster überhaupt erreicht war.
  */

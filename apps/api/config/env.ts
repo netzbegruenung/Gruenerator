@@ -215,22 +215,6 @@ const envSchema = z.object({
   // GreenPT — OpenAI-compatible, https://api.greenpt.ai/v1
   GREENPT_API_KEY: z.string().optional(),
   GREENPT_DEFAULT_MODEL: z.string().optional(),
-  // Scaleway Generative APIs (Paris) — OpenAI-compatible. NOT a selectable
-  // lane: it serves the models Mistral does not publish (Gemma 4).
-  // The base URL embeds the Scaleway project id, so it is configuration, not a
-  // constant — a second project (staging, another org) needs no code change.
-  SCALEWAY_API_KEY: z.string().optional(),
-  SCALEWAY_BASE_URL: z.string().optional(),
-  /**
-   * Ob Mistral Medium 3.5 über Scaleway laufen darf. Standard AUS: der
-   * Scaleway-Upstream lieferte im Betrieb fehlerhafte Antworten, deshalb geht
-   * das Hauptmodell wieder direkt an die Mistral-API. Die Scaleway-Maschinerie
-   * (Routing-Tabelle, Fallback-Fetch, Denk-Lane) bleibt vollständig erhalten;
-   * `SCALEWAY_MISTRAL_ROUTING=true` schaltet sie ohne Code-Änderung zurück.
-   * Betrifft NUR den `mistral`-Lane-Umweg — Gemma 4 auf `provider: 'scaleway'`
-   * ist unabhängig davon. Siehe services/ai/providerInstances.ts.
-   */
-  SCALEWAY_MISTRAL_ROUTING: boolFlag(false),
   // Cortecs Sky Inference — OpenAI-kompatibler Router, seit 21.08.2026 der Host
   // der Gemma-Lane (`provider: 'cortecs'`). Vermittelt an Unteranbieter und
   // nennt den gewählten im Header `x-cortecs-provider`; `gemma-4-26b-a4b-it`

@@ -109,6 +109,104 @@ describe('streamWithReasoning — Melious-Flavor nach Grösse', () => {
   });
 });
 
+describe('streamWithReasoning — Fehlerarten und Delta-Formen', () => {
+  const ORIGINAL_ENV = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...ORIGINAL_ENV };
+    vi.unstubAllGlobals();
+  });
+
+  async function load() {
+    vi.resetModules();
+    process.env.MELIOUS_API_KEY = 'mel-key';
+    return import('../openAiReasoningStream.js');
+  }
+
+  function streamOf(stream: AsyncGenerator<{ type: string; delta: string }>) {
+    return async () => {
+      const chunks: Array<{ type: string; delta: string }> = [];
+      for await (const chunk of stream) chunks.push(chunk);
+      return chunks;
+    };
+  }
+
+  const PARAMS = {
+    provider: 'melious',
+    model: 'gemma-4-31b:balanced',
+    messages: [{ role: 'user' as const, content: 'hi' }],
+    temperature: 0,
+  };
+
+  it('wirft ReasoningStreamUnavailableError, wenn der Upstream nie geantwortet hat', async () => {
+    const { streamWithReasoning, ReasoningStreamUnavailableError } = await load();
+    vi.stubGlobal('fetch', async () => new Response('upstream down', { status: 503 }));
+
+    // Der eigene Typ lässt streamForResolution „nie bedient" von „mitten im
+    // Strom gestorben" unterscheiden — nur Ersteres darf wiederholt werden.
+    await expect(streamOf(streamWithReasoning(PARAMS))()).rejects.toBeInstanceOf(
+      ReasoningStreamUnavailableError
+    );
+    await expect(streamOf(streamWithReasoning(PARAMS))()).rejects.toMatchObject({ status: 503 });
+  });
+
+  it('tarnt einen Abriss mitten im Strom nicht als wiederholbar', async () => {
+    const { streamWithReasoning, ReasoningStreamUnavailableError } = await load();
+    // Chunk und Fehler in GETRENNTEN pulls: `controller.error()` verwirft, was
+    // noch in der Schlange liegt — sonst prüfte der Test einen Strom, der nie
+    // etwas geliefert hat.
+    let pulls = 0;
+    vi.stubGlobal(
+      'fetch',
+      async () =>
+        new Response(
+          new ReadableStream({
+            pull(controller) {
+              if (pulls++ === 0) {
+                controller.enqueue(
+                  new TextEncoder().encode('data: {"choices":[{"delta":{"content":"Hal"}}]}\n')
+                );
+                return;
+              }
+              controller.error(new Error('connection reset'));
+            },
+          }),
+          { status: 200 }
+        )
+    );
+
+    const chunks: string[] = [];
+    const consume = async () => {
+      for await (const chunk of streamWithReasoning(PARAMS)) chunks.push(chunk.delta);
+    };
+
+    await expect(consume()).rejects.not.toBeInstanceOf(ReasoningStreamUnavailableError);
+    expect(chunks).toEqual(['Hal']);
+  });
+
+  it('liest Denken aus delta.reasoning_content und delta.reasoning', async () => {
+    const { streamWithReasoning } = await load();
+    vi.stubGlobal(
+      'fetch',
+      async () =>
+        new Response(
+          'data: {"choices":[{"delta":{"role":"assistant","content":""}}]}\n' +
+            'data: {"choices":[{"delta":{"reasoning_content":"Okay"}}]}\n' +
+            'data: {"choices":[{"delta":{"reasoning":", der"}}]}\n' +
+            'data: {"choices":[{"delta":{"content":"120 km"}}]}\n' +
+            'data: [DONE]\n',
+          { status: 200 }
+        )
+    );
+
+    expect(await streamOf(streamWithReasoning(PARAMS))()).toEqual([
+      { type: 'reasoning', delta: 'Okay' },
+      { type: 'reasoning', delta: ', der' },
+      { type: 'text', delta: '120 km' },
+    ]);
+  });
+});
+
 /**
  * Der rohe Strom geht an `withUsageTracking` vorbei. Für Melious bucht er die
  * Tokens deshalb selbst — aus dem Usage-Chunk, den `include_usage` anhängt.

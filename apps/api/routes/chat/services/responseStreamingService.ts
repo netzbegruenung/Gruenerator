@@ -15,7 +15,6 @@ import { recordSlowVerdict } from '../../../services/ai/modelHealth.js';
 import { clampToModelOutputLimit } from '../../../services/ai/modelOutputLimits.js';
 import {
   isReasoningStreamModel,
-  ReasoningStreamUnavailableError,
   streamWithReasoning,
   type ThinkingEffort,
 } from '../../../services/ai/openAiReasoningStream.js';
@@ -217,32 +216,10 @@ export function mistralReasoningOption(setting: ReasoningSetting): 'high' | null
 /**
  * Ob dieser Zug auf DIESER Lane wirklich denkt.
  *
- * Die EINE Lesart von `reasoningEffort`, weil es vorher zwei gab und sie sich
- * widersprachen. `low` — was die Auto-Policy jeder einfachen Notebook-Frage
- * gibt (autoPolicy, surface `notebook`, complexity `simple`) — hieß:
- *
- *   - für den Streamer „an": `reasoningEffort !== 'off'`, also lief der
- *     Roh-Fetch, der `reasoning_effort: 'high'` fest verdrahtet. Aus „ein
- *     bisschen denken" wurde volles Denken.
- *   - für den Modell-Pin „aus": `mistralReasoningOption('low') === null`, also
- *     kein `needsReasoning`, also Scaleway statt Mistral-API — und auf dem
- *     SDK-Pfad auch keine `providerOptions.mistral`, also gar kein Denken.
- *
- * Beides zusammen ergab den Fehler, den der 400er verdeckte: der Roh-Pfad
- * scheiterte, und der „Ersatz über die Mistral-API" lief in Wahrheit auf
- * denselben Scaleway-Host zurück (`resolution.model` war mit
- * `needsReasoning: false` gebaut worden) — diesmal ohne jedes Reasoning.
- *
- * Aufgelöst wird zugunsten der bereits dokumentierten Entscheidung in
- * {@link mistralReasoningOption}: Mistrals Dial ist BINÄR, und alles unter
- * `medium` ist auf einem Modell ohne Low-Stufe ehrlich gelesen ein „nicht
- * denken". Das ist keine neue Produktentscheidung, sondern die bestehende,
- * konsequent angewandt — der Roh-Pfad, der `low` zu `high` hochstufte, war der
- * Ausreißer.
- *
- * Weil Pin und Streamer jetzt dieselbe Antwort bekommen, gilt wieder, was der
- * Fallback im Catch-Block unten voraussetzt: läuft der Reasoning-Pfad, dann ist
- * `resolution.model` die Mistral-API — es gibt also wirklich ein zweites Zuhause.
+ * Die EINE Lesart von `reasoningEffort`. Auf der Mistral-Lane gilt die
+ * Entscheidung aus {@link mistralReasoningOption}: Mistrals Dial ist BINÄR, und
+ * alles unter `medium` ist auf einem Modell ohne Low-Stufe ehrlich gelesen ein
+ * „nicht denken".
  *
  * Lanes ohne binären Dial (Melious/vLLM, LiteLLM/Ollama) behalten ihre Lesart:
  * dort ist alles außer `off` ein Denken.
@@ -395,18 +372,7 @@ export async function resolveModel(
   }
 
   const result: ModelResolution = {
-    // `needsReasoning` pins a thinking turn to the Mistral API. The Scaleway
-    // upstream is reached through @ai-sdk/openai, which never receives the
-    // `providerOptions.mistral` block set further down (see the streamOnce
-    // call site), so the effort would be dropped without a trace — no error,
-    // no reasoning, nothing in the logs. See routeMistralModel.
-    //
-    // DIESELBE Frage, die streamForResolution stellt, und deshalb derselbe
-    // Ausdruck: driften die beiden auseinander, wählt der Streamer einen
-    // Reasoning-Pfad, für den der Pin den Host gar nicht umgestellt hat.
-    // Genau so war es — siehe thinksOnThisLane.
     model: getModel(modelProvider, modelName, {
-      needsReasoning: thinksOnThisLane(modelProvider, modelName, reasoningEffort),
       // Diese Lane schreibt die Antwort. Wird sie als zäh vermerkt, sucht
       // `modelSiblings` ein Ersatzpaar — und fand dabei bis 19.08.2026
       // `litellm/verdigado-pro` (= gpt-oss am Proxy), dessen Planer-Text im
@@ -1245,37 +1211,13 @@ export async function streamForResolution(params: {
     try {
       return await streamAndAccumulateWithReasoningOrThrow(args);
     } catch (err) {
-      // Only the Mistral lane has a second home: Scaleway serves its thinking
-      // turns, and `resolution.model` is already the Mistral API model (see
-      // the needsReasoning pin in resolveModel), so falling through to the SDK
-      // path below re-runs the turn against Mistral with reasoning intact.
-      // Every other lane has nowhere to fall back to, so its error propagates.
-      //
-      // Diese Voraussetzung TRÄGT jetzt, weil Pin und Streamer dieselbe Frage
-      // stellen (thinksOnThisLane). Vorher taten sie es nicht: bei `low` kam
-      // der Streamer hierher, während der Pin den Host auf Scaleway gelassen
-      // hatte — der „Ersatz über die Mistral-API" lief also auf denselben Host
-      // zurück, den der erste Versuch gerade abgelehnt hatte, und ohne jedes
-      // Reasoning. Wer die beiden Ausdrücke wieder trennt, holt das zurück.
-      //
-      // Safe only because ReasoningStreamUnavailableError means the upstream
-      // never answered — nothing has reached the user's screen yet. A
-      // mid-stream failure throws a plain Error and is deliberately not caught
-      // here; retrying would replay tokens the user has already seen.
-      // Das Denk-Budget ist die zweite Art, auf der ein Denk-Versuch enden
+      // Das Denk-Budget ist die einzige Art, auf der ein Denk-Versuch enden
       // darf, ohne dass der Zug verloren ist — und sie gilt auf JEDER Lane:
       // unten steht der SDK-Pfad, und der denkt nicht (Melious pinnt dort
       // `reasoning_effort:'none'`, Mistral bekommt keine providerOptions).
       // Dieselbe Sicherheitsbedingung wie darunter: es ist noch kein
       // Antworttext beim Nutzer, nur Denk-Deltas.
-      if (err instanceof ReasoningBudgetExceededError) {
-        log.warn(
-          `${logPrefix ?? '[ChatGraph]'} ${resolution.provider}/${resolution.modelName} hat ${err.budgetMs}ms gedacht ohne zu antworten — zweiter Versuch ohne Denken`
-        );
-      } else if (
-        resolution.provider !== 'mistral' ||
-        !(err instanceof ReasoningStreamUnavailableError)
-      ) {
+      if (!(err instanceof ReasoningBudgetExceededError)) {
         // Kein zweiter Versuch auf DIESER Lane — aber der Sibling ist noch
         // offen: `ReasoningStreamUnavailableError` heisst laut eigener Doku,
         // dass der Upstream nie geantwortet hat, und Phase 2 wirft hier gar
@@ -1285,24 +1227,11 @@ export async function streamForResolution(params: {
         // `null` als Abbruch-Grund: ein echter Abbruch hat den Phase-1-Catch
         // des Streamers oben schon in einen Abbruch-Fehler übersetzt.
         throw phase1UpstreamError(err, null);
-      } else {
-        // Den Grund des Upstreams MITSCHREIBEN, nicht deuten: die frühere
-        // Fassung meldete pauschal „reasoning unavailable", und ein 400 wegen
-        // ungültigem Payload (`max_completion_tokens is limited to 16384`) las
-        // sich dann wie ein Reasoning-Problem — während der zweite Versuch in
-        // exakt denselben Fehler lief, weil an der Anfrage lag, was der Text
-        // dem Host zuschrieb.
-        //
-        // `err.message` trägt den Status bereits (siehe den Konstruktor von
-        // ReasoningStreamUnavailableError), deshalb hier NICHT zusätzlich
-        // `err.status` — sonst steht die Zahl zweimal in derselben Zeile.
-        log.warn(
-          `${logPrefix ?? '[ChatGraph]'} Scaleway-Reasoning fehlgeschlagen (${err.message}) — zweiter Versuch über die Mistral-API`
-        );
       }
-      // Der zweite Versuch denkt nur im Scaleway-Fall noch einmal: beim
-      // Budget-Abbruch ist das Weglassen der Zweck.
-      thinkingRetriedWithoutBudget = err instanceof ReasoningBudgetExceededError;
+      log.warn(
+        `${logPrefix ?? '[ChatGraph]'} ${resolution.provider}/${resolution.modelName} hat ${err.budgetMs}ms gedacht ohne zu antworten — zweiter Versuch ohne Denken`
+      );
+      thinkingRetriedWithoutBudget = true;
     }
   }
 

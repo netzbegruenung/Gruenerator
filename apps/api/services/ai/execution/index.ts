@@ -9,14 +9,7 @@ import type { AIRequestData, AiResult } from '../types.js';
 // does not check it — a missing member is not an error but a silent downgrade:
 // `normalizeProviderName` sends the unknown name to 'mistral', i.e. the most
 // expensive model, behind nothing but a console.warn.
-const KNOWN: readonly ProviderName[] = [
-  'mistral',
-  'litellm',
-  'melious',
-  'greenpt',
-  'scaleway',
-  'cortecs',
-];
+const KNOWN: readonly ProviderName[] = ['mistral', 'litellm', 'melious', 'greenpt', 'cortecs'];
 
 async function executeProvider(
   providerName: ProviderName | string,

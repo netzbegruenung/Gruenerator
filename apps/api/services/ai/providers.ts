@@ -21,10 +21,7 @@ import {
   getMistralProvider,
   getCortecsProvider,
   getMeliousProvider,
-  getScalewayProvider,
-  getScalewayTextProvider,
   isProviderConfigured,
-  routeMistralModel,
 } from './providerInstances.js';
 import { withWireSafeToolCallIds } from './toolCallIds.js';
 
@@ -35,23 +32,9 @@ import type { LanguageModel } from 'ai';
 /**
  * Provider name types.
  *
- * `scaleway` is the newest member and the one with a caveat. Mistral Medium 3.5
- * runs on Scaleway WITHOUT being this provider — that lane stays `mistral` and
- * picks its upstream in `routeMistralModel`, because every policy check
- * (`isAgenticToolCapable`, `prefersUnifiedLoop`, the context windows, the
- * fallback chains) keys off `provider === 'mistral'` and a sibling name would
- * have switched all of it off for the main model. See CLAUDE.md.
- *
- * What `scaleway` IS for: models Scaleway serves that Mistral does not publish,
- * where no such policy applies. A model that needs the mistral policy set does
- * NOT belong here.
- *
- * `cortecs` hat seit 21.08.2026 die Gemma-Lane von `scaleway` übernommen und
- * ist damit der Name, unter dem Gemma 4 26B-A4B läuft. Es ist ein ROUTER: das
- * Modell wird gemessen an Scaleway weitervermittelt (Header
- * `x-cortecs-provider`), der Wechsel betrifft also den Vertragspartner, nicht
- * den Verarbeitungsort. `scaleway` bleibt daneben stehen, weil die ruhende
- * Mistral-Medium-Route es weiter braucht.
+ * `cortecs` ist ein ROUTER: er vermittelt Modelle an Unterauftragnehmer
+ * weiter, gemessen u. a. an Scaleway (Header `x-cortecs-provider`). Scaleway
+ * selbst ist seit 01.10.2026 kein direkter Anbieter mehr.
  *
  * When adding a provider, note that most switches below carry a `default`
  * branch, so the compiler will NOT find the sites for you. The exhaustive ones
@@ -59,21 +42,14 @@ import type { LanguageModel } from 'ai';
  * services/ai/modelDiscovery.ts) will; the rest are listed in the PR that
  * introduced this member.
  */
-export const PROVIDER_NAMES = [
-  'mistral',
-  'litellm',
-  'melious',
-  'greenpt',
-  'scaleway',
-  'cortecs',
-] as const;
+export const PROVIDER_NAMES = ['mistral', 'litellm', 'melious', 'greenpt', 'cortecs'] as const;
 
 /**
  * Abgeleitet von `PROVIDER_NAMES`, damit sich die Anbietermenge nie zweimal
  * pflegen lässt: `ToolHandler.formatToolsForProvider` (Issue #3044) gateet
  * auf genau diesem Array. Bis zum 28.08.2026 führte ToolHandler eine eigene
  * Liste `['litellm', 'mistral']`, und genau diese Zweitliste stufte
- * greenpt/cortecs/scaleway als "Unknown provider" ab und ließ
+ * greenpt/cortecs als "Unknown provider" ab und ließ
  * Claude-shaped Tools unverändert durch.
  */
 export type ProviderName = (typeof PROVIDER_NAMES)[number];
@@ -87,15 +63,10 @@ const PROVIDER_DEFAULTS = {
   litellm: RETIRED_LITELLM_DEFAULT.model,
   melious: env.MELIOUS_DEFAULT_MODEL ?? 'gemma-4-31b:balanced',
   greenpt: env.GREENPT_DEFAULT_MODEL ?? 'mistral-medium-3.5-128b',
-  // Gemma 4 26B-A4B. Named rather than inherited: Scaleway also serves
-  // `mistral-medium-3.5-128b`, and an unnamed default here would quietly hand
-  // the expensive model to a caller that asked for the cheap lane.
-  scaleway: 'gemma-4-26b-a4b-it',
-  // Das DICHTE Gemma 4 31B, nicht die MoE-Variante von Scaleway darüber: die
-  // ist über Cortecs seit dem 21.08.2026 unbedienbar (siehe `providerForModel`
-  // in lanes.ts). Benannt statt geerbt aus demselben Grund wie oben — Cortecs
-  // vermittelt einen ganzen Katalog, ein unbenannter Default hier wäre eine
-  // Wette darauf, welches Modell er gerade vorne führt.
+  // Das DICHTE Gemma 4 31B, nicht die MoE-Variante `gemma-4-26b-a4b-it`: die
+  // ist über Cortecs seit dem 21.08.2026 unbedienbar. Benannt statt geerbt —
+  // Cortecs vermittelt einen ganzen Katalog, ein unbenannter Default hier wäre
+  // eine Wette darauf, welches Modell er gerade vorne führt.
   cortecs: 'gemma-4-31b-it',
 } as const;
 
@@ -214,8 +185,8 @@ export {
  * und derselbe Host bediente den stündlichen Monitor-Lauf, die GPT-OSS-Lanes
  * und (bis zum selben Tag) den Ausweg der Chat-Gemma-Lane. Ein Hintergrundlauf
  * darf einem wartenden Menschen nicht den Ausweichhost wegnehmen — deshalb
- * zieht der Monitor auf GreenPT um, und die Chat-Lanes behalten Cortecs,
- * Melious und Scaleway für sich.
+ * zieht der Monitor auf GreenPT um, und die Chat-Lanes behalten Cortecs
+ * und Melious für sich.
  *
  * `mistral-small-3.2-24b` und NICHT `gemma4`, obwohl beide auf GreenPT liegen:
  * GreenPTs Gemma denkt immer (~5.400 Zeichen, kein Flag schaltet es ab, siehe
@@ -255,39 +226,21 @@ export function getModel(
   );
   const lane = healthy ?? { provider: live.provider, model: live.model ?? undefined };
 
-  // Usage is attributed to the upstream that actually serves the request, not
-  // to the lane name: with Mistral Medium 3.5 on Scaleway, billing the tokens
-  // to "mistral" would make the Scaleway invoice unaccountable.
-  const upstream =
-    lane.provider === 'mistral'
-      ? routeMistralModel(lane.model || PROVIDER_DEFAULTS.mistral, options).upstream
-      : lane.provider;
   // Werkzeug-Aufruf-IDs werden erst hier leitungsfähig gemacht — siehe
   // ./toolCallIds.ts. Beide `getModel`-Türen tun das; wer eine dritte baut,
   // muss es mitbauen, sonst kippt der erste wiederabgespielte Aufruf die
   // Anfrage mit einem 400 des Mistral-Validators.
   return withUsageTracking(
-    withWireSafeToolCallIds(instantiateModel(lane.provider, lane.model, options)),
-    upstream
+    withWireSafeToolCallIds(instantiateModel(lane.provider, lane.model)),
+    lane.provider
   );
 }
 
-function instantiateModel(
-  provider: ProviderName | string,
-  modelId?: string,
-  options: RouteOptions = {}
-): LanguageModel {
+function instantiateModel(provider: ProviderName | string, modelId?: string): LanguageModel {
   switch (provider) {
     case 'mistral': {
-      // Medium 3.5 runs on Scaleway; everything else Mistral publishes
-      // (Pixtral, Small, embeddings) stays on the Mistral API, as do thinking
-      // requests. See routeMistralModel for why this is not a ProviderName.
-      const routed = routeMistralModel(modelId || PROVIDER_DEFAULTS.mistral, options);
-      if (routed.upstream === 'scaleway') {
-        return getScalewayProvider().chat(routed.model);
-      }
       const mistral = getMistralProvider();
-      return mistral(routed.model);
+      return mistral(modelId || PROVIDER_DEFAULTS.mistral);
     }
     // Stillgelegt (./litellmRetired.ts). `getModel` biegt den Namen davor um,
     // dieser Zweig ist also der Auffang für einen künftigen dritten Aufrufer —
@@ -305,17 +258,8 @@ function instantiateModel(
       const greenpt = getGreenPTProvider();
       return greenpt.chat(modelId || PROVIDER_DEFAULTS.greenpt);
     }
-    case 'scaleway': {
-      // Its own client, NOT the one routeMistralModel reaches: this one forces
-      // `reasoning_effort: 'none'` on every request (scalewayThinkingFetch).
-      // Gemma 4 26B-A4B thinks by default and answers with an EMPTY `content`
-      // when it does — measured 2026-08-01, empty even at max_tokens 1500 after
-      // 5386 characters of reasoning.
-      const scaleway = getScalewayTextProvider();
-      return scaleway.chat(modelId || PROVIDER_DEFAULTS.scaleway);
-    }
     case 'cortecs': {
-      // Der Denk-Pin sitzt wie bei Scaleway im `fetch`, aber modellabhängig:
+      // Der Denk-Pin sitzt im `fetch`, und zwar modellabhängig:
       // Cortecs ist ein Fan-out, und ein Unteranbieter im selben Katalog weist
       // `reasoning_effort: 'none'` mit HTTP 400 ab. Derselbe `fetch` trägt die
       // Souveränitäts-Weisung — siehe cortecsRequestPolicy.ts.
@@ -340,8 +284,6 @@ export function getDefaultModel(provider: ProviderName | string): string {
       return PROVIDER_DEFAULTS.melious;
     case 'greenpt':
       return PROVIDER_DEFAULTS.greenpt;
-    case 'scaleway':
-      return PROVIDER_DEFAULTS.scaleway;
     case 'cortecs':
       return PROVIDER_DEFAULTS.cortecs;
     default:
@@ -364,8 +306,6 @@ export function getProviderDisplayName(provider: ProviderName | string): string 
       return 'Melious';
     case 'greenpt':
       return 'GreenPT';
-    case 'scaleway':
-      return 'Scaleway';
     case 'cortecs':
       return 'Cortecs';
     default:
@@ -384,7 +324,6 @@ export function normalizeProviderName(provider: string): ProviderName {
   if (lower === 'regolo') return 'cortecs';
   if (lower === 'melious') return 'melious';
   if (lower === 'greenpt') return 'greenpt';
-  if (lower === 'scaleway') return 'scaleway';
   if (lower === 'cortecs') return 'cortecs';
   return 'mistral';
 }
