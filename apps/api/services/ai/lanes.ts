@@ -256,7 +256,7 @@ export function providerForModel(modelName = ''): ProviderName {
   // der Name durch die ganze Kette bis zum `return 'mistral'` am Ende — es
   // gibt gar keinen generischen gemma-Test — und ein Operator bekäme einen 404
   // von einem Anbieter, der das Modell nicht führt.
-  if (name === 'gemma-4-31b-it') return 'cortecs';
+  if (name === 'gemma-4-31b-it' || name === 'gemma-4-26b-a4b-it') return 'cortecs';
   if (
     name.includes('mistral-medium-') ||
     name.includes('mistral-large-') ||
