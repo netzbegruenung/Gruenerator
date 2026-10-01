@@ -52,7 +52,6 @@ describe('PROVIDER_LOCALE', () => {
   it('kennt nur die IdPs, die tatsächlich ein Land bezeichnen', () => {
     expect(PROVIDER_LOCALE['keycloak-gruene-at']).toBe('de-AT');
     expect(PROVIDER_LOCALE['keycloak-gruenes-netz']).toBe('de-DE');
-    expect(PROVIDER_LOCALE['keycloak-netzbegruenung']).toBe('de-DE');
     // Der Grünerator-Login ist für Mitarbeitende in beiden Ländern gedacht und
     // wird derzeit nicht verwendet. Ein Eintrag hier hieße, das Land zu erfinden.
     expect(PROVIDER_LOCALE['keycloak-gruenerator']).toBeUndefined();
@@ -81,14 +80,6 @@ describe('syncLocaleFromProvider', () => {
     await syncLocaleFromProvider(db as unknown as Db, 'u1b', 'keycloak-irgendwas-neues');
 
     expect(updates).toEqual([]);
-  });
-
-  it('füllt ein leeres Profil aus dem Netzbegrünungs-IdP', async () => {
-    const { db, updates } = mockDb({ locale: null, source: null });
-
-    await syncLocaleFromProvider(db as unknown as Db, 'u1c', 'keycloak-netzbegruenung');
-
-    expect(updates).toEqual([{ locale: 'de-DE', locale_source: 'idp' }]);
   });
 
   it('füllt ein leeres Profil aus dem österreichischen IdP', async () => {

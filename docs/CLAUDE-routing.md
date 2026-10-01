@@ -86,6 +86,7 @@ ist Bequemlichkeit, kein Schutz.
 | Instanz-Überblick | `/api/auth/admin/bgst` | `routes/admin/instanceAdminOverviewContractRouter.ts` |
 | Landesverbands-Zuordnung | `/api/auth/admin/landesverbaende` | `routes/admin/lvAdminAssignmentContractRouter.ts` |
 | **Chunk-Inspektor** | `/api/auth/admin/chunk-inspector` | `routes/admin/chunkInspectorContractRouter.ts` |
+| Konnektor-Test (Google/Microsoft über Nango, `/admin/konnektoren`) | `/api/auth/admin/connector-test` | `routes/admin/connectorTestContractRouter.ts` |
 
 **Der Chunk-Inspektor** (`/admin/chunks/:documentId?collection=…`, #3123) zeigt zu
 einem Dokument, was der Abruf tatsächlich gespeichert hat: die Chunks in ihrer

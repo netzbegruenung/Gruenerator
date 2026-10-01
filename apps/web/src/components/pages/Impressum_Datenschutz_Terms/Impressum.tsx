@@ -26,9 +26,8 @@ const Impressum = () => {
         Der Grünerator ist ein Projekt von Moritz Wächter, kostenfrei nutzbar für Mitglieder von
         BÜNDNIS 90/DIE GRÜNEN und Die Grünen – Die Grüne Alternative. Er wird finanziell unterstützt
         von Die Grünen – Die Grüne Alternative in Österreich sowie von einzelnen Landesverbänden und
-        Gliederungen von BÜNDNIS 90/DIE GRÜNEN in Deutschland. Die Infrastruktur wird betrieben und
-        finanziert von der <a href="https://netzbegruenung.de/">Netzbegrünung</a>, einem Grün-nahen
-        Verein.
+        Gliederungen von BÜNDNIS 90/DIE GRÜNEN in Deutschland. Die Infrastruktur wird von der{' '}
+        <a href="https://verdigado.com/">verdigado eG</a> betrieben.
       </p>
       <p>
         Der Grünerator ist kein Angebot der Partei BÜNDNIS 90/DIE GRÜNEN und nicht Teil der grünen

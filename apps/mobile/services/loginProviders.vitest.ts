@@ -68,13 +68,6 @@ describe('orderedProviders', () => {
     expect(ordered).toHaveLength(ungated.length);
   });
 
-  // Netzbegrünung ist NICHT gesperrt, und das ist der Kern der Trennung: Web
-  // versteckt beide hinter `?provider=`, ein Telefon hat aber keine
-  // Adresszeile — versteckt hieße hier ausgesperrt.
-  it('zeigt netzbegruenung, obwohl web es hinter ?provider= versteckt', () => {
-    expect(orderedProviders('gruenes-netz').map((p) => p.id)).toContain('netzbegruenung');
-  });
-
   it('lässt den gesperrten anbieter weg, solange nicht freigeschaltet ist', () => {
     expect(orderedProviders('gruenes-netz').map((p) => p.id)).not.toContain('gruenerator');
   });

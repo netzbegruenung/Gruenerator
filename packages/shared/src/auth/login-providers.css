@@ -96,11 +96,6 @@
   background: var(--background-color-alt);
 }
 
-.login-option.netzbegruenung:hover:not(:disabled) {
-  border-color: var(--secondary-200);
-  background: var(--background-color-alt);
-}
-
 .login-option.gruenerator:hover:not(:disabled) {
   border-color: var(--interactive-accent-color);
   background: var(--background-color-alt);

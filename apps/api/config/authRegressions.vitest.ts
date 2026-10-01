@@ -10,8 +10,8 @@
  *   1. Keycloak `accountLinking.trustedProviders` (commit 0fe25b8a).
  *      Better Auth's link-account refuses to link OAuth identities when
  *      the OAuth profile lacks `email_verified: true`, unless the provider
- *      is in `trustedProviders`. All four Keycloak IdPs route through our
- *      own realms operated by netzbegruenung, so trusting them is safe.
+ *      is in `trustedProviders`. All three Keycloak IdPs route through our
+ *      own realms, so trusting them is safe.
  *      A missing entry causes `account_not_linked` errors at sign-in.
  *
  *   2. `ba_accounts` UNIQUE constraint (commit e74c3176).
@@ -129,7 +129,6 @@ const authOptions = (
 
 describe('regression 0fe25b8a — trustedProviders', () => {
   const EXPECTED_PROVIDERS = [
-    'keycloak-netzbegruenung',
     'keycloak-gruenes-netz',
     'keycloak-gruene-at',
     'keycloak-gruenerator',

@@ -1,6 +1,6 @@
 import { IconButton } from '../../packages/ui/src/index';
 
-import { MailIcon, LinkIcon, SunIcon, CloudIcon, CalendarIcon, HomeIcon } from './icons';
+import { MailIcon, LinkIcon, SunIcon, CloudIcon, CalendarIcon } from './icons';
 
 // Recreation of the workplace "Grünerators Favoriten" section: the same
 // IconButton grid as FavoritesSection, linking out to ecosystem tools.
@@ -10,7 +10,6 @@ const FAVORITES = [
   { label: 'Sunflower-Theme', icon: <SunIcon /> },
   { label: 'Grüne Wolke', icon: <CloudIcon /> },
   { label: 'Grünes Doodle', icon: <CalendarIcon /> },
-  { label: 'Netzbegrünung', icon: <HomeIcon /> },
 ];
 
 const grid: React.CSSProperties = {
