@@ -246,15 +246,13 @@ export function DocumentsView({
   const gridCols = gridColumns(gridWidth, MIN_CARD, CARD_GAP);
   const gridColumn = useContentColumn('grid');
 
-  // One selector per field rather than `useDocsStore()`. The bare call subscribes
-  // to the whole store, so this view re-rendered — and with it every visible
-  // card — whenever `prefetchedDocs` was replaced, a Map it never reads.
+  // One selector per field rather than `useDocsStore()`: the bare call subscribes
+  // to the whole store and re-renders every visible card on any change.
   const documents = useDocsStore((s) => s.documents);
   const isLoading = useDocsStore((s) => s.isLoading);
   const error = useDocsStore((s) => s.error);
   const fetchDocuments = useDocsStore((s) => s.fetchDocuments);
   const deleteDocument = useDocsStore((s) => s.deleteDocument);
-  const prefetchRecentDocs = useDocsStore((s) => s.prefetchRecentDocs);
   const fabTones = getSurfaceFab('arbeiten', colorScheme === 'dark');
   const fabBottom = useTabBarClearance(spacing.medium);
   const [createOpen, setCreateOpen] = useState(false);
@@ -276,9 +274,8 @@ export function DocumentsView({
   useEffect(() => {
     if (user) {
       void fetchDocuments();
-      void prefetchRecentDocs();
     }
-  }, [fetchDocuments, prefetchRecentDocs, user]);
+  }, [fetchDocuments, user]);
 
   const handleRefresh = useCallback(() => {
     void fetchDocuments();
