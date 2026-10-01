@@ -26,12 +26,14 @@
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
 import { logout } from '../../services/auth';
 import { BODY_FONT, borderRadius, spacing } from '../../theme';
 import { Button } from '../common/Button';
+
+import { openLegalPage } from './LegalNotice';
 
 const DATENSCHUTZ_URL = 'https://gruenerator.eu/datenschutz';
 
@@ -81,7 +83,7 @@ export function AiConsentGate() {
               KI-Modelle mit Deinen Daten findet nicht statt.{' '}
               <Text
                 style={[styles.link, { color: theme.link }]}
-                onPress={() => void Linking.openURL(DATENSCHUTZ_URL)}
+                onPress={() => openLegalPage(DATENSCHUTZ_URL)}
               >
                 Zur Datenschutzerklärung
               </Text>
