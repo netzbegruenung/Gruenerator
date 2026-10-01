@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@modelcontextprotocol/sdk/client/auth.js', () => ({
+vi.mock('@modelcontextprotocol/sdk/client/auth.js', async (importOriginal) => ({
+  // Pure policy, no I/O — the real one, so revocation picks what the SDK would.
+  selectClientAuthMethod: (
+    await importOriginal<typeof import('@modelcontextprotocol/sdk/client/auth.js')>()
+  ).selectClientAuthMethod,
   discoverOAuthServerInfo: vi.fn(),
   discoverAuthorizationServerMetadata: vi.fn(),
   registerClient: vi.fn(),
@@ -28,7 +32,7 @@ vi.mock('../../utils/redis/client.js', () => ({
   },
 }));
 vi.mock('../../utils/validation/urlSecurity.js', () => ({
-  validateUrlForFetch: vi.fn(async () => ({ isValid: true })),
+  validateUrlForFetch: vi.fn(async (u: string) => ({ isValid: true, url: new URL(u) })),
 }));
 
 import {
@@ -395,5 +399,203 @@ describe('getValidAccessToken — refresh already running elsewhere', () => {
 
     await expect(McpOAuthService.getValidAccessToken('user-1', 'srv-1')).resolves.toBe('new-at');
     expect(refreshAuthorization).not.toHaveBeenCalled();
+  });
+});
+
+/** SEP-991: our published document is the client where the AS supports it. */
+describe('startAuthorization — Client ID Metadata Document', () => {
+  const CIMD_URL = 'https://gruenerator.eu/api/mcp/auth/client-metadata.json';
+
+  beforeEach(() => {
+    vi.mocked(getDrizzleInstance).mockReturnValue(dbStub(serverRow({})) as never);
+    vi.mocked(registerClient).mockResolvedValue({ client_id: 'dcr-cid' } as never);
+    vi.mocked(startAuthorization).mockResolvedValue({
+      authorizationUrl: new URL(`${AS}/authorize?x=1`),
+      codeVerifier: 'verifier',
+    } as never);
+  });
+
+  function discover(cimd: boolean) {
+    vi.mocked(discoverOAuthServerInfo).mockResolvedValue({
+      authorizationServerUrl: AS,
+      authorizationServerMetadata: {
+        issuer: AS,
+        registration_endpoint: `${AS}/register`,
+        client_id_metadata_document_supported: cimd,
+      },
+    } as never);
+  }
+
+  it('uses the document URL as client_id instead of registering', async () => {
+    discover(true);
+
+    await McpOAuthService.startAuthorization('user-1', 'srv-1');
+
+    expect(registerClient).not.toHaveBeenCalled();
+    expect(vi.mocked(startAuthorization).mock.calls[0]?.[1].clientInformation).toEqual({
+      client_id: CIMD_URL,
+    });
+  });
+
+  it('registers dynamically where the AS does not read documents', async () => {
+    discover(false);
+
+    await McpOAuthService.startAuthorization('user-1', 'srv-1');
+
+    expect(registerClient).toHaveBeenCalledOnce();
+  });
+
+  it('publishes a public-client document whose client_id is its own URL', () => {
+    expect(McpOAuthService.clientMetadataDocument()).toMatchObject({
+      client_id: CIMD_URL,
+      redirect_uris: ['https://gruenerator.eu/api/mcp/auth/callback'],
+      token_endpoint_auth_method: 'none',
+    });
+  });
+});
+
+/** RFC 7009: removing a connector also kills its tokens at the provider. */
+describe('tokenRevocation', () => {
+  const fetchMock = vi.fn();
+
+  function oauthRow(secret: string | null) {
+    return {
+      ...serverRow({ clientId: 'cid', issuer: AS }, secret),
+      auth_type: 'oauth',
+      token_encrypted: 'enc:at',
+      refresh_token_encrypted: 'enc:rt',
+    };
+  }
+
+  beforeEach(() => {
+    fetchMock.mockReset().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  it('revokes refresh and access token with basic auth for a confidential client', async () => {
+    vi.mocked(getDrizzleInstance).mockReturnValue(dbStub(oauthRow('enc:secret')) as never);
+    vi.mocked(discoverAuthorizationServerMetadata).mockResolvedValue({
+      issuer: AS,
+      revocation_endpoint: `${AS}/revoke`,
+      token_endpoint_auth_methods_supported: ['client_secret_basic'],
+    } as never);
+
+    await (
+      await McpOAuthService.tokenRevocation('user-1', 'srv-1')
+    )?.();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    expect(String(url)).toBe(`${AS}/revoke`);
+    expect((init.headers as Record<string, string>).Authorization).toBe(
+      `Basic ${Buffer.from('cid:secret').toString('base64')}`
+    );
+    expect((init.body as URLSearchParams).get('token')).toBe('rt');
+    expect((init.body as URLSearchParams).get('token_type_hint')).toBe('refresh_token');
+  });
+
+  it('sends client_id in the body for a public client', async () => {
+    vi.mocked(getDrizzleInstance).mockReturnValue(dbStub(oauthRow(null)) as never);
+    vi.mocked(discoverAuthorizationServerMetadata).mockResolvedValue({
+      issuer: AS,
+      revocation_endpoint: `${AS}/revoke`,
+      token_endpoint_auth_methods_supported: ['none'],
+    } as never);
+
+    await (
+      await McpOAuthService.tokenRevocation('user-1', 'srv-1')
+    )?.();
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
+    expect((init.body as URLSearchParams).get('client_id')).toBe('cid');
+  });
+
+  it('skips providers without a revocation endpoint', async () => {
+    vi.mocked(getDrizzleInstance).mockReturnValue(dbStub(oauthRow(null)) as never);
+    vi.mocked(discoverAuthorizationServerMetadata).mockResolvedValue({ issuer: AS } as never);
+
+    await (
+      await McpOAuthService.tokenRevocation('user-1', 'srv-1')
+    )?.();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('never throws — removal must go ahead when the provider is down', async () => {
+    vi.mocked(getDrizzleInstance).mockReturnValue(dbStub(oauthRow(null)) as never);
+    vi.mocked(discoverAuthorizationServerMetadata).mockResolvedValue({
+      issuer: AS,
+      revocation_endpoint: `${AS}/revoke`,
+    } as never);
+    fetchMock.mockRejectedValue(new Error('ECONNRESET'));
+
+    const revoke = await McpOAuthService.tokenRevocation('user-1', 'srv-1');
+    await expect(revoke?.()).resolves.toBeUndefined();
+  });
+});
+
+describe('startAuthorization — reusing and replacing clients', () => {
+  beforeEach(() => {
+    vi.mocked(startAuthorization).mockResolvedValue({
+      authorizationUrl: new URL(`${AS}/authorize?x=1`),
+      codeVerifier: 'verifier',
+    } as never);
+  });
+
+  function captureSet(row: Record<string, unknown>) {
+    const set = vi.fn(() => ({ where: async () => undefined }));
+    vi.mocked(getDrizzleInstance).mockReturnValue({
+      ...dbStub(row),
+      update: () => ({ set }),
+    } as never);
+    return set;
+  }
+
+  it('keeps a reused DCR client a DCR client', async () => {
+    vi.mocked(discoverOAuthServerInfo).mockResolvedValue({
+      authorizationServerUrl: AS,
+      authorizationServerMetadata: { issuer: AS, registration_endpoint: `${AS}/register` },
+    } as never);
+    const set = captureSet(serverRow({ clientId: 'dcr-cid', issuer: AS, scheme: 'dcr' }));
+
+    await McpOAuthService.startAuthorization('user-1', 'srv-1');
+
+    expect(set.mock.calls[0]?.[0]).toMatchObject({ oauth_meta: { scheme: 'dcr' } });
+  });
+
+  it('clears an old secret when the new client is public', async () => {
+    vi.mocked(discoverOAuthServerInfo).mockResolvedValue({
+      authorizationServerUrl: AS,
+      authorizationServerMetadata: {
+        issuer: AS,
+        registration_endpoint: `${AS}/register`,
+        client_id_metadata_document_supported: true,
+      },
+    } as never);
+    // Issuer moved → the stored DCR client and its secret are dropped.
+    const set = captureSet(
+      serverRow({ clientId: 'old', issuer: 'https://old.example.com', scheme: 'dcr' }, 'enc:old')
+    );
+
+    await McpOAuthService.startAuthorization('user-1', 'srv-1');
+
+    expect(set.mock.calls[0]?.[0]).toMatchObject({ oauth_client_secret_encrypted: null });
+  });
+
+  it('re-derives a CIMD client instead of reusing the stored URL', async () => {
+    vi.mocked(discoverOAuthServerInfo).mockResolvedValue({
+      authorizationServerUrl: AS,
+      authorizationServerMetadata: { issuer: AS, registration_endpoint: `${AS}/register` },
+    } as never);
+    vi.mocked(registerClient).mockResolvedValue({ client_id: 'dcr-cid' } as never);
+    captureSet(
+      serverRow({ clientId: 'https://old.example/client.json', issuer: AS, scheme: 'cimd' })
+    );
+
+    await McpOAuthService.startAuthorization('user-1', 'srv-1');
+
+    // The AS stopped reading documents → falls back to registration.
+    expect(registerClient).toHaveBeenCalledOnce();
   });
 });
