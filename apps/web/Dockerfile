@@ -121,7 +121,7 @@ FROM nginx:alpine AS production
 LABEL org.opencontainers.image.title="Gruenerator Web"
 LABEL org.opencontainers.image.description="Gruenerator Frontend Application"
 LABEL org.opencontainers.image.source="https://github.com/netzbegruenung/Gruenerator"
-LABEL org.opencontainers.image.vendor="netzbegruenung"
+LABEL org.opencontainers.image.vendor="Gruenerator"
 LABEL org.opencontainers.image.licenses="MIT"
 
 # Install curl for healthcheck. brotli-libs is the runtime shared library
