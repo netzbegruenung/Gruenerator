@@ -13,7 +13,7 @@ Developer ID files — MAS uses its own overlay so both tracks coexist.
 ## 0. Decide first: which Apple account?
 
 The Developer ID certs are on **Moritz Waechter (Einzelunternehmen, Team `P74W7SGX8R`)**.
-A public App Store listing for "Grünerator" (a netzbegrünung / Die Grünen project) under a
+A public App Store listing for "Grünerator" (a project for Die Grünen) under a
 **personal** account is a trademark/ownership question. Decide whether MAS publishes under
 this personal account or a dedicated organization account **before** issuing distribution
 certs — the certs and the App Store Connect app record are account-bound.
