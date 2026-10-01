@@ -37,7 +37,7 @@ import {
   View,
   Text,
   Pressable,
-  ScrollView,
+  FlatList,
   StyleSheet,
   TextInput,
   useColorScheme,
@@ -361,26 +361,12 @@ export default function AgentsScreen() {
       ? 'Keine Treffer. Versuch ein anderes Stichwort.'
       : (activeShelf?.emptyText ?? 'Hier ist gerade nichts vorhanden.');
 
-  const body: ReactNode = loading ? (
-    shelfSkeleton
-  ) : loadError ? (
-    emptyNote(loadError)
-  ) : items.length > 0 ? (
-    <View style={styles.list}>
-      {items.map((item) => (
-        <MarketCard
-          key={item.key}
-          icon={item.icon}
-          title={item.title}
-          meta={item.meta}
-          description={item.description}
-          onPress={item.onPress}
-        />
-      ))}
-    </View>
-  ) : (
-    emptyNote(emptyText)
-  );
+  // Shown in place of the list: skeleton, error or the empty note.
+  const placeholder: ReactNode = loading
+    ? shelfSkeleton
+    : loadError
+      ? emptyNote(loadError)
+      : emptyNote(emptyText);
 
   return (
     <ScreenScaffold title="Agentura" onBack={() => router.back()}>
@@ -438,16 +424,36 @@ export default function AgentsScreen() {
         <TypeFilterRow options={MOBILE_TYPE_FILTERS} active={type} onSelect={setType} />
       </View>
 
-      <ScrollView
+      {/* A virtualised list, not a ScrollView: the official and Landesverband
+          shelves run to well over a hundred cards, and building all of them in
+          one go landed on the push animation — and again on every keystroke of
+          the search. */}
+      <FlatList
+        data={loading || loadError ? [] : items}
+        keyExtractor={(item) => item.key}
+        renderItem={({ item }) => (
+          <MarketCard
+            icon={item.icon}
+            title={item.title}
+            meta={item.meta}
+            description={item.description}
+            onPress={item.onPress}
+          />
+        )}
+        ItemSeparatorComponent={ListGap}
+        ListEmptyComponent={<>{placeholder}</>}
+        initialNumToRender={8}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardDismissMode="on-drag"
-      >
-        {body}
-      </ScrollView>
+      />
     </ScreenScaffold>
   );
+}
+
+function ListGap() {
+  return <View style={styles.gap} />;
 }
 
 const styles = StyleSheet.create({
@@ -481,8 +487,8 @@ const styles = StyleSheet.create({
     // rather than ending flush against the bottom edge.
     paddingBottom: spacing.xxlarge * 2,
   },
-  list: {
-    gap: spacing.small,
+  gap: {
+    height: spacing.small,
   },
   typeRow: {
     paddingTop: spacing.small,
