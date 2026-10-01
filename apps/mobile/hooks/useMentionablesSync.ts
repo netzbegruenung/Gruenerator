@@ -85,7 +85,17 @@ export function useMentionablesSync(): void {
     setMentionLandesverbaende(lvIds);
   }, [lvIds]);
 
-  const common = { staleTime: STALE_TIME, retry: 1, enabled: isAuthenticated } as const;
+  // `notifyOnChangeProps: []`: the queries fill module-level lists as a side
+  // effect and this hook returns nothing, so their status changes have no one to
+  // inform. Without it each of the eight re-rendered the whole Composer twice
+  // (fetching, then settled) — during the push animation of every chat opened
+  // after the data went stale.
+  const common = {
+    staleTime: STALE_TIME,
+    retry: 1,
+    enabled: isAuthenticated,
+    notifyOnChangeProps: [],
+  };
 
   useQuery({
     queryKey: ['mention-custom-agents'],
