@@ -41,7 +41,7 @@ export function useCreateMcpServer() {
 export function useUpdateMcpServer() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: { enabled?: boolean } }) =>
+    mutationFn: ({ id, patch }: { id: string; patch: Parameters<typeof updateMcpServer>[1] }) =>
       updateMcpServer(id, patch),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: mcpKeys.list() }),
   });

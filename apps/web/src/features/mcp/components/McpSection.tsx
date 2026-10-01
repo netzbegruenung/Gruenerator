@@ -196,11 +196,23 @@ interface McpPrefill {
   /** DCR-less OAuth provider: show the app-registration guidance + setup link. */
   manual?: boolean;
   setupUrl?: string | null;
+  /** Existing row that needs Client-ID/Secret — updated in place, not created. */
+  serverId?: string | null;
 }
 
 const McpAddForm = memo(
-  ({ onSuccess, onError, prefill }: McpSectionProps & { prefill: McpPrefill | null }) => {
+  ({
+    onSuccess,
+    onError,
+    prefill,
+    redirectUri,
+  }: McpSectionProps & {
+    prefill: McpPrefill | null;
+    /** What the backend registers (BASE_URL), not this tab's origin. */
+    redirectUri: string | null;
+  }) => {
     const create = useCreateMcpServer();
+    const update = useUpdateMcpServer();
     const [name, setName] = useState('');
     const [url, setUrl] = useState('');
     // Manual adds are always tokenless; OAuth is only reached via a prefill from
@@ -209,7 +221,7 @@ const McpAddForm = memo(
     const [clientId, setClientId] = useState('');
     const [clientSecret, setClientSecret] = useState('');
     const [setupUrl, setSetupUrl] = useState<string | null>(null);
-    const redirectUri = `${window.location.origin}/api/mcp/auth/callback`;
+    const [serverId, setServerId] = useState<string | null>(null);
 
     // A pick from the discover list fills the form so the user only confirms.
     useEffect(() => {
@@ -221,12 +233,45 @@ const McpAddForm = memo(
         setUrl(prefill.url);
         setAuthType(prefill.authType);
         setSetupUrl(prefill.setupUrl ?? null);
+        setServerId(prefill.serverId ?? null);
       }
     }, [prefill]);
+
+    const reset = () => {
+      setName('');
+      setUrl('');
+      setAuthType('none');
+      setClientId('');
+      setClientSecret('');
+      setSetupUrl(null);
+      setServerId(null);
+    };
 
     const submit = (e: React.FormEvent) => {
       e.preventDefault();
       if (!name.trim() || !url.trim()) return;
+      if (serverId) {
+        // The row exists (its AS moved, or it rejected DCR): store the client
+        // on it — creating a second one would collide on the unique name.
+        update.mutate(
+          {
+            id: serverId,
+            patch: {
+              authType: 'oauth',
+              oauthClientId: clientId.trim() || null,
+              oauthClientSecret: clientSecret.trim() || null,
+            },
+          },
+          {
+            onSuccess: () => {
+              reset();
+              onSuccess('Gespeichert — jetzt „Autorisieren“ klicken.');
+            },
+            onError: (err) => onError(err instanceof Error ? err.message : 'Fehler'),
+          }
+        );
+        return;
+      }
       create.mutate(
         {
           name: name.trim(),
@@ -238,12 +283,7 @@ const McpAddForm = memo(
         },
         {
           onSuccess: () => {
-            setName('');
-            setUrl('');
-            setAuthType('none');
-            setClientId('');
-            setClientSecret('');
-            setSetupUrl(null);
+            reset();
             onSuccess(
               authType === 'oauth'
                 ? 'Hinzugefügt — jetzt „Autorisieren“ klicken.'
@@ -258,16 +298,20 @@ const McpAddForm = memo(
     return (
       <form onSubmit={submit} className="flex flex-col gap-sm">
         <div className="flex flex-col sm:flex-row gap-sm">
+          {/* Saving a client onto an existing row sends only the client — name
+              and URL stay as they are, so they are not editable here. */}
           <input
             className={inputClass}
             placeholder="Name (z. B. Linear)"
             value={name}
+            readOnly={serverId !== null}
             onChange={(e) => setName(e.target.value)}
           />
           <input
             className={inputClass}
             placeholder="Server-URL (https://…/mcp)"
             value={url}
+            readOnly={serverId !== null}
             onChange={(e) => setUrl(e.target.value)}
           />
         </div>
@@ -292,13 +336,19 @@ const McpAddForm = memo(
                 'Meist genügt „Autorisieren“ (dynamische Registrierung). Für Anbieter ohne DCR eine App mit dieser Redirect-URI anlegen und Client-ID/Secret eintragen:'
               )}
             </p>
-            <code className="text-xs bg-grey-100 dark:bg-grey-800 px-sm py-1 rounded-lg break-all">
-              {redirectUri}
-            </code>
+            {redirectUri ? (
+              <code className="text-xs bg-grey-100 dark:bg-grey-800 px-sm py-1 rounded-lg break-all">
+                {redirectUri}
+              </code>
+            ) : (
+              <span className="text-xs text-amber-600 dark:text-amber-400">
+                Die Redirect-URI ist gerade nicht verfügbar — bitte die Seite neu laden.
+              </span>
+            )}
             <div className="flex flex-col sm:flex-row gap-sm">
               <input
                 className={inputClass}
-                placeholder={setupUrl ? 'Client-ID' : 'Client-ID (optional)'}
+                placeholder={setupUrl || serverId ? 'Client-ID' : 'Client-ID (optional)'}
                 value={clientId}
                 onChange={(e) => setClientId(e.target.value)}
               />
@@ -314,10 +364,23 @@ const McpAddForm = memo(
         )}
         <button
           type="submit"
-          disabled={create.isPending || !name.trim() || !url.trim()}
+          disabled={
+            create.isPending ||
+            update.isPending ||
+            !name.trim() ||
+            !url.trim() ||
+            // Without a Client-ID the update would wipe the stored client.
+            (serverId !== null && !clientId.trim())
+          }
           className={cn(secondaryBtnClass, 'self-start disabled:opacity-50')}
         >
-          {create.isPending ? 'Füge hinzu…' : 'MCP-Server hinzufügen'}
+          {serverId
+            ? update.isPending
+              ? 'Speichere…'
+              : 'Client speichern'
+            : create.isPending
+              ? 'Füge hinzu…'
+              : 'MCP-Server hinzufügen'}
         </button>
       </form>
     );
@@ -333,10 +396,13 @@ const McpServerRow = memo(
     onSuccess,
     onError,
     onUseKey,
+    onNeedsClient,
   }: {
     server: McpServerSummary;
     /** Opens the key dialog for a row still waiting for OAuth. */
     onUseKey?: (() => void) | null;
+    /** The AS wants a hand-registered client for this row (dcr_rejected). */
+    onNeedsClient?: (() => void) | null;
   } & McpSectionProps) => {
     const del = useDeleteMcpServer();
     const update = useUpdateMcpServer();
@@ -367,7 +433,10 @@ const McpServerRow = memo(
         if (result.status === 'success') onSuccess(`${server.name} verbunden`);
         else if (result.status === 'no_auth_required')
           onSuccess(`${server.name} verbunden — der Server benötigt keine Anmeldung`);
-        else if (result.status === 'error') onError(result.error || 'OAuth fehlgeschlagen');
+        else if (result.status === 'error') {
+          if (result.code === 'dcr_rejected') onNeedsClient?.();
+          onError(result.error || 'OAuth fehlgeschlagen');
+        }
       });
     };
 
@@ -562,6 +631,14 @@ CardShell.displayName = 'CardShell';
 // ── Bearer connect dialog ────────────────────────────────────────────────────
 
 const takesKey = (entry: McpRegistryEntry) => entry.authOptions?.includes('bearer') === true;
+
+const hostOf = (url: string): string | null => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * One-step connect for token-based servers: paste the token, we create the
@@ -811,10 +888,17 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     () => new Set(servers.filter((s) => s.url).map((s) => s.url)),
     [servers]
   );
+  // Curated cards match by host: a seed whose path moved (monday.com /sse →
+  // /mcp) must not reappear for a row saved under the old path — connecting it
+  // again would collide on the unique name.
+  const connectedHosts = useMemo(
+    () => new Set(servers.map((s) => hostOf(s.url)).filter((h): h is string => h !== null)),
+    [servers]
+  );
 
   const available = useMemo<AvailableItem[]>(() => {
     const merged = (registry?.recommended ?? [])
-      .filter((e) => !connectedUrls.has(e.url))
+      .filter((e) => !connectedHosts.has(hostOf(e.url) ?? e.url))
       .map((entry) => ({ key: entry.url, category: mergeCategory(entry.category), entry }));
     // Collapse buckets below the minimum into "Sonstige" so no pill is near-empty.
     const counts = new Map<string, number>();
@@ -822,7 +906,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     return merged.map((it) =>
       (counts.get(it.category) ?? 0) < MIN_PER_CATEGORY ? { ...it, category: OTHER_CATEGORY } : it
     );
-  }, [registry, connectedUrls]);
+  }, [registry, connectedHosts]);
 
   const cats = useMemo(() => {
     const present: string[] = [];
@@ -857,17 +941,31 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   const connected = own.filter((s) => !(s.authType === 'oauth' && !s.hasToken));
   const activeCount = connected.filter((s) => s.enabled).length;
 
-  // Curated entry for a saved row, so the row knows whether a key path exists.
-  const entryByUrl = useMemo(
-    () => new Map((registry?.recommended ?? []).map((e) => [e.url, e])),
+  // Curated entry for a saved row, by host like the cards above.
+  const entryByHost = useMemo(
+    () => new Map((registry?.recommended ?? []).map((e) => [hostOf(e.url), e])),
     [registry]
   );
+  const entryFor = (server: McpServerSummary) => entryByHost.get(hostOf(server.url));
   /** Key link on a card whose one-click way is OAuth but which also takes a key. */
   const keyAlternative = (entry: McpRegistryEntry) =>
     entry.authHint === 'oauth' && takesKey(entry) ? () => openKeyDialog(entry) : null;
+  const askForClient = (server: McpServerSummary) => () => {
+    setPrefill({
+      name: server.name,
+      url: server.url,
+      authType: 'oauth',
+      manual: true,
+      setupUrl: entryFor(server)?.setupUrl ?? null,
+      serverId: server.id,
+    });
+    requestAnimationFrame(() =>
+      addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    );
+  };
   /** Key action on a row still waiting for OAuth, where the provider takes keys. */
   const rowKeyAction = (server: McpServerSummary) => {
-    const entry = entryByUrl.get(server.url);
+    const entry = entryFor(server);
     if (!entry || !takesKey(entry)) return null;
     return () => openKeyDialog(entry, server.id);
   };
@@ -1044,6 +1142,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                 server={server}
                 onSuccess={onSuccess}
                 onError={onError}
+                onNeedsClient={askForClient(server)}
                 onUseKey={rowKeyAction(server)}
               />
             ))}
@@ -1068,6 +1167,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                 server={server}
                 onSuccess={onSuccess}
                 onError={onError}
+                onNeedsClient={askForClient(server)}
               />
             ))}
           </div>
@@ -1201,7 +1301,12 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
         <h3 className="m-0 mb-sm text-xs font-bold tracking-widest uppercase text-grey-500">
           {prefill ? `${prefill.name} verbinden` : 'Eigenen MCP-Server hinzufügen'}
         </h3>
-        <McpAddForm onSuccess={onSuccess} onError={onError} prefill={prefill} />
+        <McpAddForm
+          onSuccess={onSuccess}
+          onError={onError}
+          prefill={prefill}
+          redirectUri={registry?.oauthRedirectUri ?? null}
+        />
       </div>
 
       {bearerTarget && (
