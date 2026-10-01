@@ -6,8 +6,9 @@ import {
 } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useMemo, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 
+import { openUrl } from '../../../services/share';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
@@ -127,7 +128,7 @@ export function PressemitteilungExamplesCard({
                     {ex.url && (
                       <Pressable
                         style={styles.sourceLink}
-                        onPress={() => ex.url && void Linking.openURL(ex.url)}
+                        onPress={() => ex.url && void openUrl(ex.url)}
                         accessibilityRole="link"
                       >
                         <Text style={[styles.sourceLinkText, { color: colors.primary[600] }]}>

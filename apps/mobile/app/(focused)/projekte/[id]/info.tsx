@@ -2,7 +2,7 @@ import { groupFeedByKind } from '@gruenerator/shared/groups';
 import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { type ReactNode } from 'react';
-import { View, Text, StyleSheet, ScrollView, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 
 import { ListGroup, ListRow, SkeletonRows } from '../../../../components/common';
 import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold';
@@ -11,6 +11,7 @@ import { GroupAvatar } from '../../../../components/workplace/GroupAvatar';
 import { useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
 import { useTheme } from '../../../../hooks/useTheme';
+import { openUrl } from '../../../../services/share';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
 import { roleLabel } from '../../../../utils/groups';
 
@@ -138,7 +139,7 @@ export default function ProjektInfoScreen() {
                   icon={LINK_ICONS[link.icon] ?? 'link'}
                   title={link.title}
                   value={link.description ?? link.url}
-                  onPress={() => void Linking.openURL(link.url)}
+                  onPress={() => void openUrl(link.url)}
                   last={i === links.length - 1}
                 />
               ))}

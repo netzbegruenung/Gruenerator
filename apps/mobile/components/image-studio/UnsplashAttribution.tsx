@@ -1,5 +1,6 @@
-import { Pressable, Text, StyleSheet, View, Linking } from 'react-native';
+import { Pressable, Text, StyleSheet, View } from 'react-native';
 
+import { openUrl } from '../../services/share';
 import { spacing, typography, BODY_FONT } from '../../theme';
 
 import type { StockImageAttribution } from '@gruenerator/shared/image-studio';
@@ -12,7 +13,7 @@ interface UnsplashAttributionProps {
 export function UnsplashAttribution({ attribution, compact = false }: UnsplashAttributionProps) {
   const handlePress = () => {
     if (attribution.profileUrl) {
-      void Linking.openURL(attribution.profileUrl);
+      void openUrl(attribution.profileUrl);
     }
   };
 

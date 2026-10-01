@@ -2,9 +2,10 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { File, Paths } from 'expo-file-system';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Linking, Alert } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 
 import { openFile } from '../../services/openFile';
+import { openUrl } from '../../services/share';
 import { secureStorage } from '../../services/storage';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
@@ -90,7 +91,7 @@ export function DocumentCreatedCard({
       return;
     }
     if (document.url.startsWith('http')) {
-      void Linking.openURL(document.url);
+      void openUrl(document.url);
     }
   }, [document.documentId, document.url, isPdf, openPdf, router]);
 
