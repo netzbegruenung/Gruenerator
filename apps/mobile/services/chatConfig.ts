@@ -1,6 +1,7 @@
 import { useChatConfigStore, createChatApiClient, type ChatApiClient } from '@gruenerator/chat';
 import { router } from 'expo-router';
 
+import { useNoticeStore } from '../stores/noticeStore';
 import { getErrorMessage } from '../utils/errors';
 
 import { resolveChatUrl } from './chatApiUrl';
@@ -84,6 +85,8 @@ export function configureMobileChat(): void {
     docsBaseUrl: WEB_ORIGIN,
     onEditInDocs: mobileEditInDocs,
     platform: 'app',
+    notify: (kind, message, description) =>
+      useNoticeStore.getState().show(kind, message, description),
   });
   cachedApiClient = null;
 }

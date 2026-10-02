@@ -259,10 +259,13 @@ describe('parseSSEStream research_log handling', () => {
 
   const callbacks: GrueneratorAdapterCallbacks = {};
 
-  async function drain(response: Response): Promise<void> {
+  // `onYield` reads the store while the stream is still open: once it ends, a
+  // log without a closing status is settled as `failed`.
+  async function drain(response: Response, onYield?: () => void): Promise<void> {
     const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
     for await (const _ of parseSSEStream(response, callbacks, outcome)) {
       // The research log lands in the store, not in the yielded result.
+      onYield?.();
     }
   }
 
@@ -277,13 +280,16 @@ describe('parseSSEStream research_log handling', () => {
   });
 
   it('opens the panel on start, before any progress exists', async () => {
+    const seen: ResearchLogArtifact[] = [];
     await drain(
       sseResponse([
         { event: 'research_log_start', data: { id: 'research-1', title: 'Recherche: Wien' } },
-      ])
+      ]),
+      () => seen.push(activeLog())
     );
 
-    const log = activeLog();
+    const log = seen[0];
+    if (!log) throw new Error('stream yielded nothing');
     expect(log.id).toBe('research-1');
     expect(log.title).toBe('Recherche: Wien');
     expect(log.status).toBe('running');
@@ -338,9 +344,44 @@ describe('parseSSEStream research_log handling', () => {
         { event: 'research_log_start', data: { id: 'research-1', title: 'Recherche' } },
         {
           event: 'research_log_update',
-          data: { id: 'research-2', status: 'failed' },
+          data: { id: 'research-2', status: 'done' },
         },
       ])
+    );
+
+    // `failed`, not `done`: the run-2 update was ignored, and run 1 never closed.
+    expect(activeLog().status).toBe('failed');
+  });
+
+  it('settles a log the stream opened but never closed as failed', async () => {
+    await expect(
+      drain(
+        sseResponse([
+          { event: 'research_log_start', data: { id: 'research-1', title: 'Recherche' } },
+          { event: 'error', data: { error: 'abgebrochen' } },
+        ])
+      )
+    ).rejects.toThrow();
+
+    expect(activeLog().status).toBe('failed');
+  });
+
+  it("leaves another stream's running log alone, even one updated meanwhile", async () => {
+    // Thread A's research run is live in the store; thread B's stream (no
+    // research of its own) runs and ends while A's log keeps updating.
+    useArtifactLiveStore.getState().setActiveArtifact({
+      id: 'research-a',
+      type: 'research_log',
+      title: 'Recherche A',
+      plan: [],
+      steps: [],
+      status: 'running',
+    });
+
+    await drain(sseResponse([{ event: 'text_delta', data: { text: 'Hallo' } }]), () =>
+      useArtifactLiveStore.getState().upsertResearchLog('research-a', {
+        steps: [{ id: 's0', label: 'Suche', status: 'running' }],
+      })
     );
 
     expect(activeLog().status).toBe('running');

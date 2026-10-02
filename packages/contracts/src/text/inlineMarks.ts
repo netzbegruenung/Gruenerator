@@ -3,7 +3,7 @@
  *
  * Ein Sharepic-Textfeld ist ein flacher String (siehe `listLayout.ts`). Fett,
  * Kursiv und Unterstrichen stehen darin als Markdown-lite: `**fett**`,
- * `_kursiv_`, `<u>unterstrichen</u>`. Das ist die Form, die Nutzer*innen
+ * `_kursiv_`, `<u>unterstrichen</u>`, `==Akzent==`, `++Marker++`. Das ist die Form, die Nutzer*innen
  * kennen, die ein Modell ohnehin schreibt und die ohne Contract-Umbau in
  * jedes vorhandene Feld passt.
  *
@@ -23,15 +23,33 @@ export interface RunStyle {
   bold: boolean;
   italic: boolean;
   underline: boolean;
+  /**
+   * Das hervorgehobene Wort einer Zeile in der Akzentfarbe (und, wo die Marke
+   * es vorsieht, der Akzentschrift) — der Text trägt dafür `accentFill` usw.
+   */
+  accent: boolean;
+  /**
+   * Eine Textmarker-Box hinter dem Lauf (DE-Signatur) — der Text trägt dafür
+   * einen `TextMarker`. `++` und nicht `=`/`-`/`~`: `+` leitet keine
+   * Aufzählung ein, und `++` kommt in Prosa nur als `C++` vor, das nie
+   * öffnet (kein Nicht-Leerzeichen dahinter) und nie paart.
+   */
+  marker: boolean;
 }
 
 export interface InlineRun extends RunStyle {
   text: string;
 }
 
-export const PLAIN_STYLE: RunStyle = { bold: false, italic: false, underline: false };
+export const PLAIN_STYLE: RunStyle = {
+  bold: false,
+  italic: false,
+  underline: false,
+  accent: false,
+  marker: false,
+};
 
-type MarkKind = 'bold' | 'italic' | 'underline';
+type MarkKind = 'bold' | 'italic' | 'underline' | 'accent' | 'marker';
 
 interface DelimToken {
   type: 'delim';
@@ -59,6 +77,14 @@ const isWordChar = (char: string | undefined): boolean =>
   char !== undefined && /[\p{L}\p{N}]/u.test(char);
 
 /**
+ * Darf ein `++` an Stelle `at` öffnen? Wie `_` nie direkt hinter einem
+ * Wortzeichen — sonst verlöre `C++, Java und C++` seine Pluszeichen. Die EINE
+ * Regel: Tokenizer, Normalizer und Zähler des Creators fragen alle hier.
+ */
+export const markerCanOpenAt = (text: string, at: number): boolean =>
+  at === 0 || !isWordChar(text[at - 1]);
+
+/**
  * Zerlegt eine Zeile in Text und Marker-Kandidaten. Ob ein Kandidat öffnen
  * oder schließen darf, hängt nur von seinen Nachbarzeichen ab; gepaart wird
  * erst in `resolve`.
@@ -77,14 +103,14 @@ function tokenize(line: string): Token[] {
     next: string | undefined
   ) => {
     flush();
-    // Ein `_` mitten im Wort (`snake_case`) darf nicht ÖFFNEN, sonst würde
+    // Ein `_` (und `++`, siehe `markerCanOpenAt`) mitten im Wort (`snake_case`) darf nicht ÖFFNEN, sonst würde
     // jeder Bezeichner kursiv. Beim SCHLIESSEN gilt die Einschränkung nicht:
     // `_grün_er` — ein kursiver Wortanfang — hat rechts vom schließenden
     // Marker ein Wortzeichen, und mit der Bedingung auch dort ließ sich
     // genau das nicht mehr lesen, was `serializeInlineMarks` selbst schreibt.
     // Ohne einen offenen Marker auf dem Stapel paart `resolve` ohnehin nicht,
     // `snake_case_name` bleibt also unberührt.
-    const wordBound = raw.startsWith('_');
+    const wordBound = raw.startsWith('_') || raw === '++';
     tokens.push({
       type: 'delim',
       kind,
@@ -108,6 +134,16 @@ function tokenize(line: string): Token[] {
       }
       push('italic', ch, prev, line[i + 1]);
       i += 1;
+      continue;
+    }
+    if (ch === '=' && line[i + 1] === '=') {
+      push('accent', '==', prev, line[i + 2]);
+      i += 2;
+      continue;
+    }
+    if (ch === '+' && line[i + 1] === '+') {
+      push('marker', '++', prev, line[i + 2]);
+      i += 2;
       continue;
     }
     if (ch === '<') {
@@ -175,7 +211,9 @@ export function parseInlineMarks(line: string): InlineRun[] {
       last &&
       last.bold === style.bold &&
       last.italic === style.italic &&
-      last.underline === style.underline
+      last.underline === style.underline &&
+      last.accent === style.accent &&
+      last.marker === style.marker
     ) {
       last.text += value;
     } else {
@@ -199,7 +237,11 @@ export function parseInlineMarks(line: string): InlineRun[] {
 export function hasInlineMarks(text: string): boolean {
   return text
     .split('\n')
-    .some((line) => parseInlineMarks(line).some((run) => run.bold || run.italic || run.underline));
+    .some((line) =>
+      parseInlineMarks(line).some(
+        (run) => run.bold || run.italic || run.underline || run.accent || run.marker
+      )
+    );
 }
 
 /** Nur der Text, ohne Marker — für Teilen, Kopieren, Alt-Texte. */
@@ -214,11 +256,13 @@ export function stripInlineMarks(text: string): string {
     .join('\n');
 }
 
-const MARK_ORDER: MarkKind[] = ['bold', 'italic', 'underline'];
+const MARK_ORDER: MarkKind[] = ['marker', 'accent', 'bold', 'italic', 'underline'];
 const DELIMS: Record<MarkKind, [string, string]> = {
   bold: ['**', '**'],
   italic: ['_', '_'],
   underline: ['<u>', '</u>'],
+  accent: ['==', '=='],
+  marker: ['++', '++'],
 };
 
 /**
@@ -274,5 +318,27 @@ export function normalizeInlineMarks(text: string): string {
   return text
     .split('\n')
     .map((line) => serializeInlineMarks(parseInlineMarks(line)))
+    .join('\n');
+}
+
+/**
+ * `++Marker++` als `==Akzent==` lesen — für die Orte, an denen der Marker
+ * keine Box hat (AT setzt Hervorhebungen gelb in Vollkorn kursiv, nie als
+ * Kasten). Texte ohne `++` bleiben Zeichen für Zeichen unberührt; nur ein Text
+ * mit Marker läuft durch Parser und Serializer.
+ */
+export function foldMarkerIntoAccent(text: string): string {
+  if (!text.includes('++')) return text;
+  return text
+    .split('\n')
+    .map((line) =>
+      serializeInlineMarks(
+        parseInlineMarks(line).map((run) => ({
+          ...run,
+          accent: run.accent || run.marker,
+          marker: false,
+        }))
+      )
+    )
     .join('\n');
 }

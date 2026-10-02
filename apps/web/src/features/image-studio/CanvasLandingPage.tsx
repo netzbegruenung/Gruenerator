@@ -1,6 +1,6 @@
 import { isCanvasTemplateType } from '@gruenerator/contracts';
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
@@ -16,6 +16,7 @@ import { useFeatureIndex } from '../global-search/useFeatureIndex';
 import { useTourAutostart } from '../tours/useTourAutostart';
 import { OFFICE_PILL_ROW, OfficeTilePill } from '../workplace/components/ToolsSection';
 
+import { ExperimentalBadge } from './bild-editor-v2/BevBoxes';
 import StudioGallerySections from './components/StudioGallerySections';
 import { IMAGE_STUDIO_CATEGORIES, getTypesForCategory } from './utils/typeConfig';
 
@@ -135,6 +136,12 @@ const CanvasLandingContent = () => {
           onSelectTemplate={handleTemplate}
           onImport={() => {}}
         />
+        <p className="mt-3 flex items-center justify-center gap-2 text-sm">
+          <Link to="/studio/freitext" className="font-semibold text-foreground underline">
+            Sharepic aus Freitext gestalten
+          </Link>
+          <ExperimentalBadge />
+        </p>
       </div>
 
       <section className="mb-xl mt-xl" data-tour="studio-tools">

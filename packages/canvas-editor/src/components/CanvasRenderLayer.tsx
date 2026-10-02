@@ -1,17 +1,18 @@
 import React, { memo, type ComponentProps } from 'react';
 
+import { type GeometryReporter } from '../hooks/useGeometryReporter';
+import { useIconSetsFor } from '../hooks/useIconSetsFor';
 import { CanvasText } from '../primitives';
 import { AssetPrimitive } from '../primitives/AssetPrimitive';
 import { BalkenGroup } from '../primitives/BalkenGroup';
+import { ChartPrimitive } from '../primitives/ChartPrimitive';
 import { CircleBadge } from '../primitives/CircleBadge';
 import { FramePrimitive } from '../primitives/FramePrimitive';
 import { IconPrimitive } from '../primitives/IconPrimitive';
 import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive';
 import { PillBadge } from '../primitives/PillBadge';
 import { ShapePrimitive } from '../primitives/ShapePrimitive';
-import { ChartPrimitive } from '../primitives/ChartPrimitive';
 import { UserImagePrimitive } from '../primitives/UserImagePrimitive';
-import { type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useIsElementSelected } from '../stores/CanvasStoreProvider';
 import { getIconMapSync } from '../utils/canvasIcons';
 import { resolveIconDef } from '../utils/iconInstances';
@@ -41,6 +42,7 @@ import type { UserImageInstance } from '../utils/userImageUtils';
  * Optional properties that may exist on canvas state for different element types
  */
 interface OptionalCanvasStateProperties {
+  selectedIcons?: string[];
   iconStates?: Record<
     string,
     {
@@ -214,6 +216,9 @@ function CanvasRenderLayerInner<
   isFontAvailable,
   remoteSelections,
 }: CanvasRenderLayerProps<TState, TActions>) {
+  const iconCarrier = state as TState & Partial<OptionalCanvasStateProperties>;
+  useIconSetsFor(iconCarrier.selectedIcons, iconCarrier.iconStates);
+
   const renderCanvasItem = (item: CanvasItem) => {
     // Render Config Element
     if (item.type === 'element') {
@@ -522,7 +527,10 @@ function CanvasRenderLayerInner<
           shadowOffsetY={textItem.shadowOffsetY}
           shadowOpacity={textItem.shadowOpacity}
           fillGradient={textItem.fillGradient}
-          align="left"
+          align={textItem.align ?? 'left'}
+          lineHeight={textItem.lineHeight}
+          accent={textItem.accent}
+          marker={textItem.marker}
           opacity={textItem.opacity ?? 1}
           rotation={textItem.rotation || 0}
           scaleX={textItem.scale || 1}

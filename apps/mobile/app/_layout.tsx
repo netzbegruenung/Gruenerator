@@ -16,6 +16,7 @@ import { enableFreeze } from 'react-native-screens';
 import { AiConsentGate } from '../components/auth/AiConsentGate';
 import { SharepicRenderHost } from '../components/chat/SharepicRenderHost';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
+import { NoticeToast } from '../components/common/NoticeToast';
 import { AppDrawer } from '../components/navigation';
 import { SettingsSheet } from '../components/settings';
 import { CURRENT_INSTANCE } from '../config/instance';
@@ -259,6 +260,9 @@ function RootLayout() {
                     solange es etwas zu zeichnen gibt (`useRenderHostDemand`),
                     und räumt sich danach wieder ab. */}
                 {user ? <SharepicRenderHost /> : null}
+                {/* Hinweise aus dem Chat-Paket (notifyError/notifyWarning), über
+                    jedem Bildschirm — die App hat kein sonner (#3996). */}
+                <NoticeToast />
                 {/* Art.-9-Einwilligung. Ganz zuletzt und über allem, damit sie
                     auch über dem Einstellungen-Sheet steht — ein Widerruf dort
                     muss sofort wieder fragen, sonst liefe die App weiter ohne

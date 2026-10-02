@@ -14,6 +14,22 @@ const log = createLogger('HocuspocusAuth');
 
 const GRANTED_BY_SHARE_LINK = 'auto:share_link';
 const SESSION_CHECK_TIMEOUT_MS = 5000;
+/** Same id as the API's dev-bypass user (`apps/api/middleware/authMiddleware.ts`). */
+const DEV_BYPASS_USER_ID = '00000000-0000-4000-a000-000000000001';
+
+/**
+ * Local dev only, mirroring the API's `requireAuth`: the Vite dev proxy forwards
+ * `/ws` here and attaches `x-dev-auth-bypass`, so the bypass user can open its
+ * own private documents without a session cookie.
+ */
+function devBypassUserId(headers: Headers): string | null {
+  if (process.env.NODE_ENV !== 'development' || process.env.ALLOW_DEV_AUTH_BYPASS !== 'true') {
+    return null;
+  }
+  const expected = process.env.DEV_AUTH_BYPASS_TOKEN;
+  if (!expected) return null;
+  return headers.get('x-dev-auth-bypass') === expected ? DEV_BYPASS_USER_ID : null;
+}
 
 export class AuthService {
   private readonly db: DbQueryFn;
@@ -30,6 +46,9 @@ export class AuthService {
     log.debug(`[Auth] Starting authentication for ${documentName}, hasToken: ${!!token}`);
 
     try {
+      const bypassUserId = devBypassUserId(requestHeaders);
+      if (bypassUserId) return this.checkRoomAccess(documentName, bypassUserId);
+
       if (token) {
         log.debug(`[Auth] Trying bearer-token auth`);
         const result = await this.authenticateByBearer(token, documentName);

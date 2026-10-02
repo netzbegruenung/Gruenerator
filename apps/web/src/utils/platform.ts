@@ -148,13 +148,13 @@ export function getPublicAppOrigin(): string {
  * Derive the Hocuspocus collaboration WebSocket URL (`wss://<host>/ws`).
  *
  * Deriving from `window.location` breaks in the desktop webview (origin
- * `tauri://localhost` → falls back to `ws://localhost:1240`). Derive the host
+ * `tauri://localhost` → falls back to the local dev socket). Derive the host
  * from the absolute API base instead; web is unchanged (API host == page host).
  */
 export function deriveCollabWsUrl(): string {
   const origin = apiOriginOrNull();
   if (origin) return `${origin.replace(/^http/, 'ws')}/ws`;
-  return typeof window !== 'undefined' && window.location.protocol === 'https:'
-    ? `wss://${window.location.host}/ws`
-    : 'ws://localhost:1240';
+  if (typeof window === 'undefined') return 'ws://localhost:1240';
+  // Dev: the Vite proxy forwards `/ws` to Hocuspocus, as nginx does in prod.
+  return `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 }

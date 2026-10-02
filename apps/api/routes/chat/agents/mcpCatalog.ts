@@ -6,7 +6,8 @@
  * in parallel (dead servers skipped, not fatal), namespace tools
  * `m<serverKey>__<tool>` (derived from mcp_servers.id → STABLE across turns so
  * cross-turn tool-call replay resolves), MAX_TOOLS cap, snapshot refresh, and
- * the scoped-server-missing honesty signal.
+ * the scoped-server-missing honesty signal. Always one server: the turn's
+ * scope (see McpServerRegistry.getConnectionConfigs).
  *
  * Connections are opened ONCE here and kept alive for the whole turn (a
  * streamText run may call the same tool across several steps — reconnecting per
@@ -28,7 +29,16 @@ import { sanitizeMcpSchema } from './mcpSchemaSanitizer.js';
 
 const log = createLogger('mcpCatalog');
 
-const MAX_TOOLS = 60;
+/**
+ * Tools mounted from the ONE server a turn addresses. The bound is the 128-tool
+ * request limit of OpenAI-compatible backends minus the loop's own catalog:
+ * 21 tools without session extras (counted 03.10.2026), plus the creation
+ * tools, loaders, `rezept_laden` and `ask_human` a session can add — 80 leaves
+ * room for ~45. It used to be 60 and shared with every managed connector that
+ * rode along, so a mentioned server got whatever was left after the fastest
+ * connections — Typeform (64 tools) lost all of its form tools.
+ */
+const MAX_TOOLS = 80;
 
 /** Anthropic/tool-name regex is ^[a-zA-Z0-9_-]{1,64}$. Shared with systemMcpCatalog. */
 export function sanitizeToolName(raw: string): string {
@@ -108,17 +118,15 @@ const EMPTY: McpCatalog = {
 
 export async function loadMcpCatalog(params: {
   userId: string;
-  /** mcp:<serverId> scope from an @<server> mention, else null for all servers. */
-  scope: string | null;
+  /** mcp:<serverId> scope from an @<server> mention, a named server or the
+   *  thread's sticky server. */
+  scope: string;
 }): Promise<McpCatalog> {
   const { userId, scope } = params;
 
   let configs;
   try {
-    configs = await McpServerRegistry.getConnectionConfigs(
-      userId,
-      scope ? { serverId: scope } : undefined
-    );
+    configs = await McpServerRegistry.getConnectionConfigs(userId, scope);
   } catch (err) {
     log.warn(`[mcpCatalog] failed to load configs: ${err instanceof Error ? err.message : err}`);
     return EMPTY;
@@ -126,7 +134,7 @@ export async function loadMcpCatalog(params: {
 
   if (configs.length === 0) {
     // Scoped mention for a server the user disabled/deleted: signal honesty.
-    return { ...EMPTY, scopedServerMissing: scope != null };
+    return { ...EMPTY, scopedServerMissing: true };
   }
 
   const clients: UserMCPClient[] = [];
@@ -181,10 +189,23 @@ export async function loadMcpCatalog(params: {
         // in the catalog by the time we notice.
         const serverTools: ToolSet = {};
         const serverLabels = new Map<string, ToolLabel>();
-        for (const t of listed) {
-          if (Object.keys(serverTools).length >= MAX_TOOLS) break;
+        if (listed.length > MAX_TOOLS) {
+          // Never silent: the person connected this server for these tools.
+          log.warn(
+            `[mcpCatalog] "${config.name}" exposes ${listed.length} tools, mounting ${MAX_TOOLS} — dropped: ${listed
+              .slice(MAX_TOOLS)
+              .map((t) => t.name)
+              .join(', ')}`
+          );
+        }
+        for (const t of listed.slice(0, MAX_TOOLS)) {
           const providerName = `m${serverKey}__${sanitizeToolName(t.name)}`.slice(0, 64);
-          if (seen.has(providerName) || serverTools[providerName]) continue;
+          if (seen.has(providerName) || serverTools[providerName]) {
+            log.warn(
+              `[mcpCatalog] "${config.name}" tool "${t.name}" dropped: name collides after truncation (${providerName})`
+            );
+            continue;
+          }
           serverLabels.set(providerName, {
             serverName: config.name,
             toolName: t.name,
@@ -248,7 +269,6 @@ export async function loadMcpCatalog(params: {
         }
 
         for (const [providerName, def] of Object.entries(serverTools)) {
-          if (Object.keys(tools).length >= MAX_TOOLS) break;
           if (seen.has(providerName)) continue;
           seen.add(providerName);
           tools[providerName] = def;
@@ -280,7 +300,7 @@ export async function loadMcpCatalog(params: {
     scopedServerMissing: false,
     // Scoped single-server load that produced no usable tools (connect/listTools
     // failed or the server exposed none) — honest signal, not a silent miss.
-    scopedServerUnreachable: scope != null && labels.size === 0 && anyUnreachable,
+    scopedServerUnreachable: labels.size === 0 && anyUnreachable,
     driftedServers,
     close: async () => {
       await Promise.all(clients.map((c) => c.close()));

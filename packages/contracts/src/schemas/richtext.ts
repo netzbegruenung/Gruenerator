@@ -19,21 +19,26 @@ export const RICH_TEXT_NODE_TYPES = [
   'hardBreak',
 ] as const;
 
-export interface RichTextMark {
-  type: (typeof RICH_TEXT_MARK_TYPES)[number];
+/**
+ * The document shape is generic over its marks: site content uses the
+ * whitelist above; the canvas text bridge (`text/canvasRichText.ts`) adds its
+ * own `accent` mark without widening what a site may store.
+ */
+export interface RichTextMark<T extends string = (typeof RICH_TEXT_MARK_TYPES)[number]> {
+  type: T;
 }
 
-export interface RichTextNode {
+export interface RichTextNode<M extends RichTextMark<string> = RichTextMark> {
   type: (typeof RICH_TEXT_NODE_TYPES)[number];
   attrs?: Record<string, unknown> | undefined;
-  marks?: RichTextMark[] | undefined;
+  marks?: M[] | undefined;
   text?: string | undefined;
-  content?: RichTextNode[] | undefined;
+  content?: RichTextNode<M>[] | undefined;
 }
 
-export interface RichTextDoc {
+export interface RichTextDoc<M extends RichTextMark<string> = RichTextMark> {
   type: 'doc';
-  content?: RichTextNode[] | undefined;
+  content?: RichTextNode<M>[] | undefined;
 }
 
 export const richTextMarkSchema: z.ZodType<RichTextMark> = z.object({
