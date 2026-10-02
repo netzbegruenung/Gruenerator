@@ -137,7 +137,6 @@ export {
 export {
   createGrueneratorThreadListAdapter,
   getThreadType,
-  getNotebookCollectionId,
   getNotebookCollectionIds,
   getThreadSlugSuffix,
   getThreadAgentId,
