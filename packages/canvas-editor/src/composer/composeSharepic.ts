@@ -21,6 +21,7 @@ import {
   type SharepicItem,
   type SharepicPhotoAttribution,
   type SharepicSlide,
+  type KiLabelMode,
   type SharepicSpec,
 } from '@gruenerator/contracts';
 
@@ -51,6 +52,8 @@ export interface ComposeOptions {
   /** Photo credit per slide, as the draft returned it. */
   attributions?: (SharepicPhotoAttribution | null)[];
   measure?: MeasureText;
+  /** AI notice on every slide, same wording and look as the server-side image label. Default `full`. */
+  kiLabel?: KiLabelMode;
 }
 
 /** Props for the `freeform` / `freeform-at` config's `createInitialState` — one page. */
@@ -89,6 +92,21 @@ const FOOTER = 130;
 const LOGO = {
   'de-DE': { size: 150, height: 150, bottom: 50 },
   'de-AT': { size: 240, height: (240 * 1239) / 1410, bottom: 95 },
+} as const;
+
+/**
+ * AI label, mirroring `imagine_label_canvas.ts` at 1080 px: PT Sans Bold 27,
+ * pill bottom-left. Kept in sync by hand, the API cannot import the editor.
+ */
+const KI_LABEL = {
+  texts: { full: 'KI-Generiert mit dem Grünerator', short: 'KI-Generiert' },
+  fontFamily: 'PT Sans',
+  fontSize: 27,
+  margin: 11,
+  paddingX: 16,
+  paddingY: 9,
+  radius: 8,
+  gap: 8,
 } as const;
 
 export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
@@ -412,7 +430,25 @@ function composeSlide(
   }
   const logo = LOGO[locale];
   // A large logo reaches above the footer row; the text stays clear of it.
-  if (spec.logo) areaBottom = Math.min(areaBottom, HEIGHT - logo.bottom - logo.height - 20);
+  // A centred logo would sit over the AI label's right end; lift it clear.
+  const logoCentred = xAlign === 'center' && !spec.ort;
+  const kiClear = KI_LABEL.margin + KI_LABEL.fontSize + 2 * KI_LABEL.paddingY + KI_LABEL.gap;
+  const logoBottom =
+    options.kiLabel !== 'none' && logoCentred ? Math.max(logo.bottom, kiClear) : logo.bottom;
+  if (spec.logo) areaBottom = Math.min(areaBottom, HEIGHT - logoBottom - logo.height - 20);
+
+  // The AI label owns the bottom-left corner; place/source stack above it.
+  const kiMode = options.kiLabel ?? 'full';
+  const kiText = kiMode === 'none' ? null : KI_LABEL.texts[kiMode];
+  const kiHeight = KI_LABEL.fontSize + 2 * KI_LABEL.paddingY;
+  const kiTop = HEIGHT - kiHeight - KI_LABEL.margin;
+  const quelleSize = 24;
+  const quelleY = kiText ? kiTop - KI_LABEL.gap - quelleSize * 1.2 : HEIGHT - 44;
+  const ortBottom = kiText
+    ? spec.quelle
+      ? quelleY
+      : kiTop - KI_LABEL.gap
+    : HEIGHT - FOOTER / 2 + 20;
 
   // ── The text group ───────────────────────────────────────────────────────
   const text = (
@@ -956,7 +992,7 @@ function composeSlide(
       text: spec.ort.lines.join('\n'),
       type: 'body',
       x: MARGIN,
-      y: HEIGHT - FOOTER / 2 - height + 20,
+      y: ortBottom - height,
       width: WIDTH - 2 * MARGIN - 200,
       fontSize: size,
       fontFamily: theme.fonts.body,
@@ -970,7 +1006,7 @@ function composeSlide(
 
   const footerY = HEIGHT - FOOTER / 2 - 10;
   if (spec.logo) {
-    const centred = xAlign === 'center' && !spec.ort;
+    const centred = logoCentred;
     out.assetInstances.push({
       id: 'sc-logo',
       assetId: isAt
@@ -982,7 +1018,7 @@ function composeSlide(
           : 'sunflower',
       x: centred ? WIDTH / 2 : WIDTH - MARGIN - logo.size / 2,
       // x/y is the centre.
-      y: HEIGHT - logo.bottom - logo.height / 2,
+      y: HEIGHT - logoBottom - logo.height / 2,
       scale: logo.size / ASSET_TARGET_SIZE,
       rotation: 0,
       opacity: 1,
@@ -1007,13 +1043,13 @@ function composeSlide(
   }
 
   if (spec.quelle) {
-    const size = 24;
+    const size = quelleSize;
     out.additionalTexts.push({
       id: 'sc-quelle',
       text: `Quelle: ${spec.quelle.replace(/^Quelle:\s*/i, '')}`,
       type: 'body',
       x: MARGIN,
-      y: HEIGHT - 44,
+      y: quelleY,
       width: WIDTH - 2 * MARGIN - 260,
       fontSize: size,
       fontFamily: theme.fonts.body,
@@ -1024,6 +1060,41 @@ function composeSlide(
       ...shadow,
     });
     out.layerOrder.push('sc-quelle');
+  }
+
+  if (kiText) {
+    const { fontSize, margin, paddingX, paddingY, radius } = KI_LABEL;
+    const width = measure(kiText, fontSize, KI_LABEL.fontFamily, 'bold') + 2 * paddingX;
+    const plate = createShape(
+      'rounded-rect',
+      margin + width / 2,
+      kiTop + kiHeight / 2,
+      '#2B2B2B',
+      '#2B2B2B'
+    );
+    Object.assign(plate, {
+      id: 'sc-ki-label-bg',
+      width,
+      height: kiHeight,
+      cornerRadius: radius,
+      opacity: 0.55,
+    });
+    addShape(plate);
+    out.additionalTexts.push({
+      id: 'sc-ki-label',
+      text: kiText,
+      type: 'body',
+      x: margin + paddingX,
+      y: kiTop + paddingY,
+      width: width - 2 * paddingX + 4,
+      fontSize,
+      fontFamily: KI_LABEL.fontFamily,
+      fontStyle: 'bold',
+      fill: '#FFFFFF',
+      opacity: 0.85,
+      lineHeight: 1,
+    });
+    out.layerOrder.push('sc-ki-label');
   }
 
   return out;

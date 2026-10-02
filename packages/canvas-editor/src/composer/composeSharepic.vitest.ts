@@ -701,3 +701,155 @@ describe('composer imports', () => {
     }
   });
 });
+
+describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', (locale) => {
+  type Box = { id: string; x: number; y: number; w: number; h: number };
+  const items: SharepicSlide['items'] = [
+    { type: 'headline', lines: ['Mach mit', 'bei uns!'], akzent: 1 },
+    { type: 'text', text: 'Gemeinsam für Klimaschutz vor Ort.' },
+    { type: 'button', text: 'Jetzt dabei sein' },
+  ];
+  const farbeSlide = (extra: Partial<SharepicSlide> = {}): SharepicSlide => ({
+    background: { kind: 'farbe', color: 'tanne' },
+    position: 'unten',
+    align: 'links',
+    logo: false,
+    items,
+    ...extra,
+  });
+  const cases: Record<string, SharepicSpec> = {
+    farbe: { locale, slides: [farbeSlide()] },
+    'farbe + logo': { locale, slides: [farbeSlide({ logo: true })] },
+    'farbe + logo zentriert': {
+      locale,
+      slides: [farbeSlide({ logo: true, align: 'zentriert' })],
+    },
+    'farbe + quelle': { locale, slides: [farbeSlide({ quelle: 'Statistik Austria 2025' })] },
+    'farbe + ort + quelle + logo': {
+      locale,
+      slides: [
+        farbeSlide({ ort: { lines: ['Rathaus', 'Hauptplatz 1'] }, quelle: 'Stadt', logo: true }),
+      ],
+    },
+    foto: { locale, slides: [{ ...fotoSlide, logo: true }] },
+    'foto-unten': {
+      locale,
+      slides: [
+        {
+          ...fotoSlide,
+          background: { kind: 'foto-unten', filename: 'wind.jpg', panelColor: 'tanne' },
+          logo: true,
+        },
+      ],
+    },
+    carousel: {
+      locale,
+      slides: [farbeSlide({ logo: true }), farbeSlide({ quelle: 'Quelle X', logo: true })],
+    },
+  };
+
+  const textBox = (t: {
+    id: string;
+    text: string;
+    x: number;
+    y: number;
+    width: number;
+    fontSize: number;
+    lineHeight?: number;
+  }): Box => {
+    const wrapped = Math.max(1, Math.ceil(measure(t.text, t.fontSize) / t.width));
+    const lines = Math.max(wrapped, t.text.split('\n').length);
+    return {
+      id: t.id,
+      x: t.x,
+      y: t.y,
+      w: Math.min(t.width, measure(t.text, t.fontSize)),
+      h: lines * t.fontSize * (t.lineHeight ?? 1.2),
+    };
+  };
+  const others = (slide: ReturnType<typeof one>): Box[] => [
+    ...slide.additionalTexts.filter((t) => t.id !== 'sc-ki-label').map(textBox),
+    ...slide.assetInstances.map((a) => {
+      const size = a.scale * 150;
+      const h = locale === 'de-AT' ? (size * 1239) / 1410 : size;
+      return { id: a.id, x: a.x - size / 2, y: a.y - h / 2, w: size, h };
+    }),
+    ...Object.entries(slide.iconStates).map(([id, s]) => ({
+      id,
+      x: s.x - (s.scale * 120) / 2,
+      y: s.y - (s.scale * 120) / 2,
+      w: s.scale * 120,
+      h: s.scale * 120,
+    })),
+    ...slide.circleBadgeInstances.map((c) => ({
+      id: c.id,
+      x: c.x - c.radius,
+      y: c.y - c.radius,
+      w: 2 * c.radius,
+      h: 2 * c.radius,
+    })),
+    ...slide.pillBadgeInstances.map((p) => ({
+      id: p.id,
+      x: p.x,
+      y: p.y,
+      w: measure(p.text, p.fontSize) + 2 * p.paddingX,
+      h: p.fontSize + 2 * p.paddingY,
+    })),
+  ];
+  const overlaps = (a: Box, b: Box) =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+  it('adds the server-side pill as plain editor elements, bottom-left', () => {
+    const slide = one(cases.farbe!);
+    const text = slide.additionalTexts.find((t) => t.id === 'sc-ki-label')!;
+    const plate = slide.shapeInstances.find((s) => s.id === 'sc-ki-label-bg')!;
+    expect(text).toMatchObject({
+      text: 'KI-Generiert mit dem Grünerator',
+      fontFamily: 'PT Sans',
+      fontStyle: 'bold',
+      fontSize: 27,
+      fill: '#FFFFFF',
+      opacity: 0.85,
+    });
+    expect(plate).toMatchObject({
+      type: 'rounded-rect',
+      fill: '#2B2B2B',
+      opacity: 0.55,
+      cornerRadius: 8,
+      height: 45,
+    });
+    expect(plate.x - plate.width / 2).toBe(11);
+    expect(plate.y + plate.height / 2).toBe(1350 - 11);
+    expect(text.x).toBe(11 + 16);
+    expect(slide.layerOrder.indexOf('sc-ki-label-bg')).toBeLessThan(
+      slide.layerOrder.indexOf('sc-ki-label')
+    );
+  });
+
+  it('shortens or omits the label on request', () => {
+    const short = composeSharepic(cases.farbe!, { ...options, kiLabel: 'short' }).slides[0]!;
+    expect(short.additionalTexts.find((t) => t.id === 'sc-ki-label')!.text).toBe('KI-Generiert');
+    const none = composeSharepic(cases.farbe!, { ...options, kiLabel: 'none' }).slides[0]!;
+    expect(none.additionalTexts.some((t) => t.id === 'sc-ki-label')).toBe(false);
+    expect(none.shapeInstances.some((s) => s.id === 'sc-ki-label-bg')).toBe(false);
+    expect(none.layerOrder).not.toContain('sc-ki-label');
+  });
+
+  it.each(Object.keys(cases))('keeps the label clear of everything else: %s', (name) => {
+    for (const slide of composeSharepic(cases[name]!, options).slides) {
+      const plate = slide.shapeInstances.find((s) => s.id === 'sc-ki-label-bg')!;
+      const label: Box = {
+        id: 'label',
+        x: plate.x - plate.width / 2,
+        y: plate.y - plate.height / 2,
+        w: plate.width,
+        h: plate.height,
+      };
+      const hit = others(slide).filter((box) => overlaps(label, box));
+      expect(
+        hit.map((b) => b.id),
+        `${locale} ${name}`
+      ).toEqual([]);
+    }
+  });
+});
