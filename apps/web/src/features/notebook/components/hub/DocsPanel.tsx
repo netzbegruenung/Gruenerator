@@ -13,7 +13,7 @@ import { useDocumentsStore } from '../../../../stores/documentsStore';
 import { DocumentCard } from '../../../docs/DocumentCard';
 import { syncLinkedDoc } from '../../hooks/syncLinkedDoc';
 
-import { EmptySources, filterByTitle, NoMatches, SearchRow } from './PanelChrome';
+import { EmptySources, filterByTitle, NoMatches } from './PanelChrome';
 import { SourceTable } from './SourceTable';
 
 import type { NotebookHubApi } from './useNotebookHub';
@@ -25,6 +25,9 @@ interface DocsPanelProps {
   rows: NotebookDocumentRecord[];
   linkedDocs: LinkedDocRef[];
   total: number;
+  query: string;
+  picking: boolean;
+  onPickingChange: (next: boolean) => void;
   onPreview: (doc: NotebookDocumentRecord) => void;
 }
 
@@ -33,10 +36,17 @@ interface DocsPanelProps {
  * Markdown-Export, als Datei hochgeladen); „Aktualisieren" holt den aktuellen
  * Stand und ersetzt die alte Fassung. Automatisch nachgezogen wird nichts.
  */
-export function DocsPanel({ hub, rows, linkedDocs, total, onPreview }: DocsPanelProps) {
+export function DocsPanel({
+  hub,
+  rows,
+  linkedDocs,
+  total,
+  query,
+  picking,
+  onPickingChange: setPicking,
+  onPreview,
+}: DocsPanelProps) {
   const navigate = useNavigate();
-  const [query, setQuery] = useState('');
-  const [picking, setPicking] = useState(false);
 
   const refByDocument = useMemo(
     () => new Map(linkedDocs.flatMap((r) => (r.documentId ? [[r.documentId, r] as const] : []))),
@@ -97,21 +107,9 @@ export function DocsPanel({ hub, rows, linkedDocs, total, onPreview }: DocsPanel
   return (
     <section aria-label="Verknüpfte Dokumente" className="flex flex-col gap-sm">
       {rows.length > 0 ? (
-        <>
-          <SearchRow
-            query={query}
-            onQuery={setQuery}
-            placeholder="Docs durchsuchen…"
-            action={
-              <Button variant="brand" size="brand-sm" onClick={() => setPicking(true)}>
-                + <span className="max-sm:sr-only">Dokumente</span>
-              </Button>
-            }
-          />
-          <p className="m-0 text-[13px] text-pretty text-grey-500">
-            Verknüpfte Grünerator-Dokumente. Spätere Änderungen übernimmst du mit „Aktualisieren“.
-          </p>
-        </>
+        <p className="m-0 text-[13px] text-pretty text-grey-500">
+          Verknüpfte Grünerator-Dokumente. Spätere Änderungen übernimmst du mit „Aktualisieren“.
+        </p>
       ) : null}
 
       {rows.length === 0 ? (

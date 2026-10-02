@@ -10,6 +10,7 @@ import { ErrorBoundary } from '../../components/common/ErrorBoundary';
 import { SubtitleEditorScreen } from '../../components/subtitle-editor';
 import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
 import { lightTheme, darkTheme, colors } from '../../theme';
+import { goBackOr } from '../../utils/navigation';
 
 import type { Project } from '@gruenerator/shared';
 
@@ -59,7 +60,7 @@ export default function FullscreenSubtitleEditor() {
 
   const unopenable = loadFailed || (!project && !params.projectId);
   useEffect(() => {
-    if (unopenable) router.back();
+    if (unopenable) goBackOr('/start');
   }, [unopenable]);
 
   if (unopenable) {

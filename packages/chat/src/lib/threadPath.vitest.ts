@@ -12,26 +12,47 @@ import type { ChatApiClient } from '../context/ChatContext';
 // notebook conversation opened as a blank start page.
 describe('buildNotebookThreadPath', () => {
   it('sends a system collection to its notebook page', () => {
-    expect(buildNotebookThreadPath('bayern-system', 't1')).toBe('/notebooks/bayern?thread=t1');
+    expect(buildNotebookThreadPath(['bayern-system'], 't1')).toBe('/notebooks/bayern?thread=t1');
   });
 
   it('sends a user notebook to the same route, keyed by its id', () => {
     const id = '11111111-2222-3333-4444-555555555555';
-    expect(buildNotebookThreadPath(id, 't1')).toBe(`/notebooks/${id}?thread=t1`);
+    expect(buildNotebookThreadPath([id], 't1')).toBe(`/notebooks/${id}?thread=t1`);
   });
 
   // The page slug is `oesterreich`, the collection `oesterreich-gruene-system`.
   // Stripping the suffix therefore yields a path no route defines on its own —
   // NotebookResolver resolves it by looking the collection up.
   it('keeps the collection name when it differs from the page slug', () => {
-    expect(buildNotebookThreadPath('oesterreich-gruene-system', 't1')).toBe(
+    expect(buildNotebookThreadPath(['oesterreich-gruene-system'], 't1')).toBe(
       '/notebooks/oesterreich-gruene?thread=t1'
     );
   });
 
   it('strips only a trailing -system, not one inside the name', () => {
-    expect(buildNotebookThreadPath('system-wandel-system', 't1')).toBe(
+    expect(buildNotebookThreadPath(['system-wandel-system'], 't1')).toBe(
       '/notebooks/system-wandel?thread=t1'
+    );
+  });
+
+  // #4030: the aggregate's first collection is also the Grüne notebook's only one.
+  it('sends an aggregate thread to /wissen, not to its first collection', () => {
+    const de = [
+      'grundsatz-system',
+      'bundestagsfraktion-system',
+      'gruene-de-system',
+      'kommunalwiki-system',
+      'gruenblog-system',
+    ];
+    expect(buildNotebookThreadPath(de, 't1')).toBe('/wissen?thread=t1');
+    expect(buildNotebookThreadPath(['oesterreich-gruene-system', 'gruene-at-system'], 't1')).toBe(
+      '/wissen?thread=t1'
+    );
+  });
+
+  it('keeps a single shared collection in the notebook that asks only it', () => {
+    expect(buildNotebookThreadPath(['grundsatz-system'], 't1')).toBe(
+      '/notebooks/grundsatz?thread=t1'
     );
   });
 });

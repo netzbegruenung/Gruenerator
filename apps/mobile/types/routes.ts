@@ -9,42 +9,30 @@ import type { Href } from 'expo-router';
  * All valid app routes as a union type
  */
 export type AppRoute =
-  // Tab routes
+  // Home: the Chat | Arbeiten pager
   | '/'
   | '/start'
-  // Arbeiten (merged Docs + Tools) tab
-  | '/(tabs)/(arbeiten)'
-  | '/(tabs)/(studio)'
-  // Tools routes
-  | '/(tabs)/(tools)'
-  | '/(tabs)/(tools)/reel'
-  | '/(tabs)/(tools)/ki-bildgenerierung'
-  | '/(tabs)/(tools)/image-studio'
-  | '/(tabs)/(tools)/scanner'
-  | '/(tabs)/(tools)/vorlagen'
-  // Recherche routes
-  | '/(tabs)/(recherche)'
-  | '/(tabs)/(recherche)/research'
+  // Tools
+  | '/(focused)/reel'
+  | '/(focused)/scanner'
+  | '/(focused)/vorlagen'
+  // Wissen
+  | '/(focused)/wissen'
   // Auth routes
   | '/(auth)/login'
   | '/(auth)/onboarding'
   | '/auth/callback'
   // Focused routes
   | '/(focused)/chat-conversation'
-  | '/(focused)/notebook-detail'
+  // Notebook routes — push with `{ withAnchor: true }` (see `app/notebook/[id]/_layout.tsx`)
+  | '/notebook/[id]'
+  | '/notebook/[id]/chat'
   | '/(focused)/notebook-reader'
   | '/(focused)/agents'
   | '/(focused)/projekte'
   | '/(focused)/bild-editor'
-  | '/(focused)/image-studio-create/image'
-  | '/(focused)/image-studio-create/style'
-  | '/(focused)/image-studio-create/ki-input'
-  | '/(focused)/image-studio-create/template-input'
-  | '/(focused)/image-studio-create/result'
   // Fullscreen routes
-  | '/(fullscreen)/subtitle-editor'
-  | '/(fullscreen)/image-studio-editor'
-  | '/(fullscreen)/webview-editor';
+  | '/(fullscreen)/subtitle-editor';
 
 /**
  * Modal routes that accept parameters
@@ -53,14 +41,24 @@ export interface ModalRouteParams {
   '/(focused)/chat-conversation': {
     threadId: string;
     initialMessage?: string;
+    /** @deprecated Redirects to the notebook chat. */
     notebookId?: string;
     agentId?: string;
     initialComposerText?: string;
   };
-  '/(focused)/notebook-detail': {
-    notebookId: string;
+  '/notebook/[id]/chat': {
+    /** Registry id of a system notebook, or the UUID of a user notebook. */
+    id: string;
+    /** An existing conversation; omitted for a new one. */
+    threadId?: string;
+    /** Sent as the first question of a new conversation. */
+    initialMessage?: string;
     title?: string;
-    kind: 'system' | 'user';
+  };
+  '/notebook/[id]': {
+    /** Registry id of a system notebook, or the UUID of a user notebook. */
+    id: string;
+    title?: string;
   };
   '/(focused)/notebook-reader': {
     /** A system document: the hit's `*-system` collection and its URL. */

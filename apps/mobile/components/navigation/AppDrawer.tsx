@@ -55,9 +55,9 @@ export function AppDrawer({ children }: { children: ReactNode }) {
   }, [open, closeDrawer]);
 
   // Swipe only ever CLOSES the drawer here. Opening is the screens' job (see
-  // `useTabSwipe` in start.tsx), because this drawer's own pan handler claims
-  // horizontal drags in both directions across the whole screen — with it on,
-  // a screen-level swipe-left to change tab never fires.
+  // `useTabSwipe` in WorkplaceChatPage), because this drawer's own pan handler
+  // claims horizontal drags in both directions across the whole screen — with
+  // it on, the pager's swipe from Chat to Arbeiten never fires.
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <ThreadSync />

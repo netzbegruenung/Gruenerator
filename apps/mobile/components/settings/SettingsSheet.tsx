@@ -20,7 +20,6 @@ import {
   StyleSheet,
   Switch,
   Alert,
-  Platform,
   useColorScheme,
 } from 'react-native';
 
@@ -114,13 +113,6 @@ function accessibilitySummary(reduceMotion?: boolean, reduceTransparency?: boole
   return count === 0 ? 'Folgt dem System' : `${count} aktiviert`;
 }
 
-/**
- * Android only, and not out of caution: on iOS the tab bar is a real UITabBar
- * and `BlurTargetView` compiles to a plain `View`, so the switch would have
- * nothing to turn off. A control that does nothing is worse than no control.
- */
-const SHOWS_PERFORMANCE_MODE = Platform.OS === 'android';
-
 export function SettingsSheet() {
   const theme = useTheme();
   const isDark = useColorScheme() === 'dark';
@@ -134,8 +126,6 @@ export function SettingsSheet() {
 
   const themeMode = usePreferencesStore((s) => s.themeMode);
   const setThemeMode = usePreferencesStore((s) => s.setThemeMode);
-  const performanceMode = usePreferencesStore((s) => s.performanceMode);
-  const setPerformanceMode = usePreferencesStore((s) => s.setPerformanceMode);
   const updateLocale = useAuthStore((s) => s.updateLocale);
   const updateAvatar = useAuthStore((s) => s.updateAvatar);
   const updateProfile = useAuthStore((s) => s.updateProfile);
@@ -508,21 +498,6 @@ export function SettingsSheet() {
                 value={accessibilitySummary(user.reduce_motion, user.reduce_transparency)}
                 onPress={() => setDetail('accessibility')}
               />
-              {SHOWS_PERFORMANCE_MODE && (
-                <ListRow
-                  icon="speedometer-outline"
-                  title={getSettingsEntry('barrierefreiheit.leistung').title}
-                  value={getSettingsEntry('barrierefreiheit.leistung').description}
-                  valueLines={2}
-                  accessory={
-                    <Switch
-                      value={performanceMode}
-                      onValueChange={(value) => void setPerformanceMode(value)}
-                      trackColor={{ true: colors.primary[600], false: colors.grey[300] }}
-                    />
-                  }
-                />
-              )}
               <ListRow
                 icon="shield-checkmark-outline"
                 title="Datenschutz"

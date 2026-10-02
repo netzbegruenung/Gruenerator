@@ -21,6 +21,7 @@ import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hoo
 import { useGroupDetails } from '../../../../hooks/useGroups';
 import { useTheme } from '../../../../hooks/useTheme';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
+import { goBackOr } from '../../../../utils/navigation';
 
 type ViewMode = 'feed' | 'all';
 
@@ -70,7 +71,7 @@ export default function ProjektDetailScreen() {
   const scaffold = (children: ReactNode): ReactNode => (
     <ScreenScaffold
       title={group?.name ?? 'Projekt'}
-      onBack={() => router.back()}
+      onBack={() => goBackOr('/(focused)/projekte')}
       headerRight={
         <Pressable
           onPress={() =>

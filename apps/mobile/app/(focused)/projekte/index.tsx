@@ -25,6 +25,7 @@ import {
   BODY_FONT,
 } from '../../../theme';
 import { roleLabel } from '../../../utils/groups';
+import { goBackOr } from '../../../utils/navigation';
 
 /**
  * Projekte — the read-only mobile view of what web calls Gruppen.
@@ -49,10 +50,7 @@ export default function ProjekteScreen() {
   // (focused) has no tab bar, so a bare router.back() strands the user when this
   // screen is the stack root — e.g. reached via gruppen-join's router.replace on
   // a cold deep link. Fall back to a tab, mirroring gruppen-join's own guard.
-  const handleBack = useCallback(() => {
-    if (router.canGoBack()) router.back();
-    else router.replace('/start');
-  }, [router]);
+  const handleBack = useCallback(() => goBackOr('/start'), []);
 
   // Web's meta rule, kept verbatim so a project reads the same on both surfaces.
   const metaFor = (group: GroupSummary): string => {

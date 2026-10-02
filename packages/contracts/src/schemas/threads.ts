@@ -32,6 +32,9 @@ export const threadSchema = z.object({
   status: z.string(),
   threadType: z.string(),
   notebookCollectionId: z.string().nullable(),
+  // Every collection a notebook thread asked; `notebookCollectionId` is only
+  // the first of them. Optional (F0): older servers do not send it.
+  notebookCollectionIds: z.array(z.string()).nullable().optional(),
   // Home Space (group) this thread is filed in (null = unfiled).
   groupId: z.string().nullable(),
   tags: z.array(z.string()).default([]),

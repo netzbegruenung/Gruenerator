@@ -93,6 +93,12 @@ export interface NotebookDefinition {
    * still fail at compile time.
    */
   defaultAgent?: string;
+  /**
+   * How a question names this notebook beyond its lowercased title — common
+   * spellings ("MV", "Böll") or the title without filler. Read through
+   * {@link getNotebookQueryAliases}.
+   */
+  queryAliases?: readonly string[];
   /** Chat @-mention picker metadata (copy intentionally differs from the gallery). */
   mention: {
     /** Alias typed after `@`, e.g. 'hamburg', 'at', 'alle'. */
@@ -133,6 +139,7 @@ export const NOTEBOOK_REGISTRY = [
   {
     id: 'gruene-notebook',
     title: 'Bundesverband',
+    queryAliases: ['bundesverband', 'grundsatzprogramm', 'bundespartei'],
     description: 'Durchsuchbar sind die offiziellen Grundsatzprogramme von Bündnis 90/Die Grünen.',
     meta: '3 Programme',
     tags: ['Grundsatzprogramm', 'EU-Wahl', 'Regierung'],
@@ -150,6 +157,7 @@ export const NOTEBOOK_REGISTRY = [
   {
     id: 'bundestagsfraktion-notebook',
     title: 'Bundestagsfraktion',
+    queryAliases: ['bundestagsfraktion', 'bundestag'],
     description:
       'Durchsuchbar sind die offiziellen Inhalte von gruene-bundestag.de – Fachtexte, politische Ziele und einfache Erklärungen.',
     meta: '542 Artikel',
@@ -175,6 +183,7 @@ export const NOTEBOOK_REGISTRY = [
   {
     id: 'oesterreich-notebook',
     title: 'Die Grünen Österreich',
+    queryAliases: ['österreich', 'oesterreich'],
     description:
       'Durchsuchbar sind die offiziellen Programme von Die Grünen – Die Grüne Alternative Österreich.',
     meta: '3 Programme',
@@ -216,6 +225,7 @@ export const NOTEBOOK_REGISTRY = [
   {
     id: 'schleswig-holstein-notebook',
     title: 'Schleswig-Holstein',
+    queryAliases: ['schleswig', 'holstein', 'sh'],
     description:
       'Durchsuchbar ist das Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl.',
     meta: '1 Programm',
@@ -236,6 +246,7 @@ export const NOTEBOOK_REGISTRY = [
   {
     id: 'thueringen-notebook',
     title: 'Thüringen',
+    queryAliases: ['thüringen', 'thueringen'],
     description:
       'Durchsuchbar sind Beschlüsse, Wahlprogramme und Pressemitteilungen der Grünen Thüringen.',
     meta: 'Archiv',
@@ -274,6 +285,7 @@ export const NOTEBOOK_REGISTRY = [
   {
     id: 'mecklenburg-vorpommern-notebook',
     title: 'Mecklenburg-Vorpommern',
+    queryAliases: ['mecklenburg', 'vorpommern', 'meckpomm', 'meck-pomm', 'mv'],
     description:
       'Durchsuchbar sind Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern (Landesverband & Fraktion).',
     meta: 'Archiv',
@@ -331,6 +343,7 @@ export const NOTEBOOK_REGISTRY = [
   {
     id: 'sachsen-anhalt-notebook',
     title: 'Sachsen-Anhalt',
+    queryAliases: ['sachsen-anhalt', 'sachsen anhalt'],
     description:
       'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Landtagswahlprogramm 2026 der Grünen Sachsen-Anhalt.',
     meta: 'Archiv',
@@ -426,6 +439,7 @@ export const NOTEBOOK_REGISTRY = [
   {
     id: 'gruenblog-notebook',
     title: 'Grünblog',
+    queryAliases: ['grünblog', 'gruenblog'],
     description: 'Durchsuchbar sind die Artikel des Grünblogs – dem Onlinemagazin der Grünen.',
     meta: 'Magazin',
     tags: ['Grünblog', 'Magazin', 'Wissen', 'Meinen', 'Machen'],
@@ -461,6 +475,7 @@ export const NOTEBOOK_REGISTRY = [
   {
     id: 'boell-stiftung-notebook',
     title: 'Heinrich-Böll-Stiftung',
+    queryAliases: ['böll', 'boell', 'böll-stiftung'],
     description: 'Durchsuchbar sind Analysen, Dossiers und Atlanten der Heinrich-Böll-Stiftung.',
     meta: 'Publikationen',
     tags: ['Analysen', 'Dossiers', 'Atlanten'],
@@ -594,3 +609,12 @@ export const getNotebooksByCategory = (
   category: NotebookCategory,
   opts: NotebookViewOptions = {}
 ): NotebookDefinition[] => getOrderedNotebooks(opts).filter((nb) => nb.category === category);
+
+/** Lowercased words/phrases that identify a notebook inside a question: its
+ *  title plus its `queryAliases`. */
+export const getNotebookQueryAliases = (nb: { id: string; title: string }): string[] => [
+  nb.title.toLowerCase(),
+  ...(getNotebookDefinition(nb.id)?.queryAliases ?? []),
+];
+
+export * from './overviewFormat.js';

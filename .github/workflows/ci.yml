@@ -283,9 +283,27 @@ jobs:
   # scarce resource, and the gate was costing it dearly: on run 30631684791 the
   # tests sat in the queue for 721s and Build web for 1260s, almost all of it
   # waiting for a job whose failure they do not depend on.
-  test:
-    name: Tests
+  #
+  # One job per package group, the two big suites sharded. All test tasks in
+  # one job ran concurrently on 4 vCPUs: run 37010012025 spent 12:37 in
+  # `turbo run test`, api (632 s) and web (626 s) fighting chat and canvas for
+  # the same cores, and jsdom tests hit the 5 s default (#4010). `rest` is
+  # every package not named here, so a new package lands in it without an
+  # edit. turbo hashes the pass-through `--shard`, so each shard caches alone.
+  test-shard:
+    name: Tests (${{ matrix.name }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: api 1/3, pkg: api, shard: 1/3 }
+          - { name: api 2/3, pkg: api, shard: 2/3 }
+          - { name: api 3/3, pkg: api, shard: 3/3 }
+          - { name: web 1/2, pkg: web, shard: 1/2 }
+          - { name: web 2/2, pkg: web, shard: 2/2 }
+          - { name: chat, pkg: chat }
+          - { name: rest }
     # An empty database for `migrations.db.vitest.ts`: builds the schema from
     # zero the way a fresh instance does on first boot (#2895). A grown
     # database never shows a migration that only works on top of another.
@@ -325,7 +343,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile ${{ matrix.pkg && format('--filter=@gruenerator/{0}...', matrix.pkg) || '' }}
 
       # The app role owns its database but is no superuser. schema.sql creates
       # its own extensions, which only works while they stay trusted ones.
@@ -337,8 +355,25 @@ jobs:
           -c "CREATE ROLE gruenerator LOGIN CREATEDB"
           -c "CREATE DATABASE gruenerator OWNER gruenerator"
 
+      # Only pull_request trusts the cache. The merge queue and master run past
+      # it: a test reading a file its turbo `inputs` do not name (see the
+      # package turbo.json files) would otherwise stay green on a stale hit.
       - name: Run tests
-        run: pnpm test
+        run: >-
+          pnpm turbo run test
+          ${{ matrix.pkg && format('--filter=@gruenerator/{0}', matrix.pkg) || '--filter=!@gruenerator/api --filter=!@gruenerator/web --filter=!@gruenerator/chat' }}
+          ${{ github.event_name != 'pull_request' && '--force' || '' }}
+          ${{ matrix.shard && format('-- --shard={0}', matrix.shard) || '' }}
+
+  # Stable check name for the matrix above (check names are F0).
+  test:
+    name: Tests
+    needs: test-shard
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: All test shards passed
+        run: test "${{ needs.test-shard.result }}" = success
 
   # The NLP service is Python and sits outside the pnpm workspace, so `pnpm
   # test` never sees it. Its scoring, filtering and blocklist logic feeds the

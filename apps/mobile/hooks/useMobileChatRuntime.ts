@@ -4,6 +4,7 @@ import {
   useAgentStore,
   useChatConfigStore,
   createChatApiClient,
+  toNotebookAnswerMode,
   type GrueneratorAdapterConfig,
   type StreamMetadata,
 } from '@gruenerator/chat';
@@ -58,7 +59,7 @@ function readAdapterConfig(): GrueneratorAdapterConfig {
       : undefined,
     notebookFilters: notebookScope?.keywordFilters,
     notebookMode: notebookDepth,
-    notebookAnswerMode,
+    notebookAnswerMode: toNotebookAnswerMode(notebookAnswerMode),
     threadMode: agent.threadMode,
     searchMode: agent.searchMode,
     customSystemPrompt: agent.customSystemPrompt,

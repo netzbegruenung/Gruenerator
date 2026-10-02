@@ -22,6 +22,7 @@ import {
   ActivityIndicator,
   Alert,
   Keyboard,
+  useColorScheme,
 } from 'react-native';
 
 import { useContentColumn } from '../../hooks/useLayout';
@@ -36,7 +37,7 @@ import {
   pickedDocumentToAttachment,
   type PickedDocument,
 } from '../../services/documentPicker';
-import { borderRadius, chatType, colors, spacing } from '../../theme';
+import { chatType, colors, spacing } from '../../theme';
 import { ComposerAttachmentUI } from '../chat/AttachmentUI';
 import { ComposerActionSheet } from '../chat/ComposerActionSheet';
 import { DocumentBrowserSheet } from '../chat/DocumentBrowserSheet';
@@ -52,6 +53,7 @@ import {
   COMPOSER_ACTION_FILL,
   type ComposerVariant,
 } from './ComposerShell';
+import { SettingsTwoIcon } from './SettingsTwoIcon';
 
 /** Module-level so the memoized primitive sees a stable children reference. */
 const renderComposerAttachment = () => <ComposerAttachmentUI />;
@@ -102,8 +104,15 @@ export interface ComposerProps {
    *  to the surrounding assistant-ui thread. */
   binding?: 'local' | 'runtime';
   /** Receives the finished text. Required for `local`; under `runtime` it
-   *  overrides sending, so the surface can route the text somewhere else. */
-  onSubmit?: (text: string) => void;
+   *  overrides sending, so the surface can route the text somewhere else.
+   *  `local` only: return `false` to keep the draft (a search stays editable). */
+  onSubmit?: (text: string) => void | false;
+  /** `local` only: the draft as it is typed — for a surface that searches
+   *  while the person types. */
+  onTextChange?: (text: string) => void;
+  /** `local` only: what submitting does — a search gets the magnifier and
+   *  is announced as „Suchen". Defaults to sending. */
+  submitAs?: 'send' | 'search';
   variant?: ComposerVariant;
   placeholder?: string;
   /** Overrides `useTheme()` for surfaces that thread their own theme. */
@@ -123,6 +132,15 @@ export interface ComposerProps {
   onSettings?: () => void;
   /** Second left-aligned button, beside the plus/settings one. */
   accessory?: ComposerAccessory;
+  /** Fill of the send/search button, the active accessory and the cursor.
+   *  The app green by default; the notebook surfaces pass their magenta. */
+  accentColor?: string;
+  /** Plate and glyph colour of the `card` toolbar's controls — a surface's
+   *  pastel/strong pair (the notebook's Wissen tone). Neutral grey otherwise. */
+  toolbarTone?: { background: string; foreground: string; text?: string };
+  /** The keyboard's return key submits instead of breaking the line. On by
+   *  default for `bar`; a `card` that is a search field (the notebook) sets it. */
+  submitOnEnter?: boolean;
   inputRef?: React.RefObject<TextInput | null>;
   /** Enables `<prefix>-input` / `<prefix>-send` testIDs for the Maestro flows. */
   testIDPrefix?: string;
@@ -359,6 +377,7 @@ function ComposerBody({
   const theme = props.theme ?? resolvedTheme;
   const variant = props.variant ?? 'card';
   const isBar = variant === 'bar';
+  const enterSubmits = props.submitOnEnter ?? isBar;
   const iconSize = composerIconSize(variant);
   const showMentions = props.showMentions ?? true;
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
@@ -404,23 +423,54 @@ function ComposerBody({
   // Mounting the composer warms the dynamic mentionable lists, as on web.
   useMentionablesSync();
 
+  // The card variant's controls sit on a light plate, as in Claude's composer:
+  // tinted with the surface's accent where there is one (the notebook berry),
+  // neutral grey otherwise.
+  const isCard = variant === 'card';
+  const isDark = useColorScheme() === 'dark';
+  const softFill =
+    props.toolbarTone?.background ?? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)');
+  const toolGlyph = (isCard && props.toolbarTone?.foreground) || theme.textSecondary;
+  const plate = isCard ? { backgroundColor: softFill } : null;
+  const accessoryPill = props.accessory?.label ? (
+    <Pressable
+      onPress={props.accessory.onPress}
+      style={isCard ? [styles.accessoryPill, plate] : styles.accessoryChip}
+      hitSlop={ACCESSORY_CHIP_HIT_SLOP}
+      accessibilityRole="button"
+      accessibilityLabel={props.accessory.accessibilityLabel ?? props.accessory.label}
+    >
+      {/* Plain text: the bar is tight, and a frame, icon and chevron
+          around one word cost more room than they explained. */}
+      <Text
+        style={[
+          styles.accessoryChipText,
+          { color: (isCard && props.toolbarTone?.text) || toolGlyph },
+        ]}
+        numberOfLines={1}
+      >
+        {props.accessory.label}
+      </Text>
+    </Pressable>
+  ) : null;
+
   const leading = props.showActionSheet ? (
     <Pressable
       onPress={() => setActionSheetVisible(true)}
-      style={composerIconButtonStyle(variant)}
+      style={[composerIconButtonStyle(variant), plate]}
       hitSlop={6}
       accessibilityLabel="Anhänge und Werkzeuge"
     >
-      <Ionicons name="add" size={iconSize + 2} color={theme.textSecondary} />
+      <Ionicons name="add" size={iconSize + 2} color={toolGlyph} />
     </Pressable>
   ) : props.onSettings ? (
     <Pressable
       onPress={props.onSettings}
-      style={composerIconButtonStyle(variant)}
+      style={[composerIconButtonStyle(variant), plate]}
       hitSlop={6}
       accessibilityLabel="Einstellungen"
     >
-      <Ionicons name="options-outline" size={iconSize} color={theme.textSecondary} />
+      <SettingsTwoIcon size={iconSize} color={toolGlyph} />
     </Pressable>
   ) : props.onClose ? (
     <Pressable
@@ -464,12 +514,18 @@ function ComposerBody({
             style={[composerInputStyle(variant), { color: theme.text }]}
             placeholder={props.placeholder ?? 'Nachricht eingeben...'}
             placeholderTextColor={theme.textSecondary}
+            {...(props.accentColor && {
+              cursorColor: props.accentColor,
+              selectionColor: props.accentColor,
+            })}
             accessibilityLabel="Nachricht eingeben"
             multiline
             textAlignVertical="top"
-            returnKeyType={isBar ? 'send' : 'default'}
-            blurOnSubmit={isBar}
-            onSubmitEditing={isBar ? onSubmitEditing : undefined}
+            returnKeyType={
+              enterSubmits ? (props.submitAs === 'search' ? 'search' : 'send') : 'default'
+            }
+            blurOnSubmit={enterSubmits}
+            onSubmitEditing={enterSubmits ? onSubmitEditing : undefined}
             onChangeText={input.onChangeText}
             onSelectionChange={input.onSelectionChange}
             autoFocus={props.autoFocus}
@@ -484,7 +540,9 @@ function ComposerBody({
         }
         leading={leading}
         toolbarExtra={
-          props.accessory && !props.accessory.label ? (
+          isCard && accessoryPill ? (
+            accessoryPill
+          ) : props.accessory && !props.accessory.label ? (
             <Pressable
               onPress={props.accessory.onPress}
               style={composerIconButtonStyle(variant)}
@@ -494,31 +552,16 @@ function ComposerBody({
               <Ionicons
                 name={props.accessory.icon}
                 size={iconSize}
-                color={props.accessory.active ? colors.primary[600] : theme.textSecondary}
+                color={
+                  props.accessory.active
+                    ? (props.accentColor ?? COMPOSER_ACTION_FILL)
+                    : theme.textSecondary
+                }
               />
             </Pressable>
           ) : null
         }
-        beforeAction={
-          props.accessory?.label ? (
-            <Pressable
-              onPress={props.accessory.onPress}
-              style={[styles.accessoryChip, { borderColor: theme.border }]}
-              hitSlop={ACCESSORY_CHIP_HIT_SLOP}
-              accessibilityRole="button"
-              accessibilityLabel={props.accessory.accessibilityLabel ?? props.accessory.label}
-            >
-              <Ionicons name={props.accessory.icon} size={14} color={theme.textSecondary} />
-              <Text
-                style={[styles.accessoryChipText, { color: theme.textSecondary }]}
-                numberOfLines={1}
-              >
-                {props.accessory.label}
-              </Text>
-              <Ionicons name="chevron-down" size={12} color={theme.textSecondary} />
-            </Pressable>
-          ) : null
-        }
+        beforeAction={isCard ? null : accessoryPill}
         // One merged button: cancel while a request runs, mic while empty, send
         // once there is text.
         action={
@@ -532,7 +575,7 @@ function ComposerBody({
                 composerActionButtonStyle(variant),
                 input.isListening
                   ? { backgroundColor: colors.error[500] }
-                  : { backgroundColor: 'transparent' },
+                  : { backgroundColor: isCard ? softFill : 'transparent' },
               ]}
               hitSlop={6}
               accessibilityLabel={input.isListening ? 'Diktat beenden' : 'Diktieren'}
@@ -540,7 +583,7 @@ function ComposerBody({
               <Ionicons
                 name={input.isListening ? 'stop' : 'mic'}
                 size={iconSize}
-                color={input.isListening ? colors.white : theme.textSecondary}
+                color={input.isListening ? colors.white : toolGlyph}
               />
             </Pressable>
           ))
@@ -595,14 +638,14 @@ function LocalComposer(props: ComposerProps) {
   // The hook's own `textRef` already holds the current draft, so a local
   // composer has no store to write through to.
   const noop = useCallback(() => {}, []);
-  const input = useComposerInput({ setText: noop, inputRef });
+  const input = useComposerInput({ setText: props.onTextChange ?? noop, inputRef });
   const variant = props.variant ?? 'card';
   const onSubmit = props.onSubmit;
 
   const handleSubmit = useCallback(() => {
     const trimmed = input.textRef.current.trim();
     if (!trimmed) return;
-    onSubmit?.(trimmed);
+    if (onSubmit?.(trimmed) === false) return;
     input.reset();
   }, [onSubmit, input]);
 
@@ -619,11 +662,20 @@ function LocalComposer(props: ComposerProps) {
         <Pressable
           testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
           onPress={handleSubmit}
-          style={[composerActionButtonStyle(variant), { backgroundColor: COMPOSER_ACTION_FILL }]}
-          accessibilityLabel="Senden"
+          style={[
+            composerActionButtonStyle(variant),
+            { backgroundColor: props.accentColor ?? COMPOSER_ACTION_FILL },
+          ]}
+          accessibilityLabel={props.submitAs === 'search' ? 'Suchen' : 'Senden'}
         >
           <Ionicons
-            name={variant === 'bar' ? 'arrow-up' : 'arrow-forward'}
+            name={
+              props.submitAs === 'search'
+                ? 'search'
+                : variant === 'bar'
+                  ? 'arrow-up'
+                  : 'arrow-forward'
+            }
             size={composerIconSize(variant)}
             color={colors.white}
           />
@@ -708,7 +760,10 @@ function RuntimeComposer(props: ComposerProps) {
           <Pressable
             testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
             onPress={handleIntercept}
-            style={[composerActionButtonStyle(variant), { backgroundColor: COMPOSER_ACTION_FILL }]}
+            style={[
+              composerActionButtonStyle(variant),
+              { backgroundColor: props.accentColor ?? COMPOSER_ACTION_FILL },
+            ]}
             accessibilityLabel="Senden"
           >
             <Ionicons
@@ -721,7 +776,10 @@ function RuntimeComposer(props: ComposerProps) {
           <Pressable
             testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
             onPress={handleSend}
-            style={[composerActionButtonStyle(variant), { backgroundColor: COMPOSER_ACTION_FILL }]}
+            style={[
+              composerActionButtonStyle(variant),
+              { backgroundColor: props.accentColor ?? COMPOSER_ACTION_FILL },
+            ]}
             accessibilityLabel="Senden"
           >
             <Ionicons
@@ -764,15 +822,21 @@ const styles = StyleSheet.create({
   accessoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     // minHeight, not height: a large font scale must grow the chip, not clip it.
     minHeight: 36,
-    paddingHorizontal: spacing.xsmall,
-    borderRadius: borderRadius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
+    paddingLeft: 4,
+    // Clear of the send button, which it would otherwise sit against.
+    paddingRight: spacing.xsmall,
+  },
+  accessoryPill: {
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.small,
+    borderRadius: 18,
   },
   accessoryChipText: {
-    ...chatType.chatLabel,
+    ...chatType.chatSecondary,
+    fontWeight: '500',
   },
 });
 

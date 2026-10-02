@@ -1,5 +1,10 @@
 import { useAui } from '@assistant-ui/react';
-import { buildNotebookSlug } from '@gruenerator/shared/utils';
+import {
+  buildNotebookSlug,
+  describeParsedFilters,
+  parseResearchIntent,
+  type ParsedResearchIntent,
+} from '@gruenerator/shared/utils';
 import { TypingAnimation, useIsMobile } from '@gruenerator/ui';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { FiBook, FiCornerDownLeft, FiFilter, FiLayers, FiSearch } from 'react-icons/fi';
@@ -14,14 +19,10 @@ import {
   detectNotebookEntities,
   detectQuestionIntent,
   matchTargetsByName,
+  toResearchRegions,
   type OmniTarget,
 } from './omniIntent';
 import { OmniResultsPanel } from './OmniResultsPanel';
-import {
-  describeParsedFilters,
-  parseResearchIntent,
-  type ParsedResearchIntent,
-} from './parseResearchIntent';
 
 import type { IconType } from 'react-icons';
 
@@ -151,6 +152,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
     }));
     return [...systemTargets, ...userTargets];
   }, [systemTargets, collectionsQuery.data]);
+  const regions = useMemo(() => toResearchRegions(targets), [targets]);
 
   const question = q.trim();
   const questionIntent = detectQuestionIntent(question);
@@ -166,8 +168,8 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
   }, [question, targets, entityMatches]);
 
   const parsedIntent = useMemo(
-    () => parseResearchIntent(question, { targets, filterFields }),
-    [question, targets, filterFields]
+    () => parseResearchIntent(question, { regions, filterFields }),
+    [question, regions, filterFields]
   );
   // Offer the filtered search only when a concrete filter (date/topic/type/recency)
   // was recognised — a bare region name still routes to that notebook's chat.

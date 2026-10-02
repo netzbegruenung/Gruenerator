@@ -60,6 +60,9 @@ interface ListRowProps {
   /** Trailing control (a Switch, say). Replaces the chevron. */
   accessory?: ReactNode;
   disabled?: boolean;
+  /** Text-only row for short pickers (the notebook answer mode): no icon
+   *  badge, a smaller title and value. */
+  dense?: boolean;
 }
 
 export function ListRow({
@@ -69,6 +72,7 @@ export function ListRow({
   titleBadge,
   value,
   valueLines = 1,
+  dense = false,
   onPress,
   selected,
   last,
@@ -100,6 +104,7 @@ export function ListRow({
       disabled={disabled || !onPress}
       style={({ pressed }) => [
         styles.row,
+        dense && styles.rowDense,
         !last && {
           borderBottomColor: theme.border,
           borderBottomWidth: StyleSheet.hairlineWidth,
@@ -111,16 +116,21 @@ export function ListRow({
       accessibilityLabel={[title, titleBadge, value].filter(Boolean).join(', ')}
       {...(selected !== undefined && { accessibilityState: { selected } })}
     >
-      {leading ?? (
-        <View style={[styles.badge, badge]}>
-          {icon ? <Ionicons name={icon} size={22} color={tint} /> : null}
-        </View>
-      )}
+      {dense
+        ? null
+        : (leading ?? (
+            <View style={[styles.badge, badge]}>
+              {icon ? <Ionicons name={icon} size={22} color={tint} /> : null}
+            </View>
+          ))}
       <View style={styles.text}>
         <View style={styles.titleLine}>
           {/* shrink + numberOfLines on the title alone: a long title must give
               way to the badge, not push it off the row. */}
-          <Text style={[styles.title, { color: tint }]} numberOfLines={1}>
+          <Text
+            style={[styles.title, dense && styles.titleDense, { color: tint }]}
+            numberOfLines={1}
+          >
             {title}
           </Text>
           {titleBadge ? (
@@ -132,7 +142,10 @@ export function ListRow({
           ) : null}
         </View>
         {value ? (
-          <Text style={[styles.value, { color: theme.textSecondary }]} numberOfLines={valueLines}>
+          <Text
+            style={[styles.value, dense && styles.valueDense, { color: theme.textSecondary }]}
+            numberOfLines={valueLines}
+          >
             {value}
           </Text>
         ) : null}
@@ -161,6 +174,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.small,
     paddingVertical: 12,
   },
+  rowDense: {
+    paddingHorizontal: spacing.medium,
+    paddingVertical: 10,
+  },
   badge: {
     width: 44,
     height: 44,
@@ -181,6 +198,10 @@ const styles = StyleSheet.create({
     fontSize: 17,
     flexShrink: 1,
   },
+  titleDense: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
   titleBadge: {
     paddingHorizontal: 6,
     paddingVertical: 1,
@@ -197,6 +218,10 @@ const styles = StyleSheet.create({
     // lose the font.
     ...chatType.chatSecondary,
     marginTop: 1,
+  },
+  valueDense: {
+    ...chatType.chatLabel,
+    marginTop: 2,
   },
   trailingSpacer: {
     width: 22,

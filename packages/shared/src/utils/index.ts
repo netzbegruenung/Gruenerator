@@ -82,9 +82,23 @@ export {
   type ParsedDataUrl,
 } from './dataUrl.js';
 
-// Natural-language notebook/research query parser (region/date/topic)
-export { parseNotebookQuery } from './notebookQuery.js';
-export type { NotebookQueryFilters } from './notebookQuery.js';
+// Natural-language notebook/research query parser (region/date/topic/persons)
+export {
+  activeFiltersToApi,
+  containsWord,
+  describeParsedFilters,
+  findNamedRegion,
+  mergeParsedFilters,
+  parsedSearchScope,
+  parseResearchIntent,
+  type ActiveFilters,
+  type ParseContext,
+  type ParsedFilterChip,
+  type ParsedResearchIntent,
+  type ResearchFacetVocabulary,
+  type ResearchRegion,
+} from './researchIntent.js';
+export { datePresets, daysAgo, isoDay, type DatePreset, type DateRange } from './researchDates.js';
 
 // Durable mention tokens (@[Label](type:id)) — shared FE/BE spec
 export {

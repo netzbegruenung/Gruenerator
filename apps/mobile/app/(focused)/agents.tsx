@@ -54,6 +54,7 @@ import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
 import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { routeWithParams } from '../../types/routes';
+import { goBackOr } from '../../utils/navigation';
 
 /**
  * Regal-Schild je Kategorie. Ein `Record` über die volle Schlüssel-Union, nicht
@@ -369,7 +370,7 @@ export default function AgentsScreen() {
       : emptyNote(emptyText);
 
   return (
-    <ScreenScaffold title="Agentura" onBack={() => router.back()}>
+    <ScreenScaffold title="Agentura" onBack={() => goBackOr('/start')}>
       <View style={styles.controls}>
         <View
           style={[

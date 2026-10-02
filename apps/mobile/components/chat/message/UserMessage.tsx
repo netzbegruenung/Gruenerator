@@ -6,6 +6,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 import { MessageAttachmentUI } from '../AttachmentUI';
+import { useChatAccent } from '../chatAccent';
 
 import { BranchPicker } from './BranchPicker';
 import { MessageDaySeparator } from './MessageDaySeparator';
@@ -38,6 +39,7 @@ const userPartComponents = { Text: UserBubbleText };
 
 export const UserMessage = memo(function UserMessage() {
   const theme = useTheme();
+  const accent = useChatAccent();
   const aui = useAui();
   const isEditing = useAuiState((s) => s.composer.isEditing);
 
@@ -65,6 +67,7 @@ export const UserMessage = memo(function UserMessage() {
             styles.bubble,
             styles.bubbleWidth,
             styles.bubbleFill,
+            accent && { backgroundColor: accent },
             pressed && styles.bubblePressed,
           ]}
         >

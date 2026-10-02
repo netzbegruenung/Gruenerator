@@ -1,9 +1,11 @@
 import {
   NOTEBOOK_REGISTRY,
+  getNotebookQueryAliases,
   isNotebookOfferedIn,
   type NotebookCategory,
   type NotebookId,
 } from '@gruenerator/shared/notebooks';
+import { type ResearchRegion } from '@gruenerator/shared/utils';
 import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 
 import { CURRENT_INSTANCE } from './instance';
@@ -117,7 +119,7 @@ export const HIDDEN_NOTEBOOK_IDS = [
  * (`/research/search`, `/research/filters`) expects. The backend keeps the canonical
  * `notebook → collection` map (`apps/api/config/notebookCollectionMap.ts`) but in a
  * different id namespace (`bayern` vs `bayern-system`) and never ships it to the client,
- * so the notebook-detail Recherche needs this small client-side table to scope a search.
+ * so the notebook page's Recherche needs this small client-side table to scope a search.
  *
  * `satisfies Record<NotebookId, …>` forces an entry for every notebook in the shared
  * registry — adding one there fails the mobile build until its research collection is
@@ -158,6 +160,23 @@ const NOTEBOOK_RESEARCH_COLLECTIONS = {
 export const getResearchCollectionIds = (notebookId: string): string[] =>
   (NOTEBOOK_RESEARCH_COLLECTIONS as Record<string, string[]>)[notebookId] ?? [];
 
+/**
+ * The notebook a stored conversation belongs to, from every collection it
+ * asked: the narrowest system notebook that asks all of them. That is an exact
+ * match for a whole notebook, the aggregate for a source-picker subset of it,
+ * and for a single collection the notebook that asks only that one. The first
+ * id alone cannot name an aggregate: several notebooks share `grundsatz-system`.
+ * Anything else (a user notebook's UUID) already is the notebook id.
+ */
+export const notebookIdForCollections = (collectionIds: readonly string[]): string =>
+  Object.entries(NOTEBOOK_RESEARCH_COLLECTIONS)
+    .filter(([, ids]) => collectionIds.every((id) => (ids as readonly string[]).includes(id)))
+    .sort(([, a], [, b]) => a.length - b.length)[0]?.[0] ?? collectionIds[0];
+
+/** A registry id is a system notebook; anything else is a user notebook's UUID. */
+export const notebookKindOf = (notebookId: string): 'system' | 'user' =>
+  NOTEBOOK_REGISTRY.some((nb) => nb.id === notebookId) ? 'system' : 'user';
+
 const audienceOf = (id: string): 'de-DE' | 'de-AT' | 'all' =>
   NOTEBOOK_REGISTRY.find((nb) => nb.id === id)?.audience ?? 'all';
 
@@ -171,6 +190,23 @@ export const getVisibleNotebooks = (locale: 'de-DE' | 'de-AT'): MobileNotebookEn
   MOBILE_SYSTEM_NOTEBOOKS.filter(
     (nb) => !HIDDEN_NOTEBOOK_IDS.includes(nb.id) && isVisibleForLocale(nb, locale)
   );
+
+/**
+ * The notebooks a research question can name, with their aliases and system
+ * collections — what `parseResearchIntent` scopes to. The aggregate is the
+ * surface the question is asked on, never a region (as on web's Wissen page).
+ */
+export const getResearchRegions = (
+  locale: 'de-DE' | 'de-AT'
+): Array<ResearchRegion & { notebookId: string }> =>
+  getVisibleNotebooks(locale)
+    .filter((nb) => nb.id !== 'gruenerator-notebook')
+    .map((nb) => ({
+      notebookId: nb.id,
+      title: nb.title,
+      aliases: getNotebookQueryAliases(nb),
+      collectionIds: getResearchCollectionIds(nb.id),
+    }));
 
 export const getMobileNotebooksByCategory = (
   category: NotebookCategory,
@@ -356,3 +392,16 @@ export const getNotebookConfigByNotebookId = (notebookId: string): NotebookConfi
   const configId = notebookId.replace(/-notebook$/, '');
   return NOTEBOOK_CONFIGS[configId] ?? null;
 };
+
+/** Readable names for the aggregate notebook's `*-system` collections. */
+const COLLECTION_LABELS: Record<string, string> = {
+  'grundsatz-system': 'Grundsatzprogramm',
+  'bundestagsfraktion-system': 'Bundestagsfraktion',
+  'gruene-de-system': 'gruene.de',
+  'kommunalwiki-system': 'KommunalWiki',
+  'gruenblog-system': 'Grünblog',
+};
+
+export function collectionLabel(id: string): string {
+  return COLLECTION_LABELS[id] ?? id.replace(/-system$/, '');
+}

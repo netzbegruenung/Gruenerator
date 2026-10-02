@@ -1,6 +1,7 @@
 /**
  * Mistral OCR API integration
- * Uses Mistral Document AI OCR 4 processor (mistral-ocr-4-0)
+ * Uses Mistral Document AI OCR via the `mistral-ocr-latest` alias — bewusst
+ * ungepinnt, neue OCR-Versionen kommen ohne Code-Änderung an.
  *
  * Two entry points:
  * - extractTextWithMistralOCR(filePath) — reads file from disk
@@ -32,7 +33,36 @@ import type { Mistral } from '@mistralai/mistralai';
 import type {
   DocumentURLChunk,
   ImageURLChunk,
+  OCRPageObject,
 } from '@mistralai/mistralai/models/components/index.js';
+
+const MISTRAL_OCR_MODEL = 'mistral-ocr-latest';
+
+export interface MistralOcrOptions extends PageMarkerOptions {
+  /** Kopfzeilen aus dem Text nehmen. Aus: sie bleiben Teil des Seitentexts. */
+  extractHeader?: boolean;
+  /** Fußzeilen aus dem Text nehmen. Aus: sie bleiben Teil des Seitentexts. */
+  extractFooter?: boolean;
+}
+
+function ocrRequestOptions(options: MistralOcrOptions) {
+  return {
+    includeImageBase64: false,
+    confidenceScoresGranularity: 'page',
+    extractHeader: options.extractHeader ?? false,
+    extractFooter: options.extractFooter ?? false,
+  } as const;
+}
+
+/** Mittel der Seitenkonfidenzen; null, wenn die API keine geliefert hat. */
+function averagePageConfidence(
+  pages: ReadonlyArray<Pick<OCRPageObject, 'confidenceScores'>>
+): number | null {
+  const scores = pages.flatMap((p) =>
+    p.confidenceScores ? [p.confidenceScores.averagePageConfidenceScore] : []
+  );
+  return scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+}
 
 const IMAGE_EXTENSIONS = new Set([
   '.png',
@@ -66,17 +96,17 @@ function joinOcrPages(
 }
 
 /**
- * Extract text from document using Mistral OCR 4 API
+ * Extract text from document using Mistral OCR API
  */
 export async function extractTextWithMistralOCR(
   filePath: string,
   getMediaTypeFn: (ext: string) => string,
-  options: PageMarkerOptions = {}
+  options: MistralOcrOptions = {}
 ): Promise<ExtractionResult> {
   const startTime = Date.now();
 
   try {
-    console.log(`[OcrService] Starting Mistral OCR 4 extraction for: ${filePath}`);
+    console.log(`[OcrService] Starting Mistral OCR extraction for: ${filePath}`);
 
     const mod = await import('../ai/mistralClient.js');
     const mistralClient: Mistral = mod.default || mod;
@@ -87,7 +117,7 @@ export async function extractTextWithMistralOCR(
     const mediaType = getMediaTypeFn(fileExtension);
 
     console.log(
-      `[OcrService] Processing with Mistral OCR 4 (${(fileBuffer.length / 1024).toFixed(1)}KB, ${mediaType})`
+      `[OcrService] Processing with Mistral OCR (${(fileBuffer.length / 1024).toFixed(1)}KB, ${mediaType})`
     );
 
     const dataUri = `data:${mediaType};base64,${base64Data}`;
@@ -97,9 +127,9 @@ export async function extractTextWithMistralOCR(
       : ({ type: 'document_url', documentUrl: dataUri } satisfies DocumentURLChunk);
 
     const ocrResponse = await mistralClient.ocr.process({
-      model: 'mistral-ocr-4-0',
+      model: MISTRAL_OCR_MODEL,
       document,
-      includeImageBase64: false,
+      ...ocrRequestOptions(options),
     });
 
     if (!ocrResponse.pages || ocrResponse.pages.length === 0) {
@@ -112,20 +142,21 @@ export async function extractTextWithMistralOCR(
       throw new Error('No text extracted from document');
     }
 
+    const confidence = averagePageConfidence(ocrResponse.pages);
     const processingTimeMs = Date.now() - startTime;
     console.log(
-      `[OcrService] Mistral OCR 4 completed in ${processingTimeMs}ms: ${ocrResponse.pages.length} pages, ${allText.length} characters`
+      `[OcrService] Mistral OCR completed in ${processingTimeMs}ms: ${ocrResponse.pages.length} pages, ${allText.length} characters`
     );
 
     return {
       text: allText.trim(),
       pageCount: ocrResponse.pages.length,
       method: 'mistral-ocr',
-      confidence: 0.95,
+      ...(confidence !== null && { confidence }),
       stats: {
         pages: ocrResponse.pages.length,
         successfulPages: ocrResponse.usageInfo.pagesProcessed,
-        method: ocrResponse.model || 'mistral-ocr-4-0',
+        method: ocrResponse.model || MISTRAL_OCR_MODEL,
       },
     };
   } catch (error) {
@@ -148,7 +179,7 @@ const IMAGE_MIME_TYPES = new Set([
 ]);
 
 /**
- * Extract text from base64-encoded document using Mistral OCR 4 API.
+ * Extract text from base64-encoded document using Mistral OCR API.
  * Accepts the base64 data directly (no file system read needed).
  * Used by the chat attachment pipeline where files arrive as base64.
  */
@@ -156,7 +187,7 @@ export async function extractBase64WithMistralOCR(
   base64Data: string,
   filename: string,
   mimeType: string,
-  options: PageMarkerOptions = {}
+  options: MistralOcrOptions = {}
 ): Promise<ExtractionResult> {
   filename = sanitizeFilename(filename, 'document');
   const startTime = Date.now();
@@ -164,7 +195,7 @@ export async function extractBase64WithMistralOCR(
   try {
     const sizeKB = (Math.ceil((base64Data.length * 3) / 4) / 1024).toFixed(1);
     console.log(
-      `[OcrService] Starting Mistral OCR 4 base64 extraction for: ${filename} (~${sizeKB}KB, ${mimeType})`
+      `[OcrService] Starting Mistral OCR base64 extraction for: ${filename} (~${sizeKB}KB, ${mimeType})`
     );
 
     const mod = await import('../ai/mistralClient.js');
@@ -177,9 +208,9 @@ export async function extractBase64WithMistralOCR(
       : ({ type: 'document_url', documentUrl: dataUri } satisfies DocumentURLChunk);
 
     const ocrResponse = await mistralClient.ocr.process({
-      model: 'mistral-ocr-4-0',
+      model: MISTRAL_OCR_MODEL,
       document,
-      includeImageBase64: false,
+      ...ocrRequestOptions(options),
     });
 
     if (!ocrResponse.pages || ocrResponse.pages.length === 0) {
@@ -192,20 +223,21 @@ export async function extractBase64WithMistralOCR(
       throw new Error('No text extracted from document');
     }
 
+    const confidence = averagePageConfidence(ocrResponse.pages);
     const processingTimeMs = Date.now() - startTime;
     console.log(
-      `[OcrService] Mistral OCR 4 base64 completed in ${processingTimeMs}ms: ${ocrResponse.pages.length} pages, ${allText.length} characters`
+      `[OcrService] Mistral OCR base64 completed in ${processingTimeMs}ms: ${ocrResponse.pages.length} pages, ${allText.length} characters`
     );
 
     return {
       text: allText.trim(),
       pageCount: ocrResponse.pages.length,
       method: 'mistral-ocr',
-      confidence: 0.95,
+      ...(confidence !== null && { confidence }),
       stats: {
         pages: ocrResponse.pages.length,
         successfulPages: ocrResponse.usageInfo.pagesProcessed,
-        method: ocrResponse.model || 'mistral-ocr-4-0',
+        method: ocrResponse.model || MISTRAL_OCR_MODEL,
       },
     };
   } catch (error) {
@@ -233,7 +265,7 @@ export async function extractPagesWithMistralOCR(
   const mistralClient: Mistral = mod.default || mod;
 
   const ocrResponse = await mistralClient.ocr.process({
-    model: 'mistral-ocr-4-0',
+    model: MISTRAL_OCR_MODEL,
     document: {
       type: 'document_url',
       documentUrl: `data:${mimeType};base64,${base64Data}`,
