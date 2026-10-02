@@ -39,10 +39,14 @@ describe('catalog', () => {
   });
 
   it('never admits a photo on generic words alone', () => {
-    // "interior" tags the train and bus photos; "city", "people", "nature" match many.
+    // "interior" tags four train photos and a bus; "city" and "people" match many alt texts.
     expect(searchStockPhotos('gastropub interior')).toEqual([]);
-    expect(searchStockPhotos('urban nature')).toEqual([]);
     expect(searchStockPhotos('city street')).toEqual([]);
+    expect(searchStockPhotos('Kassel city')).toEqual([]);
+    expect(searchStockPhotos('asphalt construction')).toEqual([]);
+    expect(searchStockPhotos('portrait woman professional')).toEqual([]);
+    // "nature" is a real category and tag, so it stays a fit.
+    expect(searchStockPhotos('nature')[0].category).toBe('nature');
     // A non-generic term still admits, generic ones only help the ranking.
     expect(searchStockPhotos('train interior')[0].tags).toContain('train');
     expect(searchStockPhotos('drought')[0].tags).toContain('drought');
@@ -92,7 +96,7 @@ describe('styleguide', () => {
   });
 
   it('ships examples that are valid specs once a photo is filled in', () => {
-    const photo = searchStockPhotos('solar')[0].filename;
+    const photo = searchStockPhotos('nature')[0].filename;
     for (const example of loadExamples()) {
       const spec = JSON.parse(JSON.stringify(example.spec).replaceAll('<foto>', photo)) as object;
       const parsed = sharepicSpecSchema.safeParse({ ...spec, locale: example.land });

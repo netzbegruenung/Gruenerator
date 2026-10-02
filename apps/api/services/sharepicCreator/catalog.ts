@@ -41,7 +41,7 @@ const MIN_ALT_TERMS = 2;
 
 /**
  * Visual filler words (English; queries are English). They recur across unrelated
- * photos — "interior" tags a train, a bus and a cafe — so they may rank a photo but
+ * photos — "interior" tags four trains and a bus — so they may rank a photo but
  * never admit one: only the other query terms count towards the gate.
  */
 const GENERIC_TERMS = new Set([
@@ -59,7 +59,6 @@ const GENERIC_TERMS = new Set([
   'abstract',
   'landscape',
   'background',
-  'nature',
   'day',
   'night',
 ]);
