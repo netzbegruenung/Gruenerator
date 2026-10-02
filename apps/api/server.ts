@@ -30,6 +30,7 @@ import { Sentry } from './lib/sentry.js';
 import { requireAuth } from './middleware/authMiddleware.js';
 import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
+import { shouldCompress } from './middleware/compressionFilter.js';
 import { setupRoutes } from './routes.js';
 import {
   startModelLatencyCleanup,
@@ -385,17 +386,7 @@ async function startWorker(): Promise<void> {
   );
 
   // Compression middleware
-  app.use(
-    compression({
-      filter: (req: Request, res: Response) => {
-        if (req.headers['x-no-compression']) {
-          return false;
-        }
-        return compression.filter(req, res);
-      },
-      level: 6,
-    })
-  );
+  app.use(compression({ filter: shouldCompress, level: 6 }));
 
   // Security middleware (Helmet)
   app.use(
