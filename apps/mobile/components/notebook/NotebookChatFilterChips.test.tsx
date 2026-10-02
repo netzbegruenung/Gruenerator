@@ -43,4 +43,18 @@ describe('NotebookChatFilterChips', () => {
     expect(useNotebookFilterStore.getState().keywordFilters).toEqual({ themes: ['sicherheit'] });
     expect(screen.queryByText('Klima & Umwelt')).toBeNull();
   });
+
+  it('shows a narrowed source selection and widens it back to all on tap', () => {
+    useNotebookFilterStore.setState({
+      notebookId: 'gruene',
+      keywordFilters: { themes: ['klima'] },
+      collectionIds: ['grundsatz-system', 'gruenblog-system'],
+    });
+    render(<NotebookChatFilterChips notebookId="gruene" />);
+
+    fireEvent.press(screen.getByLabelText('Filter Grundsatzprogramm, Grünblog entfernen'));
+
+    expect(useNotebookFilterStore.getState().collectionIds).toBeNull();
+    expect(useNotebookFilterStore.getState().keywordFilters).toEqual({ themes: ['klima'] });
+  });
 });

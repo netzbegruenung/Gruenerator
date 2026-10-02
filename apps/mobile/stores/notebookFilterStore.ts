@@ -13,6 +13,8 @@ interface NotebookFilterState {
   /** Replaces every keyword facet with this one value; the source selection stays. */
   selectOnlyValue: (field: string, value: string) => void;
   toggleCollection: (id: string, available: string[]) => void;
+  /** Back to all of the notebook's sources; the keyword facets stay. */
+  clearCollections: () => void;
   reset: () => void;
 }
 
@@ -62,6 +64,8 @@ export const useNotebookFilterStore = create<NotebookFilterState>((set, get) => 
       const isAll = updated.length === 0 || updated.length === available.length;
       return { collectionIds: isAll ? null : updated };
     }),
+
+  clearCollections: () => set({ collectionIds: null }),
 
   reset: () => set({ keywordFilters: {}, collectionIds: null }),
 }));

@@ -386,3 +386,16 @@ export const getNotebookConfigByNotebookId = (notebookId: string): NotebookConfi
   const configId = notebookId.replace(/-notebook$/, '');
   return NOTEBOOK_CONFIGS[configId] ?? null;
 };
+
+/** Readable names for the aggregate notebook's `*-system` collections. */
+const COLLECTION_LABELS: Record<string, string> = {
+  'grundsatz-system': 'Grundsatzprogramm',
+  'bundestagsfraktion-system': 'Bundestagsfraktion',
+  'gruene-de-system': 'gruene.de',
+  'kommunalwiki-system': 'KommunalWiki',
+  'gruenblog-system': 'Grünblog',
+};
+
+export function collectionLabel(id: string): string {
+  return COLLECTION_LABELS[id] ?? id.replace(/-system$/, '');
+}

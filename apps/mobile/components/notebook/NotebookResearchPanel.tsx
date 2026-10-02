@@ -39,7 +39,7 @@ import {
 } from 'react-native';
 import { useShallow } from 'zustand/shallow';
 
-import { getResearchCollectionIds } from '../../config/notebooksConfig';
+import { collectionLabel, getResearchCollectionIds } from '../../config/notebooksConfig';
 import { useNotebookFilters } from '../../hooks/notebook/useNotebookFilters';
 import { useNotebookFilterStore } from '../../stores/notebookFilterStore';
 import { usePreferencesStore } from '../../stores/preferencesStore';
@@ -87,14 +87,6 @@ const SORT_LABELS: Record<SortOption, string> = {
 };
 const MODE_CYCLE: SearchMode[] = ['hybrid', 'vector', 'text'];
 
-/** Readable names for the aggregate notebook's `*-system` collections. */
-const COLLECTION_LABELS: Record<string, string> = {
-  'grundsatz-system': 'Grundsatzprogramm',
-  'bundestagsfraktion-system': 'Bundestagsfraktion',
-  'gruene-de-system': 'gruene.de',
-  'kommunalwiki-system': 'KommunalWiki',
-  'gruenblog-system': 'Grünblog',
-};
 const SORT_CYCLE: SortOption[] = ['relevance', 'date_desc', 'date_asc'];
 
 const KEYWORD_FILTER_LABELS: Record<string, string> = {
@@ -516,7 +508,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                 {availableCollections.map((id) => (
                   <OptionChip
                     key={id}
-                    label={COLLECTION_LABELS[id] ?? id.replace(/-system$/, '')}
+                    label={collectionLabel(id)}
                     active={(collectionIds ?? availableCollections).includes(id)}
                     onPress={() => toggleCollection(id, availableCollections)}
                     theme={theme}
