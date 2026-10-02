@@ -2,17 +2,16 @@ import { type CreateAttachment } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { Platform, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 
 import { useDrawerStore } from '../../hooks/useDrawerStore';
-import { useLayout } from '../../hooks/useLayout';
 import { useTabSwipe } from '../../hooks/useTabSwipe';
 import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
-import { darkTheme, lightTheme, spacing, HEADING_FONT_BOLD } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 import { mobileGreeting } from '../../utils/greeting';
 import { BottomComposerBar } from '../common/BottomComposerBar';
+import { CenteredGreeting } from '../common/CenteredGreeting';
 
 /**
  * The Chat page of the workplace pager (`WorkplacePager`): the greeting in the middle and the
@@ -29,10 +28,8 @@ import { BottomComposerBar } from '../common/BottomComposerBar';
  * swipe start.
  */
 export function WorkplaceChatPage() {
-  const theme = useColorScheme() === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
   const { user, locale } = useAuth();
-  const { isTablet } = useLayout();
   const firstName = user?.display_name?.split(' ')[0] ?? null;
   const greeting = mobileGreeting(locale, firstName);
 
@@ -64,11 +61,7 @@ export function WorkplaceChatPage() {
   return (
     <GestureDetector gesture={swipe}>
       <View style={styles.flex}>
-        <View style={styles.hero}>
-          <Text style={[styles.greeting, isTablet && styles.greetingWide, { color: theme.text }]}>
-            {greeting}
-          </Text>
-        </View>
+        <CenteredGreeting title={greeting} />
         <BottomComposerBar
           placeholder="Frage oder Aufgabe…"
           onSend={handleSend}
@@ -83,19 +76,5 @@ export function WorkplaceChatPage() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-  },
-  hero: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.large,
-  },
-  greeting: {
-    fontFamily: HEADING_FONT_BOLD,
-    fontSize: 28,
-    textAlign: 'center',
-  },
-  greetingWide: {
-    fontSize: 32,
   },
 });

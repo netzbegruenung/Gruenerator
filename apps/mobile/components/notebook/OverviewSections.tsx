@@ -661,8 +661,11 @@ const styles = StyleSheet.create({
   trackFill: { height: '100%' },
 
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
+  // Two to a row: the basis only has to leave room for the gap, flexGrow
+  // fills the rest. At 47% the pair plus the gap overflowed once the
+  // overview got its own horizontal padding, and every card took a row.
   kpi: {
-    flexBasis: '47%',
+    flexBasis: '40%',
     flexGrow: 1,
     gap: 2,
     paddingHorizontal: spacing.medium,

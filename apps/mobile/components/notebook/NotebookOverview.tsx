@@ -167,6 +167,7 @@ export function NotebookOverview({
 const styles = StyleSheet.create({
   container: {
     gap: spacing.large,
+    paddingHorizontal: spacing.medium,
     paddingTop: spacing.small,
     paddingBottom: spacing.large,
   },
@@ -179,7 +180,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   skeletonCard: {
-    flexBasis: '47%',
+    flexBasis: '40%',
     flexGrow: 1,
     paddingHorizontal: spacing.medium,
     paddingVertical: spacing.small,

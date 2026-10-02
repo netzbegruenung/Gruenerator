@@ -1,16 +1,17 @@
 import { NOTEBOOK_REGISTRY } from '@gruenerator/shared/notebooks';
-import { useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View, useColorScheme } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, useColorScheme } from 'react-native';
 import { useSharedValue, withTiming } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BackButton } from '../../components/common/BackButton';
 import { NotebookGradientBackground } from '../../components/common/NotebookGradientBackground';
+import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { GlassTopTabs } from '../../components/navigation/WorkplaceTopTabs';
+import { AllNotebooksSearchSheet } from '../../components/notebook/AllNotebooksSearchSheet';
 import { NotebookOverview } from '../../components/notebook/NotebookOverview';
 import { NotebookResearchPanel } from '../../components/notebook/NotebookResearchPanel';
-import { colors, lightTheme, darkTheme, spacing } from '../../theme';
+import { lightTheme, darkTheme, spacing } from '../../theme';
 
 /** Web's `NotebookTabs`: asking and searching on one page, everything else
  *  about the notebook (statistics, people, recent documents) on the other. */
@@ -20,12 +21,17 @@ const NOTEBOOK_TABS = [
 ] as const;
 type NotebookTab = (typeof NOTEBOOK_TABS)[number]['id'];
 
+/**
+ * A notebook — the workplace's Chat | Arbeiten shell in the notebook's
+ * magenta: the same scaffold and pill on top, the same docked composer.
+ */
 export default function NotebookDetailScreen() {
   const { notebookId, title, kind } = useLocalSearchParams<{
     notebookId: string;
     title?: string;
     kind: 'system' | 'user';
   }>();
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
@@ -43,31 +49,38 @@ export default function NotebookDetailScreen() {
     setTab(NOTEBOOK_TABS[index]?.id ?? 'chat');
     progress.set(withTiming(index, { duration: 220 }));
   };
+  const [allSearchVisible, setAllSearchVisible] = useState(false);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-      {/* The notebook's signature magenta, same as the Wissen gallery and web's
-          NOTEBOOK_MAGENTA_BG — a notebook keeps its colour when you open it. */}
-      <NotebookGradientBackground />
-      {/* A row of its own rather than floating: the back button used to sit on
-          top of the greeting once it scrolled under it. */}
-      <View style={styles.topRow}>
-        <BackButton
-          color={colorScheme === 'dark' ? colors.grey[200] : colors.grey[800]}
-          background={colorScheme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.85)'}
-          style={styles.backButton}
-        />
-        {hasOverview && (
-          <View style={styles.tabs} pointerEvents="box-none">
-            <GlassTopTabs
-              tabs={NOTEBOOK_TABS}
-              progress={progress}
-              active={tab}
-              onSelect={selectTab}
-            />
-          </View>
-        )}
-      </View>
+    <ScreenScaffold
+      title={displayTitle}
+      {...(hasOverview && {
+        titleNode: (
+          <GlassTopTabs
+            tabs={NOTEBOOK_TABS}
+            progress={progress}
+            active={tab}
+            onSelect={selectTab}
+          />
+        ),
+      })}
+      onBack={() => router.back()}
+      // Like web's Wissen composer: sources from every notebook at once.
+      headerRight={
+        <Pressable
+          onPress={() => setAllSearchVisible(true)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Alle Notebooks durchsuchen"
+          style={styles.headerButton}
+        >
+          <Ionicons name="search" size={22} color={theme.text} />
+        </Pressable>
+      }
+      // The notebook's signature magenta, same as the Wissen gallery and web's
+      // NOTEBOOK_MAGENTA_BG — a notebook keeps its colour when you open it.
+      backdrop={<NotebookGradientBackground />}
+    >
       {/* Stays mounted on the Übersicht tab, so the typed text and the hits
           are still there on the way back. */}
       <View style={[styles.container, tab !== 'chat' && styles.hidden]}>
@@ -83,7 +96,11 @@ export default function NotebookDetailScreen() {
           <NotebookOverview notebookId={notebookId} kind={notebookKind} theme={theme} />
         </ScrollView>
       )}
-    </SafeAreaView>
+      <AllNotebooksSearchSheet
+        visible={allSearchVisible}
+        onClose={() => setAllSearchVisible(false)}
+      />
+    </ScreenScaffold>
   );
 }
 
@@ -94,24 +111,9 @@ const styles = StyleSheet.create({
   hidden: {
     display: 'none',
   },
-  topRow: {
-    height: 48,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.medium,
-  },
-  // The button floats by default; here it sits in the row (the SafeAreaView
-  // already keeps the row clear of the status bar).
-  backButton: {
-    position: 'relative',
-    top: 0,
-    left: 0,
-  },
-  tabs: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
+  headerButton: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
