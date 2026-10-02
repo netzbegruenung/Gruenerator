@@ -83,6 +83,7 @@ export {
   toNotebookAnswerMode,
   detectMagicIntent,
   composerModeRunsLiveSearch,
+  composerSubmitAction,
   type MagicIntent,
   type NotebookAnswerModeDef,
   type NotebookComposerMode,
@@ -183,6 +184,10 @@ export {
   type NotebookAdapterCallbacks,
   type SharepicContextConfig,
 } from './runtime/NotebookModelAdapter';
+export {
+  useNotebookChatAdapter,
+  type NotebookChatAdapterOptions,
+} from './runtime/useNotebookChatAdapter';
 export {
   NotebookComposer,
   type SourceFilterConfig,
