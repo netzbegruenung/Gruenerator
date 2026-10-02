@@ -1,5 +1,5 @@
 import { useAui } from '@assistant-ui/react-native';
-import { findRegistryAgent, getUserAgentMentionables, useAgentStore } from '@gruenerator/chat';
+import { findRegistryAgent, getUserAgentMentionables } from '@gruenerator/chat';
 import {
   getSystemAgent,
   isAgentVisibleForPlatform,
@@ -17,12 +17,11 @@ import { MeshSurface } from '../../components/common/MeshSurface';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
+import { useChatAgentSelection } from '../../hooks/useChatAgentSelection';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
 import { lightTheme, darkTheme, typeScale } from '../../theme';
 import { COMPOSER_GLOW, COMPOSER_GLOW_HEIGHT } from '../../theme/chatBackgrounds';
 import { routeWithParams } from '../../types/routes';
-
-const AT_DEFAULT_NOTEBOOK_ID = 'oesterreich-notebook';
 
 // Pre-fills the composer without sending (e.g. a `/skill ` or `@tool ` mention
 // dropped in from the drawer), so the user can keep typing before submitting.
@@ -136,29 +135,7 @@ function ChatConversation({
       }
     : undefined;
 
-  // Mirror web's ChatPage: the route param is the source of truth, this screen
-  // writes the global agent store (which `useMobileChatRuntime` reads to build
-  // the request). When an agent is selected, auto-pair its FIRST bound notebook
-  // into the composer chip the same way web does — the agent's own
-  // `defaultNotebookIds[0]`, else the Österreich notebook for AT users. The
-  // agent's full notebook set scopes search server-side regardless.
-  useEffect(() => {
-    const store = useAgentStore.getState();
-    if (resolvedAgentId) {
-      store.setSelectedAgent(resolvedAgentId);
-      const defaultNotebookId = getSystemAgent(resolvedAgentId)?.defaultNotebookIds?.[0];
-      if (defaultNotebookId) {
-        store.setSelectedNotebook(defaultNotebookId);
-      } else if (locale === 'de-AT') {
-        store.setSelectedNotebook(AT_DEFAULT_NOTEBOOK_ID);
-      }
-    }
-    return () => {
-      const store = useAgentStore.getState();
-      store.setSelectedNotebook('gruenerator-notebook');
-      store.setThreadMode('chat');
-    };
-  }, [resolvedAgentId, locale]);
+  useChatAgentSelection(resolvedAgentId, locale);
 
   const isNewChat = threadId === 'new';
 
