@@ -217,4 +217,40 @@ describe('RichTextField: Fokus beim Öffnen', () => {
     screen.getByRole('button', { name: 'Akzent' }).click();
     expect(onChange).toHaveBeenLastCalledWith('==Hallo==');
   });
+  it('behält einen Marker beim Laden und bietet ihn nur an, wo der Text einen Markerstil hat', () => {
+    const onChange = vi.fn();
+    const { container, rerender } = render(
+      <RichTextField
+        value="Das ist ++ungerecht.++"
+        onChange={onChange}
+        marks={fontMarkSupport(PT_SANS)}
+      />
+    );
+    expect(container.querySelector('mark[data-marker]')?.textContent).toBe('ungerecht.');
+    expect(screen.queryByRole('button', { name: 'Textmarker' })).not.toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+
+    rerender(
+      <RichTextField
+        value="Das ist ++ungerecht.++"
+        onChange={onChange}
+        marks={{ ...fontMarkSupport(PT_SANS), marker: true }}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Textmarker' })).toBeInTheDocument();
+  });
+
+  it('Marker auf der Auswahl schreibt ++…++ in den Feldtext', () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <RichTextField
+        value="Hallo"
+        onChange={onChange}
+        marks={{ ...fontMarkSupport(PT_SANS), marker: true }}
+      />
+    );
+    selectAll(container);
+    screen.getByRole('button', { name: 'Textmarker' }).click();
+    expect(onChange).toHaveBeenLastCalledWith('++Hallo++');
+  });
 });

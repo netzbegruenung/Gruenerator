@@ -182,13 +182,15 @@ const sameStyle = (a: RunStyle, b: RunStyle): boolean =>
   a.bold === b.bold &&
   a.italic === b.italic &&
   a.underline === b.underline &&
-  a.accent === b.accent;
+  a.accent === b.accent &&
+  a.marker === b.marker;
 
 const styleOf = (run: RunStyle): RunStyle => ({
   bold: run.bold,
   italic: run.italic,
   underline: run.underline,
   accent: run.accent,
+  marker: run.marker,
 });
 
 /** Zerlegt Läufe an Leerzeichen in Wörter; leere Wörter erhalten Doppel-Leerzeichen. */

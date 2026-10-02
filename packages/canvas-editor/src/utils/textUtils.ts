@@ -105,6 +105,23 @@ export interface TextAccent {
   fontStyle?: 'normal' | 'bold' | 'italic' | 'bold italic';
 }
 
+/**
+ * Wie ein `++Marker++`-Lauf aussieht: ein Kasten hinter dem Lauf, je
+ * Zeilenstück einer, mit dunkler Schrift darin. Nur DE setzt ihn (die
+ * Textmarker-Box der Posts); ohne `marker` am Text bleibt ein Markerlauf
+ * unauffällig. Abstände in Vielfachen der Schriftgröße.
+ */
+export interface TextMarker {
+  /** Farbe des Kastens. */
+  fill: string;
+  /** Schriftfarbe im Kasten — der Kasten steht oft auf dunklem Grund. */
+  color: string;
+  /** Innenabstand links/rechts; Vorgabe 0.18. */
+  padX?: number;
+  /** Innenabstand oben/unten; Vorgabe 0.04. */
+  padY?: number;
+}
+
 /** Schrift und Schnitt eines Laufs — Messung und Zeichnung fragen beide hier. */
 export function runFont(
   fontFamily: string,

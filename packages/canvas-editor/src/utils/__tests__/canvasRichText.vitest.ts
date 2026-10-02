@@ -153,3 +153,17 @@ describe('Akzent im Rich Text', () => {
     expect(richTextMarkSchema.safeParse({ type: 'bold' }).success).toBe(true);
   });
 });
+
+describe('Marker im Rich Text', () => {
+  it('wird zur marker-Mark und zurück, auch gemeinsam mit Akzent', () => {
+    const doc = markdownLiteToRichText('Das ist ++ungerecht.++');
+    expect(doc.content?.[0]?.content?.[1]).toEqual({
+      type: 'text',
+      text: 'ungerecht.',
+      marks: [{ type: 'marker' }],
+    });
+    expect(richTextToMarkdownLite(doc)).toBe('Das ist ++ungerecht.++');
+    const both = markdownLiteToRichText('++a ==b== c++');
+    expect(richTextToMarkdownLite(both)).toBe('++a ==b== c++');
+  });
+});

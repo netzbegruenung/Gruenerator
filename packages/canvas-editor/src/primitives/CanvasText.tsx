@@ -20,7 +20,7 @@ import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/sn
 import { CanvasRichText } from './CanvasRichText';
 
 import type { SnapTarget, SnapLine } from '../utils/snapping';
-import type { TextAccent } from '../utils/textUtils';
+import type { TextAccent, TextMarker } from '../utils/textUtils';
 import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
 import type Konva from 'konva';
 
@@ -60,6 +60,8 @@ export interface CanvasTextProps {
   richText?: boolean;
   /** Stil der `==Akzent==`-Läufe; siehe `TextAccent`. */
   accent?: TextAccent | null;
+  /** Stil der `++Marker++`-Läufe; siehe `TextMarker`. */
+  marker?: TextMarker | null;
   opacity?: number;
   transformConfig?: Partial<TransformConfig>;
   onSelect?: () => void;
@@ -104,6 +106,7 @@ function CanvasTextInner({
   fillGradient,
   align = 'left',
   accent = null,
+  marker = null,
   verticalAlign = 'top',
   lineHeight = 1.2,
   wrap = 'word',
@@ -286,6 +289,7 @@ function CanvasTextInner({
       lineHeight,
       opacity,
       accent,
+      marker,
       onTextChange,
     });
   }, [
@@ -302,6 +306,7 @@ function CanvasTextInner({
     lineHeight,
     opacity,
     accent,
+    marker,
     onTextChange,
   ]);
 
@@ -415,6 +420,7 @@ export const CanvasText = memo(CanvasTextSwitch, (prevProps, nextProps) => {
     'fillGradient',
     'align',
     'accent',
+    'marker',
     'verticalAlign',
     'lineHeight',
     'wrap',

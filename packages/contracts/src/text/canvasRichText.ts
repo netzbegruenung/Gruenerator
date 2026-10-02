@@ -3,8 +3,8 @@
  * eines Sharepics und dem tiptap-Editor, der es bearbeitet.
  *
  * Das Dokumentmodell ist das tiptap-freie `RichTextDoc` aus
- * `schemas/richtext.ts`, hier mit der Canvas-Mark `accent` (Marks
- * bold/italic/underline/accent, Knoten paragraph,
+ * `schemas/richtext.ts`, hier mit den Canvas-Marks `accent` und `marker` (Marks
+ * bold/italic/underline/accent/marker, Knoten paragraph,
  * bulletList, orderedList, listItem, text, hardBreak). Eine Zeile des Feldes
  * ist ein Absatz; eine Markerzeile ein Listenpunkt; zusammenhängende Punkte
  * eine Liste. Blöcke werden mit `\n` verbunden, ohne Leerzeilen — dieselbe
@@ -24,8 +24,10 @@ import type {
   RICH_TEXT_MARK_TYPES,
 } from '../schemas/richtext.js';
 
-/** Canvas texts carry `accent` on top of the site marks — sites never store it. */
-export type CanvasRichTextMark = RichTextMark<(typeof RICH_TEXT_MARK_TYPES)[number] | 'accent'>;
+/** Canvas texts carry `accent` and `marker` on top of the site marks — sites never store it. */
+export type CanvasRichTextMark = RichTextMark<
+  (typeof RICH_TEXT_MARK_TYPES)[number] | 'accent' | 'marker'
+>;
 type CanvasNode = RichTextNode<CanvasRichTextMark>;
 export type CanvasRichTextDoc = RichTextDoc<CanvasRichTextMark>;
 
@@ -36,6 +38,7 @@ function runsToInline(runs: InlineRun[]): CanvasNode[] {
     if (run.italic) marks.push({ type: 'italic' });
     if (run.underline) marks.push({ type: 'underline' });
     if (run.accent) marks.push({ type: 'accent' });
+    if (run.marker) marks.push({ type: 'marker' });
     return marks.length > 0
       ? { type: 'text', text: run.text, marks }
       : { type: 'text', text: run.text };
@@ -93,6 +96,7 @@ function inlineToLines(nodes: CanvasNode[] | undefined): string[] {
         italic: marks.has('italic'),
         underline: marks.has('underline'),
         accent: marks.has('accent'),
+        marker: marks.has('marker'),
       });
       continue;
     }
@@ -105,6 +109,7 @@ function inlineToLines(nodes: CanvasNode[] | undefined): string[] {
         italic: false,
         underline: false,
         accent: false,
+        marker: false,
       }))
     );
   }

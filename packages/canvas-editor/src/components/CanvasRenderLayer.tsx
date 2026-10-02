@@ -530,6 +530,7 @@ function CanvasRenderLayerInner<
           align={textItem.align ?? 'left'}
           lineHeight={textItem.lineHeight}
           accent={textItem.accent}
+          marker={textItem.marker}
           opacity={textItem.opacity ?? 1}
           rotation={textItem.rotation || 0}
           scaleX={textItem.scale || 1}

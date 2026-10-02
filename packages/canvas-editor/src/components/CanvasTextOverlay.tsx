@@ -78,7 +78,12 @@ import { createPortal } from 'react-dom';
 
 import { fontMarkSupport } from '../utils/fontMarkSupport';
 import { stageCssScale } from '../utils/stageCssScale';
-import { fontStyleForRun, measureTextWidthWithFont, type TextAccent } from '../utils/textUtils';
+import {
+  fontStyleForRun,
+  measureTextWidthWithFont,
+  type TextAccent,
+  type TextMarker,
+} from '../utils/textUtils';
 
 import { RichTextField } from './RichTextField';
 import { type OfferedMarks } from './TextFormatControls';
@@ -95,7 +100,7 @@ export interface OverlayBox {
 }
 
 /** Ohne offene Sitzung trägt niemand einen Schnitt. */
-const NO_MARKS: OfferedMarks = { bold: false, italic: false, accent: false };
+const NO_MARKS: OfferedMarks = { bold: false, italic: false, accent: false, marker: false };
 
 /**
  * Untergrenze für die gespiegelte Deckkraft. Der Regler der Kopfleiste geht
@@ -120,6 +125,8 @@ export interface TextEditSession {
   opacity: number;
   /** Stil der `==Akzent==`-Läufe; ohne ihn bietet der Editor keinen Akzent an. */
   accent?: TextAccent | null;
+  /** Stil der `++Marker++`-Läufe; ohne ihn bietet der Editor keinen Marker an. */
+  marker?: TextMarker | null;
   onTextChange?: (value: string) => void;
 }
 
@@ -268,7 +275,13 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
 
   const marks = useMemo(
     () =>
-      session ? { ...fontMarkSupport(session.fontFamily), accent: !!session.accent } : NO_MARKS,
+      session
+        ? {
+            ...fontMarkSupport(session.fontFamily),
+            accent: !!session.accent,
+            marker: !!session.marker,
+          }
+        : NO_MARKS,
     [session]
   );
 
@@ -350,6 +363,10 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
                 // Wert aber unverändert durch.
                 ...({
                   '--canvas-rte-list-indent': `${listIndent}px`,
+                  ...(session.marker && {
+                    '--canvas-rte-marker-fill': session.marker.fill,
+                    '--canvas-rte-marker-color': session.marker.color,
+                  }),
                   ...(session.accent && {
                     '--canvas-rte-accent-color': session.accent.fill,
                     '--canvas-rte-accent-font': session.accent.fontFamily ?? session.fontFamily,

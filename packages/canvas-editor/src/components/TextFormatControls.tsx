@@ -1,5 +1,5 @@
 /**
- * TextFormatControls — Fett, Kursiv, Unterstrichen, Akzent, Aufzählung, Nummerierung.
+ * TextFormatControls — Fett, Kursiv, Unterstrichen, Akzent, Textmarker, Aufzählung, Nummerierung.
  *
  * EINE Definition, zwei Wirte: die schwebende Karte über dem Text (dort, wo es
  * keine Kopfleiste gibt — `StandaloneCanvas`) und die Kontextleiste der
@@ -11,7 +11,7 @@ import { useEditorState, type Editor } from '@tiptap/react';
 import clsx from 'clsx';
 import { type ReactNode } from 'react';
 import { FiBold, FiItalic, FiList, FiUnderline } from 'react-icons/fi';
-import { MdFormatListNumbered, MdHighlight } from 'react-icons/md';
+import { MdBorderColor, MdFormatListNumbered, MdHighlight } from 'react-icons/md';
 
 import { type FontMarkSupport } from '../utils/fontMarkSupport';
 
@@ -23,6 +23,8 @@ export type TextFormatVariant = 'floating' | 'contextBar';
  */
 export interface OfferedMarks extends FontMarkSupport {
   accent?: boolean;
+  /** Der Text hat einen Markerstil (`TextMarker`): die Textmarker-Box. */
+  marker?: boolean;
 }
 
 export interface TextFormatControlsProps {
@@ -95,6 +97,7 @@ export function TextFormatControls({
       italic: e.isActive('italic'),
       underline: e.isActive('underline'),
       accent: e.isActive('accent'),
+      marker: e.isActive('marker'),
       bulletList: e.isActive('bulletList'),
       orderedList: e.isActive('orderedList'),
     }),
@@ -138,6 +141,16 @@ export function TextFormatControls({
           variant={variant}
         >
           <MdHighlight />
+        </ToolbarButton>
+      )}
+      {marks.marker && (
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleMarker().run()}
+          isActive={state.marker}
+          label="Textmarker"
+          variant={variant}
+        >
+          <MdBorderColor />
         </ToolbarButton>
       )}
       <ToolbarButton

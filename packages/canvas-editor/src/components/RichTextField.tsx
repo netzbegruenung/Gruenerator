@@ -41,6 +41,7 @@ import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import { useEffect, useRef, type CSSProperties } from 'react';
 
 import { Accent } from './accentMark';
+import { Marker } from './markerMark';
 import { TextFormatControls, type OfferedMarks } from './TextFormatControls';
 
 export interface RichTextFieldProps {
@@ -91,7 +92,7 @@ const BASE_EXTENSIONS = [
  * Schriftschnitt und ist deshalb auf jedem Feld aktiv. Der Akzent steht
  * immer im Schema; angeboten wird er nur, wo der Text einen Akzentstil trägt.
  */
-const ALWAYS_MARK_EXTENSIONS = [Underline, Accent];
+const ALWAYS_MARK_EXTENSIONS = [Underline, Accent, Marker];
 
 /**
  * Fett und Kursiv müssen IM SCHEMA stehen, auch wo die Schrift sie nicht
@@ -105,7 +106,12 @@ function markExtension(mark: typeof Bold | typeof Italic, offered: boolean) {
   return offered ? mark : mark.extend({ addKeyboardShortcuts: () => ({}) });
 }
 
-const ALL_MARKS_SUPPORTED: OfferedMarks = { bold: true, italic: true, accent: false };
+const ALL_MARKS_SUPPORTED: OfferedMarks = {
+  bold: true,
+  italic: true,
+  accent: false,
+  marker: false,
+};
 
 export function RichTextField({
   value,

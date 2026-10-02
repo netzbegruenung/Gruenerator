@@ -3,7 +3,7 @@
  *
  * Ein Sharepic-Textfeld ist ein flacher String (siehe `listLayout.ts`). Fett,
  * Kursiv und Unterstrichen stehen darin als Markdown-lite: `**fett**`,
- * `_kursiv_`, `<u>unterstrichen</u>`, `==Akzent==`. Das ist die Form, die Nutzer*innen
+ * `_kursiv_`, `<u>unterstrichen</u>`, `==Akzent==`, `++Marker++`. Das ist die Form, die Nutzer*innen
  * kennen, die ein Modell ohnehin schreibt und die ohne Contract-Umbau in
  * jedes vorhandene Feld passt.
  *
@@ -28,6 +28,13 @@ export interface RunStyle {
    * es vorsieht, der Akzentschrift) — der Text trägt dafür `accentFill` usw.
    */
   accent: boolean;
+  /**
+   * Eine Textmarker-Box hinter dem Lauf (DE-Signatur) — der Text trägt dafür
+   * einen `TextMarker`. `++` und nicht `=`/`-`/`~`: `+` leitet keine
+   * Aufzählung ein, und `++` kommt in Prosa nur als `C++` vor, das nie
+   * öffnet (kein Nicht-Leerzeichen dahinter) und nie paart.
+   */
+  marker: boolean;
 }
 
 export interface InlineRun extends RunStyle {
@@ -39,9 +46,10 @@ export const PLAIN_STYLE: RunStyle = {
   italic: false,
   underline: false,
   accent: false,
+  marker: false,
 };
 
-type MarkKind = 'bold' | 'italic' | 'underline' | 'accent';
+type MarkKind = 'bold' | 'italic' | 'underline' | 'accent' | 'marker';
 
 interface DelimToken {
   type: 'delim';
@@ -125,6 +133,11 @@ function tokenize(line: string): Token[] {
       i += 2;
       continue;
     }
+    if (ch === '+' && line[i + 1] === '+') {
+      push('marker', '++', prev, line[i + 2]);
+      i += 2;
+      continue;
+    }
     if (ch === '<') {
       const open = line.startsWith('<u>', i);
       const close = !open && line.startsWith('</u>', i);
@@ -191,7 +204,8 @@ export function parseInlineMarks(line: string): InlineRun[] {
       last.bold === style.bold &&
       last.italic === style.italic &&
       last.underline === style.underline &&
-      last.accent === style.accent
+      last.accent === style.accent &&
+      last.marker === style.marker
     ) {
       last.text += value;
     } else {
@@ -216,7 +230,9 @@ export function hasInlineMarks(text: string): boolean {
   return text
     .split('\n')
     .some((line) =>
-      parseInlineMarks(line).some((run) => run.bold || run.italic || run.underline || run.accent)
+      parseInlineMarks(line).some(
+        (run) => run.bold || run.italic || run.underline || run.accent || run.marker
+      )
     );
 }
 
@@ -232,12 +248,13 @@ export function stripInlineMarks(text: string): string {
     .join('\n');
 }
 
-const MARK_ORDER: MarkKind[] = ['accent', 'bold', 'italic', 'underline'];
+const MARK_ORDER: MarkKind[] = ['marker', 'accent', 'bold', 'italic', 'underline'];
 const DELIMS: Record<MarkKind, [string, string]> = {
   bold: ['**', '**'],
   italic: ['_', '_'],
   underline: ['<u>', '</u>'],
   accent: ['==', '=='],
+  marker: ['++', '++'],
 };
 
 /**
