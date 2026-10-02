@@ -13,6 +13,8 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
+import { useTrackPendingImage } from '../utils/pendingImages';
+
 import type { ChartInstance } from '../utils/chartUtils';
 import type Konva from 'konva';
 
@@ -47,6 +49,8 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
   } = recharts;
   const { width, height, data, colors, chartType, showGrid, showLegend, showValues } = chart;
   const color = (i: number) => colors[i % colors.length];
+  const unit = chart.unit ? ` ${chart.unit}` : '';
+  const formatValue = (value: unknown) => `${String(value)}${unit}`;
   const common = {
     width,
     height,
@@ -67,7 +71,7 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
           outerRadius={radius}
           innerRadius={chartType === 'donut' ? radius * 0.55 : 0}
           isAnimationActive={false}
-          label={showValues}
+          label={showValues ? (p: { value: unknown }) => formatValue(p.value) : false}
         >
           {data.map((_, i) => (
             <Cell key={i} fill={color(i)} />
@@ -91,7 +95,7 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
           dot={{ r: 4, fill: color(0) }}
           isAnimationActive={false}
         >
-          {showValues ? <LabelList dataKey="value" position="top" /> : null}
+          {showValues ? <LabelList dataKey="value" formatter={formatValue} position="top" /> : null}
         </Area>
       ) : (
         <Line
@@ -102,7 +106,7 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
           dot={{ r: 4, fill: color(0) }}
           isAnimationActive={false}
         >
-          {showValues ? <LabelList dataKey="value" position="top" /> : null}
+          {showValues ? <LabelList dataKey="value" formatter={formatValue} position="top" /> : null}
         </Line>
       );
     const Wrapper = chartType === 'area' ? AreaChart : LineChart;
@@ -161,7 +165,13 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
         {data.map((_, i) => (
           <Cell key={i} fill={color(i)} />
         ))}
-        {showValues ? <LabelList dataKey="value" position={horizontal ? 'right' : 'top'} /> : null}
+        {showValues ? (
+          <LabelList
+            dataKey="value"
+            formatter={formatValue}
+            position={horizontal ? 'right' : 'top'}
+          />
+        ) : null}
       </Bar>
     </BarChart>
   );
@@ -215,7 +225,25 @@ function ChartPrimitiveInner({
 }: ChartPrimitiveProps) {
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
-  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  // The image with the visual state it was drawn from: while they differ, a
+  // render is in flight and an offscreen capture has to wait for it.
+  const visualKey = JSON.stringify([
+    chart.chartType,
+    chart.data,
+    chart.colors,
+    chart.width,
+    chart.height,
+    chart.showLegend,
+    chart.showGrid,
+    chart.showValues,
+    chart.unit ?? '',
+  ]);
+  const [rendered, setRendered] = useState<{ image: HTMLImageElement | null; key: string }>({
+    image: null,
+    key: '',
+  });
+  const image = rendered.image;
+  useTrackPendingImage(chart.id, visualKey, rendered.key === visualKey ? 'loaded' : 'loading');
 
   useEffect(() => {
     if (isSelected && transformerRef.current && groupRef.current) {
@@ -228,24 +256,19 @@ function ChartPrimitiveInner({
   useEffect(() => {
     let cancelled = false;
     const timer = setTimeout(() => {
-      void renderChartImage(chart).then((img) => {
-        if (!cancelled && img) setImage(img);
-      });
+      void renderChartImage(chart)
+        .catch(() => null)
+        .then((img) => {
+          // A failed render keeps the last image but stops the wait.
+          if (!cancelled) setRendered((prev) => ({ image: img ?? prev.image, key: visualKey }));
+        });
     }, 120);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [
-    chart.chartType,
-    chart.data,
-    chart.colors,
-    chart.width,
-    chart.height,
-    chart.showLegend,
-    chart.showGrid,
-    chart.showValues,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `visualKey` covers what the image shows
+  }, [visualKey]);
 
   const { width, height } = chart;
 
@@ -334,7 +357,8 @@ export const ChartPrimitive = memo(ChartPrimitiveInner, (prev, next) => {
     a.colors === b.colors &&
     a.showLegend === b.showLegend &&
     a.showGrid === b.showGrid &&
-    a.showValues === b.showValues
+    a.showValues === b.showValues &&
+    a.unit === b.unit
   );
 });
 
