@@ -28,6 +28,8 @@ export interface ChartPrimitiveProps {
 }
 
 const AXIS_TICK = { fontSize: 13, fill: '#40403f' };
+/** Value labels stay dark: in a light series colour they would vanish on white. */
+const VALUE_LABEL = { fill: AXIS_TICK.fill, fontSize: 14, fontWeight: 700 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildChartElement(recharts: any, chart: ChartInstance) {
@@ -59,25 +61,71 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
   };
 
   if (chartType === 'pie' || chartType === 'donut') {
-    const radius = Math.min(width, height) / 2 - 24;
+    // Recharts' <Legend> is HTML beside the <svg> and never reaches the image,
+    // so the legend is drawn here as SVG: a column right of the pie.
+    const legendRow = 24;
+    const legendWidth = showLegend ? Math.max(...data.map((d) => d.name.length)) * 7.5 + 22 : 0;
+    const pieWidth = width - legendWidth;
+    // Outside labels sit 20 px past the slice: room for them above, below and,
+    // as wide as the longest one (~8 px a bold character), to the sides.
+    const labelWidth = showValues
+      ? Math.max(
+          ...data.map(
+            (d) => (showLegend ? formatValue(d.value) : `${d.name} ${formatValue(d.value)}`).length
+          )
+        ) * 8
+      : 0;
+    const radius = Math.max(20, Math.min(pieWidth / 2 - 24 - labelWidth, height / 2 - 30));
+    const legendTop = height / 2 - (data.length * legendRow) / 2;
     return (
       <PieChart width={width} height={height}>
         <Pie
           data={data}
           dataKey="value"
           nameKey="name"
-          cx="50%"
+          cx={pieWidth / 2}
           cy="50%"
           outerRadius={radius}
           innerRadius={chartType === 'donut' ? radius * 0.55 : 0}
           isAnimationActive={false}
-          label={showValues ? (p: { value: unknown }) => formatValue(p.value) : false}
+          label={
+            showValues
+              ? (p: {
+                  x: number;
+                  y: number;
+                  textAnchor: 'start' | 'middle' | 'end';
+                  name: string;
+                  value: unknown;
+                }) => (
+                  <text
+                    x={p.x}
+                    y={p.y}
+                    textAnchor={p.textAnchor}
+                    dominantBaseline="central"
+                    {...VALUE_LABEL}
+                  >
+                    {showLegend ? formatValue(p.value) : `${p.name} ${formatValue(p.value)}`}
+                  </text>
+                )
+              : false
+          }
         >
           {data.map((_, i) => (
             <Cell key={i} fill={color(i)} />
           ))}
         </Pie>
-        {showLegend ? <Legend /> : null}
+        {showLegend ? (
+          <g>
+            {data.map((d, i) => (
+              <g key={i} transform={`translate(${pieWidth + 8}, ${legendTop + i * legendRow})`}>
+                <rect width={14} height={14} y={3} rx={3} fill={color(i)} />
+                <text x={22} y={10} dominantBaseline="central" {...AXIS_TICK}>
+                  {d.name}
+                </text>
+              </g>
+            ))}
+          </g>
+        ) : null}
       </PieChart>
     );
   }
@@ -95,7 +143,9 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
           dot={{ r: 4, fill: color(0) }}
           isAnimationActive={false}
         >
-          {showValues ? <LabelList dataKey="value" formatter={formatValue} position="top" /> : null}
+          {showValues ? (
+            <LabelList dataKey="value" formatter={formatValue} {...VALUE_LABEL} position="top" />
+          ) : null}
         </Area>
       ) : (
         <Line
@@ -106,7 +156,9 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
           dot={{ r: 4, fill: color(0) }}
           isAnimationActive={false}
         >
-          {showValues ? <LabelList dataKey="value" formatter={formatValue} position="top" /> : null}
+          {showValues ? (
+            <LabelList dataKey="value" formatter={formatValue} {...VALUE_LABEL} position="top" />
+          ) : null}
         </Line>
       );
     const Wrapper = chartType === 'area' ? AreaChart : LineChart;
@@ -169,6 +221,7 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
           <LabelList
             dataKey="value"
             formatter={formatValue}
+            {...VALUE_LABEL}
             position={horizontal ? 'right' : 'top'}
           />
         ) : null}
@@ -191,7 +244,8 @@ async function renderChartImage(chart: ChartInstance): Promise<HTMLImageElement 
   let svg: SVGSVGElement | null = null;
   for (let i = 0; i < 8; i++) {
     await raf();
-    svg = container.querySelector('svg');
+    // The chart's own surface — a legend brings icon <svg>s of its own, ahead of it.
+    svg = container.querySelector('.recharts-wrapper > svg');
     if (svg && svg.querySelector('path, rect, line, circle, text')) break;
   }
 
