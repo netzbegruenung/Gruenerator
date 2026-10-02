@@ -2,6 +2,7 @@ import { useHiddenAgentIdentifiers } from '@gruenerator/chat';
 import { type Agent } from '@gruenerator/shared/agents';
 import { useMemo } from 'react';
 
+import { useAuthBootstrap } from '../../hooks/useAuthBootstrapped';
 import { useUserAgents } from '../agents/api';
 
 import { buildFeatureIndex, type FeatureHit } from './featureIndex';
@@ -18,8 +19,11 @@ const NO_AGENTS: Agent[] = [];
  */
 export function useFeatureIndex(): FeatureHit[] {
   const locale = useAuthStore((state) => state.locale);
+  const { isAuthenticated } = useAuthBootstrap();
   const { data: userAgents = NO_AGENTS } = useUserAgents();
-  const hiddenAgentIdentifiers = useHiddenAgentIdentifiers();
+  // Die Suche ist auch auf öffentlichen Seiten offen; der Endpunkt verlangt
+  // Login, und ein Gast bekäme nur einen 401 (GlitchTip 673).
+  const hiddenAgentIdentifiers = useHiddenAgentIdentifiers(isAuthenticated);
   const hiddenKey = hiddenAgentIdentifiers.join(',');
   return useMemo(
     () =>
