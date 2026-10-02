@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 
+import { isEmbedded } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
 
 import { webAppDocsAdapter } from './docsAdapter';
@@ -62,9 +63,14 @@ export default function CollabDocRoute() {
       : subtype === 'presentations'
         ? PresentationsEditorPage
         : DocsEditorPage;
-  return (
+  const editor = (
     <Suspense fallback={<EditorSkeleton />}>
       <Editor />
     </Suspense>
   );
+  // Embedded, the route renders in `noChrome`, whose <main> only has a
+  // min-height — the editors' `h-full` then resolves to auto and the sheet
+  // grid and the slide canvas collapse. Give them the viewport like
+  // `immersive` does.
+  return isEmbedded() ? <div className="h-dvh">{editor}</div> : editor;
 }
