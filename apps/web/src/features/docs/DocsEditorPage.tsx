@@ -954,7 +954,7 @@ function EditorContent() {
             onClose={() => setActiveSidebar(null)}
             closeLabel="KI-Chat schließen"
             placement="inline"
-            tourId="docs-chat"
+            dataTour="docs-chat"
           >
             <Suspense fallback={null}>
               <DocsChatPanel

@@ -19,7 +19,7 @@ interface EditorChatPanelProps {
   closeLabel: string;
   /** `inline`: close button only on mobile. `overlay`: header bar with an always-visible close. */
   placement: keyof typeof PLACEMENT_CLASS;
-  tourId?: string;
+  dataTour?: string;
   children: ReactNode;
 }
 
@@ -29,11 +29,11 @@ export function EditorChatPanel({
   onClose,
   closeLabel,
   placement,
-  tourId,
+  dataTour,
   children,
 }: EditorChatPanelProps) {
   return (
-    <aside data-tour={tourId} className={open ? PLACEMENT_CLASS[placement] : 'hidden'}>
+    <aside data-tour={dataTour} className={open ? PLACEMENT_CLASS[placement] : 'hidden'}>
       {placement === 'overlay' ? (
         <>
           <div className="flex items-center justify-end p-2 border-b border-grey-200 dark:border-grey-700 shrink-0">

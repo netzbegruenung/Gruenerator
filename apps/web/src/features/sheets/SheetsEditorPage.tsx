@@ -366,7 +366,7 @@ function SheetsEditorContent() {
             onClose={() => setChatOpen(false)}
             closeLabel="Chat schließen"
             placement="inline"
-            tourId="sheets-chat"
+            dataTour="sheets-chat"
           >
             <SheetsChatPanel
               documentId={id}

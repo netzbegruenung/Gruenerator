@@ -400,7 +400,7 @@ function PresentationsEditorContent() {
             onClose={() => setChatOpen(false)}
             closeLabel="Chat schließen"
             placement="inline"
-            tourId="presentations-chat"
+            dataTour="presentations-chat"
           >
             <PresentationsChatPanel
               documentId={id}
