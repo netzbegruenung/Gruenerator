@@ -156,7 +156,7 @@ export default function BildEditorV2Page() {
             Was möchtest du erschaffen?
           </h1>
           <div style={{ width: '100%', maxWidth: 680 }}>
-            <BevComposer bev={bev} />
+            <BevComposer bev={bev} examples />
           </div>
           <div style={{ width: '100%', maxWidth: 680 }}>
             <UploadZone

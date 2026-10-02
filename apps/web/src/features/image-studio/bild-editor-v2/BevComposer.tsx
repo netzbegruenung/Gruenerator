@@ -417,8 +417,9 @@ function TriggerButton({
   );
 }
 
-export function BevComposer({ bev }: { bev: BildEditorV2 }) {
-  const { mode, prompt, setPrompt, submit, generating, error, active, settings, screen } = bev;
+/** `examples`: the start screen's composer offers starting points; the result screen's hidden twin does not. */
+export function BevComposer({ bev, examples = false }: { bev: BildEditorV2; examples?: boolean }) {
+  const { mode, prompt, setPrompt, submit, generating, error, active, settings } = bev;
 
   let belowRow: ReactNode;
   if (mode === 'bearbeiten' || mode === 'sharepic') {
@@ -457,7 +458,7 @@ export function BevComposer({ bev }: { bev: BildEditorV2 }) {
       {...(mode === 'sharepic' && {
         // A photo alone is a request too.
         canSubmit: prompt.trim().length >= 3 || bev.references.length > 0,
-        ...(screen === 'start' && { examples: SHAREPIC_EXAMPLES }),
+        ...(examples && { examples: SHAREPIC_EXAMPLES }),
       })}
       isLoading={generating}
       disabled={generating}

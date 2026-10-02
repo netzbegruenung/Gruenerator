@@ -155,7 +155,7 @@ describe('BevComposer in Sharepic mode', () => {
         <button type="button" onClick={() => bev.addReferences([jpg('foto.jpg')])}>
           Foto anhängen
         </button>
-        <BevComposer bev={bev} />
+        <BevComposer bev={bev} examples />
       </>
     );
   }
