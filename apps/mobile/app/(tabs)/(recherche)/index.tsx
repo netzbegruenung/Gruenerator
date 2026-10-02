@@ -152,8 +152,8 @@ export default function NotebooksScreen() {
     [router]
   );
 
-  // The hero composer starts a notebook-scoped chat (chat-conversation already
-  // scopes to `notebookId` and auto-sends `initialMessage`). Route Austrian users
+  // The hero composer starts a notebook chat (`notebook-chat` scopes to
+  // `notebookId` and auto-sends `initialMessage`). Route Austrian users
   // to their aggregate — Austria is a first-class locale.
   const handleHeroSend = useCallback(
     (text: string) => {
@@ -169,11 +169,7 @@ export default function NotebooksScreen() {
         if (match) notebookId = match.id;
       }
       router.push(
-        routeWithParams('/(focused)/chat-conversation', {
-          threadId: 'new',
-          notebookId,
-          initialMessage: text,
-        })
+        routeWithParams('/(focused)/notebook-chat', { notebookId, initialMessage: text })
       );
     },
     [router, locale]

@@ -5,8 +5,8 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../theme';
 
-import type { ResearchResult } from '../../hooks/notebook/useNotebookResearch';
 import type { Theme } from '../../theme/colors';
+import type { ResearchResult } from '@gruenerator/contracts';
 
 interface Props {
   result: ResearchResult;

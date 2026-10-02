@@ -1,10 +1,13 @@
-import { DEFAULT_NOTEBOOK_ANSWER_MODE, DEFAULT_NOTEBOOK_DEPTH } from '@gruenerator/chat';
+import {
+  DEFAULT_NOTEBOOK_ANSWER_MODE,
+  DEFAULT_NOTEBOOK_DEPTH,
+  NOTEBOOK_COMPOSER_MODES,
+  type NotebookComposerMode,
+} from '@gruenerator/chat';
 import {
   chatBackgroundSchema,
-  notebookAnswerModeSchema,
   notebookDepthSchema,
   type ChatBackground,
-  type NotebookAnswerMode,
   type NotebookDepth,
 } from '@gruenerator/contracts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -66,9 +69,10 @@ interface PreferencesState {
    * not change per notebook.
    */
   notebookDepth: NotebookDepth;
-  /** Notebook answer mode (Automatisch/Chat/Präzision) — a standing preference
-   *  like the depth, for the same reason. */
-  notebookAnswerMode: NotebookAnswerMode;
+  /** Notebook composer mode (Magic/Chat/Präzision/Manuell) — a standing
+   *  preference like the depth, for the same reason. `manuell` is a client
+   *  mode; what goes on the wire is `toNotebookAnswerMode(...)`. */
+  notebookAnswerMode: NotebookComposerMode;
 }
 
 interface PreferencesActions {
@@ -77,7 +81,7 @@ interface PreferencesActions {
   setPerformanceMode: (enabled: boolean) => Promise<void>;
   setChatBackground: (background: ChatBackground) => Promise<void>;
   setNotebookDepth: (depth: NotebookDepth) => Promise<void>;
-  setNotebookAnswerMode: (mode: NotebookAnswerMode) => Promise<void>;
+  setNotebookAnswerMode: (mode: NotebookComposerMode) => Promise<void>;
 }
 
 type PreferencesStore = PreferencesState & PreferencesActions;
@@ -107,7 +111,7 @@ export const usePreferencesStore = create<PreferencesStore>()((set) => ({
       // been dropped from the enum since.
       const background = chatBackgroundSchema.safeParse(storedBackground);
       const depth = notebookDepthSchema.safeParse(storedDepth);
-      const answerMode = notebookAnswerModeSchema.safeParse(storedAnswerMode);
+      const answerMode = NOTEBOOK_COMPOSER_MODES.find((m) => m.mode === storedAnswerMode)?.mode;
       const mode: ThemeMode =
         storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system'
           ? storedTheme
@@ -118,7 +122,7 @@ export const usePreferencesStore = create<PreferencesStore>()((set) => ({
         performanceMode: storedPerformance === 'true',
         chatBackground: background.success ? background.data : null,
         notebookDepth: depth.success ? depth.data : DEFAULT_NOTEBOOK_DEPTH,
-        notebookAnswerMode: answerMode.success ? answerMode.data : DEFAULT_NOTEBOOK_ANSWER_MODE,
+        notebookAnswerMode: answerMode ?? DEFAULT_NOTEBOOK_ANSWER_MODE,
         isLoading: false,
       });
     } catch {

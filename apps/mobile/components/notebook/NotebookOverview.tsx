@@ -13,10 +13,9 @@ import { StatisticsSection } from './StatisticsSection';
 import type { Theme } from '../../theme/colors';
 
 /**
- * The notebook "hub" shown before the user runs a search — recent documents and
- * statistics, collapsed behind a "Mehr anzeigen" toggle to keep the Recherche
- * landing minimal. Each section self-hides when it has no data; the notebook's
- * Landesverband agents live in their own "Agenten" tab, not here.
+ * The notebook "hub" shown before the user runs a search — the notebook's
+ * Agents, recent documents and statistics, each behind its own toggle to keep
+ * the landing minimal. Each section self-hides when it has no data.
  */
 export function NotebookOverview({
   notebookId,

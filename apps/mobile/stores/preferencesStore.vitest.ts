@@ -188,6 +188,15 @@ describe('notebookAnswerMode', () => {
     expect(usePreferencesStore.getState().notebookAnswerMode).toBe(mode);
   });
 
+  it('round-trips the client-only manuell mode', async () => {
+    await usePreferencesStore.getState().setNotebookAnswerMode('manuell');
+
+    usePreferencesStore.setState({ notebookAnswerMode: DEFAULT_NOTEBOOK_ANSWER_MODE });
+    await usePreferencesStore.getState().loadPreferences();
+
+    expect(usePreferencesStore.getState().notebookAnswerMode).toBe('manuell');
+  });
+
   it('starts on auto when nothing was ever chosen', async () => {
     await usePreferencesStore.getState().loadPreferences();
     expect(usePreferencesStore.getState().notebookAnswerMode).toBe('auto');

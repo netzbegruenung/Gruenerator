@@ -5,6 +5,7 @@ import {
   useAui,
   useAuiState,
 } from '@assistant-ui/react-native';
+import { getNotebookCollectionId, getThreadType } from '@gruenerator/chat';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
@@ -20,6 +21,7 @@ import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { DRAWER_MESH } from '../../theme/chatBackgrounds';
 import { route, routeWithParams, type AppRoute } from '../../types/routes';
+import { threadRoute } from '../../utils/threadRoute';
 import { ProfileAvatar } from '../common';
 import { MeshSurface } from '../common/MeshSurface';
 import { MenuIcon } from '../icons/WebMirrorIcons';
@@ -89,7 +91,13 @@ const ThreadItemBody = memo(function ThreadItemBody({
     // drawer, so closing it reveals the conversation directly instead of briefly
     // flashing the screen underneath (looks like a double navigation otherwise).
     if (remoteId) {
-      router.push(routeWithParams('/(focused)/chat-conversation', { threadId: remoteId }));
+      router.push(
+        threadRoute({
+          id: remoteId,
+          threadType: getThreadType(remoteId),
+          notebookCollectionId: getNotebookCollectionId(remoteId),
+        })
+      );
     }
     onSelect();
   }, [aui, onSelect, router]);

@@ -158,6 +158,17 @@ const NOTEBOOK_RESEARCH_COLLECTIONS = {
 export const getResearchCollectionIds = (notebookId: string): string[] =>
   (NOTEBOOK_RESEARCH_COLLECTIONS as Record<string, string[]>)[notebookId] ?? [];
 
+/**
+ * The notebook a stored conversation belongs to. A thread remembers the
+ * collection it asked (`notebook_collection_id`), not the notebook: a system
+ * collection maps back to the notebook that asks exactly it, anything else (a
+ * user notebook's UUID) already is the notebook id.
+ */
+export const notebookIdForCollection = (collectionId: string): string =>
+  Object.entries(NOTEBOOK_RESEARCH_COLLECTIONS).find(
+    ([, ids]) => ids.length === 1 && ids[0] === collectionId
+  )?.[0] ?? collectionId;
+
 const audienceOf = (id: string): 'de-DE' | 'de-AT' | 'all' =>
   NOTEBOOK_REGISTRY.find((nb) => nb.id === id)?.audience ?? 'all';
 

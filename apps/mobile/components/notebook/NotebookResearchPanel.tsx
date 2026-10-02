@@ -1,12 +1,22 @@
 import {
   DEFAULT_NOTEBOOK_ANSWER_MODE,
   DEFAULT_NOTEBOOK_DEPTH,
-  NOTEBOOK_ANSWER_MODES,
+  NOTEBOOK_COMPOSER_MODES,
   NOTEBOOK_DEPTHS,
-  notebookAnswerModeDef,
+  composerModeRunsLiveSearch,
+  composerSubmitAction,
+  notebookComposerModeDef,
   notebookDepthDef,
   useFetchFullText,
 } from '@gruenerator/chat';
+import { type ResearchResult } from '@gruenerator/contracts';
+import {
+  LIVE_SEARCH_MIN_LENGTH,
+  liveSearchDelayMs,
+  type ResearchSearchMode as SearchMode,
+  type ResearchSortOption as SortOption,
+} from '@gruenerator/shared/api';
+import { useLiveResearch } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -15,7 +25,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TextInput,
   Pressable,
   ActivityIndicator,
   Keyboard,
@@ -25,12 +34,6 @@ import { useShallow } from 'zustand/shallow';
 
 import { getResearchCollectionIds } from '../../config/notebooksConfig';
 import { useNotebookFilters } from '../../hooks/notebook/useNotebookFilters';
-import {
-  useNotebookResearch,
-  type ResearchResult,
-  type SearchMode,
-  type SortOption,
-} from '../../hooks/notebook/useNotebookResearch';
 import { useNotebookFilterStore } from '../../stores/notebookFilterStore';
 import { usePreferencesStore } from '../../stores/preferencesStore';
 import {
@@ -48,14 +51,13 @@ import { BottomSheet } from '../common/BottomSheet';
 import { Composer } from '../common/Composer';
 import { Fab } from '../common/Fab';
 
+import { AllNotebooksSearchSheet } from './AllNotebooksSearchSheet';
 import { NotebookAnswerModeSheet, useAnswerModeAccessory } from './NotebookAnswerModeSheet';
 import { NotebookOverview } from './NotebookOverview';
 import { ResearchResultCard } from './ResearchResultCard';
 
 import type { Theme } from '../../theme/colors';
 import type { Citation } from '@gruenerator/chat';
-
-type InputMode = 'recherche' | 'chat';
 
 interface Props {
   notebookId: string;
@@ -149,24 +151,21 @@ function OptionChip({
 }
 
 export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }: Props) {
+  // The draft as typed, and what the live search runs on: the same text, held
+  // back until a word is finished (or submitted).
+  const [text, setText] = useState('');
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<SearchMode>('hybrid');
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
   const [selected, setSelected] = useState<ResearchResult | null>(null);
-  // What the hits were searched for — `query` is the live input and may have
-  // moved on by the time a hit is opened.
-  const [searchedQuery, setSearchedQuery] = useState('');
   const [filtersSheetVisible, setFiltersSheetVisible] = useState(false);
   const [answerModeSheetVisible, setAnswerModeSheetVisible] = useState(false);
-  // Chat is the default input (a composer that hands off to the chat screen, like
-  // the start screen); a search FAB switches to inline manuelle Recherche.
-  const [inputMode, setInputMode] = useState<InputMode>('chat');
+  const [allSearchVisible, setAllSearchVisible] = useState(false);
 
   const router = useRouter();
   const fetchFullText = useFetchFullText();
   // Facets and sources live in a store, not in this component: asking hands the
-  // question to another screen, and the chat runtime builds the request body from
-  // outside the panel.
+  // question to another screen, and the notebook chat reads them from there.
   const { keywordFilters, collectionIds } = useNotebookFilterStore(
     useShallow((st) => ({
       keywordFilters: st.keywordFilters,
@@ -183,7 +182,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   const answerMode = usePreferencesStore((st) => st.notebookAnswerMode);
   const setAnswerMode = usePreferencesStore((st) => st.setNotebookAnswerMode);
   const openAnswerModeSheet = useCallback(() => setAnswerModeSheetVisible(true), []);
-  const answerModeAccessory = useAnswerModeAccessory(openAnswerModeSheet);
+  const answerModeAccessory = useAnswerModeAccessory(openAnswerModeSheet, { withManual: true });
   const availableCollections = getResearchCollectionIds(notebookId);
 
   useEffect(() => {
@@ -195,65 +194,69 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   const accent = fabTone.icon;
   const onAccent = fabTone.background;
 
-  const handleChatSend = useCallback(
-    (text: string) => {
-      router.push(
-        routeWithParams('/(focused)/chat-conversation', {
-          threadId: 'new',
-          notebookId,
-          initialMessage: text,
-        })
-      );
-    },
-    [router, notebookId]
-  );
+  // Web's start page: Magic and Manuell search the sources while the person
+  // types; Magic then sends a question to the chat and keeps keywords a search.
+  const runsLiveSearch = composerModeRunsLiveSearch(answerMode);
+  const submitAction = composerSubmitAction(answerMode, text);
+  // What the options sheet shows: the answer settings wherever a chat can
+  // start, search mode and sort wherever the sources are searched.
+  const asksModel = answerMode !== 'manuell';
 
-  // Both modes sit on the notebook's pink gradient (web parity) — the green wash
-  // that used to mark manuelle Recherche fought that background.
-  const toggleMode = useCallback(() => {
-    setInputMode((m) => (m === 'chat' ? 'recherche' : 'chat'));
-  }, []);
-  const { search, results, metadata, isLoading, hasSearched, error } = useNotebookResearch(
-    notebookId,
-    kind
-  );
+  useEffect(() => {
+    const trimmed = text.trim();
+    const timer = setTimeout(() => setQuery(trimmed), liveSearchDelayMs(text));
+    return () => clearTimeout(timer);
+  }, [text]);
+
   const { filterFields } = useNotebookFilters(notebookId, kind);
   const keywordFields = filterFields.filter(
     (f) => f.type === 'keyword' && f.values && f.values.length > 0
   );
   const keywordFilterCount = Object.values(keywordFilters).reduce((s, a) => s + a.length, 0);
-  // Beide Composer öffnen dasselbe Sheet, aber nicht alles darin wirkt auf
-  // beide: die Suchtiefe steuert nur die KI-Antwort (Wire-Feld `mode` auf
-  // /notebook/stream), Suchmodus und Sortierung nur die manuelle Suche — deren
-  // Contract kennt gar kein Tiefenfeld. Wer in der Recherche an der Tiefe
-  // drehte, sah deshalb nichts passieren.
-  const isChat = inputMode === 'chat';
-  // Eine Zahl über alles, was im aktuellen Kontext tatsächlich etwas ändert.
+  // A user notebook is scoped by its id on its own route, which has no facets;
+  // a system notebook searches its `*-system` collections, narrowed by the
+  // source picker.
+  const live = useLiveResearch({
+    query,
+    mode,
+    sortBy,
+    ...(kind === 'user'
+      ? { notebookId }
+      : {
+          collectionIds: collectionIds ?? availableCollections,
+          ...(keywordFilterCount > 0 && { filters: keywordFilters }),
+        }),
+    enabled: runsLiveSearch,
+  });
+  const showsResults = runsLiveSearch && query.length >= LIVE_SEARCH_MIN_LENGTH;
+
+  // Eine Zahl über alles, was im aktuellen Modus tatsächlich etwas ändert.
   const activeCount =
-    (isChat ? 0 : (mode !== 'hybrid' ? 1 : 0) + (sortBy !== 'relevance' ? 1 : 0)) +
-    (isChat && depth !== DEFAULT_NOTEBOOK_DEPTH ? 1 : 0) +
-    (isChat && answerMode !== DEFAULT_NOTEBOOK_ANSWER_MODE ? 1 : 0) +
+    (runsLiveSearch ? (mode !== 'hybrid' ? 1 : 0) + (sortBy !== 'relevance' ? 1 : 0) : 0) +
+    (asksModel && depth !== DEFAULT_NOTEBOOK_DEPTH ? 1 : 0) +
+    (answerMode !== DEFAULT_NOTEBOOK_ANSWER_MODE ? 1 : 0) +
     (collectionIds ? 1 : 0) +
     keywordFilterCount;
 
-  const runSearch = useCallback(
-    (overrides?: {
-      mode?: SearchMode;
-      sortBy?: SortOption;
-      filters?: Record<string, string[]>;
-    }) => {
-      const trimmed = query.trim();
-      if (trimmed.length < 2) return;
-      Keyboard.dismiss();
-      setSearchedQuery(trimmed);
-      search({
-        query: trimmed,
-        mode: overrides?.mode ?? mode,
-        sortBy: overrides?.sortBy ?? sortBy,
-        filters: overrides?.filters ?? keywordFilters,
-      });
+  const handleSubmit = useCallback(
+    (submitted: string) => {
+      if (composerSubmitAction(answerMode, submitted) === 'search') {
+        // Search now, without waiting out the debounce — and keep the text.
+        Keyboard.dismiss();
+        setQuery(submitted);
+        return false;
+      }
+      router.push(
+        routeWithParams('/(focused)/notebook-chat', {
+          notebookId,
+          initialMessage: submitted,
+          ...(notebookTitle && { title: notebookTitle }),
+        })
+      );
+      setText('');
+      return undefined;
     },
-    [query, mode, sortBy, keywordFilters, search]
+    [answerMode, router, notebookId, notebookTitle]
   );
 
   // A system-collection hit reads in the app; a user-notebook document keeps
@@ -268,28 +271,25 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         routeWithParams('/(focused)/notebook-reader', {
           collectionId: result.collection_id,
           sourceUrl: result.source_url,
-          query: searchedQuery,
+          query,
           title: result.title,
         })
       );
     },
-    [kind, router, searchedQuery]
+    [kind, router, query]
   );
 
   const resetFilters = () => {
     resetStoreFilters();
-    if (isChat) {
-      // Zählt hier in `activeCount`, also muss "Zurücksetzen" sie mitnehmen —
-      // obwohl sie als Einstellung das Sheet überlebt.
-      void setDepth(DEFAULT_NOTEBOOK_DEPTH);
-      void setAnswerMode(DEFAULT_NOTEBOOK_ANSWER_MODE);
-      return;
+    void setAnswerMode(DEFAULT_NOTEBOOK_ANSWER_MODE);
+    // Zählen hier in `activeCount`, also muss "Zurücksetzen" sie mitnehmen —
+    // obwohl sie als Einstellung das Sheet überlebt.
+    if (asksModel) void setDepth(DEFAULT_NOTEBOOK_DEPTH);
+    if (runsLiveSearch) {
+      setMode('hybrid');
+      setSortBy('relevance');
     }
-    setMode('hybrid');
-    setSortBy('relevance');
   };
-
-  const canSearch = query.trim().length >= 2;
 
   return (
     <View style={styles.container}>
@@ -311,72 +311,36 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
           </View>
         )}
 
-        {/* The input swaps with the mode: KI-Chat (card → hands off to the chat
-            screen) by default, manuelle Recherche (inline search) via the FAB. */}
-        {inputMode === 'chat' ? (
-          <View style={styles.chatComposer}>
-            <Composer
-              variant="bar"
-              placeholder={`Frag ${notebookTitle ?? 'dieses Notebook'}…`}
-              onSubmit={handleChatSend}
-              // Same sheet as manuelle Recherche — depth, sources and categories
-              // shape the KI answer too, so it has to be reachable from here.
-              onSettings={() => setFiltersSheetVisible(true)}
-              accessory={answerModeAccessory}
-            />
-          </View>
-        ) : (
-          <View
-            style={[styles.composer, { backgroundColor: theme.surface, borderColor: theme.border }]}
-          >
-            <TextInput
-              style={[styles.composerInput, { color: theme.text }]}
-              placeholder="In diesem Notebook recherchieren…"
-              placeholderTextColor={theme.textSecondary}
-              accessibilityLabel="In diesem Notebook recherchieren"
-              value={query}
-              onChangeText={setQuery}
-              onSubmitEditing={() => runSearch()}
-              returnKeyType="search"
-              autoCorrect={false}
-            />
-            <View style={styles.composerToolbar}>
-              <Pressable
-                onPress={() => setFiltersSheetVisible(true)}
-                style={styles.iconButton}
-                hitSlop={6}
-                accessibilityRole="button"
-                accessibilityLabel="Filter und Sortierung öffnen"
-              >
-                <Ionicons
-                  name="options-outline"
-                  size={22}
-                  color={activeCount > 0 ? accent : theme.textSecondary}
-                />
-                {activeCount > 0 && (
-                  <View style={[styles.filterBadge, { backgroundColor: accent }]}>
-                    <Text style={styles.filterBadgeText}>{activeCount}</Text>
-                  </View>
-                )}
-              </Pressable>
-              <Pressable
-                onPress={() => runSearch()}
-                style={[styles.sendButton, { backgroundColor: canSearch ? accent : theme.border }]}
-                disabled={!canSearch}
-                accessibilityRole="button"
-                accessibilityLabel="Suchen"
-                accessibilityState={{ disabled: !canSearch }}
-              >
-                <Ionicons name="arrow-forward" size={20} color={onAccent} />
-              </Pressable>
-            </View>
-          </View>
-        )}
+        <View style={styles.chatComposer}>
+          <Composer
+            variant="bar"
+            placeholder={
+              answerMode === 'manuell'
+                ? 'In diesem Notebook suchen…'
+                : `Frag ${notebookTitle ?? 'dieses Notebook'}…`
+            }
+            onSubmit={handleSubmit}
+            onTextChange={setText}
+            submitAs={submitAction === 'search' ? 'search' : 'send'}
+            showMentions={false}
+            // Depth, sources and categories shape the answer and the search
+            // alike, so the sheet is reachable from here in every mode.
+            onSettings={() => setFiltersSheetVisible(true)}
+            accessory={answerModeAccessory}
+          />
+          {showsResults && (
+            <Text style={[styles.disclaimer, { color: theme.textSecondary }]}>
+              {submitAction === 'search'
+                ? 'Treffer kommen direkt aus den Quellen, ohne KI.'
+                : 'Senden stellt die Frage im Notebook-Chat.'}
+            </Text>
+          )}
+        </View>
 
         <View style={styles.body}>
-          {inputMode === 'recherche' && (isLoading || hasSearched) ? (
+          {showsResults ? (
             <>
-              {isLoading && (
+              {live.isPending && (
                 <View style={styles.centerState}>
                   <ActivityIndicator size="large" color={accent} />
                   <Text style={[styles.stateText, { color: theme.textSecondary }]}>
@@ -385,30 +349,31 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                 </View>
               )}
 
-              {error && !isLoading && (
+              {live.isError && (
                 <View style={[styles.errorBox, { backgroundColor: colors.error[500] + '15' }]}>
                   <Ionicons name="alert-circle" size={20} color={colors.error[500]} />
-                  <Text style={[styles.errorText, { color: colors.error[500] }]}>{error}</Text>
+                  <Text style={[styles.errorText, { color: colors.error[500] }]}>
+                    Suche fehlgeschlagen. Bitte erneut versuchen.
+                  </Text>
                 </View>
               )}
 
-              {metadata && !isLoading && (
+              {live.metadata && (
                 <Text style={[styles.metaText, { color: theme.textSecondary }]}>
-                  {metadata.totalResults} Ergebnisse in {metadata.timeMs} ms
+                  {live.metadata.totalResults} Ergebnisse in {live.metadata.timeMs} ms
                 </Text>
               )}
 
-              {!isLoading &&
-                results.map((result) => (
-                  <ResearchResultCard
-                    key={result.document_id}
-                    result={result}
-                    theme={theme}
-                    onPress={openHit}
-                  />
-                ))}
+              {live.results.map((result) => (
+                <ResearchResultCard
+                  key={`${result.collection_id ?? ''}:${result.document_id}`}
+                  result={result}
+                  theme={theme}
+                  onPress={openHit}
+                />
+              ))}
 
-              {hasSearched && !isLoading && results.length === 0 && !error && (
+              {!live.isPending && !live.isError && live.results.length === 0 && (
                 <View style={styles.centerState}>
                   <Ionicons name="document-outline" size={44} color={theme.textSecondary} />
                   <Text style={[styles.stateText, { color: theme.textSecondary }]}>
@@ -423,11 +388,11 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         </View>
       </ScrollView>
 
-      {/* FAB toggles the input between KI-Chat (default) and manuelle Recherche. */}
+      {/* Like web's Wissen composer: sources from every notebook at once. */}
       <Fab
-        icon={inputMode === 'chat' ? 'search' : 'chatbubbles'}
-        onPress={toggleMode}
-        accessibilityLabel={inputMode === 'chat' ? 'Manuelle Recherche' : 'KI-Chat'}
+        icon="search"
+        onPress={() => setAllSearchVisible(true)}
+        accessibilityLabel="Alle Notebooks durchsuchen"
         style={[styles.fab, { backgroundColor: fabTone.background }]}
         color={fabTone.icon}
       />
@@ -439,7 +404,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
       >
         <View style={styles.sheetHeader}>
           <Text style={[styles.sheetTitle, { color: theme.text }]}>
-            {isChat ? 'KI-Antwort' : 'Filter & Sortierung'}
+            {asksModel ? (runsLiveSearch ? 'Einstellungen' : 'KI-Antwort') : 'Filter & Sortierung'}
           </Text>
           {activeCount > 0 && (
             <Pressable
@@ -461,30 +426,28 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
           </Pressable>
         </View>
         <ScrollView style={styles.sheetScroll}>
-          {isChat && (
-            <View style={styles.filterSection}>
-              <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Antwortmodus</Text>
-              <View style={styles.filterValues}>
-                {NOTEBOOK_ANSWER_MODES.map((m) => (
-                  <OptionChip
-                    key={m.mode}
-                    label={m.label}
-                    active={answerMode === m.mode}
-                    onPress={() => void setAnswerMode(m.mode)}
-                    theme={theme}
-                    accent={accent}
-                    onAccent={onAccent}
-                  />
-                ))}
-              </View>
-              <Text style={[styles.filterSectionHint, { color: theme.textSecondary }]}>
-                {notebookAnswerModeDef(answerMode).description}
-              </Text>
+          <View style={styles.filterSection}>
+            <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Antwortmodus</Text>
+            <View style={styles.filterValues}>
+              {NOTEBOOK_COMPOSER_MODES.map((m) => (
+                <OptionChip
+                  key={m.mode}
+                  label={m.label}
+                  active={answerMode === m.mode}
+                  onPress={() => void setAnswerMode(m.mode)}
+                  theme={theme}
+                  accent={accent}
+                  onAccent={onAccent}
+                />
+              ))}
             </View>
-          )}
-          {/* Nur im KI-Chat: die drei Stufen, die Web am Notebook-Composer
-              zeigt. Auf die manuelle Recherche wirken sie nicht. */}
-          {isChat && (
+            <Text style={[styles.filterSectionHint, { color: theme.textSecondary }]}>
+              {notebookComposerModeDef(answerMode).description}
+            </Text>
+          </View>
+          {/* Nur wo eine KI-Antwort entstehen kann: die drei Stufen, die Web am
+              Notebook-Composer zeigt. Auf die Trefferliste wirken sie nicht. */}
+          {asksModel && (
             <View style={styles.filterSection}>
               <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Suchtiefe</Text>
               <View style={styles.filterValues}>
@@ -527,9 +490,9 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
             </View>
           )}
 
-          {/* Nur in der manuellen Recherche: beide gehen als `mode`/`sortBy` in
-              die Suchanfrage und sagen der KI-Antwort nichts. */}
-          {!isChat && (
+          {/* Nur wo Quellen durchsucht werden: beide gehen als `mode`/`sortBy`
+              in die Suchanfrage und sagen der KI-Antwort nichts. */}
+          {runsLiveSearch && (
             <>
               <View style={styles.filterSection}>
                 <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Suchmodus</Text>
@@ -611,12 +574,8 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
           ))}
         </ScrollView>
         <Pressable
-          onPress={() => {
-            setFiltersSheetVisible(false);
-            // Im Chat gibt es nichts erneut auszuführen — die Einstellung wirkt
-            // auf die nächste Frage.
-            if (!isChat) runSearch();
-          }}
+          // The live search re-runs on its own: every option is in its key.
+          onPress={() => setFiltersSheetVisible(false)}
           style={[styles.applyButton, { backgroundColor: accent }]}
           accessibilityRole="button"
         >
@@ -630,6 +589,12 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         visible={answerModeSheetVisible}
         onClose={() => setAnswerModeSheetVisible(false)}
         theme={theme}
+        withManual
+      />
+
+      <AllNotebooksSearchSheet
+        visible={allSearchVisible}
+        onClose={() => setAllSearchVisible(false)}
       />
 
       <CitationDetailSheet
@@ -650,6 +615,12 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.medium,
     marginTop: spacing.medium,
   },
+  disclaimer: {
+    ...typography.caption,
+    fontFamily: BODY_FONT,
+    marginTop: spacing.xsmall,
+    marginHorizontal: spacing.small,
+  },
   fab: {
     bottom: spacing.xlarge,
   },
@@ -666,61 +637,6 @@ const styles = StyleSheet.create({
     fontFamily: HEADING_FONT_BOLD,
     fontSize: 26,
     marginTop: 2,
-  },
-  // One narrow row, like web's notebook composer — the tall multiline card ate a
-  // third of the screen before a single result was on it.
-  composer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 56,
-    borderRadius: 28,
-    borderWidth: 1,
-    paddingLeft: spacing.medium,
-    paddingRight: spacing.xsmall,
-    marginHorizontal: spacing.medium,
-    marginTop: spacing.medium,
-    gap: spacing.xsmall,
-  },
-  composerInput: {
-    ...typography.body,
-    flex: 1,
-    fontSize: 16,
-    padding: 0,
-  },
-  composerToolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xxsmall,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterBadge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    minWidth: 16,
-    height: 16,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  filterBadgeText: {
-    color: colors.white,
-    fontFamily: BODY_FONT,
-    fontSize: 10,
-    fontWeight: '700',
   },
   scroll: {
     flex: 1,

@@ -53,6 +53,10 @@ interface Props {
   /** Make the thread + composer backgrounds transparent so a screen-level
    *  background (e.g. the notebook gradient) shows through for full immersion. */
   transparent?: boolean;
+  /** No "+" sheet and no `@`-mentions — a notebook conversation asks its
+   *  sources, it has no tools or attachments to pick (web's notebook composer
+   *  hides them too). */
+  bareComposer?: boolean;
 }
 
 const EmptyState = memo(function EmptyState({
@@ -104,6 +108,7 @@ export const AssistantThread = memo(function AssistantThread({
   keyboardVerticalOffset = 0,
   composerAccessory,
   transparent,
+  bareComposer = false,
 }: Props) {
   const resolvedTheme = useTheme();
   const theme: Theme = themeProp ?? resolvedTheme;
@@ -170,7 +175,8 @@ export const AssistantThread = memo(function AssistantThread({
           <Composer
             binding="runtime"
             variant="bar"
-            showActionSheet
+            showActionSheet={!bareComposer}
+            showMentions={!bareComposer}
             theme={theme}
             style={[
               composerEdge,
