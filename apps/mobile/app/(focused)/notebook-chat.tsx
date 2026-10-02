@@ -1,6 +1,6 @@
 import { NOTEBOOK_REGISTRY } from '@gruenerator/shared/notebooks';
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { AssistantThread } from '../../components/chat';
@@ -11,6 +11,7 @@ import {
   NotebookAnswerModeSheet,
   useAnswerModeAccessory,
 } from '../../components/notebook/NotebookAnswerModeSheet';
+import { NotebookChatFilterChips } from '../../components/notebook/NotebookChatFilterChips';
 import { MobileNotebookChatProvider } from '../../providers/MobileNotebookChatProvider';
 import { lightTheme, darkTheme } from '../../theme';
 
@@ -34,6 +35,10 @@ export default function NotebookChatScreen() {
   const [answerModeSheetVisible, setAnswerModeSheetVisible] = useState(false);
   const openAnswerModeSheet = useCallback(() => setAnswerModeSheetVisible(true), []);
   const answerModeAccessory = useAnswerModeAccessory(openAnswerModeSheet);
+  const filterChips = useMemo(
+    () => <NotebookChatFilterChips notebookId={notebookId} />,
+    [notebookId]
+  );
 
   return (
     <ScreenScaffold
@@ -48,6 +53,7 @@ export default function NotebookChatScreen() {
           transparent
           bareComposer
           composerAccessory={answerModeAccessory}
+          composerHeader={filterChips}
         />
         {!threadId && initialMessage && (
           <InitialTurnSender message={initialMessage} drainAttachments={false} />
