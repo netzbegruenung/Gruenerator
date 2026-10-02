@@ -25,6 +25,11 @@
       "require": "./src/formats/index.ts",
       "types": "./src/formats/index.ts"
     },
+    "./composer": {
+      "import": "./src/composer/index.ts",
+      "require": "./src/composer/index.ts",
+      "types": "./src/composer/index.ts"
+    },
     "./configs/*": "./src/configs/*"
   },
   "scripts": {
