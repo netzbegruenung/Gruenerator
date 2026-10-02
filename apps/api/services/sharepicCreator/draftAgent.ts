@@ -83,6 +83,9 @@ function textsOf(slide: SharepicSlide): string[] {
         return [item.text, item.name, item.funktion ?? '', item.quelle ?? ''];
       case 'frage':
         return [item.text, item.von ?? ''];
+      // The values are checked on their own, with a repair hint that fits a chart.
+      case 'diagramm':
+        return [item.titel ?? '', item.einheit ?? '', ...item.werte.map((w) => w.name)];
       default:
         return [item.text];
     }
@@ -262,6 +265,15 @@ export function validateDraft(
         }
       }
     }
+    for (const item of slide.items) {
+      if (item.type !== 'diagramm') continue;
+      const invented = item.werte.filter((w) => !givenDigits.has(digits(String(w.wert))));
+      if (invented.length) {
+        errors.push(
+          `${where}Diagrammwert ${invented.map((w) => `${w.wert} (${w.name})`).join(', ')} steht nicht im Auftrag – nur Zahlen aus dem Auftrag als werte, nichts umrechnen. Fehlen sie, kein diagramm.`
+        );
+      }
+    }
     for (const text of textsOf(slide)) {
       if (hasUnpairedAccentMark(text)) {
         errors.push(
@@ -323,7 +335,7 @@ const SLIDE_SCHEMA = {
     items: {
       type: 'array',
       description:
-        'Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…]} | {"type":"button","text"}. Einzelne Wörter mit ==…== hervorheben.',
+        'Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…]} | {"type":"button","text"} | {"type":"diagramm","art":"balken"|"balken-quer"|"linie"|"kreis"|"donut","werte":[{"name","wert":Zahl}, …2–8],"einheit"?:"%","titel"?}. Einzelne Wörter mit ==…== hervorheben.',
       items: { type: 'object' },
     },
     stoerer: { type: 'object', description: '{"text"} oder weglassen' },

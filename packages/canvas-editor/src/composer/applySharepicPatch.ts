@@ -22,6 +22,9 @@ function withText(item: SharepicItem, text: string): SharepicItem | null {
     case 'frage':
     case 'button':
       return { ...item, text };
+    // A chart's values come from the request; the review does not reword them.
+    case 'diagramm':
+      return null;
     case 'liste':
       return {
         ...item,
