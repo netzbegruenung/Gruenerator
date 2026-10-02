@@ -307,6 +307,59 @@ describe('quotes keep their speaker', () => {
     expect(!invented.ok && invented.error).toContain('Anna Muster');
   });
 
+  describe('quote taken from an interview brief', () => {
+    const interviewBrief =
+      'Interview mit Lena Hoffmann im Kasseler Boten: „Wer heute nicht investiert, zahlt morgen die Rechnung für alle. Das ist keine Ideologie.“';
+    const interviewDraft = (name: string, text: string) => ({
+      slides: [{ ...base, items: [{ type: 'zitat', text, name }] }],
+    });
+
+    it('rejects an invented name even without the word Zitat', () => {
+      const result = validateDraft(
+        interviewDraft('Anna Muster', 'Wer heute nicht investiert, zahlt morgen die Rechnung.'),
+        'de-DE',
+        interviewBrief
+      );
+      expect(!result.ok && result.error).toContain('Anna Muster');
+      expect(
+        validateDraft(
+          interviewDraft('Lena Hoffmann', 'Wer heute nicht investiert, zahlt morgen die Rechnung.'),
+          'de-DE',
+          interviewBrief
+        ).ok
+      ).toBe(true);
+    });
+
+    it('rejects quote words that are not in the brief', () => {
+      const result = validateDraft(
+        interviewDraft('Lena Hoffmann', 'Wer heute spart, gewinnt morgen die Wahl.'),
+        'de-DE',
+        interviewBrief
+      );
+      expect(!result.ok && result.error).toContain('nicht wörtlich');
+    });
+
+    it('accepts a quote shortened with […] and re-marked', () => {
+      const result = validateDraft(
+        interviewDraft(
+          'Lena Hoffmann',
+          'Wer heute **nicht investiert**, […] zahlt morgen die Rechnung für alle …'
+        ),
+        'de-DE',
+        interviewBrief
+      );
+      expect(result.ok).toBe(true);
+    });
+
+    it('rejects a bare domain the brief does not name', () => {
+      const draft = {
+        slides: [{ ...base, items: [{ type: 'absatz', text: 'Das ganze Interview auf faz.net' }] }],
+      };
+      expect(validateDraft(draft, 'de-DE', interviewBrief).ok).toBe(false);
+      expect(validateDraft(draft, 'de-DE', `${interviewBrief} Lesen auf faz.net`).ok).toBe(true);
+    });
+  });
+
   it('does not demand a zitat when the quote has no named speaker', () => {
     for (const brief of [
       'Zitat: „Klimaschutz ist Heimatschutz.“',
@@ -453,6 +506,44 @@ describe('quotes keep their speaker', () => {
     ];
     const result = validateReview({ ok: false, issues: [], patch }, [1], slides);
     expect(result.ok && result.value.patch).toEqual([{ op: 'set_position', position: 'unten' }]);
+  });
+
+  it('drops set_text on a zitat or frage', () => {
+    const slides = [
+      {
+        ...base,
+        items: [
+          { type: 'zitat', text: 'x', name: 'A' },
+          { type: 'frage', text: 'Warum?' },
+          { type: 'text', text: 'y' },
+        ],
+      },
+    ] as never;
+    const patch = [
+      { op: 'set_text', item: 0, text: 'neu' },
+      { op: 'set_text', item: 1, text: 'neu' },
+      { op: 'set_text', item: 2, text: 'neu' },
+    ];
+    const result = validateReview({ ok: false, issues: [], patch }, [3], slides);
+    expect(result.ok && result.value.patch).toEqual([{ op: 'set_text', item: 2, text: 'neu' }]);
+  });
+
+  it('keeps one zitat when a patch removes two', () => {
+    const slides = [
+      {
+        ...base,
+        items: [
+          { type: 'zitat', text: 'x', name: 'A' },
+          { type: 'zitat', text: 'z', name: 'B' },
+        ],
+      },
+    ] as never;
+    const patch = [
+      { op: 'remove_item', item: 0 },
+      { op: 'remove_item', item: 1 },
+    ];
+    const result = validateReview({ ok: false, issues: [], patch }, [2], slides);
+    expect(result.ok && result.value.patch).toEqual([{ op: 'remove_item', item: 0 }]);
   });
 
   it('keeps removals of other items and of a second zitat', () => {

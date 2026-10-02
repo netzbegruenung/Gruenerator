@@ -69,7 +69,8 @@ function fromZod<T>(schema: z.ZodType<T>, input: unknown): StructuredValidation<
   };
 }
 
-const NO_CONTACT = /(https?:\/\/|www\.|@[a-z0-9-]+\.[a-z]{2,})/i;
+const NO_CONTACT =
+  /(https?:\/\/|www\.|@[a-z0-9-]+\.[a-z]{2,}|\b[\w-]+\.(?:de|at|net|com|eu|org)\b)/i;
 
 function textsOf(slide: SharepicSlide): string[] {
   const texts = slide.items.flatMap((item) => {
@@ -150,6 +151,20 @@ function sourceInBrief(quelle: string, given: string): boolean {
   return words.some((w) => w.length >= 2 && !GENERIC_SOURCE_WORDS.has(w) && outside.includes(w));
 }
 
+/**
+ * Lowercased words without marks, quotes, punctuation and `[…]`/`…` cuts, so a
+ * shortened or re-marked quote still matches the brief word by word (order is
+ * not checked).
+ */
+function wordsOf(value: string): string[] {
+  return value
+    .replace(/\[(?:…|\.{3})\]|…/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .toLowerCase()
+    .split(' ')
+    .filter(Boolean);
+}
+
 const NUMBER = /\d+(?:[.,]\d+)*/g;
 /** `3.300` and `3300` are the same number — compare digits only. */
 const digits = (value: string) => value.replace(/[.,]/g, '');
@@ -170,21 +185,27 @@ export function validateDraft(
   });
   if (!base.ok) return base;
   const errors: string[] = [];
-  if (isQuoteBrief(given) && namesSpeaker(given)) {
-    const zitate = base.value.slides.flatMap((slide) =>
-      slide.items.filter((item) => item.type === 'zitat')
+  const zitate = base.value.slides.flatMap((slide) =>
+    slide.items.filter((item) => item.type === 'zitat')
+  );
+  if (isQuoteBrief(given) && namesSpeaker(given) && !zitate.length) {
+    errors.push(
+      'Der Auftrag ist ein Zitat: nimm ein zitat-Element mit text (wörtlich) und name (die Person aus dem Auftrag) – keine headline.'
     );
-    if (!zitate.length) {
+  }
+  // Any brief shape: a quote is attributed to a person, so both must come from the brief.
+  const givenWords = new Set(wordsOf(given));
+  for (const zitat of zitate) {
+    if (!given.includes(zitat.name)) {
       errors.push(
-        'Der Auftrag ist ein Zitat: nimm ein zitat-Element mit text (wörtlich) und name (die Person aus dem Auftrag) – keine headline.'
+        `Der Name "${zitat.name}" steht nicht im Auftrag – nimm die Person, die dort als Sprecher*in genannt ist. Nennt der Auftrag keine Person, nimm absatz oder headline statt eines zitat.`
       );
     }
-    for (const zitat of zitate) {
-      if (!given.includes(zitat.name)) {
-        errors.push(
-          `Der Name "${zitat.name}" steht nicht im Auftrag – nimm die Person, die dort als Sprecher*in genannt ist.`
-        );
-      }
+    const missing = wordsOf(zitat.text).filter((w) => !givenWords.has(w));
+    if (missing.length) {
+      errors.push(
+        `Das Zitat "${zitat.text}" ist nicht wörtlich aus dem Auftrag (${missing.slice(0, 3).join(', ')} fehlt). Wortlaut übernehmen, Kürzen nur mit […].`
+      );
     }
   }
   base.value.slides.forEach((slide) => {

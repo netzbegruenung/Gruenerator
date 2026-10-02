@@ -4,7 +4,7 @@ Gilt, wenn der Auftrag ein Interview oder Statement einer genannten Person ist. 
 
 ## Ablauf (Karussell)
 
-1. **Cover**: das stärkste Zitat aus dem Auftrag als `zitat` mit `name` (und `quelle`, wenn der Auftrag das Medium nennt) auf Foto oder Farbe. 12–25 Wörter, 1–2 Schlüsselstellen mit `==…==`.
+1. **Cover**: das stärkste Zitat aus dem Auftrag als `zitat` mit `name` (und `quelle`, wenn der Auftrag das Medium nennt) auf Foto oder Farbe. 12–25 Wörter, 1–2 Schlüsselstellen mit `**fett**` (wie im Kapitel `zitat`).
 2. **Innen-Slides**: je Slide eine `frage` (mit `von`, wenn der Auftrag das Medium nennt) plus die Antwort als `absatz` – oder nur die Antwort als `absatz`, mit einem markierten Kernsatz (`==…==`). Auf Farbfläche, ein Look für alle Slides.
 3. **Letzte Slide**: „Das ganze Interview auf <domain>“ als `absatz`, die Domain nur, wenn der Auftrag sie nennt – sonst „Das ganze Interview im Original lesen“. Kein `button`.
 

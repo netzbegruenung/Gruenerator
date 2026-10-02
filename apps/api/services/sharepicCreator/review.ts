@@ -36,7 +36,7 @@ Prüfe in dieser Reihenfolge:
 3. Nur bei Karussells: Sehen die Slides wie aus einem Guss aus (Hintergrund, Ausrichtung)? Ist die erste Slide ein starker Hook, die letzte ein klarer Schluss?
 
 Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kurze deutsche Sätze für die Person, die das Sharepic erstellt, und patch = die kleinsten Änderungen, die das beheben. Jede Änderung nennt mit "slide":N die Slide (ohne Angabe: Slide 0):
-- {"op":"set_text","item":N,"text":…} – Text kürzen oder korrigieren (bei liste die Punkte mit \\n trennen)
+- {"op":"set_text","item":N,"text":…} – Text kürzen oder korrigieren, nie bei Zitat und Frage (bei liste die Punkte mit \\n trennen)
 - {"op":"set_headline","lines":[…],"akzent"?:N,"item"?:N} – Headline neu umbrechen oder kürzen; jede Zeile 1–3 Wörter, 2–4 Zeilen, je Zeile ein Eintrag (kein \\n in einer Zeile). Mit "item" wird dieses Element zur Headline (nur auf einer Slide ohne Headline).
 - {"op":"remove_item","item":N} – zu viel Text weglassen
 - {"op":"set_position","position":"oben"|"mitte"|"unten"}
@@ -79,19 +79,28 @@ function normalizePatch(input: unknown): unknown {
 
 /**
  * A quote that becomes a headline loses its speaker; one that is removed loses
- * the point of the slide. Both are dropped, silently, like any other bad op.
+ * the point of the slide; rewording a quote or question falsifies what was
+ * said. All are dropped, silently, like any other bad op. `removed` collects
+ * the quotes earlier ops of the same patch already take away, so two removals
+ * cannot together leave none.
  */
 function protectsZitat(
   op: SharepicReviewResponse['patch'][number],
-  slides: SharepicSlide[]
+  slides: SharepicSlide[],
+  removed: Set<string>
 ): boolean {
-  if (op.op !== 'set_headline' && op.op !== 'remove_item') return false;
+  if (op.op !== 'set_text' && op.op !== 'set_headline' && op.op !== 'remove_item') return false;
   if (op.item === undefined) return false;
   const target = slides[op.slide ?? 0]?.items[op.item];
+  if (op.op === 'set_text') return target?.type === 'zitat' || target?.type === 'frage';
   if (target?.type !== 'zitat') return false;
   if (op.op === 'set_headline') return true;
-  const zitate = slides.flatMap((s) => s.items).filter((i) => i.type === 'zitat').length;
-  return zitate === 1;
+  const zitate = slides.flatMap((s, i) =>
+    s.items.flatMap((item, j) => (item.type === 'zitat' ? [`${i}:${j}`] : []))
+  );
+  if (zitate.filter((key) => !removed.has(key)).length <= 1) return true;
+  removed.add(`${op.slide ?? 0}:${op.item}`);
+  return false;
 }
 
 /** `slides` (the draft the review looked at) lets the review protect its quotes. */
@@ -127,7 +136,8 @@ export function validateReview(
       return { ok: false, error: `Slide ${slide} hat nur die items 0 bis ${count - 1}.` };
     }
   }
-  const patch = parsed.data.patch.filter((op) => !protectsZitat(op, slides));
+  const removed = new Set<string>();
+  const patch = parsed.data.patch.filter((op) => !protectsZitat(op, slides, removed));
   return { ok: true, value: { ...parsed.data, issues: parsed.data.issues.slice(0, 3), patch } };
 }
 
