@@ -1,30 +1,36 @@
 /**
- * Sharepic spec → freeform canvas state.
+ * Sharepic spec → freeform canvas pages, one per slide.
  *
- * The free-text creator's model writes ONE text group (kicker, headline, text,
- * quote, list, button) plus a background and a few extras; this turns it into
- * the element collections a person builds by hand in the freeform editor, so
- * the draft stays fully editable. The look follows the parties' current
- * Instagram posts (analysed 10/2026): one compact text block, a headline that
- * fills the width in sentence case, exactly one accent, no flat backgrounds,
- * built contrast on photos.
+ * The free-text creator's model writes, per slide, ONE text group (kicker,
+ * headline, paragraphs, text, quote, list, button) plus a background and a few
+ * extras; this turns it into the element collections a person builds by hand
+ * in the freeform editor, so the draft stays fully editable. The look follows
+ * the parties' current Instagram posts (analysed 10/2026): one compact text
+ * block, a headline that fills the width in sentence case, one accent, no flat
+ * backgrounds, built contrast on photos. Carousels add what their slides share:
+ * a "swipe on" arrow on every slide but the last, DE line boxes on photos.
  *
  * Pure: no React, no Konva. Text is measured through the injected `measure`.
  */
 import {
+  accentLines,
+  layoutRichTextBlock,
+  type MeasureRun,
   type SharepicColor,
+  type SharepicCreatorLocale,
   type SharepicItem,
   type SharepicPhotoAttribution,
+  type SharepicSlide,
   type SharepicSpec,
 } from '@gruenerator/contracts';
 
 import { getBrandTheme } from '../brand/theme';
-import { type AssetInstance } from '../utils/canvasAssets';
+import { ASSET_TARGET_SIZE, type AssetInstance } from '../utils/canvasAssets';
 import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
 import { COLORS, DREIZEILEN_CONFIG } from '../utils/dreizeilenLayout';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 import { createShape, type ShapeInstance } from '../utils/shapes';
-import { measureTextWidthWithFont } from '../utils/textUtils';
+import { measureTextWidthWithFont, type TextAccent } from '../utils/textUtils';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
 import type { IconState } from '../configs/factory/baseTypes';
@@ -42,28 +48,32 @@ export type MeasureText = (
 export interface ComposeOptions {
   /** URL the canvas loads a stock photo from. */
   photoSrc: (filename: string) => string;
-  attribution?: SharepicPhotoAttribution | null;
+  /** Photo credit per slide, as the draft returned it. */
+  attributions?: (SharepicPhotoAttribution | null)[];
   measure?: MeasureText;
 }
 
-/** Props for the `freeform` / `freeform-at` config's `createInitialState`. */
+/** Props for the `freeform` / `freeform-at` config's `createInitialState` — one page. */
+export type ComposedSlide = {
+  backgroundMode: 'color' | 'image';
+  backgroundColor: string;
+  currentImageSrc?: string;
+  hasBackgroundImage: boolean;
+  imageAttribution: SharepicPhotoAttribution | null;
+  additionalTexts: AdditionalText[];
+  pillBadgeInstances: PillBadgeInstance[];
+  circleBadgeInstances: CircleBadgeInstance[];
+  shapeInstances: ShapeInstance[];
+  assetInstances: AssetInstance[];
+  selectedIcons: string[];
+  iconStates: Record<string, IconState>;
+  layerOrder: string[];
+};
+
 export interface ComposedSharepic {
   templateType: 'freeform' | 'freeform-at';
-  props: {
-    backgroundMode: 'color' | 'image';
-    backgroundColor: string;
-    currentImageSrc?: string;
-    hasBackgroundImage: boolean;
-    imageAttribution: SharepicPhotoAttribution | null;
-    additionalTexts: AdditionalText[];
-    pillBadgeInstances: PillBadgeInstance[];
-    circleBadgeInstances: CircleBadgeInstance[];
-    shapeInstances: ShapeInstance[];
-    assetInstances: AssetInstance[];
-    selectedIcons: string[];
-    iconStates: Record<string, IconState>;
-    layerOrder: string[];
-  };
+  /** One page per slide, in order. */
+  slides: ComposedSlide[];
 }
 
 const WIDTH = DREIZEILEN_CONFIG.canvas.width;
@@ -72,6 +82,14 @@ const HEIGHT = DREIZEILEN_CONFIG.canvas.height;
 const MARGIN = 70;
 const GAP = 30;
 const FOOTER = 130;
+/**
+ * Logo: longer side and gap to the bottom edge, measured on the posts. The AT
+ * logo (1410 × 1239) sits large and well clear of the edge.
+ */
+const LOGO = {
+  'de-DE': { size: 150, height: 150, bottom: 50 },
+  'de-AT': { size: 240, height: (240 * 1239) / 1410, bottom: 95 },
+} as const;
 
 export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
   tanne: COLORS.TANNE,
@@ -83,19 +101,27 @@ export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
   weiss: '#FFFFFF',
 };
 
-/** Dark greens get a diagonal gradient — no flat backgrounds. */
-const GRADIENTS: Partial<Record<SharepicColor, string[]>> = {
-  tanne: ['#00261A', '#005538', '#0A7A3F'],
-  dunkeltanne: ['#00140D', '#00261A', '#005538'],
-  grasgruen: ['#00A33F', '#00CC4F', '#5BDC6E'],
-  dunkelgruen: ['#1B5E2C', '#257639', '#4FAA3A'],
-  hellgruen: ['#3F9A2A', '#56af31', '#7CC650'],
+/** Dark greens get a gradient; the rest stays flat, as the posts are. */
+const GRADIENTS: Partial<Record<SharepicColor, { angle: number; stops: string[] }>> = {
+  tanne: { angle: 60, stops: ['#00261A', '#005538', '#0A7A3F'] },
+  dunkeltanne: { angle: 60, stops: ['#00140D', '#00261A', '#005538'] },
+  // Grass green has none: measured flat on @die_gruenen (#01CF51 edge to edge).
+  // Measured on @diegruenen carousels (10/2026, median over text-free patches):
+  // a deep, slightly bluish green, darker at the top, only a little lighter
+  // below — no slide into yellow-green.
+  dunkelgruen: { angle: 90, stops: ['#0B6620', '#1D7A35', '#23803B'] },
+  hellgruen: { angle: 60, stops: ['#3F9A2A', '#56af31', '#7CC650'] },
 };
 
 const LIGHT: readonly SharepicColor[] = ['mint', 'weiss'];
 
 /** DE accent: a lime marker box. AT accent: a yellow Vollkorn line. */
 const LIME = '#BEFF60';
+/** DE accent words on light ground — lime would vanish there. */
+const KLEE = '#008939';
+
+/** The "swipe on" arrows — icons from the editor's own sets, so they stay swappable. */
+const ARROW_ICON = { 'de-DE': 'tabler:arrow-narrow-right', 'de-AT': 'heroicons:arrow-long-right' };
 
 const defaultMeasure: MeasureText = (text, fontSize, fontFamily, fontStyle) =>
   measureTextWidthWithFont(text, fontSize, fontFamily, fontStyle);
@@ -123,7 +149,34 @@ export function wrapWords(
   return lines;
 }
 
-const stripMarks = (text: string) => text.replace(/\*\*|__/g, '');
+/**
+ * Same line count as a greedy wrap, but at the narrowest width that keeps it —
+ * so a box never ends on a lone word ("Mutter. Jeden / Tag.").
+ */
+export function balancedWrap(
+  text: string,
+  width: number,
+  measureLine: (line: string) => number
+): string[] {
+  const lines = wrapWords(text, width, measureLine);
+  if (lines.length < 2) return lines;
+  let low = 0;
+  let high = width;
+  for (let step = 0; step < 12; step++) {
+    const mid = (low + high) / 2;
+    if (wrapWords(text, mid, measureLine).length > lines.length) low = mid;
+    else high = mid;
+  }
+  return wrapWords(text, high, measureLine);
+}
+
+/** `#RRGGBB` at zero alpha — the end of a fade into a photo. */
+function transparent(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},0)`;
+}
+
+const stripMarks = (text: string) => text.replace(/\*\*|__|==/g, '');
 
 interface Column {
   x: number;
@@ -139,20 +192,44 @@ interface Placed {
 }
 
 export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): ComposedSharepic {
+  const count = spec.slides.length;
+  return {
+    templateType: spec.locale === 'de-AT' ? 'freeform-at' : 'freeform',
+    slides: spec.slides.map((slide, index) =>
+      composeSlide(
+        slide,
+        spec.locale,
+        options,
+        options.attributions?.[index] ?? null,
+        index < count - 1
+      )
+    ),
+  };
+}
+
+function composeSlide(
+  spec: SharepicSlide,
+  locale: SharepicCreatorLocale,
+  options: ComposeOptions,
+  attribution: SharepicPhotoAttribution | null,
+  /** Not the last slide of a carousel: it gets the "swipe on" arrow. */
+  swipeOn: boolean
+): ComposedSlide {
   const measure = options.measure ?? defaultMeasure;
-  const theme = getBrandTheme(spec.locale);
-  const isAt = spec.locale === 'de-AT';
+  const theme = getBrandTheme(locale);
+  const isAt = locale === 'de-AT';
   const bg = spec.background;
   const darkText = isAt ? theme.colors.primary : SHAREPIC_COLOR_HEX.dunkeltanne;
+  const boxed = !isAt && !!spec.zeilenboxen;
 
-  const out: ComposedSharepic['props'] = {
+  const out: ComposedSlide = {
     backgroundMode: bg.kind === 'farbe' ? 'color' : 'image',
     backgroundColor:
       SHAREPIC_COLOR_HEX[
-        bg.kind === 'farbe' ? bg.color : bg.kind === 'foto-oben' ? bg.panelColor : 'dunkeltanne'
+        bg.kind === 'farbe' ? bg.color : bg.kind === 'foto' ? 'dunkeltanne' : bg.panelColor
       ],
     hasBackgroundImage: bg.kind !== 'farbe',
-    imageAttribution: bg.kind !== 'farbe' ? (options.attribution ?? null) : null,
+    imageAttribution: bg.kind !== 'farbe' ? attribution : null,
     additionalTexts: [],
     pillBadgeInstances: [],
     circleBadgeInstances: [],
@@ -175,7 +252,7 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
 
   // ── Surface: what the text sits on, and the planes that make it ──────────
   let areaTop = 0;
-  let areaBottom = HEIGHT;
+  let areaBottom: number = HEIGHT;
   let surface: SharepicColor | 'foto' = 'foto';
   let column: Column = {
     x: MARGIN,
@@ -185,12 +262,13 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
 
   if (bg.kind === 'farbe') {
     surface = bg.color;
-    const stops = GRADIENTS[bg.color];
-    if (stops) {
-      const plane = rect('sc-bg', 0, 0, WIDTH, HEIGHT, stops[1]);
+    const gradient = GRADIENTS[bg.color];
+    if (gradient) {
+      const { stops } = gradient;
+      const plane = rect('sc-bg', 0, 0, WIDTH, HEIGHT, stops[1]!);
       plane.fillGradient = {
         type: 'linear',
-        angle: 60,
+        angle: gradient.angle,
         stops: stops.map((color, i) => ({ offset: i / (stops.length - 1), color })),
       };
       addShape(plane);
@@ -199,8 +277,25 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
     surface = bg.panelColor;
     areaTop = VERANSTALTUNG_CONFIG.photo.height;
     addShape(rect('sc-panel', 0, areaTop, WIDTH, HEIGHT - areaTop, out.backgroundColor));
-  } else {
+  } else if (bg.kind === 'foto-unten') {
+    // The colour carries the text at the top and fades into the photo below.
+    surface = bg.panelColor;
+    areaBottom = HEIGHT * 0.6;
+    const solid = out.backgroundColor;
+    const panel = rect('sc-panel', 0, 0, WIDTH, HEIGHT * 0.8, solid);
+    panel.fillGradient = {
+      type: 'linear',
+      angle: 90,
+      stops: [
+        { offset: 0, color: solid },
+        { offset: 0.72, color: solid },
+        { offset: 1, color: transparent(solid) },
+      ],
+    };
+    addShape(panel);
+  } else if (!boxed) {
     // Text on a photo: a gradient from the text side into the picture.
+    // Line boxes bring their own contrast and need none.
     const side = bg.textSeite;
     const dark = isAt ? '27,94,44' : '0,38,26';
     const vertical = side === 'unten' || side === 'oben';
@@ -231,7 +326,10 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
   }
 
   const onLight = surface !== 'foto' && LIGHT.includes(surface);
-  const textColor = onLight ? darkText : '#FFFFFF';
+  // DE grass green is bright: the posts set dark text on it, not white.
+  const onGrass = !isAt && surface === 'grasgruen';
+  const darkInk = onLight || onGrass;
+  const textColor = darkInk ? darkText : '#FFFFFF';
   const shadow =
     surface === 'foto'
       ? {
@@ -242,16 +340,56 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
           shadowOpacity: 0.45,
         }
       : {};
+  // `==word==` runs: AT sets them yellow in Vollkorn Black Italic, DE in lime.
+  const accent: TextAccent = isAt
+    ? {
+        fill: onLight ? theme.colors.secondary : theme.colors.accent,
+        fontFamily: theme.fonts.quoteEmphasis,
+        fontStyle: 'bold italic',
+      }
+    : { fill: onLight ? KLEE : onGrass ? '#FFFFFF' : LIME };
+  const cardAccent: TextAccent = isAt
+    ? { ...accent, fill: theme.colors.secondary }
+    : { fill: KLEE };
+  /** Lines a rich text takes — the same layout the editor's renderer runs. */
+  const lineCount = (
+    value: string,
+    width: number,
+    size: number,
+    family: string,
+    weight: 'normal' | 'bold',
+    runAccent: TextAccent = accent
+  ) => {
+    const measureRun: MeasureRun = (t, style) =>
+      style.accent
+        ? measure(t, size, runAccent.fontFamily ?? family, runAccent.fontStyle ?? weight)
+        : measure(t, size, family, style.italic ? 'italic' : style.bold ? 'bold' : weight);
+    return layoutRichTextBlock(value, width, measureRun).length;
+  };
+
   // The date circle's left edge sits at x 680; keep a gap to it.
   if (spec.datum) column = { ...column, width: Math.min(column.width, 560) };
+  // AT argument slides set centred paragraphs in a narrower column (≈ 80 %
+  // of the width on the posts) — more lines, larger type.
+  if (isAt && column.align === 'center' && surface !== 'foto') {
+    const width = Math.round(column.width * 0.82);
+    column = { ...column, x: (WIDTH - width) / 2, width };
+  }
   const xAlign = column.align;
 
-  // Footer row: logo, arrow, place — the text group ends above it.
-  const footerUsed = spec.logo || spec.pfeil || !!spec.ort;
-  if (footerUsed) areaBottom = HEIGHT - FOOTER - (spec.ort ? spec.ort.lines.length * 48 : 0);
+  // Footer row: logo, arrow, place, source — the text group ends above it.
+  const footerUsed = spec.logo || swipeOn || !!spec.ort || !!spec.quelle;
+  if (footerUsed) {
+    areaBottom = Math.min(
+      areaBottom,
+      HEIGHT - FOOTER - (spec.ort ? spec.ort.lines.length * 48 : 0)
+    );
+  }
+  const logo = LOGO[locale];
+  // A large logo reaches above the footer row; the text stays clear of it.
+  if (spec.logo) areaBottom = Math.min(areaBottom, HEIGHT - logo.bottom - logo.height - 20);
 
   // ── The text group ───────────────────────────────────────────────────────
-  const placed: Placed[] = [];
   const text = (
     id: string,
     value: string,
@@ -272,219 +410,385 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
       fontStyle: 'normal',
       fill: textColor,
       align: xAlign,
+      accent,
       ...shadow,
       ...extra,
     });
     out.layerOrder.push(id);
   };
 
-  spec.items.forEach((item: SharepicItem, index) => {
-    const id = `sc-${index}-${item.type}`;
-    switch (item.type) {
-      case 'dachzeile': {
-        const size = 38;
-        placed.push({
-          height: size * 1.2,
-          after: 16,
-          place: (y) => text(id, item.text, y, size, theme.fonts.body, { fontStyle: 'bold' }),
-        });
-        break;
-      }
-      case 'headline': {
-        const family = theme.fonts.headline;
-        const lineHeight = isAt ? 0.95 : 0.92;
-        // Fit: the longest line fills ~92 % of the column, within sane bounds.
-        const widest = Math.max(...item.lines.map((l) => measure(l, 100, family, 'normal')));
-        const maxSize = item.lines.length <= 2 ? 190 : 150;
-        const size = Math.round(
-          Math.min(maxSize, Math.max(72, (column.width * 0.92 * 100) / widest))
-        );
-        const step = size * lineHeight;
-        // Consecutive plain lines share one text element; the accent line is its own.
-        const segments: { lines: string[]; accent: boolean }[] = [];
-        item.lines.forEach((l, i) => {
-          const accent = item.akzent === i;
-          const last = segments[segments.length - 1];
-          if (last && !last.accent && !accent) last.lines.push(l);
-          else segments.push({ lines: [l], accent });
-        });
-        placed.push({
-          height: item.lines.length * step,
-          after: Math.round(size * 0.35),
-          place: (y) => {
-            let cursor = y;
-            segments.forEach((segment, s) => {
-              const segId = `${id}-${s}`;
-              const value = segment.lines.join('\n');
-              if (segment.accent && isAt) {
-                text(segId, value, cursor, Math.round(size * 0.95), theme.fonts.quoteEmphasis, {
-                  fontStyle: 'bold italic',
-                  fill: onLight ? theme.colors.secondary : theme.colors.accent,
-                  lineHeight,
-                  type: 'header',
-                });
-              } else if (segment.accent) {
-                // DE marker: dark text on a lime box sized to the line.
-                const w = measure(value, size, family, 'normal') + size * 0.4;
-                const x = xAlign === 'center' ? WIDTH / 2 - w / 2 : column.x - size * 0.15;
-                const box = rect(`${segId}-box`, x, cursor + size * 0.04, w, step, LIME);
-                box.rotation = -2;
-                addShape(box);
-                text(segId, value, cursor, size, family, {
-                  fill: SHAREPIC_COLOR_HEX.dunkeltanne,
-                  lineHeight,
-                  type: 'header',
-                  shadowOpacity: 0,
-                });
-              } else {
-                text(segId, value, cursor, size, family, { lineHeight, type: 'header' });
-              }
-              cursor += segment.lines.length * step;
-            });
-          },
-        });
-        break;
-      }
-      case 'text': {
-        const size = 42;
-        const lines = wrapWords(stripMarks(item.text), column.width, (l) =>
-          measure(l, size, theme.fonts.body, 'normal')
-        );
-        placed.push({
-          height: lines.length * size * 1.25,
-          after: GAP,
-          place: (y) => text(id, item.text, y, size, theme.fonts.body, { lineHeight: 1.25 }),
-        });
-        break;
-      }
-      case 'zitat': {
-        const size = 52;
-        const mark = 90;
-        const lines = wrapWords(item.text, column.width, (l) =>
-          measure(l, size, theme.fonts.body, 'normal')
-        );
-        const quoteHeight = lines.length * size * 1.2;
-        const nameSize = 38;
-        const signature = nameSize * 1.25 * (item.funktion ? 2 : 1);
-        placed.push({
-          height: mark + 10 + quoteHeight + 24 + signature,
-          after: GAP,
-          place: (y) => {
-            const markId = `${id}-mark`;
-            out.assetInstances.push({
-              id: markId,
-              assetId: isAt ? 'quote-mark-gelb' : 'quote-mark-weiss',
-              x: xAlign === 'center' ? WIDTH / 2 : column.x + mark / 2,
-              y: y + mark / 2,
-              scale: mark / 150,
-              rotation: 0,
-              opacity: 1,
-            });
-            out.layerOrder.push(markId);
-            text(id, item.text, y + mark + 10, size, theme.fonts.body, { lineHeight: 1.2 });
-            const signatureText = item.funktion
-              ? `**${item.name}**\n${item.funktion}`
-              : `**${item.name}**`;
-            text(
-              `${id}-name`,
-              signatureText,
-              y + mark + 10 + quoteHeight + 24,
-              nameSize,
-              theme.fonts.body,
-              {
-                lineHeight: 1.25,
-              }
-            );
-          },
-        });
-        break;
-      }
-      case 'liste': {
-        const size = 40;
-        const pad = 46;
-        const inner = column.width - 2 * pad;
-        const body = item.items.map((i) => `• ${i}`).join('\n');
-        const lineCount = item.items.reduce(
-          (n, i) =>
-            n +
-            wrapWords(`• ${stripMarks(i)}`, inner - 40, (l) =>
-              measure(l, size, theme.fonts.body, 'normal')
-            ).length,
-          0
-        );
-        const height = lineCount * size * 1.3 + 2 * pad;
-        placed.push({
-          height,
-          after: GAP,
-          place: (y) => {
-            const card = createShape(
-              'rounded-rect',
-              column.x + column.width / 2,
-              y + height / 2,
-              '#FFFFFF',
-              '#FFFFFF'
-            );
-            Object.assign(card, {
-              id: `${id}-card`,
-              width: column.width,
-              height,
-              cornerRadius: 32,
-            });
-            addShape(card);
-            out.additionalTexts.push({
-              id,
-              text: body,
-              type: 'body',
-              x: column.x + pad,
-              y: y + pad,
-              width: inner,
+  /**
+   * DE story slides: every line in its own box — white, or grass green for
+   * the line that matters. Pills, so a box follows its text when edited.
+   */
+  const boxLines = (
+    id: string,
+    lines: { text: string; betont: boolean }[],
+    size: number,
+    family: string,
+    fontStyle: 'normal' | 'bold'
+  ): Placed => {
+    const padX = Math.round(size * 0.28);
+    const padY = Math.round(size * 0.12);
+    const step = size + 2 * padY;
+    return {
+      height: lines.length * step,
+      after: Math.round(size * 0.5),
+      place: (y) => {
+        lines.forEach((line, k) => {
+          const lineId = `${id}-${k}`;
+          const width = measure(line.text, size, family, fontStyle) + 2 * padX;
+          out.pillBadgeInstances.push(
+            createPillBadgeInstance('slider', {
+              id: lineId,
+              text: line.text,
+              x: xAlign === 'center' ? WIDTH / 2 - width / 2 : column.x,
+              y: y + k * step,
               fontSize: size,
-              fontFamily: theme.fonts.body,
-              fontStyle: 'normal',
-              fill: darkText,
-              lineHeight: 1.3,
+              fontFamily: family,
+              fontStyle,
+              backgroundColor: line.betont ? SHAREPIC_COLOR_HEX.grasgruen : '#FFFFFF',
+              textColor: SHAREPIC_COLOR_HEX.dunkeltanne,
+              paddingX: padX,
+              paddingY: padY,
+              cornerRadius: 4,
+            })
+          );
+          out.layerOrder.push(lineId);
+        });
+      },
+    };
+  };
+  // Narrower than the column: the posts stack short lines, a box per phrase.
+  const wrapBoxed = (value: string, size: number, family: string, fontStyle: 'normal' | 'bold') =>
+    balancedWrap(stripMarks(value), column.width * 0.82 - size * 0.6, (l) =>
+      measure(l, size, family, fontStyle)
+    );
+
+  // A hook: one short paragraph alone on the slide.
+  const only = spec.items.length === 1 ? spec.items[0] : null;
+  const shortHook = only?.type === 'absatz' && only.text.split(/\s+/).length <= 10;
+  /** The group at a paragraph scale; side-effect free until `place`. */
+  const build = (scale: number): Placed[] => {
+    const placed: Placed[] = [];
+    spec.items.forEach((item: SharepicItem, index) => {
+      const id = `sc-${index}-${item.type}`;
+      switch (item.type) {
+        case 'dachzeile': {
+          const size = 38;
+          placed.push({
+            height: size * 1.2,
+            after: 16,
+            place: (y) => text(id, item.text, y, size, theme.fonts.body, { fontStyle: 'bold' }),
+          });
+          break;
+        }
+        case 'headline': {
+          if (boxed) {
+            placed.push(
+              boxLines(
+                id,
+                item.lines.map((l, i) => ({
+                  text: stripMarks(l),
+                  betont: accentLines(item.akzent).includes(i),
+                })),
+                76,
+                theme.fonts.body,
+                'bold'
+              )
+            );
+            break;
+          }
+          const family = theme.fonts.headline;
+          const lineHeight = isAt ? 0.95 : 0.92;
+          // Fit: the longest line fills ~92 % of the column, within sane bounds.
+          const widest = Math.max(
+            ...item.lines.map((l) => measure(stripMarks(l), 100, family, 'normal'))
+          );
+          const maxSize = item.lines.length <= 2 ? 190 : 150;
+          const size = Math.round(
+            Math.min(maxSize, Math.max(72, (column.width * 0.92 * 100) / widest))
+          );
+          const step = size * lineHeight;
+          // Consecutive plain lines share one text element; the accent line is its own.
+          const segments: { lines: string[]; accent: boolean }[] = [];
+          const accented = accentLines(item.akzent);
+          item.lines.forEach((l, i) => {
+            const accent = accented.includes(i);
+            const last = segments[segments.length - 1];
+            if (last && !last.accent && !accent) last.lines.push(l);
+            else segments.push({ lines: [l], accent });
+          });
+          placed.push({
+            height: item.lines.length * step,
+            after: Math.round(size * 0.35),
+            place: (y) => {
+              let cursor = y;
+              segments.forEach((segment, s) => {
+                const segId = `${id}-${s}`;
+                const value = segment.lines.join('\n');
+                // An accent line is one accent already; a word accent inside it
+                // would vanish (DE: lime on lime) — keep the plain words.
+                const plain = stripMarks(value);
+                if (segment.accent && isAt) {
+                  text(segId, plain, cursor, Math.round(size * 0.95), theme.fonts.quoteEmphasis, {
+                    fontStyle: 'bold italic',
+                    fill: onLight ? theme.colors.secondary : theme.colors.accent,
+                    lineHeight,
+                    type: 'header',
+                  });
+                } else if (segment.accent) {
+                  // DE marker: dark text on a lime box sized to the line.
+                  const w = measure(plain, size, family, 'normal') + size * 0.4;
+                  const x = xAlign === 'center' ? WIDTH / 2 - w / 2 : column.x - size * 0.15;
+                  // Lime glows on dark ground; on mint it washes out — grass green there.
+                  const markerColor = onLight ? SHAREPIC_COLOR_HEX.grasgruen : LIME;
+                  const box = rect(`${segId}-box`, x, cursor + size * 0.04, w, step, markerColor);
+                  box.rotation = -2;
+                  addShape(box);
+                  text(segId, plain, cursor, size, family, {
+                    fill: SHAREPIC_COLOR_HEX.dunkeltanne,
+                    lineHeight,
+                    type: 'header',
+                    shadowOpacity: 0,
+                  });
+                } else {
+                  text(segId, value, cursor, size, family, { lineHeight, type: 'header' });
+                }
+                cursor += segment.lines.length * step;
+              });
+            },
+          });
+          break;
+        }
+        case 'text': {
+          const size = 42;
+          if (boxed) {
+            const lines = wrapBoxed(item.text, size, theme.fonts.body, 'normal');
+            placed.push(
+              boxLines(
+                id,
+                lines.map((l) => ({ text: l, betont: false })),
+                size,
+                theme.fonts.body,
+                'normal'
+              )
+            );
+            break;
+          }
+          const lines = lineCount(item.text, column.width, size, theme.fonts.body, 'normal');
+          placed.push({
+            height: lines * size * 1.25,
+            after: GAP,
+            place: (y) => text(id, item.text, y, size, theme.fonts.body, { lineHeight: 1.25 }),
+          });
+          break;
+        }
+        case 'absatz': {
+          // A story paragraph: larger than `text`. AT sets it in the headline
+          // face, a stressed one in yellow Vollkorn; DE in bold body text.
+          if (boxed) {
+            // Boxes grow less: a box per line must stay a phrase, not a word —
+            // except on a short hook, which the posts set large.
+            const size = Math.round(56 * Math.min(scale, shortHook ? 1.7 : 1.25));
+            const lines = wrapBoxed(item.text, size, theme.fonts.body, 'bold');
+            placed.push(
+              boxLines(
+                id,
+                lines.map((l) => ({ text: l, betont: !!item.betont })),
+                size,
+                theme.fonts.body,
+                'bold'
+              )
+            );
+            break;
+          }
+          const size = Math.round((isAt ? 58 : 48) * scale);
+          const lineHeight = isAt ? 1.08 : 1.22;
+          const stressed = item.betont
+            ? isAt
+              ? {
+                  family: theme.fonts.quoteEmphasis,
+                  fontStyle: 'bold italic' as const,
+                  fill: accent.fill,
+                }
+              : { family: theme.fonts.body, fontStyle: 'bold' as const, fill: accent.fill }
+            : null;
+          const family = stressed?.family ?? (isAt ? theme.fonts.headline : theme.fonts.body);
+          const fontStyle = stressed?.fontStyle ?? (isAt ? 'normal' : 'bold');
+          const lines = lineCount(
+            item.text,
+            column.width,
+            size,
+            family,
+            fontStyle === 'normal' ? 'normal' : 'bold'
+          );
+          placed.push({
+            height: lines * size * lineHeight,
+            after: Math.round(size * 0.6),
+            place: (y) =>
+              text(id, item.text, y, size, family, {
+                fontStyle,
+                lineHeight,
+                ...(stressed ? { fill: stressed.fill } : {}),
+              }),
+          });
+          break;
+        }
+        case 'zitat': {
+          const size = 52;
+          const mark = 90;
+          const lines = wrapWords(item.text, column.width, (l) =>
+            measure(l, size, theme.fonts.body, 'normal')
+          );
+          const quoteHeight = lines.length * size * 1.2;
+          const nameSize = 38;
+          const signature = nameSize * 1.25 * (item.funktion ? 2 : 1);
+          placed.push({
+            height: mark + 10 + quoteHeight + 24 + signature,
+            after: GAP,
+            place: (y) => {
+              const markId = `${id}-mark`;
+              out.assetInstances.push({
+                id: markId,
+                assetId: isAt ? 'quote-mark-gelb' : 'quote-mark-weiss',
+                x: xAlign === 'center' ? WIDTH / 2 : column.x + mark / 2,
+                y: y + mark / 2,
+                scale: mark / 150,
+                rotation: 0,
+                opacity: 1,
+              });
+              out.layerOrder.push(markId);
+              text(id, item.text, y + mark + 10, size, theme.fonts.body, { lineHeight: 1.2 });
+              const signatureText = item.funktion
+                ? `**${item.name}**\n${item.funktion}`
+                : `**${item.name}**`;
+              text(
+                `${id}-name`,
+                signatureText,
+                y + mark + 10 + quoteHeight + 24,
+                nameSize,
+                theme.fonts.body,
+                {
+                  lineHeight: 1.25,
+                }
+              );
+            },
+          });
+          break;
+        }
+        case 'liste': {
+          // Few points carry a demands slide on their own — they grow with it.
+          const size = Math.round((item.items.length <= 3 ? 54 : 46) * Math.min(scale, 1.3));
+          if (isAt && !onLight) {
+            // AT sets its lists straight on the green, white with the
+            // keywords bold — the white card is a German pattern.
+            const plainList = item.items.map((i) => `• ${i}`).join('\n');
+            const lines = lineCount(plainList, column.width, size, theme.fonts.body, 'normal');
+            placed.push({
+              height: lines * size * 1.3,
+              after: GAP,
+              place: (y) =>
+                text(id, plainList, y, size, theme.fonts.body, { lineHeight: 1.3, align: 'left' }),
             });
-            out.layerOrder.push(id);
-          },
-        });
-        break;
+            break;
+          }
+          const pad = 46;
+          const inner = column.width - 2 * pad;
+          const body = item.items.map((i) => `• ${i}`).join('\n');
+          const lines = lineCount(body, inner, size, theme.fonts.body, 'normal', cardAccent);
+          const height = lines * size * 1.3 + 2 * pad;
+          placed.push({
+            height,
+            after: GAP,
+            place: (y) => {
+              const card = createShape(
+                'rounded-rect',
+                column.x + column.width / 2,
+                y + height / 2,
+                '#FFFFFF',
+                '#FFFFFF'
+              );
+              Object.assign(card, {
+                id: `${id}-card`,
+                width: column.width,
+                height,
+                cornerRadius: 32,
+              });
+              addShape(card);
+              out.additionalTexts.push({
+                id,
+                text: body,
+                type: 'body',
+                x: column.x + pad,
+                y: y + pad,
+                width: inner,
+                fontSize: size,
+                fontFamily: theme.fonts.body,
+                fontStyle: 'normal',
+                fill: darkText,
+                lineHeight: 1.3,
+                accent: cardAccent,
+              });
+              out.layerOrder.push(id);
+            },
+          });
+          break;
+        }
+        case 'button': {
+          const size = 44;
+          const pill = createPillBadgeInstance('slider', {
+            id,
+            text: item.text,
+            fontSize: size,
+            fontFamily: theme.fonts.headline,
+            backgroundColor: onLight ? theme.colors.primary : isAt ? theme.colors.accent : LIME,
+            textColor: onLight
+              ? '#FFFFFF'
+              : isAt
+                ? theme.colors.primary
+                : SHAREPIC_COLOR_HEX.dunkeltanne,
+            paddingX: 36,
+            paddingY: 18,
+            cornerRadius: 60,
+          });
+          const height = size + 2 * pill.paddingY;
+          const width =
+            measure(item.text, size, theme.fonts.headline, 'normal') + 2 * pill.paddingX;
+          placed.push({
+            height,
+            after: GAP,
+            place: (y) => {
+              const x = xAlign === 'center' ? WIDTH / 2 - width / 2 : column.x;
+              out.pillBadgeInstances.push({ ...pill, x, y });
+              out.layerOrder.push(id);
+            },
+          });
+          break;
+        }
       }
-      case 'button': {
-        const size = 44;
-        const pill = createPillBadgeInstance('slider', {
-          id,
-          text: item.text,
-          fontSize: size,
-          fontFamily: theme.fonts.headline,
-          backgroundColor: onLight ? theme.colors.primary : isAt ? theme.colors.accent : LIME,
-          textColor: onLight
-            ? '#FFFFFF'
-            : isAt
-              ? theme.colors.primary
-              : SHAREPIC_COLOR_HEX.dunkeltanne,
-          paddingX: 36,
-          paddingY: 18,
-          cornerRadius: 60,
-        });
-        const height = size + 2 * pill.paddingY;
-        const width = measure(item.text, size, theme.fonts.headline, 'normal') + 2 * pill.paddingX;
-        placed.push({
-          height,
-          after: GAP,
-          place: (y) => {
-            const x = xAlign === 'center' ? WIDTH / 2 - width / 2 : column.x;
-            out.pillBadgeInstances.push({ ...pill, x, y });
-            out.layerOrder.push(id);
-          },
-        });
+    });
+    return placed;
+  };
+
+  const heightOf = (group: Placed[]) =>
+    group.reduce((sum, p) => sum + p.height + p.after, 0) - (group[group.length - 1]?.after ?? 0);
+  // Story and argument slides fill the frame like the posts do: paragraphs
+  // grow until the block takes about 70 % of the free height.
+  const room = areaBottom - areaTop - 2 * MARGIN;
+  let placed = build(1);
+  if (spec.items.some((item) => item.type === 'absatz' || item.type === 'liste')) {
+    // Fine steps: coarse ones drop a size too far when one step just misses.
+    for (let scale = 1.8; scale > 1; scale -= 0.05) {
+      const group = build(scale);
+      // Line boxes stay a block in the middle of the photo; free text fills more.
+      if (heightOf(group) <= room * (boxed ? 0.5 : bg.kind === 'foto-unten' ? 0.92 : 0.72)) {
+        placed = group;
         break;
       }
     }
-  });
-
-  const total =
-    placed.reduce((sum, p) => sum + p.height + p.after, 0) -
-    (placed[placed.length - 1]?.after ?? 0);
+  }
+  const total = heightOf(placed);
   const top = areaTop + MARGIN + (spec.stoerer && spec.position === 'oben' ? 40 : 0);
   const bottom = areaBottom - MARGIN;
   let y =
@@ -591,32 +895,60 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
   const footerY = HEIGHT - FOOTER / 2 - 10;
   if (spec.logo) {
     const centred = xAlign === 'center' && !spec.ort;
-    const size = isAt ? 170 : 120;
     out.assetInstances.push({
       id: 'sc-logo',
-      assetId: isAt ? (onLight ? 'gruene-at-logo-gruen' : 'gruene-at-logo-weiss') : 'sunflower',
-      x: centred ? WIDTH / 2 : WIDTH - MARGIN - size / 2,
-      y: footerY,
-      scale: size / 150,
+      assetId: isAt
+        ? onLight
+          ? 'gruene-at-logo-gruen'
+          : 'gruene-at-logo-weiss'
+        : onLight
+          ? 'sunflower-green'
+          : 'sunflower',
+      x: centred ? WIDTH / 2 : WIDTH - MARGIN - logo.size / 2,
+      // x/y is the centre.
+      y: HEIGHT - logo.bottom - logo.height / 2,
+      scale: logo.size / ASSET_TARGET_SIZE,
       rotation: 0,
       opacity: 1,
     });
     out.layerOrder.push('sc-logo');
   }
-  if (spec.pfeil) {
-    const size = 110;
+  if (swipeOn) {
+    // A clean, straight arrow in the bottom-right corner, inside the margin —
+    // AT a long one (where the posts have a brush stroke), DE a small one.
+    const size = isAt ? 180 : 72;
     const nextToLogo = spec.logo && !(xAlign === 'center' && !spec.ort);
     out.selectedIcons.push('sc-pfeil');
     out.iconStates['sc-pfeil'] = {
-      iconId: 'tabler:arrow-right',
+      iconId: ARROW_ICON[locale],
       x: nextToLogo ? WIDTH - MARGIN - 200 - size / 2 : WIDTH - MARGIN - size / 2,
       y: footerY,
       scale: size / 120,
       rotation: 0,
-      color: textColor,
+      color: darkInk ? darkText : '#FFFFFF',
     };
     out.layerOrder.push('sc-pfeil');
   }
 
-  return { templateType: isAt ? 'freeform-at' : 'freeform', props: out };
+  if (spec.quelle) {
+    const size = 24;
+    out.additionalTexts.push({
+      id: 'sc-quelle',
+      text: `Quelle: ${spec.quelle.replace(/^Quelle:\s*/i, '')}`,
+      type: 'body',
+      x: MARGIN,
+      y: HEIGHT - 44,
+      width: WIDTH - 2 * MARGIN - 260,
+      fontSize: size,
+      fontFamily: theme.fonts.body,
+      fontStyle: 'normal',
+      fill: textColor,
+      opacity: 0.8,
+      lineHeight: 1.2,
+      ...shadow,
+    });
+    out.layerOrder.push('sc-quelle');
+  }
+
+  return out;
 }

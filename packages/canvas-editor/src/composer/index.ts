@@ -4,6 +4,7 @@ export {
   SHAREPIC_COLOR_HEX,
   type ComposeOptions,
   type ComposedSharepic,
+  type ComposedSlide,
   type MeasureText,
 } from './composeSharepic';
 export { applySharepicPatch, type PatchResult } from './applySharepicPatch';
