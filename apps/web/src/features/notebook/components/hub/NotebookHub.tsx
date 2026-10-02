@@ -5,8 +5,9 @@ import {
   Badge,
   Button,
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
   Empty,
   EmptyContent,
@@ -16,7 +17,16 @@ import {
   toast,
 } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
-import { HiCloud, HiDocumentText, HiDotsHorizontal, HiGlobeAlt, HiUpload } from 'react-icons/hi';
+import {
+  HiArrowRight,
+  HiCloud,
+  HiCog,
+  HiDocumentText,
+  HiGlobeAlt,
+  HiRefresh,
+  HiShare,
+  HiUpload,
+} from 'react-icons/hi';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { PillTabs, type PillTab } from '../../../../components/common/PillTabs';
@@ -29,8 +39,17 @@ import { NotebookShareModal } from '../NotebookShareModal';
 
 import { DocsPanel } from './DocsPanel';
 import { HubHero } from './HubHero';
-import { isHubTab, partitionSources, tabCount, type HubTab } from './hubSources';
-import { UploadPanel } from './UploadPanel';
+import { useHubSourcePrefs } from './hubSourcePrefs';
+import {
+  HUB_TABS,
+  hubSourceKinds,
+  isHubTab,
+  partitionSources,
+  tabCount,
+  type HubTab,
+} from './hubSources';
+import { HubSearch } from './PanelChrome';
+import { UploadPanel, useHubUpload } from './UploadPanel';
 import { useNotebookHub } from './useNotebookHub';
 import { WolkePanel } from './WolkePanel';
 import { WordpressPanel } from './WordpressPanel';
@@ -40,6 +59,13 @@ const TAB_META: Record<HubTab, Omit<PillTab<HubTab>, 'key'>> = {
   wolke: { label: 'Wolke', icon: HiCloud },
   docs: { label: 'Docs', icon: HiDocumentText },
   wordpress: { label: 'WordPress', icon: HiGlobeAlt },
+};
+
+const SOURCE_KIND_TEXT: Record<HubTab, { label: string; description: string }> = {
+  upload: { label: 'Dateien', description: 'PDF, DOCX, TXT, MD hochladen' },
+  wolke: { label: 'Wolke', description: 'Nextcloud-Ordner per Freigabelink' },
+  docs: { label: 'Docs', description: 'Grünerator-Dokumente verknüpfen' },
+  wordpress: { label: 'WordPress', description: 'Beiträge einer Website importieren · Beta' },
 };
 
 function notebookPath(c: Pick<TransformedCollection, 'id' | 'name' | 'slug_suffix'>) {
@@ -64,11 +90,16 @@ export function NotebookHub({ slugOrId, isNew }: { slugOrId: string; isNew: bool
   const [shareOpen, setShareOpen] = useState(false);
   const [fullSyncOpen, setFullSyncOpen] = useState(false);
   const [preview, setPreview] = useState<Pick<NotebookDocumentRecord, 'id' | 'title'> | null>(null);
+  const [query, setQuery] = useState('');
+  const [pickingDocs, setPickingDocs] = useState(false);
+  const enabledKinds = useHubSourcePrefs((s) => s.enabled);
+  const setKindEnabled = useHubSourcePrefs((s) => s.setEnabled);
   // Nur beim ersten Rendern: danach soll ein Reload nicht wieder ins Feld springen.
   const [startEditingTitle] = useState(isNew);
 
   const collection = hub.collection;
   const sources = useMemo(() => (collection ? partitionSources(collection) : null), [collection]);
+  const upload = useHubUpload(hub, sources?.total ?? 0);
 
   if (hub.query.isPending) {
     return (
@@ -100,17 +131,38 @@ export function NotebookHub({ slugOrId, isNew }: { slugOrId: string; isNew: bool
   const isOwner = currentUserId !== null && collection.user_id === currentUserId;
   const canEdit = mayEdit(collection, currentUserId);
   const tabParam = params.get('tab');
-  const tab: HubTab = isHubTab(tabParam) ? tabParam : 'upload';
-  const selectTab = (next: HubTab) =>
+  // Ein Link auf eine ausgeblendete Quellart (`?tab=wolke`) zeigt sie trotzdem.
+  const kinds = hubSourceKinds(
+    sources,
+    isHubTab(tabParam) ? [...enabledKinds, tabParam] : enabledKinds
+  );
+  const tab: HubTab =
+    isHubTab(tabParam) && kinds.visible.includes(tabParam) ? tabParam : kinds.visible[0];
+  const writeTab = (next: HubTab | null) =>
     setParams(
       (prev) => {
         const out = new URLSearchParams(prev);
-        out.set('tab', next);
+        if (next) out.set('tab', next);
+        else out.delete('tab');
         out.delete('neu');
         return out;
       },
       { replace: true }
     );
+  const selectTab = (next: HubTab) => {
+    setQuery('');
+    setPickingDocs(false);
+    writeTab(next);
+  };
+  const toggleKind = (kind: HubTab, on: boolean) => {
+    setKindEnabled(kind, on);
+    if (on) selectTab(kind);
+    else if (kind === tab) {
+      setQuery('');
+      setPickingDocs(false);
+      writeTab(null);
+    }
+  };
 
   const report = (err: unknown) => {
     toast.error(err instanceof Error ? err.message : 'Aktion fehlgeschlagen.');
@@ -134,65 +186,134 @@ export function NotebookHub({ slugOrId, isNew }: { slugOrId: string; isNew: bool
   const hasSyncableSources =
     (collection.wolke_folders?.length ?? 0) > 0 || (collection.linked_docs?.length ?? 0) > 0;
 
-  return (
-    <div className="flex w-full justify-center px-[clamp(1rem,4vw,2.5rem)] pt-[clamp(1rem,4vw,2rem)] pb-14">
-      <div className="flex w-full max-w-[65rem] flex-col gap-lg">
-        <div className="flex items-center justify-end gap-xs">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to={notebookPath(collection)}>Zum Notebook</Link>
-          </Button>
-          {isOwner ? (
-            <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}>
-              Teilen
-            </Button>
-          ) : null}
-          {isOwner && hasSyncableSources ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label="Weitere Aktionen">
-                  <HiDotsHorizontal aria-hidden />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => setFullSyncOpen(true)}>
-                  Alle Quellen aktualisieren
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
-        </div>
+  const addButton =
+    canEdit && tab === 'upload' ? (
+      <Button variant="brand" size="brand-sm" onClick={upload.pick} disabled={upload.uploading > 0}>
+        + <span className="max-sm:sr-only">Dateien hochladen</span>
+      </Button>
+    ) : canEdit && tab === 'docs' ? (
+      <Button variant="brand" size="brand-sm" onClick={() => setPickingDocs(true)}>
+        + <span className="max-sm:sr-only">Dokumente</span>
+      </Button>
+    ) : null;
 
+  const toolbar = (
+    <div className="relative flex shrink-0 items-center gap-1 text-grey-500">
+      {tab === 'upload' || tab === 'docs' ? (
+        <HubSearch
+          query={query}
+          onQuery={setQuery}
+          placeholder={tab === 'upload' ? 'Dateien durchsuchen…' : 'Docs durchsuchen…'}
+        />
+      ) : null}
+      <Button variant="ghost" size="icon" asChild>
+        <Link to={notebookPath(collection)} aria-label="Zum Notebook" title="Zum Notebook">
+          <HiArrowRight aria-hidden className="size-[18px]" />
+        </Link>
+      </Button>
+      {isOwner ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Teilen"
+          title="Teilen"
+          onClick={() => setShareOpen(true)}
+        >
+          <HiShare aria-hidden className="size-[18px]" />
+        </Button>
+      ) : null}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Quellen im Notebook"
+            title="Einstellungen"
+          >
+            <HiCog aria-hidden className="size-[18px]" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-[16.25rem]">
+          <DropdownMenuLabel>Quellen im Notebook</DropdownMenuLabel>
+          {HUB_TABS.map((kind) => (
+            <DropdownMenuCheckboxItem
+              key={kind}
+              checked={kinds.visible.includes(kind)}
+              disabled={kinds.locked.has(kind)}
+              onCheckedChange={(on) => toggleKind(kind, on)}
+              onSelect={(e) => e.preventDefault()}
+            >
+              <span className="flex flex-col gap-px">
+                <span>{SOURCE_KIND_TEXT[kind].label}</span>
+                <span className="text-xs text-grey-500">{SOURCE_KIND_TEXT[kind].description}</span>
+              </span>
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+
+  return (
+    <div className="flex w-full justify-center px-[clamp(1rem,4vw,2.5rem)] pt-[clamp(1rem,4vw,2rem)] pb-14 max-md:pt-14">
+      <div className="flex w-full max-w-[65rem] flex-col gap-md">
+        {upload.input}
         <HubHero
           collection={collection}
-          total={sources.total}
           canEdit={canEdit}
           startEditingTitle={startEditingTitle}
           onSave={(patch) => void hub.saveMeta(patch).catch(report)}
+          toolbar={toolbar}
+          actions={
+            (isOwner && hasSyncableSources) || addButton ? (
+              <>
+                {isOwner && hasSyncableSources ? (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Alle Quellen aktualisieren"
+                    title="Alle Quellen aktualisieren"
+                    className="text-grey-500"
+                    onClick={() => setFullSyncOpen(true)}
+                  >
+                    <HiRefresh aria-hidden />
+                  </Button>
+                ) : null}
+                {addButton}
+              </>
+            ) : null
+          }
         />
 
-        <PillTabs
-          ariaLabel="Quellen"
-          active={tab}
-          onSelect={selectTab}
-          className="pb-xs"
-          tabs={(Object.keys(TAB_META) as HubTab[]).map((key) => {
-            const count = tabCount(sources, key);
-            return {
-              key,
-              ...TAB_META[key],
-              suffix:
-                key === 'wordpress' ? (
-                  <Badge variant="outline" className="border-current text-[10px] opacity-80">
-                    Beta
-                  </Badge>
-                ) : count > 0 ? (
-                  <span className="text-sm font-normal opacity-80">{count}</span>
-                ) : undefined,
-            };
-          })}
-        />
+        {kinds.visible.length > 1 ? (
+          <PillTabs
+            ariaLabel="Quellen"
+            active={tab}
+            onSelect={selectTab}
+            className="justify-start pb-xs"
+            tabs={kinds.visible.map((key) => {
+              const count = tabCount(sources, key);
+              return {
+                key,
+                ...TAB_META[key],
+                suffix:
+                  key === 'wordpress' ? (
+                    <Badge variant="outline" className="border-current text-[10px] opacity-80">
+                      Beta
+                    </Badge>
+                  ) : count > 0 ? (
+                    <span className="text-sm font-normal opacity-80">{count}</span>
+                  ) : undefined,
+              };
+            })}
+          />
+        ) : null}
 
-        <div role="tabpanel" aria-label={TAB_META[tab].label}>
+        <div
+          {...(kinds.visible.length > 1
+            ? { role: 'tabpanel', 'aria-label': TAB_META[tab].label }
+            : {})}
+        >
           {!canEdit ? (
             <p className="m-0 mb-sm text-sm text-grey-500">
               Du kannst die Quellen dieses Notebooks ansehen, aber nicht ändern.
@@ -200,9 +321,9 @@ export function NotebookHub({ slugOrId, isNew }: { slugOrId: string; isNew: bool
           ) : null}
           {tab === 'upload' ? (
             <UploadPanel
-              hub={hub}
+              upload={upload}
               rows={sources.upload}
-              total={sources.total}
+              query={query}
               onPreview={openPreview}
               onRemove={removeDocs}
               onReindex={reindexDocs}
@@ -223,6 +344,9 @@ export function NotebookHub({ slugOrId, isNew }: { slugOrId: string; isNew: bool
               rows={sources.docs}
               linkedDocs={collection.linked_docs ?? []}
               total={sources.total}
+              query={query}
+              picking={pickingDocs}
+              onPickingChange={setPickingDocs}
               onPreview={openPreview}
             />
           ) : (

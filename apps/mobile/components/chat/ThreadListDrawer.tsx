@@ -5,14 +5,19 @@ import {
   useAui,
   useAuiState,
 } from '@assistant-ui/react-native';
+import {
+  getDefaultAgent,
+  getNotebookCollectionIds,
+  getThreadAgentId,
+  getThreadType,
+} from '@gruenerator/chat';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useRouter } from 'expo-router';
+import { useNavigationContainerRef, useRouter, type Href } from 'expo-router';
 import { type ReactElement, memo, useCallback, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { isWorkplaceLayout } from '../../config/navLayout';
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useTheme } from '../../hooks/useTheme';
 import { useSettingsSheetStore } from '../../stores/settingsSheetStore';
@@ -20,10 +25,12 @@ import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { DRAWER_MESH } from '../../theme/chatBackgrounds';
 import { route, routeWithParams, type AppRoute } from '../../types/routes';
+import { goHome } from '../../utils/navigation';
+import { drawerOpenMode, threadRoute, type CurrentRoute } from '../../utils/threadRoute';
 import { ProfileAvatar } from '../common';
 import { MeshSurface } from '../common/MeshSurface';
 import { MenuIcon } from '../icons/WebMirrorIcons';
-import { STUDIO_TOOLS, TOOLS, type ToolDef } from '../tools/toolsConfig';
+import { STUDIO_TOOLS, type ToolDef } from '../tools/toolsConfig';
 
 import { asThreadMenuId, buildThreadMenuActions } from './menuActions';
 import { MenuActionSheet } from './MenuActionSheet';
@@ -34,6 +41,20 @@ import type { Theme } from '../../theme/colors';
 
 interface Props {
   theme?: Theme;
+}
+
+/**
+ * Opens a conversation from the drawer the way `drawerOpenMode` decides —
+ * replace one chat with another, leave an already-open one alone, else push.
+ */
+function openConversation(
+  router: ReturnType<typeof useRouter>,
+  current: CurrentRoute,
+  target: { href: Href; threadId: string; withAnchor: boolean }
+): void {
+  const mode = drawerOpenMode(current, target);
+  if (mode === 'replace') router.replace(target.href);
+  else if (mode === 'push') router.push(target.href, { withAnchor: target.withAnchor });
 }
 
 // The body must read `aui` from *inside* ThreadListItemByIndexProvider so that
@@ -56,6 +77,7 @@ const ThreadItemBody = memo(function ThreadItemBody({
 }) {
   const aui = useAui();
   const router = useRouter();
+  const navigationRef = useNavigationContainerRef();
 
   const [actionsOpen, setActionsOpen] = useState(false);
 
@@ -89,10 +111,21 @@ const ThreadItemBody = memo(function ThreadItemBody({
     // drawer, so closing it reveals the conversation directly instead of briefly
     // flashing the screen underneath (looks like a double navigation otherwise).
     if (remoteId) {
-      router.push(routeWithParams('/(focused)/chat-conversation', { threadId: remoteId }));
+      const agentId = getThreadAgentId(remoteId);
+      const { href, withAnchor } = threadRoute({
+        id: remoteId,
+        threadType: getThreadType(remoteId),
+        notebookCollectionIds: getNotebookCollectionIds(remoteId),
+        agentId: agentId !== getDefaultAgent() ? agentId : null,
+      });
+      openConversation(router, navigationRef.getCurrentRoute(), {
+        href,
+        threadId: remoteId,
+        withAnchor,
+      });
     }
     onSelect();
-  }, [aui, onSelect, router]);
+  }, [aui, onSelect, router, navigationRef]);
 
   return (
     <ThreadListItemPrimitive.Root style={styles.itemRoot}>
@@ -363,22 +396,18 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   const theme = themeProp ?? resolvedTheme;
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const navigationRef = useNavigationContainerRef();
   const closeDrawer = useDrawerStore((s) => s.closeDrawer);
   const openSettings = useSettingsSheetStore((s) => s.open);
   const activeThreadId = useAuiState((s) => s.threadListItem.id);
   const favouriteIds = useToolFavoritesStore((s) => s.favorites);
-  // Top-level tools, plus any favourited Studio sub-tool so starring one does not
-  // make it disappear from here. Starred entries sort to the top. The workplace
-  // shell has the top-level tools as tiles on Arbeiten, so it lists only the
-  // starred Studio tools.
+  // The starred Studio tools, in the order they were starred. The top-level
+  // tools are tiles on Arbeiten, not entries here.
   const tools = useMemo(() => {
-    const rank = (t: ToolDef) => {
-      const i = favouriteIds.indexOf(t.id);
-      return i === -1 ? favouriteIds.length : i;
-    };
-    const studioFavourites = STUDIO_TOOLS.filter((t) => favouriteIds.includes(t.id));
-    const topLevel = isWorkplaceLayout ? [] : TOOLS;
-    return [...topLevel, ...studioFavourites].sort((a, b) => rank(a) - rank(b));
+    const rank = (t: ToolDef) => favouriteIds.indexOf(t.id);
+    return STUDIO_TOOLS.filter((t) => favouriteIds.includes(t.id)).sort(
+      (a, b) => rank(a) - rank(b)
+    );
   }, [favouriteIds]);
 
   const handleNavigate = useCallback(
@@ -395,11 +424,15 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   // focused conversation's runtime (MobileChatProvider creates its own), so
   // manipulating composer/threads here would target the wrong surface.
   const handleNewChat = useCallback(() => {
-    // Push before closing the drawer to avoid flashing the screen underneath
+    // Open before closing the drawer to avoid flashing the screen underneath
     // (see handlePress).
-    router.push(routeWithParams('/(focused)/chat-conversation', { threadId: 'new' }));
+    openConversation(router, navigationRef.getCurrentRoute(), {
+      href: routeWithParams('/(focused)/chat-conversation', { threadId: 'new' }),
+      threadId: 'new',
+      withAnchor: false,
+    });
     closeDrawer();
-  }, [closeDrawer, router]);
+  }, [closeDrawer, router, navigationRef]);
 
   const [selected, setSelected] = useState<SelectedThread | null>(null);
   const closeSheet = useCallback(() => setSelected(null), []);
@@ -439,7 +472,10 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
       <View style={[styles.header, { paddingTop: insets.top + spacing.small }]}>
         {/* The wordmark is the way home, the way it is on web. */}
         <Pressable
-          onPress={() => handleNavigate('/start')}
+          onPress={() => {
+            closeDrawer();
+            goHome();
+          }}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Zur Startseite"

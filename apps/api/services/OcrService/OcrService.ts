@@ -33,6 +33,7 @@ import {
   extractTextWithMistralOCR as extractMistral,
   extractBase64WithMistralOCR,
   extractPagesWithMistralOCR,
+  type MistralOcrOptions,
 } from './mistralIntegration.js';
 import { replaceMarkedPages, stripPageMarkers, type PageMarkerOptions } from './pageMarkers.js';
 import {
@@ -377,7 +378,7 @@ export class OCRService {
    */
   async extractTextWithMistralOCR(
     filePath: string,
-    options: PageMarkerOptions = {}
+    options: MistralOcrOptions = {}
   ): Promise<ExtractionResult> {
     return await extractMistral(filePath, getMediaType, options);
   }

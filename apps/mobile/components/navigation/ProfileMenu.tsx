@@ -1,6 +1,5 @@
 import { useAuth } from '@gruenerator/shared/hooks';
-import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { useRouter, type Href } from 'expo-router';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback, useRef, useState } from 'react';
 import {
   View,
@@ -12,7 +11,6 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
-import { isWorkplaceLayout } from '../../config/navLayout';
 import { useUnreadCount } from '../../hooks/useNotifications';
 import { logout } from '../../services/auth';
 import { useSettingsSheetStore } from '../../stores/settingsSheetStore';
@@ -20,27 +18,8 @@ import { lightTheme, darkTheme, colors, spacing, borderRadius, BODY_FONT } from 
 import { ProfileAvatar } from '../common';
 import { NotificationList } from '../notifications/NotificationList';
 
-interface MenuItem {
-  key: string;
-  label: string;
-  icon: IoniconsIconName;
-  href: Href;
-}
-
-// Projekte and Agentura live here and in the drawer only — the bottom bar is
-// reserved for the four everyday surfaces (Chat, Arbeiten, Studio, Wissen). The
-// workplace shell has them as tiles on Arbeiten, so there the list is empty.
-// Einstellungen is not in this list: it is a sheet, not a destination.
-const TOOL_ITEMS: MenuItem[] = [
-  {
-    key: 'projekte',
-    label: 'Projekte',
-    icon: 'people-circle-outline',
-    href: '/(focused)/projekte',
-  },
-  { key: 'agentura', label: 'Agentura', icon: 'people-outline', href: '/(focused)/agents' },
-];
-const MENU_ITEMS: MenuItem[] = isWorkplaceLayout ? [] : TOOL_ITEMS;
+// Projekte and Agentura are tiles on Arbeiten; Einstellungen is a sheet, not a
+// destination. What is left here is about the account.
 
 const getPossessiveForm = (name: string | undefined): string => {
   if (!name) return 'Dein';
@@ -60,7 +39,6 @@ const PANEL_WIDTH = 280;
 export function ProfileMenu() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const router = useRouter();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { user, isLoggingOut } = useAuth();
   const { count: unreadCount } = useUnreadCount();
@@ -79,14 +57,6 @@ export function ProfileMenu() {
       setOpen(true);
     });
   }, [screenWidth]);
-
-  const navigateTo = useCallback(
-    (href: Href) => {
-      setOpen(false);
-      router.push(href);
-    },
-    [router]
-  );
 
   const handleLogout = useCallback(() => {
     setOpen(false);
@@ -177,21 +147,6 @@ export function ProfileMenu() {
             </Pressable>
 
             <View style={[styles.separator, { backgroundColor: theme.border }]} />
-
-            {MENU_ITEMS.map((item) => (
-              <Pressable
-                key={item.key}
-                onPress={() => navigateTo(item.href)}
-                style={({ pressed }) => [
-                  styles.row,
-                  { backgroundColor: pressed ? theme.surface : 'transparent' },
-                ]}
-                accessibilityRole="button"
-              >
-                <Ionicons name={item.icon} size={20} color={theme.textSecondary} />
-                <Text style={[styles.rowLabel, { color: theme.text }]}>{item.label}</Text>
-              </Pressable>
-            ))}
 
             <Pressable
               onPress={() => {

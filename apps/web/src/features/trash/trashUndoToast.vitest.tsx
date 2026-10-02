@@ -23,8 +23,11 @@ beforeEach(() => {
   Element.prototype.hasPointerCapture = () => false;
 });
 
-afterEach(() => {
+afterEach(async () => {
   toast.dismiss();
+  // sonner unmounts a dismissed toast on a 200 ms timer. Left running after the
+  // last test, it fires a state update once jsdom is gone: "window is not defined".
+  await waitFor(() => expect(document.querySelector('[data-sonner-toast]')).toBeNull());
 });
 
 function setup() {

@@ -1,3 +1,5 @@
+import { type CategoryFilterConfig, type SourceFilterConfig } from '@gruenerator/chat';
+import { datePresets, type DateRange } from '@gruenerator/shared/utils';
 import {
   Button,
   Command,
@@ -21,14 +23,8 @@ import { LuCheck, LuChevronDown, LuLayoutGrid, LuList } from 'react-icons/lu';
 
 import { NOTEBOOK_ACCENT_TEXT } from '../notebookTheme';
 
-import { datePresets, type DateRange } from './datePresets';
 import { type ResearchView } from './ResearchHitCard';
-import {
-  type FilterFieldConfig,
-  type SearchMode,
-  type SortOption,
-  type useResearchFilters,
-} from './useResearchFilters';
+import { type SearchMode, type SortOption, type useResearchFilters } from './useResearchFilters';
 
 import { cn } from '@/utils/cn';
 
@@ -44,7 +40,13 @@ export type ResearchOptions = Pick<
   | 'toggleFilter'
   | 'setDateFilter'
   | 'clearAllFilters'
-> & { setSortBy: (sortBy: SortOption) => void };
+> & {
+  setSortBy: (sortBy: SortOption) => void;
+  /** The notebook's facets, shared with the chat (notebook store). */
+  shared?: CategoryFilterConfig;
+  /** A multi-source notebook's sources, shared with the chat. */
+  sources?: SourceFilterConfig;
+};
 
 const MODE_OPTIONS: { value: SearchMode; label: string }[] = [
   { value: 'hybrid', label: 'Kombiniert' },
@@ -151,58 +153,74 @@ function SelectControl<T extends string>({
   );
 }
 
-/** A keyword facet: searchable multi-select with each value's count. */
+interface FacetValue {
+  value: string;
+  label: string;
+  count?: number;
+}
+
+/** A multi-select facet: searchable list with each value's count. */
 function FacetControl({
-  field,
-  config,
+  name,
+  values,
   selected,
+  allLabel,
+  searchPlaceholder,
+  changed = selected.length > 0,
   recognised,
   onToggle,
 }: {
-  field: string;
-  config: FilterFieldConfig;
+  name: string;
+  values: FacetValue[];
   selected: string[];
+  allLabel: string;
+  searchPlaceholder: string;
+  /** Differs from the default; defaults to „something is selected“. */
+  changed?: boolean;
   recognised: boolean;
-  onToggle: (field: string, value: string) => void;
+  onToggle: (value: string) => void;
 }) {
-  const copy = FACET_COPY[field] ?? { all: `Alle: ${config.label}`, search: 'Suchen …' };
-  const label = (v: string) => config.valueLabels?.[v] ?? v;
-  const values = [...(config.values ?? [])].sort(
+  const label = (v: string) => values.find((x) => x.value === v)?.label ?? v;
+  const sorted = [...values].sort(
     (a, b) => Number(selected.includes(b.value)) - Number(selected.includes(a.value))
   );
-  const current = selected.length
-    ? label(selected[0]) + (selected.length > 1 ? ` +${selected.length - 1}` : '')
-    : copy.all;
+  const current =
+    changed && selected.length
+      ? label(selected[0]) + (selected.length > 1 ? ` +${selected.length - 1}` : '')
+      : allLabel;
 
   return (
     <Popover>
       <PopoverTrigger asChild>
         <ControlTrigger
-          name={config.label}
+          name={name}
           value={current}
-          changed={selected.length > 0}
+          changed={changed}
           recognised={recognised}
+          {...(current === name ? { 'aria-label': `${name}: Alle` } : {})}
         />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 max-w-[calc(100vw-2rem)] p-0">
         <Command>
-          <CommandInput placeholder={copy.search} />
+          <CommandInput placeholder={searchPlaceholder} />
           <CommandList className="max-h-72">
             <CommandEmpty>Nichts gefunden.</CommandEmpty>
-            {values.map((v) => {
+            {sorted.map((v) => {
               const on = selected.includes(v.value);
               return (
                 <CommandItem
                   key={v.value}
-                  value={label(v.value)}
-                  onSelect={() => onToggle(field, v.value)}
+                  value={v.label}
+                  onSelect={() => onToggle(v.value)}
                   aria-checked={on}
                   className="gap-2"
                 >
                   <span className={cn('min-w-0 flex-1 truncate', on && 'font-semibold')}>
-                    {label(v.value)}
+                    {v.label}
                   </span>
-                  <span className="text-xs text-grey-500">{v.count.toLocaleString('de-DE')}</span>
+                  {typeof v.count === 'number' && (
+                    <span className="text-xs text-grey-500">{v.count.toLocaleString('de-DE')}</span>
+                  )}
                   <LuCheck
                     className={cn('size-3.5', NOTEBOOK_ACCENT_TEXT, !on && 'invisible')}
                     aria-hidden
@@ -217,6 +235,17 @@ function FacetControl({
   );
 }
 
+function facetValues(
+  values: Array<{ value: string; count?: number }>,
+  valueLabels?: Record<string, string>
+): FacetValue[] {
+  return values.map((v) => ({
+    value: v.value,
+    label: valueLabels?.[v.value] ?? v.value,
+    ...(typeof v.count === 'number' ? { count: v.count } : {}),
+  }));
+}
+
 /** True when anything in the toolbar differs from its default. */
 export function researchOptionsAdjusted(filters: ResearchOptions): boolean {
   return (
@@ -224,7 +253,9 @@ export function researchOptionsAdjusted(filters: ResearchOptions): boolean {
       Array.isArray(v) ? v.length > 0 : !!(v.date_from || v.date_to)
     ) ||
     filters.searchMode !== 'hybrid' ||
-    filters.sortBy !== 'relevance'
+    filters.sortBy !== 'relevance' ||
+    Object.values(filters.shared?.activeFilters ?? {}).some((v) => v.length > 0) ||
+    (!!filters.sources && filters.sources.selectedIds.length < filters.sources.collections.length)
   );
 }
 
@@ -232,12 +263,14 @@ export function resetResearchOptions(filters: ResearchOptions): void {
   filters.clearAllFilters();
   filters.setSearchMode('hybrid');
   filters.setSortBy('relevance');
+  filters.shared?.onClearAll?.();
+  filters.sources?.onSelectAll?.();
 }
 
 /**
- * The hit list's controls in one line: search kind, order, time span and the
- * facets the composer's settings menu does not already carry — each shows its
- * current value, magenta once changed — plus the grid/list switch.
+ * The hit list's controls in one line: search kind, order, time span, sources
+ * and facets — each shows its current value, magenta once changed — plus the
+ * grid/list switch.
  */
 export function ResearchResultsToolbar({
   filters,
@@ -248,7 +281,7 @@ export function ResearchResultsToolbar({
   dateLabel,
 }: {
   filters: ResearchOptions;
-  /** Keyword facets offered here (the rest come from the settings menu). */
+  /** The list's own keyword facets (`filters.shared` adds the notebook's). */
   facetFields: string[];
   view: ResearchView;
   onViewChange: (view: ResearchView) => void;
@@ -311,16 +344,55 @@ export function ResearchResultsToolbar({
       />
     );
   }
+  const { sources, shared } = filters;
+  if (sources && sources.collections.length > 1) {
+    controls.push(
+      <FacetControl
+        key="sources"
+        name="Quellen"
+        values={sources.collections.map((c) => ({
+          value: c.id,
+          label: c.name,
+          ...(typeof c.documentCount === 'number' ? { count: c.documentCount } : {}),
+        }))}
+        selected={sources.selectedIds}
+        allLabel="Alle Quellen"
+        searchPlaceholder="Quelle suchen …"
+        changed={sources.selectedIds.length < sources.collections.length}
+        recognised={false}
+        onToggle={sources.onToggle}
+      />
+    );
+  }
+  for (const field of shared?.fields ?? []) {
+    if (offeredFacets.includes(field.field)) continue;
+    controls.push(
+      <FacetControl
+        key={`shared-${field.field}`}
+        name={field.label}
+        values={facetValues(field.values, field.valueLabels)}
+        selected={shared?.activeFilters[field.field] ?? []}
+        allLabel={field.label}
+        searchPlaceholder="Suchen …"
+        recognised={false}
+        onToggle={(value) => shared?.onToggle(field.field, value)}
+      />
+    );
+  }
   for (const field of offeredFacets) {
     const active = activeFilters[field];
+    const config = filterFields[field];
+    const copy = FACET_COPY[field] ?? { all: config.label, search: 'Suchen …' };
     controls.push(
       <FacetControl
         key={field}
-        field={field}
-        config={filterFields[field]}
+        name={config.label}
+        values={facetValues(config.values ?? [], config.valueLabels)}
         selected={Array.isArray(active) ? active : []}
+        allLabel={copy.all}
+        searchPlaceholder={copy.search}
         recognised={recognised.includes(field)}
-        onToggle={filters.toggleFilter}
+        onToggle={(value) => filters.toggleFilter(field, value)}
       />
     );
   }

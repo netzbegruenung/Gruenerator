@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Keyboard, Platform, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
@@ -25,9 +25,20 @@ export function BottomComposerBar({
   autoFocus = false,
   onDismissEmpty,
   onClose,
+  onTextChange,
+  submitAs,
+  showMentions,
+  accessory,
+  accentColor,
+  header,
+  variant = 'bar',
+  minHeight,
+  toolbarTone,
+  submitOnEnter,
 }: {
   placeholder?: string;
-  onSend: (text: string) => void;
+  /** Return `false` to keep the text in the field (a search, not a send). */
+  onSend: (text: string) => void | false;
   onSettings?: () => void;
   showActionSheet?: boolean;
   onAttach?: ComposerProps['onAttach'];
@@ -35,6 +46,18 @@ export function BottomComposerBar({
   autoFocus?: boolean;
   onDismissEmpty?: () => void;
   onClose?: () => void;
+  onTextChange?: ComposerProps['onTextChange'];
+  submitAs?: ComposerProps['submitAs'];
+  showMentions?: ComposerProps['showMentions'];
+  accessory?: ComposerProps['accessory'];
+  accentColor?: ComposerProps['accentColor'];
+  /** `card` stacks the input above its toolbar (two rows); `bar` is one pill. */
+  variant?: ComposerProps['variant'];
+  minHeight?: ComposerProps['minHeight'];
+  toolbarTone?: ComposerProps['toolbarTone'];
+  submitOnEnter?: ComposerProps['submitOnEnter'];
+  /** Rides on top of the composer, up with the keyboard (filter chips, a hint). */
+  header?: ReactNode;
 }) {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const edge = useComposerEdge();
@@ -70,8 +93,12 @@ export function BottomComposerBar({
       keyboardVerticalOffset={keyboardVerticalOffset}
     >
       <View style={[edge, { paddingBottom }]}>
+        {header}
         <Composer
-          variant="bar"
+          variant={variant}
+          minHeight={minHeight}
+          toolbarTone={toolbarTone}
+          submitOnEnter={submitOnEnter}
           testIDPrefix="tab-composer"
           placeholder={placeholder}
           onSubmit={onSend}
@@ -81,6 +108,11 @@ export function BottomComposerBar({
           autoFocus={autoFocus}
           onDismissEmpty={onDismissEmpty}
           onClose={onClose}
+          onTextChange={onTextChange}
+          submitAs={submitAs}
+          showMentions={showMentions}
+          accessory={accessory}
+          accentColor={accentColor}
         />
       </View>
     </KeyboardAvoidingView>

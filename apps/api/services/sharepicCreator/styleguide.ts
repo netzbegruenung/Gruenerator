@@ -25,6 +25,7 @@ export const STYLEGUIDE_CHAPTERS = {
     'Interview oder Statement einer Person als Karussell: Cover-Zitat, Frage und Antwort je Slide',
   stoerer: 'Störer-Kreis: wann, wie kurz',
   karussell: 'Karussells: Bogen über mehrere Slides, Kritik, Erklärung, Geschichte',
+  diagramme: 'Zahlen als Diagramm: wann statt großer Zahl, welche Art, Beschriftung',
 } as const;
 
 export type StyleguideChapter = keyof typeof STYLEGUIDE_CHAPTERS;
@@ -76,6 +77,7 @@ export const EXAMPLE_OCCASIONS = [
   'karussell-kritik',
   'karussell-erklaerung',
   'karussell-geschichte',
+  'zahlen',
 ] as const;
 export type ExampleOccasion = (typeof EXAMPLE_OCCASIONS)[number];
 export const exampleOccasionSchema = z.enum(EXAMPLE_OCCASIONS);

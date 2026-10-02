@@ -133,6 +133,27 @@ export function tabCount(sources: HubSources, tab: HubTab): number {
   }
 }
 
+/** Anders als `tabCount` zählt hier auch die Wolke-Gruppe ohne verbundenen Ordner. */
+function hasContent(sources: HubSources, tab: HubTab): boolean {
+  return tab === 'wolke' ? sources.wolke.length > 0 : tabCount(sources, tab) > 0;
+}
+
+/**
+ * Welche Quellarten der Hub zeigt: jede mit Inhalt, dazu die leeren, die die
+ * Person sich zugeschaltet hat. Eine Art mit Inhalt lässt sich nicht
+ * abwählen — sonst verschwänden Quellen, die im Notebook stehen.
+ */
+export function hubSourceKinds(
+  sources: HubSources,
+  enabled: readonly HubTab[]
+): { visible: HubTab[]; locked: Set<HubTab> } {
+  const visible = HUB_TABS.filter((t) => hasContent(sources, t) || enabled.includes(t));
+  if (visible.length === 0) visible.push('upload');
+  const locked = new Set(visible.filter((t) => hasContent(sources, t)));
+  if (visible.length === 1) locked.add(visible[0]);
+  return { visible, locked };
+}
+
 /** Kürzel für die Typ-Kachel einer Zeile: Dateiendung, sonst die Quelle. */
 export function kindLabel(doc: Pick<NotebookDocumentRecord, 'title' | 'source_type'>): string {
   const ext = /\.([a-z0-9]{1,4})$/i.exec(doc.title)?.[1];
