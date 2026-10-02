@@ -286,8 +286,8 @@ describe('quotes keep their speaker', () => {
   });
 
   it('does not force a zitat on briefs that are not quotes', () => {
-    expect(validateDraft(headlineDraft, 'de-AT', 'Mehr Bäume für Graz').ok).toBe(true);
-    expect(validateDraft(headlineDraft, 'de-AT', 'Zitat-Karte gewünscht, Text offen').ok).toBe(
+    expect(validateDraft(headlineDraft, 'de-DE', 'Mehr Bäume für Graz').ok).toBe(true);
+    expect(validateDraft(headlineDraft, 'de-DE', 'Zitat-Karte gewünscht, Text offen').ok).toBe(
       true
     );
   });
