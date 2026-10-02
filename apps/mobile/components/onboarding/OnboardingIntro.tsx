@@ -9,7 +9,14 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useReduceMotion } from '../../hooks/useAccessibilityPreferences';
-import { darkTheme, lightTheme, spacing, borderRadius, BODY_FONT } from '../../theme';
+import {
+  darkTheme,
+  lightTheme,
+  spacing,
+  borderRadius,
+  BODY_FONT,
+  HEADING_FONT_BOLD,
+} from '../../theme';
 import { LegalNotice } from '../auth/LegalNotice';
 
 const HEADLINE = 'Bereit für KI, die die Welt nicht brennen sehen will?';
@@ -130,7 +137,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headline: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 30,
     lineHeight: 38,
     letterSpacing: -0.5,

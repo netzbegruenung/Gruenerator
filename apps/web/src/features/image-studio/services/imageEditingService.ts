@@ -1,4 +1,9 @@
-import { type ImageEditReference, type KiLabelMode } from '@gruenerator/contracts';
+import {
+  type Flux3BoxEdit,
+  type Flux3LayoutRow,
+  type ImageEditReference,
+  type KiLabelMode,
+} from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 
 import apiClient from '../../../components/utils/apiClient';
@@ -99,7 +104,7 @@ export async function editAiImage(
   instruction: string,
   editType: ImageEditType = 'universal',
   imageModel?: ImageModelId,
-  options?: { kiLabel?: KiLabelMode }
+  options?: { kiLabel?: KiLabelMode; boxes?: 'auto' | Flux3BoxEdit }
 ): Promise<{ file: File; objectUrl: string; base64: string }> {
   const files = Array.isArray(image) ? image : [image];
   if (files.length === 0) throw new Error('Kein Bild ausgewählt');
@@ -115,6 +120,7 @@ export async function editAiImage(
       precision: true,
       ...(imageModel && { imageModel }),
       ...(options?.kiLabel && options.kiLabel !== 'full' && { kiLabel: options.kiLabel }),
+      ...(options?.boxes && { boxes: options.boxes }),
     },
   });
 
@@ -139,4 +145,17 @@ export async function editAiImage(
   const objectUrl = URL.createObjectURL(file);
 
   return { file, objectUrl, base64 };
+}
+
+/** Experimental (FLUX 3): the elements of an image with bounding boxes. */
+export async function detectImageElements(image: File): Promise<Flux3LayoutRow[]> {
+  const reference = await fileToReference(image, TOTAL_INPUT_BUDGET_MP * 1_000_000);
+  const result = await getContractsClient().imageEdit.elements({ body: { image: reference } });
+  if (result.status === 400 || result.status === 401 || result.status === 500) {
+    throw new ApiError(result.status, result.body.error);
+  }
+  if (result.status !== 200) {
+    throw new ApiError(result.status, 'Elemente konnten nicht erkannt werden');
+  }
+  return result.body.elements;
 }

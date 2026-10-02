@@ -380,7 +380,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/sonstiges/inhaltsdatenbank",
     "title": "Inhaltsdatenbank",
     "category": "Sonstiges",
-    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 64.460 Vektoren in der Datenbank gespeichert."
+    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 66.035 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/sonstiges/mcp-was-kann-ich-fragen",
@@ -497,7 +497,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Unsere europäischen Partner",
     "anchor": "#unsere-europäischen-partner",
     "category": "Basics",
-    "text": "Mistral AI (Frankreich) — Standardmodell Mistral Medium 3.5 (mistral-medium-2604), Pixtral Large als im Chat wählbares Modell, Suche und Notebooks mit mistral-embed, Transkription mit Voxtral KugelAudio (Berlin, Deutschland) — Sprachausgabe mit kugel-3: das Vorlesen von Antworten und die Stimme im Sprachdialog, ausschließlich über den EU-Endpunkt api.eu.kugelaudio.com. Seit September 2026 anstelle von Mistral Speech. Keine dauerhafte Speicherung der Inhalte, kein Training; jede erzeugte Audiodatei trägt ein Wasserzeichen nach Art. 50 KI-VO Black Forest Labs (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 2 Pro (flux-2-pro), ausschließlich über den EU-Endpunkt api.eu.bfl.ai Cortecs (Vermittler, EU) — vermittelt Gemma 4 (gemma-4-31b-it) an Infercom SCS (Luxemburg, Verarbeitung in Deutschland). Seit August 2026 das Modell, das die meisten Chat-Antworten und fertigen Texte schreibt sowie lange Dokumente zusammenfasst. Cortecs bekommt bei jeder Anfrage die Weisung, nur in der EU ansässige Anbieter mit Zero Data Retention einzusetzen; welcher Anbieter tatsächlich gerechnet hat, steht in jeder Antwort und wird protokolliert GreenPT (Utrecht, Niederlande; Verarbeitung in…"
+    "text": "Mistral AI (Frankreich) — Standardmodell Mistral Medium 3.5 (mistral-medium-2604), Pixtral Large als im Chat wählbares Modell, Suche und Notebooks mit mistral-embed, Transkription mit Voxtral KugelAudio (Berlin, Deutschland) — Sprachausgabe mit kugel-3: das Vorlesen von Antworten und die Stimme im Sprachdialog, ausschließlich über den EU-Endpunkt api.eu.kugelaudio.com. Seit September 2026 anstelle von Mistral Speech. Keine dauerhafte Speicherung der Inhalte, kein Training; jede erzeugte Audiodatei trägt ein Wasserzeichen nach Art. 50 KI-VO Black Forest Labs (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 3 (flux-3-image, seit Oktober 2026 anstelle von FLUX 2 Pro/Max) und FLUX 2 Klein, ausschließlich über den EU-Endpunkt api.eu.bfl.ai; die Websuche des Modells (grounding) ist abgeschaltet Cortecs (Vermittler, EU) — vermittelt Gemma 4 (gemma-4-31b-it) an Infercom SCS (Luxemburg, Verarbeitung in Deutschland). Seit August 2026 das Modell, das die meisten Chat-Antworten und fertigen Texte schreibt sowie lange Dokumente zusammenfasst. Cortecs bekommt bei jeder Anfrage die Weisung, nur in der EU ansässige Anbieter mit Zero Data Retention einzusetzen; welcher Anbieter…"
   },
   {
     "url": "/docs/basics/intro",
@@ -537,7 +537,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Mit Herz für Open-Source",
     "anchor": "#mit-herz-für-open-source",
     "category": "Basics",
-    "text": "Der Grünerator wurde auf Basis von Open-Source-Software entwickelt und liegt auf den Servern der Netzbegrünung. Die netzbegrünung ist ein Verein für grüne Netzkultur e.V., der sich seit 2006 für die Förderung der Demokratie im digitalen Raum und eine nachhaltige digitale Infrastruktur einsetzt. Mit über 500 Mitgliedern aus Deutschland und Österreich entwickelt die netzbegrünung innovative digitale Lösungen und vermittelt Fachwissen zu digitalpolitischen Inhalten. Direkt zum Grünerator: gruenerator.eu"
+    "text": "Der Grünerator wurde auf Basis von Open-Source-Software entwickelt und liegt auf den Servern der verdigado eG. Direkt zum Grünerator: gruenerator.eu"
   },
   {
     "url": "/docs/basics/intro",
@@ -1177,7 +1177,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Datenschutz",
     "anchor": "#datenschutz",
     "category": "Chat",
-    "text": "Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards: Europäische Server: Deine Eingaben werden ausschließlich von europäischen Anbietern verarbeitet. Die KI-Modelle laufen derzeit bei Black Forest Labs 🇩🇪, Cortecs 🇱🇺, GreenPT 🇪🇺, Melious 🇪🇺, Mistral AI 🇫🇷; welcher Anbieter welche Aufgabe übernimmt, steht unter Grünerator Pro-EU. Dazu kommen Dienste, die selbst kein Modell rechnen, deine Eingaben aber trotzdem sehen – etwa die Websuche. Vollständig und verbindlich sind alle Anbieter in der Datenschutzerklärung aufgeführt. Eigene, selbst gehostete Modelle setzt der Grünerator seit dem 29.08.2026 nicht mehr ein (siehe Nachhaltigkeit). Kein KI-Training: Deine Eingaben werden nicht zum Training der KI verwendet. Offene Modelle: Hinter Klein und Mittel stehen Modelle mit offenen Gewichten (Open Weights), die jeder prüfen und selbst betreiben kann."
+    "text": "Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards: Europäische Server: Deine Eingaben werden ausschließlich von europäischen Anbietern verarbeitet. Die KI-Modelle laufen derzeit bei Black Forest Labs 🇩🇪, Cortecs 🇱🇺, GreenPT 🇪🇺, Melious 🇪🇺, Mistral AI 🇫🇷; welcher Anbieter welche Aufgabe übernimmt, steht unter Grünerator Pro-EU. Dazu kommen Dienste, die selbst kein Modell rechnen, deine Eingaben aber trotzdem sehen – etwa die Websuche. Vollständig und verbindlich sind alle Anbieter in der Datenschutzerklärung aufgeführt. Eigene, selbst gehostete Modelle setzt der Grünerator seit dem 29.08.2026 nicht mehr ein (siehe Nachhaltigkeit). Kein KI-Training: Deine Eingaben werden nicht zum Training der KI verwendet. Offene Modelle: Hinter Klein, Mittel und Panda stehen Modelle mit offenen Gewichten (Open Weights), die jeder prüfen und selbst betreiben kann."
   },
   {
     "url": "/docs/chat/ki-modelle",
@@ -1185,7 +1185,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verfügbare Modelle",
     "anchor": "#verfügbare-modelle",
     "category": "Chat",
-    "text": "Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen findest du auch in der Chrome-Erweiterung. Im Excel-Add-in stehen Klein und Mittel zur Wahl. Klein – Am schnellsten, für kurze Aufgaben. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Mittel – Eine gute Mischung aus Tempo und Qualität, besonders für Kreativtexte. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Ultra – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Mistral AI, Frankreich). Welches Modell hinter einer Stufe steckt, kann sich ändern, wenn ein besseres verfügbar wird – die Stufe bleibt. Welche Anbieter aktuell dahinterstehen, steht jederzeit in der Datenschutzerklärung. Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black Forest Labs, Deutschland). Auch hier gilt: Verarbeitung auf europäischen Servern."
+    "text": "Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen findest du auch in der Chrome-Erweiterung. Im Excel-Add-in stehen Klein und Mittel zur Wahl. Klein – Am schnellsten, für kurze Aufgaben. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Mittel – Eine gute Mischung aus Tempo und Qualität, besonders für Kreativtexte. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Ultra – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Mistral AI, Frankreich). Panda – Für sehr anspruchsvolle Aufgaben, mit sichtbarem Nachdenken vor der Antwort. Dahinter steht DeepSeek, ein offenes Modell (Open Weights) aus China, das bei einem europäischen Anbieter läuft (Melious, Finnland) – deine Eingaben gehen nicht nach China. Panda ist nicht für alle sichtbar: Eine Administratorin oder ein Administrator deiner Instanz schaltet die Stufe nach einer Schulung für dein Konto frei. Fällt das Modell aus, antwortet Ultra. Welches Modell hinter einer Stufe steckt, kann sich ändern, wenn ein besseres verfügbar wird – die Stufe bleibt. Welche Anbieter aktuell dahinterstehen, steht jederzeit in der Datenschutzerklärung. Für die Bildgenerierung kommen…"
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -1929,7 +1929,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Beiträge, Erwähnungen und Benachrichtigungen",
     "anchor": "#beiträge-erwähnungen-und-benachrichtigungen",
     "category": "Guides",
-    "text": "Im Feed einer Gruppe kannst du Beiträge schreiben und kommentieren. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder der Gruppe. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt. Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter Benachrichtigungen ein. „Benachrichtigungen stummschalten“ im Drei-Punkte-Menü der Gruppe stoppt die E-Mails dieser Gruppe; in der Glocke erscheinen sie weiterhin."
+    "text": "Im Feed einer Gruppe öffnet „Schreib etwas an die Gruppe …“ den Beitragseditor. Schreibe deinen Text, hänge bei Bedarf über „Dateien“ Anhänge an und klicke auf „Posten“. Ein Beitrag darf bis zu 5.000 Zeichen und zehn Dateien mit jeweils höchstens 25 MiB enthalten; auch ein Beitrag nur mit Dateien ist möglich. Über die Sprechblase unter einem Beitrag oder geteilten Inhalt öffnest du die Kommentare. Schreibe ins Kommentarfeld und klicke auf „Senden“. Auf vorhandene Kommentare kannst du antworten; Antworten werden als Thread zusammengefasst. Kommentare dürfen bis zu 2.000 Zeichen enthalten. Über das Stecknadel-Symbol können Admins bis zu drei Einträge anheften. Eine weitere Anheftung löst die älteste. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder der Gruppe. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt. Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -1937,7 +1937,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Ein Notebook hinzufügen",
     "anchor": "#ein-notebook-hinzufügen",
     "category": "Guides",
-    "text": "Klicke neben „Geteilte Inhalte“ auf das Plus. Der Button heißt für Hilfstechnologien „Inhalte hinzufügen“. Wähle „Notebooks“. Klicke auf das Notebook, das du freigeben möchtest. Ein Häkchen zeigt die Auswahl an. Du kannst auch mehrere Notebooks auswählen. Klicke unten rechts auf „1 hinzufügen“. Bei mehreren ausgewählten Inhalten passt sich die Zahl automatisch an. Das Notebook erscheint danach im Abschnitt „Geteilte Inhalte“. Mitglieder des Projekts können es dort öffnen und lesen; durch das Hinzufügen erhalten sie keine Schreibrechte am Notebook."
+    "text": "Klicke oben rechts auf „Inhalte teilen“. Im geöffneten Beitragseditor erreichst du dieselbe Auswahl über „Aus meinen Inhalten“. Wähle „Notebooks“. Klicke auf das Notebook, das du freigeben möchtest. Ein Häkchen zeigt die Auswahl an. Du kannst auch mehrere Notebooks auswählen. Optional kannst du eine Notiz für die Gruppe ergänzen. Klicke unten rechts auf „1 hinzufügen“. Bei mehreren ausgewählten Inhalten passt sich die Zahl automatisch an. Das Notebook erscheint danach im Feed und unter „Alle“ im Abschnitt „Notebooks“. Mitglieder des Projekts können es dort öffnen und lesen; durch das Hinzufügen erhalten sie keine Schreibrechte am Notebook."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -1945,7 +1945,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Einladungslink kopieren",
     "anchor": "#einladungslink-kopieren",
     "category": "Guides",
-    "text": "Öffne oben rechts das Drei-Punkte-Menü „Aktionen“. Klicke auf „Einladungslink kopieren“. Der Link wird direkt in die Zwischenablage kopiert. Füge den Link in eine Nachricht an die Personen ein, die beitreten sollen. Der Link ist eine Einladung zu deinem Projekt. Teile ihn nur mit den vorgesehenen Personen. Nur Admins sehen diese Aktion. Alternativ kannst du im selben Menü „Per E-Mail einladen“ wählen."
+    "text": "Öffne oben rechts das Drei-Punkte-Menü „Gruppenoptionen“. Klicke auf „Einladungslink kopieren“. Der Link wird direkt in die Zwischenablage kopiert. Füge den Link in eine Nachricht an die Personen ein, die beitreten sollen. Der Link ist eine Einladung zu deinem Projekt. Teile ihn nur mit den vorgesehenen Personen. Nur Admins sehen diese Aktion. Alternativ kannst du im selben Menü „Per E-Mail einladen“ wählen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Feed und Inhaltsübersicht",
+    "anchor": "#feed-und-inhaltsübersicht",
+    "category": "Guides",
+    "text": "Gemeinsame Projekte haben zwei Ansichten: „Feed“ zeigt Beiträge und geteilte Inhalte, „Alle“ sortiert die Inhalte nach Art. Angeheftete Einträge stehen im Feed oben. Über das Suchfeld findest du Inhalte anhand von Titel, Notiz, Beitragstext oder Dateinamen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -1961,7 +1969,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Inhalte wieder entfernen",
     "anchor": "#inhalte-wieder-entfernen",
     "category": "Guides",
-    "text": "Als Admin kannst du einen geteilten Inhalt über den Entfernen-Button an seiner Karte wieder aus dem Projekt nehmen. Das löscht das ursprüngliche Notebook nicht — nur seine Freigabe im Projekt wird entfernt."
+    "text": "Als Admin kannst du einen geteilten Inhalt über das Aktionsmenü seiner Karte im Feed wieder aus dem Projekt nehmen. Das löscht das ursprüngliche Notebook nicht — nur seine Freigabe im Projekt wird entfernt."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -1985,7 +1993,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn etwas fehlt",
     "anchor": "#wenn-etwas-fehlt",
     "category": "Guides",
-    "text": "Kein Einladungslink im Menü? Dann handelt es sich wahrscheinlich um ein persönliches Projekt oder du bist kein Admin. Einladungen gibt es nur bei gemeinsamen Projekten. „Notebooks“ wird nicht angeboten? Die Auswahl zeigt nur Kategorien, in denen dir Inhalte zur Verfügung stehen. Erstelle zunächst eines oder prüfe, ob du Zugriff auf ein Notebook hast. Das Plus bei „Geteilte Inhalte“ fehlt? Nur Admins können Inhalte hinzufügen oder entfernen."
+    "text": "Kein Einladungslink im Menü? Dann handelt es sich wahrscheinlich um ein persönliches Projekt oder du bist kein Admin. Einladungen gibt es nur bei gemeinsamen Projekten. „Notebooks“ wird nicht angeboten? Die Auswahl zeigt nur Kategorien, in denen dir Inhalte zur Verfügung stehen. Erstelle zunächst eines oder prüfe, ob du Zugriff auf ein Notebook hast. „Inhalte teilen“ fehlt? Im System-Projekt „Grünerator“ dürfen nur Instanz-Admins Inhalte teilen und Beiträge schreiben. In normalen gemeinsamen Projekten dürfen Mitglieder teilen; Entfernen geteilter Inhalte bleibt eine Admin-Aktion."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",
@@ -3209,7 +3217,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverbände",
     "anchor": "#landesverbände",
     "category": "Sonstiges",
-    "text": "Die Landesverbände-Sammlung enthält 25.114 Vektoren aus 13 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Berlin | BE | 4.969 | Hessen Fraktion | HE-F | 3.259 | Bayern Fraktion | BY-F | 2.920 | Mecklenburg-Vorpommern Fraktion | MV-F | 2.446 | Berlin Fraktion | BE-F | 2.280 | Brandenburg | BB | 2.177 | Saarland | SL | 1.992 | Mecklenburg-Vorpommern | MV | 1.519 | Sachsen-Anhalt Fraktion | LSA-F | 1.407 | Thüringen | TH | 791 | Bayern | BY | 717 | Hessen | HE | 356 | Sachsen-Anhalt | LSA | 281 | Gesamt | | 25.114 |"
+    "text": "Die Landesverbände-Sammlung enthält 26.542 Vektoren aus 13 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Berlin | BE | 4.932 | Hessen Fraktion | HE-F | 3.271 | Bayern Fraktion | BY-F | 2.564 | Thüringen | TH | 2.463 | Mecklenburg-Vorpommern Fraktion | MV-F | 2.394 | Berlin Fraktion | BE-F | 2.344 | Brandenburg | BB | 2.204 | Saarland | SL | 1.996 | Sachsen-Anhalt Fraktion | LSA-F | 1.353 | Mecklenburg-Vorpommern | MV | 1.122 | Bayern | BY | 957 | Sachsen-Anhalt | LSA | 587 | Hessen | HE | 355 | Gesamt | | 26.542 |"
   },
   {
     "url": "/docs/sonstiges/inhaltsdatenbank",
@@ -3217,7 +3225,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sammlungen",
     "anchor": "#sammlungen",
     "category": "Sonstiges",
-    "text": "Sammlung | Vektoren | ---------------------- | ---------: | Landesverbände | 25.114 | Abgeordnetenwatch | 21.157 | KommunalWiki | 6.776 | Bundestag | 3.272 | Böll-Stiftung | 2.540 | gruene.at | 1.666 | Grundsatzprogramm | 968 | Grünblog | 910 | gruene.de | 875 | Grüne Österreich | 645 | Social-Media-Beispiele | 537 | Gesamt | 64.460 |"
+    "text": "Sammlung | Vektoren | ---------------------- | ---------: | Landesverbände | 26.542 | Abgeordnetenwatch | 21.195 | KommunalWiki | 6.824 | Bundestag | 3.271 | Böll-Stiftung | 2.586 | gruene.at | 1.666 | Grundsatzprogramm | 968 | Grünblog | 915 | gruene.de | 886 | Grüne Österreich | 645 | Social-Media-Beispiele | 537 | Gesamt | 66.035 |"
   },
   {
     "url": "/docs/sonstiges/inhaltsdatenbank",
@@ -3225,7 +3233,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Übersicht",
     "anchor": "#übersicht",
     "category": "Sonstiges",
-    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 64.460 Vektoren in der Datenbank gespeichert."
+    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 66.035 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/sonstiges/mcp-was-kann-ich-fragen",

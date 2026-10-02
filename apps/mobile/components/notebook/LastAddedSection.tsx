@@ -1,11 +1,12 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { View, Text, StyleSheet, Pressable, Linking } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 
 import {
   useLastAddedDocuments,
   type RecentDocumentCard,
 } from '../../hooks/notebook/useLastAddedDocuments';
-import { spacing, borderRadius, BODY_FONT } from '../../theme';
+import { openUrl } from '../../services/share';
+import { spacing, borderRadius, BODY_FONT, HEADING_FONT_BOLD } from '../../theme';
 import { formatRelativeDate } from '../../utils/date';
 
 import type { Theme } from '../../theme/colors';
@@ -25,7 +26,7 @@ function Card({
   return (
     <Pressable
       onPress={() => {
-        if (href) void Linking.openURL(href);
+        if (href) void openUrl(href);
       }}
       disabled={!href}
       style={({ pressed }) => [
@@ -116,7 +117,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   title: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 16,
   },
   list: {

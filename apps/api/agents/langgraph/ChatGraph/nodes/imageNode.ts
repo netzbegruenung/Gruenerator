@@ -29,16 +29,18 @@ const log = createLogger('ChatGraph:ImageNode');
 /**
  * Detect image style from German prompt keywords.
  *
- * - realistic: "foto", "realistisch", "photograph"
+ * - illustration: "illustration", "zeichnung", "aquarell", "gemalt", …
  * - pixel: "pixel", "retro", "8-bit", "16-bit"
- * - illustration: default for everything else
+ * - realistic: default for everything else — the watercolor illustration
+ *   only on request
  */
 function detectStyleFromPrompt(userContent: string): ImageStyle {
   const q = userContent.toLowerCase();
 
-  // Realistic style detection
-  if (/\b(foto|photograph|realistisch|realist|echt|natur|dokumentar|real)\b/i.test(q)) {
-    return 'realistic';
+  if (
+    /\b(illustration|illustriert|zeichnung|gezeichnet|aquarell|gemalt|malerei|comic)\b/i.test(q)
+  ) {
+    return 'illustration';
   }
 
   // Pixel art style detection
@@ -46,8 +48,7 @@ function detectStyleFromPrompt(userContent: string): ImageStyle {
     return 'pixel';
   }
 
-  // Default to illustration
-  return 'illustration';
+  return 'realistic';
 }
 
 /**
@@ -190,7 +191,11 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
     );
 
     // Generate image with user's chosen model
-    const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
+    const flux = await FluxImageService.create(
+      userModel.backend,
+      userModel.modelPath,
+      userModel.resolution
+    );
     const { stored } = await flux.generateFromPrompt(fluxPrompt, {
       width: dimensions.width,
       height: dimensions.height,

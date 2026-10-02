@@ -77,24 +77,4 @@ describe('prompt_cache_key on the wire', () => {
 
     expect(bodies[0]?.prompt_cache_key).toBe('abc123');
   });
-
-  it('does not reach Scaleway when Mistral Medium is routed there', async () => {
-    const { getScalewayProvider, routeMistralModel } = await loadProviders({
-      MISTRAL_API_KEY: 'test-key',
-      SCALEWAY_API_KEY: 'scw-key',
-      SCALEWAY_MISTRAL_ROUTING: 'true',
-    });
-    const routed = routeMistralModel('mistral-medium-2604');
-    expect(routed.upstream).toBe('scaleway');
-    const bodies = captureBodies(COMPLETION);
-
-    await generateText({
-      model: getScalewayProvider().chat(routed.model),
-      prompt: 'hi',
-      providerOptions: { mistral: { promptCacheKey: 'abc123' } },
-    });
-
-    expect(bodies).toHaveLength(1);
-    expect(bodies[0]).not.toHaveProperty('prompt_cache_key');
-  });
 });

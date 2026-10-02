@@ -1,5 +1,6 @@
-import { Linking, Text } from 'react-native';
+import { Text } from 'react-native';
 
+import { openUrl } from '../../../services/share';
 import { CitationBadge } from '../CitationBadge';
 
 import type { ReactNode } from 'react';
@@ -70,7 +71,7 @@ export function makeCitationMarkdownRules<C extends ChipCitation>(
           const handlePress = onPress
             ? () => onPress(citation)
             : url
-              ? () => void Linking.openURL(url)
+              ? () => void openUrl(url)
               : undefined;
           // Plain space before the badge so the bubble doesn't sit flush against
           // the preceding word.

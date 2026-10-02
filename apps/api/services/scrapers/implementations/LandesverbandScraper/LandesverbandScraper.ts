@@ -50,6 +50,12 @@ import {
   isSameFile,
 } from '../../utils/binaryFingerprint.js';
 import { scrubThirdPartyContacts } from '../../utils/contactScrub.js';
+import {
+  allowGoneDeletes,
+  classifyFetch,
+  goneVerdict,
+  type FetchOutcome,
+} from '../../utils/goneState.js';
 import { collectWolkeShareFiles, extractWolkeFileText } from '../../utils/wolkeShareHandler.js';
 import {
   buildLegacyWolkeFileUrl,
@@ -62,7 +68,6 @@ import { ContentExtractor } from './extractors/ContentExtractor.js';
 import { DateExtractor } from './extractors/DateExtractor.js';
 import { isGenericLinkText, LinkExtractor } from './extractors/LinkExtractor.js';
 import { WpApiExtractor } from './extractors/WpApiExtractor.js';
-import { allowGoneDeletes, classifyFetch, goneVerdict, type FetchOutcome } from './goneState.js';
 import { SearchOperations } from './operations/SearchOperations.js';
 import { fetchPdfDocument } from './pdfResponse.js';
 import { DocumentProcessor } from './processors/DocumentProcessor.js';
@@ -1429,7 +1434,7 @@ export class LandesverbandScraper extends BaseScraper {
     deleteCandidates: string[]
   ): Promise<void> {
     const now = Date.now();
-    const verdict = goneVerdict(outcome, stored, now);
+    const verdict = goneVerdict(outcome, stored && { goneSince: stored.lv_gone_since }, now);
     if (verdict === 'none') return;
     if (verdict === 'delete') {
       deleteCandidates.push(url);

@@ -5,8 +5,7 @@ import { PiSparkle, PiSpinner } from 'react-icons/pi';
 import type { BlockNoteEditor } from '@blocknote/core';
 
 /**
- * Floating review bar for chat-triggered AI suggestions — the web counterpart
- * to mobile's native DocAiReviewBar. Chat edits apply diff marks without ever
+ * Floating review bar for chat-triggered AI suggestions. Chat edits apply diff marks without ever
  * opening BlockNote's AI popover (the popover would lock the editor and anchor
  * to a block the edit may delete), so this bar hosts Accept/Reject instead.
  * Hidden while the popover is open (toolbar/slash-menu AI reviews itself).

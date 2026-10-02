@@ -151,9 +151,8 @@ const RECENT_GRID = 'grid-cols-2 max-sm:gap-3';
 const PreviewArea = memo(({ item }: { item: RecentItem }) => {
   if (item.type === 'image' || item.type === 'video' || item.type === 'canvas') {
     // Images are shared-media backed (item.id is the share token) → responsive
-    // variants + BlurHash, filling the plate. Videos and canvases have no image
-    // variants, so they use the plain thumbnail img (canvas nested/contained,
-    // video filled).
+    // variants + BlurHash. Videos and canvases have no image variants, so they
+    // keep the plain thumbnail img.
     if (item.type === 'image') {
       return (
         <div className={PREVIEW_PLATE}>
@@ -168,23 +167,6 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
       );
     }
     if (item.thumbnailUrl) {
-      // Canvases/sharepics vary in aspect (portrait, square, story) — nest the
-      // thumbnail centered on the plate and show it whole (contain) instead of
-      // cropping, so the full canvas reads at a glance. Videos keep the filled
-      // poster.
-      if (item.type === 'canvas') {
-        return (
-          <div className={cn(PREVIEW_PLATE, 'flex items-center justify-center p-3')}>
-            <img
-              src={resolveApiAssetUrl(shareThumbnailPreviewUrl(item.thumbnailUrl))}
-              alt={item.title || FALLBACK_TITLES[item.type]}
-              className="max-h-full max-w-full rounded-md object-contain shadow-sm"
-              loading="lazy"
-              decoding="async"
-            />
-          </div>
-        );
-      }
       return (
         <div className={PREVIEW_PLATE}>
           <img

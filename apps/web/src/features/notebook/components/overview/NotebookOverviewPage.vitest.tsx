@@ -10,7 +10,14 @@ import { Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../../../test/msw-server';
-import { axe, renderWithProviders, screen, waitFor, within } from '../../../../test-utils';
+import {
+  axe,
+  fireEvent,
+  renderWithProviders,
+  screen,
+  waitFor,
+  within,
+} from '../../../../test-utils';
 import useNotebookStore from '../../stores/notebookStore';
 
 vi.mock('../../../../components/common/LoginRequired/withAuthRequired', () => ({
@@ -59,6 +66,24 @@ function overview(patch: Partial<NotebookOverviewResponse> = {}): NotebookOvervi
         sourceLabel: 'Grüne MV Presse',
         contentTypeLabel: 'Pressemitteilung',
         themes: ['mobilitaet'],
+      },
+    ],
+    instagram: [
+      {
+        id: 'ig-1',
+        url: 'https://www.instagram.com/p/DAbc123/',
+        caption: 'Mehr Busse für Vorpommern! Heute im Landtag.',
+        publishedAt: new Date().toISOString(),
+        imagePath: '/lv-social/images/DAbc123.webp',
+        account: 'gruenemv',
+      },
+      {
+        id: 'ig-2',
+        url: 'https://www.instagram.com/p/DXyz789/',
+        caption: 'Sommerfest in Rostock',
+        publishedAt: null,
+        imagePath: null,
+        account: 'gruenemv',
       },
     ],
     terms: {
@@ -121,7 +146,7 @@ describe('NotebookOverviewPage', () => {
     expect(screen.getByText('Mehr Busse für Vorpommern')).toBeVisible();
     expect(screen.getByText('Durchschnitt aller Landesverbände')).toBeVisible();
     // `${config.id}-notebook` was `mecklenburgVorpommern-notebook` and matched no agent.
-    expect(screen.getByRole('heading', { name: 'Grüneratoren' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Agents' })).toBeVisible();
   });
 
   it('shows keywords with their coverage while a re-tag is still running', async () => {
@@ -164,6 +189,7 @@ describe('NotebookOverviewPage', () => {
             collectionId: 'kommunalwiki-system',
             persons: [],
             recent: [],
+            instagram: [],
             topics: [],
             terms: null,
           })
@@ -176,7 +202,33 @@ describe('NotebookOverviewPage', () => {
     expect(screen.queryByRole('heading', { name: 'Köpfe' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Themenprofil' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Begriffe' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Grüneratoren' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Agents' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Neu auf Instagram' })).not.toBeInTheDocument();
+  });
+
+  it('shows the Instagram posts with their self-hosted images', async () => {
+    server.use(
+      http.get(ENDPOINT('mecklenburg-vorpommern-system'), () => HttpResponse.json(overview()))
+    );
+    const { container } = renderAt('/notebooks/mecklenburg-vorpommern/uebersicht');
+
+    const card = within(
+      (await screen.findByRole('heading', { name: 'Neu auf Instagram' })).closest('section')!
+    );
+    const links = card.getAllByRole('link');
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([
+      'https://www.instagram.com/p/DAbc123/',
+      'https://www.instagram.com/p/DXyz789/',
+    ]);
+    expect(links[0]).toHaveAttribute('target', '_blank');
+    expect(links[0]).toHaveAccessibleName(/Mehr Busse für Vorpommern/);
+
+    // The post without an image renders text only; a failed image disappears.
+    const images = container.querySelectorAll('section img');
+    expect(images).toHaveLength(1);
+    expect(images[0]).toHaveAttribute('src', '/api/lv-social/images/DAbc123.webp');
+    fireEvent.error(images[0]!);
+    expect(container.querySelectorAll('section img')).toHaveLength(0);
   });
 
   it('offers a retry when the overview fails', async () => {

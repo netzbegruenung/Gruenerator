@@ -75,7 +75,7 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
       };
     }
 
-    // Multi-reference: all attached images go to FLUX.2 in order; the user can
+    // Multi-reference: all attached images go to FLUX in order; the user can
     // reference them as "Bild 1", "Bild 2", … One composited result comes back.
     const references: ReferenceImage[] = imageAttachments
       .slice(0, MAX_REFERENCE_IMAGES)

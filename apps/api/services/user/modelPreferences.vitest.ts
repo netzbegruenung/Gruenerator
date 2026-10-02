@@ -126,6 +126,53 @@ describe('modelPreferences', () => {
     });
   });
 
+  /**
+   * Panda is unlocked by an admin, not by the person. The API process here
+   * runs as `production`, whose instance default is off.
+   */
+  describe('Panda lane', () => {
+    it('stays off without an unlock, even when the person stored it as on', async () => {
+      getProfileByIdMock.mockResolvedValue({
+        id: 'user-1',
+        user_defaults: { models: { 'gruenerator-panda': { enabled: true } } },
+      });
+      const prefs = await getModelPreferencesForUser('user-1');
+      expect(prefs['gruenerator-panda'].enabled).toBe(false);
+    });
+
+    it('shows up right away once an admin unlocked it', async () => {
+      getProfileByIdMock.mockResolvedValue({
+        id: 'user-1',
+        user_defaults: {},
+        panda_enabled: true,
+      });
+      const prefs = await getModelPreferencesForUser('user-1');
+      expect(prefs['gruenerator-panda'].enabled).toBe(true);
+    });
+
+    it('lets an unlocked person hide it again', async () => {
+      getProfileByIdMock.mockResolvedValue({
+        id: 'user-1',
+        user_defaults: { models: { 'gruenerator-panda': { enabled: false } } },
+        panda_enabled: true,
+      });
+      const prefs = await getModelPreferencesForUser('user-1');
+      expect(prefs['gruenerator-panda'].enabled).toBe(false);
+    });
+
+    it('is not in the platform defaults', () => {
+      expect(getDefaultModelPreferences()['gruenerator-panda']).toEqual({ enabled: false });
+    });
+
+    it('refuses to switch it on for an account without an unlock', async () => {
+      getProfileByIdMock.mockResolvedValue({ id: 'user-1', user_defaults: {} });
+      await expect(setModelPreference('user-1', 'gruenerator-panda', true)).rejects.toThrow(
+        /not unlocked/
+      );
+      expect(updateUserDefaultMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe('setModelPreference', () => {
     it('persists via ProfileService.updateUserDefault and returns refreshed prefs', async () => {
       updateUserDefaultMock.mockResolvedValue(undefined);

@@ -17,13 +17,15 @@ import { SunriseBackground } from '../../components/common/SunriseBackground';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { ALL_TOOLS } from '../../components/tools/toolsConfig';
 import { ToolSquareGrid } from '../../components/tools/ToolSquareGrid';
+import { WorkplacePager } from '../../components/workplace/WorkplacePager';
+import { isWorkplaceLayout } from '../../config/navLayout';
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useLayout } from '../../hooks/useLayout';
 import { useTabBarClearance } from '../../hooks/useTabBarClearance';
 import { useTabNavigationSwipe } from '../../hooks/useTabSwipe';
 import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
-import { spacing, lightTheme, darkTheme, typeScale } from '../../theme';
+import { spacing, lightTheme, darkTheme, typeScale, HEADING_FONT_BOLD } from '../../theme';
 import { COMPOSER_BOTTOM_INSET_RAISED, collapsingSection, dockingSpacer } from '../../theme/layout';
 import { route, routeWithParams } from '../../types/routes';
 import { mobileGreeting } from '../../utils/greeting';
@@ -36,6 +38,11 @@ import { mobileGreeting } from '../../utils/greeting';
 const TABLET_TOP_ANCHOR = 0.18;
 
 export default function StartScreen() {
+  return isWorkplaceLayout ? <WorkplacePager /> : <ClassicStartScreen />;
+}
+
+/** The Chat tab of the four-tab shell (`config/navLayout`). */
+function ClassicStartScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
@@ -237,7 +244,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.small,
   },
   welcomeText: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 28,
   },
   // A step, not a scaling. Once the column is capped the greeting no longer has
@@ -251,7 +258,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   sectionTitle: {
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 16,
   },
 });

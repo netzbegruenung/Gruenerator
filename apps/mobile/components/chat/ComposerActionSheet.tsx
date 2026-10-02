@@ -36,7 +36,7 @@ import { useShallow } from 'zustand/shallow';
 
 import { useEnabledModelIds } from '../../hooks/useEnabledModelIds';
 import { useTheme } from '../../hooks/useTheme';
-import { spacing, borderRadius, chatType, colors } from '../../theme';
+import { spacing, borderRadius, chatType, colors, HEADING_FONT_BOLD } from '../../theme';
 import { route } from '../../types/routes';
 import { BottomSheet } from '../common/BottomSheet';
 import { ListGroup, ListRow, useSurfaceStyles } from '../common/ListRow';
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    fontFamily: 'Raleway_700Bold',
+    fontFamily: HEADING_FONT_BOLD,
     fontSize: 22,
   },
   content: {

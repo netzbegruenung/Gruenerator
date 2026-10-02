@@ -20,6 +20,14 @@ interface UseToolbarHandlersParams {
  * Bundles the toolbar action handlers for the active page. Undo/Redo prefer the
  * per-page (element) history; when none is available they fall back to the
  * page-array history (restores deleted/duplicated/moved pages).
+ *
+ * The active page's handle is looked up inside each handler, at call time.
+ * Reading `canvasRefsRef.current[currentPageIndex]` once while building the
+ * memo froze whatever the array held on the first render: the React Compiler
+ * treats a value derived from a ref as non-reactive and creates these closures
+ * exactly once. In the collab editor the pages arrive after the first render,
+ * so every handler except undo/redo called into `undefined` for the whole
+ * session — the mobile selection bar and pill looked alive and did nothing.
  */
 export function useToolbarHandlers({
   canvasRefsRef,
@@ -31,38 +39,37 @@ export function useToolbarHandlers({
   redoPageOp,
 }: UseToolbarHandlersParams) {
   return useMemo(() => {
-    const ref = canvasRefsRef.current[currentPageIndex];
+    const page = () => canvasRefsRef.current[currentPageIndex]?.current ?? null;
     return {
       undo: () => {
         if (toolbarState?.canUndo) {
-          ref?.current?.undo?.();
+          page()?.undo?.();
         } else if (canUndoPageOp) {
           undoPageOp();
         }
       },
       redo: () => {
         if (toolbarState?.canRedo) {
-          ref?.current?.redo?.();
+          page()?.redo?.();
         } else if (canRedoPageOp) {
           redoPageOp();
         }
       },
-      handleMoveLayer: (direction: 'up' | 'down') => ref?.current?.handleMoveLayer?.(direction),
-      handleDuplicate: () => ref?.current?.handleDuplicate?.(),
-      handleDeleteElement: () => ref?.current?.handleDeleteElement?.(),
-      handleColorSelect: (color: string) => ref?.current?.handleColorSelect?.(color),
+      handleMoveLayer: (direction: 'up' | 'down') => page()?.handleMoveLayer?.(direction),
+      handleDuplicate: () => page()?.handleDuplicate?.(),
+      handleDeleteElement: () => page()?.handleDeleteElement?.(),
+      handleColorSelect: (color: string) => page()?.handleColorSelect?.(color),
       handleOpacityChange: (id: string, opacity: number, type: string) =>
-        ref?.current?.handleOpacityChange?.(id, opacity, type),
-      handleFontSizeChange: (id: string, size: number) =>
-        ref?.current?.handleFontSizeChange?.(id, size),
-      handleAlign: (direction: AlignmentDirection) => ref?.current?.handleAlign?.(direction),
+        page()?.handleOpacityChange?.(id, opacity, type),
+      handleFontSizeChange: (id: string, size: number) => page()?.handleFontSizeChange?.(id, size),
+      handleAlign: (direction: AlignmentDirection) => page()?.handleAlign?.(direction),
       handleShadowChange: (id: string, patch: ShadowPatch, type: string) =>
-        ref?.current?.handleShadowChange?.(id, patch, type),
+        page()?.handleShadowChange?.(id, patch, type),
       handleOutlineChange: (id: string, patch: { stroke?: string; strokeWidth?: number }) =>
-        ref?.current?.handleOutlineChange?.(id, patch),
-      handleBlurChange: (id: string, blur: number) => ref?.current?.handleBlurChange?.(id, blur),
+        page()?.handleOutlineChange?.(id, patch),
+      handleBlurChange: (id: string, blur: number) => page()?.handleBlurChange?.(id, blur),
       handleGradientSelect: (gradient: GradientFill | null) =>
-        ref?.current?.handleGradientSelect?.(gradient),
+        page()?.handleGradientSelect?.(gradient),
     };
   }, [
     canvasRefsRef,

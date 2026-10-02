@@ -298,6 +298,18 @@ export const notebookOverviewDocumentSchema = notebookRecentDocumentCardSchema.e
 });
 export type NotebookOverviewDocument = z.infer<typeof notebookOverviewDocumentSchema>;
 
+/** A Landesverband's Instagram post — kept out of every count above. */
+export const notebookInstagramPostSchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  caption: z.string(),
+  publishedAt: z.string().nullable(),
+  /** Self-hosted webp, relative to the API base; `null` when the download failed. */
+  imagePath: z.string().nullable(),
+  account: z.string(),
+});
+export type NotebookInstagramPost = z.infer<typeof notebookInstagramPostSchema>;
+
 export const notebookOverviewResponseSchema = z.object({
   collectionId: z.string(),
   computedAt: z.string(),
@@ -333,6 +345,8 @@ export const notebookOverviewResponseSchema = z.object({
   contentTypes: z.array(z.object({ value: z.string(), label: z.string(), count: z.number() })),
   sources: z.array(z.object({ value: z.string(), label: z.string(), count: z.number() })),
   recent: z.array(notebookOverviewDocumentSchema),
+  /** Newest first; empty outside Landesverband notebooks. */
+  instagram: z.array(notebookInstagramPostSchema),
   /** Per-document keywords; `null` until the enrichment has tagged any document. */
   terms: z
     .object({

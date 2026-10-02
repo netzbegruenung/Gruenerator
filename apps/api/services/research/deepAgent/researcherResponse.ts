@@ -21,7 +21,7 @@
  * runs zod 3 while the LangChain 1.x typings expect zod 4 shapes.
  * `ToolStrategy.fromSchema` takes a plain schema object and is the strategy
  * that asks the MODEL for a tool call — deliberately not `ProviderStrategy`,
- * which would need `response_format: json_schema` support on the Scaleway lane
+ * which would need `response_format: json_schema` support on the lead's lane
  * that nobody has measured.
  */
 

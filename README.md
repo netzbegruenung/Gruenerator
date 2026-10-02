@@ -54,7 +54,7 @@ Grünerator is built on **100% European infrastructure** with a commitment to di
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | **100% EU Hosting**       | All servers located exclusively in the European Union                                                                               |
 | **European AI Providers** | Mistral AI (France), Cortecs & Melious (EU-hosted open models), Black Forest Labs (Germany), KugelAudio (Germany, speech synthesis) |
-| **Self-hosted AI**        | Green-powered inference hosted by netzbegrünung e.V. and EU partners                                                                |
+| **Self-hosted AI**        | Infrastructure hosted by verdigado eG and EU partners                                                                               |
 | **75% EU Target**         | Minimum 75% of spending with European companies                                                                                     |
 
 ### Key Features
@@ -175,9 +175,8 @@ Professional subtitle generation for videos:
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
 │  │  Express 5   │  │   Cluster    │  │    AI (in-process) │  │
 │  │   Server     │──│   Workers    │──│ Mistral │ GreenPT  │  │
-│  │              │  │              │  │ Scaleway│ Cortecs  │  │
-│  └──────────────┘  └──────────────┘  │ Melious │          │  │
-│                                      └────────────────────┘  │
+│  │              │  │              │  │ Melious │ Cortecs  │  │
+│  └──────────────┘  └──────────────┘  └────────────────────┘  │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
 │  │  ChatGraph   │  │  Keycloak    │  │    PostgreSQL      │  │
 │  │  Agent Loop  │  │  OIDC SSO    │  │    Database        │  │
@@ -481,7 +480,7 @@ Write everything that lands on GitHub in **English** — commit messages, branch
 
 ## Acknowledgments
 
-- [Netzbegrünung e.V.](https://netzbegruenung.de/) — Technical support, hosting, and self-hosted AI infrastructure
+- [verdigado eG](https://verdigado.com/) — Hosting and infrastructure
 - [Mistral AI](https://mistral.ai/) — Primary AI provider (France)
 - [Black Forest Labs](https://blackforestlabs.ai/) — Image generation (Germany)
 - [KugelAudio](https://kugelaudio.com/) — Speech synthesis (Germany)

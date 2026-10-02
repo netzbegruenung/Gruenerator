@@ -80,7 +80,7 @@
  *    zahlte also GreenPT-Roundtrip PLUS Kette und risse jedes Zeitbudget.
  *    Dieselbe Falle steht schon zweimal im Repo: `services/mem0/config.ts`
  *    (gpt-oss:120b „emitted chain-of-thought preamble and routinely failed the
- *    JSON parse") und CLAUDE.md zu Scaleway-Reasoning.
+ *    JSON parse") und der inzwischen entfernte direkte Scaleway-Pfad.
  *
  * 2. **mistral-small-3.2-24b ist qualitativ gut genug** (leicht besser und
  *    stabiler als heute), scheitert aber am Zeitbudget: unter 10 gleichzeitigen
@@ -233,9 +233,7 @@ const SMALL_CHAIN = [CORTECS_SMALL_32, MISTRAL_SMALL, MELIOUS_GEMMA_4] as const;
 const GEMMA_PRIMARY = GEMMA_31B_PRIMARY;
 const GEMMA_HEDGE = GEMMA_31B_ALTERNATE;
 
-/** `mistral-medium-2604` === Mistral Medium 3.5. Provider bleibt `mistral`:
- *  `routeMistralModel` schickt genau diese ID nach Scaleway/Paris, und alles
- *  Policy-Relevante prüft `provider === 'mistral'` (siehe CLAUDE.md). */
+/** `mistral-medium-2604` === Mistral Medium 3.5, direkt auf der Mistral-API. */
 const MISTRAL_MEDIUM = 'mistral-medium-2604';
 
 export const INTERMEDIATE_LANES = {
@@ -383,7 +381,7 @@ export const INTERMEDIATE_LANES = {
    * FALSCHE ZAHL beim Nutzer ankommt — überall sonst wird eine schwächere
    * Antwort nur schwächer.
    *
-   * Mistral Medium 3.5, das `routeMistralModel` nach Scaleway/Paris schickt.
+   * Mistral Medium 3.5 auf der Mistral-API.
    * Gemessen (17 Fälle × 3) schlägt es beide Alternativen auf JEDER Achse:
    *
    *            Treffer   p50       out-tok   mgCO₂/Aufruf

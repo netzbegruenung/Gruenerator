@@ -47,9 +47,8 @@ function tokenCount(value: unknown): number {
  * Der Provider, unter dem eine Anfrage verbucht wird.
  *
  * Für alle Lanes ist das der Name, unter dem das Modell gebaut wurde. Für
- * `cortecs` NICHT: das ist ein Router, und die Buchhaltung führt den Upstream —
- * dasselbe Muster, nach dem Scaleway-geroutetes Mistral Medium unter
- * `scaleway` landet. Ohne diese Auflösung stünde der CO₂-Koeffizient dieser
+ * `cortecs` NICHT: das ist ein Router, und die Buchhaltung führt den Upstream.
+ * Ohne diese Auflösung stünde der CO₂-Koeffizient dieser
  * Lane auf einer Zusage statt auf dem Messwert, der bei jeder Antwort im
  * Header mitkommt.
  *
@@ -67,11 +66,19 @@ function effectiveProvider(provider: string, response: unknown): string {
   return resolveCortecsUpstream(headers) ?? provider;
 }
 
-function extractUsage(usage: unknown): { inputTokens: number; outputTokens: number } {
-  if (!isRecord(usage)) return { inputTokens: 0, outputTokens: 0 };
+function extractUsage(usage: unknown): {
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number;
+} {
+  if (!isRecord(usage)) return { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 };
+  // Only the nested form carries the prompt-cache share (`cacheRead`, mapped
+  // from `prompt_tokens_details.cached_tokens` by the OpenAI-compatible SDK).
+  const cacheRead = isRecord(usage.inputTokens) ? usage.inputTokens.cacheRead : null;
   return {
     inputTokens: tokenCount(usage.inputTokens ?? usage.promptTokens),
     outputTokens: tokenCount(usage.outputTokens ?? usage.completionTokens),
+    cachedInputTokens: typeof cacheRead === 'number' ? cacheRead : 0,
   };
 }
 

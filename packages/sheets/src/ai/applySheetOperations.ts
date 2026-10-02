@@ -1,5 +1,5 @@
 import { columnIndex, type SheetOperation } from '@gruenerator/contracts';
-import { CellValueType } from '@univerjs/core';
+import { CellValueType, type Serializable } from '@univerjs/core';
 import { type FUniver } from '@univerjs/presets';
 import { type FWorkbook, type FWorksheet } from '@univerjs/preset-sheets-core';
 // Side-effect imports: load the plugin Facade augmentations so FWorksheet/FRange

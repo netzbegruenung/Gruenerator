@@ -4,11 +4,11 @@ import {
   useAgentStore,
   useChatConfigStore,
   createChatApiClient,
+  toNotebookAnswerMode,
   type GrueneratorAdapterConfig,
   type StreamMetadata,
 } from '@gruenerator/chat';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useShallow } from 'zustand/shallow';
+import { useCallback, useMemo } from 'react';
 
 import { getResearchCollectionIds } from '../config/notebooksConfig';
 import { useNotebookFilterStore } from '../stores/notebookFilterStore';
@@ -18,117 +18,69 @@ interface MobileChatRuntimeOptions {
   adapters?: LocalRuntimeOptions['adapters'];
 }
 
-export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
-  const {
-    selectedAgentId,
-    selectedModel,
-    enabledTools,
-    selectedNotebookId,
-    threadMode,
-    searchMode,
-    customSystemPrompt,
-    customRoleName,
-    customRoleRef,
-    customEnabledTools,
-    pinnedConnector,
-    activeSkillMention,
-    activeRecipeId,
-  } = useAgentStore(
-    useShallow((s) => ({
-      selectedAgentId: s.selectedAgentId,
-      selectedModel: s.selectedModel,
-      enabledTools: s.enabledTools,
-      selectedNotebookId: s.selectedNotebookId,
-      threadMode: s.threadMode,
-      searchMode: s.searchMode,
-      customSystemPrompt: s.customSystemPrompt,
-      customRoleName: s.customRoleName,
-      customRoleRef: s.customRoleRef,
-      customEnabledTools: s.customEnabledTools,
-      pinnedConnector: s.pinnedConnector,
-      activeSkillMention: s.activeSkillMention,
-      activeRecipeId: s.activeRecipeId,
-    }))
-  );
+/**
+ * Builds the request config at send time instead of subscribing to it.
+ *
+ * Two runtimes use this hook — the root drawer runtime (mounted around every
+ * screen) and the per-conversation one. Subscribing to the agent, notebook and
+ * preference stores re-rendered both on every write to any of those fields:
+ * opening a chat writes agent/notebook/mode, every finished turn writes the
+ * message count, every thread switch reloads the compaction state. Each of those
+ * rebuilt the model adapter and re-pushed options into both runtimes — in the
+ * middle of the push animation. The adapter calls `getConfig()` once at the
+ * start of each run, so reading the stores there sends exactly what a
+ * subscription would have, with nothing to re-render in between.
+ */
+function readAdapterConfig(): GrueneratorAdapterConfig {
+  const agent = useAgentStore.getState();
+  const notebookFilter = useNotebookFilterStore.getState();
+  const { notebookDepth, notebookAnswerMode } = usePreferencesStore.getState();
+  const { selectedNotebookId } = agent;
   // Notebook filter selection (facets, sources) — only honoured while it belongs
   // to the notebook being asked, so it can't leak between notebooks. The depth is
   // not scoped that way: it is a standing preference, not a filter.
-  const notebookFilterState = useNotebookFilterStore(
-    useShallow((s) => ({
-      notebookId: s.notebookId,
-      keywordFilters: s.keywordFilters,
-      collectionIds: s.collectionIds,
-    }))
-  );
-  const notebookDepth = usePreferencesStore((s) => s.notebookDepth);
-  const notebookAnswerMode = usePreferencesStore((s) => s.notebookAnswerMode);
   const notebookScope =
-    selectedNotebookId && notebookFilterState.notebookId === selectedNotebookId
-      ? notebookFilterState
-      : null;
+    selectedNotebookId && notebookFilter.notebookId === selectedNotebookId ? notebookFilter : null;
 
-  const incrementMessageCount = useAgentStore((s) => s.incrementMessageCount);
-  const needsCompaction = useAgentStore((s) => s.needsCompaction);
-  const compactionState = useAgentStore((s) => s.compactionState);
-  const triggerCompaction = useAgentStore((s) => s.triggerCompaction);
+  return {
+    agentId: agent.selectedAgentId,
+    modelId: agent.selectedModel,
+    enabledTools: agent.enabledTools,
+    threadId: agent.currentThreadId,
+    selectedNotebookId,
+    // Notebook mode scopes RAG by collection id. System notebooks resolve to
+    // their `*-system` ids via the research map; user notebooks (UUIDs) return
+    // [] there, so pass the UUID itself as the single collection.
+    selectedNotebookCollectionIds: selectedNotebookId
+      ? (notebookScope?.collectionIds ??
+        (getResearchCollectionIds(selectedNotebookId).length > 0
+          ? getResearchCollectionIds(selectedNotebookId)
+          : [selectedNotebookId]))
+      : undefined,
+    notebookFilters: notebookScope?.keywordFilters,
+    notebookMode: notebookDepth,
+    notebookAnswerMode: toNotebookAnswerMode(notebookAnswerMode),
+    threadMode: agent.threadMode,
+    searchMode: agent.searchMode,
+    customSystemPrompt: agent.customSystemPrompt,
+    customRoleName: agent.customRoleName,
+    customRoleRef: agent.customRoleRef,
+    customEnabledTools: agent.customEnabledTools,
+    // Without this the "+" sheet's Konnektoren section is decoration: the
+    // adapter injects the connector's mention token and its forcedTool from
+    // exactly this field, and mobile never sent it.
+    pinnedConnector: agent.pinnedConnector,
+    // Likewise for recipes: the `/mention` is stripped from the text, so this
+    // is what carries the recipe's prompt fragment and scoping to the server.
+    activeSkillMention: agent.activeSkillMention,
+    // A user recipe is resolved by row id, not by name: two people may own a
+    // recipe called the same thing, and the mention alone cannot tell them
+    // apart. Null for system recipes, which have no row.
+    activeRecipeId: agent.activeRecipeId,
+  };
+}
 
-  const getConfig = useCallback(
-    (): GrueneratorAdapterConfig => ({
-      agentId: selectedAgentId,
-      modelId: selectedModel,
-      enabledTools,
-      threadId: useAgentStore.getState().currentThreadId,
-      selectedNotebookId,
-      // Notebook mode scopes RAG by collection id. System notebooks resolve to
-      // their `*-system` ids via the research map; user notebooks (UUIDs) return
-      // [] there, so pass the UUID itself as the single collection.
-      selectedNotebookCollectionIds: selectedNotebookId
-        ? (notebookScope?.collectionIds ??
-          (getResearchCollectionIds(selectedNotebookId).length > 0
-            ? getResearchCollectionIds(selectedNotebookId)
-            : [selectedNotebookId]))
-        : undefined,
-      notebookFilters: notebookScope?.keywordFilters,
-      notebookMode: notebookDepth,
-      notebookAnswerMode,
-      threadMode,
-      searchMode,
-      customSystemPrompt,
-      customRoleName,
-      customRoleRef,
-      customEnabledTools,
-      // Without this the "+" sheet's Konnektoren section is decoration: the
-      // adapter injects the connector's mention token and its forcedTool from
-      // exactly this field, and mobile never sent it.
-      pinnedConnector,
-      // Likewise for recipes: the `/mention` is stripped from the text, so this
-      // is what carries the recipe's prompt fragment and scoping to the server.
-      activeSkillMention,
-      // A user recipe is resolved by row id, not by name: two people may own a
-      // recipe called the same thing, and the mention alone cannot tell them
-      // apart. Null for system recipes, which have no row.
-      activeRecipeId,
-    }),
-    [
-      selectedAgentId,
-      selectedModel,
-      enabledTools,
-      selectedNotebookId,
-      notebookScope,
-      notebookDepth,
-      notebookAnswerMode,
-      threadMode,
-      searchMode,
-      customSystemPrompt,
-      customRoleName,
-      customRoleRef,
-      customEnabledTools,
-      pinnedConnector,
-      activeSkillMention,
-      activeRecipeId,
-    ]
-  );
-
+export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
   const onThreadCreated = useCallback((newThreadId: string) => {
     useAgentStore.getState().mintThreadFromDraft(newThreadId);
   }, []);
@@ -140,35 +92,30 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
     [fetchFn, onUnauthorized]
   );
 
-  const needsCompactionRef = useRef(needsCompaction);
-  const compactionSummaryRef = useRef(compactionState.summary);
-  useEffect(() => {
-    needsCompactionRef.current = needsCompaction;
-    compactionSummaryRef.current = compactionState.summary;
-  }, [needsCompaction, compactionState.summary]);
-
   const onComplete = useCallback(
     (_metadata: StreamMetadata) => {
-      const tid = useAgentStore.getState().currentThreadId;
+      const store = useAgentStore.getState();
+      const tid = store.currentThreadId;
       if (tid) {
-        incrementMessageCount();
-        incrementMessageCount();
+        // Before the increments, as the old render-time ref saw it: compaction
+        // fires on the turn after the one that crossed the threshold.
+        const { needsCompaction, compactionState } = store;
+        store.incrementMessageCount();
+        store.incrementMessageCount();
 
-        if (needsCompactionRef.current && !compactionSummaryRef.current) {
-          void triggerCompaction(tid, runtimeApiClient);
+        if (needsCompaction && !compactionState.summary) {
+          void store.triggerCompaction(tid, runtimeApiClient);
         }
       }
     },
-    [incrementMessageCount, triggerCompaction, runtimeApiClient]
+    [runtimeApiClient]
   );
 
   const callbacks = useMemo(() => ({ onThreadCreated, onComplete }), [onThreadCreated, onComplete]);
-  /* eslint-disable react-hooks/refs -- callbacks are only invoked asynchronously, not during render */
   const modelAdapter = useMemo(
-    () => createGrueneratorModelAdapter(getConfig, callbacks),
-    [getConfig, callbacks]
+    () => createGrueneratorModelAdapter(readAdapterConfig, callbacks),
+    [callbacks]
   );
-  /* eslint-enable react-hooks/refs */
 
   const runtimeOptions: LocalRuntimeOptions = useMemo(
     () => ({

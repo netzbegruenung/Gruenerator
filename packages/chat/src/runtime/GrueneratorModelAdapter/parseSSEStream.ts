@@ -119,7 +119,9 @@ export async function* parseSSEStream(
 ): AsyncGenerator<ChatModelRunResult, void> {
   const reader = response.body?.getReader();
 
-  // React Native's fetch doesn't support ReadableStream — read full text as fallback
+  // No body stream only on React Native WITHOUT expo/fetch as the global fetch
+  // (Expo ≥ 57 installs it unless EXPO_PUBLIC_USE_RN_FETCH is set) — read full
+  // text as fallback. Everything then arrives at once; no live status line.
   const fullText = !reader ? await response.text() : null;
 
   const decoder = new TextDecoder();

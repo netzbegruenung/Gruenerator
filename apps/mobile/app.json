@@ -2,7 +2,7 @@
   "expo": {
     "name": "Grünerator",
     "slug": "gruenerator",
-    "version": "1.5.5",
+    "version": "1.5.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -28,7 +28,7 @@
     },
     "android": {
       "package": "de.gruenerator.app",
-      "predictiveBackGestureEnabled": true,
+      "predictiveBackGestureEnabled": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#005538"
@@ -83,6 +83,7 @@
       [
         "expo-font",
         {
+          "fonts": ["./assets/fonts/Raleway_600SemiBold.ttf", "./assets/fonts/Raleway_700Bold.ttf"],
           "android": {
             "fonts": [
               {
@@ -137,7 +138,8 @@
       "./config/withBlockedAndroidMediaPermissions"
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "reactCompiler": true
     },
     "extra": {
       "router": {},

@@ -22,10 +22,10 @@
  * One lane is stronger than that: GreenPT states "every GreenPT request runs on
  * Scaleway's 100% renewable-powered compute in Paris" (greenpt.com/partners),
  * and Scaleway puts every AI server in DC5 (Impact Report 2025, p. 25). Our
- * `mistral-medium-2604` lane routes to Scaleway too — so for the default chat
- * model the measurement and the production workload share a datacenter, a PUE
- * and a GPU generation. There the transfer is near-exact; for the other
- * lanes it stays a transfer.
+ * `mistral-medium-2604` lane was routed to Scaleway until 08/2026 — for those
+ * rows the measurement and the production workload share a datacenter, a PUE
+ * and a GPU generation, and the transfer is near-exact; for the other lanes
+ * it stays a transfer.
  *
  * WHY ENERGY AND EMISSIONS ARE SEPARATE: emissions = energy x grid intensity.
  * The measurement series found `emissions/energy` pinned at 30.4 g/kWh across
@@ -121,9 +121,9 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     mWhFixed: 13.26,
     basis: 'measured',
   },
-  // The SAME lane after Scaleway routing: SCALEWAY_MISTRAL_MODELS rewrites
-  // 'mistral-medium-2604' to 'mistral-medium-3.5-128b', and usage records the
-  // ROUTED id. Both spellings must be here or the best-measured coefficient in
+  // The SAME weights under the id GreenPT uses, and the one the former
+  // Scaleway routing (removed 10/2026) recorded for 'mistral-medium-2604' —
+  // usage records the upstream's id. Both spellings must be here or the best-measured coefficient in
   // this table silently misses its own traffic — which is exactly what happened
   // until real usage data showed a `mistral-medium-3.5-128b @ scaleway` row.
   'mistral-medium-3.5-128b': {
@@ -178,6 +178,21 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
   'gemma-4-31b:balanced': {
     mWhPerOutputToken: 4.69,
     mWhPerInputToken: 0.0219,
+    mWhFixed: 0,
+    basis: 'measured',
+  },
+  // `deepseek-v4.1-flash` auf Melious — die Lane „Panda". Aus demselben Grund
+  // wie Gemma darüber aus Melious' EIGENEN Meldungen kalibriert (gestreamte
+  // Antworten tragen kein `environment_impact`): 5 nicht-gestreamte Aufrufe am
+  // 01.10.2026, `reasoning_effort: 'none'`, ohne Cache-Treffer. Reiner Prefill
+  // 8.112 / 41.012 / 111.012 Tokens → 0,026 / 0,032 / 0,013 mWh/Token, Median
+  // 0,026; Ausgabe 1.200 / 1.193 Tokens → 1,89 / 2,11 mWh/Token, Mittel 2,0.
+  // Die Streuung ist wieder zeitbasiert. × 1,25/1,2 wie oben. Gecachte
+  // Eingabe ist hier nicht abgesetzt — Melious meldete für einen gecachten
+  // Aufruf 111 statt 184 mWh, das ist eine Überschätzung zu unseren Lasten.
+  'deepseek-v4.1-flash': {
+    mWhPerOutputToken: 2.08,
+    mWhPerInputToken: 0.0271,
     mWhFixed: 0,
     basis: 'measured',
   },
@@ -278,9 +293,10 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
 /**
  * Grid carbon intensity by the provider recorded in `user_usage_daily`.
  *
- * The recorded provider is the UPSTREAM, not the lane: `withUsageTracking` is
- * handed `routeMistralModel(...).upstream`, so Scaleway-routed Mistral Medium
- * lands under 'scaleway'. That is exactly the granularity this table needs.
+ * The recorded provider is the UPSTREAM, not the lane: Cortecs traffic is
+ * booked under its sub-processor (`x-cortecs-provider`, see
+ * usageModelMiddleware.ts), and historical Scaleway-routed Mistral Medium sits
+ * under 'scaleway'. That is exactly the granularity this table needs.
  *
  * Location-based annual averages. Annual rather than hourly because we have no
  * hourly feed of our own — GreenPT buys that from Nodera.
@@ -787,6 +803,11 @@ const IMAGE_ENERGY: Readonly<Record<string, ImageEnergy>> = {
   'flux-2-klein-9b': { mWhPerImageGpu: Math.round(FLUX_ANCHOR_GPU_MWH * 0.5), basis: 'bound' },
   'flux-2-pro': { mWhPerImageGpu: FLUX_ANCHOR_GPU_MWH, basis: 'bound' },
   'flux-2-max': { mWhPerImageGpu: FLUX_ANCHOR_GPU_MWH * 2, basis: 'bound' },
+  // FLUX 3 (Pro = 1k, Max = 2k on the same route, recorded as `@2k`). Same
+  // price proxy: measured 02.10.2026 against api.eu.bfl.ai, 1k cost 2.4
+  // credits and 2k 5 credits — the 2x step of the catalog's cost multiplier.
+  'flux-3-image': { mWhPerImageGpu: FLUX_ANCHOR_GPU_MWH, basis: 'bound' },
+  'flux-3-image@2k': { mWhPerImageGpu: FLUX_ANCHOR_GPU_MWH * 2, basis: 'bound' },
   // Outpainting runs the same generator over a larger canvas; billed like pro.
   'flux-tools/outpainting-v1': { mWhPerImageGpu: FLUX_ANCHOR_GPU_MWH, basis: 'bound' },
   // The one image lane where the paper measured OUR model AT OUR RESOLUTION.

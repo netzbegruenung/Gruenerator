@@ -4,6 +4,7 @@ import { type DragEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import './bild-editor-v2.css';
+import { BevBoxOverlay } from './BevBoxes';
 import { BevComposer } from './BevComposer';
 import { mintCanvasFromImage } from './canvasHandoff';
 import { useBildEditorV2 } from './useBildEditorV2';
@@ -48,6 +49,7 @@ export default function BildEditorV2Page() {
     active,
     versions,
     activeHasChildren,
+    mode,
     dragActive,
     setDragActive,
     handleUpload,
@@ -371,21 +373,24 @@ export default function BildEditorV2Page() {
               </div>
             ) : (
               active && (
-                <img
-                  key={active.id}
-                  src={active.image}
-                  alt="Aktuelle Version"
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: 'min(46vh, 520px)',
-                    borderRadius: 15,
-                    display: 'block',
-                    objectFit: 'contain',
-                    minWidth: 0,
-                    minHeight: 0,
-                    animation: 'bwreveal 1.1s cubic-bezier(0.22, 1, 0.36, 1)',
-                  }}
-                />
+                <div style={{ position: 'relative', minWidth: 0, minHeight: 0, maxWidth: '100%' }}>
+                  <img
+                    key={active.id}
+                    src={active.image}
+                    alt="Aktuelle Version"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: 'min(46vh, 520px)',
+                      borderRadius: 15,
+                      display: 'block',
+                      objectFit: 'contain',
+                      minWidth: 0,
+                      minHeight: 0,
+                      animation: 'bwreveal 1.1s cubic-bezier(0.22, 1, 0.36, 1)',
+                    }}
+                  />
+                  {mode === 'boxen' && <BevBoxOverlay bev={bev} />}
+                </div>
               )
             )}
           </div>

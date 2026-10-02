@@ -102,9 +102,11 @@ const MODEL_LABELS = {
   // Dieselben Gewichte wie BFLs `/v1/flux-2-klein-9b`, Melious' Kennung —
   // deshalb DERSELBE lesbare Name, wie bei Gemma 4 oben.
   'flux-2-klein-9b': 'FLUX 2 Klein',
-  '/v1/flux-2-pro': 'FLUX 2 Pro',
   '/v1/flux-2-klein-9b': 'FLUX 2 Klein',
-  '/v1/flux-2-max': 'FLUX 2 Max',
+  // Pro and Max share the FLUX 3 route and differ in `resolution`; the key
+  // carries the tier the same way the usage records do (`flux-3-image@2k`).
+  '/v1/flux-3-image': 'FLUX 3',
+  '/v1/flux-3-image@2k': 'FLUX 3 (2K)',
 };
 
 /**
@@ -120,7 +122,6 @@ const PROVIDER_HOSTS = {
   // eine Alt-Kennung nicht ohne Standort in der Tabelle landet.
   litellm: { host: 'Cortecs', flag: '🇱🇺' },
   greenpt: { host: 'GreenPT', flag: '🇪🇺' },
-  scaleway: { host: 'Scaleway', flag: '🇫🇷' },
   cortecs: { host: 'Cortecs', flag: '🇱🇺' },
   bfl: { host: 'Black Forest Labs', flag: '🇩🇪' },
   // Transcription names its providers after the model family, not the company.
@@ -458,7 +459,11 @@ function generate() {
     if (backend === 'hosted') {
       const modelPath = resolveString(catalog, props.get('modelPath'));
       if (!modelPath) fail(SRC.catalog, 'a hosted image option', 'a `modelPath` string');
-      imageRows.push(entry('bfl', modelPath, where));
+      const resolution = props.has('resolution')
+        ? resolveString(catalog, props.get('resolution'))
+        : null;
+      const model = resolution && resolution !== '1k' ? `${modelPath}@${resolution}` : modelPath;
+      imageRows.push(entry('bfl', model, where));
     } else if (backend === 'melious') {
       imageRows.push(entry('melious', meliousImageModel, where));
     } else {

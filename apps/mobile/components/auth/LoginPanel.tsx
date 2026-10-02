@@ -26,7 +26,6 @@ import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../them
 const PROVIDER_LOGO: Partial<Record<LoginProviderId, ImageSourcePropType>> = {
   'gruenes-netz': require('../../assets/images/sonnenblume.png') as ImageSourcePropType,
   'gruene-oesterreich': require('../../assets/images/gruene-at-logo.png') as ImageSourcePropType,
-  netzbegruenung: require('../../assets/images/nb-icon.png') as ImageSourcePropType,
   // `gruenerator` has no mark of its own — on web it falls back to an emoji,
   // and so does the row below.
 };

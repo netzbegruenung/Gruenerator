@@ -5,9 +5,11 @@
  * ── Was hier geregelt wird ──
  *
  * Chinesische Text- und Chatmodelle (Qwen, GLM/Zhipu, Kimi/Moonshot, MiniMax,
- * DeepSeek) beantworten keine Nutzeranfragen. Der Grünerator ist ein Werkzeug
- * einer deutschen Partei; welches Modell einen politischen Text schreibt oder
- * eine Anfrage einordnet, ist keine reine Qualitätsfrage.
+ * DeepSeek) beantworten keine Nutzeranfragen — mit genau einer benannten
+ * Ausnahme, der freischaltpflichtigen Lane „Panda" (`PANDA_LANE_MODEL`).
+ * Der Grünerator ist ein Werkzeug einer deutschen Partei; welches Modell einen
+ * politischen Text schreibt oder eine Anfrage einordnet, ist keine reine
+ * Qualitätsfrage.
  *
  * ── Was hier AUSDRÜCKLICH NICHT geregelt wird ──
  *
@@ -46,3 +48,19 @@ const EXCLUDED_TEXT_MODEL = /(^|[^a-z])(qwen|glm|kimi|minimax|deepseek|yi-|baich
 export function isExcludedTextModel(model: string): boolean {
   return EXCLUDED_TEXT_MODEL.test(model);
 }
+
+/**
+ * Die eine benannte Ausnahme: DeepSeek v4.1 Flash auf der Lane „Panda".
+ *
+ * Entschieden am 01.10.2026: Accounts, die nach einer Schulung von einem
+ * Instanz-Admin freigeschaltet wurden (auf `bgst` standardmäßig), dürfen eine
+ * chinesische Modellfamilie bewusst wählen. Das ist eine ausgewiesene Wahl im
+ * Modellwähler, nie ein Default, nie ein Ausweichziel einer anderen Lane.
+ *
+ * Deshalb steht die Ausnahme HIER als Name und nicht in der Regex oben:
+ * `isExcludedTextModel` sperrt DeepSeek weiter überall (Playground-Liste,
+ * Provider-Defaults, `AI_LANES`), und der Wächter in
+ * routes/chat/agents/providers.vitest.ts lässt das Modell genau an der Lane
+ * `gruenerator-panda` und ihrem GreenPT-Geschwister zu.
+ */
+export const PANDA_LANE_MODEL = 'deepseek-v4.1-flash';

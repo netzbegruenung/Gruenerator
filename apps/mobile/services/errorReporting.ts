@@ -32,6 +32,15 @@ export function initErrorReporting(): void {
     attachScreenshot: false,
     attachViewHierarchy: false,
     enableCaptureFailedRequests: false,
+    ignoreErrors: [
+      // Expo answers every `use dom` native action by injecting the result into
+      // its WebView (`expo/src/dom/webview-wrapper.tsx`, `emit`) and never
+      // catches that call. When the WebView unmounted in the meantime (screen
+      // closed, warmup retired) the reply has no recipient and the rejection
+      // carries no information. Matched on the native cause, which only occurs
+      // once the view is gone. Unfixed upstream through expo 58.0.0.
+      /Unable to find the class expo\.modules\.webview\.DomWebView view with tag/,
+    ],
     // `DeviceContext` copies the native SDK's installation id into every JS
     // event as `user.id`, regardless of `sendDefaultPii`.
     beforeSend(event) {

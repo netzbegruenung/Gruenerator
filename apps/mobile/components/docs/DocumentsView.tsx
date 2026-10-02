@@ -1,4 +1,4 @@
-import { templates, type DocumentTemplate } from '@gruenerator/docs/templates';
+import { templates } from '@gruenerator/docs/templates';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
@@ -19,7 +19,14 @@ import {
 import { useContentColumn, useLayout } from '../../hooks/useLayout';
 import { useTabBarClearance } from '../../hooks/useTabBarClearance';
 import { useDocsStore } from '../../stores/docsStore';
-import { lightTheme, darkTheme, colors, spacing, BODY_FONT } from '../../theme';
+import {
+  lightTheme,
+  darkTheme,
+  colors,
+  spacing,
+  BODY_FONT,
+  HEADING_FONT_SEMIBOLD,
+} from '../../theme';
 import { gridColumns } from '../../theme/layout';
 import { officeTypeColor } from '../../theme/officeColors';
 import { getSurfaceFab } from '../../theme/toolTheme';
@@ -38,6 +45,7 @@ import {
 import { CreateDocSheet } from './CreateDocSheet';
 import { toDocListItems } from './docListItems';
 import { NativeShareModal } from './NativeShareModal';
+import { useDocCreation } from './useDocCreation';
 
 /**
  * One formatter for the whole list. `toLocaleDateString` builds a fresh
@@ -238,23 +246,22 @@ export function DocumentsView({
   const gridCols = gridColumns(gridWidth, MIN_CARD, CARD_GAP);
   const gridColumn = useContentColumn('grid');
 
-  // One selector per field rather than `useDocsStore()`. The bare call subscribes
-  // to the whole store, so this view re-rendered — and with it every visible
-  // card — whenever `prefetchedDocs` was replaced, a Map it never reads.
+  // One selector per field rather than `useDocsStore()`: the bare call subscribes
+  // to the whole store and re-renders every visible card on any change.
   const documents = useDocsStore((s) => s.documents);
   const isLoading = useDocsStore((s) => s.isLoading);
   const error = useDocsStore((s) => s.error);
   const fetchDocuments = useDocsStore((s) => s.fetchDocuments);
-  const createDocument = useDocsStore((s) => s.createDocument);
-  const generateDocument = useDocsStore((s) => s.generateDocument);
   const deleteDocument = useDocsStore((s) => s.deleteDocument);
-  const clearError = useDocsStore((s) => s.clearError);
-  const prefetchRecentDocs = useDocsStore((s) => s.prefetchRecentDocs);
   const fabTones = getSurfaceFab('arbeiten', colorScheme === 'dark');
   const fabBottom = useTabBarClearance(spacing.medium);
   const [createOpen, setCreateOpen] = useState(false);
   const [createTemplates, setCreateTemplates] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const {
+    isCreating,
+    createFromTemplate: handleSelectTemplate,
+    generate: handleGenerate,
+  } = useDocCreation(() => setCreateOpen(false));
   const [activeDoc, setActiveDoc] = useState<{ id: string; title: string } | null>(null);
 
   // Sheets/presentations already arrive in `documents` via /docs — the subtype
@@ -267,56 +274,12 @@ export function DocumentsView({
   useEffect(() => {
     if (user) {
       void fetchDocuments();
-      void prefetchRecentDocs();
     }
-  }, [fetchDocuments, prefetchRecentDocs, user]);
+  }, [fetchDocuments, user]);
 
   const handleRefresh = useCallback(() => {
     void fetchDocuments();
   }, [fetchDocuments]);
-
-  const handleSelectTemplate = async (template: DocumentTemplate) => {
-    if (isCreating) return;
-    setIsCreating(true);
-    setCreateOpen(false);
-    try {
-      const doc = await createDocument(
-        template.defaultTitle,
-        template.id === 'blank' ? undefined : template.id
-      );
-      if (doc) {
-        router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: doc.id } });
-      } else {
-        // The store swallows the failure into `error`; clearing it keeps a failed
-        // create from replacing the whole list with the load-error screen.
-        clearError();
-        Alert.alert('Fehler', 'Dokument konnte nicht erstellt werden.');
-      }
-    } catch {
-      Alert.alert('Fehler', 'Dokument konnte nicht erstellt werden.');
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  const handleGenerate = async (description: string) => {
-    if (isCreating) return;
-    setIsCreating(true);
-    setCreateOpen(false);
-    try {
-      const doc = await generateDocument(description);
-      if (doc) {
-        router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: doc.id } });
-      } else {
-        clearError();
-        Alert.alert('Fehler', 'Dokument konnte nicht generiert werden.');
-      }
-    } catch {
-      Alert.alert('Fehler', 'Dokument konnte nicht generiert werden.');
-    } finally {
-      setIsCreating(false);
-    }
-  };
 
   // Stable identities: these reach every card as props, and a fresh function per
   // render would undo the cards' `memo` exactly as the inline closures did.
@@ -593,12 +556,13 @@ export function DocumentsView({
         }}
       />
 
-      {/* Document share/actions modal — reuses the same share modal as the editor */}
+      {/* Document share/actions modal */}
       {activeDoc && (
         <NativeShareModal
           visible={true}
           onClose={() => setActiveDoc(null)}
           documentId={activeDoc.id}
+          documentTitle={activeDoc.title}
           userDisplayName={user?.display_name ?? undefined}
           isOwner={true}
           onDelete={() => handleDelete(activeDoc.id, activeDoc.title)}
@@ -719,7 +683,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   errorTitle: {
-    fontFamily: 'Raleway_600SemiBold',
+    fontFamily: HEADING_FONT_SEMIBOLD,
     fontSize: 18,
     marginTop: 16,
     marginBottom: 24,

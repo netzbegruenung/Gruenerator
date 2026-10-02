@@ -222,14 +222,14 @@ export interface StyleVariantConfig {
  */
 export const STYLE_VARIANTS: StyleVariantConfig[] = [
   {
-    id: 'illustration-pure',
-    label: 'Illustration',
-    description: 'Weicher, künstlerischer Stil',
-  },
-  {
     id: 'realistic-pure',
     label: 'Realistisch',
     description: 'Fotorealistischer Stil',
+  },
+  {
+    id: 'illustration-pure',
+    label: 'Illustration',
+    description: 'Weicher, künstlerischer Stil',
   },
   {
     id: 'pixel-pure',
@@ -244,9 +244,10 @@ export const STYLE_VARIANTS: StyleVariantConfig[] = [
 ];
 
 /**
- * Default style variant
+ * Default style variant. Not the watercolor illustration: it turned every
+ * subject into soft woodland kitsch — only on request.
  */
-export const DEFAULT_STYLE_VARIANT: KiStyleVariant = 'illustration-pure';
+export const DEFAULT_STYLE_VARIANT: KiStyleVariant = 'realistic-pure';
 
 // ============================================================================
 // IMAGE FORMATS

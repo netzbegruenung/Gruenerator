@@ -94,7 +94,7 @@ beforeEach(() => {
 });
 
 describe('gates — each one falls through to the old path', () => {
-  it('does nothing without a Scaleway key, and stays silent doing it', async () => {
+  it('does nothing without a Cortecs key, and stays silent doing it', async () => {
     envMock.CORTECS_API_KEY = '';
     const sse = makeSse();
 

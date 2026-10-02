@@ -16,6 +16,7 @@ import {
   GEMMA_31B_ON_MELIOUS,
   GEMMA_31B_PRIMARY,
 } from '../../../services/ai/gemmaHosts.js';
+import { PANDA_LANE_MODEL, isExcludedTextModel } from '../../../services/ai/textModelPolicy.js';
 
 import { LOOP_SYNTH_FALLBACK, LOOP_SYNTH_PRIMARY, mayWriteAnswer } from './autoPolicy.js';
 
@@ -144,6 +145,26 @@ describe('AVAILABLE_MODELS', () => {
     for (const [id, config] of Object.entries(AVAILABLE_MODELS)) {
       expect(config.contextWindow, `${id} missing contextWindow`).toBeGreaterThan(0);
     }
+  });
+
+  /**
+   * Die China-Sperre gilt für jede Lane, die ein Mensch wählen oder die ein
+   * Ausweich treffen kann — außer der einen benannten Ausnahme. Ohne diesen
+   * Test prüfte nichts `AVAILABLE_MODELS` gegen die Sperre; die Lane „Panda"
+   * hätte sich unbemerkt vervielfältigen können.
+   */
+  it('lässt ein gesperrtes Modell nur auf der Lane „Panda" zu', () => {
+    const banned = Object.entries(AVAILABLE_MODELS)
+      .filter(([, config]) => isExcludedTextModel(config.model))
+      .map(([id]) => id);
+    expect(banned).toEqual(['gruenerator-panda']);
+    expect(AVAILABLE_MODELS['gruenerator-panda']?.model).toBe(PANDA_LANE_MODEL);
+  });
+
+  it('„Panda" fällt auf Ultra zurück, nicht auf eine andere Lane', async () => {
+    const tuple = await resolveModelTuple('gruenerator-panda', 'test');
+    expect(tuple).toMatchObject({ provider: 'melious', model: 'deepseek-v4.1-flash' });
+    expect(tuple?.sibling).toEqual({ provider: 'mistral', model: 'mistral-medium-2604' });
   });
 });
 

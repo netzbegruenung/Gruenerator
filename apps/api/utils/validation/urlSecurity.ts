@@ -4,8 +4,11 @@
  */
 
 import * as dns from 'dns';
+import { type LookupFunction } from 'net';
 import { URL } from 'url';
 import { promisify } from 'util';
+
+import { Agent, fetch as undiciFetch, type RequestInit as UndiciRequestInit } from 'undici';
 
 const dnsLookup = promisify(dns.lookup);
 
@@ -200,20 +203,45 @@ const MAX_SAFE_FETCH_REDIRECTS = 3;
 const CREDENTIAL_HEADERS = ['authorization', 'cookie', 'proxy-authorization'];
 
 /**
+ * The `connect.lookup` behind safeFetch: resolves the name and refuses the
+ * socket if any record is private. Because the check runs inside the connect,
+ * the address checked is the address connected to — a name that resolved
+ * public for `validateUrlForFetch` and private a moment later (DNS rebinding)
+ * never reaches a socket.
+ */
+const guardedLookup: LookupFunction = (hostname, options, callback) => {
+  dns.lookup(hostname, { ...options, all: true }, (err, records) => {
+    if (err) {
+      callback(err, '', 0);
+      return;
+    }
+    const priv = records.find((record) => isPrivateAddress(record.address));
+    if (records.length === 0 || priv) {
+      const reason = priv ? `resolves to private address ${priv.address}` : 'no addresses';
+      callback(new Error(`URL validation failed: ${hostname} ${reason}`), '', 0);
+      return;
+    }
+    if (options.all) {
+      callback(null, records);
+    } else {
+      callback(null, records[0].address, records[0].family);
+    }
+  });
+};
+
+const guardedDispatcher = new Agent({ connect: { lookup: guardedLookup } });
+
+/**
  * Fetch a user-influenced URL with SSRF protection that also covers redirects.
  *
- * The previous implementation validated the URL once and then called
- * `fetch(url)` with default redirect following — so a `302 Location:
- * http://169.254.169.254/…` (or any redirect to an internal host) walked
- * straight past the check, which only ever covered the first URL. Here
- * redirects are followed by hand with `redirect: 'manual'` and every hop is
- * re-validated in full before we make the next request.
+ * Redirects are followed by hand with `redirect: 'manual'` and every hop is
+ * re-validated in full before we make the next request — with default
+ * following, a `302 Location: http://169.254.169.254/…` would walk past a
+ * check that only covered the first URL.
  *
- * NOTE: this does not yet close the DNS-rebinding window (the validator and the
- * runtime resolve the hostname separately). The connection-pinning pattern that
- * closes it lives in `routes/search/searchImageProxyRouter.ts`
- * (`createPinnedLookup`); routing this helper through a pinned undici dispatcher
- * is the follow-up. Redirect-based SSRF — the more accessible vector — is closed.
+ * The connection itself goes through `guardedDispatcher`, which re-checks the
+ * resolved addresses at connect time, so the validator's own DNS answer is
+ * only an early, readable rejection — not the guarantee.
  *
  * Credential headers (`Authorization`/`Cookie`/`Proxy-Authorization`) are
  * stripped once a redirect crosses to a different origin than the original
@@ -250,11 +278,15 @@ export async function safeFetch(
 
     // Force manual redirect handling so we can re-validate each Location; a
     // caller-supplied `redirect` must never re-open the follow-blindly hole.
-    const response = await fetch(validation.url.toString(), {
-      ...fetchOptions,
-      headers,
+    // Boundary casts: undici's fetch is the runtime's fetch, but its own
+    // package types are not the DOM lib's. `dispatcher` is what global fetch
+    // cannot take from this undici version.
+    const response = (await undiciFetch(validation.url.toString(), {
+      ...(fetchOptions as UndiciRequestInit),
+      headers: Object.fromEntries(headers),
       redirect: 'manual',
-    });
+      ...(validationOptions.allowPrivateIPs ? {} : { dispatcher: guardedDispatcher }),
+    })) as unknown as Response;
 
     const isRedirect = response.status >= 300 && response.status < 400;
     if (!isRedirect) {

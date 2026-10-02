@@ -1,6 +1,7 @@
 /**
- * ts-rest contract router for POST /api/image-edit — FLUX.2 image editing
- * with 1–8 reference images (multi-reference).
+ * ts-rest contract router for POST /api/image-edit — FLUX image editing
+ * with 1–10 reference images (multi-reference), plus the experimental FLUX 3
+ * box edit and POST /api/image-edit/elements for the box editor.
  *
  * Replaces the legacy multipart POST /api/flux/green-edit/prompt for typed
  * web clients; the legacy route stays mounted for old consumers. requireAuth
@@ -12,6 +13,9 @@ import { imageEditContract } from '@gruenerator/contracts';
 import { IMAGE_MODEL_BY_ID } from '@gruenerator/shared/models';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { serializeBoxEdit, validateBoxEdit } from '../../services/flux/flux3Boxes.js';
+import { detectElements, planBoxEdit } from '../../services/flux/flux3BoxPlanner.js';
+import { isFlux3Path } from '../../services/flux/FluxImageService.js';
 import {
   FluxImageService,
   buildUniversalPrompt,
@@ -55,7 +59,7 @@ export const imageEditContractRouter = s.router(imageEditContract, {
           status: 400 as const,
           body: {
             success: false as const,
-            error: `Mehrere Referenzbilder werden nur mit Flux-Modellen unterstützt. Bitte wähle Flux Klein, Pro oder Max als Bildmodell.`,
+            error: `Mehrere Referenzbilder werden nur mit Flux-Modellen unterstützt. Bitte wähle FLUX 3 oder Flux Klein als Bildmodell.`,
           },
         };
       }
@@ -85,17 +89,55 @@ export const imageEditContractRouter = s.router(imageEditContract, {
 
       const editType = body.editType ?? 'universal';
       const isPrecision = body.precision ?? true;
+
+      let boxPrompt: string | null = null;
+      if (body.boxes) {
+        if (!model.modelPath || !isFlux3Path(model.modelPath)) {
+          return {
+            status: 400 as const,
+            body: {
+              success: false as const,
+              error: `Bearbeiten mit Boxen gibt es nur mit FLUX 3, nicht mit ${model.name}.`,
+            },
+          };
+        }
+        if (body.boxes === 'auto') {
+          const elements = await detectElements(processed[0]);
+          const plan = elements && (await planBoxEdit(instruction, processed[0], elements));
+          if (!plan) {
+            return {
+              status: 500 as const,
+              body: {
+                success: false as const,
+                error: 'Die Boxen konnten nicht geplant werden. Bitte versuche es ohne Boxen.',
+              },
+            };
+          }
+          boxPrompt = serializeBoxEdit(plan);
+        } else {
+          const check = validateBoxEdit(body.boxes);
+          if (!check.ok) {
+            return {
+              status: 400 as const,
+              body: { success: false as const, error: `Ungültige Boxen: ${check.error}` },
+            };
+          }
+          boxPrompt = serializeBoxEdit(check.value);
+        }
+      }
+
       const prompt =
-        body.images.length > 1
+        boxPrompt ??
+        (body.images.length > 1
           ? buildUniversalPrompt(instruction, body.images.length)
           : editType === 'ally-maker'
             ? buildAllyMakerPrompt(instruction, isPrecision)
             : editType === 'green-edit'
               ? buildGreenEditPrompt(instruction, isPrecision)
-              : buildUniversalPrompt(instruction);
+              : buildUniversalPrompt(instruction));
 
       log.debug(
-        `[imageEdit] ${processed.length} reference image(s), model ${model.id}, type ${editType} (User: ${userId})`
+        `[imageEdit] ${processed.length} reference image(s), model ${model.id}, type ${editType}${boxPrompt ? ', boxes' : ''} (User: ${userId})`
       );
 
       // Booked as late as possible: `fitToBudget` above throws on a corrupt
@@ -123,7 +165,11 @@ export const imageEditContractRouter = s.router(imageEditContract, {
       let generated: GenerateResult;
       try {
         // Inside the try: a failing `create()` would otherwise keep the booking.
-        const flux = await FluxImageService.create(model.backend, model.modelPath);
+        const flux = await FluxImageService.create(
+          model.backend,
+          model.modelPath,
+          model.resolution
+        );
         generated = await flux.generateFromImages(prompt, processed, {
           output_format: 'jpeg',
           safety_tolerance: 2,
@@ -153,9 +199,37 @@ export const imageEditContractRouter = s.router(imageEditContract, {
       };
     } catch (error) {
       log.error('[imageEditContract.edit] Error:', error);
+      if ((error as { type?: string }).type === 'moderated') {
+        return {
+          status: 400 as const,
+          body: { success: false as const, error: (error as Error).message },
+        };
+      }
       return {
         status: 500 as const,
         body: { success: false as const, error: 'Bildbearbeitung fehlgeschlagen.' },
+      };
+    }
+  },
+
+  elements: async ({ body }) => {
+    try {
+      const [image] = await fitToBudget([
+        { buffer: Buffer.from(body.image.data, 'base64'), mimeType: body.image.type },
+      ]);
+      const elements = await detectElements(image);
+      if (!elements) {
+        return {
+          status: 500 as const,
+          body: { success: false as const, error: 'Im Bild wurden keine Elemente erkannt.' },
+        };
+      }
+      return { status: 200 as const, body: { success: true as const, elements } };
+    } catch (error) {
+      log.error('[imageEditContract.elements] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false as const, error: 'Elemente konnten nicht erkannt werden.' },
       };
     }
   },

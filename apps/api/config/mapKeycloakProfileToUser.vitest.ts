@@ -97,7 +97,7 @@ describe('mapKeycloakProfileToUser — missing email', () => {
         email: '',
         name: 'Carol Empty',
       },
-      'netzbegruenung'
+      'gruenes-netz'
     );
 
     expect(Object.hasOwn(result, 'email')).toBe(false);

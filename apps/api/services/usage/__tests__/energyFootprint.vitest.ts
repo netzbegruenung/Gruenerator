@@ -243,8 +243,9 @@ describe('estimateFootprint', () => {
   });
 
   it('covers the Scaleway-routed spelling of Mistral Medium', () => {
-    // Regression: SCALEWAY_MISTRAL_MODELS rewrites 'mistral-medium-2604' to
-    // 'mistral-medium-3.5-128b' and usage records the ROUTED id. Real usage
+    // Regression: the Scaleway routing (removed 10/2026) rewrote
+    // 'mistral-medium-2604' to 'mistral-medium-3.5-128b' and usage recorded the
+    // ROUTED id; historical rows still carry it. Real usage
     // data showed that row sitting uncovered while the table held only the
     // pre-routing spelling — the best-measured coefficient missing its own lane.
     const shape = { inputTokens: 600, outputTokens: 400, requests: 1 };
@@ -368,6 +369,8 @@ describe('estimateImageFootprint', () => {
     // klein 0.5x / pro 1x / max 2x — the multipliers from catalog.ts.
     expect(of('flux-2-pro') / of('flux-2-klein-9b')).toBeCloseTo(2, 1);
     expect(of('flux-2-max') / of('flux-2-pro')).toBeCloseTo(2, 1);
+    // FLUX 3: Max is the 2k tier of the same route (5 vs 2.4 credits measured).
+    expect(of('flux-3-image@2k') / of('flux-3-image')).toBeCloseTo(2, 1);
   });
 
   it('scales with the number of images', () => {
@@ -389,7 +392,14 @@ describe('estimateImageFootprint', () => {
   it('flags every image lane as a bound, never as a measurement', () => {
     // Nothing in the image stack reports an impact object, and the boundary
     // uplift is our own choice — so 'measured' would be a lie here.
-    for (const model of ['flux-2-klein-9b', 'flux-2-pro', 'flux-2-max', 'Qwen-Image']) {
+    for (const model of [
+      'flux-2-klein-9b',
+      'flux-2-pro',
+      'flux-2-max',
+      'flux-3-image',
+      'flux-3-image@2k',
+      'Qwen-Image',
+    ]) {
       expect(estimateImageFootprint({ provider: 'bfl', model, images: 1 })?.basis).toBe('bound');
     }
   });

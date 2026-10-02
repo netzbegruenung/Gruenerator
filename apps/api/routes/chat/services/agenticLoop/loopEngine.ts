@@ -690,17 +690,6 @@ async function streamWithTools(
   model: LanguageModel,
   deps: LoopDeps
 ): Promise<LoopResult> {
-  // What the model actually starts from. Added because an offline replay of a
-  // degenerating turn (12.08.2026) stayed clean through 30 runs across all
-  // three lanes — both with the bare prompt and with the real system prompt.
-  // The trigger therefore lives in what only a live turn assembles: the mounted
-  // toolset and the context it carries. Without these numbers a live repro
-  // cannot tell those apart.
-  log.info(
-    `[Engine] unified start: tools=${Object.keys(p.tools).length} ` +
-      `[${Object.keys(p.tools).join(',')}] system=${p.toolSystem.length}c ` +
-      `messages=${p.messages.length} maxSteps=${p.maxSteps}`
-  );
   const { idle, idleMs } = createToolPhaseIdle(p);
   const result = deps.streamText({
     model,
@@ -1337,36 +1326,17 @@ async function drain(
           log.warn(
             `[Engine] repetitive degeneration detected after ${text.length} chars — aborting the stream, keeping ${cut}`
           );
-          // The 200 chars that tripped it, and the 200 the cut lands on. Counts
-          // alone could not answer the two questions a live repro raises: WHAT
-          // pattern the model fell into, and whether the cut ends on clean prose
-          // (live 12.08.2026 it ended mid-word and left an earlier spam episode
-          // in place, because the backscan only strips the CONTIGUOUS tail).
-          log.warn(
-            `[Engine] degeneration window: ${JSON.stringify(text.slice(-200))} | ` +
-              `cut lands on: ${JSON.stringify(text.slice(Math.max(0, cut - 200), cut))}`
-          );
-          // Shape of the tail, which the 200-char excerpts cannot show. Live
-          // 13.08.2026 the guard fired on a table divider and then cut NOTHING
-          // (keeping == length): whether that row was a legitimate wide table
-          // or a divider the model could not stop extending turns entirely on
-          // how long the last unbroken line is — and 200 chars do not say.
-          const lastBreak = text.lastIndexOf('\n');
-          const kept = text.slice(0, cut).trimEnd();
-          // Only warn about a cut that took something with it. Removing a run
-          // of dashes leaves a COMPLETE answer, and "may be incomplete" under
-          // it would be a false alarm about a correct result.
-          const lost = cutLostContent(kept, text.slice(cut));
-          log.warn(
-            `[Engine] degeneration tail shape: lastLine=${text.length - lastBreak - 1}c ` +
-              `newlinesInWindow=${(text.slice(-2000).match(/\n/g) ?? []).length} removed=${text.length - cut} lostContent=${lost}`
-          );
           finishReason = DEGENERATE_FINISH_REASON;
           // The kept prefix says it was cut. Both answer paths replace what the
           // client shows with this string (unified always, split when the
           // silent retry fails), so the note travels with the trim instead of
           // the trim passing for a finished answer. A successful split retry
           // discards this text wholesale — and with it the note, correctly.
+          const kept = text.slice(0, cut).trimEnd();
+          // ...but only when there is something to warn about. Removing a run
+          // of dashes leaves a COMPLETE answer, and "may be incomplete" under
+          // it would be a false alarm about a correct result.
+          const lost = cutLostContent(kept, text.slice(cut));
           text = kept.length > 0 ? (lost ? `${kept}\n\n${DEGENERATION_NOTICE}` : kept) : '';
           // Best-effort teardown so the upstream stops billing us for spam.
           // swallow-ok: cleanup of an already-abandoned degenerate stream

@@ -49,7 +49,6 @@ export const PROVIDER_HOSTS = [
   'GreenPT',
   'Melious',
   'Mistral AI',
-  'Scaleway',
 ] as const;
 
 export type ProviderHost = (typeof PROVIDER_HOSTS)[number];

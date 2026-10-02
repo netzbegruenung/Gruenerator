@@ -163,7 +163,7 @@ jobs:
           echo "is_full_run=$IS_FULL_RUN" >> "$GITHUB_OUTPUT"
 
           ALL_LVS='["BB","BE","BY","HE","HH","LSA","MV","SL","TH"]'
-          ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","abgeordnetenwatch","grundsatz","gruene-de","oesterreich"]'
+          ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","abgeordnetenwatch","grundsatz","gruene-de","oesterreich","lv-instagram"]'
           EMPTY='[]'
 
           if [ -n "$INPUT_SOURCE" ] && [ -n "$INPUT_LV" ]; then

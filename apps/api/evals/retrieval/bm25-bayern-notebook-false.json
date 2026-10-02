@@ -1,0 +1,59 @@
+{
+  "pipeline": "notebook",
+  "depth": "deep",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "bayern-flaechenfrass",
+      "collection": "bayern-system",
+      "query": "Flächenverbrauch und Flächenfraß in Bayern begrenzen",
+      "rank": 4,
+      "topTitles": [
+        "„Söder-Regierung sind selbst die eigenen Ziele egal“",
+        "„Söder-Regierung sind selbst die eigenen Ziele egal“",
+        "Dein Ort wird schöner mit dir. Dafür stehen wir GRÜNE bei der Kommunalwahl 2026 in Bayern.",
+        "Statement zur Flächenstatistik",
+        "Grüne Bilanz zur 18. Legislaturperiode"
+      ]
+    },
+    {
+      "id": "bayern-artenvielfalt",
+      "collection": "bayern-system",
+      "query": "Volksbegehren Artenvielfalt — Rettet die Bienen",
+      "rank": 1,
+      "topTitles": [
+        "Erfolge des Volksbegehrens sind gefährdet",
+        "Erfolge des Volksbegehrens sind gefährdet",
+        "Erfolge des Volksbegehrens sind gefährdet",
+        "Erfolge des Volksbegehrens sind gefährdet",
+        "Erfolge des Volksbegehrens sind gefährdet"
+      ]
+    },
+    {
+      "id": "bayern-100-tage",
+      "collection": "bayern-system",
+      "query": "Was wollen die bayerischen Grünen in den ersten 100 Tagen einer Regierung umsetzen?",
+      "rank": 24,
+      "topTitles": [
+        "Regierungsprogramm der Grünen Bayern 2023",
+        "Regierungsprogramm der Grünen Bayern 2023",
+        "Regierungsprogramm der Grünen Bayern 2023",
+        "Regierungsprogramm der Grünen Bayern 2023",
+        "Regierungsprogramm der Grünen Bayern 2023"
+      ]
+    },
+    {
+      "id": "kw-bayern-anbindegebot",
+      "collection": "bayern-system",
+      "query": "Anbindegebot Lockerung",
+      "rank": null,
+      "topTitles": [
+        "Schluss mit der Unsicherheit für alle!",
+        "Schluss mit der Unsicherheit für alle!",
+        "Schluss mit der Unsicherheit für alle!",
+        "Schluss mit der Unsicherheit für alle!",
+        "Schluss mit der Unsicherheit für alle!"
+      ]
+    }
+  ]
+}

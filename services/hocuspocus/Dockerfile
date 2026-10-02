@@ -69,7 +69,7 @@ FROM node:22-alpine AS production
 LABEL org.opencontainers.image.title="Gruenerator Hocuspocus"
 LABEL org.opencontainers.image.description="Real-time collaborative editing WebSocket server"
 LABEL org.opencontainers.image.source="https://github.com/netzbegruenung/Gruenerator"
-LABEL org.opencontainers.image.vendor="netzbegruenung"
+LABEL org.opencontainers.image.vendor="Gruenerator"
 
 # Install curl for healthcheck
 RUN apk add --no-cache curl

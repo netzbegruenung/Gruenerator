@@ -1,4 +1,8 @@
-import { generateSharepicText, type SharepicTextType } from '@gruenerator/shared/image-studio';
+import {
+  DEFAULT_STYLE_VARIANT,
+  generateSharepicText,
+  type SharepicTextType,
+} from '@gruenerator/shared/image-studio';
 import { useState, useCallback } from 'react';
 
 import apiClient, { SERVER_TASK_TIMEOUT_MS } from '../../../components/utils/apiClient';
@@ -397,7 +401,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
 
         const requestData = {
           prompt: formData.purePrompt || formData.prompt,
-          variant: formData.variant || 'illustration-pure',
+          variant: formData.variant || DEFAULT_STYLE_VARIANT,
           ...(selectedImageSize && {
             width: selectedImageSize.width,
             height: selectedImageSize.height,

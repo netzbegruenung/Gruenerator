@@ -1,5 +1,6 @@
-import { Linking, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
+import { openUrl } from '../../services/share';
 import { colors, spacing, typography } from '../../theme';
 
 const TERMS_URL = 'https://gruenerator.eu/nutzungsbedingungen';
@@ -20,15 +21,15 @@ export function LegalNotice({ color }: { color: string }) {
   return (
     <Text style={[styles.text, { color }]}>
       Mit der Anmeldung stimmst du unseren{' '}
-      <Text style={styles.link} onPress={() => void Linking.openURL(TERMS_URL)}>
+      <Text style={styles.link} onPress={() => void openUrl(TERMS_URL)}>
         Nutzungsbedingungen
       </Text>{' '}
       und der{' '}
-      <Text style={styles.link} onPress={() => void Linking.openURL(PRIVACY_URL)}>
+      <Text style={styles.link} onPress={() => void openUrl(PRIVACY_URL)}>
         Datenschutzerklärung
       </Text>{' '}
       zu. Wie wir KI-Inhalte kennzeichnen, steht unter{' '}
-      <Text style={styles.link} onPress={() => void Linking.openURL(TRANSPARENCY_URL)}>
+      <Text style={styles.link} onPress={() => void openUrl(TRANSPARENCY_URL)}>
         KI-Transparenz
       </Text>
       .

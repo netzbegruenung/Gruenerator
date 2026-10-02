@@ -103,7 +103,7 @@ import {
   classifyFetch,
   goneVerdict,
   type FetchOutcome,
-} from '../services/scrapers/implementations/LandesverbandScraper/goneState.js';
+} from '../services/scrapers/utils/goneState.js';
 
 import { type QdrantClient } from '@qdrant/js-client-rest';
 import {
@@ -511,7 +511,7 @@ export async function planGone(
 ): Promise<{ outcome: FetchOutcome; remove: boolean; targetMissing?: true }> {
   const outcome = classifyFetch({ requestedUrl: url, ...probe, listingPaths });
   const now = Date.now();
-  const mark = { lv_gone_since: new Date(now - GONE_CONFIRM_AFTER_MS).toISOString() };
+  const mark = { goneSince: new Date(now - GONE_CONFIRM_AFTER_MS).toISOString() };
   const remove = goneVerdict(outcome, mark, now) === 'delete';
   if (remove && outcome === 'moved' && probe.finalUrl) {
     if (!(await isIndexed(normalizeStoredUrl(probe.finalUrl)))) {

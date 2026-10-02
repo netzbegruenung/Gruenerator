@@ -2,7 +2,7 @@
 
 import { useAui, useAuiState } from '@assistant-ui/react';
 import { extractSlugSuffix } from '@gruenerator/shared/utils';
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 
 import { getDefaultAgent } from '../lib/agents';
 import { adoptAuiAction, auiPromise } from '../lib/auiAsync';
@@ -70,8 +70,20 @@ export function ChatThreadRouting({
   const aui = useAui();
   const suffix = threadSlug ? extractSlugSuffix(threadSlug) : null;
 
+  // `useAui()` returns a new client whenever the main thread changes. As a
+  // dependency of the effect below, that re-ran it whenever the runtime left a
+  // thread on its own — with the URL still naming that thread, so it switched
+  // straight back. During a delete that switch landed on the removed slot and
+  // every render threw `useClientLookup: key … not found` (GlitchTip #671).
+  // Only a URL change may trigger a switch; the client is read through a ref.
+  const auiRef = useRef(aui);
+  useLayoutEffect(() => {
+    auiRef.current = aui;
+  }, [aui]);
+
   // ---------------------------------------------------------------- URL → thread
   useEffect(() => {
+    const aui = auiRef.current;
     if (!threadSlug) {
       // Bare /chat means "no thread": park the runtime on a draft so the
       // composer opens a new conversation instead of silently continuing the
@@ -195,7 +207,7 @@ export function ChatThreadRouting({
     return () => {
       cancelled = true;
     };
-  }, [threadSlug, suffix, aui, onThreadGone, onOpenNotebookThread]);
+  }, [threadSlug, suffix, onThreadGone, onOpenNotebookThread]);
 
   // ---------------------------------------------------------------- thread → URL
   // Two primitive selectors rather than one object: a fresh object per render

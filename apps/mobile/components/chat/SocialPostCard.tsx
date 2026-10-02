@@ -1,9 +1,9 @@
 import { useSocialPostLiveStore } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, Linking, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 
-import { copyToClipboard } from '../../services/share';
+import { copyToClipboard, openUrl } from '../../services/share';
 import { colors, spacing, borderRadius, chatType } from '../../theme';
 
 import {
@@ -85,7 +85,7 @@ export const SocialPostCard = memo(function SocialPostCard({
   }, [live.text]);
 
   const openDocs = useCallback(() => {
-    void Linking.openURL(SOCIAL_POST_DOC_URL);
+    void openUrl(SOCIAL_POST_DOC_URL);
   }, []);
 
   return (

@@ -1,5 +1,7 @@
 import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useIsFocused } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 
 export interface AppNotification {
   id: string;
@@ -17,29 +19,33 @@ export interface AppNotification {
 const PAGE_SIZE = 20;
 const POLL_INTERVAL = 60000;
 
+/**
+ * The badge count behind every screen header's profile menu.
+ *
+ * One query for all of them: each pushed or tab screen mounts its own header, so
+ * a hook with its own state and interval fetched on every mount and kept one
+ * timer per screen alive, frozen ones included. Now a mount within `staleTime`
+ * reads the cache, and only the focused screen polls — `refetchInterval` is per
+ * observer, so leaving it on for every mounted header would still multiply it.
+ */
 export function useUnreadCount() {
-  const [count, setCount] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const fetch = useCallback(async () => {
-    try {
+  const isFocused = useIsFocused();
+  const { data, refetch } = useQuery({
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: async () => {
       // Typed: the untyped read looked for `unreadCount`, the API sends `count`.
       const res = await getContractsClient().notifications.getUnreadCount();
-      if (res.status === 200) setCount(res.body.count);
-    } catch {
-      // silently fail
-    }
-  }, []);
+      if (res.status !== 200) throw new Error(`Unread count failed (HTTP ${res.status})`);
+      return res.body.count;
+    },
+    staleTime: POLL_INTERVAL / 2,
+    refetchInterval: isFocused ? POLL_INTERVAL : false,
+    // A badge, not content: a failed poll keeps the last count and tries again
+    // next interval.
+    retry: false,
+  });
 
-  useEffect(() => {
-    void fetch();
-    timerRef.current = setInterval(() => void fetch(), POLL_INTERVAL);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [fetch]);
-
-  return { count, refetch: fetch };
+  return { count: data ?? 0, refetch };
 }
 
 export function useNotifications() {

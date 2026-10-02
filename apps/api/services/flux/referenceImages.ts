@@ -1,5 +1,5 @@
 /**
- * Reference-image preparation for FLUX.2 multi-reference editing.
+ * Reference-image preparation for FLUX multi-reference editing.
  *
  * The BFL API caps input + output at 9 megapixels combined. We reserve
  * ~1MP headroom for the output and split the remaining budget evenly
@@ -17,7 +17,7 @@ import type { ReferenceImage } from './FluxImageService.js';
 const TOTAL_INPUT_BUDGET_MP = 8;
 const MP = 1_000_000;
 
-export const MAX_REFERENCE_IMAGES = 8;
+export const MAX_REFERENCE_IMAGES = 10;
 
 export async function fitToBudget(images: ReferenceImage[]): Promise<ReferenceImage[]> {
   if (images.length === 0) return images;

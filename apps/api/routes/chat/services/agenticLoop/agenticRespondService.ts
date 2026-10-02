@@ -489,38 +489,8 @@ export async function streamAgenticResponse(
       finalState.notebookIds?.[0] ?? finalState.threadNotebookId,
       finalState.userLocale ?? null
     );
-    const toolUsageBlock = buildToolUsageBlock(
-      budget.maxSteps,
-      researchBanned,
-      mode === 'unified',
-      Object.keys(wrapped),
-      sourceRegistry.carriedSize > 0,
-      promptNotebook
-    );
-    const recipeCatalogBlock = renderRecipeCatalog(recipeCatalog);
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${toolUsageBlock}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${recipeCatalogBlock}`
-    );
-    // Where the ~8.700 chars come from. `system=8721c` alone says nothing about
-    // which parts a turn actually needed, and a prompt is not trimmed on a
-    // guess — every share below has to be read off a real turn first.
-    log.info(
-      `[Agentic] system prompt ${toolSystem.length}c = base ${systemMessage.length}` +
-        ` + toolRules ${toolUsageBlock.length} + mcp ${mcpNote.length} + sources ${systemNote.length}` +
-        ` + connectors ${connectorCatalogNote.length} + carried ${carriedNote.length}` +
-        ` + preLoopEdit ${preLoopEditNotes.length} + recipes ${recipeCatalogBlock.length}`
-    );
-    // The other half of the context, and the half nobody could see: how much of
-    // the turn's OWN material survives into the writing call. A four-step chat
-    // over one pasted article failed on steps 2-4 (mapping table built from the
-    // translation, invented source quotes, a web search FOR the article) and the
-    // thread's first user message held 10.327 chars — but whether those chars
-    // were still in `messages` by step 2 could not be read off any log. Per
-    // message, oldest first, so a lost original is visible as a shrinking head.
-    log.info(
-      `[Agentic] turn material: ${messages.length} msgs [${messages
-        .map((m) => `${m.role[0]}${extractTextContent(m.content).length}`)
-        .join(' ')}]`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified', Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${renderRecipeCatalog(recipeCatalog)}`
     );
     const { abortSignal, writeAbortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,
@@ -771,10 +741,8 @@ export async function streamAgenticResponse(
       // The old 4000-token floor truncated think-lane answers mid-sentence.
       //
       // The auto policy grades a reasoning strength for every turn, and until
-      // now the loop resolved it and then dropped it: `resolveModel` used it to
-      // pin a thinking turn to the Mistral API (`needsReasoning`), but no phase
-      // ever sent the option that actually switches thinking on. The lane moved,
-      // the reasoning did not.
+      // now the loop resolved it and then dropped it: no phase ever sent the
+      // option that actually switches thinking on.
       //
       // `promptCacheKey` keeps the thread's turns on one Mistral prompt cache
       // (cached input is billed at 10 %). Ignored by every non-Mistral client.

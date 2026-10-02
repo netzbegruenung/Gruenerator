@@ -23,6 +23,8 @@ Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen findest
 
 **Ultra** – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Mistral AI, Frankreich).
 
+**Panda** – Für sehr anspruchsvolle Aufgaben, mit sichtbarem Nachdenken vor der Antwort. Dahinter steht DeepSeek, ein offenes Modell (Open Weights) aus China, das bei einem europäischen Anbieter läuft (Melious, Finnland) – deine Eingaben gehen nicht nach China. Panda ist nicht für alle sichtbar: Eine Administratorin oder ein Administrator deiner Instanz schaltet die Stufe nach einer Schulung für dein Konto frei. Fällt das Modell aus, antwortet Ultra.
+
 Welches Modell hinter einer Stufe steckt, kann sich ändern, wenn ein besseres verfügbar wird – die Stufe bleibt. Welche Anbieter aktuell dahinterstehen, steht jederzeit in der [Datenschutzerklärung](https://gruenerator.de/datenschutz).
 
 :::info[Bildmodelle]
@@ -35,4 +37,4 @@ Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards:
 
 - **Europäische Server**: Deine Eingaben werden ausschließlich von europäischen Anbietern verarbeitet. Die KI-Modelle laufen derzeit bei <ModelHosts />; welcher Anbieter welche Aufgabe übernimmt, steht unter [Grünerator Pro-EU](../basics/gruenerator-pro-eu.md). Dazu kommen Dienste, die selbst kein Modell rechnen, deine Eingaben aber trotzdem sehen – etwa die Websuche. Vollständig und verbindlich sind alle Anbieter in der [Datenschutzerklärung](https://gruenerator.de/datenschutz) aufgeführt. Eigene, selbst gehostete Modelle setzt der Grünerator seit dem 29.08.2026 nicht mehr ein (siehe [Nachhaltigkeit](../basics/nachhaltigkeit.md)).
 - **Kein KI-Training**: Deine Eingaben werden nicht zum Training der KI verwendet.
-- **Offene Modelle**: Hinter **Klein** und **Mittel** stehen Modelle mit offenen Gewichten (Open Weights), die jeder prüfen und selbst betreiben kann.
+- **Offene Modelle**: Hinter **Klein**, **Mittel** und **Panda** stehen Modelle mit offenen Gewichten (Open Weights), die jeder prüfen und selbst betreiben kann.

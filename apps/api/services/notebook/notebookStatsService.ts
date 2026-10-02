@@ -1,12 +1,9 @@
-import {
-  getSystemCollectionConfig,
-  applyDefaultFilter,
-} from '../../config/systemCollectionsConfig.js';
+import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { createLogger } from '../../utils/logger.js';
 import redisClient from '../../utils/redis/client.js';
 
-import { getNotebookOverview } from './notebookOverviewService.js';
+import { getNotebookOverview, headFilter } from './notebookOverviewService.js';
 
 import type { ScrollPoint } from '../../database/services/QdrantService/operations/types.js';
 
@@ -223,18 +220,9 @@ async function fetchStatsForCollection(collectionId: string): Promise<NotebookSt
     return emptyStats();
   }
 
-  const baseFilter = applyDefaultFilter(collectionId, undefined) ?? {};
-  // Each notebook document is split into multiple Qdrant points (chunks).
-  // For user-facing counts we want UNIQUE DOCUMENTS, so we filter to chunk_index=0
-  // (the first/only "head" chunk per document). chunk_index isn't indexed, so this
-  // does a payload scan — ~3x slower than the indexed path but still <200ms per
-  // call, and the result is cached in Redis for 24h.
-  const baseMustRaw = baseFilter.must;
-  const baseMust = Array.isArray(baseMustRaw) ? (baseMustRaw as unknown[]) : [];
-  const filterRecord: Record<string, unknown> = {
-    ...(baseFilter as unknown as Record<string, unknown>),
-    must: [...baseMust, { key: 'chunk_index', match: { value: 0 } }],
-  };
+  // One point per document (chunk_index=0), and the same exclusions as the
+  // overview — a second copy of this filter already missed the Instagram posts.
+  const filterRecord = headFilter(collectionId);
   const filterForCount = filterRecord;
 
   log.info(

@@ -11,12 +11,16 @@ export type Provider = TextProvider;
  * `apps/api/services/ai/modelGateway.ts`) den Erweiterungen anbietet, damit
  * Web, Mobile und die Add-ins dieselbe Auswahl zeigen. Der Name ist geteilt,
  * das Backend dahinter nicht: hier hängt die Lane an `AVAILABLE_MODELS` im
- * Chat-Stack (Verdigado-Overflow, Fallback-Ketten, Reasoning), dort direkt an
- * einem Scaleway-Upstream. Genau dafür ist ein Lane-Name da — er lässt sich je
+ * Chat-Stack (Verdigado-Overflow, Fallback-Ketten, Reasoning), dort an der
+ * Gateway-Konfiguration. Genau dafür ist ein Lane-Name da — er lässt sich je
  * Oberfläche umhängen, ein Vendormodell im Bundle nicht.
  */
 export type TextModelId =
-  'gruenerator-small' | 'gruenerator-medium' | 'gruenerator-ultra' | 'greenpt';
+  | 'gruenerator-small'
+  | 'gruenerator-medium'
+  | 'gruenerator-ultra'
+  | 'gruenerator-panda'
+  | 'greenpt';
 
 /**
  * Die Vendor-IDs, unter denen dieselben Lanes vorher liefen.
@@ -55,12 +59,17 @@ export interface TextModelOption extends BaseModelOption {
 
 export type ImageFamilyId = 'flux' | 'melious';
 
+/** Pixel-area tiers of BFL's `/v1/flux-3-image` (`resolution` field). */
+export type Flux3Resolution = '768sq' | '1k' | '1.5k' | '2k' | '4k';
+
 export interface ImageModelOption extends BaseModelOption {
   modality: 'image';
   id: ImageModelId;
   family: ImageFamilyId;
   backend: ImageBackend;
   modelPath?: string;
+  /** Only for `modelPath: FLUX3_MODEL_PATH` — Pro and Max share the route and differ here. */
+  resolution?: Flux3Resolution;
   costMultiplier: number;
   /** Max reference images per edit (FLUX.2 multi-reference). Absent = 1. */
   maxReferenceImages?: number;
@@ -80,6 +89,8 @@ export interface ImageFamilyOption {
 }
 
 export type ModelOption = TextModelOption | ImageModelOption;
+
+export const FLUX3_MODEL_PATH = '/v1/flux-3-image';
 
 export const MODEL_OPTIONS: ModelOption[] = [
   {
@@ -119,6 +130,22 @@ export const MODEL_OPTIONS: ModelOption[] = [
   },
   {
     modality: 'text',
+    id: 'gruenerator-panda',
+    name: 'Panda',
+    description: 'Für sehr anspruchsvolle Aufgaben',
+    // DeepSeek — die einzige Lane, die die China-Sperre in
+    // apps/api/services/ai/textModelPolicy.ts ausnimmt. Sichtbar nur für
+    // Accounts, die ein Admin nach der Schulung freigeschaltet hat (auf der
+    // Instanz `bgst` standardmäßig); `offByDefault` hält sie aus dem
+    // Agent-Editor und aus den Standard-Präferenzen.
+    model: 'deepseek-v4.1-flash',
+    provider: 'melious',
+    icon: 'brain',
+    region: 'eu',
+    offByDefault: true,
+  },
+  {
+    modality: 'text',
     id: 'greenpt',
     name: 'GreenPT',
     description: 'Klimaneutral, EU-gehostet',
@@ -131,15 +158,16 @@ export const MODEL_OPTIONS: ModelOption[] = [
   },
   {
     modality: 'image',
+    // F1: the ids `flux-pro`/`flux-max` stay; since 10/2026 both are FLUX 3.
     id: 'flux-pro',
     family: 'flux',
-    name: '⭐ Flux Pro',
+    name: '⭐ FLUX 3',
     description: 'Ausgewogener Standard (1 Bild)',
     backend: 'hosted',
-    modelPath: '/v1/flux-2-pro',
+    modelPath: FLUX3_MODEL_PATH,
+    resolution: '1k',
     costMultiplier: 1,
-    maxReferenceImages: 8,
-    supportsCustomDimensions: true,
+    maxReferenceImages: 10,
     icon: 'sparkles',
     region: 'eu',
   },
@@ -161,13 +189,13 @@ export const MODEL_OPTIONS: ModelOption[] = [
     modality: 'image',
     id: 'flux-max',
     family: 'flux',
-    name: '⭐ Flux Max',
-    description: 'Höchste Qualität (2 Bilder)',
+    name: '⭐ FLUX 3 (2K)',
+    description: 'Höchste Auflösung (2 Bilder)',
     backend: 'hosted',
-    modelPath: '/v1/flux-2-max',
+    modelPath: FLUX3_MODEL_PATH,
+    resolution: '2k',
     costMultiplier: 2,
-    maxReferenceImages: 8,
-    supportsCustomDimensions: true,
+    maxReferenceImages: 10,
     icon: 'brain',
     region: 'eu',
   },

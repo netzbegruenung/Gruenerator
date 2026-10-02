@@ -428,8 +428,11 @@ export const monitorInstagramRefreshResponseSchema = z.object({
 
 // ── "Was ist passiert" (content-sync article feed) ───────────────────────────
 
-/** Source groups that feed notebook collections; social-media is not recorded. */
-export const syncArticleSourceGroupSchema = contentSyncSourceSchema.exclude(['social-media']);
+/** Source groups that feed notebook collections; the social sources are not recorded. */
+export const syncArticleSourceGroupSchema = contentSyncSourceSchema.exclude([
+  'social-media',
+  'lv-instagram',
+]);
 export type SyncArticleSourceGroup = z.infer<typeof syncArticleSourceGroupSchema>;
 
 export const syncArticleEventTypeSchema = z.enum(['stored', 'updated']);

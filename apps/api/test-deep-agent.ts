@@ -18,8 +18,8 @@
  * `--ohne-notebooks` is the other half of that test — the web-only shape.
  *
  * Without `--write` nothing touches the database — the markdown goes to stdout.
- * Requires SCALEWAY_API_KEY and LINKUP_API_KEY (GREENPT_API_KEY optional but
- * cheaper). Exits 0 on success, 1 on failure.
+ * Requires MISTRAL_API_KEY, CORTECS_API_KEY and LINKUP_API_KEY (GREENPT_API_KEY
+ * optional but cheaper). Exits 0 on success, 1 on failure.
  */
 
 import 'dotenv/config';

@@ -7,53 +7,22 @@ import {
   type Agent,
 } from '@gruenerator/shared/agents';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Redirect, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo } from 'react';
 import { StyleSheet, View, useColorScheme } from 'react-native';
 
 import { AssistantThread, type ThreadWelcome } from '../../components/chat';
+import { InitialTurnSender } from '../../components/chat/InitialTurnSender';
 import { MeshSurface } from '../../components/common/MeshSurface';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
-import {
-  NotebookAnswerModeSheet,
-  useAnswerModeAccessory,
-} from '../../components/notebook/NotebookAnswerModeSheet';
 import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
-import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
 import { lightTheme, darkTheme, typeScale } from '../../theme';
 import { COMPOSER_GLOW, COMPOSER_GLOW_HEIGHT } from '../../theme/chatBackgrounds';
+import { routeWithParams } from '../../types/routes';
 
 const AT_DEFAULT_NOTEBOOK_ID = 'oesterreich-notebook';
-
-/**
- * Drains anything the start screen queued (a file or a document reference picked
- * before this thread existed), then sends the message it was opened with.
- *
- * One component for both because the order matters: `addAttachment` is async,
- * and a send that fires first would leave the attachment behind on a thread the
- * user has already moved past.
- */
-function InitialTurnSender({ message }: { message: string }) {
-  const aui = useAui();
-
-  useEffect(() => {
-    void (async () => {
-      for (const attachment of usePendingAttachmentStore.getState().drain()) {
-        await aui.composer.addAttachment(attachment);
-      }
-      if (message) {
-        aui.composer.setText(message);
-        aui.composer.send();
-      }
-    })();
-    // Only run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return null;
-}
 
 // Pre-fills the composer without sending (e.g. a `/skill ` or `@tool ` mention
 // dropped in from the drawer), so the user can keep typing before submitting.
@@ -71,15 +40,38 @@ function ComposerPrefiller({ text }: { text: string }) {
   return null;
 }
 
+type ChatConversationParams = {
+  threadId: string;
+  initialMessage?: string;
+  /** @deprecated Notebook questions open `notebook-chat`; kept so older links
+   *  still land there instead of in an agent chat. */
+  notebookId?: string;
+  agentId?: string;
+  initialComposerText?: string;
+};
+
 export default function ChatConversationScreen() {
-  const { threadId, initialMessage, notebookId, agentId, initialComposerText } =
-    useLocalSearchParams<{
-      threadId: string;
-      initialMessage?: string;
-      notebookId?: string;
-      agentId?: string;
-      initialComposerText?: string;
-    }>();
+  const params = useLocalSearchParams<ChatConversationParams>();
+  if (params.notebookId && !params.agentId) {
+    return (
+      <Redirect
+        href={routeWithParams('/(focused)/notebook-chat', {
+          notebookId: params.notebookId,
+          ...(params.threadId && params.threadId !== 'new' && { threadId: params.threadId }),
+          ...(params.initialMessage && { initialMessage: params.initialMessage }),
+        })}
+      />
+    );
+  }
+  return <ChatConversation {...params} />;
+}
+
+function ChatConversation({
+  threadId,
+  initialMessage,
+  agentId,
+  initialComposerText,
+}: ChatConversationParams) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const { locale } = useAuth();
@@ -148,8 +140,7 @@ export default function ChatConversationScreen() {
   // the request). When an agent is selected, auto-pair its FIRST bound notebook
   // into the composer chip the same way web does — the agent's own
   // `defaultNotebookIds[0]`, else the Österreich notebook for AT users. The
-  // agent's full notebook set scopes search server-side regardless. An explicit
-  // `notebookId` param (notebook picker) takes the simple path.
+  // agent's full notebook set scopes search server-side regardless.
   useEffect(() => {
     const store = useAgentStore.getState();
     if (resolvedAgentId) {
@@ -160,28 +151,15 @@ export default function ChatConversationScreen() {
       } else if (locale === 'de-AT') {
         store.setSelectedNotebook(AT_DEFAULT_NOTEBOOK_ID);
       }
-    } else if (notebookId) {
-      // Entering from a notebook → run the specialized notebook RAG (citations +
-      // sources), not the general agent chat. Switch to notebook mode so the
-      // runtime hits /notebook/stream scoped to this notebook's collections.
-      store.setSelectedNotebook(notebookId);
-      store.setThreadMode('notebook');
     }
     return () => {
       const store = useAgentStore.getState();
       store.setSelectedNotebook('gruenerator-notebook');
       store.setThreadMode('chat');
     };
-  }, [notebookId, resolvedAgentId, locale]);
+  }, [resolvedAgentId, locale]);
 
   const isNewChat = threadId === 'new';
-
-  // Notebook threads get the answer-mode chip beside Send; other chats do not.
-  const threadMode = useAgentStore((s) => s.threadMode);
-  const [answerModeSheetVisible, setAnswerModeSheetVisible] = useState(false);
-  const openAnswerModeSheet = useCallback(() => setAnswerModeSheetVisible(true), []);
-  const answerModeAccessory = useAnswerModeAccessory(openAnswerModeSheet);
-  const isNotebookThread = threadMode === 'notebook';
 
   return (
     // The same chrome as every tab — drawer button, centred title, profile menu —
@@ -212,22 +190,10 @@ export default function ChatConversationScreen() {
       headerRight={null}
     >
       <MobileChatProvider threadId={isNewChat ? null : threadId}>
-        <AssistantThread
-          theme={theme}
-          welcome={welcome}
-          transparent
-          {...(isNotebookThread && { composerAccessory: answerModeAccessory })}
-        />
+        <AssistantThread theme={theme} welcome={welcome} transparent />
         {isNewChat && <InitialTurnSender message={initialMessage ?? ''} />}
         {isNewChat && initialComposerText && <ComposerPrefiller text={initialComposerText} />}
       </MobileChatProvider>
-      {isNotebookThread && (
-        <NotebookAnswerModeSheet
-          visible={answerModeSheetVisible}
-          onClose={() => setAnswerModeSheetVisible(false)}
-          theme={theme}
-        />
-      )}
     </ScreenScaffold>
   );
 }

@@ -834,9 +834,7 @@ export function DocumentsContent({
             onSelectSheetTemplate={(id) => void handleCreateSheetFromTemplate(id)}
             onSelectPresentationTemplate={(id) => void handleCreatePresentationFromTemplate(id)}
             onSelectUserTemplate={handleUserTemplateSelect}
-            // The /office Vorlagen gallery is office-only — sharepics live under
-            // Bilder & Videos, so they're hidden here.
-            sharepicEnabled={officeToolStrip ? false : sharepicEnabled}
+            sharepicEnabled={sharepicEnabled}
             onSelectSharepicTemplate={(id) => void navigate(`/studio/templates/${id}`)}
           />
         </Suspense>

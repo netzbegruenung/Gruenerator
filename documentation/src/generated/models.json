@@ -152,9 +152,9 @@
       "task": "Bilder erzeugen & bearbeiten",
       "models": [
         {
-          "model": "/v1/flux-2-pro",
-          "code": "flux-2-pro",
-          "label": "FLUX 2 Pro",
+          "model": "/v1/flux-3-image",
+          "code": "flux-3-image",
+          "label": "FLUX 3",
           "provider": "bfl",
           "host": "Black Forest Labs",
           "flag": "🇩🇪",
@@ -170,9 +170,9 @@
           "role": "primary"
         },
         {
-          "model": "/v1/flux-2-max",
-          "code": "flux-2-max",
-          "label": "FLUX 2 Max",
+          "model": "/v1/flux-3-image@2k",
+          "code": "flux-3-image@2k",
+          "label": "FLUX 3 (2K)",
           "provider": "bfl",
           "host": "Black Forest Labs",
           "flag": "🇩🇪",

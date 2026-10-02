@@ -57,6 +57,20 @@ describe('modelSiblings', () => {
     });
   });
 
+  /**
+   * „Panda" weicht nie auf ein beliebiges Kettenmodell aus: solange GreenPTs
+   * DeepSeek-Standort ungeklärt ist (`GREENPT_DEEPSEEK_CLEARED`), ist Ultra
+   * das Geschwister.
+   */
+  it('ein zäher DeepSeek-Primär geht an Ultra, nicht an GreenPT', () => {
+    configured.add('greenpt');
+    markSlow('melious', 'deepseek-v4.1-flash');
+    expect(pickHealthyTarget('melious', 'deepseek-v4.1-flash')).toEqual({
+      provider: 'mistral',
+      model: 'mistral-medium-2604',
+    });
+  });
+
   it('ein nicht konfigurierter Anbieter wird übersprungen', () => {
     configured.delete('cortecs');
     markSlow('melious', 'gemma-4-31b:balanced');

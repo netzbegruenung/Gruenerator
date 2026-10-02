@@ -985,8 +985,8 @@ function NotebooksIndexPage() {
       startpageFooter={<NotebooksIndexFooter />}
       showExamples={false}
       hideGlobalChat
-      pageGradient={false}
       omniComposer
+      pageGradient={false}
     />
   );
 }
