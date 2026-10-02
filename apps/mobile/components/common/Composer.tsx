@@ -130,6 +130,9 @@ export interface ComposerProps {
   onSettings?: () => void;
   /** Second left-aligned button, beside the plus/settings one. */
   accessory?: ComposerAccessory;
+  /** Fill of the send/search button, the active accessory and the cursor.
+   *  The app green by default; the notebook surfaces pass their magenta. */
+  accentColor?: string;
   inputRef?: React.RefObject<TextInput | null>;
   /** Enables `<prefix>-input` / `<prefix>-send` testIDs for the Maestro flows. */
   testIDPrefix?: string;
@@ -471,6 +474,10 @@ function ComposerBody({
             style={[composerInputStyle(variant), { color: theme.text }]}
             placeholder={props.placeholder ?? 'Nachricht eingeben...'}
             placeholderTextColor={theme.textSecondary}
+            {...(props.accentColor && {
+              cursorColor: props.accentColor,
+              selectionColor: props.accentColor,
+            })}
             accessibilityLabel="Nachricht eingeben"
             multiline
             textAlignVertical="top"
@@ -501,7 +508,11 @@ function ComposerBody({
               <Ionicons
                 name={props.accessory.icon}
                 size={iconSize}
-                color={props.accessory.active ? colors.primary[600] : theme.textSecondary}
+                color={
+                  props.accessory.active
+                    ? (props.accentColor ?? COMPOSER_ACTION_FILL)
+                    : theme.textSecondary
+                }
               />
             </Pressable>
           ) : null
@@ -626,7 +637,10 @@ function LocalComposer(props: ComposerProps) {
         <Pressable
           testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
           onPress={handleSubmit}
-          style={[composerActionButtonStyle(variant), { backgroundColor: COMPOSER_ACTION_FILL }]}
+          style={[
+            composerActionButtonStyle(variant),
+            { backgroundColor: props.accentColor ?? COMPOSER_ACTION_FILL },
+          ]}
           accessibilityLabel={props.submitAs === 'search' ? 'Suchen' : 'Senden'}
         >
           <Ionicons
@@ -721,7 +735,10 @@ function RuntimeComposer(props: ComposerProps) {
           <Pressable
             testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
             onPress={handleIntercept}
-            style={[composerActionButtonStyle(variant), { backgroundColor: COMPOSER_ACTION_FILL }]}
+            style={[
+              composerActionButtonStyle(variant),
+              { backgroundColor: props.accentColor ?? COMPOSER_ACTION_FILL },
+            ]}
             accessibilityLabel="Senden"
           >
             <Ionicons
@@ -734,7 +751,10 @@ function RuntimeComposer(props: ComposerProps) {
           <Pressable
             testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
             onPress={handleSend}
-            style={[composerActionButtonStyle(variant), { backgroundColor: COMPOSER_ACTION_FILL }]}
+            style={[
+              composerActionButtonStyle(variant),
+              { backgroundColor: props.accentColor ?? COMPOSER_ACTION_FILL },
+            ]}
             accessibilityLabel="Senden"
           >
             <Ionicons
