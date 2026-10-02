@@ -145,7 +145,15 @@ const SCRIM_TEXT_ALPHA: Record<PhotoTone, number> = { dunkel: 0.6, mittel: 0.75,
 /** Dense scrim reaches this far past the text before it fades. */
 const SCRIM_GUTTER = 48;
 /** Length of the fade-out beyond the dense part. */
-const SCRIM_FADE = 300;
+const SCRIM_FADE = 240;
+
+/** Gradient angle per side: offset 0 on the picture side. */
+const SCRIM_ANGLE: Record<SharepicTextSide, number> = {
+  unten: 90,
+  oben: 270,
+  links: 180,
+  rechts: 0,
+};
 
 const LIGHT: readonly SharepicColor[] = ['mint', 'weiss'];
 
@@ -333,7 +341,7 @@ function composeSlide(
     Object.assign(scrim, { x: x + w / 2, y: y + h / 2, width: w, height: h });
     scrim.fillGradient = {
       type: 'linear',
-      angle: { unten: 90, oben: 270, links: 180, rechts: 0 }[side],
+      angle: SCRIM_ANGLE[side],
       stops: [
         { offset: 0, color: `rgba(${scrimDark},0)` },
         { offset: fade, color: `rgba(${scrimDark},${scrimLevel})` },
@@ -389,9 +397,8 @@ function composeSlide(
     const vertical = side === 'unten' || side === 'oben';
     scrimDark = dark;
     scrimLevel = SCRIM_TEXT_ALPHA[options.photoTone?.(bg.filename, side) ?? 'mittel'];
-    const angle = { unten: 90, oben: 270, links: 180, rechts: 0 }[side];
+    // Real stops follow in `setScrim`, once the geometry is known.
     scrim = rect('sc-scrim', 0, 0, WIDTH, HEIGHT, 'transparent');
-    scrim.fillGradient = { type: 'linear', angle, stops: [] };
     addShape(scrim);
     if (vertical) {
       // Sized after layout, once the block's height is known.
@@ -961,9 +968,22 @@ function composeSlide(
     item.place(y);
     y += item.height + item.after;
   }
-  // Top/bottom text: dense across the measured block plus a gutter.
-  if (scrimSide === 'unten') setScrim('unten', HEIGHT - blockTop + SCRIM_GUTTER);
-  else if (scrimSide === 'oben') setScrim('oben', blockTop + total + SCRIM_GUTTER);
+  // Top/bottom text: dense across the measured block plus a gutter, from the
+  // slide edge nearest the block — position and text side are independent, so
+  // the block can sit away from `textSeite`; a block near the middle keeps it.
+  if (scrimSide) {
+    const centre = blockTop + total / 2;
+    const side =
+      Math.abs(centre - HEIGHT / 2) < HEIGHT * 0.1
+        ? scrimSide
+        : centre < HEIGHT / 2
+          ? 'oben'
+          : 'unten';
+    setScrim(
+      side,
+      side === 'unten' ? HEIGHT - blockTop + SCRIM_GUTTER : blockTop + total + SCRIM_GUTTER
+    );
+  }
 
   // ── Extras ───────────────────────────────────────────────────────────────
   if (spec.stoerer) {

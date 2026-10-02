@@ -543,6 +543,25 @@ describe('composeSharepic — interview items', () => {
       expect(alphaAt(scrim, 540, bottomY + 48)).toBeGreaterThanOrEqual(0.75 - 1e-6);
     });
 
+    for (const position of ['oben', 'mitte'] as const) {
+      it(`anchors the scrim on the block, not the side: unten text at ${position}`, () => {
+        const spec = quote('unten', 'de-DE');
+        const slide = spec.slides[0]!;
+        const mismatched: SharepicSpec = { ...spec, slides: [{ ...slide, position }] };
+        const props = composeSharepic(mismatched, { ...options, kiLabel: 'none' }).slides[0]!;
+        const scrim = props.shapeInstances.find((s) => s.id === 'sc-scrim')!;
+        const ys = props.additionalTexts.map((t) => t.y);
+        const topY = Math.min(...ys);
+        const bottomY = Math.max(...props.additionalTexts.map((t) => t.y + (t.fontSize ?? 0)));
+        // Dense over the block, gutter included.
+        expect(alphaAt(scrim, 540, topY)).toBeGreaterThanOrEqual(0.75 - 1e-6);
+        expect(alphaAt(scrim, 540, bottomY)).toBeGreaterThanOrEqual(0.75 - 1e-6);
+        // Gone at the edge away from the block.
+        const nearTop = (topY + bottomY) / 2 < 675;
+        expect(alphaAt(scrim, 540, nearTop ? 1349 : 0)).toBe(0);
+      });
+    }
+
     it('defaults to 0.75 and goes denser for hell than dunkel', () => {
       const level = (s: Scrim) => alphaAt(s, s.x, s.y);
       const spec = quote('links', 'de-DE');

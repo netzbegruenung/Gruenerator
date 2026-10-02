@@ -55,6 +55,16 @@ describe('photo tone', () => {
     ).toBeGreaterThan(0.5);
   });
 
+  it('treats a mid-grey photo as mittel, not dunkel', () => {
+    const { mean, stdev } = sideLuminance(
+      fill(() => 128),
+      W,
+      H,
+      'links'
+    );
+    expect(classifyTone(mean, stdev)).toBe('mittel');
+  });
+
   it('reports a busy photo with a high spread', () => {
     const { stdev } = sideLuminance(
       fill((x, y) => ((x + y) % 2 ? 255 : 0)),

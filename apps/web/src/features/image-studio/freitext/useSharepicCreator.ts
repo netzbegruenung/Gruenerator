@@ -10,7 +10,7 @@ import { useCallback, useRef, useState } from 'react';
 
 import { renderSharepicToImage } from '../renderSharepicToImage';
 
-import { cachedPhotoTone, primePhotoTones } from './photoTone';
+import { cachedPhotoTone, loadImage, primePhotoTones } from './photoTone';
 import { sharepicSourceNote } from './sharepicSourceNote';
 
 /** Review rounds per turn. Two catch most problems; more mostly churns. */
@@ -33,14 +33,6 @@ export interface CreatorDesign {
 
 const photoSrc = (filename: string) =>
   `/api/image-picker/stock-image/${encodeURIComponent(filename)}`;
-
-const loadImage = (src: string) =>
-  new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = reject;
-    image.src = src;
-  });
 
 /**
  * The review sees a carousel at once: slides in swipe order on a grid, each

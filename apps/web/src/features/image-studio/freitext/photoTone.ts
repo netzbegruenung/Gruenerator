@@ -7,12 +7,10 @@ const SAMPLE_H = 68;
 /** Share of the picture the text side covers. */
 const SIDE_SHARE = { links: 0.6, rechts: 0.6, unten: 0.62, oben: 0.62 } as const;
 
-const linear = (channel: number) => {
-  const c = channel / 255;
-  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-};
+/** Longest wait for a photo; drafting never blocks longer on a tone. */
+const LOAD_TIMEOUT_MS = 5000;
 
-/** Mean and spread of the relative luminance (0–1) over the text side. */
+/** Mean and spread of the gamma-encoded luma (Rec. 601, 0–1) over the text side. */
 export function sideLuminance(
   rgba: ArrayLike<number>,
   width: number,
@@ -29,8 +27,7 @@ export function sideLuminance(
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
       const i = (y * width + x) * 4;
-      const l =
-        0.2126 * linear(rgba[i]!) + 0.7152 * linear(rgba[i + 1]!) + 0.0722 * linear(rgba[i + 2]!);
+      const l = (0.299 * rgba[i]! + 0.587 * rgba[i + 1]! + 0.114 * rgba[i + 2]!) / 255;
       sum += l;
       sumSq += l * l;
       n++;
@@ -47,18 +44,24 @@ export function classifyTone(mean: number, stdev: number): PhotoTone {
   return 'mittel';
 }
 
-/** `null` = not measured (yet, or the photo failed to load). */
-const cache = new Map<string, PhotoTone | null>();
+export const loadImage = (src: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+
+/** Measured tones only; a failed load is not cached, the next compose retries. */
+const cache = new Map<string, PhotoTone>();
 const key = (filename: string, side: SharepicTextSide) => `${filename}|${side}`;
 
 async function measure(src: string, side: SharepicTextSide): Promise<PhotoTone | null> {
   try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = src;
-    });
+    const image = await Promise.race([
+      loadImage(src),
+      new Promise<never>((_, reject) => setTimeout(reject, LOAD_TIMEOUT_MS)),
+    ]);
     const canvas = document.createElement('canvas');
     canvas.width = SAMPLE_W;
     canvas.height = SAMPLE_H;
@@ -68,6 +71,7 @@ async function measure(src: string, side: SharepicTextSide): Promise<PhotoTone |
     const scale = Math.max(SAMPLE_W / image.naturalWidth, SAMPLE_H / image.naturalHeight);
     const w = image.naturalWidth * scale;
     const h = image.naturalHeight * scale;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(image, (SAMPLE_W - w) / 2, (SAMPLE_H - h) / 2, w, h);
     const { data } = ctx.getImageData(0, 0, SAMPLE_W, SAMPLE_H);
     const { mean, stdev } = sideLuminance(data, SAMPLE_W, SAMPLE_H, side);
@@ -91,7 +95,7 @@ export async function primePhotoTones(
     jobs.set(
       k,
       measure(photoSrc(bg.filename), bg.textSeite).then((tone) => {
-        cache.set(k, tone);
+        if (tone) cache.set(k, tone);
       })
     );
   }
