@@ -12,3 +12,4 @@ export {
 } from './types';
 export { deriveGateState, shouldImportHistory, isReady } from './helpers';
 export { usePeerMessageSync } from './usePeerMessageSync';
+export { EditorChatPanel } from './EditorChatPanel';

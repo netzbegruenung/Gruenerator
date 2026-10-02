@@ -163,6 +163,7 @@ export { useChatCollaboration } from './hooks/useChatCollaboration';
 // (docs / sheets / presentations / boards / canvas).
 export {
   EditorAssistantProvider,
+  EditorChatPanel,
   useEditorAssistant,
   usePeerMessageSync,
   deriveGateState,
