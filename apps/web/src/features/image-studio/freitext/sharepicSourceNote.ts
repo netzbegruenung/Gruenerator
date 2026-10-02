@@ -7,10 +7,22 @@ type PictureSource =
 const sourceOf = (
   slide: SharepicSpec['slides'][number],
   attribution: SharepicPhotoAttribution | null
-): PictureSource =>
-  slide.background.kind === 'farbe'
-    ? { kind: 'farbe' }
-    : { kind: 'unsplash', photographer: attribution?.photographer ?? null };
+): PictureSource => {
+  // No default: a new background kind must be mapped here (compile error otherwise).
+  const kind = slide.background.kind;
+  switch (kind) {
+    case 'farbe':
+      return { kind: 'farbe' };
+    case 'foto':
+    case 'foto-oben':
+    case 'foto-unten':
+      return { kind: 'unsplash', photographer: attribution?.photographer ?? null };
+    default: {
+      const unmapped: never = kind;
+      return unmapped;
+    }
+  }
+};
 
 const describe = (source: PictureSource): string => {
   switch (source.kind) {
@@ -38,11 +50,13 @@ export function sharepicSourceNote(
   let pictures: string;
   if (sources.every((s) => s.kind === 'farbe')) {
     pictures = 'Kein Foto, nur Farbflächen.';
-  } else if (new Set(labels).size === 1) {
-    const hint = sources[0]!.kind === 'ki-bild' ? '' : ' – kein KI-Bild';
-    pictures = `Bilder: ${labels[0]}${hint}.`;
   } else {
-    pictures = `Bilder: ${labels.map((label, i) => `Slide ${i + 1} ${label}`).join(', ')}.`;
+    const hint = sources.some((s) => s.kind === 'ki-bild') ? '' : ' – kein KI-Bild';
+    const list =
+      new Set(labels).size === 1
+        ? labels[0]
+        : labels.map((label, i) => `Slide ${i + 1} ${label}`).join(', ');
+    pictures = `Bilder: ${list}${hint}.`;
   }
   return `${pictures} ${LABEL_NOTE}`;
 }

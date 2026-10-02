@@ -28,7 +28,7 @@ describe('sharepicSourceNote', () => {
   it('lists each slide when the sources differ', () => {
     const note = sharepicSourceNote([photo, color], [credit('Ada Muster'), null]);
     expect(note).toContain(
-      'Bilder: Slide 1 Stockfoto von Ada Muster auf Unsplash, Slide 2 Farbfläche.'
+      'Bilder: Slide 1 Stockfoto von Ada Muster auf Unsplash, Slide 2 Farbfläche – kein KI-Bild.'
     );
   });
 

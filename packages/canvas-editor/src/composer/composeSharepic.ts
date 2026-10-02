@@ -430,12 +430,7 @@ function composeSlide(
   }
   const logo = LOGO[locale];
   // A large logo reaches above the footer row; the text stays clear of it.
-  // A centred logo would sit over the AI label's right end; lift it clear.
-  const logoCentred = xAlign === 'center' && !spec.ort;
-  const kiClear = KI_LABEL.margin + KI_LABEL.fontSize + 2 * KI_LABEL.paddingY + KI_LABEL.gap;
-  const logoBottom =
-    options.kiLabel !== 'none' && logoCentred ? Math.max(logo.bottom, kiClear) : logo.bottom;
-  if (spec.logo) areaBottom = Math.min(areaBottom, HEIGHT - logoBottom - logo.height - 20);
+  if (spec.logo) areaBottom = Math.min(areaBottom, HEIGHT - logo.bottom - logo.height - 20);
 
   // The AI label owns the bottom-left corner; place/source stack above it.
   const kiMode = options.kiLabel ?? 'full';
@@ -443,7 +438,16 @@ function composeSlide(
   const kiHeight = KI_LABEL.fontSize + 2 * KI_LABEL.paddingY;
   const kiTop = HEIGHT - kiHeight - KI_LABEL.margin;
   const quelleSize = 24;
-  const quelleY = kiText ? kiTop - KI_LABEL.gap - quelleSize * 1.2 : HEIGHT - 44;
+  const quelleWidth = WIDTH - 2 * MARGIN - 260;
+  const quelleText = spec.quelle ? `Quelle: ${spec.quelle.replace(/^Quelle:\s*/i, '')}` : '';
+  // The block's bottom sits just above the label, however many lines it wraps to.
+  const quelleLines = spec.quelle
+    ? wrapWords(quelleText, quelleWidth, (l) => measure(l, quelleSize, theme.fonts.body, 'normal'))
+        .length
+    : 0;
+  const quelleY = kiText
+    ? kiTop - KI_LABEL.gap - Math.max(1, quelleLines) * quelleSize * 1.2
+    : HEIGHT - 44;
   const ortBottom = kiText
     ? spec.quelle
       ? quelleY
@@ -1006,7 +1010,7 @@ function composeSlide(
 
   const footerY = HEIGHT - FOOTER / 2 - 10;
   if (spec.logo) {
-    const centred = logoCentred;
+    const centred = xAlign === 'center' && !spec.ort;
     out.assetInstances.push({
       id: 'sc-logo',
       assetId: isAt
@@ -1018,7 +1022,7 @@ function composeSlide(
           : 'sunflower',
       x: centred ? WIDTH / 2 : WIDTH - MARGIN - logo.size / 2,
       // x/y is the centre.
-      y: HEIGHT - logoBottom - logo.height / 2,
+      y: HEIGHT - logo.bottom - logo.height / 2,
       scale: logo.size / ASSET_TARGET_SIZE,
       rotation: 0,
       opacity: 1,
@@ -1046,11 +1050,11 @@ function composeSlide(
     const size = quelleSize;
     out.additionalTexts.push({
       id: 'sc-quelle',
-      text: `Quelle: ${spec.quelle.replace(/^Quelle:\s*/i, '')}`,
+      text: quelleText,
       type: 'body',
       x: MARGIN,
       y: quelleY,
-      width: WIDTH - 2 * MARGIN - 260,
+      width: quelleWidth,
       fontSize: size,
       fontFamily: theme.fonts.body,
       fontStyle: 'normal',

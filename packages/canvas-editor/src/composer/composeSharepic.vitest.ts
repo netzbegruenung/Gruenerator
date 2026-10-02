@@ -725,6 +725,15 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
       slides: [farbeSlide({ logo: true, align: 'zentriert' })],
     },
     'farbe + quelle': { locale, slides: [farbeSlide({ quelle: 'Statistik Austria 2025' })] },
+    'farbe + zwei Zeilen quelle': {
+      locale,
+      slides: [
+        farbeSlide({
+          quelle:
+            'Statistisches Bundesamt, Erhebung zu Einkommen und Lebensbedingungen, Wiesbaden 2025, eigene Berechnung',
+        }),
+      ],
+    },
     'farbe + ort + quelle + logo': {
       locale,
       slides: [
@@ -824,6 +833,28 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
     expect(slide.layerOrder.indexOf('sc-ki-label-bg')).toBeLessThan(
       slide.layerOrder.indexOf('sc-ki-label')
     );
+  });
+
+  it('keeps the plate left of a centred logo, with a realistic text width', () => {
+    const real = (text: string, size: number) => text.length * size * 0.46;
+    const slide = composeSharepic(cases['farbe + logo zentriert']!, { ...options, measure: real })
+      .slides[0]!;
+    const plate = slide.shapeInstances.find((s) => s.id === 'sc-ki-label-bg')!;
+    const logo = slide.assetInstances[0]!;
+    const logoW = logo.scale * 150;
+    const logoBottom = logo.y + ((locale === 'de-AT' ? 1239 / 1410 : 1) * logoW) / 2;
+    // AT's logo sits above the plate; DE's shares its rows, so it must clear it sideways.
+    if (logoBottom > plate.y - plate.height / 2) {
+      expect(plate.x + plate.width / 2).toBeLessThan(logo.x - logoW / 2);
+    }
+  });
+
+  it('wraps a long source above the label', () => {
+    const slide = one(cases['farbe + zwei Zeilen quelle']!);
+    const quelle = slide.additionalTexts.find((t) => t.id === 'sc-quelle')!;
+    const plate = slide.shapeInstances.find((s) => s.id === 'sc-ki-label-bg')!;
+    expect(measure(quelle.text, 24)).toBeGreaterThan(quelle.width);
+    expect(quelle.y + 2 * 24 * 1.2).toBeLessThanOrEqual(plate.y - plate.height / 2);
   });
 
   it('shortens or omits the label on request', () => {
