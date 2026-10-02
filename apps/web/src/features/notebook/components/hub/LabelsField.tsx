@@ -22,7 +22,7 @@ export default function LabelsField({ labels, onChange, disabled = false }: Labe
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-xs">
+    <div className="flex flex-wrap items-center gap-xs">
       {labels.map((label) => (
         <Badge
           key={label}

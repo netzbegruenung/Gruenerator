@@ -70,10 +70,7 @@ export function InlineText({
       onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
         finish(e.currentTarget.value),
       onKeyDown,
-      className: cn(
-        'w-full bg-transparent text-center text-foreground outline-none',
-        inputClassName
-      ),
+      className: cn('w-full bg-transparent text-left text-foreground outline-none', inputClassName),
     };
     return multiline ? <textarea rows={2} {...shared} /> : <input {...shared} />;
   }
@@ -84,7 +81,7 @@ export function InlineText({
       onClick={() => setEditing(true)}
       disabled={disabled}
       title={label}
-      className="group inline-flex max-w-full items-center justify-center gap-sm rounded-lg px-sm py-[2px] text-center transition-colors hover:bg-background-alt disabled:cursor-default disabled:hover:bg-transparent"
+      className="group inline-flex max-w-full items-center gap-xs rounded-lg px-sm py-[2px] text-left transition-colors hover:bg-background-alt disabled:cursor-default disabled:hover:bg-transparent"
     >
       {children}
       <span className="sr-only">{`, ${label}`}</span>
