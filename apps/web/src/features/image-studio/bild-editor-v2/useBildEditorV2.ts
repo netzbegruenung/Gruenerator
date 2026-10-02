@@ -242,7 +242,7 @@ export function useBildEditorV2() {
         kind,
       });
       // Once an image exists the default action is refining it.
-      setMode((m) => (m === 'erstellen' ? 'bearbeiten' : m));
+      setMode((m) => (m === 'erstellen' || m === 'sharepic' ? 'bearbeiten' : m));
       // Persist generated/edited results to the share store so they surface in
       // the workplace „Zuletzt erstellt" feed (uploads are sources, not creations).
       if (kind !== 'upload') {

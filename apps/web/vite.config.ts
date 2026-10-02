@@ -472,6 +472,19 @@ export default defineConfig(({ command }) => ({
           },
         }),
       },
+      // Same /ws entry as the dev server, otherwise a preview loses collab.
+      '/ws': {
+        target: process.env.VITE_DEV_HOCUSPOCUS || 'ws://localhost:1240',
+        ws: true,
+        rewrite: (path) => path.replace(/^\/ws/, '') || '/',
+        ...(process.env.VITE_E2E_AUTH_BYPASS === 'true' && {
+          configure: (proxy) => {
+            proxy.on('proxyReqWs', (proxyReq) => {
+              proxyReq.setHeader('x-dev-auth-bypass', process.env.VITE_DEV_AUTH_BYPASS_TOKEN || '');
+            });
+          },
+        }),
+      },
     },
   },
 }));
