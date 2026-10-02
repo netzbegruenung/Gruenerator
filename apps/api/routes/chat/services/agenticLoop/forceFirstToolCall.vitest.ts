@@ -249,10 +249,18 @@ describe('shouldForceFirstToolCall', () => {
   });
 
   describe('MCP mit gesetztem Scope', () => {
-    const mcp = { intent: 'mcp', hasMcpScope: true, mcpToolCount: 3 };
+    // Seit #4043 ein `agentic`-Turn mit Scope — der Intent `mcp` ist stillgelegt.
+    const mcp = { intent: 'agentic', hasMcpScope: true, mcpToolCount: 3 };
 
     it('erzwingt den Aufruf', () => {
       expect(force(mcp)).toBe('mcp_scope');
+    });
+
+    // `agentic` steht nicht in `NAMED_RETRIEVAL_INTENTS`: ohne Scope zwingt
+    // derselbe Turn nichts. Der Grund ist also der Scope, nicht der Intent.
+    it('am Scope, nicht am Intent', () => {
+      expect(force({ ...mcp, hasMcpScope: false })).toBeNull();
+      expect(force({ ...mcp, intent: 'mcp' })).toBe('mcp_scope');
     });
 
     it('nicht bei einer Fähigkeitsfrage — die beschreibt nur', () => {

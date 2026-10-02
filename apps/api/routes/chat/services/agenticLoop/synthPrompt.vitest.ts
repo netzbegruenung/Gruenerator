@@ -322,10 +322,12 @@ describe('buildConnectorNotes — Dienst-Lage', () => {
     expect(out.systemNote).toBe('');
   });
 
-  it('fragt bei einem mcp-Turn ohne Konnektor nach, welcher Dienst gemeint ist', () => {
-    const out = notes(fakeState({ intent: 'mcp', mcpServerScope: null }), { mcpCatalog: null });
-    expect(out.mcpNote).toContain('Frag knapp nach, welchen Dienst');
-    expect(out.mcpNote).toContain('@Name');
+  // Die Rückfrage „welchen Dienst?" hing am stillgelegten Intent `mcp`
+  // (#4043). Ein Turn ohne Konnektor bekommt keine Konnektor-Notiz mehr; ein
+  // genannter, aber fehlender Dienst bleibt `scopedServerMissing`.
+  it('schweigt ohne montierten Konnektor', () => {
+    const out = notes(fakeState({ intent: 'agentic', mcpServerScope: null }), { mcpCatalog: null });
+    expect(out.mcpNote).toBe('');
   });
 
   it('reicht den Werkzeug-Katalog unabhängig von einer Fähigkeitsfrage durch', () => {

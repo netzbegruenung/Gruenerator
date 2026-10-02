@@ -137,13 +137,15 @@ describe('AGENTIC_INTENTS — halb abgeleitet, halb Aussage', () => {
     }
   });
 
-  it('und darüber hinaus genau diese vier', () => {
+  it('und darüber hinaus genau diese drei', () => {
     // Die andere Richtung gilt NICHT, und das ist der Punkt der Trennung: diese
-    // vier laufen IM Loop, aber ihr Verdikt muss vorher feststehen, weil es
-    // steuert, was dort montiert wird (`hilfe`/`summary`/`mcp`) bzw. weil es
-    // Geld kostet (`image`). Wer die Liste ändert, ändert eine Aussage.
+    // drei laufen IM Loop, aber ihr Verdikt muss vorher feststehen, weil es
+    // steuert, was dort montiert wird (`hilfe`/`summary`) bzw. weil es Geld
+    // kostet (`image`). Wer die Liste ändert, ändert eine Aussage. `mcp` stand
+    // als vierter hier und ist stillgelegt (#4043) — den Konnektor trägt der
+    // Scope an `agentic`.
     const extras = [...AGENTIC_INTENTS].filter((id: ChatIntentId) => dispositionOf(id) !== 'loop');
-    expect(sorted(extras)).toEqual(['hilfe', 'image', 'mcp', 'summary']);
+    expect(sorted(extras)).toEqual(['hilfe', 'image', 'summary']);
   });
 });
 

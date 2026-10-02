@@ -579,7 +579,15 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       backgroundColor: '#4B5563',
     },
   },
-  mcp: { id: 'mcp', category: 'retrieval', audience: 'all' },
+  // Stillgelegt (10/2026, #4043). Seit #4040 montiert ein Konnektor nur, wenn
+  // der Turn auf ihn zielt — und genau das sagt `mcpServerScope`. Der Intent
+  // trug danach nur noch „Schleife + Scope + erster Aufruf erzwungen", und alle
+  // drei hängen jetzt am Scope: ein Konnektor-Turn ist `agentic` mit gesetztem
+  // `mcpServerScope` (Klassifikator-Prosa, Tier-2.7-Folgefrage, `@<server>`-Pin
+  // in `forcedIntentStage`). Keine Erwähnung: `@<server>` ist ein `mcp:<id>`-
+  // Token, kein Intent-Token. Der Enum-Wert bleibt (F0: ausgelieferte Binaries
+  // und persistierte Threads lesen ihn).
+  mcp: { id: 'mcp', category: 'retrieval', audience: 'all', availability: 'retired' },
 
   // ── generation ───────────────────────────────────────────────────────────
   image: {

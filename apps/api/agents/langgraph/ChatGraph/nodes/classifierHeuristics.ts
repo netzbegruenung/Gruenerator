@@ -203,7 +203,8 @@ export const INTENT_KEYWORDS: Record<
     | 'social_post'
     // chat_history is detected by the dedicated past-conversation regex, not keywords.
     | 'chat_history'
-    // mcp (EXPERIMENTAL) is gated via the @mcp mention + conservative LLM prose,
+    // mcp is retired (#4043): a connector turn is `agentic` + mcpServerScope,
+    // scoped by @<server>, the server's name or the thread's sticky server —
     // never keyword-classified (would misfire on generic "tool"/"server" words).
     | 'mcp'
     // Retired. These were excluded as "LLM-classified only, because bare

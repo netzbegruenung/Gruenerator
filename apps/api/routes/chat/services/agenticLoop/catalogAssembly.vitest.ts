@@ -118,11 +118,11 @@ beforeEach(() => {
 });
 
 describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
-  it('verwirft eine veraltete Klebe-Scope auch auf einem mcp-Turn — kein ungescopter Rückgriff', async () => {
+  it('verwirft eine veraltete Klebe-Scope — kein ungescopter Rückgriff', async () => {
     getThreadLastMcpServer.mockResolvedValue('server-weg');
     const loadMcpCatalog = vi.fn(async () => mcpCatalog({ scopedServerMissing: true }));
 
-    const assembled = await assemble(fakeState({ intent: 'mcp' }), deps({ loadMcpCatalog }), {
+    const assembled = await assemble(fakeState({ intent: 'agentic' }), deps({ loadMcpCatalog }), {
       threadId: 't1',
     });
 
@@ -132,12 +132,12 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
     expect(setThreadLastMcpServer).not.toHaveBeenCalled();
   });
 
-  it('montiert ohne Scope nichts — auch nicht auf einem mcp-Turn', async () => {
+  it('montiert ohne Scope nichts', async () => {
     const loadMcpCatalog = vi.fn(async () => mcpCatalog());
     const loadManagedMcpCatalog = vi.fn(async () => mcpCatalog());
 
     const assembled = await assemble(
-      fakeState({ intent: 'mcp' }),
+      fakeState({ intent: 'agentic' }),
       deps({ loadMcpCatalog, loadManagedMcpCatalog } as never),
       { threadId: 't1' }
     );
@@ -157,7 +157,7 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
     );
 
     const assembled = await assemble(
-      fakeState({ intent: 'mcp', mcpServerScope: 'system-wetter' }),
+      fakeState({ intent: 'agentic', mcpServerScope: 'system-wetter' }),
       deps({ loadMcpCatalog, loadManagedMcpCatalog } as never),
       { threadId: 't1' }
     );
@@ -177,6 +177,16 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
     await assemble(fakeState({ intent: 'web' }), deps({ loadMcpCatalog }), { threadId: 't1' });
 
     expect(loadMcpCatalog).not.toHaveBeenCalled();
+  });
+
+  // `mcp` erzeugt seit #4043 niemand mehr, aber ein vor dem Deploy pausierter
+  // Freigabe-Zug kommt mit seinem gespeicherten Zustand zurück.
+  it('montiert für einen gespeicherten `mcp`-Zustand weiter', async () => {
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog());
+
+    await assemble(fakeState({ intent: 'mcp', mcpServerScope: 'sally' }), deps({ loadMcpCatalog }));
+
+    expect(loadMcpCatalog).toHaveBeenCalledWith({ userId: 'u1', scope: 'sally' });
   });
 
   it('verwirft den Katalog auf einem agentic-Turn und schliesst ihn dabei', async () => {
@@ -217,7 +227,7 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
       labels: new Map([['sally_ticket', { serverName: 'Sally', toolName: 'ticket' }]]),
     });
     await assemble(
-      fakeState({ intent: 'mcp', mcpServerScope: 'sally' }),
+      fakeState({ intent: 'agentic', mcpServerScope: 'sally' }),
       deps({ loadMcpCatalog: async () => withTools }),
       { threadId: 't1' }
     );
@@ -225,7 +235,7 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
 
     setThreadLastMcpServer.mockClear();
     await assemble(
-      fakeState({ intent: 'mcp', mcpServerScope: 'sally' }),
+      fakeState({ intent: 'agentic', mcpServerScope: 'sally' }),
       deps({ loadMcpCatalog: async () => mcpCatalog() }),
       { threadId: 't1' }
     );
@@ -235,7 +245,7 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
   it('meldet abgedriftete Dienste als Warnung an den Client', async () => {
     const { sse, sent } = fakeSse();
     await assemble(
-      fakeState({ intent: 'mcp', mcpServerScope: 'sally' }),
+      fakeState({ intent: 'agentic', mcpServerScope: 'sally' }),
       deps({
         loadMcpCatalog: async () => mcpCatalog({ driftedServers: ['Sally hat neue Tools'] }),
       }),
@@ -249,7 +259,7 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
   it('lädt gar nichts, wenn kein Nutzer am Turn hängt', async () => {
     const loadMcpCatalog = vi.fn(async () => mcpCatalog());
     await assemble(
-      fakeState({ intent: 'mcp', agentConfig: { identifier: 'x' } }),
+      fakeState({ intent: 'agentic', agentConfig: { identifier: 'x' } }),
       deps({ loadMcpCatalog })
     );
     expect(loadMcpCatalog).not.toHaveBeenCalled();
@@ -407,7 +417,7 @@ describe('assembleToolCatalog — disableMcp (headless, #3221)', () => {
     const loadManaged = vi.fn(async () => mcpCatalog());
     const assembled = await assembleToolCatalog(
       {
-        state: fakeState({ intent: 'mcp', mcpServerScope: 'system-bahn' }),
+        state: fakeState({ intent: 'agentic', mcpServerScope: 'system-bahn' }),
         sourceRegistry: createSourceRegistry(),
         sse: fakeSse().sse,
         disableMcp: true,
@@ -463,7 +473,7 @@ describe('assembleToolCatalog — Montage-Reihenfolge', () => {
     const order: string[] = [];
     const mark = (tag: string) => ({ execute: async () => tag });
     const assembled = await assemble(
-      fakeState({ intent: 'mcp', mcpServerScope: 'sally' }),
+      fakeState({ intent: 'agentic', mcpServerScope: 'sally' }),
       deps({
         buildChatToolCatalog: () => {
           order.push('intern');

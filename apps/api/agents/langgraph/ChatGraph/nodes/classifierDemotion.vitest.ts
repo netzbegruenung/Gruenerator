@@ -503,6 +503,7 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
       mentionPinnedTool: null,
       mentionPinnedArtifactKind: null,
       agenturaCreateOrder: false,
+      hasMcpScope: false,
     });
     expect(plan.runAgentic).toBe(false);
     expect(plan.intent).toBe('search');

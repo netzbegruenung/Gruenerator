@@ -555,7 +555,7 @@ describe('streamAgenticResponse — Zuschnitt des erzwungenen ersten Schritts (#
       promptHints: [],
     };
     const p = await loopParams(
-      fakeState({ intent: 'mcp', mcpServerScope: 'notion' } as never),
+      fakeState({ intent: 'agentic', mcpServerScope: 'notion' } as never),
       'Lege eine Seite zum Heizungsgesetz an',
       catalogWith([...MOUNTED, ...mcpTools], { mcpCatalog })
     );
@@ -612,7 +612,7 @@ describe('assembleToolCatalog — ausgefallener MCP-Katalog', () => {
     const assembled = await assembleToolCatalog(
       {
         state: fakeState({
-          intent: 'mcp',
+          intent: 'agentic',
           mcpServerScope: 'sally',
           agentConfig: { userId: 'u1' },
         } as never),

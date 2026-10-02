@@ -91,13 +91,12 @@ export function shouldForceFirstToolCall(input: {
   if (input.hasAttachedDocuments && input.summaryAsk) return 'attached_summary';
 
   // MCP mit gesetztem Server-Scope: eine Fähigkeitsfrage (WS-5 beschreibt die
-  // Werkzeuge) braucht keinen Aufruf, alles andere schon.
-  if (
-    input.intent === 'mcp' &&
-    input.hasMcpScope &&
-    !input.isMcpCapabilityQuestion &&
-    input.mcpToolCount > 0
-  ) {
+  // Werkzeuge) braucht keinen Aufruf, alles andere schon. Hing bis #4043 am
+  // Intent `mcp`; der ist stillgelegt, ein Konnektor-Turn ist `agentic` mit
+  // Scope, und der Scope allein entscheidet. `mcpToolCount > 0` heisst zugleich
+  // „montiert" — `catalogAssembly` montiert nur an `agentic` (und am
+  // gespeicherten `mcp` eines pausierten Freigabe-Zugs).
+  if (input.hasMcpScope && !input.isMcpCapabilityQuestion && input.mcpToolCount > 0) {
     return 'mcp_scope';
   }
 

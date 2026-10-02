@@ -608,7 +608,8 @@ const RESEARCH_VERB_RE = /\b(recherchier\w*|such\w*|finde|informier\w*|nachschla
 /**
  * The user explicitly told the assistant to look something up in THIS turn.
  *
- * Why this exists: `forceFirstToolCall` was scoped to `intent === 'mcp'`, while
+ * Why this exists: `forceFirstToolCall` was scoped to connector turns (then
+ * `intent === 'mcp'`, now a set `mcpServerScope`, #4043), while
  * the classifier's loop demotion routes search/web asks into `agentic`, where
  * the planner is free to call nothing at all. Live result: "Recherchiere bitte
  * mit Quellen" answered "Ich habe keinen Zugriff auf eine Live-Datenbank …
@@ -984,8 +985,8 @@ export interface AgenticDecisionInput {
   forcedTool: boolean;
   /**
    * Dieser Intent hat GAR KEINEN Einzeldurchlauf-Executor —
-   * `executeIntentPipeline` hat für ihn keinen Zweig (`mcp` plus
-   * `SYSTEM_TOOL_INTENTS`). Ein Turn, den ein Notausschalter draussen hielte,
+   * `executeIntentPipeline` hat für ihn keinen Zweig (`SYSTEM_TOOL_INTENTS`,
+   * ein Werkzeug-Pin oder ein Konnektor-Scope an `agentic`). Ein Turn, den ein Notausschalter draussen hielte,
    * hätte niemanden, der ihn ausführt; deshalb öffnet dieses Flag das Gate
    * bedingungslos und hebt auch die Notebook-Sperre auf.
    */
@@ -1108,16 +1109,17 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
     memoryRequest;
   const secondaryAllowed =
     p.secondaryIntent == null || (compoundGen && p.secondaryIntent === 'scrape_url');
-  // `mcp` is the ONLY executor for its turns (the legacy mcpToolNode was removed),
-  // so it always enters the loop — independent of CHAT_AGENT_LOOP and of inLoopSet.
+  // The loop is the ONLY executor for a connector turn (`agentic` + mcpServerScope;
+  // the legacy mcpToolNode was removed, the `mcp` intent retired in #4043), so it
+  // always enters the loop — independent of CHAT_AGENT_LOOP and of inLoopSet.
   // The single-pass kill-switches below (compound / secondary) still apply; an
   // image no longer holds it back (`explicitLoopReason`).
   const gateOpen = p.mustLoop || (p.loopEnabled && inLoopSet);
   // Zwei Ausnahmen aus zwei Gründen, die lange derselbe waren.
   //
   // `mustLoop`: kein Turn dieser Menge hat einen Einzeldurchlauf-Executor —
-  // intentExecutionService hat keinen Zweig für `mcp`, `umfragen` oder
-  // `hilfe`. Einen davon draussen zu halten liesse ihn ohne Ausführenden. Eine
+  // intentExecutionService hat keinen Zweig für einen Konnektor-Turn, einen
+  // Werkzeug-Pin oder `hilfe`. Einen davon draussen zu halten liesse ihn ohne Ausführenden. Eine
   // ungelesene Wissenssammlung ist der kleinere Verlust gegen einen Turn, der
   // gar nichts tut — deshalb hebt dieses Flag auch die Notebook-Sperre auf.
   //

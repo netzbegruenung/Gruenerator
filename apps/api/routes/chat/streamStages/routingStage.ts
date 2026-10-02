@@ -105,6 +105,7 @@ export function runRoutingStage({
     mentionPinnedTool: classifiedState.mentionPinnedTool ?? null,
     mentionPinnedArtifactKind: classifiedState.mentionPinnedArtifactKind ?? null,
     agenturaCreateOrder: classifiedState.agenturaCreateOrder === true,
+    hasMcpScope: classifiedState.mcpServerScope != null,
     isCompound,
     // A chosen notebook keeps the turn single-pass, on EVERY agent — only
     // `searchNode` retrieves notebook content, and no loop tool can address a
@@ -240,7 +241,13 @@ export function runRoutingStage({
 
   sse.send('intent', {
     intent: classifiedState.intent,
-    message: getIntentMessage(classifiedState.intent),
+    // Die Statuszeile eines Konnektor-Turns („Frage verbundenen Dienst…") hing
+    // am Intent `mcp`; seit #4043 ist er `agentic` mit Scope.
+    message: getIntentMessage(
+      classifiedState.intent === 'agentic' && classifiedState.mcpServerScope != null
+        ? 'mcp'
+        : classifiedState.intent
+    ),
     reasoning: classifiedState.reasoning,
     ...(classifiedState.searchQuery != null && { searchQuery: classifiedState.searchQuery }),
     ...(classifiedState.subQueries != null && { subQueries: classifiedState.subQueries }),

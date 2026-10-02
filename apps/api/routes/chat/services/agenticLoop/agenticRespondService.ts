@@ -281,7 +281,14 @@ export async function streamAgenticResponse(
       modelId,
       requestId,
       {
-        intent: finalState.intent,
+        // Ein Konnektor-Turn (`agentic` + Scope, seit #4043 statt des Intents
+        // `mcp`) fragt die Auto-Politik weiter unter `mcp`: dort berichtet der
+        // Synth nur, was der Planer geholt hat (Gemma, ohne Denken, kein
+        // Hint-/Material-Override). Ein Lane-Schlüssel, kein erzeugtes Verdikt.
+        intent:
+          finalState.intent === 'agentic' && finalState.mcpServerScope != null
+            ? 'mcp'
+            : finalState.intent,
         agentId: agentConfig.identifier,
         ...(finalState.complexity != null && { complexity: finalState.complexity }),
         ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),

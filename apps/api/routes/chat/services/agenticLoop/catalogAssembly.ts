@@ -235,8 +235,11 @@ export async function assembleToolCatalog(
   // Other intents never mount one: a web or notebook turn is not a connector
   // task, even in a thread that used one before.
   //
-  // An `mcp` turn without any scope mounts nothing; the connector note asks
-  // which service was meant (see buildConnectorNotes).
+  // The `mcp` intent is retired (#4043): a connector turn arrives as `agentic`
+  // + mcpServerScope. `mcp` is still READ here because a tool-approval pause
+  // persists the classified state (toolApprovalStateStore) and a turn paused
+  // before the deploy resumes with it. Its unscoped form used to get a "which
+  // service?" note; it now runs as any other `agentic` turn.
   const userId = agentConfig.userId;
   const mcpMountStart = Date.now();
   let mcpCatalog: McpCatalog | null = null;

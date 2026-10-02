@@ -184,6 +184,12 @@ export interface TurnPlanInput {
    * frei, siehe dort.
    */
   agenturaCreateOrder: boolean;
+  /**
+   * Der Turn zielt auf einen Konnektor (`state.mcpServerScope` gesetzt: `@<server>`,
+   * der Servername im Text oder die Tier-2.7-Folgefrage). Trägt seit #4043, was
+   * der stillgelegte Intent `mcp` trug — siehe `mustLoop`.
+   */
+  hasMcpScope: boolean;
 }
 
 /**
@@ -202,10 +208,13 @@ export interface TurnPlanInput {
  * Registry. `forcedLane: 'loop'` heisst ab hier „hat keinen Einzeldurchlauf",
  * und wohin so ein Turn ausweicht, steht als `degradeTo` schon dort, weil die
  * Locale-Degradierung dieselbe Frage stellt: eine Quelle ist nicht erreichbar,
- * die Frage soll trotzdem beantwortet werden. Ein Intent der Achse OHNE
- * `degradeTo` (heute `mcp`) bleibt bewusst unberührt — für ihn wäre eine
- * Websuche keine Degradierung, sondern eine andere Antwort als die gewählte
- * Quelle.
+ * die Frage soll trotzdem beantwortet werden.
+ *
+ * Ein Konnektor-Turn (`agentic` mit Scope) bleibt bewusst `agentic` — für ihn
+ * wäre eine Suche keine Degradierung, sondern eine andere Antwort als die
+ * gewählte Quelle. Der Einzeldurchlauf sagt ihn ab (`reportMcpWithoutLoop` in
+ * `pipeline.ts`). Das stand hier als „Intent der Achse ohne `degradeTo`
+ * (`mcp`)", bis der Intent stillgelegt wurde (#4043).
  *
  * Die Prüfungen sind nacheinander, nicht ausschließend — so standen sie im
  * Router. Überschneiden können sie sich nicht: `agentic` ist weder
@@ -213,8 +222,10 @@ export interface TurnPlanInput {
  */
 function fallbackIntentFor(
   intent: ChatIntentId,
-  isSystemToolIntent: boolean
+  isSystemToolIntent: boolean,
+  hasMcpScope: boolean
 ): { intent: ChatIntentId; backfillSearchQuery: boolean } {
+  if (intent === 'agentic' && hasMcpScope) return { intent, backfillSearchQuery: false };
   let next = intent;
   let backfillSearchQuery = false;
   // Dies IST der Opt-out-Pfad, nicht bloss ein Wiederaufnahme-Rest. Tier 3.5
@@ -294,19 +305,19 @@ function laneFor(runAgentic: boolean, intent: ChatIntentId): TurnLane {
  */
 export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   const proposedIntent = p.intent;
-  // Für einen `mcp`-Turn heisst `forcedTool` „die Person hat DIESEN Konnektor
-  // gewählt" (via @<server>), NICHT „ein deterministisches Einzelwerkzeug
-  // anheften" — er darf also trotzdem in die Schleife, die dann die MCP-Tools
-  // dieses Servers montiert. `umfragen` (PolitPro) und `hilfe` (hausinterner
-  // Doku-Index) sind native Domain-Tools, immer verfügbar, und erzwingen das
+  // Für einen Konnektor-Turn heisst `forcedTool` „die Person hat DIESEN
+  // Konnektor gewählt" (via @<server>), NICHT „ein deterministisches
+  // Einzelwerkzeug anheften" — er darf also trotzdem in die Schleife, die dann
+  // die MCP-Tools dieses Servers montiert. `umfragen` (PolitPro) und `hilfe`
+  // (hausinterner Doku-Index) sind native Domain-Tools, immer verfügbar, und erzwingen das
   // Gate bedingungslos. `hilfe` MUSS dabei sein: @doku setzt `forcedTool`, und
   // ohne diese Ausnahme hielte `decideRunAgentic` den Turn einzeln — dort
   // existiert `gruenerator_docs_search` nicht, die Erwähnung täte still nichts.
   //
   // Die fünf System-MCP-Intents erzwangen das Gate früher ebenfalls hier. Heute
-  // sind sie verwaltete Konnektoren: per @-Erwähnung laufen sie als `mcp` und damit
-  // über `mustLoop`, und `loadManagedMcpCatalog` wendet das Opt-out an der
-  // Montage an.
+  // sind sie verwaltete Konnektoren: per @-Erwähnung laufen sie als `agentic`
+  // mit Scope und damit über `mustLoop`, und `loadManagedMcpCatalog` wendet das
+  // Opt-out an der Montage an.
   //
   // Aus dem VORGESCHLAGENEN Intent, vor jeder Korrektur unten: ein Turn, den die
   // Board-Demotion auf `agentic` zieht, war nie ein MCP-Turn, und ein
@@ -318,10 +329,11 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // Male gemeint waren. Sie fallen ab dem ersten Flip auseinander:
   //
   //  - `mustLoop` — für diesen Intent gibt es GAR KEINEN Einzeldurchlauf.
-  //    `mcp` steht ausdrücklich daneben statt in `systemToolIntents`: die
-  //    Menge dort beschreibt die nativen Domain-Werkzeuge, und ein `mcp`-Turn
-  //    ohne Schleife fiele über `fallbackIntentFor` auf `web` — eine Websuche
-  //    statt des gewählten Konnektors.
+  //    Der Konnektor-Scope steht ausdrücklich daneben statt in
+  //    `systemToolIntents`: die Menge dort beschreibt die nativen
+  //    Domain-Werkzeuge, und ein Konnektor-Turn ohne Schleife fiele über
+  //    `fallbackIntentFor` auf `web` — eine Websuche statt des gewählten
+  //    Konnektors.
   //  - `forcedLoop` — eine Erwähnung dieses Intents gehört in die Schleife.
   //    Das ist die `forcedLane`-Achse der Registry, und nur sie darf ein Intent
   //    tragen, der einen eigenen Executor HAT.
@@ -345,11 +357,18 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // hinein, auch an der Notebook-Sperre vorbei. Die zweite Hälfte des Pins —
   // der erzwungene erste Aufruf — fehlt mit Absicht: das gewählte Notebook
   // soll gelesen sein, bevor das Rezept entsteht.
+  //
+  // Ein Konnektor-Scope beantwortet BEIDE Fragen wie ein Pin. Hier stand
+  // `proposedIntent === 'mcp'` und über die Achse `forcedLane: 'loop'`; seit
+  // der Stilllegung des Intents (#4043) ist ein Konnektor-Turn `agentic` mit
+  // `mcpServerScope`, und der Scope trägt beides. Nur an `agentic`: ein
+  // `@notion @beispiele` bleibt `examples`, der Scope montiert dort nichts.
+  const connectorScoped = p.hasMcpScope && proposedIntent === 'agentic';
   const mustLoop =
-    proposedIntent === 'mcp' ||
     p.systemToolIntents.has(proposedIntent) ||
-    ((pinnedTool != null || p.agenturaCreateOrder) && proposedIntent === 'agentic');
-  const forcedLoop = forcesLoopLane(proposedIntent) || pinnedTool != null;
+    ((pinnedTool != null || p.agenturaCreateOrder || connectorScoped) &&
+      proposedIntent === 'agentic');
+  const forcedLoop = forcesLoopLane(proposedIntent) || pinnedTool != null || connectorScoped;
 
   // ── 1. Editor-Fläche ──────────────────────────────────────────────────────
   // Editor-Seitenleisten (docs/sheets/presentations/boards) BEARBEITEN das
@@ -491,7 +510,7 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   const isSystemToolIntent = p.systemToolIntents.has(intent);
   const fallback = runAgentic
     ? { intent, backfillSearchQuery: false }
-    : fallbackIntentFor(intent, isSystemToolIntent);
+    : fallbackIntentFor(intent, isSystemToolIntent, p.hasMcpScope);
 
   const lane = laneFor(runAgentic, fallback.intent);
 

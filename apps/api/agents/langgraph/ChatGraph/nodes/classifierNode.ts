@@ -373,23 +373,18 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     intent = 'compare';
   }
 
-  // Conservative MCP guard: the LLM tier can return `mcp` but can't name a
-  // concrete connected server. Only the deterministic name-match tier (which
-  // sets mcpServerScope) or an explicit @notion/@brevo mention (resolved later
-  // in the router) may run the write-capable tool loop. An unscoped prose `mcp`
-  // would risk acting on the wrong server, so downgrade it to direct — UNLESS
-  // this thread's last substantive turn worked with a CONCRETE MCP server
-  // (ThreadToolContext.ref set): then the loop re-scopes to that same server
-  // via the sticky last_mcp_server_id. Deliberately do NOT write the ref into
-  // mcpServerScope — that field means "user-explicit this turn" downstream
-  // (stale-server honesty notice + retry-unscoped guard key off it).
-  if (intent === 'mcp' && !result.mcpServerScope) {
-    if (state.lastToolContext?.kind === 'mcp' && state.lastToolContext.ref) {
-      log.info('[Classifier] Unscoped mcp intent kept — thread recently used an MCP server');
-    } else {
-      log.info('[Classifier] Unscoped prose mcp intent downgraded to agentic (no server named)');
-      intent = 'agentic';
-    }
+  // `mcp` ist stillgelegt (#4043): ein Konnektor-Turn ist `agentic` mit
+  // `mcpServerScope`. Ein `mcp` aus der LLM-Stufe (der Enum-Wert parst weiter)
+  // wird deshalb immer `agentic`. Hier stand die Unterscheidung „ungescopet ohne
+  // Vorgeschichte → agentic, mit Konnektor im Thread → mcp behalten"; die
+  // zweite Hälfte braucht keinen Intent mehr — `catalogAssembly` liest den
+  // klebrigen `last_mcp_server_id` für jedes `agentic`. `mcpServerScope` wird
+  // bewusst NICHT aus dem Thread befüllt: das Feld heisst nachgelagert
+  // „diesen Turn ausdrücklich gewählt" (Hinweis auf getrennten Dienst,
+  // Retry-Sperre).
+  if (intent === 'mcp') {
+    log.info('[Classifier] Retired mcp verdict → agentic (scope decides the connector)');
+    intent = 'agentic';
   }
 
   // Downgrades to `web` must carry a query: system intents sit in
@@ -1453,9 +1448,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       );
       const scopedServerId = matchMcpServerByName(userContent, servers);
       if (scopedServerId) {
-        log.info('[Classifier] MCP prose routing → mcp intent', { scope: scopedServerId });
+        // `agentic` + Scope statt des stillgelegten `mcp` (#4043): Schleife,
+        // Montage und erzwungener erster Aufruf hängen am Scope.
+        log.info('[Classifier] MCP prose routing → agentic + scope', { scope: scopedServerId });
         return {
-          intent: 'mcp',
+          intent: 'agentic',
           mcpServerScope: scopedServerId,
           searchSources: [],
           searchQuery: null,
@@ -1722,12 +1719,15 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           MCP_CONTINUATION_REFERENTIAL.test(userContent) ||
           isImperativeContinuation)
       ) {
-        log.info('[Classifier] Follow-up via lastToolContext(mcp) → mcp', { scope: tc.ref });
+        log.info('[Classifier] Follow-up via lastToolContext(mcp) → agentic + scope', {
+          scope: tc.ref,
+        });
         recordDecision('classifier.tier', 'tier2.7_mcp_followup', {
           inputs: { mcpScope: tc.ref },
         });
+        // `agentic` + Scope statt des stillgelegten `mcp` (#4043), wie oben.
         return {
-          intent: 'mcp',
+          intent: 'agentic',
           mcpServerScope: tc.ref,
           searchSources: [],
           searchQuery: null,

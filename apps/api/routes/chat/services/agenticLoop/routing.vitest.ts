@@ -148,7 +148,6 @@ describe('decideRunAgentic', () => {
     'examples',
     'pressemitteilung_examples',
     'compare',
-    'mcp',
     'summary',
     'bundestag',
     'abgeordnetenwatch',
@@ -287,9 +286,11 @@ describe('decideRunAgentic', () => {
     expect(decide({ intent: 'social_post' })).toBe(false);
   });
 
-  it('forced @tool stays single-pass — except mcp (connector pick)', () => {
+  // Ein Konnektor-Turn ist seit #4043 `agentic` mit Scope; `turnPlan` setzt
+  // für ihn beide Flags.
+  it('forced @tool stays single-pass — except a connector pick', () => {
     expect(decide({ forcedTool: true })).toBe(false);
-    expect(decide({ intent: 'mcp', forcedTool: true, mustLoop: true, forcedLoop: true })).toBe(
+    expect(decide({ intent: 'agentic', forcedTool: true, mustLoop: true, forcedLoop: true })).toBe(
       true
     );
   });
@@ -338,7 +339,7 @@ describe('decideRunAgentic', () => {
     // Menge hat einen Einzeldurchlauf-Executor, ein Zurückhalten liesse den Turn
     // ohne Ausführenden. Eine ungelesene Sammlung schlägt einen Turn, der nichts
     // tut.
-    expect(decide({ intent: 'mcp', mustLoop: true, hasSelectedNotebook: true })).toBe(true);
+    expect(decide({ intent: 'agentic', mustLoop: true, hasSelectedNotebook: true })).toBe(true);
   });
 
   it('respects the flag', () => {
@@ -511,7 +512,7 @@ describe('decideRunAgentic', () => {
       const lastUserText = 'Was steht auf dem Bild?';
       expect(decide({ ...image, lastUserText })).toBe(false);
       expect(decide({ ...image, lastUserText, isPdfFillRequest: true })).toBe(true);
-      expect(decide({ ...image, lastUserText, intent: 'mcp', mustLoop: true })).toBe(true);
+      expect(decide({ ...image, lastUserText, intent: 'agentic', mustLoop: true })).toBe(true);
       // A mention of a loop-lane intent counts; the lane property alone does not.
       const bundestag = { ...image, lastUserText, intent: 'bundestag', forcedLoop: true };
       expect(decide({ ...bundestag, forcedTool: true })).toBe(true);
