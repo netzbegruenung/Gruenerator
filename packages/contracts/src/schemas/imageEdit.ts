@@ -1,16 +1,17 @@
 import { z } from 'zod';
 
+import { flux3BoxEditSchema, flux3LayoutRowSchema } from './flux3Boxes.js';
 import { imageModelIdSchema } from './imageModelPreference.js';
 import { treeBudgetStatusSchema } from './trees.js';
 
 /**
- * Schemas for POST /api/image-edit — FLUX.2 image editing with one or more
+ * Schemas for POST /api/image-edit — FLUX image editing with one or more
  * reference images (multi-reference). Images travel as base64 in the JSON
  * body (repo convention: ts-rest contracts don't model multipart; same
  * pattern as chat attachments).
  */
 
-export const IMAGE_EDIT_MAX_REFERENCES = 8;
+export const IMAGE_EDIT_MAX_REFERENCES = 10;
 
 export const imageEditMimeTypeSchema = z.enum(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -51,6 +52,21 @@ export const imageEditBodySchema = z.object({
    * apply their own AI labeling.
    */
   kiLabel: kiLabelModeSchema.nullish(),
+  /**
+   * Experimental, FLUX 3 only: edit box by box. `'auto'` lets the server detect
+   * the elements and plan the rows from `instruction`; explicit rows come from
+   * the box editor and are sent as they are. The boxes refer to images[0].
+   */
+  boxes: z.union([z.literal('auto'), flux3BoxEditSchema]).nullish(),
+});
+
+export const imageEditElementsBodySchema = z.object({
+  image: imageEditReferenceSchema,
+});
+
+export const imageEditElementsSuccessSchema = z.object({
+  success: z.literal(true),
+  elements: z.array(flux3LayoutRowSchema),
 });
 
 export const imageEditSuccessSchema = z.object({
@@ -77,6 +93,7 @@ export const imageEditQuotaErrorSchema = imageEditErrorSchema.extend({
 
 export type ImageEditReference = z.infer<typeof imageEditReferenceSchema>;
 export type ImageEditBody = z.infer<typeof imageEditBodySchema>;
+export type ImageEditElementsSuccess = z.infer<typeof imageEditElementsSuccessSchema>;
 export type ImageEditSuccess = z.infer<typeof imageEditSuccessSchema>;
 export type ImageEditType = z.infer<typeof imageEditTypeSchema>;
 export type KiLabelMode = z.infer<typeof kiLabelModeSchema>;

@@ -19,6 +19,12 @@
   --bev-radio-border: rgba(35, 55, 46, 0.3);
   --bev-drag-bg: rgba(247, 236, 206, 0.75);
   --bev-drag-border: #3d6e5c;
+  /* Box editor strokes sit on arbitrary photos, so they carry a dark halo
+     (inline box-shadow) and keep the same values in both modes. */
+  --bev-box-keep: rgba(255, 255, 255, 0.85);
+  --bev-box-change: #46962b;
+  --bev-box-remove: #e5484d;
+  --bev-box-selected-bg: rgba(70, 150, 43, 0.18);
 }
 
 [data-theme='dark'] [data-bev2] {

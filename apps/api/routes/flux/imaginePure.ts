@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-import { kiLabelModeSchema } from '@gruenerator/contracts';
+import { kiLabelModeSchema, type Flux3Layout } from '@gruenerator/contracts';
 import { IMAGE_MODEL_BY_ID, IMAGE_MODEL_IDS, type ImageModelId } from '@gruenerator/shared/models';
 import express, { type Response } from 'express';
 import { z } from 'zod';
@@ -9,6 +9,9 @@ import { z } from 'zod';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { serializeLayout } from '../../services/flux/flux3Boxes.js';
+import { planLayout } from '../../services/flux/flux3BoxPlanner.js';
+import { isFlux3Path, toFlux3AspectRatio } from '../../services/flux/FluxImageService.js';
 import { FluxImageService, buildFluxPrompt } from '../../services/flux/index.js';
 import {
   getTreeBudget,
@@ -47,6 +50,9 @@ const imaginePureSchema = z.object({
   // Grünerator", default), 'short' ("KI-Generiert"), or 'none' so users can
   // apply their own AI labeling.
   kiLabel: kiLabelModeSchema.nullish(),
+  // Experimental, FLUX 3 only: let a model plan a caption + bounding-box table
+  // first and generate from that layout.
+  layout: z.boolean().nullish(),
 });
 
 type ImaginePureRequestBody = z.infer<typeof imaginePureSchema>;
@@ -193,7 +199,7 @@ router.post(
       );
 
       const fluxPromptResult = buildPurePrompt(prompt.trim(), selectedVariant);
-      const fluxPrompt = fluxPromptResult.prompt;
+      let fluxPrompt = fluxPromptResult.prompt;
 
       // Use custom dimensions if provided, otherwise use variant defaults
       const dimensions = width && height ? { width, height } : fluxPromptResult.dimensions;
@@ -231,12 +237,30 @@ router.post(
         output_format: 'jpeg' | 'png';
         safety_tolerance: number;
         seed?: number;
+        aspect_ratio?: string;
       } = {
         width: dimensions.width,
         height: dimensions.height,
         output_format: 'jpeg' as const,
         safety_tolerance: 2,
       };
+
+      let layout: Flux3Layout | null = null;
+      if (req.body.layout && selectedModel.modelPath && isFlux3Path(selectedModel.modelPath)) {
+        // The boxes are drawn for one ratio; send exactly that one.
+        const aspectRatio = toFlux3AspectRatio(dimensions.width, dimensions.height);
+        try {
+          layout = await planLayout(fluxPrompt, aspectRatio);
+        } catch (error) {
+          log.warn('[ImaginePure] Layout planning failed:', error);
+        }
+        if (layout) {
+          fluxPrompt = serializeLayout(layout);
+          fluxOptions.aspect_ratio = aspectRatio;
+        } else {
+          log.warn('[ImaginePure] No valid layout, generating from the plain prompt');
+        }
+      }
 
       if (seed && Number.isInteger(seed)) {
         fluxOptions.seed = seed;
@@ -245,7 +269,11 @@ router.post(
       let fluxResult: StoredImageResult;
       try {
         // Inside the try: a failing `create()` would otherwise keep the booking.
-        const flux = await FluxImageService.create(selectedModel.backend, selectedModel.modelPath);
+        const flux = await FluxImageService.create(
+          selectedModel.backend,
+          selectedModel.modelPath,
+          selectedModel.resolution
+        );
         ({ stored: fluxResult } = (await flux.generateFromPrompt(
           fluxPrompt,
           fluxOptions
@@ -294,6 +322,7 @@ router.post(
           prompt: fluxPrompt,
           variant: selectedVariant,
           imageModel: selectedModelId,
+          layout,
           costMultiplier: selectedModel.costMultiplier,
           timestamp: now.toISOString(),
         },

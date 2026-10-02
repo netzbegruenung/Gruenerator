@@ -5,13 +5,18 @@ import {
   useKiImageGeneration,
 } from '@gruenerator/shared/image-studio';
 import { useShareStore } from '@gruenerator/shared/share';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { downloadDataUrl } from '../../../utils/downloadFile';
-import { editAiImage, removeImageBackground } from '../services/imageEditingService';
+import {
+  detectImageElements,
+  editAiImage,
+  removeImageBackground,
+} from '../services/imageEditingService';
 
-import { type BevMode, type BevSettings, type BevVersion } from './types';
+import { buildBoxEdit, clampBox, newBoxId } from './boxEdit';
+import { type BevBox, type BevMode, type BevSettings, type BevVersion } from './types';
 
 const STORAGE_KEY = 'gruenerator-bildeditor-v2';
 const MAX_PERSISTED = 12;
@@ -25,7 +30,7 @@ const SHARE_IMAGE_TYPE: Record<Exclude<BevVersion['kind'], 'upload'>, string> = 
   outpaint: 'pure-create',
   nobg: 'universal-edit',
 };
-const MAX_EDIT_IMAGES = 8; // contract cap: active version + references
+const MAX_EDIT_IMAGES = 10; // contract cap: active version + references
 
 const STATUS_TEXTS = [
   'Lasse die Magie wirken …',
@@ -103,6 +108,7 @@ const DEFAULT_SETTINGS: BevSettings = {
 /** Modes selectable once an image exists (in composer/dropdown order). */
 export const IMAGE_MODES: BevMode[] = [
   'bearbeiten',
+  'boxen',
   'gruen-verwandeln',
   'vergroessern',
   'hintergrund',
@@ -131,6 +137,10 @@ export function useBildEditorV2() {
 
   const statusTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // „Boxen" mode: user edits per version, on top of the detected elements.
+  const [boxEdits, setBoxEdits] = useState<Record<string, BevBox[]>>({});
+  const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
+
   const { generatePureCreate } = useKiImageGeneration();
   const { createImageShare } = useShareStore();
   const queryClient = useQueryClient();
@@ -146,6 +156,30 @@ export function useBildEditorV2() {
     () => (active ? versions.some((v) => v.parentId === active.id) : false),
     [versions, active]
   );
+
+  // Detection is a model call: once per version, only while „Boxen" is open.
+  const elementsQuery = useQuery({
+    queryKey: ['bild-editor-elements', active?.id],
+    enabled: mode === 'boxen' && !!active,
+    staleTime: Infinity,
+    retry: false,
+    queryFn: async (): Promise<BevBox[]> => {
+      if (!active) return [];
+      const file = await dataUrlToFile(active.image, `v${active.num}.jpg`);
+      const elements = await detectImageElements(file);
+      return elements.map((e) => ({
+        id: e.id,
+        bbox: e.bbox,
+        source: e.bbox,
+        desc: e.desc,
+        action: 'keep' as const,
+        change: '',
+      }));
+    },
+  });
+  const boxes: BevBox[] | null = (active && boxEdits[active.id]) ?? elementsQuery.data ?? null;
+  const boxesLoading = elementsQuery.isFetching;
+  const boxesError = elementsQuery.error instanceof Error ? elementsQuery.error.message : null;
 
   // Persist versions (capped), active id, and settings.
   useEffect(() => {
@@ -230,10 +264,18 @@ export function useBildEditorV2() {
         variant: settings.variant,
         format: settings.format,
         kiLabel: settings.kiLabel,
+        ...(settings.layout && { layout: true }),
       });
       commitImage(image, text, 'create', null);
     },
-    [generatePureCreate, settings.variant, settings.format, settings.kiLabel, commitImage]
+    [
+      generatePureCreate,
+      settings.variant,
+      settings.format,
+      settings.kiLabel,
+      settings.layout,
+      commitImage,
+    ]
   );
 
   const runEdit = useCallback(
@@ -243,11 +285,74 @@ export function useBildEditorV2() {
       const files = [base, ...references].slice(0, MAX_EDIT_IMAGES);
       const res = await editAiImage(files, text, 'universal', undefined, {
         kiLabel: settings.kiLabel,
+        ...(settings.autoBoxes && { boxes: 'auto' as const }),
       });
       commitImage(res.base64, text, 'edit', active.id);
     },
-    [active, references, settings.kiLabel, commitImage]
+    [active, references, settings.kiLabel, settings.autoBoxes, commitImage]
   );
+
+  const runBoxEdit = useCallback(
+    async (text: string) => {
+      if (!active) throw new Error('Kein Bild ausgewählt');
+      const edit = boxes ? buildBoxEdit(boxes, text) : null;
+      if (!edit && text.length < 3) {
+        throw new Error('Ändere eine Box oder beschreibe, was sich ändern soll.');
+      }
+      const base = await dataUrlToFile(active.image, `v${active.num}.jpg`);
+      const res = await editAiImage(base, edit?.instruction ?? text, 'universal', 'flux-pro', {
+        kiLabel: settings.kiLabel,
+        boxes: edit ?? 'auto',
+      });
+      commitImage(res.base64, text || 'Boxen bearbeitet', 'edit', active.id);
+    },
+    [active, boxes, settings.kiLabel, commitImage]
+  );
+
+  const writeBoxes = useCallback(
+    (next: BevBox[]) => {
+      if (!active) return;
+      setBoxEdits((prev) => ({ ...prev, [active.id]: next }));
+    },
+    [active]
+  );
+
+  const updateBox = useCallback(
+    (id: string, patch: Partial<Omit<BevBox, 'id'>>) => {
+      if (!boxes) return;
+      writeBoxes(
+        boxes.map((b) =>
+          b.id === id ? { ...b, ...patch, ...(patch.bbox && { bbox: clampBox(patch.bbox) }) } : b
+        )
+      );
+    },
+    [boxes, writeBoxes]
+  );
+
+  const addBox = useCallback(() => {
+    const list = boxes ?? [];
+    const id = newBoxId(list);
+    writeBoxes([
+      ...list,
+      { id, bbox: [350, 350, 650, 650], source: null, desc: '', action: 'change', change: '' },
+    ]);
+    setSelectedBoxId(id);
+  }, [boxes, writeBoxes]);
+
+  const removeAddedBox = useCallback(
+    (id: string) => {
+      if (boxes) writeBoxes(boxes.filter((b) => b.id !== id || b.source !== null));
+      setSelectedBoxId(null);
+    },
+    [boxes, writeBoxes]
+  );
+
+  const resetBoxes = useCallback(() => {
+    if (!active) return;
+    setBoxEdits(({ [active.id]: _dropped, ...rest }) => rest);
+    setSelectedBoxId(null);
+    void elementsQuery.refetch();
+  }, [active, elementsQuery]);
 
   const runGreenEdit = useCallback(
     async (text: string) => {
@@ -298,6 +403,7 @@ export function useBildEditorV2() {
     // surface a friendly "zu kurz" error we catch below.
     if (mode === 'erstellen' && text.length < 3) return;
     if (mode === 'bearbeiten' && (!active || text.length < 3)) return;
+    if (mode === 'boxen' && (!active || boxesLoading)) return;
     if (
       (mode === 'gruen-verwandeln' || mode === 'vergroessern' || mode === 'hintergrund') &&
       !active
@@ -310,6 +416,7 @@ export function useBildEditorV2() {
     try {
       if (mode === 'erstellen') await runCreate(text);
       else if (mode === 'bearbeiten') await runEdit(text);
+      else if (mode === 'boxen') await runBoxEdit(text);
       else if (mode === 'gruen-verwandeln') await runGreenEdit(text);
       else if (mode === 'vergroessern') await runOutpaint();
       else await runRemoveBg();
@@ -326,6 +433,8 @@ export function useBildEditorV2() {
     active,
     runCreate,
     runEdit,
+    runBoxEdit,
+    boxesLoading,
     runGreenEdit,
     runOutpaint,
     runRemoveBg,
@@ -383,6 +492,10 @@ export function useBildEditorV2() {
     error,
     dragActive,
     settings,
+    boxes,
+    boxesLoading,
+    boxesError,
+    selectedBoxId,
     // setters / actions
     setMode,
     setPrompt,
@@ -390,6 +503,11 @@ export function useBildEditorV2() {
     removeReference,
     setDragActive,
     setSettings,
+    setSelectedBoxId,
+    updateBox,
+    addBox,
+    removeAddedBox,
+    resetBoxes,
     submit,
     handleUpload,
     selectVersion,
