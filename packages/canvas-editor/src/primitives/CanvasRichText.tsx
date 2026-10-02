@@ -322,12 +322,7 @@ export function CanvasRichText({
           // Zeile nicht von selbst aus — der Versatz muss hier rein. Ohne ihn
           // rutschten alle zentrierten Vorlagen (die AT-Sujets) nach links,
           // sobald ihr Text einen Marker trägt.
-          const offset =
-            align === 'center'
-              ? (innerBoxWidth - lineWidths[index]!) / 2
-              : align === 'right'
-                ? innerBoxWidth - lineWidths[index]!
-                : 0;
+          const offset = originX[index]! - padding;
           return (
             <Fragment key={index}>
               {line.marker !== null && (
@@ -353,18 +348,21 @@ export function CanvasRichText({
                   fontSize={fontSize}
                   {...runFont(fontFamily, fontStyle, run, accent)}
                   textDecoration={run.underline ? 'underline' : ''}
-                  fill={
-                    run.marker && marker ? marker.color : run.accent && accent ? accent.fill : fill
-                  }
-                  stroke={stroke}
-                  strokeWidth={strokeWidth}
-                  fillAfterStrokeEnabled={!!stroke && (strokeWidth ?? 0) > 0}
-                  lineJoin="round"
-                  shadowColor={shadowColor}
-                  shadowBlur={shadowBlur}
-                  shadowOffsetX={shadowOffsetX}
-                  shadowOffsetY={shadowOffsetY}
-                  shadowOpacity={shadowOpacity}
+                  {...(run.marker && marker
+                    ? // Dark ink on the light box: no halo or outline of the photo text.
+                      { fill: marker.color, lineJoin: 'round' as const }
+                    : {
+                        fill: run.accent && accent ? accent.fill : fill,
+                        stroke,
+                        strokeWidth,
+                        fillAfterStrokeEnabled: !!stroke && (strokeWidth ?? 0) > 0,
+                        lineJoin: 'round' as const,
+                        shadowColor,
+                        shadowBlur,
+                        shadowOffsetX,
+                        shadowOffsetY,
+                        shadowOpacity,
+                      })}
                   lineHeight={lineHeight}
                   wrap="none"
                   listening={false}

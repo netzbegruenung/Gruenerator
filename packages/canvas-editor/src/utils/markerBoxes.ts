@@ -29,9 +29,9 @@ export interface MarkerBoxOptions {
 }
 
 const DEFAULT_PAD_X = 0.18;
-const DEFAULT_PAD_Y = 0.04;
+const DEFAULT_PAD_Y = 0.02;
 /** Die Glyphen füllen etwa diesen Teil der Schriftgröße; der Kasten umfasst sie knapp. */
-const GLYPH_BODY = 1.12;
+const GLYPH_BODY = 1.0;
 
 export function markerBoxes(
   lines: RichLayoutedLine[],

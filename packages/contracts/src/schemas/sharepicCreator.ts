@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { markerCanOpenAt, parseInlineMarks } from '../text/inlineMarks.js';
+
 /**
  * Free-text sharepic creator (experimental).
  *
@@ -49,9 +51,9 @@ export type SharepicTextSide = z.infer<typeof sharepicTextSideSchema>;
 /** One `++marker++` passage per pair; a slide may carry at most this many (DE only). */
 export const SHAREPIC_MARKER_PASSAGES = 2;
 
-/** `C++` is text, not a marker: a `++` glued to a letter or digit never opens a pair. */
+/** `C++` is text, not a marker: the one word-bound rule the inline parser uses too. */
 const isOpener = (text: string, at: number, mark: '==' | '++') =>
-  mark === '==' || at === 0 || !/[\p{L}\p{N}]/u.test(text[at - 1]!);
+  mark === '==' || markerCanOpenAt(text, at);
 
 /** Tightens whitespace just inside every matched `<mark>…<mark>` pair of one delimiter. */
 function tightenPairs(text: string, mark: '==' | '++'): string {
@@ -84,14 +86,39 @@ export function tightenAccentMarks(text: string): string {
   return tightenPairs(tightenPairs(text, '=='), '++');
 }
 
-/** True when a `==` or `++` is left without its partner (odd count) — nothing can repair that by whitespace. */
+/**
+ * True when a `==` or `++` is left without its partner, or the marks cross
+ * (`++a ==b++ c==`) — nothing can repair that by whitespace. Judged by the
+ * inline parser itself: whatever it leaves as literal mark characters is
+ * stray, except a `++` glued to a word (`C++`), which is text.
+ */
 export function hasUnpairedAccentMark(text: string): boolean {
-  return (text.split('==').length - 1) % 2 === 1 || (text.split('++').length - 1) % 2 === 1;
+  return text.split('\n').some((line) => {
+    const shown = parseInlineMarks(line)
+      .map((run) => run.text)
+      .join('');
+    return shown.includes('==') || strayPlusPlus(shown);
+  });
 }
 
-/** How many `++marker++` passages a text carries (complete pairs). */
+function strayPlusPlus(text: string): boolean {
+  for (let at = text.indexOf('++'); at !== -1; at = text.indexOf('++', at + 2)) {
+    if (markerCanOpenAt(text, at)) return true;
+  }
+  return false;
+}
+
+/** How many `++marker++` passages a text carries: stretches of marked runs, per line. */
 export function countMarkerPassages(text: string): number {
-  return Math.floor((text.split('++').length - 1) / 2);
+  let passages = 0;
+  for (const line of text.split('\n')) {
+    let inside = false;
+    for (const run of parseInlineMarks(line)) {
+      if (run.marker && !inside) passages += 1;
+      inside = run.marker;
+    }
+  }
+  return passages;
 }
 
 /**

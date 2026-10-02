@@ -228,7 +228,7 @@ export function largestSizeWordsFit(
 ): number {
   const words = texts
     .join(' ')
-    .replace(/\*\*|__|==|\*/g, '')
+    .replace(/\*\*|__|==|\+\+|\*/g, '')
     .split(/\s+/)
     .filter(Boolean);
   let fitted = size;

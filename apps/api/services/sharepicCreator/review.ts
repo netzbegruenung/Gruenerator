@@ -11,7 +11,9 @@ import {
   type SharepicSlide,
   type SharepicSpec,
   sharepicReviewResponseSchema,
+  countMarkerPassages,
   hasUnpairedAccentMark,
+  SHAREPIC_MARKER_PASSAGES,
   tightenAccentMarksDeep,
 } from '@gruenerator/contracts';
 import sharp from 'sharp';
@@ -125,6 +127,23 @@ export function validateReview(
         ok: false,
         error:
           'Ein einzelnes == oder ++ im Text – Hervorhebungen immer als ==Wort== bzw. ++Passage++ paaren, ohne Leerzeichen innen.',
+      };
+    }
+    // Same marker rules as a draft: at most two passages, and only where a
+    // marker may stand (quote, paragraph, headline). Austria is checked by the composer.
+    const passages = texts.reduce((n, t) => n + countMarkerPassages(t), 0);
+    const target = op.op === 'set_text' ? slides[op.slide ?? 0]?.items[op.item ?? -1] : null;
+    if (
+      passages > SHAREPIC_MARKER_PASSAGES ||
+      (passages > 0 &&
+        target &&
+        target.type !== 'zitat' &&
+        target.type !== 'absatz' &&
+        target.type !== 'headline')
+    ) {
+      return {
+        ok: false,
+        error: `++Passage++ steht nur in zitat, absatz und headline, höchstens ${SHAREPIC_MARKER_PASSAGES} pro Slide.`,
       };
     }
     const slide = op.slide ?? 0;

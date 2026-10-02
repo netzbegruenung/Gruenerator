@@ -77,6 +77,14 @@ const isWordChar = (char: string | undefined): boolean =>
   char !== undefined && /[\p{L}\p{N}]/u.test(char);
 
 /**
+ * Darf ein `++` an Stelle `at` öffnen? Wie `_` nie direkt hinter einem
+ * Wortzeichen — sonst verlöre `C++, Java und C++` seine Pluszeichen. Die EINE
+ * Regel: Tokenizer, Normalizer und Zähler des Creators fragen alle hier.
+ */
+export const markerCanOpenAt = (text: string, at: number): boolean =>
+  at === 0 || !isWordChar(text[at - 1]);
+
+/**
  * Zerlegt eine Zeile in Text und Marker-Kandidaten. Ob ein Kandidat öffnen
  * oder schließen darf, hängt nur von seinen Nachbarzeichen ab; gepaart wird
  * erst in `resolve`.
@@ -95,14 +103,14 @@ function tokenize(line: string): Token[] {
     next: string | undefined
   ) => {
     flush();
-    // Ein `_` mitten im Wort (`snake_case`) darf nicht ÖFFNEN, sonst würde
+    // Ein `_` (und `++`, siehe `markerCanOpenAt`) mitten im Wort (`snake_case`) darf nicht ÖFFNEN, sonst würde
     // jeder Bezeichner kursiv. Beim SCHLIESSEN gilt die Einschränkung nicht:
     // `_grün_er` — ein kursiver Wortanfang — hat rechts vom schließenden
     // Marker ein Wortzeichen, und mit der Bedingung auch dort ließ sich
     // genau das nicht mehr lesen, was `serializeInlineMarks` selbst schreibt.
     // Ohne einen offenen Marker auf dem Stapel paart `resolve` ohnehin nicht,
     // `snake_case_name` bleibt also unberührt.
-    const wordBound = raw.startsWith('_');
+    const wordBound = raw.startsWith('_') || raw === '++';
     tokens.push({
       type: 'delim',
       kind,

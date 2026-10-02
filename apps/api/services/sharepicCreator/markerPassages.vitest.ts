@@ -1,4 +1,9 @@
-import { foldMarkerIntoAccent, tightenAccentMarks } from '@gruenerator/contracts';
+import {
+  countMarkerPassages,
+  foldMarkerIntoAccent,
+  hasUnpairedAccentMark,
+  tightenAccentMarks,
+} from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { validateDraft } from './draftAgent.js';
@@ -104,5 +109,49 @@ describe('++marker++ passages', () => {
     );
     expect(foldMarkerIntoAccent('==a== und ++b++')).toBe('==a== und ==b==');
     expect(foldMarkerIntoAccent('snake_case_name and *x*')).toBe('snake_case_name and *x*');
+  });
+
+  it('treats C++ as text everywhere: no unpaired mark, no placement error', () => {
+    expect(hasUnpairedAccentMark('Ich mag C++ sehr')).toBe(false);
+    expect(hasUnpairedAccentMark('C++, Java und C++')).toBe(false);
+    expect(countMarkerPassages('C++, Java und C++')).toBe(0);
+    const result = validateDraft(
+      slideOf([{ type: 'liste', items: ['Wir mögen C++', 'und Rust'] }]),
+      'de-DE',
+      'x'
+    );
+    expect(result.ok).toBe(true);
+    const at = validateDraft(
+      slideOf([{ type: 'absatz', text: 'Wir mögen C++ sehr' }], 'dunkelgruen'),
+      'de-AT',
+      'x'
+    );
+    expect(at.ok).toBe(true);
+  });
+
+  it('rejects marks that cross', () => {
+    expect(hasUnpairedAccentMark('++a ==b++ c==')).toBe(true);
+    expect(hasUnpairedAccentMark('++a ==b== c++')).toBe(false);
+  });
+
+  it('applies the passage rules to review patches', () => {
+    const three = { op: 'set_text', item: 0, text: '++a++ ++b++ ++c++' };
+    const bad = validateReview({ ok: false, issues: [], patch: [three] }, [1]);
+    expect(!bad.ok && bad.error).toContain('höchstens 2');
+    const slides = [
+      {
+        background: { kind: 'farbe', color: 'tanne' },
+        position: 'mitte',
+        align: 'links',
+        items: [{ type: 'text', text: 'x' }],
+        logo: true,
+      },
+    ] as never;
+    const wrongItem = validateReview(
+      { ok: false, issues: [], patch: [{ op: 'set_text', item: 0, text: 'Los ++jetzt++' }] },
+      [1],
+      slides
+    );
+    expect(!wrongItem.ok && wrongItem.error).toContain('nur in zitat, absatz und headline');
   });
 });

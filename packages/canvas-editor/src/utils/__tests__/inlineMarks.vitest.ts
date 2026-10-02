@@ -9,6 +9,7 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  foldMarkerIntoAccent,
   hasInlineMarks,
   normalizeInlineMarks,
   parseInlineMarks,
@@ -216,5 +217,28 @@ describe('Marker ++…++', () => {
   it('kollidiert nicht mit […]-Kürzungen und Listenmarkern', () => {
     expect(stripInlineMarks('Wir […] bauen ++Wohnungen[…]++')).toBe('Wir […] bauen Wohnungen[…]');
     expect(parseInlineMarks('+ Punkt')).toEqual([plain('+ Punkt')]);
+  });
+});
+
+describe('Marker ++ ist wortgebunden (wie _)', () => {
+  it.each([
+    ['C++, Java und C++', 'C++, Java und C++'],
+    ['C++-Code in C++.', 'C++-Code in C++.'],
+    ['1++2++3', '1++2++3'],
+  ])('lässt %s unberührt', (text, shown) => {
+    expect(stripInlineMarks(text)).toBe(shown);
+    expect(hasInlineMarks(text)).toBe(false);
+    expect(foldMarkerIntoAccent(text)).toBe(text);
+  });
+
+  it('öffnet nach Satzzeichen und Leerraum, schließt auch am Wort (Wortanfang)', () => {
+    expect(stripInlineMarks('(++Wohnungen++)')).toBe('(Wohnungen)');
+    expect(stripInlineMarks('++grün++er')).toBe('grüner');
+  });
+
+  it('AT: ++ wird zum Akzent, C++ bleibt Text', () => {
+    expect(foldMarkerIntoAccent('Wir ++bauen++ in C++, Java und C++')).toBe(
+      'Wir ==bauen== in C++, Java und C++'
+    );
   });
 });

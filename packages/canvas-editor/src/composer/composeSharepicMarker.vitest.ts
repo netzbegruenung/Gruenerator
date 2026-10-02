@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { getBrandTheme } from '../brand/theme';
 
-import { composeSharepic, SHAREPIC_COLOR_HEX } from './composeSharepic';
+import { composeSharepic, largestSizeWordsFit, SHAREPIC_COLOR_HEX } from './composeSharepic';
 
 const measure = (text: string, fontSize: number) => text.length * fontSize * 0.5;
 const options = { photoSrc: (f: string) => `/stock/${f}`, measure };
@@ -32,7 +32,7 @@ const QUOTE: SharepicSlide['items'] = [
 describe('composeSharepic — ++marker++', () => {
   it('DE: gives the text a marker style, dark ink in a white box on dark ground and photos', () => {
     for (const bg of [
-      undefined,
+      { kind: 'farbe', color: 'tanne' } as const,
       { kind: 'foto', filename: 'wind.jpg', textSeite: 'unten' } as const,
     ]) {
       const quote = byId(compose('de-DE', slideOf(QUOTE, bg)).additionalTexts, '-zitat');
@@ -80,5 +80,13 @@ describe('composeSharepic — ++marker++', () => {
       const marked = body.replace('wort1 wort2', '++wort1 wort2++');
       expect(gap(run(marked))).toBe(gap(run(body)));
     }
+  });
+});
+
+describe('largestSizeWordsFit', () => {
+  it('measures a marked word without its ++', () => {
+    const fit = (text: string) =>
+      largestSizeWordsFit([text], 60, 400, 0, (w, s) => w.length * s * 0.5);
+    expect(fit('Die ++Wohnungsbau++ kommt')).toBe(fit('Die Wohnungsbau kommt'));
   });
 });

@@ -100,6 +100,15 @@ function textsOf(slide: SharepicSlide): string[] {
  * headlines, at most twice per slide. AT never uses it (yellow `==accent==`
  * there; the composer folds a stray `++` into one).
  */
+/** Every string inside a value (item, footer part). */
+function stringsOf(value: unknown): string[] {
+  if (typeof value === 'string') return [value];
+  if (Array.isArray(value)) return value.flatMap(stringsOf);
+  if (value && typeof value === 'object') return Object.values(value).flatMap(stringsOf);
+  return [];
+}
+const hasMarker = (text: string) => countMarkerPassages(text) > 0;
+
 function markerProblems(slide: SharepicSlide, locale: SharepicCreatorLocale, where: string) {
   const problems: string[] = [];
   let passages = 0;
@@ -111,13 +120,13 @@ function markerProblems(slide: SharepicSlide, locale: SharepicCreatorLocale, whe
           ? [item.text]
           : null;
     if (texts) passages += texts.reduce((n, t) => n + countMarkerPassages(t), 0);
-    else if (JSON.stringify(item).includes('++')) {
+    else if (stringsOf(item).some(hasMarker)) {
       problems.push(
         `${where}++…++ steht nur in zitat, absatz und headline – im Element "${item.type}" weglassen.`
       );
     }
   }
-  if (JSON.stringify([slide.stoerer, slide.ort, slide.quelle]).includes('++')) {
+  if (stringsOf([slide.stoerer, slide.ort, slide.quelle]).some(hasMarker)) {
     problems.push(`${where}++…++ steht nur in zitat, absatz und headline.`);
   }
   if (locale === 'de-AT' && passages > 0) {
