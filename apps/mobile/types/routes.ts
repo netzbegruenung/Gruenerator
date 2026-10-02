@@ -31,8 +31,9 @@ export type AppRoute =
   | '/auth/callback'
   // Focused routes
   | '/(focused)/chat-conversation'
-  | '/(focused)/notebook-detail'
-  | '/(focused)/notebook-chat'
+  // Notebook routes — push with `{ withAnchor: true }` (see `app/notebook/[id]/_layout.tsx`)
+  | '/notebook/[id]'
+  | '/notebook/[id]/chat'
   | '/(focused)/notebook-reader'
   | '/(focused)/agents'
   | '/(focused)/projekte'
@@ -54,24 +55,24 @@ export interface ModalRouteParams {
   '/(focused)/chat-conversation': {
     threadId: string;
     initialMessage?: string;
-    /** @deprecated Redirects to `notebook-chat`. */
+    /** @deprecated Redirects to the notebook chat. */
     notebookId?: string;
     agentId?: string;
     initialComposerText?: string;
   };
-  '/(focused)/notebook-chat': {
+  '/notebook/[id]/chat': {
     /** Registry id of a system notebook, or the UUID of a user notebook. */
-    notebookId: string;
+    id: string;
     /** An existing conversation; omitted for a new one. */
     threadId?: string;
     /** Sent as the first question of a new conversation. */
     initialMessage?: string;
     title?: string;
   };
-  '/(focused)/notebook-detail': {
-    notebookId: string;
+  '/notebook/[id]': {
+    /** Registry id of a system notebook, or the UUID of a user notebook. */
+    id: string;
     title?: string;
-    kind: 'system' | 'user';
   };
   '/(focused)/notebook-reader': {
     /** A system document: the hit's `*-system` collection and its URL. */

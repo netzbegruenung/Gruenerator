@@ -91,13 +91,12 @@ const ThreadItemBody = memo(function ThreadItemBody({
     // drawer, so closing it reveals the conversation directly instead of briefly
     // flashing the screen underneath (looks like a double navigation otherwise).
     if (remoteId) {
-      router.push(
-        threadRoute({
-          id: remoteId,
-          threadType: getThreadType(remoteId),
-          notebookCollectionId: getNotebookCollectionId(remoteId),
-        })
-      );
+      const { href, withAnchor } = threadRoute({
+        id: remoteId,
+        threadType: getThreadType(remoteId),
+        notebookCollectionId: getNotebookCollectionId(remoteId),
+      });
+      router.push(href, { withAnchor });
     }
     onSelect();
   }, [aui, onSelect, router]);

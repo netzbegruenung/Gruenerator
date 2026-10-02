@@ -133,8 +133,8 @@ describe('NotebookOverview', () => {
       keywordFilters: { themes: ['sicherheit'] },
     });
     expect(mockPush).toHaveBeenCalledWith({
-      pathname: '/(focused)/notebook-chat',
-      params: { notebookId: 'hamburg-notebook' },
+      pathname: '/notebook/[id]/chat',
+      params: { id: 'hamburg-notebook' },
     });
   });
 
