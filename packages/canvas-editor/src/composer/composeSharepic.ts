@@ -130,6 +130,7 @@ export const SHAREPIC_COLOR_HEX: Record<SharepicColor, string> = {
   dunkeltanne: '#00261A',
   grasgruen: '#00CC4F',
   mint: '#D5EEE6',
+  hellgrau: '#F2F2F2',
   dunkelgruen: getBrandTheme('de-AT').colors.primary,
   hellgruen: getBrandTheme('de-AT').colors.secondary,
   weiss: '#FFFFFF',
@@ -162,7 +163,7 @@ const SCRIM_ANGLE: Record<SharepicTextSide, number> = {
   rechts: 0,
 };
 
-const LIGHT: readonly SharepicColor[] = ['mint', 'weiss'];
+const LIGHT: readonly SharepicColor[] = ['mint', 'hellgrau', 'weiss'];
 
 /** DE accent: a lime marker box. AT accent: a yellow Vollkorn line. */
 const LIME = '#BEFF60';
@@ -271,12 +272,6 @@ export function largestSizeWordsFit(
   let fitted = size;
   while (fitted > minSize && words.some((w) => indent + measureWord(w, fitted) > width)) fitted--;
   return fitted;
-}
-
-/** `#RRGGBB` at zero alpha — the end of a fade into a photo. */
-function transparent(hex: string): string {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},0)`;
 }
 
 const stripMarks = (text: string) => text.replace(/\*\*|__|==|\+\+/g, '');
@@ -430,30 +425,22 @@ function composeSlide(
     out.imageScale = 1;
     addShape(rect('sc-panel', 0, areaTop, WIDTH, HEIGHT - areaTop, out.backgroundColor));
   } else if (bg.kind === 'foto-unten') {
-    // The colour carries the text at the top and fades into the photo below.
+    // The colour carries the text at the top; the photo starts at a hard edge
+    // (a soft fade reads as a smear on AT, and the posts cut it clean).
     surface = bg.panelColor;
     areaBottom = HEIGHT * 0.6;
     // The lower strip, from where the text area ends: the photo's middle goes there.
     out.imageOffset = { x: 0, y: (areaBottom + HEIGHT) / 2 - HEIGHT / 2 };
     out.imageScale = 1;
-    const solid = out.backgroundColor;
-    const panel = rect('sc-panel', 0, 0, WIDTH, HEIGHT * 0.8, solid);
-    panel.fillGradient = {
-      type: 'linear',
-      angle: 90,
-      stops: [
-        { offset: 0, color: solid },
-        { offset: 0.72, color: solid },
-        { offset: 1, color: transparent(solid) },
-      ],
-    };
-    addShape(panel);
+    addShape(rect('sc-panel', 0, 0, WIDTH, areaBottom, out.backgroundColor));
   } else if (!boxed || spec.items.some((i) => i.type === 'zitat' || i.type === 'frage')) {
     // Text on a photo: a gradient from the text side into the picture.
     // Line boxes bring their own contrast and need none — a quote or question
     // stays free text even on a boxed slide, so it needs the scrim.
     const side = bg.textSeite;
-    const dark = isAt ? '27,94,44' : '0,38,26';
+    // Near-black with a breath of the locale green (DE #03110D). A saturated
+    // green here turns the photo olive wherever it shows through.
+    const dark = isAt ? '3,14,8' : '3,17,13';
     const vertical = side === 'unten' || side === 'oben';
     scrimDark = dark;
     scrimLevel = SCRIM_TEXT_ALPHA[options.photoTone?.(bg.filename, side) ?? 'mittel'];
@@ -1190,6 +1177,13 @@ function composeSlide(
   }
 
   if (spec.datum) {
+    // DE: Tanne on light and grass-green ground, grass green on dark ground
+    // and photos — never a third colour. AT keeps its magenta.
+    const circleColors = isAt
+      ? { background: theme.colors.stoerer, text: VERANSTALTUNG_CONFIG.circle.textColor }
+      : surface === 'foto' || surface === 'tanne' || surface === 'dunkeltanne'
+        ? { background: SHAREPIC_COLOR_HEX.grasgruen, text: COLORS.TANNE }
+        : { background: COLORS.TANNE, text: '#ffffff' };
     const c = VERANSTALTUNG_CONFIG.circle;
     const t = VERANSTALTUNG_CONFIG.circleText;
     out.circleBadgeInstances.push(
@@ -1199,8 +1193,8 @@ function composeSlide(
         y: bg.kind === 'foto-oben' ? c.centerY : HEIGHT / 2,
         radius: c.radius,
         rotation: c.rotation,
-        backgroundColor: isAt ? theme.colors.stoerer : COLORS.HIMMEL,
-        textColor: c.textColor,
+        backgroundColor: circleColors.background,
+        textColor: circleColors.text,
         // Without a date the two lines sit as a pair, centred on the circle.
         textLines: [
           {

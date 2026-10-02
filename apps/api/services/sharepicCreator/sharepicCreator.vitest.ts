@@ -95,6 +95,16 @@ describe('styleguide', () => {
     expect(basicsText('de-AT')).toContain('Keine Balken');
   });
 
+  it('names Hellgrau and Mint as the typical DE surfaces, without hex values', () => {
+    const de = basicsText('de-DE');
+    expect(de).toContain('`hellgrau`');
+    expect(de).toContain('`mint`');
+    expect(`${de}${chapterText('fotos')}${chapterText('veranstaltung')}`).not.toMatch(
+      /#[0-9A-Fa-f]{6}/
+    );
+    expect(basicsText('de-AT')).not.toContain('hellgrau');
+  });
+
   it('ships examples that are valid specs once a photo is filled in', () => {
     const photo = searchStockPhotos('nature')[0].filename;
     for (const example of loadExamples()) {

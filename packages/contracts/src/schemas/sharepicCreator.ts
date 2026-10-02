@@ -22,7 +22,7 @@ export type SharepicCreatorLocale = z.infer<typeof sharepicCreatorLocaleSchema>;
 /**
  * Brand colours by name. The palette follows what the parties actually post
  * (analysis of the 20 newest Instagram posts each, 10/2026), not the older
- * template set: DE posts use Dunkeltanne, Grasgrün and Mint — Klee and Sand
+ * template set: DE posts use Dunkeltanne, Grasgrün, Mint and Hellgrau — Klee and Sand
  * hardly appear any more.
  */
 export const sharepicColorSchema = z.enum([
@@ -30,6 +30,7 @@ export const sharepicColorSchema = z.enum([
   'dunkeltanne',
   'grasgruen',
   'mint',
+  'hellgrau',
   'dunkelgruen',
   'hellgruen',
   'weiss',
@@ -37,7 +38,7 @@ export const sharepicColorSchema = z.enum([
 export type SharepicColor = z.infer<typeof sharepicColorSchema>;
 
 export const SHAREPIC_LOCALE_COLORS: Record<SharepicCreatorLocale, readonly SharepicColor[]> = {
-  'de-DE': ['tanne', 'dunkeltanne', 'grasgruen', 'mint', 'weiss'],
+  'de-DE': ['tanne', 'dunkeltanne', 'grasgruen', 'mint', 'hellgrau', 'weiss'],
   'de-AT': ['dunkelgruen', 'hellgruen', 'weiss'],
 };
 

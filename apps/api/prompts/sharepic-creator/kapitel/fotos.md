@@ -6,3 +6,4 @@
 - `textSeite`: dort, wo das Bild ruhig ist (Himmel, Boden, unscharfer Bereich). Meist `unten`. Bei Porträts die Seite gegenüber der Person (`links`/`rechts`).
 - Viel Text (Liste, Termin)? Dann `foto-oben` statt Text aufs Foto.
 - Übernimm `filename` exakt aus dem Suchergebnis.
+- `foto-oben`/`foto-unten`: Die Fläche unter dem Foto ist in Deutschland `tanne`, `mint` oder `hellgrau`, nicht `grasgruen` – das ist als Vollfläche neben einem Foto zu laut. Grasgrün bleibt Akzent oder Einzel-Slide ohne Foto.

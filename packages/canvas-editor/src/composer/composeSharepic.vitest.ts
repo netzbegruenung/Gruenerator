@@ -1,7 +1,11 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
+import {
+  SHAREPIC_LOCALE_COLORS,
+  type SharepicSlide,
+  type SharepicSpec,
+} from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { getBrandTheme } from '../brand/theme';
@@ -351,7 +355,9 @@ describe('composeSharepic — carousels', () => {
       options
     ).slides[0]!;
     const panel = props.shapeInstances.find((s) => s.id === 'sc-panel')!;
-    expect(panel.fillGradient?.stops.at(-1)?.color).toMatch(/,0\)$/);
+    // A hard edge, not a smear: the panel is solid and ends where the photo starts.
+    expect(panel.fillGradient).toBeUndefined();
+    expect(panel.height).toBe(1350 * 0.6);
     const absatz = byId(props.additionalTexts, '-absatz')!;
     expect(absatz.y).toBeLessThan(1350 * 0.6);
     expect(props.currentImageSrc).toContain('wind.jpg');
@@ -516,7 +522,7 @@ describe('composeSharepic — interview items', () => {
 
     for (const locale of ['de-DE', 'de-AT'] as const) {
       it(`keeps ${locale} side text on the dense scrim to the column end plus gutter`, () => {
-        const darkRgb = locale === 'de-AT' ? '27,94,44' : '0,38,26';
+        const darkRgb = locale === 'de-AT' ? '3,14,8' : '3,17,13';
         const l = scrimOf(quote('links', locale));
         expect(l.fillGradient!.stops[1]!.color).toContain(darkRgb);
         expect(alphaAt(l, 70 + 1080 * 0.52 + 48, 600)).toBeGreaterThanOrEqual(0.75 - 1e-6);
@@ -1095,6 +1101,102 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
     });
     const lines = props.circleBadgeInstances[0]!.textLines.map((l) => l.text);
     expect(lines).toEqual(['Sa', '10 Uhr']);
+  });
+
+  describe('date circle colour (DE)', () => {
+    const circleOn = (
+      background: SharepicSlide['background'],
+      locale: 'de-DE' | 'de-AT' = 'de-DE'
+    ) =>
+      one({
+        locale,
+        slides: [
+          {
+            background,
+            position: 'oben',
+            align: 'links',
+            items: [{ type: 'headline', lines: ['Fest im Park'] }],
+            datum: { weekday: 'Sa', date: '10.10.', time: '10 Uhr' },
+            logo: false,
+          },
+        ],
+      }).circleBadgeInstances[0]!;
+    const panel = (panelColor: 'tanne' | 'dunkeltanne' | 'grasgruen' | 'mint' | 'hellgrau') =>
+      ({ kind: 'foto-oben', filename: 'wind.jpg', panelColor }) as const;
+
+    it.each(['mint', 'hellgrau', 'grasgruen'] as const)(
+      'is Tanne with white text on a light or grass-green panel (%s)',
+      (c) => {
+        const circle = circleOn(panel(c));
+        expect(circle.backgroundColor).toBe('#005538');
+        expect(circle.textColor).toBe('#ffffff');
+      }
+    );
+
+    it.each(['tanne', 'dunkeltanne'] as const)(
+      'is grass green with Tanne text on a dark panel (%s)',
+      (c) => {
+        const circle = circleOn(panel(c));
+        expect(circle.backgroundColor).toBe(SHAREPIC_COLOR_HEX.grasgruen);
+        expect(circle.textColor).toBe('#005538');
+      }
+    );
+
+    it('is grass green on a photo slide, and never sky blue', () => {
+      const circle = circleOn({ kind: 'foto', filename: 'wind.jpg', textSeite: 'unten' });
+      expect(circle.backgroundColor).toBe(SHAREPIC_COLOR_HEX.grasgruen);
+      expect(circle.backgroundColor.toLowerCase()).not.toBe('#0ba1dd');
+    });
+
+    it('leaves the AT circle alone', () => {
+      const circle = circleOn(
+        { kind: 'foto-oben', filename: 'wind.jpg', panelColor: 'dunkelgruen' },
+        'de-AT'
+      );
+      expect(circle.backgroundColor).toBe(getBrandTheme('de-AT').colors.stoerer);
+    });
+  });
+
+  describe('hellgrau', () => {
+    it('is a light DE surface with dark ink', () => {
+      const props = one({
+        locale: 'de-DE',
+        slides: [
+          {
+            background: { kind: 'farbe', color: 'hellgrau' },
+            position: 'oben',
+            align: 'links',
+            items: [{ type: 'headline', lines: ['Fest im Park'] }],
+            logo: false,
+          },
+        ],
+      });
+      expect(SHAREPIC_COLOR_HEX.hellgrau).toBe('#F2F2F2');
+      expect(props.backgroundColor).toBe('#F2F2F2');
+      expect(byId(props.additionalTexts, 'headline-0')!.fill).toBe(SHAREPIC_COLOR_HEX.dunkeltanne);
+    });
+
+    it('is offered to DE and not to AT', () => {
+      expect(SHAREPIC_LOCALE_COLORS['de-DE']).toContain('hellgrau');
+      expect(SHAREPIC_LOCALE_COLORS['de-AT']).not.toContain('hellgrau');
+    });
+  });
+
+  describe('scrim colour', () => {
+    it.each(['de-DE', 'de-AT'] as const)('is near-black, not green (%s)', (locale) => {
+      const props = composeSharepic(
+        { locale, slides: [{ ...fotoSlide, stoerer: undefined }] },
+        options
+      ).slides[0]!;
+      const scrim = props.shapeInstances.find((s) => s.id === 'sc-scrim')!;
+      for (const stop of scrim.fillGradient!.stops) {
+        const [r, g, b] = stop.color
+          .match(/\d+(?:\.\d+)?/g)!
+          .slice(0, 3)
+          .map(Number);
+        expect(Math.max(r!, g!, b!), stop.color).toBeLessThan(20);
+      }
+    });
   });
 
   describe('photo strip', () => {
