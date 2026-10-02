@@ -312,3 +312,25 @@ export function normalizeInlineMarks(text: string): string {
     .map((line) => serializeInlineMarks(parseInlineMarks(line)))
     .join('\n');
 }
+
+/**
+ * `++Marker++` als `==Akzent==` lesen — für die Orte, an denen der Marker
+ * keine Box hat (AT setzt Hervorhebungen gelb in Vollkorn kursiv, nie als
+ * Kasten). Texte ohne `++` bleiben Zeichen für Zeichen unberührt; nur ein Text
+ * mit Marker läuft durch Parser und Serializer.
+ */
+export function foldMarkerIntoAccent(text: string): string {
+  if (!text.includes('++')) return text;
+  return text
+    .split('\n')
+    .map((line) =>
+      serializeInlineMarks(
+        parseInlineMarks(line).map((run) => ({
+          ...run,
+          accent: run.accent || run.marker,
+          marker: false,
+        }))
+      )
+    )
+    .join('\n');
+}

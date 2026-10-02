@@ -10,7 +10,8 @@ import { z } from 'zod';
  * against the same spec.
  *
  * Texts may carry `==accent==` on single words (the editor's accent mark) and
- * `**bold**`.
+ * `**bold**`. DE quotes, paragraphs and headlines may also carry up to two
+ * `++marker++` passages (the marker box); AT sets those as `==accent==`.
  */
 
 export const sharepicCreatorLocaleSchema = z.enum(['de-DE', 'de-AT']);
@@ -45,29 +46,52 @@ export type SharepicAlign = z.infer<typeof sharepicAlignSchema>;
 export const sharepicTextSideSchema = z.enum(['unten', 'oben', 'links', 'rechts']);
 export type SharepicTextSide = z.infer<typeof sharepicTextSideSchema>;
 
-/**
- * Tightens whitespace just inside a matched `==…==` pair: `== x ==`, `==x ==`
- * and `== x==` become `==x==`. The inline tokenizer only closes a mark behind
- * a non-space, so a model's `==Mach mit! ==` would otherwise render literally.
- * Linear scan, no regex; an unpaired `==` stays and is rejected by the draft
- * validation.
- */
-export function tightenAccentMarks(text: string): string {
+/** One `++marker++` passage per pair; a slide may carry at most this many (DE only). */
+export const SHAREPIC_MARKER_PASSAGES = 2;
+
+/** `C++` is text, not a marker: a `++` glued to a letter or digit never opens a pair. */
+const isOpener = (text: string, at: number, mark: '==' | '++') =>
+  mark === '==' || at === 0 || !/[\p{L}\p{N}]/u.test(text[at - 1]!);
+
+/** Tightens whitespace just inside every matched `<mark>…<mark>` pair of one delimiter. */
+function tightenPairs(text: string, mark: '==' | '++'): string {
   let out = '';
   let pos = 0;
+  let from = 0;
   for (;;) {
-    const open = text.indexOf('==', pos);
-    const close = open === -1 ? -1 : text.indexOf('==', open + 2);
+    const open = text.indexOf(mark, from);
+    if (open !== -1 && !isOpener(text, open, mark)) {
+      from = open + 2;
+      continue;
+    }
+    const close = open === -1 ? -1 : text.indexOf(mark, open + 2);
     if (close === -1) return out + text.slice(pos);
     const inner = text.slice(open + 2, close).trim();
-    out += inner ? `${text.slice(pos, open)}==${inner}==` : text.slice(pos, close + 2);
+    out += inner ? `${text.slice(pos, open)}${mark}${inner}${mark}` : text.slice(pos, close + 2);
     pos = close + 2;
+    from = pos;
   }
 }
 
-/** True when a `==` is left without its partner (odd count) — nothing can repair that by whitespace. */
+/**
+ * Tightens whitespace just inside a matched `==…==` or `++…++` pair: `== x ==`,
+ * `==x ==` and `== x==` become `==x==`. The inline tokenizer only closes a mark
+ * behind a non-space, so a model's `==Mach mit! ==` would otherwise render
+ * literally. Linear scan, no regex; an unpaired mark stays and is rejected by
+ * the draft validation.
+ */
+export function tightenAccentMarks(text: string): string {
+  return tightenPairs(tightenPairs(text, '=='), '++');
+}
+
+/** True when a `==` or `++` is left without its partner (odd count) — nothing can repair that by whitespace. */
 export function hasUnpairedAccentMark(text: string): boolean {
-  return (text.split('==').length - 1) % 2 === 1;
+  return (text.split('==').length - 1) % 2 === 1 || (text.split('++').length - 1) % 2 === 1;
+}
+
+/** How many `++marker++` passages a text carries (complete pairs). */
+export function countMarkerPassages(text: string): number {
+  return Math.floor((text.split('++').length - 1) / 2);
 }
 
 /**

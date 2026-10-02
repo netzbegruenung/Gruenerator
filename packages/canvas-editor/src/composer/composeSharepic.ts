@@ -14,6 +14,7 @@
  */
 import {
   accentLines,
+  foldMarkerIntoAccent,
   layoutRichTextBlock,
   type MeasureRun,
   type SharepicColor,
@@ -32,7 +33,7 @@ import { createCircleBadgeInstance } from '../utils/circleBadgeUtils';
 import { COLORS, DREIZEILEN_CONFIG } from '../utils/dreizeilenLayout';
 import { createPillBadgeInstance } from '../utils/pillBadgeUtils';
 import { createShape, type ShapeInstance } from '../utils/shapes';
-import { measureTextWidthWithFont, type TextAccent } from '../utils/textUtils';
+import { measureTextWidthWithFont, type TextAccent, type TextMarker } from '../utils/textUtils';
 import { VERANSTALTUNG_CONFIG } from '../utils/veranstaltungLayout';
 
 import type { IconState } from '../configs/factory/baseTypes';
@@ -241,7 +242,17 @@ function transparent(hex: string): string {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},0)`;
 }
 
-const stripMarks = (text: string) => text.replace(/\*\*|__|==/g, '');
+const stripMarks = (text: string) => text.replace(/\*\*|__|==|\+\+/g, '');
+
+/** Every string of a slide with `++marker++` read as `==accent==` (AT has no marker boxes). */
+function foldMarkers<T>(value: T): T {
+  if (typeof value === 'string') return foldMarkerIntoAccent(value) as T;
+  if (Array.isArray(value)) return value.map(foldMarkers) as T;
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, foldMarkers(v)])) as T;
+  }
+  return value;
+}
 
 interface Column {
   x: number;
@@ -273,7 +284,7 @@ export function composeSharepic(spec: SharepicSpec, options: ComposeOptions): Co
 }
 
 function composeSlide(
-  spec: SharepicSlide,
+  slide: SharepicSlide,
   locale: SharepicCreatorLocale,
   options: ComposeOptions,
   attribution: SharepicPhotoAttribution | null,
@@ -283,6 +294,9 @@ function composeSlide(
   const measure = options.measure ?? defaultMeasure;
   const theme = getBrandTheme(locale);
   const isAt = locale === 'de-AT';
+  // The marker box is a DE signature; AT highlights with the yellow Vollkorn
+  // accent only, so a `++` that reaches an AT slide is set as `==`.
+  const spec = isAt ? foldMarkers(slide) : slide;
   const bg = spec.background;
   const darkText = isAt ? theme.colors.primary : SHAREPIC_COLOR_HEX.dunkeltanne;
   const boxed = !isAt && !!spec.zeilenboxen;
@@ -437,6 +451,15 @@ function composeSlide(
         fontStyle: 'italic',
       }
     : { fill: onLight ? KLEE : onGrass ? '#FFFFFF' : LIME };
+  // DE `++passage++`: dark ink in a white box; mint on a white slide, where
+  // white would vanish. Photos and dark colours take white — a dark box
+  // disappears into the scrim. AT has none (see `foldMarkers`).
+  const marker: TextMarker | null = isAt
+    ? null
+    : {
+        fill: surface === 'weiss' ? SHAREPIC_COLOR_HEX.mint : '#FFFFFF',
+        color: SHAREPIC_COLOR_HEX.dunkeltanne,
+      };
   const cardAccent: TextAccent = isAt
     ? { ...accent, fill: theme.colors.secondary }
     : { fill: KLEE };
@@ -528,6 +551,7 @@ function composeSlide(
       fill: textColor,
       align: xAlign,
       accent,
+      ...(marker ? { marker } : {}),
       ...shadow,
       ...extra,
     });
@@ -767,14 +791,14 @@ function composeSlide(
         case 'zitat': {
           // A quote has its own cap: long ones must not explode.
           const size = largestSizeWordsFit(
-            [item.text],
+            [stripMarks(item.text)],
             Math.round(52 * Math.min(scale, 1.5)),
             column.width,
             0,
             (w, s) => measure(w, s, theme.fonts.body, 'bold')
           );
           const mark = 90;
-          const lines = wrapWords(item.text, column.width, (l) =>
+          const lines = wrapWords(stripMarks(item.text), column.width, (l) =>
             measure(l, size, theme.fonts.body, 'normal')
           );
           const quoteHeight = lines.length * size * 1.2;

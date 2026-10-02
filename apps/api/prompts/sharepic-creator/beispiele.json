@@ -72,7 +72,7 @@
     "id": "de-zitat",
     "land": "de-DE",
     "anlass": "zitat",
-    "vorbild": "@die_gruenen, Zitatkarte: Porträt auf einer Seite, Zitat auf der freien Seite, Name fett darunter.",
+    "vorbild": "@die_gruenen, Zitatkarte: Porträt auf einer Seite, Zitat auf der freien Seite, eine Passage als Textmarker-Box, Name fett darunter.",
     "spec": {
       "slides": [
         {
@@ -86,7 +86,7 @@
           "items": [
             {
               "type": "zitat",
-              "text": "Wir haben ein intensives, herausforderndes, aber **sehr erfolgreiches** Jahr abgeschlossen.",
+              "text": "Wir haben ein intensives, herausforderndes, aber ++sehr erfolgreiches Jahr++ abgeschlossen.",
               "name": "Franziska Brantner",
               "funktion": "Grüne Bundesvorsitzende"
             }

@@ -124,7 +124,7 @@ export function validateReview(
       return {
         ok: false,
         error:
-          'Ein einzelnes == im Text – Hervorhebungen immer als ==Wort== paaren, ohne Leerzeichen innen.',
+          'Ein einzelnes == oder ++ im Text – Hervorhebungen immer als ==Wort== bzw. ++Passage++ paaren, ohne Leerzeichen innen.',
       };
     }
     const slide = op.slide ?? 0;

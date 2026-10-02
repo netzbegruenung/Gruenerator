@@ -20,7 +20,9 @@ import {
   type SharepicSpec,
   sharepicCreatorLocaleSchema,
   sharepicSpecSchema,
+  countMarkerPassages,
   hasUnpairedAccentMark,
+  SHAREPIC_MARKER_PASSAGES,
   tightenAccentMarksDeep,
 } from '@gruenerator/contracts';
 import { z } from 'zod';
@@ -91,6 +93,44 @@ function textsOf(slide: SharepicSlide): string[] {
   if (slide.ort) texts.push(...slide.ort.lines);
   if (slide.quelle) texts.push(slide.quelle);
   return texts;
+}
+
+/**
+ * `++marker++` is the DE text-marker box: allowed on quote text, paragraphs and
+ * headlines, at most twice per slide. AT never uses it (yellow `==accent==`
+ * there; the composer folds a stray `++` into one).
+ */
+function markerProblems(slide: SharepicSlide, locale: SharepicCreatorLocale, where: string) {
+  const problems: string[] = [];
+  let passages = 0;
+  for (const item of slide.items) {
+    const texts =
+      item.type === 'headline'
+        ? item.lines
+        : item.type === 'zitat' || item.type === 'absatz'
+          ? [item.text]
+          : null;
+    if (texts) passages += texts.reduce((n, t) => n + countMarkerPassages(t), 0);
+    else if (JSON.stringify(item).includes('++')) {
+      problems.push(
+        `${where}++…++ steht nur in zitat, absatz und headline – im Element "${item.type}" weglassen.`
+      );
+    }
+  }
+  if (JSON.stringify([slide.stoerer, slide.ort, slide.quelle]).includes('++')) {
+    problems.push(`${where}++…++ steht nur in zitat, absatz und headline.`);
+  }
+  if (locale === 'de-AT' && passages > 0) {
+    problems.push(
+      `${where}++…++ ist DE – für Österreich hervorgehobene Wörter als ==Wort== setzen.`
+    );
+  }
+  if (passages > SHAREPIC_MARKER_PASSAGES) {
+    problems.push(
+      `${where}Höchstens ${SHAREPIC_MARKER_PASSAGES} Textmarker-Passagen ++…++ pro Slide, hier sind es ${passages}.`
+    );
+  }
+  return problems;
 }
 
 /**
@@ -262,10 +302,11 @@ export function validateDraft(
         }
       }
     }
+    errors.push(...markerProblems(slide, locale, where));
     for (const text of textsOf(slide)) {
       if (hasUnpairedAccentMark(text)) {
         errors.push(
-          `${where}"${text}" enthält ein einzelnes == – Hervorhebungen immer als ==Wort== paaren, ohne Leerzeichen innen.`
+          `${where}"${text}" enthält ein einzelnes == oder ++ – Hervorhebungen immer als ==Wort== bzw. ++Passage++ paaren, ohne Leerzeichen innen.`
         );
       }
       const match = text.match(NO_CONTACT);
@@ -323,7 +364,7 @@ const SLIDE_SCHEMA = {
     items: {
       type: 'array',
       description:
-        'Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…]} | {"type":"button","text"}. Einzelne Wörter mit ==…== hervorheben.',
+        'Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…]} | {"type":"button","text"}. Einzelne Wörter mit ==…== hervorheben; nur Deutschland: bis zu 2 Passagen in zitat, absatz oder headline mit ++…++ (Textmarker-Box).',
       items: { type: 'object' },
     },
     stoerer: { type: 'object', description: '{"text"} oder weglassen' },

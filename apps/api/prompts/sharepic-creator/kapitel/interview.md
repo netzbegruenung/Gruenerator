@@ -16,7 +16,7 @@ Gilt, wenn der Auftrag ein Interview oder Statement einer genannten Person ist. 
 
 ## Deutschland
 
-Name fett, Medium regular: `name` plus `quelle` („im Interview mit dem Kasseler Boten“). Die Fragen tragen das Medium als `von`.
+Name fett, Medium regular: `name` plus `quelle` („im Interview mit dem Kasseler Boten“). Die Fragen tragen das Medium als `von`. Die Schlüsselstellen im Cover-Zitat und den Kernsatz im `absatz` legst du mit `++…++` auf eine Textmarker-Box (Regel im Kapitel `zitat`), statt sie fett oder mit `==…==` zu markieren.
 
 ## Österreich
 
