@@ -5,11 +5,14 @@ import {
 } from '@gruenerator/shared/api';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useQuery } from '@tanstack/react-query';
+import { BlurView } from 'expo-blur';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import * as WebBrowser from 'expo-web-browser';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,6 +22,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DEV_AUTH_BYPASS } from '../../services/devAuth';
+import { DEV_FIXTURE_COLLECTION, devResearchDocument } from '../../services/devResearchFixture';
 import { BODY_FONT, borderRadius, spacing, typography } from '../../theme';
 import { getSurfaceFab } from '../../theme/toolTheme';
 
@@ -88,9 +93,6 @@ function ReaderHeader({
             .join(' · ')}
         </Text>
       </View>
-      <Text style={[styles.title, { color: theme.text }]} accessibilityRole="header">
-        {doc.title}
-      </Text>
       {count > 0 ? (
         <ScrollView
           horizontal
@@ -103,6 +105,8 @@ function ReaderHeader({
               <Pressable
                 key={p.index}
                 onPress={() => onJump(p.index)}
+                // 30dp drawn, 44dp to tap.
+                hitSlop={{ top: 7, bottom: 7 }}
                 accessibilityRole="button"
                 accessibilityState={{ selected: on }}
                 accessibilityLabel={`Stelle ${p.index + 1}${p.heading ? `: ${p.heading}` : ''}`}
@@ -148,7 +152,12 @@ export function ResearchDocumentReader({ title, theme, onClose, ...params }: Pro
 
   const { data, isPending, isError } = useQuery({
     queryKey: researchDocumentQueryKey(params),
-    queryFn: () => fetchResearchDocument(params),
+    // The placeholder hits of the emulator's dev login open a placeholder
+    // document; the API has neither.
+    queryFn: () =>
+      DEV_AUTH_BYPASS && 'collectionId' in params && params.collectionId === DEV_FIXTURE_COLLECTION
+        ? Promise.resolve(devResearchDocument(params.sourceUrl, params.query))
+        : fetchResearchDocument(params),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -237,8 +246,16 @@ export function ResearchDocumentReader({ title, theme, onClose, ...params }: Pro
           hitSlop={8}
         >
           <Ionicons name="chevron-back" size={22} color={theme.text} />
-          <Text style={[styles.backText, { color: theme.text }]}>Ergebnisse</Text>
         </Pressable>
+        {/* The title lives up here, beside the arrow, so the text starts
+            right under the bar. */}
+        <Text
+          style={[styles.title, { color: theme.text }]}
+          numberOfLines={1}
+          accessibilityRole="header"
+        >
+          {data?.title ?? title}
+        </Text>
       </View>
 
       {data ? (
@@ -281,9 +298,6 @@ export function ResearchDocumentReader({ title, theme, onClose, ...params }: Pro
         />
       ) : (
         <View style={styles.content}>
-          <Text style={[styles.title, { color: theme.text }]} accessibilityRole="header">
-            {title}
-          </Text>
           {isPending && <ActivityIndicator color={accent} style={styles.loading} />}
           {isError && (
             <View style={styles.errorBox}>
@@ -297,53 +311,82 @@ export function ResearchDocumentReader({ title, theme, onClose, ...params }: Pro
       )}
 
       {count > 0 && (
-        <View
-          style={[
-            styles.bottomBar,
-            {
-              paddingBottom: insets.bottom + spacing.xxsmall,
-              borderColor: theme.cardBorder,
-              backgroundColor: theme.background,
-            },
-          ]}
-        >
+        // A small floating pill, bottom right within thumb reach: Liquid Glass
+        // where iOS has it, a blur everywhere else.
+        <StepperSurface dark={dark} bottom={insets.bottom + spacing.medium}>
           <Text
-            style={[styles.stepLabel, { color: theme.textSecondary }]}
+            style={[styles.stepLabel, { color: theme.text }]}
             accessibilityLiveRegion="polite"
+            accessibilityLabel={`Stelle ${active + 1} von ${count}`}
           >
-            Stelle {active + 1} von {count}
+            {active + 1}/{count}
           </Text>
           <Pressable
             onPress={() => step(-1)}
+            hitSlop={4}
             accessibilityRole="button"
             accessibilityLabel="Vorherige Stelle"
             style={styles.stepButton}
           >
-            <Ionicons name="chevron-up" size={22} color={theme.text} />
+            <Ionicons name="chevron-up" size={20} color={theme.text} />
           </Pressable>
           <Pressable
             onPress={() => step(1)}
+            hitSlop={4}
             accessibilityRole="button"
             accessibilityLabel="Nächste Stelle"
             style={styles.stepButton}
           >
-            <Ionicons name="chevron-down" size={22} color={theme.text} />
+            <Ionicons name="chevron-down" size={20} color={theme.text} />
           </Pressable>
-        </View>
+        </StepperSurface>
       )}
     </View>
+  );
+}
+
+function StepperSurface({
+  dark,
+  bottom,
+  children,
+}: {
+  dark: boolean;
+  bottom: number;
+  children: ReactNode;
+}) {
+  if (Platform.OS === 'ios' && isLiquidGlassAvailable()) {
+    return <GlassView style={[styles.stepper, { bottom }]}>{children}</GlassView>;
+  }
+  return (
+    <BlurView
+      intensity={60}
+      tint={dark ? 'dark' : 'light'}
+      style={[
+        styles.stepper,
+        styles.stepperBlur,
+        {
+          bottom,
+          backgroundColor: dark ? 'rgba(30, 30, 30, 0.8)' : 'rgba(255, 255, 255, 0.72)',
+        },
+      ]}
+    >
+      {children}
+    </BlurView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
   topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxsmall,
     paddingHorizontal: spacing.xsmall,
+    paddingRight: spacing.medium,
     paddingBottom: spacing.xxsmall,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  back: { flexDirection: 'row', alignItems: 'center', minHeight: 44, alignSelf: 'flex-start' },
-  backText: { fontFamily: BODY_FONT, fontSize: 16, marginLeft: 2 },
+  back: { width: 36, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: spacing.medium, paddingTop: spacing.large, paddingBottom: 96 },
   header: { gap: spacing.small, marginBottom: spacing.medium },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.xsmall },
@@ -355,20 +398,20 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontFamily: BODY_FONT, fontSize: 12, fontWeight: '600' },
   meta: { fontFamily: BODY_FONT, fontSize: 14 },
-  title: { ...typography.h2 },
-  chips: { gap: spacing.xsmall, paddingVertical: spacing.xxsmall },
+  title: { ...typography.bodyBold, fontSize: 16, flex: 1 },
+  chips: { gap: 6, paddingVertical: spacing.xsmall },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xsmall,
-    minHeight: 44,
-    maxWidth: 224,
-    paddingHorizontal: spacing.small,
+    gap: 5,
+    minHeight: 30,
+    maxWidth: 200,
+    paddingHorizontal: 10,
     borderWidth: 1,
     borderRadius: borderRadius.full,
   },
-  chipNo: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '700' },
-  chipText: { fontFamily: BODY_FONT, fontSize: 14, flexShrink: 1 },
+  chipNo: { fontFamily: BODY_FONT, fontSize: 12, fontWeight: '700' },
+  chipText: { fontFamily: BODY_FONT, fontSize: 12, flexShrink: 1 },
   hint: { fontFamily: BODY_FONT, fontSize: 14 },
   h2: { ...typography.h3, marginTop: spacing.small },
   paragraph: { fontFamily: BODY_FONT, fontSize: 17, lineHeight: 28 },
@@ -387,18 +430,28 @@ const styles = StyleSheet.create({
   webButtonText: { fontFamily: BODY_FONT, fontSize: 15, fontWeight: '600' },
   loading: { marginTop: spacing.large },
   errorBox: { marginTop: spacing.large, gap: spacing.medium, alignItems: 'flex-start' },
-  bottomBar: {
+  stepper: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
+    right: spacing.medium,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingHorizontal: spacing.xsmall,
-    paddingTop: spacing.xxsmall,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingLeft: spacing.small,
+    paddingRight: 2,
+    height: 44,
+    borderRadius: 22,
   },
-  stepLabel: { fontFamily: BODY_FONT, fontSize: 14, marginRight: spacing.xsmall },
-  stepButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  stepperBlur: {
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    elevation: 4,
+  },
+  stepLabel: {
+    fontFamily: BODY_FONT,
+    fontSize: 13,
+    fontWeight: '600',
+    marginRight: 2,
+    fontVariant: ['tabular-nums'],
+  },
+  stepButton: { width: 36, height: 40, alignItems: 'center', justifyContent: 'center' },
 });

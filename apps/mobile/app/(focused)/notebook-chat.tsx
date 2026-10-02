@@ -1,5 +1,5 @@
 import { NOTEBOOK_REGISTRY } from '@gruenerator/shared/notebooks';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 
@@ -28,6 +28,7 @@ export default function NotebookChatScreen() {
     initialMessage?: string;
     title?: string;
   }>();
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const displayTitle =
@@ -44,6 +45,8 @@ export default function NotebookChatScreen() {
   return (
     <ScreenScaffold
       title={displayTitle}
+      // Pushed from a notebook, so it leads back there, not into the drawer.
+      onBack={() => router.back()}
       backdrop={<NotebookGradientBackground />}
       headerRight={null}
     >

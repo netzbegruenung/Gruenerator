@@ -20,6 +20,7 @@ import {
 import { mobileGreeting } from '../../utils/greeting';
 import { Composer, useComposerEdge, type ComposerAccessory } from '../common/Composer';
 
+import { ChatAccentProvider } from './chatAccent';
 import { CompactionIndicator } from './CompactionIndicator';
 import { MessageBubble } from './MessageBubble';
 
@@ -61,7 +62,8 @@ interface Props {
    *  it rides up with the keyboard and needs no `keyboardVerticalOffset` (the
    *  notebook chat's active filters). */
   composerHeader?: ReactNode;
-  /** The composer's accent (send button, cursor); the app green by default. */
+  /** The thread's accent — send button, cursor and the user's bubble; the app
+   *  green by default. */
   composerAccent?: string;
 }
 
@@ -151,54 +153,56 @@ export const AssistantThread = memo(function AssistantThread({
   const composerEdge = useComposerEdge();
 
   return (
-    <KeyboardAvoidingView
-      behavior="padding"
-      keyboardVerticalOffset={keyboardVerticalOffset}
-      style={styles.container}
-    >
-      <ThreadPrimitive.Root
-        style={[
-          styles.container,
-          { backgroundColor: transparent ? 'transparent' : theme.background },
-        ]}
+    <ChatAccentProvider value={composerAccent ?? null}>
+      <KeyboardAvoidingView
+        behavior="padding"
+        keyboardVerticalOffset={keyboardVerticalOffset}
+        style={styles.container}
       >
-        <AuiIf condition={(s) => s.thread.isEmpty}>
-          <EmptyState theme={theme} welcome={welcome} />
-        </AuiIf>
-        {/* Above the list rather than inside it, like web: the summary covers
-            the whole thread, not one message. */}
-        <CompactionIndicator theme={theme} />
-        <ThreadPrimitive.Messages
-          contentContainerStyle={messagesContentStyle}
-          keyboardDismissMode="interactive"
+        <ThreadPrimitive.Root
+          style={[
+            styles.container,
+            { backgroundColor: transparent ? 'transparent' : theme.background },
+          ]}
         >
-          {renderMessage}
-        </ThreadPrimitive.Messages>
-        {/* The bottom padding is animated rather than switched, because it is
+          <AuiIf condition={(s) => s.thread.isEmpty}>
+            <EmptyState theme={theme} welcome={welcome} />
+          </AuiIf>
+          {/* Above the list rather than inside it, like web: the summary covers
+            the whole thread, not one message. */}
+          <CompactionIndicator theme={theme} />
+          <ThreadPrimitive.Messages
+            contentContainerStyle={messagesContentStyle}
+            keyboardDismissMode="interactive"
+          >
+            {renderMessage}
+          </ThreadPrimitive.Messages>
+          {/* The bottom padding is animated rather than switched, because it is
             two different numbers and the change has to happen *with* the
             keyboard. Stepping it on `keyboardDidShow` would drop the composer
             22dp in one frame, halfway through the keyboard's own animation.
             See COMPOSER_BOTTOM_INSET for the two numbers. */}
-        <Animated.View style={composerPadding}>
-          {composerHeader ? <View style={column}>{composerHeader}</View> : null}
-          <Composer
-            binding="runtime"
-            variant="bar"
-            showActionSheet={!bareComposer}
-            showMentions={!bareComposer}
-            theme={theme}
-            style={[
-              composerEdge,
-              { backgroundColor: transparent ? 'transparent' : theme.background },
-            ]}
-            testIDPrefix="chat-composer"
-            inputRef={composerInputRef}
-            accessory={composerAccessory}
-            accentColor={composerAccent}
-          />
-        </Animated.View>
-      </ThreadPrimitive.Root>
-    </KeyboardAvoidingView>
+          <Animated.View style={composerPadding}>
+            {composerHeader ? <View style={column}>{composerHeader}</View> : null}
+            <Composer
+              binding="runtime"
+              variant="bar"
+              showActionSheet={!bareComposer}
+              showMentions={!bareComposer}
+              theme={theme}
+              style={[
+                composerEdge,
+                { backgroundColor: transparent ? 'transparent' : theme.background },
+              ]}
+              testIDPrefix="chat-composer"
+              inputRef={composerInputRef}
+              accessory={composerAccessory}
+              accentColor={composerAccent}
+            />
+          </Animated.View>
+        </ThreadPrimitive.Root>
+      </KeyboardAvoidingView>
+    </ChatAccentProvider>
   );
 });
 

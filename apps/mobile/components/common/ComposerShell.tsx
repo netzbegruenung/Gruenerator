@@ -261,16 +261,19 @@ const styles = StyleSheet.create({
   // hero's page background, the chat thread's message list. The in-thread
   // composer had none before this shell and now picks it up.
   // No border, no shadow — the fill alone separates it from the page.
+  // 12dp to the edge and 8dp between the controls (measured on the emulator:
+  // it was 18 outside and 4.6 between, so the row read as loose at the edges
+  // and cramped in the middle).
   card: {
     borderRadius: borderRadius.xlarge,
-    paddingHorizontal: spacing.medium,
+    paddingHorizontal: 12,
     paddingTop: spacing.small,
     paddingBottom: spacing.xsmall,
   },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xxsmall,
+    gap: spacing.xsmall,
     marginTop: spacing.xsmall,
   },
   spacer: {
