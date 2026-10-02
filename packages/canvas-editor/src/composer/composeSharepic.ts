@@ -438,7 +438,11 @@ function composeSlide(
   const kiHeight = KI_LABEL.fontSize + 2 * KI_LABEL.paddingY;
   const kiTop = HEIGHT - kiHeight - KI_LABEL.margin;
   const quelleSize = 24;
-  const quelleWidth = WIDTH - 2 * MARGIN - 260;
+  // A centred logo owns the middle of the footer: the source wraps left of it.
+  const quelleWidth =
+    spec.logo && xAlign === 'center' && !spec.ort
+      ? WIDTH / 2 - logo.size / 2 - 20 - MARGIN
+      : WIDTH - 2 * MARGIN - 260;
   const quelleText = spec.quelle ? `Quelle: ${spec.quelle.replace(/^Quelle:\s*/i, '')}` : '';
   // The block's bottom sits just above the label, however many lines it wraps to.
   const quelleLines = spec.quelle
@@ -453,6 +457,8 @@ function composeSlide(
       ? quelleY
       : kiTop - KI_LABEL.gap
     : HEIGHT - FOOTER / 2 + 20;
+  // The text group stops above the source, whatever its line count.
+  if (spec.quelle) areaBottom = Math.min(areaBottom, quelleY - 20);
 
   // ── The text group ───────────────────────────────────────────────────────
   const text = (

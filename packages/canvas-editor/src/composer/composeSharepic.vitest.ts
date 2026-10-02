@@ -717,6 +717,8 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
     items,
     ...extra,
   });
+  const LONG_QUELLE =
+    'Statistisches Bundesamt, Erhebung zu Einkommen und Lebensbedingungen, Wiesbaden 2025, eigene Berechnung';
   const cases: Record<string, SharepicSpec> = {
     farbe: { locale, slides: [farbeSlide()] },
     'farbe + logo': { locale, slides: [farbeSlide({ logo: true })] },
@@ -733,6 +735,10 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
             'Statistisches Bundesamt, Erhebung zu Einkommen und Lebensbedingungen, Wiesbaden 2025, eigene Berechnung',
         }),
       ],
+    },
+    'zentriert + logo + lange quelle': {
+      locale,
+      slides: [farbeSlide({ logo: true, align: 'zentriert', quelle: LONG_QUELLE })],
     },
     'farbe + ort + quelle + logo': {
       locale,
@@ -855,6 +861,32 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — KI label (%s)', 
     const plate = slide.shapeInstances.find((s) => s.id === 'sc-ki-label-bg')!;
     expect(measure(quelle.text, 24)).toBeGreaterThan(quelle.width);
     expect(quelle.y + 2 * 24 * 1.2).toBeLessThanOrEqual(plate.y - plate.height / 2);
+  });
+
+  it('keeps a long source clear of a centred logo and the label', () => {
+    const slide = one(cases['zentriert + logo + lange quelle']!);
+    const quelle = slide.additionalTexts.find((t) => t.id === 'sc-quelle')!;
+    const logo = slide.assetInstances[0]!;
+    const plate = slide.shapeInstances.find((s) => s.id === 'sc-ki-label-bg')!;
+    expect(quelle.x + quelle.width).toBeLessThan(logo.x - (logo.scale * 150) / 2);
+    const lines = Math.ceil(measure(quelle.text, 24) / quelle.width);
+    expect(lines).toBeGreaterThan(2);
+    expect(quelle.y + lines * 24 * 1.2).toBeLessThanOrEqual(plate.y - plate.height / 2);
+  });
+
+  it('keeps the text block above a three-line source at position unten', () => {
+    const slide = one({
+      locale,
+      slides: [farbeSlide({ position: 'unten', quelle: `${LONG_QUELLE}, ${LONG_QUELLE}` })],
+    });
+    const quelle = slide.additionalTexts.find((t) => t.id === 'sc-quelle')!;
+    expect(Math.ceil(measure(quelle.text, 24) / quelle.width)).toBeGreaterThanOrEqual(3);
+    const blockBottom = Math.max(
+      ...others(slide)
+        .filter((b) => b.id !== 'sc-quelle')
+        .map((b) => b.y + b.h)
+    );
+    expect(blockBottom).toBeLessThanOrEqual(quelle.y);
   });
 
   it('shortens or omits the label on request', () => {
