@@ -323,6 +323,42 @@ describe('quotes keep their speaker', () => {
     );
   });
 
+  it('accepts quelle and frage within their limits and rejects longer ones', () => {
+    const slide = (items: unknown[]) => ({
+      locale: 'de-DE',
+      slides: [{ ...base, items }],
+    });
+    const ok = sharepicSpecSchema.safeParse(
+      slide([
+        { type: 'zitat', text: 'x', name: 'A', quelle: 'im FAZ-Interview' },
+        { type: 'frage', text: 'Warum?', von: 'SZ' },
+      ])
+    );
+    expect(ok.success).toBe(true);
+    const longQuelle = sharepicSpecSchema.safeParse(
+      slide([{ type: 'zitat', text: 'x', name: 'A', quelle: 'q'.repeat(81) }])
+    );
+    const longFrage = sharepicSpecSchema.safeParse(
+      slide([{ type: 'frage', text: 'q'.repeat(161) }])
+    );
+    expect(longQuelle.success).toBe(false);
+    expect(longFrage.success).toBe(false);
+  });
+
+  it('rejects an unpaired accent mark in quelle and frage', () => {
+    const slides = [
+      {
+        ...base,
+        items: [
+          { type: 'frage', text: 'Ist ==das so?', von: 'SZ' },
+          { type: 'absatz', text: 'Ja.' },
+        ],
+      },
+    ] as never;
+    const result = validateDraft({ slides }, 'de-DE', 'Interview');
+    expect(result.ok).toBe(false);
+  });
+
   it('drops review ops that would turn a zitat into a headline or remove it', () => {
     const slides = [
       { ...base, items: [{ type: 'zitat', text: 'x', name: 'Sabine Moser' }] },

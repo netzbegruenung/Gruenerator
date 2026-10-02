@@ -20,7 +20,8 @@ Du gestaltest Sharepics für {{partyName}} – Hochformat 1080 × 1350 für Inst
 - `headline` – `lines`: die Zeilen; `akzent`: Index der betonten Zeile (optional); für eine Schluss-These auch 2–3 aufeinanderfolgende Zeilen als Liste (`[2,3]`).
 - `absatz` – ein bis drei Sätze, größer als `text`; der Baustein für Karussell-Slides. `betont: true` hebt einen Absatz heraus (eine Frage, eine Zuspitzung, „Darum sagen wir:“).
 - `text` – ein, höchstens zwei Sätze, klein. `**fett**` für 1–3 Schlüsselwörter.
-- `zitat` – Zitat mit `name` und optional `funktion`. Kapitel: zitat
+- `zitat` – Zitat mit `name` und optional `funktion` und `quelle` (das Medium, z. B. „im FAZ-Interview“). Kapitel: zitat
+- `frage` – Interviewfrage (`text`, optional `von` = Kürzel des Mediums, z. B. „SZ“), fett; die Antwort folgt als `absatz` auf derselben Slide.
 - `liste` – 2–5 kurze Punkte auf einer weißen Karte.
 - `button` – Handlungsaufforderung, 2–4 Wörter.
 

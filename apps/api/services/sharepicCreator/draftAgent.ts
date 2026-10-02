@@ -79,7 +79,9 @@ function textsOf(slide: SharepicSlide): string[] {
       case 'liste':
         return item.items;
       case 'zitat':
-        return [item.text, item.name, item.funktion ?? ''];
+        return [item.text, item.name, item.funktion ?? '', item.quelle ?? ''];
+      case 'frage':
+        return [item.text, item.von ?? ''];
       default:
         return [item.text];
     }
@@ -227,7 +229,7 @@ const SLIDE_SCHEMA = {
     items: {
       type: 'array',
       description:
-        'Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?} | {"type":"liste","items":[…]} | {"type":"button","text"}. Einzelne Wörter mit ==…== hervorheben.',
+        'Der Textblock in Lesereihenfolge: {"type":"dachzeile","text"} | {"type":"headline","lines":[…],"akzent"?:Zeilenindex oder [Indizes]} | {"type":"absatz","text","betont"?:true} | {"type":"text","text"} | {"type":"zitat","text","name","funktion"?,"quelle"?} | {"type":"frage","text","von"?} | {"type":"liste","items":[…]} | {"type":"button","text"}. Einzelne Wörter mit ==…== hervorheben.',
       items: { type: 'object' },
     },
     stoerer: { type: 'object', description: '{"text"} oder weglassen' },
