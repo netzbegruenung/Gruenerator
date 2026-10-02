@@ -1,6 +1,6 @@
 'use client';
 
-import { ActionBarPrimitive } from '@assistant-ui/react';
+import { ActionBarPrimitive, useAuiState } from '@assistant-ui/react';
 import { sourceLinksToCitations } from '@gruenerator/shared/utils';
 import {
   DropdownMenuItem,
@@ -77,6 +77,7 @@ export const MessageActions = memo(function MessageActions({
   const content = sourceLinksToCitations(rawContent);
   const isCompact = useChatDensity() === 'compact';
   const readOnly = useReadonlyMode();
+  const canReload = useAuiState((s) => s.thread.capabilities.reload);
   const handleRegenerate = useRegenerateMessage();
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<DocumentActionId | null>(null);
@@ -282,7 +283,7 @@ export const MessageActions = memo(function MessageActions({
           </ResponsiveMenuSection>
         }
       />
-      {!readOnly && (
+      {!readOnly && canReload && (
         <button
           onClick={handleRegenerate}
           className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
