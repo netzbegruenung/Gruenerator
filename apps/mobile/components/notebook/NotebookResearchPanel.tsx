@@ -1,11 +1,8 @@
 import {
-  DEFAULT_NOTEBOOK_ANSWER_MODE,
   DEFAULT_NOTEBOOK_DEPTH,
-  NOTEBOOK_COMPOSER_MODES,
   NOTEBOOK_DEPTHS,
   composerModeRunsLiveSearch,
   composerSubmitAction,
-  notebookComposerModeDef,
   notebookDepthDef,
   useFetchFullText,
 } from '@gruenerator/chat';
@@ -45,7 +42,7 @@ import { devResearchFixture } from '../../services/devResearchFixture';
 import { useNotebookFilterStore } from '../../stores/notebookFilterStore';
 import { usePreferencesStore } from '../../stores/preferencesStore';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../theme';
-import { getSurfaceFab, NOTEBOOK_COMPOSER_ACCENT } from '../../theme/toolTheme';
+import { getSurfaceFab, getToolTheme, NOTEBOOK_COMPOSER_ACCENT } from '../../theme/toolTheme';
 import { routeWithParams } from '../../types/routes';
 import { CitationDetailSheet } from '../chat/CitationDetailSheet';
 import { BottomComposerBar } from '../common/BottomComposerBar';
@@ -171,7 +168,6 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   const depth = usePreferencesStore((st) => st.notebookDepth);
   const setDepth = usePreferencesStore((st) => st.setNotebookDepth);
   const answerMode = usePreferencesStore((st) => st.notebookAnswerMode);
-  const setAnswerMode = usePreferencesStore((st) => st.setNotebookAnswerMode);
   const openAnswerModeSheet = useCallback(() => setAnswerModeSheetVisible(true), []);
   const answerModeAccessory = useAnswerModeAccessory(openAnswerModeSheet, { withManual: true });
   const availableCollections = getResearchCollectionIds(notebookId);
@@ -179,7 +175,9 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   useEffect(() => {
     setNotebook(notebookId);
   }, [notebookId, setNotebook]);
-  const fabTone = getSurfaceFab('wissen', useColorScheme() === 'dark');
+  const isDark = useColorScheme() === 'dark';
+  const fabTone = getSurfaceFab('wissen', isDark);
+  const wissenText = getToolTheme('wissen', isDark).title;
   // Selected chips, badges and the send button carry the notebook's own hue; the
   // pastel side of the pair doubles as the readable colour on top of it.
   const accent = fabTone.icon;
@@ -262,7 +260,6 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   const activeCount =
     (runsLiveSearch ? (mode !== 'hybrid' ? 1 : 0) + (sortBy !== 'relevance' ? 1 : 0) : 0) +
     (asksModel && depth !== DEFAULT_NOTEBOOK_DEPTH ? 1 : 0) +
-    (answerMode !== DEFAULT_NOTEBOOK_ANSWER_MODE ? 1 : 0) +
     (collectionIds ? 1 : 0) +
     keywordFilterCount;
 
@@ -309,7 +306,6 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
 
   const resetFilters = () => {
     resetStoreFilters();
-    void setAnswerMode(DEFAULT_NOTEBOOK_ANSWER_MODE);
     // Zählen hier in `activeCount`, also muss "Zurücksetzen" sie mitnehmen —
     // obwohl sie als Einstellung das Sheet überlebt.
     if (asksModel) void setDepth(DEFAULT_NOTEBOOK_DEPTH);
@@ -396,6 +392,17 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         onSettings={() => setFiltersSheetVisible(true)}
         accessory={answerModeAccessory}
         accentColor={NOTEBOOK_COMPOSER_ACCENT}
+        variant="card"
+        // A search field first: return searches (or asks), never breaks a line.
+        submitOnEnter
+        minHeight={0}
+        // Glyphs 5.6:1 on the pastel, the label in the palette's text tone
+        // 7.0:1 (dark: 6.2:1 / 10.2:1) — WCAG AA for both.
+        toolbarTone={{
+          background: fabTone.background,
+          foreground: fabTone.icon,
+          text: wissenText,
+        }}
         header={
           showsResults && chips.length > 0 ? (
             <View style={styles.composerHeader}>
@@ -437,25 +444,8 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
           </Pressable>
         </View>
         <ScrollView style={styles.sheetScroll}>
-          <View style={styles.filterSection}>
-            <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Antwortmodus</Text>
-            <View style={styles.filterValues}>
-              {NOTEBOOK_COMPOSER_MODES.map((m) => (
-                <OptionChip
-                  key={m.mode}
-                  label={m.label}
-                  active={answerMode === m.mode}
-                  onPress={() => void setAnswerMode(m.mode)}
-                  theme={theme}
-                  accent={accent}
-                  onAccent={onAccent}
-                />
-              ))}
-            </View>
-            <Text style={[styles.filterSectionHint, { color: theme.textSecondary }]}>
-              {notebookComposerModeDef(answerMode).description}
-            </Text>
-          </View>
+          {/* No answer mode here: it has its own picker on the composer
+              („Magic ▾“), as on web. */}
           {/* Nur wo eine KI-Antwort entstehen kann: die drei Stufen, die Web am
               Notebook-Composer zeigt. Auf die Trefferliste wirken sie nicht. */}
           {asksModel && (

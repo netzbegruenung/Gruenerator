@@ -92,7 +92,7 @@ describe('ResearchDocumentReader (mobile)', () => {
 
     expect(await screen.findByLabelText('Stelle 1: Forderungen')).toBeTruthy();
     expect(screen.getByLabelText('Stelle 2: Forderungen')).toBeTruthy();
-    expect(screen.getByText('Stelle 1 von 2')).toBeTruthy();
+    expect(screen.getByLabelText('Stelle 1 von 2')).toBeTruthy();
     expect(mockFetch).toHaveBeenCalledWith({
       collectionId: 'berlin-system',
       sourceUrl: DOC.sourceUrl,
@@ -103,14 +103,14 @@ describe('ResearchDocumentReader (mobile)', () => {
   it('steps through the passages and wraps around', async () => {
     mockFetch.mockResolvedValue(DOC);
     renderReader();
-    await screen.findByText('Stelle 1 von 2');
+    await screen.findByLabelText('Stelle 1 von 2');
 
     fireEvent.press(screen.getByLabelText('Nächste Stelle'));
-    expect(screen.getByText('Stelle 2 von 2')).toBeTruthy();
+    expect(screen.getByLabelText('Stelle 2 von 2')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Nächste Stelle'));
-    expect(screen.getByText('Stelle 1 von 2')).toBeTruthy();
+    expect(screen.getByLabelText('Stelle 1 von 2')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Vorherige Stelle'));
-    expect(screen.getByText('Stelle 2 von 2')).toBeTruthy();
+    expect(screen.getByLabelText('Stelle 2 von 2')).toBeTruthy();
   });
 
   it('shows the hint and no stepping when nothing single matched', async () => {

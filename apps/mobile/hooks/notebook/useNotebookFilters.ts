@@ -3,6 +3,8 @@ import { type ResearchFacetVocabulary } from '@gruenerator/shared/utils';
 import { useMemo } from 'react';
 
 import { getResearchCollectionIds } from '../../config/notebooksConfig';
+import { DEV_AUTH_BYPASS } from '../../services/devAuth';
+import { DEV_RESEARCH_FACETS } from '../../services/devResearchFixture';
 
 export interface FilterFieldValues {
   field: string;
@@ -24,17 +26,20 @@ export function useNotebookFilters(notebookId: string, kind: 'system' | 'user') 
     collectionIds,
     enabled: kind === 'system' && collectionIds.length > 0,
   });
-  const facets = query.data ?? NO_FACETS;
+  // The emulator's dev login cannot load the vocabulary; placeholder facets
+  // stand in so the options sheet can be looked at.
+  const data = DEV_AUTH_BYPASS && query.isError ? DEV_RESEARCH_FACETS : query.data;
+  const facets = data ?? NO_FACETS;
 
   const filterFields = useMemo(
     (): FilterFieldValues[] =>
-      Object.entries(query.data ?? {}).map(([field, e]) => ({
+      Object.entries(data ?? {}).map(([field, e]) => ({
         field,
         label: e.label ?? field,
         type: e.type === 'date_range' ? 'date_range' : 'keyword',
         ...(e.values && { values: e.values }),
       })),
-    [query.data]
+    [data]
   );
 
   return { facets, filterFields, isLoading: query.isLoading };
