@@ -22,6 +22,7 @@ import {
   ActivityIndicator,
   Alert,
   Keyboard,
+  useColorScheme,
 } from 'react-native';
 
 import { useContentColumn } from '../../hooks/useLayout';
@@ -36,7 +37,7 @@ import {
   pickedDocumentToAttachment,
   type PickedDocument,
 } from '../../services/documentPicker';
-import { borderRadius, chatType, colors, spacing } from '../../theme';
+import { chatType, colors, spacing } from '../../theme';
 import { ComposerAttachmentUI } from '../chat/AttachmentUI';
 import { ComposerActionSheet } from '../chat/ComposerActionSheet';
 import { DocumentBrowserSheet } from '../chat/DocumentBrowserSheet';
@@ -52,6 +53,7 @@ import {
   COMPOSER_ACTION_FILL,
   type ComposerVariant,
 } from './ComposerShell';
+import { SettingsTwoIcon } from './SettingsTwoIcon';
 
 /** Module-level so the memoized primitive sees a stable children reference. */
 const renderComposerAttachment = () => <ComposerAttachmentUI />;
@@ -133,6 +135,12 @@ export interface ComposerProps {
   /** Fill of the send/search button, the active accessory and the cursor.
    *  The app green by default; the notebook surfaces pass their magenta. */
   accentColor?: string;
+  /** Plate and glyph colour of the `card` toolbar's controls — a surface's
+   *  pastel/strong pair (the notebook's Wissen tone). Neutral grey otherwise. */
+  toolbarTone?: { background: string; foreground: string; text?: string };
+  /** The keyboard's return key submits instead of breaking the line. On by
+   *  default for `bar`; a `card` that is a search field (the notebook) sets it. */
+  submitOnEnter?: boolean;
   inputRef?: React.RefObject<TextInput | null>;
   /** Enables `<prefix>-input` / `<prefix>-send` testIDs for the Maestro flows. */
   testIDPrefix?: string;
@@ -369,6 +377,7 @@ function ComposerBody({
   const theme = props.theme ?? resolvedTheme;
   const variant = props.variant ?? 'card';
   const isBar = variant === 'bar';
+  const enterSubmits = props.submitOnEnter ?? isBar;
   const iconSize = composerIconSize(variant);
   const showMentions = props.showMentions ?? true;
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
@@ -414,23 +423,54 @@ function ComposerBody({
   // Mounting the composer warms the dynamic mentionable lists, as on web.
   useMentionablesSync();
 
+  // The card variant's controls sit on a light plate, as in Claude's composer:
+  // tinted with the surface's accent where there is one (the notebook berry),
+  // neutral grey otherwise.
+  const isCard = variant === 'card';
+  const isDark = useColorScheme() === 'dark';
+  const softFill =
+    props.toolbarTone?.background ?? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)');
+  const toolGlyph = (isCard && props.toolbarTone?.foreground) || theme.textSecondary;
+  const plate = isCard ? { backgroundColor: softFill } : null;
+  const accessoryPill = props.accessory?.label ? (
+    <Pressable
+      onPress={props.accessory.onPress}
+      style={isCard ? [styles.accessoryPill, plate] : styles.accessoryChip}
+      hitSlop={ACCESSORY_CHIP_HIT_SLOP}
+      accessibilityRole="button"
+      accessibilityLabel={props.accessory.accessibilityLabel ?? props.accessory.label}
+    >
+      {/* Plain text: the bar is tight, and a frame, icon and chevron
+          around one word cost more room than they explained. */}
+      <Text
+        style={[
+          styles.accessoryChipText,
+          { color: (isCard && props.toolbarTone?.text) || toolGlyph },
+        ]}
+        numberOfLines={1}
+      >
+        {props.accessory.label}
+      </Text>
+    </Pressable>
+  ) : null;
+
   const leading = props.showActionSheet ? (
     <Pressable
       onPress={() => setActionSheetVisible(true)}
-      style={composerIconButtonStyle(variant)}
+      style={[composerIconButtonStyle(variant), plate]}
       hitSlop={6}
       accessibilityLabel="Anhänge und Werkzeuge"
     >
-      <Ionicons name="add" size={iconSize + 2} color={theme.textSecondary} />
+      <Ionicons name="add" size={iconSize + 2} color={toolGlyph} />
     </Pressable>
   ) : props.onSettings ? (
     <Pressable
       onPress={props.onSettings}
-      style={composerIconButtonStyle(variant)}
+      style={[composerIconButtonStyle(variant), plate]}
       hitSlop={6}
       accessibilityLabel="Einstellungen"
     >
-      <Ionicons name="options-outline" size={iconSize} color={theme.textSecondary} />
+      <SettingsTwoIcon size={iconSize} color={toolGlyph} />
     </Pressable>
   ) : props.onClose ? (
     <Pressable
@@ -481,9 +521,11 @@ function ComposerBody({
             accessibilityLabel="Nachricht eingeben"
             multiline
             textAlignVertical="top"
-            returnKeyType={isBar ? 'send' : 'default'}
-            blurOnSubmit={isBar}
-            onSubmitEditing={isBar ? onSubmitEditing : undefined}
+            returnKeyType={
+              enterSubmits ? (props.submitAs === 'search' ? 'search' : 'send') : 'default'
+            }
+            blurOnSubmit={enterSubmits}
+            onSubmitEditing={enterSubmits ? onSubmitEditing : undefined}
             onChangeText={input.onChangeText}
             onSelectionChange={input.onSelectionChange}
             autoFocus={props.autoFocus}
@@ -498,7 +540,9 @@ function ComposerBody({
         }
         leading={leading}
         toolbarExtra={
-          props.accessory && !props.accessory.label ? (
+          isCard && accessoryPill ? (
+            accessoryPill
+          ) : props.accessory && !props.accessory.label ? (
             <Pressable
               onPress={props.accessory.onPress}
               style={composerIconButtonStyle(variant)}
@@ -517,26 +561,7 @@ function ComposerBody({
             </Pressable>
           ) : null
         }
-        beforeAction={
-          props.accessory?.label ? (
-            <Pressable
-              onPress={props.accessory.onPress}
-              style={[styles.accessoryChip, { borderColor: theme.border }]}
-              hitSlop={ACCESSORY_CHIP_HIT_SLOP}
-              accessibilityRole="button"
-              accessibilityLabel={props.accessory.accessibilityLabel ?? props.accessory.label}
-            >
-              <Ionicons name={props.accessory.icon} size={14} color={theme.textSecondary} />
-              <Text
-                style={[styles.accessoryChipText, { color: theme.textSecondary }]}
-                numberOfLines={1}
-              >
-                {props.accessory.label}
-              </Text>
-              <Ionicons name="chevron-down" size={12} color={theme.textSecondary} />
-            </Pressable>
-          ) : null
-        }
+        beforeAction={isCard ? null : accessoryPill}
         // One merged button: cancel while a request runs, mic while empty, send
         // once there is text.
         action={
@@ -550,7 +575,7 @@ function ComposerBody({
                 composerActionButtonStyle(variant),
                 input.isListening
                   ? { backgroundColor: colors.error[500] }
-                  : { backgroundColor: 'transparent' },
+                  : { backgroundColor: isCard ? softFill : 'transparent' },
               ]}
               hitSlop={6}
               accessibilityLabel={input.isListening ? 'Diktat beenden' : 'Diktieren'}
@@ -558,7 +583,7 @@ function ComposerBody({
               <Ionicons
                 name={input.isListening ? 'stop' : 'mic'}
                 size={iconSize}
-                color={input.isListening ? colors.white : theme.textSecondary}
+                color={input.isListening ? colors.white : toolGlyph}
               />
             </Pressable>
           ))
@@ -797,15 +822,21 @@ const styles = StyleSheet.create({
   accessoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     // minHeight, not height: a large font scale must grow the chip, not clip it.
     minHeight: 36,
-    paddingHorizontal: spacing.xsmall,
-    borderRadius: borderRadius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
+    paddingLeft: 4,
+    // Clear of the send button, which it would otherwise sit against.
+    paddingRight: spacing.xsmall,
+  },
+  accessoryPill: {
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.small,
+    borderRadius: 18,
   },
   accessoryChipText: {
-    ...chatType.chatLabel,
+    ...chatType.chatSecondary,
+    fontWeight: '500',
   },
 });
 

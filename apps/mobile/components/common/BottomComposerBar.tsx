@@ -31,6 +31,10 @@ export function BottomComposerBar({
   accessory,
   accentColor,
   header,
+  variant = 'bar',
+  minHeight,
+  toolbarTone,
+  submitOnEnter,
 }: {
   placeholder?: string;
   /** Return `false` to keep the text in the field (a search, not a send). */
@@ -47,6 +51,11 @@ export function BottomComposerBar({
   showMentions?: ComposerProps['showMentions'];
   accessory?: ComposerProps['accessory'];
   accentColor?: ComposerProps['accentColor'];
+  /** `card` stacks the input above its toolbar (two rows); `bar` is one pill. */
+  variant?: ComposerProps['variant'];
+  minHeight?: ComposerProps['minHeight'];
+  toolbarTone?: ComposerProps['toolbarTone'];
+  submitOnEnter?: ComposerProps['submitOnEnter'];
   /** Rides on top of the composer, up with the keyboard (filter chips, a hint). */
   header?: ReactNode;
 }) {
@@ -86,7 +95,10 @@ export function BottomComposerBar({
       <View style={[edge, { paddingBottom }]}>
         {header}
         <Composer
-          variant="bar"
+          variant={variant}
+          minHeight={minHeight}
+          toolbarTone={toolbarTone}
+          submitOnEnter={submitOnEnter}
           testIDPrefix="tab-composer"
           placeholder={placeholder}
           onSubmit={onSend}

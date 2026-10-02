@@ -101,7 +101,7 @@ export const NotebookAnswerModeSheet = memo(function NotebookAnswerModeSheet({
           {modes.map((def, i) => (
             <ListRow
               key={def.mode}
-              icon={ANSWER_MODE_ICONS[def.mode]}
+              dense
               title={def.label}
               {...(def.recommended && { titleBadge: 'Empfohlen' })}
               value={def.description}
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontFamily: HEADING_FONT_BOLD,
-    fontSize: 22,
+    fontSize: 17,
   },
   content: {
     paddingHorizontal: spacing.medium,
