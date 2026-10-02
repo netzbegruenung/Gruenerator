@@ -29,14 +29,7 @@ const collection = {
 function setup(props: Partial<Parameters<typeof HubHero>[0]> = {}) {
   const onSave = vi.fn();
   const utils = render(
-    <HubHero
-      collection={collection}
-      total={3}
-      canEdit
-      startEditingTitle={false}
-      onSave={onSave}
-      {...props}
-    />
+    <HubHero collection={collection} canEdit startEditingTitle={false} onSave={onSave} {...props} />
   );
   return { ...utils, onSave, user: userEvent.setup() };
 }
@@ -91,10 +84,14 @@ describe('HubHero', () => {
     expect(screen.getByRole('textbox', { name: 'Namen bearbeiten' })).toHaveFocus();
   });
 
-  it('zeigt Labels und Quellenzahl', () => {
-    setup();
+  it('zeigt Labels, Werkzeugleiste und Aktionen', () => {
+    setup({
+      toolbar: <button type="button">Suchen</button>,
+      actions: <button type="button">+ Dateien hochladen</button>,
+    });
     expect(screen.getByText('Presse')).toBeInTheDocument();
-    expect(screen.getByText(/3 Quellen/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Suchen' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ Dateien hochladen' })).toBeInTheDocument();
   });
 
   it('hat keine axe-Verstöße', async () => {
