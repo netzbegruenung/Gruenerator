@@ -1,5 +1,4 @@
 import { Image as BrandImage } from 'expo-image';
-import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
@@ -22,6 +21,7 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { LegalNotice } from '../../components/auth/LegalNotice';
 import { LoginPanel } from '../../components/auth/LoginPanel';
 import { darkTheme, lightTheme, spacing, typography, HEADING_FONT_BOLD } from '../../theme';
+import { goBackOr } from '../../utils/navigation';
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const BRAND_LOGO = require('../../assets/images/sonnenblume.png') as ImageSourcePropType;
@@ -131,7 +131,11 @@ export default function LoginScreen() {
 
         <View style={styles.footer}>
           <LegalNotice color={theme.textSecondary} />
-          <Pressable onPress={() => router.back()} style={styles.cancel} accessibilityRole="button">
+          <Pressable
+            onPress={() => goBackOr('/(auth)/onboarding')}
+            style={styles.cancel}
+            accessibilityRole="button"
+          >
             <Text style={[styles.cancelText, { color: theme.textSecondary }]}>Abbrechen</Text>
           </Pressable>
         </View>

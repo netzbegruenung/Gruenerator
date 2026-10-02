@@ -14,13 +14,10 @@ export type AppRoute =
   | '/start'
   // Tools
   | '/(focused)/reel'
-  | '/(focused)/ki-bildgenerierung'
-  | '/(focused)/image-studio'
   | '/(focused)/scanner'
   | '/(focused)/vorlagen'
   // Wissen
   | '/(focused)/wissen'
-  | '/(focused)/research'
   // Auth routes
   | '/(auth)/login'
   | '/(auth)/onboarding'
@@ -34,15 +31,8 @@ export type AppRoute =
   | '/(focused)/agents'
   | '/(focused)/projekte'
   | '/(focused)/bild-editor'
-  | '/(focused)/image-studio-create/image'
-  | '/(focused)/image-studio-create/style'
-  | '/(focused)/image-studio-create/ki-input'
-  | '/(focused)/image-studio-create/template-input'
-  | '/(focused)/image-studio-create/result'
   // Fullscreen routes
-  | '/(fullscreen)/subtitle-editor'
-  | '/(fullscreen)/image-studio-editor'
-  | '/(fullscreen)/webview-editor';
+  | '/(fullscreen)/subtitle-editor';
 
 /**
  * Modal routes that accept parameters

@@ -22,9 +22,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useReduceTransparency } from '../../hooks/useAccessibilityPreferences';
 import { DEV_AUTH_BYPASS } from '../../services/devAuth';
 import { DEV_FIXTURE_COLLECTION, devResearchDocument } from '../../services/devResearchFixture';
-import { BODY_FONT, borderRadius, spacing, typography } from '../../theme';
+import { BODY_FONT, borderRadius, darkTheme, lightTheme, spacing, typography } from '../../theme';
 import { getSurfaceFab } from '../../theme/toolTheme';
 
 import type { Theme } from '../../theme/colors';
@@ -354,6 +355,15 @@ function StepperSurface({
   bottom: number;
   children: ReactNode;
 }) {
+  const reduceTransparency = useReduceTransparency();
+  if (reduceTransparency) {
+    const backgroundColor = (dark ? darkTheme : lightTheme).card;
+    return (
+      <View style={[styles.stepper, styles.stepperBlur, { bottom, backgroundColor }]}>
+        {children}
+      </View>
+    );
+  }
   if (Platform.OS === 'ios' && isLiquidGlassAvailable()) {
     return <GlassView style={[styles.stepper, { bottom }]}>{children}</GlassView>;
   }
