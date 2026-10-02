@@ -747,7 +747,8 @@ function composeSlide(
           // Few points carry a demands slide on their own — they grow with it.
           const wantedSize = Math.round((item.items.length <= 3 ? 54 : 46) * Math.min(scale, 1.3));
           const isPlain = isAt && !onLight;
-          const listWidth = isPlain ? column.width : column.width - 2 * 46;
+          const pad = 46;
+          const listWidth = isPlain ? column.width : column.width - 2 * pad;
           const size = largestSizeWordsFit(
             item.items,
             wantedSize,
@@ -768,7 +769,6 @@ function composeSlide(
             });
             break;
           }
-          const pad = 46;
           const inner = column.width - 2 * pad;
           const body = item.items.map((i) => `• ${i}`).join('\n');
           const lines = lineCount(body, inner, size, theme.fonts.body, 'normal', cardAccent);

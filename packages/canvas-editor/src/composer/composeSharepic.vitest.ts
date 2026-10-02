@@ -482,10 +482,10 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — space use (%s)',
     { type: 'dachzeile', text: 'Kurz' },
     { type: 'button', text: 'Mehr' },
   ];
+  const { stoerer: _stoerer, ...fotoWithoutStoerer } = fotoSlide;
   const fotoShort = (position: SharepicSlide['position']): SharepicSlide => ({
-    ...fotoSlide,
+    ...fotoWithoutStoerer,
     position,
-    stoerer: undefined,
     logo: false,
     items: shortBlock,
   });
@@ -528,6 +528,27 @@ describe.each(['de-DE', 'de-AT'] as const)('composeSharepic — space use (%s)',
   it('grows a headline-only slide', () => {
     const props = one(farbe([{ type: 'headline', lines: ['Ja'] }]));
     expect(byId(props.additionalTexts, 'headline-0')!.fontSize).toBeGreaterThan(190);
+  });
+
+  it('keeps a short photo headline clear of the logo', () => {
+    for (const position of ['oben', 'mitte', 'unten'] as const) {
+      const props = one({
+        ...fotoWithoutStoerer,
+        position,
+        logo: true,
+        items: [{ type: 'headline', lines: ['Ja', 'Nein'] }],
+      });
+      const logo = props.assetInstances[0]!;
+      // x/y is the centre; heights as in LOGO of the composer.
+      const logoHeight = locale === 'de-AT' ? (240 * 1239) / 1410 : 150;
+      const logoTop = logo.y - logoHeight / 2;
+      const bottom = Math.max(
+        ...props.additionalTexts
+          .filter((t) => t.id.includes('headline'))
+          .map((t) => t.y + t.text.split('\n').length * t.fontSize * (t.lineHeight ?? 1))
+      );
+      expect(bottom, `${locale} ${position}`).toBeLessThanOrEqual(logoTop);
+    }
   });
 
   it('grows the text of a short headline + text + button slide above 42', () => {
