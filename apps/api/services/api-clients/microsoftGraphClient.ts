@@ -32,9 +32,16 @@ function validateGraphId(id: string, label: string): string {
 const MAX_LIST_ITEMS = 1000;
 
 /**
- * Follows `@odata.nextLink` up to the cap. The link comes from the response and
- * gets the bearer token attached, so it must point back at Graph.
+ * `@odata.nextLink` comes from the response and gets the bearer token attached:
+ * only its path+query is kept, re-rooted on the constant Graph base.
  */
+function graphNextUrl(nextLink: string): string {
+  const prefix = `${GRAPH_API}/`;
+  if (!nextLink.startsWith(prefix)) throw new Error('Unexpected Graph nextLink host');
+  return `${GRAPH_API}/${nextLink.slice(prefix.length)}`;
+}
+
+/** Follows `@odata.nextLink` up to the cap. */
 export async function listDriveItems(
   token: string,
   folderId?: string
@@ -43,20 +50,21 @@ export async function listDriveItems(
   const path = folderId ? `/me/drive/items/${folderId}/children` : '/me/drive/root/children';
   const items: MicrosoftDriveItem[] = [];
   let url: string | null = `${GRAPH_API}${path}`;
+  let nextLink: string | null = null;
   let params: Record<string, string | number> | undefined = {
     $select: 'id,name,size,lastModifiedDateTime,webUrl,file,folder',
     $top: 200,
     $orderby: 'name',
   };
   while (url && items.length < MAX_LIST_ITEMS) {
-    if (!url.startsWith(`${GRAPH_API}/`)) throw new Error('Unexpected Graph nextLink host');
     const response = await axios.get(url, { headers: authHeaders(token), params });
     const parsed = graphDriveItemListResponseSchema.parse(response.data);
     items.push(...parsed.value);
-    url = parsed['@odata.nextLink'] ?? null;
+    nextLink = parsed['@odata.nextLink'] ?? null;
+    url = nextLink ? graphNextUrl(nextLink) : null;
     params = undefined;
   }
-  return { items, nextLink: url };
+  return { items, nextLink };
 }
 
 export async function getDriveItem(token: string, itemId: string): Promise<MicrosoftDriveItem> {
