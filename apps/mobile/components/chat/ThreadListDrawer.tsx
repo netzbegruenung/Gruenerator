@@ -13,7 +13,6 @@ import { type ReactElement, memo, useCallback, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { isWorkplaceLayout } from '../../config/navLayout';
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useTheme } from '../../hooks/useTheme';
 import { useSettingsSheetStore } from '../../stores/settingsSheetStore';
@@ -21,11 +20,12 @@ import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { DRAWER_MESH } from '../../theme/chatBackgrounds';
 import { route, routeWithParams, type AppRoute } from '../../types/routes';
+import { goHome } from '../../utils/navigation';
 import { threadRoute } from '../../utils/threadRoute';
 import { ProfileAvatar } from '../common';
 import { MeshSurface } from '../common/MeshSurface';
 import { MenuIcon } from '../icons/WebMirrorIcons';
-import { STUDIO_TOOLS, TOOLS, type ToolDef } from '../tools/toolsConfig';
+import { STUDIO_TOOLS, type ToolDef } from '../tools/toolsConfig';
 
 import { asThreadMenuId, buildThreadMenuActions } from './menuActions';
 import { MenuActionSheet } from './MenuActionSheet';
@@ -374,18 +374,13 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   const openSettings = useSettingsSheetStore((s) => s.open);
   const activeThreadId = useAuiState((s) => s.threadListItem.id);
   const favouriteIds = useToolFavoritesStore((s) => s.favorites);
-  // Top-level tools, plus any favourited Studio sub-tool so starring one does not
-  // make it disappear from here. Starred entries sort to the top. The workplace
-  // shell has the top-level tools as tiles on Arbeiten, so it lists only the
-  // starred Studio tools.
+  // The starred Studio tools, in the order they were starred. The top-level
+  // tools are tiles on Arbeiten, not entries here.
   const tools = useMemo(() => {
-    const rank = (t: ToolDef) => {
-      const i = favouriteIds.indexOf(t.id);
-      return i === -1 ? favouriteIds.length : i;
-    };
-    const studioFavourites = STUDIO_TOOLS.filter((t) => favouriteIds.includes(t.id));
-    const topLevel = isWorkplaceLayout ? [] : TOOLS;
-    return [...topLevel, ...studioFavourites].sort((a, b) => rank(a) - rank(b));
+    const rank = (t: ToolDef) => favouriteIds.indexOf(t.id);
+    return STUDIO_TOOLS.filter((t) => favouriteIds.includes(t.id)).sort(
+      (a, b) => rank(a) - rank(b)
+    );
   }, [favouriteIds]);
 
   const handleNavigate = useCallback(
@@ -446,7 +441,10 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
       <View style={[styles.header, { paddingTop: insets.top + spacing.small }]}>
         {/* The wordmark is the way home, the way it is on web. */}
         <Pressable
-          onPress={() => handleNavigate('/start')}
+          onPress={() => {
+            closeDrawer();
+            goHome();
+          }}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Zur Startseite"

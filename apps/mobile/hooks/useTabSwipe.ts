@@ -1,10 +1,5 @@
-import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
-
-import { route } from '../types/routes';
-
-import { TAB_ORDER, tabNeighbours, type TabRoute } from './tabOrder';
 
 /** How far a drag has to travel horizontally before it counts as a swipe. */
 const DISTANCE = 60;
@@ -12,7 +7,7 @@ const DISTANCE = 60;
 const VELOCITY = 550;
 
 /**
- * Horizontal swipe between the tab screens.
+ * A horizontal swipe — the workplace Chat page uses it to open the drawer.
  *
  * The offsets are what keep this from fighting the vertical lists underneath:
  * `activeOffsetX` means the gesture only claims the touch once it has clearly
@@ -56,37 +51,4 @@ export function useTabSwipe({
     if (onSwipeLeft && !onSwipeRight) pan.failOffsetX(10);
     return pan;
   }, [onSwipeLeft, onSwipeRight]);
-}
-
-/**
- * The swipe every tab screen mounts: left to the next tab, right to the previous
- * one, derived from `TAB_ORDER` so no screen has to know its neighbours.
- *
- * At the ends the gesture simply does nothing rather than wrapping around — a
- * swipe that jumps from the last tab back to the first loses the sense of a row
- * you are moving along.
- *
- * `onSwipeRightAtStart` is the exception the first tab gets: with no previous
- * tab to go to, swiping right there opens the drawer instead. That is why the
- * drawer's own swipe-to-open stays off (see `AppDrawer`) — its pan handler would
- * claim horizontal drags in BOTH directions and no tab swipe would ever fire.
- */
-export function useTabNavigationSwipe(
-  current: TabRoute,
-  { onSwipeRightAtStart }: { onSwipeRightAtStart?: () => void } = {}
-) {
-  const router = useRouter();
-  const { next, previous, inRow } = tabNeighbours(TAB_ORDER, current);
-
-  const onSwipeLeft = useMemo(
-    () => (next ? () => router.navigate(route(next)) : undefined),
-    [next, router]
-  );
-  const onSwipeRight = useMemo(
-    () =>
-      previous ? () => router.navigate(route(previous)) : inRow ? onSwipeRightAtStart : undefined,
-    [previous, router, onSwipeRightAtStart, inRow]
-  );
-
-  return useTabSwipe({ onSwipeLeft, onSwipeRight });
 }

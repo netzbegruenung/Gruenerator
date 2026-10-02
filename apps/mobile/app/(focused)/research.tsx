@@ -15,7 +15,7 @@ import {
   Modal,
 } from 'react-native';
 
-import { openUrl } from '../../../services/share';
+import { openUrl } from '../../services/share';
 import {
   colors,
   spacing,
@@ -24,9 +24,9 @@ import {
   lightTheme,
   darkTheme,
   BODY_FONT,
-} from '../../../theme';
+} from '../../theme';
 
-import type { Theme } from '../../../theme/colors';
+import type { Theme } from '../../theme/colors';
 
 // --- Types ---
 

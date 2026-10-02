@@ -92,7 +92,7 @@ export default function ResultScreen() {
 
   const handleNewGeneration = () => {
     reset();
-    router.replace(route('/(tabs)/(tools)/image-studio'));
+    router.replace(route('/(focused)/image-studio'));
   };
 
   const handleRetry = () => {
@@ -102,7 +102,7 @@ export default function ResultScreen() {
 
   useEffect(() => {
     if (!kiType) {
-      router.replace(route('/(tabs)/(tools)/image-studio'));
+      router.replace(route('/(focused)/image-studio'));
     }
   }, [kiType]);
 

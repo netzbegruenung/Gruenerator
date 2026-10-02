@@ -34,40 +34,12 @@ const SCANNER: ToolDef = {
   title: 'Scanner',
   description: 'Fotos zu Text',
   icon: toolIconKey('scanner'),
-  route: '/(tabs)/(tools)/scanner',
+  route: '/(focused)/scanner',
 };
 
 /**
- * Tools that are NOT one of the four bottom tabs. Chat, Arbeiten, Studio and
- * Wissen are everyday surfaces and live in the tab bar; what is left reaches the
- * user through the drawer and the profile menu instead. The drawer renders this
- * list, so a tool is defined once and favorited by `id` via
- * `useToolFavoritesStore`. (In the workplace shell they are tiles on Arbeiten
- * as well, see `WORKPLACE_TILES`.)
- *
- * Ids are F1 frozen: the favourites store persists them, so they keep their
- * spelling even where the title changed (`agents` is titled "Agentura" now, and
- * `ki-bildgenerierung` is web's `canvas-ki`).
- */
-export const TOOLS: ToolDef[] = [
-  AGENTURA,
-  PROJEKTE,
-  SCANNER,
-  // Websuche is parked: `/(tabs)/(recherche)/research` is reachable from the
-  // Wissen tab, and a second entry point earned its own tile only on web.
-  // {
-  //   id: 'suche',
-  //   title: 'Websuche',
-  //   description: 'Recherche im Netz',
-  //   icon: 'search',
-  //   route: '/(tabs)/(recherche)/research',
-  // },
-];
-
-/**
- * The Studio tab's own tools, mirroring web's /studio landing strip. Separate
- * from `TOOLS` because Studio is a tab: these are what its screen shows, not
- * drawer entries.
+ * The Studio tools, mirroring web's /studio landing strip: the create menu on
+ * Arbeiten, and the drawer once starred.
  */
 export const STUDIO_TOOLS: ToolDef[] = [
   {
@@ -75,7 +47,7 @@ export const STUDIO_TOOLS: ToolDef[] = [
     title: 'Vorlagen',
     description: 'Design-Vorlagen',
     icon: toolIconKey('vorlagen'),
-    route: '/(tabs)/(tools)/vorlagen',
+    route: '/(focused)/vorlagen',
   },
   {
     id: 'ki-bildgenerierung',
@@ -89,7 +61,7 @@ export const STUDIO_TOOLS: ToolDef[] = [
     title: 'Reel',
     description: 'Untertitel für Clips',
     icon: toolIconKey('reel'),
-    route: '/(tabs)/(tools)/reel',
+    route: '/(focused)/reel',
   },
 ];
 
@@ -104,9 +76,11 @@ export const STUDIO_TOOL_GLYPHS: Record<string, IoniconsIconName> = {
 };
 
 /**
- * The tile row on top of Arbeiten in the workplace shell (`config/navLayout`),
- * in web's order (Agentura, Wissen, Projekte). Wissen stands in for the tab it
- * was; Scanner has no web tile but is the one mobile-only tool.
+ * The tile row on top of Arbeiten, in web's order (Agentura, Wissen, Projekte).
+ * Scanner has no web tile but is the one mobile-only tool.
+ *
+ * Ids are F1 frozen: the favourites store persists them, so they keep their
+ * spelling even where the title changed (`agents` is titled "Agentura" now).
  */
 export const WORKPLACE_TILES: ToolDef[] = [
   AGENTURA,
@@ -115,11 +89,8 @@ export const WORKPLACE_TILES: ToolDef[] = [
     title: 'Wissen',
     description: 'Recherche & Notebooks',
     icon: toolIconKey('wissen'),
-    route: '/(tabs)/(recherche)',
+    route: '/(focused)/wissen',
   },
   PROJEKTE,
   SCANNER,
 ];
-
-/** Every tool a favourite can point at — drawer entries plus the Studio tab. */
-export const ALL_TOOLS: ToolDef[] = [...TOOLS, ...STUDIO_TOOLS];

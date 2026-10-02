@@ -19,17 +19,10 @@ import {
   Alert,
 } from 'react-native';
 
-import { SkeletonTiles } from '../../../../components/common';
-import { SharedMediaImage } from '../../../../components/common/SharedMediaImage';
-import { shareImage } from '../../../../services/imageStudio';
-import {
-  colors,
-  spacing,
-  borderRadius,
-  lightTheme,
-  darkTheme,
-  typography,
-} from '../../../../theme';
+import { SkeletonTiles } from '../../../components/common';
+import { SharedMediaImage } from '../../../components/common/SharedMediaImage';
+import { shareImage } from '../../../services/imageStudio';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../../theme';
 
 const ITEM_GAP = spacing.small;
 

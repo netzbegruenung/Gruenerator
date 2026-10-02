@@ -66,7 +66,7 @@ export default function NotebookDetailScreen() {
       })}
       // A cold link opens the notebook with nothing beneath it; Wissen is where
       // a notebook is opened from.
-      onBack={() => goBackOr(route('/(tabs)/(recherche)'))}
+      onBack={() => goBackOr(route('/(focused)/wissen'))}
       // Like web's Wissen composer: sources from every notebook at once.
       headerRight={
         <Pressable

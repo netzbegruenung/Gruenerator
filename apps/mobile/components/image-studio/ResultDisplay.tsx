@@ -182,7 +182,7 @@ export function ResultDisplay({
 
         {autoSaveStatus === 'saved' && shareToken && (
           <Pressable
-            onPress={() => router.push('/(tabs)/(tools)/image-studio/gallery')}
+            onPress={() => router.push('/(focused)/image-studio/gallery')}
             accessibilityRole="button"
             accessibilityLabel="Galerie öffnen"
             style={({ pressed }) => [
