@@ -107,3 +107,8 @@ export function getSurfaceFab(surface: FabSurface, isDark: boolean): FabTone {
   const pair = SURFACE_FAB[surface];
   return isDark ? pair.dark : pair.light;
 }
+
+/** The notebook composer's accent — web's `NOTEBOOK_COMPOSER_ACCENT` (#D6006E,
+ *  the omni composer's submit), in place of the app green on notebook surfaces.
+ *  White on it is 5.0:1. */
+export const NOTEBOOK_COMPOSER_ACCENT = '#D6006E';

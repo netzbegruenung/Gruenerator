@@ -29,6 +29,7 @@ export function BottomComposerBar({
   submitAs,
   showMentions,
   accessory,
+  accentColor,
   header,
 }: {
   placeholder?: string;
@@ -45,6 +46,7 @@ export function BottomComposerBar({
   submitAs?: ComposerProps['submitAs'];
   showMentions?: ComposerProps['showMentions'];
   accessory?: ComposerProps['accessory'];
+  accentColor?: ComposerProps['accentColor'];
   /** Rides on top of the composer, up with the keyboard (filter chips, a hint). */
   header?: ReactNode;
 }) {
@@ -98,6 +100,7 @@ export function BottomComposerBar({
           submitAs={submitAs}
           showMentions={showMentions}
           accessory={accessory}
+          accentColor={accentColor}
         />
       </View>
     </KeyboardAvoidingView>
