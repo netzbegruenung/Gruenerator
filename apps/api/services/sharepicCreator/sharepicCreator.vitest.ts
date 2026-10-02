@@ -39,8 +39,17 @@ describe('catalog', () => {
   });
 
   it('keeps tag and plural matches', () => {
-    expect(searchStockPhotos('city trees').length).toBeGreaterThan(0);
-    expect(searchStockPhotos('bicycle lane city').length).toBeGreaterThan(0);
+    expect(searchStockPhotos('city trees')[0].tags).toContain('trees');
+    const bike = searchStockPhotos('bicycle lane city')[0].tags;
+    expect(bike.some((t) => /bicycle|bike/.test(t))).toBe(true);
+  });
+
+  it('accepts two distinct alt-text words as a fit', () => {
+    const hits = searchStockPhotos('dry cracked earth');
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits[0].tags).toContain('drought');
+    expect(searchStockPhotos('asphalt construction')).toEqual([]);
+    expect(searchStockPhotos('Kassel city')).toEqual([]);
   });
 });
 
