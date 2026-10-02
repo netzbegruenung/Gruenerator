@@ -176,10 +176,12 @@ export function NotebookStartpage({
           </div>
         </div>
         <div className={cn('w-full max-w-2xl', NOTEBOOK_COMPOSER_ACCENT)}>
+          {/* With live hits the filters sit in the hit list's toolbar; the
+              settings menu keeps them only where there is no list. */}
           <NotebookComposer
             placeholder={placeholder}
-            sourceFilters={composerSourceFilters}
-            categoryFilters={composerCategoryFilters}
+            sourceFilters={liveSearch ? undefined : composerSourceFilters}
+            categoryFilters={liveSearch ? undefined : composerCategoryFilters}
             mode={mode}
             onModeChange={onModeChange}
             answerMode={answerMode}
@@ -206,6 +208,7 @@ export function NotebookStartpage({
             collectionIds={recentCollectionIds}
             {...(manualSearchNotebookId ? { notebookId: manualSearchNotebookId } : {})}
             {...(composerCategoryFilters ? { sharedFilters: composerCategoryFilters } : {})}
+            {...(composerSourceFilters ? { sourceFilters: composerSourceFilters } : {})}
             emptyHint={
               answerMode === 'manuell' || magicIntent === 'suche'
                 ? 'Keine Treffer. Versuche andere Begriffe oder entferne Filter.'
