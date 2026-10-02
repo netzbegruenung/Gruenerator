@@ -46,7 +46,6 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
     XAxis,
     YAxis,
     CartesianGrid,
-    Legend,
     LabelList,
   } = recharts;
   const { width, height, data, colors, chartType, showGrid, showLegend, showValues } = chart;
@@ -167,7 +166,6 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
         {showGrid ? <CartesianGrid strokeDasharray="3 3" stroke="#e0e0df" /> : null}
         <XAxis dataKey="name" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} />
         <YAxis tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} width={40} />
-        {showLegend ? <Legend /> : null}
         {series}
       </Wrapper>
     );
@@ -208,7 +206,6 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
           <YAxis tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} width={40} />
         </>
       )}
-      {showLegend ? <Legend /> : null}
       <Bar
         dataKey="value"
         isAnimationActive={false}
