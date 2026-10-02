@@ -90,6 +90,16 @@ function textsOf(slide: SharepicSlide): string[] {
   return texts;
 }
 
+/**
+ * The brief is a quote when it says "Zitat" and carries a quoted passage.
+ * Straight quotes must open after whitespace, so a revision's JSON
+ * (`"text":"…"`) does not count.
+ */
+const QUOTED_PASSAGE = /„[^“”"]{8,}[“”"]|»[^«]{8,}«|(?:^|\s)"[^"]{8,}"/;
+export function isQuoteBrief(given: string): boolean {
+  return /\bZitat\b/.test(given) && QUOTED_PASSAGE.test(given);
+}
+
 const NUMBER = /\d+(?:[.,]\d+)*/g;
 /** `3.300` and `3300` are the same number — compare digits only. */
 const digits = (value: string) => value.replace(/[.,]/g, '');
@@ -110,6 +120,23 @@ export function validateDraft(
   });
   if (!base.ok) return base;
   const errors: string[] = [];
+  if (isQuoteBrief(given)) {
+    const zitate = base.value.slides.flatMap((slide) =>
+      slide.items.filter((item) => item.type === 'zitat')
+    );
+    if (!zitate.length) {
+      errors.push(
+        'Der Auftrag ist ein Zitat: nimm ein zitat-Element mit text (wörtlich) und name (die Person aus dem Auftrag) – keine headline.'
+      );
+    }
+    for (const zitat of zitate) {
+      if (!given.includes(zitat.name)) {
+        errors.push(
+          `Der Name "${zitat.name}" steht nicht im Auftrag – nimm die Person, die dort als Sprecher*in genannt ist.`
+        );
+      }
+    }
+  }
   const givenDigits = new Set((given.match(NUMBER) ?? []).map(digits));
   base.value.slides.forEach((slide, s) => {
     const where = base.value.slides.length > 1 ? `Slide ${s + 1}: ` : '';

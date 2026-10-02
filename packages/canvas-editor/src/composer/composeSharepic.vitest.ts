@@ -307,6 +307,31 @@ describe('composeSharepic — carousels', () => {
   });
 });
 
+describe('composeSharepic — zitat', () => {
+  it.each(['de-DE', 'de-AT'] as const)('renders the speaker name for %s', (locale) => {
+    const props = composeSharepic(
+      carousel(locale, [
+        farbe(
+          [
+            {
+              type: 'zitat',
+              text: 'Wer heute beim **Klimaschutz** spart, zahlt morgen doppelt.',
+              name: 'Sabine Moser',
+              funktion: 'Spitzenkandidatin',
+            },
+          ],
+          { position: 'unten', align: 'links' }
+        ),
+      ]),
+      options
+    ).slides[0]!;
+    const name = byId(props.additionalTexts, '-name');
+    expect(name?.text).toBe('**Sabine Moser**\nSpitzenkandidatin');
+    const quote = props.additionalTexts.find((t) => t.text.includes('Klimaschutz'));
+    expect(name!.y).toBeGreaterThan(quote!.y);
+  });
+});
+
 describe('balancedWrap', () => {
   it('keeps the line count but leaves no lone word', () => {
     const text = 'Daria pflegt ihre Mutter. Jeden Tag.';

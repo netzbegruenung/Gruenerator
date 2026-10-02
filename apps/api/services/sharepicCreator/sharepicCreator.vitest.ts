@@ -231,3 +231,96 @@ describe('accent marks', () => {
     }
   });
 });
+
+describe('quotes keep their speaker', () => {
+  const quoteBrief =
+    'Zitat unserer Spitzenkandidatin Sabine Moser: „Wer heute beim Klimaschutz spart, zahlt morgen doppelt.“';
+  const base = {
+    background: { kind: 'farbe', color: 'tanne' },
+    position: 'mitte',
+    align: 'links',
+    logo: true,
+  };
+  const headlineDraft = {
+    slides: [
+      {
+        ...base,
+        items: [{ type: 'headline', lines: ['Wer heute spart,', 'zahlt morgen doppelt'] }],
+      },
+    ],
+  };
+  const quoteDraft = (name: string) => ({
+    slides: [
+      {
+        ...base,
+        items: [
+          {
+            type: 'zitat',
+            text: 'Wer heute beim **Klimaschutz** spart, zahlt morgen doppelt.',
+            name,
+          },
+        ],
+      },
+    ],
+  });
+
+  it('rejects a headline draft when the brief is a quote', () => {
+    const result = validateDraft(headlineDraft, 'de-DE', quoteBrief);
+    expect(!result.ok && result.error).toContain('zitat');
+    const at = validateDraft(
+      {
+        slides: [
+          { ...headlineDraft.slides[0], background: { kind: 'farbe', color: 'dunkelgruen' } },
+        ],
+      },
+      'de-AT',
+      quoteBrief
+    );
+    expect(!at.ok && at.error).toContain('zitat');
+  });
+
+  it('accepts a zitat with the named speaker and rejects an invented name', () => {
+    expect(validateDraft(quoteDraft('Sabine Moser'), 'de-DE', quoteBrief).ok).toBe(true);
+    const invented = validateDraft(quoteDraft('Anna Muster'), 'de-DE', quoteBrief);
+    expect(!invented.ok && invented.error).toContain('Anna Muster');
+  });
+
+  it('does not force a zitat on briefs that are not quotes', () => {
+    expect(validateDraft(headlineDraft, 'de-AT', 'Mehr Bäume für Graz').ok).toBe(true);
+    expect(validateDraft(headlineDraft, 'de-AT', 'Zitat-Karte gewünscht, Text offen').ok).toBe(
+      true
+    );
+  });
+
+  it('drops review ops that would turn a zitat into a headline or remove it', () => {
+    const slides = [
+      { ...base, items: [{ type: 'zitat', text: 'x', name: 'Sabine Moser' }] },
+    ] as never;
+    const patch = [
+      { op: 'set_headline', item: 0, lines: ['Wer heute', 'spart'] },
+      { op: 'remove_item', item: 0 },
+      { op: 'set_position', position: 'unten' },
+    ];
+    const result = validateReview({ ok: false, issues: [], patch }, [1], slides);
+    expect(result.ok && result.value.patch).toEqual([{ op: 'set_position', position: 'unten' }]);
+  });
+
+  it('keeps removals of other items and of a second zitat', () => {
+    const slides = [
+      {
+        ...base,
+        items: [
+          { type: 'zitat', text: 'x', name: 'A' },
+          { type: 'text', text: 'y' },
+          { type: 'zitat', text: 'z', name: 'B' },
+        ],
+      },
+    ] as never;
+    const patch = [
+      { op: 'remove_item', item: 1 },
+      { op: 'remove_item', item: 2 },
+    ];
+    const result = validateReview({ ok: false, issues: [], patch }, [3], slides);
+    expect(result.ok && result.value.patch).toHaveLength(2);
+  });
+});

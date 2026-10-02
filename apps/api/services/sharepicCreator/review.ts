@@ -8,6 +8,7 @@
  */
 import {
   type SharepicReviewResponse,
+  type SharepicSlide,
   type SharepicSpec,
   sharepicReviewResponseSchema,
   hasUnpairedAccentMark,
@@ -46,6 +47,7 @@ Ist alles gut: ok = true, issues und patch leer. Sonst issues = höchstens 3 kur
 - {"op":"use_color","color":…} – das Foto passt nicht zum Thema: stattdessen Markenfarbe
 Diese Elemente SIND Corporate Design und kein Fehler: der Datumskreis (Deutschland himmelblau, Österreich magenta), der Störer-Kreis (magenta), der Lime-Marker hinter einer Headline-Zeile und lime Einzelwörter (Deutschland), weiße und grüne Zeilenboxen (Deutschland), gelbe kursive Wörter oder Zeilen (Österreich), der Farbverlauf über dem Foto, die Farbfläche, die ins Foto ausblendet, der Weiter-Pfeil unten rechts auf allen Slides außer der letzten, die kleine Quellenzeile.
 In Karussells sind Slides ohne Headline gewollt: Geschichte, Kontext und Kritik stehen dort als Absätze (absatz), oft in Zeilenboxen. Mach daraus keine Headline – kürze höchstens den Text.
+Ein Zitat (zitat) bleibt ein Zitat mit seinem Namen: mach es nie zur Headline und lass es nie weg.
 Erfinde keine neuen Inhalte. Ändere nichts, was gut ist. Melde nur, was man sieht. Schlage nichts vor, was du schon einmal vorgeschlagen hast.`;
 
 const REVIEW_SCHEMA = {
@@ -75,9 +77,28 @@ function normalizePatch(input: unknown): unknown {
   return { ...input, patch };
 }
 
+/**
+ * A quote that becomes a headline loses its speaker; one that is removed loses
+ * the point of the slide. Both are dropped, silently, like any other bad op.
+ */
+function protectsZitat(
+  op: SharepicReviewResponse['patch'][number],
+  slides: SharepicSlide[]
+): boolean {
+  if (op.op !== 'set_headline' && op.op !== 'remove_item') return false;
+  if (op.item === undefined) return false;
+  const target = slides[op.slide ?? 0]?.items[op.item];
+  if (target?.type !== 'zitat') return false;
+  if (op.op === 'set_headline') return true;
+  const zitate = slides.flatMap((s) => s.items).filter((i) => i.type === 'zitat').length;
+  return zitate === 1;
+}
+
+/** `slides` (the draft the review looked at) lets the review protect its quotes. */
 export function validateReview(
   input: unknown,
-  itemCounts: number[]
+  itemCounts: number[],
+  slides: SharepicSlide[] = []
 ): StructuredValidation<SharepicReviewResponse> {
   const parsed = sharepicReviewResponseSchema.safeParse(normalizePatch(input));
   if (!parsed.success) {
@@ -106,7 +127,8 @@ export function validateReview(
       return { ok: false, error: `Slide ${slide} hat nur die items 0 bis ${count - 1}.` };
     }
   }
-  return { ok: true, value: { ...parsed.data, issues: parsed.data.issues.slice(0, 3) } };
+  const patch = parsed.data.patch.filter((op) => !protectsZitat(op, slides));
+  return { ok: true, value: { ...parsed.data, issues: parsed.data.issues.slice(0, 3), patch } };
 }
 
 async function toJpegBase64(dataUrl: string): Promise<string> {
@@ -158,7 +180,8 @@ export async function reviewSharepic(
       validate: (input) =>
         validateReview(
           input,
-          spec.slides.map((slide) => slide.items.length)
+          spec.slides.map((slide) => slide.items.length),
+          spec.slides
         ),
       maxOutputTokens: 1500,
       label: 'sharepicCreator:review',
