@@ -190,7 +190,11 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
     );
 
     // Generate image with user's chosen model
-    const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
+    const flux = await FluxImageService.create(
+      userModel.backend,
+      userModel.modelPath,
+      userModel.resolution
+    );
     const { stored } = await flux.generateFromPrompt(fluxPrompt, {
       width: dimensions.width,
       height: dimensions.height,
